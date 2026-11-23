@@ -5161,6 +5161,7 @@ translations:
   The printer did not report its toolhead limits.: ''
   The printer did not reset the filter: ''
   The printer did not say whether it is printing. Try again.: ''
+  The printer did not start the tower.: ''
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: ''
   The printer finishes this measurement on its own.: ''
   The printer halted this print and cannot resume it. Restart from the beginning?: ''
@@ -5352,6 +5353,7 @@ translations:
   This doesn't match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?: ''
   This dryer cannot run while filament from the unit is loaded: ''
   Failed to start. See the Moonraker log.: ""
+  This extruder runs the nonlinear model, so the tower sweeps its linear advance, not a classic K.: ''
   This feature requires different hardware or configuration: ''
   Stopped. Restart Moonraker to start it again.: ""
   This filament system does not report buffer or flow data.: ''
@@ -6177,6 +6179,8 @@ translations:
   past last time’s position: ''
   plate must be clear: ''
   preparing: ''
+  ? pressure_advance is set for this extruder somewhere the save did not reach, such as another included file. Comment it out there and save again.
+  : ''
   printer default: ''
   printer.cfg: ''
   printer.cfg loads more than {} config files; [{}] was not searched for in all of them: ''

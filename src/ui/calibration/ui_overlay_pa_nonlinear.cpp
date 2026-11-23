@@ -11,6 +11,7 @@
 #include "app_globals.h"
 #include "bed_plate_context.h"
 #include "core/observer_factory.h"
+#include "core/run_after.h"
 #include "i_moonraker_api.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
@@ -28,6 +29,17 @@ namespace {
 
 /// The firmware tower's default height: the top of what a pass can judge.
 constexpr float kTowerHeightMm = 50.0f;
+
+/// What a failed save says. Klipper refusing an option no model reads is
+/// almost always a pressure_advance set for this extruder in another file.
+std::string save_error_text(const std::string& err) {
+    if (err.find("pressure_advance") == std::string::npos) {
+        return err;
+    }
+    return err + "\n" +
+           lv_tr("pressure_advance is set for this extruder somewhere the save did not reach, "
+                 "such as another included file. Comment it out there and save again.");
+}
 
 int user_int(lv_event_t* e) {
     return helix::ui::event_user_int(e).value_or(0);
@@ -146,7 +158,17 @@ void PaNonlinearOverlay::begin(const helix::pa::TestPrintParams& params,
 
 void PaNonlinearOverlay::start(const helix::pa::TestPrintParams& params,
                                helix::pa::ExtruderKind kind) {
+    if (proc_ && (stage_ == PREPARING || stage_ == PRINTING)) {
+        // A tower is on its way: the screen comes back, the run is not replaced.
+        refresh();
+        return;
+    }
     const bool resume = proc_ && params_.heater == params.heater && kind_ == kind;
+    if (proc_ && !resume) {
+        // Another head or extruder kind: the old extruder gets its own model
+        // back before the new procedure starts.
+        restore_original();
+    }
     params_ = params;
     if (!resume) {
         kind_ = kind;
@@ -279,17 +301,16 @@ void PaNonlinearOverlay::add_tower_section() {
             self.config_editor_.safe_multi_edit(
                 *self.api_, helix::pa::kTowerSection,
                 {{helix::system::ConfigEdit::Type::ADD_KEY, key, value}},
-                [token]() {
-                    token.defer("PaNonlinearOverlay::tower_added", []() {
-                        auto& s = get_global_pa_nonlinear_overlay();
-                        s.tower_added_ = true;
-                        s.set_stage(READY);
-                        s.refresh();
+                [token, s = &self]() {
+                    token.defer("PaNonlinearOverlay::tower_added", [s]() {
+                        s->tower_added_ = true;
+                        s->set_stage(READY);
+                        s->refresh();
                     });
                 },
-                [token](const std::string& err) {
+                [token, s = &self](const std::string& err) {
                     token.defer("PaNonlinearOverlay::tower_add_failed",
-                                [err]() { get_global_pa_nonlinear_overlay().fail(err); });
+                                [err, s]() { s->fail(err); });
                 });
         },
         owned_confirm());
@@ -334,6 +355,8 @@ void PaNonlinearOverlay::print_pass() {
     script += helix::pa::print_tower_gcode(params_.nozzle_diameter_mm, params_.nozzle_temp, 0);
 
     saw_printing_ = false;
+    script_done_ = false;
+    const int pass_seq = ++pass_seq_;
     lv_subject_set_string(&error_, "");
     lv_subject_set_string(&live_text_, lv_tr("Heating and homing"));
     lv_subject_set_string(&live_value_, "--");
@@ -341,14 +364,16 @@ void PaNonlinearOverlay::print_pass() {
     begin_observing();
     spdlog::info("[{}] Pass {} on {}: {}", get_name(), proc_->pass_number(), params_.heater,
                  helix::pa::tuning_tower_gcode(proc_->current().sweep));
-    api_->execute_gcode(
-        script, []() {},
-        object_lifetime_.bg_cb("PaNonlinearOverlay::start_failed",
-                               [this](const MoonrakerError& err) {
-                                   stop_observing();
-                                   fail(err.message);
-                               }),
-        IMoonrakerAPI::kPreStartMacroTimeoutMs, false, nullptr, true);
+    api_->execute_gcode(script,
+                        object_lifetime_.bg_cb("PaNonlinearOverlay::script_done",
+                                               [this, pass_seq]() { on_script_done(pass_seq); }),
+                        object_lifetime_.bg_cb("PaNonlinearOverlay::start_failed",
+                                               [this](const MoonrakerError& err) {
+                                                   stop_observing();
+                                                   send_ending(false);
+                                                   fail(err.message);
+                                               }),
+                        IMoonrakerAPI::kPreStartMacroTimeoutMs, false, nullptr, true);
 }
 
 // ============================================================================
@@ -405,7 +430,10 @@ void PaNonlinearOverlay::on_print_state(PrintJobState state) {
         }
         return;
     }
-    if (!saw_printing_) {
+    // Before the script returns, the state showing is the previous pass's.
+    // After it, the firmware's own refusal (its temperature check runs once
+    // the tower starts) can arrive as an end with no printing frame before it.
+    if (!saw_printing_ && !(script_done_ && ours)) {
         return;
     }
     stop_observing();
@@ -420,15 +448,41 @@ void PaNonlinearOverlay::on_print_state(PrintJobState state) {
     refresh();
 }
 
+void PaNonlinearOverlay::on_script_done(int pass_seq) {
+    if (pass_seq != pass_seq_ || stage_ != PREPARING) {
+        return;
+    }
+    script_done_ = true;
+    // PRINT_PA_TOWER returned; the tower should be printing within moments.
+    auto token = object_lifetime_.token();
+    helix::run_after_ms(kTowerStartTimeoutMs, [token, pass_seq, this]() {
+        token.defer("PaNonlinearOverlay::tower_start_timeout", [pass_seq, this]() {
+            if (pass_seq != pass_seq_ || stage_ != PREPARING || saw_printing_) {
+                return;
+            }
+            stop_observing();
+            send_ending(false);
+            fail(lv_tr("The printer did not start the tower."));
+        });
+    });
+}
+
 void PaNonlinearOverlay::finish_tower() {
+    send_ending(true);
+}
+
+void PaNonlinearOverlay::send_ending(bool release_machine) {
     if (!api_ || !proc_) {
         return;
     }
-    // The sweep leaves its last height's value behind; the procedure's own
-    // values go back before the machine is released.
-    std::string script = helix::pa::set_nonlinear_gcode(params_.heater, proc_->values());
-    for (const auto& line : helix::pa::machine_finish_lines(params_)) {
-        script += "\n" + line;
+    // The sweep would otherwise run through the next print, and leaves its
+    // last height's value behind: both go before anything else.
+    std::string script = helix::pa::disarm_tuning_tower_gcode() + "\n" +
+                         helix::pa::set_nonlinear_gcode(params_.heater, proc_->values());
+    if (release_machine) {
+        for (const auto& line : helix::pa::machine_finish_lines(params_)) {
+            script += "\n" + line;
+        }
     }
     api_->execute_gcode(
         script, []() {},
@@ -531,6 +585,7 @@ void PaNonlinearOverlay::save_to_config() {
     std::vector<helix::system::ExpectedSetting> expected;
     for (const auto& k : helix::pa::nonlinear_config_keys(proc_->values())) {
         if (k.comment_out) {
+            // REMOVE_KEY comments the line out on both edit routes; nothing is deleted.
             edits.push_back({helix::system::ConfigEdit::Type::REMOVE_KEY, k.key, ""});
         } else {
             edits.push_back({helix::system::ConfigEdit::Type::ADD_KEY, k.key, k.value});
@@ -543,21 +598,19 @@ void PaNonlinearOverlay::save_to_config() {
     auto token = object_lifetime_.token();
     config_editor_.safe_multi_edit(
         *api_, params_.heater, edits,
-        [token]() {
+        [token, this]() {
             helix::ui::queue_update("PaNonlinearOverlay::saved_toast", []() {
                 ToastManager::instance().show(ToastSeverity::SUCCESS,
                                               lv_tr("Nonlinear pressure advance saved"), 2500);
             });
-            token.defer("PaNonlinearOverlay::saved",
-                        []() { get_global_pa_nonlinear_overlay().close_procedure(); });
+            token.defer("PaNonlinearOverlay::saved", [this]() { close_procedure(); });
         },
-        [token](const std::string& err) {
-            token.defer("PaNonlinearOverlay::save_failed", [err]() {
-                auto& self = get_global_pa_nonlinear_overlay();
-                self.set_stage(RESULT);
-                self.refresh();
-                if (self.subjects_initialized_) {
-                    lv_subject_set_string(&self.error_, err.c_str());
+        [token, this](const std::string& err) {
+            token.defer("PaNonlinearOverlay::save_failed", [err, this]() {
+                set_stage(RESULT);
+                refresh();
+                if (subjects_initialized_) {
+                    lv_subject_set_string(&error_, save_error_text(err).c_str());
                 }
             });
         },
@@ -569,23 +622,25 @@ void PaNonlinearOverlay::discard() {
         close();
         return;
     }
-    if (stage_ == PRINTING || stage_ == PREPARING) {
+    if (stage_ == PRINTING || (stage_ == PREPARING && !script_done_)) {
         return;
     }
-    if (api_ && !job_holds_machine(get_printer_state().print_state().get_print_lifecycle())) {
-        // Back to what the extruder ran before the procedure.
-        const std::string g = original_.nonlinear() && helix::pa::nonlinear_values(original_)
-                                  ? helix::pa::set_nonlinear_gcode(
-                                        params_.heater, *helix::pa::nonlinear_values(original_))
-                                  : helix::pa::set_linear_gcode(params_.heater, original_.k);
-        api_->execute_gcode(
-            g, []() {},
-            [](const MoonrakerError& err) {
-                spdlog::warn("[PA Nonlinear] Could not restore the original model: {}",
-                             err.message);
-            });
-    }
+    restore_original();
     close_procedure();
+}
+
+void PaNonlinearOverlay::restore_original() {
+    if (!api_ || !proc_ ||
+        job_holds_machine(get_printer_state().print_state().get_print_lifecycle())) {
+        return;
+    }
+    api_->execute_gcode(
+        helix::pa::disarm_tuning_tower_gcode() + "\n" +
+            helix::pa::restore_model_gcode(params_.heater, original_),
+        []() {},
+        [](const MoonrakerError& err) {
+            spdlog::warn("[PA Nonlinear] Could not restore the original model: {}", err.message);
+        });
 }
 
 void PaNonlinearOverlay::close_procedure() {

@@ -5010,6 +5010,7 @@
   <translation tag="The printer did not reset the filter" zh="打印机未重置滤网"/>
   <translation tag="The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting." zh="打印机尚未告知如何切换到此打印头。请在其耗材系统完成连接后重试。"/>
   <translation tag="The printer did not say whether it is printing. Try again." zh="打印机未报告是否正在打印。请重试。"/>
+  <translation tag="The printer did not start the tower." zh="打印机未启动测试塔。"/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." zh="打印机在角落挤出并重复，直到读数一致为止。你无需用肉眼判断任何东西。"/>
   <translation tag="The printer finishes this measurement on its own." zh="打印机会自行完成这次测量。"/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" zh="打印机已停止此打印且无法恢复。从头重新开始？"/>
@@ -5177,6 +5178,7 @@
   <translation tag="This doesn&apos;t match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?" zh="这与关联的 Spoolman 料盘不匹配。是否添加为新料盘，或更新关联料盘以匹配？"/>
   <translation tag="This doesn&apos;t match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?" zh="与关联的 Spoolman 料盘不匹配。在 Spoolman 中更新，还是取消关联并保留在此料位？"/>
   <translation tag="This dryer cannot run while filament from the unit is loaded" zh="此单元的耗材处于装载状态时，烘干机无法运行"/>
+  <translation tag="This extruder runs the nonlinear model, so the tower sweeps its linear advance, not a classic K." zh="此挤出机使用非线性模型，因此测试塔扫描的是其线性提前，而不是经典的 K 值。"/>
   <translation tag="This feature requires different hardware or configuration" zh="此功能需要不同的硬件或配置"/>
   <translation tag="This filament system does not report buffer or flow data." zh="此耗材系统不报告缓冲器或流量数据。"/>
   <translation tag="This filament system keeps its own spool records" zh="此耗材系统自行管理料盘记录"/>
@@ -5989,6 +5991,7 @@
   <translation tag="past last time’s position" zh="超过上次的位置"/>
   <translation tag="plate must be clear" zh="打印板必须清空"/>
   <translation tag="preparing" zh="准备中"/>
+  <translation tag="pressure_advance is set for this extruder somewhere the save did not reach, such as another included file. Comment it out there and save again." zh="此挤出机的 pressure_advance 设置在保存未覆盖的位置，例如另一个包含的文件。请在该文件中将其注释掉后重新保存。"/>
   <translation tag="printer default" zh="打印机默认"/>
   <translation tag="printer.cfg" zh="printer.cfg"/>
   <translation tag="printer.cfg loads more than {} config files; [{}] was not searched for in all of them" zh="printer.cfg 加载了超过 {} 个配置文件；未在全部文件中查找 [{}]"/>

@@ -476,7 +476,13 @@ void PaTuningOverlay::refresh_setup() {
         macros.start.empty()
             ? std::string(lv_tr("It homes and heats on its own (no start macro found)."))
             : fmt::format(fmt::runtime(lv_tr("It starts with your {} macro.")), macros.start);
-    lv_subject_set_string(&summary_, fmt::format("{} {}", summary, starts).c_str());
+    std::string text = fmt::format("{} {}", summary, starts);
+    if (get_printer_state().temperature_state().extruder_pa_model(params.heater).nonlinear()) {
+        text += " ";
+        text += lv_tr("This extruder runs the nonlinear model, so the tower sweeps its linear "
+                      "advance, not a classic K.");
+    }
+    lv_subject_set_string(&summary_, text.c_str());
 
     auto& state = get_printer_state();
     const bool busy = job_holds_machine(state.print_state().get_print_lifecycle());

@@ -192,13 +192,13 @@ TEST_CASE("Subscription: heaters narrow to {temperature, target, power}, extrude
         if (extruder) {
             for (const char* field :
                  {"pressure_advance", "pressure_advance_model", "linear_advance",
-                  "nonlinear_offset", "linearization_velocity", "time_offset", "nozzle_diameter",
-                  "nozzle_volume_type"}) {
+                  "nonlinear_offset", "linearization_velocity", "time_offset", "smooth_time",
+                  "nozzle_diameter", "nozzle_volume_type"}) {
                 CAPTURE(field);
                 REQUIRE(has_field(subs, heater, field));
             }
         }
-        REQUIRE(subs[heater].size() == (extruder ? 11u : 3u));
+        REQUIRE(subs[heater].size() == (extruder ? 12u : 3u));
     }
 }
 

@@ -117,10 +117,6 @@ TEST_CASE("pa_model: switching models at runtime names every parameter", "[pa_mo
     // A classic kind is never sent as a model name.
     v.model = ModelKind::Linear;
     CHECK(helix::pa::set_nonlinear_gcode("extruder1", v).find("MODEL=tanh") != std::string::npos);
-    CHECK(helix::pa::set_linear_gcode("extruder", 0.04f) ==
-          "SET_PRESSURE_ADVANCE EXTRUDER=extruder MODEL=linear ADVANCE=0.040000");
-    CHECK(helix::pa::set_linear_gcode("extruder", std::nullopt) ==
-          "SET_PRESSURE_ADVANCE EXTRUDER=extruder MODEL=linear ADVANCE=0.000000");
 }
 
 TEST_CASE("pa_model: the values a running nonlinear model reports", "[pa_model]") {
@@ -170,4 +166,32 @@ TEST_CASE("pa_model: saving a nonlinear model comments out pressure_advance", "[
     for (size_t i = 1; i < keys.size(); ++i) {
         CHECK_FALSE(keys[i].comment_out);
     }
+}
+
+TEST_CASE("pa_model: a restore names everything the firmware would otherwise keep", "[pa_model]") {
+    // Linear with a time offset and smoothing reported: both come back, or the
+    // tuning's values would stay on.
+    const PaModel linear = read_pa_model({{"pressure_advance_model", "linear"},
+                                          {"pressure_advance", 0.04},
+                                          {"time_offset", 0.0},
+                                          {"smooth_time", 0.04}},
+                                         {});
+    CHECK(helix::pa::restore_model_gcode("extruder", linear) ==
+          "SET_PRESSURE_ADVANCE EXTRUDER=extruder MODEL=linear ADVANCE=0.040000 "
+          "TIME_OFFSET=0.000000 SMOOTH_TIME=0.040000");
+    // Nothing reported but the model: K 0, nothing else named.
+    CHECK(helix::pa::restore_model_gcode(
+              "extruder", read_pa_model({{"pressure_advance_model", "linear"}}, {})) ==
+          "SET_PRESSURE_ADVANCE EXTRUDER=extruder MODEL=linear ADVANCE=0.000000");
+    // A nonlinear original keeps its own smoothing, not the tuning's.
+    const PaModel tanh = read_pa_model({{"pressure_advance_model", "tanh"},
+                                        {"linear_advance", 0.02},
+                                        {"nonlinear_offset", 0.1},
+                                        {"linearization_velocity", 1.0},
+                                        {"time_offset", 0.001},
+                                        {"smooth_time", 0.03}},
+                                       {});
+    CHECK(helix::pa::restore_model_gcode("extruder1", tanh) ==
+          "SET_PRESSURE_ADVANCE EXTRUDER=extruder1 MODEL=tanh ADVANCE=0.020000 OFFSET=0.100000 "
+          "VELOCITY=1.000000 TIME_OFFSET=0.001000 SMOOTH_TIME=0.030000");
 }

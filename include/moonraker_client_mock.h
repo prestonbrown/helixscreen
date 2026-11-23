@@ -2276,6 +2276,9 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         return gcode_script_history_;
     }
 
+    /// Test inspection: a TUNING_TOWER sweep of SET_PRESSURE_ADVANCE is armed.
+    bool pa_sweep_armed() const;
+
     /// Test helper: clear the recorded gcode-script history.
     void clear_gcode_script_history() {
         std::lock_guard<std::mutex> lock(gcode_history_mutex_);

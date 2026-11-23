@@ -63,6 +63,8 @@ class PaNonlinearOverlay : public OverlayBase {
   public:
     /// The print_stats filename the firmware's tower prints under.
     static constexpr const char* kTowerPrintName = "PA tower";
+    /// How long after PRINT_PA_TOWER returns the tower must be printing.
+    static constexpr uint32_t kTowerStartTimeoutMs = 30000;
 
     enum Stage : int {
         READY = 0,
@@ -155,6 +157,14 @@ class PaNonlinearOverlay : public OverlayBase {
     void stop_observing();
     void on_print_state(PrintJobState state);
     void finish_tower();
+    /// Disarm the sweep, put the procedure's values back, and with
+    /// @p release_machine run the end lines.
+    void send_ending(bool release_machine);
+    /// PRINT_PA_TOWER returned for pass @p pass_seq.
+    void on_script_done(int pass_seq);
+    /// Put the procedure's extruder back on the model it ran before.
+    void restore_original();
+
     void stop_tower();
     void raise(int attempts_left);
     static constexpr int kRaiseAttempts = 60;
@@ -179,6 +189,10 @@ class PaNonlinearOverlay : public OverlayBase {
     helix::pa::PaModel original_;
     float height_mm_ = 25.0f;
     bool saw_printing_ = false;
+    /// The current pass's script returned: PRINT_PA_TOWER was accepted.
+    bool script_done_ = false;
+    /// Increments per pass, so a late callback from an earlier pass is ignored.
+    int pass_seq_ = 0;
     bool tower_added_ = false;
     bool raise_on_start_ = true;
     helix::system::KlipperConfigEditor config_editor_;
@@ -188,7 +202,7 @@ class PaNonlinearOverlay : public OverlayBase {
     helix::Subject pass_title_{};
     char pass_title_buf_[96] = {};
     helix::Subject pass_hint_{};
-    char pass_hint_buf_[256] = {};
+    char pass_hint_buf_[384] = {};
     helix::Subject values_{};
     char values_buf_[192] = {};
     helix::Subject has_tower_{};

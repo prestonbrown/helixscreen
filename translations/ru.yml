@@ -5281,6 +5281,7 @@ translations:
   The printer did not report its toolhead limits.: 'Принтер не сообщил пределы печатающей головки.'
   The printer did not reset the filter: 'Принтер не сбросил счётчик фильтра'
   The printer did not say whether it is printing. Try again.: 'Принтер не сообщил, идёт ли печать. Повторите попытку.'
+  The printer did not start the tower.: "Принтер не запустил башню."
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: 'Принтер выдавливает пластик в углу и повторяет, пока показания не сойдутся. Ничего не нужно оценивать на глаз.'
   The printer finishes this measurement on its own.: 'Принтер завершит это измерение сам.'
   The printer halted this print and cannot resume it. Restart from the beginning?: Принтер остановил эту печать и не может её возобновить. Начать с начала?
@@ -5473,6 +5474,7 @@ translations:
   This doesn't match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?: Это не совпадает с привязанной катушкой Spoolman. Добавить как новую катушку или обновить привязанную?
   This dryer cannot run while filament from the unit is loaded: 'Сушилка не может работать, пока загружен филамент из этого узла'
   Failed to start. See the Moonraker log.: "Не удалось запустить. См. журнал Moonraker."
+  This extruder runs the nonlinear model, so the tower sweeps its linear advance, not a classic K.: "Этот экструдер работает на нелинейной модели, поэтому башня изменяет его Linear Advance, а не классический K."
   This feature requires different hardware or configuration: Для этой функции требуется другое оборудование или конфигурация
   Stopped. Restart Moonraker to start it again.: "Остановлено. Перезапустите Moonraker, чтобы запустить снова."
   This filament system does not report buffer or flow data.: Эта система филамента не сообщает данные буфера и потока.
@@ -6305,6 +6307,8 @@ translations:
   past last time’s position: "дальше положения прошлого раза"
   plate must be clear: пластина должна быть пустой
   preparing: подготовка
+  ? pressure_advance is set for this extruder somewhere the save did not reach, such as another included file. Comment it out there and save again.
+  : "pressure_advance для этого экструдера задан там, куда сохранение не дошло, например в другом подключённом файле. Закомментируйте его там и сохраните снова."
   printer default: по умолчанию для принтера
   printer.cfg: printer.cfg
   printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg загружает более {} файлов конфигурации; [{}] искали не во всех"

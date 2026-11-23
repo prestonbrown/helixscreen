@@ -280,7 +280,7 @@ class PaTuningOverlay : public OverlayBase {
     helix::Subject end_k_{};
     char end_k_buf_[16] = {};
     helix::Subject summary_{};
-    char summary_buf_[384] = {};
+    char summary_buf_[640] = {};
     helix::Subject can_start_{};
     helix::Subject nl_available_{};
     helix::Subject nl_mode_{};

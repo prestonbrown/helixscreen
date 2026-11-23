@@ -5010,6 +5010,7 @@
   <translation tag="The printer did not reset the filter" ja="プリンターがフィルターをリセットしませんでした"/>
   <translation tag="The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting." ja="このツールヘッドを取り付ける方法がまだプリンターから送られていません。フィラメントシステムの接続が完了してから、もう一度お試しください。"/>
   <translation tag="The printer did not say whether it is printing. Try again." ja="プリンターが印刷中かどうかを返しませんでした。もう一度お試しください。"/>
+  <translation tag="The printer did not start the tower." ja="プリンターがタワーを開始しませんでした。"/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." ja="プリンターは隅で押出しを行い、測定値が一致するまで繰り返します。目視での判断は不要です。"/>
   <translation tag="The printer finishes this measurement on its own." ja="この測定はプリンターが最後まで行います。"/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" ja="プリンターはこの印刷を停止し、再開できません。最初からやり直しますか？"/>
@@ -5177,6 +5178,7 @@
   <translation tag="This doesn&apos;t match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?" ja="リンクされた Spoolman のスプールと一致しません。新しいスプールとして追加しますか、それともリンク先を一致するよう更新しますか？"/>
   <translation tag="This doesn&apos;t match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?" ja="リンクされた Spoolman スプールと一致しません。Spoolman で更新するか、リンクを解除してこのスロットに保持しますか？"/>
   <translation tag="This dryer cannot run while filament from the unit is loaded" ja="このユニットのフィラメントが装填されている間は乾燥機を動作できません"/>
+  <translation tag="This extruder runs the nonlinear model, so the tower sweeps its linear advance, not a classic K." ja="このエクストルーダーは非線形モデルを使用しているため、タワーは従来のKではなくLinear Advanceを変化させます。"/>
   <translation tag="This feature requires different hardware or configuration" ja="この機能には別のハードウェアまたは設定が必要です"/>
   <translation tag="This filament system does not report buffer or flow data." ja="このフィラメントシステムはバッファーやフローのデータを報告しません。"/>
   <translation tag="This filament system keeps its own spool records" ja="このフィラメントシステムはスプールの記録を自身で管理しています"/>
@@ -5989,6 +5991,7 @@
   <translation tag="past last time’s position" ja="前回の位置を超過"/>
   <translation tag="plate must be clear" ja="プレートを空にしてください"/>
   <translation tag="preparing" ja="準備中"/>
+  <translation tag="pressure_advance is set for this extruder somewhere the save did not reach, such as another included file. Comment it out there and save again." ja="このエクストルーダーのpressure_advanceが、保存の届かない場所（別のインクルードファイルなど）で設定されています。そこでコメントアウトしてから再度保存してください。"/>
   <translation tag="printer default" ja="プリンター既定"/>
   <translation tag="printer.cfg" ja="printer.cfg"/>
   <translation tag="printer.cfg loads more than {} config files; [{}] was not searched for in all of them" ja="printer.cfg は {} 個を超える設定ファイルを読み込んでいます。[{}] はすべてで検索されていません"/>

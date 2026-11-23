@@ -5016,6 +5016,7 @@
   <translation tag="The printer did not reset the filter" fr="L&apos;imprimante n&apos;a pas réinitialisé le filtre"/>
   <translation tag="The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting." fr="L&apos;imprimante n&apos;a pas encore indiqué comment prendre cette tête. Réessayez lorsque son système de filament aura fini de se connecter."/>
   <translation tag="The printer did not say whether it is printing. Try again." fr="L&apos;imprimante n&apos;a pas indiqué si elle imprime. Réessayez."/>
+  <translation tag="The printer did not start the tower." fr="L&apos;imprimante n&apos;a pas lancé la tour."/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." fr="L&apos;imprimante extrude dans un coin et répète jusqu&apos;à ce que les mesures concordent. Vous ne jugez rien à l&apos;œil."/>
   <translation tag="The printer finishes this measurement on its own." fr="L&apos;imprimante termine cette mesure d&apos;elle-même."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" fr="L&apos;imprimante a arrêté cette impression et ne peut pas la reprendre. Redémarrer depuis le début ?"/>
@@ -5183,6 +5184,7 @@
   <translation tag="This doesn&apos;t match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?" fr="Cela ne correspond pas à la bobine Spoolman liée. L&apos;ajouter comme nouvelle bobine, ou mettre à jour la bobine liée pour correspondre ?"/>
   <translation tag="This doesn&apos;t match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?" fr="Cela ne correspond pas à la bobine Spoolman liée. La mettre à jour dans Spoolman, ou délier et la garder sur cet emplacement ?"/>
   <translation tag="This dryer cannot run while filament from the unit is loaded" fr="Ce séchoir ne peut pas fonctionner tant que du filament de l&apos;unité est chargé"/>
+  <translation tag="This extruder runs the nonlinear model, so the tower sweeps its linear advance, not a classic K." fr="Cet extrudeur utilise le modèle non linéaire : la tour fait varier son Linear Advance, pas un K classique."/>
   <translation tag="This feature requires different hardware or configuration" fr="Cette fonctionnalité requiert un autre matériel ou une autre configuration"/>
   <translation tag="This filament system does not report buffer or flow data." fr="Ce système de filament ne fournit ni données de tampon ni données de débit."/>
   <translation tag="This filament system keeps its own spool records" fr="Ce système de filament tient ses propres fiches de bobines"/>
@@ -5995,6 +5997,7 @@
   <translation tag="past last time’s position" fr="au-delà de la position de la dernière fois"/>
   <translation tag="plate must be clear" fr="le plateau doit être libre"/>
   <translation tag="preparing" fr="préparation"/>
+  <translation tag="pressure_advance is set for this extruder somewhere the save did not reach, such as another included file. Comment it out there and save again." fr="pressure_advance est défini pour cet extrudeur à un endroit que l&apos;enregistrement n&apos;a pas atteint, comme un autre fichier inclus. Commentez-le là-bas et enregistrez à nouveau."/>
   <translation tag="printer default" fr="par défaut de l’imprimante"/>
   <translation tag="printer.cfg" fr="printer.cfg"/>
   <translation tag="printer.cfg loads more than {} config files; [{}] was not searched for in all of them" fr="printer.cfg charge plus de {} fichiers de configuration ; [{}] n&apos;a pas été cherché dans tous"/>

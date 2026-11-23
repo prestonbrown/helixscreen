@@ -138,6 +138,8 @@ TEST_CASE_METHOD(NonlinearFixture,
     const std::string ending = sent_since(before_end);
     INFO(ending);
     CHECK(ending.find("MODEL=tanh") != std::string::npos);
+    // The firmware's sweep outlives the tower; the ending replaces it.
+    CHECK(ending.find("TUNING_TOWER COMMAND=G4") != std::string::npos);
     CHECK(ending.find("SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0") != std::string::npos);
 
     // Pass 1 judges the left side alone: the height is the answer.
@@ -171,6 +173,7 @@ TEST_CASE_METHOD(NonlinearFixture, "nonlinear tuner: discard puts the linear K b
     overlay.discard_for_test();
     helix::ui::UpdateQueue::instance().drain();
     CHECK(client.last_send_script() ==
+          "TUNING_TOWER COMMAND=G4 PARAMETER=P START=0 FACTOR=0\n"
           "SET_PRESSURE_ADVANCE EXTRUDER=extruder MODEL=linear ADVANCE=0.040000");
     CHECK_FALSE(overlay.session_active());
 }
@@ -185,4 +188,68 @@ TEST_CASE("nonlinear tuner: without the firmware tower a pass does not start",
     CHECK(fx.overlay.stage() == PaNonlinearOverlay::READY);
     CHECK(fx.client.gcode_script_history().size() == before);
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_nl_has_tower")) == 0);
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: a tower the firmware refuses after the command returns "
+                 "leaves the heating screen",
+                 "[pa_nonlinear][pa_tuner]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::PREPARING);
+    // The refusal arrives as an error in one frame, with no printing before it.
+    const size_t before = client.gcode_script_history().size();
+    tower("error");
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(overlay.stage() == PaNonlinearOverlay::READY);
+    CHECK(sent_since(before).find("TUNING_TOWER COMMAND=G4") != std::string::npos);
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: a tower that never starts gives up after the timeout",
+                 "[pa_nonlinear][pa_tuner]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::PREPARING);
+    process_lvgl(PaNonlinearOverlay::kTowerStartTimeoutMs - 1000);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::PREPARING);
+    process_lvgl(2000);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(overlay.stage() == PaNonlinearOverlay::READY);
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: discard works once the tower command has returned",
+                 "[pa_nonlinear][pa_tuner]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::PREPARING);
+    overlay.discard_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK_FALSE(overlay.session_active());
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: starting over with another extruder kind puts the old model "
+                 "back, but never mid-tower",
+                 "[pa_nonlinear][pa_tuner]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    REQUIRE(overlay.procedure_for_test()->pass_count() == 3);
+
+    const size_t before = client.gcode_script_history().size();
+    overlay.start_for_test(params(), pa::ExtruderKind::Bowden);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(overlay.procedure_for_test()->pass_count() == 4);
+    CHECK(sent_since(before).find("MODEL=linear ADVANCE=0.040000") != std::string::npos);
+
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::PREPARING);
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    CHECK(overlay.stage() == PaNonlinearOverlay::PREPARING);
+    CHECK(overlay.procedure_for_test()->pass_count() == 4);
 }

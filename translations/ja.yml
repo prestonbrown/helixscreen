@@ -5193,6 +5193,7 @@ translations:
   The printer did not report its toolhead limits.: 'プリンターがツールヘッドの限界値を報告しませんでした。'
   The printer did not reset the filter: 'プリンターがフィルターをリセットしませんでした'
   The printer did not say whether it is printing. Try again.: 'プリンターが印刷中かどうかを返しませんでした。もう一度お試しください。'
+  The printer did not start the tower.: "プリンターがタワーを開始しませんでした。"
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: 'プリンターは隅で押出しを行い、測定値が一致するまで繰り返します。目視での判断は不要です。'
   The printer finishes this measurement on its own.: 'この測定はプリンターが最後まで行います。'
   The printer halted this print and cannot resume it. Restart from the beginning?: プリンターはこの印刷を停止し、再開できません。最初からやり直しますか？
@@ -5385,6 +5386,7 @@ translations:
   This doesn't match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?: リンクされた Spoolman のスプールと一致しません。新しいスプールとして追加しますか、それともリンク先を一致するよう更新しますか？
   This dryer cannot run while filament from the unit is loaded: 'このユニットのフィラメントが装填されている間は乾燥機を動作できません'
   Failed to start. See the Moonraker log.: "起動に失敗しました。Moonrakerのログを確認してください。"
+  This extruder runs the nonlinear model, so the tower sweeps its linear advance, not a classic K.: "このエクストルーダーは非線形モデルを使用しているため、タワーは従来のKではなくLinear Advanceを変化させます。"
   This feature requires different hardware or configuration: この機能には別のハードウェアまたは設定が必要です
   Stopped. Restart Moonraker to start it again.: "停止しました。Moonrakerを再起動すると再開します。"
   This filament system does not report buffer or flow data.: このフィラメントシステムはバッファーやフローのデータを報告しません。
@@ -6213,6 +6215,8 @@ translations:
   past last time’s position: "前回の位置を超過"
   plate must be clear: プレートを空にしてください
   preparing: 準備中
+  ? pressure_advance is set for this extruder somewhere the save did not reach, such as another included file. Comment it out there and save again.
+  : "このエクストルーダーのpressure_advanceが、保存の届かない場所（別のインクルードファイルなど）で設定されています。そこでコメントアウトしてから再度保存してください。"
   printer default: プリンター既定
   printer.cfg: printer.cfg
   printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg は {} 個を超える設定ファイルを読み込んでいます。[{}] はすべてで検索されていません"

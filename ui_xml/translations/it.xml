@@ -5010,6 +5010,7 @@
   <translation tag="The printer did not reset the filter" it="La stampante non ha azzerato il filtro"/>
   <translation tag="The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting." it="La stampante non ha ancora indicato come prelevare questa testina. Riprova quando il suo sistema di filamento avrà finito di connettersi."/>
   <translation tag="The printer did not say whether it is printing. Try again." it="La stampante non ha indicato se sta stampando. Riprova."/>
+  <translation tag="The printer did not start the tower." it="La stampante non ha avviato la torre."/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." it="La stampante estrude in un angolo e ripete finché le letture concordano. Non giudichi nulla a occhio."/>
   <translation tag="The printer finishes this measurement on its own." it="La stampante completa questa misurazione da sola."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" it="La stampante ha interrotto questa stampa e non può riprenderla. Riavviare dall&apos;inizio?"/>
@@ -5177,6 +5178,7 @@
   <translation tag="This doesn&apos;t match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?" it="Non corrisponde alla bobina Spoolman collegata. Aggiungerla come nuova bobina o aggiornare quella collegata?"/>
   <translation tag="This doesn&apos;t match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?" it="Non corrisponde alla bobina Spoolman collegata. Aggiornarla in Spoolman oppure scollegarla e tenerla su questo slot?"/>
   <translation tag="This dryer cannot run while filament from the unit is loaded" it="Questo essiccatore non può funzionare finché è caricato filamento dell&apos;unità"/>
+  <translation tag="This extruder runs the nonlinear model, so the tower sweeps its linear advance, not a classic K." it="Questo estrusore usa il modello non lineare, quindi la torre varia il suo linear advance, non un K classico."/>
   <translation tag="This feature requires different hardware or configuration" it="Questa funzione richiede hardware o configurazione diversi"/>
   <translation tag="This filament system does not report buffer or flow data." it="Questo sistema filamento non riporta dati di buffer o flusso."/>
   <translation tag="This filament system keeps its own spool records" it="Questo sistema di filamento gestisce da sé i dati delle bobine"/>
@@ -5989,6 +5991,7 @@
   <translation tag="past last time’s position" it="oltre la posizione dell&apos;ultima volta"/>
   <translation tag="plate must be clear" it="il piatto deve essere libero"/>
   <translation tag="preparing" it="preparazione"/>
+  <translation tag="pressure_advance is set for this extruder somewhere the save did not reach, such as another included file. Comment it out there and save again." it="pressure_advance è impostato per questo estrusore in un punto che il salvataggio non ha raggiunto, ad esempio un altro file incluso. Commentalo lì e salva di nuovo."/>
   <translation tag="printer default" it="predefinito stampante"/>
   <translation tag="printer.cfg" it="printer.cfg"/>
   <translation tag="printer.cfg loads more than {} config files; [{}] was not searched for in all of them" it="printer.cfg carica più di {} file di configurazione; [{}] non è stato cercato in tutti"/>

@@ -67,10 +67,11 @@ TEST_CASE("Mock PA tower: refuses a mismatched target, sweeps OFFSET and complet
     MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
     ExtruderFrames seen(mock);
 
+    // The firmware accepts the command and refuses once the tower starts: a
+    // print that ends in error.
     mock.gcode_script("M104 S200");
-    CHECK(mock.gcode_script("PRINT_PA_TOWER NOZZLE=0.4 TARGET_TEMP=210") != 0);
-    CHECK(mock.get_last_gcode_error().find("does not match") != std::string::npos);
-    CHECK(mock.get_print_phase() == Phase::IDLE);
+    CHECK(mock.gcode_script("PRINT_PA_TOWER NOZZLE=0.4 TARGET_TEMP=210") == 0);
+    CHECK(mock.get_print_phase() == Phase::ERROR);
 
     mock.gcode_script("M104 S210");
     REQUIRE(
@@ -98,6 +99,11 @@ TEST_CASE("Mock PA tower: refuses a mismatched target, sweeps OFFSET and complet
         CHECK(offsets[i] >= offsets[i - 1]);
     }
     CHECK(offsets.back() > offsets.front());
+
+    // The sweep outlives the tower until another TUNING_TOWER replaces it.
+    CHECK(mock.pa_sweep_armed());
+    REQUIRE(mock.gcode_script("TUNING_TOWER COMMAND=G4 PARAMETER=P START=0 FACTOR=0") == 0);
+    CHECK_FALSE(mock.pa_sweep_armed());
 }
 
 TEST_CASE("Mock PA tower: unknown without HELIX_MOCK_PA_TEST", "[pa_mock]") {

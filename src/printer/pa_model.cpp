@@ -87,6 +87,7 @@ PaModel read_pa_model(const nlohmann::json& extruder_status, PaModel prev) {
     read_into(extruder_status, "nonlinear_offset", prev.nonlinear_offset);
     read_into(extruder_status, "linearization_velocity", prev.linearization_velocity);
     read_into(extruder_status, "time_offset", prev.time_offset);
+    read_into(extruder_status, "smooth_time", prev.smooth_time);
     return prev;
 }
 
@@ -100,6 +101,7 @@ std::optional<NonlinearValues> nonlinear_values(const PaModel& m) {
     v.nonlinear_offset = *m.nonlinear_offset;
     v.linearization_velocity = *m.linearization_velocity;
     v.time_offset = m.time_offset.value_or(0.0f);
+    v.smooth_time = m.smooth_time.value_or(kNonlinearSmoothTime);
     return v;
 }
 
@@ -108,13 +110,26 @@ std::string set_nonlinear_gcode(const std::string& extruder, const NonlinearValu
     return fmt::format("SET_PRESSURE_ADVANCE EXTRUDER={} MODEL={} ADVANCE={} OFFSET={} VELOCITY={} "
                        "TIME_OFFSET={} SMOOTH_TIME={}",
                        extruder, model_name(model), num(v.linear_advance), num(v.nonlinear_offset),
-                       num(v.linearization_velocity), num(v.time_offset),
-                       num(kNonlinearSmoothTime));
+                       num(v.linearization_velocity), num(v.time_offset), num(v.smooth_time));
 }
 
-std::string set_linear_gcode(const std::string& extruder, std::optional<float> k) {
-    return fmt::format("SET_PRESSURE_ADVANCE EXTRUDER={} MODEL=linear ADVANCE={}", extruder,
-                       num(k.value_or(0.0f)));
+std::string restore_model_gcode(const std::string& extruder, const PaModel& original) {
+    if (const auto v = nonlinear_values(original)) {
+        return set_nonlinear_gcode(extruder, *v);
+    }
+    std::string g = fmt::format("SET_PRESSURE_ADVANCE EXTRUDER={} MODEL=linear ADVANCE={}",
+                                extruder, num(original.k.value_or(0.0f)));
+    if (original.time_offset) {
+        g += " TIME_OFFSET=" + num(*original.time_offset);
+    }
+    if (original.smooth_time) {
+        g += " SMOOTH_TIME=" + num(*original.smooth_time);
+    }
+    return g;
+}
+
+std::string disarm_tuning_tower_gcode() {
+    return "TUNING_TOWER COMMAND=G4 PARAMETER=P START=0 FACTOR=0";
 }
 
 bool has_tower_module(const std::vector<std::string>& printer_objects) {
@@ -155,7 +170,7 @@ std::vector<ExtruderConfigKey> nonlinear_config_keys(const NonlinearValues& v) {
         {"nonlinear_offset", num(v.nonlinear_offset)},
         {"linearization_velocity", num(v.linearization_velocity)},
         {"pressure_advance_time_offset", num(v.time_offset)},
-        {"pressure_advance_smooth_time", num(kNonlinearSmoothTime)},
+        {"pressure_advance_smooth_time", num(v.smooth_time)},
     };
 }
 

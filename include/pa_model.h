@@ -40,6 +40,7 @@ struct PaModel {
     std::optional<float> nonlinear_offset;
     std::optional<float> linearization_velocity;
     std::optional<float> time_offset;
+    std::optional<float> smooth_time;
 
     /// The firmware lets the model be changed.
     bool selectable() const {
@@ -56,9 +57,10 @@ struct PaModel {
 };
 
 /// Extruder status fields the model is read from.
-inline constexpr std::array<std::string_view, 6> kStatusFields = {
+inline constexpr std::array<std::string_view, 7> kStatusFields = {
     "pressure_advance", "pressure_advance_model", "linear_advance",
-    "nonlinear_offset", "linearization_velocity", "time_offset"};
+    "nonlinear_offset", "linearization_velocity", "time_offset",
+    "smooth_time"};
 
 /// @p prev updated from one extruder status frame. Moonraker frames are deltas:
 /// a field the frame lacks keeps its value, except that a model change drops
@@ -66,6 +68,9 @@ inline constexpr std::array<std::string_view, 6> kStatusFields = {
 PaModel read_pa_model(const nlohmann::json& extruder_status, PaModel prev);
 
 // --- Selecting and tuning a nonlinear model ---------------------------------
+
+/// Smoothing a nonlinear model is tuned and saved with. Never swept.
+inline constexpr float kNonlinearSmoothTime = 0.02f;
 
 /// The parameters a nonlinear model runs with.
 struct NonlinearValues {
@@ -77,20 +82,28 @@ struct NonlinearValues {
     /// velocity.
     float linearization_velocity = 1.0f;
     float time_offset = 0.0f;
+    float smooth_time = kNonlinearSmoothTime;
 };
 
-/// Smoothing every nonlinear setup runs with. Never swept.
-inline constexpr float kNonlinearSmoothTime = 0.02f;
-
 /// The values @p m runs with, or nullopt when it is not nonlinear or has not
-/// reported them all.
+/// reported them all. Time offset and smoothing default when unreported.
 std::optional<NonlinearValues> nonlinear_values(const PaModel& m);
 
 /// Switch @p extruder to the nonlinear model at runtime, no restart, with @p v.
 std::string set_nonlinear_gcode(const std::string& extruder, const NonlinearValues& v);
 
-/// Put @p extruder back on the linear model at @p k (0 when it had none).
-std::string set_linear_gcode(const std::string& extruder, std::optional<float> k);
+/// Put @p extruder back on @p original, everything SET_PRESSURE_ADVANCE sets
+/// included: the firmware keeps any parameter a command leaves out, so a
+/// restore that named only the model and K would keep the tuning's time
+/// offset and smoothing.
+std::string restore_model_gcode(const std::string& extruder, const PaModel& original);
+
+/// Ends a TUNING_TOWER sweep. The firmware has no command for that: a sweep
+/// stays armed until the next TUNING_TOWER, or until an extruding move lands
+/// more than 2 mm below the last one, so a tower stopped low or never started
+/// would sweep the next print. This arms one whose command is a zero dwell at
+/// a constant value, which runs once and then never again.
+std::string disarm_tuning_tower_gcode();
 
 /// The status object of the firmware's own pressure-advance test tower. Present
 /// in the object list only when the printer's config enables it.

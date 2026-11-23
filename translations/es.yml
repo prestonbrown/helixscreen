@@ -5193,6 +5193,7 @@ translations:
   The printer did not report its toolhead limits.: 'La impresora no informó de los límites de su cabezal.'
   The printer did not reset the filter: 'La impresora no restableció el filtro'
   The printer did not say whether it is printing. Try again.: 'La impresora no indicó si está imprimiendo. Inténtalo de nuevo.'
+  The printer did not start the tower.: "La impresora no inició la torre."
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: 'La impresora extruye en una esquina y repite hasta que las lecturas coinciden. Tú no juzgas nada a ojo.'
   The printer finishes this measurement on its own.: 'La impresora termina esta medición por su cuenta.'
   The printer halted this print and cannot resume it. Restart from the beginning?: La impresora detuvo esta impresión y no puede reanudarla. ¿Reiniciar desde el principio?
@@ -5385,6 +5386,7 @@ translations:
   This doesn't match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?: Esto no coincide con la bobina de Spoolman vinculada. ¿Añadirla como bobina nueva o actualizar la vinculada para que coincida?
   This dryer cannot run while filament from the unit is loaded: 'Este secador no puede funcionar mientras haya filamento de la unidad cargado'
   Failed to start. See the Moonraker log.: "No se pudo iniciar. Consulta el registro de Moonraker."
+  This extruder runs the nonlinear model, so the tower sweeps its linear advance, not a classic K.: "Este extrusor usa el modelo no lineal, así que la torre barre su linear advance, no una K clásica."
   This feature requires different hardware or configuration: Esta función requiere otro hardware u otra configuración
   Stopped. Restart Moonraker to start it again.: "Detenido. Reinicia Moonraker para volver a iniciarlo."
   This filament system does not report buffer or flow data.: Este sistema de filamento no informa datos de búfer ni de flujo.
@@ -6213,6 +6215,8 @@ translations:
   past last time’s position: "más allá de la posición de la última vez"
   plate must be clear: la placa debe estar libre
   preparing: preparando
+  ? pressure_advance is set for this extruder somewhere the save did not reach, such as another included file. Comment it out there and save again.
+  : "pressure_advance está definido para este extrusor en un lugar que el guardado no alcanzó, como otro archivo incluido. Coméntalo allí y guarda de nuevo."
   printer default: valor por defecto de la impresora
   printer.cfg: printer.cfg
   printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg carga más de {} archivos de configuración; [{}] no se buscó en todos"

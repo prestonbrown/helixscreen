@@ -204,6 +204,9 @@ MoonrakerClientMock::gcode_set_pressure_advance(const std::string& gcode) {
 // TUNING_TOWER COMMAND=SET_PRESSURE_ADVANCE PARAMETER=<p> START=<f> FACTOR=<f>
 MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_tuning_tower(const std::string& gcode) {
     if (helix::gcode::gcode_param_value(gcode, "COMMAND").value_or("") != "SET_PRESSURE_ADVANCE") {
+        // A test of any other command replaces the sweep, as in the firmware.
+        std::lock_guard<std::mutex> lock(pa_tower_mutex_);
+        pa_tower_.armed = false;
         return std::nullopt;
     }
     const std::string parameter = helix::gcode::gcode_param_value(gcode, "PARAMETER").value_or("");
@@ -236,16 +239,26 @@ MoonrakerClientMock::gcode_print_pa_tower(const std::string& gcode) {
     }
     const double target = number_param(gcode, "TARGET_TEMP").value_or(0.0);
     const double current = extruder_target_.load();
-    if (std::abs(current - target) > 0.05) {
-        return reject(fmt::format("Extruder target temp {:.1f} does not match the expected "
-                                  "TARGET_TEMP={:.1f}. Heat the extruder to the target first.",
-                                  current, target));
-    }
     // A finished print leaves the sdcard free; only a running one refuses.
     const auto phase = print_phase_.load();
     if (phase == MockPrintPhase::PREHEAT || phase == MockPrintPhase::PRINTING ||
         phase == MockPrintPhase::PAUSED) {
         return reject("Already printing");
+    }
+    if (std::abs(current - target) > 0.05) {
+        // The firmware checks the target only once the sdcard pulls the tower's
+        // first line, after the command has returned: the refusal is a print
+        // that ends in error, reported in one frame with no printing before it.
+        {
+            std::lock_guard<std::mutex> lock(print_mutex_);
+            print_filename_ = "PA tower";
+        }
+        print_phase_.store(MockPrintPhase::ERROR);
+        dispatch_gcode_response(fmt::format("!! Extruder target temp {:.1f} does not match the "
+                                            "expected TARGET_TEMP={:.1f}.",
+                                            current, target));
+        dispatch_print_state_notification("error");
+        return std::nullopt;
     }
 
     const int layers = static_cast<int>(std::lround((kTowerHeightMm - kTowerFirstLayerHeightMm) /
@@ -313,7 +326,13 @@ void MoonrakerClientMock::service_pa_tower() {
 }
 
 void MoonrakerClientMock::end_pa_tower() {
+    // The sweep stays armed, as the firmware's does: only another TUNING_TOWER
+    // (or an extrusion well below the last height) ends it.
     std::lock_guard<std::mutex> lock(pa_tower_mutex_);
     pa_tower_.active = false;
-    pa_tower_.armed = false;
+}
+
+bool MoonrakerClientMock::pa_sweep_armed() const {
+    std::lock_guard<std::mutex> lock(pa_tower_mutex_);
+    return pa_tower_.armed;
 }
