@@ -41,6 +41,7 @@ class AquaScreensaver : public ClockSaver<AquaSim> {
     friend class AquaScreensaverTestAccess;
 
     SaverLabel line_;
+    SaverLabel meridiem_; ///< inside the top ring, in 12-hour mode
     /// The date or print line, joined from the clock's two lines.
     std::string text_;
 };

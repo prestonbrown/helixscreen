@@ -477,7 +477,8 @@ and one octave of wrinkle; then a near-neutral cool tint.
   a brief glint. `kAquaMaxDroplets` caps what is emitted; nothing in flight is culled.
 - The ring clock: the hour ring fills through the 12 or 24 hours, the minute ring through the
   hour, and the small top ring through the minute, or the print's progress while one runs.
-  The date or print line under the rings is a `SaverLabel`.
+  The date or print line under the rings is a `SaverLabel`, and so is AM/PM inside the top ring
+  in 12-hour mode (`AquaClockLayout::meridiem`).
 - A frame repaints the water band (from the highest silhouette down, the clock included) and
   the boxes of droplets above it. The last rung keeps the scene still and redraws only the
   clock, from a copy of the pixels under it; a drift step puts back the old place and copies

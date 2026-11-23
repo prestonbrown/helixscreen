@@ -240,6 +240,7 @@ struct AquaClockLayout {
     int32_t top_cx = 0, top_cy = 0;
     int32_t digit_unit = 0; ///< stroke-digit glyph unit
     DirtyRect text;         ///< the date (or print) line under the rings
+    DirtyRect meridiem;     ///< AM/PM, inside the top ring
     DirtyRect bounds;       ///< everything the clock draws
 };
 AquaClockLayout layout_aqua_clock(int32_t w, int32_t h, int32_t dx, int32_t dy);

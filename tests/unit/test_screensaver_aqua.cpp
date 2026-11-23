@@ -39,6 +39,9 @@ class AquaScreensaverTestAccess {
     static const SaverLabel& line(const AquaScreensaver& saver) {
         return saver.line_;
     }
+    static const SaverLabel& meridiem(const AquaScreensaver& saver) {
+        return saver.meridiem_;
+    }
 };
 
 } // namespace helix::ui
@@ -367,6 +370,18 @@ TEST_CASE("the clock fits in the water at every drift and screen size",
                 CHECK(l.bounds.y2 < s.h);
                 CHECK(l.text.y1 > l.hour_cy + l.ring_r);
                 CHECK(l.top_cy + l.top_r < l.hour_cy - l.ring_r);
+                // AM/PM sits inside the top ring: no corner pixel of its box reaches the
+                // ring's antialiased inner edge, and the box holds a legible line.
+                const float edge =
+                    static_cast<float>(l.top_r) - static_cast<float>(l.ring_width) / 2.0f - 0.5f;
+                for (const int32_t x : {l.meridiem.x1, l.meridiem.x2}) {
+                    for (const int32_t y : {l.meridiem.y1, l.meridiem.y2}) {
+                        CHECK(std::hypot(static_cast<float>(x - l.top_cx) + 0.5f,
+                                         static_cast<float>(y - l.top_cy) + 0.5f) < edge);
+                    }
+                }
+                CHECK(l.meridiem.y2 - l.meridiem.y1 + 1 >= 7);
+                CHECK(l.meridiem.x2 - l.meridiem.x1 > l.meridiem.y2 - l.meridiem.y1);
                 CHECK(l.hour_cx + l.ring_r < l.minute_cx - l.ring_r);
                 // Two digits side by side fit inside a ring.
                 const int32_t digits_w =
@@ -734,6 +749,11 @@ TEST_CASE_METHOD(LVGLTestFixture, "the aqua saver shows the print its source rep
     REQUIRE(ss.is_active());
     CHECK(ss.clock().mode() == ClockMode::COUNTDOWN);
     CHECK(AquaScreensaverTestAccess::line(ss).text().rfind("ETA ", 0) == 0);
+    // The rings read 02:00 in the afternoon.
+    CHECK(AquaScreensaverTestAccess::meridiem(ss).text() == "PM");
+    reported.use_24h = true;
+    advance_saver(ss, 1100);
+    CHECK(AquaScreensaverTestAccess::meridiem(ss).text().empty());
 
     reported.print.phase = ClockPrintPhase::NONE;
     reported.print.remaining_s = -1;
