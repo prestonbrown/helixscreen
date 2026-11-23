@@ -42,9 +42,7 @@ using helix::sensors::probe_type_to_display_string;
 using helix::sensors::ProbeSensorManager;
 using helix::sensors::ProbeSensorType;
 
-// ============================================================================
 // GLOBAL INSTANCE AND ROW CLICK HANDLER
-// ============================================================================
 
 IMoonrakerAPI* get_moonraker_api();
 IMoonrakerClient* get_moonraker_client();
@@ -71,9 +69,7 @@ void init_probe_row_handler() {
     spdlog::trace("[Probe] Row click callback registered");
 }
 
-// ============================================================================
 // XML EVENT CALLBACK REGISTRATION
-// ============================================================================
 
 /// Probe commands go through the API's send gate like every other machine
 /// command, so the homing-during-print guard and the spools-on-the-bed latch
@@ -249,9 +245,7 @@ void ui_probe_overlay_register_callbacks() {
     spdlog::trace("[Probe] Event callbacks registered");
 }
 
-// ============================================================================
 // OVERLAY LIFECYCLE
-// ============================================================================
 
 void ProbeOverlay::init_subjects() {
     if (subjects_initialized_) {
@@ -366,9 +360,7 @@ void ProbeOverlay::set_api(IMoonrakerAPI* api) {
     api_ = api;
 }
 
-// ============================================================================
 // DISPLAY SUBJECTS
-// ============================================================================
 
 void ProbeOverlay::update_display_subjects() {
     auto& mgr = ProbeSensorManager::instance();
@@ -477,9 +469,7 @@ void ProbeOverlay::arm_accuracy_backstop(const std::string& handler_name, uint32
     });
 }
 
-// ============================================================================
 // TYPE-SPECIFIC PANEL LOADING
-// ============================================================================
 
 void ProbeOverlay::load_type_panel() {
     if (!type_panel_container_) {
@@ -526,9 +516,7 @@ void ProbeOverlay::load_type_panel() {
     }
 }
 
-// ============================================================================
 // EVENT HANDLERS
-// ============================================================================
 
 void ProbeOverlay::handle_probe_accuracy() {
     ensure_bed_clear_then(lifetime_.token(), [this]() { run_probe_accuracy(); });
@@ -818,9 +806,7 @@ void ProbeOverlay::handle_bed_mesh() {
 #endif
 }
 
-// ============================================================================
 // CONFIG VALUE LOADING
-// ============================================================================
 
 namespace helix::ui {
 // Klipper's probe.py defaults, shared by [probe], [bltouch] and [smart_effector].
@@ -921,9 +907,7 @@ void ProbeOverlay::load_config_values() {
         });
 }
 
-// ============================================================================
 // CONFIG EDITING
-// ============================================================================
 
 void ProbeOverlay::handle_config_edit(const std::string& field_key, const std::string& title,
                                       const std::string& description) {

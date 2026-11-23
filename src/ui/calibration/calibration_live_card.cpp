@@ -343,9 +343,7 @@ void CalibrationLiveCard::detach() {
     body_.reset();
 }
 
-// ============================================================================
 // Heaters: the heater's temperature graph against its calibration target
-// ============================================================================
 
 void CalibrationLiveCard::show_heat(lv_obj_t* root, const StepLive& live) {
     const bool bed = live.heater == kBedHeater;
@@ -384,9 +382,7 @@ void CalibrationLiveCard::stop_heat() {
     heat_heater_.clear();
 }
 
-// ============================================================================
 // Bed mesh: the printer's mesh, dimmed where the probe has not been yet
-// ============================================================================
 
 void CalibrationLiveCard::show_mesh(lv_obj_t* root, const StepLive& live) {
     lv_subject_set_int(&mesh_unprobed_, live.probe_total > 0
@@ -455,9 +451,7 @@ void CalibrationLiveCard::feed_mesh_map(lv_obj_t* map) {
     mesh_fed_version_ = version;
 }
 
-// ============================================================================
 // Input shaper: the resonance curve streamed during each axis's sweep
-// ============================================================================
 
 void CalibrationLiveCard::show_shaper(lv_obj_t* root, const StepLive& live) {
     IMoonrakerAPI* api = get_moonraker_api();
@@ -509,9 +503,7 @@ void CalibrationLiveCard::stop_shaper() {
     shaper_cannot_stream_ = false;
 }
 
-// ============================================================================
 // Belt tension: each belt's pull up to its target mark
-// ============================================================================
 
 float CalibrationLiveCard::belt_pull(const calibration::StepProgress& progress, int belt) {
     // A step that does not measure each belt shows them pulled together.

@@ -66,9 +66,7 @@ int material_nozzle_temp(const std::string& name) {
 
 } // namespace
 
-// ============================================================================
 // CONSTRUCTION
-// ============================================================================
 
 PACalibrationPanel::~PACalibrationPanel() {
     // A raw timer cancelled only in cleanup() stays armed on a freed `this`
@@ -81,9 +79,7 @@ PACalibrationPanel::~PACalibrationPanel() {
     }
 }
 
-// ============================================================================
 // SUBJECTS
-// ============================================================================
 
 void PACalibrationPanel::init_subjects() {
     init_subjects_guarded([this]() {
@@ -245,9 +241,7 @@ void PACalibrationPanel::deinit_subjects() {
     subjects_initialized_ = false;
 }
 
-// ============================================================================
 // LIFECYCLE
-// ============================================================================
 
 void PACalibrationPanel::on_activate() {
     OverlayBase::on_activate();
@@ -350,17 +344,13 @@ void PACalibrationPanel::cleanup() {
     OverlayBase::cleanup();
 }
 
-// ============================================================================
 // CAPABILITY
-// ============================================================================
 
 bool PACalibrationPanel::printer_supports_calibration() {
     return helix::pacal::is_supported(get_printer_state().get_discovery());
 }
 
-// ============================================================================
 // TARGET COLUMN
-// ============================================================================
 
 void PACalibrationPanel::refresh_tools(bool adopt_active) {
     auto& tools = helix::ToolState::instance();
@@ -440,9 +430,7 @@ void PACalibrationPanel::update_temp_display() {
                                            : lv_tr("locked"));
 }
 
-// ============================================================================
 // STATE
-// ============================================================================
 
 void PACalibrationPanel::set_state(State s) {
     state_ = s;
@@ -546,9 +534,7 @@ void PACalibrationPanel::refresh_intro() {
     lv_subject_set_string(&filament_sub_, filament_sub_buf_);
 }
 
-// ============================================================================
 // RUNNING
-// ============================================================================
 
 void PACalibrationPanel::confirm_and_start() {
     ensure_bed_clear_then(lifetime_.token(), [this]() { confirm_once_bed_clear(); });
@@ -814,9 +800,7 @@ void PACalibrationPanel::show_error(const std::string& message) {
     spdlog::warn("[{}] Run failed: {}", get_name(), message);
 }
 
-// ============================================================================
 // HEATING
-// ============================================================================
 
 void PACalibrationPanel::start_heat_tracking() {
     stop_heat_tracking();
@@ -1006,9 +990,7 @@ std::string PACalibrationPanel::selected_heater() const {
     return "extruder";
 }
 
-// ============================================================================
 // EVENT TRAMPOLINES
-// ============================================================================
 
 void open_pa_cal_panel(lv_obj_t* parent_screen) {
     auto& panel = get_global_pa_cal_panel();
