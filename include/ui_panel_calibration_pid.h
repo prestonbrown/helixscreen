@@ -135,6 +135,9 @@ class PIDCalibrationPanel : public OverlayBase {
     [[nodiscard]] static std::vector<helix::system::ConfigEdit>
     build_cooling_fan_edits(const std::string& cooling_fan);
 
+    /// Whether the panel may move a heater between PID and MPC: the firmware has
+    /// MPC and does not own the configuration.
+    [[nodiscard]] bool offers_control_switch() const;
     /// The method a heater calibrates with unless Advanced changes it: MPC for a
     /// nozzle where the firmware has it, otherwise whatever the heater runs today
     /// (a bed stays on PID).

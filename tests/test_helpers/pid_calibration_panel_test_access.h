@@ -56,6 +56,10 @@ struct PIDCalibrationPanelTestAccess {
     static std::string error_message(PIDCalibrationPanel& p) {
         return lv_subject_get_string(p.subj_error_message_.get());
     }
+    /// The control-type query on_activate() runs, with the method preselected.
+    static void detect_control_type(PIDCalibrationPanel& p) {
+        p.detect_heater_control_type(true);
+    }
     static std::vector<helix::system::ConfigEdit> mpc_migration_edits(PIDCalibrationPanel& p) {
         return p.control_migration_edits(PIDCalibrationPanel::CalibMethod::MPC);
     }

@@ -2164,6 +2164,7 @@ AmsError AmsBackendAd5xIfs::do_change_tool(int tool_number) {
         // IFS_LOAD). The mapping lives in the module's macros, so send the
         // slicer spelling rather than re-deriving the slot here; the identity
         // tool_map_ the latch installs keeps port == tool_number + 1 anyway.
+        // HEAD_LABEL_OK: the IFS module's own T<n> is its lane change into its one nozzle
         return ensure_homed_then("T" + std::to_string(tool_number));
     }
     // ensure_homed_then() without skip_homing, and NOT because A_CHANGE_FILAMENT

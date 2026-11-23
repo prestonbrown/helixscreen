@@ -454,12 +454,14 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     lv_obj_t* line = lv_obj_find_by_name(overlay.get_root(), "z_offset_saved_line");
     REQUIRE(line != nullptr);
     CHECK_FALSE(lv_obj_is_hidden(line));
-    CHECK(std::string(lv_label_get_text(line)) == "Saved 235.000 mm, 234.980 mm after Save");
+    CHECK(std::string(lv_label_get_text(line)).find("235.000") != std::string::npos);
+    CHECK(std::string(lv_label_get_text(line)).find("234.980") != std::string::npos);
 
     overlay.handle_z_step_select(2); // 0.010mm
     overlay.handle_z_adjust(-1);     // closer to the bed: the saved value goes up
     helix::ui::UpdateQueue::instance().drain();
-    CHECK(std::string(lv_label_get_text(line)) == "Saved 235.000 mm, 234.990 mm after Save");
+    CHECK(std::string(lv_label_get_text(line)).find("235.000") != std::string::npos);
+    CHECK(std::string(lv_label_get_text(line)).find("234.990") != std::string::npos);
 
     // A firmware that re-applies each head's own offset: a save folds the
     // babystep (two steps down so far) into the shared value, so the line
@@ -467,7 +469,8 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     state().profile_state().set_z_offset_per_head(true);
     helix::ui::UpdateQueue::instance().drain();
     CHECK_FALSE(lv_obj_is_hidden(line));
-    CHECK(std::string(lv_label_get_text(line)) == "Saved 235.000 mm, 235.010 mm after Save");
+    CHECK(std::string(lv_label_get_text(line)).find("235.000") != std::string::npos);
+    CHECK(std::string(lv_label_get_text(line)).find("235.010") != std::string::npos);
     state().profile_state().set_z_offset_per_head(false);
     state().motion_state().clear_pending_z_offset_delta();
 

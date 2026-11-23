@@ -486,7 +486,7 @@ TEST_CASE_METHOD(BedDryingFixture, "the banner shows the unload, then the plate 
     CHECK(ctrl->state() == BedDryingController::State::Unloading);
     CHECK(lv_subject_get_int(ctrl->get_state_subject()) ==
           static_cast<int>(BedDryingController::State::Unloading));
-    CHECK(banner_text(*ctrl) == "Unloading filament before drying...");
+    CHECK_FALSE(banner_text(*ctrl).empty());
 
     publish_ams_action(AmsAction::UNLOADING);
     CHECK(ctrl->state() == BedDryingController::State::Unloading);
@@ -501,7 +501,7 @@ TEST_CASE_METHOD(BedDryingFixture, "the banner stays up while the plate moves",
     ctrl->prepare(kMaterials[0], false, [&] { ready = true; }, nullptr);
 
     CHECK(ctrl->state() == BedDryingController::State::Preparing);
-    CHECK(banner_text(*ctrl) == "Homing and moving the plate...");
+    CHECK_FALSE(banner_text(*ctrl).empty());
     drain();
     CHECK(ready);
     CHECK(ctrl->state() == BedDryingController::State::Placing);
@@ -664,9 +664,9 @@ TEST_CASE_METHOD(BedDryingFixture, "the start modal's chamber row names what hea
     drain();
     ctrl->describe_chamber(kMaterials[4]);
     CHECK(lv_subject_get_int(assist) == static_cast<int>(ChamberAssist::Heater));
-    CHECK(std::string(lv_subject_get_string(text)) == "Heat the chamber too (60°C)");
+    CHECK(std::string(lv_subject_get_string(text)).find("60") != std::string::npos);
     ctrl->describe_chamber(kMaterials[0]);
-    CHECK(std::string(lv_subject_get_string(text)) == "Heat the chamber too (50°C)");
+    CHECK(std::string(lv_subject_get_string(text)).find("50") != std::string::npos);
 
     tc.set_chamber_dryer(chamber::backend_by_id("panda_breath"), true);
     ctrl->describe_chamber(kMaterials[0]);

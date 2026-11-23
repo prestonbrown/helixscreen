@@ -325,8 +325,8 @@ class TempGraphController {
     /**
      * @brief Drops the attach-time sample push while reattach_observers() runs.
      *
-     * observe<int>() attaches with lv_subject_add_observer_obj(), which
-     * fires the observer once immediately — but that fire only *queues* the
+     * observe<int>() attaches with lv_subject_add_observer(), which
+     * fires the observer once immediately, but that fire only *queues* the
      * handler (core/observer_factory.h), so it lands in UpdateQueue and runs on a
      * later process_pending tick. On reconnect the subjects still hold their
      * pre-disconnect values, so that deferred fire would stamp a stale

@@ -62,13 +62,6 @@ using namespace helix;
 class FrequencyResponseChartTestFixture : public LVGLTestFixture {
   public:
     FrequencyResponseChartTestFixture() {
-        // A chart repaints on theme changes, so it observes the theme's changed
-        // subject, which only theme_manager_init() publishes. A shard that has
-        // run no theme fixture yet has it down, and the observer is refused.
-        if (auto* owner = helix::Subject::owner_of(theme_manager_get_changed_subject());
-            owner && !owner->is_live()) {
-            owner->init_int(0);
-        }
         // Create a screen object to use as parent
         screen = lv_obj_create(NULL);
     }

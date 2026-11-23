@@ -221,32 +221,33 @@ void confirm_cycle_all() {
 
 /// Pick the tool the user holds on the head, confirm, then claim it.
 void seat_by_hand() {
-    BatchFilamentModal::show_owned(
-        HeadPickOp::SeatByHand, [](const std::vector<HeadPickRow>& chosen) {
-            if (chosen.empty()) {
-                return;
-            }
-            const int head = chosen.front().head;
-            modal_confirm(lv_tr("Seat a tool by hand"), indx::seat_confirm_message(head).c_str(),
-                          ModalSeverity::Warning, lv_tr("Seat"), [head] {
-                              // Re-fetched: the backend can be replaced while the dialog is up.
-                              AmsBackend* backend = AmsState::instance().get_backend();
-                              if (!backend) {
-                                  return;
-                              }
-                              const AmsError err =
-                                  backend->execute_device_action("seat_by_hand", std::any(head));
-                              if (!err.success()) {
-                                  notify_ams_error(err);
-                                  return;
-                              }
-                              // Sent, not done: the tool reads as mounted once
-                              // the printer reports it.
-                              NOTIFY_INFO(
-                                  lv_tr("Seating {}..."),
-                                  active_tool_label(tool_label(head), head, ToolLabelForm::Full));
-                          });
-        });
+    BatchFilamentModal::show_owned(HeadPickOp::SeatByHand, [](const std::vector<HeadPickRow>&
+                                                                  chosen) {
+        if (chosen.empty()) {
+            return;
+        }
+        const int head = chosen.front().head;
+        modal_confirm(
+            lv_tr("Seat a tool by hand"), indx::seat_confirm_message(head).c_str(),
+            ModalSeverity::Warning, lv_tr("Seat"), [head] {
+                // Re-fetched: the backend can be replaced while the dialog is up.
+                AmsBackend* backend = AmsState::instance().get_backend();
+                if (!backend) {
+                    return;
+                }
+                const AmsError err = backend->execute_device_action("seat_by_hand", std::any(head));
+                if (!err.success()) {
+                    notify_ams_error(err);
+                    return;
+                }
+                // Sent, not done: the tool reads as mounted once
+                // the printer reports it.
+                NOTIFY_INFO(
+                    lv_tr("Seating {}..."),
+                    // HEAD_LABEL_OK: INDX tools are its heads, so the tool number names the head
+                    active_tool_label(tool_label(head), head, ToolLabelForm::Full));
+            });
+    });
 }
 
 /// The status line, once per section: the section's flows share it.

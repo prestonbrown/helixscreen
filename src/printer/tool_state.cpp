@@ -1124,10 +1124,12 @@ std::string ToolState::display_label_for_extruder(const std::string& extruder_na
     }
     if (heads_share_heater()) {
         const ToolInfo* tool = active_tool();
+        // HEAD_LABEL_OK: tools_are_lanes() returned above, so a tool here is a head
         return tool && tool->extruder_name == extruder_name ? tool->display_label : std::string();
     }
     for (const auto& tool : tools_) {
         if (tool.extruder_name && *tool.extruder_name == extruder_name) {
+            // HEAD_LABEL_OK: tools_are_lanes() returned above, so a tool here is a head
             return tool.display_label;
         }
     }
@@ -1192,6 +1194,8 @@ void ToolState::request_tool_change(int tool_index, IMoonrakerAPI* api,
     // Klipper auto-defines Tn → ACTIVATE_EXTRUDER for plain multi-extruder,
     // and toolchanger plugins (ktcc, tapchanger, etc.) override Tn with
     // proper physical tool change logic.
+    // HEAD_LABEL_OK: the printer's own Tn macro: the head change on plain multi-extruder and
+    // toolchanger rigs, and the requested tool on a lane rig whose backend has no slot for it
     std::string gcode = helix::ui::tool_label(tool_index);
     spdlog::info("[ToolState] Requesting tool change to T{} via gcode", tool_index);
 

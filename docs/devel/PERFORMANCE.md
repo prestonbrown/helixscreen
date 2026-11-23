@@ -185,11 +185,18 @@ The K1C sleeps with the software overlay, the AD5M with hardware blank.
 | Every status frame dropped while asleep (the ceiling, on the 1.65 build) | 1.18 (39) | 1.06 (39) |
 | Awake idle | 3.65 (65) | 3.45 (65) |
 
+The widget-binding hold (`lv_subject_hold_obj_observers()`) was measured on the earlier
+build with the input read still polled: it took the K1C from 1.51 to 1.35 and the AD5M from
+1.35 to 1.21, with no widget written and no refresh pass asleep, and the first frame after a
+wake settling in 0.3-2.5 ms. It is not in the table above and has not been measured on the
+current build; that needs a device check.
+
 Status arrives at about 4 frames a second on both boards (`toolhead.estimated_print_time`
 changes in every one), and each MCU reports `last_stats` once a second, which released the
 telemetry hold every second until it joined the list. What still wakes the loop asleep is
 in "Open costs".
 
+### For comparison
 
 GrumpyScreen, as its users quote it: about 5% at idle and 0.7% with the screen off, 5 MB
 of RAM. Whether that is one core or the whole machine is not stated.
@@ -330,6 +337,26 @@ whether the screen was on or asleep, at about 0.25-0.4 ms per wake:
 | UI update queue drain | 33 ms | paused while the display sleeps: an enqueue from another thread wakes the loop through the main-loop wake pipe, and the loop drains the queue in every pass |
 | Debug-touch ripple | 30 ms, always | 500 ms while the setting is off (`debug_touch_period_ms`), paused while the display sleeps |
 | LVGL animation timer | 33 ms | stops when no spinner is visible: a hidden `<spinner>` parks its animations and restarts on its next draw |
+
+### What sleep holds back
+
+Status keeps arriving at full rate while the display sleeps, so a frame that has to wake
+the screen (a print ending, an error, a prompt) is applied as soon as it arrives. Two holds
+cut the work done for values nobody can see:
+
+- **Telemetry status.** A status frame whose every attribute is on the telemetry list in
+  `src/printer/status_coalescer.cpp` is merged into a held delta, latest value per
+  attribute, and applied once a second (`kAsleepStatusIntervalMs`, which keeps the
+  temperature graph's 1 Hz samples). Any other attribute applies the held delta first and
+  then itself, so an attribute missing from the list is applied rather than held.
+- **Widget bindings.** `lv_subject_hold_obj_observers()` (`patches/lvgl_observer_obj_hold.patch`)
+  skips every observer bound to a widget, which every `lv_*_bind_*` and XML `bind_*` is,
+  while observers that record data still see each value. With no label changing, no layout
+  pass runs on the hidden screen.
+
+Sleep turns both on (`src/application/asleep_status_wiring.cpp#wire_asleep_status`). Before
+the first frame after a wake, the held status is applied, then the held widgets are brought
+to the current values, then the update queue is drained, so that frame shows current state.
 
 ## Open costs
 

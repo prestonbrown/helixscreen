@@ -1,0 +1,186 @@
+diff --git a/include/lvgl/core/lv_observer.h b/include/lvgl/core/lv_observer.h
+--- a/include/lvgl/core/lv_observer.h
++++ b/include/lvgl/core/lv_observer.h
+@@ -509,6 +509,34 @@
+ void lv_subject_notify(lv_subject_t * subject);
+ 
+ /**
++ * Hold or release the notifications of every Widget Observer: an Observer added with
++ * `lv_subject_add_observer_obj()` on a non-NULL Widget, which every `lv_*_bind_*()`
++ * binding is. Observers with no Widget are notified as usual.
++ *
++ * While held, a Subject change skips its Widget Observers and remembers each skipped one
++ * once. Releasing notifies each of them once, from the Subject's value at that moment,
++ * so they skip the intermediate values. An Observer deleted while held is forgotten.
++ * Releasing from inside a Subject notification is refused and leaves the hold on.
++ * @param hold          true: hold; false: release and deliver what was held
++ */
++void lv_subject_hold_obj_observers(bool hold);
++
++/**
++ * @return              true while Widget Observer notifications are held
++ */
++bool lv_subject_obj_observers_held(void);
++
++/**
++ * @return              how many Widget Observers wait for the release
++ */
++uint32_t lv_subject_obj_observers_held_count(void);
++
++/**
++ * @return              true while a Subject notification is running, when a release is refused
++ */
++bool lv_subject_notifying(void);
++
++/**
+  * Add an event handler to increment (or decrement) the value of a subject on a trigger.
+  * @param obj       pointer to a widget
+  * @param subject   pointer to a subject to change
+diff --git a/src/core/lv_observer.c b/src/core/lv_observer.c
+--- a/src/core/lv_observer.c
++++ b/src/core/lv_observer.c
+@@ -124,9 +124,30 @@
+  *   GLOBAL FUNCTIONS
+  **********************/
+ 
++/* Widget Observers whose notification is held (lv_subject_hold_obj_observers()). One
++ * process-wide hold: every display sleeps together. */
++static bool obj_observers_held;
++static lv_ll_t held_observer_ll;   /* lv_observer_t * per node */
++static uint32_t notify_depth;      /* > 0 while subject_notify() runs */
++
++static void held_observer_forget(lv_observer_t * observer)
++{
++    lv_observer_t ** node;
++    LV_LL_READ(&held_observer_ll, node) {
++        if(*node == observer) {
++            lv_ll_remove(&held_observer_ll, node);
++            lv_free(node);
++            return;
++        }
++    }
++}
++
+ void lv_subject_global_init(void)
+ {
+     lv_ll_init(&subject_list, sizeof(lv_subject_t));
++    lv_ll_init(&held_observer_ll, sizeof(lv_observer_t *));
++    obj_observers_held = false;
++    notify_depth = 0;
+ }
+ void lv_subject_global_deinit(void)
+ {
+@@ -146,6 +167,8 @@
+         }
+     }
+     lv_ll_clear(&subject_list);
++    lv_ll_clear(&held_observer_ll);
++    obj_observers_held = false;
+ }
+ 
+ lv_subject_t * lv_subject_create(lv_subject_type_t type)
+@@ -667,6 +690,10 @@
+ {
+     if(observer == NULL) return;
+ 
++    if(observer->notify_held) {
++        held_observer_forget(observer);
++    }
++
+     if(observer->for_obj && observer->target) {
+         lv_obj_remove_event_cb_with_user_data(observer->target, unsubscribe_on_delete_cb, observer);
+         /*A NULL user_data here would match, and remove, every unrelated callback
+@@ -757,16 +784,81 @@
+         observer->notified = 0;
+     }
+ 
++    notify_depth++;
+     do {
+         subject->notify_restart_query = 0;
+         LV_LL_READ(&(subject->subs_ll), observer) {
+             if(observer->cb && observer->notified == 0) {
++                if(obj_observers_held && observer->for_obj && observer->target) {
++                    observer->notified = 1;
++                    if(!observer->notify_held) {
++                        lv_observer_t ** node = lv_ll_ins_tail(&held_observer_ll);
++                        LV_ASSERT_MALLOC(node);
++                        if(node) {
++                            *node = observer;
++                            observer->notify_held = 1;
++                        }
++                        else {
++                            /* Out of memory: deliver now rather than lose the update. */
++                            observer->cb(observer, subject);
++                            if(subject->notify_restart_query) break;
++                        }
++                    }
++                    continue;
++                }
+                 observer->cb(observer, subject);
+                 if(subject->notify_restart_query) break;
+                 observer->notified = 1;
+             }
+         }
+     } while(subject->notify_restart_query);
++    notify_depth--;
++}
++
++void lv_subject_hold_obj_observers(bool hold)
++{
++    LV_HELIX_ASSERT_LVGL_THREAD();
++    if(hold) {
++        obj_observers_held = true;
++        return;
++    }
++    if(!obj_observers_held) return;
++    /* A release inside a notification would run Widget callbacks while that Subject's
++     * Observer list is being walked. */
++    if(notify_depth > 0) {
++        LV_LOG_WARN("lv_subject_hold_obj_observers: release inside a notification refused");
++        return;
++    }
++    obj_observers_held = false;
++
++    /* Head first, unlinked before its callback: a callback may delete other held
++     * Observers (lv_observer_delete() forgets them) or change Subjects (delivered at once,
++     * the hold being off). */
++    lv_observer_t ** node;
++    while((node = lv_ll_get_head(&held_observer_ll)) != NULL) {
++        lv_observer_t * observer = *node;
++        lv_ll_remove(&held_observer_ll, node);
++        lv_free(node);
++        observer->notify_held = 0;
++        if(observer->cb && observer->subject) {
++            observer->cb(observer, observer->subject);
++        }
++    }
++}
++
++bool lv_subject_obj_observers_held(void)
++{
++    return obj_observers_held;
++}
++
++uint32_t lv_subject_obj_observers_held_count(void)
++{
++    return lv_ll_get_len(&held_observer_ll);
++}
++
++bool lv_subject_notifying(void)
++{
++    return notify_depth > 0;
+ }
+ 
+ lv_subject_increment_dsc_t * lv_obj_add_subject_increment_event(lv_obj_t * obj, lv_subject_t * subject,
+diff --git a/src/core/lv_observer_private.h b/src/core/lv_observer_private.h
+--- a/src/core/lv_observer_private.h
++++ b/src/core/lv_observer_private.h
+@@ -38,6 +38,8 @@
+     uint32_t auto_free_user_data : 1;   /**< Automatically free user data when observer is removed */
+     uint32_t notified : 1;              /**< Was observer already notified? */
+     uint32_t for_obj : 1;               /**< Is `target` a pointer to a Widget (`lv_obj_t *`)? */
++    uint32_t notify_held : 1;           /**< A notification skipped while Widget Observers are
++                                         *   held; delivered by the release */
+ };
+ 
+ /**
