@@ -654,7 +654,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "helix::ui::icon::set_variant: accepts new v
     lv_obj_delete(icon);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "a contrast icon reads against the nearest filled ancestor",
+TEST_CASE_METHOD(LVGLUITestFixture, "a contrast icon reads against the nearest filled ancestor",
                  "[ui_icon]") {
     lv_obj_t* card = lv_obj_create(test_screen());
     lv_obj_t* clear = lv_obj_create(card);
