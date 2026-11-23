@@ -264,6 +264,11 @@ Allowed elements (`src/plugin/plugin_xml_policy.cpp#is_allowed_element`):
 - `plugin_table`, a data table filled from Lua (below and §8, helix.ui.table)
 - the plugin's own components, by name
 
+A `ui_card` takes no touch unless its XML says `clickable="true"`, so a card that taps
+needs both that attribute and its `event_cb`:
+`<ui_card clickable="true"><event_cb trigger="clicked" callback="plugin_event" user_data="..."/></ui_card>`.
+Without it the card ignores the tap and shows no press.
+
 A `view` may `extends` only another allowed name. `screen_load_event` and
 `screen_create_event` are never available. The `subject_*_event` elements are rejected
 outright: they hold a raw subject pointer with no observer, and `plugin_event` plus
