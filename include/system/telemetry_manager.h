@@ -738,12 +738,15 @@ class TelemetryManager {
      * When detected, gathers print data from PrinterState subjects and
      * calls record_print_outcome() automatically.
      *
-     * Call once during initialization (e.g., from SubjectInitializer).
-     * The returned ObserverGuard manages the observer's lifetime.
+     * The nozzle_temp and bed_temp it reports are the highest targets set
+     * while the job ran, so a job whose end gcode turned the heaters off
+     * still reports the temperatures it printed at.
      *
-     * @return ObserverGuard for RAII cleanup
+     * Call once during initialization (e.g., from SubjectInitializer).
+     *
+     * @return the guards for the job-state and target-temperature observers
      */
-    ObserverGuard init_print_outcome_observer();
+    std::vector<ObserverGuard> init_print_outcome_observer();
 
     // =========================================================================
     // DEVICE ID UTILITIES (public for testing)

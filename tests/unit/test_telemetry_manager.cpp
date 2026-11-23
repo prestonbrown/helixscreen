@@ -531,6 +531,74 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Print outcome event: captures temperatur
     REQUIRE(event["bed_temp"] == 55);
 }
 
+namespace {
+
+json last_print_outcome(TelemetryManager& tm) {
+    json found;
+    for (const auto& e : tm.get_queue_snapshot()) {
+        if (e.value("event", "") == "print_outcome") {
+            found = e;
+        }
+    }
+    return found;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Print outcome observer reports the highest targets of the job, not the "
+                 "cooled-down ones at its end",
+                 "[telemetry][print_outcome]") {
+    lv_init_safe();
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    auto& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    auto* job = state.print_state().get_print_state_enum_subject();
+    auto* nozzle = state.temperature_state().get_active_extruder_target_subject();
+    auto* bed = state.temperature_state().get_bed_target_subject();
+    auto set_job = [&](PrintJobState s) { lv_subject_set_int(job, static_cast<int>(s)); };
+
+    {
+        auto guards = tm.init_print_outcome_observer();
+
+        // Targets left over from before the job do not count toward it.
+        lv_subject_set_int(nozzle, 2800);
+        lv_subject_set_int(bed, 1100);
+        lv_subject_set_int(nozzle, 0);
+        lv_subject_set_int(bed, 0);
+
+        set_job(PrintJobState::PRINTING);
+        lv_subject_set_int(bed, 600);
+        lv_subject_set_int(nozzle, 1500); // probing temperature
+        lv_subject_set_int(nozzle, 2150);
+        lv_subject_set_int(nozzle, 2050);
+        // End gcode turns the heaters off before the printer reports the end.
+        lv_subject_set_int(nozzle, 0);
+        lv_subject_set_int(bed, 0);
+        set_job(PrintJobState::COMPLETE);
+
+        auto first = last_print_outcome(tm);
+        REQUIRE(first.is_object());
+        CHECK(first["nozzle_temp"] == 215);
+        CHECK(first["bed_temp"] == 60);
+
+        // The next job starts from nothing: its cooler targets are its own.
+        set_job(PrintJobState::STANDBY);
+        set_job(PrintJobState::PRINTING);
+        lv_subject_set_int(nozzle, 2000);
+        lv_subject_set_int(bed, 500);
+        set_job(PrintJobState::CANCELLED);
+
+        auto second = last_print_outcome(tm);
+        CHECK(second["nozzle_temp"] == 200);
+        CHECK(second["bed_temp"] == 50);
+    }
+    PrinterStateTestAccess::reset(state);
+}
+
 // ============================================================================
 // Enable/Disable Toggle [telemetry][toggle]
 // ============================================================================

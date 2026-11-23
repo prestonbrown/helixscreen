@@ -484,7 +484,9 @@ void SubjectInitializer::init_observers() {
 #endif
 
     // Print outcome telemetry observer (records anonymous print stats when telemetry enabled)
-    m_observers.push_back(TelemetryManager::instance().init_print_outcome_observer());
+    for (auto& guard : TelemetryManager::instance().init_print_outcome_observer()) {
+        m_observers.push_back(std::move(guard));
+    }
 
     // Panel usage tracking for telemetry
     // Note: Uses raw ObserverGuard rather than observe<int> because there's no
