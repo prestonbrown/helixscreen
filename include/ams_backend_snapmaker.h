@@ -360,7 +360,7 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     [[nodiscard]] bool supports_tool_park() const override {
         return true;
     }
-    AmsError park_active_tool() override {
+    AmsError park_active_tool() override final {
         return run_park_active_tool(supports_tool_park());
     }
 

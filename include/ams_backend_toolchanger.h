@@ -338,7 +338,7 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     [[nodiscard]] bool supports_tool_park() const override {
         return !tool_commands_.present || !tool_commands_.unselect.empty();
     }
-    AmsError park_active_tool() override {
+    AmsError park_active_tool() override final {
         return run_park_active_tool(supports_tool_park());
     }
 
