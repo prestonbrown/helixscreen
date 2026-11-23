@@ -907,6 +907,8 @@ class NavigationManager {
     ObserverGuard connection_state_observer_;
     ObserverGuard klippy_state_observer_;
     ObserverGuard printer_switcher_observer_;
+    ObserverGuard estop_slot_observer_;
+    ObserverGuard drying_slot_observer_;
     ObserverGuard theme_observer_;
     /// The palette the open modals' backdrops were last asked to show.
     std::string modal_palette_key_;

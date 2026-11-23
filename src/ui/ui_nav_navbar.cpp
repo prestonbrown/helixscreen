@@ -1,10 +1,12 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_emergency_stop.h"
 #include "ui_event_safety.h"
 #include "ui_nav_manager.h"
 
 #include "app_globals.h"
+#include "bed_drying_controller.h"
 #include "core/observer_factory.h"
 #include "printer_state.h"
 #include "settings_manager.h"
@@ -116,6 +118,22 @@ void NavigationManager::wire_events(lv_obj_t* navbar) {
             mgr->refresh_modal_backdrops_after_settle();
         },
         SettingsManager::instance().get_subjects_lifetime());
+
+    // The E-stop and bed-drying slots open in the navbar on their own, often
+    // while an overlay is up (Print Status as a print starts). The live buttons
+    // re-flow to make room; the backdrops have to as well, or the old spacing
+    // shows under the live E-stop.
+    auto refresh_on_change = [](NavigationManager* mgr, int /* value */) {
+        mgr->refresh_overlay_backdrop();
+        mgr->refresh_modal_backdrops_after_settle();
+    };
+    auto& estop = EmergencyStopOverlay::instance();
+    estop_slot_observer_ = observe<int>(estop.get_visible_subject(), this, refresh_on_change,
+                                        estop.get_subjects_lifetime());
+    if (auto* drying = get_bed_drying_controller()) {
+        drying_slot_observer_ = observe<int>(drying->get_state_subject(), this, refresh_on_change,
+                                             drying->get_subjects_lifetime());
+    }
 
     // A live theme or mode switch from inside an overlay (Settings > Appearance)
     // repaints the navbar widget the snapshot hides, so re-take it too, and the
