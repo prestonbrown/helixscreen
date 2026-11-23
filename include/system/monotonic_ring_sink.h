@@ -9,9 +9,11 @@
 #include <spdlog/details/log_msg_buffer.h>
 #include <spdlog/sinks/base_sink.h>
 
+#include <cstddef>
 #include <functional>
 #include <mutex>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -34,6 +36,11 @@ namespace logging {
  * (the log path keeps its single preallocated block and does no formatting),
  * which is what the constrained MIPS/ARM targets need — the ring runs at debug
  * level while the persistent sinks sit at warning.
+ *
+ * A run of identical lines (same logger, level and text) occupies one entry: a
+ * poller logging the same line every few seconds would otherwise push the rest
+ * of the session out of a small device's ring within hours. The dump prints the
+ * first line of the run, then one summary line stamped with the last repeat.
  */
 class MonotonicRingSink final : public spdlog::sinks::base_sink<std::mutex> {
   public:
@@ -55,17 +62,37 @@ class MonotonicRingSink final : public spdlog::sinks::base_sink<std::mutex> {
     std::vector<std::string> last_formatted(size_t lim = 0) {
         std::lock_guard<std::mutex> lock(base_sink<std::mutex>::mutex_);
         const size_t available = q_.size();
-        const size_t count = lim > 0 ? (lim < available ? lim : available) : available;
+
+        // Walk back far enough to cover `lim` output lines; a collapsed run
+        // prints two. Formatting itself must run oldest-first so the CLOCK_STEP
+        // detector sees each line after its predecessor.
+        size_t first = available;
+        size_t lines = 0;
+        while (first > 0 && (lim == 0 || lines < lim)) {
+            --first;
+            lines += q_.at(first).repeats > 0 ? 2 : 1;
+        }
 
         ReplayGuard guard;
         std::vector<std::string> out;
-        out.reserve(count);
-        for (size_t i = available - count; i < available; ++i) {
+        out.reserve(lines);
+        for (size_t i = first; i < available; ++i) {
             const Entry& e = q_.at(i);
             guard.set_value(e.mono);
-            spdlog::memory_buf_t formatted;
-            base_sink<std::mutex>::formatter_->format(e.msg, formatted);
-            out.emplace_back(formatted.data(), formatted.size());
+            append_formatted(e.msg, out);
+            if (e.repeats > 0) {
+                const std::string summary = fmt::format(
+                    "[repeated {} more time{}] {}", e.repeats, e.repeats == 1 ? "" : "s",
+                    std::string_view(e.msg.payload.data(), e.msg.payload.size()));
+                spdlog::details::log_msg last{e.last_time, e.msg.source, e.msg.logger_name,
+                                              e.msg.level, summary};
+                last.thread_id = e.msg.thread_id;
+                guard.set_value(e.last_mono);
+                append_formatted(last, out);
+            }
+        }
+        if (lim > 0 && out.size() > lim) {
+            out.erase(out.begin(), out.begin() + static_cast<std::ptrdiff_t>(out.size() - lim));
         }
         return out;
     }
@@ -88,16 +115,43 @@ class MonotonicRingSink final : public spdlog::sinks::base_sink<std::mutex> {
     void sink_it_(const spdlog::details::log_msg& msg) override {
         // Stamp here, not in last_formatted(). This is the entire point of the
         // class; see the header comment.
-        q_.push_back(Entry{spdlog::details::log_msg_buffer{msg}, clock_ ? clock_() : 0.0});
+        const double mono = clock_ ? clock_() : 0.0;
+        if (!q_.empty()) {
+            const Entry& newest = q_.at(q_.size() - 1);
+            if (repeats(newest.msg, msg)) {
+                ++newest.repeats;
+                newest.last_time = msg.time;
+                newest.last_mono = mono;
+                return;
+            }
+        }
+        q_.push_back(Entry{spdlog::details::log_msg_buffer{msg}, mono});
     }
 
     void flush_() override {}
 
   private:
+    // The repeat fields are mutable because circular_q only hands out const
+    // references, and a repeat updates the newest entry in place.
     struct Entry {
         spdlog::details::log_msg_buffer msg;
         double mono = 0.0;
+        mutable size_t repeats = 0;
+        mutable spdlog::log_clock::time_point last_time{};
+        mutable double last_mono = 0.0;
     };
+
+    static bool repeats(const spdlog::details::log_msg& held,
+                        const spdlog::details::log_msg& incoming) {
+        return held.level == incoming.level && held.logger_name == incoming.logger_name &&
+               held.payload == incoming.payload;
+    }
+
+    void append_formatted(const spdlog::details::log_msg& msg, std::vector<std::string>& out) {
+        spdlog::memory_buf_t formatted;
+        base_sink<std::mutex>::formatter_->format(msg, formatted);
+        out.emplace_back(formatted.data(), formatted.size());
+    }
 
     /// Scoped activation of the thread-local replay state, exception-safe so a
     /// throwing formatter cannot leave live sinks replaying a stale offset.
