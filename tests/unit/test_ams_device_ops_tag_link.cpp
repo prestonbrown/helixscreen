@@ -10,6 +10,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "ams_backend_mock.h"
+#include "ams_spoolman_tag_links.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/static_panel_registry.h"
@@ -29,9 +30,15 @@ using helix::ui::get_ams_device_operations_overlay;
 namespace {
 
 /// A backend whose tags can name a Spoolman spool, as a stock CFS's can.
-class TagNamingMock : public AmsBackendMock {
+class TagNamingMock : public AmsBackendMock, public ISpoolmanTagLinks {
   public:
     TagNamingMock() : AmsBackendMock(4) {}
+    [[nodiscard]] void* capability(helix::TypeTag tag) override {
+        if (tag == helix::type_tag<ISpoolmanTagLinks>()) {
+            return static_cast<ISpoolmanTagLinks*>(this);
+        }
+        return AmsBackendMock::capability(tag);
+    }
     [[nodiscard]] bool tags_name_spoolman_spools() const override {
         return true;
     }

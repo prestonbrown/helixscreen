@@ -16,6 +16,7 @@
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_cfs.h"
+#include "ams_backend_mock.h"
 #include "ams_remap.h"
 #include "ams_state.h"
 #include "ams_types.h"
@@ -7890,6 +7891,25 @@ TEST_CASE("CFS backend reports the K1-family upgrade's printable-Y shrink (#968)
         config->set<std::string>(type_path, "Creality K2 Plus");
         AmsBackendCfs backend(nullptr, nullptr);
         CHECK(backend.printable_y_shrink_mm() == 0.0);
+    }
+
+    config->set<std::string>(type_path, saved);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "the print-start fit check reads the CFS printable-Y shrink",
+                 "[ams][cfs][print_start]") {
+    auto* config = Config::get_instance();
+    const std::string type_path = config->df() + "type";
+    const std::string saved = config->get<std::string>(type_path, "");
+    config->set<std::string>(type_path, "Creality K1C");
+
+    SECTION("a CFS backend takes 5 mm") {
+        helix::test::RegisteredBackend<AmsBackendCfs> backend(nullptr, nullptr);
+        CHECK(AmsState::instance().printable_y_shrink_mm() == 5.0);
+    }
+    SECTION("a system that takes no bed area answers none") {
+        helix::test::RegisteredBackend<AmsBackendMock> backend(4);
+        CHECK(AmsState::instance().printable_y_shrink_mm() == 0.0);
     }
 
     config->set<std::string>(type_path, saved);

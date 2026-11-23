@@ -4151,6 +4151,11 @@ A caller spells out what a backend without the interface means: the sidebar's bu
 - `IRunoutOtherHead` (`include/ams_runout_other_head.h`) -- The `RunoutFacts` snapshot that decides whether a
   runout-paused print can continue on another loaded head (§ Continuing a runout on another head). The Snapmaker U1 and
   MultiACE implement it. Without it the runout flow offers no other head.
+- `IPrintAreaIntrusion` (`include/ams_print_area_intrusion.h`) -- Bed Y the mounted hardware makes unprintable,
+  which the print-start fit check subtracts. CFS implements it for the K1 upgrade's rear cassette. Without it the
+  system takes no bed area.
+- `ISpoolmanTagLinks` (`include/ams_spoolman_tag_links.h`) -- Whether tag readings can name a Spoolman spool, which
+  gates the Link Spools from Tags setting. CFS implements it (stock schema). Without it the setting is hidden.
 
 **Optional overrides (with default implementations):**
 

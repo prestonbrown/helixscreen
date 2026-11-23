@@ -195,6 +195,8 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         const ISharedSpoolLanes* shared_spools = nullptr;
         const ILaneFaults* lane_faults = nullptr;
         const IRunoutOtherHead* runout_other_head = nullptr;
+        const IPrintAreaIntrusion* print_area = nullptr;
+        const ISpoolmanTagLinks* tag_links = nullptr;
     };
     const Row rows[] = {
         {.backend = &ace, .dryer = &ace},
@@ -221,7 +223,11 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
          .dryer = &afc,
          .retention = &afc,
          .lane_faults = &afc},
-        {.backend = &cfs, .calibration = &cfs, .routing = &cfs},
+        {.backend = &cfs,
+         .calibration = &cfs,
+         .routing = &cfs,
+         .print_area = &cfs,
+         .tag_links = &cfs},
         {.backend = &happy_hare,
          .gates = &happy_hare,
          .dryer = &happy_hare,
@@ -247,6 +253,8 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         CHECK(row.backend->as<ISharedSpoolLanes>() == row.shared_spools);
         CHECK(row.backend->as<ILaneFaults>() == row.lane_faults);
         CHECK(row.backend->as<IRunoutOtherHead>() == row.runout_other_head);
+        CHECK(row.backend->as<IPrintAreaIntrusion>() == row.print_area);
+        CHECK(row.backend->as<ISpoolmanTagLinks>() == row.tag_links);
         // A start that promises a pre-print step needs something to build it.
         CHECK((!row.backend->requires_preprint_send() || row.routing != nullptr));
         CHECK(row.backend->as<NothingImplementsThis>() == nullptr);
