@@ -69,8 +69,8 @@ Recorded when a print job reaches a terminal state (completion, failure, or canc
 | `phases_completed` | integer | Number of print start phases completed (0-10) |
 | `filament_used_mm` | float | Filament consumed in millimeters |
 | `filament_type` | string | Filament material type (e.g., `"PLA"`, `"PETG"`, `"ABS"`) |
-| `nozzle_temp` | integer | Target nozzle temperature in degrees Celsius |
-| `bed_temp` | integer | Target bed temperature in degrees Celsius |
+| `nozzle_temp` | integer | Highest nozzle target during the print, in degrees Celsius |
+| `bed_temp` | integer | Highest bed target during the print, in degrees Celsius |
 
 ### 4.3 Crash Reports
 
