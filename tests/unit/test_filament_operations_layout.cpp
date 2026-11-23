@@ -132,3 +132,57 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(in_row(find(card, "extrude_speed_dropdown"), card, "tool_card_row"));
     lv_obj_delete(card);
 }
+
+// Purge and Clean each have a declaration per place. Whichever copy a layout
+// builds carries the same disabled rules: Purge while the nozzle is too cold,
+// while an operation runs, and with no filament to purge; Clean while an
+// operation runs.
+TEST_CASE_METHOD(LVGLUITestFixture, "Operations Purge and Clean disable on every copy",
+                 "[filament][layout]") {
+    helix::test::ScopedIntSubject clean_shown("filament_clean_nozzle_shown", 1);
+    helix::test::ScopedIntSubject cold("filament_safety_warning_visible", 0);
+    helix::test::ScopedIntSubject busy("filament_operation_in_progress", 0);
+    helix::test::ScopedIntSubject nothing_loaded("filament_unload_disabled", 0);
+
+    struct Layout {
+        const char* what;
+        int32_t w, h;
+        int multi_head;
+        const char* purge_row;
+        const char* clean_row;
+    };
+    const Layout layouts[] = {
+        {"800x480", 800, 480, 0, "purge_clean_row", "purge_clean_row"},
+        {"480x272", 480, 272, 0, "filament_change_row", "operations_heading_row"},
+        {"480x272 toolchanger", 480, 272, 1, "filament_change_row", "filament_change_row"},
+    };
+    for (const Layout& l : layouts) {
+        INFO(l.what);
+        helix::test::ScopedGeometry screen(l.w, l.h);
+        helix::test::ScopedIntSubject heads("target_tool_multi_head", l.multi_head);
+        const char* attrs[] = {"row_height", "26", "length_height", "40", nullptr};
+        lv_obj_t* card = static_cast<lv_obj_t*>(
+            lv_xml_create(test_screen(), "filament_operations_group", attrs));
+        REQUIRE(card != nullptr);
+        lv_obj_t* purge = find(card, "btn_purge");
+        lv_obj_t* clean = find(card, "btn_clean_nozzle");
+        REQUIRE(in_row(purge, card, l.purge_row));
+        REQUIRE(in_row(clean, card, l.clean_row));
+
+        auto disabled = [](lv_obj_t* o) { return lv_obj_has_state(o, LV_STATE_DISABLED); };
+        CHECK_FALSE(disabled(purge));
+        CHECK_FALSE(disabled(clean));
+        for (const char* gate : {"filament_safety_warning_visible",
+                                 "filament_operation_in_progress", "filament_unload_disabled"}) {
+            INFO(gate);
+            lv_subject_t* s = lv_xml_get_subject(nullptr, gate);
+            REQUIRE(s != nullptr);
+            lv_subject_set_int(s, 1);
+            CHECK(disabled(purge));
+            CHECK(disabled(clean) == (std::string(gate) == "filament_operation_in_progress"));
+            lv_subject_set_int(s, 0);
+            CHECK_FALSE(disabled(purge));
+        }
+        lv_obj_delete(card);
+    }
+}
