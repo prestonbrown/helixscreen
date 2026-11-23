@@ -130,6 +130,14 @@
     <string name="cal_font_primary_medium" value="noto_sans_bold_18"/>
     <string name="cal_font_primary_large" value="noto_sans_bold_20"/>
     <string name="cal_font_primary_xlarge" value="noto_sans_bold_24"/>
+    <!-- Two lines of cal_font_detail, rounded up: a step row's result wraps once,
+         then ends in dots. -->
+    <px name="cal_detail_two_lines_micro" value="32"/>
+    <px name="cal_detail_two_lines_tiny" value="32"/>
+    <px name="cal_detail_two_lines_small" value="36"/>
+    <px name="cal_detail_two_lines_medium" value="46"/>
+    <px name="cal_detail_two_lines_large" value="54"/>
+    <px name="cal_detail_two_lines_xlarge" value="60"/>
     <string name="cal_font_mono_micro" value="source_code_pro_10"/>
     <string name="cal_font_mono_tiny" value="source_code_pro_12"/>
     <string name="cal_font_mono_small" value="source_code_pro_12"/>
