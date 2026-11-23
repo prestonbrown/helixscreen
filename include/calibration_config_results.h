@@ -38,6 +38,9 @@ using HeaterControls = std::map<std::string, std::string>;
 [[nodiscard]] std::string format_shaper_axis(std::string_view type, double freq_hz);
 /// Both axes' shapers: "X: MZV 36.7 · Y: EI 47.6"; an empty axis is left out.
 [[nodiscard]] std::string join_shaper_axes(const std::string& x, const std::string& y);
+/// A join_shaper_axes() result with one axis per line: "X: MZV 36.7\nY: EI 47.6".
+/// Any other text comes back unchanged.
+[[nodiscard]] std::string shaper_axes_on_lines(std::string_view joined);
 /// PID gains to three significant figures: "22.1 / 1.08 / 113".
 [[nodiscard]] std::string format_pid(double kp, double ki, double kd);
 /// An MPC model by its block heat capacity: "MPC 18.4 J/K".

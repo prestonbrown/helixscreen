@@ -282,6 +282,9 @@ class CalibrationRunOverlay : public OverlayBase {
     char results_sub_buf_[kLongLen]{};
     helix::Subject save_line_;
     char save_line_buf_[kLongLen]{};
+    /// Under the save line: whether saving restarts Klipper, when it offers a save.
+    helix::Subject save_sub_;
+    char save_sub_buf_[kShortLen]{};
     helix::Subject has_error_;
     helix::Subject error_;
     char error_buf_[kLongLen]{};
