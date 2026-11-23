@@ -884,12 +884,9 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
 
             // extruder
             if (objects.contains("extruder")) {
-                status_obj["extruder"] = {
-                    {"temperature", 25.0},
-                    {"target", 0.0},
-                    {"power", 0.0},
-                    {"pressure_advance", self->pressure_advance_for("extruder").advance},
-                    {"smooth_time", self->pressure_advance_for("extruder").smooth_time}};
+                status_obj["extruder"] = {{"temperature", 25.0}, {"target", 0.0}, {"power", 0.0}};
+                status_obj["extruder"].update(
+                    self->pressure_advance_status(self->pressure_advance_for("extruder")));
             }
 
             // Toolchanger secondary extruders (HELIX_MOCK_AMS=toolchanger and
@@ -900,12 +897,11 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 const std::string ext = "extruder" + std::to_string(t);
                 if (objects.contains(ext)) {
                     const double target = self->secondary_extruder_target(t);
-                    status_obj[ext] = {
-                        {"temperature", self->secondary_extruder_temp(t)},
-                        {"target", target},
-                        {"power", target > 0 ? 0.5 : 0.0},
-                        {"pressure_advance", self->pressure_advance_for(ext).advance},
-                        {"smooth_time", self->pressure_advance_for(ext).smooth_time}};
+                    status_obj[ext] = {{"temperature", self->secondary_extruder_temp(t)},
+                                       {"target", target},
+                                       {"power", target > 0 ? 0.5 : 0.0}};
+                    status_obj[ext].update(
+                        self->pressure_advance_status(self->pressure_advance_for(ext)));
                 }
             }
 

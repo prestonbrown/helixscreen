@@ -13,6 +13,7 @@
 #include "moonraker_client_mock_happy_hare.h"
 #include "moonraker_client_mock_spoolman.h"
 #include "moonraker_types.h"
+#include "pa_model.h"
 #include "preprint_skip_wrappers.h"
 
 #include <array>
@@ -1290,11 +1291,34 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
 
     /// An extruder's pressure advance K and smooth time, as SET_PRESSURE_ADVANCE
     /// last left them. An extruder never set reads the config default.
+    ///
+    /// `model` is Classic unless HELIX_MOCK_PA_MODEL selects a model-aware
+    /// firmware; `advance` is K under Classic/Linear and linear_advance under a
+    /// nonlinear model, as SET_PRESSURE_ADVANCE ADVANCE= sets it.
     struct PressureAdvance {
         double advance = 0.04;
         double smooth_time = 0.04;
+        helix::pa::ModelKind model = helix::pa::ModelKind::Classic;
+        double offset = 0.0;
+        double velocity = 1.0;
+        double time_offset = 0.0;
     };
     PressureAdvance pressure_advance_for(const std::string& extruder) const;
+
+    /// The extruder status keys an extruder in @p pa reports: the model decides
+    /// which of K, linear_advance, nonlinear_offset, linearization_velocity and
+    /// time_offset are present.
+    static json pressure_advance_status(const PressureAdvance& pa);
+
+    /// Whether HELIX_MOCK_PA_TEST is on: the firmware's pa_test module (the
+    /// PRINT_PA_TOWER command and its config section) exists.
+    static bool pa_test_enabled();
+
+    /// One simulated step of a PRINTING phase: advances progress by
+    /// @p dt_simulated seconds, follows the PA tower's layers, and completes the
+    /// print at 100%. The simulation thread calls it every tick; it is public so
+    /// a test can drive a print without the thread.
+    void step_printing(double dt_simulated);
 
     /// Current mock offset for a tool on one axis, in mm. Seeded distinct per
     /// tool AND per axis and updated by SET_TOOL_PARAMETER, so a value set
@@ -2517,6 +2541,22 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     std::map<std::string, PressureAdvance> pressure_advance_;
     mutable std::mutex pressure_advance_mutex_;
 
+    /// TUNING_TOWER COMMAND=SET_PRESSURE_ADVANCE sweep and the PRINT_PA_TOWER
+    /// print it rides. Guarded by pa_tower_mutex_.
+    struct PaTower {
+        bool armed = false;
+        std::string parameter; ///< ADVANCE, OFFSET or TIME_OFFSET
+        double start = 0.0;
+        double factor = 0.0;
+        bool active = false; ///< a PRINT_PA_TOWER print is running
+        int layer = -1;      ///< last layer whose sweep value was applied
+        int layers = 0;
+        double layer_height = 0.2;
+        double first_layer_height = 0.2;
+    };
+    PaTower pa_tower_;
+    mutable std::mutex pa_tower_mutex_;
+
     std::map<std::string, LedColor> led_states_; // LED name -> color
     /// LED output pins' values by object name ("output_pin Enclosure_LEDs"),
     /// set by SET_PIN; a pin with no entry reads kMockLedPinValue.
@@ -3292,6 +3332,14 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     GcodeResult gcode_test_resonances(const std::string& gcode);
     GcodeResult gcode_set_led(const std::string& gcode);
     GcodeResult gcode_set_pressure_advance(const std::string& gcode);
+    GcodeResult gcode_tuning_tower(const std::string& gcode);
+    GcodeResult gcode_print_pa_tower(const std::string& gcode);
+    /// Applies the armed sweep for the layer the print has reached, and ends the
+    /// tower at the last one. No-op when no tower runs.
+    void service_pa_tower();
+    /// Stops the tower and disarms its sweep. Called when the print leaves PRINTING.
+    void end_pa_tower();
+    void complete_print_internal();
     GcodeResult gcode_probe_calibrate(const std::string& gcode);
     GcodeResult gcode_testz(const std::string& gcode);
     GcodeResult gcode_accept(const std::string& gcode);

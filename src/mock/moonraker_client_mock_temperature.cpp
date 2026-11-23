@@ -523,16 +523,7 @@ void MoonrakerClientMock::temperature_simulation_loop() {
 
         case MockPrintPhase::PRINTING:
             // Advance print progress based on file-estimated duration
-            advance_print_progress(effective_dt);
-
-            if (print_progress_.load() >= 1.0) {
-                print_phase_.store(MockPrintPhase::COMPLETE);
-                print_state_.store(3); // "complete" for backward compatibility
-                extruder_target_.store(0.0);
-                bed_target_.store(0.0);
-                spdlog::info("[MoonrakerClientMock] Print complete!");
-                dispatch_print_state_notification("complete");
-            }
+            step_printing(effective_dt);
             break;
 
         case MockPrintPhase::PAUSED:
