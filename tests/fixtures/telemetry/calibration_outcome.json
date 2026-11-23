@@ -1,0 +1,14 @@
+{
+  "app_board": "<build>",
+  "app_platform": "<build>",
+  "app_version": "<build>",
+  "boot_id": "<boot_id>",
+  "device_id": "<device_id>",
+  "duration_bucket": "5-15min",
+  "event": "calibration_outcome",
+  "failure_class": "accelerometer",
+  "outcome": "failed",
+  "schema_version": 3,
+  "timestamp": "<timestamp>",
+  "type": "input_shaper"
+}

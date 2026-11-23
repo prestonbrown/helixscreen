@@ -787,6 +787,7 @@ translations:
   Calibration & Tools: Calibration & Tools
   Calibration Complete!: Calibration Complete!
   Calibration Failed: Calibration Failed
+  Calibration Outcome: Calibration Outcome
   Calibration Saved: Calibration Saved
   Calibration and system configuration: Calibration and system configuration
   Calibration canceled.: Calibration canceled.
@@ -831,6 +832,7 @@ translations:
   Cancel print: Cancel print
   Cancel sent. The printer finishes its start sequence, then stops before printing.: Cancel sent. The printer finishes its start sequence, then stops before printing.
   Canceled: Canceled
+  Canceled From: Canceled From
   Canceling turns the chamber target off so the wait ends, then stops the print.: Canceling turns the chamber target off so the wait ends, then stops the print.
   'Cannot add to queue: internal error': 'Cannot add to queue: internal error'
   Cannot be changed from here on a multi-unit MMU: Cannot be changed from here on a multi-unit MMU
@@ -1266,6 +1268,7 @@ translations:
   Could not answer the connection request: Could not answer the connection request
   'Could not check {} - it stays in the queue': 'Could not check {} - it stays in the queue'
   Cut: Cut
+  'During Print: ': 'During Print: '
   ? "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip."
   : "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip."
   "Every screen and setting explained": "Every screen and setting explained"
@@ -1900,6 +1903,7 @@ translations:
   'Failed to upload the rewritten G-code: {}': 'Failed to upload the rewritten G-code: {}'
   'Failed: {}': 'Failed: {}'
   'Failed: {}. Saves {}': 'Failed: {}. Saves {}'
+  Failure Reason: Failure Reason
   'Faint lines: compensation off. Bright lines: compensation on.': 'Faint lines: compensation off. Bright lines: compensation on.'
   Fair match: Fair match
   Fan: Fan
@@ -1951,6 +1955,7 @@ translations:
   Filament Mapping is unavailable: Filament Mapping is unavailable
   Filament Mapping isn't supported on this printer, so the print uses the tools assigned on the printer: Filament Mapping isn't supported on this printer, so the print uses the tools assigned on the printer
   Filament Runout: Filament Runout
+  Filament Operation: Filament Operation
   Filament Operations: Filament Operations
   Filament Sensor: Filament Sensor
   Filament Sensors: Filament Sensors
@@ -3409,6 +3414,7 @@ translations:
   This filament system keeps its own spool records: This filament system keeps its own spool records
   AFC has no Spoolman configured: AFC has no Spoolman configured
   Opened: Opened
+  Operation: Operation
   Operation already in progress: Operation already in progress
   Operation timed out: Operation timed out
   Operations: Operations
@@ -3818,6 +3824,7 @@ translations:
   Profile names cannot contain ';': Profile names cannot contain ';'
   Profile renamed: Profile renamed
   Profiles: Profiles
+  Progress: Progress
   Progress, file, and time remaining: Progress, file, and time remaining
   Prompt before running this macro: Prompt before running this macro
   Provide a boolean {}: Provide a boolean {}
@@ -5495,6 +5502,7 @@ translations:
   Timelapse rendered successfully: Timelapse rendered successfully
   Timelapse videos: Timelapse videos
   Timeout: Timeout
+  Times: Times
   Timezone: Timezone
   Tip Forming: Tip Forming
   Tip Forming Failed: Tip Forming Failed
@@ -6272,6 +6280,7 @@ translations:
   '{} MCUs': '{} MCUs'
   '{} MPC': '{} MPC'
   '{} PID': '{} PID'
+  '{} Sensor': '{} Sensor'
   '{} Settings': '{} Settings'
   '{} Tools': '{} Tools'
   '{} accelerometers': '{} accelerometers'

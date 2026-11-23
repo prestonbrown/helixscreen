@@ -2,6 +2,7 @@
 // Tests for telemetry worker endpoints.
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { ERROR_EVENTS_PER_DEVICE_PER_DAY } from "../flood_cap";
 import worker, { CDN_CRON, LOOP_CRON, configuredFeature, deriveFeatureAdoption, toYesNo } from "../index";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -76,6 +77,10 @@ function createMockBucket() {
         .slice(0, limit)
         .map((o) => ({ key: o.key, size: o.size, uploaded: o.uploaded }));
       return { objects, truncated: false, cursor: undefined };
+    },
+
+    async delete(keys: string | string[]) {
+      for (const k of Array.isArray(keys) ? keys : [keys]) storage.delete(k);
     },
   };
 }
@@ -715,6 +720,22 @@ describe("Analytics Engine dual-write", () => {
     expect(env.TELEMETRY_ANALYTICS.writeDataPoint).toHaveBeenCalledTimes(2);
   });
 
+  it("caps one device's error events per day, keeping the raw batch in R2", async () => {
+    const device = "c".repeat(64);
+    const flood = Array.from({ length: 20 }, () =>
+      validEvent({ event: "error_encountered", device_id: device, category: "websocket", code: "parse_error" }),
+    );
+    let capped = 0;
+    for (let i = 0; i < ERROR_EVENTS_PER_DEVICE_PER_DAY / 20 + 1; i++) {
+      const res = await worker.fetch(ingestRequest(flood), env);
+      capped += ((await res.json()) as { capped?: number }).capped ?? 0;
+    }
+    expect(env.TELEMETRY_ANALYTICS.writeDataPoint).toHaveBeenCalledTimes(ERROR_EVENTS_PER_DEVICE_PER_DAY);
+    expect(capped).toBe(20);
+    const raw = Array.from(env.TELEMETRY_BUCKET._storage.keys()).filter((k) => k.startsWith("events/"));
+    expect(raw).toHaveLength(ERROR_EVENTS_PER_DEVICE_PER_DAY / 20 + 1);
+  });
+
   it("does not write to Analytics Engine when R2 fails", async () => {
     const failBucket = createMockBucket();
     failBucket.put = vi.fn().mockRejectedValue(new Error("R2 down"));
@@ -799,13 +820,77 @@ describe("mapEventToDataPoints", () => {
     expect(dp.blobs![1]).toBe("success");
     expect(dp.blobs![2]).toBe("PLA");
     expect(dp.blobs![3]).toBe("0.9.19");
-    expect(dp.blobs).toHaveLength(14);
+    expect(dp.blobs).toHaveLength(16);
     expect(dp.doubles![0]).toBe(3600);
     expect(dp.doubles![1]).toBe(210);
     expect(dp.doubles![2]).toBe(60);
     expect(dp.doubles![3]).toBe(15000);
     expect(dp.doubles![4]).toBe(8);
-    expect(dp.doubles).toHaveLength(8);
+    expect(dp.doubles).toHaveLength(9);
+    // A client too old to say why leaves the reason columns empty.
+    expect(dp.blobs![14]).toBe("");
+    expect(dp.blobs![15]).toBe("");
+    expect(dp.doubles![8]).toBe(0);
+  });
+
+  it("maps print_outcome's ending reason, refusing values outside its lists", () => {
+    const base = { event: "print_outcome", device_id: "dev-456", outcome: "cancelled" };
+    const dp = mapEventToDataPoints({
+      ...base,
+      cancel_origin: "in_app",
+      failure_class: "thermal_runaway",
+      progress_pct: 0,
+    })[0];
+    expect(dp.blobs![14]).toBe("in_app");
+    expect(dp.blobs![15]).toBe("thermal_runaway");
+    expect(dp.doubles![8]).toBe(1); // 0 percent, stored + 1
+    const odd = mapEventToDataPoints({ ...base, cancel_origin: "mainsail", failure_class: "Heater x" })[0];
+    expect(odd.blobs![14]).toBe("unknown");
+    expect(odd.blobs![15]).toBe("unknown");
+  });
+
+  it("maps filament_op to fixed tokens, refusing values outside its lists", () => {
+    const dp = mapEventToDataPoints({
+      event: "filament_op",
+      device_id: "dev-ams",
+      app_version: "1.1.0",
+      backend: "afc",
+      op: "tool_change",
+      outcome: "failed",
+      error_class: "hub",
+      duration_bucket: "30-60s",
+      during_print: true,
+      count: 7,
+    })[0];
+    expect(dp.indexes).toEqual(["filament_op"]);
+    expect(dp.blobs!.slice(3, 8)).toEqual(["afc", "tool_change", "failed", "hub", "30-60s"]);
+    expect(dp.doubles![0]).toBe(1);
+    expect(dp.doubles![1]).toBe(7);
+    const odd = mapEventToDataPoints({
+      event: "filament_op",
+      device_id: "dev-ams",
+      backend: "My Box",
+      op: "Lane 3",
+      outcome: "x",
+      error_class: "AFC said no",
+      duration_bucket: "42s",
+    })[0];
+    expect(odd.blobs!.slice(3, 8)).toEqual(["unknown", "unknown", "unknown", "unknown", "unknown"]);
+  });
+
+  it("maps calibration_outcome to fixed tokens, refusing values outside its lists", () => {
+    const dp = mapEventToDataPoints({
+      event: "calibration_outcome",
+      device_id: "dev-cal",
+      type: "input_shaper",
+      outcome: "failed",
+      failure_class: "accelerometer",
+      duration_bucket: "5-15min",
+    })[0];
+    expect(dp.indexes).toEqual(["calibration_outcome"]);
+    expect(dp.blobs!.slice(3, 7)).toEqual(["input_shaper", "failed", "accelerometer", "5-15min"]);
+    const odd = mapEventToDataPoints({ event: "calibration_outcome", device_id: "d", type: "My mesh", outcome: "ok" })[0];
+    expect(odd.blobs!.slice(3, 5)).toEqual(["unknown", "unknown"]);
   });
 
   it("maps crash event correctly", () => {
@@ -2541,6 +2626,18 @@ describe("feedback loop wiring", () => {
   const reportKeys = (env: ReturnType<typeof createEnv>) =>
     [...env.TELEMETRY_BUCKET._storage.keys()].filter((k) => k.startsWith("reports/"));
 
+  it("purges flood-cap tallies older than the keep window on the daily snapshot cron", async () => {
+    const env = createEnv();
+    const bucket = env.TELEMETRY_BUCKET;
+    const dev = "d".repeat(64);
+    for (const day of ["2026-10-16", "2026-10-18", "2026-10-20"]) {
+      await bucket.put(`caps/errors/${day}/${dev}.json`, "{}");
+    }
+    await runScheduled(CDN_CRON, new Date("2026-10-20T02:10:00Z"), env);
+    const left = [...bucket._storage.keys()].filter((k) => k.startsWith("caps/"));
+    expect(left.sort()).toEqual([`caps/errors/2026-10-18/${dev}.json`, `caps/errors/2026-10-20/${dev}.json`]);
+  });
+
   beforeEach(() => {
     vi.restoreAllMocks();
     mockExecuteQuery.mockReset();
@@ -2614,10 +2711,9 @@ describe("feedback loop wiring", () => {
       const env = createEnv();
       const settled = await runScheduled(CDN_CRON, new Date("2026-10-20T02:10:00Z"), env);
       expect(mockExecuteQuery).not.toHaveBeenCalled();
-      expect(settled).toHaveLength(1);
-      // The snapshot's rejection is left visible to Cloudflare, not swallowed.
-      expect(settled[0]).toMatchObject({ status: "rejected" });
-      expect(String((settled[0] as PromiseRejectedResult).reason)).toContain("CDN fleet snapshot not configured");
+      // The tally purge fulfils; the snapshot's rejection is left visible to Cloudflare, not swallowed.
+      expect(settled.map((r) => r.status)).toEqual(["fulfilled", "rejected"]);
+      expect(String((settled[1] as PromiseRejectedResult).reason)).toContain("CDN fleet snapshot not configured");
     });
   });
 

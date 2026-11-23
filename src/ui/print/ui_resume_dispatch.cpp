@@ -21,6 +21,7 @@
 #include "printer_state.h"
 #include "rpc_error_correlation.h"
 #include "standard_macros.h"
+#include "system/telemetry_manager.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -37,6 +38,7 @@ namespace {
 void send_cancel_macro(IMoonrakerAPI* api, const std::string& log_prefix) {
     const auto& cancel_info = StandardMacros::instance().get(StandardMacroSlot::Cancel);
     spdlog::info("{} Using StandardMacros cancel: {}", log_prefix, cancel_info.get_macro());
+    TelemetryManager::instance().notify_print_cancel_requested();
     StandardMacros::instance().execute(
         StandardMacroSlot::Cancel, api,
         [log_prefix]() { spdlog::info("{} Print cancelled", log_prefix); },

@@ -14,7 +14,7 @@ import {
   type NotApplicable,
 } from "./schema";
 import { isDeviceId } from "./devices";
-import type { HealthRowKey } from "./health";
+import { RISING_MAX_DEVICE_SHARE, RISING_MIN_COUNT, type HealthRowKey } from "./health";
 
 export interface QueryConfig {
   accountId: string;
@@ -1362,6 +1362,24 @@ export function errorCodesSql(w: readonly [number, number], filters?: FilterPara
 }
 
 /**
+ * Per (category, code, device) error counts in window `w`, as rows
+ * { category, code, count }, leaving out devices too small to hold more than
+ * RISING_MAX_DEVICE_SHARE of a count that reaches RISING_MIN_COUNT.
+ */
+export function errorsByDeviceSql(w: readonly [number, number], filters?: FilterParams): string {
+  const floor = Math.floor(RISING_MAX_DEVICE_SHARE * RISING_MIN_COUNT) + 1;
+  return `SELECT
+      ${errorEnc("category")} as category,
+      ${errorEnc("code")} as code,
+      ${errorEnc("device_id")} as device,
+      ${wCount()} as count
+    FROM ${DATASET}
+    WHERE ${windowClause(w)} AND index1 = 'error_encountered'${filterFor("error_encountered", filters)}
+    GROUP BY category, code, device
+    HAVING ${wCount()} >= ${floor}`;
+}
+
+/**
  * Failed self-updates grouped by (platform, reason) in window `w`, leaving out
  * the deferred-for-print reason: sample-weighted failures and distinct devices,
  * as rows { platform, reason, failures, devices }.
@@ -1423,6 +1441,7 @@ export function healthQueries(filters?: FilterParams, versions: string[] = []): 
     errors_cur: errors(cur),
     errors_prev: errors(prev),
     errors_baseline: errors(baseline),
+    errors_by_device: errorsByDeviceSql(cur, filters),
     crashes_cur: crashes(cur),
     crashes_prev: crashes(prev),
     // The newest daily row; the window is wider than a day because the row's

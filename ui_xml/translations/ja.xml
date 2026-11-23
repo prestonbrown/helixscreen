@@ -754,6 +754,7 @@
   <translation tag="Calibration &amp; Tools" ja="キャリブレーションとツール"/>
   <translation tag="Calibration Complete!" ja="キャリブレーション完了！"/>
   <translation tag="Calibration Failed" ja="キャリブレーション失敗"/>
+  <translation tag="Calibration Outcome" ja="キャリブレーション結果"/>
   <translation tag="Calibration Saved" ja="キャリブレーションを保存しました"/>
   <translation tag="Calibration and system configuration" ja="キャリブレーションとシステム設定"/>
   <translation tag="Calibration canceled." ja="キャリブレーションをキャンセルしました。"/>
@@ -798,6 +799,7 @@
   <translation tag="Cancel print" ja="印刷をキャンセル"/>
   <translation tag="Cancel sent. The printer finishes its start sequence, then stops before printing." ja="キャンセルを送信しました。プリンターは開始シーケンスを終えてから、印刷前に停止します。"/>
   <translation tag="Canceled" ja="キャンセル済み"/>
+  <translation tag="Canceled From" ja="キャンセル元"/>
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." ja="キャンセルするとチャンバーの目標温度をオフにして待機を終了し、その後印刷を停止します。"/>
   <translation tag="Cannot add to queue: internal error" ja="キューに追加できません: 内部エラー"/>
   <translation tag="Cannot be changed from here on a multi-unit MMU" ja="マルチユニット MMU ではここから変更できません"/>
@@ -1489,6 +1491,7 @@
   <translation tag="Duplicate command in the configuration" ja="設定内でコマンドが重複しています"/>
   <translation tag="Duplicated" ja="複製しました"/>
   <translation tag="Duration" ja="時間"/>
+  <translation tag="During Print: " ja="印刷中: "/>
   <translation tag="During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip." ja="印刷中は、ヒーター、ファン、ライトごとのチップ、開始シーケンスのチェックリスト、進行状況と操作をまとめたバーが表示されます。"/>
   <translation tag="During auto refill, the old filament would not purge out of the toolhead." ja="自動補充中に、古いフィラメントがツールヘッドからパージされませんでした。"/>
   <translation tag="Dust and old grease on the X and Y rails or rods cause noise, ringing and wear." ja="XYレールやロッドのほこりと古いグリスは騒音、リンギング、劣化の原因です。"/>
@@ -1815,6 +1818,7 @@
   <translation tag="Failed to upload the rewritten G-code: {}" ja="書き換えたG-codeのアップロードに失敗しました: {}"/>
   <translation tag="Failed: {}" ja="失敗: {}"/>
   <translation tag="Failed: {}. Saves {}" ja="失敗: {}。保存されるもの: {}"/>
+  <translation tag="Failure Reason" ja="失敗の理由"/>
   <translation tag="Faint lines: compensation off. Bright lines: compensation on." ja="薄い線: 補正オフ。明るい線: 補正オン。"/>
   <translation tag="Fair match" ja="まずまずの一致"/>
   <translation tag="Fan" ja="ファン"/>
@@ -1867,6 +1871,7 @@
   <translation tag="Filament Mapping is not available on this device." ja="このデバイスではフィラメントマッピングを利用できません。"/>
   <translation tag="Filament Mapping is unavailable" ja="フィラメントマッピングは利用できません"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" ja="このプリンターはフィラメントマッピングに対応していないため、プリンターで割り当てられたツールで印刷します"/>
+  <translation tag="Filament Operation" ja="フィラメント操作"/>
   <translation tag="Filament Operations" ja="フィラメント操作"/>
   <translation tag="Filament Runout" ja="フィラメント切れ"/>
   <translation tag="Filament Sensor" ja="フィラメントセンサー"/>
@@ -3304,6 +3309,7 @@
   <translation tag="OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here" ja="OpenAMS はこのスプールを Spoolman で管理しており、ここでは素材、色、ブランド、重量のみ変更できます"/>
   <translation tag="OpenAMS manages this spool&apos;s link" ja="このスプールのリンクは OpenAMS が管理しています"/>
   <translation tag="Opened" ja="開"/>
+  <translation tag="Operation" ja="操作"/>
   <translation tag="Operation already in progress" ja="操作がすでに進行中です"/>
   <translation tag="Operation timed out" ja="操作がタイムアウトしました"/>
   <translation tag="Operations" ja="操作"/>
@@ -3711,6 +3717,7 @@
   <translation tag="Profile names cannot contain &apos;;&apos;" ja="プロファイル名に &apos;;&apos; は使用できません"/>
   <translation tag="Profile renamed" ja="プロファイル名を変更しました"/>
   <translation tag="Profiles" ja="プロファイル"/>
+  <translation tag="Progress" ja="進行状況"/>
   <translation tag="Progress, file, and time remaining" ja="進行状況、ファイル、残り時間"/>
   <translation tag="Prompt before running this macro" ja="このマクロの実行前に確認する"/>
   <translation tag="Provide a boolean {}" ja="{} を真偽値で入力してください"/>
@@ -5310,6 +5317,7 @@
   <translation tag="Timelapse rendered successfully" ja="タイムラプスのレンダリングが完了しました"/>
   <translation tag="Timelapse videos" ja="タイムラプス動画"/>
   <translation tag="Timeout" ja="タイムアウト"/>
+  <translation tag="Times" ja="回数"/>
   <translation tag="Timezone" ja="タイムゾーン"/>
   <translation tag="Tip Forming" ja="チップ形成"/>
   <translation tag="Tip Forming Failed" ja="先端形成に失敗しました"/>
@@ -6085,6 +6093,7 @@
   <translation tag="{} MCUs" ja="{} MCU"/>
   <translation tag="{} MPC" ja="{} MPC"/>
   <translation tag="{} PID" ja="{} PID"/>
+  <translation tag="{} Sensor" ja="{}センサー"/>
   <translation tag="{} Settings" ja="{}の設定"/>
   <translation tag="{} Tools" ja="{} ツール"/>
   <translation tag="{} accelerometers" ja="加速度センサー {} 個"/>

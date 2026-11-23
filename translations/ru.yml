@@ -840,6 +840,7 @@ translations:
   Calibration & Tools: Калибровка и инструменты
   Calibration Complete!: Калибровка завершена!
   Calibration Failed: Ошибка калибровки
+  Calibration Outcome: 'Результат калибровки'
   Calibration Saved: Калибровка сохранена
   Calibration and system configuration: 'Калибровка и настройка системы'
   Calibration canceled.: Калибровка отменена.
@@ -884,6 +885,7 @@ translations:
   Cancel print: 'Отменить печать'
   Cancel sent. The printer finishes its start sequence, then stops before printing.: 'Отмена отправлена. Принтер завершит стартовую последовательность и остановится до начала печати.'
   Canceled: Отменено
+  Canceled From: 'Отменено из'
   Canceling turns the chamber target off so the wait ends, then stops the print.: 'Отмена выключит целевую температуру камеры, чтобы ожидание закончилось, затем остановит печать.'
   'Cannot add to queue: internal error': 'Не удалось добавить в очередь: внутренняя ошибка'
   Cannot be changed from here on a multi-unit MMU: Нельзя изменить здесь на MMU с несколькими блоками
@@ -1325,6 +1327,7 @@ translations:
   Could not answer the connection request: 'Не удалось ответить на запрос подключения'
   'Could not check {} - it stays in the queue': 'Не удалось проверить {} – остаётся в очереди'
   Cut: "Вырезать"
+  'During Print: ': 'Во время печати: '
   ? "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip."
   : "Во время печати вы видите индикатор каждого нагревателя, вентилятора и подсветки, список шагов запуска, а также прогресс и управление в одной полосе."
   "Every screen and setting explained": "Описание всех экранов и настроек"
@@ -1969,6 +1972,7 @@ translations:
   'Failed to upload the rewritten G-code: {}': 'Не удалось загрузить переписанный G-code: {}'
   'Failed: {}': 'Ошибка: {}'
   'Failed: {}. Saves {}': 'Ошибка: {}. Сохранится: {}'
+  Failure Reason: 'Причина сбоя'
   'Faint lines: compensation off. Bright lines: compensation on.': 'Бледные линии: компенсация выключена. Яркие линии: компенсация включена.'
   Fair match: "Среднее совпадение"
   Fan: Вентилятор
@@ -2020,6 +2024,7 @@ translations:
   Filament Mapping is unavailable: Сопоставление филамента недоступно
   Filament Mapping isn't supported on this printer, so the print uses the tools assigned on the printer: Этот принтер не поддерживает сопоставление филамента, поэтому печать использует инструменты, назначенные на принтере
   Filament Runout: Окончание филамента
+  Filament Operation: 'Операция с филаментом'
   Filament Operations: Операции с филаментом
   Filament Sensor: Датчик филамента
   Filament Sensors: 'Датчики филамента'
@@ -3499,6 +3504,7 @@ translations:
   This filament system keeps its own spool records: "Эта система подачи филамента сама ведёт записи о катушках"
   AFC has no Spoolman configured: "В AFC не настроен Spoolman"
   Opened: Открыта
+  Operation: 'Операция'
   Operation already in progress: Операция уже выполняется
   Operation timed out: Время ожидания операции истекло
   Operations: Операции
@@ -3923,6 +3929,7 @@ translations:
   Profile names cannot contain ';': "Имена профилей не могут содержать ';'"
   Profile renamed: Профиль переименован
   Profiles: Профили
+  Progress: 'Прогресс'
   Progress, file, and time remaining: Прогресс, файл и остаток времени
   Prompt before running this macro: Спрашивать перед запуском этого макроса
   Provide a boolean {}: 'Укажите логическое значение для {}'
@@ -5623,6 +5630,7 @@ translations:
   Timelapse rendered successfully: Таймлапс успешно отрендерен
   Timelapse videos: 'Видео таймлапса'
   Timeout: 'Время ожидания истекло'
+  Times: 'Количество'
   Timezone: Часовой пояс
   Tip Forming: 'Формирование кончика'
   Tip Forming Failed: 'Не удалось сформировать кончик'
@@ -6403,6 +6411,7 @@ translations:
   '{} MCUs': '{} MCU'
   '{} MPC': '{} MPC'
   '{} PID': '{} PID'
+  '{} Sensor': 'Датчик {}'
   '{} Settings': 'Настройки: {}'
   '{} Tools': 'Инструментов: {}'
   '{} accelerometers': 'Акселерометров: {}'

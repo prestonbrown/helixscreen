@@ -64,6 +64,11 @@ function buildPoint(kind: string, event: EventRecord, item?: EventRecord): Analy
   return { indexes: [kind], blobs, doubles };
 }
 
+/** One point of `kind` from `record`, for the points the Worker writes itself. */
+export function pointOfKind(kind: string, record: EventRecord): AnalyticsEngineDataPoint {
+  return buildPoint(kind, record);
+}
+
 // ---------- Fan-out ----------
 
 const NO_ITEM: Array<EventRecord | undefined> = [undefined];

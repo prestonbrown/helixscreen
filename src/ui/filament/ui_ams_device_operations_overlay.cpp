@@ -29,6 +29,7 @@
 #include "lvgl.h"
 #include "settings_manager.h"
 #include "sort_small.h"
+#include "system/telemetry_manager.h"
 #include "ui/ams_drawing_utils.h"
 #include "ui/ui_widget_helpers.h"
 
@@ -328,6 +329,7 @@ void abort_ams_operation() {
     // Said first: a backend that reports its own result toasts it from inside
     // cancel(), and that toast must come after this one.
     NOTIFY_INFO("{}", lv_tr("Aborting..."));
+    TelemetryManager::instance().notify_filament_op_cancel_requested();
     AmsError result = backend->cancel();
     if (!result.success()) {
         helix::ui::notify_ams_error(result, lv_tr("Abort failed"));

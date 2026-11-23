@@ -16,6 +16,8 @@
 #include "moonraker_error.h"
 #include "moonraker_types.h"
 
+#include <atomic>
+#include <cstdint>
 #include <functional>
 #include <string>
 #include <vector>
@@ -172,6 +174,10 @@ class MoonrakerJobAPI : public helix::IJobAPI {
      */
     void cancel_print(SuccessCallback on_success, ErrorCallback on_error) override;
 
+    [[nodiscard]] uint32_t cancels_sent() const override {
+        return cancels_sent_.load(std::memory_order_relaxed);
+    }
+
   protected:
     /// True, with @p on_error called, while spools lie on the bed.
     /// Announce a start of @p filename to the plugin's print_hooks, or take
@@ -182,4 +188,5 @@ class MoonrakerJobAPI : public helix::IJobAPI {
 
     helix::IMoonrakerClient& client_;
     const helix::PrinterState* state_ = nullptr;
+    std::atomic<uint32_t> cancels_sent_{0};
 };

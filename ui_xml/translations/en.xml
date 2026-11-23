@@ -754,6 +754,7 @@
   <translation tag="Calibration &amp; Tools" en="Calibration &amp; Tools"/>
   <translation tag="Calibration Complete!" en="Calibration Complete!"/>
   <translation tag="Calibration Failed" en="Calibration Failed"/>
+  <translation tag="Calibration Outcome" en="Calibration Outcome"/>
   <translation tag="Calibration Saved" en="Calibration Saved"/>
   <translation tag="Calibration and system configuration" en="Calibration and system configuration"/>
   <translation tag="Calibration canceled." en="Calibration canceled."/>
@@ -798,6 +799,7 @@
   <translation tag="Cancel print" en="Cancel print"/>
   <translation tag="Cancel sent. The printer finishes its start sequence, then stops before printing." en="Cancel sent. The printer finishes its start sequence, then stops before printing."/>
   <translation tag="Canceled" en="Canceled"/>
+  <translation tag="Canceled From" en="Canceled From"/>
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." en="Canceling turns the chamber target off so the wait ends, then stops the print."/>
   <translation tag="Cannot add to queue: internal error" en="Cannot add to queue: internal error"/>
   <translation tag="Cannot be changed from here on a multi-unit MMU" en="Cannot be changed from here on a multi-unit MMU"/>
@@ -1489,6 +1491,7 @@
   <translation tag="Duplicate command in the configuration" en="Duplicate command in the configuration"/>
   <translation tag="Duplicated" en="Duplicated"/>
   <translation tag="Duration" en="Duration"/>
+  <translation tag="During Print: " en="During Print: "/>
   <translation tag="During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip." en="During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip."/>
   <translation tag="During auto refill, the old filament would not purge out of the toolhead." en="During auto refill, the old filament would not purge out of the toolhead."/>
   <translation tag="Dust and old grease on the X and Y rails or rods cause noise, ringing and wear." en="Dust and old grease on the X and Y rails or rods cause noise, ringing and wear."/>
@@ -1815,6 +1818,7 @@
   <translation tag="Failed to upload the rewritten G-code: {}" en="Failed to upload the rewritten G-code: {}"/>
   <translation tag="Failed: {}" en="Failed: {}"/>
   <translation tag="Failed: {}. Saves {}" en="Failed: {}. Saves {}"/>
+  <translation tag="Failure Reason" en="Failure Reason"/>
   <translation tag="Faint lines: compensation off. Bright lines: compensation on." en="Faint lines: compensation off. Bright lines: compensation on."/>
   <translation tag="Fair match" en="Fair match"/>
   <translation tag="Fan" en="Fan"/>
@@ -1867,6 +1871,7 @@
   <translation tag="Filament Mapping is not available on this device." en="Filament Mapping is not available on this device."/>
   <translation tag="Filament Mapping is unavailable" en="Filament Mapping is unavailable"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" en="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer"/>
+  <translation tag="Filament Operation" en="Filament Operation"/>
   <translation tag="Filament Operations" en="Filament Operations"/>
   <translation tag="Filament Runout" en="Filament Runout"/>
   <translation tag="Filament Sensor" en="Filament Sensor"/>
@@ -3304,6 +3309,7 @@
   <translation tag="OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here" en="OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here"/>
   <translation tag="OpenAMS manages this spool&apos;s link" en="OpenAMS manages this spool&apos;s link"/>
   <translation tag="Opened" en="Opened"/>
+  <translation tag="Operation" en="Operation"/>
   <translation tag="Operation already in progress" en="Operation already in progress"/>
   <translation tag="Operation timed out" en="Operation timed out"/>
   <translation tag="Operations" en="Operations"/>
@@ -3711,6 +3717,7 @@
   <translation tag="Profile names cannot contain &apos;;&apos;" en="Profile names cannot contain &apos;;&apos;"/>
   <translation tag="Profile renamed" en="Profile renamed"/>
   <translation tag="Profiles" en="Profiles"/>
+  <translation tag="Progress" en="Progress"/>
   <translation tag="Progress, file, and time remaining" en="Progress, file, and time remaining"/>
   <translation tag="Prompt before running this macro" en="Prompt before running this macro"/>
   <translation tag="Provide a boolean {}" en="Provide a boolean {}"/>
@@ -5310,6 +5317,7 @@
   <translation tag="Timelapse rendered successfully" en="Timelapse rendered successfully"/>
   <translation tag="Timelapse videos" en="Timelapse videos"/>
   <translation tag="Timeout" en="Timeout"/>
+  <translation tag="Times" en="Times"/>
   <translation tag="Timezone" en="Timezone"/>
   <translation tag="Tip Forming" en="Tip Forming"/>
   <translation tag="Tip Forming Failed" en="Tip Forming Failed"/>
@@ -6085,6 +6093,7 @@
   <translation tag="{} MCUs" en="{} MCUs"/>
   <translation tag="{} MPC" en="{} MPC"/>
   <translation tag="{} PID" en="{} PID"/>
+  <translation tag="{} Sensor" en="{} Sensor"/>
   <translation tag="{} Settings" en="{} Settings"/>
   <translation tag="{} Tools" en="{} Tools"/>
   <translation tag="{} accelerometers" en="{} accelerometers"/>

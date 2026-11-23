@@ -30,6 +30,7 @@
 #include "printer_detector.h"
 #include "printer_discovery.h"
 #include "printer_state.h" // get_print_lifecycle_subject: the insert-probe gate
+#include "system/telemetry_manager.h"
 #include "temperature_rules.h"
 #include "toolhead_homing.h"
 #include "translation_loader.h"
@@ -2329,6 +2330,7 @@ AmsError AmsBackendCfs::cancel() {
     auto err = check_preconditions();
     if (err.result != AmsResult::SUCCESS)
         return err;
+    TelemetryManager::instance().notify_print_cancel_requested();
     return execute_gcode("CANCEL_PRINT");
 }
 

@@ -2014,7 +2014,7 @@ void BedMeshPanel::on_calibration_error(const std::string& message) {
     lv_subject_set_int(&bed_mesh_calibrate_state_,
                        static_cast<int>(BedMeshCalibrationState::ERROR));
     if (in_run_ && run_hooks_.failed) {
-        run_hooks_.failed(clean, {});
+        run_hooks_.failed(clean, {}, message);
     }
 }
 
@@ -2023,7 +2023,7 @@ void BedMeshPanel::report_store_failure(const std::string& user_message) {
         lv_subject_set_int(&bed_mesh_calibrate_state_,
                            static_cast<int>(BedMeshCalibrationState::IDLE));
         if (run_hooks_.failed) {
-            run_hooks_.failed(user_message, {});
+            run_hooks_.failed(user_message, {}, {});
         }
         return;
     }
