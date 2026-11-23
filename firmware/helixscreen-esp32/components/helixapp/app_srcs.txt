@@ -945,6 +945,7 @@ src/rendering/nozzle_renderer_creality_k1.cpp
 src/rendering/nozzle_renderer_creality_k2.cpp
 src/rendering/nozzle_renderer_jabberwocky.cpp
 src/rendering/nozzle_renderer_stealthburner.cpp
+src/rendering/render_theme.cpp
 #   gcode text processing (no rendering, no HTTP): print-prep tool remapping +
 #     ops detection + thumbnail/metadata extraction, used by
 #     ui_print_preparation_manager and print-start analysis.

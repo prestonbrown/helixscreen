@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/noto_sans_fonts.h"
 #include "lvgl/lvgl.h"
 
 // Material Design Icons - multiple sizes
@@ -41,27 +42,6 @@ extern lv_font_t mdi_icons_32; // Status card icons (small displays)
 extern lv_font_t mdi_icons_24; // General UI icons (tiny displays)
 extern lv_font_t mdi_icons_16; // Metadata icons (small inline)
 LV_FONT_DECLARE(mdi_icons_14); // Metadata icons (small inline for tiny)
-
-// Noto Sans - Regular weight with extended Unicode (©®™€£¥°±•…)
-// Declared mutable (not const) so CjkFontManager can set fallback pointers at runtime
-extern lv_font_t noto_sans_8;
-extern lv_font_t noto_sans_10;
-extern lv_font_t noto_sans_11;
-extern lv_font_t noto_sans_12;
-extern lv_font_t noto_sans_14;
-extern lv_font_t noto_sans_16;
-extern lv_font_t noto_sans_18;
-extern lv_font_t noto_sans_20;
-extern lv_font_t noto_sans_24;
-extern lv_font_t noto_sans_26;
-extern lv_font_t noto_sans_28;
-extern lv_font_t noto_sans_32;
-extern lv_font_t noto_sans_40;
-// 48/64 exist only for the high-DPI UI scale factor, which steps the XXLarge
-// tier's face up rather than moving tier. Linked on the xxlarge tier only, so
-// no printer build carries them (see FONTS_XXLARGE in mk/fonts.mk).
-extern lv_font_t noto_sans_48;
-extern lv_font_t noto_sans_64;
 
 // Noto Sans - Light weight with extended Unicode (for text_small)
 extern lv_font_t noto_sans_light_10;

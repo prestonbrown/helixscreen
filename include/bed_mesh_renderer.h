@@ -407,7 +407,7 @@ bool bed_mesh_renderer_handle_touch(bed_mesh_renderer_t* renderer, int touch_x, 
 /**
  * @brief Colors needed for off-screen buffer rendering
  *
- * Must be populated on the main thread (where theme_manager_get_color is safe)
+ * Must be populated on the main thread (where theme colors are safe to read)
  * and passed to render_to_buffer which runs on a background thread.
  */
 struct bed_mesh_render_colors_t {
