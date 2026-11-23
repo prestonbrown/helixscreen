@@ -39,7 +39,6 @@ class WidthSensorManagerTestAccess {
         obj.set_sync_mode(true);
         if (obj.subjects_initialized()) {
             lv_subject_set_int(&obj.diameter_, -1);
-            lv_subject_set_string(&obj.diameter_text_, "--");
         }
     }
 };
