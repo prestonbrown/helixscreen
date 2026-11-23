@@ -31,9 +31,7 @@
 
 using namespace helix;
 
-// ============================================================================
 // CONSTRUCTOR / DESTRUCTOR
-// ============================================================================
 
 PrintTuneOverlay::~PrintTuneOverlay() {
     // Clean up observers before subjects
@@ -67,9 +65,7 @@ void PrintTuneOverlay::on_ui_destroyed() {
     update_observers();
 }
 
-// ============================================================================
 // SHOW / CREATE
-// ============================================================================
 
 void PrintTuneOverlay::show(lv_obj_t* parent_screen, IMoonrakerAPI* api,
                             PrinterState& printer_state) {
@@ -86,9 +82,7 @@ lv_obj_t* PrintTuneOverlay::create(lv_obj_t* parent) {
     return overlay_root_;
 }
 
-// ============================================================================
 // INITIALIZATION
-// ============================================================================
 
 void PrintTuneOverlay::init_subjects() {
     UI_MANAGED_SUBJECT_STRING(tune_speed_subject_, tune_speed_buf_, "100%", "tune_speed_display",
@@ -177,9 +171,7 @@ void PrintTuneOverlay::register_callbacks() {
     });
 }
 
-// ============================================================================
 // LIFECYCLE HOOKS
-// ============================================================================
 
 void PrintTuneOverlay::on_activate() {
     OverlayBase::on_activate();
@@ -331,9 +323,7 @@ void PrintTuneOverlay::sync_to_state() {
     spdlog::debug("[PrintTuneOverlay] Synced to state: speed={}%, flow={}%", speed, flow);
 }
 
-// ============================================================================
 // DISPLAY UPDATES
-// ============================================================================
 
 void PrintTuneOverlay::update_display() {
     if (!subjects_initialized_) {
@@ -419,9 +409,7 @@ void PrintTuneOverlay::update_z_offset_display(int microns) {
                   current_z_offset_);
 }
 
-// ============================================================================
 // EVENT HANDLERS
-// ============================================================================
 
 void PrintTuneOverlay::handle_speed_adjust(int delta) {
     speed_percent_ = helix::tune::clamp_speed_percent(speed_percent_ + delta);

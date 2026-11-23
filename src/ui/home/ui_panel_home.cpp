@@ -199,9 +199,7 @@ void HomePanel::deinit_subjects() {
     spdlog::debug("[{}] Subjects deinitialized", get_name());
 }
 
-// ============================================================================
 // Carousel construction and lifecycle
-// ============================================================================
 
 void HomePanel::init_panel_subjects() {
     UI_MANAGED_SUBJECT_STRING(page_badge_subject_, page_badge_buf_, "", "home_page_badge",
@@ -1068,9 +1066,7 @@ void HomePanel::trigger_idle_runout_check() {
     spdlog::debug("[{}] PrintStatusWidget not active - skipping runout check", get_name());
 }
 
-// ============================================================================
 // Static callback trampolines
-// ============================================================================
 
 /// Returns true if the active input device is interacting with a widget that
 /// consumes drag gestures — either scrolling (e.g., swiping a carousel) or
@@ -1331,9 +1327,7 @@ void HomePanel::request_delete_edit_page() {
     grid_edit_mode_.request_delete_page();
 }
 
-// ============================================================================
 // Global instance
-// ============================================================================
 
 HomePanel& get_global_home_panel() {
     return helix::lazy_global<HomePanel>("HomePanel", get_printer_state(), nullptr);

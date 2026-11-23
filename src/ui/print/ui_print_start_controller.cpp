@@ -61,9 +61,7 @@ namespace helix::ui {
 namespace tio = helix::text_io;
 namespace hfs = helix::fs;
 
-// ============================================================================
 // Constructor / Destructor
-// ============================================================================
 
 PrintStartController::PrintStartController(PrinterState& printer_state, IMoonrakerAPI* api)
     : printer_state_(printer_state), api_(api), gate_list_(helix::default_print_start_gates()) {
@@ -102,9 +100,7 @@ PrintStartController::~PrintStartController() {
     spdlog::trace("[PrintStartController] Destroyed");
 }
 
-// ============================================================================
 // Setup
-// ============================================================================
 
 void PrintStartController::set_api(IMoonrakerAPI* api) {
     api_ = api;
@@ -153,9 +149,7 @@ bool PrintStartController::is_ready() const {
     return !filename_.empty() && (detail_view_ != nullptr || prep_manager_ != nullptr);
 }
 
-// ============================================================================
 // Print Initiation
-// ============================================================================
 
 void PrintStartController::initiate() {
     // Safety: reject print starts during startup grace period.
@@ -1028,9 +1022,7 @@ void PrintStartController::start_reprint(const std::string& filename, const std:
     start();
 }
 
-// ============================================================================
 // Gate Pipeline
-// ============================================================================
 
 namespace {
 /// Point @p ctx at the heads a reprint's pre-print send routes to
@@ -1300,9 +1292,7 @@ void PrintStartController::on_gate_cancel() {
                   gate_list_[gate_resume_index_].name);
 }
 
-// ============================================================================
 // Filament Remap Lifecycle
-// ============================================================================
 
 bool PrintStartController::should_warn_remap_unsupported(const AmsBackend& backend) {
     // A backend that applies the remap via its firmware-native pre-print path
@@ -2012,9 +2002,7 @@ void PrintStartController::check_restore_confirmed() {
     finish_restore();
 }
 
-// ============================================================================
 // Crash Recovery Persistence
-// ============================================================================
 
 static constexpr const char* kPendingRemapFilename = "pending_remap.json";
 

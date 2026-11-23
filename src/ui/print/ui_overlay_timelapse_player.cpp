@@ -137,9 +137,7 @@ helix::timelapse::FrameExchange::Stats TimelapsePlayerOverlay::frame_stats() {
     return decoder_ ? decoder_->exchange().stats() : helix::timelapse::FrameExchange::Stats{};
 }
 
-// ============================================================================
 // DECODER
-// ============================================================================
 
 void TimelapsePlayerOverlay::start_decoder() {
     stop_decoder();
@@ -339,9 +337,7 @@ void TimelapsePlayerOverlay::set_state(State state) {
     }
 }
 
-// ============================================================================
 // CONTROLS
-// ============================================================================
 
 void TimelapsePlayerOverlay::set_controls(bool shown) {
     lv_subject_set_int(&controls_subject_, shown ? 1 : 0);

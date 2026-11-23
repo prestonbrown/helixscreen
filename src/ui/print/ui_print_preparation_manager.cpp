@@ -115,9 +115,7 @@ macro_option_for(const std::optional<helix::PrintStartAnalysis>& analysis,
 
 } // namespace
 
-// ============================================================================
 // Construction / Destruction
-// ============================================================================
 
 PrintPreparationManager::~PrintPreparationManager() {
     if (printer_state_) {
@@ -126,9 +124,7 @@ PrintPreparationManager::~PrintPreparationManager() {
     // lifetime_ destructor calls invalidate() automatically
 }
 
-// ============================================================================
 // Pre-Print Option Set Cache Helper
-// ============================================================================
 
 const PrePrintOptionSet& PrintPreparationManager::get_cached_options() const {
     // Delegate to PrinterState which owns the cache
@@ -141,9 +137,7 @@ const PrePrintOptionSet& PrintPreparationManager::get_cached_options() const {
     return empty_set;
 }
 
-// ============================================================================
 // Option State Resolution (LT3)
-// ============================================================================
 
 bool PrintPreparationManager::enabled_options_need_material(
     const OptionStateProvider& saved) const {
@@ -207,9 +201,7 @@ PrePrintOptionState PrintPreparationManager::get_option_state(const std::string&
     return PrePrintOptionState::NOT_APPLICABLE;
 }
 
-// ============================================================================
 // Setup
-// ============================================================================
 
 void PrintPreparationManager::set_dependencies(IMoonrakerAPI* api, PrinterState* printer_state) {
     api_ = api;
@@ -323,9 +315,7 @@ void PrintPreparationManager::ensure_estimate_subject_initialized() {
     }
 }
 
-// ============================================================================
 // Pre-print Estimate
-// ============================================================================
 
 lv_subject_t* PrintPreparationManager::get_preprint_estimate_subject() {
     ensure_estimate_subject_initialized();
@@ -404,9 +394,7 @@ void PrintPreparationManager::invalidate_predictor_cache() {
     predictor_cached_ = false;
 }
 
-// ============================================================================
 // PRINT_START Macro Analysis
-// ============================================================================
 
 void PrintPreparationManager::analyze_print_start_macro() {
     // Skip if analysis already in progress
@@ -577,9 +565,7 @@ PrePrintOptionSet PrintPreparationManager::displayed_options() const {
     return displayed;
 }
 
-// ============================================================================
 // CapabilityMatrix Integration
-// ============================================================================
 
 CapabilityMatrix PrintPreparationManager::build_capability_matrix() const {
     CapabilityMatrix matrix;
@@ -655,9 +641,7 @@ void PrintPreparationManager::set_cached_scan_result(const gcode::ScanResult& sc
                     KeptScan{filename, scan, std::nullopt});
 }
 
-// ============================================================================
 // G-code Scanning
-// ============================================================================
 
 std::string PrintPreparationManager::scan_key(const std::string& filename,
                                               const std::string& current_path,
@@ -1070,9 +1054,7 @@ bool PrintPreparationManager::transport_keeps_local_copies() const {
     return keeps_local_copies_;
 }
 
-// ============================================================================
 // Print Execution
-// ============================================================================
 
 PrePrintOptions PrintPreparationManager::read_options_from_subjects() const {
     PrePrintOptions options;
@@ -1356,9 +1338,7 @@ bool PrintPreparationManager::is_print_in_progress() const {
     return printer_state_ && printer_state_->print_state().is_print_in_progress();
 }
 
-// ============================================================================
 // Internal Methods
-// ============================================================================
 
 namespace {
 

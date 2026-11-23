@@ -52,9 +52,7 @@ using helix::ui::find_required;
 // MDI chevron-down symbol for dropdown arrows (replaces FontAwesome LV_SYMBOL_DOWN)
 static const char* kMdiChevronDown = "\xF3\xB0\x85\x80"; // F0140
 
-// ============================================================================
 // Constructor
-// ============================================================================
 
 HistoryListPanel::HistoryListPanel()
     : history_manager_(get_print_history_manager()),
@@ -70,9 +68,7 @@ HistoryListPanel::~HistoryListPanel() {
     }
 }
 
-// ============================================================================
 // Subject Initialization
-// ============================================================================
 
 void HistoryListPanel::init_subjects() {
     // Initialize subject for panel state binding (0=LOADING, 1=EMPTY, 2=HAS_JOBS)
@@ -106,9 +102,7 @@ void HistoryListPanel::deinit_subjects() {
     spdlog::debug("[HistoryListPanel] Subjects deinitialized");
 }
 
-// ============================================================================
 // Callback Registration
-// ============================================================================
 
 void HistoryListPanel::register_callbacks() {
     register_xml_callbacks({
@@ -135,9 +129,7 @@ void HistoryListPanel::register_callbacks() {
     });
 }
 
-// ============================================================================
 // Create
-// ============================================================================
 
 lv_obj_t* HistoryListPanel::create(lv_obj_t* parent) {
     if (!OverlayBase::create(parent)) {
@@ -202,9 +194,7 @@ lv_obj_t* HistoryListPanel::create(lv_obj_t* parent) {
     return overlay_root_;
 }
 
-// ============================================================================
 // Lifecycle Hooks
-// ============================================================================
 
 void HistoryListPanel::on_activate() {
     // Call base class first
@@ -354,9 +344,7 @@ void HistoryListPanel::reset_view_state() {
     }
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 void HistoryListPanel::set_jobs(const std::vector<PrintHistoryJob>& jobs) {
     jobs_ = jobs;
@@ -562,9 +550,7 @@ void HistoryListPanel::associate_timelapse_files(const std::vector<FileInfo>& ti
     }
 }
 
-// ============================================================================
 // Internal Methods
-// ============================================================================
 
 void HistoryListPanel::refresh_from_manager() {
     if (history_manager_ && history_manager_->is_loaded(HistoryScope::COMPLETE)) {
@@ -658,9 +644,7 @@ const char* HistoryListPanel::get_status_color(PrintJobStatus status) {
     }
 }
 
-// ============================================================================
 // Click Handlers
-// ============================================================================
 
 void HistoryListPanel::attach_row_click_handler(lv_obj_t* row, size_t index) {
     // Store index in user data (cast to void* for LVGL)
@@ -697,9 +681,7 @@ void HistoryListPanel::handle_row_click(size_t index) {
     show_detail_overlay(job);
 }
 
-// ============================================================================
 // Filter/Sort Implementation
-// ============================================================================
 
 void HistoryListPanel::apply_filters_and_sort(bool preserve_scroll) {
     spdlog::debug("[{}] Applying filters - search: '{}', status: {}, sort: {} {}", get_name(),
@@ -808,9 +790,7 @@ void HistoryListPanel::apply_sort(std::vector<PrintHistoryJob>& jobs) {
               });
 }
 
-// ============================================================================
 // Filter/Sort Event Handlers
-// ============================================================================
 
 void HistoryListPanel::on_search_changed() {
     if (!search_box_) {
@@ -898,9 +878,7 @@ void HistoryListPanel::refresh_filter_indicator() {
     lv_subject_set_int(&subject_filter_active_, active ? 1 : 0);
 }
 
-// ============================================================================
 // Detail Overlay Implementation
-// ============================================================================
 
 void HistoryListPanel::init_detail_subjects() {
     // Initialize all string subjects with buffers using managed macros
@@ -1365,9 +1343,7 @@ void HistoryListPanel::handle_view_timelapse() {
     helix::ui::open_timelapse_video(job.timelapse_filename);
 }
 
-// ============================================================================
 // Infinite Scroll Implementation
-// ============================================================================
 
 void HistoryListPanel::on_scroll_static(lv_event_t* e) {
     auto* panel = static_cast<HistoryListPanel*>(lv_event_get_user_data(e));

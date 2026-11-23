@@ -32,9 +32,7 @@ OpenInstances<ExcludeObjectMapView>& open_map_views() {
 }
 } // namespace
 
-// ============================================================================
 // Constructor / Destructor
-// ============================================================================
 
 ExcludeObjectMapView::ExcludeObjectMapView() {
     spdlog::debug("[ExcludeObjectMapView] Created");
@@ -47,9 +45,7 @@ ExcludeObjectMapView::~ExcludeObjectMapView() {
     }
 }
 
-// ============================================================================
 // Create
-// ============================================================================
 
 void ExcludeObjectMapView::create(lv_obj_t* parent, helix::PrinterExcludedObjectsState* state,
                                   const helix::BedDimensions& bed, ObjectTapFn on_object_tapped,
@@ -152,9 +148,7 @@ void ExcludeObjectMapView::create(lv_obj_t* parent, helix::PrinterExcludedObject
     spdlog::info("[ExcludeObjectMapView] Created successfully");
 }
 
-// ============================================================================
 // Build surface
-// ============================================================================
 
 void ExcludeObjectMapView::build_surface() {
     if (!plate_area_)
@@ -251,9 +245,7 @@ void ExcludeObjectMapView::resize() {
     build_object_rects();
 }
 
-// ============================================================================
 // Destroy
-// ============================================================================
 
 void ExcludeObjectMapView::publish_view_subjects() {
     view_subjects_.reset();
@@ -333,9 +325,7 @@ void ExcludeObjectMapView::destroy() {
     spdlog::debug("[ExcludeObjectMapView] Destroyed");
 }
 
-// ============================================================================
 // Build object rects
-// ============================================================================
 
 void ExcludeObjectMapView::build_object_rects() {
     if (mode_ == ExcludeMapMode::Mini) {
@@ -408,9 +398,7 @@ void ExcludeObjectMapView::build_object_rects() {
     update_visual_states();
 }
 
-// ============================================================================
 // draw_first_layer_outlines
-// ============================================================================
 
 // Convex hull using Andrew's monotone chain algorithm.
 // Returns hull points in counter-clockwise order.
@@ -628,9 +616,7 @@ void ExcludeObjectMapView::draw_bed_reference(lv_layer_t* layer) const {
     }
 }
 
-// ============================================================================
 // create_object_rect
-// ============================================================================
 
 lv_obj_t* ExcludeObjectMapView::create_object_rect(lv_obj_t* parent, const ObjectBadge& badge,
                                                    const PixelRect& rect) {
@@ -661,9 +647,7 @@ lv_obj_t* ExcludeObjectMapView::create_object_rect(lv_obj_t* parent, const Objec
     return obj;
 }
 
-// ============================================================================
 // update_visual_states
-// ============================================================================
 
 void ExcludeObjectMapView::update_visual_states() {
     if (!state_)
@@ -693,9 +677,7 @@ void ExcludeObjectMapView::update_visual_states() {
     }
 }
 
-// ============================================================================
 // Static event callbacks
-// ============================================================================
 
 void ExcludeObjectMapView::on_close_clicked(lv_event_t* e) {
     ExcludeObjectMapView* view = open_map_views().owner_of(lv_event_get_current_target_obj(e));

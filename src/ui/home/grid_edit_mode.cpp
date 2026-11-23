@@ -1153,9 +1153,7 @@ void GridEditMode::configure_selected_widget() {
     rebuild_then_select(widget_id);
 }
 
-// ---------------------------------------------------------------------------
 // screen_to_grid_cell
-// ---------------------------------------------------------------------------
 
 std::pair<int, int> GridEditMode::screen_to_grid_cell(int screen_x, int screen_y, int container_x,
                                                       int container_y, int container_w,
@@ -1180,9 +1178,7 @@ std::pair<int, int> GridEditMode::screen_to_grid_cell(int screen_x, int screen_y
     return {col, row};
 }
 
-// ---------------------------------------------------------------------------
 // clamp_span
-// ---------------------------------------------------------------------------
 
 std::pair<int, int> GridEditMode::clamp_span(const std::string& widget_id, int desired_colspan,
                                              int desired_rowspan) {
@@ -1203,9 +1199,7 @@ std::pair<int, int> GridEditMode::clamp_span(const std::string& widget_id, int d
     return {clamped_c, clamped_r};
 }
 
-// ---------------------------------------------------------------------------
 // Resize helpers
-// ---------------------------------------------------------------------------
 
 int GridEditMode::edge_hit_band_for_cell(float cell_px) {
     if (!(cell_px > 0.0f)) {
@@ -1400,9 +1394,7 @@ bool GridEditMode::is_selected_widget_resizable() const {
     return def && def->is_scalable();
 }
 
-// ---------------------------------------------------------------------------
 // Drag lifecycle — public entry points
-// ---------------------------------------------------------------------------
 
 void GridEditMode::handle_long_press(lv_event_t* e) {
     if (!grid_input_acts() || !container_ || gesture_inert_) {
@@ -1708,9 +1700,7 @@ void GridEditMode::on_callout_action(helix::ui::TileCalloutAction action) {
     }
 }
 
-// ---------------------------------------------------------------------------
 // Drag start
-// ---------------------------------------------------------------------------
 
 void GridEditMode::end_gesture_uncommitted() {
     if (!active_ || !owns_gesture()) {
@@ -1864,9 +1854,7 @@ void GridEditMode::handle_drag_start(lv_event_t* /*e*/) {
     notify_gesture_ownership();
 }
 
-// ---------------------------------------------------------------------------
 // Drag move
-// ---------------------------------------------------------------------------
 
 void GridEditMode::handle_drag_move(lv_event_t* /*e*/) {
     if (!selected_ || !container_) {
@@ -2063,9 +2051,7 @@ void GridEditMode::update_drag_snap_target(lv_point_t widget_pos) {
     snap_preview_row_ = target_row;
 }
 
-// ---------------------------------------------------------------------------
 // Drag end
-// ---------------------------------------------------------------------------
 
 helix::DropInput GridEditMode::drop_input() const {
     lv_area_t widget_area;
@@ -2222,9 +2208,7 @@ void GridEditMode::reselect_in_place(lv_obj_t* widget) {
     }
 }
 
-// ---------------------------------------------------------------------------
 // Resize move
-// ---------------------------------------------------------------------------
 
 void GridEditMode::handle_resize_move(lv_event_t* /*e*/) {
     if (!selected_ || !container_ || !config_) {
@@ -2378,9 +2362,7 @@ void GridEditMode::handle_resize_move(lv_event_t* /*e*/) {
                   px, py, pw, ph, result.col, result.row, result.colspan, result.rowspan, valid);
 }
 
-// ---------------------------------------------------------------------------
 // Resize end
-// ---------------------------------------------------------------------------
 
 void GridEditMode::handle_resize_end(lv_event_t* /*e*/) {
     if (!selected_ || !container_ || !config_) {
@@ -2636,9 +2618,7 @@ void GridEditMode::commit_resize_with_snap(const ResizeResult& result) {
     }
 }
 
-// ---------------------------------------------------------------------------
 // Drag visual helpers
-// ---------------------------------------------------------------------------
 
 void GridEditMode::update_snap_preview(int col, int row, int colspan, int rowspan, bool valid) {
     if (!container_) {
@@ -3012,9 +2992,7 @@ void GridEditMode::rebuild_lattice() {
                   w, h, page_index_);
 }
 
-// ---------------------------------------------------------------------------
 // Widget catalog integration
-// ---------------------------------------------------------------------------
 
 std::optional<CatalogPlacement> find_catalog_placement(const GridLayout& occupancy,
                                                        const PanelWidgetDef& def, int origin_col,

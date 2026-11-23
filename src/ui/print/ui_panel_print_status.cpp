@@ -596,9 +596,7 @@ PrintStatusPanel::~PrintStatusPanel() {
     }
 }
 
-// ============================================================================
 // PANELBASE IMPLEMENTATION
-// ============================================================================
 
 void PrintStatusPanel::init_subjects() {
     if (subjects_initialized_) {
@@ -1680,9 +1678,7 @@ bool PrintStatusPanel::push_overlay_with_exclude_map(lv_obj_t* parent_screen) {
     return true;
 }
 
-// ============================================================================
 // PRIVATE HELPERS
-// ============================================================================
 
 void PrintStatusPanel::show_gcode_viewer(bool show) {
     // Update viewer mode subject - XML bindings handle visibility reactively
@@ -1906,9 +1902,7 @@ void PrintStatusPanel::update_all_displays() {
     // Pause/Resume button icon + label are owned by PrintControlButtons now.
 }
 
-// ============================================================================
 // INSTANCE HANDLERS
-// ============================================================================
 
 void PrintStatusPanel::handle_temp_card_click() {
     spdlog::debug("[{}] Temp card clicked - opening temperature graph", get_name());
@@ -2090,9 +2084,7 @@ void PrintStatusPanel::handle_resize() {
     }
 }
 
-// ============================================================================
 // EVENT HANDLERS
-// ============================================================================
 
 void PrintStatusPanel::handle_fans_click() {
     spdlog::debug("[{}] Fans clicked — opening fan control overlay", get_name());
@@ -2151,9 +2143,7 @@ void PrintStatusPanel::on_resize_static() {
     }
 }
 
-// ============================================================================
 // OBSERVER INSTANCE METHODS
-// ============================================================================
 
 void PrintStatusPanel::on_temperature_changed() {
     // Read all temperature values from PrinterState subjects and delegate to lifecycle
@@ -3021,13 +3011,9 @@ void PrintStatusPanel::animate_print_error() {
 // XML callbacks are registered by ui_print_tune_overlay.cpp when the overlay is
 // shown or Print Status builds its inline Tune section (prepare_inline())
 
-// ============================================================================
 // FILAMENT COLOR OVERRIDE
-// ============================================================================
 
-// ============================================================================
 // PUBLIC API
-// ============================================================================
 
 void PrintStatusPanel::set_temp_control_panel(TemperatureService* temp_panel) {
     temp_control_panel_ = temp_panel;
