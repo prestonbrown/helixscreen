@@ -232,3 +232,44 @@ TEST_CASE_METHOD(SettingRowWrapFixture, "setting_toggle_row wraps a long label",
     REQUIRE(label != nullptr);
     check_wrapped_inside(label, row, line_height(label), "toggle row label");
 }
+
+TEST_CASE_METHOD(SettingRowWrapFixture,
+                 "setting_toggle_row (i) reveals the hidden description at a small breakpoint",
+                 "[xml][settings][layout]") {
+    lv_subject_t* bp = lv_xml_get_subject(nullptr, "ui_breakpoint");
+    REQUIRE(bp != nullptr);
+    const int32_t saved_bp = lv_subject_get_int(bp);
+    lv_subject_set_int(bp, 1); // small: description hidden, (i) shown
+
+    lv_obj_t* col = make_column();
+    const char* attrs[] = {"name",     "row_info",           "label",       "Switch spools",
+                           "subject",  "test_row_wrap_val",  "disabled",    "test_row_wrap_dis",
+                           "callback", "test_row_wrap_noop", "description", kLongToggleDesc,
+                           nullptr};
+    lv_obj_t* row = static_cast<lv_obj_t*>(lv_xml_create(col, "setting_toggle_row", attrs));
+    REQUIRE(row != nullptr);
+    lv_obj_update_layout(col);
+
+    lv_obj_t* desc = lv_obj_find_by_name(row, "description");
+    lv_obj_t* info_btn = lv_obj_find_by_name(row, "info_btn");
+    REQUIRE(desc != nullptr);
+    REQUIRE(info_btn != nullptr);
+    REQUIRE(lv_obj_is_hidden(desc));
+    REQUIRE_FALSE(lv_obj_is_hidden(info_btn));
+    const int32_t closed_h = lv_obj_get_height(row);
+
+    lv_obj_send_event(info_btn, LV_EVENT_CLICKED, nullptr);
+    lv_obj_update_layout(col);
+
+    CHECK_FALSE(lv_obj_is_hidden(desc));
+    CHECK(lv_obj_get_height(lv_obj_get_parent(desc)) >= lv_obj_get_height(desc));
+    CHECK(lv_obj_get_height(row) > closed_h);
+    CHECK(coords_of(desc).y2 <= coords_of(row).y2);
+
+    lv_obj_send_event(info_btn, LV_EVENT_CLICKED, nullptr);
+    lv_obj_update_layout(col);
+    CHECK(lv_obj_is_hidden(desc));
+    CHECK(lv_obj_get_height(row) == closed_h);
+
+    lv_subject_set_int(bp, saved_bp);
+}
