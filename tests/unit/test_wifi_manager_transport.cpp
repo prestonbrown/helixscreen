@@ -124,9 +124,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "WiFiManager reports the backend's own reason 
     REQUIRE(toasts.errors.front().find(error) != std::string::npos);
 }
 
-// ============================================================================
 // The failure-message decision, shared by every consumer of connect().
-// ============================================================================
 
 TEST_CASE("connect_failure_message names the password only for a credential rejection",
           "[1542][wifi]") {
@@ -154,10 +152,8 @@ TEST_CASE("connect_failure_message names the password only for a credential reje
             lv_tr("Connection failed"));
 }
 
-// ============================================================================
 // The result a caller receives is what classifies the failure — the manager
 // must not leave every consumer sniffing the error string for a substring.
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "WiFiManager delivers AUTHENTICATION_FAILED as a result",
                  "[1542][wifi][slow]") {

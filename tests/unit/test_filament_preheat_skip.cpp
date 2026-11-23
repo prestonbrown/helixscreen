@@ -88,9 +88,7 @@ struct PreheatSkipFixture : public LVGLTestFixture {
 
 } // namespace
 
-// ============================================================================
 // Which macro names carry the "heats itself" claim
-// ============================================================================
 
 TEST_CASE("macro_heats_hotend: QIDI's stock load/unload heat in their own body",
           "[filament][preheat]") {
@@ -118,9 +116,7 @@ TEST_CASE("macro_heats_hotend: a generic name proves nothing about the body",
     REQUIRE_FALSE(helix::filament_macros::macro_heats_hotend(""));
 }
 
-// ============================================================================
 // preheat_skip_reason
-// ============================================================================
 
 TEST_CASE_METHOD(PreheatSkipFixture, "preheat_skip_reason: the user's setting outranks every tier",
                  "[filament][preheat]") {
@@ -217,9 +213,7 @@ TEST_CASE_METHOD(PreheatSkipFixture, "preheat_skip_reason: a refused plan heats 
                                            nullptr) == PreheatSkip::None);
 }
 
-// ============================================================================
 // needs_prerequisite_home
-// ============================================================================
 
 TEST_CASE("prerequisite_home_needed: homes only for a backend or profile that needs it",
           "[filament][homing]") {

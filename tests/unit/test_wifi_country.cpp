@@ -35,9 +35,7 @@ using helix::WiFiManagerTestAccess;
 using helix::http::HttpExecutor;
 namespace country = helix::wifi::country;
 
-// ============================================================================
 // Pure: table, parsers, policy
-// ============================================================================
 
 TEST_CASE("country table is ISO 3166 alpha-2, unique and round-trips the dropdown",
           "[wifi][wifi_country]") {
@@ -205,9 +203,7 @@ TEST_CASE("CapEff parsing finds CAP_NET_ADMIN, and only on the CapEff line",
     CHECK_FALSE(country::proc_status_has_capability("CapEff:\t0000000000001000\n", 64));
 }
 
-// ============================================================================
 // WiFiManager: persist, apply at startup, rescan on a domain change
-// ============================================================================
 
 namespace {
 

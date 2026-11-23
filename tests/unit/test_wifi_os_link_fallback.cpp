@@ -102,9 +102,7 @@ struct SysfsFixture {
 
 } // namespace
 
-// ============================================================================
 // Probe parser tests
-// ============================================================================
 
 TEST_CASE("probe_os_wifi_link: wireless iface with operstate up reports has_link",
           "[wifi][unit][1059]") {
@@ -184,9 +182,7 @@ TEST_CASE(
     REQUIRE(link.iface == "wlan0");
 }
 
-// ============================================================================
 // Behavior test: suppression of false warnings when the OS link is up
-// ============================================================================
 
 namespace {
 
@@ -243,9 +239,8 @@ TEST_CASE("start_scan with OS link up suppresses the scan-failed user warning",
     // NOT_INITIALIZED — exactly the boot-race path that emits "WiFi scan
     // failed. Try again." (the constructor's start_async() leaves the mock
     // running, which would otherwise let the scan succeed). set_enabled(false)
-    // no longer does this itself — it now only toggles the radio and leaves
-    // the backend/control-connection running (helixscreen wifi-interface-identity
-    // task 6) — so reach past it directly for this specific failure path.
+    // only toggles the radio and leaves the backend/control-connection running,
+    // so reach past it directly for this specific failure path.
     helix::WiFiManagerTestAccess::stop_backend(*wm);
     REQUIRE_FALSE(wm->is_enabled());
 

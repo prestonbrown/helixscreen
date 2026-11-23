@@ -9,13 +9,13 @@
  *
  * test_filament_op_dispatch.cpp pins the decision and
  * test_filament_panel_dispatch_wiring.cpp pins what FilamentPanel does with it.
- * This file pins the two surfaces that never had the ladder at all:
+ * This file pins the two surfaces that need the ladder most:
  *
- *   - AmsOperationSidebar used to `return` silently when there was no AMS
- *     backend. It now falls through to the user's LOAD_FILAMENT macro and then
- *     to raw gcode, like every other surface.
- *   - FilamentRunoutHandler used to navigate the user to the Filament panel for
- *     a load — out from under the live runout dialog. It now dispatches in
+ *   - AmsOperationSidebar must not `return` silently when there is no AMS
+ *     backend: it falls through to the user's LOAD_FILAMENT macro and then to
+ *     raw gcode, like every other surface.
+ *   - FilamentRunoutHandler must not navigate the user to the Filament panel
+ *     for a load — out from under the live runout dialog. It dispatches in
  *     place, and never raises a parameter modal on top of that dialog.
  *
  * The third thing pinned here is the lifetime hazard the sidebar's new tier 2
@@ -240,9 +240,7 @@ class DispatchSurfaceFixture : public LVGLTestFixture {
 
 } // namespace
 
-// =============================================================================
 // The params policy — the constraint the runout dialog exists to enforce
-// =============================================================================
 
 TEST_CASE_METHOD(DispatchSurfaceFixture,
                  "ParamPolicy::Suppress runs a params-taking macro with no parameters",
@@ -295,9 +293,7 @@ TEST_CASE_METHOD(DispatchSurfaceFixture,
     CHECK(runs == 1);
 }
 
-// =============================================================================
 // AmsOperationSidebar — the surface that used to return silently
-// =============================================================================
 
 TEST_CASE_METHOD(DispatchSurfaceFixture,
                  "Sidebar load with no backend reaches the configured macro",
@@ -362,9 +358,7 @@ TEST_CASE_METHOD(DispatchSurfaceFixture,
     CHECK(*reg->last_unload_slot() == -1);
 }
 
-// =============================================================================
 // The lifetime hazard tier 2 introduces on a mortal surface
-// =============================================================================
 
 TEST_CASE_METHOD(DispatchSurfaceFixture,
                  "A param-modal Run press after the sidebar is destroyed dispatches nothing",
@@ -407,9 +401,7 @@ TEST_CASE_METHOD(DispatchSurfaceFixture,
     CHECK(gcode_sent_containing("LOAD_FILAMENT"));
 }
 
-// =============================================================================
 // FilamentRunoutHandler — the surface that used to navigate away
-// =============================================================================
 
 TEST_CASE_METHOD(DispatchSurfaceFixture,
                  "Runout load with no backend dispatches the macro instead of navigating",
@@ -458,9 +450,7 @@ TEST_CASE_METHOD(DispatchSurfaceFixture,
     CHECK(gcode_sent_containing(kLoadFallbackMarker));
 }
 
-// -----------------------------------------------------------------------------
 // Runout Unload / Purge — the two buttons the ladder conversion missed
-// -----------------------------------------------------------------------------
 //
 // Only Load was converted. set_on_unload_filament and set_on_purge still called
 // StandardMacros::execute() straight: no backend tier, no raw-gcode fallback,
@@ -539,9 +529,7 @@ TEST_CASE_METHOD(DispatchSurfaceFixture, "Runout purge with no macro falls back 
     CHECK(gcode_sent_containing("G1 E50"));
 }
 
-// -----------------------------------------------------------------------------
 // Purge preamble: the active backend's "go to the bin" runs before the purge
-// -----------------------------------------------------------------------------
 
 namespace {
 /// A backend whose purge preamble is fixed, recording what it was asked.
@@ -607,9 +595,7 @@ TEST_CASE_METHOD(DispatchSurfaceFixture, "A purge runs only after the backend's 
     }
 }
 
-// =============================================================================
 // Saved parameter defaults on the shared dispatch
-// =============================================================================
 
 TEST_CASE_METHOD(DispatchSurfaceFixture,
                  "dispatch_filament_macro runs a saved ask-off record with no prompt",
@@ -736,10 +722,8 @@ TEST_CASE_METHOD(DispatchSurfaceFixture,
     CHECK(received.variables.empty());
 }
 
-// =============================================================================
 // Values the surface already knows: prefilled, and sent without a prompt when
 // they cover every parameter the macro takes
-// =============================================================================
 
 namespace {
 
@@ -1016,9 +1000,7 @@ TEST_CASE_METHOD(DispatchSurfaceFixture,
     CHECK(prompt_count == 0);
 }
 
-// -----------------------------------------------------------------------------
 // Bed drying's unload offer
-// -----------------------------------------------------------------------------
 //
 // The plate must not move until the toolhead is clear, so the flow waits on
 // whichever tier ran. A filament system has no reply to wait on; its published

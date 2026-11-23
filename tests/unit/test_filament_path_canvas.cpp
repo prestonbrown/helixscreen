@@ -7,13 +7,11 @@
 
 #include "../catch_amalgamated.hpp"
 
-// ============================================================================
 // hub_box_hit() — pure coordinate hit-test for the selector/hub box.
 //
 // Box under test: center (200, 90), width 100, height 30, margin 4.
 //   X half-extent + margin = 50 + 4 = 54  -> hit when |x - 200| <= 54
 //   Y half-extent + margin = 15 + 4 = 19  -> hit when |y - 90|  <= 19
-// ============================================================================
 
 namespace {
 constexpr int32_t kCx = 200;
@@ -76,13 +74,11 @@ TEST_CASE("hub_box_hit: argument order is width-then-height", "[canvas][hit_test
     REQUIRE(helix::ui::hub_box_hit(p2, kCx, kCy, 120, 20, 0));
 }
 
-// ============================================================================
 // Record-and-read contract guards. The renderer stores the EXACT drawn box in
 // data->{buffer,bypass}_hit_rect (absolute coords); the click handler reads it
 // back via hub_box_hit. These cases reproduce the renderer's rect-construction
 // math and assert hub_box_hit reproduces the same hit decisions the old inline
 // re-derived tests made — so a future drift in either side fails here.
-// ============================================================================
 
 namespace {
 // Mirror the bypass rect the renderer records: half-extents sensor_r*3 (X) and
@@ -120,10 +116,8 @@ TEST_CASE("bypass hit rect: full-extent bounds preserved (margin 0)", "[canvas][
     REQUIRE_FALSE(bypass_hit({bx, my + 17}, bx, my, sr)); // beyond Y misses
 }
 
-// ============================================================================
 // recorded_box_hit() — a box recorded at render time follows the widget when it
 // moves without a re-render (an overlay sliding in, a scrolled parent).
-// ============================================================================
 
 TEST_CASE("recorded box: hits where it is drawn after the widget moves", "[canvas][hit_test]") {
     // Recorded while the panel was mid-slide at x=700; it has since settled at

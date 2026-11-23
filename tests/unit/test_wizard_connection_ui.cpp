@@ -33,9 +33,7 @@
 
 using namespace helix;
 
-// ============================================================================
 // AsyncLifetimeGuard Integration Tests
-// ============================================================================
 // These test the lifetime-token-based callback safety that replaced the old
 // cleanup_called_ + connection_generation_ + m_alive pattern (#827).
 
@@ -116,9 +114,7 @@ TEST_CASE_METHOD(WizardConnectionLifetimeFixture,
     REQUIRE(callback_ran);
 }
 
-// ============================================================================
 // Klipper-down dead end (Moonraker up, Klippy in `error`)
-// ============================================================================
 // The connection step never skips, the Next/Finish buttons bind to
 // connection_test_passed, and this step raises no Skip button — so gating the
 // gate on hardware discovery made the single most common first-boot state
@@ -176,9 +172,7 @@ TEST_CASE_METHOD(WizardConnectionGateFixture, "Connection step: re-entering the 
     REQUIRE(lv_subject_get_int(&connection_test_passed) == 0);
 }
 
-// ============================================================================
 // Silent-discovery dead end (#1161)
-// ============================================================================
 // The Klipper-down fix above only helps when discovery *reports* an error.
 // MoonrakerDiscoverySequence drops its own RPC replies whenever the connection
 // generation or the discovery sequence number has moved on (is_stale() /
@@ -234,9 +228,7 @@ TEST_CASE_METHOD(WizardConnectionGateFixture,
     REQUIRE(lv_subject_get_int(&connection_test_passed) == 0);
 }
 
-// ============================================================================
 // Auto-probe timer must not outlive the step (#1173)
-// ============================================================================
 // cleanup() cancels the one-shot, so the normal navigation path is covered. A
 // teardown that destroys the step WITHOUT calling cleanup() first left it armed
 // on a freed `this` — and StaticPanelRegistry::destroy_all() runs before
@@ -265,13 +257,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "Connection step: destructor cancels the auto-
     process_lvgl(150);
 }
 
-// ============================================================================
 // mDNS discovery behind a hidden section (#1217)
-// ============================================================================
 
-// ============================================================================
 // Failed connection test names what to check
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "Connection step: a failed test shows the hint for the failure kind",
@@ -324,9 +312,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     step->cleanup();
 }
 
-// ============================================================================
 // Moonraker behind a web server answers only on port 80
-// ============================================================================
 
 namespace {
 
@@ -422,9 +408,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Connection step: a typed port is the only p
     CHECK(std::string(lv_label_get_text(status)) == connect_failure_status(net.failure, {7125}));
 }
 
-// ============================================================================
 // Printer discovery (mDNS and the LAN sweep)
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "Connection step: with no discovery source the section stays hidden",
@@ -685,9 +669,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Connection step: leaving the step drops a t
     CHECK(client.connect_urls.empty());
 }
 
-// ============================================================================
 // Moonraker behind its login (prestonbrown/helixscreen#1929)
-// ============================================================================
 
 namespace {
 

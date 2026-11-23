@@ -264,9 +264,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(hub.x2 <= d->hits.hub.x2);
 }
 
-// ============================================================================
 // Pure plan
-// ============================================================================
 
 namespace {
 
@@ -1279,9 +1277,7 @@ TEST_CASE("FilamentPath plan: lanes start on a slanted box edge, their bands par
     CHECK(lane_band_y(*d, f, 3) == f.prep_y - kBandThickness);
 }
 
-// ============================================================================
 // PARALLEL and MIXED
-// ============================================================================
 // Same 400x400 frame, default glyph at tool scale 6 (bottom 16 below its
 // center). PARALLEL: entry -48, sensor 198, toolhead 280 (glyph bottom 296),
 // nozzle top 268. MIXED: sensor 78, hub 159 (h 38, top 140, bottom 178) at
@@ -1904,9 +1900,7 @@ TEST_CASE("FilamentPath plan: a 4-lane micro hub with the bypass hidden keeps it
     CHECK(nearest >= 13 - 0.1f);
 }
 
-// ============================================================================
 // Off-page stubs
-// ============================================================================
 
 namespace {
 
@@ -2136,9 +2130,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     UITest::cleanup();
 }
 
-// ============================================================================
 // A hub that feeds no toolhead
-// ============================================================================
 
 namespace {
 

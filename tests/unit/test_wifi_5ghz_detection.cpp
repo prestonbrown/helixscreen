@@ -11,9 +11,7 @@
 
 #include "../catch_amalgamated.hpp"
 
-// =============================================================================
 // wifi_parse_freq_list_has_5ghz Tests
-// =============================================================================
 
 TEST_CASE("wifi_parse_freq_list_has_5ghz: 2.4GHz-only frequency list returns false",
           "[wifi][5ghz]") {
@@ -79,9 +77,7 @@ TEST_CASE("wifi_parse_freq_list_has_5ghz: all frequencies below 5000 returns fal
                 "2412 2417 2422 2427 2432 2437 2442 2447 2452 2457 2462") == false);
 }
 
-// =============================================================================
 // wifi_parse_iw_phy_has_5ghz Tests
-// =============================================================================
 
 static const char* kIwOutputDualBand = "Band 1:\n"
                                        "    Frequencies:\n"
@@ -128,9 +124,7 @@ TEST_CASE("wifi_parse_iw_phy_has_5ghz: malformed output without MHz markers retu
     REQUIRE(wifi_parse_iw_phy_has_5ghz("some random text\nwithout frequency data\n") == false);
 }
 
-// =============================================================================
 // wifi_parse_nm_wifi_properties_has_5ghz Tests
-// =============================================================================
 
 TEST_CASE("wifi_parse_nm_wifi_properties_has_5ghz: terse 5GHZ yes returns true", "[wifi][5ghz]") {
     REQUIRE(wifi_parse_nm_wifi_properties_has_5ghz("WIFI-PROPERTIES.FREQ:5GHZ:yes") == true);
@@ -163,9 +157,7 @@ TEST_CASE("wifi_parse_nm_wifi_properties_has_5ghz: only 2GHZ yes returns false",
     REQUIRE(wifi_parse_nm_wifi_properties_has_5ghz(props) == false);
 }
 
-// =============================================================================
 // WiFiNetwork and ConnectionStatus frequency field defaults
-// =============================================================================
 
 TEST_CASE("WiFiNetwork default frequency_mhz is 0", "[wifi][5ghz]") {
     WiFiNetwork net;

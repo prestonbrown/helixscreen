@@ -364,14 +364,12 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(h.mock->last_load_slot == 3); // NOT 0 (bare default / stuck current_slot)
 }
 
-// ============================================================================
 // Bug A guard: choosing a tool must NOT issue a physical tool change on a
 // shared-extruder AMS (HUB / LINEAR). Selecting a tool is selection-only there;
 // the explicit Load button performs the swap. Only a true PARALLEL toolchanger
 // (each tool = its own toolhead) changes tool on select. active_tool = T0 in
 // identity_topo(), so selecting T1 clears the "already active" early-return and
 // reaches the topology gate.
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "AFC/BoxTurtle (HUB): a tool choice issues NO physical tool change",
@@ -433,7 +431,6 @@ helix::ui::FilamentOpTicket heated_ticket(helix::ui::FilamentOpHeater& heater,
 
 } // namespace
 
-// ============================================================================
 // Bug C guard: after a filament op, the extruder must cool back down. Two halves:
 //
 //   1. FilamentOpHeater::op_succeeded() schedules the post-op cooldown for an op
@@ -448,7 +445,6 @@ helix::ui::FilamentOpTicket heated_ticket(helix::ui::FilamentOpHeater& heater,
 // The 120s timer -> M104 S0 machinery itself lives in PostOpCooldownManager;
 // these tests pin the scheduling, observed via
 // PostOpCooldownManager::has_pending_timer().
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Bug C: a finished filament op schedules a cooldown when idle",
                  "[filament][op_slot][panel]") {
@@ -580,7 +576,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     process_lvgl(10);
 }
 
-// ============================================================================
 // Opt-out guards: AFC (and other filament systems) run their own post-operation
 // cooldown, so ours has to be switchable off — otherwise two timers fight over
 // the same heater. Both off-switches are read inside PostOpCooldownManager::
@@ -588,7 +583,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 //
 // Mutation targets: delete either early-return in schedule() and the matching
 // test fails (a timer is left pending when the user asked for none).
-// ============================================================================
 
 namespace {
 
