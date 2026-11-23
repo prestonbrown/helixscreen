@@ -299,18 +299,8 @@ void MotorRipplePanel::begin_with_facts(const calibration::LiveSweepFacts& facts
                     fail(lv_tr("The printer did not report its toolhead limits."));
                     return;
                 }
-                const json* lo = member(th, "axis_minimum");
-                const json* hi = member(th, "axis_maximum");
                 auto& p = req.plan;
-                p.x_min = array_at(lo, 0);
-                p.y_min = array_at(lo, 1);
-                p.x_max = array_at(hi, 0);
-                p.y_max = array_at(hi, 1);
-                if (const auto cap = motion_envelope::read_y_max_mm(*status)) {
-                    p.y_max = std::min(p.y_max, *cap);
-                }
-                p.max_z = array_at(hi, 2);
-                p.has_xy_limits = lo && hi && p.x_max > p.x_min && p.y_max > p.y_min;
+                calibration::ripple::read_sweep_limits(*status, p);
                 p.current_z = array_at(member(th, "position"), 2);
                 p.origin_x = array_at(origin, 0);
                 p.origin_y = array_at(origin, 1);
