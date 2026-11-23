@@ -1105,6 +1105,9 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     /// True when AFC publishes a `Toolchanger` unit: its heads are mounted by
     /// AFC_SELECT_TOOL, not by T{n}. @pre mutex_ held.
     [[nodiscard]] bool has_toolchanger_unit_locked() const;
+    /// WRONG_STATE when AFC would refuse a lane load (bypass mode on), else
+    /// success. @pre mutex_ held.
+    [[nodiscard]] AmsError lane_load_refusal_locked() const;
     /// Recompute carriage_can_be_empty_ from the units and the mount state. Caller holds mutex_.
     void refresh_carriage_can_be_empty_locked();
 

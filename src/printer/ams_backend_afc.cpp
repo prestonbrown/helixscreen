@@ -4662,6 +4662,17 @@ AmsError AmsBackendAfc::execute_gcode_notify(const std::string& gcode,
     return AmsErrorHelper::success();
 }
 
+AmsError AmsBackendAfc::lane_load_refusal_locked() const {
+    // AFC's CHANGE_TOOL refuses every lane load while bypass is on ("Filament
+    // loaded in bypass, not doing tool load") and returns without a G-code
+    // error, and a virtual bypass stays on after its spool is pulled out.
+    if (!bypass_active_) {
+        return AmsErrorHelper::success();
+    }
+    return AmsError(AmsResult::WRONG_STATE, "Lane load refused: bypass mode is on",
+                    lv_tr("Bypass mode is on"), lv_tr("Turn off bypass mode to load from a lane"));
+}
+
 AmsError AmsBackendAfc::do_load_filament(int slot_index) {
     std::string lane_name;
     {
@@ -4670,6 +4681,9 @@ AmsError AmsBackendAfc::do_load_filament(int slot_index) {
         AmsError gate_valid = validate_slot_index_locked(slot_index);
         if (!gate_valid) {
             return gate_valid;
+        }
+        if (AmsError refusal = lane_load_refusal_locked(); !refusal) {
+            return refusal;
         }
 
         const auto* entry = slots_.get(slot_index);
@@ -4792,6 +4806,12 @@ AmsError AmsBackendAfc::do_change_tool(int tool_number) {
             lane_extruder = entry->info.extruder_name;
         }
         toolchanger = has_toolchanger_unit_locked();
+        // T{n} runs CHANGE_TOOL; a toolchanger's AFC_SELECT_TOOL moves no filament.
+        if (!toolchanger) {
+            if (AmsError refusal = lane_load_refusal_locked(); !refusal) {
+                return refusal;
+            }
+        }
         if (toolchanger && !lane_extruder.empty() && !head_is_mountable_locked(lane_extruder)) {
             warn_unmountable = unmountable_head_warned_.insert(lane_extruder).second;
         }

@@ -5550,6 +5550,50 @@ TEST_CASE("AFC toolchanger: Load on a seated machine plans load_filament, not ch
     CHECK(plan.ams_arg == 1);
 }
 
+// AFC's CHANGE_TOOL logs "Filament loaded in bypass, not doing tool load" and
+// returns without a G-code error, and its bypass switch stays on after the
+// bypass spool is pulled out, so the load has to be refused here to be seen.
+// Staged as the switch left on with the toolhead sensor reading empty.
+TEST_CASE_METHOD(AfcFourRunningLanes, "AFC refuses a lane load while bypass mode is on",
+                 "[ams][afc][bypass][bypass-load-refusal]") {
+    helper.set_supports_bypass(true);
+    AfcTestAccess::apply_configfile_topology(
+        helper,
+        AmsBackendAfc::parse_configfile_topology(
+            {{"result",
+              {{"status",
+                {{"configfile",
+                  {{"settings",
+                    {{"afc_extruder extruder", {{"pin_tool_start", "sht36:PA1"}}}}}}}}}}}}));
+    helper.feed_afc_extruder("extruder", {{"tool_start_status", false}});
+    helper.feed_afc_state({{"bypass_state", true}});
+    REQUIRE_FALSE(helper.get_system_info().filament_loaded);
+    helper.captured_gcodes.clear();
+
+    SECTION("load_filament") {
+        const AmsError err = helper.load_filament(1);
+        CHECK(err.result == AmsResult::WRONG_STATE);
+        CHECK_FALSE(err.user_msg.empty());
+        CHECK_FALSE(err.suggestion.empty());
+    }
+    SECTION("change_tool, whose T<n> runs CHANGE_TOOL") {
+        const AmsError err = helper.change_tool(1);
+        CHECK(err.result == AmsResult::WRONG_STATE);
+    }
+    CHECK(helper.captured_gcodes.empty());
+}
+
+TEST_CASE_METHOD(AfcFourRunningLanes, "AFC loads a lane once bypass mode is off",
+                 "[ams][afc][bypass][bypass-load-refusal]") {
+    helper.set_supports_bypass(true);
+    helper.feed_afc_state({{"bypass_state", true}});
+    helper.feed_afc_state({{"bypass_state", false}});
+    helper.captured_gcodes.clear();
+
+    REQUIRE(helper.load_filament(1));
+    CHECK(helper.captured_gcodes == std::vector<std::string>{"CHANGE_TOOL LANE=lane2"});
+}
+
 TEST_CASE_METHOD(AfcFourRunningLanes, "AFC load_filament sends CHANGE_TOOL in single-extruder mode",
                  "[ams][afc][toolchanger]") {
     auto result = helper.load_filament(1);

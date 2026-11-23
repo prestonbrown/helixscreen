@@ -709,6 +709,7 @@ translations:
   ? Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
   : ''
   Bypass mode is not currently active: ''
+  Bypass mode is on: ''
   Bypass off macro: ''
   Bypass on macro: ''
   Bypass toggle failed: ''
@@ -5564,6 +5565,7 @@ translations:
   Turn off arc fitting in the slicer and slice the file again.: ''
   Turn off arc fitting in the slicer, then slice the file again.: ''
   Turn off bed check: ''
+  Turn off bypass mode to load from a lane: ''
   Turn off detection: ''
   Turn off flow calibration for this print, or use a larger nozzle.: ''
   Turn on the lights your light buttons control: ''

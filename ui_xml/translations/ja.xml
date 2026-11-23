@@ -679,6 +679,7 @@
   <translation tag="Bypass failed" ja="バイパスに失敗しました"/>
   <translation tag="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?" ja="バイパスが有効ですが、この印刷はAMSスロットを使用します。バイパスのフィラメントがツールヘッドにある間は、プリンターがスロットの装填を拒否する場合があります。印刷前にフィラメントを取り除き、バイパスをオフにしてください。それでも印刷を開始しますか？"/>
   <translation tag="Bypass mode is not currently active" ja="バイパスモードは現在アクティブではありません"/>
+  <translation tag="Bypass mode is on" ja="バイパスモードがオンです"/>
   <translation tag="Bypass off macro" ja="バイパスオフのマクロ"/>
   <translation tag="Bypass on macro" ja="バイパスオンのマクロ"/>
   <translation tag="Bypass toggle failed" ja="バイパス切替に失敗しました"/>
@@ -5378,6 +5379,7 @@
   <translation tag="Turn off arc fitting in the slicer and slice the file again." ja="スライサーで円弧フィッティングをオフにして、ファイルをスライスし直してください。"/>
   <translation tag="Turn off arc fitting in the slicer, then slice the file again." ja="スライサーでアークフィッティングをオフにしてから、ファイルを再スライスしてください。"/>
   <translation tag="Turn off bed check" ja="ベッドチェックをオフにする"/>
+  <translation tag="Turn off bypass mode to load from a lane" ja="レーンから装填するにはバイパスモードをオフにしてください"/>
   <translation tag="Turn off detection" ja="検出をオフにする"/>
   <translation tag="Turn off flow calibration for this print, or use a larger nozzle." ja="この印刷のフローキャリブレーションをオフにするか、より大きいノズルを使ってください。"/>
   <translation tag="Turn on the lights your light buttons control" ja="ライトボタンが操作するライトを点灯します"/>

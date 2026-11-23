@@ -703,6 +703,7 @@ translations:
   ? Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
   : 旁路已启用，但此打印使用 AMS 槽位。当旁路耗材仍在工具头中时，打印机可能拒绝装载槽位。请在打印前取出耗材并关闭旁路。仍要开始打印吗？
   Bypass mode is not currently active: '旁通模式当前未启用'
+  Bypass mode is on: '旁通模式已开启'
   Bypass off macro: '关闭旁路宏'
   Bypass on macro: '开启旁路宏'
   Bypass toggle failed: 旁通切换失败
@@ -5601,6 +5602,7 @@ translations:
   Turn off arc fitting in the slicer and slice the file again.: 请在切片软件中关闭圆弧拟合，然后重新切片。
   Turn off arc fitting in the slicer, then slice the file again.: '请在切片软件中关闭 Arc fitting（圆周拟合），然后重新切片。'
   Turn off bed check: '关闭热床检查'
+  Turn off bypass mode to load from a lane: '请关闭旁通模式后再从耗材通道装载'
   Turn off detection: 关闭检测
   Turn off flow calibration for this print, or use a larger nozzle.: '请为本次打印关闭流量校准，或使用更大的喷嘴。'
   Turn on the lights your light buttons control: 开启灯光按钮所控制的灯光

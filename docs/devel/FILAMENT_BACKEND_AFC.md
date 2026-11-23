@@ -911,7 +911,10 @@ saves across restarts; AFC never turns it on by itself. The hardware form is an 
 bypass: a 2-into-1 hub whose switch sits on the bypass input only, so it triggers when a
 hand-fed bypass filament goes in and never for the filament system's own input. Either way,
 with bypass on AFC refuses lane loads ("Filament loaded in bypass, not doing tool load") and
-turns its unload into the printer's stock `UNLOAD_FILAMENT`. With bypass off, filament at the
+turns its unload into the printer's stock `UNLOAD_FILAMENT`. That refusal raises no G-code
+error, so `load_filament()` and a non-toolchanger `change_tool()` refuse first with
+`WRONG_STATE` ("Bypass mode is on" / "Turn off bypass mode to load from a lane")
+(`src/printer/ams_backend_afc.cpp#lane_load_refusal_locked`). With bypass off, filament at the
 toolhead sensor and no lane loaded, AFC only logs it at PREP and carries on, which leaves the
 UI with a toolhead that reads full and a unit that reads empty.
 

@@ -679,6 +679,7 @@
   <translation tag="Bypass failed" en="Bypass failed"/>
   <translation tag="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?" en="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?"/>
   <translation tag="Bypass mode is not currently active" en="Bypass mode is not currently active"/>
+  <translation tag="Bypass mode is on" en="Bypass mode is on"/>
   <translation tag="Bypass off macro" en="Bypass off macro"/>
   <translation tag="Bypass on macro" en="Bypass on macro"/>
   <translation tag="Bypass toggle failed" en="Bypass toggle failed"/>
@@ -5378,6 +5379,7 @@
   <translation tag="Turn off arc fitting in the slicer and slice the file again." en="Turn off arc fitting in the slicer and slice the file again."/>
   <translation tag="Turn off arc fitting in the slicer, then slice the file again." en="Turn off arc fitting in the slicer, then slice the file again."/>
   <translation tag="Turn off bed check" en="Turn off bed check"/>
+  <translation tag="Turn off bypass mode to load from a lane" en="Turn off bypass mode to load from a lane"/>
   <translation tag="Turn off detection" en="Turn off detection"/>
   <translation tag="Turn off flow calibration for this print, or use a larger nozzle." en="Turn off flow calibration for this print, or use a larger nozzle."/>
   <translation tag="Turn on the lights your light buttons control" en="Turn on the lights your light buttons control"/>

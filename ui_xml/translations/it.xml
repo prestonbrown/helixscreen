@@ -679,6 +679,7 @@
   <translation tag="Bypass failed" it="Bypass fallito"/>
   <translation tag="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?" it="Il bypass è attivo, ma questa stampa usa gli slot AMS. La stampante potrebbe rifiutare il caricamento di uno slot mentre il filamento del bypass è nella testina. Rimuovi il filamento e disattiva il bypass prima di stampare. Avviare comunque?"/>
   <translation tag="Bypass mode is not currently active" it="La modalità bypass non è attiva"/>
+  <translation tag="Bypass mode is on" it="La modalità bypass è attiva"/>
   <translation tag="Bypass off macro" it="Macro di disattivazione bypass"/>
   <translation tag="Bypass on macro" it="Macro di attivazione bypass"/>
   <translation tag="Bypass toggle failed" it="Cambio bypass fallito"/>
@@ -5378,6 +5379,7 @@
   <translation tag="Turn off arc fitting in the slicer and slice the file again." it="Disattiva l&apos;arc fitting nello slicer ed esegui di nuovo lo slicing del file."/>
   <translation tag="Turn off arc fitting in the slicer, then slice the file again." it="Disattiva l&apos;arc fitting nello slicer, poi esegui di nuovo lo slicing del file."/>
   <translation tag="Turn off bed check" it="Disattiva controllo piano"/>
+  <translation tag="Turn off bypass mode to load from a lane" it="Disattiva la modalità bypass per caricare da una corsia"/>
   <translation tag="Turn off detection" it="Disattiva rilevamento"/>
   <translation tag="Turn off flow calibration for this print, or use a larger nozzle." it="Disattiva la calibrazione del flusso per questa stampa, oppure usa un ugello più grande."/>
   <translation tag="Turn on the lights your light buttons control" it="Accende le luci controllate dai pulsanti luce"/>

@@ -703,6 +703,7 @@ translations:
   ? Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
   : El bypass está activo, pero esta impresión usa ranuras AMS. La impresora puede negarse a cargar una ranura mientras haya filamento de bypass en el cabezal. Retire el filamento y desactive el bypass antes de imprimir. ¿Iniciar de todos modos?
   Bypass mode is not currently active: 'El modo bypass no está activo actualmente'
+  Bypass mode is on: 'El modo bypass está activo'
   Bypass off macro: 'Macro de bypass desactivado'
   Bypass on macro: 'Macro de bypass activado'
   Bypass toggle failed: Error al alternar bypass
@@ -5601,6 +5602,7 @@ translations:
   Turn off arc fitting in the slicer and slice the file again.: Desactiva el ajuste de arcos en el laminador y vuelve a laminar el archivo.
   Turn off arc fitting in the slicer, then slice the file again.: 'Desactiva el ajuste de arcos en el laminador y vuelve a laminar el archivo.'
   Turn off bed check: 'Desactivar comprobación de cama'
+  Turn off bypass mode to load from a lane: 'Desactiva el modo bypass para cargar desde un carril'
   Turn off detection: Desactivar detección
   Turn off flow calibration for this print, or use a larger nozzle.: 'Desactiva la calibración de flujo para esta impresión, o usa una boquilla más grande.'
   Turn on the lights your light buttons control: Enciende las luces que controlan tus botones de luz
