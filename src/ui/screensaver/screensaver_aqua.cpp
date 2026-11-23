@@ -39,7 +39,9 @@ void AquaScreensaver::draw_clock_text(const std::vector<DirtyRect>& under,
     const ClockReading& reading = clock_reading();
     const std::string meridiem = clock_meridiem_text(reading.time.meridiem);
     const DirtyRect& mbox = sim_.clock_layout().meridiem;
-    if (meridiem != meridiem_.text() || !(mbox == meridiem_.box())) {
+    // A drift step has already put back the water under the old place; restoring the old box
+    // again would cut into the ring drawn at the new one.
+    if (meridiem != meridiem_.text()) {
         FrameTarget frame = canvas().frame();
         sim_.restore(frame, meridiem_.box(), dirty);
     }

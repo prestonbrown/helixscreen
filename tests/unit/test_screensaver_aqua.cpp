@@ -593,11 +593,18 @@ TEST_CASE("the clock fits in the water at every drift and screen size",
                 CHECK(l.bounds.y2 < s.h);
                 CHECK(l.text.y1 > l.hour_cy + l.ring_r);
                 CHECK(l.top_cy + l.top_r < l.hour_cy - l.ring_r);
-                // AM/PM sits inside the top ring's stroke.
-                CHECK(l.meridiem.x1 > l.top_cx - l.top_r + l.ring_width);
-                CHECK(l.meridiem.x2 < l.top_cx + l.top_r - l.ring_width);
-                CHECK(l.meridiem.y1 > l.top_cy - l.top_r + l.ring_width);
-                CHECK(l.meridiem.y2 < l.top_cy + l.top_r - l.ring_width);
+                // AM/PM sits inside the top ring: no corner pixel of its box reaches the
+                // ring's antialiased inner edge, and the box holds a legible line.
+                const float edge =
+                    static_cast<float>(l.top_r) - static_cast<float>(l.ring_width) / 2.0f - 0.5f;
+                for (const int32_t x : {l.meridiem.x1, l.meridiem.x2}) {
+                    for (const int32_t y : {l.meridiem.y1, l.meridiem.y2}) {
+                        CHECK(std::hypot(static_cast<float>(x - l.top_cx) + 0.5f,
+                                         static_cast<float>(y - l.top_cy) + 0.5f) < edge);
+                    }
+                }
+                CHECK(l.meridiem.y2 - l.meridiem.y1 + 1 >= 7);
+                CHECK(l.meridiem.x2 - l.meridiem.x1 > l.meridiem.y2 - l.meridiem.y1);
                 CHECK(l.hour_cx + l.ring_r < l.minute_cx - l.ring_r);
                 // Two digits side by side fit inside a ring.
                 const int32_t digits_w =
