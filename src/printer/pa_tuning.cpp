@@ -621,8 +621,9 @@ std::string extruder_for_spool(int spool_id, const std::vector<SpoolOnExtruder>&
     return active_extruder;
 }
 
-bool should_auto_apply_on_activation(bool printing, std::optional<float> saved_k) {
-    return !printing && saved_k.has_value();
+bool should_auto_apply_on_activation(bool printing, bool nonlinear_model,
+                                     std::optional<float> saved_k) {
+    return !printing && !nonlinear_model && saved_k.has_value();
 }
 
 } // namespace helix::pa

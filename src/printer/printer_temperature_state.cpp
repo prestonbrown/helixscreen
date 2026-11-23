@@ -121,6 +121,14 @@ void PrinterTemperatureState::init_subjects(bool register_xml) {
                                                       &active_extruder_pa_);
     }
 
+    active_extruder_pa_nonlinear_.init_int(0);
+    subjects_.register_subject(&active_extruder_pa_nonlinear_,
+                               register_xml ? "extruder_pa_nonlinear" : nullptr);
+    if (register_xml) {
+        helix::xml::register_subject_in_current_scope("extruder_pa_nonlinear",
+                                                      &active_extruder_pa_nonlinear_);
+    }
+
     // Heater duty cycle, whole percent, -1 = the heater reports none.
     INIT_SUBJECT_INT(bed_power, -1, subjects_, register_xml);
     INIT_SUBJECT_INT(chamber_power, -1, subjects_,
@@ -500,17 +508,35 @@ void PrinterTemperatureState::set_active_extruder(const std::string& name) {
         int new_power = lv_subject_get_int(info.power_subject->get());
         lv_subject_set_int(&active_extruder_power_, new_power);
     }
-    lv_subject_set_int(&active_extruder_pa_,
-                       info.pressure_advance < 0.0f ? -1 : pa_to_subject(info.pressure_advance));
+    publish_active_pa(info.pa_model);
+}
+
+void PrinterTemperatureState::publish_active_pa(const helix::pa::PaModel& m) {
+    // Every temperature frame passes through here: setting an unchanged value
+    // would still notify every PA observer several times a second.
+    const auto v = m.primary_value();
+    const int pa = v ? pa_to_subject(*v) : -1;
+    if (lv_subject_get_int(&active_extruder_pa_) != pa) {
+        lv_subject_set_int(&active_extruder_pa_, pa);
+    }
+    const int nonlinear = m.nonlinear() ? 1 : 0;
+    if (lv_subject_get_int(&active_extruder_pa_nonlinear_) != nonlinear) {
+        lv_subject_set_int(&active_extruder_pa_nonlinear_, nonlinear);
+    }
 }
 
 std::optional<float>
 PrinterTemperatureState::extruder_pressure_advance(const std::string& name) const {
     auto it = extruders_.find(name);
-    if (it == extruders_.end() || it->second.pressure_advance < 0.0f) {
+    if (it == extruders_.end()) {
         return std::nullopt;
     }
-    return it->second.pressure_advance;
+    return it->second.pa_model.primary_value();
+}
+
+helix::pa::PaModel PrinterTemperatureState::extruder_pa_model(const std::string& name) const {
+    auto it = extruders_.find(name);
+    return it == extruders_.end() ? helix::pa::PaModel{} : it->second.pa_model;
 }
 
 const std::string& PrinterTemperatureState::active_extruder_name() const {
@@ -573,8 +599,7 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
             lv_subject_set_int(info.target_subject->get(), target_deci);
         }
 
-        info.pressure_advance =
-            json_util::read_field<float>(data, "pressure_advance").value_or(info.pressure_advance);
+        info.pa_model = helix::pa::read_pa_model(data, info.pa_model);
 
         if (const auto d = json_util::read_field<double>(data, "nozzle_diameter")) {
             if (std::isfinite(*d) && *d > 0.0) {
@@ -606,8 +631,13 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
             lv_subject_set_int(&active_extruder_target_, target_deci);
         }
 
-        if (const auto pa = json_util::read_field<float>(active, "pressure_advance")) {
-            lv_subject_set_int(&active_extruder_pa_, pa_to_subject(*pa));
+        // Status can arrive before init_extruders() lists the active extruder;
+        // its readout still follows the frames.
+        if (const auto it = extruders_.find(active_extruder_name_); it != extruders_.end()) {
+            publish_active_pa(it->second.pa_model);
+        } else {
+            unlisted_active_pa_ = helix::pa::read_pa_model(active, unlisted_active_pa_);
+            publish_active_pa(unlisted_active_pa_);
         }
     }
 

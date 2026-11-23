@@ -349,7 +349,10 @@ std::string extruder_for_spool(int spool_id, const std::vector<SpoolOnExtruder>&
 
 /// Whether a spool activation should apply its saved K. Never mid-print: a
 /// slicer that sets PA in its start gcode has already spoken, and an AMS swap
-/// during a print must not override it.
-bool should_auto_apply_on_activation(bool printing, std::optional<float> saved_k);
+/// during a print must not override it. Never on an extruder running a
+/// nonlinear model: a saved K is a classic value, and ADVANCE= there would set
+/// linear_advance to it.
+bool should_auto_apply_on_activation(bool printing, bool nonlinear_model,
+                                     std::optional<float> saved_k);
 
 } // namespace helix::pa

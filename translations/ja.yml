@@ -468,6 +468,8 @@ translations:
   Appearance: 外観
   Appearance & Region: "外観と地域"
   'Applied for this session only: {}': "このセッションのみ適用: {}"
+  ? "Applied to {} as linear_advance, the nonlinear model's high-speed slope. Klipper forgets it on restart: enter {} as linear_advance in the extruder's config section."
+  : ''
   ? "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   : '{}に適用しました。Klipperは再起動で忘れます: スライサーのフィラメントプロファイルでPressure Advanceに{}を入力するか、スプールに保存してください。'
   Applies to: 適用対象
@@ -2711,6 +2713,7 @@ translations:
   Light will switch when the current operation finishes: 現在の操作が完了したらライトを切り替えます
   Lights that follow the printer's state: プリンターの状態に応じて変わるライト
   Lights the printer can control. Choose which ones HelixScreen uses in the LED settings.: 'プリンターが制御できるライト。HelixScreenが使うものはLED設定で選べます。'
+  Lin. adv.: ''
   Line the nozzle up with the purge chute so purged filament drops straight in.: パージシュートにノズルを合わせ、パージされたフィラメントがまっすぐ落ちるようにします。
 
   Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer.: '{} 行目で {} を実行します。このプリンターでは緊急停止とみなされます。このプリンター用のプロファイルでファイルを再スライスしてください。'

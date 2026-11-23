@@ -123,15 +123,10 @@ void sync_external_spool(const SpoolInfo& spool, std::string log_context) {
 }
 
 void apply_saved_pressure_advance(const SpoolInfo& spool) {
-    auto& state = get_printer_state();
-    const bool printing = job_holds_machine(state.print_state().get_print_lifecycle());
-    if (!helix::pa::should_auto_apply_on_activation(printing, spool.pressure_advance)) {
-        if (spool.pressure_advance) {
-            spdlog::info("[Application] Spool {} has K={:.4f} saved; not applied during a print",
-                         spool.id, *spool.pressure_advance);
-        }
+    if (!spool.pressure_advance) {
         return;
     }
+    auto& state = get_printer_state();
     std::vector<helix::pa::SpoolOnExtruder> mounted;
     const auto& tools = ToolState::instance().tools();
     for (size_t i = 0; i < tools.size(); ++i) {
@@ -142,6 +137,15 @@ void apply_saved_pressure_advance(const SpoolInfo& spool) {
     }
     const std::string extruder = helix::pa::extruder_for_spool(
         spool.id, mounted, state.temperature_state().active_extruder_name());
+    const bool printing = job_holds_machine(state.print_state().get_print_lifecycle());
+    const bool nonlinear = state.temperature_state().extruder_pa_model(extruder).nonlinear();
+    if (!helix::pa::should_auto_apply_on_activation(printing, nonlinear, spool.pressure_advance)) {
+        spdlog::info("[Application] Spool {} has K={:.4f} saved; not applied ({})", spool.id,
+                     *spool.pressure_advance,
+                     printing ? "during a print"
+                              : "nonlinear pressure-advance model on " + extruder);
+        return;
+    }
     spdlog::info("[Application] Applying spool {}'s saved pressure advance {:.4f} to {}", spool.id,
                  *spool.pressure_advance, extruder);
     helix::tune::set_pressure_advance(get_moonraker_api(), extruder, *spool.pressure_advance);

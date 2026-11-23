@@ -1383,24 +1383,22 @@ json MoonrakerDiscoverySequence::build_subscription_objects(const PrinterDiscove
     // (hw::status_fields); Klipper streams a notification per changed field, so
     // each kind is narrowed to what the parsers consume. Humidity rides on every
     // temperature kind because Moonraker omits it for sensors that do not report
-    // it. An extruder also carries pressure advance, which the tuning screens
-    // read back as the truth of what is in effect, and the fitted nozzle's
+    // it. An extruder (hw::extruder_status_fields()) also carries pressure
+    // advance and its model, which the tuning screens read back as the truth of
+    // what is in effect, and the fitted nozzle's
     // diameter and flow type, which the fit check prefers to the config's where
     // the firmware reports them (a field an object lacks comes back null or not
     // at all). Probes are subscribed below through the sensor managers, whose
     // fields vary per probe type.
     for (const auto& [name, kind] : hw.object_kinds()) {
-        const auto fields = helix::hw::status_fields(kind);
+        const auto fields = kind == helix::hw::ObjectKind::Heater && is_extruder_name(name)
+                                ? helix::hw::extruder_status_fields()
+                                : helix::hw::status_fields(kind);
         if (fields.empty()) {
             continue;
         }
         if (fields.size() == 1 && fields.front() == "*") {
             subscription_objects[name] = nullptr;
-        } else if (kind == helix::hw::ObjectKind::Heater && is_extruder_name(name)) {
-            static const json extruder_fields =
-                json::array({"temperature", "target", "power", "pressure_advance",
-                             "nozzle_diameter", "nozzle_volume_type"});
-            subscription_objects[name] = extruder_fields;
         } else {
             json list = json::array();
             for (const auto field : fields) {

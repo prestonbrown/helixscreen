@@ -468,6 +468,8 @@ translations:
   Appearance: Aparência
   Appearance & Region: "Aparência e região"
   'Applied for this session only: {}': "Aplicado apenas nesta sessão: {}"
+  ? "Applied to {} as linear_advance, the nonlinear model's high-speed slope. Klipper forgets it on restart: enter {} as linear_advance in the extruder's config section."
+  : ''
   ? "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   : 'Aplicado a {}. O Klipper esquece ao reiniciar: insira {} como Pressure Advance no perfil de filamento do seu fatiador, ou salve no carretel.'
   Applies to: Aplica-se a
@@ -2711,6 +2713,7 @@ translations:
   Light will switch when the current operation finishes: A luz será alternada quando a operação atual terminar
   Lights that follow the printer's state: Luzes que seguem o estado da impressora
   Lights the printer can control. Choose which ones HelixScreen uses in the LED settings.: 'Luzes que a impressora pode controlar. Escolha quais o HelixScreen usa nas configurações de LED.'
+  Lin. adv.: ''
   Line the nozzle up with the purge chute so purged filament drops straight in.: Alinhe o bocal sobre a calha de purga para que o filamento purgado caia direto dentro.
 
   Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer.: 'A linha {} chama {}, que esta impressora trata como uma parada de emergência. Fatie o arquivo novamente com um perfil feito para esta impressora.'

@@ -474,6 +474,8 @@ translations:
   Appearance: ''
   Appearance & Region: ''
   'Applied for this session only: {}': ''
+  ? "Applied to {} as linear_advance, the nonlinear model's high-speed slope. Klipper forgets it on restart: enter {} as linear_advance in the extruder's config section."
+  : ''
   ? "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   : ""
   Applies to: ''
@@ -2690,6 +2692,7 @@ translations:
   Light will switch when the current operation finishes: ''
   Lights that follow the printer's state: ''
   Lights the printer can control. Choose which ones HelixScreen uses in the LED settings.: ''
+  Lin. adv.: ''
   Line the nozzle up with the purge chute so purged filament drops straight in.: ''
   Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer.: ''
   Linear rails: ''

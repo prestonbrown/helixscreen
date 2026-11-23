@@ -443,6 +443,35 @@ TEST_CASE_METHOD(TwoExtruderTemps,
     CHECK(lv_subject_get_int(active) == 5000);
 }
 
+TEST_CASE_METHOD(TwoExtruderTemps,
+                 "PrinterTemperatureState: a nonlinear pressure-advance model shows linear_advance "
+                 "and raises the nonlinear flag",
+                 "[core][temperature][pa_tune][pa_model]") {
+    lv_subject_t* active = state.get_active_extruder_pressure_advance_subject();
+    lv_subject_t* nonlinear = state.get_active_extruder_pa_nonlinear_subject();
+    state.update_from_status(
+        {{"extruder", {{"pressure_advance_model", "linear"}, {"pressure_advance", 0.04}}},
+         {"extruder1", {{"pressure_advance", 0.5}}}});
+    REQUIRE(lv_subject_get_int(active) == 400);
+    REQUIRE(lv_subject_get_int(nonlinear) == 0);
+
+    state.update_from_status({{"extruder",
+                               {{"pressure_advance_model", "tanh"},
+                                {"linear_advance", 0.017},
+                                {"nonlinear_offset", 0.12},
+                                {"linearization_velocity", 1.0}}}});
+    CHECK(lv_subject_get_int(active) == 170);
+    CHECK(lv_subject_get_int(nonlinear) == 1);
+    REQUIRE(state.extruder_pressure_advance("extruder"));
+    CHECK(*state.extruder_pressure_advance("extruder") == Catch::Approx(0.017f));
+    CHECK(state.extruder_pa_model("extruder").nonlinear());
+
+    // A classic tool does not inherit the other tool's flag.
+    state.set_active_extruder("extruder1");
+    CHECK(lv_subject_get_int(nonlinear) == 0);
+    CHECK(lv_subject_get_int(active) == 5000);
+}
+
 TEST_CASE_METHOD(
     TwoExtruderTemps,
     "PrinterTemperatureState: the fitted nozzle an extruder reports is kept per extruder",

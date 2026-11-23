@@ -184,16 +184,21 @@ TEST_CASE("Subscription: heaters narrow to {temperature, target, power}, extrude
         // Duty distinguishes an element working flat out from one ticking over
         // at the same temperature, which is what the power readouts render.
         REQUIRE(has_field(subs, heater, "power"));
-        // An extruder also carries its pressure advance, the readback the PA
-        // tuning screens display, and the nozzle the firmware reports fitted,
-        // which the fit check reads; nothing else is subscribed.
+        // An extruder also carries its pressure advance and the model it runs
+        // under, the readback the PA tuning screens display, and the nozzle the
+        // firmware reports fitted, which the fit check reads; nothing else is
+        // subscribed.
         const bool extruder = std::string(heater).rfind("extruder", 0) == 0;
         if (extruder) {
-            REQUIRE(has_field(subs, heater, "pressure_advance"));
-            REQUIRE(has_field(subs, heater, "nozzle_diameter"));
-            REQUIRE(has_field(subs, heater, "nozzle_volume_type"));
+            for (const char* field :
+                 {"pressure_advance", "pressure_advance_model", "linear_advance",
+                  "nonlinear_offset", "linearization_velocity", "time_offset", "nozzle_diameter",
+                  "nozzle_volume_type"}) {
+                CAPTURE(field);
+                REQUIRE(has_field(subs, heater, field));
+            }
         }
-        REQUIRE(subs[heater].size() == (extruder ? 6u : 3u));
+        REQUIRE(subs[heater].size() == (extruder ? 11u : 3u));
     }
 }
 

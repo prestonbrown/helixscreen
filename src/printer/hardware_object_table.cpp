@@ -7,9 +7,11 @@
 #include "filament_sensor_types.h"
 #include "humidity_sensor_types.h"
 #include "klipper_extruder_naming.h"
+#include "pa_model.h"
 #include "probe_sensor_types.h"
 #include "width_sensor_types.h"
 
+#include <array>
 #include <cctype>
 
 #include "hv/json.hpp"
@@ -303,6 +305,26 @@ ObjectClass classify_section(std::string_view section, const nlohmann::json& bod
         return out;
     }
     return classify(section, true);
+}
+
+namespace {
+constexpr std::string_view kExtruderOwn[] = {"temperature", "target", "power", "nozzle_diameter",
+                                             "nozzle_volume_type"};
+constexpr auto kExtruder = [] {
+    constexpr size_t own = sizeof(kExtruderOwn) / sizeof(kExtruderOwn[0]);
+    std::array<std::string_view, own + helix::pa::kStatusFields.size()> all{};
+    for (size_t i = 0; i < own; ++i) {
+        all[i] = kExtruderOwn[i];
+    }
+    for (size_t i = 0; i < helix::pa::kStatusFields.size(); ++i) {
+        all[own + i] = helix::pa::kStatusFields[i];
+    }
+    return all;
+}();
+} // namespace
+
+FieldList extruder_status_fields() {
+    return FieldList{kExtruder.data(), kExtruder.size()};
 }
 
 FieldList status_fields(ObjectKind kind) {

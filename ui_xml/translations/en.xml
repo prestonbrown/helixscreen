@@ -442,6 +442,7 @@
   <translation tag="Appearance" en="Appearance"/>
   <translation tag="Appearance &amp; Region" en="Appearance &amp; Region"/>
   <translation tag="Applied for this session only: {}" en="Applied for this session only: {}"/>
+  <translation tag="Applied to {} as linear_advance, the nonlinear model&apos;s high-speed slope. Klipper forgets it on restart: enter {} as linear_advance in the extruder&apos;s config section." en="Applied to {} as linear_advance, the nonlinear model&apos;s high-speed slope. Klipper forgets it on restart: enter {} as linear_advance in the extruder&apos;s config section."/>
   <translation tag="Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." en="Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer&apos;s filament profile, or save it to the spool."/>
   <translation tag="Applies to" en="Applies to"/>
   <translation tag="Apply" en="Apply"/>
@@ -2591,6 +2592,7 @@
   <translation tag="Light will switch when the current operation finishes" en="Light will switch when the current operation finishes"/>
   <translation tag="Lights that follow the printer&apos;s state" en="Lights that follow the printer&apos;s state"/>
   <translation tag="Lights the printer can control. Choose which ones HelixScreen uses in the LED settings." en="Lights the printer can control. Choose which ones HelixScreen uses in the LED settings."/>
+  <translation tag="Lin. adv." en="Lin. adv."/>
   <translation tag="Line the nozzle up with the purge chute so purged filament drops straight in." en="Line the nozzle up with the purge chute so purged filament drops straight in."/>
   <translation tag="Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer." en="Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer."/>
   <translation tag="Linear rails" en="Linear rails"/>

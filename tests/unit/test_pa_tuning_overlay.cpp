@@ -208,6 +208,39 @@ TEST_CASE_METHOD(TunerFixture, "with beta features off a result saves to the act
     CHECK(server.filament_updates.back().data["extra"][kSpoolmanPaExtraKey] == "0.0100");
 }
 
+TEST_CASE_METHOD(TunerFixture,
+                 "under a nonlinear model the result is linear_advance: no spool save, no publish",
+                 "[pa_tune][pa_tuner][pa_model]") {
+    client.set_mock_spoolman_enabled(true);
+    auto& server = client.spoolman_mock();
+    const int active = server.get_mock_active_spool_id();
+    REQUIRE(active > 0);
+    for (auto& spool : server.get_mock_spools()) {
+        if (spool.id == active) {
+            spool.filament_id = 7;
+        }
+    }
+    status({{"extruder", {{"pressure_advance_model", "tanh"}, {"linear_advance", 0.0}}}});
+    REQUIRE(get_printer_state().temperature_state().extruder_pa_model("extruder").nonlinear());
+
+    start_session();
+    printing(1);
+    status({{"extruder", {{"linear_advance", 0.0}}}});
+    printing(22);
+    status({{"extruder", {{"linear_advance", 0.01}}}});
+    status({{"print_stats", {{"state", "complete"}}}});
+    REQUIRE(overlay.stage() == PaTuningOverlay::PICK);
+    overlay.select_band_for_test(1);
+    overlay.apply_pick_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.stage() == PaTuningOverlay::RESULT);
+    CHECK(client.last_send_script() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0100");
+
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_tune_can_save_spool")) == 0);
+    CHECK(client.mock_db_get(pa::kMoonrakerNamespace, pa::kMoonrakerKey).is_null());
+}
+
 TEST_CASE("AMS lanes into one hotend are one head, and select no tool", "[pa_tune][pa_tuner]") {
     // Four lanes, one extruder: what a Happy Hare or AFC rig publishes.
     PhysicalHead lanes;

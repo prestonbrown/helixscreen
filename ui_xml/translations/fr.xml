@@ -448,6 +448,7 @@
   <translation tag="Appearance" fr="Apparence"/>
   <translation tag="Appearance &amp; Region" fr="Apparence et région"/>
   <translation tag="Applied for this session only: {}" fr="Appliqué pour cette session uniquement : {}"/>
+  <translation tag="Applied to {} as linear_advance, the nonlinear model&apos;s high-speed slope. Klipper forgets it on restart: enter {} as linear_advance in the extruder&apos;s config section."/>
   <translation tag="Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." fr="Appliqué à {}. Klipper l&apos;oublie au redémarrage : saisissez {} comme Pressure Advance dans le profil de filament de votre trancheur, ou enregistrez-le sur la bobine."/>
   <translation tag="Applies to" fr="S&apos;applique à"/>
   <translation tag="Apply" fr="Appliquer"/>
@@ -2597,6 +2598,7 @@
   <translation tag="Light will switch when the current operation finishes" fr="La lumière basculera dès que l&apos;opération en cours sera terminée."/>
   <translation tag="Lights that follow the printer&apos;s state" fr="Lumières qui suivent l&apos;état de l&apos;imprimante"/>
   <translation tag="Lights the printer can control. Choose which ones HelixScreen uses in the LED settings." fr="Éclairages que l&apos;imprimante peut commander. Choisissez ceux qu&apos;utilise HelixScreen dans les paramètres LED."/>
+  <translation tag="Lin. adv."/>
   <translation tag="Line the nozzle up with the purge chute so purged filament drops straight in." fr="Alignez la buse au-dessus de la goulotte de purge pour que le filament purgé tombe droit dedans."/>
   <translation tag="Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer." fr="La ligne {} appelle {}, que cette imprimante traite comme un arrêt d&apos;urgence. Retranchez le fichier avec un profil conçu pour cette imprimante."/>
   <translation tag="Linear rails" fr="Rails linéaires"/>

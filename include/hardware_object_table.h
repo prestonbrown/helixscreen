@@ -106,6 +106,11 @@ struct FieldList {
 /// per probe type and ProbeSensorManager supplies them.
 [[nodiscard]] FieldList status_fields(ObjectKind kind);
 
+/// The fields to subscribe for an extruder heater: a heater's, plus pressure
+/// advance and its model (pa::kStatusFields) and the fitted nozzle's diameter
+/// and flow type, which firmware tracking swappable nozzles reports at runtime.
+[[nodiscard]] FieldList extruder_status_fields();
+
 [[nodiscard]] bool is_heater(ObjectKind kind);      ///< Heater, GenericHeater
 [[nodiscard]] bool is_fan(ObjectKind kind);         ///< every fan kind incl. TemperatureFan
 [[nodiscard]] bool is_led(ObjectKind kind);         ///< Led, OutputPinLed

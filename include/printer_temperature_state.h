@@ -5,6 +5,7 @@
 #include "core/observer_guard.h" // SubjectLifetime
 #include "core/subject.h"
 #include "json_fwd.h"
+#include "pa_model.h"
 #include "subject_managed_panel.h"
 
 #include <cmath>
@@ -49,9 +50,8 @@ struct ExtruderInfo {
     /// so a filament swap can still heat the nozzle enough to purge the previous
     /// material. Reset on unload (via clear_load_latch); in-memory only.
     float last_nonzero_target = 0.0f;
-    /// Klipper's reported pressure advance K, negative until the extruder
-    /// reports one.
-    float pressure_advance = -1.0f;
+    /// The pressure-advance model and its values as the extruder reports them.
+    helix::pa::PaModel pa_model;
     /// The fitted nozzle as the extruder reports it at runtime, which firmware
     /// that tracks swappable nozzles keeps outside configfile.settings: the
     /// diameter in mm (0 until reported) and the flow type as reported ("" until
@@ -148,15 +148,27 @@ class PrinterTemperatureState {
         return &active_extruder_power_;
     }
 
-    /// The active extruder's pressure advance K x 10000 (0.0420 is 420), -1
-    /// until it reports one. Registered as "extruder_pressure_advance".
+    /// The active extruder's pressure advance x 10000 (0.0420 is 420), -1 until
+    /// it reports one: K, or linear_advance under a nonlinear model
+    /// (pa::PaModel::primary_value()). Registered as "extruder_pressure_advance".
     lv_subject_t* get_active_extruder_pressure_advance_subject() {
         return &active_extruder_pa_;
     }
 
-    /// A specific extruder's reported pressure advance K, nullopt until it
-    /// reports one or when no such extruder exists.
+    /// 1 while the active extruder runs a nonlinear pressure-advance model, whose
+    /// single readout is linear_advance rather than K; else 0. Registered as
+    /// "extruder_pa_nonlinear".
+    lv_subject_t* get_active_extruder_pa_nonlinear_subject() {
+        return &active_extruder_pa_nonlinear_;
+    }
+
+    /// A specific extruder's reported pressure advance (primary_value()),
+    /// nullopt until it reports one or when no such extruder exists.
     std::optional<float> extruder_pressure_advance(const std::string& name) const;
+
+    /// A specific extruder's pressure-advance model; Classic with nothing
+    /// reported when no such extruder exists.
+    helix::pa::PaModel extruder_pa_model(const std::string& name) const;
     lv_subject_t* get_bed_power_subject() {
         return &bed_power_;
     }
@@ -572,6 +584,8 @@ class PrinterTemperatureState {
     }
 
   private:
+    /// Mirror @p m into the active-extruder PA subjects.
+    void publish_active_pa(const helix::pa::PaModel& m);
     SubjectManager subjects_;
     bool subjects_initialized_ = false;
 
@@ -587,6 +601,9 @@ class PrinterTemperatureState {
     // never publishes power, so -1 is a lasting state, not just a startup one.
     helix::Subject active_extruder_power_{};
     helix::Subject active_extruder_pa_{};
+    helix::Subject active_extruder_pa_nonlinear_{};
+    /// The active extruder's model while init_extruders() has not listed it.
+    helix::pa::PaModel unlisted_active_pa_;
     helix::Subject bed_power_{};
     helix::Subject chamber_power_{};
     SubjectLifetime bed_temp_lifetime_;

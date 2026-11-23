@@ -842,6 +842,26 @@ void PaTuningOverlay::show_result() {
     }
     const std::string text = helix::pa::format_k(*k);
     lv_subject_set_string(&result_k_, text.c_str());
+    active_spool_.reset();
+    lv_subject_set_int(&can_save_spool_, 0);
+
+    // Under a nonlinear model the tower swept linear_advance. That is no
+    // classic K: a spool or a slicer reading the published record would apply
+    // it as one.
+    if (get_printer_state().temperature_state().extruder_pa_model(extruder_).nonlinear()) {
+        lv_subject_set_string(
+            &result_note_,
+            fmt::format(fmt::runtime(lv_tr("Applied to {} as linear_advance, the nonlinear "
+                                           "model's high-speed slope. Klipper forgets it on "
+                                           "restart: enter {} as linear_advance in the "
+                                           "extruder's config section.")),
+                        extruder_label(), text)
+                .c_str());
+        lv_subject_set_string(&spoolman_text_, "");
+        set_stage(RESULT);
+        return;
+    }
+
     lv_subject_set_string(
         &result_note_,
         fmt::format(fmt::runtime(lv_tr("Applied to {}. Klipper forgets it on restart: enter "
@@ -850,9 +870,7 @@ void PaTuningOverlay::show_result() {
                     extruder_label(), text)
             .c_str());
     lv_subject_set_string(&spoolman_text_, lv_tr("Looking for the active spool..."));
-    lv_subject_set_int(&can_save_spool_, 0);
     set_stage(RESULT);
-    active_spool_.reset();
 
     if (!api_) {
         publish_to_moonraker(*k);

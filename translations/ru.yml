@@ -516,6 +516,8 @@ translations:
   Appearance: Внешний вид
   Appearance & Region: "Внешний вид и регион"
   'Applied for this session only: {}': "Применено только на этот сеанс: {}"
+  ? "Applied to {} as linear_advance, the nonlinear model's high-speed slope. Klipper forgets it on restart: enter {} as linear_advance in the extruder's config section."
+  : ''
   ? "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   : 'Применено к {}. Klipper забудет значение после перезапуска: укажите {} как Pressure Advance в профиле филамента в слайсере или сохраните его на катушку.'
   Applies to: Применяется к
@@ -2775,6 +2777,7 @@ translations:
   Light will switch when the current operation finishes: Подсветка переключится после завершения текущей операции
   Lights that follow the printer's state: Подсветка, которая меняется в зависимости от состояния принтера
   Lights the printer can control. Choose which ones HelixScreen uses in the LED settings.: 'Освещение, которым может управлять принтер. Какие из них использует HelixScreen, выбирается в настройках LED.'
+  Lin. adv.: ''
   Line the nozzle up with the purge chute so purged filament drops straight in.: Выровняйте сопло над лотком прочистки, чтобы выдавленный филамент падал прямо внутрь.
 
   Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer.: 'Строка {} вызывает {}, что этот принтер считает аварийной остановкой. Нарежьте файл заново с профилем для этого принтера.'

@@ -478,6 +478,7 @@
   <translation tag="Appearance" ru="Внешний вид"/>
   <translation tag="Appearance &amp; Region" ru="Внешний вид и регион"/>
   <translation tag="Applied for this session only: {}" ru="Применено только на этот сеанс: {}"/>
+  <translation tag="Applied to {} as linear_advance, the nonlinear model&apos;s high-speed slope. Klipper forgets it on restart: enter {} as linear_advance in the extruder&apos;s config section."/>
   <translation tag="Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." ru="Применено к {}. Klipper забудет значение после перезапуска: укажите {} как Pressure Advance в профиле филамента в слайсере или сохраните его на катушку."/>
   <translation tag="Applies to" ru="Применяется к"/>
   <translation tag="Apply" ru="Применить"/>
@@ -2639,6 +2640,7 @@
   <translation tag="Light will switch when the current operation finishes" ru="Подсветка переключится после завершения текущей операции"/>
   <translation tag="Lights that follow the printer&apos;s state" ru="Подсветка, которая меняется в зависимости от состояния принтера"/>
   <translation tag="Lights the printer can control. Choose which ones HelixScreen uses in the LED settings." ru="Освещение, которым может управлять принтер. Какие из них использует HelixScreen, выбирается в настройках LED."/>
+  <translation tag="Lin. adv."/>
   <translation tag="Line the nozzle up with the purge chute so purged filament drops straight in." ru="Выровняйте сопло над лотком прочистки, чтобы выдавленный филамент падал прямо внутрь."/>
   <translation tag="Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer." ru="Строка {} вызывает {}, что этот принтер считает аварийной остановкой. Нарежьте файл заново с профилем для этого принтера."/>
   <translation tag="Linear rails" ru="Линейные направляющие"/>

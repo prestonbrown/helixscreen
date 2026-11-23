@@ -339,6 +339,7 @@ src/printer/pa_calibration.cpp
 src/calibration/flashforge_pa_sweep.cpp
 src/calibration/flashforge_pa_sweep_run.cpp
 src/printer/pa_tuning.cpp
+src/printer/pa_model.cpp
 src/printer/tool_offsets.cpp
 src/printer/tool_state.cpp
 src/printer/tool_offsets.cpp

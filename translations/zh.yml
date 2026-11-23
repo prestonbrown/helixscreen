@@ -468,6 +468,8 @@ translations:
   Appearance: 外观
   Appearance & Region: "外观与区域"
   'Applied for this session only: {}': "仅本次会话生效：{}"
+  ? "Applied to {} as linear_advance, the nonlinear model's high-speed slope. Klipper forgets it on restart: enter {} as linear_advance in the extruder's config section."
+  : ''
   ? "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   : '已应用到{}。Klipper重启后会丢失: 请在切片软件的耗材配置中将压力提前设为{},或保存到料盘。'
   Applies to: 适用于
@@ -2711,6 +2713,7 @@ translations:
   Light will switch when the current operation finishes: 灯光将在当前操作完成后切换
   Lights that follow the printer's state: 跟随打印机状态变化的灯光
   Lights the printer can control. Choose which ones HelixScreen uses in the LED settings.: '打印机可控制的灯。在 LED 设置中选择 HelixScreen 使用哪些。'
+  Lin. adv.: ''
   Line the nozzle up with the purge chute so purged filament drops straight in.: 将喷嘴对准排料口上方，使排出的料丝垂直落入。
 
   Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer.: '第 {} 行调用 {}，此打印机将其视为紧急停止。请使用为此打印机制作的配置重新切片该文件。'

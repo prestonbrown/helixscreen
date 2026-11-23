@@ -376,11 +376,14 @@ TEST_CASE("nudges and picks outside their state do nothing", "[pa_tuning][pa_ses
     CHECK(rig.session.layer() == 0);
 }
 
-TEST_CASE("a saved K applies on spool activation only while idle", "[pa_tuning]") {
-    CHECK(should_auto_apply_on_activation(false, 0.04f));
-    CHECK_FALSE(should_auto_apply_on_activation(true, 0.04f));
-    CHECK_FALSE(should_auto_apply_on_activation(false, std::nullopt));
-    CHECK_FALSE(should_auto_apply_on_activation(true, std::nullopt));
+TEST_CASE("a saved K applies on spool activation only while idle and on a classic model",
+          "[pa_tuning]") {
+    CHECK(should_auto_apply_on_activation(false, false, 0.04f));
+    CHECK_FALSE(should_auto_apply_on_activation(true, false, 0.04f));
+    CHECK_FALSE(should_auto_apply_on_activation(false, false, std::nullopt));
+    CHECK_FALSE(should_auto_apply_on_activation(true, false, std::nullopt));
+    // A nonlinear model would take the classic K as its linear_advance.
+    CHECK_FALSE(should_auto_apply_on_activation(false, true, 0.04f));
 }
 
 TEST_CASE("the Moonraker record keeps every filament and extruder it has seen", "[pa_tuning]") {

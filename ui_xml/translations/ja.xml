@@ -442,6 +442,7 @@
   <translation tag="Appearance" ja="外観"/>
   <translation tag="Appearance &amp; Region" ja="外観と地域"/>
   <translation tag="Applied for this session only: {}" ja="このセッションのみ適用: {}"/>
+  <translation tag="Applied to {} as linear_advance, the nonlinear model&apos;s high-speed slope. Klipper forgets it on restart: enter {} as linear_advance in the extruder&apos;s config section."/>
   <translation tag="Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." ja="{}に適用しました。Klipperは再起動で忘れます: スライサーのフィラメントプロファイルでPressure Advanceに{}を入力するか、スプールに保存してください。"/>
   <translation tag="Applies to" ja="適用対象"/>
   <translation tag="Apply" ja="適用"/>
@@ -2591,6 +2592,7 @@
   <translation tag="Light will switch when the current operation finishes" ja="現在の操作が完了したらライトを切り替えます"/>
   <translation tag="Lights that follow the printer&apos;s state" ja="プリンターの状態に応じて変わるライト"/>
   <translation tag="Lights the printer can control. Choose which ones HelixScreen uses in the LED settings." ja="プリンターが制御できるライト。HelixScreenが使うものはLED設定で選べます。"/>
+  <translation tag="Lin. adv."/>
   <translation tag="Line the nozzle up with the purge chute so purged filament drops straight in." ja="パージシュートにノズルを合わせ、パージされたフィラメントがまっすぐ落ちるようにします。"/>
   <translation tag="Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer." ja="{} 行目で {} を実行します。このプリンターでは緊急停止とみなされます。このプリンター用のプロファイルでファイルを再スライスしてください。"/>
   <translation tag="Linear rails" ja="リニアレール"/>

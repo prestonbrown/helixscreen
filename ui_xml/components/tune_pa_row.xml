@@ -2,7 +2,8 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
-  <!-- Live pressure advance for the active extruder, sharing a row with the
+  <!-- Live pressure advance for the active extruder (K, or linear_advance
+       under a nonlinear model), sharing a row with the
        speed and flow reset in both orientations of the print tune panel (it
        wraps under it where the row is too narrow). The value is the printer's
        own report, so a step that Klipper refused never shows as applied. The
@@ -16,7 +17,14 @@
   <view name="tune_pa_row"
         width="content" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xxs"
         style_flex_cross_place="center" scrollable="false">
-    <text_small text="PA" style_text_color="#text_muted"/>
+    <!-- Under a nonlinear model the steps move linear_advance, the model's
+         high-speed slope, so the label names that instead of K. -->
+    <text_small name="pa_label" text="PA" style_text_color="#text_muted">
+      <bind_flag_if_eq subject="extruder_pa_nonlinear" flag="hidden" ref_value="1"/>
+    </text_small>
+    <text_small name="pa_label_nonlinear" text="Lin. adv." style_text_color="#text_muted" hidden="true">
+      <bind_flag_if_eq subject="extruder_pa_nonlinear" flag="hidden" ref_value="0"/>
+    </text_small>
     <text_heading name="pa_display" bind_text="tune_pa_display" style_pad_right="#space_xs"/>
     <ui_button name="btn_pa_tuner" height="#button_height_sm" text="Tuner" icon="gauge" hidden="true">
       <bind_flag_if_eq subject="tune_pa_session_active" flag="hidden" ref_value="0"/>
