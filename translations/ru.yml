@@ -756,6 +756,8 @@ translations:
   Bypass disabled: Байпас отключён
   Bypass enabled: Байпас включён
   Bypass failed: Ошибка байпаса
+  Bypass filament is at the toolhead. Unload it before turning off bypass.: 'Филамент обхода находится в печатающей головке. Выгрузите его перед выключением обхода.'
+  Bypass filament is loaded: 'Филамент обхода загружен'
   ? Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
   : Активен байпас, но эта печать использует слоты AMS. Принтер может отказаться загружать слот, пока филамент байпаса находится в печатающей головке. Извлеките филамент и выключите байпас перед печатью. Всё равно начать?
   Bypass mode is not currently active: 'Режим обхода сейчас не активен'

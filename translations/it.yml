@@ -700,6 +700,8 @@ translations:
   Bypass disabled: Bypass disabilitato
   Bypass enabled: Bypass abilitato
   Bypass failed: Bypass fallito
+  Bypass filament is at the toolhead. Unload it before turning off bypass.: 'Il filamento del bypass è nella testina. Scaricalo prima di disattivare il bypass.'
+  Bypass filament is loaded: 'Il filamento del bypass è caricato'
   ? Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
   : Il bypass è attivo, ma questa stampa usa gli slot AMS. La stampante potrebbe rifiutare il caricamento di uno slot mentre il filamento del bypass è nella testina. Rimuovi il filamento e disattiva il bypass prima di stampare. Avviare comunque?
   Bypass mode is not currently active: 'La modalità bypass non è attiva'

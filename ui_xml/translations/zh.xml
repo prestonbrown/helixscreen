@@ -677,6 +677,8 @@
   <translation tag="Bypass disabled" zh="旁通已禁用"/>
   <translation tag="Bypass enabled" zh="旁通已启用"/>
   <translation tag="Bypass failed" zh="旁通失败"/>
+  <translation tag="Bypass filament is at the toolhead. Unload it before turning off bypass." zh="旁通耗材仍在工具头中。关闭旁通前请先卸载。"/>
+  <translation tag="Bypass filament is loaded" zh="旁通耗材已装载"/>
   <translation tag="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?" zh="旁路已启用，但此打印使用 AMS 槽位。当旁路耗材仍在工具头中时，打印机可能拒绝装载槽位。请在打印前取出耗材并关闭旁路。仍要开始打印吗？"/>
   <translation tag="Bypass mode is not currently active" zh="旁通模式当前未启用"/>
   <translation tag="Bypass mode is on" zh="旁通模式已开启"/>

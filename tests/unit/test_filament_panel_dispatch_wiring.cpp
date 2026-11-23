@@ -239,7 +239,9 @@ TEST_CASE("A lane load the backend refuses toasts the backend's reason",
     FilamentPanelOutcome out = load_outcome(sys, caps, /*target_slot=*/2,
                                             /*macro_available=*/true);
     CHECK(out.tier == FilamentTier::Refused);
-    CHECK(out.toast == caps.lane_load_refusal.display_text());
+    CHECK(out.backend_refusal.user_msg == "user text");
+    CHECK(out.backend_refusal.suggestion == "what to do");
+    CHECK(out.toast.empty());
     CHECK_FALSE(out.navigate_to_ams);
     CHECK_FALSE(out.guard_armed);
 }

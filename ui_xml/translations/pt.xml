@@ -677,6 +677,8 @@
   <translation tag="Bypass disabled" pt="Bypass desativado"/>
   <translation tag="Bypass enabled" pt="Bypass ativado"/>
   <translation tag="Bypass failed" pt="Falha no bypass"/>
+  <translation tag="Bypass filament is at the toolhead. Unload it before turning off bypass." pt="Há filamento de bypass no cabeçote. Descarregue-o antes de desligar o bypass."/>
+  <translation tag="Bypass filament is loaded" pt="Há filamento de bypass carregado"/>
   <translation tag="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?" pt="O bypass está ativo, mas esta impressão usa slots AMS. A impressora pode não conseguir carregar um slot enquanto houver filamento de bypass no cabeçote. Remova o filamento e desative o bypass antes de imprimir. Iniciar mesmo assim?"/>
   <translation tag="Bypass mode is not currently active" pt="O modo bypass não está ativo no momento"/>
   <translation tag="Bypass mode is on" pt="O modo bypass está ativo"/>

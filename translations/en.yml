@@ -703,6 +703,8 @@ translations:
   Bypass disabled: Bypass disabled
   Bypass enabled: Bypass enabled
   Bypass failed: Bypass failed
+  Bypass filament is at the toolhead. Unload it before turning off bypass.: Bypass filament is at the toolhead. Unload it before turning off bypass.
+  Bypass filament is loaded: Bypass filament is loaded
   ? Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
   : Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
   Bypass mode is not currently active: Bypass mode is not currently active

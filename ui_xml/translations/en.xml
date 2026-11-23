@@ -677,6 +677,8 @@
   <translation tag="Bypass disabled" en="Bypass disabled"/>
   <translation tag="Bypass enabled" en="Bypass enabled"/>
   <translation tag="Bypass failed" en="Bypass failed"/>
+  <translation tag="Bypass filament is at the toolhead. Unload it before turning off bypass." en="Bypass filament is at the toolhead. Unload it before turning off bypass."/>
+  <translation tag="Bypass filament is loaded" en="Bypass filament is loaded"/>
   <translation tag="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?" en="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?"/>
   <translation tag="Bypass mode is not currently active" en="Bypass mode is not currently active"/>
   <translation tag="Bypass mode is on" en="Bypass mode is on"/>
