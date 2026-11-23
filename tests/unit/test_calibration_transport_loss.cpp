@@ -132,8 +132,8 @@ bool timer_can_still_fire(lv_timer_t* timer) {
 
 TEST_CASE_METHOD(TransportLossFixture, "PID absorbs CONNECTION_LOST and still delivers the result",
                  "[calibration][transport][1543]") {
-    mock_client_.force_next_gcode_error(MoonrakerErrorType::CONNECTION_LOST,
-                                        "Connection to printer lost", "PID_CALIBRATE");
+    mock_client_.force_next_gcode_error_after_send(MoonrakerErrorType::CONNECTION_LOST,
+                                                   "Connection to printer lost", "PID_CALIBRATE");
 
     api_->advanced().start_pid_calibrate(
         "heater_bed", 60, [this](float, float, float) { success_.store(true); },
@@ -156,8 +156,8 @@ TEST_CASE_METHOD(TransportLossFixture, "PID absorbs CONNECTION_LOST and still de
 
 TEST_CASE_METHOD(TransportLossFixture, "MPC absorbs CONNECTION_LOST and still delivers the result",
                  "[calibration][transport][1543]") {
-    mock_client_.force_next_gcode_error(MoonrakerErrorType::CONNECTION_LOST,
-                                        "Connection to printer lost", "MPC_CALIBRATE");
+    mock_client_.force_next_gcode_error_after_send(MoonrakerErrorType::CONNECTION_LOST,
+                                                   "Connection to printer lost", "MPC_CALIBRATE");
 
     api_->advanced().start_mpc_calibrate(
         "extruder", 200, 0,
@@ -188,8 +188,8 @@ TEST_CASE_METHOD(TransportLossFixture,
     REQUIRE(idle != nullptr);
     lv_subject_set_int(idle, 1); // the probe run holds the printer busy
 
-    mock_client_.force_next_gcode_error(MoonrakerErrorType::CONNECTION_LOST,
-                                        "Connection to printer lost", "SCREWS_TILT_CALCULATE");
+    mock_client_.force_next_gcode_error_after_send(
+        MoonrakerErrorType::CONNECTION_LOST, "Connection to printer lost", "SCREWS_TILT_CALCULATE");
 
     api_->advanced().calculate_screws_tilt(
         [this](const std::vector<ScrewTiltResult>& results) {
@@ -219,8 +219,8 @@ TEST_CASE_METHOD(TransportLossFixture,
 TEST_CASE_METHOD(TransportLossFixture,
                  "Bed mesh absorbs CONNECTION_LOST and completes from its markers",
                  "[calibration][transport][1543]") {
-    mock_client_.force_next_gcode_error(MoonrakerErrorType::CONNECTION_LOST,
-                                        "Connection to printer lost", "BED_MESH_CALIBRATE");
+    mock_client_.force_next_gcode_error_after_send(
+        MoonrakerErrorType::CONNECTION_LOST, "Connection to printer lost", "BED_MESH_CALIBRATE");
 
     api_->advanced().start_bed_mesh_calibrate(
         IAdvancedAPI::BedMeshCommand{/*script=*/"BED_MESH_CALIBRATE", /*self_prepares=*/true},
@@ -244,8 +244,8 @@ TEST_CASE_METHOD(TransportLossFixture,
 TEST_CASE_METHOD(TransportLossFixture,
                  "Input shaper absorbs CONNECTION_LOST instead of blaming the wiring",
                  "[calibration][transport][1543]") {
-    mock_client_.force_next_gcode_error(MoonrakerErrorType::CONNECTION_LOST,
-                                        "Connection to printer lost", "SHAPER_CALIBRATE");
+    mock_client_.force_next_gcode_error_after_send(
+        MoonrakerErrorType::CONNECTION_LOST, "Connection to printer lost", "SHAPER_CALIBRATE");
 
     api_->advanced().start_resonance_test(
         'X', [](int, ShaperCalibrationPhase, float) {},
@@ -263,8 +263,8 @@ TEST_CASE_METHOD(TransportLossFixture,
 TEST_CASE_METHOD(TransportLossFixture,
                  "Noise check absorbs CONNECTION_LOST instead of failing fast",
                  "[calibration][transport][1543]") {
-    mock_client_.force_next_gcode_error(MoonrakerErrorType::CONNECTION_LOST,
-                                        "Connection to printer lost", "MEASURE_AXES_NOISE");
+    mock_client_.force_next_gcode_error_after_send(
+        MoonrakerErrorType::CONNECTION_LOST, "Connection to printer lost", "MEASURE_AXES_NOISE");
 
     api_->advanced().measure_axes_noise([this](float) { success_.store(true); },
                                         [this](const MoonrakerError& err) {
@@ -304,8 +304,8 @@ TEST_CASE_METHOD(TransportLossFixture,
     REQUIRE(idle != nullptr);
     lv_subject_set_int(idle, 1); // in-flight macro holds the printer busy
 
-    mock_client_.force_next_gcode_error(MoonrakerErrorType::CONNECTION_LOST,
-                                        "Connection to printer lost", "PID_CALIBRATE");
+    mock_client_.force_next_gcode_error_after_send(MoonrakerErrorType::CONNECTION_LOST,
+                                                   "Connection to printer lost", "PID_CALIBRATE");
 
     api_->advanced().start_pid_calibrate(
         "heater_bed", 60, [this](float, float, float) { success_.store(true); },
@@ -338,8 +338,8 @@ TEST_CASE_METHOD(TransportLossFixture,
     REQUIRE(idle != nullptr);
     lv_subject_set_int(idle, 1);
 
-    mock_client_.force_next_gcode_error(MoonrakerErrorType::CONNECTION_LOST,
-                                        "Connection to printer lost", "PID_CALIBRATE");
+    mock_client_.force_next_gcode_error_after_send(MoonrakerErrorType::CONNECTION_LOST,
+                                                   "Connection to printer lost", "PID_CALIBRATE");
 
     api_->advanced().start_pid_calibrate(
         "heater_bed", 60, [this](float, float, float) { success_.store(true); },
@@ -374,8 +374,8 @@ TEST_CASE_METHOD(TransportLossFixture,
     REQUIRE(idle != nullptr);
     lv_subject_set_int(idle, 1);
 
-    mock_client_.force_next_gcode_error(MoonrakerErrorType::CONNECTION_LOST,
-                                        "Connection to printer lost", "PID_CALIBRATE");
+    mock_client_.force_next_gcode_error_after_send(MoonrakerErrorType::CONNECTION_LOST,
+                                                   "Connection to printer lost", "PID_CALIBRATE");
 
     api_->advanced().start_pid_calibrate(
         "heater_bed", 60, [this](float, float, float) { success_.store(true); },
@@ -421,8 +421,8 @@ TEST_CASE_METHOD(TransportLossFixture,
     REQUIRE(idle != nullptr);
     lv_subject_set_int(idle, 1); // the macro is still holding the printer busy
 
-    mock_client_.force_next_gcode_error(MoonrakerErrorType::CONNECTION_LOST,
-                                        "Connection to printer lost", "PID_CALIBRATE");
+    mock_client_.force_next_gcode_error_after_send(MoonrakerErrorType::CONNECTION_LOST,
+                                                   "Connection to printer lost", "PID_CALIBRATE");
 
     api_->advanced().start_pid_calibrate(
         "heater_bed", 60, [this](float, float, float) { success_.store(true); },
@@ -448,8 +448,8 @@ TEST_CASE_METHOD(TransportLossFixture, "The backstop completes a run whose idle 
     REQUIRE(idle != nullptr);
     lv_subject_set_int(idle, 1); // probing, so the follow-up sees the run start
 
-    mock_client_.force_next_gcode_error(MoonrakerErrorType::CONNECTION_LOST,
-                                        "Connection to printer lost", "BED_MESH_CALIBRATE");
+    mock_client_.force_next_gcode_error_after_send(
+        MoonrakerErrorType::CONNECTION_LOST, "Connection to printer lost", "BED_MESH_CALIBRATE");
 
     api_->advanced().start_bed_mesh_calibrate(
         IAdvancedAPI::BedMeshCommand{/*script=*/"BED_MESH_CALIBRATE", /*self_prepares=*/true},
@@ -481,8 +481,8 @@ TEST_CASE_METHOD(TransportLossFixture,
     REQUIRE(idle != nullptr);
     lv_subject_set_int(idle, 0); // never busy: the socket was already down at send
 
-    mock_client_.force_next_gcode_error(MoonrakerErrorType::CONNECTION_LOST,
-                                        "Connection to printer lost", "BED_MESH_CALIBRATE");
+    mock_client_.force_next_gcode_error_after_send(
+        MoonrakerErrorType::CONNECTION_LOST, "Connection to printer lost", "BED_MESH_CALIBRATE");
 
     api_->advanced().start_bed_mesh_calibrate(
         IAdvancedAPI::BedMeshCommand{/*script=*/"BED_MESH_CALIBRATE", /*self_prepares=*/true},
@@ -521,8 +521,8 @@ TEST_CASE_METHOD(TransportLossFixture,
     {
         MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
         MoonrakerAPI api(client, state());
-        client.force_next_gcode_error(MoonrakerErrorType::CONNECTION_LOST,
-                                      "Connection to printer lost", "PID_CALIBRATE");
+        client.force_next_gcode_error_after_send(MoonrakerErrorType::CONNECTION_LOST,
+                                                 "Connection to printer lost", "PID_CALIBRATE");
 
         api.advanced().start_pid_calibrate(
             "heater_bed", 60, [this](float, float, float) { success_.store(true); },
@@ -770,8 +770,8 @@ TEST_CASE_METHOD(TransportLossFixture,
     lv_subject_set_int(idle, 0);
     link_up_and_ready();
 
-    mock_client_.force_next_gcode_error(MoonrakerErrorType::CONNECTION_LOST,
-                                        "Connection to printer lost", "MPC_CALIBRATE");
+    mock_client_.force_next_gcode_error_after_send(MoonrakerErrorType::CONNECTION_LOST,
+                                                   "Connection to printer lost", "MPC_CALIBRATE");
     api_->advanced().start_mpc_calibrate(
         "extruder", 255, 3,
         [this](const MoonrakerAdvancedAPI::MPCResult&) { success_.store(true); },
@@ -788,5 +788,31 @@ TEST_CASE_METHOD(TransportLossFixture,
     settle();
     REQUIRE(error_.load());
     CHECK(captured_error_.find("Klipper stopped") != std::string::npos);
+    CHECK_FALSE(success_.load());
+}
+
+TEST_CASE_METHOD(TransportLossFixture, "An MPC start the client refuses to send fails at once",
+                 "[calibration][transport][2160]") {
+    lv_subject_t* idle = global_idle_subject();
+    REQUIRE(idle != nullptr);
+    lv_subject_set_int(idle, 0);
+    link_up_and_ready();
+
+    // The client refuses inside the send itself (no socket, a full queue):
+    // nothing reached Klipper, so nothing will ever answer.
+    mock_client_.force_next_gcode_error(MoonrakerErrorType::CONNECTION_LOST, "Not connected",
+                                        "MPC_CALIBRATE");
+    api_->advanced().start_mpc_calibrate(
+        "extruder", 255, 3,
+        [this](const MoonrakerAdvancedAPI::MPCResult&) { success_.store(true); },
+        [this](const MoonrakerError& err) {
+            captured_error_ = err.message;
+            error_.store(true);
+        });
+
+    REQUIRE(error_.load());
+    CHECK(captured_error_.find("Not connected") != std::string::npos);
+    settle();
+    CHECK(helix::calibration::armed_idle_backstop() == nullptr);
     CHECK_FALSE(success_.load());
 }

@@ -346,7 +346,15 @@ void MoonrakerClientMock::answer_gcode_script(
     // Test injection: simulate an RPC-layer failure (e.g. timeout) for this command
     // while Klipper still processed the gcode above. The collector-based APIs rely on
     // this to exercise paths where the RPC response is lost but Klipper keeps running.
-    if (auto forced = take_forced_gcode_error(script)) {
+    bool after_send = false;
+    if (auto forced = take_forced_gcode_error(script, &after_send)) {
+        if (after_send) {
+            if (error_cb) {
+                helix::ui::queue_update("MockGcode::error_after_send",
+                                        [error_cb, err = *forced]() { error_cb(err); });
+            }
+            return;
+        }
         reject(*forced);
         return;
     }

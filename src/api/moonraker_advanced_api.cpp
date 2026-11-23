@@ -402,6 +402,16 @@ class CalibrationCollectorCore {
         busy_flag_tracks_macro_ = tracks;
     }
 
+    /// The driver's execute_gcode() returned: an error from here on came after
+    /// the request went out. Before it, a transport error is the client
+    /// refusing to send (no socket, a full queue), and nothing is running.
+    void note_sent() {
+        sent_.store(true);
+    }
+    [[nodiscard]] bool sent() const {
+        return sent_.load();
+    }
+
     /// Arm the busy->idle follow-up after an absorbed transport error. Runs on
     /// the main thread (observer attach and the backstop timer both require
     /// it); the driver's error callback may fire on the WebSocket thread, so
@@ -672,6 +682,7 @@ class CalibrationCollectorCore {
     std::atomic<bool> registered_{false};
     std::atomic<bool> completed_{false};
     bool busy_flag_tracks_macro_ = true;
+    std::atomic<bool> sent_{false};
 
     /// How long the line-driven collectors let result lines trail the
     /// busy->idle edge before concluding they were lost to the outage.
@@ -749,7 +760,7 @@ void report_collector_rpc_error(const char* cmd, PrinterState& state,
                                 const MoonrakerAdvancedAPI::ErrorCallback& on_error,
                                 const MoonrakerError& err, uint32_t backstop_ms,
                                 const helix::SharedCallback<void()>& extra = nullptr) {
-    if (err.is_transport_loss()) {
+    if (err.command_may_still_run(collector->sent())) {
         if (extra)
             extra();
         spdlog::warn("[MoonrakerAPI] {} RPC lost to the transport ({}); collector still "
@@ -817,6 +828,12 @@ class PIDCalibrateCollector : public std::enable_shared_from_this<PIDCalibrateCo
     }
     void arm_idle_fallback(PrinterState& state, uint32_t backstop_ms, bool stream_intact) {
         core_.arm_idle_fallback(state, backstop_ms, stream_intact);
+    }
+    void note_sent() {
+        core_.note_sent();
+    }
+    [[nodiscard]] bool sent() const {
+        return core_.sent();
     }
 
     void on_gcode_response(const json& msg) {
@@ -1141,6 +1158,12 @@ class MPCCalibrateCollector : public std::enable_shared_from_this<MPCCalibrateCo
     void arm_idle_fallback(PrinterState& state, uint32_t backstop_ms, bool stream_intact) {
         core_.arm_idle_fallback(state, backstop_ms, stream_intact);
     }
+    void note_sent() {
+        core_.note_sent();
+    }
+    [[nodiscard]] bool sent() const {
+        return core_.sent();
+    }
 
     void on_gcode_response(const json& msg) {
         if (core_.completed())
@@ -1413,6 +1436,12 @@ class ScrewsTiltCollector : public std::enable_shared_from_this<ScrewsTiltCollec
     void arm_idle_fallback(PrinterState& state, uint32_t backstop_ms, bool stream_intact) {
         core_.arm_idle_fallback(state, backstop_ms, stream_intact);
     }
+    void note_sent() {
+        core_.note_sent();
+    }
+    [[nodiscard]] bool sent() const {
+        return core_.sent();
+    }
 
     /**
      * @brief Signal that execute_gcode completed successfully (JSON-RPC returned)
@@ -1604,6 +1633,12 @@ class InputShaperCollector : public std::enable_shared_from_this<InputShaperColl
     }
     void arm_idle_fallback(PrinterState& state, uint32_t backstop_ms, bool stream_intact) {
         core_.arm_idle_fallback(state, backstop_ms, stream_intact);
+    }
+    void note_sent() {
+        core_.note_sent();
+    }
+    [[nodiscard]] bool sent() const {
+        return core_.sent();
     }
 
     /**
@@ -2289,6 +2324,12 @@ class NoiseCheckCollector : public std::enable_shared_from_this<NoiseCheckCollec
     void arm_idle_fallback(PrinterState& state, uint32_t backstop_ms, bool stream_intact) {
         core_.arm_idle_fallback(state, backstop_ms, stream_intact);
     }
+    void note_sent() {
+        core_.note_sent();
+    }
+    [[nodiscard]] bool sent() const {
+        return core_.sent();
+    }
 
     void on_gcode_response(const json& msg) {
         if (core_.completed()) {
@@ -2462,6 +2503,12 @@ class BedMeshProgressCollector : public std::enable_shared_from_this<BedMeshProg
     }
     void arm_idle_fallback(PrinterState& state, uint32_t backstop_ms, bool stream_intact) {
         core_.arm_idle_fallback(state, backstop_ms, stream_intact);
+    }
+    void note_sent() {
+        core_.note_sent();
+    }
+    [[nodiscard]] bool sent() const {
+        return core_.sent();
     }
 
     /// Called when the JSON-RPC response returns successfully — the command
@@ -2678,6 +2725,7 @@ void MoonrakerAdvancedAPI::start_bed_mesh_calibrate(const BedMeshCommand& comman
         },
         command.self_prepares ? kSelfPreparedCalibrationTimeoutMs
                               : kCalibrationTimeoutMs + prep_timeout_ms);
+    collector->note_sent();
 }
 
 void MoonrakerAdvancedAPI::calculate_screws_tilt(ScrewTiltCallback on_success,
@@ -2739,6 +2787,7 @@ void MoonrakerAdvancedAPI::calculate_screws_tilt(ScrewTiltCallback on_success,
                                        on_error, err, kCalibrationTimeoutMs + prep_timeout_ms);
         },
         kCalibrationTimeoutMs + prep_timeout_ms);
+    collector->note_sent();
 }
 
 void MoonrakerAdvancedAPI::run_qgl(SuccessCallback /*on_success*/, ErrorCallback on_error) {
@@ -2793,6 +2842,7 @@ void MoonrakerAdvancedAPI::start_resonance_test(char axis, ShaperProgressCallbac
                 [collector]() { collector->log_stall_diagnostics("SHAPER_CALIBRATE RPC lost"); });
         },
         kShaperTimeoutMs);
+    collector->note_sent();
 }
 
 void MoonrakerAdvancedAPI::start_klippain_shaper_calibration(const std::string& /*axis*/,
@@ -2835,6 +2885,7 @@ void MoonrakerAdvancedAPI::measure_axes_noise(NoiseCheckCallback on_complete,
                                        on_error, err, kShaperTimeoutMs);
         },
         kShaperTimeoutMs);
+    collector->note_sent();
 }
 
 void MoonrakerAdvancedAPI::get_input_shaper_config(InputShaperConfigCallback on_success,
@@ -3246,6 +3297,7 @@ void MoonrakerAdvancedAPI::start_pid_calibrate(
                                        err, kPidTimeoutMs);
         },
         kPidTimeoutMs, true);
+    collector->note_sent();
 }
 
 helix::SharedCallback<void()>
@@ -3322,6 +3374,7 @@ void MoonrakerAdvancedAPI::start_mpc_calibrate(
                                        err, kMpcTimeoutMs);
         },
         kMpcTimeoutMs, true);
+    collector->note_sent();
 }
 
 // ============================================================================
