@@ -205,6 +205,17 @@ printer_images::HardwareFacts detected_hardware_facts() {
 
 } // namespace
 
+int PrinterImageManager::detected_facts_revision() {
+    static printer_images::HardwareFacts last;
+    static int revision = 0;
+    printer_images::HardwareFacts now = detected_hardware_facts();
+    if (now != last) {
+        last = std::move(now);
+        ++revision;
+    }
+    return revision;
+}
+
 std::string PrinterImageManager::get_detected_image_path(int screen_width) {
     Config* config = Config::get_instance();
     const std::string printer_type =
