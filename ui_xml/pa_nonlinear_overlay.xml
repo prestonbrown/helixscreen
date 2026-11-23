@@ -48,7 +48,7 @@
             <bind_flag_if_eq subject="pa_nl_has_tower" flag="hidden" ref_value="0"/>
             <event_cb trigger="clicked" callback="on_pa_nl_print"/>
           </ui_button>
-          <ui_button name="pa_nl_btn_discard" width="100%" variant="ghost" text="Discard">
+          <ui_button name="pa_nl_btn_discard" width="100%" variant="outline" icon="close" text="Discard">
             <event_cb trigger="clicked" callback="on_pa_nl_discard"/>
           </ui_button>
         </lv_obj>
@@ -146,14 +146,15 @@
                     style_text_color="#danger"/>
         <lv_obj width="100%"
                 height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm" scrollable="false">
-          <ui_button name="pa_nl_btn_save" width="1" flex_grow="1" icon="check" text="Save to Config">
-            <event_cb trigger="clicked" callback="on_pa_nl_save"/>
+          <ui_button name="pa_nl_btn_result_discard"
+                     width="1" flex_grow="1" variant="outline" icon="close" text="Discard">
+            <event_cb trigger="clicked" callback="on_pa_nl_discard"/>
           </ui_button>
-          <ui_button name="pa_nl_btn_keep" width="1" flex_grow="1" icon="check" text="Keep for Now">
+          <ui_button name="pa_nl_btn_keep" width="1" flex_grow="1" variant="secondary" icon="clock" text="Keep for Now">
             <event_cb trigger="clicked" callback="on_pa_nl_keep"/>
           </ui_button>
-          <ui_button name="pa_nl_btn_result_discard" width="1" flex_grow="1" variant="ghost" text="Discard">
-            <event_cb trigger="clicked" callback="on_pa_nl_discard"/>
+          <ui_button name="pa_nl_btn_save" width="1" flex_grow="1" icon="check" text="Save to Config">
+            <event_cb trigger="clicked" callback="on_pa_nl_save"/>
           </ui_button>
         </lv_obj>
       </lv_obj>

@@ -247,7 +247,10 @@ MoonrakerClientMock::gcode_print_pa_tower(const std::string& gcode) {
                                   "TARGET_TEMP={:.1f}. Heat the extruder to the target first.",
                                   current, target));
     }
-    if (print_phase_.load() != MockPrintPhase::IDLE) {
+    // A finished print leaves the sdcard free; only a running one refuses.
+    const auto phase = print_phase_.load();
+    if (phase == MockPrintPhase::PREHEAT || phase == MockPrintPhase::PRINTING ||
+        phase == MockPrintPhase::PAUSED) {
         return reject("Already printing");
     }
 
