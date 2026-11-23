@@ -29,9 +29,7 @@
 
 namespace helix {
 
-// ============================================================================
 // Address range
-// ============================================================================
 
 namespace {
 
@@ -66,9 +64,7 @@ std::vector<std::string> lan_sweep_hosts(const LocalIpv4& local) {
     return hosts;
 }
 
-// ============================================================================
 // The Moonraker check
-// ============================================================================
 
 namespace {
 
@@ -311,9 +307,7 @@ MoonrakerProbe probe_moonraker_http(const std::string& host, uint16_t port,
     return read_server_info_response(response);
 }
 
-// ============================================================================
 // LanSweepDiscovery
-// ============================================================================
 
 /// One sweep's state, shared with its workers; they reach the owner only through tok.
 struct LanSweepDiscovery::Sweep {
@@ -456,9 +450,7 @@ std::vector<DiscoveredPrinter> LanSweepDiscovery::get_discovered_printers() cons
     return found_;
 }
 
-// ============================================================================
 // MoonrakerDiscovery
-// ============================================================================
 
 MoonrakerDiscovery::MoonrakerDiscovery(std::unique_ptr<IMdnsDiscovery> mdns,
                                        std::unique_ptr<IMdnsDiscovery> sweep)
@@ -515,9 +507,7 @@ void MoonrakerDiscovery::publish() {
     }
 }
 
-// ============================================================================
 // MoonrakerConnectionTest
-// ============================================================================
 
 namespace {
 

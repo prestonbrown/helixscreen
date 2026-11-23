@@ -42,9 +42,7 @@
 
 using namespace helix;
 
-// ============================================================================
 // SoundManager singleton
-// ============================================================================
 
 namespace {
 
@@ -555,9 +553,7 @@ bool SoundManager::can_play_music() const {
     return backend_ && (backend_->supports_render_source() || backend_->voice_count() > 1);
 }
 
-// ============================================================================
 // Tracker playback (MOD/MED files)
-// ============================================================================
 
 #ifdef HELIX_HAS_TRACKER
 void SoundManager::play_file(const std::string& path, SoundPriority priority) {

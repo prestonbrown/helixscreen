@@ -73,9 +73,7 @@ void LabelPrinterSettingsManager::deinit_subjects() {
     spdlog::trace("[LabelPrinterSettings] Subjects deinitialized");
 }
 
-// =============================================================================
 // GETTERS / SETTERS
-// =============================================================================
 
 std::string LabelPrinterSettingsManager::get_printer_type() const {
     Config* config = Config::get_instance();

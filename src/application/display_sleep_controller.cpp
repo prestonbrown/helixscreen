@@ -32,7 +32,6 @@
 #include <SDL_system.h>
 #include <jni.h>
 
-// ---------------------------------------------------------------------------
 // JNI bridge to HelixActivity's window flags (#1245)
 //
 // Mirrors android_set_navbar_always_visible() in display_settings_manager.cpp —
@@ -50,7 +49,6 @@
 // Android recreates the window is silently dropped. HelixActivity keeps the
 // desired state in a static and re-applies it from onResume(), which is the
 // behaviour we actually need.
-// ---------------------------------------------------------------------------
 
 /// Ask HelixActivity to add/clear FLAG_KEEP_SCREEN_ON (applied on the UI thread).
 static void android_set_keep_screen_on(bool keep_on) {
@@ -118,9 +116,7 @@ void DisplaySleepController::configure(const DisplaySleepConfig& config) {
     m_dim_brightness_percent = config.dim_brightness_percent;
 }
 
-// ============================================================================
 // Sleep entry
-// ============================================================================
 
 void DisplaySleepController::enter_sleep(int timeout_sec) {
     DisplayBackend* backend = m_host.backend.get();
@@ -204,9 +200,7 @@ void DisplaySleepController::enter_sleep(int timeout_sec) {
     }
 }
 
-// ============================================================================
 // Host keep-screen-on (Android, #1245)
-// ============================================================================
 
 void DisplaySleepController::set_keep_screen_on(bool keep_on) {
 #ifdef __ANDROID__
@@ -223,9 +217,7 @@ void DisplaySleepController::set_keep_screen_on(bool keep_on) {
 #endif
 }
 
-// ============================================================================
 // Software sleep overlay
-// ============================================================================
 
 void DisplaySleepController::create_sleep_overlay() {
     if (m_sleep_overlay) {
@@ -270,9 +262,7 @@ void DisplaySleepController::show_screen_after_dark_panel() {
     helix::active_screen_hide_hold().release();
 }
 
-// ============================================================================
 // Power-off flush suppression (#1049)
-// ============================================================================
 
 namespace {
 // No-op flush used while the panel is powered off: it must still signal "ready"
@@ -323,9 +313,7 @@ void DisplaySleepController::restore_flush_after_sleep() {
     spdlog::debug("[DisplaySleep] Flush restored on wake");
 }
 
-// ============================================================================
 // Idle tick
-// ============================================================================
 
 void DisplaySleepController::tick() {
     BacklightBackend* backlight = m_host.backlight.get();

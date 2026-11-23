@@ -483,9 +483,7 @@ KlipperConfigEditor::resolve_includes(const std::map<std::string, std::string>& 
     return result;
 }
 
-// ============================================================================
 // Moonraker Integration — Async file operations
-// ============================================================================
 
 std::map<std::string, SectionLocation> KlipperConfigEditor::get_section_map() const {
     std::lock_guard<std::mutex> lock(cache_mutex_);
@@ -952,9 +950,7 @@ std::string config_edit_target_file(const std::map<std::string, SectionLocation>
     return location.file_path;
 }
 
-// ============================================================================
 // Routing between the plugin and the file API
-// ============================================================================
 
 ConfigEditRoute config_edit_route(PluginFeatureState state) {
     return state == PluginFeatureState::Ready ? ConfigEditRoute::Plugin : ConfigEditRoute::FileApi;
@@ -1085,9 +1081,7 @@ ConfigEditRoute KlipperConfigEditor::route() const {
                                                    : PluginFeatureState::Absent);
 }
 
-// ============================================================================
 // Judging a FIRMWARE_RESTART
-// ============================================================================
 
 namespace {
 
@@ -1266,7 +1260,6 @@ void KlipperConfigEditor::revert_after_failed_restart(IMoonrakerAPI& api,
         });
 }
 
-// ============================================================================
 // Safe edits: write, FIRMWARE_RESTART, revert if Klipper does not come back
 namespace {
 /// True, after reporting it, when firmware that supervises HelixScreen owns the Klipper
@@ -1285,8 +1278,6 @@ bool refuse_while_supervised(const std::string& section,
     return true;
 }
 } // namespace
-
-// ============================================================================
 
 void KlipperConfigEditor::safe_multi_edit(IMoonrakerAPI& api, const std::string& section,
                                           const std::vector<ConfigEdit>& edits,

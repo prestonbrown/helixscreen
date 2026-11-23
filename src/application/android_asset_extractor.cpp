@@ -61,13 +61,11 @@ AssetExtractionResult extract_assets_if_needed(const std::string& source_dir,
     return AssetExtractionResult::EXTRACTED;
 }
 
-// ---------------------------------------------------------------------------
 // Extraction-gate policy (pure, host-testable)
 //
 // The Android entry point further down compiles only under __ANDROID__, so the
 // decisions it makes live here as free functions a host unit test can drive
 // directly. The public header carries the entry points; these carry the policy.
-// ---------------------------------------------------------------------------
 
 /// Strip trailing newline/CR/space that a text asset or an on-disk marker
 /// picks up from whatever wrote it.

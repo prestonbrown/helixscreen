@@ -210,9 +210,7 @@ std::string get_helix_cache_dir(const std::string& subdir) {
     return "";
 }
 
-// ============================================================================
 // STALE CACHE RECLAMATION
-// ============================================================================
 
 /// Cache subdirectories this build creates. Mirrors the get_helix_cache_dir()
 /// call sites: ThumbnailCache::kCacheSubdir, ThumbnailProcessor, the gcode temp

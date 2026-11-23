@@ -22,9 +22,7 @@
 
 namespace helix::system {
 
-// ============================================================================
 // Pure path/glob utilities
-// ============================================================================
 
 std::string config_get_directory(const std::string& path) {
     auto pos = path.rfind('/');
@@ -97,9 +95,7 @@ std::vector<std::string> config_match_glob(const std::map<std::string, std::stri
     return matches;
 }
 
-// ============================================================================
 // Include extraction
-// ============================================================================
 
 std::vector<std::string> extract_includes(const std::string& content) {
     std::vector<std::string> includes;
@@ -121,9 +117,7 @@ std::vector<std::string> extract_includes(const std::string& content) {
     return includes;
 }
 
-// ============================================================================
 // Active file resolution (pure)
-// ============================================================================
 
 namespace {
 
@@ -207,9 +201,7 @@ std::set<std::string> resolve_active_files(const std::map<std::string, std::stri
     return active;
 }
 
-// ============================================================================
 // Async Moonraker integration
-// ============================================================================
 
 namespace {
 

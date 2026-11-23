@@ -369,18 +369,14 @@ void SettingsManager::set_moonraker_client(IMoonrakerClient* client) {
     spdlog::debug("[SettingsManager] Moonraker client set: {}", client ? "connected" : "nullptr");
 }
 
-// =============================================================================
 // Z MOVEMENT STYLE
-// =============================================================================
 
 void SettingsManager::set_z_movement_style(ZMovementStyle style) {
     settings_.set(Key::ZMovementStyle, static_cast<int>(style));
     get_printer_state().apply_effective_bed_moves();
 }
 
-// =============================================================================
 // BED DRYING
-// =============================================================================
 
 void SettingsManager::set_enclosure_style(helix::bed_drying::EnclosureStyle style) {
     settings_.set(Key::EnclosureStyle, static_cast<int>(style));
@@ -432,9 +428,7 @@ bool SettingsManager::clear_bed_drying_record() {
     return set_bed_drying_record(helix::bed_drying::RunRecord{});
 }
 
-// =============================================================================
 // MAINTENANCE METERS
-// =============================================================================
 
 std::optional<helix::maintenance::State>
 SettingsManager::get_maintenance_record(const std::string& printer_prefix) const {
@@ -457,9 +451,7 @@ bool SettingsManager::set_maintenance_record(const std::string& printer_prefix,
     return true;
 }
 
-// =============================================================================
 // TOOLHEAD STYLE
-// =============================================================================
 
 ToolheadStyle SettingsManager::get_effective_toolhead_style() const {
     auto style = get_toolhead_style();
@@ -508,9 +500,7 @@ ToolheadStyle SettingsManager::dropdown_index_to_toolhead_style(int index) {
     return static_cast<ToolheadStyle>(index);
 }
 
-// ============================================================================
 // Jog Step Distances
-// ============================================================================
 
 float SettingsManager::get_jog_distance(JogMode mode, bool outer) const {
     // Clamp on read as well as write, so nothing reading the cache can turn a
@@ -624,9 +614,7 @@ void SettingsManager::set_console_filter_user_remove(const std::vector<std::stri
     write_console_filter_layer(kFilterUserRemoveLeaf, scope, patterns);
 }
 
-// ============================================================================
 // Macro Panel (per-printer hidden macro set)
-// ============================================================================
 
 std::vector<std::string> SettingsManager::get_hidden_macros() const {
     Config* config = Config::get_instance();
@@ -662,9 +650,7 @@ void SettingsManager::set_color_recents(const std::string& kind,
     config->save();
 }
 
-// ============================================================================
 // Spaghetti Detection Settings
-// ============================================================================
 
 bool SettingsManager::is_detection_seeded() const {
     return Config::get_instance()->get<bool>("/detection/seeded", false);
@@ -686,9 +672,7 @@ void SettingsManager::mark_detection_switch_adopted() {
     config->save();
 }
 
-// ============================================================================
 // Chamber Assignment
-// ============================================================================
 
 std::string SettingsManager::get_feeder_open_macro() const {
     return feeder_open_macro_;
@@ -919,13 +903,9 @@ void SettingsManager::set_chamber_sensor_assignment(const std::string& value) {
     config->save();
 }
 
-// ============================================================================
 // Filament Settings
-// ============================================================================
 
-// ============================================================================
 // Barcode Scanner Settings
-// ============================================================================
 
 std::string SettingsManager::get_scanner_device_id() const {
     return scanner_device_id_;

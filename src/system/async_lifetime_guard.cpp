@@ -171,7 +171,6 @@ bool on_main_thread() noexcept {
 
 } // namespace helix::internal
 
-// ============================================================================
 // helix::async_lifetime — skip-rate telemetry for AsyncLifetimeGuard
 //
 // See the declaration block at the bottom of include/async_lifetime_guard.h
@@ -192,7 +191,6 @@ bool on_main_thread() noexcept {
 //     (e.g. test fixtures driving process_pending manually).
 //   * Tag pointers are string literals per UpdateQueue::TaggedCallback's
 //     contract, so pointer-equality interning is sound and allocation-free.
-// ============================================================================
 
 namespace helix::async_lifetime {
 

@@ -22,9 +22,7 @@
 
 namespace tio = helix::text_io;
 
-// ============================================================================
 // Constructor / Destructor
-// ============================================================================
 
 NetworkTester::NetworkTester() {
     spdlog::debug("[NetworkTester] Initialized");
@@ -50,9 +48,7 @@ void NetworkTester::init_self_reference(std::shared_ptr<NetworkTester> self) {
     spdlog::debug("[NetworkTester] Self-reference initialized for async callback safety");
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 void NetworkTester::start_test(Callback callback) {
     if (running_) {
@@ -100,9 +96,7 @@ bool NetworkTester::is_running() const {
     return running_;
 }
 
-// ============================================================================
 // Worker Thread
-// ============================================================================
 
 void NetworkTester::run_test() {
     spdlog::debug("[NetworkTester] Worker thread started");
@@ -210,9 +204,7 @@ void NetworkTester::report_state(TestState state) {
         });
 }
 
-// ============================================================================
 // Platform-Specific Helpers
-// ============================================================================
 
 std::string NetworkTester::get_default_gateway() {
 #ifdef __APPLE__

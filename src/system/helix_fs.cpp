@@ -58,9 +58,7 @@ int lstat_compat(const char* p, struct stat* st) {
 
 } // namespace
 
-// ---------------------------------------------------------------------------
 // Path strings
-// ---------------------------------------------------------------------------
 
 std::string join_path(std::string_view a, std::string_view b) {
     if (!b.empty() && b.front() == '/') {
@@ -180,9 +178,7 @@ std::string lexically_normal(std::string_view p) {
     return result.empty() ? "." : result;
 }
 
-// ---------------------------------------------------------------------------
 // Queries
-// ---------------------------------------------------------------------------
 
 bool exists(const std::string& p) {
     struct stat st;
@@ -281,9 +277,7 @@ std::optional<std::string> read_symlink(const std::string& p) {
 #endif
 }
 
-// ---------------------------------------------------------------------------
 // Operations
-// ---------------------------------------------------------------------------
 
 bool create_directories(const std::string& p) {
     if (!storage_allowed("create_directories", p)) {
@@ -387,9 +381,7 @@ bool copy_file(const std::string& from, const std::string& to, bool overwrite) {
     return ok;
 }
 
-// ---------------------------------------------------------------------------
 // Directory listing
-// ---------------------------------------------------------------------------
 
 std::optional<std::vector<DirEntry>> list_dir(const std::string& dir) {
     if (!storage_allowed("list_dir", dir)) {

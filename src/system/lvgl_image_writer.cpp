@@ -61,9 +61,7 @@ bool write_lvgl_bin(const std::string& path, int width, int height, uint8_t colo
         return false;
     }
 
-    // ========================================================================
     // LVGL 9 Image Header - Use lv_image_header_t struct directly
-    // ========================================================================
     // This ensures correct byte layout regardless of compiler/platform,
     // as we're using the same struct LVGL uses to read the file.
 

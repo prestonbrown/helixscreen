@@ -144,9 +144,7 @@ void SystemSettingsManager::deinit_subjects() {
     spdlog::trace("[SystemSettingsManager] Subjects deinitialized");
 }
 
-// =============================================================================
 // LANGUAGE SETTINGS
-// =============================================================================
 
 std::string SystemSettingsManager::get_language() const {
     int index = lv_subject_get_int(const_cast<lv_subject_t*>(&language_subject_));
@@ -290,9 +288,7 @@ int SystemSettingsManager::language_code_to_index(const std::string& code) {
     return 0; // Default to English (index 0)
 }
 
-// =============================================================================
 // UPDATE CHANNEL SETTINGS
-// =============================================================================
 
 void SystemSettingsManager::set_update_channel(int channel) {
     settings_.set(Key::UpdateChannel, channel);
@@ -300,18 +296,14 @@ void SystemSettingsManager::set_update_channel(int channel) {
     UpdateChecker::instance().clear_cache();
 }
 
-// =============================================================================
 // TELEMETRY SETTINGS
-// =============================================================================
 
 void SystemSettingsManager::set_telemetry_enabled(bool enabled) {
     settings_.set(Key::TelemetryEnabled, enabled);
     TelemetryManager::instance().set_enabled(enabled);
 }
 
-// =============================================================================
 // LOG LEVEL SETTINGS
-// =============================================================================
 
 int SystemSettingsManager::get_log_level_index() const {
     return lv_subject_get_int(const_cast<lv_subject_t*>(&log_level_subject_));

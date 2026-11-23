@@ -37,9 +37,7 @@ static constexpr int kTjFlagFastdct = 2048;
 
 namespace helix {
 
-// ============================================================================
 // Construction / Destruction
-// ============================================================================
 
 CameraStream::CameraStream() {
     // Try to load libturbojpeg at runtime for SIMD-accelerated JPEG decode.
@@ -123,9 +121,7 @@ CameraStream::~CameraStream() {
     }
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 std::optional<WebcamInfo> CameraStream::resolve_from_printer(const std::string& source) {
     // Lazy includes — avoid header dependency on printer_state/moonraker in camera_stream.h
@@ -346,9 +342,7 @@ bool CameraStream::is_running() const {
     return running_.load();
 }
 
-// ============================================================================
 // Boundary Parsing
-// ============================================================================
 
 std::string CameraStream::parse_boundary(const std::string& content_type) {
     auto pos = content_type.find("boundary=");
@@ -375,9 +369,7 @@ std::string CameraStream::parse_boundary(const std::string& content_type) {
     return "--" + boundary;
 }
 
-// ============================================================================
 // MJPEG Stream Thread (http_cb streaming)
-// ============================================================================
 
 void CameraStream::stream_thread_func() {
     // Capture a lifetime token so exception handlers can check
@@ -552,9 +544,7 @@ void CameraStream::stream_thread_func() {
     }
 }
 
-// ============================================================================
 // Incremental MJPEG Parser
-// ============================================================================
 
 int CameraStream::process_stream_data() {
     int frames_decoded = 0;
@@ -745,9 +735,7 @@ void CameraStream::note_snapshot_failure(const helix::LifetimeToken& token) {
     }
 }
 
-// ============================================================================
 // Pixel Copy with optional R↔B swap and flip
-// ============================================================================
 
 void CameraStream::copy_pixels_to_lvgl(const uint8_t* src, uint8_t* dst, int width, int height,
                                        int src_stride, int dst_stride, bool flip_h, bool flip_v,
@@ -785,9 +773,7 @@ void CameraStream::copy_pixels_to_lvgl(const uint8_t* src, uint8_t* dst, int wid
     }
 }
 
-// ============================================================================
 // Pixel Transpose (90° CW rotation)
-// ============================================================================
 
 void CameraStream::transpose_pixels_cw(const uint8_t* src, uint8_t* dst, int src_width,
                                        int src_height, int src_stride, int dst_stride,
@@ -812,9 +798,7 @@ void CameraStream::transpose_pixels_cw(const uint8_t* src, uint8_t* dst, int src
     }
 }
 
-// ============================================================================
 // Transform Helpers
-// ============================================================================
 
 CameraStream::TransformParams CameraStream::resolve_transform(const Transform& t, int src_w,
                                                               int src_h) {
@@ -925,9 +909,7 @@ void CameraStream::transform_pixels(const uint8_t* src, int src_w, int src_h, in
     }
 }
 
-// ============================================================================
 // Decode-time Downscaling
-// ============================================================================
 
 CameraStream::ScaledSize CameraStream::compute_scaled_size(int src_w, int src_h) const {
     int tw = target_w_.load();
@@ -973,9 +955,7 @@ CameraStream::ScaledSize CameraStream::compute_scaled_size(int src_w, int src_h)
     return {best_w, best_h};
 }
 
-// ============================================================================
 // JPEG Decode
-// ============================================================================
 
 bool CameraStream::decode_jpeg(const uint8_t* data, size_t len) {
     if (!data || len == 0) {
@@ -1112,9 +1092,7 @@ bool CameraStream::decode_jpeg_stb(const uint8_t* data, size_t len) {
     return true;
 }
 
-// ============================================================================
 // Error Reporting
-// ============================================================================
 
 void CameraStream::report_error(const helix::LifetimeToken& token, const char* message) {
     // Defer cb_mutex_ + on_error_ access to main thread to satisfy the L081
@@ -1133,9 +1111,7 @@ void CameraStream::report_error(const helix::LifetimeToken& token, const char* m
     });
 }
 
-// ============================================================================
 // Frame Delivery
-// ============================================================================
 
 void CameraStream::deliver_frame() {
     if (!running_.load()) {
@@ -1172,9 +1148,7 @@ void CameraStream::deliver_frame() {
     frame_cb(front_buf_);
 }
 
-// ============================================================================
 // Buffer Management
-// ============================================================================
 
 // Allocate a draw buffer using the system allocator (calloc/free) instead of
 // lv_draw_buf_create which calls lv_malloc — LVGL's allocator is NOT

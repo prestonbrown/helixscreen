@@ -1168,9 +1168,7 @@ std::string Config::df() const {
     return "/printers/" + active_printer_id_ + "/";
 }
 
-// ============================================================================
 // Multi-printer support
-// ============================================================================
 
 std::string Config::get_active_printer_id() const {
     return active_printer_id_;

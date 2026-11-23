@@ -11,9 +11,7 @@
 
 namespace helix::ipp {
 
-// ---------------------------------------------------------------------------
 // Byte-order helpers (big-endian / network byte order)
-// ---------------------------------------------------------------------------
 
 static void put_u8(std::vector<uint8_t>& buf, uint8_t v) {
     buf.push_back(v);
@@ -52,9 +50,7 @@ static int32_t read_i32(const uint8_t* p) {
     return result;
 }
 
-// ---------------------------------------------------------------------------
 // IppValue accessors
-// ---------------------------------------------------------------------------
 
 std::string IppValue::as_string() const {
     return std::string(data.begin(), data.end());
@@ -76,9 +72,7 @@ bool IppValue::as_boolean() const {
     return data[0] != 0;
 }
 
-// ---------------------------------------------------------------------------
 // IppResponse
-// ---------------------------------------------------------------------------
 
 const IppValue* IppResponse::find_attribute(const std::string& name) const {
     for (const auto& attr : operation_attributes) {
@@ -153,9 +147,7 @@ std::string IppResponse::status_message() const {
     }
 }
 
-// ---------------------------------------------------------------------------
 // IppRequest
-// ---------------------------------------------------------------------------
 
 IppRequest::IppRequest(Operation op, uint32_t request_id)
     : operation_(op), request_id_(request_id) {
@@ -298,9 +290,7 @@ std::vector<uint8_t> IppRequest::encode_with_data(const std::vector<uint8_t>& do
     return buf;
 }
 
-// ---------------------------------------------------------------------------
 // Response parser
-// ---------------------------------------------------------------------------
 
 IppResponse parse_response(const uint8_t* data, size_t len) {
     IppResponse resp;
@@ -407,9 +397,7 @@ IppResponse parse_response(const std::vector<uint8_t>& data) {
     return parse_response(data.data(), data.size());
 }
 
-// ---------------------------------------------------------------------------
 // Convenience builders
-// ---------------------------------------------------------------------------
 
 IppRequest build_get_printer_attributes(const std::string& printer_uri,
                                         const std::vector<std::string>& requested_attributes) {

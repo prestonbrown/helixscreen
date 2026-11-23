@@ -519,9 +519,7 @@ bool is_gcode_2d_streaming_safe(size_t file_size_bytes) {
                                            display_width, display_height, cache_dir_is_ram_backed);
 }
 
-// ============================================================================
 // OOM priority
-// ============================================================================
 
 bool parse_oom_score_adj(const char* value, int& out) {
     if (value == nullptr || *value == '\0')

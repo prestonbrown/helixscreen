@@ -57,9 +57,7 @@
 using json = nlohmann::json;
 namespace helix {
 
-// =============================================================================
 // Main collect
-// =============================================================================
 
 json DebugBundleCollector::collect(const BundleOptions& options) {
     json bundle;
@@ -352,9 +350,7 @@ json DebugBundleCollector::collect(const BundleOptions& options) {
     return bundle;
 }
 
-// =============================================================================
 // System info
-// =============================================================================
 
 json DebugBundleCollector::collect_touch_info() {
     TouchRangeDiagnostics diag;
@@ -513,9 +509,7 @@ json DebugBundleCollector::build_diagnostics_info(const diagnostics::Diagnostics
     return out;
 }
 
-// =============================================================================
 // Update diagnostics
-// =============================================================================
 
 // Readable name for the last check's status. The raw enum ordinal means nothing
 // to a human reading a bundle or to the dashboard rendering it.
@@ -624,9 +618,7 @@ json DebugBundleCollector::collect_update_info() {
     return build_update_info(diag);
 }
 
-// =============================================================================
 // Printer info
-// =============================================================================
 
 PrinterSnapshot DebugBundleCollector::snapshot_printer_state() {
     PrinterSnapshot snap;
@@ -731,9 +723,7 @@ json DebugBundleCollector::collect_printer_info(const PrinterSnapshot& snap) {
     return printer;
 }
 
-// =============================================================================
 // Log tail — cascades file → syslog → journal (see helix::logs for ordering)
-// =============================================================================
 
 size_t DebugBundleCollector::resolve_log_tail_lines(int requested, size_t ring_capacity) {
     // Historical fixed size, and logging_init's own floor (kMinRingLines). Used
@@ -756,10 +746,8 @@ std::string DebugBundleCollector::collect_log_tail(int num_lines) {
     return sanitize_text_block(helix::logs::tail_best(static_cast<int>(lines)));
 }
 
-// =============================================================================
 // Log meta — tells a bundle reader whether debug was being captured and where
 // the log_tail actually came from. Cheap, no I/O, no network.
-// =============================================================================
 
 json DebugBundleCollector::collect_log_meta() {
     json meta;
@@ -778,9 +766,7 @@ json DebugBundleCollector::collect_log_meta() {
     return meta;
 }
 
-// =============================================================================
 // Crash file
-// =============================================================================
 
 std::string DebugBundleCollector::collect_crash_txt() {
     // Build list of config directories to search
@@ -827,9 +813,7 @@ std::string DebugBundleCollector::collect_crash_txt() {
     return {};
 }
 
-// =============================================================================
 // Sanitized settings
-// =============================================================================
 
 bool DebugBundleCollector::is_sensitive_key(const std::string& key) {
     // Case-insensitive substring match for sensitive patterns
@@ -1048,9 +1032,7 @@ json DebugBundleCollector::collect_sanitized_settings() {
     return json::object();
 }
 
-// =============================================================================
 // Moonraker REST collection
-// =============================================================================
 
 std::string DebugBundleCollector::get_moonraker_url() {
     auto* api = get_moonraker_api();
@@ -1310,9 +1292,7 @@ json DebugBundleCollector::collect_moonraker_local_probe() {
     return probe;
 }
 
-// =============================================================================
 // Launcher log
-// =============================================================================
 
 std::string DebugBundleCollector::collect_launcher_log(const std::vector<std::string>& paths,
                                                        int max_lines) {
@@ -1329,9 +1309,7 @@ std::string DebugBundleCollector::collect_launcher_log(const std::vector<std::st
            sanitize_text_block(body);
 }
 
-// =============================================================================
 // Kernel kill and crash records
-// =============================================================================
 
 namespace {
 
@@ -1507,9 +1485,7 @@ json DebugBundleCollector::collect_kernel_log() {
     return section;
 }
 
-// =============================================================================
 // Filament system info (AFC, Happy Hare, ACE, Spoolman, tool changers)
-// =============================================================================
 
 json DebugBundleCollector::filter_filament_objects(const json& object_list) {
     static const std::vector<std::string> prefixes = {
@@ -1804,9 +1780,7 @@ std::vector<std::string> DebugBundleCollector::filament_override_namespaces() {
     return {"lane_data", "helix-screen-afc-overrides", "helix-screen-hh-overrides"};
 }
 
-// =============================================================================
 // Platform-specific diagnostic files
-// =============================================================================
 
 enum class PlatformFileFormat { JSON, TEXT };
 
@@ -1907,9 +1881,7 @@ json DebugBundleCollector::collect_platform_files() {
     return result;
 }
 
-// =============================================================================
 // printer.cfg + its [include] tree
-// =============================================================================
 
 std::vector<std::string> DebugBundleCollector::parse_include_patterns(const std::string& body) {
     return helix::system::extract_includes(body);
@@ -2053,9 +2025,7 @@ json DebugBundleCollector::collect_printer_config() {
     return result;
 }
 
-// =============================================================================
 // Klipper / Moonraker log tails (via HTTP Range for memory safety)
-// =============================================================================
 
 /// Collapse digit runs so lines that differ only by numbers share a shape:
 /// "Stats 14645.9: ... sysload=0.60" and "Stats 14646.9: ... sysload=0.58"
@@ -2862,9 +2832,7 @@ std::string DebugBundleCollector::collect_moonraker_log_tail(int num_lines,
                                        num_lines, kMoonrakerCondenseMaxRepeats);
 }
 
-// =============================================================================
 // Crash report (human-readable, persists after crash.txt consumed)
-// =============================================================================
 
 std::string DebugBundleCollector::collect_crash_report_txt(const std::string& config_dir) {
     std::string path = config_dir + "/crash_report.txt";
@@ -2913,9 +2881,7 @@ std::string DebugBundleCollector::collect_crash_txt(const std::string& config_di
     }
 }
 
-// =============================================================================
 // Crash history (past crash submissions from crash_history.json)
-// =============================================================================
 
 json DebugBundleCollector::collect_crash_history(const std::string& config_dir) {
     std::string path = config_dir + "/crash_history.json";
@@ -2942,9 +2908,7 @@ json DebugBundleCollector::collect_crash_history(const std::string& config_dir) 
     }
 }
 
-// =============================================================================
 // Device ID (double-hashed for R2 cross-referencing)
-// =============================================================================
 
 std::string DebugBundleCollector::collect_device_id(const std::string& path) {
     try {
@@ -2972,18 +2936,14 @@ std::string DebugBundleCollector::collect_device_id(const std::string& path) {
     }
 }
 
-// =============================================================================
 // Log tail from explicit paths (used by tests to pin path resolution order)
-// =============================================================================
 
 std::string DebugBundleCollector::collect_log_tail_from_paths(const std::vector<std::string>& paths,
                                                               int num_lines) {
     return helix::logs::tail_file(paths, num_lines);
 }
 
-// =============================================================================
 // Gzip compression
-// =============================================================================
 
 std::vector<uint8_t> DebugBundleCollector::gzip_compress(const std::string& data) {
     z_stream zs{};
@@ -3014,9 +2974,7 @@ std::vector<uint8_t> DebugBundleCollector::gzip_compress(const std::string& data
     return output;
 }
 
-// =============================================================================
 // Async upload
-// =============================================================================
 
 const char* DebugBundleCollector::worker_url() {
     if (const char* u = std::getenv("HELIX_BUNDLE_WORKER_URL")) {

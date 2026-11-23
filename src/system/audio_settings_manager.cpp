@@ -83,9 +83,7 @@ void AudioSettingsManager::deinit_subjects() {
     spdlog::trace("[AudioSettingsManager] Subjects deinitialized");
 }
 
-// =============================================================================
 // GETTERS / SETTERS
-// =============================================================================
 
 float AudioSettingsManager::get_volume_scaled() const {
     float normalized = static_cast<float>(get_volume()) / 100.0f;

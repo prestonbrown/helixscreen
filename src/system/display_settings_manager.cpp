@@ -471,9 +471,7 @@ void DisplaySettingsManager::deinit_subjects() {
     spdlog::trace("[DisplaySettingsManager] Subjects deinitialized");
 }
 
-// =============================================================================
 // DARK MODE / THEME
-// =============================================================================
 
 bool DisplaySettingsManager::get_dark_mode() const {
     return lv_subject_get_int(const_cast<lv_subject_t*>(&dark_mode_subject_)) != 0;
@@ -596,9 +594,7 @@ void DisplaySettingsManager::set_theme_by_index(int index) {
     }
 }
 
-// =============================================================================
 // DISPLAY POWER / BRIGHTNESS
-// =============================================================================
 
 int DisplaySettingsManager::get_display_dim_sec() const {
     return lv_subject_get_int(const_cast<lv_subject_t*>(&display_dim_subject_));
@@ -715,9 +711,7 @@ bool DisplaySettingsManager::should_couple_sleep_to_dim() const {
     return dim_row_kind(has_dimming_control(), screensaver_enabled()) != DimRowKind::Hidden;
 }
 
-// =============================================================================
 // SCREEN ROTATION
-// =============================================================================
 
 int DisplaySettingsManager::rotation_degrees_to_index(int degrees) {
     switch (degrees) {
@@ -785,9 +779,7 @@ bool DisplaySettingsManager::set_display_rotation(int degrees) {
     return changed;
 }
 
-// =============================================================================
 // UI PREFERENCES
-// =============================================================================
 
 bool DisplaySettingsManager::get_animations_enabled() const {
     return lv_subject_get_int(const_cast<lv_subject_t*>(&animations_enabled_subject_)) != 0;
@@ -944,9 +936,7 @@ void DisplaySettingsManager::set_gcode_render_mode(int mode) {
     settings_.set(Key::GcodeRenderMode, mode);
 }
 
-// =============================================================================
 // TIMEZONE
-// =============================================================================
 
 int DisplaySettingsManager::apply_configured_timezone() {
     Config* config = Config::get_instance();
@@ -1061,9 +1051,7 @@ void DisplaySettingsManager::adopt_timezone_if_unset(const std::string& iana_id,
     set_timezone(match);
 }
 
-// =============================================================================
 // SCREENSAVER
-// =============================================================================
 
 int DisplaySettingsManager::get_screensaver_type() const {
     return lv_subject_get_int(const_cast<lv_subject_t*>(&screensaver_type_subject_));
@@ -1094,9 +1082,7 @@ void DisplaySettingsManager::set_screensaver_type(int type) {
 }
 #endif
 
-// =============================================================================
 // CONFIG-ONLY SETTINGS (no subjects)
-// =============================================================================
 
 std::string DisplaySettingsManager::get_printer_image() const {
     Config* config = Config::get_instance();
@@ -1116,9 +1102,7 @@ bool DisplaySettingsManager::get_bed_mesh_show_zero_plane() const {
     return config->get<bool>("/display/bed_mesh_show_zero_plane", true);
 }
 
-// =============================================================================
 // DISPLAY DIM OPTIONS
-// =============================================================================
 
 DisplaySettingsManager::DimRowKind DisplaySettingsManager::dim_row_kind(bool has_dimming,
                                                                         bool screensaver_enabled) {
@@ -1147,9 +1131,7 @@ int DisplaySettingsManager::index_to_dim_seconds(int index) {
     return 600; // Default 10 minutes
 }
 
-// =============================================================================
 // DISPLAY SLEEP OPTIONS
-// =============================================================================
 
 int DisplaySettingsManager::sleep_seconds_to_index(int seconds) {
     for (int i = 0; i < kSleepOptionsCount; i++) {
