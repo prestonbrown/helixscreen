@@ -16,9 +16,7 @@
 #include <sstream>
 #include <vector>
 
-// ============================================================================
 // Fuzzy String Matching
-// ============================================================================
 
 namespace {
 
@@ -97,9 +95,7 @@ bool fuzzy_match_any_word(const std::string& term, const std::string& searchable
 
 } // namespace
 
-// ============================================================================
 // Spool Filtering
-// ============================================================================
 
 std::string build_searchable_text(const SpoolInfo& spool) {
     // "#ID vendor material filament_name location", lowercased. filter_spools

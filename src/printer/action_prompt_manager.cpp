@@ -76,9 +76,7 @@ void ActionPromptManager::set_instance(ActionPromptManager* instance) {
     }
 }
 
-// ============================================================================
 // Static Parsing Functions
-// ============================================================================
 
 std::optional<ActionLineResult> ActionPromptManager::parse_action_line(const std::string& line) {
     // Find the "// action:" prefix, allowing leading whitespace
@@ -196,9 +194,7 @@ PromptButton ActionPromptManager::parse_button_spec(const std::string& spec) {
     return button;
 }
 
-// ============================================================================
 // State Machine
-// ============================================================================
 
 const PromptData* ActionPromptManager::get_current_prompt() const {
     if (m_state == State::SHOWING && m_current_prompt) {
@@ -307,9 +303,7 @@ void ActionPromptManager::process_line(const std::string& line) {
     }
 }
 
-// ============================================================================
 // Command Handlers
-// ============================================================================
 
 void ActionPromptManager::handle_prompt_begin(const std::string& payload) {
     // If currently showing, close the current prompt first
@@ -410,9 +404,7 @@ void ActionPromptManager::handle_notify(const std::string& payload) {
     }
 }
 
-// ============================================================================
 // Test/Development Helpers
-// ============================================================================
 
 void ActionPromptManager::trigger_test_prompt() {
     spdlog::info("[ActionPromptManager] Triggering test prompt");

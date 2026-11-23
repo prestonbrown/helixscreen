@@ -30,9 +30,7 @@ WifiBackendMock::~WifiBackendMock() {
     fprintf(stderr, "[WifiBackend] Mock backend destroyed\n");
 }
 
-// ============================================================================
 // Lifecycle Management
-// ============================================================================
 
 WiFiError WifiBackendMock::start() {
     if (running_) {
@@ -83,9 +81,7 @@ bool WifiBackendMock::is_running() const {
     return running_;
 }
 
-// ============================================================================
 // Network Scanning
-// ============================================================================
 
 WiFiError WifiBackendMock::trigger_scan() {
     if (!running_) {
@@ -164,9 +160,7 @@ void WifiBackendMock::scan_thread_func() {
     dispatch_event("SCAN_COMPLETE");
 }
 
-// ============================================================================
 // Connection Management
-// ============================================================================
 
 WiFiError WifiBackendMock::connect_network(const std::string& ssid, const std::string& password,
                                            bool is_hidden) {
@@ -362,9 +356,7 @@ void WifiBackendMock::connect_thread_func() {
     dispatch_event("CONNECTED", "ip=" + ip);
 }
 
-// ============================================================================
 // Status Queries
-// ============================================================================
 
 WifiBackend::ConnectionStatus WifiBackendMock::get_status() {
     ConnectionStatus status = {};
@@ -476,9 +468,7 @@ int WifiBackendMock::set_country_calls() const {
     return set_country_calls_;
 }
 
-// ============================================================================
 // Internal Helpers
-// ============================================================================
 
 void WifiBackendMock::init_mock_networks() {
     // Frequencies model a realistic mixed-band neighbourhood. "Office-Main"

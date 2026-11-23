@@ -9,9 +9,7 @@
 
 using namespace moonraker_internal;
 
-// ============================================================================
 // Query Operations
-// ============================================================================
 
 helix::KlippyStatus helix::parse_klippy_status(const json& info) {
     return {helix::json_util::safe_string(info, "state", ""),

@@ -101,9 +101,7 @@ bool is_hidden_scan_ssid(const std::string& ssid) {
 } // namespace helix::wifi::detail
 
 #if !defined(__APPLE__) && !defined(__ANDROID__)
-// ============================================================================
 // Linux Implementation: Full wpa_supplicant integration
-// ============================================================================
 
 #include "wpa_ctrl.h"
 
@@ -689,9 +687,7 @@ void WifiBackendWpaSupplicant::stop() {
     spdlog::debug("[WifiBackend] WiFi backend disabled");
 }
 
-// ============================================================================
 // System Validation and Permission Checking
-// ============================================================================
 
 WiFiError WifiBackendWpaSupplicant::check_system_prerequisites() {
     spdlog::debug("[WifiBackend] Performing system prerequisites check");
@@ -906,9 +902,7 @@ WiFiError WifiBackendWpaSupplicant::check_wifi_hardware() {
     return WiFiErrorHelper::success();
 }
 
-// ============================================================================
 // wpa_supplicant Communication
-// ============================================================================
 
 void WifiBackendWpaSupplicant::init_wpa() {
     spdlog::trace("[WifiBackend] init_wpa() called in event loop thread");
@@ -1411,9 +1405,7 @@ std::string WifiBackendWpaSupplicant::send_command(const std::string& cmd) {
     return std::string(resp, len);
 }
 
-// ============================================================================
 // WifiBackend Interface Implementation
-// ============================================================================
 
 bool WifiBackendWpaSupplicant::is_running() const {
     // "Running" means we have live wpa_supplicant connections, not merely that
@@ -2277,9 +2269,7 @@ void WifiBackendWpaSupplicant::resolve_5ghz_support() {
     }
 }
 
-// ============================================================================
 // Helper Methods (encapsulate wpa_supplicant ugliness)
-// ============================================================================
 
 std::vector<WiFiNetwork> WifiBackendWpaSupplicant::parse_scan_results(const std::string& raw) {
     std::vector<WiFiNetwork> networks;
@@ -2401,9 +2391,7 @@ std::string WifiBackendWpaSupplicant::detect_security_type(const std::string& fl
 }
 
 #else
-// ============================================================================
 // macOS Stub Implementation: No-op for simulator
-// ============================================================================
 
 // Empty file - all methods are inline in header
 

@@ -11,9 +11,7 @@
 
 using namespace moonraker_internal;
 
-// ============================================================================
 // LED Control Operations
-// ============================================================================
 
 void MoonrakerAPI::set_led(const std::string& led, double red, double green, double blue,
                            double white, SuccessCallback on_success, ErrorCallback on_error,

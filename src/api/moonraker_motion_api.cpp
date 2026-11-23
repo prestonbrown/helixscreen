@@ -54,17 +54,13 @@ std::string format_gcode_value(double v) {
 
 } // namespace
 
-// ============================================================================
 // MoonrakerMotionAPI Implementation
-// ============================================================================
 
 MoonrakerMotionAPI::MoonrakerMotionAPI(helix::IMoonrakerClient& client, helix::PrinterState& state,
                                        const SafetyLimits& safety_limits)
     : client_(client), state_(state), safety_limits_(safety_limits) {}
 
-// ============================================================================
 // Motion Control Operations
-// ============================================================================
 
 void MoonrakerMotionAPI::home_axes(const std::string& axes, SuccessCallback on_success,
                                    ErrorCallback on_error) {
@@ -290,9 +286,7 @@ void MoonrakerMotionAPI::move_to(const helix::AxisTarget& target, double xy_feed
     execute_gcode(gcode, on_success, on_error);
 }
 
-// ============================================================================
 // G-code Generation Helpers
-// ============================================================================
 
 std::string MoonrakerMotionAPI::generate_home_gcode(const std::string& axes) {
     if (axes.empty()) {
@@ -433,9 +427,7 @@ std::string MoonrakerMotionAPI::generate_absolute_move_gcode(char axis, double p
     return gcode;
 }
 
-// ============================================================================
 // G-code Execution
-// ============================================================================
 
 void MoonrakerMotionAPI::execute_gcode(const std::string& gcode, SuccessCallback on_success,
                                        ErrorCallback on_error, uint32_t timeout_ms,

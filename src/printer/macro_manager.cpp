@@ -23,9 +23,7 @@
 
 namespace helix {
 
-// ============================================================================
 // File Loading Helpers
-// ============================================================================
 
 namespace {
 
@@ -252,9 +250,7 @@ std::string without_includes(const std::string& content, const std::vector<std::
 
 } // anonymous namespace
 
-// ============================================================================
 // MacroManager Implementation
-// ============================================================================
 
 MacroManager::MacroManager(IMoonrakerAPI& api, const PrinterDiscovery& hardware)
     : api_(api), hardware_(hardware) {}
@@ -733,9 +729,7 @@ std::vector<std::string> MacroManager::get_macro_names() {
     return parse_macro_names(content);
 }
 
-// ============================================================================
 // Private Implementation
-// ============================================================================
 
 void MacroManager::upload_macro_file(const std::string& filename, const std::string& content,
                                      SuccessCallback on_success, ErrorCallback on_error) {
