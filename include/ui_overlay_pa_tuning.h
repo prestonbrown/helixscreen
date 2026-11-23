@@ -174,6 +174,15 @@ class PaTuningOverlay : public OverlayBase {
     void set_raise_on_start_for_test(bool raise) {
         raise_on_start_ = raise;
     }
+    /// What the setup screen shows, as on_activate() refreshes it.
+    void refresh_setup_for_test() {
+        refresh_setup();
+    }
+    /// The Linear K / Nonlinear chips.
+    void choose_model_for_test(bool nonlinear) {
+        nl_mode_choice_ = nonlinear;
+        refresh_model_choice();
+    }
 
   private:
     // --- setup ---

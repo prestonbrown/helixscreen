@@ -241,6 +241,41 @@ TEST_CASE_METHOD(TunerFixture,
     CHECK(client.mock_db_get(pa::kMoonrakerNamespace, pa::kMoonrakerKey).is_null());
 }
 
+TEST_CASE_METHOD(TunerFixture,
+                 "the setup offers the nonlinear model only where the firmware can select one",
+                 "[pa_tune][pa_tuner][pa_model]") {
+    const auto value = [](const char* name) {
+        return lv_subject_get_int(lv_xml_get_subject(nullptr, name));
+    };
+    const auto summary = []() {
+        return std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "pa_tune_summary")));
+    };
+    // Classic firmware: one K, nothing to choose.
+    status({{"extruder", {{"pressure_advance", 0.04}}}});
+    overlay.refresh_setup_for_test();
+    CHECK(value("pa_tune_nl_available") == 0);
+    CHECK(value("pa_tune_nl_mode") == 0);
+    const std::string classic_summary = summary();
+
+    // A selectable model on linear: offered, Linear K chosen.
+    status({{"extruder", {{"pressure_advance_model", "linear"}, {"pressure_advance", 0.04}}}});
+    overlay.refresh_setup_for_test();
+    CHECK(value("pa_tune_nl_available") == 1);
+    CHECK(value("pa_tune_nl_mode") == 0);
+    overlay.choose_model_for_test(true);
+    CHECK(value("pa_tune_nl_mode") == 1);
+    overlay.choose_model_for_test(false);
+    CHECK(value("pa_tune_nl_mode") == 0);
+
+    // Already nonlinear: the setup follows the firmware, and the classic
+    // tower's summary says it sweeps linear advance.
+    status({{"extruder", {{"pressure_advance_model", "tanh"}, {"linear_advance", 0.02}}}});
+    overlay.refresh_setup_for_test();
+    CHECK(value("pa_tune_nl_available") == 1);
+    CHECK(value("pa_tune_nl_mode") == 0); // the user's Linear K choice stands
+    CHECK(summary() != classic_summary);
+}
+
 TEST_CASE("AMS lanes into one hotend are one head, and select no tool", "[pa_tune][pa_tuner]") {
     // Four lanes, one extruder: what a Happy Hare or AFC rig publishes.
     PhysicalHead lanes;

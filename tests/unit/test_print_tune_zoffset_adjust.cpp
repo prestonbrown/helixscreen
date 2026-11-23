@@ -376,6 +376,34 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
 }
 
 TEST_CASE_METHOD(PrintTuneZOffsetFixture,
+                 "PrintTune: under a nonlinear model the row names linear advance and steps it",
+                 "[ui_integration][pa_tune][pa_model]") {
+    state().update_from_status(json{{"extruder", json{{"pressure_advance_model", "tanh"},
+                                                      {"linear_advance", 0.017},
+                                                      {"nonlinear_offset", 0.1},
+                                                      {"linearization_velocity", 1.0}}}});
+    helix::ui::UpdateQueue::instance().drain();
+    auto& overlay = show_overlay();
+    lv_obj_t* k_label = lv_obj_find_by_name(overlay.get_panel(), "pa_label");
+    lv_obj_t* la_label = lv_obj_find_by_name(overlay.get_panel(), "pa_label_nonlinear");
+    REQUIRE(k_label != nullptr);
+    REQUIRE(la_label != nullptr);
+    CHECK(lv_obj_has_flag(k_label, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_has_flag(la_label, LV_OBJ_FLAG_HIDDEN));
+
+    overlay.handle_pa_adjust(1);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(last_gcode() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0180");
+
+    // Back on a classic K: the row says PA again.
+    state().update_from_status(
+        json{{"extruder", json{{"pressure_advance_model", "linear"}, {"pressure_advance", 0.04}}}});
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK_FALSE(lv_obj_has_flag(k_label, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_has_flag(la_label, LV_OBJ_FLAG_HIDDEN));
+}
+
+TEST_CASE_METHOD(PrintTuneZOffsetFixture,
                  "PrintTune: the pressure advance row shows and sends with beta features off",
                  "[ui_integration][pa_tune]") {
     struct BetaOff {
