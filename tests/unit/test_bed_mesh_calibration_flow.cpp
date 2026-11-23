@@ -16,6 +16,7 @@
 #include "core/observer_factory.h"
 #include "core/update_queue.h"
 #include "filament_database.h"
+#include "gcode_wait_line.h"
 #include "moonraker_advanced_api.h"
 #include "moonraker_api.h"
 #include "moonraker_api_mock.h"
@@ -28,6 +29,7 @@
 #include "thermal_rate_model.h"
 
 #include <algorithm>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -638,6 +640,37 @@ TEST_CASE_METHOD(BedMeshHeatFixture, "the preheat waits on each heater it turned
     CHECK(any_sent(sent(), "TEMPERATURE_WAIT SENSOR=heater_bed"));
 }
 
+TEST_CASE_METHOD(BedMeshHeatFixture, "the preheat accepts a heater settled just under its target",
+                 "[bed_mesh_flow]") {
+    // A heater under PID can hold a fraction of a degree under its target for
+    // good: each wait must return there rather than hold the queue.
+    std::map<std::string, double> targets;
+    std::map<std::string, double> minimums;
+    for (const std::string& script : sent()) {
+        size_t start = 0;
+        while (start <= script.size()) {
+            const size_t end = std::min(script.find('\n', start), script.size());
+            const std::string_view line(script.data() + start, end - start);
+            const auto target = helix::heater_target_line(line);
+            if (!target.heater.empty() && target.target) {
+                targets[target.heater] = *target.target;
+            }
+            const auto wait = helix::classify_wait_line(line);
+            if (wait.kind == helix::WaitKind::TemperatureWait && wait.minimum) {
+                minimums[wait.sensor] = *wait.minimum;
+            }
+            start = end + 1;
+        }
+    }
+    for (const char* heater : {"extruder", "heater_bed"}) {
+        INFO(heater);
+        REQUIRE(targets.count(heater) == 1);
+        REQUIRE(minimums.count(heater) == 1);
+        CHECK(targets[heater] > 0.0);
+        CHECK(minimums[heater] <= targets[heater] - 0.5);
+    }
+}
+
 TEST_CASE_METHOD(BedMeshHeatFixture, "a preheating mesh holds SIGTERM for its heat",
                  "[bed_mesh_flow][heater_hold]") {
     REQUIRE(panel->holds_owned_heat());
@@ -1132,10 +1165,10 @@ TEST_CASE_METHOD(BedMeshRunFixture,
     panel.calibrate_for_run(&api, hooks());
     drain();
 
-    CHECK(any_sent(sent(), ("TEMPERATURE_WAIT SENSOR=heater_bed MINIMUM=" +
-                            std::to_string(helix::bed_mesh::kDefaultProbeBedTempC))
-                               .c_str()));
-    CHECK_FALSE(any_sent(sent(), "MINIMUM=100"));
+    CHECK(any_sent(
+        sent(),
+        helix::heat_wait_line("heater_bed", helix::bed_mesh::kDefaultProbeBedTempC).c_str()));
+    CHECK_FALSE(any_sent(sent(), helix::heat_wait_line("heater_bed", 100).c_str()));
 }
 
 TEST_CASE_METHOD(BedMeshRunFixture, "a calibration after a cancelled run probes as usual",

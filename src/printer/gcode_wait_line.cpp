@@ -3,6 +3,8 @@
 
 #include "core/text_io.h"
 
+#include <spdlog/fmt/fmt.h>
+
 #include <cctype>
 #include <vector>
 
@@ -188,6 +190,11 @@ std::optional<std::string_view> first_line_at_position(std::string_view bytes, s
         return bytes;
     }
     return std::nullopt;
+}
+
+std::string heat_wait_line(std::string_view sensor, double target_c) {
+    return fmt::format("TEMPERATURE_WAIT SENSOR={} MINIMUM={:g}", sensor,
+                       target_c - kHeatWaitMarginC);
 }
 
 } // namespace helix

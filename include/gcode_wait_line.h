@@ -44,6 +44,15 @@ struct HeaterTargetLine {
 /// SET_HEATER_TEMPERATURE, read the way classify_wait_line() reads its waits.
 HeaterTargetLine heater_target_line(std::string_view line);
 
+/// How far under its target a heat wait returns. A heater under PID can settle a
+/// fraction of a degree under its target and never read the target itself, so
+/// a wait for exactly the target can hold the gcode queue for good.
+inline constexpr double kHeatWaitMarginC = 2.0;
+
+/// The TEMPERATURE_WAIT that returns once @p sensor reads within
+/// kHeatWaitMarginC of @p target_c: "TEMPERATURE_WAIT SENSOR=extruder MINIMUM=148".
+std::string heat_wait_line(std::string_view sensor, double target_c);
+
 /// Bytes read from virtual_sdcard.file_position to find the line there.
 inline constexpr size_t kWaitLineWindow = 256;
 

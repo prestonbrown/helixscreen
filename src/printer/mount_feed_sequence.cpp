@@ -3,6 +3,7 @@
 
 #include "mount_feed_sequence.h"
 
+#include "gcode_wait_line.h"
 #include "klipper_extruder_naming.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -63,8 +64,7 @@ std::string heater_off_gcode(int head) {
 /// Heat @p head and wait for it, by name rather than through a printer's own
 /// M109 override, which may wait on a different heater than it set.
 std::string heat_gcode(int head, int temp_c) {
-    return heater_target_gcode(head, temp_c) +
-           fmt::format("\nTEMPERATURE_WAIT SENSOR={} MINIMUM={}", heater_name(head), temp_c - 2);
+    return heater_target_gcode(head, temp_c) + "\n" + heat_wait_line(heater_name(head), temp_c);
 }
 
 /// @p gcode, then @p head's heater off by name, for the same reason.

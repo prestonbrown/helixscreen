@@ -3,6 +3,8 @@
 
 #include "pa_tuning.h"
 
+#include "gcode_wait_line.h"
+
 #include <spdlog/fmt/fmt.h>
 
 #include <algorithm>
@@ -296,10 +298,10 @@ std::string generate_test_gcode(const TestPrintParams& p) {
     line(fmt::format("M190 S{}", p.bed_temp));
     line(heat_nozzle);
     // Hot before any tool change: a toolchange purges or wipes.
-    line(fmt::format("TEMPERATURE_WAIT SENSOR={} MINIMUM={}", p.heater, p.nozzle_temp - 2));
+    line(heat_wait_line(p.heater, p.nozzle_temp));
     if (!p.select_head_gcode.empty()) {
         line(p.select_head_gcode);
-        line(fmt::format("TEMPERATURE_WAIT SENSOR={} MINIMUM={}", p.heater, p.nozzle_temp - 2));
+        line(heat_wait_line(p.heater, p.nozzle_temp));
     }
     line("M107");
     line(fmt::format("SET_PRINT_STATS_INFO TOTAL_LAYER={}", layers));

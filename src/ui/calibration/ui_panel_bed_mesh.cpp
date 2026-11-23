@@ -44,6 +44,7 @@
 #include "filament_database.h"
 #include "format_utils.h"
 #include "gcode_response_lines.h"
+#include "gcode_wait_line.h"
 #include "i18n_plural.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
@@ -1333,16 +1334,10 @@ void BedMeshPanel::prepare_and_probe() {
         std::string wait_cmd;
         const std::string nozzle = get_printer_state().temperature_state().active_extruder_name();
         if (heat_.owns(nozzle)) {
-            char buf[128];
-            std::snprintf(buf, sizeof(buf), "TEMPERATURE_WAIT SENSOR=%s MINIMUM=%.0f\n",
-                          nozzle.c_str(), kProbeNozzleTemp);
-            wait_cmd += buf;
+            wait_cmd += heat_wait_line(nozzle, kProbeNozzleTemp) + "\n";
         }
         if (heat_.owns(kBedHeater) && chosen_probe_bed_c() > 0) {
-            char buf[128];
-            std::snprintf(buf, sizeof(buf), "TEMPERATURE_WAIT SENSOR=heater_bed MINIMUM=%d",
-                          chosen_probe_bed_c());
-            wait_cmd += buf;
+            wait_cmd += heat_wait_line(kBedHeater, chosen_probe_bed_c());
         }
 
         if (wait_cmd.empty()) {
