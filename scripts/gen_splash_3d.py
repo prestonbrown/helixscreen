@@ -33,7 +33,7 @@ except ImportError:
 
 # Screen size definitions matching regen_images.sh and prerendered_images.cpp
 # Format: (name, width, height, logo_size)
-# Classes are the UiBreakpoint tiers (include/ui_breakpoint.h), selected from the
+# Classes are the UiBreakpoint tiers (include/core/breakpoint.h), selected from the
 # narrow axis by helix::get_splash_3d_size_name(). Logo is 50% of width below
 # 500px tall, 60% at or above. The -portrait classes are the landscape canvases
 # turned on end, taken by a panel taller than it is wide

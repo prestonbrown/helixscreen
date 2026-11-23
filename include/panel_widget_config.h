@@ -3,8 +3,7 @@
 
 #pragma once
 
-#include "ui_breakpoint.h"
-
+#include "core/breakpoint.h"
 #include "default_layout_resolver.h"
 #include "json_fwd.h"
 

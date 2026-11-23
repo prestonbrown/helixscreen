@@ -502,7 +502,7 @@ container that has not been laid out yet.
 
 The breakpoint comes from the **narrow** axis (`min(width, height)`), so a tall portrait
 panel is classified by its width and keeps the same cell edge after rotation. See
-`include/ui_breakpoint.h`.
+`include/core/breakpoint.h`.
 
 **Gutter.** The gap between tracks is the per-breakpoint `home_grid_gap` token
 (`ui_xml/globals.xml`, read by `GridLayout::gutter_px()`): the same as `space_xs` up to

@@ -211,7 +211,7 @@ Every responsive value requires three core variants: `_small`, `_medium`, `_larg
 
 On a landscape display the narrow axis usually *is* the height; on a portrait panel it is the width. Because `min(w, h) == h` on landscape and square displays, the two ladders only diverge in portrait. A 320×1480 panel resolves `#space_lg` from 320 (`_tiny`, 8px) and `#button_height` from 1480 (`_xxlarge`, 96px).
 
-`theme_manager_resolve_px_tokens()` is the single place that applies this policy; startup registration and the resize path both apply its output, so the two can never disagree. The `ui_breakpoint` subject keeps holding the **cramped** tier - all XML `ref_value` bindings are written against it. Tier boundaries live in `breakpoint_for()` (`include/ui_breakpoint.h`).
+`theme_manager_resolve_px_tokens()` is the single place that applies this policy; startup registration and the resize path both apply its output, so the two can never disagree. The `ui_breakpoint` subject keeps holding the **cramped** tier - all XML `ref_value` bindings are written against it. Tier boundaries live in `breakpoint_for()` (`include/core/breakpoint.h`).
 
 Full explanation, worked example, and the rule for classifying a new token: [UI_CONTRIBUTOR_GUIDE.md § Screen Breakpoints](UI_CONTRIBUTOR_GUIDE.md#2-screen-breakpoints). Background: prestonbrown/helixscreen#1209.
 

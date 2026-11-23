@@ -3,10 +3,9 @@
 
 #include "cjk_font_manager.h"
 
-#include "ui_fonts.h"
-
 #include "core/locale_code.h"
 #include "spdlog/spdlog.h"
+#include "system/text_fonts.h"
 
 #include <algorithm>
 

@@ -234,7 +234,7 @@ Two of these are dormant: no `ui_xml/` file uses `<timeline>` or `<animation>` t
    model exist to serve a desktop IDE and a compile-to-C pipeline. We have neither.
 3. **`<targets>` would be a regression.** It selects asset and layout variants at build or init
    time from a display-size table. We resolve at runtime, reactively, off a single `ui_breakpoint`
-   subject (`include/ui_breakpoint.h`) that XML consumes via `bind_flag_if_eq` and `cond=`. Ours
+   subject (`include/core/breakpoint.h`) that XML consumes via `bind_flag_if_eq` and `cond=`. Ours
    handles rotation and runtime resolution change; theirs doesn't need to.
 4. **We're ahead where it counts.** Expressions, `<repeat>`, and `<if>/<else>` are the features
    that actually removed C++ from our UI layer. Upstream shows no sign of adding them, so parity
