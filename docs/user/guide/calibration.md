@@ -613,6 +613,27 @@ The values in the list are what the printer reported while each band printed, so
 
 You can leave the tuner during the print; the steps keep going. Open it again from **Tuner** in the print's **Tune** overlay.
 
+### Nonlinear pressure advance (Kalico)
+
+Kalico's `bleeding-edge-v2` branch can run a nonlinear pressure advance model instead of a single K: the advance rises steeply at slow speeds and settles into a linear slope at fast ones. When your printer runs that firmware, the tuner's setup shows **Linear K** and **Nonlinear**. Other firmware, including Kalico's main branch and mainline Klipper, shows neither.
+
+Choose **Nonlinear** and tap **Start Guided Tuning**. HelixScreen follows Kalico's own procedure, using the firmware's test tower, which prints slow and fast segments on every layer:
+
+- **Direct drive, three towers:** the nonlinear offset (judge the left side), then the linear advance (the left and front sides should look best at the same height), then the time offset (the front side; light it from the side, the differences are small).
+- **Bowden, four towers:** the linear advance first, then the offset, the time offset, and the offset again.
+
+After each tower, set the height where the side you are judging looks best, measured up from the plate. On a pass that compares the two sides, also say whether the left side looked best **lower**, at the **same height**, or **higher** than the front; when they differ, HelixScreen adjusts the other value by 10% and prints that pass again.
+
+The tuner switches the extruder to the nonlinear model for the session; nothing is written to `printer.cfg` until the end, where you choose:
+
+- **Save to Config** writes the values to the extruder's section of `printer.cfg` (with a backup), comments out `pressure_advance`, and restarts Klipper.
+- **Keep for Now** keeps them until the next restart.
+- **Discard** puts back the model and values the extruder had before.
+
+If the printer's config has no `[pa_test]` section, the firmware has no test tower yet: **Add Tower to Config** adds one and restarts Klipper first.
+
+While a nonlinear model runs, the print's **Tune** overlay labels its value **Lin. adv.**: the steps there change the linear advance. A value saved to a spool is a classic K, so it is not applied to an extruder running the nonlinear model.
+
 ---
 
 ## Heater Calibration (PID / MPC)

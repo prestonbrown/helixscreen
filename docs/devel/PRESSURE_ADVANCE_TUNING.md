@@ -159,6 +159,54 @@ selected filament preset to `filaments[<id>]` (by Spoolman filament id if the pr
 records one) or `extruders[<name>]` / `last`, and a write of `pressure_advance` with
 `enable_pressure_advance = true` into that preset.
 
+## Nonlinear models (Kalico bleeding-edge-v2)
+
+Kalico's `bleeding-edge-v2` branch adds selectable models (Kalico's extruder module,
+`PATanhModel` / `PAReciprModel`); Kalico main and mainline Klipper have none. The capability is
+read from the `extruder` status object, behind `pa_model` (`include/pa_model.h`), so no
+generic code names the firmware:
+
+| Key | Classic | `linear` | `tanh` / `recipr` |
+|---|---|---|---|
+| `pressure_advance_model` | absent | `"linear"` | `"tanh"` / `"recipr"` |
+| `pressure_advance` | K | K | absent |
+| `linear_advance`, `nonlinear_offset`, `linearization_velocity` | absent | absent | present |
+| `time_offset`, `smooth_time` | `smooth_time` only | present | present |
+
+- `PaModel::primary_value()` is what `SET_PRESSURE_ADVANCE ADVANCE=` sets: K, or
+  `linear_advance`. `PrinterTemperatureState` keeps a model per extruder; the
+  `extruder_pressure_advance` subject carries the primary value and `extruder_pa_nonlinear`
+  relabels the Tune row.
+- Under a nonlinear model a classic result is never saved to a spool, published, or
+  auto-applied on spool activation (`pa::should_auto_apply_on_activation`).
+- `SET_PRESSURE_ADVANCE MODEL=` switches models at runtime. The firmware keeps any parameter a
+  command leaves out, so `pa::restore_model_gcode` names every one.
+
+### The guided tuner
+
+`PaNonlinearOverlay` (`src/ui/calibration/ui_overlay_pa_nonlinear.cpp`) runs
+`pa::NonlinearProcedure` (`include/pa_nonlinear_tuning.h`), Kalico's documented direct-drive
+and Bowden orders, on the firmware's own tower (`[pa_test]`, `PRINT_PA_TOWER`). Each pass sends
+`pa::machine_ready_lines` (shared with the classic tower), the model switch, `TUNING_TOWER
+COMMAND=SET_PRESSURE_ADVANCE PARAMETER=<p> START=0 FACTOR=<f>` and `PRINT_PA_TOWER NOZZLE=
+TARGET_TEMP=`. The tower prints through `virtual_sdcard` as print_stats file `PA tower`.
+
+Firmware behavior the overlay is built around:
+
+- **A sweep outlives the tower.** `TUNING_TOWER` has no end command: it stays armed until the
+  next `TUNING_TOWER` or an extrusion more than 2 mm below the last height. Every exit sends
+  `pa::disarm_tuning_tower_gcode()`, a constant zero dwell that runs once and never again.
+- **The temperature check runs late.** `PRINT_PA_TOWER` returns before the tower's generator
+  checks `TARGET_TEMP`, so a refusal is a print that ends in error, possibly with no
+  `printing` frame. After the command returns, a terminal state for `PA tower` ends
+  PREPARING, and a tower not printing within `kTowerStartTimeoutMs` gives up.
+- **Save** writes `pa::nonlinear_config_keys` into the extruder's section through
+  `KlipperConfigEditor::safe_multi_edit` and comments out `pressure_advance`, which Klipper
+  refuses once nothing reads it. A `pressure_advance` in another file's `[extruder]` is not
+  reached; the error then says so.
+
+Not yet verified on hardware: nothing in the fleet runs bleeding-edge-v2.
+
 ## Mock
 
 `--test` handles `SET_PRESSURE_ADVANCE` per extruder (`MoonrakerClientMock::
@@ -167,3 +215,8 @@ uploaded gcode file on disk so the print reads its own layer count and estimate,
 Spoolman serves `/v1/field/filament` and filament extra values. The seeded mock spools
 carry no filament id, so Save to Spool stays disabled there unless a spool with one is
 active.
+
+`HELIX_MOCK_PA_MODEL=linear|tanh|recipr` makes the mock a model-aware firmware, and
+`HELIX_MOCK_PA_TEST=1` adds `[pa_test]` with `TUNING_TOWER` and a simulated `PRINT_PA_TOWER`
+(`src/mock/moonraker_client_mock_pa.cpp`; `docs/devel/MOCK_ENVIRONMENT_VARIABLES.md`). The mock
+serves no config files, so the tuner's Save fails there with "Section [extruder] not found".
