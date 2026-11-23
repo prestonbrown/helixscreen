@@ -23,6 +23,8 @@
  * Compiling each shipped expression against live subjects is what catches that.
  */
 
+#include "ui_obj_flags.h"
+
 #include "../test_fixtures.h"
 #include "core/subject.h"
 #include "core/update_queue.h"
@@ -243,11 +245,11 @@ TEST_CASE_METHOD(XMLTestFixture,
     lv_obj_t* status_sub = lv_obj_find_by_name(footer, "cal_footer_status_sub");
     REQUIRE(status_sub != nullptr);
 
-    CHECK_FALSE(lv_obj_has_flag(status_sub, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(helix::ui::obj_has_flags(status_sub, LV_OBJ_FLAG_HIDDEN));
     lv_subject_set_int(&sub_hidden, 1);
-    CHECK(lv_obj_has_flag(status_sub, LV_OBJ_FLAG_HIDDEN));
+    CHECK(helix::ui::obj_has_flags(status_sub, LV_OBJ_FLAG_HIDDEN));
     lv_subject_set_int(&sub_hidden, 0);
-    CHECK_FALSE(lv_obj_has_flag(status_sub, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(helix::ui::obj_has_flags(status_sub, LV_OBJ_FLAG_HIDDEN));
 
     lv_obj_delete(footer);
     UpdateQueue::instance().drain();

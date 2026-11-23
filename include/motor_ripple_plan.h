@@ -9,6 +9,7 @@
 // X moves turn the X motor and Y moves the Y motor. Speeds are motor belt
 // speeds, the same number as an axis-aligned print speed.
 
+#include "json_fwd.h"
 #include "motor_ripple_types.h"
 
 #include <array>
@@ -57,6 +58,12 @@ struct StepPlan {
     float seconds = 0.0f;    ///< cruise time over all passes
     uint32_t timeout_ms = 0; ///< max(30000, 4 x the whole script's move time)
 };
+
+/// Fill the XY limits and max_z from a printer.objects.query status holding
+/// toolhead.axis_minimum/axis_maximum. Y max stops at the print area on
+/// firmware whose service zone widens axis_maximum (include/motion_envelope.h),
+/// when the status also carries that firmware's object.
+void read_sweep_limits(const nlohmann::json& status, SweepPlanInputs& in);
 
 /// From kSweepMinMmS, each kSweepStepRatio above the last, up to
 /// min(kSweepMaxMmS, kSweepVelocityFraction x max velocity). Empty when that

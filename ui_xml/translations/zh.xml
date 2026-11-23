@@ -678,8 +678,11 @@
   <translation tag="Bypass disabled" zh="旁通已禁用"/>
   <translation tag="Bypass enabled" zh="旁通已启用"/>
   <translation tag="Bypass failed" zh="旁通失败"/>
+  <translation tag="Bypass filament is at the toolhead. Unload it before turning off bypass." zh="旁通耗材仍在工具头中。关闭旁通前请先卸载。"/>
+  <translation tag="Bypass filament is loaded" zh="旁通耗材已装载"/>
   <translation tag="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?" zh="旁路已启用，但此打印使用 AMS 槽位。当旁路耗材仍在工具头中时，打印机可能拒绝装载槽位。请在打印前取出耗材并关闭旁路。仍要开始打印吗？"/>
   <translation tag="Bypass mode is not currently active" zh="旁通模式当前未启用"/>
+  <translation tag="Bypass mode is on" zh="旁通模式已开启"/>
   <translation tag="Bypass off macro" zh="关闭旁路宏"/>
   <translation tag="Bypass on macro" zh="开启旁路宏"/>
   <translation tag="Bypass toggle failed" zh="旁通切换失败"/>
@@ -967,6 +970,7 @@
   <translation tag="Choose which lane is in the toolhead to unload it" zh="请选择打印头里的料道以卸载"/>
   <translation tag="Choose which releases to get, and whether to share anonymous statistics." zh="选择要获取的版本，以及是否共享匿名统计数据。"/>
   <translation tag="Chute position: X {:.1f}, Y {:.1f}" zh="排料口位置: X {:.1f}, Y {:.1f}"/>
+  <translation tag="Clean" zh="清洁"/>
   <translation tag="Clean Brush" zh="清洁刷子"/>
   <translation tag="Clean Nozzle" zh="清洁喷嘴"/>
   <translation tag="Clean Up Storage" zh="清理存储"/>
@@ -5384,6 +5388,7 @@
   <translation tag="Turn off arc fitting in the slicer and slice the file again." zh="请在切片软件中关闭圆弧拟合，然后重新切片。"/>
   <translation tag="Turn off arc fitting in the slicer, then slice the file again." zh="请在切片软件中关闭 Arc fitting（圆周拟合），然后重新切片。"/>
   <translation tag="Turn off bed check" zh="关闭热床检查"/>
+  <translation tag="Turn off bypass mode to load from a lane" zh="请关闭旁通模式后再从耗材通道装载"/>
   <translation tag="Turn off detection" zh="关闭检测"/>
   <translation tag="Turn off flow calibration for this print, or use a larger nozzle." zh="请为本次打印关闭流量校准，或使用更大的喷嘴。"/>
   <translation tag="Turn on the lights your light buttons control" zh="开启灯光按钮所控制的灯光"/>

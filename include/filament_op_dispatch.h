@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "ams_error.h"
 #include "ams_types.h"
 
 namespace helix::ui {
@@ -25,10 +26,12 @@ enum class FilamentTier {
 /// Why a plan declined to dispatch. Each maps to different caller-side copy.
 enum class FilamentRefusal {
     None,
-    SelectSlot,    ///< Load: the backend wants a slot and none resolved
-    NothingLoaded, ///< Unload: the selected slot has no filament to pull
-    BypassLoaded,  ///< Load: a lane was asked for, but the bypass spool still
-                   ///< crosses the toolhead and only a hand can clear it
+    SelectSlot,     ///< Load: the backend wants a slot and none resolved
+    NothingLoaded,  ///< Unload: the selected slot has no filament to pull
+    BypassLoaded,   ///< Load: a lane was asked for, but the bypass spool still
+                    ///< crosses the toolhead and only a hand can clear it
+    BackendRefused, ///< Load: the backend would refuse this lane now;
+                    ///< FilamentOpPlan::backend_refusal says why
 };
 
 /// Which backend entry point tier 1 should call. Load is NOT always
@@ -46,6 +49,8 @@ struct FilamentOpPlan {
     FilamentRefusal refusal = FilamentRefusal::None;
     AmsCall ams_call = AmsCall::None;
     int ams_arg = -1; ///< Slot index, or tool number when ams_call == ChangeTool
+    /// The backend's own error, set only for FilamentRefusal::BackendRefused.
+    helix::AmsError backend_refusal{};
 };
 
 /**
@@ -80,6 +85,9 @@ struct BackendCaps {
     /// AmsBackend::load_swaps_seated_lane(): Load clears the seated lane itself,
     /// so a swap is still a Load and never a change_tool().
     bool load_swaps_seated_lane = false;
+    /// AmsBackend::can_load_lane(target_slot), read only for a lane target.
+    /// Success unless the backend would refuse that load right now.
+    helix::AmsError lane_load_refusal{};
 };
 
 /**
@@ -117,6 +125,14 @@ struct BackendCaps {
     // it is documented for users in docs/user/guide/filament.md.
     if (macro_user_configured) {
         return {FilamentTier::Macro, FilamentRefusal::None, AmsCall::None, target_slot};
+    }
+
+    // A refusal the backend can answer in advance is decided before any tier,
+    // so no surface heats or homes for a load that will not be sent. It
+    // outranks BypassLoaded: the backend names the state the user must change.
+    if (caps.present && target_slot >= 0 && !caps.lane_load_refusal.success()) {
+        return {FilamentTier::Refused, FilamentRefusal::BackendRefused, AmsCall::None, target_slot,
+                caps.lane_load_refusal};
     }
 
     // Bypass turns requires_slot_selection_for_load() off, which is right when

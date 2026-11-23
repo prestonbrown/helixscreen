@@ -794,6 +794,27 @@ TEST_CASE("Subscription: fault-code firmware subscribes its standing-fault objec
     }
 }
 
+TEST_CASE("Subscription: a service-zone guard is subscribed for its print-area limit",
+          "[moonraker][subscription][bounds]") {
+    SECTION("extended_zone_transform discovered -> subscribed") {
+        // Its standard_y_max caps whole-bed motion; axis_maximum alone reads
+        // the widened service-zone envelope after a trip to the brush.
+        DiscoveryFixture fx;
+        fx.add("extended_zone_transform");
+        json subs = fx.build();
+
+        REQUIRE(subs.contains("extended_zone_transform"));
+    }
+
+    SECTION("no guard -> not subscribed") {
+        DiscoveryFixture fx;
+        fx.add("extruder");
+        json subs = fx.build();
+
+        REQUIRE_FALSE(subs.contains("extended_zone_transform"));
+    }
+}
+
 TEST_CASE("Subscription: mains-monitor firmware subscribes its power-loss object",
           "[moonraker][subscription]") {
     SECTION("power_loss_check discovered -> subscribed") {

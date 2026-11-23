@@ -903,6 +903,7 @@ src/api/moonraker_api_controls.cpp
 src/api/moonraker_api_led.cpp
 src/api/moonraker_api_print.cpp
 src/api/moonraker_subscription_merge.cpp
+src/api/motion_envelope.cpp
 src/api/moonraker_gcode_guards.cpp
 src/api/moonraker_api_validation.cpp
 src/api/moonraker_error.cpp

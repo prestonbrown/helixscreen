@@ -9,6 +9,7 @@
 #include "printer_motion_state.h"
 
 #include "json_utils.h"
+#include "motion_envelope.h"
 #include "state/subject_macros.h"
 #include "unit_conversions_json.h"
 #include "z_offset_persistence.h"
@@ -75,6 +76,7 @@ void PrinterMotionState::deinit_subjects() {
     subjects_.deinit_all();
     subjects_initialized_ = false;
     axis_bounds_ = AxisBounds{};
+    motion_y_max_.reset();
     homing_origin_x_ = homing_origin_y_ = homing_origin_z_ = 0.0;
 }
 
@@ -133,6 +135,12 @@ void PrinterMotionState::update_from_status(const nlohmann::json& status) {
             // Note: Derived homing subjects (xy_homed, z_homed, all_homed) are
             // panel-local in ControlsPanel, which observes this homed_axes string.
         }
+    }
+
+    // Delta-only like the z-offset store below: assign only when this frame
+    // carries the limit.
+    if (auto y_max = motion_envelope::read_y_max_mm(status)) {
+        motion_y_max_ = *y_max;
     }
 
     // Update gcode_move data (commanded position, speed/flow factors, z-offset)

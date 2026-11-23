@@ -515,6 +515,7 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     AmsError enable_bypass() override;
     AmsError disable_bypass() override;
     [[nodiscard]] bool is_bypass_active() const override;
+    [[nodiscard]] AmsError can_load_lane(int slot_index) const override;
 
     /// None where the firmware maps tools per print itself and refuses SET_MAP:
     /// a pick sent there only raises an error before the firmware asks anyway.
@@ -1105,6 +1106,12 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     /// True when AFC publishes a `Toolchanger` unit: its heads are mounted by
     /// AFC_SELECT_TOOL, not by T{n}. @pre mutex_ held.
     [[nodiscard]] bool has_toolchanger_unit_locked() const;
+    /// WRONG_STATE when AFC would refuse a lane load (bypass mode on), else
+    /// success. @pre mutex_ held.
+    [[nodiscard]] AmsError lane_load_refusal_locked() const;
+    /// Bypass on and the toolhead sensor of a single-extruder machine reading
+    /// filament. @pre mutex_ held.
+    [[nodiscard]] bool bypass_strand_at_toolhead_locked() const;
     /// Recompute carriage_can_be_empty_ from the units and the mount state. Caller holds mutex_.
     void refresh_carriage_can_be_empty_locked();
 

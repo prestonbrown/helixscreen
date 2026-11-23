@@ -678,8 +678,11 @@
   <translation tag="Bypass disabled" es="Bypass desactivado"/>
   <translation tag="Bypass enabled" es="Bypass activado"/>
   <translation tag="Bypass failed" es="Error en bypass"/>
+  <translation tag="Bypass filament is at the toolhead. Unload it before turning off bypass." es="Hay filamento de bypass en el cabezal. Descárguelo antes de desactivar el bypass."/>
+  <translation tag="Bypass filament is loaded" es="Hay filamento de bypass cargado"/>
   <translation tag="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?" es="El bypass está activo, pero esta impresión usa ranuras AMS. La impresora puede negarse a cargar una ranura mientras haya filamento de bypass en el cabezal. Retire el filamento y desactive el bypass antes de imprimir. ¿Iniciar de todos modos?"/>
   <translation tag="Bypass mode is not currently active" es="El modo bypass no está activo actualmente"/>
+  <translation tag="Bypass mode is on" es="El modo bypass está activo"/>
   <translation tag="Bypass off macro" es="Macro de bypass desactivado"/>
   <translation tag="Bypass on macro" es="Macro de bypass activado"/>
   <translation tag="Bypass toggle failed" es="Error al alternar bypass"/>
@@ -967,6 +970,7 @@
   <translation tag="Choose which lane is in the toolhead to unload it" es="Elige qué carril está en el cabezal para descargarlo"/>
   <translation tag="Choose which releases to get, and whether to share anonymous statistics." es="Elige qué versiones recibir y si compartir estadísticas anónimas."/>
   <translation tag="Chute position: X {:.1f}, Y {:.1f}" es="Posición del conducto de purga: X {:.1f}, Y {:.1f}"/>
+  <translation tag="Clean" es="Limpiar"/>
   <translation tag="Clean Brush" es="Limpiar cepillo"/>
   <translation tag="Clean Nozzle" es="Limpiar Boquilla"/>
   <translation tag="Clean Up Storage" es="Limpiar almacenamiento"/>
@@ -5384,6 +5388,7 @@
   <translation tag="Turn off arc fitting in the slicer and slice the file again." es="Desactiva el ajuste de arcos en el laminador y vuelve a laminar el archivo."/>
   <translation tag="Turn off arc fitting in the slicer, then slice the file again." es="Desactiva el ajuste de arcos en el laminador y vuelve a laminar el archivo."/>
   <translation tag="Turn off bed check" es="Desactivar comprobación de cama"/>
+  <translation tag="Turn off bypass mode to load from a lane" es="Desactiva el modo bypass para cargar desde un carril"/>
   <translation tag="Turn off detection" es="Desactivar detección"/>
   <translation tag="Turn off flow calibration for this print, or use a larger nozzle." es="Desactiva la calibración de flujo para esta impresión, o usa una boquilla más grande."/>
   <translation tag="Turn on the lights your light buttons control" es="Enciende las luces que controlan tus botones de luz"/>

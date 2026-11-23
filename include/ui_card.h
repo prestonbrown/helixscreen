@@ -14,7 +14,9 @@ extern "C" {
  * Must be called before any XML files using <ui_card> are registered
  *
  * The card takes ThemeManager's shared StyleRole::Card style (CardPressed while
- * pressed), so it follows theme and dark-mode changes.
+ * pressed), so it follows theme and dark-mode changes. A card is not clickable
+ * unless its XML sets clickable="true": a card without an action neither
+ * presses nor takes the touch from the container behind it.
  */
 void ui_card_register(void);
 

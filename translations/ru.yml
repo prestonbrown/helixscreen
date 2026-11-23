@@ -757,9 +757,12 @@ translations:
   Bypass disabled: Байпас отключён
   Bypass enabled: Байпас включён
   Bypass failed: Ошибка байпаса
+  Bypass filament is at the toolhead. Unload it before turning off bypass.: 'Филамент обхода находится в печатающей головке. Выгрузите его перед выключением обхода.'
+  Bypass filament is loaded: 'Филамент обхода загружен'
   ? Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
   : Активен байпас, но эта печать использует слоты AMS. Принтер может отказаться загружать слот, пока филамент байпаса находится в печатающей головке. Извлеките филамент и выключите байпас перед печатью. Всё равно начать?
   Bypass mode is not currently active: 'Режим обхода сейчас не активен'
+  Bypass mode is on: 'Режим обхода включён'
   Bypass off macro: 'Макрос выключения обхода'
   Bypass on macro: 'Макрос включения обхода'
   Bypass toggle failed: Не удалось переключить байпас
@@ -1063,6 +1066,7 @@ translations:
   Choose which releases to get, and whether to share anonymous statistics.: 'Выберите, какие выпуски получать и делиться ли анонимной статистикой.'
   'Chute position: X {:.1f}, Y {:.1f}': 'Позиция лотка прочистки: X {:.1f}, Y {:.1f}'
 
+  Clean: 'Очистить'
   Clean Brush: 'Очистить щётку'
   Clean Nozzle: Очистить сопло
   Clean Up Storage: 'Очистка хранилища'
@@ -5695,6 +5699,7 @@ translations:
   Turn off arc fitting in the slicer and slice the file again.: Отключите аппроксимацию дугами в слайсере и заново нарежьте файл.
   Turn off arc fitting in the slicer, then slice the file again.: 'Выключите аппроксимацию дугами в слайсере, затем нарежьте файл заново.'
   Turn off bed check: 'Отключить проверку стола'
+  Turn off bypass mode to load from a lane: 'Выключите режим обхода, чтобы загрузить из канала'
   Turn off detection: Отключить обнаружение
   Turn off flow calibration for this print, or use a larger nozzle.: 'Выключите калибровку потока для этой печати или используйте сопло побольше.'
   Turn on the lights your light buttons control: Включает свет, которым управляют кнопки света

@@ -362,9 +362,17 @@ static const char* bypass_label_text(const BypassView& bv) {
     return lv_tr("External");
 }
 
-/** What the divider and its gap take from the lanes' width, beyond one more bar and gap. */
+/** The margin ams_mini_bypass_divider.xml keeps on each side of the divider, so
+ *  the external spool reads as a group of its own beside the lanes. */
+static int32_t bypass_divider_margin() {
+    return theme_manager_get_spacing("space_sm");
+}
+
+/** What the divider and its gaps take from the lanes' width, beyond one more bar and gap. */
 static int32_t bypass_width_overhead(const AmsMiniStatusData* data) {
-    return data->bypass.shown ? theme_manager_get_spacing("space_xs") + 1 : 0;
+    return data->bypass.shown
+               ? theme_manager_get_spacing("space_xs") + 1 + 2 * bypass_divider_margin()
+               : 0;
 }
 
 /**
@@ -1084,7 +1092,7 @@ helix::ui::AmsMiniGridPlan helix::ui::plan_ams_mini_grid(const std::vector<int>&
         int cells = 0, groups = 0, rows = 0;
     };
     const int bypass_cells = m.bypass ? 1 : 0;
-    const int bypass_fixed = m.bypass ? 1 + 2 * m.gap : 0;
+    const int bypass_fixed = m.bypass ? 1 + 2 * (m.gap + m.bypass_margin) : 0;
     // Every line width from one long line down to one lane per line; the
     // widest that ties keeps the fewest lines.
     for (int cap = total; cap >= 1; --cap) {
@@ -1187,6 +1195,7 @@ static helix::ui::AmsMiniGridMetrics grid_metrics(const GridInputs& in, bool tit
     m.badge_margin = helix::ui::kAmsLaneSpoolBadgeMarginPx;
     m.max_spool = max_spool;
     m.bypass = in.bypass;
+    m.bypass_margin = in.bypass ? bypass_divider_margin() : 0;
     const int meta_h = std::max(line_h(c.meta_font, 12), in.chip_h);
     m.text_h = line_h(c.name_font, 14) + (c.remaining ? meta_h : 0) + in.gap;
     return m;
