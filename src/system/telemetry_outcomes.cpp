@@ -135,4 +135,132 @@ FailureClass classify_failure(const FailureEvidence& e, const PrinterDiscovery* 
     return e.failed ? FailureClass::Unknown : FailureClass::None;
 }
 
+const char* filament_op_name(FilamentOp op) {
+    switch (op) {
+    case FilamentOp::Load:
+        return "load";
+    case FilamentOp::Unload:
+        return "unload";
+    case FilamentOp::ToolChange:
+        return "tool_change";
+    }
+    return "load";
+}
+
+const char* filament_op_outcome_name(FilamentOpOutcome outcome) {
+    switch (outcome) {
+    case FilamentOpOutcome::Success:
+        return "success";
+    case FilamentOpOutcome::Failed:
+        return "failed";
+    case FilamentOpOutcome::Aborted:
+        return "aborted";
+    }
+    return "failed";
+}
+
+const char* filament_op_error_name(FilamentOpError error) {
+    switch (error) {
+    case FilamentOpError::None:
+        return "none";
+    case FilamentOpError::SensorTimeout:
+        return "sensor_timeout";
+    case FilamentOpError::Jam:
+        return "jam";
+    case FilamentOpError::Hub:
+        return "hub";
+    case FilamentOpError::ToolheadSensor:
+        return "toolhead_sensor";
+    case FilamentOpError::BackendError:
+        return "backend_error";
+    case FilamentOpError::Other:
+        return "other";
+    }
+    return "other";
+}
+
+FilamentOpError classify_filament_op_error(std::string_view text) {
+    if (text.empty()) {
+        return FilamentOpError::Other;
+    }
+    for (std::string_view w : {"jam", "clog", "stuck"}) {
+        if (contains_word(text, w)) {
+            return FilamentOpError::Jam;
+        }
+    }
+    if (contains_word(text, "hub")) {
+        return FilamentOpError::Hub;
+    }
+    for (std::string_view w :
+         {"toolhead", "tool_start", "tool_end", "extruder sensor", "tool sensor"}) {
+        if (contains_word(text, w)) {
+            return FilamentOpError::ToolheadSensor;
+        }
+    }
+    for (std::string_view w :
+         {"timeout", "timed out", "did not trigger", "not triggered", "not detected"}) {
+        if (contains_word(text, w)) {
+            return FilamentOpError::SensorTimeout;
+        }
+    }
+    return FilamentOpError::BackendError;
+}
+
+std::optional<FilamentOpTracker::Finished>
+FilamentOpTracker::on_action(AmsAction action, Clock::time_point now, bool printing) {
+    switch (action) {
+    case AmsAction::LOADING:
+    case AmsAction::PURGING:
+    case AmsAction::UNLOADING:
+    case AmsAction::CUTTING:
+    case AmsAction::FORMING_TIP:
+    case AmsAction::SELECTING:
+    case AmsAction::HEATING:
+        if (!active_) {
+            active_ = true;
+            loaded_ = unloaded_ = cancel_requested_ = false;
+            during_print_ = printing;
+            start_ = now;
+        }
+        if (action == AmsAction::LOADING || action == AmsAction::PURGING) {
+            loaded_ = true;
+        } else if (action == AmsAction::UNLOADING || action == AmsAction::CUTTING ||
+                   action == AmsAction::FORMING_TIP) {
+            unloaded_ = true;
+        }
+        return std::nullopt;
+    case AmsAction::CHECKING:
+    case AmsAction::RESETTING:
+        return std::nullopt;
+    case AmsAction::IDLE:
+    case AmsAction::ERROR:
+    case AmsAction::PAUSED:
+        break;
+    }
+    if (!active_) {
+        return std::nullopt;
+    }
+    active_ = false;
+    if (!loaded_ && !unloaded_) {
+        return std::nullopt;
+    }
+    Finished f;
+    f.op = loaded_ && unloaded_ ? FilamentOp::ToolChange
+           : loaded_            ? FilamentOp::Load
+                                : FilamentOp::Unload;
+    f.outcome = cancel_requested_           ? FilamentOpOutcome::Aborted
+                : action == AmsAction::IDLE ? FilamentOpOutcome::Success
+                                            : FilamentOpOutcome::Failed;
+    f.duration_sec =
+        static_cast<int>(std::chrono::duration_cast<std::chrono::seconds>(now - start_).count());
+    f.during_print = during_print_;
+    return f;
+}
+
+void FilamentOpTracker::note_cancel_requested() {
+    if (active_) {
+        cancel_requested_ = true;
+    }
+}
+
 } // namespace helix::telemetry

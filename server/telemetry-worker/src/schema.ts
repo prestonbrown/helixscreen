@@ -80,6 +80,12 @@ const FAILURE_CLASSES = [
   "unknown",
 ];
 const CANCEL_ORIGINS = ["in_app", "external"];
+// Mirror src/system/telemetry_outcomes.cpp: filament_op_name, filament_op_outcome_name,
+// filament_op_error_name; the buckets mirror TelemetryManager::bucket_short_duration.
+const FILAMENT_OPS = ["load", "unload", "tool_change"];
+const FILAMENT_OP_OUTCOMES = ["success", "failed", "aborted"];
+const FILAMENT_OP_ERRORS = ["none", "sensor_timeout", "jam", "hub", "toolhead_sensor", "backend_error", "other"];
+const SHORT_DURATION_BUCKETS = ["<10s", "10-30s", "30-60s", "1-2min", "2-5min", "5-15min", "15-60min", "1hr+"];
 
 // ---------- Readers ----------
 
@@ -385,6 +391,19 @@ const KINDS: PointKind[] = [
     blob(16, "failure_class", allowlisted(flat("failure_class"), FAILURE_CLASSES)),
     // 0 percent is a real reading, so stored + 1 (0 = absent).
     dbl(9, "progress_pct", plusOne("progress_pct")),
+  ]),
+
+  // One point per load, unload or tool change (#2167).
+  kind("filament_op", [
+    device,
+    ...versionPlatform,
+    blob(4, "backend"),
+    blob(5, "op", allowlisted(flat("op"), FILAMENT_OPS)),
+    blob(6, "outcome", allowlisted(flat("outcome"), FILAMENT_OP_OUTCOMES)),
+    blob(7, "error_class", allowlisted(flat("error_class"), FILAMENT_OP_ERRORS)),
+    blob(8, "duration_bucket", allowlisted(flat("duration_bucket"), SHORT_DURATION_BUCKETS)),
+    blob(13, "app_board", appBoard),
+    dbl(1, "during_print"),
   ]),
 
   kind("crash", [
@@ -707,6 +726,7 @@ export const EVENT_FANOUT: Record<string, string[]> = {
   feature_adoption: ["feature_adoption"],
   settings_changes: ["settings_change"],
   async_lifetime_skips: ["async_lifetime_skips"],
+  filament_op: ["filament_op"],
 };
 
 function mergeLists(...groups: Array<Record<string, string[]>>): Record<string, string[]> {
@@ -743,6 +763,7 @@ export const R2_ONLY: Record<string, string[]> = mergeLists(
     performance_snapshot: ["boot_id", "schema_version", "app_board"],
     settings_changes: ["boot_id", "schema_version", "app_board"],
     async_lifetime_skips: ["boot_id", "schema_version", "app_board"],
+    filament_op: ["boot_id", "schema_version"],
   },
   // Update events store the two versions they move between, and app_platform;
   // app_version repeats one version and `platform` names the release's target.

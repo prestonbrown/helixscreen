@@ -131,6 +131,18 @@ describe("POINT_KINDS table", () => {
           "macros": "double1",
           "manual_probe": "double7",
         },
+        "filament_op": {
+          "app_board": "blob13",
+          "app_platform": "blob3",
+          "app_version": "blob2",
+          "backend": "blob4",
+          "device_id": "blob1",
+          "duration_bucket": "blob8",
+          "during_print": "double1",
+          "error_class": "blob7",
+          "op": "blob5",
+          "outcome": "blob6",
+        },
         "hardware_profile": {
           "ams_type": "blob8",
           "app_board": "blob13",

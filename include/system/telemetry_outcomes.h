@@ -7,7 +7,11 @@
 // reads Klipper's message, a filament system's fault or a step's failure and
 // sends only the class it falls in. Pure; no LVGL.
 
+#include "ams_types.h"
+
+#include <chrono>
 #include <cstdint>
+#include <optional>
 #include <string_view>
 
 namespace helix {
@@ -59,5 +63,61 @@ struct FailureEvidence {
 /// rows (error_wording::classify()).
 [[nodiscard]] FailureClass classify_failure(const FailureEvidence& e,
                                             const PrinterDiscovery* hw = nullptr);
+
+/// A load, unload or tool change, as filament_op reports it.
+enum class FilamentOp : uint8_t { Load, Unload, ToolChange };
+enum class FilamentOpOutcome : uint8_t { Success, Failed, Aborted };
+
+/// Why a filament operation failed.
+enum class FilamentOpError : uint8_t {
+    None,           ///< it did not fail
+    SensorTimeout,  ///< a sensor never saw the filament arrive or leave
+    Jam,            ///< a jam or clog
+    Hub,            ///< the hub or its sensor
+    ToolheadSensor, ///< the toolhead's filament sensor
+    BackendError,   ///< the filament system reported a fault none of the above names
+    Other,          ///< it failed with nothing said
+};
+
+[[nodiscard]] const char* filament_op_name(FilamentOp op);
+[[nodiscard]] const char* filament_op_outcome_name(FilamentOpOutcome outcome);
+[[nodiscard]] const char* filament_op_error_name(FilamentOpError error);
+
+/// The class of a filament system's fault text @p text (never sent).
+[[nodiscard]] FilamentOpError classify_filament_op_error(std::string_view text);
+
+/// Turns the filament system's action edges into whole operations. An
+/// operation starts at the first action that moves or prepares filament and
+/// ends at IDLE (success), ERROR or PAUSED (failed), or either after a cancel
+/// (aborted). One that unloaded and then loaded is a tool change. CHECKING,
+/// and an operation that only selected or heated, report nothing.
+class FilamentOpTracker {
+  public:
+    using Clock = std::chrono::steady_clock;
+
+    struct Finished {
+        FilamentOp op = FilamentOp::Load;
+        FilamentOpOutcome outcome = FilamentOpOutcome::Success;
+        int duration_sec = 0;
+        bool during_print = false;
+    };
+
+    /// Feed the action now published. @p printing: a print job is running.
+    [[nodiscard]] std::optional<Finished> on_action(AmsAction action, Clock::time_point now,
+                                                    bool printing);
+    /// The user asked the filament system to cancel what it is doing.
+    void note_cancel_requested();
+    [[nodiscard]] bool active() const {
+        return active_;
+    }
+
+  private:
+    bool active_ = false;
+    bool loaded_ = false;
+    bool unloaded_ = false;
+    bool cancel_requested_ = false;
+    bool during_print_ = false;
+    Clock::time_point start_{};
+};
 
 } // namespace helix::telemetry

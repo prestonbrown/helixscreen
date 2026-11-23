@@ -828,6 +828,32 @@ describe("mapEventToDataPoints", () => {
     expect(odd.blobs![15]).toBe("unknown");
   });
 
+  it("maps filament_op to fixed tokens, refusing values outside its lists", () => {
+    const dp = mapEventToDataPoints({
+      event: "filament_op",
+      device_id: "dev-ams",
+      app_version: "1.1.0",
+      backend: "afc",
+      op: "tool_change",
+      outcome: "failed",
+      error_class: "hub",
+      duration_bucket: "30-60s",
+      during_print: true,
+    })[0];
+    expect(dp.indexes).toEqual(["filament_op"]);
+    expect(dp.blobs!.slice(3, 8)).toEqual(["afc", "tool_change", "failed", "hub", "30-60s"]);
+    expect(dp.doubles![0]).toBe(1);
+    const odd = mapEventToDataPoints({
+      event: "filament_op",
+      device_id: "dev-ams",
+      op: "Lane 3",
+      outcome: "x",
+      error_class: "AFC said no",
+      duration_bucket: "42s",
+    })[0];
+    expect(odd.blobs!.slice(4, 8)).toEqual(["unknown", "unknown", "unknown", "unknown"]);
+  });
+
   it("maps crash event correctly", () => {
     const event = {
       event: "crash",

@@ -533,6 +533,9 @@ void SubjectInitializer::init_observers(helix::IMoonrakerAPI* api) {
     for (auto& guard : TelemetryManager::instance().init_print_outcome_observer()) {
         m_observers.push_back(std::move(guard));
     }
+    for (auto& guard : TelemetryManager::instance().init_filament_op_observer()) {
+        m_observers.push_back(std::move(guard));
+    }
 
     // Panel usage tracking for telemetry
     // Note: Uses raw ObserverGuard rather than observe<int> because there's no

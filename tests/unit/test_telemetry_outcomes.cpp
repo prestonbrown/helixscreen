@@ -4,6 +4,9 @@
 
 #include "system/telemetry_outcomes.h"
 
+#include <chrono>
+#include <initializer_list>
+#include <optional>
 #include <string>
 
 #include "../catch_amalgamated.hpp"
@@ -63,4 +66,97 @@ TEST_CASE("Failure class: no evidence is unknown for a failure and none for a ca
           "[telemetry][outcomes]") {
     CHECK(class_of("", true) == "unknown");
     CHECK(class_of("", false) == "none");
+}
+
+// ============================================================================
+// filament_op [telemetry][filament_op]
+// ============================================================================
+
+namespace {
+
+using helix::AmsAction;
+using helix::telemetry::classify_filament_op_error;
+using helix::telemetry::filament_op_error_name;
+using helix::telemetry::FilamentOp;
+using helix::telemetry::FilamentOpOutcome;
+using helix::telemetry::FilamentOpTracker;
+
+/// Feed @p actions one second apart, starting at t0; the last result.
+std::optional<FilamentOpTracker::Finished>
+run(FilamentOpTracker& t, std::initializer_list<AmsAction> actions, bool printing = false) {
+    auto now = FilamentOpTracker::Clock::time_point{} + std::chrono::hours(1);
+    std::optional<FilamentOpTracker::Finished> last;
+    for (AmsAction a : actions) {
+        last = t.on_action(a, now, printing);
+        now += std::chrono::seconds(1);
+    }
+    return last;
+}
+
+} // namespace
+
+TEST_CASE("Filament op tracker: actions make one operation, named by what moved",
+          "[telemetry][filament_op]") {
+    FilamentOpTracker t;
+    auto load =
+        run(t, {AmsAction::HEATING, AmsAction::LOADING, AmsAction::PURGING, AmsAction::IDLE});
+    REQUIRE(load);
+    CHECK(load->op == FilamentOp::Load);
+    CHECK(load->outcome == FilamentOpOutcome::Success);
+    CHECK(load->duration_sec == 3);
+
+    auto unload = run(t, {AmsAction::CUTTING, AmsAction::UNLOADING, AmsAction::IDLE});
+    REQUIRE(unload);
+    CHECK(unload->op == FilamentOp::Unload);
+
+    auto swap = run(
+        t, {AmsAction::UNLOADING, AmsAction::SELECTING, AmsAction::LOADING, AmsAction::IDLE}, true);
+    REQUIRE(swap);
+    CHECK(swap->op == FilamentOp::ToolChange);
+    CHECK(swap->during_print);
+
+    // Selecting or heating alone, and the internal sensor check, move no filament.
+    CHECK_FALSE(run(t, {AmsAction::SELECTING, AmsAction::IDLE}));
+    CHECK_FALSE(run(t, {AmsAction::CHECKING, AmsAction::IDLE}));
+    CHECK_FALSE(t.active());
+}
+
+TEST_CASE("Filament op tracker: an error or pause fails it, a cancel aborts it",
+          "[telemetry][filament_op]") {
+    FilamentOpTracker t;
+    auto failed = run(t, {AmsAction::LOADING, AmsAction::ERROR});
+    REQUIRE(failed);
+    CHECK(failed->outcome == FilamentOpOutcome::Failed);
+    // ERROR to IDLE afterwards is the fault clearing, not a second operation.
+    CHECK_FALSE(run(t, {AmsAction::IDLE}));
+
+    auto paused = run(t, {AmsAction::UNLOADING, AmsAction::PAUSED});
+    REQUIRE(paused);
+    CHECK(paused->outcome == FilamentOpOutcome::Failed);
+
+    run(t, {AmsAction::IDLE, AmsAction::LOADING});
+    t.note_cancel_requested();
+    auto aborted = run(t, {AmsAction::IDLE});
+    REQUIRE(aborted);
+    CHECK(aborted->outcome == FilamentOpOutcome::Aborted);
+
+    // A cancel asked for while nothing ran does not abort the next operation.
+    t.note_cancel_requested();
+    auto next = run(t, {AmsAction::LOADING, AmsAction::IDLE});
+    REQUIRE(next);
+    CHECK(next->outcome == FilamentOpOutcome::Success);
+}
+
+TEST_CASE("Filament op error class: the fault's text picks a fixed class",
+          "[telemetry][filament_op]") {
+    auto cls = [](const char* text) {
+        return std::string(filament_op_error_name(classify_filament_op_error(text)));
+    };
+    CHECK(cls("Lane 2 jammed while loading") == "jam");
+    CHECK(cls("Filament stuck at the hub") == "jam");
+    CHECK(cls("Hub sensor did not trigger") == "hub");
+    CHECK(cls("tool_start sensor not triggered after load") == "toolhead_sensor");
+    CHECK(cls("Load timed out waiting for the gate sensor") == "sensor_timeout");
+    CHECK(cls("Unit 1 is not responding") == "backend_error");
+    CHECK(cls("") == "other");
 }

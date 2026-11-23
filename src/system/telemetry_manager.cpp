@@ -373,6 +373,9 @@ void TelemetryManager::init(const std::string& config_dir, const std::string& id
     panel_window_start_ = tracker_now();
     connection_window_start_ = panel_window_start_;
     error_rate_limit_.clear();
+    filament_op_successes_ = 0;
+    filament_op_failures_ = 0;
+    filament_op_last_failure_.clear();
     snapshot_seq_ = 0;
     frame_ring_count_ = 0;
     frame_ring_idx_ = 0;
@@ -2529,6 +2532,91 @@ std::string TelemetryManager::bucket_duration(int sec) {
     return "12hr+";
 }
 
+std::string TelemetryManager::bucket_short_duration(int sec) {
+    if (sec < 10)
+        return "<10s";
+    if (sec < 30)
+        return "10-30s";
+    if (sec < 60)
+        return "30-60s";
+    if (sec < 120)
+        return "1-2min";
+    if (sec < 300)
+        return "2-5min";
+    if (sec < 900)
+        return "5-15min";
+    if (sec < 3600)
+        return "15-60min";
+    return "1hr+";
+}
+
+// =============================================================================
+// Filament operations
+// =============================================================================
+
+void TelemetryManager::record_filament_op(const std::string& backend,
+                                          helix::telemetry::FilamentOp op,
+                                          helix::telemetry::FilamentOpOutcome outcome,
+                                          helix::telemetry::FilamentOpError error, int duration_sec,
+                                          bool during_print) {
+    if (shutting_down_.load() || !initialized_.load() || !enabled_.load()) {
+        return;
+    }
+    using namespace helix::telemetry;
+    const bool success = outcome == FilamentOpOutcome::Success;
+    const std::string key =
+        fmt::format("{}|{}|{}|{}", backend, filament_op_name(op), filament_op_outcome_name(outcome),
+                    filament_op_error_name(error));
+    if (!admit_filament_op(key, success)) {
+        spdlog::debug("[TelemetryManager] filament_op rate-limited: {}", key);
+        return;
+    }
+    spdlog::debug("[TelemetryManager] Recording filament_op: {} ({}s, during_print={})", key,
+                  duration_sec, during_print);
+    enqueue_event(build_filament_op_event(backend, op, outcome, error, duration_sec, during_print));
+}
+
+bool TelemetryManager::admit_filament_op(const std::string& key, bool success) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (success) {
+        if (filament_op_successes_ >= kMaxFilamentOpSuccesses) {
+            return false;
+        }
+        ++filament_op_successes_;
+        return true;
+    }
+    if (filament_op_failures_ >= kMaxFilamentOpFailures) {
+        return false;
+    }
+    const auto now = tracker_now();
+    auto it = filament_op_last_failure_.find(key);
+    if (it != filament_op_last_failure_.end() && now - it->second < kFilamentOpRepeatInterval) {
+        return false;
+    }
+    filament_op_last_failure_[key] = now;
+    ++filament_op_failures_;
+    return true;
+}
+
+nlohmann::json TelemetryManager::build_filament_op_event(
+    const std::string& backend, helix::telemetry::FilamentOp op,
+    helix::telemetry::FilamentOpOutcome outcome, helix::telemetry::FilamentOpError error,
+    int duration_sec, bool during_print) const {
+    using namespace helix::telemetry;
+    json event;
+    stamp_envelope(event);
+    event["event"] = "filament_op";
+    event["device_id"] = get_hashed_device_id();
+    event["timestamp"] = get_timestamp();
+    event["backend"] = backend;
+    event["op"] = filament_op_name(op);
+    event["outcome"] = filament_op_outcome_name(outcome);
+    event["error_class"] = filament_op_error_name(error);
+    event["duration_bucket"] = bucket_short_duration(duration_sec);
+    event["during_print"] = during_print;
+    return event;
+}
+
 std::string TelemetryManager::get_hashed_device_id() const {
     // Safe without mutex: device_uuid_ and device_salt_ are immutable after
     // init() completes, and callers verify initialized_ flag before calling
@@ -3407,6 +3495,59 @@ void on_print_state_changed_for_telemetry(lv_observer_t* observer, lv_subject_t*
 }
 
 } // anonymous namespace
+
+namespace {
+
+helix::telemetry::FilamentOpTracker s_filament_op_tracker;
+
+/// The filament system's fault, as its classifier reads it: the standing
+/// fault's cause, else the backend's operation line.
+std::string filament_fault_text() {
+    auto& ams = AmsState::instance();
+    if (!ams.fault_cause().empty()) {
+        return ams.fault_cause();
+    }
+    AmsBackend* backend = ams.get_backend();
+    return backend ? backend->get_system_info().operation_detail : std::string();
+}
+
+void on_ams_action_changed_for_telemetry(lv_observer_t* /*observer*/, lv_subject_t* subject) {
+    using namespace helix::telemetry;
+    const auto action = static_cast<AmsAction>(lv_subject_get_int(subject));
+    // PRINT_STATE_CAST_OK: telemetry reads the printer's own job state.
+    const auto job = static_cast<PrintJobState>(
+        lv_subject_get_int(get_printer_state().print_state().get_print_state_enum_subject()));
+    const auto done = s_filament_op_tracker.on_action(action, std::chrono::steady_clock::now(),
+                                                      printer_has_job(job));
+    if (!done) {
+        return;
+    }
+    const FilamentOpError error = done->outcome == FilamentOpOutcome::Failed
+                                      ? classify_filament_op_error(filament_fault_text())
+                                      : FilamentOpError::None;
+    const auto type = AmsState::instance().primary_type();
+    const char* backend = ams_type_telemetry_slug(type ? *type : AmsType::NONE);
+    spdlog::info("[Telemetry] filament_op {} {} on {} - error={}, {}s, during_print={}",
+                 filament_op_name(done->op), filament_op_outcome_name(done->outcome), backend,
+                 filament_op_error_name(error), done->duration_sec, done->during_print);
+    TelemetryManager::instance().record_filament_op(backend, done->op, done->outcome, error,
+                                                    done->duration_sec, done->during_print);
+}
+
+} // namespace
+
+std::vector<ObserverGuard> TelemetryManager::init_filament_op_observer() {
+    s_filament_op_tracker = {};
+    auto& ams = AmsState::instance();
+    std::vector<ObserverGuard> guards;
+    guards.emplace_back(ams.get_ams_action_subject(), on_ams_action_changed_for_telemetry, nullptr);
+    guards.back().set_alive_token(ams.get_subjects_lifetime());
+    return guards;
+}
+
+void TelemetryManager::notify_filament_op_cancel_requested() {
+    s_filament_op_tracker.note_cancel_requested();
+}
 
 std::vector<ObserverGuard> TelemetryManager::init_print_outcome_observer() {
     // Reset state tracking on (re)initialization

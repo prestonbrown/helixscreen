@@ -203,6 +203,10 @@ inline std::map<std::string, nlohmann::json> record_one_of_every_event(Telemetry
     collect();
     tm.record_print_start_context("local", true, 5000000, 3600, "PrusaSlicer", 1, false);
     collect();
+    tm.record_filament_op("afc", helix::telemetry::FilamentOp::ToolChange,
+                          helix::telemetry::FilamentOpOutcome::Failed,
+                          helix::telemetry::FilamentOpError::Hub, 45, true);
+    collect();
     // error_encountered's richest shape: a hang adds the screen and renderer.
     helix::HangMemoryContext hang_memory;
     hang_memory.mem_available_mb = 19;

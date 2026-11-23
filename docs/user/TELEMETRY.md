@@ -237,6 +237,21 @@ Recorded when a print begins. Helps us understand slicer usage and file characte
 
 No filenames are collected. File size is bucketed, not exact.
 
+### Filament Operations
+
+Recorded when a multi-material system (AFC, Happy Hare, ACE, CFS and the others) finishes a load, unload or tool change. Helps us see how often these fail, on which system, and whether a release made it better or worse.
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `backend` | The kind of multi-material system, as in the hardware profile | `"afc"` |
+| `op` | `load`, `unload` or `tool_change` | `"tool_change"` |
+| `outcome` | `success`, `failed` or `aborted` (you cancelled it) | `"failed"` |
+| `error_class` | For a failure, one value from a fixed list: `sensor_timeout`, `jam`, `hub`, `toolhead_sensor`, `backend_error`, `other`; `none` otherwise | `"hub"` |
+| `duration_bucket` | How long it took, as a range | `"30-60s"` |
+| `during_print` | Whether a print was running | `true` |
+
+Lane names, spool details and the system's own messages are never sent: HelixScreen works out `error_class` on the device. At most 50 successful and 50 failed operations are recorded per session, and the same failure repeating is recorded at most once every 5 minutes.
+
 ### Error Events
 
 Recorded when a non-fatal error occurs (rate-limited to avoid excessive data). Helps us identify common issues that users may never report.

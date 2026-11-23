@@ -114,6 +114,7 @@ In addition to the three categories above, HelixScreen records the following dia
 | Feature adoption | 5 minutes after startup | Boolean flags for which built-in features have been used |
 | Connection stability | Every 4 hours and at close | Connect/disconnect counts and total connected time |
 | Print start context | When a print begins | Print source, whether the file has a thumbnail, a bucketed file-size range, and slicer name — never the filename |
+| Filament operations | When a multi-material system finishes a load, unload or tool change (rate-limited) | The kind of system, the operation, whether it succeeded, failed or was cancelled, a failure reason from a fixed list, a duration range and whether a print was running; never lane names, spool details or the system's messages |
 | Error events | When a non-fatal error occurs (rate-limited) | An error category, code, and the operation being attempted; for a frozen screen, also which screen was open, the graphics renderer name, free memory and HelixScreen's count of memory reads from storage |
 
 ### 4.5 Klipper Configuration Identifiers

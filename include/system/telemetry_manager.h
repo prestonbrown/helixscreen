@@ -63,6 +63,7 @@
 #include "memory_monitor.h"
 #include "screensaver_usage.h"
 #include "subject_managed_panel.h"
+#include "system/telemetry_outcomes.h"
 
 #include <array>
 #include <atomic>
@@ -818,6 +819,33 @@ class TelemetryManager {
      */
     std::vector<ObserverGuard> init_print_outcome_observer();
 
+    /**
+     * @brief Record a load, unload or tool change as a filament_op event
+     *
+     * Rate-limited per session: at most kMaxFilamentOpSuccesses successes and
+     * kMaxFilamentOpFailures failures or aborts, and one of each (backend, op,
+     * outcome, error) failure per kFilamentOpRepeatInterval, so a stuck retry loop
+     * cannot flood the queue. No-op if telemetry is disabled. Thread-safe.
+     *
+     * @param backend ams_type_telemetry_slug() of the filament system
+     */
+    void record_filament_op(const std::string& backend, helix::telemetry::FilamentOp op,
+                            helix::telemetry::FilamentOpOutcome outcome,
+                            helix::telemetry::FilamentOpError error, int duration_sec,
+                            bool during_print);
+
+    /**
+     * @brief Observe the filament system's action and record each operation it
+     *        runs (telemetry::FilamentOpTracker), on whichever backend.
+     *
+     * Call once during initialization, after AmsState's subjects exist.
+     */
+    std::vector<ObserverGuard> init_filament_op_observer();
+
+    /// The user asked the filament system to cancel its operation: the one
+    /// running ends as aborted. Main thread.
+    void notify_filament_op_cancel_requested();
+
     // =========================================================================
     // DEVICE ID UTILITIES (public for testing)
     // =========================================================================
@@ -1212,6 +1240,19 @@ class TelemetryManager {
     /// Bucket a duration in seconds into a human-readable range string
     static std::string bucket_duration(int sec);
 
+    /// Bucket a duration of seconds to minutes (a filament operation, a
+    /// calibration step) into a range string
+    static std::string bucket_short_duration(int sec);
+
+    nlohmann::json build_filament_op_event(const std::string& backend,
+                                           helix::telemetry::FilamentOp op,
+                                           helix::telemetry::FilamentOpOutcome outcome,
+                                           helix::telemetry::FilamentOpError error,
+                                           int duration_sec, bool during_print) const;
+
+    /// The per-session filament_op limits; true when this one may be queued.
+    bool admit_filament_op(const std::string& key, bool success);
+
     /**
      * @brief Get the double-hashed device identifier
      * @return Hex-encoded hashed device ID for inclusion in events
@@ -1378,6 +1419,16 @@ class TelemetryManager {
     // Protected by mutex_ — accessed from background threads via record_error().
     std::unordered_map<std::string, std::chrono::steady_clock::time_point> error_rate_limit_;
     static constexpr auto kErrorRateLimitInterval = std::chrono::minutes{5};
+
+    // filament_op limits per session. Protected by mutex_.
+    static constexpr int kMaxFilamentOpSuccesses = 50;
+    static constexpr int kMaxFilamentOpFailures = 50;
+    static constexpr auto kFilamentOpRepeatInterval = std::chrono::minutes{5};
+    int filament_op_successes_ = 0;
+    int filament_op_failures_ = 0;
+    /// Last queued time of each failing (backend, op, outcome, error).
+    std::unordered_map<std::string, std::chrono::steady_clock::time_point>
+        filament_op_last_failure_;
     /// Processes a memory_warning at warning or critical names, largest first.
     static constexpr size_t kTopProcessCount = 3;
 

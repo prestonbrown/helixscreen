@@ -1,0 +1,16 @@
+{
+  "app_board": "<build>",
+  "app_platform": "<build>",
+  "app_version": "<build>",
+  "backend": "afc",
+  "boot_id": "<boot_id>",
+  "device_id": "<device_id>",
+  "duration_bucket": "30-60s",
+  "during_print": true,
+  "error_class": "hub",
+  "event": "filament_op",
+  "op": "tool_change",
+  "outcome": "failed",
+  "schema_version": 3,
+  "timestamp": "<timestamp>"
+}

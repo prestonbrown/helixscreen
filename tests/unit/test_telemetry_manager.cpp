@@ -534,6 +534,107 @@ TEST_CASE_METHOD(TelemetryTestFixture,
 }
 
 // ============================================================================
+// filament_op [telemetry][filament_op]
+// ============================================================================
+
+namespace {
+
+std::vector<json> events_named(TelemetryManager& tm, const std::string& name) {
+    std::vector<json> out;
+    for (const auto& e : tm.get_queue_snapshot()) {
+        if (e.value("event", "") == name) {
+            out.push_back(e);
+        }
+    }
+    return out;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(TelemetryTestFixture, "filament_op event carries fixed tokens only",
+                 "[telemetry][filament_op]") {
+    using namespace helix::telemetry;
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    tm.record_filament_op("afc", FilamentOp::ToolChange, FilamentOpOutcome::Failed,
+                          FilamentOpError::Hub, 75, true);
+    auto events = events_named(tm, "filament_op");
+    REQUIRE(events.size() == 1);
+    const auto& e = events[0];
+    CHECK(e["backend"] == "afc");
+    CHECK(e["op"] == "tool_change");
+    CHECK(e["outcome"] == "failed");
+    CHECK(e["error_class"] == "hub");
+    CHECK(e["duration_bucket"] == "1-2min");
+    CHECK(e["during_print"] == true);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "filament_op is rate-limited so a retry loop cannot flood the queue",
+                 "[telemetry][filament_op]") {
+    using namespace helix::telemetry;
+    using namespace std::chrono_literals;
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    auto fail = [&](FilamentOpError error) {
+        tm.record_filament_op("ace", FilamentOp::Load, FilamentOpOutcome::Failed, error, 20, false);
+    };
+
+    // The same failure repeating is one event per interval.
+    for (int i = 0; i < 20; ++i) {
+        fail(FilamentOpError::Jam);
+    }
+    CHECK(events_named(tm, "filament_op").size() == 1);
+    // A different failure is its own.
+    fail(FilamentOpError::Hub);
+    CHECK(events_named(tm, "filament_op").size() == 2);
+    TelemetryManagerTestAccess::advance_clock(tm, 5min);
+    fail(FilamentOpError::Jam);
+    CHECK(events_named(tm, "filament_op").size() == 3);
+
+    // Successes stop at the session's cap.
+    tm.clear_queue();
+    for (int i = 0; i < 80; ++i) {
+        tm.record_filament_op("ace", FilamentOp::ToolChange, FilamentOpOutcome::Success,
+                              FilamentOpError::None, 20, true);
+    }
+    CHECK(events_named(tm, "filament_op").size() == 50);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "filament_op observer records the filament system's operations",
+                 "[telemetry][filament_op]") {
+    lv_init_safe();
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    auto& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+    {
+        helix::test::ScopedMockAms ams(2);
+        auto guards = tm.init_filament_op_observer();
+        auto& ams_state = helix::AmsState::instance();
+        ams_state.set_action(helix::AmsAction::UNLOADING);
+        ams_state.set_action(helix::AmsAction::LOADING);
+        ams_state.set_action(helix::AmsAction::IDLE);
+        auto events = events_named(tm, "filament_op");
+        REQUIRE(events.size() == 1);
+        CHECK(events[0]["op"] == "tool_change");
+        CHECK(events[0]["outcome"] == "success");
+        CHECK(events[0]["error_class"] == "none");
+        CHECK(events[0]["during_print"] == false);
+
+        ams_state.set_action(helix::AmsAction::LOADING);
+        tm.notify_filament_op_cancel_requested();
+        ams_state.set_action(helix::AmsAction::IDLE);
+        events = events_named(tm, "filament_op");
+        REQUIRE(events.size() == 2);
+        CHECK(events[1]["outcome"] == "aborted");
+    }
+    PrinterStateTestAccess::reset(state);
+}
+
+// ============================================================================
 // Enable/Disable Toggle [telemetry][toggle]
 // ============================================================================
 
