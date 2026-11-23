@@ -38,7 +38,7 @@ using namespace helix::config_detail;
 // without monkey-patching /proc. Production code never sets this.
 namespace {
 static std::optional<helix::PlatformTier> g_forced_tier_for_migration;
-} // namespace
+}
 
 namespace helix::config_testing {
 void set_forced_tier_for_migration(std::optional<helix::PlatformTier> tier) {

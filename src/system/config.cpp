@@ -429,7 +429,7 @@ bool run_display_migrations(json& data) {
     return changed;
 }
 
-} // end anonymous namespace
+} // namespace
 
 namespace helix::config_testing {
 bool run_display_migrations_for_test(nlohmann::json& data) {

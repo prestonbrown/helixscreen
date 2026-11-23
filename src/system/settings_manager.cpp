@@ -737,7 +737,7 @@ void SettingsManager::set_mount_feed_purge_mm(int mm) {
 // A unit's picked drawing, per printer: {"<unit identity>": "<shell id>"}.
 namespace {
 constexpr const char* kAmsUnitDrawingsKey = "ams/unit_drawings";
-} // namespace
+}
 
 std::map<std::string, std::string> SettingsManager::get_ams_unit_drawings() const {
     std::map<std::string, std::string> out;

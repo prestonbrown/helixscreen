@@ -25,7 +25,7 @@ namespace {
 
 thread_local const char* t_storage_forbidden_by = nullptr;
 
-} // namespace
+}
 
 void forbid_storage_on_this_thread(const char* thread_name) {
     t_storage_forbidden_by = thread_name ? thread_name : "?";
