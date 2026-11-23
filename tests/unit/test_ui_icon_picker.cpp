@@ -6,6 +6,7 @@
 #include "ui_icon_picker.h"
 
 #include "../lvgl_test_fixture.h"
+#include "asset_manager.h"
 
 #include <memory>
 #include <string>
@@ -42,6 +43,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "icon grid: one cell per icon, selected one ou
 
 TEST_CASE_METHOD(LVGLTestFixture, "icon grid: each cell is a fixed square holding its glyph",
                  "[icon_picker]") {
+    // The cell names its glyph font in XML, which resolves only against the
+    // fonts the app registers at startup.
+    AssetManager::register_fonts();
     lv_obj_t* grid = lv_obj_create(test_screen());
     populate_icon_grid(grid, kIcons, 3, "", [](const char*) {});
     lv_obj_update_layout(grid);
