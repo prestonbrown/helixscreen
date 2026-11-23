@@ -47,11 +47,9 @@ bool command_is(const std::string& word, OperationCategory category) {
     return false;
 }
 
-/// A bed-mesh line that probes. Klipper's other BED_MESH_* commands load, clear
-/// or offset a stored mesh: that runs no work on its line, so it is not a step.
-/// The category's phase is shared; this filter is the step scan's own.
+/// A bed-mesh line that probes: a stored-mesh command runs no work on its line.
 bool calibrates_mesh(const std::string& word) {
-    return word == "BED_MESH_CALIBRATE" || word.rfind("BED_MESH_", 0) != 0;
+    return !is_stored_mesh_command(word);
 }
 
 std::optional<StartBlockStepKind> step_kind(const gcode::DetectedOperation& op) {

@@ -408,6 +408,15 @@ inline std::vector<std::string> get_all_perform_variations(OperationCategory cat
 // ============================================================================
 
 /**
+ * @brief Whether an upper-case command is one of Klipper's BED_MESH_* commands
+ * that loads, clears, offsets or prints a stored mesh. Only BED_MESH_CALIBRATE
+ * probes, so the others are not a bed mesh step.
+ */
+inline bool is_stored_mesh_command(const std::string& upper) {
+    return upper.rfind("BED_MESH_", 0) == 0 && upper != "BED_MESH_CALIBRATE";
+}
+
+/**
  * @brief Find keyword entry by pattern string (substring match, case-insensitive)
  *
  * Uses substring matching so `_PRIME_NOZZLE` matches `PRIME_NOZZLE`,
@@ -435,6 +444,10 @@ inline const OperationKeyword* find_keyword(const std::string& pattern) {
         } else {
             // Macros: substring match (catches _PRIME_NOZZLE, AUTO_BED_LEVEL, etc.)
             if (pat.find(keyword) != std::string::npos) {
+                if (kOperationKeywords[i].category == OperationCategory::BED_MESH &&
+                    is_stored_mesh_command(pat)) {
+                    continue;
+                }
                 return &kOperationKeywords[i];
             }
         }

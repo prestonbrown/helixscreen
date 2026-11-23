@@ -269,6 +269,24 @@ TEST_CASE("PrintStartAnalyzer: categorize_operation", "[print_start][helpers]") 
             PrintStartOpCategory::UNKNOWN);
 }
 
+TEST_CASE("PrintStartAnalyzer: loading or clearing a stored mesh is not a bed mesh step",
+          "[print_start][parsing]") {
+    const auto result =
+        PrintStartAnalyzer::parse_macro("PRINT_START", "G28\n"
+                                                       "BED_MESH_CLEAR\n"
+                                                       "BED_MESH_PROFILE LOAD=helix_pla\n");
+    CHECK(result.has_operation(PrintStartOpCategory::HOMING));
+    CHECK_FALSE(result.has_operation(PrintStartOpCategory::BED_MESH));
+
+    CHECK(PrintStartAnalyzer::categorize_operation("BED_MESH_PROFILE") ==
+          PrintStartOpCategory::UNKNOWN);
+    CHECK(PrintStartAnalyzer::categorize_operation("BED_MESH_OFFSET") ==
+          PrintStartOpCategory::UNKNOWN);
+    // A user's own mesh macro still counts.
+    CHECK(PrintStartAnalyzer::categorize_operation("ADAPTIVE_BED_MESH") ==
+          PrintStartOpCategory::BED_MESH);
+}
+
 TEST_CASE("PrintStartAnalyzer: category_to_string", "[print_start][helpers]") {
     REQUIRE(std::string(category_to_string(PrintStartOpCategory::BED_MESH)) == "bed_mesh");
     REQUIRE(std::string(category_to_string(PrintStartOpCategory::QGL)) == "qgl");
