@@ -5,6 +5,9 @@
 
 #include "json_utils.h"
 
+#include <spdlog/fmt/fmt.h>
+
+#include <algorithm>
 #include <string>
 
 #include "hv/json.hpp"
@@ -12,6 +15,36 @@
 namespace helix::pa {
 
 namespace {
+
+const char* model_name(ModelKind kind) {
+    switch (kind) {
+    case ModelKind::Recipr:
+        return "recipr";
+    case ModelKind::Tanh:
+        return "tanh";
+    case ModelKind::Classic:
+    case ModelKind::Linear:
+        break;
+    }
+    return "linear";
+}
+
+const char* param_name(NlParam p) {
+    switch (p) {
+    case NlParam::Offset:
+        return "OFFSET";
+    case NlParam::TimeOffset:
+        return "TIME_OFFSET";
+    case NlParam::Advance:
+        break;
+    }
+    return "ADVANCE";
+}
+
+/// Six decimals, the precision the firmware itself reports these at.
+std::string num(float v) {
+    return fmt::format("{:.6f}", v);
+}
 
 std::optional<ModelKind> kind_from_name(const std::string& name) {
     if (name == "linear") {
@@ -55,6 +88,75 @@ PaModel read_pa_model(const nlohmann::json& extruder_status, PaModel prev) {
     read_into(extruder_status, "linearization_velocity", prev.linearization_velocity);
     read_into(extruder_status, "time_offset", prev.time_offset);
     return prev;
+}
+
+std::optional<NonlinearValues> nonlinear_values(const PaModel& m) {
+    if (!m.nonlinear() || !m.linear_advance || !m.nonlinear_offset || !m.linearization_velocity) {
+        return std::nullopt;
+    }
+    NonlinearValues v;
+    v.model = m.kind;
+    v.linear_advance = *m.linear_advance;
+    v.nonlinear_offset = *m.nonlinear_offset;
+    v.linearization_velocity = *m.linearization_velocity;
+    v.time_offset = m.time_offset.value_or(0.0f);
+    return v;
+}
+
+std::string set_nonlinear_gcode(const std::string& extruder, const NonlinearValues& v) {
+    const ModelKind model = v.model == ModelKind::Recipr ? ModelKind::Recipr : ModelKind::Tanh;
+    return fmt::format("SET_PRESSURE_ADVANCE EXTRUDER={} MODEL={} ADVANCE={} OFFSET={} VELOCITY={} "
+                       "TIME_OFFSET={} SMOOTH_TIME={}",
+                       extruder, model_name(model), num(v.linear_advance), num(v.nonlinear_offset),
+                       num(v.linearization_velocity), num(v.time_offset),
+                       num(kNonlinearSmoothTime));
+}
+
+std::string set_linear_gcode(const std::string& extruder, std::optional<float> k) {
+    return fmt::format("SET_PRESSURE_ADVANCE EXTRUDER={} MODEL=linear ADVANCE={}", extruder,
+                       num(k.value_or(0.0f)));
+}
+
+bool has_tower_module(const std::vector<std::string>& printer_objects) {
+    return std::find(printer_objects.begin(), printer_objects.end(), kTowerObject) !=
+           printer_objects.end();
+}
+
+std::pair<std::string, std::string> tower_section_key() {
+    // Kalico's guide: keep the slow segment at 20 mm/s to probe the speeds of
+    // overhangs and seams.
+    return {"slow_velocity", "20"};
+}
+
+float value_at(const TowerSweep& sweep, float height_mm) {
+    return std::max(0.0f, sweep.start + std::max(0.0f, height_mm) * sweep.factor);
+}
+
+std::string tuning_tower_gcode(const TowerSweep& sweep) {
+    return fmt::format("TUNING_TOWER COMMAND=SET_PRESSURE_ADVANCE PARAMETER={} START={} FACTOR={}",
+                       param_name(sweep.param), num(sweep.start), num(sweep.factor));
+}
+
+std::string print_tower_gcode(float nozzle_diameter_mm, int target_temp, int fast_velocity_mm_s) {
+    std::string g =
+        fmt::format("PRINT_PA_TOWER NOZZLE={:.2f} TARGET_TEMP={}", nozzle_diameter_mm, target_temp);
+    if (fast_velocity_mm_s > 0) {
+        g += fmt::format(" FAST_VELOCITY={}", fast_velocity_mm_s);
+    }
+    return g;
+}
+
+std::vector<ExtruderConfigKey> nonlinear_config_keys(const NonlinearValues& v) {
+    const ModelKind model = v.model == ModelKind::Recipr ? ModelKind::Recipr : ModelKind::Tanh;
+    return {
+        {"pressure_advance", "", true},
+        {"pressure_advance_model", model_name(model)},
+        {"linear_advance", num(v.linear_advance)},
+        {"nonlinear_offset", num(v.nonlinear_offset)},
+        {"linearization_velocity", num(v.linearization_velocity)},
+        {"pressure_advance_time_offset", num(v.time_offset)},
+        {"pressure_advance_smooth_time", num(kNonlinearSmoothTime)},
+    };
 }
 
 } // namespace helix::pa

@@ -103,3 +103,71 @@ TEST_CASE("pa_model: an unknown model name leaves the model as it was", "[pa_mod
     REQUIRE(m.primary_value());
     CHECK(*m.primary_value() == Catch::Approx(0.04f));
 }
+
+TEST_CASE("pa_model: switching models at runtime names every parameter", "[pa_model]") {
+    helix::pa::NonlinearValues v;
+    v.model = ModelKind::Tanh;
+    v.linear_advance = 0.017f;
+    v.nonlinear_offset = 0.12f;
+    v.linearization_velocity = 1.0f;
+    v.time_offset = 0.0018f;
+    CHECK(helix::pa::set_nonlinear_gcode("extruder", v) ==
+          "SET_PRESSURE_ADVANCE EXTRUDER=extruder MODEL=tanh ADVANCE=0.017000 OFFSET=0.120000 "
+          "VELOCITY=1.000000 TIME_OFFSET=0.001800 SMOOTH_TIME=0.020000");
+    // A classic kind is never sent as a model name.
+    v.model = ModelKind::Linear;
+    CHECK(helix::pa::set_nonlinear_gcode("extruder1", v).find("MODEL=tanh") != std::string::npos);
+    CHECK(helix::pa::set_linear_gcode("extruder", 0.04f) ==
+          "SET_PRESSURE_ADVANCE EXTRUDER=extruder MODEL=linear ADVANCE=0.040000");
+    CHECK(helix::pa::set_linear_gcode("extruder", std::nullopt) ==
+          "SET_PRESSURE_ADVANCE EXTRUDER=extruder MODEL=linear ADVANCE=0.000000");
+}
+
+TEST_CASE("pa_model: the values a running nonlinear model reports", "[pa_model]") {
+    CHECK_FALSE(helix::pa::nonlinear_values(read_pa_model({{"pressure_advance", 0.04}}, {})));
+    // Not every parameter reported yet: nothing to resume from.
+    CHECK_FALSE(helix::pa::nonlinear_values(
+        read_pa_model({{"pressure_advance_model", "tanh"}, {"linear_advance", 0.02}}, {})));
+    const auto v = helix::pa::nonlinear_values(read_pa_model({{"pressure_advance_model", "recipr"},
+                                                              {"linear_advance", 0.02},
+                                                              {"nonlinear_offset", 0.1},
+                                                              {"linearization_velocity", 2.0}},
+                                                             {}));
+    REQUIRE(v);
+    CHECK(v->model == ModelKind::Recipr);
+    CHECK(v->linearization_velocity == Catch::Approx(2.0f));
+    CHECK(v->time_offset == Catch::Approx(0.0f));
+}
+
+TEST_CASE("pa_model: the tower sweep, its command and the value at a height", "[pa_model]") {
+    const helix::pa::TowerSweep s{helix::pa::NlParam::Offset, 0.0f, 0.01f};
+    CHECK(helix::pa::tuning_tower_gcode(s) ==
+          "TUNING_TOWER COMMAND=SET_PRESSURE_ADVANCE PARAMETER=OFFSET START=0.000000 "
+          "FACTOR=0.010000");
+    CHECK(helix::pa::value_at(s, 27.0f) == Catch::Approx(0.27f));
+    CHECK(helix::pa::value_at(s, -3.0f) == Catch::Approx(0.0f));
+    CHECK(helix::pa::print_tower_gcode(0.4f, 210, 0) ==
+          "PRINT_PA_TOWER NOZZLE=0.40 TARGET_TEMP=210");
+    CHECK(helix::pa::print_tower_gcode(0.6f, 245, 150) ==
+          "PRINT_PA_TOWER NOZZLE=0.60 TARGET_TEMP=245 FAST_VELOCITY=150");
+    CHECK(helix::pa::has_tower_module({"extruder", "pa_test"}));
+    CHECK_FALSE(helix::pa::has_tower_module({"extruder", "pa_test_x"}));
+}
+
+TEST_CASE("pa_model: saving a nonlinear model comments out pressure_advance", "[pa_model]") {
+    helix::pa::NonlinearValues v;
+    v.linear_advance = 0.017f;
+    v.nonlinear_offset = 0.12f;
+    const auto keys = helix::pa::nonlinear_config_keys(v);
+    REQUIRE(keys.size() == 7);
+    CHECK(keys[0].key == "pressure_advance");
+    CHECK(keys[0].comment_out);
+    CHECK(keys[1].key == "pressure_advance_model");
+    CHECK(keys[1].value == "tanh");
+    CHECK(keys[2].value == "0.017000");
+    CHECK(keys[6].key == "pressure_advance_smooth_time");
+    CHECK(keys[6].value == "0.020000");
+    for (size_t i = 1; i < keys.size(); ++i) {
+        CHECK_FALSE(keys[i].comment_out);
+    }
+}
