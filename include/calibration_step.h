@@ -41,22 +41,26 @@ struct StepOutcome {
     Kind kind = Kind::Failed;
     StepResult result;
     std::string message;
+    /// The firmware's own untranslated words the failure came from (a Klipper
+    /// error, a Moonraker reply); empty when the failure is the screen's own.
+    /// Classified, never shown.
+    std::string cause;
 
     static StepOutcome finished(StepResult r) {
-        return {Kind::Finished, std::move(r), {}};
+        return {Kind::Finished, std::move(r), {}, {}};
     }
-    static StepOutcome failed(std::string why) {
-        return {Kind::Failed, {}, std::move(why)};
+    static StepOutcome failed(std::string why, std::string cause = {}) {
+        return {Kind::Failed, {}, std::move(why), std::move(cause)};
     }
     /// Failed after staging @p partial, which a save writes with the rest.
-    static StepOutcome failed_after(std::string why, StepResult partial) {
-        return {Kind::Failed, std::move(partial), std::move(why)};
+    static StepOutcome failed_after(std::string why, StepResult partial, std::string cause = {}) {
+        return {Kind::Failed, std::move(partial), std::move(why), std::move(cause)};
     }
     static StepOutcome skipped() {
-        return {Kind::Skipped, {}, {}};
+        return {Kind::Skipped, {}, {}, {}};
     }
     static StepOutcome aborted() {
-        return {Kind::Aborted, {}, {}};
+        return {Kind::Aborted, {}, {}, {}};
     }
 };
 

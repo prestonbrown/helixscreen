@@ -80,6 +80,21 @@ const FAILURE_CLASSES = [
   "unknown",
 ];
 const CANCEL_ORIGINS = ["in_app", "external"];
+// Mirrors the telemetry_slug column of kAmsTypeTraits (include/ams_types.h).
+const AMS_TYPE_SLUGS = [
+  "unknown",
+  "happy_hare",
+  "afc",
+  "ace",
+  "tool_changer",
+  "ifs",
+  "cfs",
+  "snapmaker",
+  "qidi_box",
+  "openams",
+  "indx",
+  "lane_status",
+];
 // Mirror src/system/telemetry_outcomes.cpp: filament_op_name, filament_op_outcome_name,
 // filament_op_error_name; the buckets mirror TelemetryManager::bucket_short_duration.
 const FILAMENT_OPS = ["load", "unload", "tool_change"];
@@ -457,13 +472,15 @@ const KINDS: PointKind[] = [
   kind("filament_op", [
     device,
     ...versionPlatform,
-    blob(4, "backend"),
+    blob(4, "backend", allowlisted(flat("backend"), AMS_TYPE_SLUGS)),
     blob(5, "op", allowlisted(flat("op"), FILAMENT_OPS)),
     blob(6, "outcome", allowlisted(flat("outcome"), FILAMENT_OP_OUTCOMES)),
     blob(7, "error_class", allowlisted(flat("error_class"), FILAMENT_OP_ERRORS)),
     blob(8, "duration_bucket", allowlisted(flat("duration_bucket"), SHORT_DURATION_BUCKETS)),
     blob(13, "app_board", appBoard),
     dbl(1, "during_print"),
+    // Operations this row counts: pooled successes and repeated failures arrive as one row.
+    dbl(2, "count"),
   ]),
 
   // One point per guided calibration step that ran (#2168).

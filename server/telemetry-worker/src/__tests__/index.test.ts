@@ -860,19 +860,22 @@ describe("mapEventToDataPoints", () => {
       error_class: "hub",
       duration_bucket: "30-60s",
       during_print: true,
+      count: 7,
     })[0];
     expect(dp.indexes).toEqual(["filament_op"]);
     expect(dp.blobs!.slice(3, 8)).toEqual(["afc", "tool_change", "failed", "hub", "30-60s"]);
     expect(dp.doubles![0]).toBe(1);
+    expect(dp.doubles![1]).toBe(7);
     const odd = mapEventToDataPoints({
       event: "filament_op",
       device_id: "dev-ams",
+      backend: "My Box",
       op: "Lane 3",
       outcome: "x",
       error_class: "AFC said no",
       duration_bucket: "42s",
     })[0];
-    expect(odd.blobs!.slice(4, 8)).toEqual(["unknown", "unknown", "unknown", "unknown"]);
+    expect(odd.blobs!.slice(3, 8)).toEqual(["unknown", "unknown", "unknown", "unknown", "unknown"]);
   });
 
   it("maps calibration_outcome to fixed tokens, refusing values outside its lists", () => {

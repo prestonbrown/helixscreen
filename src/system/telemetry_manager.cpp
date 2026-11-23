@@ -386,9 +386,9 @@ void TelemetryManager::init(const std::string& config_dir, const std::string& id
     panel_window_start_ = tracker_now();
     connection_window_start_ = panel_window_start_;
     error_rate_limit_.clear();
-    filament_op_successes_ = 0;
     filament_op_failures_ = 0;
     filament_op_last_failure_.clear();
+    filament_op_pool_.clear();
     snapshot_seq_ = 0;
     frame_ring_count_ = 0;
     frame_ring_idx_ = 0;
@@ -473,6 +473,7 @@ void TelemetryManager::shutdown() {
     // so record_async_lifetime_snapshot emits even if this window's count is
     // zero — that zero confirms no orphan work survived to shutdown.
     record_async_lifetime_snapshot();
+    flush_filament_ops();
 
     shutting_down_.store(true);
 
@@ -519,6 +520,9 @@ void TelemetryManager::set_enabled(bool enabled) {
         start_auto_send();
     } else if (!active) {
         stop_auto_send();
+        // Operations counted while it was on are not sent once it is off.
+        std::lock_guard<std::mutex> lock(mutex_);
+        filament_op_pool_.clear();
     }
 
     // NOTE: set_enabled() must be called from the LVGL thread since it
@@ -960,6 +964,7 @@ nlohmann::json TelemetryManager::get_queue_snapshot() const {
 void TelemetryManager::clear_queue() {
     std::lock_guard<std::mutex> lock(mutex_);
     queue_.clear();
+    filament_op_pool_.clear();
     attempted_ = 0;
     // A purge ends the window the count describes. Carrying it forward would
     // mark the first batch after the next opt-in as incomplete when nothing
@@ -2393,6 +2398,10 @@ bool TelemetryManager::consume_print_started_in_app() {
     return print_started_in_app_.exchange(false);
 }
 
+void TelemetryManager::notify_print_cancel_requested() {
+    print_cancels_requested_.fetch_add(1, std::memory_order_relaxed);
+}
+
 void TelemetryManager::record_error(const std::string& category, const std::string& code,
                                     const std::string& context) {
     if (!admit_error(category)) {
@@ -2574,16 +2583,56 @@ void TelemetryManager::record_filament_op(const std::string& backend,
     }
     using namespace helix::telemetry;
     const bool success = outcome == FilamentOpOutcome::Success;
-    const std::string key =
-        fmt::format("{}|{}|{}|{}", backend, filament_op_name(op), filament_op_outcome_name(outcome),
-                    filament_op_error_name(error));
-    if (!admit_filament_op(key, success)) {
-        spdlog::debug("[TelemetryManager] filament_op rate-limited: {}", key);
-        return;
+    json event = build_filament_op_event(backend, op, outcome, error, duration_sec, during_print);
+    const std::string key = fmt::format(
+        "{}|{}|{}|{}|{}|{}", backend, filament_op_name(op), filament_op_outcome_name(outcome),
+        filament_op_error_name(error), event["duration_bucket"].get<std::string>(), during_print);
+    bool queue_now = false;
+    bool pool_full = false;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        const auto now = tracker_now();
+        auto last = filament_op_last_failure_.find(key);
+        queue_now = !success && filament_op_failures_ < kMaxFilamentOpFailures &&
+                    (last == filament_op_last_failure_.end() ||
+                     now - last->second >= kFilamentOpRepeatInterval);
+        auto pooled = filament_op_pool_.find(key);
+        if (queue_now) {
+            // The repeats pooled since the last one alike ride on this event.
+            if (pooled != filament_op_pool_.end()) {
+                event["count"] = helix::json_util::as_int64(pooled->second["count"]) + 1;
+                filament_op_pool_.erase(pooled);
+            }
+            filament_op_last_failure_[key] = now;
+            ++filament_op_failures_;
+        } else if (pooled != filament_op_pool_.end()) {
+            pooled->second["count"] = helix::json_util::as_int64(pooled->second["count"]) + 1;
+        } else {
+            filament_op_pool_.emplace(key, std::move(event));
+        }
+        pool_full = filament_op_pool_.size() > kMaxPooledFilamentOps;
     }
-    spdlog::debug("[TelemetryManager] Recording filament_op: {} ({}s, during_print={})", key,
-                  duration_sec, during_print);
-    enqueue_event(build_filament_op_event(backend, op, outcome, error, duration_sec, during_print));
+    spdlog::debug("[TelemetryManager] filament_op {}: {} ({}s)", queue_now ? "queued" : "pooled",
+                  key, duration_sec);
+    if (queue_now) {
+        enqueue_event(std::move(event));
+    }
+    if (pool_full) {
+        flush_filament_ops();
+    }
+}
+
+void TelemetryManager::flush_filament_ops() {
+    std::unordered_map<std::string, json> pool;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        pool.swap(filament_op_pool_);
+    }
+    for (auto& [key, event] : pool) {
+        // Stamped when the tally closes, the end of the window it counts.
+        event["timestamp"] = get_timestamp();
+        enqueue_event(std::move(event));
+    }
 }
 
 void TelemetryManager::record_calibration_outcome(const std::string& type,
@@ -2617,28 +2666,6 @@ nlohmann::json TelemetryManager::build_calibration_outcome_event(
     return event;
 }
 
-bool TelemetryManager::admit_filament_op(const std::string& key, bool success) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (success) {
-        if (filament_op_successes_ >= kMaxFilamentOpSuccesses) {
-            return false;
-        }
-        ++filament_op_successes_;
-        return true;
-    }
-    if (filament_op_failures_ >= kMaxFilamentOpFailures) {
-        return false;
-    }
-    const auto now = tracker_now();
-    auto it = filament_op_last_failure_.find(key);
-    if (it != filament_op_last_failure_.end() && now - it->second < kFilamentOpRepeatInterval) {
-        return false;
-    }
-    filament_op_last_failure_[key] = now;
-    ++filament_op_failures_;
-    return true;
-}
-
 nlohmann::json TelemetryManager::build_filament_op_event(
     const std::string& backend, helix::telemetry::FilamentOp op,
     helix::telemetry::FilamentOpOutcome outcome, helix::telemetry::FilamentOpError error,
@@ -2655,6 +2682,7 @@ nlohmann::json TelemetryManager::build_filament_op_event(
     event["error_class"] = filament_op_error_name(error);
     event["duration_bucket"] = bucket_short_duration(duration_sec);
     event["during_print"] = during_print;
+    event["count"] = 1;
     return event;
 }
 
@@ -3079,6 +3107,7 @@ void TelemetryManager::fire_periodic_snapshot() {
     record_connection_stability();
     record_screensaver_usage();
     record_async_lifetime_snapshot();
+    flush_filament_ops();
 
     snapshot_seq_++;
     // Queue first: if power is lost before the accumulator is rewritten, the
@@ -3293,21 +3322,27 @@ int s_telemetry_peak_progress = 0;
 /// gcode often unloads before the job is reported over.
 std::string s_telemetry_lane_material;
 
-/// The active lane's material, else the active spool's, by the database's
-/// name for it: a material the database does not know (free text a user typed)
-/// reads as empty and is never sent.
+/// The active lane's material, else the active spool's, by the name of the
+/// shipped filament database row it matches. A material only the user defined
+/// (free text they typed), or one no row knows, reads as empty and is never sent.
 std::string active_material_type() {
     const auto active = helix::get_active_material();
-    return active ? active->material_info.name : std::string();
+    if (!active) {
+        return {};
+    }
+    const auto shipped = filament::find_shipped_material(active->material_name);
+    return shipped ? shipped->name : std::string();
 }
 
-/// IMoonrakerJobAPI::cancels_sent() when the job started: a cancel the screen
-/// sent while the job ran moves it.
+/// cancels_sent() when the job started: a cancel the screen sent while the
+/// job ran moves it.
 uint32_t s_telemetry_cancels_at_start = 0;
 
+/// Every cancel the screen has sent: through the job API, and as a macro.
 uint32_t cancels_sent() {
     auto* api = get_moonraker_api();
-    return api ? api->job().cancels_sent() : 0;
+    return (api ? api->job().cancels_sent() : 0) +
+           TelemetryManager::instance().print_cancels_requested();
 }
 
 void sample_lane_material() {
@@ -3348,7 +3383,9 @@ std::string print_failure_class(PrintJobState outcome) {
     evidence.filament_system_fault = ams_fault;
     evidence.klippy_down = klippy_down;
     evidence.failed = outcome == PrintJobState::ERROR;
-    return helix::telemetry::failure_class_name(helix::telemetry::classify_failure(evidence));
+    auto* api = get_moonraker_api();
+    return helix::telemetry::failure_class_name(
+        helix::telemetry::classify_failure(evidence, api ? &api->hardware() : nullptr));
 }
 
 /// Observer callback for print state transitions (telemetry recording)
@@ -3500,10 +3537,10 @@ void on_print_state_changed_for_telemetry(lv_observer_t* observer, lv_subject_t*
         float filament_used_mm = s_telemetry_filament_used_mm;
         std::string filament_type = s_telemetry_filament_type;
         if (filament_type.empty()) {
-            filament_type = active_material_type();
+            filament_type = s_telemetry_lane_material;
         }
         if (filament_type.empty()) {
-            filament_type = s_telemetry_lane_material;
+            filament_type = active_material_type();
         }
 
         helix::PrintOutcomeDetail detail;

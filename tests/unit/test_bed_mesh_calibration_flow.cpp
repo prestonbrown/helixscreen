@@ -975,7 +975,7 @@ class BedMeshRunFixture : public BedMeshPanelFlowFixture {
         h.stored = [this](const std::string& profile, std::optional<double> range) {
             stored.emplace_back(profile, range);
         };
-        h.failed = [this](const std::string& why, const std::string& staged) {
+        h.failed = [this](const std::string& why, const std::string& staged, const std::string&) {
             failed.emplace_back(why, staged);
         };
         return h;
