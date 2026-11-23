@@ -182,6 +182,12 @@ class PaTuningOverlay : public OverlayBase {
     void set_kind(helix::pa::ExtruderKind kind);
     void adjust_ramp_k(bool start, int direction);
     void confirm_and_start();
+    /// Hand the chosen head, temperatures and extruder kind to the guided
+    /// nonlinear tuner.
+    void start_nonlinear();
+    /// Whether the chosen head's firmware offers a nonlinear model, and the
+    /// Linear K / Nonlinear choice that follows from it.
+    void refresh_model_choice();
     /// confirm_and_start() once the bed is known clear.
     void confirm_once_bed_clear();
     /// Confirm-dialog options whose callbacks die with this object.
@@ -276,6 +282,11 @@ class PaTuningOverlay : public OverlayBase {
     helix::Subject summary_{};
     char summary_buf_[384] = {};
     helix::Subject can_start_{};
+    helix::Subject nl_available_{};
+    helix::Subject nl_mode_{};
+    /// The user's Linear K / Nonlinear choice; nullopt follows the firmware's
+    /// current model.
+    std::optional<bool> nl_mode_choice_;
 
     helix::Subject k_big_{};
     char k_big_buf_[16] = {};

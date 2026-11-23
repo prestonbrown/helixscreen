@@ -79,9 +79,32 @@
         <lv_obj name="pa_setup_right"
                 width="1" height="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs"
                 scrollable="true">
-          <lv_obj width="100%"
-                  height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
+          <!-- Firmware that can switch pressure-advance models offers its
+               nonlinear model, tuned pass by pass on the firmware's own tower. -->
+          <lv_obj name="pa_model_row"
+                  width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
+                  scrollable="false" hidden="true">
+            <bind_flag_if_eq subject="pa_tune_nl_available" flag="hidden" ref_value="0"/>
+            <ui_button name="pa_model_linear" width="1" height="#button_height_sm" flex_grow="1" text="Linear K">
+              <bind_style_if_eq name="styles.chip_active" subject="pa_tune_nl_mode" ref_value="0"/>
+              <bind_style_if_eq name="styles.chip_idle" subject="pa_tune_nl_mode" ref_value="1"/>
+              <event_cb trigger="clicked" callback="on_pa_tune_model" user_data="0"/>
+            </ui_button>
+            <ui_button name="pa_model_nonlinear" width="1" height="#button_height_sm" flex_grow="1" text="Nonlinear">
+              <bind_style_if_eq name="styles.chip_active" subject="pa_tune_nl_mode" ref_value="1"/>
+              <bind_style_if_eq name="styles.chip_idle" subject="pa_tune_nl_mode" ref_value="0"/>
+              <event_cb trigger="clicked" callback="on_pa_tune_model" user_data="1"/>
+            </ui_button>
+          </lv_obj>
+          <text_small name="pa_nl_summary"
+                      width="100%" long_mode="wrap" style_text_color="#text_muted" hidden="true"
+                      text="A guided series of towers the firmware prints itself, each sweeping one value of the nonlinear model while you judge the slow and fast sides. Three towers for direct drive, four for Bowden.">
+            <bind_flag_if_eq subject="pa_tune_nl_mode" flag="hidden" ref_value="0"/>
+          </text_small>
+          <lv_obj name="pa_start_k_row"
+                  width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
                   style_flex_cross_place="center" scrollable="false">
+            <bind_flag_if_eq subject="pa_tune_nl_mode" flag="hidden" ref_value="1"/>
             <text_small text="Start K" flex_grow="1" style_text_color="#text_muted"/>
             <ui_button name="pa_start_k_down" width="#button_height_sm" height="#button_height_sm" text="-">
               <event_cb trigger="clicked" callback="on_pa_tune_start_k" user_data="-1"/>
@@ -91,9 +114,10 @@
               <event_cb trigger="clicked" callback="on_pa_tune_start_k" user_data="1"/>
             </ui_button>
           </lv_obj>
-          <lv_obj width="100%"
-                  height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
+          <lv_obj name="pa_end_k_row"
+                  width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
                   style_flex_cross_place="center" scrollable="false">
+            <bind_flag_if_eq subject="pa_tune_nl_mode" flag="hidden" ref_value="1"/>
             <text_small text="End K" flex_grow="1" style_text_color="#text_muted"/>
             <ui_button name="pa_end_k_down" width="#button_height_sm" height="#button_height_sm" text="-">
               <event_cb trigger="clicked" callback="on_pa_tune_end_k" user_data="-1"/>
@@ -104,12 +128,20 @@
             </ui_button>
           </lv_obj>
           <text_small name="pa_summary"
-                      width="100%" bind_text="pa_tune_summary" long_mode="wrap" style_text_color="#text_muted"/>
+                      width="100%" bind_text="pa_tune_summary" long_mode="wrap" style_text_color="#text_muted">
+            <bind_flag_if_eq subject="pa_tune_nl_mode" flag="hidden" ref_value="1"/>
+          </text_small>
           <text_small name="pa_error" width="100%" bind_text="pa_tune_error" long_mode="wrap" style_text_color="#danger"/>
           <lv_obj width="100%" flex_grow="1" style_pad_all="0" scrollable="false"/>
           <ui_button name="pa_btn_start" width="100%" icon="play" text="Print Test Tower" moves_machine="true">
+            <bind_flag_if_eq subject="pa_tune_nl_mode" flag="hidden" ref_value="1"/>
             <bind_state_if_eq subject="pa_tune_can_start" state="disabled" ref_value="0"/>
             <event_cb trigger="clicked" callback="on_pa_tune_start"/>
+          </ui_button>
+          <ui_button name="pa_btn_start_nl" width="100%" icon="play" text="Start Guided Tuning" hidden="true">
+            <bind_flag_if_eq subject="pa_tune_nl_mode" flag="hidden" ref_value="0"/>
+            <bind_state_if_eq subject="pa_tune_can_start" state="disabled" ref_value="0"/>
+            <event_cb trigger="clicked" callback="on_pa_tune_start_nonlinear"/>
           </ui_button>
         </lv_obj>
       </lv_obj>

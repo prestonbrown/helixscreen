@@ -272,36 +272,8 @@ std::string generate_test_gcode(const TestPrintParams& p) {
     if (!p.material.empty()) {
         line(fmt::format("; filament_type = {}", p.material));
     }
-    const std::string start_call = start_macro_call(p.macros, p.bed_temp, p.nozzle_temp);
-    const bool macro_heats =
-        !p.macros.start_bed_param.empty() && !p.macros.start_nozzle_param.empty();
-    // The tower's extruder is heated by name: a T parameter on M104/M109 is
-    // an error where tools are lanes, and on a changer it targets a tool, not
-    // a heater.
-    const std::string heat_nozzle =
-        fmt::format("SET_HEATER_TEMPERATURE HEATER={} TARGET={}", p.heater, p.nozzle_temp);
-    line("G90");
-    if (start_call.empty() || !macro_heats) {
-        // Nothing will heat the machine for us, or the macro takes no
-        // temperatures: start heating now. A macro that does take them is left
-        // to its own order, which often probes with a cool nozzle.
-        line(fmt::format("M140 S{}", p.bed_temp));
-        line(heat_nozzle);
-    }
-    if (start_call.empty()) {
-        line("G28");
-    } else {
-        line(start_call);
-        line("G90");
-    }
-    line("M83");
-    line(fmt::format("M190 S{}", p.bed_temp));
-    line(heat_nozzle);
-    // Hot before any tool change: a toolchange purges or wipes.
-    line(heat_wait_line(p.heater, p.nozzle_temp));
-    if (!p.select_head_gcode.empty()) {
-        line(p.select_head_gcode);
-        line(heat_wait_line(p.heater, p.nozzle_temp));
+    for (const auto& l : machine_ready_lines(p)) {
+        line(l);
     }
     line("M107");
     line(fmt::format("SET_PRINT_STATS_INFO TOTAL_LAYER={}", layers));
@@ -365,18 +337,62 @@ std::string generate_test_gcode(const TestPrintParams& p) {
     if (p.restore_k) {
         line(set_pa_gcode(p.heater, *p.restore_k));
     }
-    if (!p.macros.end.empty()) {
-        line(p.macros.end);
+    for (const auto& l : machine_finish_lines(p)) {
+        line(l);
+    }
+    return out;
+}
+
+std::vector<std::string> machine_ready_lines(const TestPrintParams& p) {
+    std::vector<std::string> out;
+    const std::string start_call = start_macro_call(p.macros, p.bed_temp, p.nozzle_temp);
+    const bool macro_heats =
+        !p.macros.start_bed_param.empty() && !p.macros.start_nozzle_param.empty();
+    // The tower's extruder is heated by name: a T parameter on M104/M109 is
+    // an error where tools are lanes, and on a changer it targets a tool, not
+    // a heater.
+    const std::string heat_nozzle =
+        fmt::format("SET_HEATER_TEMPERATURE HEATER={} TARGET={}", p.heater, p.nozzle_temp);
+    out.emplace_back("G90");
+    if (start_call.empty() || !macro_heats) {
+        // Nothing will heat the machine for us, or the macro takes no
+        // temperatures: start heating now. A macro that does take them is left
+        // to its own order, which often probes with a cool nozzle.
+        out.push_back(fmt::format("M140 S{}", p.bed_temp));
+        out.push_back(heat_nozzle);
+    }
+    if (start_call.empty()) {
+        out.emplace_back("G28");
     } else {
-        line("G91");
-        line("G1 Z10 F600");
-        line("G90");
+        out.push_back(start_call);
+        out.emplace_back("G90");
+    }
+    out.emplace_back("M83");
+    out.push_back(fmt::format("M190 S{}", p.bed_temp));
+    out.push_back(heat_nozzle);
+    // Hot before any tool change: a toolchange purges or wipes.
+    out.push_back(heat_wait_line(p.heater, p.nozzle_temp));
+    if (!p.select_head_gcode.empty()) {
+        out.push_back(p.select_head_gcode);
+        out.push_back(heat_wait_line(p.heater, p.nozzle_temp));
+    }
+    return out;
+}
+
+std::vector<std::string> machine_finish_lines(const TestPrintParams& p) {
+    std::vector<std::string> out;
+    if (!p.macros.end.empty()) {
+        out.push_back(p.macros.end);
+    } else {
+        out.emplace_back("G91");
+        out.emplace_back("G1 Z10 F600");
+        out.emplace_back("G90");
     }
     // Cool down even after an end macro: not every one turns everything off.
-    line(fmt::format("SET_HEATER_TEMPERATURE HEATER={} TARGET=0", p.heater));
-    line("M140 S0");
-    line("M107");
-    line("M84");
+    out.push_back(fmt::format("SET_HEATER_TEMPERATURE HEATER={} TARGET=0", p.heater));
+    out.emplace_back("M140 S0");
+    out.emplace_back("M107");
+    out.emplace_back("M84");
     return out;
 }
 

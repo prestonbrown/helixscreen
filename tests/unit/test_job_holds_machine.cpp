@@ -373,6 +373,7 @@ constexpr GuardedFile kGuardedFiles[] = {
     {"ui_xml/components/quick_action_slot.xml", 1},
     {"ui_xml/guided_load_modal.xml", 2},
     {"ui_xml/header_bar.xml", 1},
+    {"ui_xml/pa_nonlinear_overlay.xml", 1},
     {"ui_xml/pa_tuning_overlay.xml", 1},
     {"ui_xml/plr_wizard_overlay.xml", 3},
     {"ui_xml/motion_panel.xml", 8},

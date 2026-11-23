@@ -172,6 +172,15 @@ struct TestPrintParams {
 /// down itself); reports layers with SET_PRINT_STATS_INFO; never sets K.
 std::string generate_test_gcode(const TestPrintParams& p);
 
+/// The lines that ready the machine for a test print: heat, home or run the
+/// start macro, wait for temperature, mount the head. generate_test_gcode()
+/// opens with them; a print the firmware generates sends them first.
+std::vector<std::string> machine_ready_lines(const TestPrintParams& p);
+
+/// The lines that end a test print: the end macro or a lift, then heaters,
+/// fan and motors off.
+std::vector<std::string> machine_finish_lines(const TestPrintParams& p);
+
 /// Rough wall-clock for the print itself, heat-up excluded.
 int estimate_print_seconds(const TestPrintParams& p);
 

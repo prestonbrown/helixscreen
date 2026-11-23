@@ -1,6 +1,7 @@
 locale: ja
 translations:
   '%d-%d': '%d〜%d'
+  ' (again, {} of {})': ''
   ' (timed out)': （タイムアウト）
   ' frames': ' フレーム'
   ' left': ' 残り'
@@ -211,6 +212,8 @@ translations:
   A first-layer offset and bed mesh for each material: "素材ごとの1層目オフセットとベッドメッシュ"
   A folder name in moonraker.conf is unsafe.: "moonraker.conf のフォルダー名が安全ではありません。"
   A grid marks a material with a stored bed mesh, loaded at print start for prints that do not mesh.: "グリッドは保存済みベッドメッシュのある素材を示します。メッシュを取らない印刷の開始時に読み込まれます。"
+  ? A guided series of towers the firmware prints itself, each sweeping one value of the nonlinear model while you judge the slow and fast sides. Three towers for direct drive, four for Bowden.
+  : ''
   A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.: 'プリンターにヒートソークのマクロが設定されています。HelixScreenは検出しますが実行はしません。'
   ? A heated bed expands with temperature, so each material can keep its own first-layer offset. The print-start macro applies it, and a Save during a print changes only that print's material.
   : "加熱ベッドは温度で膨張するため、素材ごとに1層目のオフセットを持てます。印刷開始マクロがそれを適用し、印刷中の保存はその印刷の素材だけを変更します。"
@@ -356,13 +359,16 @@ translations:
   Add Hidden Network: 非公開ネットワークを追加
   Add Part Fan to MPC: 'パーツファンをMPCに追加'
   Add Printer: プリンターを追加
+  Add Tower to Config: ''
   Add Vendor: ベンダーを追加
   Add Widget: ウィジェットを追加
   Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with: printer.cfg に [include helix-plr/*.cfg] を追加し、再開時に印刷開始時のメッシュを読み込み直します
+  Add and Restart: ''
   Add custom filament: カスタムフィラメントを追加
   Add new: "新規追加"
   Add page: 'ページを追加'
   Add part fan to MPC?: 'パーツファンをMPCに追加しますか?'
+  Add the test tower to the config?: ''
   Add to Mainsail/Fluidd Webcams: 'Mainsail/Fluiddのウェブカメラに追加'
   Add to Queue: キューに追加
   Added: 追加済み
@@ -409,6 +415,7 @@ translations:
   All fields are required: すべての項目が必須です
   All healthy: すべて正常
   All lights: すべてのライト
+  All passes done: ''
   All set: 準備完了
   All steps done: 'すべてのステップが完了'
   All time: '全期間'
@@ -626,6 +633,7 @@ translations:
   Belts: "ベルト"
   Belts already match: "ベルトはすでに一致しています"
   Belts stretch and settle; loose ones cause ringing and layer shifts.: "ベルトは伸びてなじみます。緩むとリンギングや層ズレの原因に。"
+  Best height, measured up from the plate: ''
   Beta: ベータ
   'Beta features: OFF': 'ベータ機能: OFF'
   'Beta features: ON': 'ベータ機能: ON'
@@ -1056,6 +1064,7 @@ translations:
   Clear the extruder?: 'エクストルーダーを空にしますか？'
   Clear the nozzle and the part, then restart the firmware.: ノズルと造形物の周りを片付けてから、ファームウェアを再起動してください。
   Clear the nozzle and the purge chute, load {}, then resume.: ノズルとパージシュートを掃除し、{} を装填してから再開してください。
+  Clear the plate and load {}. The firmware prints its tower in the middle of the bed while it sweeps {}.: ''
   Clear the plate and load {}. The tower prints in the middle of the bed.: ベッドを片付けて{}をロードしてください。タワーはベッド中央に印刷されます。
   Clear {}?: '{}をクリアしますか？'
   Cleared: クリア済み
@@ -2544,6 +2553,9 @@ translations:
   Jog speeds and step distances: ジョグ速度とステップ距離
   Join the HelixScreen community on Discord for discussion, tips, troubleshooting help, and feature requests.: Discord で HelixScreen コミュニティに参加して、ディスカッション、ヒント、トラブルシューティング支援、機能リクエストを共有しましょう。
   Joining Wi-Fi disconnects the wired network.: WiFi に接続すると、有線ネットワークが切断されます。
+  ? Judge the front, the fast side. Note the height where it looks cleanest; light it from the side, the differences are small.
+  : ''
+  Judge the left side, where the tower switches between slow and fast. Note the height where those changes look cleanest.: ''
   Just now: たった今
   Just queued: 'たった今キューへ追加'
   K so far: '現在の K'
@@ -2559,6 +2571,7 @@ translations:
   Keep clear of the printer while the toolhead is moving: ツールヘッドが動いている間はプリンターから離れてください
   Keep current: 現状維持
   Keep current ({}): 現在の値を維持 ({})
+  Keep for Now: ''
   Keep hands clear: '手を近づけないでください'
   Keep hands clear except when asked. The printer moves on its own.: 指示があるとき以外は手を近づけないでください。プリンターは自動で動きます。
   Keep hands clear. The printer moves on its own.: 手を近づけないでください。プリンターは自動で動きます。
@@ -2695,6 +2708,8 @@ translations:
   Leave this off for a clogged nozzle.: "ノズルが詰まっている場合はオフのままにしてください。"
   LedSelect: LEDを選択
   Left: '左'
+  Left Best Higher: ''
+  Left Best Lower: ''
   Left belt: "左ベルト"
   Leftover material found: '残留物が見つかりました'
   Length of filament to purge: 'パージするフィラメントの長さ'
@@ -2717,6 +2732,10 @@ translations:
   Line the nozzle up with the purge chute so purged filament drops straight in.: パージシュートにノズルを合わせ、パージされたフィラメントがまっすぐ落ちるようにします。
 
   Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer.: '{} 行目で {} を実行します。このプリンターでは緊急停止とみなされます。このプリンター用のプロファイルでファイルを再スライスしてください。'
+  Linear K: ''
+  Linear advance: ''
+  ? "Linear advance {}\nNonlinear offset {}\nVelocity {:.1f}\nTime offset {}"
+  : ''
   Linear rails: 'リニアレール'
   Linear rails interval: 'リニアレールの間隔'
   Lines from other apps mix with tips: '他のアプリからの一言をヒントに混ぜて表示'
@@ -3236,6 +3255,10 @@ translations:
   No width sensor detected: '幅センサーが検出されません'
   None: なし
   None (disable): なし (無効)
+  Nonlinear: ''
+  Nonlinear Pressure Advance: ''
+  Nonlinear offset: ''
+  Nonlinear pressure advance saved: ''
   Normal: 標準
   Not Connected: '接続されていません'
   Not Enough Filament: フィラメントが不足しています
@@ -3275,6 +3298,7 @@ translations:
   Not while printing: '印刷中は変更できません'
   Not yet available on this display: 'このディスプレイではまだ利用できません'
   Not yet calibrated: 未キャリブレーション
+  Note where the left side looks best and where the front looks best. When they match, that height is the answer.: ''
   Notes: メモ
   Notes (optional): メモ（オプション）
   Nothing due · about {} min: '実行が必要なものはありません · 約{}分'
@@ -3485,6 +3509,7 @@ translations:
   Partial…: 使いかけ…
   Pass: "パス"
   Pass the missing parameter from the slicer's start G-code, or give it a default in the macro.: スライサーの開始 G-code から不足しているパラメーターを渡すか、マクロに既定値を設定してください。
+  'Pass {} of {}: {}': ''
   Password: パスワード
   Password cannot be empty: パスワードを入力してください
   Password is required for secured networks: セキュリティ保護されたネットワークにはパスワードが必要です
@@ -3680,6 +3705,7 @@ translations:
   Print Status: 印刷ステータス
   Print Test Tower: テストタワーを印刷
   Print Time: 印刷時間
+  Print Tower: ''
   Print Tuning: 印刷チューニング
   Print Was Terminated: 印刷が中止されました
   Print a test tower and tune K by eye: テストタワーを印刷して目視でKを調整
@@ -4232,6 +4258,7 @@ translations:
   : 'セーフモード: 起動時にアプリがクラッシュし続けたため、プラグインは無効になり、ウィジェットのレイアウトはデフォルトで表示されています。再起動すると通常に戻ります。'
   Safety & Alerts: 安全とアラート
   Same Filament, New Spool: '同じフィラメント、新規スプール'
+  Same Height: ''
   Same filament: '同じフィラメント'
   Same part-fan change, both methods: 同じパーツファン変化での両方式
   Same spool in {}? Tap Clear if it is a new one.: '{} は同じスプールですか？新しいスプールならクリアをタップしてください。'
@@ -4261,9 +4288,11 @@ translations:
   Save offsets?: オフセットを保存しますか？
   Save the new heater values to printer.cfg?: 新しいヒーター値をprinter.cfgに保存しますか？
   Save the new heater values to printer.cfg? Klipper restarts.: 新しいヒーター値をprinter.cfgに保存しますか？Klipperが再起動します。
+  Save to Config: ''
   Save to Spool: スプールに保存
   Save to Spoolman: Spoolman に保存
   Save writes the print's material; off, it saves one offset for every print: "保存は印刷中の素材に書き込みます。オフにすると全印刷で1つのオフセットを保存します"
+  Save writes these values to the extruder's config section and restarts Klipper. Keep runs them until the next restart.: ''
   Save {} mm for {}? Other materials keep their own offsets.: "{} mm を {} に保存しますか？他の素材のオフセットは変わりません。"
   Saved Z-Offset: 保存されたZ-Offset
   Saved for the mounted head; other heads keep their own: '装着中のツールヘッドに保存されます。他のツールヘッドは各自の値を保持します'
@@ -4649,6 +4678,7 @@ translations:
   Start Anyway: このまま開始
   Start Calibration: キャリブレーション開始
   Start Drying: 乾燥開始
+  Start Guided Tuning: ''
   Start Heating: "加熱開始"
   Start K: 開始K
   Start Print: 印刷を開始
@@ -4707,6 +4737,7 @@ translations:
   Stop: 停止
   Stop Drying: 乾燥を停止
   Stop Print?: 印刷を停止しますか？
+  Stop Tower: ''
   Stop calibration: 'キャリブレーションを停止'
   Stop calibration?: 'キャリブレーションを停止しますか？'
   Stop drying?: 乾燥を停止しますか?
@@ -4717,6 +4748,7 @@ translations:
   Stop reloading the saved bed mesh?: 保存されたベッドメッシュの再読み込みを停止しますか？
   Stop the check?: チェックを停止しますか？
   Stop the running cycle before starting another: '新しく開始する前に、実行中のサイクルを停止してください'
+  Stop the tower?: ''
   ? Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
   : ホストのウェブカメラ、タイムラプス、余分なサービスを停止し、電源と SD カードを確認してから、ファームウェアを再起動してください。同じ箇所で再発する場合は、速度またはマイクロステップを下げてください。
   Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "ノズルとベッドの間で紙が軽く引っかかったら止めます。"
@@ -5032,6 +5064,9 @@ translations:
   The file's checksum does not match its contents, so the upload was corrupted. The print was canceled.: ファイルのチェックサムが内容と一致しないため、アップロードが破損しています。印刷はキャンセルされました。
   ? The firmware could not read or write the driver for {1}. Motor power being off (UART drivers need it), a driver not seated or a wrong pin in the configuration can cause it.
   : ファームウェアが {1} のドライバーを読み書きできませんでした。モーター電源がオフ（UART ドライバーには必要）、ドライバーの取り付け不良、または設定のピンの誤りが原因として考えられます。
+  ? The firmware's pressure advance tower needs a [pa_test] section in printer.cfg. HelixScreen adds it with a backup and restarts Klipper.
+  : ''
+  The firmware's test tower is not in the printer's config. Adding it writes one section and restarts Klipper.: ''
   ? The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong.
   : ガントリーに {1} mm の補正が必要で、許容値 {2} mm を超えています。大きく傾いている（衝突後や電源オフ中のたわみ）か、プローブ点や Z モーターの順序が間違っています。
   The gap didn't close (moved {:.1f} Hz). Try a bigger turn.: "差が縮まりませんでした({:.1f} Hz移動)。もっと大きく回してください。"
@@ -5130,6 +5165,7 @@ translations:
   The print already moved to another toolhead: '印刷はすでに別のツールヘッドに移っています'
   The print ended before any layer was printed. Nothing was changed.: レイヤーが印刷される前に印刷が終了しました。何も変更されていません。
   The print file is damaged: 印刷ファイルが破損しています
+  The print is canceled and you judge what has printed so far.: ''
   The print is canceled and you pick the best band from what has printed so far.: 印刷をキャンセルし、ここまで印刷された中から最適な区間を選びます。
   The print is no longer paused: '印刷はもう一時停止していません'
   The print is on its last layer.: '最後のレイヤーを印刷中です。'
@@ -5244,6 +5280,7 @@ translations:
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: 'サブネットマスクが無効です。255.255.255.0 や 24 のような形式で入力してください。'
   The temperature was changed elsewhere.: "温度が別の場所で変更されました。"
   The tensioners pull each belt to its target: 'テンショナーが各ベルトを目標まで引っ張ります'
+  The test tower is not in the printer's config yet.: ''
   The thermocouple or PT100 amplifier reported a fault or a reading out of range.: 熱電対または PT100 アンプが異常または範囲外の値を報告しました。
   The time, date, and system uptime: 時間、日付、稼働時間
   The timelapse could not be downloaded: 'タイムラプスをダウンロードできませんでした'
@@ -5275,6 +5312,7 @@ translations:
   The toolheads have changed enough times since their last maintenance.: '前回のメンテナンス以降、ツールヘッドの交換回数が規定に達しました。'
   The toolheads' docked and picked-up states do not add up.: 'ツールヘッドのドック中と装着中の状態が一致しません。'
   The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing.: 'トップカバーが外れました。印刷品質のため、続行する前にトップカバーを接続してください。'
+  The tower stopped with an error. Nothing was changed.: ''
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: ユニットは既に別の処理を実行中です。完了を待つか、固まったままの場合は CFS をリセットしてください
   The unit reported a fault with no further detail. Restart the printer if it repeats: ユニットが詳細不明の障害を報告しました。繰り返す場合はプリンターを再起動してください
   The unit whose drawing to set: '図を設定するユニット'
@@ -5470,6 +5508,7 @@ translations:
   Tighten {}: "{}を締める"
   Time: 時間
   Time Format: 時間形式
+  Time offset: ''
   Time to wait before escalating to emergency stop: 緊急停止にエスカレートするまでの待機時間
   'Time: ': '時刻: '
   Timelapse: タイムラプス
@@ -5748,6 +5787,7 @@ translations:
   Use G10/G11 firmware retraction: G10/G11 ファームウェアリトラクションを使用
   Use Hyperlapse: 'ハイパーラプスを使う'
   Use New Address: '新しいアドレスを使用'
+  Use This Height: ''
   Use Unload before Eject: '先に「アンロード」してから「排出」してください'
   Use as bypass: "バイパスとして使用"
   Use existing: "既存を使用"
@@ -5762,6 +5802,7 @@ translations:
   VM Size: VM サイズ
   Validating bed mesh...: ベッドメッシュを検証中...
   Value must be between {} and {}: 値は {} から {} の間で入力してください
+  Values: ''
   Values must not be negative: 値は負の数にできません
   Velocity and acceleration limits: 速度と加速度の制限
   Vendor: ベンダー
@@ -5923,6 +5964,7 @@ translations:
   Wizard Error: ウィザードエラー
   Working...: 処理中...
   Write failed at chunk {}: チャンク {} で書き込みに失敗しました
+  Writing printer.cfg and restarting Klipper: ''
   Wrong PIN: PIN が違います
   Wrong State: '状態が不正です'
   Wrong media: 不正なメディア
@@ -6257,6 +6299,7 @@ translations:
   '{} accelerometers': 加速度センサー {} 個
   '{} and {}': '{}と{}'
   '{} and {} are both mapped here': '{} と {} の両方がここに割り当てられています'
+  '{} at {:.1f} mm': ''
   '{} auto-feed setting not applied': '{} の自動供給設定が適用されませんでした'
   '{} available': '{} が利用可能'
   '{} axes homed': '{} 軸がホーミング済み'

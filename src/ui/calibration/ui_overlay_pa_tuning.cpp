@@ -7,6 +7,7 @@
 #include "ui_error_reporting.h"
 #include "ui_modal.h"
 #include "ui_nav.h"
+#include "ui_overlay_pa_nonlinear.h"
 #include "ui_panel_print_select.h"
 #include "ui_print_start_controller.h"
 #include "ui_print_tune_overlay.h"
@@ -121,6 +122,8 @@ void PaTuningOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_STRING(end_k_, end_k_buf_, "0.1000", "pa_tune_end_k", subjects_);
         UI_MANAGED_SUBJECT_STRING(summary_, summary_buf_, "", "pa_tune_summary", subjects_);
         UI_MANAGED_SUBJECT_INT(can_start_, 1, "pa_tune_can_start", subjects_);
+        UI_MANAGED_SUBJECT_INT(nl_available_, 0, "pa_tune_nl_available", subjects_);
+        UI_MANAGED_SUBJECT_INT(nl_mode_, 0, "pa_tune_nl_mode", subjects_);
 
         UI_MANAGED_SUBJECT_STRING(k_big_, k_big_buf_, "--", "pa_tune_k_big", subjects_);
         UI_MANAGED_SUBJECT_STRING(layer_text_, layer_text_buf_, "", "pa_tune_layer_text",
@@ -164,6 +167,7 @@ void PaTuningOverlay::register_callbacks() {
              auto& self = get_global_pa_tuning_overlay();
              if (self.stage_ == SETUP) {
                  self.heads_.select(user_int(e));
+                 self.refresh_model_choice();
              }
          }},
         {"on_pa_tune_preset",
@@ -194,6 +198,16 @@ void PaTuningOverlay::register_callbacks() {
          [](lv_event_t* e) { get_global_pa_tuning_overlay().adjust_ramp_k(false, user_int(e)); }},
         {"on_pa_tune_start",
          [](lv_event_t*) { get_global_pa_tuning_overlay().confirm_and_start(); }},
+        {"on_pa_tune_model",
+         [](lv_event_t* e) {
+             auto& self = get_global_pa_tuning_overlay();
+             if (self.stage_ == SETUP) {
+                 self.nl_mode_choice_ = user_int(e) == 1;
+                 self.refresh_model_choice();
+             }
+         }},
+        {"on_pa_tune_start_nonlinear",
+         [](lv_event_t*) { get_global_pa_tuning_overlay().start_nonlinear(); }},
         {"on_pa_tune_nudge",
          [](lv_event_t* e) { get_global_pa_tuning_overlay().nudge(user_int(e)); }},
         {"on_pa_tune_step",
@@ -415,7 +429,37 @@ std::optional<helix::pa::PrintArea> PaTuningOverlay::printable_area() {
     return helix::pa::printable_area(src);
 }
 
+void PaTuningOverlay::refresh_model_choice() {
+    const auto model =
+        get_printer_state().temperature_state().extruder_pa_model(chosen_head().extruder);
+    const bool available = model.selectable();
+    lv_subject_set_int(&nl_available_, available ? 1 : 0);
+    lv_subject_set_int(&nl_mode_, available && nl_mode_choice_.value_or(model.nonlinear()) ? 1 : 0);
+}
+
+void PaTuningOverlay::start_nonlinear() {
+    if (stage_ != SETUP || lv_subject_get_int(&nl_mode_) != 1) {
+        return;
+    }
+    if (job_holds_machine(get_printer_state().print_state().get_print_lifecycle())) {
+        fail_start(lv_tr("A print is already running."));
+        return;
+    }
+    if (refuse_blocked_nozzle()) {
+        return;
+    }
+    const auto params = build_params();
+    if (refuse_unmountable_head(params)) {
+        return;
+    }
+    lv_subject_set_string(&error_, "");
+    auto& nl = get_global_pa_nonlinear_overlay();
+    nl.set_api(api_);
+    nl.begin(params, kind_);
+}
+
 void PaTuningOverlay::refresh_setup() {
+    refresh_model_choice();
     lv_subject_set_string(&start_k_, helix::pa::format_k(ramp_.start_k).c_str());
     lv_subject_set_string(&end_k_, helix::pa::format_k(ramp_.end_k).c_str());
 

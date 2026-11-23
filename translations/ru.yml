@@ -1,6 +1,7 @@
 locale: ru
 translations:
   '%d-%d': '%d-%d'
+  ' (again, {} of {})': ''
   ' (timed out)': ' (время ожидания истекло)'
   ' frames': ' кадров'
   ' left': ' осталось'
@@ -259,6 +260,8 @@ translations:
   A first-layer offset and bed mesh for each material: "Смещение первого слоя и сетка стола для каждого материала"
   A folder name in moonraker.conf is unsafe.: "Имя папки в moonraker.conf небезопасно."
   A grid marks a material with a stored bed mesh, loaded at print start for prints that do not mesh.: "Сетка отмечает материал с сохранённой сеткой стола, которая загружается при старте печати без построения сетки."
+  ? A guided series of towers the firmware prints itself, each sweeping one value of the nonlinear model while you judge the slow and fast sides. Three towers for direct drive, four for Bowden.
+  : ''
   A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.: 'На принтере настроен макрос прогрева (heat soak). HelixScreen обнаруживает его, но не запускает.'
   ? A heated bed expands with temperature, so each material can keep its own first-layer offset. The print-start macro applies it, and a Save during a print changes only that print's material.
   : "Нагретый стол расширяется с температурой, поэтому у каждого материала может быть своё смещение первого слоя. Стартовый макрос применяет его, а сохранение во время печати меняет только материал этой печати."
@@ -404,13 +407,16 @@ translations:
   Add Hidden Network: Добавить скрытую сеть
   Add Part Fan to MPC: 'Добавить вентилятор детали в MPC'
   Add Printer: Добавить принтер
+  Add Tower to Config: ''
   Add Vendor: Добавить производителя
   Add Widget: Добавить виджет
   Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with: Добавляет [include helix-plr/*.cfg] в printer.cfg, чтобы при возобновлении снова загружалась сетка, с которой началась печать
+  Add and Restart: ''
   Add custom filament: Добавить свой филамент
   Add new: "Добавить новый"
   Add page: 'Добавить страницу'
   Add part fan to MPC?: 'Добавить вентилятор детали в MPC?'
+  Add the test tower to the config?: ''
   Add to Mainsail/Fluidd Webcams: 'Добавить в веб-камеры Mainsail/Fluidd'
   Add to Queue: Добавить в очередь
   Added: Добавлено
@@ -457,6 +463,7 @@ translations:
   All fields are required: Все поля обязательны для заполнения
   All healthy: Всё в порядке
   All lights: Вся подсветка
+  All passes done: ''
   All set: Всё готово
   All steps done: 'Все шаги выполнены'
   All time: 'За всё время'
@@ -682,6 +689,7 @@ translations:
   Belts: "Ремни"
   Belts already match: "Ремни уже совпадают"
   Belts stretch and settle; loose ones cause ringing and layer shifts.: "Ремни растягиваются и садятся; слабые вызывают рябь и смещение слоёв."
+  Best height, measured up from the plate: ''
   Beta: Бета
   'Beta features: OFF': 'Beta-функции: ВЫКЛ'
   'Beta features: ON': 'Beta-функции: ВКЛ'
@@ -1112,6 +1120,7 @@ translations:
   Clear the extruder?: 'Очистить экструдер?'
   Clear the nozzle and the part, then restart the firmware.: Освободите сопло и деталь, затем перезапустите прошивку.
   Clear the nozzle and the purge chute, load {}, then resume.: Очистите сопло и лоток прочистки, загрузите {}, затем продолжите.
+  Clear the plate and load {}. The firmware prints its tower in the middle of the bed while it sweeps {}.: ''
   Clear the plate and load {}. The tower prints in the middle of the bed.: Освободите стол и загрузите {}. Башня печатается в центре стола.
   Clear {}?: 'Очистить {}?'
   Cleared: Очищено
@@ -2608,6 +2617,9 @@ translations:
   Jog speeds and step distances: Скорости и шаги перемещения
   Join the HelixScreen community on Discord for discussion, tips, troubleshooting help, and feature requests.: Присоединяйтесь к сообществу HelixScreen в Discord для обсуждений, советов, помощи в устранении неполадок и предложений новых функций.
   Joining Wi-Fi disconnects the wired network.: Подключение к Wi-Fi отключает проводную сеть.
+  ? Judge the front, the fast side. Note the height where it looks cleanest; light it from the side, the differences are small.
+  : ''
+  Judge the left side, where the tower switches between slow and fast. Note the height where those changes look cleanest.: ''
   Just now: Только что
   Just queued: 'Только что в очереди'
   K so far: 'Текущее K'
@@ -2623,6 +2635,7 @@ translations:
   Keep clear of the printer while the toolhead is moving: Не приближайтесь к принтеру, пока перемещается печатающая головка
   Keep current: Оставить текущую
   Keep current ({}): Оставить текущее ({})
+  Keep for Now: ''
   Keep hands clear: 'Держите руки подальше'
   Keep hands clear except when asked. The printer moves on its own.: Держите руки подальше, если не появится запрос. Принтер двигается сам.
   Keep hands clear. The printer moves on its own.: Держите руки подальше. Принтер двигается сам.
@@ -2759,6 +2772,8 @@ translations:
   Leave this off for a clogged nozzle.: "Если сопло забито, оставьте это выключенным."
   LedSelect: Выбрать LED
   Left: 'Слева'
+  Left Best Higher: ''
+  Left Best Lower: ''
   Left belt: "Левый ремень"
   Leftover material found: 'Обнаружены остатки материала'
   Length of filament to purge: 'Длина филамента для прочистки'
@@ -2781,6 +2796,10 @@ translations:
   Line the nozzle up with the purge chute so purged filament drops straight in.: Выровняйте сопло над лотком прочистки, чтобы выдавленный филамент падал прямо внутрь.
 
   Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer.: 'Строка {} вызывает {}, что этот принтер считает аварийной остановкой. Нарежьте файл заново с профилем для этого принтера.'
+  Linear K: ''
+  Linear advance: ''
+  ? "Linear advance {}\nNonlinear offset {}\nVelocity {:.1f}\nTime offset {}"
+  : ''
   Linear rails: 'Линейные направляющие'
   Linear rails interval: 'Интервал линейных направляющих'
   Lines from other apps mix with tips: 'Строки из других приложений чередуются с советами'
@@ -3300,6 +3319,10 @@ translations:
   No width sensor detected: 'Датчик диаметра не обнаружен'
   None: Нет
   None (disable): Нет (отключить)
+  Nonlinear: ''
+  Nonlinear Pressure Advance: ''
+  Nonlinear offset: ''
+  Nonlinear pressure advance saved: ''
   Normal: Обычная
   Not Connected: 'Не подключено'
   Not Enough Filament: Недостаточно филамента
@@ -3339,6 +3362,7 @@ translations:
   Not while printing: 'Недоступно во время печати'
   Not yet available on this display: 'Пока недоступно на этом дисплее'
   Not yet calibrated: Ещё не откалибровано
+  Note where the left side looks best and where the front looks best. When they match, that height is the answer.: ''
   Notes: Заметки
   Notes (optional): Заметки (необязательно)
   Nothing due · about {} min: 'Ничего не требуется · около {} мин'
@@ -3549,6 +3573,7 @@ translations:
   Partial…: Частично…
   Pass: "Проход"
   Pass the missing parameter from the slicer's start G-code, or give it a default in the macro.: Передайте недостающий параметр из стартового G-code слайсера или задайте для него значение по умолчанию в макросе.
+  'Pass {} of {}: {}': ''
   Password: Пароль
   Password cannot be empty: Пароль не может быть пустым
   Password is required for secured networks: Для защищённых сетей требуется пароль
@@ -3752,6 +3777,7 @@ translations:
   Print Status: Статус печати
   Print Test Tower: Печать тестовой башни
   Print Time: Время печати
+  Print Tower: ''
   Print Tuning: Настройка печати
   Print Was Terminated: Печать была прекращена
   Print a test tower and tune K by eye: Напечатать тестовую башню и подобрать K на глаз
@@ -4312,6 +4338,7 @@ translations:
   : 'Безопасный режим: приложение постоянно аварийно завершалось при запуске, поэтому плагины отключены, а раскладки виджетов показаны по умолчанию. Перезапустите, чтобы вернуться к обычному режиму.'
   Safety & Alerts: Безопасность и оповещения
   Same Filament, New Spool: 'Тот же филамент, новая катушка'
+  Same Height: ''
   Same filament: 'Тот же филамент'
   Same part-fan change, both methods: Одно и то же изменение вентилятора, оба метода
   Same spool in {}? Tap Clear if it is a new one.: 'Та же катушка в {}? Нажмите «Очистить», если это новая.'
@@ -4341,9 +4368,11 @@ translations:
   Save offsets?: Сохранить смещения?
   Save the new heater values to printer.cfg?: Сохранить новые значения нагревателя в printer.cfg?
   Save the new heater values to printer.cfg? Klipper restarts.: Сохранить новые значения нагревателя в printer.cfg? Klipper перезапустится.
+  Save to Config: ''
   Save to Spool: Сохранить на катушку
   Save to Spoolman: Сохранить в Spoolman
   Save writes the print's material; off, it saves one offset for every print: "Сохранение пишет материал печати; выкл. — одно смещение для всех печатей"
+  Save writes these values to the extruder's config section and restarts Klipper. Keep runs them until the next restart.: ''
   Save {} mm for {}? Other materials keep their own offsets.: "Сохранить {} мм для {}? Другие материалы сохранят свои смещения."
   Saved Z-Offset: Сохранённый Z-Offset
   Saved for the mounted head; other heads keep their own: 'Сохранено для установленной печатающей головки; остальные головки сохраняют своё'
@@ -4737,6 +4766,7 @@ translations:
   Start Anyway: Начать всё равно
   Start Calibration: Начать калибровку
   Start Drying: Начать сушку
+  Start Guided Tuning: ''
   Start Heating: "Начать нагрев"
   Start K: Начальный K
   Start Print: Начать печать
@@ -4795,6 +4825,7 @@ translations:
   Stop: Стоп
   Stop Drying: Остановить сушку
   Stop Print?: Остановить печать?
+  Stop Tower: ''
   Stop calibration: 'Остановить калибровку'
   Stop calibration?: 'Остановить калибровку?'
   Stop drying?: Остановить сушку?
@@ -4805,6 +4836,7 @@ translations:
   Stop reloading the saved bed mesh?: Больше не загружать сохранённую сетку?
   Stop the check?: Остановить проверку?
   Stop the running cycle before starting another: 'Остановите текущий цикл, прежде чем запускать новый'
+  Stop the tower?: ''
   ? Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
   : Остановите веб-камеры, таймлапсы и лишние службы на хосте, проверьте его блок питания и SD-карту, затем перезапустите прошивку. Если это снова происходит в том же месте, снизьте скорость или микрошаг.
   Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "Остановитесь, когда бумага начнёт слегка цепляться между соплом и столом."
@@ -5120,6 +5152,9 @@ translations:
   The file's checksum does not match its contents, so the upload was corrupted. The print was canceled.: Контрольная сумма файла не совпадает с его содержимым, значит файл повреждён при загрузке. Печать отменена.
   ? The firmware could not read or write the driver for {1}. Motor power being off (UART drivers need it), a driver not seated or a wrong pin in the configuration can cause it.
   : Прошивка не смогла прочитать или записать драйвер {1}. Причиной может быть выключенное питание моторов (оно нужно драйверам UART), плохо установленный драйвер или неверный пин в конфигурации.
+  ? The firmware's pressure advance tower needs a [pa_test] section in printer.cfg. HelixScreen adds it with a backup and restarts Klipper.
+  : ''
+  The firmware's test tower is not in the printer's config. Adding it writes one section and restarts Klipper.: ''
   ? The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong.
   : Порталу нужна коррекция {1} мм, больше допустимых {2} мм. Он сильно перекошен (после удара или провиснув при выключенном питании) или неверны точки зондирования либо порядок моторов Z.
   The gap didn't close (moved {:.1f} Hz). Try a bigger turn.: "Разница не сократилась (сдвиг {:.1f} Гц). Поверните сильнее."
@@ -5218,6 +5253,7 @@ translations:
   The print already moved to another toolhead: 'Печать уже перешла на другую печатающую головку'
   The print ended before any layer was printed. Nothing was changed.: Печать завершилась до первого слоя. Ничего не изменено.
   The print file is damaged: Файл печати повреждён
+  The print is canceled and you judge what has printed so far.: ''
   The print is canceled and you pick the best band from what has printed so far.: Печать будет отменена, и вы выберете лучшую полосу из уже напечатанного.
   The print is no longer paused: 'Печать больше не на паузе'
   The print is on its last layer.: 'Печатается последний слой.'
@@ -5332,6 +5368,7 @@ translations:
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: 'Недопустимая маска подсети. Используйте формат вроде 255.255.255.0 или 24.'
   The temperature was changed elsewhere.: "Температуру изменили в другом месте."
   The tensioners pull each belt to its target: 'Натяжители тянут каждый ремень до целевого натяжения'
+  The test tower is not in the printer's config yet.: ''
   The thermocouple or PT100 amplifier reported a fault or a reading out of range.: Усилитель термопары или PT100 сообщил о неисправности или показаниях вне диапазона.
   The time, date, and system uptime: Время, дата и время работы системы
   The timelapse could not be downloaded: 'Не удалось загрузить таймлапс'
@@ -5363,6 +5400,7 @@ translations:
   The toolheads have changed enough times since their last maintenance.: 'С последнего обслуживания печатающие головки сменились достаточно раз.'
   The toolheads' docked and picked-up states do not add up.: 'Состояния «в доке» и «на каретке» печатающих головок не сходятся.'
   The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing.: 'Верхняя крышка отключена. Для качества печати подключите её, прежде чем продолжить.'
+  The tower stopped with an error. Nothing was changed.: ''
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: Блок уже выполняет другую операцию. Дождитесь её завершения или сбросьте CFS, если он завис
   The unit reported a fault with no further detail. Restart the printer if it repeats: Блок сообщил о неисправности без подробностей. Если повторится, перезапустите принтер
   The unit whose drawing to set: 'Узел, для которого выбирается рисунок'
@@ -5558,6 +5596,7 @@ translations:
   Tighten {}: "Натянуть {}"
   Time: Время
   Time Format: Формат времени
+  Time offset: ''
   Time to wait before escalating to emergency stop: Время ожидания перед эскалацией до аварийной остановки
   'Time: ': 'Время: '
   Timelapse: Таймлапс
@@ -5836,6 +5875,7 @@ translations:
   Use G10/G11 firmware retraction: Использовать аппаратный ретракт G10/G11
   Use Hyperlapse: 'Гиперлапс'
   Use New Address: 'Использовать новый адрес'
+  Use This Height: ''
   Use Unload before Eject: 'Используйте «Выгрузить» перед «Извлечь»'
   Use as bypass: "Использовать как обход"
   Use existing: "Использовать имеющийся"
@@ -5850,6 +5890,7 @@ translations:
   VM Size: Размер VM
   Validating bed mesh...: Валидация сетки стола...
   Value must be between {} and {}: Значение должно быть от {} до {}
+  Values: ''
   Values must not be negative: Значения не должны быть отрицательными
   Velocity and acceleration limits: Ограничения скорости и ускорения
   Vendor: Производитель
@@ -6011,6 +6052,7 @@ translations:
   Wizard Error: Ошибка мастера
   Working...: Выполнение...
   Write failed at chunk {}: Не удалось записать в блоке {}
+  Writing printer.cfg and restarting Klipper: ''
   Wrong PIN: Неверный PIN
   Wrong State: 'Неверное состояние'
   Wrong media: Неверный носитель
@@ -6349,6 +6391,7 @@ translations:
   '{} accelerometers': 'Акселерометров: {}'
   '{} and {}': '{} и {}'
   '{} and {} are both mapped here': '{} и {} оба назначены сюда'
+  '{} at {:.1f} mm': ''
   '{} auto-feed setting not applied': '{}: настройка автоподачи не применена'
   '{} available': Доступна версия {}
   '{} axes homed': 'Оси {} запаркованы'
