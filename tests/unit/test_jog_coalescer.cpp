@@ -109,6 +109,21 @@ TEST_CASE("clamp_jog_delta: clamps target to envelope", "[jog_coalescer]") {
                Catch::Matchers::WithinAbs(-1.0, 1e-9));
 }
 
+TEST_CASE("clamp_jog_delta: a head parked past the max keeps its step toward the bed",
+          "[jog_coalescer]") {
+    // A K2 parked at the brush: Y 370 past a 352 print-area limit. A small
+    // step back toward the bed moves exactly that step, not out to the edge.
+    CHECK_THAT(helix::clamp_jog_delta(370.0, 0.0, -0.1, -6.2, 352.0),
+               Catch::Matchers::WithinAbs(-0.1, 1e-9));
+    CHECK_THAT(helix::clamp_jog_delta(370.0, 0.0, -10.0, -6.2, 352.0),
+               Catch::Matchers::WithinAbs(-10.0, 1e-9));
+    // A step further out stays refused.
+    CHECK(helix::clamp_jog_delta(370.0, 0.0, 1.0, -6.2, 352.0) == 0.0);
+    // The min edge still binds a long step from there.
+    CHECK_THAT(helix::clamp_jog_delta(370.0, 0.0, -400.0, -6.2, 352.0),
+               Catch::Matchers::WithinAbs(-376.2, 1e-9));
+}
+
 TEST_CASE("clamp_jog_delta: clamps target to the min edge", "[jog_coalescer]") {
     // Mirror of the max-edge case above. Every assertion there passes min=0.0,
     // which never binds, so the min branch of std::clamp went unguarded.
