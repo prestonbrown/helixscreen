@@ -36,9 +36,7 @@
 
 using namespace helix;
 
-// ============================================================================
 // Test Fixture
-// ============================================================================
 
 /**
  * @brief Test fixture for input shaper API testing with mock client
@@ -74,13 +72,11 @@ class InputShaperTestFixture : public LVGLTestFixture {
         captured_error_.clear();
     }
 
-    // Callback for successful calibration result
     void on_result(const InputShaperResult& result) {
         result_received_ = true;
         captured_result_ = result;
     }
 
-    // Callback for errors
     void on_error(const MoonrakerError& err) {
         error_received_ = true;
         captured_error_ = err.message;
@@ -97,9 +93,7 @@ class InputShaperTestFixture : public LVGLTestFixture {
     std::string captured_error_;
 };
 
-// ============================================================================
 // start_resonance_test() Tests
-// ============================================================================
 
 TEST_CASE_METHOD(InputShaperTestFixture, "start_resonance_test accepts X axis",
                  "[calibration][input_shaper]") {
@@ -159,7 +153,6 @@ TEST_CASE_METHOD(InputShaperTestFixture, "start_resonance_test sends correct G-c
         'X', [](int, ShaperCalibrationPhase, float) {},
         [&](const InputShaperResult& result) {
             complete_called = true;
-            // Verify parsed values from mock response
             REQUIRE(result.shaper_type == "mzv");
             REQUIRE(result.shaper_freq == Catch::Approx(53.8f).margin(0.1f));
         },
@@ -177,11 +170,10 @@ TEST_CASE_METHOD(InputShaperTestFixture, "start_resonance_test sends correct G-c
 TEST_CASE("The mock's shaper CSV path is scoped to this process", "[calibration][input_shaper]") {
     // make test-run shards the suite across one helix-tests PROCESS per job, and
     // three test files touch this file: two fixtures std::remove() it between
-    // cases and this one asserts on it. On a fixed path those processes deleted
-    // each other's fixture mid-parse - the reader then got an empty
-    // freq_response and populate_axis_delta() bailed before setting the verdict,
-    // which surfaced as an unreproducible red shard in test_input_shaper_panel_
-    // integration. Keep the PID in the name and concurrent shards stay disjoint.
+    // cases and this one asserts on it. On a fixed path those processes would delete
+    // each other's fixture mid-parse, leaving the reader an empty freq_response so
+    // populate_axis_delta() bails before setting the verdict. Keeping the PID in
+    // the name keeps concurrent shards disjoint.
     const std::string x = MoonrakerClientMock::shaper_csv_path('x');
     const std::string y = MoonrakerClientMock::shaper_csv_path('y');
 
@@ -307,9 +299,7 @@ TEST_CASE_METHOD(InputShaperTestFixture,
     }
 }
 
-// ============================================================================
 // set_input_shaper() Tests
-// ============================================================================
 
 TEST_CASE_METHOD(InputShaperTestFixture, "set_input_shaper sends command for X axis with mzv",
                  "[calibration][input_shaper]") {
@@ -370,9 +360,7 @@ TEST_CASE_METHOD(InputShaperTestFixture, "set_input_shaper accepts all valid sha
     }
 }
 
-// ============================================================================
 // InputShaperResult Parsing Tests
-// ============================================================================
 
 TEST_CASE("InputShaperResult default construction", "[calibration]") {
     InputShaperResult result;
@@ -400,12 +388,9 @@ TEST_CASE("InputShaperResult is_valid check", "[calibration]") {
     REQUIRE(result.is_valid());
 }
 
-// ============================================================================
 // Response Parsing Simulation Tests
-// ============================================================================
 
 TEST_CASE("InputShaperResult can store calibration data", "[calibration]") {
-    // Simulate building a result from parsed G-code responses
     InputShaperResult result;
     result.axis = 'X';
     result.shaper_type = "mzv";
@@ -414,13 +399,11 @@ TEST_CASE("InputShaperResult can store calibration data", "[calibration]") {
     result.smoothing = 0.140f;
     result.vibrations = 7.2f;
 
-    // Add frequency response data points
     result.freq_response.push_back({10.0f, 0.1f});
     result.freq_response.push_back({20.0f, 0.3f});
     result.freq_response.push_back({36.7f, 1.0f}); // Peak at resonance
     result.freq_response.push_back({50.0f, 0.2f});
 
-    // Verify the result
     REQUIRE(result.axis == 'X');
     REQUIRE(result.is_valid());
     REQUIRE(result.shaper_type == "mzv");
@@ -439,9 +422,7 @@ TEST_CASE("InputShaperResult can represent incomplete state", "[calibration]") {
     REQUIRE(result.shaper_type.empty());
 }
 
-// ============================================================================
 // Shaper Type Validation Tests
-// ============================================================================
 
 TEST_CASE("Valid shaper type strings", "[calibration][validation]") {
     // These are the official Klipper input shaper types
@@ -454,7 +435,6 @@ TEST_CASE("Valid shaper type strings", "[calibration][validation]") {
         "3hump_ei"  // 3-hump EI
     };
 
-    // Verify these are recognized as valid types
     for (const auto& type : valid_types) {
         INFO("Checking valid shaper type: " << type);
         // Just verify the strings are what we expect from Klipper
@@ -463,9 +443,7 @@ TEST_CASE("Valid shaper type strings", "[calibration][validation]") {
     }
 }
 
-// ============================================================================
 // Edge Cases
-// ============================================================================
 
 TEST_CASE_METHOD(InputShaperTestFixture, "API handles null callbacks gracefully",
                  "[calibration][edge_case][input_shaper]") {
@@ -492,22 +470,15 @@ TEST_CASE_METHOD(InputShaperTestFixture, "API handles null callbacks gracefully"
     REQUIRE(success_called);
 }
 
-// ============================================================================
-// Phase 1: New API Methods and Enhanced Results
-// ============================================================================
+// New API methods and enhanced results
 //
-// These tests are written BEFORE implementation (test-first methodology).
-// They will FAIL to compile or link until the corresponding types and methods
-// are implemented in:
+// Types and methods under test:
 //   - include/calibration_types.h (ShaperOption, InputShaperConfig)
 //   - include/moonraker_api.h (measure_axes_noise, get_input_shaper_config)
 //   - src/api/moonraker_api_advanced.cpp (NoiseCheckCollector, enhanced collector)
 //   - src/mock/moonraker_client_mock.cpp (mock implementations)
-// ============================================================================
 
-// ----------------------------------------------------------------------------
 // New Types Tests
-// ----------------------------------------------------------------------------
 
 TEST_CASE("ShaperOption struct", "[input_shaper][types]") {
     SECTION("default construction") {
@@ -569,17 +540,13 @@ TEST_CASE("InputShaperConfig struct", "[input_shaper][types]") {
     }
 }
 
-// ----------------------------------------------------------------------------
 // Enhanced InputShaperResult Tests (all_shapers vector)
-// ----------------------------------------------------------------------------
 
 TEST_CASE("InputShaperResult has all_shapers vector", "[input_shaper][types]") {
     InputShaperResult result;
 
-    // The all_shapers vector should exist and be empty by default
     REQUIRE(result.all_shapers.empty());
 
-    // Should be able to add shaper options
     ShaperOption zv;
     zv.type = "zv";
     zv.frequency = 35.8f;
@@ -603,7 +570,7 @@ TEST_CASE("InputShaperResult has all_shapers vector", "[input_shaper][types]") {
 TEST_CASE_METHOD(InputShaperTestFixture, "start_resonance_test returns all shaper alternatives",
                  "[calibration][input_shaper]") {
     // The mock dispatches 3 shaper options: zv, mzv, ei
-    // After enhancement, the result should contain ALL fitted shapers in all_shapers
+    // The result contains ALL fitted shapers in all_shapers
     std::atomic<bool> complete_called{false};
     InputShaperResult captured_result;
 
@@ -626,7 +593,7 @@ TEST_CASE_METHOD(InputShaperTestFixture, "start_resonance_test returns all shape
     REQUIRE(complete_called);
     REQUIRE(captured_result.is_valid());
 
-    // Mock now outputs 5 fitted shapers with realistic values from AD5M
+    // The mock outputs 5 fitted shapers with realistic values from AD5M
     REQUIRE(captured_result.all_shapers.size() == 5);
 
     // Verify the mock data matches expected values
@@ -672,9 +639,7 @@ TEST_CASE_METHOD(InputShaperTestFixture, "start_resonance_test returns all shape
     CHECK(three_hump->max_accel == Catch::Approx(8800.0f).margin(1.0f));
 }
 
-// ----------------------------------------------------------------------------
 // measure_axes_noise() Tests
-// ----------------------------------------------------------------------------
 
 TEST_CASE_METHOD(InputShaperTestFixture, "measure_axes_noise returns noise level",
                  "[calibration][input_shaper]") {
@@ -709,8 +674,8 @@ TEST_CASE_METHOD(InputShaperTestFixture, "measure_axes_noise returns noise level
 TEST_CASE_METHOD(InputShaperTestFixture, "measure_axes_noise handles no accelerometer error",
                  "[calibration][input_shaper]") {
     // When no ADXL is configured, MEASURE_AXES_NOISE should fail
-    // This test requires the mock to be configured to simulate missing accelerometer
-    // For now, we test the error callback path exists
+    // This test requires the mock to be configured to simulate missing accelerometer;
+    // it checks that the error callback path exists.
 
     // Configure mock to simulate no accelerometer (implementation detail)
     mock_client_.set_accelerometer_available(false);
@@ -738,9 +703,7 @@ TEST_CASE_METHOD(InputShaperTestFixture, "measure_axes_noise handles no accelero
            captured_error.find("adxl") != std::string::npos));
 }
 
-// ----------------------------------------------------------------------------
 // get_input_shaper_config() Tests
-// ----------------------------------------------------------------------------
 
 TEST_CASE_METHOD(InputShaperTestFixture, "get_input_shaper_config returns current settings",
                  "[calibration][input_shaper]") {
@@ -806,9 +769,7 @@ TEST_CASE_METHOD(InputShaperTestFixture, "get_input_shaper_config handles unconf
     REQUIRE_FALSE(captured_config.is_configured);
 }
 
-// ============================================================================
 // Enhanced Collector: New Recommendation Format + Max Accel + CSV Path
-// ============================================================================
 
 TEST_CASE_METHOD(InputShaperTestFixture, "collector parses new Klipper recommendation format",
                  "[calibration][input_shaper]") {
@@ -831,7 +792,7 @@ TEST_CASE_METHOD(InputShaperTestFixture, "collector parses new Klipper recommend
     }
 
     REQUIRE(complete_called);
-    // New mock uses "Recommended shaper_type_x = mzv, shaper_freq_x = 53.8 Hz" format
+    // The mock uses "Recommended shaper_type_x = mzv, shaper_freq_x = 53.8 Hz" format
     CHECK(captured_result.shaper_type == "mzv");
     CHECK(captured_result.shaper_freq == Catch::Approx(53.8f).margin(0.1f));
 }
@@ -923,7 +884,7 @@ TEST_CASE_METHOD(InputShaperTestFixture, "collector emits progress callbacks dur
     }
 
     REQUIRE(complete_called);
-    // The sweep owns the whole bar now, so the mock's 20 sweep lines each
+    // The sweep owns the whole bar, so the mock's 20 sweep lines each
     // report; the analysis transition and the completion are the only others.
     CHECK(reports.size() > 20);
 
@@ -981,9 +942,7 @@ TEST_CASE_METHOD(InputShaperTestFixture,
     CHECK(captured_result.csv_path == MoonrakerClientMock::shaper_csv_path('y'));
 }
 
-// ============================================================================
 // Kalico Smooth Shaper Parsing Tests
-// ============================================================================
 
 // These test the regex patterns used by InputShaperCollector::parse_shaper_line()
 // and parse_recommendation(). The collector is a private class in
@@ -1111,16 +1070,12 @@ TEST_CASE("Kalico recommendation regex parses smoother format", "[input_shaper][
     }
 }
 
-// ============================================================================
 // Sweep range + phase reporting
 //
-// Regression cover for a Voron running Kalico's default 5-135 Hz sweep: the
-// collector assumed the sweep ended at 100 Hz, so progress saturated with a
-// quarter of the frequencies still untested and the panel switched its label
-// to "Analyzing data..." while the toolhead was still moving. These tests feed
-// the collector G-code lines directly (no LVGL pump, so the mock's scripted
-// transcript stays out of the way) and assert on the phase it reports.
-// ============================================================================
+// A Voron running Kalico's default 5-135 Hz sweep must not saturate progress at
+// 100 Hz or switch the panel label to "Analyzing data..." while the toolhead is
+// still moving. These tests feed the collector G-code lines directly (no LVGL
+// pump, so the mock's scripted transcript stays out of the way) and assert on the phase it reports.
 
 namespace {
 
@@ -1164,7 +1119,7 @@ TEST_CASE_METHOD(InputShaperTestFixture,
     api_->advanced().start_resonance_test(
         'X', progress.callback(), [](const InputShaperResult&) {}, [](const MoonrakerError&) {});
 
-    // 100 Hz is where the old hardcoded ceiling sat. On this printer it is
+    // A hardcoded 100 Hz ceiling would be wrong here: on this printer 100 Hz is
     // barely three quarters of the way through the sweep.
     mock_client_.dispatch_gcode_response("Testing frequency 100 Hz");
 
@@ -1253,8 +1208,8 @@ TEST_CASE_METHOD(InputShaperTestFixture, "Klipper's calculating line ends the sw
     mock_client_.dispatch_gcode_response("Testing frequency 40 Hz");
     REQUIRE(progress.last_phase() == ShaperCalibrationPhase::Sweeping);
 
-    // The exact wording Klipper and Kalico emit. The collector used to look
-    // only for "Wait for calculations..", which no released firmware prints.
+    // The exact wording Klipper and Kalico emit. "Wait for calculations.."
+    // is not printed by any released firmware, so the collector must not rely on it.
     mock_client_.dispatch_gcode_response("Calculating the best input shaper parameters for x axis");
 
     CHECK(progress.last_phase() == ShaperCalibrationPhase::Analyzing);
@@ -1396,7 +1351,7 @@ TEST_CASE_METHOD(InputShaperTestFixture,
                  "[calibration][input_shaper][sweep_range]") {
     // An inverted range is rejected, so the collector keeps its 5-135 defaults
     // and must NOT trust them as a ceiling — a printer sweeping past a guessed
-    // ceiling would otherwise claim to be analyzing mid-sweep, the original bug.
+    // ceiling would otherwise claim to be analyzing mid-sweep.
     mock_client_.set_resonance_sweep_range(120.0, 20.0);
 
     ProgressRecorder progress;
@@ -1419,7 +1374,7 @@ TEST_CASE_METHOD(InputShaperTestFixture, "stall diagnostics survive a run with n
                  "[calibration][input_shaper][sweep_range]") {
     // The timeout path calls log_stall_diagnostics() on a collector that may
     // have parsed nothing. Exercise that shape directly: no responses, no
-    // frequencies, no fits — it must not read uninitialised state or throw.
+    // frequencies, no fits; it must not read uninitialized state or throw.
     ProgressRecorder progress;
     std::atomic<bool> errored{false};
     REQUIRE_NOTHROW(api_->advanced().start_resonance_test(
@@ -1429,9 +1384,7 @@ TEST_CASE_METHOD(InputShaperTestFixture, "stall diagnostics survive a run with n
     CHECK(progress.empty());
 }
 
-// ============================================================================
 // Exact G-code bytes: frequencies print as %g, machine limits as %.1f
-// ============================================================================
 
 namespace {
 std::string last_script_containing(const MoonrakerClientMock& client, const std::string& needle) {

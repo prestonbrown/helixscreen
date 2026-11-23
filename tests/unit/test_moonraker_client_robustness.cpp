@@ -31,9 +31,7 @@ constexpr uint32_t kBlackHoleConnectTimeoutMs = 200;
 
 } // namespace
 
-// ============================================================================
 // Test Fixture
-// ============================================================================
 
 class MoonrakerRobustnessFixture {
   public:
@@ -89,9 +87,7 @@ class MoonrakerRobustnessFixture {
     std::unique_ptr<MoonrakerClient> client_;
 };
 
-// ============================================================================
 // Subscription-restricted-null safety
-// ============================================================================
 //
 // Background: Moonraker delivers JSON null for subscribed fields the underlying
 // Klipper object lacks. nlohmann::json::value("k", default) and unguarded
@@ -127,9 +123,7 @@ TEST_CASE("MoonrakerClient::dispatch_status_update absorbs throwing callbacks",
     REQUIRE(good_calls == 1);
 }
 
-// ============================================================================
 // Connection State Transitions
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerRobustnessFixture, "MoonrakerClient state machine transitions correctly",
                  "[connection][edge][state][priority4][eventloop][slow]") {

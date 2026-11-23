@@ -29,9 +29,7 @@
 
 using namespace helix;
 
-// ============================================================================
 // Test Fixtures
-// ============================================================================
 
 /**
  * @brief Test fixture for MoonrakerAPI domain operations with mock client
@@ -69,14 +67,11 @@ class MoonrakerAPIDomainTestFixture : public LVGLTestFixture {
     std::unique_ptr<MoonrakerAPI> api;
 };
 
-// ============================================================================
 // Hardware Guessing Tests - PrinterHardware
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture,
                  "PrinterHardware::guess_bed_heater returns correct heater",
                  "[printer][guessing]") {
-    // VORON_24 mock should have heater_bed
     PrinterHardware hw(api->hardware().heaters(), api->hardware().sensors(), api->hardware().fans(),
                        api->hardware().leds());
     std::string bed_heater = hw.guess_bed_heater();
@@ -86,7 +81,6 @@ TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture,
 TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture,
                  "PrinterHardware::guess_hotend_heater returns correct heater",
                  "[printer][guessing]") {
-    // VORON_24 mock should have extruder
     PrinterHardware hw(api->hardware().heaters(), api->hardware().sensors(), api->hardware().fans(),
                        api->hardware().leds());
     std::string hotend_heater = hw.guess_hotend_heater();
@@ -137,9 +131,7 @@ TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture, "PrinterHardware::guess_main_led
     REQUIRE(hw.guess_main_led_strip() == "led caselight");
 }
 
-// ============================================================================
 // Hardware Guessing - Multiple Printer Types
-// ============================================================================
 
 TEST_CASE_METHOD(HelixTestFixture, "PrinterHardware guessing works for multiple printer types",
                  "[printer][guessing][printers]") {
@@ -196,9 +188,7 @@ TEST_CASE_METHOD(HelixTestFixture, "PrinterHardware guessing works for multiple 
     }
 }
 
-// ============================================================================
 // All Printer Types Tests
-// ============================================================================
 
 TEST_CASE_METHOD(HelixTestFixture,
                  "PrinterHardware and MoonrakerAPI domain methods work for all printer types",
@@ -213,7 +203,6 @@ TEST_CASE_METHOD(HelixTestFixture,
             mock.connect("ws://mock/websocket", []() {}, []() {});
             mock.discover_printer([]() {});
 
-            // Test PrinterHardware guessing
             PrinterHardware hw(mock.hardware().heaters(), mock.hardware().sensors(),
                                mock.hardware().fans(), mock.hardware().leds());
 
@@ -254,9 +243,7 @@ TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture,
     api->set_bed_mesh_presence_observer(nullptr);
 }
 
-// ============================================================================
 // Database operations: error path with null callbacks
-// ============================================================================
 
 // An unconnected MoonrakerClient refuses at its pre-send guard and invokes the
 // error callback synchronously, so these drive the `if (on_error)` branch of
@@ -297,9 +284,7 @@ TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture,
         offline_api.database_post_item("helix", "key", json{{"val", 1}}, nullptr, nullptr));
 }
 
-// ============================================================================
 // Client state reached through the API
-// ============================================================================
 
 // The mock inherits these from MoonrakerClient, so they run the real client's code.
 

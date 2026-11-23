@@ -18,13 +18,10 @@ using namespace std::chrono;
 /**
  * Moonraker Connection Retry Tests
  *
- * These tests verify the connection retry mechanism works correctly
- * after bug fixes for instant retry failures and timeout issues.
- *
- * Critical bugs tested:
- * 1. Connection timeout not being applied (was using 15s instead of configured 5s)
- * 2. Second connection attempt failing instantly (at same millisecond)
- * 3. Auto-reconnect spam issues
+ * These tests verify the connection retry mechanism:
+ * 1. The configured connection timeout is applied (not a default such as 15s)
+ * 2. A second connection attempt does not fail instantly (same millisecond)
+ * 3. Auto-reconnect does not spam attempts
  * 4. State management during retries
  *
  * Test strategy: Use invalid IP addresses (RFC 5737 TEST-NET-1) to trigger
@@ -47,11 +44,9 @@ class MoonrakerConnectionRetryFixture {
 
         client_ = std::make_unique<MoonrakerClient>(loop_thread_->loop());
 
-        // Configure short timeouts for faster testing
         client_->set_connection_timeout(kTestTimeoutMs);
         client_->set_default_request_timeout(kTestTimeoutMs);
 
-        // Disable auto-reconnect for manual retry testing
         client_->setReconnect(nullptr);
     }
 
@@ -59,8 +54,7 @@ class MoonrakerConnectionRetryFixture {
         // disconnect() posts a close event to the libhv loop. The Channel
         // must remain alive until either the event is dispatched or the
         // loop is stopped — deleting client_ first races with the loop
-        // thread running Channel::close() on freed memory (heap-use-after-
-        // free observed under ASAN nightly).
+        // thread running Channel::close() on freed memory (a heap-use-after-free).
         if (client_) {
             client_->disconnect();
         }
@@ -79,8 +73,7 @@ TEST_CASE("Moonraker connection retries work correctly", "[connection][eventloop
         // disconnect() and then pumps the libhv loop to completion, which
         // dispatches one last on_ws_close on the loop thread. A local declared
         // after the fixture is already destroyed by the time that callback
-        // runs — ASan caught exactly that as a stack-use-after-scope on
-        // `disconnect_count` below.
+        // runs (a stack-use-after-scope on `disconnect_count` below).
         std::atomic<bool> disconnected{false};
         MoonrakerConnectionRetryFixture fixture;
         auto start = steady_clock::now();
@@ -93,7 +86,6 @@ TEST_CASE("Moonraker connection retries work correctly", "[connection][eventloop
             },
             [&]() { disconnected = true; });
 
-        // Wait for disconnect callback (with timeout)
         for (int i = 0; i < 30 && !disconnected; i++) {
             std::this_thread::sleep_for(milliseconds(100));
         }
@@ -132,7 +124,6 @@ TEST_CASE("Moonraker connection retries work correctly", "[connection][eventloop
                     }
 
                     if (current_attempt < 3) {
-                        // Small delay before next attempt
                         std::this_thread::sleep_for(milliseconds(100));
                         do_attempt();
                     } else {
@@ -143,7 +134,6 @@ TEST_CASE("Moonraker connection retries work correctly", "[connection][eventloop
 
         do_attempt();
 
-        // Wait for all attempts to complete
         for (int i = 0; i < 100 && !all_done; i++) {
             std::this_thread::sleep_for(milliseconds(100));
         }
@@ -184,7 +174,6 @@ TEST_CASE("Moonraker connection retries work correctly", "[connection][eventloop
                     }
 
                     if (current_attempt < kNumRetries) {
-                        // Immediate retry (no delay) - tests the bug fix
                         do_attempt();
                     } else {
                         all_done = true;
@@ -194,7 +183,6 @@ TEST_CASE("Moonraker connection retries work correctly", "[connection][eventloop
 
         do_attempt();
 
-        // Wait for all attempts to complete
         for (int i = 0; i < 150 && !all_done; i++) {
             std::this_thread::sleep_for(milliseconds(100));
         }
@@ -258,7 +246,6 @@ TEST_CASE("Moonraker connection retries work correctly", "[connection][eventloop
 
         do_attempt();
 
-        // Wait for all attempts to complete
         for (int i = 0; i < 50 && !all_done; i++) {
             std::this_thread::sleep_for(milliseconds(100));
         }

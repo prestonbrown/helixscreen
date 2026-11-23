@@ -123,14 +123,12 @@ TEST_CASE("a root with no permissions field is not assumed writable", "[file_roo
     CHECK(writable_root_path(roots, "config").empty());
 }
 
-// ============================================================================
 // The RPC wiring itself
 //
 // parse_file_roots() being correct proves nothing if get_file_roots() asks for
 // the wrong method — Moonraker answers an unknown method with an error, so the
 // failure would look exactly like "this firmware has no roots endpoint" and the
-// K2 would quietly fall back to today's broken behaviour.
-// ============================================================================
+// K2 would quietly fall back to its pre-roots behavior.
 
 #include "../fake_moonraker_client.h"
 

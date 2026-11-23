@@ -33,9 +33,7 @@
 
 using namespace helix;
 
-// ============================================================================
 // Test Fixtures
-// ============================================================================
 
 /**
  * @brief Test fixture for exclude_object() API testing with real client
@@ -45,16 +43,12 @@ using namespace helix;
 class ExcludeObjectTestFixture : public LVGLTestFixture {
   public:
     ExcludeObjectTestFixture() {
-        // Initialize printer state
         state.init_subjects(false);
 
-        // Create disconnected client for validation testing
         client = std::make_unique<MoonrakerClient>();
 
-        // Create API with client
         api = std::make_unique<MoonrakerAPI>(*client, state);
 
-        // Reset test state
         reset_callbacks();
     }
 
@@ -78,12 +72,10 @@ class ExcludeObjectTestFixture : public LVGLTestFixture {
         captured_error = err;
     }
 
-    // Test objects
     std::unique_ptr<MoonrakerClient> client;
     PrinterState state;
     std::unique_ptr<MoonrakerAPI> api;
 
-    // Callback tracking
     bool success_called = false;
     bool error_called = false;
     MoonrakerError captured_error;
@@ -97,7 +89,6 @@ class ExcludeObjectTestFixture : public LVGLTestFixture {
 class ExcludeObjectMockTestFixture : public LVGLTestFixture {
   public:
     ExcludeObjectMockTestFixture() : mock_client(MoonrakerClientMock::PrinterType::VORON_24) {
-        // Initialize printer state
         state.init_subjects(false);
         // execute_gcode() halted gate would otherwise reject all G-code: subjects
         // initialize to SHUTDOWN until production code observes a real state update.
@@ -106,10 +97,8 @@ class ExcludeObjectMockTestFixture : public LVGLTestFixture {
         // Connect mock client (required for send_jsonrpc to work)
         mock_client.connect("ws://mock/websocket", []() {}, []() {});
 
-        // Create API with mock client
         api = std::make_unique<MoonrakerAPI>(mock_client, state);
 
-        // Reset test state
         reset_callbacks();
     }
 
@@ -134,20 +123,16 @@ class ExcludeObjectMockTestFixture : public LVGLTestFixture {
         captured_error = err;
     }
 
-    // Test objects
     MoonrakerClientMock mock_client;
     PrinterState state;
     std::unique_ptr<MoonrakerAPI> api;
 
-    // Callback tracking
     bool success_called = false;
     bool error_called = false;
     MoonrakerError captured_error;
 };
 
-// ============================================================================
 // Command Injection Tests - Object Names
-// ============================================================================
 
 // DEFERRED: Crashes with SIGABRT during fixture destruction - pre-existing issue
 TEST_CASE_METHOD(ExcludeObjectTestFixture,
@@ -293,9 +278,7 @@ TEST_CASE_METHOD(ExcludeObjectTestFixture,
     }
 }
 
-// ============================================================================
 // Valid Input Acceptance Tests
-// ============================================================================
 
 TEST_CASE_METHOD(ExcludeObjectTestFixture, "exclude_object accepts valid object names",
                  "[security][valid][print]") {
@@ -450,9 +433,7 @@ TEST_CASE_METHOD(ExcludeObjectTestFixture, "exclude_object rejects malformed UTF
     }
 }
 
-// ============================================================================
 // Edge Cases and Boundary Tests
-// ============================================================================
 
 TEST_CASE_METHOD(ExcludeObjectTestFixture, "exclude_object handles edge cases",
                  "[security][edge][print]") {
@@ -471,11 +452,8 @@ TEST_CASE_METHOD(ExcludeObjectTestFixture, "exclude_object handles edge cases",
             "   ", [this]() { this->success_callback(); },
             [this](const MoonrakerError& err) { this->error_callback(err); });
 
-        // Should be rejected because it's effectively empty or only whitespace
-        // Note: is_safe_identifier allows spaces within names but the name needs
-        // to have non-space characters too. Let me check - spaces are allowed
-        // so "   " might pass validation. This tests the edge case.
-        // If it passes, that's acceptable since Klipper would reject it anyway.
+        // is_safe_identifier allows spaces within names, so "   " may pass
+        // validation; that is acceptable since Klipper rejects it anyway.
     }
 
     SECTION("Single character name accepted") {
@@ -504,9 +482,7 @@ TEST_CASE_METHOD(ExcludeObjectTestFixture, "exclude_object handles edge cases",
     }
 }
 
-// ============================================================================
 // Error Message Quality Tests
-// ============================================================================
 
 TEST_CASE_METHOD(ExcludeObjectTestFixture,
                  "exclude_object validation errors provide descriptive messages",
@@ -531,9 +507,7 @@ TEST_CASE_METHOD(ExcludeObjectTestFixture,
     }
 }
 
-// ============================================================================
 // Mock Client Integration Tests
-// ============================================================================
 
 TEST_CASE_METHOD(ExcludeObjectMockTestFixture,
                  "exclude_object sends correct G-code via mock client", "[mock][print][slow]") {
@@ -574,9 +548,7 @@ TEST_CASE_METHOD(ExcludeObjectMockTestFixture,
     }
 }
 
-// ============================================================================
 // G-code Format Verification
-// ============================================================================
 
 TEST_CASE_METHOD(ExcludeObjectMockTestFixture,
                  "exclude_object generates correct EXCLUDE_OBJECT command", "[gcode][print]") {
@@ -592,9 +564,7 @@ TEST_CASE_METHOD(ExcludeObjectMockTestFixture,
             std::vector<std::string>{"EXCLUDE_OBJECT NAME=MyObject"});
 }
 
-// ============================================================================
 // No Callbacks for Null Handlers
-// ============================================================================
 
 TEST_CASE_METHOD(ExcludeObjectTestFixture, "exclude_object handles null callbacks gracefully",
                  "[callbacks][print]") {
@@ -609,9 +579,7 @@ TEST_CASE_METHOD(ExcludeObjectTestFixture, "exclude_object handles null callback
     }
 }
 
-// ============================================================================
 // RPC Parameter Tests — silent mode + long timeout
-// ============================================================================
 //
 // Context: printer.gcode.script does not return until Klipper actually executes the
 // queued gcode. During pre-print (heating/homing/purge) an EXCLUDE_OBJECT can sit
