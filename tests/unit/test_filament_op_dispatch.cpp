@@ -244,6 +244,31 @@ TEST_CASE("plan_load: a named lane under bypass refuses while the bypass spool i
     CHECK(plan.ams_call == AmsCall::None);
 }
 
+// The backend's own refusal is decided before any tier, so the surfaces refuse
+// before they preheat or home, and it outranks BypassLoaded whatever the
+// toolhead reads.
+TEST_CASE("plan_load: a lane load the backend refuses is refused with the backend's error",
+          "[filament][dispatch][tier][bypass][refusal][bypass-load-refusal]") {
+    const bool threaded = GENERATE(false, true);
+    AmsSystemInfo sys = make_sys(4, kExternalSpoolSlot);
+    sys.filament_loaded = threaded;
+
+    BackendCaps caps = fresh_ams();
+    caps.requires_slot_selection_for_load = false;
+    caps.bypass_active = true;
+    caps.lane_load_refusal =
+        helix::AmsError(helix::AmsResult::WRONG_STATE, "tech", "user text", "what to do");
+
+    auto plan = plan_load(sys, caps, /*target_slot=*/1, /*macro_available=*/true,
+                          /*macro_user_configured=*/false);
+
+    CHECK(plan.tier == FilamentTier::Refused);
+    CHECK(plan.refusal == FilamentRefusal::BackendRefused);
+    CHECK(plan.ams_call == AmsCall::None);
+    CHECK(plan.backend_refusal.result == helix::AmsResult::WRONG_STATE);
+    CHECK(plan.backend_refusal.user_msg == "user text");
+}
+
 TEST_CASE("plan_load: a user-configured macro still outranks the lane-under-bypass rule",
           "[filament][dispatch][tier][bypass][macro_override]") {
     // The override is absolute by design; the new bypass arm sits below it.

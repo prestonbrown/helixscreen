@@ -2533,6 +2533,9 @@ FilamentPanelOutcome panel_load_outcome(const FilamentOpPlan& plan) {
             // lane into it would jam the hotend, so say what to do instead.
             out.toast = lv_tr("Remove the bypass spool from the toolhead first");
             break;
+        case FilamentRefusal::BackendRefused:
+            out.toast = plan.backend_refusal.display_text();
+            break;
         case FilamentRefusal::SelectSlot:
         default:
             out.toast = lv_tr("Select a filament slot to load");
