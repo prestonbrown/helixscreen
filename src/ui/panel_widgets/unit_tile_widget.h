@@ -32,7 +32,7 @@ class UnitTileWidget : public TiledPanelWidget {
         const char* unit_gap;     ///< between the number and a non-empty unit
         const char* label;        ///< the tile's caption, measured for sizing
         const char* widest_number;
-        /// The reading's raw subject, null before the sensors are set up.
+        /// The reading's raw subject.
         lv_subject_t* (*raw_subject)();
         /// Death signal of raw_subject()'s owner.
         SubjectLifetime (*raw_lifetime)();

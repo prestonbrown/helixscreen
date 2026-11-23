@@ -298,7 +298,7 @@ All values are integers so XML can bind them. Fixed-name subjects register globa
 | `chamber_humidity`, `dryer_humidity` | Humidity | % x 10, -1 when no enabled sensor holds the role |
 | `chamber_pressure` | Humidity | Pa (hPa x 100), -1 when unavailable |
 | `probe_last_z`, `probe_z_offset` | Probe | microns, microns |
-| `filament_width_diameter`, `filament_diameter_text` | Width | microns, string (`"--"` default) |
+| `filament_width_diameter` | Width | microns |
 | `input_door_check` | Input | 0/1, the door-check setting |
 
 The count subjects double as hardware gates: `src/ui/home/panel_widget_registry.cpp` names `temp_sensor_count`, `filament_sensor_count`, `humidity_sensor_count` and `width_sensor_count` as `hardware_gate_subject`s, and `ui_xml/sensors_overlay.xml` hides each section with `bind_flag_if_eq ... ref_value="0"`.
@@ -432,7 +432,7 @@ static const std::vector<HumiditySensorChip> chips = {
 
 Prefixes carry the trailing space so `aht20 ` never matches `aht20_f heater_box1`. Only BME280 reports pressure. Each chip is a `TypeSpec` in `Options::types`, so the chip index the table returns is the entry's `type`.
 
-Roles are CHAMBER and DRYER (exclusive, not offered in Settings), auto-assigned in `on_discovered()` to the first sensor whose name contains `chamber` or `dryer`. The humidity home widget turns `chamber_humidity` into the `chamber_humidity_text` string subject it binds. Happy Hare's dryer and the QIDI box read these chips' status directly through their AMS backends; see the backend docs.
+Roles are CHAMBER and DRYER (exclusive, not offered in Settings), auto-assigned in `on_discovered()` to the first sensor whose name contains `chamber` or `dryer`. The humidity home tile (`UnitTileWidget`) formats `chamber_humidity` into its own per-tile value subject. Happy Hare's dryer and the QIDI box read these chips' status directly through their AMS backends; see the backend docs.
 
 
 ## On/off Inputs
@@ -508,7 +508,7 @@ Klicky has no module: it is a plain `[probe]` with dock macros, and `on_discover
 
 **Accelerometer.** Found only in `configfile.config` sections, through `Scope::SectionOnly` rows and `rediscover_on_config` (`adxl345`, `adxl345 bed`, `lis2dw hotend`, ...). A `beacon` section with `accel_scale` or `accel_axes_map` adds Beacon's onboard LIS2DW. The role INPUT_SHAPER backs `is_sensor_available(AccelSensorRole::INPUT_SHAPER)`.
 
-**Width.** Klipper allows one of each width-sensor module, so the names are fixed (`tsl1401cl`, `hall`). The first sensor is auto-assigned FLOW_COMPENSATION; `get_flow_compensation_diameter()` reads it. `filament_diameter_text` is pre-formatted for the width widget.
+**Width.** Klipper allows one of each width-sensor module, so the names are fixed (`tsl1401cl`, `hall`). The first sensor is auto-assigned FLOW_COMPENSATION; `get_flow_compensation_diameter()` reads it. The width home tile (`UnitTileWidget`) formats `filament_width_diameter` into its own per-tile value subject.
 
 **Load cell.** Auto-assigns SPOOL_WEIGHT by name, or to a lone load cell. `has_spool_weight_load_cell()` is what `src/printer/consumption_sink.cpp` asks before trusting load-cell spool weight. Load cells have no `config_key`.
 
@@ -565,7 +565,7 @@ A manager customizes its rows by overriding `row()` (a display name, a live stat
 | First-run wizard (`WizardFilamentSensorSelectStep`) | non-AMS filament sensors; assigns RUNOUT |
 | Runout guidance modal (`FilamentRunoutHandler`) | `has_real_runout()` on pause, `filament_any_runout` to auto-close |
 | Print status panel and `filament_sensor_indicator.xml` | `filament_runout_detected`, `filament_runout_scoped`, `filament_sensor_count` |
-| Home widgets | thermistor (per-sensor temp subjects), humidity (`chamber_humidity`), width (`filament_diameter_text`), filament sensor |
+| Home widgets | thermistor (per-sensor temp subjects), humidity (`chamber_humidity`), width (`filament_width_diameter`), filament sensor |
 | Temp graph, temperature history | `TemperatureSensorManager` sensor list and per-sensor subjects |
 | Telemetry | per-manager `sensor_count()` |
 

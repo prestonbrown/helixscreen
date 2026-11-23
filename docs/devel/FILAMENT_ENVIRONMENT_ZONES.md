@@ -13,7 +13,7 @@ fall back on.
 
 **Two other things in this tree are called "humidity" and neither is this.** The home-screen
 humidity widget (`src/ui/panel_widgets/unit_tile_widget.cpp`) reports the printer **chamber**
-through `HumiditySensorManager` and binds `chamber_humidity_text`; it has no connection to the
+through `HumiditySensorManager` and binds `chamber_humidity` through its own tile subject; it has no connection to the
 filament system. `helix::config::EnvironmentConfig` (`include/environment_config.h`) is a generic
 environment-**variable** parser and shares nothing but the word. Neither belongs in a search for
 zone code.
