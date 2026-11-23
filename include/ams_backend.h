@@ -1459,24 +1459,6 @@ class AmsBackend : public AmsCapabilityHost {
     virtual AmsError change_tool(int tool_number) = 0;
 
     /**
-     * @brief Put the tool on the carriage back in its dock (async)
-     *
-     * Leaves the carriage empty. Only a machine with docked toolheads can do
-     * this: a Snapmaker U1 sends PARK_EXTRUDER, klipper-toolchanger
-     * UNSELECT_TOOL. Results arrive as a state change, like unload_filament().
-     *
-     * @return not_loaded() when nothing is mounted; not_supported() by default
-     */
-    virtual AmsError park_active_tool() {
-        return AmsErrorHelper::not_supported("Tool park");
-    }
-
-    /// Whether park_active_tool() can act on this printer.
-    [[nodiscard]] virtual bool supports_tool_park() const {
-        return false;
-    }
-
-    /**
      * @brief The G-code a generated print sends to put tool @p tool's head on
      *        the carriage, moving no filament.
      *

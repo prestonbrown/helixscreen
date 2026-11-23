@@ -879,7 +879,7 @@ bool AmsBackendMock::supports_tool_park() const {
 
 AmsError AmsBackendMock::park_active_tool() {
     if (!supports_tool_park()) {
-        return AmsBackend::park_active_tool();
+        return AmsErrorHelper::not_supported("Tool park");
     }
     {
         std::lock_guard<std::mutex> lock(mutex_);

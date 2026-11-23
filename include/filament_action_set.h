@@ -40,7 +40,7 @@ struct FilamentHeadView {
     int max_heads_per_op = 1;
     std::vector<HeadState> heads;
     bool heads_dock = false;    ///< AmsBackend::carriage_can_be_empty(): heads mount and park
-    bool supports_park = false; ///< AmsBackend::supports_tool_park()
+    bool supports_park = false; ///< usable_tool_park()
     int selected_head = -1;     ///< The picker's preselection and Mount's target; -1 for none
     int mounted_head = -1;      ///< The head on the carriage; -1 for none or not a docking machine
     bool system_busy = false;   ///< AmsSystemInfo::is_busy()
