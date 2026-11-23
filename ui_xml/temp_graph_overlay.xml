@@ -21,9 +21,8 @@
          height that fits the WIDEST strip state at each tier with #space_xs
          of spacer left - nozzle with the extruder picker visible, bed with
          the Dry Filament button shown. The strip is not scrollable, so the
-         picker state bounds it: at tiny the nozzle strip holds card 115 +
-         picker 28 + three rows of these, so 37 leaves 4px of spacer (38
-         leaves 1). Micro has no room to grow (26 = button_height; with the
+         picker state bounds it: at tiny the nozzle strip holds the card
+         without its caption + the 40px compact picker + three rows of these. Micro has no room to grow (26 = button_height; with the
          picker visible the spacer is already only 3px). Small and up never
          read this token (the fixed-row grid is hidden there and the row_wrap
          grid's buttons keep the C++ button_height); their entries mirror the
@@ -206,7 +205,9 @@
                 <lv_obj style_pad_all="0"
                         scrollable="false" flex_flow="column" style_flex_main_place="center"
                         style_flex_cross_place="start" style_pad_gap="#space_xxs">
-                  <text_small style_border_width="0" text="Current / Target"/>
+                  <text_small style_border_width="0" text="Current / Target">
+                    <bind_flag_if cond="ui_breakpoint lt 2" flag="hidden"/>
+                  </text_small>
                   <temp_display name="nozzle_temp_display"
                                 size="lg" show_target="true" bind_current="target_nozzle_temp"
                                 bind_target="target_nozzle_target" event_cb="on_temp_graph_custom_clicked"/>
@@ -220,6 +221,14 @@
           <!-- The tool the card shows: one cell per head, on a printer with several -->
           <tool_target_row name="extruder_selector_row" labels="_row_graph" hidden="true">
             <bind_flag_if_eq subject="target_tool_multi_head" flag="hidden" ref_value="0"/>
+            <bind_flag_if cond="ui_breakpoint lt 2" flag="hidden"/>
+          </tool_target_row>
+          <!-- Short-screen twin (bp < 2): the 40 px compact cell, with the
+               "Current / Target" caption hidden, keeps the Custom button inside
+               the strip at 480x272 and 480x320 with four heads. -->
+          <tool_target_row name="extruder_selector_row_compact"
+                           labels="_row_graph" size="tool_row_compact_cell" hidden="true">
+            <bind_flag_if cond="target_tool_multi_head eq 0 or ui_breakpoint gt 1" flag="hidden"/>
           </tool_target_row>
           <!-- Spacer -->
           <lv_obj width="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
@@ -382,7 +391,9 @@
                 <lv_obj style_pad_all="0"
                         scrollable="false" flex_flow="column" style_flex_main_place="center"
                         style_flex_cross_place="start" style_pad_gap="#space_xxs">
-                  <text_small text="Current / Target"/>
+                  <text_small text="Current / Target">
+                    <bind_flag_if cond="ui_breakpoint lt 2" flag="hidden"/>
+                  </text_small>
                   <temp_display name="bed_temp_display"
                                 size="lg" show_target="true" bind_current="bed_temp" bind_target="bed_target"
                                 event_cb="on_temp_graph_custom_clicked"/>
