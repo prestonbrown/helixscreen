@@ -147,20 +147,24 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Operations Purge and Clean disable on every
     struct Layout {
         const char* what;
         int32_t w, h;
+        const char* card_w;
+        const char* card_h;
         int multi_head;
         const char* purge_row;
         const char* clean_row;
     };
     const Layout layouts[] = {
-        {"800x480", 800, 480, 0, "purge_clean_row", "purge_clean_row"},
-        {"480x272", 480, 272, 0, "filament_change_row", "operations_heading_row"},
-        {"480x272 toolchanger", 480, 272, 1, "filament_change_row", "filament_change_row"},
+        {"800x480", 800, 480, "413", "287", 0, "purge_clean_row", "purge_clean_row"},
+        {"480x272", 480, 272, "250", "144", 0, "filament_change_row", "operations_heading_row"},
+        {"480x272 toolchanger", 480, 272, "250", "144", 1, "filament_change_row",
+         "filament_change_row"},
     };
     for (const Layout& l : layouts) {
         INFO(l.what);
         helix::test::ScopedGeometry screen(l.w, l.h);
         helix::test::ScopedIntSubject heads("target_tool_multi_head", l.multi_head);
-        const char* attrs[] = {"row_height", "26", "length_height", "40", nullptr};
+        const char* attrs[] = {"row_height", "26",     "length_height", "40",   "width",
+                               l.card_w,     "height", l.card_h,        nullptr};
         lv_obj_t* card = static_cast<lv_obj_t*>(
             lv_xml_create(test_screen(), "filament_operations_group", attrs));
         REQUIRE(card != nullptr);
@@ -183,6 +187,23 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Operations Purge and Clean disable on every
             lv_subject_set_int(s, 0);
             CHECK_FALSE(disabled(purge));
         }
+
+        // Cleaning a cold nozzle is valid: with the cold-extrusion cover up,
+        // a tap on Clean still reaches it.
+        lv_subject_set_int(lv_xml_get_subject(nullptr, "filament_safety_warning_visible"), 1);
+        lv_obj_update_layout(test_screen());
+        REQUIRE_FALSE(lv_obj_is_hidden(find(card, "safety_warning")));
+        lv_area_t a;
+        lv_obj_get_coords(clean, &a);
+        lv_point_t center{(a.x1 + a.x2) / 2, (a.y1 + a.y2) / 2};
+        lv_obj_t* hit = lv_indev_search_obj(test_screen(), &center);
+        bool reaches_clean = false;
+        for (lv_obj_t* o = hit; o != nullptr; o = lv_obj_get_parent(o)) {
+            reaches_clean = reaches_clean || o == clean;
+        }
+        CHECK(reaches_clean);
+        CHECK_FALSE(disabled(clean));
+        lv_subject_set_int(lv_xml_get_subject(nullptr, "filament_safety_warning_visible"), 0);
         lv_obj_delete(card);
     }
 }

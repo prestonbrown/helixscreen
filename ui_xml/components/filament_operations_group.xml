@@ -12,7 +12,7 @@
        Instantiated by both orientation branches of filament_panel.xml so the
        markup exists exactly once. The action rows share the card's height. -->
   <styles>
-    <!-- The cold-extrusion warning covers the action row it disables -->
+    <!-- The cold-extrusion warning covers the buttons it disables -->
     <style name="safety_warning_cover" bg_color="#card_bg" bg_opa="255" radius="#border_radius"/>
     <!-- ui_card sets its row gap locally, which outranks any plain style, so
          the gap is an attribute here and the page style (filament_on_page)
@@ -159,40 +159,61 @@
                 width="100%" height="$row_height" style_min_height="$row_height" flex_grow="1" style_pad_all="0"
                 scrollable="false" flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"
                 style_pad_gap="#space_sm">
-          <ui_button name="btn_load"
-                     height="100%" style_min_width="content" style_pad_hor="#space_xxs" icon_position="top"
-                     icon_hidden_subject="filament_ops_icons_hidden" icon_hidden_if_eq="1" flex_grow="1"
-                     icon="arrow_down" text="Load" style_text_font="#font_small" bind_op_state="filament_op_load_state">
-            <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
-            <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
-            <bind_state_if_eq subject="filament_load_disabled" state="disabled" ref_value="1"/>
-            <event_cb trigger="clicked" callback="on_filament_load"/>
-          </ui_button>
-          <ui_button name="btn_unload"
-                     height="100%" style_min_width="content" style_pad_hor="#space_xxs" icon_position="top"
-                     icon_hidden_subject="filament_ops_icons_hidden" icon_hidden_if_eq="1" flex_grow="1" icon="arrow_up"
-                     text="Unload" style_text_font="#font_small" bind_op_state="filament_op_unload_state">
-            <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
-            <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
-            <bind_state_if_eq subject="filament_unload_disabled" state="disabled" ref_value="1"/>
-            <event_cb trigger="clicked" callback="on_filament_unload"/>
-          </ui_button>
-          <lv_obj name="purge_slot_first_row"
-                  width="0" height="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
-                  scrollable="false" hidden="true">
-            <bind_flag_if cond="not (ui_breakpoint eq 0 or ui_is_portrait eq 1)" flag="hidden"/>
-            <if cond="ui_breakpoint eq 0 or ui_is_portrait eq 1">
-              <ui_button name="btn_purge"
-                         width="100%" height="100%" style_min_width="content" style_pad_hor="#space_xxs"
-                         icon_position="top" icon_hidden_subject="filament_ops_icons_hidden" icon_hidden_if_eq="1"
-                         icon="trash_can_outline" text="Purge" style_text_font="#font_small"
-                         bind_op_state="filament_op_purge_state">
-                <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
-                <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
-                <bind_state_if_eq subject="filament_unload_disabled" state="disabled" ref_value="1"/>
-                <event_cb trigger="clicked" callback="on_filament_purge"/>
-              </ui_button>
-            </if>
+          <!-- Load, Unload and (where it is in this row) Purge, under the
+               cold-extrusion cover. Clean stays outside it: cleaning a cold
+               nozzle is valid, and the macro heats as it needs. -->
+          <lv_obj name="filament_change_group"
+                  width="0" height="100%" flex_grow="3" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                  scrollable="false" flex_flow="row" style_flex_main_place="space_between"
+                  style_flex_cross_place="center" style_pad_gap="#space_sm">
+            <ui_button name="btn_load"
+                       height="100%" style_min_width="content" style_pad_hor="#space_xxs" icon_position="top"
+                       icon_hidden_subject="filament_ops_icons_hidden" icon_hidden_if_eq="1" flex_grow="1"
+                       icon="arrow_down" text="Load" style_text_font="#font_small"
+                       bind_op_state="filament_op_load_state">
+              <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
+              <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
+              <bind_state_if_eq subject="filament_load_disabled" state="disabled" ref_value="1"/>
+              <event_cb trigger="clicked" callback="on_filament_load"/>
+            </ui_button>
+            <ui_button name="btn_unload"
+                       height="100%" style_min_width="content" style_pad_hor="#space_xxs" icon_position="top"
+                       icon_hidden_subject="filament_ops_icons_hidden" icon_hidden_if_eq="1" flex_grow="1"
+                       icon="arrow_up" text="Unload" style_text_font="#font_small"
+                       bind_op_state="filament_op_unload_state">
+              <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
+              <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
+              <bind_state_if_eq subject="filament_unload_disabled" state="disabled" ref_value="1"/>
+              <event_cb trigger="clicked" callback="on_filament_unload"/>
+            </ui_button>
+            <lv_obj name="purge_slot_first_row"
+                    width="0" height="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                    scrollable="false" hidden="true">
+              <bind_flag_if cond="not (ui_breakpoint eq 0 or ui_is_portrait eq 1)" flag="hidden"/>
+              <if cond="ui_breakpoint eq 0 or ui_is_portrait eq 1">
+                <ui_button name="btn_purge"
+                           width="100%" height="100%" style_min_width="content" style_pad_hor="#space_xxs"
+                           icon_position="top" icon_hidden_subject="filament_ops_icons_hidden" icon_hidden_if_eq="1"
+                           icon="trash_can_outline" text="Purge" style_text_font="#font_small"
+                           bind_op_state="filament_op_purge_state">
+                  <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
+                  <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
+                  <bind_state_if_eq subject="filament_unload_disabled" state="disabled" ref_value="1"/>
+                  <event_cb trigger="clicked" callback="on_filament_purge"/>
+                </ui_button>
+              </if>
+            </lv_obj>
+            <!-- Floats over the buttons it disables, so no layout gives it
+                 height; the text wraps rather than ending in an ellipsis. -->
+            <lv_obj name="safety_warning"
+                    width="100%" height="100%" style_pad_hor="#space_sm" scrollable="false" floating="true"
+                    align="center" flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
+                    style_pad_gap="#space_xs" style_border_width="0">
+              <style name="safety_warning_cover"/>
+              <bind_flag_if_eq subject="filament_safety_warning_visible" flag="hidden" ref_value="0"/>
+              <icon src="alert" size="xs" variant="warning"/>
+              <text_small width="0" flex_grow="1" bind_text="filament_safety_warning_text" long_mode="wrap"/>
+            </lv_obj>
           </lv_obj>
           <lv_obj name="clean_slot_first_row"
                   width="0" height="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
@@ -210,17 +231,6 @@
                 <event_cb trigger="clicked" callback="on_filament_clean_nozzle"/>
               </ui_button>
             </if>
-          </lv_obj>
-          <!-- Floats over the row it disables, so no layout gives it height; the
-               text wraps rather than ending in an ellipsis. -->
-          <lv_obj name="safety_warning"
-                  width="100%" height="100%" style_pad_hor="#space_sm" scrollable="false" floating="true" align="center"
-                  flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
-                  style_pad_gap="#space_xs" style_border_width="0">
-            <style name="safety_warning_cover"/>
-            <bind_flag_if_eq subject="filament_safety_warning_visible" flag="hidden" ref_value="0"/>
-            <icon src="alert" size="xs" variant="warning"/>
-            <text_small width="0" flex_grow="1" bind_text="filament_safety_warning_text" long_mode="wrap"/>
           </lv_obj>
         </lv_obj>
         <lv_obj name="purge_clean_row"
