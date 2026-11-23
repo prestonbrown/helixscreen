@@ -20,7 +20,7 @@
 #include <cstdlib>
 #include <cstring>
 
-using helix::pa::ModelKind;
+using ModelKind = MoonrakerClientMock::PaModelKind;
 
 namespace {
 

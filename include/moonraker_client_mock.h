@@ -13,7 +13,6 @@
 #include "moonraker_client_mock_happy_hare.h"
 #include "moonraker_client_mock_spoolman.h"
 #include "moonraker_types.h"
-#include "pa_model.h"
 #include "preprint_skip_wrappers.h"
 
 #include <array>
@@ -1295,10 +1294,12 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// `model` is Classic unless HELIX_MOCK_PA_MODEL selects a model-aware
     /// firmware; `advance` is K under Classic/Linear and linear_advance under a
     /// nonlinear model, as SET_PRESSURE_ADVANCE ADVANCE= sets it.
+    /// The firmware being simulated: Classic has no selectable model.
+    enum class PaModelKind { Classic, Linear, Tanh, Recipr };
     struct PressureAdvance {
         double advance = 0.04;
         double smooth_time = 0.04;
-        helix::pa::ModelKind model = helix::pa::ModelKind::Classic;
+        PaModelKind model = PaModelKind::Classic;
         double offset = 0.0;
         double velocity = 1.0;
         double time_offset = 0.0;
