@@ -3,8 +3,8 @@
 
 #pragma once
 
+#include "core/noto_sans_fonts.h"
 #include "lvgl/lvgl.h"
-#include "system/text_fonts.h"
 
 // Material Design Icons - multiple sizes
 // Source: https://pictogrammers.com/library/mdi/
