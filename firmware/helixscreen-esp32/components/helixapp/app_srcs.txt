@@ -510,7 +510,6 @@ src/ui/panel_widgets/filament_buffer_widget.cpp
 src/ui/panel_widgets/filament_sensor_widget.cpp
 src/ui/panel_widgets/heater_temp_widget.cpp
 src/ui/panel_widgets/host_health_widget.cpp
-src/ui/panel_widgets/humidity_widget.cpp
 src/ui/panel_widgets/job_queue_widget.cpp
 src/ui/panel_widgets/led_controls_widget.cpp
 src/ui/panel_widgets/led_widget.cpp
@@ -537,9 +536,10 @@ src/ui/panel_widgets/z_offset_widget.cpp
 src/ui/panel_widgets/temp_graph_widget.cpp
 src/ui/panel_widgets/temp_stack_widget.cpp
 src/ui/panel_widgets/thermistor_widget.cpp
+src/ui/panel_widgets/unit_override.cpp
+src/ui/panel_widgets/unit_tile_widget.cpp
 src/ui/panel_widgets/tips_widget.cpp
 src/ui/panel_widgets/tool_switcher_widget.cpp
-src/ui/panel_widgets/width_sensor_widget.cpp
 src/ui/print/print_control_buttons.cpp
 src/ui/print/print_control_view.cpp
 src/ui/calibration/save_config_restart.cpp

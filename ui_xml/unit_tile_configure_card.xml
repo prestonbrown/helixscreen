@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- Full-screen backdrop overlay - tap to dismiss -->
+  <view name="unit_tile_configure_card" extends="context_menu_backdrop">
+    <context_menu_card title="Unit text" close_icon="check" close_text="Done">
+      <unit_text_row value_subject="unit_tile_cfg_unit"
+                     custom_subject="unit_tile_cfg_unit_custom" row_callback="unit_tile_unit_row_cb"
+                     reset_callback="unit_tile_unit_reset_cb"/>
+    </context_menu_card>
+  </view>
+</component>

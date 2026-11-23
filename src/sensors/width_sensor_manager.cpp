@@ -67,8 +67,6 @@ WidthSensorManager::WidthSensorManager() : SensorManager(make_options()) {}
 void WidthSensorManager::register_subjects(SubjectManager& subjects) {
     // -1 = no sensor assigned, 0+ = diameter in mm * 1000
     UI_MANAGED_SUBJECT_INT(diameter_, -1, "filament_width_diameter", subjects);
-    UI_MANAGED_SUBJECT_STRING(diameter_text_, diameter_text_buf_, "--", "filament_diameter_text",
-                              subjects);
 }
 
 int WidthSensorManager::flow_diameter_micrometers_locked() const {
@@ -140,10 +138,6 @@ void WidthSensorManager::on_discovered(const PrinterDiscovery& /*hw*/) {
 
 lv_subject_t* WidthSensorManager::get_diameter_subject() {
     return &diameter_;
-}
-
-lv_subject_t* WidthSensorManager::get_diameter_text_subject() {
-    return &diameter_text_;
 }
 
 } // namespace helix::sensors
