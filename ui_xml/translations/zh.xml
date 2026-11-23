@@ -2790,7 +2790,6 @@
   <translation tag="Make sure the printer is safe, then restart the firmware." zh="请确认打印机处于安全状态，然后重启固件。"/>
   <translation tag="Make the slicer&apos;s extrusion mode match the start G-code (relative, M83, is usual). Raise max_extrude_cross_section only for a deliberately thick purge line." zh="请让切片软件的挤出模式与起始 G-code 一致（通常为相对模式 M83）。只有在刻意使用粗排料线时才调高 max_extrude_cross_section。"/>
   <translation tag="MakeID (Bluetooth)" zh="MakeID（蓝牙）"/>
-  <translation tag="Makes Spoolman charge each tool&apos;s or lane&apos;s own spool, for printers that do not switch it themselves, and records per print what each spool used." zh="让 Spoolman 按每个工具或耗材通道各自的料盘计算用量（适用于不会自行切换的打印机），并记录每次打印各料盘的用量。"/>
   <translation tag="Manage" zh="管理"/>
   <translation tag="Manage Printers" zh="管理打印机"/>
   <translation tag="Manage configured printers" zh="管理已配置的打印机"/>
@@ -4643,7 +4642,6 @@
   <translation tag="Switch and calibrate" zh="切换并校准"/>
   <translation tag="Switch back to the Snapmaker screen" zh="切换回 Snapmaker 屏幕"/>
   <translation tag="Switch between light and dark themes" zh="切换浅色和深色主题"/>
-  <translation tag="Switch spools at each tool change" zh="每次换工具时切换料盘"/>
   <translation tag="Switch the active tool or extruder" zh="切换当前工具或挤出机"/>
   <translation tag="Switch the nozzle to MPC?" zh="将喷嘴切换为 MPC？"/>
   <translation tag="Switch to a backup slot on runout" zh="耗材用尽时切换到备用槽位"/>

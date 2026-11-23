@@ -30,21 +30,19 @@ struct PluginSwitchFeature {
     int min_version;
     /// The app does the feature itself when the plugin cannot
     bool has_fallback;
-    /// Acts on a print or a spool, so it is off until opted into
+    /// Acts on a print or the user's files, so it is off until opted into
     bool acts;
     const char* mode_subject;
     /// nullptr for a feature that owns its switch and publishes its own state
     const char* on_subject;
 };
 
-inline constexpr std::array<PluginSwitchFeature, 6> kPluginSwitchFeatures = {{
+inline constexpr std::array<PluginSwitchFeature, 5> kPluginSwitchFeatures = {{
     {kPlrFeatureName, kPlrFeatureMinVersion, false, true, "plugin_feature_mode_plr", nullptr},
     {kPrintHooksFeature, kPrintHooksMinVersion, true, true, "plugin_feature_mode_print_hooks",
      "plugin_feature_on_print_hooks"},
     {storage::kAutoCleanupFeature, storage::kAutoCleanupMinVersion, false, true,
      "plugin_feature_mode_storage_auto_cleanup", "plugin_feature_on_storage_auto_cleanup"},
-    {kFilamentAccountingFeature, kFilamentAccountingMinVersion, true, true,
-     "plugin_feature_mode_filament_accounting", "plugin_feature_on_filament_accounting"},
     {kPhotosFeature, kPhotosMinVersion, true, false, "plugin_feature_mode_photos",
      "plugin_feature_on_photos"},
     {kFitCheckFeature, kFitCheckMinVersion, false, true,

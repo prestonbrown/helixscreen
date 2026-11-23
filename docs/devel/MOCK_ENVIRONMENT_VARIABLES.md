@@ -575,7 +575,7 @@ Printer Events button shows the plugin's journal. `HELIX_MOCK_PLR` adds the `plr
 |---------|-----------|
 | `print_hooks` | `helix-screen`/`plugin_features.print_hooks`, off until Settings > Printing writes it. `HELIX_MOCK_PRINT_HOOKS=unavailable` reports it `available: false`, `reason: "load_failed"` |
 | `fit_check_blocks_autostart` | `plugin_features.fit_check_blocks_autostart`, off until Settings > Safety & Alerts writes it |
-| `filament_accounting` | `plugin_features.filament_accounting`, off until Settings > Printing > Spoolman writes it |
+| `filament_accounting` | on unless `plugin_features.filament_accounting` is `false` |
 | `storage_auto_cleanup` | `plugin_features.storage_auto_cleanup`, off until Settings > System > Storage writes it |
 | `photos` | on unless `plugin_features.photos` is `false`. `HELIX_MOCK_PHOTOS=unavailable` reports it `available: false`, `reason: "snapshot_unreachable: ..."`, so the screen takes the photos |
 | `file_analysis`, `server_edits`, `config_edit`, `storage` | always on, `Ready` |

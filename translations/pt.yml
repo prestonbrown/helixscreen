@@ -2910,8 +2910,6 @@ translations:
   ? Make the slicer's extrusion mode match the start G-code (relative, M83, is usual). Raise max_extrude_cross_section only for a deliberately thick purge line.
   : Faça o modo de extrusão do fatiador corresponder ao G-code inicial (relativo, M83, é o usual). Aumente max_extrude_cross_section somente para uma linha de purga grossa de propósito.
   MakeID (Bluetooth): MakeID (Bluetooth)
-  ? Makes Spoolman charge each tool's or lane's own spool, for printers that do not switch it themselves, and records per print what each spool used.
-  : 'Faz o Spoolman descontar do carretel de cada ferramenta ou lane, em impressoras que não o trocam sozinhas, e registra por impressão quanto cada carretel usou.'
   Manage: Gerenciar
   Manage Printers: Gerenciar Impressoras
   Manage configured printers: Gerenciar impressoras configuradas
@@ -4795,7 +4793,6 @@ translations:
   Switch and calibrate: Mudar e calibrar
   Switch back to the Snapmaker screen: 'Voltar para a tela da Snapmaker'
   Switch between light and dark themes: Alternar entre temas claro e escuro
-  Switch spools at each tool change: 'Trocar de carretel a cada troca de ferramenta'
   Switch the active tool or extruder: Trocar a ferramenta ou extrusor ativo
   Switch the nozzle to MPC?: Mudar o bico para MPC?
   Switch to a backup slot on runout: Trocar para um slot de reserva ao acabar o filamento

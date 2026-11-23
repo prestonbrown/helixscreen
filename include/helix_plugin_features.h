@@ -80,7 +80,7 @@ inline constexpr const char* kPluginFeaturesKey = "plugin_features";
 /// The user's opt-in for feature @p name from the plugin_features record, by
 /// the plugin's own rule: a bool under the name is the choice, anything else
 /// the default, on for a feature that only observes and off for one that
-/// @p acts on a print or a spool.
+/// @p acts on a print or the user's files.
 bool plugin_feature_opted_in(const nlohmann::json& record, const std::string& name, bool acts);
 
 /// How a settings row for a plugin feature's switch shows, by the plugin's
@@ -149,7 +149,6 @@ enum class PluginFeatureHome {
     None,     ///< no setting: the overview shows its status only
     Printing, ///< Settings > Printing
     Storage,  ///< Settings > System > Storage
-    Spoolman, ///< Settings > Devices > Spoolman
     Devices,  ///< Settings > Devices
     Safety,   ///< Settings > Safety & Alerts
 };
@@ -171,6 +170,7 @@ inline constexpr const char* kIfsAbsentReasons[] = {"no_adventurer_json", nullpt
 inline constexpr const char* kAceAbsentReasons[] = {"no_ace_bridge", "ace_objects_carry_slots",
                                                     nullptr};
 inline constexpr const char* kStartToolsAbsentReasons[] = {"start_print_takes_no_tools", nullptr};
+inline constexpr const char* kSpoolmanAbsentReasons[] = {"no_spoolman", nullptr};
 
 /// Every feature this app can name. A feature the plugin reports that is not
 /// listed shows by its key, with no setting to lead to.
@@ -179,7 +179,7 @@ inline constexpr KnownPluginFeature kKnownPluginFeatures[] = {
      PluginFeatureHome::Printing},
     {"plr", TR_NOOP("Power-loss recovery"), "power_plug", PluginFeatureHome::Printing},
     {"filament_accounting", TR_NOOP("Spool switching per tool and lane"), "swap_horizontal",
-     PluginFeatureHome::Spoolman},
+     PluginFeatureHome::None, kSpoolmanAbsentReasons},
     {"fit_check_blocks_autostart", TR_NOOP("Hold slicer prints that do not fit"), "ruler",
      PluginFeatureHome::Safety},
     {"convert_3mf", TR_NOOP("3MF conversion"), "cube_outline", PluginFeatureHome::None},

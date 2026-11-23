@@ -2910,8 +2910,6 @@ translations:
   ? Make the slicer's extrusion mode match the start G-code (relative, M83, is usual). Raise max_extrude_cross_section only for a deliberately thick purge line.
   : 请让切片软件的挤出模式与起始 G-code 一致（通常为相对模式 M83）。只有在刻意使用粗排料线时才调高 max_extrude_cross_section。
   MakeID (Bluetooth): MakeID（蓝牙）
-  ? Makes Spoolman charge each tool's or lane's own spool, for printers that do not switch it themselves, and records per print what each spool used.
-  : '让 Spoolman 按每个工具或耗材通道各自的料盘计算用量（适用于不会自行切换的打印机），并记录每次打印各料盘的用量。'
   Manage: 管理
   Manage Printers: 管理打印机
   Manage configured printers: 管理已配置的打印机
@@ -4795,7 +4793,6 @@ translations:
   Switch and calibrate: 切换并校准
   Switch back to the Snapmaker screen: '切换回 Snapmaker 屏幕'
   Switch between light and dark themes: 切换浅色和深色主题
-  Switch spools at each tool change: '每次换工具时切换料盘'
   Switch the active tool or extruder: 切换当前工具或挤出机
   Switch the nozzle to MPC?: 将喷嘴切换为 MPC？
   Switch to a backup slot on runout: 耗材用尽时切换到备用槽位

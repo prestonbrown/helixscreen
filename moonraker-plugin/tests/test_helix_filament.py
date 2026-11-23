@@ -118,7 +118,7 @@ async def _ready(mock_server, status):
         await h()
 
 
-async def _setup(component, mock_server, *, opt_in=True, spool_map=None, active=11,
+async def _setup(component, mock_server, *, opt_in=None, spool_map=None, active=11,
                  status=None):
     spoolman = MockSpoolman(active)
     mock_server.components["spoolman"] = spoolman
@@ -258,11 +258,31 @@ class TestUsageLedger:
 
 class TestFilamentAccounting:
     @pytest.mark.asyncio
-    async def test_feature_registers_off_until_opted_in(self, helix_print_component, mock_server):
-        await _setup(helix_print_component, mock_server, opt_in=None, spool_map=_extruder_map())
+    async def test_feature_is_on_with_no_plugin_features_record(
+            self, helix_print_component, mock_server):
+        await _setup(helix_print_component, mock_server, spool_map=_extruder_map())
+        entry = (await helix_print_component._features_status())[FILAMENT_FEATURE]
+        assert entry["available"] is True and entry["enabled"] is True
+        assert entry["version"] == helix_filament.FILAMENT_FEATURE_VERSION
+
+    @pytest.mark.asyncio
+    async def test_without_moonraker_spoolman_it_is_unavailable_and_records_nothing(
+            self, helix_print_component, mock_server):
+        await helix_print_component.component_init()
+        await _ready(mock_server, _status())
+        entry = (await helix_print_component._features_status())[FILAMENT_FEATURE]
+        assert entry["available"] is False and entry["enabled"] is False
+        assert entry["reason"] == "no_spoolman"
+        await _history(mock_server, _added("000009"))
+        await _history(mock_server, _finished("000009"))
+        assert await helix_print_component.database.get_item(
+            FILAMENT_NAMESPACE, JOB_KEY_PREFIX + "000009") is None
+
+    @pytest.mark.asyncio
+    async def test_plugin_features_false_turns_it_off(self, helix_print_component, mock_server):
+        await _setup(helix_print_component, mock_server, opt_in=False, spool_map=_extruder_map())
         entry = (await helix_print_component._features_status())[FILAMENT_FEATURE]
         assert entry["available"] is True and entry["enabled"] is False
-        assert entry["version"] == helix_filament.FILAMENT_FEATURE_VERSION
 
     @pytest.mark.asyncio
     async def test_two_tool_print_switches_at_each_tool_change_only(
