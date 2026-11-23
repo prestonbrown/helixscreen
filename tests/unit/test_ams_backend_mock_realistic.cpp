@@ -316,7 +316,7 @@ TEST_CASE("AmsBackendMock realistic mode can be cancelled",
     backend.stop();
 }
 
-// Phase 5: Mock Loading State Machine - SELECTING, PAUSED, Recovery
+// Mock Loading State Machine - SELECTING, PAUSED, Recovery
 
 TEST_CASE("AmsBackendMock tool change shows SELECTING phase", "[ams][mock][realistic][selecting]") {
     FastTimingScope timing_guard; // RAII: 1000x speedup, auto-restored

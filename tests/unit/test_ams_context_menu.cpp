@@ -199,9 +199,9 @@ TEST_CASE("AmsContextMenu::decide_unload_mode picks one action per lane state",
 // tapped Load, following Klipper's own "load it and press RESUME" instruction,
 // and got "Cannot run filament operation while printing".
 //
-// Refusing what the backend now ACCEPTS is the other half, and the reason this
-// test changed shape: refuse_if_printing() no longer blocks a PAUSED print on a
-// backend whose filament macro does not home itself. Pause-then-swap is the
+// Refusing what the backend ACCEPTS is the other half: refuse_if_printing() does
+// not block a PAUSED print on a backend whose filament macro does not home
+// itself. Pause-then-swap is the
 // runout / colour-change recovery workflow on AFC, Happy Hare, CFS, ACE, QIDI,
 // toolchangers and Snapmaker; only AD5X IFS still refuses it, because
 // `_IFS_REMOVE_CURRENT_PRUTOK` runs a buried `_G28` that probes a loadcell-Z

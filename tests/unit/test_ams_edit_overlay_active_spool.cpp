@@ -204,7 +204,7 @@ struct OverlayCommitFixture : LVGLTestFixture {
 };
 
 // Tests: a save syncs the active spool with Moonraker via the completion
-// consumer's AmsState commit (the overlay no longer pre-fires it itself)
+// consumer's AmsState commit (the overlay does not pre-fire it itself)
 
 TEST_CASE_METHOD(OverlayCommitFixture, "handle_save sets active spool when spool assigned (0 -> N)",
                  "[ams_edit_overlay][spoolman][active_spool]") {
@@ -460,8 +460,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "fire_completion is idempotent via completion_
     REQUIRE(fire_count == 1);
 }
 
-// Tests: #1071 create-gate + identity-change predicates (unchanged semantics
-// in this phase — Phase 5 rewrites the gate to the Save-to-Spoolman toggle)
+// Tests: #1071 create-gate + identity-change predicates
 
 TEST_CASE("AmsEditOverlay::should_create_new_spool is gated by the Save-to-Spoolman toggle",
           "[ams_edit_overlay][spoolman][toggle]") {

@@ -234,10 +234,10 @@ TEST_CASE("CFS with an identity box.map is identity in both directions", "[ams][
 }
 
 TEST_CASE("CFS box with no map at all still publishes both directions", "[ams][cfs][tool_map]") {
-    // The `map` key is optional on the wire. Before the fix the identity default
-    // was written onto mapped_tool only, so a box that had never been remapped
-    // shipped a lane badge with an EMPTY forward map beside it — and
-    // resolve_op_button_slot fell through to its tool_count>1 guess.
+    // The `map` key is optional on the wire. The identity default must land on
+    // both mapped_tool and the forward map: a box that was never remapped
+    // would otherwise ship a lane badge with an EMPTY forward map beside it, and
+    // resolve_op_button_slot would fall through to its tool_count>1 guess.
     auto info = AmsBackendCfs::parse_box_status(cfs_box_with_map(json(nullptr)));
 
     REQUIRE(info.total_slots == 4);
@@ -678,10 +678,9 @@ TEST_CASE("Mock remap override clears a previous override", "[ams][mock]") {
 
 TEST_CASE("Mock apply_user_edit does not change slot status", "[ams][mock]") {
     // Same contract as every real backend: status is firmware-derived, so this
-    // path carries filament metadata only. It used to drop `status` in silence,
-    // which cost a debugging cycle — a test helper wrote status through here,
-    // nothing took effect, and the resulting failures read as implementation
-    // bugs. force_slot_status() is the path that works.
+    // path carries filament metadata only and drops `status` in silence, so a test
+    // helper that writes status through here has no effect. force_slot_status()
+    // is the path that works.
     helix::AmsBackendMock backend(4);
     backend.set_operation_delay(0);
     backend.force_slot_status(1, helix::SlotStatus::EMPTY);

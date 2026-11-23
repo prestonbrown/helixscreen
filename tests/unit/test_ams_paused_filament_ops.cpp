@@ -11,11 +11,11 @@
  * recovery workflow, so refusing it everywhere made HelixScreen the only surface
  * that could not perform the recovery Klipper had just asked for.
  *
- * The gate is not removed, it is narrowed to where it was earned. AD5X IFS
+ * The gate applies only where it is needed. AD5X IFS
  * unloads via `_IFS_REMOVE_CURRENT_PRUTOK`, which runs a buried `_G28` inside
  * ZMOD firmware; on that loadcell-Z printer the probe drives the nozzle DOWN
  * into the part, tripping ZCONTROL_AUTO into a Klipper shutdown that needs a
- * firmware restart (bundle XWPBR2DX, commit 329e731e9). Layer 1's gcode-send
+ * firmware restart (bundle XWPBR2DX). Layer 1's gcode-send
  * guard never sees that `_G28`, so AD5X must still refuse while paused.
  *
  * The four cells these tests pin:
@@ -385,7 +385,7 @@ TEST_CASE_METHOD(PausedGateFixture,
     }
 }
 
-// Snapmaker U1 — the backend 329e731e9 missed
+// Snapmaker U1
 //
 // Every op below drives the toolhead: AUTO_FEEDING forwards to FEED_AUTO, which
 // homes and then switches tools before feeding, and `T{n}` moves the carriage.
@@ -612,10 +612,9 @@ TEST_CASE("AmsErrorHelper::print_active copy matches the state it describes",
 // return`. That refusal ends in a bare return with the G-code still acked as
 // success, so an ungated Eject reports success and moves nothing.
 //
-// This is the one condition eject_lane() still checks locally. The rest of that
-// macro's if/elif chain used to be mirrored too and was removed in
-// prestonbrown/helixscreen#1258; this predicate stayed because it is stable
-// across every AFC version and is the same rule the context menu greys on.
+// This is the one condition eject_lane() checks locally, rather than mirroring
+// the rest of that macro's if/elif chain (prestonbrown/helixscreen#1258): it is
+// stable across every AFC version and is the same rule the context menu greys on.
 //
 // is_printing() is `print_stats.state == "printing"` exactly — NOT in_print() —
 // so PAUSED genuinely reaches the firmware and must stay allowed.

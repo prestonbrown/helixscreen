@@ -21,9 +21,9 @@ using helix::SlotInfo;
  * @file test_ams_system_tool_layout.cpp
  * @brief Unit tests for compute_system_tool_layout()
  *
- * Tests the physical nozzle position calculation that fixes the bug where
- * HUB units with unique per-lane mapped_tool values (real AFC behavior)
- * inflated the total nozzle count in the system path canvas.
+ * Tests the physical nozzle position calculation: HUB units with unique
+ * per-lane mapped_tool values (real AFC behavior) must not inflate the total
+ * nozzle count in the system path canvas.
  */
 
 using namespace ams_draw;

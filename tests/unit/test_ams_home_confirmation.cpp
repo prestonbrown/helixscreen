@@ -251,10 +251,8 @@ TEST_CASE("ensure_homed_then custom timeout/silent bypass the hardcoded virtuals
     CHECK(seen == "boom");
 }
 
-// AmsBackendCfs::dispatch_action_script (Task 5: collapse the CFS fork)
-// dispatch_action_script used to hand-duplicate ensure_homed_then's
-// query/parse/G28 sequence purely to get on_error plumbing the base lacked.
-// It now collapses to a single ensure_homed_then() call with on_error set and
+// AmsBackendCfs::dispatch_action_script
+// dispatch_action_script is a single ensure_homed_then() call with on_error set and
 // silent=false -- which always lands on dispatch_payload()'s "custom" branch
 // (see the integration test above), so these tests need a live api_/client_
 // exactly like that one: a null-api_ probe would short-circuit dispatch_payload

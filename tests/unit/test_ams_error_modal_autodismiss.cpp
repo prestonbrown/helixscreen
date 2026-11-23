@@ -90,10 +90,9 @@ class AmsErrorModalFixture : public XMLTestFixture {
 
     /// Build a real AmsPanel exactly as production does.
     lv_obj_t* build_panel(AmsPanel& panel) {
-        // The production registration itself, not a copy of its list. The copy
-        // that used to live here had drifted: it registered the environment
-        // indicator as a bare component (losing the click callback
-        // ensure_ams_env_indicator_registered() installs) and omitted the
+        // The production registration itself, not a copy of its list: a copy would
+        // register the environment indicator as a bare component (losing the click
+        // callback ensure_ams_env_indicator_registered() installs) and omit the
         // device-operations / environment overlay callbacks plus
         // ams_context_menu.xml, ams_selector_menu.xml and
         // ams_environment_overlay.xml.
@@ -208,8 +207,8 @@ TEST_CASE_METHOD(AmsErrorModalFixture,
 
 TEST_CASE_METHOD(AmsErrorModalFixture, "AmsPanel dismisses the error modal when AMS leaves ERROR",
                  "[ui_integration][ams][regression][1185]") {
-    // THE #1185 REGRESSION. Before the fix the observer's non-ERROR branch only
-    // reset the cooldown, so the dialog stayed on screen forever.
+    // #1185: the observer's non-ERROR branch must dismiss the dialog, not only
+    // reset the cooldown.
     auto* backend = install_backend();
 
     AmsPanel panel(state(), &api());

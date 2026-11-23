@@ -16,8 +16,8 @@
  * any particular file. A mock that returns its attachment map instead is
  * trusted, because FilamentMapper::effective_routing() takes any non-empty answer as the truth,
  * so the preview would resolve every logical tool to its own head index: on
- * hardware, a cancelled T0-red / T2-black print rendered as a black body with a
- * red tail that way.
+ * hardware, that renders a cancelled T0-red / T2-black print as a black body
+ * with a red tail.
  *
  * firmware_default_routing() is the same class of divergence one step quieter:
  * the inherited lane-per-tool identity agrees with the U1's four fixed heads for
@@ -138,8 +138,8 @@ TEST_CASE("HELIX_MOCK_REMAP stages a Snapmaker task, not a lane move",
           "[ams][snapmaker][mock][remap]") {
     // On a U1 a user remap does not move the lanes: it becomes the task's
     // extruder_map_table. The knob exists to show a non-identity routing in the
-    // swatches, which it can only do through the routing accessor now that the
-    // attachment map no longer stands in for one.
+    // swatches, which it can only do through the routing accessor, because the
+    // attachment map does not stand in for one.
     AmsBackendMock mock(4);
     mock.set_snapmaker_mode(true);
     REQUIRE(mock.get_tool_mapping().empty());

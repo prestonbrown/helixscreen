@@ -202,10 +202,8 @@ TEST_CASE("Tool mapping with system_info integration", "[ams][tool_mapping][inte
     REQUIRE(backend.start());
 
     SECTION("tool_to_slot_map is published for a table-owning backend") {
-        // AmsSystemInfo::supports_tool_mapping used to carry a second copy of
-        // owns_tool_mapping_table()'s answer and was pinned here to agree with
-        // it. The field is gone; what a consumer actually needs from
-        // system_info is the table itself.
+        // owns_tool_mapping_table() is the one answer; what a consumer needs
+        // from system_info is the table itself.
         REQUIRE(backend.owns_tool_mapping_table());
         CHECK_FALSE(backend.get_system_info().tool_to_slot_map.empty());
     }

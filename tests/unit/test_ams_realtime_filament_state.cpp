@@ -3,7 +3,7 @@
 
 /**
  * @file test_ams_realtime_filament_state.cpp
- * @brief Phase 1 of the cross-backend AMS real-time filament-state refactor.
+ * @brief Cross-backend AMS real-time filament state.
  *
  * Covers:
  *  - AmsBackend per-slot LIVE accessors: the base-class safe defaults
@@ -233,7 +233,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "AmsState publishes per-slot LIVE subjects on 
     ams.deinit_subjects();
 }
 
-// Phase 2 — Reactive chain: observers on per-slot LIVE subjects fire on change
+// Reactive chain: observers on per-slot LIVE subjects fire on change
 //
 // The MULTI-FILAMENT panel (path canvas) and the per-lane active badge OBSERVE
 // these subjects. This pins the observable contract those panels depend on: a
@@ -358,10 +358,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "Active-loaded subject is the single highlight
 
 // Part 2b — Per-slot FILL subject: sync writes the canonical display_fill_pct
 //
-// The fill subject is the structural fix for spool fill levels: written here by
-// sync_from_backend, observed inside the ams_slot widget, so every panel renders
-// fill from state (the AmsOverviewPanel bug where unit-detail spools showed 100%
-// full came from only AmsPanel ever pushing fill imperatively).
+// The fill subject is written by sync_from_backend and observed inside the
+// ams_slot widget, so every panel renders fill from state; an imperative push
+// from one panel alone leaves the others (e.g. AmsOverviewPanel unit detail)
+// showing 100%.
 
 TEST_CASE_METHOD(LVGLTestFixture, "AmsState publishes per-slot fill subject on sync",
                  "[ams][fill][ams_state]") {

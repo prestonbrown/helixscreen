@@ -1188,15 +1188,13 @@ TEST_CASE("ACE load does not seat a slot the driver never moved to", "[ams][ace]
     CHECK(helper.get_slot_info(2).status != SlotStatus::LOADED);
 }
 
-// Task 13: FilamentSlotOverrideStore integration.
+// FilamentSlotOverrideStore integration.
 //
-// ACE's legacy per-backend override plumbing (slot_overrides_ map,
-// save/load_slot_overrides*, apply_slot_overrides_json, slot_overrides_to_json)
-// has been replaced by the shared FilamentSlotOverrideStore. The tests below
-// lock the behavior commitments the migration preserves:
+// ACE keeps slot overrides in the shared FilamentSlotOverrideStore. The tests
+// below lock these behavior commitments:
 //   1. An override loaded at init is applied over firmware data on parse.
 //   2. Migration from helix-screen:ace_slot_overrides to lane_data happens
-//      automatically on the first load_blocking() call (Task 8 logic).
+//      automatically on the first load_blocking() call.
 //   3. apply_user_edit() writes through to the store.
 //   4. Slot status transition empty/unknown -> present clears the override
 //      (ACE's analogue to RFID UID change on Snapmaker).
@@ -1252,7 +1250,7 @@ TEST_CASE("ACE apply_user_edit writes to store", "[ams][ace][filament_slot_overr
     CHECK(stored["material"] == "PLA");
     CHECK(stored["color"] == "#FF5500");
 
-    // Legacy namespace NOT touched — ACE no longer writes there.
+    // Legacy namespace NOT touched — ACE does not write there.
     CHECK(mock_printer.client.mock_db_get("helix-screen", "ace_slot_overrides").is_null());
 }
 
@@ -1659,7 +1657,7 @@ TEST_CASE("ACE partial override only replaces specified fields",
     CHECK(info.remaining_weight_g == -1.0f); // default
 }
 
-// Task 16: explicit clear_slot_override
+// Explicit clear_slot_override
 
 TEST_CASE("ACE clear_slot_override erases in-memory override and MR DB entry",
           "[ams][ace][filament_slot_override]") {

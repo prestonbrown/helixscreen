@@ -3050,7 +3050,7 @@ TEST_CASE("Happy Hare toolchange_phase_template: ops declare ordered phases",
     REQUIRE_FALSE(swap.empty());
     CHECK(swap.front().id == "heat");
     CHECK(swap.back().id == "load");
-    // Task 3 maps AmsAction → these exact positions; lock them in.
+    // AmsAction maps to these exact positions; lock them in.
     REQUIRE(swap.size() == 8);
     CHECK(swap[5].id == "feed");
     CHECK(swap[6].id == "purge");
