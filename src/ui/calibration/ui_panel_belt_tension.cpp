@@ -405,7 +405,6 @@ lv_obj_t* BeltTensionPanel::create(lv_obj_t* parent) {
     ensure_gate_observers();
     refresh_gate();
 
-    // Set initial state
     set_view_state(ViewState::START);
     return overlay_root_;
 }

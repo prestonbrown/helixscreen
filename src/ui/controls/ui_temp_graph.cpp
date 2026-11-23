@@ -127,7 +127,7 @@ std::vector<std::pair<int, int>> segment_target_buf(const int16_t* buf, int coun
 
 // Collapse runs of equal target values within [first, second) into single line
 // segments. The target trace is a step function, so a held setpoint produces a
-// long run of identical samples that the old per-sample draw rendered as one
+// long run of identical samples that a per-sample draw would render as one
 // sub-pixel dashed line per sample (up to ~1200 per series). Each returned pair
 // (a, b) means "draw a line from buffer index a to index b"; the union of the
 // returned pairs is geometrically identical to connecting every consecutive
@@ -794,8 +794,8 @@ static void gradient_render_start_cb(lv_event_t* e) {
 }
 
 // Render gradient fills by reading chart data directly.
-// LVGL 9.5 changed DRAW_TASK_ADDED to fire during rendering (after all draw events),
-// so we can no longer add draw tasks from that callback. Instead, we compute pixel
+// LVGL 9.5 fires DRAW_TASK_ADDED during rendering (after all draw events), so draw
+// tasks cannot be added from that callback. Instead, we compute pixel
 // positions from the raw chart series data and draw gradient fills in DRAW_MAIN_END.
 static void draw_gradient_cb(lv_event_t* e) {
     ui_temp_graph_t* graph = static_cast<ui_temp_graph_t*>(lv_event_get_user_data(e));
@@ -1431,9 +1431,9 @@ static void draw_x_axis_labels_cb(lv_event_t* e) {
 
         // Only draw if different from last label
         if (strcmp(now_str, prev_label) != 0) {
-            // Box ends on the right edge of the content area. The old fixed box
-            // ran 36px past it, and no ext_draw_size covers the overhang, so the
-            // tail of the time was clipped away.
+            // Box ends on the right edge of the content area: no ext_draw_size
+            // covers an overhang, so a box running past it would clip the tail of
+            // the time.
             lv_point_t now_size;
             lv_text_get_size(&now_size, now_str, graph->axis_font, 0, 0, LV_COORD_MAX,
                              LV_TEXT_FLAG_NONE);
@@ -1966,7 +1966,6 @@ SeriesId ui_temp_graph_add_series(ui_temp_graph_t* graph, const char* name, lv_c
     // The gradient callback skips POINT_NONE values when iterating series data.
     lv_chart_set_all_values(graph->chart, ser, LV_CHART_POINT_NONE);
 
-    // Initialize series metadata
     ui_temp_series_meta_t* meta = &graph->series_meta[slot];
     meta->id = static_cast<SeriesId>(graph->next_series_id++);
     meta->chart_series = ser;
@@ -2012,7 +2011,6 @@ void ui_temp_graph_remove_series(ui_temp_graph_t* graph, SeriesId series_id) {
 
     lv_chart_remove_series(graph->chart, meta->chart_series);
 
-    // Free target history buffer
     delete[] meta->target_deci_buf;
 
     // Clear metadata (also zeros target_deci_buf, target_cap and target_head)

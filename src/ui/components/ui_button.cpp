@@ -1327,7 +1327,6 @@ void ui_button_apply(lv_xml_parser_state_t* state, const char** attrs) {
     const char* btn_name = lv_obj_get_name(btn);
     if (btn_name && strlen(btn_name) > 0) {
         if (data && data->magic == UiButtonData::kMagic && data->icon) {
-            // Set icon name as "{button_name}_icon"
             char icon_name[128];
             snprintf(icon_name, sizeof(icon_name), "%s_icon", btn_name);
             lv_obj_set_name(data->icon, icon_name);

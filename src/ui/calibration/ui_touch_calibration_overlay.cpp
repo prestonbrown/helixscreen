@@ -75,7 +75,6 @@ TouchCalibrationOverlay::TouchCalibrationOverlay() {
             return;
         }
 
-        // Reset accept button text
         snprintf(accept_text_buffer_, sizeof(accept_text_buffer_), "Accept");
         lv_subject_set_string(&accept_button_text_, accept_text_buffer_);
 
@@ -245,7 +244,6 @@ lv_obj_t* TouchCalibrationOverlay::create(lv_obj_t* parent) {
     // Reset cleanup flag when (re)creating
     cleanup_called_ = false;
 
-    // Create overlay from XML
     overlay_root_ = helix::ui::create_xml_hidden(parent, "touch_calibration_overlay");
 
     if (!overlay_root_) {
@@ -361,7 +359,6 @@ void TouchCalibrationOverlay::on_activate() {
                        lv_obj_get_height(scr) - chip_h - kCancelChipInset);
     }
 
-    // Initialize crosshair position if calibrating
     update_crosshair_position();
 }
 
@@ -402,7 +399,6 @@ void TouchCalibrationOverlay::cleanup() {
         helix::nav::unregister_overlay(overlay_root_);
     }
 
-    // Call base class to set cleanup_called_ flag
     OverlayBase::cleanup();
 
     // Cancel any in-progress calibration
@@ -422,7 +418,6 @@ void TouchCalibrationOverlay::cleanup() {
     // Clear widget pointers
     crosshair_ = nullptr;
 
-    // Clear callback
     completion_callback_ = nullptr;
     callback_invoked_ = false;
 
@@ -467,7 +462,6 @@ void TouchCalibrationOverlay::handle_accept_clicked() {
 
     unattended_verify_rounds_ = 0;
 
-    // Reset accept button text for next calibration
     snprintf(accept_text_buffer_, sizeof(accept_text_buffer_), "Accept");
     lv_subject_set_string(&accept_button_text_, accept_text_buffer_);
 

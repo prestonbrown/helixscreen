@@ -119,7 +119,6 @@ void PIDCalibrationPanel::init_subjects() {
     // Register state subject (shared across all instances)
     UI_MANAGED_SUBJECT_INT(s_pid_cal_state, 0, "pid_cal_state", subjects_);
 
-    // Initialize string subjects with initial values
     UI_MANAGED_SUBJECT_STRING(subj_temp_display_, buf_temp_display_, "", "pid_temp_display",
                               subjects_);
 
@@ -246,7 +245,6 @@ void PIDCalibrationPanel::init_subjects() {
         }
     });
 
-    // Register XML event callbacks (once globally)
     if (!s_callbacks_registered) {
         register_xml_callbacks({
             {"on_pid_heater_extruder",
@@ -347,7 +345,6 @@ void PIDCalibrationPanel::setup_widgets() {
     // Event callbacks are registered via XML <event_cb> elements
     // State visibility is controlled via subject binding in XML
 
-    // Set initial state
     set_state(State::IDLE);
     update_temp_display();
     update_temp_hint();
@@ -528,10 +525,8 @@ void PIDCalibrationPanel::cleanup() {
         helix::nav::unregister_overlay(overlay_root_);
     }
 
-    // Clear slider references
     fan_slider_ = nullptr;
 
-    // Call base class to set cleanup_called_ flag
     OverlayBase::cleanup();
 
     // Clear references
@@ -774,7 +769,6 @@ void PIDCalibrationPanel::setup_pid_graph() {
     ui_temp_graph_set_y_axis(pid_graph_, is_extruder ? 100.0f : 50.0f, true);
     ui_temp_graph_set_axis_size(pid_graph_, "xs");
 
-    // Add single series for the active heater
     const char* series_name = is_extruder ? "Nozzle" : "Bed";
     lv_color_t color = is_extruder ? lv_color_hex(0xFF4444) : lv_color_hex(0x00CED1);
     pid_graph_series_id_ = ui_temp_graph_add_series(pid_graph_, series_name, color);
@@ -831,7 +825,6 @@ void PIDCalibrationPanel::send_pid_calibrate() {
         fan_sent_ = true;
     }
 
-    // Update calibrating state label
     const char* label = (selected_heater_ == Heater::EXTRUDER) ? lv_tr("Extruder PID Tuning")
                                                                : lv_tr("Heated Bed PID Tuning");
     lv_subject_set_string(&subj_calibrating_heater_, label);
@@ -901,8 +894,6 @@ void PIDCalibrationPanel::send_save_config() {
             }
         });
 }
-
-// FETCH OLD PID VALUES
 
 void PIDCalibrationPanel::fetch_old_pid_values() {
     has_old_values_ = false;
@@ -1259,7 +1250,6 @@ void PIDCalibrationPanel::handle_retry_clicked() {
 void PIDCalibrationPanel::on_calibration_result(bool success, float kp, float ki, float kd,
                                                 const std::string& error_message) {
     if (success) {
-        // Set progress to 100% on completion
         progress_tracker_.mark_complete();
         lv_subject_set_int(&subj_pid_progress_, 100);
         lv_subject_set_string(&subj_pid_progress_text_, lv_tr("Complete!"));

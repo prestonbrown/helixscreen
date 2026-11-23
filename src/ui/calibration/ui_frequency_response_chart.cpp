@@ -547,7 +547,6 @@ int ui_frequency_response_chart_add_series(ui_frequency_response_chart_t* chart,
     strncpy(series->name, name, kMaxNameLen - 1);
     series->name[kMaxNameLen - 1] = '\0';
 
-    // Create LVGL series if in chart mode
     if (chart->chart_mode && chart->chart) {
         series->lv_series = lv_chart_add_series(chart->chart, color, LV_CHART_AXIS_PRIMARY_Y);
         if (series->lv_series) {
@@ -572,12 +571,10 @@ void ui_frequency_response_chart_remove_series(ui_frequency_response_chart_t* ch
         return;
     }
 
-    // Remove LVGL series if present
     if (series->lv_series && chart->chart) {
         lv_chart_remove_series(chart->chart, series->lv_series);
     }
 
-    // Clear data
     series->frequencies.clear();
     series->amplitudes.clear();
 
@@ -845,7 +842,6 @@ void ui_frequency_response_chart_set_data(ui_frequency_response_chart_t* chart, 
         series->amplitudes.assign(amplitudes, amplitudes + count);
     }
 
-    // Update LVGL chart if in chart mode
     if (chart->chart_mode && chart->chart && series->lv_series) {
         update_chart_series(chart, series);
     }
@@ -1909,7 +1905,6 @@ void ui_frequency_response_chart_configure_for_platform(ui_frequency_response_ch
 
     // Create or destroy LVGL chart widget based on mode
     if (chart->chart_mode && !chart->chart) {
-        // Create LVGL chart
         chart->chart = lv_chart_create(chart->root);
         if (chart->chart) {
             lv_obj_set_size(chart->chart, LV_PCT(100), LV_PCT(100));

@@ -100,7 +100,6 @@ bool PinEntryModal::create() {
     cover_chrome();
     helix::ui::bring_to_front(backdrop_);
 
-    // Create the dialog from XML component
     dialog_ =
         static_cast<lv_obj_t*>(lv_xml_create(backdrop_, "pin_entry_modal", pin_display_.attrs()));
     if (!dialog_) {

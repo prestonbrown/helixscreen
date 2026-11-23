@@ -307,7 +307,6 @@ void ControlsPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     // panel's printer state.
     helix::ui::TargetTool::instance().attach(printer_state_);
 
-    // Register observers for live data updates
     register_observers();
 
     // Populate secondary fans on initial setup (will be empty until discovery)

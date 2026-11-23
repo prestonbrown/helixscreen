@@ -144,7 +144,6 @@ bool ContextMenu::show_impl(lv_obj_t* parent, int item_index, lv_obj_t* anchor, 
     anchor_align_ = align;
     anchor_widget_ = anchor;
 
-    // Create context menu from XML
     menu_ = static_cast<lv_obj_t*>(lv_xml_create(parent, xml_component_name(), nullptr));
     if (!menu_) {
         spdlog::error("[ContextMenu] Failed to create menu from XML: {}", xml_component_name());

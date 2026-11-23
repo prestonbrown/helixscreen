@@ -514,9 +514,9 @@ void KeyboardManager::longpress_event_handler(lv_event_t* e) {
 
             // Nothing is inserted yet. Insertion happens on RELEASE so that sliding
             // onto an exposed alternative selects it, and sliding away cancels.
-            // Inserting here (the old auto-insert path) made the overlay decorative:
-            // the character was already committed before the user could aim at it,
-            // and sliding away to cancel still left it in the field.
+            // Inserting here would make the overlay decorative: the character would
+            // be committed before the user could aim at it, and sliding away to
+            // cancel would still leave it in the field.
             spdlog::info("[KeyboardManager] LONG_PRESSED '{}' - overlay shown, awaiting release",
                          mgr.pressed_char_ ? mgr.log_char(mgr.pressed_char_) : '?');
         }
@@ -595,7 +595,7 @@ void KeyboardManager::longpress_event_handler(lv_event_t* e) {
                     // Held and released without sliding. A long-press is a deliberate
                     // request for the alternate, so honour it rather than falling back
                     // to the primary — this is the one-gesture path (hold 'f' -> '_')
-                    // that users rely on, and it is what the old auto-insert did.
+                    // that users rely on.
                     // With auto_insert_alt_ off, the release lands on the primary
                     // instead and the alternate requires sliding onto the popover.
                     if (in_place_char != 0 && mgr.context_textarea_ != nullptr) {
@@ -1598,7 +1598,6 @@ void KeyboardManager::reset() {
     // reason (#776); safe_delete_deferred() nulls overlay_ and no-ops if already null.
     helix::ui::safe_delete_deferred(overlay_);
 
-    // Reset all state so init() can be called again
     longpress_state_ = LP_IDLE;
     pressed_btn_id_ = 0;
     pressed_char_ = 0;

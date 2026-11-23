@@ -60,7 +60,6 @@ void init_screws_tilt_row_handler() {
 // XML EVENT CALLBACK REGISTRATION
 
 void ui_panel_screws_tilt_register_callbacks() {
-    // Register event callbacks
     register_xml_callbacks({
         {"screws_tilt_start_cb",
          [](lv_event_t* /*e*/) { get_global_screws_tilt_panel().handle_start_clicked(); }},
@@ -176,7 +175,6 @@ void ScrewsTiltPanel::setup_widgets() {
     results_instruction_ =
         helix::ui::find_required(overlay_root_, "results_instruction", get_name());
 
-    // Find screw dot widgets for color updates
     screw_dots_[0] = helix::ui::find_required(overlay_root_, "screw_dot_0", get_name());
     screw_dots_[1] = helix::ui::find_required(overlay_root_, "screw_dot_1", get_name());
     screw_dots_[2] = helix::ui::find_required(overlay_root_, "screw_dot_2", get_name());

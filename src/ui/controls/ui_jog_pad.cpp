@@ -789,7 +789,6 @@ lv_obj_t* ui_jog_pad_create(lv_obj_t* parent) {
     // Get raw pointer for initialization
     jog_pad_state_t* state = state_ptr.get();
 
-    // Initialize state
     state->current_mode = JogMode::Coarse;
     state->is_homed = false; // Printer boots unhomed; observer updates this
     state->zone_options = helix::JogPadZoneOptions{};

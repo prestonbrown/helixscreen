@@ -69,8 +69,7 @@ TemperatureService::TemperatureService(PrinterState& printer_state, IMoonrakerAP
     // Preset temperatures are derived per user preset slot, not per hardcoded
     // material. TemperatureController owns the derivation (nozzle/bed from the
     // filament database, chamber from its documented enclosure ladder) so the
-    // service and the controller can never drift apart — they used to maintain
-    // two independent copies of the same three lookups.
+    // service and the controller can never drift apart.
     const HeaterPresets nozzle_presets = compute_heater_presets(HeaterType::Nozzle);
     const HeaterPresets bed_presets = compute_heater_presets(HeaterType::Bed);
     const HeaterPresets chamber_presets = compute_heater_presets(HeaterType::Chamber);

@@ -1703,8 +1703,8 @@ void BedMeshPanel::execute_save_config() {
 
     // SAVE_CONFIG's reply is dropped by the restart it triggers, so the watch
     // decides the outcome from Klipper coming back rather than from the rpc.
-    // Reporting the dropped rpc as a failure told the user every successful save
-    // had failed (prestonbrown/helixscreen#1359).
+    // Reporting the dropped rpc as a failure would tell the user every successful
+    // save had failed (prestonbrown/helixscreen#1359).
     save_watch_.begin(
         api, "Configuration saved - restarting",
         [this]() {
@@ -2076,7 +2076,7 @@ void BedMeshPanel::rename_profile_checked(std::string_view typed) {
     }
     switch (check.verdict) {
     case helix::ui::bed_mesh::ProfileNameVerdict::Empty:
-        // The old callback returned silently here, so the button looked broken.
+        // Say why nothing happened; a silent return makes the button look broken.
         NOTIFY_WARNING(lv_tr("Enter a name for this profile"));
         return;
     case helix::ui::bed_mesh::ProfileNameVerdict::Unusable:

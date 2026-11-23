@@ -233,7 +233,6 @@ void ui_confetti_burst(lv_obj_t* confetti, int count) {
     for (int i = 0; i < count; i++) {
         Particle p;
 
-        // Create the visual object
         p.obj = lv_obj_create(data->container);
         lv_obj_remove_style_all(p.obj);
         lv_obj_set_clickable(p.obj, false);

@@ -327,14 +327,14 @@ MotionPanel::MotionPanel()
     std::memset(z_tag_buf_, 0, sizeof(z_tag_buf_));
     std::memset(step_label_buf_, 0, sizeof(step_label_buf_));
 
-    // Load persisted jog mode (default: coarse)
-    // Migrate from old bool /motion/jog_mode_fine to new int /motion/jog_mode
+    // Load persisted jog mode (default: coarse); a bool /motion/jog_mode_fine
+    // from an older config is converted below.
     auto* cfg = Config::get_instance();
     int mode = cfg->get<int>("/motion/jog_mode", -1);
     if (mode >= 0 && mode < kJogModeCount) {
         current_mode_ = static_cast<JogMode>(mode);
     } else {
-        // Migrate legacy bool setting and persist new key
+        // Convert the bool setting and persist it under the int key
         bool fine = cfg->get<bool>("/motion/jog_mode_fine", false);
         current_mode_ = fine ? JogMode::Fine : JogMode::Coarse;
         cfg->set("/motion/jog_mode", static_cast<int>(current_mode_));
@@ -871,7 +871,6 @@ void MotionPanel::setup_jog_pad() {
         ui_jog_pad_set_jog_callback(jog_pad_, jog_pad_jog_cb, this);
         ui_jog_pad_set_home_callback(jog_pad_, jog_pad_home_cb, this);
 
-        // Set initial jog mode
         ui_jog_pad_set_mode(jog_pad_, current_mode_);
 
         // Apply initial enabled/dimmed and homed state (the observers only fire on change)

@@ -731,7 +731,6 @@ void FanControlOverlay::unsubscribe_from_fan_speeds() {
         afd.animation.unbind();
     }
 
-    // Clear auto fan observers
     fan_speed_observers_.clear();
     fan_rpm_observer_.reset();
 

@@ -113,7 +113,6 @@ void ZOffsetCalibrationPanel::init_subjects() {
 
     subjects_initialized_ = true;
 
-    // Register XML event callbacks (once globally)
     if (!s_callbacks_registered) {
         register_xml_callbacks({
             {"on_zoffset_start_clicked",
@@ -374,14 +373,12 @@ void ZOffsetCalibrationPanel::cleanup() {
     // Nullify widget pointers BEFORE resetting observers — any cascading
     // observer callbacks during teardown will see null and bail out.
 
-    // Reset ObserverGuards (applying [L020])
     manual_probe_active_observer_.reset();
     manual_probe_z_observer_.reset();
     klippy_state_observer_.reset();
     bed_temp_lifetime_.reset();
     bed_temp_observer_.reset();
 
-    // Call base class to set cleanup_called_ flag
     OverlayBase::cleanup();
 }
 

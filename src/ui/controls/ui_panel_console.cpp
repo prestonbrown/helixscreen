@@ -75,7 +75,6 @@ ConsolePanel::~ConsolePanel() {
 // Subject Initialization
 
 void ConsolePanel::init_subjects() {
-    // Initialize status subject for reactive binding
     UI_MANAGED_SUBJECT_STRING(status_subject_, status_buf_, lv_tr("Loading history..."),
                               "console_status", subjects_);
     // Status label visibility (1 = visible, 0 = hidden)

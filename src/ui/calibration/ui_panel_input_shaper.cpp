@@ -111,7 +111,6 @@ static void on_input_shaper_row_clicked(lv_event_t* e) {
 // XML EVENT CALLBACK REGISTRATION
 
 void ui_panel_input_shaper_register_callbacks() {
-    // Register event callbacks for XML
     register_xml_callbacks({
         {"input_shaper_axis_cb",
          [](lv_event_t* e) {
@@ -375,7 +374,6 @@ void InputShaperPanel::setup_widgets() {
     // State visibility is handled via XML subject bindings
     // All display elements are now subject-bound in XML
 
-    // Set initial state
     set_state(State::IDLE);
 
     // Create frequency response chart widgets inside containers
@@ -420,7 +418,6 @@ void InputShaperPanel::on_activate() {
         return;
     }
 
-    // Reset to idle state
     set_state(State::IDLE);
     clear_results();
     calibrate_all_mode_ = false;
@@ -531,7 +528,6 @@ void InputShaperPanel::cleanup() {
         helix::nav::unregister_overlay(overlay_root_);
     }
 
-    // Call base class to set cleanup_called_ flag
     OverlayBase::cleanup();
 }
 
@@ -1322,7 +1318,6 @@ void InputShaperPanel::populate_current_config(const InputShaperConfig& config) 
 }
 
 void InputShaperPanel::clear_results() {
-    // Clear frequency response charts
     clear_chart('X');
     clear_chart('Y');
 
@@ -1730,7 +1725,6 @@ void InputShaperPanel::populate_chart(char axis, const InputShaperResult& result
 
     lv_subject_set_int(&has_freq_data, 1);
 
-    // Store the data
     chart_data.freq_response = result.freq_response;
     chart_data.shaper_curves = result.shaper_curves;
     chart_data.selected_shaper = -1;
@@ -1775,7 +1769,6 @@ void InputShaperPanel::populate_chart(char axis, const InputShaperResult& result
                                               freqs[peak_idx], *peak_it);
     }
 
-    // Add shaper overlay series
     for (size_t i = 0; i < chart_data.shaper_curves.size() && i < kMaxShapers; i++) {
         const auto& curve = chart_data.shaper_curves[i];
 
@@ -1883,7 +1876,6 @@ void InputShaperPanel::clear_chart(char axis) {
 
     if (chart_data.chart) {
         ui_frequency_response_chart_clear(chart_data.chart);
-        // Remove all series
         if (chart_data.raw_series_id >= 0) {
             ui_frequency_response_chart_remove_series(chart_data.chart, chart_data.raw_series_id);
             chart_data.raw_series_id = -1;

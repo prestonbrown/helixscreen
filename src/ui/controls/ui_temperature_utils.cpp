@@ -262,7 +262,6 @@ HeaterDisplayResult heater_display(int current_deci, int target_deci) {
         classify_heat_state(shown_deci, target_deci, kDefaultAtTempToleranceDeci);
     result.state = state;
 
-    // Get color from the same heating state logic
     result.color = get_heating_state_color(state);
 
     return result;

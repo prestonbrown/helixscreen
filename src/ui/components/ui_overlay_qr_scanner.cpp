@@ -116,7 +116,6 @@ lv_obj_t* QrScannerOverlay::create(lv_obj_t* parent) {
         return nullptr;
     }
 
-    // Find child widgets by name
     viewfinder_ = helix::ui::find_required(overlay_root_, "viewfinder", get_name());
     success_flash_ = helix::ui::find_required(overlay_root_, "success_flash", get_name());
 
