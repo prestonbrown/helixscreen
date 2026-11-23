@@ -148,10 +148,9 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// frames fill the forward map needs no override.
     [[nodiscard]] std::vector<int> get_tool_mapping() const override;
 
-    /// Refuses while a print holds the printer, paused included, then
-    /// do_run_edit_follow_up().
-    AmsError run_edit_follow_up(int slot_index, const SlotInfo& before,
-                                const SlotInfo& after) final;
+    /// The IEditFollowUp run for a backend that implements it: refuses while a
+    /// print holds the printer, paused included, then do_run_edit_follow_up().
+    AmsError run_edit_follow_up(int slot_index, const SlotInfo& before, const SlotInfo& after);
     AmsError unload_filament_batch(const std::vector<int>& slots) final;
 
     /// Retires an ERROR this backend raised itself (fault_is_own_locked()) and

@@ -197,6 +197,7 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         const IRunoutOtherHead* runout_other_head = nullptr;
         const IPrintAreaIntrusion* print_area = nullptr;
         const ISpoolmanTagLinks* tag_links = nullptr;
+        const IEditFollowUp* edit_follow_up = nullptr;
     };
     const Row rows[] = {
         {.backend = &ace, .dryer = &ace},
@@ -215,7 +216,7 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
          .insert = &snapmaker,
          .routing = &snapmaker,
          .runout_other_head = &snapmaker},
-        {.backend = &indx, .feeder = &indx, .steps = &indx},
+        {.backend = &indx, .feeder = &indx, .steps = &indx, .edit_follow_up = &indx},
         {.backend = &tool_changer, .feeder = &tool_changer, .steps = &tool_changer},
         {.backend = &afc,
          .recovery = &afc,
@@ -255,6 +256,7 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         CHECK(row.backend->as<IRunoutOtherHead>() == row.runout_other_head);
         CHECK(row.backend->as<IPrintAreaIntrusion>() == row.print_area);
         CHECK(row.backend->as<ISpoolmanTagLinks>() == row.tag_links);
+        CHECK(row.backend->as<IEditFollowUp>() == row.edit_follow_up);
         // A start that promises a pre-print step needs something to build it.
         CHECK((!row.backend->requires_preprint_send() || row.routing != nullptr));
         CHECK(row.backend->as<NothingImplementsThis>() == nullptr);
