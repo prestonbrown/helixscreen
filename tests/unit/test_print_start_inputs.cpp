@@ -448,7 +448,7 @@ constexpr const char* kT0T2Footer = "; filament_type = PLA;PLA;PETG\n"
                                     "T0\n"
                                     "T2\n"
                                     "; filament used [g] = 1.50, 0.00, 2.25\n";
-}
+} // namespace
 
 TEST_CASE_METHOD(LoaderFixture,
                  "a reprint with no tools in hand reads them from the file for the pre-print step",
