@@ -926,7 +926,9 @@ with bypass on AFC refuses lane loads ("Filament loaded in bypass, not doing too
 turns its unload into the printer's stock `UNLOAD_FILAMENT`. That refusal raises no G-code
 error, so `load_filament()` and a non-toolchanger `change_tool()` refuse first with
 `WRONG_STATE` ("Bypass mode is on" / "Turn off bypass mode to load from a lane")
-(`src/printer/ams_backend_afc.cpp#lane_load_refusal_locked`). With bypass off, filament at the
+(`src/printer/ams_backend_afc.cpp#lane_load_refusal_locked`). `can_load_lane()` answers the
+same refusal in advance, so `plan_load()` refuses a lane tap before any preheat or homing,
+ahead of its "remove the bypass spool" refusal. With bypass off, filament at the
 toolhead sensor and no lane loaded, AFC only logs it at PREP and carries on, which leaves the
 UI with a toolhead that reads full and a unit that reads empty.
 

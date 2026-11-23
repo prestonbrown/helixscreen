@@ -109,6 +109,9 @@ void dispatch_backend_load(int slot_index, FilamentOpTicket ticket) {
     if (plan.tier != FilamentTier::AmsBackend) {
         // Only the tier-1 path reaches here, so anything else means the backend
         // changed under the preheat. Unwind rather than dispatch a guess.
+        if (plan.refusal == FilamentRefusal::BackendRefused) {
+            notify_ams_warning(plan.backend_refusal);
+        }
         spdlog::warn("[AmsSidebar] Slot {} no longer routes to the backend (tier={}) — not "
                      "dispatching",
                      slot_index, static_cast<int>(plan.tier));
@@ -1941,9 +1944,14 @@ void AmsOperationSidebar::handle_load_with_preheat(int slot_index) {
         // would narrate what the grid is showing. The Filament panel, where the
         // user pressed a button with no other feedback, does toast.
         //
-        // BypassLoaded is the exception: nothing in the grid shows that the
-        // bypass spool is still threaded, so staying silent here reproduces the
-        // exact "I tap Load and nothing happens" this refusal exists to end.
+        // BackendRefused and BypassLoaded are the exceptions: nothing in the
+        // grid shows the firmware state behind them, so staying silent here
+        // reproduces the exact "I tap Load and nothing happens" they exist to end.
+        if (plan.refusal == helix::ui::FilamentRefusal::BackendRefused) {
+            spdlog::info("[AmsSidebar] Load of slot {} refused by the backend", slot_index);
+            helix::ui::notify_ams_warning(plan.backend_refusal);
+            return;
+        }
         if (plan.refusal == helix::ui::FilamentRefusal::BypassLoaded) {
             spdlog::info(
                 "[AmsSidebar] Load of slot {} refused — bypass spool still at the toolhead",

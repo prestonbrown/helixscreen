@@ -6474,6 +6474,26 @@ TEST_CASE_METHOD(AfcFourRunningLanes, "AFC refuses a lane load while bypass mode
     CHECK(helper.captured_gcodes.empty());
 }
 
+// With no toolhead sensor an engaged bypass reads as loaded, which alone would
+// plan BypassLoaded ("remove the bypass spool") even after the spool is out.
+TEST_CASE_METHOD(AfcFourRunningLanes,
+                 "AFC bypass mode refuses a lane load at planning, before any preheat",
+                 "[ams][afc][bypass][dispatch][bypass-load-refusal]") {
+    helper.set_supports_bypass(true);
+    helper.feed_afc_state({{"bypass_state", true}});
+    REQUIRE(helper.get_system_info().filament_loaded);
+
+    AmsSystemInfo info;
+    const helix::ui::BackendCaps caps = helix::ui::read_backend_caps(&helper, info, 1);
+    const auto plan = helix::ui::plan_load(info, caps, /*target_slot=*/1,
+                                           /*macro_available=*/true,
+                                           /*macro_user_configured=*/false);
+
+    CHECK(plan.refusal == helix::ui::FilamentRefusal::BackendRefused);
+    CHECK(plan.backend_refusal.result == AmsResult::WRONG_STATE);
+    CHECK(plan.backend_refusal.user_msg == helper.load_filament(1).user_msg);
+}
+
 TEST_CASE_METHOD(AfcFourRunningLanes, "AFC loads a lane once bypass mode is off",
                  "[ams][afc][bypass][bypass-load-refusal]") {
     helper.set_supports_bypass(true);

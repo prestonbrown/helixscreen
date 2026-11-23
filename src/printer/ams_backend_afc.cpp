@@ -6574,6 +6574,11 @@ bool AmsBackendAfc::is_bypass_active() const {
     return bypass_active_;
 }
 
+AmsError AmsBackendAfc::can_load_lane(int /*slot_index*/) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return lane_load_refusal_locked();
+}
+
 // ============================================================================
 // Endless Spool Operations
 // ============================================================================

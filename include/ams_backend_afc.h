@@ -496,6 +496,7 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     AmsError enable_bypass() override;
     AmsError disable_bypass() override;
     [[nodiscard]] bool is_bypass_active() const override;
+    [[nodiscard]] AmsError can_load_lane(int slot_index) const override;
 
     /// None where the firmware maps tools per print itself and refuses SET_MAP:
     /// a pick sent there only raises an error before the firmware asks anyway.

@@ -905,6 +905,18 @@ class AmsBackend {
     }
 
     /**
+     * @brief Whether load_filament() would refuse this lane right now, and why.
+     *
+     * The firmware-state refusal a backend makes before it sends a lane load,
+     * answered without sending, so plan_load() refuses before any preheat or
+     * homing. Success means this side would send the load, not that the
+     * printer will accept it.
+     */
+    [[nodiscard]] virtual AmsError can_load_lane(int /*slot_index*/) const {
+        return AmsErrorHelper::success();
+    }
+
+    /**
      * @brief Why this slot's unload is unavailable, in one line, or empty.
      *
      * A disabled button with no explanation reads as a bug. This is for the case
