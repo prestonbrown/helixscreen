@@ -41,16 +41,19 @@
           <text_body width="100%"
                      text="Guided calibration" style_text_font="#cal_font_name_bold" long_mode="dots" clickable="false"
                      event_bubble="true"/>
+          <!-- What is due drops to its own line when it does not fit after the lead,
+               so the step count and minutes are never cut. -->
           <lv_obj width="100%"
-                  height="content" style_pad_all="0" style_pad_column="#space_xs" flex_flow="row" scrollable="false"
-                  clickable="false" event_bubble="true">
+                  height="content" style_pad_all="0" style_pad_column="#space_xs" style_pad_row="0" flex_flow="row_wrap"
+                  scrollable="false" clickable="false" event_bubble="true">
             <text_small name="cal_guided_banner_lead"
-                        text="Runs everything this printer needs, in order ·" style_text_font="#cal_font_detail"
-                        style_text_color="#text_muted" clickable="false" event_bubble="true">
+                        style_max_width="100%" text="Runs everything this printer needs, in order ·" long_mode="dots"
+                        style_text_font="#cal_font_detail" style_text_color="#text_muted" clickable="false"
+                        event_bubble="true">
               <bind_flag_if cond="ui_breakpoint eq 0 or ui_is_portrait eq 1" flag="hidden"/>
             </text_small>
             <text_small name="cal_guided_banner_text"
-                        width="0" flex_grow="1" bind_text="cal_run_banner_text" style_text_font="#cal_font_detail"
+                        style_max_width="100%" bind_text="cal_run_banner_text" style_text_font="#cal_font_detail"
                         long_mode="dots" style_text_color="#text_muted" clickable="false" event_bubble="true"/>
           </lv_obj>
         </lv_obj>

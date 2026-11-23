@@ -2311,6 +2311,7 @@
   <translation tag="Identify failed: {}" en="Identify failed: {}"/>
   <translation tag="Idle" en="Idle"/>
   <translation tag="If Moonraker is local or your screen is attached to the printer directly, we&apos;ll connect automatically" en="If Moonraker is local or your screen is attached to the printer directly, we&apos;ll connect automatically"/>
+  <translation tag="If Moonraker is local or your screen is attached to the printer, we&apos;ll connect automatically" en="If Moonraker is local or your screen is attached to the printer, we&apos;ll connect automatically"/>
   <translation tag="If the extruder has no tension lever, see your printer&apos;s manual." en="If the extruder has no tension lever, see your printer&apos;s manual."/>
   <translation tag="Ignore" en="Ignore"/>
   <translation tag="Ignore the click that fires when you lift after scrolling" en="Ignore the click that fires when you lift after scrolling"/>
@@ -4303,6 +4304,7 @@
   <translation tag="Set the clock, theme and units. You can change any of these later in Settings." en="Set the clock, theme and units. You can change any of these later in Settings."/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" en="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle"/>
   <translation tag="Set the filament type for this head in the filament panel, then resume." en="Set the filament type for this head in the filament panel, then resume."/>
+  <translation tag="Set the screen brightness and when it rests. You can change these later in Settings." en="Set the screen brightness and when it rests. You can change these later in Settings."/>
   <translation tag="Set the slot&apos;s filament information, or load the slot by hand." en="Set the slot&apos;s filament information, or load the slot by hand."/>
   <translation tag="Set this to Spoolman&apos;s currency if you use both." en="Set this to Spoolman&apos;s currency if you use both."/>
   <translation tag="Set up" en="Set up"/>
@@ -4396,6 +4398,7 @@
   <translation tag="Sliced for {}, not {}." en="Sliced for {}, not {}."/>
   <translation tag="Slicer" en="Slicer"/>
   <translation tag="Slide the paper back and forth." en="Slide the paper back and forth."/>
+  <translation tag="Slide the paper back and forth. Stop when the paper just drags under the nozzle." en="Slide the paper back and forth. Stop when the paper just drags under the nozzle."/>
   <translation tag="Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed." en="Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed."/>
   <translation tag="Sliders" en="Sliders"/>
   <translation tag="Slot" en="Slot"/>
@@ -4567,6 +4570,7 @@
   <translation tag="Stop the check?" en="Stop the check?"/>
   <translation tag="Stop the running cycle before starting another" en="Stop the running cycle before starting another"/>
   <translation tag="Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps." en="Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps."/>
+  <translation tag="Stop when the paper just drags under the nozzle." en="Stop when the paper just drags under the nozzle."/>
   <translation tag="Stop when the paper just lightly drags between the toolhead nozzle and the bed." en="Stop when the paper just lightly drags between the toolhead nozzle and the bed."/>
   <translation tag="Stop with an emergency stop?" en="Stop with an emergency stop?"/>
   <translation tag="Stopped" en="Stopped"/>
@@ -5741,6 +5745,7 @@
   <translation tag="Year" en="Year"/>
   <translation tag="Year Month Day" en="Year Month Day"/>
   <translation tag="Yes" en="Yes"/>
+  <translation tag="You are needed for the first {} min" en="You are needed for the first {} min"/>
   <translation tag="You are needed for the first {} min, then it runs on its own" en="You are needed for the first {} min, then it runs on its own"/>
   <translation tag="You can skip this and calibrate later in Settings." en="You can skip this and calibrate later in Settings."/>
   <translation tag="You have unsaved changes. Discard them?" en="You have unsaved changes. Discard them?"/>

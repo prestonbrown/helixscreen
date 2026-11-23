@@ -583,10 +583,9 @@ void CalibrationRunOverlay::publish_pick() {
              n == 1 ? fmt::format(fmt::runtime(lv_tr("1 step · {} min")), minutes)
                     : fmt::format(fmt::runtime(lv_tr("{} steps · {} min")), n, minutes));
     set_text(hands_line_,
-             hands > 0 ? fmt::format(fmt::runtime(lv_tr("You are needed for the first {} min, "
-                                                        "then it runs on its own")),
-                                     hands)
-                       : std::string(lv_tr("Runs on its own once started")));
+             hands > 0
+                 ? fmt::format(fmt::runtime(lv_tr("You are needed for the first {} min")), hands)
+                 : std::string(lv_tr("Runs on its own once started")));
     set_text(hands_short_, hands > 0 ? fmt::format(fmt::runtime(lv_tr("you: first {} min")), hands)
                                      : std::string(lv_tr("runs on its own")));
 }

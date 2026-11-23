@@ -2413,6 +2413,7 @@ translations:
   'Identify failed: {}': "識別に失敗しました: {}"
   Idle: アイドル
   If Moonraker is local or your screen is attached to the printer directly, we'll connect automatically: Moonraker がローカルまたは画面がプリンターに直接接続されている場合、自動的に接続します
+  If Moonraker is local or your screen is attached to the printer, we'll connect automatically: Moonraker がローカルまたは画面がプリンターに接続されている場合、自動的に接続します
   If the extruder has no tension lever, see your printer's manual.: "エクストルーダーにテンションレバーがない場合は、プリンターのマニュアルを参照してください。"
   Ignore: 無視
   Ignore the click that fires when you lift after scrolling: スクロール後に指を離したときに発生するクリックを無視
@@ -4444,6 +4445,7 @@ translations:
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : このスロットのフィラメントの種類と色を手動で設定してください。タグが読み取れるはずの場合は、ボックスが停止しているときにラベルをリーダー側に向けてスプールを入れ直してください
   Set the filament type for this head in the filament panel, then resume.: 'フィラメント画面でこのヘッドのフィラメントの種類を設定してから、再開してください。'
+  Set the screen brightness and when it rests. You can change these later in Settings.: '画面の明るさと休止するタイミングを設定します。すべて後で「設定」から変更できます。'
   Set the slot's filament information, or load the slot by hand.: スロットのフィラメント情報を設定するか、スロットに手動で装填してください。
   Set this to Spoolman's currency if you use both.: "両方を使う場合は、ここを Spoolman の通貨に合わせてください。"
   Set up: セットアップ
@@ -4537,6 +4539,7 @@ translations:
   Sliced for {}, not {}.: '{}用にスライスされています。{}用ではありません。'
   Slicer: スライサー
   Slide the paper back and forth.: "紙を前後に動かしてください。"
+  Slide the paper back and forth. Stop when the paper just drags under the nozzle.: 紙を前後に動かしてください。ノズルの下で紙が軽く引っかかったら止めます。
   Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "紙を前後に動かしてください。ノズルとベッドの間で紙が軽く引っかかったら止めます。"
   Sliders: スライダー
   Slot: スロット
@@ -4716,6 +4719,7 @@ translations:
   Stop the running cycle before starting another: '新しく開始する前に、実行中のサイクルを停止してください'
   ? Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
   : ホストのウェブカメラ、タイムラプス、余分なサービスを停止し、電源と SD カードを確認してから、ファームウェアを再起動してください。同じ箇所で再発する場合は、速度またはマイクロステップを下げてください。
+  Stop when the paper just drags under the nozzle.: ノズルの下で紙が軽く引っかかったら止めます。
   Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "ノズルとベッドの間で紙が軽く引っかかったら止めます。"
   Stop with an emergency stop?: '緊急停止で停止しますか？'
   Stopped: 停止しました
@@ -5952,6 +5956,7 @@ translations:
   Year: 年
   Year Month Day: 年 月 日
   'Yes': はい
+  You are needed for the first {} min: 最初の{}分は操作が必要です
   You are needed for the first {} min, then it runs on its own: 最初の{}分は操作が必要で、その後は自動で進みます
   You can skip this and calibrate later in Settings.: スキップして後で設定でキャリブレーションできます。
   You have unsaved changes. Discard them?: 保存されていない変更があります。破棄しますか？

@@ -2317,6 +2317,7 @@
   <translation tag="Identify failed: {}" fr="Échec de l&apos;identification : {}"/>
   <translation tag="Idle" fr="Inactif"/>
   <translation tag="If Moonraker is local or your screen is attached to the printer directly, we&apos;ll connect automatically" fr="Si Moonraker est local ou si votre écran est connecté directement à l&apos;imprimante, la connexion sera automatique"/>
+  <translation tag="If Moonraker is local or your screen is attached to the printer, we&apos;ll connect automatically" fr="Si Moonraker est local ou si votre écran est connecté à l&apos;imprimante, la connexion sera automatique"/>
   <translation tag="If the extruder has no tension lever, see your printer&apos;s manual." fr="Si l&apos;extrudeur n&apos;a pas de levier de tension, consultez le manuel de votre imprimante."/>
   <translation tag="Ignore" fr="Ignorer"/>
   <translation tag="Ignore the click that fires when you lift after scrolling" fr="Ignorer le clic déclenché au relâchement après un défilement"/>
@@ -4309,6 +4310,7 @@
   <translation tag="Set the clock, theme and units. You can change any of these later in Settings." fr="Réglez l&apos;horloge, le thème et les unités. Vous pourrez tout modifier plus tard dans les Paramètres."/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" fr="Réglez à la main le type et la couleur du filament pour ce slot. Si l&apos;étiquette devrait être lisible, remettez la bobine en place, étiquette face au lecteur, une fois la boîte au repos"/>
   <translation tag="Set the filament type for this head in the filament panel, then resume." fr="Définissez le type de filament de cette tête dans le panneau filament, puis reprenez."/>
+  <translation tag="Set the screen brightness and when it rests. You can change these later in Settings." fr="Choisissez la luminosité de l&apos;écran et quand il se met en veille. Vous pourrez tout modifier plus tard dans Paramètres."/>
   <translation tag="Set the slot&apos;s filament information, or load the slot by hand." fr="Renseignez les informations de filament du slot, ou chargez le slot à la main."/>
   <translation tag="Set this to Spoolman&apos;s currency if you use both." fr="Choisissez ici la devise de Spoolman si vous utilisez les deux."/>
   <translation tag="Set up" fr="Configurer"/>
@@ -4402,6 +4404,7 @@
   <translation tag="Sliced for {}, not {}." fr="Tranché pour {}, pas pour {}."/>
   <translation tag="Slicer" fr="Trancheur"/>
   <translation tag="Slide the paper back and forth." fr="Fais glisser le papier d&apos;avant en arrière."/>
+  <translation tag="Slide the paper back and forth. Stop when the paper just drags under the nozzle." fr="Fais glisser le papier d&apos;avant en arrière. Arrête-toi quand le papier frotte sous la buse."/>
   <translation tag="Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed." fr="Fais glisser le papier d&apos;avant en arrière. Arrête-toi quand le papier frotte légèrement entre la buse et le plateau."/>
   <translation tag="Sliders" fr="Curseurs"/>
   <translation tag="Slot" fr="Slot"/>
@@ -4573,6 +4576,7 @@
   <translation tag="Stop the check?" fr="Arrêter la vérification ?"/>
   <translation tag="Stop the running cycle before starting another" fr="Arrêtez le cycle en cours avant d&apos;en lancer un autre"/>
   <translation tag="Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps." fr="Arrêtez les webcams, les timelapses et les services supplémentaires sur l&apos;hôte, vérifiez son alimentation et sa carte SD, puis redémarrez le firmware. Si cela se reproduit au même endroit, réduisez la vitesse ou les micropas."/>
+  <translation tag="Stop when the paper just drags under the nozzle." fr="Arrête-toi quand le papier frotte sous la buse."/>
   <translation tag="Stop when the paper just lightly drags between the toolhead nozzle and the bed." fr="Arrête-toi quand le papier frotte légèrement entre la buse et le plateau."/>
   <translation tag="Stop with an emergency stop?" fr="Arrêter par un arrêt d&apos;urgence ?"/>
   <translation tag="Stopped" fr="Arrêté"/>
@@ -5747,6 +5751,7 @@
   <translation tag="Year" fr="Année"/>
   <translation tag="Year Month Day" fr="Année Mois Jour"/>
   <translation tag="Yes" fr="Oui"/>
+  <translation tag="You are needed for the first {} min" fr="On a besoin de vous les {} premières min"/>
   <translation tag="You are needed for the first {} min, then it runs on its own" fr="On a besoin de vous les {} premières min, puis tout se fait seul"/>
   <translation tag="You can skip this and calibrate later in Settings." fr="Vous pouvez ignorer cette étape et calibrer plus tard dans les paramètres."/>
   <translation tag="You have unsaved changes. Discard them?" fr="Vous avez des modifications non enregistrées. Les abandonner ?"/>

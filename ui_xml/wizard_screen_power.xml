@@ -8,8 +8,8 @@
   <consts>
     <str name="step_title" value="Screen &amp; Power" value_tag="Screen &amp; Power"/>
     <str name="step_subtitle"
-         value="Set how bright the screen is and when it rests. You can change any of these later in Settings."
-         value_tag="Set how bright the screen is and when it rests. You can change any of these later in Settings."/>
+         value="Set the screen brightness and when it rests. You can change these later in Settings."
+         value_tag="Set the screen brightness and when it rests. You can change these later in Settings."/>
   </consts>
   <view name="wizard_screen_power_root"
         extends="lv_obj" width="100%" height="100%" style_bg_opa="0" style_border_width="0" style_pad_all="0"
