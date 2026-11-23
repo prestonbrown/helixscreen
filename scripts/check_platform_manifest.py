@@ -20,6 +20,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import platform_manifest as pm  # noqa: E402
+from source_strip import blank_cxx  # noqa: E402
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROOT = REPO_ROOT
@@ -356,14 +357,11 @@ def check_printer_image_sizes(manifest, f):
                 # written on the device, holds every size it needs, and nothing
                 # prunes it.
                 lines = text.splitlines()
-                for i, raw in enumerate(lines):
-                    # Doc comments spell out example filenames, which is the
-                    # clearest way to describe these functions and not a size
-                    # anything reads.
-                    stripped = raw.strip()
-                    if stripped.startswith(("//", "*", "/*")):
-                        continue
-                    line = raw.split("//", 1)[0]
+                # Doc comments spell out example filenames, which is the
+                # clearest way to describe these functions and not a size
+                # anything reads; only the code view is scanned for sizes.
+                code_lines = blank_cxx(text, strings="keep").splitlines()
+                for i, line in enumerate(code_lines):
                     near = "\n".join(lines[max(0, i - 2):i + 3])
                     if "assets/images/printers" not in near and "kPrerenderedBasePath" not in near:
                         continue

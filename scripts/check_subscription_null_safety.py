@@ -95,6 +95,7 @@ import sys
 from pathlib import Path
 from typing import Iterable
 
+from source_strip import blank_cxx
 from staged_content import staged_files
 
 HANDLER_RE = re.compile(
@@ -248,40 +249,10 @@ def clean_source(src: str) -> str:
     """Blank out comments and neutralise bracket characters inside string and
     character literals. The result has the same length as `src`, so every
     offset still maps back to the original text."""
-    out = list(src)
-    i, n = 0, len(src)
-    while i < n:
-        c = src[i]
-        if c == '/' and i + 1 < n and src[i + 1] == '/':
-            while i < n and src[i] != '\n':
-                out[i] = ' '
-                i += 1
-        elif c == '/' and i + 1 < n and src[i + 1] == '*':
-            out[i] = out[i + 1] = ' '
-            i += 2
-            while i < n and not (src[i] == '*' and i + 1 < n and src[i + 1] == '/'):
-                if src[i] != '\n':
-                    out[i] = ' '
-                i += 1
-            if i + 1 < n:
-                out[i] = out[i + 1] = ' '
-                i += 2
-        elif c in '"\'':
-            quote = c
-            i += 1
-            while i < n:
-                if src[i] == '\\':
-                    i += 2
-                    continue
-                if src[i] == quote or src[i] == '\n':
-                    break
-                if src[i] in _NEUTRALISE:
-                    out[i] = '_'
-                i += 1
-            i += 1
-        else:
-            i += 1
-    return ''.join(out)
+    kept = blank_cxx(src, strings="keep")
+    bodies_blanked = blank_cxx(src, strings="body")
+    return "".join(
+        "_" if k != b and k in _NEUTRALISE else k for k, b in zip(kept, bodies_blanked))
 
 
 def _match_brace(text: str, open_pos: int) -> int:
