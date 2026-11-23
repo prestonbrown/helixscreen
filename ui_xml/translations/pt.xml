@@ -5664,6 +5664,7 @@
   <translation tag="Waiting for the printer" pt="Aguardando a impressora"/>
   <translation tag="Waiting for the printer to finish" pt="Aguardando a impressora terminar"/>
   <translation tag="Waiting for the printer to finish its command" pt="Aguardando a impressora terminar o comando"/>
+  <translation tag="Waiting for the printer to start the tower" pt="Aguardando a impressora iniciar a torre"/>
   <translation tag="Waiting for the printer&apos;s status; try again once it is connected" pt="Aguardando o status da impressora; tente novamente quando ela estiver conectada"/>
   <translation tag="Waiting for you at the Z offset screen" pt="Aguardando você na tela do offset Z"/>
   <translation tag="Waiting to read the printer&apos;s configuration from Klipper." pt="Aguardando a leitura da configuração da impressora no Klipper."/>

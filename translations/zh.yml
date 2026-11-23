@@ -5883,6 +5883,7 @@ translations:
   Waiting for the printer: 正在等待打印机
   Waiting for the printer to finish: "正在等待打印机完成"
   Waiting for the printer to finish its command: "正在等待打印机完成命令"
+  Waiting for the printer to start the tower: "正在等待打印机启动测试塔"
   Waiting for the printer's status; try again once it is connected: '正在等待打印机状态；连接后请重试'
   Waiting for you at the Z offset screen: '正在 Z 偏移界面等待您操作'
   Waiting to read the printer's configuration from Klipper.: "正在等待从 Klipper 读取打印机配置。"

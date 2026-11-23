@@ -5971,6 +5971,7 @@ translations:
   Waiting for the printer: Ожидание принтера
   Waiting for the printer to finish: "Ожидание завершения работы принтера"
   Waiting for the printer to finish its command: "Ожидание завершения команды принтера"
+  Waiting for the printer to start the tower: "Ожидание запуска башни принтером"
   Waiting for the printer's status; try again once it is connected: 'Ожидание состояния принтера; повторите попытку после подключения'
   Waiting for you at the Z offset screen: 'Ожидание вас на экране смещения Z'
   Waiting to read the printer's configuration from Klipper.: "Ожидание чтения конфигурации принтера из Klipper."

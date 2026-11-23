@@ -5883,6 +5883,7 @@ translations:
   Waiting for the printer: In attesa della stampante
   Waiting for the printer to finish: "In attesa che la stampante finisca"
   Waiting for the printer to finish its command: "In attesa che la stampante finisca il suo comando"
+  Waiting for the printer to start the tower: "In attesa che la stampante avvii la torre"
   Waiting for the printer's status; try again once it is connected: 'In attesa dello stato della stampante; riprova quando è connessa'
   Waiting for you at the Z offset screen: 'In attesa di te nella schermata dell''offset Z'
   Waiting to read the printer's configuration from Klipper.: "In attesa di leggere la configurazione della stampante da Klipper."

@@ -5883,6 +5883,7 @@ translations:
   Waiting for the printer: プリンターを待っています
   Waiting for the printer to finish: "プリンターの終了を待っています"
   Waiting for the printer to finish its command: "プリンターのコマンド終了を待っています"
+  Waiting for the printer to start the tower: "プリンターがタワーを開始するのを待っています"
   Waiting for the printer's status; try again once it is connected: 'プリンターの状態を待っています。接続後にもう一度お試しください'
   Waiting for you at the Z offset screen: 'Zオフセット画面で操作をお待ちしています'
   Waiting to read the printer's configuration from Klipper.: "Klipperからプリンターの設定を読み込むのを待っています。"

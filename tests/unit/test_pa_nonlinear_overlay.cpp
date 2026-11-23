@@ -253,3 +253,29 @@ TEST_CASE_METHOD(NonlinearFixture,
     CHECK(overlay.stage() == PaNonlinearOverlay::PREPARING);
     CHECK(overlay.procedure_for_test()->pass_count() == 4);
 }
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: a start the printer never answered is still running, not "
+                 "refused",
+                 "[pa_nonlinear][pa_tuner]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    client.force_next_gcode_error(MoonrakerErrorType::TIMEOUT, "request timed out");
+    const size_t before = client.gcode_script_history().size();
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    // Nothing chases the script: a disarm would queue behind it and land mid-tower.
+    CHECK(overlay.stage() == PaNonlinearOverlay::PREPARING);
+    CHECK(sent_since(before).find("TUNING_TOWER COMMAND=G4") == std::string::npos);
+    // The tower the script was always going to start is followed as usual.
+    tower("printing");
+    CHECK(overlay.stage() == PaNonlinearOverlay::PRINTING);
+}
+
+TEST_CASE_METHOD(NonlinearFixture, "nonlinear tuner: a start the printer refuses ends the pass",
+                 "[pa_nonlinear][pa_tuner]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    client.force_next_gcode_error(MoonrakerErrorType::JSON_RPC_ERROR, "Unknown command");
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(overlay.stage() == PaNonlinearOverlay::READY);
+}

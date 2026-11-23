@@ -452,33 +452,57 @@
       "temperature",
       "target",
       "power",
-      "pressure_advance",
       "nozzle_diameter",
-      "nozzle_volume_type"
+      "nozzle_volume_type",
+      "pressure_advance",
+      "pressure_advance_model",
+      "linear_advance",
+      "nonlinear_offset",
+      "linearization_velocity",
+      "time_offset",
+      "smooth_time"
     ],
     "extruder1": [
       "temperature",
       "target",
       "power",
-      "pressure_advance",
       "nozzle_diameter",
-      "nozzle_volume_type"
+      "nozzle_volume_type",
+      "pressure_advance",
+      "pressure_advance_model",
+      "linear_advance",
+      "nonlinear_offset",
+      "linearization_velocity",
+      "time_offset",
+      "smooth_time"
     ],
     "extruder2": [
       "temperature",
       "target",
       "power",
-      "pressure_advance",
       "nozzle_diameter",
-      "nozzle_volume_type"
+      "nozzle_volume_type",
+      "pressure_advance",
+      "pressure_advance_model",
+      "linear_advance",
+      "nonlinear_offset",
+      "linearization_velocity",
+      "time_offset",
+      "smooth_time"
     ],
     "extruder3": [
       "temperature",
       "target",
       "power",
-      "pressure_advance",
       "nozzle_diameter",
-      "nozzle_volume_type"
+      "nozzle_volume_type",
+      "pressure_advance",
+      "pressure_advance_model",
+      "linear_advance",
+      "nonlinear_offset",
+      "linearization_velocity",
+      "time_offset",
+      "smooth_time"
     ],
     "fan_generic chamber_fan": [
       "speed",

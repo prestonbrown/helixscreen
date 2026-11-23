@@ -368,10 +368,8 @@ void PaNonlinearOverlay::print_pass() {
                         object_lifetime_.bg_cb("PaNonlinearOverlay::script_done",
                                                [this, pass_seq]() { on_script_done(pass_seq); }),
                         object_lifetime_.bg_cb("PaNonlinearOverlay::start_failed",
-                                               [this](const MoonrakerError& err) {
-                                                   stop_observing();
-                                                   send_ending(false);
-                                                   fail(err.message);
+                                               [this, pass_seq](const MoonrakerError& err) {
+                                                   on_script_failed(pass_seq, err);
                                                }),
                         IMoonrakerAPI::kPreStartMacroTimeoutMs, false, nullptr, true);
 }
@@ -448,23 +446,54 @@ void PaNonlinearOverlay::on_print_state(PrintJobState state) {
     refresh();
 }
 
+void PaNonlinearOverlay::on_script_failed(int pass_seq, const MoonrakerError& err) {
+    if (pass_seq != pass_seq_ || stage_ != PREPARING) {
+        return;
+    }
+    if (err.type == MoonrakerErrorType::TIMEOUT ||
+        err.type == MoonrakerErrorType::CONNECTION_LOST) {
+        // No answer is no refusal: Klipper is still running the script (a long
+        // heat soak outlasts the request), and anything sent now would queue
+        // behind it and land mid-tower. The print state, or a long watchdog,
+        // decides.
+        spdlog::warn("[{}] No answer to pass {}'s start ({}); waiting on the printer", get_name(),
+                     pass_seq, err.message);
+        if (subjects_initialized_) {
+            lv_subject_set_string(&live_text_, lv_tr("Waiting for the printer to start the tower"));
+        }
+        arm_start_watchdog(pass_seq, kLateTowerStartTimeoutMs, false);
+        return;
+    }
+    stop_observing();
+    send_ending(false);
+    fail(err.message);
+}
+
+void PaNonlinearOverlay::arm_start_watchdog(int pass_seq, uint32_t delay_ms,
+                                            bool disarm_on_expiry) {
+    auto token = object_lifetime_.token();
+    helix::run_after_ms(delay_ms, [token, pass_seq, disarm_on_expiry, this]() {
+        token.defer("PaNonlinearOverlay::tower_start_timeout",
+                    [pass_seq, disarm_on_expiry, this]() {
+                        if (pass_seq != pass_seq_ || stage_ != PREPARING || saw_printing_) {
+                            return;
+                        }
+                        stop_observing();
+                        if (disarm_on_expiry) {
+                            send_ending(false);
+                        }
+                        fail(lv_tr("The printer did not start the tower."));
+                    });
+    });
+}
+
 void PaNonlinearOverlay::on_script_done(int pass_seq) {
     if (pass_seq != pass_seq_ || stage_ != PREPARING) {
         return;
     }
     script_done_ = true;
     // PRINT_PA_TOWER returned; the tower should be printing within moments.
-    auto token = object_lifetime_.token();
-    helix::run_after_ms(kTowerStartTimeoutMs, [token, pass_seq, this]() {
-        token.defer("PaNonlinearOverlay::tower_start_timeout", [pass_seq, this]() {
-            if (pass_seq != pass_seq_ || stage_ != PREPARING || saw_printing_) {
-                return;
-            }
-            stop_observing();
-            send_ending(false);
-            fail(lv_tr("The printer did not start the tower."));
-        });
-    });
+    arm_start_watchdog(pass_seq, kTowerStartTimeoutMs, true);
 }
 
 void PaNonlinearOverlay::finish_tower() {
@@ -489,7 +518,7 @@ void PaNonlinearOverlay::send_ending(bool release_machine) {
         [](const MoonrakerError& err) {
             spdlog::warn("[PA Nonlinear] Ending the tower failed: {}", err.message);
         },
-        IMoonrakerAPI::kMacroTimeoutMs, false, nullptr, false);
+        IMoonrakerAPI::kMacroTimeoutMs, false, nullptr, /*caller_surfaces_errors=*/false);
 }
 
 void PaNonlinearOverlay::stop_tower() {
@@ -570,7 +599,8 @@ void PaNonlinearOverlay::send_values() {
         helix::pa::set_nonlinear_gcode(params_.heater, proc_->values()), []() {},
         [](const MoonrakerError& err) {
             spdlog::warn("[PA Nonlinear] Could not apply the values: {}", err.message);
-        });
+        },
+        0, false, nullptr, /*caller_surfaces_errors=*/false);
 }
 
 // ============================================================================
@@ -640,7 +670,8 @@ void PaNonlinearOverlay::restore_original() {
         []() {},
         [](const MoonrakerError& err) {
             spdlog::warn("[PA Nonlinear] Could not restore the original model: {}", err.message);
-        });
+        },
+        0, false, nullptr, /*caller_surfaces_errors=*/false);
 }
 
 void PaNonlinearOverlay::close_procedure() {

@@ -222,9 +222,15 @@
       "temperature",
       "target",
       "power",
-      "pressure_advance",
       "nozzle_diameter",
-      "nozzle_volume_type"
+      "nozzle_volume_type",
+      "pressure_advance",
+      "pressure_advance_model",
+      "linear_advance",
+      "nonlinear_offset",
+      "linearization_velocity",
+      "time_offset",
+      "smooth_time"
     ],
     "fan": [
       "speed",

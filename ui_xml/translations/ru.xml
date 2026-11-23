@@ -5730,6 +5730,7 @@
   <translation tag="Waiting for the printer" ru="Ожидание принтера"/>
   <translation tag="Waiting for the printer to finish" ru="Ожидание завершения работы принтера"/>
   <translation tag="Waiting for the printer to finish its command" ru="Ожидание завершения команды принтера"/>
+  <translation tag="Waiting for the printer to start the tower" ru="Ожидание запуска башни принтером"/>
   <translation tag="Waiting for the printer&apos;s status; try again once it is connected" ru="Ожидание состояния принтера; повторите попытку после подключения"/>
   <translation tag="Waiting for you at the Z offset screen" ru="Ожидание вас на экране смещения Z"/>
   <translation tag="Waiting to read the printer&apos;s configuration from Klipper." ru="Ожидание чтения конфигурации принтера из Klipper."/>

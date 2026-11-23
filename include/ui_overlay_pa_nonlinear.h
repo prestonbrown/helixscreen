@@ -65,6 +65,8 @@ class PaNonlinearOverlay : public OverlayBase {
     static constexpr const char* kTowerPrintName = "PA tower";
     /// How long after PRINT_PA_TOWER returns the tower must be printing.
     static constexpr uint32_t kTowerStartTimeoutMs = 30000;
+    /// How long a start the printer never answered may still turn into a tower.
+    static constexpr uint32_t kLateTowerStartTimeoutMs = 30 * 60 * 1000;
 
     enum Stage : int {
         READY = 0,
@@ -162,6 +164,13 @@ class PaNonlinearOverlay : public OverlayBase {
     void send_ending(bool release_machine);
     /// PRINT_PA_TOWER returned for pass @p pass_seq.
     void on_script_done(int pass_seq);
+    /// The ready script failed. Only a refusal ends the pass: a timeout or a
+    /// lost connection leaves the script running on the printer.
+    void on_script_failed(int pass_seq, const MoonrakerError& err);
+    /// Fail pass @p pass_seq if no tower is printing after @p delay_ms; with
+    /// @p disarm_on_expiry, also end the sweep (unsafe while a script may still
+    /// be running ahead of it).
+    void arm_start_watchdog(int pass_seq, uint32_t delay_ms, bool disarm_on_expiry);
     /// Put the procedure's extruder back on the model it ran before.
     void restore_original();
 

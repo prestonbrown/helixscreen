@@ -5852,6 +5852,7 @@ translations:
   Waiting for the printer: ''
   Waiting for the printer to finish: ''
   Waiting for the printer to finish its command: ''
+  Waiting for the printer to start the tower: ''
   Waiting for the printer's status; try again once it is connected: ''
   Waiting for you at the Z offset screen: ''
   Waiting to read the printer's configuration from Klipper.: ""

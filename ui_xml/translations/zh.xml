@@ -5664,6 +5664,7 @@
   <translation tag="Waiting for the printer" zh="正在等待打印机"/>
   <translation tag="Waiting for the printer to finish" zh="正在等待打印机完成"/>
   <translation tag="Waiting for the printer to finish its command" zh="正在等待打印机完成命令"/>
+  <translation tag="Waiting for the printer to start the tower" zh="正在等待打印机启动测试塔"/>
   <translation tag="Waiting for the printer&apos;s status; try again once it is connected" zh="正在等待打印机状态；连接后请重试"/>
   <translation tag="Waiting for you at the Z offset screen" zh="正在 Z 偏移界面等待您操作"/>
   <translation tag="Waiting to read the printer&apos;s configuration from Klipper." zh="正在等待从 Klipper 读取打印机配置。"/>

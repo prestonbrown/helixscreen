@@ -5895,6 +5895,7 @@ translations:
   Waiting for the printer: Attente de l'imprimante
   Waiting for the printer to finish: "En attente de la fin de l'imprimante"
   Waiting for the printer to finish its command: "En attente de la fin de la commande de l'imprimante"
+  Waiting for the printer to start the tower: "En attente du démarrage de la tour par l'imprimante"
   Waiting for the printer's status; try again once it is connected: 'En attente de l''état de l''imprimante ; réessayez une fois qu''elle est connectée'
   Waiting for you at the Z offset screen: 'En attente de vous sur l''écran de l''offset Z'
   Waiting to read the printer's configuration from Klipper.: "En attente de la lecture de la configuration de l'imprimante depuis Klipper."
