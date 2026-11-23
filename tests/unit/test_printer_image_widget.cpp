@@ -664,8 +664,8 @@ TEST_CASE_METHOD(XMLTestFixture,
 }
 
 // The filament-system data revision moves on every unit status update, about
-// once a second on a printer with one. Re-resolving the image each time logged
-// two lines a second and probed the asset tree for an unchanged picture.
+// once a second on a printer with one. The image is re-resolved only when the
+// detected hardware changes, not on each tick.
 TEST_CASE_METHOD(XMLTestFixture,
                  "PrinterImageWidget skips the image lookup when a data tick changes no hardware",
                  "[panel_widget][printer_image][printer_image_variants]") {

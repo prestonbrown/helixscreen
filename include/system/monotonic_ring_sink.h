@@ -9,7 +9,6 @@
 #include <spdlog/details/log_msg_buffer.h>
 #include <spdlog/sinks/base_sink.h>
 
-#include <cstddef>
 #include <functional>
 #include <mutex>
 #include <string>
@@ -53,7 +52,9 @@ class MonotonicRingSink final : public spdlog::sinks::base_sink<std::mutex> {
     /**
      * @brief Oldest-first formatted lines, each carrying its own log-time offset
      *
-     * @param lim Maximum lines to return, newest-biased; 0 means all.
+     * @param lim Maximum entries to return, newest-biased; 0 means all. A
+     *            collapsed run is one entry and prints two lines, so a ring
+     *            dumped at its capacity ships everything it holds.
      *
      * Deterministic: repeated calls on unchanged content return identical
      * output, because the replay guard resets the formatter's step memory on
@@ -62,21 +63,12 @@ class MonotonicRingSink final : public spdlog::sinks::base_sink<std::mutex> {
     std::vector<std::string> last_formatted(size_t lim = 0) {
         std::lock_guard<std::mutex> lock(base_sink<std::mutex>::mutex_);
         const size_t available = q_.size();
-
-        // Walk back far enough to cover `lim` output lines; a collapsed run
-        // prints two. Formatting itself must run oldest-first so the CLOCK_STEP
-        // detector sees each line after its predecessor.
-        size_t first = available;
-        size_t lines = 0;
-        while (first > 0 && (lim == 0 || lines < lim)) {
-            --first;
-            lines += q_.at(first).repeats > 0 ? 2 : 1;
-        }
+        const size_t count = lim > 0 ? (lim < available ? lim : available) : available;
 
         ReplayGuard guard;
         std::vector<std::string> out;
-        out.reserve(lines);
-        for (size_t i = first; i < available; ++i) {
+        out.reserve(count);
+        for (size_t i = available - count; i < available; ++i) {
             const Entry& e = q_.at(i);
             guard.set_value(e.mono);
             append_formatted(e.msg, out);
@@ -90,9 +82,6 @@ class MonotonicRingSink final : public spdlog::sinks::base_sink<std::mutex> {
                 guard.set_value(e.last_mono);
                 append_formatted(last, out);
             }
-        }
-        if (lim > 0 && out.size() > lim) {
-            out.erase(out.begin(), out.begin() + static_cast<std::ptrdiff_t>(out.size() - lim));
         }
         return out;
     }
