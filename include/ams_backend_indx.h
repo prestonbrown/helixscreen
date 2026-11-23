@@ -12,6 +12,7 @@
 // indx_contract.h, fed to the base as a tool reading.
 
 #include "ams_backend_toolchanger.h"
+#include "ams_edit_follow_up.h"
 #include "axis.h"
 #include "indx_contract.h"
 #include "tool_offsets.h"
@@ -24,8 +25,15 @@
 
 namespace helix {
 
-class AmsBackendIndx : public AmsBackendToolChanger {
+class AmsBackendIndx : public AmsBackendToolChanger, public IEditFollowUp {
   public:
+    [[nodiscard]] void* capability(helix::TypeTag tag) override {
+        if (tag == helix::type_tag<IEditFollowUp>()) {
+            return static_cast<IEditFollowUp*>(this);
+        }
+        return AmsBackendToolChanger::capability(tag);
+    }
+
     AmsBackendIndx(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
 
     void set_discovery(const helix::PrinterDiscovery& discovery) override;
@@ -104,6 +112,10 @@ class AmsBackendIndx : public AmsBackendToolChanger {
     /// without a hotend, never when the preset did not change.
     [[nodiscard]] std::optional<EditFollowUp> edit_follow_up(int slot_index, const SlotInfo& before,
                                                              const SlotInfo& after) const override;
+    AmsError run_edit_follow_up(int slot_index, const SlotInfo& before,
+                                const SlotInfo& after) override {
+        return AmsSubscriptionBackend::run_edit_follow_up(slot_index, before, after);
+    }
 
     /// The tool changer's edit, plus the spool link written to the tool's own
     /// `T<n>.spool_id` macro variable where its macro declares one: that

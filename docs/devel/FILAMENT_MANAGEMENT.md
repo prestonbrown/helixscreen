@@ -3846,11 +3846,12 @@ opens).
 #### Edit follow-ups
 
 After a slot edit commits, `helix::ui::offer_edit_follow_up()` (`src/ui/filament/ui_ams_edit_follow_up.cpp`)
-asks the backend's `edit_follow_up(slot, before, after)` whether the edit implies printer state
-it did not write, and offers it as a confirm; yes runs `run_edit_follow_up(slot, after)`, which
-`AmsSubscriptionBackend` refuses while a print holds the printer, paused included. Every
-`commit_slot_edit()` call site calls it on success or a partial apply. The default offers
-nothing. INDX offers its heater-model update after a material edit.
+asks the backend's `IEditFollowUp::edit_follow_up(slot, before, after)` (`include/ams_edit_follow_up.h`)
+whether the edit implies printer state it did not write, and offers it as a confirm; yes runs
+`run_edit_follow_up(slot, before, after)`, which `AmsSubscriptionBackend` refuses while a print holds the
+printer, paused included, before `do_run_edit_follow_up()`. Every `commit_slot_edit()` call site calls it on
+success or a partial apply. A backend without the capability offers nothing. INDX offers its heater-model
+update after a material edit.
 
 #### Unavailable operations explain themselves
 
@@ -4156,6 +4157,9 @@ A caller spells out what a backend without the interface means: the sidebar's bu
   system takes no bed area.
 - `ISpoolmanTagLinks` (`include/ams_spoolman_tag_links.h`) -- Whether tag readings can name a Spoolman spool, which
   gates the Link Spools from Tags setting. CFS implements it (stock schema). Without it the setting is hidden.
+- `IEditFollowUp` (`include/ams_edit_follow_up.h`) -- The question a slot edit raises about printer state it did
+  not write, and the run on yes (§ Edit follow-ups). INDX implements it; its run goes through
+  `AmsSubscriptionBackend::run_edit_follow_up()`, which refuses while a print holds the printer.
 
 **Optional overrides (with default implementations):**
 
