@@ -58,10 +58,14 @@ template <typename BackendT> class RegisteredBackend {
         // ams_data_revision_, announcing a sync that did not happen. Draining
         // first runs them against the backend they were queued for and leaves
         // nothing for the next test to inherit, including the toasts those
-        // callbacks queue in turn. clear_backends() writes its own subjects
-        // directly, so it queues nothing behind us.
+        // callbacks queue in turn.
         helix::ui::UpdateQueue::instance().drain_until_empty();
+        // clear_backends() puts the lane numbering back to the default of no
+        // filament system. A backend counting lanes from 0 (AFC, Happy Hare)
+        // changed it, so the language subject re-notifies and every
+        // observe_language_change() owner queues its re-render: drain those too.
         helix::AmsState::instance().clear_backends();
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     RegisteredBackend(const RegisteredBackend&) = delete;
