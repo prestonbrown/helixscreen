@@ -66,7 +66,7 @@ printer-specific problems found since 1.0.
   again. On AFC, AFC's own remember-spool setting decides what a lane keeps when its spool comes
   out.
 - **Lanes count from 0 on systems that count from 0.** On AFC and Happy Hare, lane numbers
-  start at 0 by default. The tool numbering setting still changes it.
+  start at 0 by default. **Number slots from 0** in Settings > Printing still changes it.
 - **Plugin authors: a card that taps needs `clickable="true"`.** A `ui_card` takes no touch
   unless its XML says so, so a plugin card that should respond to taps needs that attribute
   next to its `event_cb`. Without it the card ignores the tap and shows no press. See
@@ -1454,8 +1454,8 @@ attached and remote screens.
 - **Screen sleep defaults to an hour** - the display sleeps after an hour by default, and a
   configuration still at the old 20-minute default moves to an hour.
 - **Toolheads on AFC lane rigs are named by the toolhead** (#2158) - on a printer where each
-  lane is its own tool, toolheads read E0, E1 and so on, following the tool numbering
-  setting, and the mounted toolhead names the tool its seated lane feeds. Temperatures,
+  lane is its own tool, toolheads read E0, E1 and so on, following the **Number slots
+  from 0** setting, and the mounted toolhead names the tool its seated lane feeds. Temperatures,
   offsets, nozzle checks and the PA tower all act on the toolhead itself.
 - **Cards that do nothing take no touch** - tapping the background of a card without an
   action no longer shows a press.
@@ -1501,8 +1501,8 @@ attached and remote screens.
   Tension, both pressure advance tools, Tool Offsets, pausing at a layer and choosing lanes to
   dry. Configure PRINT_START, the beta macro rewrite under Advanced, is removed; the pre-print
   skip options on the print file screen work without it.
-- **Settings is one list of twelve pages in three groups** (#1023) - Screen (Display,
-  Appearance, Touch & Input, Sound), Printer (Printing, Devices, Safety & Alerts, Connection)
+- **Settings is one list of thirteen pages in three groups** (#1023) - Screen (Display,
+  Appearance, Touch & Input, Sound), Printer (Printer, Printing, Devices, Safety & Alerts, Connection)
   and HelixScreen (Language & Time, System, Updates, Help & About). Every page is one tap from
   the Settings screen, and Display, Appearance, Sound, Devices, Connection, Language & Time and
   Updates show a short status line, such as your brightness and sleep time or whether an update
@@ -1553,7 +1553,8 @@ attached and remote screens.
   than T0, including the pre-print filament check, the tool switcher and the
   tool-change and preheat toasts ("Switched to Toolhead 4" on a Snapmaker U1, not "Switched to
   T3"). G-code, macros and the console keep the T0 spelling the printer expects. A per-printer
-  setting, **Number slots from 0** in Settings > Printing, counts slots, lanes, gates, tools
+  setting, **Number slots from 0** in Settings > Printing, on by default for AFC and Happy
+  Hare and off elsewhere, counts slots, lanes, gates, tools
   and nozzles from 0 instead, matching T0 in G-code, everywhere including the spool strip
   badges, the tool changer's load prompt and multi-ACE error messages (#2079). The G-code
   HelixScreen sends does not change.
@@ -1569,7 +1570,7 @@ attached and remote screens.
   system get Clear Spool in the slot editor too, and it works while Spoolman is offline.
 - **Tool changers without ASSIGN_TOOL remap without beta features** - the job file is
   rewritten before printing whenever remapping needs it, and the plugin's Install row sits in
-  Settings > Advanced without beta features. A dialog at startup warns when Moonraker is
+  Advanced without beta features. A dialog at startup warns when Moonraker is
   too old for remapping, and can be dismissed per printer. A rewritten file also has its
   `TOOL=` and `INITIAL_TOOL=` values remapped, and while your picks move a tool the mapping
   dialog warns about start-macro values it leaves alone.
@@ -1612,8 +1613,6 @@ attached and remote screens.
   in: let go with most of the widget past that edge and a new page is created in front, with the
   widget at its left side. At the 8-page limit there is no + tile and neither edge creates a
   page.
-- **Canceling a print from a runout dialog asks first** - the runout guidance dialog asks
-  for the same confirmation, in the same words, as the print-status Stop button.
 - **The clog meter's labels each say one thing** - each label names the source, the reading
   or an end of the scale without repeating another, and severity shows as an icon rather
   than a repeated status word. The end labels show only for FlowGuard, which gives its bar
@@ -1694,7 +1693,7 @@ attached and remote screens.
   "+" and filled grades, then the rest.
 - **CFS lanes are named the way Creality names them** - the tool dropdown and the slot menu
   call CFS lanes "1A" to "4D".
-- **Settings > Sensors** - every kind of sensor uses the same row, with one switch size.
+- **Settings > Devices > Sensors** - every kind of sensor uses the same row, with one switch size.
   Chamber and dryer humidity chips and board thermistors, such as an extruder board's, are
   listed, and a probe you set to no role keeps it.
 - **Delete Page is in the nav bar** (#2023) - in home screen edit mode the nav bar shows Add,
@@ -1877,8 +1876,6 @@ attached and remote screens.
   whole app down.
 - **AD5M Pro crash loop** - the watchdog could retry a crashing app forever with the screen
   dark. It now gives up and hands over to the system.
-- **Crashes when leaving a screen** - a screen could react to a value that had already been
-  freed; that whole class of crash is closed off across the app.
 - **Background blur could crash at startup on some Allwinner boards** (#1742) - the blur
   behind dialogs opened a second connection to the graphics driver. It now uses the
   display's own.
@@ -2096,9 +2093,8 @@ attached and remote screens.
   pickup never heated or purged.
 - **AD5M: the Spoolman spool editor showed a Print Label button that did nothing** - the
   AD5M build has no label printing, and the button is hidden there now.
-- **K2 with and without a CFS** (#1904, #1933) - on a K2 with no CFS, the toolhead filament
-  sensor shows up in Settings > Sensors and can watch for runout. A K2 that has a CFS no
-  longer looks single-spool while its CFS is still answering at boot.
+- **K2 with a CFS at boot** (#1933) - a K2 that has a CFS no longer looks single-spool while
+  its CFS is still answering at boot.
 - **A load macro HelixScreen does not recognize runs as it is** (#1819) - Load on an unhomed
   printer no longer homes first before a `LOAD_FILAMENT` macro HelixScreen does not know, so
   a Voron whose macro only extrudes is not homed.
@@ -2142,8 +2138,7 @@ attached and remote screens.
 - **AFC tool numbers past the lane count** - a lane running as T7 on a four-lane unit can be
   remapped, restored and changed to, remapping two lanes swaps their tools as AFC does, and
   lane settings show the tool a multi-tool lane is running.
-- **AFC tool changers** (#1824, #1850) - tapping a parked head only mounts it instead of
-  swapping filament, a Load that needs a lane swap really loads, and a head missing from the
+- **AFC tool changers** (#1850) - a head missing from the
   toolchanger is warned about instead of leaving the screen on Selecting for five minutes.
 - **AFC tool changes from Orca** (#1848) - files whose tool changes carry extra parameters,
   as Orca's AFC Change Filament G-code writes them, show every tool in the preview and the
@@ -2536,9 +2531,6 @@ attached and remote screens.
   grids, the color picker, the LED color rows, the theme editor) now has a full fingertip-sized
   touch area, and neighboring swatches no longer steal each other's taps. The LED preset row
   wraps to a second line in portrait instead of running off the edge.
-- **Touch stops working on some Pi 5 screens** (#2069) - when a USB touch controller resets,
-  as some HDMI touchscreens do when the picture changes, HelixScreen reopens it instead of
-  losing touch until a restart.
 - **Touch calibration on a rotated screen** (#1714) - canceling or retrying no longer brings
   back an old touch range, and the preview uses the range it just worked out.
 - **Screens rotated by the kernel get touch right on first boot** (#1428).
@@ -2694,10 +2686,6 @@ attached and remote screens.
 - **Restart HelixScreen from Mainsail and Fluidd after installing** - when the installer
   adds HelixScreen to Moonraker's list of services it may manage, it restarts Moonraker so
   the list takes effect.
-- **The installer no longer edits Z-Mod's own moonraker.conf on the AD5X** - it writes
-  HelixScreen's update entry to the user moonraker.conf Z-Mod's file includes, so Moonraker
-  keeps updating Z-Mod. When an earlier install already edited Z-Mod's file, the installer
-  says which updates are blocked and prints the command that restores it. (thanks @catduckgnaf)
 - **No HelixPrint plugin downgrade at startup** - when Moonraker already runs a newer
   HelixPrint plugin than this HelixScreen ships, HelixScreen leaves it in place instead of
   restarting Moonraker onto its own older plugin. Versions compare by number, so 1.10.0 is
