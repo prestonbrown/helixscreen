@@ -17,7 +17,7 @@
     <!-- Landscape Operations rows: the least height of each; the rows share
          whatever the column leaves under the Material card. -->
     <px name="filament_landscape_row_h_micro" value="26"/>
-    <px name="filament_landscape_row_h_tiny" value="42"/>
+    <px name="filament_landscape_row_h_tiny" value="40"/>
     <px name="filament_landscape_row_h_small" value="48"/>
     <px name="filament_landscape_row_h_medium" value="52"/>
     <px name="filament_landscape_row_h_large" value="72"/>

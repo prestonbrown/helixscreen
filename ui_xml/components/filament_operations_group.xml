@@ -2,15 +2,15 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
-  <!-- The Operations card (heading with the extrude speed, Load/Unload/Purge/
-       Clean under the cold-extrusion warning, then the lengths with
-       Extrude/Retract). On a printer with several heads it
+  <!-- The Operations card (heading with the extrude speed, the filament
+       change buttons under the cold-extrusion warning, then the lengths with
+       Extrude/Retract, the toolhead drawing beside the rows). On a printer
+       with several heads it
        also holds the panel's only tool chooser: a row of heads
        (tool_target_row.xml) that aims every operation at the chosen tool and
        never changes tools, and Pick up / Park beside the heads, which does.
        Instantiated by both orientation branches of filament_panel.xml so the
-       markup exists exactly once. The two action rows share the card's
-       height. -->
+       markup exists exactly once. The action rows share the card's height. -->
   <styles>
     <!-- The cold-extrusion warning covers the action row it disables -->
     <style name="safety_warning_cover" bg_color="#card_bg" bg_opa="255" radius="#border_radius"/>
@@ -19,6 +19,10 @@
          selects on state user_3 to outrank it: on a home full page the stacked
          Load/Unload/Purge labels need the height at the smallest screens. -->
     <style name="operations_group_on_page" pad_row="#space_xs"/>
+    <!-- Landscape sizes the card to its column, and the action rows take what
+         it leaves; a portrait card sizes to its rows, where growing would
+         leave the rows no height at all. -->
+    <style name="operations_body_fill" flex_grow="1"/>
   </styles>
   <api>
     <!-- The action rows' least height, and the extrude speed's height: one
@@ -26,6 +30,11 @@
     <prop name="row_height" type="string" default="#touch_target_min"/>
     <prop name="length_height" type="string" default="#touch_target_min"/>
   </api>
+  <subjects>
+    <!-- A landscape row 480 wide is too short for an icon above a label, so
+         the action buttons show their labels alone there. -->
+    <subject_expr name="filament_ops_icons_hidden" expr="ui_is_portrait eq 0 and ui_breakpoint le 1"/>
+  </subjects>
   <view name="operations_group"
         extends="ui_card" width="100%" height="content" style_radius="#border_radius" style_pad_all="#space_sm"
         scrollable="false" flex_flow="column" style_pad_gap="#space_sm">
@@ -40,6 +49,9 @@
       <lv_obj name="operations_heading"
               width="content" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
               style_pad_gap="#space_sm" scrollable="false" clickable="false" align="left_mid">
+        <!-- Portrait with several heads gives the heading's width to the lane
+             bars, Clean and the speed. -->
+        <bind_flag_if cond="ui_is_portrait eq 1 and target_tool_multi_head eq 1" flag="hidden"/>
         <icon src="swap_vertical" size="sm" variant="primary"/>
         <text_small text="Operations" text_transform="uppercase" style_translate_y="2" style_text_color="#text"/>
       </lv_obj>
@@ -65,6 +77,25 @@
                            width="#filament_header_lanes_w" height="100%" bars_align="end" clickable="false"
                            event_bubble="true"/>
           <icon src="chevron_right" size="xs" variant="secondary" clickable="false" event_bubble="true"/>
+        </lv_obj>
+        <!-- Clean where its row is gone (480x272 and portrait): beside the
+             speed. Its own container keeps it ahead of the speed when the
+             <if> rebuilds. -->
+        <lv_obj width="content"
+                height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+                flex_flow="row" hidden="true">
+          <bind_flag_if cond="not (ui_is_portrait eq 1 or (ui_breakpoint eq 0 and target_tool_multi_head eq 0))"
+                        flag="hidden"/>
+          <if cond="ui_is_portrait eq 1 or (ui_breakpoint eq 0 and target_tool_multi_head eq 0)">
+            <!-- DUPLICATE_NAME_OK: its <if> excludes the other placements, so one exists -->
+            <ui_button name="btn_clean_nozzle"
+                       width="content" height="$length_height" style_pad_hor="#space_sm" icon="nozzle" text="Clean"
+                       style_text_font="#font_small" hidden="true">
+              <bind_flag_if_eq subject="filament_clean_nozzle_shown" flag="hidden" ref_value="0"/>
+              <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
+              <event_cb trigger="clicked" callback="on_filament_clean_nozzle"/>
+            </ui_button>
+          </if>
         </lv_obj>
         <!-- Extrude/retract speed: presets of the extrude_speed setting that
              Machine Limits also edits. C++ fills the options and the shown
@@ -109,134 +140,191 @@
         </lv_dropdown>
       </if>
     </lv_obj>
-    <!-- Filament change: Load, Unload, Purge and, where the printer has a
-         nozzle-clean macro, Clean. The rows share the card's height, so a
-         column with height to spare gives them bigger targets. The icon sits
-         above the label; Micro's row is too short for both, so there the label
-         stands alone. -->
-    <lv_obj name="filament_change_row"
-            width="100%" height="$row_height" style_min_height="$row_height" flex_grow="1" style_pad_all="0"
-            scrollable="false" flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"
-            style_pad_gap="#space_sm">
-      <ui_button name="btn_load"
-                 height="100%" style_min_width="content" style_pad_hor="#space_xxs" icon_position="top"
-                 icon_hidden_subject="ui_breakpoint" icon_hidden_if_eq="0" flex_grow="1" icon="arrow_down" text="Load"
-                 style_text_font="#font_small" bind_op_state="filament_op_load_state">
-        <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
-        <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
-        <bind_state_if_eq subject="filament_load_disabled" state="disabled" ref_value="1"/>
-        <event_cb trigger="clicked" callback="on_filament_load"/>
-      </ui_button>
-      <ui_button name="btn_unload"
-                 height="100%" style_min_width="content" style_pad_hor="#space_xxs" icon_position="top"
-                 icon_hidden_subject="ui_breakpoint" icon_hidden_if_eq="0" flex_grow="1" icon="arrow_up" text="Unload"
-                 style_text_font="#font_small" bind_op_state="filament_op_unload_state">
-        <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
-        <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
-        <bind_state_if_eq subject="filament_unload_disabled" state="disabled" ref_value="1"/>
-        <event_cb trigger="clicked" callback="on_filament_unload"/>
-      </ui_button>
-      <ui_button name="btn_purge"
-                 height="100%" style_min_width="content" style_pad_hor="#space_xxs" icon_position="top"
-                 icon_hidden_subject="ui_breakpoint" icon_hidden_if_eq="0" flex_grow="1" icon="trash_can_outline"
-                 text="Purge" style_text_font="#font_small" bind_op_state="filament_op_purge_state">
-        <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
-        <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
-        <bind_state_if_eq subject="filament_unload_disabled" state="disabled" ref_value="1"/>
-        <event_cb trigger="clicked" callback="on_filament_purge"/>
-      </ui_button>
-      <!-- Runs the CleanNozzle macro slot, as a Quick Actions button would. -->
-      <ui_button name="btn_clean_nozzle"
-                 height="100%" style_min_width="content" style_pad_hor="#space_xxs" icon_position="top"
-                 icon_hidden_subject="ui_breakpoint" icon_hidden_if_eq="0" flex_grow="1" icon="nozzle" text="Clean"
-                 style_text_font="#font_small" hidden="true">
-        <bind_flag_if_eq subject="filament_clean_nozzle_shown" flag="hidden" ref_value="0"/>
-        <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
-        <event_cb trigger="clicked" callback="on_filament_clean_nozzle"/>
-      </ui_button>
-      <!-- Floats over the row it disables, so no layout gives it height; the
-           text wraps rather than ending in an ellipsis. -->
-      <lv_obj name="safety_warning"
-              width="100%" height="100%" style_pad_hor="#space_sm" scrollable="false" floating="true" align="center"
-              flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs"
-              style_border_width="0">
-        <style name="safety_warning_cover"/>
-        <bind_flag_if_eq subject="filament_safety_warning_visible" flag="hidden" ref_value="0"/>
-        <icon src="alert" size="xs" variant="warning"/>
-        <text_small width="0" flex_grow="1" bind_text="filament_safety_warning_text" long_mode="wrap"/>
+    <!-- The action rows, with the toolhead drawing in a column of its own
+         beside them. Where the card has the height (landscape from 480x320 up)
+         there are three: Load/Unload, Purge/Clean, then the lengths with
+         Extrude/Retract. At 480x272 and in portrait Purge joins the first row
+         and Clean moves up beside the speed; a 480x272 toolchanger, whose
+         heading is gone, keeps Clean at the end of the first row. Each button
+         has one declaration per place, under <if>s that exclude each other.
+         The rows share the card's height, so a column with height to spare
+         gives them bigger targets. -->
+    <lv_obj name="operations_body"
+            width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row" style_pad_gap="#space_sm">
+      <bind_style name="operations_body_fill" subject="ui_is_portrait" ref_value="0"/>
+      <lv_obj name="operations_rows"
+              width="0" height="content" style_min_height="100%" flex_grow="1" style_pad_all="0" scrollable="false"
+              flex_flow="column" style_pad_gap="#space_sm">
+        <lv_obj name="filament_change_row"
+                width="100%" height="$row_height" style_min_height="$row_height" flex_grow="1" style_pad_all="0"
+                scrollable="false" flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"
+                style_pad_gap="#space_sm">
+          <ui_button name="btn_load"
+                     height="100%" style_min_width="content" style_pad_hor="#space_xxs" icon_position="top"
+                     icon_hidden_subject="filament_ops_icons_hidden" icon_hidden_if_eq="1" flex_grow="1"
+                     icon="arrow_down" text="Load" style_text_font="#font_small" bind_op_state="filament_op_load_state">
+            <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
+            <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
+            <bind_state_if_eq subject="filament_load_disabled" state="disabled" ref_value="1"/>
+            <event_cb trigger="clicked" callback="on_filament_load"/>
+          </ui_button>
+          <ui_button name="btn_unload"
+                     height="100%" style_min_width="content" style_pad_hor="#space_xxs" icon_position="top"
+                     icon_hidden_subject="filament_ops_icons_hidden" icon_hidden_if_eq="1" flex_grow="1" icon="arrow_up"
+                     text="Unload" style_text_font="#font_small" bind_op_state="filament_op_unload_state">
+            <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
+            <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
+            <bind_state_if_eq subject="filament_unload_disabled" state="disabled" ref_value="1"/>
+            <event_cb trigger="clicked" callback="on_filament_unload"/>
+          </ui_button>
+          <lv_obj name="purge_slot_first_row"
+                  width="0" height="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                  scrollable="false" hidden="true">
+            <bind_flag_if cond="not (ui_breakpoint eq 0 or ui_is_portrait eq 1)" flag="hidden"/>
+            <if cond="ui_breakpoint eq 0 or ui_is_portrait eq 1">
+              <ui_button name="btn_purge"
+                         width="100%" height="100%" style_min_width="content" style_pad_hor="#space_xxs"
+                         icon_position="top" icon_hidden_subject="filament_ops_icons_hidden" icon_hidden_if_eq="1"
+                         icon="trash_can_outline" text="Purge" style_text_font="#font_small"
+                         bind_op_state="filament_op_purge_state">
+                <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
+                <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
+                <bind_state_if_eq subject="filament_unload_disabled" state="disabled" ref_value="1"/>
+                <event_cb trigger="clicked" callback="on_filament_purge"/>
+              </ui_button>
+            </if>
+          </lv_obj>
+          <lv_obj name="clean_slot_first_row"
+                  width="0" height="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                  scrollable="false" hidden="true">
+            <bind_flag_if cond="not (ui_is_portrait eq 0 and ui_breakpoint eq 0 and target_tool_multi_head eq 1)"
+                          flag="hidden"/>
+            <if cond="ui_is_portrait eq 0 and ui_breakpoint eq 0 and target_tool_multi_head eq 1">
+              <!-- DUPLICATE_NAME_OK: its <if> excludes the other placements, so one exists -->
+              <ui_button name="btn_clean_nozzle"
+                         width="100%" height="100%" style_min_width="content" style_pad_hor="#space_xxs"
+                         icon_position="top" icon_hidden_subject="filament_ops_icons_hidden" icon_hidden_if_eq="1"
+                         icon="nozzle" text="Clean" style_text_font="#font_small" hidden="true">
+                <bind_flag_if_eq subject="filament_clean_nozzle_shown" flag="hidden" ref_value="0"/>
+                <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
+                <event_cb trigger="clicked" callback="on_filament_clean_nozzle"/>
+              </ui_button>
+            </if>
+          </lv_obj>
+          <!-- Floats over the row it disables, so no layout gives it height; the
+               text wraps rather than ending in an ellipsis. -->
+          <lv_obj name="safety_warning"
+                  width="100%" height="100%" style_pad_hor="#space_sm" scrollable="false" floating="true" align="center"
+                  flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
+                  style_pad_gap="#space_xs" style_border_width="0">
+            <style name="safety_warning_cover"/>
+            <bind_flag_if_eq subject="filament_safety_warning_visible" flag="hidden" ref_value="0"/>
+            <icon src="alert" size="xs" variant="warning"/>
+            <text_small width="0" flex_grow="1" bind_text="filament_safety_warning_text" long_mode="wrap"/>
+          </lv_obj>
+        </lv_obj>
+        <lv_obj name="purge_clean_row"
+                width="100%" height="$row_height" style_min_height="$row_height" flex_grow="1" style_pad_all="0"
+                scrollable="false" flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"
+                style_pad_gap="#space_sm">
+          <bind_flag_if cond="ui_breakpoint eq 0 or ui_is_portrait eq 1" flag="hidden"/>
+          <if cond="ui_breakpoint ge 1 and ui_is_portrait eq 0">
+            <!-- DUPLICATE_NAME_OK: the first row's Purge has the opposite condition -->
+            <ui_button name="btn_purge"
+                       height="100%" flex_grow="1" style_min_width="content" style_pad_hor="#space_xxs"
+                       icon_position="top" icon_hidden_subject="filament_ops_icons_hidden" icon_hidden_if_eq="1"
+                       icon="trash_can_outline" text="Purge" style_text_font="#font_small"
+                       bind_op_state="filament_op_purge_state">
+              <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
+              <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
+              <bind_state_if_eq subject="filament_unload_disabled" state="disabled" ref_value="1"/>
+              <event_cb trigger="clicked" callback="on_filament_purge"/>
+            </ui_button>
+            <!-- Runs the CleanNozzle macro slot, as a Quick Actions button would. -->
+            <ui_button name="btn_clean_nozzle"
+                       height="100%" flex_grow="1" style_min_width="content" style_pad_hor="#space_xxs"
+                       icon_position="top" icon_hidden_subject="filament_ops_icons_hidden" icon_hidden_if_eq="1"
+                       icon="nozzle" text="Clean" style_text_font="#font_small" hidden="true">
+              <bind_flag_if_eq subject="filament_clean_nozzle_shown" flag="hidden" ref_value="0"/>
+              <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
+              <event_cb trigger="clicked" callback="on_filament_clean_nozzle"/>
+            </ui_button>
+          </if>
+        </lv_obj>
+        <!-- Manual move: the length (tap picks one, hold edits it), then Extrude
+             and Retract by that length. A landscape column 480 wide has no
+             width for their labels beside the lengths, so there they show their
+             arrows alone. -->
+        <lv_obj name="extrude_block"
+                width="100%" height="$row_height" style_min_height="$row_height" flex_grow="1" style_pad_all="0"
+                scrollable="false" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm">
+          <!-- Where there is room the label carries the unit and the choices are
+               bare numbers; a narrow row has no room for the label, so each choice
+               carries its unit. The <if> has a container of its own because a
+               rebuilt body lands after its siblings. -->
+          <lv_obj name="extrude_length_choices"
+                  width="0" height="100%" flex_grow="3" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                  scrollable="false" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_xs">
+            <if cond="ui_breakpoint ge 2">
+              <choice_button name="extrude_length_0"
+                             height="100%" flex_grow="1" bind_text="settings_extrude_length_0" bind_text-fmt="%d"
+                             style_text_font="#font_small" subject="filament_extrude_length_index" value="0"
+                             callback="on_filament_extrude_length_0">
+                <event_cb trigger="long_pressed" callback="on_filament_extrude_length_0_hold"/>
+              </choice_button>
+              <choice_button name="extrude_length_1"
+                             height="100%" flex_grow="1" bind_text="settings_extrude_length_1" bind_text-fmt="%d"
+                             style_text_font="#font_small" subject="filament_extrude_length_index" value="1"
+                             callback="on_filament_extrude_length_1">
+                <event_cb trigger="long_pressed" callback="on_filament_extrude_length_1_hold"/>
+              </choice_button>
+              <choice_button name="extrude_length_2"
+                             height="100%" flex_grow="1" bind_text="settings_extrude_length_2" bind_text-fmt="%d"
+                             style_text_font="#font_small" subject="filament_extrude_length_index" value="2"
+                             callback="on_filament_extrude_length_2">
+                <event_cb trigger="long_pressed" callback="on_filament_extrude_length_2_hold"/>
+              </choice_button>
+              <text_small text="mm"/>
+              <else/>
+              <choice_button name="extrude_length_0"
+                             height="100%" flex_grow="1" bind_text="settings_extrude_length_0" bind_text-fmt="%dmm"
+                             style_text_font="#font_small" subject="filament_extrude_length_index" value="0"
+                             callback="on_filament_extrude_length_0">
+                <event_cb trigger="long_pressed" callback="on_filament_extrude_length_0_hold"/>
+              </choice_button>
+              <choice_button name="extrude_length_1"
+                             height="100%" flex_grow="1" bind_text="settings_extrude_length_1" bind_text-fmt="%dmm"
+                             style_text_font="#font_small" subject="filament_extrude_length_index" value="1"
+                             callback="on_filament_extrude_length_1">
+                <event_cb trigger="long_pressed" callback="on_filament_extrude_length_1_hold"/>
+              </choice_button>
+              <choice_button name="extrude_length_2"
+                             height="100%" flex_grow="1" bind_text="settings_extrude_length_2" bind_text-fmt="%dmm"
+                             style_text_font="#font_small" subject="filament_extrude_length_index" value="2"
+                             callback="on_filament_extrude_length_2">
+                <event_cb trigger="long_pressed" callback="on_filament_extrude_length_2_hold"/>
+              </choice_button>
+            </if>
+          </lv_obj>
+          <ui_button name="btn_extrude"
+                     width="0" height="100%" flex_grow="1" style_min_width="content" style_pad_hor="#space_sm"
+                     icon_position="top" label_hidden_cond="ui_is_portrait eq 0 and ui_breakpoint le 1"
+                     icon="arrow_down" text="Extrude" style_text_font="#font_small"
+                     bind_op_state="filament_op_extrude_state">
+            <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
+            <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
+            <event_cb trigger="clicked" callback="on_filament_extrude"/>
+          </ui_button>
+          <ui_button name="btn_retract"
+                     width="0" height="100%" flex_grow="1" style_min_width="content" style_pad_hor="#space_sm"
+                     icon_position="top" label_hidden_cond="ui_is_portrait eq 0 and ui_breakpoint le 1" icon="arrow_up"
+                     text="Retract" style_text_font="#font_small" bind_op_state="filament_op_retract_state">
+            <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
+            <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
+            <event_cb trigger="clicked" callback="on_filament_retract"/>
+          </ui_button>
+        </lv_obj>
       </lv_obj>
-    </lv_obj>
-    <!-- Manual move: the length (tap picks one, hold edits it), then Extrude
-         and Retract by that length, with the toolhead glyph at the end. A
-         landscape column 480 wide has no width for their labels beside the
-         lengths, so there they show their arrows alone. -->
-    <lv_obj name="extrude_block"
-            width="100%" height="$row_height" style_min_height="$row_height" flex_grow="1" style_pad_all="0"
-            scrollable="false" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm">
-      <!-- Where there is room the label carries the unit and the choices are
-           bare numbers; a narrow row has no room for the label, so each choice
-           carries its unit. The <if> has a container of its own because a
-           rebuilt body lands after its siblings. -->
-      <lv_obj name="extrude_length_choices"
-              width="0" height="100%" flex_grow="3" style_pad_all="0" style_bg_opa="0" style_border_width="0"
-              scrollable="false" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_xs">
-        <if cond="ui_breakpoint ge 2">
-          <choice_button name="extrude_length_0"
-                         height="100%" flex_grow="1" bind_text="settings_extrude_length_0" bind_text-fmt="%d"
-                         style_text_font="#font_small" subject="filament_extrude_length_index" value="0"
-                         callback="on_filament_extrude_length_0">
-            <event_cb trigger="long_pressed" callback="on_filament_extrude_length_0_hold"/>
-          </choice_button>
-          <choice_button name="extrude_length_1"
-                         height="100%" flex_grow="1" bind_text="settings_extrude_length_1" bind_text-fmt="%d"
-                         style_text_font="#font_small" subject="filament_extrude_length_index" value="1"
-                         callback="on_filament_extrude_length_1">
-            <event_cb trigger="long_pressed" callback="on_filament_extrude_length_1_hold"/>
-          </choice_button>
-          <choice_button name="extrude_length_2"
-                         height="100%" flex_grow="1" bind_text="settings_extrude_length_2" bind_text-fmt="%d"
-                         style_text_font="#font_small" subject="filament_extrude_length_index" value="2"
-                         callback="on_filament_extrude_length_2">
-            <event_cb trigger="long_pressed" callback="on_filament_extrude_length_2_hold"/>
-          </choice_button>
-          <text_small text="mm"/>
-          <else/>
-          <choice_button name="extrude_length_0"
-                         height="100%" flex_grow="1" bind_text="settings_extrude_length_0" bind_text-fmt="%dmm"
-                         style_text_font="#font_small" subject="filament_extrude_length_index" value="0"
-                         callback="on_filament_extrude_length_0">
-            <event_cb trigger="long_pressed" callback="on_filament_extrude_length_0_hold"/>
-          </choice_button>
-          <choice_button name="extrude_length_1"
-                         height="100%" flex_grow="1" bind_text="settings_extrude_length_1" bind_text-fmt="%dmm"
-                         style_text_font="#font_small" subject="filament_extrude_length_index" value="1"
-                         callback="on_filament_extrude_length_1">
-            <event_cb trigger="long_pressed" callback="on_filament_extrude_length_1_hold"/>
-          </choice_button>
-          <choice_button name="extrude_length_2"
-                         height="100%" flex_grow="1" bind_text="settings_extrude_length_2" bind_text-fmt="%dmm"
-                         style_text_font="#font_small" subject="filament_extrude_length_index" value="2"
-                         callback="on_filament_extrude_length_2">
-            <event_cb trigger="long_pressed" callback="on_filament_extrude_length_2_hold"/>
-          </choice_button>
-        </if>
-      </lv_obj>
-      <ui_button name="btn_extrude"
-                 width="0" height="100%" flex_grow="1" style_min_width="content" style_pad_hor="#space_sm"
-                 icon_position="top" label_hidden_cond="ui_is_portrait eq 0 and ui_breakpoint le 1" icon="arrow_down"
-                 text="Extrude" style_text_font="#font_small" bind_op_state="filament_op_extrude_state">
-        <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
-        <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
-        <event_cb trigger="clicked" callback="on_filament_extrude"/>
-      </ui_button>
-      <ui_button name="btn_retract"
-                 width="0" height="100%" flex_grow="1" style_min_width="content" style_pad_hor="#space_sm"
-                 icon_position="top" label_hidden_cond="ui_is_portrait eq 0 and ui_breakpoint le 1" icon="arrow_up"
-                 text="Retract" style_text_font="#font_small" bind_op_state="filament_op_retract_state">
-        <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
-        <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
-        <event_cb trigger="clicked" callback="on_filament_retract"/>
-      </ui_button>
       <!-- Chevrons stream down the column while extruding, up while retracting -->
       <filament_motion_glyph name="filament_motion_glyph"
                              width="#filament_motion_glyph_w" height="100%" bind_motion="filament_manual_motion"

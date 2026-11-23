@@ -609,7 +609,7 @@ const TokenEntry k_token_table[] = {
     {"px", "filament_portrait_length_h_medium", "48"},
     {"px", "filament_portrait_length_h_large", "48"},
     {"px", "filament_landscape_row_h_micro", "26"},
-    {"px", "filament_landscape_row_h_tiny", "42"},
+    {"px", "filament_landscape_row_h_tiny", "40"},
     {"px", "filament_landscape_row_h_small", "48"},
     {"px", "filament_landscape_row_h_medium", "52"},
     {"px", "filament_landscape_row_h_large", "72"},
