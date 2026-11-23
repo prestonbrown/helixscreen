@@ -242,6 +242,11 @@ helix::keypad_params_for_axis(const AxisBounds& bounds, Axis axis, double comman
         max = bounds.z_max;
         break;
     }
+    // A head parked past the limit (a rear service zone) seeds a value the
+    // keypad must still accept, so the range reaches it.
+    const AxisRange range = range_reaching(commanded_mm, min, max);
+    min = static_cast<float>(range.min);
+    max = static_cast<float>(range.max);
     return AxisKeypadParams{min, max, static_cast<float>(commanded_mm), min < 0.0f};
 }
 
@@ -1370,8 +1375,18 @@ bool MotionPanel::dispatch_jog(const helix::AxisMove& delta) {
 }
 
 bool MotionPanel::dispatch_target(const helix::AxisTarget& target) {
-    return move_sender_.send_target(get_moonraker_api(), target,
-                                    helix::move_clamp_bounds(get_printer_state()), current_z_);
+    // A target between a head parked past a limit and that limit is reachable
+    // as typed; clamping it to the limit would move further than asked.
+    AxisBounds bounds = helix::move_clamp_bounds(get_printer_state());
+    const auto reach = [](float& lo, float& hi, double position) {
+        const helix::AxisRange r = helix::range_reaching(position, lo, hi);
+        lo = static_cast<float>(r.min);
+        hi = static_cast<float>(r.max);
+    };
+    reach(bounds.x_min, bounds.x_max, current_x_);
+    reach(bounds.y_min, bounds.y_max, current_y_);
+    reach(bounds.z_min, bounds.z_max, current_z_);
+    return move_sender_.send_target(get_moonraker_api(), target, bounds, current_z_);
 }
 
 void MotionPanel::home(char axis) {

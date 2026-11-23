@@ -1,10 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "motor_ripple_plan.h"
 
+#include "json_utils.h"
+#include "motion_envelope.h"
+
 #include <spdlog/fmt/fmt.h>
 
 #include <algorithm>
 #include <cmath>
+
+#include "hv/json.hpp"
 
 namespace helix::calibration::ripple {
 
@@ -70,6 +75,24 @@ float test_accel(const SweepPlanInputs& in) {
 }
 
 } // namespace
+
+void read_sweep_limits(const nlohmann::json& status, SweepPlanInputs& in) {
+    const auto* th = status.is_object() ? json_util::find_member(status, "toolhead") : nullptr;
+    const auto* lo = th && th->is_object() ? json_util::find_array(*th, "axis_minimum") : nullptr;
+    const auto* hi = th && th->is_object() ? json_util::find_array(*th, "axis_maximum") : nullptr;
+    const auto at = [](const nlohmann::json* a, size_t i) {
+        return a && a->size() > i ? json_util::as_float((*a)[i]) : 0.0f;
+    };
+    in.x_min = at(lo, 0);
+    in.y_min = at(lo, 1);
+    in.x_max = at(hi, 0);
+    in.y_max = at(hi, 1);
+    in.max_z = at(hi, 2);
+    if (const auto cap = motion_envelope::read_y_max_mm(status)) {
+        in.y_max = std::min(in.y_max, *cap);
+    }
+    in.has_xy_limits = lo && hi && in.x_max > in.x_min && in.y_max > in.y_min;
+}
 
 std::vector<float> sweep_speeds(float max_velocity_mm_s) {
     const float top = std::min(kSweepMaxMmS, kSweepVelocityFraction * max_velocity_mm_s);

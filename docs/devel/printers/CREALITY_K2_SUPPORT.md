@@ -272,6 +272,21 @@ frame is on the K1 page
 [#2048](https://github.com/prestonbrown/helixscreen/issues/2048)). Whether the K2's `web-server`
 on 9999 accepts the same frame is unchecked.
 
+## Rear service zone on Jacobean's firmware
+
+The nozzle brush and waste bin sit behind the bed, past Y 352 on the K2 Plus. Jacobean's
+`extended_zone_transform` lets a move past `standard_y_max` (352) only with X inside
+`safe_x_min`..`safe_x_max`, and it widens `toolhead.axis_maximum` Y to `extended_y_max` (380)
+for any move that enters or leaves the zone. The 380 stays until the next move made entirely
+inside the print area, so after a brush trip `axis_maximum` overstates where whole-bed motion
+may go. Its status publishes `standard_y_max`, and `helix::motion_envelope`
+(`include/motion_envelope.h`) subscribes it and caps Y in
+`PrinterMotionState::get_axis_bounds()` and `get_gcode_axis_bounds()`. Belt settle laps, PA and
+Z-offset placement, motion panel limits and the motor ripple sweep plan against the capped
+envelope. The CFS chute calibration, whose chute and cutter sit in the zone, reads
+`get_kinematic_axis_bounds()` instead. A head parked in the zone still jogs back toward the
+bed by the tapped step (`include/jog_coalescer.h#range_reaching`).
+
 ## Belt tensioning and cutter calibration
 
 Advanced > Calibration offers **Auto Belt Tension** and **Cutter Calibration** on printers

@@ -82,6 +82,27 @@ TEST_CASE("keypad params seed the commanded value and bound by the envelope", "[
     CHECK_FALSE(helix::keypad_params_for_axis(bounds, helix::Axis::Y, 10.0).has_value());
 }
 
+TEST_CASE("keypad params accept the seed of a head parked past the limit", "[motion][coords]") {
+    // Y 370 at the brush, past a 352 print-area limit: confirming the shown
+    // value, or typing one between it and the limit, must not be refused.
+    helix::AxisBounds bounds;
+    bounds.has_y = true;
+    bounds.y_min = -6.2f;
+    bounds.y_max = 352.0f;
+
+    const auto y = helix::keypad_params_for_axis(bounds, helix::Axis::Y, 370.0);
+    REQUIRE(y.has_value());
+    CHECK(y->seed == Catch::Approx(370.0f));
+    CHECK(y->seed <= y->max_value);
+    CHECK(y->max_value == Catch::Approx(370.0f));
+    CHECK(y->min_value == Catch::Approx(-6.2f));
+
+    // Inside the envelope the range is the envelope.
+    const auto inside = helix::keypad_params_for_axis(bounds, helix::Axis::Y, 100.0);
+    REQUIRE(inside.has_value());
+    CHECK(inside->max_value == Catch::Approx(352.0f));
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture, "coordinate readouts follow the commanded/actual preference",
                  "[motion][coords][xml]") {
     std::array<lv_obj_t*, kUiPanelCount> panels{};

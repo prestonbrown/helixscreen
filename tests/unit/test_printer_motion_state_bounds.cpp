@@ -6,7 +6,13 @@
 // the jog-clamp soft-stop in MotionPanel::jog().
 
 #include "../helix_test_fixture.h"
+#include "../test_helpers/script_lines.h"
+#include "belt_settle.h"
 #include "printer_motion_state.h"
+
+#include <array>
+#include <string>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -204,4 +210,101 @@ TEST_CASE("inset_bounds shrinks each known axis from both ends", "[motion][bound
     CHECK(r.z_max == Catch::Approx(274.92));
     CHECK(r.has_x);
     CHECK(r.has_z);
+}
+
+namespace {
+
+/// A K2 Plus on community firmware just after a move out of its rear service
+/// zone: Klipper still reports the widened Y envelope, 380, while the zone
+/// guard's status says the print area ends at 352.
+json k2_service_zone_frame() {
+    return {{"toolhead",
+             {{"axis_minimum", {-4.0, -6.2, -3.0, 0.0}},
+              {"axis_maximum", {352.5, 380.0, 352.5, 0.0}},
+              {"max_velocity", 800.0}}},
+            {"extended_zone_transform", {{"standard_y_max", 352.0}, {"in_extended_zone", false}}},
+            {"gcode_move", {{"homing_origin", {0.0, 0.0, 0.0, 0.0}}}}};
+}
+
+/// Every Y word of a G-code script.
+std::vector<float> y_words(const std::string& gcode) {
+    std::vector<float> ys;
+    for (const auto& line : helix::test::script_lines(gcode)) {
+        const auto at = line.find(" Y");
+        if (at == std::string::npos) {
+            continue;
+        }
+        const auto y = helix::text_io::parse_leading<float>(std::string_view(line).substr(at + 2));
+        REQUIRE(y.has_value());
+        ys.push_back(*y);
+    }
+    return ys;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(BoundsFixture, "a service-zone guard caps Y for whole-bed motion",
+                 "[motion][bounds]") {
+    state.init_subjects(false);
+    state.update_from_status(k2_service_zone_frame());
+
+    CHECK(state.get_axis_bounds().y_max == Catch::Approx(352.0f));
+    CHECK(state.get_gcode_axis_bounds().y_max == Catch::Approx(352.0f));
+    CHECK(state.get_axis_bounds().x_max == Catch::Approx(352.5f));
+    // Moves meant for the zone still see the whole travel.
+    CHECK(state.get_kinematic_axis_bounds().y_max == Catch::Approx(380.0f));
+
+    // The guard's status is delta-only: later toolhead frames keep the cap.
+    state.update_from_status({{"toolhead",
+                               {{"axis_minimum", {-4.0, -6.2, -3.0, 0.0}},
+                                {"axis_maximum", {352.5, 380.0, 352.5, 0.0}}}}});
+    CHECK(state.get_axis_bounds().y_max == Catch::Approx(352.0f));
+
+    // Reconnect forgets it with the bounds.
+    state.clear_data();
+    state.update_from_status(
+        {{"toolhead",
+          {{"axis_minimum", {0.0, 0.0, 0.0, 0.0}}, {"axis_maximum", {300.0, 380.0, 300.0, 0.0}}}}});
+    CHECK(state.get_axis_bounds().y_max == Catch::Approx(380.0f));
+}
+
+TEST_CASE_METHOD(BoundsFixture, "without a service-zone guard the Y envelope is Klipper's",
+                 "[motion][bounds]") {
+    state.init_subjects(false);
+    state.update_from_status(
+        {{"toolhead",
+          {{"axis_minimum", {0.0, 0.0, 0.0, 0.0}}, {"axis_maximum", {350.0, 380.0, 340.0, 0.0}}}}});
+    CHECK(state.get_axis_bounds().y_max == Catch::Approx(380.0f));
+    CHECK(state.get_gcode_axis_bounds().y_max == Catch::Approx(380.0f));
+}
+
+TEST_CASE_METHOD(BoundsFixture,
+                 "belt settle laps on a K2 with a service zone stay inside the print area",
+                 "[motion][bounds][belt][settle]") {
+    using namespace helix::calibration;
+    state.init_subjects(false);
+    state.update_from_status(k2_service_zone_frame());
+
+    // The mapping BeltTensionPanel::settle_inputs() makes.
+    const AxisBounds machine = state.get_axis_bounds();
+    const AxisBounds gcode = state.get_gcode_axis_bounds();
+    BeltSettleInputs in;
+    in.x_min = machine.x_min;
+    in.x_max = machine.x_max;
+    in.y_min = machine.y_min;
+    in.y_max = machine.y_max;
+    in.has_xy_limits = machine.has_x && machine.has_y;
+    in.probe_point = std::array<float, 3>{175.0f, 175.0f, 20.0f};
+    in.origin_x = machine.x_min - gcode.x_min;
+    in.origin_y = machine.y_min - gcode.y_min;
+    in.origin_z = machine.z_min - gcode.z_min;
+    in.max_velocity_mm_s = 800.0f;
+
+    const auto plan = plan_belt_settle(in);
+    REQUIRE(plan.refusal == BeltSettleRefusal::NONE);
+    const auto ys = y_words(plan.gcode);
+    REQUIRE_FALSE(ys.empty());
+    for (const float y : ys) {
+        CHECK(y <= 352.0f - plan.inset_y_mm + 0.05f);
+    }
 }
