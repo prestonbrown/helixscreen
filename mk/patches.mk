@@ -78,6 +78,7 @@ LVGL_PATCHED_FILES := \
 	src/indev/lv_indev_scroll.c \
 	src/core/lv_global.h \
 	include/lvgl/core/lv_observer.h \
+	src/core/lv_observer_private.h \
 	src/widgets/span/lv_span.c \
 	include/lvgl/core/lv_obj.h \
 	src/misc/lv_helix_thread_check.h \
@@ -640,6 +641,7 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD) $(LUA_HEAD) $(APPLIE
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_thread_check_hook.patch "LVGL thread-check hook patch (subject/timer/delete entry points, #1942)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_check_arg_site_logger.patch "LVGL check-arg SITE log mode (one cold file:line logger; ESP32 flash)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_style_report_refreshes_every_part.patch "LVGL style report refreshes every part's cache mask"
+	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_observer_obj_hold.patch "LVGL widget observer hold patch (#2037)" "Without it a sleeping display keeps updating widgets nobody can see."
 	$(ECHO) "$(CYAN)Checking libhv patches...$(RESET)"
 	$(Q)$(APPLY_PATCH) $(LIBHV_DIR) $(PATCH_DIR)/libhv-openssl-static-link.patch "libhv OpenSSL/static build hook patch"
 	$(Q)$(APPLY_PATCH) $(LIBHV_DIR) $(PATCH_DIR)/libhv-streaming-upload.patch "libhv streaming upload patch"

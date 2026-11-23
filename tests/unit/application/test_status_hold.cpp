@@ -23,6 +23,7 @@
 #include "spoolman_manager.h"
 #include "status_coalescer.h"
 
+#include <memory>
 #include <poll.h>
 #include <random>
 #include <string>
@@ -350,6 +351,7 @@ class AsleepWakeFixture : public StatusHoldFixture {
         lv_display_add_event_cb(lv_display_get_default(), on_refr_start, LV_EVENT_REFR_START, this);
     }
     ~AsleepWakeFixture() override {
+        lv_subject_hold_obj_observers(false);
         lv_display_remove_event_cb_with_user_data(lv_display_get_default(), on_refr_start, this);
         DisplaySettingsManager::instance().deinit_subjects();
         DisplaySettingsManager::instance().init_subjects();
@@ -431,4 +433,65 @@ TEST_CASE_METHOD(AsleepWakeFixture,
     CHECK(bed_at_first == 560);
     CHECK(text_at_first == "after");
     CHECK_FALSE(lv_obj_is_hidden(lv_screen_active()));
+}
+
+TEST_CASE_METHOD(AsleepWakeFixture,
+                 "asleep, status still applies while widget bindings wait for the first frame",
+                 "[status_hold][display][wake_frame][observer_hold]") {
+    lv_subject_t* target = get_printer_state().temperature_state().get_bed_target_subject();
+    lv_label_bind_text(label, target, "%d");
+    std::vector<int> target_values;
+    std::unique_ptr<lv_observer_t, void (*)(lv_observer_t*)> data_observer(
+        lv_subject_add_observer(target, record_cb, &target_values), lv_observer_delete);
+    target_values.clear();
+    const std::string awake_text = lv_label_get_text(label);
+
+    sleep_display();
+    send({{"heater_bed", {{"target", 60.0}}}});
+    mgr.process_notifications();
+    CHECK(target_values == std::vector<int>{600});
+    CHECK(std::string(lv_label_get_text(label)) == awake_text);
+    refreshes = 0;
+
+    REQUIRE(dm.note_wake_press(10, 10));
+    dm.check_display_sleep();
+    REQUIRE_FALSE(dm.is_display_sleeping());
+    CHECK(refreshes >= 1);
+    CHECK(text_at_first == "600");
+}
+
+TEST_CASE_METHOD(AsleepWakeFixture,
+                 "a wake from inside a subject notification releases the widget hold before the "
+                 "first frame",
+                 "[status_hold][display][wake_frame][observer_hold]") {
+    lv_subject_t* target = get_printer_state().temperature_state().get_bed_target_subject();
+    lv_label_bind_text(label, target, "%d");
+    helix::Subject trigger;
+    trigger.init_int(0);
+    lv_subject_add_observer(
+        &trigger,
+        [](lv_observer_t* o, lv_subject_t* s) {
+            if (lv_subject_get_int(s) == 1) {
+                static_cast<DisplayManager*>(lv_observer_get_user_data(o))->wake_display();
+            }
+        },
+        &dm);
+
+    sleep_display();
+    REQUIRE(lv_subject_obj_observers_held());
+    send({{"heater_bed", {{"target", 60.0}}}});
+    mgr.process_notifications();
+    refreshes = 0;
+
+    lv_subject_set_int(&trigger, 1);
+    REQUIRE_FALSE(dm.is_display_sleeping());
+    dm.check_display_sleep();
+
+    CHECK_FALSE(lv_subject_obj_observers_held());
+    CHECK(std::string(lv_label_get_text(label)) == "600");
+    CHECK(refreshes >= 1);
+    CHECK(text_at_first == "600");
+
+    lv_subject_set_int(target, 700);
+    CHECK(std::string(lv_label_get_text(label)) == "700");
 }
