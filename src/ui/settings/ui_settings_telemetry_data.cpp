@@ -335,6 +335,7 @@ std::vector<TelemetryEventLine> describe_telemetry_event(const nlohmann::json& e
         add_field_str("outcome", lv_tr("Outcome"));
         add_field_str("error_class", lv_tr("Failure Reason"));
         add_field_str("duration_bucket", lv_tr("Duration"));
+        add_field_num("count", lv_tr("Times"), "");
         if (auto during_print = read_field<bool>(event, "during_print")) {
             add(std::string(lv_tr("During Print: ")) + (*during_print ? lv_tr("Yes") : lv_tr("No")),
                 "text_subtle");
