@@ -2579,7 +2579,7 @@ void TelemetryManager::record_filament_op(const std::string& backend,
         return;
     }
     using namespace helix::telemetry;
-    const bool success = outcome == FilamentOpOutcome::Success;
+    const bool success = outcome == FilamentOpOutcome::Succeeded;
     json event = build_filament_op_event(backend, op, outcome, error, duration_sec, during_print);
     const std::string key = fmt::format(
         "{}|{}|{}|{}|{}|{}", backend, filament_op_name(op), filament_op_outcome_name(outcome),
@@ -3589,17 +3589,17 @@ std::string filament_fault_text() {
 void on_ams_action_changed_for_telemetry(lv_observer_t* /*observer*/, lv_subject_t* subject) {
     using namespace helix::telemetry;
     const auto action = static_cast<AmsAction>(lv_subject_get_int(subject));
-    // PRINT_STATE_CAST_OK: telemetry reads the printer's own job state.
-    const auto job = static_cast<PrintJobState>(
-        lv_subject_get_int(get_printer_state().print_state().get_print_state_enum_subject()));
-    const auto done = s_filament_op_tracker.on_action(action, std::chrono::steady_clock::now(),
-                                                      printer_has_job(job));
+    // A load during PRINT_START (Preparing) is part of the print too.
+    const bool printing =
+        job_holds_machine(get_printer_state().print_state().get_print_lifecycle());
+    const auto done =
+        s_filament_op_tracker.on_action(action, std::chrono::steady_clock::now(), printing);
     if (!done) {
         return;
     }
     const FilamentOpError error = done->outcome == FilamentOpOutcome::Failed
                                       ? classify_filament_op_error(filament_fault_text())
-                                      : FilamentOpError::None;
+                                      : FilamentOpError::NoError;
     const auto type = AmsState::instance().primary_type();
     const char* backend = ams_type_telemetry_slug(type ? *type : AmsType::NONE);
     spdlog::info("[Telemetry] filament_op {} {} on {} - error={}, {}s, during_print={}",

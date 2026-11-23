@@ -56,7 +56,7 @@ void record_step_end_telemetry(const calibration::CalibrationRun::StepEnd& end) 
     using telemetry::CalibrationOutcome;
     using telemetry::FailureClass;
     CalibrationOutcome outcome = CalibrationOutcome::Aborted;
-    FailureClass failure = FailureClass::None;
+    FailureClass failure = FailureClass::NotFailed;
     if (end.status == StepStatus::Finished) {
         outcome = CalibrationOutcome::Completed;
     } else if (end.status == StepStatus::Failed) {

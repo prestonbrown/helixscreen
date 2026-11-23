@@ -7,8 +7,6 @@
 // reads Klipper's message, a filament system's fault or a step's failure and
 // sends only the class it falls in. Pure; no LVGL.
 
-#include "ams_types.h"
-
 #include <chrono>
 #include <cstdint>
 #include <optional>
@@ -16,13 +14,15 @@
 
 namespace helix {
 class PrinterDiscovery;
+// ams_types.h is kept out: headers that reach X11 include this one.
+enum class AmsAction;
 } // namespace helix
 
 namespace helix::telemetry {
 
 /// Why a print or a calibration step failed.
 enum class FailureClass : uint8_t {
-    None,           ///< nothing failed, or a cancel nothing explains
+    NotFailed,      ///< nothing failed, or a cancel nothing explains
     ThermalRunaway, ///< a heater that stopped heating at the expected rate
     Heater,         ///< any other heater or thermistor fault
     McuShutdown,    ///< an MCU shut down, restarted or stopped answering
@@ -70,11 +70,11 @@ enum class CalibrationOutcome : uint8_t { Completed, Aborted, Failed };
 
 /// A load, unload or tool change, as filament_op reports it.
 enum class FilamentOp : uint8_t { Load, Unload, ToolChange };
-enum class FilamentOpOutcome : uint8_t { Success, Failed, Aborted };
+enum class FilamentOpOutcome : uint8_t { Succeeded, Failed, Aborted };
 
 /// Why a filament operation failed.
 enum class FilamentOpError : uint8_t {
-    None,           ///< it did not fail
+    NoError,        ///< it did not fail
     SensorTimeout,  ///< a sensor never saw the filament arrive or leave
     Jam,            ///< a jam or clog
     Hub,            ///< the hub or its sensor
@@ -101,7 +101,7 @@ class FilamentOpTracker {
 
     struct Finished {
         FilamentOp op = FilamentOp::Load;
-        FilamentOpOutcome outcome = FilamentOpOutcome::Success;
+        FilamentOpOutcome outcome = FilamentOpOutcome::Succeeded;
         int duration_sec = 0;
         bool during_print = false;
     };

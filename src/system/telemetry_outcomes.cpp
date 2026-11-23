@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "system/telemetry_outcomes.h"
 
+#include "ams_types.h"
 #include "error_wording.h"
 
 #include <algorithm>
@@ -22,7 +23,7 @@ bool contains_word(std::string_view haystack, std::string_view needle) {
     return it != haystack.end();
 }
 
-/// The class a hardware fault Klipper words falls in, else None.
+/// The class a hardware fault Klipper words falls in, else NotFailed.
 FailureClass hardware_class(const error_wording::Classification& c) {
     using error_wording::Category;
     switch (c.category) {
@@ -41,11 +42,11 @@ FailureClass hardware_class(const error_wording::Classification& c) {
     case Category::Config:
         return FailureClass::Config;
     default:
-        return FailureClass::None;
+        return FailureClass::NotFailed;
     }
 }
 
-/// The class of the softer faults Klipper words, else None.
+/// The class of the softer faults Klipper words, else NotFailed.
 FailureClass soft_class(const error_wording::Classification& c) {
     using error_wording::Category;
     switch (c.category) {
@@ -59,7 +60,7 @@ FailureClass soft_class(const error_wording::Classification& c) {
     case Category::Command:
         return FailureClass::GcodeError;
     default:
-        return FailureClass::None;
+        return FailureClass::NotFailed;
     }
 }
 
@@ -67,7 +68,7 @@ FailureClass soft_class(const error_wording::Classification& c) {
 
 const char* failure_class_name(FailureClass c) {
     switch (c) {
-    case FailureClass::None:
+    case FailureClass::NotFailed:
         return "none";
     case FailureClass::ThermalRunaway:
         return "thermal_runaway";
@@ -108,7 +109,7 @@ const char* failure_class_name(FailureClass c) {
 FailureClass classify_failure(const FailureEvidence& e, const PrinterDiscovery* hw) {
     const auto worded = e.text.empty() ? std::nullopt : error_wording::classify(e.text, hw);
     if (worded) {
-        if (const FailureClass c = hardware_class(*worded); c != FailureClass::None) {
+        if (const FailureClass c = hardware_class(*worded); c != FailureClass::NotFailed) {
             return c;
         }
     }
@@ -116,7 +117,7 @@ FailureClass classify_failure(const FailureEvidence& e, const PrinterDiscovery* 
         return FailureClass::FilamentSystem;
     }
     if (worded) {
-        if (const FailureClass c = soft_class(*worded); c != FailureClass::None) {
+        if (const FailureClass c = soft_class(*worded); c != FailureClass::NotFailed) {
             return c;
         }
     }
@@ -132,7 +133,7 @@ FailureClass classify_failure(const FailureEvidence& e, const PrinterDiscovery* 
     if (!e.text.empty()) {
         return FailureClass::Other;
     }
-    return e.failed ? FailureClass::Unknown : FailureClass::None;
+    return e.failed ? FailureClass::Unknown : FailureClass::NotFailed;
 }
 
 const char* calibration_outcome_name(CalibrationOutcome outcome) {
@@ -161,7 +162,7 @@ const char* filament_op_name(FilamentOp op) {
 
 const char* filament_op_outcome_name(FilamentOpOutcome outcome) {
     switch (outcome) {
-    case FilamentOpOutcome::Success:
+    case FilamentOpOutcome::Succeeded:
         return "success";
     case FilamentOpOutcome::Failed:
         return "failed";
@@ -173,7 +174,7 @@ const char* filament_op_outcome_name(FilamentOpOutcome outcome) {
 
 const char* filament_op_error_name(FilamentOpError error) {
     switch (error) {
-    case FilamentOpError::None:
+    case FilamentOpError::NoError:
         return "none";
     case FilamentOpError::SensorTimeout:
         return "sensor_timeout";
@@ -261,7 +262,7 @@ FilamentOpTracker::on_action(AmsAction action, Clock::time_point now, bool print
            : loaded_            ? FilamentOp::Load
                                 : FilamentOp::Unload;
     f.outcome = cancel_requested_           ? FilamentOpOutcome::Aborted
-                : action == AmsAction::IDLE ? FilamentOpOutcome::Success
+                : action == AmsAction::IDLE ? FilamentOpOutcome::Succeeded
                                             : FilamentOpOutcome::Failed;
     f.duration_sec =
         static_cast<int>(std::chrono::duration_cast<std::chrono::seconds>(now - start_).count());
