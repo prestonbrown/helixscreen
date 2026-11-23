@@ -459,3 +459,39 @@ TEST_CASE_METHOD(AsleepWakeFixture,
     CHECK(refreshes >= 1);
     CHECK(text_at_first == "600");
 }
+
+TEST_CASE_METHOD(AsleepWakeFixture,
+                 "a wake from inside a subject notification releases the widget hold before the "
+                 "first frame",
+                 "[status_hold][display][wake_frame][observer_hold]") {
+    lv_subject_t* target = get_printer_state().temperature_state().get_bed_target_subject();
+    lv_label_bind_text(label, target, "%d");
+    helix::Subject trigger;
+    trigger.init_int(0);
+    lv_subject_add_observer(
+        &trigger,
+        [](lv_observer_t* o, lv_subject_t* s) {
+            if (lv_subject_get_int(s) == 1) {
+                static_cast<DisplayManager*>(lv_observer_get_user_data(o))->wake_display();
+            }
+        },
+        &dm);
+
+    sleep_display();
+    REQUIRE(lv_subject_obj_observers_held());
+    send({{"heater_bed", {{"target", 60.0}}}});
+    mgr.process_notifications();
+    refreshes = 0;
+
+    lv_subject_set_int(&trigger, 1);
+    REQUIRE_FALSE(dm.is_display_sleeping());
+    dm.check_display_sleep();
+
+    CHECK_FALSE(lv_subject_obj_observers_held());
+    CHECK(std::string(lv_label_get_text(label)) == "600");
+    CHECK(refreshes >= 1);
+    CHECK(text_at_first == "600");
+
+    lv_subject_set_int(target, 700);
+    CHECK(std::string(lv_label_get_text(label)) == "700");
+}

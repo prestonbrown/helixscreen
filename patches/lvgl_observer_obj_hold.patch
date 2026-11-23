@@ -1,7 +1,7 @@
 diff --git a/include/lvgl/core/lv_observer.h b/include/lvgl/core/lv_observer.h
 --- a/include/lvgl/core/lv_observer.h
 +++ b/include/lvgl/core/lv_observer.h
-@@ -509,6 +509,29 @@
+@@ -509,6 +509,34 @@
  void lv_subject_notify(lv_subject_t * subject);
  
  /**
@@ -26,6 +26,11 @@ diff --git a/include/lvgl/core/lv_observer.h b/include/lvgl/core/lv_observer.h
 + * @return              how many Widget Observers wait for the release
 + */
 +uint32_t lv_subject_obj_observers_held_count(void);
++
++/**
++ * @return              true while a Subject notification is running, when a release is refused
++ */
++bool lv_subject_notifying(void);
 +
 +/**
   * Add an event handler to increment (or decrement) the value of a subject on a trigger.
@@ -85,7 +90,7 @@ diff --git a/src/core/lv_observer.c b/src/core/lv_observer.c
      if(observer->for_obj && observer->target) {
          lv_obj_remove_event_cb_with_user_data(observer->target, unsubscribe_on_delete_cb, observer);
          /*A NULL user_data here would match, and remove, every unrelated callback
-@@ -757,16 +784,76 @@
+@@ -757,16 +784,81 @@
          observer->notified = 0;
      }
  
@@ -159,6 +164,11 @@ diff --git a/src/core/lv_observer.c b/src/core/lv_observer.c
 +uint32_t lv_subject_obj_observers_held_count(void)
 +{
 +    return lv_ll_get_len(&held_observer_ll);
++}
++
++bool lv_subject_notifying(void)
++{
++    return notify_depth > 0;
  }
  
  lv_subject_increment_dsc_t * lv_obj_add_subject_increment_event(lv_obj_t * obj, lv_subject_t * subject,

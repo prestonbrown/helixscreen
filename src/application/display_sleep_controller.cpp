@@ -626,11 +626,16 @@ void DisplaySleepController::wake() {
     // display would wake and dim or sleep again on the next tick.
     lv_display_trigger_activity(lv_display_get_default());
 
-    if (was_sleeping && helix::ui::UpdateQueue::instance().is_draining()) {
+    const bool in_batch = helix::ui::UpdateQueue::instance().is_draining();
+    // A release of the widget hold is refused inside a subject notification, so a frame
+    // painted from in here would show held values and leave the hold on.
+    const bool in_notification = lv_subject_notifying();
+    if (was_sleeping && (in_batch || in_notification)) {
         // The rest of this batch and status are not applied in here, so the first frame
         // waits for the loop; the panel stays dark until then.
         m_wake_frame_owed = true;
-        spdlog::info("[DisplaySleep] Display woken from sleep inside a batch; first frame owed");
+        spdlog::info("[DisplaySleep] Display woken from sleep inside a {}; first frame owed",
+                     in_batch ? "batch" : "subject notification");
     } else {
         if (was_sleeping) {
             render_first_wake_frame();
