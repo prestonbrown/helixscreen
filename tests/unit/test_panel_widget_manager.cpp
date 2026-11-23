@@ -668,6 +668,14 @@ TEST_CASE_METHOD(HelixTestFixture,
         REQUIRE_FALSE(wc.is_enabled("network"));
     }
 
+    // Services below the UI (camera_frame, telemetry) read the same cache: one
+    // config per panel, so they see B's layout too.
+    {
+        auto& wc = helix::cached_panel_widget_config("home");
+        REQUIRE(&wc == &mgr.get_widget_config("home"));
+        REQUIRE(wc.is_enabled("shutdown"));
+    }
+
     // Clean up so the cached "home" config doesn't leak the temp printers into
     // later tests sharing the process-wide cache.
     mgr.clear_all_panel_configs();

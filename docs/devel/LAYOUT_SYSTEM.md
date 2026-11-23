@@ -900,7 +900,7 @@ show up only in a screenshot.
 ### Widget span authoring
 
 `PanelWidgetDef` (`include/panel_widget_registry.h`, table in
-`src/ui/home/panel_widget_registry.cpp`) carries six span fields, **all in tracks** - so the
+`src/system/panel_widget_registry.cpp`) carries six span fields, **all in tracks** - so the
 smallest whole-cell widget is `2`, not `1`:
 
 | Field | Meaning |

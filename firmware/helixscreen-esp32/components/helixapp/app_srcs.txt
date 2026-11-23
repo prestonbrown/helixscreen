@@ -390,6 +390,7 @@ src/system/memory_utils.cpp
 src/system/moonraker_config_manager.cpp
 src/system/network_tester.cpp
 src/system/panel_widget_config.cpp
+src/system/panel_widget_registry.cpp
 src/system/pending_startup_warnings.cpp
 src/system/performance_state.cpp
 src/system/persisted_setting.cpp
@@ -492,7 +493,7 @@ src/ui/filament/buffer_slider_geometry.cpp
 src/printer/clog_meter_geometry.cpp
 src/ui/filament/clog_meter_model.cpp
 src/ui/filament/humidity_drop_geometry.cpp
-src/ui/home/panel_widget_registry.cpp
+src/ui/home/panel_widget_registrations.cpp
 src/ui/panel_widgets/active_spool_widget.cpp
 src/ui/panel_widgets/bed_mesh_tile_widget.cpp
 src/ui/panel_widgets/bypass_widget.cpp

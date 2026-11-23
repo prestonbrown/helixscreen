@@ -362,7 +362,7 @@ void PanelWidgetManager::init_widget_subjects() {
     }
     widget_subjects_initialized_ = true;
 
-    // Self-register per-printer cache invalidation. panel_configs_ / active_configs_
+    // Self-register per-printer cache invalidation. The panel configs / active_configs_
     // both derive from /printers/<active>/panel_widgets/<panel>, so an
     // active-printer change must drop them (#804). This manager is a process-lifetime
     // singleton, so there is no matching unregister().
@@ -2219,10 +2219,7 @@ void PanelWidgetManager::clear_all_panel_configs() {
     // PREVIOUS printer's /printers/<id>/panel_widgets/<panel> path. Mark each
     // dirty so the next load() re-reads from the now-current Config::df() path
     // (the #804 load() guard otherwise serves the stale layout indefinitely).
-    for (auto& [panel_id, config] : panel_configs_) {
-        (void)panel_id;
-        config.mark_printer_changed();
-    }
+    mark_cached_panel_widget_configs_printer_changed();
     // Drop the per-page widget-list cache wholesale — it keys on "panel:page" and
     // describes the old printer's resolved widget list. Grid descriptors stay
     // put: they are keyed by container, so grids laid out for the previous
@@ -2259,20 +2256,7 @@ void PanelWidgetManager::on_container_delete(lv_event_t* e) {
 }
 
 PanelWidgetConfig& PanelWidgetManager::get_widget_config(const std::string& panel_id) {
-    // Per-panel config instances cached by panel ID in panel_configs_.
-    // Main-thread only — no synchronization on the map.
-    auto it = panel_configs_.find(panel_id);
-    if (it == panel_configs_.end()) {
-        it = panel_configs_.emplace(panel_id, PanelWidgetConfig(panel_id, *Config::get_instance()))
-                 .first;
-    }
-    // load() is a no-op if already loaded. Callers that bypass the setters must
-    // call notify_config_changed() → mark_dirty() (or clear_all_panel_configs()
-    // on a printer switch) to trigger a reload. Previously this unconditionally
-    // reloaded on every access, churning pages_ many times per panel populate
-    // and leaving outer frames exposed to invalidated references (#804).
-    it->second.load();
-    return it->second;
+    return cached_panel_widget_config(panel_id);
 }
 
 // -- PanelWidget base class --
