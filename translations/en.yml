@@ -1012,6 +1012,7 @@ translations:
   Choose what to power off or restart.: Choose what to power off or restart.
   Choose which releases to get, and whether to share anonymous statistics.: Choose which releases to get, and whether to share anonymous statistics.
   'Chute position: X {:.1f}, Y {:.1f}': 'Chute position: X {:.1f}, Y {:.1f}'
+  Clean: Clean
   Clean Brush: Clean Brush
   Clean Nozzle: Clean Nozzle
   Clean Up Storage: Clean Up Storage

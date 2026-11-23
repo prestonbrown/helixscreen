@@ -969,6 +969,7 @@
   <translation tag="Choose which lane is in the toolhead to unload it" de="Wähle, welche Spur im Druckkopf steckt, um sie zu entladen"/>
   <translation tag="Choose which releases to get, and whether to share anonymous statistics." de="Wähle, welche Versionen du erhältst und ob du anonyme Statistiken teilst."/>
   <translation tag="Chute position: X {:.1f}, Y {:.1f}" de="Position des Auswurfschachts: X {:.1f}, Y {:.1f}"/>
+  <translation tag="Clean" de="Reinigen"/>
   <translation tag="Clean Brush" de="Bürste reinigen"/>
   <translation tag="Clean Nozzle" de="Düse reinigen"/>
   <translation tag="Clean Up Storage" de="Speicher bereinigen"/>

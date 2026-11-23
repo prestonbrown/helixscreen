@@ -1009,6 +1009,7 @@ translations:
   Choose which releases to get, and whether to share anonymous statistics.: '选择要获取的版本，以及是否共享匿名统计数据。'
   'Chute position: X {:.1f}, Y {:.1f}': '排料口位置: X {:.1f}, Y {:.1f}'
 
+  Clean: '清洁'
   Clean Brush: '清洁刷子'
   Clean Nozzle: 清洁喷嘴
   Clean Up Storage: '清理存储'

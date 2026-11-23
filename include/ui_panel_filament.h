@@ -408,6 +408,13 @@ class FilamentPanel : public PanelBase {
     helix::Subject target_tool_action_subject_{};
     helix::ui::ToolArrivalWait tool_arrival_;
 
+    // Clean beside Load/Unload/Purge: 1 while the CleanNozzle macro slot
+    // resolves to something this printer runs, re-read whenever StandardMacros
+    // re-resolves its slots.
+    helix::Subject clean_nozzle_shown_subject_{};
+    ObserverGuard macros_version_observer_;
+    helix::ui::WidgetRef clean_nozzle_confirmation_;
+
     // Operation state
     OperationTimeoutGuard operation_guard_;
 
@@ -626,6 +633,10 @@ class FilamentPanel : public PanelBase {
     /// SettingsManager's extrude_speed, the value Machine Limits also sets.
     helix::ui::WidgetRef extrude_speed_dropdown_;
     ObserverGuard extrude_speed_observer_;
+    /// Re-finds extrude_speed_dropdown_ when the heads count moves it.
+    ObserverGuard speed_dropdown_rewire_observer_;
+    void bind_extrude_speed_dropdown();
+    void observe_speed_dropdown_moves();
     // 1 with no AMS and one head: the card shows the external spool row in
     // place of the AMS row, centered, without its header.
     helix::Subject external_spool_mode_subject_{};
@@ -761,6 +772,8 @@ class FilamentPanel : public PanelBase {
     void handle_unload_button(std::optional<int> chosen_lane = std::nullopt);
     void handle_extrude_button();
     void handle_purge_button();
+    void handle_clean_nozzle_button();
+    void sync_clean_nozzle_shown();
     void handle_retract_button();
     void handle_extrude_length_select(int index);
     /// The chosen length button's length in mm.

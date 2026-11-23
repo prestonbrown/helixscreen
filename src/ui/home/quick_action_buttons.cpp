@@ -110,6 +110,15 @@ void QuickActionButtons::load_config() {
     }
 }
 
+MacroButtonState macro_button_state(const StandardMacroInfo& info) {
+    if (!info.is_empty()) {
+        return MacroButtonState::Ready;
+    }
+    // A preset can seed a macro name the machine never defined, and a Klipper
+    // config change can retire one: the slot then names a macro that is missing.
+    return info.has_missing_macro() ? MacroButtonState::Unavailable : MacroButtonState::Hidden;
+}
+
 void QuickActionButtons::update_button(StandardMacros& macros,
                                        const std::optional<StandardMacroSlot>& slot, size_t index) {
     lv_subject_t* visible = &visible_[index];
@@ -123,22 +132,18 @@ void QuickActionButtons::update_button(StandardMacros& macros,
     }
 
     const auto& info = macros.get(*slot);
-
-    if (!info.is_empty()) {
+    switch (macro_button_state(info)) {
+    case MacroButtonState::Ready:
         lv_subject_set_int(visible, 1);
         lv_subject_set_int(available, 1);
         lv_subject_set_string(&name_[index], info.translated_name());
         spdlog::trace("[QuickActionButtons] Macro {}: '{}' → {}", button_num, info.display_name,
                       info.get_macro());
         return;
-    }
-
-    if (info.has_missing_macro()) {
-        // The user assigned this slot and the printer does not answer for it (a
-        // preset can seed a macro name the machine never defined, and a Klipper
-        // config change can retire one). Keep the button where they left it and
-        // grey it out: a button that disappears reads as a bug in the screen,
-        // while a disabled one points at the assignment that needs fixing.
+    case MacroButtonState::Unavailable:
+        // Keep the button where the user left it and grey it out: a button that
+        // disappears reads as a bug in the screen, while a disabled one points
+        // at the assignment that needs fixing.
         lv_subject_set_int(visible, 1);
         lv_subject_set_int(available, 0);
         lv_subject_set_string(&name_[index], info.translated_name());
@@ -146,6 +151,8 @@ void QuickActionButtons::update_button(StandardMacros& macros,
                       "this printer",
                       button_num, info.slot_name, info.missing_macro);
         return;
+    case MacroButtonState::Hidden:
+        break;
     }
 
     lv_subject_set_int(visible, 0);
@@ -186,59 +193,15 @@ void QuickActionButtons::execute(size_t index, IMoonrakerAPI* api, const Lifetim
                       static_cast<int>(index + 1));
         return;
     }
-
-    // Backstop for the XML disabled binding. LVGL suppresses CLICKED on a
-    // LV_STATE_DISABLED object, so this normally cannot be reached from touch —
-    // but execute() is also the entry point for the remote-control server
-    // and any future caller, and dispatching a macro the printer does not define
-    // is exactly the silent failure this gate exists to stop.
-    const auto& gate_info = StandardMacros::instance().get(*slot);
-    if (gate_info.is_empty() && gate_info.has_missing_macro()) {
-        spdlog::warn("[QuickActionButtons] Macro {} slot '{}' names '{}', which this printer does "
-                     "not define",
-                     static_cast<int>(index + 1), gate_info.slot_name, gate_info.missing_macro);
-        NOTIFY_WARNING(lv_tr("{} is not set up on this printer"), gate_info.translated_name());
-        return;
-    }
-
-    // Quick buttons never raise the param modal, so the decision weighs the
-    // Safety setting and the macro's saved defaults: a saved record rides along
-    // on the run, filtered to the declared names.
-    const auto& info = StandardMacros::instance().get(*slot);
-    const CachedMacroInfo cached = MacroParamCache::instance().get(info.get_macro());
-    MacroRunRequest run_req;
-    run_req.prompt_for_params = false;
-    run_req.confirm_plain_run = SafetySettingsManager::instance().get_macro_require_confirmation();
-    run_req.saved_values = MacroParamDefaults::instance().get(info.get_macro()).values;
-    const MacroRunDecision decision = decide_macro_run(cached, run_req);
-    if (decision.action != MacroRunAction::ConfirmRun) {
-        run(index, api, decision.params);
-        return;
-    }
-
-    std::string msg = fmt::format(lv_tr("Run {}?"), info.translated_name());
-    ui::ConfirmOptions opts;
-    opts.on_dismiss = [this] { run_confirmation_dialog_ = nullptr; };
-    opts.owner_token = owner;
-    run_confirmation_dialog_ = ui::modal_confirm(
-        lv_tr("Run Macro?"), msg.c_str(), ModalSeverity::Info, lv_tr("Run"),
-        [this, index, api, params = decision.params] {
-            run_confirmation_dialog_ = nullptr; // the dialog closes itself
-            run(index, api, params);
-        },
-        opts);
+    run_macro_button(*slot, api, owner, run_confirmation_dialog_);
 }
 
-void QuickActionButtons::run(size_t index, IMoonrakerAPI* api,
-                             const std::map<std::string, std::string>& params) {
-    if (index >= slots_.size() || !slots_[index]) {
-        return;
-    }
-    const auto& slot = *slots_[index];
+namespace {
 
+void run_macro_slot(StandardMacroSlot slot, IMoonrakerAPI* api,
+                    const std::map<std::string, std::string>& params) {
     const auto& info = StandardMacros::instance().get(slot);
-    spdlog::debug("[QuickActionButtons] Macro {} clicked, executing slot '{}' → {}", index + 1,
-                  info.slot_name, info.get_macro());
+    spdlog::debug("[MacroButton] Running slot '{}' → {}", info.slot_name, info.get_macro());
 
     NOTIFY_INFO(lv_tr("Running {}..."), info.translated_name());
     if (!StandardMacros::instance().execute(
@@ -251,6 +214,50 @@ void QuickActionButtons::run(size_t index, IMoonrakerAPI* api,
             })) {
         NOTIFY_WARNING(lv_tr("{} macro not configured"), info.translated_name());
     }
+}
+
+} // namespace
+
+void run_macro_button(StandardMacroSlot slot, IMoonrakerAPI* api, const LifetimeToken& owner,
+                      ui::WidgetRef& confirmation) {
+    // Backstop for the XML disabled binding. LVGL suppresses CLICKED on a
+    // LV_STATE_DISABLED object, so this normally cannot be reached from touch,
+    // but the remote-control server and any other caller can, and dispatching
+    // a macro the printer does not define is exactly the silent failure this
+    // gate exists to stop.
+    const auto& info = StandardMacros::instance().get(slot);
+    if (macro_button_state(info) == MacroButtonState::Unavailable) {
+        spdlog::warn("[MacroButton] Slot '{}' names '{}', which this printer does not define",
+                     info.slot_name, info.missing_macro);
+        NOTIFY_WARNING(lv_tr("{} is not set up on this printer"), info.translated_name());
+        return;
+    }
+
+    // A button never raises the param modal, so the decision weighs the Safety
+    // setting and the macro's saved defaults: a saved record rides along on the
+    // run, filtered to the declared names.
+    const CachedMacroInfo cached = MacroParamCache::instance().get(info.get_macro());
+    MacroRunRequest run_req;
+    run_req.prompt_for_params = false;
+    run_req.confirm_plain_run = SafetySettingsManager::instance().get_macro_require_confirmation();
+    run_req.saved_values = MacroParamDefaults::instance().get(info.get_macro()).values;
+    const MacroRunDecision decision = decide_macro_run(cached, run_req);
+    if (decision.action != MacroRunAction::ConfirmRun) {
+        run_macro_slot(slot, api, decision.params);
+        return;
+    }
+
+    std::string msg = fmt::format(lv_tr("Run {}?"), info.translated_name());
+    ui::ConfirmOptions opts;
+    opts.on_dismiss = [&confirmation] { confirmation = nullptr; };
+    opts.owner_token = owner;
+    confirmation = ui::modal_confirm(
+        lv_tr("Run Macro?"), msg.c_str(), ModalSeverity::Info, lv_tr("Run"),
+        [&confirmation, slot, api, params = decision.params] {
+            confirmation = nullptr; // the dialog closes itself
+            run_macro_slot(slot, api, params);
+        },
+        opts);
 }
 
 } // namespace helix
