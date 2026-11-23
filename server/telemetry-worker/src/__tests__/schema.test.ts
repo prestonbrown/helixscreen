@@ -146,6 +146,7 @@ describe("POINT_KINDS table", () => {
           "app_platform": "blob3",
           "app_version": "blob2",
           "backend": "blob4",
+          "count": "double2",
           "device_id": "blob1",
           "duration_bucket": "blob8",
           "during_print": "double1",

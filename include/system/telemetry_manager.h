@@ -497,6 +497,21 @@ class TelemetryManager {
     bool consume_print_started_in_app();
 
     /**
+     * @brief Count a print cancel the screen sent as a CANCEL_PRINT macro
+     *
+     * A cancel through IMoonrakerJobAPI::cancel_print() is counted there
+     * (cancels_sent()); every other cancel the screen sends (the configured
+     * cancel macro, a filament system's own cancel) calls this, so a canceled
+     * print_outcome reads cancel_origin "in_app". Thread-safe.
+     */
+    void notify_print_cancel_requested();
+
+    /// How many times notify_print_cancel_requested() has been called. Any thread.
+    [[nodiscard]] uint32_t print_cancels_requested() const {
+        return print_cancels_requested_.load(std::memory_order_relaxed);
+    }
+
+    /**
      * @brief Record a non-fatal error event (rate-limited)
      *
      * Records non-fatal errors with category-based rate limiting (max 1 event
@@ -822,10 +837,13 @@ class TelemetryManager {
     /**
      * @brief Record a load, unload or tool change as a filament_op event
      *
-     * Rate-limited per session: at most kMaxFilamentOpSuccesses successes and
-     * kMaxFilamentOpFailures failures or aborts, and one of each (backend, op,
-     * outcome, error) failure per kFilamentOpRepeatInterval, so a stuck retry loop
-     * cannot flood the queue. No-op if telemetry is disabled. Thread-safe.
+     * Events are tallies: `count` operations alike in every other field.
+     * Successes are pooled and queued by flush_filament_ops(). A failure or
+     * abort is queued at once, unless one alike was queued within
+     * kFilamentOpRepeatInterval or kMaxFilamentOpFailures were queued this
+     * session; then it is pooled. So a long multicolor print adds a few events,
+     * a stuck retry loop cannot flood the queue, and every operation is counted.
+     * No-op if telemetry is disabled. Thread-safe.
      *
      * @param backend ams_type_telemetry_slug() of the filament system
      */
@@ -841,6 +859,10 @@ class TelemetryManager {
      * Call once during initialization, after AmsState's subjects exist.
      */
     std::vector<ObserverGuard> init_filament_op_observer();
+
+    /// Queue every pooled filament_op tally. Runs with each periodic snapshot
+    /// and at shutdown. Thread-safe.
+    void flush_filament_ops();
 
     /**
      * @brief Record how one calibration step ended (calibration_outcome)
@@ -1269,9 +1291,6 @@ class TelemetryManager {
                                                    helix::telemetry::FailureClass failure_class,
                                                    int duration_sec) const;
 
-    /// The per-session filament_op limits; true when this one may be queued.
-    bool admit_filament_op(const std::string& key, bool success);
-
     /**
      * @brief Get the double-hashed device identifier
      * @return Hex-encoded hashed device ID for inclusion in events
@@ -1317,6 +1336,9 @@ class TelemetryManager {
 
     /// Set by notify_print_started_in_app(), consumed by print_start_context recording
     std::atomic<bool> print_started_in_app_{false};
+
+    /// Counted by notify_print_cancel_requested()
+    std::atomic<uint32_t> print_cancels_requested_{0};
 
     /// Timestamp of when init() was called (for uptime calculation)
     std::chrono::steady_clock::time_point init_time_{};
@@ -1439,15 +1461,17 @@ class TelemetryManager {
     std::unordered_map<std::string, std::chrono::steady_clock::time_point> error_rate_limit_;
     static constexpr auto kErrorRateLimitInterval = std::chrono::minutes{5};
 
-    // filament_op limits per session. Protected by mutex_.
-    static constexpr int kMaxFilamentOpSuccesses = 50;
+    // filament_op pooling. Protected by mutex_.
     static constexpr int kMaxFilamentOpFailures = 50;
     static constexpr auto kFilamentOpRepeatInterval = std::chrono::minutes{5};
-    int filament_op_successes_ = 0;
+    /// Distinct pooled tallies past which the pool is flushed early.
+    static constexpr size_t kMaxPooledFilamentOps = 32;
     int filament_op_failures_ = 0;
-    /// Last queued time of each failing (backend, op, outcome, error).
+    /// Last queued time of each failing tally key.
     std::unordered_map<std::string, std::chrono::steady_clock::time_point>
         filament_op_last_failure_;
+    /// Pooled tallies by key; each is a filament_op event whose count grows.
+    std::unordered_map<std::string, nlohmann::json> filament_op_pool_;
     /// Processes a memory_warning at warning or critical names, largest first.
     static constexpr size_t kTopProcessCount = 3;
 

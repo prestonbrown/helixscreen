@@ -62,7 +62,8 @@ void record_step_end_telemetry(const calibration::CalibrationRun::StepEnd& end) 
     } else if (end.status == StepStatus::Failed) {
         outcome = CalibrationOutcome::Failed;
         telemetry::FailureEvidence evidence;
-        evidence.text = end.message;
+        // The firmware's own words: the shown message is translated.
+        evidence.text = end.cause;
         evidence.klippy_down = end.klipper_stopped;
         evidence.failed = true;
         auto* api = get_moonraker_api();

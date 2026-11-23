@@ -121,7 +121,8 @@ class CalibrationRun {
     struct StepEnd {
         const StepInfo& info;
         StepStatus status;        ///< Finished, Failed, Skipped or Aborted
-        std::string_view message; ///< why it failed; the step's own words
+        std::string_view message; ///< why it failed, as shown
+        std::string_view cause;   ///< StepOutcome::cause: the firmware's untranslated words
         int duration_sec = 0;
         bool klipper_stopped = false; ///< Klipper left ready while it ran
     };
@@ -132,6 +133,8 @@ class CalibrationRun {
         StepProgress progress;
         StepResult result;
         std::string message;
+        /// StepOutcome::cause of a failure.
+        std::string cause;
         /// What Discard all did to a step that restores_on_discard().
         std::string restore_note;
     };
@@ -174,8 +177,9 @@ class CalibrationRun {
     void set_busy_watch(std::unique_ptr<PrinterBusyWatch> watch) {
         busy_watch_ = std::move(watch);
     }
-    /// Called on the main thread as each step that ran ends: on its own report,
-    /// or when Stop aborts it.
+    /// Called on the main thread once for each step that ran, with how it
+    /// ended: on its own report, when Stop aborts it, or, for a failed step the
+    /// run waits on, once the wait settles whether it staged its result after all.
     void set_step_end_sink(std::function<void(const StepEnd&)> sink) {
         step_end_sink_ = std::move(sink);
     }
@@ -267,6 +271,8 @@ class CalibrationRun {
     std::function<void(const StepEnd&)> step_end_sink_;
     /// When each entry started.
     std::vector<std::chrono::steady_clock::time_point> started_;
+    /// Whether each entry's end has gone to the step end sink.
+    std::vector<bool> end_reported_;
     std::string error_;
     /// The finisher's callbacks check it, so a run closed mid-save ignores them.
     std::shared_ptr<int> alive_ = std::make_shared<int>(0);

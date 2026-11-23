@@ -4,6 +4,7 @@
   "app_version": "<build>",
   "backend": "afc",
   "boot_id": "<boot_id>",
+  "count": 1,
   "device_id": "<device_id>",
   "duration_bucket": "30-60s",
   "during_print": true,

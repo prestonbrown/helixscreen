@@ -62,7 +62,7 @@ Recorded when a print finishes (success, failure, or cancellation). Helps us tra
 | `duration_sec` | Total print duration in seconds | `3600` |
 | `phases_completed` | The furthest print start phase reached, as its number in that build (13 = complete) | `13` |
 | `filament_used_mm` | Filament consumed in millimeters | `1500.0` |
-| `filament_type` | Filament material, from the file; when the file names none, the loaded lane's or spool's material as HelixScreen's filament database names it (a material the database does not know is left empty) | `"PLA"`, `"PETG"`, `"ABS"` |
+| `filament_type` | Filament material, from the file; when the file names none, the material of the lane or spool loaded during the print, as HelixScreen's built-in filament database names it (a material type you defined yourself, or one the database does not know, is left empty) | `"PLA"`, `"PETG"`, `"ABS"` |
 | `nozzle_temp` | Highest nozzle target during the print, in degrees C | `215` |
 | `bed_temp` | Highest bed target during the print, in degrees C | `60` |
 | `progress_pct` | How far the print got, 0 to 100 | `37` |
@@ -249,8 +249,9 @@ Recorded when a multi-material system (AFC, Happy Hare, ACE, CFS and the others)
 | `error_class` | For a failure, one value from a fixed list: `sensor_timeout`, `jam`, `hub`, `toolhead_sensor`, `backend_error`, `other`; `none` otherwise | `"hub"` |
 | `duration_bucket` | How long it took, as a range | `"30-60s"` |
 | `during_print` | Whether a print was running | `true` |
+| `count` | How many operations alike in every other field this event counts | `42` |
 
-Lane names, spool details and the system's own messages are never sent: HelixScreen works out `error_class` on the device. At most 50 successful and 50 failed operations are recorded per session, and the same failure repeating is recorded at most once every 5 minutes.
+Lane names, spool details and the system's own messages are never sent: HelixScreen works out `error_class` on the device. Successful operations are counted together and sent as one event per kind every few hours, so a long multicolor print adds a handful of events rather than hundreds. A failure is sent when it happens; the same failure repeating within 5 minutes, or beyond 50 failures in one session, is counted into the next event like it instead.
 
 ### Calibration Outcomes
 

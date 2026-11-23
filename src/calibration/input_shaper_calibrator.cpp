@@ -87,6 +87,7 @@ std::string InputShaperCalibrator::homing_error_message(const MoonrakerError& er
 
 void InputShaperCalibrator::check_accelerometer(AccelCheckCallback on_complete,
                                                 ErrorCallback on_error) {
+    last_error_cause_.clear();
     if (!api_) {
         spdlog::warn("[InputShaperCalibrator] check_accelerometer called without API");
         if (on_error) {
@@ -117,6 +118,7 @@ void InputShaperCalibrator::check_accelerometer(AccelCheckCallback on_complete,
                 },
                 [this, on_error](const MoonrakerError& err) {
                     state_ = State::IDLE;
+                    last_error_cause_ = err.message;
 
                     spdlog::error("[InputShaperCalibrator] Accelerometer check failed: {}",
                                   err.message);
@@ -132,6 +134,7 @@ void InputShaperCalibrator::check_accelerometer(AccelCheckCallback on_complete,
         [this, on_error](const MoonrakerError& err) {
             std::string msg = homing_error_message(err);
             state_ = State::IDLE;
+            last_error_cause_ = err.message;
             if (on_error) {
                 on_error(msg);
             }
@@ -140,6 +143,7 @@ void InputShaperCalibrator::check_accelerometer(AccelCheckCallback on_complete,
 
 void InputShaperCalibrator::run_calibration(char axis, ProgressCallback on_progress,
                                             ResultCallback on_complete, ErrorCallback on_error) {
+    last_error_cause_.clear();
     char normalized_axis = static_cast<char>(std::toupper(static_cast<unsigned char>(axis)));
 
     if (normalized_axis != 'X' && normalized_axis != 'Y') {
@@ -208,6 +212,7 @@ void InputShaperCalibrator::run_calibration(char axis, ProgressCallback on_progr
                 },
                 [this, on_error](const MoonrakerError& err) {
                     state_ = State::IDLE;
+                    last_error_cause_ = err.message;
                     spdlog::error("[InputShaperCalibrator] Calibration failed: {}", err.message);
                     if (on_error) {
                         std::string halt = firmware_halt_message(err);
@@ -220,6 +225,7 @@ void InputShaperCalibrator::run_calibration(char axis, ProgressCallback on_progr
         [this, on_error](const MoonrakerError& err) {
             std::string msg = homing_error_message(err);
             state_ = State::IDLE;
+            last_error_cause_ = err.message;
             if (on_error) {
                 on_error(msg);
             }
