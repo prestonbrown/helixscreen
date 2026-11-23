@@ -26,7 +26,6 @@ RequestId MoonrakerRequestTracker::send(hv::WebSocketClient& ws, const std::stri
     // This ensures we never return 0 (kInvalidRequestId) for a valid request
     RequestId id = request_id_.fetch_add(1) + 1;
 
-    // Create pending request
     PendingRequest request;
     request.id = id;
     request.method = method;
@@ -80,7 +79,6 @@ RequestId MoonrakerRequestTracker::send(hv::WebSocketClient& ws, const std::stri
         return kInvalidRequestId;
     }
 
-    // Build and send JSON-RPC message with the registered ID
     json rpc;
     rpc["jsonrpc"] = "2.0";
     rpc["method"] = method;
@@ -156,7 +154,6 @@ bool MoonrakerRequestTracker::route_response(const json& msg,
         return false;
     }
 
-    // Validate 'id' field type
     if (!id_field->is_number_integer()) {
         spdlog::error("[INTERNAL] [Request Tracker] Invalid 'id' type in response: {}",
                       id_field->type_name());
@@ -345,7 +342,6 @@ void MoonrakerRequestTracker::check_timeouts(helix::MoonrakerEventCallback emit_
                 info.timeout_ms = request.timeout_ms;
                 info.silent = request.intent.silent;
 
-                // Capture error callback in lambda if present
                 if (request.error_callback) {
                     MoonrakerError error =
                         MoonrakerError::timeout(request.method, request.timeout_ms);
@@ -462,7 +458,6 @@ void MoonrakerRequestTracker::cleanup_all() {
             spdlog::debug("[Request Tracker] Cleaning up {} pending requests due to disconnect",
                           pending_requests_.size());
 
-            // Capture callbacks in lambdas
             for (auto& [id, request] : pending_requests_) {
                 if (request.error_callback) {
                     MoonrakerError error = MoonrakerError::connection_lost(request.method);

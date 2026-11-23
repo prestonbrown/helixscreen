@@ -359,9 +359,7 @@ AmsSystemInfo parse_stock_box(const nlohmann::json& box_json,
     // "== 1" also matches this field's decode exactly, per the line above.
     info.filament_runout = helix::json_util::safe_int(box_json, "filament_useup", 0) == 1;
 
-    // Parse tool mapping from "map" object
     if (const auto* tool_map = helix::json_util::find_object(box_json, "map")) {
-        // Find maximum tool index to size the mapping vector
         int max_tool = -1;
         for (const auto& [tnn_key, tnn_val] : tool_map->items()) {
             int slot = CfsMaterialDb::tnn_to_slot(tnn_key);
@@ -437,7 +435,6 @@ AmsSystemInfo parse_stock_box(const nlohmann::json& box_json,
     const auto cfs_catalog_snapshot = FilamentCatalog::load_codes_cached("cfs");
     const FilamentCatalog& cfs_catalog = *cfs_catalog_snapshot;
 
-    // Loop over T1-T4 units
     for (int n = 1; n <= 4; ++n) {
         std::string key = "T" + std::to_string(n); // DISPLAY_NUMBERING_OK: box object key
         const auto* unit_obj = helix::json_util::find_object(box_json, key.c_str());

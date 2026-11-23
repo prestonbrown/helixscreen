@@ -82,7 +82,6 @@ std::optional<ActionLineResult> ActionPromptManager::parse_action_line(const std
     // Find the "// action:" prefix, allowing leading whitespace
     const std::string prefix = "// action:";
 
-    // Skip leading whitespace
     size_t start = 0;
     while (start < line.size() && (line[start] == ' ' || line[start] == '\t')) {
         ++start;
@@ -391,7 +390,6 @@ void ActionPromptManager::handle_prompt_end() {
         m_on_close();
     }
 
-    // Clear the prompt and return to IDLE
     m_current_prompt.reset();
     m_in_group = false;
     set_state(State::IDLE);

@@ -58,7 +58,6 @@ WiFiError WifiBackendNetworkManager::start() {
         return WiFiErrorHelper::success();
     }
 
-    // Check that NM is running and nmcli is available
     WiFiError prereq = check_system_prerequisites();
     daemon_refused_access_.store(prereq.result == WiFiResult::PERMISSION_DENIED);
     if (!prereq.success()) {
@@ -418,7 +417,6 @@ void WifiBackendNetworkManager::scan_thread_func() {
 
     auto networks = parse_scan_output(output);
 
-    // Cache results
     size_t found_count = 0;
     {
         std::lock_guard<std::mutex> lock(networks_mutex_);
@@ -524,7 +522,6 @@ std::vector<WiFiNetwork> WifiBackendNetworkManager::parse_scan_output(const std:
             continue;
         }
 
-        // Clamp to valid range
         signal = std::max(0, std::min(100, signal));
 
         // Determine security type
@@ -613,7 +610,6 @@ WiFiError WifiBackendNetworkManager::connect_network(const std::string& ssid,
                          "WiFi system not ready");
     }
 
-    // Validate inputs
     std::string clean_ssid = validate_input(ssid, "SSID");
     if (clean_ssid.empty()) {
         return WiFiError(WiFiResult::INVALID_PARAMETERS,
@@ -1011,7 +1007,6 @@ std::optional<WifiBackend::ConnectionStatus> WifiBackendNetworkManager::poll_sta
         return std::nullopt;
     }
 
-    // Parse key:value pairs from device show output
     std::istringstream stream(dev_info);
     std::string line;
     bool getting_ipv4 = false;

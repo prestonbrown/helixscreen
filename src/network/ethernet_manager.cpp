@@ -13,7 +13,6 @@
 EthernetManager::EthernetManager() {
     spdlog::debug("[EthernetManager] Initializing Ethernet manager");
 
-    // Create appropriate backend for this platform
     backend_ = EthernetBackend::create();
 
     if (!backend_) {

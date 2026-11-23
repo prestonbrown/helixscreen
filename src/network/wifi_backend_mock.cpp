@@ -175,7 +175,6 @@ WiFiError WifiBackendMock::connect_network(const std::string& ssid, const std::s
                          "WiFi system not ready", "Initialize the WiFi system first");
     }
 
-    // Check if network exists in our mock list
     auto it = std::find_if(
         mock_networks_.begin(), mock_networks_.end(),
         [&ssid](const MockWiFiNetwork& mock_net) { return mock_net.network.ssid == ssid; });
@@ -186,7 +185,6 @@ WiFiError WifiBackendMock::connect_network(const std::string& ssid, const std::s
         return WiFiErrorHelper::network_not_found(ssid);
     }
 
-    // Validate password for secured networks
     if (it->network.is_secured && password.empty()) {
         LOG_WARN_INTERNAL("[WifiBackend] Mock: No password provided for secured network '{}'",
                           ssid); // PII_OK: mock backend, fixture SSIDs
@@ -308,7 +306,6 @@ void WifiBackendMock::connect_thread_func() {
         }
     }
 
-    // Find the network we're trying to connect to
     auto it = std::find_if(mock_networks_.begin(), mock_networks_.end(),
                            [this](const MockWiFiNetwork& mock_net) {
                                return mock_net.network.ssid == connecting_ssid_;
@@ -321,7 +318,6 @@ void WifiBackendMock::connect_thread_func() {
         return;
     }
 
-    // Validate password for secured networks
     if (it->network.is_secured) {
         if (connecting_password_.empty()) {
             spdlog::info("[WifiBackend] Mock: Auth failed - no password for secured network '{}'",
@@ -330,7 +326,6 @@ void WifiBackendMock::connect_thread_func() {
             return;
         }
 
-        // Check if password matches expected password
         if (connecting_password_ != it->password) {
             spdlog::debug("[WifiBackend] Mock: Auth failed - wrong password for '{}'",
                           connecting_ssid_); // PII_OK: mock backend, fixture SSIDs

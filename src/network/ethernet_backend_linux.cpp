@@ -51,7 +51,6 @@ bool EthernetBackendLinux::is_ethernet_interface(const std::string& name) {
 }
 
 std::string EthernetBackendLinux::read_operstate(const std::string& interface) {
-    // Read <sysfs root>/class/net/<interface>/operstate
     std::string path = sysfs_root_ + "/class/net/" + interface + "/operstate";
     std::ifstream file(path);
 

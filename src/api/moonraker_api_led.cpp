@@ -28,7 +28,6 @@ void MoonrakerAPI::set_led(const std::string& led, double red, double green, dou
         return;
     }
 
-    // Clamp color values to 0.0-1.0 range
     red = std::clamp(red, 0.0, 1.0);
     green = std::clamp(green, 0.0, 1.0);
     blue = std::clamp(blue, 0.0, 1.0);

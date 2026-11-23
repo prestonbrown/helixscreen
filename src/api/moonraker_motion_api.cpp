@@ -90,7 +90,6 @@ void MoonrakerMotionAPI::move_axis(char axis, double distance, double feedrate,
         return;
     }
 
-    // Validate axis
     if (!is_valid_axis(axis)) {
         report_validation_error(on_error, "move_axis",
                                 "Invalid axis: " + std::string(1, axis) +
@@ -185,7 +184,6 @@ void MoonrakerMotionAPI::move_to_position(char axis, double position, double fee
         return;
     }
 
-    // Validate axis
     if (!is_valid_axis(axis)) {
         report_validation_error(on_error, "move_to_position",
                                 "Invalid axis character (must be X, Y, Z, or E)",

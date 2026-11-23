@@ -718,12 +718,10 @@ WiFiError WifiBackendWpaSupplicant::check_system_prerequisites() {
                 if (fs::is_socket(entry.path())) {
                     std::string socket_path = entry.path().string();
 
-                    // Skip P2P sockets
                     if (socket_path.find("p2p") == std::string::npos) {
                         socket_found = true;
                         spdlog::debug("[WifiBackend] Found wpa_supplicant socket: {}", socket_path);
 
-                        // Check permissions for this socket
                         WiFiError perm_result = check_socket_permissions(socket_path);
                         if (perm_result.success()) {
                             accessible_socket = socket_path;
@@ -772,7 +770,6 @@ WiFiError WifiBackendWpaSupplicant::check_socket_permissions(const std::string& 
     const char* cli_dir = resolve_wpa_client_dir();
     struct wpa_ctrl* test_ctrl = wpa_ctrl_open2(socket_path.c_str(), cli_dir);
     if (!test_ctrl) {
-        // Get more specific error information
         int err = errno;
         std::string error_detail = "wpa_ctrl_open failed: " + std::string(strerror(err));
 
@@ -819,7 +816,6 @@ WiFiError WifiBackendWpaSupplicant::check_wifi_hardware() {
             for (const auto& entry : fs::directory_iterator(net_path)) {
                 std::string iface = entry.path().filename().string();
 
-                // Check for common WiFi interface patterns
                 if (iface.find("wlan") == 0 || iface.find("wlp") == 0 || iface.find("wlx") == 0 ||
                     iface.find("wifi") == 0) {
                     // Verify it's a wireless interface by checking for wireless directory
@@ -847,7 +843,6 @@ WiFiError WifiBackendWpaSupplicant::check_wifi_hardware() {
         iface_list += (iface_list.empty() ? "" : ", ") + n;
     spdlog::debug("[WifiBackend] WiFi-capable interface(s) present: {}", iface_list);
 
-    // Check RF-kill status
     try {
         const std::string rfkill_path = "/sys/class/rfkill";
         if (fs::exists(rfkill_path)) {
@@ -1037,7 +1032,6 @@ void WifiBackendWpaSupplicant::init_wpa() {
     }
     spdlog::debug("[WifiBackend] Attached to wpa_supplicant event stream");
 
-    // Get file descriptor for monitor socket
     int monfd = wpa_ctrl_get_fd(mon_conn);
     if (monfd < 0) {
         LOG_ERROR_INTERNAL("Failed to get monitor socket file descriptor");
@@ -1072,7 +1066,6 @@ void WifiBackendWpaSupplicant::init_wpa() {
         return;
     }
 
-    // Set up I/O callbacks
     hio_set_context(mon_io_, this); // Store 'this' pointer for static callback
     hio_setcb_read(mon_io_, WifiBackendWpaSupplicant::_handle_wpa_events); // Static trampoline
     hio_read_start(mon_io_); // Start monitoring socket for events
@@ -1319,7 +1312,6 @@ static constexpr int kMaxStaleReplies = 16;
 
 // Helper function to sanitize commands for logging (remove passwords)
 static std::string sanitize_command_for_log(const std::string& cmd) {
-    // Check if command contains password
     if (cmd.find(" psk ") != std::string::npos) {
         size_t psk_pos = cmd.find(" psk ");
         return cmd.substr(0, psk_pos + 5) + "\"[REDACTED]\"";
@@ -1726,7 +1718,6 @@ WiFiError WifiBackendWpaSupplicant::connect_network(const std::string& ssid,
 
         // Parse network ID (should be a number)
         network_id = add_result;
-        // Remove trailing newline
         if (!network_id.empty() && network_id.back() == '\n') {
             network_id.pop_back();
         }
@@ -1776,7 +1767,6 @@ WiFiError WifiBackendWpaSupplicant::connect_network(const std::string& ssid,
 
     // Step 3: Set security (PSK for secured networks, key_mgmt for open)
     if (clean_password.empty()) {
-        // Open network
         std::string set_open_cmd = "SET_NETWORK " + network_id + " key_mgmt NONE";
         std::string open_result = send_command(set_open_cmd);
         if (open_result != "OK\n") {
@@ -2099,7 +2089,6 @@ WifiBackend::ConnectionStatus WifiBackendWpaSupplicant::get_status() {
         return status;
     }
 
-    // Parse key=value pairs from STATUS output
     std::istringstream stream(raw_status);
     std::string line;
 
@@ -2107,7 +2096,6 @@ WifiBackend::ConnectionStatus WifiBackendWpaSupplicant::get_status() {
         if (line.empty())
             continue;
 
-        // Find key=value separator
         size_t eq_pos = line.find('=');
         if (eq_pos == std::string::npos)
             continue;
@@ -2116,7 +2104,6 @@ WifiBackend::ConnectionStatus WifiBackendWpaSupplicant::get_status() {
         std::string value = line.substr(eq_pos + 1);
 
         if (key == "wpa_state") {
-            // Check if fully connected
             status.connected = (value == "COMPLETED");
         } else if (key == "ssid") {
             status.ssid = value;
@@ -2325,14 +2312,12 @@ std::vector<WiFiNetwork> WifiBackendWpaSupplicant::parse_scan_results(const std:
             continue;
         }
 
-        // Convert dBm to percentage
         int signal_percent = dbm_to_percentage(signal_dbm);
 
         // Detect security type
         bool is_secured = false;
         std::string security_type = detect_security_type(flags, is_secured);
 
-        // Parse frequency
         int freq_mhz = 0;
         try {
             freq_mhz = std::stoi(freq_str);
@@ -2340,7 +2325,6 @@ std::vector<WiFiNetwork> WifiBackendWpaSupplicant::parse_scan_results(const std:
             // Ignore parse errors, keep 0
         }
 
-        // Create network entry
         WiFiNetwork network(ssid, signal_percent, is_secured, security_type, freq_mhz);
         networks.push_back(network);
 
