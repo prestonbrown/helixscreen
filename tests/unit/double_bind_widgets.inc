@@ -28,7 +28,6 @@ static const BindGroup kDoubleBindWidgets[] = {
     {"components/ams_sidebar", "btn_park", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"ams_sidebar_park_disabled", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
     {"components/filament_operations_group", "btn_load", 0, {}, 0, BindKind::State, "disabled", {{"filament_safety_warning_visible", 0}, {"filament_operation_in_progress", 0}, {"filament_load_disabled", 0}}, 3, {{0, 1}, {1, 1}, {2, 1}}, 3, true},
     {"components/filament_operations_group", "btn_unload", 0, {}, 0, BindKind::State, "disabled", {{"filament_safety_warning_visible", 0}, {"filament_operation_in_progress", 0}, {"filament_unload_disabled", 0}}, 3, {{0, 1}, {1, 1}, {2, 1}}, 3, true},
-    {"components/filament_operations_group", "btn_purge", 0, {}, 0, BindKind::State, "disabled", {{"filament_safety_warning_visible", 0}, {"filament_operation_in_progress", 0}, {"filament_unload_disabled", 0}}, 3, {{0, 1}, {1, 1}, {2, 1}}, 3, true},
     {"components/filament_operations_group", "btn_extrude", 0, {}, 0, BindKind::State, "disabled", {{"filament_safety_warning_visible", 0}, {"filament_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
     {"components/filament_operations_group", "btn_retract", 0, {}, 0, BindKind::State, "disabled", {{"filament_safety_warning_visible", 0}, {"filament_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
     {"components/home_axis_bar", "btn_home_all", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
@@ -84,6 +83,6 @@ static const BindGroup kDoubleBindWidgets[] = {
 };
 // clang-format on
 
-// Groups in ui_xml/: 60 drivable, 60 that no test can drive (see the header
-// comment), 120 total. qc_double_binds fails a commit that leaves this file
+// Groups in ui_xml/: 59 drivable, 62 that no test can drive (see the header
+// comment), 121 total. qc_double_binds fails a commit that leaves this file
 // behind ui_xml/.

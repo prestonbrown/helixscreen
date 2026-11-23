@@ -48,6 +48,7 @@
 #include "post_op_cooldown_manager.h"
 #include "preset_materials.h"
 #include "printer_state.h"
+#include "quick_action_buttons.h"
 #include "safety_settings_manager.h"
 #include "settings_manager.h"
 #include "spool_remaining_format.h"
@@ -166,6 +167,8 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
          [](lv_event_t*) { get_global_filament_panel().handle_extrude_button(); }},
         {"on_filament_purge",
          [](lv_event_t*) { get_global_filament_panel().handle_purge_button(); }},
+        {"on_filament_clean_nozzle",
+         [](lv_event_t*) { get_global_filament_panel().handle_clean_nozzle_button(); }},
         {"on_filament_retract",
          [](lv_event_t*) { get_global_filament_panel().handle_retract_button(); }},
         // Material preset buttons
@@ -413,6 +416,8 @@ void FilamentPanel::init_subjects() {
         // Which of Pick up / Park the Operations header shows: a TargetToolAction.
         UI_MANAGED_SUBJECT_INT(target_tool_action_subject_, 0, "filament_target_tool_action",
                                subjects_);
+        UI_MANAGED_SUBJECT_INT(clean_nozzle_shown_subject_, 0, "filament_clean_nozzle_shown",
+                               subjects_);
 
         // Operation in progress subject (for disabling buttons during filament ops)
         operation_guard_.init_subject("filament_operation_in_progress", subjects_);
@@ -493,12 +498,14 @@ void FilamentPanel::deinit_subjects() {
 
     external_spool_observer_.reset();
     orientation_observer_.reset();
+    speed_dropdown_rewire_observer_.reset();
     ams_loaded_observer_.reset();
     ams_current_slot_observer_.reset();
     // Watches PrinterState's print_state_enum, a subject tests deinit between
     // cases — must be released alongside the AmsState guards above.
     print_active_observer_.reset();
     extrude_speed_observer_.reset();
+    macros_version_observer_.reset(); // writes clean_nozzle_shown_subject_
     temp_observers_.clear();
     side_band_.deinit_subjects();
     deinit_subjects_base(subjects_);
@@ -522,6 +529,13 @@ void FilamentPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     external_spool_container_wired_ = nullptr;
     temp_graph_container_wired_ = nullptr;
     portrait_column_wired_ = nullptr;
+
+    // Klipper restarts and config changes re-run discovery, which re-resolves
+    // the CleanNozzle slot.
+    macros_version_observer_ = observe<int>(
+        StandardMacros::instance().get_macros_version_subject(), this,
+        [](FilamentPanel* self, int) { self->sync_clean_nozzle_shown(); },
+        StandardMacros::instance().get_subjects_lifetime());
 
     // A new tool list can change how many heads there are.
     tools_version_observer_ = observe<int>(
@@ -690,6 +704,7 @@ void FilamentPanel::bind_widgets() {
     // Trigger initial extrude length selection (notifies bind_style observers)
     handle_extrude_length_select(extrude_length_index_);
     sync_extrude_speed_dropdown();
+    observe_speed_dropdown_moves();
 
     setup_temp_graph();
     setup_portrait_graph_fit();
@@ -785,6 +800,34 @@ void FilamentPanel::setup_orientation_rewire_observer() {
         portrait_subject, this,
         [](FilamentPanel* self, int /*is_portrait*/) { self->bind_widgets(); },
         subject_never_freed(), helix::ui::Dispatch::Immediate);
+}
+
+void FilamentPanel::observe_speed_dropdown_moves() {
+    // The extrude speed dropdown sits in the Operations heading or, where
+    // landscape hides the heading for several heads, in the heads row: an
+    // <if> pair on target_tool_multi_head builds exactly one. A head-count
+    // change rebuilds that pair synchronously, and LVGL notifies observers in
+    // registration order, so this one must register after the pair's: every
+    // orientation flip builds a fresh pair, hence the re-registration from
+    // bind_widgets() each time. The registration fire re-finds the dropdown,
+    // which is harmless.
+    lv_subject_t* multi_head_subject = lv_xml_get_subject(nullptr, "target_tool_multi_head");
+    if (!multi_head_subject) {
+        return;
+    }
+    speed_dropdown_rewire_observer_ = helix::ui::observe<int>(
+        multi_head_subject, this,
+        [](FilamentPanel* self, int /*multi_head*/) { self->bind_extrude_speed_dropdown(); },
+        helix::ui::TargetTool::instance().get_subjects_lifetime(), helix::ui::Dispatch::Immediate);
+}
+
+void FilamentPanel::bind_extrude_speed_dropdown() {
+    if (!panel_) {
+        return;
+    }
+    extrude_speed_dropdown_ =
+        helix::ui::find_required(panel_, "extrude_speed_dropdown", get_name());
+    sync_extrude_speed_dropdown();
 }
 
 // ============================================================================
@@ -1738,6 +1781,17 @@ void FilamentPanel::execute_extrude() {
                                    }
                                }),
         IMoonrakerAPI::kExtrusionTimeoutMs);
+}
+
+void FilamentPanel::sync_clean_nozzle_shown() {
+    const auto& info = StandardMacros::instance().get(StandardMacroSlot::CleanNozzle);
+    lv_subject_set_int(&clean_nozzle_shown_subject_,
+                       helix::macro_button_state(info) == helix::MacroButtonState::Ready ? 1 : 0);
+}
+
+void FilamentPanel::handle_clean_nozzle_button() {
+    helix::run_macro_button(StandardMacroSlot::CleanNozzle, api_, object_lifetime_.token(),
+                            clean_nozzle_confirmation_);
 }
 
 void FilamentPanel::handle_purge_button() {

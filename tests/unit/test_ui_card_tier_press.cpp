@@ -87,3 +87,29 @@ TEST_CASE("button Pressed style: scale on the capable tier, nothing extra on the
         CHECK_FALSE(button_has_prop(t, LV_STYLE_OUTLINE_WIDTH));
     }
 }
+
+// A card is a container: only one with an action takes a touch, so a tap on
+// the background of a card without one shows no press.
+TEST_CASE_METHOD(LVGLUITestFixture, "ui_card: only a card with an action is clickable",
+                 "[ui_card][filament]") {
+    auto* plain = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "ui_card", nullptr));
+    REQUIRE(plain != nullptr);
+    CHECK_FALSE(lv_obj_is_clickable(plain));
+
+    const char* opt_in[] = {"clickable", "true", nullptr};
+    auto* tappable = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "ui_card", opt_in));
+    REQUIRE(tappable != nullptr);
+    CHECK(lv_obj_is_clickable(tappable));
+
+    // The Filament panel's cards hold controls but have no action of their own.
+    for (const char* component :
+         {"filament_temp_card", "filament_material_group", "filament_operations_group"}) {
+        INFO(component);
+        auto* card = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), component, nullptr));
+        REQUIRE(card != nullptr);
+        CHECK_FALSE(lv_obj_is_clickable(card));
+        lv_obj_delete(card);
+    }
+    lv_obj_delete(tappable);
+    lv_obj_delete(plain);
+}

@@ -48,6 +48,7 @@ AmsMiniGridMetrics metrics(bool titled, bool bypass = false) {
     m.text_h = 34;
     m.max_spool = 120;
     m.bypass = bypass;
+    m.bypass_margin = bypass ? 7 : 0;
     return m;
 }
 
@@ -76,7 +77,7 @@ Extent extent_of(const AmsMiniGridPlan& p, const AmsMiniGridMetrics& m) {
         int w = l.cells * p.cell_w + (l.cells - l.groups) * m.gap + l.groups * 2 * m.group_pad +
                 (l.groups - 1) * m.group_gap;
         if (m.bypass)
-            w += p.cell_w + 1 + 2 * m.gap;
+            w += p.cell_w + 1 + 2 * (m.gap + m.bypass_margin);
         e.w = std::max(e.w, w);
         e.h += m.title_h + 2 * m.group_pad + l.rows * p.row_h + (l.rows - 1) * m.gap;
     }

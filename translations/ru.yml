@@ -1062,6 +1062,7 @@ translations:
   Choose which releases to get, and whether to share anonymous statistics.: 'Выберите, какие выпуски получать и делиться ли анонимной статистикой.'
   'Chute position: X {:.1f}, Y {:.1f}': 'Позиция лотка прочистки: X {:.1f}, Y {:.1f}'
 
+  Clean: 'Очистить'
   Clean Brush: 'Очистить щётку'
   Clean Nozzle: Очистить сопло
   Clean Up Storage: 'Очистка хранилища'

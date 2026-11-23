@@ -3,9 +3,10 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
   <consts>
-    <!-- Portrait Operations rows: a 320x480 column has no height to spare,
-         so the action rows and the length row come down from a touch target. -->
-    <px name="filament_portrait_row_h_tiny" value="42"/>
+    <!-- Portrait Operations: the two action rows, and the extrude speed in
+         the heading. At 320x480 the graph is too short to draw, so the rows
+         take the height it leaves and the speed comes down from a touch target. -->
+    <px name="filament_portrait_row_h_tiny" value="56"/>
     <px name="filament_portrait_row_h_small" value="48"/>
     <px name="filament_portrait_row_h_medium" value="48"/>
     <px name="filament_portrait_row_h_large" value="48"/>
@@ -13,11 +14,10 @@
     <px name="filament_portrait_length_h_small" value="48"/>
     <px name="filament_portrait_length_h_medium" value="48"/>
     <px name="filament_portrait_length_h_large" value="48"/>
-    <!-- Landscape Operations rows: button height, except a 480x320 column,
-         where the rows give up a few pixels so a printer with several heads
-         keeps every row on screen. -->
+    <!-- Landscape Operations rows: the least height of each; the rows share
+         whatever the column leaves under the Material card. -->
     <px name="filament_landscape_row_h_micro" value="26"/>
-    <px name="filament_landscape_row_h_tiny" value="42"/>
+    <px name="filament_landscape_row_h_tiny" value="40"/>
     <px name="filament_landscape_row_h_small" value="48"/>
     <px name="filament_landscape_row_h_medium" value="52"/>
     <px name="filament_landscape_row_h_large" value="72"/>
@@ -155,17 +155,12 @@
           </lv_obj>
           <lv_obj name="right_column"
                   width="0" height="100%" flex_grow="1" style_pad_all="0" scrollable="false" flex_flow="column"
-                  style_pad_gap="0">
+                  style_pad_gap="#space_md">
             <filament_material_group/>
-            <!-- The column's slack goes between the cards, so Operations sits
-                 level with the left column's bottom. The spacer is the gap: with
-                 no slack it stays #space_md and the column overflows downward. -->
-            <lv_obj name="right_column_spacer"
-                    width="100%" height="0" flex_grow="1" style_min_height="#space_sm" style_pad_all="0"
-                    style_bg_opa="0" style_border_width="0" scrollable="false" clickable="false"/>
-            <!-- The length row shares portrait's compact height; it only steps down at tiny. -->
+            <!-- Operations takes the column's slack, so it sits level with the
+                 left column's bottom and its rows grow into bigger targets. -->
             <filament_operations_group name="filament_operations_group"
-                                       row_height="#filament_landscape_row_h"
+                                       height="0" flex_grow="1" row_height="#filament_landscape_row_h"
                                        length_height="#filament_portrait_length_h"/>
           </lv_obj>
         </lv_obj>

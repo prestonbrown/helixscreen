@@ -4,11 +4,14 @@
 <component>
   <!-- The hairline that sets the AMS mini strip's bypass apart from the units'
        lanes. In the spool view it stands at a fixed share of the row; in the
-       bar view the strip sizes it from the measured bar body. -->
+       bar view the strip sizes it from the measured bar body. The margin on
+       each side sets the external spool apart as a group of its own; the strip
+       reserves it from the lanes' width (bypass_divider_margin()). -->
   <api>
     <prop name="height" type="string" default="80%"/>
   </api>
   <view name="bypass_divider"
-        extends="lv_obj" width="1" height="$height" style_pad_all="0" style_border_width="0" style_radius="0"
-        style_bg_color="#border" style_bg_opa="255" scrollable="false" clickable="false" event_bubble="true"/>
+        extends="lv_obj" width="1" height="$height" style_margin_left="#space_sm" style_margin_right="#space_sm"
+        style_pad_all="0" style_border_width="0" style_radius="0" style_bg_color="#border" style_bg_opa="255"
+        scrollable="false" clickable="false" event_bubble="true"/>
 </component>
