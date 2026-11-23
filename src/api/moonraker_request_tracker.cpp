@@ -379,9 +379,9 @@ void MoonrakerRequestTracker::check_timeouts(helix::MoonrakerEventCallback emit_
     // 30 s (well past the 60 s default but a leading indicator that the
     // timer isn't draining and the queue is stuck — #909).
     //
-    // Throttled to log on change: a single stuck request previously logged on
-    // every monitor tick (~4 lines/sec) for its whole lifetime. Emit only when
-    // the pending signature (count + oldest method + warn level) changes;
+    // Throttled to log on change: the monitor ticks ~4 times a second, so a
+    // single stuck request would otherwise log that often for its whole
+    // lifetime. Emit only when the pending signature (count + oldest method + warn level) changes;
     // re-emit a still-stuck warn at most once per 10 s so the queue-stuck
     // indicator stays visible without flooding.
     //

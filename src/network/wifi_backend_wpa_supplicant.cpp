@@ -1149,13 +1149,11 @@ void WifiBackendWpaSupplicant::resolve_and_store_interface() {
     }
 
     // Seed radio_enabled_ from the actual hardware state. The atomic
-    // defaults to true and, until now, nothing ever corrected it from a real
-    // rfkill read — so a radio already soft-blocked when the process starts
-    // (the block survives a reboot; see check_wifi_hardware()) showed the UI
-    // toggle ON over a radio that cannot associate, the same class of state
-    // lie this branch exists to eliminate. No rfkill node at all means there
-    // is nothing to query; default to enabled rather than reporting a false
-    // "off".
+    // defaults to true, so without a real rfkill read a radio already
+    // soft-blocked at process start (the block survives a reboot; see
+    // check_wifi_hardware()) would show the UI toggle ON over a radio that
+    // cannot associate. No rfkill node at all means there is nothing to
+    // query; default to enabled rather than reporting a false "off".
     {
         bool hw_radio_enabled = true;
         if (resolved && !resolved->rfkill_node.empty()) {
@@ -1830,9 +1828,8 @@ WiFiError WifiBackendWpaSupplicant::connect_network(const std::string& ssid,
     // /etc/network/if-pre-up.d/wpa-conf.sh)
     //
     // The reply is not trusted: the U1's wpa_supplicant answers OK and never
-    // writes the file, so the old `save_result == "OK\n"` check logged
-    // "saved to disk" while the credentials existed only in daemon memory and
-    // died at the next power-off. Re-read the config and look for the SSID.
+    // writes the file, so the credentials would live only in daemon memory and
+    // die at the next power-off. Re-read the config and look for the SSID.
     const std::string save_result = send_command("SAVE_CONFIG");
     const auto conf = read_wpa_conf_after_save();
 
