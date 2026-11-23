@@ -78,6 +78,10 @@ function createMockBucket() {
         .map((o) => ({ key: o.key, size: o.size, uploaded: o.uploaded }));
       return { objects, truncated: false, cursor: undefined };
     },
+
+    async delete(keys: string | string[]) {
+      for (const k of Array.isArray(keys) ? keys : [keys]) storage.delete(k);
+    },
   };
 }
 
@@ -2558,6 +2562,18 @@ describe("feedback loop wiring", () => {
   const reportKeys = (env: ReturnType<typeof createEnv>) =>
     [...env.TELEMETRY_BUCKET._storage.keys()].filter((k) => k.startsWith("reports/"));
 
+  it("purges flood-cap tallies older than the keep window on the daily snapshot cron", async () => {
+    const env = createEnv();
+    const bucket = env.TELEMETRY_BUCKET;
+    const dev = "d".repeat(64);
+    for (const day of ["2026-10-16", "2026-10-18", "2026-10-20"]) {
+      await bucket.put(`caps/errors/${day}/${dev}.json`, "{}");
+    }
+    await runScheduled(CDN_CRON, new Date("2026-10-20T02:10:00Z"), env);
+    const left = [...bucket._storage.keys()].filter((k) => k.startsWith("caps/"));
+    expect(left.sort()).toEqual([`caps/errors/2026-10-18/${dev}.json`, `caps/errors/2026-10-20/${dev}.json`]);
+  });
+
   beforeEach(() => {
     vi.restoreAllMocks();
     mockExecuteQuery.mockReset();
@@ -2631,10 +2647,9 @@ describe("feedback loop wiring", () => {
       const env = createEnv();
       const settled = await runScheduled(CDN_CRON, new Date("2026-10-20T02:10:00Z"), env);
       expect(mockExecuteQuery).not.toHaveBeenCalled();
-      expect(settled).toHaveLength(1);
-      // The snapshot's rejection is left visible to Cloudflare, not swallowed.
-      expect(settled[0]).toMatchObject({ status: "rejected" });
-      expect(String((settled[0] as PromiseRejectedResult).reason)).toContain("CDN fleet snapshot not configured");
+      // The tally purge fulfils; the snapshot's rejection is left visible to Cloudflare, not swallowed.
+      expect(settled.map((r) => r.status)).toEqual(["fulfilled", "rejected"]);
+      expect(String((settled[1] as PromiseRejectedResult).reason)).toContain("CDN fleet snapshot not configured");
     });
   });
 

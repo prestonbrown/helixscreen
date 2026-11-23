@@ -2,7 +2,7 @@
 // HelixScreen telemetry ingestion worker — stores batched events in R2.
 
 import { mapEventToDataPoints } from "./analytics";
-import { applyErrorCap, r2TallyStore } from "./flood_cap";
+import { applyErrorCap, purgeOldTallies, r2TallyStore } from "./flood_cap";
 import {
   executeQuery,
   excludedBy,
@@ -1735,6 +1735,12 @@ export default {
       ctx.waitUntil(runScheduledLoop(env, new Date(event.scheduledTime)));
       return;
     }
+    // Housekeeping must never fail the snapshot, so it is a separate task that logs and swallows.
+    ctx.waitUntil(
+      purgeOldTallies(env.TELEMETRY_BUCKET, utcDay(new Date(event.scheduledTime))).catch((e) =>
+        console.log(`${new Date().toISOString()} [caps] purge failed: ${e instanceof Error ? e.message : String(e)}`),
+      ),
+    );
     const date = previousUtcDay(new Date());
     ctx.waitUntil(captureCdnFleetDay(env, date));
   },

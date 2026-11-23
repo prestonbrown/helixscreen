@@ -109,3 +109,34 @@ export async function applyErrorCap(
   }
   return { keep, dropped };
 }
+
+/** Days of tallies kept, today included. */
+export const TALLY_KEEP_DAYS = 3;
+
+export const TALLY_PREFIX = "caps/errors/";
+
+/**
+ * Deletes the tallies of days before the last `keepDays` UTC days up to and
+ * including `today` (YYYY-MM-DD). Returns how many it deleted.
+ */
+export async function purgeOldTallies(
+  bucket: Pick<R2Bucket, "list" | "delete">,
+  today: string,
+  keepDays = TALLY_KEEP_DAYS,
+): Promise<number> {
+  const cutoff = new Date(`${today}T00:00:00Z`);
+  cutoff.setUTCDate(cutoff.getUTCDate() - (keepDays - 1));
+  const oldest = cutoff.toISOString().slice(0, 10);
+  let deleted = 0;
+  let cursor: string | undefined;
+  do {
+    const page = await bucket.list({ prefix: TALLY_PREFIX, cursor });
+    const stale = page.objects.map((o) => o.key).filter((k) => k.slice(TALLY_PREFIX.length, TALLY_PREFIX.length + 10) < oldest);
+    if (stale.length > 0) {
+      await bucket.delete(stale);
+      deleted += stale.length;
+    }
+    cursor = page.truncated ? page.cursor : undefined;
+  } while (cursor);
+  return deleted;
+}

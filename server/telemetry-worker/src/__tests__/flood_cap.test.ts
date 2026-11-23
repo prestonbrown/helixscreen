@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { describe, expect, it } from "vitest";
-import { applyErrorCap, tallyKey, type DeviceDayTally, type TallyStore } from "../flood_cap";
+import { applyErrorCap, purgeOldTallies, tallyKey, type DeviceDayTally, type TallyStore } from "../flood_cap";
 
 const A = "a".repeat(64);
 const B = "b".repeat(64);
@@ -62,5 +62,22 @@ describe("applyErrorCap", () => {
     const store = memoryStore();
     await applyErrorCap([{ event: "session", device_id: A }], DAY, store, 1);
     expect(store.data.size).toBe(0);
+  });
+});
+
+describe("purgeOldTallies", () => {
+  it("deletes days before the keep window across list pages and leaves other prefixes", async () => {
+    const keys = new Set(["caps/errors/2026-11-01/x.json", "caps/errors/2026-11-19/x.json", "caps/errors/2026-11-21/x.json", "events/2026/11/01/a.json"]);
+    const pages = [["caps/errors/2026-11-01/x.json"], ["caps/errors/2026-11-19/x.json", "caps/errors/2026-11-21/x.json"]];
+    const bucket = {
+      list: async (o: { cursor?: string }) => {
+        const i = o.cursor ? 1 : 0;
+        return { objects: pages[i].map((key) => ({ key })), truncated: i === 0, cursor: i === 0 ? "c" : undefined };
+      },
+      delete: async (ks: string[]) => ks.forEach((k) => keys.delete(k)),
+    };
+    const n = await purgeOldTallies(bucket as never, "2026-11-23", 3);
+    expect(n).toBe(2);
+    expect([...keys].sort()).toEqual(["caps/errors/2026-11-21/x.json", "events/2026/11/01/a.json"]);
   });
 });

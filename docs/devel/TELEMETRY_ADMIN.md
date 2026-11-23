@@ -487,8 +487,7 @@ Content-Type: application/json
   once per request that carries that device's error events; list it with `wrangler r2 object` or the R2
   dashboard to see who flooded and how much was dropped. The response gains `"capped": n` when events
   were dropped. Concurrent requests can overshoot the cap by a few events, and an R2 failure leaves the
-  events uncapped. The `caps/` prefix has no lifecycle rule; expire it after a week with an R2 lifecycle
-  rule if the object count matters.
+  events uncapped. The daily 02:10 snapshot cron deletes tallies older than `TALLY_KEEP_DAYS` (3) days.
 
 ### Admin Endpoints (all require `X-API-Key: <ADMIN_API_KEY>`)
 
