@@ -337,8 +337,7 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
 
     // Check if system is busy (operation in progress). AmsSystemInfo::is_busy()
     // is the same predicate AmsSubscriptionBackend::check_preconditions() uses to
-    // refuse — this used to open-code it, which is how the filament panel came to
-    // have no busy term at all.
+    // refuse, so the menu and the backend cannot disagree about busy.
     bool system_busy = false;
     if (backend_) {
         AmsSystemInfo info = backend_->get_system_info();
@@ -459,10 +458,9 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
     }
 
     // Show Clear Spool whenever the slot carries an assignment, present or not
-    // (should_show_clear_spool). It used to be gated on an EMPTY slot, so it
-    // disappeared the moment a spool went in — exactly when stale metadata does
-    // damage, since that is when it gets printed with and when an edit aims a
-    // Spoolman write at the previous spool.
+    // (should_show_clear_spool). It is not gated on an empty slot: stale metadata
+    // does its damage once a spool is in, since that is when it gets printed with
+    // and when an edit aims a Spoolman write at the previous spool.
     if (backend_) {
         SlotInfo slot_info = backend_->get_slot_info(slot_index);
         lv_subject_set_int(&slot_clear_shown_subject_, should_show_clear_spool(slot_info) ? 1 : 0);

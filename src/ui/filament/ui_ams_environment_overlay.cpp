@@ -957,8 +957,7 @@ void AmsEnvironmentOverlay::update_comfort_text(float humidity_pct) {
     }
 
     // Fall back to the user's configured quick-preset materials if no slots are
-    // loaded. Previously a fourth hardcoded list ({"PLA","PETG","ABS","PA"})
-    // that disagreed with every other preset copy in the codebase.
+    // loaded, so this list agrees with every other preset copy in the codebase.
     if (loaded_materials.empty()) {
         loaded_materials = fallback_comfort_materials();
     }

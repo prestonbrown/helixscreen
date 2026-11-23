@@ -1024,7 +1024,7 @@ void LabelPrinterSettingsOverlay::init_bt_printer_dropdown() {
             auto bt_token = lifetime_.token();
             auto shared_ctx = bt_ctx_;
             std::string addr = saved_addr;
-            // Wrap spawn per feedback_no_bare_threads_arm.md (#724, #837, [L083]).
+            // Thread spawn can fail, so it sits in try/catch (#724, #837, [L083]).
             try {
                 helix::make_thread([bt_token, shared_ctx, addr]() {
                     auto& ldr = helix::bluetooth::BluetoothLoader::instance();
@@ -1307,9 +1307,7 @@ void LabelPrinterSettingsOverlay::handle_bt_printer_selected(int index) {
     bool is_saved = (device.mac == settings.get_bt_address());
     if (!device.paired && !is_saved) {
         auto msg = fmt::format("{} {}?", lv_tr("Pair with"), device.name);
-        // The MAC rides in the capture; the old lv_event_cb_t form kept it in a
-        // heap std::string that only the button callbacks freed, so a dismissal
-        // leaked it (#1380).
+        // The MAC rides in the capture, so a dismissal leaks nothing (#1380).
         helix::ui::ConfirmOptions opts;
         opts.owner_token = lifetime_.token(); // gates the confirm on this overlay
         auto* dialog = helix::ui::modal_confirm(
@@ -1328,7 +1326,7 @@ void LabelPrinterSettingsOverlay::handle_bt_printer_selected(int index) {
                 auto shared_ctx = bt_ctx_;
 
                 // Pair on a detached thread
-                // Wrap spawn per feedback_no_bare_threads_arm.md (#724, #837, [L083]).
+                // Thread spawn can fail, so it sits in try/catch (#724, #837, [L083]).
                 try {
                     helix::make_thread([mac, shared_ctx, token]() {
                         auto& ldr = helix::bluetooth::BluetoothLoader::instance();
@@ -1473,7 +1471,7 @@ void LabelPrinterSettingsOverlay::handle_bt_connect() {
     auto token = lifetime_.token();
     auto shared_ctx = bt_ctx_;
 
-    // Wrap spawn per feedback_no_bare_threads_arm.md (#724, #837, [L083]).
+    // Thread spawn can fail, so it sits in try/catch (#724, #837, [L083]).
     try {
         helix::make_thread([mac, shared_ctx, token]() {
             auto& ldr = helix::bluetooth::BluetoothLoader::instance();
@@ -1615,8 +1613,8 @@ void LabelPrinterSettingsOverlay::handle_bt_forget() {
     }
 
     auto tok = lifetime_.token();
-    // Wrap the std::thread spawn in try/catch per feedback_no_bare_threads_arm.md
-    // (#724) — thread creation can fail on AD5M/CC1 due to tight thread limits.
+    // Thread creation can fail on AD5M/CC1 due to tight thread limits, so the
+    // spawn sits in try/catch (#724).
     try {
         helix::make_thread([this, tok, mac]() {
             bool bluez_ok = false;

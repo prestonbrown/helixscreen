@@ -323,8 +323,8 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
         self->update_safety_warning_text();
     });
 
-    // Re-evaluate Load/Unload/Purge gating whenever live AMS load state changes
-    // (Task 5): the aggregate filament_loaded flag and the active-slot index.
+    // Re-evaluate Load/Unload/Purge gating whenever live AMS load state changes:
+    // the aggregate filament_loaded flag and the active-slot index.
     // Both are static AmsState subjects — no SubjectLifetime token needed.
     ams_loaded_observer_ = observe<int>(
         AmsState::instance().get_filament_loaded_subject(), this,
@@ -418,7 +418,7 @@ void FilamentPanel::init_subjects() {
         // Operation in progress subject (for disabling buttons during filament ops)
         operation_guard_.init_subject("filament_operation_in_progress", subjects_);
 
-        // LIVE load-state gating subjects (Task 5). Default: Load enabled, Unload
+        // LIVE load-state gating subjects. Default: Load enabled, Unload
         // disabled (cold start = nothing loaded). Recomputed by
         // update_filament_op_buttons() from the selected tool's live load state.
         UI_MANAGED_SUBJECT_INT(load_disabled_subject_, 0, "filament_load_disabled", subjects_);
@@ -685,7 +685,7 @@ void FilamentPanel::bind_widgets() {
     sync_target_tool_ui();
     update_multi_filament_card_visibility();
 
-    // Seed Load/Unload/Purge gating from current live load state (Task 5).
+    // Seed Load/Unload/Purge gating from current live load state.
     update_filament_op_buttons();
 
     // Initialize visual state
@@ -1235,9 +1235,8 @@ bool FilamentPanel::handle_preset_longpress(int slot) {
     catalog_picker_.set_reset_callback(
         []() { get_global_filament_panel().reset_presets_to_defaults(); });
     // Fires synchronously on the main thread from the modal's Select button click —
-    // same threading context the old material_picker_ callback ran in — so call
-    // straight through get_global_filament_panel() (singleton, lives for process
-    // lifetime) with no defer/lifetime-token needed, matching that prior pattern.
+    // so call straight through get_global_filament_panel() (singleton, lives for
+    // process lifetime) with no defer/lifetime-token needed.
     catalog_picker_.show(screen, std::optional<std::string>(helix::presets::name(slot)),
                          [slot](const helix::printer::EffectiveFilament& ef) {
                              get_global_filament_panel().apply_preset_pick(slot, ef);
@@ -1398,8 +1397,8 @@ void FilamentPanel::sync_extrude_speed_dropdown() {
 // ON-BUTTON OPERATION FEEDBACK
 //
 // Each op button shows its own progress (animated spinner → checkmark) via an
-// int subject bound to ui_button bind_op_state, replacing the old stacked
-// start/complete toasts. Errors/timeouts keep their toast. All setters below run
+// int subject bound to ui_button bind_op_state, with no start/complete
+// toasts. Errors/timeouts raise a toast. All setters below run
 // on the main thread (op_started from the click handler; op_succeeded/op_failed
 // inside the object_lifetime_.bg_cb bodies that marshal off the WebSocket
 // background thread).
@@ -2137,7 +2136,7 @@ void FilamentPanel::update_filament_op_buttons() {
     update_safety_state();
 
     // Recompute Load/Unload/Purge gating from the SELECTED tool's LIVE load
-    // state (Task 5). Without an AMS backend (single-extruder / external-spool
+    // state. Without an AMS backend (single-extruder / external-spool
     // mode) we have no per-slot load signal, so leave both enabled — the only
     // disablers there are the safety-warning / operation-in-progress XML binds.
     //

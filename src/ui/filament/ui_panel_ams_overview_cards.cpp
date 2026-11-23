@@ -987,8 +987,7 @@ void AmsOverviewPanel::refresh_system_path(const AmsSystemInfo& info, int curren
         ui_system_path_canvas_set_toolhead_sensor(system_path_, has_toolhead);
     }
 
-    // Status text now shown in shared sidebar component (ams_sidebar.xml)
-    // No longer drawn on the canvas to avoid duplication
+    // Status text lives in the shared sidebar component (ams_sidebar.xml), not on the canvas.
 
     ui_system_path_canvas_refresh(system_path_);
 }

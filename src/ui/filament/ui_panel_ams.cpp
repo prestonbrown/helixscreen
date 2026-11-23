@@ -775,7 +775,7 @@ void AmsPanel::create_slots(int count) {
     spdlog::info("[{}] Created {} slot widgets via shared helpers", get_name(), result.slot_count);
 
     // Wire per-slot LIVE path observers so pushing/pulling filament redraws the
-    // path in real time (Task 1). Re-built here because the slot count is known.
+    // path in real time. Built here because the slot count is known.
     setup_slot_path_observers(result.slot_count);
 
     helix::ui::ams_detail_lay_out_unit(detail_widgets_, slot_widgets_, result.slot_count, kAllUnits,
@@ -828,8 +828,6 @@ void AmsPanel::setup_slot_path_observers(int slot_count) {
     spdlog::debug("[AmsPanel] Wired {} per-slot path observers (offset={})",
                   slot_path_observers_.size(), slot_offset);
 }
-
-// on_slot_count_changed migrated to lambda in init_subjects()
 
 void AmsPanel::setup_path_canvas() {
     path_canvas_ = helix::ui::find_required(panel_, "path_canvas", get_name());
@@ -1029,7 +1027,7 @@ void AmsPanel::refresh_slots() {
     int current_slot = lv_subject_get_int(AmsState::instance().get_current_slot_subject());
     update_current_slot_highlight(current_slot);
 
-    // P2 (#1045): a per-slot status change (e.g. idle-lane unload) must also
+    // A per-slot status change (e.g. idle-lane unload, #1045) must also
     // re-read the backend's per-slot filament segments so a now-empty lane's
     // stale lane→hub tube is cleared. update_path_canvas_from_backend() reads
     // get_slot_filament_segment() live and repaints the canvas. It internally
@@ -1059,12 +1057,10 @@ void AmsPanel::update_slot_colors() {
 
         lv_obj_set_hidden(slot_widgets_[i], false);
 
-        // Material and fill are no longer pushed here: the ams_slot widget
-        // observes its own per-slot subjects (AmsState::get_slot_material_subject
-        // / get_slot_fill_subject), written by sync_from_backend. Observing in
-        // the widget means every panel that hosts an ams_slot stays reactive —
-        // the AmsOverviewPanel "100% full" fill bug (structural) and the #1065
-        // "material stuck, color updates" bug are both fixed at the widget, so no
+        // Material and fill are not pushed here: the ams_slot widget observes its
+        // own per-slot subjects (AmsState::get_slot_material_subject /
+        // get_slot_fill_subject), written by sync_from_backend. Observing in the
+        // widget keeps every panel that hosts an ams_slot reactive (#1065), so no
         // container re-reads them imperatively. Only non-subject state (tool
         // badge, error indicator) is refreshed from the backend here.
         ui_ams_slot_refresh(slot_widgets_[i]);
@@ -1211,10 +1207,7 @@ void AmsPanel::on_slot_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_END();
 }
 
-// Observer Callbacks
-
-// on_slots_version_changed, on_action_changed, on_current_slot_changed, on_path_state_changed
-// all migrated to lambdas in init_subjects()
+// Observer Callbacks live as lambdas in init_subjects().
 
 // Action Handlers
 

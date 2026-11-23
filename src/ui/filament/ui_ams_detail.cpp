@@ -419,12 +419,10 @@ void ams_detail_destroy_slots(AmsDetailWidgets& w, helix::ui::WidgetRef slot_wid
         return;
 
     // Reparent all slots into a hidden condemned container, then delete it
-    // in one deferred pass.  This avoids two problems with the old per-slot
-    // safe_delete() loop:
-    //   1. Repeated defocus_tree() calls that corrupt the LVGL group linked
-    //      list (crash b05adc0e).
-    //   2. Synchronous lv_obj_delete() inside UpdateQueue::process_pending(),
-    //      which can corrupt LVGL's event linked list.
+    // in one deferred pass. A per-slot safe_delete() loop would hit two problems:
+    //   1. Repeated defocus_tree() calls corrupt the LVGL group linked list.
+    //   2. A synchronous lv_obj_delete() inside UpdateQueue::process_pending()
+    //      can corrupt LVGL's event linked list.
     lv_obj_t* condemned = lv_obj_create(lv_screen_active());
     lv_obj_set_hidden(condemned, true);
     lv_obj_set_scrollable(condemned, false);

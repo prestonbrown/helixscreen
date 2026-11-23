@@ -770,7 +770,7 @@ static const char* spool_material_text(const SpoolCellData& cd) {
  * values.
  *
  * @return 0 when there is nothing to draw. If the font token cannot be
- *         resolved (a theme that never initialized), falls back to the old flat
+ *         resolved (a theme that never initialized), falls back to a flat
  *         34px rather than 0 - a wrong reservation still lays out, a zero one
  *         packs unreadable cells.
  */

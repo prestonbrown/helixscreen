@@ -483,8 +483,7 @@ void BarcodeScannerSettingsOverlay::stop_bt_discovery() {
 void BarcodeScannerSettingsOverlay::pair_bt_device(const std::string& mac,
                                                    const std::string& name) {
     auto msg = fmt::format("{} {}?", lv_tr("Pair with"), name);
-    // mac/name ride in the capture; the old lv_event_cb_t form carried them in
-    // a heap PairData that needed an LV_EVENT_DELETE net to free.
+    // mac/name ride in the capture, so nothing on the heap needs freeing on dismissal.
     helix::ui::ConfirmOptions opts;
     opts.owner_token = lifetime_.token(); // gates the confirm on this overlay
     auto* dialog = helix::ui::modal_confirm(
@@ -503,7 +502,7 @@ void BarcodeScannerSettingsOverlay::pair_bt_device(const std::string& mac,
                 auto shared_ctx = bt_ctx_;
                 auto token = lifetime_.token();
 
-                // Wrap spawn in try/catch per feedback_no_bare_threads_arm.md (#724).
+                // Thread spawn can fail, so it sits in try/catch (#724).
                 try {
                     helix::make_thread([this, mac, name, shared_ctx, token]() {
                         auto& ldr = helix::bluetooth::BluetoothLoader::instance();
@@ -649,7 +648,7 @@ void BarcodeScannerSettingsOverlay::handle_bt_forget(const std::string& mac) {
     spdlog::info("[{}] Forgetting BT scanner {}", get_name(), helix::redact::mac(mac));
 
     auto tok = lifetime_.token();
-    // Wrap spawn in try/catch per feedback_no_bare_threads_arm.md (#724).
+    // Thread spawn can fail, so it sits in try/catch (#724).
     // `this` is captured so the inner tok.defer lambda can access member state;
     // it is never dereferenced on the BG thread, and tok.defer silently drops
     // if the overlay has been destroyed (singleton lifetime + token guard).

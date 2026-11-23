@@ -615,9 +615,9 @@ void AmsOperationSidebar::init_observers() {
         },
         AmsState::instance().get_subjects_lifetime());
 
-    // The two terms the sidebar never had. ams_filament_loaded is what the XML
-    // used to bind on its own; print state is the one whose absence let Unload
-    // dispatch mid-print and eat a backend refusal.
+    // Two terms gate Unload besides the busy state. ams_filament_loaded is also
+    // bound in XML; print state keeps Unload from dispatching mid-print and
+    // eating a backend refusal.
     //
     // print_lifecycle: PRINTING -> PAUSED is a gating edge (a pause UNGATES Unload
     // on every backend but AD5X, and print_active reads 1 across both so it never

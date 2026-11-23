@@ -657,8 +657,7 @@ void NetworkSettingsOverlay::update_ethernet_status() {
     // Kick off an async probe — the callback fires on the UI thread via
     // tok.defer() so it's safe to touch subjects there. No bare expired()
     // check on the bg thread: defer's own guard skips when the owner is
-    // gone, and dropping the bare check silences the bg_tok_expired_check
-    // detector for this site (3XNZQB2R audit).
+    // gone, so the bg_tok_expired_check detector has nothing to flag here.
     auto tok = lifetime_.token();
     eth_probe_token_ = tok;
     ethernet_manager_->get_info_async([this, tok](const EthernetInfo& info) {
@@ -930,7 +929,7 @@ void NetworkSettingsOverlay::handle_wlan_toggle_changed(lv_event_t* e) {
     // Turning WiFi off on a device with no other network path is a one-way
     // door FROM THIS SCREEN — once the radio is off there is no wired
     // fallback to reach it and re-enable it remotely. This is the live-toggle
-    // twin of the startup no-strand guard (Task 15/CC1 incident): that guard
+    // twin of the startup no-strand guard: that guard
     // only covers the backend reasserting a stored "off" on boot, not the
     // user flipping the switch right here. Warn and let the user back out
     // before actually applying it.
