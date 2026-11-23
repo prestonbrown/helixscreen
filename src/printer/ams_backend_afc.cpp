@@ -5384,7 +5384,9 @@ AmsError AmsBackendAfc::execute_gcode_notify(const std::string& gcode,
 }
 
 bool AmsBackendAfc::bypass_strand_at_toolhead_locked() const {
-    return bypass_active_ && toolhead_sensor_known_fitted() &&
+    // The toolhead reading is whichever head reported last, and a toolchanger's
+    // parked heads hold their own filament, so only a single head can confirm.
+    return bypass_active_ && num_extruders_ <= 1 && toolhead_sensor_known_fitted() &&
            (tool_start_sensor_ || tool_end_sensor_);
 }
 
