@@ -1737,7 +1737,7 @@ export default {
     }
     // Housekeeping must never fail the snapshot, so it is a separate task that logs and swallows.
     ctx.waitUntil(
-      purgeOldTallies(env.TELEMETRY_BUCKET, utcDay(new Date(event.scheduledTime))).catch((e) =>
+      purgeOldTallies(env.TELEMETRY_BUCKET, env.TELEMETRY_ANALYTICS, utcDay(new Date(event.scheduledTime))).catch((e) =>
         console.log(`${new Date().toISOString()} [caps] purge failed: ${e instanceof Error ? e.message : String(e)}`),
       ),
     );

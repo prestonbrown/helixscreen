@@ -487,7 +487,7 @@ Content-Type: application/json
   once per request that carries that device's error events; list it with `wrangler r2 object` or the R2
   dashboard to see who flooded and how much was dropped. The response gains `"capped": n` when events
   were dropped. Concurrent requests can overshoot the cap by a few events, and an R2 failure leaves the
-  events uncapped. The daily 02:10 snapshot cron deletes tallies older than `TALLY_KEEP_DAYS` (3) days.
+  events uncapped. The daily 02:10 snapshot cron deletes tallies older than `TALLY_KEEP_DAYS` (3) days. Before deleting a tally that dropped events it writes one `error_flood` point to Analytics Engine (`blob1` device_id, `blob2` day, `double1` dropped), so the dropped counts stay queryable for the 90-day window; the worker writes this kind itself and no client event maps to it.
 
 ### Admin Endpoints (all require `X-API-Key: <ADMIN_API_KEY>`)
 
@@ -889,7 +889,7 @@ Fired when `MemoryMonitor` detects a threshold breach. Rate-limited to at most o
 }
 ```
 
-`reason` is free text with the measurements in it, so it never groups. `reason_code` is the stable id of the band that set the level (`rss_critical`, `rss_warning`, `available_critical`, `available_warning`, `growth`, `sustained_low_available`, `hysteresis`; `src/system/memory_monitor.cpp#memory_pressure_cause_code`). Analytics Engine stores the code in `blob5` (`reason`) instead of the text: the worker uses the client's `reason_code`, or for a client that predates it derives the same code from the text (`memoryReasonCode` in the worker's `schema.ts`; unknown wording becomes a slug of its words with the numbers dropped). Rows written before this change keep their text.
+`reason` is free text with the measurements in it, so it never groups. `reason_code` is the stable id of the band that set the level (`rss_critical`, `rss_warning`, `available_critical`, `available_warning`, `growth`, `sustained_low_available`, `hysteresis`; `src/system/memory_monitor.cpp#memory_pressure_cause_code`). Analytics Engine stores the code in `blob5` (`reason`) instead of the text: the worker uses the client's `reason_code`, or, when it is absent or not one of those seven, derives the same code from the text (`memoryReasonCode` in the worker's `schema.ts`; unknown wording becomes a slug of its words with the numbers dropped). `blob5` holds a reason code from the first worker deploy after 1.2.0-beta.1 on; older rows hold the client's text.
 
 `top_processes` is present at `warning` and `critical` only: each process named by `telemetry_process_name()` and its RSS. A comm is free text chosen by whoever built the binary, so it is sent only when it names a program on the fixed list in `kKnownPrograms` (`src/system/memory_utils.cpp#telemetry_process_name`) (HelixScreen, the Klipper stack, camera streamers, stock vendor UIs, the daemons of printer-host images), matched on the first 15 characters as the kernel keeps them; any other process is `other`. An interpreter (python, python3, python3.11, node, bash, sh, dash, ash) has its arguments after argv[0] matched against a second fixed list (`klipper`, `moonraker`, `obico`, `klipperscreen`, `crowsnest`, `octoapp`, `spoolman`), and keeps its interpreter name when none matches. Arguments and paths are never sent. Analytics Engine stores it as `blob13` (`name:MB` joined by commas) and the largest RSS as `double9`.
 

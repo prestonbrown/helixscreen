@@ -310,13 +310,18 @@ const MEMORY_REASON_PATTERNS: readonly [RegExp, string][] = [
   [/^no memory pressure/i, "none"],
 ];
 
+/** The codes a client may send; anything else is derived from its text. */
+const MEMORY_REASON_CODES: ReadonlySet<string> = new Set([
+  ...MEMORY_REASON_PATTERNS.map(([, code]) => code),
+]);
+
 /**
  * A memory_warning reason as a code with no measurements in it. The client's
  * `reason_code` wins; otherwise a known wording maps to its code, and any
  * other text becomes a snake_case slug of its words with the numbers dropped.
  */
 export function memoryReasonCode(reasonCode: unknown, reason: unknown): string {
-  if (typeof reasonCode === "string" && reasonCode !== "") return reasonCode.slice(0, 64);
+  if (typeof reasonCode === "string" && MEMORY_REASON_CODES.has(reasonCode)) return reasonCode;
   const text = typeof reason === "string" ? reason : "";
   for (const [pattern, code] of MEMORY_REASON_PATTERNS) {
     if (pattern.test(text)) return code;
@@ -397,6 +402,14 @@ const KINDS: PointKind[] = [
     dbl(3, "bed_temp"),
     dbl(4, "filament_used_mm"),
     dbl(5, "phases_completed"),
+  ]),
+
+  // Written by the worker itself (src/flood_cap.ts), never by a client event: one device's
+  // error events dropped over the daily cap, as the day's tally is purged.
+  kind("error_flood", [
+    device,
+    blob(2, "day"),
+    dbl(1, "dropped"),
   ]),
 
   kind("crash", [
