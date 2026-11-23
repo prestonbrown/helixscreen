@@ -1014,7 +1014,9 @@ jobs:
         # status and an invalid RELEASE_CHANNEL would pass as a green step,
         # leaving every downstream channel expression empty.
         set -o pipefail
-        # A dry run has no tag to cross-check against the declared channel.
+        # A dry run has no tag to cross-check against the declared channel. A
+        # publish run refuses here, before anything builds, a plain vX.Y.Z on a
+        # prerelease channel and a suffixed tag on stable.
         if [ "$RELEASE_MODE" = publish ]; then
           scripts/release-channel.sh --tag "$GITHUB_REF_NAME" | tee -a "$GITHUB_OUTPUT"
         else

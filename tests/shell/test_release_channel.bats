@@ -175,6 +175,20 @@ write_channel() {
     [ "$output" = "beta dev" ]
 }
 
+@test "plain tag is rejected on the beta channel" {
+    write_channel "beta"
+    run "$SCRIPT" --file "$CHANNEL_FILE" --tag "v1.1.0"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"set RELEASE_CHANNEL to stable"* ]]
+}
+
+@test "plain tag is rejected on the dev channel" {
+    write_channel "dev"
+    run "$SCRIPT" --file "$CHANNEL_FILE" --tag "v1.2.0"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"set RELEASE_CHANNEL to stable"* ]]
+}
+
 # ---------------------------------------------------------------------------
 # The repo's own declaration
 # ---------------------------------------------------------------------------
