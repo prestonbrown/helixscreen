@@ -1,0 +1,10 @@
+HelixScreen 1.1 is a big update.
+
+- Rearrange the home screen on a new grid, with new widgets
+- Layouts for ultrawide and portrait screens
+- New spool editor, one color picker, and better AFC, Happy Hare, ACE, CFS and Snapmaker U1 support
+- Guided calibration and tuning
+- Lua plugins
+- Many crash and printer fixes
+
+Your home layout is converted automatically.
