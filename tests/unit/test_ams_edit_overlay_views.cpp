@@ -8,6 +8,7 @@
 
 #include "ui_ams_edit_overlay.h"
 #include "ui_ams_lane_settings.h"
+#include "ui_button.h"
 #include "ui_color_picker_page.h"
 #include "ui_component_keypad.h"
 #include "ui_modal.h"
@@ -4638,6 +4639,54 @@ TEST_CASE_METHOD(SaveAckFixture, "a save with the filament system idle just says
     client.fire_deferred("server.database.post_item");
     settle();
     CHECK(access.closed());
+}
+
+TEST_CASE_METHOD(SaveAckFixture, "a save in flight or failed moves nothing on the summary page",
+                 "[ams_edit_overlay][save_ack][layout]") {
+    AmsEditOverlayViewTestAccess access(get_ams_edit_overlay());
+    client.defer_next("server.database.post_item");
+    save_petg(access);
+    REQUIRE(access.save_state() == 1);
+    process_lvgl(10);
+
+    lv_obj_t* page = access.widget("summary_page");
+    lv_obj_t* card = access.widget("summary_card");
+    lv_obj_t* save = access.widget("btn_edit_save");
+    REQUIRE((page && card && save));
+    lv_obj_update_layout(page);
+    // The card heads the page, and Save ends on the screen.
+    const auto card_top = [&] { return lv_obj_get_y(card); };
+    const auto save_bottom = [&] {
+        lv_area_t a;
+        lv_obj_get_coords(save, &a);
+        return a.y2;
+    };
+    const int screen_h = lv_display_get_vertical_resolution(lv_obj_get_display(save));
+    const int idle_top = card_top();
+    const int idle_save_bottom = save_bottom();
+    CHECK(idle_top == 0);
+    CHECK(idle_save_bottom < screen_h);
+    // Save carries the progress itself: a spinner in its icon slot.
+    lv_obj_t* spinner = ui_button_get_op_spinner(save);
+    REQUIRE(spinner != nullptr);
+    CHECK_FALSE(lv_obj_has_flag(spinner, LV_OBJ_FLAG_HIDDEN));
+
+    client.fire_deferred_error("server.database.post_item",
+                               MoonrakerError::unknown("database is read-only"));
+    settle();
+    REQUIRE(access.save_state() == 2);
+    lv_obj_update_layout(page);
+    CHECK(card_top() == idle_top);
+    CHECK(save_bottom() == idle_save_bottom);
+    // The failure reads beside Save, inside the action row.
+    lv_obj_t* error = access.widget("save_error");
+    REQUIRE(error != nullptr);
+    CHECK_FALSE(lv_obj_has_flag(error, LV_OBJ_FLAG_HIDDEN));
+    lv_area_t e, row;
+    lv_obj_get_coords(error, &e);
+    lv_obj_get_coords(access.widget("summary_actions"), &row);
+    CHECK(e.y1 >= row.y1);
+    CHECK(e.y2 <= row.y2);
 }
 
 TEST_CASE_METHOD(SaveAckFixture, "a save whose write fails keeps the editor open and says why",
