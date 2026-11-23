@@ -32,6 +32,20 @@ inline constexpr std::array<const char*, 6> kRunPrereqIds = {
 
 enum class RunPage : int { Pick = 0, Prereqs = 1, Running = 2, Results = 3 };
 
+/// What the Results page's subtitle reads from.
+struct ResultsSubtitleState {
+    calibration::RunPhase phase = calibration::RunPhase::Results;
+    bool results_lost = false;
+    bool printer_finishing = false;
+    bool can_save = false;
+    int finished = 0;
+    int minutes = 1;
+};
+/// The Results page's subtitle under its title: the run's steps and time with
+/// what is left to do ("3 steps in 15 min · review, then save once"), the same
+/// marked saved once the save went through, or why nothing can be saved.
+[[nodiscard]] std::string results_subtitle(const ResultsSubtitleState& s);
+
 /// The Results page's primary button: "Done" when nothing is left to save or a
 /// save or discard is under way; "Save" only once Klipper said the save skips its
 /// restart; "Save and restart Klipper" otherwise, before that answer too.

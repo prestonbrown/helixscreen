@@ -121,6 +121,7 @@ translations:
   1 profile: '1 Profil'
   1 step in {} min · review, then save once: 1 Schritt in {} Min. · prüfen, dann einmal speichern
   1 step due · about {} min: '1 Schritt fällig · etwa {} Min.'
+  1 step in {} min · saved: '1 Schritt in {} Min. · gespeichert'
   1 step never run · about {} min: '1 Schritt nie ausgeführt · etwa {} Min.'
   1 step · about {} min: '1 Schritt · etwa {} Min.'
   1 step · {} min: 1 Schritt · {} Min.
@@ -6376,6 +6377,7 @@ translations:
   '{} started': '{} gestartet'
   '{} steps in {} min · review, then save once': '{} Schritte in {} Min. · prüfen, dann einmal speichern'
   '{} steps due · about {} min': '{} Schritte fällig · etwa {} Min.'
+  '{} steps in {} min · saved': '{} Schritte in {} Min. · gespeichert'
   '{} steps never run · about {} min': '{} Schritte nie ausgeführt · etwa {} Min.'
   '{} steps · about {} min': '{} Schritte · etwa {} Min.'
   '{} steps · {} min': '{} Schritte · {} Min.'

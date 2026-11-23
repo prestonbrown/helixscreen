@@ -107,6 +107,7 @@
   <translation tag="1 profile" es="1 perfil"/>
   <translation tag="1 step due · about {} min" es="1 paso pendiente · unos {} min"/>
   <translation tag="1 step in {} min · review, then save once" es="1 paso en {} min · revisa y guarda una vez"/>
+  <translation tag="1 step in {} min · saved" es="1 paso en {} min · guardado"/>
   <translation tag="1 step never run · about {} min" es="1 paso sin ejecutar · unos {} min"/>
   <translation tag="1 step · about {} min" es="1 paso · unos {} min"/>
   <translation tag="1 step · {} min" es="1 paso · {} min"/>
@@ -6156,6 +6157,7 @@
   <translation tag="{} started" es="{} iniciado"/>
   <translation tag="{} steps due · about {} min" es="{} pasos pendientes · unos {} min"/>
   <translation tag="{} steps in {} min · review, then save once" es="{} pasos en {} min · revisa y guarda una vez"/>
+  <translation tag="{} steps in {} min · saved" es="{} pasos en {} min · guardados"/>
   <translation tag="{} steps never run · about {} min" es="{} pasos sin ejecutar · unos {} min"/>
   <translation tag="{} steps · about {} min" es="{} pasos · unos {} min"/>
   <translation tag="{} steps · {} min" es="{} pasos · {} min"/>

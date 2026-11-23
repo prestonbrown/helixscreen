@@ -295,6 +295,25 @@ TEST_CASE("the results button promises a restart unless Klipper said the save sk
     CHECK(results_primary_label(false, false, true) == "Done");
 }
 
+TEST_CASE("after a save the results subtitle reports the run, not an empty save",
+          "[calibration_run]") {
+    using helix::ui::results_subtitle;
+    using helix::ui::ResultsSubtitleState;
+    // A save that went through leaves the run with nothing left to save.
+    const ResultsSubtitleState saved{RunPhase::Saved, false, false, /*can_save=*/false, 3, 15};
+    const ResultsSubtitleState nothing{RunPhase::Results, false, false, /*can_save=*/false, 3, 15};
+    const ResultsSubtitleState pending{RunPhase::Results, false, false, /*can_save=*/true, 3, 15};
+
+    const std::string after_save = results_subtitle(saved);
+    CHECK(after_save != results_subtitle(nothing));
+    CHECK(after_save != results_subtitle(pending));
+    CHECK(after_save.find('3') != std::string::npos);
+    CHECK(after_save.find("15") != std::string::npos);
+    // Before a save, and with nothing to save, it reads as before.
+    CHECK(results_subtitle(pending).find('3') != std::string::npos);
+    CHECK(results_subtitle(nothing) == "Nothing to save");
+}
+
 TEST_CASE("the stop confirmation warns of a restart only when the stop restarts",
           "[calibration_run]") {
     using Effect = CalibrationRun::StopEffect;

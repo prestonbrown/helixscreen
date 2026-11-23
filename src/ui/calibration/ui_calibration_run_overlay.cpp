@@ -264,6 +264,31 @@ std::string results_primary_label(bool offers_save, bool restart_known, bool sav
     return restart_known && !save_restarts ? lv_tr("Save") : lv_tr("Save and restart Klipper");
 }
 
+std::string results_subtitle(const ResultsSubtitleState& s) {
+    // A save that went through leaves nothing to save; it reads as done, not empty.
+    if (s.phase == RunPhase::Saved) {
+        return s.finished == 1
+                   ? fmt::format(fmt::runtime(lv_tr("1 step in {} min · saved")), s.minutes)
+                   : fmt::format(fmt::runtime(lv_tr("{} steps in {} min · saved")), s.finished,
+                                 s.minutes);
+    }
+    if (s.results_lost) {
+        return lv_tr("Stopping restarted the printer, so nothing can be saved");
+    }
+    if (s.printer_finishing) {
+        return lv_tr("The printer is finishing a step's command. Save once it is done.");
+    }
+    if (!s.can_save) {
+        return s.finished == 0 ? lv_tr("Nothing to save. Each step says why.")
+                               : lv_tr("Nothing to save");
+    }
+    return s.finished == 1
+               ? fmt::format(fmt::runtime(lv_tr("1 step in {} min · review, then save once")),
+                             s.minutes)
+               : fmt::format(fmt::runtime(lv_tr("{} steps in {} min · review, then save once")),
+                             s.finished, s.minutes);
+}
+
 std::string run_end_title(const calibration::RunTally& tally) {
     using Outcome = calibration::RunTally::Outcome;
     switch (tally.outcome()) {
@@ -791,25 +816,9 @@ void CalibrationRunOverlay::publish_run() {
         title = lv_tr("Calibration stopped");
     }
     set_text(results_title_, title);
-    const int finished = run_->finished_count();
-    if (run_->results_lost()) {
-        set_text(results_sub_, lv_tr("Stopping restarted the printer, so nothing can be saved"));
-    } else if (run_->printer_finishing()) {
-        set_text(results_sub_, lv_tr("The printer is finishing a step's command. Save once it is "
-                                     "done."));
-    } else if (!can_save) {
-        set_text(results_sub_, finished == 0 ? lv_tr("Nothing to save. Each step says why.")
-                                             : lv_tr("Nothing to save"));
-    } else {
-        const int minutes = std::max(1, run_minutes_);
-        set_text(results_sub_,
-                 finished == 1
-                     ? fmt::format(fmt::runtime(lv_tr("1 step in {} min · review, then save once")),
-                                   minutes)
-                     : fmt::format(fmt::runtime(lv_tr("{} steps in {} min · review, then save "
-                                                      "once")),
-                                   finished, minutes));
-    }
+    set_text(results_sub_,
+             results_subtitle({phase, run_->results_lost(), run_->printer_finishing(), can_save,
+                               run_->finished_count(), std::max(1, run_minutes_)}));
     const bool offers_save = can_save && !busy;
     lv_subject_set_int(&offers_save_, offers_save ? 1 : 0);
     set_text(results_primary_, results_primary_label(offers_save, restart_known_, save_restarts_));

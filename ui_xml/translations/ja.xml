@@ -107,6 +107,7 @@
   <translation tag="1 profile" ja="1 個のプロファイル"/>
   <translation tag="1 step due · about {} min" ja="実行が必要なステップ 1 · 約{}分"/>
   <translation tag="1 step in {} min · review, then save once" ja="1ステップ {}分 · 確認して一度に保存"/>
+  <translation tag="1 step in {} min · saved" ja="1ステップ {}分 · 保存済み"/>
   <translation tag="1 step never run · about {} min" ja="未実行のステップ 1 · 約{}分"/>
   <translation tag="1 step · about {} min" ja="1ステップ · 約{}分"/>
   <translation tag="1 step · {} min" ja="1ステップ · {}分"/>
@@ -6156,6 +6157,7 @@
   <translation tag="{} started" ja="{} を開始しました"/>
   <translation tag="{} steps due · about {} min" ja="実行が必要なステップ {} · 約{}分"/>
   <translation tag="{} steps in {} min · review, then save once" ja="{}ステップ {}分 · 確認して一度に保存"/>
+  <translation tag="{} steps in {} min · saved" ja="{}ステップ {}分 · 保存済み"/>
   <translation tag="{} steps never run · about {} min" ja="未実行のステップ {} · 約{}分"/>
   <translation tag="{} steps · about {} min" ja="{}ステップ · 約{}分"/>
   <translation tag="{} steps · {} min" ja="{}ステップ · {}分"/>
