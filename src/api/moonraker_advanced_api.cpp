@@ -397,7 +397,13 @@ class CalibrationCollectorCore {
     /// the main thread (observer attach and the backstop timer both require
     /// it); the driver's error callback may fire on the WebSocket thread, so
     /// the work is queued.
-    void arm_idle_fallback(PrinterState& state, uint32_t backstop_ms) {
+    /// @param stream_intact True when the RPC timed out on a live socket. The
+    ///        response stream never broke, so a line-driven collector has lost
+    ///        no result line, and an idle printer proves nothing: MPC_CALIBRATE
+    ///        moves no toolhead, so idle_timeout reads idle for the whole run.
+    ///        Such a collector ignores idle reports and ends only on its own
+    ///        lines or the backstop.
+    void arm_idle_fallback(PrinterState& state, uint32_t backstop_ms, bool stream_intact) {
         auto owner = owner_.lock();
         if (!owner) {
             return; // the collector is already being destroyed
@@ -406,15 +412,17 @@ class CalibrationCollectorCore {
         // alive until the drain.
         helix::ui::queue_update(
             // QUEUE_RAW_THIS_OK: owner reference above.
-            "CalibrationCollectorCore::arm_idle_fallback", [this, owner, &state, backstop_ms]() {
+            "CalibrationCollectorCore::arm_idle_fallback",
+            [this, owner, &state, backstop_ms, stream_intact]() {
                 if (completed() || fallback_.armed) {
                     return;
                 }
                 fallback_.armed = true;
+                fallback_.awaits_lines_only = stream_intact && !fallback_.edge_immediate;
                 std::shared_ptr<bool> subject_lifetime;
                 lv_subject_t* idle_subject =
                     state.calibration_state().get_idle_timeout_printing_subject(subject_lifetime);
-                if (idle_subject) {
+                if (idle_subject && !fallback_.awaits_lines_only) {
                     fallback_.was_busy_at_arm = lv_subject_get_int(idle_subject) == 1;
                     // The subject is freed by PrinterCalibrationState's
                     // deinit_subjects() on a printer switch (and by test
@@ -432,7 +440,9 @@ class CalibrationCollectorCore {
                         return;
                     }
                     const bool still_busy = idle_subject && lv_subject_get_int(idle_subject) == 1;
-                    if (still_busy) {
+                    if (fallback_.awaits_lines_only) {
+                        conclude_unrecovered(kNoResultInExtendedWait);
+                    } else if (still_busy) {
                         conclude_unrecovered("printer still busy after extended wait");
                     } else if (fallback_.edge_immediate && !fallback_.was_busy_at_arm) {
                         // The re-read has to give the same answer the idle
@@ -593,6 +603,10 @@ class CalibrationCollectorCore {
     static constexpr const char* kMacroMayNotHaveRun =
         "the macro may not have run before the connection dropped";
 
+    /// The backstop's answer when the stream stayed up and no result came.
+    static constexpr const char* kNoResultInExtendedWait =
+        "sent no result within the extended wait";
+
     /// Atomic because the destructor may run on the WebSocket thread while a
     /// later calibration arms from the main thread.
     static std::atomic<OperationTimeoutGuard*> s_armed_backstop;
@@ -608,6 +622,9 @@ class CalibrationCollectorCore {
     struct IdleEdgeFallback {
         bool armed = false;
         bool edge_immediate = false;
+        /// Armed on a live socket by a line-driven collector: idle reports are
+        /// ignored and only result lines or the backstop end the run.
+        bool awaits_lines_only = false;
         /// Subject value at arm time. For edge_immediate collectors an idle
         /// report while this is false means the macro may never have run at
         /// all (the socket was already down at send): completing as success
@@ -651,7 +668,8 @@ void report_collector_rpc_error(const char* cmd, PrinterState& state,
         spdlog::warn("[MoonrakerAPI] {} RPC lost to the transport ({}); collector still "
                      "listening - calibration may still be running",
                      cmd, (err.type == MoonrakerErrorType::TIMEOUT ? "timeout" : "disconnect"));
-        collector->arm_idle_fallback(state, backstop_ms);
+        collector->arm_idle_fallback(state, backstop_ms,
+                                     /*stream_intact=*/err.type == MoonrakerErrorType::TIMEOUT);
         return;
     }
     spdlog::error("[MoonrakerAPI] Failed to send {}: {}", cmd, err.message);
@@ -710,8 +728,8 @@ class PIDCalibrateCollector : public std::enable_shared_from_this<PIDCalibrateCo
     void mark_completed() {
         core_.mark_completed();
     }
-    void arm_idle_fallback(PrinterState& state, uint32_t backstop_ms) {
-        core_.arm_idle_fallback(state, backstop_ms);
+    void arm_idle_fallback(PrinterState& state, uint32_t backstop_ms, bool stream_intact) {
+        core_.arm_idle_fallback(state, backstop_ms, stream_intact);
     }
 
     void on_gcode_response(const json& msg) {
@@ -1032,8 +1050,8 @@ class MPCCalibrateCollector : public std::enable_shared_from_this<MPCCalibrateCo
     void mark_completed() {
         core_.mark_completed();
     }
-    void arm_idle_fallback(PrinterState& state, uint32_t backstop_ms) {
-        core_.arm_idle_fallback(state, backstop_ms);
+    void arm_idle_fallback(PrinterState& state, uint32_t backstop_ms, bool stream_intact) {
+        core_.arm_idle_fallback(state, backstop_ms, stream_intact);
     }
 
     void on_gcode_response(const json& msg) {
@@ -1304,8 +1322,8 @@ class ScrewsTiltCollector : public std::enable_shared_from_this<ScrewsTiltCollec
     void mark_completed() {
         core_.mark_completed();
     }
-    void arm_idle_fallback(PrinterState& state, uint32_t backstop_ms) {
-        core_.arm_idle_fallback(state, backstop_ms);
+    void arm_idle_fallback(PrinterState& state, uint32_t backstop_ms, bool stream_intact) {
+        core_.arm_idle_fallback(state, backstop_ms, stream_intact);
     }
 
     /**
@@ -1496,8 +1514,8 @@ class InputShaperCollector : public std::enable_shared_from_this<InputShaperColl
     void mark_completed() {
         core_.mark_completed();
     }
-    void arm_idle_fallback(PrinterState& state, uint32_t backstop_ms) {
-        core_.arm_idle_fallback(state, backstop_ms);
+    void arm_idle_fallback(PrinterState& state, uint32_t backstop_ms, bool stream_intact) {
+        core_.arm_idle_fallback(state, backstop_ms, stream_intact);
     }
 
     /**
@@ -2180,8 +2198,8 @@ class NoiseCheckCollector : public std::enable_shared_from_this<NoiseCheckCollec
     void mark_completed() {
         core_.mark_completed();
     }
-    void arm_idle_fallback(PrinterState& state, uint32_t backstop_ms) {
-        core_.arm_idle_fallback(state, backstop_ms);
+    void arm_idle_fallback(PrinterState& state, uint32_t backstop_ms, bool stream_intact) {
+        core_.arm_idle_fallback(state, backstop_ms, stream_intact);
     }
 
     void on_gcode_response(const json& msg) {
@@ -2354,8 +2372,8 @@ class BedMeshProgressCollector : public std::enable_shared_from_this<BedMeshProg
     void mark_completed() {
         core_.mark_completed();
     }
-    void arm_idle_fallback(PrinterState& state, uint32_t backstop_ms) {
-        core_.arm_idle_fallback(state, backstop_ms);
+    void arm_idle_fallback(PrinterState& state, uint32_t backstop_ms, bool stream_intact) {
+        core_.arm_idle_fallback(state, backstop_ms, stream_intact);
     }
 
     /// Called when the JSON-RPC response returns successfully — the command

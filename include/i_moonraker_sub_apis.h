@@ -301,7 +301,8 @@ class IAdvancedAPI {
                 // not silent.
     static constexpr uint32_t kPidTimeoutMs =
         1200000; // 20 min - PID_CALIBRATE (slow-cooling beds, e.g. AD5M Pro, exceed 15 min)
-    static constexpr uint32_t kMpcTimeoutMs = 1200000; // 20 min - MPC_CALIBRATE
+    static constexpr uint32_t kMpcTimeoutMs =
+        3600000; // 60 min - MPC_CALIBRATE (a bed, or a hotend with fan breakpoints, exceeds 20 min)
     static constexpr uint32_t kProbingTimeoutMs =
         180000; // 3 min - PROBE_CALIBRATE, Z_ENDSTOP_CALIBRATE
 
