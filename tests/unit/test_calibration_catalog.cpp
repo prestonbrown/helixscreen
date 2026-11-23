@@ -256,14 +256,16 @@ TEST_CASE("a heater with no tuning keeps Heaters at its tier, and an untuned bed
 
     SECTION("an untuned bed") {
         in.nozzle_tuned = true;
-        const StepInfo* heaters = step_named(applicable_steps(in), "heaters");
+        const auto steps = applicable_steps(in);
+        const StepInfo* heaters = step_named(steps, "heaters");
         CHECK(heaters->tier == Tier::Required);
         CHECK(heaters->bed == BedTuning::Required);
         CHECK(heaters->tunes_bed);
     }
     SECTION("an untuned nozzle leaves a tuned bed to the owner") {
         in.bed_tuned = true;
-        const StepInfo* heaters = step_named(applicable_steps(in), "heaters");
+        const auto steps = applicable_steps(in);
+        const StepInfo* heaters = step_named(steps, "heaters");
         CHECK(heaters->tier == Tier::Required);
         CHECK(heaters->bed == BedTuning::Optional);
         CHECK_FALSE(heaters->tunes_bed);
