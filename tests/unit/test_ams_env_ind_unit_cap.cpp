@@ -67,9 +67,7 @@ void reinit_ams_subjects_for_xml() {
 
 } // namespace
 
-// ============================================================================
 // The bug: the fifth unit of a real rig had no subjects at all.
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "Per-unit environment subjects exist for a five-unit rig",
                  "[ams][regression]") {
@@ -113,10 +111,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "Per-unit environment subjects exist for a fiv
     AmsState::instance().deinit_subjects();
 }
 
-// ============================================================================
 // The cap still has to be a hard edge — raising it must not mean the getters
 // stopped bounds-checking, or a wider rig turns a dark badge into a UAF.
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "Environment-subject lookups past the unit cap return nullptr",
                  "[ams][regression]") {
@@ -148,10 +144,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "Environment-subject lookups past the unit cap
     AmsState::instance().deinit_subjects();
 }
 
-// ============================================================================
 // Degradation: a rig past the cap still gets cards, with the badge bound to
 // placeholders that read as "no environment data" instead of to nothing.
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "Unit cards past the cap bind to the always-off placeholders",
                  "[ams][regression]") {

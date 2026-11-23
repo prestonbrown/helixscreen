@@ -344,9 +344,7 @@ class CfsK2CalibHelper : public CfsCalibHelper {
 };
 } // namespace
 
-// =============================================================================
 // CFS bypass / external spool
-// =============================================================================
 //
 // Two dialect answers, one per axis from FILAMENT_MANAGEMENT.md § CFS:
 //  - Fork (community Kalico box.py): the firmware registers T<external_slot>
@@ -362,7 +360,7 @@ class CfsK2CalibHelper : public CfsCalibHelper {
 static json make_cfs_notification(const json& box_obj);
 namespace {
 json make_flat_fork_box();
-} // namespace
+}
 
 TEST_CASE("CFS bypass: fork dialect commands the attended load", "[ams][cfs][bypass]") {
     helix::test::StartedBackend<CfsRemapHelper> backend;
@@ -1429,9 +1427,7 @@ TEST_CASE("CFS slot addressing", "[ams][cfs]") {
     }
 }
 
-// =============================================================================
 // CFS box fixtures
-// =============================================================================
 
 // Wrap a box object in the notify_status_update envelope the backend expects.
 // {"params": [{ "box": {...} }, timestamp]}
@@ -1992,12 +1988,10 @@ TEST_CASE("CFS K1 macro variant (#968)", "[ams][cfs]") {
     }
 }
 
-// =============================================================================
 // #968 Phase 2 — WITH/WITHOUT-material selection keys on filament-at-nozzle,
 // NOT a preloaded (cassette) slot. K1 CFS reports a preloaded slot index with
 // the nozzle still EMPTY; cutting in that state is the reporter's "hallucinated
 // cut on empty nozzle" bug.
-// =============================================================================
 TEST_CASE("CFS change_tool selects load-vs-swap from filament_loaded (#968)", "[ams][cfs][k1]") {
     helix::test::StartedBackend<CfsK1RemapHelper> backend;
     // change_tool's slot bound is the attached unit count, so the box must
@@ -2034,9 +2028,7 @@ TEST_CASE("CFS change_tool selects load-vs-swap from filament_loaded (#968)", "[
     }
 }
 
-// =============================================================================
 // push_slot_identity_to_firmware (#968 material-type writeback)
-// =============================================================================
 //
 // The push writes color_value always, and material_type as the code
 // material_code_locked() finds: a code this box reported, else the catalog's
@@ -2227,9 +2219,7 @@ TEST_CASE("CFS backend has environment sensors", "[ams][cfs]") {
     REQUIRE(backend.has_environment_sensors());
 }
 
-// =============================================================================
 // CFS BOX_MODIFY_TN tool remap (set_tool_mapping)
-// =============================================================================
 
 TEST_CASE("CFS set_tool_mapping emits BOX_MODIFY_TN with TNN keys/values", "[ams][cfs][remap]") {
     helix::test::StartedBackend<CfsRemapHelper> helper;
@@ -2284,9 +2274,7 @@ TEST_CASE("CFS set_tool_mapping emits BOX_MODIFY_TN with TNN keys/values", "[ams
     }
 }
 
-// =============================================================================
 // CFS refresh_rfid → BOX_INFO_REFRESH RFID probe (prestonbrown/helixscreen#1077)
-// =============================================================================
 //
 // Inserting a spool does not auto-read its RFID tag; the box reports sentinel
 // vender/color/material until BOX_INFO_REFRESH scans it. The "Refresh RFID"
@@ -2323,9 +2311,7 @@ TEST_CASE("CFS refresh_rfid probes each connected unit via BOX_INFO_REFRESH",
     }
 }
 
-// =============================================================================
 // CFS BOX_MODIFY_TN_DATA color firmware-writeback (push_slot_identity_to_firmware)
-// =============================================================================
 //
 // Format reverse-engineered from K2's master-server binary
 // (`strings /usr/bin/master-server | grep BOX_MODIFY_TN_DATA`):
@@ -2477,9 +2463,7 @@ TEST_CASE("CFS set_tool_mapping updates local tool_to_slot_map", "[ams][cfs][rem
     }
 }
 
-// =============================================================================
 // Slot-index bounds (prestonbrown/helixscreen#1623)
-// =============================================================================
 //
 // total_slots is the attached unit count (four bays per unit), so a one-unit
 // box has bays 0-3 and index 7 names a bay on hardware that is not attached.
@@ -2594,9 +2578,7 @@ TEST_CASE("CFS declares a persistent remap route and owns its table", "[ams][cfs
     REQUIRE(helix::printer::remap_is_persistent(helper.get_remap_strategy()));
 }
 
-// =============================================================================
 // CFS action state in operations
-// =============================================================================
 
 TEST_CASE("CFS GCode generation for all operations", "[ams][cfs]") {
     SECTION("load gcode uses TNN for multi-unit addressing") {
@@ -2627,9 +2609,7 @@ TEST_CASE("CFS has no per-slot prep sensors", "[ams][cfs]") {
     }
 }
 
-// ============================================================================
 // Task 14: filament slot override integration
-// ============================================================================
 
 TEST_CASE("CFS apply_user_edit writes to store", "[ams][cfs][filament_slot_override]") {
     CfsTmpCacheDir tmp("task14_persist_true");
@@ -2802,11 +2782,9 @@ TEST_CASE("CFS empty RFID fingerprint does not update baseline or clear",
     CHECK(!mock_printer.client.mock_db_get("lane_data", "lane1").is_null());
 }
 
-// =============================================================================
 // Presence/loaded-truth fixes. The firmware `box` object's RFID-derived fields
 // (color_value/material_type) latch stale data and read sentinels for untagged
 // 3rd-party spools, and box.filament is a SELECTION index — not a loaded flag.
-// =============================================================================
 
 // Fix 1: box.filament is a stale active-lane SELECTION pointer, NOT a loaded
 // flag. With box.filament=1 but T1.filament="None" and no toolhead sensor, the
@@ -2897,7 +2875,6 @@ TEST_CASE("CFS: box-only update does not clobber sensor-derived filament_loaded"
 // An override says what the user ASSIGNED to a bay, never whether a spool is
 // physically in it. A bay firmware reports empty stays EMPTY, keeping its
 // identity so ui_ams_slot.cpp can render the "assigned, not present" ghost.
-// =============================================================================
 // Self-wipe guard: firmware echoing back our own BOX_MODIFY_TN_DATA color push
 // must not read as a physical spool swap.
 //
@@ -2907,7 +2884,6 @@ TEST_CASE("CFS: box-only update does not clobber sensor-derived filament_loaded"
 // echo of our own write cleared the override the user had just created — the
 // user's material silently vanished on the next restart. Because lane_data IS
 // the override store, that also fed OrcaSlicer stale filament info.
-// =============================================================================
 
 namespace {
 
@@ -3866,11 +3842,9 @@ TEST_CASE("CFS persisted fingerprint from the other schema is no baseline after 
     // through the queue after its backend is gone; settle them here.
     helix::ui::UpdateQueue::instance().drain_until_empty();
 }
-// =============================================================================
 // Presence: `remain_len` LATCHES after a tagged spool is pulled, so it cannot
 // be an unconditional presence signal. It exists only to cover UNTAGGED spools,
 // which report no RFID payload at all — see parse_box_status.
-// =============================================================================
 
 TEST_CASE("CFS clears the stale lane_data record when a tagged spool is removed",
           "[ams][cfs][presence][filament_slot_override]") {
@@ -3914,7 +3888,6 @@ TEST_CASE("CFS clears the stale lane_data record when a tagged spool is removed"
     }
 }
 
-// =============================================================================
 // Runout vs the remembered Spoolman link (#1390).
 //
 // filament_runout (box.filament_useup) is box-wide and STICKY: set by "spool
@@ -3924,7 +3897,6 @@ TEST_CASE("CFS clears the stale lane_data record when a tagged spool is removed"
 // re-asserted onto whatever fresh spool the user loaded next. The lane that
 // ran out must be captured at the runout edge (current_slot is gone by the
 // time the bay reads EMPTY) and exactly that lane's id drops, once.
-// =============================================================================
 
 namespace {
 
@@ -4228,12 +4200,10 @@ TEST_CASE("CFS: relabeling a TAGGED bay still suppresses the untagged fallback",
     }
 }
 
-// =============================================================================
 // An empty bay means the spool is gone. A stored record that carries no lock
 // and no identity is cleared with it, whatever weights the user entered: the
 // removal check does not read weights, so a weights-only edit is not a reason
 // to keep the record.
-// =============================================================================
 
 namespace {
 
@@ -4473,7 +4443,6 @@ TEST_CASE("CFS defers the insert probe while a print holds the machine",
     CHECK(backend.captured[0] == "BOX_INFO_REFRESH ADDR=1 NUM=2");
 }
 
-// ============================================================================
 // #1250 — CFS runout surface (auto-refill give-up messages)
 //
 // The K2's runout path always pauses first (pause_on_runout on
@@ -4483,7 +4452,6 @@ TEST_CASE("CFS defers the insert probe while a print holds the machine",
 // gets, and they arrive as `// `-prefixed responses, not `!!`.
 //
 // See docs/devel/printer-research/CREALITY_CFS_K2_INTERNALS.md § "Runout and auto-refill".
-// ============================================================================
 
 namespace {
 // Box payload with the runout latch (filament_useup) in a chosen state, so the
@@ -4606,14 +4574,12 @@ TEST_CASE("CFS runout: each give-up wording raises one runout fault naming its c
     }
 }
 
-// ---------------------------------------------------------------------------
 // Post-operation phase verification (#968)
 //
 // The BOX_* primitives record and queue failures instead of raising at the
 // failing command, so a load that never fed filament still drains the script
 // and reports success at every RPC layer. These pin the rule that reads the
 // one independent physical witness we have: the toolhead filament switch.
-// ---------------------------------------------------------------------------
 
 // A load must end with filament at the switch and a bay unload without it. A
 // bypass unload has no lane: QUIT_MATERIAL and our fallback pull ~10 mm to clear
@@ -5315,9 +5281,7 @@ TEST_CASE("CFS runout: ordinary console chatter is ignored", "[ams][cfs][1250]")
     }
 }
 
-// ============================================================================
 // Endless spool capabilities
-// ============================================================================
 //
 // CFS had no capability test at all, and its old answer was
 // {supported=true, editable=false, description="Auto-refill enabled"|"disabled"} —
@@ -5740,9 +5704,7 @@ TEST_CASE("CFS endless spool: a backend restart forgets the enable bit",
     CHECK(backend.get_endless_spool_capabilities().enabled == EndlessSpoolEnabled::Unknown);
 }
 
-// ===========================================================================
 // Bypass declaration lifetime — what actually means "the CFS took the feed back"
-// ===========================================================================
 //
 // Field evidence, K2 Plus 2026-08-18. Bypass was declared (BOX_ENABLE_CFS_PRINT
 // ENABLE=0) at 23:13 and restored cleanly across a restart at 00:34 with the box
@@ -6219,9 +6181,7 @@ TEST_CASE("CFS with a unit on the bus is not external-spool-only", "[ams][cfs][b
     CHECK_FALSE(cfs.is_bypass_active());
 }
 
-// ===========================================================================
 // Flat schema (community box.py fork): what a delta may and may not overwrite
-// ===========================================================================
 //
 // Moonraker subscribes `box: null`, so these frames are deltas — a frame that
 // changed one bay carries neither the gate reading nor the endless-spool
@@ -7307,9 +7267,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "CFS stock: AmsState publishes a unit behind a
     ams.deinit_subjects();
 }
 
-// ============================================================================
 // Pre-dispatch failure does not fire the envelope unwind
-// ============================================================================
 
 namespace {
 
@@ -7372,10 +7330,8 @@ TEST_CASE("CFS: a failed payload still sends the envelope unwind", "[ams][cfs][h
     REQUIRE(api.contains("CR_BOX_LOAD"));
 }
 
-// ============================================================================
 // Own-write echo suppression (prestonbrown/helixscreen#1633) and the insert
 // rule (prestonbrown/helixscreen#1710)
-// ============================================================================
 
 TEST_CASE("CFS untagged insert offers Clear (#1710)", "[ams][cfs][1710]") {
     // A stock bay whose tag was read keeps the arrays latched to that spool,
@@ -7920,9 +7876,7 @@ json per_slot_box(const std::string& active_letter) {
 
 } // namespace
 
-// ============================================================================
 // The parse stamps LOADED on the seated bay
-// ============================================================================
 
 TEST_CASE("CFS parse stamps LOADED on the lane the toolhead is fed from", "[ams][cfs][1199]") {
     helix::test::StartedBackend<CfsRemapHelper> cfs;
@@ -8003,9 +7957,7 @@ TEST_CASE("CFS LOADED stamp honours the per-unit global-index offset", "[ams][cf
     CHECK(cfs.get_slot_info(0).status == SlotStatus::AVAILABLE);
 }
 
-// ============================================================================
 // Un-stamping restores what firmware said, not a guess
-// ============================================================================
 
 TEST_CASE("CFS clears the LOADED stamp when the toolhead switch opens", "[ams][cfs][1199]") {
     helix::test::StartedBackend<CfsRemapHelper> cfs;

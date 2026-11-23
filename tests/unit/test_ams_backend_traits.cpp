@@ -278,9 +278,7 @@ TEST_CASE("Mock AFC load leaves only the new lane loaded", "[ams][mock][traits]"
     mock.stop();
 }
 
-// ============================================================================
 // Runout ownership
-// ============================================================================
 
 namespace {
 

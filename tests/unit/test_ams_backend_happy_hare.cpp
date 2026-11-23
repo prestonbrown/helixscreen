@@ -639,16 +639,13 @@ TEST_CASE("Happy Hare persistence: clearing one field names it empty",
     REQUIRE_FALSE(helper.has_gcode_containing("NAME="));
 }
 
-// ============================================================================
 // Clear Spool - the full gate-map wipe
-// ============================================================================
 //
 // The Clear Spool funnel (ui_ams_detail CLEAR_SPOOL) hands the backend a copy
 // of the slot with every identity field blanked. Happy Hare keeps omitted
 // params at their current value, so the clear must name each writable field
 // with an explicit empty value: that is the only form that empties MATERIAL,
 // COLOR, NAME and VENDOR on every HH version.
-// ============================================================================
 
 /// The SlotInfo ui_ams_detail's CLEAR_SPOOL arm hands commit_slot_edit(): a
 /// copy of the live slot with every identity field blanked and the Spoolman
@@ -698,7 +695,7 @@ TEST_CASE_METHOD(HhHelper, "Happy Hare clear: the wipe names every gate-map fiel
 namespace {
 void connect_with_fixture(AmsBackendHappyHareTestHelper& helper,
                           helix::test::FakeMoonrakerClient& client, const nlohmann::json& fx);
-} // namespace
+}
 
 TEST_CASE_METHOD(HhFourGatesWithClient,
                  "Happy Hare clear: the wipe returns the gate to default_extruder_temp",
@@ -926,9 +923,7 @@ TEST_CASE("Happy Hare reset_tool_mappings sends one identity MMU_TTG_MAP per too
     }
 }
 
-// ============================================================================
 // Endless spool
-// ============================================================================
 
 TEST_CASE("Happy Hare endless spool edits on a single unit send MMU_ENDLESS_SPOOL",
           "[ams][happy_hare][endless_spool]") {
@@ -1094,9 +1089,7 @@ TEST_CASE("Happy Hare eject_lane and clear_fault address one gate or refuse",
     }
 }
 
-// ============================================================================
 // recover_with_state() Tests
-// ============================================================================
 
 namespace {
 helix::RecoverStateRequest recover_req(int slot, bool bypass, std::optional<bool> loaded) {
@@ -1202,9 +1195,7 @@ TEST_CASE("Happy Hare error-popup Recover lets HH detect the filament position",
     CHECK(recover_gcode == "MMU_RECOVER");
 }
 
-// ============================================================================
 // preload_lane() Tests
-// ============================================================================
 
 TEST_CASE_METHOD(HhFourGates, "Happy Hare preload_lane sends MMU_PRELOAD for the gate",
                  "[ams][happy_hare][preload]") {
@@ -1233,9 +1224,7 @@ TEST_CASE("Happy Hare preload_lane is refused while printing", "[ams][happy_hare
     CHECK(helper.captured_gcodes.empty());
 }
 
-// ============================================================================
 // mark_gate_available(): the recovery Happy Hare's failed-pickup error names
-// ============================================================================
 
 TEST_CASE_METHOD(HhFourGates, "Happy Hare marks an empty gate available with MMU_GATE_MAP",
                  "[ams][happy_hare][mark_available]") {
@@ -1291,9 +1280,7 @@ nlohmann::json happy_hare_fixture_at(const std::string& version) {
 }
 } // namespace
 
-// ============================================================================
 // Gate weights (Happy Hare 4.2): the gate map holds remaining and initial weight
-// ============================================================================
 
 TEST_CASE_METHOD(HhFourGatesWithClient,
                  "Happy Hare 4.2 gate weights reach the slot as the firmware's",
@@ -1376,9 +1363,7 @@ TEST_CASE_METHOD(HhFourGatesWithClient, "Happy Hare 4.2 writes a metered weight 
     }
 }
 
-// ============================================================================
 // form_tip_macro: empty means no tip forming from Happy Hare 4.2
-// ============================================================================
 
 TEST_CASE_METHOD(HhHelperWithClient, "Happy Hare empty form_tip_macro shows no tip step from 4.2",
                  "[ams][happy_hare][tip_method]") {
@@ -1396,9 +1381,7 @@ TEST_CASE_METHOD(HhHelperWithClient, "Happy Hare empty form_tip_macro shows no t
     CHECK(tip_method_for("4.1.0", "") == TipMethod::TIP_FORM);
 }
 
-// ============================================================================
 // printer.mmu.drying: the cycle Happy Hare is running, whoever started it
-// ============================================================================
 
 TEST_CASE_METHOD(HhFourGates, "Happy Hare drying cycle reports its time left from end_time",
                  "[ams][happy_hare][dryer][drying_cycle]") {
@@ -2065,7 +2048,7 @@ TEST_CASE_METHOD(HhHelper, "Happy Hare per-gate sensors map to the right unit (m
     REQUIRE(info.units[1].environment->humidity_pct == Catch::Approx(80.0f));
 }
 
-// --- Backwards compatibility: v3 sends nothing new ---
+// Backwards compatibility: v3 sends nothing new
 
 TEST_CASE_METHOD(HhHelper, "Happy Hare v3 data with no v4 fields works normally",
                  "[ams][happy_hare][v4][compat]") {
@@ -2124,7 +2107,7 @@ TEST_CASE_METHOD(HhHelper, "Happy Hare v3 data with no v4 fields works normally"
     REQUIRE(slot2.status == SlotStatus::LOADED);
 }
 
-// --- has_bypass: the single flag behind the whole bypass UI ---
+// has_bypass: the single flag behind the whole bypass UI
 
 // printer.mmu.has_bypass gates the sidebar toggle, the Device Operations bypass
 // section and the bypass node on the filament path. Happy Hare defaults it to 0
@@ -2196,7 +2179,7 @@ TEST_CASE_METHOD(HelixTestFixture, "Happy Hare has_bypass drives supports_bypass
     }
 }
 
-// --- v3+v4 mixed: some v4 fields with v3 base ---
+// v3+v4 mixed: some v4 fields with v3 base
 
 TEST_CASE_METHOD(HhHelper, "Happy Hare mixed v3/v4 data parses both correctly",
                  "[ams][happy_hare][v4][compat]") {
@@ -2266,9 +2249,7 @@ TEST_CASE("Happy Hare reports the manages_active_spool the shared case table cla
     CHECK_FALSE(helper.manages_active_spool());
 }
 
-// ============================================================================
 // Live heater temp/target from Moonraker status
-// ============================================================================
 
 TEST_CASE_METHOD(HhFourGates, "Happy Hare parses live filament_heater temp/target",
                  "[ams][happy_hare][v4]") {
@@ -2324,9 +2305,7 @@ TEST_CASE_METHOD(AmsBackendHappyHareTestHelper, "gate_color hex string fallback"
     REQUIRE(info.units[0].slots[2].color_rgb == 0x042F56);
 }
 
-// ============================================================================
 // EMU aggregate sensor format
-// ============================================================================
 
 TEST_CASE_METHOD(AmsBackendHappyHareTestHelper, "EMU aggregate sensor format",
                  "[ams][happy_hare][emu]") {
@@ -2385,10 +2364,8 @@ TEST_CASE_METHOD(AmsBackendHappyHareTestHelper,
     }
 }
 
-// ============================================================================
 // EMU gate_filament_name parsing — EMU sends filament names via
 // gate_filament_name instead of gate_name
-// ============================================================================
 
 TEST_CASE_METHOD(AmsBackendHappyHareTestHelper, "EMU gate_filament_name parsing",
                  "[ams][happy_hare][emu]") {
@@ -2412,10 +2389,8 @@ TEST_CASE_METHOD(AmsBackendHappyHareTestHelper, "EMU gate_filament_name parsing"
     }
 }
 
-// ============================================================================
 // Full EMU integration test — validates all EMU parsing fixes together
 // using real data from an EMU user's Moonraker dump
-// ============================================================================
 
 TEST_CASE_METHOD(AmsBackendHappyHareTestHelper, "Full EMU status integration",
                  "[ams][happy_hare][emu]") {
@@ -2550,9 +2525,7 @@ TEST_CASE("EncoderClogInfo: clog percentage is the detection length used, clampe
     }
 }
 
-// ============================================================================
 // Encoder + Flowguard JSON Parsing Tests
-// ============================================================================
 
 TEST_CASE_METHOD(HhFourGates, "Happy Hare: parse full encoder object into encoder_info",
                  "[ams][happy_hare][clog]") {
@@ -2729,7 +2702,7 @@ TEST_CASE("Happy Hare: a VirtualSelector makes every unit a HUB with no encoder"
     }
 }
 
-// --- Sync feedback bias parsing ---
+// Sync feedback bias parsing
 
 TEST_CASE_METHOD(HhFourGates, "Happy Hare parses sync_feedback_bias fields",
                  "[ams][happy_hare][v4][sync_feedback]") {
@@ -3156,9 +3129,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     ams.set_backend(nullptr);
 }
 
-// ============================================================================
 // Override store — user identity Happy Hare's gate map cannot hold
-// ============================================================================
 //
 // Same rationale as AFC (see test_ams_backend_afc.cpp): Happy Hare's gate map
 // carries spool_id / material / colour, but not brand, spool_name,
@@ -3332,9 +3303,7 @@ TEST_CASE_METHOD(HhFourGates, "HappyHare persist_override wires nozzle/bed temps
     CHECK(ovr.nozzle_temp == 240); // midpoint of min/max
 }
 
-// ============================================================================
 // Bypass: Happy Hare has to answer for itself, same as AFC (#1229)
-// ============================================================================
 //
 // The twin of "AFC enable_bypass refuses while filament is at the toolhead" in
 // test_ams_backend_afc.cpp. allows_implicit_chaining() == false means the
@@ -3405,7 +3374,6 @@ TEST_CASE("Happy Hare enable_bypass refuses unless the filament is parked",
     }
 }
 
-// ============================================================================
 // Happy Hare v4 machine-field layout
 //
 // v3 puts filament_heater / environment_sensor directly on [mmu_machine] in
@@ -3414,7 +3382,6 @@ TEST_CASE("Happy Hare enable_bypass refuses unless the filament is parked",
 // status object. Reading configfile alone finds a populated-looking object with
 // none of the fields in it, so the miss is silent: no warning, no log, just an
 // environment indicator that never fills in.
-// ============================================================================
 
 TEST_CASE_METHOD(HhFourGates, "Happy Hare v4 takes machine fields from live status, not configfile",
                  "[ams][happy_hare][1479]") {
@@ -3626,9 +3593,7 @@ TEST_CASE("Happy Hare updates a running dryer: TEMP alone, a restart for a new d
 
 // A persisted override IS a user edit. The lock flags are how any consumer of
 // the record tells one from a firmware reading (#965, #1649).
-// ============================================================================
 // Maintenance / accessories device actions
-// ============================================================================
 
 TEST_CASE("Happy Hare motors toggle turns motors on and off without homing",
           "[ams][happy_hare][device_actions]") {
@@ -3765,12 +3730,10 @@ TEST_CASE("Happy Hare machine-motion actions are refused while a print holds the
     CHECK(helper.has_gcode_containing("MMU_CALIBRATE_BOWDEN"));
 }
 
-// ============================================================================
 // Real Happy Hare fault shapes (#1323). HH publishes no Error action: a fault
 // in a print is print_state pause_locked plus reason_for_pause, announced by
 // `!! MMU issue detected. ...\nReason: <reason>`; outside a print nothing
 // pauses and the only signal is `!! MMU issue: <reason>`.
-// ============================================================================
 
 namespace {
 bool has_recovery(const helix::ErrorEvent& ev, const std::string& tag) {
@@ -4211,9 +4174,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "An unrelated firmware prompt survives the H
     helix::ActionPromptManager::set_instance(nullptr);
 }
 
-// ============================================================================
 // Connect-time configfile query
-// ============================================================================
 
 // The fake holds each printer.objects.query unanswered, so a test decides when, and
 // with what, the printer answers.
@@ -4250,13 +4211,11 @@ TEST_CASE_METHOD(HhFourGatesWithClient,
     CHECK(HappyHareTestAccess::config_defaults(helper).loaded);
 }
 
-// ============================================================================
 // Golden sequence: one full printer.mmu frame, then the deltas a Happy Hare box
 // sends for a load, an unload, a pause and its resume, a gate insert, hex-only
 // gate colours, per-gate drying and a topology change. Each frame is pinned as
 // a text snapshot of everything the parse leaves behind plus the effects it
 // dispatches.
-// ============================================================================
 
 namespace {
 
@@ -4587,7 +4546,7 @@ slot=3 tool=1 loaded=false action=Idle detail='' bypass=true units=2 hub=true sl
   g3 Available #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=true/true
   events=1 toasts=''
 )GOLD";
-} // namespace
+}
 
 TEST_CASE_METHOD(HappyHareGoldenFixture, "Happy Hare golden status sequence",
                  "[ams][happy_hare][golden]") {
@@ -4632,9 +4591,7 @@ TEST_CASE_METHOD(HappyHareGoldenFixture, "Happy Hare golden status sequence",
     CHECK(all == kHappyHareGolden);
 }
 
-// ============================================================================
 // Happy Hare v4
-// ============================================================================
 
 namespace {
 
@@ -5022,9 +4979,7 @@ TEST_CASE_METHOD(HhHelper, "Happy Hare v4 shows the selected gate's eSpooler ope
     CHECK(helper.get_system_info().espooler_state.empty());
 }
 
-// ============================================================================
 // Multi-unit from mmu_machine
-// ============================================================================
 
 TEST_CASE_METHOD(HhHelperWithClient,
                  "Happy Hare takes each unit's split, name and topology from mmu_machine",
@@ -5206,9 +5161,7 @@ TEST_CASE_METHOD(HhFourGatesWithClient,
     }
 }
 
-// ============================================================================
 // v4 per-unit guards
-// ============================================================================
 
 namespace {
 bool action_enabled(const AmsBackendHappyHareTestHelper& helper, const std::string& id) {
@@ -5650,9 +5603,7 @@ TEST_CASE_METHOD(HhHelperWithClient, "Happy Hare v4 shows no bypass before its u
     CHECK(helper.get_system_info().supports_bypass); // the ERCF has one
 }
 
-// ============================================================================
 // Version bands and round-3 guards
-// ============================================================================
 
 namespace {
 
@@ -6431,9 +6382,7 @@ TEST_CASE("Happy Hare leaves an unloaded from_buffer gate as FROM_BUFFER",
     CHECK(hh.get_slot_info(2).status == SlotStatus::FROM_BUFFER);
 }
 
-// ============================================================================
 // Hole 2: gate / filament arrive without gate_status
-// ============================================================================
 
 TEST_CASE("Happy Hare moves the LOADED stamp on a gate-only delta", "[ams][happy_hare][1199]") {
     helix::AmsBackendHappyHareTestHelper hh;
@@ -6469,9 +6418,7 @@ TEST_CASE("Happy Hare moves the LOADED stamp on a gate-only delta", "[ams][happy
     }
 }
 
-// ============================================================================
 // Where the aggregate and the per-gate status legitimately disagree
-// ============================================================================
 
 TEST_CASE("Happy Hare does not paint an empty gate as loaded", "[ams][happy_hare][1199]") {
     // gate_status 0 after a runout is real information: the gate has nothing

@@ -375,7 +375,6 @@ TEST_CASE("AmsContextMenu::decide_unload_enabled blocks only the toolhead unload
     }
 }
 
-// ============================================================================
 // A backend that withdraws its unmount offer has to be able to make it stick.
 //
 // AmsContextMenu composes the loaded signal as an OR
@@ -385,7 +384,6 @@ TEST_CASE("AmsContextMenu::decide_unload_enabled blocks only the toolhead unload
 // in only one of those three is put back by the other two, so a withdrawal that
 // reads correct in the backend never reaches the button. On a tool changer the
 // button dispatches UNSELECT_TOOL, which moves a physical machine.
-// ============================================================================
 
 namespace {
 
@@ -622,9 +620,7 @@ TEST_CASE("A mount-to-feed tool changer offers the heated Unload on docked tools
     }
 }
 
-// ============================================================================
 // On a tool changer with no feed, filament is by hand and the menu mounts
-// ============================================================================
 
 TEST_CASE("A no-feed tool changer's menu offers Mount and Park, never a filament op",
           "[ams][context_menu][toolchanger]") {
@@ -664,9 +660,7 @@ TEST_CASE("A no-feed tool changer's menu offers Mount and Park, never a filament
     CHECK_FALSE(helix::ui::decide_slot_actions(after, 3).mount.enabled);
 }
 
-// ============================================================================
 // on_created: the header names the position in the backend's own word
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "AmsContextMenu: the slot header names the position as the hardware does",
@@ -693,9 +687,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     }
 }
 
-// ============================================================================
 // on_created: Clear Spool greys out with a reason while its lane feeds the job
-// ============================================================================
 
 namespace {
 
@@ -826,9 +818,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK_FALSE(lv_obj_has_state(btn_clear, LV_STATE_DISABLED));
 }
 
-// ============================================================================
 // on_created: Preload follows the backend capability and the print gate
-// ============================================================================
 
 namespace {
 /// A mock whose "filament at the toolhead" answer the test sets.
@@ -898,9 +888,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     }
 }
 
-// ============================================================================
 // A Z-Mod Creator 5 with the afclite shim: Load is a feed
-// ============================================================================
 
 TEST_CASE("Load stays offered on the mounted head when Load is a feed",
           "[ams][context_menu][toolchanger][zmod][feed]") {
@@ -931,9 +919,7 @@ TEST_CASE("Load stays offered on the mounted head when Load is a feed",
     CHECK_FALSE(ops_for(mounting, 1).can_load);
 }
 
-// ============================================================================
 // on_created: the eject refusal is the backend's to explain
-// ============================================================================
 
 namespace {
 class EjectReasonBackend : public AmsBackendMock {
@@ -984,9 +970,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the context menu shows a backend's eject re
     }
 }
 
-// ============================================================================
 // Plugin items for the slot
-// ============================================================================
 
 #if HELIX_HAS_PLUGINS
 namespace {
@@ -1121,9 +1105,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsContextMenu: the external spool takes no
 }
 #endif // HELIX_HAS_PLUGINS
 
-// ============================================================================
 // Edit Spool
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture, "AmsContextMenu: Edit Spool opens the editor",
                  "[ui][ams][context_menu][edit_spool]") {
@@ -1149,9 +1131,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsContextMenu: Edit Spool opens the editor
     CHECK(*fired == AmsContextMenu::MenuAction::EDIT);
 }
 
-// ============================================================================
 // A lane menu is actions only, and never scrolls
-// ============================================================================
 
 namespace {
 

@@ -57,9 +57,7 @@ void drain() {
 }
 } // namespace
 
-// ============================================================================
 // Part 1 — Backend per-slot LIVE accessors
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture,
                  "AmsBackend base defaults: slot LIVE accessors degrade gracefully",
@@ -162,9 +160,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     }
 }
 
-// ============================================================================
 // Part 2 — AmsState per-slot LIVE subjects
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "AmsState publishes per-slot LIVE subjects on sync",
                  "[ams][realtime][ams_state]") {
@@ -237,9 +233,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "AmsState publishes per-slot LIVE subjects on 
     ams.deinit_subjects();
 }
 
-// ============================================================================
 // Phase 2 — Reactive chain: observers on per-slot LIVE subjects fire on change
-// ============================================================================
 //
 // The MULTI-FILAMENT panel (path canvas) and the per-lane active badge OBSERVE
 // these subjects. This pins the observable contract those panels depend on: a
@@ -362,9 +356,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Active-loaded subject is the single highlight
     ams.deinit_subjects();
 }
 
-// ============================================================================
 // Part 2b — Per-slot FILL subject: sync writes the canonical display_fill_pct
-// ============================================================================
 //
 // The fill subject is the structural fix for spool fill levels: written here by
 // sync_from_backend, observed inside the ams_slot widget, so every panel renders
@@ -472,12 +464,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "A slot event refreshes the fill subject witho
     ams.deinit_subjects();
 }
 
-// ============================================================================
 // Per-slot REMAINING subject: same canonical-shape rule as the fill subject,
 // with one twist: the CFS box reports two sentinel lengths that are NOT
 // measurements and must never render as one (100 = never measured, the
 // pre-probe default; 255 = failed probe, prestonbrown/helixscreen#1387).
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "SlotInfo remaining-length display hides sentinel values",
                  "[ams][ams_state][1387]") {
@@ -554,9 +544,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "AmsState remaining subject carries measured l
     ams.deinit_subjects();
 }
 
-// ============================================================================
 // Part 3a — Op-card current-loaded color matches the loaded slot (not slot+1)
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "AMS op-card color matches the loaded slot's color",
                  "[ams][realtime][opcard]") {
@@ -640,9 +628,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "AMS loaded-card fill follows the loaded slot'
     ams.deinit_subjects();
 }
 
-// ============================================================================
 // Part 3b — filament_loaded cleared on unload (active-lane subject clears)
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "AMS clears filament_loaded after unload completes",
                  "[ams][realtime][unload]") {
@@ -689,12 +675,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "AMS clears filament_loaded after unload compl
     ams.deinit_subjects();
 }
 
-// ============================================================================
 // Part 3 — per-slot error state subjects (ams_slot_<n>_has_error /
 // ams_slot_<n>_error_severity): the same derivation the lane-bar consumers
 // compute from SlotInfo, published so a lane bar can draw its own status line
 // from subjects instead of from a snapshot.
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "AmsState publishes per-slot error state and severity on sync",
                  "[1527][ams][ams_state]") {

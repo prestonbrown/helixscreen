@@ -257,9 +257,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     CHECK(backend.manages_active_spool() == true);
 }
 
-// ==========================================================================
 // 2. parse_save_variables — full JSON
-// ==========================================================================
 
 TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS parse_save_variables full JSON", "[ams][ad5x_ifs]") {
     Ad5xIfsTestAccess::set_has_ifs_vars(backend, true);
@@ -295,9 +293,7 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS parse_save_variables full JSON", "[ams]
     REQUIRE(info3.mapped_tool == 3);
 }
 
-// ==========================================================================
 // 3. parse_save_variables with -1 active tool
-// ==========================================================================
 
 TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS no active tool", "[ams][ad5x_ifs]") {
     auto vars = standard_variables();
@@ -311,9 +307,7 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS no active tool", "[ams][ad5x_ifs]") {
     REQUIRE_FALSE(sys.filament_loaded);
 }
 
-// ==========================================================================
 // 4. Color hex parsing
-// ==========================================================================
 
 TEST_CASE_METHOD(RegisteredAd5xIfs, "AD5X IFS color hex parsing", "[ams][ad5x_ifs]") {
     SECTION("lowercase hex works") {
@@ -342,9 +336,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs, "AD5X IFS color hex parsing", "[ams][ad5x_if
     }
 }
 
-// ==========================================================================
 // 5. Tool mapping reverse lookup
-// ==========================================================================
 
 TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS tool mapping reverse lookup", "[ams][ad5x_ifs]") {
     Ad5xIfsTestAccess::set_has_ifs_vars(backend, true);
@@ -375,9 +367,7 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS tool mapping reverse lookup", "[ams][ad
     }
 }
 
-// ==========================================================================
 // 6. Whole status frames: everything one notify can carry
-// ==========================================================================
 
 namespace {
 /// A lessWaste rig's status query: every object handle_status reads, beside
@@ -528,9 +518,7 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS reports a toolhead sensor once its head
     }
 }
 
-// ==========================================================================
 // 9. get_system_info
-// ==========================================================================
 
 TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS get_system_info", "[ams][ad5x_ifs]") {
     Ad5xIfsTestAccess::set_has_ifs_vars(backend, true);
@@ -560,7 +548,6 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS get_system_info", "[ams][ad5x_ifs]") {
     }
 }
 
-// ==========================================================================
 // 9b. Tool remapping — two firmware stacks, two adapters
 //
 // Forge-X port: the standalone [ifs] module owns the slicer-tool -> lane
@@ -577,7 +564,6 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS get_system_info", "[ams][ad5x_ifs]") {
 // (ams_state.cpp) takes ToolTopology::tool_count from get_tool_mapping()'s
 // length, so the advertised table also decides the tool list every
 // tool-count consumer reads.
-// ==========================================================================
 
 TEST_CASE("AD5X IFS printer.ifs tool_map makes remap ready", "[ams][ad5x_ifs]") {
     helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
@@ -815,9 +801,7 @@ TEST_CASE("AD5X IFS required_status_objects asks for the module when present", "
     }
 }
 
-// ==========================================================================
 // 10. Bypass mode
-// ==========================================================================
 
 TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS bypass mode", "[ams][ad5x_ifs]") {
     Ad5xIfsTestAccess::set_has_ifs_vars(backend, true);
@@ -848,9 +832,7 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS bypass mode", "[ams][ad5x_ifs]") {
     }
 }
 
-// ==========================================================================
 // 11. build_color_list_value format
-// ==========================================================================
 
 TEST_CASE_METHOD(RegisteredAd5xIfs, "AD5X IFS build_color_list_value format", "[ams][ad5x_ifs]") {
     seed_standard_colors(backend);
@@ -902,9 +884,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs, "AD5X IFS bambufy list payload stays port-in
     REQUIRE(Ad5xIfsTestAccess::build_types(backend) == "\"['PLA', 'PETG', 'ABS', 'TPU']\"");
 }
 
-// ==========================================================================
 // 12. build_tool_map_value format (the ZMOD plugin's _IFS_VARS tools= payload)
-// ==========================================================================
 
 TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS build_tool_map_value format", "[ams][ad5x_ifs]") {
     Ad5xIfsTestAccess::set_has_ifs_vars(backend, true);
@@ -914,9 +894,7 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS build_tool_map_value format", "[ams][ad
     REQUIRE(tools == "\"[1, 2, 3, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5]\"");
 }
 
-// ==========================================================================
 // 14. Slot status mapping
-// ==========================================================================
 
 TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS slot status mapping", "[ams][ad5x_ifs]") {
     Ad5xIfsTestAccess::set_has_ifs_vars(backend, true);
@@ -959,9 +937,7 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS slot status mapping", "[ams][ad5x_ifs]"
     }
 }
 
-// ==========================================================================
 // 15. Action state tracking
-// ==========================================================================
 
 TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS action state tracking", "[ams][ad5x_ifs]") {
     SECTION("LOADING + head sensor triggered → IDLE") {
@@ -988,9 +964,7 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS action state tracking", "[ams][ad5x_ifs
     }
 }
 
-// ==========================================================================
 // 16. Path segments
-// ==========================================================================
 
 TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS path segments", "[ams][ad5x_ifs]") {
     Ad5xIfsTestAccess::set_has_ifs_vars(backend, true);
@@ -1060,16 +1034,12 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS path segments", "[ams][ad5x_ifs]") {
     }
 }
 
-// ==========================================================================
 // Helper to wrap raw status JSON in Moonraker notify_status_update format
-// ==========================================================================
 static json wrap_notification(const json& status) {
     return json{{"method", "notify_status_update"}, {"params", json::array({status, 12345.678})}};
 }
 
-// ==========================================================================
 // 17. Wrapped notification format (real WebSocket path)
-// ==========================================================================
 
 TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS handles wrapped notify_status_update", "[ams][ad5x_ifs]") {
     Ad5xIfsTestAccess::set_has_ifs_vars(backend, true);
@@ -1143,9 +1113,7 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS handles wrapped notify_status_update", 
     }
 }
 
-// ==========================================================================
 // 18. Action timeout safety net
-// ==========================================================================
 
 TEST_CASE("AD5X IFS clear_fault releases the operation lock and sends no stop",
           "[ams][ad5x_ifs][clear_fault]") {
@@ -1256,7 +1224,6 @@ TEST_CASE("AD5X IFS motion during PURGING resets the timeout clock (#1065 Bug 2)
     }
 }
 
-// ==========================================================================
 // Indeterminate ("Working…") detector (#1065 row 14)
 //
 // During a phase-tracked load/unload the constrained AD5X's shared main-thread
@@ -1267,7 +1234,6 @@ TEST_CASE("AD5X IFS motion during PURGING resets the timeout clock (#1065 Bug 2)
 // kIndeterminateThresholdSeconds (~8s); the sidebar then swaps the frozen number
 // for a "Working…" busy state. Time is INJECTED via set_progress_age (no sleeps),
 // so these stay fast and untagged (L052).
-// ==========================================================================
 
 TEST_CASE_METHOD(WiredAd5xIfs,
                  "AD5X IFS indeterminate: a stalled progress feed trips the flag until progress or "
@@ -1364,9 +1330,7 @@ TEST_CASE("AD5X IFS indeterminate: healthy heat never false-fires; frozen value 
     }
 }
 
-// ==========================================================================
 // 19. Variable prefix auto-detection (lessWaste vs bambufy)
-// ==========================================================================
 
 TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS variable prefix auto-detection", "[ams][ad5x_ifs]") {
     Ad5xIfsTestAccess::set_has_ifs_vars(backend, true);
@@ -1406,9 +1370,7 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS variable prefix auto-detection", "[ams]
     }
 }
 
-// ==========================================================================
 // 20. Motion sensor triggers load/unload completion (native ZMOD)
-// ==========================================================================
 
 TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS motion sensor completes load/unload", "[ams][ad5x_ifs]") {
     SECTION("LOADING + motion sensor detected → IDLE") {
@@ -1430,9 +1392,7 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS motion sensor completes load/unload", "
     }
 }
 
-// ==========================================================================
 // 20b. Phase tracker — live load/unload progress feedback
-// ==========================================================================
 
 TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS phase: unload sequence (temp + head sensor)",
                  "[ams][ad5x_ifs][phase]") {
@@ -1636,7 +1596,6 @@ TEST_CASE_METHOD(WiredAd5xIfs,
     REQUIRE(backend.get_current_action() == AmsAction::CUTTING);
 }
 
-// ==========================================================================
 // Swap-aware LOADING timeout (#1065 v0.99.94, bundle NJB2U558).
 //
 // `INSERT_PRUTOK_IFS PRUTOK=N` when another lane is currently loaded runs an
@@ -1654,7 +1613,6 @@ TEST_CASE_METHOD(WiredAd5xIfs,
 //   2. load_filament: when dispatched with another lane currently seated,
 //      set swap_expected so check_action_timeout can extend the LOADING
 //      budget and cover the implicit unload + load sequence.
-// ==========================================================================
 
 TEST_CASE_METHOD(WiredAd5xIfs,
                  "AD5X IFS phase: head drop during LOAD resets the timeout clock (#1065 swap)",
@@ -1881,9 +1839,7 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS phase: inactive tracker preserves legac
     REQUIRE(backend.get_current_action() == AmsAction::IDLE);
 }
 
-// ==========================================================================
 // 21. Native ZMOD IFS active slot inferred from head sensor
-// ==========================================================================
 
 TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS native ZMOD infers active slot from head sensor",
                  "[ams][ad5x_ifs]") {
@@ -1911,9 +1867,7 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS native ZMOD infers active slot from hea
     REQUIRE(info1.status == SlotStatus::AVAILABLE);
 }
 
-// ==========================================================================
 // 22. has_ifs_vars_ detection
-// ==========================================================================
 
 TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS has_ifs_vars detection", "[ams][ad5x_ifs]") {
     SECTION("defaults to false") {
@@ -2064,9 +2018,7 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS self-heals on Unknown command:\"_IFS_VA
     CHECK_FALSE(Ad5xIfsTestAccess::has_ifs_vars(backend));
 }
 
-// ==========================================================================
 // 23. parse_adventurer_json (native ZMOD Adventurer5M.json)
-// ==========================================================================
 
 TEST_CASE_METHOD(RegisteredAd5xIfs, "AD5X IFS parse_adventurer_json", "[ams][ad5x_ifs]") {
     SECTION("standard 4-slot JSON with # prefixed hex colors") {
@@ -2233,9 +2185,7 @@ TEST_CASE("AD5X IFS parse_adventurer_json overwrites a slot synced in memory", "
     REQUIRE(info.material == "ABS");
 }
 
-// ==========================================================================
 // Native ZMOD: parse_adventurer_json does NOT own presence (GET_ZCOLOR does)
-// ==========================================================================
 //
 // History (#716): parse_adventurer_json used to *infer* presence from the
 // persisted ffmColorN field — "non-empty color means filament present". That
@@ -2373,9 +2323,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     }
 }
 
-// ==========================================================================
 // Native ZMOD presence resurrection regression (the bug this branch fixes)
-// ==========================================================================
 //
 // Repro: channel 0 is LOADED (GET_ZCOLOR), then physically unloaded so the next
 // GET_ZCOLOR reports it ABSENT (presence cleared). zmod keeps ffmColor1 in
@@ -2432,10 +2380,8 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     REQUIRE(backend.get_slot_info(0).status == SlotStatus::EMPTY);
 }
 
-// ==========================================================================
 // Pre-SILENT zmod fallback: JSON inference is the ONLY presence source when
 // GET_ZCOLOR SILENT=1 is unsupported (latched false on a prompt-dialog reply)
-// ==========================================================================
 //
 // The resurrection fix makes GET_ZCOLOR the sole presence authority — but that
 // authority only exists on modern zmod. On pre-SILENT zmod, GET_ZCOLOR returns
@@ -2473,9 +2419,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     }
 }
 
-// ==========================================================================
 // Override-clear is driven by GET_ZCOLOR's present->absent transition (Change 2)
-// ==========================================================================
 //
 // When a spool is removed, its brand/spool_name/spoolman_id override must be
 // cleared so it doesn't haunt the now-empty slot or get re-applied to whatever
@@ -2725,9 +2669,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
 // color/type source (lessWaste/bambufy save_variables don't reflect zmod's
 // authoritative state).
 
-// ==========================================================================
 // can_unload_from_toolhead — #995: active slot stays unloadable after runout
-// ==========================================================================
 //
 // A filament runout clears the head sensor, dropping the display status of the
 // firmware's active slot below LOADED. Unload is exactly the recovery the user
@@ -2884,9 +2826,7 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS runout does not flip active slot displa
     REQUIRE(backend.can_unload_from_toolhead(0));
 }
 
-// ==========================================================================
 // IFS_STATUS Chan as seated-channel authority (2026-06-15 plan)
-// ==========================================================================
 //
 // zmod's IFS_STATUS macro emits one clean-JSON line via respond_info carrying
 // the current engaged port in "Chan" (1-based, 0 = none). Unlike the
@@ -3116,7 +3056,6 @@ TEST_CASE_METHOD(
     CHECK_FALSE(backend.slot_unloads_to_toolhead(2, /*loaded_hint=*/true));
 }
 
-// ==========================================================================
 // #1065 "row 28": sticky FFMInfo.channel + head-switch gate on the seated lane
 //
 // The firmware never blanks FFMInfo.channel / IFS_STATUS Chan on eject (same
@@ -3128,7 +3067,6 @@ TEST_CASE_METHOD(
 // loaded-idle-false-negating motion sensor) is the authority, so a genuinely
 // seated lane is never dropped, and motion-only firmware falls back to the old
 // behaviour.
-// ==========================================================================
 
 TEST_CASE_METHOD(WiredAd5xIfs,
                  "AD5X IFS stale FFMInfo.channel is dropped when the head switch reads empty "
@@ -3300,7 +3238,6 @@ TEST_CASE_METHOD(WiredAd5xIfs,
     CHECK(backend.get_system_info().current_slot == -1);
 }
 
-// ==========================================================================
 // BUG-B (#1065): native Z-Mod head-loaded state
 //
 // On native Z-Mod (v0.99.84) the head switch / motion sensors never push under
@@ -3308,7 +3245,6 @@ TEST_CASE_METHOD(WiredAd5xIfs,
 // the seated lane reported AVAILABLE instead of LOADED. Two fixes:
 //   PART A — derive head-loaded from GET_ZCOLOR's "Extruder:" summary.
 //   PART B — also subscribe to the zmod_ifs_*_sensor namespaces.
-// ==========================================================================
 
 TEST_CASE_METHOD(RegisteredAd5xIfs,
                  "AD5X IFS native Z-Mod derives head-loaded from GET_ZCOLOR Extruder summary "
@@ -3966,9 +3902,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     REQUIRE(Ad5xIfsTestAccess::active_tool(backend) == -1);
 }
 
-// ==========================================================================
 // Material whitelist + normalization
-// ==========================================================================
 
 TEST_CASE_METHOD(RegisteredAd5xIfs, "AD5X IFS get_supported_materials returns firmware whitelist",
                  "[ams][ad5x_ifs]") {
@@ -4050,7 +3984,6 @@ TEST_CASE("AFC backend has no whitelist and passes material through unchanged",
     REQUIRE(backend.normalize_material("") == "");
 }
 
-// ==========================================================================
 // FilamentSlotOverride integration (Task 9)
 //
 // The override store is loaded once in on_started() and then layered over
@@ -4059,7 +3992,6 @@ TEST_CASE("AFC backend has no whitelist and passes material through unchanged",
 // driving the parse path — parse_adventurer_json is used because it goes
 // through update_slot_from_state and is the simplest hook-free entry point
 // from a test fixture constructed with nullptr api/client.
-// ==========================================================================
 
 TEST_CASE("AD5X IFS partial override only replaces specified fields",
           "[ams][ad5x_ifs][filament_slot_override]") {
@@ -4201,11 +4133,9 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     REQUIRE(info.spoolman_id == 99);
 }
 
-// ==========================================================================
 // Task 10: apply_user_edit() writes through to
 // FilamentSlotOverrideStore + in-memory overrides_ map so user edits survive
 // subsequent parses.
-// ==========================================================================
 
 TEST_CASE("AD5X IFS a translucency edit reaches the record, whose firmware states no alpha",
           "[ams][ad5x_ifs][filament_slot_override][translucent]") {
@@ -4323,13 +4253,11 @@ TEST_CASE("AD5X IFS apply_user_edit stores override in memory and store",
     CHECK(stored["color"].is_null());
 }
 
-// ==========================================================================
 // #981: update_slot_weight() is the consumption-sink's weight-only persist.
 // It MUST update weight without re-asserting filament identity (material/
 // color/locks) and MUST NOT rewrite Adventurer5M.json — the firmware-facing
 // writers in apply_user_edit() reverted externally-set materials on every 60 s
 // persist.
-// ==========================================================================
 
 TEST_CASE("AD5X IFS apply_user_edit survives a matching firmware parse",
           "[ams][ad5x_ifs][filament_slot_override]") {
@@ -4648,7 +4576,6 @@ TEST_CASE("AD5X IFS apply_user_edit with pre-existing override replaces it",
     CHECK(staged->spoolman_id == 99);
 }
 
-// ==========================================================================
 // External color/material edits (Mainsail console, AD5X LCD, native zmod
 // dialog, CHANGE_ZCOLOR from any non-Helix source) must REFRESH the Moonraker
 // DB lane_data entry that Orca's MoonrakerPrinterAgent reads — they must NOT
@@ -4658,7 +4585,6 @@ TEST_CASE("AD5X IFS apply_user_edit with pre-existing override replaces it",
 // Initial startup observations are a baseline and never trigger a sync.
 // Genuine spool removal is detected by the eject path (presence true→false
 // in parse_adventurer_json) and clears the override there.
-// ==========================================================================
 
 TEST_CASE("AD5X IFS GET_ZCOLOR eject keeps the override and lane_data (#1071)",
           "[ams][ad5x_ifs][filament_slot_override]") {
@@ -4725,7 +4651,6 @@ TEST_CASE("AD5X IFS GET_ZCOLOR eject keeps the override and lane_data (#1071)",
     CHECK_FALSE(mock_printer.client.mock_db_get("lane_data", "lane1").is_null());
 }
 
-// ==========================================================================
 // _IFS_VARS mirror: when an external CHANGE_ZCOLOR fires, parse_adventurer_json
 // must mirror the new colors_/materials_ snapshot into the lessWaste/bambufy
 // plugin's <prefix>_colors / <prefix>_types save_variables. Audited 2026-05-04
@@ -4734,7 +4659,6 @@ TEST_CASE("AD5X IFS GET_ZCOLOR eject keeps the override and lane_data (#1071)",
 // recovery alternate-port lookup, smart-purge skip decision, and
 // _IFS_COLORS_ASSIGN dialog all run against stale color data and silently
 // print the wrong color or skip the wrong purge.
-// ==========================================================================
 
 TEST_CASE("AD5X IFS external color change mirrors colors+types into _IFS_VARS",
           "[ams][ad5x_ifs][filament_slot_override]") {
@@ -5117,13 +5041,11 @@ TEST_CASE("AD5X IFS first firmware color observation does NOT clear override",
     CHECK(!mock_printer.client.mock_db_get("lane_data", "lane1").is_null());
 }
 
-// ------------------------------------------------------------------
 // Task 11 bug fix regression coverage: apply_user_edit must not wipe the
 // override it just staged. Before the fix, apply_user_edit staged the
 // new override, then update_slot_from_state -> check_external_color_change
 // compared the user's new color against the prior firmware baseline and
 // wiped the freshly-staged override.
-// ------------------------------------------------------------------
 
 TEST_CASE("AD5X IFS apply_user_edit does not wipe override on color edit",
           "[ams][ad5x_ifs][filament_slot_override]") {
@@ -5323,11 +5245,9 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     }
 }
 
-// ------------------------------------------------------------------
 // Task 16: explicit clear_slot_override — user pressed "Clear slot metadata".
 // Verifies the same clear pathway used by hardware-event detection is
 // reachable through the public API with no swap signal required.
-// ------------------------------------------------------------------
 
 TEST_CASE("AD5X IFS clear_slot_override erases in-memory override and MR DB entry",
           "[ams][ad5x_ifs][filament_slot_override]") {
@@ -5559,9 +5479,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     CHECK(Ad5xIfsTestAccess::zcolor_schedule_armed(backend));
 }
 
-// ==========================================================================
 // JSON-content poll dedup
-// ==========================================================================
 //
 // poll_adventurer_json downloads Adventurer5M.json and only parses + fires
 // GET_ZCOLOR when the body has changed vs. last seen. The comparison is
@@ -5585,7 +5503,6 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     CHECK_FALSE(Ad5xIfsTestAccess::note_json_content(backend, b));
 }
 
-// ==========================================================================
 // write_adventurer_json local-filesystem path
 //
 // Bug context: bundle DQK7X96B (AD5X stock-ZMOD, v0.99.52) showed Klipper
@@ -5599,7 +5516,6 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
 // Fix: when helix-screen runs on the same host as Moonraker, write the file
 // directly via filesystem APIs (atomic temp+rename within the same dir).
 // Only falls back to the Moonraker upload when remote.
-// ==========================================================================
 
 namespace {
 struct Ad5xIfsTmpJsonFile {
@@ -5734,9 +5650,7 @@ TEST_CASE("AD5X IFS write_adventurer_json_local atomic — leaves no .tmp on suc
     CHECK(helix::test::staging_files_beside(tmp.path.string()) == 0);
 }
 
-// ==========================================================================
 // #904: stale-plugin-data fallback + user-defined material types
-// ==========================================================================
 
 // TMTYD's printer in #904 had bambufy_tools=[4,2,4,3,...] AND
 // less_waste_tools=[2,1,3,4] left over from past plugin activations, with
@@ -5889,7 +5803,6 @@ TEST_CASE("AD5X IFS #904 PLA+ round-trips through apply_user_edit after custom_t
     CHECK(info1.material == "rPLA");
 }
 
-// ==========================================================================
 // Cold per-lane eject / recover (#996)
 //
 // eject_lane fires zmod's clamp / cold-retract / unclamp trio for one idle
@@ -5898,7 +5811,6 @@ TEST_CASE("AD5X IFS #904 PLA+ round-trips through apply_user_edit after custom_t
 // from /mod_data/filament.json keyed by the lane's material, falling back to
 // the file's "default" entry, then to a hardcoded 1000/1200. Ports are 1-based;
 // HelixScreen slot_index is 0-based, so PRUTOK = slot_index + 1.
-// ==========================================================================
 
 namespace {
 // Captures issued G-code without a live Moonraker connection by overriding the
@@ -6124,10 +6036,8 @@ TEST_CASE_METHOD(RunningAd5xIfs, "AD5X IFS eject_lane rejects out-of-range slots
     }
 }
 
-// ==========================================================================
 // unload_filament dispatch — regression guard for raza616's
 // "printer homes and nothing happens" (bare IFS_REMOVE_PRUTOK is a ZMOD no-op).
-// ==========================================================================
 //
 // Verified against raza616's on-device cfg (bundle 7AC4SDEX) and ZMOD v1.7.1
 // (../zmod, AD5X-zmod-1.7.1.tgz, mod/.shell/zmod_ifs.py):
@@ -6947,10 +6857,8 @@ TEST_CASE_METHOD(
     REQUIRE(backend.get_slot_info(1).status != SlotStatus::EMPTY);
 }
 
-// ==========================================================================
 // External CHANGE_ZCOLOR releases a stale locked override — #981
 // (native ZMOD slot colors/types "randomly revert").
-// ==========================================================================
 //
 // raza616 (#981, bundle HKHZFYB2): slot 1 was once edited in HelixScreen (white
 // PETG, persist=true -> user-locked override), then physically changed to yellow
@@ -7002,9 +6910,7 @@ TEST_CASE_METHOD(QuietRunningAd5xIfs,
     REQUIRE(Ad5xIfsTestAccess::get_override(backend, 0).has_value());
 }
 
-// ==========================================================================
 // The release reaches BOTH stores that hold a lane's truth - #981, #1646
-// ==========================================================================
 //
 // overrides_ and the lane source store overlap. The override strip alone is
 // not a release: the lane's LocalUser record outranks the vendor cache, so a
@@ -7069,7 +6975,6 @@ TEST_CASE_METHOD(QuietRunningAd5xIfs,
     REQUIRE(info.color_rgb == 0x0DE2A0);
 }
 
-// ==========================================================================
 // Bug B — external CHANGE_ZCOLOR must NOT wipe the user's BRAND override
 // (regression from 726747c71 / #981).
 //
@@ -7089,8 +6994,6 @@ TEST_CASE_METHOD(QuietRunningAd5xIfs,
 // stages a user-locked override the #981 external-clear then fires on — instead
 // of seeding the override directly. Then feeds the bare firmware CHANGE_ZCOLOR
 // and asserts the brand survives.
-// ==========================================================================
-// ==========================================================================
 // CHANGE_ZCOLOR TYPE=/HEX= in-gcode parameter extraction (#1065 v0.99.94).
 //
 // When zmod's COLOR macro is invoked (from Mainsail, the AD5X LCD, or — most
@@ -7113,7 +7016,6 @@ TEST_CASE_METHOD(QuietRunningAd5xIfs,
 // The follow-up GET_ZCOLOR becomes a confirming no-op rather than the only
 // path to refresh. Closes the "material doesn't update on successive COLOR
 // macros" glitch from mkleersn's 07-18 + 07-20 sheets.
-// ==========================================================================
 
 // The CHANGE_ZCOLOR token itself carries the new TYPE/HEX, so the slot updates
 // in the same frame instead of waiting on a GET_ZCOLOR that can lag minutes
@@ -7283,7 +7185,6 @@ TEST_CASE_METHOD(QuietRunningAd5xIfs,
     REQUIRE(Ad5xIfsTestAccess::last_firmware_material(backend, 3).value_or("") == "SILK");
 }
 
-// ==========================================================================
 // COLOR-menu echo classification (#1065, raza616 bundle 482NB943).
 //
 // zmod renders every COLOR-macro dialog by echoing its buttons down the gcode
@@ -7299,7 +7200,6 @@ TEST_CASE_METHOD(QuietRunningAd5xIfs,
 // The root "Select print materials" render is the opposite case: its per-slot
 // rows carry a genuine four-slot firmware snapshot, emitted ~100ms after the
 // user's tap — the freshest truth available anywhere in the stream.
-// ==========================================================================
 
 TEST_CASE_METHOD(RunningAd5xIfs,
                  "AD5X IFS echoed CHANGE_ZCOLOR menu buttons are offers, not edits "
@@ -7626,14 +7526,12 @@ TEST_CASE_METHOD(
     CHECK_FALSE(Ad5xIfsTestAccess::get_override(backend, 0).has_value());
 }
 
-// ==========================================================================
 // Unload busy-state latency: publish the busy action synchronously on dispatch
 // so the sidebar action buttons hide / context menu disables immediately,
 // closing the re-tap window that produced "Unload failed: AMS is busy"
 // (debug bundle 7L44W2B7). The UI observes the backend-agnostic ams_action
 // subject, which AmsState only updates on EVENT_STATE_CHANGED — so the
 // dispatch path MUST emit it, not wait for the next ~1.4s status frame.
-// ==========================================================================
 
 TEST_CASE_METHOD(RunningAd5xIfs,
                  "AD5X IFS unload publishes busy state + EVENT_STATE_CHANGED on dispatch",
@@ -7686,13 +7584,11 @@ TEST_CASE_METHOD(RunningAd5xIfs,
     REQUIRE(state_changed_events >= 1);
 }
 
-// ==========================================================================
 // Granular step tracker (mirror Snapmaker): the AD5X synthesizes 3 phases for
 // load/unload from extruder temp + head sensor; expose them as a backend step
 // model + the operation_phase subject so the right-side vertical tracker shows
 // "Heat nozzle -> Cut filament -> Retract" (unload) and
 // "Heat nozzle -> Feed filament -> Purge" (load).
-// ==========================================================================
 
 TEST_CASE_METHOD(RegisteredAd5xIfs,
                  "AD5X IFS operation_step_model is the 3-phase synth sequence per direction",
@@ -7785,9 +7681,7 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS phase: operation_phase advances 0->1->2
     REQUIRE(Ad5xIfsTestAccess::operation_phase(backend) == -1);
 }
 
-// ==========================================================================
 // Error-center bridge: IFS surfaces ERROR on timeout, current_error(), recover
-// ==========================================================================
 
 // An operation that times out lands on ERROR, never IDLE, and surfaces a sticky
 // CRITICAL IFS event whose first recovery is IFS_UNLOCK; recover() clears both.
@@ -7818,9 +7712,7 @@ TEST_CASE_METHOD(WiredAd5xIfs,
     CHECK_FALSE(backend.current_error().has_value());
 }
 
-// ==========================================================================
 // FIX 1: firmware-dropped-pointer wrong-lane unload cut (raza616 5HR3HHS6)
-// ==========================================================================
 //
 // current_slot < 0 (firmware dropped its active pointer) while IFS_STATUS
 // "Chan" still reports a physically seated port. A tap on a NON-seated slot
@@ -7912,9 +7804,7 @@ TEST_CASE_METHOD(
     }
 }
 
-// ==========================================================================
 // FIX 2: eject_lane schedules a status re-read on success
-// ==========================================================================
 
 TEST_CASE_METHOD(RunningAd5xIfs,
                  "AD5X IFS eject_lane schedules a status re-read on success (FIX 2)",
@@ -7930,9 +7820,7 @@ TEST_CASE_METHOD(RunningAd5xIfs,
     REQUIRE(Ad5xIfsTestAccess::zcolor_schedule_count(backend) == before + 1);
 }
 
-// ==========================================================================
 // FIX 3: live RS-485 authority blocks stale JSON color/type for present slots
-// ==========================================================================
 
 TEST_CASE_METHOD(RegisteredAd5xIfs,
                  "AD5X IFS live authority blocks stale JSON color/type for a present slot (FIX 3)",
@@ -7988,9 +7876,7 @@ TEST_CASE_METHOD(
     CHECK(info.material == "ABS");
 }
 
-// ==========================================================================
 // FIX 4: clear-spool persists firmware-native '?' / "" sentinels
-// ==========================================================================
 
 // What a slot write puts in Adventurer5M.json. An empty material persists the
 // firmware's own "no filament" pair (ffmColor "", ffmType "?"). A real material
@@ -8042,9 +7928,7 @@ TEST_CASE("AD5X IFS write_adventurer_json_local writes the firmware's slot encod
     }
 }
 
-// ==========================================================================
 // HEATING detail must not assert a target the printer never reported.
-// ==========================================================================
 
 // HEATING detail never asserts a target the printer has not reported: no frame
 // at all, the live temperature with the heater off, or the real target once a
@@ -8111,13 +7995,11 @@ TEST_CASE("AD5X IFS parse_adventurer_json maps '?' and empty ffmType to no mater
     }
 }
 
-// ==========================================================================
 // LABEL/ROUTE CONTRACT: slot_unloads_to_toolhead() (drives the context-menu
 // Unload-vs-Eject label + dispatch) MUST agree with unload_filament()'s actual
 // eject-vs-toolhead routing across the full authority matrix. Any drift would
 // mislabel the button or dispatch the wrong action — the bug raza616 hit
 // (button said "Unload", firmware cut the seated lane). 5HR3HHS6.
-// ==========================================================================
 
 namespace {
 // 0-based slot mapping: port = slot + 1; seated_chan is 1-based (0 = none).
@@ -8204,7 +8086,6 @@ TEST_CASE("AD5X IFS unload of the active slot via -1 (unload active) toolhead-cu
     CHECK_FALSE(backend->has_gcode_containing("IFS_F11"));
 }
 
-// ==========================================================================
 // The unload router's "is the toolhead empty" decision must come from the
 // toolhead SWITCH pair, not the conflated head_filament_.
 //
@@ -8215,7 +8096,6 @@ TEST_CASE("AD5X IFS unload of the active slot via -1 (unload active) toolhead-cu
 // which grinds it (raza616 #981; 5HR3HHS6 is the same hazard by a different
 // route). The reverse error - calling a truly empty head "loaded" - only costs
 // a firmware no-op, so the predicate is biased toward "loaded" on purpose.
-// ==========================================================================
 
 TEST_CASE("AD5X IFS unload: switch says present, motion says absent -> heated cut, never a cold "
           "eject (grinding regression)",
@@ -8404,14 +8284,12 @@ TEST_CASE("AMS base slot_unloads_to_toolhead defaults to the loaded hint (no AD5
     CHECK_FALSE(afc.slot_unloads_to_toolhead(0, /*loaded_hint=*/false));
 }
 
-// ============================================================================
 // Layer 2 homing guard: refuse toolhead-motion filament ops during a print.
 //
 // AD5X's _IFS_REMOVE_CURRENT_PRUTOK (unload) self-homes (G28) INSIDE the ZMOD
 // firmware macro. Layer 1 (the gcode-send guard) never sees that buried _G28, so
 // load/unload/change_tool must be refused before they start whenever a print is
 // PRINTING or PAUSED. No-motion ops (eject_lane, select_slot) stay allowed.
-// ============================================================================
 
 namespace {
 
@@ -8536,7 +8414,6 @@ TEST_CASE_METHOD(Ad5xHomingGuardFixture, "eject_lane is not blocked by an active
     CHECK(err.user_msg != "Cannot run filament operation while printing");
 }
 
-// ==========================================================================
 // External TYPE-change detection (check_external_type_change)
 // prestonbrown/helixscreen#981 / #1065: a type-only firmware edit (same
 // color) never tripped the color detector, so a non-locked override's baked
@@ -8544,7 +8421,6 @@ TEST_CASE_METHOD(Ad5xHomingGuardFixture, "eject_lane is not blocked by an active
 // material stuck (e.g. on "PLA"). A firmware type change must now refresh a
 // non-locked override so the new type surfaces, while a user-locked material
 // (#965) is still preserved.
-// ==========================================================================
 
 TEST_CASE_METHOD(RegisteredAd5xIfs,
                  "AD5X IFS: firmware type change refreshes a non-locked override (#981)",
@@ -8568,7 +8444,6 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     CHECK(after->material == "TPU");
 }
 
-// --------------------------------------------------------------------------
 // #1065: insert AFTER an empty lane must refresh a stale non-locked material.
 // Root cause: check_external_type_change early-returned on an empty material
 // observation, so an empty lane never recorded a baseline. The FIRST insert
@@ -8576,7 +8451,6 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
 // "changed", so the stale override.material masked firmware truth — color
 // updated on screen, material stuck. The fix baselines the empty state (like
 // the color path's #808080 placeholder), making "" -> PETG a genuine edit.
-// --------------------------------------------------------------------------
 
 TEST_CASE_METHOD(RegisteredAd5xIfs,
                  "AD5X IFS: insert after an empty lane refreshes a stale non-locked material "
@@ -8638,7 +8512,6 @@ TEST_CASE("AD5X IFS: an empty first material observation is a baseline, not a sp
     CHECK(after->material == "ABS");
 }
 
-// ==========================================================================
 // Bundle 77TDH9N6: a cold-start IFS load (INSERT_PRUTOK_IFS) legitimately runs
 // past the 300s AMS RPC ceiling (heat-from-cold + load + double purge + clean).
 // The macro completes fine, but the RPC times out at 300s and — unless silent —
@@ -8652,7 +8525,6 @@ TEST_CASE("AD5X IFS: an empty first material observation is a baseline, not a sp
 // writes to the log, which the user never sees. Claiming otherwise would record
 // the message for dedup and silence GcodeErrorRouter, leaving a real IFS macro
 // rejection with no surface at all. See include/rpc_error_policy.h.
-// ==========================================================================
 
 TEST_CASE("AD5X IFS execute_gcode dispatches silent with the AMS timeout ceiling",
           "[ams][mock][ad5x_ifs]") {
@@ -8701,9 +8573,7 @@ TEST_CASE("AD5X IFS execute_gcode dispatches silent with the AMS timeout ceiling
     }
 }
 
-// ============================================================================
 // Adventurer5M.json freshness-poll cadence
-// ============================================================================
 
 TEST_CASE("AD5X IFS: JSON poll backs off to 30s while printing", "[ams][ad5x][ifs][poll]") {
     using namespace std::chrono;
@@ -8741,10 +8611,8 @@ TEST_CASE("AD5X IFS: print end forces an off-cadence poll", "[ams][ad5x][ifs][po
     REQUIRE_FALSE(B::should_poll_json(true, false, seconds(0)));
 }
 
-// ==========================================================================
 // Unattended runout detection + auto-switchover plugin visibility
 // prestonbrown/helixscreen#1250 (reported as #1247).
-// ==========================================================================
 
 namespace {
 
@@ -9598,9 +9466,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs, "AD5X IFS runout detail reads as whole sente
     }
 }
 
-// ==========================================================================
 // Endless spool: the shared abstraction over the plugin state
-// ==========================================================================
 
 TEST_CASE("AD5X IFS endless spool capabilities", "[ams][ad5x_ifs][endless_spool][1250]") {
     using namespace helix::printer;
@@ -9743,7 +9609,6 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     }
 }
 
-// ---------------------------------------------------------------------------
 // Firmware default routing
 //
 // The AD5X is the one backend whose default map is neither identity nor a
@@ -9751,7 +9616,6 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
 // map that the user can rearrange. Ports are 1-BASED and 5 is the unmapped
 // sentinel, so the conversion to 0-based heads is the obvious place to get an
 // off-by-one, which is why it is pinned with a deliberately non-identity map.
-// ---------------------------------------------------------------------------
 
 TEST_CASE_METHOD(WiredAd5xIfs, "AD5X publishes its tool->port map as the firmware default routing",
                  "[ams][ad5x][routing]") {
@@ -9884,10 +9748,8 @@ TEST_CASE("an AD5X slot edit paints the edit's values, not the pre-edit ones",
     helix::ui::UpdateQueue::instance().drain();
 }
 
-// ============================================================================
 // Own-write echo suppression (prestonbrown/helixscreen#1633) and the insert
 // rule (prestonbrown/helixscreen#1710)
-// ============================================================================
 
 TEST_CASE("AD5X IFS echo guard refuses to arm without a presence boundary (#1633)",
           "[ams][ad5x_ifs][1633]") {
@@ -10111,14 +9973,12 @@ TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS gives up a Z-Mod change when the j
     CHECK(backend.get_current_action() == AmsAction::IDLE);
 }
 
-// ============================================================================
 // An outside tool writing a lane (prestonbrown/helixscreen#1632)
 //
 // A slicer integration updates a slot in two places at once: CHANGE_ZCOLOR to
 // the firmware, and a merge into lane_data carrying only the namespace's shared
 // keys. Nothing it writes carries our authorship keys, and lane_data is read
 // only at boot, so a live change reaches the screen through the firmware alone.
-// ============================================================================
 
 namespace {
 // The record such a tool leaves: Orca's shared spelling, no helix_ keys.
@@ -10289,9 +10149,7 @@ template <typename Backend> void seat_slot0(Backend& ifs) {
 
 } // namespace
 
-// ============================================================================
 // The parse contract the authority flag depends on
-// ============================================================================
 
 TEST_CASE("AD5X IFS stamps LOADED on the seated lane", "[ams][ad5x_ifs][1199]") {
     helix::test::StartedBackend<AmsBackendAd5xIfs> ifs;
@@ -10328,9 +10186,7 @@ TEST_CASE("AD5X IFS stamps LOADED on the seated lane", "[ams][ad5x_ifs][1199]") 
     }
 }
 
-// ============================================================================
 // The runout the per-slot rule must survive (#995)
-// ============================================================================
 
 TEST_CASE("AD5X IFS keeps the seated lane loaded through a port-sensor runout",
           "[ams][ad5x_ifs][1199][995]") {
@@ -10360,9 +10216,7 @@ TEST_CASE("AD5X IFS keeps the seated lane loaded through a port-sensor runout",
     CHECK_FALSE(ifs.slot_is_actively_loaded(2));
 }
 
-// ============================================================================
 // Hardware without per-port sensors is unaffected
-// ============================================================================
 
 TEST_CASE("AD5X IFS marks the seated lane loaded with no port sensors at all",
           "[ams][ad5x_ifs][1199]") {
@@ -10383,9 +10237,7 @@ TEST_CASE("AD5X IFS marks the seated lane loaded with no port sensors at all",
     CHECK_FALSE(ifs.slot_is_actively_loaded(0));
 }
 
-// ============================================================================
 // A toolchange moves the stamp with the firmware's active-lane pointer
-// ============================================================================
 
 TEST_CASE("AD5X IFS moves the LOADED stamp on a toolchange", "[ams][ad5x_ifs][1199]") {
     helix::test::StartedBackend<AmsBackendAd5xIfs> ifs;
@@ -10405,9 +10257,7 @@ TEST_CASE("AD5X IFS moves the LOADED stamp on a toolchange", "[ams][ad5x_ifs][11
     CHECK_FALSE(ifs.slot_is_actively_loaded(0));
 }
 
-// ==========================================================================
 // Purge over the bin: zMod's stock _G28 + _GOTO_TRASH ahead of a purge
-// ==========================================================================
 
 TEST_CASE("AD5X IFS purge-bin gcode by macro set and job state",
           "[ams][ad5x_ifs][ad5x_bin_purge]") {
@@ -10617,10 +10467,8 @@ TEST_CASE("AD5X IFS debounce workers end with the backend", "[ams][ad5x][ad5x_if
     helix::ui::UpdateQueue::instance().drain();
 }
 
-// ============================================================================
 // Lane truth: the firmware holds colour and type (Adventurer5M.json here); the
 // lane_data record holds the rest and copies colour and type from the firmware.
-// ============================================================================
 
 namespace {
 

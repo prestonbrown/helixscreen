@@ -156,9 +156,7 @@ json make_native_filament_hub_payload() {
 
 } // namespace
 
-// ============================================================================
 // Type and Topology Tests
-// ============================================================================
 
 TEST_CASE("ACE returns correct type", "[ams][ace][type]") {
     AmsBackendAceTestHelper helper;
@@ -202,12 +200,10 @@ TEST_CASE("ACE without a master switch reports no bypass", "[ams][ace][bypass]")
     REQUIRE(err.result == helix::AmsResult::WRONG_STATE);
 }
 
-// ============================================================================
 // Bypass via the ACE master switch (prestonbrown/helixscreen#1677)
 //
 // `ace_pro_enabled` gates the whole ACE path. Rigs that run a fifth spool by
 // hand turn it off, which is what bypass means on this hardware.
-// ============================================================================
 
 TEST_CASE("ACE bypass follows the driver's master switch", "[ams][ace][bypass][1677]") {
     AmsBackendAceTestHelper helper;
@@ -255,10 +251,8 @@ TEST_CASE("ACE bypass follows the driver's master switch", "[ams][ace][bypass][1
     }
 }
 
-// ----------------------------------------------------------------------------
 // Resolving the macros from discovery. The pure overload, so no SettingsManager
 // is involved.
-// ----------------------------------------------------------------------------
 
 namespace {
 helix::PrinterDiscovery discovery_with(const std::vector<std::string>& objects) {
@@ -439,9 +433,7 @@ TEST_CASE("ACE names no bypass macros, so it offers no bypass", "[ams][ace][bypa
     CHECK(helper.enable_bypass().result == helix::AmsResult::WRONG_STATE);
 }
 
-// ============================================================================
 // Dryer Default State Tests
-// ============================================================================
 
 TEST_CASE("ACE dryer defaults", "[ams][ace][dryer]") {
     AmsBackendAceTestHelper helper;
@@ -501,9 +493,7 @@ TEST_CASE("ACE drying presets available", "[ams][ace][dryer]") {
     REQUIRE(found_pla);
 }
 
-// ============================================================================
 // Info Response Parsing Tests
-// ============================================================================
 
 TEST_CASE("ACE parse_info_response: valid response", "[ams][ace][parse]") {
     AmsBackendAceTestHelper helper;
@@ -521,9 +511,7 @@ TEST_CASE("ACE parse_info_response: valid response", "[ams][ace][parse]") {
     REQUIRE(info.units[0].slots.size() == 4);
 }
 
-// ============================================================================
 // Status Response Parsing Tests
-// ============================================================================
 
 TEST_CASE("ACE parse_status_response: loaded slot", "[ams][ace][parse]") {
     AmsBackendAceTestHelper helper;
@@ -559,9 +547,7 @@ TEST_CASE("ACE REST status applies the dryer it states", "[ams][ace][parse]") {
     CHECK(helper.get_test_dryer_info().remaining_min == 180);
 }
 
-// ============================================================================
 // Slots Response Parsing Tests
-// ============================================================================
 
 TEST_CASE("ACE reads a slot where it writes it when slot_count is stale", "[ams][ace][parse]") {
     AmsBackendAceTestHelper helper;
@@ -616,9 +602,7 @@ TEST_CASE("ACE parse_slots_response: valid slots", "[ams][ace][parse]") {
     REQUIRE(slot2.status == SlotStatus::AVAILABLE);
 }
 
-// ============================================================================
 // Filament Segment Tests
-// ============================================================================
 
 TEST_CASE("ACE filament segment when nothing loaded", "[ams][ace][segment]") {
     AmsBackendAceTestHelper helper;
@@ -656,7 +640,6 @@ TEST_CASE("ACE filament segment when loaded", "[ams][ace][segment]") {
     REQUIRE(helper.get_filament_segment() == PathSegment::NOZZLE);
 }
 
-// ============================================================================
 // The filament path from the driver's own sensors
 // (prestonbrown/helixscreen#1678)
 //
@@ -664,7 +647,6 @@ TEST_CASE("ACE filament segment when loaded", "[ams][ace][segment]") {
 // parking position just short of the hub. The manager publishes the two path
 // sensors, so the path can show where the filament actually is instead of
 // jumping from Spool to Nozzle.
-// ============================================================================
 
 TEST_CASE("ACE filament path follows the driver's sensors", "[ams][ace][segment][1678]") {
     AmsBackendAceTestHelper helper;
@@ -1035,9 +1017,7 @@ TEST_CASE("ACE error segment inference", "[ams][ace][segment]") {
     REQUIRE(helper.infer_error_segment() == PathSegment::HUB);
 }
 
-// ============================================================================
 // Invalid Slot Handling Tests
-// ============================================================================
 
 TEST_CASE("ACE returns invalid markers for out-of-bounds slot", "[ams][ace][slot]") {
     AmsBackendAceTestHelper helper;
@@ -1072,9 +1052,7 @@ TEST_CASE("ACE returns invalid markers for out-of-bounds slot", "[ams][ace][slot
     REQUIRE(negative.global_index == -1);
 }
 
-// ============================================================================
 // Not Running State Tests
-// ============================================================================
 
 TEST_CASE("ACE not running initially", "[ams][ace][state]") {
     AmsBackendAceTestHelper helper;
@@ -1126,7 +1104,6 @@ TEST_CASE("ACE send refused with no on_error leaves the action alone", "[ams][ac
     CHECK(helper.get_test_system_info().action == AmsAction::LOADING);
 }
 
-// ============================================================================
 // The G-code ack is not proof of a load (prestonbrown/helixscreen#1676)
 //
 // The ACEPRO driver answers a toolchange it will not perform with a plain
@@ -1134,7 +1111,6 @@ TEST_CASE("ACE send refused with no on_error leaves the action alone", "[ams][ac
 // The manager's current_index is the seat signal, and an ignored load leaves it
 // unchanged at -1 — Klipper notifies on field changes, so no frame follows and
 // nothing arrives to contradict a stamp taken from the ack.
-// ============================================================================
 
 namespace {
 /// ACE against a real MoonrakerAPI over the mock client: the ack reaches the
@@ -1212,7 +1188,6 @@ TEST_CASE("ACE load does not seat a slot the driver never moved to", "[ams][ace]
     CHECK(helper.get_slot_info(2).status != SlotStatus::LOADED);
 }
 
-// ============================================================================
 // Task 13: FilamentSlotOverrideStore integration.
 //
 // ACE's legacy per-backend override plumbing (slot_overrides_ map,
@@ -1226,7 +1201,6 @@ TEST_CASE("ACE load does not seat a slot the driver never moved to", "[ams][ace]
 //   4. Slot status transition empty/unknown -> present clears the override
 //      (ACE's analogue to RFID UID change on Snapmaker).
 //   5. Slot status transition loaded -> empty does NOT clear the override.
-// ============================================================================
 
 TEST_CASE("ACE apply_user_edit writes to store", "[ams][ace][filament_slot_override]") {
     AceTmpCacheDir tmp("task13_persist_true");
@@ -1685,9 +1659,7 @@ TEST_CASE("ACE partial override only replaces specified fields",
     CHECK(info.remaining_weight_g == -1.0f); // default
 }
 
-// ============================================================================
 // Task 16: explicit clear_slot_override
-// ============================================================================
 
 TEST_CASE("ACE clear_slot_override erases in-memory override and MR DB entry",
           "[ams][ace][filament_slot_override]") {
@@ -1816,7 +1788,6 @@ TEST_CASE("ACE clear_slot_override drops the whole Spoolman link",
     CHECK(info.spool_name.empty());
 }
 
-// ============================================================================
 // Native Anycubic GoKlipper (filament_hub) schema parsing.
 //
 // Rinkhals firmware ships native Anycubic GoKlipper, which registers the
@@ -1824,7 +1795,6 @@ TEST_CASE("ACE clear_slot_override drops the whole Spoolman link",
 // get_status() schema with live dryer state and a "current_filament"
 // "<unitId>-<localIndex>" string. These tests lock the parse behavior for that
 // schema.
-// ============================================================================
 
 TEST_CASE("ACE parses native filament_hub schema (slots, dryer, current_filament)",
           "[ams][ace][native][parse]") {
@@ -1966,7 +1936,6 @@ TEST_CASE("ACE maps native runout slot status to EMPTY", "[ams][ace][native][par
     }
 }
 
-// ============================================================================
 // ACEPRO driver REST path (#1069, #1107).
 //
 // The ACEPRO driver's ace_status.py Moonraker component serves ACE state over
@@ -1975,7 +1944,6 @@ TEST_CASE("ACE maps native runout slot status to EMPTY", "[ams][ace][native][par
 // only a slot-bearing object for the subscription path, preferring
 // filament_hub, then ace, then the lowest ace_instance_N; a manager or an empty
 // slots array falls through to the REST bridge.
-// ============================================================================
 
 TEST_CASE("ACE subscribes to a slot-bearing object and otherwise falls back to REST",
           "[ams][ace][rest_fallback][kobra]") {
@@ -2051,14 +2019,12 @@ TEST_CASE("ACE status-update path parses ace_instance_0 with slots",
     CHECK(helper.get_slot_info(0).color_rgb == 0x0055FFu);
 }
 
-// ============================================================================
 // #1069 live capture: loaded-slot and live-shape support.
 //
 // On this driver no slot is ever "loaded" — the manager's current_index is the
 // only seat signal, slots carry `material` (not `type`), the dryer nests
 // under `dryer_status`, and REST /status carries the seat as
 // ace_manager.current_index.
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture,
                  "ACE initial query seats the loaded slot from manager current_index",
@@ -2341,13 +2307,13 @@ TEST_CASE_METHOD(LVGLTestFixture, "ACE REST unit-status idle keeps an in-flight 
     CHECK(backend.get_system_info().action == AmsAction::ERROR);
 }
 
-// --- Fix 3: REST slot parser accepts `type` as a material alias -------------
+// Fix 3: REST slot parser accepts `type` as a material alias
 
-// --- Fix 4: widen REST slot status vocabulary to mirror the object path ------
+// Fix 4: widen REST slot status vocabulary to mirror the object path
 
-// --- Fix 2a: /status carries model + firmware (no /info required) ------------
+// Fix 2a: /status carries model + firmware (no /info required)
 
-// --- Fix 2b: /info optional — no false "install ValgACE" error --------------
+// Fix 2b: /info optional — no false "install ValgACE" error
 
 TEST_CASE_METHOD(LVGLTestFixture,
                  "ACE missing /info does not surface an error when /status succeeds",
@@ -2638,9 +2604,7 @@ TEST_CASE("Retargeting an ACE dryer keeps the time already served", "[ams][ace][
 // ACE persists into the SHARED lane_data namespace, which Mainsail, OrcaSlicer
 // and AFC's plugin also read. Publishing the lock flags false beside a user's
 // edit tells every one of them the value is not the user's (#965, #1649).
-// ============================================================================
 // Endless spool (prestonbrown/helixscreen#1679)
-// ============================================================================
 
 namespace {
 json kobra_manager_with_endless(bool on, const char* mode) {
@@ -2921,13 +2885,11 @@ TEST_CASE("ACE endless spool matches the driver's ready and material rules",
     }
 }
 
-// ============================================================================
 // Per-slot park_state (prestonbrown/helixscreen#1678)
 //
 // The driver marks a slot "parked" after a sensor-verified unload or smart
 // load. An idle parked slot draws its strand staged at the hub; every in-flight
 // and sensor rule still outranks it.
-// ============================================================================
 
 namespace {
 
@@ -3071,9 +3033,7 @@ TEST_CASE("ACE REST slots bridge carries park_state", "[ams][ace][segment][park]
     CHECK(helper.get_slot_filament_segment(0) == PathSegment::SPOOL);
 }
 
-// ============================================================================
 // Device actions: unit + slot addressing per driver (prestonbrown/helixscreen#1821)
-// ============================================================================
 
 namespace {
 json four_slot_array() {
@@ -3509,9 +3469,7 @@ TEST_CASE("ACE REST bridge commands name the instance its /status serves",
     }
 }
 
-// ============================================================================
 // Two-unit ACEPRO rig: each ace_instance_N is unit N, so INSTANCE= names the unit
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture,
                  "ACE slot actions address the seated tool's unit on a two-unit ACEPRO rig",
@@ -3626,9 +3584,7 @@ json valgace(const std::vector<std::string>& statuses) {
 
 } // namespace
 
-// ============================================================================
 // Native GoKlipper: current_filament is the seated signal
-// ============================================================================
 
 TEST_CASE("ACE stamps LOADED on the slot current_filament names", "[ams][ace][1199]") {
     AmsBackendAceTestHelper ace;
@@ -3667,9 +3623,7 @@ TEST_CASE("ACE LOADED stamp survives a status frame and follows a toolchange", "
     CHECK_FALSE(ace.slot_is_actively_loaded(1));
 }
 
-// ============================================================================
 // ValgACE: the per-slot "loaded" string, arbitrated
-// ============================================================================
 
 TEST_CASE("ACE maps ValgACE's seated slot to LOADED without remapping the vocabulary",
           "[ams][ace][1199]") {
@@ -3732,9 +3686,7 @@ TEST_CASE("ACE clears the LOADED stamp when nothing is seated", "[ams][ace][1199
     }
 }
 
-// ============================================================================
 // REST fallback: /status and /slots are separate polls
-// ============================================================================
 
 TEST_CASE("ACE REST /slots poll does not wipe the seated stamp from /status", "[ams][ace][1199]") {
     AmsBackendAceTestHelper ace;
@@ -3766,9 +3718,7 @@ TEST_CASE("ACE REST /slots poll does not wipe the seated stamp from /status", "[
     CHECK_FALSE(ace.slot_is_actively_loaded(1));
 }
 
-// ============================================================================
 // Where an edit is written: the ACEPRO inventory, else the lane record
-// ============================================================================
 
 namespace {
 json slot_reading(const std::string& material, const std::string& color) {

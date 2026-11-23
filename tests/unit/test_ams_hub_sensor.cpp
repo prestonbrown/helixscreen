@@ -107,9 +107,7 @@ class HubSensorTestHelper : public AmsBackendAfc {
 };
 } // namespace helix
 
-// ============================================================================
 // AmsUnit defaults
-// ============================================================================
 
 TEST_CASE("AmsUnit hub sensor fields default to false", "[ams][hub_sensor]") {
     helix::AmsUnit unit;
@@ -117,9 +115,7 @@ TEST_CASE("AmsUnit hub sensor fields default to false", "[ams][hub_sensor]") {
     REQUIRE(unit.hub_sensor_triggered == false);
 }
 
-// ============================================================================
 // AFC per-unit hub sensor — single unit
-// ============================================================================
 
 TEST_CASE("AFC single-unit: apply_hub stores per-hub state", "[ams][hub_sensor][afc]") {
     helix::HubSensorTestHelper helper;
@@ -167,9 +163,7 @@ TEST_CASE("AFC single-unit: hub sensor triggers OUTPUT segment", "[ams][hub_sens
     REQUIRE(helper.test_compute_filament_segment() == helix::PathSegment::OUTPUT);
 }
 
-// ============================================================================
 // AFC per-unit hub sensor — multi-unit
-// ============================================================================
 
 TEST_CASE("AFC multi-unit: per-unit hub sensor population after reorganize",
           "[ams][hub_sensor][afc]") {
@@ -259,9 +253,7 @@ TEST_CASE("AFC multi-unit: no hub triggered returns NONE", "[ams][hub_sensor][af
     REQUIRE(helper.test_compute_filament_segment() == helix::PathSegment::NONE);
 }
 
-// ============================================================================
 // AFC initialize_slots sets has_hub_sensor
-// ============================================================================
 
 TEST_CASE("AFC initialize_slots sets has_hub_sensor on unit", "[ams][hub_sensor][afc]") {
     helix::HubSensorTestHelper helper;

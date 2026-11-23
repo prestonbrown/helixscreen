@@ -1866,9 +1866,7 @@ TEST_CASE("AmsEditOverlay::save_is_disabled holds Save shut while a save is in f
     }
 }
 
-// ============================================================================
 // Identity dropdown form: pure selection rules + option publishing
-// ============================================================================
 
 TEST_CASE("selection_from_slot splits family/variant/brand", "[ams_edit_overlay][dropdown]") {
     SlotInfo info;
@@ -3783,9 +3781,7 @@ TEST_CASE_METHOD(MockApiUiFixture,
     set_spoolman_available(false);
 }
 
-// ============================================================================
 // The lane's own settings: Assigned Tool and the Endless Spool backup
-// ============================================================================
 
 namespace {
 /// Open the editor on @p slot as the AMS panels do, with the slot as the
@@ -4469,9 +4465,7 @@ TEST_CASE_METHOD(MockApiUiFixture,
     process_lvgl(10);
 }
 
-// ============================================================================
 // Save waits for the lane to hold it
-// ============================================================================
 
 namespace {
 
@@ -4823,10 +4817,8 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     }
     close_editor_overlay();
 }
-// ============================================================================
 // Assign Spool: sizes, common spools, the local assign and its history, the
 // closing toast.
-// ============================================================================
 
 namespace {
 struct AssignCapture {
@@ -5143,10 +5135,8 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     }
 }
 
-// ============================================================================
 // Review fixes: per-toast Undo, lane settings on Assign, list re-arm, Undo
 // guard, history writes, list cost.
-// ============================================================================
 
 namespace {
 /// Use spool @p spool_id on @p slot through a pick-a-spool session, committed

@@ -97,7 +97,7 @@ void require_symmetric(const helix::AmsSystemInfo& info) {
     }
 }
 
-// --- CFS ------------------------------------------------------------------
+// CFS
 
 /// Minimal single-unit stock box payload with a caller-supplied `map`.
 ///
@@ -164,7 +164,7 @@ class CfsToolMapProbe : public AmsBackendCfs {
     std::vector<std::string> captured;
 };
 
-// --- ToolChanger ----------------------------------------------------------
+// ToolChanger
 
 /// Drives the real toolchanger backend's protected status handler.
 class ToolChangerMapProbe : public helix::AmsBackendToolChanger {
@@ -217,9 +217,7 @@ class ToolChangerMapProbe : public helix::AmsBackendToolChanger {
 
 } // namespace
 
-// =====================================================================
 // CFS — box.map is the one source; mapped_tool is derived from it
-// =====================================================================
 
 TEST_CASE("CFS with an identity box.map is identity in both directions", "[ams][cfs][tool_map]") {
     auto info = AmsBackendCfs::parse_box_status(
@@ -405,9 +403,7 @@ TEST_CASE("CFS firmware frame overrides an optimistic remap in both directions",
     require_symmetric(info);
 }
 
-// =====================================================================
 // ToolChanger — ASSIGN_TOOL remap, and tool number != slot index
-// =====================================================================
 
 TEST_CASE("ToolChanger default mapping is identity in both directions",
           "[ams][toolchanger][tool_map]") {
@@ -602,9 +598,7 @@ TEST_CASE("ToolChanger identity mapping still reads tool_number as the lane",
     CHECK_FALSE(backend.slot_is_actively_loaded(0));
 }
 
-// =====================================================================
 // Mock — the test double must not model an impossible state
-// =====================================================================
 
 TEST_CASE("Mock IFS mode publishes both directions", "[ams][mock]") {
     // set_ifs_mode wrote mapped_tool onto the registry entries and the forward
@@ -707,9 +701,7 @@ TEST_CASE("Mock apply_user_edit does not change slot status", "[ams][mock]") {
     CHECK(backend.get_slot_info(1).status == helix::SlotStatus::AVAILABLE);
 }
 
-// =====================================================================
 // QIDI Box — value_t<N> remap must publish both directions
-// =====================================================================
 
 TEST_CASE("QIDI Box default mapping is identity in both directions",
           "[ams][qidi][qidi_box][tool_map]") {
@@ -828,9 +820,7 @@ TEST_CASE("QIDI Box mapping survives a payload carrying only slot state",
     CHECK(info.current_tool == 0);
 }
 
-// =====================================================================
 // ACE — no per-slot tool mapping exists, and that is the correct answer
-// =====================================================================
 
 namespace {
 

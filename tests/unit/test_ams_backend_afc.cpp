@@ -391,7 +391,6 @@ class AmsBackendAfcTestHelper : public AmsBackendAfc {
         helix::ui::UpdateQueue::instance().drain();
     }
 
-    // ------------------------------------------------------------------
     // LANE_UNLOAD dispatch capture
     //
     // The production dispatch_lane_unload() goes through api_->execute_gcode()
@@ -670,9 +669,7 @@ class AmsBackendAfcTestHelper : public AmsBackendAfc {
 };
 } // namespace helix
 
-// ============================================================================
 // AFC version is informational only
-// ============================================================================
 //
 // Nothing in AFC writes the afc-install Moonraker namespace (AFC #451), so the
 // version string there is absent or frozen: a BoxTurtle whose payload is
@@ -702,9 +699,7 @@ TEST_CASE("AFC persistence is independent of the reported version", "[ams][afc][
     }
 }
 
-// ============================================================================
 // compute_filament_segment_unlocked() - Sensor-to-Segment Mapping Tests
-// ============================================================================
 
 // The furthest point the sensors place the active filament. Toolhead sensors
 // beat the hub, the hub beats the lane sensors, and the end sensor alone means
@@ -847,9 +842,7 @@ TEST_CASE("AFC get_slot_filament_segment ignores the latched loaded_to_hub field
     CHECK(helper.get_slot_filament_segment(0) == PathSegment::NOZZLE);
 }
 
-// ============================================================================
 // set_discovered_lanes() - Lane Discovery from PrinterCapabilities Tests
-// ============================================================================
 
 TEST_CASE("AFC set_discovered_lanes: sets lane names correctly", "[ams][afc][discovery]") {
     AmsBackendAfcTestHelper helper;
@@ -964,13 +957,10 @@ TEST_CASE("AFC's lane subscription names every lane field the parser reads",
     }
 }
 
-// ============================================================================
 // apply_user_edit() persistence
-// ============================================================================
 //
 // An edit reaches AFC as SET_COLOR / SET_MATERIAL / SET_WEIGHT / SET_SPOOL_ID
 // LANE=<name> through the backend's execute_gcode(), which the helper captures.
-// ============================================================================
 
 // One edited field, the write it produces. Colours go out as uppercase hex with
 // no '#', and pure black is a deliberate pick that persists while the default
@@ -1286,9 +1276,7 @@ TEST_CASE("an AFC with no Spoolman refuses a spool link before writing it",
     }
 }
 
-// ============================================================================
 // reset_tool_mappings() Tests
-// ============================================================================
 
 // One command resets every lane's mapping, whatever the lane count. AFC dev/1.3
 // (Klipper-Add-On #832) renamed RESET_AFC_MAPPING to AFC_RESET_MAPPING and
@@ -1374,9 +1362,7 @@ TEST_CASE("AFC refuses a tool remap while multiple tool mapping is on",
     }
 }
 
-// ============================================================================
 // reset_endless_spool() Tests
-// ============================================================================
 
 TEST_CASE("AFC reset_endless_spool clears all slots", "[ams][afc][endless_spool][reset]") {
     AmsBackendAfcTestHelper helper;
@@ -1416,14 +1402,11 @@ TEST_CASE("AFC reset_endless_spool with no lanes yet refuses instead of silently
     REQUIRE(helper.captured_gcodes.empty());
 }
 
-// ============================================================================
 // Phase 1: Bug Fixes & Critical Data Sync Tests
-// ============================================================================
 //
 // These tests verify parsing of fields that the real AFC device exposes
 // (captured from 192.168.1.112). Tests use fixture data to validate that
 // state updates flow through correctly to internal state.
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "AFC status label follows a language switch with no new frame",
                  "[ams][afc][state][i18n]") {
@@ -2182,14 +2165,11 @@ TEST_CASE("AFC current_load and next_lane tracked", "[ams][afc][state][phase1]")
     REQUIRE(helper.get_action() == AmsAction::LOADING);
 }
 
-// ============================================================================
 // Phase 2: Full Data Parsing Tests
-// ============================================================================
 //
 // These tests verify parsing of extended hub, extruder, stepper, and buffer
 // fields from real AFC device data. Tests use fixture structures captured
 // from a real Box Turtle at 192.168.1.112.
-// ============================================================================
 
 TEST_CASE("AFC hub bowden length parsed from afc_bowden_length", "[ams][afc][hub][phase2]") {
     // Real device: AFC_hub Turtle_1 has "afc_bowden_length": 1285.0
@@ -2274,12 +2254,9 @@ TEST_CASE("AFC bowden slider max accommodates real bowden length",
     }
 }
 
-// ============================================================================
 // Phase 3: New Device Actions & Commands Tests
-// ============================================================================
 //
 // Tests for new maintenance section, LED/mode toggles, and maintenance commands.
-// ============================================================================
 
 TEST_CASE("AFC device sections include maintenance and led",
           "[ams][afc][device_sections][phase3]") {
@@ -2466,13 +2443,10 @@ TEST_CASE("AFC device action quiet_mode dispatches an explicit ENABLE",
     }
 }
 
-// ============================================================================
 // Phase 4: Error Recovery Improvements Tests
-// ============================================================================
 //
 // Tests for differentiated reset (AFC_RESET vs AFC_HOME), per-lane reset,
 // and error message surfacing.
-// ============================================================================
 
 TEST_CASE("AFC recover sends AFC_RESET", "[ams][afc][recovery][phase4]") {
     // Regression guard — recover() should continue using AFC_RESET
@@ -3515,11 +3489,9 @@ TEST_CASE("AFC drain arm expires so a stale budget cannot eat a later unrelated 
     REQUIRE(helper.gcode_count("AFC_CLEAR_MESSAGE") == 1);
 }
 
-// ============================================================================
 // Phase 2: Mixed Topology — Flat String Units, AFC_lane, Unit Objects, Multi-Extruder
-// ============================================================================
 
-// --- 2a: Flat string units array ---
+// 2a: Flat string units array
 
 TEST_CASE("AFC backend handles flat string units array", "[ams][afc][mixed]") {
     AmsBackendAfcTestHelper helper;
@@ -3598,7 +3570,7 @@ TEST_CASE_METHOD(AfcFourZeroBasedLanes,
     REQUIRE(unit_infos.empty());
 }
 
-// --- 2b: Unit-level object data ---
+// 2b: Unit-level object data
 
 TEST_CASE("AFC backend unit-level object populates AfcUnitInfo", "[ams][afc][mixed]") {
     AmsBackendAfcTestHelper helper;
@@ -4348,7 +4320,7 @@ TEST_CASE("AFC backend unit object triggers lane reorganization", "[ams][afc][mi
     REQUIRE(info.total_slots == 8);
 }
 
-// --- 2c: AFC_lane status updates ---
+// 2c: AFC_lane status updates
 
 TEST_CASE("AFC backend handles AFC_lane status updates", "[ams][afc][mixed]") {
     AmsBackendAfcTestHelper helper;
@@ -4430,7 +4402,7 @@ TEST_CASE("AFC backend handles mix of AFC_stepper and AFC_lane in same update",
     REQUIRE(slot4->material == "ABS");
 }
 
-// --- 2d: Multiple AFC_extruder objects ---
+// 2d: Multiple AFC_extruder objects
 
 TEST_CASE("AFC backend handles multiple AFC_extruder objects", "[ams][afc][mixed]") {
     AmsBackendAfcTestHelper helper;
@@ -4491,7 +4463,7 @@ TEST_CASE("AFC backend stores extruder names from AFC state extruders array", "[
     REQUIRE(names[1] == "extruder1");
 }
 
-// --- Backward compatibility ---
+// Backward compatibility
 
 TEST_CASE_METHOD(AfcFourLanes, "AFC backend backward compat: object-format units still works",
                  "[ams][afc][mixed]") {
@@ -4530,9 +4502,7 @@ TEST_CASE("AFC backend backward compat: mixed string and object units", "[ams][a
     REQUIRE(unit_infos[0].name == "AMS_1");
 }
 
-// ============================================================================
 // Phase 6: Backward Compatibility Tests
-// ============================================================================
 
 TEST_CASE("AFC get_unit_topology falls back to get_topology when unit_infos empty",
           "[ams][afc][backward_compat]") {
@@ -4638,9 +4608,7 @@ TEST_CASE("AFC standard single-unit system unchanged by mixed topology code",
     REQUIRE(helper.get_action() == AmsAction::IDLE);
 }
 
-// ============================================================================
 // eject_lane() Tests
-// ============================================================================
 
 // LANE_UNLOAD names the lane by its AFC name, for any lane including one other
 // than the loaded slot; a slot outside the lanes is refused, and so is any lane
@@ -4671,7 +4639,6 @@ TEST_CASE("AFC eject_lane sends LANE_UNLOAD for a valid lane", "[ams][afc][eject
     }
 }
 
-// ============================================================================
 // eject_lane() sends LANE_UNLOAD unconditionally
 //
 // AFC's own cmd_LANE_UNLOAD decides whether to refuse, and AFC's maintainer asked
@@ -4679,7 +4646,6 @@ TEST_CASE("AFC eject_lane sends LANE_UNLOAD for a valid lane", "[ams][afc][eject
 // reliable AFC version to mirror its rules by either. Every case here is a state
 // AFC may refuse, keyed on lane_loaded, hub routing or is_standalone, and every
 // one must dispatch.
-// ============================================================================
 
 TEST_CASE("AFC eject_lane dispatches regardless of upstream refusal conditions",
           "[ams][afc][eject]") {
@@ -4876,9 +4842,7 @@ TEST_CASE("AFC supports_lane_eject returns true", "[ams][afc][capability]") {
     REQUIRE(helper.supports_lane_eject());
 }
 
-// ============================================================================
 // Slot status mapping: AFC "Loaded" vs tool_loaded
-// ============================================================================
 
 TEST_CASE("AFC lane status: only filament at the toolhead is LOADED", "[ams][afc][status]") {
     struct Row {
@@ -4964,9 +4928,7 @@ TEST_CASE_METHOD(AfcFourLanes, "AFC slot transitions from LOADED to AVAILABLE on
     REQUIRE(info.get_slot_global(0)->status == SlotStatus::AVAILABLE);
 }
 
-// ============================================================================
 // filament_loaded derived from stepper tool_loaded (no top-level AFC field)
-// ============================================================================
 
 TEST_CASE_METHOD(AfcFourLanes, "AFC filament_loaded derived from stepper tool_loaded",
                  "[ams][afc][status]") {
@@ -5146,13 +5108,11 @@ TEST_CASE_METHOD(AfcFourLanes, "AFC current_load null clears filament state",
     REQUIRE(info.current_slot == -1);
 }
 
-// ============================================================================
 // manages_active_spool() Tests
 //
 // AFC manages Spoolman's active spool natively (calls spoolman_set_active_spool
 // on tool load/unload). HelixScreen must NOT call set_active_spool when AFC is
 // the active backend, to avoid racing with AFC's own calls.
-// ============================================================================
 
 TEST_CASE("AFC backend reports manages_active_spool=true", "[ams][afc][spoolman]") {
     AmsBackendAfcTestHelper helper;
@@ -5175,9 +5135,7 @@ TEST_CASE("AFC get_type returns AFC", "[ams][afc][spoolman]") {
     REQUIRE(helper.get_type() == AmsType::AFC);
 }
 
-// ============================================================================
 // auto_unloads_after_print() driven by per-printer SettingsManager toggle
-// ============================================================================
 //
 // Unlike CFS/IFS (which hardcode auto_unloads_after_print()==true), AFC's
 // post-print unload depends on the user's macros. The behaviour is controlled
@@ -5267,9 +5225,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "SettingsManager unload_after_print round-trip
     }
 }
 
-// ============================================================================
 // Toolchanger load and tool change name the lane or the T number (#1824)
-// ============================================================================
 //
 // T numbers belong to lanes and SET_MAP moves them, so a T number says nothing
 // about which head a lane sits on. Only AFC knows lane -> extruder and
@@ -5838,9 +5794,7 @@ TEST_CASE_METHOD(AfcFourRunningLanes,
     REQUIRE_FALSE(helper.has_gcode_starting_with("AFC_UNSELECT_TOOL"));
 }
 
-// ============================================================================
 // LED device actions (multi-extruder toolchanger mode)
-// ============================================================================
 
 TEST_CASE("AFC get_device_actions includes per-extruder LED toggles in toolchanger mode",
           "[ams][afc][toolchanger][led]") {
@@ -5954,9 +5908,7 @@ TEST_CASE("AFC led_extruder_T<n> toggles that head's LED", "[ams][afc][toolchang
     }
 }
 
-// ============================================================================
 // Multi-unit AFC scenarios (mixed topologies)
-// ============================================================================
 
 TEST_CASE("Mixed BoxTurtle + ViViD units with string format", "[ams][afc][mixed]") {
     AmsBackendAfcTestHelper helper;
@@ -6164,9 +6116,7 @@ TEST_CASE("Non-contiguous lane numbering assigns sequential global indices", "[a
     CHECK(expected_global == 12);
 }
 
-// ============================================================================
 // Bug fix: Tool changer current_slot overwrite
-// ============================================================================
 
 TEST_CASE_METHOD(AfcFourZeroBasedLanes,
                  "AFC tool changer reconciliation preserves current_load slot",
@@ -6218,9 +6168,7 @@ TEST_CASE_METHOD(AfcFourZeroBasedLanes, "AFC apply_lane_data does not overwrite 
     CHECK(info.current_slot == 2);
 }
 
-// ============================================================================
 // Bug fix: 3-unit premature reorganize drops last unit's lanes
-// ============================================================================
 
 TEST_CASE("AFC 3-unit incremental arrival preserves all unit lanes",
           "[ams][afc][mixed][toolchanger]") {
@@ -6320,9 +6268,7 @@ TEST_CASE("AFC 3-unit incremental arrival preserves all unit lanes",
     CHECK(found_turtle);
 }
 
-// ============================================================================
 // 4-unit ordering: units sorted by min lane number, not name (#554)
-// ============================================================================
 
 TEST_CASE("AFC 4-unit ordering by lane number not unit name", "[ams][afc][mixed][toolchanger]") {
     AmsBackendAfcTestHelper helper;
@@ -6391,9 +6337,7 @@ TEST_CASE("AFC 4-unit ordering by lane number not unit name", "[ams][afc][mixed]
     CHECK(total == 16);
 }
 
-// ============================================================================
 // Reactive lane highlighting & current_slot stability (PR #336 + improvements)
-// ============================================================================
 
 TEST_CASE("AFC stepper-only updates do not overwrite current_slot set by AFC state",
           "[ams][afc][reconciliation]") {
@@ -6665,7 +6609,7 @@ TEST_CASE_METHOD(AfcFourZeroBasedLanes,
     CHECK(info.current_tool == 2);
 }
 
-// ---- L1: classify_error ----
+// L1: classify_error
 static const char* kJamLine =
     "!! Toolhead runout detected by tool_end sensor, but upstream sensors still "
     "detect filament. Possible filament break or jam at the toolhead. Please clear "
@@ -6929,9 +6873,7 @@ TEST_CASE("AFC operation_step_index_subject is the narration toolchange-step sub
           AmsState::instance().get_toolchange_step_subject());
 }
 
-// ============================================================================
 // apply_lane_status must represent AFC's CLEARS, not just its values
-// ============================================================================
 //
 // AFC clears a lane's identity itself. LANE_UNLOAD ends with
 // set_spoolID(lane, None), which (when remember_spool is false, the default)
@@ -7087,9 +7029,7 @@ TEST_CASE_METHOD(AfcFourLanes, "AFC parse: absent fields are retained (deltas, n
     REQUIRE(slot->remaining_weight_g == Catch::Approx(500.0));
 }
 
-// ============================================================================
 // can_recover_lane_position — AFC_LANE_RESET has real preconditions
-// ============================================================================
 //
 // Lane-position recovery has no static capability gate, so the "Reset" menu
 // entry was once offered on every AFC lane regardless of state. But AFC_LANE_RESET means
@@ -7153,9 +7093,7 @@ TEST_CASE_METHOD(AfcFourLanes, "AFC can_recover_lane_position requires filament 
     }
 }
 
-// ============================================================================
 // Override store — user identity survives AFC's own clears
-// ============================================================================
 //
 // apply_lane_status now honours AFC's clears (spool_id null, empty colour), so
 // firmware truth genuinely clears on eject. Retention lives one layer up: the
@@ -7345,9 +7283,7 @@ TEST_CASE_METHOD(AfcFourLanes, "AFC persist_override wires nozzle/bed temps into
     CHECK(ovr.nozzle_temp == 240); // midpoint of min/max
 }
 
-// ============================================================================
 // Upstream follow-ups: version in status (#807) and lane vendor_name (#808)
-// ============================================================================
 
 TEST_CASE_METHOD(AfcFourZeroBasedLanes,
                  "AFC version is read from the status object when upstream supplies it",
@@ -7483,7 +7419,6 @@ TEST_CASE("AFC clears the operation detail when its message empties", "[ams][afc
     REQUIRE(helper.get_system_info().operation_detail.empty());
 }
 
-// ============================================================================
 // AFC v1.2.0 status fields (prestonbrown/helixscreen#1149)
 //
 // Payloads marked "observed" are verbatim captures from a live BoxTurtle
@@ -7491,7 +7426,6 @@ TEST_CASE("AFC clears the operation detail when its message empties", "[ams][afc
 // v1.2.0, so payloads marked "source-derived" are built from
 // AFC_lane.get_status() / AFC_buffer.get_status() / AFC.get_status() at tag
 // v1.2.0 instead — same key names, same types, not observed on hardware.
-// ============================================================================
 
 // Observed: AFC_stepper lane1, AFC v1.1.0, unlinked lane.
 static nlohmann::json observed_lane1_v110() {
@@ -7773,7 +7707,6 @@ TEST_CASE("AFC buffer delta omitting lanes still reaches its unit",
     REQUIRE(bh.multiplier == Catch::Approx(1.1f));
 }
 
-// ----------------------------------------------------------------------------
 // Multi-unit buffer attribution (bundle XGVDYEB5)
 //
 // Every buffer assertion above is single-unit units[0], which is why two
@@ -7786,7 +7719,6 @@ TEST_CASE("AFC buffer delta omitting lanes still reaches its unit",
 //       had no writer other than the AFC_buffer parser — which Moonraker will not
 //       run again until a buffer field changes. The rig went blank for three
 //       minutes until a FIRMWARE_RESTART forced a full state push.
-// ----------------------------------------------------------------------------
 
 namespace {
 
@@ -8048,9 +7980,7 @@ TEST_CASE("AFC full multi-lane v1.2.0 frame lands on every slot",
     REQUIRE(bh.distance_to_fault == Catch::Approx(-1.0f));
 }
 
-// ============================================================================
 // Optimistic dispatch + macro-ack resolution (#1183)
-// ============================================================================
 //
 // AFC answers a command it has nothing to do about — "lane3 already loaded" —
 // by acking in 4ms without ever entering a toolchange, so current_state never
@@ -8452,9 +8382,7 @@ TEST_CASE("AFC stuck-action timeout still fires for an op AFC took over",
     REQUIRE(h.action() == AmsAction::ERROR);
 }
 
-// ============================================================================
 // Bypass: AFC answers for itself once the sidebar stops chaining (#1229 defect 6)
-// ============================================================================
 //
 // allows_implicit_chaining() == false means the sidebar sends exactly one
 // command and lets AFC refuse. That only helps if AFC actually refuses:
@@ -8502,9 +8430,7 @@ TEST_CASE("AFC enable_bypass sends the sensor enable when nothing is loaded",
     REQUIRE(helper.has_gcode("SET_FILAMENT_SENSOR SENSOR=bypass ENABLE=1"));
 }
 
-// ============================================================================
 // Tool number comes from th_extruder_name, not the AFC_extruder section name
-// ============================================================================
 //
 // AFC derives a toolhead's tool index from `th_extruder_name`
 // (AFC_extruder.py:222-223 = `config.get("extruder_name", <section name>)`,
@@ -8719,9 +8645,7 @@ TEST_CASE("AFC units report a toolhead sensor only when an AFC_extruder pin wire
     }
 }
 
-// ============================================================================
 // Empty carriage: an AFC toolchanger with every head parked mounts no tool
-// ============================================================================
 
 TEST_CASE("AFC toolchanger with every head parked mounts no tool",
           "[ams][afc][toolchanger][empty-carriage]") {

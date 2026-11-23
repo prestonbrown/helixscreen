@@ -705,9 +705,7 @@ TEST_CASE("a nozzle pick names the diameter and only a flow type that changes",
     }
 }
 
-// ============================================================================
 // Auto loading: each head's feeder in or out of automatic mode
-// ============================================================================
 
 namespace {
 /// One head's entry in its feeder's frame.

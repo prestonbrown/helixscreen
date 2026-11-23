@@ -356,9 +356,7 @@ TEST_CASE_METHOD(IndxFixture, "INDX backend: a frame that changes nothing is not
     CHECK(events == after_first + 1);
 }
 
-// ============================================================================
 // Device actions
-// ============================================================================
 
 namespace {
 
@@ -699,9 +697,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "INDX: a CHANGE_TOOL refusal reaches the user 
     fault_surface_correlation::clear_for_test();
 }
 
-// ============================================================================
 // Seat-fault recovery
-// ============================================================================
 
 TEST_CASE_METHOD(IndxFixture,
                  "INDX recovery: a half-seated tool offers seat and remove behind confirms",
@@ -735,9 +731,7 @@ TEST_CASE_METHOD(IndxFixture,
     CHECK_FALSE(b.current_error().has_value());
 }
 
-// ============================================================================
 // Batch Load
-// ============================================================================
 
 namespace {
 
@@ -816,9 +810,7 @@ TEST_CASE_METHOD(IndxFixture, "INDX batch: no LOAD_FILAMENT, no batch", "[ams][i
     CHECK(b.max_heads_per_filament_op() == 1);
 }
 
-// ============================================================================
 // Heater-model follow-up after a material edit
-// ============================================================================
 
 namespace {
 
@@ -1078,9 +1070,7 @@ TEST_CASE_METHOD(IndxFixture, "INDX device: a new offset beside an unchanged rea
     CHECK(events == after_first + 1);
 }
 
-// ============================================================================
 // Lane truth: T<n>.spool_id is the firmware's link for the tool.
-// ============================================================================
 
 TEST_CASE_METHOD(IndxFixture, "INDX lane truth: a link is written to the tool's spool_id variable",
                  "[ams][indx][lane_truth]") {

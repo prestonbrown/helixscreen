@@ -25,13 +25,11 @@ using namespace helix;
 using helix::ui::parallel_tap_at;
 using helix::ui::ParallelTapTarget;
 
-// ============================================================================
 // parallel_tap_at(): pure
 //
 // Three columns at x = 100, 200, 300, each lane 30 px either side of its x and
 // owning everything above sensor_y 250. Each head glyph spans x -12..+12 of
 // its column and y 380..430.
-// ============================================================================
 
 namespace {
 constexpr int32_t kSlotX[] = {100, 200, 300};
@@ -111,9 +109,7 @@ TEST_CASE("parallel_tap_at: overlapping columns answer the nearest", "[ams][path
     }
 }
 
-// ============================================================================
 // AmsPanel: what each tap does
-// ============================================================================
 
 namespace {
 

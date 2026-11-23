@@ -141,9 +141,7 @@ class AmsErrorModalFixture : public XMLTestFixture {
 
 } // namespace
 
-// ============================================================================
 // Modal level — the suppression flag
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "AmsLoadingErrorModal dismiss_silently skips the dismiss callback (#1185)",
@@ -186,9 +184,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(dismiss_calls == 2);
 }
 
-// ============================================================================
 // Panel level — the two dismissal triggers
-// ============================================================================
 
 TEST_CASE_METHOD(AmsErrorModalFixture,
                  "AmsPanel shows the error modal when the action enters ERROR",
@@ -390,9 +386,7 @@ TEST_CASE_METHOD(AmsErrorModalFixture,
     teardown_panel(panel, obj);
 }
 
-// ============================================================================
 // Panel level — the active spool
-// ============================================================================
 
 namespace {
 

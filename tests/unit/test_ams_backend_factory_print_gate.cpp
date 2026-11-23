@@ -203,14 +203,12 @@ struct FactoryGateFixture : public LVGLTestFixture {
 
 } // namespace
 
-// ============================================================================
 // The factory really does hand back one backend per type
 //
 // Everything below is a loop over what create() produces. If that ever returns
 // nothing — a build flag, a refactor, a mock substituted at the top of create()
 // — the loops would pass by iterating zero times. This is the assertion that
 // makes such a collapse loud instead of green.
-// ============================================================================
 
 TEST_CASE_METHOD(FactoryGateFixture, "AmsBackend::create builds a distinct backend per AmsType",
                  "[ams][safety][factory]") {
@@ -226,9 +224,7 @@ TEST_CASE_METHOD(FactoryGateFixture, "AmsBackend::create builds a distinct backe
     }
 }
 
-// ============================================================================
 // PRINTING refuses toolhead-motion ops, everywhere, with nothing dispatched
-// ============================================================================
 
 TEST_CASE_METHOD(FactoryGateFixture,
                  "every backend the factory builds refuses toolhead-motion ops while PRINTING",
@@ -256,14 +252,12 @@ TEST_CASE_METHOD(FactoryGateFixture,
     CHECK(checked >= kExpectedBackendCount * static_cast<int>(motion_ops().size()));
 }
 
-// ============================================================================
 // PAUSED splits on the backend's own filament_ops_self_home()
 //
 // Pause-then-swap is the runout / colour-change recovery workflow, so a backend
 // that never homes must let it through. A backend whose firmware macro homes
 // itself must not: AD5X's _IFS_REMOVE_CURRENT_PRUTOK runs a buried _G28 that
 // probes the nozzle into the part, and Layer 1 cannot see it.
-// ============================================================================
 
 TEST_CASE_METHOD(FactoryGateFixture,
                  "PAUSED behaviour follows each backend's filament_ops_self_home()",
@@ -295,7 +289,6 @@ TEST_CASE_METHOD(FactoryGateFixture,
     }
 }
 
-// ============================================================================
 // select_slot: gated exactly when it IS a tool change
 //
 // This is the per-METHOD classification that eight backends currently re-decide
@@ -306,7 +299,6 @@ TEST_CASE_METHOD(FactoryGateFixture,
 // select_slot is a genuine motion-free select (Happy Hare's MMU_SELECT, AD5X's
 // SET_EXTRUDER_SLOT) and must stay allowed — blocking it would strand filament
 // the user could have moved.
-// ============================================================================
 
 TEST_CASE_METHOD(FactoryGateFixture, "select_slot is print-gated exactly when it is a tool change",
                  "[ams][safety][factory]") {
@@ -336,7 +328,6 @@ TEST_CASE_METHOD(FactoryGateFixture, "select_slot is print-gated exactly when it
     }
 }
 
-// ============================================================================
 // reset() is NOT print-gated anywhere, so the affordance carries the whole guard
 //
 // Every backend's reset() calls check_preconditions() with the default
@@ -346,7 +337,6 @@ TEST_CASE_METHOD(FactoryGateFixture, "select_slot is print-gated exactly when it
 // the backend layer: a wrong true deletes a live recovery path (CFS
 // BOX_ERROR_CLEAR, AFC's lane picker) mid-job, a wrong false offers Happy Hare's
 // MMU_HOME during a print (prestonbrown/helixscreen#1523).
-// ============================================================================
 
 TEST_CASE_METHOD(FactoryGateFixture, "reset_moves_filament is claimed by Happy Hare alone",
                  "[ams][safety][factory]") {
@@ -367,7 +357,6 @@ TEST_CASE_METHOD(FactoryGateFixture, "reset_moves_filament is claimed by Happy H
     CHECK(claimed == 1);
 }
 
-// ============================================================================
 // The backend gate and the greyed button are ONE rule, not two that agree
 //
 // helix::print_blocks_filament_op() is the authority. refuse_if_printing() maps
@@ -379,7 +368,6 @@ TEST_CASE_METHOD(FactoryGateFixture, "reset_moves_filament is claimed by Happy H
 // Neither side is spelled out here: the expectation is computed from the
 // predicate and compared against what the backend actually did, so this stays
 // true if the rule itself changes and goes red the moment the two diverge.
-// ============================================================================
 
 TEST_CASE_METHOD(FactoryGateFixture, "the backend refusal matches print_blocks_filament_op",
                  "[ams][safety][factory]") {

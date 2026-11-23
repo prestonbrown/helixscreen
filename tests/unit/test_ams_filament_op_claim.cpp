@@ -205,9 +205,7 @@ struct ClaimFixture : public LVGLTestFixture {
 
 } // namespace
 
-// ============================================================================
 // The race itself
-// ============================================================================
 
 TEST_CASE_METHOD(ClaimFixture, "AMS filament op: a second op cannot enter while one is dispatching",
                  "[ams][threading][claim]") {
@@ -319,10 +317,8 @@ TEST_CASE_METHOD(ClaimFixture, "AMS filament op: the claim covers a PrintActiveO
     CHECK(backend->hook_entries.load() == 1);
 }
 
-// ============================================================================
 // Release on every exit path. A leaked claim is a permanently wedged backend
 // with no action to explain it — strictly worse than the race being fixed.
-// ============================================================================
 
 TEST_CASE_METHOD(ClaimFixture, "AMS filament op: the claim is released on every exit path",
                  "[ams][claim]") {
@@ -372,9 +368,7 @@ TEST_CASE_METHOD(ClaimFixture, "AMS filament op: the claim is released on every 
     }
 }
 
-// ============================================================================
 // The claim must not reorder or reword what the gate already refused.
-// ============================================================================
 
 TEST_CASE_METHOD(ClaimFixture, "AMS filament op: refusal precedence is unchanged by the claim",
                  "[ams][claim]") {

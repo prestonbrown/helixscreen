@@ -152,9 +152,7 @@ bool trace_contains(const std::vector<helix::AmsAction>& trace, helix::AmsAction
 
 } // namespace
 
-// =============================================================================
 // The reported defect: a no-op SELECT_TOOL must still end the operation
-// =============================================================================
 
 TEST_CASE("Toolchanger mount of the already-mounted tool resolves on the macro ack",
           "[ams][toolchanger][dispatch][1183]") {
@@ -201,9 +199,7 @@ TEST_CASE("Toolchanger no-op mount does not lock out the next operation",
     CHECK(h.sent().size() == 2);
 }
 
-// =============================================================================
 // Guard rails on the fix itself
-// =============================================================================
 
 TEST_CASE("Toolchanger macro ack does not truncate a real tool change",
           "[ams][toolchanger][dispatch][1183]") {
@@ -267,9 +263,7 @@ TEST_CASE("Toolchanger dispatch failure reverts the optimistic action",
     CHECK_FALSE(h.get_system_info().is_busy());
 }
 
-// =============================================================================
 // Which argument form SELECT_TOOL takes
-// =============================================================================
 
 TEST_CASE("A changer whose SELECT_TOOL takes only tool numbers mounts with T=",
           "[ams][toolchanger][dispatch][commands]") {
