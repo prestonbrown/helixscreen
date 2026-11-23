@@ -430,8 +430,8 @@ class CalibrationCollectorCore {
         // The captured owner reference keeps the collector, and with it this core,
         // alive until the drain.
         helix::ui::queue_update(
-            // QUEUE_RAW_THIS_OK: owner reference above.
             "CalibrationCollectorCore::arm_idle_fallback",
+            // QUEUE_RAW_THIS_OK: owner reference above.
             [this, owner, &state, backstop_ms, stream_intact]() {
                 if (completed() || fallback_.armed) {
                     return;
