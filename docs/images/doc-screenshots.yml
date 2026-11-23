@@ -199,7 +199,7 @@ images:
     recipe: ams
     markers:
       - {n: 1, widget: btn_ams_settings, at: top_right}
-      - {n: 2, widget: current_loaded_card, at: top_right}
+      - {n: 2, widget: current_loaded_card, at: bottom_right}
       - {n: 3, widget: btn_load, at: top_right}
   - path: docs/images/user/camera.png
     kind: manual
@@ -448,6 +448,7 @@ images:
   - path: docs/images/user/settings-network.png
     kind: app
     recipe: network
+    settle: 8
   - path: docs/images/user/settings-printers.png
     kind: app
     recipe: printers

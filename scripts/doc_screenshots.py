@@ -33,7 +33,7 @@ MANIFEST = REPO_ROOT / "docs" / "images" / "doc-screenshots.yml"
 
 KINDS = ("app", "manual")
 ANCHORS = ("center", "top_left", "top_right", "bottom_left", "bottom_right")
-APP_FIELDS = ("recipe", "steps", "env", "size", "crop", "margin", "markers", "wizard")
+APP_FIELDS = ("recipe", "steps", "env", "size", "crop", "margin", "markers", "wizard", "settle")
 # The setup wizard's steps in the app's StepId order (include/wizard_step.h);
 # the index is what --wizard-step takes. A test pins the two together.
 WIZARD_STEPS = (
@@ -76,6 +76,9 @@ class Entry:
     source: Optional[str] = None
     recapture: Optional[str] = None
     wizard: Optional[str] = None
+    # Seconds to wait before the capture, for a screen filled by a slow async
+    # scan; None keeps the default.
+    settle: Optional[float] = None
 
 
 def recipe_tokens(script: Path = RECIPES_SCRIPT) -> list[str]:
@@ -153,6 +156,7 @@ def _parse_entry(raw: dict, tokens: set) -> Entry:
         margin=int(raw.get("margin", DEFAULT_MARGIN)),
         markers=_parse_markers(path, raw.get("markers")),
         wizard=wizard,
+        settle=float(raw["settle"]) if "settle" in raw else None,
     )
 
 
@@ -271,7 +275,7 @@ def capture(entry: Entry, session, out_root: Path) -> Path:
         session.ctl(*shlex.split(step))
     # Overlays and demo screens land asynchronously; let them, as screenshot.sh does.
     session.ctl("wait_idle")
-    time.sleep(SETTLE_SECONDS)
+    time.sleep(entry.settle if entry.settle is not None else SETTLE_SECONDS)
     # Stop animations and the mock's simulation, so the shot and the geometry
     # describe the same frame and come out the same every run.
     session.ctl("freeze")
@@ -366,10 +370,21 @@ class AppSession:
         for _ in range(120):
             if self.sock.exists() and self._try("ping"):
                 time.sleep(2)
+                if self.wizard is None:
+                    self.clear_notification_history()
                 return self
             time.sleep(0.5)
         self.__exit__(None, None, None)
         raise RuntimeError(f"the app did not answer on {self.sock}")
+
+    def clear_notification_history(self) -> None:
+        """Empty the notification list --test seeds, so the home bell shows no
+        unread badge. A layout without the bell ignores the failed click."""
+        for args in (("click", "status_notification_icon"), ("wait_idle",),
+                     ("click", "action_button"), ("wait_idle",), ("navigate", "home"),
+                     ("wait_idle",)):
+            if not self._try(*args):
+                return
 
     def _try(self, *args) -> bool:
         r = subprocess.run([str(self.binary), "ctl", "-s", str(self.sock), *args],
