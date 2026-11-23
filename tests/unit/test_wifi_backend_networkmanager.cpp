@@ -37,9 +37,7 @@
  * FakeNmcliDir puts on PATH.
  */
 
-// ============================================================================
 // Testable Subclass: Override exec_nmcli() to inject canned output
-// ============================================================================
 
 class TestableNMBackend : public WifiBackendNetworkManager {
   public:
@@ -93,9 +91,7 @@ class TestableNMBackend : public WifiBackendNetworkManager {
     }
 };
 
-// ============================================================================
 // nmcli Field Splitting Tests
-// ============================================================================
 
 TEST_CASE("NM backend: split_nmcli_fields", "[network][nm][parsing]") {
     TestableNMBackend backend;
@@ -270,9 +266,7 @@ struct ScopedPathPrepend {
 
 } // namespace
 
-// ============================================================================
 // Connect Argument Vector Tests
-// ============================================================================
 //
 // `nmcli device wifi connect <ssid>` matches the SSID against NetworkManager's
 // scan cache. A hidden network broadcasts no SSID, so it is never in that
@@ -350,9 +344,7 @@ TEST_CASE("NM backend: hidden connect execs nmcli with 'hidden yes'",
     }
 }
 
-// ============================================================================
 // Scan Output Parsing Tests
-// ============================================================================
 
 TEST_CASE("NM backend: parse_scan_output", "[network][nm][parsing]") {
     TestableNMBackend backend;
@@ -503,13 +495,11 @@ TEST_CASE("NM backend: parse_scan_output", "[network][nm][parsing]") {
     }
 }
 
-// ============================================================================
 // Band Parsing (helixscreen#1189)
 //
 // Without FREQ in the requested fields every network arrives with frequency 0
 // and its band unknowable. FREQ is the fifth field, rendered by nmcli as
 // "<n> MHz".
-// ============================================================================
 
 TEST_CASE("NM backend: parse_scan_output reads the FREQ field", "[network][nm][band][1189]") {
     TestableNMBackend backend;
@@ -557,9 +547,7 @@ TEST_CASE("NM backend: parse_scan_output reads the FREQ field", "[network][nm][b
     }
 }
 
-// ============================================================================
 // Input Validation Tests
-// ============================================================================
 
 TEST_CASE("NM backend: validate_input", "[network][nm][security]") {
     TestableNMBackend backend;
@@ -636,9 +624,7 @@ TEST_CASE("NM backend: validate_input", "[network][nm][security]") {
     }
 }
 
-// ============================================================================
 // Backend Lifecycle Tests (no nmcli needed)
-// ============================================================================
 
 TEST_CASE("NM backend: lifecycle basics", "[network][nm][lifecycle]") {
     // These tests check internal state without requiring nmcli
@@ -693,9 +679,7 @@ TEST_CASE("NM backend: lifecycle basics", "[network][nm][lifecycle]") {
     }
 }
 
-// ============================================================================
 // Event System Tests
-// ============================================================================
 
 TEST_CASE("NM backend: event callback registration", "[network][nm][events]") {
     SECTION("Replacing callback for same event name is rejected") {
@@ -734,9 +718,7 @@ TEST_CASE("NM backend: event callback registration", "[network][nm][events]") {
     }
 }
 
-// ============================================================================
 // Status Cache Tests
-// ============================================================================
 
 TEST_CASE("NM backend: get_status returns cached status when not running",
           "[network][nm][status]") {
@@ -763,9 +745,7 @@ TEST_CASE("NM backend: status thread lifecycle", "[network][nm][status]") {
     }
 }
 
-// ============================================================================
 // Polkit Permission Error Detection Tests
-// ============================================================================
 
 TEST_CASE("NM backend: is_polkit_permission_error", "[network][nm][polkit]") {
     SECTION("Detects 'Not authorized'") {
@@ -809,9 +789,7 @@ TEST_CASE("NM backend: is_polkit_permission_error", "[network][nm][polkit]") {
     }
 }
 
-// ============================================================================
 // Status Poll Transition Event Tests (#1059 regression)
-// ============================================================================
 
 TEST_CASE("NM backend: status poll fires CONNECTED/DISCONNECTED on transitions",
           "[network][nm][status][events]") {
@@ -865,9 +843,7 @@ TEST_CASE("NM backend: status poll fires CONNECTED/DISCONNECTED on transitions",
     }
 }
 
-// ============================================================================
 // Status poll transition detection — prev_connected_ reset on stop
-// ============================================================================
 
 TEST_CASE("NM backend: start() resets prev_connected_ so next poll re-detects",
           "[network][nm][status][events]") {
@@ -896,10 +872,8 @@ TEST_CASE("NM backend: start() resets prev_connected_ so next poll re-detects",
     }
 }
 
-// ============================================================================
 // Radio power — the backend must answer for itself, not inherit the base
 // class's silent no-op + unconditional "radio is on"
-// ============================================================================
 
 TEST_CASE("NM backend implements radio power instead of inheriting the base no-op",
           "[network][nm][radio]") {
@@ -921,9 +895,7 @@ TEST_CASE("NM backend implements radio power instead of inheriting the base no-o
     CHECK_FALSE(as_base.set_radio_enabled(false).success());
 }
 
-// ============================================================================
 // wpa_supplicant fallback: only when NetworkManager holds nothing
-// ============================================================================
 
 // A polkit denial is an answer FROM NetworkManager: the daemon is alive and
 // owns wlan0 and its supplicant, so wpa_supplicant must not take the radio.
