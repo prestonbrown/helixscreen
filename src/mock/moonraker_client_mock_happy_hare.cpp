@@ -51,7 +51,6 @@ constexpr int kNumSampleSpools = sizeof(kSampleSpools) / sizeof(kSampleSpools[0]
 constexpr int kMaxGates = 16;
 constexpr const char* kVersion = "4.2.0";
 constexpr const char* kUnitName = "unit0";
-constexpr const char* kUnitDisplayName = "ERCF";
 
 std::optional<int> int_param(const std::string& gcode, const char* key) {
     const auto v = mock_internal::gcode_param(gcode, key);
@@ -82,8 +81,9 @@ HappyHareReply done() {
 
 } // namespace
 
-HappyHareSim::HappyHareSim(int gates, std::string environment_sensor, bool development)
-    : environment_sensor_(std::move(environment_sensor)), development_(development) {
+HappyHareSim::HappyHareSim(int gates, std::string environment_sensor, bool development,
+                           const HappyHareMockUnit& unit)
+    : environment_sensor_(std::move(environment_sensor)), development_(development), unit_(unit) {
     const int n = std::clamp(gates, 1, kMaxGates);
     for (int i = 0; i < n; ++i) {
         const SampleSpool& s = kSampleSpools[i % kNumSampleSpools];
@@ -225,12 +225,12 @@ json HappyHareSim::status() const {
 
 json HappyHareSim::machine_status() const {
     json unit = {{"name", kUnitName},
-                 {"display_name", kUnitDisplayName},
-                 {"vendor", "ERCF"},
+                 {"display_name", std::string(unit_.display_name)},
+                 {"vendor", std::string(unit_.vendor)},
                  {"version", "3.0"},
                  {"num_gates", static_cast<int>(gates_.size())},
                  {"first_gate", 0},
-                 {"selector_type", "LinearSelector"},
+                 {"selector_type", std::string(unit_.selector_type)},
                  {"is_homed", true},
                  {"has_bypass", true},
                  {"filament_always_gripped", false},
@@ -245,11 +245,13 @@ json HappyHareSim::machine_status() const {
 }
 
 json HappyHareSim::config_sections() const {
+    // A Type B unit drives each gate on its own and carries no encoder.
+    const bool type_b = unit_.selector_type == "VirtualSelector";
     json unit = {{"num_gates", static_cast<int>(gates_.size())},
-                 {"vendor", "ERCF"},
-                 {"display_name", kUnitDisplayName},
-                 {"selector_type", "LinearSelector"},
-                 {"encoder", true},
+                 {"vendor", std::string(unit_.vendor)},
+                 {"display_name", std::string(unit_.display_name)},
+                 {"selector_type", std::string(unit_.selector_type)},
+                 {"encoder", !type_b},
                  {"toolhead", "default"}};
     if (const size_t sp = environment_sensor_.find(' '); sp != std::string::npos) {
         unit["environment_sensor"] = environment_sensor_.substr(sp + 1);
@@ -582,9 +584,17 @@ void MoonrakerClientMock::init_happy_hare(int gates) {
     const bool dryer_sensor =
         helix::mock::inherits_default(printer_type_, helix::mock::default_object::kHtu21dDryer);
     const char* development = std::getenv("HELIX_MOCK_HH_DEVELOPMENT");
+    const std::string mode = mock_internal::effective_mock_ams_env();
+    const helix::mock::HappyHareMockUnit* unit = helix::mock::happy_hare_mock_unit(mode);
+    const int real = helix::mock::mock_real_lane_count(mode, gates);
+    if (real != gates) {
+        spdlog::info("[MoonrakerClientMock] Happy Hare mock {} is built with {} gates; ignoring {}",
+                     mode, real, gates);
+    }
     hh_sim_ = std::make_unique<helix::mock::HappyHareSim>(
-        gates, dryer_sensor ? "temperature_sensor dryer" : "",
-        development != nullptr && std::string(development) == "1");
+        real, dryer_sensor ? "temperature_sensor dryer" : "",
+        development != nullptr && std::string(development) == "1",
+        unit ? *unit : helix::mock::kHappyHareErcf);
 }
 
 json MoonrakerClientMock::happy_hare_mmu_status() const {
