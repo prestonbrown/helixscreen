@@ -199,7 +199,7 @@ images:
     recipe: ams
     markers:
       - {n: 1, widget: btn_ams_settings, at: top_right}
-      - {n: 2, widget: current_loaded_card, at: top_right}
+      - {n: 2, widget: current_loaded_card, at: bottom_right}
       - {n: 3, widget: btn_load, at: top_right}
   - path: docs/images/user/camera.png
     kind: manual
@@ -372,7 +372,12 @@ images:
     recipe: print-select
   - path: docs/images/user/print-status.png
     kind: app
-    recipe: print-status
+    env:
+      HELIX_MOCK_AUTO_PRINT: "1"
+    steps:
+      - wait_for print_show_progress 1 --timeout 400
+      - wait_for print_start_phase 0 --timeout 400
+      - wait_for print_progress 1 --timeout 400
   - path: docs/images/user/print-tune.png
     kind: app
     recipe: print-tune
@@ -443,6 +448,7 @@ images:
   - path: docs/images/user/settings-network.png
     kind: app
     recipe: network
+    settle: 8
   - path: docs/images/user/settings-printers.png
     kind: app
     recipe: printers
@@ -472,10 +478,21 @@ images:
     recipe: sensors
   - path: docs/images/user/settings-sound-2.png
     kind: app
-    recipe: sound-2
+    steps:
+      - navigate settings
+      - click row_sound
+      - wait_idle
+      - click row_sounds
+      - wait_idle
+      - scroll overlay_content 0 -190
   - path: docs/images/user/settings-sound.png
     kind: app
-    recipe: sound
+    steps:
+      - navigate settings
+      - click row_sound
+      - wait_idle
+      - click row_sounds
+      - wait_idle
   - path: docs/images/user/settings-system-2.png
     kind: app
     recipe: system-2
@@ -566,7 +583,12 @@ images:
       - {n: 2, widget: nav_btn_edit_done, at: top_right}
   - path: docs/images/user/print-status-controls.png
     kind: app
-    recipe: print-status
+    env:
+      HELIX_MOCK_AUTO_PRINT: "1"
+    steps:
+      - wait_for print_show_progress 1 --timeout 400
+      - wait_for print_start_phase 0 --timeout 400
+      - wait_for print_progress 1 --timeout 400
     crop: ps_strip_buttons
     margin: 12
     markers:
