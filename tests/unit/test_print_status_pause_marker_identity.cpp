@@ -135,15 +135,28 @@ TEST_CASE_METHOD(PrintStatusPreviewFixture,
 
     // A is still the effective print when its download lands, so the entry
     // check passes and the viewer's own background build actually starts.
+    // The queue is drained one pass at a time and only until that load has
+    // started: a small file's build can finish within a pass, and a drain that
+    // ran on until the queue was empty would deliver its result right here.
+    auto& queue = helix::ui::UpdateQueue::instance();
+    const uint64_t generation_before = helix::test_access::gcode_viewer_load_generation(viewer_);
     REQUIRE(transfers_.release(kPrintA));
-    drain();
+    for (int pass = 0; pass < 10 && helix::test_access::gcode_viewer_load_generation(viewer_) ==
+                                        generation_before;
+         ++pass) {
+        queue.drain();
+    }
+    REQUIRE(helix::test_access::gcode_viewer_load_generation(viewer_) != generation_before);
 
     // A's build finished and its result is sitting in the UpdateQueue,
     // undelivered, when the print moves on. Nothing has fetched B's own gcode
     // yet, so the viewer's widget-level load generation never advances: only
     // the panel's own identity check, made when the result is delivered, can
-    // catch this.
-    REQUIRE(wait_for_queued_result(std::chrono::seconds(30)));
+    // catch this. The build runs at background priority, so it is joined
+    // rather than waited on for a fixed time.
+    helix::test_access::gcode_viewer_wait_for_build(viewer_);
+    REQUIRE_FALSE(helix::ui::UpdateQueueTestAccess::queue_empty(queue));
+    REQUIRE(gcode_displayed_file().empty());
 
     nlohmann::json status = {{"print_stats", {{"filename", kPrintB}}}};
     state_.update_from_status(status);
