@@ -97,9 +97,7 @@ SlotInfo slot(const char* brand, const char* material, const char* sub_type) {
 
 } // namespace
 
-// ============================================================================
 // parse_filament_temperatures()
-// ============================================================================
 
 TEST_CASE("filament-temps parse: a table file yields its leaves", "[snapmaker][filament-temps]") {
     auto table = filament_temps::parse_filament_temperatures(kStandard04);
@@ -181,9 +179,7 @@ TEST_CASE("filament-temps parse: malformed or non-object files yield an empty ma
     CHECK(filament_temps::parse_filament_temperatures("").empty());
 }
 
-// ============================================================================
 // merge_filament_temperatures() — one dict per nozzle config, union is the table
-// ============================================================================
 
 TEST_CASE("filament-temps merge: two table files yield the union", "[snapmaker][filament-temps]") {
     auto table = filament_temps::parse_filament_temperatures(kStandard04);
@@ -210,9 +206,7 @@ TEST_CASE("filament-temps merge: two table files yield the union", "[snapmaker][
     CHECK(pla->second.unload_c.value() == 250);
 }
 
-// ============================================================================
 // lookup_filament_temperatures() — the firmware's four-key fallback chain
-// ============================================================================
 
 TEST_CASE("filament-temps lookup: exact vendor/type/sub resolves directly",
           "[snapmaker][filament-temps]") {
@@ -284,9 +278,7 @@ TEST_CASE("filament-temps lookup: no published table answers nullopt",
         filament_temps::lookup_filament_temperatures(slot("Generic", "PETG", "")).has_value());
 }
 
-// ============================================================================
 // Capability questions over PrinterDiscovery
-// ============================================================================
 
 TEST_CASE("filament-temps capability: keyed on the filament_parameters object",
           "[snapmaker][filament-temps]") {
@@ -311,9 +303,7 @@ TEST_CASE("filament-temps capability: keyed on the filament_parameters object",
     CHECK(filament_temps::filament_temperature_files(other).empty());
 }
 
-// ============================================================================
 // capture_on_connect(): the table files, read over the file API
-// ============================================================================
 
 namespace {
 
@@ -590,9 +580,7 @@ TEST_CASE("filament-temps capture: discovering a U1 sends nothing to its console
     }
 }
 
-// ============================================================================
 // Wiring into build_active_material (three-tier precedence, #961)
-// ============================================================================
 
 TEST_CASE_METHOD(FilamentTempsFixture,
                  "active material: firmware temps ride along without touching the print range",
@@ -632,9 +620,7 @@ TEST_CASE_METHOD(FilamentTempsFixture,
     CHECK_FALSE(m.firmware_temps.has_value());
 }
 
-// ============================================================================
 // The one consumer: load preheat
-// ============================================================================
 
 TEST_CASE_METHOD(FilamentTempsFixture,
                  "load preheat: the firmware's load temp beats the DB midpoint",

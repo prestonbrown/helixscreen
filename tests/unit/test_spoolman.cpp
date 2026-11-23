@@ -96,9 +96,7 @@ TEST_CASE("Spoolman display names read vendor, filament name, material", "[filam
     CHECK(vendor.display_name() == "Hatchbox");
 }
 
-// ============================================================================
 // Default records
-// ============================================================================
 
 TEST_CASE("Spoolman records start empty, with a 1.75mm filament diameter", "[filament]") {
     const SpoolInfo spool;
@@ -145,12 +143,9 @@ TEST_CASE("Spoolman records start empty, with a 1.75mm filament diameter", "[fil
     CHECK(SlotInfo{}.spoolman_vendor_id == 0);
 }
 
-// ============================================================================
 // MoonrakerAPIMock Spoolman Tests
-// ============================================================================
 
 TEST_CASE("MoonrakerAPIMock - get_spoolman_status", "[filament][mock]") {
-    // Create mock client and state
     PrinterState state;
     MoonrakerClientMock client;
     MoonrakerAPIMock api(client, state);
@@ -258,7 +253,6 @@ TEST_CASE_METHOD(SpoolmanApiFixture, "MoonrakerAPIMock - set_active_spool", "[fi
 
         REQUIRE(success_called);
 
-        // Verify the change via get_spoolman_status
         api.spoolman().get_spoolman_status(
             [](bool /*connected*/, int active_spool_id) { REQUIRE(active_spool_id == 5); },
             [](const MoonrakerError&) {});
@@ -274,9 +268,7 @@ TEST_CASE_METHOD(SpoolmanApiFixture, "MoonrakerAPIMock - set_active_spool", "[fi
     }
 }
 
-// ============================================================================
 // MoonrakerAPIMock - Spoolman CRUD Tests
-// ============================================================================
 
 TEST_CASE_METHOD(SpoolmanApiFixture, "MoonrakerAPIMock - get_spoolman_vendors",
                  "[filament][mock]") {
@@ -404,7 +396,6 @@ TEST_CASE_METHOD(SpoolmanApiFixture, "MoonrakerAPIMock - create_spoolman_spool",
 
         REQUIRE(callback_called);
 
-        // Verify spool count increased
         api.spoolman().get_spoolman_spools(
             [&](const std::vector<SpoolInfo>& spools) {
                 REQUIRE(spools.size() == initial_count + 1);
@@ -431,11 +422,9 @@ TEST_CASE_METHOD(SpoolmanApiFixture, "MoonrakerAPIMock - delete_spoolman_spool",
 
         REQUIRE(callback_called);
 
-        // Verify spool count decreased
         api.spoolman().get_spoolman_spools(
             [&](const std::vector<SpoolInfo>& spools) {
                 REQUIRE(spools.size() == initial_count - 1);
-                // Verify spool 1 is gone
                 for (const auto& s : spools) {
                     REQUIRE(s.id != 1);
                 }
@@ -482,7 +471,6 @@ TEST_CASE("MoonrakerAPIMock - update_spoolman_spool", "[filament][mock]") {
 
         REQUIRE(callback_called);
 
-        // Verify the weight was updated
         api.spoolman().get_spoolman_spools(
             [spool_id](const std::vector<SpoolInfo>& spools) {
                 for (const auto& s : spools) {
@@ -565,9 +553,7 @@ TEST_CASE("MoonrakerAPIMock - Spoolman-gated methods fail when disabled", "[fila
     CHECK(client.spoolman_mock().created_spools.empty());
 }
 
-// ============================================================================
 // JSON Null Handling Tests (server.spoolman.status parsing)
-// ============================================================================
 
 TEST_CASE("Spoolman status - spool_id null handling", "[filament][parsing]") {
     // This test validates parsing of server.spoolman.status responses.
@@ -625,7 +611,6 @@ TEST_CASE("Spoolman status - spool_id null handling", "[filament][parsing]") {
     }
 }
 
-// ============================================================================
 // parse_spool_info — null numeric field tolerance (#1087)
 //
 // Spoolman serializes optional filament fields (settings_extruder_temp,
@@ -633,7 +618,6 @@ TEST_CASE("Spoolman status - spool_id null handling", "[filament][parsing]") {
 // get<int>() on the null and throws type_error.302, which aborted the whole
 // spool-list parse and left the "Choose Spool" picker stuck loading forever.
 // These exercise the REAL parser so a regression to .value() fails the build.
-// ============================================================================
 
 TEST_CASE("parse_spool_info - null recommended temps do not throw (#1087)",
           "[filament][parsing][spoolman]") {
@@ -694,14 +678,12 @@ TEST_CASE("parse_spool_info - null recommended temps do not throw (#1087)",
     }
 }
 
-// ============================================================================
 // parse_spool_info — nozzle/bed temperature
 //
 // Spoolman's filament carries ONE integer per heater, settings_extruder_temp
 // and settings_bed_temp. apply_spool_to_slot() copies spool.nozzle_temp_min/max
 // onto the slot, so the single value has to fill both ends or every
 // Spoolman-sourced slot reads a 0/0 nozzle range.
-// ============================================================================
 
 TEST_CASE("parse_spool_info reads Spoolman's single nozzle and bed temperature",
           "[filament][parsing][spoolman]") {
@@ -806,7 +788,6 @@ TEST_CASE_METHOD(SpoolmanApiFixture,
     CHECK(code == 422);
 }
 
-// ============================================================================
 // apply_spool_to_slot — what it puts in spool_name
 //
 // spool_name means "a filament name" on every other writer: AFC parses it from
@@ -816,7 +797,6 @@ TEST_CASE_METHOD(SpoolmanApiFixture,
 // that meaning. Spoolman's real filament name arrives in SpoolInfo::color_name
 // — parse_spool_info() maps filament.name there, so the field is misnamed
 // rather than miscarrying.
-// ============================================================================
 
 TEST_CASE("apply_spool_to_slot hands the slot the real filament name",
           "[filament][spoolman][regression]") {
@@ -871,9 +851,7 @@ TEST_CASE("apply_spool_to_slot hands the slot the real filament name",
     }
 }
 
-// ============================================================================
 // filter_spools Tests
-// ============================================================================
 
 static std::vector<SpoolInfo> make_filter_test_spools() {
     std::vector<SpoolInfo> spools;
@@ -1034,12 +1012,9 @@ TEST_CASE_METHOD(SpoolmanApiFixture, "SpoolInfo - location defaults to empty whe
     REQUIRE(created_location.empty());
 }
 
-// ============================================================================
 // MoonrakerAPIMock - Filament Persistence & Patching Tests
-// ============================================================================
 
 TEST_CASE_METHOD(SpoolmanApiFixture, "Mock persists created filaments", "[spoolman][mock]") {
-    // Create a filament
     nlohmann::json filament_data;
     filament_data["material"] = "PETG";
     filament_data["name"] = "Blue PETG";
@@ -1054,7 +1029,6 @@ TEST_CASE_METHOD(SpoolmanApiFixture, "Mock persists created filaments", "[spoolm
         filament_data, [&](const FilamentInfo& f) { created = f; }, nullptr);
     REQUIRE(created.id > 0);
 
-    // Verify it appears in subsequent filament list
     std::vector<FilamentInfo> filaments;
     api.spoolman().get_spoolman_filaments(
         [&](const std::vector<FilamentInfo>& list) { filaments = list; }, nullptr);
@@ -1087,11 +1061,9 @@ TEST_CASE_METHOD(SpoolmanApiFixture, "Mock update_spoolman_spool supports filame
     REQUIRE(spools[0].filament_id != original_filament_id);
 }
 
-// ============================================================================
 // Spoolman Filament Creation Data Validation
 // These tests verify we send the required fields Spoolman expects.
 // Missing density/diameter causes 422 Unprocessable Entity.
-// ============================================================================
 
 TEST_CASE("Filament creation data includes required Spoolman fields", "[spoolman][api]") {
     // Reproduce the data construction from SpoolWizardOverlay::create_filament_then_spool()
@@ -1201,9 +1173,7 @@ TEST_CASE("FilamentInfo diameter populates FilamentEntry", "[spoolman]") {
     REQUIRE(entry.diameter == Catch::Approx(2.85));
 }
 
-// ============================================================================
 // JSON Null-Safe Weight Parsing Tests
-// ============================================================================
 
 TEST_CASE("safe_double handles null initial_weight from Spoolman", "[filament][parsing]") {
     using helix::json_util::safe_double;
@@ -1315,11 +1285,9 @@ TEST_CASE_METHOD(SpoolmanApiFixture, "SpoolInfo vendor_id populated from mock sp
     REQUIRE(fetched);
 }
 
-// ============================================================================
 // sort_spools_by_recency — picker ordering (#1071). Single descending key:
 // max(last_used, registered). A never-used spool competes on its registration
 // date rather than being banished below every used spool.
-// ============================================================================
 
 namespace {
 
@@ -1492,9 +1460,7 @@ TEST_CASE("mock Spoolman embeds a listed filament in a spool created on it", "[s
     CHECK(created.nozzle_temp_recommended == listed.nozzle_temp_max);
 }
 
-// ============================================================================
 // SpoolmanDB search
-// ============================================================================
 
 TEST_CASE("parse_external_filament reads Spoolman's ExternalFilament shape",
           "[spoolman][spoolman_db]") {

@@ -87,9 +87,7 @@ bool contains(const std::vector<std::string>& v, const std::string& s) {
 
 } // namespace
 
-// ===========================================================================
 // Family derivation — the affix table and the explicit override table
-// ===========================================================================
 
 TEST_CASE("family derivation reduces suffix variants to their base polymer",
           "[filament][family][derivation]") {
@@ -249,9 +247,7 @@ TEST_CASE("extract_base_material strips a trailing plus", "[filament][family][de
     CHECK(filament::extract_base_material("+") == "+");
 }
 
-// ===========================================================================
 // Grade awareness: filled vs unfilled, one step below family
-// ===========================================================================
 
 TEST_CASE("grades_match forgives marketing grades", "[filament][family][grade]") {
     // "+" is a toughener brand suffix, not a filler. Same polymer, same
@@ -336,9 +332,7 @@ TEST_CASE("every filled database material reads as filled", "[filament][family][
     }
 }
 
-// ===========================================================================
 // materials_compatible: one answer to "same polymer?"
-// ===========================================================================
 
 TEST_CASE("materials_compatible reduces before comparing groups", "[filament][family][compat]") {
     CHECK(filament::materials_compatible("PLA", "PLA-CF"));
@@ -375,9 +369,7 @@ TEST_CASE("materials_compatible stays permissive for genuinely unknown names",
     CHECK(filament::materials_compatible("Unobtainium", "Unobtainium"));
 }
 
-// ===========================================================================
 // Blast-radius guard: materials_match() must be unchanged
-// ===========================================================================
 
 TEST_CASE("base extraction preserves compat group for every database material",
           "[filament][family][derivation][regression]") {
@@ -416,9 +408,7 @@ TEST_CASE("materials_match behavior is unchanged by family grouping",
     CHECK_FALSE(FilamentMapper::materials_match("PC-ABS", "PC"));
 }
 
-// ===========================================================================
 // THE Orca regression guard — emitted material strings must not change
-// ===========================================================================
 
 TEST_CASE("grouping never alters the type string a product emits",
           "[filament][family][regression][orca]") {
@@ -515,9 +505,7 @@ TEST_CASE_METHOD(XMLTestFixture, "selector emits the product's own type, not the
     helix::ui::UpdateQueue::instance().drain();
 }
 
-// ===========================================================================
 // Picker grouping behavior
-// ===========================================================================
 
 TEST_CASE_METHOD(XMLTestFixture,
                  "ASA-CF and ASA-GF sit under one ASA heading and stay distinguishable",
@@ -627,11 +615,8 @@ TEST_CASE_METHOD(XMLTestFixture, "a variant-only row is chipped with the type it
     // the chip the CF row would read as an unremarkable sibling of the base row
     // while emitting a different string.
     //
-    // (This used to probe two Generic products BOTH named "PETG-CF" — one typed
-    // PETG, one typed PETG-CF. That pair was a catalog duplication bug, since
-    // fixed by merging them, so the collision no longer exists to test. The
-    // property under test is unchanged: rows emitting different materials must
-    // render distinguishably.)
+    // The property under test: rows emitting different materials must render
+    // distinguishably.
     auto products = sel.products_for_test();
     const EffectiveFilament* base = nullptr;
     const EffectiveFilament* typed = nullptr;
@@ -761,9 +746,7 @@ TEST_CASE_METHOD(XMLTestFixture, "family grouping collapses the type dropdown",
     helix::ui::UpdateQueue::instance().drain();
 }
 
-// ===========================================================================
 // AD5X firmware whitelist must still gate variants
-// ===========================================================================
 
 #if HELIX_HAS_IFS
 TEST_CASE_METHOD(XMLTestFixture, "AD5X whitelist filters entries, not just headings",
