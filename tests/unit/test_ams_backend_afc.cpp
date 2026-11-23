@@ -3248,6 +3248,20 @@ TEST_CASE("AFC places a lane's fault at the sensor its later sentence names",
     CHECK(helper.get_slot_info(2).error->sensor == LaneSensor::NONE);
 }
 
+TEST_CASE("AFC's prep runout lights the lane's prep sensor", "[ams][afc][fault][sensor][prep]") {
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes_with_slots(4);
+    helper.feed_afc_stepper("lane2", {{"status", "Error"}});
+    helper.feed_afc_state(
+        {{"message",
+          {{"message", "Runout triggered for lane lane2 and runout lane is not setup to switch "
+                       "to another lane.\nPlease manually load next spool into toolhead and then "
+                       "hit resume to continue."},
+           {"type", "error"}}}});
+    REQUIRE(helper.get_slot_info(1).error.has_value());
+    CHECK(helper.get_slot_info(1).error->sensor == LaneSensor::PREP);
+}
+
 TEST_CASE("AFC clearing a fault drops the lane's stale Error marking",
           "[ams][afc][recovery][stale_fault]") {
     StaleFaultRig rig;

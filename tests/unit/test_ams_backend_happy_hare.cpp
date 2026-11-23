@@ -4001,6 +4001,25 @@ TEST_CASE("Happy Hare classify_error: the pause hint follows the reason",
     }
 }
 
+TEST_CASE("Happy Hare's pre-gate runout lights the gate's prep sensor",
+          "[ams][happy_hare][fault][sensor][prep]") {
+    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> hh_reg;
+    AmsBackendHappyHareTestHelper& hh = *hh_reg;
+    hh.initialize_test_gates(4);
+
+    nlohmann::json fault;
+    fault["action"] = "Idle";
+    fault["gate"] = 2;
+    fault["filament_pos"] = 3;
+    fault["print_state"] = "pause_locked";
+    fault["reason_for_pause"] = "Runout detected on T2 (gate 2) by mmu_entry_2\n"
+                                "No alternative gates available after checking Gate 3: empty";
+    hh.test_parse_mmu_state(fault);
+
+    REQUIRE(hh.get_slot_info(2).error.has_value());
+    CHECK(hh.get_slot_info(2).error->sensor == helix::LaneSensor::PREP);
+}
+
 TEST_CASE("Happy Hare pause_locked marks the slot and path, and cancel clears them",
           "[ams][happy_hare][error-center][1323]") {
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> hh_reg;
