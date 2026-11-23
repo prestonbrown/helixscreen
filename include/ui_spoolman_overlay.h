@@ -237,7 +237,6 @@ class SpoolmanOverlay : public OverlayBase {
     /// Subject for sync enabled state (0=disabled, 1=enabled)
     helix::Subject sync_enabled_subject_{};
 
-    /// Subject for refresh interval in seconds
     helix::Subject refresh_interval_subject_{};
 
     /// IMoonrakerAPI for database access (not owned)

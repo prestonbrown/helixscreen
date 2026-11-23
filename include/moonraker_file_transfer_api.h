@@ -74,9 +74,7 @@ class MoonrakerFileTransferAPI : public helix::ITransfersAPI {
      */
     virtual ~MoonrakerFileTransferAPI();
 
-    // ========================================================================
     // Download Operations
-    // ========================================================================
 
     /**
      * @brief Download a file's content from the printer via HTTP
@@ -173,9 +171,7 @@ class MoonrakerFileTransferAPI : public helix::ITransfersAPI {
     void download_thumbnail(const std::string& thumbnail_path, const std::string& cache_path,
                             StringCallback on_success, ErrorCallback on_error) override;
 
-    // ========================================================================
     // Upload Operations
-    // ========================================================================
 
     /**
      * @brief Upload file content to the printer via HTTP multipart form

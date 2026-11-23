@@ -52,9 +52,7 @@ class EthernetBackendNetd : public EthernetBackend {
                                  std::function<EthernetInfo()> kernel_state = nullptr);
     ~EthernetBackendNetd() override;
 
-    // ========================================================================
     // EthernetBackend Interface Implementation
-    // ========================================================================
 
     bool has_interface() override;
     EthernetInfo get_info() override;

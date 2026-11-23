@@ -102,12 +102,10 @@ bool wizard_hardware_setup_deferred(Config* config);
 /// @return true if a debt was present and cleared
 bool wizard_clear_hardware_setup_deferred(Config* config);
 
-// ============================================================================
 // Id-based pure navigation over the step registry. Operates on a vector of
 // {StepId, skipped} entries — the registry-driven representation. No LVGL;
 // fully testable. This is the sole navigation API; the wizard and tests both
 // drive it.
-// ============================================================================
 
 namespace wizard {
 enum class StepId;

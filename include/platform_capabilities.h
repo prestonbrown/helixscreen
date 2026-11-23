@@ -85,27 +85,21 @@ struct CpuInfo {
  * Use detect() for runtime detection or from_metrics() for testing.
  */
 struct PlatformCapabilities {
-    // ========================================================================
     // Detected hardware metrics
-    // ========================================================================
 
     size_t total_ram_mb = 0;            ///< Total RAM in MB from /proc/meminfo
     int cpu_cores = 0;                  ///< Number of CPU cores from /proc/cpuinfo
     float bogomips = 0.0f;              ///< BogoMIPS value (speed indicator)
     bool efficiency_cores_only = false; ///< CpuInfo::efficiency_cores_only
 
-    // ========================================================================
     // Derived capabilities
-    // ========================================================================
 
     PlatformTier tier = PlatformTier::EMBEDDED; ///< Classified tier
     bool supports_charts = false;               ///< Can render LVGL charts
     bool supports_animations = false;           ///< Can render smooth animations
     size_t max_chart_points = 0;                ///< Max data points for charts
 
-    // ========================================================================
     // Tier thresholds (static constexpr for configuration)
-    // ========================================================================
 
     /// RAM below this threshold = EMBEDDED tier
     static constexpr size_t kEmbeddedRamThresholdMb = 512;
@@ -122,9 +116,7 @@ struct PlatformCapabilities {
     /// Max chart points for BASIC tier
     static constexpr size_t kBasicChartPoints = 50;
 
-    // ========================================================================
     // Factory methods
-    // ========================================================================
 
     /**
      * @brief Detect platform capabilities from system
@@ -156,9 +148,7 @@ struct PlatformCapabilities {
     static PlatformCapabilities from_metrics(size_t ram_mb, int cores, float bogomips);
 };
 
-// ============================================================================
 // Parsing functions (exposed for testing)
-// ============================================================================
 
 /**
  * @brief Parse total RAM from /proc/meminfo content

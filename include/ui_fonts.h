@@ -103,14 +103,12 @@ LV_FONT_DECLARE(source_code_pro_18);
 LV_FONT_DECLARE(source_code_pro_20);
 LV_FONT_DECLARE(source_code_pro_24);
 
-// =============================================================================
 // Material Design Icons - UTF-8 encoded codepoints
 // MDI uses Unicode Plane 15 Private Use Area (0xF0000+)
 // All codepoints from https://pictogrammers.com/library/mdi/
 //
 // UTF-8 encoding for Plane 15: 4 bytes per codepoint
 // Formula: F3 B0+((cp>>12)&0x0F) 80+((cp>>6)&0x3F) 80+(cp&0x3F)
-// =============================================================================
 
 // Glyphs C++ writes directly. Each one here is also in the icon fonts:
 // scripts/mdi_icon_codepoints.py builds the font list from these macros and the

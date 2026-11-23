@@ -104,10 +104,9 @@ struct PanelWidgetDef {
     /// printer render is meant to float on the panel background and tips is a
     /// left accent rule, not a tile.
     ///
-    /// This used to be inferred from the span — a widget exactly one cell
-    /// square merged, anything else was assumed to paint its own background.
-    /// That conflated two unrelated questions and was wrong in both directions:
-    /// a 2x1 fan_stack got no background at all, and a one-cell ams got two.
+    /// It is declared per widget, not inferred from the span: size and whether
+    /// a widget paints its own background are unrelated (a 2x1 fan_stack needs
+    /// the card, a one-cell ams paints its own).
     bool merges_into_card = true;
 
     WidgetFactory factory = nullptr;       // nullptr = pure XML or externally managed

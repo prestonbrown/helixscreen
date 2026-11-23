@@ -15,9 +15,7 @@
  * Used by the macro browser panel and macro execution features.
  */
 
-// ============================================================================
 // Macro Types
-// ============================================================================
 
 /**
  * @brief Information about a G-code macro
@@ -60,11 +58,8 @@ enum class MacroCategory {
     SYSTEM       ///< System/internal macros (_* prefix)
 };
 
-// ============================================================================
 // Macro Callback Types
-// ============================================================================
 
 namespace helix {
-/// Macro list callback
 using MacroListCallback = std::function<void(const std::vector<MacroInfo>&)>;
 } // namespace helix

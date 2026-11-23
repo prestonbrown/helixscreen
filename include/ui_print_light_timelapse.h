@@ -21,7 +21,7 @@ class PrinterState;
 
 /**
  * @file ui_print_light_timelapse.h
- * @brief Light and timelapse button controls extracted from PrintStatusPanel
+ * @brief Light and timelapse button controls of PrintStatusPanel
  *
  * Manages the light and timelapse toggle buttons on the print status panel:
  * - Light button: Toggles the chamber light and shows its state

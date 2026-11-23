@@ -202,9 +202,7 @@ class WizardTouchCalibrationStep : public helix::wizard::Step,
     void ensure_skip_on_top();
 };
 
-// ============================================================================
 // Global Instance Access
-// ============================================================================
 
 /**
  * @brief Get the global WizardTouchCalibrationStep instance

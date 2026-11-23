@@ -27,9 +27,7 @@ class EthernetBackendMacOS : public EthernetBackend {
     EthernetBackendMacOS();
     ~EthernetBackendMacOS() override;
 
-    // ========================================================================
     // EthernetBackend Interface Implementation
-    // ========================================================================
 
     bool has_interface() override;
     EthernetInfo get_info() override;

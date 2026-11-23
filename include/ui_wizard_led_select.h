@@ -101,7 +101,6 @@ class WizardLedSelectStep : public helix::wizard::Step {
   private:
     lv_obj_t* screen_root_ = nullptr;
 
-    // Subjects
     SubjectManager subjects_;
     helix::Subject led_strip_selected_{};
 

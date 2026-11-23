@@ -63,9 +63,7 @@ class MoonrakerMotionAPI : public helix::IMotionAPI {
                        const SafetyLimits& safety_limits);
     virtual ~MoonrakerMotionAPI() = default;
 
-    // ========================================================================
     // Motion Control Operations
-    // ========================================================================
 
     /**
      * @brief Home one or more axes

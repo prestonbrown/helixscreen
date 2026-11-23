@@ -26,9 +26,7 @@
 #include <string>
 #include <type_traits>
 
-// ============================================================================
 // Translated errors from callbacks on any thread
-// ============================================================================
 
 // The splash binary links no UpdateQueue, so it gets only core/error_reporting.h's macros.
 #ifndef HELIX_SPLASH_ONLY

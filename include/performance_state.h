@@ -129,7 +129,6 @@ class PerformanceState {
     mutable std::mutex history_mu_;
     std::unordered_map<std::string, Ring> history_;
 
-    // ---- Source ----
     std::unique_ptr<IPerformanceSource> source_;
     AsyncLifetimeGuard lifetime_;
     int disk_consumers_ = 0;

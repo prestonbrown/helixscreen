@@ -68,17 +68,13 @@ class PinEntryModal {
      */
     static void dismiss();
 
-    // ========================================================================
     // Called by static XML callbacks — do not call directly
-    // ========================================================================
     void on_digit(int digit);
     void on_backspace();
     void on_confirm();
     void on_cancel();
 
-    // ========================================================================
     // Registration (called from xml_registration.cpp)
-    // ========================================================================
     static void register_callbacks();
 
     /// The backdrop the pad's widgets live under, for OpenInstances::owner_of().

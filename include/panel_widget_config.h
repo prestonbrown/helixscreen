@@ -135,9 +135,7 @@ class PanelWidgetConfig {
         return serialize_pages();
     }
 
-    // ========================================================================
     // Backward-compatible accessors (delegate to page 0)
-    // ========================================================================
 
     const std::vector<PanelWidgetEntry>& entries() const {
         return pages_[0].widgets;
@@ -147,9 +145,7 @@ class PanelWidgetConfig {
         return pages_[0].widgets;
     }
 
-    // ========================================================================
     // Multi-page accessors
-    // ========================================================================
 
     /// Number of pages
     size_t page_count() const {

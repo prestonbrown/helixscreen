@@ -519,7 +519,6 @@ class BeltTensionPanel : public OverlayBase {
     std::string klippy_socket_path_;
     bool klippy_socket_reachable_ = false;
 
-    // Calibrator
     std::unique_ptr<helix::calibration::BeltTensionCalibrator> calibrator_;
     helix::IMoonrakerAPI* api_ = nullptr;
     helix::IMoonrakerClient* client_ = nullptr;

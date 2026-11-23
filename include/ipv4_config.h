@@ -54,9 +54,7 @@ enum class Ipv4Link { Wifi, Ethernet };
 const char* ipv4_link_name(Ipv4Link link);
 std::optional<Ipv4Link> ipv4_link_from_name(std::string_view name);
 
-// ============================================================================
 // Address arithmetic
-// ============================================================================
 
 /// Strict dotted quad: four decimal octets 0-255, no spaces inside, no leading
 /// '+', at most three digits each. Surrounding whitespace is ignored.
@@ -74,9 +72,7 @@ std::optional<int> parse_netmask(std::string_view text);
 /// Prefix length to dotted mask: 24 -> "255.255.255.0". Clamped to 0-32.
 std::string prefix_to_netmask(int prefix);
 
-// ============================================================================
 // Form validation
-// ============================================================================
 
 /// The four text fields of the IPv4 screen, as typed.
 struct Ipv4Form {
@@ -129,9 +125,7 @@ Ipv4Form ipv4_form_from_config(const Ipv4Config& config);
 /// form holds one DNS server, so an unedited first server keeps the rest.
 Ipv4Config ipv4_keep_unshown(const Ipv4Config& current, Ipv4Config next);
 
-// ============================================================================
 // Backend capability
-// ============================================================================
 
 struct Ipv4Result {
     /// Failed: it may have been partly done. Refused: nothing was touched, and
@@ -247,9 +241,7 @@ Ipv4Snapshot mock_ipv4_snapshot(Ipv4Link link);
 Ipv4Result restore_mock_ipv4_snapshot(const Ipv4Snapshot& snapshot);
 #endif // HELIX_ENABLE_MOCKS
 
-// ============================================================================
 // NetworkManager (nmcli)
-// ============================================================================
 
 /// The UUID of the connection active on @p iface, from
 /// `nmcli -t -f UUID,DEVICE connection show --active`. Empty when none is.
@@ -299,9 +291,7 @@ std::optional<Ipv4Config> nm_parse_ipv4(const std::string& output);
 /// DHCP clears the static address and gateway and keeps @p config's DNS.
 std::vector<std::string> nm_ipv4_modify_argv(const std::string& uuid, const Ipv4Config& config);
 
-// ============================================================================
 // Confirm-or-revert
-// ============================================================================
 
 /// Seconds the user has to keep a new config before it is reverted.
 constexpr uint32_t kIpv4ConfirmSeconds = 60;
@@ -518,9 +508,7 @@ class Ipv4JobHold {
 /// between a change's snapshot and its apply.
 std::mutex& ipv4_change_mutex();
 
-// ============================================================================
 // The change, from Apply to Keep or revert
-// ============================================================================
 
 /**
  * @brief The IPv4 screen's change lifecycle, with no clock or widget of its own
