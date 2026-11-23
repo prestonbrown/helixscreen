@@ -3115,6 +3115,32 @@ int s_telemetry_max_phase = 0;
 std::string s_telemetry_filament_type;
 float s_telemetry_filament_used_mm = 0.0f;
 
+/// Highest nozzle and bed targets (decidegrees) set while the job ran. End and
+/// cancel gcode turn the heaters off before the printer reports the job over,
+/// so the targets read at that moment are usually zero.
+int s_telemetry_peak_nozzle_deci = 0;
+int s_telemetry_peak_bed_deci = 0;
+
+void sample_target_peaks() {
+    auto& temps = get_printer_state().temperature_state();
+    s_telemetry_peak_nozzle_deci =
+        std::max(s_telemetry_peak_nozzle_deci,
+                 lv_subject_get_int(temps.get_active_extruder_target_subject()));
+    s_telemetry_peak_bed_deci =
+        std::max(s_telemetry_peak_bed_deci, lv_subject_get_int(temps.get_bed_target_subject()));
+}
+
+void reset_target_peaks() {
+    s_telemetry_peak_nozzle_deci = 0;
+    s_telemetry_peak_bed_deci = 0;
+}
+
+void on_target_changed_for_telemetry(lv_observer_t* /*observer*/, lv_subject_t* /*subject*/) {
+    if (s_telemetry_first_update && printer_has_job(s_telemetry_prev_state)) {
+        sample_target_peaks();
+    }
+}
+
 /// Observer callback for print state transitions (telemetry recording)
 void on_print_state_changed_for_telemetry(lv_observer_t* observer, lv_subject_t* subject) {
     (void)observer;
@@ -3158,6 +3184,9 @@ void on_print_state_changed_for_telemetry(lv_observer_t* observer, lv_subject_t*
         if (phase > s_telemetry_max_phase) {
             s_telemetry_max_phase = phase;
         }
+
+        reset_target_peaks();
+        sample_target_peaks();
 
         // Reset filament cache (prevent stale data from previous print)
         s_telemetry_filament_type.clear();
@@ -3245,12 +3274,10 @@ void on_print_state_changed_for_telemetry(lv_observer_t* observer, lv_subject_t*
         int duration_sec = lv_subject_get_int(ps.print_state().get_print_elapsed_subject());
         int phases_completed = s_telemetry_max_phase;
 
-        // Temperatures: subjects store decidegrees (value * 10), divide by 10
-        int nozzle_temp_deci =
-            lv_subject_get_int(ps.temperature_state().get_active_extruder_target_subject());
-        int bed_temp_deci = lv_subject_get_int(ps.temperature_state().get_bed_target_subject());
-        int nozzle_temp = helix::temperature_rules::deci_to_degrees(nozzle_temp_deci);
-        int bed_temp = helix::temperature_rules::deci_to_degrees(bed_temp_deci);
+        // The highest targets the job set, in decidegrees.
+        sample_target_peaks();
+        int nozzle_temp = helix::temperature_rules::deci_to_degrees(s_telemetry_peak_nozzle_deci);
+        int bed_temp = helix::temperature_rules::deci_to_degrees(s_telemetry_peak_bed_deci);
 
         // Use filament data cached at print start from file metadata
         float filament_used_mm = s_telemetry_filament_used_mm;
@@ -3274,7 +3301,7 @@ void on_print_state_changed_for_telemetry(lv_observer_t* observer, lv_subject_t*
 
 } // anonymous namespace
 
-ObserverGuard TelemetryManager::init_print_outcome_observer() {
+std::vector<ObserverGuard> TelemetryManager::init_print_outcome_observer() {
     // Reset state tracking on (re)initialization
     s_telemetry_first_update = false;
     // RAW_PRINT_STATE_OK: re-seed on disconnect; see the declaration.
@@ -3282,8 +3309,16 @@ ObserverGuard TelemetryManager::init_print_outcome_observer() {
     s_telemetry_max_phase = 0;
     s_telemetry_filament_type.clear();
     s_telemetry_filament_used_mm = 0.0f;
+    reset_target_peaks();
 
     spdlog::debug("[Telemetry] Print outcome observer registered");
-    return ObserverGuard(get_printer_state().print_state().get_print_state_enum_subject(),
-                         on_print_state_changed_for_telemetry, nullptr);
+    auto& ps = get_printer_state();
+    std::vector<ObserverGuard> guards;
+    guards.emplace_back(ps.print_state().get_print_state_enum_subject(),
+                        on_print_state_changed_for_telemetry, nullptr);
+    guards.emplace_back(ps.temperature_state().get_active_extruder_target_subject(),
+                        on_target_changed_for_telemetry, nullptr);
+    guards.emplace_back(ps.temperature_state().get_bed_target_subject(),
+                        on_target_changed_for_telemetry, nullptr);
+    return guards;
 }
