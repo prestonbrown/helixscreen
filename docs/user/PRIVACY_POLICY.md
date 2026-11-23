@@ -3,7 +3,7 @@
 # HelixScreen Privacy Policy
 
 **Effective date**: July 2026
-**Last updated**: October 2026
+**Last updated**: November 2026
 
 ---
 
@@ -74,9 +74,12 @@ Recorded when a print job reaches a terminal state (completion, failure, or canc
 | `duration_sec` | integer | Print duration in seconds |
 | `phases_completed` | integer | Number of print start phases completed (0-10) |
 | `filament_used_mm` | float | Filament consumed in millimeters |
-| `filament_type` | string | Filament material type (e.g., `"PLA"`, `"PETG"`, `"ABS"`) |
+| `filament_type` | string | Filament material type (e.g., `"PLA"`, `"PETG"`, `"ABS"`); when the file names none, the loaded material's name from HelixScreen's built-in filament database, never text you typed |
 | `nozzle_temp` | integer | Highest nozzle target during the print, in degrees Celsius |
 | `bed_temp` | integer | Highest bed target during the print, in degrees Celsius |
+| `progress_pct` | integer | How far the print got, 0 to 100 |
+| `cancel_origin` | string | For a cancelled print, `"in_app"` or `"external"` |
+| `failure_class` | string | For a failed or cancelled print, one value from a fixed list of reasons (see the [Telemetry documentation](TELEMETRY.md)); Klipper's message text is never sent |
 
 ### 4.3 Crash Reports
 
@@ -111,6 +114,8 @@ In addition to the three categories above, HelixScreen records the following dia
 | Feature adoption | 5 minutes after startup | Boolean flags for which built-in features have been used |
 | Connection stability | Every 4 hours and at close | Connect/disconnect counts and total connected time |
 | Print start context | When a print begins | Print source, whether the file has a thumbnail, a bucketed file-size range, and slicer name — never the filename |
+| Filament operations | When a multi-material system finishes a load, unload or tool change (rate-limited) | The kind of system, the operation, whether it succeeded, failed or was cancelled, a failure reason from a fixed list, a duration range and whether a print was running; never lane names, spool details or the system's messages |
+| Calibration outcomes | When a step of the guided calibration run ends | Which calibration it was, whether it completed, was stopped or failed, a failure reason from a fixed list and a duration range; never the measured results |
 | Error events | When a non-fatal error occurs (rate-limited) | An error category, code, and the operation being attempted; for a frozen screen, also which screen was open, the graphics renderer name, free memory and HelixScreen's count of memory reads from storage |
 
 ### 4.5 Klipper Configuration Identifiers

@@ -59,6 +59,50 @@ const INSTALL_SOURCES = ["helix-installer", "kiauh", "helper-script", "curl", "o
 const HOST_MODS = ["forge_x", "zmod", "klipper_mod", "cosmos", "paxx", "simple_af", "rinkhals", "none"];
 // Mirrors src/system/telemetry_manager.cpp#gcode_render_mode_name.
 const GCODE_RENDER_MODES = ["auto", "3d", "2d", "thumbnail"];
+// Mirrors src/system/telemetry_outcomes.cpp#failure_class_name.
+const FAILURE_CLASSES = [
+  "none",
+  "thermal_runaway",
+  "heater",
+  "mcu_shutdown",
+  "emergency_stop",
+  "driver",
+  "homing_probe",
+  "move",
+  "accelerometer",
+  "config",
+  "gcode_error",
+  "runout",
+  "filament_system",
+  "timeout",
+  "klippy_shutdown",
+  "other",
+  "unknown",
+];
+const CANCEL_ORIGINS = ["in_app", "external"];
+// Mirror src/system/telemetry_outcomes.cpp: filament_op_name, filament_op_outcome_name,
+// filament_op_error_name; the buckets mirror TelemetryManager::bucket_short_duration.
+const FILAMENT_OPS = ["load", "unload", "tool_change"];
+const FILAMENT_OP_OUTCOMES = ["success", "failed", "aborted"];
+const FILAMENT_OP_ERRORS = ["none", "sensor_timeout", "jam", "hub", "toolhead_sensor", "backend_error", "other"];
+// Mirrors the step ids of src/printer/calibration_catalog.cpp.
+const CALIBRATION_TYPES = [
+  "belt_tension",
+  "cutter",
+  "z_offset",
+  "heaters",
+  "bed_mesh",
+  "input_shaper",
+  "pressure_advance",
+  "belt_compare",
+  "bed_screws",
+  "tool_offsets",
+  "vertical_artifact",
+  "pa_tuning",
+  "vibration_check",
+];
+const CALIBRATION_OUTCOMES = ["completed", "aborted", "failed"];
+const SHORT_DURATION_BUCKETS = ["<10s", "10-30s", "30-60s", "1-2min", "2-5min", "5-15min", "15-60min", "1hr+"];
 
 // ---------- Readers ----------
 
@@ -397,6 +441,35 @@ const KINDS: PointKind[] = [
     dbl(3, "bed_temp"),
     dbl(4, "filament_used_mm"),
     dbl(5, "phases_completed"),
+    // Why and where it ended (#2166); empty on clients too old to say.
+    blob(15, "cancel_origin", allowlisted(flat("cancel_origin"), CANCEL_ORIGINS)),
+    blob(16, "failure_class", allowlisted(flat("failure_class"), FAILURE_CLASSES)),
+    // 0 percent is a real reading, so stored + 1 (0 = absent).
+    dbl(9, "progress_pct", plusOne("progress_pct")),
+  ]),
+
+  // One point per load, unload or tool change (#2167).
+  kind("filament_op", [
+    device,
+    ...versionPlatform,
+    blob(4, "backend"),
+    blob(5, "op", allowlisted(flat("op"), FILAMENT_OPS)),
+    blob(6, "outcome", allowlisted(flat("outcome"), FILAMENT_OP_OUTCOMES)),
+    blob(7, "error_class", allowlisted(flat("error_class"), FILAMENT_OP_ERRORS)),
+    blob(8, "duration_bucket", allowlisted(flat("duration_bucket"), SHORT_DURATION_BUCKETS)),
+    blob(13, "app_board", appBoard),
+    dbl(1, "during_print"),
+  ]),
+
+  // One point per guided calibration step that ran (#2168).
+  kind("calibration_outcome", [
+    device,
+    ...versionPlatform,
+    blob(4, "type", allowlisted(flat("type"), CALIBRATION_TYPES)),
+    blob(5, "outcome", allowlisted(flat("outcome"), CALIBRATION_OUTCOMES)),
+    blob(6, "failure_class", allowlisted(flat("failure_class"), FAILURE_CLASSES)),
+    blob(7, "duration_bucket", allowlisted(flat("duration_bucket"), SHORT_DURATION_BUCKETS)),
+    blob(13, "app_board", appBoard),
   ]),
 
   kind("crash", [
@@ -720,6 +793,8 @@ export const EVENT_FANOUT: Record<string, string[]> = {
   feature_adoption: ["feature_adoption"],
   settings_changes: ["settings_change"],
   async_lifetime_skips: ["async_lifetime_skips"],
+  filament_op: ["filament_op"],
+  calibration_outcome: ["calibration_outcome"],
 };
 
 function mergeLists(...groups: Array<Record<string, string[]>>): Record<string, string[]> {
@@ -756,6 +831,8 @@ export const R2_ONLY: Record<string, string[]> = mergeLists(
     performance_snapshot: ["boot_id", "schema_version", "app_board"],
     settings_changes: ["boot_id", "schema_version", "app_board"],
     async_lifetime_skips: ["boot_id", "schema_version", "app_board"],
+    filament_op: ["boot_id", "schema_version"],
+    calibration_outcome: ["boot_id", "schema_version"],
   },
   // Update events store the two versions they move between, and app_platform;
   // app_version repeats one version and `platform` names the release's target.

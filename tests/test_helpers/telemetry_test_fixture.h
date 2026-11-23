@@ -127,7 +127,11 @@ inline std::map<std::string, nlohmann::json> record_one_of_every_event(Telemetry
 
     tm.record_session();
     collect();
-    tm.record_print_outcome("completed", 600, 5, 300.0f, "PLA", 200, 60);
+    helix::PrintOutcomeDetail outcome_detail;
+    outcome_detail.progress_pct = 42;
+    outcome_detail.cancel_origin = "in_app";
+    outcome_detail.failure_class = "none";
+    tm.record_print_outcome("cancelled", 600, 5, 300.0f, "PLA", 200, 60, outcome_detail);
     collect();
     TelemetryManager::UpdateFailureDetail update_detail;
     update_detail.transfer_error = "http";
@@ -199,6 +203,13 @@ inline std::map<std::string, nlohmann::json> record_one_of_every_event(Telemetry
     tm.record_async_lifetime_snapshot();
     collect();
     tm.record_print_start_context("local", true, 5000000, 3600, "PrusaSlicer", 1, false);
+    collect();
+    tm.record_filament_op("afc", helix::telemetry::FilamentOp::ToolChange,
+                          helix::telemetry::FilamentOpOutcome::Failed,
+                          helix::telemetry::FilamentOpError::Hub, 45, true);
+    collect();
+    tm.record_calibration_outcome("input_shaper", helix::telemetry::CalibrationOutcome::Failed,
+                                  helix::telemetry::FailureClass::Accelerometer, 400);
     collect();
     // error_encountered's richest shape: a hang adds the screen and renderer.
     helix::HangMemoryContext hang_memory;

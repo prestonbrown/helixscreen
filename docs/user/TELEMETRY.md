@@ -62,9 +62,14 @@ Recorded when a print finishes (success, failure, or cancellation). Helps us tra
 | `duration_sec` | Total print duration in seconds | `3600` |
 | `phases_completed` | The furthest print start phase reached, as its number in that build (13 = complete) | `13` |
 | `filament_used_mm` | Filament consumed in millimeters | `1500.0` |
-| `filament_type` | Filament material | `"PLA"`, `"PETG"`, `"ABS"` |
+| `filament_type` | Filament material, from the file; when the file names none, the loaded lane's or spool's material as HelixScreen's filament database names it (a material the database does not know is left empty) | `"PLA"`, `"PETG"`, `"ABS"` |
 | `nozzle_temp` | Highest nozzle target during the print, in degrees C | `215` |
 | `bed_temp` | Highest bed target during the print, in degrees C | `60` |
+| `progress_pct` | How far the print got, 0 to 100 | `37` |
+| `cancel_origin` | For a cancelled print: whether it was cancelled on this screen (`in_app`) or elsewhere, such as Mainsail, Fluidd or a macro (`external`) | `"in_app"` |
+| `failure_class` | For a failed or cancelled print: why it stopped, as one value from a fixed list (`none`, `thermal_runaway`, `heater`, `mcu_shutdown`, `emergency_stop`, `driver`, `homing_probe`, `move`, `accelerometer`, `config`, `gcode_error`, `runout`, `filament_system`, `timeout`, `klippy_shutdown`, `other`, `unknown`) | `"runout"` |
+
+HelixScreen works out `failure_class` on the device from Klipper's message and state. The message itself is never sent.
 
 ### Crash Reports
 
@@ -231,6 +236,34 @@ Recorded when a print begins. Helps us understand slicer usage and file characte
 | `slicer` | Slicer software used | `"PrusaSlicer"` |
 
 No filenames are collected. File size is bucketed, not exact.
+
+### Filament Operations
+
+Recorded when a multi-material system (AFC, Happy Hare, ACE, CFS and the others) finishes a load, unload or tool change. Helps us see how often these fail, on which system, and whether a release made it better or worse.
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `backend` | The kind of multi-material system, as in the hardware profile | `"afc"` |
+| `op` | `load`, `unload` or `tool_change` | `"tool_change"` |
+| `outcome` | `success`, `failed` or `aborted` (you cancelled it) | `"failed"` |
+| `error_class` | For a failure, one value from a fixed list: `sensor_timeout`, `jam`, `hub`, `toolhead_sensor`, `backend_error`, `other`; `none` otherwise | `"hub"` |
+| `duration_bucket` | How long it took, as a range | `"30-60s"` |
+| `during_print` | Whether a print was running | `true` |
+
+Lane names, spool details and the system's own messages are never sent: HelixScreen works out `error_class` on the device. At most 50 successful and 50 failed operations are recorded per session, and the same failure repeating is recorded at most once every 5 minutes.
+
+### Calibration Outcomes
+
+Recorded when a step of the guided calibration run ends. Helps us see which calibrations finish, which people stop, and which fail.
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `type` | Which calibration, by its fixed name (`z_offset`, `heaters`, `bed_mesh`, `input_shaper`, and so on) | `"input_shaper"` |
+| `outcome` | `completed`, `aborted` (stopped or skipped) or `failed` | `"failed"` |
+| `failure_class` | For a failure, one value from the same fixed list as print outcomes; `none` otherwise | `"accelerometer"` |
+| `duration_bucket` | How long the step ran, as a range | `"5-15min"` |
+
+Measured results (shaper frequencies, PID values, offsets, meshes) stay on your printer.
 
 ### Error Events
 

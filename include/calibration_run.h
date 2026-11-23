@@ -9,10 +9,12 @@
 #include "calibration_step.h"
 #include "helix_shared_callback.h"
 
+#include <chrono>
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace helix {
@@ -115,6 +117,15 @@ enum class RunPhase : uint8_t {
 
 class CalibrationRun {
   public:
+    /// How one step ended, reported once per step that ran.
+    struct StepEnd {
+        const StepInfo& info;
+        StepStatus status;        ///< Finished, Failed, Skipped or Aborted
+        std::string_view message; ///< why it failed; the step's own words
+        int duration_sec = 0;
+        bool klipper_stopped = false; ///< Klipper left ready while it ran
+    };
+
     struct Entry {
         std::unique_ptr<CalibrationStep> step;
         StepStatus status = StepStatus::Pending;
@@ -162,6 +173,11 @@ class CalibrationRun {
     /// only once the printer is idle. Without one it goes on at once.
     void set_busy_watch(std::unique_ptr<PrinterBusyWatch> watch) {
         busy_watch_ = std::move(watch);
+    }
+    /// Called on the main thread as each step that ran ends: on its own report,
+    /// or when Stop aborts it.
+    void set_step_end_sink(std::function<void(const StepEnd&)> sink) {
+        step_end_sink_ = std::move(sink);
     }
     /// The entry whose command the printer is still running while the run
     /// waits to go on, or -1.
@@ -223,6 +239,8 @@ class CalibrationRun {
     /// End the run after the current entry without going on: the rest did not run.
     void end_early(EndNote note);
     void changed();
+    /// Tell the step end sink how entry @p index ended.
+    void report_step_end(size_t index);
     /// Discard all: restore entries from @p from on, then restart if needed.
     void restore_from(size_t from, RunFinisher& finisher);
     void restart_to_discard(RunFinisher& finisher);
@@ -246,6 +264,9 @@ class CalibrationRun {
     bool klipper_left_ready_ = false;
     EndNote end_note_ = EndNote::None;
     std::unique_ptr<PrinterBusyWatch> busy_watch_;
+    std::function<void(const StepEnd&)> step_end_sink_;
+    /// When each entry started.
+    std::vector<std::chrono::steady_clock::time_point> started_;
     std::string error_;
     /// The finisher's callbacks check it, so a run closed mid-save ignores them.
     std::shared_ptr<int> alive_ = std::make_shared<int>(0);

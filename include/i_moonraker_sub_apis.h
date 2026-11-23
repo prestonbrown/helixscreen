@@ -155,6 +155,13 @@ class IJobAPI {
     virtual void resume_print(SuccessCallback on_success, ErrorCallback on_error) = 0;
 
     virtual void cancel_print(SuccessCallback on_success, ErrorCallback on_error) = 0;
+
+    /// How many cancels cancel_print() has sent since startup. Every cancel the
+    /// screen makes goes through it and none made elsewhere does, so two
+    /// readings tell whether the screen canceled in between. Any thread.
+    [[nodiscard]] virtual uint32_t cancels_sent() const {
+        return 0;
+    }
 };
 
 /**

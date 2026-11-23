@@ -76,6 +76,9 @@ void TelemetryManager::notify_klippy_state_changed(int) {}
 std::vector<ObserverGuard> TelemetryManager::init_print_outcome_observer() {
     return {};
 }
+std::vector<ObserverGuard> TelemetryManager::init_filament_op_observer() {
+    return {};
+}
 
 // --- USB manager seam (Linux udev/mount stack) -----------------------------
 // SubjectInitializer::init_post() owns a UsbManager; USB drive detection is
