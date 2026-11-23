@@ -1120,6 +1120,8 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /// WRONG_STATE when AFC would refuse a lane load (bypass mode on), else
     /// success. @pre mutex_ held.
     [[nodiscard]] AmsError lane_load_refusal_locked() const;
+    /// Bypass on and a fitted toolhead sensor reading filament. @pre mutex_ held.
+    [[nodiscard]] bool bypass_strand_at_toolhead_locked() const;
 
     /// False only when configfile has answered and no AFC_extruder section
     /// named, or resolving to, @p klipper_name sets `toolchanger_unit`. AFC_SELECT_TOOL on such a

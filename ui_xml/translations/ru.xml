@@ -558,6 +558,8 @@
   <translation tag="Bypass disabled" ru="Байпас отключён"/>
   <translation tag="Bypass enabled" ru="Байпас включён"/>
   <translation tag="Bypass failed" ru="Ошибка байпаса"/>
+  <translation tag="Bypass filament is at the toolhead. Unload it before turning off bypass." ru="Филамент обхода находится в печатающей головке. Выгрузите его перед выключением обхода."/>
+  <translation tag="Bypass filament is loaded" ru="Филамент обхода загружен"/>
   <translation tag="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?" ru="Активен байпас, но эта печать использует слоты AMS. Принтер может отказаться загружать слот, пока филамент байпаса находится в печатающей головке. Извлеките филамент и выключите байпас перед печатью. Всё равно начать?"/>
   <translation tag="Bypass mode is not currently active" ru="Режим обхода сейчас не активен"/>
   <translation tag="Bypass mode is on" ru="Режим обхода включён"/>

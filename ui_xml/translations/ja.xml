@@ -519,6 +519,8 @@
   <translation tag="Bypass disabled" ja="バイパス無効"/>
   <translation tag="Bypass enabled" ja="バイパス有効"/>
   <translation tag="Bypass failed" ja="バイパスに失敗しました"/>
+  <translation tag="Bypass filament is at the toolhead. Unload it before turning off bypass." ja="バイパスのフィラメントがツールヘッドにあります。バイパスをオフにする前に取り出してください。"/>
+  <translation tag="Bypass filament is loaded" ja="バイパスのフィラメントが装填されています"/>
   <translation tag="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?" ja="バイパスが有効ですが、この印刷はAMSスロットを使用します。バイパスのフィラメントがツールヘッドにある間は、プリンターがスロットの装填を拒否する場合があります。印刷前にフィラメントを取り除き、バイパスをオフにしてください。それでも印刷を開始しますか？"/>
   <translation tag="Bypass mode is not currently active" ja="バイパスモードは現在アクティブではありません"/>
   <translation tag="Bypass mode is on" ja="バイパスモードがオンです"/>

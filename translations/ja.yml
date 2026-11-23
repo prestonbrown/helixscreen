@@ -534,6 +534,8 @@ translations:
   Bypass disabled: バイパス無効
   Bypass enabled: バイパス有効
   Bypass failed: バイパスに失敗しました
+  Bypass filament is at the toolhead. Unload it before turning off bypass.: 'バイパスのフィラメントがツールヘッドにあります。バイパスをオフにする前に取り出してください。'
+  Bypass filament is loaded: 'バイパスのフィラメントが装填されています'
   ? Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
   : バイパスが有効ですが、この印刷はAMSスロットを使用します。バイパスのフィラメントがツールヘッドにある間は、プリンターがスロットの装填を拒否する場合があります。印刷前にフィラメントを取り除き、バイパスをオフにしてください。それでも印刷を開始しますか？
   Bypass mode is not currently active: 'バイパスモードは現在アクティブではありません'

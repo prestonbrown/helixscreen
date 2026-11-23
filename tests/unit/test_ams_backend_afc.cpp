@@ -3,6 +3,7 @@
 
 #include "ui_ams_lane_settings.h"
 #include "ui_callback_helpers.h"
+#include "ui_panel_filament.h"
 #include "ui_print_select_detail_view.h"
 #include "ui_print_start_controller.h"
 #include "ui_test_utils.h"
@@ -6441,57 +6442,94 @@ struct AfcFourRunningLanes {
     }
 };
 
+namespace {
+/// Four running lanes with bypass mode on, staged per case: a virtual or
+/// hardware bypass switch, and a toolhead sensor that is absent, empty or full.
+struct AfcBypassOn : AfcFourRunningLanes {
+    enum class Head { NoSensor, Empty, Full };
+
+    void stage(bool hardware_switch, Head head) {
+        helper.set_supports_bypass(true);
+        helper.set_discovered_sensors({hardware_switch ? "filament_switch_sensor bypass"
+                                                       : "filament_switch_sensor virtual_bypass"});
+        if (head != Head::NoSensor) {
+            AfcTestAccess::apply_configfile_topology(
+                helper, AmsBackendAfc::parse_configfile_topology(
+                            {{"result",
+                              {{"status",
+                                {{"configfile",
+                                  {{"settings",
+                                    {{"afc_extruder extruder",
+                                      {{"pin_tool_start", "sht36:PA1"}}}}}}}}}}}}));
+            helper.feed_afc_extruder("extruder", {{"tool_start_status", head == Head::Full}});
+        }
+        helper.feed_afc_state({{"bypass_state", true}});
+        helper.captured_gcodes.clear();
+    }
+
+    /// A lane tap planned the way the Load button plans it.
+    helix::ui::FilamentOpPlan plan_lane_tap(int slot) {
+        AmsSystemInfo info;
+        const helix::ui::BackendCaps caps = helix::ui::read_backend_caps(&helper, info, slot);
+        return helix::ui::plan_load(info, caps, slot, /*macro_available=*/true,
+                                    /*macro_user_configured=*/false);
+    }
+
+    /// What the planner's own BypassLoaded refusal tells the user to do.
+    static std::string remove_spool_advice() {
+        helix::ui::FilamentOpPlan bypass_loaded;
+        bypass_loaded.refusal = helix::ui::FilamentRefusal::BypassLoaded;
+        return helix::ui::panel_load_outcome(bypass_loaded).toast;
+    }
+};
+} // namespace
+
 // AFC's CHANGE_TOOL logs "Filament loaded in bypass, not doing tool load" and
-// returns without a G-code error, and its bypass switch stays on after the
-// bypass spool is pulled out, so the load has to be refused here to be seen.
-// Staged as the switch left on with the toolhead sensor reading empty.
-TEST_CASE_METHOD(AfcFourRunningLanes, "AFC refuses a lane load while bypass mode is on",
-                 "[ams][afc][bypass][bypass-load-refusal]") {
-    helper.set_supports_bypass(true);
-    AfcTestAccess::apply_configfile_topology(
-        helper,
-        AmsBackendAfc::parse_configfile_topology(
-            {{"result",
-              {{"status",
-                {{"configfile",
-                  {{"settings",
-                    {{"afc_extruder extruder", {{"pin_tool_start", "sht36:PA1"}}}}}}}}}}}}));
-    helper.feed_afc_extruder("extruder", {{"tool_start_status", false}});
-    helper.feed_afc_state({{"bypass_state", true}});
-    REQUIRE_FALSE(helper.get_system_info().filament_loaded);
-    helper.captured_gcodes.clear();
-
-    SECTION("load_filament") {
-        const AmsError err = helper.load_filament(1);
-        CHECK(err.result == AmsResult::WRONG_STATE);
-        CHECK_FALSE(err.user_msg.empty());
-        CHECK_FALSE(err.suggestion.empty());
-    }
-    SECTION("change_tool, whose T<n> runs CHANGE_TOOL") {
-        const AmsError err = helper.change_tool(1);
-        CHECK(err.result == AmsResult::WRONG_STATE);
-    }
-    CHECK(helper.captured_gcodes.empty());
-}
-
-// With no toolhead sensor an engaged bypass reads as loaded, which alone would
-// plan BypassLoaded ("remove the bypass spool") even after the spool is out.
-TEST_CASE_METHOD(AfcFourRunningLanes,
-                 "AFC bypass mode refuses a lane load at planning, before any preheat",
+// returns without a G-code error, and a virtual bypass stays on after its spool
+// is pulled out, so the refusal has to come from here, at planning, before any
+// preheat or homing.
+TEST_CASE_METHOD(AfcBypassOn, "AFC refuses a lane load while bypass mode is on",
                  "[ams][afc][bypass][dispatch][bypass-load-refusal]") {
-    helper.set_supports_bypass(true);
-    helper.feed_afc_state({{"bypass_state", true}});
-    REQUIRE(helper.get_system_info().filament_loaded);
-
-    AmsSystemInfo info;
-    const helix::ui::BackendCaps caps = helix::ui::read_backend_caps(&helper, info, 1);
-    const auto plan = helix::ui::plan_load(info, caps, /*target_slot=*/1,
-                                           /*macro_available=*/true,
-                                           /*macro_user_configured=*/false);
-
-    CHECK(plan.refusal == helix::ui::FilamentRefusal::BackendRefused);
-    CHECK(plan.backend_refusal.result == AmsResult::WRONG_STATE);
-    CHECK(plan.backend_refusal.user_msg == helper.load_filament(1).user_msg);
+    SECTION("virtual switch, toolhead empty: turn bypass off") {
+        stage(/*hardware_switch=*/false, Head::Empty);
+        const auto plan = plan_lane_tap(1);
+        CHECK(plan.refusal == helix::ui::FilamentRefusal::BackendRefused);
+        CHECK(plan.backend_refusal.result == AmsResult::WRONG_STATE);
+        CHECK(plan.backend_refusal.suggestion != remove_spool_advice());
+        CHECK(helper.load_filament(1).result == AmsResult::WRONG_STATE);
+        CHECK(helper.change_tool(1).result == AmsResult::WRONG_STATE); // T<n> runs CHANGE_TOOL
+        CHECK(helper.captured_gcodes.empty());
+        REQUIRE(helper.disable_bypass());
+        CHECK(helper.has_gcode("SET_FILAMENT_SENSOR SENSOR=virtual_bypass ENABLE=0"));
+    }
+    // An engaged bypass reads as loaded with no sensor to say otherwise, which
+    // would otherwise plan BypassLoaded after the spool is already out.
+    SECTION("virtual switch, no toolhead sensor: turn bypass off, not remove the spool") {
+        stage(/*hardware_switch=*/false, Head::NoSensor);
+        REQUIRE(helper.get_system_info().filament_loaded);
+        const auto plan = plan_lane_tap(1);
+        CHECK(plan.refusal == helix::ui::FilamentRefusal::BackendRefused);
+        CHECK(plan.backend_refusal.suggestion != remove_spool_advice());
+    }
+    // The screen refuses to drive a hardware switch, so "turn bypass off" is
+    // advice the user cannot follow.
+    SECTION("hardware switch, toolhead empty: remove the spool") {
+        stage(/*hardware_switch=*/true, Head::Empty);
+        const auto plan = plan_lane_tap(1);
+        CHECK(plan.refusal == helix::ui::FilamentRefusal::BackendRefused);
+        CHECK(plan.backend_refusal.suggestion == remove_spool_advice());
+    }
+    // Turning bypass off would let the next tap feed a lane into the strand.
+    SECTION("strand confirmed at the toolhead: the planner's remove-the-spool refusal") {
+        const bool hardware_switch = GENERATE(false, true);
+        stage(hardware_switch, Head::Full);
+        CHECK(plan_lane_tap(1).refusal == helix::ui::FilamentRefusal::BypassLoaded);
+        const AmsError load = helper.load_filament(1);
+        CHECK(load.result == AmsResult::WRONG_STATE);
+        CHECK(load.suggestion == remove_spool_advice());
+        CHECK(helper.disable_bypass().result == AmsResult::WRONG_STATE);
+        CHECK(helper.captured_gcodes.empty());
+    }
 }
 
 TEST_CASE_METHOD(AfcFourRunningLanes, "AFC loads a lane once bypass mode is off",

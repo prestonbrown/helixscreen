@@ -103,6 +103,10 @@ struct FilamentPanelOutcome {
     /// no toast. Severity stays at the call site: the load refusals are INFO, the
     /// unload refusal is a WARNING.
     std::string toast;
+
+    /// FilamentRefusal::BackendRefused only: the backend's error, shown through
+    /// notify_ams_warning() like every other surface's, in place of @c toast.
+    helix::AmsError backend_refusal{};
 };
 
 /// FilamentPanel::execute_load() from the plan onward, minus the dispatch.

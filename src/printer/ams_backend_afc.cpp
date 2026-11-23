@@ -5383,12 +5383,25 @@ AmsError AmsBackendAfc::execute_gcode_notify(const std::string& gcode,
     return AmsErrorHelper::success();
 }
 
+bool AmsBackendAfc::bypass_strand_at_toolhead_locked() const {
+    return bypass_active_ && toolhead_sensor_known_fitted() &&
+           (tool_start_sensor_ || tool_end_sensor_);
+}
+
 AmsError AmsBackendAfc::lane_load_refusal_locked() const {
     // AFC's CHANGE_TOOL refuses every lane load while bypass is on ("Filament
     // loaded in bypass, not doing tool load") and returns without a G-code
     // error, and a virtual bypass stays on after its spool is pulled out.
     if (!bypass_active_) {
         return AmsErrorHelper::success();
+    }
+    // A hardware bypass switch reads the bypass filament itself and cannot be
+    // turned off from the screen, and a strand the toolhead sensor sees must
+    // come out before any lane feeds: either way the spool has to be removed.
+    if (system_info_.has_hardware_bypass_sensor || bypass_strand_at_toolhead_locked()) {
+        return AmsError(AmsResult::WRONG_STATE, "Lane load refused: bypass filament present",
+                        lv_tr("Bypass filament is loaded"),
+                        lv_tr("Remove the bypass spool from the toolhead first"));
     }
     return AmsError(AmsResult::WRONG_STATE, "Lane load refused: bypass mode is on",
                     lv_tr("Bypass mode is on"), lv_tr("Turn off bypass mode to load from a lane"));
@@ -6562,6 +6575,15 @@ AmsError AmsBackendAfc::disable_bypass() {
                             lv_tr("Bypass mode is not currently active"), "");
         }
 
+        // With bypass off AFC would feed a lane into the strand still in the
+        // toolhead, so the strand comes out first, as enable_bypass() asks.
+        if (bypass_strand_at_toolhead_locked()) {
+            return AmsError(AmsResult::WRONG_STATE, "Unload bypass filament first",
+                            lv_tr("Bypass filament is at the toolhead. Unload it before turning "
+                                  "off bypass."),
+                            "");
+        }
+
         sensor = system_info_.has_hardware_bypass_sensor ? "bypass" : "virtual_bypass";
     }
 
@@ -6576,6 +6598,11 @@ bool AmsBackendAfc::is_bypass_active() const {
 
 AmsError AmsBackendAfc::can_load_lane(int /*slot_index*/) const {
     std::lock_guard<std::mutex> lock(mutex_);
+    // A strand the toolhead sensor confirms is plan_load()'s BypassLoaded
+    // refusal, which reads the same filament_loaded.
+    if (bypass_strand_at_toolhead_locked()) {
+        return AmsErrorHelper::success();
+    }
     return lane_load_refusal_locked();
 }
 

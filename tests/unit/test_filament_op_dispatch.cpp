@@ -269,6 +269,28 @@ TEST_CASE("plan_load: a lane load the backend refuses is refused with the backen
     CHECK(plan.backend_refusal.user_msg == "user text");
 }
 
+TEST_CASE("plan_load: a backend lane refusal leaves the user's macro and the bypass spool alone",
+          "[filament][dispatch][tier][bypass][refusal][bypass-load-refusal]") {
+    AmsSystemInfo sys = make_sys(4, kExternalSpoolSlot);
+    BackendCaps caps = fresh_ams();
+    caps.requires_slot_selection_for_load = false;
+    caps.bypass_active = true;
+    caps.lane_load_refusal =
+        helix::AmsError(helix::AmsResult::WRONG_STATE, "tech", "user text", "what to do");
+
+    SECTION("a user-configured macro outranks it") {
+        auto plan = plan_load(sys, caps, /*target_slot=*/1, /*macro_available=*/true,
+                              /*macro_user_configured=*/true);
+        CHECK(plan.tier == FilamentTier::Macro);
+    }
+    SECTION("a bypass spool load is not a lane load") {
+        auto plan = plan_load(sys, caps, kExternalSpoolSlot, /*macro_available=*/true,
+                              /*macro_user_configured=*/false);
+        CHECK(plan.tier == FilamentTier::Macro);
+        CHECK(plan.refusal == FilamentRefusal::None);
+    }
+}
+
 TEST_CASE("plan_load: a user-configured macro still outranks the lane-under-bypass rule",
           "[filament][dispatch][tier][bypass][macro_override]") {
     // The override is absolute by design; the new bypass arm sits below it.

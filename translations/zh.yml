@@ -533,6 +533,8 @@ translations:
   Bypass disabled: 旁通已禁用
   Bypass enabled: 旁通已启用
   Bypass failed: 旁通失败
+  Bypass filament is at the toolhead. Unload it before turning off bypass.: '旁通耗材仍在工具头中。关闭旁通前请先卸载。'
+  Bypass filament is loaded: '旁通耗材已装载'
   ? Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
   : 旁路已启用，但此打印使用 AMS 槽位。当旁路耗材仍在工具头中时，打印机可能拒绝装载槽位。请在打印前取出耗材并关闭旁路。仍要开始打印吗？
   Bypass mode is not currently active: '旁通模式当前未启用'
