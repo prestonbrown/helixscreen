@@ -52,7 +52,7 @@
     <style name="print_btn_square_landscape" width="#button_height_lg" flex_grow="0"/>
     <style name="print_btn_square_portrait" width="#button_height" flex_grow="0"/>
   </styles>
-  <view name="detail_view_root"
+  <view name="print_file_detail"
         extends="lv_obj" width="#overlay_width_transient" height="100%" align="right_mid" style_bg_opa="255"
         style_bg_color="#card_bg" style_border_width="0" style_pad_all="0" style_pad_gap="0" flex_flow="column"
         clickable="true">
