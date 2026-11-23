@@ -6318,6 +6318,7 @@ translations:
   '{} MCUs': '{} MCU'
   '{} MPC': '{} MPC'
   '{} PID': '{} PID'
+  '{} Sensor': 'Sensor de {}'
   '{} Settings': 'Ajustes de {}'
   '{} Tools': '{} herramientas'
   '{} accelerometers': '{} acelerómetros'

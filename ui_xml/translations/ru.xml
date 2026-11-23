@@ -6161,6 +6161,7 @@
   <translation tag="{} MCUs" ru="{} MCU"/>
   <translation tag="{} MPC" ru="{} MPC"/>
   <translation tag="{} PID" ru="{} PID"/>
+  <translation tag="{} Sensor" ru="Датчик {}"/>
   <translation tag="{} Settings" ru="Настройки: {}"/>
   <translation tag="{} Tools" ru="Инструментов: {}"/>
   <translation tag="{} accelerometers" ru="Акселерометров: {}"/>

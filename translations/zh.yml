@@ -6318,6 +6318,7 @@ translations:
   '{} MCUs': '{} 个 MCU'
   '{} MPC': '{} MPC'
   '{} PID': '{} PID'
+  '{} Sensor': '{}传感器'
   '{} Settings': '{}设置'
   '{} Tools': '{} 个工具'
   '{} accelerometers': '{} 个加速度传感器'

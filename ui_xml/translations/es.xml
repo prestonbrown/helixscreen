@@ -6092,6 +6092,7 @@
   <translation tag="{} MCUs" es="{} MCU"/>
   <translation tag="{} MPC" es="{} MPC"/>
   <translation tag="{} PID" es="{} PID"/>
+  <translation tag="{} Sensor" es="Sensor de {}"/>
   <translation tag="{} Settings" es="Ajustes de {}"/>
   <translation tag="{} Tools" es="{} herramientas"/>
   <translation tag="{} accelerometers" es="{} acelerómetros"/>

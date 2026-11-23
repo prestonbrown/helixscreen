@@ -6092,6 +6092,7 @@
   <translation tag="{} MCUs" ja="{} MCU"/>
   <translation tag="{} MPC" ja="{} MPC"/>
   <translation tag="{} PID" ja="{} PID"/>
+  <translation tag="{} Sensor" ja="{}センサー"/>
   <translation tag="{} Settings" ja="{}の設定"/>
   <translation tag="{} Tools" ja="{} ツール"/>
   <translation tag="{} accelerometers" ja="加速度センサー {} 個"/>
