@@ -297,3 +297,25 @@ def test_unfilled_header_slot_leaves_control_overlay_geometry(tmp_path):
                 "slot must cost no layout")
     finally:
         _restore_size(before)
+
+
+@pytest.mark.parametrize("size", ["480x400", "800x480", "1024x600"])
+def test_jog_mode_labels_fit_their_buttons(size, tmp_path):
+    """Fine / Coarse / Turbo share the bottom row with the home bar; each label
+    must sit inside its button's content box, not spill past it and clip."""
+    app, before = _run_app(size, tmp_path)
+    try:
+        with app:
+            _open_motion(app)
+            for name in ("jog_mode_fine", "jog_mode_coarse", "jog_mode_turbo"):
+                widgets = app.geom(name, 2)["widgets"]
+                button = widgets[0]
+                labels = [w for w in widgets[1:]
+                          if not w["hidden"] and not w["name"].endswith("_icon")]
+                assert labels, f"{size}: {name} shows no label"
+                for label in labels:
+                    assert label["w"] <= button["content_w"], (
+                        f"{size}: {name} label is {label['w']}px wide in a "
+                        f"{button['content_w']}px content box, so it clips")
+    finally:
+        _restore_size(before)

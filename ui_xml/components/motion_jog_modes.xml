@@ -16,10 +16,11 @@
     <prop name="icon_hidden_subject" type="string" default=""/>
   </api>
   <subjects>
-    <!-- A landscape screen of the tiny or micro breakpoint (480x320, 480x272) gives
-         each mode about 46 px: the label fits, the icon beside it does not. An
+    <!-- A landscape screen of the small, tiny or micro breakpoint (480x400, 480x320,
+         480x272) shares the row with the home bar and gives each mode about 46 px:
+         the label fits, the icon beside it does not. An
          ultrawide screen of the same height has the width for both. -->
-    <subject_expr name="motion_modes_text_only" expr="ui_breakpoint le 1 and ui_is_ultrawide eq 0"/>
+    <subject_expr name="motion_modes_text_only" expr="ui_breakpoint le 2 and ui_is_ultrawide eq 0"/>
   </subjects>
   <view name="motion_jog_modes"
         extends="lv_obj" width="100%" height="content" style_pad_all="0" style_border_opa="0" style_bg_opa="0"
