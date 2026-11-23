@@ -3,10 +3,7 @@
 
 /**
  * @file test_ui_ams_slot.cpp
- * @brief TDD tests for ams_slot XML widget conversion
- *
- * These tests are written BEFORE the XML conversion is complete.
- * They should FAIL initially - that's the point of TDD.
+ * @brief Tests for the ams_slot XML widget
  *
  * Tests cover:
  * - Widget structure (children, named parts)
@@ -43,10 +40,6 @@ using helix::AmsState;
 using helix::SlotInfo;
 using helix::SlotStatus;
 
-// ============================================================================
-// Helper: Create an ams_slot widget with specified slot index
-// ============================================================================
-
 /**
  * @brief Create an ams_slot widget via XML
  * @param parent Parent object (typically test_screen())
@@ -60,16 +53,12 @@ static lv_obj_t* create_ams_slot(lv_obj_t* parent, int slot_index) {
     return static_cast<lv_obj_t*>(lv_xml_create(parent, "ams_slot", attrs));
 }
 
-// ============================================================================
-// Structure Tests - Verify widget creates expected child hierarchy
-// ============================================================================
+// Structure
 
 TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: creates with valid structure",
                  "[ui][ams_slot][structure]") {
-    // Register the ams_slot widget
     ui_ams_slot_register();
 
-    // Create slot via XML
     lv_obj_t* slot = create_ams_slot(test_screen(), 0);
     REQUIRE(slot != nullptr);
 
@@ -91,7 +80,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: flat style builds spool rings",
     REQUIRE(lv_obj_get_child_count(lane_spool) >=
             4); // outer/filament/hub + placeholder + error dot
     lv_obj_delete(slot);
-    // Restore default so sibling tests (which assume 3D) are not affected.
+    // Sibling tests assume the 3D style.
     helix::Config::get_instance()->set<std::string>("/ams/spool_style", "3d");
 }
 
@@ -111,19 +100,15 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: has material label", "[ui][ams_sl
     lv_obj_delete(slot);
 }
 
-// ============================================================================
-// API Tests - Verify public API functions work correctly
-// ============================================================================
+// API
 
 TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: get_index returns slot index",
                  "[ui][ams_slot][api]") {
     ui_ams_slot_register();
 
-    // Create slot with index 5
     lv_obj_t* slot = create_ams_slot(test_screen(), 5);
     REQUIRE(slot != nullptr);
 
-    // get_index should return the same index
     int index = ui_ams_slot_get_index(slot);
     REQUIRE(index == 5);
 
@@ -134,12 +119,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: set_index changes slot index",
                  "[ui][ams_slot][api]") {
     ui_ams_slot_register();
 
-    // Create slot with initial index 0
     lv_obj_t* slot = create_ams_slot(test_screen(), 0);
     REQUIRE(slot != nullptr);
     REQUIRE(ui_ams_slot_get_index(slot) == 0);
 
-    // Change to index 7
     ui_ams_slot_set_index(slot, 7);
     REQUIRE(ui_ams_slot_get_index(slot) == 7);
 
@@ -150,7 +133,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: get_index returns -1 for non-ams_
                  "[ui][ams_slot][api]") {
     ui_ams_slot_register();
 
-    // Create a regular button (not an ams_slot)
     lv_obj_t* btn = lv_button_create(test_screen());
     REQUIRE(btn != nullptr);
 
@@ -163,13 +145,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: get_index returns -1 for non-ams_
 
 TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: out-of-range fill subject value clamps to full",
                  "[ui][ams_slot][fill]") {
-    // The public float set_fill_level() API was removed (dead — the widget
-    // renders fill only from its per-slot subject). The clamp it used to test
-    // now lives on the subject apply path (apply_slot_fill_pct clamps to 0-100),
-    // so exercise it through the subject: a percent above 100 (e.g. a bad
-    // remaining>total ratio) renders full, not overfilled. The empty end and the
-    // -1 "no data" skip are covered by "fill renders from subject without panel
-    // push".
+    // The widget renders fill only from its per-slot subject, and the clamp to
+    // 0-100 lives on that apply path (apply_slot_fill_pct). A percent above 100
+    // (e.g. a bad remaining>total ratio) renders full, not overfilled. The empty
+    // end and the -1 "no data" skip are covered by "fill renders from subject
+    // without panel push".
     ui_ams_slot_register();
     AmsState::instance().init_subjects(true);
 
@@ -186,10 +166,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: out-of-range fill subject value c
     lv_subject_set_int(fill, -1); // leave neutral for other tests
 }
 
-// Structural regression guard for the "spool always 100% full" bug: the widget
-// must render fill from its per-slot subject WITHOUT any panel pushing fill
-// imperatively. This is what makes AmsOverviewPanel's unit-detail spools
-// correct — they never pushed fill imperatively.
+// The widget must render fill from its per-slot subject WITHOUT any panel
+// pushing fill imperatively. This is what keeps AmsOverviewPanel's unit-detail
+// spools correct: they never push fill themselves.
 TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: fill renders from subject without panel push",
                  "[ui][ams_slot][fill]") {
     ui_ams_slot_register();
@@ -205,7 +184,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: fill renders from subject without
     lv_subject_set_int(fill, 50);
 
     // Creating the widget runs setup_slot_observers, which applies the CURRENT
-    // subject value synchronously — no panel touches the fill level.
+    // subject value synchronously; no panel touches the fill level.
     lv_obj_t* slot = create_ams_slot(test_screen(), 0);
     REQUIRE(slot != nullptr);
     CHECK(ui_ams_slot_get_fill_level(slot) == Catch::Approx(0.50f));
@@ -223,15 +202,13 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: fill renders from subject without
     lv_obj_delete(slot);
 }
 
-// Structural regression guard for #1065 (native ZMOD AD5X: "material type
-// stuck, color updates"). The widget must render MATERIAL from its per-slot
-// subject WITHOUT any panel re-reading it imperatively — the same structural
-// fix fill got. This is what makes every ams_slot consumer (AmsPanel,
-// AmsOverviewPanel, AmsDetail) reactive on a material-only change; before it,
-// material only repainted as a side effect of a color change or a container
-// that happened to rebuild on slots_version, so surfaces without that path
-// (AmsDetail) — and any lane whose type changed with its color unchanged —
-// kept showing the stale material.
+// #1065: the widget must render MATERIAL from its per-slot subject WITHOUT any
+// panel re-reading it imperatively, as it does for fill. This makes every
+// ams_slot consumer (AmsPanel, AmsOverviewPanel, AmsDetail) reactive on a
+// material-only change. Without it, material repaints only as a side effect of
+// a color change or a container rebuild on slots_version, so a surface without
+// that path (AmsDetail), or a lane whose type changed with its color unchanged,
+// keeps showing the stale material.
 TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: material renders from subject without panel push",
                  "[ui][ams_slot][material][1065]") {
     ui_ams_slot_register();
@@ -248,7 +225,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: material renders from subject wit
     lv_subject_set_int(lane_state, static_cast<int>(helix::ui::LaneState::Present));
 
     // Creating the widget runs setup_slot_observers, which applies the CURRENT
-    // subject value synchronously — no panel pushes material.
+    // subject value synchronously; no panel pushes material.
     lv_obj_t* slot = create_ams_slot(test_screen(), 0);
     REQUIRE(slot != nullptr);
     lv_obj_t* material_label = UITest::find_by_name(slot, "material_label");
@@ -269,9 +246,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: material renders from subject wit
     lv_obj_delete(slot);
 }
 
-// ============================================================================
-// Subject Binding Tests - Verify reactive updates from AmsState
-// ============================================================================
+// Subject binding
 
 // Covers the BACKEND -> subject leg of the material chain, which the widget-level
 // "[1065]" test above does not: sync_from_backend() must copy SlotInfo::material
@@ -301,7 +276,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: material label binds to subject",
     AmsState::instance().set_backend(std::move(mock));
     AmsState::instance().sync_from_backend();
 
-    // Process LVGL events
     process_lvgl(50);
 
     // Create slot widget - should pick up "PLA" from subject
@@ -311,7 +285,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: material label binds to subject",
     // Give time for subject binding to update
     process_lvgl(50);
 
-    // Find and check material label
     lv_obj_t* material_label = UITest::find_by_name(slot, "material_label");
     REQUIRE(material_label != nullptr);
 
@@ -345,7 +318,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: color subject updates spool",
     // operates on an uninitialized subject and the observer never fires).
     AmsState::instance().init_subjects(true);
 
-    // Set up mock backend
     auto mock = AmsBackend::create_mock(4);
     auto* mock_ptr = static_cast<AmsBackendMock*>(mock.get());
 
@@ -361,7 +333,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: color subject updates spool",
     AmsState::instance().sync_from_backend();
     process_lvgl(50);
 
-    // Create slot widget
     lv_obj_t* slot = create_ams_slot(test_screen(), 0);
     REQUIRE(slot != nullptr);
     process_lvgl(50);
@@ -395,16 +366,13 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: color subject updates spool",
     lv_obj_delete(slot);
 }
 
-// ============================================================================
-// Status Tests - Verify badge visibility based on slot status
-// ============================================================================
+// Status
 
 TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: status badge visible when not empty",
                  "[ui][ams_slot][status]") {
     ui_ams_slot_register();
     AmsState::instance().init_subjects(true);
 
-    // Set up mock with AVAILABLE status
     auto mock = AmsBackend::create_mock(4);
     auto* mock_ptr = static_cast<AmsBackendMock*>(mock.get());
     mock_ptr->force_slot_status(0, SlotStatus::AVAILABLE);
@@ -417,7 +385,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: status badge visible when not emp
     REQUIRE(slot != nullptr);
     process_lvgl(50);
 
-    // Find status badge
     lv_obj_t* status_badge = UITest::find_by_name(slot, "status_badge");
     REQUIRE(status_badge != nullptr);
 
@@ -466,7 +433,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: status badge visible when empty",
     ui_ams_slot_register();
     AmsState::instance().init_subjects(true);
 
-    // Set up mock with EMPTY status
     auto mock = AmsBackend::create_mock(4);
     auto* mock_ptr = static_cast<AmsBackendMock*>(mock.get());
     mock_ptr->force_slot_status(0, SlotStatus::EMPTY);
@@ -479,39 +445,32 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: status badge visible when empty",
     REQUIRE(slot != nullptr);
     process_lvgl(50);
 
-    // Find status badge
     lv_obj_t* status_badge = UITest::find_by_name(slot, "status_badge");
     REQUIRE(status_badge != nullptr);
 
     // Badge stays visible (gray) even for EMPTY status so that every physical
-    // gate remains numbered/visible — deliberate behavior since
-    // 260552adc "fix(ams-slot): show tool badge on empty unassigned gates"
-    // (apply_slot_status: SlotStatus::EMPTY keeps show_badge = true).
+    // gate remains numbered/visible (apply_slot_status: SlotStatus::EMPTY keeps
+    // show_badge = true).
     REQUIRE(UITest::is_visible(status_badge));
 
     lv_obj_delete(slot);
 }
 
-// ============================================================================
-// Cleanup Tests - Verify proper observer cleanup on widget deletion
-// ============================================================================
+// Cleanup
 
 TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: deletion cleans up observers",
                  "[ui][ams_slot][cleanup]") {
     ui_ams_slot_register();
 
-    // Set up mock backend
     auto mock = AmsBackend::create_mock(4);
     AmsState::instance().set_backend(std::move(mock));
     AmsState::instance().sync_from_backend();
     process_lvgl(50);
 
-    // Create slot
     lv_obj_t* slot = create_ams_slot(test_screen(), 0);
     REQUIRE(slot != nullptr);
     process_lvgl(50);
 
-    // Delete the slot
     lv_obj_delete(slot);
     slot = nullptr;
 
@@ -524,7 +483,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: deletion cleans up observers",
         lv_subject_set_int(color_subj, 0x00FF00);
     }
 
-    // Process LVGL - should not crash
     process_lvgl(50);
 
     // If we get here, cleanup was successful
@@ -566,20 +524,17 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: multiple slots cleanup independen
                  "[ui][ams_slot][cleanup]") {
     ui_ams_slot_register();
 
-    // Set up mock backend with enough slots
     auto mock = AmsBackend::create_mock(8);
     AmsState::instance().set_backend(std::move(mock));
     AmsState::instance().sync_from_backend();
     process_lvgl(50);
 
-    // Create two slots
     lv_obj_t* slot0 = create_ams_slot(test_screen(), 0);
     lv_obj_t* slot1 = create_ams_slot(test_screen(), 1);
     REQUIRE(slot0 != nullptr);
     REQUIRE(slot1 != nullptr);
     process_lvgl(50);
 
-    // Delete only slot 0
     lv_obj_delete(slot0);
     slot0 = nullptr;
     process_lvgl(50);
@@ -602,19 +557,15 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: multiple slots cleanup independen
     }
     process_lvgl(50);
 
-    // Clean up
     lv_obj_delete(slot1);
 }
 
-// ============================================================================
-// Refresh Tests - Verify manual refresh from AmsState
-// ============================================================================
+// Refresh
 
 TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: refresh updates from AmsState",
                  "[ui][ams_slot][refresh]") {
     ui_ams_slot_register();
 
-    // Set up mock backend
     auto mock = AmsBackend::create_mock(4);
     auto* mock_ptr = static_cast<AmsBackendMock*>(mock.get());
 
@@ -632,22 +583,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: refresh updates from AmsState",
     AmsState::instance().sync_from_backend();
     process_lvgl(50);
 
-    // Create slot
     lv_obj_t* slot = create_ams_slot(test_screen(), 0);
     REQUIRE(slot != nullptr);
     process_lvgl(50);
 
-    // Verify initial state
     lv_obj_t* material_label = UITest::find_by_name(slot, "material_label");
     REQUIRE(material_label != nullptr);
     REQUIRE(UITest::get_text(material_label) == "PLA");
 
-    // Update backend data (simulating backend update)
-    // Note: In real usage, this would come from Moonraker
-    // Here we directly update the subject for testing
-    // In actual implementation, sync_from_backend would be called
-
-    // Force a refresh
     ui_ams_slot_refresh(slot);
     process_lvgl(50);
 
@@ -658,15 +601,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: refresh updates from AmsState",
     lv_obj_delete(slot);
 }
 
-// ============================================================================
-// Edge Cases - Verify handling of boundary conditions
-// ============================================================================
+// Edge cases
 
 TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: handles maximum slot index",
                  "[ui][ams_slot][edge]") {
     ui_ams_slot_register();
 
-    // Create slot with max index (15)
     lv_obj_t* slot = create_ams_slot(test_screen(), 15);
     REQUIRE(slot != nullptr);
 
@@ -679,15 +619,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: handles invalid slot index gracef
                  "[ui][ams_slot][edge]") {
     ui_ams_slot_register();
 
-    // Try to create with invalid index (out of range)
-    // Current implementation stores the index as-is without clamping
-    // This is acceptable - callers should use valid indices
+    // An out-of-range index is stored as-is without clamping; callers are
+    // expected to pass valid indices.
     lv_obj_t* slot = create_ams_slot(test_screen(), 99);
 
-    // Widget should still be created
     REQUIRE(slot != nullptr);
 
-    // Index is stored as-is (no clamping currently implemented)
     int index = ui_ams_slot_get_index(slot);
     REQUIRE(index == 99);
 
@@ -698,11 +635,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: handles negative slot index grace
                  "[ui][ams_slot][edge]") {
     ui_ams_slot_register();
 
-    // Try to create with negative index
     const char* attrs[] = {"slot_index", "-1", nullptr};
     lv_obj_t* slot = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "ams_slot", attrs));
 
-    // Should handle gracefully
     if (slot != nullptr) {
         int index = ui_ams_slot_get_index(slot);
         // Should be normalized to valid range or -1 for "unset"
@@ -716,20 +651,16 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: get_fill_level returns 1.0 for no
                  "[ui][ams_slot][edge]") {
     ui_ams_slot_register();
 
-    // Create a regular object
     lv_obj_t* obj = lv_obj_create(test_screen());
     REQUIRE(obj != nullptr);
 
-    // get_fill_level on non-ams_slot should return default (1.0)
     float level = ui_ams_slot_get_fill_level(obj);
     REQUIRE(level == Catch::Approx(1.0f));
 
     lv_obj_delete(obj);
 }
 
-// ============================================================================
-// Filament Slot Override — Ghost render for empty slots with override metadata
-// ============================================================================
+// Filament slot override: ghost render for empty slots with override metadata
 //
 // When a slot is physically empty but the user has configured a filament
 // override (brand, spool_name, material, or linked Spoolman spool), the slot
@@ -874,7 +805,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AMS slot hides empty slot with no metadata 
     auto mock = AmsBackend::create_mock(4);
     auto* mock_ptr = static_cast<AmsBackendMock*>(mock.get());
 
-    // Truly empty — no brand, spool_name, material, or spoolman_id.
+    // Truly empty: no brand, spool_name, material, or spoolman_id.
     SlotInfo info;
     info.slot_index = 0;
     helix::test::apply_edit(*mock_ptr, 0, info);
@@ -897,8 +828,8 @@ TEST_CASE("SlotInfo::display_fill_level: a real weight wins, an unweighed ghost 
           "[ams][slot][1071][1367]") {
     // Ghost lane: EMPTY status, but a Spoolman link + material were RETAINED
     // across an eject (#1071), so has_filament_info() is true. The fill bar must
-    // read empty (0), NOT the metadata fallback — otherwise an ejected lane
-    // renders as a full spool (#1071 BUG-1).
+    // read empty (0), NOT the metadata fallback, or an ejected lane renders as
+    // a full spool.
     SlotInfo ghost;
     ghost.status = SlotStatus::EMPTY;
     ghost.material = "PLA";
@@ -970,7 +901,7 @@ TEST_CASE("SlotInfo::display_fill_level: a real weight wins, an unweighed ghost 
     unknown_bare.status = SlotStatus::UNKNOWN;
     CHECK_FALSE(unknown_bare.display_fill_level().has_value());
 
-    // UNKNOWN lane, colour only: has_filament_info() counts a non-default
+    // UNKNOWN lane, color only: has_filament_info() counts a non-default
     // color_rgb, so the metadata fallback applies here too.
     SlotInfo unknown_color;
     unknown_color.status = SlotStatus::UNKNOWN;
@@ -1025,9 +956,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: tool badges show only for a remap
     ams.clear_backends();
 }
 
-// ============================================================================
-// Current-slot highlight - the spool glows; the slot draws no box
-// ============================================================================
+// Current-slot highlight: the spool glows; the slot draws no box
 
 namespace {
 

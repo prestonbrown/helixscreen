@@ -18,14 +18,9 @@ using helix::display_format::format_filament_weight;
 using helix::display_format::format_file_size;
 using helix::display_format::format_print_time;
 
-// ============================================================================
-// PrintFileData - now defined in ui_panel_print_select.h
-// ============================================================================
-
-// ============================================================================
 // Sorting comparator (replicates logic from ui_panel_print_select.cpp)
-// ============================================================================
-// Note: PrintSelectSortColumn and PrintSelectSortDirection are now in ui_panel_print_select.h
+// PrintFileData, PrintSelectSortColumn and PrintSelectSortDirection come from
+// ui_panel_print_select.h.
 
 bool compare_files(const PrintFileData& a, const PrintFileData& b, PrintSelectSortColumn column,
                    PrintSelectSortDirection direction) {
@@ -61,9 +56,7 @@ bool compare_files(const PrintFileData& a, const PrintFileData& b, PrintSelectSo
     return result;
 }
 
-// ============================================================================
 // Test file creation helpers
-// ============================================================================
 PrintFileData create_test_file(const std::string& name, size_t size_bytes, int days_ago,
                                int print_mins, float filament_g) {
     PrintFileData file;
@@ -99,9 +92,7 @@ PrintFileData create_test_directory(const std::string& name, int days_ago = 1) {
     return dir;
 }
 
-// ============================================================================
 // File Sorting Tests
-// ============================================================================
 
 TEST_CASE("Print Select: Sort by filename - ascending", "[ui][sort]") {
     std::vector<PrintFileData> files;
@@ -263,9 +254,7 @@ TEST_CASE("Print Select: Sort by filament weight - descending", "[ui][sort]") {
     REQUIRE(files[2].filename == "light.gcode");
 }
 
-// ============================================================================
 // Edge Cases - Sorting
-// ============================================================================
 
 TEST_CASE("Print Select: Sort - empty file list", "[ui][sort][edge]") {
     std::vector<PrintFileData> files;
@@ -394,9 +383,7 @@ TEST_CASE("Print Select: Sort - case sensitivity in filenames", "[ui][sort]") {
     REQUIRE(files[2].filename == "apple.gcode");
 }
 
-// ============================================================================
 // Filename Handling Tests
-// ============================================================================
 
 TEST_CASE("Print Select: Filename - very long filename", "[ui][filename][edge]") {
     std::string long_name(300, 'a');
@@ -451,9 +438,7 @@ TEST_CASE("Print Select: Filename - empty filename", "[ui][filename][edge]") {
     REQUIRE(file.filename.empty());
 }
 
-// ============================================================================
 // File Metadata Tests
-// ============================================================================
 
 TEST_CASE("Print Select: Metadata - print time formatting", "[ui][metadata]") {
     SECTION("Zero minutes") {
@@ -527,9 +512,7 @@ TEST_CASE("Print Select: Metadata - file size formatting", "[ui][metadata]") {
     }
 }
 
-// ============================================================================
 // Large File List Tests
-// ============================================================================
 
 TEST_CASE("Print Select: Large file list - 100 files", "[ui][performance]") {
     std::vector<PrintFileData> files;
@@ -580,9 +563,7 @@ TEST_CASE("Print Select: Large file list - 500 files", "[ui][performance]") {
     REQUIRE(files.size() == 500);
 }
 
-// ============================================================================
 // Multi-criteria Sorting Tests (Realistic Scenarios)
-// ============================================================================
 
 TEST_CASE("Print Select: Realistic file list - mixed content", "[ui][integration]") {
     std::vector<PrintFileData> files;
@@ -620,14 +601,11 @@ TEST_CASE("Print Select: Realistic file list - mixed content", "[ui][integration
     }
 }
 
-// ============================================================================
 // Stability Tests
-// ============================================================================
 
 TEST_CASE("Print Select: Sort stability - equal elements maintain order", "[ui][stability]") {
     std::vector<PrintFileData> files;
 
-    // Create files with same sort key but different filenames
     files.push_back(create_test_file("first.gcode", 1024, 1, 100, 50.0f));
     files.push_back(create_test_file("second.gcode", 1024, 2, 100, 50.0f));
     files.push_back(create_test_file("third.gcode", 1024, 3, 100, 50.0f));
@@ -638,15 +616,12 @@ TEST_CASE("Print Select: Sort stability - equal elements maintain order", "[ui][
                              PrintSelectSortDirection::ASCENDING);
     });
 
-    // Stable sort should maintain original order
     REQUIRE(files[0].filename == "first.gcode");
     REQUIRE(files[1].filename == "second.gcode");
     REQUIRE(files[2].filename == "third.gcode");
 }
 
-// ============================================================================
 // Directory Sorting Tests (directories always at top)
-// ============================================================================
 
 TEST_CASE("Print Select: Directories sort to top - ascending", "[ui][sort][directory]") {
     std::vector<PrintFileData> files;
@@ -740,9 +715,7 @@ TEST_CASE("Print Select: Mixed files and directories by size", "[ui][sort][direc
     REQUIRE(files[2].filename == "small.gcode");
 }
 
-// ============================================================================
 // Folder Type Determination Tests
-// ============================================================================
 
 TEST_CASE("Print Select: Folder type determination", "[ui][folder_type]") {
     // folder_type: 0=file, 1=directory, 2=parent directory (..)
@@ -766,9 +739,7 @@ TEST_CASE("Print Select: Folder type determination", "[ui][folder_type]") {
     }
 }
 
-// ============================================================================
 // Metadata Path Construction Tests
-// ============================================================================
 
 TEST_CASE("Print Select: Metadata path construction", "[ui][metadata]") {
     // Calls the production join directly. fetch_metadata_range() and the
@@ -779,7 +750,7 @@ TEST_CASE("Print Select: Metadata path construction", "[ui][metadata]") {
     using helix::gcode::join_gcode_path;
 
     SECTION("Root directory - no path prefix") {
-        // Root is the empty string, and must NOT produce a leading slash —
+        // Root is the empty string, and must NOT produce a leading slash:
         // Moonraker's virtual-SD paths are root-relative.
         REQUIRE(join_gcode_path("", "benchy.gcode") == "benchy.gcode");
     }
@@ -838,13 +809,11 @@ TEST_CASE("thumbnail_subject_value never publishes an empty buffer",
     }
 }
 
-// ============================================================================
-// Card column selection (#1208 follow-up)
+// Card column selection (#1208)
 //
 // Walking column counts downward and taking the first that fits always
 // maximizes columns and so always produces the narrowest legal card.
 // choose_card_columns() keeps the count landing nearest kCardWidthTarget.
-// ============================================================================
 
 TEST_CASE("choose_card_columns prefers the designed card width", "[print_select][layout]") {
     SECTION("800x480 gets 4 cards of 167px, not 5 of 132px") {
@@ -853,8 +822,8 @@ TEST_CASE("choose_card_columns prefers the designed card width", "[print_select]
         REQUIRE(cols == 4);
         REQUIRE(card_width_for_columns(704, 11, cols) == 167);
 
-        // 5 columns still *fits* the bounds — the old rule took it precisely because
-        // it fit. Pin that we now reject it.
+        // 5 columns still *fits* the bounds, but taking the widest fit would pick it.
+        // Pin that it is rejected.
         int five_wide = card_width_for_columns(704, 11, 5);
         REQUIRE(five_wide >= kCardWidthMin);
         REQUIRE(five_wide <= kCardWidthMax);

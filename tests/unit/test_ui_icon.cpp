@@ -11,7 +11,7 @@
  * - Public API functions (set_source, set_size, set_variant, set_color)
  * - Error handling (NULL pointers, invalid strings)
  *
- * Note: The implementation uses:
+ * The implementation uses:
  * - IconSize enum (XS, SM, MD, LG, XL) - not a struct
  * - IconVariant enum (NONE, PRIMARY, SECONDARY, ACCENT, DISABLED, SUCCESS, WARNING, ERROR)
  * - Static internal functions (parse_size, parse_variant, apply_size, apply_variant)
@@ -42,9 +42,7 @@ class IconTest {
     }
 };
 
-// ============================================================================
-// Public API Tests - NULL pointer handling
-// ============================================================================
+// Public API: NULL pointer handling
 
 TEST_CASE("helix::ui::icon::set_source handles NULL icon", "[ui_icon][api][error]") {
     IconTest fixture;
@@ -92,9 +90,7 @@ TEST_CASE("helix::ui::icon::set_color handles NULL icon", "[ui_icon][api][error]
     REQUIRE_NOTHROW(helix::ui::icon::set_color(nullptr, color, LV_OPA_COVER));
 }
 
-// ============================================================================
 // Icon Codepoint Lookup
-// ============================================================================
 
 TEST_CASE("Icon codepoint lookup returns valid codepoints", "[ui_icon][codepoint]") {
     IconTest fixture;
@@ -156,9 +152,7 @@ TEST_CASE("Spoolman icon resolves to a custom glyph present in every icon face",
     }
 }
 
-// ============================================================================
 // Legacy Prefix Stripping
-// ============================================================================
 
 TEST_CASE("strip_legacy_prefix removes mat_ prefix", "[ui_icon][legacy]") {
     IconTest fixture;
@@ -206,13 +200,9 @@ TEST_CASE("strip_legacy_prefix handles empty string", "[ui_icon][legacy][error]"
     REQUIRE(strlen(result) == 0);
 }
 
-// ============================================================================
-// Reactive Icon Tests - Phase 2.2
-// ============================================================================
-// These tests verify that icon widgets update their color when the theme
-// changes. The implementation uses shared styles from ThemeManager which
-// update in-place when the theme mode changes.
-// ============================================================================
+// Reactive icon tests: icon widgets update their color when the theme changes.
+// The implementation uses shared styles from ThemeManager which update in-place
+// when the theme mode changes.
 
 #include "../lvgl_ui_test_fixture.h"
 #include "theme_manager.h"
@@ -246,10 +236,7 @@ static ThemePalette make_dark_test_palette_with_primary(lv_color_t primary) {
     return p;
 }
 
-// ============================================================================
-// New Variant Name Tests
-// ============================================================================
-// Test that the new semantic variant names work correctly
+// Semantic variant names
 
 TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon: accepts 'text' variant name (new name for 'primary')",
                  "[reactive-icon][variant-names]") {
@@ -297,7 +284,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "ui_icon: accepts 'primary' variant name (new name for 'accent')",
                  "[reactive-icon][variant-names]") {
-    // NOTE: "primary" now means "accent/brand color" (was "text color")
+    // "primary" is the accent/brand color
     const char* attrs[] = {"src", "home", "variant", "primary", nullptr};
     lv_obj_t* icon = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "icon", attrs));
     REQUIRE(icon != nullptr);
@@ -334,10 +321,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon: accepts 'danger' variant name (new
     lv_obj_delete(icon);
 }
 
-// ============================================================================
-// Secondary Variant Test
-// ============================================================================
-// Test that secondary variant uses secondary accent color style
+// The secondary variant uses the secondary accent color style
 
 TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon: accepts 'secondary' variant for secondary accent",
                  "[reactive-icon][variant-names]") {
@@ -358,10 +342,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon: accepts 'secondary' variant for se
     lv_obj_delete(icon);
 }
 
-// ============================================================================
-// Reactive Theme Change Tests - CRITICAL
-// ============================================================================
-// These tests verify icons update when the theme changes
+// Reactive theme change: icons update when the theme changes
 
 TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon: text variant color updates on theme change",
                  "[reactive-icon][reactive]") {
@@ -370,7 +351,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon: text variant color updates on them
     lv_obj_t* icon = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "icon", attrs));
     REQUIRE(icon != nullptr);
 
-    // Get initial color
     lv_color_t before = lv_obj_get_style_text_color(icon, LV_PART_MAIN);
 
     uint32_t before_rgb = lv_color_to_u32(before) & 0x00FFFFFF;
@@ -382,17 +362,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon: text variant color updates on them
     tm.set_palettes(dark_palette, dark_palette);
     tm.set_dark_mode(true);
 
-    // Force LVGL style refresh cascade
     lv_obj_report_style_change(nullptr);
 
-    // Get updated color
     lv_color_t after = lv_obj_get_style_text_color(icon, LV_PART_MAIN);
 
     uint32_t after_rgb = lv_color_to_u32(after) & 0x00FFFFFF;
     INFO("After theme change icon text color: 0x" << std::hex << after_rgb);
 
     // Icon color should change (light mode dark text -> dark mode light text)
-    // This will FAIL with current inline style implementation
     REQUIRE_FALSE(lv_color_eq(before, after));
 
     lv_obj_delete(icon);
@@ -522,9 +499,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon: none variant uses text style",
     lv_obj_delete(icon);
 }
 
-// ============================================================================
-// Multiple Icons Update Together Tests
-// ============================================================================
+// Multiple icons update together
 
 TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon: multiple icons update together on theme change",
                  "[reactive-icon][reactive]") {
@@ -538,7 +513,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon: multiple icons update together on 
     REQUIRE(icon2 != nullptr);
     REQUIRE(icon3 != nullptr);
 
-    // Get initial colors
     lv_color_t before1 = lv_obj_get_style_text_color(icon1, LV_PART_MAIN);
     lv_color_t before2 = lv_obj_get_style_text_color(icon2, LV_PART_MAIN);
     lv_color_t before3 = lv_obj_get_style_text_color(icon3, LV_PART_MAIN);
@@ -555,7 +529,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon: multiple icons update together on 
 
     lv_obj_report_style_change(nullptr);
 
-    // Get colors after theme change
     lv_color_t after1 = lv_obj_get_style_text_color(icon1, LV_PART_MAIN);
     lv_color_t after2 = lv_obj_get_style_text_color(icon2, LV_PART_MAIN);
     lv_color_t after3 = lv_obj_get_style_text_color(icon3, LV_PART_MAIN);
@@ -565,7 +538,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon: multiple icons update together on 
     REQUIRE(lv_color_eq(after2, after3));
 
     // And the color should have changed from before (reactivity)
-    // This will FAIL with current inline style implementation
     REQUIRE_FALSE(lv_color_eq(before1, after1));
 
     lv_obj_delete(icon1);
@@ -579,7 +551,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon: style matches shared style after t
     lv_obj_t* icon = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "icon", attrs));
     REQUIRE(icon != nullptr);
 
-    // Get the shared icon text style
     lv_style_t* shared_style = ThemeManager::instance().get_style(StyleRole::IconText);
     REQUIRE(shared_style != nullptr);
 
@@ -591,30 +562,25 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon: style matches shared style after t
 
     lv_obj_report_style_change(nullptr);
 
-    // Get the updated color from the shared style
     lv_style_value_t style_value;
     lv_style_res_t res = lv_style_get_prop(shared_style, LV_STYLE_TEXT_COLOR, &style_value);
     REQUIRE(res == LV_STYLE_RES_FOUND);
 
-    // Get the actual color from the icon widget
     lv_color_t icon_color = lv_obj_get_style_text_color(icon, LV_PART_MAIN);
 
-    // Log for debugging
     uint32_t style_rgb = lv_color_to_u32(style_value.color) & 0x00FFFFFF;
     uint32_t icon_rgb = lv_color_to_u32(icon_color) & 0x00FFFFFF;
     INFO("Shared style text_color: 0x" << std::hex << style_rgb);
     INFO("Icon actual text_color: 0x" << std::hex << icon_rgb);
 
     // The icon should have the same color as the shared style after update
-    // This will FAIL until ui_icon uses lv_obj_add_style() with the shared style
+    // ui_icon applies the shared style through lv_obj_add_style()
     REQUIRE(lv_color_eq(icon_color, style_value.color));
 
     lv_obj_delete(icon);
 }
 
-// ============================================================================
-// API Tests - helix::ui::icon::set_variant with new names
-// ============================================================================
+// helix::ui::icon::set_variant with semantic names
 
 TEST_CASE_METHOD(LVGLUITestFixture, "helix::ui::icon::set_variant: accepts new variant names",
                  "[reactive-icon][api]") {
