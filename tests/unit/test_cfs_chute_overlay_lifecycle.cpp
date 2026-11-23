@@ -428,6 +428,41 @@ TEST_CASE_METHOD(ChuteOverlayFixture, "The chute overlay stops Y short of the ba
     CHECK(total == Catch::Approx(kAllowed));
 }
 
+TEST_CASE_METHOD(ChuteOverlayFixture,
+                 "The chute overlay jogs into a rear service zone past the print area",
+                 "[ams][cfs][chute_overlay][bounds]") {
+    // A K2 whose firmware caps whole-bed motion at Y 352 while the chute sits
+    // in the zone behind it, up to 380. Park just inside the print area.
+    constexpr double kZoneParkY = 351.5;
+    const double kPrintAreaYMax = 352.0;
+    const auto report = [kPrintAreaYMax](double x, double y) {
+        get_printer_state().motion_state().update_from_status(
+            nlohmann::json{{"toolhead",
+                            {{"position", {x, y, 0.0, 0.0}},
+                             {"axis_minimum", {-4.0, -6.2, 0.0, 0.0}},
+                             {"axis_maximum", {352.5, 380.0, 352.5, 0.0}}}},
+                           {"extended_zone_transform", {{"standard_y_max", kPrintAreaYMax}}}});
+        helix::ui::UpdateQueue::instance().drain();
+    };
+    report(kParkX, kZoneParkY);
+    reach_adjusting();
+    process_lvgl(ChuteJogGuard::kSettleMs + 100);
+    locate_pad();
+    REQUIRE(get_printer_state().motion_state().get_axis_bounds().y_max ==
+            Catch::Approx(kPrintAreaYMax));
+
+    for (int i = 0; i < 5; ++i) {
+        tap_pad(0.0, -kOuterRing);
+    }
+    double total = 0.0;
+    for (float d : backend->y_jogs) {
+        total += d;
+    }
+    CHECK(kZoneParkY + total > kPrintAreaYMax + 0.1);
+
+    get_printer_state().motion_state().clear_data();
+}
+
 namespace {
 
 MoonrakerError chute_error(MoonrakerErrorType type, std::string message) {

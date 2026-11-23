@@ -108,6 +108,7 @@
   <translation tag="1 profile" ja="1 個のプロファイル"/>
   <translation tag="1 step due · about {} min" ja="実行が必要なステップ 1 · 約{}分"/>
   <translation tag="1 step in {} min · review, then save once" ja="1ステップ {}分 · 確認して一度に保存"/>
+  <translation tag="1 step in {} min · saved" ja="1ステップ {}分 · 保存済み"/>
   <translation tag="1 step never run · about {} min" ja="未実行のステップ 1 · 約{}分"/>
   <translation tag="1 step · about {} min" ja="1ステップ · 約{}分"/>
   <translation tag="1 step · {} min" ja="1ステップ · {}分"/>
@@ -685,8 +686,11 @@
   <translation tag="Bypass disabled" ja="バイパス無効"/>
   <translation tag="Bypass enabled" ja="バイパス有効"/>
   <translation tag="Bypass failed" ja="バイパスに失敗しました"/>
+  <translation tag="Bypass filament is at the toolhead. Unload it before turning off bypass." ja="バイパスのフィラメントがツールヘッドにあります。バイパスをオフにする前に取り出してください。"/>
+  <translation tag="Bypass filament is loaded" ja="バイパスのフィラメントが装填されています"/>
   <translation tag="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?" ja="バイパスが有効ですが、この印刷はAMSスロットを使用します。バイパスのフィラメントがツールヘッドにある間は、プリンターがスロットの装填を拒否する場合があります。印刷前にフィラメントを取り除き、バイパスをオフにしてください。それでも印刷を開始しますか？"/>
   <translation tag="Bypass mode is not currently active" ja="バイパスモードは現在アクティブではありません"/>
+  <translation tag="Bypass mode is on" ja="バイパスモードがオンです"/>
   <translation tag="Bypass off macro" ja="バイパスオフのマクロ"/>
   <translation tag="Bypass on macro" ja="バイパスオンのマクロ"/>
   <translation tag="Bypass toggle failed" ja="バイパス切替に失敗しました"/>
@@ -974,6 +978,7 @@
   <translation tag="Choose which lane is in the toolhead to unload it" ja="取り出すには、ツールヘッドに入っているレーンを選んでください"/>
   <translation tag="Choose which releases to get, and whether to share anonymous statistics." ja="受け取るリリースと、匿名の統計を共有するかどうかを選択します。"/>
   <translation tag="Chute position: X {:.1f}, Y {:.1f}" ja="パージシュート位置: X {:.1f}, Y {:.1f}"/>
+  <translation tag="Clean" ja="清掃"/>
   <translation tag="Clean Brush" ja="ブラシを清掃"/>
   <translation tag="Clean Nozzle" ja="ノズル清掃"/>
   <translation tag="Clean Up Storage" ja="ストレージのクリーンアップ"/>
@@ -2320,6 +2325,7 @@
   <translation tag="Identify failed: {}" ja="識別に失敗しました: {}"/>
   <translation tag="Idle" ja="アイドル"/>
   <translation tag="If Moonraker is local or your screen is attached to the printer directly, we&apos;ll connect automatically" ja="Moonraker がローカルまたは画面がプリンターに直接接続されている場合、自動的に接続します"/>
+  <translation tag="If Moonraker is local or your screen is attached to the printer, we&apos;ll connect automatically" ja="Moonraker がローカルまたは画面がプリンターに接続されている場合、自動的に接続します"/>
   <translation tag="If the extruder has no tension lever, see your printer&apos;s manual." ja="エクストルーダーにテンションレバーがない場合は、プリンターのマニュアルを参照してください。"/>
   <translation tag="Ignore" ja="無視"/>
   <translation tag="Ignore the click that fires when you lift after scrolling" ja="スクロール後に指を離したときに発生するクリックを無視"/>
@@ -4095,6 +4101,7 @@
   <translation tag="Runout" ja="フィラメント切れ"/>
   <translation tag="Runout Backup" ja="フィラメント切れ時の予備"/>
   <translation tag="Runout Sensor" ja="フィラメント切れセンサー"/>
+  <translation tag="Runs everything this printer needs, in order" ja="このプリンターに必要なものを順にすべて実行"/>
   <translation tag="Runs everything this printer needs, in order ·" ja="このプリンターに必要なものを順にすべて実行 ·"/>
   <translation tag="Runs on its own once started" ja="開始後は自動で進みます"/>
   <translation tag="Runs the printer&apos;s tool offset calibration for every tool." ja="プリンターのツールオフセットキャリブレーションをすべてのツールに対して実行します。"/>
@@ -4331,6 +4338,7 @@
   <translation tag="Set the clock, theme and units. You can change any of these later in Settings." ja="時計、テーマ、単位を設定します。あとから設定でいつでも変更できます。"/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" ja="このスロットのフィラメントの種類と色を手動で設定してください。タグが読み取れるはずの場合は、ボックスが停止しているときにラベルをリーダー側に向けてスプールを入れ直してください"/>
   <translation tag="Set the filament type for this head in the filament panel, then resume." ja="フィラメント画面でこのヘッドのフィラメントの種類を設定してから、再開してください。"/>
+  <translation tag="Set the screen brightness and when it rests. You can change these later in Settings." ja="画面の明るさと休止するタイミングを設定します。すべて後で「設定」から変更できます。"/>
   <translation tag="Set the slot&apos;s filament information, or load the slot by hand." ja="スロットのフィラメント情報を設定するか、スロットに手動で装填してください。"/>
   <translation tag="Set this to Spoolman&apos;s currency if you use both." ja="両方を使う場合は、ここを Spoolman の通貨に合わせてください。"/>
   <translation tag="Set up" ja="セットアップ"/>
@@ -4424,6 +4432,7 @@
   <translation tag="Sliced for {}, not {}." ja="{}用にスライスされています。{}用ではありません。"/>
   <translation tag="Slicer" ja="スライサー"/>
   <translation tag="Slide the paper back and forth." ja="紙を前後に動かしてください。"/>
+  <translation tag="Slide the paper back and forth. Stop when the paper just drags under the nozzle." ja="紙を前後に動かしてください。ノズルの下で紙が軽く引っかかったら止めます。"/>
   <translation tag="Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed." ja="紙を前後に動かしてください。ノズルとベッドの間で紙が軽く引っかかったら止めます。"/>
   <translation tag="Sliders" ja="スライダー"/>
   <translation tag="Slot" ja="スロット"/>
@@ -4598,6 +4607,7 @@
   <translation tag="Stop the running cycle before starting another" ja="新しく開始する前に、実行中のサイクルを停止してください"/>
   <translation tag="Stop the tower?" ja="タワーを停止しますか？"/>
   <translation tag="Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps." ja="ホストのウェブカメラ、タイムラプス、余分なサービスを停止し、電源と SD カードを確認してから、ファームウェアを再起動してください。同じ箇所で再発する場合は、速度またはマイクロステップを下げてください。"/>
+  <translation tag="Stop when the paper just drags under the nozzle." ja="ノズルの下で紙が軽く引っかかったら止めます。"/>
   <translation tag="Stop when the paper just lightly drags between the toolhead nozzle and the bed." ja="ノズルとベッドの間で紙が軽く引っかかったら止めます。"/>
   <translation tag="Stop with an emergency stop?" ja="緊急停止で停止しますか？"/>
   <translation tag="Stopped" ja="停止しました"/>
@@ -5417,6 +5427,7 @@
   <translation tag="Turn off arc fitting in the slicer and slice the file again." ja="スライサーで円弧フィッティングをオフにして、ファイルをスライスし直してください。"/>
   <translation tag="Turn off arc fitting in the slicer, then slice the file again." ja="スライサーでアークフィッティングをオフにしてから、ファイルを再スライスしてください。"/>
   <translation tag="Turn off bed check" ja="ベッドチェックをオフにする"/>
+  <translation tag="Turn off bypass mode to load from a lane" ja="レーンから装填するにはバイパスモードをオフにしてください"/>
   <translation tag="Turn off detection" ja="検出をオフにする"/>
   <translation tag="Turn off flow calibration for this print, or use a larger nozzle." ja="この印刷のフローキャリブレーションをオフにするか、より大きいノズルを使ってください。"/>
   <translation tag="Turn on the lights your light buttons control" ja="ライトボタンが操作するライトを点灯します"/>
@@ -5783,6 +5794,7 @@
   <translation tag="Year" ja="年"/>
   <translation tag="Year Month Day" ja="年 月 日"/>
   <translation tag="Yes" ja="はい"/>
+  <translation tag="You are needed for the first {} min" ja="最初の{}分は操作が必要です"/>
   <translation tag="You are needed for the first {} min, then it runs on its own" ja="最初の{}分は操作が必要で、その後は自動で進みます"/>
   <translation tag="You can skip this and calibrate later in Settings." ja="スキップして後で設定でキャリブレーションできます。"/>
   <translation tag="You have unsaved changes. Discard them?" ja="保存されていない変更があります。破棄しますか？"/>
@@ -6194,6 +6206,7 @@
   <translation tag="{} started" ja="{} を開始しました"/>
   <translation tag="{} steps due · about {} min" ja="実行が必要なステップ {} · 約{}分"/>
   <translation tag="{} steps in {} min · review, then save once" ja="{}ステップ {}分 · 確認して一度に保存"/>
+  <translation tag="{} steps in {} min · saved" ja="{}ステップ {}分 · 保存済み"/>
   <translation tag="{} steps never run · about {} min" ja="未実行のステップ {} · 約{}分"/>
   <translation tag="{} steps · about {} min" ja="{}ステップ · 約{}分"/>
   <translation tag="{} steps · {} min" ja="{}ステップ · {}分"/>

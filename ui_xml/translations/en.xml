@@ -108,6 +108,7 @@
   <translation tag="1 profile" en="1 profile"/>
   <translation tag="1 step due · about {} min" en="1 step due · about {} min"/>
   <translation tag="1 step in {} min · review, then save once" en="1 step in {} min · review, then save once"/>
+  <translation tag="1 step in {} min · saved" en="1 step in {} min · saved"/>
   <translation tag="1 step never run · about {} min" en="1 step never run · about {} min"/>
   <translation tag="1 step · about {} min" en="1 step · about {} min"/>
   <translation tag="1 step · {} min" en="1 step · {} min"/>
@@ -685,8 +686,11 @@
   <translation tag="Bypass disabled" en="Bypass disabled"/>
   <translation tag="Bypass enabled" en="Bypass enabled"/>
   <translation tag="Bypass failed" en="Bypass failed"/>
+  <translation tag="Bypass filament is at the toolhead. Unload it before turning off bypass." en="Bypass filament is at the toolhead. Unload it before turning off bypass."/>
+  <translation tag="Bypass filament is loaded" en="Bypass filament is loaded"/>
   <translation tag="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?" en="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?"/>
   <translation tag="Bypass mode is not currently active" en="Bypass mode is not currently active"/>
+  <translation tag="Bypass mode is on" en="Bypass mode is on"/>
   <translation tag="Bypass off macro" en="Bypass off macro"/>
   <translation tag="Bypass on macro" en="Bypass on macro"/>
   <translation tag="Bypass toggle failed" en="Bypass toggle failed"/>
@@ -974,6 +978,7 @@
   <translation tag="Choose which lane is in the toolhead to unload it" en="Choose which lane is in the toolhead to unload it"/>
   <translation tag="Choose which releases to get, and whether to share anonymous statistics." en="Choose which releases to get, and whether to share anonymous statistics."/>
   <translation tag="Chute position: X {:.1f}, Y {:.1f}" en="Chute position: X {:.1f}, Y {:.1f}"/>
+  <translation tag="Clean" en="Clean"/>
   <translation tag="Clean Brush" en="Clean Brush"/>
   <translation tag="Clean Nozzle" en="Clean Nozzle"/>
   <translation tag="Clean Up Storage" en="Clean Up Storage"/>
@@ -2320,6 +2325,7 @@
   <translation tag="Identify failed: {}" en="Identify failed: {}"/>
   <translation tag="Idle" en="Idle"/>
   <translation tag="If Moonraker is local or your screen is attached to the printer directly, we&apos;ll connect automatically" en="If Moonraker is local or your screen is attached to the printer directly, we&apos;ll connect automatically"/>
+  <translation tag="If Moonraker is local or your screen is attached to the printer, we&apos;ll connect automatically" en="If Moonraker is local or your screen is attached to the printer, we&apos;ll connect automatically"/>
   <translation tag="If the extruder has no tension lever, see your printer&apos;s manual." en="If the extruder has no tension lever, see your printer&apos;s manual."/>
   <translation tag="Ignore" en="Ignore"/>
   <translation tag="Ignore the click that fires when you lift after scrolling" en="Ignore the click that fires when you lift after scrolling"/>
@@ -4095,6 +4101,7 @@
   <translation tag="Runout" en="Runout"/>
   <translation tag="Runout Backup" en="Runout Backup"/>
   <translation tag="Runout Sensor" en="Runout Sensor"/>
+  <translation tag="Runs everything this printer needs, in order" en="Runs everything this printer needs, in order"/>
   <translation tag="Runs everything this printer needs, in order ·" en="Runs everything this printer needs, in order ·"/>
   <translation tag="Runs on its own once started" en="Runs on its own once started"/>
   <translation tag="Runs the printer&apos;s tool offset calibration for every tool." en="Runs the printer&apos;s tool offset calibration for every tool."/>
@@ -4331,6 +4338,7 @@
   <translation tag="Set the clock, theme and units. You can change any of these later in Settings." en="Set the clock, theme and units. You can change any of these later in Settings."/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" en="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle"/>
   <translation tag="Set the filament type for this head in the filament panel, then resume." en="Set the filament type for this head in the filament panel, then resume."/>
+  <translation tag="Set the screen brightness and when it rests. You can change these later in Settings." en="Set the screen brightness and when it rests. You can change these later in Settings."/>
   <translation tag="Set the slot&apos;s filament information, or load the slot by hand." en="Set the slot&apos;s filament information, or load the slot by hand."/>
   <translation tag="Set this to Spoolman&apos;s currency if you use both." en="Set this to Spoolman&apos;s currency if you use both."/>
   <translation tag="Set up" en="Set up"/>
@@ -4424,6 +4432,7 @@
   <translation tag="Sliced for {}, not {}." en="Sliced for {}, not {}."/>
   <translation tag="Slicer" en="Slicer"/>
   <translation tag="Slide the paper back and forth." en="Slide the paper back and forth."/>
+  <translation tag="Slide the paper back and forth. Stop when the paper just drags under the nozzle." en="Slide the paper back and forth. Stop when the paper just drags under the nozzle."/>
   <translation tag="Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed." en="Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed."/>
   <translation tag="Sliders" en="Sliders"/>
   <translation tag="Slot" en="Slot"/>
@@ -4598,6 +4607,7 @@
   <translation tag="Stop the running cycle before starting another" en="Stop the running cycle before starting another"/>
   <translation tag="Stop the tower?" en="Stop the tower?"/>
   <translation tag="Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps." en="Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps."/>
+  <translation tag="Stop when the paper just drags under the nozzle." en="Stop when the paper just drags under the nozzle."/>
   <translation tag="Stop when the paper just lightly drags between the toolhead nozzle and the bed." en="Stop when the paper just lightly drags between the toolhead nozzle and the bed."/>
   <translation tag="Stop with an emergency stop?" en="Stop with an emergency stop?"/>
   <translation tag="Stopped" en="Stopped"/>
@@ -5417,6 +5427,7 @@
   <translation tag="Turn off arc fitting in the slicer and slice the file again." en="Turn off arc fitting in the slicer and slice the file again."/>
   <translation tag="Turn off arc fitting in the slicer, then slice the file again." en="Turn off arc fitting in the slicer, then slice the file again."/>
   <translation tag="Turn off bed check" en="Turn off bed check"/>
+  <translation tag="Turn off bypass mode to load from a lane" en="Turn off bypass mode to load from a lane"/>
   <translation tag="Turn off detection" en="Turn off detection"/>
   <translation tag="Turn off flow calibration for this print, or use a larger nozzle." en="Turn off flow calibration for this print, or use a larger nozzle."/>
   <translation tag="Turn on the lights your light buttons control" en="Turn on the lights your light buttons control"/>
@@ -5783,6 +5794,7 @@
   <translation tag="Year" en="Year"/>
   <translation tag="Year Month Day" en="Year Month Day"/>
   <translation tag="Yes" en="Yes"/>
+  <translation tag="You are needed for the first {} min" en="You are needed for the first {} min"/>
   <translation tag="You are needed for the first {} min, then it runs on its own" en="You are needed for the first {} min, then it runs on its own"/>
   <translation tag="You can skip this and calibrate later in Settings." en="You can skip this and calibrate later in Settings."/>
   <translation tag="You have unsaved changes. Discard them?" en="You have unsaved changes. Discard them?"/>
@@ -6194,6 +6206,7 @@
   <translation tag="{} started" en="{} started"/>
   <translation tag="{} steps due · about {} min" en="{} steps due · about {} min"/>
   <translation tag="{} steps in {} min · review, then save once" en="{} steps in {} min · review, then save once"/>
+  <translation tag="{} steps in {} min · saved" en="{} steps in {} min · saved"/>
   <translation tag="{} steps never run · about {} min" en="{} steps never run · about {} min"/>
   <translation tag="{} steps · about {} min" en="{} steps · about {} min"/>
   <translation tag="{} steps · {} min" en="{} steps · {} min"/>

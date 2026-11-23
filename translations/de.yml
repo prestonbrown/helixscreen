@@ -122,6 +122,7 @@ translations:
   1 profile: '1 Profil'
   1 step in {} min · review, then save once: 1 Schritt in {} Min. · prüfen, dann einmal speichern
   1 step due · about {} min: '1 Schritt fällig · etwa {} Min.'
+  1 step in {} min · saved: '1 Schritt in {} Min. · gespeichert'
   1 step never run · about {} min: '1 Schritt nie ausgeführt · etwa {} Min.'
   1 step · about {} min: '1 Schritt · etwa {} Min.'
   1 step · {} min: 1 Schritt · {} Min.
@@ -710,9 +711,12 @@ translations:
   Bypass disabled: Bypass deaktiviert
   Bypass enabled: Bypass aktiviert
   Bypass failed: Bypass fehlgeschlagen
+  Bypass filament is at the toolhead. Unload it before turning off bypass.: 'Bypass-Filament ist im Werkzeugkopf. Entladen Sie es, bevor Sie den Bypass deaktivieren.'
+  Bypass filament is loaded: 'Bypass-Filament ist geladen'
   ? Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
   : Bypass ist aktiv, aber dieser Druck verwendet AMS-Slots. Der Drucker verweigert möglicherweise das Laden eines Slots, solange Bypass-Filament im Werkzeugkopf ist. Entfernen Sie das Filament und deaktivieren Sie Bypass, bevor Sie drucken. Trotzdem starten?
   Bypass mode is not currently active: 'Der Bypass-Modus ist derzeit nicht aktiv'
+  Bypass mode is on: 'Der Bypass-Modus ist aktiv'
   Bypass off macro: 'Bypass-aus-Makro'
   Bypass on macro: 'Bypass-ein-Makro'
   Bypass toggle failed: Bypass-Umschaltung fehlgeschlagen
@@ -1016,6 +1020,7 @@ translations:
   Choose which releases to get, and whether to share anonymous statistics.: 'Wähle, welche Versionen du erhältst und ob du anonyme Statistiken teilst.'
   'Chute position: X {:.1f}, Y {:.1f}': 'Position des Auswurfschachts: X {:.1f}, Y {:.1f}'
 
+  Clean: 'Reinigen'
   Clean Brush: 'Bürste reinigen'
   Clean Nozzle: Düse reinigen
   Clean Up Storage: 'Speicher bereinigen'
@@ -2424,6 +2429,7 @@ translations:
   'Identify failed: {}': "Identifizieren fehlgeschlagen: {}"
   Idle: Leerlauf
   If Moonraker is local or your screen is attached to the printer directly, we'll connect automatically: Wenn Moonraker lokal ist oder der Bildschirm direkt am Drucker angeschlossen ist, verbinden wir automatisch
+  If Moonraker is local or your screen is attached to the printer, we'll connect automatically: Ist Moonraker lokal oder der Bildschirm am Drucker angeschlossen, verbinden wir automatisch
   If the extruder has no tension lever, see your printer's manual.: "Hat der Extruder keinen Spannhebel, siehe Druckerhandbuch."
   Ignore: Ignorieren
   Ignore the click that fires when you lift after scrolling: Klick ignorieren, der nach dem Scrollen beim Loslassen ausgelöst wird
@@ -4235,6 +4241,7 @@ translations:
   Runout Backup: 'Ersatz bei Auslauf'
   Runout Sensor: Auslaufsensor
   Runs on its own once started: Läuft nach dem Start von selbst
+  Runs everything this printer needs, in order: 'Führt alles aus, was dieser Drucker braucht, der Reihe nach'
   Runs everything this printer needs, in order ·: 'Führt alles aus, was dieser Drucker braucht, der Reihe nach ·'
   Runs the printer's tool offset calibration for every tool.: Führt die Werkzeug-Offset-Kalibrierung des Druckers für alle Werkzeuge aus.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'SAVE_CONFIG fehlgeschlagen: {}. Die Werkzeug-Offsets wurden angewendet, aber nicht gespeichert. Führe SAVE_CONFIG manuell aus, sonst gehen sie beim Neustart verloren.'
@@ -4476,6 +4483,7 @@ translations:
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : Filamenttyp und Farbe für diesen Slot von Hand einstellen. Sollte der Tag lesbar sein, die Spule bei stillstehender Box mit dem Etikett zum Leser neu einlegen
   Set the filament type for this head in the filament panel, then resume.: 'Filamenttyp für diesen Kopf im Filament-Bereich setzen, dann fortsetzen.'
+  Set the screen brightness and when it rests. You can change these later in Settings.: 'Lege fest, wie hell der Bildschirm ist und wann er ruht. Du kannst alles später in den Einstellungen ändern.'
   Set the slot's filament information, or load the slot by hand.: Filamentinformationen des Slots setzen oder den Slot von Hand laden.
   Set this to Spoolman's currency if you use both.: "Stelle hier die Währung von Spoolman ein, wenn du beides verwendest."
   Set up: Einrichten
@@ -4569,6 +4577,7 @@ translations:
   Sliced for {}, not {}.: 'Für {} gesliced, nicht für {}.'
   Slicer: Slicer
   Slide the paper back and forth.: "Schiebe das Papier hin und her."
+  Slide the paper back and forth. Stop when the paper just drags under the nozzle.: Schiebe das Papier hin und her. Hör auf, sobald das Papier unter der Düse leicht schleift.
   Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "Schiebe das Papier hin und her. Hör auf, sobald das Papier zwischen Düse und Heizbett leicht schleift."
   Sliders: Regler
   Slot: Slot
@@ -4751,6 +4760,7 @@ translations:
   Stop the tower?: "Turm stoppen?"
   ? Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
   : Webcams, Zeitraffer und zusätzliche Dienste auf dem Host stoppen, Netzteil und SD-Karte prüfen, dann die Firmware neu starten. Wenn es an derselben Stelle erneut passiert, die Geschwindigkeit oder die Microsteps senken.
+  Stop when the paper just drags under the nozzle.: Hör auf, sobald das Papier unter der Düse leicht schleift.
   Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "Hör auf, sobald das Papier zwischen Düse und Heizbett leicht schleift."
   Stop with an emergency stop?: 'Mit Notaus stoppen?'
   Stopped: Gestoppt
@@ -5645,6 +5655,7 @@ translations:
   Turn off arc fitting in the slicer and slice the file again.: Bogenanpassung (Arc Fitting) im Slicer ausschalten und die Datei neu slicen.
   Turn off arc fitting in the slicer, then slice the file again.: 'Bogenanpassung (Arc Fitting) im Slicer ausschalten, dann die Datei neu slicen.'
   Turn off bed check: 'Bettprüfung ausschalten'
+  Turn off bypass mode to load from a lane: 'Bypass-Modus ausschalten, um aus einer Spur zu laden'
   Turn off detection: Erkennung ausschalten
   Turn off flow calibration for this print, or use a larger nozzle.: 'Flusskalibrierung für diesen Druck ausschalten oder eine größere Düse verwenden.'
   Turn on the lights your light buttons control: Schaltet die Lichter ein, die Ihre Lichttasten steuern
@@ -5999,6 +6010,7 @@ translations:
   Year: Jahr
   Year Month Day: Jahr Monat Tag
   'Yes': Ja
+  You are needed for the first {} min: Du wirst die ersten {} Min. gebraucht
   You are needed for the first {} min, then it runs on its own: Du wirst die ersten {} Min. gebraucht, dann läuft es von selbst
   You can skip this and calibrate later in Settings.: Sie können dies überspringen und später in den Einstellungen kalibrieren.
   You have unsaved changes. Discard them?: Sie haben ungespeicherte Änderungen. Verwerfen?
@@ -6420,6 +6432,7 @@ translations:
   '{} started': '{} gestartet'
   '{} steps in {} min · review, then save once': '{} Schritte in {} Min. · prüfen, dann einmal speichern'
   '{} steps due · about {} min': '{} Schritte fällig · etwa {} Min.'
+  '{} steps in {} min · saved': '{} Schritte in {} Min. · gespeichert'
   '{} steps never run · about {} min': '{} Schritte nie ausgeführt · etwa {} Min.'
   '{} steps · about {} min': '{} Schritte · etwa {} Min.'
   '{} steps · {} min': '{} Schritte · {} Min.'

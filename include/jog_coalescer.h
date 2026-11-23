@@ -137,15 +137,29 @@ class JogCoalescer {
     CoalescedMove pending_{};
 };
 
+/// Limits for a move that starts at `position`: [min, max], stretched to reach
+/// the position when the head sits outside it (parked in a service zone past
+/// the print area). A move from there toward the envelope keeps its length
+/// instead of being pulled to the edge, and a move further out stays refused.
+struct AxisRange {
+    double min;
+    double max;
+};
+inline AxisRange range_reaching(double position, double min, double max) {
+    return {std::min(min, position), std::max(max, position)};
+}
+
 /**
- * Clamp a jog delta so predicted-position + delta stays inside [min, max].
- * Returns 0 rather than a direction-reversing correction when the predicted
- * position is already at/past the edge in the tap direction.
+ * Clamp a jog delta so predicted-position + delta stays inside [min, max]
+ * (range_reaching the predicted position). Returns 0 rather than a
+ * direction-reversing correction when the predicted position is already
+ * at/past the edge in the tap direction.
  */
 inline double clamp_jog_delta(double current, double uncommitted, double delta, double min,
                               double max) {
     const double predicted = current + uncommitted;
-    const double clamped = std::clamp(predicted + delta, min, max) - predicted;
+    const AxisRange range = range_reaching(predicted, min, max);
+    const double clamped = std::clamp(predicted + delta, range.min, range.max) - predicted;
     if (clamped * delta <= 0.0) {
         return 0.0;
     }

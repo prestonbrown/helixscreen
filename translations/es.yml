@@ -122,6 +122,7 @@ translations:
   1 profile: '1 perfil'
   1 step in {} min · review, then save once: 1 paso en {} min · revisa y guarda una vez
   1 step due · about {} min: '1 paso pendiente · unos {} min'
+  1 step in {} min · saved: '1 paso en {} min · guardado'
   1 step never run · about {} min: '1 paso sin ejecutar · unos {} min'
   1 step · about {} min: '1 paso · unos {} min'
   1 step · {} min: 1 paso · {} min
@@ -710,9 +711,12 @@ translations:
   Bypass disabled: Bypass desactivado
   Bypass enabled: Bypass activado
   Bypass failed: Error en bypass
+  Bypass filament is at the toolhead. Unload it before turning off bypass.: 'Hay filamento de bypass en el cabezal. Descárguelo antes de desactivar el bypass.'
+  Bypass filament is loaded: 'Hay filamento de bypass cargado'
   ? Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
   : El bypass está activo, pero esta impresión usa ranuras AMS. La impresora puede negarse a cargar una ranura mientras haya filamento de bypass en el cabezal. Retire el filamento y desactive el bypass antes de imprimir. ¿Iniciar de todos modos?
   Bypass mode is not currently active: 'El modo bypass no está activo actualmente'
+  Bypass mode is on: 'El modo bypass está activo'
   Bypass off macro: 'Macro de bypass desactivado'
   Bypass on macro: 'Macro de bypass activado'
   Bypass toggle failed: Error al alternar bypass
@@ -1016,6 +1020,7 @@ translations:
   Choose which releases to get, and whether to share anonymous statistics.: 'Elige qué versiones recibir y si compartir estadísticas anónimas.'
   'Chute position: X {:.1f}, Y {:.1f}': 'Posición del conducto de purga: X {:.1f}, Y {:.1f}'
 
+  Clean: 'Limpiar'
   Clean Brush: 'Limpiar cepillo'
   Clean Nozzle: Limpiar Boquilla
   Clean Up Storage: 'Limpiar almacenamiento'
@@ -2424,6 +2429,7 @@ translations:
   'Identify failed: {}': "Error al identificar: {}"
   Idle: Inactivo
   If Moonraker is local or your screen is attached to the printer directly, we'll connect automatically: Si Moonraker es local o tu pantalla está conectada directamente a la impresora, nos conectaremos automáticamente
+  If Moonraker is local or your screen is attached to the printer, we'll connect automatically: Si Moonraker es local o tu pantalla está conectada a la impresora, nos conectaremos automáticamente
   If the extruder has no tension lever, see your printer's manual.: "Si el extrusor no tiene palanca de tensión, consulte el manual de su impresora."
   Ignore: Ignorar
   Ignore the click that fires when you lift after scrolling: Ignora el clic que se dispara al levantar el dedo después de desplazarte
@@ -4235,6 +4241,7 @@ translations:
   Runout Backup: 'Reserva por agotamiento'
   Runout Sensor: Sensor de Agotamiento
   Runs on its own once started: Funciona solo una vez iniciado
+  Runs everything this printer needs, in order: 'Ejecuta todo lo que necesita esta impresora, en orden'
   Runs everything this printer needs, in order ·: 'Ejecuta todo lo que necesita esta impresora, en orden ·'
   Runs the printer's tool offset calibration for every tool.: Ejecuta la calibración de offsets de herramienta de la impresora para todas las herramientas.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'SAVE_CONFIG falló: {}. Los offsets de herramienta se aplicaron pero no se guardaron. Ejecuta SAVE_CONFIG manualmente o se perderán al reiniciar.'
@@ -4476,6 +4483,7 @@ translations:
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : Ajuste a mano el tipo y el color del filamento para esta ranura. Si la etiqueta debería poder leerse, vuelva a colocar la bobina con la etiqueta hacia el lector cuando la caja esté inactiva
   Set the filament type for this head in the filament panel, then resume.: 'Asigna el tipo de filamento de este cabezal en el panel de filamento y reanuda.'
+  Set the screen brightness and when it rests. You can change these later in Settings.: 'Elige el brillo de la pantalla y cuándo descansa. Puedes cambiarlo más tarde en Ajustes.'
   Set the slot's filament information, or load the slot by hand.: Configura la información de filamento de la ranura, o carga la ranura a mano.
   Set this to Spoolman's currency if you use both.: "Elige aquí la moneda de Spoolman si usas ambos."
   Set up: Configurar
@@ -4569,6 +4577,7 @@ translations:
   Sliced for {}, not {}.: 'Laminado para {}, no para {}.'
   Slicer: Laminador
   Slide the paper back and forth.: "Desliza el papel hacia adelante y atrás."
+  Slide the paper back and forth. Stop when the paper just drags under the nozzle.: Desliza el papel hacia adelante y atrás. Para cuando el papel roce bajo la boquilla.
   Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "Desliza el papel hacia adelante y atrás. Para cuando el papel roce ligeramente entre la boquilla del cabezal y la cama."
   Sliders: Controles
   Slot: Ranura
@@ -4751,6 +4760,7 @@ translations:
   Stop the tower?: "¿Detener la torre?"
   ? Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
   : Detén las webcams, los timelapses y los servicios extra del host, revisa su fuente de alimentación y su tarjeta SD, y reinicia el firmware. Si vuelve a ocurrir en el mismo punto, baja la velocidad o los micropasos.
+  Stop when the paper just drags under the nozzle.: Para cuando el papel roce bajo la boquilla.
   Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "Para cuando el papel roce ligeramente entre la boquilla del cabezal y la cama."
   Stop with an emergency stop?: '¿Detener con una parada de emergencia?'
   Stopped: Detenido
@@ -5645,6 +5655,7 @@ translations:
   Turn off arc fitting in the slicer and slice the file again.: Desactiva el ajuste de arcos en el laminador y vuelve a laminar el archivo.
   Turn off arc fitting in the slicer, then slice the file again.: 'Desactiva el ajuste de arcos en el laminador y vuelve a laminar el archivo.'
   Turn off bed check: 'Desactivar comprobación de cama'
+  Turn off bypass mode to load from a lane: 'Desactiva el modo bypass para cargar desde un carril'
   Turn off detection: Desactivar detección
   Turn off flow calibration for this print, or use a larger nozzle.: 'Desactiva la calibración de flujo para esta impresión, o usa una boquilla más grande.'
   Turn on the lights your light buttons control: Enciende las luces que controlan tus botones de luz
@@ -5999,6 +6010,7 @@ translations:
   Year: Año
   Year Month Day: Año Mes Día
   'Yes': Sí
+  You are needed for the first {} min: Te necesita los primeros {} min
   You are needed for the first {} min, then it runs on its own: Te necesita los primeros {} min y luego funciona solo
   You can skip this and calibrate later in Settings.: Puede omitir esto y calibrar más tarde en Ajustes.
   You have unsaved changes. Discard them?: Tiene cambios sin guardar. ¿Descartarlos?
@@ -6420,6 +6432,7 @@ translations:
   '{} started': '{} iniciado'
   '{} steps in {} min · review, then save once': '{} pasos en {} min · revisa y guarda una vez'
   '{} steps due · about {} min': '{} pasos pendientes · unos {} min'
+  '{} steps in {} min · saved': '{} pasos en {} min · guardados'
   '{} steps never run · about {} min': '{} pasos sin ejecutar · unos {} min'
   '{} steps · about {} min': '{} pasos · unos {} min'
   '{} steps · {} min': '{} pasos · {} min'

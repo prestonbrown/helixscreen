@@ -229,6 +229,23 @@ TEST_CASE("A lane load is refused while the bypass spool still crosses the toolh
     CHECK(out.call == AmsCall::None);
 }
 
+TEST_CASE("A lane load the backend refuses toasts the backend's reason",
+          "[filament][dispatch][wiring][bypass][bypass-load-refusal]") {
+    AmsSystemInfo sys = make_sys(4, /*current_slot=*/-1);
+    BackendCaps caps = bypassed_ams();
+    caps.lane_load_refusal =
+        helix::AmsError(helix::AmsResult::WRONG_STATE, "tech", "user text", "what to do");
+
+    FilamentPanelOutcome out = load_outcome(sys, caps, /*target_slot=*/2,
+                                            /*macro_available=*/true);
+    CHECK(out.tier == FilamentTier::Refused);
+    CHECK(out.backend_refusal.user_msg == "user text");
+    CHECK(out.backend_refusal.suggestion == "what to do");
+    CHECK(out.toast.empty());
+    CHECK_FALSE(out.navigate_to_ams);
+    CHECK_FALSE(out.guard_armed);
+}
+
 TEST_CASE("Load with no backend and no macro falls back to raw gcode",
           "[filament][dispatch][wiring]") {
     AmsSystemInfo sys = make_sys(0, -1);

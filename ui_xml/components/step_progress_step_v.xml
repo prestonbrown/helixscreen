@@ -8,7 +8,9 @@
        trickles it to the dot and the name: LV_STATE_USER_1 active,
        LV_STATE_CHECKED done, LV_STATE_USER_2 failed. The name is the static
        label (translated through label_tag) or, for printer text, the string
-       subject label_subject. The dot props pass through to step_progress_dot.
+       subject label_subject. The detail wraps; detail_max_h caps its height (two
+       lines of its font, say) and the last line shown ends in dots. The dot props
+       pass through to step_progress_dot.
        The state binds come last, so the state they set trickles to children
        that already exist. -->
   <api>
@@ -23,6 +25,7 @@
     <prop name="label_color_active" type="color" default="#text"/>
     <prop name="label_pending_opa" type="string" default="255"/>
     <prop name="detail_font" type="string" default="#font_small"/>
+    <prop name="detail_max_h" type="string" default="content"/>
     <prop name="number" type="string" default=""/>
     <prop name="dot_size" type="string" default="#step_indicator"/>
     <prop name="glyph_font" type="string" default="mdi_icons_16"/>
@@ -50,8 +53,9 @@
                 style_text_font-user_1="$label_font_active" style_text_color-user_1="$label_color_active"
                 style_text_opa-user_1="255" style_text_opa-checked="255" style_text_opa-user_2="255"/>
       <text_small name="step_detail"
-                  width="100%" bind_text="$detail_subject" hidden_if_empty="$detail_subject" long_mode="dots"
-                  style_text_font="$detail_font" style_text_color="#text_muted" style_text_opa="204"/>
+                  width="100%" style_max_height="$detail_max_h" bind_text="$detail_subject"
+                  hidden_if_empty="$detail_subject" long_mode="dots" style_text_font="$detail_font"
+                  style_text_color="#text_muted" style_text_opa="204"/>
     </lv_obj>
     <bind_state_if_eq subject="$state_subject" state="user_1" ref_value="1"/>
     <bind_state_if_eq subject="$state_subject" state="checked" ref_value="2"/>

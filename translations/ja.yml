@@ -122,6 +122,7 @@ translations:
   1 profile: '1 個のプロファイル'
   1 step in {} min · review, then save once: 1ステップ {}分 · 確認して一度に保存
   1 step due · about {} min: '実行が必要なステップ 1 · 約{}分'
+  1 step in {} min · saved: '1ステップ {}分 · 保存済み'
   1 step never run · about {} min: '未実行のステップ 1 · 約{}分'
   1 step · about {} min: '1ステップ · 約{}分'
   1 step · {} min: 1ステップ · {}分
@@ -710,9 +711,12 @@ translations:
   Bypass disabled: バイパス無効
   Bypass enabled: バイパス有効
   Bypass failed: バイパスに失敗しました
+  Bypass filament is at the toolhead. Unload it before turning off bypass.: 'バイパスのフィラメントがツールヘッドにあります。バイパスをオフにする前に取り出してください。'
+  Bypass filament is loaded: 'バイパスのフィラメントが装填されています'
   ? Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
   : バイパスが有効ですが、この印刷はAMSスロットを使用します。バイパスのフィラメントがツールヘッドにある間は、プリンターがスロットの装填を拒否する場合があります。印刷前にフィラメントを取り除き、バイパスをオフにしてください。それでも印刷を開始しますか？
   Bypass mode is not currently active: 'バイパスモードは現在アクティブではありません'
+  Bypass mode is on: 'バイパスモードがオンです'
   Bypass off macro: 'バイパスオフのマクロ'
   Bypass on macro: 'バイパスオンのマクロ'
   Bypass toggle failed: バイパス切替に失敗しました
@@ -1016,6 +1020,7 @@ translations:
   Choose which releases to get, and whether to share anonymous statistics.: '受け取るリリースと、匿名の統計を共有するかどうかを選択します。'
   'Chute position: X {:.1f}, Y {:.1f}': 'パージシュート位置: X {:.1f}, Y {:.1f}'
 
+  Clean: '清掃'
   Clean Brush: 'ブラシを清掃'
   Clean Nozzle: ノズル清掃
   Clean Up Storage: 'ストレージのクリーンアップ'
@@ -2424,6 +2429,7 @@ translations:
   'Identify failed: {}': "識別に失敗しました: {}"
   Idle: アイドル
   If Moonraker is local or your screen is attached to the printer directly, we'll connect automatically: Moonraker がローカルまたは画面がプリンターに直接接続されている場合、自動的に接続します
+  If Moonraker is local or your screen is attached to the printer, we'll connect automatically: Moonraker がローカルまたは画面がプリンターに接続されている場合、自動的に接続します
   If the extruder has no tension lever, see your printer's manual.: "エクストルーダーにテンションレバーがない場合は、プリンターのマニュアルを参照してください。"
   Ignore: 無視
   Ignore the click that fires when you lift after scrolling: スクロール後に指を離したときに発生するクリックを無視
@@ -4235,6 +4241,7 @@ translations:
   Runout Backup: 'フィラメント切れ時の予備'
   Runout Sensor: フィラメント切れセンサー
   Runs on its own once started: 開始後は自動で進みます
+  Runs everything this printer needs, in order: 'このプリンターに必要なものを順にすべて実行'
   Runs everything this printer needs, in order ·: 'このプリンターに必要なものを順にすべて実行 ·'
   Runs the printer's tool offset calibration for every tool.: プリンターのツールオフセットキャリブレーションをすべてのツールに対して実行します。
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'SAVE_CONFIG に失敗しました: {}。ツールオフセットは適用されましたが保存されていません。SAVE_CONFIG を手動で実行しないと、再起動時に失われます。'
@@ -4476,6 +4483,7 @@ translations:
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : このスロットのフィラメントの種類と色を手動で設定してください。タグが読み取れるはずの場合は、ボックスが停止しているときにラベルをリーダー側に向けてスプールを入れ直してください
   Set the filament type for this head in the filament panel, then resume.: 'フィラメント画面でこのヘッドのフィラメントの種類を設定してから、再開してください。'
+  Set the screen brightness and when it rests. You can change these later in Settings.: '画面の明るさと休止するタイミングを設定します。すべて後で「設定」から変更できます。'
   Set the slot's filament information, or load the slot by hand.: スロットのフィラメント情報を設定するか、スロットに手動で装填してください。
   Set this to Spoolman's currency if you use both.: "両方を使う場合は、ここを Spoolman の通貨に合わせてください。"
   Set up: セットアップ
@@ -4569,6 +4577,7 @@ translations:
   Sliced for {}, not {}.: '{}用にスライスされています。{}用ではありません。'
   Slicer: スライサー
   Slide the paper back and forth.: "紙を前後に動かしてください。"
+  Slide the paper back and forth. Stop when the paper just drags under the nozzle.: 紙を前後に動かしてください。ノズルの下で紙が軽く引っかかったら止めます。
   Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "紙を前後に動かしてください。ノズルとベッドの間で紙が軽く引っかかったら止めます。"
   Sliders: スライダー
   Slot: スロット
@@ -4751,6 +4760,7 @@ translations:
   Stop the tower?: "タワーを停止しますか？"
   ? Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
   : ホストのウェブカメラ、タイムラプス、余分なサービスを停止し、電源と SD カードを確認してから、ファームウェアを再起動してください。同じ箇所で再発する場合は、速度またはマイクロステップを下げてください。
+  Stop when the paper just drags under the nozzle.: ノズルの下で紙が軽く引っかかったら止めます。
   Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "ノズルとベッドの間で紙が軽く引っかかったら止めます。"
   Stop with an emergency stop?: '緊急停止で停止しますか？'
   Stopped: 停止しました
@@ -5645,6 +5655,7 @@ translations:
   Turn off arc fitting in the slicer and slice the file again.: スライサーで円弧フィッティングをオフにして、ファイルをスライスし直してください。
   Turn off arc fitting in the slicer, then slice the file again.: 'スライサーでアークフィッティングをオフにしてから、ファイルを再スライスしてください。'
   Turn off bed check: 'ベッドチェックをオフにする'
+  Turn off bypass mode to load from a lane: 'レーンから装填するにはバイパスモードをオフにしてください'
   Turn off detection: 検出をオフにする
   Turn off flow calibration for this print, or use a larger nozzle.: 'この印刷のフローキャリブレーションをオフにするか、より大きいノズルを使ってください。'
   Turn on the lights your light buttons control: ライトボタンが操作するライトを点灯します
@@ -5999,6 +6010,7 @@ translations:
   Year: 年
   Year Month Day: 年 月 日
   'Yes': はい
+  You are needed for the first {} min: 最初の{}分は操作が必要です
   You are needed for the first {} min, then it runs on its own: 最初の{}分は操作が必要で、その後は自動で進みます
   You can skip this and calibrate later in Settings.: スキップして後で設定でキャリブレーションできます。
   You have unsaved changes. Discard them?: 保存されていない変更があります。破棄しますか？
@@ -6420,6 +6432,7 @@ translations:
   '{} started': '{} を開始しました'
   '{} steps in {} min · review, then save once': '{}ステップ {}分 · 確認して一度に保存'
   '{} steps due · about {} min': '実行が必要なステップ {} · 約{}分'
+  '{} steps in {} min · saved': '{}ステップ {}分 · 保存済み'
   '{} steps never run · about {} min': '未実行のステップ {} · 約{}分'
   '{} steps · about {} min': '{}ステップ · 約{}分'
   '{} steps · {} min': '{}ステップ · {}分'

@@ -11,6 +11,7 @@
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "json_utils.h"
+#include "motion_envelope.h"
 #include "motor_ripple_analysis.h"
 #include "motor_ripple_store.h"
 #include "motor_ripple_view.h"
@@ -29,6 +30,7 @@
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <cstdlib>
 
 #include "hv/json.hpp"
@@ -278,10 +280,13 @@ void MotorRipplePanel::begin_with_facts(const calibration::LiveSweepFacts& facts
 
     // The limits a run must put back, read now rather than from config: a
     // slicer's SET_VELOCITY_LIMIT may already have changed them.
-    const json objects = {
+    json objects = {
         {"toolhead", json::array({"axis_minimum", "axis_maximum", "max_velocity", "max_accel",
                                   "minimum_cruise_ratio", "max_accel_to_decel", "position"})},
         {"gcode_move", json::array({"homing_origin"})}};
+    for (const auto& obj : motion_envelope::required_status_objects(hw.printer_objects())) {
+        objects[obj] = nullptr;
+    }
     client->send_jsonrpc(
         "printer.objects.query", json{{"objects", objects}},
         lifetime_.bg_cb(
@@ -294,15 +299,8 @@ void MotorRipplePanel::begin_with_facts(const calibration::LiveSweepFacts& facts
                     fail(lv_tr("The printer did not report its toolhead limits."));
                     return;
                 }
-                const json* lo = member(th, "axis_minimum");
-                const json* hi = member(th, "axis_maximum");
                 auto& p = req.plan;
-                p.x_min = array_at(lo, 0);
-                p.y_min = array_at(lo, 1);
-                p.x_max = array_at(hi, 0);
-                p.y_max = array_at(hi, 1);
-                p.max_z = array_at(hi, 2);
-                p.has_xy_limits = lo && hi && p.x_max > p.x_min && p.y_max > p.y_min;
+                calibration::ripple::read_sweep_limits(*status, p);
                 p.current_z = array_at(member(th, "position"), 2);
                 p.origin_x = array_at(origin, 0);
                 p.origin_y = array_at(origin, 1);

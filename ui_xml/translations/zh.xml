@@ -108,6 +108,7 @@
   <translation tag="1 profile" zh="1 个配置"/>
   <translation tag="1 step due · about {} min" zh="1 个步骤待完成 · 约 {} 分钟"/>
   <translation tag="1 step in {} min · review, then save once" zh="1 个步骤，用时 {} 分钟 · 检查后一次保存"/>
+  <translation tag="1 step in {} min · saved" zh="1 个步骤，用时 {} 分钟 · 已保存"/>
   <translation tag="1 step never run · about {} min" zh="1 个步骤从未运行 · 约 {} 分钟"/>
   <translation tag="1 step · about {} min" zh="1 个步骤 · 约 {} 分钟"/>
   <translation tag="1 step · {} min" zh="1 个步骤 · {} 分钟"/>
@@ -685,8 +686,11 @@
   <translation tag="Bypass disabled" zh="旁通已禁用"/>
   <translation tag="Bypass enabled" zh="旁通已启用"/>
   <translation tag="Bypass failed" zh="旁通失败"/>
+  <translation tag="Bypass filament is at the toolhead. Unload it before turning off bypass." zh="旁通耗材仍在工具头中。关闭旁通前请先卸载。"/>
+  <translation tag="Bypass filament is loaded" zh="旁通耗材已装载"/>
   <translation tag="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?" zh="旁路已启用，但此打印使用 AMS 槽位。当旁路耗材仍在工具头中时，打印机可能拒绝装载槽位。请在打印前取出耗材并关闭旁路。仍要开始打印吗？"/>
   <translation tag="Bypass mode is not currently active" zh="旁通模式当前未启用"/>
+  <translation tag="Bypass mode is on" zh="旁通模式已开启"/>
   <translation tag="Bypass off macro" zh="关闭旁路宏"/>
   <translation tag="Bypass on macro" zh="开启旁路宏"/>
   <translation tag="Bypass toggle failed" zh="旁通切换失败"/>
@@ -974,6 +978,7 @@
   <translation tag="Choose which lane is in the toolhead to unload it" zh="请选择打印头里的料道以卸载"/>
   <translation tag="Choose which releases to get, and whether to share anonymous statistics." zh="选择要获取的版本，以及是否共享匿名统计数据。"/>
   <translation tag="Chute position: X {:.1f}, Y {:.1f}" zh="排料口位置: X {:.1f}, Y {:.1f}"/>
+  <translation tag="Clean" zh="清洁"/>
   <translation tag="Clean Brush" zh="清洁刷子"/>
   <translation tag="Clean Nozzle" zh="清洁喷嘴"/>
   <translation tag="Clean Up Storage" zh="清理存储"/>
@@ -2320,6 +2325,7 @@
   <translation tag="Identify failed: {}" zh="识别失败：{}"/>
   <translation tag="Idle" zh="空闲"/>
   <translation tag="If Moonraker is local or your screen is attached to the printer directly, we&apos;ll connect automatically" zh="如果 Moonraker 在本地或屏幕直接连接到打印机，将自动连接"/>
+  <translation tag="If Moonraker is local or your screen is attached to the printer, we&apos;ll connect automatically" zh="如果 Moonraker 在本地或屏幕连接到打印机，将自动连接"/>
   <translation tag="If the extruder has no tension lever, see your printer&apos;s manual." zh="如果挤出机没有张紧杆,请参阅打印机手册。"/>
   <translation tag="Ignore" zh="忽略"/>
   <translation tag="Ignore the click that fires when you lift after scrolling" zh="忽略滚动后抬起手指时触发的点击"/>
@@ -4095,6 +4101,7 @@
   <translation tag="Runout" zh="用尽"/>
   <translation tag="Runout Backup" zh="用尽备用"/>
   <translation tag="Runout Sensor" zh="断料传感器"/>
+  <translation tag="Runs everything this printer needs, in order" zh="按顺序运行此打印机所需的一切"/>
   <translation tag="Runs everything this printer needs, in order ·" zh="按顺序运行此打印机所需的一切 ·"/>
   <translation tag="Runs on its own once started" zh="启动后自动运行"/>
   <translation tag="Runs the printer&apos;s tool offset calibration for every tool." zh="为所有工具运行打印机的工具偏移校准。"/>
@@ -4331,6 +4338,7 @@
   <translation tag="Set the clock, theme and units. You can change any of these later in Settings." zh="设置时钟、主题和单位。之后可以随时在设置中更改。"/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" zh="请手动设置该槽位的耗材类型和颜色。若标签本应可读，请在料盒空闲时将料盘取出并使标签朝向读取器重新装入"/>
   <translation tag="Set the filament type for this head in the filament panel, then resume." zh="请在耗材面板中为此工具头设置耗材类型，然后恢复。"/>
+  <translation tag="Set the screen brightness and when it rests. You can change these later in Settings." zh="设置屏幕亮度以及何时休眠。以后可在“设置”中更改。"/>
   <translation tag="Set the slot&apos;s filament information, or load the slot by hand." zh="请设置该槽位的耗材信息，或手动加载该槽位。"/>
   <translation tag="Set this to Spoolman&apos;s currency if you use both." zh="如果两者都使用，请在此设置为 Spoolman 的货币。"/>
   <translation tag="Set up" zh="设置"/>
@@ -4424,6 +4432,7 @@
   <translation tag="Sliced for {}, not {}." zh="为 {} 切片，而不是 {}。"/>
   <translation tag="Slicer" zh="切片软件"/>
   <translation tag="Slide the paper back and forth." zh="来回滑动纸张。"/>
+  <translation tag="Slide the paper back and forth. Stop when the paper just drags under the nozzle." zh="来回滑动纸张。当纸张在喷嘴下略有阻力时停止。"/>
   <translation tag="Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed." zh="来回滑动纸张。当纸张在喷嘴和热床之间略有阻力时停止。"/>
   <translation tag="Sliders" zh="滑块"/>
   <translation tag="Slot" zh="槽位"/>
@@ -4598,6 +4607,7 @@
   <translation tag="Stop the running cycle before starting another" zh="请先停止当前周期，再启动新的周期"/>
   <translation tag="Stop the tower?" zh="停止测试塔？"/>
   <translation tag="Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps." zh="请停止主机上的摄像头、延时摄影和额外服务，检查其电源和 SD 卡，然后重启固件。如果在同一位置再次发生，请降低速度或细分。"/>
+  <translation tag="Stop when the paper just drags under the nozzle." zh="当纸张在喷嘴下略有阻力时停止。"/>
   <translation tag="Stop when the paper just lightly drags between the toolhead nozzle and the bed." zh="当纸张在喷嘴和热床之间略有阻力时停止。"/>
   <translation tag="Stop with an emergency stop?" zh="要用紧急停止来停止吗？"/>
   <translation tag="Stopped" zh="已停止"/>
@@ -5417,6 +5427,7 @@
   <translation tag="Turn off arc fitting in the slicer and slice the file again." zh="请在切片软件中关闭圆弧拟合，然后重新切片。"/>
   <translation tag="Turn off arc fitting in the slicer, then slice the file again." zh="请在切片软件中关闭 Arc fitting（圆周拟合），然后重新切片。"/>
   <translation tag="Turn off bed check" zh="关闭热床检查"/>
+  <translation tag="Turn off bypass mode to load from a lane" zh="请关闭旁通模式后再从耗材通道装载"/>
   <translation tag="Turn off detection" zh="关闭检测"/>
   <translation tag="Turn off flow calibration for this print, or use a larger nozzle." zh="请为本次打印关闭流量校准，或使用更大的喷嘴。"/>
   <translation tag="Turn on the lights your light buttons control" zh="开启灯光按钮所控制的灯光"/>
@@ -5783,6 +5794,7 @@
   <translation tag="Year" zh="年"/>
   <translation tag="Year Month Day" zh="年 月 日"/>
   <translation tag="Yes" zh="是"/>
+  <translation tag="You are needed for the first {} min" zh="前 {} 分钟需要您参与"/>
   <translation tag="You are needed for the first {} min, then it runs on its own" zh="前 {} 分钟需要您参与，之后自动运行"/>
   <translation tag="You can skip this and calibrate later in Settings." zh="您可以跳过此步骤，稍后在设置中进行校准。"/>
   <translation tag="You have unsaved changes. Discard them?" zh="您有未保存的更改。是否丢弃？"/>
@@ -6194,6 +6206,7 @@
   <translation tag="{} started" zh="已开始{}"/>
   <translation tag="{} steps due · about {} min" zh="{} 个步骤待完成 · 约 {} 分钟"/>
   <translation tag="{} steps in {} min · review, then save once" zh="{} 个步骤，用时 {} 分钟 · 检查后一次保存"/>
+  <translation tag="{} steps in {} min · saved" zh="{} 个步骤，用时 {} 分钟 · 已保存"/>
   <translation tag="{} steps never run · about {} min" zh="{} 个步骤从未运行 · 约 {} 分钟"/>
   <translation tag="{} steps · about {} min" zh="{} 个步骤 · 约 {} 分钟"/>
   <translation tag="{} steps · {} min" zh="{} 个步骤 · {} 分钟"/>

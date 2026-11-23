@@ -122,6 +122,7 @@ translations:
   1 profile: '1 个配置'
   1 step in {} min · review, then save once: 1 个步骤，用时 {} 分钟 · 检查后一次保存
   1 step due · about {} min: '1 个步骤待完成 · 约 {} 分钟'
+  1 step in {} min · saved: '1 个步骤，用时 {} 分钟 · 已保存'
   1 step never run · about {} min: '1 个步骤从未运行 · 约 {} 分钟'
   1 step · about {} min: '1 个步骤 · 约 {} 分钟'
   1 step · {} min: 1 个步骤 · {} 分钟
@@ -710,9 +711,12 @@ translations:
   Bypass disabled: 旁通已禁用
   Bypass enabled: 旁通已启用
   Bypass failed: 旁通失败
+  Bypass filament is at the toolhead. Unload it before turning off bypass.: '旁通耗材仍在工具头中。关闭旁通前请先卸载。'
+  Bypass filament is loaded: '旁通耗材已装载'
   ? Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
   : 旁路已启用，但此打印使用 AMS 槽位。当旁路耗材仍在工具头中时，打印机可能拒绝装载槽位。请在打印前取出耗材并关闭旁路。仍要开始打印吗？
   Bypass mode is not currently active: '旁通模式当前未启用'
+  Bypass mode is on: '旁通模式已开启'
   Bypass off macro: '关闭旁路宏'
   Bypass on macro: '开启旁路宏'
   Bypass toggle failed: 旁通切换失败
@@ -1016,6 +1020,7 @@ translations:
   Choose which releases to get, and whether to share anonymous statistics.: '选择要获取的版本，以及是否共享匿名统计数据。'
   'Chute position: X {:.1f}, Y {:.1f}': '排料口位置: X {:.1f}, Y {:.1f}'
 
+  Clean: '清洁'
   Clean Brush: '清洁刷子'
   Clean Nozzle: 清洁喷嘴
   Clean Up Storage: '清理存储'
@@ -2424,6 +2429,7 @@ translations:
   'Identify failed: {}': "识别失败：{}"
   Idle: 空闲
   If Moonraker is local or your screen is attached to the printer directly, we'll connect automatically: 如果 Moonraker 在本地或屏幕直接连接到打印机，将自动连接
+  If Moonraker is local or your screen is attached to the printer, we'll connect automatically: 如果 Moonraker 在本地或屏幕连接到打印机，将自动连接
   If the extruder has no tension lever, see your printer's manual.: "如果挤出机没有张紧杆,请参阅打印机手册。"
   Ignore: 忽略
   Ignore the click that fires when you lift after scrolling: 忽略滚动后抬起手指时触发的点击
@@ -4235,6 +4241,7 @@ translations:
   Runout Backup: '用尽备用'
   Runout Sensor: 断料传感器
   Runs on its own once started: 启动后自动运行
+  Runs everything this printer needs, in order: '按顺序运行此打印机所需的一切'
   Runs everything this printer needs, in order ·: '按顺序运行此打印机所需的一切 ·'
   Runs the printer's tool offset calibration for every tool.: 为所有工具运行打印机的工具偏移校准。
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': SAVE_CONFIG 失败：{}。工具偏移已应用但未保存。请手动执行 SAVE_CONFIG，否则重启后将丢失。
@@ -4476,6 +4483,7 @@ translations:
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : 请手动设置该槽位的耗材类型和颜色。若标签本应可读，请在料盒空闲时将料盘取出并使标签朝向读取器重新装入
   Set the filament type for this head in the filament panel, then resume.: '请在耗材面板中为此工具头设置耗材类型，然后恢复。'
+  Set the screen brightness and when it rests. You can change these later in Settings.: '设置屏幕亮度以及何时休眠。以后可在“设置”中更改。'
   Set the slot's filament information, or load the slot by hand.: 请设置该槽位的耗材信息，或手动加载该槽位。
   Set this to Spoolman's currency if you use both.: "如果两者都使用，请在此设置为 Spoolman 的货币。"
   Set up: 设置
@@ -4569,6 +4577,7 @@ translations:
   Sliced for {}, not {}.: '为 {} 切片，而不是 {}。'
   Slicer: 切片软件
   Slide the paper back and forth.: "来回滑动纸张。"
+  Slide the paper back and forth. Stop when the paper just drags under the nozzle.: 来回滑动纸张。当纸张在喷嘴下略有阻力时停止。
   Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "来回滑动纸张。当纸张在喷嘴和热床之间略有阻力时停止。"
   Sliders: 滑块
   Slot: 槽位
@@ -4751,6 +4760,7 @@ translations:
   Stop the tower?: "停止测试塔？"
   ? Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
   : 请停止主机上的摄像头、延时摄影和额外服务，检查其电源和 SD 卡，然后重启固件。如果在同一位置再次发生，请降低速度或细分。
+  Stop when the paper just drags under the nozzle.: 当纸张在喷嘴下略有阻力时停止。
   Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "当纸张在喷嘴和热床之间略有阻力时停止。"
   Stop with an emergency stop?: '要用紧急停止来停止吗？'
   Stopped: 已停止
@@ -5645,6 +5655,7 @@ translations:
   Turn off arc fitting in the slicer and slice the file again.: 请在切片软件中关闭圆弧拟合，然后重新切片。
   Turn off arc fitting in the slicer, then slice the file again.: '请在切片软件中关闭 Arc fitting（圆周拟合），然后重新切片。'
   Turn off bed check: '关闭热床检查'
+  Turn off bypass mode to load from a lane: '请关闭旁通模式后再从耗材通道装载'
   Turn off detection: 关闭检测
   Turn off flow calibration for this print, or use a larger nozzle.: '请为本次打印关闭流量校准，或使用更大的喷嘴。'
   Turn on the lights your light buttons control: 开启灯光按钮所控制的灯光
@@ -5999,6 +6010,7 @@ translations:
   Year: 年
   Year Month Day: 年 月 日
   'Yes': 是
+  You are needed for the first {} min: 前 {} 分钟需要您参与
   You are needed for the first {} min, then it runs on its own: 前 {} 分钟需要您参与，之后自动运行
   You can skip this and calibrate later in Settings.: 您可以跳过此步骤，稍后在设置中进行校准。
   You have unsaved changes. Discard them?: 您有未保存的更改。是否丢弃？
@@ -6420,6 +6432,7 @@ translations:
   '{} started': '已开始{}'
   '{} steps in {} min · review, then save once': '{} 个步骤，用时 {} 分钟 · 检查后一次保存'
   '{} steps due · about {} min': '{} 个步骤待完成 · 约 {} 分钟'
+  '{} steps in {} min · saved': '{} 个步骤，用时 {} 分钟 · 已保存'
   '{} steps never run · about {} min': '{} 个步骤从未运行 · 约 {} 分钟'
   '{} steps · about {} min': '{} 个步骤 · 约 {} 分钟'
   '{} steps · {} min': '{} 个步骤 · {} 分钟'

@@ -36,6 +36,7 @@
 #include "moonraker_auth.h"
 #include "moonraker_client.h"
 #include "moonraker_subscription_merge.h"
+#include "motion_envelope.h"
 #include "pa_calibration_run.h"
 #include "pause_descriptor.h"
 #include "platform_info.h"
@@ -1450,6 +1451,13 @@ json MoonrakerDiscoverySequence::build_subscription_objects(const PrinterDiscove
     // whatever object stores it; without this the Z-offset row reads 0.000
     // whenever such a printer is idle. See include/z_offset_persistence.h.
     for (const auto& obj : helix::zoffset::required_status_objects(hw)) {
+        subscription_objects[obj] = nullptr;
+    }
+
+    // Firmware that widens axis_maximum for a service zone past the print
+    // area reports the print-area limit in its own object; whole-bed moves
+    // planned without it can target the zone. See include/motion_envelope.h.
+    for (const auto& obj : helix::motion_envelope::required_status_objects(hw.printer_objects())) {
         subscription_objects[obj] = nullptr;
     }
 

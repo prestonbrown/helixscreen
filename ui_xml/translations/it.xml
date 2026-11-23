@@ -108,6 +108,7 @@
   <translation tag="1 profile" it="1 profilo"/>
   <translation tag="1 step due · about {} min" it="1 passaggio da fare · circa {} min"/>
   <translation tag="1 step in {} min · review, then save once" it="1 passo in {} min · controlla, poi salva una volta"/>
+  <translation tag="1 step in {} min · saved" it="1 passo in {} min · salvato"/>
   <translation tag="1 step never run · about {} min" it="1 passaggio mai eseguito · circa {} min"/>
   <translation tag="1 step · about {} min" it="1 passaggio · circa {} min"/>
   <translation tag="1 step · {} min" it="1 passo · {} min"/>
@@ -685,8 +686,11 @@
   <translation tag="Bypass disabled" it="Bypass disabilitato"/>
   <translation tag="Bypass enabled" it="Bypass abilitato"/>
   <translation tag="Bypass failed" it="Bypass fallito"/>
+  <translation tag="Bypass filament is at the toolhead. Unload it before turning off bypass." it="Il filamento del bypass è nella testina. Scaricalo prima di disattivare il bypass."/>
+  <translation tag="Bypass filament is loaded" it="Il filamento del bypass è caricato"/>
   <translation tag="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?" it="Il bypass è attivo, ma questa stampa usa gli slot AMS. La stampante potrebbe rifiutare il caricamento di uno slot mentre il filamento del bypass è nella testina. Rimuovi il filamento e disattiva il bypass prima di stampare. Avviare comunque?"/>
   <translation tag="Bypass mode is not currently active" it="La modalità bypass non è attiva"/>
+  <translation tag="Bypass mode is on" it="La modalità bypass è attiva"/>
   <translation tag="Bypass off macro" it="Macro di disattivazione bypass"/>
   <translation tag="Bypass on macro" it="Macro di attivazione bypass"/>
   <translation tag="Bypass toggle failed" it="Cambio bypass fallito"/>
@@ -974,6 +978,7 @@
   <translation tag="Choose which lane is in the toolhead to unload it" it="Scegli quale corsia è nella testina per scaricarla"/>
   <translation tag="Choose which releases to get, and whether to share anonymous statistics." it="Scegli quali versioni ricevere e se condividere statistiche anonime."/>
   <translation tag="Chute position: X {:.1f}, Y {:.1f}" it="Posizione del condotto di spurgo: X {:.1f}, Y {:.1f}"/>
+  <translation tag="Clean" it="Pulisci"/>
   <translation tag="Clean Brush" it="Pulisci la spazzola"/>
   <translation tag="Clean Nozzle" it="Pulisci ugello"/>
   <translation tag="Clean Up Storage" it="Pulisci archiviazione"/>
@@ -2320,6 +2325,7 @@
   <translation tag="Identify failed: {}" it="Identificazione non riuscita: {}"/>
   <translation tag="Idle" it="Inattivo"/>
   <translation tag="If Moonraker is local or your screen is attached to the printer directly, we&apos;ll connect automatically" it="Se Moonraker è locale o lo schermo è collegato direttamente alla stampante, la connessione sarà automatica"/>
+  <translation tag="If Moonraker is local or your screen is attached to the printer, we&apos;ll connect automatically" it="Se Moonraker è locale o lo schermo è collegato alla stampante, la connessione sarà automatica"/>
   <translation tag="If the extruder has no tension lever, see your printer&apos;s manual." it="Se l&apos;estrusore non ha una leva di tensione, consultare il manuale della stampante."/>
   <translation tag="Ignore" it="Ignora"/>
   <translation tag="Ignore the click that fires when you lift after scrolling" it="Ignora il clic che si attiva al rilascio dopo lo scorrimento"/>
@@ -4095,6 +4101,7 @@
   <translation tag="Runout" it="Esaurimento"/>
   <translation tag="Runout Backup" it="Riserva all&apos;esaurimento"/>
   <translation tag="Runout Sensor" it="Sensore esaurimento"/>
+  <translation tag="Runs everything this printer needs, in order" it="Esegue tutto ciò che serve a questa stampante, in ordine"/>
   <translation tag="Runs everything this printer needs, in order ·" it="Esegue tutto ciò che serve a questa stampante, in ordine ·"/>
   <translation tag="Runs on its own once started" it="Procede da solo una volta avviato"/>
   <translation tag="Runs the printer&apos;s tool offset calibration for every tool." it="Esegue la calibrazione degli offset degli strumenti della stampante per tutti gli strumenti."/>
@@ -4331,6 +4338,7 @@
   <translation tag="Set the clock, theme and units. You can change any of these later in Settings." it="Imposta orologio, tema e unità. Puoi cambiarli in seguito nelle Impostazioni."/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" it="Impostare a mano tipo e colore del filamento per questo slot. Se il tag dovrebbe essere leggibile, reinserire la bobina con l&apos;etichetta rivolta verso il lettore quando la box è inattiva"/>
   <translation tag="Set the filament type for this head in the filament panel, then resume." it="Imposta il tipo di filamento per questa testina nel pannello filamento, poi riprendi."/>
+  <translation tag="Set the screen brightness and when it rests. You can change these later in Settings." it="Scegli la luminosità dello schermo e quando va a riposo. Puoi cambiare tutto più tardi in Impostazioni."/>
   <translation tag="Set the slot&apos;s filament information, or load the slot by hand." it="Imposta le informazioni sul filamento dello slot, oppure carica lo slot a mano."/>
   <translation tag="Set this to Spoolman&apos;s currency if you use both." it="Imposta qui la valuta di Spoolman se usi entrambi."/>
   <translation tag="Set up" it="Configura"/>
@@ -4424,6 +4432,7 @@
   <translation tag="Sliced for {}, not {}." it="Preparato per {}, non per {}."/>
   <translation tag="Slicer" it="Slicer"/>
   <translation tag="Slide the paper back and forth." it="Fai scorrere la carta avanti e indietro."/>
+  <translation tag="Slide the paper back and forth. Stop when the paper just drags under the nozzle." it="Fai scorrere la carta avanti e indietro. Fermati quando la carta striscia sotto l&apos;ugello."/>
   <translation tag="Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed." it="Fai scorrere la carta avanti e indietro. Fermati quando la carta striscia leggermente tra l&apos;ugello e il piano."/>
   <translation tag="Sliders" it="Cursori"/>
   <translation tag="Slot" it="Slot"/>
@@ -4598,6 +4607,7 @@
   <translation tag="Stop the running cycle before starting another" it="Interrompi il ciclo in corso prima di avviarne un altro"/>
   <translation tag="Stop the tower?" it="Fermare la torre?"/>
   <translation tag="Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps." it="Ferma webcam, timelapse e servizi aggiuntivi sull&apos;host, controlla il suo alimentatore e la scheda SD, poi riavvia il firmware. Se succede di nuovo nello stesso punto, riduci la velocità o i microstep."/>
+  <translation tag="Stop when the paper just drags under the nozzle." it="Fermati quando la carta striscia sotto l&apos;ugello."/>
   <translation tag="Stop when the paper just lightly drags between the toolhead nozzle and the bed." it="Fermati quando la carta striscia leggermente tra l&apos;ugello e il piano."/>
   <translation tag="Stop with an emergency stop?" it="Fermare con un arresto di emergenza?"/>
   <translation tag="Stopped" it="Fermato"/>
@@ -5417,6 +5427,7 @@
   <translation tag="Turn off arc fitting in the slicer and slice the file again." it="Disattiva l&apos;arc fitting nello slicer ed esegui di nuovo lo slicing del file."/>
   <translation tag="Turn off arc fitting in the slicer, then slice the file again." it="Disattiva l&apos;arc fitting nello slicer, poi esegui di nuovo lo slicing del file."/>
   <translation tag="Turn off bed check" it="Disattiva controllo piano"/>
+  <translation tag="Turn off bypass mode to load from a lane" it="Disattiva la modalità bypass per caricare da una corsia"/>
   <translation tag="Turn off detection" it="Disattiva rilevamento"/>
   <translation tag="Turn off flow calibration for this print, or use a larger nozzle." it="Disattiva la calibrazione del flusso per questa stampa, oppure usa un ugello più grande."/>
   <translation tag="Turn on the lights your light buttons control" it="Accende le luci controllate dai pulsanti luce"/>
@@ -5783,6 +5794,7 @@
   <translation tag="Year" it="Anno"/>
   <translation tag="Year Month Day" it="Anno Mese Giorno"/>
   <translation tag="Yes" it="Sì"/>
+  <translation tag="You are needed for the first {} min" it="Servi per i primi {} min"/>
   <translation tag="You are needed for the first {} min, then it runs on its own" it="Servi per i primi {} min, poi procede da solo"/>
   <translation tag="You can skip this and calibrate later in Settings." it="Puoi saltare e calibrare più tardi nelle Impostazioni."/>
   <translation tag="You have unsaved changes. Discard them?" it="Hai modifiche non salvate. Scartarle?"/>
@@ -6194,6 +6206,7 @@
   <translation tag="{} started" it="{} avviato"/>
   <translation tag="{} steps due · about {} min" it="{} passaggi da fare · circa {} min"/>
   <translation tag="{} steps in {} min · review, then save once" it="{} passi in {} min · controlla, poi salva una volta"/>
+  <translation tag="{} steps in {} min · saved" it="{} passi in {} min · salvati"/>
   <translation tag="{} steps never run · about {} min" it="{} passaggi mai eseguiti · circa {} min"/>
   <translation tag="{} steps · about {} min" it="{} passaggi · circa {} min"/>
   <translation tag="{} steps · {} min" it="{} passi · {} min"/>

@@ -83,6 +83,9 @@ BackendCaps read_backend_caps(AmsBackend* backend, AmsSystemInfo& info_out, int 
     // is at the toolhead that no lane claims" makes the active-head sentinel a
     // resolvable unload target.
     caps.toolhead_unaccounted = backend->toolhead_filament_unaccounted().value_or(false);
+    if (target_slot >= 0) {
+        caps.lane_load_refusal = backend->can_load_lane(target_slot);
+    }
     return caps;
 }
 
@@ -618,6 +621,11 @@ void dispatch_load(AmsBackend* backend, int slot, const FilamentOpSurface& surfa
         // leaving a surface stuck in a phantom "busy" (bundle 9KRXZ62P).
         if (surface.on_refused) {
             surface.on_refused(plan);
+            return;
+        }
+        if (plan.refusal == helix::ui::FilamentRefusal::BackendRefused) {
+            spdlog::info("{} Load of slot {} refused by the backend", log_tag, slot);
+            helix::ui::notify_ams_warning(plan.backend_refusal);
             return;
         }
         // SelectSlot: no lane resolved, and a surface with no picker cannot

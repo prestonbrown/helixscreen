@@ -165,7 +165,8 @@ struct AmsMiniGridMetrics {
     int badge_margin = 0; ///< what a lane spool adds around its graphic
     int text_h = 0;       ///< the text block over each spool, gap included
     int max_spool = 0;
-    bool bypass = false; ///< one more cell past the lanes, behind a 1px divider
+    bool bypass = false;   ///< one more cell past the lanes, behind a 1px divider
+    int bypass_margin = 0; ///< each side of the bypass divider, beyond the gap
 };
 
 /// One unit's block in a grid plan: its lanes as @p cols x @p rows, starting a

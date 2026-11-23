@@ -170,6 +170,7 @@ translations:
   1 profile: '1 профиль'
   1 step in {} min · review, then save once: 1 шаг за {} мин · проверьте и сохраните один раз
   1 step due · about {} min: '1 шаг к выполнению · около {} мин'
+  1 step in {} min · saved: '1 шаг за {} мин · сохранено'
   1 step never run · about {} min: '1 шаг не выполнялся · около {} мин'
   1 step · about {} min: '1 шаг · около {} мин'
   1 step · {} min: 1 шаг · {} мин
@@ -766,9 +767,12 @@ translations:
   Bypass disabled: Байпас отключён
   Bypass enabled: Байпас включён
   Bypass failed: Ошибка байпаса
+  Bypass filament is at the toolhead. Unload it before turning off bypass.: 'Филамент обхода находится в печатающей головке. Выгрузите его перед выключением обхода.'
+  Bypass filament is loaded: 'Филамент обхода загружен'
   ? Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
   : Активен байпас, но эта печать использует слоты AMS. Принтер может отказаться загружать слот, пока филамент байпаса находится в печатающей головке. Извлеките филамент и выключите байпас перед печатью. Всё равно начать?
   Bypass mode is not currently active: 'Режим обхода сейчас не активен'
+  Bypass mode is on: 'Режим обхода включён'
   Bypass off macro: 'Макрос выключения обхода'
   Bypass on macro: 'Макрос включения обхода'
   Bypass toggle failed: Не удалось переключить байпас
@@ -1072,6 +1076,7 @@ translations:
   Choose which releases to get, and whether to share anonymous statistics.: 'Выберите, какие выпуски получать и делиться ли анонимной статистикой.'
   'Chute position: X {:.1f}, Y {:.1f}': 'Позиция лотка прочистки: X {:.1f}, Y {:.1f}'
 
+  Clean: 'Очистить'
   Clean Brush: 'Очистить щётку'
   Clean Nozzle: Очистить сопло
   Clean Up Storage: 'Очистка хранилища'
@@ -2488,6 +2493,7 @@ translations:
   'Identify failed: {}': "Не удалось определить: {}"
   Idle: Ожидание
   If Moonraker is local or your screen is attached to the printer directly, we'll connect automatically: Если Moonraker локальный или экран подключён к принтеру напрямую, подключение произойдёт автоматически
+  If Moonraker is local or your screen is attached to the printer, we'll connect automatically: Если Moonraker локальный или экран подключён к принтеру, подключение произойдёт автоматически
   If the extruder has no tension lever, see your printer's manual.: "Если у экструдера нет рычага прижима, см. руководство к принтеру."
   Ignore: Игнорировать
   Ignore the click that fires when you lift after scrolling: Игнорировать клик, возникающий при отпускании после прокрутки
@@ -4315,6 +4321,7 @@ translations:
   Runout Backup: 'Резерв при окончании'
   Runout Sensor: Датчик окончания
   Runs on its own once started: После запуска работает сам
+  Runs everything this printer needs, in order: 'Выполняет всё, что нужно этому принтеру, по порядку'
   Runs everything this printer needs, in order ·: 'Выполняет всё, что нужно этому принтеру, по порядку ·'
   Runs the printer's tool offset calibration for every tool.: Запускает калибровку смещений инструментов принтера для всех инструментов.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'Ошибка SAVE_CONFIG: {}. Смещения инструментов применены, но не сохранены. Выполните SAVE_CONFIG вручную, иначе они будут потеряны при перезапуске.'
@@ -4556,6 +4563,7 @@ translations:
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : Задайте тип и цвет филамента для этого слота вручную. Если метка должна читаться, переустановите катушку этикеткой к считывателю, когда блок простаивает
   Set the filament type for this head in the filament panel, then resume.: 'Задайте тип филамента для этой головки на панели филамента, затем продолжите.'
+  Set the screen brightness and when it rests. You can change these later in Settings.: 'Настройте яркость экрана и когда он отдыхает. Всё это можно изменить позже в Настройках.'
   Set the slot's filament information, or load the slot by hand.: Задайте сведения о филаменте слота или загрузите слот вручную.
   Set this to Spoolman's currency if you use both.: "Если используете оба, выберите здесь валюту Spoolman."
   Set up: Настроить
@@ -4649,6 +4657,7 @@ translations:
   Sliced for {}, not {}.: 'Нарезано для {}, а не для {}.'
   Slicer: Слайсер
   Slide the paper back and forth.: "Двигайте бумагу вперёд и назад."
+  Slide the paper back and forth. Stop when the paper just drags under the nozzle.: Двигайте бумагу вперёд и назад. Остановитесь, когда бумага начнёт цепляться под соплом.
   Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "Двигайте бумагу вперёд и назад. Остановитесь, когда бумага начнёт слегка цепляться между соплом и столом."
   Sliders: Ползунки
   Slot: Слот
@@ -4839,6 +4848,7 @@ translations:
   Stop the tower?: "Остановить башню?"
   ? Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
   : Остановите веб-камеры, таймлапсы и лишние службы на хосте, проверьте его блок питания и SD-карту, затем перезапустите прошивку. Если это снова происходит в том же месте, снизьте скорость или микрошаг.
+  Stop when the paper just drags under the nozzle.: Остановитесь, когда бумага начнёт цепляться под соплом.
   Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "Остановитесь, когда бумага начнёт слегка цепляться между соплом и столом."
   Stop with an emergency stop?: 'Остановить аварийной остановкой?'
   Stopped: Остановлено
@@ -5733,6 +5743,7 @@ translations:
   Turn off arc fitting in the slicer and slice the file again.: Отключите аппроксимацию дугами в слайсере и заново нарежьте файл.
   Turn off arc fitting in the slicer, then slice the file again.: 'Выключите аппроксимацию дугами в слайсере, затем нарежьте файл заново.'
   Turn off bed check: 'Отключить проверку стола'
+  Turn off bypass mode to load from a lane: 'Выключите режим обхода, чтобы загрузить из канала'
   Turn off detection: Отключить обнаружение
   Turn off flow calibration for this print, or use a larger nozzle.: 'Выключите калибровку потока для этой печати или используйте сопло побольше.'
   Turn on the lights your light buttons control: Включает свет, которым управляют кнопки света
@@ -6087,6 +6098,7 @@ translations:
   Year: Год
   Year Month Day: Год Месяц День
   'Yes': Да
+  You are needed for the first {} min: Вы нужны первые {} мин
   You are needed for the first {} min, then it runs on its own: Вы нужны первые {} мин, дальше всё идёт само
   You can skip this and calibrate later in Settings.: Вы можете пропустить это и откалибровать позже в настройках.
   You have unsaved changes. Discard them?: У вас есть несохранённые изменения. Отменить их?
@@ -6536,6 +6548,7 @@ translations:
   '{} started': '{} запущено'
   '{} steps in {} min · review, then save once': 'Шагов: {} за {} мин · проверьте и сохраните один раз'
   '{} steps due · about {} min': 'Шагов к выполнению: {} · около {} мин'
+  '{} steps in {} min · saved': 'Шагов: {} за {} мин · сохранено'
   '{} steps never run · about {} min': 'Не выполнялось шагов: {} · около {} мин'
   '{} steps · about {} min': 'Шагов: {} · около {} мин'
   '{} steps · {} min': 'Шагов: {} · {} мин'

@@ -287,8 +287,9 @@ bool CfsChuteCalibrationOverlay::jog(Axis axis, double delta_mm, bool is_repeat)
     }
 
     // Both axes must be known on either axis's jog: the first one latches the
-    // park position the X limits are measured from.
-    const auto bounds = get_printer_state().motion_state().get_axis_bounds();
+    // park position the X limits are measured from. The chute sits in the rear
+    // service zone, so its jogs take the kinematic limits.
+    const auto bounds = get_printer_state().motion_state().get_kinematic_axis_bounds();
     if (helix::jog_refused_for_unknown_position(bounds.has_x && bounds.has_y,
                                                 x_known_ && y_known_)) {
         NOTIFY_INFO(lv_tr("Toolhead position unknown"));

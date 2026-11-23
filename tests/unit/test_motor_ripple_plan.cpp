@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix::calibration::ripple;
 using Catch::Approx;
@@ -167,4 +168,36 @@ TEST_CASE("begin and restore bracket the run with the printer's own limits", "[r
     REQUIRE(!lines.empty());
     CHECK(lines.front() == "SET_VELOCITY_LIMIT ACCEL=30000 MINIMUM_CRUISE_RATIO=0.5");
     CHECK(lines.back() == "RESTORE_GCODE_STATE NAME=helix_ripple_sweep");
+}
+
+TEST_CASE("sweep limits read the toolhead envelope", "[ripple][plan][bounds]") {
+    const nlohmann::json status = {
+        {"toolhead",
+         {{"axis_minimum", {0.0, -5.0, 0.0, 0.0}}, {"axis_maximum", {350.0, 355.0, 340.0, 0.0}}}}};
+    SweepPlanInputs in;
+    read_sweep_limits(status, in);
+    CHECK(in.has_xy_limits);
+    CHECK(in.x_min == Approx(0.0f));
+    CHECK(in.x_max == Approx(350.0f));
+    CHECK(in.y_min == Approx(-5.0f));
+    CHECK(in.y_max == Approx(355.0f));
+    CHECK(in.max_z == Approx(340.0f));
+
+    SweepPlanInputs none;
+    read_sweep_limits(nlohmann::json::object(), none);
+    CHECK_FALSE(none.has_xy_limits);
+}
+
+TEST_CASE("sweep limits stop Y at the print area on a printer with a rear service zone",
+          "[ripple][plan][bounds]") {
+    // A K2 just out of its brush zone still reports Y 380.
+    const nlohmann::json status = {
+        {"toolhead",
+         {{"axis_minimum", {-4.0, -6.2, -3.0, 0.0}}, {"axis_maximum", {352.5, 380.0, 352.5, 0.0}}}},
+        {"extended_zone_transform", {{"standard_y_max", 352.0}}}};
+    SweepPlanInputs in;
+    read_sweep_limits(status, in);
+    CHECK(in.has_xy_limits);
+    CHECK(in.y_max == Approx(352.0f));
+    CHECK(in.x_max == Approx(352.5f));
 }

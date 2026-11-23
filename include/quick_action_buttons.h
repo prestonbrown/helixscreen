@@ -24,6 +24,23 @@ namespace helix {
 class LedWidget;
 class PrinterState;
 
+/// What a button bound to a standard macro slot shows.
+enum class MacroButtonState {
+    Hidden,      ///< The slot resolves to nothing: no button
+    Unavailable, ///< The user named a macro this printer does not define
+    Ready,       ///< The slot resolves to a macro or sequence the printer runs
+};
+
+/// Classify @p info for a button that runs it.
+[[nodiscard]] MacroButtonState macro_button_state(const StandardMacroInfo& info);
+
+/// Run @p slot from a button: refuse a macro the printer does not define, ask
+/// first when the Safety setting wants a run confirmed, and report the result
+/// in a toast. @p confirmation holds the dialog while it is up and must live as
+/// long as @p owner, which scopes the dialog's callbacks.
+void run_macro_button(StandardMacroSlot slot, IMoonrakerAPI* api, const LifetimeToken& owner,
+                      ui::WidgetRef& confirmation);
+
 /// The four Quick Actions slots on the Controls panel: each shows a standard
 /// macro, the light toggle, or nothing, and publishes the subjects the panel's
 /// XML binds (`macro_N_visible`, `macro_N_available`, `macro_N_name`,
@@ -64,7 +81,6 @@ class QuickActionButtons {
     void load_config();
     void update_button(StandardMacros& macros, const std::optional<StandardMacroSlot>& slot,
                        size_t index);
-    void run(size_t index, IMoonrakerAPI* api, const std::map<std::string, std::string>& params);
 
     std::array<std::optional<StandardMacroSlot>, 4> slots_;
 
