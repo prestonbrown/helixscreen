@@ -73,7 +73,7 @@ TelemetryManager& TelemetryManager::instance() {
 TelemetryManager::~TelemetryManager() = default;
 void TelemetryManager::notify_panel_changed(const std::string&) {}
 void TelemetryManager::notify_klippy_state_changed(int) {}
-ObserverGuard TelemetryManager::init_print_outcome_observer() {
+std::vector<ObserverGuard> TelemetryManager::init_print_outcome_observer() {
     return {};
 }
 
