@@ -130,9 +130,7 @@ ProbeSensorManager& ProbeSensorManager::instance() {
 
 ProbeSensorManager::ProbeSensorManager() : SensorManager(make_options()) {}
 
-// ============================================================================
 // Discovery
-// ============================================================================
 
 void ProbeSensorManager::on_entries_changed() {
     prune_vanished_locked(readings_);
@@ -315,9 +313,7 @@ nlohmann::json ProbeSensorManager::extra_subscriptions(const PrinterDiscovery& h
     return objects;
 }
 
-// ============================================================================
 // Status and subjects
-// ============================================================================
 
 bool ProbeSensorManager::parse_status(const nlohmann::json& status) {
     bool changed = false;
@@ -410,9 +406,7 @@ void ProbeSensorManager::refresh_subjects() {
     spdlog::trace("[ProbeSensorManager] z_offset={}", z_offset);
 }
 
-// ============================================================================
 // Reads and edits
-// ============================================================================
 
 std::vector<ProbeSensorConfig> ProbeSensorManager::get_sensors() const {
     std::vector<ProbeSensorConfig> out;
