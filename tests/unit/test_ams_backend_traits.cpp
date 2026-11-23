@@ -201,7 +201,7 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
     };
     const Row rows[] = {
         {.backend = &ace, .dryer = &ace},
-        {.backend = &ad5x, .steps = &ad5x, .routing = &ad5x},
+        {.backend = &ad5x, .steps = &ad5x, .insert = &ad5x, .routing = &ad5x},
         {.backend = &multi_ace,
          .steps = &multi_ace,
          .insert = &multi_ace,
