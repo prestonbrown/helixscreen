@@ -425,8 +425,7 @@ class CalibrationCollectorCore {
                 } else {
                     watch_idle_edge(state);
                 }
-                fallback_.idle_subject =
-                    state.calibration_state().get_idle_timeout_printing_subject();
+                fallback_.state = &state;
                 fallback_.backstop_ms = backstop_ms;
                 begin_backstop(backstop_ms);
             });
@@ -503,11 +502,15 @@ class CalibrationCollectorCore {
     /// (Re)start the backstop: when it fires, a printer still busy is wedged,
     /// and an idle one finished without the edge reaching us. Main thread.
     void begin_backstop(uint32_t ms) {
-        lv_subject_t* idle_subject = fallback_.idle_subject;
-        fallback_.backstop.begin(ms, [this, idle_subject]() {
+        fallback_.backstop.begin(ms, [this]() {
             if (!fallback_.armed) {
                 return;
             }
+            // Fetched when due: a printer switch frees the subject mid-wait.
+            lv_subject_t* idle_subject =
+                fallback_.state
+                    ? fallback_.state->calibration_state().get_idle_timeout_printing_subject()
+                    : nullptr;
             const bool still_busy = idle_subject && lv_subject_get_int(idle_subject) == 1;
             if (still_busy) {
                 conclude_unrecovered("printer still busy after extended wait");
@@ -757,8 +760,9 @@ class CalibrationCollectorCore {
         /// all (the socket was already down at send): completing as success
         /// would claim a mesh the printer never probed.
         bool was_busy_at_arm = false;
-        /// The idle subject the backstop re-reads, and the wait it was armed with.
-        lv_subject_t* idle_subject = nullptr;
+        /// The state whose idle subject the backstop re-reads, and the wait it
+        /// was armed with.
+        PrinterState* state = nullptr;
         uint32_t backstop_ms = 0;
         ObserverGuard observer;
         OperationTimeoutGuard backstop;

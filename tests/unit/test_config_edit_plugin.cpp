@@ -749,7 +749,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a PID to MPC migration calibrates only on a c
         // A second migration confirmed while the first wait's READY is due.
         Access::enter_migrating(panel);
         state.set_klippy_state_sync(helix::KlippyState::READY);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         for (const auto& p : client.params_of("printer.gcode.script")) {
             CHECK(p.value("script", "").find("MPC_CALIBRATE") == std::string::npos);
         }
