@@ -26,6 +26,7 @@
 #include "../test_helpers/widget_in_tree.h"
 #include "core/update_queue.h"
 #include "overlay_base.h"
+#include "system/telemetry_manager.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <csignal>
@@ -556,4 +557,32 @@ TEST_CASE_METHOD(ShowFixture, "is_showing() covers queued, stacked and sliding-o
     helix::ui::WidgetRef handle(overlay);
     lv_obj_delete(overlay);
     CHECK_FALSE(helix::nav::is_showing(handle));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "XML overlay roots yield a component telemetry id, never anon",
+                 "[overlay_base][telemetry]") {
+    // Overlays pushed with a null lifecycle (keypad, notification history,
+    // theme preview, ...) and the print file detail view, whose root used to
+    // be a shared name. Each yields its own component name.
+    // The keypad component names its own root "keypad_panel".
+    struct Row {
+        const char* component;
+        const char* id;
+    };
+    for (const Row& row : {Row{"numeric_keypad_panel", "keypad_panel"},
+                           Row{"notification_history_panel", "notification_history_panel"},
+                           Row{"history_detail_overlay", "history_detail_overlay"},
+                           Row{"print_file_detail", "print_file_detail"},
+                           Row{"sound_preview_overlay", "sound_preview_overlay"},
+                           Row{"theme_preview_overlay", "theme_preview_overlay"}}) {
+        const char* component = row.component;
+        lv_obj_t* root = helix::ui::create_xml_hidden(test_screen(), component);
+        REQUIRE(root != nullptr);
+        const std::string id = helix::overlay_telemetry_id(lv_obj_get_name(root), nullptr);
+        CHECK(id == row.id);
+        CHECK(id != "overlay_panel");
+        CHECK(id != "anon");
+        CHECK(id != "unnamed");
+        CHECK(id != "detail_view_root");
+    }
 }

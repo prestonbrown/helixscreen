@@ -1555,6 +1555,7 @@ TEST_CASE("overlay_telemetry_id: object name, then lifecycle name, then 'unnamed
         {"fan_control_overlay", nullptr, "fan_control_overlay"},
         {nullptr, "Fan Control", "Fan Control"},
         {"", "Fan Control", "Fan Control"},
+        {"numeric_keypad_panel_#", nullptr, "numeric_keypad_panel"},
         {"", nullptr, "unnamed"},
         {nullptr, nullptr, "unnamed"},
         {nullptr, "", "unnamed"},

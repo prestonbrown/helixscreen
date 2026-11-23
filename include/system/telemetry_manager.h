@@ -134,15 +134,21 @@ const char* gcode_render_mode_name(int mode);
  * @brief Stable telemetry id for an overlay
  *
  * The root object's name is the XML component's identity and does not change
- * with wording or translation; the lifecycle name is the fallback for roots
- * that carry none. Both missing or empty yields "unnamed".
+ * with wording or translation. A root whose XML names none is named
+ * "<component>_#" by the XML engine; the "_#" auto-index marker is dropped so
+ * the id is the component name. The lifecycle name is the fallback for roots
+ * that carry no name at all. Both missing or empty yields "unnamed".
  *
  * @param root_obj_name Overlay root's lv_obj name (may be null)
  * @param lifecycle_name IPanelLifecycle::get_name() (may be null)
  */
 inline std::string overlay_telemetry_id(const char* root_obj_name, const char* lifecycle_name) {
-    if (root_obj_name && *root_obj_name)
-        return root_obj_name;
+    if (root_obj_name && *root_obj_name) {
+        std::string id = root_obj_name;
+        if (id.size() > 2 && id.compare(id.size() - 2, 2, "_#") == 0)
+            id.resize(id.size() - 2);
+        return id;
+    }
     if (lifecycle_name && *lifecycle_name)
         return lifecycle_name;
     return "unnamed";
