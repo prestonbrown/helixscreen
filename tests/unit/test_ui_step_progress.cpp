@@ -11,7 +11,7 @@
  * must not be skipped permanently. These tests pin the two contracts:
  *   1. connectors exist with a positive extent when created while visible, and
  *   2. connectors are (re)created + sized once the widget becomes visible, even
- *      if it was built while hidden — driven by an LV_EVENT_SIZE_CHANGED reflow.
+ *      if it was built while hidden, driven by an LV_EVENT_SIZE_CHANGED reflow.
  */
 
 #include "ui_icon.h"
@@ -109,8 +109,8 @@ TEST_CASE_METHOD(XMLTestFixture, "step progress creates vertical connectors when
 TEST_CASE_METHOD(XMLTestFixture, "step progress recomputes connectors on reflow (SIZE_CHANGED)",
                  "[ui][step]") {
     // Connectors are absolutely-positioned rects sized from the layout. When the
-    // widget reflows — a becoming-visible container or a growing live-temp label
-    // shifting the circles — the connectors must be recomputed, not frozen at
+    // widget reflows (a becoming-visible container or a growing live-temp label
+    // shifting the circles), the connectors must be recomputed, not frozen at
     // their create-time geometry. A horizontal bar makes this deterministic: the
     // step items flex-grow to fill the width, so circle spacing (and therefore
     // connector width) tracks the container width directly.
@@ -245,7 +245,7 @@ TEST_CASE_METHOD(XMLTestFixture, "step progress horizontal: the row of dots is c
             CAPTURE(wa.x1, wa.x2, circles.front().x1, circles.back().x2);
             CHECK(left_gap > 0);
             CHECK(std::abs(left_gap - right_gap) <= 1);
-            // The connectors still join neighbouring dots.
+            // The connectors still join neighboring dots.
             for (int i = 0; i + 1 < n; ++i) {
                 lv_obj_t* conn = ui_step_progress_test_get_connector(widget, i);
                 REQUIRE(conn != nullptr);

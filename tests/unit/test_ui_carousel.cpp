@@ -23,9 +23,7 @@
 #include "core/subject.h"
 #include "lib/lvgl/src/misc/lv_timer_private.h"
 
-// ============================================================================
-// Task 2: Basic state and creation tests
-// ============================================================================
+// Basic state and creation tests
 
 TEST_CASE_METHOD(LVGLTestFixture, "ui_carousel_get_state returns nullptr for nullptr",
                  "[carousel]") {
@@ -97,9 +95,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "get_page_count and get_current_page return 0 
     REQUIRE(ui_carousel_get_current_page(plain) == 0);
 }
 
-// ============================================================================
-// Task 3: Tile management tests
-// ============================================================================
+// Tile management tests
 
 TEST_CASE_METHOD(LVGLTestFixture, "ui_carousel_add_item creates tiles and increments page count",
                  "[carousel]") {
@@ -108,13 +104,11 @@ TEST_CASE_METHOD(LVGLTestFixture, "ui_carousel_add_item creates tiles and increm
     state->scroll_container = lv_obj_create(container);
     lv_obj_set_user_data(container, state);
 
-    // Add first item
     lv_obj_t* item1 = lv_obj_create(test_screen());
     ui_carousel_add_item(container, item1);
     REQUIRE(ui_carousel_get_page_count(container) == 1);
     REQUIRE(state->real_tiles.size() == 1);
 
-    // Verify item was reparented into the tile
     lv_obj_t* tile1 = state->real_tiles[0];
     REQUIRE(tile1 != nullptr);
     REQUIRE(lv_obj_get_parent(item1) == tile1);
@@ -130,7 +124,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "Adding multiple items tracks correct count", 
     state->scroll_container = lv_obj_create(container);
     lv_obj_set_user_data(container, state);
 
-    // Add three items
     lv_obj_t* items[3];
     for (int i = 0; i < 3; i++) {
         items[i] = lv_obj_create(test_screen());
@@ -185,9 +178,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ui_carousel_add_item ignores non-carousel obj
     REQUIRE(ui_carousel_get_page_count(plain) == 0);
 }
 
-// ============================================================================
-// Task 4: Page navigation tests
-// ============================================================================
+// Page navigation tests
 
 TEST_CASE_METHOD(LVGLTestFixture, "Carousel page navigation", "[carousel]") {
     lv_obj_t* container = lv_obj_create(test_screen());
@@ -228,9 +219,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Carousel page navigation", "[carousel]") {
     lv_obj_set_user_data(container, nullptr);
 }
 
-// ============================================================================
-// Task 5: Indicator dot tests
-// ============================================================================
+// Indicator dot tests
 
 TEST_CASE_METHOD(LVGLTestFixture, "Carousel indicator dots", "[carousel]") {
     lv_obj_t* container = lv_obj_create(test_screen());
@@ -267,9 +256,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Carousel indicator dots", "[carousel]") {
     lv_obj_set_user_data(container, nullptr);
 }
 
-// ============================================================================
-// Task 6: Wrap-around behavior tests
-// ============================================================================
+// Wrap-around behavior tests
 
 TEST_CASE_METHOD(LVGLTestFixture, "Carousel wrap-around behavior", "[carousel][wrap]") {
     lv_obj_t* container = lv_obj_create(test_screen());
@@ -325,9 +312,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Carousel wrap-around behavior", "[carousel][w
     lv_obj_set_user_data(container, nullptr);
 }
 
-// ============================================================================
-// Task 7: Auto-advance timer tests
-// ============================================================================
+// Auto-advance timer tests
 
 TEST_CASE_METHOD(LVGLTestFixture, "Carousel auto-advance timer", "[carousel][timer]") {
     lv_obj_t* container = lv_obj_create(test_screen());
@@ -394,9 +379,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Carousel auto-advance timer", "[carousel][tim
     lv_obj_set_user_data(container, nullptr);
 }
 
-// ============================================================================
-// Task 10: Edge case tests
-// ============================================================================
+// Edge case tests
 
 TEST_CASE_METHOD(LVGLTestFixture, "Carousel edge cases", "[carousel][edge]") {
     lv_obj_t* container = lv_obj_create(test_screen());
@@ -457,9 +440,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Carousel edge cases", "[carousel][edge]") {
     lv_obj_set_user_data(container, nullptr);
 }
 
-// ============================================================================
 // ui_carousel_create_obj tests
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "ui_carousel_create_obj creates valid carousel",
                  "[carousel][create_obj]") {
@@ -498,22 +479,18 @@ TEST_CASE_METHOD(LVGLTestFixture, "ui_carousel_create_obj carousel supports add_
     REQUIRE(ui_carousel_get_current_page(carousel) == 2);
 }
 
-// ============================================================================
 // set_real_page_count tests
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "set_real_page_count limits indicator dots",
                  "[carousel][real_page_count]") {
     lv_obj_t* carousel = ui_carousel_create_obj(test_screen());
     CarouselState* state = ui_carousel_get_state(carousel);
 
-    // Add 5 tiles
     for (int i = 0; i < 5; i++) {
         ui_carousel_add_item(carousel, lv_obj_create(test_screen()));
     }
     REQUIRE(lv_obj_get_child_count(state->indicator_row) == 5);
 
-    // Limit indicator dots to 3
     ui_carousel_set_real_page_count(carousel, 3);
     REQUIRE(state->real_page_count == 3);
     REQUIRE(lv_obj_get_child_count(state->indicator_row) == 3);
@@ -566,9 +543,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "set_real_page_count on non-carousel is safe",
     lv_obj_set_user_data(plain, nullptr);
 }
 
-// ============================================================================
 // remove_item tests
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "remove_item removes tile and adjusts state",
                  "[carousel][remove_item]") {
@@ -580,7 +555,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "remove_item removes tile and adjusts state",
     }
     REQUIRE(ui_carousel_get_page_count(carousel) == 3);
 
-    // Remove middle item
     ui_carousel_remove_item(carousel, 1);
     REQUIRE(ui_carousel_get_page_count(carousel) == 2);
     REQUIRE(state->real_tiles.size() == 2);
@@ -596,11 +570,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "remove_item adjusts current_page when removin
         ui_carousel_add_item(carousel, lv_obj_create(test_screen()));
     }
 
-    // Navigate to last page
     ui_carousel_goto_page(carousel, 2, false);
     REQUIRE(state->current_page == 2);
 
-    // Remove last page — current_page should adjust to new last
+    // Remove last page: current_page should adjust to new last
     ui_carousel_remove_item(carousel, 2);
     REQUIRE(state->current_page == 1);
     REQUIRE(ui_carousel_get_page_count(carousel) == 2);
@@ -622,7 +595,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "remove_item updates page_subject", "[carousel
     ui_carousel_goto_page(carousel, 2, false);
     REQUIRE(lv_subject_get_int(&subject) == 2);
 
-    // Remove last page — subject should update
+    // Remove last page: subject should update
     ui_carousel_remove_item(carousel, 2);
     REQUIRE(lv_subject_get_int(&subject) == 1);
 
@@ -683,9 +656,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "remove_item removing all items leaves empty c
     REQUIRE(state->current_page == 0);
 }
 
-// ============================================================================
 // set_bubble_events tests
-// ============================================================================
 
 namespace {
 
@@ -757,9 +728,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a default multi-page carousel keeps page even
     CHECK_FALSE(reaches_counter(first));
 }
 
-// ============================================================================
 // Swipe policy tests
-// ============================================================================
 
 namespace {
 
@@ -873,9 +842,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "the swipe policy holds through page-count cha
     }
 }
 
-// ============================================================================
 // Page tracking across programmatic and settled scrolls
-// ============================================================================
 
 namespace {
 
@@ -1077,9 +1044,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(rc.scroll_x() == rc.page_w);
 }
 
-// ============================================================================
 // Pages written as XML children
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "each XML child of a carousel is a page in its own tile",
                  "[carousel][xml]") {

@@ -14,9 +14,7 @@ using helix::gcode::has_printable_extension;
 using helix::gcode::resolve_gcode_filename;
 using helix::gcode::thumbnail_source_describes;
 
-// =============================================================================
 // has_printable_extension() - the one printable-extension list
-// =============================================================================
 //
 // The Moonraker file list, the USB stick scanner and the display-name stripper
 // all decide "is this a printable file" through this predicate. A FAT stick
@@ -61,15 +59,13 @@ TEST_CASE("has_printable_extension() rejects non-printable and malformed names",
     REQUIRE_FALSE(has_printable_extension(".g"));
 }
 
-// =============================================================================
 // firmware_3mf::is_plate_extract() - a firmware plate-numbered .3mf extract
-// =============================================================================
 
 TEST_CASE("is_plate_extract() accepts valid shadow names", "[filename_utils][qidi]") {
     REQUIRE(is_plate_extract("shadow_native_plate_1.gcode"));
     REQUIRE(is_plate_extract("shadow_native_plate_12.gcode"));
     REQUIRE(is_plate_extract("shadow_native_plate_007.gcode"));
-    // Plate id need not be numeric - any non-empty middle is accepted.
+    // Plate id need not be numeric: any non-empty middle is accepted.
     REQUIRE(is_plate_extract("shadow_native_plate_A.gcode"));
 }
 
@@ -114,15 +110,12 @@ TEST_CASE("is_plate_extract() handles empty and short input", "[filename_utils][
     REQUIRE_FALSE(is_plate_extract("shadow_native_plate_"));
 }
 
-// =============================================================================
 // resolve_gcode_filename() - rewritten temp path -> original
-// =============================================================================
 //
 // This is the shared primitive under every "which print is this?" decision in
-// ActivePrintMediaManager and PrintStatusPanel, and until now it had no direct
-// coverage - only incidental exercise through those two suites. Both sides must
-// agree on its answer or the panel's identity comparison against the manager's
-// published stamp fails silently, with no retry (prestonbrown/helixscreen#1339).
+// ActivePrintMediaManager and PrintStatusPanel. Both sides must agree on its
+// answer or the panel's identity comparison against the manager's published
+// stamp fails silently, with no retry (prestonbrown/helixscreen#1339).
 
 TEST_CASE("resolve_gcode_filename() extracts the original from each rewrite prefix",
           "[filename_utils][identity]") {
@@ -308,9 +301,7 @@ TEST_CASE("resolve_gcode_filename() leaves a malformed rewrite alone",
     CHECK(resolve_gcode_filename(".helix_temp/modified_123_") == ".helix_temp/modified_123_");
 }
 
-// =============================================================================
 // thumbnail_source_describes() - may this override still name this print?
-// =============================================================================
 
 TEST_CASE("thumbnail_source_describes() accepts an exact match", "[filename_utils][identity]") {
     CHECK(thumbnail_source_describes("Widget.gcode", "Widget.gcode"));
@@ -379,7 +370,7 @@ TEST_CASE("strip_gcode_extension() removes a whole .gcode.3mf", "[filename_utils
 }
 
 namespace {
-// The inline splits that call sites spelled out by hand before sharing the helpers.
+// Reference splits written out by hand, to compare against the shared helpers.
 std::string inline_basename(const std::string& path) {
     const size_t slash = path.rfind('/');
     return slash == std::string::npos ? path : path.substr(slash + 1);

@@ -140,7 +140,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a withdrawn or unreadable image icon draws 
     uint32_t side = 0;
     REQUIRE_FALSE(drawn_mask(icon_font(icon), lv_label_get_text(icon), &side).empty());
 
-    // The live label keeps its glyph font, which now hands the fallback codepoint to the
+    // The live label keeps its glyph font, which hands the fallback codepoint to the
     // MDI face: the fallback icon at the same size.
     unregister_image_icon("t-icons__gone");
     CHECK_FALSE(image_icon_available("t-icons__gone"));
