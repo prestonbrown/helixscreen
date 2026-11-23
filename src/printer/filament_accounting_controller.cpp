@@ -155,15 +155,15 @@ void FilamentAccountingController::read_opt_ins() {
         [this, token = lifetime_.token()](const MoonrakerError& err) {
             std::optional<nlohmann::json> record = opt_ins_after_failed_read(err);
             if (!record) {
-                spdlog::warn("[FilamentAccounting] Reading plugin_features failed, no spool "
-                             "switching until a read succeeds: {}",
+                // A transient failure keeps the last good read; with none yet,
+                // the fallback stays off.
+                spdlog::warn("[FilamentAccounting] Reading plugin_features failed, keeping the "
+                             "last read: {}",
                              err.message);
+                return;
             }
-            std::optional<bool> on;
-            if (record) {
-                on = filament_accounting_opted_in(*record);
-            }
-            token.defer("FilamentAccounting::opt_ins_failed", [this, on] { opted_in_ = on; });
+            const bool on = filament_accounting_opted_in(*record);
+            token.defer("FilamentAccounting::opt_ins_absent", [this, on] { opted_in_ = on; });
         });
 }
 

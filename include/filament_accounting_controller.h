@@ -72,9 +72,9 @@ class FilamentAccountingController {
     void read_opt_ins();
 
     /// Who switches the spool at a tool change, by @p accounting, @p owner and
-    /// @p role and the record as last read. Until a read succeeds, and after
-    /// one fails, the fallback switches nothing: an unread record must not
-    /// override a user's `false`.
+    /// @p role and the record as last read. Until a read succeeds the fallback
+    /// switches nothing: an unread record must not override a user's `false`.
+    /// A failed read keeps the last good one.
     FilamentAccountingSender fallback_sender(PluginFeatureState accounting, ActiveSpoolOwner owner,
                                              FallbackSenderRole role) const;
 
@@ -101,8 +101,7 @@ class FilamentAccountingController {
     AsyncLifetimeGuard lifetime_;
 
     /// filament_accounting_opted_in() of helix-screen/plugin_features as last
-    /// read; nullopt before a read succeeds, after one fails, and after a
-    /// disconnect.
+    /// read; nullopt before a read succeeds and after a disconnect.
     std::optional<bool> opted_in_;
 
     /// The record as last written this connection; nullopt until then.

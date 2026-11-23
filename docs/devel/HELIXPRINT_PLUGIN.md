@@ -874,8 +874,8 @@ tool (`ToolInfo::spoolman_id`, `backend_index < 0`): only while the feature is n
 when not turned off and the owner is Helix, only for the Sender, and only after this connection's
 plugin probe. It reads `plugin_features` itself at each plugin probe and each job start
 (`FilamentAccountingController#read_opt_ins`), so a `curl` change reaches the next print; until
-a read succeeds, and after one fails, it switches nothing (`fallback_sender`), since an unread
-record would read as on over a user's `false`. A missing record is a successful read. It reads the current active spool (`get_spoolman_status`) and applies
+a read succeeds it switches nothing (`fallback_sender`), since an unread record would read as
+on over a user's `false`; a failed read keeps the last good one. A missing record is a successful read. It reads the current active spool (`get_spoolman_status`) and applies
 `decide_spool_switch`. Backend-fed lanes on a Helix-owned printer are switched by the lane-load
 sync. The fallback misses changes while the app is down, does nothing for single-extruder lane
 changes, and records no per-job usage; the plugin closes those gaps.

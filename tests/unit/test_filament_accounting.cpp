@@ -393,6 +393,14 @@ struct OptInsFx : LVGLUITestFixture {
 
 } // namespace
 
+TEST_CASE_METHOD(OptInsFx, "filament accounting: a failed first read leaves the fallback off",
+                 "[plugin_filament]") {
+    MoonrakerError lost;
+    lost.type = MoonrakerErrorType::TIMEOUT;
+    fail_read(lost);
+    CHECK(sender() == FilamentAccountingSender::None);
+}
+
 TEST_CASE_METHOD(OptInsFx, "filament accounting: the fallback acts only on a record it read",
                  "[plugin_filament]") {
     INFO("nothing read yet: no switching");
@@ -411,8 +419,8 @@ TEST_CASE_METHOD(OptInsFx, "filament accounting: the fallback acts only on a rec
     MoonrakerError lost;
     lost.type = MoonrakerErrorType::TIMEOUT;
     fail_read(lost);
-    INFO("a failed read: off until one succeeds");
-    CHECK(sender() == FilamentAccountingSender::None);
+    INFO("a failed read keeps the last good one");
+    CHECK(sender() == FilamentAccountingSender::App);
 
     MoonrakerError missing;
     missing.code = 404;
