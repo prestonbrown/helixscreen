@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <iterator>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -398,11 +399,15 @@ inline std::vector<std::string> get_all_perform_variations(OperationCategory cat
 
 /**
  * @brief Whether an upper-case command is one of Klipper's BED_MESH_* commands
- * that loads, clears, offsets or prints a stored mesh. Only BED_MESH_CALIBRATE
- * probes, so the others are not a bed mesh step.
+ * that loads, clears, offsets or prints a stored mesh: they probe nothing, so
+ * they are not a bed mesh step. A user's own BED_MESH_* macro (BED_MESH_FAST,
+ * BED_MESH_CALIBRATE_ADAPTIVE) is not one of them.
  */
 inline bool is_stored_mesh_command(const std::string& upper) {
-    return upper.rfind("BED_MESH_", 0) == 0 && upper != "BED_MESH_CALIBRATE";
+    static constexpr const char* kStoredMeshCommands[] = {
+        "BED_MESH_PROFILE", "BED_MESH_CLEAR", "BED_MESH_OFFSET", "BED_MESH_OUTPUT", "BED_MESH_MAP"};
+    return std::find(std::begin(kStoredMeshCommands), std::end(kStoredMeshCommands), upper) !=
+           std::end(kStoredMeshCommands);
 }
 
 /**

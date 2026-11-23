@@ -283,8 +283,12 @@ TEST_CASE("PrintStartAnalyzer: loading or clearing a stored mesh is not a bed me
           PrintStartOpCategory::UNKNOWN);
     CHECK(PrintStartAnalyzer::categorize_operation("BED_MESH_OFFSET") ==
           PrintStartOpCategory::UNKNOWN);
-    // A user's own mesh macro still counts.
+    // A user's own mesh macro still counts, BED_MESH_* names included.
     CHECK(PrintStartAnalyzer::categorize_operation("ADAPTIVE_BED_MESH") ==
+          PrintStartOpCategory::BED_MESH);
+    CHECK(PrintStartAnalyzer::categorize_operation("BED_MESH_FAST") ==
+          PrintStartOpCategory::BED_MESH);
+    CHECK(PrintStartAnalyzer::categorize_operation("BED_MESH_CALIBRATE_ADAPTIVE") ==
           PrintStartOpCategory::BED_MESH);
 }
 
