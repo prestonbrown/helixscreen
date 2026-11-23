@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <translations languages="ru">
-  <translation tag=" (again, {} of {})"/>
+  <translation tag=" (again, {} of {})" ru=" (снова, {} из {})"/>
   <translation tag=" (timed out)" ru=" (время ожидания истекло)"/>
   <translation tag=" frames" ru=" кадров"/>
   <translation tag=" left" ru=" осталось"/>
@@ -230,7 +230,7 @@
   <translation tag="A first-layer offset and bed mesh for each material" ru="Смещение первого слоя и сетка стола для каждого материала"/>
   <translation tag="A folder name in moonraker.conf is unsafe." ru="Имя папки в moonraker.conf небезопасно."/>
   <translation tag="A grid marks a material with a stored bed mesh, loaded at print start for prints that do not mesh." ru="Сетка отмечает материал с сохранённой сеткой стола, которая загружается при старте печати без построения сетки."/>
-  <translation tag="A guided series of towers the firmware prints itself, each sweeping one value of the nonlinear model while you judge the slow and fast sides. Three towers for direct drive, four for Bowden."/>
+  <translation tag="A guided series of towers the firmware prints itself, each sweeping one value of the nonlinear model while you judge the slow and fast sides. Three towers for direct drive, four for Bowden." ru="Пошаговая серия башен, которые прошивка печатает сама. Каждая перебирает одно значение нелинейной модели, а вы оцениваете медленную и быструю стороны. Три башни для директа, четыре для боудена."/>
   <translation tag="A heat soak macro is set up on the printer. HelixScreen detects it but does not run it." ru="На принтере настроен макрос прогрева (heat soak). HelixScreen обнаруживает его, но не запускает."/>
   <translation tag="A heated bed expands with temperature, so each material can keep its own first-layer offset. The print-start macro applies it, and a Save during a print changes only that print&apos;s material." ru="Нагретый стол расширяется с температурой, поэтому у каждого материала может быть своё смещение первого слоя. Стартовый макрос применяет его, а сохранение во время печати меняет только материал этой печати."/>
   <translation tag="A heater did not warm up at the expected rate." ru="Нагреватель грелся медленнее ожидаемого."/>
@@ -369,16 +369,16 @@
   <translation tag="Add Hidden Network" ru="Добавить скрытую сеть"/>
   <translation tag="Add Part Fan to MPC" ru="Добавить вентилятор детали в MPC"/>
   <translation tag="Add Printer" ru="Добавить принтер"/>
-  <translation tag="Add Tower to Config"/>
+  <translation tag="Add Tower to Config" ru="Добавить башню в конфигурацию"/>
   <translation tag="Add Vendor" ru="Добавить производителя"/>
   <translation tag="Add Widget" ru="Добавить виджет"/>
   <translation tag="Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with" ru="Добавляет [include helix-plr/*.cfg] в printer.cfg, чтобы при возобновлении снова загружалась сетка, с которой началась печать"/>
-  <translation tag="Add and Restart"/>
+  <translation tag="Add and Restart" ru="Добавить и перезапустить"/>
   <translation tag="Add custom filament" ru="Добавить свой филамент"/>
   <translation tag="Add new" ru="Добавить новый"/>
   <translation tag="Add page" ru="Добавить страницу"/>
   <translation tag="Add part fan to MPC?" ru="Добавить вентилятор детали в MPC?"/>
-  <translation tag="Add the test tower to the config?"/>
+  <translation tag="Add the test tower to the config?" ru="Добавить тестовую башню в конфигурацию?"/>
   <translation tag="Add to Mainsail/Fluidd Webcams" ru="Добавить в веб-камеры Mainsail/Fluidd"/>
   <translation tag="Add to Queue" ru="Добавить в очередь"/>
   <translation tag="Add to Spoolman" ru="Добавить в Spoolman"/>
@@ -426,7 +426,7 @@
   <translation tag="All fields are required" ru="Все поля обязательны для заполнения"/>
   <translation tag="All healthy" ru="Всё в порядке"/>
   <translation tag="All lights" ru="Вся подсветка"/>
-  <translation tag="All passes done"/>
+  <translation tag="All passes done" ru="Все проходы выполнены"/>
   <translation tag="All set" ru="Всё готово"/>
   <translation tag="All steps done" ru="Все шаги выполнены"/>
   <translation tag="All time" ru="За всё время"/>
@@ -484,7 +484,7 @@
   <translation tag="Appearance" ru="Внешний вид"/>
   <translation tag="Appearance &amp; Region" ru="Внешний вид и регион"/>
   <translation tag="Applied for this session only: {}" ru="Применено только на этот сеанс: {}"/>
-  <translation tag="Applied to {} as linear_advance, the nonlinear model&apos;s high-speed slope. Klipper forgets it on restart: enter {} as linear_advance in the extruder&apos;s config section."/>
+  <translation tag="Applied to {} as linear_advance, the nonlinear model&apos;s high-speed slope. Klipper forgets it on restart: enter {} as linear_advance in the extruder&apos;s config section." ru="Применено к {} как linear_advance, наклон нелинейной модели на высокой скорости. Klipper забывает это при перезапуске: введите {} как linear_advance в секции экструдера конфигурации."/>
   <translation tag="Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." ru="Применено к {}. Klipper забудет значение после перезапуска: укажите {} как Pressure Advance в профиле филамента в слайсере или сохраните его на катушку."/>
   <translation tag="Applies to" ru="Применяется к"/>
   <translation tag="Apply" ru="Применить"/>
@@ -647,7 +647,7 @@
   <translation tag="Belts" ru="Ремни"/>
   <translation tag="Belts already match" ru="Ремни уже совпадают"/>
   <translation tag="Belts stretch and settle; loose ones cause ringing and layer shifts." ru="Ремни растягиваются и садятся; слабые вызывают рябь и смещение слоёв."/>
-  <translation tag="Best height, measured up from the plate"/>
+  <translation tag="Best height, measured up from the plate" ru="Лучшая высота, отсчитанная от стола"/>
   <translation tag="Beta" ru="Бета"/>
   <translation tag="Beta features: OFF" ru="Beta-функции: ВЫКЛ"/>
   <translation tag="Beta features: ON" ru="Beta-функции: ВКЛ"/>
@@ -1061,7 +1061,7 @@
   <translation tag="Clear the extruder?" ru="Очистить экструдер?"/>
   <translation tag="Clear the nozzle and the part, then restart the firmware." ru="Освободите сопло и деталь, затем перезапустите прошивку."/>
   <translation tag="Clear the nozzle and the purge chute, load {}, then resume." ru="Очистите сопло и лоток прочистки, загрузите {}, затем продолжите."/>
-  <translation tag="Clear the plate and load {}. The firmware prints its tower in the middle of the bed while it sweeps {}."/>
+  <translation tag="Clear the plate and load {}. The firmware prints its tower in the middle of the bed while it sweeps {}." ru="Освободите стол и загрузите {}. Прошивка печатает башню в центре стола, перебирая {}."/>
   <translation tag="Clear the plate and load {}. The tower prints in the middle of the bed." ru="Освободите стол и загрузите {}. Башня печатается в центре стола."/>
   <translation tag="Clear {}?" ru="Очистить {}?"/>
   <translation tag="Cleared" ru="Очищено"/>
@@ -2495,8 +2495,8 @@
   <translation tag="Jog speeds and step distances" ru="Скорости и шаги перемещения"/>
   <translation tag="Join the HelixScreen community on Discord for discussion, tips, troubleshooting help, and feature requests." ru="Присоединяйтесь к сообществу HelixScreen в Discord для обсуждений, советов, помощи в устранении неполадок и предложений новых функций."/>
   <translation tag="Joining Wi-Fi disconnects the wired network." ru="Подключение к Wi-Fi отключает проводную сеть."/>
-  <translation tag="Judge the front, the fast side. Note the height where it looks cleanest; light it from the side, the differences are small."/>
-  <translation tag="Judge the left side, where the tower switches between slow and fast. Note the height where those changes look cleanest."/>
+  <translation tag="Judge the front, the fast side. Note the height where it looks cleanest; light it from the side, the differences are small." ru="Оцените переднюю сторону, быструю. Отметьте высоту, где она выглядит чище всего; осветите её сбоку, различия невелики."/>
+  <translation tag="Judge the left side, where the tower switches between slow and fast. Note the height where those changes look cleanest." ru="Оцените левую сторону, где башня переключается между медленной и быстрой печатью. Отметьте высоту, где эти переходы выглядят чище всего."/>
   <translation tag="Just now" ru="Только что"/>
   <translation tag="Just queued" ru="Только что в очереди"/>
   <translation tag="K so far" ru="Текущее K"/>
@@ -2513,7 +2513,7 @@
   <translation tag="Keep clear of the printer while the toolhead is moving" ru="Не приближайтесь к принтеру, пока перемещается печатающая головка"/>
   <translation tag="Keep current" ru="Оставить текущую"/>
   <translation tag="Keep current ({})" ru="Оставить текущее ({})"/>
-  <translation tag="Keep for Now"/>
+  <translation tag="Keep for Now" ru="Пока оставить"/>
   <translation tag="Keep hands clear" ru="Держите руки подальше"/>
   <translation tag="Keep hands clear except when asked. The printer moves on its own." ru="Держите руки подальше, если не появится запрос. Принтер двигается сам."/>
   <translation tag="Keep hands clear. The printer moves on its own." ru="Держите руки подальше. Принтер двигается сам."/>
@@ -2631,8 +2631,8 @@
   <translation tag="Leave this off for a clogged nozzle." ru="Если сопло забито, оставьте это выключенным."/>
   <translation tag="LedSelect" ru="Выбрать LED"/>
   <translation tag="Left" ru="Слева"/>
-  <translation tag="Left Best Higher"/>
-  <translation tag="Left Best Lower"/>
+  <translation tag="Left Best Higher" ru="Слева выше"/>
+  <translation tag="Left Best Lower" ru="Слева ниже"/>
   <translation tag="Left belt" ru="Левый ремень"/>
   <translation tag="Leftover material found" ru="Обнаружены остатки материала"/>
   <translation tag="Length of filament to purge" ru="Длина филамента для прочистки"/>
@@ -2653,12 +2653,12 @@
   <translation tag="Light will switch when the current operation finishes" ru="Подсветка переключится после завершения текущей операции"/>
   <translation tag="Lights that follow the printer&apos;s state" ru="Подсветка, которая меняется в зависимости от состояния принтера"/>
   <translation tag="Lights the printer can control. Choose which ones HelixScreen uses in the LED settings." ru="Освещение, которым может управлять принтер. Какие из них использует HelixScreen, выбирается в настройках LED."/>
-  <translation tag="Lin. adv."/>
+  <translation tag="Lin. adv." ru="Lin. Adv."/>
   <translation tag="Line the nozzle up with the purge chute so purged filament drops straight in." ru="Выровняйте сопло над лотком прочистки, чтобы выдавленный филамент падал прямо внутрь."/>
   <translation tag="Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer." ru="Строка {} вызывает {}, что этот принтер считает аварийной остановкой. Нарежьте файл заново с профилем для этого принтера."/>
-  <translation tag="Linear K"/>
-  <translation tag="Linear advance"/>
-  <translation tag="Linear advance {}&#10;Nonlinear offset {}&#10;Velocity {:.1f}&#10;Time offset {}"/>
+  <translation tag="Linear K" ru="Линейный K"/>
+  <translation tag="Linear advance" ru="Linear Advance"/>
+  <translation tag="Linear advance {}&#10;Nonlinear offset {}&#10;Velocity {:.1f}&#10;Time offset {}" ru="Linear Advance {}&#10;Нелинейное смещение {}&#10;Скорость {:.1f}&#10;Смещение по времени {}"/>
   <translation tag="Linear rails" ru="Линейные направляющие"/>
   <translation tag="Linear rails interval" ru="Интервал линейных направляющих"/>
   <translation tag="Lines from other apps mix with tips" ru="Строки из других приложений чередуются с советами"/>
@@ -3181,10 +3181,10 @@
   <translation tag="No width sensor detected" ru="Датчик диаметра не обнаружен"/>
   <translation tag="None" ru="Нет"/>
   <translation tag="None (disable)" ru="Нет (отключить)"/>
-  <translation tag="Nonlinear"/>
-  <translation tag="Nonlinear Pressure Advance"/>
-  <translation tag="Nonlinear offset"/>
-  <translation tag="Nonlinear pressure advance saved"/>
+  <translation tag="Nonlinear" ru="Нелинейный"/>
+  <translation tag="Nonlinear Pressure Advance" ru="Нелинейный Pressure Advance"/>
+  <translation tag="Nonlinear offset" ru="Нелинейное смещение"/>
+  <translation tag="Nonlinear pressure advance saved" ru="Нелинейный Pressure Advance сохранён"/>
   <translation tag="Normal" ru="Обычная"/>
   <translation tag="Not Connected" ru="Не подключено"/>
   <translation tag="Not Enough Filament" ru="Недостаточно филамента"/>
@@ -3225,7 +3225,7 @@
   <translation tag="Not while printing" ru="Недоступно во время печати"/>
   <translation tag="Not yet available on this display" ru="Пока недоступно на этом дисплее"/>
   <translation tag="Not yet calibrated" ru="Ещё не откалибровано"/>
-  <translation tag="Note where the left side looks best and where the front looks best. When they match, that height is the answer."/>
+  <translation tag="Note where the left side looks best and where the front looks best. When they match, that height is the answer." ru="Отметьте, где левая сторона выглядит лучше всего и где лучше всего выглядит передняя. Если они совпадают, эта высота и есть ответ."/>
   <translation tag="Notes" ru="Заметки"/>
   <translation tag="Notes (optional)" ru="Заметки (необязательно)"/>
   <translation tag="Nothing due · about {} min" ru="Ничего не требуется · около {} мин"/>
@@ -3424,7 +3424,7 @@
   <translation tag="Partial…" ru="Частично…"/>
   <translation tag="Pass" ru="Проход"/>
   <translation tag="Pass the missing parameter from the slicer&apos;s start G-code, or give it a default in the macro." ru="Передайте недостающий параметр из стартового G-code слайсера или задайте для него значение по умолчанию в макросе."/>
-  <translation tag="Pass {} of {}: {}"/>
+  <translation tag="Pass {} of {}: {}" ru="Проход {} из {}: {}"/>
   <translation tag="Password" ru="Пароль"/>
   <translation tag="Password cannot be empty" ru="Пароль не может быть пустым"/>
   <translation tag="Password is required for secured networks" ru="Для защищённых сетей требуется пароль"/>
@@ -3623,7 +3623,7 @@
   <translation tag="Print Status" ru="Статус печати"/>
   <translation tag="Print Test Tower" ru="Печать тестовой башни"/>
   <translation tag="Print Time" ru="Время печати"/>
-  <translation tag="Print Tower"/>
+  <translation tag="Print Tower" ru="Печать башни"/>
   <translation tag="Print Tuning" ru="Настройка печати"/>
   <translation tag="Print Was Terminated" ru="Печать была прекращена"/>
   <translation tag="Print a test tower and tune K by eye" ru="Напечатать тестовую башню и подобрать K на глаз"/>
@@ -4176,7 +4176,7 @@
   <translation tag="Safe mode: the app kept crashing on startup, so plugins are off and widget layouts show their defaults. Restart to return to normal." ru="Безопасный режим: приложение постоянно аварийно завершалось при запуске, поэтому плагины отключены, а раскладки виджетов показаны по умолчанию. Перезапустите, чтобы вернуться к обычному режиму."/>
   <translation tag="Safety &amp; Alerts" ru="Безопасность и оповещения"/>
   <translation tag="Same Filament, New Spool" ru="Тот же филамент, новая катушка"/>
-  <translation tag="Same Height"/>
+  <translation tag="Same Height" ru="Та же высота"/>
   <translation tag="Same filament" ru="Тот же филамент"/>
   <translation tag="Same part-fan change, both methods" ru="Одно и то же изменение вентилятора, оба метода"/>
   <translation tag="Same spool in {}? Tap Clear if it is a new one." ru="Та же катушка в {}? Нажмите «Очистить», если это новая."/>
@@ -4208,11 +4208,11 @@
   <translation tag="Save the changes to this spool?" ru="Сохранить изменения этой катушки?"/>
   <translation tag="Save the new heater values to printer.cfg?" ru="Сохранить новые значения нагревателя в printer.cfg?"/>
   <translation tag="Save the new heater values to printer.cfg? Klipper restarts." ru="Сохранить новые значения нагревателя в printer.cfg? Klipper перезапустится."/>
-  <translation tag="Save to Config"/>
+  <translation tag="Save to Config" ru="Сохранить в конфигурацию"/>
   <translation tag="Save to Spool" ru="Сохранить на катушку"/>
   <translation tag="Save to Spoolman" ru="Сохранить в Spoolman"/>
   <translation tag="Save writes the print&apos;s material; off, it saves one offset for every print" ru="Сохранение пишет материал печати; выкл. — одно смещение для всех печатей"/>
-  <translation tag="Save writes these values to the extruder&apos;s config section and restarts Klipper. Keep runs them until the next restart."/>
+  <translation tag="Save writes these values to the extruder&apos;s config section and restarts Klipper. Keep runs them until the next restart." ru="Сохранить записывает эти значения в секцию экструдера конфигурации и перезапускает Klipper. Оставить применяет их до следующего перезапуска."/>
   <translation tag="Save {} mm for {}? Other materials keep their own offsets." ru="Сохранить {} мм для {}? Другие материалы сохранят свои смещения."/>
   <translation tag="Saved Z-Offset" ru="Сохранённый Z-Offset"/>
   <translation tag="Saved for the mounted head; other heads keep their own" ru="Сохранено для установленной печатающей головки; остальные головки сохраняют своё"/>
@@ -4596,7 +4596,7 @@
   <translation tag="Start Calibration" ru="Начать калибровку"/>
   <translation tag="Start Check" ru="Начать проверку"/>
   <translation tag="Start Drying" ru="Начать сушку"/>
-  <translation tag="Start Guided Tuning"/>
+  <translation tag="Start Guided Tuning" ru="Начать пошаговую настройку"/>
   <translation tag="Start Heating" ru="Начать нагрев"/>
   <translation tag="Start K" ru="Начальный K"/>
   <translation tag="Start Print" ru="Начать печать"/>
@@ -4653,7 +4653,7 @@
   <translation tag="Stop" ru="Стоп"/>
   <translation tag="Stop Drying" ru="Остановить сушку"/>
   <translation tag="Stop Print?" ru="Остановить печать?"/>
-  <translation tag="Stop Tower"/>
+  <translation tag="Stop Tower" ru="Остановить башню"/>
   <translation tag="Stop calibration" ru="Остановить калибровку"/>
   <translation tag="Stop calibration?" ru="Остановить калибровку?"/>
   <translation tag="Stop drying?" ru="Остановить сушку?"/>
@@ -4662,7 +4662,7 @@
   <translation tag="Stop reloading the saved bed mesh?" ru="Больше не загружать сохранённую сетку?"/>
   <translation tag="Stop the check?" ru="Остановить проверку?"/>
   <translation tag="Stop the running cycle before starting another" ru="Остановите текущий цикл, прежде чем запускать новый"/>
-  <translation tag="Stop the tower?"/>
+  <translation tag="Stop the tower?" ru="Остановить башню?"/>
   <translation tag="Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps." ru="Остановите веб-камеры, таймлапсы и лишние службы на хосте, проверьте его блок питания и SD-карту, затем перезапустите прошивку. Если это снова происходит в том же месте, снизьте скорость или микрошаг."/>
   <translation tag="Stop when the paper just lightly drags between the toolhead nozzle and the bed." ru="Остановитесь, когда бумага начнёт слегка цепляться между соплом и столом."/>
   <translation tag="Stop with an emergency stop?" ru="Остановить аварийной остановкой?"/>
@@ -4960,8 +4960,8 @@
   <translation tag="The file was sliced for a different nozzle type than the one installed." ru="Файл нарезан под другой тип сопла, чем установленный."/>
   <translation tag="The file&apos;s checksum does not match its contents, so the upload was corrupted. The print was canceled." ru="Контрольная сумма файла не совпадает с его содержимым, значит файл повреждён при загрузке. Печать отменена."/>
   <translation tag="The firmware could not read or write the driver for {1}. Motor power being off (UART drivers need it), a driver not seated or a wrong pin in the configuration can cause it." ru="Прошивка не смогла прочитать или записать драйвер {1}. Причиной может быть выключенное питание моторов (оно нужно драйверам UART), плохо установленный драйвер или неверный пин в конфигурации."/>
-  <translation tag="The firmware&apos;s pressure advance tower needs a [pa_test] section in printer.cfg. HelixScreen adds it with a backup and restarts Klipper."/>
-  <translation tag="The firmware&apos;s test tower is not in the printer&apos;s config. Adding it writes one section and restarts Klipper."/>
+  <translation tag="The firmware&apos;s pressure advance tower needs a [pa_test] section in printer.cfg. HelixScreen adds it with a backup and restarts Klipper." ru="Башне Pressure Advance в прошивке нужна секция [pa_test] в printer.cfg. HelixScreen добавит её с резервной копией и перезапустит Klipper."/>
+  <translation tag="The firmware&apos;s test tower is not in the printer&apos;s config. Adding it writes one section and restarts Klipper." ru="Тестовой башни прошивки нет в конфигурации принтера. Добавление запишет одну секцию и перезапустит Klipper."/>
   <translation tag="The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong." ru="Порталу нужна коррекция {1} мм, больше допустимых {2} мм. Он сильно перекошен (после удара или провиснув при выключенном питании) или неверны точки зондирования либо порядок моторов Z."/>
   <translation tag="The gap didn&apos;t close (moved {:.1f} Hz). Try a bigger turn." ru="Разница не сократилась (сдвиг {:.1f} Гц). Поверните сильнее."/>
   <translation tag="The gap grew after loosening {0}. Check you turned {0}&apos;s tensioner." ru="Разница выросла после ослабления ({0}). Проверьте, что крутили натяжитель: {0}."/>
@@ -5048,7 +5048,7 @@
   <translation tag="The print already moved to another toolhead" ru="Печать уже перешла на другую печатающую головку"/>
   <translation tag="The print ended before any layer was printed. Nothing was changed." ru="Печать завершилась до первого слоя. Ничего не изменено."/>
   <translation tag="The print file is damaged" ru="Файл печати повреждён"/>
-  <translation tag="The print is canceled and you judge what has printed so far."/>
+  <translation tag="The print is canceled and you judge what has printed so far." ru="Печать отменяется, а вы оцениваете то, что уже напечатано."/>
   <translation tag="The print is canceled and you pick the best band from what has printed so far." ru="Печать будет отменена, и вы выберете лучшую полосу из уже напечатанного."/>
   <translation tag="The print is no longer paused" ru="Печать больше не на паузе"/>
   <translation tag="The print is on its last layer." ru="Печатается последний слой."/>
@@ -5164,7 +5164,7 @@
   <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24." ru="Недопустимая маска подсети. Используйте формат вроде 255.255.255.0 или 24."/>
   <translation tag="The temperature was changed elsewhere." ru="Температуру изменили в другом месте."/>
   <translation tag="The tensioners pull each belt to its target" ru="Натяжители тянут каждый ремень до целевого натяжения"/>
-  <translation tag="The test tower is not in the printer&apos;s config yet."/>
+  <translation tag="The test tower is not in the printer&apos;s config yet." ru="Тестовой башни пока нет в конфигурации принтера."/>
   <translation tag="The thermocouple or PT100 amplifier reported a fault or a reading out of range." ru="Усилитель термопары или PT100 сообщил о неисправности или показаниях вне диапазона."/>
   <translation tag="The time, date, and system uptime" ru="Время, дата и время работы системы"/>
   <translation tag="The timelapse could not be downloaded" ru="Не удалось загрузить таймлапс"/>
@@ -5190,7 +5190,7 @@
   <translation tag="The toolheads have changed enough times since their last maintenance." ru="С последнего обслуживания печатающие головки сменились достаточно раз."/>
   <translation tag="The toolheads&apos; docked and picked-up states do not add up." ru="Состояния «в доке» и «на каретке» печатающих головок не сходятся."/>
   <translation tag="The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing." ru="Верхняя крышка отключена. Для качества печати подключите её, прежде чем продолжить."/>
-  <translation tag="The tower stopped with an error. Nothing was changed."/>
+  <translation tag="The tower stopped with an error. Nothing was changed." ru="Башня остановилась с ошибкой. Ничего не изменено."/>
   <translation tag="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck" ru="Блок уже выполняет другую операцию. Дождитесь её завершения или сбросьте CFS, если он завис"/>
   <translation tag="The unit reported a fault with no further detail. Restart the printer if it repeats" ru="Блок сообщил о неисправности без подробностей. Если повторится, перезапустите принтер"/>
   <translation tag="The unit whose drawing to set" ru="Узел, для которого выбирается рисунок"/>
@@ -5344,7 +5344,7 @@
   <translation tag="Tighten {}" ru="Натянуть {}"/>
   <translation tag="Time" ru="Время"/>
   <translation tag="Time Format" ru="Формат времени"/>
-  <translation tag="Time offset"/>
+  <translation tag="Time offset" ru="Смещение по времени"/>
   <translation tag="Time to wait before escalating to emergency stop" ru="Время ожидания перед эскалацией до аварийной остановки"/>
   <translation tag="Time: " ru="Время: "/>
   <translation tag="Timelapse" ru="Таймлапс"/>
@@ -5632,7 +5632,7 @@
   <translation tag="Use Hyperlapse" ru="Гиперлапс"/>
   <translation tag="Use New Address" ru="Использовать новый адрес"/>
   <translation tag="Use Scan" ru="Взять скан"/>
-  <translation tag="Use This Height"/>
+  <translation tag="Use This Height" ru="Использовать эту высоту"/>
   <translation tag="Use Unload before Eject" ru="Используйте «Выгрузить» перед «Извлечь»"/>
   <translation tag="Use as bypass" ru="Использовать как обход"/>
   <translation tag="Use existing" ru="Использовать имеющийся"/>
@@ -5648,7 +5648,7 @@
   <translation tag="VM Size" ru="Размер VM"/>
   <translation tag="Validating bed mesh..." ru="Валидация сетки стола..."/>
   <translation tag="Value must be between {} and {}" ru="Значение должно быть от {} до {}"/>
-  <translation tag="Values"/>
+  <translation tag="Values" ru="Значения"/>
   <translation tag="Values must not be negative" ru="Значения не должны быть отрицательными"/>
   <translation tag="Variant" ru="Вариант"/>
   <translation tag="Velocity and acceleration limits" ru="Ограничения скорости и ускорения"/>
@@ -5813,7 +5813,7 @@
   <translation tag="Wizard Error" ru="Ошибка мастера"/>
   <translation tag="Working..." ru="Выполнение..."/>
   <translation tag="Write failed at chunk {}" ru="Не удалось записать в блоке {}"/>
-  <translation tag="Writing printer.cfg and restarting Klipper"/>
+  <translation tag="Writing printer.cfg and restarting Klipper" ru="Запись printer.cfg и перезапуск Klipper"/>
   <translation tag="Wrong PIN" ru="Неверный PIN"/>
   <translation tag="Wrong State" ru="Неверное состояние"/>
   <translation tag="Wrong media" ru="Неверный носитель"/>
@@ -6142,7 +6142,7 @@
   <translation tag="{} accelerometers" ru="Акселерометров: {}"/>
   <translation tag="{} and {}" ru="{} и {}"/>
   <translation tag="{} and {} are both mapped here" ru="{} и {} оба назначены сюда"/>
-  <translation tag="{} at {:.1f} mm"/>
+  <translation tag="{} at {:.1f} mm" ru="{} на {:.1f} мм"/>
   <translation tag="{} auto-feed setting not applied" ru="{}: настройка автоподачи не применена"/>
   <translation tag="{} available" ru="Доступна версия {}"/>
   <translation tag="{} axes homed" ru="Оси {} запаркованы"/>

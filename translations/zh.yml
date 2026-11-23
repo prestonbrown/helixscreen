@@ -1,7 +1,7 @@
 locale: zh
 translations:
   '%d-%d': '%d-%d'
-  ' (again, {} of {})': ''
+  ' (again, {} of {})': " （重复，{}/{}）"
   ' (timed out)': （超时）
   ' frames': ' 帧'
   ' left': ' 剩余'
@@ -213,7 +213,7 @@ translations:
   A folder name in moonraker.conf is unsafe.: "moonraker.conf 中的某个文件夹名称不安全。"
   A grid marks a material with a stored bed mesh, loaded at print start for prints that do not mesh.: "网格图标表示该材料有已保存的热床网格，在不做网格的打印开始时加载。"
   ? A guided series of towers the firmware prints itself, each sweeping one value of the nonlinear model while you judge the slow and fast sides. Three towers for direct drive, four for Bowden.
-  : ''
+  : "由固件自行打印的一系列引导式测试塔，每座塔扫描非线性模型的一个值，由你判断慢速侧和快速侧。直驱三座，Bowden 四座。"
   A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.: '打印机上已设置热浸(heat soak)宏。HelixScreen 会检测到它,但不会运行。'
   ? A heated bed expands with temperature, so each material can keep its own first-layer offset. The print-start macro applies it, and a Save during a print changes only that print's material.
   : "热床受热会膨胀，因此每种材料可以有自己的首层偏移。打印开始宏会应用它，打印中保存只会修改该打印的材料。"
@@ -359,16 +359,16 @@ translations:
   Add Hidden Network: 添加隐藏网络
   Add Part Fan to MPC: '将模型风扇添加到 MPC'
   Add Printer: 添加打印机
-  Add Tower to Config: ''
+  Add Tower to Config: "将测试塔添加到配置"
   Add Vendor: 添加供应商
   Add Widget: 添加小组件
   Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with: 在 printer.cfg 中添加 [include helix-plr/*.cfg]，恢复时重新加载打印开始时的网格
-  Add and Restart: ''
+  Add and Restart: "添加并重启"
   Add custom filament: 添加自定义耗材
   Add new: "新增"
   Add page: '添加页面'
   Add part fan to MPC?: '将模型风扇添加到 MPC?'
-  Add the test tower to the config?: ''
+  Add the test tower to the config?: "将测试塔添加到配置？"
   Add to Mainsail/Fluidd Webcams: '添加到 Mainsail/Fluidd 摄像头'
   Add to Queue: 添加到队列
   Added: 已添加
@@ -415,7 +415,7 @@ translations:
   All fields are required: 所有字段均为必填项
   All healthy: 一切正常
   All lights: 全部灯光
-  All passes done: ''
+  All passes done: "所有轮次已完成"
   All set: 全部就绪
   All steps done: '所有步骤已完成'
   All time: '全部时间'
@@ -476,7 +476,7 @@ translations:
   Appearance & Region: "外观与区域"
   'Applied for this session only: {}': "仅本次会话生效：{}"
   ? "Applied to {} as linear_advance, the nonlinear model's high-speed slope. Klipper forgets it on restart: enter {} as linear_advance in the extruder's config section."
-  : ''
+  : "已作为 linear_advance 应用到 {}，即非线性模型的高速斜率。Klipper 重启后会丢失该值：请在挤出机配置段中将 {} 填为 linear_advance。"
   ? "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   : '已应用到{}。Klipper重启后会丢失: 请在切片软件的耗材配置中将压力提前设为{},或保存到料盘。'
   Applies to: 适用于
@@ -633,7 +633,7 @@ translations:
   Belts: "皮带"
   Belts already match: "皮带已经匹配"
   Belts stretch and settle; loose ones cause ringing and layer shifts.: "皮带会拉伸松弛；过松会导致振纹和层错位。"
-  Best height, measured up from the plate: ''
+  Best height, measured up from the plate: "最佳高度（从热床向上测量）"
   Beta: 测试版
   'Beta features: OFF': '测试版功能: 关'
   'Beta features: ON': '测试版功能: 开'
@@ -1064,7 +1064,7 @@ translations:
   Clear the extruder?: '清空挤出机？'
   Clear the nozzle and the part, then restart the firmware.: 请清理喷嘴和模型，然后重启固件。
   Clear the nozzle and the purge chute, load {}, then resume.: 请清理喷嘴和排料口，加载 {}，然后恢复。
-  Clear the plate and load {}. The firmware prints its tower in the middle of the bed while it sweeps {}.: ''
+  Clear the plate and load {}. The firmware prints its tower in the middle of the bed while it sweeps {}.: "请清空热床并装入{}。固件在扫描{}时，会在热床中央打印测试塔。"
   Clear the plate and load {}. The tower prints in the middle of the bed.: 请清空热床并装入{}。测试塔打印在热床中央。
   Clear {}?: '清空{}？'
   Cleared: 已清空
@@ -2554,8 +2554,8 @@ translations:
   Join the HelixScreen community on Discord for discussion, tips, troubleshooting help, and feature requests.: 加入 HelixScreen 的 Discord 社区，参与讨论、获取技巧、故障排除帮助和功能请求。
   Joining Wi-Fi disconnects the wired network.: 加入 WiFi 会断开有线网络连接。
   ? Judge the front, the fast side. Note the height where it looks cleanest; light it from the side, the differences are small.
-  : ''
-  Judge the left side, where the tower switches between slow and fast. Note the height where those changes look cleanest.: ''
+  : "评判正面，即快速侧。记下它看起来最干净的高度；从侧面打光，差别很小。"
+  Judge the left side, where the tower switches between slow and fast. Note the height where those changes look cleanest.: "评判左侧，即测试塔在慢速和快速之间切换的位置。记下这些变化看起来最干净的高度。"
   Just now: 刚刚
   Just queued: '刚刚加入队列'
   K so far: '当前 K 值'
@@ -2571,7 +2571,7 @@ translations:
   Keep clear of the printer while the toolhead is moving: 工具头移动时请远离打印机
   Keep current: 保留当前
   Keep current ({}): 保持当前值 ({})
-  Keep for Now: ''
+  Keep for Now: "暂时保留"
   Keep hands clear: '请勿将手靠近'
   Keep hands clear except when asked. The printer moves on its own.: 除提示时外请让手远离打印机。打印机会自行移动。
   Keep hands clear. The printer moves on its own.: 请勿将手靠近。打印机会自行移动。
@@ -2708,8 +2708,8 @@ translations:
   Leave this off for a clogged nozzle.: "喷嘴堵塞时请保持关闭。"
   LedSelect: 选择 LED
   Left: '左'
-  Left Best Higher: ''
-  Left Best Lower: ''
+  Left Best Higher: "左侧更高"
+  Left Best Lower: "左侧更低"
   Left belt: "左皮带"
   Leftover material found: '发现残留材料'
   Length of filament to purge: '要排出的耗材长度'
@@ -2728,14 +2728,14 @@ translations:
   Light will switch when the current operation finishes: 灯光将在当前操作完成后切换
   Lights that follow the printer's state: 跟随打印机状态变化的灯光
   Lights the printer can control. Choose which ones HelixScreen uses in the LED settings.: '打印机可控制的灯。在 LED 设置中选择 HelixScreen 使用哪些。'
-  Lin. adv.: ''
+  Lin. adv.: "线性提前"
   Line the nozzle up with the purge chute so purged filament drops straight in.: 将喷嘴对准排料口上方，使排出的料丝垂直落入。
 
   Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer.: '第 {} 行调用 {}，此打印机将其视为紧急停止。请使用为此打印机制作的配置重新切片该文件。'
-  Linear K: ''
-  Linear advance: ''
+  Linear K: "线性 K"
+  Linear advance: "线性提前"
   ? "Linear advance {}\nNonlinear offset {}\nVelocity {:.1f}\nTime offset {}"
-  : ''
+  : "线性提前 {}\n非线性偏移 {}\n速度 {:.1f}\n时间偏移 {}"
   Linear rails: '直线导轨'
   Linear rails interval: '直线导轨间隔'
   Lines from other apps mix with tips: '其他应用的文字与提示交替显示'
@@ -3255,10 +3255,10 @@ translations:
   No width sensor detected: '未检测到宽度传感器'
   None: 无
   None (disable): 无 (禁用)
-  Nonlinear: ''
-  Nonlinear Pressure Advance: ''
-  Nonlinear offset: ''
-  Nonlinear pressure advance saved: ''
+  Nonlinear: "非线性"
+  Nonlinear Pressure Advance: "非线性压力提前"
+  Nonlinear offset: "非线性偏移"
+  Nonlinear pressure advance saved: "非线性压力提前已保存"
   Normal: 正常
   Not Connected: '未连接'
   Not Enough Filament: 耗材不足
@@ -3298,7 +3298,7 @@ translations:
   Not while printing: '打印时不可用'
   Not yet available on this display: '此屏幕暂不支持'
   Not yet calibrated: 尚未校准
-  Note where the left side looks best and where the front looks best. When they match, that height is the answer.: ''
+  Note where the left side looks best and where the front looks best. When they match, that height is the answer.: "记下左侧看起来最好的位置和正面看起来最好的位置。两者一致时，该高度即为答案。"
   Notes: 备注
   Notes (optional): 备注（可选）
   Nothing due · about {} min: '无待完成步骤 · 约 {} 分钟'
@@ -3509,7 +3509,7 @@ translations:
   Partial…: 部分…
   Pass: "轮次"
   Pass the missing parameter from the slicer's start G-code, or give it a default in the macro.: 请在切片软件的起始 G-code 中传入缺少的参数，或在宏中为其设置默认值。
-  'Pass {} of {}: {}': ''
+  'Pass {} of {}: {}': "轮次 {}/{}：{}"
   Password: 密码
   Password cannot be empty: 密码不能为空
   Password is required for secured networks: 加密网络需要密码
@@ -3705,7 +3705,7 @@ translations:
   Print Status: 打印状态
   Print Test Tower: 打印测试塔
   Print Time: 打印时间
-  Print Tower: ''
+  Print Tower: "打印测试塔"
   Print Tuning: 打印调优
   Print Was Terminated: 打印已终止
   Print a test tower and tune K by eye: 打印测试塔并目测调整K值
@@ -4258,7 +4258,7 @@ translations:
   : '安全模式：由于应用程序在启动时反复崩溃，插件已禁用，小部件布局显示为默认设置。重启即可恢复正常。'
   Safety & Alerts: 安全与警报
   Same Filament, New Spool: '相同耗材，新料盘'
-  Same Height: ''
+  Same Height: "高度相同"
   Same filament: '相同耗材'
   Same part-fan change, both methods: 同一零件风扇变化，两种方法
   Same spool in {}? Tap Clear if it is a new one.: '{} 是同一个料盘吗？如果是新料盘，请点击清除。'
@@ -4288,11 +4288,11 @@ translations:
   Save offsets?: 保存偏移？
   Save the new heater values to printer.cfg?: 将新的加热器参数保存到printer.cfg？
   Save the new heater values to printer.cfg? Klipper restarts.: 将新的加热器参数保存到printer.cfg？Klipper将重启。
-  Save to Config: ''
+  Save to Config: "保存到配置"
   Save to Spool: 保存到料盘
   Save to Spoolman: 保存到 Spoolman
   Save writes the print's material; off, it saves one offset for every print: "保存会写入本次打印的材料；关闭时为所有打印保存同一个偏移"
-  Save writes these values to the extruder's config section and restarts Klipper. Keep runs them until the next restart.: ''
+  Save writes these values to the extruder's config section and restarts Klipper. Keep runs them until the next restart.: "保存会将这些值写入挤出机配置段并重启 Klipper。保留则使用这些值直到下次重启。"
   Save {} mm for {}? Other materials keep their own offsets.: "保存 {} mm 到 {}？其他材料保持各自的偏移。"
   Saved Z-Offset: 已保存 Z 偏移
   Saved for the mounted head; other heads keep their own: '已为当前安装的工具头保存；其他工具头保留各自的值'
@@ -4678,7 +4678,7 @@ translations:
   Start Anyway: 仍然开始
   Start Calibration: 开始校准
   Start Drying: 开始烘干
-  Start Guided Tuning: ''
+  Start Guided Tuning: "开始引导式调优"
   Start Heating: "开始加热"
   Start K: 起始K值
   Start Print: 开始打印
@@ -4737,7 +4737,7 @@ translations:
   Stop: 停止
   Stop Drying: 停止干燥
   Stop Print?: 停止打印？
-  Stop Tower: ''
+  Stop Tower: "停止测试塔"
   Stop calibration: '停止校准'
   Stop calibration?: '停止校准？'
   Stop drying?: 停止烘干?
@@ -4748,7 +4748,7 @@ translations:
   Stop reloading the saved bed mesh?: 停止重新加载已保存的热床网格？
   Stop the check?: 停止检查？
   Stop the running cycle before starting another: '请先停止当前周期，再启动新的周期'
-  Stop the tower?: ''
+  Stop the tower?: "停止测试塔？"
   ? Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
   : 请停止主机上的摄像头、延时摄影和额外服务，检查其电源和 SD 卡，然后重启固件。如果在同一位置再次发生，请降低速度或细分。
   Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "当纸张在喷嘴和热床之间略有阻力时停止。"
@@ -5065,8 +5065,8 @@ translations:
   ? The firmware could not read or write the driver for {1}. Motor power being off (UART drivers need it), a driver not seated or a wrong pin in the configuration can cause it.
   : 固件无法读写 {1} 的驱动。可能原因：电机电源关闭（UART 驱动需要它）、驱动未插好，或配置中的引脚错误。
   ? The firmware's pressure advance tower needs a [pa_test] section in printer.cfg. HelixScreen adds it with a backup and restarts Klipper.
-  : ''
-  The firmware's test tower is not in the printer's config. Adding it writes one section and restarts Klipper.: ''
+  : "固件的压力提前测试塔需要 printer.cfg 中有 [pa_test] 段。HelixScreen 会先备份再添加，并重启 Klipper。"
+  The firmware's test tower is not in the printer's config. Adding it writes one section and restarts Klipper.: "固件的测试塔不在打印机配置中。添加会写入一个段并重启 Klipper。"
   ? The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong.
   : 龙门需要 {1} mm 的校正，超过允许的 {2} mm。龙门严重不平（撞机后或断电时下垂），或探测点或 Z 电机顺序有误。
   The gap didn't close (moved {:.1f} Hz). Try a bigger turn.: "差距没有缩小(移动了 {:.1f} Hz)。请转得更多一些。"
@@ -5165,7 +5165,7 @@ translations:
   The print already moved to another toolhead: '打印已转移到另一个工具头'
   The print ended before any layer was printed. Nothing was changed.: 打印在任何一层完成前就结束了。未做任何更改。
   The print file is damaged: 打印文件已损坏
-  The print is canceled and you judge what has printed so far.: ''
+  The print is canceled and you judge what has printed so far.: "打印将被取消，你根据已打印的部分进行判断。"
   The print is canceled and you pick the best band from what has printed so far.: 打印将被取消,你可以从已打印的部分中选择最佳区段。
   The print is no longer paused: '打印已不再暂停'
   The print is on its last layer.: '正在打印最后一层。'
@@ -5280,7 +5280,7 @@ translations:
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: '子网掩码无效。请使用 255.255.255.0 或 24 这样的格式。'
   The temperature was changed elsewhere.: "温度已在其他位置更改。"
   The tensioners pull each belt to its target: '张紧器将每条皮带拉到目标张力'
-  The test tower is not in the printer's config yet.: ''
+  The test tower is not in the printer's config yet.: "测试塔尚未加入打印机配置。"
   The thermocouple or PT100 amplifier reported a fault or a reading out of range.: 热电偶或 PT100 放大器报告故障或读数超出范围。
   The time, date, and system uptime: 时间、日期和系统运行时长
   The timelapse could not be downloaded: '无法下载延时摄影'
@@ -5312,7 +5312,7 @@ translations:
   The toolheads have changed enough times since their last maintenance.: '自上次维护以来，工具头切换次数已达上限。'
   The toolheads' docked and picked-up states do not add up.: '工具头的停靠与装上状态不一致。'
   The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing.: '检测到顶盖已断开连接。为确保打印质量，请连接顶盖后再继续使用。'
-  The tower stopped with an error. Nothing was changed.: ''
+  The tower stopped with an error. Nothing was changed.: "测试塔因错误而停止。未做任何更改。"
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: 该单元正在执行其他操作。请等待其完成；若持续卡住，请重置 CFS
   The unit reported a fault with no further detail. Restart the printer if it repeats: 该单元报告了故障但无更多信息。若反复出现，请重启打印机
   The unit whose drawing to set: '要设置图示的单元'
@@ -5508,7 +5508,7 @@ translations:
   Tighten {}: "拉紧 {}"
   Time: 时间
   Time Format: 时间格式
-  Time offset: ''
+  Time offset: "时间偏移"
   Time to wait before escalating to emergency stop: 升级为紧急停止前的等待时间
   'Time: ': '时间: '
   Timelapse: 延时摄影
@@ -5787,7 +5787,7 @@ translations:
   Use G10/G11 firmware retraction: 使用 G10/G11 固件回抽
   Use Hyperlapse: '使用超延时'
   Use New Address: '使用新地址'
-  Use This Height: ''
+  Use This Height: "使用此高度"
   Use Unload before Eject: '请先使用“卸载”，再使用“弹出”'
   Use as bypass: "用作旁路"
   Use existing: "使用现有"
@@ -5802,7 +5802,7 @@ translations:
   VM Size: 虚拟内存大小
   Validating bed mesh...: 正在验证热床网格...
   Value must be between {} and {}: 值必须在 {} 到 {} 之间
-  Values: ''
+  Values: "数值"
   Values must not be negative: 值不能为负数
   Velocity and acceleration limits: 速度和加速度限制
   Vendor: 供应商
@@ -5964,7 +5964,7 @@ translations:
   Wizard Error: 向导错误
   Working...: 处理中...
   Write failed at chunk {}: 区块 {} 写入失败
-  Writing printer.cfg and restarting Klipper: ''
+  Writing printer.cfg and restarting Klipper: "正在写入 printer.cfg 并重启 Klipper"
   Wrong PIN: PIN 错误
   Wrong State: '状态错误'
   Wrong media: 介质错误
@@ -6299,7 +6299,7 @@ translations:
   '{} accelerometers': '{} 个加速度传感器'
   '{} and {}': '{} 和 {}'
   '{} and {} are both mapped here': '{} 和 {} 都映射到这里'
-  '{} at {:.1f} mm': ''
+  '{} at {:.1f} mm': "{}（{:.1f} mm）"
   '{} auto-feed setting not applied': '{} 自动送料设置未应用'
   '{} available': '{} 可用'
   '{} axes homed': '{} 轴已归位'

@@ -1,7 +1,7 @@
 locale: de
 translations:
   '%d-%d': '%d-%d'
-  ' (again, {} of {})': ''
+  ' (again, {} of {})': " (erneut, {} von {})"
   ' (timed out)': ' (Zeitüberschreitung)'
   ' frames': ' Bilder'
   ' left': ' übrig'
@@ -213,7 +213,7 @@ translations:
   A folder name in moonraker.conf is unsafe.: "Ein Ordnername in moonraker.conf ist unsicher."
   A grid marks a material with a stored bed mesh, loaded at print start for prints that do not mesh.: "Ein Raster markiert ein Material mit gespeichertem Bettnetz, das beim Druckstart für Drucke ohne eigenes Netz geladen wird."
   ? A guided series of towers the firmware prints itself, each sweeping one value of the nonlinear model while you judge the slow and fast sides. Three towers for direct drive, four for Bowden.
-  : ''
+  : "Eine geführte Reihe von Türmen, die die Firmware selbst druckt. Jeder durchfährt einen Wert des nichtlinearen Modells, und du beurteilst die langsame und die schnelle Seite. Drei Türme für Direktantrieb, vier für Bowden."
   A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.: 'Auf dem Drucker ist ein Heat-Soak-Makro eingerichtet. HelixScreen erkennt es, führt es aber nicht aus.'
   ? A heated bed expands with temperature, so each material can keep its own first-layer offset. The print-start macro applies it, and a Save during a print changes only that print's material.
   : "Ein beheiztes Bett dehnt sich mit der Temperatur aus, daher kann jedes Material seinen eigenen Erstschicht-Offset haben. Das Druckstart-Makro wendet ihn an, und Speichern während eines Drucks ändert nur das Material dieses Drucks."
@@ -359,16 +359,16 @@ translations:
   Add Hidden Network: Verstecktes Netzwerk hinzufügen
   Add Part Fan to MPC: 'Bauteillüfter zu MPC hinzufügen'
   Add Printer: Drucker hinzufügen
-  Add Tower to Config: ''
+  Add Tower to Config: "Turm zur Konfiguration hinzufügen"
   Add Vendor: Hersteller hinzufügen
   Add Widget: Widget hinzufügen
   Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with: Fügt [include helix-plr/*.cfg] zu printer.cfg hinzu, damit ein Fortsetzen das Bettnetz lädt, mit dem der Druck begonnen hat
-  Add and Restart: ''
+  Add and Restart: "Hinzufügen und neu starten"
   Add custom filament: Benutzerdefiniertes Filament hinzufügen
   Add new: "Neu hinzufügen"
   Add page: 'Seite hinzufügen'
   Add part fan to MPC?: 'Bauteillüfter zu MPC hinzufügen?'
-  Add the test tower to the config?: ''
+  Add the test tower to the config?: "Test-Turm zur Konfiguration hinzufügen?"
   Add to Mainsail/Fluidd Webcams: 'Zu Mainsail/Fluidd-Webcams hinzufügen'
   Add to Queue: Zur Warteschlange hinzufügen
   Added: Hinzugefügt
@@ -415,7 +415,7 @@ translations:
   All fields are required: Alle Felder sind erforderlich
   All healthy: Alles in Ordnung
   All lights: Alle Leuchten
-  All passes done: ''
+  All passes done: "Alle Durchgänge abgeschlossen"
   All set: Alles bereit
   All steps done: 'Alle Schritte erledigt'
   All time: 'Gesamte Zeit'
@@ -476,7 +476,7 @@ translations:
   Appearance & Region: "Darstellung & Region"
   'Applied for this session only: {}': "Nur für diese Sitzung angewendet: {}"
   ? "Applied to {} as linear_advance, the nonlinear model's high-speed slope. Klipper forgets it on restart: enter {} as linear_advance in the extruder's config section."
-  : ''
+  : "Als linear_advance auf {} angewendet, die Steigung des nichtlinearen Modells bei hoher Geschwindigkeit. Klipper vergisst den Wert beim Neustart: {} als linear_advance im Extruder-Abschnitt der Konfiguration eintragen."
   ? "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   : 'Auf {} angewendet. Klipper vergisst den Wert beim Neustart: Trage {} als Pressure Advance im Filamentprofil deines Slicers ein oder speichere ihn auf der Spule.'
   Applies to: Gilt für
@@ -633,7 +633,7 @@ translations:
   Belts: "Riemen"
   Belts already match: "Riemen passen bereits"
   Belts stretch and settle; loose ones cause ringing and layer shifts.: "Riemen dehnen und setzen sich; lockere verursachen Ringing und Layerversatz."
-  Best height, measured up from the plate: ''
+  Best height, measured up from the plate: "Beste Höhe, vom Heizbett aus gemessen"
   Beta: Beta
   'Beta features: OFF': 'Beta-Funktionen: AUS'
   'Beta features: ON': 'Beta-Funktionen: EIN'
@@ -1064,7 +1064,7 @@ translations:
   Clear the extruder?: 'Extruder leeren?'
   Clear the nozzle and the part, then restart the firmware.: Düse und Teil freimachen, dann die Firmware neu starten.
   Clear the nozzle and the purge chute, load {}, then resume.: Düse und Auswurfschacht freimachen, {} laden, dann fortsetzen.
-  Clear the plate and load {}. The firmware prints its tower in the middle of the bed while it sweeps {}.: ''
+  Clear the plate and load {}. The firmware prints its tower in the middle of the bed while it sweeps {}.: "Räume das Heizbett und lade {}. Die Firmware druckt ihren Turm in der Mitte des Betts, während sie {} durchfährt."
   Clear the plate and load {}. The tower prints in the middle of the bed.: Räume das Heizbett und lade {}. Der Turm wird in der Mitte des Betts gedruckt.
   Clear {}?: '{} leeren?'
   Cleared: Geräumt
@@ -2554,8 +2554,8 @@ translations:
   Join the HelixScreen community on Discord for discussion, tips, troubleshooting help, and feature requests.: Tritt der HelixScreen-Community auf Discord bei für Diskussionen, Tipps, Hilfe zur Fehlerbehebung und Funktionswünsche.
   Joining Wi-Fi disconnects the wired network.: Mit WiFi verbinden trennt das kabelgebundene Netzwerk.
   ? Judge the front, the fast side. Note the height where it looks cleanest; light it from the side, the differences are small.
-  : ''
-  Judge the left side, where the tower switches between slow and fast. Note the height where those changes look cleanest.: ''
+  : "Beurteile die Vorderseite, die schnelle Seite. Notiere die Höhe, bei der sie am saubersten aussieht; leuchte sie von der Seite an, die Unterschiede sind klein."
+  Judge the left side, where the tower switches between slow and fast. Note the height where those changes look cleanest.: "Beurteile die linke Seite, an der der Turm zwischen langsam und schnell wechselt. Notiere die Höhe, bei der diese Wechsel am saubersten aussehen."
   Just now: Gerade eben
   Just queued: 'Gerade eingereiht'
   K so far: 'Bisheriges K'
@@ -2571,7 +2571,7 @@ translations:
   Keep clear of the printer while the toolhead is moving: Abstand zum Drucker halten, während sich der Werkzeugkopf bewegt
   Keep current: Aktuelle behalten
   Keep current ({}): Aktuellen behalten ({})
-  Keep for Now: ''
+  Keep for Now: "Vorerst behalten"
   Keep hands clear: 'Hände fernhalten'
   Keep hands clear except when asked. The printer moves on its own.: Halte die Hände fern, außer wenn du dazu aufgefordert wirst. Der Drucker bewegt sich selbstständig.
   Keep hands clear. The printer moves on its own.: Hände fernhalten. Der Drucker bewegt sich von selbst.
@@ -2708,8 +2708,8 @@ translations:
   Leave this off for a clogged nozzle.: "Bei verstopfter Düse ausgeschaltet lassen."
   LedSelect: LED auswählen
   Left: 'Links'
-  Left Best Higher: ''
-  Left Best Lower: ''
+  Left Best Higher: "Links höher"
+  Left Best Lower: "Links tiefer"
   Left belt: "Riemen links"
   Leftover material found: 'Materialreste gefunden'
   Length of filament to purge: 'Zu spülende Filamentlänge'
@@ -2728,14 +2728,14 @@ translations:
   Light will switch when the current operation finishes: Das Licht schaltet sich, sobald der aktuelle Vorgang abgeschlossen ist.
   Lights that follow the printer's state: Leuchten, die sich nach dem Druckerstatus richten
   Lights the printer can control. Choose which ones HelixScreen uses in the LED settings.: 'Lichter, die der Drucker steuern kann. Wähle in den LED-Einstellungen, welche HelixScreen verwendet.'
-  Lin. adv.: ''
+  Lin. adv.: "Lin. Adv."
   Line the nozzle up with the purge chute so purged filament drops straight in.: Richten Sie die Düse über dem Auswurfschacht aus, damit das gespülte Filament direkt hineinfällt.
 
   Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer.: 'Zeile {} ruft {} auf, das dieser Drucker als Notaus behandelt. Slicen Sie die Datei mit einem Profil für diesen Drucker neu.'
-  Linear K: ''
-  Linear advance: ''
+  Linear K: "Linear K"
+  Linear advance: "Linear Advance"
   ? "Linear advance {}\nNonlinear offset {}\nVelocity {:.1f}\nTime offset {}"
-  : ''
+  : "Linear Advance {}\nNichtlinearer Offset {}\nGeschwindigkeit {:.1f}\nZeitoffset {}"
   Linear rails: 'Linearschienen'
   Linear rails interval: 'Intervall Linearschienen'
   Lines from other apps mix with tips: 'Zeilen aus anderen Apps erscheinen zwischen den Tipps'
@@ -3255,10 +3255,10 @@ translations:
   No width sensor detected: 'Kein Breitensensor erkannt'
   None: Keine
   None (disable): Keine (deaktivieren)
-  Nonlinear: ''
-  Nonlinear Pressure Advance: ''
-  Nonlinear offset: ''
-  Nonlinear pressure advance saved: ''
+  Nonlinear: "Nichtlinear"
+  Nonlinear Pressure Advance: "Nichtlineares Pressure Advance"
+  Nonlinear offset: "Nichtlinearer Offset"
+  Nonlinear pressure advance saved: "Nichtlineares Pressure Advance gespeichert"
   Normal: Normal
   Not Connected: 'Nicht verbunden'
   Not Enough Filament: Nicht genug Filament
@@ -3298,7 +3298,7 @@ translations:
   Not while printing: 'Nicht während des Drucks'
   Not yet available on this display: 'Auf diesem Display noch nicht verfügbar'
   Not yet calibrated: Noch nicht kalibriert
-  Note where the left side looks best and where the front looks best. When they match, that height is the answer.: ''
+  Note where the left side looks best and where the front looks best. When they match, that height is the answer.: "Notiere, wo die linke Seite am besten aussieht und wo die Vorderseite am besten aussieht. Stimmen beide überein, ist diese Höhe die Antwort."
   Notes: Notizen
   Notes (optional): Notizen (optional)
   Nothing due · about {} min: 'Nichts fällig · etwa {} Min.'
@@ -3509,7 +3509,7 @@ translations:
   Partial…: Teilweise…
   Pass: "Durchgang"
   Pass the missing parameter from the slicer's start G-code, or give it a default in the macro.: Den fehlenden Parameter aus dem Start-G-Code des Slicers übergeben oder ihm im Makro einen Standardwert geben.
-  'Pass {} of {}: {}': ''
+  'Pass {} of {}: {}': "Durchgang {} von {}: {}"
   Password: Passwort
   Password cannot be empty: Passwort darf nicht leer sein
   Password is required for secured networks: Passwort ist für gesicherte Netzwerke erforderlich
@@ -3705,7 +3705,7 @@ translations:
   Print Status: Druckstatus
   Print Test Tower: Testturm drucken
   Print Time: Druckzeit
-  Print Tower: ''
+  Print Tower: "Turm drucken"
   Print Tuning: Druck-Feinabstimmung
   Print Was Terminated: Druck wurde abgebrochen
   Print a test tower and tune K by eye: Testturm drucken und K nach Augenmaß einstellen
@@ -4258,7 +4258,7 @@ translations:
   : 'Abgesicherter Modus: Die App ist beim Start wiederholt abgestürzt, daher sind Plugins deaktiviert und die Widget-Layouts zeigen ihre Standardwerte. Starten Sie neu, um zum Normalbetrieb zurückzukehren.'
   Safety & Alerts: Sicherheit & Alarme
   Same Filament, New Spool: 'Gleiches Filament, neue Spule'
-  Same Height: ''
+  Same Height: "Gleiche Höhe"
   Same filament: 'Gleiches Filament'
   Same part-fan change, both methods: Gleiche Änderung am Teile-Lüfter, beide Verfahren
   Same spool in {}? Tap Clear if it is a new one.: 'Dieselbe Spule in {}? Tippen Sie auf Löschen, wenn es eine neue ist.'
@@ -4288,11 +4288,11 @@ translations:
   Save offsets?: Offsets speichern?
   Save the new heater values to printer.cfg?: Die neuen Heizungswerte in printer.cfg speichern?
   Save the new heater values to printer.cfg? Klipper restarts.: Die neuen Heizungswerte in printer.cfg speichern? Klipper startet neu.
-  Save to Config: ''
+  Save to Config: "In Konfiguration speichern"
   Save to Spool: Auf Spule speichern
   Save to Spoolman: In Spoolman speichern
   Save writes the print's material; off, it saves one offset for every print: "Speichern schreibt das Material des Drucks; aus, speichert es einen Offset für jeden Druck"
-  Save writes these values to the extruder's config section and restarts Klipper. Keep runs them until the next restart.: ''
+  Save writes these values to the extruder's config section and restarts Klipper. Keep runs them until the next restart.: "Speichern schreibt diese Werte in den Extruder-Abschnitt der Konfiguration und startet Klipper neu. Behalten wendet sie bis zum nächsten Neustart an."
   Save {} mm for {}? Other materials keep their own offsets.: "{} mm für {} speichern? Andere Materialien behalten ihre eigenen Offsets."
   Saved Z-Offset: Gespeicherter Z-Offset
   Saved for the mounted head; other heads keep their own: 'Für den aufgesetzten Werkzeugkopf gespeichert; die anderen Werkzeugköpfe behalten ihren eigenen'
@@ -4678,7 +4678,7 @@ translations:
   Start Anyway: Trotzdem starten
   Start Calibration: Kalibrierung starten
   Start Drying: Trocknung starten
-  Start Guided Tuning: ''
+  Start Guided Tuning: "Geführtes Tuning starten"
   Start Heating: "Aufheizen starten"
   Start K: Start-K
   Start Print: Druck starten
@@ -4737,7 +4737,7 @@ translations:
   Stop: Stoppen
   Stop Drying: Trocknen stoppen
   Stop Print?: Druck stoppen?
-  Stop Tower: ''
+  Stop Tower: "Turm stoppen"
   Stop calibration: 'Kalibrierung stoppen'
   Stop calibration?: 'Kalibrierung stoppen?'
   Stop drying?: Trocknung stoppen?
@@ -4748,7 +4748,7 @@ translations:
   Stop reloading the saved bed mesh?: Das Laden des gespeicherten Bettnetzes beenden?
   Stop the check?: Prüfung beenden?
   Stop the running cycle before starting another: 'Beenden Sie den laufenden Zyklus, bevor Sie einen neuen starten'
-  Stop the tower?: ''
+  Stop the tower?: "Turm stoppen?"
   ? Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
   : Webcams, Zeitraffer und zusätzliche Dienste auf dem Host stoppen, Netzteil und SD-Karte prüfen, dann die Firmware neu starten. Wenn es an derselben Stelle erneut passiert, die Geschwindigkeit oder die Microsteps senken.
   Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "Hör auf, sobald das Papier zwischen Düse und Heizbett leicht schleift."
@@ -5065,8 +5065,8 @@ translations:
   ? The firmware could not read or write the driver for {1}. Motor power being off (UART drivers need it), a driver not seated or a wrong pin in the configuration can cause it.
   : Die Firmware konnte den Treiber für {1} nicht lesen oder beschreiben. Ursache können eine ausgeschaltete Motorstromversorgung (UART-Treiber benötigen sie), ein nicht richtig sitzender Treiber oder ein falscher Pin in der Konfiguration sein.
   ? The firmware's pressure advance tower needs a [pa_test] section in printer.cfg. HelixScreen adds it with a backup and restarts Klipper.
-  : ''
-  The firmware's test tower is not in the printer's config. Adding it writes one section and restarts Klipper.: ''
+  : "Der Pressure-Advance-Turm der Firmware braucht einen Abschnitt [pa_test] in printer.cfg. HelixScreen fügt ihn mit einem Backup hinzu und startet Klipper neu."
+  The firmware's test tower is not in the printer's config. Adding it writes one section and restarts Klipper.: "Der Test-Turm der Firmware ist nicht in der Druckerkonfiguration. Das Hinzufügen schreibt einen Abschnitt und startet Klipper neu."
   ? The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong.
   : Die Gantry benötigt eine Korrektur von {1} mm, mehr als die erlaubten {2} mm. Sie ist stark aus der Waage (nach einem Crash oder durch Absacken im ausgeschalteten Zustand), oder die Messpunkte oder die Reihenfolge der Z-Motoren sind falsch.
   The gap didn't close (moved {:.1f} Hz). Try a bigger turn.: "Der Abstand hat sich nicht verringert ({:.1f} Hz bewegt). Stärker drehen."
@@ -5165,7 +5165,7 @@ translations:
   The print already moved to another toolhead: 'Der Druck ist bereits auf einen anderen Werkzeugkopf gewechselt'
   The print ended before any layer was printed. Nothing was changed.: Der Druck endete, bevor eine Schicht gedruckt wurde. Nichts wurde geändert.
   The print file is damaged: Die Druckdatei ist beschädigt
-  The print is canceled and you judge what has printed so far.: ''
+  The print is canceled and you judge what has printed so far.: "Der Druck wird abgebrochen und du beurteilst, was bisher gedruckt wurde."
   The print is canceled and you pick the best band from what has printed so far.: Der Druck wird abgebrochen und du wählst den besten Bereich aus dem bisher Gedruckten.
   The print is no longer paused: 'Der Druck ist nicht mehr pausiert'
   The print is on its last layer.: 'Der Druck ist bei der letzten Schicht.'
@@ -5280,7 +5280,7 @@ translations:
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: 'Die Subnetzmaske ist ungültig. Verwende eine Form wie 255.255.255.0 oder 24.'
   The temperature was changed elsewhere.: "Die Temperatur wurde anderswo geändert."
   The tensioners pull each belt to its target: 'Die Spanner ziehen jeden Riemen auf seinen Zielwert'
-  The test tower is not in the printer's config yet.: ''
+  The test tower is not in the printer's config yet.: "Der Test-Turm ist noch nicht in der Druckerkonfiguration."
   The thermocouple or PT100 amplifier reported a fault or a reading out of range.: Der Thermoelement- oder PT100-Verstärker hat einen Fehler oder einen Messwert außerhalb des Bereichs gemeldet.
   The time, date, and system uptime: Uhrzeit, Datum und Betriebszeit
   The timelapse could not be downloaded: 'Der Zeitraffer konnte nicht heruntergeladen werden'
@@ -5312,7 +5312,7 @@ translations:
   The toolheads have changed enough times since their last maintenance.: 'Die Werkzeugköpfe wurden seit der letzten Wartung oft genug gewechselt.'
   The toolheads' docked and picked-up states do not add up.: 'Die Angedockt- und Aufgenommen-Zustände der Werkzeugköpfe passen nicht zusammen.'
   The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing.: 'Die obere Abdeckung wurde getrennt. Schließe sie für eine gute Druckqualität wieder an, bevor du fortfährst.'
-  The tower stopped with an error. Nothing was changed.: ''
+  The tower stopped with an error. Nothing was changed.: "Der Turm wurde mit einem Fehler beendet. Es wurde nichts geändert."
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: Die Einheit führt bereits einen anderen Vorgang aus. Abwarten, bis er beendet ist, oder das CFS zurücksetzen, falls es hängen bleibt
   The unit reported a fault with no further detail. Restart the printer if it repeats: Die Einheit hat einen Fehler ohne nähere Angaben gemeldet. Bei Wiederholung den Drucker neu starten
   The unit whose drawing to set: 'Die Einheit, deren Zeichnung festgelegt wird'
@@ -5508,7 +5508,7 @@ translations:
   Tighten {}: "{} spannen"
   Time: Zeit
   Time Format: Zeitformat
-  Time offset: ''
+  Time offset: "Zeitoffset"
   Time to wait before escalating to emergency stop: Wartezeit vor Eskalation zum Not-Stopp
   'Time: ': 'Zeit: '
   Timelapse: Zeitraffer
@@ -5787,7 +5787,7 @@ translations:
   Use G10/G11 firmware retraction: G10/G11-Firmware-Retraktion verwenden
   Use Hyperlapse: 'Hyperlapse nutzen'
   Use New Address: 'Neue Adresse verwenden'
-  Use This Height: ''
+  Use This Height: "Diese Höhe verwenden"
   Use Unload before Eject: 'Verwenden Sie Entladen vor Auswerfen'
   Use as bypass: "Als Bypass nutzen"
   Use existing: "Vorhandenes verwenden"
@@ -5802,7 +5802,7 @@ translations:
   VM Size: VM-Größe
   Validating bed mesh...: Bettnetz validieren...
   Value must be between {} and {}: Wert muss zwischen {} und {} liegen
-  Values: ''
+  Values: "Werte"
   Values must not be negative: Werte dürfen nicht negativ sein
   Velocity and acceleration limits: Geschwindigkeits- und Beschleunigungslimits
   Vendor: Hersteller
@@ -5964,7 +5964,7 @@ translations:
   Wizard Error: Assistentenfehler
   Working...: Wird verarbeitet...
   Write failed at chunk {}: Schreibvorgang bei Block {} fehlgeschlagen
-  Writing printer.cfg and restarting Klipper: ''
+  Writing printer.cfg and restarting Klipper: "printer.cfg wird geschrieben und Klipper neu gestartet"
   Wrong PIN: Falsche PIN
   Wrong State: 'Falscher Status'
   Wrong media: Falsches Medium
@@ -6299,7 +6299,7 @@ translations:
   '{} accelerometers': '{} Beschleunigungssensoren'
   '{} and {}': '{} und {}'
   '{} and {} are both mapped here': '{} und {} sind beide hier zugewiesen'
-  '{} at {:.1f} mm': ''
+  '{} at {:.1f} mm': "{} bei {:.1f} mm"
   '{} auto-feed setting not applied': '{}: Einstellung zur automatischen Zuführung nicht übernommen'
   '{} available': '{} verfügbar'
   '{} axes homed': '{}-Achsen referenziert'
