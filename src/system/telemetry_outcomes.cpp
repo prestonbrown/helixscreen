@@ -135,6 +135,18 @@ FailureClass classify_failure(const FailureEvidence& e, const PrinterDiscovery* 
     return e.failed ? FailureClass::Unknown : FailureClass::None;
 }
 
+const char* calibration_outcome_name(CalibrationOutcome outcome) {
+    switch (outcome) {
+    case CalibrationOutcome::Completed:
+        return "completed";
+    case CalibrationOutcome::Aborted:
+        return "aborted";
+    case CalibrationOutcome::Failed:
+        return "failed";
+    }
+    return "failed";
+}
+
 const char* filament_op_name(FilamentOp op) {
     switch (op) {
     case FilamentOp::Load:

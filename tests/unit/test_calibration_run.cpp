@@ -453,6 +453,29 @@ TEST_CASE_METHOD(RunFixture, "stop aborts the running step and keeps what finish
     CHECK(run->can_save());
 }
 
+TEST_CASE_METHOD(RunFixture, "each step that ran reports its end once, a stopped one as aborted",
+                 "[calibration_run][telemetry]") {
+    make_run(4);
+    std::vector<std::pair<std::string, StepStatus>> ends;
+    std::string failure;
+    run->set_step_end_sink([&](const CalibrationRun::StepEnd& end) {
+        ends.emplace_back(end.info.id, end.status);
+        if (end.status == StepStatus::Failed) {
+            failure = std::string(end.message);
+        }
+    });
+    run->start();
+    fakes[0]->finish("0.120 mm");
+    fakes[1]->fail("heater fault");
+    run->stop();
+    const std::vector<std::pair<std::string, StepStatus>> want = {
+        {"a", StepStatus::Finished}, {"b", StepStatus::Failed}, {"c", StepStatus::Aborted}};
+    // The step that never ran reports nothing, and the stopped step's own
+    // Aborted report after the stop is not a second end.
+    CHECK(ends == want);
+    CHECK(failure == "heater fault");
+}
+
 TEST_CASE_METHOD(RunFixture, "a stop that restarts the firmware loses what finished",
                  "[calibration_run]") {
     make_run(2);

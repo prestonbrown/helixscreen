@@ -62,6 +62,16 @@ describe("POINT_KINDS table", () => {
           "total_skips": "double2",
           "uptime_sec": "double1",
         },
+        "calibration_outcome": {
+          "app_board": "blob13",
+          "app_platform": "blob3",
+          "app_version": "blob2",
+          "device_id": "blob1",
+          "duration_bucket": "blob7",
+          "failure_class": "blob6",
+          "outcome": "blob5",
+          "type": "blob4",
+        },
         "cdn_fleet_daily": {
           "channel": "blob2",
           "countries": "double3",

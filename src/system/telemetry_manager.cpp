@@ -192,6 +192,19 @@ void advance_by_reported(std::chrono::steady_clock::time_point& start,
 }
 } // namespace
 
+namespace {
+
+/// [a-z0-9_]{1,32}: a value sent as-is that can carry no free text.
+bool is_telemetry_identifier(const std::string& value) {
+    constexpr size_t kMaxIdentifierLen = 32;
+    return !value.empty() && value.size() <= kMaxIdentifierLen &&
+           std::all_of(value.begin(), value.end(), [](char c) {
+               return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_';
+           });
+}
+
+} // namespace
+
 namespace helix {
 namespace telemetry_context {
 std::atomic<int> print_state_int{-1};
@@ -2429,15 +2442,9 @@ bool TelemetryManager::admit_error(const std::string& category) {
         return false;
     }
 
-    // The category keys the rate-limit map and is sent as-is, so it must be a short
-    // identifier: [a-z0-9_]{1,32}. Anything else could carry free text.
-    constexpr size_t kMaxCategoryLen = 32;
-    const bool category_ok =
-        !category.empty() && category.size() <= kMaxCategoryLen &&
-        std::all_of(category.begin(), category.end(), [](char c) {
-            return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_';
-        });
-    if (!category_ok) {
+    // The category keys the rate-limit map and is sent as-is, so it must be a
+    // short identifier.
+    if (!is_telemetry_identifier(category)) {
         spdlog::trace("[TelemetryManager] Ignoring error with invalid category");
         return false;
     }
@@ -2574,6 +2581,37 @@ void TelemetryManager::record_filament_op(const std::string& backend,
     spdlog::debug("[TelemetryManager] Recording filament_op: {} ({}s, during_print={})", key,
                   duration_sec, during_print);
     enqueue_event(build_filament_op_event(backend, op, outcome, error, duration_sec, during_print));
+}
+
+void TelemetryManager::record_calibration_outcome(const std::string& type,
+                                                  helix::telemetry::CalibrationOutcome outcome,
+                                                  helix::telemetry::FailureClass failure_class,
+                                                  int duration_sec) {
+    if (shutting_down_.load() || !initialized_.load() || !enabled_.load()) {
+        return;
+    }
+    if (!is_telemetry_identifier(type)) {
+        spdlog::trace("[TelemetryManager] Ignoring calibration outcome with invalid type");
+        return;
+    }
+    spdlog::debug("[TelemetryManager] Recording calibration outcome: {} {} ({}s)", type,
+                  helix::telemetry::calibration_outcome_name(outcome), duration_sec);
+    enqueue_event(build_calibration_outcome_event(type, outcome, failure_class, duration_sec));
+}
+
+nlohmann::json TelemetryManager::build_calibration_outcome_event(
+    const std::string& type, helix::telemetry::CalibrationOutcome outcome,
+    helix::telemetry::FailureClass failure_class, int duration_sec) const {
+    json event;
+    stamp_envelope(event);
+    event["event"] = "calibration_outcome";
+    event["device_id"] = get_hashed_device_id();
+    event["timestamp"] = get_timestamp();
+    event["type"] = type;
+    event["outcome"] = helix::telemetry::calibration_outcome_name(outcome);
+    event["failure_class"] = helix::telemetry::failure_class_name(failure_class);
+    event["duration_bucket"] = bucket_short_duration(duration_sec);
+    return event;
 }
 
 bool TelemetryManager::admit_filament_op(const std::string& key, bool success) {

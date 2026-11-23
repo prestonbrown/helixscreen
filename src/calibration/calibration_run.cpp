@@ -118,6 +118,7 @@ CalibrationRun::CalibrationRun(IMoonrakerAPI& api,
     : api_(api), on_change_(std::move(on_change)) {
     entries_.reserve(steps.size());
     contexts_.reserve(steps.size());
+    started_.resize(steps.size());
     for (size_t i = 0; i < steps.size(); ++i) {
         Entry e;
         e.step = std::move(steps[i]);
@@ -186,6 +187,7 @@ void CalibrationRun::start_next() {
     Entry& e = entries_[i];
     e.status = StepStatus::Running;
     e.progress = {};
+    started_[i] = std::chrono::steady_clock::now();
     spdlog::info("[CalibrationRun] Step {} ({}) starting", i + 1, e.step->info().id);
     changed();
     e.step->start(*contexts_[i]);
@@ -224,6 +226,7 @@ void CalibrationRun::on_step_done(size_t index, StepOutcome outcome) {
     }
     spdlog::info("[CalibrationRun] Step {} ({}) {}{}", index + 1, e.step->info().id,
                  status_name(e.status), e.message.empty() ? "" : ": " + e.message);
+    report_step_end(index);
     go_on_after(index);
 }
 
@@ -348,6 +351,7 @@ void CalibrationRun::stop() {
         entries_[j].status = StepStatus::NotRun;
     }
     phase_ = RunPhase::Results;
+    report_step_end(i);
     const bool restarts = running.step->abort_restarts_firmware();
     running.step->abort();
     if (restarts) {
@@ -372,6 +376,21 @@ CalibrationRun::StopEffect CalibrationRun::stop_effect() const {
         return StopEffect::EndsStep;
     }
     return has_pending_result() ? StopEffect::RestartDropsResults : StopEffect::Restarts;
+}
+
+void CalibrationRun::report_step_end(size_t index) {
+    if (!step_end_sink_) {
+        return;
+    }
+    const Entry& e = entries_[index];
+    const auto elapsed = std::chrono::steady_clock::now() - started_[index];
+    step_end_sink_(StepEnd{
+        e.step->info(),
+        e.status,
+        e.message,
+        static_cast<int>(std::chrono::duration_cast<std::chrono::seconds>(elapsed).count()),
+        klipper_left_ready_,
+    });
 }
 
 void CalibrationRun::finish_steps() {

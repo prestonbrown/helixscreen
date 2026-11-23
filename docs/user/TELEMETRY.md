@@ -252,6 +252,19 @@ Recorded when a multi-material system (AFC, Happy Hare, ACE, CFS and the others)
 
 Lane names, spool details and the system's own messages are never sent: HelixScreen works out `error_class` on the device. At most 50 successful and 50 failed operations are recorded per session, and the same failure repeating is recorded at most once every 5 minutes.
 
+### Calibration Outcomes
+
+Recorded when a step of the guided calibration run ends. Helps us see which calibrations finish, which people stop, and which fail.
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `type` | Which calibration, by its fixed name (`z_offset`, `heaters`, `bed_mesh`, `input_shaper`, and so on) | `"input_shaper"` |
+| `outcome` | `completed`, `aborted` (stopped or skipped) or `failed` | `"failed"` |
+| `failure_class` | For a failure, one value from the same fixed list as print outcomes; `none` otherwise | `"accelerometer"` |
+| `duration_bucket` | How long the step ran, as a range | `"5-15min"` |
+
+Measured results (shaper frequencies, PID values, offsets, meshes) stay on your printer.
+
 ### Error Events
 
 Recorded when a non-fatal error occurs (rate-limited to avoid excessive data). Helps us identify common issues that users may never report.

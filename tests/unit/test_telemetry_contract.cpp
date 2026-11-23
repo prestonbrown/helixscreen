@@ -351,7 +351,7 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Contract: every event matches its golden
     tm.set_enabled(true);
     tm.clear_queue();
     const auto events = record_one_of_every_event(tm, *this);
-    REQUIRE(events.size() == 18);
+    REQUIRE(events.size() == 19);
 
     const bool update = std::getenv("HELIX_UPDATE_GOLDENS") != nullptr;
     for (const auto& [name, raw] : events) {

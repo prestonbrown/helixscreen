@@ -854,6 +854,21 @@ describe("mapEventToDataPoints", () => {
     expect(odd.blobs!.slice(4, 8)).toEqual(["unknown", "unknown", "unknown", "unknown"]);
   });
 
+  it("maps calibration_outcome to fixed tokens, refusing values outside its lists", () => {
+    const dp = mapEventToDataPoints({
+      event: "calibration_outcome",
+      device_id: "dev-cal",
+      type: "input_shaper",
+      outcome: "failed",
+      failure_class: "accelerometer",
+      duration_bucket: "5-15min",
+    })[0];
+    expect(dp.indexes).toEqual(["calibration_outcome"]);
+    expect(dp.blobs!.slice(3, 7)).toEqual(["input_shaper", "failed", "accelerometer", "5-15min"]);
+    const odd = mapEventToDataPoints({ event: "calibration_outcome", device_id: "d", type: "My mesh", outcome: "ok" })[0];
+    expect(odd.blobs!.slice(3, 5)).toEqual(["unknown", "unknown"]);
+  });
+
   it("maps crash event correctly", () => {
     const event = {
       event: "crash",

@@ -85,6 +85,23 @@ const CANCEL_ORIGINS = ["in_app", "external"];
 const FILAMENT_OPS = ["load", "unload", "tool_change"];
 const FILAMENT_OP_OUTCOMES = ["success", "failed", "aborted"];
 const FILAMENT_OP_ERRORS = ["none", "sensor_timeout", "jam", "hub", "toolhead_sensor", "backend_error", "other"];
+// Mirrors the step ids of src/printer/calibration_catalog.cpp.
+const CALIBRATION_TYPES = [
+  "belt_tension",
+  "cutter",
+  "z_offset",
+  "heaters",
+  "bed_mesh",
+  "input_shaper",
+  "pressure_advance",
+  "belt_compare",
+  "bed_screws",
+  "tool_offsets",
+  "vertical_artifact",
+  "pa_tuning",
+  "vibration_check",
+];
+const CALIBRATION_OUTCOMES = ["completed", "aborted", "failed"];
 const SHORT_DURATION_BUCKETS = ["<10s", "10-30s", "30-60s", "1-2min", "2-5min", "5-15min", "15-60min", "1hr+"];
 
 // ---------- Readers ----------
@@ -404,6 +421,17 @@ const KINDS: PointKind[] = [
     blob(8, "duration_bucket", allowlisted(flat("duration_bucket"), SHORT_DURATION_BUCKETS)),
     blob(13, "app_board", appBoard),
     dbl(1, "during_print"),
+  ]),
+
+  // One point per guided calibration step that ran (#2168).
+  kind("calibration_outcome", [
+    device,
+    ...versionPlatform,
+    blob(4, "type", allowlisted(flat("type"), CALIBRATION_TYPES)),
+    blob(5, "outcome", allowlisted(flat("outcome"), CALIBRATION_OUTCOMES)),
+    blob(6, "failure_class", allowlisted(flat("failure_class"), FAILURE_CLASSES)),
+    blob(7, "duration_bucket", allowlisted(flat("duration_bucket"), SHORT_DURATION_BUCKETS)),
+    blob(13, "app_board", appBoard),
   ]),
 
   kind("crash", [
@@ -727,6 +755,7 @@ export const EVENT_FANOUT: Record<string, string[]> = {
   settings_changes: ["settings_change"],
   async_lifetime_skips: ["async_lifetime_skips"],
   filament_op: ["filament_op"],
+  calibration_outcome: ["calibration_outcome"],
 };
 
 function mergeLists(...groups: Array<Record<string, string[]>>): Record<string, string[]> {
@@ -764,6 +793,7 @@ export const R2_ONLY: Record<string, string[]> = mergeLists(
     settings_changes: ["boot_id", "schema_version", "app_board"],
     async_lifetime_skips: ["boot_id", "schema_version", "app_board"],
     filament_op: ["boot_id", "schema_version"],
+    calibration_outcome: ["boot_id", "schema_version"],
   },
   // Update events store the two versions they move between, and app_platform;
   // app_version repeats one version and `platform` names the release's target.

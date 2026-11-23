@@ -29,6 +29,8 @@
 #include "printer_state.h"
 #include "printer_temperature_state.h"
 #include "sound_manager.h"
+#include "system/telemetry_manager.h"
+#include "system/telemetry_outcomes.h"
 #include "temperature_rules.h"
 #include "thermal_rate_model.h"
 #include "translation_loader.h"
@@ -47,6 +49,28 @@ namespace {
 using calibration::RunPhase;
 using calibration::StepInfo;
 using calibration::StepStatus;
+
+/// A step's end as a calibration_outcome event: the outcome and why it
+/// failed, never what it measured or the step's own words.
+void record_step_end_telemetry(const calibration::CalibrationRun::StepEnd& end) {
+    using telemetry::CalibrationOutcome;
+    using telemetry::FailureClass;
+    CalibrationOutcome outcome = CalibrationOutcome::Aborted;
+    FailureClass failure = FailureClass::None;
+    if (end.status == StepStatus::Finished) {
+        outcome = CalibrationOutcome::Completed;
+    } else if (end.status == StepStatus::Failed) {
+        outcome = CalibrationOutcome::Failed;
+        telemetry::FailureEvidence evidence;
+        evidence.text = end.message;
+        evidence.klippy_down = end.klipper_stopped;
+        evidence.failed = true;
+        auto* api = get_moonraker_api();
+        failure = telemetry::classify_failure(evidence, api ? &api->hardware() : nullptr);
+    }
+    TelemetryManager::instance().record_calibration_outcome(end.info.id, outcome, failure,
+                                                            end.duration_sec);
+}
 
 int step_index(const char* id) {
     for (size_t i = 0; i < kRunStepIds.size(); ++i) {
@@ -960,6 +984,7 @@ void CalibrationRunOverlay::start() {
     run_ = std::make_unique<calibration::CalibrationRun>(*api, std::move(steps),
                                                          [this]() { publish_run(); });
     run_->set_busy_watch(calibration::make_printer_busy_watch(get_printer_state()));
+    run_->set_step_end_sink(record_step_end_telemetry);
     // A shutdown or a restart the run did not ask for drops what it staged.
     klippy_obs_ = observe<int>(
         get_printer_state().network_state().get_klippy_state_subject(), this,

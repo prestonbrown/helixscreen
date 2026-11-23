@@ -3468,3 +3468,25 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Identity: no identity dir keeps the file
     CHECK(fs::exists(d.config / "telemetry_device.json"));
     CHECK_FALSE(fs::exists(d.state));
 }
+
+// ============================================================================
+// calibration_outcome [telemetry][calibration_outcome]
+// ============================================================================
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "calibration_outcome carries the step's type and fixed tokens, never free text",
+                 "[telemetry][calibration_outcome]") {
+    using namespace helix::telemetry;
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    tm.record_calibration_outcome("input_shaper", CalibrationOutcome::Failed,
+                                  FailureClass::Accelerometer, 400);
+    tm.record_calibration_outcome("Bed mesh: 0.2 mm", CalibrationOutcome::Completed,
+                                  FailureClass::None, 10);
+    auto events = events_named(tm, "calibration_outcome");
+    REQUIRE(events.size() == 1);
+    CHECK(events[0]["type"] == "input_shaper");
+    CHECK(events[0]["outcome"] == "failed");
+    CHECK(events[0]["failure_class"] == "accelerometer");
+    CHECK(events[0]["duration_bucket"] == "5-15min");
+}

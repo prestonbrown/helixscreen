@@ -207,6 +207,9 @@ inline std::map<std::string, nlohmann::json> record_one_of_every_event(Telemetry
                           helix::telemetry::FilamentOpOutcome::Failed,
                           helix::telemetry::FilamentOpError::Hub, 45, true);
     collect();
+    tm.record_calibration_outcome("input_shaper", helix::telemetry::CalibrationOutcome::Failed,
+                                  helix::telemetry::FailureClass::Accelerometer, 400);
+    collect();
     // error_encountered's richest shape: a hang adds the screen and renderer.
     helix::HangMemoryContext hang_memory;
     hang_memory.mem_available_mb = 19;

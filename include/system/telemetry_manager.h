@@ -842,6 +842,20 @@ class TelemetryManager {
      */
     std::vector<ObserverGuard> init_filament_op_observer();
 
+    /**
+     * @brief Record how one calibration step ended (calibration_outcome)
+     *
+     * @param type the step's catalog id (calibration::StepInfo::id, "input_shaper");
+     *        anything but [a-z0-9_]{1,32} is dropped, so no free text is sent
+     * @param failure_class why it failed; None unless @p outcome is Failed
+     *
+     * Measured results stay on the device. No-op if telemetry is disabled.
+     * Thread-safe.
+     */
+    void record_calibration_outcome(const std::string& type,
+                                    helix::telemetry::CalibrationOutcome outcome,
+                                    helix::telemetry::FailureClass failure_class, int duration_sec);
+
     /// The user asked the filament system to cancel its operation: the one
     /// running ends as aborted. Main thread.
     void notify_filament_op_cancel_requested();
@@ -1249,6 +1263,11 @@ class TelemetryManager {
                                            helix::telemetry::FilamentOpOutcome outcome,
                                            helix::telemetry::FilamentOpError error,
                                            int duration_sec, bool during_print) const;
+
+    nlohmann::json build_calibration_outcome_event(const std::string& type,
+                                                   helix::telemetry::CalibrationOutcome outcome,
+                                                   helix::telemetry::FailureClass failure_class,
+                                                   int duration_sec) const;
 
     /// The per-session filament_op limits; true when this one may be queued.
     bool admit_filament_op(const std::string& key, bool success);

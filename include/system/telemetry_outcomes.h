@@ -64,6 +64,10 @@ struct FailureEvidence {
 [[nodiscard]] FailureClass classify_failure(const FailureEvidence& e,
                                             const PrinterDiscovery* hw = nullptr);
 
+/// How a calibration step ended, as calibration_outcome reports it.
+enum class CalibrationOutcome : uint8_t { Completed, Aborted, Failed };
+[[nodiscard]] const char* calibration_outcome_name(CalibrationOutcome outcome);
+
 /// A load, unload or tool change, as filament_op reports it.
 enum class FilamentOp : uint8_t { Load, Unload, ToolChange };
 enum class FilamentOpOutcome : uint8_t { Success, Failed, Aborted };
