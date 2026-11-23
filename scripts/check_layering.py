@@ -100,6 +100,8 @@ CLEARED_PAIRS: tuple[tuple[str, str], ...] = (
     ("print", "ui_temperature_utils.h"),
     ("printer", "ui_temperature_utils.h"),
     ("system", "ui_temperature_utils.h"),
+    ("rendering", "theme_manager.h"),
+    ("rendering", "ui_fonts.h"),
 )
 
 # A header with no same-stem .cpp takes its owner from the first row whose prefix
