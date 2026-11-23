@@ -69,9 +69,7 @@ class MoonrakerTimelapseAPI : public helix::ITimelapseAPI {
                                    const std::string& http_base_url);
     virtual ~MoonrakerTimelapseAPI();
 
-    // ========================================================================
     // Timelapse Settings (HTTP-based — Moonraker-Timelapse plugin)
-    // ========================================================================
 
     /**
      * @brief Get current timelapse settings
@@ -120,9 +118,7 @@ class MoonrakerTimelapseAPI : public helix::ITimelapseAPI {
     void set_timelapse_values(const std::vector<std::pair<std::string, std::string>>& values,
                               SuccessCallback on_success, ErrorCallback on_error) override;
 
-    // ========================================================================
     // Timelapse Render / Frame Operations (JSON-RPC)
-    // ========================================================================
 
     /**
      * @brief Trigger timelapse video rendering
@@ -145,9 +141,7 @@ class MoonrakerTimelapseAPI : public helix::ITimelapseAPI {
     void get_last_frame_info(std::function<void(const LastFrameInfo&)> on_success,
                              ErrorCallback on_error) override;
 
-    // ========================================================================
     // Webcam Operations (JSON-RPC)
-    // ========================================================================
 
     /**
      * @brief Get list of configured webcams

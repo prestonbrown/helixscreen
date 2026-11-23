@@ -17,9 +17,7 @@
 
 namespace helix::fs {
 
-// ---------------------------------------------------------------------------
 // Path strings (std::filesystem::path semantics for POSIX paths)
-// ---------------------------------------------------------------------------
 
 /// `path(a) / b`: b when b is absolute or a is empty, else a + '/' + b (no
 /// doubled separator when a already ends in '/').
@@ -41,10 +39,8 @@ std::string_view extension(std::string_view p);
 /// folds "name/.." pairs. A trailing separator is kept; an empty result is ".".
 std::string lexically_normal(std::string_view p);
 
-// ---------------------------------------------------------------------------
 // Queries. Any stat failure reads as "no": the ESP32 VFS reports a missing path
 // as ENODATA, so callers probing for existence must not treat errno as a fault.
-// ---------------------------------------------------------------------------
 
 bool exists(const std::string& p);
 bool is_directory(const std::string& p);    ///< follows symlinks
@@ -67,9 +63,7 @@ std::optional<std::string> canonical(const std::string& p);
 /// nullopt when `p` is not a symlink, and always on ESP32.
 std::optional<std::string> read_symlink(const std::string& p);
 
-// ---------------------------------------------------------------------------
 // Operations. false on failure with errno set by the failing call.
-// ---------------------------------------------------------------------------
 
 /// mkdir -p. true when `p` is a directory afterwards, including when it already
 /// was (std::filesystem returns false then; nothing here relies on that).
@@ -92,9 +86,7 @@ bool rename(const std::string& from, const std::string& to);
 /// partial `to`.
 bool copy_file(const std::string& from, const std::string& to, bool overwrite = false);
 
-// ---------------------------------------------------------------------------
 // Directory listing
-// ---------------------------------------------------------------------------
 
 struct DirEntry {
     std::string name;        ///< filename, never "." or ".."
@@ -107,9 +99,7 @@ struct DirEntry {
 /// (errno set). A read error part way returns the entries read so far.
 std::optional<std::vector<DirEntry>> list_dir(const std::string& dir);
 
-// ---------------------------------------------------------------------------
 // Threads that must never reach storage
-// ---------------------------------------------------------------------------
 
 /// Marks the calling thread as one that must never touch the filesystem. On the
 /// ESP32 a thread whose stack is in PSRAM crashes the board inside the flash

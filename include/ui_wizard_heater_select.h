@@ -127,8 +127,6 @@ class WizardHeaterSelectStep : public helix::wizard::Step {
     bool subjects_initialized_ = false;
 };
 
-// ============================================================================
 // Global Instance Access
-// ============================================================================
 
 WizardHeaterSelectStep* get_wizard_heater_select_step();

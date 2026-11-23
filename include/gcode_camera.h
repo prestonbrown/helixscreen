@@ -53,9 +53,7 @@ class GCodeCamera {
     GCodeCamera();
     ~GCodeCamera() = default;
 
-    // ==============================================
     // Camera Controls
-    // ==============================================
 
     /**
      * @brief Rotate camera view
@@ -139,9 +137,7 @@ class GCodeCamera {
         return std::clamp(content_height_world_ * zoom_level_ / distance_, 0.0f, 1.0f);
     }
 
-    // ==============================================
     // Preset Views
-    // ==============================================
 
     /**
      * @brief Set top-down view (looking straight down at print bed)
@@ -165,9 +161,7 @@ class GCodeCamera {
      */
     void set_isometric_view();
 
-    // ==============================================
     // Direct Setters
-    // ==============================================
 
     /**
      * @brief Set azimuth angle directly
@@ -187,9 +181,7 @@ class GCodeCamera {
      */
     void set_zoom_level(float zoom);
 
-    // ==============================================
     // Matrix Access
-    // ==============================================
 
     /**
      * @brief Get view matrix (world-to-camera transform)
@@ -217,9 +209,7 @@ class GCodeCamera {
         return projection_matrix_ * view_matrix_;
     }
 
-    // ==============================================
     // Configuration
-    // ==============================================
 
     /**
      * @brief Set projection type
@@ -262,9 +252,7 @@ class GCodeCamera {
         return viewport_height_;
     }
 
-    // ==============================================
     // State Query
-    // ==============================================
 
     /**
      * @brief Get current azimuth angle

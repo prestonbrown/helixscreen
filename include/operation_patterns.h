@@ -404,9 +404,7 @@ inline std::vector<std::string> get_all_perform_variations(OperationCategory cat
     return result;
 }
 
-// ============================================================================
 // Keyword Lookup (LT3)
-// ============================================================================
 
 /**
  * @brief Whether an upper-case command is one of Klipper's BED_MESH_* commands
@@ -460,9 +458,7 @@ inline const OperationKeyword* find_keyword(const std::string& pattern) {
     return nullptr;
 }
 
-// ============================================================================
 // Parameter Matching Infrastructure (LT3)
-// ============================================================================
 
 /**
  * @brief Semantic type for parameter interpretation

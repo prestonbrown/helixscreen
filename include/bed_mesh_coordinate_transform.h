@@ -90,10 +90,8 @@ double compute_mesh_z_center(double mesh_min_z, double mesh_max_z);
  */
 double compute_grid_z(double z_center, double z_scale);
 
-// ============================================================================
 // Printer coordinate transforms (Mainsail-style: separate bed grid from mesh)
 // Works with any printer origin (corner at 0,0 or center at origin)
-// ============================================================================
 
 /**
  * @brief Convert printer X coordinate (mm) to world X coordinate
@@ -135,9 +133,7 @@ double printer_y_to_world_y(double y_mm, double bed_center_y, double scale_facto
  */
 double compute_bed_scale_factor(double bed_size_mm, double target_world_size);
 
-// ============================================================================
 // Wall/floor/ceiling bounds for reference grids
-// ============================================================================
 
 /**
  * @brief Computed wall/floor/ceiling bounds for reference grids

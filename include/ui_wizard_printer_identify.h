@@ -230,9 +230,7 @@ class WizardPrinterIdentifyStep : public helix::wizard::Step {
     static void on_vendor_tile_clicked(lv_event_t* e);
 };
 
-// ============================================================================
 // Auto-Detection Infrastructure
-// ============================================================================
 
 /**
  * @brief Printer auto-detection hint (confidence + reasoning)

@@ -130,9 +130,7 @@ class SpoolmanManager {
     void fetch_linked_slot(int backend_index, int slot_index, int spoolman_id);
 
   public:
-    // ========================================================================
     // Spoolman identity side channel
-    // ========================================================================
 
     /**
      * @brief Look up the cached identity for a spool id

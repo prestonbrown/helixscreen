@@ -27,9 +27,7 @@
 
 namespace helix::calibration {
 
-// ============================================================================
 // Belt Identification
-// ============================================================================
 
 /// Belt path identifiers for CoreXY
 enum class BeltPath {
@@ -79,9 +77,7 @@ enum class KinematicsType {
     CARTESIAN,
 };
 
-// ============================================================================
 // Hardware Detection
-// ============================================================================
 
 /// Hardware capabilities detected from printer
 struct BeltTensionHardware {
@@ -90,9 +86,7 @@ struct BeltTensionHardware {
     std::string kinematics_name; ///< Raw string from Klipper
 };
 
-// ============================================================================
 // Path Comparison
-// ============================================================================
 
 /// One path's response: (frequency Hz, psd_xyz) pairs, ascending frequency.
 using BeltCurve = std::vector<std::pair<float, float>>;
@@ -174,17 +168,13 @@ struct BeltComparison {
 [[nodiscard]] BeltComparison compare_belt_paths(const BeltCurve& a, const BeltCurve& b,
                                                 float band_min_hz, float band_max_hz);
 
-// ============================================================================
 // Analysis Functions
-// ============================================================================
 
 /// Calculate Pearson correlation between two PSD curves (returns 0-100)
 float calculate_similarity(const std::vector<std::pair<float, float>>& curve_a,
                            const std::vector<std::pair<float, float>>& curve_b);
 
-// ============================================================================
 // Accelerometer Data Processing
-// ============================================================================
 
 /// Single accelerometer sample from Klipper CSV
 struct AccelSample {
@@ -220,9 +210,7 @@ struct PeakResult {
 PeakResult find_peak_frequency(const std::vector<std::pair<float, float>>& psd,
                                float min_freq = 20.0f, float max_freq = 200.0f);
 
-// ============================================================================
 // Callback Types
-// ============================================================================
 
 using BeltHardwareDetectCallback = std::function<void(const BeltTensionHardware&)>;
 using BeltProgressCallback = std::function<void(int percent)>;

@@ -81,9 +81,7 @@ class IMoonrakerClient {
   public:
     virtual ~IMoonrakerClient() = default;
 
-    // ========================================================================
     // Connection Lifecycle
-    // ========================================================================
 
     /// @brief Connect to Moonraker WebSocket server
     virtual int connect(const char* url, helix::SharedCallback<void()> on_connected,
@@ -113,9 +111,7 @@ class IMoonrakerClient {
         return ConnectFailureKind::Unknown;
     }
 
-    // ========================================================================
     // JSON-RPC Protocol
-    // ========================================================================
 
     /// @brief Send JSON-RPC request without parameters
     virtual int send_jsonrpc(const std::string& method) = 0;
@@ -152,9 +148,7 @@ class IMoonrakerClient {
     get_temperature_store(std::function<void(const TemperatureStore&)> on_success,
                           helix::SharedCallback<void(const MoonrakerError&)> on_error) = 0;
 
-    // ========================================================================
     // Discovery
-    // ========================================================================
 
     /// @brief Perform printer auto-discovery sequence
     virtual void
@@ -181,9 +175,7 @@ class IMoonrakerClient {
     /// @brief Set callback for bed mesh updates received via WebSocket
     virtual void set_bed_mesh_callback(helix::SharedCallback<void(const json&)> callback) = 0;
 
-    // ========================================================================
     // Subscriptions & Method Callbacks
-    // ========================================================================
 
     /// @brief Register callback for status update notifications
     virtual SubscriptionId register_notify_update(helix::SharedCallback<void(const json&)> cb) = 0;
@@ -244,9 +236,7 @@ class IMoonrakerClient {
     /// nothing; the next connection's discovery subscribes the current extras.
     virtual void refresh_subscription() = 0;
 
-    // ========================================================================
     // Connection State & Observers
-    // ========================================================================
 
     /// @brief Get current connection state
     virtual ConnectionState get_connection_state() const = 0;
@@ -261,9 +251,7 @@ class IMoonrakerClient {
     /// @brief Force full reconnection with complete state reset
     virtual void force_reconnect() = 0;
 
-    // ========================================================================
     // Events & Modal Suppression
-    // ========================================================================
 
     /// @brief Register callback for transport events
     virtual void register_event_handler(MoonrakerEventCallback cb) = 0;
@@ -274,16 +262,12 @@ class IMoonrakerClient {
     /// @brief Check if disconnect modal is currently suppressed
     virtual bool is_disconnect_modal_suppressed() const = 0;
 
-    // ========================================================================
     // Request Management
-    // ========================================================================
 
     /// @brief Cancel a pending JSON-RPC request
     virtual bool cancel_request(RequestId id) = 0;
 
-    // ========================================================================
     // Owner Wiring & Configuration
-    // ========================================================================
 
     /// @brief Set callback for connection state changes
     virtual void
@@ -303,9 +287,7 @@ class IMoonrakerClient {
     /// @brief Process timeout checks for pending requests
     virtual void process_timeouts() = 0;
 
-    // ========================================================================
     // Simulation Hooks (for testing)
-    // ========================================================================
 
     /// @brief Toggle filament runout simulation (no-op in production)
     virtual void toggle_filament_runout_simulation() = 0;
@@ -316,9 +298,7 @@ class IMoonrakerClient {
     virtual void simulate_config_file_written(const std::string& /*path*/,
                                               const std::string& /*content*/) {}
 
-    // ========================================================================
     // Lifetime Guard (for SubscriptionGuard)
-    // ========================================================================
 
     /// @brief Get lifetime guard for safe destructor-aware captures
     virtual std::weak_ptr<bool> lifetime_weak() const = 0;

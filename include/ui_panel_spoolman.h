@@ -154,9 +154,7 @@ class SpoolmanPanel : public OverlayBase {
     static void on_scroll(lv_event_t* e);
 };
 
-// ============================================================================
 // Global Instance Accessors
-// ============================================================================
 
 /**
  * @brief Get global SpoolmanPanel instance

@@ -151,8 +151,6 @@ class WizardFanSelectStep : public helix::wizard::Step {
     bool subjects_initialized_ = false;
 };
 
-// ============================================================================
 // Global Instance Access
-// ============================================================================
 
 WizardFanSelectStep* get_wizard_fan_select_step();

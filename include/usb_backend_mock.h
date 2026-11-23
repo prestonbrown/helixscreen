@@ -26,9 +26,7 @@ class UsbBackendMock : public UsbBackend {
     UsbBackendMock();
     ~UsbBackendMock() override;
 
-    // ========================================================================
     // UsbBackend Interface Implementation
-    // ========================================================================
 
     UsbError start() override;
     void stop() override;
@@ -40,9 +38,7 @@ class UsbBackendMock : public UsbBackend {
     UsbError scan_for_gcode(const std::string& mount_path, std::vector<UsbGcodeFile>& files,
                             int max_depth = 3) override;
 
-    // ========================================================================
     // Test API - For programmatic drive simulation
-    // ========================================================================
 
     /**
      * @brief Simulate inserting a USB drive
