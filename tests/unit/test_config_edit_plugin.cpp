@@ -694,6 +694,39 @@ TEST_CASE_METHOD(LVGLTestFixture, "a PID to MPC migration calibrates only on a c
         CHECK(panel.get_state() == PIDCalibrationPanel::State::CALIBRATING);
         CHECK(client.params_of("server.files.copy").empty());
     }
+    SECTION("Klippy ready on MPC before the client hears it: calibration waits for it") {
+        // The editor's printer.info poll sees READY a moment before the
+        // client's notify_klippy_ready, and the API refuses gcode until then.
+        state.init_subjects(false);
+        state.set_klippy_state_sync(helix::KlippyState::SHUTDOWN);
+        client.settings_reply = extruder_settings("mpc");
+        auto mpc_sent = [&]() {
+            for (const auto& p : client.params_of("printer.gcode.script")) {
+                if (p.value("script", "").find("MPC_CALIBRATE") != std::string::npos)
+                    return true;
+            }
+            return false;
+        };
+        migrate();
+        CHECK(panel.get_state() == PIDCalibrationPanel::State::MIGRATING);
+        CHECK_FALSE(mpc_sent());
+
+        state.set_klippy_state_sync(helix::KlippyState::READY);
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        CHECK(panel.get_state() == PIDCalibrationPanel::State::CALIBRATING);
+        CHECK(mpc_sent());
+    }
+    SECTION("Klippy never reported ready to the client: the wait ends in an error") {
+        state.init_subjects(false);
+        state.set_klippy_state_sync(helix::KlippyState::SHUTDOWN);
+        client.settings_reply = extruder_settings("mpc");
+        migrate();
+        REQUIRE(panel.get_state() == PIDCalibrationPanel::State::MIGRATING);
+
+        process_lvgl(400);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(panel.get_state() == PIDCalibrationPanel::State::ERROR);
+    }
     // The restart's simulated return to READY runs on a mock thread; let it land here.
     process_lvgl(50);
     helix::ui::UpdateQueue::instance().drain();

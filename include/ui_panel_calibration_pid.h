@@ -7,6 +7,7 @@
 #include "ui_temp_graph.h"
 
 #include "core/observer_guard.h"
+#include "core/operation_timeout_guard.h"
 #include "core/static_panel_registry.h"
 #include "core/subject.h"
 #include "klipper_config_editor.h"
@@ -326,6 +327,10 @@ class PIDCalibrationPanel : public OverlayBase {
     /// migration). It outlives the screensaver, which leaves the run going on
     /// the printer, and is invalidated when the user really leaves the panel.
     helix::AsyncLifetimeGuard run_lifetime_;
+    /// A migrated run waiting for the client to see Klipper ready, and the
+    /// ceiling on that wait.
+    ObserverGuard klippy_ready_observer_;
+    OperationTimeoutGuard klippy_ready_wait_;
     /// A run entered CALIBRATING behind the screensaver: the wake starts its
     /// progress tracking instead of resuming one.
     bool tracking_starts_on_wake_ = false;
@@ -591,6 +596,12 @@ class PIDCalibrationPanel : public OverlayBase {
     void start_migration(CalibMethod target, bool adding_fan);
     void confirm_migration();
     void begin_calibration(CalibMethod method);
+    /// Begin @p method once the API's own klippy state reads READY. The config
+    /// editor's printer.info poll sees Klipper ready after the migration's
+    /// restart a moment before notify_klippy_ready reaches the client, and the
+    /// API refuses gcode until it does.
+    void begin_calibration_when_ready(CalibMethod method);
+    void cancel_klippy_ready_wait();
     void update_migration_notice();
     void set_page(Page page);
     void show_switch_page();

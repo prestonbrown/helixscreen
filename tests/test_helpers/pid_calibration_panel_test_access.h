@@ -44,7 +44,9 @@ struct PIDCalibrationPanelTestAccess {
     static void turn_off_fan(PIDCalibrationPanel& p) {
         p.turn_off_fan();
     }
+    /// The confirmed migration, as confirm_migration() runs it.
     static void start_mpc_migration(PIDCalibrationPanel& p) {
+        p.set_state(PIDCalibrationPanel::State::MIGRATING);
         p.start_migration(PIDCalibrationPanel::CalibMethod::MPC, /*adding_fan=*/false);
     }
     static helix::system::KlipperConfigEditor& config_editor(PIDCalibrationPanel& p) {

@@ -24,6 +24,7 @@
 #include "filament_database.h"
 #include "i_moonraker_api.h"
 #include "klipper_config_editor.h"
+#include "klippy_state.h"
 #include "locale_formats.h"
 #include "observe_language.h"
 #include "platform_info.h"
@@ -486,6 +487,7 @@ void PIDCalibrationPanel::on_deactivating(DeactivateReason reason) {
         return;
     }
     run_lifetime_.invalidate();
+    cancel_klippy_ready_wait();
 
     // Klipper runs one command at a time, so a running print owns the fan and
     // heaters. A paused one accepts commands: a calibration started then set the
@@ -520,6 +522,7 @@ void PIDCalibrationPanel::on_deactivating(DeactivateReason reason) {
 void PIDCalibrationPanel::cleanup() {
     spdlog::debug("[PIDCal] Cleaning up");
     run_lifetime_.invalidate();
+    cancel_klippy_ready_wait();
     active_tool_observer_.reset();
     history_observer_.reset();
     language_observer_.reset();
@@ -1114,6 +1117,50 @@ void PIDCalibrationPanel::begin_calibration(CalibMethod method) {
     } else {
         send_pid_calibrate();
     }
+}
+
+void PIDCalibrationPanel::begin_calibration_when_ready(CalibMethod method) {
+    cancel_klippy_ready_wait();
+    lv_subject_t* klippy =
+        api_ ? api_->printer_state().network_state().get_klippy_state_subject() : nullptr;
+    if (!klippy || lv_subject_get_int(klippy) == static_cast<int>(helix::KlippyState::READY)) {
+        begin_calibration(method);
+        return;
+    }
+
+    spdlog::info("[PIDCal] Waiting for the client to see Klipper ready before calibrating");
+    klippy_ready_observer_ = helix::ui::observe<int>(
+        klippy, this,
+        [method](PIDCalibrationPanel* self, int state) {
+            if (state != static_cast<int>(helix::KlippyState::READY)) {
+                return;
+            }
+            self->cancel_klippy_ready_wait();
+            if (self->state_ != State::MIGRATING) {
+                return;
+            }
+            spdlog::info("[PIDCal] Client sees Klipper ready, starting calibration");
+            self->begin_calibration(method);
+        },
+        api_->printer_state().get_subjects_lifetime());
+
+    klippy_ready_wait_.begin(static_cast<uint32_t>(migration_restart_timeout_ms_), [this]() {
+        klippy_ready_observer_.reset();
+        if (state_ != State::MIGRATING) {
+            return;
+        }
+        spdlog::error("[PIDCal] Klipper restarted on the new settings, but the connection never "
+                      "reported it ready");
+        lv_subject_set_string(&subj_error_message_,
+                              "Klipper restarted on the new settings, but did not report "
+                              "ready. Start the calibration again.");
+        set_state(State::ERROR);
+    });
+}
+
+void PIDCalibrationPanel::cancel_klippy_ready_wait() {
+    klippy_ready_observer_.reset();
+    klippy_ready_wait_.end();
 }
 
 void PIDCalibrationPanel::confirm_migration() {
@@ -1729,7 +1776,7 @@ void PIDCalibrationPanel::start_migration(CalibMethod target, bool adding_fan) {
                 heater_names_cooling_fan_ = names_fan;
                 update_migration_notice();
                 spdlog::info("[PIDCal] Migration complete, starting calibration");
-                begin_calibration(target);
+                begin_calibration_when_ready(target);
             });
         },
         [this, token](const std::string& err) {
