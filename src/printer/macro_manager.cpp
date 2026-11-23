@@ -288,7 +288,6 @@ MacroInstallStatus MacroManager::evaluate_status(const PrinterDiscovery& hardwar
         return MacroInstallStatus::INSTALLED;
     }
 
-    // Compare against version from local file
     std::string local_version = get_version();
     if (local_version.empty()) {
         // Can't read local file - assume installed
@@ -776,7 +775,6 @@ void MacroManager::add_include_to_config(bool with_skips, SuccessCallback on_suc
 
     auto token = lifetime_.token();
 
-    // Download printer.cfg
     api_.transfers().download_file(
         "config", "printer.cfg",
         // Download success — runs on HTTP bg thread.
@@ -862,7 +860,6 @@ void MacroManager::remove_include_from_config(std::vector<std::string> filenames
 
     auto token = lifetime_.token();
 
-    // Download printer.cfg
     api_.transfers().download_file(
         "config", "printer.cfg",
         // Download success — runs on HTTP bg thread.
@@ -885,7 +882,6 @@ void MacroManager::remove_include_from_config(std::vector<std::string> filenames
             token.defer("MacroManager::remove_include_upload", [this, on_success, on_error,
                                                                 modified_content = std::move(
                                                                     modified_content)]() mutable {
-                // Upload modified printer.cfg
                 api_.transfers().upload_file_with_name(
                     "config", "", "printer.cfg", modified_content,
                     lifetime_.bg_cb("MacroManager::remove_include_done",

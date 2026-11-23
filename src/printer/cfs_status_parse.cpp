@@ -471,7 +471,6 @@ AmsSystemInfo parse_stock_box(const nlohmann::json& box_json,
         // of them share toolhead 0; the T<n> numbers are routes into it.
         unit.hub_tool_label = 0;
 
-        // Firmware version and serial
         std::string ver = helix::json_util::safe_string(unit_json, "version", "-1");
         if (ver != "-1" && ver != "None") {
             unit.firmware_version = ver;
@@ -528,14 +527,12 @@ AmsSystemInfo parse_stock_box(const nlohmann::json& box_json,
             slot.slot_index = i;
             slot.global_index = (n - 1) * 4 + i;
 
-            // Color
             std::string color_str = "-1";
             if (i < static_cast<int>(color_arr.size()) && color_arr[i].is_string()) {
                 color_str = color_arr[i].get<std::string>();
             }
             slot.color_rgb = CfsMaterialDb::parse_color(color_str);
 
-            // Material type
             std::string mat_code_raw = "-1";
             if (i < static_cast<int>(material_arr.size()) && material_arr[i].is_string()) {
                 mat_code_raw = material_arr[i].get<std::string>();
@@ -581,7 +578,6 @@ AmsSystemInfo parse_stock_box(const nlohmann::json& box_json,
                 slot.brand = brand_from_vender(vender_str);
             }
 
-            // Remaining length
             std::string remain_str = "-1";
             if (i < static_cast<int>(remain_arr.size()) && remain_arr[i].is_string()) {
                 remain_str = remain_arr[i].get<std::string>();
