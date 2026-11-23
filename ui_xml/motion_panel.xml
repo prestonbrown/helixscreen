@@ -40,6 +40,16 @@
          a 480x320 screen, which leaves the jog pad its room. A px value cannot
          reference another token, so these repeat button_height's ladder; the
          "motion_mode_row_h follows button_height" test pins the copy. -->
+    <!-- The header readout's mono face: the body mono, one step down at the small
+         tier, where "350.00" x3 would otherwise leave the title less width than
+         "MOTION" needs. -->
+    <string name="motion_header_coord_font_micro" value="source_code_pro_10"/>
+    <string name="motion_header_coord_font_tiny" value="source_code_pro_10"/>
+    <string name="motion_header_coord_font_small" value="source_code_pro_10"/>
+    <string name="motion_header_coord_font_medium" value="source_code_pro_14"/>
+    <string name="motion_header_coord_font_large" value="source_code_pro_16"/>
+    <string name="motion_header_coord_font_xlarge" value="source_code_pro_18"/>
+    <string name="motion_header_coord_font_xxlarge" value="source_code_pro_24"/>
     <!-- The jog mode label face: the body face everywhere, one step down at the
          small tier, where the modes share the row with the home bar and "Coarse"
          at the body face is wider than its button. -->
@@ -142,7 +152,7 @@
               <bind_style name="axis_letter_homed" subject="motion_x_homed" ref_value="1"/>
               <bind_style name="axis_unhomed" subject="motion_x_homed" ref_value="0"/>
             </lv_label>
-            <lv_label name="header_pos_x" bind_text="motion_pos_x" style_text_font="#font_mono">
+            <lv_label name="header_pos_x" bind_text="motion_pos_x" style_text_font="#motion_header_coord_font">
               <bind_style name="axis_value_homed" subject="motion_x_homed" ref_value="1"/>
               <bind_style name="axis_unhomed" subject="motion_x_homed" ref_value="0"/>
             </lv_label>
@@ -158,7 +168,7 @@
               <bind_style name="axis_letter_homed" subject="motion_y_homed" ref_value="1"/>
               <bind_style name="axis_unhomed" subject="motion_y_homed" ref_value="0"/>
             </lv_label>
-            <lv_label name="header_pos_y" bind_text="motion_pos_y" style_text_font="#font_mono">
+            <lv_label name="header_pos_y" bind_text="motion_pos_y" style_text_font="#motion_header_coord_font">
               <bind_style name="axis_value_homed" subject="motion_y_homed" ref_value="1"/>
               <bind_style name="axis_unhomed" subject="motion_y_homed" ref_value="0"/>
             </lv_label>
@@ -174,7 +184,7 @@
               <bind_style name="axis_letter_homed" subject="motion_z_homed" ref_value="1"/>
               <bind_style name="axis_unhomed" subject="motion_z_homed" ref_value="0"/>
             </lv_label>
-            <lv_label name="header_pos_z" bind_text="motion_pos_z" style_text_font="#font_mono">
+            <lv_label name="header_pos_z" bind_text="motion_pos_z" style_text_font="#motion_header_coord_font">
               <bind_style name="axis_value_homed" subject="motion_z_homed" ref_value="1"/>
               <bind_style name="axis_unhomed" subject="motion_z_homed" ref_value="0"/>
             </lv_label>
