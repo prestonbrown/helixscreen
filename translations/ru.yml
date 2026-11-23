@@ -2453,8 +2453,6 @@ translations:
   'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.': 'Убедитесь, что в печатающей головке нет филамента: он может размягчиться в экструдере, пока греется стол.'
 
   MakeID (Bluetooth): MakeID (Bluetooth)
-  ? Makes Spoolman charge each tool's or lane's own spool, for printers that do not switch it themselves, and records per print what each spool used.
-  : 'Spoolman списывает расход с катушки каждого инструмента или канала на принтерах, которые не переключают её сами, и записывает для каждой печати расход каждой катушки.'
   Manage: Управление
   Manage Printers: Управление принтерами
   Manage configured printers: Управление настроенными принтерами
@@ -4121,7 +4119,6 @@ translations:
   Switch a power device on or off: Включить или выключить питание
   Switch Sensors: Датчики-переключатели
   Switch between light and dark themes: Переключение между светлой и тёмной темами
-  Switch spools at each tool change: 'Переключать катушку при каждой смене инструмента'
   Switch the active tool or extruder: Смена активного инструмента
   Switch to a backup slot on runout: Переключаться на резервный слот при окончании филамента
   Switch to a matching slot on runout: Переключаться на подходящий слот при окончании филамента

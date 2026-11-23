@@ -2354,8 +2354,6 @@ translations:
   Make sure every nozzle is clean.: Make sure every nozzle is clean.
   'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.': 'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.'
   MakeID (Bluetooth): MakeID (Bluetooth)
-  ? Makes Spoolman charge each tool's or lane's own spool, for printers that do not switch it themselves, and records per print what each spool used.
-  : Makes Spoolman charge each tool's or lane's own spool, for printers that do not switch it themselves, and records per print what each spool used.
   Manage: Manage
   Manage Printers: Manage Printers
   Manage configured printers: Manage configured printers
@@ -3983,7 +3981,6 @@ translations:
   Switch a power device on or off: Switch a power device on or off
   Switch Sensors: Switch Sensors
   Switch between light and dark themes: Switch between light and dark themes
-  Switch spools at each tool change: Switch spools at each tool change
   Switch the active tool or extruder: Switch the active tool or extruder
   Switch to a backup slot on runout: Switch to a backup slot on runout
   Switch to a matching slot on runout: Switch to a matching slot on runout

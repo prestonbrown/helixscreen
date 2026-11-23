@@ -133,18 +133,24 @@ SpoolSwitch decide_spool_switch(const FeedEntry* feed, int active_spool,
 
 /// Who switches the active spool at a tool change.
 enum class FilamentAccountingSender {
-    None,   ///< nobody: another switcher owns it, the user opted out, or another screen sends
+    None,   ///< nobody: another switcher owns it, it is turned off, or another screen sends
     Plugin, ///< the plugin's filament_accounting feature
     App,    ///< this screen, since the plugin cannot
 };
 
 /// The one choice between the plugin and this screen. @p accounting is
 /// plugin_feature(kFilamentAccountingFeature, kFilamentAccountingMinVersion);
-/// @p opted_in the stored opt-in, all the screen has when the plugin reports
+/// @p opted_in filament_accounting_opted_in(), all the screen has when the plugin reports
 /// no such feature; @p role this instance's fallback_sender_role().
 FilamentAccountingSender filament_accounting_sender(PluginFeatureState accounting, bool opted_in,
                                                     ActiveSpoolOwner owner,
                                                     FallbackSenderRole role);
+
+/// Whether spool switching is on in the plugin_features record @p opt_ins.
+/// It is on unless the record holds `false` under kFilamentAccountingFeature,
+/// the config-only way out for a printer whose own switching the ownership
+/// rules miss. The plugin reads the record the same way.
+bool filament_accounting_opted_in(const nlohmann::json& opt_ins);
 
 /// Whether this screen writes the shared map: only the fallback's Sender, so
 /// two screens never take turns rewriting it, and only once it says something.

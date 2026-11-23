@@ -2242,7 +2242,6 @@
   <translation tag="Make sure every nozzle is clean." ru="Убедитесь, что все сопла чистые."/>
   <translation tag="Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats." ru="Убедитесь, что в печатающей головке нет филамента: он может размягчиться в экструдере, пока греется стол."/>
   <translation tag="MakeID (Bluetooth)" ru="MakeID (Bluetooth)"/>
-  <translation tag="Makes Spoolman charge each tool&apos;s or lane&apos;s own spool, for printers that do not switch it themselves, and records per print what each spool used." ru="Spoolman списывает расход с катушки каждого инструмента или канала на принтерах, которые не переключают её сами, и записывает для каждой печати расход каждой катушки."/>
   <translation tag="Manage" ru="Управление"/>
   <translation tag="Manage Printers" ru="Управление принтерами"/>
   <translation tag="Manage configured printers" ru="Управление настроенными принтерами"/>
@@ -3801,7 +3800,6 @@
   <translation tag="Switch a power device on or off" ru="Включить или выключить питание"/>
   <translation tag="Switch back to the Snapmaker screen" ru="Вернуться к экрану Snapmaker"/>
   <translation tag="Switch between light and dark themes" ru="Переключение между светлой и тёмной темами"/>
-  <translation tag="Switch spools at each tool change" ru="Переключать катушку при каждой смене инструмента"/>
   <translation tag="Switch the active tool or extruder" ru="Смена активного инструмента"/>
   <translation tag="Switch to a backup slot on runout" ru="Переключаться на резервный слот при окончании филамента"/>
   <translation tag="Switch to a matching slot on runout" ru="Переключаться на подходящий слот при окончании филамента"/>

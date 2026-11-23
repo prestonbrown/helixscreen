@@ -61,7 +61,7 @@ K-Touch owners: see also [Install the HelixPrint plugin on your printer](install
 | [Does the file fit this printer?](#does-the-file-fit-this-printer) | **Settings > Safety & Alerts > Hold slicer prints that do not fit** (off) | The screen still checks its own prints; slicer prints are not held |
 | [Start options for prints from other apps](#start-options-for-prints-from-other-apps) | **Settings > Printing > Apply start options to prints from other apps** (off) | Only while HelixScreen is connected |
 | [Faster starts for edited prints](#faster-starts-for-edited-prints) | none | The screen copies the file there and back |
-| [Switch spools at each tool change](#switch-spools-at-each-tool-change) | **Settings > Devices > Spoolman > Switch spools at each tool change** (off) | Only while HelixScreen is connected, fewer printers, no per-print record |
+| [Spool switching at each tool change](#spool-switching-at-each-tool-change) | none (on whenever Spoolman is connected) | Only while HelixScreen is connected, fewer printers, no per-print record |
 | [Printer Events](#printer-events) | none | Each screen keeps its own record |
 | [Print photos](#print-photos) | **Settings > Devices > Print photos** (on) | Only while HelixScreen is connected |
 | [Storage](#storage) | **Settings > System > Storage > Automatic cleanup** (off) | Slower report, only timelapse videos can be cleaned, no automatic cleanup |
@@ -199,16 +199,17 @@ Select the file again and start it. Either way, a copy that would leave the prin
 than 100 MB free is not made, and a message asks you to free some space (see
 [Storage](#storage)).
 
-### Switch spools at each tool change
+### Spool switching at each tool change
 
 Spoolman takes filament off one spool at a time: whichever spool is active. On a printer with
 several tools or lanes, the active spool has to change at every tool change, or one spool is
 charged for filament that came from another. Some printers already do this (AFC, Happy Hare
 with its Spoolman support on, a Snapmaker U1 running the extended firmware's SpoolLink, and
-printers whose tool-change macros set the spool); there this setting changes nothing.
+printers whose tool-change macros set the spool); HelixScreen leaves those alone.
 
-**Setting:** **Settings > Devices > Spoolman**, in the Weight Sync group: **Switch spools at
-each tool change**. It is off by default and only shows when Spoolman is connected.
+**Setting:** none. Spool switching is automatic on every printer whose Moonraker has Spoolman
+set up. It never takes filament off a spool itself (Moonraker's Spoolman support does that), so
+nothing is counted twice.
 
 - **With the plugin**, the printer follows the tool or lane that is printing and makes its
   linked spool the active one, for every print, whichever app started it, even when no screen
@@ -222,11 +223,21 @@ each tool change**. It is off by default and only shows when Spoolman is connect
   extruder keep working as before: the active spool follows the lane that is loaded while
   HelixScreen is connected. No per-print spool record is kept.
 
-**Attached or remote:** on the screen attached to the printer, the switch works as described.
-On a remote screen (a tablet or the K-Touch) without the plugin, the row says **Only while this
-app is connected. Install the HelixPrint plugin to cover every print.** When a screen is
-attached to the printer, it is the one that switches spools, and a remote screen stands by, so
-the two never fight.
+**Attached or remote:** when a screen is attached to the printer, it is the one that switches
+spools, and a remote screen stands by, so the two never fight.
+
+**Turning it off.** If your printer switches spools in a way HelixScreen does not recognize,
+and the wrong spool becomes active at a tool change, turn spool switching off by writing
+`false` to Moonraker's database. From any computer on your network:
+
+```bash
+curl -X POST http://<printer-ip>:7125/server/database/item \
+  -H "Content-Type: application/json" \
+  -d '{"namespace": "helix-screen", "key": "plugin_features.filament_accounting", "value": false}'
+```
+
+Write `true` the same way to turn it back on. The change applies from the next print; no
+restart is needed.
 
 **Linking a spool by hand**, with or without the plugin: linking a spool to the lane that is
 loaded right now makes it the active spool, unless the printer does that itself (AFC, or a U1
@@ -237,7 +248,7 @@ loaded. Unlinking a spool takes it back off as the active spool, if it still is.
 Not yet supported: Creality CFS and Anycubic ACE lane changes. The plugin does not yet know
 which lane is feeding on those.
 
-See also [Settings > Devices > Spoolman](settings/devices.md#switch-spools-at-each-tool-change).
+See also [Settings > Devices > Spoolman](settings/devices.md#spool-switching-at-each-tool-change).
 
 ### Printer Events
 
@@ -435,7 +446,7 @@ A setting that depends on the plugin can show one of these under its switch:
 |------|---------------|
 | **Requires the HelixPrint plugin** | The feature only works with the plugin, and your printer does not have it. The switch is greyed out; tap **Install** to add the plugin. Shown for power-loss recovery, holding slicer prints that do not fit, and automatic storage cleanup |
 | **Requires a newer HelixPrint plugin** | The plugin is installed but too old for this feature. Update the plugin: on an attached screen HelixScreen keeps it matched to the app; on a remote screen, run the install command again |
-| **Only while this app is connected. Install the HelixPrint plugin to cover every print.** | On a remote screen without the plugin. The switch works, but HelixScreen can only act on prints while this app is running and connected. Tap **Install** to cover every print. Shown for start options for prints from other apps, spool switching and print photos |
+| **Only while this app is connected. Install the HelixPrint plugin to cover every print.** | On a remote screen without the plugin. The switch works, but HelixScreen can only act on prints while this app is running and connected. Tap **Install** to cover every print. Shown for start options for prints from other apps and print photos |
 | **Only while this app is connected. Update the HelixPrint plugin to cover every print.** | On a remote screen whose plugin is too old for this feature, or cannot run it on your printer. The switch works the same way; run the install command again to update the plugin |
 
 A screen attached to the printer shows none of the last two notes: it does those jobs itself,

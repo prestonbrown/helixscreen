@@ -2283,8 +2283,6 @@ translations:
   'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.': 请确认工具头中没有装入耗材:热床加热时它可能在挤出机中变软。
 
   MakeID (Bluetooth): MakeID（蓝牙）
-  ? Makes Spoolman charge each tool's or lane's own spool, for printers that do not switch it themselves, and records per print what each spool used.
-  : '让 Spoolman 按每个工具或耗材通道各自的料盘计算用量（适用于不会自行切换的打印机），并记录每次打印各料盘的用量。'
   Manage: 管理
   Manage Printers: 管理打印机
   Manage configured printers: 管理已配置的打印机
@@ -3857,7 +3855,6 @@ translations:
   Switch a power device on or off: 开启或关闭电源设备
   Switch Sensors: 开关传感器
   Switch between light and dark themes: 切换浅色和深色主题
-  Switch spools at each tool change: '每次换工具时切换料盘'
   Switch the active tool or extruder: 切换当前工具或挤出机
   Switch to a backup slot on runout: 耗材用尽时切换到备用槽位
   Switch to a matching slot on runout: 耗材用尽时切换到匹配的槽位

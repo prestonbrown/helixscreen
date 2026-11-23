@@ -2289,8 +2289,6 @@ translations:
   'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.': 'ツールヘッドにフィラメントがロードされていないことを確認してください: ベッドの加熱中にエクストルーダー内で柔らかくなることがあります。'
 
   MakeID (Bluetooth): MakeID (Bluetooth)
-  ? Makes Spoolman charge each tool's or lane's own spool, for printers that do not switch it themselves, and records per print what each spool used.
-  : '自分で切り替えないプリンター向けに、各ツールまたはレーンのスプールから Spoolman が使用量を差し引くようにし、印刷ごとに各スプールの使用量を記録します。'
   Manage: 管理
   Manage Printers: プリンター管理
   Manage configured printers: 設定済みプリンターを管理
@@ -3866,7 +3864,6 @@ translations:
   Switch a power device on or off: 電源デバイスのオン/オフ切り替え
   Switch Sensors: スイッチセンサー
   Switch between light and dark themes: ライトテーマとダークテーマを切り替え
-  Switch spools at each tool change: 'ツール交換ごとにスプールを切り替える'
   Switch the active tool or extruder: アクティブなツールやエクストルーダーを切り替え
   Switch to a backup slot on runout: フィラメント切れ時に予備スロットへ切り替え
   Switch to a matching slot on runout: フィラメント切れ時に一致するスロットへ切り替え

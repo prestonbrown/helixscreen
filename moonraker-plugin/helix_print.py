@@ -206,8 +206,8 @@ FeatureExtra = Callable[[], Awaitable[Dict[str, Any]]]
 class Feature:
     """One entry of the status `features` map.
 
-    `acts` is True for a feature that acts on a print or a spool: it is off
-    until the user opts in. A feature that only observes is on unless the
+    `acts` is True for a feature that acts on a print or the user's files:
+    it is off until the user opts in. Every other feature is on unless the
     user opts out.
     """
 
@@ -831,7 +831,7 @@ class HelixPrint:
         await self._start_isolated("server_edits", False, self._start_edits)
         await self._start_isolated("print_hooks", True, self._start_print_hooks)
         await self._start_isolated("storage", False, self._start_storage)
-        await self._start_isolated("filament_accounting", True, self._start_filament)
+        await self._start_isolated("filament_accounting", False, self._start_filament)
         await self._start_isolated("photos", False, self._start_photos)
         await self._start_isolated("fit_check_blocks_autostart", True, self._start_fit_check)
         await self._start_isolated("vendor_ad5x", False, self._start_vendor_ad5x)
@@ -1072,11 +1072,12 @@ class HelixPrint:
             self.storage.check_free_space(incoming_bytes)
 
     async def _start_filament(self) -> None:
-        """Filament accounting per lane and tool (helix_filament.py), opted
-        into through plugin_features."""
+        """Filament accounting per lane and tool (helix_filament.py). It
+        switches the active spool only where nothing else does and never
+        deducts, so it is on unless opted out in plugin_features."""
         if helix_filament is None:
             self.register_feature(
-                "filament_accounting", 1, acts=True, available=False,
+                "filament_accounting", 1, acts=False, available=False,
                 reason=SIBLING_LOAD_ERRORS.get("helix_filament", "module_missing"),
             )
             return
@@ -1084,7 +1085,8 @@ class HelixPrint:
         self.filament.start()
         await self.filament.load()
         self.register_feature(
-            helix_filament.FILAMENT_FEATURE, helix_filament.FILAMENT_FEATURE_VERSION, acts=True,
+            helix_filament.FILAMENT_FEATURE, helix_filament.FILAMENT_FEATURE_VERSION, acts=False,
+            probe=self.filament.availability,
         )
 
     async def _start_photos(self) -> None:

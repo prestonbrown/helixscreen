@@ -227,8 +227,9 @@ Moonraker's `[spoolman]` component is the only thing that takes filament off a s
 charges one active spool for every millimetre the extruder position rises. On a printer with
 several tools or lanes that is right only when the active spool is switched at every tool or
 lane change. This feature switches it, for printers whose filament system does not, and
-records per job which spools were charged. It never deducts anything itself. Acts on a spool,
-so it is off until the user opts in (`plugin_features.filament_accounting`).
+records per job which spools were charged. It never deducts anything itself, and it stays out
+of the way wherever something else switches the spool, so it is on wherever Moonraker loads
+`[spoolman]`; `plugin_features.filament_accounting: false` turns it off.
 
 The screen keeps the map in Moonraker's database, namespace `helix-screen`, key
 `filament_spools`:

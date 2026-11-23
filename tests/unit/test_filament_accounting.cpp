@@ -283,25 +283,34 @@ TEST_CASE("filament accounting: history lines name who fed what", "[plugin_filam
     CHECK(describe_spool_usage({}, nullptr, ui::LaneNoun::Slot).empty());
 }
 
-TEST_CASE("filament accounting: its switch lives on the Spoolman page", "[plugin_filament]") {
-    const auto row = std::find_if(kPluginSwitchFeatures.begin(), kPluginSwitchFeatures.end(),
-                                  [](const PluginSwitchFeature& f) {
-                                      return std::string(f.name) == kFilamentAccountingFeature;
-                                  });
-    REQUIRE(row != kPluginSwitchFeatures.end());
-    CHECK(row->has_fallback);
-    CHECK(row->acts);
-    CHECK(std::string(row->on_subject) == "plugin_feature_on_filament_accounting");
+TEST_CASE("filament accounting: on unless plugin_features turns it off", "[plugin_filament]") {
+    INFO("no record, or no key in it: on");
+    CHECK(filament_accounting_opted_in(json::object()));
+    CHECK(filament_accounting_opted_in(json{{"photos", false}}));
+    INFO("a key that is not a bool is the default");
+    CHECK(filament_accounting_opted_in(json{{kFilamentAccountingFeature, "no"}}));
+    INFO("the escape hatch");
+    CHECK_FALSE(filament_accounting_opted_in(json{{kFilamentAccountingFeature, false}}));
+    CHECK(filament_accounting_opted_in(json{{kFilamentAccountingFeature, true}}));
+}
+
+TEST_CASE("filament accounting: no settings switch, a status line in the overview",
+          "[plugin_filament]") {
+    CHECK(std::none_of(kPluginSwitchFeatures.begin(), kPluginSwitchFeatures.end(),
+                       [](const PluginSwitchFeature& f) {
+                           return std::string(f.name) == kFilamentAccountingFeature;
+                       }));
 
     PluginFeatureMap features;
-    features[kFilamentAccountingFeature] = PluginFeatureEntry{1, true, false, {}, ""};
+    features[kFilamentAccountingFeature] = PluginFeatureEntry{1, true, true, {}, ""};
     const auto lines = plugin_feature_lines(features);
     REQUIRE(lines.size() == 1);
-    CHECK(lines[0].home == PluginFeatureHome::Spoolman);
+    CHECK(lines[0].home == PluginFeatureHome::None);
     CHECK(lines[0].label != kFilamentAccountingFeature);
 
-    INFO("acts on spools: off until opted into");
-    CHECK_FALSE(plugin_feature_opted_in(json::object(), kFilamentAccountingFeature, true));
+    INFO("a printer without Moonraker's [spoolman] has nothing to switch: no line");
+    features[kFilamentAccountingFeature] = PluginFeatureEntry{1, false, false, {}, "no_spoolman"};
+    CHECK(plugin_feature_lines(features).empty());
 }
 
 TEST_CASE("filament accounting: who sets the spool for an explicit link of the loaded lane",

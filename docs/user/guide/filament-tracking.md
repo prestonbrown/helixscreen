@@ -89,7 +89,7 @@ With Spoolman connected, HelixScreen does not subtract weight itself for linked 
 - **Sync with Spoolman**, under **Settings > Devices > Spoolman > Weight Sync**, is on by default. In 1.1 the switch is saved but does not stop the reading: the Home, Filament and Spoolman screens still read weights while they are open, and the switch only affects the reading while the Spoolman settings page itself is open.
 - Weights are also read again whenever a print starts, pauses or completes.
 - **Refresh Interval** offers 30 s, 1 min, 2 min and 5 min. In 1.1 the choice is saved but the screen still checks every 30 seconds whichever you pick.
-- On a printer with several tools or lanes, turn on **Switch spools at each tool change** (same page) so each tool's filament is charged to that tool's spool. See [Switch spools at each tool change](settings/devices.md#switch-spools-at-each-tool-change).
+- On a printer with several tools or lanes, HelixScreen switches the active spool at each tool change, so each tool's filament is charged to that tool's spool. Nothing to turn on; see [Spool switching at each tool change](settings/devices.md#spool-switching-at-each-tool-change).
 
 HelixScreen writes to Spoolman only when you make a change (linking a spool, editing a spool, creating one, saving a pressure advance value), and when it switches the active spool as described below.
 
@@ -99,7 +99,6 @@ HelixScreen writes to Spoolman only when you make a change (linking a spool, edi
 
 1. Sync with Spoolman.
 2. Refresh Interval.
-3. Switch spools at each tool change.
 
 ### Browsing and linking spools
 

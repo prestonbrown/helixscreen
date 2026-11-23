@@ -108,12 +108,11 @@ TEST_CASE_METHOD(PageRowsFixture, "settings pages: every row lives on its page",
 TEST_CASE_METHOD(PageRowsFixture,
                  "settings pages: each plugin feature's switch is on the page the overview opens",
                  "[settings][settings_pages][plugin_feature]") {
-    // PluginFeatureHome: Devices, Safety, System > Storage, Spoolman.
+    // PluginFeatureHome: Devices, Safety, System > Storage.
     const std::vector<Placement> placements = {
         {"settings_hardware_overlay", {"row_print_photos"}},
         {"settings_safety_overlay", {"row_fit_check_blocks_autostart"}},
         {"settings_system_overlay", {"row_storage"}},
-        {"spoolman_settings", {"row_filament_accounting"}},
         {"settings_storage_overlay", {"row_storage_auto_cleanup"}},
     };
     for (const auto& p : placements) {

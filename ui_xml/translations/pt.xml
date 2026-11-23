@@ -2197,7 +2197,6 @@
   <translation tag="Make sure every nozzle is clean." pt="Certifique-se de que todos os bicos estejam limpos."/>
   <translation tag="Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats." pt="Verifique se não há filamento carregado no cabeçote: ele pode amolecer na extrusora enquanto a mesa aquece."/>
   <translation tag="MakeID (Bluetooth)" pt="MakeID (Bluetooth)"/>
-  <translation tag="Makes Spoolman charge each tool&apos;s or lane&apos;s own spool, for printers that do not switch it themselves, and records per print what each spool used." pt="Faz o Spoolman descontar do carretel de cada ferramenta ou lane, em impressoras que não o trocam sozinhas, e registra por impressão quanto cada carretel usou."/>
   <translation tag="Manage" pt="Gerenciar"/>
   <translation tag="Manage Printers" pt="Gerenciar Impressoras"/>
   <translation tag="Manage configured printers" pt="Gerenciar impressoras configuradas"/>
@@ -3738,7 +3737,6 @@
   <translation tag="Switch a power device on or off" pt="Ligar ou desligar um dispositivo"/>
   <translation tag="Switch back to the Snapmaker screen" pt="Voltar para a tela da Snapmaker"/>
   <translation tag="Switch between light and dark themes" pt="Alternar entre temas claro e escuro"/>
-  <translation tag="Switch spools at each tool change" pt="Trocar de carretel a cada troca de ferramenta"/>
   <translation tag="Switch the active tool or extruder" pt="Trocar a ferramenta ou extrusor ativo"/>
   <translation tag="Switch to a backup slot on runout" pt="Trocar para um slot de reserva ao acabar o filamento"/>
   <translation tag="Switch to a matching slot on runout" pt="Trocar para um slot compatível ao acabar o filamento"/>

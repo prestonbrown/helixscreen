@@ -1324,10 +1324,11 @@ attached and remote screens.
   what happened to the printer: shutdowns and their reasons, lost MCUs, firmware restarts,
   pauses, runouts, errors and how each print ended. With the plugin it includes what
   happened while no screen was connected. Debug bundles include it.
-- **Switch spools at each tool change** - in **Settings > Devices > Spoolman**, the active
-  Spoolman spool follows the tool or lane that is printing, so each spool is charged for its
-  own filament. With the plugin it covers every print and the print's history lists the
-  spools it used; without it, the screen does it while connected.
+- **Spool switching at each tool change** - with Spoolman connected, the active Spoolman
+  spool follows the tool or lane that is printing, so each spool is charged for its own
+  filament. It is automatic, and printers that already switch spools themselves are left
+  alone. With the plugin it covers every print and the print's history lists the spools it
+  used; without it, the screen does it while connected.
 - **Start options for prints from other apps** - **Settings > Printing > Apply start options
   to prints from other apps** sends your standing print options, such as which U1 toolheads
   unload at the end, to prints started from Mainsail, Fluidd, a slicer or the job queue.

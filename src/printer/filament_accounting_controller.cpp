@@ -299,8 +299,7 @@ void FilamentAccountingController::on_active_tool_changed(int tool_index) {
     auto& status = ps.plugin_status_state();
     const PluginFeatureState state =
         status.plugin_feature(kFilamentAccountingFeature, kFilamentAccountingMinVersion);
-    const bool opted_in =
-        plugin_feature_opted_in(status.stored_opt_ins(), kFilamentAccountingFeature, /*acts=*/true);
+    const bool opted_in = filament_accounting_opted_in(status.stored_opt_ins());
     const ActiveSpoolOwner owner =
         active_spool_owner_now(ps.is_spoolman_available(), backends_manage_active_spool());
     // Only a switch this instance would make needs to know who else is here.

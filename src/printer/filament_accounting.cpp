@@ -187,6 +187,10 @@ FilamentAccountingSender filament_accounting_sender(PluginFeatureState accountin
     return FilamentAccountingSender::None;
 }
 
+bool filament_accounting_opted_in(const nlohmann::json& opt_ins) {
+    return plugin_feature_opted_in(opt_ins, kFilamentAccountingFeature, /*acts=*/false);
+}
+
 bool writes_filament_spools_record(FallbackSenderRole role,
                                    const std::vector<FeedSignal>& signals) {
     return role == FallbackSenderRole::Sender && !signals.empty();

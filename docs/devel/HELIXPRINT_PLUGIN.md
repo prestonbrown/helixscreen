@@ -31,8 +31,11 @@ most, because it is the one that is not always connected and cannot afford to re
 
 ### Ground rules
 
-- **Opt-in for anything that acts on a print the screen did not start.** Each such feature has
-  its own switch, off by default.
+- **Opt-in for anything that acts on a print the screen did not start, or on the user's
+  files.** Each such feature has its own switch, off by default. Spool switching
+  (`filament_accounting`) is not one of them: it never deducts, stays out of the way wherever
+  something else switches the spool, and without it a multi-tool printer charges the wrong
+  spools, so it is on wherever Moonraker loads `[spoolman]`, with no settings switch.
 - **Every feature attempts an app-side fallback.** Where the fallback is weak or impossible, the
   feature's section says so under **Fallback**; a feature with none is plugin-only, and its row
   says so (`NeedsPlugin`).
@@ -130,7 +133,7 @@ self.register_feature(
 
 | Argument | Meaning |
 |----------|---------|
-| `acts` | `True` for a feature that acts on a print, a spool or the user's files. Its `plugin_features` default is off; an observer's is on |
+| `acts` | `True` for a feature that acts on a print or the user's files. Its `plugin_features` default is off; every other feature's is on |
 | `switch` | An async callable that owns the feature's on/off. With one, the `plugin_features` key is never read |
 | `probe` | Live availability, `(available, reason)`, read on each status call instead of the fixed `available` / `reason` |
 | `extra` | Extra fields merged into the feature's status entry (PLR uses it) |
@@ -320,8 +323,9 @@ remote. With no plugin entry, a fallback switch shows the stored opt-in
 A feature that owns its switch (PLR) passes its own subject and callback and gets the same
 modes.
 
-**Which features get a switch.** A feature that acts on a print, a spool or the user's files,
-and an observer with an app fallback the user may want off (photos). Pure observers (file
+**Which features get a switch.** A feature that acts on a print or the user's files, and an
+observer with an app fallback the user may want off (photos). Spool switching has none: its
+`plugin_features` key is a config-only way out (Filament Accounting). Pure observers (file
 analysis, event journal, storage report) and transports (server edits, config edit, vendor
 push) get no switch anywhere. Homes, each a `PluginFeatureHome`:
 
@@ -330,7 +334,6 @@ push) get no switch anywhere. Homes, each a `PluginFeatureHome`:
 | `print_hooks` | Settings > Printing | `Printing` | yes |
 | `plr` | Settings > Printing | `Printing` | no |
 | `fit_check_blocks_autostart` | Settings > Safety & Alerts | `Safety` | no |
-| `filament_accounting` | Settings > Devices > Spoolman, Weight Sync group | `Spoolman` | yes |
 | `photos` | Settings > Devices, under Camera | `Devices` | yes |
 | `storage_auto_cleanup` | Settings > System > Storage | `Storage` | no |
 
@@ -755,9 +758,13 @@ of `toolhead.position[3]` above a high-water mark (retracts are not counted twic
 without a charge when `toolhead.extruder` changes or the active spool is switched. Usage is
 right exactly when the active spool is switched at every tool or lane change. This feature
 switches it for printers whose filament system does not, and records per job what each spool
-was charged. **It never deducts**, so double counting is impossible by construction. Acts on a
-spool: opt-in through `plugin_features.filament_accounting`, default off. Switch: Settings >
-Devices > Spoolman > Switch spools at each tool change (Weight Sync group).
+was charged. **It never deducts**, so double counting is impossible by construction. It is
+registered `acts=False`: on unless `plugin_features.filament_accounting` is `false`, with no
+settings switch. That key is the way out for a printer that switches spools in a way
+`active_spool_owner` misses; the user guide gives the `curl` that writes it. Available only
+while Moonraker loads `[spoolman]` (`FilamentAccounting#availability`, reason `no_spoolman`,
+which the overview hides through `kSpoolmanAbsentReasons`): with no deductor there is nothing
+to switch and no record to keep.
 
 Who already switches the active spool (source survey, 2026-10-20):
 
@@ -856,14 +863,15 @@ stored record, the live ledger (`status: "in_progress"`) of the job printing, or
   itself. Pinned by `cases.json` `keys`.
 - App `filament_accounting_sender(plugin_feature("filament_accounting", 1), opted_in, owner,
   role)`: owner not Helix -> None; Ready -> Plugin; Disabled -> None; Absent -> App when opted
-  in and Sender.
+  in and Sender. `opted_in` is `filament_accounting_opted_in(stored_opt_ins())`: true unless
+  the key holds `false`, the plugin's own rule.
 - `filament_usage_available(state)`: the history detail asks the plugin when the feature is
   reported at all (Ready or Disabled; records outlive the switch).
 
 **Fallback.** `FilamentAccountingController` switches the active spool when the active tool
 changes mid-print, for tools that print from their own extruder with a spool assigned to the
 tool (`ToolInfo::spoolman_id`, `backend_index < 0`): only while the feature is not Ready, only
-when opted in and the owner is Helix, only for the Sender, and only after this connection's
+when not turned off and the owner is Helix, only for the Sender, and only after this connection's
 plugin probe. It reads the current active spool (`get_spoolman_status`) and applies
 `decide_spool_switch`. Backend-fed lanes on a Helix-owned printer are switched by the lane-load
 sync. The fallback misses changes while the app is down, does nothing for single-extruder lane

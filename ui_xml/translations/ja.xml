@@ -2197,7 +2197,6 @@
   <translation tag="Make sure every nozzle is clean." ja="すべてのノズルが清潔であることを確認してください。"/>
   <translation tag="Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats." ja="ツールヘッドにフィラメントがロードされていないことを確認してください: ベッドの加熱中にエクストルーダー内で柔らかくなることがあります。"/>
   <translation tag="MakeID (Bluetooth)" ja="MakeID (Bluetooth)"/>
-  <translation tag="Makes Spoolman charge each tool&apos;s or lane&apos;s own spool, for printers that do not switch it themselves, and records per print what each spool used." ja="自分で切り替えないプリンター向けに、各ツールまたはレーンのスプールから Spoolman が使用量を差し引くようにし、印刷ごとに各スプールの使用量を記録します。"/>
   <translation tag="Manage" ja="管理"/>
   <translation tag="Manage Printers" ja="プリンター管理"/>
   <translation tag="Manage configured printers" ja="設定済みプリンターを管理"/>
@@ -3738,7 +3737,6 @@
   <translation tag="Switch a power device on or off" ja="電源デバイスのオン/オフ切り替え"/>
   <translation tag="Switch back to the Snapmaker screen" ja="Snapmakerの画面に戻します"/>
   <translation tag="Switch between light and dark themes" ja="ライトテーマとダークテーマを切り替え"/>
-  <translation tag="Switch spools at each tool change" ja="ツール交換ごとにスプールを切り替える"/>
   <translation tag="Switch the active tool or extruder" ja="アクティブなツールやエクストルーダーを切り替え"/>
   <translation tag="Switch to a backup slot on runout" ja="フィラメント切れ時に予備スロットへ切り替え"/>
   <translation tag="Switch to a matching slot on runout" ja="フィラメント切れ時に一致するスロットへ切り替え"/>

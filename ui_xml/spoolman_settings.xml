@@ -130,17 +130,6 @@
             </lv_dropdown>
           </lv_obj>
         </lv_obj>
-        <!-- SPOOL SWITCHING PER TOOL AND LANE: the plugin's filament_accounting feature -->
-        <lv_obj name="container_filament_accounting"
-                width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0"
-                scrollable="false">
-          <bind_flag_if_eq subject="printer_has_spoolman" flag="hidden" ref_value="0"/>
-          <plugin_feature_toggle_row name="row_filament_accounting"
-                                     feature="filament_accounting" label="Switch spools at each tool change"
-                                     description="Makes Spoolman charge each tool's or lane's own spool, for printers that do not switch it themselves, and records per print what each spool used."
-                                     subject="plugin_feature_on_filament_accounting"
-                                     callback="on_plugin_feature_switch_changed"/>
-        </lv_obj>
         <!-- ================================================================== -->
         <!-- Info Note                                                          -->
         <!-- ================================================================== -->

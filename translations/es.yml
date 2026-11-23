@@ -2411,8 +2411,6 @@ translations:
   'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.': 'Asegúrate de que no haya filamento cargado en el cabezal: puede ablandarse en el extrusor mientras la cama se calienta.'
 
   MakeID (Bluetooth): MakeID (Bluetooth)
-  ? Makes Spoolman charge each tool's or lane's own spool, for printers that do not switch it themselves, and records per print what each spool used.
-  : 'Hace que Spoolman descuente de la bobina propia de cada herramienta o carril, en impresoras que no la cambian por sí mismas, y registra por impresión lo que usó cada bobina.'
   Manage: Administrar
   Manage Printers: Administrar Impresoras
   Manage configured printers: Administrar impresoras configuradas
@@ -4068,7 +4066,6 @@ translations:
   Switch a power device on or off: Encender o apagar un dispositivo
   Switch Sensors: Sensores de interruptor
   Switch between light and dark themes: Cambiar entre temas claro y oscuro
-  Switch spools at each tool change: 'Cambiar de bobina en cada cambio de herramienta'
   Switch the active tool or extruder: Cambiar la herramienta o extrusor activo
   Switch to a backup slot on runout: Cambiar a una ranura de reserva al agotarse
   Switch to a matching slot on runout: Cambiar a una ranura coincidente al agotarse

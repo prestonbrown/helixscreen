@@ -8,7 +8,6 @@
 #include "ui_settings_printing.h"
 #include "ui_settings_safety.h"
 #include "ui_settings_storage.h"
-#include "ui_spoolman_overlay.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
@@ -189,14 +188,6 @@ void PluginOverviewOverlay::on_feature_clicked(lv_event_t* e) {
             case PluginFeatureHome::Storage:
                 helix::settings::get_storage_settings_overlay().show(overlay.parent_screen_);
                 break;
-            case PluginFeatureHome::Spoolman: {
-                auto& spoolman = helix::ui::get_spoolman_overlay();
-                if (IMoonrakerAPI* api = get_moonraker_api()) {
-                    spoolman.set_api(api);
-                }
-                spoolman.show(overlay.parent_screen_);
-                break;
-            }
             case PluginFeatureHome::Devices:
                 helix::settings::get_hardware_settings_overlay().show(overlay.parent_screen_);
                 break;
