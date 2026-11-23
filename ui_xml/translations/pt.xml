@@ -1442,6 +1442,7 @@
   <translation tag="Do not touch the printer during calibration" pt="Não toque na impressora durante a calibração"/>
   <translation tag="Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start." pt="Não desligue a impressora até terminar. Uma queda de energia durante a gravação pode impedir a impressora de iniciar."/>
   <translation tag="Do not turn the printer off until the update finishes." pt="Não desligue a impressora até a atualização terminar."/>
+  <translation tag="Do what the message asks, then try again." pt="Faça o que a mensagem pede e tente novamente."/>
   <translation tag="Dock" pt="Encaixar"/>
   <translation tag="Dock every toolhead first" pt="Coloque todos os cabeçotes na doca primeiro"/>
   <translation tag="Dock position change too large" pt="Mudança da posição da doca grande demais"/>
@@ -5148,6 +5149,7 @@
   <translation tag="The update&apos;s result is unknown" pt="O resultado da atualização é desconhecido"/>
   <translation tag="The {0} motor was not measured: {1}." pt="O motor {0} não foi medido: {1}."/>
   <translation tag="The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong." pt="O acelerômetro {1} não respondeu com o ID esperado. Provavelmente está desconectado, o cabo está danificado ou os pinos SPI estão errados."/>
+  <translation tag="The {1} macro stopped with this message." pt="A macro {1} parou com esta mensagem."/>
   <translation tag="The {1} motor lost steps" pt="O motor {1} perdeu passos"/>
   <translation tag="The {1} motor skipped steps or stalled: the toolhead hit the print, or a belt slipped." pt="O motor {1} pulou passos ou travou: o cabeçote bateu na impressão ou uma correia patinou."/>
   <translation tag="The {1} sensor read {2} °C, outside its allowed range of {3} to {4} °C, so the firmware stopped every heater to be safe." pt="O sensor {1} leu {2} °C, fora da faixa permitida de {3} a {4} °C, então o firmware desligou todos os aquecedores por segurança."/>
@@ -6071,6 +6073,7 @@
   <translation tag="{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)" pt="Ondulação {0}x a {1:.0f} mm/s: {2:.0f} antes, {3:.0f} depois ({4}% mais)"/>
   <translation tag="{1} never triggered" pt="{1} nunca acionou"/>
   <translation tag="{1} temperature reading is out of range" pt="Leitura de temperatura de {1} fora da faixa"/>
+  <translation tag="{2}" pt="{2}"/>
   <translation tag="{:.0f} g left" pt="restam {:.0f} g"/>
   <translation tag="{:.0f} g of {} · {}%" pt="{:.0f} g de {} · {}%"/>
   <translation tag="{:.0f}-{:.0f} Hz sweep" pt="varredura de {:.0f}-{:.0f} Hz"/>

@@ -1442,6 +1442,7 @@
   <translation tag="Do not touch the printer during calibration" es="No toque la impresora durante la calibración"/>
   <translation tag="Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start." es="No apagues la impresora hasta que termine. Un corte de energía durante el flasheo puede dejar la impresora sin arrancar."/>
   <translation tag="Do not turn the printer off until the update finishes." es="No apagues la impresora hasta que termine la actualización."/>
+  <translation tag="Do what the message asks, then try again." es="Haz lo que indica el mensaje e inténtalo de nuevo."/>
   <translation tag="Dock" es="Acoplar"/>
   <translation tag="Dock every toolhead first" es="Primero lleva cada cabezal a su base"/>
   <translation tag="Dock position change too large" es="Cambio de posición de base demasiado grande"/>
@@ -5148,6 +5149,7 @@
   <translation tag="The update&apos;s result is unknown" es="El resultado de la actualización es desconocido"/>
   <translation tag="The {0} motor was not measured: {1}." es="El motor {0} no se midió: {1}."/>
   <translation tag="The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong." es="El acelerómetro {1} no respondió con su ID esperado. Lo más probable es que esté desconectado, que su cable esté dañado o que sus pines SPI sean incorrectos."/>
+  <translation tag="The {1} macro stopped with this message." es="La macro {1} se detuvo con este mensaje."/>
   <translation tag="The {1} motor lost steps" es="El motor {1} perdió pasos"/>
   <translation tag="The {1} motor skipped steps or stalled: the toolhead hit the print, or a belt slipped." es="El motor {1} se saltó pasos o se bloqueó: el cabezal golpeó la impresión o una correa patinó."/>
   <translation tag="The {1} sensor read {2} °C, outside its allowed range of {3} to {4} °C, so the firmware stopped every heater to be safe." es="El sensor {1} leyó {2} °C, fuera de su rango permitido de {3} a {4} °C, así que el firmware detuvo todos los calentadores por seguridad."/>
@@ -6071,6 +6073,7 @@
   <translation tag="{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)" es="Ondulación {0}x a {1:.0f} mm/s: {2:.0f} antes, {3:.0f} después ({4}% más)"/>
   <translation tag="{1} never triggered" es="{1} nunca se activó"/>
   <translation tag="{1} temperature reading is out of range" es="Lectura de temperatura de {1} fuera de rango"/>
+  <translation tag="{2}" es="{2}"/>
   <translation tag="{:.0f} g left" es="quedan {:.0f} g"/>
   <translation tag="{:.0f} g of {} · {}%" es="{:.0f} g de {} · {}%"/>
   <translation tag="{:.0f}-{:.0f} Hz sweep" es="barrido de {:.0f}-{:.0f} Hz"/>

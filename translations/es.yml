@@ -1527,6 +1527,7 @@ translations:
   Do not touch the printer during calibration: No toque la impresora durante la calibración
   Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start.: 'No apagues la impresora hasta que termine. Un corte de energía durante el flasheo puede dejar la impresora sin arrancar.'
   Do not turn the printer off until the update finishes.: 'No apagues la impresora hasta que termine la actualización.'
+  Do what the message asks, then try again.: 'Haz lo que indica el mensaje e inténtalo de nuevo.'
   Dock: Acoplar
   Dock every toolhead first: 'Primero lleva cada cabezal a su base'
   Dock position change too large: 'Cambio de posición de base demasiado grande'
@@ -5337,6 +5338,7 @@ translations:
   The update's result is unknown: 'El resultado de la actualización es desconocido'
   ? The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong.
   : El acelerómetro {1} no respondió con su ID esperado. Lo más probable es que esté desconectado, que su cable esté dañado o que sus pines SPI sean incorrectos.
+  The {1} macro stopped with this message.: 'La macro {1} se detuvo con este mensaje.'
   The {1} motor lost steps: El motor {1} perdió pasos
   'The {1} motor skipped steps or stalled: the toolhead hit the print, or a belt slipped.': 'El motor {1} se saltó pasos o se bloqueó: el cabezal golpeó la impresión o una correa patinó.'
   The {1} sensor read {2} °C, outside its allowed range of {3} to {4} °C, so the firmware stopped every heater to be safe.: El sensor {1} leyó {2} °C, fuera de su rango permitido de {3} a {4} °C, así que el firmware detuvo todos los calentadores por seguridad.
@@ -6298,6 +6300,7 @@ translations:
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)': 'Ondulación {0}x a {1:.0f} mm/s: {2:.0f} antes, {3:.0f} después ({4}% más)'
   '{1} never triggered': '{1} nunca se activó'
   '{1} temperature reading is out of range': Lectura de temperatura de {1} fuera de rango
+  '{2}': '{2}'
   '{:.0f} g left': quedan {:.0f} g
   '{:.0f} g of {} · {}%': '{:.0f} g de {} · {}%'
   '{:.0f}-{:.0f} Hz sweep': barrido de {:.0f}-{:.0f} Hz

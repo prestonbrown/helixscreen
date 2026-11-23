@@ -411,7 +411,15 @@ constexpr Row kKlipperRows[] = {
      nullptr, nullptr},
     {"GC-3", "Malformed command '", nullptr, nullptr, false, C::Command, S::FollowPrint, nullptr,
      nullptr, nullptr},
-    {"GC-5", "Error evaluating '", nullptr, "^Error evaluating '([^']+)': (\\w+): (.*)", false,
+    // A macro that stops on purpose (action_raise_error) raises a CommandError
+    // carrying its own message, which is the reason the user needs to read.
+    {"GC-6", "Error evaluating '", "CommandError: ",
+     "^Error evaluating '(?:gcode_macro )?([^':]+)(?::gcode)?': (?:[\\w.]+\\.)?CommandError: (.*)",
+     false, C::Command, S::FollowPrint, TR_NOOP("{2}"),
+     TR_NOOP("The {1} macro stopped with this message."),
+     TR_NOOP("Do what the message asks, then try again.")},
+    // Klipper names the exception with its module ("jinja2.exceptions.UndefinedError").
+    {"GC-5", "Error evaluating '", nullptr, "^Error evaluating '([^']+)': ([\\w.]+): (.*)", false,
      C::Command, S::FollowPrint, TR_NOOP("Error in macro {1}"),
      TR_NOOP("The macro failed while running: {3}. A macro usually fails like this when it uses "
              "a parameter the slicer did not pass or an object the printer does not have."),
