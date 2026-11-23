@@ -2187,10 +2187,20 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         forced_gcode_error_ = ForcedGcodeError{type, message, script_substr};
     }
 
+    /// Like force_next_gcode_error(), but the error arrives on a later main-thread
+    /// tick, once the send has returned: a socket that drops with the request in
+    /// flight, which a caller must tell apart from a refusal before the send.
+    void force_next_gcode_error_after_send(MoonrakerErrorType type, const std::string& message,
+                                           const std::string& script_substr = "") {
+        std::lock_guard<std::mutex> lock(forced_gcode_error_mutex_);
+        forced_gcode_error_ = ForcedGcodeError{type, message, script_substr, true};
+    }
+
     /// Consume a pending forced gcode error if it matches @p script. Returns the
     /// error to fire (and clears the pending state), or nullopt if none is pending
     /// or the script filter does not match. Used by the gcode.script mock handler.
-    std::optional<MoonrakerError> take_forced_gcode_error(const std::string& script) {
+    std::optional<MoonrakerError> take_forced_gcode_error(const std::string& script,
+                                                          bool* after_send = nullptr) {
         std::lock_guard<std::mutex> lock(forced_gcode_error_mutex_);
         if (!forced_gcode_error_.has_value())
             return std::nullopt;
@@ -2201,6 +2211,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         err.type = forced_gcode_error_->type;
         err.message = forced_gcode_error_->message;
         err.method = "printer.gcode.script";
+        if (after_send)
+            *after_send = forced_gcode_error_->after_send;
         forced_gcode_error_.reset();
         return err;
     }
@@ -2369,6 +2381,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         MoonrakerErrorType type;
         std::string message;
         std::string script_substr;
+        bool after_send = false;
     };
     std::optional<ForcedGcodeError> forced_gcode_error_;
     // One-shot forced response-drop for printer.gcode.script (test helper). Holds the
