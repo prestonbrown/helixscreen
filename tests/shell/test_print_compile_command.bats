@@ -76,21 +76,37 @@ pcc() {
 # A target-specific CXXFLAGS on an object never reaches a recipe outside that
 # object, so print-compile-command repeats them; this fails the day an object
 # gains one the target does not carry.
-@test "every target-specific CXXFLAGS on an app object reaches its source's command" {
-    local db obj flags src seen=0
-    db=$(make_db)
+# usage: check_target_specific_flags <object dir> [make args...]
+check_target_specific_flags() {
+    local objdir=$1 db obj flags src seen=0
+    shift
+    db=$(make_db "$@")
     while IFS= read -r line; do
         obj=${line%%: *}
         flags=${line#*+= }
-        src="src/${obj#build/obj/}"
+        # A rule written with a variable is shown unexpanded; compare its value.
+        if [[ $flags =~ ^\$\(([A-Za-z0-9_]+)\)$ ]]; then
+            flags=$(scratch_make -s "$@" "print-var-${BASH_REMATCH[1]}" | tail -n 1)
+        fi
+        src="src/${obj#"$objdir"/}"
         src="${src%.o}.cpp"
         [ -f "$src" ] || continue
         seen=$((seen + 1))
-        run pcc F="$src"
+        run pcc "$@" F="$src"
         [ "$status" -eq 0 ] || fail "no command for $src"
         contains " $flags " "$output "
-    done < <(grep -E '^build/obj/[^ :]+\.o: CXXFLAGS \+= ' <<<"$db")
+    done < <(grep -E "^$objdir/[^ :]+\.o: CXXFLAGS \+= " <<<"$db")
     [ "$seen" -gt 0 ] || fail "the database showed no target-specific CXXFLAGS on any object"
+}
+
+@test "every target-specific CXXFLAGS on an app object reaches its source's command" {
+    check_target_specific_flags build/obj
+}
+
+# A size-tuned target adds its own (the screensavers at -O2), which a desktop
+# build never shows.
+@test "the same holds on a size-tuned cross target" {
+    check_target_specific_flags build/ad5m/obj PLATFORM_TARGET=ad5m
 }
 
 @test "printing a command builds nothing" {
