@@ -162,6 +162,9 @@ class PaNonlinearOverlay : public OverlayBase {
     void judge_for_test(int verdict) {
         judge(verdict);
     }
+    void save_for_test() {
+        save_to_config();
+    }
     void discard_for_test() {
         discard();
     }
@@ -274,8 +277,8 @@ class PaNonlinearOverlay : public OverlayBase {
     helix::Subject error_{};
     char error_buf_[192] = {};
 
-    /// Held while a judgement or the result waits on the user, so the
-    /// screensaver does not cover it.
+    /// Held while a judgement waits on the user, so the screensaver does not
+    /// cover it.
     helix::DisplayAwakeToken decision_awake_;
     /// Keeps the E-stop up while the start script homes and heats: no print
     /// job exists until the firmware tower begins.

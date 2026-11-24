@@ -472,6 +472,21 @@ TEST_CASE_METHOD(NonlinearFixture,
     // The printer runs what pass 1's tower printed with again.
     CHECK(client.last_send_script().find("OFFSET=0.000000") != std::string::npos);
     CHECK(can_back() == 0);
+
+    // Nothing is taken back while a tower prints. The statuses above ended the
+    // tower for the overlay only: the mock's own pass-1 tower is still running,
+    // and its PRINT_PA_TOWER refuses a second one until that job ends.
+    overlay.judge_for_test(1);
+    client.cancel_print_internal();
+    helix::ui::UpdateQueue::instance().drain();
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::PREPARING);
+    tower("printing");
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::PRINTING);
+    overlay.back_for_test();
+    CHECK(overlay.stage() == PaNonlinearOverlay::PRINTING);
+    CHECK(overlay.procedure_for_test()->pass_number() == 2);
 }
 
 TEST_CASE_METHOD(NonlinearFixture,
@@ -511,6 +526,11 @@ TEST_CASE_METHOD(NonlinearFixture,
         REQUIRE(overlay.procedure_for_test() != nullptr);
         CHECK(overlay.procedure_for_test()->pass_number() == 1);
         CHECK_FALSE(session_saved());
+        // The extruder still runs the old session's values; Discard puts back
+        // the model from before that session, not those values.
+        overlay.discard_for_test();
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(client.last_send_script().find("MODEL=linear ADVANCE=0.040000") != std::string::npos);
     }
     SECTION("another extruder kind is not offered the session") {
         overlay.start_for_test(params(), pa::ExtruderKind::Bowden);
@@ -540,10 +560,12 @@ TEST_CASE_METHOD(NonlinearFixture,
     overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
     CHECK_FALSE(overlay.holds_machine_busy_for_test());
     overlay.print_pass_for_test();
-    helix::ui::UpdateQueue::instance().drain();
+    // The start script is out until its reply is delivered.
     REQUIRE(overlay.stage() == PaNonlinearOverlay::PREPARING);
     CHECK(overlay.holds_machine_busy_for_test());
-    // Once the tower prints, the print job itself keeps the E-stop up.
+    // Once PRINT_PA_TOWER has returned, the tower's print job keeps the E-stop up.
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK_FALSE(overlay.holds_machine_busy_for_test());
     tower("printing");
     CHECK_FALSE(overlay.holds_machine_busy_for_test());
 }
@@ -592,4 +614,42 @@ TEST_CASE_METHOD(NonlinearFixture,
     // the move that reached it.
     status({{"extruder", {{"nonlinear_offset", 0.002}}}});
     CHECK(live() == "0.0020");
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: back leaves a print that holds the machine alone",
+                 "[pa_nonlinear][pa_tuner][pa_nl_back]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    print_tower();
+    overlay.judge_for_test(1);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::READY);
+    status({{"print_stats", {{"state", "printing"}, {"filename", "benchy.gcode"}}}});
+    const size_t before = client.gcode_script_history().size();
+    overlay.back_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(overlay.stage() == PaNonlinearOverlay::JUDGE);
+    CHECK(sent_since(before).find("SET_PRESSURE_ADVANCE") == std::string::npos);
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: the result neither keeps the screen awake nor raises the "
+                 "E-stop while it saves",
+                 "[pa_nonlinear][pa_tuner][pa_nl_busy][pa_nl_awake]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    while (overlay.stage() != PaNonlinearOverlay::RESULT) {
+        REQUIRE(overlay.procedure_for_test() != nullptr);
+        REQUIRE(overlay.procedure_for_test()->pass_number() <= 3);
+        print_tower();
+        // The overlay has seen the tower end; the mock's own job ends too.
+        client.cancel_print_internal();
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(overlay.stage() == PaNonlinearOverlay::JUDGE);
+        overlay.judge_for_test(1); // Use This Height, or Same Height
+        helix::ui::UpdateQueue::instance().drain();
+    }
+    CHECK_FALSE(overlay.keeps_display_awake_for_test());
+    overlay.save_for_test();
+    CHECK(overlay.stage() == PaNonlinearOverlay::PREPARING);
+    CHECK_FALSE(overlay.holds_machine_busy_for_test());
 }
