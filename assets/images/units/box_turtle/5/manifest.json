@@ -53,6 +53,10 @@
           "color": "full_back_main.png",
           "shade": "full_back_main_shade.png"
         },
+        "back_accent": {
+          "color": "full_back_accent.png",
+          "shade": "full_back_accent_shade.png"
+        },
         "front_main": {
           "color": "full_front_main.png",
           "shade": "full_front_main_shade.png"
@@ -105,6 +109,10 @@
         "back_main": {
           "color": "thumb_back_main.png",
           "shade": "thumb_back_main_shade.png"
+        },
+        "back_accent": {
+          "color": "thumb_back_accent.png",
+          "shade": "thumb_back_accent_shade.png"
         },
         "front_main": {
           "color": "thumb_front_main.png",

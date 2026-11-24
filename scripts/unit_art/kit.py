@@ -374,6 +374,8 @@ UNIT_COLOR_REGIONS = ("main", "accent", "panels")
 UNIT_COLOR_DEPTHS = ("back", "front")
 # How far, in output pixels, a region's mask strokes past each part's outline.
 REGION_GROW_PX = 1.0
+# The narrowest drawing whose region masks grow.
+REGION_GROW_MIN_WIDTH = 100
 
 
 def unit_color_mask_bit(depth, region):
@@ -422,12 +424,18 @@ class Scene:
         # The color region being drawn (Scene.painted) and the color its items are shaded from.
         self.region = None
         self.region_base = None
+        # The color each region's parts are drawn from, by region.
+        self.region_bases = {}
 
     @contextmanager
     def painted(self, region, base):
         """Draw the items inside as part of a recolorable region whose own color is base."""
         if region not in UNIT_COLOR_REGIONS:
             raise ValueError(f"unknown color region {region!r}")
+        # A region is one printed color: the user's color for it replaces every part in it.
+        first = self.region_bases.setdefault(region, base)
+        if first != base:
+            raise ValueError(f"color region {region!r} is drawn from {first} and {base}; one color per region")
         saved = self.region, self.region_base
         self.region, self.region_base = region, base
         try:
@@ -687,19 +695,27 @@ class Scene:
     def _region_grow(self, width):
         # The region's own parts reach REGION_GROW_PX past their outlines, so the tint covers the
         # edge pixels the baked layer blends with its baked color.
+        # A thumbnail's parts are a few pixels across: grown as far, they would visibly fatten.
+        px = REGION_GROW_PX if width >= REGION_GROW_MIN_WIDTH else REGION_GROW_PX / 2
         _, _, vw, _ = self._viewbox()
-        return REGION_GROW_PX * vw / width
+        return px * vw / width
 
     def _region_cover(self, layer, region, width):
         # Whatever solid the layer draws over the region later cuts it. Glass does not: the
         # region shows through it in the user's color, without the glass's haze.
         grow = self._region_grow(width)
+        items = [i for i in self._layer_items(layer) if i.lane is None and not i.blur]
         body = "".join(
             i.svg(fill="#fff", grow=grow) if i.region == region else i.svg(fill="#000")
-            for i in self._layer_items(layer)
-            if i.lane is None and not i.blur and (i.region == region or i.opacity >= 1.0)
+            for i in items
+            if i.region == region or i.opacity >= 1.0
         )
-        return f'<mask id="cover" maskUnits="userSpaceOnUse" {self._frame()}>{body}</mask>'
+        # The growth stays inside what the layer draws, so the unit's outline keeps its edge.
+        drawn = "".join(i.svg(fill="#fff", opacity=1.0) for i in items)
+        return (
+            f'<mask id="drawn" maskUnits="userSpaceOnUse" {self._frame()}>{drawn}</mask>'
+            f'<mask id="cover" maskUnits="userSpaceOnUse" {self._frame()}><g mask="url(#drawn)">{body}</g></mask>'
+        )
 
     def region_color_svg(self, layer, region, width):
         """White where region shows in layer; the runtime recolors it."""

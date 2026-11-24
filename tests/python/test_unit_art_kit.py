@@ -819,7 +819,7 @@ def test_a_far_flange_is_cut_by_its_own_core_and_near_flange_but_not_its_filamen
 
 
 BOX_TURTLES = [box_turtle.UNIT, box_turtle.ENCLOSED]
-BOX_TURTLE_MASKS = ("back_main", "front_main", "front_accent", "front_panels")
+BOX_TURTLE_MASKS = ("back_main", "back_accent", "front_main", "front_accent", "front_panels")
 
 
 @pytest.mark.parametrize("unit", BOX_TURTLES, ids=lambda u: u.id)
@@ -887,3 +887,22 @@ def test_a_region_shade_carries_each_parts_light_against_the_regions_color():
     dark = kit.region_gray(kit.scale("#336699", 0.5), "#336699")
     assert 0x70 <= kit.rgb(dark)[0] <= 0x90
     assert kit.region_gray("#ffffff", "#336699") == "#ffffff"
+
+
+def test_a_color_region_is_drawn_from_one_color():
+    scene = kit.Scene(kit.ART_CAMERA)
+    with scene.painted("main", "#336699"):
+        scene.poly([(0, 0, 0), (1, 0, 0), (1, 0, 1)], "#336699")
+    with pytest.raises(ValueError):
+        with scene.painted("main", "#996633"):
+            pass
+
+
+@pytest.mark.parametrize("unit", BOX_TURTLES, ids=lambda u: u.id)
+def test_a_box_turtle_region_is_lit_no_brighter_than_its_color(unit):
+    """The color a user picks is the region's lit face; every other face is a shade of it."""
+    for tier in ("full", "thumb"):
+        scene = kit.Scene(kit.ART_CAMERA)
+        unit.draw_art(scene, ["#ffffff"] * 4, tier)
+        ratios = [kit._luma(i.fill) / kit._luma(i.region_base) for i in scene.items if i.region]
+        assert ratios and max(ratios) <= 1.0 + 1e-9
