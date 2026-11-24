@@ -272,7 +272,9 @@ class PaNonlinearOverlay : public OverlayBase {
     void close_procedure();
 
     /// Write the procedure, and the model to restore, to the printer's settings.
-    void save_session();
+    /// @p judging: the current pass's tower has printed and waits to be
+    /// judged, so a restart reopens it on the judge screen.
+    void save_session(bool judging = false);
     void clear_saved_session();
     /// Offer to continue the saved procedure @p saved in place of the fresh one.
     void offer_resume(const nlohmann::json& saved);

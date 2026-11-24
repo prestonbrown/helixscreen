@@ -571,6 +571,38 @@ TEST_CASE_METHOD(NonlinearFixture, "nonlinear tuner: a tower that completes is j
     CHECK(overlay.judge_top_for_test() == Catch::Approx(50.0f));
 }
 
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: a tower printed and not yet judged survives a restart",
+                 "[pa_nonlinear][pa_tuner][pa_nl_session]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    tower("printing");
+    status({{"gcode_move", {{"gcode_position", {100.0, 100.0, 22.0, 0.0}}}}});
+    tower("cancelled");
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::JUDGE);
+    REQUIRE(session_saved());
+
+    overlay.forget_for_test();
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    press_dialog("btn_primary");
+    REQUIRE(overlay.procedure_for_test() != nullptr);
+    CHECK(overlay.procedure_for_test()->pass_number() == 1);
+    CHECK(overlay.stage() == PaNonlinearOverlay::JUDGE);
+    CHECK(overlay.judge_top_for_test() == Catch::Approx(22.0f));
+    overlay.adjust_height_for_test(1000);
+    CHECK(overlay.height_for_test() == Catch::Approx(22.0f));
+
+    // Judged, it saves no tower to judge: the next restart opens on the pass.
+    overlay.judge_for_test(1);
+    helix::ui::UpdateQueue::instance().drain();
+    overlay.forget_for_test();
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    press_dialog("btn_primary");
+    CHECK(overlay.procedure_for_test()->pass_number() == 2);
+    CHECK(overlay.stage() == PaNonlinearOverlay::READY);
+}
+
 TEST_CASE_METHOD(NonlinearFixture, "nonlinear tuner: one press of Stop cancels the tower",
                  "[pa_nonlinear][pa_tuner][pa_nl_stop]") {
     overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);

@@ -897,6 +897,8 @@ void PaNonlinearOverlay::on_print_state(PrintJobState state) {
                         ? kTowerHeightMm
                         : std::clamp(std::round(reached_mm_ * 10.0f) / 10.0f,
                                      helix::pa::kTowerLayerMm, kTowerHeightMm);
+    // The tower on the bed outlives a restart of the screen; so does judging it.
+    save_session(true);
     set_stage(JUDGE);
     refresh();
     if (lv_obj_t* root = overlay_root_) {
@@ -1077,7 +1079,9 @@ void PaNonlinearOverlay::go_back() {
     if (!job_holds_machine(get_printer_state().print_state().get_print_lifecycle())) {
         send_values();
     }
-    save_session();
+    // How far the re-opened tower printed is not recorded: all of it is judged.
+    judge_top_mm_ = kTowerHeightMm;
+    save_session(true);
     set_stage(JUDGE);
     // The judgement comes back as entered: both of a two-sided pass's heights.
     if (reopened->left_mm && reopened->front_mm) {
@@ -1282,14 +1286,18 @@ void PaNonlinearOverlay::close_procedure() {
 
 // SESSION
 
-void PaNonlinearOverlay::save_session() {
+void PaNonlinearOverlay::save_session(bool judging) {
     auto* cfg = Config::get_instance();
     if (!cfg || !proc_) {
         return;
     }
-    cfg->set<nlohmann::json>(cfg->df() + kSessionKey, {{"heater", params_.heater},
-                                                       {"procedure", proc_->to_json()},
-                                                       {"original", model_json(original_)}});
+    nlohmann::json session = {{"heater", params_.heater},
+                              {"procedure", proc_->to_json()},
+                              {"original", model_json(original_)}};
+    if (judging) {
+        session["judging_top_mm"] = judge_top_mm_;
+    }
+    cfg->set<nlohmann::json>(cfg->df() + kSessionKey, session);
     cfg->save();
 }
 
@@ -1342,6 +1350,15 @@ void PaNonlinearOverlay::resume(const nlohmann::json& saved) {
     // unless a job holds it.
     if (!job_holds_machine(get_printer_state().print_state().get_print_lifecycle())) {
         send_values();
+    }
+    // A tower printed before the restart and not judged yet: judge it now.
+    if (const auto* top = json_util::find_member(saved, "judging_top_mm");
+        top && top->is_number()) {
+        judge_top_mm_ =
+            std::clamp(json_util::as_float(*top), helix::pa::kTowerLayerMm, kTowerHeightMm);
+        height_mm_ = front_mm_ = judge_top_mm_ / 2.0f;
+        left_set_ = front_set_ = proc_->current().judge != helix::pa::TowerSide::LeftVsFront;
+        set_stage(JUDGE);
     }
     refresh();
 }
