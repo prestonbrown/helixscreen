@@ -19,3 +19,7 @@ export const PRINTER_ISSUE_DEVICES = 5
 export const NEW_ISSUES_PER_RUN = 5
 /** Days before the same alert may be emailed again. */
 export const ALERT_REPEAT_DAYS = 30
+/** A main_loop_hang with less host memory than this (MB available) is the host running out, not the app blocking. */
+export const HANG_HOST_MEMORY_LOW_MB = 64
+/** Minutes before a hang a memory snapshot may sit and still describe the host at the hang; snapshots arrive hourly. */
+export const HANG_SNAPSHOT_WINDOW_MIN = 60

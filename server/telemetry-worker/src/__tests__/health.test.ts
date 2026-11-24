@@ -6,7 +6,7 @@ import { HEALTH_WINDOWS, filterFor, healthQueries, versionInClause, windowClause
 const KEYS: HealthQueryKey[] = [
   "actives_cur", "actives_prev", "top_versions", "release_cur", "release_prev",
   "release_devices_cur", "release_devices_prev", "prints_cur", "prints_prev",
-  "print_sessions_cur", "print_sessions_prev", "errors_cur", "errors_prev", "errors_baseline", "errors_by_device", "crashes_cur", "crashes_prev",
+  "print_sessions_cur", "print_sessions_prev", "errors_cur", "errors_prev", "errors_baseline", "errors_by_device", "hangs_cur", "hangs_prev", "crashes_cur", "crashes_prev",
   "cdn_latest", "kind_days",
 ];
 
