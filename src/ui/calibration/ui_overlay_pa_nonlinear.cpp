@@ -490,8 +490,7 @@ void PaNonlinearOverlay::refresh() {
                                                              estimate.walk_away_minutes)
                               .c_str());
     lv_subject_set_string(&time_sub_, lv_tr("No need to stay while it prints"));
-    lv_subject_set_string(
-        &run_note_, lv_tr("No need to stay; this screen waits for you when the tower is done."));
+    lv_subject_set_string(&run_note_, lv_tr("No need to stay; this screen waits for you."));
     lv_subject_set_string(&save_material_,
                           fmt::format(fmt::runtime(lv_tr("Save for {}")),
                                       params_.material.empty() ? "PLA" : params_.material)
@@ -841,7 +840,7 @@ void PaNonlinearOverlay::refresh_live() {
         &live_text_,
         fmt::format(fmt::runtime(lv_tr("{} at {:.1f} mm")), param_label(param), z).c_str());
 
-    reached_mm_ = std::max(reached_mm_, z);
+    reached_mm_ = helix::pa::tower_reached_mm(reached_mm_, z);
     const auto progress = helix::pa::tower_layer_progress(z);
     lv_subject_set_string(&layer_text_,
                           fmt::format(fmt::runtime(lv_tr("Layer {} of {} · {:.1f} mm")),

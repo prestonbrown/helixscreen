@@ -214,7 +214,7 @@
             <icon src="stop" size="xs" variant="secondary"/>
             <text_small name="pa_nl_stop_hint"
                         width="0" flex_grow="1" long_mode="wrap" style_text_color="#text_muted"
-                        text="Getting worse as it climbs? Stop Tower and judge what has printed."/>
+                        text="Getting worse as it climbs? Stop Tower and judge it."/>
           </lv_obj>
         </lv_obj>
       </lv_obj>

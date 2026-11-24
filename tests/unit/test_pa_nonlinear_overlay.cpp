@@ -546,9 +546,14 @@ TEST_CASE_METHOD(NonlinearFixture,
     overlay.print_pass_for_test();
     helix::ui::UpdateQueue::instance().drain();
     tower("printing");
-    status({{"gcode_move", {{"gcode_position", {100.0, 100.0, 18.4, 0.0}}}}});
-    // A travel move lower down leaves the height reached where it was.
+    // The tower climbs a layer at a time.
+    for (double z = 0.2; z < 18.45; z += 0.2) {
+        status({{"gcode_move", {{"gcode_position", {100.0, 100.0, z, 0.0}}}}});
+    }
+    // A travel move lower down, and the lift a cancel ends with, leave the
+    // height reached where it was.
     status({{"gcode_move", {{"gcode_position", {100.0, 100.0, 3.0, 0.0}}}}});
+    status({{"gcode_move", {{"gcode_position", {100.0, 100.0, 48.4, 0.0}}}}});
     tower("cancelled");
     REQUIRE(overlay.stage() == PaNonlinearOverlay::JUDGE);
     CHECK(overlay.judge_top_for_test() == Catch::Approx(18.4f));
@@ -578,7 +583,9 @@ TEST_CASE_METHOD(NonlinearFixture,
     overlay.print_pass_for_test();
     helix::ui::UpdateQueue::instance().drain();
     tower("printing");
-    status({{"gcode_move", {{"gcode_position", {100.0, 100.0, 22.0, 0.0}}}}});
+    for (double z = 0.2; z < 22.05; z += 0.2) {
+        status({{"gcode_move", {{"gcode_position", {100.0, 100.0, z, 0.0}}}}});
+    }
     tower("cancelled");
     REQUIRE(overlay.stage() == PaNonlinearOverlay::JUDGE);
     REQUIRE(session_saved());

@@ -171,6 +171,13 @@ std::optional<Correction> NonlinearProcedure::correction(SideVerdict verdict) co
     return c;
 }
 
+float tower_reached_mm(float reached_mm, float z_mm) {
+    // A layer change and a small z hop stay well inside this; an end-of-print
+    // lift does not.
+    constexpr float kMaxClimbMm = 1.0f;
+    return z_mm > reached_mm && z_mm <= reached_mm + kMaxClimbMm ? z_mm : reached_mm;
+}
+
 TowerLayerProgress tower_layer_progress(float z_mm, float height_mm, float layer_mm) {
     TowerLayerProgress p;
     if (height_mm <= 0.0f || layer_mm <= 0.0f) {
@@ -191,8 +198,7 @@ void TowerTimeLeft::sample(float z_mm, double t_s) {
     if (first_t_ < 0.0) {
         first_t_ = t_s;
     }
-    // The tower only climbs; a lower reading is a travel move, not progress.
-    z_ = std::max(z_, z_mm);
+    z_ = tower_reached_mm(z_, z_mm);
     t_ = t_s;
     if (climb_z_ < 0.0f && z_ >= 2.0f * layer_mm_ - layer_mm_ / 2.0f) {
         climb_z_ = z_;

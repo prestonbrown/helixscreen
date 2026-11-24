@@ -46,6 +46,11 @@ inline constexpr float kTowerHeightMm = 50.0f;
 /// The firmware tower's layer height (Kalico's [pa_test] default).
 inline constexpr float kTowerLayerMm = 0.2f;
 
+/// The height a tower has reached after the nozzle is seen at @p z_mm: it only
+/// climbs, a layer or so at a time, so a lower reading (a travel move) or a
+/// jump well above the top (the lift that ends a print) leaves it where it was.
+float tower_reached_mm(float reached_mm, float z_mm);
+
 /// Where a printing tower is, from the nozzle height alone: every layer above
 /// the first is the same shape, so height is the tower's real progress.
 struct TowerLayerProgress {

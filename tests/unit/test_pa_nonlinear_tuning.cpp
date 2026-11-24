@@ -306,7 +306,9 @@ TEST_CASE("tower time left: expected time until the climb shows a rate, then the
     // A travel move lower down is no step back.
     eta.sample(0.6f, 260.0);
     CHECK(eta.seconds_left() == 5346);
-    eta.sample(50.0f, 5000.0);
+    for (float z = 1.6f; z < 50.05f; z += 0.2f) {
+        eta.sample(z, 5000.0);
+    }
     CHECK(eta.seconds_left() == 0);
 }
 
@@ -315,4 +317,14 @@ TEST_CASE("tower time left never goes below zero on a slow first layer", "[pa_no
     eta.sample(0.2f, 0.0);
     eta.sample(0.2f, 300.0);
     CHECK(eta.seconds_left() == 0);
+}
+
+TEST_CASE("tower reached height climbs a layer at a time and ignores lifts and travel",
+          "[pa_nonlinear]") {
+    CHECK(tower_reached_mm(0.0f, 0.2f) == Catch::Approx(0.2f));
+    CHECK(tower_reached_mm(28.8f, 29.0f) == Catch::Approx(29.0f));
+    // The lift that ends a cancelled print.
+    CHECK(tower_reached_mm(29.0f, 58.9f) == Catch::Approx(29.0f));
+    // A travel move lower down.
+    CHECK(tower_reached_mm(29.0f, 3.0f) == Catch::Approx(29.0f));
 }
