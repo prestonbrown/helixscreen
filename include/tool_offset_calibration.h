@@ -21,15 +21,19 @@
 // that one question and never name the firmware. There is no per-tool entry
 // point: every procedure is all-or-nothing.
 //
-// Nothing is parsed off the console. Everything the screen needs is already in
-// subscribed status: which tool is on the carriage (`toolchanger`.tool_number,
-// ToolState's active tool), which tools have been measured (the macro's
+// A PrinterPrompt procedure alone is followed off the console: the printer
+// narrates each step as a line, and parse_progress_line() turns it into a
+// ProgressEvent. For every other procedure nothing is parsed off the console;
+// everything the screen needs is already in subscribed status: which tool is on the carriage
+// (`toolchanger`.tool_number, ToolState's active tool), which tools have been measured (the macro's
 // SET_TOOL_PARAMETER writes land on the `tool T<n>` objects and reach
 // ToolState through helix::tool_offsets), and when the run is over (the rpc
 // completes). The panel shows the run's status line and marks the row for the
 // tool currently on the carriage; it infers no per-tool progress beyond that,
 // because the macro reports none.
 
+#include <functional>
+#include <optional>
 #include <string>
 
 namespace helix {
@@ -62,6 +66,37 @@ struct Procedure {
     /// What the entry does, untranslated (pass it through lv_tr()).
     const char* entry_description = "";
 };
+
+/// One step of a PrinterPrompt procedure's run that a printer narrates on the
+/// console, in firmware-neutral terms. Positions are microns.
+struct ProgressEvent {
+    enum class Kind {
+        Started,  ///< Measuring has begun on this target
+        Skipped,  ///< The user left this head out of the run
+        Measured, ///< The target's position was measured
+        Complete, ///< Every offset is written
+    };
+    Kind kind = Kind::Started;
+    int tool = -1;        ///< The head, or -1 for the station and for Complete
+    bool station = false; ///< The target is the calibration station, not a head
+    std::optional<int> x_um;
+    std::optional<int> y_um;
+    std::optional<int> z_um;
+};
+
+/// Cheap check that a console line may be a progress line. Safe on any thread
+/// and meant as the pre-filter before queueing the line to the main thread.
+bool is_progress_line(const std::string& line);
+
+/// Classify one console line; nullopt when it narrates no step.
+std::optional<ProgressEvent> parse_progress_line(const std::string& line);
+
+/// Who hears progress. Set once by the UI; main thread.
+using ProgressSink = std::function<void(const ProgressEvent&)>;
+void set_progress_sink(ProgressSink sink);
+
+/// Parse @p line and hand the step to the sink. Main thread.
+void report_progress_line(const std::string& line);
 
 /// The procedure the Tool Offsets entry runs on this printer.
 Procedure resolve_procedure(const PrinterDiscovery& hw);

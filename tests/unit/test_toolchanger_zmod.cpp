@@ -14,6 +14,7 @@
 #include "standard_macros.h"
 #include "test_helpers/registered_backend.h"
 #include "test_helpers/toolchanger_test_access.h"
+#include "tool_offset_calibration.h"
 #include "toolchanger_addon.h"
 
 #include "../catch_amalgamated.hpp"
@@ -1107,4 +1108,29 @@ TEST_CASE("Z-Mod's extruder calibration lines classify into steps",
     CHECK_FALSE(
         toolchanger_addon::parse_zmod_calibration_line("// Grab attempt for T0: 1 of 5..."));
     CHECK_FALSE(toolchanger_addon::parse_zmod_calibration_line("// [CALIB] garbage"));
+}
+
+TEST_CASE("Z-Mod calibration console lines reach the progress sink",
+          "[toolchanger][zmod][calibration]") {
+    namespace cal = helix::tool_offset_calibration;
+    std::vector<cal::ProgressEvent> heard;
+    cal::set_progress_sink([&heard](const cal::ProgressEvent& e) { heard.push_back(e); });
+
+    // The pre-filter lets progress lines through and nothing else.
+    CHECK(cal::is_progress_line("// [CALIB] T0: ..."));
+    CHECK(cal::is_progress_line("// Calibration complete."));
+    CHECK_FALSE(cal::is_progress_line("// echo: ok"));
+
+    cal::report_progress_line("// [CALIB] T3: X=0.250000 Y=-0.125000 Z=0.040000");
+    cal::report_progress_line("// [CALIB] T1: Skipped (parameter T1=0)");
+    cal::report_progress_line("// Calibration complete.");
+    cal::report_progress_line("// echo: ok");
+    cal::set_progress_sink(nullptr);
+
+    REQUIRE(heard.size() == 3);
+    CHECK(heard[0].kind == cal::ProgressEvent::Kind::Measured);
+    CHECK(heard[0].tool == 3);
+    CHECK(heard[0].z_um == 40);
+    CHECK(heard[1].kind == cal::ProgressEvent::Kind::Skipped);
+    CHECK(heard[2].kind == cal::ProgressEvent::Kind::Complete);
 }

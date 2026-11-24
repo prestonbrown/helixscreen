@@ -93,7 +93,57 @@ const Row kRows[] = {
      kMeasureDescription},
 };
 
+ProgressSink& progress_sink() {
+    static ProgressSink sink;
+    return sink;
+}
+
 } // namespace
+
+bool is_progress_line(const std::string& line) {
+    return line.find("[CALIB] ") != std::string::npos ||
+           toolchanger_addon::parse_zmod_calibration_line(line).has_value();
+}
+
+std::optional<ProgressEvent> parse_progress_line(const std::string& line) {
+    using Step = toolchanger_addon::ZmodCalibrationStep;
+    const auto step = toolchanger_addon::parse_zmod_calibration_line(line);
+    if (!step) {
+        return std::nullopt;
+    }
+    ProgressEvent event;
+    switch (step->kind) {
+    case Step::Kind::Started:
+        event.kind = ProgressEvent::Kind::Started;
+        break;
+    case Step::Kind::Skipped:
+        event.kind = ProgressEvent::Kind::Skipped;
+        break;
+    case Step::Kind::Measured:
+        event.kind = ProgressEvent::Kind::Measured;
+        break;
+    case Step::Kind::Complete:
+        event.kind = ProgressEvent::Kind::Complete;
+        break;
+    }
+    event.tool = step->tool;
+    event.station = step->station;
+    event.x_um = step->x_um;
+    event.y_um = step->y_um;
+    event.z_um = step->z_um;
+    return event;
+}
+
+void set_progress_sink(ProgressSink sink) {
+    progress_sink() = std::move(sink);
+}
+
+void report_progress_line(const std::string& line) {
+    const auto event = parse_progress_line(line);
+    if (event && progress_sink()) {
+        progress_sink()(*event);
+    }
+}
 
 Procedure resolve_procedure(const PrinterDiscovery& hw) {
     for (const auto& row : kRows) {
