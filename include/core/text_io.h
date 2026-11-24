@@ -56,6 +56,13 @@ enum class Durability {
 bool write_file_atomic(const std::string& path, std::string_view data,
                        Durability durability = Durability::None);
 
+namespace detail {
+/// Whether Durability::Fsync really syncs. True everywhere except the unit-test
+/// runner, which turns it off: the suite saves thousands of throwaway files whose
+/// durability nothing checks, and on a loaded disk each sync costs up to seconds.
+bool& fsync_enabled_ref();
+} // namespace detail
+
 // Streaming files, for inputs too big to hold (G-code) and incremental writes
 
 struct FileCloser {

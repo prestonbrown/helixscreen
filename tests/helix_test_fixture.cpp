@@ -25,6 +25,7 @@
 #include "core/observer_guard.h"
 #include "core/temp_unit_subject.h"
 #include "core/temperature_units.h"
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "fault_surface_correlation.h"
@@ -174,6 +175,10 @@ struct ConfigSandbox {
         // The user filament overlay resolves to the same relative "config" dir.
         // MaterialSettingsManager writes it on every override change.
         helix::printer::detail::user_overlay_dir_ref() = dir;
+
+        // Saves outside the sandbox (tests' own temp dirs under a disk-backed
+        // /tmp) would each pay two real syncs that no test observes.
+        helix::text_io::detail::fsync_enabled_ref() = false;
 
         apply();
     }
