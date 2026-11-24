@@ -87,6 +87,11 @@ class UpdateCheckerTestAccess {
         c.restart_action_ = std::move(action);
     }
 
+    /// Mark an install as running (or not) without running install.sh.
+    static void set_installing(UpdateChecker& c, bool installing) {
+        c.installing_ = installing;
+    }
+
     /// Point install.sh's output at @p path instead of the system install log.
     static void set_install_log(UpdateChecker& c, const std::string& path) {
         c.install_log_override_ = path;

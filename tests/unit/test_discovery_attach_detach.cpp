@@ -14,6 +14,7 @@
 #include "ui_update_queue.h"
 
 #include "../fake_moonraker_client.h"
+#include "../test_helpers/update_checker_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_constants.h"
@@ -163,6 +164,23 @@ TEST_CASE("a sentinel naming a running install.sh survives a reconnect",
     kill(installer, SIGKILL);
     waitpid(installer, nullptr, 0);
     UpdateChecker::instance().on_connected(client);
+    CHECK_FALSE(fs::exists(scratch.sentinel()));
+}
+
+TEST_CASE("a pid-less sentinel survives a reconnect while an install is running",
+          "[discovery_attach][update_checker][sentinel]") {
+    ScratchSentinelDir scratch;
+    FakeMoonrakerClient client;
+    auto& checker = UpdateChecker::instance();
+    REQUIRE(UpdateChecker::write_self_restart_sentinel());
+
+    UpdateCheckerTestAccess::set_installing(checker, true);
+    checker.on_connected(client);
+    CHECK(fs::exists(scratch.sentinel()));
+    CHECK(client.rpc_count("machine.update.refresh") == 0);
+
+    UpdateCheckerTestAccess::set_installing(checker, false);
+    checker.on_connected(client);
     CHECK_FALSE(fs::exists(scratch.sentinel()));
 }
 

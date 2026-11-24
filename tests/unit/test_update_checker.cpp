@@ -19,6 +19,7 @@
  * - Status enum transitions
  */
 
+#include "../fake_moonraker_client.h"
 #include "../helix_test_fixture.h"
 #include "../test_helpers/live_thread_count.h"
 #include "../test_helpers/scoped_board.h"
@@ -2081,9 +2082,6 @@ TEST_CASE("A timed-out install.sh is stopped together with everything it started
 
 TEST_CASE("The install log falls back beside the backups, outside the install tree",
           "[update_checker][installer][do_install]") {
-    if (access("/var/log", W_OK) == 0) {
-        SKIP("/var/log is writable here, so the fallback is never taken");
-    }
     auto tmp = make_temp_dir("helix_install_log");
     REQUIRE(!tmp.empty());
     std::string inner = tmp + "/helixscreen";
@@ -2103,7 +2101,8 @@ TEST_CASE("The install log falls back beside the backups, outside the install tr
         mkdir(fallback.c_str(), 0755);
         auto& checker = UpdateChecker::instance();
         UpdateCheckerTestAccess::clear_download_cancelled(checker);
-        UpdateCheckerTestAccess::set_install_log(checker, "");
+        // Unwritable even for root, so the fallback is always taken.
+        UpdateCheckerTestAccess::set_install_log(checker, "/proc/helix-no-such-dir/install.log");
         UpdateCheckerTestAccess::set_restart_action(checker, [] {});
         UpdateCheckerTestAccess::set_status_hold_ms(checker, 0, 0);
         UpdateCheckerTestAccess::do_install(checker, tarball);
@@ -2181,6 +2180,52 @@ TEST_CASE("do_install holds the self-restart sentinel while install.sh runs",
     CHECK(self == "self=" + named);
     // The install failed, so no restart follows and the sentinel is gone.
     CHECK(access(sentinel.c_str(), F_OK) != 0);
+
+    remove_dir(tmp);
+}
+
+TEST_CASE("A reconnect during the restart hold keeps the sentinel of a successful install",
+          "[update_checker][installer][do_install][sentinel]") {
+    auto tmp = make_temp_dir("helix_install_hold");
+    REQUIRE(!tmp.empty());
+    const std::string fallback = tmp + "/.helixscreen";
+    const std::string sentinel = fallback + "/self_restart_sentinel";
+    std::string inner = tmp + "/helixscreen";
+    mkdir(inner.c_str(), 0755);
+    create_file(inner + "/install.sh", "#!/bin/sh\nexit 0\n", true);
+    const std::string tarball = tmp + "/release.tar.gz";
+    std::string cmd =
+        "cd " + tmp + " && COPYFILE_DISABLE=1 tar czf release.tar.gz helixscreen/install.sh";
+    REQUIRE(std::system(cmd.c_str()) == 0);
+
+    const pid_t pid = fork();
+    if (pid == 0) {
+        ScopedRuntimeConfig scoped_config;
+        get_runtime_config()->test_mode = false;
+        helix::app_constants::update::detail::backup_fallback_dir_ref() = fallback;
+        auto& checker = UpdateChecker::instance();
+        UpdateCheckerTestAccess::clear_download_cancelled(checker);
+        UpdateCheckerTestAccess::set_install_log(checker, tmp + "/install.log");
+        // The restart action stands in for the exit that follows the status hold:
+        // a reconnect lands here, after the sentinel lost its pid and before exit.
+        UpdateCheckerTestAccess::set_restart_action(checker, [&checker] {
+            helix::test::FakeMoonrakerClient client;
+            checker.on_connected(client);
+        });
+        UpdateCheckerTestAccess::set_status_hold_ms(checker, 0, 0);
+        UpdateCheckerTestAccess::do_install(checker, tarball);
+        _exit(access(sentinel.c_str(), F_OK) == 0 ? 0 : 1);
+    }
+    REQUIRE(pid > 0);
+    int wstatus = 0;
+    for (int i = 0; i < 3000 && waitpid(pid, &wstatus, WNOHANG) == 0; ++i)
+        usleep(10 * 1000);
+    if (waitpid(pid, &wstatus, WNOHANG) == 0) {
+        kill(pid, SIGKILL);
+        waitpid(pid, &wstatus, 0);
+        FAIL("do_install did not return within 30s");
+    }
+    CHECK((WIFEXITED(wstatus) && WEXITSTATUS(wstatus) == 0));
 
     remove_dir(tmp);
 }
