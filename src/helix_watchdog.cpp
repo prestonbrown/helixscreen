@@ -22,6 +22,7 @@
 #include "ui_fonts.h"
 
 #include "backlight_backend.h"
+#include "board_identity.h"
 #include "config.h"
 #include "core/data_root_resolver.h"
 #include "display_backend.h"
@@ -420,6 +421,10 @@ static void cleanup_splash(pid_t splash_pid) {
 static CrashInfo run_child_process(const WatchdogArgs& args, pid_t splash_pid) {
     CrashInfo crash = {};
     const time_t started = time(nullptr);
+
+    // An in-app update moves and deletes the tree the watchdog started in; re-resolve from the
+    // launcher's binary path (not /proc/self/exe) so a child never inherits a dead cwd.
+    helix::board::chdir_to_install_root(args.child_binary);
 
     // Build argv for execv - need to own the strings for splash_pid arg
     std::vector<std::string> arg_strings;
@@ -1446,6 +1451,12 @@ int main(int argc, char** argv) {
             args.height = kDefaultHeight;
             spdlog::info("[Watchdog] Using default resolution: {}x{}", args.width, args.height);
         }
+    }
+
+    // Relative config/ paths (rotation, crash dialog settings) resolve from the install root.
+    const std::string install_root = helix::board::chdir_to_install_root(args.child_binary);
+    if (!install_root.empty()) {
+        spdlog::info("[Watchdog] Working directory: {}", install_root);
     }
 
     args.rotation = helix::watchdog::rotation_for_launch(args.cli_rotation,

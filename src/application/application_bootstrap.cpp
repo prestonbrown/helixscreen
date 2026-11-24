@@ -84,14 +84,10 @@ void Application::ensure_project_root_cwd() {
     return;
 #endif
 
-    std::string data_root = helix::board::resolve_install_root(exe_path);
+    std::string data_root = helix::board::chdir_to_install_root(exe_path);
     if (!data_root.empty()) {
-        if (chdir(data_root.c_str()) == 0) {
-            spdlog::info("[Application] Auto-detected data root: {}", data_root);
-            return;
-        }
-        spdlog::warn("[Application] Found data root '{}' but chdir failed: {}", data_root,
-                     strerror(errno));
+        spdlog::info("[Application] Auto-detected data root: {}", data_root);
+        return;
     }
 
     // Last resort: check if CWD already has what we need
