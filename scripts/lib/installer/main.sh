@@ -820,6 +820,12 @@ _refuse_if_firmware_managed() {
 
 # Main installation flow
 main() {
+    # A tree's modes never depend on the caller's umask: the K1's ssh sessions
+    # run under 077, which leaves the new install root and everything beneath
+    # it owner-only, and the service started from that session inherits it.
+    # Files meant to be private are written with explicit modes of their own.
+    umask 022
+
     # Probe the host once, before anything consults it: the mod-ownership
     # guard backs set_install_paths' install-dir gate (and detect_tmp_dir's
     # override branch), so HOST_MOD_ROOT must already be probed by then.

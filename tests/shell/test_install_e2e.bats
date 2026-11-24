@@ -270,6 +270,19 @@ snap_resolve() {
     [ "$(readlink "$s$INST/config/helixscreen.env")" = "$USER_CFG/helixscreen.env" ]
 }
 
+@test "install.sh e2e: an install run under umask 077 still leaves every tree it made readable and searchable by everyone" {
+    run_scenario install-umask077
+    local s
+    s=$(snap 1-install-umask077)
+
+    [ -x "$s$INST/bin/helix-screen" ] || fail "no payload binary at $INST"
+    local bad
+    bad=$(find "$s$INST" "$s$USER_CFG" "$s/root/printer_data/logs" -type d ! -perm -755 \
+        -exec stat -c '%a %n' {} + 2>/dev/null | head -5)
+    [ -z "$bad" ] || fail "directories short of 0755: $bad"
+    [ -z "$(find "$s$INST/bin" -type f ! -perm -755 | head -1)" ] || fail "a binary is not 0755"
+}
+
 @test "install.sh e2e: an update replaces the payload and carries config and env across" {
     run_scenario install seed-user update
     local s
