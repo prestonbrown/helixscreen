@@ -8,7 +8,8 @@
  *
  * Reached with AmsBackend::as<IToolPark>(), or through usable_tool_park(), which
  * also asks whether this machine can park now. The tool changer (and INDX through
- * it), the Snapmaker U1 (and MultiACE through it) and the mock implement it.
+ * it), AFC with a Toolchanger unit, the Snapmaker U1 (and MultiACE through it) and the mock
+ * implement it.
  * Without it nothing offers a park.
  */
 

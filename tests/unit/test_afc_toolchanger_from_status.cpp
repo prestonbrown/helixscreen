@@ -28,6 +28,7 @@
  */
 
 #include "ams_backend_afc.h"
+#include "ams_tool_park.h"
 #include "ams_types.h"
 #include "test_helpers/afc_test_access.h"
 
@@ -467,5 +468,50 @@ TEST_CASE("AFC toolchanger: Reforge's Creator 5 is one standalone lane per head"
         afc.feed({{"AFC_lane e2", {{"map", "T0"}}}, {"AFC_lane e0", {{"map", "T2"}}}});
         REQUIRE(afc.change_tool(0));
         CHECK(afc.captured == std::vector<std::string>{"AFC_SELECT_TOOL TOOL=e2"});
+    }
+}
+
+TEST_CASE("AFC tool park: AFC_UNSELECT_TOOL, only on a Toolchanger unit with a tool mounted",
+          "[ams][afc][toolchanger][tool-park]") {
+    const nlohmann::json mounted = {{"toolchanger", {{"status", "ready"}, {"tool_number", 1}}}};
+    const nlohmann::json unmounted = {{"toolchanger", {{"status", "ready"}, {"tool_number", -1}}}};
+
+    SECTION("a Toolchanger unit supports parking and sends AFC's own command") {
+        AfcStatusDispatchHelper afc;
+        afc.feed(toolchanger_frame());
+        afc.feed(mounted);
+        REQUIRE(afc.get_system_info().mount_state == MountState::MOUNTED);
+        REQUIRE(afc.as<helix::IToolPark>() != nullptr);
+        REQUIRE(afc.as<helix::IToolPark>()->supports_tool_park());
+
+        REQUIRE(afc.as<helix::IToolPark>()->park_active_tool().success());
+        // Never raw UNSELECT_TOOL: AFC's state follows only its own command.
+        CHECK(afc.captured == std::vector<std::string>{"AFC_UNSELECT_TOOL"});
+    }
+
+    SECTION("nothing mounted answers not-loaded and sends nothing") {
+        AfcStatusDispatchHelper afc;
+        afc.feed(toolchanger_frame());
+        afc.feed(unmounted);
+        REQUIRE(afc.get_system_info().mount_state == MountState::NONE);
+        const AmsError err = afc.as<helix::IToolPark>()->park_active_tool();
+        CHECK_FALSE(err.success());
+        CHECK(err.result == AmsResult::WRONG_STATE);
+        CHECK(afc.captured.empty());
+    }
+
+    SECTION("a machine without a Toolchanger unit cannot park") {
+        for (const auto& frame :
+             {nlohmann::json{{"AFC", single_extruder_status()}},
+              nlohmann::json{{"AFC", multi_extruder_no_toolchanger_status()}}}) {
+            AfcStatusDispatchHelper afc;
+            afc.feed(frame);
+            afc.feed(mounted);
+            REQUIRE(afc.as<helix::IToolPark>() != nullptr);
+            CHECK_FALSE(afc.as<helix::IToolPark>()->supports_tool_park());
+            CHECK_FALSE(helix::usable_tool_park(&afc) != nullptr);
+            CHECK_FALSE(afc.as<helix::IToolPark>()->park_active_tool().success());
+            CHECK(afc.captured.empty());
+        }
     }
 }

@@ -11,6 +11,7 @@
 #include "ams_narration_matcher.h"
 #include "ams_spool_retention.h"
 #include "ams_subscription_backend.h"
+#include "ams_tool_park.h"
 #include "async_lifetime_guard.h"
 #include "error_event.h"
 #include "filament_slot_override_store.h"
@@ -163,7 +164,8 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
                       public helix::INarrationMatcher,
                       public helix::IDryer,
                       public helix::ISpoolRetention,
-                      public helix::ILaneFaults {
+                      public helix::ILaneFaults,
+                      public helix::IToolPark {
   public:
     // The namespace is PRIVATE, deliberately NOT the shared "lane_data": AFC's
     // own plugin owns that one, deletes the whole namespace on every Klipper
@@ -193,7 +195,16 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
         if (tag == helix::type_tag<helix::ILaneFaults>()) {
             return static_cast<helix::ILaneFaults*>(this);
         }
+        if (tag == helix::type_tag<helix::IToolPark>()) {
+            return static_cast<helix::IToolPark*>(this);
+        }
         return AmsSubscriptionBackend::capability(tag);
+    }
+
+    /// Only a machine with an AFC Toolchanger unit has AFC_UNSELECT_TOOL.
+    [[nodiscard]] bool supports_tool_park() const override;
+    AmsError park_active_tool() override final {
+        return run_park_active_tool(supports_tool_park());
     }
 
     /**
@@ -457,6 +468,7 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     AmsError do_unload_filament(int slot_index) override;
     AmsError do_select_slot(int slot_index) override;
     AmsError do_change_tool(int tool_number) override;
+    AmsError do_park_active_tool() override;
 
   public:
     // Recovery

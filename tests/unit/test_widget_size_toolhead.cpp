@@ -1431,3 +1431,30 @@ TEST_CASE_METHOD(PresetFixture, "toolhead presets: Dock tool reaches the mock to
     CHECK(all_scripts().empty());
     AmsState::instance().clear_backends();
 }
+
+TEST_CASE_METHOD(
+    PresetFixture,
+    "toolhead presets: Dock tool is the default on an AFC toolchanger, not on plain AFC",
+    "[widget_size][toolhead][presets][dock]") {
+    const bool toolchanger = GENERATE(true, false);
+    INFO((toolchanger ? "AFC with a Toolchanger unit" : "AFC Box Turtle"));
+    ToolChangerRig rig(4);
+    rig.backend = nullptr;
+    AmsState::instance().clear_backends();
+    auto persona = std::make_unique<AmsBackendMock>(4);
+    if (toolchanger)
+        persona->set_afc_direct_mode(true);
+    else
+        persona->set_afc_mode(true);
+    persona->set_operation_delay(0);
+    REQUIRE(persona->start());
+    AmsState::instance().set_backend(std::move(persona));
+    drain();
+
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build_tall(h);
+    CHECK(h.widget().preset_slots()[2].kind ==
+          (toolchanger ? ToolheadPresetSlot::Kind::DockTool : ToolheadPresetSlot::Kind::Park));
+    CHECK(subject_text("toolhead_preset_2_label") == (toolchanger ? "Dock tool" : "Park"));
+    AmsState::instance().clear_backends();
+}
