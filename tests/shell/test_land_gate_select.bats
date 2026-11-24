@@ -236,9 +236,26 @@ splash_plan() { # <root> <changed path>...: "<verdict> <why>" for splash-link
     root=$(splash_fixture)
     [[ "$(splash_plan "$root" mk/splash.mk)" == run* ]] || fail "makefile"
     [[ "$(splash_plan "$root" lv_conf.h)" == run* ]] || fail "lv_conf"
+    [[ "$(splash_plan "$root" lib/lvgl)" == run* ]] || fail "lvgl pin"
+    [[ "$(splash_plan "$root" lib/helix-xml)" == skip* ]] || fail "helix-xml pin"
     rm "$root/build/obj/src_helix_splash.cpp.d"
     [[ "$(splash_plan "$root" src/ui/panel.cpp)" == run*"no dependency file"* ]] || fail "fallback"
     [[ "$(splash_plan "$root" ui_xml/home_panel.xml)" == skip* ]] || fail "ui_xml fallback"
+}
+
+@test "plan: splash-link distrusts a dependency file older than a prerequisite or the makefiles" {
+    local root
+    root=$(splash_fixture)
+    # Every .d is fresh: the app-only header is ruled out.
+    [[ "$(splash_plan "$root" include/panel_only.h)" == skip* ]] || fail "fresh"
+    # The .d files predate the makefiles that name the sources: none is trusted,
+    # so a header only a stale .d would have left out still selects the stage.
+    touch -d '2001-01-01' "$root"/build/obj/*.d
+    [[ "$(splash_plan "$root" include/proc_comm.h)" == run*"no dependency file"* ]] || fail "stale vs mk"
+    # Fresh .d files, but one prerequisite is newer than its .d.
+    touch -d '+1 day' "$root"/build/obj/*.d
+    touch -d '+2 days' "$root/include/screensaver_registry.h"
+    [[ "$(splash_plan "$root" include/proc_comm.h)" == run*"no dependency file"* ]] || fail "stale vs header"
 }
 
 ui_files_of() { # <changed path>...: the files the ui row selects, one line

@@ -45,9 +45,11 @@
 #                     linked result; this sees it before the branch lands
 #   splash-link       CI's "Link splash + watchdog (non-LTO)" job, after app-build:
 #                     make PLATFORM_TARGET=x86-fbdev SKIP_OPTIONAL_DEPS=1 splash
-#                     watchdog, then both binaries must exist. They compile
-#                     config.cpp and friends without LVGL on the include path and
-#                     link DISPLAY_LIB whole, which no other step builds. Runs
+#                     watchdog, then both binaries must exist. Their compile
+#                     flags lack the include path that resolves "lvgl/lvgl.h" and
+#                     they link DISPLAY_LIB whole, which no other step builds. It
+#                     starts after ui, plugin, no-mocks and quality finish: its
+#                     libhv build rewrites headers they compile against. Runs
 #                     when a changed path is a source either compiles or a
 #                     header one reaches (gate_select.py)
 #   quality           make quality: the full quality-checks.sh sweep pre-push runs,
@@ -84,7 +86,7 @@
 # history row reads PASS(sel) or FAIL(sel), and each narrowed step <STATUS>(sel),
 # so its times stay apart from full gates' in the ETA and in audits.
 #
-# After app-build, ui, plugin, no-mocks, splash-link and (with a test-host C++ run) quality
+# After app-build, ui, plugin, no-mocks and (with a test-host C++ run) quality
 # run side by side. patches/ is applied before any lane starts, so nothing a
 # lane reads in a submodule is half patched.
 #
@@ -440,9 +442,12 @@ lane() {
                 run_step ui &
                 run_step plugin &
                 run_step no-mocks &
-                run_step splash-link &
                 if [ "$SWEEP_WHERE" != local ]; then run_step quality & fi
                 wait
+                # The x86-fbdev build re-installs libhv's headers in the shared
+                # lib/libhv/include/hv, which the lanes above compile against, so
+                # it starts only once they are done.
+                run_step splash-link
             else
                 head -n 1 "$LAND_GATE_LOGDIR/app-build.why.log" 2>/dev/null | sed "s/^/[$(date +%H:%M:%S)] /"
                 blocked ui "app-build failed"
