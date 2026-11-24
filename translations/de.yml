@@ -340,6 +340,7 @@ translations:
   Accelerometer not responding: 'Beschleunigungssensor antwortet nicht'
   Accelerometer ready: Beschleunigungssensor bereit
   Accelerometers: Beschleunigungssensoren
+  Accent: 'Akzent'
   Accept: Akzeptieren
   'Accepted Z Position: 0.000': 'Akzeptierte Z-Position: 0.000'
   'Accepted Z Position: {:.3f}': 'Akzeptierte Z-Position: {:.3f}'
@@ -489,6 +490,7 @@ translations:
   Arc moves not supported: 'Bogenbewegungen nicht unterstützt'
   Archive: Archivieren
   Archive Spool?: Spule archivieren?
+  Arctic White: 'Arktisweiß'
   Are you sure you want to cancel this print? All progress will be lost.: Sind Sie sicher, dass Sie diesen Druck abbrechen möchten? Der gesamte Fortschritt geht verloren.
   Are you sure? This will power off or restart this device.: Sind Sie sicher? Dies schaltet dieses Gerät aus oder startet es neu.
   Arrows + Home: 'Pfeile + Home'
@@ -671,6 +673,7 @@ translations:
   Bowden tube length to this tool: "Bowden-Länge bis zu diesem Werkzeug"
   'Bowden: pull the tube from the extruder end, then pull the filament.': "Bowden: Schlauch am Extruderende abziehen, dann das Filament herausziehen."
   Box: Box
+  Box Turtle Green and Gold: 'Box Turtle Grün und Gold'
   Brand: Marke
   Brand and material come from Spoolman: Marke und Material stammen aus Spoolman
   Brightness: Helligkeit
@@ -2141,6 +2144,7 @@ translations:
   Front: 'Vorne'
   Front Left: 'Vorne links'
   Front Right: 'Vorne rechts'
+  Front and side panels: 'Front- und Seitenwände'
   Full: Vollständig
   G-code Console: G-Code-Konsole
   G-code Preview: G-Code-Vorschau
@@ -2900,6 +2904,7 @@ translations:
   Macros installed. Restart Klipper after the print to activate them.: 'Makros installiert. Starten Sie Klipper nach dem Druck neu, um sie zu aktivieren.'
   Macros updated. Restart Klipper after the print to activate them.: 'Makros aktualisiert. Starten Sie Klipper nach dem Druck neu, um sie zu aktivieren.'
   'Macros, G-code console, calibration tools (PID, input shaper, z-offset), firmware updates, and developer utilities.': 'Makros, G-Code-Konsole, Kalibrierungswerkzeuge (PID, Input Shaper, Z-Offset), Firmware-Updates und Entwicklerwerkzeuge.'
+  Main: 'Haupt'
   Main LED Strip: Haupt-LED-Streifen
   Maintaining: Wird gehalten
   Maintenance: 'Wartung'
@@ -3451,6 +3456,7 @@ translations:
   Options: Optionen
   Or Enter Manually: Oder manuell eingeben
   Or instead of turning the others: Oder statt die anderen zu drehen
+  Original: 'Original'
   Original file location unknown: Speicherort der Originaldatei unbekannt
   Oscillating... cycle %d/%d: Oszilliert... Zyklus %d/%d
   Other: Andere
@@ -3502,6 +3508,7 @@ translations:
   Pairing failed: Kopplung fehlgeschlagen
   Pairing...: Kopplung...
   Panel Usage: Panel-Nutzung
+  Panels: 'Paneele'
   Paper Test Calibration: Papiertest-Kalibrierung
   'Paper drags: done': "Papier schleift: fertig"
   Parameters: Parameter
@@ -4734,6 +4741,7 @@ translations:
   Stays on PID: Bleibt bei PID
   Std Deviation: Std.-Abweichung
   Stealth: Leise
+  Stealth Black: 'Stealth-Schwarz'
   Stealth is quiet, Sport is fastest: Leise ist am leisesten, Sport am schnellsten
   Step: Schritt
   Step 1 of 3: Schritt 1 von 3
@@ -5003,6 +5011,7 @@ translations:
   ? "The bed's load cell read {1} g, above the {2} g limit, at Z {3}: the nozzle is dragging on the part, a part came loose, or the print warped. The print paused."
   : 'Die Wägezelle des Betts hat {1} g gemessen, über dem Grenzwert von {2} g, bei Z {3}: Die Düse schleift über das Teil, ein Teil hat sich gelöst oder der Druck hat sich verzogen. Der Druck wurde pausiert.'
   The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire.: Die Platine hat sich selbst neu gestartet, meist durch einen Einbruch ihrer Stromversorgung oder einen Kurzschluss an einer Lüfter- oder Heizungsleitung.
+  The body and frame: 'Gehäuse und Rahmen'
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: Der Puffer ist möglicherweise nicht angeschlossen, klemmt oder ist defekt. Vor dem erneuten Versuch prüfen
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: Der Puffer hat 16 Sekunden lang keine Bewegung erkannt. Auf eine Blockade zwischen CFS und Extruder oder einen klemmenden Puffer prüfen
   The build plate should be on the bed but reads as removed.: 'Die Druckplatte sollte auf dem Bett liegen, gilt aber als entfernt.'
@@ -5023,6 +5032,7 @@ translations:
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : Die Änderung wird wirksam, nachdem Klipper neu gestartet wurde. Klipper-Firmware wird neu gestartet. Aktive Vorgänge werden unterbrochen.
   'The change was not applied: the current settings could not be saved for a revert.': 'Die Änderung wurde nicht angewendet: Die aktuellen Einstellungen konnten nicht für eine Rücksetzung gespeichert werden.'
+  The colors this unit was printed in: 'Die Farben, in denen diese Einheit gedruckt wurde'
   ? The configuration includes or opens a file that is not there, often the include line a removed plugin left behind. Klipper's message names the file.
   : Die Konfiguration bindet eine Datei ein oder öffnet eine, die nicht vorhanden ist, oft die Include-Zeile eines entfernten Plugins. Klippers Meldung nennt die Datei.
   The configuration names pin '{1}', which board '{2}' does not have.: Die Konfiguration nennt den Pin '{1}', den die Platine '{2}' nicht hat.
@@ -5635,6 +5645,7 @@ translations:
   Trailing: Nachlaufend
   Translucent: 'Transluzent'
   'Tried ports {} and {}.': "Versucht: Ports {} und {}."
+  Trim and small parts: 'Zierteile und Kleinteile'
   'Troubleshooting:': 'Fehlerbehebung:'
   Try adjusting your search or filters: Versuchen Sie Suche oder Filter anzupassen
   Try Again: 'Erneut versuchen'
@@ -5862,6 +5873,7 @@ translations:
   Volume: Lautstärke
   Volume of filament used during ramming: 'Beim Ramming verwendetes Filamentvolumen'
   Volume {}%: Lautstärke {}%
+  Voron Black and Red: 'Voron Schwarz und Rot'
   WAITING: "WARTET"
   WEIGHT SYNC: GEWICHTSSYNCHRONISIERUNG
   WIDTH SENSORS: BREITENSENSOREN

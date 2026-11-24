@@ -340,6 +340,7 @@ translations:
   Accelerometer not responding: '加速度センサーが応答しません'
   Accelerometer ready: 加速度センサー準備完了
   Accelerometers: 加速度センサー
+  Accent: 'アクセント'
   Accept: 承認
   'Accepted Z Position: 0.000': '確定Z位置: 0.000'
   'Accepted Z Position: {:.3f}': '確定したZ位置: {:.3f}'
@@ -489,6 +490,7 @@ translations:
   Arc moves not supported: 'アーク移動は非対応です'
   Archive: アーカイブ
   Archive Spool?: スプールをアーカイブしますか？
+  Arctic White: 'アークティックホワイト'
   Are you sure you want to cancel this print? All progress will be lost.: この印刷をキャンセルしますか？すべての進行状況が失われます。
   Are you sure? This will power off or restart this device.: よろしいですか？このデバイスの電源がオフまたは再起動されます。
   Arrows + Home: '方向キー + ホーム'
@@ -671,6 +673,7 @@ translations:
   Bowden tube length to this tool: "このツールまでのボーデンチューブ長"
   'Bowden: pull the tube from the extruder end, then pull the filament.': "ボーデン: エクストルーダー側からチューブを抜き、フィラメントを引き抜いてください。"
   Box: ボックス
+  Box Turtle Green and Gold: 'Box Turtle グリーン&ゴールド'
   Brand: ブランド
   Brand and material come from Spoolman: ブランドと素材は Spoolman から取得されます
   Brightness: 明るさ
@@ -2141,6 +2144,7 @@ translations:
   Front: '手前'
   Front Left: '左手前'
   Front Right: '右手前'
+  Front and side panels: '前面と側面のパネル'
   Full: フル
   G-code Console: G-code コンソール
   G-code Preview: G-code プレビュー
@@ -2900,6 +2904,7 @@ translations:
   Macros installed. Restart Klipper after the print to activate them.: 'マクロをインストールしました。印刷後に Klipper を再起動すると有効になります。'
   Macros updated. Restart Klipper after the print to activate them.: 'マクロを更新しました。印刷後に Klipper を再起動すると有効になります。'
   'Macros, G-code console, calibration tools (PID, input shaper, z-offset), firmware updates, and developer utilities.': マクロ、G-code コンソール、キャリブレーションツール（PID、入力シェイパー、Z オフセット）、ファームウェア更新、開発者向けユーティリティ。
+  Main: 'メイン'
   Main LED Strip: メインLEDストリップ
   Maintaining: 維持中
   Maintenance: 'メンテナンス'
@@ -3451,6 +3456,7 @@ translations:
   Options: オプション
   Or Enter Manually: または手動で入力
   Or instead of turning the others: 他のネジを回す代わりに
+  Original: 'オリジナル'
   Original file location unknown: 元のファイルの場所が不明です
   Oscillating... cycle %d/%d: 振動中... サイクル %d/%d
   Other: その他
@@ -3502,6 +3508,7 @@ translations:
   Pairing failed: ペアリング失敗
   Pairing...: ペアリング中...
   Panel Usage: パネル使用状況
+  Panels: 'パネル'
   Paper Test Calibration: 紙テストキャリブレーション
   'Paper drags: done': "紙が引っかかる：完了"
   Parameters: パラメータ
@@ -4734,6 +4741,7 @@ translations:
   Stays on PID: PID のまま
   Std Deviation: 標準偏差
   Stealth: 静音
+  Stealth Black: 'ステルスブラック'
   Stealth is quiet, Sport is fastest: 静音は静か、スポーツは最速
   Step: ステップ
   Step 1 of 3: ステップ 1/3
@@ -5003,6 +5011,7 @@ translations:
   ? "The bed's load cell read {1} g, above the {2} g limit, at Z {3}: the nozzle is dragging on the part, a part came loose, or the print warped. The print paused."
   : 'Z {3} でベッドのロードセルが {1} g（上限 {2} g）を検出しました: ノズルが造形物を引きずっている、部品が外れた、または造形物が反りました。印刷を一時停止しました。'
   The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire.: ボードが勝手に再起動しました。通常、電源電圧の低下か、ファンまたはヒーターの配線のショートが原因です。
+  The body and frame: '本体とフレーム'
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: バッファーが未接続、固着、または故障している可能性があります。再試行前に確認してください
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: バッファーが 16 秒間動きを検出しませんでした。CFS とエクストルーダーの間の詰まり、またはバッファーの固着を確認してください
   The build plate should be on the bed but reads as removed.: 'ビルドプレートはベッドにあるはずですが、外れていると検出されています。'
@@ -5023,6 +5032,7 @@ translations:
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : 変更は Klipper の再起動後に反映されます。Klipperファームウェアを再起動します。実行中の操作は中断されます。
   'The change was not applied: the current settings could not be saved for a revert.': '変更は適用されませんでした: 復元用に現在の設定を保存できませんでした。'
+  The colors this unit was printed in: 'このユニットを印刷した色'
   ? The configuration includes or opens a file that is not there, often the include line a removed plugin left behind. Klipper's message names the file.
   : 設定が存在しないファイルをインクルードまたは開こうとしています。削除したプラグインのインクルード行が残っていることがよくあります。Klipper のメッセージにファイル名が示されています。
   The configuration names pin '{1}', which board '{2}' does not have.: 設定でピン '{1}' が指定されていますが、ボード '{2}' にはそのピンがありません。
@@ -5635,6 +5645,7 @@ translations:
   Trailing: 遅延
   Translucent: '半透明'
   'Tried ports {} and {}.': "ポート{}と{}を試しました。"
+  Trim and small parts: 'トリムと小部品'
   'Troubleshooting:': 'トラブルシューティング:'
   Try adjusting your search or filters: 検索やフィルターを調整してみてください
   Try Again: '再試行'
@@ -5862,6 +5873,7 @@ translations:
   Volume: 音量
   Volume of filament used during ramming: 'ラミング時に使用するフィラメント量'
   Volume {}%: 音量 {}%
+  Voron Black and Red: 'Voron ブラック&レッド'
   WAITING: "待機中"
   WEIGHT SYNC: 重量同期
   WIDTH SENSORS: 幅センサー

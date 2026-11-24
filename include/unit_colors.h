@@ -70,6 +70,21 @@ const std::vector<UnitColorPreset>& unit_color_presets();
 /// The preset with id @p id, or nullptr.
 const UnitColorPreset* find_unit_color_preset(std::string_view id);
 
+/// The colors a drawing shows: each region @p picked sets, else @p baked's.
+UnitColors unit_colors_shown(const UnitColors& picked, const UnitColors& baked);
+
+/// The Colors menu, by option: 0 keeps the drawing's own colors, 1 to N are
+/// unit_color_presets() in order, and N + 1 is Custom.
+int unit_color_option_count();
+
+/// The option @p colors select: 0 when none is set, a preset's when all three match it,
+/// else Custom.
+int unit_color_option(const UnitColors& colors);
+
+/// The colors choosing @p option saves: none for the drawing's own, the preset's, or for
+/// Custom @p shown (the colors on screen) made the user's own. nullopt past the menu.
+std::optional<UnitColors> unit_colors_for_option(int option, const UnitColors& shown);
+
 /// The colors as saved: {"main": "#RRGGBB", ...}, an unset region left out.
 nlohmann::json unit_colors_to_json(const UnitColors& colors);
 

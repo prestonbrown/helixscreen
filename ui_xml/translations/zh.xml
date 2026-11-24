@@ -314,6 +314,7 @@
   <translation tag="Accelerometer not responding" zh="加速度计无响应"/>
   <translation tag="Accelerometer ready" zh="加速度传感器就绪"/>
   <translation tag="Accelerometers" zh="加速度传感器"/>
+  <translation tag="Accent" zh="强调色"/>
   <translation tag="Accept" zh="接受"/>
   <translation tag="Accepted Z Position: 0.000" zh="已接受 Z 位置: 0.000"/>
   <translation tag="Accepted Z Position: {:.3f}" zh="已确认 Z 位置：{:.3f}"/>
@@ -460,6 +461,7 @@
   <translation tag="Arc moves not supported" zh="不支持 G2/G3 圆周移动"/>
   <translation tag="Archive" zh="归档"/>
   <translation tag="Archive Spool?" zh="归档料盘？"/>
+  <translation tag="Arctic White" zh="极地白"/>
   <translation tag="Are you sure you want to cancel this print? All progress will be lost." zh="确定要取消此打印吗？所有进度将丢失。"/>
   <translation tag="Are you sure? This will power off or restart this device." zh="确定吗？这将关闭或重启此设备。"/>
   <translation tag="Arrows" zh="方向键"/>
@@ -645,6 +647,7 @@
   <translation tag="Bowden tube length to this tool" zh="到此工具的 Bowden 管长度"/>
   <translation tag="Bowden: pull the tube from the extruder end, then pull the filament." zh="Bowden:从挤出机端拔出导管,然后拉出耗材。"/>
   <translation tag="Box" zh="料盒"/>
+  <translation tag="Box Turtle Green and Gold" zh="Box Turtle 经典配色"/>
   <translation tag="Brand" zh="品牌"/>
   <translation tag="Brand and material come from Spoolman" zh="品牌和材料来自 Spoolman"/>
   <translation tag="Brightness" zh="亮度"/>
@@ -2044,6 +2047,7 @@
   <translation tag="Front" zh="前"/>
   <translation tag="Front Left" zh="左前"/>
   <translation tag="Front Right" zh="右前"/>
+  <translation tag="Front and side panels" zh="前面板和侧面板"/>
   <translation tag="Full" zh="完整"/>
   <translation tag="G-code Console" zh="G-code 控制台"/>
   <translation tag="G-code Preview" zh="G-code 预览"/>
@@ -2783,6 +2787,7 @@
   <translation tag="Macros installed. Restart Klipper after the print to activate them." zh="宏已安装。打印结束后重启 Klipper 即可启用。"/>
   <translation tag="Macros updated. Restart Klipper after the print to activate them." zh="宏已更新。打印结束后重启 Klipper 即可启用。"/>
   <translation tag="Macros, G-code console, calibration tools (PID, input shaper, z-offset), firmware updates, and developer utilities." zh="宏、G-code 控制台、校准工具（PID、输入整形、Z 偏移）、固件更新以及开发者实用工具。"/>
+  <translation tag="Main" zh="主色"/>
   <translation tag="Main LED Strip" zh="主 LED 灯带"/>
   <translation tag="Maintaining" zh="保持中"/>
   <translation tag="Maintenance" zh="维护"/>
@@ -3320,6 +3325,7 @@
   <translation tag="Options" zh="选项"/>
   <translation tag="Or Enter Manually" zh="或手动输入"/>
   <translation tag="Or instead of turning the others" zh="或者，无需转动其他螺丝"/>
+  <translation tag="Original" zh="原始"/>
   <translation tag="Original file location unknown" zh="原始文件位置未知"/>
   <translation tag="Oscillating... cycle %d/%d" zh="振荡中... 循环 %d/%d"/>
   <translation tag="Other" zh="其他"/>
@@ -3370,6 +3376,7 @@
   <translation tag="Pairing failed" zh="配对失败"/>
   <translation tag="Pairing..." zh="正在配对..."/>
   <translation tag="Panel Usage" zh="面板使用情况"/>
+  <translation tag="Panels" zh="面板"/>
   <translation tag="Paper Test Calibration" zh="纸张测试校准"/>
   <translation tag="Paper drags: done" zh="纸有阻力：完成"/>
   <translation tag="Parameters" zh="参数"/>
@@ -4585,6 +4592,7 @@
   <translation tag="Stays on PID" zh="保持 PID"/>
   <translation tag="Std Deviation" zh="标准差"/>
   <translation tag="Stealth" zh="静音"/>
+  <translation tag="Stealth Black" zh="隐形黑"/>
   <translation tag="Stealth is quiet, Sport is fastest" zh="静音最安静，运动最快"/>
   <translation tag="Step" zh="步骤"/>
   <translation tag="Step 1 of 3" zh="第 1 步，共 3 步"/>
@@ -4841,6 +4849,7 @@
   <translation tag="The bed&apos;s load cell read {1} g, above the {2} g limit, at Z {3}, and the printer shut down to protect itself." zh="热床称重传感器在 Z {3} 处读数为 {1} g，超过 {2} g 的上限，打印机已关机以保护自身。"/>
   <translation tag="The bed&apos;s load cell read {1} g, above the {2} g limit, at Z {3}: the nozzle is dragging on the part, a part came loose, or the print warped. The print paused." zh="热床称重传感器在 Z {3} 处读数为 {1} g，超过 {2} g 的上限：喷嘴刮到模型、零件松脱，或打印件翘曲。打印已暂停。"/>
   <translation tag="The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire." zh="主板自行重启，通常是电源电压瞬间下降，或风扇、加热器线路短路。"/>
+  <translation tag="The body and frame" zh="主体和框架"/>
   <translation tag="The buffer may be disconnected, stuck, or faulty. Check it before retrying" zh="缓冲器可能未连接、卡住或损坏。请检查后重试"/>
   <translation tag="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer" zh="缓冲器已 16 秒未检测到运动。请检查 CFS 与挤出机之间是否堵塞，或缓冲器是否卡住"/>
   <translation tag="The build plate should be on the bed but reads as removed." zh="打印板应在热床上，却显示为已取下。"/>
@@ -4859,6 +4868,7 @@
   <translation tag="The chamber&apos;s circulation fan is on but reads no speed." zh="腔体循环风扇已开启，但读不到转速。"/>
   <translation tag="The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted." zh="更改在 Klipper 重启后生效。将重启 Klipper 固件。所有正在进行的操作将被中断。"/>
   <translation tag="The change was not applied: the current settings could not be saved for a revert." zh="未应用更改：无法保存当前设置以便还原。"/>
+  <translation tag="The colors this unit was printed in" zh="这台设备打印时使用的颜色"/>
   <translation tag="The configuration includes or opens a file that is not there, often the include line a removed plugin left behind. Klipper&apos;s message names the file." zh="配置包含或打开了一个不存在的文件，通常是已移除插件留下的 include 行。Klipper 的消息中注明了该文件。"/>
   <translation tag="The configuration names pin &apos;{1}&apos;, which board &apos;{2}&apos; does not have." zh="配置中指定了引脚 &apos;{1}&apos;，但主板 &apos;{2}&apos; 没有该引脚。"/>
   <translation tag="The configuration needs a missing module" zh="配置需要一个缺失的模块"/>
@@ -5408,6 +5418,7 @@
   <translation tag="Translucent" zh="半透明"/>
   <translation tag="Tried ports {} and {}." zh="已尝试端口 {} 和 {}。"/>
   <translation tag="Trigger" zh="触发器"/>
+  <translation tag="Trim and small parts" zh="边条和小零件"/>
   <translation tag="Troubleshooting:" zh="故障排除："/>
   <translation tag="Try Again" zh="重试"/>
   <translation tag="Try adjusting your search or filters" zh="尝试调整搜索或筛选条件"/>
@@ -5644,6 +5655,7 @@
   <translation tag="Volume" zh="音量"/>
   <translation tag="Volume of filament used during ramming" zh="填充过程中使用的耗材体积"/>
   <translation tag="Volume {}%" zh="音量 {}%"/>
+  <translation tag="Voron Black and Red" zh="Voron 黑红"/>
   <translation tag="WAITING" zh="等待中"/>
   <translation tag="WEIGHT SYNC" zh="重量同步"/>
   <translation tag="WIDTH SENSORS" zh="宽度传感器"/>

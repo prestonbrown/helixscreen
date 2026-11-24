@@ -8,11 +8,13 @@
 
 #include "ui_ams_device_operations_overlay.h"
 
+#include "ui_ams_detail.h"
 #include "ui_ams_device_section_detail_overlay.h"
 #include "ui_ams_recover_state_modal.h"
 #include "ui_callback_helpers.h"
 #include "ui_error_reporting.h"
 #include "ui_modal.h"
+#include "ui_unit_art.h"
 #include "ui_utils.h"
 
 #include "ams_backend.h"
@@ -111,6 +113,17 @@ void AmsDeviceOperationsOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_INT(unit_type_selected_subject_, 0, "ams_unit_type_selected", subjects_);
         UI_MANAGED_SUBJECT_INT(unit_type_available_subject_, 0, "ams_unit_type_available",
                                subjects_);
+        UI_MANAGED_SUBJECT_INT(unit_colors_available_subject_, 0, "ams_unit_colors_available",
+                               subjects_);
+        UI_MANAGED_SUBJECT_STRING(unit_colors_options_subject_, unit_colors_options_buf_, "",
+                                  "ams_unit_colors_options", subjects_);
+        UI_MANAGED_SUBJECT_INT(unit_colors_option_subject_, 0, "ams_unit_colors_option", subjects_);
+        UI_MANAGED_SUBJECT_COLOR(unit_color_main_subject_, lv_color_black(), "ams_unit_color_main",
+                                 subjects_);
+        UI_MANAGED_SUBJECT_COLOR(unit_color_accent_subject_, lv_color_black(),
+                                 "ams_unit_color_accent", subjects_);
+        UI_MANAGED_SUBJECT_COLOR(unit_color_panels_subject_, lv_color_black(),
+                                 "ams_unit_color_panels", subjects_);
     });
 }
 
@@ -228,6 +241,20 @@ void AmsDeviceOperationsOverlay::register_callbacks() {
              auto* dropdown = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
              get_ams_device_operations_overlay().on_unit_type_picked(
                  static_cast<int>(lv_dropdown_get_selected(dropdown)));
+         }},
+        {"on_ams_unit_colors_changed",
+         [](lv_event_t* e) {
+             auto* dropdown = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+             get_ams_device_operations_overlay().on_unit_colors_option_picked(
+                 static_cast<int>(lv_dropdown_get_selected(dropdown)));
+         }},
+        {"on_ams_unit_color_clicked",
+         [](lv_event_t* e) {
+             // The swatch's index is its region, in UnitColorRegion order.
+             const int index = event_user_int(e).value_or(-1);
+             if (index >= 0 && index < static_cast<int>(kUnitColorRegions.size()))
+                 get_ams_device_operations_overlay().on_unit_color_clicked(
+                     kUnitColorRegions[static_cast<size_t>(index)]);
          }},
         {"on_ams_force_bypass_controls_toggled",
          [](lv_event_t* e) {
@@ -397,6 +424,7 @@ void AmsDeviceOperationsOverlay::update_unit_type(const AmsSystemInfo* info) {
     if (!any_choices) {
         unit_type_identity_.clear();
         unit_type_menu_ = {};
+        lv_subject_set_int(&unit_colors_available_subject_, 0);
         return;
     }
     // The unit the rows set, by identity: a unit that moved keeps them, one that left gives
@@ -427,6 +455,74 @@ void AmsDeviceOperationsOverlay::update_unit_type(const AmsSystemInfo* info) {
              unit_type_menu_.options.c_str());
     lv_subject_set_string(&unit_type_options_subject_, unit_type_options_buf_);
     set_int_and_notify(&unit_type_selected_subject_, unit_type_menu_.selected);
+    update_unit_colors(*info, pos);
+}
+
+void AmsDeviceOperationsOverlay::update_unit_colors(const AmsSystemInfo& info, int pos) {
+    const tray::UnitShell* shell = unit_art_shell_for(info, pos, unit_reports_climate(pos));
+    const bool colorable = shell && shell->color_regions != 0 &&
+                           unit_art_available(info, pos, unit_reports_climate(pos));
+    lv_subject_set_int(&unit_colors_available_subject_, colorable ? 1 : 0);
+    if (!colorable) {
+        unit_colors_picked_ = {};
+        unit_colors_baked_ = {};
+        return;
+    }
+    unit_colors_picked_ = SettingsManager::instance().get_ams_unit_colors(unit_type_identity_);
+    unit_colors_baked_ =
+        UnitColors{shell->color_defaults[0], shell->color_defaults[1], shell->color_defaults[2]};
+
+    std::string options = lv_tr("Original");
+    for (const UnitColorPreset& preset : unit_color_presets())
+        options += std::string("\n") + lv_tr(preset.name);
+    options += std::string("\n") + lv_tr("Custom");
+    snprintf(unit_colors_options_buf_, sizeof(unit_colors_options_buf_), "%s", options.c_str());
+    lv_subject_set_string(&unit_colors_options_subject_, unit_colors_options_buf_);
+    set_int_and_notify(&unit_colors_option_subject_, unit_color_option(unit_colors_picked_));
+
+    const UnitColors shown = unit_colors_shown(unit_colors_picked_, unit_colors_baked_);
+    lv_subject_set_color(&unit_color_main_subject_, lv_color_hex(shown.main.value_or(0)));
+    lv_subject_set_color(&unit_color_accent_subject_, lv_color_hex(shown.accent.value_or(0)));
+    lv_subject_set_color(&unit_color_panels_subject_, lv_color_hex(shown.panels.value_or(0)));
+}
+
+void AmsDeviceOperationsOverlay::save_unit_colors(const UnitColors& colors) {
+    if (unit_type_identity_.empty()) {
+        return;
+    }
+    SettingsManager::instance().set_ams_unit_colors(unit_type_identity_, colors);
+    // Every unit picture redraws in the new colors.
+    AmsState::instance().bump_slots_version();
+    if (AmsBackend* backend = AmsState::instance().get_backend()) {
+        const AmsSystemInfo info = backend->get_system_info();
+        update_unit_type(&info);
+    }
+}
+
+void AmsDeviceOperationsOverlay::on_unit_colors_option_picked(int option) {
+    if (const auto colors = unit_colors_for_option(
+            option, unit_colors_shown(unit_colors_picked_, unit_colors_baked_))) {
+        save_unit_colors(*colors);
+    }
+}
+
+void AmsDeviceOperationsOverlay::on_unit_color_clicked(UnitColorRegion region) {
+    if (unit_type_identity_.empty()) {
+        return;
+    }
+    const UnitColors shown = unit_colors_shown(unit_colors_picked_, unit_colors_baked_);
+    // Resolved against the unit the rows were filled for when the picker opened.
+    unit_color_picker_.set_color_callback(
+        [this, region, identity = unit_type_identity_](uint32_t rgb, const std::string&) {
+            if (identity != unit_type_identity_) {
+                return;
+            }
+            // The other regions keep what they were: a region still unset keeps the art's own.
+            UnitColors colors = unit_colors_picked_;
+            colors.set(region, rgb);
+            save_unit_colors(colors);
+        });
+    unit_color_picker_.show_with_color(lv_screen_active(), shown.get(region).value_or(0));
 }
 
 void AmsDeviceOperationsOverlay::on_unit_type_unit_picked(int option) {

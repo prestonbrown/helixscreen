@@ -388,6 +388,7 @@ translations:
   Accelerometer not responding: 'Акселерометр не отвечает'
   Accelerometer ready: Акселерометр готов
   Accelerometers: Акселерометры
+  Accent: 'Акцент'
   Accept: Принять
   'Accepted Z Position: 0.000': 'Принятая позиция Z: 0.000'
   'Accepted Z Position: {:.3f}': 'Принятая позиция Z: {:.3f}'
@@ -537,6 +538,7 @@ translations:
   Arc moves not supported: 'Дуговые перемещения не поддерживаются'
   Archive: Архивировать
   Archive Spool?: Архивировать катушку?
+  Arctic White: 'Арктический белый'
   Are you sure you want to cancel this print? All progress will be lost.: Вы уверены, что хотите отменить печать? Весь прогресс будет потерян.
   Are you sure? This will power off or restart this device.: Вы уверены? Это выключит или перезагрузит данное устройство.
   Arrows + Home: 'Стрелки + Домой'
@@ -727,6 +729,7 @@ translations:
   Bowden tube length to this tool: "Длина боуден-трубки до этого инструмента"
   'Bowden: pull the tube from the extruder end, then pull the filament.': "Боуден: снимите трубку со стороны экструдера, затем вытяните филамент."
   Box: Бокс
+  Box Turtle Green and Gold: 'Box Turtle зелёный и золотой'
   Brand: Бренд
   Brand and material come from Spoolman: Бренд и материал берутся из Spoolman
   Brightness: Яркость
@@ -2205,6 +2208,7 @@ translations:
   Front: 'Спереди'
   Front Left: 'Спереди слева'
   Front Right: 'Спереди справа'
+  Front and side panels: 'Передняя и боковые панели'
   Full: Полный
   G-code Console: Консоль G-code
   G-code Preview: Просмотр G-code
@@ -2964,6 +2968,7 @@ translations:
   Macros installed. Restart Klipper after the print to activate them.: 'Макросы установлены. Перезапустите Klipper после печати, чтобы активировать их.'
   Macros updated. Restart Klipper after the print to activate them.: 'Макросы обновлены. Перезапустите Klipper после печати, чтобы активировать их.'
   'Macros, G-code console, calibration tools (PID, input shaper, z-offset), firmware updates, and developer utilities.': 'Макросы, консоль G-code, инструменты калибровки (PID, Input Shaper, Z-смещение), обновления прошивки и утилиты для разработчиков.'
+  Main: 'Основной'
   Main LED Strip: Основная LED-лента
   Maintaining: Поддержание
   Maintenance: 'Обслуживание'
@@ -3515,6 +3520,7 @@ translations:
   Options: Параметры
   Or Enter Manually: Или введите вручную
   Or instead of turning the others: Или вместо вращения остальных винтов
+  Original: 'Оригинал'
   Original file location unknown: Расположение исходного файла неизвестно
   Oscillating... cycle %d/%d: Осцилляция... цикл %d/%d
   Other: Другое
@@ -3566,6 +3572,7 @@ translations:
   Pairing failed: Ошибка сопряжения
   Pairing...: Сопряжение...
   Panel Usage: Использование панели
+  Panels: 'Панели'
   Paper Test Calibration: Калибровка бумажным тестом
   'Paper drags: done': "Бумага цепляется: готово"
   Parameters: Параметры
@@ -4822,6 +4829,7 @@ translations:
   Stays on PID: Остаётся на PID
   Std Deviation: Станд. отклонение
   Stealth: Тихий
+  Stealth Black: 'Чёрный стелс'
   Stealth is quiet, Sport is fastest: Тихий самый тихий, Спорт самый быстрый
   Step: Шаг
   Step 1 of 3: Шаг 1 из 3
@@ -5091,6 +5099,7 @@ translations:
   ? "The bed's load cell read {1} g, above the {2} g limit, at Z {3}: the nozzle is dragging on the part, a part came loose, or the print warped. The print paused."
   : 'Тензодатчик стола показал {1} г, выше предела {2} г, при Z {3}: сопло задевает деталь, деталь отвалилась или модель покоробилась. Печать приостановлена.'
   The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire.: Плата перезагрузилась сама, обычно из-за просадки питания или замыкания на проводе вентилятора или нагревателя.
+  The body and frame: 'Корпус и рама'
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: Буфер может быть отключён, заклинен или неисправен. Проверьте его перед повтором
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: Буфер не фиксировал движение 16 секунд. Проверьте засор между CFS и экструдером или заклинивший буфер
   The build plate should be on the bed but reads as removed.: 'Печатная пластина должна быть на столе, но числится снятой.'
@@ -5111,6 +5120,7 @@ translations:
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : Изменение вступает в силу после перезапуска Klipper. Прошивка Klipper будет перезапущена. Активные операции будут прерваны.
   'The change was not applied: the current settings could not be saved for a revert.': 'Изменение не применено: не удалось сохранить текущие настройки для отката.'
+  The colors this unit was printed in: 'Цвета, в которых напечатан этот блок'
   ? The configuration includes or opens a file that is not there, often the include line a removed plugin left behind. Klipper's message names the file.
   : Конфигурация включает или открывает несуществующий файл, часто это строка include, оставшаяся от удалённого плагина. Файл указан в сообщении Klipper.
   The configuration names pin '{1}', which board '{2}' does not have.: В конфигурации указан пин '{1}', которого нет на плате '{2}'.
@@ -5723,6 +5733,7 @@ translations:
   Trailing: Отставание
   Translucent: 'Полупрозрачный'
   'Tried ports {} and {}.': "Проверены порты {} и {}."
+  Trim and small parts: 'Отделка и мелкие детали'
   'Troubleshooting:': 'Устранение неполадок:'
   Try adjusting your search or filters: Попробуйте изменить поиск или фильтры
   Try Again: 'Повторить'
@@ -5950,6 +5961,7 @@ translations:
   Volume: Громкость
   Volume of filament used during ramming: 'Объём филамента, расходуемый при рэмминге'
   Volume {}%: Громкость {}%
+  Voron Black and Red: 'Voron чёрный и красный'
   WAITING: "ОЖИДАНИЕ"
   WEIGHT SYNC: СИНХРОНИЗАЦИЯ ВЕСА
   WIDTH SENSORS: ДАТЧИКИ ШИРИНЫ

@@ -320,6 +320,7 @@
   <translation tag="Accelerometer not responding" fr="L&apos;accéléromètre ne répond pas"/>
   <translation tag="Accelerometer ready" fr="Accéléromètre prêt"/>
   <translation tag="Accelerometers" fr="Accéléromètres"/>
+  <translation tag="Accent" fr="Accent"/>
   <translation tag="Accept" fr="Accepter"/>
   <translation tag="Accepted Z Position: 0.000" fr="Position Z acceptée : 0.000"/>
   <translation tag="Accepted Z Position: {:.3f}" fr="Position Z acceptée : {:.3f}"/>
@@ -466,6 +467,7 @@
   <translation tag="Arc moves not supported" fr="Déplacements en arc non pris en charge"/>
   <translation tag="Archive" fr="Archiver"/>
   <translation tag="Archive Spool?" fr="Archiver la bobine ?"/>
+  <translation tag="Arctic White" fr="Blanc arctique"/>
   <translation tag="Are you sure you want to cancel this print? All progress will be lost." fr="Êtes-vous sûr de vouloir annuler cette impression ? Toute la progression sera perdue."/>
   <translation tag="Are you sure? This will power off or restart this device." fr="Êtes-vous sûr ? Cela va éteindre ou redémarrer cet appareil."/>
   <translation tag="Arrows" fr="Flèches"/>
@@ -651,6 +653,7 @@
   <translation tag="Bowden tube length to this tool" fr="Longueur du tube Bowden jusqu&apos;à cet outil"/>
   <translation tag="Bowden: pull the tube from the extruder end, then pull the filament." fr="Bowden : retirez le tube côté extrudeur, puis tirez le filament."/>
   <translation tag="Box" fr="Boîte"/>
+  <translation tag="Box Turtle Green and Gold" fr="Box Turtle vert et or"/>
   <translation tag="Brand" fr="Marque"/>
   <translation tag="Brand and material come from Spoolman" fr="La marque et le matériau proviennent de Spoolman"/>
   <translation tag="Brightness" fr="Luminosité"/>
@@ -2050,6 +2053,7 @@
   <translation tag="Front" fr="Avant"/>
   <translation tag="Front Left" fr="Avant gauche"/>
   <translation tag="Front Right" fr="Avant droit"/>
+  <translation tag="Front and side panels" fr="Panneaux avant et latéraux"/>
   <translation tag="Full" fr="Complet"/>
   <translation tag="G-code Console" fr="Console G-code"/>
   <translation tag="G-code Preview" fr="Aperçu G-code"/>
@@ -2789,6 +2793,7 @@
   <translation tag="Macros installed. Restart Klipper after the print to activate them." fr="Macros installées. Redémarrez Klipper après l&apos;impression pour les activer."/>
   <translation tag="Macros updated. Restart Klipper after the print to activate them." fr="Macros mises à jour. Redémarrez Klipper après l&apos;impression pour les activer."/>
   <translation tag="Macros, G-code console, calibration tools (PID, input shaper, z-offset), firmware updates, and developer utilities." fr="Macros, console G-code, outils de calibration (PID, Input Shaper, Z-offset), mises à jour du firmware et utilitaires pour développeurs."/>
+  <translation tag="Main" fr="Principale"/>
   <translation tag="Main LED Strip" fr="Bandeau LED principal"/>
   <translation tag="Maintaining" fr="Maintien"/>
   <translation tag="Maintenance" fr="Maintenance"/>
@@ -3326,6 +3331,7 @@
   <translation tag="Options" fr="Options"/>
   <translation tag="Or Enter Manually" fr="Ou entrer manuellement"/>
   <translation tag="Or instead of turning the others" fr="Ou, au lieu de tourner les autres"/>
+  <translation tag="Original" fr="Original"/>
   <translation tag="Original file location unknown" fr="Emplacement du fichier original inconnu"/>
   <translation tag="Oscillating... cycle %d/%d" fr="Oscillation... cycle %d/%d"/>
   <translation tag="Other" fr="Autre"/>
@@ -3376,6 +3382,7 @@
   <translation tag="Pairing failed" fr="Échec de l&apos;appairage"/>
   <translation tag="Pairing..." fr="Appairage..."/>
   <translation tag="Panel Usage" fr="Utilisation des panneaux"/>
+  <translation tag="Panels" fr="Panneaux"/>
   <translation tag="Paper Test Calibration" fr="Calibration par test papier"/>
   <translation tag="Paper drags: done" fr="Le papier frotte : terminé"/>
   <translation tag="Parameters" fr="Paramètres"/>
@@ -4591,6 +4598,7 @@
   <translation tag="Stays on PID" fr="Reste en PID"/>
   <translation tag="Std Deviation" fr="Écart type"/>
   <translation tag="Stealth" fr="Silencieux"/>
+  <translation tag="Stealth Black" fr="Noir furtif"/>
   <translation tag="Stealth is quiet, Sport is fastest" fr="Silencieux est discret, Sport est le plus rapide"/>
   <translation tag="Step" fr="Étape"/>
   <translation tag="Step 1 of 3" fr="Étape 1 sur 3"/>
@@ -4847,6 +4855,7 @@
   <translation tag="The bed&apos;s load cell read {1} g, above the {2} g limit, at Z {3}, and the printer shut down to protect itself." fr="La cellule de charge du plateau a mesuré {1} g, au-dessus de la limite de {2} g, à Z {3}, et l&apos;imprimante s&apos;est arrêtée pour se protéger."/>
   <translation tag="The bed&apos;s load cell read {1} g, above the {2} g limit, at Z {3}: the nozzle is dragging on the part, a part came loose, or the print warped. The print paused." fr="La cellule de charge du plateau a mesuré {1} g, au-dessus de la limite de {2} g, à Z {3} : la buse frotte sur la pièce, une pièce s&apos;est détachée, ou l&apos;impression s&apos;est déformée. L&apos;impression est en pause."/>
   <translation tag="The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire." fr="La carte a redémarré d&apos;elle-même, généralement à cause d&apos;une baisse de son alimentation ou d&apos;un court-circuit sur un fil de ventilateur ou de chauffage."/>
+  <translation tag="The body and frame" fr="Le corps et le cadre"/>
   <translation tag="The buffer may be disconnected, stuck, or faulty. Check it before retrying" fr="Le tampon est peut-être débranché, bloqué ou défectueux. Vérifiez-le avant de réessayer"/>
   <translation tag="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer" fr="Le tampon n&apos;a détecté aucun mouvement pendant 16 secondes. Vérifiez s&apos;il y a une obstruction entre le CFS et l&apos;extrudeur, ou un tampon bloqué"/>
   <translation tag="The build plate should be on the bed but reads as removed." fr="La plaque d&apos;impression devrait être sur le plateau mais est détectée comme retirée."/>
@@ -4865,6 +4874,7 @@
   <translation tag="The chamber&apos;s circulation fan is on but reads no speed." fr="Le ventilateur de circulation de l&apos;enceinte est allumé mais n&apos;indique aucune vitesse."/>
   <translation tag="The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted." fr="Le changement prend effet après le redémarrage de Klipper. Le firmware Klipper sera redémarré. Les opérations actives seront interrompues."/>
   <translation tag="The change was not applied: the current settings could not be saved for a revert." fr="La modification n&apos;a pas été appliquée : les paramètres actuels n&apos;ont pas pu être enregistrés pour une restauration."/>
+  <translation tag="The colors this unit was printed in" fr="Les couleurs dans lesquelles cette unité a été imprimée"/>
   <translation tag="The configuration includes or opens a file that is not there, often the include line a removed plugin left behind. Klipper&apos;s message names the file." fr="La configuration inclut ou ouvre un fichier absent, souvent la ligne include laissée par un plugin supprimé. Le message de Klipper indique le fichier."/>
   <translation tag="The configuration names pin &apos;{1}&apos;, which board &apos;{2}&apos; does not have." fr="La configuration nomme la broche &apos;{1}&apos;, que la carte &apos;{2}&apos; ne possède pas."/>
   <translation tag="The configuration needs a missing module" fr="La configuration nécessite un module manquant"/>
@@ -5414,6 +5424,7 @@
   <translation tag="Translucent" fr="Translucide"/>
   <translation tag="Tried ports {} and {}." fr="Ports {} et {} essayés."/>
   <translation tag="Trigger" fr="Déclencheur"/>
+  <translation tag="Trim and small parts" fr="Finitions et petites pièces"/>
   <translation tag="Troubleshooting:" fr="Dépannage :"/>
   <translation tag="Try Again" fr="Réessayer"/>
   <translation tag="Try adjusting your search or filters" fr="Essayez d&apos;ajuster votre recherche ou vos filtres"/>
@@ -5650,6 +5661,7 @@
   <translation tag="Volume" fr="Volume"/>
   <translation tag="Volume of filament used during ramming" fr="Volume de filament utilisé pendant le bourrage"/>
   <translation tag="Volume {}%" fr="Volume {}%"/>
+  <translation tag="Voron Black and Red" fr="Voron noir et rouge"/>
   <translation tag="WAITING" fr="EN ATTENTE"/>
   <translation tag="WEIGHT SYNC" fr="SYNCHRONISATION DU POIDS"/>
   <translation tag="WIDTH SENSORS" fr="CAPTEURS DE LARGEUR"/>

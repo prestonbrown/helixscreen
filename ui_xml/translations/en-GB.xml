@@ -127,6 +127,7 @@
   <translation tag="THEME COLORS" en-GB="THEME COLOURS"/>
   <translation tag="Temperature control optimized for {} at {}." en-GB="Temperature control optimised for {} at {}."/>
   <translation tag="That toolhead can no longer take over the print" en-GB="That toolhead can no longer take over the print"/>
+  <translation tag="The colors this unit was printed in" en-GB="The colours this unit was printed in"/>
   <translation tag="The print is canceled and you pick the best band from what has printed so far." en-GB="The print is cancelled and you pick the best band from what has printed so far."/>
   <translation tag="The printable size in millimeters (X × Y × Z), from the axis limits in the printer&apos;s Klipper config." en-GB="The printable size in millimetres (X × Y × Z), from the axis limits in the printer&apos;s Klipper config."/>
   <translation tag="The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting." en-GB="The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting."/>

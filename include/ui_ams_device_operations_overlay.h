@@ -16,6 +16,7 @@
 #pragma once
 
 #include "ui_bypass_toggle_controller.h"
+#include "ui_color_picker_modal.h"
 
 #include "ams_types.h"
 #include "ams_unit_type_menu.h"
@@ -23,6 +24,7 @@
 #include "core/static_panel_registry.h"
 #include "core/subject.h"
 #include "overlay_base.h"
+#include "unit_colors.h"
 
 #include <lvgl/lvgl.h>
 
@@ -142,6 +144,15 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
     void on_unit_type_unit_picked(int option);
     void on_unit_type_picked(int option);
 
+    /// Fill the Colors rows for unit @p pos of @p info, the unit the Unit Type rows set:
+    /// shown only when the drawing it is shown with bakes color regions.
+    void update_unit_colors(const helix::AmsSystemInfo& info, int pos);
+    void on_unit_colors_option_picked(int option);
+    /// Open the color picker on @p region's swatch.
+    void on_unit_color_clicked(helix::UnitColorRegion region);
+    /// Save @p colors for the unit the rows set, and redraw every picture of it.
+    void save_unit_colors(const helix::UnitColors& colors);
+
     /// Populate section list rows from backend sections
     void populate_section_list();
 
@@ -247,6 +258,20 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
     std::vector<std::string> unit_type_units_;
     std::string unit_type_identity_;
     helix::ui::UnitTypeMenu unit_type_menu_;
+
+    /// The Colors rows: 1 when the unit's drawing bakes color regions, the preset menu and
+    /// its selected option (unit_color_option), and each region's swatch color.
+    helix::Subject unit_colors_available_subject_{};
+    helix::Subject unit_colors_options_subject_{};
+    char unit_colors_options_buf_[512] = {};
+    helix::Subject unit_colors_option_subject_{};
+    helix::Subject unit_color_main_subject_{};
+    helix::Subject unit_color_accent_subject_{};
+    helix::Subject unit_color_panels_subject_{};
+    /// The unit's picked colors and the colors its drawing bakes, as the rows were filled.
+    helix::UnitColors unit_colors_picked_;
+    helix::UnitColors unit_colors_baked_;
+    ColorPickerModal unit_color_picker_;
 
     /// AMS action and can-cancel observers that keep can_abort_subject_
     /// current while the overlay exists.
