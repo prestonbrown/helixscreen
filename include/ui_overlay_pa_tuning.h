@@ -324,6 +324,9 @@ class PaTuningOverlay : public OverlayBase {
     /// Tool the run selected, -1 for none; its spool is the one saved to.
     int tuned_tool_ = -1;
     int selected_preset_ = 0;
+    /// The user tapped a material chip; until the tuner closes, the loaded
+    /// spool no longer picks one.
+    bool preset_picked_ = false;
     int nozzle_temp_ = 210;
     int bed_temp_ = 60;
     helix::pa::ExtruderKind kind_ = helix::pa::ExtruderKind::DirectDrive;
