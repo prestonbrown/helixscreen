@@ -398,20 +398,25 @@ std::vector<std::string> machine_ready_lines(const TestPrintParams& p) {
     return out;
 }
 
-std::vector<std::string> machine_finish_lines(const TestPrintParams& p) {
+std::vector<std::string> machine_finish_lines(const TestPrintParams& p, JobEnd end) {
     std::vector<std::string> out;
-    if (!p.macros.end.empty()) {
-        out.push_back(p.macros.end);
-    } else {
-        out.emplace_back("G91");
-        out.emplace_back("G1 Z10 F600");
-        out.emplace_back("G90");
+    const bool completed = end == JobEnd::Completed;
+    if (completed) {
+        if (!p.macros.end.empty()) {
+            out.push_back(p.macros.end);
+        } else {
+            out.emplace_back("G91");
+            out.emplace_back("G1 Z10 F600");
+            out.emplace_back("G90");
+        }
     }
     // Cool down even after an end macro: not every one turns everything off.
     out.push_back(fmt::format("SET_HEATER_TEMPERATURE HEATER={} TARGET=0", p.heater));
     out.emplace_back("M140 S0");
-    out.emplace_back("M107");
-    out.emplace_back("M84");
+    if (completed) {
+        out.emplace_back("M107");
+        out.emplace_back("M84");
+    }
     return out;
 }
 
