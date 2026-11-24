@@ -161,41 +161,51 @@ void MoonrakerDiscoverySequence::start(
 
     client_.send_jsonrpc(
         "server.connection.identify", identify_params,
-        [this, seq](const json& identify_response) {
-            if (is_stale() || !is_current_sequence(seq))
-                return;
+        [this, seq](const json& identify_response) { on_identified(seq, identify_response); },
+        [this, seq](const MoonrakerError& err) { on_identify_failed(seq, err); });
+}
 
-            if (const json* result = helix::json_util::find_member(identify_response, "result")) {
-                auto conn_id = result->value("connection_id", 0);
-                spdlog::info("[Moonraker Client] Identified to Moonraker (connection_id: {})",
-                             conn_id);
-                identified_.store(true);
-                helix::moonraker_auth::mark_authorized();
-            } else if (const json* error =
-                           helix::json_util::find_member(identify_response, "error")) {
-                const MoonrakerError err =
-                    MoonrakerError::from_json_rpc(*error, "server.connection.identify");
-                if (stop_for_refused_login(err)) {
-                    return;
-                }
-                // Log but continue - older Moonraker versions may not support this
-                spdlog::warn("[Moonraker Client] Failed to identify: {}", error->dump());
-            }
+void MoonrakerDiscoverySequence::on_identified(uint64_t seq, const json& identify_response) {
+    if (is_stale() || !is_current_sequence(seq))
+        return;
 
-            // Continue with discovery regardless of identify result
-            continue_discovery(seq);
-        },
-        [this, seq](const MoonrakerError& err) {
-            if (is_stale() || !is_current_sequence(seq))
-                return;
+    if (const json* result = helix::json_util::find_member(identify_response, "result")) {
+        auto conn_id = result->value("connection_id", 0);
+        spdlog::info("[Moonraker Client] Identified to Moonraker (connection_id: {})", conn_id);
+        identified_.store(true);
+        helix::moonraker_auth::mark_authorized();
+    } else if (const json* error = helix::json_util::find_member(identify_response, "error")) {
+        const MoonrakerError err =
+            MoonrakerError::from_json_rpc(*error, "server.connection.identify");
+        if (stop_for_refused_login(err)) {
+            return;
+        }
+        // Log but continue - older Moonraker versions may not support this
+        spdlog::warn("[Moonraker Client] Failed to identify: {}", error->dump());
+    }
 
-            if (stop_for_refused_login(err)) {
-                return;
-            }
-            // Log but continue - identify is not strictly required
-            spdlog::warn("[Moonraker Client] Identify request failed: {}", err.message);
-            continue_discovery(seq);
-        });
+    // Continue with discovery regardless of identify result
+    continue_discovery(seq);
+}
+
+void MoonrakerDiscoverySequence::on_identify_failed(uint64_t seq, const MoonrakerError& err) {
+    if (is_stale() || !is_current_sequence(seq))
+        return;
+
+    if (stop_for_refused_login(err)) {
+        return;
+    }
+    // Log but continue - identify is not strictly required
+    spdlog::warn("[Moonraker Client] Identify request failed: {}", err.message);
+    continue_discovery(seq);
+}
+
+void MoonrakerDiscoverySequence::report_discovery_error(const std::string& reason) {
+    if (on_error_discovery_) {
+        auto cb = std::move(on_error_discovery_);
+        on_complete_discovery_ = nullptr;
+        cb(reason);
+    }
 }
 
 bool MoonrakerDiscoverySequence::stop_for_refused_login(const MoonrakerError& err) {
@@ -206,11 +216,7 @@ bool MoonrakerDiscoverySequence::stop_for_refused_login(const MoonrakerError& er
     if (helix::moonraker_auth::mark_unauthorized()) {
         client_.emit_event(helix::moonraker_event::login_refused());
     }
-    if (on_error_discovery_) {
-        auto cb = std::move(on_error_discovery_);
-        on_complete_discovery_ = nullptr;
-        cb(err.message);
-    }
+    report_discovery_error(err.message);
     return true;
 }
 
@@ -513,69 +519,65 @@ void MoonrakerDiscoverySequence::continue_discovery(uint64_t seq) {
     client_.send_jsonrpc(
         "server.info", json(),
         [this, seq](const json& server_info_response) {
-            if (is_stale() || !is_current_sequence(seq))
-                return;
-
-            // Extract klippy_state from response
-            std::string klippy_state = "unknown";
-            if (const json* result =
-                    helix::json_util::find_member(server_info_response, "result")) {
-                klippy_state = helix::json_util::read_field<std::string>(*result, "klippy_state")
-                                   .value_or(klippy_state);
-            }
-
-            spdlog::debug("[Moonraker Client] Klippy state gate check: {}", klippy_state);
-
-            // Read here, ahead of the object list, because the filament backends
-            // that ask it are created from that list.
-            if (const json* result =
-                    helix::json_util::find_member(server_info_response, "result")) {
-                const bool takes_tools = helix::print_start::server_takes_tool_slots(*result);
-                std::lock_guard<std::mutex> lock(hardware_mutex_);
-                hardware_.set_server_takes_print_start_tools(takes_tools);
-            }
-
-            // Allow "ready" and "shutdown" — both have valid Klipper objects.
-            // Abort on "startup", "error", or unknown states.
-            if (klippy_state != "ready" && klippy_state != "shutdown") {
-                std::string reason = fmt::format("Klippy not ready (state: {})", klippy_state);
-                spdlog::warn("[Moonraker Client] {}", reason);
-
-                // Partial discovery: power devices are Moonraker-managed, not Klipper-dependent.
-                // Query them even when Klippy isn't ready so users can power on their printer.
-                discover_power_devices();
-                discover_sensors();
-
-                // The gate also stops the subscription that would have carried
-                // Klippy's state and reason, so fetch them: a config error at
-                // connect has no other way to reach the recovery dialog.
-                client_.poll_klippy_state_until_settled();
-
-                // Deferred (retryable) — notify_klippy_ready/shutdown will retry.
-                client_.emit_event(MoonrakerEventType::DISCOVERY_DEFERRED, reason, true);
-                if (on_error_discovery_) {
-                    auto cb = std::move(on_error_discovery_);
-                    on_complete_discovery_ = nullptr;
-                    cb(reason);
-                }
-                return;
-            }
-
-            // Klippy is ready/shutdown — proceed to query printer objects
-            continue_discovery_objects(seq);
+            on_klippy_gate(seq, server_info_response);
         },
-        [this, seq](const MoonrakerError& err) {
-            if (is_stale() || !is_current_sequence(seq))
-                return;
-            // server.info failed — cannot determine Klippy state, abort discovery
-            spdlog::error("[Moonraker Client] server.info request failed: {}", err.message);
-            client_.emit_event(MoonrakerEventType::DISCOVERY_FAILED, err.message, true);
-            if (on_error_discovery_) {
-                auto cb = std::move(on_error_discovery_);
-                on_complete_discovery_ = nullptr;
-                cb(err.message);
-            }
-        });
+        [this, seq](const MoonrakerError& err) { on_klippy_gate_failed(seq, err); });
+}
+
+void MoonrakerDiscoverySequence::on_klippy_gate(uint64_t seq, const json& server_info_response) {
+    if (is_stale() || !is_current_sequence(seq))
+        return;
+
+    // Extract klippy_state from response
+    std::string klippy_state = "unknown";
+    if (const json* result = helix::json_util::find_member(server_info_response, "result")) {
+        klippy_state = helix::json_util::read_field<std::string>(*result, "klippy_state")
+                           .value_or(klippy_state);
+    }
+
+    spdlog::debug("[Moonraker Client] Klippy state gate check: {}", klippy_state);
+
+    // Read here, ahead of the object list, because the filament backends
+    // that ask it are created from that list.
+    if (const json* result = helix::json_util::find_member(server_info_response, "result")) {
+        const bool takes_tools = helix::print_start::server_takes_tool_slots(*result);
+        std::lock_guard<std::mutex> lock(hardware_mutex_);
+        hardware_.set_server_takes_print_start_tools(takes_tools);
+    }
+
+    // Allow "ready" and "shutdown" — both have valid Klipper objects.
+    // Abort on "startup", "error", or unknown states.
+    if (klippy_state != "ready" && klippy_state != "shutdown") {
+        std::string reason = fmt::format("Klippy not ready (state: {})", klippy_state);
+        spdlog::warn("[Moonraker Client] {}", reason);
+
+        // Partial discovery: power devices are Moonraker-managed, not Klipper-dependent.
+        // Query them even when Klippy isn't ready so users can power on their printer.
+        discover_power_devices();
+        discover_sensors();
+
+        // The gate also stops the subscription that would have carried
+        // Klippy's state and reason, so fetch them: a config error at
+        // connect has no other way to reach the recovery dialog.
+        client_.poll_klippy_state_until_settled();
+
+        // Deferred (retryable) — notify_klippy_ready/shutdown will retry.
+        client_.emit_event(MoonrakerEventType::DISCOVERY_DEFERRED, reason, true);
+        report_discovery_error(reason);
+        return;
+    }
+
+    // Klippy is ready/shutdown — proceed to query printer objects
+    continue_discovery_objects(seq);
+}
+
+void MoonrakerDiscoverySequence::on_klippy_gate_failed(uint64_t seq, const MoonrakerError& err) {
+    if (is_stale() || !is_current_sequence(seq))
+        return;
+    // server.info failed — cannot determine Klippy state, abort discovery
+    spdlog::error("[Moonraker Client] server.info request failed: {}", err.message);
+    client_.emit_event(MoonrakerEventType::DISCOVERY_FAILED, err.message, true);
+    report_discovery_error(err.message);
 }
 
 /// Replies of one MCU query fan-out. Every reply lands on the WebSocket thread, and the
@@ -605,11 +607,7 @@ void MoonrakerDiscoverySequence::report_objects_list_failure(const std::string& 
     client_.emit_event(MoonrakerEventType::DISCOVERY_FAILED, reason, true);
     spdlog::debug("[Moonraker Client] Invoking discovery on_error callback, on_error={}",
                   on_error_discovery_ ? "valid" : "null");
-    if (on_error_discovery_) {
-        auto cb = std::move(on_error_discovery_);
-        on_complete_discovery_ = nullptr;
-        cb(reason);
-    }
+    report_discovery_error(reason);
 }
 
 void MoonrakerDiscoverySequence::on_objects_list_failed(uint64_t seq, const MoonrakerError& err) {
