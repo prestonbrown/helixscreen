@@ -156,6 +156,7 @@ void PaTuningOverlay::init_subjects() {
                                   subjects_);
         UI_MANAGED_SUBJECT_INT(can_save_spool_, 0, "pa_tune_can_save_spool", subjects_);
         UI_MANAGED_SUBJECT_INT(can_save_config_, 0, "pa_tune_can_save_config", subjects_);
+        UI_MANAGED_SUBJECT_INT(can_save_material_, 0, "pa_tune_can_save_material", subjects_);
         UI_MANAGED_SUBJECT_STRING(error_, error_buf_, "", "pa_tune_error", subjects_);
         UI_MANAGED_SUBJECT_STRING(time_line_, time_line_buf_, "", "pa_tune_time_line", subjects_);
         UI_MANAGED_SUBJECT_INT(lin_blocked_, 0, "pa_tune_lin_blocked", subjects_);
@@ -1266,6 +1267,7 @@ void PaTuningOverlay::show_result() {
     active_spool_.reset();
     lv_subject_set_int(&can_save_spool_, 0);
     lv_subject_set_int(&can_save_config_, 0);
+    lv_subject_set_int(&can_save_material_, 0);
 
     // Under a nonlinear model the tower swept linear_advance. That is no
     // classic K: a spool or a slicer reading the published record would apply
@@ -1294,6 +1296,7 @@ void PaTuningOverlay::show_result() {
             .c_str());
     lv_subject_set_string(&spoolman_text_, lv_tr("Looking for the active spool..."));
     lv_subject_set_int(&can_save_config_, api_ ? 1 : 0);
+    lv_subject_set_int(&can_save_material_, 1);
     set_stage(RESULT);
 
     if (!api_) {
@@ -1398,7 +1401,7 @@ void PaTuningOverlay::save_to_config() {
 
 void PaTuningOverlay::save_for_material() {
     const auto k = session_.result();
-    if (stage_ != RESULT || !k) {
+    if (stage_ != RESULT || !k || lv_subject_get_int(&can_save_material_) != 1) {
         return;
     }
     const std::string material = helix::presets::name(selected_preset_);

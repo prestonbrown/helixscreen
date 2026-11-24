@@ -75,7 +75,7 @@ bool write_ready(const PrinterDiscovery& hw);
 
 /// The row's start macro also applies pressure advance per material and the
 /// printer can store it (material_pa.h): the helper pack that carries it, and
-/// a [save_variables] store.
+/// a [save_variables] store. Never on a printer with more than one extruder.
 bool pressure_advance_ready(const PrinterDiscovery& hw);
 
 /// Whether the start macro reports each time it applies an offset, so a Save

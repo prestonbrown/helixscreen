@@ -140,21 +140,53 @@ def test_a_linear_entry_on_classic_firmware_sends_no_model():
     assert pa_lines(lines) == ["SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.035 SMOOTH_TIME=0.04"]
 
 
-def test_a_nonlinear_entry_on_classic_firmware_is_skipped():
+def test_a_nonlinear_entry_on_classic_firmware_uses_the_config():
+    # Sending nothing would leave the previous print's material value live.
     vars_ = dict(PLA_TANH, helix_material_pa_enabled=1)
     lines = render("_HELIX_MATERIAL_PA",
                    printer(vars_, KLIPPER_CFG, KLIPPER_LIVE), {"KEY": "pla"})
+    assert pa_lines(lines) == ["SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.04 SMOOTH_TIME=0.04"]
+    assert any("not used" in line for line in lines)
+
+
+@pytest.mark.parametrize("model", ["", "bogus"])
+def test_a_half_written_or_unknown_entry_uses_the_config(model):
+    vars_ = dict(PLA_TANH, helix_material_pa_enabled=1, helix_pa_pla_model=model)
+    lines = render("_HELIX_MATERIAL_PA",
+                   printer(vars_, KALICO_TANH_CFG, KALICO_TANH_LIVE), {"KEY": "pla"})
+    assert pa_lines(lines) == [
+        "SET_PRESSURE_ADVANCE EXTRUDER=extruder MODEL=tanh ADVANCE=0.02 OFFSET=0.1 "
+        "VELOCITY=1.0 TIME_OFFSET=0.001 SMOOTH_TIME=0.02"
+    ]
+
+
+def test_several_extruders_get_nothing():
+    vars_ = dict(PLA_TANH, helix_material_pa_enabled=1)
+    p = printer(vars_, KALICO_TANH_CFG, KALICO_TANH_LIVE)
+    p["configfile"]["settings"]["extruder1"] = KALICO_TANH_CFG
+    lines = render("_HELIX_MATERIAL_PA", p, {"KEY": "pla"})
     assert pa_lines(lines) == []
-    assert any("skipped" in line for line in lines)
+
+
+def offset_macro_lines(material, variables):
+    p = printer(variables, KLIPPER_CFG, KLIPPER_LIVE)
+    p["gcode_macro _HELIX_MATERIAL"] = {"next": "", "next_file": "", "applied": "",
+                                        "apply_count": 0}
+    p["print_stats"] = {"filename": "x.gcode"}
+    return render("HELIX_MATERIAL_OFFSET", p, {"MATERIAL": material})
 
 
 @pytest.mark.parametrize("material,key", [("PLA", "pla"), ("PETG-CF", "petg_cf"),
-                                          ("PLA Silk", "pla_silk"), ("", "")])
+                                          ("PLA Silk", "pla_silk"), ("", ""),
+                                          # Klipper's parser ends the arguments at '*' and
+                                          # splits a parameter at a tab.
+                                          ("PA*CF", "pacf"), ("PLA\tCF", "pla_cf")])
 def test_the_offset_macro_hands_over_its_key(material, key):
-    state = {"next": "", "next_file": "", "applied": "", "apply_count": 0}
-    p = printer({}, KLIPPER_CFG, KLIPPER_LIVE)
-    p["gcode_macro _HELIX_MATERIAL"] = state
-    p["print_stats"] = {"filename": "x.gcode"}
-    lines = render("HELIX_MATERIAL_OFFSET", p, {"MATERIAL": material})
     # Called whether or not Z offset by material is on.
-    assert f"_HELIX_MATERIAL_PA KEY={key}" in lines
+    lines = offset_macro_lines(material, {"helix_material_pa_enabled": 1})
+    assert f'_HELIX_MATERIAL_PA KEY="{key}"' in lines
+
+
+def test_the_offset_macro_leaves_pa_alone_while_it_is_off():
+    lines = offset_macro_lines("PLA", {})
+    assert not any(line.startswith("_HELIX_MATERIAL_PA") for line in lines)

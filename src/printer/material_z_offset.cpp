@@ -346,6 +346,12 @@ SetupSteps setup_steps(bool supported, const std::string& helper_call,
 }
 
 bool pressure_advance_ready(const PrinterDiscovery& hw) {
+    // One value per material cannot serve several extruders: the start macro
+    // cannot tell which tool the material is for, and it stays off there too.
+    const auto& objects = hw.printer_objects();
+    if (std::find(objects.begin(), objects.end(), "extruder1") != objects.end()) {
+        return false;
+    }
     const Provider* p = match(hw);
     return p && p->pa_macro && p->ready(hw) && hw.has_macro(p->pa_macro);
 }

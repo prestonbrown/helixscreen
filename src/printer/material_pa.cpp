@@ -56,6 +56,11 @@ std::string save_gcode(std::string_view material, const Entry& entry) {
     const auto save = [&g](const std::string& var, const std::string& value) {
         g += fmt::format("SAVE_VARIABLE VARIABLE={} VALUE={}\n", var, value);
     };
+    // Quoted twice: the shell-style split takes the outer quotes and the
+    // stored value is read as a Python literal. An empty model first, so a
+    // re-save that stops partway leaves an entry the macro does not use.
+    const auto quoted = [](std::string_view v) { return fmt::format("'\"{}\"'", v); };
+    save(var_name(*key, "model"), quoted(""));
     save(var_name(*key, "advance"), num(entry.advance));
     const bool nonlinear =
         entry.model == pa::ModelKind::Tanh || entry.model == pa::ModelKind::Recipr;
@@ -65,9 +70,7 @@ std::string save_gcode(std::string_view material, const Entry& entry) {
         save(var_name(*key, "time_offset"), num(entry.time_offset));
         save(var_name(*key, "smooth_time"), num(entry.smooth_time));
     }
-    // Quoted twice: the shell-style split takes the outer quotes and the
-    // stored value is read as a Python literal.
-    save(var_name(*key, "model"), fmt::format("'\"{}\"'", pa::model_name(entry.model)));
+    save(var_name(*key, "model"), quoted(pa::model_name(entry.model)));
     g += enable_gcode(true);
     return g;
 }
