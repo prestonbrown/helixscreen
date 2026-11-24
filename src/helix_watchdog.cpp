@@ -422,10 +422,6 @@ static CrashInfo run_child_process(const WatchdogArgs& args, pid_t splash_pid) {
     CrashInfo crash = {};
     const time_t started = time(nullptr);
 
-    // An in-app update moves and deletes the tree the watchdog started in; re-resolve from the
-    // launcher's binary path (not /proc/self/exe) so a child never inherits a dead cwd.
-    helix::board::chdir_to_install_root(args.child_binary);
-
     // Build argv for execv - need to own the strings for splash_pid arg
     std::vector<std::string> arg_strings;
     arg_strings.push_back(args.child_binary);
@@ -1135,6 +1131,9 @@ static int run_watchdog(WatchdogArgs args) {
     std::deque<CrashEvent> recent_crashes;
 
     while (!g_quit) {
+        // An in-app update moves and deletes the tree the watchdog started in; re-resolve from
+        // the launcher's binary path (not /proc/self/exe) before the config read and the spawn.
+        helix::board::chdir_to_install_root(args.child_binary);
         const int launch_rotation = helix::watchdog::rotation_for_launch(
             args.cli_rotation, [] { return read_config_rotation(0); });
         if (launch_rotation != args.rotation) {
