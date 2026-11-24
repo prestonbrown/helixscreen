@@ -2127,6 +2127,7 @@ TEST_CASE("A manual install ends an automatic update's rollback trial first",
         helix::app_constants::update::detail::backup_fallback_dir_ref() = tmp + "/.helixscreen";
         auto& checker = UpdateChecker::instance();
         UpdateCheckerTestAccess::clear_download_cancelled(checker);
+        UpdateCheckerTestAccess::set_install_log(checker, tmp + "/install.log");
         UpdateCheckerTestAccess::set_restart_action(checker, [] {});
         UpdateCheckerTestAccess::set_status_hold_ms(checker, 0, 0);
         UpdateCheckerTestAccess::do_install(checker, tarball); // a manual (user) install
