@@ -570,9 +570,12 @@ AmsSystemInfo turtle_unit() {
 TEST_CASE_METHOD(LVGLTestFixture, "unit colors: a drawing with no region masks stays as baked",
                  "[ams][unit-colors]") {
     TwoPrinterConfig config;
-    const AmsSystemInfo info = turtle_unit();
+    AmsSystemInfo info = turtle_unit();
+    info.units[0].name = "Night_Owl Turtle_1";
+    info.units[0].slot_count = 2;
+    info.units[0].slots.resize(2);
     const tray::UnitShell* shell = unit_art_shell_for(info, 0);
-    REQUIRE(shell != nullptr);
+    REQUIRE(id_of(shell) == "night_owl");
     REQUIRE(shell->color_regions == 0);
 
     lv_obj_t* plain = unit_art_create(test_screen(), UnitArtTier::Full);
@@ -582,7 +585,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit colors: a drawing with no region masks s
 
     UnitColors colors;
     colors.main = 0x101010;
-    SettingsManager::instance().set_ams_unit_colors("Turtle_1", colors);
+    SettingsManager::instance().set_ams_unit_colors(ams_unit_identity(info.units[0]), colors);
     CHECK(unit_art_colors(info.units[0]) == colors);
     lv_obj_t* colored = unit_art_create(test_screen(), UnitArtTier::Full);
     lv_obj_set_size(colored, 230, 195);
@@ -626,4 +629,150 @@ TEST_CASE_METHOD(LVGLTestFixture,
     lv_obj_t* accent = lv_obj_find_by_name(art, "front_accent_tint");
     REQUIRE(accent != nullptr);
     CHECK(lv_color_to_u32(lv_obj_get_style_image_recolor(accent, LV_PART_MAIN)) == 0xFFC02020u);
+}
+
+TEST_CASE("unit colors: the menu offers the drawing's own colors, each preset and Custom",
+          "[ams][unit-colors]") {
+    const auto& presets = unit_color_presets();
+    REQUIRE(unit_color_option_count() == static_cast<int>(presets.size()) + 2);
+    const int custom = unit_color_option_count() - 1;
+    CHECK(unit_color_option(UnitColors{}) == 0);
+    CHECK(unit_color_option(presets[1].colors()) == 2);
+    UnitColors one;
+    one.panels = 0x123456;
+    CHECK(unit_color_option(one) == custom);
+
+    const UnitColors shown{0x111111, 0x222222, 0x333333};
+    CHECK(unit_colors_for_option(0, shown) == UnitColors{});
+    CHECK(unit_colors_for_option(1, shown) == presets[0].colors());
+    CHECK(unit_colors_for_option(custom, shown) == shown);
+    CHECK_FALSE(unit_colors_for_option(custom + 1, shown).has_value());
+
+    UnitColors picked;
+    picked.accent = 0xABCDEF;
+    CHECK(unit_colors_shown(picked, shown) == UnitColors{0x111111, 0xABCDEF, 0x333333});
+}
+
+namespace {
+
+/// The Box Turtle and Night Owl rig behind the device operations overlay.
+class UnitColorsRows : public UnitTypePanel {
+  public:
+    UnitColorsRows() {
+        install(true);
+        // The rows open on the viewed unit: the Box Turtle.
+        AmsState::instance().set_viewed_unit(
+            AmsState::instance().get_backend()->get_system_info().units[0].unit_index);
+        overlay().init_subjects();
+        overlay().show(test_screen());
+        settle();
+    }
+    ~UnitColorsRows() override {
+        NavigationManager::instance().go_back();
+        settle();
+    }
+    static AmsDeviceOperationsOverlay& overlay() {
+        return ui::get_ams_device_operations_overlay();
+    }
+    static int subject_int(const char* name) {
+        lv_subject_t* subject = lv_xml_get_subject(nullptr, name);
+        REQUIRE(subject != nullptr);
+        return lv_subject_get_int(subject);
+    }
+    lv_obj_t* named(const char* name) {
+        lv_obj_t* obj = lv_obj_find_by_name(overlay().get_root(), name);
+        REQUIRE(obj != nullptr);
+        return obj;
+    }
+    void choose(const char* dropdown_name, int option) {
+        lv_obj_t* dropdown = named(dropdown_name);
+        lv_dropdown_set_selected(dropdown, static_cast<uint32_t>(option));
+        lv_obj_send_event(dropdown, LV_EVENT_VALUE_CHANGED, nullptr);
+        settle();
+    }
+    /// The recolor of @p art's layer @p name, or 0 when it has none.
+    static uint32_t tint_of(lv_obj_t* art, const char* name) {
+        lv_obj_t* layer = lv_obj_find_by_name(art, name);
+        return layer ? lv_color_to_u32(lv_obj_get_style_image_recolor(layer, LV_PART_MAIN)) &
+                           0xFFFFFFu
+                     : 0;
+    }
+};
+
+lv_obj_t* find_on_screen(const char* name) {
+    for (lv_obj_t* root : {lv_layer_top(), lv_screen_active(), lv_layer_sys()}) {
+        if (lv_obj_t* obj = lv_obj_find_by_name(root, name))
+            return obj;
+    }
+    return nullptr;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(UnitColorsRows,
+                 "unit colors: the rows show only for a unit whose drawing has masks",
+                 "[ams][unit-colors][ui_integration]") {
+    const AmsSystemInfo info = AmsState::instance().get_backend()->get_system_info();
+    REQUIRE(unit_art_shell_for(info, 0)->color_regions != 0);
+    REQUIRE(unit_art_shell_for(info, 1)->color_regions == 0);
+
+    // The rows open on the first unit, the Box Turtle.
+    REQUIRE(subject_int("ams_unit_type_unit") == 0);
+    CHECK(subject_int("ams_unit_colors_available") == 1);
+    CHECK_FALSE(lv_obj_is_hidden(named("unit_colors_rows")));
+
+    choose("unit_dropdown", 1);
+    CHECK(subject_int("ams_unit_colors_available") == 0);
+    CHECK(lv_obj_is_hidden(named("unit_colors_rows")));
+
+    choose("unit_dropdown", 0);
+    CHECK(subject_int("ams_unit_colors_available") == 1);
+}
+
+TEST_CASE_METHOD(UnitColorsRows, "unit colors: a pick is saved and the unit's art redraws in it",
+                 "[ams][unit-colors][ui_integration]") {
+    const AmsSystemInfo info = AmsState::instance().get_backend()->get_system_info();
+    const std::string turtle = ams_unit_identity(info.units[0]);
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, 230, 195);
+    unit_art_set_unit(art, info, 0);
+    REQUIRE(tint_of(art, "front_accent_tint") == 0);
+    // Nothing set: the swatches show the drawing's own colors.
+    const tray::UnitShell* shell = unit_art_shell_for(info, 0);
+    CHECK(subject_int("ams_unit_colors_option") == 0);
+    CHECK((lv_color_to_u32(
+               lv_subject_get_color(lv_xml_get_subject(nullptr, "ams_unit_color_panels"))) &
+           0xFFFFFFu) == shell->color_defaults[2]);
+
+    SECTION("a preset") {
+        const UnitColorPreset& preset = unit_color_presets()[0];
+        choose("unit_colors_dropdown", 1);
+        CHECK(SettingsManager::instance().get_ams_unit_colors(turtle) == preset.colors());
+        CHECK(subject_int("ams_unit_colors_option") == 1);
+        unit_art_set_unit(art, info, 0);
+        CHECK(tint_of(art, "front_accent_tint") == preset.accent);
+        CHECK(tint_of(art, "back_main_tint") == preset.main);
+        CHECK(tint_of(art, "front_panels_tint") == preset.panels);
+
+        choose("unit_colors_dropdown", 0);
+        CHECK(SettingsManager::instance().get_ams_unit_colors(turtle).empty());
+        unit_art_set_unit(art, info, 0);
+        CHECK(lv_obj_find_by_name(art, "front_accent_tint") == nullptr);
+    }
+
+    SECTION("a swatch's picker") {
+        lv_obj_send_event(named("unit_color_main_swatch"), LV_EVENT_CLICKED, nullptr);
+        settle();
+        lv_obj_t* done = find_on_screen("cpm_done");
+        REQUIRE(done != nullptr);
+        lv_obj_send_event(done, LV_EVENT_CLICKED, nullptr);
+        settle();
+        UnitColors saved = SettingsManager::instance().get_ams_unit_colors(turtle);
+        CHECK(saved.main == shell->color_defaults[0]);
+        CHECK_FALSE(saved.accent.has_value());
+        CHECK(subject_int("ams_unit_colors_option") == unit_color_option_count() - 1);
+        unit_art_set_unit(art, info, 0);
+        CHECK(tint_of(art, "back_main_tint") == shell->color_defaults[0]);
+        CHECK(lv_obj_find_by_name(art, "front_accent_tint") == nullptr);
+    }
 }
