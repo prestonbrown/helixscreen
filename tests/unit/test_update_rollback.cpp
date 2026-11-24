@@ -103,6 +103,27 @@ TEST_CASE("Rollback support: every fact must hold, and some platforms never can"
     CHECK(rollback_support(f) == RollbackSupport::ModPayload);
 }
 
+TEST_CASE("Rollback support: the capability follows the rule over this process's facts",
+          "[auto_update][rollback]") {
+    {
+        helix::ScopedEnv dir(kRollbackDirEnv, "/tmp/helix-rollback-guard");
+        helix::ScopedEnv supervised("HELIX_SUPERVISED", "1");
+        const RollbackFacts facts = current_rollback_facts();
+        INFO("support: " << rollback_support_name(rollback_support(facts)) << " platform "
+                         << facts.platform_key);
+        REQUIRE(facts.guard_dir);
+        REQUIRE(facts.supervised);
+        CHECK(auto_rollback_supported() == (rollback_support(facts) == RollbackSupport::Supported));
+        // On a host the rule accepts, the guard and the watchdog are all it takes.
+        if (rollback_support(facts) != RollbackSupport::Platform && !facts.install_suppressed &&
+            !facts.mod_payload) {
+            CHECK(auto_rollback_supported());
+        }
+    }
+    helix::ScopedEnv no_dir(kRollbackDirEnv, nullptr);
+    CHECK_FALSE(auto_rollback_supported());
+}
+
 TEST_CASE("Rollback marker: the launcher's key=value lines round-trip", "[auto_update][rollback]") {
     RollbackMarker m{"/usr/data/helixscreen", "/usr/data/helixscreen.old.17", "1.2.0", "1.3.0"};
     const std::string text = format_rollback_marker(m);

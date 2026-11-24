@@ -94,7 +94,9 @@ bool auto_rollback_supported() {
     if (const auto& forced = rollback_supported_override()) {
         return *forced;
     }
-    return false;
+    const RollbackSupport support = rollback_support(current_rollback_facts());
+    spdlog::debug("[UpdateRollback] Automatic-update rollback: {}", rollback_support_name(support));
+    return support == RollbackSupport::Supported;
 }
 
 void set_auto_rollback_supported_for_test(std::optional<bool> value) {
