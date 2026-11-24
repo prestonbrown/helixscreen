@@ -105,10 +105,10 @@
                         flex_grow="1" bind_text="pa_tune_material_temps" style_text_align="right"
                         style_text_color="#text_muted"/>
           </lv_obj>
-          <!-- Linear K: one row, the temperatures on the caption line. -->
+          <!-- Linear K, and every setup at the smallest size: one row, the temperatures on the caption line. -->
           <lv_obj name="pa_preset_grid" flex_flow="row" style_pad_gap="#space_xs" scrollable="false">
             <style name="plain_row"/>
-            <bind_flag_if_eq subject="pa_tune_nl_mode" flag="hidden" ref_value="1"/>
+            <bind_flag_if cond="pa_tune_nl_mode eq 1 and ui_breakpoint ge 1" flag="hidden"/>
             <repeat count="4">
               <cal_intro_chip name="pa_preset_${i}"
                               bind_label="preset_material_${i}_name" no_detail="true" label_align="center"
@@ -120,7 +120,7 @@
           <lv_obj name="pa_preset_grid_nl"
                   flex_flow="row_wrap" style_pad_gap="#space_xs" scrollable="false" hidden="true">
             <style name="plain_row"/>
-            <bind_flag_if_eq subject="pa_tune_nl_mode" flag="hidden" ref_value="0"/>
+            <bind_flag_if cond="pa_tune_nl_mode eq 0 or ui_breakpoint eq 0" flag="hidden"/>
             <repeat count="4">
               <cal_intro_chip name="pa_preset_nl_${i}"
                               width="48%" grow="0" bind_label="preset_material_${i}_name"
