@@ -23,6 +23,7 @@
 #include "json_fwd.h"
 #include "lvgl.h"
 #include "subject_managed_panel.h"
+#include "system/auto_update_schedule.h"
 
 #include <atomic>
 #include <chrono>
@@ -676,6 +677,26 @@ class UpdateChecker {
     /** @brief Stop automatic update checking */
     void stop_auto_check();
 
+    /// What the auto-update tick reads from the clock and the touch screen.
+    struct AutoUpdateNow {
+        int local_minute_of_day = 0;     ///< 0..1439, by the screen's timezone
+        int64_t seconds_since_touch = 0; ///< Time since the last touch
+    };
+
+    /**
+     * @brief One pass of the Automatic updates scheduler (#1304). Main thread only.
+     *
+     * Gathers the setting, the print lifecycle, a pending power-loss resume and the
+     * cached release, asks decide_auto_update(), and on InstallNow runs the same
+     * download and install path as the Install Update button, without its confirm
+     * step. Only a forward, signature-verified, undismissed release qualifies.
+     * Installs at most once per release: a failed attempt waits for the next check.
+     */
+    helix::update::AutoUpdateDecision auto_update_tick(const AutoUpdateNow& now);
+
+    /// The clock and touch reading auto_update_tick() uses in production.
+    static AutoUpdateNow auto_update_now_from_system();
+
     // LVGL subjects for notification modal
     lv_subject_t* release_notes_subject();
     lv_subject_t* changelog_visible_subject();
@@ -972,6 +993,11 @@ class UpdateChecker {
 
     // Auto-check timer
     lv_timer_t* auto_check_timer_{nullptr};
+    lv_timer_t* auto_install_timer_{nullptr};
+    /// Version the scheduler already started installing; never retried unprompted.
+    std::string auto_install_attempted_version_;
+    /// Replaces start_download() for auto_update_tick() in tests.
+    std::function<void()> auto_install_hook_;
 
     // Notification subjects
     helix::Subject release_notes_subject_{};

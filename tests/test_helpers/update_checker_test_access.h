@@ -47,6 +47,12 @@ class UpdateCheckerTestAccess {
         c.status_ = UpdateChecker::Status::UpdateAvailable;
     }
 
+    /// Replace start_download() for auto_update_tick(); nullptr restores it.
+    static void set_auto_install_hook(UpdateChecker& c, std::function<void()> hook) {
+        c.auto_install_hook_ = std::move(hook);
+        c.auto_install_attempted_version_.clear();
+    }
+
     /// sync_moonraker_channel() against @p install_root: the test link has no
     /// resolvable install directory, so the public entry point always skips.
     static void sync_moonraker_channel_for(UpdateChecker& c, const std::string& install_root) {

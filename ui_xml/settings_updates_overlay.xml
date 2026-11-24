@@ -32,6 +32,18 @@
                               label="Install Update" icon="download" description="" description_tag=""
                               callback="on_about_install_update_clicked"/>
         </lv_obj>
+        <!-- Automatic updates. Hidden where the install cannot update itself:
+             firmware-managed installs and unwritable trees have nothing to schedule. -->
+        <lv_obj name="container_auto_update_mode" width="100%" style_pad_all="0" scrollable="false">
+          <bind_flag_if cond="show_update_settings eq 1 and updates_unavailable eq 0 and updates_firmware_managed eq 0"
+                        flag="hidden" invert="true"/>
+          <setting_dropdown_row name="row_auto_update_mode"
+                                label="Automatic Updates" icon="clock"
+                                description="Install overnight restarts the screen at 3 AM when the printer is idle"
+                                options="Install overnight&#10;Download and ask&#10;Off"
+                                options_tag="Install overnight&#10;Download and ask&#10;Off"
+                                bind_selected="settings_auto_update_mode" callback="on_auto_update_mode_changed"/>
+        </lv_obj>
         <!-- Firmware-managed updates notice (replaces the check/install controls
              when HELIX_DISABLE_AUTO_UPDATES is set — updates come from the firmware) -->
         <lv_obj name="container_updates_firmware_managed" width="100%" style_pad_all="0" scrollable="false">

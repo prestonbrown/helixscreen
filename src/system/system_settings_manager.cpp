@@ -71,6 +71,9 @@ static constexpr settings::PersistedSetting kSystemSettings[] = {
     {"settings_telemetry_enabled", "/telemetry_enabled", Scope::Global, true, 0, 0, 1, nullptr},
     // Default on: a device that has never seen this setting comes up with WiFi enabled
     {"settings_wifi_enabled", "/wifi_enabled", Scope::Global, true, 1, 0, 1, "wifi_enabled"},
+    // helix::update::AutoUpdateMode. Download and ask until rollback ships (#1304).
+    {"settings_auto_update_mode", "/update/auto_mode", Scope::Global, false, 1, 0, 2,
+     "auto_update_mode"},
 };
 
 SystemSettingsManager& SystemSettingsManager::instance() {
@@ -298,6 +301,10 @@ void SystemSettingsManager::set_update_channel(int channel) {
     settings_.set(Key::UpdateChannel, channel);
     // Force a re-check on the new channel
     UpdateChecker::instance().clear_cache();
+}
+
+void SystemSettingsManager::set_auto_update_mode(int mode) {
+    settings_.set(Key::AutoUpdateMode, mode);
 }
 
 // =============================================================================

@@ -19,6 +19,8 @@
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
+
 #ifdef __ANDROID__
 #include "system/android_update_source.h"
 
@@ -73,6 +75,12 @@ void UpdatesSettingsOverlay::register_callbacks() {
              // The re-check matters when the new channel is BEHIND this install and
              // the only way forward is an explicit switch back.
              UpdateChecker::instance().on_channel_changed();
+         }},
+        {"on_auto_update_mode_changed",
+         [](lv_event_t* e) {
+             const int mode = std::clamp(helix::ui::event_selected(e), 0, 2);
+             spdlog::info("[UpdatesSettings] Automatic updates mode changed: {}", mode);
+             SystemSettingsManager::instance().set_auto_update_mode(mode);
          }},
         {"on_about_check_updates_clicked",
          [](lv_event_t*) {

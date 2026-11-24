@@ -71,6 +71,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <fcntl.h>
 #include <filesystem>
 #include <fstream>
@@ -3764,6 +3765,10 @@ void UpdateChecker::detach(helix::IMoonrakerClient& client) {
     client.unregister_method_callback(kUpdateResponseMethod, kExternalUpdateHandler);
 }
 
+namespace {
+constexpr uint32_t kAutoInstallTickMs = 5u * 60u * 1000u;
+}
+
 void UpdateChecker::start_auto_check() {
     // Firmware-managed devices own updates externally — nothing to schedule. A
     // non-writable install tree still auto-checks: the notification tells the user
@@ -3833,6 +3838,14 @@ void UpdateChecker::start_auto_check() {
                     return;
                 }
 
+                if (SystemSettingsManager::instance().get_auto_update_mode() ==
+                    static_cast<int>(helix::update::AutoUpdateMode::Off)) {
+                    spdlog::info("[UpdateChecker] Auto-check: automatic updates are off, not "
+                                 "notifying about {}",
+                                 info->version);
+                    return;
+                }
+
                 if (self->is_version_dismissed(info->version)) {
                     spdlog::info("[UpdateChecker] Auto-check: version {} is dismissed",
                                  info->version);
@@ -3867,6 +3880,22 @@ void UpdateChecker::start_auto_check() {
         15000, this);
 
     lv_timer_set_repeat_count(auto_check_timer_, -1); // infinite repeats
+
+    // The overnight installer looks every few minutes so a window that opens while
+    // someone is at the screen still installs once they leave. An install that
+    // cannot update itself has nothing to schedule.
+    if (update_install_suppressed()) {
+        return;
+    }
+    auto_install_timer_ = lv_timer_create(
+        [](lv_timer_t* timer) {
+            auto* self = static_cast<UpdateChecker*>(lv_timer_get_user_data(timer));
+            if (self->shutting_down_.load())
+                return;
+            self->auto_update_tick(auto_update_now_from_system());
+        },
+        kAutoInstallTickMs, this);
+    lv_timer_set_repeat_count(auto_install_timer_, -1);
 }
 
 void UpdateChecker::cancel_auto_check_timer() {
@@ -3878,6 +3907,62 @@ void UpdateChecker::cancel_auto_check_timer() {
         helix::ui::lv_timer_cancel_safe(auto_check_timer_);
     }
     auto_check_timer_ = nullptr;
+    if (auto_install_timer_ && lv_is_initialized()) {
+        helix::ui::lv_timer_cancel_safe(auto_install_timer_);
+    }
+    auto_install_timer_ = nullptr;
+}
+
+UpdateChecker::AutoUpdateNow UpdateChecker::auto_update_now_from_system() {
+    AutoUpdateNow now;
+    const std::time_t t = std::time(nullptr);
+    std::tm local{};
+    if (localtime_r(&t, &local) != nullptr) {
+        now.local_minute_of_day = local.tm_hour * 60 + local.tm_min;
+    }
+    now.seconds_since_touch =
+        lv_is_initialized() ? static_cast<int64_t>(lv_display_get_inactive_time(nullptr) / 1000)
+                            : 0;
+    return now;
+}
+
+helix::update::AutoUpdateDecision UpdateChecker::auto_update_tick(const AutoUpdateNow& now) {
+    using helix::update::AutoUpdateDecision;
+    helix::update::AutoUpdateInputs in;
+    in.mode = static_cast<helix::update::AutoUpdateMode>(
+        SystemSettingsManager::instance().get_auto_update_mode());
+    in.local_minute_of_day = now.local_minute_of_day;
+    in.seconds_since_touch = now.seconds_since_touch;
+    auto& print_state = get_printer_state().print_state();
+    in.lifecycle = print_state.get_print_lifecycle();
+    in.plr_pending = print_state.is_plr_snapshot_valid();
+
+    std::string version;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (status_ == Status::UpdateAvailable && cached_info_ && !cached_info_->is_downgrade &&
+            helix::release_is_verified(*cached_info_)) {
+            version = cached_info_->version;
+        }
+    }
+    in.update_available = !version.empty() && !is_version_dismissed(version) &&
+                          version != auto_install_attempted_version_ && !download_in_flight();
+
+    const AutoUpdateDecision decision = helix::update::decide_auto_update(in);
+    if (decision == AutoUpdateDecision::RetryTomorrow) {
+        spdlog::info("[UpdateChecker] Auto-update: v{} waits for tomorrow night (print or "
+                     "power-loss resume pending)",
+                     version);
+    } else if (decision == AutoUpdateDecision::InstallNow) {
+        spdlog::info("[UpdateChecker] Auto-update: installing v{} overnight", version);
+        auto_install_attempted_version_ = version;
+        if (auto_install_hook_) {
+            auto_install_hook_();
+        } else {
+            start_download();
+        }
+    }
+    return decision;
 }
 
 void UpdateChecker::stop_auto_check() {

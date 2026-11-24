@@ -18,6 +18,7 @@ namespace helix {
  * Owns all system-related LVGL subjects and persistence:
  * - language (index into language list)
  * - update_channel (Stable=0, Beta=1, Dev=2)
+ * - auto_update_mode (Install overnight=0, Download and ask=1, Off=2)
  * - telemetry_enabled (opt-in toggle)
  * - wifi_enabled (radio on/off choice, survives restarts)
  * - wifi_country (regulatory country, "" = leave it to the system)
@@ -97,6 +98,15 @@ class SystemSettingsManager {
 
     /** @brief Set update channel, persist, and clear update cache */
     void set_update_channel(int channel);
+
+    /** @brief Automatic updates mode (helix::update::AutoUpdateMode: 0=Install overnight,
+     *  1=Download and ask, 2=Off) */
+    int get_auto_update_mode() const {
+        return settings_.get(Key::AutoUpdateMode);
+    }
+
+    /** @brief Set and persist the automatic updates mode */
+    void set_auto_update_mode(int mode);
 
     // =========================================================================
     // TELEMETRY SETTINGS
@@ -208,6 +218,11 @@ class SystemSettingsManager {
         return settings_.subject(Key::UpdateChannel);
     }
 
+    /** @brief Automatic updates mode subject (integer, see get_auto_update_mode()) */
+    lv_subject_t* subject_auto_update_mode() {
+        return settings_.subject(Key::AutoUpdateMode);
+    }
+
     /** @brief Telemetry enabled subject (integer: 0=off, 1=on) */
     lv_subject_t* subject_telemetry_enabled() {
         return settings_.subject(Key::TelemetryEnabled);
@@ -227,7 +242,13 @@ class SystemSettingsManager {
     SystemSettingsManager();
     ~SystemSettingsManager() = default;
 
-    enum class Key : uint8_t { UpdateChannel, TelemetryEnabled, WifiEnabled, COUNT };
+    enum class Key : uint8_t {
+        UpdateChannel,
+        TelemetryEnabled,
+        WifiEnabled,
+        AutoUpdateMode,
+        COUNT
+    };
 
     SubjectManager subjects_;
     settings::PersistedSettings<Key, static_cast<size_t>(Key::COUNT)> settings_;
