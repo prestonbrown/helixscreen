@@ -428,6 +428,11 @@ void PaNonlinearOverlay::on_print_state(PrintJobState state) {
         }
         return;
     }
+    // Only how a job ended ends the pass: loading the tower resets print_stats
+    // to standby before it prints, and that frame is no end.
+    if (!job_has_ended(state)) {
+        return;
+    }
     // Before the script returns, the state showing is the previous pass's.
     // After it, the firmware's own refusal (its temperature check runs once
     // the tower starts) can arrive as an end with no printing frame before it.

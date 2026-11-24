@@ -207,6 +207,25 @@ TEST_CASE_METHOD(NonlinearFixture,
 }
 
 TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: the reset before the next tower starts is not its end",
+                 "[pa_nonlinear][pa_tuner]") {
+    // The previous pass's tower is still the printer's last job.
+    tower("complete");
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::PREPARING);
+    const size_t before = client.gcode_script_history().size();
+    // Loading the tower resets print_stats to standby before it prints.
+    tower("standby");
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(overlay.stage() == PaNonlinearOverlay::PREPARING);
+    CHECK(sent_since(before).find("M84") == std::string::npos);
+    tower("printing");
+    CHECK(overlay.stage() == PaNonlinearOverlay::PRINTING);
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
                  "nonlinear tuner: a tower that never starts gives up after the timeout",
                  "[pa_nonlinear][pa_tuner]") {
     overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
