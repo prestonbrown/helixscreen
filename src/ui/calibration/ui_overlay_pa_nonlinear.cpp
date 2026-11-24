@@ -622,6 +622,10 @@ void PaNonlinearOverlay::refresh_towers() {
     base.height_mm = kTowerHeightMm;
     base.faces = pass ? helix::pa::judged_faces(pass->judge)
                       : std::vector<helix::pa::TowerFace>{helix::pa::TowerFace::Left};
+    if (const auto size = get_printer_state().get_discovery().pa_test_size_mm()) {
+        base.size_x_mm = size->first;
+        base.size_y_mm = size->second;
+    }
     if (pass) {
         for (int z = 0; z <= static_cast<int>(kTowerHeightMm); z += 10) {
             base.tick_labels.push_back(

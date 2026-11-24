@@ -789,6 +789,12 @@ TEST_CASE_METHOD(NonlinearFixture,
     CHECK(disabled(root, "pa_btn_start"));
     set_int("pa_tune_can_start", 1);
     CHECK_FALSE(disabled(root, "pa_btn_start"));
+    // Linear K on an extruder that runs a nonlinear model: the start refuses, so it can't be
+    // pressed.
+    set_int("pa_tune_lin_blocked", 1);
+    CHECK(disabled(root, "pa_btn_start"));
+    set_int("pa_tune_lin_blocked", 0);
+    CHECK_FALSE(disabled(root, "pa_btn_start"));
 
     set_int("pa_tune_can_save_config", 0);
     CHECK(disabled(root, "pa_btn_save_config"));
@@ -802,4 +808,21 @@ TEST_CASE_METHOD(NonlinearFixture,
     CHECK_FALSE(hidden(root, "pa_btn_save_spool"));
     lv_obj_delete(root);
     linear.deinit_subjects();
+}
+
+TEST_CASE("nonlinear tuner: the firmware tower's footprint comes from [pa_test] when it sets both",
+          "[pa_nonlinear][pa_tuner][pa_tower_layout]") {
+    PrinterDiscovery hw;
+    hw.parse_pa_test_size(json{{"pa_test", {{"size_x", 60.0}, {"size_y", 45.0}}}});
+    REQUIRE(hw.pa_test_size_mm().has_value());
+    CHECK(hw.pa_test_size_mm()->first == Catch::Approx(60.0f));
+    CHECK(hw.pa_test_size_mm()->second == Catch::Approx(45.0f));
+
+    // One size alone, or none, leaves the firmware's default.
+    hw.parse_pa_test_size(json{{"pa_test", {{"size_x", 60.0}}}});
+    CHECK_FALSE(hw.pa_test_size_mm().has_value());
+    hw.parse_pa_test_size(json{{"pa_test", {{"size_x", 0.0}, {"size_y", 0.0}}}});
+    CHECK_FALSE(hw.pa_test_size_mm().has_value());
+    hw.parse_pa_test_size(json::object());
+    CHECK_FALSE(hw.pa_test_size_mm().has_value());
 }

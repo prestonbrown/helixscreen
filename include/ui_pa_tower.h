@@ -73,6 +73,9 @@ struct PaTowerModel {
 
     // Continuous
     std::vector<helix::pa::TowerFace> faces;
+    /// The firmware tower's footprint, which places the guide lines on each face.
+    float size_x_mm = helix::pa::kTowerSizeXMm;
+    float size_y_mm = helix::pa::kTowerSizeYMm;
     /// Value labels up the right side, every 10 mm (index 1 = 10 mm).
     std::vector<std::string> tick_labels;
     std::vector<PaTowerMarker> markers;

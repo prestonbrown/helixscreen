@@ -1106,6 +1106,7 @@ void MoonrakerDiscoverySequence::apply_configfile_settings(const json& settings)
         hardware_.parse_build_volume(settings);
         hardware_.parse_extruder_dimensions(settings);
         hardware_.parse_stepper_geometry(settings);
+        hardware_.parse_pa_test_size(settings);
         hardware_.parse_fit_limits(settings);
         spdlog::debug(
             "[Discovery] Fit-check limits: {}",

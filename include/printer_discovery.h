@@ -756,6 +756,22 @@ class PrinterDiscovery {
      */
     void parse_stepper_geometry(const nlohmann::json& settings);
 
+    /**
+     * @brief Read the firmware pressure advance tower's footprint, [pa_test]
+     * size_x / size_y
+     *
+     * The tower uses its own default unless both are set and positive, as the
+     * firmware does.
+     *
+     * @param settings JSON object from a configfile.settings response
+     */
+    void parse_pa_test_size(const nlohmann::json& settings);
+
+    /// [pa_test] size_x / size_y when the config sets both, else nullopt.
+    [[nodiscard]] std::optional<std::pair<float, float>> pa_test_size_mm() const {
+        return pa_test_size_mm_;
+    }
+
     [[nodiscard]] std::optional<calibration::ripple::MotorGeometry>
     motor_geometry(calibration::ripple::MotorId m) const {
         return m == calibration::ripple::MotorId::StepperX ? stepper_x_geometry_
@@ -1311,7 +1327,8 @@ class PrinterDiscovery {
                                              ///< target, not the heater's.
     float filament_diameter_mm_ = filament::kDefaultDiameterMm; ///< [extruder] filament_diameter
     static constexpr float kDefaultNozzleDiameterMm = 0.4f;
-    float nozzle_diameter_mm_ = kDefaultNozzleDiameterMm; ///< [extruder] nozzle_diameter
+    float nozzle_diameter_mm_ = kDefaultNozzleDiameterMm;    ///< [extruder] nozzle_diameter
+    std::optional<std::pair<float, float>> pa_test_size_mm_; ///< [pa_test] size_x, size_y
     std::optional<calibration::ripple::MotorGeometry> stepper_x_geometry_;
     std::optional<calibration::ripple::MotorGeometry> stepper_y_geometry_;
     std::optional<FitMachine> fit_machine_;                 ///< configfile limits for the fit check

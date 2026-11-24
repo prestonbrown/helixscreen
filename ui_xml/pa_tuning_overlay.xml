@@ -42,7 +42,8 @@
       <calibration_intro name="pa_setup"
                          layout="diagram" status_subject="pa_tune_time_line" status_sub_subject="pa_tune_time_sub"
                          primary_name="pa_btn_start" primary_bind_text="pa_tune_primary_text"
-                         primary_callback="on_pa_tune_primary" primary_disabled_cond="pa_tune_can_start eq 0"
+                         primary_callback="on_pa_tune_primary"
+                         primary_disabled_cond="pa_tune_can_start eq 0 or pa_tune_lin_blocked eq 1"
                          primary_moves_machine="true">
         <bind_flag_if_not_eq subject="pa_tune_stage" flag="hidden" ref_value="0"/>
         <calibration_intro-diagram>
@@ -55,7 +56,9 @@
                   width="#pa_nl_cards_w" height="100%" style_pad_all="0" style_bg_opa="0" style_border_width="0"
                   flex_flow="column" style_pad_gap="#space_xs" scrollable="false" hidden="true">
             <bind_flag_if_eq subject="pa_tune_nl_mode" flag="hidden" ref_value="0"/>
-            <cal_intro_section_label text="Three towers, one value each" text_tag="Three towers, one value each"/>
+            <cal_intro_section_label width="100%"
+                                     text="Three towers, one value each" text_tag="Three towers, one value each"
+                                     long_mode="wrap"/>
             <repeat count="3">
               <lv_obj width="100%"
                       height="0" flex_grow="1" style_bg_color="#screen_bg" style_bg_opa="255" style_border_width="1"
@@ -102,13 +105,27 @@
                         flex_grow="1" bind_text="pa_tune_material_temps" style_text_align="right"
                         style_text_color="#text_muted"/>
           </lv_obj>
+          <!-- Linear K: one row, the temperatures on the caption line. -->
           <lv_obj name="pa_preset_grid" flex_flow="row" style_pad_gap="#space_xs" scrollable="false">
             <style name="plain_row"/>
+            <bind_flag_if_eq subject="pa_tune_nl_mode" flag="hidden" ref_value="1"/>
             <repeat count="4">
               <cal_intro_chip name="pa_preset_${i}"
                               bind_label="preset_material_${i}_name" no_detail="true" label_align="center"
                               label_font="#cal_font_subtitle" choice="pa_tune_preset_selected_${i}" value="1" index="$i"
                               callback="on_pa_tune_preset"/>
+            </repeat>
+          </lv_obj>
+          <!-- Nonlinear: the narrower column takes two by two, each with its temperatures. -->
+          <lv_obj name="pa_preset_grid_nl"
+                  flex_flow="row_wrap" style_pad_gap="#space_xs" scrollable="false" hidden="true">
+            <style name="plain_row"/>
+            <bind_flag_if_eq subject="pa_tune_nl_mode" flag="hidden" ref_value="0"/>
+            <repeat count="4">
+              <cal_intro_chip name="pa_preset_nl_${i}"
+                              width="48%" grow="0" bind_label="preset_material_${i}_name"
+                              bind_detail="pa_tune_preset_temp_${i}" choice="pa_tune_preset_selected_${i}" value="1"
+                              index="$i" callback="on_pa_tune_preset"/>
             </repeat>
           </lv_obj>
           <cal_intro_section_label text="Extruder" text_tag="Extruder"/>

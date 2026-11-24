@@ -327,7 +327,7 @@ std::pair<float, lv_opa_t> speed_bar(SpeedKind s) {
 void draw_face(lv_obj_t* obj, lv_layer_t* layer, const PaTowerModel& m, const Layout& l, int index,
                lv_area_t face) {
     const TowerFace which = m.faces[index];
-    const helix::pa::FaceLayout fl = helix::pa::tower_face_layout(which);
+    const helix::pa::FaceLayout fl = helix::pa::tower_face_layout(which, m.size_x_mm, m.size_y_mm);
     const lv_color_t amber = theme_manager_get_color("warning");
     const lv_color_t border = theme_manager_get_color("border");
     const lv_color_t text = theme_manager_get_color("text");
@@ -485,12 +485,13 @@ void draw_continuous(lv_obj_t* obj, lv_layer_t* layer, const PaTowerModel& m, co
     const int32_t gap = theme_manager_get_spacing("space_xs");
     float total_mm = 0.0f;
     for (auto f : m.faces) {
-        total_mm += helix::pa::tower_face_layout(f).width_mm;
+        total_mm += helix::pa::tower_face_layout(f, m.size_x_mm, m.size_y_mm).width_mm;
     }
     const int32_t avail = l.body_x2 - l.body_x1 - gap * static_cast<int32_t>(m.faces.size() - 1);
     int32_t x = l.body_x1;
     for (size_t i = 0; i < m.faces.size(); ++i) {
-        const float mm = helix::pa::tower_face_layout(m.faces[i]).width_mm;
+        const float mm =
+            helix::pa::tower_face_layout(m.faces[i], m.size_x_mm, m.size_y_mm).width_mm;
         const int32_t fw = i + 1 == m.faces.size()
                                ? l.body_x2 - x
                                : static_cast<int32_t>(std::lround(avail * mm / total_mm));
@@ -569,12 +570,13 @@ int face_at(lv_obj_t* obj, const TowerState& st, int32_t x) {
     const Layout l = measure(obj, m);
     float total_mm = 0.0f;
     for (auto f : m.faces) {
-        total_mm += helix::pa::tower_face_layout(f).width_mm;
+        total_mm += helix::pa::tower_face_layout(f, m.size_x_mm, m.size_y_mm).width_mm;
     }
     float edge = static_cast<float>(l.body_x1);
     const float span = static_cast<float>(l.body_x2 - l.body_x1);
     for (size_t i = 0; i + 1 < m.faces.size(); ++i) {
-        edge += span * helix::pa::tower_face_layout(m.faces[i]).width_mm / total_mm;
+        edge += span * helix::pa::tower_face_layout(m.faces[i], m.size_x_mm, m.size_y_mm).width_mm /
+                total_mm;
         if (static_cast<float>(x) < edge) {
             return static_cast<int>(i);
         }

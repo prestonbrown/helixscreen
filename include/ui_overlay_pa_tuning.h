@@ -392,7 +392,8 @@ class PaTuningOverlay : public OverlayBase {
     char error_buf_[192] = {};
 
     static constexpr int kNlPassCards = 3;
-    /// 1 while the chosen extruder runs a nonlinear model: Linear K would overwrite it.
+    /// 1 while Linear K is chosen on an extruder that runs a nonlinear model: the
+    /// start refuses, so the button is disabled and the reason shows.
     helix::Subject lin_blocked_{};
     helix::Subject time_line_{};
     char time_line_buf_[64] = {};

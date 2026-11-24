@@ -372,9 +372,9 @@ void PaTuningOverlay::refresh_presets() {
         const auto temps = helix::presets::slot_temps(i);
         lv_subject_set_string(
             &preset_temp_[i],
-            temps ? fmt::format("{}° / {}°", helix::units::to_display_temp_whole(temps->nozzle),
-                                helix::units::to_display_temp_whole(temps->bed))
-                        .c_str()
+            // The nozzle's alone: it fits beside the name in the nonlinear setup's narrow chips;
+            // the picked material's bed temperature is on the caption line.
+            temps ? fmt::format("{}°", helix::units::to_display_temp_whole(temps->nozzle)).c_str()
                   : "");
         lv_subject_set_int(&preset_selected_[i], i == selected_preset_ ? 1 : 0);
     }
@@ -548,7 +548,7 @@ void PaTuningOverlay::refresh_setup() {
     // sweep gives way to the reason, and the start refuses.
     const bool nl_model =
         get_printer_state().temperature_state().extruder_pa_model(params.heater).nonlinear();
-    lv_subject_set_int(&lin_blocked_, nl_model ? 1 : 0);
+    lv_subject_set_int(&lin_blocked_, nl_model && lv_subject_get_int(&nl_mode_) == 0 ? 1 : 0);
     const std::string text =
         nl_model
             ? std::string(lv_tr("This extruder runs the nonlinear model. A classic K tower would "

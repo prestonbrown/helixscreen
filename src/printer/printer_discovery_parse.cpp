@@ -1259,6 +1259,26 @@ void PrinterDiscovery::parse_extruder_dimensions(const nlohmann::json& settings)
     read_positive("nozzle_diameter", nozzle_diameter_mm_);
 }
 
+void PrinterDiscovery::parse_pa_test_size(const nlohmann::json& settings) {
+    pa_test_size_mm_.reset();
+    const auto section = settings.find("pa_test");
+    if (section == settings.end() || !section->is_object()) {
+        return;
+    }
+    const auto positive = [&section](const char* key) -> std::optional<float> {
+        const auto v = section->find(key);
+        if (v == section->end() || !v->is_number() || !(v->get<float>() > 0.0f)) {
+            return std::nullopt;
+        }
+        return v->get<float>();
+    };
+    const auto x = positive("size_x");
+    const auto y = positive("size_y");
+    if (x && y) {
+        pa_test_size_mm_ = std::make_pair(*x, *y);
+    }
+}
+
 void PrinterDiscovery::parse_stepper_geometry(const nlohmann::json& settings) {
     auto read =
         [&settings](const char* section) -> std::optional<calibration::ripple::MotorGeometry> {
