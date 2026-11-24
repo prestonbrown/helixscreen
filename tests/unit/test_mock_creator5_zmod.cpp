@@ -222,6 +222,33 @@ TEST_CASE("The mock persona and HELIX_MOCK_AMS pick the mock AMS's type",
     CHECK(helix::AmsBackend::create(helix::AmsType::NONE, nullptr, nullptr) == nullptr);
 }
 
+TEST_CASE("A Happy Hare unit mode on a persona with no mmu draws that unit on the mock backend",
+          "[mock][creator5][ams]") {
+    MockTopologyGuards guards;
+    helix::ScopedEnv zmod{"HELIX_MOCK_PRINTER", "creator5_zmod"};
+    ScopedRuntimeConfig scoped_config;
+    auto* config = get_runtime_config();
+    config->test_mode = true;
+    config->use_real_ams = false;
+    REQUIRE(config->should_mock_ams());
+
+    struct Row {
+        const char* mode;
+        const char* model;
+        helix::PathTopology topology;
+    };
+    const Row row = GENERATE(Row{"hh_vivid", "VVD", helix::PathTopology::LINEAR},
+                             Row{"hh_night_owl", "NightOwl", helix::PathTopology::HUB});
+    CAPTURE(row.mode);
+    helix::ScopedEnv env{"HELIX_MOCK_AMS", row.mode};
+    auto backend = helix::AmsBackend::create(helix::AmsType::NONE, nullptr, nullptr);
+    REQUIRE(backend != nullptr);
+    const auto info = backend->get_system_info();
+    REQUIRE_FALSE(info.units.empty());
+    CHECK(info.units[0].model == row.model);
+    CHECK(info.units[0].topology == row.topology);
+}
+
 TEST_CASE("A mock-hardware persona declines the mock AMS backend", "[mock][creator5][zmod]") {
     MockTopologyGuards guards;
     helix::ScopedEnv zmod{"HELIX_MOCK_PRINTER", "creator5_zmod"};
