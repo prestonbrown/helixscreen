@@ -84,3 +84,18 @@ def test_cli_reads_stdin():
         check=True,
     ).stdout
     assert out == "a b\n"
+
+
+def test_indented_code_block_keeps_its_lines():
+    src = "intro\n\n    a = 1\n    b = 2\n\nafter\nwrapped\n"
+    assert unwrap(src) == "intro\n\n    a = 1\n    b = 2\n\nafter wrapped\n"
+
+
+def test_indented_paragraph_inside_a_list_item_still_joins():
+    src = "- item\n\n    more text\n    wrapped\n"
+    assert unwrap(src) == "- item\n\n    more text wrapped\n"
+
+
+def test_html_block_body_stays_line_by_line():
+    src = "<details>\n<summary>More</summary>\nline one\nline two\n</details>\n\ntext\nwrapped\n"
+    assert unwrap(src) == "<details>\n<summary>More</summary>\nline one\nline two\n</details>\n\ntext wrapped\n"

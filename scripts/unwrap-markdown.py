@@ -12,7 +12,9 @@ A continuation line (non-blank, not a list item, heading, table row,
 blockquote, rule or fence) is joined onto the previous paragraph or list item
 with one space. Fenced code blocks, tables, headings, blockquotes, blank lines
 and lines ending in a hard break (two trailing spaces or a backslash) are left
-alone.
+alone. So are indented code blocks (a line indented 4+ spaces after a blank line,
+outside a list, and the lines continuing it) and HTML blocks (a line starting
+with a tag, through the next blank line).
 
 Usage:
   scripts/unwrap-markdown.py [FILE]    # default: stdin; writes stdout
@@ -23,6 +25,7 @@ import sys
 
 _FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
 _LIST_ITEM = re.compile(r"^\s*([-*+]|\d+[.)])(\s|$)")
+_INDENTED = re.compile(r"^( {4,}|\t)")
 _STANDALONE = re.compile(r"^\s*(#{1,6}(\s|$)|\||>|<|([-*_]\s*){3,}$|=+\s*$)")
 
 
@@ -30,6 +33,10 @@ def unwrap(text: str) -> str:
     out: list[str] = []
     fence: str | None = None  # opening fence marker while inside a code block
     joinable = False  # the last output line is paragraph or list text
+    in_list = False  # indented text after a blank line belongs to a list item
+    in_code = False  # inside an indented code block
+    in_html = False  # inside an HTML block, which ends at the next blank line
+    prev_blank = True
 
     for line in text.split("\n"):
         m = _FENCE.match(line)
@@ -48,8 +55,31 @@ def unwrap(text: str) -> str:
         if not line.strip():
             out.append(line)
             joinable = False
+            in_html = False
+            prev_blank = True
+            continue
+        was_blank, prev_blank = prev_blank, False
+        if in_html:
+            out.append(line)
+            continue
+        if in_code and _INDENTED.match(line):
+            out.append(line)
+            continue
+        in_code = False
+        if was_blank and not in_list and _INDENTED.match(line):
+            in_code = True
+            out.append(line)
+            joinable = False
+            continue
+        if was_blank and not _INDENTED.match(line) and not _LIST_ITEM.match(line):
+            in_list = False
+        if line.lstrip().startswith("<") and not _INDENTED.match(line):
+            in_html = True
+            out.append(line)
+            joinable = False
             continue
         if _LIST_ITEM.match(line):
+            in_list = True
             out.append(line)
             joinable = not line.endswith(("  ", "\\"))
             continue
