@@ -427,7 +427,8 @@ void EmergencyStopOverlay::update_visibility() {
     // no second spelling to drift.
     const auto lifecycle = printer_state_->print_state().get_print_lifecycle();
 
-    int new_value = job_holds_machine(lifecycle) ? 1 : 0;
+    // A script the app sent holds the machine with no job to report it.
+    int new_value = (job_holds_machine(lifecycle) || machine_busy_count_ > 0) ? 1 : 0;
     int current_value = lv_subject_get_int(&estop_visible_);
 
     if (new_value != current_value) {
@@ -435,6 +436,18 @@ void EmergencyStopOverlay::update_visibility() {
         spdlog::debug("[EmergencyStop] Visibility changed: {} (lifecycle={})", new_value,
                       static_cast<int>(lifecycle));
     }
+}
+
+void EmergencyStopOverlay::acquire_machine_busy() {
+    ++machine_busy_count_;
+    update_visibility();
+}
+
+void EmergencyStopOverlay::release_machine_busy() {
+    if (machine_busy_count_ > 0) {
+        --machine_busy_count_;
+    }
+    update_visibility();
 }
 
 void EmergencyStopOverlay::handle_click() {

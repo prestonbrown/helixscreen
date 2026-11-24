@@ -167,6 +167,18 @@ class EmergencyStopOverlay {
     void update_visibility();
 
     /**
+     * @brief Hold the E-Stop visible while the app moves or heats the machine
+     *        itself, with no print job to say so
+     *
+     * A console script (a tuner's PRINT_START, a homing-and-heating macro run
+     * before any job exists) holds the machine while print_stats reads standby.
+     * Reference-counted; release without a matching acquire does nothing. Take
+     * it through helix::MachineBusyToken rather than by hand. Main thread only.
+     */
+    void acquire_machine_busy();
+    void release_machine_busy();
+
+    /**
      * @brief Set whether confirmation dialog is required
      *
      * When enabled, clicking E-Stop shows a confirmation dialog before
@@ -336,6 +348,9 @@ class EmergencyStopOverlay {
 
     bool subjects_initialized_ = false;
 
+    // Holds taken through acquire_machine_busy(). Main thread only.
+    int machine_busy_count_ = 0;
+
     // RAII subject manager for automatic cleanup
     SubjectManager subjects_;
 
@@ -438,6 +453,40 @@ class EmergencyStopOverlay {
 };
 
 namespace helix {
+
+/// At most one EmergencyStopOverlay::acquire_machine_busy(), released by reset()
+/// or destruction. A flow that runs a script that moves or heats the machine
+/// acquires it before the send and resets it when the script answers or the flow
+/// ends. Main thread only.
+class MachineBusyToken {
+  public:
+    MachineBusyToken() = default;
+    ~MachineBusyToken() {
+        reset();
+    }
+    MachineBusyToken(const MachineBusyToken&) = delete;
+    MachineBusyToken& operator=(const MachineBusyToken&) = delete;
+
+    void acquire() {
+        if (!held_) {
+            held_ = true;
+            EmergencyStopOverlay::instance().acquire_machine_busy();
+        }
+    }
+    void reset() {
+        if (held_) {
+            held_ = false;
+            EmergencyStopOverlay::instance().release_machine_busy();
+        }
+    }
+    [[nodiscard]] bool held() const {
+        return held_;
+    }
+
+  private:
+    bool held_ = false;
+};
+
 namespace ui {
 
 /// Disconnect-modal suppression window armed by begin_expected_klippy_restart().
