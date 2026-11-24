@@ -51,6 +51,7 @@
 #include "system/sha256_util.h"
 #include "system/telemetry_manager.h"
 #include "system/tls_trust.h"
+#include "system/update_rollback.h"
 #include "system_power.h"
 #include "system_settings_manager.h"
 #include "update_manager_status.h"
@@ -3901,8 +3902,9 @@ UpdateChecker::AutoUpdateNow UpdateChecker::auto_update_now_from_system() {
 helix::update::AutoUpdateDecision UpdateChecker::auto_update_tick(const AutoUpdateNow& now) {
     using helix::update::AutoUpdateDecision;
     helix::update::AutoUpdateInputs in;
-    in.mode = static_cast<helix::update::AutoUpdateMode>(
-        SystemSettingsManager::instance().get_auto_update_mode());
+    in.mode = helix::update::effective_auto_update_mode(
+        SystemSettingsManager::instance().get_auto_update_mode(),
+        helix::update::auto_rollback_supported());
     in.local_minute_of_day = now.local_minute_of_day;
     in.seconds_since_touch = now.seconds_since_touch;
     auto& print_state = get_printer_state().print_state();

@@ -7,11 +7,13 @@
 
 namespace helix::update {
 
-/// The Automatic updates setting. Values are the dropdown index and the persisted int.
+/// The Automatic updates setting. Values are the dropdown index and the persisted int,
+/// ordered by how much the screen does on its own so that Install overnight is the
+/// last entry and a picker without it is the same list minus its tail.
 enum class AutoUpdateMode : int {
-    InstallOvernight = 0, ///< Install in the nightly window when idle and untouched
+    Off = 0,              ///< Never act on an update unprompted
     DownloadAndAsk = 1,   ///< Tell the user an update is ready; they confirm the install
-    Off = 2,              ///< Never act on an update unprompted
+    InstallOvernight = 2, ///< Install in the nightly window when idle and untouched
 };
 
 /// What the scheduler wants done with an available update right now.
@@ -40,6 +42,11 @@ struct AutoUpdateInputs {
     bool plr_pending = false;        ///< A power-loss resume is waiting to be offered
     int64_t seconds_since_touch = 0; ///< Time since the last touch on the screen
 };
+
+/// The mode the scheduler runs for a stored setting. Install overnight is only
+/// offered where a failed install rolls itself back; elsewhere a stored Install
+/// overnight runs as Download and ask. Out-of-range values run as Download and ask.
+AutoUpdateMode effective_auto_update_mode(int stored, bool install_overnight_offered);
 
 /// Is @p minute_of_day inside @p window? Handles a window that wraps past midnight.
 bool in_nightly_window(int minute_of_day, const NightlyWindow& window);

@@ -78,7 +78,11 @@ void UpdatesSettingsOverlay::register_callbacks() {
          }},
         {"on_auto_update_mode_changed",
          [](lv_event_t* e) {
-             const int mode = std::clamp(helix::ui::event_selected(e), 0, 2);
+             // The row's own list bounds the value, so a picker without Install
+             // overnight can never store it.
+             lv_obj_t* dropdown = lv_event_get_current_target_obj(e);
+             const int last = static_cast<int>(lv_dropdown_get_option_count(dropdown)) - 1;
+             const int mode = std::clamp(helix::ui::event_selected(e), 0, std::max(last, 0));
              spdlog::info("[UpdatesSettings] Automatic updates mode changed: {}", mode);
              SystemSettingsManager::instance().set_auto_update_mode(mode);
          }},

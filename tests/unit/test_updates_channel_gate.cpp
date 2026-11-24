@@ -3,7 +3,8 @@
 
 /**
  * @file test_updates_channel_gate.cpp
- * @brief Which Update Channel picker the Updates overlay shows, and what it reads.
+ * @brief Which Update Channel and Automatic Updates pickers the Updates overlay
+ *        shows, and what they read.
  *
  * A dropdown's options are a static string, so settings_updates_overlay.xml carries
  * two channel rows with complementary conditions: Stable/Beta for every install,
@@ -33,10 +34,12 @@
 #include "core/subject.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "system/auto_update_schedule.h"
 #include "system_settings_manager.h"
 
 #include <lvgl.h>
 #include <string>
+#include <utility>
 
 #include "../catch_amalgamated.hpp"
 
@@ -62,6 +65,9 @@ struct UpdatesChannelGateFixture : public LVGLUITestFixture {
         helix::test::xml_stand_in("show_beta_features", 1);
         get_global_settings_panel().init_subjects();
         helix::settings::get_updates_settings_overlay().init_subjects();
+        // XML binds an event callback by name when the tree is created, so the
+        // callbacks are registered first or the rows' events reach nothing.
+        helix::settings::get_updates_settings_overlay().register_callbacks();
         root_ = static_cast<lv_obj_t*>(
             lv_xml_create(test_screen(), "settings_updates_overlay", nullptr));
     }
@@ -258,4 +264,66 @@ TEST_CASE_METHOD(UpdatesChannelGateFixture,
         UpdateQueue::instance().drain();
     }
     system.set_update_channel(before);
+}
+
+namespace {
+
+/// Makes the Automatic Updates section eligible, with or without Install overnight.
+void show_auto_update_rows(int overnight_available) {
+    for (const auto& [name, value] : {std::pair<const char*, int>{"show_update_settings", 1},
+                                      {"updates_unavailable", 0},
+                                      {"updates_firmware_managed", 0},
+                                      {"auto_update_overnight_available", overnight_available}}) {
+        lv_subject_t* subject = lv_xml_get_subject(nullptr, name);
+        REQUIRE(subject != nullptr);
+        lv_subject_set_int(subject, value);
+    }
+}
+
+} // namespace
+
+TEST_CASE_METHOD(UpdatesChannelGateFixture,
+                 "Automatic Updates offers Install overnight only where it is available",
+                 "[settings][updates][auto_update]") {
+    REQUIRE(root_ != nullptr);
+    auto& system = SystemSettingsManager::instance();
+    const int before = system.get_auto_update_mode();
+    const int overnight = static_cast<int>(helix::update::AutoUpdateMode::InstallOvernight);
+
+    SECTION("without it, the picker has no Install overnight entry") {
+        show_auto_update_rows(0);
+        process_lvgl(10);
+        CHECK_FALSE(hidden("container_auto_update_mode"));
+        CHECK(hidden("container_auto_update_mode_overnight"));
+        lv_obj_t* dd = dropdown("row_auto_update_mode");
+        CHECK(lv_dropdown_get_option_count(dd) == 2);
+
+        lv_dropdown_set_selected(dd, 0);
+        lv_obj_send_event(dd, LV_EVENT_VALUE_CHANGED, nullptr);
+        CHECK(system.get_auto_update_mode() ==
+              static_cast<int>(helix::update::AutoUpdateMode::Off));
+    }
+
+    SECTION("without it, a stored Install overnight shows as Download and ask") {
+        show_auto_update_rows(0);
+        system.set_auto_update_mode(overnight);
+        process_lvgl(10);
+        CHECK(lv_dropdown_get_selected(dropdown("row_auto_update_mode")) ==
+              static_cast<uint32_t>(helix::update::AutoUpdateMode::DownloadAndAsk));
+    }
+
+    SECTION("with it, Install overnight can be picked and stored") {
+        show_auto_update_rows(1);
+        process_lvgl(10);
+        CHECK(hidden("container_auto_update_mode"));
+        CHECK_FALSE(hidden("container_auto_update_mode_overnight"));
+        lv_obj_t* dd = dropdown("row_auto_update_mode_overnight");
+        REQUIRE(lv_dropdown_get_option_count(dd) == 3);
+
+        lv_dropdown_set_selected(dd, static_cast<uint32_t>(overnight));
+        lv_obj_send_event(dd, LV_EVENT_VALUE_CHANGED, nullptr);
+        CHECK(system.get_auto_update_mode() == overnight);
+    }
+
+    system.set_auto_update_mode(before);
 }

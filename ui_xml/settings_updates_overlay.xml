@@ -33,15 +33,29 @@
                               callback="on_about_install_update_clicked"/>
         </lv_obj>
         <!-- Automatic updates. Hidden where the install cannot update itself:
-             firmware-managed installs and unwritable trees have nothing to schedule. -->
+             firmware-managed installs and unwritable trees have nothing to schedule.
+             Two rows with complementary conditions, as with Update Channel: the
+             options are a static string, and Install overnight is listed only where
+             a failed install rolls itself back (auto_update_overnight_available).
+             The values are AutoUpdateMode, so index 0 Off and 1 Download and ask
+             mean the same thing in both lists and both rows bind the one setting. -->
         <lv_obj name="container_auto_update_mode" width="100%" style_pad_all="0" scrollable="false">
-          <bind_flag_if cond="show_update_settings eq 1 and updates_unavailable eq 0 and updates_firmware_managed eq 0"
+          <bind_flag_if cond="show_update_settings eq 1 and updates_unavailable eq 0 and updates_firmware_managed eq 0 and auto_update_overnight_available eq 0"
                         flag="hidden" invert="true"/>
           <setting_dropdown_row name="row_auto_update_mode"
                                 label="Automatic Updates" icon="clock"
+                                description="Download and ask tells you when an update is ready to install"
+                                options="Off&#10;Download and ask" options_tag="Off&#10;Download and ask"
+                                bind_selected="settings_auto_update_mode" callback="on_auto_update_mode_changed"/>
+        </lv_obj>
+        <lv_obj name="container_auto_update_mode_overnight" width="100%" style_pad_all="0" scrollable="false">
+          <bind_flag_if cond="show_update_settings eq 1 and updates_unavailable eq 0 and updates_firmware_managed eq 0 and auto_update_overnight_available eq 1"
+                        flag="hidden" invert="true"/>
+          <setting_dropdown_row name="row_auto_update_mode_overnight"
+                                label="Automatic Updates" icon="clock"
                                 description="Install overnight restarts the screen at 3 AM when the printer is idle"
-                                options="Install overnight&#10;Download and ask&#10;Off"
-                                options_tag="Install overnight&#10;Download and ask&#10;Off"
+                                options="Off&#10;Download and ask&#10;Install overnight"
+                                options_tag="Off&#10;Download and ask&#10;Install overnight"
                                 bind_selected="settings_auto_update_mode" callback="on_auto_update_mode_changed"/>
         </lv_obj>
         <!-- Firmware-managed updates notice (replaces the check/install controls

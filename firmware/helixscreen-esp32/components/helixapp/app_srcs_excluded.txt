@@ -238,6 +238,7 @@ src/rendering/gles2_loader.cpp  # not in the v1 Core+AMS cut
 src/spoolman/spoolman_slot_saver.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
 src/system/alsa_sound_backend.cpp  # not in the v1 Core+AMS cut
 src/system/android_update_source.cpp  # Android only
+src/system/auto_update_schedule.cpp  # read only by update_checker, which is off the firmware
 src/system/bitmap_font_5x7.cpp  # only the label printer and the screen server draw with it
 src/system/bluetooth_loader.cpp  # not in the v1 Core+AMS cut
 src/system/brother_pt_bt_printer.cpp  # not in the v1 Core+AMS cut
@@ -310,6 +311,7 @@ src/system/tracker_module_mod.cpp  # not in the v1 Core+AMS cut
 src/system/tracker_player.cpp  # not in the v1 Core+AMS cut
 src/system/update_checker.cpp  # not in the v1 Core+AMS cut
 src/system/update_gate.cpp  # not in the v1 Core+AMS cut
+src/system/update_rollback.cpp  # the firmware updates by OTA; the in-app installer it backs is off the firmware
 src/system/upgrade_nudge.cpp  # not in the v1 Core+AMS cut
 src/system/usb_printer_detector.cpp  # not in the v1 Core+AMS cut
 src/system/usb_scanner_monitor.cpp  # not in the v1 Core+AMS cut

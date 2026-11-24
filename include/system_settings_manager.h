@@ -18,7 +18,7 @@ namespace helix {
  * Owns all system-related LVGL subjects and persistence:
  * - language (index into language list)
  * - update_channel (Stable=0, Beta=1, Dev=2)
- * - auto_update_mode (Install overnight=0, Download and ask=1, Off=2)
+ * - auto_update_mode (Off=0, Download and ask=1, Install overnight=2)
  * - telemetry_enabled (opt-in toggle)
  * - wifi_enabled (radio on/off choice, survives restarts)
  * - wifi_country (regulatory country, "" = leave it to the system)
@@ -95,8 +95,9 @@ class SystemSettingsManager {
     /** @brief Set update channel, persist, and clear update cache */
     void set_update_channel(int channel);
 
-    /** @brief Automatic updates mode (helix::update::AutoUpdateMode: 0=Install overnight,
-     *  1=Download and ask, 2=Off) */
+    /** @brief Stored automatic updates mode (helix::update::AutoUpdateMode: 0=Off,
+     *  1=Download and ask, 2=Install overnight). The scheduler runs
+     *  helix::update::effective_auto_update_mode() of this, not the raw value. */
     int get_auto_update_mode() const {
         return settings_.get(Key::AutoUpdateMode);
     }

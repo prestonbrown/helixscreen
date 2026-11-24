@@ -13,6 +13,7 @@
 #include "printer_state.h"
 #include "system/auto_update_schedule.h"
 #include "system/update_checker.h"
+#include "system/update_rollback.h"
 #include "system_settings_manager.h"
 #include "test_helpers/printer_state_test_access.h"
 #include "test_helpers/update_checker_test_access.h"
@@ -25,6 +26,7 @@ using helix::update::AutoUpdateDecision;
 using helix::update::AutoUpdateInputs;
 using helix::update::AutoUpdateMode;
 using helix::update::decide_auto_update;
+using helix::update::effective_auto_update_mode;
 using helix::update::in_nightly_window;
 using helix::update::kAutoUpdateIdleSeconds;
 using helix::update::NightlyWindow;
@@ -67,6 +69,20 @@ TEST_CASE("Auto-update window: membership, edges and midnight wrap", "[auto_upda
     CHECK(in_nightly_window(kNoon, NightlyWindow{0, 24 * 60}));
     CHECK_FALSE(in_nightly_window(-1, three_am));
     CHECK_FALSE(in_nightly_window(24 * 60, three_am));
+}
+
+TEST_CASE("Auto-update mode: Install overnight runs only where it is offered", "[auto_update]") {
+    const int overnight = static_cast<int>(AutoUpdateMode::InstallOvernight);
+    CHECK(effective_auto_update_mode(overnight, true) == AutoUpdateMode::InstallOvernight);
+    CHECK(effective_auto_update_mode(overnight, false) == AutoUpdateMode::DownloadAndAsk);
+    for (bool offered : {true, false}) {
+        CHECK(effective_auto_update_mode(static_cast<int>(AutoUpdateMode::Off), offered) ==
+              AutoUpdateMode::Off);
+        CHECK(effective_auto_update_mode(static_cast<int>(AutoUpdateMode::DownloadAndAsk),
+                                         offered) == AutoUpdateMode::DownloadAndAsk);
+        CHECK(effective_auto_update_mode(-1, offered) == AutoUpdateMode::DownloadAndAsk);
+        CHECK(effective_auto_update_mode(7, offered) == AutoUpdateMode::DownloadAndAsk);
+    }
 }
 
 TEST_CASE("Auto-update decision: installs only when every condition holds", "[auto_update]") {
@@ -147,6 +163,7 @@ class AutoUpdateTickFixture : public LVGLTestFixture {
         PrinterStateTestAccess::reset(printer_state);
         printer_state.init_subjects(false);
         SystemSettingsManager::instance().init_subjects();
+        helix::update::set_auto_rollback_supported_for_test(true);
         SystemSettingsManager::instance().set_auto_update_mode(
             static_cast<int>(AutoUpdateMode::InstallOvernight));
         UpdateCheckerTestAccess::seed_available_update(checker);
@@ -155,6 +172,7 @@ class AutoUpdateTickFixture : public LVGLTestFixture {
 
     ~AutoUpdateTickFixture() override {
         UpdateCheckerTestAccess::set_auto_install_hook(checker, nullptr);
+        helix::update::set_auto_rollback_supported_for_test(std::nullopt);
         SystemSettingsManager::instance().set_auto_update_mode(
             static_cast<int>(AutoUpdateMode::DownloadAndAsk));
         checker.clear_cache();
@@ -188,6 +206,14 @@ TEST_CASE_METHOD(AutoUpdateTickFixture, "Auto-update tick: installs once in the 
     // The same release is never retried unprompted, even with the window still open.
     CHECK(checker.auto_update_tick(at(kThreeAm + 10)) == AutoUpdateDecision::Wait);
     CHECK(installs == 1);
+}
+
+TEST_CASE_METHOD(AutoUpdateTickFixture,
+                 "Auto-update tick: a stored Install overnight asks where rollback is missing",
+                 "[auto_update]") {
+    helix::update::set_auto_rollback_supported_for_test(false);
+    CHECK(checker.auto_update_tick(at(kThreeAm + 5)) == AutoUpdateDecision::Download);
+    CHECK(installs == 0);
 }
 
 TEST_CASE_METHOD(AutoUpdateTickFixture, "Auto-update tick: a print in progress waits for tomorrow",

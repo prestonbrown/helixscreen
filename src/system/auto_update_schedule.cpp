@@ -8,6 +8,18 @@ namespace {
 constexpr int kMinutesPerDay = 24 * 60;
 }
 
+AutoUpdateMode effective_auto_update_mode(int stored, bool install_overnight_offered) {
+    switch (stored) {
+    case static_cast<int>(AutoUpdateMode::Off):
+        return AutoUpdateMode::Off;
+    case static_cast<int>(AutoUpdateMode::InstallOvernight):
+        return install_overnight_offered ? AutoUpdateMode::InstallOvernight
+                                         : AutoUpdateMode::DownloadAndAsk;
+    default:
+        return AutoUpdateMode::DownloadAndAsk;
+    }
+}
+
 bool in_nightly_window(int minute_of_day, const NightlyWindow& window) {
     if (window.length_minutes <= 0 || minute_of_day < 0 || minute_of_day >= kMinutesPerDay) {
         return false;
