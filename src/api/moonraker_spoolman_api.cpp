@@ -177,8 +177,8 @@ helix::spoolman_detail::parse_external_filament(const nlohmann::json& filament_j
     f.name = safe_string(filament_json, "name");
     f.material = safe_string(filament_json, "material");
     f.color_hex = safe_string(filament_json, "color_hex");
-    const auto hexes = filament_json.find("color_hexes");
-    if (hexes != filament_json.end() && hexes->is_array()) {
+    auto* hexes = helix::json_util::find_array(filament_json, "color_hexes");
+    if (hexes != nullptr) {
         for (const auto& hex : *hexes) {
             if (hex.is_string()) {
                 f.color_hexes.push_back(hex.get<std::string>());

@@ -4,6 +4,7 @@
 #include "core/static_subject_registry.h"
 #include "helix/xml/scoped_subject_registry.h"
 #include "i_moonraker_client.h"
+#include "json_utils.h"
 #include "non_filament_pause.h"
 #include "notice.h"
 #include "settings_manager.h"
@@ -360,8 +361,8 @@ void DetectionManager::refresh_capabilities() {
         lifetime_.bg_cb("DetectionManager::on_objects_list",
                         [this](const json& resp) {
                             json objects = json::array();
-                            auto result_it = resp.find("result");
-                            if (result_it != resp.end() && result_it->is_object()) {
+                            auto* result_it = helix::json_util::find_object(resp, "result");
+                            if (result_it != nullptr) {
                                 auto objects_it = result_it->find("objects");
                                 if (objects_it != result_it->end()) {
                                     objects = *objects_it;

@@ -2946,14 +2946,14 @@ json MoonrakerClientMock::set_nozzle_properties(const json& params) {
         return json{{"state", "error"}, {"message", std::move(message)}};
     };
 
-    const auto ext = params.find("extruder");
-    if (ext == params.end() || !ext->is_number_integer()) {
+    const auto ext = helix::json_util::read_integer_field(params, "extruder");
+    if (!ext) {
         return refuse("extruder must be specified!");
     }
     if (const auto d = params.find("diameter"); d == params.end() || d->is_null()) {
         return refuse("float() argument must be a string or a real number, not 'NoneType'");
     }
-    const int head = ext->get<int>();
+    const int head = *ext;
     if (head < 0 || head >= static_cast<int>(nozzle_props_.size())) {
         return refuse("extruder not found!");
     }

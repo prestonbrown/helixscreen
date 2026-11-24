@@ -78,8 +78,8 @@ std::string read_gcode(const nlohmann::json& rule) {
 }
 
 bool lists_operation(const nlohmann::json& rule, Operation op) {
-    const auto it = rule.find("operations");
-    if (it == rule.end() || !it->is_array()) {
+    auto* it = helix::json_util::find_array(rule, "operations");
+    if (it == nullptr) {
         return false;
     }
     const std::string key = operation_key(op);
@@ -92,8 +92,8 @@ bool suppressed_by_resolved_macro(const nlohmann::json& rule, const std::string&
     if (resolved_macro.empty()) {
         return false;
     }
-    const auto it = rule.find("skip_if_macro_in");
-    if (it == rule.end() || !it->is_array()) {
+    auto* it = helix::json_util::find_array(rule, "skip_if_macro_in");
+    if (it == nullptr) {
         return false;
     }
     const std::string wanted = helix::text_io::to_upper(resolved_macro);
@@ -166,9 +166,8 @@ Preparation resolve_from_rules(const nlohmann::json& rules,
         }
         prep.label = helix::json_util::safe_string(rule, "label");
         prep.rule_id = helix::json_util::safe_string(rule, "id");
-        const auto timeout = rule.find("timeout_s");
-        if (timeout != rule.end() && timeout->is_number()) {
-            const double seconds = timeout->get<double>();
+        if (const auto timeout = helix::json_util::read_field<double>(rule, "timeout_s")) {
+            const double seconds = *timeout;
             if (seconds > 0.0) {
                 prep.extra_timeout_ms = static_cast<uint32_t>(seconds * 1000.0);
             }

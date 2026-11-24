@@ -2053,7 +2053,7 @@ std::optional<nlohmann::json> read_remap_file() {
         converted["printers"][Config::get_instance()->get_active_printer_id()] = std::move(j);
         return converted;
     }
-    if (!j.contains("printers") || !j["printers"].is_object()) {
+    if (!helix::json_util::find_object(j, "printers")) {
         j["printers"] = nlohmann::json::object();
     }
     return j;

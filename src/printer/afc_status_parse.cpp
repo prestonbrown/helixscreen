@@ -26,8 +26,8 @@ bool all_digits(const std::string& s) {
 /// The strings in @p obj[key] when it is an array; non-string elements skipped.
 std::optional<std::vector<std::string>> read_string_list(const nlohmann::json& obj,
                                                          const char* key) {
-    const auto it = obj.find(key);
-    if (it == obj.end() || !it->is_array()) {
+    auto* it = helix::json_util::find_array(obj, key);
+    if (it == nullptr) {
         return std::nullopt;
     }
     std::vector<std::string> out;
@@ -264,8 +264,8 @@ LaneStatusDelta parse_lane_status(const nlohmann::json& data) {
     // Firmware carries these as BARE hex strings, having split Spoolman's
     // comma-joined `multi_color_hexes`. Normalise to the '#'-prefixed
     // comma-joined form every other backend uses.
-    const auto hexes = data.find("multi_color_hexes");
-    if (hexes != data.end() && hexes->is_array()) {
+    auto* hexes = helix::json_util::find_array(data, "multi_color_hexes");
+    if (hexes != nullptr) {
         std::string joined;
         for (const auto& hex : *hexes) {
             if (!hex.is_string()) {
@@ -409,8 +409,8 @@ const nlohmann::json& database_item_value(const nlohmann::json& response) {
     if (!response.is_object()) {
         return kNull;
     }
-    const auto result = response.find("result");
-    if (result == response.end() || !result->is_object()) {
+    auto* result = helix::json_util::find_object(response, "result");
+    if (result == nullptr) {
         return kNull;
     }
     const auto value = result->find("value");
@@ -463,8 +463,8 @@ StateDelta parse_state(const nlohmann::json& afc) {
     }
     d.number_of_toolchanges = read_integer_field(afc, "number_of_toolchanges");
 
-    const auto msg = afc.find("message");
-    if (msg != afc.end() && msg->is_object()) {
+    auto* msg = helix::json_util::find_object(afc, "message");
+    if (msg != nullptr) {
         if (auto text = ams::read_field<std::string>(*msg, "message")) {
             d.message =
                 Message{std::move(*text), ams::read_field<std::string>(*msg, "type").value_or("")};
@@ -498,11 +498,11 @@ StateDelta parse_state(const nlohmann::json& afc) {
     d.quiet_mode = ams::read_field<bool>(afc, "quiet_mode");
     d.led_state = ams::read_field<bool>(afc, "led_state");
 
-    const auto system = afc.find("system");
-    if (system != afc.end() && system->is_object()) {
+    auto* system = helix::json_util::find_object(afc, "system");
+    if (system != nullptr) {
         d.num_extruders = read_integer_field(*system, "num_extruders");
-        const auto exts = system->find("extruders");
-        if (exts != system->end() && exts->is_object()) {
+        auto* exts = helix::json_util::find_object(*system, "extruders");
+        if (exts != nullptr) {
             d.system_extruders = parse_system_extruders(*exts);
         }
     }
@@ -685,12 +685,12 @@ std::optional<ams::TagReading> cfs_lane_tag(const nlohmann::json& tag_json) {
 
 std::optional<std::map<std::string, std::optional<ams::TagReading>>>
 parse_cfs_lane_tags(const nlohmann::json& data) {
-    const auto cfs = data.find("cfs");
-    if (cfs == data.end() || !cfs->is_object()) {
+    auto* cfs = helix::json_util::find_object(data, "cfs");
+    if (cfs == nullptr) {
         return std::nullopt;
     }
-    const auto lanes = cfs->find("lanes");
-    if (lanes == cfs->end() || !lanes->is_object()) {
+    auto* lanes = helix::json_util::find_object(*cfs, "lanes");
+    if (lanes == nullptr) {
         return std::nullopt;
     }
     std::map<std::string, std::optional<ams::TagReading>> out;
@@ -725,7 +725,7 @@ std::optional<AceUnitDelta> parse_ace_unit(const nlohmann::json& data) {
     }
     ace.temperature_c = ams::read_field<float>(data, "ace_temp");
     ace.humidity_pct = ams::read_field<float>(data, "ace_humidity");
-    if (const auto slots = data.find("ace_slots"); slots != data.end() && slots->is_array()) {
+    if (auto* slots = helix::json_util::find_array(data, "ace_slots")) {
         // Each entry names its slot; the array order is AFC's, not a promise.
         constexpr int kMaxAceSlots = 16;
         std::vector<std::optional<ams::TagReading>> tags;

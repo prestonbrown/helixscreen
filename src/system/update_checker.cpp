@@ -1455,8 +1455,8 @@ UpdateChecker::repair_release_info(const std::string& install_root) {
     }
 
     std::string current;
-    if (auto it = existing.find("asset_name"); it != existing.end() && it->is_string()) {
-        current = it->get<std::string>();
+    if (const auto it = helix::json_util::read_field<std::string>(existing, "asset_name")) {
+        current = *it;
     }
     if (current == want) {
         // Already correct — do not touch the file. No boot-time disk churn, and

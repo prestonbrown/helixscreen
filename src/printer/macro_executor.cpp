@@ -10,6 +10,7 @@
 #include "device_display_name.h"
 #include "filament_database.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "lvgl.h"
 #include "moonraker_error.h"
 #include "notice.h"
@@ -316,12 +317,12 @@ analyze_macros_reaching(const nlohmann::json& config_settings,
         if (section.rfind(PREFIX, 0) != 0 || !values.is_object()) {
             continue;
         }
-        auto gcode = values.find("gcode");
-        if (gcode == values.end() || !gcode->is_string()) {
+        const auto gcode = helix::json_util::read_field<std::string>(values, "gcode");
+        if (!gcode) {
             continue;
         }
         std::string name = helix::text_io::to_upper(section.substr(PREFIX_LEN));
-        std::vector<std::string> tokens = command_tokens(gcode->get<std::string>());
+        std::vector<std::string> tokens = command_tokens(*gcode);
         for (const auto& token : tokens) {
             if (seed.count(token) > 0) {
                 flagged.insert(name);

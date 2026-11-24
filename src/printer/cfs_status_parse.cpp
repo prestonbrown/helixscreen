@@ -258,8 +258,8 @@ std::vector<BayVender> parse_bay_venders(const nlohmann::json& box) {
         if (unit_it == box.end() || !unit_it->is_object()) {
             continue;
         }
-        const auto vender_it = unit_it->find("vender");
-        if (vender_it == unit_it->end() || !vender_it->is_array()) {
+        auto* vender_it = helix::json_util::find_array(*unit_it, "vender");
+        if (vender_it == nullptr) {
             continue;
         }
         const int bays = std::min(kBaysPerBox, static_cast<int>(vender_it->size()));

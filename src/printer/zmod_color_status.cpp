@@ -4,6 +4,7 @@
 
 #include "color_utils.h"
 #include "core/text_io.h"
+#include "json_utils.h"
 
 #include "hv/json.hpp"
 
@@ -45,8 +46,8 @@ std::optional<std::vector<std::optional<Slot>>> parse_slots(const nlohmann::json
             continue;
         }
         Slot slot;
-        if (auto mat = entry.find("Material"); mat != entry.end() && mat->is_string()) {
-            slot.material = mat->get<std::string>();
+        if (const auto mat = helix::json_util::read_field<std::string>(entry, "Material")) {
+            slot.material = *mat;
             if (is_unset_type(slot.material)) {
                 slot.material.clear();
             }
@@ -54,8 +55,8 @@ std::optional<std::vector<std::optional<Slot>>> parse_slots(const nlohmann::json
         if (auto hex = entry.find("HEX"); hex != entry.end() && hex->is_string()) {
             slot.hex = hex->get<std::string>();
         }
-        if (auto has = entry.find("hasFilament"); has != entry.end() && has->is_boolean()) {
-            slot.filament_present = has->get<bool>();
+        if (const auto has = helix::json_util::read_field<bool>(entry, "hasFilament")) {
+            slot.filament_present = *has;
         }
         out[static_cast<size_t>(*id - 1)] = std::move(slot);
     }
@@ -63,8 +64,8 @@ std::optional<std::vector<std::optional<Slot>>> parse_slots(const nlohmann::json
 }
 
 std::optional<std::vector<std::pair<int, std::uint32_t>>> parse_palette(const nlohmann::json& obj) {
-    auto it = obj.find("palette");
-    if (it == obj.end() || !it->is_array()) {
+    auto* it = helix::json_util::find_array(obj, "palette");
+    if (it == nullptr) {
         return std::nullopt;
     }
     std::vector<std::pair<int, std::uint32_t>> out;
@@ -81,8 +82,8 @@ std::optional<std::vector<std::pair<int, std::uint32_t>>> parse_palette(const nl
 }
 
 std::optional<std::vector<std::string>> parse_valid_types(const nlohmann::json& obj) {
-    auto it = obj.find("valid_types");
-    if (it == obj.end() || !it->is_array()) {
+    auto* it = helix::json_util::find_array(obj, "valid_types");
+    if (it == nullptr) {
         return std::nullopt;
     }
     std::vector<std::string> out;

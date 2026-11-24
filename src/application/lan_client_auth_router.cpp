@@ -80,11 +80,11 @@ std::string LanClientAuthRouter::decision_state(const nlohmann::json& response) 
         return {};
     }
     const auto& result = *result_obj;
-    auto it = result.find("state");
-    if (it == result.end() || !it->is_string()) {
+    const auto it = helix::json_util::read_field<std::string>(result, "state");
+    if (!it) {
         return {};
     }
-    return it->get<std::string>();
+    return *it;
 }
 
 bool LanClientAuthRouter::decision_succeeded(const nlohmann::json& response) {

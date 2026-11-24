@@ -877,8 +877,9 @@ void ProbeOverlay::load_config_values() {
                 auto set_cfg = [&](const char* key, char* buf, size_t buf_size,
                                    lv_subject_t* subject) {
                     std::string configured;
-                    if (section.contains(key) && section[key].is_string()) {
-                        configured = section[key].get<std::string>();
+                    if (const auto value =
+                            helix::json_util::read_field<std::string>(section, key)) {
+                        configured = *value;
                         probe_cfg_configured_[key] = configured;
                     }
                     snprintf(buf, buf_size, "%s",

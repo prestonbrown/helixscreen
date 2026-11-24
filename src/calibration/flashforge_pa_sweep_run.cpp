@@ -36,12 +36,12 @@ const json* query_status(const json& response) {
     if (!response.is_object()) {
         return nullptr;
     }
-    const auto result = response.find("result");
-    if (result == response.end() || !result->is_object()) {
+    auto* result = helix::json_util::find_object(response, "result");
+    if (result == nullptr) {
         return nullptr;
     }
-    const auto status = result->find("status");
-    if (status == result->end() || !status->is_object()) {
+    auto* status = helix::json_util::find_object(*result, "status");
+    if (status == nullptr) {
         return nullptr;
     }
     return &*status;

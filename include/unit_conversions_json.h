@@ -4,6 +4,7 @@
 // The unit_conversions.h conversions applied to a field of a Moonraker status object.
 #pragma once
 
+#include "json_utils.h"
 #include "unit_conversions.h"
 
 #include "hv/json.hpp" // JSON_HPP_OK: inline readers of json fields
@@ -20,10 +21,8 @@ namespace helix::units {
  * @note Returns default_value if obj is not a JSON object (e.g., array, primitive, null)
  */
 inline int json_to_decidegrees(const nlohmann::json& obj, const char* key, int default_value = 0) {
-    if (!obj.is_object())
-        return default_value;
-    if (obj.contains(key) && obj[key].is_number()) {
-        return to_decidegrees(obj[key].get<double>());
+    if (const auto v = helix::json_util::read_field<double>(obj, key)) {
+        return to_decidegrees(*v);
     }
     return default_value;
 }
@@ -38,10 +37,8 @@ inline int json_to_decidegrees(const nlohmann::json& obj, const char* key, int d
  * @note Returns default_value if obj is not a JSON object (e.g., array, primitive, null)
  */
 inline int json_to_percent(const nlohmann::json& obj, const char* key, int default_value = 0) {
-    if (!obj.is_object())
-        return default_value;
-    if (obj.contains(key) && obj[key].is_number()) {
-        return to_percent(obj[key].get<double>());
+    if (const auto v = helix::json_util::read_field<double>(obj, key)) {
+        return to_percent(*v);
     }
     return default_value;
 }
@@ -56,10 +53,8 @@ inline int json_to_percent(const nlohmann::json& obj, const char* key, int defau
  * @note Returns default_value if obj is not a JSON object (e.g., array, primitive, null)
  */
 inline int json_to_centimm(const nlohmann::json& obj, const char* key, int default_value = 0) {
-    if (!obj.is_object())
-        return default_value;
-    if (obj.contains(key) && obj[key].is_number()) {
-        return to_centimm(obj[key].get<double>());
+    if (const auto v = helix::json_util::read_field<double>(obj, key)) {
+        return to_centimm(*v);
     }
     return default_value;
 }

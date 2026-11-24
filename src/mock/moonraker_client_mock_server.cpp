@@ -58,11 +58,11 @@ std::vector<std::string> split_key(const std::string& key) {
 /// The record at a dotted key, or null when the namespace, any intermediate
 /// record, or the final member is absent.
 json* find_db_value(json& db, const std::string& ns, const std::string& key) {
-    auto ns_it = db.find(ns);
-    if (ns_it == db.end() || !ns_it->is_object()) {
+    auto* ns_it = helix::json_util::find_object(db, ns);
+    if (ns_it == nullptr) {
         return nullptr;
     }
-    json* node = &ns_it.value();
+    json* node = ns_it;
     for (const auto& segment : split_key(key)) {
         auto member = node->find(segment);
         if (member == node->end()) {
@@ -454,8 +454,7 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
     // server.webcams.post_item / delete_item, keyed as Moonraker keys them: by uid when
     // the request carries one (404 when no entry has it), else by name.
     auto webcam_str = [](const json& j, const char* key) {
-        auto it = j.find(key);
-        return it != j.end() && it->is_string() ? it->get<std::string>() : std::string();
+        return helix::json_util::read_field<std::string>(j, key).value_or(std::string());
     };
     auto find_webcam = [webcam_str](std::vector<json>& items, const json& params) {
         const std::string uid = webcam_str(params, "uid");

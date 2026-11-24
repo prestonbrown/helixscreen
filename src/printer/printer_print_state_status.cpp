@@ -58,12 +58,12 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status, bool wh
 PrinterPrintState::PrintDurations
 PrinterPrintState::read_print_durations(const nlohmann::json& stats) {
     PrintDurations durations;
-    if (auto it = stats.find("print_duration"); it != stats.end() && it->is_number()) {
-        durations.print_s = it->get<double>();
+    if (const auto it = helix::json_util::read_field<double>(stats, "print_duration")) {
+        durations.print_s = *it;
     }
     // total_duration = wall-clock elapsed since job started (includes prep, pauses)
-    if (auto it = stats.find("total_duration"); it != stats.end() && it->is_number()) {
-        durations.total_s = it->get<double>();
+    if (const auto it = helix::json_util::read_field<double>(stats, "total_duration")) {
+        durations.total_s = *it;
     }
     return durations;
 }
@@ -142,11 +142,11 @@ bool PrinterPrintState::apply_print_job_state(const nlohmann::json& status,
     // A printer-announced start learns its identity when the printer takes
     // the job, even when the file's name is the one print_stats already held.
     bool identity_follows_job = false;
-    auto state_it = stats.find("state");
-    if (state_it == stats.end() || !state_it->is_string()) {
+    const auto state_it = helix::json_util::read_field<std::string>(stats, "state");
+    if (!state_it) {
         return identity_follows_job;
     }
-    std::string state_str = state_it->get<std::string>();
+    std::string state_str = *state_it;
     PrintJobState new_state = parse_print_job_state(state_str.c_str());
     auto current_state = static_cast<PrintJobState>(lv_subject_get_int(&print_state_enum_));
     auto current_outcome = static_cast<PrintOutcome>(lv_subject_get_int(&print_outcome_));
@@ -301,8 +301,8 @@ bool PrinterPrintState::apply_print_job_state(const nlohmann::json& status,
 
 void PrinterPrintState::apply_print_filename(const nlohmann::json& stats,
                                              bool identity_follows_job) {
-    if (auto fn_it = stats.find("filename"); fn_it != stats.end() && fn_it->is_string()) {
-        std::string filename = fn_it->get<std::string>();
+    if (const auto fn_it = helix::json_util::read_field<std::string>(stats, "filename")) {
+        std::string filename = *fn_it;
         if (strcmp(lv_subject_get_string(&print_filename_), filename.c_str()) != 0) {
             // Order matters, exactly as it does in set_print_thumbnail():
             // the identity must be visible BEFORE any observer of
@@ -376,16 +376,16 @@ PrinterPrintState::apply_info_layers(const nlohmann::json& stats) {
     spdlog::trace("[LayerTracker] print_stats.info received: {}",
                   helix::json_util::safe_dump(info));
 
-    if (auto it = info.find("current_layer"); it != info.end() && it->is_number()) {
-        const int current_layer = it->get<int>();
+    if (const auto it = helix::json_util::read_field<int>(info, "current_layer")) {
+        const int current_layer = *it;
         note_reported_layer(current_layer, "print_stats.info");
         from_info.current = true;
         slicer_layers_reported_ = true;
         slicer_current_layer_ = current_layer;
     }
 
-    if (auto it = info.find("total_layer"); it != info.end() && it->is_number()) {
-        const int total_layer = it->get<int>();
+    if (const auto it = helix::json_util::read_field<int>(info, "total_layer")) {
+        const int total_layer = *it;
         note_reported_layer_total(total_layer, "print_stats.info");
         from_info.total = true;
         slicer_layers_reported_ = true;
@@ -398,8 +398,8 @@ void PrinterPrintState::apply_print_counters(const nlohmann::json& stats,
                                              const PrintDurations& durations) {
     // Accept estimated_time from status updates (mock includes this; real Moonraker
     // sends it via file metadata API instead, handled by print status panel callback)
-    if (auto it = stats.find("estimated_time"); it != stats.end() && it->is_number()) {
-        int est = static_cast<int>(it->get<double>());
+    if (const auto it = helix::json_util::read_field<double>(stats, "estimated_time")) {
+        int est = static_cast<int>(*it);
         if (est > 0 && estimated_print_time_ == 0) {
             estimated_print_time_ = est;
             spdlog::debug("[PrinterPrintState] Estimated time from status: {}s", est);
@@ -407,8 +407,8 @@ void PrinterPrintState::apply_print_counters(const nlohmann::json& stats,
     }
 
     // Track filament usage (Moonraker reports in mm)
-    if (auto it = stats.find("filament_used"); it != stats.end() && it->is_number()) {
-        lv_subject_set_int(&print_filament_used_, static_cast<int>(it->get<double>()));
+    if (const auto it = helix::json_util::read_field<double>(stats, "filament_used")) {
+        lv_subject_set_int(&print_filament_used_, static_cast<int>(*it));
     }
 
     // The durations again, after the state edge: what an observer of that
@@ -503,8 +503,8 @@ void PrinterPrintState::apply_extruder_filament_used(const nlohmann::json& statu
     // accessor (no rehash, lv_subject_set_int is atomic on the int).
     for (int idx = 0; idx < kMaxExtruderScan; ++idx) {
         std::string key = (idx == 0) ? "extruder" : "extruder" + std::to_string(idx);
-        auto json_it = status.find(key);
-        if (json_it == status.end() || !json_it->is_object()) {
+        auto* json_it = helix::json_util::find_object(status, key);
+        if (json_it == nullptr) {
             continue;
         }
         const auto filament_used = json_util::read_field<double>(*json_it, "filament_used");
@@ -531,7 +531,7 @@ void PrinterPrintState::cache_gcode_z(const nlohmann::json& status) {
     // gcode_position is [X, Y, Z, E] in raw mm (NOT centimm — only motion_state
     // converts). This lives at the top level of the status payload, so it may
     // arrive on an update that carries no virtual_sdcard.
-    if (auto gm_it = status.find("gcode_move"); gm_it != status.end() && gm_it->is_object()) {
+    if (auto* gm_it = helix::json_util::find_object(status, "gcode_move")) {
         if (auto pos_it = gm_it->find("gcode_position");
             pos_it != gm_it->end() && pos_it->is_array() && pos_it->size() >= 3 &&
             (*pos_it)[2].is_number()) {

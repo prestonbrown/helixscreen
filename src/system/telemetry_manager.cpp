@@ -142,8 +142,8 @@ void merge_older_delta(json& newer, const json& older) {
         }
     }
     for (const char* map : kDeltaSummedMaps) {
-        auto it = older.find(map);
-        if (it == older.end() || !it->is_object()) {
+        auto* it = helix::json_util::find_object(older, map);
+        if (it == nullptr) {
             continue;
         }
         json& into = newer[map];

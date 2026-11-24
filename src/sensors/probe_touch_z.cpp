@@ -2,6 +2,7 @@
 
 #include "probe_touch_z.h"
 
+#include "json_utils.h"
 #include "printer_discovery.h"
 
 #include <array>
@@ -56,19 +57,19 @@ std::optional<bool> from_status(ProbeSensorType type, const std::string& klipper
     if (row == nullptr || row->status_field == nullptr || !status.is_object()) {
         return std::nullopt;
     }
-    const auto object = status.find(klipper_name);
-    if (object == status.end() || !object->is_object()) {
+    auto* object = helix::json_util::find_object(status, klipper_name);
+    if (object == nullptr) {
         return std::nullopt;
     }
     const auto field = object->find(row->status_field);
     if (field == object->end() || !field->is_object()) {
         return std::nullopt;
     }
-    const auto model = field->find(row->status_model_key);
-    if (model == field->end() || !model->is_string()) {
+    const auto model = helix::json_util::read_field<std::string>(*field, row->status_model_key);
+    if (!model) {
         return std::nullopt;
     }
-    const auto& name = model->get_ref<const std::string&>();
+    const auto& name = *model;
     return !name.empty() && name != "none";
 }
 
