@@ -14,6 +14,7 @@
 #include "screensaver_aqua.h"
 #include "screensaver_base.h"
 #include "screensaver_bounce.h"
+#include "screensaver_build_depth.h"
 #include "screensaver_clock_saver.h"
 #include "screensaver_fireflies.h"
 #include "screensaver_fireworks.h"

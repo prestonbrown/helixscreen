@@ -952,7 +952,7 @@ AmsError AmsBackendAce::enable_bypass() {
             return AmsError(AmsResult::WRONG_STATE, "Bypass not supported",
                             lv_tr("This system does not support bypass mode"), "");
         }
-        if (!helix::bypass_available_for(system_info_.supports_bypass)) {
+        if (!helix::bypass_available_for(system_info_)) {
             return AmsError(AmsResult::WRONG_STATE, "Bypass not supported",
                             lv_tr("This system does not support bypass mode"), "");
         }
@@ -984,7 +984,7 @@ AmsError AmsBackendAce::disable_bypass() {
             return AmsError(AmsResult::WRONG_STATE, "Bypass not supported",
                             lv_tr("This system does not support bypass mode"), "");
         }
-        if (!helix::bypass_available_for(system_info_.supports_bypass)) {
+        if (!helix::bypass_available_for(system_info_)) {
             return AmsError(AmsResult::WRONG_STATE, "Bypass not supported",
                             lv_tr("This system does not support bypass mode"), "");
         }

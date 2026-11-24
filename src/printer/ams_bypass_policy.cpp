@@ -50,12 +50,13 @@ BypassMacros resolve_bypass_macros(const PrinterDiscovery& hw, const BypassMacro
     return resolve_bypass_macros(detect_bypass_macros(hw, conventional), on_override, off_override);
 }
 
-bool bypass_available_for(bool firmware_supports_bypass) {
-    if (firmware_supports_bypass) {
+bool bypass_available_for(const AmsSystemInfo& info) {
+    if (info.supports_bypass) {
         return true; // no need to touch settings when the firmware already says yes
     }
-    return bypass_available(firmware_supports_bypass,
-                            SettingsManager::instance().get_ams_force_bypass_controls());
+    return bypass_available(info.supports_bypass,
+                            SettingsManager::instance().get_ams_force_bypass_controls(),
+                            bypass_override_offered(info));
 }
 
 } // namespace helix
