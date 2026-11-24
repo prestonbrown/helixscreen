@@ -129,6 +129,10 @@ void PrinterTemperatureState::init_subjects(bool register_xml) {
                                                       &active_extruder_pa_nonlinear_);
     }
 
+    // C++ only: the nonlinear tuner's live readout follows it.
+    pa_model_revision_.init_int(0);
+    subjects_.register_subject(&pa_model_revision_, nullptr);
+
     // Heater duty cycle, whole percent, -1 = the heater reports none.
     INIT_SUBJECT_INT(bed_power, -1, subjects_, register_xml);
     INIT_SUBJECT_INT(chamber_power, -1, subjects_,
@@ -309,6 +313,14 @@ void PrinterTemperatureState::deinit_subjects() {
 }
 
 namespace {
+
+/// Every field the firmware reports for the model, compared.
+bool same_pa_model(const helix::pa::PaModel& a, const helix::pa::PaModel& b) {
+    return a.kind == b.kind && a.k == b.k && a.linear_advance == b.linear_advance &&
+           a.nonlinear_offset == b.nonlinear_offset &&
+           a.linearization_velocity == b.linearization_velocity && a.time_offset == b.time_offset &&
+           a.smooth_time == b.smooth_time;
+}
 
 /// K as the active pressure-advance subject stores it: x 10000.
 int pa_to_subject(float k) {
@@ -598,7 +610,11 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
             lv_subject_set_int(info.target_subject->get(), target_deci);
         }
 
-        info.pa_model = helix::pa::read_pa_model(data, info.pa_model);
+        auto pa_model = helix::pa::read_pa_model(data, info.pa_model);
+        if (!same_pa_model(pa_model, info.pa_model)) {
+            info.pa_model = pa_model;
+            lv_subject_set_int(&pa_model_revision_, lv_subject_get_int(&pa_model_revision_) + 1);
+        }
 
         if (const auto d = json_util::read_field<double>(data, "nozzle_diameter")) {
             if (std::isfinite(*d) && *d > 0.0) {
