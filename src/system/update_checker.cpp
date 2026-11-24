@@ -3946,7 +3946,9 @@ void UpdateChecker::settle_sentinel_after_connect(helix::IMoonrakerClient& clien
     if (!ec) {
         const auto age = fs::file_time_type::clock::now() - written;
         const auto fresh = std::chrono::seconds(kFreshSentinelSeconds);
-        if (age < fresh) {
+        // A sentinel dated in the future survived a reboot onto a clock that is
+        // behind (no RTC, no NTP yet): it is stale, not fresh.
+        if (age >= decltype(age)::zero() && age < fresh) {
             const auto wait =
                 std::chrono::duration_cast<std::chrono::milliseconds>(fresh - age).count() + 1000;
             spdlog::info("[UpdateChecker] Keeping the fresh self-restart sentinel for {} ms", wait);

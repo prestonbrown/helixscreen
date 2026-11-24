@@ -177,6 +177,22 @@ TEST_CASE("a sentinel written moments ago outlives the connect, then goes with t
     UpdateChecker::instance().detach(client);
 }
 
+TEST_CASE("a sentinel dated in the future is stale, not fresh",
+          "[discovery_attach][update_checker][sentinel]") {
+    ScratchSentinelDir scratch;
+    FakeMoonrakerClient client;
+    // Written before a reboot onto a clock that is behind.
+    REQUIRE(UpdateChecker::write_self_restart_sentinel());
+    fs::last_write_time(scratch.sentinel(),
+                        fs::file_time_type::clock::now() + std::chrono::hours(3));
+
+    UpdateChecker::instance().on_connected(client);
+    CHECK_FALSE(fs::exists(scratch.sentinel()));
+    CHECK(client.rpc_count("machine.update.refresh") == 1);
+
+    UpdateChecker::instance().detach(client);
+}
+
 TEST_CASE("a surviving self-restart sentinel is cleared once and Moonraker is told to refresh",
           "[discovery_attach][update_checker]") {
     ScratchSentinelDir scratch;
