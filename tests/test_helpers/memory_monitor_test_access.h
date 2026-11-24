@@ -4,6 +4,7 @@
 
 #include "memory_monitor.h"
 
+#include <mutex>
 #include <string>
 
 namespace helix {
@@ -15,6 +16,11 @@ namespace helix {
 // thresholds. Follows the tests/test_helpers/ TestAccess pattern.
 class MemoryMonitorTestAccess {
   public:
+    static MemoryMonitor::WarningCallback warning_callback(MemoryMonitor& monitor) {
+        std::lock_guard<std::mutex> lock(monitor.callback_mutex_);
+        return monitor.warning_callback_;
+    }
+
     static void fire_warning(MemoryMonitor& monitor, MemoryPressureLevel level,
                              const std::string& reason, const MemoryStats& stats,
                              const MemoryInfo& sys_info, int64_t growth_kb,
