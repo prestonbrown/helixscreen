@@ -265,6 +265,11 @@ void PaNonlinearOverlay::set_stage(Stage s) {
     } else {
         decision_awake_.reset();
     }
+    if (s == PREPARING) {
+        start_busy_.acquire();
+    } else {
+        start_busy_.reset();
+    }
     if (subjects_initialized_) {
         lv_subject_set_int(&stage_subject_, s);
         lv_subject_set_int(&busy_, s == PREPARING ? 1 : 0);
