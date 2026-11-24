@@ -133,13 +133,6 @@ bool fail_and_remove(const std::string& tmp) {
 
 } // namespace
 
-namespace detail {
-bool& fsync_enabled_ref() {
-    static bool enabled = true;
-    return enabled;
-}
-} // namespace detail
-
 bool write_file_atomic(const std::string& link_path, std::string_view data, Durability durability) {
     // A rename onto a symlink replaces the link. User files are links into a
     // store outside the install root, so the save goes to the link's target,
@@ -160,7 +153,7 @@ bool write_file_atomic(const std::string& link_path, std::string_view data, Dura
         f.reset();
         return fail_and_remove(tmp);
     }
-    if (durability == Durability::Fsync && detail::fsync_enabled_ref()) {
+    if (durability == Durability::Fsync) {
         (void)::fsync(::fileno(f.get()));
     }
     if (!close(f)) {
@@ -169,7 +162,7 @@ bool write_file_atomic(const std::string& link_path, std::string_view data, Dura
     if (std::rename(tmp.c_str(), path.c_str()) != 0) {
         return fail_and_remove(tmp);
     }
-    if (durability == Durability::Fsync && detail::fsync_enabled_ref()) {
+    if (durability == Durability::Fsync) {
         fsync_dir_of(path);
     }
     return true;
