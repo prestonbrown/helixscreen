@@ -37,29 +37,29 @@ The image follows one update channel, chosen when you build it:
 |---|---|
 | nothing extra | The newest release on the Stable channel. It must be 1.1 or newer; while Stable is still on 1.0, the build stops because that release has no desktop package. |
 | `--build-arg CHANNEL=beta` | The newest Beta release. |
-| `--build-arg HELIX_VERSION=v1.1.0 --build-arg HELIX_SHA256=<sha256>` | That one release. Give the zip's SHA-256 so the download can be checked: the `zip_sha256` value from a channel manifest that served that release (`https://releases.helixscreen.org/beta/manifest.json`, for example). |
+| `--build-arg RELEASE=v1.1.0 --build-arg RELEASE_SHA256=<sha256>` | That one release. Give the zip's SHA-256 so the download can be checked: the `zip_sha256` value from a channel manifest that served that release (`https://releases.helixscreen.org/beta/manifest.json`, for example). |
 
 Tag a build `helixscreen/homeserver:beta` (or any name you like) to keep a Stable and a Beta image side by side.
 
 ## Start it
 
-Name your printer with `MOONRAKER_URL`, keep the settings in a volume, and publish port `7130`:
+Name your printer with `PRINTER_URL`, keep the settings in a volume, and publish port `7130`:
 
 ```bash
 docker run -d --name helixscreen --restart unless-stopped \
-  -e MOONRAKER_URL=192.168.1.50:7125 \
+  -e PRINTER_URL=192.168.1.50:7125 \
   -p 7130:7130 \
   -v helixscreen-config:/config \
   helixscreen/homeserver
 ```
 
-Or use the Compose file in the repository, `docker/docker-compose.homeserver.yml`. Edit `MOONRAKER_URL` in it, then:
+Or use the Compose file in the repository, `docker/docker-compose.homeserver.yml`. Edit `PRINTER_URL` in it, then:
 
 ```bash
 docker compose -f docker/docker-compose.homeserver.yml up -d
 ```
 
-`MOONRAKER_URL` takes `192.168.1.50`, `192.168.1.50:7125` or `ws://printer.local:7125`. With no port, HelixScreen uses `7125`. The container stops with a message if you leave it out.
+`PRINTER_URL` takes `192.168.1.50`, `192.168.1.50:7125` or `ws://printer.local:7125`. With no port, HelixScreen uses `7125`. The container stops with a message if you leave it out.
 
 The container is ready about twenty seconds after it starts. `docker ps` then shows it as `healthy`.
 
@@ -67,9 +67,9 @@ The container is ready about twenty seconds after it starts. `docker ps` then sh
 
 | Variable | Meaning |
 |---|---|
-| `MOONRAKER_URL` | **Required.** Where the printer's Moonraker is. |
-| `HELIX_PAIR_CODE` | Six digits to use as the pairing code, instead of a generated one. Read only the first time the container starts. |
-| `HELIX_SCREEN_SIZE` | The size of the screen the browser shows: `small`, `medium`, `large` and so on, or exact pixels such as `1024x600`. The default is `800x480`. The layout adapts the same way it does on a printer's screen. |
+| `PRINTER_URL` | **Required.** Where the printer's Moonraker is. |
+| `PAIR_CODE` | Six digits to use as the pairing code, instead of a generated one. Read only the first time the container starts. |
+| `SCREEN_SIZE` | The size of the screen the browser shows: `small`, `medium`, `large` and so on, or exact pixels such as `1024x600`. The default is `800x480`. The layout adapts the same way it does on a printer's screen. |
 
 ## Open the screen
 
@@ -83,7 +83,7 @@ For example `http://192.168.1.20:7130/`. The page works on phones and tablets to
 
 **Watching** needs nothing. **Using** the screen (tapping and dragging) needs a pairing code the first time each browser connects:
 
-1. Get the code. You set it yourself with `HELIX_PAIR_CODE`, or read the generated one from the server:
+1. Get the code. You set it yourself with `PAIR_CODE`, or read the generated one from the server:
    ```bash
    docker exec helixscreen jq -r .remote_screen.pair_secret /config/settings.json
    ```
@@ -91,7 +91,7 @@ For example `http://192.168.1.20:7130/`. The page works on phones and tablets to
 
 The screen itself never shows the code in the browser. Screen Sharing blanks any frame that would, so the code has to come from the server. [Screen Sharing and Remote Control](screen-sharing.md) explains pairing, how many browsers can be paired and how to forget them.
 
-The container skips the setup wizard, and the printer's address comes from `MOONRAKER_URL`. Open **Settings** in the browser for everything else, such as themes and your update preferences.
+The container skips the setup wizard, and the printer's address comes from `PRINTER_URL`. Open **Settings** in the browser for everything else, such as themes and your update preferences.
 
 Anyone on your network can watch the screen, and anyone with the code can use it. Do not publish port `7130` to the internet. To reach it from outside your home, use a VPN.
 
@@ -117,13 +117,13 @@ To follow another channel, build the image again with a different `CHANNEL`.
 | `/config` | `settings.json`: your settings, the printer, the pairing code and the paired browsers. Mount a volume here. |
 | `/opt/helixscreen` | The app itself. It belongs to the image, so it changes when you update. |
 
-To change the printer's address later, change `MOONRAKER_URL` and recreate the container. The address passed that way wins over the one in `settings.json`.
+To change the printer's address later, change `PRINTER_URL` and recreate the container. The address passed that way wins over the one in `settings.json`.
 
 To start over with fresh settings, remove the volume (`docker volume rm helixscreen-config`) with the container stopped.
 
 ## Troubleshooting
 
-**The container exits and the log says `MOONRAKER_URL is not set`.** Add `-e MOONRAKER_URL=...` to `docker run`, or set it in the Compose file. `docker logs helixscreen` shows the message.
+**The container exits and the log says `PRINTER_URL is not set`.** Add `-e PRINTER_URL=...` to `docker run`, or set it in the Compose file. `docker logs helixscreen` shows the message.
 
 **The page loads but shows the printer as disconnected.** From the Docker host, open `http://PRINTER_IP:7125/server/info` in a browser or run `curl http://PRINTER_IP:7125/server/info`. If that fails too, the problem is the network or Moonraker, not the container. On Unraid and other hosts that use their own Docker networks, make sure the container can reach the printer's address; a container on a bridge network usually can.
 
