@@ -282,6 +282,12 @@ FilamentCatalog FilamentCatalog::load_full() {
 
 namespace {
 
+/// The print temperature a catalog product states about itself.
+struct ProductTemps {
+    std::string type; ///< The product's material type ("PLA")
+    int nozzle = 0;   ///< Recommended print temperature; 0 = the product states none
+};
+
 /// What the resident per-product index keeps about each catalog product.
 struct ProductIndex {
     std::unordered_map<std::string, std::string> orca_ids;
@@ -291,10 +297,7 @@ struct ProductIndex {
 ProductTemps stated_temps(const nlohmann::json& p) {
     ProductTemps t;
     t.type = helix::json_util::safe_string(p, "type");
-    t.nozzle_min = get_int(p, "nozzle_min", 0);
-    t.nozzle_max = get_int(p, "nozzle_max", 0);
     t.nozzle = get_int(p, "nozzle", 0);
-    t.bed_temp = get_int(p, "bed", 0);
     return t;
 }
 
@@ -359,12 +362,6 @@ FilamentCatalog::orca_id_map_from(const std::string& builtin_path,
     return product_index_from(builtin_path, overlay_path).orca_ids;
 }
 
-std::unordered_map<std::string, ProductTemps>
-FilamentCatalog::product_temps_map_from(const std::string& builtin_path,
-                                        const std::string& overlay_path) {
-    return product_index_from(builtin_path, overlay_path).temps;
-}
-
 std::string FilamentCatalog::orca_id_for(const std::string& catalog_id) {
     if (catalog_id.empty())
         return {};
@@ -373,39 +370,15 @@ std::string FilamentCatalog::orca_id_for(const std::string& catalog_id) {
     return it == index->orca_ids.end() ? std::string{} : it->second;
 }
 
-std::optional<ProductTemps> FilamentCatalog::product_temps_for(const std::string& catalog_id) {
-    if (catalog_id.empty())
-        return std::nullopt;
+int FilamentCatalog::product_nozzle_temp(const std::string& catalog_id,
+                                         const std::string& material) {
+    if (catalog_id.empty() || material.empty())
+        return 0;
     const auto index = product_index();
-    auto it = index->temps.find(catalog_id);
-    if (it == index->temps.end())
-        return std::nullopt;
-    return it->second;
-}
-
-bool FilamentCatalog::apply_product_temps(filament::MaterialInfo& info,
-                                          const std::string& catalog_id,
-                                          const std::string& material,
-                                          const filament::MaterialOverride* user) {
-    const auto product = product_temps_for(catalog_id);
-    if (!product || material.empty() ||
-        !helix::text_io::equals_ignore_case(product->type, material)) {
-        return false;
-    }
-    bool applied = false;
-    const auto lay = [&applied](int& field, int value, bool user_set) {
-        if (value > 0 && !user_set) {
-            field = value;
-            applied = true;
-        }
-    };
-    lay(info.nozzle_min, product->nozzle_min, user && user->nozzle_min);
-    lay(info.nozzle_max, product->nozzle_max, user && user->nozzle_max);
-    // The stated temperature is used only while it lies in the range
-    // (nozzle_recommended()), so a user range that excludes it wins.
-    lay(info.nozzle_stated, product->nozzle, false);
-    lay(info.bed_temp, product->bed_temp, user && user->bed_temp);
-    return applied;
+    const auto it = index->temps.find(catalog_id);
+    if (it == index->temps.end() || !helix::text_io::equals_ignore_case(it->second.type, material))
+        return 0;
+    return it->second.nozzle;
 }
 
 namespace {

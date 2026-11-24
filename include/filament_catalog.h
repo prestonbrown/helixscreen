@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "filament_database.h"
 #include "json_fwd.h"
 
 #include <cstddef>
@@ -35,16 +34,6 @@ struct EffectiveFilament {
     float density_g_cm3 = 0.0f;
     std::string compat_group;
     std::map<std::string, std::string> codes; ///< scheme -> code
-};
-
-/// The temperatures a catalog product states about itself. 0 = the product
-/// states none and inherits its type's, which the material table already has.
-struct ProductTemps {
-    std::string type; ///< The product's material type ("PLA")
-    int nozzle_min = 0;
-    int nozzle_max = 0;
-    int nozzle = 0; ///< The product's recommended print temperature
-    int bed_temp = 0;
 };
 
 /// Transient, on-demand filament catalog. NO resident singleton: construct via a
@@ -107,35 +96,16 @@ class FilamentCatalog {
     orca_id_map_from(const std::string& builtin_path, const std::string& overlay_path);
 
     /**
-     * @brief The temperatures catalog product @p catalog_id states, or nullopt
-     *        when no product has that id
+     * @brief The print temperature picked product @p catalog_id states for a
+     *        lane holding @p material, or 0
      *
-     * Served from the same resident per-product index as orca_id_for(), rebuilt
-     * after a user-overlay write. An overlay entry speaks for the whole product.
+     * 0 also when the product's type is not @p material: such a pick
+     * describes some earlier filament, not the one loaded. Served from the
+     * same resident per-product index as orca_id_for(), rebuilt after a
+     * user-overlay write. An overlay entry speaks for the whole product.
      * Thread-safe.
      */
-    static std::optional<ProductTemps> product_temps_for(const std::string& catalog_id);
-    /// The map product_temps_for() serves, from explicit paths (tests).
-    static std::unordered_map<std::string, ProductTemps>
-    product_temps_map_from(const std::string& builtin_path, const std::string& overlay_path);
-
-    /**
-     * @brief Lay the temperatures picked product @p catalog_id states over
-     *        @p info, the resolved material of a lane holding @p material
-     *
-     * The product the user picked is the most specific statement of what is
-     * loaded, so its own range, recommended print temperature and bed
-     * temperature replace what @p info holds, field by field. A field the
-     * user's material override @p user (Material Temps) sets keeps its value:
-     * the override is the user's own number for every spool of that material.
-     * A product whose type is not @p material describes some earlier
-     * filament, not this one, and lays nothing.
-     *
-     * @return Whether any field came from the product
-     */
-    static bool apply_product_temps(filament::MaterialInfo& info, const std::string& catalog_id,
-                                    const std::string& material,
-                                    const filament::MaterialOverride* user);
+    static int product_nozzle_temp(const std::string& catalog_id, const std::string& material);
 
     /// Bumped by every successful user-overlay write; the cache keys off it.
     /// Exposed so tests can assert invalidation rather than infer it.

@@ -8,6 +8,42 @@
 
 namespace helix {
 
+namespace {
+
+/// @p temp held inside the range the user set for the material, on each side
+/// they set. A user range is limits, never a temperature of its own.
+int clamp_to_user_range(int temp, const filament::MaterialOverride* user) {
+    if (user && user->nozzle_min && temp < *user->nozzle_min) {
+        temp = *user->nozzle_min;
+    }
+    if (user && user->nozzle_max && temp > *user->nozzle_max) {
+        temp = *user->nozzle_max;
+    }
+    return temp;
+}
+
+/// The loaded spool's own print temperature, from the most specific source
+/// that states one: the catalog product picked for the slot, then the lane's
+/// own temperature (the middle of a range the lane states both ends of; one
+/// end alone is a limit, not a temperature). 0 when neither does, and the
+/// material range's midpoint stands in.
+int loaded_print_temp(const SlotInfo& slot, const filament::MaterialOverride* user) {
+    int product = printer::FilamentCatalog::product_nozzle_temp(slot.catalog_id, slot.material);
+    if (product <= 0) {
+        product = slot.nozzle_temp_recommended;
+    }
+    if (product > 0) {
+        return clamp_to_user_range(product, user);
+    }
+    if (slot.nozzle_temp_min > 0 && slot.nozzle_temp_max > 0) {
+        return clamp_to_user_range(
+            filament::temp_for_window(slot.nozzle_temp_min, slot.nozzle_temp_max), user);
+    }
+    return 0;
+}
+
+} // namespace
+
 ActiveMaterial build_active_material(const SlotInfo& slot) {
     ActiveMaterial result;
     result.color_rgb = slot.color_rgb;
@@ -32,16 +68,15 @@ ActiveMaterial build_active_material(const SlotInfo& slot) {
     // by this.
     result.firmware_temps = filament_temps::lookup_filament_temperatures(slot);
 
-    // Resolve material_info via the tier precedence (#961):
+    // Resolve the material_info range via the three-tier precedence (#961):
     //   1. User override (Material Temps overlay) — highest
-    //   2. The catalog product the user picked for the slot (slot.catalog_id)
-    //   3. Vendor preset (slot.nozzle_temp_*, written by backend from
+    //   2. Vendor preset (slot.nozzle_temp_*, written by backend from
     //      RFID/cfg/Klipper config)
-    //   4. Internal filament DB default — lowest
+    //   3. Internal filament DB default — lowest
     //
     // find_material() already merges user overrides into the DB result, so
-    // its return value gives us tier 1 (where set) + tier 4 (everywhere
-    // else). We then need to layer in tiers 3 and 2 ONLY for fields the user
+    // its return value gives us tier 1 (where set) + tier 3 (everywhere
+    // else). We then need to layer in tier 2 ONLY for fields the user
     // didn't touch — get_material_override() returns the sparse override so
     // we can tell which fields are user-set.
     auto db_mat = filament::find_material(slot.material);
@@ -50,7 +85,7 @@ ActiveMaterial build_active_material(const SlotInfo& slot) {
     if (db_mat.has_value()) {
         result.material_info = *db_mat;
 
-        // Tier 3 (vendor preset) wins over tier 4 (DB) but loses to tier 1
+        // Tier 2 (vendor preset) wins over tier 3 (DB) but loses to tier 1
         // (user override). Per-field — if the user overrode only nozzle_min,
         // the vendor preset still wins on nozzle_max.
         if (slot.nozzle_temp_min > 0 && !(user_ovr && user_ovr->nozzle_min)) {
@@ -81,11 +116,9 @@ ActiveMaterial build_active_material(const SlotInfo& slot) {
         };
     }
 
-    // Tier 2: a firmware's lane temperature may be one HelixScreen itself
-    // wrote, collapsed from the product's range, so the pick states the
-    // product's own numbers more exactly than the lane does.
-    printer::FilamentCatalog::apply_product_temps(result.material_info, slot.catalog_id,
-                                                  slot.material, user_ovr);
+    // The range is the limits; the temperature to print at comes from the
+    // loaded spool itself where anything states one.
+    result.material_info.print_temp = loaded_print_temp(slot, user_ovr);
 
     return result;
 }
