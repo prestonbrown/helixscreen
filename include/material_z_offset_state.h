@@ -119,9 +119,10 @@ class MaterialZOffsetState {
     [[nodiscard]] bool pa_enabled() const;
     /// Store the setting and switch the macro to match.
     void set_pa_enabled(IMoonrakerAPI* api, bool on);
-    /// Persist @p entry for @p material and turn the feature on. @p done runs
-    /// on the main thread with a user-facing message.
-    void save_pa(const std::string& material, const material_pa::Entry& entry, Done done);
+    /// Persist @p entry for @p material through @p api and turn the feature
+    /// on. @p done runs on the main thread with a user-facing message.
+    void save_pa(IMoonrakerAPI* api, const std::string& material, const material_pa::Entry& entry,
+                 Done done);
 
     /// The bed mesh profile a fresh mesh is offered under after a calibration:
     /// {material, profile} for the material whose usual bed temperature is

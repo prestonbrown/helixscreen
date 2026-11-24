@@ -1246,7 +1246,7 @@ void PaNonlinearOverlay::save_for_material() {
     const std::string material = material_name();
     const auto entry = helix::material_pa::nonlinear_entry(proc_->values());
     helix::material_zoffset::MaterialZOffsetState::instance().save_pa(
-        material, entry, [](bool ok, const std::string& message) {
+        api_, material, entry, [](bool ok, const std::string& message) {
             ToastManager::instance().show(ok ? ToastSeverity::SUCCESS : ToastSeverity::ERROR,
                                           message.c_str(), ok ? 3000 : 5000);
         });

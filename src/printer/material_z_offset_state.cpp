@@ -246,9 +246,8 @@ void MaterialZOffsetState::send_pa_enable(IMoonrakerAPI* api, bool on) {
         0, /*silent=*/true, nullptr, /*caller_surfaces_errors=*/false);
 }
 
-void MaterialZOffsetState::save_pa(const std::string& material, const material_pa::Entry& entry,
-                                   Done done) {
-    IMoonrakerAPI* api = get_moonraker_api();
+void MaterialZOffsetState::save_pa(IMoonrakerAPI* api, const std::string& material,
+                                   const material_pa::Entry& entry, Done done) {
     if (!api || !pa_ready()) {
         if (done) {
             done(false, api ? lv_tr("Update the helper macros to save per material.")
