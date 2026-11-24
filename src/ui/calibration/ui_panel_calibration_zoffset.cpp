@@ -452,6 +452,7 @@ void ZOffsetCalibrationPanel::set_state(State new_state) {
     case State::COMPLETE:
     case State::ERROR:
     case State::IDLE:
+    case State::REVIEW:
         operation_guard_.end();
         end_saving_restart_watch();
         save_restart_latch_.reset(); // Leaving SAVING — a later save starts clean
@@ -1293,7 +1294,9 @@ void ZOffsetCalibrationPanel::show_review() {
         const std::string after =
             staged ? helix::calibration::format_z_offset(*staged) : std::string();
         const auto facts = helix::calibration::staged_result_facts(
-            get_printer_state().get_discovery(), pending, !helix::firmware_supervised());
+            get_printer_state().get_discovery(), pending, [](const std::string& section) {
+                return helix::calibration::is_z_offset_section(section);
+            });
         result_view_.publish(lv_tr("Z offset found"), position,
                              {{lv_tr("Z offset"), before, after}},
                              helix::calibration::result_choices(facts));
@@ -1310,7 +1313,7 @@ void ZOffsetCalibrationPanel::show_review() {
 }
 
 void ZOffsetCalibrationPanel::handle_result_save() {
-    if (state_ != State::REVIEW || !api_) {
+    if (state_ != State::REVIEW || !api_ || helix::calibration::refuse_result_restart()) {
         return;
     }
     spdlog::info("[ZOffsetCal] Result: Save to Config");
@@ -1340,7 +1343,7 @@ void ZOffsetCalibrationPanel::handle_result_keep() {
 }
 
 void ZOffsetCalibrationPanel::handle_result_discard() {
-    if (state_ != State::REVIEW) {
+    if (state_ != State::REVIEW || helix::calibration::refuse_result_restart()) {
         return;
     }
     const bool drop =
@@ -1427,6 +1430,9 @@ void ZOffsetCalibrationPanel::update_z_position(float z_position) {
 }
 
 void ZOffsetCalibrationPanel::on_calibration_result(bool success, const std::string& message) {
+    if (!success) {
+        lv_subject_set_int(&accepting_subject_, 0);
+    }
     if (success) {
         // Update final offset display
         const std::string accepted =

@@ -38,7 +38,7 @@ void confirm_cutter_calibration() {
     helix::confirm_calibration_start(
         lv_tr(cal::cutter_entry_name()),
         lv_tr("The printer homes X and Y if needed, then drives the toolhead into the cutter to "
-              "find its position. Unload the filament first. Clear the bed first."),
+              "find its position. Unload the filament and clear the bed first."),
         lv_tr("Start"), s_row_lifetime.token(), []() {
             start_cutter_calibration(get_moonraker_api(), get_printer_state().get_discovery());
         });

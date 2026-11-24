@@ -1063,6 +1063,7 @@ void PIDCalibrationPanel::handle_temp_down() {
 void PIDCalibrationPanel::handle_start_clicked() {
     spdlog::debug("[PIDCal] Start clicked (method={})",
                   selected_method_ == CalibMethod::MPC ? "MPC" : "PID");
+    run_switched_control_ = false;
     if (nozzle_heat_refused()) {
         return;
     }
@@ -1260,8 +1261,12 @@ void PIDCalibrationPanel::show_review(std::vector<helix::calibration::ResultRow>
     const std::string title = selected_heater_ == Heater::EXTRUDER ? lv_tr("Nozzle heater tuned")
                                                                    : lv_tr("Bed heater tuned");
     const auto publish = [this, title, rows](const nlohmann::json& pending) {
-        const auto facts = helix::calibration::staged_result_facts(
-            get_printer_state().get_discovery(), pending, !helix::firmware_supervised());
+        const std::string heater = run_heater_;
+        auto facts = helix::calibration::staged_result_facts(
+            get_printer_state().get_discovery(), pending, [heater](const std::string& section) {
+                return section == heater || section.rfind("pid_profile " + heater, 0) == 0;
+            });
+        facts.control_switched = run_switched_control_;
         result_view_.publish(title, lv_subject_get_string(&subj_result_summary_), rows,
                              helix::calibration::result_choices(facts));
         set_state(State::REVIEW);
@@ -1277,7 +1282,7 @@ void PIDCalibrationPanel::show_review(std::vector<helix::calibration::ResultRow>
 }
 
 void PIDCalibrationPanel::handle_result_save() {
-    if (state_ != State::REVIEW) {
+    if (state_ != State::REVIEW || helix::calibration::refuse_result_restart()) {
         return;
     }
     spdlog::info("[PIDCal] Result: Save to Config");
@@ -1286,7 +1291,7 @@ void PIDCalibrationPanel::handle_result_save() {
 }
 
 void PIDCalibrationPanel::handle_result_keep() {
-    if (state_ != State::REVIEW) {
+    if (state_ != State::REVIEW || !result_view_.choices().offer_keep) {
         return;
     }
     // Klipper keeps the staged result until a save or a restart; nothing to send.
@@ -1296,7 +1301,8 @@ void PIDCalibrationPanel::handle_result_keep() {
 }
 
 void PIDCalibrationPanel::handle_result_discard() {
-    if (state_ != State::REVIEW) {
+    if (state_ != State::REVIEW || !result_view_.choices().offer_discard ||
+        helix::calibration::refuse_result_restart()) {
         return;
     }
     const bool drop =
@@ -1805,6 +1811,9 @@ void PIDCalibrationPanel::start_migration(CalibMethod target, bool adding_fan) {
                    : build_control_migration_edits(target, heater_wattage_, fan);
     const bool names_fan = to_mpc && !fan.empty();
 
+    // Rewriting `control:` leaves the heater untuned for its new control until
+    // this run's result is saved; only the fan line keeps the old tuning valid.
+    run_switched_control_ = !adding_fan;
     if (adding_fan) {
         spdlog::info("[PIDCal] Adding cooling_fan='{}' to MPC heater '{}'", fan, section);
     } else if (to_mpc) {

@@ -19,6 +19,8 @@
        <prefix>_status_sub         under it: what Save to Config and Discard do
        <prefix>_hide_keep          1 hides Keep for Now
        <prefix>_hide_save          1 hides Save to Config
+       <prefix>_hide_discard       1 hides Discard
+       <prefix>_hide_before        1 blanks the Before heading (no row has a before)
      Callbacks: discard_callback, keep_callback, save_callback. -->
 <component>
   <api>
@@ -55,7 +57,9 @@
                     style_text_color="#text_muted" style_text_opa="204"/>
         <text_small width="0"
                     flex_grow="10" text="Before" text_transform="uppercase" style_text_font="#cal_font_badge"
-                    style_text_color="#text_muted" style_text_opa="204"/>
+                    style_text_color="#text_muted" style_text_opa="204">
+          <bind_style name="styles.invisible" subject="${prefix}_hide_before" ref_value="1"/>
+        </text_small>
         <lv_obj width="#cal_arrow_w" height="1" style_bg_opa="0" style_border_width="0"/>
         <text_small width="0"
                     flex_grow="13" text="After" text_transform="uppercase" style_text_font="#cal_font_badge"
@@ -81,10 +85,10 @@
     </lv_obj>
     <wizard_frame_footer name="cal_result_footer"
                          back_text="Discard" back_tag="Discard" back_callback="$discard_callback"
-                         back_name="btn_result_discard" skip_text="Keep for Now" skip_tag="Keep for Now"
-                         skip_callback="$keep_callback" skip_name="btn_result_keep"
-                         skip_hide_subject="${prefix}_hide_keep" primary_text="Save to Config"
-                         primary_tag="Save to Config" primary_callback="$save_callback" primary_name="btn_result_save"
-                         primary_hide_subject="${prefix}_hide_save"/>
+                         back_name="btn_result_discard" back_hide_subject="${prefix}_hide_discard"
+                         skip_text="Keep for Now" skip_tag="Keep for Now" skip_callback="$keep_callback"
+                         skip_name="btn_result_keep" skip_hide_subject="${prefix}_hide_keep"
+                         primary_text="Save to Config" primary_tag="Save to Config" primary_callback="$save_callback"
+                         primary_name="btn_result_save" primary_hide_subject="${prefix}_hide_save"/>
   </view>
 </component>

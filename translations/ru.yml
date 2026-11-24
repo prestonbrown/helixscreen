@@ -107,10 +107,10 @@ translations:
   "Find the filament cutter's position": "Определить положение резака филамента"
   Let it cool, lower run_current for {1} or improve the cooling over the drivers, then restart the firmware.: Дайте ему остыть, уменьшите run_current для {1} или улучшите охлаждение драйверов, затем перезапустите прошивку.
   "Let the printer's tensioners set the belts": "Натяжители принтера сами настроят ремни"
+  ? The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament and clear the bed first.
+  : "Принтер при необходимости паркует X и Y, затем подводит печатающую головку к ножу, чтобы найти его положение. Сначала выгрузите филамент и освободите стол."
   ? "The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first."
   : "Принтер при необходимости паркует X и Y, затем подводит головку к резаку, чтобы определить его положение. Сначала выгрузите филамент."
-  ? The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first. Clear the bed first.
-  : "Принтер при необходимости паркует X и Y, затем подводит головку к резаку, чтобы определить его положение. Сначала выгрузите филамент. Сначала освободите стол."
   ? "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer."
   : "Принтер паркует X и Y, переводит головку в центр стола и настраивает каждый ремень его натяжителем. По окончании моторы отключаются, поэтому выполните парковку перед перемещением принтера."
   The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting.: Принтер ещё не сообщил, как взять эту печатающую головку. Повторите попытку, когда его система подачи филамента завершит подключение.
@@ -482,6 +482,8 @@ translations:
   Already mounted: 'Уже установлен'
   Also keep this mesh for {}. Its prints that do not mesh load it at the start.: "Сохранить эту сетку и для {}? Его печати без построения сетки загрузят её при старте."
   Also measure part-fan cooling: Также измерить охлаждение вент. детали
+  "Also waiting to be saved: {}. Save and Discard include them.": "Также ожидают сохранения: {}. «Сохранить» и «Отменить» затронут и их."
+  "Also waiting to be saved: {}. Save includes them.": "Также ожидают сохранения: {}. «Сохранить» затронет и их."
   Always Show Bypass Spool: Всегда показывать катушку байпаса
   Always show Android navigation bar instead of using gestures: Всегда показывать панель навигации Android вместо жестов
   Ambient Transfer: Теплообмен с окружающей средой
@@ -908,6 +910,7 @@ translations:
   Cannot park while a print is active: 'Нельзя припарковать во время печати'
   Cannot perform this action now: Сейчас это действие выполнить нельзя
   'Cannot reprint: not connected to printer': 'Невозможно перепечатать: не подключено к принтеру'
+  "Cannot restart Klipper while printing": "Нельзя перезапустить Klipper во время печати"
   Cannot restart Moonraker while printing: "Нельзя перезапустить Moonraker во время печати"
   Cannot restart — no filename: Не удалось перезапустить — нет имени файла
   Cannot restore the stock screen while printing: 'Нельзя вернуть штатный экран во время печати'
@@ -1576,7 +1579,6 @@ translations:
   Discard Changes?: Отменить изменения?
   Discard all: 'Отменить все'
   "Discard failed: {}": "Не удалось отменить: {}"
-  "Discard restarts Klipper to drop it.": "Отмена перезапускает Klipper, чтобы сбросить результат."
   Disconnected: Отключено
   Disconnected Time: Время отключения
   Disconnects: Отключения
@@ -4412,7 +4414,9 @@ translations:
   Save the new heater values to printer.cfg? Klipper restarts.: Сохранить новые значения нагревателя в printer.cfg? Klipper перезапустится.
   Save to Config: "Сохранить в конфигурацию"
   "Save to Config and Discard both restart Klipper.": "«Сохранить в конфигурацию» и «Отменить» перезапускают Klipper."
+  "Save to Config keeps Klipper running.": "«Сохранить в конфигурацию» не останавливает Klipper."
   "Save to Config keeps Klipper running. Discard restarts it.": "«Сохранить в конфигурацию» не останавливает Klipper. «Отменить» перезапускает его."
+  "Save to Config restarts Klipper.": "«Сохранить в конфигурацию» перезапускает Klipper."
   Save to Spool: Сохранить на катушку
   Save to Spoolman: Сохранить в Spoolman
   Save to the printer config?: "Сохранить в конфигурацию принтера?"
@@ -5238,6 +5242,7 @@ translations:
   The heater took the target.: 'Нагреватель принял целевую температуру.'
   The heater was turned off at the heater.: 'Нагреватель был выключен на самом нагревателе.'
   The heater will cycle on and off several times.: Нагреватель будет несколько раз включаться и выключаться.
+  "The heater's control changed in printer.cfg. It heats again only once this result is saved.": "Режим управления нагревателем изменён в printer.cfg. Он снова будет греть только после сохранения этого результата."
   The helper macros are installed and activate after Klipper restarts.: 'Вспомогательные макросы установлены и активируются после перезапуска Klipper.'
   ? 'The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream.'
   : 'Хост-компьютер не отправил перемещения плате управления вовремя, обычно из-за перегрузки: высокая загрузка CPU или swap, медленная SD-карта, нестабильное питание или поток с веб-камеры.'

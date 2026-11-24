@@ -63,10 +63,10 @@ translations:
   "Find the filament cutter's position": "Find the filament cutter's position"
   Let it cool, lower run_current for {1} or improve the cooling over the drivers, then restart the firmware.: Let it cool, lower run_current for {1} or improve the cooling over the drivers, then restart the firmware.
   "Let the printer's tensioners set the belts": "Let the printer's tensioners set the belts"
+  ? The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament and clear the bed first.
+  : The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament and clear the bed first.
   ? "The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first."
   : "The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first."
-  ? The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first. Clear the bed first.
-  : The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first. Clear the bed first.
   ? "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer."
   : "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer."
   The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting.: The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting.
@@ -437,6 +437,8 @@ translations:
   Already mounted: Already mounted
   Also keep this mesh for {}. Its prints that do not mesh load it at the start.: Also keep this mesh for {}. Its prints that do not mesh load it at the start.
   Also measure part-fan cooling: Also measure part-fan cooling
+  'Also waiting to be saved: {}. Save and Discard include them.': 'Also waiting to be saved: {}. Save and Discard include them.'
+  'Also waiting to be saved: {}. Save includes them.': 'Also waiting to be saved: {}. Save includes them.'
   Always Show Bypass Spool: Always Show Bypass Spool
   Always show Android navigation bar instead of using gestures: Always show Android navigation bar instead of using gestures
   Ambient Transfer: Ambient Transfer
@@ -855,6 +857,7 @@ translations:
   Cannot park while a print is active: Cannot park while a print is active
   Cannot perform this action now: Cannot perform this action now
   'Cannot reprint: not connected to printer': 'Cannot reprint: not connected to printer'
+  Cannot restart Klipper while printing: Cannot restart Klipper while printing
   Cannot restart Moonraker while printing: Cannot restart Moonraker while printing
   Cannot restart — no filename: Cannot restart — no filename
   Cannot restore the stock screen while printing: Cannot restore the stock screen while printing
@@ -1514,7 +1517,6 @@ translations:
   Discard Changes?: Discard Changes?
   Discard all: Discard all
   'Discard failed: {}': 'Discard failed: {}'
-  Discard restarts Klipper to drop it.: Discard restarts Klipper to drop it.
   Disconnected: Disconnected
   Disconnected Time: Disconnected Time
   Disconnects: Disconnects
@@ -4306,7 +4308,9 @@ translations:
   Save the new heater values to printer.cfg? Klipper restarts.: Save the new heater values to printer.cfg? Klipper restarts.
   Save to Config: Save to Config
   Save to Config and Discard both restart Klipper.: Save to Config and Discard both restart Klipper.
+  Save to Config keeps Klipper running.: Save to Config keeps Klipper running.
   Save to Config keeps Klipper running. Discard restarts it.: Save to Config keeps Klipper running. Discard restarts it.
+  Save to Config restarts Klipper.: Save to Config restarts Klipper.
   Save to Spool: Save to Spool
   Save to Spoolman: Save to Spoolman
   Save to the printer config?: Save to the printer config?
@@ -5116,6 +5120,7 @@ translations:
   The heater took the target.: The heater took the target.
   The heater was turned off at the heater.: The heater was turned off at the heater.
   The heater will cycle on and off several times.: The heater will cycle on and off several times.
+  The heater's control changed in printer.cfg. It heats again only once this result is saved.: The heater's control changed in printer.cfg. It heats again only once this result is saved.
   The helper macros are installed and activate after Klipper restarts.: The helper macros are installed and activate after Klipper restarts.
   ? 'The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream.'
   : 'The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream.'

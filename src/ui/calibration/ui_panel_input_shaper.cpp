@@ -2172,7 +2172,7 @@ void InputShaperPanel::handle_axis_choice(int choice) {
         helix::calibration::step_default_minutes(helix::calibration::StepKind::InputShaper);
     snprintf(is_intro_duration_buf_, sizeof(is_intro_duration_buf_), "%s",
              helix::calibration::time_away_line(helix::calibration::AwayKind::Runs,
-                                                choice == 0 ? both : (both + 1) / 2)
+                                                choice == 0 ? both : std::max(1, both / 2))
                  .c_str());
     lv_subject_set_string(&is_intro_duration_, is_intro_duration_buf_);
 }

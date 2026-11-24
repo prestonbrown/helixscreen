@@ -63,10 +63,10 @@ translations:
   "Find the filament cutter's position": "确定耗材切刀的位置"
   Let it cool, lower run_current for {1} or improve the cooling over the drivers, then restart the firmware.: 请等待冷却，降低 {1} 的 run_current 或改善驱动散热，然后重启固件。
   "Let the printer's tensioners set the belts": "由打印机的张紧器调整皮带"
+  ? The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament and clear the bed first.
+  : "打印机会按需归零 X 和 Y，然后把打印头推向切刀以确定其位置。请先退出耗材并清空热床。"
   ? "The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first."
   : "打印机会按需对 X 和 Y 归位，然后将工具头推向切刀以确定其位置。请先退出耗材。"
-  ? The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first. Clear the bed first.
-  : "打印机会按需对 X 和 Y 归位，然后将工具头推向切刀以确定其位置。请先退出耗材。请先清空热床。"
   ? "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer."
   : "打印机会对 X 和 Y 归位，将工具头移到热床中央，并用各自的张紧器调整每条皮带。完成后电机会释放，移动打印机前请先归位。"
   The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting.: 打印机尚未告知如何切换到此打印头。请在其耗材系统完成连接后重试。
@@ -434,6 +434,8 @@ translations:
   Already mounted: '已装上'
   Also keep this mesh for {}. Its prints that do not mesh load it at the start.: "也为 {} 保存这个网格吗？其不做网格的打印会在开始时加载它。"
   Also measure part-fan cooling: 同时测量零件风扇的冷却
+  "Also waiting to be saved: {}. Save and Discard include them.": "另有待保存项：{}。保存和丢弃都会包含它们。"
+  "Also waiting to be saved: {}. Save includes them.": "另有待保存项：{}。保存会包含它们。"
   Always Show Bypass Spool: 始终显示旁路料盘
   Always show Android navigation bar instead of using gestures: 始终显示 Android 导航栏而不使用手势
   Ambient Transfer: 环境传热
@@ -852,6 +854,7 @@ translations:
   Cannot park while a print is active: '打印时无法停放'
   Cannot perform this action now: 当前无法执行此操作
   'Cannot reprint: not connected to printer': '无法重新打印: 未连接打印机'
+  "Cannot restart Klipper while printing": "打印中无法重启 Klipper"
   Cannot restart Moonraker while printing: "打印时无法重启 Moonraker"
   Cannot restart — no filename: 无法重启 — 没有文件名
   Cannot restore the stock screen while printing: '打印期间无法恢复原厂屏幕'
@@ -1516,7 +1519,6 @@ translations:
   Discard Changes?: 丢弃更改？
   Discard all: '全部丢弃'
   "Discard failed: {}": "丢弃失败：{}"
-  "Discard restarts Klipper to drop it.": "丢弃会重启 Klipper 以清除它。"
   Disconnected: 已断开
   Disconnected Time: 已断开时长
   Disconnects: 断开次数
@@ -4332,7 +4334,9 @@ translations:
   Save the new heater values to printer.cfg? Klipper restarts.: 将新的加热器参数保存到printer.cfg？Klipper将重启。
   Save to Config: "保存到配置"
   "Save to Config and Discard both restart Klipper.": "“保存到配置”和“丢弃”都会重启 Klipper。"
+  "Save to Config keeps Klipper running.": "“保存到配置”不会中断 Klipper。"
   "Save to Config keeps Klipper running. Discard restarts it.": "“保存到配置”不会中断 Klipper。“丢弃”会重启它。"
+  "Save to Config restarts Klipper.": "“保存到配置”会重启 Klipper。"
   Save to Spool: 保存到料盘
   Save to Spoolman: 保存到 Spoolman
   Save to the printer config?: "保存到打印机配置？"
@@ -5150,6 +5154,7 @@ translations:
   The heater took the target.: '加热器已接受目标温度。'
   The heater was turned off at the heater.: '加热器已在加热器本身上关闭。'
   The heater will cycle on and off several times.: 加热器将多次开关循环。
+  "The heater's control changed in printer.cfg. It heats again only once this result is saved.": "printer.cfg 中加热器的控制方式已更改。保存此结果后它才能重新加热。"
   The helper macros are installed and activate after Klipper restarts.: '帮助宏已安装，将在 Klipper 重启后启用。'
   ? 'The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream.'
   : 主机未能及时向控制板发送移动指令，通常是因为负载过高：CPU 或交换空间占用高、SD 卡太慢、电源不稳，或正在推送摄像头视频流。

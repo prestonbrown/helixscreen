@@ -302,6 +302,8 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     send_accept_of(panel);
     settle();
     REQUIRE(panel.get_state() == ZOffsetCalibrationPanel::State::REVIEW);
+    // The page waits as long as the user reads it: the ACCEPT's timeout is over.
+    CHECK_FALSE(ZOffsetCalibrationTestAccess::timeout_armed(panel));
     CHECK(sent_any(client.gcode_script_history(), "ACCEPT"));
     CHECK_FALSE(sent_any(client.gcode_script_history(), "SAVE_CONFIG"));
     const int restarts = client.call_count("printer.restart");

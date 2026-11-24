@@ -32,10 +32,14 @@ PrinterDiscovery kalico() {
 const json kPid = {{"extruder", {{"control", "pid"}, {"pid_kp", "22.1"}}}};
 const json kMpc = {{"extruder", {{"control", "mpc"}, {"block_heat_capacity", "18.4"}}}};
 
+bool extruder(const std::string& section) {
+    return section == "extruder";
+}
+
 } // namespace
 
 TEST_CASE("A staged result that is not in use yet saves with a restart", "[calibration_result]") {
-    const ResultChoices c = result_choices(staged_result_facts(PrinterDiscovery{}, kPid, true));
+    const ResultChoices c = result_choices(staged_result_facts(PrinterDiscovery{}, kPid, nullptr));
     CHECK(c.offer_save);
     CHECK(c.offer_keep);
     CHECK(c.keep == KeepMeaning::NotYetInUse);
@@ -45,35 +49,52 @@ TEST_CASE("A staged result that is not in use yet saves with a restart", "[calib
 
 TEST_CASE("A result the firmware already uses is in use now and saves without a restart",
           "[calibration_result]") {
-    const ResultChoices pid = result_choices(staged_result_facts(kalico(), kPid, true));
+    const ResultChoices pid = result_choices(staged_result_facts(kalico(), kPid, extruder));
     CHECK(pid.keep == KeepMeaning::InUse);
     CHECK_FALSE(pid.save_restarts);
     CHECK(pid.discard == DiscardMeaning::RestartDropsIt);
 
     // MPC values take effect only on a restart, Kalico or not.
-    const ResultChoices mpc = result_choices(staged_result_facts(kalico(), kMpc, true));
+    const ResultChoices mpc = result_choices(staged_result_facts(kalico(), kMpc, extruder));
     CHECK(mpc.keep == KeepMeaning::NotYetInUse);
     CHECK(mpc.save_restarts);
 }
 
-TEST_CASE("A firmware that owns printer.cfg is never offered Save to Config",
+TEST_CASE("A result after a control switch can only be saved", "[calibration_result]") {
+    ResultFacts facts = staged_result_facts(PrinterDiscovery{}, kMpc, nullptr);
+    facts.control_switched = true;
+    const ResultChoices c = result_choices(facts);
+    CHECK(c.offer_save);
+    CHECK_FALSE(c.offer_keep);
+    CHECK_FALSE(c.offer_discard);
+    CHECK(c.must_save);
+}
+
+TEST_CASE("Other staged results are named, and only this result decides in use",
           "[calibration_result]") {
-    const ResultChoices c = result_choices(staged_result_facts(PrinterDiscovery{}, kPid, false));
-    CHECK_FALSE(c.offer_save);
-    CHECK(c.offer_keep);
-    CHECK(c.discard == DiscardMeaning::RestartDropsIt);
+    const json both = {{"extruder", {{"control", "pid"}, {"pid_kp", "22.1"}}},
+                       {"probe", {{"z_offset", "1.234"}}}};
+    const auto is_extruder = [](const std::string& s) { return s == "extruder"; };
+    const ResultFacts facts = staged_result_facts(kalico(), both, is_extruder);
+    REQUIRE(facts.also_staged == std::vector<std::string>{"probe"});
+    // The probe's offset needs a restart, the extruder's PID is live on Kalico.
+    CHECK(facts.live);
+    CHECK(facts.save_restarts);
+    CHECK(result_choices(facts).also_staged == std::vector<std::string>{"probe"});
+    CHECK(helix::calibration::result_save_line(result_choices(facts)).find("probe") !=
+          std::string::npos);
 }
 
 TEST_CASE("Nothing staged leaves nothing to save or drop", "[calibration_result]") {
     const ResultChoices c =
-        result_choices(staged_result_facts(PrinterDiscovery{}, json::object(), true));
+        result_choices(staged_result_facts(PrinterDiscovery{}, json::object(), nullptr));
     CHECK_FALSE(c.offer_save);
     CHECK(c.offer_keep);
     CHECK(c.discard == DiscardMeaning::NothingToUndo);
 
     // An unreadable answer counts as staged.
     const ResultChoices unknown =
-        result_choices(staged_result_facts(PrinterDiscovery{}, json(), true));
+        result_choices(staged_result_facts(PrinterDiscovery{}, json(), nullptr));
     CHECK(unknown.offer_save);
     CHECK(unknown.discard == DiscardMeaning::RestartDropsIt);
 }

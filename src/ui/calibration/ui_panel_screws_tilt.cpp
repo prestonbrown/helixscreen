@@ -232,6 +232,12 @@ void ScrewsTiltPanel::on_deactivating(DeactivateReason reason) {
         }
     }
 
+    // Leaving for real drops the E-stop and keep-awake holds; a suspend keeps
+    // them, since the results (and the turning screws) are still the user's.
+    if (reason != DeactivateReason::Suspended) {
+        holds_.release();
+    }
+
     // Clean up dynamic indicators. On a suspend this is what stops their
     // rotations; screw_results_ stays, and the wake draws it again.
     clear_results();

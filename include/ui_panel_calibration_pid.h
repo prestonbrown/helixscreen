@@ -308,6 +308,8 @@ class PIDCalibrationPanel : public OverlayBase {
     helix::calibration::StageHolds holds_;
     helix::calibration::CalibrationResultView result_view_{"pid_result"};
     std::unique_ptr<helix::calibration::RunFinisher> discarder_;
+    /// This run rewrote the heater's control first, so its result must be saved.
+    bool run_switched_control_ = false;
     // Client/API references
     // Note: overlay_root_ inherited from OverlayBase
     helix::IMoonrakerAPI* api_ = nullptr;

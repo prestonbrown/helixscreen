@@ -413,6 +413,8 @@
   <translation tag="Already mounted" fr="Déjà monté"/>
   <translation tag="Also keep this mesh for {}. Its prints that do not mesh load it at the start." fr="Garder aussi ce maillage pour {} ? Ses impressions sans maillage le chargent au démarrage."/>
   <translation tag="Also measure part-fan cooling" fr="Mesurer aussi le refroidissement du ventilateur pièce"/>
+  <translation tag="Also waiting to be saved: {}. Save and Discard include them." fr="Également en attente d&apos;enregistrement : {}. Enregistrer et Abandonner les incluent."/>
+  <translation tag="Also waiting to be saved: {}. Save includes them." fr="Également en attente d&apos;enregistrement : {}. Enregistrer les inclut."/>
   <translation tag="Always Show Bypass Spool" fr="Toujours afficher la bobine de bypass"/>
   <translation tag="Always show Android navigation bar instead of using gestures" fr="Toujours afficher la barre de navigation Android au lieu des gestes"/>
   <translation tag="Ambient Transfer" fr="Transfert ambiant"/>
@@ -825,6 +827,7 @@
   <translation tag="Cannot park while a print is active" fr="Impossible de parquer : une impression est en cours"/>
   <translation tag="Cannot perform this action now" fr="Impossible d&apos;effectuer cette action maintenant"/>
   <translation tag="Cannot reprint: not connected to printer" fr="Impossible de réimprimer : non connecté à l&apos;imprimante"/>
+  <translation tag="Cannot restart Klipper while printing" fr="Impossible de redémarrer Klipper pendant l&apos;impression"/>
   <translation tag="Cannot restart Moonraker while printing" fr="Impossible de redémarrer Moonraker pendant l&apos;impression"/>
   <translation tag="Cannot restart — no filename" fr="Impossible de redémarrer — pas de nom de fichier"/>
   <translation tag="Cannot restore the stock screen while printing" fr="Impossible de restaurer l&apos;écran d&apos;origine pendant une impression"/>
@@ -1434,7 +1437,6 @@
   <translation tag="Discard Changes?" fr="Abandonner les modifications ?"/>
   <translation tag="Discard all" fr="Tout abandonner"/>
   <translation tag="Discard failed: {}" fr="Échec de l&apos;abandon : {}"/>
-  <translation tag="Discard restarts Klipper to drop it." fr="Abandonner redémarre Klipper pour l&apos;effacer."/>
   <translation tag="Disconnected" fr="Déconnecté"/>
   <translation tag="Disconnected Time" fr="Temps de déconnexion"/>
   <translation tag="Disconnects" fr="Déconnexions"/>
@@ -4196,7 +4198,9 @@
   <translation tag="Save the new heater values to printer.cfg? Klipper restarts." fr="Enregistrer les nouvelles valeurs du chauffage dans printer.cfg ? Klipper redémarre."/>
   <translation tag="Save to Config" fr="Enregistrer dans la config"/>
   <translation tag="Save to Config and Discard both restart Klipper." fr="Enregistrer dans la config et Abandonner redémarrent tous deux Klipper."/>
+  <translation tag="Save to Config keeps Klipper running." fr="Enregistrer dans la config laisse Klipper tourner."/>
   <translation tag="Save to Config keeps Klipper running. Discard restarts it." fr="Enregistrer dans la config laisse Klipper tourner. Abandonner le redémarre."/>
+  <translation tag="Save to Config restarts Klipper." fr="Enregistrer dans la config redémarre Klipper."/>
   <translation tag="Save to Spool" fr="Enregistrer sur la bobine"/>
   <translation tag="Save to Spoolman" fr="Enregistrer dans Spoolman"/>
   <translation tag="Save to the printer config?" fr="Enregistrer dans la config de l&apos;imprimante ?"/>
@@ -4980,6 +4984,7 @@
   <translation tag="The heater took the target." fr="Le chauffage a accepté la consigne."/>
   <translation tag="The heater was turned off at the heater." fr="Le chauffage a été éteint sur l&apos;appareil lui-même."/>
   <translation tag="The heater will cycle on and off several times." fr="Le chauffage s&apos;allumera et s&apos;éteindra plusieurs fois."/>
+  <translation tag="The heater&apos;s control changed in printer.cfg. It heats again only once this result is saved." fr="Le mode de régulation du chauffage a changé dans printer.cfg. Il ne chauffera à nouveau qu&apos;une fois ce résultat enregistré."/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." fr="Les macros d&apos;aide sont installées et s&apos;activent après un redémarrage de Klipper."/>
   <translation tag="The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream." fr="L&apos;ordinateur hôte n&apos;a pas envoyé les mouvements à temps à la carte contrôleur, généralement parce qu&apos;il est surchargé : forte utilisation du CPU ou du swap, carte SD lente, alimentation instable, ou flux de webcam."/>
   <translation tag="The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination." fr="L&apos;hôte n&apos;a rien reçu de cette carte pendant plusieurs secondes : un câble USB ou CAN desserré ou défaillant, une perte d&apos;alimentation de la carte, ou un bus CAN sans terminaison."/>
@@ -5076,8 +5081,8 @@
   <translation tag="The printer has not reported its maximum velocity yet." fr="L&apos;imprimante n&apos;a pas encore signalé sa vitesse maximale."/>
   <translation tag="The printer has not reported whether Auto-Replenish is on" fr="L&apos;imprimante n&apos;a pas indiqué si le réapprovisionnement automatique est activé"/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." fr="L&apos;imprimante chauffe la buse, fait quelques mouvements de test dans un coin du plateau et les mesure elle-même. Elle répète jusqu&apos;à ce que les mesures concordent, puis indique un seul chiffre."/>
+  <translation tag="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament and clear the bed first." fr="L&apos;imprimante fait l&apos;origine X et Y si nécessaire, puis amène la tête contre le couteau pour trouver sa position. Déchargez le filament et dégagez le plateau d&apos;abord."/>
   <translation tag="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first." fr="L&apos;imprimante prend l&apos;origine de X et Y si nécessaire, puis pousse la tête contre le coupeur pour trouver sa position. Déchargez d&apos;abord le filament."/>
-  <translation tag="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first. Clear the bed first." fr="L&apos;imprimante prend l&apos;origine de X et Y si nécessaire, puis pousse la tête contre le coupeur pour trouver sa position. Déchargez d&apos;abord le filament. Dégagez d&apos;abord le plateau."/>
   <translation tag="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer." fr="L&apos;imprimante prend l&apos;origine de X et Y, place la tête au centre du plateau et règle chaque courroie avec son tendeur. Les moteurs sont relâchés à la fin : prenez l&apos;origine avant de déplacer l&apos;imprimante."/>
   <translation tag="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer. Clear the bed first." fr="L&apos;imprimante prend l&apos;origine de X et Y, place la tête au centre du plateau et règle chaque courroie avec son tendeur. Les moteurs sont relâchés à la fin : prenez l&apos;origine avant de déplacer l&apos;imprimante. Dégagez d&apos;abord le plateau."/>
   <translation tag="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear." fr="L&apos;imprimante prend l&apos;origine et balaie le coupeur (environ 1 minute). Laissez le chemin du filament dégagé."/>

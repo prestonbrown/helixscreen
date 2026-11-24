@@ -73,6 +73,11 @@ class ZOffsetCalibrationTestAccess {
         panel.state_ = state;
     }
 
+    /// Whether a state's timeout (warming, probing, saving) is armed.
+    static bool timeout_armed(const ZOffsetCalibrationPanel& panel) {
+        return panel.operation_guard_.pending_timer() != nullptr;
+    }
+
     /// The result page's three choices.
     static void result_save(ZOffsetCalibrationPanel& panel) {
         panel.handle_result_save();

@@ -62,6 +62,9 @@ struct PIDCalibrationPanelTestAccess {
     static void turn_off_fan(PIDCalibrationPanel& p) {
         p.turn_off_fan();
     }
+    static void set_state(PIDCalibrationPanel& p, PIDCalibrationPanel::State state) {
+        p.set_state(state);
+    }
     /// The confirmed migration, as confirm_migration() runs it.
     static void start_mpc_migration(PIDCalibrationPanel& p) {
         p.set_state(PIDCalibrationPanel::State::MIGRATING);

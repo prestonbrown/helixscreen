@@ -470,6 +470,79 @@ TEST_CASE_METHOD(PidHeadsFixture, "A finished calibration waits for the user's c
     }
 }
 
+TEST_CASE_METHOD(PidHeadsFixture,
+                 "A run that switched the heater's control offers only Save to Config",
+                 "[pid][calibration_result][mpc_migration]") {
+    // Discarding or keeping would leave printer.cfg on the new control with no
+    // tuning for it, and Klipper would refuse to heat.
+    get_printer_state().init_subjects(false);
+    load_tools(nlohmann::json::array({"extruder", "heater_bed"}));
+    Access::activate(panel);
+    Access::start_mpc_migration(panel);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    Access::set_state(panel, PIDCalibrationPanel::State::CALIBRATING);
+    helix::MoonrakerClientMockTestAccess::stage_config_change(client, "extruder",
+                                                              "block_heat_capacity", "17.9");
+    panel.on_calibration_result(true, 22.865f, 1.292f, 101.178f);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    REQUIRE(panel.get_state() == PIDCalibrationPanel::State::REVIEW);
+    CHECK(subject_int("pid_result_hide_save") == 0);
+    CHECK(subject_int("pid_result_hide_keep") == 1);
+    CHECK(subject_int("pid_result_hide_discard") == 1);
+
+    // And the buttons refuse even if reached.
+    const int restarts = client.call_count("printer.restart");
+    Access::result_discard(panel);
+    Access::result_keep(panel);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(client.call_count("printer.restart") == restarts);
+    CHECK(panel.get_state() == PIDCalibrationPanel::State::REVIEW);
+}
+
+TEST_CASE_METHOD(PidHeadsFixture, "A result page will not restart Klipper under a print",
+                 "[pid][calibration_result]") {
+    get_printer_state().init_subjects(false);
+    load_tools(nlohmann::json::array({"extruder", "heater_bed"}));
+    Access::activate(panel);
+    start();
+    REQUIRE(panel.get_state() == PIDCalibrationPanel::State::CALIBRATING);
+    helix::MoonrakerClientMockTestAccess::stage_config_change(client, "extruder", "pid_kp",
+                                                              "22.865");
+    panel.on_calibration_result(true, 22.865f, 1.292f, 101.178f);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    REQUIRE(panel.get_state() == PIDCalibrationPanel::State::REVIEW);
+
+    // A print started from another client while the page was open.
+    lv_subject_t* blocked = get_printer_state().print_state().get_machine_motion_blocked_subject();
+    lv_subject_set_int(blocked, 1);
+    client.clear_gcode_script_history();
+    const int restarts = client.call_count("printer.restart");
+    Access::result_save(panel);
+    Access::result_discard(panel);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK_FALSE(sent("SAVE_CONFIG"));
+    CHECK(client.call_count("printer.restart") == restarts);
+    CHECK(panel.get_state() == PIDCalibrationPanel::State::REVIEW);
+    lv_subject_set_int(blocked, 0);
+}
+
+TEST_CASE_METHOD(PidHeadsFixture, "Supervising firmware still offers Save to Config",
+                 "[pid][calibration_result][firmware_supervised]") {
+    // #2154 refuses HelixScreen's own file writes; Klipper's SAVE_CONFIG is allowed there.
+    helix::test::FirmwareSupervisedFor on(true);
+    get_printer_state().init_subjects(false);
+    load_tools(nlohmann::json::array({"extruder", "heater_bed"}));
+    Access::activate(panel);
+    start();
+    REQUIRE(panel.get_state() == PIDCalibrationPanel::State::CALIBRATING);
+    helix::MoonrakerClientMockTestAccess::stage_config_change(client, "extruder", "pid_kp",
+                                                              "22.865");
+    panel.on_calibration_result(true, 22.865f, 1.292f, 101.178f);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    REQUIRE(panel.get_state() == PIDCalibrationPanel::State::REVIEW);
+    CHECK(subject_int("pid_result_hide_save") == 0);
+}
+
 namespace {
 std::string progress_text() {
     lv_subject_t* s = lv_xml_get_subject(nullptr, "pid_progress_text");

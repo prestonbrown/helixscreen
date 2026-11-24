@@ -443,6 +443,8 @@
   <translation tag="Already mounted" ru="Уже установлен"/>
   <translation tag="Also keep this mesh for {}. Its prints that do not mesh load it at the start." ru="Сохранить эту сетку и для {}? Его печати без построения сетки загрузят её при старте."/>
   <translation tag="Also measure part-fan cooling" ru="Также измерить охлаждение вент. детали"/>
+  <translation tag="Also waiting to be saved: {}. Save and Discard include them." ru="Также ожидают сохранения: {}. «Сохранить» и «Отменить» затронут и их."/>
+  <translation tag="Also waiting to be saved: {}. Save includes them." ru="Также ожидают сохранения: {}. «Сохранить» затронет и их."/>
   <translation tag="Always Show Bypass Spool" ru="Всегда показывать катушку байпаса"/>
   <translation tag="Always show Android navigation bar instead of using gestures" ru="Всегда показывать панель навигации Android вместо жестов"/>
   <translation tag="Ambient Transfer" ru="Теплообмен с окружающей средой"/>
@@ -861,6 +863,7 @@
   <translation tag="Cannot park while a print is active" ru="Нельзя припарковать во время печати"/>
   <translation tag="Cannot perform this action now" ru="Сейчас это действие выполнить нельзя"/>
   <translation tag="Cannot reprint: not connected to printer" ru="Невозможно перепечатать: не подключено к принтеру"/>
+  <translation tag="Cannot restart Klipper while printing" ru="Нельзя перезапустить Klipper во время печати"/>
   <translation tag="Cannot restart Moonraker while printing" ru="Нельзя перезапустить Moonraker во время печати"/>
   <translation tag="Cannot restart — no filename" ru="Не удалось перезапустить — нет имени файла"/>
   <translation tag="Cannot restore the stock screen while printing" ru="Нельзя вернуть штатный экран во время печати"/>
@@ -1473,7 +1476,6 @@
   <translation tag="Discard Changes?" ru="Отменить изменения?"/>
   <translation tag="Discard all" ru="Отменить все"/>
   <translation tag="Discard failed: {}" ru="Не удалось отменить: {}"/>
-  <translation tag="Discard restarts Klipper to drop it." ru="Отмена перезапускает Klipper, чтобы сбросить результат."/>
   <translation tag="Disconnected" ru="Отключено"/>
   <translation tag="Disconnected Time" ru="Время отключения"/>
   <translation tag="Disconnects" ru="Отключения"/>
@@ -4250,7 +4252,9 @@
   <translation tag="Save the new heater values to printer.cfg? Klipper restarts." ru="Сохранить новые значения нагревателя в printer.cfg? Klipper перезапустится."/>
   <translation tag="Save to Config" ru="Сохранить в конфигурацию"/>
   <translation tag="Save to Config and Discard both restart Klipper." ru="«Сохранить в конфигурацию» и «Отменить» перезапускают Klipper."/>
+  <translation tag="Save to Config keeps Klipper running." ru="«Сохранить в конфигурацию» не останавливает Klipper."/>
   <translation tag="Save to Config keeps Klipper running. Discard restarts it." ru="«Сохранить в конфигурацию» не останавливает Klipper. «Отменить» перезапускает его."/>
+  <translation tag="Save to Config restarts Klipper." ru="«Сохранить в конфигурацию» перезапускает Klipper."/>
   <translation tag="Save to Spool" ru="Сохранить на катушку"/>
   <translation tag="Save to Spoolman" ru="Сохранить в Spoolman"/>
   <translation tag="Save to the printer config?" ru="Сохранить в конфигурацию принтера?"/>
@@ -5040,6 +5044,7 @@
   <translation tag="The heater took the target." ru="Нагреватель принял целевую температуру."/>
   <translation tag="The heater was turned off at the heater." ru="Нагреватель был выключен на самом нагревателе."/>
   <translation tag="The heater will cycle on and off several times." ru="Нагреватель будет несколько раз включаться и выключаться."/>
+  <translation tag="The heater&apos;s control changed in printer.cfg. It heats again only once this result is saved." ru="Режим управления нагревателем изменён в printer.cfg. Он снова будет греть только после сохранения этого результата."/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." ru="Вспомогательные макросы установлены и активируются после перезапуска Klipper."/>
   <translation tag="The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream." ru="Хост-компьютер не отправил перемещения плате управления вовремя, обычно из-за перегрузки: высокая загрузка CPU или swap, медленная SD-карта, нестабильное питание или поток с веб-камеры."/>
   <translation tag="The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination." ru="Хост несколько секунд не получал ответа от этой платы: ослаблен или неисправен кабель USB или CAN, плата потеряла питание или у шины CAN нет терминатора."/>
@@ -5136,8 +5141,8 @@
   <translation tag="The printer has not reported its maximum velocity yet." ru="Принтер ещё не сообщил максимальную скорость."/>
   <translation tag="The printer has not reported whether Auto-Replenish is on" ru="Принтер не сообщил, включено ли автопополнение"/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." ru="Принтер нагревает сопло, делает несколько коротких тестовых перемещений в углу стола и сам их измеряет. Он повторяет, пока показания не сойдутся, и затем сообщает одно число."/>
+  <translation tag="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament and clear the bed first." ru="Принтер при необходимости паркует X и Y, затем подводит печатающую головку к ножу, чтобы найти его положение. Сначала выгрузите филамент и освободите стол."/>
   <translation tag="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first." ru="Принтер при необходимости паркует X и Y, затем подводит головку к резаку, чтобы определить его положение. Сначала выгрузите филамент."/>
-  <translation tag="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first. Clear the bed first." ru="Принтер при необходимости паркует X и Y, затем подводит головку к резаку, чтобы определить его положение. Сначала выгрузите филамент. Сначала освободите стол."/>
   <translation tag="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer." ru="Принтер паркует X и Y, переводит головку в центр стола и настраивает каждый ремень его натяжителем. По окончании моторы отключаются, поэтому выполните парковку перед перемещением принтера."/>
   <translation tag="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer. Clear the bed first." ru="Принтер паркует X и Y, переводит головку в центр стола и настраивает каждый ремень его натяжителем. По окончании моторы отключаются, поэтому выполните парковку перед перемещением принтера. Сначала освободите стол."/>
   <translation tag="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear." ru="Принтер ищет ноль и прощупывает резак (около 1 минуты). Держите путь филамента свободным."/>

@@ -20,8 +20,13 @@ struct ResultRow {
 
 /// The page's first note for @p choices: what Keep for Now leaves behind (translated).
 [[nodiscard]] std::string result_keep_line(const ResultChoices& choices);
-/// The page's second note: what Save to Config and Discard do (translated).
+/// The page's second note: what Save to Config and Discard do, and the other results
+/// they take along (translated).
 [[nodiscard]] std::string result_save_line(const ResultChoices& choices);
+
+/// Save and Discard both restart Klipper: refuse them with a notice while a job holds
+/// the machine (a print started while the page was open). True when it refused.
+[[nodiscard]] bool refuse_result_restart();
 
 /**
  * @brief The subjects behind one components/calibration_result.xml
@@ -49,7 +54,7 @@ class CalibrationResultView {
     }
 
   private:
-    static constexpr size_t kTextCap = 128;
+    static constexpr size_t kTextCap = 256;
     struct TextSubject {
         std::string name;
         helix::Subject subject{};
@@ -70,7 +75,7 @@ class CalibrationResultView {
 
     std::string prefix_;
     TextSubject title_, summary_, status_, status_sub_;
-    IntSubject hide_keep_, hide_save_;
+    IntSubject hide_keep_, hide_save_, hide_discard_, hide_before_;
     std::array<Row, kRows> rows_;
     ResultChoices choices_;
     bool initialized_ = false;

@@ -63,10 +63,10 @@ translations:
   "Find the filament cutter's position": "フィラメントカッターの位置を検出します"
   Let it cool, lower run_current for {1} or improve the cooling over the drivers, then restart the firmware.: 冷ましてから、{1} の run_current を下げるかドライバーの冷却を改善し、ファームウェアを再起動してください。
   "Let the printer's tensioners set the belts": "プリンターのテンショナーでベルトを調整します"
+  ? The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament and clear the bed first.
+  : "プリンターは必要に応じてXとYを原点復帰し、ツールヘッドをカッターに当てて位置を検出します。先にフィラメントをアンロードし、ベッドの上を片付けてください。"
   ? "The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first."
   : "プリンターは必要に応じてXとYを原点復帰し、ツールヘッドをカッターに当てて位置を検出します。先にフィラメントをアンロードしてください。"
-  ? The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first. Clear the bed first.
-  : "プリンターは必要に応じてXとYを原点復帰し、ツールヘッドをカッターに当てて位置を検出します。先にフィラメントをアンロードしてください。先にベッドの上を片付けてください。"
   ? "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer."
   : "プリンターはXとYを原点復帰し、ツールヘッドをベッド中央に移動して各ベルトをテンショナーで調整します。終了時にモーターが解放されるため、プリンターを動かす前に原点復帰してください。"
   The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting.: このツールヘッドを取り付ける方法がまだプリンターから送られていません。フィラメントシステムの接続が完了してから、もう一度お試しください。
@@ -434,6 +434,8 @@ translations:
   Already mounted: '装着済み'
   Also keep this mesh for {}. Its prints that do not mesh load it at the start.: "このメッシュを {} 用にも保存しますか？その素材のメッシュを取らない印刷は開始時にこれを読み込みます。"
   Also measure part-fan cooling: パーツファンの冷却も測定
+  "Also waiting to be saved: {}. Save and Discard include them.": "ほかにも保存待ちがあります: {}。保存と破棄はこれらにも適用されます。"
+  "Also waiting to be saved: {}. Save includes them.": "ほかにも保存待ちがあります: {}。保存はこれらにも適用されます。"
   Always Show Bypass Spool: バイパススプールを常に表示
   Always show Android navigation bar instead of using gestures: ジェスチャーの代わりにAndroidナビゲーションバーを常に表示
   Ambient Transfer: 環境熱伝達
@@ -852,6 +854,7 @@ translations:
   Cannot park while a print is active: '印刷中はパーキングできません'
   Cannot perform this action now: 現在この操作は実行できません
   'Cannot reprint: not connected to printer': '再印刷できません: プリンター未接続'
+  "Cannot restart Klipper while printing": "印刷中は Klipper を再起動できません"
   Cannot restart Moonraker while printing: "印刷中はMoonrakerを再起動できません"
   Cannot restart — no filename: 再起動できません — ファイル名がありません
   Cannot restore the stock screen while printing: '印刷中は標準画面に戻せません'
@@ -1516,7 +1519,6 @@ translations:
   Discard Changes?: 変更を破棄しますか？
   Discard all: 'すべて破棄'
   "Discard failed: {}": "破棄に失敗しました: {}"
-  "Discard restarts Klipper to drop it.": "破棄すると Klipper を再起動して取り消します。"
   Disconnected: 切断
   Disconnected Time: 切断時間
   Disconnects: 切断回数
@@ -4332,7 +4334,9 @@ translations:
   Save the new heater values to printer.cfg? Klipper restarts.: 新しいヒーター値をprinter.cfgに保存しますか？Klipperが再起動します。
   Save to Config: "設定に保存"
   "Save to Config and Discard both restart Klipper.": "「設定に保存」と「破棄」はどちらも Klipper を再起動します。"
+  "Save to Config keeps Klipper running.": "「設定に保存」は Klipper を止めません。"
   "Save to Config keeps Klipper running. Discard restarts it.": "「設定に保存」は Klipper を止めません。「破棄」は再起動します。"
+  "Save to Config restarts Klipper.": "「設定に保存」は Klipper を再起動します。"
   Save to Spool: スプールに保存
   Save to Spoolman: Spoolman に保存
   Save to the printer config?: "プリンターの設定に保存しますか？"
@@ -5150,6 +5154,7 @@ translations:
   The heater took the target.: 'ヒーターが目標温度を受け付けました。'
   The heater was turned off at the heater.: 'ヒーター本体で電源がオフにされました。'
   The heater will cycle on and off several times.: ヒーターは数回オン/オフを繰り返します。
+  "The heater's control changed in printer.cfg. It heats again only once this result is saved.": "printer.cfg でヒーターの制御方式が変わりました。この結果を保存するまで加熱できません。"
   The helper macros are installed and activate after Klipper restarts.: 'ヘルパーマクロはインストール済みで、Klipper の再起動後に有効になります。'
   ? 'The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream.'
   : 'ホストコンピューターが制御ボードへ時間内に移動を送れませんでした。通常は過負荷が原因です: CPU やスワップの使用率が高い、SD カードが遅い、電源が不安定、またはウェブカメラの配信です。'

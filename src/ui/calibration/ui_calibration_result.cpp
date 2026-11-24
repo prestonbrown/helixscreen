@@ -1,16 +1,25 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "ui_calibration_result.h"
 
+#include "ui_error_reporting.h"
+
+#include "app_globals.h"
 #include "lvgl/lvgl.h"
+#include "printer_state.h"
 #include "subject_managed_panel.h"
 
 #include <cstdio>
+#include <fmt/format.h>
 
 namespace helix::calibration {
 
 std::string result_keep_line(const ResultChoices& choices) {
-    if (!choices.offer_save && choices.discard == DiscardMeaning::NothingToUndo) {
+    if (!choices.offer_save) {
         return lv_tr("Nothing waits to be saved.");
+    }
+    if (choices.must_save) {
+        return lv_tr("The heater's control changed in printer.cfg. It heats again only once this "
+                     "result is saved.");
     }
     return choices.keep == KeepMeaning::InUse
                ? lv_tr("In use now. A restart forgets it unless you save it.")
@@ -19,14 +28,41 @@ std::string result_keep_line(const ResultChoices& choices) {
 
 std::string result_save_line(const ResultChoices& choices) {
     if (!choices.offer_save) {
-        return choices.discard == DiscardMeaning::RestartDropsIt
-                   ? lv_tr("Discard restarts Klipper to drop it.")
-                   : std::string();
+        return {};
     }
-    if (choices.save_restarts) {
-        return lv_tr("Save to Config and Discard both restart Klipper.");
+    std::string line;
+    if (choices.must_save) {
+        line = choices.save_restarts ? lv_tr("Save to Config restarts Klipper.")
+                                     : lv_tr("Save to Config keeps Klipper running.");
+    } else {
+        line = choices.save_restarts
+                   ? lv_tr("Save to Config and Discard both restart Klipper.")
+                   : lv_tr("Save to Config keeps Klipper running. Discard restarts it.");
     }
-    return lv_tr("Save to Config keeps Klipper running. Discard restarts it.");
+    if (!choices.also_staged.empty()) {
+        std::string names;
+        for (const auto& section : choices.also_staged) {
+            names += names.empty() ? section : ", " + section;
+        }
+        line += " ";
+        line += choices.offer_discard
+                    ? fmt::format(fmt::runtime(lv_tr("Also waiting to be saved: {}. Save and "
+                                                     "Discard include them.")),
+                                  names)
+                    : fmt::format(fmt::runtime(lv_tr("Also waiting to be saved: {}. Save "
+                                                     "includes them.")),
+                                  names);
+    }
+    return line;
+}
+
+bool refuse_result_restart() {
+    if (lv_subject_get_int(
+            get_printer_state().print_state().get_machine_motion_blocked_subject()) == 0) {
+        return false;
+    }
+    NOTIFY_WARNING(lv_tr("Cannot restart Klipper while printing"));
+    return true;
 }
 
 CalibrationResultView::CalibrationResultView(const char* prefix) : prefix_(prefix) {}
@@ -56,6 +92,8 @@ void CalibrationResultView::init_subjects(SubjectManager& manager) {
     init_text(manager, status_sub_, "status_sub");
     init_int(manager, hide_keep_, "hide_keep", 0);
     init_int(manager, hide_save_, "hide_save", 0);
+    init_int(manager, hide_discard_, "hide_discard", 0);
+    init_int(manager, hide_before_, "hide_before", 0);
     for (int i = 0; i < kRows; ++i) {
         const std::string n = std::to_string(i);
         Row& r = rows_[static_cast<size_t>(i)];
@@ -89,6 +127,12 @@ void CalibrationResultView::publish(const std::string& title, const std::string&
         set(r.after, shown ? rows[static_cast<size_t>(i)].after : "");
         lv_subject_set_int(&r.in_run.subject, shown ? 1 : 0);
     }
+    bool any_before = false;
+    for (const auto& row : rows) {
+        any_before = any_before || !row.before.empty();
+    }
+    lv_subject_set_int(&hide_before_.subject, any_before ? 0 : 1);
+    lv_subject_set_int(&hide_discard_.subject, choices.offer_discard ? 0 : 1);
     set(status_, result_keep_line(choices));
     set(status_sub_, result_save_line(choices));
     lv_subject_set_int(&hide_keep_.subject, choices.offer_keep ? 0 : 1);

@@ -63,10 +63,10 @@ translations:
   "Find the filament cutter's position": "Position des Filamentschneiders ermitteln"
   Let it cool, lower run_current for {1} or improve the cooling over the drivers, then restart the firmware.: Abkühlen lassen, run_current für {1} senken oder die Kühlung der Treiber verbessern, dann die Firmware neu starten.
   "Let the printer's tensioners set the belts": "Die Spanner des Druckers stellen die Riemen ein"
+  ? The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament and clear the bed first.
+  : "Der Drucker referenziert X und Y bei Bedarf und fährt dann den Druckkopf gegen das Schneidmesser, um dessen Position zu ermitteln. Entlade zuerst das Filament und räume das Heizbett ab."
   ? "The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first."
   : "Der Drucker referenziert X und Y bei Bedarf und fährt den Druckkopf dann gegen den Schneider, um dessen Position zu ermitteln. Entladen Sie zuerst das Filament."
-  ? The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first. Clear the bed first.
-  : "Der Drucker referenziert X und Y bei Bedarf und fährt den Druckkopf dann gegen den Schneider, um dessen Position zu ermitteln. Entladen Sie zuerst das Filament. Räume zuerst das Heizbett ab."
   ? "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer."
   : "Der Drucker referenziert X und Y, fährt den Druckkopf in die Mitte des Betts und stellt jeden Riemen mit seinem Spanner ein. Danach sind die Motoren stromlos, referenzieren Sie also, bevor Sie den Drucker bewegen."
   The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting.: Der Drucker hat noch nicht mitgeteilt, wie dieser Druckkopf aufgenommen wird. Versuche es erneut, sobald sein Filamentsystem fertig verbunden ist.
@@ -434,6 +434,8 @@ translations:
   Already mounted: 'Bereits montiert'
   Also keep this mesh for {}. Its prints that do not mesh load it at the start.: "Dieses Netz auch für {} behalten? Dessen Drucke ohne eigenes Netz laden es beim Start."
   Also measure part-fan cooling: Auch Kühlung durch den Teile-Lüfter messen
+  "Also waiting to be saved: {}. Save and Discard include them.": "Ebenfalls zum Speichern vorgemerkt: {}. Speichern und Verwerfen betreffen sie mit."
+  "Also waiting to be saved: {}. Save includes them.": "Ebenfalls zum Speichern vorgemerkt: {}. Speichern betrifft sie mit."
   Always Show Bypass Spool: Bypass-Spule immer anzeigen
   Always show Android navigation bar instead of using gestures: Android-Navigationsleiste immer anzeigen statt Gesten zu nutzen
   Ambient Transfer: Umgebungswärmeübertragung
@@ -852,6 +854,7 @@ translations:
   Cannot park while a print is active: 'Parken während eines aktiven Drucks nicht möglich'
   Cannot perform this action now: Diese Aktion ist derzeit nicht möglich
   'Cannot reprint: not connected to printer': 'Nachdruck nicht möglich: nicht mit Drucker verbunden'
+  "Cannot restart Klipper while printing": "Klipper kann während des Drucks nicht neu gestartet werden"
   Cannot restart Moonraker while printing: "Moonraker kann während eines Drucks nicht neu gestartet werden"
   Cannot restart — no filename: Neustart nicht möglich — kein Dateiname
   Cannot restore the stock screen while printing: 'Der Originalbildschirm kann während eines Drucks nicht wiederhergestellt werden'
@@ -1516,7 +1519,6 @@ translations:
   Discard Changes?: Änderungen verwerfen?
   Discard all: 'Alle verwerfen'
   "Discard failed: {}": "Verwerfen fehlgeschlagen: {}"
-  "Discard restarts Klipper to drop it.": "Verwerfen startet Klipper neu, um es zu verwerfen."
   Disconnected: Getrennt
   Disconnected Time: Getrennte Zeit
   Disconnects: Trennungen
@@ -4332,7 +4334,9 @@ translations:
   Save the new heater values to printer.cfg? Klipper restarts.: Die neuen Heizungswerte in printer.cfg speichern? Klipper startet neu.
   Save to Config: "In Konfiguration speichern"
   "Save to Config and Discard both restart Klipper.": "In Konfiguration speichern und Verwerfen starten beide Klipper neu."
+  "Save to Config keeps Klipper running.": "In Konfiguration speichern lässt Klipper laufen."
   "Save to Config keeps Klipper running. Discard restarts it.": "In Konfiguration speichern lässt Klipper laufen. Verwerfen startet es neu."
+  "Save to Config restarts Klipper.": "In Konfiguration speichern startet Klipper neu."
   Save to Spool: Auf Spule speichern
   Save to Spoolman: In Spoolman speichern
   Save to the printer config?: "In der Druckerkonfiguration speichern?"
@@ -5150,6 +5154,7 @@ translations:
   The heater took the target.: 'Die Heizung hat das Ziel übernommen.'
   The heater was turned off at the heater.: 'Die Heizung wurde am Gerät ausgeschaltet.'
   The heater will cycle on and off several times.: Die Heizung wird mehrmals ein- und ausschalten.
+  "The heater's control changed in printer.cfg. It heats again only once this result is saved.": "Die Regelung der Heizung wurde in der printer.cfg geändert. Sie heizt erst wieder, wenn dieses Ergebnis gespeichert ist."
   The helper macros are installed and activate after Klipper restarts.: 'Die Hilfsmakros sind installiert und werden nach einem Klipper-Neustart aktiv.'
   ? 'The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream.'
   : 'Der Host-Computer hat Bewegungen nicht rechtzeitig an die Steuerplatine gesendet, meist weil er überlastet ist: hohe CPU- oder Swap-Auslastung, eine langsame SD-Karte, ein instabiles Netzteil oder ein Webcam-Stream.'

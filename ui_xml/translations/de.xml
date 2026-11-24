@@ -407,6 +407,8 @@
   <translation tag="Already mounted" de="Bereits montiert"/>
   <translation tag="Also keep this mesh for {}. Its prints that do not mesh load it at the start." de="Dieses Netz auch für {} behalten? Dessen Drucke ohne eigenes Netz laden es beim Start."/>
   <translation tag="Also measure part-fan cooling" de="Auch Kühlung durch den Teile-Lüfter messen"/>
+  <translation tag="Also waiting to be saved: {}. Save and Discard include them." de="Ebenfalls zum Speichern vorgemerkt: {}. Speichern und Verwerfen betreffen sie mit."/>
+  <translation tag="Also waiting to be saved: {}. Save includes them." de="Ebenfalls zum Speichern vorgemerkt: {}. Speichern betrifft sie mit."/>
   <translation tag="Always Show Bypass Spool" de="Bypass-Spule immer anzeigen"/>
   <translation tag="Always show Android navigation bar instead of using gestures" de="Android-Navigationsleiste immer anzeigen statt Gesten zu nutzen"/>
   <translation tag="Ambient Transfer" de="Umgebungswärmeübertragung"/>
@@ -819,6 +821,7 @@
   <translation tag="Cannot park while a print is active" de="Parken während eines aktiven Drucks nicht möglich"/>
   <translation tag="Cannot perform this action now" de="Diese Aktion ist derzeit nicht möglich"/>
   <translation tag="Cannot reprint: not connected to printer" de="Nachdruck nicht möglich: nicht mit Drucker verbunden"/>
+  <translation tag="Cannot restart Klipper while printing" de="Klipper kann während des Drucks nicht neu gestartet werden"/>
   <translation tag="Cannot restart Moonraker while printing" de="Moonraker kann während eines Drucks nicht neu gestartet werden"/>
   <translation tag="Cannot restart — no filename" de="Neustart nicht möglich — kein Dateiname"/>
   <translation tag="Cannot restore the stock screen while printing" de="Der Originalbildschirm kann während eines Drucks nicht wiederhergestellt werden"/>
@@ -1428,7 +1431,6 @@
   <translation tag="Discard Changes?" de="Änderungen verwerfen?"/>
   <translation tag="Discard all" de="Alle verwerfen"/>
   <translation tag="Discard failed: {}" de="Verwerfen fehlgeschlagen: {}"/>
-  <translation tag="Discard restarts Klipper to drop it." de="Verwerfen startet Klipper neu, um es zu verwerfen."/>
   <translation tag="Disconnected" de="Getrennt"/>
   <translation tag="Disconnected Time" de="Getrennte Zeit"/>
   <translation tag="Disconnects" de="Trennungen"/>
@@ -4190,7 +4192,9 @@
   <translation tag="Save the new heater values to printer.cfg? Klipper restarts." de="Die neuen Heizungswerte in printer.cfg speichern? Klipper startet neu."/>
   <translation tag="Save to Config" de="In Konfiguration speichern"/>
   <translation tag="Save to Config and Discard both restart Klipper." de="In Konfiguration speichern und Verwerfen starten beide Klipper neu."/>
+  <translation tag="Save to Config keeps Klipper running." de="In Konfiguration speichern lässt Klipper laufen."/>
   <translation tag="Save to Config keeps Klipper running. Discard restarts it." de="In Konfiguration speichern lässt Klipper laufen. Verwerfen startet es neu."/>
+  <translation tag="Save to Config restarts Klipper." de="In Konfiguration speichern startet Klipper neu."/>
   <translation tag="Save to Spool" de="Auf Spule speichern"/>
   <translation tag="Save to Spoolman" de="In Spoolman speichern"/>
   <translation tag="Save to the printer config?" de="In der Druckerkonfiguration speichern?"/>
@@ -4974,6 +4978,7 @@
   <translation tag="The heater took the target." de="Die Heizung hat das Ziel übernommen."/>
   <translation tag="The heater was turned off at the heater." de="Die Heizung wurde am Gerät ausgeschaltet."/>
   <translation tag="The heater will cycle on and off several times." de="Die Heizung wird mehrmals ein- und ausschalten."/>
+  <translation tag="The heater&apos;s control changed in printer.cfg. It heats again only once this result is saved." de="Die Regelung der Heizung wurde in der printer.cfg geändert. Sie heizt erst wieder, wenn dieses Ergebnis gespeichert ist."/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." de="Die Hilfsmakros sind installiert und werden nach einem Klipper-Neustart aktiv."/>
   <translation tag="The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream." de="Der Host-Computer hat Bewegungen nicht rechtzeitig an die Steuerplatine gesendet, meist weil er überlastet ist: hohe CPU- oder Swap-Auslastung, eine langsame SD-Karte, ein instabiles Netzteil oder ein Webcam-Stream."/>
   <translation tag="The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination." de="Der Host hat mehrere Sekunden lang nichts von dieser Platine gehört: ein lockeres oder defektes USB- oder CAN-Kabel, eine Platine ohne Strom oder ein CAN-Bus ohne Terminierung."/>
@@ -5070,8 +5075,8 @@
   <translation tag="The printer has not reported its maximum velocity yet." de="Der Drucker hat seine Höchstgeschwindigkeit noch nicht gemeldet."/>
   <translation tag="The printer has not reported whether Auto-Replenish is on" de="Der Drucker hat nicht gemeldet, ob Automatisch nachfüllen eingeschaltet ist"/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." de="Der Drucker heizt die Düse, macht ein paar kurze Testbewegungen in einer Ecke der Platte und misst sie selbst. Er wiederholt, bis die Messwerte übereinstimmen, und meldet dann eine Zahl."/>
+  <translation tag="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament and clear the bed first." de="Der Drucker referenziert X und Y bei Bedarf und fährt dann den Druckkopf gegen das Schneidmesser, um dessen Position zu ermitteln. Entlade zuerst das Filament und räume das Heizbett ab."/>
   <translation tag="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first." de="Der Drucker referenziert X und Y bei Bedarf und fährt den Druckkopf dann gegen den Schneider, um dessen Position zu ermitteln. Entladen Sie zuerst das Filament."/>
-  <translation tag="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first. Clear the bed first." de="Der Drucker referenziert X und Y bei Bedarf und fährt den Druckkopf dann gegen den Schneider, um dessen Position zu ermitteln. Entladen Sie zuerst das Filament. Räume zuerst das Heizbett ab."/>
   <translation tag="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer." de="Der Drucker referenziert X und Y, fährt den Druckkopf in die Mitte des Betts und stellt jeden Riemen mit seinem Spanner ein. Danach sind die Motoren stromlos, referenzieren Sie also, bevor Sie den Drucker bewegen."/>
   <translation tag="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer. Clear the bed first." de="Der Drucker referenziert X und Y, fährt den Druckkopf in die Mitte des Betts und stellt jeden Riemen mit seinem Spanner ein. Danach sind die Motoren stromlos, referenzieren Sie also, bevor Sie den Drucker bewegen. Räume zuerst das Heizbett ab."/>
   <translation tag="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear." de="Der Drucker referenziert und vermisst den Schneider (ca. 1 Minute). Halten Sie den Filamentweg frei."/>
