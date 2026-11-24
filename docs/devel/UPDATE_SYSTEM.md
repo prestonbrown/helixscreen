@@ -520,7 +520,7 @@ Users can dismiss a specific version via the "Ignore" button. The dismissed vers
 
 ### Automatic Updates and Rollback (prestonbrown/helixscreen#1304)
 
-Settings > Updates > Automatic Updates stores `/update/auto_mode` (`helix::update::AutoUpdateMode`: 0 Off, 1 Download and ask, 2 Install overnight; default 1). `UpdateChecker::auto_update_tick()` runs every 5 minutes and asks `decide_auto_update()` (`src/system/auto_update_schedule.cpp`) what to do. Install overnight is offered only where `helix::update::auto_rollback_supported()` is true; elsewhere the row lists Off and Download and ask, and a stored Install overnight runs as Download and ask (`effective_auto_update_mode()`).
+Settings > Updates > Automatic Updates stores `/update/auto_mode` (`helix::update::AutoUpdateMode`: 0 Off, 1 Download and ask, 2 Install overnight; default 1). `UpdateChecker::auto_update_tick()` runs every 5 minutes and asks `decide_auto_update()` (`src/system/auto_update_schedule.cpp`) what to do. Install overnight is offered only where `helix::update::auto_rollback_supported()` is true, and that stays false everywhere until `kRollbackDeviceProven` (`include/system/update_rollback.h`) is set after the device test plan (`docs/devel/plans/2026-11-23-auto-update-rollback-device-tests.md`) passes; elsewhere the row lists Off and Download and ask, and a stored Install overnight runs as Download and ask (`effective_auto_update_mode()`).
 
 Rollback, in order:
 
@@ -530,6 +530,8 @@ Rollback, in order:
 4. The new version, once its UI is up (`helix::update::on_ui_ready()`), writes `update_rollback.request` when the existing crash-loop detector put it in safe mode, or `update_rollback.healthy` after 150 s.
 5. The launcher's watcher waits up to `HELIX_ROLLBACK_WINDOW` (600 s). Healthy: it deletes the previous tree and the marker, and under `helixscreen.service` ends the launch so the service restarts with refreshed units. A request, the window running out, any exit of the guarded launch, or more than `HELIX_ROLLBACK_MAX_STARTS` (3) guarded starts: it moves the new tree aside, moves the previous one back, writes `update_rollback.result` and execs the restored launcher.
 6. The restored version reads the result, shows "Update Rolled Back", records an `update_failure` with reason `rollback`, and stores the failed version as dismissed so the scheduler never installs it again unprompted.
+
+Once device-proven, the platform rule is:
 
 | Platform | Rollback | Why |
 |---|---|---|
