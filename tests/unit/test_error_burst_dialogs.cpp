@@ -61,10 +61,14 @@ TEST_CASE("a fault repeated with new coordinates is the same fault", "[dup_dialo
     using helix::ui::fault_dedup_key;
     CHECK(fault_dedup_key("T", "Must home axis first: 94.700 86.700 59.000") ==
           fault_dedup_key("T", "Must home axis first: 60.000 105.000 61.000"));
-    // A different cause, a different title, or a different integer is another fault.
+    // Counters, line numbers and clock ticks fold too.
+    CHECK(fault_dedup_key("T", "Timer too close at 1234567 (line 12)") ==
+          fault_dedup_key("T", "Timer too close at 7654321 (line 98)"));
+    // A different cause or title is another fault, and so is another quoted name.
     CHECK(fault_dedup_key("T", "Must home axis first") != fault_dedup_key("T", "Heater failed"));
     CHECK(fault_dedup_key("A", "x") != fault_dedup_key("B", "x"));
-    CHECK(fault_dedup_key("T", "MCU 1 lost") != fault_dedup_key("T", "MCU 2 lost"));
+    CHECK(fault_dedup_key("T", "Lost communication with MCU 'mcu1'") !=
+          fault_dedup_key("T", "Lost communication with MCU 'mcu2'"));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "a burst of refused moves shows one dialog even over another",
@@ -107,4 +111,23 @@ TEST_CASE_METHOD(LVGLUITestFixture, "two faults under one generic title both sho
     lv_obj_t* screen = lv_screen_active();
     CHECK(count_labels(screen, "First cause alpha") == 1);
     CHECK(count_labels(screen, "Second cause beta") == 1);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "a fault whose text keeps changing cannot stack without bound",
+                 "[error-center][dup_dialogs][ui_integration]") {
+    ToastGuard toasts;
+    const char* causes[] = {"cause alpha", "cause beta", "cause gamma", "cause delta", "cause eps"};
+    for (const char* cause : causes) {
+        ui_notification_printer_fault("Printer Error", cause);
+        process_lvgl(600);
+    }
+    lv_obj_t* screen = lv_screen_active();
+    int shown = 0;
+    for (const char* cause : causes) {
+        shown += count_labels(screen, cause);
+    }
+    CHECK(shown == helix::ui::kMaxFaultModalsPerTitle);
+    // The newest stay; the oldest were retired.
+    CHECK(count_labels(screen, "cause eps") == 1);
+    CHECK(count_labels(screen, "cause alpha") == 0);
 }

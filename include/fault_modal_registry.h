@@ -28,6 +28,9 @@
 
 namespace helix::ui {
 
+/// Live fault dialogs allowed under one title; a newer one retires the oldest.
+inline constexpr int kMaxFaultModalsPerTitle = 3;
+
 /**
  * @brief Register a dialog as describing a printer-side fault
  *
@@ -41,12 +44,12 @@ namespace helix::ui {
 void track_fault_modal(lv_obj_t* dialog, const std::string& key = {});
 
 /**
- * @brief The identity a fault dialog dedups on: its title and message with each
- *        decimal number (a coordinate, a measured value) collapsed to "#"
+ * @brief The identity a fault dialog dedups on: its title and message with every
+ *        number collapsed to "#", except inside single quotes
  *
- * One cause repeated with new numbers ("Must home axis first: 94.700 86.700"
- * then "...: 60.000 105.000") is the same fault. Integers stay: "MCU 1" and
- * "MCU 2" are different faults.
+ * One cause repeated with new numbers (coordinates, counters, line numbers, clock
+ * ticks) is the same fault. A name Klipper quotes keeps its digits, so
+ * "MCU 'mcu1' lost" and "MCU 'mcu2' lost" are different faults.
  */
 std::string fault_dedup_key(const char* title, const char* message);
 
