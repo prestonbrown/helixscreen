@@ -219,6 +219,29 @@ reinstalled; that is why d comes first.
 release key again; then ship a release with `kDevPublicKey` emptied. Clients that have not
 updated keep trusting the old key on the dev channel only.
 
+## R2 credentials
+
+The write token for the release bucket (`helixscreen-releases`) lives only in the two signing
+environments, as `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY`, scoped to Object Read and Write on
+that bucket. A job that writes the bucket runs in the same environment as `upload-r2`:
+`upload-r2` and `upload-symbols` on a publish run, `recover` in `recover-r2.yml`, and `cleanup` in
+`cleanup-r2.yml` (always `release-signing`, so a reviewer approves each prune).
+
+Dry runs have no environment. Their R2 steps use the repo-level `R2_SCRATCH_ACCESS_KEY_ID` and
+`R2_SCRATCH_SECRET_ACCESS_KEY`, scoped to the `helixscreen-ci-scratch` bucket (a one-day lifecycle;
+`vars.R2_SCRATCH_BUCKET_NAME` overrides the name). A dry run never names `helixscreen-releases`.
+`R2_ACCOUNT_ID` is repo-level, since it is an identifier rather than a credential. No repo-level
+`R2_ACCESS_KEY_ID` or `R2_SECRET_ACCESS_KEY` exists.
+
+```bash
+gh secret set R2_ACCESS_KEY_ID --env release-signing -R $R
+gh secret set R2_SECRET_ACCESS_KEY --env release-signing -R $R
+gh secret set R2_ACCESS_KEY_ID --env release-signing-dev -R $R
+gh secret set R2_SECRET_ACCESS_KEY --env release-signing-dev -R $R
+gh secret set R2_SCRATCH_ACCESS_KEY_ID -R $R
+gh secret set R2_SCRATCH_SECRET_ACCESS_KEY -R $R
+```
+
 ## What a leaked dev key can and cannot do
 
 The dev key is held where no reviewer stands between it and a published manifest, so it is
@@ -226,7 +249,7 @@ assumed easier to steal than the release key.
 
 | An attacker holding the dev key | Can | Cannot |
 |----|----|----|
-| and nothing else | Sign any manifest the dev channel will accept | Publish it: R2 write access is a separate secret |
+| and nothing else | Sign any manifest the dev channel will accept | Publish it: R2 write access is a separate environment secret |
 | and R2 write access | Make dev-channel installs (and dev-channel `dev_url` servers) install any archive whose hash the manifest names, i.e. run code on every dev-channel printer that updates | Get a stable or beta client to accept anything: those verify against the release key only, and a dev-key signature there is refused whatever its trusted comment says. Replay a release-signed beta or dev manifest onto stable: the trusted comment names its own channel |
 | through the workflow (push an alpha tag) | Run `upload-r2` without review, publishing a dev manifest signed with the dev key | Sign with the release key: its secrets live only in `release-signing`, which still needs approval. Publish a stable or beta manifest that verifies: the dev key signs only the dev channel's manifest, and clients would refuse it elsewhere anyway |
 
