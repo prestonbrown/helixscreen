@@ -43,16 +43,42 @@ std::optional<bool>& device_proven_override() {
     return value;
 }
 
+// Platforms that never get rollback, by helix::platform key. This table is the
+// rollback capability's whole platform rule; generic code asks rollback_support().
+constexpr const char* kNoRollbackPlatforms[] = {
+    // /opt cannot hold both versions: the installer stages the old tree on
+    // another partition, which cannot be renamed back.
+    "k2",
+    // Desktop and Android builds never run the in-app installer; ESP32 updates by OTA.
+    "x86-desktop",
+    "android",
+    "esp32",
+    // VENDOR_OK: one row per platform key in the rollback capability's own table
+    // Has not passed the device plan.
+    "snapmaker-u1",
+};
+
+// Boards behind an allowed platform key that never get rollback. The "mips" key
+// also serves these boards; untested; add after a device run.
+constexpr helix::board::Board kNoRollbackBoards[] = {
+    // VENDOR_OK: the rollback capability's own table keyed on helix::board
+    helix::board::Board::Ad5x,
+    helix::board::Board::Creator5,
+    helix::board::Board::Creator5Pro,
+};
+
 } // namespace
 
 RollbackSupport rollback_support(const RollbackFacts& facts) {
-    // Install layouts that cannot hold two versions side by side. The K2's
-    // /opt overlay is too small for both, so its installer stages the old tree
-    // on another partition, which cannot be renamed back. Desktop and Android
-    // builds never run the in-app installer; ESP32 updates by OTA.
-    if (facts.platform_key == "k2" || facts.platform_key == "x86-desktop" ||
-        facts.platform_key == "android" || facts.platform_key == "esp32") {
-        return RollbackSupport::Platform;
+    for (const char* key : kNoRollbackPlatforms) {
+        if (facts.platform_key == key) {
+            return RollbackSupport::Platform;
+        }
+    }
+    for (const helix::board::Board board : kNoRollbackBoards) {
+        if (facts.board == board) {
+            return RollbackSupport::Platform;
+        }
     }
     if (facts.install_suppressed) {
         return RollbackSupport::InstallSuppressed;
@@ -91,6 +117,7 @@ const char* rollback_support_name(RollbackSupport support) {
 RollbackFacts current_rollback_facts() {
     RollbackFacts facts;
     facts.platform_key = helix::platform::current_key();
+    facts.board = helix::board::current();
     facts.guard_dir = env_set(kRollbackDirEnv);
     facts.supervised = env_set("HELIX_SUPERVISED");
     facts.install_suppressed = update_install_suppressed();

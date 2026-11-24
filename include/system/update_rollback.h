@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "board_identity.h"
+
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -46,14 +48,15 @@ enum class RollbackSupport {
     NotSupervised,     ///< No watchdog above this process to hand the restart back
     InstallSuppressed, ///< The app cannot install updates here at all
     ModPayload,        ///< A mod owns the install tree and updates it in place
-    Platform,          ///< This platform's install layout cannot keep both versions
+    Platform,          ///< This platform or board cannot keep both versions, or is unproven
 };
 
 /// What decides rollback support, gathered so the rule itself stays pure.
 struct RollbackFacts {
-    std::string platform_key; ///< helix::platform::current_key()
-    bool guard_dir = false;   ///< HELIX_ROLLBACK_DIR is set
-    bool supervised = false;  ///< HELIX_SUPERVISED is set (a watchdog parent)
+    std::string platform_key;                                 ///< helix::platform::current_key()
+    helix::board::Board board = helix::board::Board::Generic; ///< helix::board::current()
+    bool guard_dir = false;                                   ///< HELIX_ROLLBACK_DIR is set
+    bool supervised = false; ///< HELIX_SUPERVISED is set (a watchdog parent)
     bool install_suppressed = false;
     bool mod_payload = false; ///< Forge-X or ZMOD owns the install tree
 };
@@ -68,12 +71,12 @@ RollbackFacts current_rollback_facts();
 bool auto_rollback_supported();
 
 /// Has the rollback path (install.sh keeping the previous tree, the launcher's
-/// guard, the watchdog hand-back) passed the device test plan in
-/// docs/devel/plans/2026-11-23-auto-update-rollback-device-tests.md? Until it
-/// has, auto_rollback_supported() is false everywhere and Install overnight
-/// stays hidden. It becomes true per platform, inside rollback_support()'s
-/// platform rule, as each platform class passes the plan.
-inline constexpr bool kRollbackDeviceProven = false;
+/// guard, the watchdog hand-back) passed the device test plan (UPDATE_SYSTEM.md
+/// § "Rollback device test plan")? It has for the systemd and the SysV-with-
+/// watchdog classes; a platform outside them is excluded in rollback_support().
+/// While false, auto_rollback_supported() is false everywhere and Install
+/// overnight stays hidden.
+inline constexpr bool kRollbackDeviceProven = true;
 
 /// Replaces auto_rollback_supported()'s answer for tests; std::nullopt restores it.
 void set_auto_rollback_supported_for_test(std::optional<bool> value);

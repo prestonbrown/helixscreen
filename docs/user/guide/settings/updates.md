@@ -70,6 +70,30 @@ If you switched to a channel whose latest release is older than the version you 
 
 ---
 
+## Automatic Updates
+
+What HelixScreen does when it finds a new version by itself:
+
+| Option | What happens |
+|--------|--------------|
+| **Off** | Nothing. Check and install from this screen when you want to |
+| **Download and ask** | The **New Version Available** window tells you, and you choose when to install. The default |
+| **Install overnight** | HelixScreen installs the new version by itself during the night |
+
+**Install overnight** installs only between 03:00 and 04:00 local time (set the time zone in [Language & Time](language-time.md)), and only when:
+
+- nobody has touched the screen for 30 minutes,
+- no print is running, paused or starting, and no interrupted print is waiting to be resumed,
+- Klipper is ready.
+
+If a print holds the printer, the install waits for the next night. The screen restarts once the new version is in place.
+
+If the new version doesn't start properly (it won't launch, hangs, or keeps crashing), HelixScreen puts the version you had back by itself, within about ten minutes. The next time it starts you'll see **Update Rolled Back**, and it won't install that version by itself again. Your settings are kept.
+
+**Install overnight** is listed only on printers where HelixScreen can roll an update back: Raspberry Pi and other systemd installs, and printers such as the Creality K1 series, the AD5M on Klipper Mod and the Elegoo Centauri Carbon. It isn't offered yet on the Snapmaker U1, the FlashForge AD5X or the Creator 5 line. On those and other printers the choices are **Off** and **Download and ask**.
+
+---
+
 ## When updates come from somewhere else
 
 Some installs can't update themselves. The page tells you so instead of showing buttons that wouldn't work.
