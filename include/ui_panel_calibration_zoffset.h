@@ -3,7 +3,11 @@
 
 #pragma once
 
+#include "ui_calibration_holds.h"
+#include "ui_calibration_result.h"
+
 #include "calibration_owned_heat.h"
+#include "calibration_run.h"
 #include "core/observer_guard.h"
 #include "core/operation_timeout_guard.h"
 #include "core/static_panel_registry.h"
@@ -16,6 +20,7 @@
 #include "z_offset_utils.h"
 
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 
@@ -62,7 +67,8 @@ class ZOffsetCalibrationPanel : public OverlayBase {
         SAVING,    ///< ACCEPT sent, waiting for SAVE_CONFIG
         COMPLETE,  ///< Calibration finished successfully
         ERROR,     ///< Error occurred
-        WARMING    ///< Bed warming before calibration (6)
+        WARMING,   ///< Bed warming before calibration (6)
+        REVIEW     ///< The accepted result, with Save to Config / Keep for Now / Discard (7)
     };
 
     ~ZOffsetCalibrationPanel() override;
@@ -188,7 +194,12 @@ class ZOffsetCalibrationPanel : public OverlayBase {
      */
     void on_calibration_result(bool success, const std::string& message);
 
+    /// What a state holds: warming and probing move or heat the machine; the paper
+    /// test also needs the user's hands, so the screen stays awake through it.
+    [[nodiscard]] static helix::calibration::StageNeeds stage_needs(State state);
+
   private:
+    helix::calibration::StageHolds holds_;
     void on_ui_destroyed() override;
 
     // API reference
@@ -236,6 +247,9 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     void begin_probe_sequence(); ///< Start homing/probing (called after warming or directly)
     void adjust_z(float delta);
     void send_accept();
+    /// The mounted-tool question will ask before this start (one shared probe, another tool
+    /// mounted).
+    [[nodiscard]] bool mounted_tool_question_due() const;
     void send_abort();
     void send_bed_off();
     /// Puts ABORT on the wire and leaves the panel state alone.
@@ -253,6 +267,13 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     /// outside a run.
     void leave_run_unaccepted();
     void handle_done_clicked();
+    void handle_result_save();
+    void handle_result_keep();
+    void handle_result_discard();
+    /// After a standalone ACCEPT: reads what Klipper staged and shows the result page.
+    void show_review();
+    /// Save to Config once the staged result is known to be there.
+    void save_staged_result();
     void handle_retry_clicked();
     void handle_warm_bed_toggled();
 
@@ -289,6 +310,9 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     [[nodiscard]] bool wants_warm_bed() const;
     /// 1 while the panel serves a guided run.
     helix::Subject run_mode_subject_{};
+    helix::Subject accepting_subject_{};
+    helix::calibration::CalibrationResultView result_view_{"zoffset_result"};
+    std::unique_ptr<helix::calibration::RunFinisher> discarder_;
     /// 1 outside a guided run: the footer hides Skip there.
     helix::Subject not_run_subject_{};
     helix::Subject back_text_subject_{};

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "ui_calibration_holds.h"
+
 #include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "motor_ripple_runner.h"
@@ -55,7 +57,11 @@ class MotorRipplePanel : public OverlayBase {
     void again_clicked();
     void motor_clicked(int motor);
 
+    /// What a view holds: Running sweeps the motors, so the E-stop shows.
+    [[nodiscard]] static helix::calibration::StageNeeds stage_needs(View view);
+
   private:
+    helix::calibration::StageHolds holds_;
     using Phase = calibration::ripple::MotorRippleRunner::Phase;
 
     [[nodiscard]] bool run_active() const;

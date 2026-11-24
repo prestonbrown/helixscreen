@@ -13,7 +13,9 @@
      for the diagram slot, the full height of the page: a step whose intro is
      a picture of what it will do (the pressure advance tower). The primary carries the toolhead guard unless a
      caller turns primary_moves_machine off, and is also disabled while primary_disabled_cond holds (the footer adds an
-     unreachable printer to it); primary_bind_text retitles it live.
+     unreachable printer to it); primary_bind_text retitles it live. The status
+     line (status_subject, and status_sub_subject under it) carries the step's
+     time: ui_calibration_time.h's "Runs on its own" / "Needs you" lines.
      Sizes: calibration_wizard_tokens.xml (its intro block). -->
 <component>
   <api>
@@ -40,8 +42,8 @@
     <prop name="status" type="string" default=""/>
     <prop name="status_tag" type="string" default=""/>
     <prop name="status_subject" type="string" default=""/>
-    <prop name="status_color" type="string" default="#text_muted"/>
     <prop name="status_sub_subject" type="string" default=""/>
+    <prop name="status_color" type="string" default="#text_muted"/>
   </api>
   <styles>
     <style name="split_row" layout="flex" flex_flow="row"/>
@@ -104,7 +106,7 @@
                          primary_tag="$primary_tag" primary_subject="$primary_bind_text"
                          primary_callback="$primary_callback" primary_disabled_cond="$primary_disabled_cond" divider="0"
                          primary_moves_machine="$primary_moves_machine" status="$status" status_tag="$status_tag"
-                         status_subject="$status_subject" status_color="$status_color"
-                         status_sub_subject="$status_sub_subject"/>
+                         status_subject="$status_subject" status_sub_subject="$status_sub_subject"
+                         status_color="$status_color"/>
   </view>
 </component>

@@ -436,6 +436,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/belt_retest_menu.xml",
     "ui_xml/components/cal_intro_chip.xml",
     "ui_xml/components/calibration_intro.xml",
+    "ui_xml/components/calibration_result.xml",
     "ui_xml/calibration_hub_overlay.xml",
     "ui_xml/components/calibration_run_option_chip.xml",
     "ui_xml/components/calibration_run_pick_row.xml",

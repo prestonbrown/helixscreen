@@ -683,14 +683,7 @@ void CalibrationRunOverlay::publish_prereqs() {
     std::vector<const StepInfo*> away;
     bool paper = false;
     for (const auto& s : picked) {
-        // A step the owner only judges (a PA tower) is in both lists.
-        const int step_hands = calibration::step_hands_minutes(s);
-        if (s.needs_hands) {
-            mine.push_back(&s);
-        }
-        if (!s.needs_hands || s.minutes > step_hands) {
-            away.push_back(&s);
-        }
+        (s.needs_hands ? mine : away).push_back(&s);
         paper = paper || (s.needs_hands && (s.prereqs & calibration::kPrereqPaper));
     }
     lv_subject_set_int(&has_hands_, hands > 0 ? 1 : 0);

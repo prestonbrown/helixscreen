@@ -3,9 +3,12 @@
 
 #pragma once
 
+#include "ui_calibration_holds.h"
+#include "ui_calibration_result.h"
 #include "ui_head_picker.h"
 #include "ui_temp_graph.h"
 
+#include "calibration_run.h"
 #include "core/observer_guard.h"
 #include "core/operation_timeout_guard.h"
 #include "core/static_panel_registry.h"
@@ -19,6 +22,7 @@
 
 #include <array>
 #include <lvgl.h>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -67,7 +71,8 @@ class PIDCalibrationPanel : public OverlayBase {
         SAVING,      ///< SAVE_CONFIG running, Klipper restarting
         COMPLETE,    ///< Calibration successful, showing results
         ERROR,       ///< Something went wrong
-        MIGRATING    ///< Updating config for PID->MPC migration
+        MIGRATING,   ///< Updating config for PID->MPC migration
+        REVIEW       ///< The result, with Save to Config / Keep for Now / Discard
     };
 
     /**
@@ -145,9 +150,8 @@ class PIDCalibrationPanel : public OverlayBase {
     [[nodiscard]] static CalibMethod default_method(Heater heater, ControlType current,
                                                     bool supports_mpc);
 
-    /// Rough minutes a run takes, shown before it starts. Measuring the part
-    /// fan adds MPC's fan breakpoints.
-    [[nodiscard]] static int estimate_minutes(Heater heater, CalibMethod method, bool measure_fan);
+    /// What a state holds: CALIBRATING heats, so the E-stop shows.
+    [[nodiscard]] static helix::calibration::StageNeeds stage_needs(State state);
 
     /// What a heater card says will happen to its control.
     enum class HeaterNote { StaysPid, StaysMpc, SwitchesToMpc, SwitchesToPid };
@@ -301,6 +305,11 @@ class PIDCalibrationPanel : public OverlayBase {
     }
 
   private:
+    helix::calibration::StageHolds holds_;
+    helix::calibration::CalibrationResultView result_view_{"pid_result"};
+    std::unique_ptr<helix::calibration::RunFinisher> discarder_;
+    /// This run rewrote the heater's control first, so its result must be saved.
+    bool run_switched_control_ = false;
     // Client/API references
     // Note: overlay_root_ inherited from OverlayBase
     helix::IMoonrakerAPI* api_ = nullptr;
@@ -481,7 +490,7 @@ class PIDCalibrationPanel : public OverlayBase {
     char buf_preset_deg_[4][16];
     helix::Subject subj_preset_sel_{}; // int slot, -1 for a typed temperature
     helix::Subject subj_duration_text_{};
-    char buf_duration_text_[32];
+    char buf_duration_text_[128];
     helix::Subject subj_heats_to_text_{};
     char buf_heats_to_text_[32];
     helix::Subject subj_method_text_{};
@@ -654,8 +663,8 @@ class PIDCalibrationPanel : public OverlayBase {
     bool adding_cooling_fan();
     /// build_control_migration_edits() for the selected heater.
     std::vector<helix::system::ConfigEdit> control_migration_edits(CalibMethod target) const;
-    /// estimate_minutes() for the selected heater with the part-fan row as shown:
-    /// the intro's chip and the switch page both read it.
+    /// The catalog's minutes for the selected heater at the picked temperature,
+    /// with the part-fan row as shown: the intro's footer and the switch page read it.
     [[nodiscard]] int estimated_minutes(CalibMethod method) const;
     /// The part fan a config rewrite names: none when the owner switched it off.
     [[nodiscard]] std::string migration_cooling_fan() const;
@@ -673,6 +682,16 @@ class PIDCalibrationPanel : public OverlayBase {
     void handle_start_clicked();
     void handle_abort_clicked();
     void handle_done_clicked();
+    void handle_result_save();
+    void handle_result_keep();
+    void handle_result_discard();
+    /// Reads what Klipper staged, then shows the result page with its choices; a run
+    /// that switched the heater's control saves at once instead.
+    void show_review(std::vector<helix::calibration::ResultRow> rows);
+    /// This run's result in @p pending (configfile.save_config_pending_items).
+    [[nodiscard]] helix::calibration::ResultFacts result_facts(const nlohmann::json& pending) const;
+    /// The staged result vanished (a Klipper restart): ERROR, saying so.
+    void fail_result_lost();
     void handle_retry_clicked();
     void handle_preset_clicked(int temp, const char* material_name);
     void handle_method_pid_clicked();

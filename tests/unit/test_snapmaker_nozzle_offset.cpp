@@ -402,6 +402,22 @@ TEST_CASE("each phase maps to one screen", "[snapmaker][nozzle_offset]") {
     REQUIRE(nozzle_offset_screen(P::Failed, Prompt::None) == Screen::Failed);
 }
 
+TEST_CASE("the run shows the E-stop throughout and keeps the screen up at the prompts",
+          "[snapmaker][nozzle_offset][calibration_holds]") {
+    using helix::ui::nozzle_offset_stage_needs;
+    using Screen = helix::ui::SnapmakerNozzleOffsetOverlay::Screen;
+    for (Screen s : {Screen::Working, Screen::CleanNozzle, Screen::RemovePlate}) {
+        CHECK(nozzle_offset_stage_needs(s).machine_busy);
+    }
+    CHECK_FALSE(nozzle_offset_stage_needs(Screen::Working).hands_on);
+    CHECK(nozzle_offset_stage_needs(Screen::CleanNozzle).hands_on);
+    CHECK(nozzle_offset_stage_needs(Screen::RemovePlate).hands_on);
+    for (Screen s : {Screen::Intro, Screen::Done, Screen::Failed}) {
+        CHECK_FALSE(nozzle_offset_stage_needs(s).machine_busy);
+        CHECK_FALSE(nozzle_offset_stage_needs(s).hands_on);
+    }
+}
+
 TEST_CASE("a held calibration state is ended only when a run here owned it",
           "[snapmaker][nozzle_offset][reconcile]") {
     const nlohmann::json held = {{"machine_state_manager", {{"main_state", 2}}}};

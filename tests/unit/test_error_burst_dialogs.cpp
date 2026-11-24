@@ -19,6 +19,7 @@
 #include "recovery_modal_presenter.h"
 
 #include <cstring>
+#include <thread>
 
 #include "../catch_amalgamated.hpp"
 
@@ -110,6 +111,25 @@ TEST_CASE_METHOD(LVGLUITestFixture, "two faults under one generic title both sho
     lv_obj_t* screen = lv_screen_active();
     CHECK(count_labels(screen, "First cause alpha") == 1);
     CHECK(count_labels(screen, "Second cause beta") == 1);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "two faults under one generic title both show when raised off the main thread",
+                 "[error-center][dup_dialogs][ui_integration][pa_mutation]") {
+    // A WebSocket callback raises faults on its own thread; they reach the
+    // screen through the update queue and must dedup the same way.
+    ToastGuard toasts;
+    ui_notification_init(); // records this thread as the main thread
+    for (const char* cause : {"First cause alpha", "Second cause beta"}) {
+        std::thread raiser([cause]() { ui_notification_printer_fault("Printer Error", cause); });
+        raiser.join();
+        helix::ui::UpdateQueue::instance().drain();
+        process_lvgl(200);
+    }
+    lv_obj_t* screen = lv_screen_active();
+    CHECK(count_labels(screen, "First cause alpha") == 1);
+    CHECK(count_labels(screen, "Second cause beta") == 1);
+    ui_notification_deinit();
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "a fault whose text keeps changing cannot stack without bound",

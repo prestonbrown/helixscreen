@@ -8,7 +8,7 @@
         extends="dialog_frame" title="Auto Belt Tension" icon="vibrate" style_min_width="320" style_max_width="480">
     <text_small width="100%"
                 long_mode="wrap" style_text_color="#text_muted" style_text_align="left"
-                text="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer."/>
+                text="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer. Clear the bed first."/>
     <lv_obj width="100%"
             height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="space_between"
             style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">

@@ -12,6 +12,7 @@
 #include "../lvgl_test_fixture.h"
 #include "calibration_types.h"
 #include "core/update_queue.h"
+#include "display_awake_hold.h"
 
 #include <vector>
 
@@ -63,4 +64,23 @@ TEST_CASE_METHOD(LVGLTestFixture, "screws tilt results survive the screensaver",
 
     panel.on_deactivate(DeactivateReason::NavigateAway);
     helix::ui::UpdateQueue::instance().drain();
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "leaving the screws results lets the screen sleep again",
+                 "[screws_tilt][calibration_holds]") {
+    ScrewsTiltPanel panel;
+    panel.init_subjects();
+    panel.on_activate();
+    panel.on_screws_tilt_results(two_screws());
+    REQUIRE(panel.get_state() == ScrewsTiltPanel::State::RESULTS);
+    REQUIRE(helix::display_awake_hold().is_held());
+
+    // A suspend is not leaving: the user is still turning screws.
+    panel.on_deactivate(DeactivateReason::Suspended);
+    CHECK(helix::display_awake_hold().is_held());
+    panel.on_activate();
+
+    panel.on_deactivate(DeactivateReason::NavigateAway);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK_FALSE(helix::display_awake_hold().is_held());
 }

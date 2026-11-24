@@ -667,3 +667,19 @@ TEST_CASE("a nudge after the tower is done reports that nothing was sent",
     rig.session.on_layer(157);
     CHECK_FALSE(rig.session.nudge(0.001f));
 }
+
+TEST_CASE("a layer past the tower's top before the print reports one is a stale end marker",
+          "[pa_tuning][pa_session][pa_mutation]") {
+    // The previous tower's end gcode leaves its marker layer behind, and the next
+    // run can read it before this print has reported a layer of its own.
+    SessionRig rig;
+    rig.session.start(rig.g, rig.r, 0.04f);
+    rig.session.on_layer(layer_count(rig.g, rig.r.bands) + 1);
+    CHECK(rig.session.state() == TuningSession::State::Starting);
+    CHECK(rig.sent.empty());
+
+    // This print's own first layer starts the ramp.
+    rig.session.on_layer(1);
+    CHECK(rig.session.state() == TuningSession::State::Printing);
+    CHECK_FALSE(rig.sent.empty());
+}

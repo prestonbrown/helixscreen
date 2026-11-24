@@ -63,6 +63,8 @@ translations:
   "Find the filament cutter's position": "Position des Filamentschneiders ermitteln"
   Let it cool, lower run_current for {1} or improve the cooling over the drivers, then restart the firmware.: Abkühlen lassen, run_current für {1} senken oder die Kühlung der Treiber verbessern, dann die Firmware neu starten.
   "Let the printer's tensioners set the belts": "Die Spanner des Druckers stellen die Riemen ein"
+  ? The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament and clear the bed first.
+  : "Der Drucker referenziert X und Y bei Bedarf und fährt dann den Druckkopf gegen das Schneidmesser, um dessen Position zu ermitteln. Entlade zuerst das Filament und räume das Heizbett ab."
   ? "The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first."
   : "Der Drucker referenziert X und Y bei Bedarf und fährt den Druckkopf dann gegen den Schneider, um dessen Position zu ermitteln. Entladen Sie zuerst das Filament."
   ? "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer."
@@ -432,6 +434,7 @@ translations:
   Already mounted: 'Bereits montiert'
   Also keep this mesh for {}. Its prints that do not mesh load it at the start.: "Dieses Netz auch für {} behalten? Dessen Drucke ohne eigenes Netz laden es beim Start."
   Also measure part-fan cooling: Auch Kühlung durch den Teile-Lüfter messen
+  "Also waiting to be saved: {}. Save and Discard include them.": "Ebenfalls zum Speichern vorgemerkt: {}. Speichern und Verwerfen betreffen sie mit."
   Always Show Bypass Spool: Bypass-Spule immer anzeigen
   Always show Android navigation bar instead of using gestures: Android-Navigationsleiste immer anzeigen statt Gesten zu nutzen
   Ambient Transfer: Umgebungswärmeübertragung
@@ -606,6 +609,7 @@ translations:
   Bed clear · Start next: 'Bett frei · Nächstes starten'
   'Bed cooling, spools still on the bed:': 'Heizbett kühlt ab, Spulen liegen noch darauf:'
 
+  "Bed heater tuned": "Heizbett-Heizung kalibriert"
   Bed is Level!: Bett ist nivelliert!
   Bed is at {}, the print needs {}.: Heizbett hat {}, der Druck braucht {}.
   Bed is clear: Bett ist frei
@@ -853,6 +857,7 @@ translations:
   Cannot park while a print is active: 'Parken während eines aktiven Drucks nicht möglich'
   Cannot perform this action now: Diese Aktion ist derzeit nicht möglich
   'Cannot reprint: not connected to printer': 'Nachdruck nicht möglich: nicht mit Drucker verbunden'
+  "Cannot restart Klipper while printing": "Klipper kann während des Drucks nicht neu gestartet werden"
   Cannot restart Moonraker while printing: "Moonraker kann während eines Drucks nicht neu gestartet werden"
   Cannot restart — no filename: Neustart nicht möglich — kein Dateiname
   Cannot restore the stock screen while printing: 'Der Originalbildschirm kann während eines Drucks nicht wiederhergestellt werden'
@@ -1079,6 +1084,7 @@ translations:
 
   Clear the bed and the nozzle, then restart the firmware.: Bett und Düse freimachen, dann die Firmware neu starten.
   Clear the bed and the nozzle, then try again.: Bett und Düse freimachen, dann erneut versuchen.
+  "Clear the bed first.": "Räume zuerst das Heizbett ab."
   Clear the clog in head T{1} (a cold pull works), then resume.: Verstopfung in Kopf T{1} beseitigen (ein Cold Pull hilft), dann fortsetzen.
   Clear the extruder?: 'Extruder leeren?'
   Clear the nozzle and the part, then restart the firmware.: Düse und Teil freimachen, dann die Firmware neu starten.
@@ -1519,6 +1525,7 @@ translations:
   Discard: Verwerfen
   Discard Changes?: Änderungen verwerfen?
   Discard all: 'Alle verwerfen'
+  "Discard failed: {}": "Verwerfen fehlgeschlagen: {}"
   Disconnected: Getrennt
   Disconnected Time: Getrennte Zeit
   Disconnects: Trennungen
@@ -2470,6 +2477,7 @@ translations:
   Importing {}...: '{} wird importiert...'
   In Progress: In Bearbeitung
   In config · {}: 'In der Konfiguration · {}'
+  "In use now. A restart forgets it unless you save it.": "Jetzt aktiv. Ein Neustart verwirft es, wenn du es nicht speicherst."
   Inactive: Inaktiv
   Inch units not supported: 'Zoll-Einheiten nicht unterstützt'
   Include Klipper/Moonraker logs: Klipper/Moonraker-Protokolle einschließen
@@ -2946,6 +2954,7 @@ translations:
   Make a smaller adjustment.: 'Eine kleinere Anpassung vornehmen.'
   Make color, material and spool changes in Spoolman.: "Farbe, Material und Spule in Spoolman ändern."
   Make sure every nozzle is clean.: Stelle sicher, dass alle Düsen sauber sind.
+  "Make sure every nozzle is clean. Clear the bed first.": "Stelle sicher, dass alle Düsen sauber sind. Räume zuerst das Heizbett ab."
   ? Make sure motor power is on, reseat the driver and check its pin in the printer's configuration, then restart the firmware.
   : Sicherstellen, dass die Motorstromversorgung eingeschaltet ist, den Treiber neu einsetzen und seinen Pin in der Druckerkonfiguration prüfen, dann die Firmware neu starten.
   'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.': 'Stelle sicher, dass kein Filament im Werkzeugkopf geladen ist: Es kann im Extruder weich werden, während das Heizbett heizt.'
@@ -3135,6 +3144,8 @@ translations:
   Needs repair from a web interface: 'Muss über eine Weboberfläche repariert werden'
   Needs the {} package to switch spools: 'Benötigt das Plugin {} für den Spulenwechsel'
   Needs you, about {} min: "Du wirst gebraucht, etwa {} Min."
+  "Needs you, about {}": "Braucht dich, etwa {}"
+  "Needs you, about {}: {}": "Braucht dich, etwa {}: {}"
   'Needs {}x{} free: remove or shrink a widget first': 'Benötigt {}x{} an freiem Platz: zuerst ein Widget entfernen oder verkleinern'
   Net Weight (g): Nettogewicht (g)
   Network: Netzwerk
@@ -3338,6 +3349,7 @@ translations:
   Not enough frequency data from the sweeps. Try again.: 'Nicht genügend Frequenzdaten aus den Messungen. Versuchen Sie es erneut.'
   Not enough room for this widget. Rearrange or remove widgets to make space.: Nicht genug Platz für dieses Widget. Ordnen Sie Widgets neu an oder entfernen Sie welche, um Platz zu schaffen.
   Not enough room to put the widget back. It stays removed.: 'Nicht genug Platz, um das Widget wiederherzustellen. Es bleibt entfernt.'
+  "Not in use yet. Klipper holds it until a save or a restart.": "Noch nicht aktiv. Klipper hält es bis zum Speichern oder einem Neustart."
   Not in your spools? Set it up: Nicht in Ihren Spulen? Einrichten
   Not loaded by its feeder: 'Nicht über seine Zuführung geladen'
   Not now: Nicht jetzt
@@ -3372,6 +3384,7 @@ translations:
   Which computer the Advanced power rows act on: 'Welchen Computer die Energie-Zeilen unter Erweitert betreffen'
   'Which lane is in the toolhead?': 'Welche Spur steckt im Druckkopf?'
   'Choose which lane is in the toolhead to unload it': 'Wähle, welche Spur im Druckkopf steckt, um sie zu entladen'
+  "Nothing waits to be saved.": "Nichts wartet auf das Speichern."
   Nothing was changed. Temperature and material are kept, so a retry is one tap.: 'Es wurde nichts geändert. Temperatur und Material bleiben erhalten, ein erneuter Versuch ist ein Tipp.'
   Nothing was saved: Nichts wurde gespeichert
   Nothing was saved and the heaters are off.: Es wurde nichts gespeichert und die Heizungen sind aus.
@@ -3400,6 +3413,7 @@ translations:
   Nozzle diameter: "Düsendurchmesser"
   Nozzle did not reach {} — {} canceled: Düse erreichte {} nicht — {} abgebrochen
   Nozzle flow: "Düsendurchfluss"
+  "Nozzle heater tuned": "Düsenheizung kalibriert"
   Nozzle interval: 'Intervall Düse'
   Nozzle min cannot exceed max: Düse min darf max nicht überschreiten
   'Nozzle not changed: the printer did not confirm it': "Düse nicht geändert: der Drucker hat es nicht bestätigt"
@@ -3863,6 +3877,7 @@ translations:
   Prints: Drucke
   Prints Trend: Drucktrend
   Prints on its own, about {} min: "Druckt selbstständig, etwa {} Min."
+  "Prints on its own, about {}": "Druckt selbstständig, etwa {}"
   'Private:': 'Privat:'
   Probe: Sonde
   Probe Accuracy Failed: Taster-Genauigkeitstest fehlgeschlagen
@@ -4300,6 +4315,7 @@ translations:
   Runs on its own once started: Läuft nach dem Start von selbst
   Runs everything this printer needs, in order: 'Führt alles aus, was dieser Drucker braucht, der Reihe nach'
   Runs everything this printer needs, in order ·: 'Führt alles aus, was dieser Drucker braucht, der Reihe nach ·'
+  "Runs on its own, about {}": "Läuft selbstständig, etwa {}"
   Runs the printer's tool offset calibration for every tool.: Führt die Werkzeug-Offset-Kalibrierung des Druckers für alle Werkzeuge aus.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'SAVE_CONFIG fehlgeschlagen: {}. Die Werkzeug-Offsets wurden angewendet, aber nicht gespeichert. Führe SAVE_CONFIG manuell aus, sonst gehen sie beim Neustart verloren.'
   ? 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
@@ -4356,6 +4372,8 @@ translations:
   Save to Config: "In Konfiguration speichern"
   Save to Config writes it to the extruder section; Klipper keeps it after a restart.: "In Konfiguration speichern schreibt ihn in den Extruder-Abschnitt; Klipper behält ihn nach einem Neustart."
   Save to Config writes them to the extruder section and restarts Klipper.: "In Konfiguration speichern schreibt sie in den Extruder-Abschnitt und startet Klipper neu."
+  "Save to Config and Discard both restart Klipper.": "In Konfiguration speichern und Verwerfen starten beide Klipper neu."
+  "Save to Config keeps Klipper running. Discard restarts it.": "In Konfiguration speichern lässt Klipper laufen. Verwerfen startet es neu."
   Save to Spool: Auf Spule speichern
   Save to Spoolman: In Spoolman speichern
   Save to the printer config?: "In der Druckerkonfiguration speichern?"
@@ -5287,6 +5305,8 @@ translations:
   The printer has not reported whether Auto-Replenish is on: 'Der Drucker hat nicht gemeldet, ob Automatisch nachfüllen eingeschaltet ist'
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
   : 'Der Drucker heizt die Düse, macht ein paar kurze Testbewegungen in einer Ecke der Platte und misst sie selbst. Er wiederholt, bis die Messwerte übereinstimmen, und meldet dann eine Zahl.'
+  ? The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer. Clear the bed first.
+  : "Der Drucker referenziert X und Y, fährt den Druckkopf in die Mitte des Betts und stellt jeden Riemen mit seinem Spanner ein. Danach sind die Motoren stromlos, referenzieren Sie also, bevor Sie den Drucker bewegen. Räume zuerst das Heizbett ab."
   The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear.: Der Drucker referenziert und vermisst den Schneider (ca. 1 Minute). Halten Sie den Filamentweg frei.
   The printer homes if needed, then finds the cutter's position. Keep the filament path clear.: "Der Drucker referenziert bei Bedarf und ermittelt dann die Position des Schneiders. Halten Sie den Filamentweg frei."
   ? The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked.
@@ -5319,6 +5339,7 @@ translations:
   The printer moved the print to {}, not {}.: 'Der Drucker hat den Druck auf {} verlegt, nicht auf {}.'
   The printer may need a reboot afterwards.: 'Danach kann ein Neustart des Druckers nötig sein.'
   The printer moves the toolhead and measures its motors.: 'Der Drucker bewegt den Druckkopf und vermisst seine Motoren.'
+  "The printer moves the toolhead and measures its motors. Clear the bed first.": "Der Drucker bewegt den Druckkopf und vermisst seine Motoren. Räume zuerst das Heizbett ab."
   The printer needs homing first: Der Drucker muss zuerst referenziert werden
   The printer no longer has a print to resume.: Der Drucker hat keinen Druck mehr zum Fortsetzen.
   The printer reads the file up to the last saved position. A large file can take a minute.: Der Drucker liest die Datei bis zur letzten gespeicherten Position. Eine große Datei kann eine Minute dauern.
@@ -5346,6 +5367,7 @@ translations:
   ? The remaining steps will not run. The printer finishes the command it is running first, and its heaters stay on until then.
   : "Die übrigen Schritte laufen nicht. Der Drucker beendet zuerst den laufenden Befehl, und seine Heizungen bleiben bis dahin an."
   The requested position is outside the printer's bounds: 'Die angeforderte Position liegt außerhalb des Druckerbereichs'
+  "The result is gone: Klipper restarted before it was saved. Run the calibration again.": "Das Ergebnis ist verloren: Klipper wurde vor dem Speichern neu gestartet. Führe die Kalibrierung erneut aus."
   The results say why.: "Die Ergebnisse nennen den Grund."
   The right RFID reader in this CFS unit may need service: Der rechte RFID-Leser dieser CFS-Einheit muss möglicherweise gewartet werden
   The running step stops at once and the printer restarts, which also drops the results of the steps that finished.: 'Der laufende Schritt stoppt sofort und der Drucker startet neu, wodurch auch die Ergebnisse der abgeschlossenen Schritte verworfen werden.'
@@ -5900,6 +5922,7 @@ translations:
   VM Peak: VM-Spitze
   VM Size: VM-Größe
   Validating bed mesh...: Bettnetz validieren...
+  "Value": "Wert"
   Value must be between {} and {}: Wert muss zwischen {} und {} liegen
   Values: "Werte"
   Values must not be negative: Werte dürfen nicht negativ sein
@@ -6147,6 +6170,7 @@ translations:
   Z motor calibration failed: Kalibrierung des Z-Motors fehlgeschlagen
   Z offset: 'Z-Offset'
   Z offset by material: "Z-Offset nach Material"
+  "Z offset found": "Z-Offset ermittelt"
   Z offset not set: 'Z-Offset nicht eingestellt'
   Z probes for bed leveling and mesh generation: Z-Sonden für Bettnivellierung und Netzerzeugung
   Z tilt: Z-Neigung
@@ -6468,6 +6492,7 @@ translations:
   '{} free of {}': '{} frei von {}'
   '{} h': '{} Std'
   '{} h of {} h': '{} Std von {} Std'
+  "{} h {} min": "{} Std {} Min"
   '{} hand feed did not finish': '{}: manuelle Zuführung nicht abgeschlossen'
   '{} has no filament': '{} hat kein Filament'
   '{} has no filament type set': '{} hat keinen Filamenttyp gesetzt'

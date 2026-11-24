@@ -29,6 +29,7 @@ components/calibration_live_card.xml
 components/calibration_live_heat.xml
 components/calibration_live_mesh.xml
 components/calibration_live_shaper.xml
+components/calibration_result.xml
 components/calibration_run_option_chip.xml
 components/calibration_run_pick_row.xml
 components/calibration_run_prereq_row.xml

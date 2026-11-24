@@ -15,11 +15,12 @@ name: Recover R2 Publish
 # .debug.zst symbols are NOT recovered (CI-only, never uploaded to GitHub); .80
 # crash backtraces will resolve to function names but not source lines.
 #
-# Every regenerated manifest is signed with the release key exactly as release.yml
-# signs it (#1834): clients refuse a manifest whose manifest.json.minisig does not
-# verify, so an unsigned one would leave every install unable to update. The key is
-# a release-signing environment secret, and that environment admits only v* tags,
-# so run this FROM THE TAG and approve the deployment when it waits:
+# Every regenerated manifest is signed exactly as release.yml signs it (#1834):
+# clients refuse a manifest whose manifest.json.minisig does not verify, so an
+# unsigned one would leave every install unable to update. The key is an
+# environment secret: release-signing's (approve the deployment when it waits),
+# or for an alpha publishing to dev alone release-signing-dev's, which needs no
+# reviewer. Both environments admit only tags, so run this FROM THE TAG:
 #
 #   gh workflow run recover-r2.yml --ref v1.2.0 -f tag=v1.2.0
 
@@ -32,11 +33,18 @@ on:
         type: string
 
 jobs:
-  # Outside the environment, so a dispatch from a branch fails here with the command
-  # to run instead of at the environment's deployment policy.
+  # Outside any environment, so a dispatch from a branch fails here with the command
+  # to run instead of at the environment's deployment policy. It also resolves the
+  # channels and the signing key, which pick the environment recover runs in: a job
+  # that holds a key never chooses which key it holds.
   guard:
     name: Dispatched from the tag
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      version: ${{ steps.meta.outputs.version }}
+      channels: ${{ steps.meta.outputs.channels }}
+      signing: ${{ steps.meta.outputs.signing }}
     steps:
     - name: Require the run's ref to be the tag being recovered
       env:
@@ -44,18 +52,10 @@ jobs:
         REF: ${{ github.ref }}
       run: |
         if [ "$REF" != "refs/tags/$TAG" ]; then
-          echo "::error::recover-r2 signs the manifest with the release key, which only a run on the tag can read. Dispatch it from the tag: gh workflow run recover-r2.yml --ref $TAG -f tag=$TAG (this run's ref is $REF)"
+          echo "::error::recover-r2 signs the manifest with a release signing key, which only a run on the tag can read. Dispatch it from the tag: gh workflow run recover-r2.yml --ref $TAG -f tag=$TAG (this run's ref is $REF)"
           exit 1
         fi
 
-  recover:
-    name: Recover R2 publish
-    needs: guard
-    runs-on: ubuntu-latest
-    # Holds HELIX_RELEASE_MINISIGN_KEY and its password; waits for a reviewer.
-    # docs/devel/RELEASE_SIGNING.md.
-    environment: release-signing
-    steps:
     - name: Checkout repository
       uses: actions/checkout@v6
       with:
@@ -66,10 +66,11 @@ jobs:
         # publish must not pick up main's channel once main moves to the devel line.
         fetch-depth: 0
 
-    - name: Validate inputs and resolve version/channels
+    - name: Validate inputs and resolve version, channels and signing key
       id: meta
+      env:
+        TAG: ${{ inputs.tag }}
       run: |
-        TAG="${{ inputs.tag }}"
         case "$TAG" in
           v[0-9]*) ;;
           *) echo "::error::tag '$TAG' must look like v0.99.80"; exit 1 ;;
@@ -78,21 +79,58 @@ jobs:
 
         # Scripts come from the checked-out default branch (recovery should use
         # the current, fixed tooling), but the CHANNEL declaration comes from the
-        # tag being recovered.
+        # tag being recovered. The dev public key is the default branch's: it is
+        # what clients trust now.
         if git show "${TAG}:RELEASE_CHANNEL" > /tmp/recover-channel 2>/dev/null; then
           CHANNELS=$(scripts/release-channel.sh --file /tmp/recover-channel --field channels)
           CHANNEL=$(scripts/release-channel.sh --file /tmp/recover-channel --field channel)
+          # --tag admits the dev key for alpha tags only. Its tag cross-checks refuse
+          # only a tag the dev key could never sign, so a refusal means the release key.
+          SIGNING=$(scripts/release-channel.sh --file /tmp/recover-channel --tag "$TAG" --field signing) \
+            || SIGNING=main
           echo "Channel declared at ${TAG}: ${CHANNEL}"
         else
           # Tags predating RELEASE_CHANNEL: fall back to the rule in force then.
           echo "::warning::${TAG} predates RELEASE_CHANNEL; using the legacy tag-suffix rule"
           if [[ "$TAG" == *-* ]]; then CHANNELS="beta dev"; else CHANNELS="stable dev"; fi
+          SIGNING=main
         fi
 
         echo "tag=$TAG"           >> $GITHUB_OUTPUT
         echo "version=$VERSION"   >> $GITHUB_OUTPUT
         echo "channels=$CHANNELS" >> $GITHUB_OUTPUT
-        echo "Republishing $TAG (v$VERSION) to channels: $CHANNELS"
+        echo "signing=$SIGNING"   >> $GITHUB_OUTPUT
+        echo "Republishing $TAG (v$VERSION) to channels: $CHANNELS, signed with the $SIGNING key"
+
+  recover:
+    name: Recover R2 publish
+    needs: guard
+    runs-on: ubuntu-latest
+    # release-signing holds HELIX_RELEASE_MINISIGN_KEY and its password and waits for a
+    # reviewer; release-signing-dev holds HELIX_DEV_MINISIGN_KEY and its password, admits
+    # only v*-alpha.* tags and needs no reviewer. docs/devel/RELEASE_SIGNING.md.
+    environment: ${{ needs.guard.outputs.signing == 'dev' && 'release-signing-dev' || 'release-signing' }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+      with:
+        # The run is on the tag; the tooling is the default branch's.
+        ref: ${{ github.event.repository.default_branch }}
+
+    - name: Take the version and channels the guard resolved
+      id: meta
+      env:
+        TAG: ${{ needs.guard.outputs.tag }}
+        VERSION: ${{ needs.guard.outputs.version }}
+        CHANNELS: ${{ needs.guard.outputs.channels }}
+      run: |
+        if [ -z "$TAG" ] || [ -z "$VERSION" ] || [ -z "$CHANNELS" ]; then
+          echo "::error::the guard job resolved no tag, version or channel list"
+          exit 1
+        fi
+        echo "tag=$TAG"           >> $GITHUB_OUTPUT
+        echo "version=$VERSION"   >> $GITHUB_OUTPUT
+        echo "channels=$CHANNELS" >> $GITHUB_OUTPUT
 
     - name: Validate R2 configuration
       run: |
@@ -139,11 +177,14 @@ jobs:
         minisign -v
 
     # Generated and signed before anything uploads: a signing failure publishes nothing.
-    # The release key reaches only this step.
+    # The signing key reaches only this step.
     - name: Generate and sign channel manifests
       env:
-        HELIX_RELEASE_MINISIGN_KEY: ${{ secrets.HELIX_RELEASE_MINISIGN_KEY }}
-        HELIX_RELEASE_MINISIGN_PASSWORD: ${{ secrets.HELIX_RELEASE_MINISIGN_PASSWORD }}
+        HELIX_RELEASE_MINISIGN_KEY: ${{ needs.guard.outputs.signing == 'main' && secrets.HELIX_RELEASE_MINISIGN_KEY || '' }}
+        HELIX_RELEASE_MINISIGN_PASSWORD: ${{ needs.guard.outputs.signing == 'main' && secrets.HELIX_RELEASE_MINISIGN_PASSWORD || '' }}
+        HELIX_DEV_MINISIGN_KEY: ${{ needs.guard.outputs.signing == 'dev' && secrets.HELIX_DEV_MINISIGN_KEY || '' }}
+        HELIX_DEV_MINISIGN_PASSWORD: ${{ needs.guard.outputs.signing == 'dev' && secrets.HELIX_DEV_MINISIGN_PASSWORD || '' }}
+        SIGNING_KEY: ${{ needs.guard.outputs.signing }}
         R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
         RELEASE_VERSION: ${{ steps.meta.outputs.version }}
         RELEASE_TAG: ${{ steps.meta.outputs.tag }}
@@ -162,7 +203,11 @@ jobs:
           jq . "release-files/manifest-${CHANNEL}.json"
           manifests+=("release-files/manifest-${CHANNEL}.json")
         done
-        scripts/sign-release-manifest.sh --mode publish "${manifests[@]}"
+        case "$SIGNING_KEY" in
+          main|dev) ;;
+          *) echo "::error::the guard job resolved no signing key ('$SIGNING_KEY')"; exit 1 ;;
+        esac
+        scripts/sign-release-manifest.sh --mode publish --key "$SIGNING_KEY" "${manifests[@]}"
 
     - name: Upload artifacts and manifests to R2
       env:

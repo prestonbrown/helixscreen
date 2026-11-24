@@ -131,6 +131,9 @@ std::string build_macro_gcode(const std::string& macro_name, const MacroParamRes
 void execute_machine_gcode(IMoonrakerAPI* api, const MachineGcode& cmd, const char* caller_tag) {
     if (!api) {
         spdlog::warn("{} No API available — cannot execute {}", caller_tag, cmd.log_name);
+        if (cmd.on_finished) {
+            cmd.on_finished();
+        }
         return;
     }
     spdlog::info("{} Executing: {}", caller_tag, cmd.gcode);
@@ -140,16 +143,24 @@ void execute_machine_gcode(IMoonrakerAPI* api, const MachineGcode& cmd, const ch
     const std::string tag_copy = caller_tag;
     const std::string display_name = cmd.display_name;
     const MacroHostEffect host_effect = cmd.host_effect;
+    const auto finished = [on_finished = cmd.on_finished]() {
+        if (on_finished) {
+            helix::ui::queue_update("macro_executor::on_finished", on_finished);
+        }
+    };
     api->execute_gcode(
         gcode,
-        [tag_copy, macro_copy, display_name]() {
+        [tag_copy, macro_copy, display_name, finished]() {
             spdlog::info("{} {} executed successfully", tag_copy, macro_copy);
             std::string msg = display_name + " sent";
             helix::ui::queue_update("macro_executor::execute_macro_gcode", [msg]() {
                 publish_notice({NoticeSeverity::SUCCESS, msg, 2000});
             });
+            finished();
         },
-        [api, tag_copy, macro_copy, display_name, host_effect](const MoonrakerError& err) {
+        [api, tag_copy, macro_copy, display_name, host_effect,
+         finished](const MoonrakerError& err) {
+            finished();
             const MacroFailureReport report = classify_macro_rpc_failure(host_effect, err);
             if (report == MacroFailureReport::ExpectedHalt) {
                 // The macro did what it said: the printer is stopped. Absorbed
@@ -206,10 +217,16 @@ void start_calibration_gcode(IMoonrakerAPI* api, const MachineGcode& cmd, bool n
     if (lv_subject_get_int(
             get_printer_state().print_state().get_machine_motion_blocked_subject()) != 0) {
         publish_notice({NoticeSeverity::WARNING, lv_tr("Cannot calibrate while printing"), 3000});
+        if (cmd.on_finished) {
+            cmd.on_finished();
+        }
         return;
     }
     if (!api) {
         spdlog::warn("{} No API available — cannot start {}", caller_tag, cmd.log_name);
+        if (cmd.on_finished) {
+            cmd.on_finished();
+        }
         return;
     }
     if (!needs_home) {
@@ -224,6 +241,9 @@ void start_calibration_gcode(IMoonrakerAPI* api, const MachineGcode& cmd, bool n
         [cmd, tag](const MoonrakerError& err) {
             spdlog::error("{} Homing before {} failed: {}", tag, cmd.log_name, err.message);
             publish_notice({NoticeSeverity::ERROR, cmd.display_name + " failed", 4000});
+            if (cmd.on_finished) {
+                cmd.on_finished();
+            }
         });
 }
 

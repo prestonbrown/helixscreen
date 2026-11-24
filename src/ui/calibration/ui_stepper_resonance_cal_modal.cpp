@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "ui_stepper_resonance_cal_modal.h"
 
+#include "ui_calibration_holds.h"
 #include "ui_callback_helpers.h"
 #include "ui_error_reporting.h"
 
@@ -30,7 +31,8 @@ namespace {
 constexpr uint32_t kCalibrationTimeoutMs = 20 * 60 * 1000;
 
 std::string confirm_message(const cal::Procedure& procedure) {
-    std::string message = lv_tr("The printer moves the toolhead and measures its motors.");
+    std::string message =
+        lv_tr("The printer moves the toolhead and measures its motors. Clear the bed first.");
     if (procedure.restarts_klipper) {
         message += " ";
         message += lv_tr("It saves the result and restarts Klipper when it finishes.");
@@ -54,15 +56,17 @@ void confirm_stepper_resonance_cal() {
         }
         return;
     }
-    modal_confirm(lv_tr(cal::entry_name()), message.c_str(), ModalSeverity::Warning, lv_tr("Start"),
-                  []() { start_stepper_resonance_cal(0); });
+    // The one question before the machine moves; Start also marks the bed cleared.
+    helix::confirm_calibration_start(lv_tr(cal::entry_name()), message, lv_tr("Start"),
+                                     s_row_lifetime.token(),
+                                     []() { start_stepper_resonance_cal(0); });
 }
 
 void on_row_clicked(lv_event_t*) {
     if (!cal::resolve(get_printer_state().get_discovery()).present()) {
         return;
     }
-    ensure_bed_clear_then(s_row_lifetime.token(), confirm_stepper_resonance_cal);
+    confirm_stepper_resonance_cal();
 }
 
 } // namespace
@@ -101,6 +105,8 @@ void StepperResonanceCalModal::on_ok() {
     lv_obj_t* dropdown = find_widget("tool_dropdown");
     const int tool = dropdown ? static_cast<int>(lv_dropdown_get_selected(dropdown)) : 0;
     hide();
+    // The dialog asked for a clear bed, so nothing asks again.
+    mark_bed_cleared();
     start_stepper_resonance_cal(tool);
 }
 
@@ -118,8 +124,8 @@ void start_stepper_resonance_cal(int tool) {
     cmd.host_effect =
         procedure.restarts_klipper ? MacroHostEffect::Restarts : MacroHostEffect::None;
     cmd.timeout_ms = kCalibrationTimeoutMs;
-    start_calibration_gcode(get_moonraker_api(), cmd, procedure.needs_home,
-                            "[StepperResonanceCal]");
+    helix::calibration::start_held_calibration_gcode(get_moonraker_api(), cmd, procedure.needs_home,
+                                                     "[StepperResonanceCal]");
 }
 
 void init_stepper_resonance_cal_row_handler() {

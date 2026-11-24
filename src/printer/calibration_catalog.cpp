@@ -225,17 +225,29 @@ constexpr int kFixedPidCycles = 5;
 constexpr int kTolerancePidCycles = 6;
 /// MPC_CALIBRATE holds the heater at its target while it measures heat loss.
 constexpr float kMpcMeasureSeconds = 240.0f;
+/// Measuring the part fan's cooling adds MPC's fan-on holds.
+constexpr float kMpcFanMeasureSeconds = 180.0f;
 
 } // namespace
 
 float heater_calibration_seconds(const HeaterPricing& heater) {
     const float heat = std::max(0.0f, heater.heat_seconds);
     if (heater.mpc) {
-        return heat + kMpcMeasureSeconds;
+        const bool fan = heater.measure_fan && !heater.bed;
+        return heat + kMpcMeasureSeconds + (fan ? kMpcFanMeasureSeconds : 0.0f);
     }
     const float per_rate = heater.bed ? kBedCycleSecondsPerRate : kNozzleCycleSecondsPerRate;
     const int cycles = heater.tolerance ? kTolerancePidCycles : kFixedPidCycles;
     return heat + per_rate * std::max(0.0f, heater.climb_rate) * static_cast<float>(cycles);
+}
+
+int step_default_minutes(StepKind kind) {
+    for (const auto& row : kSteps) {
+        if (row.kind == kind) {
+            return row.minutes;
+        }
+    }
+    return 0;
 }
 
 int heaters_step_minutes(const std::vector<HeaterPricing>& heaters) {

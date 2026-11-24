@@ -46,7 +46,6 @@
     <lv_obj name="mesh_intro_badges"
             width="100%" height="content" style_pad_all="0" style_pad_bottom="#space_xs" style_pad_gap="#space_sm"
             style_bg_opa="0" style_border_width="0" flex_flow="row_wrap" scrollable="false" clickable="false">
-      <cal_intro_badge name="mesh_badge_time" bind="bed_mesh_intro_duration"/>
       <cal_intro_badge name="mesh_badge_heat" bind="bed_mesh_intro_heat" variant="warm">
         <bind_flag_if_eq subject="bed_mesh_heat_choice" flag="hidden" ref_value="0"/>
       </cal_intro_badge>

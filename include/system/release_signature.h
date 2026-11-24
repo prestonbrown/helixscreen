@@ -17,9 +17,29 @@ namespace helix::release_signature {
 inline constexpr std::string_view kReleasePublicKey =
     "RWRXImmr5YYfqd5aaV48WN+50k5e83NgKuEtxECC6agLUBkXG7t7AH9S";
 
+/// The dev-channel key: alpha releases are signed with it so they publish without a
+/// reviewer. Trusted on the dev channel only, never on stable or beta. Empty while no dev key
+/// exists; once `.github/release-minisign-dev.pub` holds a key, a test pins the two equal.
+inline constexpr std::string_view kDevPublicKey =
+    "RWQ5WGSrpMb3A20ZeKsMXemkvV0Cbbhtf2H+IecKhyrn/ln5w3zhM0tv";
+
+/// The keys a channel manifest may be signed with: @c release on every channel, @c dev on the
+/// dev channel only. An empty @c dev trusts no second key.
+struct ChannelKeys {
+    std::string_view release;
+    std::string_view dev;
+};
+
+/// The keys this build trusts.
+inline constexpr ChannelKeys kTrustedKeys{kReleasePublicKey, kDevPublicKey};
+
+/// The channel whose manifest is signed with the dev key as well as the release key.
+inline constexpr std::string_view kDevChannel = "dev";
+
 enum class Verdict {
     Ok,
     MalformedKey,       ///< the public key is not a minisign Ed25519 key
+    MalformedDevKey,    ///< verify_channel_manifest(): the dev key is not a minisign Ed25519 key
     MalformedSignature, ///< not the four-line .minisig layout, or bad base64 or lengths
     LegacySignature,    ///< signed without -H; refused
     WrongKey,           ///< signed by a key other than the one given
@@ -32,12 +52,12 @@ enum class Verdict {
 /// file's text).
 Verdict verify(std::string_view message, std::string_view minisig, std::string_view public_key);
 
-/// Whether @p minisig is a valid signature by @p public_key over the manifest of @p channel
-/// ("stable", "beta", "dev"): verify() accepts it and its trusted comment is exactly
-/// `file:manifest.json channel:<channel>`, so a manifest signed for one channel is refused on
-/// another.
+/// Whether @p minisig is a valid signature over the manifest of @p channel ("stable", "beta",
+/// "dev"): by keys.release on any channel, or by keys.dev on the dev channel only, and with a
+/// trusted comment that is exactly `file:manifest.json channel:<channel>`, so a manifest signed
+/// for one channel is refused on another.
 Verdict verify_channel_manifest(std::string_view message, std::string_view minisig,
-                                std::string_view channel, std::string_view public_key);
+                                std::string_view channel, const ChannelKeys& keys);
 
 /// A short English description of @p v for logs and error text.
 const char* describe(Verdict v);

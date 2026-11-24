@@ -108,3 +108,43 @@ TEST_CASE_METHOD(LVGLTestFixture,
     helix::ui::UpdateQueue::instance().drain();
     EmergencyStopOverlayTestAccess::reset_suppression(estop);
 }
+
+TEST_CASE_METHOD(LVGLTestFixture, "a config editor's revert restart is announced as expected too",
+                 "[pa_tuner][expected_restart][pa_mutation]") {
+    auto& estop = EmergencyStopOverlay::instance();
+    EmergencyStopOverlayTestAccess::reset_suppression(estop);
+
+    helix::PrinterState state;
+    MoonrakerClientMock client;
+    MoonrakerAPIMock api(client, state);
+    api.set_config_files({
+        {"printer.cfg", "[printer]\nkinematics: corexy\n[extruder]\npressure_advance: 0.04\n"},
+    });
+    helix::MoonrakerClientTestAccess::force_connection_state(client,
+                                                             helix::ConnectionState::CONNECTED);
+    client.set_simulation_speedup(1000.0);
+    // Klippy refuses the edited config, so the editor restores the backup and
+    // restarts a second time.
+    client.set_restart_outcome(MoonrakerClientMock::KlippyState::ERROR);
+
+    KlipperConfigEditor editor;
+    editor.set_restart_poll_interval(std::chrono::milliseconds(1));
+    bool succeeded = false;
+    std::string error;
+    editor.safe_multi_edit(
+        api, "extruder", {{ConfigEdit::Type::ADD_KEY, "pressure_advance_model", "tanh"}},
+        [&]() { succeeded = true; }, [&](const std::string& err) { error = err; },
+        /*restart_timeout_ms=*/300);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    REQUIRE(wait_until([]() { return helix::http::HttpExecutor::fast().inflight() == 0; }, 15000));
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE_FALSE(succeeded);
+    REQUIRE_FALSE(error.empty());
+
+    // One announcement per restart: the edit's and the revert's.
+    CHECK(api.suppress_disconnect_modal_calls() == 2);
+
+    process_lvgl(1200);
+    helix::ui::UpdateQueue::instance().drain();
+    EmergencyStopOverlayTestAccess::reset_suppression(estop);
+}

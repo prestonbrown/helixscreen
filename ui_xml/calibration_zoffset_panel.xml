@@ -339,14 +339,24 @@
         <bind_flag_if_not_eq subject="zoffset_cal_state" flag="hidden" ref_value="3"/>
         <spinner size="lg"/>
         <text_heading text="Saving Configuration..." style_text_align="center">
-          <bind_flag_if_eq subject="zoffset_cal_run_mode" flag="hidden" ref_value="1"/>
+          <bind_flag_if cond="zoffset_cal_run_mode eq 1 or zoffset_accepting eq 1" flag="hidden"/>
         </text_heading>
         <text_small width="80%" text="Klipper will restart to apply changes." style_text_align="center">
-          <bind_flag_if_eq subject="zoffset_cal_run_mode" flag="hidden" ref_value="1"/>
+          <bind_flag_if cond="zoffset_cal_run_mode eq 1 or zoffset_accepting eq 1" flag="hidden"/>
         </text_small>
         <text_heading text="Accepting the Z offset..." style_text_align="center">
-          <bind_flag_if_eq subject="zoffset_cal_run_mode" flag="hidden" ref_value="0"/>
+          <bind_flag_if cond="zoffset_cal_run_mode eq 0 and zoffset_accepting eq 0" flag="hidden"/>
         </text_heading>
+      </lv_obj>
+      <!-- ================================================================== -->
+      <!-- STATE: REVIEW (7) - the accepted result and its choices -->
+      <!-- ================================================================== -->
+      <lv_obj name="state_review"
+              width="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false">
+        <bind_flag_if_not_eq subject="zoffset_cal_state" flag="hidden" ref_value="7"/>
+        <calibration_result name="zoffset_result"
+                            prefix="zoffset_result" discard_callback="on_zoffset_result_discard"
+                            keep_callback="on_zoffset_result_keep" save_callback="on_zoffset_result_save"/>
       </lv_obj>
       <!-- ================================================================== -->
       <!-- STATE: COMPLETE (4) - Calibration finished -->
