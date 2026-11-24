@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "ui_emergency_stop.h"
 #include "ui_modal.h"
 
 #include "core/observer_guard.h"
@@ -155,6 +156,9 @@ class PaNonlinearOverlay : public OverlayBase {
     bool keeps_display_awake_for_test() const {
         return decision_awake_.held();
     }
+    bool holds_machine_busy_for_test() const {
+        return start_busy_.held();
+    }
     void judge_for_test(int verdict) {
         judge(verdict);
     }
@@ -273,6 +277,9 @@ class PaNonlinearOverlay : public OverlayBase {
     /// Held while a judgement or the result waits on the user, so the
     /// screensaver does not cover it.
     helix::DisplayAwakeToken decision_awake_;
+    /// Keeps the E-stop up while the start script homes and heats: no print
+    /// job exists until the firmware tower begins.
+    helix::MachineBusyToken start_busy_;
 
     ObserverGuard print_state_observer_;
     ObserverGuard z_observer_;

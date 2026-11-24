@@ -535,6 +535,20 @@ TEST_CASE_METHOD(NonlinearFixture, "nonlinear tuner: one press of Stop cancels t
 }
 
 TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: the E-stop stays up while the start script homes and heats",
+                 "[pa_nonlinear][pa_tuner][pa_nl_busy]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    CHECK_FALSE(overlay.holds_machine_busy_for_test());
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::PREPARING);
+    CHECK(overlay.holds_machine_busy_for_test());
+    // Once the tower prints, the print job itself keeps the E-stop up.
+    tower("printing");
+    CHECK_FALSE(overlay.holds_machine_busy_for_test());
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
                  "nonlinear tuner: the screen stays awake while a judgement or the result waits",
                  "[pa_nonlinear][pa_tuner][pa_nl_awake]") {
     overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
