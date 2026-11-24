@@ -121,8 +121,8 @@ constexpr ArtLaneGeom k_yammu_lower_4_lanes[] = {{0.28658f, 0.39871f, 0.39562f, 
 
 const UnitShell kShells[] = {
     {"ace_pro", k_ace_pro_cheek, 3, k_ace_pro_dome, 17, 4, 31.42f, 44.0f, 7.0f, true, Combiner::External, false, 0x3a3b3f, 0x000000, k_ace_pro_front, 5, false, 0x0},
-    {"box_turtle", k_box_turtle_cheek, 2, nullptr, 0, 4, 0.00f, 35.1f, 9.0f, false, Combiner::Internal, false, 0x8c6f2e, 0x1f6a4a, k_box_turtle_front, 6, false, 0x1fc},
-    {"box_turtle_enclosed", k_box_turtle_enclosed_cheek, 2, k_box_turtle_enclosed_dome, 17, 4, 0.00f, 35.1f, 9.0f, true, Combiner::Internal, false, 0x8c6f2e, 0x1f6a4a, k_box_turtle_enclosed_front, 6, false, 0x1fc},
+    {"box_turtle", k_box_turtle_cheek, 2, nullptr, 0, 4, 0.00f, 35.1f, 9.0f, false, Combiner::Internal, false, 0x8c6f2e, 0x1f6a4a, k_box_turtle_front, 6, false, 0x1fc, nullptr, 0, nullptr, 0, 0x000000, 0.0f, false, 0x39},
+    {"box_turtle_enclosed", k_box_turtle_enclosed_cheek, 2, k_box_turtle_enclosed_dome, 17, 4, 0.00f, 35.1f, 9.0f, true, Combiner::Internal, false, 0x8c6f2e, 0x1f6a4a, k_box_turtle_enclosed_front, 6, false, 0x1fc, nullptr, 0, nullptr, 0, 0x000000, 0.0f, false, 0x39},
     {"ams_2_pro", k_ams_2_pro_cheek, 2, k_ams_2_pro_dome, 17, 4, 0.00f, 42.0f, 7.0f, true, Combiner::Internal, false, 0x2b2c30, 0x000000, k_ams_2_pro_front, 4, false, 0x0},
     {"ams", k_ams_cheek, 2, k_ams_dome, 17, 4, 0.00f, 40.0f, 7.0f, true, Combiner::Internal, false, 0x36383c, 0x000000, k_ams_front, 6, false, 0x0},
     {"ams_lite", k_ams_lite_cheek, 2, nullptr, 0, 4, 0.00f, 16.0f, 8.0f, false, Combiner::External, false, 0x3a3b3f, 0x000000, k_ams_lite_front, 2, false, 0x0, nullptr, 0, nullptr, 0, 0x000000, 10.0f},

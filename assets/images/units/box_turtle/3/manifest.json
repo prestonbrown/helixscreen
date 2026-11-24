@@ -32,6 +32,24 @@
           "far_face": "full_lane2_far_face.png"
         }
       ],
+      "regions": {
+        "back_main": {
+          "color": "full_back_main.png",
+          "shade": "full_back_main_shade.png"
+        },
+        "front_main": {
+          "color": "full_front_main.png",
+          "shade": "full_front_main_shade.png"
+        },
+        "front_accent": {
+          "color": "full_front_accent.png",
+          "shade": "full_front_accent_shade.png"
+        },
+        "front_panels": {
+          "color": "full_front_panels.png",
+          "shade": "full_front_panels_shade.png"
+        }
+      },
       "vents": "full_vents.png",
       "vents_lit": "full_vents_lit.png",
       "far_vents": "full_far_vents.png"
@@ -56,7 +74,25 @@
           "shade": "thumb_lane2_shade.png",
           "body": "thumb_lane2_body.png"
         }
-      ]
+      ],
+      "regions": {
+        "back_main": {
+          "color": "thumb_back_main.png",
+          "shade": "thumb_back_main_shade.png"
+        },
+        "front_main": {
+          "color": "thumb_front_main.png",
+          "shade": "thumb_front_main_shade.png"
+        },
+        "front_accent": {
+          "color": "thumb_front_accent.png",
+          "shade": "thumb_front_accent_shade.png"
+        },
+        "front_panels": {
+          "color": "thumb_front_panels.png",
+          "shade": "thumb_front_panels_shade.png"
+        }
+      }
     }
   },
   "drawn": [
