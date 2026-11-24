@@ -588,6 +588,8 @@
   <translation tag="Backup Toolhead" ru="Резервная печатающая головка"/>
   <translation tag="Backup lane name contains invalid characters" ru="Имя резервного канала содержит недопустимые символы"/>
   <translation tag="Balanced" ru="Сбалансирован"/>
+  <translation tag="Band" ru="Полоса"/>
+  <translation tag="Band {}" ru="Полоса {}"/>
   <translation tag="Barcode Scanner" ru="Сканер штрих-кодов"/>
   <translation tag="Base" ru="Опорный"/>
   <translation tag="Based on the newest {} prints" ru="По последним печатям ({})"/>
@@ -638,6 +640,7 @@
   <translation tag="Bed {} °C" ru="Стол {} °C"/>
   <translation tag="Before" ru="До"/>
   <translation tag="Before starting" ru="Перед началом"/>
+  <translation tag="Before the test" ru="Перед тестом"/>
   <translation tag="Before you start" ru="Перед началом"/>
   <translation tag="Below target" ru="Ниже цели"/>
   <translation tag="Belt Tension" ru="Натяжение ремня"/>
@@ -653,6 +656,7 @@
   <translation tag="Belts stretch and settle; loose ones cause ringing and layer shifts." ru="Ремни растягиваются и садятся; слабые вызывают рябь и смещение слоёв."/>
   <translation tag="Best height" ru="Лучшая высота"/>
   <translation tag="Best height, measured up from the plate" ru="Лучшая высота, отсчитанная от стола"/>
+  <translation tag="Best height, up from the plate" ru="Лучшая высота от стола"/>
   <translation tag="Beta" ru="Бета"/>
   <translation tag="Beta features: OFF" ru="Beta-функции: ВЫКЛ"/>
   <translation tag="Beta features: ON" ru="Beta-функции: ВКЛ"/>
@@ -1066,6 +1070,8 @@
   <translation tag="Clear extruder only" ru="Только очистить экструдер"/>
   <translation tag="Clear failed" ru="Ошибка очистки"/>
   <translation tag="Clear head T{1}&apos;s filament path (a cold pull works), then resume." ru="Очистите путь филамента головки T{1} (поможет холодная протяжка), затем продолжите."/>
+  <translation tag="Clear pressure advance in your slicer&apos;s filament profile. A slicer that sets it overwrites this value at every print." ru="Очистите Pressure Advance в профиле филамента слайсера. Слайсер, который его задаёт, перезаписывает это значение при каждой печати."/>
+  <translation tag="Clear pressure advance in your slicer&apos;s filament profile. A slicer that sets it replaces these values at every print." ru="Очистите Pressure Advance в профиле филамента слайсера. Слайсер, который его задаёт, перезаписывает эти значения при каждой печати."/>
   <translation tag="Clear the area above and below the plate. Lay the spools on the plate, cover them with a box (a printed lid or the filament&apos;s packaging) and close the door." ru="Освободите место над столом и под ним. Положите катушки на стол, накройте их коробкой (напечатанной крышкой или упаковкой филамента) и закройте дверцу."/>
   <translation tag="Clear the bed and the nozzle, then restart the firmware." ru="Освободите стол и сопло, затем перезапустите прошивку."/>
   <translation tag="Clear the bed and the nozzle, then try again." ru="Освободите стол и сопло, затем попробуйте снова."/>
@@ -1561,6 +1567,7 @@
   <translation tag="Each correction increased the difference between the probe points: the Z motors are mapped to the wrong corners, or the probe is not repeatable." ru="Каждая коррекция увеличивала разницу между точками зондирования: моторы Z назначены не тем углам или зонд неточен."/>
   <translation tag="Each fan can only be selected once" ru="Каждый вентилятор можно выбрать только один раз"/>
   <translation tag="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead." ru="У каждой печатающей головки на этом принтере своё Z-смещение. Используйте калибровку смещений инструментов."/>
+  <translation tag="Each tap sets a new value from this layer up." ru="Каждое касание задаёт новое значение начиная с этого слоя."/>
   <translation tag="Edit" ru="Редактировать"/>
   <translation tag="Edit Filament" ru="Редактировать филамент"/>
   <translation tag="Edit Slot" ru="Редактировать слот"/>
@@ -2100,6 +2107,12 @@
   <translation tag="Front" ru="Спереди"/>
   <translation tag="Front Left" ru="Спереди слева"/>
   <translation tag="Front Right" ru="Спереди справа"/>
+  <translation tag="Front best height" ru="Лучшая высота спереди"/>
+  <translation tag="Front, lit from far left or right: the slow middle, the pause, the slow spot. Very subtle." ru="Спереди, свет сильно слева или справа: медленная середина, пауза, медленное место. Едва заметно."/>
+  <translation tag="Front, lit from far left or right: where do the marked spots look cleanest?" ru="Спереди, свет сильно слева или справа: где отмеченные места выглядят чище всего?"/>
+  <translation tag="Front, lit from the side" ru="Спереди, свет сбоку"/>
+  <translation tag="Front: the edges of the slow middle, the pause and the slow spot." ru="Спереди: края медленной середины, пауза и медленное место."/>
+  <translation tag="Front: where do the marked spots look cleanest?" ru="Спереди: где отмеченные места выглядят чище всего?"/>
   <translation tag="Full" ru="Полный"/>
   <translation tag="G-code Console" ru="Консоль G-code"/>
   <translation tag="G-code Preview" ru="Просмотр G-code"/>
@@ -2544,6 +2557,7 @@
   <translation tag="Keep the bypass spool visible when bypass is off" ru="Показывать катушку байпаса, даже когда байпас выключен"/>
   <translation tag="Keep the rotation distance sync feedback tunes" ru="Сохранять дистанцию вращения, подобранную обратной связью синхронизации"/>
   <translation tag="Keep waiting" ru="Продолжить ожидание"/>
+  <translation tag="Keep {}" ru="Оставить {}"/>
   <translation tag="Kept {}: a print started." ru="{} оставлен: началась печать."/>
   <translation tag="Kick away" ru="Сброс остатка"/>
   <translation tag="Kinematics" ru="Кинематика"/>
@@ -2654,7 +2668,18 @@
   <translation tag="Left" ru="Слева"/>
   <translation tag="Left Best Higher" ru="Слева выше"/>
   <translation tag="Left Best Lower" ru="Слева ниже"/>
+  <translation tag="Left and front agree: {:.1f} mm is the answer." ru="Слева и спереди совпадают: ответ {:.1f} mm."/>
   <translation tag="Left belt" ru="Левый ремень"/>
+  <translation tag="Left side" ru="Левая сторона"/>
+  <translation tag="Left side against the front" ru="Левая сторона и передняя"/>
+  <translation tag="Left side and front, each at its slow edges. Each comes out clean at its own height; they should match." ru="Левая сторона и передняя, каждая на своих медленных краях. Каждая получается чистой на своей высоте; они должны совпадать."/>
+  <translation tag="Left side {:.1f} mm higher: the next tower lowers the advance 10%." ru="Левая сторона на {:.1f} mm выше: следующая башня снижает Pressure Advance на 10%."/>
+  <translation tag="Left side {:.1f} mm higher: the next tower raises the offset 10%." ru="Левая сторона на {:.1f} mm выше: следующая башня повышает смещение на 10%."/>
+  <translation tag="Left side {:.1f} mm lower: the next tower lowers the offset 10%." ru="Левая сторона на {:.1f} mm ниже: следующая башня снижает смещение на 10%."/>
+  <translation tag="Left side {:.1f} mm lower: the next tower raises the advance 10%." ru="Левая сторона на {:.1f} mm ниже: следующая башня повышает Pressure Advance на 10%."/>
+  <translation tag="Left side: at what height do the edges of the slow middle look cleanest?" ru="Левая сторона: на какой высоте края медленной середины выглядят чище всего?"/>
+  <translation tag="Left side: the two edges of the slow middle, 5 mm either side of center." ru="Левая сторона: два края медленной середины, по 5 mm в обе стороны от центра."/>
+  <translation tag="Left: the slow middle&apos;s edges" ru="Слева: края медленной середины"/>
   <translation tag="Leftover material found" ru="Обнаружены остатки материала"/>
   <translation tag="Length of filament to purge" ru="Длина филамента для прочистки"/>
   <translation tag="Length of the cooling tube section" ru="Длина участка трубки охлаждения"/>
@@ -2689,6 +2714,7 @@
   <translation tag="List the shared screen with this printer&apos;s webcams" ru="Показывать общий экран среди веб-камер этого принтера"/>
   <translation tag="Listen to all theme sounds" ru="Прослушать все звуки темы"/>
   <translation tag="Live Z-offset, with baby steps and Save" ru="Z-смещение в реальном времени, с подстройкой и сохранением"/>
+  <translation tag="Live now, until Klipper restarts" ru="Действует сейчас, до перезапуска Klipper"/>
   <translation tag="Live view from your webcam" ru="Прямая трансляция с веб-камеры"/>
   <translation tag="Load" ru="Загрузить"/>
   <translation tag="Load Cell" ru="Тензодатчик"/>
@@ -3031,6 +3057,7 @@
   <translation tag="Needs file analysis, which isn&apos;t running." ru="Нужен анализ файлов, который не запущен."/>
   <translation tag="Needs repair from a web interface" ru="Требуется восстановление через веб-интерфейс"/>
   <translation tag="Needs the {} package to switch spools" ru="Для смены катушки нужен плагин {}"/>
+  <translation tag="Needs you, about {} min" ru="Нужны вы, около {} мин"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" ru="Требуется {}x{} свободного места: сначала удалите или уменьшите виджет"/>
   <translation tag="Net Weight (g)" ru="Вес нетто (г)"/>
   <translation tag="Network" ru="Сеть"/>
@@ -3062,6 +3089,7 @@
   <translation tag="Next Layer" ru="Следующий слой"/>
   <translation tag="Next Zone" ru="Следующая зона"/>
   <translation tag="Next Zone (~{} min)" ru="След. зона (~{} мин)"/>
+  <translation tag="Next {} in {:.1f} mm" ru="Далее {} через {:.1f} mm"/>
   <translation tag="Next, review the results and save them once" ru="Далее проверьте результаты и сохраните их один раз"/>
   <translation tag="Next, see what finished and why the rest did not" ru="Далее: посмотрите, что завершилось и почему остальное нет"/>
   <translation tag="Next: {}" ru="Далее: {}"/>
@@ -3141,6 +3169,8 @@
   <translation tag="No mesh loaded" ru="Сетка не загружена"/>
   <translation tag="No message" ru="Нет сообщения"/>
   <translation tag="No multi-filament system detected" ru="Мультифиламентная система не обнаружена"/>
+  <translation tag="No need to stay while it prints" ru="Во время печати можно не оставаться"/>
+  <translation tag="No need to stay; this screen waits for you when the tower is done." ru="Оставаться не нужно; этот экран дождётся вас, когда башня будет готова."/>
   <translation tag="No network. Scan QR code to report on your phone." ru="Нет сети. Отсканируйте QR-код, чтобы отправить отчёт с телефона."/>
   <translation tag="No networks found" ru="Сети не найдены"/>
   <translation tag="No new mesh was stored as &apos;{}&apos;" ru="Новая сетка не сохранена как &apos;{}&apos;"/>
@@ -3447,6 +3477,8 @@
   <translation tag="Partial…" ru="Частично…"/>
   <translation tag="Pass" ru="Проход"/>
   <translation tag="Pass the missing parameter from the slicer&apos;s start G-code, or give it a default in the macro." ru="Передайте недостающий параметр из стартового G-code слайсера или задайте для него значение по умолчанию в макросе."/>
+  <translation tag="Pass {}" ru="Проход {}"/>
+  <translation tag="Pass {} of {}" ru="Проход {} из {}"/>
   <translation tag="Pass {} of {}: {}" ru="Проход {} из {}: {}"/>
   <translation tag="Passes judged before are kept and pass {} of {} is next. Start Over begins again from pass 1." ru="Уже оценённые проходы сохраняются, следующий — проход {} из {}. «Начать заново» возвращает к проходу 1."/>
   <translation tag="Password" ru="Пароль"/>
@@ -3623,6 +3655,7 @@
   <translation tag="Priming nozzle..." ru="Подготовка сопла..."/>
   <translation tag="Priming..." ru="Грунтование..."/>
   <translation tag="Print" ru="Печать"/>
+  <translation tag="Print Again" ru="Печатать снова"/>
   <translation tag="Print Anyway" ru="Всё равно печатать"/>
   <translation tag="Print Behavior" ru="Поведение при печати"/>
   <translation tag="Print Canceled" ru="Печать отменена"/>
@@ -3751,6 +3784,7 @@
   <translation tag="Printing: start after this job" ru="Идёт печать: начать после этой печати"/>
   <translation tag="Prints" ru="Печати"/>
   <translation tag="Prints Trend" ru="Тренд печатей"/>
+  <translation tag="Prints on its own, about {} min" ru="Печатает само, около {} мин"/>
   <translation tag="Private:" ru="Закрытая:"/>
   <translation tag="Probe" ru="Зонд"/>
   <translation tag="Probe Accuracy Failed" ru="Ошибка теста точности зонда"/>
@@ -4230,12 +4264,15 @@
   <translation tag="Save calibration" ru="Сохранить калибровку"/>
   <translation tag="Save changes to persist them across restarts?" ru="Сохранить изменения, чтобы они сохранились после перезапуска?"/>
   <translation tag="Save failed: {}" ru="Ошибка сохранения: {}"/>
+  <translation tag="Save for {}" ru="Сохранить для {}"/>
   <translation tag="Save offsets?" ru="Сохранить смещения?"/>
   <translation tag="Save the Z-offset after the print: saving restarts Klipper." ru="Сохраните Z-Offset после печати: сохранение перезапускает Klipper."/>
   <translation tag="Save the changes to this spool?" ru="Сохранить изменения этой катушки?"/>
   <translation tag="Save the new heater values to printer.cfg?" ru="Сохранить новые значения нагревателя в printer.cfg?"/>
   <translation tag="Save the new heater values to printer.cfg? Klipper restarts." ru="Сохранить новые значения нагревателя в printer.cfg? Klipper перезапустится."/>
   <translation tag="Save to Config" ru="Сохранить в конфигурацию"/>
+  <translation tag="Save to Config writes it to the extruder section; Klipper keeps it after a restart." ru="Сохранить в конфигурацию записывает значение в секцию экструдера; Klipper сохранит его после перезапуска."/>
+  <translation tag="Save to Config writes them to the extruder section and restarts Klipper." ru="Сохранить в конфигурацию записывает их в секцию экструдера и перезапускает Klipper."/>
   <translation tag="Save to Spool" ru="Сохранить на катушку"/>
   <translation tag="Save to Spoolman" ru="Сохранить в Spoolman"/>
   <translation tag="Save to the printer config?" ru="Сохранить в конфигурацию принтера?"/>
@@ -4633,6 +4670,7 @@
   <translation tag="Start Over" ru="Начать заново"/>
   <translation tag="Start Print" ru="Начать печать"/>
   <translation tag="Start Probing" ru="Начать зондирование"/>
+  <translation tag="Start Tuning" ru="Начать настройку"/>
   <translation tag="Start a new {} h interval? The hours counted so far are discarded." ru="Начать новый интервал {} ч? Отсчитанные часы будут сброшены."/>
   <translation tag="Start anyway?" ru="Всё равно начать?"/>
   <translation tag="Start at" ru="Начать с"/>
@@ -4650,6 +4688,7 @@
   <translation tag="Starting nozzle clean..." ru="Запуск очистки сопла..."/>
   <translation tag="Starting print..." ru="Запуск печати..."/>
   <translation tag="Starting the print" ru="Запуск печати"/>
+  <translation tag="Starting the tower" ru="Запуск башни"/>
   <translation tag="Starting the update" ru="Запуск обновления"/>
   <translation tag="Starting {}…" ru="Запуск {}…"/>
   <translation tag="Starting..." ru="Запуск..."/>
@@ -4684,6 +4723,7 @@
   <translation tag="Still running; no reply after {} min" ru="Ещё выполняется; нет ответа уже {} мин"/>
   <translation tag="Still saving this spool…" ru="Эта катушка ещё сохраняется…"/>
   <translation tag="Still working... taking longer than usual" ru="Всё ещё выполняется... дольше обычного"/>
+  <translation tag="Still {:.1f} mm apart after {} towers: the middle, {:.1f} mm, is taken." ru="Всё ещё {:.1f} mm разницы после {} башен: берётся середина, {:.1f} mm."/>
   <translation tag="Stop" ru="Стоп"/>
   <translation tag="Stop Drying" ru="Остановить сушку"/>
   <translation tag="Stop Print?" ru="Остановить печать?"/>
@@ -4783,6 +4823,7 @@
   <translation tag="Tangle prevention boosted" ru="Защита от спутывания усилена"/>
   <translation tag="Tangle sensitivity" ru="Чувствительность к спутыванию"/>
   <translation tag="Tap + to add" ru="Нажмите +, чтобы добавить"/>
+  <translation tag="Tap - or + to hold your own value; the ramp stops." ru="Нажмите - или +, чтобы зафиксировать своё значение; рампа остановится."/>
   <translation tag="Tap Extrude more until clean filament comes out of the nozzle, then tap Done." ru="Нажимайте «Ещё экструзия», пока из сопла не пойдёт чистый филамент, затем нажмите «Готово»."/>
   <translation tag="Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge" ru="Нажмите «Перезапуск прошивки» для восстановления. На K2 это также перезапускает мост MCU rpi"/>
   <translation tag="Tap Resume to try the load again from {}." ru="Нажмите «Продолжить», чтобы повторить загрузку из {}."/>
@@ -4793,6 +4834,7 @@
   <translation tag="Tap anywhere if this text is right-side up" ru="Нажмите в любом месте, если текст расположен правильно"/>
   <translation tag="Tap anywhere to begin" ru="Нажмите в любом месте для начала"/>
   <translation tag="Tap anywhere to begin calibration" ru="Нажмите в любом месте для начала калибровки"/>
+  <translation tag="Tap the band that looks best" ru="Нажмите на полосу, которая выглядит лучше всего"/>
   <translation tag="Tap the bed&apos;s back-left corner" ru="Нажмите на задний левый угол стола"/>
   <translation tag="Tap the bed&apos;s back-right corner" ru="Нажмите на задний правый угол стола"/>
   <translation tag="Tap the bed&apos;s front-left corner" ru="Нажмите на передний левый угол стола"/>
@@ -4949,6 +4991,7 @@
   <translation tag="The connection to Klipper was lost" ru="Связь с Klipper потеряна"/>
   <translation tag="The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled." ru="Плата управления не справилась с заданной частотой шагов, обычно из-за большого микрошага при высокой скорости или зависания хоста."/>
   <translation tag="The controller boards Klipper runs on. See their load in the system settings." ru="Платы контроллеров, на которых работает Klipper. Их загрузку можно посмотреть в системных настройках."/>
+  <translation tag="The corners, from above and the side. Measure up from the plate." ru="Углы, сверху и сбоку. Измеряйте вверх от стола."/>
   <translation tag="The curve draws in as the axis sweeps" ru="Кривая строится по ходу развёртки оси"/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" ru="Лезвие не вернулось. Проверьте, не намотался ли филамент на режущий механизм"/>
   <translation tag="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS" ru="Резак смещён. Выполните повторную калибровку командой CALIBRATE_CUT_POS"/>
@@ -5025,6 +5068,7 @@
   <translation tag="The heater took the target." ru="Нагреватель принял целевую температуру."/>
   <translation tag="The heater was turned off at the heater." ru="Нагреватель был выключен на самом нагревателе."/>
   <translation tag="The heater will cycle on and off several times." ru="Нагреватель будет несколько раз включаться и выключаться."/>
+  <translation tag="The height where the left side is cleanest, then where the front is." ru="Высота, на которой левая сторона чище всего, затем высота для передней."/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." ru="Вспомогательные макросы установлены и активируются после перезапуска Klipper."/>
   <translation tag="The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream." ru="Хост-компьютер не отправил перемещения плате управления вовремя, обычно из-за перегрузки: высокая загрузка CPU или swap, медленная SD-карта, нестабильное питание или поток с веб-камеры."/>
   <translation tag="The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination." ru="Хост несколько секунд не получал ответа от этой платы: ослаблен или неисправен кабель USB или CAN, плата потеряла питание или у шины CAN нет терминатора."/>
@@ -5377,6 +5421,7 @@
   <translation tag="This {0} looks like it has {1} ({2}% confidence), but it is set up as stock. A wrong profile applies incorrect pre-print options and presets." ru="Похоже, на этом {0} есть {1} (уверенность {2}%), но он настроен как стоковый. Неверный профиль применяет неправильные параметры перед печатью и пресеты."/>
   <translation tag="This {0} looks like it has {1} ({2}% confidence), but it is set up for {3}. A wrong profile applies incorrect pre-print options and presets." ru="Похоже, на этом {0} есть {1} (уверенность {2}%), но он настроен для {3}. Неверный профиль применяет неправильные параметры перед печатью и пресеты."/>
   <translation tag="Thorough" ru="Тщательно"/>
+  <translation tag="Three towers, one value each" ru="Три башни, по одному значению"/>
   <translation tag="Thumbnail Only" ru="Только миниатюра"/>
   <translation tag="Thumbnail: " ru="Миниатюра: "/>
   <translation tag="Thumbnails" ru="Миниатюры"/>
@@ -5431,6 +5476,8 @@
   <translation tag="Toggle toolhead LED for an extruder" ru="Переключить LED печатающей головки для экструдера"/>
   <translation tag="Toggle:" ru="Переключить:"/>
   <translation tag="Too humid" ru="Слишком влажно"/>
+  <translation tag="Too little" ru="Слишком мало"/>
+  <translation tag="Too much" ru="Слишком много"/>
   <translation tag="Too much filament for one move" ru="Слишком много филамента для одного перемещения"/>
   <translation tag="Tool" ru="Инструмент"/>
   <translation tag="Tool Change Failed" ru="Ошибка смены инструмента"/>
@@ -5508,6 +5555,7 @@
   <translation tag="Tune" ru="Настройка"/>
   <translation tag="Tune Belts" ru="Настроить"/>
   <translation tag="Tune the motors to remove fine vertical lines" ru="Настроить моторы, чтобы убрать тонкие вертикальные полосы"/>
+  <translation tag="Tuned" ru="Настроено"/>
   <translation tag="Tuner" ru="Настройка"/>
   <translation tag="Tuning tower enabled - start a print to test" ru="Башня настройки включена — начните печать для теста"/>
   <translation tag="Turbo" ru="Турбо"/>
@@ -5522,6 +5570,7 @@
   <translation tag="Turn On" ru="Включить"/>
   <translation tag="Turn On LEDs" ru="Включить LED"/>
   <translation tag="Turn On Toolhead LED" ru="Включить LED печатающей головки"/>
+  <translation tag="Turn it off in the slicer" ru="Отключите в слайсере"/>
   <translation tag="Turn off arc fitting in the slicer and slice the file again." ru="Отключите аппроксимацию дугами в слайсере и заново нарежьте файл."/>
   <translation tag="Turn off arc fitting in the slicer, then slice the file again." ru="Выключите аппроксимацию дугами в слайсере, затем нарежьте файл заново."/>
   <translation tag="Turn off bed check" ru="Отключить проверку стола"/>
@@ -5685,6 +5734,8 @@
   <translation tag="Use first HID scanner found" ru="Использовать первый найденный HID-сканер"/>
   <translation tag="Use printer type to select image" ru="Использовать тип принтера для выбора изображения"/>
   <translation tag="Use the home layout set on the printer&apos;s own screen" ru="Использовать раскладку главного экрана, заданную на экране принтера"/>
+  <translation tag="Use {:.1f} mm" ru="Использовать {:.1f} mm"/>
+  <translation tag="Use {}" ru="Использовать {}"/>
   <translation tag="Used when a material has no entry" ru="Используется, если у материала нет записи"/>
   <translation tag="User Guide" ru="Руководство пользователя"/>
   <translation tag="User intervention required" ru="Требуется ручное вмешательство"/>
@@ -5696,6 +5747,7 @@
   <translation tag="Values" ru="Значения"/>
   <translation tag="Values must not be negative" ru="Значения не должны быть отрицательными"/>
   <translation tag="Variant" ru="Вариант"/>
+  <translation tag="Velocity" ru="Скорость"/>
   <translation tag="Velocity and acceleration limits" ru="Ограничения скорости и ускорения"/>
   <translation tag="Vendor" ru="Производитель"/>
   <translation tag="Vendor Name" ru="Название производителя"/>
@@ -5801,6 +5853,7 @@
   <translation tag="When this spool runs out, printing continues from {}." ru="Когда эта катушка закончится, печать продолжится с {}."/>
   <translation tag="When this spool runs out, the print pauses." ru="Когда эта катушка закончится, печать приостановится."/>
   <translation tag="Where UI sounds play" ru="Где воспроизводятся звуки интерфейса"/>
+  <translation tag="Where to look" ru="Куда смотреть"/>
   <translation tag="Whether filament is loaded" ru="Загружен ли филамент"/>
   <translation tag="Whether the Z arrows follow the bed or the Z value" ru="Следуют ли стрелки Z за столом или за значением Z"/>
   <translation tag="Which belt is each path?" ru="Какой ремень у каждого пути?"/>
@@ -5913,6 +5966,7 @@
   <translation tag="Your printer&apos;s firmware manages its configuration, so set these values there." ru="Конфигурацией принтера управляет его прошивка, поэтому задайте эти значения там."/>
   <translation tag="Your printer&apos;s manual has the parts and lubricant for your model." ru="В руководстве указаны детали и смазка для вашей модели."/>
   <translation tag="Your usual build plate is on" ru="Установлена ваша обычная печатная пластина"/>
+  <translation tag="Your value holds to the top" ru="Ваше значение держится до верха"/>
   <translation tag="Your {0} is set up for {1}, but it looks stock." ru="Ваш {0} настроен для {1}, но выглядит стоковым."/>
   <translation tag="Your {0} looks like it has {1}, but it is set up as stock." ru="Похоже, на вашем {0} есть {1}, но он настроен как стоковый."/>
   <translation tag="Your {0} looks like it has {1}, but it is set up for {2}." ru="Похоже, на вашем {0} есть {1}, но он настроен для {2}."/>
@@ -5994,6 +6048,7 @@
   <translation tag="bed: distance unknown" ru="стол: расстояние неизвестно"/>
   <translation tag="bed: distance unknown until the paper drags" ru="стол: расстояние неизвестно, пока бумага не зацепится"/>
   <translation tag="buffer|Neutral" ru="Нейтрален"/>
+  <translation tag="bulge" ru="вздутие"/>
   <translation tag="busy" ru="занят"/>
   <translation tag="by" ru="автор:"/>
   <translation tag="by Preston Brown" ru="от Preston Brown"/>
@@ -6037,6 +6092,7 @@
   <translation tag="extruders_many" ru="экструдеров"/>
   <translation tag="extruders_one" ru="экструдер"/>
   <translation tag="fans" ru="вентиляторы"/>
+  <translation tag="fast" ru="быстро"/>
   <translation tag="faulted" ru="сбой"/>
   <translation tag="feeder error" ru="ошибка фидера"/>
   <translation tag="feeder not in automatic mode" ru="фидер не в автоматическом режиме"/>
@@ -6051,6 +6107,7 @@
   <translation tag="heats nozzle + bed" ru="нагревает сопло + стол"/>
   <translation tag="heats to {}" ru="нагрев до {}"/>
   <translation tag="heats to {}°" ru="нагрев до {}°"/>
+  <translation tag="held to the top" ru="держится до верха"/>
   <translation tag="helixscreen.env ignored: owned by uid {}" ru="helixscreen.env проигнорирован: принадлежит uid {}"/>
   <translation tag="helixscreen.env ignored: untrusted symlink chain" ru="helixscreen.env проигнорирован: недоверенная цепочка символических ссылок"/>
   <translation tag="helixscreen.env ignored: writable by other users" ru="helixscreen.env проигнорирован: доступен на запись другим пользователям"/>
@@ -6076,6 +6133,7 @@
   <translation tag="matched" ru="совпадают"/>
   <translation tag="material differs" ru="другой материал"/>
   <translation tag="measured {}" ru="измерено {}"/>
+  <translation tag="medium" ru="средне"/>
   <translation tag="method: {}" ru="метод: {}"/>
   <translation tag="mm" ru="мм"/>
   <translation tag="mm Z-offset" ru="мм Z-смещение"/>
@@ -6096,6 +6154,7 @@
   <translation tag="of" ru="из"/>
   <translation tag="off" ru="выкл"/>
   <translation tag="on unit {}" ru="на блоке {}"/>
+  <translation tag="one look at each tower" ru="один взгляд на каждую башню"/>
   <translation tag="one restart" ru="один перезапуск"/>
   <translation tag="optional" ru="необязательно"/>
   <translation tag="or type a macro name" ru="или введите название макроса"/>
@@ -6104,6 +6163,8 @@
   <translation tag="passive" ru="пассивно"/>
   <translation tag="past last time" ru="дальше прошлого раза"/>
   <translation tag="past last time’s position" ru="дальше положения прошлого раза"/>
+  <translation tag="pause" ru="пауза"/>
+  <translation tag="pick the band" ru="выберите полосу"/>
   <translation tag="plate must be clear" ru="пластина должна быть пустой"/>
   <translation tag="preparing" ru="подготовка"/>
   <translation tag="pressure_advance is set for this extruder somewhere the save did not reach, such as another included file. Comment it out there and save again." ru="pressure_advance для этого экструдера задан там, куда сохранение не дошло, например в другом подключённом файле. Закомментируйте его там и сохраните снова."/>
@@ -6125,6 +6186,7 @@
   <translation tag="similar color" ru="похожий цвет"/>
   <translation tag="sleep {} min" ru="сон через {} мин"/>
   <translation tag="slots)" ru="слотов)"/>
+  <translation tag="slow" ru="медленно"/>
   <translation tag="start position" ru="стартовое положение"/>
   <translation tag="started" ru="запущено"/>
   <translation tag="steppers" ru="шаговые двигатели"/>
@@ -6143,6 +6205,7 @@
   <translation tag="the printer refused it" ru="принтер отклонил"/>
   <translation tag="the right belt" ru="правый ремень"/>
   <translation tag="the upper belt" ru="верхний ремень"/>
+  <translation tag="thin" ru="тонко"/>
   <translation tag="this printer fills its gates from Spoolman, so change the spool there" ru="этот принтер берёт гейты из Spoolman, меняйте катушку там"/>
   <translation tag="this week" ru="за неделю"/>
   <translation tag="too slow" ru="слишком медленно"/>
@@ -6157,6 +6220,7 @@
   <translation tag="v{} is available. Tap to update." ru="v{} доступна. Нажмите для обновления."/>
   <translation tag="waiting for the printer" ru="ожидание принтера"/>
   <translation tag="was {:.0f}%" ru="было {:.0f}%"/>
+  <translation tag="was {}" ru="было {}"/>
   <translation tag="what you turned" ru="сколько повернули"/>
   <translation tag="within one bin" ru="в пределах одного бина"/>
   <translation tag="wpa_supplicant is not running. WiFi features unavailable." ru="wpa_supplicant не запущен. Функции WiFi недоступны."/>
@@ -6178,6 +6242,7 @@
   <translation tag="{:.0f} g of {} · {}%" ru="{:.0f} г из {} · {}%"/>
   <translation tag="{:.0f}-{:.0f} Hz sweep" ru="развертка {:.0f}-{:.0f} Гц"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" ru="{:.0f}-{:.0f} Гц · примерно {} мин"/>
+  <translation tag="{:.1f} to {:.1f} mm" ru="от {:.1f} до {:.1f} mm"/>
   <translation tag="{:.2f} mm range" ru="разброс {:.2f} мм"/>
   <translation tag="{} ({})" ru="{} ({})"/>
   <translation tag="{} Extruders" ru="Экструдеров: {}"/>
@@ -6198,6 +6263,7 @@
   <translation tag="{} available" ru="Доступна версия {}"/>
   <translation tag="{} axes homed" ru="Оси {} запаркованы"/>
   <translation tag="{} axis homed" ru="Ось {} запаркована"/>
+  <translation tag="{} bands, {} apart. Prints a {:.0f} mm square, {:.0f} mm tall." ru="{} полос с шагом {}. Печатает квадрат {:.0f} мм высотой {:.0f} мм."/>
   <translation tag="{} can&apos;t refill automatically" ru="{} не может пополняться автоматически"/>
   <translation tag="{} cannot be skipped: its name has characters the printer cannot be sent" ru="{} нельзя исключить: имя содержит символы, которые нельзя отправить на принтер"/>
   <translation tag="{} cannot be stored on this printer." ru="{} нельзя сохранить на этом принтере."/>

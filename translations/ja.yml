@@ -575,6 +575,8 @@ translations:
   Backup Toolhead: 予備ツールヘッド
   Backup lane name contains invalid characters: 'バックアップレーン名に無効な文字が含まれています'
   Balanced: 均衡
+  Band: "帯"
+  Band {}: "帯 {}"
   Barcode Scanner: バーコードスキャナー
   Base: 基準
   Based on the newest {} prints: '最新の{}件の印刷に基づく'
@@ -625,6 +627,7 @@ translations:
   Bed {} °C: "ベッド {} °C"
   Before: '前'
   Before starting: '開始前に'
+  Before the test: "テストの前に"
   Before you start: 始める前に
   Below target: 目標より低い
   Belt Tension: ベルトテンション
@@ -640,6 +643,7 @@ translations:
   Belts stretch and settle; loose ones cause ringing and layer shifts.: "ベルトは伸びてなじみます。緩むとリンギングや層ズレの原因に。"
   Best height: "最適な高さ"
   Best height, measured up from the plate: "最適な高さ（ベッドから測定）"
+  Best height, up from the plate: "最適な高さ(ベッドから)"
   Beta: ベータ
   'Beta features: OFF': 'ベータ機能: OFF'
   'Beta features: ON': 'ベータ機能: ON'
@@ -1067,6 +1071,8 @@ translations:
   Clear extruder only: 'エクストルーダーだけを空にする'
   Clear failed: クリアに失敗しました
   Clear head T{1}'s filament path (a cold pull works), then resume.: ヘッド T{1} のフィラメント経路を確保してから（コールドプルが有効です）、再開してください。
+  Clear pressure advance in your slicer's filament profile. A slicer that sets it overwrites this value at every print.: "スライサーのフィラメントプロファイルで Pressure Advance をクリアしてください。スライサーが設定すると、印刷のたびにこの値が上書きされます。"
+  Clear pressure advance in your slicer's filament profile. A slicer that sets it replaces these values at every print.: "スライサーのフィラメントプロファイルで Pressure Advance をクリアしてください。スライサーが設定すると、印刷のたびにこれらの値が上書きされます。"
   ? Clear the area above and below the plate. Lay the spools on the plate, cover them with a box (a printed lid or the filament's packaging) and close the door.
 
   : ベッドの上と下を片付けてください。スプールをベッドに置き、箱(印刷したふたやフィラメントの梱包箱)でかぶせてドアを閉めてください。
@@ -1306,6 +1312,8 @@ translations:
   "Setup, navigation and gestures": "セットアップ、操作、ジェスチャー"
   "Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman.": "スロットをタップすると、装填や排出、スプールの選択、詳細の編集ができます。編集内容はプリンターおよび Spoolman と同期されます。"
   Unload stopped: 'アンロードを停止しました'
+  Use {:.1f} mm: "{:.1f} mm を使用"
+  Use {}: "{} を使用"
   Used when a material has no entry: "素材に項目がない場合に使用"
   "User Guide": "ユーザーガイド"
   "Your filament system": "フィラメントシステム"
@@ -1607,6 +1615,7 @@ translations:
   : '補正するたびにプローブ点の差が大きくなりました: Z モーターが違う角に割り当てられているか、プローブの再現性がありません。'
   Each fan can only be selected once: 各ファンは一度のみ選択できます
   Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: 'このプリンターでは各ツールヘッドが自分の Z-offset を持ちます。代わりにツールオフセット校正を使ってください。'
+  Each tap sets a new value from this layer up.: "タップするたびに、この層から上の値が新しくなります。"
   Edit: 編集
   Edit Filament: フィラメントを編集
   Edit Slot: スロットを編集
@@ -2150,6 +2159,12 @@ translations:
   Front: '手前'
   Front Left: '左手前'
   Front Right: '右手前'
+  Front best height: "手前の最適な高さ"
+  'Front, lit from far left or right: the slow middle, the pause, the slow spot. Very subtle.': "手前、左右の端から照らして: 遅い中央部、一時停止、遅い箇所。とてもわずかです。"
+  'Front, lit from far left or right: where do the marked spots look cleanest?': "手前、左右の端から照らして: 印のついた箇所が最もきれいに見えるのはどこですか？"
+  Front, lit from the side: "手前、横から照らして"
+  'Front: the edges of the slow middle, the pause and the slow spot.': "手前: 遅い中央部の端、一時停止、遅い箇所。"
+  'Front: where do the marked spots look cleanest?': "手前: 印のついた箇所が最もきれいに見えるのはどこですか？"
   Full: フル
   G-code Console: G-code コンソール
   G-code Preview: G-code プレビュー
@@ -2605,6 +2620,7 @@ translations:
   Keep Tuning: "調整を続ける"
   Keep the rotation distance sync feedback tunes: "同期フィードバックが調整した回転距離を保存"
   Keep waiting: '待ち続ける'
+  Keep {}: "{} を保持"
   'Kept {}: a print started.': '{} を保持しました: 印刷が開始されました。'
   Kick away: 'かき出し'
   Kinematics: キネマティクス
@@ -2732,7 +2748,18 @@ translations:
   Left: '左'
   Left Best Higher: "左が高い"
   Left Best Lower: "左が低い"
+  'Left and front agree: {:.1f} mm is the answer.': "左と手前が一致: {:.1f} mm が答えです。"
   Left belt: "左ベルト"
+  Left side: "左側"
+  Left side against the front: "左側と手前の比較"
+  Left side and front, each at its slow edges. Each comes out clean at its own height; they should match.: "左側と手前、それぞれの遅い端で。それぞれきれいに仕上がる高さが決まり、両者は一致するはずです。"
+  'Left side {:.1f} mm higher: the next tower lowers the advance 10%.': "左側が {:.1f} mm 高い: 次のタワーでは Pressure Advance を 10% 下げます。"
+  'Left side {:.1f} mm higher: the next tower raises the offset 10%.': "左側が {:.1f} mm 高い: 次のタワーではオフセットを 10% 上げます。"
+  'Left side {:.1f} mm lower: the next tower lowers the offset 10%.': "左側が {:.1f} mm 低い: 次のタワーではオフセットを 10% 下げます。"
+  'Left side {:.1f} mm lower: the next tower raises the advance 10%.': "左側が {:.1f} mm 低い: 次のタワーでは Pressure Advance を 10% 上げます。"
+  'Left side: at what height do the edges of the slow middle look cleanest?': "左側: 遅い中央部の端が最もきれいに見える高さはどこですか？"
+  'Left side: the two edges of the slow middle, 5 mm either side of center.': "左側: 遅い中央部の両端、中心から左右 5 mm。"
+  "Left: the slow middle's edges": "左: 遅い中央部の端"
   Leftover material found: '残留物が見つかりました'
   Length of filament to purge: 'パージするフィラメントの長さ'
   Length of the cooling tube section: '冷却チューブ区間の長さ'
@@ -2767,6 +2794,7 @@ translations:
   List the shared screen with this printer's webcams: '共有画面をこのプリンターのウェブカメラ一覧に表示'
   Listen to all theme sounds: すべてのテーマサウンドを試聴
   Live Z-offset, with baby steps and Save: ライブ Z-Offset、微調整と保存つき
+  Live now, until Klipper restarts: "今すぐ有効、Klipper の再起動まで"
   Live view from your webcam: ウェブカメラのライブ表示
   Load: 装填
   Load Cell: 'ロードセル'
@@ -3105,6 +3133,7 @@ translations:
   Needs attention: 対応が必要
   Needs repair from a web interface: 'Webインターフェースからの修復が必要です'
   Needs the {} package to switch spools: 'スプール切り替えには {} プラグインが必要です'
+  Needs you, about {} min: "操作が必要、約{}分"
   'Needs {}x{} free: remove or shrink a widget first': 空き {}x{} が必要です。先にウィジェットを削除または縮小してください
   Net Weight (g): 正味重量（g）
   Network: ネットワーク
@@ -3135,6 +3164,7 @@ translations:
   Next Zone: "次のゾーン"
   Next Zone (~{} min): "次のゾーン(約{}分)"
   Next Layer: '次のレイヤー'
+  Next {} in {:.1f} mm: "次は {}、{:.1f} mm 先"
   Next, review the results and save them once: 次に結果を確認して一度に保存します
   Next, see what finished and why the rest did not: "次に、完了したものと残りが完了しなかった理由を確認します"
   'Next: {}': '次の印刷：{}'
@@ -3212,6 +3242,8 @@ translations:
   No mesh loaded: メッシュが読み込まれていません
   No message: 'メッセージなし'
   No multi-filament system detected: マルチフィラメントシステムが検出されません
+  No need to stay while it prints: "印刷中はそばにいる必要はありません"
+  No need to stay; this screen waits for you when the tower is done.: "そばにいる必要はありません。タワーが完成したら、この画面で待っています。"
   No network. Scan QR code to report on your phone.: ネットワークなし。QR コードをスキャンしてスマホから報告してください。
   No networks found: ネットワークが見つかりません
   No new mesh was stored as '{}': "新しいメッシュは '{}' として保存されませんでした"
@@ -3532,6 +3564,8 @@ translations:
   Partial…: 使いかけ…
   Pass: "パス"
   Pass the missing parameter from the slicer's start G-code, or give it a default in the macro.: スライサーの開始 G-code から不足しているパラメーターを渡すか、マクロに既定値を設定してください。
+  Pass {}: "パス {}"
+  Pass {} of {}: "パス {} / {}"
   'Pass {} of {}: {}': "パス {}/{}: {}"
   Passes judged before are kept and pass {} of {} is next. Start Over begins again from pass 1.: "判定済みのパスは保持され、次は{}/{}番目のパスです。「やり直す」はパス1から再開します。"
   Password: パスワード
@@ -3705,6 +3739,7 @@ translations:
   Priming nozzle...: ノズルをプライム中...
   Priming...: プライミング中...
   Print: 印刷
+  Print Again: "もう一度印刷"
   Print Anyway: それでも印刷
   Print Behavior: "印刷時の動作"
   Print Canceled: 印刷キャンセル
@@ -3826,6 +3861,7 @@ translations:
   'Printing: start after this job': '印刷中：このジョブ後に開始'
   Prints: 印刷
   Prints Trend: 印刷傾向
+  Prints on its own, about {} min: "自動で印刷、約{}分"
   'Private:': 'プライベート:'
   Probe: プローブ
   Probe Accuracy Failed: プローブ精度テスト失敗
@@ -4312,10 +4348,13 @@ translations:
   Save changes to persist them across restarts?: 再起動後も変更を保持するために保存しますか？
   'Save failed: {}': '保存に失敗しました: {}'
   Save Offsets: オフセットを保存
+  Save for {}: "{} 用に保存"
   Save offsets?: オフセットを保存しますか？
   Save the new heater values to printer.cfg?: 新しいヒーター値をprinter.cfgに保存しますか？
   Save the new heater values to printer.cfg? Klipper restarts.: 新しいヒーター値をprinter.cfgに保存しますか？Klipperが再起動します。
   Save to Config: "設定に保存"
+  Save to Config writes it to the extruder section; Klipper keeps it after a restart.: "設定に保存すると extruder セクションに書き込まれ、再起動後も Klipper が保持します。"
+  Save to Config writes them to the extruder section and restarts Klipper.: "設定に保存すると extruder セクションに書き込まれ、Klipper が再起動します。"
   Save to Spool: スプールに保存
   Save to Spoolman: Spoolman に保存
   Save to the printer config?: "プリンターの設定に保存しますか？"
@@ -4715,6 +4754,7 @@ translations:
   Start Over: "やり直す"
   Start Print: 印刷を開始
   Start Probing: プローブ開始
+  Start Tuning: "チューニングを開始"
   Start a new {} h interval? The hours counted so far are discarded.: '新しい {} 時間の間隔を開始しますか？これまでの時間は破棄されます。'
   Start anyway?: 'それでも開始しますか？'
   Start at: 開始位置
@@ -4734,6 +4774,7 @@ translations:
   Starting nozzle clean...: ノズル清掃を開始中...
   Starting print...: 印刷開始中...
   Starting the print: 印刷を開始中
+  Starting the tower: "タワーを開始中"
   Starting the update: '更新を開始しています'
   Starting {}…: '{} を開始中…'
   Starting...: 開始中...
@@ -4768,6 +4809,7 @@ translations:
   Still running; no reply after {} min: 'まだ実行中です。{}分経っても応答がありません'
   Still saving this spool…: 'このスプールはまだ保存中です…'
   Still working... taking longer than usual: まだ処理中です... 通常より時間がかかっています
+  'Still {:.1f} mm apart after {} towers: the middle, {:.1f} mm, is taken.': "{:.1f} mm の差が残ったまま、タワー {} 本: 中間の {:.1f} mm を採用します。"
   Stop: 停止
   Stop Drying: 乾燥を停止
   Stop Print?: 印刷を停止しますか？
@@ -4870,6 +4912,7 @@ translations:
   Tangle prevention boosted: 絡み防止 強化中
   'Tangle sensitivity': '絡み検出の感度'
   Tap + to add: + をタップして追加
+  Tap - or + to hold your own value; the ramp stops.: "- または + をタップして自分の値を保持します。ランプは停止します。"
   Tap Extrude more until clean filament comes out of the nozzle, then tap Done.: "ノズルからきれいなフィラメントが出るまで「さらに押し出し」をタップし、「完了」をタップしてください。"
   Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge: 「ファームウェア再起動」をタップして復旧してください。K2 では rpi MCU ブリッジも再起動されます
   Tap Resume to try the load again from {}.: '再開をタップすると、{}からもう一度ロードします。'
@@ -4879,6 +4922,7 @@ translations:
   Tap anywhere if this text is right-side up: この文字が正しい向きならどこかをタップ
   Tap anywhere to begin: どこかをタップして開始
   Tap anywhere to begin calibration: どこかをタップしてキャリブレーション開始
+  Tap the band that looks best: "一番よく見える帯をタップ"
   Tap the bed's back-left corner: ベッドの奥左の角をタップ
   Tap the bed's back-right corner: ベッドの奥右の角をタップ
   Tap the bed's front-left corner: ベッドの手前左の角をタップ
@@ -5050,6 +5094,7 @@ translations:
   ? The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled.
   : 制御ボードが要求されたステップレートに追いつけませんでした。通常、高いマイクロステップと高速の組み合わせ、またはホストの処理停止が原因です。
   The controller boards Klipper runs on. See their load in the system settings.: 'Klipperが動作するコントローラーボード。負荷はシステム設定で確認できます。'
+  The corners, from above and the side. Measure up from the plate.: "角を上と横から見ます。ベッドから上へ測ってください。"
   The curve draws in as the axis sweeps: '軸のスイープに合わせて曲線が描かれます'
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: カッターの刃が戻りませんでした。切断機構にフィラメントが巻き付いていないか確認してください
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: カッターの位置がずれています。CALIBRATE_CUT_POS で再校正してください
@@ -5133,6 +5178,7 @@ translations:
   The heater took the target.: 'ヒーターが目標温度を受け付けました。'
   The heater was turned off at the heater.: 'ヒーター本体で電源がオフにされました。'
   The heater will cycle on and off several times.: ヒーターは数回オン/オフを繰り返します。
+  The height where the left side is cleanest, then where the front is.: "左側が最もきれいな高さ、次に手前が最もきれいな高さ。"
   The helper macros are installed and activate after Klipper restarts.: 'ヘルパーマクロはインストール済みで、Klipper の再起動後に有効になります。'
   ? 'The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream.'
   : 'ホストコンピューターが制御ボードへ時間内に移動を送れませんでした。通常は過負荷が原因です: CPU やスワップの使用率が高い、SD カードが遅い、電源が不安定、またはウェブカメラの配信です。'
@@ -5542,6 +5588,7 @@ translations:
   ? This {0} looks like it has {1} ({2}% confidence), but it is set up for {3}. A wrong profile applies incorrect pre-print options and presets.
   : 'この{0}には{1}があるようです（信頼度 {2}%）が、{3}用に設定されています。誤ったプロファイルでは不正確な印刷前オプションとプリセットが適用されます。'
   Thorough: 徹底的
+  Three towers, one value each: "3 つのタワー、それぞれ 1 つの値"
   Thumbnail Only: サムネイルのみ
   'Thumbnail: ': 'サムネイル: '
   Thumbnails: 'サムネイル'
@@ -5594,6 +5641,8 @@ translations:
   Toggle toolhead LED for an extruder: 'エクストルーダーのツールヘッドLEDを切り替え'
   'Toggle:': '切り替え:'
   Too humid: 湿度が高すぎます
+  Too little: "少なすぎ"
+  Too much: "多すぎ"
   Too much filament for one move: 1 回の移動のフィラメント量が多すぎます
   Tool: ツール
   Tool Change Failed: 'ツール変更に失敗しました'
@@ -5671,6 +5720,7 @@ translations:
   Tune: チューニング
   Tune Belts: "ベルト調整"
   Tune the motors to remove fine vertical lines: 'モーターを調整して細かい垂直の線を除去'
+  Tuned: "調整済み"
   Tuner: 調整
   Tuning tower enabled - start a print to test: チューニングタワー有効 - 印刷を開始してテストしてください
   Turbo: ターボ
@@ -5685,6 +5735,7 @@ translations:
   Turn On: オンにする
   Turn On LEDs: 'LEDを点灯'
   Turn On Toolhead LED: "ツールヘッドLEDを点灯"
+  Turn it off in the slicer: "スライサーでオフにする"
   Turn off arc fitting in the slicer and slice the file again.: スライサーで円弧フィッティングをオフにして、ファイルをスライスし直してください。
   Turn off arc fitting in the slicer, then slice the file again.: 'スライサーでアークフィッティングをオフにしてから、ファイルを再スライスしてください。'
   Turn off bed check: 'ベッドチェックをオフにする'
@@ -5850,6 +5901,7 @@ translations:
   Value must be between {} and {}: 値は {} から {} の間で入力してください
   Values: "値"
   Values must not be negative: 値は負の数にできません
+  Velocity: "速度"
   Velocity and acceleration limits: 速度と加速度の制限
   Vendor: ベンダー
   Vendor Name: ベンダー名
@@ -5957,6 +6009,7 @@ translations:
   When this spool runs out, printing continues from {}.: 'このスプールが切れると、{}から印刷を続行します。'
   When this spool runs out, the print pauses.: 'このスプールが切れると、印刷を一時停止します。'
   Where UI sounds play: UIサウンドの再生先
+  Where to look: "見る場所"
   Whether filament is loaded: フィラメントの装填状態
   Which macro switches the ACE path back on: 'ACE経路を再びオンにするマクロ'
   Which macro switches the ACE path off for bypass: 'バイパスのためにACE経路をオフにするマクロ'
@@ -6065,6 +6118,7 @@ translations:
   Your printer's firmware manages its configuration, so set these values there.: 'プリンターの設定はファームウェアが管理しているため、これらの値はファームウェア側で設定してください。'
   Your printer's manual has the parts and lubricant for your model.: "部品と潤滑剤はプリンターのマニュアルで確認できます。"
   Your usual build plate is on: 'いつものビルドプレートが載っている'
+  Your value holds to the top: "あなたの値は最上部まで維持されます"
   Your {0} is set up for {1}, but it looks stock.: 'お使いの{0}は{1}用に設定されていますが、標準状態のようです。'
   Your {0} looks like it has {1}, but it is set up for {2}.: 'お使いの{0}には{1}があるようですが、{2}用に設定されています。'
   Your {0} looks like it has {1}, but it is set up as stock.: 'お使いの{0}には{1}があるようですが、標準状態として設定されています。'
@@ -6148,6 +6202,7 @@ translations:
   'bed: distance unknown': "ベッド：距離不明"
   'bed: distance unknown until the paper drags': "ベッド：紙が引っかかるまで距離不明"
   buffer|Neutral: 中央
+  bulge: "膨らみ"
   busy: 'ビジー状態'
   by: '作成者:'
   by Preston Brown: by Preston Brown
@@ -6188,6 +6243,7 @@ translations:
   extruder(s): エクストルーダー
   extruders: エクストルーダー
   fans: ファン
+  fast: "速い"
   faulted: エラー発生
   feeder error: 'フィーダーエラー'
   feeder not in automatic mode: 'フィーダーが自動モードではありません'
@@ -6201,6 +6257,7 @@ translations:
   heats nozzle: ノズルを加熱
   heats nozzle + bed: ノズル + ベッドを加熱
   heats to {}: '{}まで加熱'
+  held to the top: "最上部まで維持"
   'helixscreen.env ignored: owned by uid {}': 'helixscreen.env は無視されました：uid {} が所有しています'
   'helixscreen.env ignored: untrusted symlink chain': 'helixscreen.env は無視されました：信頼できないシンボリックリンクチェーンです'
   'helixscreen.env ignored: writable by other users': 'helixscreen.env は無視されました：他のユーザーが書き込み可能です'
@@ -6226,6 +6283,7 @@ translations:
   matched: 一致
   material differs: '素材が異なる'
   measured {}: '{} に測定'
+  medium: "中"
   'method: {}': '方式: {}'
   mm: mm
   mm Z-offset: mm Z-Offset
@@ -6252,6 +6310,7 @@ translations:
   Monitor for print abnormalities (K2 Plus camera-based): 印刷異常を監視 (K2 Plus カメラベース)
   Monitor for print abnormalities (camera-based): '印刷異常を監視 (カメラベース)'
   on unit {}: 'ユニット {}'
+  one look at each tower: "各タワーを 1 回確認"
   one restart: 再起動1回
   optional: 任意
   or type a macro name: またはマクロ名を入力
@@ -6260,6 +6319,8 @@ translations:
   passive: パッシブ
   past last time: "前回を超過"
   past last time’s position: "前回の位置を超過"
+  pause: "一時停止"
+  pick the band: "帯を選ぶ"
   plate must be clear: プレートを空にしてください
   preparing: 準備中
   ? pressure_advance is set for this extruder somewhere the save did not reach, such as another included file. Comment it out there and save again.
@@ -6282,6 +6343,7 @@ translations:
   similar color: 近い色
   sleep {} min: '{}分でスリープ'
   slots): スロット)
+  slow: "遅い"
   start position: "開始位置"
   started: 開始
   steppers: ステッパー
@@ -6300,6 +6362,7 @@ translations:
   the printer refused it: "プリンターが拒否しました"
   the right belt: "右ベルト"
   the upper belt: "上ベルト"
+  thin: "薄い"
   this printer fills its gates from Spoolman, so change the spool there: "このプリンターはゲートを Spoolman から取得するため、スプールは Spoolman で変更してください"
   this week: 今週
   too slow: 遅すぎ
@@ -6314,6 +6377,7 @@ translations:
   v{} is available. Tap to update.: v{} が利用可能です。タップして更新してください。
   waiting for the printer: "プリンター待ち"
   was {:.0f}%: '以前は {:.0f}%'
+  was {}: "変更前 {}"
   what you turned: "回した量"
   within one bin: "1ビン以内"
   wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant が動作していません。WiFi 機能は利用できません。
@@ -6337,6 +6401,7 @@ translations:
   '{:.0f} g of {} · {}%': '{:.0f} g / {} · {}%'
   '{:.0f}-{:.0f} Hz sweep': '{:.0f}-{:.0f} Hz スイープ'
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · 約{}分'
+  '{:.1f} to {:.1f} mm': "{:.1f} ～ {:.1f} mm"
   '{:.2f} mm range': '範囲 {:.2f} mm'
   '{} ({})': '{}（{}）'
   '{} Extruders': '{} エクストルーダー'
@@ -6357,6 +6422,7 @@ translations:
   '{} available': '{} が利用可能'
   '{} axes homed': '{} 軸がホーミング済み'
   '{} axis homed': '{} 軸がホーミング済み'
+  '{} bands, {} apart. Prints a {:.0f} mm square, {:.0f} mm tall.': "{} 帯、間隔 {}。{:.0f} mm 角、高さ {:.0f} mm で印刷します。"
   "{} can't refill automatically": '{} は自動補充できません'
   '{} cannot be skipped: its name has characters the printer cannot be sent': '{} は除外できません: 名前にプリンターへ送信できない文字が含まれています'
   '{} cannot be stored on this printer.': "{} はこのプリンターに保存できません。"

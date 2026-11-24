@@ -575,6 +575,8 @@ translations:
   Backup Toolhead: 备用工具头
   Backup lane name contains invalid characters: '备用耗材通道名称包含无效字符'
   Balanced: 平衡
+  Band: "条带"
+  Band {}: "条带 {}"
   Barcode Scanner: 条码扫描器
   Base: 基准
   Based on the newest {} prints: '基于最近 {} 次打印'
@@ -625,6 +627,7 @@ translations:
   Bed {} °C: "热床 {} °C"
   Before: '之前'
   Before starting: '开始之前'
+  Before the test: "测试之前"
   Before you start: 开始之前
   Below target: 低于目标
   Belt Tension: 皮带张力
@@ -640,6 +643,7 @@ translations:
   Belts stretch and settle; loose ones cause ringing and layer shifts.: "皮带会拉伸松弛；过松会导致振纹和层错位。"
   Best height: "最佳高度"
   Best height, measured up from the plate: "最佳高度（从热床向上测量）"
+  Best height, up from the plate: "最佳高度（距热床）"
   Beta: 测试版
   'Beta features: OFF': '测试版功能: 关'
   'Beta features: ON': '测试版功能: 开'
@@ -1067,6 +1071,8 @@ translations:
   Clear extruder only: '只清空挤出机'
   Clear failed: 清除失败
   Clear head T{1}'s filament path (a cold pull works), then resume.: 请清理工具头 T{1} 的耗材通路（可用冷拉），然后恢复。
+  Clear pressure advance in your slicer's filament profile. A slicer that sets it overwrites this value at every print.: "请在切片软件的耗材配置中清除压力提前。设置了它的切片软件会在每次打印时覆盖此值。"
+  Clear pressure advance in your slicer's filament profile. A slicer that sets it replaces these values at every print.: "请在切片软件的耗材配置中清除压力提前。设置了它的切片软件会在每次打印时覆盖这些值。"
   ? Clear the area above and below the plate. Lay the spools on the plate, cover them with a box (a printed lid or the filament's packaging) and close the door.
 
   : 清空热床上方和下方的区域。把料盘放在热床上,用盒子(打印的盖子或耗材的包装盒)罩住,然后关好门。
@@ -1306,6 +1312,8 @@ translations:
   "Setup, navigation and gestures": "设置、导航和手势"
   "Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman.": "点击槽位可加载或卸载、选择料盘或编辑详情。您的编辑会与打印机和 Spoolman 保持同步。"
   Unload stopped: '卸载已停止'
+  Use {:.1f} mm: "使用 {:.1f} mm"
+  Use {}: "使用 {}"
   Used when a material has no entry: "材料没有条目时使用"
   "User Guide": "用户指南"
   "Your filament system": "您的耗材系统"
@@ -1607,6 +1615,7 @@ translations:
   : 每次校正都让探测点之间的差值变大：Z 电机对应的角落配置错误，或探针重复性差。
   Each fan can only be selected once: 每个风扇只能选择一次
   Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: '此打印机的每个工具头都有自己的 Z 偏移。请改用工具偏移校准。'
+  Each tap sets a new value from this layer up.: "每次点按都会从这一层起设置新值。"
   Edit: 编辑
   Edit Filament: 编辑耗材
   Edit Slot: 编辑槽位
@@ -2150,6 +2159,12 @@ translations:
   Front: '前'
   Front Left: '左前'
   Front Right: '右前'
+  Front best height: "前面最佳高度"
+  'Front, lit from far left or right: the slow middle, the pause, the slow spot. Very subtle.': "前面，从最左侧或最右侧打光：慢速中段、暂停、慢速点。非常细微。"
+  'Front, lit from far left or right: where do the marked spots look cleanest?': "前面，从最左侧或最右侧打光：标记的点在哪里看起来最干净？"
+  Front, lit from the side: "前面，从侧面打光"
+  'Front: the edges of the slow middle, the pause and the slow spot.': "前面：慢速中段的边缘、暂停和慢速点。"
+  'Front: where do the marked spots look cleanest?': "前面：标记的点在哪里看起来最干净？"
   Full: 完整
   G-code Console: G-code 控制台
   G-code Preview: G-code 预览
@@ -2605,6 +2620,7 @@ translations:
   Keep Tuning: "继续调整"
   Keep the rotation distance sync feedback tunes: "保存同步反馈调校的旋转距离"
   Keep waiting: '继续等待'
+  Keep {}: "保留 {}"
   'Kept {}: a print started.': '已保留 {}：打印已开始。'
   Kick away: '拨除废料'
   Kinematics: 运动学
@@ -2732,7 +2748,18 @@ translations:
   Left: '左'
   Left Best Higher: "左侧更高"
   Left Best Lower: "左侧更低"
+  'Left and front agree: {:.1f} mm is the answer.': "左侧与前面一致：{:.1f} mm 即为结果。"
   Left belt: "左皮带"
+  Left side: "左侧"
+  Left side against the front: "左侧与前面对比"
+  Left side and front, each at its slow edges. Each comes out clean at its own height; they should match.: "左侧与前面，各自在慢速边缘处。各自在自己的高度最干净，两者应当一致。"
+  'Left side {:.1f} mm higher: the next tower lowers the advance 10%.': "左侧高 {:.1f} mm：下一个测试塔将压力提前降低 10%。"
+  'Left side {:.1f} mm higher: the next tower raises the offset 10%.': "左侧高 {:.1f} mm：下一个测试塔将偏移提高 10%。"
+  'Left side {:.1f} mm lower: the next tower lowers the offset 10%.': "左侧低 {:.1f} mm：下一个测试塔将偏移降低 10%。"
+  'Left side {:.1f} mm lower: the next tower raises the advance 10%.': "左侧低 {:.1f} mm：下一个测试塔将压力提前提高 10%。"
+  'Left side: at what height do the edges of the slow middle look cleanest?': "左侧：慢速中段的边缘在什么高度看起来最干净？"
+  'Left side: the two edges of the slow middle, 5 mm either side of center.': "左侧：慢速中段的两条边缘，中心两侧各 5 mm。"
+  "Left: the slow middle's edges": "左：慢速中段的边缘"
   Leftover material found: '发现残留材料'
   Length of filament to purge: '要排出的耗材长度'
   Length of the cooling tube section: '冷却管段的长度'
@@ -2767,6 +2794,7 @@ translations:
   List the shared screen with this printer's webcams: '在此打印机的摄像头列表中显示共享屏幕'
   Listen to all theme sounds: 试听所有主题声音
   Live Z-offset, with baby steps and Save: 实时 Z 偏移，支持微调与保存
+  Live now, until Klipper restarts: "立即生效，直到 Klipper 重启"
   Live view from your webcam: 摄像头实时画面
   Load: 加载
   Load Cell: '称重传感器'
@@ -3105,6 +3133,7 @@ translations:
   Needs attention: 需要处理
   Needs repair from a web interface: '需要通过网页界面修复'
   Needs the {} package to switch spools: '切换料盘需要 {} 插件'
+  Needs you, about {} min: "需要你，约 {} 分钟"
   'Needs {}x{} free: remove or shrink a widget first': 需要 {}x{} 空位。请先移除或缩小小组件
   Net Weight (g): 净重（克）
   Network: 网络
@@ -3135,6 +3164,7 @@ translations:
   Next Zone: "下一区间"
   Next Zone (~{} min): "下一区间(约 {} 分钟)"
   Next Layer: '下一层'
+  Next {} in {:.1f} mm: "下一个 {}：{:.1f} mm 后"
   Next, review the results and save them once: 接下来检查结果并一次保存
   Next, see what finished and why the rest did not: "接下来，查看哪些已完成，以及其余为何未完成"
   'Next: {}': '下一个：{}'
@@ -3212,6 +3242,8 @@ translations:
   No mesh loaded: 未加载网格
   No message: '无消息'
   No multi-filament system detected: 未检测到多耗材系统
+  No need to stay while it prints: "打印期间无需守候"
+  No need to stay; this screen waits for you when the tower is done.: "无需守候；测试塔完成后，此界面会等你回来。"
   No network. Scan QR code to report on your phone.: 无网络。扫描二维码在手机上报告。
   No networks found: 未找到网络
   No new mesh was stored as '{}': "没有新的网格保存为 '{}'"
@@ -3532,6 +3564,8 @@ translations:
   Partial…: 部分…
   Pass: "轮次"
   Pass the missing parameter from the slicer's start G-code, or give it a default in the macro.: 请在切片软件的起始 G-code 中传入缺少的参数，或在宏中为其设置默认值。
+  Pass {}: "第 {} 轮"
+  Pass {} of {}: "第 {} 轮，共 {} 轮"
   'Pass {} of {}: {}': "轮次 {}/{}：{}"
   Passes judged before are kept and pass {} of {} is next. Start Over begins again from pass 1.: "已评判的轮次会保留，下一轮是第 {} 轮（共 {} 轮）。重新开始将从第 1 轮开始。"
   Password: 密码
@@ -3705,6 +3739,7 @@ translations:
   Priming nozzle...: 正在预挤喷嘴...
   Priming...: 正在预挤...
   Print: 打印
+  Print Again: "再次打印"
   Print Anyway: 仍要打印
   Print Behavior: "打印行为"
   Print Canceled: 打印已取消
@@ -3826,6 +3861,7 @@ translations:
   'Printing: start after this job': '打印中：本次打印完成后开始'
   Prints: 打印次数
   Prints Trend: 打印趋势
+  Prints on its own, about {} min: "自动打印，约 {} 分钟"
   'Private:': 私有：
   Probe: 探针
   Probe Accuracy Failed: 探针精度测试失败
@@ -4312,10 +4348,13 @@ translations:
   Save changes to persist them across restarts?: 保存更改以便在重启后保留？
   'Save failed: {}': '保存失败: {}'
   Save Offsets: 保存偏移
+  Save for {}: "为 {} 保存"
   Save offsets?: 保存偏移？
   Save the new heater values to printer.cfg?: 将新的加热器参数保存到printer.cfg？
   Save the new heater values to printer.cfg? Klipper restarts.: 将新的加热器参数保存到printer.cfg？Klipper将重启。
   Save to Config: "保存到配置"
+  Save to Config writes it to the extruder section; Klipper keeps it after a restart.: "保存到配置会将其写入挤出机配置段；重启后 Klipper 仍会保留。"
+  Save to Config writes them to the extruder section and restarts Klipper.: "保存到配置会将其写入挤出机配置段并重启 Klipper。"
   Save to Spool: 保存到料盘
   Save to Spoolman: 保存到 Spoolman
   Save to the printer config?: "保存到打印机配置？"
@@ -4715,6 +4754,7 @@ translations:
   Start Over: "重新开始"
   Start Print: 开始打印
   Start Probing: 开始探测
+  Start Tuning: "开始调校"
   Start a new {} h interval? The hours counted so far are discarded.: '开始新的 {} 小时间隔？目前累计的小时数将被清除。'
   Start anyway?: '仍要开始吗？'
   Start at: 从第
@@ -4734,6 +4774,7 @@ translations:
   Starting nozzle clean...: 正在开始清洁喷嘴...
   Starting print...: 正在启动打印...
   Starting the print: 正在开始打印
+  Starting the tower: "正在启动测试塔"
   Starting the update: '正在开始更新'
   Starting {}…: '正在开始 {}…'
   Starting...: 正在启动...
@@ -4768,6 +4809,7 @@ translations:
   Still running; no reply after {} min: '仍在运行；{} 分钟无响应'
   Still saving this spool…: '此料盘仍在保存中…'
   Still working... taking longer than usual: 仍在处理……耗时比平常更长
+  'Still {:.1f} mm apart after {} towers: the middle, {:.1f} mm, is taken.': "仍相差 {:.1f} mm，已测 {} 个测试塔：取中间值 {:.1f} mm。"
   Stop: 停止
   Stop Drying: 停止干燥
   Stop Print?: 停止打印？
@@ -4870,6 +4912,7 @@ translations:
   Tangle prevention boosted: 防打结已增强
   'Tangle sensitivity': '打结灵敏度'
   Tap + to add: 点击 + 添加
+  Tap - or + to hold your own value; the ramp stops.: "点按 - 或 + 以保持你自己的值；渐变将停止。"
   Tap Extrude more until clean filament comes out of the nozzle, then tap Done.: "点击“继续挤出”直到喷嘴流出干净的耗材，然后点击“完成”。"
   Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge: 点按“重启固件”以恢复。在 K2 上这也会重启 rpi MCU 桥接
   Tap Resume to try the load again from {}.: '点按恢复，从{}重新尝试装载。'
@@ -4879,6 +4922,7 @@ translations:
   Tap anywhere if this text is right-side up: 如果文字方向正确请点击任意位置
   Tap anywhere to begin: 点击任意位置开始
   Tap anywhere to begin calibration: 点击任意位置开始校准
+  Tap the band that looks best: "点按看起来最好的条带"
   Tap the bed's back-left corner: 点击热床的左后角
   Tap the bed's back-right corner: 点击热床的右后角
   Tap the bed's front-left corner: 点击热床的左前角
@@ -5050,6 +5094,7 @@ translations:
   ? The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled.
   : 控制板跟不上所要求的步进速率，通常是高细分配合高速度，或主机卡顿。
   The controller boards Klipper runs on. See their load in the system settings.: '运行 Klipper 的控制板。在系统设置中查看其负载。'
+  The corners, from above and the side. Measure up from the plate.: "从上方和侧面观察拐角。从热床向上测量。"
   The curve draws in as the axis sweeps: '曲线随轴扫描绘制'
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: 切刀未复位。请检查切刀机构上是否缠绕耗材
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: 切刀未对准。请使用 CALIBRATE_CUT_POS 重新校准
@@ -5133,6 +5178,7 @@ translations:
   The heater took the target.: '加热器已接受目标温度。'
   The heater was turned off at the heater.: '加热器已在加热器本身上关闭。'
   The heater will cycle on and off several times.: 加热器将多次开关循环。
+  The height where the left side is cleanest, then where the front is.: "左侧最干净的高度，然后是前面最干净的高度。"
   The helper macros are installed and activate after Klipper restarts.: '帮助宏已安装，将在 Klipper 重启后启用。'
   ? 'The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream.'
   : 主机未能及时向控制板发送移动指令，通常是因为负载过高：CPU 或交换空间占用高、SD 卡太慢、电源不稳，或正在推送摄像头视频流。
@@ -5542,6 +5588,7 @@ translations:
   ? This {0} looks like it has {1} ({2}% confidence), but it is set up for {3}. A wrong profile applies incorrect pre-print options and presets.
   : '此 {0} 似乎装有 {1}（置信度 {2}%），但当前设置为 {3}。错误的配置会应用不正确的打印前选项和预设。'
   Thorough: 全面
+  Three towers, one value each: "三个测试塔，各取一个值"
   Thumbnail Only: 仅缩略图
   'Thumbnail: ': '缩略图: '
   Thumbnails: '缩略图'
@@ -5594,6 +5641,8 @@ translations:
   Toggle toolhead LED for an extruder: '切换某个挤出机的工具头 LED'
   'Toggle:': '切换:'
   Too humid: 湿度过高
+  Too little: "太少"
+  Too much: "太多"
   Too much filament for one move: 单次移动的耗材过多
   Tool: 工具
   Tool Change Failed: '工具切换失败'
@@ -5671,6 +5720,7 @@ translations:
   Tune: 调优
   Tune Belts: "调整皮带"
   Tune the motors to remove fine vertical lines: '调整电机以消除细小的垂直纹路'
+  Tuned: "已调校"
   Tuner: 调校
   Tuning tower enabled - start a print to test: 调优塔已启用 - 开始打印以测试
   Turbo: 极速
@@ -5685,6 +5735,7 @@ translations:
   Turn On: 开启
   Turn On LEDs: '打开 LED'
   Turn On Toolhead LED: "打开工具头 LED"
+  Turn it off in the slicer: "在切片软件中关闭"
   Turn off arc fitting in the slicer and slice the file again.: 请在切片软件中关闭圆弧拟合，然后重新切片。
   Turn off arc fitting in the slicer, then slice the file again.: '请在切片软件中关闭 Arc fitting（圆周拟合），然后重新切片。'
   Turn off bed check: '关闭热床检查'
@@ -5850,6 +5901,7 @@ translations:
   Value must be between {} and {}: 值必须在 {} 到 {} 之间
   Values: "数值"
   Values must not be negative: 值不能为负数
+  Velocity: "速度"
   Velocity and acceleration limits: 速度和加速度限制
   Vendor: 供应商
   Vendor Name: 供应商名称
@@ -5957,6 +6009,7 @@ translations:
   When this spool runs out, printing continues from {}.: '此料盘用尽时，将从{}继续打印。'
   When this spool runs out, the print pauses.: '此料盘用尽时，打印将暂停。'
   Where UI sounds play: 界面声音的播放位置
+  Where to look: "观察位置"
   Whether filament is loaded: 耗材是否已装载
   Which macro switches the ACE path back on: '重新开启ACE通路的宏'
   Which macro switches the ACE path off for bypass: '为旁路关闭ACE通路的宏'
@@ -6065,6 +6118,7 @@ translations:
   Your printer's firmware manages its configuration, so set these values there.: '打印机的配置由其固件管理，请在固件中设置这些值。'
   Your printer's manual has the parts and lubricant for your model.: "打印机手册列有适合您机型的部件和润滑剂。"
   Your usual build plate is on: '已放上常用的打印板'
+  Your value holds to the top: "你的值保持到顶部"
   Your {0} is set up for {1}, but it looks stock.: '您的 {0} 设置为 {1}，但看起来是原厂状态。'
   Your {0} looks like it has {1}, but it is set up for {2}.: '您的 {0} 似乎装有 {1}，但设置为 {2}。'
   Your {0} looks like it has {1}, but it is set up as stock.: '您的 {0} 似乎装有 {1}，但当前设置为原厂状态。'
@@ -6148,6 +6202,7 @@ translations:
   'bed: distance unknown': "热床：距离未知"
   'bed: distance unknown until the paper drags': "热床：纸张有阻力前距离未知"
   buffer|Neutral: 中位
+  bulge: "鼓包"
   busy: '正忙'
   by: '作者：'
   by Preston Brown: by Preston Brown
@@ -6188,6 +6243,7 @@ translations:
   extruder(s): 挤出机
   extruders: 挤出机
   fans: 风扇
+  fast: "快速"
   faulted: 出错
   feeder error: '送料器错误'
   feeder not in automatic mode: '送料器未处于自动模式'
@@ -6201,6 +6257,7 @@ translations:
   heats nozzle: 加热喷嘴
   heats nozzle + bed: 加热喷嘴 + 热床
   heats to {}: 加热至 {}
+  held to the top: "保持到顶部"
   'helixscreen.env ignored: owned by uid {}': '已忽略 helixscreen.env：属主为 uid {}'
   'helixscreen.env ignored: untrusted symlink chain': '已忽略 helixscreen.env：符号链接链不受信任'
   'helixscreen.env ignored: writable by other users': '已忽略 helixscreen.env：其他用户可写入'
@@ -6226,6 +6283,7 @@ translations:
   matched: 匹配
   material differs: '材料不同'
   measured {}: 测量于 {}
+  medium: "中速"
   'method: {}': 方法：{}
   mm: mm
   mm Z-offset: mm Z 偏移
@@ -6252,6 +6310,7 @@ translations:
   Monitor for print abnormalities (K2 Plus camera-based): 监测打印异常（基于 K2 Plus 摄像头）
   Monitor for print abnormalities (camera-based): '监测打印异常（基于摄像头）'
   on unit {}: '在单元 {}'
+  one look at each tower: "每个测试塔看一眼"
   one restart: 重启一次
   optional: 可选
   or type a macro name: 或输入宏名称
@@ -6260,6 +6319,8 @@ translations:
   passive: 被动
   past last time: "超过上次位置"
   past last time’s position: "超过上次的位置"
+  pause: "暂停"
+  pick the band: "选择条带"
   plate must be clear: 打印板必须清空
   preparing: 准备中
   ? pressure_advance is set for this extruder somewhere the save did not reach, such as another included file. Comment it out there and save again.
@@ -6282,6 +6343,7 @@ translations:
   similar color: 相近颜色
   sleep {} min: '{} 分钟后休眠'
   slots): 个槽位)
+  slow: "慢速"
   start position: "起始位置"
   started: 已启动
   steppers: 步进电机
@@ -6300,6 +6362,7 @@ translations:
   the printer refused it: "打印机拒绝了"
   the right belt: "右皮带"
   the upper belt: "上皮带"
+  thin: "偏薄"
   this printer fills its gates from Spoolman, so change the spool there: "此打印机的通道信息来自 Spoolman，请在 Spoolman 中更改料盘"
   this week: 本周
   too slow: 太慢
@@ -6314,6 +6377,7 @@ translations:
   v{} is available. Tap to update.: v{} 可用。点击以更新。
   waiting for the printer: "正在等待打印机"
   was {:.0f}%: '原为 {:.0f}%'
+  was {}: "原为 {}"
   what you turned: "你转动的量"
   within one bin: "在一个频点内"
   wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant 未运行。WiFi 功能不可用。
@@ -6337,6 +6401,7 @@ translations:
   '{:.0f} g of {} · {}%': '{:.0f} g / {} · {}%'
   '{:.0f}-{:.0f} Hz sweep': '{:.0f}-{:.0f} Hz 扫频'
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · 约 {} 分钟'
+  '{:.1f} to {:.1f} mm': "{:.1f} 至 {:.1f} mm"
   '{:.2f} mm range': '范围 {:.2f} mm'
   '{} ({})': '{}（{}）'
   '{} Extruders': '{} 个挤出机'
@@ -6357,6 +6422,7 @@ translations:
   '{} available': '{} 可用'
   '{} axes homed': '{} 轴已归位'
   '{} axis homed': '{} 轴已归位'
+  '{} bands, {} apart. Prints a {:.0f} mm square, {:.0f} mm tall.': "{} 条带，间隔 {}。打印 {:.0f} mm 见方、高 {:.0f} mm 的塔。"
   "{} can't refill automatically": '{} 无法自动续料'
   '{} cannot be skipped: its name has characters the printer cannot be sent': '无法排除 {}：名称包含无法发送到打印机的字符'
   '{} cannot be stored on this printer.': "{} 无法保存在这台打印机上。"

@@ -631,6 +631,8 @@ translations:
   Backup Toolhead: Резервная печатающая головка
   Backup lane name contains invalid characters: 'Имя резервного канала содержит недопустимые символы'
   Balanced: Сбалансирован
+  Band: "Полоса"
+  Band {}: "Полоса {}"
   Barcode Scanner: Сканер штрих-кодов
   Base: Опорный
   Based on the newest {} prints: 'По последним печатям ({})'
@@ -681,6 +683,7 @@ translations:
   Bed {} °C: "Стол {} °C"
   Before: 'До'
   Before starting: 'Перед началом'
+  Before the test: "Перед тестом"
   Before you start: Перед началом
   Below target: Ниже цели
   Belt Tension: Натяжение ремня
@@ -696,6 +699,7 @@ translations:
   Belts stretch and settle; loose ones cause ringing and layer shifts.: "Ремни растягиваются и садятся; слабые вызывают рябь и смещение слоёв."
   Best height: "Лучшая высота"
   Best height, measured up from the plate: "Лучшая высота, отсчитанная от стола"
+  Best height, up from the plate: "Лучшая высота от стола"
   Beta: Бета
   'Beta features: OFF': 'Beta-функции: ВЫКЛ'
   'Beta features: ON': 'Beta-функции: ВКЛ'
@@ -1123,6 +1127,8 @@ translations:
   Clear extruder only: 'Только очистить экструдер'
   Clear failed: Ошибка очистки
   Clear head T{1}'s filament path (a cold pull works), then resume.: Очистите путь филамента головки T{1} (поможет холодная протяжка), затем продолжите.
+  Clear pressure advance in your slicer's filament profile. A slicer that sets it overwrites this value at every print.: "Очистите Pressure Advance в профиле филамента слайсера. Слайсер, который его задаёт, перезаписывает это значение при каждой печати."
+  Clear pressure advance in your slicer's filament profile. A slicer that sets it replaces these values at every print.: "Очистите Pressure Advance в профиле филамента слайсера. Слайсер, который его задаёт, перезаписывает эти значения при каждой печати."
   ? Clear the area above and below the plate. Lay the spools on the plate, cover them with a box (a printed lid or the filament's packaging) and close the door.
 
   : Освободите место над столом и под ним. Положите катушки на стол, накройте их коробкой (напечатанной крышкой или упаковкой филамента) и закройте дверцу.
@@ -1366,6 +1372,8 @@ translations:
   "Setup, navigation and gestures": "Настройка, навигация и жесты"
   "Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman.": "Нажмите на слот, чтобы загрузить или выгрузить его, выбрать катушку или изменить данные. Ваши правки остаются согласованными с принтером и Spoolman."
   Unload stopped: 'Выгрузка остановлена'
+  Use {:.1f} mm: "Использовать {:.1f} mm"
+  Use {}: "Использовать {}"
   Used when a material has no entry: "Используется, если у материала нет записи"
   "User Guide": "Руководство пользователя"
   "Your filament system": "Ваша система филамента"
@@ -1667,6 +1675,7 @@ translations:
   : 'Каждая коррекция увеличивала разницу между точками зондирования: моторы Z назначены не тем углам или зонд неточен.'
   Each fan can only be selected once: Каждый вентилятор можно выбрать только один раз
   Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: 'У каждой печатающей головки на этом принтере своё Z-смещение. Используйте калибровку смещений инструментов.'
+  Each tap sets a new value from this layer up.: "Каждое касание задаёт новое значение начиная с этого слоя."
   Edit: Редактировать
   Edit Filament: Редактировать филамент
   Edit Slot: Редактировать слот
@@ -2214,6 +2223,12 @@ translations:
   Front: 'Спереди'
   Front Left: 'Спереди слева'
   Front Right: 'Спереди справа'
+  Front best height: "Лучшая высота спереди"
+  'Front, lit from far left or right: the slow middle, the pause, the slow spot. Very subtle.': "Спереди, свет сильно слева или справа: медленная середина, пауза, медленное место. Едва заметно."
+  'Front, lit from far left or right: where do the marked spots look cleanest?': "Спереди, свет сильно слева или справа: где отмеченные места выглядят чище всего?"
+  Front, lit from the side: "Спереди, свет сбоку"
+  'Front: the edges of the slow middle, the pause and the slow spot.': "Спереди: края медленной середины, пауза и медленное место."
+  'Front: where do the marked spots look cleanest?': "Спереди: где отмеченные места выглядят чище всего?"
   Full: Полный
   G-code Console: Консоль G-code
   G-code Preview: Просмотр G-code
@@ -2669,6 +2684,7 @@ translations:
   Keep Tuning: Продолжить
   Keep the rotation distance sync feedback tunes: "Сохранять дистанцию вращения, подобранную обратной связью синхронизации"
   Keep waiting: 'Продолжить ожидание'
+  Keep {}: "Оставить {}"
   'Kept {}: a print started.': '{} оставлен: началась печать.'
   Kick away: 'Сброс остатка'
   Kinematics: Кинематика
@@ -2796,7 +2812,18 @@ translations:
   Left: 'Слева'
   Left Best Higher: "Слева выше"
   Left Best Lower: "Слева ниже"
+  'Left and front agree: {:.1f} mm is the answer.': "Слева и спереди совпадают: ответ {:.1f} mm."
   Left belt: "Левый ремень"
+  Left side: "Левая сторона"
+  Left side against the front: "Левая сторона и передняя"
+  Left side and front, each at its slow edges. Each comes out clean at its own height; they should match.: "Левая сторона и передняя, каждая на своих медленных краях. Каждая получается чистой на своей высоте; они должны совпадать."
+  'Left side {:.1f} mm higher: the next tower lowers the advance 10%.': "Левая сторона на {:.1f} mm выше: следующая башня снижает Pressure Advance на 10%."
+  'Left side {:.1f} mm higher: the next tower raises the offset 10%.': "Левая сторона на {:.1f} mm выше: следующая башня повышает смещение на 10%."
+  'Left side {:.1f} mm lower: the next tower lowers the offset 10%.': "Левая сторона на {:.1f} mm ниже: следующая башня снижает смещение на 10%."
+  'Left side {:.1f} mm lower: the next tower raises the advance 10%.': "Левая сторона на {:.1f} mm ниже: следующая башня повышает Pressure Advance на 10%."
+  'Left side: at what height do the edges of the slow middle look cleanest?': "Левая сторона: на какой высоте края медленной середины выглядят чище всего?"
+  'Left side: the two edges of the slow middle, 5 mm either side of center.': "Левая сторона: два края медленной середины, по 5 mm в обе стороны от центра."
+  "Left: the slow middle's edges": "Слева: края медленной середины"
   Leftover material found: 'Обнаружены остатки материала'
   Length of filament to purge: 'Длина филамента для прочистки'
   Length of the cooling tube section: 'Длина участка трубки охлаждения'
@@ -2831,6 +2858,7 @@ translations:
   List the shared screen with this printer's webcams: 'Показывать общий экран среди веб-камер этого принтера'
   Listen to all theme sounds: Прослушать все звуки темы
   Live Z-offset, with baby steps and Save: Z-смещение в реальном времени, с подстройкой и сохранением
+  Live now, until Klipper restarts: "Действует сейчас, до перезапуска Klipper"
   Live view from your webcam: Прямая трансляция с веб-камеры
   Load: Загрузить
   Load Cell: 'Тензодатчик'
@@ -3169,6 +3197,7 @@ translations:
   Needs attention: Требует внимания
   Needs repair from a web interface: 'Требуется восстановление через веб-интерфейс'
   Needs the {} package to switch spools: 'Для смены катушки нужен плагин {}'
+  Needs you, about {} min: "Нужны вы, около {} мин"
   'Needs {}x{} free: remove or shrink a widget first': 'Требуется {}x{} свободного места: сначала удалите или уменьшите виджет'
   Net Weight (g): Вес нетто (г)
   Network: Сеть
@@ -3199,6 +3228,7 @@ translations:
   Next Zone: "Следующая зона"
   Next Zone (~{} min): "След. зона (~{} мин)"
   Next Layer: 'Следующий слой'
+  Next {} in {:.1f} mm: "Далее {} через {:.1f} mm"
   Next, review the results and save them once: Далее проверьте результаты и сохраните их один раз
   Next, see what finished and why the rest did not: "Далее: посмотрите, что завершилось и почему остальное нет"
   'Next: {}': 'Далее: {}'
@@ -3276,6 +3306,8 @@ translations:
   No mesh loaded: Сетка не загружена
   No message: 'Нет сообщения'
   No multi-filament system detected: Мультифиламентная система не обнаружена
+  No need to stay while it prints: "Во время печати можно не оставаться"
+  No need to stay; this screen waits for you when the tower is done.: "Оставаться не нужно; этот экран дождётся вас, когда башня будет готова."
   No network. Scan QR code to report on your phone.: Нет сети. Отсканируйте QR-код, чтобы отправить отчёт с телефона.
   No networks found: Сети не найдены
   No new mesh was stored as '{}': "Новая сетка не сохранена как '{}'"
@@ -3596,6 +3628,8 @@ translations:
   Partial…: Частично…
   Pass: "Проход"
   Pass the missing parameter from the slicer's start G-code, or give it a default in the macro.: Передайте недостающий параметр из стартового G-code слайсера или задайте для него значение по умолчанию в макросе.
+  Pass {}: "Проход {}"
+  Pass {} of {}: "Проход {} из {}"
   'Pass {} of {}: {}': "Проход {} из {}: {}"
   Passes judged before are kept and pass {} of {} is next. Start Over begins again from pass 1.: "Уже оценённые проходы сохраняются, следующий — проход {} из {}. «Начать заново» возвращает к проходу 1."
   Password: Пароль
@@ -3777,6 +3811,7 @@ translations:
   Priming nozzle...: Подготовка сопла...
   Priming...: Грунтование...
   Print: Печать
+  Print Again: "Печатать снова"
   Print Anyway: Всё равно печатать
   Print Behavior: "Поведение при печати"
   Print Canceled: Печать отменена
@@ -3902,6 +3937,7 @@ translations:
   'Printing: start after this job': 'Идёт печать: начать после этой печати'
   Prints: Печати
   Prints Trend: Тренд печатей
+  Prints on its own, about {} min: "Печатает само, около {} мин"
   'Private:': 'Закрытая:'
   Probe: Зонд
   Probe Accuracy Failed: Ошибка теста точности зонда
@@ -4392,10 +4428,13 @@ translations:
   Save changes to persist them across restarts?: Сохранить изменения, чтобы они сохранились после перезапуска?
   'Save failed: {}': 'Ошибка сохранения: {}'
   Save Offsets: Сохранить смещения
+  Save for {}: "Сохранить для {}"
   Save offsets?: Сохранить смещения?
   Save the new heater values to printer.cfg?: Сохранить новые значения нагревателя в printer.cfg?
   Save the new heater values to printer.cfg? Klipper restarts.: Сохранить новые значения нагревателя в printer.cfg? Klipper перезапустится.
   Save to Config: "Сохранить в конфигурацию"
+  Save to Config writes it to the extruder section; Klipper keeps it after a restart.: "Сохранить в конфигурацию записывает значение в секцию экструдера; Klipper сохранит его после перезапуска."
+  Save to Config writes them to the extruder section and restarts Klipper.: "Сохранить в конфигурацию записывает их в секцию экструдера и перезапускает Klipper."
   Save to Spool: Сохранить на катушку
   Save to Spoolman: Сохранить в Spoolman
   Save to the printer config?: "Сохранить в конфигурацию принтера?"
@@ -4803,6 +4842,7 @@ translations:
   Start Over: "Начать заново"
   Start Print: Начать печать
   Start Probing: Начать зондирование
+  Start Tuning: "Начать настройку"
   Start a new {} h interval? The hours counted so far are discarded.: 'Начать новый интервал {} ч? Отсчитанные часы будут сброшены.'
   Start anyway?: 'Всё равно начать?'
   Start at: Начать с
@@ -4822,6 +4862,7 @@ translations:
   Starting nozzle clean...: Запуск очистки сопла...
   Starting print...: Запуск печати...
   Starting the print: Запуск печати
+  Starting the tower: "Запуск башни"
   Starting the update: 'Запуск обновления'
   Starting {}…: 'Запуск {}…'
   Starting...: Запуск...
@@ -4856,6 +4897,7 @@ translations:
   Still running; no reply after {} min: 'Ещё выполняется; нет ответа уже {} мин'
   Still saving this spool…: 'Эта катушка ещё сохраняется…'
   Still working... taking longer than usual: Всё ещё выполняется... дольше обычного
+  'Still {:.1f} mm apart after {} towers: the middle, {:.1f} mm, is taken.': "Всё ещё {:.1f} mm разницы после {} башен: берётся середина, {:.1f} mm."
   Stop: Стоп
   Stop Drying: Остановить сушку
   Stop Print?: Остановить печать?
@@ -4958,6 +5000,7 @@ translations:
   Tangle prevention boosted: Защита от спутывания усилена
   'Tangle sensitivity': 'Чувствительность к спутыванию'
   Tap + to add: Нажмите +, чтобы добавить
+  Tap - or + to hold your own value; the ramp stops.: "Нажмите - или +, чтобы зафиксировать своё значение; рампа остановится."
   Tap Extrude more until clean filament comes out of the nozzle, then tap Done.: "Нажимайте «Ещё экструзия», пока из сопла не пойдёт чистый филамент, затем нажмите «Готово»."
   Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge: Нажмите «Перезапуск прошивки» для восстановления. На K2 это также перезапускает мост MCU rpi
   Tap Resume to try the load again from {}.: 'Нажмите «Продолжить», чтобы повторить загрузку из {}.'
@@ -4967,6 +5010,7 @@ translations:
   Tap anywhere if this text is right-side up: Нажмите в любом месте, если текст расположен правильно
   Tap anywhere to begin: Нажмите в любом месте для начала
   Tap anywhere to begin calibration: Нажмите в любом месте для начала калибровки
+  Tap the band that looks best: "Нажмите на полосу, которая выглядит лучше всего"
   Tap the bed's back-left corner: Нажмите на задний левый угол стола
   Tap the bed's back-right corner: Нажмите на задний правый угол стола
   Tap the bed's front-left corner: Нажмите на передний левый угол стола
@@ -5138,6 +5182,7 @@ translations:
   ? The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled.
   : Плата управления не справилась с заданной частотой шагов, обычно из-за большого микрошага при высокой скорости или зависания хоста.
   The controller boards Klipper runs on. See their load in the system settings.: 'Платы контроллеров, на которых работает Klipper. Их загрузку можно посмотреть в системных настройках.'
+  The corners, from above and the side. Measure up from the plate.: "Углы, сверху и сбоку. Измеряйте вверх от стола."
   The curve draws in as the axis sweeps: 'Кривая строится по ходу развёртки оси'
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: Лезвие не вернулось. Проверьте, не намотался ли филамент на режущий механизм
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: Резак смещён. Выполните повторную калибровку командой CALIBRATE_CUT_POS
@@ -5221,6 +5266,7 @@ translations:
   The heater took the target.: 'Нагреватель принял целевую температуру.'
   The heater was turned off at the heater.: 'Нагреватель был выключен на самом нагревателе.'
   The heater will cycle on and off several times.: Нагреватель будет несколько раз включаться и выключаться.
+  The height where the left side is cleanest, then where the front is.: "Высота, на которой левая сторона чище всего, затем высота для передней."
   The helper macros are installed and activate after Klipper restarts.: 'Вспомогательные макросы установлены и активируются после перезапуска Klipper.'
   ? 'The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream.'
   : 'Хост-компьютер не отправил перемещения плате управления вовремя, обычно из-за перегрузки: высокая загрузка CPU или swap, медленная SD-карта, нестабильное питание или поток с веб-камеры.'
@@ -5630,6 +5676,7 @@ translations:
   ? This {0} looks like it has {1} ({2}% confidence), but it is set up for {3}. A wrong profile applies incorrect pre-print options and presets.
   : 'Похоже, на этом {0} есть {1} (уверенность {2}%), но он настроен для {3}. Неверный профиль применяет неправильные параметры перед печатью и пресеты.'
   Thorough: Тщательно
+  Three towers, one value each: "Три башни, по одному значению"
   Thumbnail Only: Только миниатюра
   'Thumbnail: ': 'Миниатюра: '
   Thumbnails: 'Миниатюры'
@@ -5682,6 +5729,8 @@ translations:
   Toggle toolhead LED for an extruder: 'Переключить LED печатающей головки для экструдера'
   'Toggle:': 'Переключить:'
   Too humid: Слишком влажно
+  Too little: "Слишком мало"
+  Too much: "Слишком много"
   Too much filament for one move: Слишком много филамента для одного перемещения
   Tool: Инструмент
   Tool Change Failed: 'Ошибка смены инструмента'
@@ -5759,6 +5808,7 @@ translations:
   Tune: Настройка
   Tune Belts: "Настроить"
   Tune the motors to remove fine vertical lines: 'Настроить моторы, чтобы убрать тонкие вертикальные полосы'
+  Tuned: "Настроено"
   Tuner: Настройка
   Tuning tower enabled - start a print to test: Башня настройки включена — начните печать для теста
   Turbo: Турбо
@@ -5773,6 +5823,7 @@ translations:
   Turn On: Включить
   Turn On LEDs: 'Включить LED'
   Turn On Toolhead LED: "Включить LED печатающей головки"
+  Turn it off in the slicer: "Отключите в слайсере"
   Turn off arc fitting in the slicer and slice the file again.: Отключите аппроксимацию дугами в слайсере и заново нарежьте файл.
   Turn off arc fitting in the slicer, then slice the file again.: 'Выключите аппроксимацию дугами в слайсере, затем нарежьте файл заново.'
   Turn off bed check: 'Отключить проверку стола'
@@ -5938,6 +5989,7 @@ translations:
   Value must be between {} and {}: Значение должно быть от {} до {}
   Values: "Значения"
   Values must not be negative: Значения не должны быть отрицательными
+  Velocity: "Скорость"
   Velocity and acceleration limits: Ограничения скорости и ускорения
   Vendor: Производитель
   Vendor Name: Название производителя
@@ -6045,6 +6097,7 @@ translations:
   When this spool runs out, printing continues from {}.: 'Когда эта катушка закончится, печать продолжится с {}.'
   When this spool runs out, the print pauses.: 'Когда эта катушка закончится, печать приостановится.'
   Where UI sounds play: Где воспроизводятся звуки интерфейса
+  Where to look: "Куда смотреть"
   Whether filament is loaded: Загружен ли филамент
   Which macro switches the ACE path back on: 'Какой макрос снова включает тракт ACE'
   Which macro switches the ACE path off for bypass: 'Какой макрос выключает тракт ACE для обхода'
@@ -6153,6 +6206,7 @@ translations:
   Your printer's firmware manages its configuration, so set these values there.: 'Конфигурацией принтера управляет его прошивка, поэтому задайте эти значения там.'
   Your printer's manual has the parts and lubricant for your model.: "В руководстве указаны детали и смазка для вашей модели."
   Your usual build plate is on: 'Установлена ваша обычная печатная пластина'
+  Your value holds to the top: "Ваше значение держится до верха"
   Your {0} is set up for {1}, but it looks stock.: 'Ваш {0} настроен для {1}, но выглядит стоковым.'
   Your {0} looks like it has {1}, but it is set up for {2}.: 'Похоже, на вашем {0} есть {1}, но он настроен для {2}.'
   Your {0} looks like it has {1}, but it is set up as stock.: 'Похоже, на вашем {0} есть {1}, но он настроен как стоковый.'
@@ -6236,6 +6290,7 @@ translations:
   'bed: distance unknown': "стол: расстояние неизвестно"
   'bed: distance unknown until the paper drags': "стол: расстояние неизвестно, пока бумага не зацепится"
   buffer|Neutral: Нейтрален
+  bulge: "вздутие"
   busy: 'занят'
   by: 'автор:'
   by Preston Brown: от Preston Brown
@@ -6280,6 +6335,7 @@ translations:
     many: 'экструдеров'
     other: 'экструдера'
   fans: вентиляторы
+  fast: "быстро"
   faulted: сбой
   feeder error: 'ошибка фидера'
   feeder not in automatic mode: 'фидер не в автоматическом режиме'
@@ -6293,6 +6349,7 @@ translations:
   heats nozzle: нагревает сопло
   heats nozzle + bed: нагревает сопло + стол
   heats to {}: нагрев до {}
+  held to the top: "держится до верха"
   'helixscreen.env ignored: owned by uid {}': 'helixscreen.env проигнорирован: принадлежит uid {}'
   'helixscreen.env ignored: untrusted symlink chain': 'helixscreen.env проигнорирован: недоверенная цепочка символических ссылок'
   'helixscreen.env ignored: writable by other users': 'helixscreen.env проигнорирован: доступен на запись другим пользователям'
@@ -6318,6 +6375,7 @@ translations:
   matched: совпадают
   material differs: 'другой материал'
   measured {}: измерено {}
+  medium: "средне"
   'method: {}': 'метод: {}'
   mm: мм
   mm Z-offset: мм Z-смещение
@@ -6344,6 +6402,7 @@ translations:
   Monitor for print abnormalities (K2 Plus camera-based): Отслеживание дефектов печати (на основе камеры K2 Plus)
   Monitor for print abnormalities (camera-based): 'Отслеживание дефектов печати (на основе камеры)'
   on unit {}: 'на блоке {}'
+  one look at each tower: "один взгляд на каждую башню"
   one restart: один перезапуск
   optional: необязательно
   or type a macro name: или введите название макроса
@@ -6352,6 +6411,8 @@ translations:
   passive: пассивно
   past last time: "дальше прошлого раза"
   past last time’s position: "дальше положения прошлого раза"
+  pause: "пауза"
+  pick the band: "выберите полосу"
   plate must be clear: пластина должна быть пустой
   preparing: подготовка
   ? pressure_advance is set for this extruder somewhere the save did not reach, such as another included file. Comment it out there and save again.
@@ -6374,6 +6435,7 @@ translations:
   similar color: похожий цвет
   sleep {} min: сон через {} мин
   slots): слотов)
+  slow: "медленно"
   start position: "стартовое положение"
   started: запущено
   steppers: шаговые двигатели
@@ -6392,6 +6454,7 @@ translations:
   the printer refused it: "принтер отклонил"
   the right belt: "правый ремень"
   the upper belt: "верхний ремень"
+  thin: "тонко"
   this printer fills its gates from Spoolman, so change the spool there: "этот принтер берёт гейты из Spoolman, меняйте катушку там"
   this week: за неделю
   too slow: слишком медленно
@@ -6406,6 +6469,7 @@ translations:
   v{} is available. Tap to update.: v{} доступна. Нажмите для обновления.
   waiting for the printer: "ожидание принтера"
   was {:.0f}%: 'было {:.0f}%'
+  was {}: "было {}"
   what you turned: "сколько повернули"
   within one bin: "в пределах одного бина"
   wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant не запущен. Функции WiFi недоступны.
@@ -6429,6 +6493,7 @@ translations:
   '{:.0f} g of {} · {}%': '{:.0f} г из {} · {}%'
   '{:.0f}-{:.0f} Hz sweep': развертка {:.0f}-{:.0f} Гц
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Гц · примерно {} мин'
+  '{:.1f} to {:.1f} mm': "от {:.1f} до {:.1f} mm"
   '{:.2f} mm range': 'разброс {:.2f} мм'
   '{} ({})': '{} ({})'
   '{} Extruders': 'Экструдеров: {}'
@@ -6449,6 +6514,7 @@ translations:
   '{} available': Доступна версия {}
   '{} axes homed': 'Оси {} запаркованы'
   '{} axis homed': Ось {} запаркована
+  '{} bands, {} apart. Prints a {:.0f} mm square, {:.0f} mm tall.': "{} полос с шагом {}. Печатает квадрат {:.0f} мм высотой {:.0f} мм."
   "{} can't refill automatically": '{} не может пополняться автоматически'
   '{} cannot be skipped: its name has characters the printer cannot be sent': '{} нельзя исключить: имя содержит символы, которые нельзя отправить на принтер'
   '{} cannot be stored on this printer.': "{} нельзя сохранить на этом принтере."

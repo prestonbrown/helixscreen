@@ -546,6 +546,8 @@
   <translation tag="Backup Toolhead" ja="予備ツールヘッド"/>
   <translation tag="Backup lane name contains invalid characters" ja="バックアップレーン名に無効な文字が含まれています"/>
   <translation tag="Balanced" ja="均衡"/>
+  <translation tag="Band" ja="帯"/>
+  <translation tag="Band {}" ja="帯 {}"/>
   <translation tag="Barcode Scanner" ja="バーコードスキャナー"/>
   <translation tag="Base" ja="基準"/>
   <translation tag="Based on the newest {} prints" ja="最新の{}件の印刷に基づく"/>
@@ -596,6 +598,7 @@
   <translation tag="Bed {} °C" ja="ベッド {} °C"/>
   <translation tag="Before" ja="前"/>
   <translation tag="Before starting" ja="開始前に"/>
+  <translation tag="Before the test" ja="テストの前に"/>
   <translation tag="Before you start" ja="始める前に"/>
   <translation tag="Below target" ja="目標より低い"/>
   <translation tag="Belt Tension" ja="ベルトテンション"/>
@@ -611,6 +614,7 @@
   <translation tag="Belts stretch and settle; loose ones cause ringing and layer shifts." ja="ベルトは伸びてなじみます。緩むとリンギングや層ズレの原因に。"/>
   <translation tag="Best height" ja="最適な高さ"/>
   <translation tag="Best height, measured up from the plate" ja="最適な高さ（ベッドから測定）"/>
+  <translation tag="Best height, up from the plate" ja="最適な高さ(ベッドから)"/>
   <translation tag="Beta" ja="ベータ"/>
   <translation tag="Beta features: OFF" ja="ベータ機能: OFF"/>
   <translation tag="Beta features: ON" ja="ベータ機能: ON"/>
@@ -1024,6 +1028,8 @@
   <translation tag="Clear extruder only" ja="エクストルーダーだけを空にする"/>
   <translation tag="Clear failed" ja="クリアに失敗しました"/>
   <translation tag="Clear head T{1}&apos;s filament path (a cold pull works), then resume." ja="ヘッド T{1} のフィラメント経路を確保してから（コールドプルが有効です）、再開してください。"/>
+  <translation tag="Clear pressure advance in your slicer&apos;s filament profile. A slicer that sets it overwrites this value at every print." ja="スライサーのフィラメントプロファイルで Pressure Advance をクリアしてください。スライサーが設定すると、印刷のたびにこの値が上書きされます。"/>
+  <translation tag="Clear pressure advance in your slicer&apos;s filament profile. A slicer that sets it replaces these values at every print." ja="スライサーのフィラメントプロファイルで Pressure Advance をクリアしてください。スライサーが設定すると、印刷のたびにこれらの値が上書きされます。"/>
   <translation tag="Clear the area above and below the plate. Lay the spools on the plate, cover them with a box (a printed lid or the filament&apos;s packaging) and close the door." ja="ベッドの上と下を片付けてください。スプールをベッドに置き、箱(印刷したふたやフィラメントの梱包箱)でかぶせてドアを閉めてください。"/>
   <translation tag="Clear the bed and the nozzle, then restart the firmware." ja="ベッドとノズルの周りを片付けてから、ファームウェアを再起動してください。"/>
   <translation tag="Clear the bed and the nozzle, then try again." ja="ベッドとノズルの周りを片付けてから、もう一度お試しください。"/>
@@ -1516,6 +1522,7 @@
   <translation tag="Each correction increased the difference between the probe points: the Z motors are mapped to the wrong corners, or the probe is not repeatable." ja="補正するたびにプローブ点の差が大きくなりました: Z モーターが違う角に割り当てられているか、プローブの再現性がありません。"/>
   <translation tag="Each fan can only be selected once" ja="各ファンは一度のみ選択できます"/>
   <translation tag="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead." ja="このプリンターでは各ツールヘッドが自分の Z-offset を持ちます。代わりにツールオフセット校正を使ってください。"/>
+  <translation tag="Each tap sets a new value from this layer up." ja="タップするたびに、この層から上の値が新しくなります。"/>
   <translation tag="Edit" ja="編集"/>
   <translation tag="Edit Filament" ja="フィラメントを編集"/>
   <translation tag="Edit Slot" ja="スロットを編集"/>
@@ -2052,6 +2059,12 @@
   <translation tag="Front" ja="手前"/>
   <translation tag="Front Left" ja="左手前"/>
   <translation tag="Front Right" ja="右手前"/>
+  <translation tag="Front best height" ja="手前の最適な高さ"/>
+  <translation tag="Front, lit from far left or right: the slow middle, the pause, the slow spot. Very subtle." ja="手前、左右の端から照らして: 遅い中央部、一時停止、遅い箇所。とてもわずかです。"/>
+  <translation tag="Front, lit from far left or right: where do the marked spots look cleanest?" ja="手前、左右の端から照らして: 印のついた箇所が最もきれいに見えるのはどこですか？"/>
+  <translation tag="Front, lit from the side" ja="手前、横から照らして"/>
+  <translation tag="Front: the edges of the slow middle, the pause and the slow spot." ja="手前: 遅い中央部の端、一時停止、遅い箇所。"/>
+  <translation tag="Front: where do the marked spots look cleanest?" ja="手前: 印のついた箇所が最もきれいに見えるのはどこですか？"/>
   <translation tag="Full" ja="フル"/>
   <translation tag="G-code Console" ja="G-code コンソール"/>
   <translation tag="G-code Preview" ja="G-code プレビュー"/>
@@ -2496,6 +2509,7 @@
   <translation tag="Keep the bypass spool visible when bypass is off" ja="バイパスオフ時もバイパススプールの表示を維持"/>
   <translation tag="Keep the rotation distance sync feedback tunes" ja="同期フィードバックが調整した回転距離を保存"/>
   <translation tag="Keep waiting" ja="待ち続ける"/>
+  <translation tag="Keep {}" ja="{} を保持"/>
   <translation tag="Kept {}: a print started." ja="{} を保持しました: 印刷が開始されました。"/>
   <translation tag="Kick away" ja="かき出し"/>
   <translation tag="Kinematics" ja="キネマティクス"/>
@@ -2606,7 +2620,18 @@
   <translation tag="Left" ja="左"/>
   <translation tag="Left Best Higher" ja="左が高い"/>
   <translation tag="Left Best Lower" ja="左が低い"/>
+  <translation tag="Left and front agree: {:.1f} mm is the answer." ja="左と手前が一致: {:.1f} mm が答えです。"/>
   <translation tag="Left belt" ja="左ベルト"/>
+  <translation tag="Left side" ja="左側"/>
+  <translation tag="Left side against the front" ja="左側と手前の比較"/>
+  <translation tag="Left side and front, each at its slow edges. Each comes out clean at its own height; they should match." ja="左側と手前、それぞれの遅い端で。それぞれきれいに仕上がる高さが決まり、両者は一致するはずです。"/>
+  <translation tag="Left side {:.1f} mm higher: the next tower lowers the advance 10%." ja="左側が {:.1f} mm 高い: 次のタワーでは Pressure Advance を 10% 下げます。"/>
+  <translation tag="Left side {:.1f} mm higher: the next tower raises the offset 10%." ja="左側が {:.1f} mm 高い: 次のタワーではオフセットを 10% 上げます。"/>
+  <translation tag="Left side {:.1f} mm lower: the next tower lowers the offset 10%." ja="左側が {:.1f} mm 低い: 次のタワーではオフセットを 10% 下げます。"/>
+  <translation tag="Left side {:.1f} mm lower: the next tower raises the advance 10%." ja="左側が {:.1f} mm 低い: 次のタワーでは Pressure Advance を 10% 上げます。"/>
+  <translation tag="Left side: at what height do the edges of the slow middle look cleanest?" ja="左側: 遅い中央部の端が最もきれいに見える高さはどこですか？"/>
+  <translation tag="Left side: the two edges of the slow middle, 5 mm either side of center." ja="左側: 遅い中央部の両端、中心から左右 5 mm。"/>
+  <translation tag="Left: the slow middle&apos;s edges" ja="左: 遅い中央部の端"/>
   <translation tag="Leftover material found" ja="残留物が見つかりました"/>
   <translation tag="Length of filament to purge" ja="パージするフィラメントの長さ"/>
   <translation tag="Length of the cooling tube section" ja="冷却チューブ区間の長さ"/>
@@ -2641,6 +2666,7 @@
   <translation tag="List the shared screen with this printer&apos;s webcams" ja="共有画面をこのプリンターのウェブカメラ一覧に表示"/>
   <translation tag="Listen to all theme sounds" ja="すべてのテーマサウンドを試聴"/>
   <translation tag="Live Z-offset, with baby steps and Save" ja="ライブ Z-Offset、微調整と保存つき"/>
+  <translation tag="Live now, until Klipper restarts" ja="今すぐ有効、Klipper の再起動まで"/>
   <translation tag="Live view from your webcam" ja="ウェブカメラのライブ表示"/>
   <translation tag="Load" ja="装填"/>
   <translation tag="Load Cell" ja="ロードセル"/>
@@ -2983,6 +3009,7 @@
   <translation tag="Needs file analysis, which isn&apos;t running." ja="ファイル解析が必要ですが、実行されていません。"/>
   <translation tag="Needs repair from a web interface" ja="Webインターフェースからの修復が必要です"/>
   <translation tag="Needs the {} package to switch spools" ja="スプール切り替えには {} プラグインが必要です"/>
+  <translation tag="Needs you, about {} min" ja="操作が必要、約{}分"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" ja="空き {}x{} が必要です。先にウィジェットを削除または縮小してください"/>
   <translation tag="Net Weight (g)" ja="正味重量（g）"/>
   <translation tag="Network" ja="ネットワーク"/>
@@ -3014,6 +3041,7 @@
   <translation tag="Next Layer" ja="次のレイヤー"/>
   <translation tag="Next Zone" ja="次のゾーン"/>
   <translation tag="Next Zone (~{} min)" ja="次のゾーン(約{}分)"/>
+  <translation tag="Next {} in {:.1f} mm" ja="次は {}、{:.1f} mm 先"/>
   <translation tag="Next, review the results and save them once" ja="次に結果を確認して一度に保存します"/>
   <translation tag="Next, see what finished and why the rest did not" ja="次に、完了したものと残りが完了しなかった理由を確認します"/>
   <translation tag="Next: {}" ja="次の印刷：{}"/>
@@ -3093,6 +3121,8 @@
   <translation tag="No mesh loaded" ja="メッシュが読み込まれていません"/>
   <translation tag="No message" ja="メッセージなし"/>
   <translation tag="No multi-filament system detected" ja="マルチフィラメントシステムが検出されません"/>
+  <translation tag="No need to stay while it prints" ja="印刷中はそばにいる必要はありません"/>
+  <translation tag="No need to stay; this screen waits for you when the tower is done." ja="そばにいる必要はありません。タワーが完成したら、この画面で待っています。"/>
   <translation tag="No network. Scan QR code to report on your phone." ja="ネットワークなし。QR コードをスキャンしてスマホから報告してください。"/>
   <translation tag="No networks found" ja="ネットワークが見つかりません"/>
   <translation tag="No new mesh was stored as &apos;{}&apos;" ja="新しいメッシュは &apos;{}&apos; として保存されませんでした"/>
@@ -3399,6 +3429,8 @@
   <translation tag="Partial…" ja="使いかけ…"/>
   <translation tag="Pass" ja="パス"/>
   <translation tag="Pass the missing parameter from the slicer&apos;s start G-code, or give it a default in the macro." ja="スライサーの開始 G-code から不足しているパラメーターを渡すか、マクロに既定値を設定してください。"/>
+  <translation tag="Pass {}" ja="パス {}"/>
+  <translation tag="Pass {} of {}" ja="パス {} / {}"/>
   <translation tag="Pass {} of {}: {}" ja="パス {}/{}: {}"/>
   <translation tag="Passes judged before are kept and pass {} of {} is next. Start Over begins again from pass 1." ja="判定済みのパスは保持され、次は{}/{}番目のパスです。「やり直す」はパス1から再開します。"/>
   <translation tag="Password" ja="パスワード"/>
@@ -3569,6 +3601,7 @@
   <translation tag="Priming nozzle..." ja="ノズルをプライム中..."/>
   <translation tag="Priming..." ja="プライミング中..."/>
   <translation tag="Print" ja="印刷"/>
+  <translation tag="Print Again" ja="もう一度印刷"/>
   <translation tag="Print Anyway" ja="それでも印刷"/>
   <translation tag="Print Behavior" ja="印刷時の動作"/>
   <translation tag="Print Canceled" ja="印刷キャンセル"/>
@@ -3694,6 +3727,7 @@
   <translation tag="Printing: start after this job" ja="印刷中：このジョブ後に開始"/>
   <translation tag="Prints" ja="印刷"/>
   <translation tag="Prints Trend" ja="印刷傾向"/>
+  <translation tag="Prints on its own, about {} min" ja="自動で印刷、約{}分"/>
   <translation tag="Private:" ja="プライベート:"/>
   <translation tag="Probe" ja="プローブ"/>
   <translation tag="Probe Accuracy Failed" ja="プローブ精度テスト失敗"/>
@@ -4170,12 +4204,15 @@
   <translation tag="Save calibration" ja="校正を保存"/>
   <translation tag="Save changes to persist them across restarts?" ja="再起動後も変更を保持するために保存しますか？"/>
   <translation tag="Save failed: {}" ja="保存に失敗しました: {}"/>
+  <translation tag="Save for {}" ja="{} 用に保存"/>
   <translation tag="Save offsets?" ja="オフセットを保存しますか？"/>
   <translation tag="Save the Z-offset after the print: saving restarts Klipper." ja="印刷後に Z-Offset を保存してください。保存すると Klipper が再起動します。"/>
   <translation tag="Save the changes to this spool?" ja="このスプールの変更を保存しますか？"/>
   <translation tag="Save the new heater values to printer.cfg?" ja="新しいヒーター値をprinter.cfgに保存しますか？"/>
   <translation tag="Save the new heater values to printer.cfg? Klipper restarts." ja="新しいヒーター値をprinter.cfgに保存しますか？Klipperが再起動します。"/>
   <translation tag="Save to Config" ja="設定に保存"/>
+  <translation tag="Save to Config writes it to the extruder section; Klipper keeps it after a restart." ja="設定に保存すると extruder セクションに書き込まれ、再起動後も Klipper が保持します。"/>
+  <translation tag="Save to Config writes them to the extruder section and restarts Klipper." ja="設定に保存すると extruder セクションに書き込まれ、Klipper が再起動します。"/>
   <translation tag="Save to Spool" ja="スプールに保存"/>
   <translation tag="Save to Spoolman" ja="Spoolman に保存"/>
   <translation tag="Save to the printer config?" ja="プリンターの設定に保存しますか？"/>
@@ -4567,6 +4604,7 @@
   <translation tag="Start Over" ja="やり直す"/>
   <translation tag="Start Print" ja="印刷を開始"/>
   <translation tag="Start Probing" ja="プローブ開始"/>
+  <translation tag="Start Tuning" ja="チューニングを開始"/>
   <translation tag="Start a new {} h interval? The hours counted so far are discarded." ja="新しい {} 時間の間隔を開始しますか？これまでの時間は破棄されます。"/>
   <translation tag="Start anyway?" ja="それでも開始しますか？"/>
   <translation tag="Start at" ja="開始位置"/>
@@ -4584,6 +4622,7 @@
   <translation tag="Starting nozzle clean..." ja="ノズル清掃を開始中..."/>
   <translation tag="Starting print..." ja="印刷開始中..."/>
   <translation tag="Starting the print" ja="印刷を開始中"/>
+  <translation tag="Starting the tower" ja="タワーを開始中"/>
   <translation tag="Starting the update" ja="更新を開始しています"/>
   <translation tag="Starting {}…" ja="{} を開始中…"/>
   <translation tag="Starting..." ja="開始中..."/>
@@ -4618,6 +4657,7 @@
   <translation tag="Still running; no reply after {} min" ja="まだ実行中です。{}分経っても応答がありません"/>
   <translation tag="Still saving this spool…" ja="このスプールはまだ保存中です…"/>
   <translation tag="Still working... taking longer than usual" ja="まだ処理中です... 通常より時間がかかっています"/>
+  <translation tag="Still {:.1f} mm apart after {} towers: the middle, {:.1f} mm, is taken." ja="{:.1f} mm の差が残ったまま、タワー {} 本: 中間の {:.1f} mm を採用します。"/>
   <translation tag="Stop" ja="停止"/>
   <translation tag="Stop Drying" ja="乾燥を停止"/>
   <translation tag="Stop Print?" ja="印刷を停止しますか？"/>
@@ -4717,6 +4757,7 @@
   <translation tag="Tangle prevention boosted" ja="絡み防止 強化中"/>
   <translation tag="Tangle sensitivity" ja="絡み検出の感度"/>
   <translation tag="Tap + to add" ja="+ をタップして追加"/>
+  <translation tag="Tap - or + to hold your own value; the ramp stops." ja="- または + をタップして自分の値を保持します。ランプは停止します。"/>
   <translation tag="Tap Extrude more until clean filament comes out of the nozzle, then tap Done." ja="ノズルからきれいなフィラメントが出るまで「さらに押し出し」をタップし、「完了」をタップしてください。"/>
   <translation tag="Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge" ja="「ファームウェア再起動」をタップして復旧してください。K2 では rpi MCU ブリッジも再起動されます"/>
   <translation tag="Tap Resume to try the load again from {}." ja="再開をタップすると、{}からもう一度ロードします。"/>
@@ -4727,6 +4768,7 @@
   <translation tag="Tap anywhere if this text is right-side up" ja="この文字が正しい向きならどこかをタップ"/>
   <translation tag="Tap anywhere to begin" ja="どこかをタップして開始"/>
   <translation tag="Tap anywhere to begin calibration" ja="どこかをタップしてキャリブレーション開始"/>
+  <translation tag="Tap the band that looks best" ja="一番よく見える帯をタップ"/>
   <translation tag="Tap the bed&apos;s back-left corner" ja="ベッドの奥左の角をタップ"/>
   <translation tag="Tap the bed&apos;s back-right corner" ja="ベッドの奥右の角をタップ"/>
   <translation tag="Tap the bed&apos;s front-left corner" ja="ベッドの手前左の角をタップ"/>
@@ -4883,6 +4925,7 @@
   <translation tag="The connection to Klipper was lost" ja="Klipperとの接続が切れました"/>
   <translation tag="The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled." ja="制御ボードが要求されたステップレートに追いつけませんでした。通常、高いマイクロステップと高速の組み合わせ、またはホストの処理停止が原因です。"/>
   <translation tag="The controller boards Klipper runs on. See their load in the system settings." ja="Klipperが動作するコントローラーボード。負荷はシステム設定で確認できます。"/>
+  <translation tag="The corners, from above and the side. Measure up from the plate." ja="角を上と横から見ます。ベッドから上へ測ってください。"/>
   <translation tag="The curve draws in as the axis sweeps" ja="軸のスイープに合わせて曲線が描かれます"/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" ja="カッターの刃が戻りませんでした。切断機構にフィラメントが巻き付いていないか確認してください"/>
   <translation tag="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS" ja="カッターの位置がずれています。CALIBRATE_CUT_POS で再校正してください"/>
@@ -4959,6 +5002,7 @@
   <translation tag="The heater took the target." ja="ヒーターが目標温度を受け付けました。"/>
   <translation tag="The heater was turned off at the heater." ja="ヒーター本体で電源がオフにされました。"/>
   <translation tag="The heater will cycle on and off several times." ja="ヒーターは数回オン/オフを繰り返します。"/>
+  <translation tag="The height where the left side is cleanest, then where the front is." ja="左側が最もきれいな高さ、次に手前が最もきれいな高さ。"/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." ja="ヘルパーマクロはインストール済みで、Klipper の再起動後に有効になります。"/>
   <translation tag="The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream." ja="ホストコンピューターが制御ボードへ時間内に移動を送れませんでした。通常は過負荷が原因です: CPU やスワップの使用率が高い、SD カードが遅い、電源が不安定、またはウェブカメラの配信です。"/>
   <translation tag="The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination." ja="ホストがこのボードから数秒間応答を受け取りませんでした: USB または CAN ケーブルの緩みや故障、ボードの電源喪失、または終端のない CAN バスです。"/>
@@ -5311,6 +5355,7 @@
   <translation tag="This {0} looks like it has {1} ({2}% confidence), but it is set up as stock. A wrong profile applies incorrect pre-print options and presets." ja="この{0}には{1}があるようです（信頼度 {2}%）が、標準状態として設定されています。誤ったプロファイルでは不正確な印刷前オプションとプリセットが適用されます。"/>
   <translation tag="This {0} looks like it has {1} ({2}% confidence), but it is set up for {3}. A wrong profile applies incorrect pre-print options and presets." ja="この{0}には{1}があるようです（信頼度 {2}%）が、{3}用に設定されています。誤ったプロファイルでは不正確な印刷前オプションとプリセットが適用されます。"/>
   <translation tag="Thorough" ja="徹底的"/>
+  <translation tag="Three towers, one value each" ja="3 つのタワー、それぞれ 1 つの値"/>
   <translation tag="Thumbnail Only" ja="サムネイルのみ"/>
   <translation tag="Thumbnail: " ja="サムネイル: "/>
   <translation tag="Thumbnails" ja="サムネイル"/>
@@ -5365,6 +5410,8 @@
   <translation tag="Toggle toolhead LED for an extruder" ja="エクストルーダーのツールヘッドLEDを切り替え"/>
   <translation tag="Toggle:" ja="切り替え:"/>
   <translation tag="Too humid" ja="湿度が高すぎます"/>
+  <translation tag="Too little" ja="少なすぎ"/>
+  <translation tag="Too much" ja="多すぎ"/>
   <translation tag="Too much filament for one move" ja="1 回の移動のフィラメント量が多すぎます"/>
   <translation tag="Tool" ja="ツール"/>
   <translation tag="Tool Change Failed" ja="ツール変更に失敗しました"/>
@@ -5442,6 +5489,7 @@
   <translation tag="Tune" ja="チューニング"/>
   <translation tag="Tune Belts" ja="ベルト調整"/>
   <translation tag="Tune the motors to remove fine vertical lines" ja="モーターを調整して細かい垂直の線を除去"/>
+  <translation tag="Tuned" ja="調整済み"/>
   <translation tag="Tuner" ja="調整"/>
   <translation tag="Tuning tower enabled - start a print to test" ja="チューニングタワー有効 - 印刷を開始してテストしてください"/>
   <translation tag="Turbo" ja="ターボ"/>
@@ -5456,6 +5504,7 @@
   <translation tag="Turn On" ja="オンにする"/>
   <translation tag="Turn On LEDs" ja="LEDを点灯"/>
   <translation tag="Turn On Toolhead LED" ja="ツールヘッドLEDを点灯"/>
+  <translation tag="Turn it off in the slicer" ja="スライサーでオフにする"/>
   <translation tag="Turn off arc fitting in the slicer and slice the file again." ja="スライサーで円弧フィッティングをオフにして、ファイルをスライスし直してください。"/>
   <translation tag="Turn off arc fitting in the slicer, then slice the file again." ja="スライサーでアークフィッティングをオフにしてから、ファイルを再スライスしてください。"/>
   <translation tag="Turn off bed check" ja="ベッドチェックをオフにする"/>
@@ -5619,6 +5668,8 @@
   <translation tag="Use first HID scanner found" ja="最初に見つかった HID スキャナーを使用"/>
   <translation tag="Use printer type to select image" ja="プリンタータイプで画像を選択"/>
   <translation tag="Use the home layout set on the printer&apos;s own screen" ja="プリンター本体の画面で設定したホームレイアウトを使用"/>
+  <translation tag="Use {:.1f} mm" ja="{:.1f} mm を使用"/>
+  <translation tag="Use {}" ja="{} を使用"/>
   <translation tag="Used when a material has no entry" ja="素材に項目がない場合に使用"/>
   <translation tag="User Guide" ja="ユーザーガイド"/>
   <translation tag="User intervention required" ja="手動での対応が必要です"/>
@@ -5630,6 +5681,7 @@
   <translation tag="Values" ja="値"/>
   <translation tag="Values must not be negative" ja="値は負の数にできません"/>
   <translation tag="Variant" ja="バリアント"/>
+  <translation tag="Velocity" ja="速度"/>
   <translation tag="Velocity and acceleration limits" ja="速度と加速度の制限"/>
   <translation tag="Vendor" ja="ベンダー"/>
   <translation tag="Vendor Name" ja="ベンダー名"/>
@@ -5735,6 +5787,7 @@
   <translation tag="When this spool runs out, printing continues from {}." ja="このスプールが切れると、{}から印刷を続行します。"/>
   <translation tag="When this spool runs out, the print pauses." ja="このスプールが切れると、印刷を一時停止します。"/>
   <translation tag="Where UI sounds play" ja="UIサウンドの再生先"/>
+  <translation tag="Where to look" ja="見る場所"/>
   <translation tag="Whether filament is loaded" ja="フィラメントの装填状態"/>
   <translation tag="Whether the Z arrows follow the bed or the Z value" ja="ZボタンがベッドとZ値のどちらに従うか"/>
   <translation tag="Which belt is each path?" ja="各パスはどのベルト?"/>
@@ -5847,6 +5900,7 @@
   <translation tag="Your printer&apos;s firmware manages its configuration, so set these values there." ja="プリンターの設定はファームウェアが管理しているため、これらの値はファームウェア側で設定してください。"/>
   <translation tag="Your printer&apos;s manual has the parts and lubricant for your model." ja="部品と潤滑剤はプリンターのマニュアルで確認できます。"/>
   <translation tag="Your usual build plate is on" ja="いつものビルドプレートが載っている"/>
+  <translation tag="Your value holds to the top" ja="あなたの値は最上部まで維持されます"/>
   <translation tag="Your {0} is set up for {1}, but it looks stock." ja="お使いの{0}は{1}用に設定されていますが、標準状態のようです。"/>
   <translation tag="Your {0} looks like it has {1}, but it is set up as stock." ja="お使いの{0}には{1}があるようですが、標準状態として設定されています。"/>
   <translation tag="Your {0} looks like it has {1}, but it is set up for {2}." ja="お使いの{0}には{1}があるようですが、{2}用に設定されています。"/>
@@ -5928,6 +5982,7 @@
   <translation tag="bed: distance unknown" ja="ベッド：距離不明"/>
   <translation tag="bed: distance unknown until the paper drags" ja="ベッド：紙が引っかかるまで距離不明"/>
   <translation tag="buffer|Neutral" ja="中央"/>
+  <translation tag="bulge" ja="膨らみ"/>
   <translation tag="busy" ja="ビジー状態"/>
   <translation tag="by" ja="作成者:"/>
   <translation tag="by Preston Brown" ja="by Preston Brown"/>
@@ -5968,6 +6023,7 @@
   <translation tag="extruder(s)" ja="エクストルーダー"/>
   <translation tag="extruders" ja="エクストルーダー"/>
   <translation tag="fans" ja="ファン"/>
+  <translation tag="fast" ja="速い"/>
   <translation tag="faulted" ja="エラー発生"/>
   <translation tag="feeder error" ja="フィーダーエラー"/>
   <translation tag="feeder not in automatic mode" ja="フィーダーが自動モードではありません"/>
@@ -5982,6 +6038,7 @@
   <translation tag="heats nozzle + bed" ja="ノズル + ベッドを加熱"/>
   <translation tag="heats to {}" ja="{}まで加熱"/>
   <translation tag="heats to {}°" ja="{}°に加熱"/>
+  <translation tag="held to the top" ja="最上部まで維持"/>
   <translation tag="helixscreen.env ignored: owned by uid {}" ja="helixscreen.env は無視されました：uid {} が所有しています"/>
   <translation tag="helixscreen.env ignored: untrusted symlink chain" ja="helixscreen.env は無視されました：信頼できないシンボリックリンクチェーンです"/>
   <translation tag="helixscreen.env ignored: writable by other users" ja="helixscreen.env は無視されました：他のユーザーが書き込み可能です"/>
@@ -6007,6 +6064,7 @@
   <translation tag="matched" ja="一致"/>
   <translation tag="material differs" ja="素材が異なる"/>
   <translation tag="measured {}" ja="{} に測定"/>
+  <translation tag="medium" ja="中"/>
   <translation tag="method: {}" ja="方式: {}"/>
   <translation tag="mm" ja="mm"/>
   <translation tag="mm Z-offset" ja="mm Z-Offset"/>
@@ -6027,6 +6085,7 @@
   <translation tag="of" ja="の"/>
   <translation tag="off" ja="オフ"/>
   <translation tag="on unit {}" ja="ユニット {}"/>
+  <translation tag="one look at each tower" ja="各タワーを 1 回確認"/>
   <translation tag="one restart" ja="再起動1回"/>
   <translation tag="optional" ja="任意"/>
   <translation tag="or type a macro name" ja="またはマクロ名を入力"/>
@@ -6035,6 +6094,8 @@
   <translation tag="passive" ja="パッシブ"/>
   <translation tag="past last time" ja="前回を超過"/>
   <translation tag="past last time’s position" ja="前回の位置を超過"/>
+  <translation tag="pause" ja="一時停止"/>
+  <translation tag="pick the band" ja="帯を選ぶ"/>
   <translation tag="plate must be clear" ja="プレートを空にしてください"/>
   <translation tag="preparing" ja="準備中"/>
   <translation tag="pressure_advance is set for this extruder somewhere the save did not reach, such as another included file. Comment it out there and save again." ja="このエクストルーダーのpressure_advanceが、保存の届かない場所（別のインクルードファイルなど）で設定されています。そこでコメントアウトしてから再度保存してください。"/>
@@ -6056,6 +6117,7 @@
   <translation tag="similar color" ja="近い色"/>
   <translation tag="sleep {} min" ja="{}分でスリープ"/>
   <translation tag="slots)" ja="スロット)"/>
+  <translation tag="slow" ja="遅い"/>
   <translation tag="start position" ja="開始位置"/>
   <translation tag="started" ja="開始"/>
   <translation tag="steppers" ja="ステッパー"/>
@@ -6074,6 +6136,7 @@
   <translation tag="the printer refused it" ja="プリンターが拒否しました"/>
   <translation tag="the right belt" ja="右ベルト"/>
   <translation tag="the upper belt" ja="上ベルト"/>
+  <translation tag="thin" ja="薄い"/>
   <translation tag="this printer fills its gates from Spoolman, so change the spool there" ja="このプリンターはゲートを Spoolman から取得するため、スプールは Spoolman で変更してください"/>
   <translation tag="this week" ja="今週"/>
   <translation tag="too slow" ja="遅すぎ"/>
@@ -6088,6 +6151,7 @@
   <translation tag="v{} is available. Tap to update." ja="v{} が利用可能です。タップして更新してください。"/>
   <translation tag="waiting for the printer" ja="プリンター待ち"/>
   <translation tag="was {:.0f}%" ja="以前は {:.0f}%"/>
+  <translation tag="was {}" ja="変更前 {}"/>
   <translation tag="what you turned" ja="回した量"/>
   <translation tag="within one bin" ja="1ビン以内"/>
   <translation tag="wpa_supplicant is not running. WiFi features unavailable." ja="wpa_supplicant が動作していません。WiFi 機能は利用できません。"/>
@@ -6109,6 +6173,7 @@
   <translation tag="{:.0f} g of {} · {}%" ja="{:.0f} g / {} · {}%"/>
   <translation tag="{:.0f}-{:.0f} Hz sweep" ja="{:.0f}-{:.0f} Hz スイープ"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" ja="{:.0f}-{:.0f} Hz · 約{}分"/>
+  <translation tag="{:.1f} to {:.1f} mm" ja="{:.1f} ～ {:.1f} mm"/>
   <translation tag="{:.2f} mm range" ja="範囲 {:.2f} mm"/>
   <translation tag="{} ({})" ja="{}（{}）"/>
   <translation tag="{} Extruders" ja="{} エクストルーダー"/>
@@ -6129,6 +6194,7 @@
   <translation tag="{} available" ja="{} が利用可能"/>
   <translation tag="{} axes homed" ja="{} 軸がホーミング済み"/>
   <translation tag="{} axis homed" ja="{} 軸がホーミング済み"/>
+  <translation tag="{} bands, {} apart. Prints a {:.0f} mm square, {:.0f} mm tall." ja="{} 帯、間隔 {}。{:.0f} mm 角、高さ {:.0f} mm で印刷します。"/>
   <translation tag="{} can&apos;t refill automatically" ja="{} は自動補充できません"/>
   <translation tag="{} cannot be skipped: its name has characters the printer cannot be sent" ja="{} は除外できません: 名前にプリンターへ送信できない文字が含まれています"/>
   <translation tag="{} cannot be stored on this printer." ja="{} はこのプリンターに保存できません。"/>

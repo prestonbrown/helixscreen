@@ -578,6 +578,8 @@ translations:
   Backup Toolhead: Backup Toolhead
   Backup lane name contains invalid characters: Backup lane name contains invalid characters
   Balanced: Balanced
+  Band: Band
+  Band {}: Band {}
   Barcode Scanner: Barcode Scanner
   Base: Base
   Based on the newest {} prints: Based on the newest {} prints
@@ -627,6 +629,7 @@ translations:
   Bed {} °C: Bed {} °C
   Before: Before
   Before starting: Before starting
+  Before the test: Before the test
   Before you start: Before you start
   Below target: Below target
   Belt Tension: Belt Tension
@@ -642,6 +645,7 @@ translations:
   Belts stretch and settle; loose ones cause ringing and layer shifts.: Belts stretch and settle; loose ones cause ringing and layer shifts.
   Best height: Best height
   Best height, measured up from the plate: Best height, measured up from the plate
+  Best height, up from the plate: Best height, up from the plate
   Beta: Beta
   'Beta features: OFF': 'Beta features: OFF'
   'Beta features: ON': 'Beta features: ON'
@@ -1070,6 +1074,8 @@ translations:
   Clear extruder only: Clear extruder only
   Clear failed: Clear failed
   Clear head T{1}'s filament path (a cold pull works), then resume.: Clear head T{1}'s filament path (a cold pull works), then resume.
+  Clear pressure advance in your slicer's filament profile. A slicer that sets it overwrites this value at every print.: Clear pressure advance in your slicer's filament profile. A slicer that sets it overwrites this value at every print.
+  Clear pressure advance in your slicer's filament profile. A slicer that sets it replaces these values at every print.: Clear pressure advance in your slicer's filament profile. A slicer that sets it replaces these values at every print.
   ? Clear the area above and below the plate. Lay the spools on the plate, cover them with a box (a printed lid or the filament's packaging) and close the door.
   : Clear the area above and below the plate. Lay the spools on the plate, cover them with a box (a printed lid or the filament's packaging) and close the door.
   Clear the bed and the nozzle, then restart the firmware.: Clear the bed and the nozzle, then restart the firmware.
@@ -1307,6 +1313,8 @@ translations:
   "Setup, navigation and gestures": "Setup, navigation and gestures"
   "Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman.": "Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman."
   Unload stopped: Unload stopped
+  Use {:.1f} mm: Use {:.1f} mm
+  Use {}: Use {}
   Used when a material has no entry: Used when a material has no entry
   "User Guide": "User Guide"
   "Your filament system": "Your filament system"
@@ -1600,6 +1608,7 @@ translations:
   : 'Each correction increased the difference between the probe points: the Z motors are mapped to the wrong corners, or the probe is not repeatable.'
   Each fan can only be selected once: Each fan can only be selected once
   Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: 'Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.'
+  Each tap sets a new value from this layer up.: Each tap sets a new value from this layer up.
   Edit: Edit
   Edit Filament: Edit Filament
   Edit Slot: Edit Slot
@@ -2139,6 +2148,12 @@ translations:
   Front: Front
   Front Left: Front Left
   Front Right: Front Right
+  Front best height: Front best height
+  'Front, lit from far left or right: the slow middle, the pause, the slow spot. Very subtle.': 'Front, lit from far left or right: the slow middle, the pause, the slow spot. Very subtle.'
+  'Front, lit from far left or right: where do the marked spots look cleanest?': 'Front, lit from far left or right: where do the marked spots look cleanest?'
+  Front, lit from the side: Front, lit from the side
+  'Front: the edges of the slow middle, the pause and the slow spot.': 'Front: the edges of the slow middle, the pause and the slow spot.'
+  'Front: where do the marked spots look cleanest?': 'Front: where do the marked spots look cleanest?'
   Full: Full
   G-code Console: G-code Console
   G-code Preview: G-code Preview
@@ -2590,6 +2605,7 @@ translations:
   Keep Tuning: Keep Tuning
   Keep the rotation distance sync feedback tunes: Keep the rotation distance sync feedback tunes
   Keep waiting: Keep waiting
+  Keep {}: Keep {}
   'Kept {}: a print started.': 'Kept {}: a print started.'
   Kick away: Kick away
   Kinematics: Kinematics
@@ -2708,7 +2724,18 @@ translations:
   Left: Left
   Left Best Higher: Left Best Higher
   Left Best Lower: Left Best Lower
+  'Left and front agree: {:.1f} mm is the answer.': 'Left and front agree: {:.1f} mm is the answer.'
   Left belt: Left belt
+  Left side: Left side
+  Left side against the front: Left side against the front
+  Left side and front, each at its slow edges. Each comes out clean at its own height; they should match.: Left side and front, each at its slow edges. Each comes out clean at its own height; they should match.
+  'Left side {:.1f} mm higher: the next tower lowers the advance 10%.': 'Left side {:.1f} mm higher: the next tower lowers the advance 10%.'
+  'Left side {:.1f} mm higher: the next tower raises the offset 10%.': 'Left side {:.1f} mm higher: the next tower raises the offset 10%.'
+  'Left side {:.1f} mm lower: the next tower lowers the offset 10%.': 'Left side {:.1f} mm lower: the next tower lowers the offset 10%.'
+  'Left side {:.1f} mm lower: the next tower raises the advance 10%.': 'Left side {:.1f} mm lower: the next tower raises the advance 10%.'
+  'Left side: at what height do the edges of the slow middle look cleanest?': 'Left side: at what height do the edges of the slow middle look cleanest?'
+  'Left side: the two edges of the slow middle, 5 mm either side of center.': 'Left side: the two edges of the slow middle, 5 mm either side of center.'
+  "Left: the slow middle's edges": "Left: the slow middle's edges"
   Leftover material found: Leftover material found
   Length of filament to purge: Length of filament to purge
   Length of the cooling tube section: Length of the cooling tube section
@@ -2742,6 +2769,7 @@ translations:
   List the shared screen with this printer's webcams: List the shared screen with this printer's webcams
   Listen to all theme sounds: Listen to all theme sounds
   Live Z-offset, with baby steps and Save: Live Z-offset, with baby steps and Save
+  Live now, until Klipper restarts: Live now, until Klipper restarts
   Live view from your webcam: Live view from your webcam
   Load: Load
   Load Cell: Load Cell
@@ -3082,6 +3110,7 @@ translations:
   Needs attention: Needs attention
   Needs repair from a web interface: Needs repair from a web interface
   Needs the {} package to switch spools: Needs the {} package to switch spools
+  Needs you, about {} min: Needs you, about {} min
   'Needs {}x{} free: remove or shrink a widget first': 'Needs {}x{} free: remove or shrink a widget first'
   Net Weight (g): Net Weight (g)
   Network: Network
@@ -3112,6 +3141,7 @@ translations:
   Next Zone: Next Zone
   Next Zone (~{} min): Next Zone (~{} min)
   Next Layer: Next Layer
+  Next {} in {:.1f} mm: Next {} in {:.1f} mm
   Next, review the results and save them once: Next, review the results and save them once
   Next, see what finished and why the rest did not: Next, see what finished and why the rest did not
   'Next: {}': 'Next: {}'
@@ -3189,6 +3219,8 @@ translations:
   No mesh loaded: No mesh loaded
   No message: No message
   No multi-filament system detected: No multi-filament system detected
+  No need to stay while it prints: No need to stay while it prints
+  No need to stay; this screen waits for you when the tower is done.: No need to stay; this screen waits for you when the tower is done.
   No network. Scan QR code to report on your phone.: No network. Scan QR code to report on your phone.
   No networks found: No networks found
   No new mesh was stored as '{}': No new mesh was stored as '{}'
@@ -3506,6 +3538,8 @@ translations:
   Partial…: Partial…
   Pass: Pass
   Pass the missing parameter from the slicer's start G-code, or give it a default in the macro.: Pass the missing parameter from the slicer's start G-code, or give it a default in the macro.
+  Pass {}: Pass {}
+  Pass {} of {}: Pass {} of {}
   'Pass {} of {}: {}': 'Pass {} of {}: {}'
   Passes judged before are kept and pass {} of {} is next. Start Over begins again from pass 1.: Passes judged before are kept and pass {} of {} is next. Start Over begins again from pass 1.
   Password: Password
@@ -3680,6 +3714,7 @@ translations:
   'Priming nozzle...': 'Priming nozzle...'
   Priming...: Priming...
   Print: Print
+  Print Again: Print Again
   Print Anyway: Print Anyway
   Print Behavior: Print Behavior
   Print Canceled: Print Canceled
@@ -3801,6 +3836,7 @@ translations:
   'Printing: start after this job': 'Printing: start after this job'
   Prints: Prints
   Prints Trend: Prints Trend
+  Prints on its own, about {} min: Prints on its own, about {} min
   'Private:': 'Private:'
   Probe: Probe
   Probe Accuracy Failed: Probe Accuracy Failed
@@ -4284,12 +4320,15 @@ translations:
   Save changes to persist them across restarts?: Save changes to persist them across restarts?
   'Save failed: {}': 'Save failed: {}'
   Save Offsets: Save Offsets
+  Save for {}: Save for {}
   Save offsets?: Save offsets?
   'Save the Z-offset after the print: saving restarts Klipper.': 'Save the Z-offset after the print: saving restarts Klipper.'
   Save the changes to this spool?: Save the changes to this spool?
   Save the new heater values to printer.cfg?: Save the new heater values to printer.cfg?
   Save the new heater values to printer.cfg? Klipper restarts.: Save the new heater values to printer.cfg? Klipper restarts.
   Save to Config: Save to Config
+  Save to Config writes it to the extruder section; Klipper keeps it after a restart.: Save to Config writes it to the extruder section; Klipper keeps it after a restart.
+  Save to Config writes them to the extruder section and restarts Klipper.: Save to Config writes them to the extruder section and restarts Klipper.
   Save to Spool: Save to Spool
   Save to Spoolman: Save to Spoolman
   Save to the printer config?: Save to the printer config?
@@ -4685,6 +4724,7 @@ translations:
   Start Over: Start Over
   Start Print: Start Print
   Start Probing: Start Probing
+  Start Tuning: Start Tuning
   Start a new {} h interval? The hours counted so far are discarded.: Start a new {} h interval? The hours counted so far are discarded.
   Start anyway?: Start anyway?
   Start at: Start at
@@ -4703,6 +4743,7 @@ translations:
   'Starting nozzle clean...': 'Starting nozzle clean...'
   'Starting print...': 'Starting print...'
   Starting the print: Starting the print
+  Starting the tower: Starting the tower
   Starting the update: Starting the update
   Starting {}…: Starting {}…
   Starting...: Starting...
@@ -4737,6 +4778,7 @@ translations:
   Still running; no reply after {} min: Still running; no reply after {} min
   Still saving this spool…: Still saving this spool…
   Still working... taking longer than usual: Still working... taking longer than usual
+  'Still {:.1f} mm apart after {} towers: the middle, {:.1f} mm, is taken.': 'Still {:.1f} mm apart after {} towers: the middle, {:.1f} mm, is taken.'
   Stop: Stop
   Stop Drying: Stop Drying
   Stop Print?: Stop Print?
@@ -4838,6 +4880,7 @@ translations:
   Tangle prevention boosted: Tangle prevention boosted
   'Tangle sensitivity': 'Tangle sensitivity'
   Tap + to add: Tap + to add
+  Tap - or + to hold your own value; the ramp stops.: Tap - or + to hold your own value; the ramp stops.
   Tap Extrude more until clean filament comes out of the nozzle, then tap Done.: Tap Extrude more until clean filament comes out of the nozzle, then tap Done.
   Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge: Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge
   Tap Resume to try the load again from {}.: Tap Resume to try the load again from {}.
@@ -4847,6 +4890,7 @@ translations:
   Tap anywhere if this text is right-side up: Tap anywhere if this text is right-side up
   Tap anywhere to begin: Tap anywhere to begin
   Tap anywhere to begin calibration: Tap anywhere to begin calibration
+  Tap the band that looks best: Tap the band that looks best
   Tap the bed's back-left corner: Tap the bed's back-left corner
   Tap the bed's back-right corner: Tap the bed's back-right corner
   Tap the bed's front-left corner: Tap the bed's front-left corner
@@ -5016,6 +5060,7 @@ translations:
   ? The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled.
   : The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled.
   The controller boards Klipper runs on. See their load in the system settings.: The controller boards Klipper runs on. See their load in the system settings.
+  The corners, from above and the side. Measure up from the plate.: The corners, from above and the side. Measure up from the plate.
   The curve draws in as the axis sweeps: The curve draws in as the axis sweeps
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: The cutter blade didn't return — check for filament wrapped around the cutting mechanism
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS
@@ -5099,6 +5144,7 @@ translations:
   The heater took the target.: The heater took the target.
   The heater was turned off at the heater.: The heater was turned off at the heater.
   The heater will cycle on and off several times.: The heater will cycle on and off several times.
+  The height where the left side is cleanest, then where the front is.: The height where the left side is cleanest, then where the front is.
   The helper macros are installed and activate after Klipper restarts.: The helper macros are installed and activate after Klipper restarts.
   ? 'The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream.'
   : 'The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream.'
@@ -5502,6 +5548,7 @@ translations:
   ? This {0} looks like it has {1} ({2}% confidence), but it is set up for {3}. A wrong profile applies incorrect pre-print options and presets.
   : This {0} looks like it has {1} ({2}% confidence), but it is set up for {3}. A wrong profile applies incorrect pre-print options and presets.
   Thorough: Thorough
+  Three towers, one value each: Three towers, one value each
   Thumbnail Only: Thumbnail Only
   'Thumbnail: ': 'Thumbnail: '
   Thumbnails: Thumbnails
@@ -5554,6 +5601,8 @@ translations:
   Toggle toolhead LED for an extruder: Toggle toolhead LED for an extruder
   'Toggle:': 'Toggle:'
   Too humid: Too humid
+  Too little: Too little
+  Too much: Too much
   Too much filament for one move: Too much filament for one move
   Tool: Tool
   Tool Change Failed: Tool Change Failed
@@ -5631,6 +5680,7 @@ translations:
   Tune: Tune
   Tune Belts: Tune Belts
   Tune the motors to remove fine vertical lines: Tune the motors to remove fine vertical lines
+  Tuned: Tuned
   Tuner: Tuner
   Tuning tower enabled - start a print to test: Tuning tower enabled - start a print to test
   Turbo: Turbo
@@ -5645,6 +5695,7 @@ translations:
   Turn On: Turn On
   Turn On LEDs: Turn On LEDs
   Turn On Toolhead LED: Turn On Toolhead LED
+  Turn it off in the slicer: Turn it off in the slicer
   Turn off arc fitting in the slicer and slice the file again.: Turn off arc fitting in the slicer and slice the file again.
   Turn off arc fitting in the slicer, then slice the file again.: Turn off arc fitting in the slicer, then slice the file again.
   Turn off bed check: Turn off bed check
@@ -5816,6 +5867,7 @@ translations:
   Values: Values
   Values must not be negative: Values must not be negative
   Variant: Variant
+  Velocity: Velocity
   Velocity and acceleration limits: Velocity and acceleration limits
   Vendor: Vendor
   Vendor Name: Vendor Name
@@ -5923,6 +5975,7 @@ translations:
   When this spool runs out, printing continues from {}.: When this spool runs out, printing continues from {}.
   When this spool runs out, the print pauses.: When this spool runs out, the print pauses.
   Where UI sounds play: Where UI sounds play
+  Where to look: Where to look
   Whether filament is loaded: Whether filament is loaded
   Which macro switches the ACE path back on: Which macro switches the ACE path back on
   Which macro switches the ACE path off for bypass: Which macro switches the ACE path off for bypass
@@ -6031,6 +6084,7 @@ translations:
   Your printer's firmware manages its configuration, so set these values there.: Your printer's firmware manages its configuration, so set these values there.
   Your printer's manual has the parts and lubricant for your model.: Your printer's manual has the parts and lubricant for your model.
   Your usual build plate is on: Your usual build plate is on
+  Your value holds to the top: Your value holds to the top
   Your {0} is set up for {1}, but it looks stock.: Your {0} is set up for {1}, but it looks stock.
   Your {0} looks like it has {1}, but it is set up for {2}.: Your {0} looks like it has {1}, but it is set up for {2}.
   Your {0} looks like it has {1}, but it is set up as stock.: 'Your {0} looks like it has {1}, but it is set up as stock.'
@@ -6114,6 +6168,7 @@ translations:
   'bed: distance unknown': 'bed: distance unknown'
   'bed: distance unknown until the paper drags': 'bed: distance unknown until the paper drags'
   buffer|Neutral: buffer|Neutral
+  bulge: bulge
   busy: busy
   by: by
   by Preston Brown: by Preston Brown
@@ -6154,6 +6209,7 @@ translations:
   extruder(s): extruder(s)
   extruders: extruders
   fans: fans
+  fast: fast
   faulted: faulted
   feeder error: feeder error
   feeder not in automatic mode: feeder not in automatic mode
@@ -6168,6 +6224,7 @@ translations:
   heats bed: heats bed
   heats nozzle: heats nozzle
   heats nozzle + bed: heats nozzle + bed
+  held to the top: held to the top
   'helixscreen.env ignored: owned by uid {}': 'helixscreen.env ignored: owned by uid {}'
   'helixscreen.env ignored: untrusted symlink chain': 'helixscreen.env ignored: untrusted symlink chain'
   'helixscreen.env ignored: writable by other users': 'helixscreen.env ignored: writable by other users'
@@ -6193,6 +6250,7 @@ translations:
   matched: matched
   material differs: material differs
   measured {}: measured {}
+  medium: medium
   'method: {}': 'method: {}'
   mm: mm
   mm Z-offset: mm Z-offset
@@ -6213,6 +6271,7 @@ translations:
   of: of
   'off': 'off'
   on unit {}: on unit {}
+  one look at each tower: one look at each tower
   one restart: one restart
   optional: optional
   or type a macro name: or type a macro name
@@ -6221,6 +6280,8 @@ translations:
   passive: passive
   past last time: past last time
   past last time’s position: past last time’s position
+  pause: pause
+  pick the band: pick the band
   plate must be clear: plate must be clear
   preparing: preparing
   ? pressure_advance is set for this extruder somewhere the save did not reach, such as another included file. Comment it out there and save again.
@@ -6243,6 +6304,7 @@ translations:
   similar color: similar color
   sleep {} min: sleep {} min
   slots): slots)
+  slow: slow
   start position: start position
   started: started
   steppers: steppers
@@ -6261,6 +6323,7 @@ translations:
   the printer refused it: the printer refused it
   the right belt: the right belt
   the upper belt: the upper belt
+  thin: thin
   this printer fills its gates from Spoolman, so change the spool there: this printer fills its gates from Spoolman, so change the spool there
   this week: this week
   too slow: too slow
@@ -6275,6 +6338,7 @@ translations:
   v{} is available. Tap to update.: v{} is available. Tap to update.
   waiting for the printer: waiting for the printer
   was {:.0f}%: was {:.0f}%
+  was {}: was {}
   what you turned: what you turned
   within one bin: within one bin
   wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant is not running. WiFi features unavailable.
@@ -6298,6 +6362,7 @@ translations:
   '{:.0f} g of {} · {}%': '{:.0f} g of {} · {}%'
   '{:.0f}-{:.0f} Hz sweep': '{:.0f}-{:.0f} Hz sweep'
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · about {} min'
+  '{:.1f} to {:.1f} mm': '{:.1f} to {:.1f} mm'
   '{:.2f} mm range': '{:.2f} mm range'
   '{} ({})': '{} ({})'
   '{} Extruders': '{} Extruders'
@@ -6318,6 +6383,7 @@ translations:
   '{} available': '{} available'
   '{} axes homed': '{} axes homed'
   '{} axis homed': '{} axis homed'
+  '{} bands, {} apart. Prints a {:.0f} mm square, {:.0f} mm tall.': '{} bands, {} apart. Prints a {:.0f} mm square, {:.0f} mm tall.'
   "{} can't refill automatically": "{} can't refill automatically"
   '{} cannot be skipped: its name has characters the printer cannot be sent': '{} cannot be skipped: its name has characters the printer cannot be sent'
   '{} cannot be stored on this printer.': '{} cannot be stored on this printer.'

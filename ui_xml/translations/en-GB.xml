@@ -76,6 +76,7 @@
   <translation tag="Its filament is a different color." en-GB="Its filament is a different colour."/>
   <translation tag="Jog Y until the nozzle is centered over the chute opening, then tap Save." en-GB="Jog Y until the nozzle is centred over the chute opening, then tap Save."/>
   <translation tag="Last print canceled" en-GB="Last print cancelled"/>
+  <translation tag="Left side: the two edges of the slow middle, 5 mm either side of center." en-GB="Left side: the two edges of the slow middle, 5 mm either side of centre."/>
   <translation tag="Leveling Gantry..." en-GB="Levelling Gantry..."/>
   <translation tag="Load canceled: nozzle target dropped" en-GB="Load cancelled: nozzle target dropped"/>
   <translation tag="Load canceled: the active tool changed" en-GB="Load cancelled: the active tool changed"/>

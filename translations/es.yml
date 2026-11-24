@@ -575,6 +575,8 @@ translations:
   Backup Toolhead: Cabezal de reserva
   Backup lane name contains invalid characters: 'El nombre del carril de reserva contiene caracteres no válidos'
   Balanced: Equilibrado
+  Band: "Banda"
+  Band {}: "Banda {}"
   Barcode Scanner: Escáner de Código de Barras
   Base: Referencia
   Based on the newest {} prints: 'Basado en las {} impresiones más recientes'
@@ -625,6 +627,7 @@ translations:
   Bed {} °C: "Cama {} °C"
   Before: 'Antes'
   Before starting: 'Antes de empezar'
+  Before the test: "Antes de la prueba"
   Before you start: Antes de empezar
   Below target: Por debajo del objetivo
   Belt Tension: Tensión de correa
@@ -640,6 +643,7 @@ translations:
   Belts stretch and settle; loose ones cause ringing and layer shifts.: "Las correas se estiran y asientan; flojas causan ringing y desplazamiento de capas."
   Best height: "Mejor altura"
   Best height, measured up from the plate: "Mejor altura, medida desde la cama"
+  Best height, up from the plate: "Mejor altura, medida desde la cama"
   Beta: Beta
   'Beta features: OFF': 'Funciones Beta: OFF'
   'Beta features: ON': 'Funciones Beta: ON'
@@ -1067,6 +1071,8 @@ translations:
   Clear extruder only: 'Solo vaciar el extrusor'
   Clear failed: Error al limpiar
   Clear head T{1}'s filament path (a cold pull works), then resume.: Despeja la ruta del filamento del cabezal T{1} (una extracción en frío funciona) y reanuda.
+  Clear pressure advance in your slicer's filament profile. A slicer that sets it overwrites this value at every print.: "Borra el Pressure Advance en el perfil de filamento de tu laminador. Un laminador que lo define sobrescribe este valor en cada impresión."
+  Clear pressure advance in your slicer's filament profile. A slicer that sets it replaces these values at every print.: "Borra el Pressure Advance en el perfil de filamento de tu laminador. Un laminador que lo define sobrescribe estos valores en cada impresión."
   ? Clear the area above and below the plate. Lay the spools on the plate, cover them with a box (a printed lid or the filament's packaging) and close the door.
 
   : Despeja la zona por encima y por debajo de la cama. Coloca las bobinas sobre la cama, cúbrelas con una caja (una tapa impresa o el embalaje del filamento) y cierra la puerta.
@@ -1306,6 +1312,8 @@ translations:
   "Setup, navigation and gestures": "Configuración, navegación y gestos"
   "Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman.": "Toca una ranura para cargarla o descargarla, elegir una bobina o editar sus datos. Tus cambios se mantienen sincronizados con la impresora y Spoolman."
   Unload stopped: Descarga detenida
+  Use {:.1f} mm: "Usar {:.1f} mm"
+  Use {}: "Usar {}"
   Used when a material has no entry: "Se usa cuando un material no tiene entrada"
   "User Guide": "Guía del usuario"
   "Your filament system": "Tu sistema de filamento"
@@ -1607,6 +1615,7 @@ translations:
   : 'Cada corrección aumentó la diferencia entre los puntos de sondeo: los motores Z están asignados a las esquinas equivocadas o la sonda no es repetible.'
   Each fan can only be selected once: Cada ventilador solo se puede seleccionar una vez
   Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: 'Cada cabezal tiene su propio Z-offset en esta impresora. Usa la calibración de offset de herramienta.'
+  Each tap sets a new value from this layer up.: "Cada toque fija un valor nuevo desde esta capa hacia arriba."
   Edit: Editar
   Edit Filament: Editar filamento
   Edit Slot: Editar Ranura
@@ -2150,6 +2159,12 @@ translations:
   Front: 'Delante'
   Front Left: 'Delante izquierda'
   Front Right: 'Delante derecha'
+  Front best height: "Mejor altura delante"
+  'Front, lit from far left or right: the slow middle, the pause, the slow spot. Very subtle.': "Delante, iluminado desde muy a la izquierda o a la derecha: el centro lento, la pausa, el punto lento. Muy sutil."
+  'Front, lit from far left or right: where do the marked spots look cleanest?': "Delante, iluminado desde muy a la izquierda o a la derecha: ¿dónde se ven más limpios los puntos marcados?"
+  Front, lit from the side: "Delante, iluminado de lado"
+  'Front: the edges of the slow middle, the pause and the slow spot.': "Delante: los bordes del centro lento, la pausa y el punto lento."
+  'Front: where do the marked spots look cleanest?': "Delante: ¿dónde se ven más limpios los puntos marcados?"
   Full: Completo
   G-code Console: Consola G-code
   G-code Preview: Vista Previa de G-code
@@ -2605,6 +2620,7 @@ translations:
   Keep Tuning: "Seguir ajustando"
   Keep the rotation distance sync feedback tunes: "Guardar la distancia de rotación que ajusta la retroalimentación de sincronización"
   Keep waiting: 'Seguir esperando'
+  Keep {}: "Mantener {}"
   'Kept {}: a print started.': 'Se mantiene {}: ha empezado una impresión.'
   Kick away: 'Expulsar'
   Kinematics: Cinemática
@@ -2732,7 +2748,18 @@ translations:
   Left: 'Izquierda'
   Left Best Higher: "Izquierda más alta"
   Left Best Lower: "Izquierda más baja"
+  'Left and front agree: {:.1f} mm is the answer.': "Izquierda y delante coinciden: {:.1f} mm es la respuesta."
   Left belt: "Correa izquierda"
+  Left side: "Lado izquierdo"
+  Left side against the front: "Lado izquierdo frente a delante"
+  Left side and front, each at its slow edges. Each comes out clean at its own height; they should match.: "Lado izquierdo y delante, cada uno en sus bordes lentos. Cada uno sale limpio a su propia altura; deberían coincidir."
+  'Left side {:.1f} mm higher: the next tower lowers the advance 10%.': "Lado izquierdo {:.1f} mm más alto: la próxima torre baja el Pressure Advance un 10%."
+  'Left side {:.1f} mm higher: the next tower raises the offset 10%.': "Lado izquierdo {:.1f} mm más alto: la próxima torre sube el offset un 10%."
+  'Left side {:.1f} mm lower: the next tower lowers the offset 10%.': "Lado izquierdo {:.1f} mm más bajo: la próxima torre baja el offset un 10%."
+  'Left side {:.1f} mm lower: the next tower raises the advance 10%.': "Lado izquierdo {:.1f} mm más bajo: la próxima torre sube el Pressure Advance un 10%."
+  'Left side: at what height do the edges of the slow middle look cleanest?': "Lado izquierdo: ¿a qué altura se ven más limpios los bordes del centro lento?"
+  'Left side: the two edges of the slow middle, 5 mm either side of center.': "Lado izquierdo: los dos bordes del centro lento, 5 mm a cada lado del centro."
+  "Left: the slow middle's edges": "Izquierda: bordes del centro lento"
   Leftover material found: 'Se encontró material sobrante'
   Length of filament to purge: 'Longitud de filamento a purgar'
   Length of the cooling tube section: 'Longitud de la sección del tubo de enfriamiento'
@@ -2767,6 +2794,7 @@ translations:
   List the shared screen with this printer's webcams: 'Incluir la pantalla compartida entre las cámaras web de esta impresora'
   Listen to all theme sounds: Escucha todos los sonidos del tema
   Live Z-offset, with baby steps and Save: Z-Offset en vivo, con pasos finos y Guardar
+  Live now, until Klipper restarts: "Activo ahora, hasta que Klipper se reinicie"
   Live view from your webcam: Vista en vivo de tu webcam
   Load: Cargar
   Load Cell: 'Celda de carga'
@@ -3105,6 +3133,7 @@ translations:
   Needs attention: Requiere atención
   Needs repair from a web interface: 'Necesita reparación desde una interfaz web'
   Needs the {} package to switch spools: 'Necesita el plugin {} para cambiar de bobina'
+  Needs you, about {} min: "Requiere tu atención, unos {} min"
   'Needs {}x{} free: remove or shrink a widget first': 'Necesita {}x{} libres: primero elimina o reduce un widget'
   Net Weight (g): Peso Neto (g)
   Network: Red
@@ -3135,6 +3164,7 @@ translations:
   Next Zone: "Siguiente zona"
   Next Zone (~{} min): "Sig. zona (~{} min)"
   Next Layer: 'Siguiente capa'
+  Next {} in {:.1f} mm: "Siguiente {} en {:.1f} mm"
   Next, review the results and save them once: Después, revisa los resultados y guárdalos una vez
   Next, see what finished and why the rest did not: "Ahora, mira qué terminó y por qué el resto no"
   'Next: {}': 'Siguiente: {}'
@@ -3212,6 +3242,8 @@ translations:
   No mesh loaded: No hay malla cargada
   No message: 'Sin mensaje'
   No multi-filament system detected: No se detectó ningún sistema multifilamento
+  No need to stay while it prints: "No hace falta quedarse mientras imprime"
+  No need to stay; this screen waits for you when the tower is done.: "No hace falta quedarse; esta pantalla te espera cuando la torre termine."
   No network. Scan QR code to report on your phone.: Sin red. Escanee el código QR para reportar desde su teléfono.
   No networks found: No se encontraron redes
   No new mesh was stored as '{}': "No se guardó ninguna malla nueva como '{}'"
@@ -3532,6 +3564,8 @@ translations:
   Partial…: Parcial…
   Pass: "Pasada"
   Pass the missing parameter from the slicer's start G-code, or give it a default in the macro.: Pasa el parámetro que falta desde el G-code de inicio del laminador, o dale un valor por defecto en la macro.
+  Pass {}: "Pasada {}"
+  Pass {} of {}: "Pasada {} de {}"
   'Pass {} of {}: {}': "Pasada {} de {}: {}"
   Passes judged before are kept and pass {} of {} is next. Start Over begins again from pass 1.: "Las pasadas ya evaluadas se conservan y la siguiente es la pasada {} de {}. Empezar de nuevo vuelve a la pasada 1."
   Password: Contraseña
@@ -3705,6 +3739,7 @@ translations:
   Priming nozzle...: Cebando boquilla...
   Priming...: Cebando...
   Print: Imprimir
+  Print Again: "Imprimir de nuevo"
   Print Anyway: Imprimir de todos modos
   Print Behavior: "Comportamiento de impresión"
   Print Canceled: Impresión Cancelada
@@ -3826,6 +3861,7 @@ translations:
   'Printing: start after this job': 'Imprimiendo: inicia tras esta impresión'
   Prints: Impresiones
   Prints Trend: Tendencia de Impresiones
+  Prints on its own, about {} min: "Imprime solo, unos {} min"
   'Private:': 'Privado:'
   Probe: Sonda
   Probe Accuracy Failed: Prueba de Precisión de Sonda Fallida
@@ -4312,10 +4348,13 @@ translations:
   Save changes to persist them across restarts?: ¿Guardar cambios para mantenerlos entre reinicios?
   'Save failed: {}': 'Error al guardar: {}'
   Save Offsets: Guardar offsets
+  Save for {}: "Guardar para {}"
   Save offsets?: ¿Guardar offsets?
   Save the new heater values to printer.cfg?: ¿Guardar los nuevos valores del calentador en printer.cfg?
   Save the new heater values to printer.cfg? Klipper restarts.: ¿Guardar los nuevos valores del calentador en printer.cfg? Klipper se reiniciará.
   Save to Config: "Guardar en configuración"
+  Save to Config writes it to the extruder section; Klipper keeps it after a restart.: "Guardar en configuración lo escribe en la sección del extrusor; Klipper lo conserva tras reiniciar."
+  Save to Config writes them to the extruder section and restarts Klipper.: "Guardar en configuración los escribe en la sección del extrusor y reinicia Klipper."
   Save to Spool: Guardar en bobina
   Save to Spoolman: Guardar en Spoolman
   Save to the printer config?: "¿Guardar en la configuración de la impresora?"
@@ -4715,6 +4754,7 @@ translations:
   Start Over: "Empezar de nuevo"
   Start Print: Iniciar Impresión
   Start Probing: Iniciar Sondeo
+  Start Tuning: "Iniciar ajuste"
   Start a new {} h interval? The hours counted so far are discarded.: '¿Iniciar un nuevo intervalo de {} h? Las horas contadas hasta ahora se descartan.'
   Start anyway?: '¿Iniciar de todos modos?'
   Start at: Comenzar en
@@ -4734,6 +4774,7 @@ translations:
   Starting nozzle clean...: Iniciando limpieza de boquilla...
   Starting print...: Iniciando impresión...
   Starting the print: Iniciando la impresión
+  Starting the tower: "Iniciando la torre"
   Starting the update: 'Iniciando la actualización'
   Starting {}…: 'Iniciando {}…'
   Starting...: Iniciando...
@@ -4768,6 +4809,7 @@ translations:
   Still running; no reply after {} min: 'Sigue en curso; sin respuesta tras {} min'
   Still saving this spool…: 'Todavía se está guardando esta bobina…'
   Still working... taking longer than usual: Aún trabajando... tardando más de lo habitual
+  'Still {:.1f} mm apart after {} towers: the middle, {:.1f} mm, is taken.': "Aún a {:.1f} mm de distancia tras {} torres: se toma el punto medio, {:.1f} mm."
   Stop: Detener
   Stop Drying: Detener Secado
   Stop Print?: ¿Detener Impresión?
@@ -4870,6 +4912,7 @@ translations:
   Tangle prevention boosted: Prevención de enredos reforzada
   'Tangle sensitivity': 'Sensibilidad a enredos'
   Tap + to add: Toca + para añadir
+  Tap - or + to hold your own value; the ramp stops.: "Toca - o + para mantener tu propio valor; la rampa se detiene."
   Tap Extrude more until clean filament comes out of the nozzle, then tap Done.: "Pulsa Extruir más hasta que salga filamento limpio de la boquilla; luego pulsa Listo."
   Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge: Toque Reiniciar firmware para recuperar. En la K2 esto también reinicia el puente MCU rpi
   Tap Resume to try the load again from {}.: 'Toque Reanudar para intentar la carga de nuevo desde {}.'
@@ -4879,6 +4922,7 @@ translations:
   Tap anywhere if this text is right-side up: Toque en cualquier lugar si este texto está derecho
   Tap anywhere to begin: Toca en cualquier lugar para comenzar
   Tap anywhere to begin calibration: Toca en cualquier lugar para iniciar la calibración
+  Tap the band that looks best: "Toca la banda que se vea mejor"
   Tap the bed's back-left corner: Toque la esquina trasera izquierda de la cama
   Tap the bed's back-right corner: Toque la esquina trasera derecha de la cama
   Tap the bed's front-left corner: Toque la esquina delantera izquierda de la cama
@@ -5050,6 +5094,7 @@ translations:
   ? The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled.
   : La placa controladora no pudo seguir la frecuencia de pasos pedida, normalmente porque se combinan muchos micropasos con una velocidad alta, o porque el host se bloqueó.
   The controller boards Klipper runs on. See their load in the system settings.: 'Las placas controladoras en las que se ejecuta Klipper. Consulta su carga en los ajustes del sistema.'
+  The corners, from above and the side. Measure up from the plate.: "Las esquinas, desde arriba y de lado. Mide hacia arriba desde la cama."
   The curve draws in as the axis sweeps: 'La curva se dibuja mientras el eje hace el barrido'
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: La cuchilla no regresó. Compruebe si hay filamento enrollado en el mecanismo de corte
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: El cortador está desalineado. Recalíbrelo con CALIBRATE_CUT_POS
@@ -5133,6 +5178,7 @@ translations:
   The heater took the target.: 'El calentador aceptó el objetivo.'
   The heater was turned off at the heater.: 'El calentador se apagó desde el propio calentador.'
   The heater will cycle on and off several times.: El calentador se encenderá y apagará varias veces.
+  The height where the left side is cleanest, then where the front is.: "La altura donde el lado izquierdo está más limpio, y luego donde lo está el frente."
   The helper macros are installed and activate after Klipper restarts.: 'Las macros de ayuda están instaladas y se activan tras reiniciar Klipper.'
   ? 'The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream.'
   : 'El ordenador host no envió los movimientos a la placa controladora a tiempo, normalmente porque está sobrecargado: uso alto de CPU o de swap, una tarjeta SD lenta, una fuente de alimentación inestable o una transmisión de webcam.'
@@ -5542,6 +5588,7 @@ translations:
   ? This {0} looks like it has {1} ({2}% confidence), but it is set up for {3}. A wrong profile applies incorrect pre-print options and presets.
   : 'Esta {0} parece tener {1} ({2}% de confianza), pero está configurada para {3}. Un perfil erróneo aplica opciones y preajustes de preimpresión incorrectos.'
   Thorough: Exhaustivo
+  Three towers, one value each: "Tres torres, un valor cada una"
   Thumbnail Only: Solo miniatura
   'Thumbnail: ': 'Miniatura: '
   Thumbnails: 'Miniaturas'
@@ -5594,6 +5641,8 @@ translations:
   Toggle toolhead LED for an extruder: 'Alternar el LED del cabezal para un extrusor'
   'Toggle:': 'Conmutar:'
   Too humid: Demasiado húmedo
+  Too little: "Muy poco"
+  Too much: "Demasiado"
   Too much filament for one move: Demasiado filamento para un solo movimiento
   Tool: Herramienta
   Tool Change Failed: 'Fallo al cambiar de herramienta'
@@ -5671,6 +5720,7 @@ translations:
   Tune: Ajustar
   Tune Belts: "Ajustar"
   Tune the motors to remove fine vertical lines: 'Ajusta los motores para eliminar líneas verticales finas'
+  Tuned: "Ajustado"
   Tuner: Ajuste
   Tuning tower enabled - start a print to test: Torre de ajuste activada - inicie una impresión para probar
   Turbo: Turbo
@@ -5685,6 +5735,7 @@ translations:
   Turn On: Encender
   Turn On LEDs: 'Encender los LED'
   Turn On Toolhead LED: "Encender el LED del cabezal"
+  Turn it off in the slicer: "Desactívalo en el laminador"
   Turn off arc fitting in the slicer and slice the file again.: Desactiva el ajuste de arcos en el laminador y vuelve a laminar el archivo.
   Turn off arc fitting in the slicer, then slice the file again.: 'Desactiva el ajuste de arcos en el laminador y vuelve a laminar el archivo.'
   Turn off bed check: 'Desactivar comprobación de cama'
@@ -5850,6 +5901,7 @@ translations:
   Value must be between {} and {}: El valor debe estar entre {} y {}
   Values: "Valores"
   Values must not be negative: Los valores no deben ser negativos
+  Velocity: "Velocidad"
   Velocity and acceleration limits: Límites de velocidad y aceleración
   Vendor: Fabricante
   Vendor Name: Nombre del Proveedor
@@ -5957,6 +6009,7 @@ translations:
   When this spool runs out, printing continues from {}.: 'Cuando esta bobina se agote, la impresión continúa desde {}.'
   When this spool runs out, the print pauses.: 'Cuando esta bobina se agote, la impresión se pausa.'
   Where UI sounds play: Dónde se reproducen los sonidos de la interfaz
+  Where to look: "Dónde mirar"
   Whether filament is loaded: Si hay filamento cargado
   Which macro switches the ACE path back on: 'Qué macro vuelve a activar la ruta del ACE'
   Which macro switches the ACE path off for bypass: 'Qué macro desactiva la ruta del ACE para el bypass'
@@ -6065,6 +6118,7 @@ translations:
   Your printer's firmware manages its configuration, so set these values there.: 'El firmware de tu impresora gestiona su configuración, así que ajusta estos valores allí.'
   Your printer's manual has the parts and lubricant for your model.: "El manual de tu impresora indica piezas y lubricante para tu modelo."
   Your usual build plate is on: 'Tu placa de impresión habitual está puesta'
+  Your value holds to the top: "Tu valor se mantiene hasta arriba"
   Your {0} is set up for {1}, but it looks stock.: 'Tu {0} está configurada para {1}, pero parece de serie.'
   Your {0} looks like it has {1}, but it is set up for {2}.: 'Tu {0} parece tener {1}, pero está configurada para {2}.'
   Your {0} looks like it has {1}, but it is set up as stock.: 'Tu {0} parece tener {1}, pero está configurada como de serie.'
@@ -6148,6 +6202,7 @@ translations:
   'bed: distance unknown': "cama: distancia desconocida"
   'bed: distance unknown until the paper drags': "cama: distancia desconocida hasta que el papel roce"
   buffer|Neutral: Centrado
+  bulge: "abultamiento"
   busy: 'ocupado'
   by: 'de'
   by Preston Brown: por Preston Brown
@@ -6188,6 +6243,7 @@ translations:
   extruder(s): extrusor(es)
   extruders: extrusores
   fans: ventiladores
+  fast: "rápido"
   faulted: con fallos
   feeder error: 'error del alimentador'
   feeder not in automatic mode: 'alimentador no está en modo automático'
@@ -6201,6 +6257,7 @@ translations:
   heats nozzle: calienta la boquilla
   heats nozzle + bed: calienta boquilla + cama
   heats to {}: calienta a {}
+  held to the top: "mantenido hasta arriba"
   'helixscreen.env ignored: owned by uid {}': 'helixscreen.env ignorado: pertenece al uid {}'
   'helixscreen.env ignored: untrusted symlink chain': 'helixscreen.env ignorado: cadena de enlaces simbólicos no confiable'
   'helixscreen.env ignored: writable by other users': 'helixscreen.env ignorado: escribible por otros usuarios'
@@ -6226,6 +6283,7 @@ translations:
   matched: igualadas
   material differs: 'material distinto'
   measured {}: medido {}
+  medium: "medio"
   'method: {}': 'método: {}'
   mm: mm
   mm Z-offset: mm Z-Offset
@@ -6252,6 +6310,7 @@ translations:
   Monitor for print abnormalities (K2 Plus camera-based): Monitorear anomalías de impresión (basado en cámara del K2 Plus)
   Monitor for print abnormalities (camera-based): 'Monitorear anomalías de impresión (basado en cámara)'
   on unit {}: 'en la unidad {}'
+  one look at each tower: "una mirada a cada torre"
   one restart: un reinicio
   optional: opcional
   or type a macro name: o escriba un nombre de macro
@@ -6260,6 +6319,8 @@ translations:
   passive: pasivo
   past last time: "más allá de la última vez"
   past last time’s position: "más allá de la posición de la última vez"
+  pause: "pausa"
+  pick the band: "elige la banda"
   plate must be clear: la placa debe estar libre
   preparing: preparando
   ? pressure_advance is set for this extruder somewhere the save did not reach, such as another included file. Comment it out there and save again.
@@ -6282,6 +6343,7 @@ translations:
   similar color: color similar
   sleep {} min: reposo en {} min
   slots): ranuras)
+  slow: "lento"
   start position: "posición inicial"
   started: iniciado
   steppers: motores paso a paso
@@ -6300,6 +6362,7 @@ translations:
   the printer refused it: "la impresora lo rechazó"
   the right belt: "la correa derecha"
   the upper belt: "la correa superior"
+  thin: "fino"
   this printer fills its gates from Spoolman, so change the spool there: "esta impresora rellena sus gates desde Spoolman, cambia la bobina allí"
   this week: esta semana
   too slow: demasiado lento
@@ -6314,6 +6377,7 @@ translations:
   v{} is available. Tap to update.: v{} disponible. Toque para actualizar.
   waiting for the printer: "esperando a la impresora"
   was {:.0f}%: 'era {:.0f}%'
+  was {}: "antes {}"
   what you turned: "lo que giraste"
   within one bin: "dentro de un bin"
   wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant no se está ejecutando. Las funciones WiFi no están disponibles.
@@ -6337,6 +6401,7 @@ translations:
   '{:.0f} g of {} · {}%': '{:.0f} g de {} · {}%'
   '{:.0f}-{:.0f} Hz sweep': barrido de {:.0f}-{:.0f} Hz
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · unos {} min'
+  '{:.1f} to {:.1f} mm': "{:.1f} a {:.1f} mm"
   '{:.2f} mm range': '{:.2f} mm de rango'
   '{} ({})': '{} ({})'
   '{} Extruders': '{} extrusores'
@@ -6357,6 +6422,7 @@ translations:
   '{} available': '{} disponible'
   '{} axes homed': 'Ejes {} en origen'
   '{} axis homed': Eje {} en origen
+  '{} bands, {} apart. Prints a {:.0f} mm square, {:.0f} mm tall.': "{} bandas, separadas {}. Imprime un cuadrado de {:.0f} mm y {:.0f} mm de alto."
   "{} can't refill automatically": '{} no puede rellenarse automáticamente'
   '{} cannot be skipped: its name has characters the printer cannot be sent': '{} no se puede excluir: su nombre tiene caracteres que no se pueden enviar a la impresora'
   '{} cannot be stored on this printer.': "{} no se puede guardar en esta impresora."

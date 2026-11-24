@@ -546,6 +546,8 @@
   <translation tag="Backup Toolhead" zh="备用工具头"/>
   <translation tag="Backup lane name contains invalid characters" zh="备用耗材通道名称包含无效字符"/>
   <translation tag="Balanced" zh="平衡"/>
+  <translation tag="Band" zh="条带"/>
+  <translation tag="Band {}" zh="条带 {}"/>
   <translation tag="Barcode Scanner" zh="条码扫描器"/>
   <translation tag="Base" zh="基准"/>
   <translation tag="Based on the newest {} prints" zh="基于最近 {} 次打印"/>
@@ -596,6 +598,7 @@
   <translation tag="Bed {} °C" zh="热床 {} °C"/>
   <translation tag="Before" zh="之前"/>
   <translation tag="Before starting" zh="开始之前"/>
+  <translation tag="Before the test" zh="测试之前"/>
   <translation tag="Before you start" zh="开始之前"/>
   <translation tag="Below target" zh="低于目标"/>
   <translation tag="Belt Tension" zh="皮带张力"/>
@@ -611,6 +614,7 @@
   <translation tag="Belts stretch and settle; loose ones cause ringing and layer shifts." zh="皮带会拉伸松弛；过松会导致振纹和层错位。"/>
   <translation tag="Best height" zh="最佳高度"/>
   <translation tag="Best height, measured up from the plate" zh="最佳高度（从热床向上测量）"/>
+  <translation tag="Best height, up from the plate" zh="最佳高度（距热床）"/>
   <translation tag="Beta" zh="测试版"/>
   <translation tag="Beta features: OFF" zh="测试版功能: 关"/>
   <translation tag="Beta features: ON" zh="测试版功能: 开"/>
@@ -1024,6 +1028,8 @@
   <translation tag="Clear extruder only" zh="只清空挤出机"/>
   <translation tag="Clear failed" zh="清除失败"/>
   <translation tag="Clear head T{1}&apos;s filament path (a cold pull works), then resume." zh="请清理工具头 T{1} 的耗材通路（可用冷拉），然后恢复。"/>
+  <translation tag="Clear pressure advance in your slicer&apos;s filament profile. A slicer that sets it overwrites this value at every print." zh="请在切片软件的耗材配置中清除压力提前。设置了它的切片软件会在每次打印时覆盖此值。"/>
+  <translation tag="Clear pressure advance in your slicer&apos;s filament profile. A slicer that sets it replaces these values at every print." zh="请在切片软件的耗材配置中清除压力提前。设置了它的切片软件会在每次打印时覆盖这些值。"/>
   <translation tag="Clear the area above and below the plate. Lay the spools on the plate, cover them with a box (a printed lid or the filament&apos;s packaging) and close the door." zh="清空热床上方和下方的区域。把料盘放在热床上,用盒子(打印的盖子或耗材的包装盒)罩住,然后关好门。"/>
   <translation tag="Clear the bed and the nozzle, then restart the firmware." zh="请清理热床和喷嘴，然后重启固件。"/>
   <translation tag="Clear the bed and the nozzle, then try again." zh="请清理热床和喷嘴，然后重试。"/>
@@ -1516,6 +1522,7 @@
   <translation tag="Each correction increased the difference between the probe points: the Z motors are mapped to the wrong corners, or the probe is not repeatable." zh="每次校正都让探测点之间的差值变大：Z 电机对应的角落配置错误，或探针重复性差。"/>
   <translation tag="Each fan can only be selected once" zh="每个风扇只能选择一次"/>
   <translation tag="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead." zh="此打印机的每个工具头都有自己的 Z 偏移。请改用工具偏移校准。"/>
+  <translation tag="Each tap sets a new value from this layer up." zh="每次点按都会从这一层起设置新值。"/>
   <translation tag="Edit" zh="编辑"/>
   <translation tag="Edit Filament" zh="编辑耗材"/>
   <translation tag="Edit Slot" zh="编辑槽位"/>
@@ -2052,6 +2059,12 @@
   <translation tag="Front" zh="前"/>
   <translation tag="Front Left" zh="左前"/>
   <translation tag="Front Right" zh="右前"/>
+  <translation tag="Front best height" zh="前面最佳高度"/>
+  <translation tag="Front, lit from far left or right: the slow middle, the pause, the slow spot. Very subtle." zh="前面，从最左侧或最右侧打光：慢速中段、暂停、慢速点。非常细微。"/>
+  <translation tag="Front, lit from far left or right: where do the marked spots look cleanest?" zh="前面，从最左侧或最右侧打光：标记的点在哪里看起来最干净？"/>
+  <translation tag="Front, lit from the side" zh="前面，从侧面打光"/>
+  <translation tag="Front: the edges of the slow middle, the pause and the slow spot." zh="前面：慢速中段的边缘、暂停和慢速点。"/>
+  <translation tag="Front: where do the marked spots look cleanest?" zh="前面：标记的点在哪里看起来最干净？"/>
   <translation tag="Full" zh="完整"/>
   <translation tag="G-code Console" zh="G-code 控制台"/>
   <translation tag="G-code Preview" zh="G-code 预览"/>
@@ -2496,6 +2509,7 @@
   <translation tag="Keep the bypass spool visible when bypass is off" zh="旁路关闭时保持料盘可见"/>
   <translation tag="Keep the rotation distance sync feedback tunes" zh="保存同步反馈调校的旋转距离"/>
   <translation tag="Keep waiting" zh="继续等待"/>
+  <translation tag="Keep {}" zh="保留 {}"/>
   <translation tag="Kept {}: a print started." zh="已保留 {}：打印已开始。"/>
   <translation tag="Kick away" zh="拨除废料"/>
   <translation tag="Kinematics" zh="运动学"/>
@@ -2606,7 +2620,18 @@
   <translation tag="Left" zh="左"/>
   <translation tag="Left Best Higher" zh="左侧更高"/>
   <translation tag="Left Best Lower" zh="左侧更低"/>
+  <translation tag="Left and front agree: {:.1f} mm is the answer." zh="左侧与前面一致：{:.1f} mm 即为结果。"/>
   <translation tag="Left belt" zh="左皮带"/>
+  <translation tag="Left side" zh="左侧"/>
+  <translation tag="Left side against the front" zh="左侧与前面对比"/>
+  <translation tag="Left side and front, each at its slow edges. Each comes out clean at its own height; they should match." zh="左侧与前面，各自在慢速边缘处。各自在自己的高度最干净，两者应当一致。"/>
+  <translation tag="Left side {:.1f} mm higher: the next tower lowers the advance 10%." zh="左侧高 {:.1f} mm：下一个测试塔将压力提前降低 10%。"/>
+  <translation tag="Left side {:.1f} mm higher: the next tower raises the offset 10%." zh="左侧高 {:.1f} mm：下一个测试塔将偏移提高 10%。"/>
+  <translation tag="Left side {:.1f} mm lower: the next tower lowers the offset 10%." zh="左侧低 {:.1f} mm：下一个测试塔将偏移降低 10%。"/>
+  <translation tag="Left side {:.1f} mm lower: the next tower raises the advance 10%." zh="左侧低 {:.1f} mm：下一个测试塔将压力提前提高 10%。"/>
+  <translation tag="Left side: at what height do the edges of the slow middle look cleanest?" zh="左侧：慢速中段的边缘在什么高度看起来最干净？"/>
+  <translation tag="Left side: the two edges of the slow middle, 5 mm either side of center." zh="左侧：慢速中段的两条边缘，中心两侧各 5 mm。"/>
+  <translation tag="Left: the slow middle&apos;s edges" zh="左：慢速中段的边缘"/>
   <translation tag="Leftover material found" zh="发现残留材料"/>
   <translation tag="Length of filament to purge" zh="要排出的耗材长度"/>
   <translation tag="Length of the cooling tube section" zh="冷却管段的长度"/>
@@ -2641,6 +2666,7 @@
   <translation tag="List the shared screen with this printer&apos;s webcams" zh="在此打印机的摄像头列表中显示共享屏幕"/>
   <translation tag="Listen to all theme sounds" zh="试听所有主题声音"/>
   <translation tag="Live Z-offset, with baby steps and Save" zh="实时 Z 偏移，支持微调与保存"/>
+  <translation tag="Live now, until Klipper restarts" zh="立即生效，直到 Klipper 重启"/>
   <translation tag="Live view from your webcam" zh="摄像头实时画面"/>
   <translation tag="Load" zh="加载"/>
   <translation tag="Load Cell" zh="称重传感器"/>
@@ -2983,6 +3009,7 @@
   <translation tag="Needs file analysis, which isn&apos;t running." zh="需要文件分析，但它未在运行。"/>
   <translation tag="Needs repair from a web interface" zh="需要通过网页界面修复"/>
   <translation tag="Needs the {} package to switch spools" zh="切换料盘需要 {} 插件"/>
+  <translation tag="Needs you, about {} min" zh="需要你，约 {} 分钟"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" zh="需要 {}x{} 空位。请先移除或缩小小组件"/>
   <translation tag="Net Weight (g)" zh="净重（克）"/>
   <translation tag="Network" zh="网络"/>
@@ -3014,6 +3041,7 @@
   <translation tag="Next Layer" zh="下一层"/>
   <translation tag="Next Zone" zh="下一区间"/>
   <translation tag="Next Zone (~{} min)" zh="下一区间(约 {} 分钟)"/>
+  <translation tag="Next {} in {:.1f} mm" zh="下一个 {}：{:.1f} mm 后"/>
   <translation tag="Next, review the results and save them once" zh="接下来检查结果并一次保存"/>
   <translation tag="Next, see what finished and why the rest did not" zh="接下来，查看哪些已完成，以及其余为何未完成"/>
   <translation tag="Next: {}" zh="下一个：{}"/>
@@ -3093,6 +3121,8 @@
   <translation tag="No mesh loaded" zh="未加载网格"/>
   <translation tag="No message" zh="无消息"/>
   <translation tag="No multi-filament system detected" zh="未检测到多耗材系统"/>
+  <translation tag="No need to stay while it prints" zh="打印期间无需守候"/>
+  <translation tag="No need to stay; this screen waits for you when the tower is done." zh="无需守候；测试塔完成后，此界面会等你回来。"/>
   <translation tag="No network. Scan QR code to report on your phone." zh="无网络。扫描二维码在手机上报告。"/>
   <translation tag="No networks found" zh="未找到网络"/>
   <translation tag="No new mesh was stored as &apos;{}&apos;" zh="没有新的网格保存为 &apos;{}&apos;"/>
@@ -3399,6 +3429,8 @@
   <translation tag="Partial…" zh="部分…"/>
   <translation tag="Pass" zh="轮次"/>
   <translation tag="Pass the missing parameter from the slicer&apos;s start G-code, or give it a default in the macro." zh="请在切片软件的起始 G-code 中传入缺少的参数，或在宏中为其设置默认值。"/>
+  <translation tag="Pass {}" zh="第 {} 轮"/>
+  <translation tag="Pass {} of {}" zh="第 {} 轮，共 {} 轮"/>
   <translation tag="Pass {} of {}: {}" zh="轮次 {}/{}：{}"/>
   <translation tag="Passes judged before are kept and pass {} of {} is next. Start Over begins again from pass 1." zh="已评判的轮次会保留，下一轮是第 {} 轮（共 {} 轮）。重新开始将从第 1 轮开始。"/>
   <translation tag="Password" zh="密码"/>
@@ -3569,6 +3601,7 @@
   <translation tag="Priming nozzle..." zh="正在预挤喷嘴..."/>
   <translation tag="Priming..." zh="正在预挤..."/>
   <translation tag="Print" zh="打印"/>
+  <translation tag="Print Again" zh="再次打印"/>
   <translation tag="Print Anyway" zh="仍要打印"/>
   <translation tag="Print Behavior" zh="打印行为"/>
   <translation tag="Print Canceled" zh="打印已取消"/>
@@ -3694,6 +3727,7 @@
   <translation tag="Printing: start after this job" zh="打印中：本次打印完成后开始"/>
   <translation tag="Prints" zh="打印次数"/>
   <translation tag="Prints Trend" zh="打印趋势"/>
+  <translation tag="Prints on its own, about {} min" zh="自动打印，约 {} 分钟"/>
   <translation tag="Private:" zh="私有："/>
   <translation tag="Probe" zh="探针"/>
   <translation tag="Probe Accuracy Failed" zh="探针精度测试失败"/>
@@ -4170,12 +4204,15 @@
   <translation tag="Save calibration" zh="保存校准"/>
   <translation tag="Save changes to persist them across restarts?" zh="保存更改以便在重启后保留？"/>
   <translation tag="Save failed: {}" zh="保存失败: {}"/>
+  <translation tag="Save for {}" zh="为 {} 保存"/>
   <translation tag="Save offsets?" zh="保存偏移？"/>
   <translation tag="Save the Z-offset after the print: saving restarts Klipper." zh="请在打印结束后保存 Z 偏移：保存会重启 Klipper。"/>
   <translation tag="Save the changes to this spool?" zh="保存此料盘的更改？"/>
   <translation tag="Save the new heater values to printer.cfg?" zh="将新的加热器参数保存到printer.cfg？"/>
   <translation tag="Save the new heater values to printer.cfg? Klipper restarts." zh="将新的加热器参数保存到printer.cfg？Klipper将重启。"/>
   <translation tag="Save to Config" zh="保存到配置"/>
+  <translation tag="Save to Config writes it to the extruder section; Klipper keeps it after a restart." zh="保存到配置会将其写入挤出机配置段；重启后 Klipper 仍会保留。"/>
+  <translation tag="Save to Config writes them to the extruder section and restarts Klipper." zh="保存到配置会将其写入挤出机配置段并重启 Klipper。"/>
   <translation tag="Save to Spool" zh="保存到料盘"/>
   <translation tag="Save to Spoolman" zh="保存到 Spoolman"/>
   <translation tag="Save to the printer config?" zh="保存到打印机配置？"/>
@@ -4567,6 +4604,7 @@
   <translation tag="Start Over" zh="重新开始"/>
   <translation tag="Start Print" zh="开始打印"/>
   <translation tag="Start Probing" zh="开始探测"/>
+  <translation tag="Start Tuning" zh="开始调校"/>
   <translation tag="Start a new {} h interval? The hours counted so far are discarded." zh="开始新的 {} 小时间隔？目前累计的小时数将被清除。"/>
   <translation tag="Start anyway?" zh="仍要开始吗？"/>
   <translation tag="Start at" zh="从第"/>
@@ -4584,6 +4622,7 @@
   <translation tag="Starting nozzle clean..." zh="正在开始清洁喷嘴..."/>
   <translation tag="Starting print..." zh="正在启动打印..."/>
   <translation tag="Starting the print" zh="正在开始打印"/>
+  <translation tag="Starting the tower" zh="正在启动测试塔"/>
   <translation tag="Starting the update" zh="正在开始更新"/>
   <translation tag="Starting {}…" zh="正在开始 {}…"/>
   <translation tag="Starting..." zh="正在启动..."/>
@@ -4618,6 +4657,7 @@
   <translation tag="Still running; no reply after {} min" zh="仍在运行；{} 分钟无响应"/>
   <translation tag="Still saving this spool…" zh="此料盘仍在保存中…"/>
   <translation tag="Still working... taking longer than usual" zh="仍在处理……耗时比平常更长"/>
+  <translation tag="Still {:.1f} mm apart after {} towers: the middle, {:.1f} mm, is taken." zh="仍相差 {:.1f} mm，已测 {} 个测试塔：取中间值 {:.1f} mm。"/>
   <translation tag="Stop" zh="停止"/>
   <translation tag="Stop Drying" zh="停止干燥"/>
   <translation tag="Stop Print?" zh="停止打印？"/>
@@ -4717,6 +4757,7 @@
   <translation tag="Tangle prevention boosted" zh="防打结已增强"/>
   <translation tag="Tangle sensitivity" zh="打结灵敏度"/>
   <translation tag="Tap + to add" zh="点击 + 添加"/>
+  <translation tag="Tap - or + to hold your own value; the ramp stops." zh="点按 - 或 + 以保持你自己的值；渐变将停止。"/>
   <translation tag="Tap Extrude more until clean filament comes out of the nozzle, then tap Done." zh="点击“继续挤出”直到喷嘴流出干净的耗材，然后点击“完成”。"/>
   <translation tag="Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge" zh="点按“重启固件”以恢复。在 K2 上这也会重启 rpi MCU 桥接"/>
   <translation tag="Tap Resume to try the load again from {}." zh="点按恢复，从{}重新尝试装载。"/>
@@ -4727,6 +4768,7 @@
   <translation tag="Tap anywhere if this text is right-side up" zh="如果文字方向正确请点击任意位置"/>
   <translation tag="Tap anywhere to begin" zh="点击任意位置开始"/>
   <translation tag="Tap anywhere to begin calibration" zh="点击任意位置开始校准"/>
+  <translation tag="Tap the band that looks best" zh="点按看起来最好的条带"/>
   <translation tag="Tap the bed&apos;s back-left corner" zh="点击热床的左后角"/>
   <translation tag="Tap the bed&apos;s back-right corner" zh="点击热床的右后角"/>
   <translation tag="Tap the bed&apos;s front-left corner" zh="点击热床的左前角"/>
@@ -4883,6 +4925,7 @@
   <translation tag="The connection to Klipper was lost" zh="与 Klipper 的连接已断开"/>
   <translation tag="The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled." zh="控制板跟不上所要求的步进速率，通常是高细分配合高速度，或主机卡顿。"/>
   <translation tag="The controller boards Klipper runs on. See their load in the system settings." zh="运行 Klipper 的控制板。在系统设置中查看其负载。"/>
+  <translation tag="The corners, from above and the side. Measure up from the plate." zh="从上方和侧面观察拐角。从热床向上测量。"/>
   <translation tag="The curve draws in as the axis sweeps" zh="曲线随轴扫描绘制"/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" zh="切刀未复位。请检查切刀机构上是否缠绕耗材"/>
   <translation tag="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS" zh="切刀未对准。请使用 CALIBRATE_CUT_POS 重新校准"/>
@@ -4959,6 +5002,7 @@
   <translation tag="The heater took the target." zh="加热器已接受目标温度。"/>
   <translation tag="The heater was turned off at the heater." zh="加热器已在加热器本身上关闭。"/>
   <translation tag="The heater will cycle on and off several times." zh="加热器将多次开关循环。"/>
+  <translation tag="The height where the left side is cleanest, then where the front is." zh="左侧最干净的高度，然后是前面最干净的高度。"/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." zh="帮助宏已安装，将在 Klipper 重启后启用。"/>
   <translation tag="The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream." zh="主机未能及时向控制板发送移动指令，通常是因为负载过高：CPU 或交换空间占用高、SD 卡太慢、电源不稳，或正在推送摄像头视频流。"/>
   <translation tag="The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination." zh="主机已有数秒未收到此主板的任何消息：USB 或 CAN 线缆松动或损坏、主板断电，或 CAN 总线缺少终端电阻。"/>
@@ -5311,6 +5355,7 @@
   <translation tag="This {0} looks like it has {1} ({2}% confidence), but it is set up as stock. A wrong profile applies incorrect pre-print options and presets." zh="此 {0} 似乎装有 {1}（置信度 {2}%），但当前设置为原厂状态。错误的配置会应用不正确的打印前选项和预设。"/>
   <translation tag="This {0} looks like it has {1} ({2}% confidence), but it is set up for {3}. A wrong profile applies incorrect pre-print options and presets." zh="此 {0} 似乎装有 {1}（置信度 {2}%），但当前设置为 {3}。错误的配置会应用不正确的打印前选项和预设。"/>
   <translation tag="Thorough" zh="全面"/>
+  <translation tag="Three towers, one value each" zh="三个测试塔，各取一个值"/>
   <translation tag="Thumbnail Only" zh="仅缩略图"/>
   <translation tag="Thumbnail: " zh="缩略图: "/>
   <translation tag="Thumbnails" zh="缩略图"/>
@@ -5365,6 +5410,8 @@
   <translation tag="Toggle toolhead LED for an extruder" zh="切换某个挤出机的工具头 LED"/>
   <translation tag="Toggle:" zh="切换:"/>
   <translation tag="Too humid" zh="湿度过高"/>
+  <translation tag="Too little" zh="太少"/>
+  <translation tag="Too much" zh="太多"/>
   <translation tag="Too much filament for one move" zh="单次移动的耗材过多"/>
   <translation tag="Tool" zh="工具"/>
   <translation tag="Tool Change Failed" zh="工具切换失败"/>
@@ -5442,6 +5489,7 @@
   <translation tag="Tune" zh="调优"/>
   <translation tag="Tune Belts" zh="调整皮带"/>
   <translation tag="Tune the motors to remove fine vertical lines" zh="调整电机以消除细小的垂直纹路"/>
+  <translation tag="Tuned" zh="已调校"/>
   <translation tag="Tuner" zh="调校"/>
   <translation tag="Tuning tower enabled - start a print to test" zh="调优塔已启用 - 开始打印以测试"/>
   <translation tag="Turbo" zh="极速"/>
@@ -5456,6 +5504,7 @@
   <translation tag="Turn On" zh="开启"/>
   <translation tag="Turn On LEDs" zh="打开 LED"/>
   <translation tag="Turn On Toolhead LED" zh="打开工具头 LED"/>
+  <translation tag="Turn it off in the slicer" zh="在切片软件中关闭"/>
   <translation tag="Turn off arc fitting in the slicer and slice the file again." zh="请在切片软件中关闭圆弧拟合，然后重新切片。"/>
   <translation tag="Turn off arc fitting in the slicer, then slice the file again." zh="请在切片软件中关闭 Arc fitting（圆周拟合），然后重新切片。"/>
   <translation tag="Turn off bed check" zh="关闭热床检查"/>
@@ -5619,6 +5668,8 @@
   <translation tag="Use first HID scanner found" zh="使用找到的第一个 HID 扫描器"/>
   <translation tag="Use printer type to select image" zh="使用打印机类型选择图片"/>
   <translation tag="Use the home layout set on the printer&apos;s own screen" zh="使用打印机自身屏幕上设置的主屏幕布局"/>
+  <translation tag="Use {:.1f} mm" zh="使用 {:.1f} mm"/>
+  <translation tag="Use {}" zh="使用 {}"/>
   <translation tag="Used when a material has no entry" zh="材料没有条目时使用"/>
   <translation tag="User Guide" zh="用户指南"/>
   <translation tag="User intervention required" zh="需要手动干预"/>
@@ -5630,6 +5681,7 @@
   <translation tag="Values" zh="数值"/>
   <translation tag="Values must not be negative" zh="值不能为负数"/>
   <translation tag="Variant" zh="变体"/>
+  <translation tag="Velocity" zh="速度"/>
   <translation tag="Velocity and acceleration limits" zh="速度和加速度限制"/>
   <translation tag="Vendor" zh="供应商"/>
   <translation tag="Vendor Name" zh="供应商名称"/>
@@ -5735,6 +5787,7 @@
   <translation tag="When this spool runs out, printing continues from {}." zh="此料盘用尽时，将从{}继续打印。"/>
   <translation tag="When this spool runs out, the print pauses." zh="此料盘用尽时，打印将暂停。"/>
   <translation tag="Where UI sounds play" zh="界面声音的播放位置"/>
+  <translation tag="Where to look" zh="观察位置"/>
   <translation tag="Whether filament is loaded" zh="耗材是否已装载"/>
   <translation tag="Whether the Z arrows follow the bed or the Z value" zh="Z 按钮跟随热床还是 Z 值"/>
   <translation tag="Which belt is each path?" zh="每条路径是哪条皮带?"/>
@@ -5847,6 +5900,7 @@
   <translation tag="Your printer&apos;s firmware manages its configuration, so set these values there." zh="打印机的配置由其固件管理，请在固件中设置这些值。"/>
   <translation tag="Your printer&apos;s manual has the parts and lubricant for your model." zh="打印机手册列有适合您机型的部件和润滑剂。"/>
   <translation tag="Your usual build plate is on" zh="已放上常用的打印板"/>
+  <translation tag="Your value holds to the top" zh="你的值保持到顶部"/>
   <translation tag="Your {0} is set up for {1}, but it looks stock." zh="您的 {0} 设置为 {1}，但看起来是原厂状态。"/>
   <translation tag="Your {0} looks like it has {1}, but it is set up as stock." zh="您的 {0} 似乎装有 {1}，但当前设置为原厂状态。"/>
   <translation tag="Your {0} looks like it has {1}, but it is set up for {2}." zh="您的 {0} 似乎装有 {1}，但设置为 {2}。"/>
@@ -5928,6 +5982,7 @@
   <translation tag="bed: distance unknown" zh="热床：距离未知"/>
   <translation tag="bed: distance unknown until the paper drags" zh="热床：纸张有阻力前距离未知"/>
   <translation tag="buffer|Neutral" zh="中位"/>
+  <translation tag="bulge" zh="鼓包"/>
   <translation tag="busy" zh="正忙"/>
   <translation tag="by" zh="作者："/>
   <translation tag="by Preston Brown" zh="by Preston Brown"/>
@@ -5968,6 +6023,7 @@
   <translation tag="extruder(s)" zh="挤出机"/>
   <translation tag="extruders" zh="挤出机"/>
   <translation tag="fans" zh="风扇"/>
+  <translation tag="fast" zh="快速"/>
   <translation tag="faulted" zh="出错"/>
   <translation tag="feeder error" zh="送料器错误"/>
   <translation tag="feeder not in automatic mode" zh="送料器未处于自动模式"/>
@@ -5982,6 +6038,7 @@
   <translation tag="heats nozzle + bed" zh="加热喷嘴 + 热床"/>
   <translation tag="heats to {}" zh="加热至 {}"/>
   <translation tag="heats to {}°" zh="加热至 {}°"/>
+  <translation tag="held to the top" zh="保持到顶部"/>
   <translation tag="helixscreen.env ignored: owned by uid {}" zh="已忽略 helixscreen.env：属主为 uid {}"/>
   <translation tag="helixscreen.env ignored: untrusted symlink chain" zh="已忽略 helixscreen.env：符号链接链不受信任"/>
   <translation tag="helixscreen.env ignored: writable by other users" zh="已忽略 helixscreen.env：其他用户可写入"/>
@@ -6007,6 +6064,7 @@
   <translation tag="matched" zh="匹配"/>
   <translation tag="material differs" zh="材料不同"/>
   <translation tag="measured {}" zh="测量于 {}"/>
+  <translation tag="medium" zh="中速"/>
   <translation tag="method: {}" zh="方法：{}"/>
   <translation tag="mm" zh="mm"/>
   <translation tag="mm Z-offset" zh="mm Z 偏移"/>
@@ -6027,6 +6085,7 @@
   <translation tag="of" zh="的"/>
   <translation tag="off" zh="关闭"/>
   <translation tag="on unit {}" zh="在单元 {}"/>
+  <translation tag="one look at each tower" zh="每个测试塔看一眼"/>
   <translation tag="one restart" zh="重启一次"/>
   <translation tag="optional" zh="可选"/>
   <translation tag="or type a macro name" zh="或输入宏名称"/>
@@ -6035,6 +6094,8 @@
   <translation tag="passive" zh="被动"/>
   <translation tag="past last time" zh="超过上次位置"/>
   <translation tag="past last time’s position" zh="超过上次的位置"/>
+  <translation tag="pause" zh="暂停"/>
+  <translation tag="pick the band" zh="选择条带"/>
   <translation tag="plate must be clear" zh="打印板必须清空"/>
   <translation tag="preparing" zh="准备中"/>
   <translation tag="pressure_advance is set for this extruder somewhere the save did not reach, such as another included file. Comment it out there and save again." zh="此挤出机的 pressure_advance 设置在保存未覆盖的位置，例如另一个包含的文件。请在该文件中将其注释掉后重新保存。"/>
@@ -6056,6 +6117,7 @@
   <translation tag="similar color" zh="相近颜色"/>
   <translation tag="sleep {} min" zh="{} 分钟后休眠"/>
   <translation tag="slots)" zh="个槽位)"/>
+  <translation tag="slow" zh="慢速"/>
   <translation tag="start position" zh="起始位置"/>
   <translation tag="started" zh="已启动"/>
   <translation tag="steppers" zh="步进电机"/>
@@ -6074,6 +6136,7 @@
   <translation tag="the printer refused it" zh="打印机拒绝了"/>
   <translation tag="the right belt" zh="右皮带"/>
   <translation tag="the upper belt" zh="上皮带"/>
+  <translation tag="thin" zh="偏薄"/>
   <translation tag="this printer fills its gates from Spoolman, so change the spool there" zh="此打印机的通道信息来自 Spoolman，请在 Spoolman 中更改料盘"/>
   <translation tag="this week" zh="本周"/>
   <translation tag="too slow" zh="太慢"/>
@@ -6088,6 +6151,7 @@
   <translation tag="v{} is available. Tap to update." zh="v{} 可用。点击以更新。"/>
   <translation tag="waiting for the printer" zh="正在等待打印机"/>
   <translation tag="was {:.0f}%" zh="原为 {:.0f}%"/>
+  <translation tag="was {}" zh="原为 {}"/>
   <translation tag="what you turned" zh="你转动的量"/>
   <translation tag="within one bin" zh="在一个频点内"/>
   <translation tag="wpa_supplicant is not running. WiFi features unavailable." zh="wpa_supplicant 未运行。WiFi 功能不可用。"/>
@@ -6109,6 +6173,7 @@
   <translation tag="{:.0f} g of {} · {}%" zh="{:.0f} g / {} · {}%"/>
   <translation tag="{:.0f}-{:.0f} Hz sweep" zh="{:.0f}-{:.0f} Hz 扫频"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" zh="{:.0f}-{:.0f} Hz · 约 {} 分钟"/>
+  <translation tag="{:.1f} to {:.1f} mm" zh="{:.1f} 至 {:.1f} mm"/>
   <translation tag="{:.2f} mm range" zh="范围 {:.2f} mm"/>
   <translation tag="{} ({})" zh="{}（{}）"/>
   <translation tag="{} Extruders" zh="{} 个挤出机"/>
@@ -6129,6 +6194,7 @@
   <translation tag="{} available" zh="{} 可用"/>
   <translation tag="{} axes homed" zh="{} 轴已归位"/>
   <translation tag="{} axis homed" zh="{} 轴已归位"/>
+  <translation tag="{} bands, {} apart. Prints a {:.0f} mm square, {:.0f} mm tall." zh="{} 条带，间隔 {}。打印 {:.0f} mm 见方、高 {:.0f} mm 的塔。"/>
   <translation tag="{} can&apos;t refill automatically" zh="{} 无法自动续料"/>
   <translation tag="{} cannot be skipped: its name has characters the printer cannot be sent" zh="无法排除 {}：名称包含无法发送到打印机的字符"/>
   <translation tag="{} cannot be stored on this printer." zh="{} 无法保存在这台打印机上。"/>
