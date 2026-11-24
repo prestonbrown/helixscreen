@@ -1393,7 +1393,8 @@ void drain_backlog(int listen_fd) {
 const char* mock_klippy_uds_address() {
     static int listen_fd = -1;
     static const std::string path = [] {
-        const std::string p = "/tmp/helix-mock-klippy-" + std::to_string(getpid()) + ".sock";
+        const std::string p =
+            helix::mock::scratch_dir() + "/helix-mock-klippy-" + std::to_string(getpid()) + ".sock";
         ::unlink(p.c_str());
         const int fd = ::socket(AF_UNIX, SOCK_STREAM, 0);
         if (fd >= 0) {

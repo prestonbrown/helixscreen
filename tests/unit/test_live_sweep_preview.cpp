@@ -7,6 +7,7 @@
 #include "app_globals.h"
 #include "core/update_queue.h"
 #include "live_sweep_preview.h"
+#include "mock_planted_gcodes.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 
@@ -347,7 +348,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "query_live_sweep_facts asks the mock printer"
     }
     REQUIRE(facts.has_value());
     CHECK(calls == 1);
-    CHECK(facts->socket_path == "/tmp/helix-mock-klippy-" + std::to_string(getpid()) + ".sock");
+    CHECK(facts->socket_path ==
+          helix::mock::scratch_dir() + "/helix-mock-klippy-" + std::to_string(getpid()) + ".sock");
     CHECK(facts->socket_reachable);
     CHECK(facts->cfg.accel_chip == "adxl345");
     CHECK(facts->cfg.from_printer);

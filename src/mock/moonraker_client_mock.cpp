@@ -3467,8 +3467,8 @@ std::string MoonrakerClientMock::shaper_csv_path(char axis_lower) {
     // getpid(), not a random suffix: the path has to be stable for the whole
     // process so a fixture's std::remove() between cases still finds the file
     // its own mock wrote, while staying disjoint from every concurrent shard.
-    return "/tmp/calibration_data_" + std::string(1, axis_lower) + "_mock_" +
-           std::to_string(static_cast<long>(::getpid())) + ".csv";
+    return helix::mock::scratch_dir() + "/calibration_data_" + std::string(1, axis_lower) +
+           "_mock_" + std::to_string(static_cast<long>(::getpid())) + ".csv";
 }
 
 void MoonrakerClientMock::remove_shaper_csvs() {
@@ -3538,7 +3538,7 @@ std::string MoonrakerClientMock::belt_csv_path(const std::string& axis_name,
                                                const std::string& name) {
     // PID-scoped for the same reason as shaper_csv_path(): sharded test
     // processes sharing /tmp must not read or delete each other's fixtures.
-    return "/tmp/resonances_" + axis_name + "_" + name + "_mock_" +
+    return helix::mock::scratch_dir() + "/resonances_" + axis_name + "_" + name + "_mock_" +
            std::to_string(static_cast<long>(::getpid())) + ".csv";
 }
 

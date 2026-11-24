@@ -4,6 +4,7 @@
 #include "belt_settle.h"
 #include "lvgl/lvgl.h"
 #include "mock_persona.h"
+#include "mock_planted_gcodes.h"
 #include "moonraker_client_mock.h"
 #include "resonance_console.h"
 #include "shaper_csv_parser.h"
@@ -57,9 +58,9 @@ TEST_CASE_METHOD(BeltMockFixture, "mock sweep emits Klipper's exact lines", "[be
     REQUIRE(path);
     CHECK(lines.front() == "Testing frequency 5 Hz");
     CHECK(lines[lines.size() - 2] == "Testing frequency 135 Hz");
-    CHECK(lines.back().rfind(
-              "Resonances data written to /tmp/resonances_axis=1.000,-1.000,0.000_helix_belt_a_",
-              0) == 0);
+    CHECK(lines.back().rfind("Resonances data written to " + helix::mock::scratch_dir() +
+                                 "/resonances_axis=1.000,-1.000,0.000_helix_belt_a_",
+                             0) == 0);
     auto d = parse_resonance_csv(*path);
     REQUIRE(d.error == ResonanceCsvError::NONE);
     auto peak = find_peak_frequency(d.curve, 20.0f, d.curve.back().first);
