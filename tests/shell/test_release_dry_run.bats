@@ -191,6 +191,25 @@ verify() {
     [[ "$output" == *"a release ships no tarball: $ART/helixscreen-pi-v$VERSION.tar.gz"* ]] || fail "$output"
 }
 
+@test "verifier allows the HelixPrint plugin tarball in the release dir and the artifact dir" {
+    command -v jq >/dev/null || skip "jq not installed"
+    make_fixture
+    echo "plugin" > "$ART/helix-print-plugin.tar.gz"
+    echo "plugin" > "$REL/helix-print-plugin.tar.gz"
+    verify
+    [ "$status" -eq 0 ] || fail "$output"
+}
+
+@test "verifier still fails on another tarball beside the plugin tarball in R2" {
+    command -v jq >/dev/null || skip "jq not installed"
+    make_fixture
+    echo "plugin" > "$REL/helix-print-plugin.tar.gz"
+    echo "pi tarball" > "$REL/helixscreen-pi.tar.gz"
+    verify
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"a release ships no tarball: $REL/helixscreen-pi.tar.gz"* ]] || fail "$output"
+}
+
 @test "verifier fails when install.sh differs" {
     command -v jq >/dev/null || skip "jq not installed"
     make_fixture
