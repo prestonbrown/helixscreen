@@ -3951,7 +3951,9 @@ void UpdateChecker::settle_sentinel_after_connect(helix::IMoonrakerClient& clien
     if (!ec) {
         const auto age = fs::file_time_type::clock::now() - written;
         const auto fresh = std::chrono::seconds(kFreshSentinelSeconds);
-        if (age < fresh) {
+        // A sentinel dated in the future survived a reboot onto a clock that is
+        // behind (no RTC, no NTP yet): it is stale, not fresh.
+        if (age >= decltype(age)::zero() && age < fresh) {
             const auto wait =
                 std::chrono::duration_cast<std::chrono::milliseconds>(fresh - age).count() + 1000;
             spdlog::info("[UpdateChecker] Keeping the fresh self-restart sentinel for {} ms", wait);
@@ -3970,6 +3972,8 @@ void UpdateChecker::settle_sentinel_after_connect(helix::IMoonrakerClient& clien
             return;
         }
     }
+    // The sentinel goes now, so a recheck still pending has nothing left to do.
+    cancel_sentinel_cleanup_timer();
     if (fs::remove(sentinel, ec)) {
         spdlog::info("[UpdateChecker] Cleaned up self-restart sentinel");
         // Moonraker re-reads release_info.json only on a refresh, and its
@@ -4003,6 +4007,9 @@ void UpdateChecker::detach(helix::IMoonrakerClient& client) {
     moonraker_sync_after_job_.reset();
     moonraker_restarted_for_.clear();
     moonraker_mismatch_logged_.clear();
+    // The recheck reconnects to whichever client is current; the next
+    // on_connected schedules its own.
+    cancel_sentinel_cleanup_timer();
     client.unregister_method_callback(kUpdateResponseMethod, kExternalUpdateHandler);
 }
 
@@ -4150,6 +4157,10 @@ void UpdateChecker::cancel_auto_check_timer() {
         helix::ui::lv_timer_cancel_safe(auto_install_timer_);
     }
     auto_install_timer_ = nullptr;
+    cancel_sentinel_cleanup_timer();
+}
+
+void UpdateChecker::cancel_sentinel_cleanup_timer() {
     if (sentinel_cleanup_timer_ && lv_is_initialized()) {
         helix::ui::lv_timer_cancel_safe(sentinel_cleanup_timer_);
     }

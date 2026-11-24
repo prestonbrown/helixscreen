@@ -2690,15 +2690,15 @@ Where `helix-launcher.sh`'s automatic-update rollback guard and the app exchange
 
 The launcher's rollback guard: seconds a newly installed version has to report healthy (default 600), seconds between checks (default 5), and guarded starts before it restores the previous version without trying again (default 3). Read from the launcher's environment only; `helixscreen.env` cannot set them.
 
-### `HELIX_UPDATE_KEEP_PREVIOUS`, `HELIX_UPDATE_PREVIOUS_FILE`
+### `HELIX_UPDATE_KEEP_PREVIOUS`, `HELIX_UPDATE_PREVIOUS_FILE`, `HELIX_UPDATE_SWAPPED_FILE`
 
-Set by the app's automatic install for `install.sh`: keep the previous install at `<install>.old` and write `previous_dir=<path>` to the named file, or refuse an update that cannot keep it. Never set by hand.
+Set by the app's automatic install for `install.sh`: keep the previous install at `<install>.old` and write `previous_dir=<path>` to `HELIX_UPDATE_PREVIOUS_FILE` when the install finishes, or refuse an update that cannot keep it. `HELIX_UPDATE_SWAPPED_FILE` gets the same `previous_dir=<path>` the moment the swap makes the new tree live, so an install that fails after that point still restarts under the rollback guard. Never set by hand.
 
 | Property | Value |
 |----------|-------|
-| **Values** | `1`; a file path |
+| **Values** | `1`; a file path; a file path |
 | **Default** | Unset |
-| **Files** | `src/system/update_checker.cpp`, `scripts/lib/installer/release.sh` (`_keep_previous_requested`, `cleanup_old_install`) |
+| **Files** | `src/system/update_checker.cpp`, `scripts/lib/installer/release.sh` (`_keep_previous_requested`, `cleanup_old_install`, `extract_release`) |
 
 ---
 
