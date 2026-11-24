@@ -25,6 +25,7 @@
 #include "callout_presenter.h"
 #include "preprint_checklist.h"
 #include "print_status_chips.h"
+#include "printer_image_manager.h"
 #include "printer_image_regions.h"
 #include "src/ui/panel_widgets/exact_size_image.h"
 #include "subject_managed_panel.h"
@@ -211,6 +212,7 @@ class PrintStatusTiles {
     mutable bool image_stale_ = true;
     mutable std::string natural_size_path_;
     std::vector<ObserverGuard> image_observers_;
+    PrinterImageManager::DetectionWatch detection_watch_;
     mutable int natural_w_ = 0;
     mutable int natural_h_ = 0;
 

@@ -767,10 +767,10 @@ static void gradient_recompute(ui_temp_graph_t* graph) {
                                .count();
     graph->gradient_render_us_total += static_cast<uint64_t>(render_us);
     ++graph->gradient_render_count;
-    // debug, not info: the measurement is done (K2 Plus: 167ms median before,
-    // ~10ms after), and a line every couple of seconds on every printer forever
-    // is not worth it. HELIX_TEMP_GRAPH_GRAD_SKIP=0 plus -vv brings it back.
-    spdlog::debug("[TempGraph {}] gradient render #{} ({}x{}, {} series) {}us "
+    // Trace: a visible graph re-renders every few seconds, and at debug this line
+    // alone would fill most of a small device's bundle log ring within an hour.
+    // -vvv brings it back for profiling.
+    spdlog::trace("[TempGraph {}] gradient render #{} ({}x{}, {} series) {}us "
                   "[fill {}us init {}us cols {}us finish {}us] [skipped {}, mean {}us]",
                   static_cast<const void*>(graph), graph->gradient_render_count, g.cw, g.ch,
                   graph->series_count, render_us, t_fill, t_init, t_cols, t_finish,

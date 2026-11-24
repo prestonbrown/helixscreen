@@ -128,6 +128,25 @@ class PrinterImageManager {
     /// re-resolves it when one changes.
     static std::vector<DetectionInput> detection_inputs();
 
+    /// Advances only when the hardware facts auto-detection chooses by change.
+    /// The inputs fire far more often than that (the filament-system data
+    /// revision moves on every unit status update), and each re-resolve logs and
+    /// probes the asset tree. Main thread only.
+    int detected_facts_revision();
+
+    /// A detection-input observer's memory of the facts it last acted on.
+    struct DetectionWatch {
+        int seen = -1;
+        /// True once per change of the detected facts, and on first use.
+        bool changed() {
+            const int rev = instance().detected_facts_revision();
+            if (rev == seen)
+                return false;
+            seen = rev;
+            return true;
+        }
+    };
+
     /// Bump the image-changed subject, so the home widget redraws the image and
     /// its callouts. set_active_image() calls it; so does anything that changes
     /// how the same image is drawn, like saving its tags.
