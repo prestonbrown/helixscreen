@@ -78,6 +78,20 @@ class MainLoopHangDetector {
     }
 
     /**
+     * @brief How long the reported stall that the latest sample saw end lasted.
+     *
+     * Nonzero only on the one sample where a stall already reported by sample()
+     * starts moving again, so the caller can log the real length once. The
+     * report itself always reads just past the threshold, because it fires on
+     * the first sample that crosses it. The value overstates the stall by up to
+     * one sampling interval: the loop resumed somewhere between the previous
+     * sample and this one.
+     */
+    uint32_t recovered_stall_ms() const noexcept {
+        return recovered_ms_;
+    }
+
+    /**
      * @brief Feed one sample.
      *
      * @param count  Current MainLoopHeartbeat::count().
@@ -88,6 +102,7 @@ class MainLoopHangDetector {
      *         re-arms it.
      */
     uint32_t sample(uint64_t count, uint64_t now_ms) noexcept {
+        recovered_ms_ = 0;
         if (!seeded_) {
             seeded_ = true;
             last_count_ = count;
@@ -96,6 +111,9 @@ class MainLoopHangDetector {
         }
 
         if (count != last_count_) {
+            if (reported_ && now_ms >= last_change_ms_) {
+                recovered_ms_ = static_cast<uint32_t>(now_ms - last_change_ms_);
+            }
             last_count_ = count;
             last_change_ms_ = now_ms;
             reported_ = false;
@@ -119,6 +137,7 @@ class MainLoopHangDetector {
     uint64_t last_count_ = 0;
     uint64_t last_change_ms_ = 0;
     uint32_t threshold_ms_ = kDefaultThresholdMs;
+    uint32_t recovered_ms_ = 0;
     bool seeded_ = false;
     bool reported_ = false;
 };
