@@ -60,6 +60,12 @@
  * - pa_tune_result_k / pa_tune_result_note / pa_tune_spoolman_text (string),
  *   pa_tune_can_save_spool (int), pa_tune_can_save_config (int)
  * - pa_tune_error (string)
+ * - pa_tune_time_line / pa_tune_time_sub / pa_tune_primary_text (string): the setup footer
+ * - pa_tune_material_temps, pa_tune_nl_pass_N / pa_tune_nl_look_N (string): the setup
+ * - pa_tune_next_text / pa_tune_hint (string): the running dial
+ * - pa_tune_look, pa_tune_ref_src_N, pa_tune_pick_band / pa_tune_pick_range /
+ *   pa_tune_pick_k / pa_tune_before_k / pa_tune_apply_text (string): the pick
+ * - pa_tune_save_material (string): the result
  */
 namespace helix {
 enum class PrintJobState;
@@ -179,6 +185,13 @@ class PaTuningOverlay : public OverlayBase {
     void save_to_config_for_test() {
         save_to_config();
     }
+    /// A tap on the pick screen's tower at @p height_mm.
+    void tower_tap_for_test(float height_mm) {
+        tower_tap(height_mm);
+    }
+    int picked_for_test() const {
+        return picked_;
+    }
     /// Nudge K by @p delta when a run is printing; false (nothing sent)
     /// otherwise. The Tune overlay's PA row goes through here during a run.
     bool nudge_by(float delta);
@@ -207,6 +220,15 @@ class PaTuningOverlay : public OverlayBase {
     }
 
   private:
+    /// Pick the band printed at @p height_mm.
+    void tower_tap(float height_mm);
+    /// Push the stage's tower drawings (pa_tower) their models.
+    void refresh_towers();
+    /// The setup's button: the linear tower, or the nonlinear tuner.
+    void setup_primary();
+    /// The pick's band and value rows.
+    void refresh_pick_values();
+
     // --- setup ---
     void refresh_setup();
     void refresh_presets();
@@ -368,6 +390,43 @@ class PaTuningOverlay : public OverlayBase {
 
     helix::Subject error_{};
     char error_buf_[192] = {};
+
+    static constexpr int kNlPassCards = 3;
+    /// 1 while the chosen extruder runs a nonlinear model: Linear K would overwrite it.
+    helix::Subject lin_blocked_{};
+    helix::Subject time_line_{};
+    char time_line_buf_[64] = {};
+    helix::Subject time_sub_{};
+    char time_sub_buf_[96] = {};
+    helix::Subject primary_text_{};
+    char primary_text_buf_[48] = {};
+    helix::Subject material_temps_{};
+    char material_temps_buf_[32] = {};
+    helix::Subject nl_pass_[kNlPassCards]{};
+    char nl_pass_buf_[kNlPassCards][48] = {};
+    helix::Subject nl_look_[kNlPassCards]{};
+    char nl_look_buf_[kNlPassCards][64] = {};
+    helix::Subject nl_thumb_[kNlPassCards]{};
+    helix::Subject next_text_{};
+    char next_text_buf_[64] = {};
+    helix::Subject hint_{};
+    char hint_buf_[96] = {};
+    helix::Subject look_{};
+    char look_buf_[96] = {};
+    /// Image paths, as pointer subjects the samples' bind_src reads.
+    helix::Subject ref_src_[3]{};
+    helix::Subject pick_band_{};
+    char pick_band_buf_[32] = {};
+    helix::Subject pick_range_{};
+    char pick_range_buf_[40] = {};
+    helix::Subject pick_k_{};
+    char pick_k_buf_[16] = {};
+    helix::Subject before_k_{};
+    char before_k_buf_[16] = {};
+    helix::Subject apply_text_{};
+    char apply_text_buf_[32] = {};
+    helix::Subject save_material_{};
+    char save_material_buf_[48] = {};
 
     helix::system::KlipperConfigEditor config_editor_;
 

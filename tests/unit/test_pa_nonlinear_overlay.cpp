@@ -654,3 +654,67 @@ TEST_CASE_METHOD(NonlinearFixture,
     CHECK(overlay.stage() == PaNonlinearOverlay::PREPARING);
     CHECK_FALSE(overlay.holds_machine_busy_for_test());
 }
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: pass 2 compares the left's and the front's heights itself",
+                 "[pa_nonlinear][pa_tuner][pa_two_heights]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    print_tower();
+    client.cancel_print_internal();
+    helix::ui::UpdateQueue::instance().drain();
+    overlay.judge_primary_for_test(); // pass 1 at 25 mm
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.procedure_for_test()->current().judge == pa::TowerSide::LeftVsFront);
+    const float offset = overlay.procedure_for_test()->values().nonlinear_offset;
+
+    print_tower();
+    client.cancel_print_internal();
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::JUDGE);
+    // Left best at 24 mm, front at 27.5: the left is lower, so the offset drops
+    // and the same pass prints again.
+    overlay.adjust_height_for_test(-10);
+    overlay.adjust_front_height_for_test(25);
+    CHECK(overlay.front_height_for_test() == Catch::Approx(27.5f));
+    overlay.judge_primary_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(overlay.stage() == PaNonlinearOverlay::READY);
+    CHECK(overlay.procedure_for_test()->pass_number() == 2);
+    CHECK(overlay.procedure_for_test()->repeats() == 1);
+    CHECK(overlay.procedure_for_test()->values().nonlinear_offset < offset);
+
+    // Within a millimeter they agree: the pass takes the middle and moves on.
+    print_tower();
+    client.cancel_print_internal();
+    helix::ui::UpdateQueue::instance().drain();
+    overlay.adjust_height_for_test(20);       // 27 mm
+    overlay.adjust_front_height_for_test(25); // 27.5 mm
+    overlay.judge_primary_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(overlay.procedure_for_test()->pass_number() == 3);
+    CHECK(overlay.procedure_for_test()->values().linear_advance == Catch::Approx(0.02725f));
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: a tap on the judged tower sets the height of the face it lands "
+                 "on",
+                 "[pa_nonlinear][pa_tuner][pa_two_heights]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    print_tower();
+    client.cancel_print_internal();
+    helix::ui::UpdateQueue::instance().drain();
+    overlay.tower_tap_for_test(0, 12.34f);
+    CHECK(overlay.height_for_test() == Catch::Approx(12.3f));
+    overlay.judge_primary_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+
+    print_tower();
+    client.cancel_print_internal();
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.procedure_for_test()->current().judge == pa::TowerSide::LeftVsFront);
+    overlay.tower_tap_for_test(1, 33.3f);
+    CHECK(overlay.front_height_for_test() == Catch::Approx(33.3f));
+    overlay.tower_tap_for_test(0, 20.0f);
+    CHECK(overlay.height_for_test() == Catch::Approx(20.0f));
+    CHECK(overlay.front_height_for_test() == Catch::Approx(33.3f));
+}

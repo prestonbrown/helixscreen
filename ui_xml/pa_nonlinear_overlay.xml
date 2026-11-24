@@ -3,172 +3,422 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Nonlinear pressure advance, tuned pass by pass on the firmware's own tower. -->
 <!-- -->
-<!-- Five stages selected by pa_nl_stage: READY (the next pass and the values it -->
-<!-- runs with), PREPARING and PRINTING (the swept value as the tower climbs), -->
-<!-- JUDGE (the height that looked best, and for a two-sided pass how the left -->
-<!-- compared with the front) and RESULT (save, keep or discard). Back takes the -->
-<!-- latest judgement back and judges its tower again. -->
+<!-- Five stages selected by pa_nl_stage, each with the tower (pa_tower) in the -->
+<!-- left column: READY (the next pass, where to look, the values it runs -->
+<!-- with), PREPARING (the start homes and heats: temperatures and a busy bar), -->
+<!-- PRINTING (the swept value as the tower climbs, with Print Status's -->
+<!-- progress and temperatures), JUDGE (the height that looked best; for a -->
+<!-- two-sided pass one height for the left and one for the front) and RESULT -->
+<!-- (save, keep or discard). Back takes the latest judgement back. -->
 <component>
+  <styles>
+    <style name="stage" width="100%" height="0" flex_grow="1" pad_all="0" bg_opa="0" border_width="0"/>
+    <style name="side_column" width="0" height="100%" flex_grow="1" pad_all="0" bg_opa="0" border_width="0"/>
+    <!-- The pass bar: styles, so the bound ones outrank the plain one. -->
+    <style name="seg_todo" bg_color="#elevated_bg" bg_opa="255"/>
+    <style name="seg_done" bg_color="#success"/>
+    <style name="seg_now" bg_color="#primary"/>
+    <style name="label_todo" text_color="#text_subtle"/>
+    <style name="label_done" text_color="#text_muted"/>
+    <style name="label_now" text_color="#text" text_font="#font_body_bold"/>
+    <style name="warn_card"
+           bg_color="#warning" bg_opa="25" border_width="1" border_color="#warning" border_opa="110"
+           radius="#border_radius" pad_all="#space_md"/>
+  </styles>
   <view name="pa_nonlinear_overlay" extends="overlay_panel" title="Nonlinear Pressure Advance">
+    <overlay_panel-actions>
+      <header_action name="pa_nl_btn_stop" icon="stop" text="Stop Tower" role="danger" callback="on_pa_nl_stop">
+        <bind_flag_if cond="pa_nl_stage ne 1 and pa_nl_stage ne 2" flag="hidden"/>
+        <bind_flag_if_eq subject="pa_nl_busy" flag="hidden" ref_value="2"/>
+      </header_action>
+      <header_action name="pa_nl_btn_discard" icon="close" text="Discard" callback="on_pa_nl_discard">
+        <bind_flag_if cond="pa_nl_stage ne 0 and pa_nl_stage ne 3" flag="hidden"/>
+      </header_action>
+    </overlay_panel-actions>
     <overlay_panel-overlay_content style_pad_left="#space_lg"
-                                   style_pad_right="#space_lg" style_pad_bottom="#space_md" style_pad_top="0"
-                                   flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
+                                   style_pad_right="#space_lg" style_pad_bottom="0" style_pad_top="0" flex_flow="column"
+                                   style_pad_gap="#space_sm" scrollable="false">
       <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
+
+      <!-- The passes: done ones lit with the value they found. -->
+      <!-- The passes: a bar each, done ones in green with the value they found. -->
+      <lv_obj name="pa_nl_pass_steps"
+              width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
+              style_border_width="0" flex_flow="row" scrollable="false">
+        <bind_flag_if cond="pa_nl_stage ne 0 and pa_nl_stage ne 3" flag="hidden"/>
+        <repeat count="4">
+          <lv_obj width="0"
+                  height="content" flex_grow="1" style_pad_all="0" style_pad_gap="#space_xxs" style_bg_opa="0"
+                  style_border_width="0" flex_flow="column" scrollable="false">
+            <bind_flag_if cond="pa_nl_pass_count le ${i}" flag="hidden"/>
+            <lv_obj width="100%" height="#space_xs" style_radius="9999" style_border_width="0" scrollable="false">
+              <style name="seg_todo"/>
+              <bind_style_if name="seg_done" cond="pa_nl_pass_index gt ${i}"/>
+              <bind_style_if name="seg_now" cond="pa_nl_pass_index eq ${i}"/>
+            </lv_obj>
+            <text_small width="100%" bind_text="pa_nl_pass_label_${i}" long_mode="dots">
+              <style name="label_todo"/>
+              <bind_style_if name="label_done" cond="pa_nl_pass_index gt ${i}"/>
+              <bind_style_if name="label_now" cond="pa_nl_pass_index eq ${i}"/>
+            </text_small>
+          </lv_obj>
+        </repeat>
+      </lv_obj>
 
       <!-- ============================================================ -->
       <!-- READY                                                        -->
       <!-- ============================================================ -->
-      <lv_obj name="pa_nl_ready"
-              width="100%" flex_grow="1" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
+      <lv_obj name="pa_nl_ready" flex_flow="column" style_pad_gap="0" scrollable="false">
+        <style name="stage"/>
         <bind_flag_if_not_eq subject="pa_nl_stage" flag="hidden" ref_value="0"/>
-        <lv_obj name="pa_nl_ready_left"
-                width="1" height="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs"
-                scrollable="false">
-          <text_heading name="pa_nl_title" width="100%" bind_text="pa_nl_pass_title" long_mode="wrap"/>
-          <text_small name="pa_nl_hint"
-                      width="100%" bind_text="pa_nl_pass_hint" long_mode="wrap" style_text_color="#text_muted"/>
-          <text_small name="pa_nl_tower_note"
-                      width="100%" long_mode="wrap" style_text_color="#text_muted" hidden="true"
-                      text="The firmware's test tower is not in the printer's config. Adding it writes one section and restarts Klipper.">
-            <bind_flag_if_eq subject="pa_nl_has_tower" flag="hidden" ref_value="1"/>
-          </text_small>
-          <text_small name="pa_nl_error"
-                      width="100%" bind_text="pa_nl_error" long_mode="wrap" style_text_color="#danger"/>
+        <lv_obj width="100%"
+                height="0" flex_grow="1" style_pad_all="0" style_pad_bottom="#space_sm" style_bg_opa="0"
+                style_border_width="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
+          <pa_tower name="pa_nl_ready_tower" width="#pa_tower_w" height="100%" clickable="false">
+            <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+          </pa_tower>
+          <lv_obj flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
+            <style name="side_column"/>
+            <text_heading name="pa_nl_title" width="100%" bind_text="pa_nl_pass_title" long_mode="dots">
+              <bind_flag_if_ge subject="ui_breakpoint" flag="hidden" ref_value="1"/>
+            </text_heading>
+            <pa_reference name="pa_nl_ready_reference"
+                          tower_name="pa_nl_ready_ref_tower" caption="You will judge" caption_tag="You will judge"
+                          bind_look="pa_nl_look" bind_src0="pa_nl_ref_src_0" bind_src1="pa_nl_ref_src_1"
+                          bind_src2="pa_nl_ref_src_2">
+              <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+            </pa_reference>
+            <text_body name="pa_nl_look_micro"
+                       width="100%" bind_text="pa_nl_look" long_mode="wrap" style_text_color="#text_muted">
+              <bind_flag_if_ge subject="ui_breakpoint" flag="hidden" ref_value="1"/>
+            </text_body>
+            <text_small name="pa_nl_tower_note"
+                        width="100%" long_mode="wrap" style_text_color="#warning" hidden="true"
+                        text="The firmware's test tower is not in the printer's config. Adding it writes one section and restarts Klipper.">
+              <bind_flag_if_eq subject="pa_nl_has_tower" flag="hidden" ref_value="1"/>
+            </text_small>
+            <lv_obj name="pa_nl_ready_values"
+                    width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                    flex_flow="column" style_pad_gap="0" scrollable="false">
+              <pa_value_row label="Nonlinear offset" bind_value="pa_nl_value_0" hl_subject="pa_nl_value_hl" hl_value="0"/>
+              <pa_value_row label="Linear advance" bind_value="pa_nl_value_1" hl_subject="pa_nl_value_hl" hl_value="1"/>
+              <pa_value_row label="Time offset" bind_value="pa_nl_value_2" hl_subject="pa_nl_value_hl" hl_value="2"/>
+              <pa_value_row label="Velocity" bind_value="pa_nl_value_3" hl_subject="pa_nl_value_hl" hl_value="3"/>
+            </lv_obj>
+            <text_small name="pa_nl_error"
+                        width="100%" bind_text="pa_nl_error" long_mode="wrap" style_text_color="#danger"/>
+          </lv_obj>
         </lv_obj>
-        <lv_obj name="pa_nl_ready_right"
-                width="1" height="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs"
-                scrollable="false">
-          <text_small text="Values" text_transform="uppercase" style_text_color="#text_muted"/>
-          <text_body name="pa_nl_values" width="100%" bind_text="pa_nl_values" long_mode="wrap"/>
-          <lv_obj width="100%" flex_grow="1" style_pad_all="0" scrollable="false"/>
-          <ui_button name="pa_nl_btn_add_tower" width="100%" icon="cog" text="Add Tower to Config" hidden="true">
-            <bind_flag_if_eq subject="pa_nl_has_tower" flag="hidden" ref_value="1"/>
-            <event_cb trigger="clicked" callback="on_pa_nl_add_tower"/>
-          </ui_button>
-          <ui_button name="pa_nl_btn_print" width="100%" icon="play" text="Print Tower" moves_machine="true">
-            <bind_flag_if_eq subject="pa_nl_has_tower" flag="hidden" ref_value="0"/>
-            <event_cb trigger="clicked" callback="on_pa_nl_print"/>
-          </ui_button>
-          <ui_button name="pa_nl_btn_back" width="100%" variant="outline" icon="undo" text="Back" hidden="true">
-            <bind_flag_if_eq subject="pa_nl_can_back" flag="hidden" ref_value="0"/>
-            <event_cb trigger="clicked" callback="on_pa_nl_back"/>
-          </ui_button>
-          <ui_button name="pa_nl_btn_discard" width="100%" variant="outline" icon="close" text="Discard">
-            <event_cb trigger="clicked" callback="on_pa_nl_discard"/>
-          </ui_button>
-        </lv_obj>
+        <wizard_frame_footer name="pa_nl_ready_footer"
+                             back_callback="on_pa_nl_back" back_name="pa_nl_btn_back" back_subject="pa_nl_back_text"
+                             back_hide_cond="pa_nl_can_back eq 0" status_subject="pa_nl_time_line"
+                             status_sub_subject="pa_nl_time_sub" primary_name="pa_nl_btn_print"
+                             primary_subject="pa_nl_ready_primary" primary_callback="on_pa_nl_ready_primary"
+                             primary_icon="play" primary_moves_machine="true"/>
       </lv_obj>
 
       <!-- ============================================================ -->
       <!-- PREPARING / PRINTING                                         -->
       <!-- ============================================================ -->
       <lv_obj name="pa_nl_running"
-              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm"
-              style_flex_cross_place="center" style_flex_main_place="center" scrollable="false" hidden="true">
+              flex_flow="row" style_pad_gap="#space_md" style_pad_bottom="#space_sm" scrollable="false" hidden="true">
+        <style name="stage"/>
         <bind_flag_if cond="pa_nl_stage ne 1 and pa_nl_stage ne 2" flag="hidden"/>
-        <text_body name="pa_nl_live_text" bind_text="pa_nl_live_text" long_mode="dots"/>
-        <lv_label name="pa_nl_live_value"
-                  bind_text="pa_nl_live_value" style_text_font="#font_display" style_text_color="#text"/>
-        <text_small name="pa_nl_running_title"
-                    width="100%" bind_text="pa_nl_pass_title" long_mode="wrap" style_text_align="center"
-                    style_text_color="#text_muted"/>
-        <ui_button name="pa_nl_btn_stop" height="#button_height_sm" text="Stop Tower" icon="stop">
-          <bind_flag_if_eq subject="pa_nl_busy" flag="hidden" ref_value="2"/>
-          <event_cb trigger="clicked" callback="on_pa_nl_stop"/>
-        </ui_button>
+        <pa_tower name="pa_nl_run_tower" width="#pa_tower_w" height="100%" clickable="false"/>
+        <lv_obj flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
+          <style name="side_column"/>
+          <lv_obj width="100%"
+                  height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
+                  style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
+            <status_pill name="pa_nl_run_chip" bind_text="pa_nl_run_chip" variant="info"/>
+            <text_small name="pa_nl_run_layer"
+                        width="0" flex_grow="1" bind_text="print_layer_text" style_text_align="right"
+                        style_text_color="#text_muted" long_mode="dots">
+              <bind_flag_if_eq subject="pa_nl_stage" flag="hidden" ref_value="1"/>
+            </text_small>
+          </lv_obj>
+          <!-- PREPARING: the start homes and heats; no phase names, a busy bar. -->
+          <lv_obj name="pa_nl_preparing"
+                  width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                  flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
+            <bind_flag_if_not_eq subject="pa_nl_stage" flag="hidden" ref_value="1"/>
+            <text_heading name="pa_nl_live_text" width="100%" bind_text="pa_nl_live_text" long_mode="dots"/>
+            <progress_bar_estimate name="pa_nl_busy_bar"/>
+            <!-- The Controls and Filament panels' temperature rows: nozzle, bed, chamber. -->
+            <lv_obj name="pa_nl_temps"
+                    width="100%" height="content" style_pad_hor="#space_md" style_pad_ver="#space_sm"
+                    style_bg_color="#card_bg" style_bg_opa="255" style_border_width="1" style_border_color="#border"
+                    style_radius="#border_radius" scrollable="false">
+              <heater_rows/>
+            </lv_obj>
+          </lv_obj>
+          <!-- PRINTING: the swept value at the nozzle, Print Status's progress. -->
+          <lv_obj name="pa_nl_printing"
+                  width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                  flex_flow="column" style_pad_gap="#space_xs" style_flex_cross_place="center" scrollable="false"
+                  hidden="true">
+            <bind_flag_if_not_eq subject="pa_nl_stage" flag="hidden" ref_value="2"/>
+            <text_small name="pa_nl_live_where" bind_text="pa_nl_live_text" style_text_color="#text_muted"/>
+            <lv_label name="pa_nl_live_value"
+                      bind_text="pa_nl_live_value" style_text_font="#font_display" style_text_color="#text"/>
+            <lv_obj width="100%"
+                    height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
+                    style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false">
+              <text_body bind_text="print_progress_text" style_text_font="#font_body_bold"/>
+              <icon src="clock" size="xs" variant="secondary"/>
+              <text_small bind_text="print_remaining" style_text_color="#text_muted" flex_grow="1" long_mode="dots"/>
+              <icon src="hourglass" size="xs" variant="secondary">
+                <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+              </icon>
+              <text_small bind_text="print_elapsed" style_text_color="#text_muted">
+                <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+              </text_small>
+            </lv_obj>
+            <progress_bar name="pa_nl_progress" bind_value="print_progress_display"/>
+            <lv_obj width="100%"
+                    height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
+                    style_flex_cross_place="center" style_pad_gap="#space_lg" scrollable="false">
+              <lv_obj width="content"
+                      height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
+                      style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false">
+                <nozzle_icon size="xs" badge_subject=""/>
+                <temp_display size="sm" show_target="true" bind_current="extruder_temp" bind_target="extruder_target"/>
+              </lv_obj>
+              <lv_obj width="content"
+                      height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
+                      style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false">
+                <heater_icon src="radiator" size="xs"/>
+                <temp_display size="sm" show_target="true" bind_current="bed_temp" bind_target="bed_target"/>
+              </lv_obj>
+            </lv_obj>
+          </lv_obj>
+          <lv_obj name="pa_nl_run_values"
+                  width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                  flex_flow="column" style_pad_gap="0" scrollable="false">
+            <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+            <pa_value_row label="Nonlinear offset" bind_value="pa_nl_value_0" hl_subject="pa_nl_value_hl" hl_value="0"/>
+            <pa_value_row label="Linear advance" bind_value="pa_nl_value_1" hl_subject="pa_nl_value_hl" hl_value="1"/>
+            <pa_value_row label="Time offset" bind_value="pa_nl_value_2" hl_subject="pa_nl_value_hl" hl_value="2"/>
+            <pa_value_row label="Velocity" bind_value="pa_nl_value_3" hl_subject="pa_nl_value_hl" hl_value="3"/>
+          </lv_obj>
+          <lv_obj width="100%" height="0" flex_grow="1" style_bg_opa="0" style_border_width="0" scrollable="false"/>
+          <lv_obj width="100%"
+                  height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
+                  style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
+            <bind_flag_if cond="pa_nl_busy eq 2 or pa_nl_stage eq 1" flag="hidden"/>
+            <icon src="clock" size="xs" variant="secondary"/>
+            <text_small name="pa_nl_run_note"
+                        width="0" flex_grow="1" bind_text="pa_nl_run_note" long_mode="wrap"
+                        style_text_color="#text_muted"/>
+          </lv_obj>
+        </lv_obj>
       </lv_obj>
 
       <!-- ============================================================ -->
       <!-- JUDGE                                                        -->
       <!-- ============================================================ -->
-      <lv_obj name="pa_nl_judge"
-              width="100%" flex_grow="1" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false"
-              hidden="true">
+      <lv_obj name="pa_nl_judge" flex_flow="column" style_pad_gap="0" scrollable="false" hidden="true">
+        <style name="stage"/>
         <bind_flag_if_not_eq subject="pa_nl_stage" flag="hidden" ref_value="3"/>
-        <lv_obj name="pa_nl_judge_left"
-                width="1" height="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs"
-                scrollable="false">
-          <text_heading name="pa_nl_judge_title" width="100%" bind_text="pa_nl_pass_title" long_mode="wrap"/>
-          <text_small name="pa_nl_judge_hint"
-                      width="100%" bind_text="pa_nl_pass_hint" long_mode="wrap" style_text_color="#text_muted"/>
-          <text_small text="Best height, measured up from the plate" style_text_color="#text_muted"/>
-          <lv_obj name="pa_nl_height_row"
-                  width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
-                  style_flex_cross_place="center" scrollable="false">
-            <!-- user_data is tenths of a millimeter -->
-            <ui_button name="pa_nl_h_minus_5" width="1" height="#button_height_sm" flex_grow="1" text="-5">
-              <event_cb trigger="clicked" callback="on_pa_nl_height" user_data="-50"/>
-            </ui_button>
-            <ui_button name="pa_nl_h_minus_half" width="1" height="#button_height_sm" flex_grow="1" text="-0.5">
-              <event_cb trigger="clicked" callback="on_pa_nl_height" user_data="-5"/>
-            </ui_button>
-            <ui_button name="pa_nl_height" height="#button_height_sm" variant="ghost" bind_text="pa_nl_height">
-              <event_cb trigger="clicked" callback="on_pa_nl_height_edit"/>
-            </ui_button>
-            <ui_button name="pa_nl_h_plus_half" width="1" height="#button_height_sm" flex_grow="1" text="+0.5">
-              <event_cb trigger="clicked" callback="on_pa_nl_height" user_data="5"/>
-            </ui_button>
-            <ui_button name="pa_nl_h_plus_5" width="1" height="#button_height_sm" flex_grow="1" text="+5">
-              <event_cb trigger="clicked" callback="on_pa_nl_height" user_data="50"/>
-            </ui_button>
+        <lv_obj width="100%"
+                height="0" flex_grow="1" style_pad_all="0" style_pad_bottom="#space_sm" style_bg_opa="0"
+                style_border_width="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
+          <!-- A tap sets the height under the finger, on the face it lands on. -->
+          <pa_tower name="pa_nl_judge_tower" width="#pa_tower_w" height="100%" clickable="true">
+            <event_cb trigger="value_changed" callback="on_pa_nl_tower_tap"/>
+          </pa_tower>
+          <lv_obj flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
+            <style name="side_column"/>
+            <pa_reference name="pa_nl_judge_reference"
+                          tower_name="pa_nl_judge_ref_tower" bind_look="pa_nl_look" bind_src0="pa_nl_ref_src_0"
+                          bind_src1="pa_nl_ref_src_1" bind_src2="pa_nl_ref_src_2">
+              <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+            </pa_reference>
+            <text_small name="pa_nl_judge_look_micro"
+                        width="100%" bind_text="pa_nl_look" long_mode="wrap" style_text_color="#text_muted">
+              <bind_flag_if_ge subject="ui_breakpoint" flag="hidden" ref_value="1"/>
+            </text_small>
+            <!-- One-sided: one height. -->
+            <lv_obj name="pa_nl_one_height"
+                    width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                    flex_flow="column" style_pad_gap="#space_xs" scrollable="false">
+              <bind_flag_if_eq subject="pa_nl_two_sided" flag="hidden" ref_value="1"/>
+              <text_small text="Best height, up from the plate" style_text_color="#text_muted">
+                <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+              </text_small>
+              <lv_obj name="pa_nl_height_row"
+                      width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                      flex_flow="row" style_pad_gap="#space_xs" style_flex_cross_place="center" scrollable="false">
+                <!-- user_data is tenths of a millimeter -->
+                <ui_button name="pa_nl_h_minus_5"
+                           width="#touch_target_min" height="#touch_target_min" text="-5" variant="secondary">
+                  <event_cb trigger="clicked" callback="on_pa_nl_height" user_data="-50"/>
+                </ui_button>
+                <ui_button name="pa_nl_h_minus_half"
+                           width="#touch_target_min" height="#touch_target_min" text="-0.5" variant="secondary">
+                  <event_cb trigger="clicked" callback="on_pa_nl_height" user_data="-5"/>
+                </ui_button>
+                <ui_button name="pa_nl_height"
+                           width="0" height="#touch_target_min" flex_grow="1" variant="outline" icon="pencil"
+                           bind_text="pa_nl_height">
+                  <event_cb trigger="clicked" callback="on_pa_nl_height_edit"/>
+                </ui_button>
+                <ui_button name="pa_nl_h_plus_half"
+                           width="#touch_target_min" height="#touch_target_min" text="+0.5" variant="secondary">
+                  <event_cb trigger="clicked" callback="on_pa_nl_height" user_data="5"/>
+                </ui_button>
+                <ui_button name="pa_nl_h_plus_5"
+                           width="#touch_target_min" height="#touch_target_min" text="+5" variant="secondary">
+                  <event_cb trigger="clicked" callback="on_pa_nl_height" user_data="50"/>
+                </ui_button>
+              </lv_obj>
+              <pa_value_row name="pa_nl_height_value_row" bind_label="pa_nl_param" bind_value="pa_nl_height_value"/>
+            </lv_obj>
+            <!-- Two-sided: the left's height and the front's; the app compares them. -->
+            <lv_obj name="pa_nl_two_heights"
+                    width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                    flex_flow="column" style_pad_gap="#space_xs" scrollable="false" hidden="true">
+              <bind_flag_if_eq subject="pa_nl_two_sided" flag="hidden" ref_value="0"/>
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
+                      style_pad_gap="#space_xs" style_flex_cross_place="center" scrollable="false">
+                <text_small width="#pa_side_label_w" text="Left side" style_text_color="#primary" long_mode="wrap"/>
+                <ui_button name="pa_nl_l_minus_5"
+                           width="#touch_target_min" height="#touch_target_min" text="-5" variant="secondary">
+                  <event_cb trigger="clicked" callback="on_pa_nl_height" user_data="-50"/>
+                </ui_button>
+                <ui_button name="pa_nl_l_minus_half"
+                           width="#touch_target_min" height="#touch_target_min" text="-0.5" variant="secondary">
+                  <event_cb trigger="clicked" callback="on_pa_nl_height" user_data="-5"/>
+                </ui_button>
+                <ui_button name="pa_nl_height_left"
+                           width="0" height="#touch_target_min" flex_grow="1" variant="outline" icon="pencil"
+                           bind_text="pa_nl_height">
+                  <event_cb trigger="clicked" callback="on_pa_nl_height_edit"/>
+                </ui_button>
+                <ui_button name="pa_nl_l_plus_half"
+                           width="#touch_target_min" height="#touch_target_min" text="+0.5" variant="secondary">
+                  <event_cb trigger="clicked" callback="on_pa_nl_height" user_data="5"/>
+                </ui_button>
+                <ui_button name="pa_nl_l_plus_5"
+                           width="#touch_target_min" height="#touch_target_min" text="+5" variant="secondary">
+                  <event_cb trigger="clicked" callback="on_pa_nl_height" user_data="50"/>
+                </ui_button>
+              </lv_obj>
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
+                      style_pad_gap="#space_xs" style_flex_cross_place="center" scrollable="false">
+                <text_small width="#pa_side_label_w" text="Front" style_text_color="#warning" long_mode="wrap"/>
+                <ui_button name="pa_nl_f_minus_5"
+                           width="#touch_target_min" height="#touch_target_min" text="-5" variant="secondary">
+                  <event_cb trigger="clicked" callback="on_pa_nl_height_front" user_data="-50"/>
+                </ui_button>
+                <ui_button name="pa_nl_f_minus_half"
+                           width="#touch_target_min" height="#touch_target_min" text="-0.5" variant="secondary">
+                  <event_cb trigger="clicked" callback="on_pa_nl_height_front" user_data="-5"/>
+                </ui_button>
+                <ui_button name="pa_nl_height_front"
+                           width="0" height="#touch_target_min" flex_grow="1" variant="outline" icon="pencil"
+                           bind_text="pa_nl_height_front">
+                  <event_cb trigger="clicked" callback="on_pa_nl_height_front_edit"/>
+                </ui_button>
+                <ui_button name="pa_nl_f_plus_half"
+                           width="#touch_target_min" height="#touch_target_min" text="+0.5" variant="secondary">
+                  <event_cb trigger="clicked" callback="on_pa_nl_height_front" user_data="5"/>
+                </ui_button>
+                <ui_button name="pa_nl_f_plus_5"
+                           width="#touch_target_min" height="#touch_target_min" text="+5" variant="secondary">
+                  <event_cb trigger="clicked" callback="on_pa_nl_height_front" user_data="50"/>
+                </ui_button>
+              </lv_obj>
+              <text_small name="pa_nl_verdict"
+                          width="100%" bind_text="pa_nl_verdict" long_mode="wrap" style_text_color="#text_muted">
+                <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+              </text_small>
+            </lv_obj>
           </lv_obj>
-          <text_small name="pa_nl_height_value" bind_text="pa_nl_height_value" style_text_color="#text_muted"/>
         </lv_obj>
-        <lv_obj name="pa_nl_judge_right"
-                width="1" height="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs"
-                scrollable="false">
-          <lv_obj width="100%" flex_grow="1" style_pad_all="0" scrollable="false"/>
-          <ui_button name="pa_nl_btn_judge_back" width="100%" variant="outline" icon="undo" text="Back" hidden="true">
-            <bind_flag_if_eq subject="pa_nl_can_back" flag="hidden" ref_value="0"/>
-            <event_cb trigger="clicked" callback="on_pa_nl_back"/>
-          </ui_button>
-          <ui_button name="pa_nl_btn_use" width="100%" icon="check" text="Use This Height">
-            <bind_flag_if_eq subject="pa_nl_two_sided" flag="hidden" ref_value="1"/>
-            <event_cb trigger="clicked" callback="on_pa_nl_judge" user_data="1"/>
-          </ui_button>
-          <ui_button name="pa_nl_btn_lower" width="100%" text="Left Best Lower" hidden="true">
-            <bind_flag_if_eq subject="pa_nl_two_sided" flag="hidden" ref_value="0"/>
-            <event_cb trigger="clicked" callback="on_pa_nl_judge" user_data="0"/>
-          </ui_button>
-          <ui_button name="pa_nl_btn_same" width="100%" icon="check" text="Same Height" hidden="true">
-            <bind_flag_if_eq subject="pa_nl_two_sided" flag="hidden" ref_value="0"/>
-            <event_cb trigger="clicked" callback="on_pa_nl_judge" user_data="1"/>
-          </ui_button>
-          <ui_button name="pa_nl_btn_higher" width="100%" text="Left Best Higher" hidden="true">
-            <bind_flag_if_eq subject="pa_nl_two_sided" flag="hidden" ref_value="0"/>
-            <event_cb trigger="clicked" callback="on_pa_nl_judge" user_data="2"/>
-          </ui_button>
-        </lv_obj>
+        <wizard_frame_footer name="pa_nl_judge_footer"
+                             back_callback="on_pa_nl_back" back_name="pa_nl_btn_judge_back"
+                             back_subject="pa_nl_back_text" back_hide_cond="pa_nl_can_back eq 0"
+                             primary_name="pa_nl_btn_use" primary_subject="pa_nl_judge_primary"
+                             primary_callback="on_pa_nl_judge_primary" primary_icon="check"/>
       </lv_obj>
 
       <!-- ============================================================ -->
       <!-- RESULT                                                       -->
       <!-- ============================================================ -->
-      <lv_obj name="pa_nl_result"
-              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm"
-              style_flex_cross_place="center" style_flex_main_place="center" scrollable="false" hidden="true">
+      <lv_obj name="pa_nl_result" flex_flow="column" style_pad_gap="0" scrollable="false" hidden="true">
+        <style name="stage"/>
         <bind_flag_if_not_eq subject="pa_nl_stage" flag="hidden" ref_value="4"/>
-        <text_heading name="pa_nl_result_title" bind_text="pa_nl_pass_title"/>
-        <text_body name="pa_nl_result_values" bind_text="pa_nl_values" long_mode="wrap"/>
-        <text_small name="pa_nl_result_hint"
-                    width="100%" bind_text="pa_nl_pass_hint" long_mode="wrap" style_text_align="center"
-                    style_text_color="#text_muted"/>
-        <text_small name="pa_nl_result_error"
-                    width="100%" bind_text="pa_nl_error" long_mode="wrap" style_text_align="center"
-                    style_text_color="#danger"/>
         <lv_obj width="100%"
-                height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm" scrollable="false">
-          <ui_button name="pa_nl_btn_result_back" variant="outline" icon="undo">
-            <event_cb trigger="clicked" callback="on_pa_nl_back"/>
-          </ui_button>
+                height="0" flex_grow="1" style_pad_all="0" style_pad_bottom="#space_sm" style_bg_opa="0"
+                style_border_width="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
+          <lv_obj name="pa_nl_result_card"
+                  width="0" height="content" flex_grow="1" style_bg_color="#screen_bg" style_bg_opa="255"
+                  style_border_width="1" style_border_color="#border" style_radius="#border_radius"
+                  style_pad_all="#space_md" flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
+            <text_heading name="pa_nl_result_title" text="Tuned"/>
+            <pa_value_row label="Linear advance" bind_value="pa_nl_result_1" bind_detail="pa_nl_was_1"/>
+            <pa_value_row label="Nonlinear offset" bind_value="pa_nl_result_0" bind_detail="pa_nl_was_0"/>
+            <pa_value_row label="Time offset" bind_value="pa_nl_result_2" bind_detail="pa_nl_was_2"/>
+            <pa_value_row label="Velocity" bind_value="pa_nl_result_3" bind_detail="pa_nl_was_3"/>
+            <text_small name="pa_nl_result_live"
+                        width="100%" bind_text="pa_nl_result_live" style_text_color="#success" long_mode="wrap">
+              <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+            </text_small>
+          </lv_obj>
+          <lv_obj width="0"
+                  height="content" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                  flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
+            <lv_obj name="pa_nl_slicer_card"
+                    width="100%" height="content" flex_flow="column" style_pad_gap="#space_xs" scrollable="false">
+              <style name="warn_card"/>
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
+                      style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false">
+                <icon src="alert" size="xs" variant="warning"/>
+                <text_body width="0"
+                           text="Turn it off in the slicer" style_text_color="#warning"
+                           style_text_font="#font_body_bold" long_mode="dots" flex_grow="1"/>
+              </lv_obj>
+              <text_small width="100%"
+                          long_mode="wrap"
+                          text="Clear pressure advance in your slicer's filament profile. A slicer that sets it replaces these values at every print."/>
+            </lv_obj>
+            <text_small name="pa_nl_result_hint"
+                        width="100%" long_mode="wrap" style_text_color="#text_muted"
+                        text="Save to Config writes them to the extruder section and restarts Klipper.">
+              <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+            </text_small>
+            <text_small name="pa_nl_result_error"
+                        width="100%" bind_text="pa_nl_error" long_mode="wrap" style_text_color="#danger"/>
+          </lv_obj>
+        </lv_obj>
+        <lv_obj name="pa_nl_result_footer"
+                width="100%" height="#cal_footer_h" style_pad_all="0" style_bg_opa="0" style_border_width="1"
+                style_border_side="top" style_border_color="#border" flex_flow="row" style_flex_cross_place="center"
+                style_pad_gap="#space_sm" scrollable="false">
           <ui_button name="pa_nl_btn_result_discard"
-                     width="1" flex_grow="1" variant="outline" icon="close" text="Discard">
+                     height="#cal_button_h" variant="outline" icon="close" text="Discard">
             <event_cb trigger="clicked" callback="on_pa_nl_discard"/>
           </ui_button>
-          <ui_button name="pa_nl_btn_keep" width="1" flex_grow="1" variant="secondary" icon="clock" text="Keep for Now">
+          <lv_obj width="0" height="1" flex_grow="1" style_bg_opa="0" style_border_width="0" scrollable="false"/>
+          <ui_button name="pa_nl_btn_keep" height="#cal_button_h" variant="secondary" text="Keep for Now">
             <event_cb trigger="clicked" callback="on_pa_nl_keep"/>
           </ui_button>
-          <ui_button name="pa_nl_btn_save" width="1" flex_grow="1" icon="check" text="Save to Config">
+          <!-- Saving per material is #2174; drawn now, built then. -->
+          <!-- Room above and right of the button for its release tag. -->
+          <lv_obj width="content"
+                  height="content" style_pad_all="0" style_pad_top="#space_sm" style_pad_right="#space_sm"
+                  style_bg_opa="0" style_border_width="0" scrollable="false" clickable="false">
+            <ui_button name="pa_nl_btn_save_material"
+                       height="#cal_button_h" variant="outline" bind_text="pa_nl_save_material" disabled="true"/>
+            <status_pill text="1.2"
+                         variant="info" floating="true" align="top_right" style_translate_x="#space_sm"
+                         style_translate_y="#space_md_neg" clickable="false"/>
+          </lv_obj>
+          <ui_button name="pa_nl_btn_save" height="#cal_button_h" icon="check" text="Save to Config">
             <event_cb trigger="clicked" callback="on_pa_nl_save"/>
           </ui_button>
         </lv_obj>

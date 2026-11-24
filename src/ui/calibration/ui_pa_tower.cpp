@@ -81,8 +81,8 @@ Layout measure(lv_obj_t* obj, const PaTowerModel& m) {
     l.font = theme_manager_get_font("font_xs");
     l.font_h = theme_manager_get_font_height(l.font);
     const int32_t gap = theme_manager_get_spacing("space_sm");
-    l.ruler_w = w >= kRulerMinWidth ? l.font_h * 2 : 0;
-    const bool labels = m.banded || (!m.tick_labels.empty() && w >= kRulerMinWidth);
+    l.ruler_w = m.scale && w >= kRulerMinWidth ? l.font_h * 2 : 0;
+    const bool labels = m.scale && (m.banded || (!m.tick_labels.empty() && w >= kRulerMinWidth));
     l.labels_w = labels ? std::max<int32_t>(l.font_h * 3, w / 3) : 0;
     l.body_x1 = l.box.x1 + l.ruler_w + (l.ruler_w ? gap : 0);
     l.body_x2 = l.box.x2 - l.labels_w - (l.labels_w ? gap : 0);
@@ -457,8 +457,9 @@ void draw_face(lv_obj_t* obj, lv_layer_t* layer, const PaTowerModel& m, const La
                 line(layer, x, sy1 - 2, x, sy2 + 2, amber, 2);
                 if (l.strip_words) {
                     const bool down = spot.kind == SpotKind::SlowDown;
-                    const lv_area_t a = down ? lv_area_t{face.x1, sy2 + 2, x - 2, sy2 + 2 + lh}
-                                             : lv_area_t{x + 2, sy2 + 2, face.x2, sy2 + 2 + lh};
+                    // Each word runs away from its tick, out to the widget's edge if it needs to.
+                    const lv_area_t a = down ? lv_area_t{l.box.x1, sy2 + 2, x - 2, sy2 + 2 + lh}
+                                             : lv_area_t{x + 2, sy2 + 2, l.box.x2, sy2 + 2 + lh};
                     draw_text(obj, layer, down ? lv_tr("bulge") : lv_tr("thin"), a, amber, l.font,
                               down ? LV_TEXT_ALIGN_RIGHT : LV_TEXT_ALIGN_LEFT);
                 }

@@ -57,13 +57,13 @@
     <px name="pa_nl_cards_w_micro" value="180"/>
     <px name="pa_nl_cards_w_tiny" value="200"/>
     <px name="pa_nl_cards_w_small" value="250"/>
-    <px name="pa_nl_cards_w_medium" value="300"/>
+    <px name="pa_nl_cards_w_medium" value="280"/>
     <px name="pa_nl_cards_w_large" value="360"/>
     <px name="pa_nl_cards_w_xlarge" value="420"/>
     <px name="pa_nl_thumb_w_micro" value="44"/>
     <px name="pa_nl_thumb_w_tiny" value="56"/>
-    <px name="pa_nl_thumb_w_small" value="96"/>
-    <px name="pa_nl_thumb_w_medium" value="120"/>
+    <px name="pa_nl_thumb_w_small" value="76"/>
+    <px name="pa_nl_thumb_w_medium" value="80"/>
     <px name="pa_nl_thumb_w_large" value="140"/>
     <px name="pa_nl_thumb_w_xlarge" value="160"/>
 

@@ -4,7 +4,9 @@
 <!-- One row of the pressure advance tuners' values column: the label muted at
      the left, the value bold at the right, so a stack of rows reads as two
      aligned columns. The label is static (`label`) or a string subject
-     (`bind_label`); the value is always a subject (`bind_value`). The row
+     (`bind_label`); the value is always a subject (`bind_value`), with an
+     optional muted detail before it (`bind_detail`, "was 0.0400"), left out at
+     the smallest breakpoint. The row
      highlights while the int subject `hl_subject` equals `hl_value`: the value
      a pass sweeps, or the band picked. -->
 <component>
@@ -13,6 +15,7 @@
     <prop name="label_tag" type="string" default=""/>
     <prop name="bind_label" type="string" default=""/>
     <prop name="bind_value" type="string" default=""/>
+    <prop name="bind_detail" type="string" default=""/>
     <prop name="hl_subject" type="string" default=""/>
     <prop name="hl_value" type="int" default="-1"/>
   </api>
@@ -30,6 +33,14 @@
     <text_body name="pa_value_label"
                width="0" flex_grow="1" text="$label" translation_tag="$label_tag" bind_text="$bind_label"
                long_mode="dots" style_text_color="#text_muted"/>
+    <!-- A box per state: the prop decides it exists, the breakpoint whether it shows. -->
+    <lv_obj width="content"
+            height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+            clickable="false" hidden_if_empty="$bind_detail">
+      <text_small name="pa_value_detail" bind_text="$bind_detail" style_text_color="#text_subtle">
+        <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+      </text_small>
+    </lv_obj>
     <text_body name="pa_value_value" bind_text="$bind_value" style_text_font="#font_body_bold" style_text_align="right"/>
   </view>
 </component>

@@ -571,3 +571,28 @@ TEST_CASE_METHOD(TunerFixture, "a previous job's layer below the tower top does 
     CHECK(client.last_send_script() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0000");
     CHECK(overlay.session_for_test().state() == pa::TuningSession::State::Printing);
 }
+
+TEST_CASE_METHOD(TunerFixture, "a tap on the pick screen's tower picks the band printed there",
+                 "[pa_tune][pa_tuner][pa_tower_pick]") {
+    start_session();
+    printing(1);
+    report_k(0.0);
+    printing(30);
+    report_k(0.01);
+    status({{"print_stats", {{"state", "complete"}}}});
+    REQUIRE(overlay.stage() == PaTuningOverlay::PICK);
+    const auto bands = overlay.session_for_test().bands();
+    REQUIRE(bands.size() == 2);
+
+    // Inside the second band.
+    overlay.tower_tap_for_test((bands[1].z_low + bands[1].z_high) / 2.0f);
+    CHECK(overlay.picked_for_test() == 1);
+    CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "pa_tune_pick_k"))) ==
+          "0.0100");
+    // Inside the first.
+    overlay.tower_tap_for_test((bands[0].z_low + bands[0].z_high) / 2.0f);
+    CHECK(overlay.picked_for_test() == 0);
+    // Above the tower: nothing changes.
+    overlay.tower_tap_for_test(bands[1].z_high + 5.0f);
+    CHECK(overlay.picked_for_test() == 0);
+}

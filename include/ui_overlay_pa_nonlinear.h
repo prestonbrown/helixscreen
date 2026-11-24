@@ -56,6 +56,14 @@
  * - pa_nl_two_sided (int), pa_nl_height / pa_nl_height_value (string)
  * - pa_nl_can_back (int: a judgement can be taken back)
  * - pa_nl_error (string)
+ * - pa_nl_pass_count / pa_nl_pass_index (int), pa_nl_pass_label_N (string): the pass bar
+ * - pa_nl_value_N (string, N: 0 offset, 1 advance, 2 time offset, 3 velocity),
+ *   pa_nl_value_hl (int: the row the pass sweeps), pa_nl_result_N (string)
+ * - pa_nl_look (string), pa_nl_ref_src_N (string): the "where to look" card
+ * - pa_nl_time_line / pa_nl_time_sub / pa_nl_run_note / pa_nl_run_chip (string)
+ * - pa_nl_ready_primary / pa_nl_judge_primary / pa_nl_back_text (string)
+ * - pa_nl_param / pa_nl_height_front / pa_nl_verdict (string): pass 2's two heights
+ * - pa_nl_result_live / pa_nl_save_material (string)
  *
  * Every judgement is saved with the printer's settings, so a restart of the
  * screen offers to continue the procedure where it stopped.
@@ -65,6 +73,9 @@ enum class PrintJobState;
 }
 
 namespace helix::ui {
+
+/// The name of a nonlinear model value, as the tuners show it.
+const char* nonlinear_param_label(helix::pa::NlParam p);
 
 class PaNonlinearOverlay : public OverlayBase {
   public:
@@ -162,6 +173,19 @@ class PaNonlinearOverlay : public OverlayBase {
     void judge_for_test(int verdict) {
         judge(verdict);
     }
+    /// Pass 2's front height, and the judge button the screen shows.
+    void adjust_front_height_for_test(int step_tenths) {
+        adjust_front_height(step_tenths);
+    }
+    float front_height_for_test() const {
+        return front_mm_;
+    }
+    void judge_primary_for_test() {
+        judge_primary();
+    }
+    void tower_tap_for_test(int face, float height_mm) {
+        tower_tap(face, height_mm);
+    }
     void save_for_test() {
         save_to_config();
     }
@@ -222,6 +246,18 @@ class PaNonlinearOverlay : public OverlayBase {
     void go_back();
     /// One-sided: any value takes the height. Two-sided: a SideVerdict.
     void judge(int verdict);
+    /// The judge screen's button: the height, or pass 2's two heights compared.
+    void judge_primary();
+    /// Pass 2's front height.
+    void adjust_front_height(int step_tenths);
+    void edit_front_height();
+    void set_front_height(float height_mm);
+    /// A tap on the judged tower: @p face is the face it landed on.
+    void tower_tap(int face, float height_mm);
+    /// READY's button: print the pass, or first add the tower to the config.
+    void ready_primary();
+    /// Push the stage's tower drawings (pa_tower) their models.
+    void refresh_towers();
     void after_judgement();
     /// Run the procedure's current values on the printer.
     void send_values();
@@ -245,6 +281,8 @@ class PaNonlinearOverlay : public OverlayBase {
     /// What the extruder ran before the procedure, for Discard.
     helix::pa::PaModel original_;
     float height_mm_ = 25.0f;
+    /// Pass 2: where the front looked best (height_mm_ holds the left's).
+    float front_mm_ = 25.0f;
     bool saw_printing_ = false;
     /// The current pass's script returned: PRINT_PA_TOWER was accepted.
     bool script_done_ = false;
@@ -276,6 +314,48 @@ class PaNonlinearOverlay : public OverlayBase {
     char height_value_buf_[48] = {};
     helix::Subject error_{};
     char error_buf_[192] = {};
+
+    static constexpr int kPassSlots = 4;
+    static constexpr int kValueRows = 4;
+    helix::Subject pass_count_{};
+    helix::Subject pass_index_{};
+    helix::Subject pass_label_[kPassSlots]{};
+    char pass_label_buf_[kPassSlots][64] = {};
+    helix::Subject value_[kValueRows]{};
+    char value_buf_[kValueRows][32] = {};
+    helix::Subject result_[kValueRows]{};
+    char result_buf_[kValueRows][40] = {};
+    helix::Subject was_[kValueRows]{};
+    char was_buf_[kValueRows][32] = {};
+    helix::Subject value_hl_{};
+    helix::Subject look_{};
+    char look_buf_[192] = {};
+    /// Image paths, as pointer subjects the samples' bind_src reads.
+    helix::Subject ref_src_[3]{};
+    helix::Subject time_line_{};
+    char time_line_buf_[64] = {};
+    helix::Subject time_sub_{};
+    char time_sub_buf_[64] = {};
+    helix::Subject run_note_{};
+    char run_note_buf_[96] = {};
+    helix::Subject run_chip_{};
+    char run_chip_buf_[48] = {};
+    helix::Subject ready_primary_{};
+    char ready_primary_buf_[48] = {};
+    helix::Subject judge_primary_{};
+    char judge_primary_buf_[48] = {};
+    helix::Subject back_text_{};
+    char back_text_buf_[32] = {};
+    helix::Subject param_{};
+    char param_buf_[48] = {};
+    helix::Subject height_front_{};
+    char height_front_buf_[24] = {};
+    helix::Subject verdict_{};
+    char verdict_buf_[160] = {};
+    helix::Subject result_live_{};
+    char result_live_buf_[96] = {};
+    helix::Subject save_material_{};
+    char save_material_buf_[48] = {};
 
     /// Held while a judgement waits on the user, so the screensaver does not
     /// cover it.

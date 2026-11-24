@@ -75,7 +75,6 @@ static const BindGroup kDoubleBindWidgets[] = {
     {"navigation_bar", "nav_btn_filament", 0, {}, 0, BindKind::State, "disabled", {{"nav_buttons_enabled", 1}, {"home_edit_mode", 0}}, 2, {{0, 2}, {1, 1}}, 2, true},
     {"network_settings_overlay", "refresh_btn", 0, {}, 0, BindKind::State, "disabled", {{"wifi_scanning", 0}, {"wifi_hardware_available", -1}}, 2, {{0, 1}, {1, 0}}, 2, true},
     {"network_settings_overlay", "wifi_disabled_placeholder", 0, {}, 0, BindKind::Flag, "hidden", {{"wifi_enabled", 0}, {"wifi_hardware_available", -1}}, 2, {{0, 1}, {1, 0}}, 2, true},
-    {"pa_tuning_overlay", "pa_btn_start", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"pa_tune_can_start", -1}}, 2, {{0, 1}, {1, 0}}, 2, true},
     {"print_file_detail", "filament_mapping_card", 0, {}, 0, BindKind::Flag, "hidden", {{"filament_mapping_visible", -1}, {"print_select_button_mode", 0}}, 2, {{0, 0}, {1, 1}}, 2, true},
     {"settings_hardware_overlay", "container_camera", 0, {}, 0, BindKind::Flag, "hidden", {{"printer_has_webcam", -1}, {"platform_camera_supported", -1}}, 2, {{0, 0}, {1, 0}}, 2, true},
     {"spool_wizard", "create_btn", 0, {}, 0, BindKind::State, "disabled", {{"spool_wizard_can_proceed", -1}, {"wizard_creating", 0}}, 2, {{0, 0}, {1, 1}}, 2, true},
@@ -83,6 +82,6 @@ static const BindGroup kDoubleBindWidgets[] = {
 };
 // clang-format on
 
-// Groups in ui_xml/: 59 drivable, 63 that no test can drive (see the header
+// Groups in ui_xml/: 58 drivable, 64 that no test can drive (see the header
 // comment), 122 total. qc_double_binds fails a commit that leaves this file
 // behind ui_xml/.

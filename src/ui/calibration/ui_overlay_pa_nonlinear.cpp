@@ -7,9 +7,11 @@
 #include "ui_component_keypad.h"
 #include "ui_modal.h"
 #include "ui_nav.h"
+#include "ui_pa_tower.h"
 #include "ui_toast_manager.h"
 
 #include "app_globals.h"
+#include "calibration_catalog.h"
 #include "config.h"
 #include "core/observer_factory.h"
 #include "core/run_after.h"
@@ -32,8 +34,114 @@ namespace helix::ui {
 
 namespace {
 
-/// The firmware tower's default height: the top of what a pass can judge.
-constexpr float kTowerHeightMm = 50.0f;
+using helix::pa::kTowerHeightMm;
+
+/// The values column's rows, and the row of the value a pass sweeps.
+enum ValueRow : int { kRowOffset = 0, kRowAdvance = 1, kRowTimeOffset = 2, kRowVelocity = 3 };
+
+int row_of(helix::pa::NlParam p) {
+    switch (p) {
+    case helix::pa::NlParam::Offset:
+        return kRowOffset;
+    case helix::pa::NlParam::TimeOffset:
+        return kRowTimeOffset;
+    case helix::pa::NlParam::Advance:
+        break;
+    }
+    return kRowAdvance;
+}
+
+/// A value at the precision its sweep moves in.
+std::string format_tick(const helix::pa::TowerSweep& sweep, float v) {
+    if (sweep.factor >= 0.01f) {
+        return fmt::format("{:.2f}", v);
+    }
+    if (sweep.factor >= 0.001f) {
+        return fmt::format("{:.3f}", v);
+    }
+    return fmt::format("{:.4f}", v);
+}
+
+/// The reference samples a pass shows (assets/images/pa/): right, too little, too much.
+const char* const* sample_set(const helix::pa::NonlinearPass& pass) {
+    static const char* const kLeft[3] = {"A:assets/images/pa/nl1_left_right.png",
+                                         "A:assets/images/pa/nl1_left_too_little.png",
+                                         "A:assets/images/pa/nl1_left_too_much.png"};
+    static const char* const kBoth[3] = {"A:assets/images/pa/nl2_right.png",
+                                         "A:assets/images/pa/nl2_too_little.png",
+                                         "A:assets/images/pa/nl2_too_much.png"};
+    static const char* const kLit[3] = {"A:assets/images/pa/nl3_front_lit_right.png",
+                                        "A:assets/images/pa/nl3_front_lit_too_little.png",
+                                        "A:assets/images/pa/nl3_front_lit_too_much.png"};
+    if (pass.sweep.param == helix::pa::NlParam::TimeOffset) {
+        return kLit;
+    }
+    return pass.judge == helix::pa::TowerSide::Left ? kLeft : kBoth;
+}
+
+/// What a pass's user looks at: before the tower prints, and when judging it.
+const char* look_text(const helix::pa::NonlinearPass& pass, bool judging) {
+    const bool lit = pass.sweep.param == helix::pa::NlParam::TimeOffset;
+    switch (pass.judge) {
+    case helix::pa::TowerSide::Left:
+        return judging
+                   ? lv_tr(
+                         "Left side: at what height do the edges of the slow middle look cleanest?")
+                   : lv_tr("Left side: the two edges of the slow middle, 5 mm either side of "
+                           "center.");
+    case helix::pa::TowerSide::LeftVsFront:
+        return judging
+                   ? lv_tr("The height where the left side is cleanest, then where the front is.")
+                   : lv_tr(
+                         "Left side and front, each at its slow edges. Each comes out clean at its "
+                         "own height; they should match.");
+    case helix::pa::TowerSide::Front:
+        break;
+    }
+    if (lit) {
+        return judging
+                   ? lv_tr("Front, lit from far left or right: where do the marked spots look "
+                           "cleanest?")
+                   : lv_tr(
+                         "Front, lit from far left or right: the slow middle, the pause, the slow "
+                         "spot. Very subtle.");
+    }
+    return judging ? lv_tr("Front: where do the marked spots look cleanest?")
+                   : lv_tr("Front: the edges of the slow middle, the pause and the slow spot.");
+}
+
+/// What pass 2's two heights decide, in words: the next tower's change, or
+/// the height taken.
+std::string verdict_text(const helix::pa::NonlinearProcedure& proc, float left_mm, float front_mm) {
+    using helix::pa::NlParam;
+    const auto verdict = helix::pa::verdict_from_heights(left_mm, front_mm);
+    const float apart = std::abs(left_mm - front_mm);
+    const auto c = proc.correction(verdict);
+    if (!c) {
+        if (verdict == helix::pa::SideVerdict::Same) {
+            return fmt::format(
+                fmt::runtime(lv_tr("Left and front agree: {:.1f} mm is the answer.")),
+                (left_mm + front_mm) / 2.0f);
+        }
+        return fmt::format(fmt::runtime(lv_tr("Still {:.1f} mm apart after {} towers: the "
+                                              "middle, {:.1f} mm, is taken.")),
+                           apart, proc.repeats() + 1, (left_mm + front_mm) / 2.0f);
+    }
+    const bool lower = verdict == helix::pa::SideVerdict::LeftLower;
+    if (c->param == NlParam::Offset) {
+        return fmt::format(
+            fmt::runtime(
+                c->raise
+                    ? lv_tr("Left side {:.1f} mm higher: the next tower raises the offset 10%.")
+                    : lv_tr("Left side {:.1f} mm lower: the next tower lowers the offset 10%.")),
+            apart);
+    }
+    return fmt::format(
+        fmt::runtime(
+            lower ? lv_tr("Left side {:.1f} mm lower: the next tower raises the advance 10%.")
+                  : lv_tr("Left side {:.1f} mm higher: the next tower lowers the advance 10%.")),
+        apart);
+}
 
 /// What a failed save says. Klipper refusing an option no model reads is
 /// almost always a pressure_advance set for this extruder in another file.
@@ -51,15 +159,7 @@ int user_int(lv_event_t* e) {
 }
 
 const char* param_label(helix::pa::NlParam p) {
-    switch (p) {
-    case helix::pa::NlParam::Offset:
-        return lv_tr("Nonlinear offset");
-    case helix::pa::NlParam::TimeOffset:
-        return lv_tr("Time offset");
-    case helix::pa::NlParam::Advance:
-        break;
-    }
-    return lv_tr("Linear advance");
+    return nonlinear_param_label(p);
 }
 
 /// The value @p m reports for @p p, as the tower set it.
@@ -138,6 +238,18 @@ std::optional<nlohmann::json> saved_session(const std::string& heater,
 
 } // namespace
 
+const char* nonlinear_param_label(helix::pa::NlParam p) {
+    switch (p) {
+    case helix::pa::NlParam::Offset:
+        return lv_tr("Nonlinear offset");
+    case helix::pa::NlParam::TimeOffset:
+        return lv_tr("Time offset");
+    case helix::pa::NlParam::Advance:
+        break;
+    }
+    return lv_tr("Linear advance");
+}
+
 PaNonlinearOverlay::PaNonlinearOverlay() = default;
 
 PaNonlinearOverlay::~PaNonlinearOverlay() {
@@ -168,6 +280,43 @@ void PaNonlinearOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_STRING(height_value_, height_value_buf_, "", "pa_nl_height_value",
                                   subjects_);
         UI_MANAGED_SUBJECT_STRING(error_, error_buf_, "", "pa_nl_error", subjects_);
+        UI_MANAGED_SUBJECT_INT(pass_count_, 3, "pa_nl_pass_count", subjects_);
+        UI_MANAGED_SUBJECT_INT(pass_index_, 0, "pa_nl_pass_index", subjects_);
+        for (int i = 0; i < kPassSlots; ++i) {
+            UI_MANAGED_SUBJECT_STRING(pass_label_[i], pass_label_buf_[i], "",
+                                      fmt::format("pa_nl_pass_label_{}", i).c_str(), subjects_);
+        }
+        for (int i = 0; i < kValueRows; ++i) {
+            UI_MANAGED_SUBJECT_STRING(value_[i], value_buf_[i], "",
+                                      fmt::format("pa_nl_value_{}", i).c_str(), subjects_);
+            UI_MANAGED_SUBJECT_STRING(result_[i], result_buf_[i], "",
+                                      fmt::format("pa_nl_result_{}", i).c_str(), subjects_);
+            UI_MANAGED_SUBJECT_STRING(was_[i], was_buf_[i], "",
+                                      fmt::format("pa_nl_was_{}", i).c_str(), subjects_);
+        }
+        UI_MANAGED_SUBJECT_INT(value_hl_, kRowOffset, "pa_nl_value_hl", subjects_);
+        UI_MANAGED_SUBJECT_STRING(look_, look_buf_, "", "pa_nl_look", subjects_);
+        for (int i = 0; i < 3; ++i) {
+            UI_MANAGED_SUBJECT_POINTER(ref_src_[i], nullptr,
+                                       fmt::format("pa_nl_ref_src_{}", i).c_str(), subjects_);
+        }
+        UI_MANAGED_SUBJECT_STRING(time_line_, time_line_buf_, "", "pa_nl_time_line", subjects_);
+        UI_MANAGED_SUBJECT_STRING(time_sub_, time_sub_buf_, "", "pa_nl_time_sub", subjects_);
+        UI_MANAGED_SUBJECT_STRING(run_note_, run_note_buf_, "", "pa_nl_run_note", subjects_);
+        UI_MANAGED_SUBJECT_STRING(run_chip_, run_chip_buf_, "", "pa_nl_run_chip", subjects_);
+        UI_MANAGED_SUBJECT_STRING(ready_primary_, ready_primary_buf_, "", "pa_nl_ready_primary",
+                                  subjects_);
+        UI_MANAGED_SUBJECT_STRING(judge_primary_, judge_primary_buf_, "", "pa_nl_judge_primary",
+                                  subjects_);
+        UI_MANAGED_SUBJECT_STRING(back_text_, back_text_buf_, "", "pa_nl_back_text", subjects_);
+        UI_MANAGED_SUBJECT_STRING(param_, param_buf_, "", "pa_nl_param", subjects_);
+        UI_MANAGED_SUBJECT_STRING(height_front_, height_front_buf_, "", "pa_nl_height_front",
+                                  subjects_);
+        UI_MANAGED_SUBJECT_STRING(verdict_, verdict_buf_, "", "pa_nl_verdict", subjects_);
+        UI_MANAGED_SUBJECT_STRING(result_live_, result_live_buf_, "", "pa_nl_result_live",
+                                  subjects_);
+        UI_MANAGED_SUBJECT_STRING(save_material_, save_material_buf_, "", "pa_nl_save_material",
+                                  subjects_);
     });
 }
 
@@ -189,6 +338,20 @@ void PaNonlinearOverlay::register_callbacks() {
         {"on_pa_nl_back", [](lv_event_t*) { get_global_pa_nonlinear_overlay().go_back(); }},
         {"on_pa_nl_judge",
          [](lv_event_t* e) { get_global_pa_nonlinear_overlay().judge(user_int(e)); }},
+        {"on_pa_nl_judge_primary",
+         [](lv_event_t*) { get_global_pa_nonlinear_overlay().judge_primary(); }},
+        {"on_pa_nl_ready_primary",
+         [](lv_event_t*) { get_global_pa_nonlinear_overlay().ready_primary(); }},
+        {"on_pa_nl_height_front",
+         [](lv_event_t* e) { get_global_pa_nonlinear_overlay().adjust_front_height(user_int(e)); }},
+        {"on_pa_nl_height_front_edit",
+         [](lv_event_t*) { get_global_pa_nonlinear_overlay().edit_front_height(); }},
+        {"on_pa_nl_tower_tap",
+         [](lv_event_t* e) {
+             auto* tower = lv_event_get_current_target_obj(e);
+             get_global_pa_nonlinear_overlay().tower_tap(pa_tower_tap_face(tower),
+                                                         pa_tower_tap_height(tower));
+         }},
         {"on_pa_nl_save", [](lv_event_t*) { get_global_pa_nonlinear_overlay().save_to_config(); }},
         {"on_pa_nl_keep",
          [](lv_event_t*) {
@@ -320,25 +483,94 @@ void PaNonlinearOverlay::refresh() {
     if (!subjects_initialized_ || !proc_) {
         return;
     }
-    lv_subject_set_int(&has_tower_, tower_available() ? 1 : 0);
+    const bool has_tower = tower_available();
+    lv_subject_set_int(&has_tower_, has_tower ? 1 : 0);
     lv_subject_set_int(&can_back_, proc_->can_go_back() ? 1 : 0);
-    const auto& v = proc_->values();
+    lv_subject_set_string(&ready_primary_,
+                          has_tower ? lv_tr("Print Tower") : lv_tr("Add Tower to Config"));
+    const auto estimate = helix::calibration::firmware_pa_tower_estimate();
+    lv_subject_set_string(&time_line_,
+                          fmt::format(fmt::runtime(lv_tr("Prints on its own, about {} min")),
+                                      estimate.walk_away_minutes)
+                              .c_str());
+    lv_subject_set_string(&time_sub_, lv_tr("No need to stay while it prints"));
     lv_subject_set_string(
-        &values_,
-        fmt::format(fmt::runtime(lv_tr("Linear advance {}\nNonlinear offset {}\nVelocity {:.1f}"
-                                       "\nTime offset {}")),
-                    format_value(v.linear_advance), format_value(v.nonlinear_offset),
-                    v.linearization_velocity, format_value(v.time_offset))
-            .c_str());
+        &run_note_, lv_tr("No need to stay; this screen waits for you when the tower is done."));
+    lv_subject_set_string(&save_material_,
+                          fmt::format(fmt::runtime(lv_tr("Save for {}")),
+                                      params_.material.empty() ? "PLA" : params_.material)
+                              .c_str());
+
+    // The pass bar: each pass's value, the done ones with what they found.
+    const auto& v = proc_->values();
+    const auto value_of = [&v](helix::pa::NlParam p) {
+        switch (p) {
+        case helix::pa::NlParam::Offset:
+            return v.nonlinear_offset;
+        case helix::pa::NlParam::TimeOffset:
+            return v.time_offset;
+        case helix::pa::NlParam::Advance:
+            break;
+        }
+        return v.linear_advance;
+    };
+    const int count = std::min(proc_->pass_count(), kPassSlots);
+    const int index = proc_->done() ? count : proc_->pass_number() - 1;
+    lv_subject_set_int(&pass_count_, count);
+    lv_subject_set_int(&pass_index_, index);
+    for (int i = 0; i < kPassSlots; ++i) {
+        std::string label;
+        if (i < count) {
+            const auto param = proc_->pass_at(static_cast<size_t>(i)).sweep.param;
+            label = fmt::format("{} {}", i + 1, param_label(param));
+            if (i < index) {
+                label += "  " + format_value(value_of(param));
+            }
+        }
+        lv_subject_set_string(&pass_label_[i], label.c_str());
+    }
+
+    // The values column; the swept one as the range its tower covers.
+    const float vals[kValueRows] = {v.nonlinear_offset, v.linear_advance, v.time_offset,
+                                    v.linearization_velocity};
+    for (int i = 0; i < kValueRows; ++i) {
+        const std::string text =
+            i == kRowVelocity ? fmt::format("{:.1f}", vals[i]) : format_value(vals[i]);
+        lv_subject_set_string(&value_[i], text.c_str());
+    }
+    const float before[kValueRows] = {
+        original_.nonlinear_offset.value_or(0.0f),
+        original_.linear_advance.value_or(original_.k.value_or(0.0f)),
+        original_.time_offset.value_or(0.0f),
+        original_.linearization_velocity.value_or(vals[kRowVelocity])};
+    for (int i = 0; i < kValueRows; ++i) {
+        const bool vel = i == kRowVelocity;
+        const auto shown = [vel](float x) {
+            return vel ? fmt::format("{:.1f}", x) : format_value(x);
+        };
+        lv_subject_set_string(&result_[i], shown(vals[i]).c_str());
+        lv_subject_set_string(&was_[i],
+                              fmt::format(fmt::runtime(lv_tr("was {}")), shown(before[i])).c_str());
+    }
+    lv_subject_set_string(&result_live_, lv_tr("Live now, until Klipper restarts"));
+
     if (proc_->done()) {
+        lv_subject_set_int(&value_hl_, -1);
         lv_subject_set_string(&pass_title_, lv_tr("All passes done"));
         lv_subject_set_string(&pass_hint_,
                               lv_tr("Save writes these values to the extruder's config section "
                                     "and restarts Klipper. Keep runs them until the next "
                                     "restart."));
+        refresh_towers();
         return;
     }
     const auto& pass = proc_->current();
+    lv_subject_set_int(&value_hl_, row_of(pass.sweep.param));
+    {
+        const std::string range = fmt::format(
+            "0 to {}", format_tick(pass.sweep, helix::pa::value_at(pass.sweep, kTowerHeightMm)));
+        lv_subject_set_string(&value_[row_of(pass.sweep.param)], range.c_str());
+    }
     std::string title = fmt::format(fmt::runtime(lv_tr("Pass {} of {}: {}")), proc_->pass_number(),
                                     proc_->pass_count(), param_label(pass.sweep.param));
     if (proc_->repeats() > 0) {
@@ -346,27 +578,101 @@ void PaNonlinearOverlay::refresh() {
                              helix::pa::NonlinearProcedure::kMaxRepeats + 1);
     }
     lv_subject_set_string(&pass_title_, title.c_str());
-    const char* hint = "";
-    switch (pass.judge) {
-    case helix::pa::TowerSide::Left:
-        hint = lv_tr("Judge the left side, where the tower switches between slow and fast. "
-                     "Note the height where those changes look cleanest.");
-        break;
-    case helix::pa::TowerSide::Front:
-        hint = lv_tr("Judge the front, the fast side. Note the height where it looks cleanest; "
-                     "light it from the side, the differences are small.");
-        break;
-    case helix::pa::TowerSide::LeftVsFront:
-        hint = lv_tr("Note where the left side looks best and where the front looks best. "
-                     "When they match, that height is the answer.");
-        break;
-    }
-    lv_subject_set_string(&pass_hint_, hint);
-    lv_subject_set_int(&two_sided_, pass.judge == helix::pa::TowerSide::LeftVsFront ? 1 : 0);
-    lv_subject_set_string(&height_, fmt::format("{:.1f} mm", height_mm_).c_str());
+    lv_subject_set_string(&pass_hint_, look_text(pass, false));
+    lv_subject_set_string(&look_, look_text(pass, stage_ == JUDGE));
+    lv_subject_set_string(&run_chip_, fmt::format(fmt::runtime(lv_tr("Pass {} of {}")),
+                                                  proc_->pass_number(), proc_->pass_count())
+                                          .c_str());
+    // Back re-opens the latest judgement: this pass's own after a repeat.
+    const int back_to = proc_->repeats() > 0 ? proc_->pass_number() : proc_->pass_number() - 1;
     lv_subject_set_string(
-        &height_value_,
-        fmt::format("= {}", format_value(helix::pa::value_at(pass.sweep, height_mm_))).c_str());
+        &back_text_, fmt::format(fmt::runtime(lv_tr("Pass {}")), std::max(1, back_to)).c_str());
+    const char* const* samples = sample_set(pass);
+    for (int i = 0; i < 3; ++i) {
+        // Each path is a string literal: the pointer changes with the set, so the image follows.
+        lv_subject_set_pointer(&ref_src_[i], const_cast<char*>(samples[i]));
+    }
+
+    const bool two = pass.judge == helix::pa::TowerSide::LeftVsFront;
+    lv_subject_set_int(&two_sided_, two ? 1 : 0);
+    lv_subject_set_string(&param_, param_label(pass.sweep.param));
+    lv_subject_set_string(&height_, fmt::format("{:.1f} mm", height_mm_).c_str());
+    lv_subject_set_string(&height_front_, fmt::format("{:.1f} mm", front_mm_).c_str());
+    lv_subject_set_string(&height_value_,
+                          format_value(helix::pa::value_at(pass.sweep, height_mm_)).c_str());
+    if (two) {
+        lv_subject_set_string(&verdict_, verdict_text(*proc_, height_mm_, front_mm_).c_str());
+        const auto c = proc_->correction(helix::pa::verdict_from_heights(height_mm_, front_mm_));
+        lv_subject_set_string(&judge_primary_, c ? lv_tr("Print Again")
+                                                 : fmt::format(fmt::runtime(lv_tr("Use {:.1f} mm")),
+                                                               (height_mm_ + front_mm_) / 2.0f)
+                                                       .c_str());
+    } else {
+        lv_subject_set_string(&verdict_, "");
+        lv_subject_set_string(
+            &judge_primary_, fmt::format(fmt::runtime(lv_tr("Use {:.1f} mm")), height_mm_).c_str());
+    }
+    refresh_towers();
+}
+
+void PaNonlinearOverlay::refresh_towers() {
+    lv_obj_t* root = overlay_root_;
+    if (!root || !proc_) {
+        return;
+    }
+    const bool done = proc_->done();
+    const helix::pa::NonlinearPass* pass = done ? nullptr : &proc_->current();
+    PaTowerModel base;
+    base.banded = false;
+    base.height_mm = kTowerHeightMm;
+    base.faces = pass ? helix::pa::judged_faces(pass->judge)
+                      : std::vector<helix::pa::TowerFace>{helix::pa::TowerFace::Left};
+    if (pass) {
+        for (int z = 0; z <= static_cast<int>(kTowerHeightMm); z += 10) {
+            base.tick_labels.push_back(
+                format_tick(pass->sweep, helix::pa::value_at(pass->sweep, static_cast<float>(z))));
+        }
+    }
+    const bool two = pass && pass->judge == helix::pa::TowerSide::LeftVsFront;
+    const auto set = [root](const char* name, const PaTowerModel& m) {
+        if (lv_obj_t* t = lv_obj_find_by_name(root, name)) {
+            pa_tower_set_model(t, m);
+        }
+    };
+
+    PaTowerModel ready = base;
+    ready.fill = PaTowerFill::Preview;
+    set("pa_nl_ready_tower", ready);
+
+    PaTowerModel run = base;
+    run.fill = stage_ == PRINTING ? PaTowerFill::Live : PaTowerFill::Outline;
+    run.printed_mm = static_cast<float>(lv_subject_get_int(
+                         get_printer_state().motion_state().get_gcode_position_z_subject())) /
+                     100.0f;
+    run.layer_tag = subjects_initialized_ ? lv_subject_get_string(&live_value_) : "";
+    set("pa_nl_run_tower", run);
+
+    PaTowerModel judge = base;
+    judge.fill = PaTowerFill::Full;
+    if (two) {
+        judge.markers = {{0, height_mm_, false, "L"}, {1, front_mm_, true, "F"}};
+    } else {
+        judge.markers = {{0, height_mm_, false, ""}};
+    }
+    set("pa_nl_judge_tower", judge);
+
+    // The card's inset: a plain wall, where to look, lit from the side for the time offset.
+    PaTowerModel inset = base;
+    inset.fill = PaTowerFill::Wall;
+    inset.scale = false;
+    inset.tick_labels.clear();
+    inset.light_right = pass && pass->sweep.param == helix::pa::NlParam::TimeOffset;
+    if (two) {
+        inset.markers = {{0, kTowerHeightMm * 0.45f, false, "L"},
+                         {1, kTowerHeightMm * 0.6f, true, "F"}};
+    }
+    set("pa_nl_ready_ref_tower", inset);
+    set("pa_nl_judge_ref_tower", inset);
 }
 
 void PaNonlinearOverlay::add_tower_section() {
@@ -445,9 +751,10 @@ void PaNonlinearOverlay::print_pass() {
     script_done_ = false;
     const int pass_seq = ++pass_seq_;
     lv_subject_set_string(&error_, "");
-    lv_subject_set_string(&live_text_, lv_tr("Heating and homing"));
+    lv_subject_set_string(&live_text_, lv_tr("Starting the tower"));
     lv_subject_set_string(&live_value_, "--");
     set_stage(PREPARING);
+    refresh_towers();
     start_busy_.acquire();
     begin_observing();
     spdlog::info("[{}] Pass {} on {}: {}", get_name(), proc_->pass_number(), params_.heater,
@@ -502,6 +809,7 @@ void PaNonlinearOverlay::refresh_live() {
     lv_subject_set_string(
         &live_text_,
         fmt::format(fmt::runtime(lv_tr("{} at {:.1f} mm")), param_label(param), z).c_str());
+    refresh_towers();
 }
 
 void PaNonlinearOverlay::on_print_state(PrintJobState state) {
@@ -731,10 +1039,79 @@ void PaNonlinearOverlay::judge(int verdict) {
     after_judgement();
 }
 
+void PaNonlinearOverlay::judge_primary() {
+    if (stage_ != JUDGE || !proc_ || proc_->done()) {
+        return;
+    }
+    if (proc_->current().judge != helix::pa::TowerSide::LeftVsFront) {
+        judge(1);
+        return;
+    }
+    // The heights decide the verdict; the middle of the two is the height
+    // taken when they agree, or when the pass stops repeating.
+    const auto verdict = helix::pa::verdict_from_heights(height_mm_, front_mm_);
+    proc_->record_verdict(verdict, (height_mm_ + front_mm_) / 2.0f);
+    after_judgement();
+}
+
+void PaNonlinearOverlay::adjust_front_height(int step_tenths) {
+    set_front_height(front_mm_ + static_cast<float>(step_tenths) / 10.0f);
+}
+
+void PaNonlinearOverlay::set_front_height(float height_mm) {
+    if (stage_ != JUDGE) {
+        return;
+    }
+    front_mm_ = std::clamp(std::round(height_mm * 10.0f) / 10.0f, 0.0f, kTowerHeightMm);
+    refresh();
+}
+
+void PaNonlinearOverlay::edit_front_height() {
+    if (stage_ != JUDGE) {
+        return;
+    }
+    ui_keypad_config_t config{};
+    config.initial_value = front_mm_;
+    config.min_value = 0.0f;
+    config.max_value = kTowerHeightMm;
+    config.allow_decimal = true;
+    config.allow_negative = false;
+    config.max_fraction_digits = 1;
+    config.title_label = lv_tr("Front best height");
+    config.unit_label = "mm";
+    config.on_confirm = [this, token = object_lifetime_.token()](float v) {
+        if (!token.expired()) {
+            set_front_height(v);
+        }
+    };
+    ui_keypad_show(&config);
+}
+
+void PaNonlinearOverlay::tower_tap(int face, float height_mm) {
+    if (stage_ != JUDGE || !proc_ || proc_->done()) {
+        return;
+    }
+    // On pass 2 the face tapped is the height set: left or front.
+    if (proc_->current().judge == helix::pa::TowerSide::LeftVsFront && face == 1) {
+        set_front_height(height_mm);
+    } else {
+        set_height(height_mm);
+    }
+}
+
+void PaNonlinearOverlay::ready_primary() {
+    if (tower_available()) {
+        confirm_print();
+    } else {
+        add_tower_section();
+    }
+}
+
 void PaNonlinearOverlay::after_judgement() {
     send_values();
     save_session();
     height_mm_ = kTowerHeightMm / 2.0f;
+    front_mm_ = kTowerHeightMm / 2.0f;
     set_stage(proc_->done() ? RESULT : READY);
     refresh();
 }

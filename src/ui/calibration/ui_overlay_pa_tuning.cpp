@@ -8,6 +8,7 @@
 #include "ui_modal.h"
 #include "ui_nav.h"
 #include "ui_overlay_pa_nonlinear.h"
+#include "ui_pa_tower.h"
 #include "ui_panel_print_select.h"
 #include "ui_panel_print_status.h"
 #include "ui_print_start_controller.h"
@@ -17,6 +18,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "bed_plate_context.h"
+#include "calibration_catalog.h"
 #include "core/observer_factory.h"
 #include "core/temperature_units.h"
 #include "display_numbering.h"
@@ -153,6 +155,43 @@ void PaTuningOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_INT(can_save_spool_, 0, "pa_tune_can_save_spool", subjects_);
         UI_MANAGED_SUBJECT_INT(can_save_config_, 0, "pa_tune_can_save_config", subjects_);
         UI_MANAGED_SUBJECT_STRING(error_, error_buf_, "", "pa_tune_error", subjects_);
+        UI_MANAGED_SUBJECT_STRING(time_line_, time_line_buf_, "", "pa_tune_time_line", subjects_);
+        UI_MANAGED_SUBJECT_INT(lin_blocked_, 0, "pa_tune_lin_blocked", subjects_);
+        UI_MANAGED_SUBJECT_STRING(time_sub_, time_sub_buf_, "", "pa_tune_time_sub", subjects_);
+        UI_MANAGED_SUBJECT_STRING(primary_text_, primary_text_buf_, "", "pa_tune_primary_text",
+                                  subjects_);
+        UI_MANAGED_SUBJECT_STRING(material_temps_, material_temps_buf_, "",
+                                  "pa_tune_material_temps", subjects_);
+        for (int i = 0; i < kNlPassCards; ++i) {
+            UI_MANAGED_SUBJECT_STRING(nl_pass_[i], nl_pass_buf_[i], "",
+                                      fmt::format("pa_tune_nl_pass_{}", i).c_str(), subjects_);
+            UI_MANAGED_SUBJECT_STRING(nl_look_[i], nl_look_buf_[i], "",
+                                      fmt::format("pa_tune_nl_look_{}", i).c_str(), subjects_);
+            static const char* const kThumbs[kNlPassCards] = {
+                "A:assets/images/pa/nl_pass_1_thumb.png", "A:assets/images/pa/nl_pass_2_thumb.png",
+                "A:assets/images/pa/nl_pass_3_thumb.png"};
+            UI_MANAGED_SUBJECT_POINTER(nl_thumb_[i], const_cast<char*>(kThumbs[i]),
+                                       fmt::format("pa_tune_nl_thumb_{}", i).c_str(), subjects_);
+        }
+        UI_MANAGED_SUBJECT_STRING(next_text_, next_text_buf_, "", "pa_tune_next_text", subjects_);
+        UI_MANAGED_SUBJECT_STRING(hint_, hint_buf_, "", "pa_tune_hint", subjects_);
+        UI_MANAGED_SUBJECT_STRING(look_, look_buf_, "", "pa_tune_look", subjects_);
+        static const char* const kCorners[3] = {"A:assets/images/pa/lin_corner_right.png",
+                                                "A:assets/images/pa/lin_corner_too_little.png",
+                                                "A:assets/images/pa/lin_corner_too_much.png"};
+        for (int i = 0; i < 3; ++i) {
+            UI_MANAGED_SUBJECT_POINTER(ref_src_[i], const_cast<char*>(kCorners[i]),
+                                       fmt::format("pa_tune_ref_src_{}", i).c_str(), subjects_);
+        }
+        UI_MANAGED_SUBJECT_STRING(pick_band_, pick_band_buf_, "", "pa_tune_pick_band", subjects_);
+        UI_MANAGED_SUBJECT_STRING(pick_range_, pick_range_buf_, "", "pa_tune_pick_range",
+                                  subjects_);
+        UI_MANAGED_SUBJECT_STRING(pick_k_, pick_k_buf_, "", "pa_tune_pick_k", subjects_);
+        UI_MANAGED_SUBJECT_STRING(before_k_, before_k_buf_, "", "pa_tune_before_k", subjects_);
+        UI_MANAGED_SUBJECT_STRING(apply_text_, apply_text_buf_, "", "pa_tune_apply_text",
+                                  subjects_);
+        UI_MANAGED_SUBJECT_STRING(save_material_, save_material_buf_, "", "pa_tune_save_material",
+                                  subjects_);
     });
 }
 
@@ -199,12 +238,18 @@ void PaTuningOverlay::register_callbacks() {
          [](lv_event_t* e) { get_global_pa_tuning_overlay().adjust_ramp_k(false, user_int(e)); }},
         {"on_pa_tune_start",
          [](lv_event_t*) { get_global_pa_tuning_overlay().confirm_and_start(); }},
+        {"on_pa_tune_primary", [](lv_event_t*) { get_global_pa_tuning_overlay().setup_primary(); }},
+        {"on_pa_tune_tower_tap",
+         [](lv_event_t* e) {
+             get_global_pa_tuning_overlay().tower_tap(
+                 pa_tower_tap_height(lv_event_get_current_target_obj(e)));
+         }},
         {"on_pa_tune_model",
          [](lv_event_t* e) {
              auto& self = get_global_pa_tuning_overlay();
              if (self.stage_ == SETUP) {
                  self.nl_mode_choice_ = user_int(e) == 1;
-                 self.refresh_model_choice();
+                 self.refresh_setup();
              }
          }},
         {"on_pa_tune_start_nonlinear",
@@ -216,6 +261,7 @@ void PaTuningOverlay::register_callbacks() {
              auto& self = get_global_pa_tuning_overlay();
              self.step_idx_ = std::clamp(user_int(e), 0, helix::pa::kStepCount - 1);
              lv_subject_set_int(&self.step_idx_subject_, self.step_idx_);
+             self.refresh_running();
          }},
         {"on_pa_tune_end", [](lv_event_t*) { get_global_pa_tuning_overlay().end_test(); }},
         {"on_pa_tune_band",
@@ -504,28 +550,170 @@ void PaTuningOverlay::refresh_setup() {
 
     const auto params = build_params();
     const int layers = helix::pa::layer_count(params.geometry, params.bands);
-    const int minutes = std::max(1, helix::pa::estimate_print_seconds(params) / 60);
-    const std::string summary = fmt::format(
-        fmt::runtime(lv_tr("Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus "
-                           "heating: {} bands of {:.0f} mm at {}.")),
-        params.geometry.size_mm, helix::pa::layer_z(params.geometry, layers), minutes, ramp_.bands,
-        params.geometry.band_mm, helix::units::format_display_temp(nozzle_temp_));
-    const auto macros = params.macros;
-    const std::string starts =
-        macros.start.empty()
-            ? std::string(lv_tr("It homes and heats on its own (no start macro found)."))
-            : fmt::format(fmt::runtime(lv_tr("It starts with your {} macro.")), macros.start);
-    std::string text = fmt::format("{} {}", summary, starts);
-    if (get_printer_state().temperature_state().extruder_pa_model(params.heater).nonlinear()) {
-        text += " ";
-        text += lv_tr("This extruder runs the nonlinear model. A classic K tower would overwrite "
-                      "part of it: use the Nonlinear tuner.");
-    }
+    // A classic K tower on a nonlinear model would overwrite part of it: the
+    // sweep gives way to the reason, and the start refuses.
+    const bool nl_model =
+        get_printer_state().temperature_state().extruder_pa_model(params.heater).nonlinear();
+    lv_subject_set_int(&lin_blocked_, nl_model ? 1 : 0);
+    const std::string text =
+        nl_model
+            ? std::string(lv_tr("This extruder runs the nonlinear model. A classic K tower would "
+                                "overwrite part of it: use the Nonlinear tuner."))
+            : fmt::format(
+                  fmt::runtime(
+                      lv_tr("{} bands, {} apart. Prints a {:.0f} mm square, {:.0f} mm tall.")),
+                  ramp_.bands,
+                  helix::pa::format_k(ramp_.bands > 1 ? (ramp_.end_k - ramp_.start_k) /
+                                                            static_cast<float>(ramp_.bands - 1)
+                                                      : 0.0f),
+                  params.geometry.size_mm, helix::pa::layer_z(params.geometry, layers));
     lv_subject_set_string(&summary_, text.c_str());
 
     auto& state = get_printer_state();
     const bool busy = job_holds_machine(state.print_state().get_print_lifecycle());
-    lv_subject_set_int(&can_start_, (!busy && ramp_.end_k > ramp_.start_k) ? 1 : 0);
+    const bool nl = lv_subject_get_int(&nl_mode_) == 1;
+    lv_subject_set_int(&can_start_, (!busy && (nl || ramp_.end_k > ramp_.start_k)) ? 1 : 0);
+
+    // The footer: how long it prints on its own, and what it needs from the user.
+    helix::calibration::TimeEstimate est;
+    int towers = 1;
+    if (nl) {
+        towers = kind_ == helix::pa::ExtruderKind::Bowden ? 4 : 3;
+        est = helix::calibration::nonlinear_pa_run_estimate(towers);
+    } else {
+        est =
+            helix::calibration::linear_pa_tower_estimate(helix::pa::estimate_print_seconds(params));
+    }
+    // The calibration run's own two lines, so both screens share one string each.
+    lv_subject_set_string(
+        &time_line_,
+        fmt::format(fmt::runtime(lv_tr("Prints on its own, about {} min")), est.walk_away_minutes)
+            .c_str());
+    lv_subject_set_string(&time_sub_,
+                          fmt::format("{}: {}",
+                                      fmt::format(fmt::runtime(lv_tr("Needs you, about {} min")),
+                                                  std::max(1, est.hands_minutes)),
+                                      nl ? lv_tr("one look at each tower") : lv_tr("pick the band"))
+                              .c_str());
+    lv_subject_set_string(&primary_text_, nl ? lv_tr("Start Tuning") : lv_tr("Print Tower"));
+    lv_subject_set_string(&save_material_, fmt::format(fmt::runtime(lv_tr("Save for {}")),
+                                                       helix::presets::name(selected_preset_))
+                                               .c_str());
+    lv_subject_set_string(&material_temps_,
+                          fmt::format("{}° / {}°",
+                                      helix::units::to_display_temp_whole(nozzle_temp_),
+                                      helix::units::to_display_temp_whole(bed_temp_))
+                              .c_str());
+
+    // The nonlinear tuner's towers: what each sweeps and judges.
+    const helix::pa::NonlinearProcedure order(kind_, helix::pa::ModelKind::Tanh);
+    for (int i = 0; i < kNlPassCards; ++i) {
+        std::string name;
+        std::string look;
+        if (i < order.pass_count()) {
+            const auto& pass = order.pass_at(static_cast<size_t>(i));
+            name = fmt::format("{}. {}", i + 1, nonlinear_param_label(pass.sweep.param));
+            switch (pass.judge) {
+            case helix::pa::TowerSide::Left:
+                look = lv_tr("Left: the slow middle's edges");
+                break;
+            case helix::pa::TowerSide::LeftVsFront:
+                look = lv_tr("Left side against the front");
+                break;
+            case helix::pa::TowerSide::Front:
+                look = pass.sweep.param == helix::pa::NlParam::TimeOffset
+                           ? lv_tr("Front, lit from the side")
+                           : lv_tr("Front");
+                break;
+            }
+        }
+        lv_subject_set_string(&nl_pass_[i], name.c_str());
+        lv_subject_set_string(&nl_look_[i], look.c_str());
+    }
+    (void)towers;
+    refresh_towers();
+}
+
+void PaTuningOverlay::setup_primary() {
+    if (lv_subject_get_int(&nl_mode_) == 1) {
+        start_nonlinear();
+    } else {
+        confirm_and_start();
+    }
+}
+
+void PaTuningOverlay::refresh_towers() {
+    lv_obj_t* root = overlay_root_;
+    if (!root) {
+        return;
+    }
+    const auto set = [root](const char* name, const PaTowerModel& m) {
+        if (lv_obj_t* t = lv_obj_find_by_name(root, name)) {
+            pa_tower_set_model(t, m);
+        }
+    };
+    const bool planning = stage_ == SETUP;
+    const auto& g = planning ? build_params().geometry : session_.geometry();
+    const auto& ramp = planning ? ramp_ : session_.ramp();
+    const int total = helix::pa::layer_count(g, ramp.bands);
+
+    // The planned bands: where each starts and ends, and the K it prints at.
+    PaTowerModel m;
+    m.banded = true;
+    m.height_mm = helix::pa::layer_z(g, total);
+    std::vector<PaTowerBand> planned;
+    int band = -2;
+    for (int layer = 1; layer <= total; ++layer) {
+        const int b = helix::pa::band_for_layer(g, ramp.bands, layer);
+        const float z_low = layer > 1 ? helix::pa::layer_z(g, layer - 1) : 0.0f;
+        if (b < 0) {
+            m.base_mm = helix::pa::layer_z(g, layer);
+            continue;
+        }
+        if (b != band) {
+            planned.push_back({z_low, z_low,
+                               helix::pa::format_k(helix::pa::ramp_k_for_layer(g, ramp, layer)),
+                               PaBandState::Planned});
+            band = b;
+        }
+        planned.back().z_high = helix::pa::layer_z(g, layer);
+    }
+
+    PaTowerModel setup = m;
+    setup.bands = planned;
+    setup.fill = PaTowerFill::Preview;
+    set("pa_tune_setup_tower", setup);
+
+    PaTowerModel run = m;
+    run.bands = planned;
+    const int layer = session_.layer();
+    run.fill = stage_ == RUNNING && layer > 0 ? PaTowerFill::Live : PaTowerFill::Outline;
+    run.printed_mm = layer > 0 ? helix::pa::layer_z(g, layer) : 0.0f;
+    for (auto& b : run.bands) {
+        b.state = run.printed_mm >= b.z_high - 1e-3f ? PaBandState::Printed
+                  : run.printed_mm > b.z_low         ? PaBandState::Printing
+                                                     : PaBandState::Planned;
+    }
+    if (session_.mode() == helix::pa::TuningSession::Mode::Manual) {
+        run.held_from_mm = run.printed_mm;
+        run.held_label = helix::pa::format_k(session_.current_k());
+    }
+    set("pa_tune_run_tower", run);
+
+    // The pick: what the printer reported, band by band.
+    PaTowerModel pick = m;
+    pick.fill = PaTowerFill::Full;
+    for (const auto& b : session_.bands(kMaxBands)) {
+        pick.bands.push_back({b.z_low, b.z_high, helix::pa::format_k(b.k), PaBandState::Printed});
+    }
+    pick.selected = picked_ >= 0 && picked_ < kMaxBands ? picked_ : -1;
+    set("pa_tune_pick_tower", pick);
+
+    PaTowerModel inset = m;
+    inset.bands = planned;
+    inset.fill = PaTowerFill::Wall;
+    inset.scale = false;
+    set("pa_tune_ref_tower", inset);
 }
 
 ConfirmOptions PaTuningOverlay::owned_confirm() {
@@ -915,7 +1103,28 @@ void PaTuningOverlay::refresh_running() {
                                       session_.ramp().bands);
     }
     lv_subject_set_string(&mode_text_, mode.c_str());
+    if (manual) {
+        lv_subject_set_string(&next_text_, lv_tr("Your value holds to the top"));
+        lv_subject_set_string(&hint_, lv_tr("Each tap sets a new value from this layer up."));
+    } else {
+        // The next band's K, and how far up it starts.
+        const int band = helix::pa::band_for_layer(g, session_.ramp().bands, std::max(1, layer));
+        std::string next;
+        for (int l = std::max(1, layer) + 1; l <= total; ++l) {
+            if (helix::pa::band_for_layer(g, session_.ramp().bands, l) != band) {
+                next = fmt::format(
+                    fmt::runtime(lv_tr("Next {} in {:.1f} mm")),
+                    helix::pa::format_k(helix::pa::ramp_k_for_layer(g, session_.ramp(), l)),
+                    std::max(0.0f, helix::pa::layer_z(g, l - 1) -
+                                       helix::pa::layer_z(g, std::max(1, layer))));
+                break;
+            }
+        }
+        lv_subject_set_string(&next_text_, next.c_str());
+        lv_subject_set_string(&hint_, lv_tr("Tap - or + to hold your own value; the ramp stops."));
+    }
     refresh_bands(/*newest_first=*/true);
+    refresh_towers();
 }
 
 // PICK / RESULT
@@ -937,10 +1146,14 @@ void PaTuningOverlay::refresh_bands(bool newest_first) {
     }
     lv_subject_set_int(&band_count_, n);
     lv_subject_set_int(&keep_selected_, picked_ == kMaxBands ? 1 : 0);
-    lv_subject_set_string(&keep_text_, fmt::format(fmt::runtime(lv_tr("Keep current ({})")),
+    lv_subject_set_string(&keep_text_, fmt::format(fmt::runtime(lv_tr("Keep {}")),
                                                    helix::pa::format_k(session_.ending_k()))
                                            .c_str());
     lv_subject_set_int(&has_pick_, picked_ >= 0 ? 1 : 0);
+    refresh_pick_values();
+    if (!newest_first) {
+        refresh_towers();
+    }
 }
 
 void PaTuningOverlay::select_band(int index) {
@@ -957,6 +1170,50 @@ void PaTuningOverlay::select_band(int index) {
     }
     lv_subject_set_int(&keep_selected_, picked_ == kMaxBands ? 1 : 0);
     lv_subject_set_int(&has_pick_, 1);
+    refresh_pick_values();
+    refresh_towers();
+}
+
+void PaTuningOverlay::tower_tap(float height_mm) {
+    if (stage_ != PICK) {
+        return;
+    }
+    const auto bands = session_.bands(kMaxBands);
+    for (size_t i = 0; i < bands.size(); ++i) {
+        if (height_mm >= bands[i].z_low && height_mm <= bands[i].z_high) {
+            select_band(static_cast<int>(i));
+            return;
+        }
+    }
+}
+
+void PaTuningOverlay::refresh_pick_values() {
+    const auto original = session_.original_k();
+    lv_subject_set_string(&before_k_, original ? helix::pa::format_k(*original).c_str() : "--");
+    const auto bands = session_.bands(kMaxBands);
+    if (picked_ >= 0 && picked_ < static_cast<int>(bands.size())) {
+        const auto& b = bands[static_cast<size_t>(picked_)];
+        lv_subject_set_string(&pick_band_,
+                              fmt::format(fmt::runtime(lv_tr("Band {}")), picked_ + 1).c_str());
+        lv_subject_set_string(
+            &pick_range_,
+            fmt::format(fmt::runtime(lv_tr("{:.1f} to {:.1f} mm")), b.z_low, b.z_high).c_str());
+        lv_subject_set_string(&pick_k_, helix::pa::format_k(b.k).c_str());
+        lv_subject_set_string(
+            &apply_text_,
+            fmt::format(fmt::runtime(lv_tr("Use {}")), helix::pa::format_k(b.k)).c_str());
+    } else {
+        const std::string k = helix::pa::format_k(session_.ending_k());
+        lv_subject_set_string(&pick_band_, lv_tr("Band"));
+        lv_subject_set_string(&pick_range_, "");
+        lv_subject_set_string(&pick_k_, k.c_str());
+        lv_subject_set_string(&apply_text_, fmt::format(fmt::runtime(lv_tr("Use {}")), k).c_str());
+    }
+    lv_subject_set_string(
+        &look_, lv_tr("The corners, from above and the side. Measure up from the plate."));
+    lv_subject_set_string(&save_material_, fmt::format(fmt::runtime(lv_tr("Save for {}")),
+                                                       helix::presets::name(selected_preset_))
+                                               .c_str());
 }
 
 void PaTuningOverlay::apply_pick() {

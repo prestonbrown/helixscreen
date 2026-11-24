@@ -102,6 +102,10 @@ class NonlinearProcedure {
     bool done() const {
         return index_ >= passes_.size();
     }
+    /// Pass @p i of the order, 0-based; @p i < pass_count().
+    const NonlinearPass& pass_at(size_t i) const {
+        return passes_[i];
+    }
     /// 1-based number of the pass now, and how many there are.
     int pass_number() const {
         return static_cast<int>(index_) + 1;

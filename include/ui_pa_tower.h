@@ -78,6 +78,8 @@ struct PaTowerModel {
     std::vector<PaTowerMarker> markers;
     bool light_right = false;
     bool speed_strip = true;
+    /// The height ruler and the value labels; off for a small inset.
+    bool scale = true;
 };
 
 void register_pa_tower_widget();
