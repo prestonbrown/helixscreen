@@ -291,6 +291,20 @@ touch '$HELIX_ROLLBACK_DIR/update_rollback.healthy'; sleep 3; exit 0"
     [ ! -e "$HELIX_ROLLBACK_DIR/update_rollback.result" ]
 }
 
+@test "rollback: a manual install inside the window relaunches instead of leaving the screen dark" {
+    # A manual Install Update replaces the kept copy (install.sh drops a stale
+    # .old) and restarts; the guard can no longer restore, and the UI must
+    # come back anyway.
+    set_app "$INSTALL" "n=\$(cat '$BATS_TEST_TMPDIR/runs' 2>/dev/null || echo 0); n=\$((n+1)); echo \$n > '$BATS_TEST_TMPDIR/runs'
+if [ \$n = 1 ]; then rm -rf '$PREVIOUS'; exit 0; fi
+exit 0"
+    arm
+    export HELIX_ROLLBACK_WINDOW=60
+    launch
+    [ "$(cat "$LAUNCHES")" = "$(printf 'new\nnew')" ]
+    [ ! -e "$HELIX_ROLLBACK_DIR/update_rollback.armed" ]
+}
+
 @test "rollback: too many guarded starts restores without launching the new version" {
     set_app "$INSTALL" 'sleep 30'
     arm

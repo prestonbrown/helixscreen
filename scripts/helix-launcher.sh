@@ -1700,9 +1700,11 @@ helix_rollback_finish_healthy() {
 }
 
 # helix_rollback_restore REASON: put the previous tree back. 0 when it is in
-# place (the caller then starts it); 1 when the swap failed (the new tree
-# stays, the marker is dropped so it is not retried every start) or a stop
-# arrived first (nothing moved, the marker stays).
+# place (the caller then starts it). 1 when the swap failed (the new tree
+# stays, the marker is dropped so it is not retried every start), or when a
+# stop is underway: before the swap nothing moves and the marker stays; during
+# it the swap completes, .result is written and the marker dropped, and the
+# restored version starts on the next start instead of during the stop.
 helix_rollback_restore() {
     [ "${HELIX_SHUTTING_DOWN:-0}" != "1" ] || return 1
     _hrr_failed="${RB_INSTALL_REAL}.failed"
@@ -1899,7 +1901,10 @@ while :; do
                 exec "${INSTALL_DIR}/bin/helix-launcher.sh" "$@"
             fi
         fi
-        break
+        [ "${HELIX_SHUTTING_DOWN:-0}" != "1" ] || break
+        # The marker turned unusable (a manual install replaced the kept copy)
+        # or the restore failed: the marker is gone, so run what is installed.
+        continue
     fi
 
     _run_start=$(date +%s 2>/dev/null || echo 0)
