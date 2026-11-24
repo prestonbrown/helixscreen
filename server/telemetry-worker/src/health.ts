@@ -190,7 +190,7 @@ export function buildHealth(
   for (const x of r("errors_by_device")) {
     errTopDevice.set(errKey(x), Math.max(errTopDevice.get(errKey(x)) ?? 0, num(x.count)));
   }
-  const risesBeyondOneDevice = (key: string, cur: number, devices: number, topDevice: number): boolean =>
+  const risesBeyondOneDevice = (cur: number, devices: number, topDevice: number): boolean =>
     devices >= RISING_MIN_DEVICES && topDevice <= RISING_MAX_DEVICE_SHARE * cur;
   const toHangRow = (x: RawRow): HangRow => {
     const mem = num(x.mem);
@@ -239,7 +239,7 @@ export function buildHealth(
       }
       const status: HealthPayload["errors"][number]["status"] = !errBaseline.has(key)
         ? "new"
-        : cur >= RISING_FACTOR * prev && cur >= RISING_MIN_COUNT && risesBeyondOneDevice(key, cur, devices, topDevice)
+        : cur >= RISING_FACTOR * prev && cur >= RISING_MIN_COUNT && risesBeyondOneDevice(cur, devices, topDevice)
           ? "rising"
           : "steady";
       return {

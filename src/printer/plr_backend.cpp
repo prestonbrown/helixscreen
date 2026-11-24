@@ -105,6 +105,8 @@ const std::array<PlrProvider, 5>& providers() {
         // clears only last_file, so an empty last_file withdraws the offer and a
         // set one names the recovery file. Elsewhere virtual_sdcard.file_path
         // names it. The filename is display-only: resume takes no parameters.
+        // The row above displaces it once the plugin answers, so it offers
+        // nothing until then: a prompt shown first would keep the legacy resume.
         {PlrBackendType::QIDI, "qidi",
          [](const PrinterDiscovery& hw) {
              return plr_resume_macro_present(hw)
@@ -116,7 +118,7 @@ const std::array<PlrProvider, 5>& providers() {
              return caps.resume_macro && caps.interrupted_flag;
          },
          [](const PlrCapabilitySignals& caps, const PlrProbeSession&) {
-             return !saved_file_cleared(caps);
+             return !caps.plugin_answer_pending && !saved_file_cleared(caps);
          },
          [](const PlrCapabilitySignals& caps, const PlrProbeSession& probe) {
              if (caps.saved_file_gates_offer && caps.saved_recovery_file &&
