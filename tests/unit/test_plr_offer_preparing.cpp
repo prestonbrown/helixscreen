@@ -666,6 +666,35 @@ TEST_CASE_METHOD(PluginPlrOfferFixture, "Plugin PLR asks the plugin once Klipper
     CHECK(after == 1);
 }
 
+TEST_CASE_METHOD(PluginPlrOfferFixture,
+                 "Plugin PLR: a failed status request lets the legacy QIDI macros offer",
+                 "[plr][generic][qidi]") {
+    auto& ps = get_printer_state();
+    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
+    MoonrakerAPIMock api{client, ps};
+    set_moonraker_api(&api);
+    lv_subject_set_int(ps.print_state().get_plr_resume_macro_subject(), 1);
+    ps.update_from_status(json{{"save_variables", {{"variables", {{"was_interrupted", true}}}}}});
+    client.fail_next(helix::kPlrStatusRpc);
+    // The profile write re-reads the features, from a mock with no plugin;
+    // failing it keeps the plr feature Ready for this case.
+    client.fail_next("server.database.post_item");
+    set_link(ps, ConnectionState::CONNECTED, helix::KlippyState::READY);
+    PlrOfferController controller;
+    settle();
+    const int asked = client.call_count(helix::kPlrStatusRpc);
+    const bool offered = PlrOfferControllerTestAccess::prompted(controller);
+    const auto backend = PlrOfferControllerTestAccess::last_backend(controller);
+    const int feature =
+        lv_subject_get_int(ps.plugin_status_state().get_plr_feature_state_subject());
+    set_moonraker_api(nullptr);
+    REQUIRE(asked == 1);
+    // Still Ready: only the failure, not a feature change, released the wait.
+    REQUIRE(feature == static_cast<int>(helix::PluginFeatureState::Ready));
+    CHECK(offered);
+    CHECK(backend == helix::PlrBackendType::QIDI);
+}
+
 TEST_CASE_METHOD(PluginPlrOfferFixture, "Plugin PLR asks the plugin when the printer connects",
                  "[plr][generic]") {
     // The profile write re-reads the plugin's features; the mock answers with

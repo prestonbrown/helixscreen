@@ -1472,8 +1472,8 @@ class HelixPlr:
         if self._follow_future is not None:
             try:
                 await asyncio.wrap_future(self._follow_future)
-            except Exception:
-                pass
+            except Exception as e:
+                logging.warning("HelixPrint: PLR layer follower failed: %s", e)
         self._follow_future = None
         try:
             await asyncio.wrap_future(self._executor().submit(follower.finish, file_size))
