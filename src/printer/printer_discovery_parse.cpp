@@ -932,13 +932,12 @@ bool PrinterDiscovery::parse_build_volume(const nlohmann::json& settings) {
 
     BuildVolume volume{};
     auto read = [&settings](const char* section, const char* field, float& out) {
-        const auto s = settings.find(section);
-        if (s == settings.end() || !s->is_object()) {
+        auto* s = helix::json_util::find_object(settings, section);
+        if (s == nullptr) {
             return;
         }
-        const auto f = s->find(field);
-        if (f != s->end() && f->is_number()) {
-            out = f->get<float>();
+        if (const auto f = helix::json_util::read_field<float>(*s, field)) {
+            out = *f;
         }
     };
     read("stepper_x", "position_min", volume.x_min);
@@ -1030,11 +1029,11 @@ std::optional<double> PrinterDiscovery::read_z_position_endstop(const nlohmann::
     if (section == nullptr) {
         return std::nullopt;
     }
-    const auto value = section->find("position_endstop");
-    if (value == section->end() || !value->is_number()) {
+    const auto value = helix::json_util::read_field<double>(*section, "position_endstop");
+    if (!value) {
         return std::nullopt;
     }
-    return value->get<double>();
+    return *value;
 }
 
 void PrinterDiscovery::parse_probe_xy_offset(const nlohmann::json& settings) {
@@ -1217,15 +1216,15 @@ namespace {
 /// (rename_existing), or empty when nothing wraps it. @p section is the
 /// lowercase configfile key.
 std::string renamed_builtin(const nlohmann::json& settings, const char* section) {
-    const auto wrapper = settings.find(section);
-    if (wrapper == settings.end() || !wrapper->is_object()) {
+    auto* wrapper = helix::json_util::find_object(settings, section);
+    if (wrapper == nullptr) {
         return {};
     }
-    const auto renamed = wrapper->find("rename_existing");
-    if (renamed == wrapper->end() || !renamed->is_string()) {
+    const auto renamed = helix::json_util::read_field<std::string>(*wrapper, "rename_existing");
+    if (!renamed) {
         return {};
     }
-    return renamed->get<std::string>();
+    return *renamed;
 }
 
 } // namespace
@@ -1282,8 +1281,8 @@ void PrinterDiscovery::parse_pa_test_size(const nlohmann::json& settings) {
 void PrinterDiscovery::parse_stepper_geometry(const nlohmann::json& settings) {
     auto read =
         [&settings](const char* section) -> std::optional<calibration::ripple::MotorGeometry> {
-        const auto s = settings.find(section);
-        if (s == settings.end() || !s->is_object()) {
+        auto* s = helix::json_util::find_object(settings, section);
+        if (s == nullptr) {
             return std::nullopt;
         }
         const auto rd = s->find("rotation_distance");
@@ -1314,8 +1313,8 @@ void PrinterDiscovery::parse_stepper_geometry(const nlohmann::json& settings) {
 void PrinterDiscovery::parse_leveling_probe_points(const nlohmann::json& settings) {
     leveling_probe_points_.clear();
     auto read = [&](const char* section, PrintStartPhase phase) {
-        const auto s = settings.find(section);
-        if (s == settings.end() || !s->is_object()) {
+        auto* s = helix::json_util::find_object(settings, section);
+        if (s == nullptr) {
             return;
         }
         auto* pts = helix::json_util::find_array(*s, "points");
@@ -1407,12 +1406,12 @@ void PrinterDiscovery::parse_configured_tool_numbers(const nlohmann::json& setti
         if (section.rfind(kSectionPrefix, 0) != 0 || !values.is_object()) {
             continue;
         }
-        const auto number = values.find("tool_number");
-        if (number == values.end() || !number->is_number_integer()) {
+        const auto number = helix::json_util::read_integer_field(values, "tool_number");
+        if (!number) {
             continue;
         }
         configured_tool_numbers_[helix::text_io::to_lower(section.substr(kSectionPrefix.size()))] =
-            number->get<int>();
+            *number;
     }
 }
 

@@ -766,8 +766,8 @@ void ScrewsTiltPanel::query_screw_thread() {
             // move - the level verdict is pitch-invariant.
             const json* thread_value = nullptr;
             for (const char* section_name : screws_tilt::config_section_names()) {
-                const auto section = settings.find(section_name);
-                if (section == settings.end() || !section->is_object()) {
+                auto* section = helix::json_util::find_object(settings, section_name);
+                if (section == nullptr) {
                     continue;
                 }
                 const auto screw_thread = section->find("screw_thread");

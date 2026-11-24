@@ -26,8 +26,8 @@ bool all_digits(const std::string& s) {
 /// The strings in @p obj[key] when it is an array; non-string elements skipped.
 std::optional<std::vector<std::string>> read_string_list(const nlohmann::json& obj,
                                                          const char* key) {
-    const auto it = obj.find(key);
-    if (it == obj.end() || !it->is_array()) {
+    auto* it = helix::json_util::find_array(obj, key);
+    if (it == nullptr) {
         return std::nullopt;
     }
     std::vector<std::string> out;

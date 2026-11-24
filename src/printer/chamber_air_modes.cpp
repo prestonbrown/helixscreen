@@ -53,17 +53,17 @@ struct Provider {
 };
 
 std::optional<double> number_at(const json& obj, const char* key) {
-    auto it = obj.find(key);
-    if (it == obj.end() || !it->is_number()) {
+    const auto it = helix::json_util::read_field<double>(obj, key);
+    if (!it) {
         return std::nullopt;
     }
-    return it->get<double>();
+    return *it;
 }
 
 /// `obj[outer][inner]` as a number, when both exist with the right types.
 std::optional<double> nested_number(const json& obj, const char* outer, const char* inner) {
-    auto it = obj.find(outer);
-    if (it == obj.end() || !it->is_object()) {
+    auto* it = helix::json_util::find_object(obj, outer);
+    if (it == nullptr) {
         return std::nullopt;
     }
     return number_at(*it, inner);

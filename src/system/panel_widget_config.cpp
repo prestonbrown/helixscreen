@@ -1368,7 +1368,7 @@ void PanelWidgetConfig::switch_to_grid(int cols, int rows) {
     // Park the outgoing arrangement before touching anything.
     parked_grids_[outgoing] = serialize_pages();
 
-    if (auto it = parked_grids_.find(target); it != parked_grids_.end() && it->is_object()) {
+    if (auto* it = helix::json_util::find_object(parked_grids_, target)) {
         restore_pages(*it);
         parked_grids_.erase(target);
         grid_signature_ = target;
@@ -1561,8 +1561,8 @@ void PanelWidgetConfig::install_default(std::vector<PanelWidgetEntry> rebuilt,
 }
 
 bool PanelWidgetConfig::parked_layout_is_users(const std::string& signature) const {
-    auto it = parked_grids_.find(signature);
-    if (it == parked_grids_.end() || !it->is_object()) {
+    auto* it = helix::json_util::find_object(parked_grids_, signature);
+    if (it == nullptr) {
         return false;
     }
     const json* block = helix::json_util::find_member(*it, "default");

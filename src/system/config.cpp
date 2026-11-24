@@ -1783,10 +1783,8 @@ bool Config::apply_preset_file(const std::string& preset_name) {
                 auto& user_macros = data.at(macros_ptr);
                 const auto& preset_macros = *preset_macros_ptr;
                 for (const auto& [macro_key, stale_text] : stale_it->second) {
-                    if (!user_macros.contains(macro_key) || !user_macros[macro_key].is_string()) {
-                        continue;
-                    }
-                    if (user_macros[macro_key].get<std::string>() != stale_text) {
+                    if (helix::json_util::read_field<std::string>(user_macros, macro_key) !=
+                        stale_text) {
                         continue;
                     }
                     auto preset_text =

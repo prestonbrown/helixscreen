@@ -130,11 +130,11 @@ ResonanceTesterConfig parse_resonance_tester_config(const nlohmann::json& settin
         cfg.probe_point = parse_probe_point(*pp);
     }
     auto read_chip = [&rt](const char* key) -> std::string {
-        const auto it = rt->find(key);
-        if (it == rt->end() || !it->is_string()) {
+        const auto it = helix::json_util::read_field<std::string>(*rt, key);
+        if (!it) {
             return {};
         }
-        return std::string(text_io::trim(it->get_ref<const std::string&>()));
+        return std::string(text_io::trim(*it));
     };
     cfg.accel_chip = read_chip("accel_chip");
     cfg.accel_chip_x = read_chip("accel_chip_x");

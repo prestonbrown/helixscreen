@@ -2,6 +2,8 @@
 
 #include "motion_envelope.h"
 
+#include "json_utils.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -22,11 +24,11 @@ struct Provider {
 /// standard_y_max sits the brush and waste bin, reachable only with X inside
 /// safe_x_min..safe_x_max. Its status publishes standard_y_max.
 std::optional<float> read_extended_zone(const nlohmann::json& object_status) {
-    auto it = object_status.find("standard_y_max");
-    if (it == object_status.end() || !it->is_number()) {
+    const auto it = helix::json_util::read_field<double>(object_status, "standard_y_max");
+    if (!it) {
         return std::nullopt;
     }
-    const double v = it->get<double>();
+    const double v = *it;
     if (!std::isfinite(v)) {
         return std::nullopt;
     }

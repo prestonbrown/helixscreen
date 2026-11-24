@@ -71,9 +71,9 @@ AutoScrewsTiltResults parse_auto_screws_tilt(const nlohmann::json& status,
                     config_section, ("screw" + std::to_string(i)).c_str())) {
                 std::sscanf(coords->c_str(), "%f,%f", &screw.x_pos, &screw.y_pos);
             }
-            const auto name = config_section.find("screw" + std::to_string(i) + "_name");
-            if (name != config_section.end() && name->is_string()) {
-                screw.screw_name = name->get_ref<const std::string&>();
+            if (const auto name = helix::json_util::read_field<std::string>(
+                    config_section, "screw" + std::to_string(i) + "_name")) {
+                screw.screw_name = *name;
             }
         }
 
@@ -118,11 +118,11 @@ std::optional<int> main_state_from_status(const nlohmann::json& status) {
     if (manager == nullptr) {
         return std::nullopt;
     }
-    const auto state = manager->find("main_state");
-    if (state == manager->end() || !state->is_number()) {
+    const auto state = helix::json_util::read_field<int>(*manager, "main_state");
+    if (!state) {
         return std::nullopt;
     }
-    return state->get<int>();
+    return *state;
 }
 
 namespace {
@@ -155,8 +155,8 @@ AutoScrewsTiltResults results_from_query(const nlohmann::json& response) {
     const nlohmann::json* status = query_status(response);
     const nlohmann::json* module_status = nullptr;
     if (status) {
-        const auto module = status->find(kModuleName);
-        if (module != status->end() && module->is_object()) {
+        auto* module = helix::json_util::find_object(*status, kModuleName);
+        if (module != nullptr) {
             module_status = &*module;
         }
     }
@@ -171,8 +171,8 @@ AutoScrewsTiltResults results_from_query(const nlohmann::json& response) {
     if (configfile != nullptr) {
         auto* settings = helix::json_util::find_object(*configfile, "settings");
         if (settings != nullptr) {
-            const auto section = settings->find(kModuleName);
-            if (section != settings->end() && section->is_object()) {
+            auto* section = helix::json_util::find_object(*settings, kModuleName);
+            if (section != nullptr) {
                 config_section = *section;
             }
         }
@@ -219,8 +219,8 @@ void reconcile_on_connect(IMoonrakerClient& client, const nlohmann::json& initia
         const std::optional<int> state = main_state_from_status(*status);
 
         std::string probe_step;
-        const auto module = status->find(kModuleName);
-        if (module != status->end() && module->is_object()) {
+        auto* module = helix::json_util::find_object(*status, kModuleName);
+        if (module != nullptr) {
             if (const auto step =
                     helix::json_util::read_field<std::string>(*module, "probe_step")) {
                 probe_step = *step;

@@ -3,6 +3,7 @@
 #include "tool_offsets.h"
 
 #include "indx_contract.h"
+#include "json_utils.h"
 #include "printer_discovery.h"
 
 #include <algorithm>
@@ -79,8 +80,8 @@ const nlohmann::json* status_object(const nlohmann::json& status, const std::str
     if (!status.is_object()) {
         return nullptr;
     }
-    auto it = status.find(object);
-    if (it == status.end() || !it->is_object()) {
+    auto* it = helix::json_util::find_object(status, object);
+    if (it == nullptr) {
         return nullptr;
     }
     return &(*it);

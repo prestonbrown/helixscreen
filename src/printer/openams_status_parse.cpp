@@ -46,11 +46,11 @@ int int_member(const json& object, const char* key, int fallback) {
 }
 
 std::optional<double> number_member(const json& object, const char* key) {
-    auto it = object.find(key);
-    if (it == object.end() || !it->is_number()) {
+    const auto it = helix::json_util::read_field<double>(object, key);
+    if (!it) {
         return std::nullopt;
     }
-    return it->get<double>();
+    return *it;
 }
 
 bool lists_string(const json& array, const char* value) {
@@ -364,9 +364,9 @@ ManagerStatus parse_manager_status(const json& manager) {
             fps.fps_reported = true;
             fps.compression_only = true;
             fps.filament_loaded = lane.loaded_slot >= 0;
-            auto set_point = lane_json.find("set_point");
-            if (set_point != lane_json.end() && set_point->is_number()) {
-                fps.fps_set_point = set_point->get<float>();
+            if (const auto set_point =
+                    helix::json_util::read_field<float>(lane_json, "set_point")) {
+                fps.fps_set_point = *set_point;
             }
             lane_fps[lane.id] = fps;
         }

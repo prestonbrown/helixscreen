@@ -81,15 +81,15 @@ std::optional<bool> feature_enable(const json* module, const char* feature) {
     if (!module) {
         return std::nullopt;
     }
-    auto block = module->find(feature);
-    if (block == module->end() || !block->is_object()) {
+    auto* block = helix::json_util::find_object(*module, feature);
+    if (block == nullptr) {
         return std::nullopt;
     }
-    auto en = block->find("enable");
-    if (en == block->end() || !en->is_boolean()) {
+    const auto en = helix::json_util::read_field<bool>(*block, "enable");
+    if (!en) {
         return std::nullopt;
     }
-    return en->get<bool>();
+    return *en;
 }
 
 } // namespace

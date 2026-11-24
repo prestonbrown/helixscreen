@@ -27,12 +27,12 @@ bool feed_channels_at_rest(const nlohmann::json& status) {
             if (!channel.is_object()) {
                 continue;
             }
-            const auto state = channel.find("channel_state");
-            if (state == channel.end() || !state->is_string()) {
+            const auto state = helix::json_util::read_field<std::string>(channel, "channel_state");
+            if (!state) {
                 continue;
             }
             saw_channel = true;
-            if (snapmaker::channel_state_in_progress(state->get_ref<const std::string&>())) {
+            if (snapmaker::channel_state_in_progress(*state)) {
                 return false;
             }
         }
@@ -44,8 +44,8 @@ bool feed_channels_at_rest(const nlohmann::json& status) {
 
 void reconcile_on_connect(IMoonrakerClient& client, const nlohmann::json& status,
                           const std::string& macro_object, bool local_batch_active) {
-    const auto macro = status.find(macro_object);
-    if (macro == status.end() || !macro->is_object()) {
+    auto* macro = helix::json_util::find_object(status, macro_object);
+    if (macro == nullptr) {
         return;
     }
     // `doing` is a save-variable whose JSON type is only as strict as the

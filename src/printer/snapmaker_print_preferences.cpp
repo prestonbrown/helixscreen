@@ -30,7 +30,7 @@ std::optional<bool> read_flag(const nlohmann::json& obj, const char* key) {
 /// A per-toolhead list of flags, in either spelling; empty when absent.
 std::vector<bool> read_flag_list(const nlohmann::json& ptc, const char* key) {
     std::vector<bool> out;
-    if (auto it = ptc.find(key); it != ptc.end() && it->is_array()) {
+    if (auto* it = helix::json_util::find_array(ptc, key)) {
         for (const auto& v : *it) {
             if (v.is_boolean()) {
                 out.push_back(v.get<bool>());

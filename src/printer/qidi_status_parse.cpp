@@ -133,11 +133,12 @@ SaveVariables parse_save_variables(const json& variables, int known_slot_count) 
 
     // value_t<N> = "slot<M>" — tool N prints from global slot M.
     for (int t = 0; t < slot_count; ++t) {
-        const auto it = variables.find("value_t" + std::to_string(t));
-        if (it == variables.end() || !it->is_string()) {
+        const auto it =
+            helix::json_util::read_field<std::string>(variables, "value_t" + std::to_string(t));
+        if (!it) {
             continue;
         }
-        if (auto idx = parse_slot_name(it->get<std::string>(), slot_count)) {
+        if (auto idx = parse_slot_name(*it, slot_count)) {
             out.tool_slots.emplace_back(t, *idx);
         }
     }

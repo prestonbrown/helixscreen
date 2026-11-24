@@ -142,11 +142,11 @@ bool PrinterPrintState::apply_print_job_state(const nlohmann::json& status,
     // A printer-announced start learns its identity when the printer takes
     // the job, even when the file's name is the one print_stats already held.
     bool identity_follows_job = false;
-    auto state_it = stats.find("state");
-    if (state_it == stats.end() || !state_it->is_string()) {
+    const auto state_it = helix::json_util::read_field<std::string>(stats, "state");
+    if (!state_it) {
         return identity_follows_job;
     }
-    std::string state_str = state_it->get<std::string>();
+    std::string state_str = *state_it;
     PrintJobState new_state = parse_print_job_state(state_str.c_str());
     auto current_state = static_cast<PrintJobState>(lv_subject_get_int(&print_state_enum_));
     auto current_outcome = static_cast<PrintOutcome>(lv_subject_get_int(&print_outcome_));
@@ -503,8 +503,8 @@ void PrinterPrintState::apply_extruder_filament_used(const nlohmann::json& statu
     // accessor (no rehash, lv_subject_set_int is atomic on the int).
     for (int idx = 0; idx < kMaxExtruderScan; ++idx) {
         std::string key = (idx == 0) ? "extruder" : "extruder" + std::to_string(idx);
-        auto json_it = status.find(key);
-        if (json_it == status.end() || !json_it->is_object()) {
+        auto* json_it = helix::json_util::find_object(status, key);
+        if (json_it == nullptr) {
             continue;
         }
         const auto filament_used = json_util::read_field<double>(*json_it, "filament_used");

@@ -39,11 +39,11 @@ namespace {
 /// LVGL/queue frame. Type-check instead of blanket-catching, so genuine
 /// programming errors still surface.
 std::string json_string_member(const json& obj, const char* key) {
-    const auto it = obj.find(key);
-    if (it == obj.end() || !it->is_string()) {
+    const auto it = helix::json_util::read_field<std::string>(obj, key);
+    if (!it) {
         return {};
     }
-    return it->get<std::string>();
+    return *it;
 }
 
 /// Whether a configured strip id is something printer.objects can report.

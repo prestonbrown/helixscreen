@@ -278,19 +278,19 @@ constexpr int kZmodChangeIdleChannel = 99;
 /// The change macro's last_data.channel in this status frame; nullopt when the
 /// frame does not carry it (a diff frame without last_data did not change it).
 [[nodiscard]] std::optional<int> zmod_change_channel(const nlohmann::json& status) {
-    auto it = status.find(kZmodChangeMacro);
-    if (it == status.end() || !it->is_object()) {
+    auto* it = helix::json_util::find_object(status, kZmodChangeMacro);
+    if (it == nullptr) {
         return std::nullopt;
     }
     auto* data = helix::json_util::find_object(*it, "last_data");
     if (data == nullptr) {
         return std::nullopt;
     }
-    auto channel = data->find("channel");
-    if (channel == data->end() || !channel->is_number_integer()) {
+    const auto channel = helix::json_util::read_integer_field(*data, "channel");
+    if (!channel) {
         return std::nullopt;
     }
-    return channel->get<int>();
+    return *channel;
 }
 
 /// What each synthesized phase projects to, by the phase index the tracker
@@ -857,11 +857,11 @@ void AmsBackendAd5xIfs::on_vendor_state(const json& payload) {
     if (!vendor_push_.pushing() || ifs_module_live_.load()) {
         return;
     }
-    auto content = payload.find("content");
-    if (content == payload.end() || !content->is_string()) {
+    const auto content = helix::json_util::read_field<std::string>(payload, "content");
+    if (!content) {
         return;
     }
-    apply_json_content(content->get_ref<const std::string&>(), "json_push");
+    apply_json_content(*content, "json_push");
 }
 
 bool AmsBackendAd5xIfs::should_poll_json(bool printing_now, bool was_printing,

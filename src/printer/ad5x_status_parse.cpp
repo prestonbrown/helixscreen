@@ -332,15 +332,15 @@ IfsModuleObject parse_ifs_module_object(const json& obj) {
 namespace {
 
 std::optional<bool> filament_detected(const json& status, const char* key) {
-    const auto it = status.find(key);
-    if (it == status.end() || !it->is_object()) {
+    auto* it = helix::json_util::find_object(status, key);
+    if (it == nullptr) {
         return std::nullopt;
     }
-    const auto fd = it->find("filament_detected");
-    if (fd == it->end() || !fd->is_boolean()) {
+    const auto fd = helix::json_util::read_field<bool>(*it, "filament_detected");
+    if (!fd) {
         return std::nullopt;
     }
-    return fd->get<bool>();
+    return *fd;
 }
 
 std::optional<bool> first_reading(const json& status, std::initializer_list<const char*> keys) {

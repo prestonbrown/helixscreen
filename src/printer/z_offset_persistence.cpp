@@ -50,12 +50,12 @@ const nlohmann::json* nested_object(const nlohmann::json& status, const char* ob
     if (!status.is_object()) {
         return nullptr;
     }
-    auto outer = status.find(object);
-    if (outer == status.end() || !outer->is_object()) {
+    auto* outer = helix::json_util::find_object(status, object);
+    if (outer == nullptr) {
         return nullptr;
     }
-    auto inner = outer->find(member);
-    if (inner == outer->end() || !inner->is_object()) {
+    auto* inner = helix::json_util::find_object(*outer, member);
+    if (inner == nullptr) {
         return nullptr;
     }
     return &(*inner);
@@ -153,14 +153,14 @@ std::optional<int> read_forge_x(const nlohmann::json& status) {
     if (!variables) {
         return std::nullopt;
     }
-    auto z = variables->find("z_offset");
-    if (z == variables->end() || !z->is_number()) {
+    const auto z = helix::json_util::read_field<double>(*variables, "z_offset");
+    if (!z) {
         // Not written until the firmware's first SET_GCODE_OFFSET Z=.
         return std::nullopt;
     }
     // Same accumulate-and-round treatment as ZMOD: the stored value is the sum
     // of relative Z_ADJUST deltas, so a nominal -0.150 arrives as -0.1499999.
-    return static_cast<int>(std::lround(z->get<double>() * 1000.0));
+    return static_cast<int>(std::lround(*z * 1000.0));
 }
 
 // The mod's plugin populates every declared param when it loads, so once

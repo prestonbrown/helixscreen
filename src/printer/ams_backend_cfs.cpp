@@ -512,11 +512,11 @@ static uint32_t parse_flat_slot_color(const std::string& raw) {
 // the one place it is decided, so the parse and the merge gate in
 // handle_status cannot drift apart on it.
 static std::optional<bool> flat_gate_filament_present(const nlohmann::json& box_json) {
-    auto it = box_json.find("filament_detected");
-    if (it == box_json.end() || !it->is_boolean()) {
+    const auto it = helix::json_util::read_field<bool>(box_json, "filament_detected");
+    if (!it) {
         return std::nullopt;
     }
-    return it->get<bool>();
+    return *it;
 }
 
 // The literal string "None" means ABSENT on this module's text fields, and it

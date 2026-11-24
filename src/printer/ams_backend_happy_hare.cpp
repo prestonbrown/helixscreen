@@ -1866,8 +1866,8 @@ bool AmsBackendHappyHare::apply_filament_heater_status(const nlohmann::json& par
         // MMU_heater"), which is exactly the Moonraker status key. Use it verbatim so
         // any heater object type HH permits resolves — not only heater_generic.
         const std::string& status_key = hname;
-        auto h_it = params.find(status_key);
-        if (h_it == params.end() || !h_it->is_object()) {
+        auto* h_it = helix::json_util::find_object(params, status_key);
+        if (h_it == nullptr) {
             continue;
         }
         std::lock_guard<std::mutex> lock(mutex_);
@@ -1925,8 +1925,8 @@ bool AmsBackendHappyHare::apply_environment_sensor_status(const nlohmann::json& 
         float temp_val = 0.0f;
         float hum_val = 0.0f;
         for (const auto& key : candidates) {
-            auto it = params.find(key);
-            if (it == params.end() || !it->is_object()) {
+            auto* it = helix::json_util::find_object(params, key);
+            if (it == nullptr) {
                 continue;
             }
             // Ambient temperature is what HH surfaces for the enclosure when no
@@ -2233,8 +2233,8 @@ void AmsBackendHappyHare::adopt_hh_tuning(nlohmann::json doc, bool writable) {
         if (!doc.contains(name) && key == "selector_move_speed") {
             name = "selector_speed";
         }
-        const auto entry = doc.find(name);
-        if (entry == doc.end() || !entry->is_object()) {
+        auto* entry = helix::json_util::find_object(doc, name);
+        if (entry == nullptr) {
             return;
         }
         const T saved_default =

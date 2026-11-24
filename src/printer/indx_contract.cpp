@@ -35,11 +35,11 @@ constexpr std::array<const char*, 3> kModeMacros = {"MODE_STEALTH", "MODE_NORMAL
 /// A strict int: Klipper serializes these variables as JSON ints, and a
 /// float or string here is a macro set this module does not understand.
 std::optional<int> strict_int(const json& obj, const char* key) {
-    auto it = obj.find(key);
-    if (it == obj.end() || !it->is_number_integer()) {
+    const auto it = helix::json_util::read_integer_field(obj, key);
+    if (!it) {
         return std::nullopt;
     }
-    return it->get<int>();
+    return *it;
 }
 
 /// The macro name a status key or object name refers to, upper-case; empty

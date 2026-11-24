@@ -315,11 +315,11 @@ static int requested_timeout(const nlohmann::json& request) {
     if (params == nullptr) {
         return 0;
     }
-    const auto t = params->find("timeout");
-    if (t == params->end() || !t->is_number()) {
+    const auto t = helix::json_util::read_field<double>(*params, "timeout");
+    if (!t) {
         return 0;
     }
-    return static_cast<int>(t->get<double>());
+    return static_cast<int>(*t);
 }
 
 static std::string read_response(int fd, int timeout_sec = 30) {

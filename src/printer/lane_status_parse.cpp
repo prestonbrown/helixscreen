@@ -19,8 +19,8 @@ using json = nlohmann::json;
 
 std::vector<std::string> string_list(const json& object, const char* key) {
     std::vector<std::string> out;
-    const auto it = object.find(key);
-    if (it == object.end() || !it->is_array()) {
+    auto* it = helix::json_util::find_array(object, key);
+    if (it == nullptr) {
         return out;
     }
     for (const auto& v : *it) {

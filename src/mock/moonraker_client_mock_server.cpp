@@ -58,11 +58,11 @@ std::vector<std::string> split_key(const std::string& key) {
 /// The record at a dotted key, or null when the namespace, any intermediate
 /// record, or the final member is absent.
 json* find_db_value(json& db, const std::string& ns, const std::string& key) {
-    auto ns_it = db.find(ns);
-    if (ns_it == db.end() || !ns_it->is_object()) {
+    auto* ns_it = helix::json_util::find_object(db, ns);
+    if (ns_it == nullptr) {
         return nullptr;
     }
-    json* node = &ns_it.value();
+    json* node = ns_it;
     for (const auto& segment : split_key(key)) {
         auto member = node->find(segment);
         if (member == node->end()) {

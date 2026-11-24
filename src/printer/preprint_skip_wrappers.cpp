@@ -190,8 +190,8 @@ bool fold_bool(bool& slot, bool value) {
 
 /// `<object>.applied` from a frame, when the frame carries it.
 const nlohmann::json* applied_field(const nlohmann::json& status, const char* object) {
-    auto obj = status.find(object);
-    if (obj == status.end() || !obj->is_object()) {
+    auto* obj = helix::json_util::find_object(status, object);
+    if (obj == nullptr) {
         return nullptr;
     }
     auto it = obj->find("applied");
@@ -233,10 +233,8 @@ bool update_gates(Gates& gates, const nlohmann::json& status) {
     auto prep = status.find(std::string("gcode_macro ") + kPrepMacro);
     if (prep != status.end() && prep->is_object()) {
         for (Op op : kAllOps) {
-            auto v = prep->find(flag_for(op));
-            if (v != prep->end() && v->is_number()) {
-                changed |=
-                    fold_bool(gates.skip_pending[static_cast<size_t>(op)], v->get<int>() == 0);
+            if (const auto v = helix::json_util::read_field<int>(*prep, flag_for(op))) {
+                changed |= fold_bool(gates.skip_pending[static_cast<size_t>(op)], *v == 0);
             }
         }
     }

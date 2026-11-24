@@ -282,11 +282,11 @@ int plr_parse_interrupted_flag(const nlohmann::json& status) {
     if (vars_it == nullptr) {
         return -1;
     }
-    auto wi_it = vars_it->find("was_interrupted");
-    if (wi_it == vars_it->end() || !wi_it->is_boolean()) {
+    const auto wi_it = helix::json_util::read_field<bool>(*vars_it, "was_interrupted");
+    if (!wi_it) {
         return -1;
     }
-    return wi_it->get<bool>() ? 1 : 0;
+    return *wi_it ? 1 : 0;
 }
 
 bool plr_parse_saved_file(const nlohmann::json& status, std::optional<std::string>& out) {
@@ -442,11 +442,11 @@ std::string plr_parse_creality_sidecar(const std::string& json_text) {
         spdlog::debug("[PLR] Creality sidecar is not parseable JSON");
         return {};
     }
-    auto it = doc.find("file_path");
-    if (it == doc.end() || !it->is_string()) {
+    const auto it = helix::json_util::read_field<std::string>(doc, "file_path");
+    if (!it) {
         return {};
     }
-    return it->get<std::string>();
+    return *it;
 }
 
 std::string plr_read_probe_recovery_filename() {

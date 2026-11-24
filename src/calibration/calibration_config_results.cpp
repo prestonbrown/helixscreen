@@ -3,6 +3,7 @@
 
 #include "core/text_io.h"
 #include "hardware_object_table.h"
+#include "json_utils.h"
 #include "translation_loader.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -55,9 +56,9 @@ const json* model_offset(const json& settings, const ModelOffsetRow& row) {
     std::string model = "default";
     if (!row.active_model_option.empty()) {
         if (const json* probe = section_of(settings, row.probe)) {
-            const auto it = probe->find(std::string(row.active_model_option));
-            if (it != probe->end() && it->is_string()) {
-                model = it->get<std::string>();
+            if (const auto it = helix::json_util::read_field<std::string>(
+                    *probe, std::string(row.active_model_option))) {
+                model = *it;
             }
         }
     }
@@ -111,11 +112,11 @@ void z_offset(const json& settings, ConfigResults& out) {
 // model, and runs the heater only once these three are set (control_mpc.py
 // is_valid); a model value left unset is absent from the settings.
 std::optional<std::string> tuned_control(const json& section) {
-    const auto control = section.find("control");
-    if (control == section.end() || !control->is_string()) {
+    const auto control = helix::json_util::read_field<std::string>(section, "control");
+    if (!control) {
         return std::nullopt;
     }
-    const std::string kind = control->get<std::string>();
+    const std::string kind = *control;
     if (kind == "pid" || kind == "pid_v") {
         return std::string("pid");
     }
@@ -168,9 +169,8 @@ void input_shaper(const json& settings, ConfigResults& out) {
         }
         std::string type = "mzv";
         for (const auto& key : {fmt::format("shaper_type_{}", a), std::string("shaper_type")}) {
-            const auto it = shaper->find(key);
-            if (it != shaper->end() && it->is_string()) {
-                type = it->get<std::string>();
+            if (const auto it = helix::json_util::read_field<std::string>(*shaper, key)) {
+                type = *it;
                 break;
             }
         }

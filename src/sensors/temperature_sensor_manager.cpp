@@ -71,11 +71,11 @@ uint8_t role_for_sensor_type(const nlohmann::json* body) {
     if (body == nullptr || !body->is_object()) {
         return 0;
     }
-    const auto it = body->find("sensor_type");
-    if (it == body->end() || !it->is_string()) {
+    const auto it = helix::json_util::read_field<std::string>(*body, "sensor_type");
+    if (!it) {
         return 0;
     }
-    const std::string type = helix::text_io::to_lower(it->get<std::string>());
+    const std::string type = helix::text_io::to_lower(*it);
     if (type == "temperature_mcu") {
         return kMcu;
     }
@@ -303,8 +303,8 @@ bool TemperatureSensorManager::parse_status(const nlohmann::json& status) {
     // A frame without drv_status leaves the level alone; a null one (motors off,
     // the driver unpolled) clears it.
     for (const auto& name : driver_objects_) {
-        const auto driver = status.find(name);
-        if (driver == status.end() || !driver->is_object()) {
+        auto* driver = helix::json_util::find_object(status, name);
+        if (driver == nullptr) {
             continue;
         }
         const auto flags = driver->find("drv_status");

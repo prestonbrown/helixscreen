@@ -159,11 +159,11 @@ std::string parse_klippy_uds_address(const nlohmann::json& data) {
     if (server == nullptr) {
         return {};
     }
-    const auto address = server->find("klippy_uds_address");
-    if (address == server->end() || !address->is_string()) {
+    const auto address = helix::json_util::read_field<std::string>(*server, "klippy_uds_address");
+    if (!address) {
         return {};
     }
-    return address->get_ref<const std::string&>();
+    return *address;
 }
 
 void query_klippy_uds_address(IMoonrakerAPI& api, std::function<void(std::string)> on_done) {

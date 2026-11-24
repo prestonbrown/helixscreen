@@ -629,8 +629,8 @@ std::optional<AfcStateReading> read_afc_state(const nlohmann::json& status) {
                 continue;
             }
             const std::string key = "AFC_lane " + lane_name.get<std::string>();
-            const auto lane = status.find(key);
-            if (lane == status.end() || !lane->is_object()) {
+            auto* lane = helix::json_util::find_object(status, key);
+            if (lane == nullptr) {
                 continue;
             }
             // The afclite shim sends one "Tn"; the built-in emulation a list of them.
@@ -821,8 +821,8 @@ std::optional<MaterialReading> read_materials(const nlohmann::json& status, int 
     if (!status.is_object()) {
         return std::nullopt;
     }
-    auto it = status.find(kZmodColorObject);
-    if (it == status.end() || !it->is_object()) {
+    auto* it = helix::json_util::find_object(status, kZmodColorObject);
+    if (it == nullptr) {
         return std::nullopt;
     }
     MaterialReading r;
@@ -854,8 +854,8 @@ std::optional<ToolReading> read_tool(const nlohmann::json& status) {
     }
     // [medusahc] wins when present: it reads pin_watch itself and adds the
     // operation phase and the explicit sensor_error flag on top.
-    auto medusa = status.find(kMedusaObject);
-    if (medusa != status.end() && medusa->is_object()) {
+    auto* medusa = helix::json_util::find_object(status, kMedusaObject);
+    if (medusa != nullptr) {
         if (auto r = read_medusahc(*medusa)) {
             return r;
         }
@@ -867,8 +867,8 @@ std::optional<ToolReading> read_tool(const nlohmann::json& status) {
             }
         }
     }
-    auto zmod = status.find(kZmodColorObject);
-    if (zmod != status.end() && zmod->is_object()) {
+    auto* zmod = helix::json_util::find_object(status, kZmodColorObject);
+    if (zmod != nullptr) {
         if (auto r = read_zmod_color(*zmod)) {
             return r;
         }

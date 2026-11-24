@@ -329,8 +329,8 @@ bool ProbeSensorManager::parse_status(const nlohmann::json& status) {
             }
         }
         const std::string key = status_object(type_of(entry), entry.klipper_name);
-        const auto sensor = status.find(key);
-        if (sensor == status.end() || !sensor->is_object()) {
+        auto* sensor = helix::json_util::find_object(status, key);
+        if (sensor == nullptr) {
             continue;
         }
         ProbeSensorState& state = readings_[entry.klipper_name];
