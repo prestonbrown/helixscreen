@@ -77,6 +77,9 @@ struct StepInfo {
     bool loud = false;
     bool moves = false;
     bool needs_hands = false;
+    /// Of `minutes`, the ones the owner takes part in when needs_hands is set;
+    /// nullopt means all of them. The rest the printer runs on its own.
+    std::optional<int> hands_minutes;
     bool power_cycle = false;
     PrereqSet prereqs = kPrereqNone;
     /// Position in the fixed run order; lower runs first.
@@ -139,6 +142,35 @@ inline constexpr size_t kStepCount = 13;
 [[nodiscard]] int total_minutes(const std::vector<StepInfo>& steps);
 /// Minutes of the steps the owner has to take part in.
 [[nodiscard]] int hands_on_minutes(const std::vector<StepInfo>& steps);
+/// Minutes of @p step the owner takes part in.
+[[nodiscard]] int step_hands_minutes(const StepInfo& step);
+
+/// A tuning run's time, split the way the run overlay shows it: what the
+/// printer does on its own, and what needs the owner at the printer.
+struct TimeEstimate {
+    int walk_away_minutes = 0;
+    int hands_minutes = 0;
+    [[nodiscard]] int total_minutes() const {
+        return walk_away_minutes + hands_minutes;
+    }
+};
+
+/// One pressure advance tower the firmware generates (Kalico's PRINT_PA_TOWER),
+/// heat and home included: measured on a Voron 0 at 31.7 minutes of printing.
+inline constexpr int kFirmwarePaTowerMinutes = 32;
+/// Heating and homing ahead of a tower HelixScreen generates itself.
+inline constexpr int kPaTowerHeatHomeMinutes = 3;
+/// Judging one finished tower: finding the best height and reading it off.
+inline constexpr int kPaTowerJudgeMinutes = 2;
+
+/// One firmware-generated tower and its judging.
+[[nodiscard]] TimeEstimate firmware_pa_tower_estimate();
+/// @p towers firmware-generated towers, each judged: the nonlinear tuner's run
+/// is NonlinearProcedure::pass_count() of them, or the passes still to print.
+[[nodiscard]] TimeEstimate nonlinear_pa_run_estimate(int towers);
+/// The linear K tower: @p print_seconds of printing (pa::estimate_print_seconds()
+/// for its parameters) plus heating, homing and judging.
+[[nodiscard]] TimeEstimate linear_pa_tower_estimate(int print_seconds);
 
 /// Material temperatures the Heaters step tunes at (PLA).
 inline constexpr int kRunNozzleTempC = 210;

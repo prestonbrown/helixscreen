@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "calibration_catalog.h"
+#include "pa_tuning.h"
 #include "printer_detector.h"
 #include "printer_profile_state.h"
 #include "probe_sensor_types.h"
@@ -355,6 +356,61 @@ TEST_CASE("prerequisites are the union of the steps' and time totals add up",
     CHECK(hands_on_minutes(steps) == 8);
     CHECK(prerequisites_for({}) == kPrereqNone);
     CHECK(total_minutes({}) == 0);
+}
+
+TEST_CASE("a step the owner only judges counts its judging as hands-on, not the whole step",
+          "[calibration_catalog][pa_tuner][pa_time]") {
+    StepInfo walk;
+    walk.minutes = 7;
+    StepInfo judged;
+    judged.minutes = 30;
+    judged.needs_hands = true;
+    judged.hands_minutes = 2;
+    StepInfo paper;
+    paper.minutes = 5;
+    paper.needs_hands = true;
+    CHECK(step_hands_minutes(judged) == 2);
+    CHECK(step_hands_minutes(paper) == 5);
+    CHECK(step_hands_minutes(walk) == 0);
+    CHECK(hands_on_minutes({walk, judged, paper}) == 7);
+    CHECK(total_minutes({walk, judged, paper}) == 42);
+}
+
+TEST_CASE("pressure advance tuning in the catalog is mostly walk-away",
+          "[calibration_catalog][pa_tuner][pa_time]") {
+    const auto steps = applicable_steps(CatalogInputs{});
+    const StepInfo* pa = step_named(steps, "pa_tuning");
+    REQUIRE(pa != nullptr);
+    CHECK(pa->needs_hands);
+    const int hands = step_hands_minutes(*pa);
+    CHECK(hands > 0);
+    CHECK(hands < pa->minutes - hands);
+    // The tower's own estimate, not a fixed guess.
+    CHECK(pa->minutes ==
+          linear_pa_tower_estimate(helix::pa::estimate_print_seconds(helix::pa::TestPrintParams{}))
+              .total_minutes());
+}
+
+TEST_CASE("tuner time estimates scale with the towers and split printing from judging",
+          "[calibration_catalog][pa_tuner][pa_time]") {
+    const TimeEstimate one = firmware_pa_tower_estimate();
+    CHECK(one.walk_away_minutes >= 30);
+    CHECK(one.hands_minutes > 0);
+    CHECK(one.hands_minutes < one.walk_away_minutes);
+
+    // Direct drive prints three towers, bowden four: about 1h40 and 2h15.
+    const TimeEstimate dd = nonlinear_pa_run_estimate(3);
+    CHECK(dd.walk_away_minutes == 3 * one.walk_away_minutes);
+    CHECK(dd.hands_minutes == 3 * one.hands_minutes);
+    CHECK(dd.total_minutes() >= 95);
+    CHECK(dd.total_minutes() <= 110);
+    CHECK(nonlinear_pa_run_estimate(4).total_minutes() == 4 * one.total_minutes());
+    CHECK(nonlinear_pa_run_estimate(0).total_minutes() == 0);
+
+    // A part minute of printing rounds up.
+    const TimeEstimate lin = linear_pa_tower_estimate(10 * 60 + 1);
+    CHECK(lin.walk_away_minutes == 11 + kPaTowerHeatHomeMinutes);
+    CHECK(lin.hands_minutes == kPaTowerJudgeMinutes);
 }
 
 TEST_CASE("the Calibration screen lists its tiles in the catalog's run order",

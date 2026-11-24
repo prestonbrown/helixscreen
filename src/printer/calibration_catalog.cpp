@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "calibration_catalog.h"
 
+#include "pa_tuning.h"
 #include "printer_profile_state.h"
 #include "translation_loader.h"
 
@@ -169,6 +170,13 @@ std::vector<StepInfo> applicable_steps(const CatalogInputs& in) {
         s.needs_hands = row.needs_hands;
         s.prereqs = row.prereqs;
         s.order = order;
+        if (row.kind == StepKind::PressureAdvanceTuning) {
+            // The printer prints the tower on its own; the owner judges it.
+            const TimeEstimate t =
+                linear_pa_tower_estimate(pa::estimate_print_seconds(pa::TestPrintParams{}));
+            s.minutes = t.total_minutes();
+            s.hands_minutes = t.hands_minutes;
+        }
         if (row.kind == StepKind::ZOffset && z_offset_is_paper_test(in)) {
             s.needs_hands = true;
             s.prereqs |= kPrereqPaper;
@@ -261,14 +269,34 @@ int total_minutes(const std::vector<StepInfo>& steps) {
     return total;
 }
 
+int step_hands_minutes(const StepInfo& step) {
+    if (!step.needs_hands) {
+        return 0;
+    }
+    return std::clamp(step.hands_minutes.value_or(step.minutes), 0, step.minutes);
+}
+
 int hands_on_minutes(const std::vector<StepInfo>& steps) {
     int total = 0;
     for (const auto& s : steps) {
-        if (s.needs_hands) {
-            total += s.minutes;
-        }
+        total += step_hands_minutes(s);
     }
     return total;
+}
+
+TimeEstimate firmware_pa_tower_estimate() {
+    return {kFirmwarePaTowerMinutes, kPaTowerJudgeMinutes};
+}
+
+TimeEstimate nonlinear_pa_run_estimate(int towers) {
+    const int n = std::max(0, towers);
+    const TimeEstimate one = firmware_pa_tower_estimate();
+    return {one.walk_away_minutes * n, one.hands_minutes * n};
+}
+
+TimeEstimate linear_pa_tower_estimate(int print_seconds) {
+    const int print_minutes = (std::max(0, print_seconds) + 59) / 60;
+    return {print_minutes + kPaTowerHeatHomeMinutes, kPaTowerJudgeMinutes};
 }
 
 std::vector<TierOverride>
