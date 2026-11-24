@@ -75,6 +75,10 @@ struct PlrCapabilitySignals {
     /// plugin_feature("plr", kPlrFeatureMinVersion). GENERIC is never selected
     /// unless this is Ready.
     PluginFeatureState plr_feature = PluginFeatureState::Absent;
+    /// This connection has not yet heard whether the plugin serves recovery here:
+    /// its probe has not answered, or its `plr` feature is Ready and the status
+    /// reply has not arrived. A firmware backend the plugin displaces waits for it.
+    bool plugin_answer_pending = false;
 };
 
 /// Pick the backend: the first provider-table row whose markers are present.
