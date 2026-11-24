@@ -135,6 +135,9 @@ for step in "$@"; do
         install)
             run_installer --local /mnt/release-1/helixscreen-x86-v1.0.0.tar.gz || rc=$?
             ;;
+        install-umask077)
+            (umask 077; run_installer --local /mnt/release-1/helixscreen-x86-v1.0.0.tar.gz) || rc=$?
+            ;;
         install-progress)
             # stdout only: the HELIX-PROGRESS stream, with the human output dropped.
             run_installer --progress --local /mnt/release-1/helixscreen-x86-v1.0.0.tar.gz 2>/dev/null || rc=$?
