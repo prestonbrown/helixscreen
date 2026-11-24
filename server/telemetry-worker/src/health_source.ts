@@ -24,7 +24,12 @@ export async function fetchHealth(config: QueryConfig, today: string, filters?: 
   });
   // The devices that hung, so the snapshot query reads only their series.
   const hangDevices = [...new Set([...rows.hangs_cur, ...rows.hangs_prev].map((h) => String((h as { device: string }).device)))];
-  rows.hang_snapshots = hangDevices.length === 0 ? [] : await hangSnapshots(config, hangDevices);
+  try {
+    rows.hang_snapshots = hangDevices.length === 0 ? [] : await hangSnapshots(config, hangDevices);
+  } catch (err) {
+    // Left unset, buildHealth reports main_loop_hang as the plain total.
+    console.error(`[health] ${new Date().toISOString()} hang snapshots failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
   return buildHealth(rows, today, notApplicableFor(HEALTH_BLOCKS, filters));
 }
 

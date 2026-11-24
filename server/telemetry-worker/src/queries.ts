@@ -1367,7 +1367,7 @@ export const HANG_CODE = "main_loop_hang";
 
 /**
  * Every main_loop_hang in window `w`, one row per report, as rows
- * { device, at, mem, pressure, weight }: `at` is epoch seconds, `mem` is the
+ * { device, at, uptime, mem, pressure, weight }: `at` is the epoch seconds the Worker stored it, `uptime` the device's, `mem` is the
  * available host MB the hang carried (0 = the hang carried none; the column
  * stores the value + 1), `pressure` is "" when absent.
  */
@@ -1375,6 +1375,7 @@ export function hangEventsSql(w: readonly [number, number], filters?: FilterPara
   return `SELECT
       ${errorEnc("device_id")} as device,
       toUnixTimestamp(timestamp) as at,
+      ${errorEnc("uptime_sec")} as uptime,
       ${errorEnc("mem_available_mb")} as mem,
       ${errorEnc("pressure_level")} as pressure,
       ${SAMPLE_WEIGHT} as weight
@@ -1384,8 +1385,8 @@ export function hangEventsSql(w: readonly [number, number], filters?: FilterPara
 }
 
 /**
- * Memory snapshots of `devices` in window `w`, as rows { device, at, available }:
- * `at` is epoch seconds and `available` is the host MB available + 1. Snapshots
+ * Memory snapshots of `devices` in window `w`, as rows { device, at, uptime, available }:
+ * `at` is epoch seconds, `uptime` the device's, and `available` is the host MB available + 1. Snapshots
  * from before the column existed carry 0 and are left out.
  */
 export function hangSnapshotsSql(devices: string[], w: readonly [number, number]): string {
@@ -1393,6 +1394,7 @@ export function hangSnapshotsSql(devices: string[], w: readonly [number, number]
   return `SELECT
       ${memSnap("device_id")} as device,
       toUnixTimestamp(timestamp) as at,
+      ${memSnap("uptime_sec")} as uptime,
       ${memSnap("system_available_mb")} as available
     FROM ${DATASET}
     WHERE ${windowClause(w)} AND index1 = 'memory_snapshot' AND ${memSnap("system_available_mb")} > 0

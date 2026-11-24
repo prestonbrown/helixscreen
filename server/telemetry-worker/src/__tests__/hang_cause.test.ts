@@ -3,23 +3,28 @@ import { describe, it, expect } from "vitest";
 import { classifyHang, classifyHangs, splitOf, type HangRow, type MemSnapshot } from "../hang_cause";
 import { buildHealth, type HealthRowKey } from "../health";
 import { findingsFromHealth } from "../loop/findings";
-import { HANG_HOST_MEMORY_LOW_MB, HANG_SNAPSHOT_WINDOW_MIN } from "../loop/thresholds";
+import { HANG_HOST_MEMORY_LOW_MB, HANG_SNAPSHOT_WINDOW_SEC, HANG_UPLOAD_BATCH_SEC } from "../loop/thresholds";
+import { fetchHealth } from "../health_source";
+import { afterEach, vi } from "vitest";
 import { hangEventsSql, hangSnapshotsSql, windowClause, HEALTH_WINDOWS, SQL_FALSE } from "../queries";
 
-const MIN = 60_000;
+const HANG_UPTIME = 100_000;
 const T0 = Date.UTC(2026, 10, 21, 12, 0, 0);
 
 const hang = (over: Partial<HangRow> = {}): HangRow => ({
   device: "d1",
   at: T0,
+  uptimeSec: HANG_UPTIME,
   memAvailableMb: null,
   pressure: "",
   weight: 1,
   ...over,
 });
-const snap = (minutesBefore: number, availableMb: number, device = "d1"): MemSnapshot => ({
+/** A snapshot of the hang's upload taken `secondsBefore` of uptime before the hang. */
+const snap = (secondsBefore: number, availableMb: number, device = "d1", atOffsetMs = 0): MemSnapshot => ({
   device,
-  at: T0 - minutesBefore * MIN,
+  at: T0 + atOffsetMs,
+  uptimeSec: HANG_UPTIME - secondsBefore,
   availableMb,
 });
 
@@ -44,21 +49,45 @@ describe("classifyHang, a hang that carries its own memory", () => {
 });
 
 describe("classifyHang, an older hang", () => {
-  it("uses the latest snapshot before the hang", () => {
-    expect(classifyHang(hang(), [snap(50, 5), snap(10, 500)])).toBe("app_blocked");
-    expect(classifyHang(hang(), [snap(50, 500), snap(10, 5)])).toBe("host_memory");
+  const H = 3600;
+  it("uses the snapshot of the largest uptime at or below the hang's", () => {
+    expect(classifyHang(hang(), [snap(3000, 5), snap(600, 500)])).toBe("app_blocked");
+    expect(classifyHang(hang(), [snap(3000, 500), snap(600, 5)])).toBe("host_memory");
+    expect(classifyHang(hang(), [snap(600, 5), snap(3000, 500)])).toBe("host_memory");
+  });
+  it("picks the right hour when a whole day of snapshots shares one stored time", () => {
+    // 24 hourly snapshots from one upload, the hang 30 minutes after the 14th; only the 14th and earlier qualify.
+    const day = Array.from({ length: 24 }, (_, i) => ({
+      device: "d1",
+      at: T0,
+      uptimeSec: 1000 + i * H,
+      availableMb: i === 13 ? 5 : 800,
+    }));
+    const h = hang({ uptimeSec: 1000 + 13 * H + 1800 });
+    expect(classifyHang(h, day)).toBe("host_memory");
+    expect(classifyHang(hang({ uptimeSec: 1000 + 14 * H + 1800 }), day)).toBe("app_blocked");
   });
   it("applies the same threshold to the snapshot", () => {
     expect(classifyHang(hang(), [snap(5, HANG_HOST_MEMORY_LOW_MB - 1)])).toBe("host_memory");
     expect(classifyHang(hang(), [snap(5, HANG_HOST_MEMORY_LOW_MB)])).toBe("app_blocked");
   });
-  it("is unknown without a snapshot, or with one outside the window", () => {
+  it("is unknown without a snapshot, or with one more than the window of uptime before", () => {
     expect(classifyHang(hang(), [])).toBe("unknown");
-    expect(classifyHang(hang(), [snap(HANG_SNAPSHOT_WINDOW_MIN + 1, 5)])).toBe("unknown");
-    expect(classifyHang(hang(), [snap(HANG_SNAPSHOT_WINDOW_MIN, 5)])).toBe("host_memory");
+    expect(classifyHang(hang(), [snap(HANG_SNAPSHOT_WINDOW_SEC + 1, 5)])).toBe("unknown");
+    expect(classifyHang(hang(), [snap(HANG_SNAPSHOT_WINDOW_SEC, 5)])).toBe("host_memory");
   });
   it("ignores a snapshot taken after the hang", () => {
     expect(classifyHang(hang(), [snap(-5, 5)])).toBe("unknown");
+  });
+  it("ignores a snapshot of another upload, even one of plausible uptime", () => {
+    expect(classifyHang(hang(), [snap(60, 5, "d1", (HANG_UPLOAD_BATCH_SEC + 1) * 1000)])).toBe("unknown");
+    expect(classifyHang(hang(), [snap(60, 5, "d1", HANG_UPLOAD_BATCH_SEC * 1000)])).toBe("host_memory");
+  });
+  it("ignores an earlier boot's snapshot whose uptime is above the hang's", () => {
+    expect(classifyHang(hang({ uptimeSec: 500 }), [{ device: "d1", at: T0, uptimeSec: 80_000, availableMb: 5 }])).toBe("unknown");
+  });
+  it("is unknown when the hang reports no uptime", () => {
+    expect(classifyHang(hang({ uptimeSec: 0 }), [snap(60, 5)])).toBe("unknown");
   });
   it("reads only the hang's own device", () => {
     expect(classifyHangs([hang()], [snap(5, 5, "other")])[0].cause).toBe("unknown");
@@ -88,6 +117,7 @@ const rows = (over: Partial<Record<HealthRowKey, unknown[]>>) =>
 const hangRow = (device: string, mem: number, extra: object = {}) => ({
   device,
   at: T0 / 1000,
+  uptime: HANG_UPTIME,
   mem,
   pressure: "",
   weight: 1,
@@ -141,8 +171,8 @@ describe("a main_loop_hang finding", () => {
         hangs_cur: [hangRow("a", 0), hangRow("b", 0), hangRow("c", 0)],
         // available is stored + 1: a is at 11 MB, b at 500 MB, c has no snapshot.
         hang_snapshots: [
-          { device: "a", at: T0 / 1000 - 600, available: 12 },
-          { device: "b", at: T0 / 1000 - 600, available: 501 },
+          { device: "a", at: T0 / 1000, uptime: HANG_UPTIME - 600, available: 12 },
+          { device: "b", at: T0 / 1000, uptime: HANG_UPTIME - 600, available: 501 },
         ],
       }),
       "2026-11-24",
@@ -159,6 +189,69 @@ describe("a main_loop_hang finding", () => {
     });
     expect(f[0].actions).not.toContain("issue");
     expect(findingsFromHealth(build(0), [], "2026-W47")[0].actions).toContain("issue");
+  });
+});
+
+describe("the first weeks after the snapshot column deploys", () => {
+  const mk = (prevHangs: object[], curHangs: object[]) =>
+    buildHealth(
+      rows({
+        errors_cur: [{ ...hangCode, count: curHangs.length, devices: curHangs.length }],
+        errors_prev: [{ ...hangCode, count: prevHangs.length, devices: 1 }],
+        errors_baseline: [{ ...hangCode, count: 1 }],
+        hangs_cur: curHangs,
+        hangs_prev: prevHangs,
+      }),
+      "2026-11-24",
+    );
+  // Eight app-blocked hangs this week from eight devices, mem stored + 1.
+  const cur = Array.from({ length: 8 }, (_, i) => hangRow(`c${i}`, 501));
+  // Last week's hangs carry no memory and no snapshot: unknown.
+  const unknownPrev = Array.from({ length: 8 }, (_, i) => hangRow(`p${i}`, 0));
+
+  it("holds the row steady when last week was mostly unclassifiable", () => {
+    expect(mk(unknownPrev, cur).errors[0]).toMatchObject({ cur: 8, prev: 0, status: "steady" });
+  });
+  it("rises when last week was classifiable", () => {
+    const classified = [hangRow("p0", 501), ...Array.from({ length: 3 }, (_, i) => hangRow(`q${i}`, 0))];
+    // 1 of 4 classified is below the share: held.
+    expect(mk(classified, cur).errors[0].status).toBe("steady");
+    const mostly = [hangRow("p0", 501), hangRow("p1", 501), hangRow("p2", 0)];
+    expect(mk(mostly, cur).errors[0].status).toBe("rising");
+  });
+  it("rises when there were no hangs last week", () => {
+    expect(mk([], cur).errors[0].status).toBe("rising");
+  });
+});
+
+describe("fetchHealth when the snapshot query fails", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const respond = (sql: string): unknown[] => {
+    if (sql.includes("'main_loop_hang'")) return Array.from({ length: 6 }, (_, i) => ({ device: `d${i}`, at: 1, uptime: 5, mem: 501, pressure: "", weight: 1 }));
+    if (sql.trimEnd().endsWith("GROUP BY category, code")) {
+      return [{ category: "ui", code: "main_loop_hang", count: 6, devices: 6 }];
+    }
+    return [];
+  };
+
+  it("reports the plain total and logs", async () => {
+    vi.stubGlobal("fetch", async (_url: string, init: { body: string }) => {
+      if (init.body.includes("'memory_snapshot'")) return new Response("boom", { status: 500 });
+      return new Response(JSON.stringify({ data: respond(init.body) }), { status: 200 });
+    });
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const h = await fetchHealth({ accountId: "a", apiToken: "t" }, "2026-11-24");
+    expect(h.errors[0]).toMatchObject({ code: "main_loop_hang", cur: 6, devices: 6 });
+    expect(h.errors[0].split).toBeUndefined();
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("hang snapshots failed"));
+    log.mockRestore();
+  });
+  it("splits when the snapshot query succeeds", async () => {
+    vi.stubGlobal("fetch", async (_url: string, init: { body: string }) =>
+      new Response(JSON.stringify({ data: init.body.includes("'memory_snapshot'") ? [] : respond(init.body) }), { status: 200 }));
+    const h = await fetchHealth({ accountId: "a", apiToken: "t" }, "2026-11-24");
+    expect(h.errors[0].split).toBeDefined();
   });
 });
 
