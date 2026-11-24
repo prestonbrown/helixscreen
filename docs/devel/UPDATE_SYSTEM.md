@@ -401,7 +401,7 @@ it.
 
 ### Manifest Signatures
 
-Every manifest the checker reads, R2 or `dev_url`, must carry a prehashed minisign signature at `<manifest URL>.minisig` that verifies against the release key compiled into the app (`helix::release_signature::kReleasePublicKey`), or against `release_pubkey` in the root-owned update_urls.json for a test server with its own key. The signature's trusted comment must also name the channel fetched (`channel:stable`, `channel:beta`, `channel:dev`), so a manifest signed for one channel is refused on another (`helix::release_signature::verify_channel_manifest()`). `UpdateChecker::fetch_verified_manifest()` refuses a missing, wrong-key, legacy, other-channel or failing signature before the manifest is parsed, and only a release parsed from a verified manifest (`ReleaseInfo::signature_verified`) with a SHA-256 is ever downloaded (`helix::release_is_verified()`). Setup, tests and rollout: [RELEASE_SIGNING.md](RELEASE_SIGNING.md).
+Every manifest the checker reads, R2 or `dev_url`, must carry a prehashed minisign signature at `<manifest URL>.minisig` that verifies against the release key compiled into the app (`helix::release_signature::kReleasePublicKey`), or against `release_pubkey` in the root-owned update_urls.json for a test server with its own key. The signature's trusted comment must also be exactly `file:manifest.json channel:<the channel fetched>`, so a manifest signed for one channel is refused on another (`helix::release_signature::verify_channel_manifest()`). `UpdateChecker::fetch_verified_manifest()` refuses a missing, wrong-key, legacy, other-channel or failing signature before the manifest is parsed, and only a release parsed from a verified manifest (`ReleaseInfo::signature_verified`) with a SHA-256 is ever downloaded (`helix::release_is_verified()`). Setup, tests and rollout: [RELEASE_SIGNING.md](RELEASE_SIGNING.md).
 
 ### GitHub API Fallback
 
@@ -710,7 +710,7 @@ scripts/generate-manifest.sh \
   --base-url "http://192.168.1.100:8080/dev" \
   --output ./manifest.json
 
-# Sign it with a test key, never the release key; the trusted comment must name the channel
+# Sign it with a test key, never the release key; the trusted comment must be exactly this
 minisign -G -W -p test.pub -s test.key
 minisign -S -s test.key -m manifest.json -t "file:manifest.json channel:dev"
 

@@ -9,8 +9,8 @@ its hash together: the swapped manifest fails its signature on every client that
 Signatures are **prehashed** (`minisign -S -H` semantics, algorithm `ED`: Ed25519 over the
 BLAKE2b-512 of the file). Every checker refuses a legacy signature over the raw file. The
 trusted comment (`file:manifest.json channel:<channel>`) is covered by the signature's global
-signature, and the update checker requires it to name the channel it fetched, so a manifest
-signed for one channel is refused on another.
+signature, and the update checker requires it to be exactly that, naming the channel it
+fetched, so a manifest signed for one channel (or for several) is refused on another.
 
 ## Key files
 
@@ -43,7 +43,7 @@ every client again. The secret half is held offline and reaches CI only as an en
 `UpdateChecker::fetch_verified_manifest()` fetches `manifest.json`, then `manifest.json.minisig`,
 and hands both, with the channel it fetched, to `helix::parse_signed_release_manifest()`, which
 parses the manifest only after `release_signature::verify_channel_manifest()` accepts the
-signature and finds `channel:<that channel>` in its trusted comment. Only then is `ReleaseInfo::signature_verified`
+signature and its trusted comment is exactly `file:manifest.json channel:<that channel>`. Only then is `ReleaseInfo::signature_verified`
 set. `start_download()` refuses any release for which `helix::release_is_verified()` is false
 (unsigned, or no SHA-256 to check the download against), and `do_download()` refuses a download
 with no hash rather than skipping the check.
@@ -64,7 +64,8 @@ with no hash rather than skipping the check.
 
   The file is trusted only when root or the app's user owns it and nothing else can write it,
   the same rule that already lets it redirect where updates come from. The signature's
-  trusted comment must still name the channel (`-t "file:manifest.json channel:dev"`).
+  trusted comment must still be exactly `file:manifest.json channel:dev`
+  (`-t "file:manifest.json channel:dev"`).
 
 ### The ESP32 firmware
 

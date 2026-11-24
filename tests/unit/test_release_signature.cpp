@@ -203,14 +203,17 @@ TEST_CASE("release signature: a manifest signed for one channel is refused on an
         CHECK(verify_channel_manifest(manifest + " ", sig, channel, pub) == Verdict::BadSignature);
     }
 
-    // The channel is a whole token, and a comment naming none matches none.
-    CHECK(verify_channel_manifest(manifest, release.sign(manifest, channel_comment("devel")), "dev",
-                                  pub) == Verdict::WrongChannel);
-    CHECK(verify_channel_manifest(manifest, release.sign(manifest, "file:manifest.json"), "dev",
-                                  pub) == Verdict::WrongChannel);
-    CHECK(verify_channel_manifest(manifest,
-                                  release.sign(manifest, "channel:dev file:manifest.json"), "dev",
-                                  pub) == Verdict::Ok);
+    // Only the exact comment counts: one channel token, after the file token.
+    for (const char* comment :
+         {"file:manifest.json channel:devel", "file:manifest.json", "channel:dev",
+          "channel:dev file:manifest.json", "file:manifest.json channel:stable channel:dev",
+          "file:manifest.json channel:dev channel:stable", "file:manifest.json  channel:dev",
+          "file:manifest.json channel:dev ", "file:other.json channel:dev",
+          "timestamp:1 file:manifest.json channel:dev"}) {
+        INFO(comment);
+        CHECK(verify_channel_manifest(manifest, release.sign(manifest, comment), "dev", pub) ==
+              Verdict::WrongChannel);
+    }
 
     // The fixtures are signed for dev.
     CHECK(verify_channel_manifest(fixture("manifest.json"), fixture("good.minisig"), "dev",
