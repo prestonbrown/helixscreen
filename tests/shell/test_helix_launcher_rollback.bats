@@ -280,6 +280,25 @@ touch '$HELIX_ROLLBACK_DIR/update_rollback.healthy'; sleep 3; exit 0"
     [ ! -e "$PREVIOUS" ]
 }
 
+@test "rollback: a second update whose marker text repeats the first is still a new install" {
+    # Same versions and paths (a reinstall): only the file is new, as the app
+    # writes it through a rename.
+    set_app "$INSTALL" "n=\$(cat '$BATS_TEST_TMPDIR/runs' 2>/dev/null || echo 0); n=\$((n+1)); echo \$n > '$BATS_TEST_TMPDIR/runs'
+if [ \$n = 1 ]; then
+  touch '$HELIX_ROLLBACK_DIR/update_rollback.healthy'; sleep 4
+  cp -r '$INSTALL' '$PREVIOUS'; echo v2 > '$PREVIOUS/TREE'; echo v3 > '$INSTALL/TREE'
+  printf 'install_dir=%s\\nprevious_dir=%s\\nfrom_version=1.0.0\\nto_version=1.1.0\\n' '$INSTALL' '$PREVIOUS' > '$HELIX_ROLLBACK_DIR/update_rollback.armed.tmp'
+  mv '$HELIX_ROLLBACK_DIR/update_rollback.armed.tmp' '$HELIX_ROLLBACK_DIR/update_rollback.armed'
+  exit 0
+fi
+touch '$HELIX_ROLLBACK_DIR/update_rollback.healthy'; sleep 3; exit 0"
+    arm
+    export HELIX_ROLLBACK_WINDOW=60
+    launch
+    [ "$(cat "$INSTALL/TREE")" = "v3" ]
+    [ ! -e "$HELIX_ROLLBACK_DIR/update_rollback.result" ]
+}
+
 @test "rollback: a second automatic update after the units phase is guarded, not rolled back" {
     # Run 1 hands off for the unit refresh; run 2 finishes the guard and installs.
     second_update_app 2

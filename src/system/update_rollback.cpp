@@ -126,9 +126,10 @@ void disarm_rollback_guard() {
     if (dir.empty()) {
         return;
     }
-    for (const char* name : {kRollbackArmedFile, "update_rollback.starts", kRollbackHealthyFile,
-                             kRollbackRequestFile, kRollbackStoppingFile, kRollbackBusyFile,
-                             "update_rollback.phase", "update_rollback.handoff"}) {
+    for (const char* name :
+         {kRollbackArmedFile, "update_rollback.starts", kRollbackHealthyFile, kRollbackRequestFile,
+          kRollbackStoppingFile, kRollbackBusyFile, "update_rollback.phase",
+          "update_rollback.handoff", "update_rollback.guard"}) {
         remove_rollback_file(dir, name);
     }
 }

@@ -1639,7 +1639,7 @@ helix_rollback_marker_present() {
 }
 
 helix_rollback_disarm() {
-    for _hrd_f in armed starts healthy request stopping busy phase handoff; do
+    for _hrd_f in armed starts healthy request stopping busy phase handoff guard; do
         rm -f "$(helix_rollback_file "$_hrd_f")" 2>/dev/null || true
     done
 }
@@ -1857,7 +1857,9 @@ while :; do
 
     if [ "${RB_GUARDING}" = "1" ]; then
         log "Starting v${RB_TO} under the rollback guard (start ${_rb_starts}, window ${HELIX_ROLLBACK_WINDOW}s)"
-        _rb_guarded=$(cat "$(helix_rollback_file armed)" 2>/dev/null || true)
+        # Present while this guard runs; a healthy finish or a restore drops it
+        # with the rest of the trial's files.
+        echo "$$" > "$(helix_rollback_file guard)" 2>/dev/null || true
         EXIT_CODE=0
         HELIX_ROLLBACK_SUPERVISOR=$$ "${INSTALL_DIR}/bin/helix-launcher.sh" "$@" &
         RB_CHILD_PID=$!
@@ -1884,7 +1886,7 @@ while :; do
             # Healthy and finished; the child ran its own respawn rules.
             break
         fi
-        if [ "$(cat "$(helix_rollback_file armed)" 2>/dev/null || true)" != "${_rb_guarded}" ]; then
+        if [ ! -f "$(helix_rollback_file guard)" ]; then
             # This guard finished healthy, and the version it passed has since
             # installed the next update: a fresh install restart, guarded anew.
             log "Update installed; relaunching under the rollback guard"
