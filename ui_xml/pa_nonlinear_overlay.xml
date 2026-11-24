@@ -104,7 +104,7 @@
           </lv_obj>
         </lv_obj>
         <wizard_frame_footer name="pa_nl_ready_footer"
-                             back_callback="on_pa_nl_back" back_name="pa_nl_btn_back" back_subject="pa_nl_back_text"
+                             back_callback="on_pa_nl_back" back_name="pa_nl_btn_back"
                              back_hide_cond="pa_nl_can_back eq 0" status_subject="pa_nl_time_line"
                              status_sub_subject="pa_nl_time_sub" primary_name="pa_nl_btn_print"
                              primary_subject="pa_nl_ready_primary" primary_callback="on_pa_nl_ready_primary"
@@ -345,10 +345,9 @@
         </lv_obj>
         <wizard_frame_footer name="pa_nl_judge_footer"
                              back_callback="on_pa_nl_back" back_name="pa_nl_btn_judge_back"
-                             back_subject="pa_nl_back_text" back_hide_cond="pa_nl_can_back eq 0"
-                             primary_name="pa_nl_btn_use" primary_subject="pa_nl_judge_primary"
-                             primary_callback="on_pa_nl_judge_primary" primary_icon="check"
-                             primary_disabled_cond="pa_nl_heights_set eq 0"/>
+                             back_hide_cond="pa_nl_can_back eq 0" primary_name="pa_nl_btn_use"
+                             primary_subject="pa_nl_judge_primary" primary_callback="on_pa_nl_judge_primary"
+                             primary_icon="check" primary_disabled_cond="pa_nl_heights_set eq 0"/>
       </lv_obj>
 
       <!-- ============================================================ -->

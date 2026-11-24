@@ -315,7 +315,6 @@ void PaNonlinearOverlay::init_subjects() {
                                   subjects_);
         UI_MANAGED_SUBJECT_STRING(judge_primary_, judge_primary_buf_, "", "pa_nl_judge_primary",
                                   subjects_);
-        UI_MANAGED_SUBJECT_STRING(back_text_, back_text_buf_, "", "pa_nl_back_text", subjects_);
         UI_MANAGED_SUBJECT_STRING(param_, param_buf_, "", "pa_nl_param", subjects_);
         UI_MANAGED_SUBJECT_STRING(height_front_, height_front_buf_, "", "pa_nl_height_front",
                                   subjects_);
@@ -586,10 +585,6 @@ void PaNonlinearOverlay::refresh() {
     lv_subject_set_string(&run_chip_, fmt::format(fmt::runtime(lv_tr("Pass {} of {}")),
                                                   proc_->pass_number(), proc_->pass_count())
                                           .c_str());
-    // Back re-opens the latest judgement: this pass's own after a repeat.
-    const int back_to = proc_->repeats() > 0 ? proc_->pass_number() : proc_->pass_number() - 1;
-    lv_subject_set_string(
-        &back_text_, fmt::format(fmt::runtime(lv_tr("Pass {}")), std::max(1, back_to)).c_str());
     const char* const* samples = sample_set(pass);
     for (int i = 0; i < 3; ++i) {
         // Each path is a string literal: the pointer changes with the set, so the image follows.

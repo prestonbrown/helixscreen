@@ -62,7 +62,7 @@
  *   pa_nl_value_hl (int: the row the pass sweeps), pa_nl_result_N (string)
  * - pa_nl_look (string), pa_nl_ref_src_N (string): the "where to look" card
  * - pa_nl_time_line / pa_nl_time_sub / pa_nl_run_note / pa_nl_run_chip (string)
- * - pa_nl_ready_primary / pa_nl_judge_primary / pa_nl_back_text (string)
+ * - pa_nl_ready_primary / pa_nl_judge_primary (string)
  * - pa_nl_param / pa_nl_height_front / pa_nl_verdict (string): pass 2's two heights,
  *   pa_nl_heights_set (int: 0 while a two-sided pass has a height not yet judged)
  * - pa_nl_result_live / pa_nl_save_material (string)
@@ -365,8 +365,6 @@ class PaNonlinearOverlay : public OverlayBase {
     char ready_primary_buf_[48] = {};
     helix::Subject judge_primary_{};
     char judge_primary_buf_[48] = {};
-    helix::Subject back_text_{};
-    char back_text_buf_[32] = {};
     helix::Subject param_{};
     char param_buf_[48] = {};
     helix::Subject height_front_{};
