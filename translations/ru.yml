@@ -4822,7 +4822,7 @@ translations:
   Startup, auto-control, and macro devices: Запуск, автоуправление и макро-устройства
   State: Состояние
   Static: 'Статический'
-  Station: ''
+  Station: 'Станция'
   Status: Статус
   Status icons: Иконки статуса
   Stay at the printer.: Оставайтесь у принтера.
@@ -5685,7 +5685,7 @@ translations:
   Tool cycle finished: Перебор инструментов завершён
   Tool is seated: Инструмент установлен
   Tool may be half seated: "Инструмент может быть установлен не полностью"
-  Tool offset calibration complete: ''
+  Tool offset calibration complete: 'Калибровка смещений инструментов завершена'
   Tool offsets: 'Смещения инструментов'
   Tool offsets (mm): Смещения инструментов (мм)
   Tool offsets saved: Смещения инструментов сохранены
@@ -6523,7 +6523,7 @@ translations:
   '{} matches.': '{} подходит.'
   '{} may be half seated on the head. Check it by hand.': "{} может быть установлен на печатающую головку не полностью. Проверьте вручную."
   '{} may cause unintended changes. Are you sure?': '{} может привести к непреднамеренным изменениям. Вы уверены?'
-  '{} measured: X {:.3f} Y {:.3f} Z {:.3f} mm': ''
+  '{} measured: X {:.3f} Y {:.3f} Z {:.3f} mm': '{} измерено: X {:.3f} Y {:.3f} Z {:.3f} мм'
   '{} meter reset': 'Счётчик «{}» сброшен'
   '{} min': '{} мин'
   '{} min ago': '{} мин. назад'

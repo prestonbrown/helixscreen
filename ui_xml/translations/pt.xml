@@ -4585,7 +4585,7 @@
   <translation tag="Startup, auto-control, and macro devices" pt="Inicialização, controle automático e dispositivos de macro"/>
   <translation tag="State" pt="Estado"/>
   <translation tag="Static" pt="Estático"/>
-  <translation tag="Station"/>
+  <translation tag="Station" pt="Estação"/>
   <translation tag="Status" pt="Estado"/>
   <translation tag="Status icons" pt="Ícones de status"/>
   <translation tag="Stay at the printer." pt="Fique perto da impressora."/>
@@ -5370,7 +5370,7 @@
   <translation tag="Tool cycle finished" pt="Alternância de ferramentas concluída"/>
   <translation tag="Tool is seated" pt="A ferramenta está encaixada"/>
   <translation tag="Tool may be half seated" pt="A ferramenta pode estar mal encaixada"/>
-  <translation tag="Tool offset calibration complete"/>
+  <translation tag="Tool offset calibration complete" pt="Calibração de offset de ferramenta concluída"/>
   <translation tag="Tool offsets" pt="Offsets de ferramenta"/>
   <translation tag="Tool offsets (mm)" pt="Offsets de ferramenta (mm)"/>
   <translation tag="Tool offsets saved" pt="Offsets de ferramenta salvos"/>
@@ -6198,7 +6198,7 @@
   <translation tag="{} matches." pt="{} corresponde."/>
   <translation tag="{} may be half seated on the head. Check it by hand." pt="{} pode estar mal encaixada no cabeçote. Verifique manualmente."/>
   <translation tag="{} may cause unintended changes. Are you sure?" pt="{} pode causar alterações não intencionais. Tem certeza?"/>
-  <translation tag="{} measured: X {:.3f} Y {:.3f} Z {:.3f} mm"/>
+  <translation tag="{} measured: X {:.3f} Y {:.3f} Z {:.3f} mm" pt="{} medido: X {:.3f} Y {:.3f} Z {:.3f} mm"/>
   <translation tag="{} meter reset" pt="Contador de {} resetado"/>
   <translation tag="{} min" pt="{} min"/>
   <translation tag="{} min ago" pt="há {} min"/>

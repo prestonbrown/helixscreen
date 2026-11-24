@@ -20,6 +20,11 @@
 namespace helix::toolchanger_addon {
 namespace {
 
+/// Z-Mod's own "T<n>=0)" text for a head the run skips; firmware console wording, not a label.
+std::string zmod_skip_marker(int tool) {
+    return "T" + std::to_string(tool) + "=0)"; // DISPLAY_NUMBERING_OK: Z-Mod console text
+}
+
 constexpr const char* kMedusaObject = "medusahc";
 
 /// Sanity bound on a dock index parsed out of a status key, so a malformed
@@ -534,8 +539,7 @@ std::optional<ZmodCalibrationStep> parse_zmod_calibration_line(const std::string
     step.z_um = axis("Z=");
     if (step.x_um && step.y_um && step.z_um) {
         step.kind = Kind::Measured;
-    } else if ((step.tool >= 0 &&
-                body.find("T" + std::to_string(step.tool) + "=0)") != std::string_view::npos)) {
+    } else if (step.tool >= 0 && body.find(zmod_skip_marker(step.tool)) != std::string_view::npos) {
         step.kind = Kind::Skipped;
     } else if (body.find("...") != std::string_view::npos) {
         step.kind = Kind::Started;

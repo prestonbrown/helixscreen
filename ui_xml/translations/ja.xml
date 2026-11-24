@@ -4585,7 +4585,7 @@
   <translation tag="Startup, auto-control, and macro devices" ja="起動、自動制御、マクロデバイス"/>
   <translation tag="State" ja="状態"/>
   <translation tag="Static" ja="固定"/>
-  <translation tag="Station"/>
+  <translation tag="Station" ja="ステーション"/>
   <translation tag="Status" ja="ステータス"/>
   <translation tag="Status icons" ja="ステータスアイコン"/>
   <translation tag="Stay at the printer." ja="プリンターのそばにいてください。"/>
@@ -5370,7 +5370,7 @@
   <translation tag="Tool cycle finished" ja="ツールの順次交換が完了しました"/>
   <translation tag="Tool is seated" ja="ツールは装着済み"/>
   <translation tag="Tool may be half seated" ja="ツールが半分しか装着されていない可能性があります"/>
-  <translation tag="Tool offset calibration complete"/>
+  <translation tag="Tool offset calibration complete" ja="ツールオフセットの校正が完了しました"/>
   <translation tag="Tool offsets" ja="ツールオフセット"/>
   <translation tag="Tool offsets (mm)" ja="ツールオフセット (mm)"/>
   <translation tag="Tool offsets saved" ja="ツールオフセットを保存しました"/>
@@ -6198,7 +6198,7 @@
   <translation tag="{} matches." ja="{} が一致します。"/>
   <translation tag="{} may be half seated on the head. Check it by hand." ja="{}がツールヘッドに半分しか装着されていない可能性があります。手で確認してください。"/>
   <translation tag="{} may cause unintended changes. Are you sure?" ja="{} は意図しない変更を引き起こす可能性があります。よろしいですか？"/>
-  <translation tag="{} measured: X {:.3f} Y {:.3f} Z {:.3f} mm"/>
+  <translation tag="{} measured: X {:.3f} Y {:.3f} Z {:.3f} mm" ja="{} 測定値: X {:.3f} Y {:.3f} Z {:.3f} mm"/>
   <translation tag="{} meter reset" ja="{}のメーターをリセットしました"/>
   <translation tag="{} min" ja="{} 分"/>
   <translation tag="{} min ago" ja="{}分前"/>
