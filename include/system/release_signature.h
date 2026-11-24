@@ -38,6 +38,7 @@ inline constexpr std::string_view kDevChannel = "dev";
 enum class Verdict {
     Ok,
     MalformedKey,       ///< the public key is not a minisign Ed25519 key
+    MalformedDevKey,    ///< verify_channel_manifest(): the dev key is not a minisign Ed25519 key
     MalformedSignature, ///< not the four-line .minisig layout, or bad base64 or lengths
     LegacySignature,    ///< signed without -H; refused
     WrongKey,           ///< signed by a key other than the one given

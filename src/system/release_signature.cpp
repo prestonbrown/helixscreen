@@ -182,8 +182,11 @@ bool trusted_comment_names_channel(std::string_view minisig, std::string_view ch
 Verdict verify_channel_manifest(std::string_view message, std::string_view minisig,
                                 std::string_view channel, const ChannelKeys& keys) {
     Verdict verdict = verify(message, minisig, keys.release);
-    if (verdict == Verdict::WrongKey && channel == kDevChannel && !keys.dev.empty())
+    if (verdict == Verdict::WrongKey && channel == kDevChannel && !keys.dev.empty()) {
         verdict = verify(message, minisig, keys.dev);
+        if (verdict == Verdict::MalformedKey)
+            verdict = Verdict::MalformedDevKey;
+    }
     if (verdict != Verdict::Ok)
         return verdict;
     return trusted_comment_names_channel(minisig, channel) ? Verdict::Ok : Verdict::WrongChannel;
@@ -193,6 +196,8 @@ const char* describe(Verdict v) {
     switch (v) {
     case Verdict::Ok:
         return "signature verified";
+    case Verdict::MalformedDevKey:
+        return "the dev-channel public key is malformed";
     case Verdict::MalformedKey:
         return "the release public key is malformed";
     case Verdict::MalformedSignature:

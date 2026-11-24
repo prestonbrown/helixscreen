@@ -257,6 +257,27 @@ TEST_CASE("release signature: with no dev key, the dev channel trusts the releas
                                   keys) == Verdict::Ok);
 }
 
+TEST_CASE("release signature: a malformed key is named as the key it is", "[release_signature]") {
+    const TestKey release(1);
+    const TestKey dev(2);
+    const std::string release_pub = release.pub();
+    const std::string dev_pub = dev.pub();
+    const std::string manifest = R"({"version":"9.9.9","assets":{}})";
+    const std::string by_dev = dev.sign(manifest, channel_comment("dev"));
+
+    const auto bad_dev =
+        verify_channel_manifest(manifest, by_dev, "dev", ChannelKeys{release_pub, "RWQ="});
+    CHECK(bad_dev == Verdict::MalformedDevKey);
+    CHECK(std::string(helix::release_signature::describe(bad_dev)).find("dev-channel") !=
+          std::string::npos);
+
+    const auto bad_release =
+        verify_channel_manifest(manifest, by_dev, "dev", ChannelKeys{"RWQ=", dev_pub});
+    CHECK(bad_release == Verdict::MalformedKey);
+    CHECK(std::string(helix::release_signature::describe(bad_release)).find("release") !=
+          std::string::npos);
+}
+
 TEST_CASE("release signature: the compiled-in dev key is the one release.yml signs alphas with",
           "[release_signature]") {
     // The dev key reaches clients one release before CI signs with it, so the header may carry
