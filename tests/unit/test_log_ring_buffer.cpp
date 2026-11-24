@@ -17,6 +17,7 @@
 #include <spdlog/sinks/sink.h>
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <atomic>
 #include <cstdlib>
 #include <string>
@@ -98,6 +99,22 @@ TEST_CASE("tail_ring_buffer bounds output to num_lines", "[log_ring]") {
     // Older entries beyond the requested window must not appear.
     REQUIRE(tail.find("ring-count-entry-44") == std::string::npos);
     REQUIRE(tail.find("ring-count-entry-0\n") == std::string::npos);
+}
+
+TEST_CASE("tail_ring_buffer returns at most num_lines lines when a run is collapsed",
+          "[log_ring]") {
+    init_console_logging(spdlog::level::info);
+
+    spdlog::info("ring-collapse-before");
+    for (int i = 0; i < 5; ++i) {
+        spdlog::info("ring-collapse-poll");
+    }
+
+    for (int n : {1, 2, 3}) {
+        auto tail = tail_ring_buffer(n);
+        const auto newlines = std::count(tail.begin(), tail.end(), '\n');
+        REQUIRE(newlines + 1 <= n);
+    }
 }
 
 TEST_CASE("set_runtime_level keeps the ring buffer capturing DEBUG at WARN", "[log_ring]") {
