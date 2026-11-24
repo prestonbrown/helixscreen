@@ -953,8 +953,7 @@ void AmsState::sync_bypass(AmsBackend* backend, const AmsSystemInfo& info) {
     // With no system presented the external spool is the only path, so there
     // is no bypass to switch to, forced or not.
     int new_supports_bypass =
-        info.presents_filament_system() && helix::bypass_available_for(info.supports_bypass) ? 1
-                                                                                             : 0;
+        info.presents_filament_system() && helix::bypass_available_for(info) ? 1 : 0;
     lv_subject_set_int(&supports_bypass_, new_supports_bypass);
 
     // The external spool subjects follow the bypass record, which a read of

@@ -31,7 +31,7 @@ namespace {
 const char* const kDeviceOpsSubjects[] = {
     "ams_device_ops_system_info",
     "ams_device_ops_supports_bypass",
-    "ams_device_ops_fw_supports_bypass",
+    "ams_device_ops_bypass_override_offered",
     "ams_device_ops_hw_bypass_sensor",
     "ams_device_ops_supports_auto_heat",
     "ams_device_ops_has_backend",
