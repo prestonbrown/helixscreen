@@ -277,7 +277,11 @@ class UpdateChecker {
     }
 
     // Download and install
-    void start_download();
+    /// Who asked for this install. An automatic one keeps the previous version
+    /// for the launcher's rollback guard; the origin travels with the download,
+    /// so a failed automatic attempt never colours a later manual install.
+    enum class InstallOrigin { User, Automatic };
+    void start_download(InstallOrigin origin = InstallOrigin::User);
     void cancel_download();
 
     /**
@@ -621,6 +625,10 @@ class UpdateChecker {
      */
     void report_rollback(const helix::update::RollbackResult& result);
 
+    /// Shows the stored "Update Rolled Back" notice, if any, and forgets it once
+    /// it has been on screen for kRollbackNoticeSeconds. Main thread.
+    void show_pending_rollback_notice();
+
     /**
      * @brief Handle notification that Moonraker has finished updating HelixScreen
      *
@@ -691,6 +699,7 @@ class UpdateChecker {
     struct AutoUpdateNow {
         int local_minute_of_day = 0;     ///< 0..1439, by the screen's timezone
         int64_t seconds_since_touch = 0; ///< Time since the last touch
+        int local_day = 0;               ///< year * 1000 + day of year, local
     };
 
     /**
@@ -947,6 +956,9 @@ class UpdateChecker {
     /// Latched by perform_update_restart() so the marshalled LVGL-thread call
     /// and the worker's backstop cannot both fork+exec.
     std::atomic<bool> restart_initiated_{false};
+    /// An automatic install's restart is waiting for a job to finish; the
+    /// worker's restart backstop stands down.
+    std::atomic<bool> restart_deferred_{false};
     /// How long each terminal frame is held so the LVGL thread can paint it.
     /// update_download_modal.xml documents 2s on Complete, then 1s on
     /// Restarting. Members rather than constants so tests need not wait 3s.
@@ -964,8 +976,8 @@ class UpdateChecker {
     char download_text_buf_[256]{};
 
     // Download internals
-    void do_download();
-    void do_install(const std::string& tarball_path);
+    void do_download(InstallOrigin origin);
+    void do_install(const std::string& tarball_path, InstallOrigin origin = InstallOrigin::User);
 
     /**
      * @brief Publish the terminal frames, then hand the restart to the LVGL thread.
@@ -980,7 +992,8 @@ class UpdateChecker {
      * Split out of do_install() so the ordering is unit-testable — do_install()
      * itself runs install.sh and cannot be.
      */
-    void finish_install_and_restart(const std::string& install_root, const std::string& version);
+    void finish_install_and_restart(const std::string& install_root, const std::string& version,
+                                    InstallOrigin origin = InstallOrigin::User);
 
     /**
      * @brief Restart into the newly installed binary. Does not return.
@@ -1006,6 +1019,16 @@ class UpdateChecker {
     static void arm_rollback_guard(const std::string& guard_dir, const std::string& install_root,
                                    const std::string& version);
 
+    /// Does a job (or a pending power-loss resume) hold the machine? Asked on
+    /// the main thread from the download worker; false only on a clear answer.
+    bool machine_busy_from_worker();
+
+    /// An automatic install's restart waits while a job holds the machine.
+    lv_timer_t* restart_wait_timer_{nullptr};
+    std::string restart_pending_root_;
+    /// Restart once nothing holds the machine; @p install_root as for perform_update_restart().
+    void restart_when_idle(const std::string& install_root);
+
     // Auto-check timer
     lv_timer_t* auto_check_timer_{nullptr};
     lv_timer_t* auto_install_timer_{nullptr};
@@ -1013,9 +1036,9 @@ class UpdateChecker {
     std::string auto_install_attempted_version_;
     /// Replaces start_download() for auto_update_tick() in tests.
     std::function<void()> auto_install_hook_;
-    /// The download in flight was started by auto_update_tick(): install it
-    /// keeping the previous version for the launcher's rollback guard.
-    std::atomic<bool> auto_install_in_flight_{false};
+    /// Local day (year * 1000 + day of year) the scheduler gave up on after
+    /// RetryTomorrow; later ticks that night wait without asking again.
+    int auto_skip_day_ = -1;
 
     // Notification subjects
     helix::Subject release_notes_subject_{};

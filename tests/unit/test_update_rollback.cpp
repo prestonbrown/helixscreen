@@ -12,8 +12,13 @@
  */
 
 #include "../lvgl_test_fixture.h"
+#include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
+#include "print_lifecycle_state.h"
+#include "printer_state.h"
 #include "system/update_rollback.h"
+#include "test_helpers/printer_state_test_access.h"
 #include "test_helpers/scoped_env.h"
 
 #include <filesystem>
@@ -22,6 +27,7 @@
 #include <unistd.h>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix::update;
 
@@ -159,6 +165,27 @@ TEST_CASE("Rollback marker: the launcher's key=value lines round-trip", "[auto_u
     CHECK_FALSE(parse_rollback_result("reason=timeout\n").has_value());
 }
 
+TEST_CASE("Rollback: the kept copy is only the install's own .old sibling",
+          "[auto_update][rollback]") {
+    CHECK(is_kept_previous_of("/opt/helixscreen", "/opt/helixscreen.old"));
+    CHECK(is_kept_previous_of("/opt/helixscreen", "/opt/helixscreen.old.1700000000"));
+    CHECK_FALSE(is_kept_previous_of("/opt/helixscreen", "/opt/helixscreen.old."));
+    CHECK_FALSE(is_kept_previous_of("/opt/helixscreen", "/opt/helixscreen.old.1/../x"));
+    CHECK_FALSE(is_kept_previous_of("/opt/helixscreen", "/opt/helixscreen"));
+    CHECK_FALSE(is_kept_previous_of("/opt/helixscreen", "/opt/other.old"));
+    CHECK_FALSE(is_kept_previous_of("/opt/helixscreen", "/opt/helixscreen.older"));
+    CHECK_FALSE(is_kept_previous_of("", ".old"));
+    CHECK_FALSE(is_kept_previous_of("/", "/.old"));
+
+    auto notice = parse_rollback_notice(format_rollback_notice({"1.0.0", "1.1.0", "timeout"}));
+    REQUIRE(notice.has_value());
+    CHECK(notice->from_version == "1.0.0");
+    CHECK(notice->to_version == "1.1.0");
+    CHECK(notice->reason == "timeout");
+    CHECK_FALSE(parse_rollback_notice("").has_value());
+    CHECK_FALSE(parse_rollback_notice("1.1.0").has_value());
+}
+
 TEST_CASE("Startup health: only an armed rollback is reported, and a crash loop asks for it",
           "[auto_update][rollback]") {
     CHECK(decide_startup_health(false, false) == StartupHealth::NotArmed);
@@ -207,7 +234,36 @@ TEST_CASE_METHOD(RollbackDirFixture,
 
     CHECK_FALSE(has(kRollbackResultFile));
     CHECK(config->get<std::string>("/update/dismissed_version", "") == "9.8.7");
+    // The notice outlives a restart that comes before it has been seen.
+    CHECK_FALSE(config->get<std::string>("/update/rollback_notice", "").empty());
+    process_lvgl(125 * 1000);
+    CHECK(config->get<std::string>("/update/rollback_notice", "").empty());
 
     config->set<std::string>("/update/dismissed_version", before);
     config->save();
+}
+
+TEST_CASE_METHOD(RollbackDirFixture,
+                 "On UI ready: a busy file follows the print while a rollback is armed",
+                 "[auto_update][rollback]") {
+    auto& printer_state = get_printer_state();
+    PrinterStateTestAccess::reset(printer_state);
+    printer_state.init_subjects(false);
+    auto drive = [&](const char* wire) {
+        printer_state.update_from_status(nlohmann::json{{"print_stats", {{"state", wire}}}});
+        printer_state.print_state().set_print_start_state(PrintStartPhase::IDLE, "", 0);
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+    };
+    arm();
+    drive("printing");
+    on_ui_ready(/*safe_mode=*/false);
+    CHECK(has(kRollbackBusyFile));
+    drive("standby");
+    REQUIRE_FALSE(job_holds_machine(printer_state.print_state().get_print_lifecycle()));
+    REQUIRE_FALSE(printer_state.print_state().is_plr_snapshot_valid());
+    refresh_rollback_busy_file(); // what the 30 s timer runs
+    CHECK_FALSE(has(kRollbackBusyFile));
+
+    PrinterStateTestAccess::reset(printer_state);
+    printer_state.init_subjects(false);
 }

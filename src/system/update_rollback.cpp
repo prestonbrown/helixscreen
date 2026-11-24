@@ -6,6 +6,8 @@
 #include "lvgl.h"
 #include "platform_info.h"
 #include "platform_table.h"
+#include "print_lifecycle_state.h"
+#include "printer_state.h"
 #include "system/update_checker.h"
 
 #include <spdlog/spdlog.h>
@@ -118,6 +120,67 @@ std::string rollback_dir() {
     return dir != nullptr ? std::string(dir) : std::string();
 }
 
+bool keep_previous_for_install(bool automatic, bool rollback_supported, bool guard_listening) {
+    return automatic && rollback_supported && guard_listening;
+}
+
+bool is_kept_previous_of(const std::string& install_root, const std::string& previous) {
+    if (install_root.empty() || install_root == "/") {
+        return false;
+    }
+    const std::string base = install_root + ".old";
+    if (previous == base) {
+        return true;
+    }
+    if (previous.size() <= base.size() + 1 ||
+        previous.compare(0, base.size() + 1, base + ".") != 0) {
+        return false;
+    }
+    for (size_t i = base.size() + 1; i < previous.size(); ++i) {
+        if (previous[i] < '0' || previous[i] > '9') {
+            return false;
+        }
+    }
+    return true;
+}
+
+void discard_kept_previous(const std::string& install_root, const std::string& previous) {
+    std::error_code ec;
+    const auto root = std::filesystem::weakly_canonical(install_root, ec).string();
+    const auto prev = ec ? std::string() : std::filesystem::weakly_canonical(previous, ec).string();
+    if (ec || !is_kept_previous_of(root, prev)) {
+        spdlog::warn("[UpdateRollback] Not removing {}: not the kept copy of {}", previous,
+                     install_root);
+        return;
+    }
+    std::filesystem::remove_all(prev, ec);
+    if (ec) {
+        spdlog::warn("[UpdateRollback] Could not remove {}: {}", prev, ec.message());
+    } else {
+        spdlog::info("[UpdateRollback] Removed the unused kept copy {}", prev);
+    }
+}
+
+std::string format_rollback_notice(const RollbackResult& result) {
+    return result.to_version + "|" + result.from_version + "|" + result.reason;
+}
+
+std::optional<RollbackResult> parse_rollback_notice(const std::string& stored) {
+    const auto first = stored.find('|');
+    if (first == std::string::npos || first == 0) {
+        return std::nullopt;
+    }
+    const auto second = stored.find('|', first + 1);
+    if (second == std::string::npos) {
+        return std::nullopt;
+    }
+    RollbackResult r;
+    r.to_version = stored.substr(0, first);
+    r.from_version = stored.substr(first + 1, second - first - 1);
+    r.reason = stored.substr(second + 1);
+    return r;
+}
+
 std::string format_rollback_marker(const RollbackMarker& marker) {
     std::string out;
     out += "install_dir=" + marker.install_dir + "\n";
@@ -200,20 +263,54 @@ std::optional<RollbackResult> parse_rollback_result(const std::string& text) {
     return result;
 }
 
-void on_ui_ready(bool safe_mode) {
+namespace {
+/// The timer behind refresh_rollback_busy_file(); deletes itself once disarmed.
+void update_busy_file(lv_timer_t* timer) {
     const std::string dir = rollback_dir();
+    std::string unused;
+    if (dir.empty() || !read_rollback_file(dir, kRollbackArmedFile, unused)) {
+        if (!dir.empty()) {
+            remove_rollback_file(dir, kRollbackBusyFile);
+        }
+        if (timer != nullptr) {
+            lv_timer_delete(timer);
+        }
+        return;
+    }
+    auto& print_state = get_printer_state().print_state();
+    const bool busy =
+        job_holds_machine(print_state.get_print_lifecycle()) || print_state.is_plr_snapshot_valid();
+    if (busy) {
+        write_rollback_file(dir, kRollbackBusyFile, "");
+    } else {
+        remove_rollback_file(dir, kRollbackBusyFile);
+    }
+}
+
+} // namespace
+
+void refresh_rollback_busy_file() {
+    update_busy_file(nullptr);
+}
+
+void on_ui_ready(bool safe_mode) {
+    auto& checker = UpdateChecker::instance();
+    const std::string dir = rollback_dir();
+
+    std::string text;
+    if (!dir.empty() && read_rollback_file(dir, kRollbackResultFile, text)) {
+        remove_rollback_file(dir, kRollbackResultFile);
+        if (auto result = parse_rollback_result(text)) {
+            checker.report_rollback(*result);
+        }
+    }
+    // Shown on every start until it has been up long enough to be seen, so a
+    // service restart right after the rollback does not swallow it.
+    checker.show_pending_rollback_notice();
+
     if (dir.empty()) {
         return;
     }
-
-    std::string text;
-    if (read_rollback_file(dir, kRollbackResultFile, text)) {
-        remove_rollback_file(dir, kRollbackResultFile);
-        if (auto result = parse_rollback_result(text)) {
-            UpdateChecker::instance().report_rollback(*result);
-        }
-    }
-
     std::string armed_text;
     const bool armed = read_rollback_file(dir, kRollbackArmedFile, armed_text);
     switch (decide_startup_health(armed, safe_mode)) {
@@ -243,6 +340,10 @@ void on_ui_ready(bool safe_mode) {
         },
         static_cast<uint32_t>(kRollbackHealthySeconds) * 1000U, nullptr);
     lv_timer_set_repeat_count(timer, 1);
+
+    update_busy_file(nullptr);
+    // TIMER_DTOR_OK: no owner, captures nothing, deletes itself once disarmed
+    lv_timer_create([](lv_timer_t* t) { update_busy_file(t); }, kRollbackBusyPollMs, nullptr);
 }
 
 } // namespace helix::update

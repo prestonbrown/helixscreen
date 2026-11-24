@@ -168,6 +168,7 @@ class AutoUpdateTickFixture : public LVGLTestFixture {
             static_cast<int>(AutoUpdateMode::InstallOvernight));
         UpdateCheckerTestAccess::seed_available_update(checker);
         UpdateCheckerTestAccess::set_auto_install_hook(checker, [this] { ++installs; });
+        UpdateCheckerTestAccess::reset_auto_schedule(checker);
     }
 
     ~AutoUpdateTickFixture() override {
@@ -181,8 +182,11 @@ class AutoUpdateTickFixture : public LVGLTestFixture {
         printer_state.init_subjects(false);
     }
 
-    static UpdateChecker::AutoUpdateNow at(int minute, int64_t idle_s = kAutoUpdateIdleSeconds) {
-        return UpdateChecker::AutoUpdateNow{minute, idle_s};
+    static constexpr int kToday = 2026 * 1000 + 327;
+
+    static UpdateChecker::AutoUpdateNow at(int minute, int64_t idle_s = kAutoUpdateIdleSeconds,
+                                           int day = kToday) {
+        return UpdateChecker::AutoUpdateNow{minute, idle_s, day};
     }
 
     void drive_lifecycle(const char* wire_state) {
@@ -222,6 +226,55 @@ TEST_CASE_METHOD(AutoUpdateTickFixture, "Auto-update tick: a print in progress w
     REQUIRE(printer_state.print_state().get_print_lifecycle() == PrintState::Printing);
     CHECK(checker.auto_update_tick(at(kThreeAm + 5)) == AutoUpdateDecision::RetryTomorrow);
     CHECK(installs == 0);
+}
+
+TEST_CASE_METHOD(AutoUpdateTickFixture,
+                 "Auto-update tick: a busy night is skipped even after the job ends",
+                 "[auto_update]") {
+    drive_lifecycle("printing");
+    CHECK(checker.auto_update_tick(at(kThreeAm + 5)) == AutoUpdateDecision::RetryTomorrow);
+    drive_lifecycle("standby");
+    REQUIRE_FALSE(job_holds_machine(printer_state.print_state().get_print_lifecycle()));
+    REQUIRE_FALSE(printer_state.print_state().is_plr_snapshot_valid());
+    CHECK(checker.auto_update_tick(at(kThreeAm + 20)) == AutoUpdateDecision::Wait);
+    CHECK(installs == 0);
+    CHECK(checker.auto_update_tick(at(kThreeAm + 5, kAutoUpdateIdleSeconds, kToday + 1)) ==
+          AutoUpdateDecision::InstallNow);
+    CHECK(installs == 1);
+}
+
+TEST_CASE("Auto-update: only an automatic install keeps the previous version",
+          "[auto_update][rollback]") {
+    using helix::update::keep_previous_for_install;
+    CHECK(keep_previous_for_install(true, true, true));
+    CHECK_FALSE(keep_previous_for_install(false, true, true));
+    CHECK_FALSE(keep_previous_for_install(true, false, true));
+    CHECK_FALSE(keep_previous_for_install(true, true, false));
+}
+
+TEST_CASE_METHOD(AutoUpdateTickFixture,
+                 "Auto-update restart: waits while a job holds the machine, then restarts",
+                 "[auto_update]") {
+    int restarts = 0;
+    UpdateCheckerTestAccess::reset_restart_state(checker);
+    UpdateCheckerTestAccess::set_restart_action(checker, [&restarts] { ++restarts; });
+    drive_lifecycle("printing");
+
+    UpdateCheckerTestAccess::restart_when_idle(checker, "/opt/helixscreen");
+    CHECK(restarts == 0);
+    CHECK(UpdateCheckerTestAccess::restart_deferred(checker));
+    UpdateCheckerTestAccess::restart_when_idle(checker, "/opt/helixscreen");
+    CHECK(restarts == 0);
+
+    drive_lifecycle("standby");
+    REQUIRE_FALSE(job_holds_machine(printer_state.print_state().get_print_lifecycle()));
+    REQUIRE_FALSE(printer_state.print_state().is_plr_snapshot_valid());
+    // What the 60 s retry timer runs.
+    UpdateCheckerTestAccess::restart_when_idle(checker, "/opt/helixscreen");
+    CHECK(restarts == 1);
+
+    UpdateCheckerTestAccess::set_restart_action(checker, nullptr);
+    UpdateCheckerTestAccess::reset_restart_state(checker);
 }
 
 TEST_CASE_METHOD(AutoUpdateTickFixture, "Auto-update tick: a pending power-loss resume waits",

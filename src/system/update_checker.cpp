@@ -76,7 +76,9 @@
 #include <fcntl.h>
 #include <filesystem>
 #include <fstream>
+#include <future>
 #include <map>
+#include <memory>
 #include <set>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
@@ -110,6 +112,10 @@ constexpr int kHttpTimeoutSeconds = 30;
 /// restart before doing it itself. Must comfortably exceed one main-loop tick;
 /// the only thing it guards against is a main loop that is no longer running.
 constexpr int kRestartMarshalTimeoutMs = 5000;
+/// Where the "Update Rolled Back" notice waits until it has been seen.
+constexpr const char* kRollbackNoticeKey = "/update/rollback_notice";
+/// How long the notice must be on screen before it is forgotten.
+constexpr int kRollbackNoticeSeconds = 120;
 
 /// Perform an HTTP GET using the best available stack.
 ///
@@ -1505,7 +1511,7 @@ void UpdateChecker::report_download_status(DownloadStatus status, int progress,
 
 // Download and Install
 
-void UpdateChecker::start_download() {
+void UpdateChecker::start_download(InstallOrigin origin) {
     if (shutting_down_.load())
         return;
 
@@ -1660,7 +1666,7 @@ void UpdateChecker::start_download() {
     // inside the thread body would leave a window where neither is true.
     download_worker_active_.store(true);
     try {
-        download_thread_ = helix::make_thread([this]() {
+        download_thread_ = helix::make_thread([this, origin]() {
             // Clears on every exit path, including a throw out of do_download()
             // (which would terminate anyway, but leaving the flag set would
             // wedge every future attempt behind the re-entry guard).
@@ -1670,7 +1676,7 @@ void UpdateChecker::start_download() {
                     self->download_worker_active_.store(false);
                 }
             } guard{this};
-            do_download();
+            do_download(origin);
         });
     } catch (const std::system_error& e) {
         download_worker_active_.store(false);
@@ -1721,7 +1727,7 @@ void UpdateChecker::reap_download_thread(std::chrono::milliseconds wait) {
     download_thread_.join();
 }
 
-void UpdateChecker::do_download() {
+void UpdateChecker::do_download(InstallOrigin origin) {
     std::string url;
     std::string version;
     size_t download_bytes = 0;
@@ -1954,7 +1960,7 @@ void UpdateChecker::do_download() {
         }
     }
 
-    do_install(download_path);
+    do_install(download_path, origin);
 }
 
 UpdateChecker::ZipTool UpdateChecker::available_zip_tool() {
@@ -2129,7 +2135,7 @@ bool UpdateChecker::validate_elf_architecture(const std::string& tarball_path) {
     return true;
 }
 
-void UpdateChecker::do_install(const std::string& tarball_path) {
+void UpdateChecker::do_install(const std::string& tarball_path, InstallOrigin origin) {
     flog_info("[UpdateChecker] do_install() ENTER: tarball={}", tarball_path);
 
     std::string version;
@@ -2326,9 +2332,21 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
     // An automatic install keeps the previous version beside the new one for the
     // launcher's rollback guard; install.sh refuses an update that cannot.
     const std::string rollback_guard_dir = helix::update::rollback_dir();
-    const bool keep_previous = auto_install_in_flight_.exchange(false) &&
-                               helix::update::auto_rollback_supported() &&
-                               !rollback_guard_dir.empty();
+    const bool keep_previous = helix::update::keep_previous_for_install(
+        origin == InstallOrigin::Automatic, helix::update::auto_rollback_supported(),
+        !rollback_guard_dir.empty());
+    // A print started from a slicer while the download ran owns the machine now.
+    if (origin == InstallOrigin::Automatic && machine_busy_from_worker()) {
+        flog_info("[UpdateChecker] Automatic install of {} skipped: a job holds the machine",
+                  version);
+        std::remove(tarball_path.c_str());
+        report_download_status(DownloadStatus::Idle, 0, "");
+        helix::ui::queue_update("UpdateChecker::auto_install_retry", [] {
+            UpdateChecker::instance().auto_install_attempted_version_.clear();
+        });
+        return;
+    }
+
     std::string previous_file;
     if (keep_previous) {
         previous_file = rollback_guard_dir + "/" + helix::update::kRollbackPreviousFile;
@@ -2574,11 +2592,11 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
         std::ofstream ofs_legacy("/tmp/helixscreen_self_restart");
     }
 
-    finish_install_and_restart(install_root, version);
+    finish_install_and_restart(install_root, version, origin);
 }
 
 void UpdateChecker::finish_install_and_restart(const std::string& install_root,
-                                               const std::string& version) {
+                                               const std::string& version, InstallOrigin origin) {
     // Runs on the download worker.
     //
     // report_download_status() only QUEUES its subject writes
@@ -2598,8 +2616,13 @@ void UpdateChecker::finish_install_and_restart(const std::string& install_root,
     report_download_status(DownloadStatus::Restarting, 100, "");
     std::this_thread::sleep_for(std::chrono::milliseconds(restart_hold_ms_));
 
-    helix::ui::queue_update("UpdateChecker::restart_after_install", [install_root]() {
-        UpdateChecker::instance().perform_update_restart(install_root);
+    const bool automatic = origin == InstallOrigin::Automatic;
+    helix::ui::queue_update("UpdateChecker::restart_after_install", [install_root, automatic]() {
+        if (automatic) {
+            UpdateChecker::instance().restart_when_idle(install_root);
+        } else {
+            UpdateChecker::instance().perform_update_restart(install_root);
+        }
     });
 
     // Backstop: nothing may leave a half-installed process running just because
@@ -2608,10 +2631,41 @@ void UpdateChecker::finish_install_and_restart(const std::string& install_root,
     // perform_update_restart() is once-only, so at most one of the two forks.
     const auto deadline =
         std::chrono::steady_clock::now() + std::chrono::milliseconds(kRestartMarshalTimeoutMs);
-    while (!restart_initiated_.load() && std::chrono::steady_clock::now() < deadline) {
+    while (!restart_initiated_.load() && !restart_deferred_.load() &&
+           std::chrono::steady_clock::now() < deadline) {
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
+    if (restart_deferred_.load()) {
+        return;
+    }
     perform_update_restart(install_root);
+}
+
+void UpdateChecker::restart_when_idle(const std::string& install_root) {
+    // Main thread. The restart that would take the screen away from a print
+    // started after the install waits for it to finish.
+    auto& print_state = get_printer_state().print_state();
+    if (!job_holds_machine(print_state.get_print_lifecycle()) &&
+        !print_state.is_plr_snapshot_valid()) {
+        if (restart_wait_timer_ && lv_is_initialized()) {
+            helix::ui::lv_timer_cancel_safe(restart_wait_timer_);
+        }
+        restart_wait_timer_ = nullptr;
+        perform_update_restart(install_root);
+        return;
+    }
+    if (restart_wait_timer_ != nullptr) {
+        return;
+    }
+    spdlog::info("[UpdateChecker] Automatic update installed; restart waits for the job to end");
+    restart_deferred_ = true;
+    restart_pending_root_ = install_root;
+    restart_wait_timer_ = lv_timer_create(
+        [](lv_timer_t*) {
+            auto& self = UpdateChecker::instance();
+            self.restart_when_idle(self.restart_pending_root_);
+        },
+        60 * 1000, nullptr);
 }
 
 void UpdateChecker::perform_update_restart(const std::string& install_root) {
@@ -3701,9 +3755,30 @@ void UpdateChecker::report_rollback(const helix::update::RollbackResult& result)
     TelemetryManager::instance().record_update_failure(
         "rollback", result.to_version, helix::platform::current_key(), -1, -1, -1, detail);
 
+    config->set<std::string>(kRollbackNoticeKey, helix::update::format_rollback_notice(result));
+    config->save();
+}
+
+void UpdateChecker::show_pending_rollback_notice() {
+    auto* config = Config::get_instance();
+    const auto notice =
+        helix::update::parse_rollback_notice(config->get<std::string>(kRollbackNoticeKey, ""));
+    if (!notice) {
+        return;
+    }
     const std::string msg = fmt::format(lv_tr("v{} did not start properly, so v{} was put back."),
-                                        result.to_version, result.from_version);
+                                        notice->to_version, notice->from_version);
     ui_notification_warning(lv_tr("Update Rolled Back"), msg.c_str());
+
+    // TIMER_DTOR_OK: one-shot, no owner, captures nothing; freed with LVGL
+    lv_timer_t* timer = lv_timer_create(
+        [](lv_timer_t*) {
+            auto* cfg = Config::get_instance();
+            cfg->set<std::string>(kRollbackNoticeKey, "");
+            cfg->save();
+        },
+        static_cast<uint32_t>(kRollbackNoticeSeconds) * 1000U, nullptr);
+    lv_timer_set_repeat_count(timer, 1);
 }
 
 void UpdateChecker::arm_rollback_guard(const std::string& guard_dir,
@@ -3730,7 +3805,25 @@ void UpdateChecker::arm_rollback_guard(const std::string& guard_dir,
                                            helix::update::format_rollback_marker(marker))) {
         spdlog::info("[UpdateChecker] Rollback armed: v{} -> v{}, previous at {}",
                      marker.from_version, marker.to_version, marker.previous_dir);
+        return;
     }
+    // Nothing will restore it, and left in place it crowds the next update.
+    helix::update::discard_kept_previous(marker.install_dir, marker.previous_dir);
+}
+
+bool UpdateChecker::machine_busy_from_worker() {
+    auto answer = std::make_shared<std::promise<bool>>();
+    std::future<bool> result = answer->get_future();
+    helix::ui::queue_update("UpdateChecker::machine_busy", [answer]() {
+        auto& print_state = get_printer_state().print_state();
+        answer->set_value(job_holds_machine(print_state.get_print_lifecycle()) ||
+                          print_state.is_plr_snapshot_valid());
+    });
+    // No answer from the main thread is not a clear "idle".
+    if (result.wait_for(std::chrono::seconds(10)) != std::future_status::ready) {
+        return true;
+    }
+    return result.get();
 }
 
 // Auto-Check Timer
@@ -3951,6 +4044,10 @@ void UpdateChecker::cancel_auto_check_timer() {
         helix::ui::lv_timer_cancel_safe(auto_install_timer_);
     }
     auto_install_timer_ = nullptr;
+    if (restart_wait_timer_ && lv_is_initialized()) {
+        helix::ui::lv_timer_cancel_safe(restart_wait_timer_);
+    }
+    restart_wait_timer_ = nullptr;
 }
 
 UpdateChecker::AutoUpdateNow UpdateChecker::auto_update_now_from_system() {
@@ -3959,6 +4056,7 @@ UpdateChecker::AutoUpdateNow UpdateChecker::auto_update_now_from_system() {
     std::tm local{};
     if (localtime_r(&t, &local) != nullptr) {
         now.local_minute_of_day = local.tm_hour * 60 + local.tm_min;
+        now.local_day = (local.tm_year + 1900) * 1000 + local.tm_yday;
     }
     now.seconds_since_touch =
         lv_is_initialized() ? static_cast<int64_t>(lv_display_get_inactive_time(nullptr) / 1000)
@@ -3989,8 +4087,12 @@ helix::update::AutoUpdateDecision UpdateChecker::auto_update_tick(const AutoUpda
     in.update_available = !version.empty() && !is_version_dismissed(version) &&
                           version != auto_install_attempted_version_ && !download_in_flight();
 
+    if (now.local_day == auto_skip_day_) {
+        return AutoUpdateDecision::Wait;
+    }
     const AutoUpdateDecision decision = helix::update::decide_auto_update(in);
     if (decision == AutoUpdateDecision::RetryTomorrow) {
+        auto_skip_day_ = now.local_day;
         spdlog::info("[UpdateChecker] Auto-update: v{} waits for tomorrow night (print or "
                      "power-loss resume pending)",
                      version);
@@ -4000,8 +4102,7 @@ helix::update::AutoUpdateDecision UpdateChecker::auto_update_tick(const AutoUpda
         if (auto_install_hook_) {
             auto_install_hook_();
         } else {
-            auto_install_in_flight_ = true;
-            start_download();
+            start_download(InstallOrigin::Automatic);
         }
     }
     return decision;
