@@ -1458,3 +1458,44 @@ TEST_CASE_METHOD(
     CHECK(subject_text("toolhead_preset_2_label") == (toolchanger ? "Dock tool" : "Park"));
     AmsState::instance().clear_backends();
 }
+
+TEST_CASE_METHOD(PresetFixture,
+                 "toolhead presets: the default follows a backend that learns it can dock later",
+                 "[widget_size][toolhead][presets][dock]") {
+    ToolChangerRig rig(3);
+    rig.backend->can_park = false;
+    AmsState::instance().sync_from_backend();
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build_tall(h);
+    REQUIRE(subject_text("toolhead_preset_2_label") == "Park");
+
+    // The backend's units arrive in a status frame after it was registered: only the AMS data
+    // revision moves.
+    rig.backend->can_park = true;
+    AmsState::instance().bump_data_revision();
+    drain();
+    CHECK(subject_text("toolhead_preset_2_label") == "Dock tool");
+}
+
+TEST_CASE_METHOD(PresetFixture,
+                 "toolhead presets: Dock tool is disabled while a job holds the machine",
+                 "[widget_size][toolhead][presets][dock]") {
+    ToolChangerRig rig(3);
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build_tall(h);
+    REQUIRE(subject_int("toolhead_preset_2_state") == 2);
+
+    for (const PrintJobState job : {PrintJobState::PRINTING, PrintJobState::PAUSED}) {
+        helix::test::set_wire_state(state(), job);
+        drain();
+        settle();
+        INFO(static_cast<int>(job));
+        CHECK(subject_int("toolhead_preset_2_state") == 1);
+        CHECK(lv_obj_has_state(part(h, "toolhead_preset_2"), LV_STATE_DISABLED));
+        CHECK(shown(part(h, "toolhead_preset_2")));
+    }
+    helix::test::set_wire_state(state(), PrintJobState::STANDBY);
+    drain();
+    settle();
+    CHECK(subject_int("toolhead_preset_2_state") == 2);
+}

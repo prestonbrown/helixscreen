@@ -500,6 +500,16 @@ TEST_CASE("AFC tool park: AFC_UNSELECT_TOOL, only on a Toolchanger unit with a t
         CHECK(afc.captured.empty());
     }
 
+    SECTION("a swap in progress answers busy, not not-loaded") {
+        AfcStatusDispatchHelper afc;
+        afc.feed(toolchanger_frame());
+        afc.feed({{"toolchanger", {{"status", "changing"}, {"tool_number", 1}}}});
+        REQUIRE(afc.get_system_info().mount_state == MountState::CHANGING);
+        const AmsError err = afc.as<helix::IToolPark>()->park_active_tool();
+        CHECK(err.result == AmsResult::BUSY);
+        CHECK(afc.captured.empty());
+    }
+
     SECTION("a machine without a Toolchanger unit cannot park") {
         for (const auto& frame :
              {nlohmann::json{{"AFC", single_extruder_status()}},

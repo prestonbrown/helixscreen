@@ -2985,6 +2985,9 @@ AmsError AmsBackendAfc::do_park_active_tool() {
         if (!has_toolchanger_unit_locked()) {
             return AmsErrorHelper::not_supported("Tool park");
         }
+        if (system_info_.mount_state == MountState::CHANGING) {
+            return AmsErrorHelper::busy("tool change");
+        }
         if (system_info_.mount_state != MountState::MOUNTED) {
             return AmsErrorHelper::not_loaded();
         }

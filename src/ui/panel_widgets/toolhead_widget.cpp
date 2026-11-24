@@ -25,6 +25,7 @@
 #include "moonraker_error.h"
 #include "observe_language.h"
 #include "panel_widget_registry.h"
+#include "print_lifecycle_state.h"
 #include "printer_capabilities_state.h"
 #include "printer_state.h"
 #include "src/ui/panel_widgets/content_chrome.h"
@@ -699,6 +700,14 @@ void ToolheadWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
                 self->publish_presets();
         },
         ams.get_subjects_lifetime());
+    // A backend's units arrive in its status frames, after it is registered.
+    ams_data_observer_ = ui::observe<int>(
+        ams.get_ams_data_revision_subject(), this,
+        [token](ToolheadWidget* self, int) {
+            if (!token.expired())
+                self->publish_presets();
+        },
+        ams.get_subjects_lifetime());
     // The rest of the plate's motion gate: plate_moves_allowed() reads these too.
     const auto on_gate = [token](ToolheadWidget* self, int) {
         if (token.expired())
@@ -763,6 +772,7 @@ void ToolheadWidget::detach() {
     tools_version_observer_.reset();
     active_tool_observer_.reset();
     backend_count_observer_.reset();
+    ams_data_observer_.reset();
     if (ToolheadWidget* displaced = s_tile.release(this)) {
         displaced->relayout_for_granted_size();
         displaced->publish_state(displaced->read_live());
@@ -1009,7 +1019,10 @@ void ToolheadWidget::publish_presets() {
         if (slot.kind == ToolheadPresetSlot::Kind::Macro)
             state = api_ok ? kSlotLive : kSlotInert;
         else if (slot.kind == ToolheadPresetSlot::Kind::DockTool)
-            state = can_dock_tool ? kSlotLive : kSlotEmpty; // no dock here: nothing to show
+            state = !can_dock_tool ? kSlotEmpty // no dock here: nothing to show
+                    : job_holds_machine(printer_state_.print_state().get_print_lifecycle())
+                        ? kSlotInert
+                        : kSlotLive;
         else if (toolhead_slot_moves_toolhead(slot))
             state = moves_ok ? kSlotLive : kSlotInert;
         if (state != kSlotEmpty) {
