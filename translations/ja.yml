@@ -435,7 +435,6 @@ translations:
   Also keep this mesh for {}. Its prints that do not mesh load it at the start.: "このメッシュを {} 用にも保存しますか？その素材のメッシュを取らない印刷は開始時にこれを読み込みます。"
   Also measure part-fan cooling: パーツファンの冷却も測定
   "Also waiting to be saved: {}. Save and Discard include them.": "ほかにも保存待ちがあります: {}。保存と破棄はこれらにも適用されます。"
-  "Also waiting to be saved: {}. Save includes them.": "ほかにも保存待ちがあります: {}。保存はこれらにも適用されます。"
   Always Show Bypass Spool: バイパススプールを常に表示
   Always show Android navigation bar instead of using gestures: ジェスチャーの代わりにAndroidナビゲーションバーを常に表示
   Ambient Transfer: 環境熱伝達
@@ -4334,9 +4333,7 @@ translations:
   Save the new heater values to printer.cfg? Klipper restarts.: 新しいヒーター値をprinter.cfgに保存しますか？Klipperが再起動します。
   Save to Config: "設定に保存"
   "Save to Config and Discard both restart Klipper.": "「設定に保存」と「破棄」はどちらも Klipper を再起動します。"
-  "Save to Config keeps Klipper running.": "「設定に保存」は Klipper を止めません。"
   "Save to Config keeps Klipper running. Discard restarts it.": "「設定に保存」は Klipper を止めません。「破棄」は再起動します。"
-  "Save to Config restarts Klipper.": "「設定に保存」は Klipper を再起動します。"
   Save to Spool: スプールに保存
   Save to Spoolman: Spoolman に保存
   Save to the printer config?: "プリンターの設定に保存しますか？"
@@ -5154,7 +5151,6 @@ translations:
   The heater took the target.: 'ヒーターが目標温度を受け付けました。'
   The heater was turned off at the heater.: 'ヒーター本体で電源がオフにされました。'
   The heater will cycle on and off several times.: ヒーターは数回オン/オフを繰り返します。
-  "The heater's control changed in printer.cfg. It heats again only once this result is saved.": "printer.cfg でヒーターの制御方式が変わりました。この結果を保存するまで加熱できません。"
   The helper macros are installed and activate after Klipper restarts.: 'ヘルパーマクロはインストール済みで、Klipper の再起動後に有効になります。'
   ? 'The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream.'
   : 'ホストコンピューターが制御ボードへ時間内に移動を送れませんでした。通常は過負荷が原因です: CPU やスワップの使用率が高い、SD カードが遅い、電源が不安定、またはウェブカメラの配信です。'
@@ -5323,6 +5319,7 @@ translations:
   ? The remaining steps will not run. The printer finishes the command it is running first, and its heaters stay on until then.
   : "残りのステップは実行されません。プリンターは実行中のコマンドを先に終え、それまでヒーターはオンのままです。"
   The requested position is outside the printer's bounds: '指定された位置はプリンターの可動範囲外です'
+  "The result is gone: Klipper restarted before it was saved. Run the calibration again.": "結果は失われました。保存前に Klipper が再起動しました。もう一度キャリブレーションを実行してください。"
   The results say why.: "理由は結果に表示されます。"
   The right RFID reader in this CFS unit may need service: この CFS ユニットの右側 RFID リーダーは修理が必要な可能性があります
   The running step stops at once and the printer restarts, which also drops the results of the steps that finished.: '実行中のステップはすぐに停止し、プリンターが再起動します。完了したステップの結果も破棄されます。'

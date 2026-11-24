@@ -435,7 +435,6 @@ translations:
   Also keep this mesh for {}. Its prints that do not mesh load it at the start.: "Manter esta malha também para {}? As impressões dele sem malha a carregam no início."
   Also measure part-fan cooling: Medir também o arrefecimento da ventoinha da peça
   "Also waiting to be saved: {}. Save and Discard include them.": "Também aguardando para ser salvo: {}. Salvar e Descartar os incluem."
-  "Also waiting to be saved: {}. Save includes them.": "Também aguardando para ser salvo: {}. Salvar os inclui."
   Always Show Bypass Spool: Sempre Mostrar Carretel de Bypass
   Always show Android navigation bar instead of using gestures: Mostrar sempre a barra de navegação Android em vez de usar gestos
   Ambient Transfer: Transferência Ambiente
@@ -4334,9 +4333,7 @@ translations:
   Save the new heater values to printer.cfg? Klipper restarts.: Salvar os novos valores do aquecedor em printer.cfg? O Klipper reinicia.
   Save to Config: "Salvar na configuração"
   "Save to Config and Discard both restart Klipper.": "Salvar na configuração e Descartar reiniciam o Klipper."
-  "Save to Config keeps Klipper running.": "Salvar na configuração mantém o Klipper rodando."
   "Save to Config keeps Klipper running. Discard restarts it.": "Salvar na configuração mantém o Klipper rodando. Descartar o reinicia."
-  "Save to Config restarts Klipper.": "Salvar na configuração reinicia o Klipper."
   Save to Spool: Salvar no carretel
   Save to Spoolman: Salvar no Spoolman
   Save to the printer config?: "Salvar na configuração da impressora?"
@@ -5154,7 +5151,6 @@ translations:
   The heater took the target.: 'O aquecedor aceitou o alvo.'
   The heater was turned off at the heater.: 'O aquecedor foi desligado no próprio aquecedor.'
   The heater will cycle on and off several times.: O aquecedor ligará e desligará várias vezes.
-  "The heater's control changed in printer.cfg. It heats again only once this result is saved.": "O controle do aquecedor mudou no printer.cfg. Ele só volta a aquecer depois que este resultado for salvo."
   The helper macros are installed and activate after Klipper restarts.: 'As macros de ajuda estão instaladas e são ativadas após reiniciar o Klipper.'
   ? 'The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream.'
   : 'O computador host não enviou os movimentos para a placa controladora a tempo, geralmente porque está sobrecarregado: uso alto de CPU ou swap, um cartão SD lento, uma fonte de alimentação instável ou uma transmissão de webcam.'
@@ -5323,6 +5319,7 @@ translations:
   ? The remaining steps will not run. The printer finishes the command it is running first, and its heaters stay on until then.
   : "As etapas restantes não serão executadas. A impressora termina primeiro o comando em andamento, e os aquecedores ficam ligados até lá."
   The requested position is outside the printer's bounds: 'A posição solicitada está fora dos limites da impressora'
+  "The result is gone: Klipper restarted before it was saved. Run the calibration again.": "O resultado se perdeu: o Klipper reiniciou antes de salvá-lo. Execute a calibração novamente."
   The results say why.: "Os resultados dizem o motivo."
   The right RFID reader in this CFS unit may need service: O leitor RFID direito desta unidade CFS pode precisar de manutenção
   The running step stops at once and the printer restarts, which also drops the results of the steps that finished.: 'A etapa em andamento para na hora e a impressora reinicia, o que também descarta os resultados das etapas concluídas.'

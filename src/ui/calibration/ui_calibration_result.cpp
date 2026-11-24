@@ -17,10 +17,6 @@ std::string result_keep_line(const ResultChoices& choices) {
     if (!choices.offer_save) {
         return lv_tr("Nothing waits to be saved.");
     }
-    if (choices.must_save) {
-        return lv_tr("The heater's control changed in printer.cfg. It heats again only once this "
-                     "result is saved.");
-    }
     return choices.keep == KeepMeaning::InUse
                ? lv_tr("In use now. A restart forgets it unless you save it.")
                : lv_tr("Not in use yet. Klipper holds it until a save or a restart.");
@@ -30,28 +26,18 @@ std::string result_save_line(const ResultChoices& choices) {
     if (!choices.offer_save) {
         return {};
     }
-    std::string line;
-    if (choices.must_save) {
-        line = choices.save_restarts ? lv_tr("Save to Config restarts Klipper.")
-                                     : lv_tr("Save to Config keeps Klipper running.");
-    } else {
-        line = choices.save_restarts
-                   ? lv_tr("Save to Config and Discard both restart Klipper.")
-                   : lv_tr("Save to Config keeps Klipper running. Discard restarts it.");
-    }
+    std::string line = choices.save_restarts
+                           ? lv_tr("Save to Config and Discard both restart Klipper.")
+                           : lv_tr("Save to Config keeps Klipper running. Discard restarts it.");
     if (!choices.also_staged.empty()) {
         std::string names;
         for (const auto& section : choices.also_staged) {
             names += names.empty() ? section : ", " + section;
         }
         line += " ";
-        line += choices.offer_discard
-                    ? fmt::format(fmt::runtime(lv_tr("Also waiting to be saved: {}. Save and "
-                                                     "Discard include them.")),
-                                  names)
-                    : fmt::format(fmt::runtime(lv_tr("Also waiting to be saved: {}. Save "
-                                                     "includes them.")),
-                                  names);
+        line += fmt::format(
+            fmt::runtime(lv_tr("Also waiting to be saved: {}. Save and Discard include them.")),
+            names);
     }
     return line;
 }
@@ -92,7 +78,6 @@ void CalibrationResultView::init_subjects(SubjectManager& manager) {
     init_text(manager, status_sub_, "status_sub");
     init_int(manager, hide_keep_, "hide_keep", 0);
     init_int(manager, hide_save_, "hide_save", 0);
-    init_int(manager, hide_discard_, "hide_discard", 0);
     init_int(manager, hide_before_, "hide_before", 0);
     for (int i = 0; i < kRows; ++i) {
         const std::string n = std::to_string(i);
@@ -132,7 +117,6 @@ void CalibrationResultView::publish(const std::string& title, const std::string&
         any_before = any_before || !row.before.empty();
     }
     lv_subject_set_int(&hide_before_.subject, any_before ? 0 : 1);
-    lv_subject_set_int(&hide_discard_.subject, choices.offer_discard ? 0 : 1);
     set(status_, result_keep_line(choices));
     set(status_sub_, result_save_line(choices));
     lv_subject_set_int(&hide_keep_.subject, choices.offer_keep ? 0 : 1);

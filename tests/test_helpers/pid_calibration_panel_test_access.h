@@ -62,6 +62,10 @@ struct PIDCalibrationPanelTestAccess {
     static void turn_off_fan(PIDCalibrationPanel& p) {
         p.turn_off_fan();
     }
+    /// The run itself, as start or a finished migration begins it.
+    static void begin_pid_run(PIDCalibrationPanel& p) {
+        p.begin_calibration(PIDCalibrationPanel::CalibMethod::PID);
+    }
     static void set_state(PIDCalibrationPanel& p, PIDCalibrationPanel::State state) {
         p.set_state(state);
     }

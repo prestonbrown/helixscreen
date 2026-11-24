@@ -685,8 +685,13 @@ class PIDCalibrationPanel : public OverlayBase {
     void handle_result_save();
     void handle_result_keep();
     void handle_result_discard();
-    /// Reads what Klipper staged, then shows the result page with its choices.
+    /// Reads what Klipper staged, then shows the result page with its choices; a run
+    /// that switched the heater's control saves at once instead.
     void show_review(std::vector<helix::calibration::ResultRow> rows);
+    /// This run's result in @p pending (configfile.save_config_pending_items).
+    [[nodiscard]] helix::calibration::ResultFacts result_facts(const nlohmann::json& pending) const;
+    /// The staged result vanished (a Klipper restart): ERROR, saying so.
+    void fail_result_lost();
     void handle_retry_clicked();
     void handle_preset_clicked(int temp, const char* material_name);
     void handle_method_pid_clicked();

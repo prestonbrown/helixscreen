@@ -483,7 +483,6 @@ translations:
   Also keep this mesh for {}. Its prints that do not mesh load it at the start.: "Сохранить эту сетку и для {}? Его печати без построения сетки загрузят её при старте."
   Also measure part-fan cooling: Также измерить охлаждение вент. детали
   "Also waiting to be saved: {}. Save and Discard include them.": "Также ожидают сохранения: {}. «Сохранить» и «Отменить» затронут и их."
-  "Also waiting to be saved: {}. Save includes them.": "Также ожидают сохранения: {}. «Сохранить» затронет и их."
   Always Show Bypass Spool: Всегда показывать катушку байпаса
   Always show Android navigation bar instead of using gestures: Всегда показывать панель навигации Android вместо жестов
   Ambient Transfer: Теплообмен с окружающей средой
@@ -4414,9 +4413,7 @@ translations:
   Save the new heater values to printer.cfg? Klipper restarts.: Сохранить новые значения нагревателя в printer.cfg? Klipper перезапустится.
   Save to Config: "Сохранить в конфигурацию"
   "Save to Config and Discard both restart Klipper.": "«Сохранить в конфигурацию» и «Отменить» перезапускают Klipper."
-  "Save to Config keeps Klipper running.": "«Сохранить в конфигурацию» не останавливает Klipper."
   "Save to Config keeps Klipper running. Discard restarts it.": "«Сохранить в конфигурацию» не останавливает Klipper. «Отменить» перезапускает его."
-  "Save to Config restarts Klipper.": "«Сохранить в конфигурацию» перезапускает Klipper."
   Save to Spool: Сохранить на катушку
   Save to Spoolman: Сохранить в Spoolman
   Save to the printer config?: "Сохранить в конфигурацию принтера?"
@@ -5242,7 +5239,6 @@ translations:
   The heater took the target.: 'Нагреватель принял целевую температуру.'
   The heater was turned off at the heater.: 'Нагреватель был выключен на самом нагревателе.'
   The heater will cycle on and off several times.: Нагреватель будет несколько раз включаться и выключаться.
-  "The heater's control changed in printer.cfg. It heats again only once this result is saved.": "Режим управления нагревателем изменён в printer.cfg. Он снова будет греть только после сохранения этого результата."
   The helper macros are installed and activate after Klipper restarts.: 'Вспомогательные макросы установлены и активируются после перезапуска Klipper.'
   ? 'The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream.'
   : 'Хост-компьютер не отправил перемещения плате управления вовремя, обычно из-за перегрузки: высокая загрузка CPU или swap, медленная SD-карта, нестабильное питание или поток с веб-камеры.'
@@ -5411,6 +5407,7 @@ translations:
   ? The remaining steps will not run. The printer finishes the command it is running first, and its heaters stay on until then.
   : "Остальные шаги не будут выполнены. Сначала принтер завершит текущую команду, нагреватели до тех пор останутся включены."
   The requested position is outside the printer's bounds: 'Запрошенная позиция находится за пределами рабочей области принтера'
+  "The result is gone: Klipper restarted before it was saved. Run the calibration again.": "Результат потерян: Klipper перезапустился до сохранения. Запустите калибровку снова."
   The results say why.: "В результатах указана причина."
   The right RFID reader in this CFS unit may need service: Правому RFID-считывателю этого блока CFS может требоваться обслуживание
   The running step stops at once and the printer restarts, which also drops the results of the steps that finished.: 'Текущий шаг сразу остановится, а принтер перезапустится, и результаты завершённых шагов тоже будут потеряны.'

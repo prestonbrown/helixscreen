@@ -408,7 +408,6 @@
   <translation tag="Also keep this mesh for {}. Its prints that do not mesh load it at the start." ja="このメッシュを {} 用にも保存しますか？その素材のメッシュを取らない印刷は開始時にこれを読み込みます。"/>
   <translation tag="Also measure part-fan cooling" ja="パーツファンの冷却も測定"/>
   <translation tag="Also waiting to be saved: {}. Save and Discard include them." ja="ほかにも保存待ちがあります: {}。保存と破棄はこれらにも適用されます。"/>
-  <translation tag="Also waiting to be saved: {}. Save includes them." ja="ほかにも保存待ちがあります: {}。保存はこれらにも適用されます。"/>
   <translation tag="Always Show Bypass Spool" ja="バイパススプールを常に表示"/>
   <translation tag="Always show Android navigation bar instead of using gestures" ja="ジェスチャーの代わりにAndroidナビゲーションバーを常に表示"/>
   <translation tag="Ambient Transfer" ja="環境熱伝達"/>
@@ -4192,9 +4191,7 @@
   <translation tag="Save the new heater values to printer.cfg? Klipper restarts." ja="新しいヒーター値をprinter.cfgに保存しますか？Klipperが再起動します。"/>
   <translation tag="Save to Config" ja="設定に保存"/>
   <translation tag="Save to Config and Discard both restart Klipper." ja="「設定に保存」と「破棄」はどちらも Klipper を再起動します。"/>
-  <translation tag="Save to Config keeps Klipper running." ja="「設定に保存」は Klipper を止めません。"/>
   <translation tag="Save to Config keeps Klipper running. Discard restarts it." ja="「設定に保存」は Klipper を止めません。「破棄」は再起動します。"/>
-  <translation tag="Save to Config restarts Klipper." ja="「設定に保存」は Klipper を再起動します。"/>
   <translation tag="Save to Spool" ja="スプールに保存"/>
   <translation tag="Save to Spoolman" ja="Spoolman に保存"/>
   <translation tag="Save to the printer config?" ja="プリンターの設定に保存しますか？"/>
@@ -4978,7 +4975,6 @@
   <translation tag="The heater took the target." ja="ヒーターが目標温度を受け付けました。"/>
   <translation tag="The heater was turned off at the heater." ja="ヒーター本体で電源がオフにされました。"/>
   <translation tag="The heater will cycle on and off several times." ja="ヒーターは数回オン/オフを繰り返します。"/>
-  <translation tag="The heater&apos;s control changed in printer.cfg. It heats again only once this result is saved." ja="printer.cfg でヒーターの制御方式が変わりました。この結果を保存するまで加熱できません。"/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." ja="ヘルパーマクロはインストール済みで、Klipper の再起動後に有効になります。"/>
   <translation tag="The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream." ja="ホストコンピューターが制御ボードへ時間内に移動を送れませんでした。通常は過負荷が原因です: CPU やスワップの使用率が高い、SD カードが遅い、電源が不安定、またはウェブカメラの配信です。"/>
   <translation tag="The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination." ja="ホストがこのボードから数秒間応答を受け取りませんでした: USB または CAN ケーブルの緩みや故障、ボードの電源喪失、または終端のない CAN バスです。"/>
@@ -5139,6 +5135,7 @@
   <translation tag="The queue prints this .3mf&apos;s default plate. Print this plate from here instead." ja="キューはこの .3mf のデフォルトのプレートを印刷します。このプレートはここから印刷してください。"/>
   <translation tag="The remaining steps will not run. The printer finishes the command it is running first, and its heaters stay on until then." ja="残りのステップは実行されません。プリンターは実行中のコマンドを先に終え、それまでヒーターはオンのままです。"/>
   <translation tag="The requested position is outside the printer&apos;s bounds" ja="指定された位置はプリンターの可動範囲外です"/>
+  <translation tag="The result is gone: Klipper restarted before it was saved. Run the calibration again." ja="結果は失われました。保存前に Klipper が再起動しました。もう一度キャリブレーションを実行してください。"/>
   <translation tag="The results say why." ja="理由は結果に表示されます。"/>
   <translation tag="The right RFID reader in this CFS unit may need service" ja="この CFS ユニットの右側 RFID リーダーは修理が必要な可能性があります"/>
   <translation tag="The running step stops at once and the printer restarts, which also drops the results of the steps that finished." ja="実行中のステップはすぐに停止し、プリンターが再起動します。完了したステップの結果も破棄されます。"/>

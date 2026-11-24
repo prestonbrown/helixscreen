@@ -75,7 +75,7 @@ class CalibrationResultView {
 
     std::string prefix_;
     TextSubject title_, summary_, status_, status_sub_;
-    IntSubject hide_keep_, hide_save_, hide_discard_, hide_before_;
+    IntSubject hide_keep_, hide_save_, hide_before_;
     std::array<Row, kRows> rows_;
     ResultChoices choices_;
     bool initialized_ = false;

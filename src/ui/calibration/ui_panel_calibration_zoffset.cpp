@@ -1318,6 +1318,29 @@ void ZOffsetCalibrationPanel::handle_result_save() {
     }
     spdlog::info("[ZOffsetCal] Result: Save to Config");
     set_state(State::SAVING);
+    // A restart while the page was up drops what ACCEPT staged: then the save
+    // would write nothing of it, and "saved" would be false.
+    const auto save_if_staged = [this](const nlohmann::json& pending) {
+        const auto facts = helix::calibration::staged_result_facts(
+            get_printer_state().get_discovery(), pending, [](const std::string& section) {
+                return helix::calibration::is_z_offset_section(section);
+            });
+        if (!facts.own_staged) {
+            spdlog::warn("[ZOffsetCal] The staged result is gone; nothing to save");
+            on_calibration_result(false, lv_tr("The result is gone: Klipper restarted before it "
+                                               "was saved. Run the calibration again."));
+            return;
+        }
+        save_staged_result();
+    };
+    api_->advanced().get_save_config_pending_items(
+        lifetime_.bg_cb("ZOffsetCal.save_pending", save_if_staged),
+        lifetime_.bg_cb("ZOffsetCal.save_pending_error", [save_if_staged](const MoonrakerError&) {
+            save_if_staged(nlohmann::json());
+        }));
+}
+
+void ZOffsetCalibrationPanel::save_staged_result() {
     auto token = lifetime_.token();
     helix::zoffset::save_accepted_calibration(
         api_, save_config_watch_, run_strategy(),

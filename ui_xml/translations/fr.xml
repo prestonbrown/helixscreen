@@ -414,7 +414,6 @@
   <translation tag="Also keep this mesh for {}. Its prints that do not mesh load it at the start." fr="Garder aussi ce maillage pour {} ? Ses impressions sans maillage le chargent au démarrage."/>
   <translation tag="Also measure part-fan cooling" fr="Mesurer aussi le refroidissement du ventilateur pièce"/>
   <translation tag="Also waiting to be saved: {}. Save and Discard include them." fr="Également en attente d&apos;enregistrement : {}. Enregistrer et Abandonner les incluent."/>
-  <translation tag="Also waiting to be saved: {}. Save includes them." fr="Également en attente d&apos;enregistrement : {}. Enregistrer les inclut."/>
   <translation tag="Always Show Bypass Spool" fr="Toujours afficher la bobine de bypass"/>
   <translation tag="Always show Android navigation bar instead of using gestures" fr="Toujours afficher la barre de navigation Android au lieu des gestes"/>
   <translation tag="Ambient Transfer" fr="Transfert ambiant"/>
@@ -4198,9 +4197,7 @@
   <translation tag="Save the new heater values to printer.cfg? Klipper restarts." fr="Enregistrer les nouvelles valeurs du chauffage dans printer.cfg ? Klipper redémarre."/>
   <translation tag="Save to Config" fr="Enregistrer dans la config"/>
   <translation tag="Save to Config and Discard both restart Klipper." fr="Enregistrer dans la config et Abandonner redémarrent tous deux Klipper."/>
-  <translation tag="Save to Config keeps Klipper running." fr="Enregistrer dans la config laisse Klipper tourner."/>
   <translation tag="Save to Config keeps Klipper running. Discard restarts it." fr="Enregistrer dans la config laisse Klipper tourner. Abandonner le redémarre."/>
-  <translation tag="Save to Config restarts Klipper." fr="Enregistrer dans la config redémarre Klipper."/>
   <translation tag="Save to Spool" fr="Enregistrer sur la bobine"/>
   <translation tag="Save to Spoolman" fr="Enregistrer dans Spoolman"/>
   <translation tag="Save to the printer config?" fr="Enregistrer dans la config de l&apos;imprimante ?"/>
@@ -4984,7 +4981,6 @@
   <translation tag="The heater took the target." fr="Le chauffage a accepté la consigne."/>
   <translation tag="The heater was turned off at the heater." fr="Le chauffage a été éteint sur l&apos;appareil lui-même."/>
   <translation tag="The heater will cycle on and off several times." fr="Le chauffage s&apos;allumera et s&apos;éteindra plusieurs fois."/>
-  <translation tag="The heater&apos;s control changed in printer.cfg. It heats again only once this result is saved." fr="Le mode de régulation du chauffage a changé dans printer.cfg. Il ne chauffera à nouveau qu&apos;une fois ce résultat enregistré."/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." fr="Les macros d&apos;aide sont installées et s&apos;activent après un redémarrage de Klipper."/>
   <translation tag="The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream." fr="L&apos;ordinateur hôte n&apos;a pas envoyé les mouvements à temps à la carte contrôleur, généralement parce qu&apos;il est surchargé : forte utilisation du CPU ou du swap, carte SD lente, alimentation instable, ou flux de webcam."/>
   <translation tag="The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination." fr="L&apos;hôte n&apos;a rien reçu de cette carte pendant plusieurs secondes : un câble USB ou CAN desserré ou défaillant, une perte d&apos;alimentation de la carte, ou un bus CAN sans terminaison."/>
@@ -5145,6 +5141,7 @@
   <translation tag="The queue prints this .3mf&apos;s default plate. Print this plate from here instead." fr="La file d&apos;attente imprime la plaque par défaut de ce .3mf. Imprimez cette plaque d&apos;ici."/>
   <translation tag="The remaining steps will not run. The printer finishes the command it is running first, and its heaters stay on until then." fr="Les étapes restantes ne seront pas lancées. L&apos;imprimante termine d&apos;abord la commande en cours, et ses chauffages restent allumés jusque-là."/>
   <translation tag="The requested position is outside the printer&apos;s bounds" fr="La position demandée est en dehors des limites de l&apos;imprimante"/>
+  <translation tag="The result is gone: Klipper restarted before it was saved. Run the calibration again." fr="Le résultat est perdu : Klipper a redémarré avant l&apos;enregistrement. Relancez la calibration."/>
   <translation tag="The results say why." fr="Les résultats expliquent pourquoi."/>
   <translation tag="The right RFID reader in this CFS unit may need service" fr="Le lecteur RFID droit de cette unité CFS nécessite peut-être une intervention"/>
   <translation tag="The running step stops at once and the printer restarts, which also drops the results of the steps that finished." fr="L&apos;étape en cours s&apos;arrête immédiatement et l&apos;imprimante redémarre, ce qui perd aussi les résultats des étapes terminées."/>

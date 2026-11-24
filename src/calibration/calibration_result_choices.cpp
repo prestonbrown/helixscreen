@@ -16,11 +16,6 @@ ResultChoices result_choices(const ResultFacts& facts) {
     c.discard = facts.staged ? DiscardMeaning::RestartDropsIt : DiscardMeaning::NothingToUndo;
     c.save_restarts = facts.save_restarts;
     c.also_staged = facts.also_staged;
-    if (facts.control_switched && facts.staged) {
-        c.must_save = true;
-        c.offer_keep = false;
-        c.offer_discard = false;
-    }
     return c;
 }
 
@@ -41,6 +36,7 @@ ResultFacts staged_result_facts(const PrinterDiscovery& hw, const nlohmann::json
     // The save writes everything pending; whether this result is in use already
     // depends on its own sections only.
     f.save_restarts = save_config::restart_required(hw, pending_items);
+    f.own_staged = !pending_items.is_object() || !mine.empty();
     f.live = f.staged && !mine.empty() && !save_config::restart_required(hw, mine);
     return f;
 }

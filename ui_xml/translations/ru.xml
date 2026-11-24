@@ -444,7 +444,6 @@
   <translation tag="Also keep this mesh for {}. Its prints that do not mesh load it at the start." ru="Сохранить эту сетку и для {}? Его печати без построения сетки загрузят её при старте."/>
   <translation tag="Also measure part-fan cooling" ru="Также измерить охлаждение вент. детали"/>
   <translation tag="Also waiting to be saved: {}. Save and Discard include them." ru="Также ожидают сохранения: {}. «Сохранить» и «Отменить» затронут и их."/>
-  <translation tag="Also waiting to be saved: {}. Save includes them." ru="Также ожидают сохранения: {}. «Сохранить» затронет и их."/>
   <translation tag="Always Show Bypass Spool" ru="Всегда показывать катушку байпаса"/>
   <translation tag="Always show Android navigation bar instead of using gestures" ru="Всегда показывать панель навигации Android вместо жестов"/>
   <translation tag="Ambient Transfer" ru="Теплообмен с окружающей средой"/>
@@ -4252,9 +4251,7 @@
   <translation tag="Save the new heater values to printer.cfg? Klipper restarts." ru="Сохранить новые значения нагревателя в printer.cfg? Klipper перезапустится."/>
   <translation tag="Save to Config" ru="Сохранить в конфигурацию"/>
   <translation tag="Save to Config and Discard both restart Klipper." ru="«Сохранить в конфигурацию» и «Отменить» перезапускают Klipper."/>
-  <translation tag="Save to Config keeps Klipper running." ru="«Сохранить в конфигурацию» не останавливает Klipper."/>
   <translation tag="Save to Config keeps Klipper running. Discard restarts it." ru="«Сохранить в конфигурацию» не останавливает Klipper. «Отменить» перезапускает его."/>
-  <translation tag="Save to Config restarts Klipper." ru="«Сохранить в конфигурацию» перезапускает Klipper."/>
   <translation tag="Save to Spool" ru="Сохранить на катушку"/>
   <translation tag="Save to Spoolman" ru="Сохранить в Spoolman"/>
   <translation tag="Save to the printer config?" ru="Сохранить в конфигурацию принтера?"/>
@@ -5044,7 +5041,6 @@
   <translation tag="The heater took the target." ru="Нагреватель принял целевую температуру."/>
   <translation tag="The heater was turned off at the heater." ru="Нагреватель был выключен на самом нагревателе."/>
   <translation tag="The heater will cycle on and off several times." ru="Нагреватель будет несколько раз включаться и выключаться."/>
-  <translation tag="The heater&apos;s control changed in printer.cfg. It heats again only once this result is saved." ru="Режим управления нагревателем изменён в printer.cfg. Он снова будет греть только после сохранения этого результата."/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." ru="Вспомогательные макросы установлены и активируются после перезапуска Klipper."/>
   <translation tag="The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream." ru="Хост-компьютер не отправил перемещения плате управления вовремя, обычно из-за перегрузки: высокая загрузка CPU или swap, медленная SD-карта, нестабильное питание или поток с веб-камеры."/>
   <translation tag="The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination." ru="Хост несколько секунд не получал ответа от этой платы: ослаблен или неисправен кабель USB или CAN, плата потеряла питание или у шины CAN нет терминатора."/>
@@ -5205,6 +5201,7 @@
   <translation tag="The queue prints this .3mf&apos;s default plate. Print this plate from here instead." ru="Очередь печатает стандартную пластину этого .3mf. Напечатайте эту пластину отсюда."/>
   <translation tag="The remaining steps will not run. The printer finishes the command it is running first, and its heaters stay on until then." ru="Остальные шаги не будут выполнены. Сначала принтер завершит текущую команду, нагреватели до тех пор останутся включены."/>
   <translation tag="The requested position is outside the printer&apos;s bounds" ru="Запрошенная позиция находится за пределами рабочей области принтера"/>
+  <translation tag="The result is gone: Klipper restarted before it was saved. Run the calibration again." ru="Результат потерян: Klipper перезапустился до сохранения. Запустите калибровку снова."/>
   <translation tag="The results say why." ru="В результатах указана причина."/>
   <translation tag="The right RFID reader in this CFS unit may need service" ru="Правому RFID-считывателю этого блока CFS может требоваться обслуживание"/>
   <translation tag="The running step stops at once and the printer restarts, which also drops the results of the steps that finished." ru="Текущий шаг сразу остановится, а принтер перезапустится, и результаты завершённых шагов тоже будут потеряны."/>

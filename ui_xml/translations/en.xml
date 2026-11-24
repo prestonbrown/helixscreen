@@ -408,7 +408,6 @@
   <translation tag="Also keep this mesh for {}. Its prints that do not mesh load it at the start." en="Also keep this mesh for {}. Its prints that do not mesh load it at the start."/>
   <translation tag="Also measure part-fan cooling" en="Also measure part-fan cooling"/>
   <translation tag="Also waiting to be saved: {}. Save and Discard include them." en="Also waiting to be saved: {}. Save and Discard include them."/>
-  <translation tag="Also waiting to be saved: {}. Save includes them." en="Also waiting to be saved: {}. Save includes them."/>
   <translation tag="Always Show Bypass Spool" en="Always Show Bypass Spool"/>
   <translation tag="Always show Android navigation bar instead of using gestures" en="Always show Android navigation bar instead of using gestures"/>
   <translation tag="Ambient Transfer" en="Ambient Transfer"/>
@@ -4192,9 +4191,7 @@
   <translation tag="Save the new heater values to printer.cfg? Klipper restarts." en="Save the new heater values to printer.cfg? Klipper restarts."/>
   <translation tag="Save to Config" en="Save to Config"/>
   <translation tag="Save to Config and Discard both restart Klipper." en="Save to Config and Discard both restart Klipper."/>
-  <translation tag="Save to Config keeps Klipper running." en="Save to Config keeps Klipper running."/>
   <translation tag="Save to Config keeps Klipper running. Discard restarts it." en="Save to Config keeps Klipper running. Discard restarts it."/>
-  <translation tag="Save to Config restarts Klipper." en="Save to Config restarts Klipper."/>
   <translation tag="Save to Spool" en="Save to Spool"/>
   <translation tag="Save to Spoolman" en="Save to Spoolman"/>
   <translation tag="Save to the printer config?" en="Save to the printer config?"/>
@@ -4978,7 +4975,6 @@
   <translation tag="The heater took the target." en="The heater took the target."/>
   <translation tag="The heater was turned off at the heater." en="The heater was turned off at the heater."/>
   <translation tag="The heater will cycle on and off several times." en="The heater will cycle on and off several times."/>
-  <translation tag="The heater&apos;s control changed in printer.cfg. It heats again only once this result is saved." en="The heater&apos;s control changed in printer.cfg. It heats again only once this result is saved."/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." en="The helper macros are installed and activate after Klipper restarts."/>
   <translation tag="The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream." en="The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream."/>
   <translation tag="The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination." en="The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination."/>
@@ -5139,6 +5135,7 @@
   <translation tag="The queue prints this .3mf&apos;s default plate. Print this plate from here instead." en="The queue prints this .3mf&apos;s default plate. Print this plate from here instead."/>
   <translation tag="The remaining steps will not run. The printer finishes the command it is running first, and its heaters stay on until then." en="The remaining steps will not run. The printer finishes the command it is running first, and its heaters stay on until then."/>
   <translation tag="The requested position is outside the printer&apos;s bounds" en="The requested position is outside the printer&apos;s bounds"/>
+  <translation tag="The result is gone: Klipper restarted before it was saved. Run the calibration again." en="The result is gone: Klipper restarted before it was saved. Run the calibration again."/>
   <translation tag="The results say why." en="The results say why."/>
   <translation tag="The right RFID reader in this CFS unit may need service" en="The right RFID reader in this CFS unit may need service"/>
   <translation tag="The running step stops at once and the printer restarts, which also drops the results of the steps that finished." en="The running step stops at once and the printer restarts, which also drops the results of the steps that finished."/>

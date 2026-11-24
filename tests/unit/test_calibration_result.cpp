@@ -60,16 +60,6 @@ TEST_CASE("A result the firmware already uses is in use now and saves without a 
     CHECK(mpc.save_restarts);
 }
 
-TEST_CASE("A result after a control switch can only be saved", "[calibration_result]") {
-    ResultFacts facts = staged_result_facts(PrinterDiscovery{}, kMpc, nullptr);
-    facts.control_switched = true;
-    const ResultChoices c = result_choices(facts);
-    CHECK(c.offer_save);
-    CHECK_FALSE(c.offer_keep);
-    CHECK_FALSE(c.offer_discard);
-    CHECK(c.must_save);
-}
-
 TEST_CASE("Other staged results are named, and only this result decides in use",
           "[calibration_result]") {
     const json both = {{"extruder", {{"control", "pid"}, {"pid_kp", "22.1"}}},

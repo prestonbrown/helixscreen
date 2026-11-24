@@ -1261,12 +1261,20 @@ void PIDCalibrationPanel::show_review(std::vector<helix::calibration::ResultRow>
     const std::string title = selected_heater_ == Heater::EXTRUDER ? lv_tr("Nozzle heater tuned")
                                                                    : lv_tr("Bed heater tuned");
     const auto publish = [this, title, rows](const nlohmann::json& pending) {
-        const std::string heater = run_heater_;
-        auto facts = helix::calibration::staged_result_facts(
-            get_printer_state().get_discovery(), pending, [heater](const std::string& section) {
-                return section == heater || section.rfind("pid_profile " + heater, 0) == 0;
-            });
-        facts.control_switched = run_switched_control_;
+        const auto facts = result_facts(pending);
+        if (run_switched_control_) {
+            // printer.cfg already names the new control, which has no tuning until
+            // this result is saved: saving is the only outcome that leaves a heater
+            // that heats, so it happens at once, with no choice to leave unsaved.
+            if (!facts.own_staged) {
+                fail_result_lost();
+                return;
+            }
+            spdlog::info("[PIDCal] Control was switched: saving the result at once");
+            set_state(State::SAVING);
+            send_save_config();
+            return;
+        }
         result_view_.publish(title, lv_subject_get_string(&subj_result_summary_), rows,
                              helix::calibration::result_choices(facts));
         set_state(State::REVIEW);
@@ -1287,11 +1295,44 @@ void PIDCalibrationPanel::handle_result_save() {
     }
     spdlog::info("[PIDCal] Result: Save to Config");
     set_state(State::SAVING);
-    send_save_config();
+    // A restart while the page was up drops the staged result: then the save
+    // would write nothing of it, and saying "saved" would be false.
+    const auto save_if_staged = [this](const nlohmann::json& pending) {
+        if (!result_facts(pending).own_staged) {
+            fail_result_lost();
+            return;
+        }
+        send_save_config();
+    };
+    if (!api_) {
+        return;
+    }
+    api_->advanced().get_save_config_pending_items(
+        run_lifetime_.bg_cb("PIDCal.save_pending", save_if_staged),
+        run_lifetime_.bg_cb("PIDCal.save_pending_error", [save_if_staged](const MoonrakerError&) {
+            save_if_staged(nlohmann::json());
+        }));
+}
+
+helix::calibration::ResultFacts
+PIDCalibrationPanel::result_facts(const nlohmann::json& pending) const {
+    const std::string heater = run_heater_;
+    return helix::calibration::staged_result_facts(
+        get_printer_state().get_discovery(), pending, [heater](const std::string& section) {
+            return section == heater || section.rfind("pid_profile " + heater + " ", 0) == 0;
+        });
+}
+
+void PIDCalibrationPanel::fail_result_lost() {
+    spdlog::warn("[PIDCal] The staged result is gone; nothing to save");
+    lv_subject_set_string(&subj_error_message_,
+                          lv_tr("The result is gone: Klipper restarted before it was saved. Run "
+                                "the calibration again."));
+    set_state(State::ERROR);
 }
 
 void PIDCalibrationPanel::handle_result_keep() {
-    if (state_ != State::REVIEW || !result_view_.choices().offer_keep) {
+    if (state_ != State::REVIEW) {
         return;
     }
     // Klipper keeps the staged result until a save or a restart; nothing to send.
@@ -1301,8 +1342,7 @@ void PIDCalibrationPanel::handle_result_keep() {
 }
 
 void PIDCalibrationPanel::handle_result_discard() {
-    if (state_ != State::REVIEW || !result_view_.choices().offer_discard ||
-        helix::calibration::refuse_result_restart()) {
+    if (state_ != State::REVIEW || helix::calibration::refuse_result_restart()) {
         return;
     }
     const bool drop =

@@ -438,7 +438,6 @@ translations:
   Also keep this mesh for {}. Its prints that do not mesh load it at the start.: Also keep this mesh for {}. Its prints that do not mesh load it at the start.
   Also measure part-fan cooling: Also measure part-fan cooling
   'Also waiting to be saved: {}. Save and Discard include them.': 'Also waiting to be saved: {}. Save and Discard include them.'
-  'Also waiting to be saved: {}. Save includes them.': 'Also waiting to be saved: {}. Save includes them.'
   Always Show Bypass Spool: Always Show Bypass Spool
   Always show Android navigation bar instead of using gestures: Always show Android navigation bar instead of using gestures
   Ambient Transfer: Ambient Transfer
@@ -4308,9 +4307,7 @@ translations:
   Save the new heater values to printer.cfg? Klipper restarts.: Save the new heater values to printer.cfg? Klipper restarts.
   Save to Config: Save to Config
   Save to Config and Discard both restart Klipper.: Save to Config and Discard both restart Klipper.
-  Save to Config keeps Klipper running.: Save to Config keeps Klipper running.
   Save to Config keeps Klipper running. Discard restarts it.: Save to Config keeps Klipper running. Discard restarts it.
-  Save to Config restarts Klipper.: Save to Config restarts Klipper.
   Save to Spool: Save to Spool
   Save to Spoolman: Save to Spoolman
   Save to the printer config?: Save to the printer config?
@@ -5120,7 +5117,6 @@ translations:
   The heater took the target.: The heater took the target.
   The heater was turned off at the heater.: The heater was turned off at the heater.
   The heater will cycle on and off several times.: The heater will cycle on and off several times.
-  The heater's control changed in printer.cfg. It heats again only once this result is saved.: The heater's control changed in printer.cfg. It heats again only once this result is saved.
   The helper macros are installed and activate after Klipper restarts.: The helper macros are installed and activate after Klipper restarts.
   ? 'The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream.'
   : 'The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream.'
@@ -5286,6 +5282,7 @@ translations:
   ? The remaining steps will not run. The printer finishes the command it is running first, and its heaters stay on until then.
   : The remaining steps will not run. The printer finishes the command it is running first, and its heaters stay on until then.
   The requested position is outside the printer's bounds: The requested position is outside the printer's bounds
+  'The result is gone: Klipper restarted before it was saved. Run the calibration again.': 'The result is gone: Klipper restarted before it was saved. Run the calibration again.'
   The results say why.: The results say why.
   The right RFID reader in this CFS unit may need service: The right RFID reader in this CFS unit may need service
   The running step stops at once and the printer restarts, which also drops the results of the steps that finished.: The running step stops at once and the printer restarts, which also drops the results of the steps that finished.

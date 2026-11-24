@@ -272,6 +272,8 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     void handle_result_discard();
     /// After a standalone ACCEPT: reads what Klipper staged and shows the result page.
     void show_review();
+    /// Save to Config once the staged result is known to be there.
+    void save_staged_result();
     void handle_retry_clicked();
     void handle_warm_bed_toggled();
 

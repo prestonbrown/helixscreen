@@ -408,7 +408,6 @@
   <translation tag="Also keep this mesh for {}. Its prints that do not mesh load it at the start." zh="也为 {} 保存这个网格吗？其不做网格的打印会在开始时加载它。"/>
   <translation tag="Also measure part-fan cooling" zh="同时测量零件风扇的冷却"/>
   <translation tag="Also waiting to be saved: {}. Save and Discard include them." zh="另有待保存项：{}。保存和丢弃都会包含它们。"/>
-  <translation tag="Also waiting to be saved: {}. Save includes them." zh="另有待保存项：{}。保存会包含它们。"/>
   <translation tag="Always Show Bypass Spool" zh="始终显示旁路料盘"/>
   <translation tag="Always show Android navigation bar instead of using gestures" zh="始终显示 Android 导航栏而不使用手势"/>
   <translation tag="Ambient Transfer" zh="环境传热"/>
@@ -4192,9 +4191,7 @@
   <translation tag="Save the new heater values to printer.cfg? Klipper restarts." zh="将新的加热器参数保存到printer.cfg？Klipper将重启。"/>
   <translation tag="Save to Config" zh="保存到配置"/>
   <translation tag="Save to Config and Discard both restart Klipper." zh="“保存到配置”和“丢弃”都会重启 Klipper。"/>
-  <translation tag="Save to Config keeps Klipper running." zh="“保存到配置”不会中断 Klipper。"/>
   <translation tag="Save to Config keeps Klipper running. Discard restarts it." zh="“保存到配置”不会中断 Klipper。“丢弃”会重启它。"/>
-  <translation tag="Save to Config restarts Klipper." zh="“保存到配置”会重启 Klipper。"/>
   <translation tag="Save to Spool" zh="保存到料盘"/>
   <translation tag="Save to Spoolman" zh="保存到 Spoolman"/>
   <translation tag="Save to the printer config?" zh="保存到打印机配置？"/>
@@ -4978,7 +4975,6 @@
   <translation tag="The heater took the target." zh="加热器已接受目标温度。"/>
   <translation tag="The heater was turned off at the heater." zh="加热器已在加热器本身上关闭。"/>
   <translation tag="The heater will cycle on and off several times." zh="加热器将多次开关循环。"/>
-  <translation tag="The heater&apos;s control changed in printer.cfg. It heats again only once this result is saved." zh="printer.cfg 中加热器的控制方式已更改。保存此结果后它才能重新加热。"/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." zh="帮助宏已安装，将在 Klipper 重启后启用。"/>
   <translation tag="The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream." zh="主机未能及时向控制板发送移动指令，通常是因为负载过高：CPU 或交换空间占用高、SD 卡太慢、电源不稳，或正在推送摄像头视频流。"/>
   <translation tag="The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination." zh="主机已有数秒未收到此主板的任何消息：USB 或 CAN 线缆松动或损坏、主板断电，或 CAN 总线缺少终端电阻。"/>
@@ -5139,6 +5135,7 @@
   <translation tag="The queue prints this .3mf&apos;s default plate. Print this plate from here instead." zh="队列会打印此 .3mf 的默认板。请直接从这里打印此板。"/>
   <translation tag="The remaining steps will not run. The printer finishes the command it is running first, and its heaters stay on until then." zh="其余步骤不会运行。打印机会先完成正在运行的命令，在此之前加热器保持开启。"/>
   <translation tag="The requested position is outside the printer&apos;s bounds" zh="请求的位置超出打印机范围"/>
+  <translation tag="The result is gone: Klipper restarted before it was saved. Run the calibration again." zh="结果已丢失：保存前 Klipper 已重启。请重新运行校准。"/>
   <translation tag="The results say why." zh="结果会说明原因。"/>
   <translation tag="The right RFID reader in this CFS unit may need service" zh="此 CFS 单元的右侧 RFID 读取器可能需要维修"/>
   <translation tag="The running step stops at once and the printer restarts, which also drops the results of the steps that finished." zh="正在运行的步骤会立即停止，打印机将重启，已完成步骤的结果也会丢弃。"/>

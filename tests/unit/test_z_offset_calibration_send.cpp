@@ -214,6 +214,8 @@ std::vector<std::string> probe_accept_scripts(
     ZOffsetCalibrationPanel panel;
     panel.init_subjects();
     panel.set_api(&api);
+    // The ACCEPT of a manual probe session stages the new offset for SAVE_CONFIG.
+    helix::MoonrakerClientMockTestAccess::stage_config_change(client, "probe", "z_offset", "1.234");
     send_accept_of(panel);
     for (int i = 0; i < 20; ++i) {
         helix::ui::UpdateQueue::instance().drain_until_empty();
@@ -313,6 +315,13 @@ TEST_CASE_METHOD(CalibrationSendFixture,
         settle();
         CHECK_FALSE(sent_any(client.gcode_script_history(), "SAVE_CONFIG"));
         CHECK(client.call_count("printer.restart") == restarts);
+    }
+    SECTION("Save after a restart dropped it says so instead of saving") {
+        helix::MoonrakerClientMockTestAccess::drop_pending_config(client);
+        ZOffsetCalibrationTestAccess::result_save(panel);
+        settle();
+        CHECK_FALSE(sent_any(client.gcode_script_history(), "SAVE_CONFIG"));
+        CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::ERROR);
     }
     SECTION("Discard restarts Klipper to drop it") {
         ZOffsetCalibrationTestAccess::result_discard(panel);

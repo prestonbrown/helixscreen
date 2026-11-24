@@ -478,33 +478,55 @@ TEST_CASE_METHOD(PidHeadsFixture, "A finished calibration waits for the user's c
     }
 }
 
-TEST_CASE_METHOD(PidHeadsFixture,
-                 "A run that switched the heater's control offers only Save to Config",
+TEST_CASE_METHOD(PidHeadsFixture, "A run that switched the heater's control saves at once",
                  "[pid][calibration_result][mpc_migration]") {
-    // Discarding or keeping would leave printer.cfg on the new control with no
-    // tuning for it, and Klipper would refuse to heat.
+    // printer.cfg already names the new control, untuned until this result is
+    // saved: no page offers a way to leave it unsaved.
     get_printer_state().init_subjects(false);
     load_tools(nlohmann::json::array({"extruder", "heater_bed"}));
     Access::activate(panel);
     Access::start_mpc_migration(panel);
     helix::ui::UpdateQueue::instance().drain_until_empty();
-    Access::set_state(panel, PIDCalibrationPanel::State::CALIBRATING);
-    helix::MoonrakerClientMockTestAccess::stage_config_change(client, "extruder",
-                                                              "block_heat_capacity", "17.9");
-    panel.on_calibration_result(true, 22.865f, 1.292f, 101.178f);
+    Access::begin_pid_run(panel);
+    REQUIRE(panel.get_state() == PIDCalibrationPanel::State::CALIBRATING);
+    client.clear_gcode_script_history();
+
+    SECTION("the result is staged: it is saved") {
+        helix::MoonrakerClientMockTestAccess::stage_config_change(client, "extruder",
+                                                                  "block_heat_capacity", "17.9");
+        panel.on_calibration_result(true, 24.0f, 1.3f, 108.0f);
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        CHECK(sent("SAVE_CONFIG"));
+        CHECK(panel.get_state() != PIDCalibrationPanel::State::REVIEW);
+    }
+    SECTION("the result is gone: it says so, and saves nothing") {
+        panel.on_calibration_result(true, 24.0f, 1.3f, 108.0f);
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        CHECK_FALSE(sent("SAVE_CONFIG"));
+        CHECK(panel.get_state() == PIDCalibrationPanel::State::ERROR);
+    }
+}
+
+TEST_CASE_METHOD(PidHeadsFixture, "Save on a result a restart dropped says so instead of saving",
+                 "[pid][calibration_result]") {
+    get_printer_state().init_subjects(false);
+    load_tools(nlohmann::json::array({"extruder", "heater_bed"}));
+    Access::activate(panel);
+    start();
+    REQUIRE(panel.get_state() == PIDCalibrationPanel::State::CALIBRATING);
+    helix::MoonrakerClientMockTestAccess::stage_config_change(client, "extruder", "pid_kp",
+                                                              "25.000");
+    panel.on_calibration_result(true, 25.0f, 1.5f, 110.0f);
     helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(panel.get_state() == PIDCalibrationPanel::State::REVIEW);
-    CHECK(subject_int("pid_result_hide_save") == 0);
-    CHECK(subject_int("pid_result_hide_keep") == 1);
-    CHECK(subject_int("pid_result_hide_discard") == 1);
 
-    // And the buttons refuse even if reached.
-    const int restarts = client.call_count("printer.restart");
-    Access::result_discard(panel);
-    Access::result_keep(panel);
+    // Klipper restarted for another reason while the page was up.
+    helix::MoonrakerClientMockTestAccess::drop_pending_config(client);
+    client.clear_gcode_script_history();
+    Access::result_save(panel);
     helix::ui::UpdateQueue::instance().drain_until_empty();
-    CHECK(client.call_count("printer.restart") == restarts);
-    CHECK(panel.get_state() == PIDCalibrationPanel::State::REVIEW);
+    CHECK_FALSE(sent("SAVE_CONFIG"));
+    CHECK(panel.get_state() == PIDCalibrationPanel::State::ERROR);
 }
 
 TEST_CASE_METHOD(PidHeadsFixture, "A result page will not restart Klipper under a print",
