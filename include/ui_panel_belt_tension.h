@@ -417,7 +417,7 @@ class BeltTensionPanel : public OverlayBase {
     helix::Subject hw_sweep_subject_{};
     char hw_sweep_buf_[64] = {};
     helix::Subject intro_minutes_subject_{};
-    char intro_minutes_buf_[32] = {};
+    char intro_minutes_buf_[128] = {};
     /// The intro's caption: when the belts were last compared.
     helix::Subject intro_caption_subject_{};
     char intro_caption_buf_[96] = {};

@@ -182,11 +182,12 @@ void mark_bed_cleared() {
 
 namespace {
 
-/// "Is the bed clear?" with @p message; Cleared marks the bed cleared, then runs @p then.
-/// Cancel and a dismissal both run @p declined. @p owner gates only @p then and
+/// @p title with @p message and @p confirm_text; confirming marks the bed cleared, then runs
+/// @p then. Cancel and a dismissal both run @p declined. @p owner gates only @p then and
 /// @p declined: the user's answer about the bed holds even if the asking screen closed.
-void ask_bed_cleared(const char* message, std::function<void()> then,
-                     std::optional<LifetimeToken> owner, std::function<void()> declined = {}) {
+void ask_and_mark_cleared(const char* title, const char* message, const char* confirm_text,
+                          std::function<void()> then, std::optional<LifetimeToken> owner,
+                          std::function<void()> declined = {}) {
     const auto owner_alive = [owner]() { return !owner || !owner->expired(); };
     ui::ConfirmOptions opts;
     if (declined) {
@@ -199,7 +200,7 @@ void ask_bed_cleared(const char* message, std::function<void()> then,
         opts.on_dismiss = on_declined;
     }
     ui::modal_confirm(
-        lv_tr("Is the bed clear?"), message, ModalSeverity::Warning, lv_tr("Cleared"),
+        title, message, ModalSeverity::Warning, confirm_text,
         [then = std::move(then), declined, owner_alive]() {
             mark_bed_cleared();
             if (!then || !owner_alive()) {
@@ -219,6 +220,13 @@ void ask_bed_cleared(const char* message, std::function<void()> then,
         opts);
 }
 
+/// "Is the bed clear?" with @p message and Cleared.
+void ask_bed_cleared(const char* message, std::function<void()> then,
+                     std::optional<LifetimeToken> owner, std::function<void()> declined = {}) {
+    ask_and_mark_cleared(lv_tr("Is the bed clear?"), message, lv_tr("Cleared"), std::move(then),
+                         std::move(owner), std::move(declined));
+}
+
 } // namespace
 
 void confirm_bed_cleared() {
@@ -228,6 +236,13 @@ void confirm_bed_cleared() {
     ask_bed_cleared(
         lv_tr("Confirm only once the last print is off the bed. Moves then stop lifting above it."),
         {}, std::nullopt);
+}
+
+void confirm_calibration_start(const std::string& title, const std::string& message,
+                               const std::string& confirm_text, LifetimeToken owner,
+                               std::function<void()> start, std::function<void()> on_declined) {
+    ask_and_mark_cleared(title.c_str(), message.c_str(), confirm_text.c_str(), std::move(start),
+                         std::move(owner), std::move(on_declined));
 }
 
 void ensure_bed_clear_then(LifetimeToken owner, std::function<void()> start,

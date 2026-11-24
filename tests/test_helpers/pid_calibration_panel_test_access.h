@@ -23,6 +23,15 @@ struct PIDCalibrationPanelTestAccess {
     static bool holds_machine_busy(const PIDCalibrationPanel& p) {
         return p.holds_.machine_busy();
     }
+    static void result_save(PIDCalibrationPanel& p) {
+        p.handle_result_save();
+    }
+    static void result_keep(PIDCalibrationPanel& p) {
+        p.handle_result_keep();
+    }
+    static void result_discard(PIDCalibrationPanel& p) {
+        p.handle_result_discard();
+    }
     static void start_clicked(PIDCalibrationPanel& p) {
         p.handle_start_clicked();
     }

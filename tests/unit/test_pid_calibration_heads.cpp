@@ -8,6 +8,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/firmware_supervised_override.h"
+#include "../test_helpers/moonraker_client_mock_test_access.h"
 #include "../test_helpers/pid_calibration_panel_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/registered_backend.h"
@@ -291,13 +292,19 @@ TEST_CASE_METHOD(PidHeadsFixture, "An MPC heater with no cooling_fan is offered 
             REQUIRE(s != nullptr);
             return std::string(lv_subject_get_string(s));
         };
-        const std::string before = text("pid_duration_text");
+        // The minutes in a line: the number after "about".
+        auto minutes = [](const std::string& line) {
+            const auto at = line.find_first_of("0123456789", line.find("about"));
+            REQUIRE(at != std::string::npos);
+            return std::stoi(line.substr(at));
+        };
+        const int before = minutes(text("pid_duration_text"));
         Access::measure_fan_row_clicked(panel);
-        const std::string chip = text("pid_duration_text");
-        REQUIRE(chip != before);
+        const int footer = minutes(text("pid_duration_text"));
+        REQUIRE(footer != before);
         start();
         REQUIRE(subject_int("pid_page") == 1);
-        CHECK(text("cal_switch_run_text").find(chip) != std::string::npos);
+        CHECK(minutes(text("cal_switch_run_text")) == footer);
     }
     SECTION("a filament system that blocks the nozzle after the switch page opened stops it") {
         client.set_extruder_control("pid");
@@ -421,6 +428,48 @@ TEST_CASE_METHOD(PidHeadsFixture, "A heating calibration shows the E-stop until 
     CHECK_FALSE(Access::holds_machine_busy(panel));
 }
 
+TEST_CASE_METHOD(PidHeadsFixture, "A finished calibration waits for the user's choice",
+                 "[pid][calibration_result]") {
+    get_printer_state().init_subjects(false);
+    load_tools(nlohmann::json::array({"extruder", "heater_bed"}));
+    Access::activate(panel);
+    start();
+    REQUIRE(panel.get_state() == PIDCalibrationPanel::State::CALIBRATING);
+    client.clear_gcode_script_history();
+    const int restarts = client.call_count("printer.restart");
+
+    // PID_CALIBRATE stages its gains for the next SAVE_CONFIG.
+    helix::MoonrakerClientMockTestAccess::stage_config_change(client, "extruder", "pid_kp",
+                                                              "22.865");
+    panel.on_calibration_result(true, 22.865f, 1.292f, 101.178f);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    REQUIRE(panel.get_state() == PIDCalibrationPanel::State::REVIEW);
+    // Nothing is written until the user says so.
+    CHECK_FALSE(sent("SAVE_CONFIG"));
+    CHECK(subject_int("pid_result_in_run_2") == 1);
+    CHECK(subject_int("pid_result_in_run_3") == 0);
+
+    SECTION("Save to Config writes it") {
+        Access::result_save(panel);
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        CHECK(sent("SAVE_CONFIG"));
+    }
+    SECTION("Keep for Now sends nothing") {
+        Access::result_keep(panel);
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        CHECK_FALSE(sent("SAVE_CONFIG"));
+        CHECK(client.call_count("printer.restart") == restarts);
+        CHECK(panel.get_state() == PIDCalibrationPanel::State::IDLE);
+    }
+    SECTION("Discard restarts Klipper to drop the staged result") {
+        Access::result_discard(panel);
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        CHECK_FALSE(sent("SAVE_CONFIG"));
+        CHECK(client.call_count("printer.restart") == restarts + 1);
+        CHECK(panel.get_state() == PIDCalibrationPanel::State::IDLE);
+    }
+}
+
 namespace {
 std::string progress_text() {
     lv_subject_t* s = lv_xml_get_subject(nullptr, "pid_progress_text");
@@ -487,8 +536,8 @@ TEST_CASE_METHOD(PidHeadsFixture, "An MPC run shows the firmware's phase, not PI
     CHECK(transfer.second > heatup.second);
 }
 
-// A run that finishes behind the screensaver still saves, and the wake shows
-// its result rather than resetting the panel.
+// A run that finishes behind the screensaver waits on its result page, and the
+// wake shows that page rather than resetting the panel.
 TEST_CASE_METHOD(PidHeadsFixture, "An MPC result that lands behind the screensaver is kept",
                  "[pid][pid_progress]") {
     discover_extruder();
@@ -507,10 +556,11 @@ TEST_CASE_METHOD(PidHeadsFixture, "An MPC result that lands behind the screensav
                                    "// fan_ambient_transfer=0.0892993, 0.0940654 [W/K]");
     REQUIRE(wait_until([&] {
         helix::ui::UpdateQueue::instance().drain();
-        return sent("SAVE_CONFIG");
+        return subject_int("pid_cal_state") == 6; // REVIEW
     }));
+    CHECK_FALSE(sent("SAVE_CONFIG"));
     panel.on_activate();
-    CHECK(subject_int("pid_cal_state") >= 2); // SAVING or COMPLETE, not reset to IDLE
+    CHECK(subject_int("pid_cal_state") == 6); // the result, not reset to IDLE
 
     // Leaving for real after a later suspend: the next visit starts fresh.
     panel.on_deactivate(DeactivateReason::Suspended);

@@ -253,7 +253,7 @@ std::string ToolOffsetCalibrationPanel::start_prompt() const {
     // its temperatures, its sensor and its reference - else the built-in
     // note. Either way the one condition no firmware can check leads: a blob
     // of filament on a nozzle gets measured as part of the nozzle.
-    std::string text = lv_tr("Make sure every nozzle is clean.");
+    std::string text = lv_tr("Make sure every nozzle is clean. Clear the bed first.");
     text += "\n\n";
     text += hint_buffer_;
     text += "\n\n";
@@ -270,17 +270,17 @@ void ToolOffsetCalibrationPanel::start_calibration() {
         NOTIFY_ERROR("{}", lv_tr("This printer cannot calibrate tool offsets automatically"));
         return;
     }
-    ensure_bed_clear_then(lifetime_.token(), [this]() { confirm_calibration(); });
+    confirm_calibration();
 }
 
 void ToolOffsetCalibrationPanel::confirm_calibration() {
     if (run_active_) {
         return;
     }
-    const std::string prompt = start_prompt();
-    helix::ui::modal_confirm(lv_tr("Calibrate tool offsets?"), prompt.c_str(),
-                             ModalSeverity::Warning, lv_tr("Calibrate"),
-                             []() { get_global_tool_offset_cal_panel().begin_run(); });
+    // The one question before the machine moves; Calibrate also marks the bed cleared.
+    helix::confirm_calibration_start(lv_tr("Calibrate tool offsets?"), start_prompt(),
+                                     lv_tr("Calibrate"), lifetime_.token(),
+                                     []() { get_global_tool_offset_cal_panel().begin_run(); });
 }
 
 void ToolOffsetCalibrationPanel::begin_run() {

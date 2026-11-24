@@ -389,7 +389,7 @@ class InputShaperPanel : public OverlayBase {
     // Intro: the axis choice, its duration badge, the caption under the
     // current shapers and the accelerometer line.
     helix::Subject is_axis_choice_{};
-    char is_intro_duration_buf_[48] = {};
+    char is_intro_duration_buf_[128] = {};
     helix::Subject is_intro_duration_{};
     char is_intro_caption_buf_[128] = {};
     helix::Subject is_intro_caption_{};

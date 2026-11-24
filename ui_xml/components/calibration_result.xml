@@ -1,0 +1,74 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- A calibration's result page: what was measured, a Before / After table
+     (calibration_run_result_row, the guided run's look), and the result
+     choices in the calibration wizard footer: Discard at the left, Keep for
+     Now and Save to Config (the primary) at the right. Which choices show, and
+     what each line says, comes from helix::calibration::result_choices()
+     (include/calibration_result_choices.h); the screen publishes it under
+     its prefix:
+       <prefix>_title              what was calibrated, as a heading
+       <prefix>_summary            one line under it
+       <prefix>_label_<i>          row i's name (i = 0..3)
+       <prefix>_in_run_<i>         1 when row i shows
+       <prefix>_keep_<i>           1 (every row goes into the save)
+       <prefix>_before_<i>         row i before
+       <prefix>_after_<i>          row i measured
+       <prefix>_status             the footer's line: what Keep for Now leaves
+       <prefix>_status_sub         its second line: what Save to Config does
+       <prefix>_hide_keep          1 hides Keep for Now
+       <prefix>_hide_save          1 hides Save to Config
+     Callbacks: discard_callback, keep_callback, save_callback. -->
+<component>
+  <api>
+    <prop name="prefix" type="string" default=""/>
+    <prop name="discard_callback" type="string" default=""/>
+    <prop name="keep_callback" type="string" default=""/>
+    <prop name="save_callback" type="string" default=""/>
+  </api>
+  <view extends="lv_obj"
+        width="100%" height="100%" style_pad_all="0" style_pad_gap="0" style_bg_opa="0" style_border_width="0"
+        flex_flow="column" scrollable="false">
+    <lv_obj name="cal_result_body"
+            width="100%" height="0" flex_grow="1" style_pad_left="#cal_page_pad_x" style_pad_right="#cal_page_pad_x"
+            style_pad_top="#space_md" style_pad_bottom="#space_xs" style_pad_gap="#space_xs" style_bg_opa="0"
+            style_border_width="0" flex_flow="column" scrollable="false">
+      <text_heading name="cal_result_title" width="100%" bind_text="${prefix}_title" long_mode="dots"/>
+      <text_body name="cal_result_summary"
+                 width="100%" bind_text="${prefix}_summary" long_mode="wrap" style_text_color="#text_muted"
+                 style_pad_bottom="#space_sm"/>
+      <!-- Column heads, on the rows' grid (calibration_run_result_row). -->
+      <lv_obj width="100%"
+              height="content" style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="0"
+              style_pad_bottom="#space_xs" style_pad_gap="#space_md" style_bg_opa="0" style_border_width="0"
+              flex_flow="row" scrollable="false">
+        <text_small width="0"
+                    flex_grow="11" text="Value" text_transform="uppercase" style_text_font="#cal_font_badge"
+                    style_text_color="#text_muted" style_text_opa="204"/>
+        <text_small width="0"
+                    flex_grow="10" text="Before" text_transform="uppercase" style_text_font="#cal_font_badge"
+                    style_text_color="#text_muted" style_text_opa="204"/>
+        <lv_obj width="#cal_arrow_w" height="1" style_bg_opa="0" style_border_width="0"/>
+        <text_small width="0"
+                    flex_grow="13" text="After" text_transform="uppercase" style_text_font="#cal_font_badge"
+                    style_text_color="#text_muted" style_text_opa="204"/>
+      </lv_obj>
+      <lv_obj name="cal_result_rows"
+              width="100%" height="content" style_pad_all="0" style_pad_gap="#space_xs" style_bg_opa="0"
+              style_border_width="0" flex_flow="column" scrollable="false">
+        <repeat count="4">
+          <calibration_run_result_row prefix="$prefix" step="$i" label_subject="${prefix}_label_${i}"/>
+        </repeat>
+      </lv_obj>
+    </lv_obj>
+    <wizard_frame_footer name="cal_result_footer"
+                         back_text="Discard" back_tag="Discard" back_callback="$discard_callback"
+                         back_name="btn_result_discard" skip_text="Keep for Now" skip_tag="Keep for Now"
+                         skip_callback="$keep_callback" skip_name="btn_result_keep"
+                         skip_hide_subject="${prefix}_hide_keep" primary_text="Save to Config"
+                         primary_tag="Save to Config" primary_callback="$save_callback" primary_name="btn_result_save"
+                         primary_hide_subject="${prefix}_hide_save" status_subject="${prefix}_status"
+                         status_sub_subject="${prefix}_status_sub"/>
+  </view>
+</component>

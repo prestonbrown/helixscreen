@@ -13,6 +13,7 @@
 #include "app_globals.h"
 #include "bed_plate_context.h"
 #include "calibration_config_results.h"
+#include "calibration_run_steps.h"
 #include "config.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
@@ -22,6 +23,7 @@
 #include "moonraker_api.h"
 #include "motion_presets.h"
 #include "observe_language.h"
+#include "platform_info.h"
 #include "printer_state.h"
 #include "probe_preparation.h"
 #include "probe_sensor_manager.h"
@@ -91,6 +93,8 @@ void ZOffsetCalibrationPanel::init_subjects() {
     UI_MANAGED_SUBJECT_STRING(error_text_subject_, error_text_buf_, "", "zoffset_error_text",
                               subjects_);
     UI_MANAGED_SUBJECT_INT(run_mode_subject_, 0, "zoffset_cal_run_mode", subjects_);
+    UI_MANAGED_SUBJECT_INT(accepting_subject_, 0, "zoffset_accepting", subjects_);
+    result_view_.init_subjects(subjects_);
     UI_MANAGED_SUBJECT_INT(not_run_subject_, 1, "zoffset_not_run", subjects_);
     UI_MANAGED_SUBJECT_STRING(back_text_subject_, back_text_buf_, lv_tr("Abort"),
                               "zoffset_back_text", subjects_);
@@ -121,6 +125,12 @@ void ZOffsetCalibrationPanel::init_subjects() {
              [](lv_event_t*) { get_global_zoffset_cal_panel().handle_abort_clicked(); }},
             {"on_zoffset_accept_clicked",
              [](lv_event_t*) { get_global_zoffset_cal_panel().handle_accept_clicked(); }},
+            {"on_zoffset_result_save",
+             [](lv_event_t*) { get_global_zoffset_cal_panel().handle_result_save(); }},
+            {"on_zoffset_result_keep",
+             [](lv_event_t*) { get_global_zoffset_cal_panel().handle_result_keep(); }},
+            {"on_zoffset_result_discard",
+             [](lv_event_t*) { get_global_zoffset_cal_panel().handle_result_discard(); }},
             {"on_zoffset_done_clicked",
              [](lv_event_t*) { get_global_zoffset_cal_panel().handle_done_clicked(); }},
             {"on_zoffset_retry_clicked",
@@ -413,6 +423,10 @@ void ZOffsetCalibrationPanel::set_state(State new_state) {
         // Every way a run ends lands here, and the panel can stay open afterwards.
         turn_off_bed_if_needed();
     }
+    if (new_state == State::REVIEW) {
+        // The probing is over; the result page can wait as long as it likes.
+        turn_off_bed_if_needed();
+    }
 
     // Manage operation timeout guard based on state transitions
     switch (new_state) {
@@ -545,12 +559,19 @@ static std::string per_head_refusal() {
 }
 
 void ZOffsetCalibrationPanel::start_calibration() {
-    if (run_done_) {
-        // The run's "Before you start" page already had the bed cleared.
+    // The run's "Before you start" page already had the bed cleared, and the
+    // mounted-tool question asks for a clear bed itself: one question either way.
+    if (run_done_ || mounted_tool_question_due()) {
         start_once_bed_clear();
         return;
     }
     ensure_bed_clear_then(lifetime_.token(), [this]() { start_once_bed_clear(); });
+}
+
+bool ZOffsetCalibrationPanel::mounted_tool_question_due() const {
+    const auto reference = tool_offsets::probe_reference_tool(get_printer_state().get_discovery());
+    return zoffset_cal::mounted_reference_gate(run_strategy(), reference, ToolState::instance()) ==
+           zoffset_cal::ToolGate::ConfirmFirst;
 }
 
 void ZOffsetCalibrationPanel::open_for_run(IMoonrakerAPI* api, int step_index, int step_count,
@@ -688,7 +709,7 @@ void ZOffsetCalibrationPanel::confirm_tool_then_start(int reference_tool, int ac
     const auto& tools = ToolState::instance();
     const std::string reference =
         helix::ui::active_head_name_label(tools.head_identity_for_offset_tool(reference_tool));
-    const std::string message =
+    std::string message =
         active_tool >= 0
             ? fmt::format(
                   fmt::runtime(lv_tr("{0} is mounted. With one shared probe, calibrate "
@@ -698,6 +719,10 @@ void ZOffsetCalibrationPanel::confirm_tool_then_start(int reference_tool, int ac
             : fmt::format(fmt::runtime(lv_tr("No tool is known to be mounted. With one shared "
                                              "probe, calibrate with {}. Continue anyway?")),
                           reference);
+    if (!run_done_) {
+        message += " ";
+        message += lv_tr("Clear the bed first.");
+    }
     spdlog::info("[ZOffsetCal] Tool {} mounted, probe reference is {}: asking first", active_tool,
                  reference);
 
@@ -717,6 +742,8 @@ void ZOffsetCalibrationPanel::confirm_tool_then_start(int reference_tool, int ac
         [this]() {
             tool_confirm_pending_ = false;
             tool_confirm_dialog_ = nullptr;
+            // The question asked for a clear bed, so nothing asks again.
+            mark_bed_cleared();
             if (!can_begin_now()) {
                 spdlog::info("[ZOffsetCal] Mounted-tool question answered too late, not starting");
                 return;
@@ -1076,32 +1103,19 @@ void ZOffsetCalibrationPanel::send_accept() {
             // A scan-probe ACCEPT replies only after its post-test sweep.
             IAdvancedAPI::kProbingTimeoutMs);
     } else {
-        // Probe/endstop: ACCEPT then apply+save
+        // Probe/endstop: ACCEPT stages the result, then the result page asks
+        // whether to save it now, keep it staged or drop it.
         spdlog::info("[ZOffsetCal] Sending ACCEPT");
         set_state(State::SAVING);
+        lv_subject_set_int(&accepting_subject_, 1);
 
-        // Token + api captured on the main thread so the bg-thread ACCEPT callback never
-        // touches `this` members (no bg-thread lifetime_.token()/api_ access). api_ (the
-        // IMoonrakerAPI) outlives the panel; all `this` work is deferred to the main thread (L081).
         auto accept_token = lifetime_.token();
         api_->execute_gcode(
             "ACCEPT",
-            [this, strategy, api = api_, accept_token]() {
-                spdlog::info("[ZOffsetCal] ACCEPT success, applying and saving");
-                helix::zoffset::save_accepted_calibration(
-                    api, save_config_watch_, strategy,
-                    [this, accept_token]() {
-                        accept_token.defer(
-                            "ZOffsetCalibrationPanel::on_calibration_result(accept_ok)",
-                            [this]() { on_calibration_result(true, ""); });
-                    },
-                    [this, accept_token](const std::string& error) {
-                        std::string msg = error;
-                        accept_token.defer(
-                            "ZOffsetCalibrationPanel::on_calibration_result(accept_save_fail)",
-                            [this, msg = std::move(msg)]() { on_calibration_result(false, msg); });
-                    },
-                    &get_printer_state());
+            [this, accept_token]() {
+                spdlog::info("[ZOffsetCal] ACCEPT success, asking whether to save");
+                accept_token.defer("ZOffsetCalibrationPanel::show_review",
+                                   [this]() { show_review(); });
             },
             [this, token = lifetime_.token()](const MoonrakerError& err) {
                 // No bg-thread token.expired() — token.defer() gates on the main thread (L081).
@@ -1266,6 +1280,81 @@ void ZOffsetCalibrationPanel::leave_run_unaccepted() {
     // whether to go on without a Z offset (on_dismissed()).
     if (run_done_ && is_visible()) {
         helix::nav::go_back();
+    }
+}
+
+void ZOffsetCalibrationPanel::show_review() {
+    const std::string before = lv_subject_get_string(&saved_text_subject_);
+    const std::string position =
+        fmt::format(fmt::runtime(lv_tr("Accepted Z Position: {:.3f}")), final_offset_);
+    const auto publish = [this, before, position](const nlohmann::json& pending) {
+        lv_subject_set_int(&accepting_subject_, 0);
+        const auto staged = helix::calibration::staged_z_offset(pending);
+        const std::string after =
+            staged ? helix::calibration::format_z_offset(*staged) : std::string();
+        const auto facts = helix::calibration::staged_result_facts(
+            get_printer_state().get_discovery(), pending, !helix::firmware_supervised());
+        result_view_.publish(lv_tr("Z offset found"), position,
+                             {{lv_tr("Z offset"), before, after}},
+                             helix::calibration::result_choices(facts));
+        set_state(State::REVIEW);
+    };
+    if (!api_) {
+        publish(nlohmann::json());
+        return;
+    }
+    api_->advanced().get_save_config_pending_items(
+        lifetime_.bg_cb("ZOffsetCal.pending", publish),
+        lifetime_.bg_cb("ZOffsetCal.pending_error",
+                        [publish](const MoonrakerError&) { publish(nlohmann::json()); }));
+}
+
+void ZOffsetCalibrationPanel::handle_result_save() {
+    if (state_ != State::REVIEW || !api_) {
+        return;
+    }
+    spdlog::info("[ZOffsetCal] Result: Save to Config");
+    set_state(State::SAVING);
+    auto token = lifetime_.token();
+    helix::zoffset::save_accepted_calibration(
+        api_, save_config_watch_, run_strategy(),
+        [this, token]() {
+            token.defer("ZOffsetCalibrationPanel::on_calibration_result(save_ok)",
+                        [this]() { on_calibration_result(true, ""); });
+        },
+        [this, token](const std::string& error) {
+            token.defer("ZOffsetCalibrationPanel::on_calibration_result(save_fail)",
+                        [this, error]() { on_calibration_result(false, error); });
+        },
+        &get_printer_state());
+}
+
+void ZOffsetCalibrationPanel::handle_result_keep() {
+    if (state_ != State::REVIEW) {
+        return;
+    }
+    // ACCEPT staged it: Klipper keeps it until a save or a restart; nothing to send.
+    spdlog::info("[ZOffsetCal] Result: Keep for Now");
+    set_state(State::IDLE);
+    helix::nav::go_back();
+}
+
+void ZOffsetCalibrationPanel::handle_result_discard() {
+    if (state_ != State::REVIEW) {
+        return;
+    }
+    const bool drop =
+        result_view_.choices().discard == helix::calibration::DiscardMeaning::RestartDropsIt;
+    spdlog::info("[ZOffsetCal] Result: Discard (restart={})", drop);
+    set_state(State::IDLE);
+    if (drop && api_) {
+        // A restart drops what ACCEPT staged: the guided run's discard.
+        discarder_ = std::make_unique<helix::calibration::MoonrakerRunFinisher>(*api_);
+        discarder_->discard_all(
+            []() {},
+            [](const std::string& err) {
+                NOTIFY_ERROR("{}", fmt::format(fmt::runtime(lv_tr("Discard failed: {}")), err));
+            });
     }
 }
 

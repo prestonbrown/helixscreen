@@ -34,31 +34,31 @@ constexpr cal::BeltAxes kAxisOptions[] = {cal::BeltAxes::Both, cal::BeltAxes::X,
 AsyncLifetimeGuard s_row_lifetime;
 
 void confirm_cutter_calibration() {
-    modal_confirm(lv_tr(cal::cutter_entry_name()),
-                  lv_tr("The printer homes X and Y if needed, then drives the toolhead into the "
-                        "cutter to find its position. Unload the filament first."),
-                  ModalSeverity::Warning, lv_tr("Start"), []() {
-                      start_cutter_calibration(get_moonraker_api(),
-                                               get_printer_state().get_discovery());
-                  });
+    // The one question before the machine moves; Start also marks the bed cleared.
+    helix::confirm_calibration_start(
+        lv_tr(cal::cutter_entry_name()),
+        lv_tr("The printer homes X and Y if needed, then drives the toolhead into the cutter to "
+              "find its position. Unload the filament first. Clear the bed first."),
+        lv_tr("Start"), s_row_lifetime.token(), []() {
+            start_cutter_calibration(get_moonraker_api(), get_printer_state().get_discovery());
+        });
 }
 
 void on_belt_row_clicked(lv_event_t*) {
     if (!cal::can_tension_belts(get_printer_state().get_discovery())) {
         return;
     }
-    ensure_bed_clear_then(s_row_lifetime.token(), []() {
-        if (!BeltTensionAutoModal::show_owned()) {
-            NOTIFY_ERROR(lv_tr("Failed to show confirmation dialog"));
-        }
-    });
+    // Its own dialog is the one question: Start there also marks the bed cleared.
+    if (!BeltTensionAutoModal::show_owned()) {
+        NOTIFY_ERROR(lv_tr("Failed to show confirmation dialog"));
+    }
 }
 
 void on_cutter_row_clicked(lv_event_t*) {
     if (!cal::can_calibrate_cutter(get_printer_state().get_discovery())) {
         return;
     }
-    ensure_bed_clear_then(s_row_lifetime.token(), confirm_cutter_calibration);
+    confirm_cutter_calibration();
 }
 
 void send(IMoonrakerAPI* api, std::string gcode, const char* log_name, const char* display_key,
@@ -105,6 +105,8 @@ void BeltTensionAutoModal::on_ok() {
     const cal::BeltAxes axes =
         index < std::size(kAxisOptions) ? kAxisOptions[index] : cal::BeltAxes::Both;
     hide();
+    // The dialog asked for a clear bed, so nothing asks again.
+    mark_bed_cleared();
     start_belt_tension(get_moonraker_api(), get_printer_state().get_discovery(), axes);
 }
 

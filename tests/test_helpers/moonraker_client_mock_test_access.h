@@ -25,6 +25,11 @@ class MoonrakerClientMockTestAccess {
     // notify callbacks — the same frames connect() emits, without the
     // 250 ms connect delay, historical-temperature burst, and simulation
     // thread that make connect()-based assertions racy.
+    /// Stage a config option for the next SAVE_CONFIG, as configfile.set() does.
+    static void stage_config_change(MoonrakerClientMock& c, const std::string& section,
+                                    const std::string& option, const std::string& value) {
+        c.stage_config_change(section, option, value);
+    }
     static void dispatch_initial_state(MoonrakerClientMock& c) {
         c.dispatch_initial_state();
     }

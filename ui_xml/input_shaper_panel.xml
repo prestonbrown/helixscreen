@@ -41,7 +41,7 @@
                            primary_callback="input_shaper_measure_cb" primary_moves_machine="true"
                            secondary_name="btn_shaper_advanced" secondary_text="Advanced"
                            secondary_callback="input_shaper_help_cb"
-                           primary_disabled_cond="printer_has_accelerometer eq 0">
+                           primary_disabled_cond="printer_has_accelerometer eq 0" status_subject="is_intro_duration">
           <!-- Current shapers, as printer.cfg has them -->
           <lv_obj name="shaper_now_card"
                   width="100%" height="content" style_radius="#border_radius" style_bg_color="#elevated_bg"
@@ -137,7 +137,6 @@
                         text="Shakes the toolhead through a frequency sweep on each axis and picks the shaper that cancels the strongest vibration."/>
           </calibration_intro-settings>
           <calibration_intro-badges>
-            <cal_intro_badge name="shaper_badge_time" bind="is_intro_duration"/>
             <cal_intro_badge name="shaper_badge_loud" text="loud" variant="warm"/>
             <cal_intro_badge name="shaper_badge_moves" text="homes, then moves fast"/>
           </calibration_intro-badges>

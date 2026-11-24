@@ -73,6 +73,17 @@ class ZOffsetCalibrationTestAccess {
         panel.state_ = state;
     }
 
+    /// The result page's three choices.
+    static void result_save(ZOffsetCalibrationPanel& panel) {
+        panel.handle_result_save();
+    }
+    static void result_keep(ZOffsetCalibrationPanel& panel) {
+        panel.handle_result_keep();
+    }
+    static void result_discard(ZOffsetCalibrationPanel& panel) {
+        panel.handle_result_discard();
+    }
+
     /// What the Z adjuster's step chips and Raise / Lower pair call.
     static void pick_step(ZOffsetCalibrationPanel& panel, int index) {
         panel.handle_step_pick(index);

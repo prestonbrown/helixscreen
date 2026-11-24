@@ -327,11 +327,21 @@ TEST_CASE("A heater card names the switch only when the config changes",
 }
 
 TEST_CASE("Measuring the part fan lengthens an MPC nozzle run only", "[mpc_migration][pid_intro]") {
-    using P = PIDCalibrationPanel;
-    using H = P::Heater;
-    CHECK(P::estimate_minutes(H::EXTRUDER, CalibMethod::MPC, true) >
-          P::estimate_minutes(H::EXTRUDER, CalibMethod::MPC, false));
-    CHECK(P::estimate_minutes(H::EXTRUDER, CalibMethod::PID, true) ==
-          P::estimate_minutes(H::EXTRUDER, CalibMethod::PID, false));
-    CHECK(P::estimate_minutes(H::BED, CalibMethod::PID, false) == 8);
+    using helix::calibration::heater_calibration_seconds;
+    using helix::calibration::HeaterPricing;
+    HeaterPricing nozzle;
+    nozzle.climb_rate = 0.25f;
+    nozzle.mpc = true;
+    HeaterPricing with_fan = nozzle;
+    with_fan.measure_fan = true;
+    CHECK(heater_calibration_seconds(with_fan) > heater_calibration_seconds(nozzle));
+
+    nozzle.mpc = with_fan.mpc = false;
+    CHECK(heater_calibration_seconds(with_fan) == heater_calibration_seconds(nozzle));
+
+    HeaterPricing bed;
+    bed.bed = bed.mpc = true;
+    HeaterPricing bed_fan = bed;
+    bed_fan.measure_fan = true;
+    CHECK(heater_calibration_seconds(bed_fan) == heater_calibration_seconds(bed));
 }

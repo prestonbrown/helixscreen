@@ -367,6 +367,9 @@ src/ui/calibration/ui_panel_calibration_tool_offset.cpp  # not in the v1 Core+AM
 src/ui/calibration/ui_belt_cutter_cal.cpp  # not in the v1 Core+AMS cut
 src/ui/calibration/ui_stepper_resonance_cal_modal.cpp  # not in the v1 Core+AMS cut
 src/ui/calibration/ui_calibration_holds.cpp  # its routine starter serves only screens outside the v1 Core+AMS cut
+src/calibration/calibration_result_choices.cpp  # its result pages are on screens outside the v1 Core+AMS cut
+src/ui/calibration/ui_calibration_result.cpp  # its result pages are on screens outside the v1 Core+AMS cut
+src/ui/calibration/ui_calibration_time.cpp  # its time lines are on screens outside the v1 Core+AMS cut
 src/ui/calibration/ui_panel_calibration_pa.cpp  # not in the v1 Core+AMS cut
 src/ui/calibration/ui_overlay_pa_tuning.cpp  # not in the v1 Core+AMS cut
 src/printer/pa_nonlinear_tuning.cpp  # only the PA tuning overlay uses it

@@ -104,7 +104,7 @@ class ToolOffsetCalibrationPanel : public OverlayBase {
 
     /// Confirm, then run CALIBRATE_TOOL_OFFSETS (no-op while a run is in flight)
     void start_calibration();
-    /// start_calibration() once the bed is known clear: the run confirmation.
+    /// The run confirmation, which also stands for "the bed is clear".
     void confirm_calibration();
     /// The run itself, once the user has confirmed
     void begin_run();

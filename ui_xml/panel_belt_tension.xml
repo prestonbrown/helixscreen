@@ -187,7 +187,7 @@
                              primary_text="Compare belts" primary_callback="belt_tension_start_cb"
                              primary_moves_machine="true" secondary_name="btn_belt_names"
                              secondary_text="Which belt is which?" secondary_callback="belt_tension_names_cb"
-                             primary_disabled_cond="bt_can_start eq 0">
+                             primary_disabled_cond="bt_can_start eq 0" status_subject="bt_intro_minutes">
             <!-- The sketch draws its own frame -->
             <belt_path_sketch name="bt_sketch" width="100%" height="#cal_intro_picture_h"/>
             <text_small name="bt_intro_caption"
@@ -239,7 +239,6 @@
               </lv_obj>
             </calibration_intro-settings>
             <calibration_intro-badges>
-              <cal_intro_badge name="bt_badge_time" bind="bt_intro_minutes"/>
               <cal_intro_badge name="bt_badge_loud" text="loud" variant="warm"/>
               <cal_intro_badge name="bt_badge_sweep" bind="bt_hw_sweep"/>
             </calibration_intro-badges>
