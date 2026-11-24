@@ -14,7 +14,10 @@
 #include "standard_macros.h"
 #include "test_helpers/registered_backend.h"
 #include "test_helpers/toolchanger_test_access.h"
+#include "tool_offset_calibration.h"
 #include "toolchanger_addon.h"
+
+#include <chrono>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -1046,4 +1049,129 @@ TEST_CASE("A rejected Z-Mod swap ends: its markers never say idle",
     tc.reject_last_send(MoonrakerErrorType::JSON_RPC_ERROR, "Grab failed");
     CHECK(tc.get_current_action() == AmsAction::IDLE);
     CHECK_FALSE(tc.get_system_info().is_busy());
+}
+
+// Lines are verbatim from zmod_color.py cmd_T_CALIBRATE_EXTRUDERS (Z-Mod 1.7.5,
+// read off a Creator 5 Pro), with the respond_info framing the wire adds.
+TEST_CASE("Z-Mod's extruder calibration lines classify into steps",
+          "[toolchanger][zmod][calibration]") {
+    using Kind = toolchanger_addon::ZmodCalibrationStep::Kind;
+
+    auto station_start = toolchanger_addon::parse_zmod_calibration_line("// [CALIB] TS: ...");
+    REQUIRE(station_start.has_value());
+    CHECK(station_start->kind == Kind::Started);
+    CHECK(station_start->station);
+
+    auto station = toolchanger_addon::parse_zmod_calibration_line(
+        "// [CALIB] TS: X=120.1234 Y=-3.5000 Z=2.0010");
+    REQUIRE(station.has_value());
+    CHECK(station->kind == Kind::Measured);
+    CHECK(station->station);
+    CHECK(station->x_um == 120123);
+    CHECK(station->y_um == -3500);
+    CHECK(station->z_um == 2001);
+
+    auto started = toolchanger_addon::parse_zmod_calibration_line("// [CALIB] T2: ...");
+    REQUIRE(started.has_value());
+    CHECK(started->kind == Kind::Started);
+    CHECK(started->tool == 2);
+    CHECK_FALSE(started->station);
+
+    auto measured = toolchanger_addon::parse_zmod_calibration_line(
+        "// [CALIB] T3: X=0.250000 Y=-0.125000 Z=0.040000");
+    REQUIRE(measured.has_value());
+    CHECK(measured->kind == Kind::Measured);
+    CHECK(measured->tool == 3);
+    CHECK(measured->x_um == 250);
+    CHECK(measured->y_um == -125);
+    CHECK(measured->z_um == 40);
+
+    auto skipped =
+        toolchanger_addon::parse_zmod_calibration_line("// [CALIB] T1: Skipped (parameter T1=0)");
+    REQUIRE(skipped.has_value());
+    CHECK(skipped->kind == Kind::Skipped);
+    CHECK(skipped->tool == 1);
+
+    // The Russian build words it "Пропущен (параметр T0=0)".
+    auto ru =
+        toolchanger_addon::parse_zmod_calibration_line("// [CALIB] T0: Пропущен (параметр T0=0)");
+    REQUIRE(ru.has_value());
+    CHECK(ru->kind == Kind::Skipped);
+    CHECK(ru->tool == 0);
+
+    auto done = toolchanger_addon::parse_zmod_calibration_line("// Calibration complete.");
+    REQUIRE(done.has_value());
+    CHECK(done->kind == Kind::Complete);
+
+    // The closing summary repeats the offsets as plain "// T0: X=" lines, and
+    // other console chatter says nothing about a step.
+    CHECK_FALSE(
+        toolchanger_addon::parse_zmod_calibration_line("// T0: X=0.250000 Y=-0.125000 Z=0.040000"));
+    CHECK_FALSE(
+        toolchanger_addon::parse_zmod_calibration_line("// Grab attempt for T0: 1 of 5..."));
+    CHECK_FALSE(toolchanger_addon::parse_zmod_calibration_line("// [CALIB] garbage"));
+}
+
+TEST_CASE("Z-Mod calibration console lines reach the progress sink",
+          "[toolchanger][zmod][calibration]") {
+    namespace cal = helix::tool_offset_calibration;
+    std::vector<cal::ProgressEvent> heard;
+    cal::set_progress_sink([&heard](const cal::ProgressEvent& e) { heard.push_back(e); });
+
+    // The pre-filter lets progress lines through and nothing else.
+    CHECK(cal::is_progress_line("// [CALIB] T0: ..."));
+    CHECK(cal::is_progress_line("// Calibration complete."));
+    CHECK_FALSE(cal::is_progress_line("// echo: ok"));
+
+    // The completion sentence is untagged, so only a run in progress owns it.
+    CHECK_FALSE(cal::report_progress_line("// Calibration complete."));
+    cal::report_progress_line("// [CALIB] T3: X=0.250000 Y=-0.125000 Z=0.040000");
+    cal::report_progress_line("// [CALIB] T1: Skipped (parameter T1=0)");
+    CHECK(cal::report_progress_line("// Calibration complete."));
+    CHECK_FALSE(cal::report_progress_line("// Calibration complete."));
+    cal::report_progress_line("// echo: ok");
+    cal::set_progress_sink(nullptr);
+
+    REQUIRE(heard.size() == 3);
+    CHECK(heard[0].kind == cal::ProgressEvent::Kind::Measured);
+    CHECK(heard[0].tool == 3);
+    CHECK(heard[0].z_um == 40);
+    CHECK(heard[1].kind == cal::ProgressEvent::Kind::Skipped);
+    CHECK(heard[2].kind == cal::ProgressEvent::Kind::Complete);
+}
+
+TEST_CASE("Z-Mod's Russian completion sentence and garbled coordinates",
+          "[toolchanger][zmod][calibration]") {
+    using Kind = toolchanger_addon::ZmodCalibrationStep::Kind;
+    auto done = toolchanger_addon::parse_zmod_calibration_line("// Калибровка завершена.");
+    REQUIRE(done.has_value());
+    CHECK(done->kind == Kind::Complete);
+
+    CHECK_FALSE(toolchanger_addon::parse_zmod_calibration_line(
+        "// [CALIB] T0: X=nan Y=0.000000 Z=0.000000"));
+    CHECK_FALSE(toolchanger_addon::parse_zmod_calibration_line(
+        "// [CALIB] T0: X=1e30 Y=0.000000 Z=0.000000"));
+}
+
+TEST_CASE("A Z-Mod calibration run that went quiet or ended no longer owns the completion line",
+          "[toolchanger][zmod][calibration]") {
+    namespace cal = helix::tool_offset_calibration;
+    using Clock = std::chrono::steady_clock;
+    cal::set_progress_sink(nullptr);
+    const Clock::time_point start{};
+
+    // Silent past the idle bound: aborted, so the sentence is not a completion.
+    CHECK(cal::report_progress_line("// [CALIB] TS: ...", start));
+    CHECK_FALSE(
+        cal::report_progress_line("// Calibration complete.", start + std::chrono::minutes(16)));
+
+    // A line inside the bound keeps the run alive.
+    CHECK(cal::report_progress_line("// [CALIB] T0: ...", start));
+    CHECK(cal::report_progress_line("// [CALIB] T1: ...", start + std::chrono::minutes(10)));
+    CHECK(cal::report_progress_line("// Calibration complete.", start + std::chrono::minutes(20)));
+
+    // Stopping the backend ends the run.
+    CHECK(cal::report_progress_line("// [CALIB] T0: ...", start));
+    cal::end_progress_run();
+    CHECK_FALSE(cal::report_progress_line("// Calibration complete.", start));
 }

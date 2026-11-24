@@ -4726,6 +4726,7 @@ translations:
   Startup, auto-control, and macro devices: 启动、自动控制和宏设备
   State: 状态
   Static: '静态'
+  Station: ''
   Status: 状态
   Status icons: 状态图标
   Stay at the printer.: 请留在打印机旁。
@@ -5585,6 +5586,7 @@ translations:
   Tool cycle finished: 依次更换工具完成
   Tool is seated: 工具已装好
   Tool may be half seated: "工具可能未完全安装到位"
+  Tool offset calibration complete: ''
   Tool offsets: '工具偏移'
   Tool offsets (mm): 工具偏移 (mm)
   Tool offsets saved: 工具偏移已保存
@@ -6409,6 +6411,7 @@ translations:
   '{} matches.': '{} 匹配。'
   '{} may be half seated on the head. Check it by hand.': "{} 可能未完全安装到工具头上，请手动检查。"
   '{} may cause unintended changes. Are you sure?': '{} 可能导致意外更改。确定吗？'
+  '{} measured: X {:.3f} Y {:.3f} Z {:.3f} mm': ''
   '{} meter reset': '{}计数器已重置'
   '{} min': '{} 分钟'
   '{} min ago': '{} 分钟前'

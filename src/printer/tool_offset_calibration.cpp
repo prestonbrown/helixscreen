@@ -12,6 +12,7 @@
 #endif
 
 #include <algorithm>
+#include <chrono>
 #include <string_view>
 
 namespace helix::tool_offset_calibration {
@@ -93,7 +94,98 @@ const Row kRows[] = {
      kMeasureDescription},
 };
 
+ProgressSink& progress_sink() {
+    static ProgressSink sink;
+    return sink;
+}
+
+/// A run is in progress from its first tagged line until its completion line.
+/// The completion sentence carries no tag, so a macro that prints the same words
+/// outside a run must not read as one.
+struct RunState {
+    bool active = false;
+    std::chrono::steady_clock::time_point last_line;
+};
+
+RunState& run_state() {
+    static RunState state;
+    return state;
+}
+
+/// The longest silence inside a live run. The gap between lines is a head's
+/// nozzle heating to purge temperature, the purge, and two measuring passes,
+/// which takes minutes (Z-Mod documents "several minutes" for the whole run).
+/// An estimate, not a measured figure: a run quiet for longer is treated as
+/// aborted.
+constexpr std::chrono::minutes kRunIdleTimeout{15};
+
 } // namespace
+
+bool is_progress_line(const std::string& line) {
+    return line.find("[CALIB] ") != std::string::npos ||
+           toolchanger_addon::parse_zmod_calibration_line(line).has_value();
+}
+
+std::optional<ProgressEvent> parse_progress_line(const std::string& line) {
+    using Step = toolchanger_addon::ZmodCalibrationStep;
+    const auto step = toolchanger_addon::parse_zmod_calibration_line(line);
+    if (!step) {
+        return std::nullopt;
+    }
+    ProgressEvent event;
+    switch (step->kind) {
+    case Step::Kind::Started:
+        event.kind = ProgressEvent::Kind::Started;
+        break;
+    case Step::Kind::Skipped:
+        event.kind = ProgressEvent::Kind::Skipped;
+        break;
+    case Step::Kind::Measured:
+        event.kind = ProgressEvent::Kind::Measured;
+        break;
+    case Step::Kind::Complete:
+        event.kind = ProgressEvent::Kind::Complete;
+        break;
+    }
+    event.tool = step->tool;
+    event.station = step->station;
+    event.x_um = step->x_um;
+    event.y_um = step->y_um;
+    event.z_um = step->z_um;
+    return event;
+}
+
+void set_progress_sink(ProgressSink sink) {
+    progress_sink() = std::move(sink);
+}
+
+bool report_progress_line(const std::string& line, std::chrono::steady_clock::time_point now) {
+    const auto event = parse_progress_line(line);
+    if (!event) {
+        return false;
+    }
+    RunState& run = run_state();
+    if (run.active && now - run.last_line > kRunIdleTimeout) {
+        run.active = false;
+    }
+    if (event->kind == ProgressEvent::Kind::Complete) {
+        if (!run.active) {
+            return false;
+        }
+        run.active = false;
+    } else {
+        run.active = true;
+        run.last_line = now;
+    }
+    if (progress_sink()) {
+        progress_sink()(*event);
+    }
+    return true;
+}
+
+void end_progress_run() {
+    run_state().active = false;
+}
 
 Procedure resolve_procedure(const PrinterDiscovery& hw) {
     for (const auto& row : kRows) {

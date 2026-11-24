@@ -25,6 +25,7 @@
 #include "print_start_params.h"
 #include "printer_state.h"
 #include "settings_manager.h"
+#include "tool_offset_calibration.h"
 #include "translation_loader.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -230,6 +231,7 @@ void AmsBackendToolChanger::on_klippy_ready() {
 }
 
 void AmsBackendToolChanger::on_stopping() {
+    helix::tool_offset_calibration::end_progress_run();
     unregister_zmod_marker_listener();
     unregister_mount_feed_listener();
 }
@@ -278,7 +280,8 @@ void AmsBackendToolChanger::register_zmod_marker_listener() {
                 line.find(": home") == std::string::npos &&
                 line.find(": HEAD") == std::string::npos &&
                 line.find("ERROR (both)") == std::string::npos &&
-                line.find("Offset:") == std::string::npos) {
+                line.find("Offset:") == std::string::npos &&
+                !helix::tool_offset_calibration::is_progress_line(line)) {
                 return;
             }
 
@@ -297,6 +300,9 @@ void AmsBackendToolChanger::unregister_zmod_marker_listener() {
 }
 
 void AmsBackendToolChanger::on_zmod_marker_line(const std::string& line) {
+    if (helix::tool_offset_calibration::report_progress_line(line)) {
+        return;
+    }
     if (auto reading = helix::toolchanger_addon::parse_zmod_marker(line)) {
         {
             std::lock_guard<std::mutex> lock(mutex_);

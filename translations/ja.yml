@@ -4726,6 +4726,7 @@ translations:
   Startup, auto-control, and macro devices: 起動、自動制御、マクロデバイス
   State: 状態
   Static: '固定'
+  Station: ''
   Status: ステータス
   Status icons: ステータスアイコン
   Stay at the printer.: プリンターのそばにいてください。
@@ -5585,6 +5586,7 @@ translations:
   Tool cycle finished: ツールの順次交換が完了しました
   Tool is seated: ツールは装着済み
   Tool may be half seated: "ツールが半分しか装着されていない可能性があります"
+  Tool offset calibration complete: ''
   Tool offsets: 'ツールオフセット'
   Tool offsets (mm): ツールオフセット (mm)
   Tool offsets saved: ツールオフセットを保存しました
@@ -6409,6 +6411,7 @@ translations:
   '{} matches.': '{} が一致します。'
   '{} may be half seated on the head. Check it by hand.': "{}がツールヘッドに半分しか装着されていない可能性があります。手で確認してください。"
   '{} may cause unintended changes. Are you sure?': '{} は意図しない変更を引き起こす可能性があります。よろしいですか？'
+  '{} measured: X {:.3f} Y {:.3f} Z {:.3f} mm': ''
   '{} meter reset': '{}のメーターをリセットしました'
   '{} min': '{} 分'
   '{} min ago': '{}分前'

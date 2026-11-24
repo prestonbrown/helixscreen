@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <string_view>
 
 #include "hv/json.hpp"
@@ -471,6 +472,77 @@ std::optional<ToolReading> parse_zmod_marker(const std::string& line) {
         return r;
     }
     return std::nullopt;
+}
+
+std::optional<ZmodCalibrationStep> parse_zmod_calibration_line(const std::string& line) {
+    using Kind = ZmodCalibrationStep::Kind;
+    constexpr std::string_view kTag = "[CALIB] ";
+    // "Калибровка завершена." as UTF-8.
+    constexpr std::string_view kCompleteRu =
+        "\xD0\x9A\xD0\xB0\xD0\xBB\xD0\xB8\xD0\xB1\xD1\x80\xD0\xBE\xD0\xB2\xD0\xBA\xD0\xB0 "
+        "\xD0\xB7\xD0\xB0\xD0\xB2\xD0\xB5\xD1\x80\xD1\x88\xD0\xB5\xD0\xBD\xD0\xB0.";
+    const std::string_view view = line;
+    const std::size_t tag = view.find(kTag);
+    if (tag == std::string_view::npos) {
+        if (view.find("Calibration complete.") != std::string_view::npos ||
+            view.find(kCompleteRu) != std::string_view::npos) {
+            ZmodCalibrationStep step;
+            step.kind = Kind::Complete;
+            return step;
+        }
+        return std::nullopt;
+    }
+
+    const std::string_view rest = view.substr(tag + kTag.size());
+    const std::size_t colon = rest.find(':');
+    if (colon == std::string_view::npos || colon < 2 || rest.front() != 'T') {
+        return std::nullopt;
+    }
+    ZmodCalibrationStep step;
+    const std::string_view target = rest.substr(1, colon - 1);
+    if (target == "S") {
+        step.station = true;
+    } else {
+        const auto index = helix::text_io::parse_leading<int>(std::string(target));
+        if (!index || *index < 0) {
+            return std::nullopt;
+        }
+        step.tool = *index;
+    }
+
+    const std::string_view body = rest.substr(colon + 1);
+    const auto axis = [&body](std::string_view key) -> std::optional<int> {
+        const std::size_t at = body.find(key);
+        if (at == std::string_view::npos) {
+            return std::nullopt;
+        }
+        const auto mm =
+            helix::text_io::parse_leading<double>(std::string(body.substr(at + key.size())));
+        if (!mm) {
+            return std::nullopt;
+        }
+        // A position is a few hundred mm at most; nan, inf or a runaway value is
+        // a garbled line, not a reading.
+        constexpr double kMaxPositionMm = 10000.0;
+        if (!std::isfinite(*mm) || std::fabs(*mm) > kMaxPositionMm) {
+            return std::nullopt;
+        }
+        return static_cast<int>(std::lround(*mm * 1000.0));
+    };
+    step.x_um = axis("X=");
+    step.y_um = axis("Y=");
+    step.z_um = axis("Z=");
+    if (step.x_um && step.y_um && step.z_um) {
+        step.kind = Kind::Measured;
+    } else if ((step.tool >= 0 &&
+                body.find("T" + std::to_string(step.tool) + "=0)") != std::string_view::npos)) {
+        step.kind = Kind::Skipped;
+    } else if (body.find("...") != std::string_view::npos) {
+        step.kind = Kind::Started;
+    } else {
+        return std::nullopt;
+    }
+    return step;
 }
 
 std::optional<ToolReading> parse_zmod_tinfo_line(const std::string& line, bool& block_ended_out) {

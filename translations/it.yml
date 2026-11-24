@@ -4726,6 +4726,7 @@ translations:
   Startup, auto-control, and macro devices: Avvio, controllo automatico e dispositivi macro
   State: Stato
   Static: 'Statico'
+  Station: ''
   Status: Stato
   Status icons: Icone stato
   Stay at the printer.: Resta vicino alla stampante.
@@ -5585,6 +5586,7 @@ translations:
   Tool cycle finished: Ciclo degli strumenti completato
   Tool is seated: Lo strumento è inserito
   Tool may be half seated: "Lo strumento potrebbe essere inserito a metà"
+  Tool offset calibration complete: ''
   Tool offsets: 'Offset strumenti'
   Tool offsets (mm): Offset strumenti (mm)
   Tool offsets saved: Offset strumenti salvati
@@ -6409,6 +6411,7 @@ translations:
   '{} matches.': '{} corrisponde.'
   '{} may be half seated on the head. Check it by hand.': "{} potrebbe essere inserito a metà sulla testina. Controlla a mano."
   '{} may cause unintended changes. Are you sure?': '{} potrebbe causare modifiche indesiderate. Sei sicuro?'
+  '{} measured: X {:.3f} Y {:.3f} Z {:.3f} mm': ''
   '{} meter reset': 'Contatore {} ripristinato'
   '{} min': '{} min'
   '{} min ago': '{} min fa'

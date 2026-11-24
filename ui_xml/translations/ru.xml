@@ -4643,6 +4643,7 @@
   <translation tag="Startup, auto-control, and macro devices" ru="Запуск, автоуправление и макро-устройства"/>
   <translation tag="State" ru="Состояние"/>
   <translation tag="Static" ru="Статический"/>
+  <translation tag="Station"/>
   <translation tag="Status" ru="Статус"/>
   <translation tag="Status icons" ru="Иконки статуса"/>
   <translation tag="Stay at the printer." ru="Оставайтесь у принтера."/>
@@ -5424,6 +5425,7 @@
   <translation tag="Tool cycle finished" ru="Перебор инструментов завершён"/>
   <translation tag="Tool is seated" ru="Инструмент установлен"/>
   <translation tag="Tool may be half seated" ru="Инструмент может быть установлен не полностью"/>
+  <translation tag="Tool offset calibration complete"/>
   <translation tag="Tool offsets" ru="Смещения инструментов"/>
   <translation tag="Tool offsets (mm)" ru="Смещения инструментов (мм)"/>
   <translation tag="Tool offsets saved" ru="Смещения инструментов сохранены"/>
@@ -6259,6 +6261,7 @@
   <translation tag="{} matches." ru="{} подходит."/>
   <translation tag="{} may be half seated on the head. Check it by hand." ru="{} может быть установлен на печатающую головку не полностью. Проверьте вручную."/>
   <translation tag="{} may cause unintended changes. Are you sure?" ru="{} может привести к непреднамеренным изменениям. Вы уверены?"/>
+  <translation tag="{} measured: X {:.3f} Y {:.3f} Z {:.3f} mm"/>
   <translation tag="{} meter reset" ru="Счётчик «{}» сброшен"/>
   <translation tag="{} min" ru="{} мин"/>
   <translation tag="{} min ago" ru="{} мин. назад"/>

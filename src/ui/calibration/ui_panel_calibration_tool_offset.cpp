@@ -554,7 +554,48 @@ void ToolOffsetCalibrationPanel::on_tools_changed() {
 
 // ADVANCED-PANEL ROW ENTRY
 
+namespace {
+
+/// The head's label as the panel rows spell it.
+std::string head_label_for_tool(int tool) {
+    auto& tools = helix::ToolState::instance();
+    for (const helix::PhysicalHead& head : tools.physical_heads()) {
+        if (head.holds_tool(tool)) {
+            return helix::ui::active_head_label(tools.head_identity(head),
+                                                helix::ui::ToolLabelForm::Code);
+        }
+    }
+    return helix::ui::tool_label(tool);
+}
+
+/// A printer-prompt calibration has no panel; its steps surface as toasts.
+void show_calibration_progress(const cal::ProgressEvent& event) {
+    const std::string target =
+        event.station ? std::string(lv_tr("Station")) : head_label_for_tool(event.tool);
+    switch (event.kind) {
+    case cal::ProgressEvent::Kind::Started:
+        NOTIFY_INFO("{}", fmt::format(fmt::runtime(lv_tr("Measuring {}")), target));
+        break;
+    case cal::ProgressEvent::Kind::Measured:
+        if (event.x_um && event.y_um && event.z_um) {
+            NOTIFY_INFO(
+                "{}", fmt::format(fmt::runtime(lv_tr("{} measured: X {:.3f} Y {:.3f} Z {:.3f} mm")),
+                                  target, *event.x_um / 1000.0, *event.y_um / 1000.0,
+                                  *event.z_um / 1000.0));
+        }
+        break;
+    case cal::ProgressEvent::Kind::Complete:
+        NOTIFY_SUCCESS("{}", lv_tr("Tool offset calibration complete"));
+        break;
+    case cal::ProgressEvent::Kind::Skipped:
+        break;
+    }
+}
+
+} // namespace
+
 void init_tool_offset_row_handler() {
+    cal::set_progress_sink(show_calibration_progress);
     register_xml_callbacks({
         {"on_tool_offset_row_clicked",
          [](lv_event_t*) { open_tool_offset_cal_panel(lv_screen_active()); }},
