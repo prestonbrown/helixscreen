@@ -21,6 +21,7 @@
 #include "ui_panel_bed_mesh.h"
 #include "ui_panel_calibration_pid.h"
 #include "ui_panel_input_shaper.h"
+#include "ui_probe_overlay.h"
 #include "ui_toast_manager.h"
 
 #include "../lvgl_test_fixture.h"
@@ -29,6 +30,7 @@
 #include "../test_helpers/input_shaper_panel_test_access.h"
 #include "../test_helpers/moonraker_client_test_access.h"
 #include "../test_helpers/pid_calibration_panel_test_access.h"
+#include "../test_helpers/probe_overlay_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
@@ -40,7 +42,9 @@
 #include "z_offset_utils.h"
 
 #include <algorithm>
+#include <chrono>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -321,4 +325,30 @@ TEST_CASE_METHOD(ExpectedRestartFixture, "PID SAVE_CONFIG initiates the restart 
     CHECK(toasts[0].severity == ToastSeverity::INFO);
     CHECK(toasts[0].message == "Saving config... Klipper will restart.");
     CHECK(notifications.empty());
+}
+
+TEST_CASE_METHOD(ExpectedRestartFixture, "a probe config save initiates the restart contract",
+                 "[expectedrestart][probe][config_edit]") {
+    api.set_config_files({{"printer.cfg", "[probe]\npin: PA1\nz_offset: 1.000\n"}});
+    ProbeOverlay overlay;
+    overlay.set_api(&api);
+    ProbeOverlayTestAccess::stage_edit(overlay, "probe", "z_offset", "1.250");
+    ProbeOverlayTestAccess::save(overlay);
+
+    // The config load answers on a worker and hops back through the UI queue
+    // before the edit, and its restart, are sent.
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+    while (!EmergencyStopOverlay::instance().is_recovery_suppressed() &&
+           std::chrono::steady_clock::now() < deadline) {
+        settle();
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+
+    CHECK(EmergencyStopOverlay::instance().is_recovery_suppressed());
+    CHECK(api.suppress_disconnect_modal_calls() >= 1);
+    REQUIRE_FALSE(toasts.empty());
+    CHECK(toasts[0].severity == ToastSeverity::INFO);
+
+    overlay.set_api(nullptr);
+    settle();
 }

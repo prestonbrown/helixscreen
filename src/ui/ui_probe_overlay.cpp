@@ -4,6 +4,7 @@
 #include "ui_probe_overlay.h"
 
 #include "ui_callback_helpers.h"
+#include "ui_emergency_stop.h"
 #include "ui_error_reporting.h"
 #include "ui_modal.h"
 #include "ui_panel_bed_mesh.h"
@@ -1015,24 +1016,26 @@ void ProbeOverlay::handle_config_save() {
     // Both editor calls answer on a background thread.
     config_editor_.load_config_files(
         *api_,
-        lifetime_.bg_cb("ProbeOverlay::config_loaded",
-                        [this, section, field, new_value](
-                            std::map<std::string, helix::system::SectionLocation> /*section_map*/) {
-                            auto token = lifetime_.token();
-                            config_editor_.safe_edit_value(
-                                *api_, section, field, new_value,
-                                [this, token]() {
-                                    spdlog::info("[Probe] Config edit saved successfully");
-                                    token.defer([this]() {
-                                        // Reload config values to reflect the change
-                                        load_config_values();
-                                    });
-                                },
-                                // The safe-edit flow has already reverted the file.
-                                [field](const std::string& err) {
-                                    notify_config_edit_failed(field, err);
-                                });
-                        }),
+        lifetime_.bg_cb(
+            "ProbeOverlay::config_loaded",
+            [this, section, field,
+             new_value](std::map<std::string, helix::system::SectionLocation> /*section_map*/) {
+                auto token = lifetime_.token();
+                // safe_edit_value() ends in FIRMWARE_RESTART, so the
+                // restart that follows is expected rather than a fault.
+                helix::ui::begin_expected_klippy_restart("Saving config... Klipper will restart.");
+                config_editor_.safe_edit_value(
+                    *api_, section, field, new_value,
+                    [this, token]() {
+                        spdlog::info("[Probe] Config edit saved successfully");
+                        token.defer([this]() {
+                            // Reload config values to reflect the change
+                            load_config_values();
+                        });
+                    },
+                    // The safe-edit flow has already reverted the file.
+                    [field](const std::string& err) { notify_config_edit_failed(field, err); });
+            }),
         [field](const std::string& err) { notify_config_edit_failed(field, err); });
 }
 
