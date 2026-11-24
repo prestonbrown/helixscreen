@@ -2336,6 +2336,13 @@ void UpdateChecker::do_install(const std::string& tarball_path, InstallOrigin or
                   staging_parent);
     }
 
+    // A manual install during an automatic install's trial ends that trial: the
+    // guard would otherwise restore the trial's predecessor over this install.
+    if (origin == InstallOrigin::User && helix::update::rollback_guard_armed()) {
+        flog_info("[UpdateChecker] Manual install: ending the automatic update's rollback trial");
+        helix::update::disarm_rollback_guard();
+    }
+
     // An automatic install keeps the previous version beside the new one for the
     // launcher's rollback guard; install.sh refuses an update that cannot.
     const std::string rollback_guard_dir = helix::update::rollback_dir();

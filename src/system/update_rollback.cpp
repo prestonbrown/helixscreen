@@ -121,6 +121,18 @@ std::string rollback_dir() {
     return dir != nullptr ? std::string(dir) : std::string();
 }
 
+void disarm_rollback_guard() {
+    const std::string dir = rollback_dir();
+    if (dir.empty()) {
+        return;
+    }
+    for (const char* name : {kRollbackArmedFile, "update_rollback.starts", kRollbackHealthyFile,
+                             kRollbackRequestFile, kRollbackStoppingFile, kRollbackBusyFile,
+                             "update_rollback.phase", "update_rollback.handoff"}) {
+        remove_rollback_file(dir, name);
+    }
+}
+
 bool rollback_guard_armed() {
     const std::string dir = rollback_dir();
     std::error_code ec;

@@ -86,6 +86,11 @@ std::string rollback_dir();
 /// trial)? The scheduler installs nothing automatically until it is settled.
 bool rollback_guard_armed();
 
+/// Drops an armed guard and every file of its trial. A manual install does this
+/// first: the trial it would otherwise end in is for the version it replaces,
+/// and the guard must not restore that over what the user installed.
+void disarm_rollback_guard();
+
 /// Does this install keep the previous version for the guard? Only an
 /// automatic install does, and only where rollback is supported and a guard
 /// is listening.

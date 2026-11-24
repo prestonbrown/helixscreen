@@ -286,3 +286,24 @@ TEST_CASE_METHOD(RollbackDirFixture,
     UpdateChecker::cleanup_stale_old_install(root);
     CHECK_FALSE(std::filesystem::exists(root + ".old"));
 }
+
+TEST_CASE_METHOD(RollbackDirFixture, "Disarming drops the marker and every file of the trial",
+                 "[auto_update][rollback]") {
+    arm();
+    for (const char* name :
+         {kRollbackHealthyFile, kRollbackRequestFile, kRollbackStoppingFile, kRollbackBusyFile,
+          "update_rollback.starts", "update_rollback.phase", "update_rollback.handoff"}) {
+        REQUIRE(write_rollback_file(dir, name, "x\n"));
+    }
+    REQUIRE(write_rollback_file(dir, kRollbackResultFile, "to_version=1\n"));
+
+    disarm_rollback_guard();
+    CHECK_FALSE(rollback_guard_armed());
+    for (const char* name : {kRollbackArmedFile, kRollbackHealthyFile, kRollbackRequestFile,
+                             kRollbackStoppingFile, kRollbackBusyFile, "update_rollback.starts",
+                             "update_rollback.phase", "update_rollback.handoff"}) {
+        CHECK_FALSE(has(name));
+    }
+    // A result the restored version has not shown yet is not part of a trial.
+    CHECK(has(kRollbackResultFile));
+}

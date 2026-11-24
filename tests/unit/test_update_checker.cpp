@@ -2096,6 +2096,60 @@ TEST_CASE("do_install holds the self-restart sentinel while install.sh runs",
     remove_dir(tmp);
 }
 
+TEST_CASE("A manual install ends an automatic update's rollback trial first",
+          "[update_checker][installer][do_install][rollback]") {
+    auto tmp = make_temp_dir("helix_install_disarm");
+    REQUIRE(!tmp.empty());
+    const std::string guard = tmp + "/rollback";
+    mkdir(guard.c_str(), 0755);
+    const std::string armed = guard + "/update_rollback.armed";
+    create_file(armed, "install_dir=/x\n", false);
+
+    // The installer records whether the trial was still armed when it ran.
+    const std::string seen = tmp + "/seen";
+    std::string inner = tmp + "/helixscreen";
+    mkdir(inner.c_str(), 0755);
+    create_file(inner + "/install.sh",
+                "#!/bin/sh\n{ [ -e '" + armed + "' ] && echo armed || echo disarmed; } > '" + seen +
+                    "'\nexit 1\n",
+                true);
+    const std::string tarball = tmp + "/release.tar.gz";
+    std::string cmd =
+        "cd " + tmp + " && COPYFILE_DISABLE=1 tar czf release.tar.gz helixscreen/install.sh";
+    REQUIRE(std::system(cmd.c_str()) == 0);
+
+    const pid_t pid = fork();
+    if (pid == 0) {
+        ScopedRuntimeConfig scoped_config;
+        get_runtime_config()->test_mode = false;
+        setenv("HELIX_ROLLBACK_DIR", guard.c_str(), 1);
+        helix::app_constants::update::detail::backup_fallback_dir_ref() = tmp + "/.helixscreen";
+        auto& checker = UpdateChecker::instance();
+        UpdateCheckerTestAccess::clear_download_cancelled(checker);
+        UpdateCheckerTestAccess::set_restart_action(checker, [] {});
+        UpdateCheckerTestAccess::set_status_hold_ms(checker, 0, 0);
+        UpdateCheckerTestAccess::do_install(checker, tarball); // a manual (user) install
+        _exit(0);
+    }
+    REQUIRE(pid > 0);
+    int wstatus = 0;
+    for (int i = 0; i < 3000 && waitpid(pid, &wstatus, WNOHANG) == 0; ++i)
+        usleep(10 * 1000);
+    if (waitpid(pid, &wstatus, WNOHANG) == 0) {
+        kill(pid, SIGKILL);
+        waitpid(pid, &wstatus, 0);
+        FAIL("do_install did not return within 30s");
+    }
+
+    std::ifstream in(seen);
+    std::string state;
+    std::getline(in, state);
+    CHECK(state == "disarmed");
+    CHECK(access(armed.c_str(), F_OK) != 0);
+
+    remove_dir(tmp);
+}
+
 TEST_CASE("extract_installer_from_tarball: tarball with install.sh",
           "[update_checker][installer][do_install]") {
     auto tmp = make_temp_dir("helix_extract_test");
