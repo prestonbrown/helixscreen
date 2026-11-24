@@ -42,7 +42,7 @@ enum class Verdict {
     LegacySignature,    ///< signed without -H; refused
     WrongKey,           ///< signed by a key other than the one given
     BadSignature,       ///< the message or the trusted comment does not match the signature
-    WrongChannel,       ///< the trusted comment names another channel than the one fetched
+    WrongChannel,       ///< the trusted comment is not `file:manifest.json channel:<fetched>`
 };
 
 /// Whether @p minisig (the text of a .minisig file) is a valid prehashed signature over
@@ -52,8 +52,8 @@ Verdict verify(std::string_view message, std::string_view minisig, std::string_v
 
 /// Whether @p minisig is a valid signature over the manifest of @p channel ("stable", "beta",
 /// "dev"): by keys.release on any channel, or by keys.dev on the dev channel only, and with a
-/// trusted comment carrying `channel:<channel>`, so a manifest signed for one channel is
-/// refused on another.
+/// trusted comment that is exactly `file:manifest.json channel:<channel>`, so a manifest signed
+/// for one channel is refused on another.
 Verdict verify_channel_manifest(std::string_view message, std::string_view minisig,
                                 std::string_view channel, const ChannelKeys& keys);
 

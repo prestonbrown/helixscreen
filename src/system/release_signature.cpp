@@ -165,24 +165,16 @@ Verdict verify(std::string_view message, std::string_view minisig, std::string_v
 
 namespace {
 
-// Whether the trusted comment of @p minisig, a signature verify() accepted, carries the token
-// `channel:<channel>`.
+// Whether the trusted comment of @p minisig, a signature verify() accepted, is exactly
+// `file:manifest.json channel:<channel>`, the comment every channel manifest is signed with.
 bool trusted_comment_names_channel(std::string_view minisig, std::string_view channel) {
     const auto lines = split_lines(trim(minisig));
     if (lines.size() != 4)
         return false;
-    std::string_view comment = lines[2].substr(kTrustedPrefix.size());
-    constexpr std::string_view kChannelPrefix = "channel:";
-    while (!comment.empty()) {
-        const size_t sp = comment.find_first_of(" \t");
-        const std::string_view token = comment.substr(0, sp);
-        if (starts_with(token, kChannelPrefix) && token.substr(kChannelPrefix.size()) == channel)
-            return true;
-        if (sp == std::string_view::npos)
-            break;
-        comment.remove_prefix(sp + 1);
-    }
-    return false;
+    const std::string_view comment = lines[2].substr(kTrustedPrefix.size());
+    constexpr std::string_view kExpectedPrefix = "file:manifest.json channel:";
+    return starts_with(comment, kExpectedPrefix) &&
+           comment.substr(kExpectedPrefix.size()) == channel;
 }
 
 } // namespace
