@@ -872,7 +872,7 @@ start_service_snapmaker_u1() {
 
     if ! $SUDO "$init_src" "$action"; then
         log_error "Failed to start HelixScreen."
-        log_error "Check logs: /var/log/helixscreen/launcher.log or ${INSTALL_DIR}/logs/launcher.log"
+        log_error "Check logs: launcher.log in /var/log/helixscreen, in the state dir's logs/ (for example /usr/data/helixscreen-state/logs), or in ${INSTALL_DIR}/logs"
         exit 1
     fi
 
@@ -886,7 +886,7 @@ start_service_snapmaker_u1() {
         fi
     done
     log_warn "Service may still be starting..."
-    log_warn "Check logs: /var/log/helixscreen/launcher.log or ${INSTALL_DIR}/logs/launcher.log"
+    log_warn "Check logs: launcher.log in /var/log/helixscreen, in the state dir's logs/ (for example /usr/data/helixscreen-state/logs), or in ${INSTALL_DIR}/logs"
 }
 
 _enable_helixscreen_unit() {
@@ -966,7 +966,7 @@ start_service_sysv() {
 
     if ! $SUDO "$INIT_SCRIPT_DEST" "$action"; then
         log_error "Failed to start HelixScreen."
-        log_error "Check logs: /var/log/helixscreen/launcher.log or ${INSTALL_DIR}/logs/launcher.log"
+        log_error "Check logs: launcher.log in /var/log/helixscreen, in the state dir's logs/ (for example /usr/data/helixscreen-state/logs), or in ${INSTALL_DIR}/logs"
         exit 1
     fi
 

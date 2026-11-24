@@ -2562,9 +2562,10 @@ TEST_CASE("DebugBundleCollector: launcher_log tails the freshest launcher log, c
 TEST_CASE("DebugBundleCollector: launcher log paths put the running install first",
           "[debug-bundle]") {
     const auto paths = helix::logs::launcher_log_paths("/custom/helixscreen");
-    REQUIRE(paths.size() >= 2);
+    REQUIRE(paths.size() >= 3);
     CHECK(paths[0] == "/var/log/helixscreen/launcher.log");
     CHECK(paths[1] == "/custom/helixscreen/logs/launcher.log");
+    CHECK(paths[2] == "/custom/.helixscreen/logs/launcher.log");
     CHECK(std::find(paths.begin(), paths.end(), "/userdata/helixscreen/logs/launcher.log") !=
           paths.end());
     CHECK(std::count(paths.begin(), paths.end(), "/opt/helixscreen/logs/launcher.log") == 1);
