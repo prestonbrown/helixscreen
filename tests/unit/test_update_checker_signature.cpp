@@ -5,6 +5,7 @@
 
 #include "../test_helpers/loopback_http_server.h"
 #include "../test_helpers/scoped_update_urls.h"
+#include "../test_helpers/update_checker_test_access.h"
 #include "config.h"
 #include "system/update_checker.h"
 
@@ -168,6 +169,54 @@ TEST_CASE("update check verifies the served manifest's signature end to end",
         served_sig = fixture("other.minisig");
         REQUIRE(run_check() == UpdateChecker::Status::Error);
         CHECK(checker.get_error_message().find("signature refused") != std::string::npos);
+        CHECK_FALSE(checker.get_cached_update());
+    }
+    checker.shutdown();
+}
+
+TEST_CASE("update check holds each published channel to its own signed channel",
+          "[update_checker][signature][slow]") {
+    // R2 serves a manifest signed for dev on every channel path; stable and beta must refuse it
+    // as made for another channel, which only holds when each fetch names its own channel.
+    helix::test::LoopbackHttpServer server;
+    for (const char* channel : {"stable", "beta"}) {
+        server.service().GET((std::string("/") + channel + "/manifest.json").c_str(),
+                             [](HttpRequest*, HttpResponse* resp) {
+                                 return resp->String(fixture("manifest.json"));
+                             });
+        server.service().GET(
+            (std::string("/") + channel + "/manifest.json.minisig").c_str(),
+            [](HttpRequest*, HttpResponse* resp) { return resp->String(fixture("good.minisig")); });
+    }
+    REQUIRE(server.start());
+
+    helix::test::ScopedUpdateUrls urls("helix_sig_channel", R"({"r2_url": ")" + server.url("/") +
+                                                                R"(", "release_pubkey": ")" +
+                                                                test_key() + R"("})");
+    auto* config = helix::Config::get_instance();
+    auto& checker = UpdateChecker::instance();
+    checker.init();
+
+    auto run_check = [&checker]() {
+        checker.clear_cache();
+        UpdateCheckerTestAccess::reset_rate_limit(checker);
+        checker.check_for_updates(nullptr);
+        for (int i = 0; i < 8000 && checker.get_status() == UpdateChecker::Status::Checking; ++i) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        return checker.get_status();
+    };
+
+    SECTION("stable") {
+        config->set<int>("/update/channel", 0);
+        REQUIRE(run_check() == UpdateChecker::Status::Error);
+        CHECK(checker.get_error_message().find("another channel") != std::string::npos);
+        CHECK_FALSE(checker.get_cached_update());
+    }
+    SECTION("beta") {
+        config->set<int>("/update/channel", 1);
+        REQUIRE(run_check() == UpdateChecker::Status::Error);
+        CHECK(checker.get_error_message().find("another channel") != std::string::npos);
         CHECK_FALSE(checker.get_cached_update());
     }
     checker.shutdown();
