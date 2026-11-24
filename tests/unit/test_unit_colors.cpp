@@ -41,6 +41,12 @@ TEST_CASE("unit colors: saved as hex by region, unset regions left out", "[unit-
     CHECK(saved == json{{"main", "#112233"}, {"panels", "#ABCDEF"}});
     CHECK(unit_colors_from_json(saved) == colors);
     CHECK_FALSE(unit_colors_from_json(saved).accent.has_value());
+
+    // A color carrying alpha bits is kept as plain RGB, and clearing unsets it.
+    colors.set(UnitColorRegion::Accent, 0xFF445566u);
+    CHECK(colors.get(UnitColorRegion::Accent) == 0x445566u);
+    colors.set(UnitColorRegion::Accent, std::nullopt);
+    CHECK_FALSE(colors.get(UnitColorRegion::Accent).has_value());
 }
 
 TEST_CASE("unit colors: an unreadable region reads back unset", "[unit-colors]") {

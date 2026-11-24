@@ -43,6 +43,7 @@
 #include "printer_state.h"
 #include "src/ui/panel_widgets/filament_sensor_widget.h"
 #include "standard_macros.h"
+#include "system/telemetry_manager.h"
 
 #include <lvgl.h>
 #include <memory>
@@ -168,6 +169,7 @@ TEST_CASE_METHOD(TapModalFixture,
     configure_cancel_macro();
     set_print_state(helix::PrintJobState::PAUSED);
     show_tap_modal(/*status_only=*/false);
+    const uint32_t cancels_before = TelemetryManager::instance().print_cancels_requested();
 
     lv_obj_t* guidance = modal().dialog();
     REQUIRE(guidance != nullptr);
@@ -191,8 +193,9 @@ TEST_CASE_METHOD(TapModalFixture,
     lv_obj_send_event(btn_primary, LV_EVENT_CLICKED, nullptr);
     helix::ui::UpdateQueue::instance().drain();
 
-    // ...and only accepting sends it.
+    // ...and only accepting sends it, counted as a cancel the screen sent.
     CHECK(gcode_sent_containing("CANCEL_PRINT"));
+    CHECK(TelemetryManager::instance().print_cancels_requested() == cancels_before + 1);
 }
 
 TEST_CASE_METHOD(TapModalFixture, "Declining the cancel returns to a working guidance dialog",

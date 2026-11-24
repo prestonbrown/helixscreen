@@ -3575,9 +3575,12 @@ namespace {
 helix::telemetry::FilamentOpTracker s_filament_op_tracker;
 
 /// The filament system's fault, as its classifier reads it: the standing
-/// fault's cause, else the backend's operation line.
+/// fault's cause, else the backend's operation line. This runs under an
+/// observer of the action subject, which can fire before AmsState's own, so
+/// the cause is brought up to date first.
 std::string filament_fault_text() {
     auto& ams = AmsState::instance();
+    ams.refresh_fault_cause();
     if (!ams.fault_cause().empty()) {
         return ams.fault_cause();
     }
