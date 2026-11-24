@@ -17,6 +17,8 @@
 #include "tool_offset_calibration.h"
 #include "toolchanger_addon.h"
 
+#include <chrono>
+
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
 
@@ -1149,4 +1151,27 @@ TEST_CASE("Z-Mod's Russian completion sentence and garbled coordinates",
         "// [CALIB] T0: X=nan Y=0.000000 Z=0.000000"));
     CHECK_FALSE(toolchanger_addon::parse_zmod_calibration_line(
         "// [CALIB] T0: X=1e30 Y=0.000000 Z=0.000000"));
+}
+
+TEST_CASE("A Z-Mod calibration run that went quiet or ended no longer owns the completion line",
+          "[toolchanger][zmod][calibration]") {
+    namespace cal = helix::tool_offset_calibration;
+    using Clock = std::chrono::steady_clock;
+    cal::set_progress_sink(nullptr);
+    const Clock::time_point start{};
+
+    // Silent past the idle bound: aborted, so the sentence is not a completion.
+    CHECK(cal::report_progress_line("// [CALIB] TS: ...", start));
+    CHECK_FALSE(
+        cal::report_progress_line("// Calibration complete.", start + std::chrono::minutes(16)));
+
+    // A line inside the bound keeps the run alive.
+    CHECK(cal::report_progress_line("// [CALIB] T0: ...", start));
+    CHECK(cal::report_progress_line("// [CALIB] T1: ...", start + std::chrono::minutes(10)));
+    CHECK(cal::report_progress_line("// Calibration complete.", start + std::chrono::minutes(20)));
+
+    // Stopping the backend ends the run.
+    CHECK(cal::report_progress_line("// [CALIB] T0: ...", start));
+    cal::end_progress_run();
+    CHECK_FALSE(cal::report_progress_line("// Calibration complete.", start));
 }

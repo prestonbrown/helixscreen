@@ -12,6 +12,7 @@
 #endif
 
 #include <algorithm>
+#include <chrono>
 #include <string_view>
 
 namespace helix::tool_offset_calibration {
@@ -101,10 +102,22 @@ ProgressSink& progress_sink() {
 /// A run is in progress from its first tagged line until its completion line.
 /// The completion sentence carries no tag, so a macro that prints the same words
 /// outside a run must not read as one.
-bool& run_in_progress() {
-    static bool active = false;
-    return active;
+struct RunState {
+    bool active = false;
+    std::chrono::steady_clock::time_point last_line;
+};
+
+RunState& run_state() {
+    static RunState state;
+    return state;
 }
+
+/// The longest silence inside a live run. The gap between lines is a head's
+/// nozzle heating to purge temperature, the purge, and two measuring passes,
+/// which takes minutes (Z-Mod documents "several minutes" for the whole run).
+/// An estimate, not a measured figure: a run quiet for longer is treated as
+/// aborted.
+constexpr std::chrono::minutes kRunIdleTimeout{15};
 
 } // namespace
 
@@ -146,23 +159,32 @@ void set_progress_sink(ProgressSink sink) {
     progress_sink() = std::move(sink);
 }
 
-bool report_progress_line(const std::string& line) {
+bool report_progress_line(const std::string& line, std::chrono::steady_clock::time_point now) {
     const auto event = parse_progress_line(line);
     if (!event) {
         return false;
     }
+    RunState& run = run_state();
+    if (run.active && now - run.last_line > kRunIdleTimeout) {
+        run.active = false;
+    }
     if (event->kind == ProgressEvent::Kind::Complete) {
-        if (!run_in_progress()) {
+        if (!run.active) {
             return false;
         }
-        run_in_progress() = false;
+        run.active = false;
     } else {
-        run_in_progress() = true;
+        run.active = true;
+        run.last_line = now;
     }
     if (progress_sink()) {
         progress_sink()(*event);
     }
     return true;
+}
+
+void end_progress_run() {
+    run_state().active = false;
 }
 
 Procedure resolve_procedure(const PrinterDiscovery& hw) {

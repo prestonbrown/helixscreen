@@ -32,6 +32,7 @@
 // tool currently on the carriage; it infers no per-tool progress beyond that,
 // because the macro reports none.
 
+#include <chrono>
 #include <functional>
 #include <optional>
 #include <string>
@@ -96,8 +97,13 @@ using ProgressSink = std::function<void(const ProgressEvent&)>;
 void set_progress_sink(ProgressSink sink);
 
 /// Parse @p line and hand the step to the sink. True when the line was a step of
-/// a run; a completion sentence with no run in progress is not one. Main thread.
-bool report_progress_line(const std::string& line);
+/// a run; a completion sentence with no run in progress, or after the run has
+/// been silent too long to still be going, is not one. Main thread.
+bool report_progress_line(const std::string& line, std::chrono::steady_clock::time_point now =
+                                                       std::chrono::steady_clock::now());
+
+/// The run cannot still be going (Klippy left ready, the connection dropped).
+void end_progress_run();
 
 /// The procedure the Tool Offsets entry runs on this printer.
 Procedure resolve_procedure(const PrinterDiscovery& hw);

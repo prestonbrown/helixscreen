@@ -231,6 +231,7 @@ void AmsBackendToolChanger::on_klippy_ready() {
 }
 
 void AmsBackendToolChanger::on_stopping() {
+    helix::tool_offset_calibration::end_progress_run();
     unregister_zmod_marker_listener();
     unregister_mount_feed_listener();
 }
