@@ -15,6 +15,7 @@
 #include "display_settings_manager.h"
 #include "environment_config.h"
 #include "hv/hlog.h" // libhv logging - sync level with spdlog
+#include "install_root_cwd.h"
 #include "logging_init.h"
 #include "runtime_config.h"
 #include "system/config_trust.h"

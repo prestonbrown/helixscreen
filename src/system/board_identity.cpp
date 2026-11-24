@@ -148,18 +148,6 @@ std::string resolve_install_root(const std::string& running_exe, const std::stri
     return {};
 }
 
-std::string chdir_to_install_root(const std::string& running_exe) {
-    // A relative path would stop naming the binary once the cwd moves.
-    if (running_exe.empty() || running_exe[0] != '/') {
-        return {};
-    }
-    std::string root = resolve_install_root(running_exe);
-    if (root.empty() || chdir(root.c_str()) != 0) {
-        return {};
-    }
-    return root;
-}
-
 bool firmware_manages_updates(Board board, const std::string& running_exe,
                               const std::string& probe_root) {
     const Info& row = info(board);
