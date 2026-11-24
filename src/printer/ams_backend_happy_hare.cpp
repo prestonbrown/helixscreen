@@ -1871,16 +1871,16 @@ bool AmsBackendHappyHare::apply_filament_heater_status(const nlohmann::json& par
             continue;
         }
         std::lock_guard<std::mutex> lock(mutex_);
-        if (auto t = h_it->find("temperature"); t != h_it->end() && t->is_number()) {
-            const float temp = t->get<float>();
+        if (const auto t = helix::json_util::read_field<float>(*h_it, "temperature")) {
+            const float temp = *t;
             heater_temp_[hname] = temp;
             if (hname == primary)
                 dryer_info_.current_temp_c = temp;
             any = true;
         }
-        if (auto tg = h_it->find("target"); tg != h_it->end() && tg->is_number()) {
+        if (const auto tg = helix::json_util::read_field<float>(*h_it, "target")) {
             if (hname == primary)
-                dryer_info_.target_temp_c = tg->get<float>();
+                dryer_info_.target_temp_c = *tg;
         }
     }
     return any;
@@ -1933,14 +1933,14 @@ bool AmsBackendHappyHare::apply_environment_sensor_status(const nlohmann::json& 
             // heater is fitted; capture it so humidity-only enclosures still show a
             // temperature and so the readout never gates humidity on a heater.
             if (!have_temp) {
-                if (auto t = it->find("temperature"); t != it->end() && t->is_number()) {
-                    temp_val = t->get<float>();
+                if (const auto t = helix::json_util::read_field<float>(*it, "temperature")) {
+                    temp_val = *t;
                     have_temp = true;
                 }
             }
             if (!have_hum) {
-                if (auto h = it->find("humidity"); h != it->end() && h->is_number()) {
-                    hum_val = h->get<float>();
+                if (const auto h = helix::json_util::read_field<float>(*it, "humidity")) {
+                    hum_val = *h;
                     have_hum = true;
                 }
             }

@@ -68,8 +68,8 @@ MacroParamDefaultRecord MacroParamDefaults::get(const std::string& macro_name) c
             }
         }
     }
-    if (const auto ask = node.find("ask"); ask != node.end() && ask->is_boolean()) {
-        record.ask_for_params = ask->get<bool>();
+    if (const auto ask = helix::json_util::read_field<bool>(node, "ask")) {
+        record.ask_for_params = *ask;
     }
     return record;
 }

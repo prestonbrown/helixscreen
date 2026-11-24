@@ -152,6 +152,27 @@ inline const nlohmann::json* find_array(const nlohmann::json& j, const char* key
     return v && v->is_array() ? v : nullptr;
 }
 
+/// Mutable forms of find_member / find_object / find_array, for code that edits
+/// the value it finds (config migrations). Same guards: nullptr when @p j is
+/// not an object, lacks the key, or holds another type.
+inline nlohmann::json* find_member(nlohmann::json& j, const char* key) {
+    if (!j.is_object()) {
+        return nullptr;
+    }
+    const auto it = j.find(key);
+    return it == j.end() ? nullptr : &*it;
+}
+
+inline nlohmann::json* find_object(nlohmann::json& j, const char* key) {
+    auto* v = find_member(j, key);
+    return v && v->is_object() ? v : nullptr;
+}
+
+inline nlohmann::json* find_array(nlohmann::json& j, const char* key) {
+    auto* v = find_member(j, key);
+    return v && v->is_array() ? v : nullptr;
+}
+
 /// The value reached by walking @p key then each of @p rest through nested
 /// objects, or nullptr when any step is missing or not an object. A Moonraker
 /// reply nests what a caller wants two or three levels down

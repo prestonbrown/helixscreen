@@ -299,9 +299,8 @@ bool plr_parse_saved_file(const nlohmann::json& status, std::optional<std::strin
         return false;
     }
     out.reset();
-    auto file_it = vars_it->find("last_file");
-    if (file_it != vars_it->end() && file_it->is_string()) {
-        const auto& name = file_it->get_ref<const std::string&>();
+    if (const auto file_it = helix::json_util::read_field<std::string>(*vars_it, "last_file")) {
+        const auto& name = *file_it;
         out = (name == "''" || name == "\"\"") ? std::string() : name;
     }
     return true;

@@ -16,6 +16,7 @@
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
 #include "helix-xml/src/xml/lv_xml_translation.h"
+#include "json_utils.h"
 #include "lua_panel_widget.h"
 #include "lvgl/lvgl.h"
 #include "panel_widget_manager.h"
@@ -721,8 +722,8 @@ PermissionSet PluginHost::granted(const std::string& id) const {
 void PluginHost::disable(const std::string& id) {
     unload(id);
     json block = deps_.read_block();
-    if (block.is_object() && block.contains("enabled") && block["enabled"].is_object()) {
-        block["enabled"].erase(id);
+    if (nlohmann::json* enabled = helix::json_util::find_object(block, "enabled")) {
+        enabled->erase(id);
         deps_.write_block(block);
     }
     if (PluginInfo* info = find(id)) {

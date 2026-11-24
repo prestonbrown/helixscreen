@@ -3556,7 +3556,7 @@ AmsError AmsBackendAd5xIfs::write_adventurer_json_local(int slot_index, const st
         }
     }
 
-    if (!doc.contains("FFMInfo") || !doc["FFMInfo"].is_object()) {
+    if (!helix::json_util::find_object(doc, "FFMInfo")) {
         doc["FFMInfo"] = json::object();
     }
     doc["FFMInfo"]["ffmColor" + std::to_string(port)] = color_field;

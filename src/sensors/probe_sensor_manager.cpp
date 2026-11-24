@@ -4,6 +4,7 @@
 #include "probe_sensor_manager.h"
 
 #include "core/text_io.h"
+#include "json_utils.h"
 #include "printer_discovery.h"
 #include "probe_touch_z.h"
 #include "spdlog/spdlog.h"
@@ -340,9 +341,8 @@ bool ProbeSensorManager::parse_status(const nlohmann::json& status) {
         // z_offset survives on mainline, where no probe module publishes it.
         // The Creality K1/K2 and QIDI forks do, and K1's Z_OFFSET_APPLY_PROBE
         // changes it live.
-        const auto z = sensor->find("last_z_result");
-        if (z != sensor->end() && z->is_number()) {
-            state.last_z_result = z->get<float>();
+        if (const auto z = helix::json_util::read_field<float>(*sensor, "last_z_result")) {
+            state.last_z_result = *z;
         }
         // A probe built from several folded sections (one inductance_coil per
         // U1 head) names the one in use; its configured offset applies until
@@ -355,9 +355,8 @@ bool ProbeSensorManager::parse_status(const nlohmann::json& status) {
                 state.z_offset_known = true;
             }
         }
-        const auto offset = sensor->find("z_offset");
-        if (offset != sensor->end() && offset->is_number()) {
-            state.z_offset = offset->get<float>();
+        if (const auto offset = helix::json_util::read_field<float>(*sensor, "z_offset")) {
+            state.z_offset = *offset;
             state.z_offset_known = true;
         }
         // Klipper publishes a bool, Cartographer an int.

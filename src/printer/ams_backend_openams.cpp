@@ -1053,8 +1053,8 @@ void AmsBackendOpenAms::adopt_component_status(const json& status) {
                     g != spool->end() && g->is_number()) {
                     firmware.remaining_weight_g = g->get<float>();
                 }
-                if (const auto g = spool->find("initial_g"); g != spool->end() && g->is_number()) {
-                    firmware.total_weight_g = g->get<float>();
+                if (const auto g = helix::json_util::read_field<float>(*spool, "initial_g")) {
+                    firmware.total_weight_g = *g;
                 }
             }
         }

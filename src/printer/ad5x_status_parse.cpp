@@ -146,13 +146,13 @@ void read_ifs_status_object(const json& obj, ZColorSilentResult& result) {
     // Moonraker's diff: a frame where only the silk sensors moved carries Ports
     // and no Chan, and requiring Chan would drop the presence update on the
     // floor.
-    if (auto chan_it = obj.find("Chan"); chan_it != obj.end() && chan_it->is_number_integer()) {
-        result.ifs_chan = chan_it->get<int>();
+    if (const auto chan_it = helix::json_util::read_integer_field(obj, "Chan")) {
+        result.ifs_chan = *chan_it;
         result.saw_valid_response = true;
     }
 
-    if (auto limit = obj.find("color_limit"); limit != obj.end() && limit->is_number_integer()) {
-        result.port_count = clamp_port_count(limit->get<int>());
+    if (const auto limit = helix::json_util::read_integer_field(obj, "color_limit")) {
+        result.port_count = clamp_port_count(*limit);
     }
 
     // Per-port presence: the RS-485 silk switch for port i+1, and the presence
@@ -182,19 +182,19 @@ void read_ifs_status_object(const json& obj, ZColorSilentResult& result) {
 bool read_zmod_color_object(const json& obj, ZColorSilentResult& result,
                             std::optional<int>& channel) {
     // The bool behind the "IFS: True" field of the GET_ZCOLOR summary line.
-    if (auto ifs_it = obj.find("ifs"); ifs_it != obj.end() && ifs_it->is_boolean()) {
-        result.ifs_active = ifs_it->get<bool>();
+    if (const auto ifs_it = helix::json_util::read_field<bool>(obj, "ifs")) {
+        result.ifs_active = *ifs_it;
         result.saw_valid_response = true;
     }
     // FFMInfo.channel, the same value parse_adventurer_json() reads. Handed
     // back rather than applied: adopting it as the seated lane is head-gated
     // (#1065 Bug 3) and that gate lives in the file path.
-    if (auto chan_it = obj.find("channel"); chan_it != obj.end() && chan_it->is_number_integer()) {
-        channel = chan_it->get<int>();
+    if (const auto chan_it = helix::json_util::read_integer_field(obj, "channel")) {
+        channel = *chan_it;
     }
 
-    if (auto limit = obj.find("color_limit"); limit != obj.end() && limit->is_number_integer()) {
-        result.port_count = clamp_port_count(limit->get<int>());
+    if (const auto limit = helix::json_util::read_integer_field(obj, "color_limit")) {
+        result.port_count = clamp_port_count(*limit);
     }
 
     auto slots = helix::zmod_color::parse_slots(obj, kMaxPorts);
@@ -271,16 +271,16 @@ bool read_ifs_materials_object(const json& obj, ZColorSilentResult& result) {
         }
         const auto& entry = slot_it.value();
         ZColorSlot slot;
-        if (auto type = entry.find("type"); type != entry.end() && type->is_string()) {
-            slot.material = type->get<std::string>();
+        if (const auto type = helix::json_util::read_field<std::string>(entry, "type")) {
+            slot.material = *type;
             // The stock-UI unset sentinel, same one the zmod_color reader and
             // parse_adventurer_json normalise - a live "?" must never render.
             if (helix::zmod_color::is_unset_type(slot.material)) {
                 slot.material.clear();
             }
         }
-        if (auto color = entry.find("color"); color != entry.end() && color->is_string()) {
-            slot.hex = normalize_module_color_hex(color->get<std::string>());
+        if (const auto color = helix::json_util::read_field<std::string>(entry, "color")) {
+            slot.hex = normalize_module_color_hex(*color);
         }
         result.slots[static_cast<size_t>(id - 1)] = std::move(slot);
         saw_slot = true;
@@ -317,14 +317,14 @@ IfsModuleObject parse_ifs_module_object(const json& obj) {
             out.loaded_ports = ports;
         }
     }
-    if (auto ac = obj.find("active_channel"); ac != obj.end() && ac->is_number_integer()) {
-        out.active_channel = ac->get<int>();
+    if (const auto ac = helix::json_util::read_integer_field(obj, "active_channel")) {
+        out.active_channel = *ac;
     }
-    if (auto a = obj.find("activity"); a != obj.end() && a->is_string()) {
-        out.activity = a->get<std::string>();
+    if (const auto a = helix::json_util::read_field<std::string>(obj, "activity")) {
+        out.activity = *a;
     }
-    if (auto e = obj.find("error"); e != obj.end() && e->is_string()) {
-        out.error = e->get<std::string>();
+    if (const auto e = helix::json_util::read_field<std::string>(obj, "error")) {
+        out.error = *e;
     }
     return out;
 }
@@ -369,11 +369,11 @@ SensorFrame parse_sensor_frame(const json& status) {
     if (const auto extr = status.find("extruder"); extr != status.end()) {
         f.has_extruder = true;
         if (extr->is_object()) {
-            if (auto t = extr->find("target"); t != extr->end() && t->is_number()) {
-                f.extruder_target = t->get<double>();
+            if (const auto t = helix::json_util::read_field<double>(*extr, "target")) {
+                f.extruder_target = *t;
             }
-            if (auto t = extr->find("temperature"); t != extr->end() && t->is_number()) {
-                f.extruder_temperature = t->get<double>();
+            if (const auto t = helix::json_util::read_field<double>(*extr, "temperature")) {
+                f.extruder_temperature = *t;
             }
         }
     }
@@ -398,11 +398,11 @@ SaveVariables parse_save_variables(const json& vars, const std::string& known_pr
         out.custom_types = std::move(names);
     }
 
-    if (auto it = vars.find("ifs_at_hub"); it != vars.end() && it->is_number_integer()) {
-        out.module_at_hub = it->get<int>();
+    if (const auto it = helix::json_util::read_integer_field(vars, "ifs_at_hub")) {
+        out.module_at_hub = *it;
     }
-    if (auto it = vars.find("ifs_loaded"); it != vars.end() && it->is_number_integer()) {
-        const int loaded = it->get<int>();
+    if (const auto it = helix::json_util::read_integer_field(vars, "ifs_loaded")) {
+        const int loaded = *it;
         out.module_loaded = (loaded >= 1 && loaded <= kDefaultPorts) ? loaded : 0;
     }
 
@@ -437,11 +437,11 @@ SaveVariables parse_save_variables(const json& vars, const std::string& known_pr
         }
     }
 
-    if (auto it = vars.find(p + "_current_tool"); it != vars.end() && it->is_number_integer()) {
-        out.current_tool = it->get<int>();
+    if (const auto it = helix::json_util::read_integer_field(vars, (p + "_current_tool").c_str())) {
+        out.current_tool = *it;
     }
-    if (auto it = vars.find(p + "_external"); it != vars.end() && it->is_number_integer()) {
-        out.external = it->get<int>() != 0;
+    if (const auto it = helix::json_util::read_integer_field(vars, (p + "_external").c_str())) {
+        out.external = *it != 0;
     }
     return out;
 }
@@ -592,8 +592,8 @@ std::optional<AdventurerFile> parse_adventurer_json(const std::string& content) 
         file.ports[static_cast<size_t>(port - 1)] = std::move(entry);
     }
 
-    if (auto chan_it = ffm.find("channel"); chan_it != ffm.end() && chan_it->is_number_integer()) {
-        file.channel = chan_it->get<int>();
+    if (const auto chan_it = helix::json_util::read_integer_field(ffm, "channel")) {
+        file.channel = *chan_it;
     }
     return file;
 }

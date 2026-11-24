@@ -3,6 +3,7 @@
 
 #include "width_sensor_manager.h"
 
+#include "json_utils.h"
 #include "spdlog/fmt/fmt.h"
 #include "spdlog/spdlog.h"
 
@@ -101,11 +102,11 @@ bool WidthSensorManager::parse_status(const nlohmann::json& status) {
         WidthSensorState& state = readings_[entry.klipper_name];
         const WidthSensorState before = state;
         // Field-restricted subscriptions send null for absent fields.
-        if (const auto it = sensor->find("Diameter"); it != sensor->end() && it->is_number()) {
-            state.diameter = it->get<float>();
+        if (const auto it = helix::json_util::read_field<float>(*sensor, "Diameter")) {
+            state.diameter = *it;
         }
-        if (const auto it = sensor->find("Raw"); it != sensor->end() && it->is_number()) {
-            state.raw_value = it->get<float>();
+        if (const auto it = helix::json_util::read_field<float>(*sensor, "Raw")) {
+            state.raw_value = *it;
         }
         if (state.diameter != before.diameter || state.raw_value != before.raw_value) {
             changed = true;

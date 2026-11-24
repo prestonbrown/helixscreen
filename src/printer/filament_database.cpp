@@ -120,8 +120,8 @@ nlohmann::json read_asset_types(const std::string& path) {
         spdlog::error("[filament] material types parse failed: {}", path);
         return nlohmann::json::array();
     }
-    if (doc.is_object() && doc.contains("types") && doc["types"].is_array())
-        return std::move(doc["types"]);
+    if (nlohmann::json* types = helix::json_util::find_array(doc, "types"))
+        return std::move(*types);
     spdlog::error("[filament] {} has no `types` array", path);
     return nlohmann::json::array();
 }

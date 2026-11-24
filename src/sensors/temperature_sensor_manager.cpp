@@ -6,6 +6,7 @@
 #include "core/text_io.h"
 #include "device_display_name.h"
 #include "humidity_sensor_types.h"
+#include "json_utils.h"
 #include "notice.h"
 #include "printer_discovery.h"
 #include "sort_small.h"
@@ -280,15 +281,15 @@ bool TemperatureSensorManager::parse_status(const nlohmann::json& status) {
         const TemperatureSensorState before = state;
 
         // Field-restricted subscriptions send null for fields the object lacks.
-        if (auto it = sensor->find("temperature"); it != sensor->end() && it->is_number()) {
-            state.temperature = it->get<float>();
+        if (const auto it = helix::json_util::read_field<float>(*sensor, "temperature")) {
+            state.temperature = *it;
         }
         // target is temperature_fan / heater_generic only; speed is temperature_fan only.
-        if (auto it = sensor->find("target"); it != sensor->end() && it->is_number()) {
-            state.target = it->get<float>();
+        if (const auto it = helix::json_util::read_field<float>(*sensor, "target")) {
+            state.target = *it;
         }
-        if (auto it = sensor->find("speed"); it != sensor->end() && it->is_number()) {
-            state.speed = it->get<float>();
+        if (const auto it = helix::json_util::read_field<float>(*sensor, "speed")) {
+            state.speed = *it;
         }
 
         if (state.temperature != before.temperature || state.target != before.target ||

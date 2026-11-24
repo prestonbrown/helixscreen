@@ -67,11 +67,12 @@ static void move_single_printer_under_printers(json& config) {
     }
 
     // Skip if no old /printer section exists
-    if (!config.contains("printer") || !config["printer"].is_object()) {
+    const json* printer_obj = helix::json_util::find_object(config, "printer");
+    if (printer_obj == nullptr) {
         return;
     }
 
-    json printer_data = config["printer"];
+    json printer_data = *printer_obj;
 
     // A printer with no LEDs gets an explicit empty selection. Config::init()
     // fills an absent leds block with a placeholder strip and selects it, which
@@ -82,10 +83,10 @@ static void move_single_printer_under_printers(json& config) {
 
     // Determine the slug ID from the printer name
     std::string printer_name;
-    if (printer_data.contains("printer_name") && printer_data["printer_name"].is_string()) {
-        printer_name = printer_data["printer_name"].get<std::string>();
-    } else if (printer_data.contains("name") && printer_data["name"].is_string()) {
-        printer_name = printer_data["name"].get<std::string>();
+    if (const auto n = helix::json_util::read_field<std::string>(printer_data, "printer_name")) {
+        printer_name = *n;
+    } else if (const auto n2 = helix::json_util::read_field<std::string>(printer_data, "name")) {
+        printer_name = *n2;
     }
     std::string slug = printer_name.empty() ? "default" : Config::slugify(printer_name);
     if (slug.empty()) {
@@ -93,12 +94,12 @@ static void move_single_printer_under_printers(json& config) {
     }
 
     // Move root-level per-printer sections into the printer entry
-    if (config.contains("filament") && config["filament"].is_object()) {
-        printer_data["filament"] = config["filament"];
+    if (const json* filament = helix::json_util::find_object(config, "filament")) {
+        printer_data["filament"] = *filament;
         config.erase("filament");
     }
-    if (config.contains("panel_widgets") && config["panel_widgets"].is_object()) {
-        printer_data["panel_widgets"] = config["panel_widgets"];
+    if (const json* widgets = helix::json_util::find_object(config, "panel_widgets")) {
+        printer_data["panel_widgets"] = *widgets;
         config.erase("panel_widgets");
     }
 
@@ -116,8 +117,8 @@ static void move_single_printer_under_printers(json& config) {
     config.erase("printer");
 
     // Migrate /display/printer_image to per-printer /printers/{id}/printer_image
-    if (config.contains("display") && config["display"].contains("printer_image")) {
-        config["printers"][slug]["printer_image"] = config["display"]["printer_image"];
+    if (const json* image = helix::json_util::find_path(config, "display", "printer_image")) {
+        config["printers"][slug]["printer_image"] = *image;
         config["display"].erase("printer_image");
         spdlog::info("[Config] Versionless config: moved /display/printer_image to "
                      "/printers/{}/printer_image",
@@ -139,8 +140,8 @@ static void normalize_versionless_document(json& config) {
         return;
     }
     int printer_count = 0;
-    if (config.contains("printers") && config["printers"].is_object()) {
-        for (const auto& [key, val] : config["printers"].items()) {
+    if (const json* printers = helix::json_util::find_object(config, "printers")) {
+        for (const auto& [key, val] : printers->items()) {
             if (val.is_object()) {
                 printer_count++;
             }
@@ -167,15 +168,17 @@ static void migrate_v9_to_v10(json& config, const std::string& /*config_path*/) 
             continue;
 
         for (auto& [panel_id, panel] : printer["panel_widgets"].items()) {
-            if (!panel.is_object() || !panel.contains("pages") || !panel["pages"].is_array())
+            json* pages = helix::json_util::find_array(panel, "pages");
+            if (pages == nullptr)
                 continue;
 
             // Find max power_device instance number across all pages
             int max_instance = 0;
-            for (auto& page : panel["pages"]) {
-                if (!page.contains("widgets") || !page["widgets"].is_array())
+            for (auto& page : *pages) {
+                json* widgets = helix::json_util::find_array(page, "widgets");
+                if (widgets == nullptr)
                     continue;
-                for (auto& widget : page["widgets"]) {
+                for (auto& widget : *widgets) {
                     std::string id = helix::json_util::safe_string(widget, "id");
                     if (id.substr(0, 13) == "power_device:") {
                         const auto n = tio::parse_leading<int>(id.substr(13));
@@ -186,10 +189,11 @@ static void migrate_v9_to_v10(json& config, const std::string& /*config_path*/) 
             }
 
             // Migrate "power" → "power_device:N+1"
-            for (auto& page : panel["pages"]) {
-                if (!page.contains("widgets") || !page["widgets"].is_array())
+            for (auto& page : *pages) {
+                json* widgets = helix::json_util::find_array(page, "widgets");
+                if (widgets == nullptr)
                     continue;
-                for (auto& widget : page["widgets"]) {
+                for (auto& widget : *widgets) {
                     if (helix::json_util::safe_string(widget, "id") == "power") {
                         max_instance++;
                         widget["id"] = "power_device:" + std::to_string(max_instance);
@@ -208,13 +212,11 @@ static void migrate_v9_to_v10(json& config, const std::string& /*config_path*/) 
 static void migrate_v10_to_v11(json& config, const std::string& /*config_path*/) {
     // 1. Move PID heat rates to shared thermal path
     for (const auto& heater : {"extruder", "heater_bed"}) {
-        if (config.contains("calibration") && config["calibration"].contains("pid_history") &&
-            config["calibration"]["pid_history"].contains(heater) &&
-            config["calibration"]["pid_history"][heater].contains("heat_rate")) {
+        if (helix::json_util::find_path(config, "calibration", "pid_history", heater,
+                                        "heat_rate")) {
             // Copy to new location if not already present
-            bool dest_exists = config.contains("thermal") && config["thermal"].contains("rates") &&
-                               config["thermal"]["rates"].contains(heater) &&
-                               config["thermal"]["rates"][heater].contains("heat_rate");
+            const bool dest_exists = helix::json_util::find_path(config, "thermal", "rates", heater,
+                                                                 "heat_rate") != nullptr;
 
             if (!dest_exists) {
                 const char* why = nullptr;
@@ -239,14 +241,13 @@ static void migrate_v10_to_v11(json& config, const std::string& /*config_path*/)
     }
 
     // 2. Strip heating phases (HEATING_BED=3, HEATING_NOZZLE=4) from predictor entries
-    if (config.contains("print_start_history") &&
-        config["print_start_history"].contains("entries") &&
-        config["print_start_history"]["entries"].is_array()) {
+    json* history = helix::json_util::find_member(config, "print_start_history");
+    if (json* entries = history ? helix::json_util::find_array(*history, "entries") : nullptr) {
         int count = 0;
-        for (auto& entry : config["print_start_history"]["entries"]) {
-            if (entry.contains("phases") && entry["phases"].is_object()) {
-                entry["phases"].erase("3"); // HEATING_BED
-                entry["phases"].erase("4"); // HEATING_NOZZLE
+        for (auto& entry : *entries) {
+            if (json* phases = helix::json_util::find_object(entry, "phases")) {
+                phases->erase("3"); // HEATING_BED
+                phases->erase("4"); // HEATING_NOZZLE
                 count++;
             }
         }
@@ -261,10 +262,12 @@ static void migrate_v10_to_v11(json& config, const std::string& /*config_path*/)
 /// and `printer/chamber_heater` → `heaters/chamber` under each printer, matching the flat
 /// per-hardware-type convention used everywhere else (heaters/bed, fans/chamber, etc.).
 static void migrate_v11_to_v12(json& config, const std::string& /*config_path*/) {
-    if (!config.contains("printers") || !config["printers"].is_object())
+    json* printers = helix::json_util::find_object(config, "printers");
+    if (printers == nullptr) {
         return;
+    }
 
-    for (auto& [printer_id, printer] : config["printers"].items()) {
+    for (auto& [printer_id, printer] : printers->items()) {
         if (!printer.is_object())
             continue;
         const std::vector<std::pair<std::string, std::string>> migrations = {
@@ -276,8 +279,8 @@ static void migrate_v11_to_v12(json& config, const std::string& /*config_path*/)
                          printer_id);
         }
         // If the now-empty /printer subkey remains, drop it.
-        if (printer.contains("printer") && printer["printer"].is_object() &&
-            printer["printer"].empty()) {
+        const json* leftover = helix::json_util::find_object(printer, "printer");
+        if (leftover != nullptr && leftover->empty()) {
             printer.erase("printer");
         }
     }
@@ -302,10 +305,11 @@ static bool config_names_printer(const json& config, const char* preset, const c
 /// Turn the backlight off at sleep when the display block still carries the stale pair
 /// (sleep_backlight_off=false with hardware_blank=0).
 static void restore_backlight_off_sleep(json& config, const char* log_tag) {
-    if (!config.contains("display") || !config["display"].is_object())
+    json* display_obj = helix::json_util::find_object(config, "display");
+    if (display_obj == nullptr)
         return;
 
-    auto& display = config["display"];
+    auto& display = *display_obj;
     if (!helix::json_util::safe_bool(display, "sleep_backlight_off", true) &&
         helix::json_util::safe_int(display, "hardware_blank", -1) == 0) {
         display["sleep_backlight_off"] = true;
@@ -403,10 +407,11 @@ static void migrate_v15_to_v16(json& config, const std::string& /*config_path*/)
         return; // STANDARD hardware keeps its setting
     }
 
-    if (!config.contains("display") || !config["display"].is_object()) {
+    json* display_obj = helix::json_util::find_object(config, "display");
+    if (display_obj == nullptr) {
         return;
     }
-    auto& display = config["display"];
+    auto& display = *display_obj;
 
     int current_type = helix::json_util::safe_int(display, "screensaver_type", 0);
     if (current_type != 1) {
@@ -433,17 +438,19 @@ static void migrate_v16_to_v17(json& config, const std::string& /*config_path*/)
         {"shipped:voron-0-2", "shipped:voron-v0"},
     };
 
-    if (!config.contains("printers") || !config["printers"].is_object())
+    json* printers = helix::json_util::find_object(config, "printers");
+    if (printers == nullptr) {
         return;
+    }
 
-    for (auto& [printer_id, printer] : config["printers"].items()) {
+    for (auto& [printer_id, printer] : printers->items()) {
         if (!printer.is_object())
             continue;
-        if (!printer.contains("printer_image") || !printer["printer_image"].is_string())
+        const auto current = helix::json_util::read_field<std::string>(printer, "printer_image");
+        if (!current)
             continue;
-        std::string current = printer["printer_image"].get<std::string>();
         for (const auto& [from, to] : renames) {
-            if (current == from) {
+            if (*current == from) {
                 printer["printer_image"] = to;
                 spdlog::info("[Config] Migration v17: renamed printer_image '{}' -> '{}' "
                              "for printer '{}'",
@@ -493,14 +500,18 @@ static void migrate_v17_to_v18(json& config, const std::string& /*config_path*/)
     // null via operator[] would replace it — but reading .value()/iterating a null
     // throws. Create the input/calibration objects only when missing, never overwrite
     // existing data.
-    if (!config.contains("input") || !config["input"].is_object()) {
+    json* input = helix::json_util::find_object(config, "input");
+    if (input == nullptr) {
         config["input"] = json::object();
+        input = &config["input"];
     }
-    if (!config["input"].contains("calibration") || !config["input"]["calibration"].is_object()) {
-        config["input"]["calibration"] = json::object();
+    json* calibration = helix::json_util::find_object(*input, "calibration");
+    if (calibration == nullptr) {
+        (*input)["calibration"] = json::object();
+        calibration = &(*input)["calibration"];
     }
 
-    config["input"]["calibration"]["recheck_pending"] = true;
+    (*calibration)["recheck_pending"] = true;
     spdlog::info("[Config] Migration v18: flagged touch calibration for post-#943 recheck "
                  "(recheck_pending=true)");
 }
@@ -511,12 +522,12 @@ static void migrate_v17_to_v18(json& config, const std::string& /*config_path*/)
 /// are left untouched, so re-running against an already-migrated config never clobbers
 /// branding.
 static void migrate_v18_to_v19(json& config, const std::string& /*config_path*/) {
-    if (!config.contains("preset_materials") || !config["preset_materials"].is_array()) {
+    json* arr = helix::json_util::find_array(config, "preset_materials");
+    if (arr == nullptr) {
         return;
     }
-    json& arr = config["preset_materials"];
     int converted = 0;
-    for (auto& el : arr) {
+    for (auto& el : *arr) {
         if (el.is_string()) {
             json obj = json::object();
             obj["type"] = el.get<std::string>();
@@ -601,7 +612,7 @@ static void migrate_v19_to_v20(json& config, const std::string& /*config_path*/)
     const bool have_target = !active.empty();
     bool folded = false;
 
-    if (have_target && config.contains("led") && config["led"].is_object()) {
+    if (have_target && helix::json_util::find_object(config, "led") != nullptr) {
         const std::string base = "/printers/" + active + "/leds";
         std::vector<std::pair<std::string, std::string>> moves;
         for (const char* key :
@@ -698,10 +709,12 @@ static json& ensure_relative(json& node, const std::string& path) {
     const auto parts = split_config_path(path);
     json* cur = &node;
     for (size_t i = 0; i + 1 < parts.size(); ++i) {
-        if (!cur->contains(parts[i]) || !(*cur)[parts[i]].is_object()) {
+        json* next = helix::json_util::find_object(*cur, parts[i].c_str());
+        if (next == nullptr) {
             (*cur)[parts[i]] = json::object();
+            next = &(*cur)[parts[i]];
         }
-        cur = &(*cur)[parts[i]];
+        cur = next;
     }
     return (*cur)[parts.back()];
 }
@@ -715,10 +728,10 @@ static void erase_relative(json& node, const std::string& path) {
     std::vector<json*> chain{&node};
     json* cur = &node;
     for (size_t i = 0; i + 1 < parts.size(); ++i) {
-        if (!cur->is_object() || !cur->contains(parts[i])) {
+        cur = helix::json_util::find_member(*cur, parts[i].c_str());
+        if (cur == nullptr) {
             return;
         }
-        cur = &(*cur)[parts[i]];
         chain.push_back(cur);
     }
     if (!cur->is_object()) {
@@ -748,7 +761,8 @@ static int fan_out_to_printers(json& config, const std::string& root_path,
     if (source == nullptr || source->is_null()) {
         return 0;
     }
-    if (!config.contains("printers") || !config["printers"].is_object()) {
+    json* printers = helix::json_util::find_object(config, "printers");
+    if (printers == nullptr) {
         // No printers map: leave the root key alone rather than deleting the
         // value with nowhere to put it (cf. migrate_v19_to_v20's /led).
         return 0;
@@ -757,7 +771,7 @@ static int fan_out_to_printers(json& config, const std::string& root_path,
     const json value = *source;
     int copied = 0;
     int printers_seen = 0;
-    for (auto& [key, printer] : config["printers"].items()) {
+    for (auto& [key, printer] : printers->items()) {
         // The printers map is MIXED — `show_printer_switcher` is a plain bool
         // sibling of the printer objects, so only objects count as printers.
         if (!printer.is_object()) {
@@ -818,8 +832,8 @@ static void collapse_scanner_to_root(json& config) {
     }
 
     int dropped = 0;
-    if (config.contains("printers") && config["printers"].is_object()) {
-        for (auto& [key, printer] : config["printers"].items()) {
+    if (json* printers = helix::json_util::find_object(config, "printers")) {
+        for (auto& [key, printer] : printers->items()) {
             if (!printer.is_object()) {
                 continue;
             }
@@ -905,8 +919,8 @@ static void migrate_v21_to_v22(json& config, const std::string& /*config_path*/)
 
     // Drop the container only once it is genuinely empty - a key we have not
     // accounted for here is a key we must not delete.
-    if (config.contains("filament") && config["filament"].is_object() &&
-        config["filament"].empty()) {
+    const json* leftover_filament = helix::json_util::find_object(config, "filament");
+    if (leftover_filament != nullptr && leftover_filament->empty()) {
         config.erase("filament");
     }
 }
@@ -930,32 +944,37 @@ static void migrate_v21_to_v22(json& config, const std::string& /*config_path*/)
 /// imported widget config). This pass exists so the legacy key does not linger
 /// on disk for users who never reopen the widget's config modal.
 static void migrate_v22_to_v23(json& config, const std::string& /*config_path*/) {
-    if (!config.contains("printers") || !config["printers"].is_object())
+    json* printers = helix::json_util::find_object(config, "printers");
+    if (printers == nullptr) {
         return;
+    }
 
     int rewritten = 0;
-    for (auto& [printer_id, printer] : config["printers"].items()) {
-        if (!printer.is_object() || !printer.contains("panel_widgets") ||
-            !printer["panel_widgets"].is_object())
+    for (auto& [printer_id, printer] : printers->items()) {
+        json* panels = helix::json_util::find_object(printer, "panel_widgets");
+        if (panels == nullptr)
             continue;
-        for (auto& [panel_id, panel] : printer["panel_widgets"].items()) {
-            if (!panel.is_object() || !panel.contains("pages") || !panel["pages"].is_array())
+        for (auto& [panel_id, panel] : panels->items()) {
+            json* pages = helix::json_util::find_array(panel, "pages");
+            if (pages == nullptr)
                 continue;
-            for (auto& page : panel["pages"]) {
-                if (!page.is_object() || !page.contains("widgets") || !page["widgets"].is_array())
+            for (auto& page : *pages) {
+                json* widgets = helix::json_util::find_array(page, "widgets");
+                if (widgets == nullptr)
                     continue;
-                for (auto& widget : page["widgets"]) {
-                    if (!widget.is_object() || !widget.contains("config") ||
-                        !widget["config"].is_object())
+                for (auto& widget : *widgets) {
+                    json* wc_obj = helix::json_util::find_object(widget, "config");
+                    if (wc_obj == nullptr)
                         continue;
-                    json& wc = widget["config"];
-                    if (!wc.contains("skip_param_prompt"))
+                    json& wc = *wc_obj;
+                    const json* skip = helix::json_util::find_member(wc, "skip_param_prompt");
+                    if (skip == nullptr)
                         continue;
                     // A non-boolean legacy value was never honoured by the
                     // reader either; drop it rather than inventing a meaning.
-                    if (wc["skip_param_prompt"].is_boolean() &&
-                        !wc.contains("require_confirmation")) {
-                        wc["require_confirmation"] = !wc["skip_param_prompt"].get<bool>();
+                    const auto skip_flag = helix::json_util::read_scalar<bool>(*skip);
+                    if (skip_flag && !wc.contains("require_confirmation")) {
+                        wc["require_confirmation"] = !*skip_flag;
                     }
                     wc.erase("skip_param_prompt");
                     ++rewritten;
@@ -1008,17 +1027,19 @@ static void migrate_v23_to_v24(json& config, const std::string& /*config_path*/)
     // Harvest the per-panel row cache before dropping the node: nothing else
     // reads /ui/cached_grid any more, and the port wants it keyed to the panel.
     std::map<std::string, int> cached_rows;
-    if (config.contains("ui") && config["ui"].is_object() && config["ui"].contains("cached_grid") &&
-        config["ui"]["cached_grid"].is_object()) {
-        for (const auto& [panel_id, node] : config["ui"]["cached_grid"].items()) {
-            if (auto rows = helix::json_util::read_integer_field(node, "rows")) {
-                cached_rows[panel_id] = *rows;
+    if (json* ui = helix::json_util::find_object(config, "ui")) {
+        if (const json* grid = helix::json_util::find_object(*ui, "cached_grid")) {
+            for (const auto& [panel_id, node] : grid->items()) {
+                if (auto rows = helix::json_util::read_integer_field(node, "rows")) {
+                    cached_rows[panel_id] = *rows;
+                }
             }
+            ui->erase("cached_grid");
         }
-        config["ui"].erase("cached_grid");
     }
 
-    if (!config.contains("printers") || !config["printers"].is_object()) {
+    json* printers = helix::json_util::find_object(config, "printers");
+    if (printers == nullptr) {
         return;
     }
 
@@ -1037,10 +1058,8 @@ static void migrate_v23_to_v24(json& config, const std::string& /*config_path*/)
                 continue;
             }
             const bool enabled =
-                entry.contains("enabled") && entry["enabled"].is_boolean() && entry["enabled"];
-            const int col = (entry.contains("col") && entry["col"].is_number_integer())
-                                ? entry["col"].get<int>()
-                                : -1;
+                helix::json_util::read_field<bool>(entry, "enabled").value_or(false);
+            const int col = helix::json_util::read_integer_field(entry, "col").value_or(-1);
             if (!enabled && col < 0) {
                 entry.erase("enabled");
             }
@@ -1107,13 +1126,13 @@ static void migrate_v23_to_v24(json& config, const std::string& /*config_path*/)
         ++tagged;
     };
 
-    for (auto& printer : config["printers"]) {
-        if (!printer.is_object() || !printer.contains("panel_widgets") ||
-            !printer["panel_widgets"].is_object()) {
+    for (auto& printer : *printers) {
+        json* panels = helix::json_util::find_object(printer, "panel_widgets");
+        if (panels == nullptr) {
             continue;
         }
         ++profiles;
-        for (auto&& [panel_id, panel] : printer["panel_widgets"].items()) {
+        for (auto&& [panel_id, panel] : panels->items()) {
             // Legacy flat array: lift it into the page shape as well. Left as an
             // array, PanelWidgetConfig::load() would find no entry with a grid
             // position, read the config as pre-grid and replace it wholesale
@@ -1127,12 +1146,13 @@ static void migrate_v23_to_v24(json& config, const std::string& /*config_path*/)
                 tag_panel(panel_id, panel);
                 continue;
             }
-            if (!panel.is_object() || !panel.contains("pages") || !panel["pages"].is_array()) {
+            json* pages = helix::json_util::find_array(panel, "pages");
+            if (pages == nullptr) {
                 continue;
             }
-            for (auto& page : panel["pages"]) {
-                if (page.is_object() && page.contains("widgets")) {
-                    clean_array(page["widgets"]);
+            for (auto& page : *pages) {
+                if (json* widgets = helix::json_util::find_member(page, "widgets")) {
+                    clean_array(*widgets);
                 }
             }
             tag_panel(panel_id, panel);
@@ -1162,16 +1182,16 @@ static void migrate_v24_to_v25(json& config, const std::string& /*config_path*/)
     };
     constexpr int kLegacyPhaseCount = static_cast<int>(std::size(kLegacyPhaseNames));
 
-    if (!config.contains("print_start_history") ||
-        !config["print_start_history"].contains("entries") ||
-        !config["print_start_history"]["entries"].is_array()) {
+    json* history = helix::json_util::find_member(config, "print_start_history");
+    json* entries = history ? helix::json_util::find_array(*history, "entries") : nullptr;
+    if (entries == nullptr) {
         return;
     }
 
     int converted = 0;
     int dropped = 0;
-    for (auto& entry : config["print_start_history"]["entries"]) {
-        if (!entry.is_object() || !entry.contains("phases") || !entry["phases"].is_object()) {
+    for (auto& entry : *entries) {
+        if (!helix::json_util::find_object(entry, "phases")) {
             continue;
         }
 
@@ -1220,10 +1240,11 @@ static void migrate_v24_to_v25(json& config, const std::string& /*config_path*/)
 /// set_completion_alert_mode() always persists an int, so a boolean here can
 /// only be the old default, never a user's actual choice.
 static void migrate_v25_to_v26(json& config, const std::string& /*config_path*/) {
-    if (!config.contains("completion_alert") || !config["completion_alert"].is_boolean()) {
+    const auto was_true_flag = helix::json_util::read_field<bool>(config, "completion_alert");
+    if (!was_true_flag) {
         return;
     }
-    const bool was_true = config["completion_alert"].get<bool>();
+    const bool was_true = *was_true_flag;
     config["completion_alert"] = was_true ? static_cast<int>(helix::CompletionAlertMode::ALERT)
                                           : static_cast<int>(helix::CompletionAlertMode::OFF);
     spdlog::info("[Config] Migration v26: completion_alert bool({}) -> int({})", was_true,
@@ -1234,14 +1255,16 @@ static void migrate_v25_to_v26(json& config, const std::string& /*config_path*/)
 /// platform default. ESP32 is the only platform whose default differs, so
 /// elsewhere this leaves every document as it is.
 static void migrate_v26_to_v27(json& config, const std::string& /*config_path*/) {
-    if (!config.contains("input") || !config["input"].is_object()) {
+    json* input_obj = helix::json_util::find_object(config, "input");
+    if (input_obj == nullptr) {
         return;
     }
-    json& input = config["input"];
-    if (!input.contains("scroll_throw") || !input["scroll_throw"].is_number_integer()) {
+    json& input = *input_obj;
+    const auto stored_value = helix::json_util::read_integer_field(input, "scroll_throw");
+    if (!stored_value) {
         return;
     }
-    const int stored = input["scroll_throw"].get<int>();
+    const int stored = *stored_value;
     const int migrated = migrated_scroll_throw(stored, helix::input_defaults::kScrollThrow);
     if (migrated != stored) {
         input["scroll_throw"] = migrated;
@@ -1255,14 +1278,16 @@ static void migrate_v26_to_v27(json& config, const std::string& /*config_path*/)
 /// saver. A string is already a name and is left as it is, as is any other JSON type, which the
 /// reader treats as the default.
 static void migrate_v27_to_v28(json& config, const std::string& /*config_path*/) {
-    if (!config.contains("display") || !config["display"].is_object()) {
+    json* display_obj = helix::json_util::find_object(config, "display");
+    if (display_obj == nullptr) {
         return;
     }
-    json& display = config["display"];
-    if (!display.contains("screensaver_type") || !display["screensaver_type"].is_number_integer()) {
+    json& display = *display_obj;
+    const json* screensaver = helix::json_util::find_member(display, "screensaver_type");
+    if (screensaver == nullptr || !screensaver->is_number_integer()) {
         return;
     }
-    const json& stored = display["screensaver_type"];
+    const json stored = *screensaver;
     const char* name = helix::ui::legacy_screensaver_name(stored.get<long long>());
     if (name == nullptr) {
         name = helix::ui::screensaver_name(helix::ui::kDefaultScreensaverType);
@@ -1275,10 +1300,11 @@ static void migrate_v27_to_v28(json& config, const std::string& /*config_path*/)
 /// Move each printer's ams/afc_unload_after_print to the backend-neutral
 /// ams/unload_after_print. A printer that already holds the new key keeps it.
 static void migrate_v28_to_v29(json& config, const std::string& /*config_path*/) {
-    if (!config.contains("printers") || !config["printers"].is_object()) {
+    json* printers = helix::json_util::find_object(config, "printers");
+    if (printers == nullptr) {
         return;
     }
-    for (auto& [printer_id, printer] : config["printers"].items()) {
+    for (auto& [printer_id, printer] : printers->items()) {
         if (!printer.is_object()) {
             continue;
         }
@@ -1295,10 +1321,11 @@ static void migrate_v28_to_v29(json& config, const std::string& /*config_path*/)
 /// the backend-neutral ams/eject_distance and ams/eject_velocity. A printer that
 /// already holds a new key keeps it.
 static void migrate_v29_to_v30(json& config, const std::string& /*config_path*/) {
-    if (!config.contains("printers") || !config["printers"].is_object()) {
+    json* printers = helix::json_util::find_object(config, "printers");
+    if (printers == nullptr) {
         return;
     }
-    for (auto& [printer_id, printer] : config["printers"].items()) {
+    for (auto& [printer_id, printer] : printers->items()) {
         if (!printer.is_object()) {
             continue;
         }
@@ -1315,7 +1342,7 @@ static void migrate_v29_to_v30(json& config, const std::string& /*config_path*/)
 /// off: a copy would list the screen among the webcams of printers nobody chose to share
 /// it with. A printer that already holds a value keeps it.
 static void migrate_v30_to_v31(json& config, const std::string& /*config_path*/) {
-    if (!config.contains("remote_screen") || !config["remote_screen"].is_object()) {
+    if (helix::json_util::find_object(config, "remote_screen") == nullptr) {
         return;
     }
     const std::string active = find_active_printer_key(config);
@@ -1351,10 +1378,11 @@ static bool printer_is_ad5x(const json& config, const std::string& printer_id,
 static void migrate_v31_to_v32(json& config, const std::string& /*config_path*/) {
     static constexpr const char* kStale = "filament_switch_sensor runout_sensor";
     static constexpr const char* kHead = "filament_switch_sensor head_switch_sensor";
-    if (!config.contains("printers") || !config["printers"].is_object()) {
+    json* printers = helix::json_util::find_object(config, "printers");
+    if (printers == nullptr) {
         return;
     }
-    for (auto& [printer_id, printer] : config["printers"].items()) {
+    for (auto& [printer_id, printer] : printers->items()) {
         // VENDOR_OK: a migration freezes the printers it repairs
         if (!printer.is_object() || !printer_is_ad5x(config, printer_id, printer)) {
             continue;
@@ -1417,17 +1445,20 @@ static void migrate_v32_to_v33(json& config, const std::string& /*config_path*/)
     static constexpr const char* kSideFan = "fan_generic chamber_fan";
     static constexpr const char* kCirculation = "fan_generic internal_fan";
     static constexpr const char* kExhaust = "fan_generic external_fan";
-    if (!config.contains("printers") || !config["printers"].is_object()) {
+    json* printers = helix::json_util::find_object(config, "printers");
+    if (printers == nullptr) {
         return;
     }
-    for (auto& [printer_id, printer] : config["printers"].items()) {
+    for (auto& [printer_id, printer] : printers->items()) {
         // VENDOR_OK: a migration freezes the printers it repairs
         const std::string firmware =
             printer.is_object() ? ad5m_pro_firmware(config, printer_id, printer) : "";
-        if (firmware.empty() || !printer.contains("fans") || !printer["fans"].is_object()) {
+        json* fans_obj =
+            firmware.empty() ? nullptr : helix::json_util::find_object(printer, "fans");
+        if (fans_obj == nullptr) {
             continue;
         }
-        json& fans = printer["fans"];
+        json& fans = *fans_obj;
         if (helix::json_util::safe_string(fans, "aux") != kCirculation) {
             continue;
         }
@@ -1464,13 +1495,13 @@ static void migrate_v33_to_v34(json& config, const std::string& /*config_path*/)
         filament != nullptr && filament->is_object()) {
         filament->erase("external_spool");
     }
-    if (config.contains("printers") && config["printers"].is_object()) {
-        for (auto& [printer_id, printer] : config["printers"].items()) {
-            if (!printer.is_object() || !printer.contains("filament") ||
-                !printer["filament"].is_object()) {
+    if (json* printers = helix::json_util::find_object(config, "printers")) {
+        for (auto& [printer_id, printer] : printers->items()) {
+            json* filament_obj = helix::json_util::find_object(printer, "filament");
+            if (filament_obj == nullptr) {
                 continue;
             }
-            json& filament = printer["filament"];
+            json& filament = *filament_obj;
             const auto old = filament.find("external_spool");
             if (old == filament.end()) {
                 continue;
@@ -1492,10 +1523,11 @@ static void migrate_v33_to_v34(json& config, const std::string& /*config_path*/)
 /// 20-minute default takes the new one; any other choice, Never included, stays.
 static void migrate_v34_to_v35(json& config, const std::string& /*config_path*/) {
     constexpr int kOldDefaultSleepSec = 1200;
-    if (!config.contains("display") || !config["display"].is_object()) {
+    json* display_obj = helix::json_util::find_object(config, "display");
+    if (display_obj == nullptr) {
         return;
     }
-    json& display = config["display"];
+    json& display = *display_obj;
     const auto sleep = display.find("sleep_sec");
     if (sleep != display.end() && sleep->is_number_integer() &&
         sleep->get<int>() == kOldDefaultSleepSec) {

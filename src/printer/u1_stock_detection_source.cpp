@@ -7,6 +7,7 @@
 #include "app_globals.h"
 #include "core/observer_factory.h"
 #include "i_moonraker_client.h"
+#include "json_utils.h"
 #include "printer_state.h"
 
 #include <spdlog/spdlog.h>
@@ -107,8 +108,8 @@ void U1StockSource::read_bed_check(BedCheckReadCallback done) {
         }
         BedCheckState state;
         state.enabled = *enable;
-        if (auto main = module->find("main_enable"); main != module->end() && main->is_boolean()) {
-            state.module_enabled = main->get<bool>();
+        if (const auto main = helix::json_util::read_field<bool>(*module, "main_enable")) {
+            state.module_enabled = *main;
         }
         done(state);
     });

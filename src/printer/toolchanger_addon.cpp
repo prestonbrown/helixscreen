@@ -4,6 +4,7 @@
 
 #include "color_utils.h"
 #include "core/text_io.h"
+#include "json_utils.h"
 #include "macro_param_cache.h"
 #include "printer_discovery.h"
 #include "zmod_color_status.h"
@@ -350,14 +351,14 @@ std::optional<ToolReading> read_medusahc(const nlohmann::json& obj) {
     }
 
     // idle / changing / dropping / picking: the words name the swap direction.
-    if (auto it = obj.find("operation"); it != obj.end() && it->is_string()) {
-        r.operation = it->get<std::string>();
+    if (const auto it = helix::json_util::read_field<std::string>(obj, "operation")) {
+        r.operation = *it;
         r.phase_names_direction = true;
         saw_anything = true;
     }
 
-    if (auto it = obj.find("last_error"); it != obj.end() && it->is_string()) {
-        r.last_error = it->get<std::string>();
+    if (const auto it = helix::json_util::read_field<std::string>(obj, "last_error")) {
+        r.last_error = *it;
         saw_anything = true;
     }
     if (auto target = int_field(obj, "target_tool")) {
@@ -613,14 +614,14 @@ std::optional<AfcStateReading> read_afc_state(const nlohmann::json& status) {
         return std::nullopt;
     }
     AfcStateReading r;
-    if (auto state = obj->find("current_state"); state != obj->end() && state->is_string()) {
-        r.current_state = state->get<std::string>();
+    if (const auto state = helix::json_util::read_field<std::string>(*obj, "current_state")) {
+        r.current_state = *state;
     }
-    if (auto err = obj->find("error_state"); err != obj->end() && err->is_boolean()) {
-        r.error_state = err->get<bool>();
+    if (const auto err = helix::json_util::read_field<bool>(*obj, "error_state")) {
+        r.error_state = *err;
     }
-    if (auto msg = obj->find("message"); msg != obj->end() && msg->is_string()) {
-        r.message = msg->get<std::string>();
+    if (const auto msg = helix::json_util::read_field<std::string>(*obj, "message")) {
+        r.message = *msg;
     }
     if (auto lanes = obj->find("lanes"); lanes != obj->end() && lanes->is_array()) {
         for (const auto& lane_name : *lanes) {

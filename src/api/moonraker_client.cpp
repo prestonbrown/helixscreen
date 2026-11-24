@@ -748,8 +748,8 @@ void MoonrakerClient::on_ws_message(const std::string& msg) {
             if (method == "notify_status_update" && j.contains("params") &&
                 j["params"].is_array() && !j["params"].empty()) {
                 const json& params = j["params"][0];
-                if (params.contains("bed_mesh") && params["bed_mesh"].is_object()) {
-                    parse_bed_mesh(params["bed_mesh"]);
+                if (const json* bed_mesh = helix::json_util::find_object(params, "bed_mesh")) {
+                    parse_bed_mesh(*bed_mesh);
                 }
             }
 

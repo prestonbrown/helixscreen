@@ -166,9 +166,8 @@ Preparation resolve_from_rules(const nlohmann::json& rules,
         }
         prep.label = helix::json_util::safe_string(rule, "label");
         prep.rule_id = helix::json_util::safe_string(rule, "id");
-        const auto timeout = rule.find("timeout_s");
-        if (timeout != rule.end() && timeout->is_number()) {
-            const double seconds = timeout->get<double>();
+        if (const auto timeout = helix::json_util::read_field<double>(rule, "timeout_s")) {
+            const double seconds = *timeout;
             if (seconds > 0.0) {
                 prep.extra_timeout_ms = static_cast<uint32_t>(seconds * 1000.0);
             }

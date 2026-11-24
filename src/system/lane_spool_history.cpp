@@ -7,6 +7,7 @@
 #include "color_utils.h"
 #include "core/text_io.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "moonraker_error.h"
 
 #include <spdlog/spdlog.h>
@@ -94,9 +95,8 @@ std::vector<Entry> from_json(const nlohmann::json& value) {
         if (rgb != item.end() && rgb->is_number_unsigned()) {
             e.color_rgb = rgb->get<uint32_t>() & 0xFFFFFF;
         }
-        const auto total = item.find("total_g");
-        if (total != item.end() && total->is_number()) {
-            e.total_weight_g = total->get<float>();
+        if (const auto total = helix::json_util::read_field<float>(item, "total_g")) {
+            e.total_weight_g = *total;
         }
         out.push_back(std::move(e));
         if (out.size() >= kMaxEntries) {

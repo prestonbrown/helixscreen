@@ -58,12 +58,12 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status, bool wh
 PrinterPrintState::PrintDurations
 PrinterPrintState::read_print_durations(const nlohmann::json& stats) {
     PrintDurations durations;
-    if (auto it = stats.find("print_duration"); it != stats.end() && it->is_number()) {
-        durations.print_s = it->get<double>();
+    if (const auto it = helix::json_util::read_field<double>(stats, "print_duration")) {
+        durations.print_s = *it;
     }
     // total_duration = wall-clock elapsed since job started (includes prep, pauses)
-    if (auto it = stats.find("total_duration"); it != stats.end() && it->is_number()) {
-        durations.total_s = it->get<double>();
+    if (const auto it = helix::json_util::read_field<double>(stats, "total_duration")) {
+        durations.total_s = *it;
     }
     return durations;
 }
@@ -301,8 +301,8 @@ bool PrinterPrintState::apply_print_job_state(const nlohmann::json& status,
 
 void PrinterPrintState::apply_print_filename(const nlohmann::json& stats,
                                              bool identity_follows_job) {
-    if (auto fn_it = stats.find("filename"); fn_it != stats.end() && fn_it->is_string()) {
-        std::string filename = fn_it->get<std::string>();
+    if (const auto fn_it = helix::json_util::read_field<std::string>(stats, "filename")) {
+        std::string filename = *fn_it;
         if (strcmp(lv_subject_get_string(&print_filename_), filename.c_str()) != 0) {
             // Order matters, exactly as it does in set_print_thumbnail():
             // the identity must be visible BEFORE any observer of
@@ -376,16 +376,16 @@ PrinterPrintState::apply_info_layers(const nlohmann::json& stats) {
     spdlog::trace("[LayerTracker] print_stats.info received: {}",
                   helix::json_util::safe_dump(info));
 
-    if (auto it = info.find("current_layer"); it != info.end() && it->is_number()) {
-        const int current_layer = it->get<int>();
+    if (const auto it = helix::json_util::read_field<int>(info, "current_layer")) {
+        const int current_layer = *it;
         note_reported_layer(current_layer, "print_stats.info");
         from_info.current = true;
         slicer_layers_reported_ = true;
         slicer_current_layer_ = current_layer;
     }
 
-    if (auto it = info.find("total_layer"); it != info.end() && it->is_number()) {
-        const int total_layer = it->get<int>();
+    if (const auto it = helix::json_util::read_field<int>(info, "total_layer")) {
+        const int total_layer = *it;
         note_reported_layer_total(total_layer, "print_stats.info");
         from_info.total = true;
         slicer_layers_reported_ = true;
@@ -398,8 +398,8 @@ void PrinterPrintState::apply_print_counters(const nlohmann::json& stats,
                                              const PrintDurations& durations) {
     // Accept estimated_time from status updates (mock includes this; real Moonraker
     // sends it via file metadata API instead, handled by print status panel callback)
-    if (auto it = stats.find("estimated_time"); it != stats.end() && it->is_number()) {
-        int est = static_cast<int>(it->get<double>());
+    if (const auto it = helix::json_util::read_field<double>(stats, "estimated_time")) {
+        int est = static_cast<int>(*it);
         if (est > 0 && estimated_print_time_ == 0) {
             estimated_print_time_ = est;
             spdlog::debug("[PrinterPrintState] Estimated time from status: {}s", est);
@@ -407,8 +407,8 @@ void PrinterPrintState::apply_print_counters(const nlohmann::json& stats,
     }
 
     // Track filament usage (Moonraker reports in mm)
-    if (auto it = stats.find("filament_used"); it != stats.end() && it->is_number()) {
-        lv_subject_set_int(&print_filament_used_, static_cast<int>(it->get<double>()));
+    if (const auto it = helix::json_util::read_field<double>(stats, "filament_used")) {
+        lv_subject_set_int(&print_filament_used_, static_cast<int>(*it));
     }
 
     // The durations again, after the state edge: what an observer of that

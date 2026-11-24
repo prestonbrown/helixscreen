@@ -1033,8 +1033,8 @@ void AmsBackendToolChanger::handle_status(const nlohmann::json& params) {
     // lost connection owes its heaters can go out, once the frames have said
     // whether a print holds the printer.
     if (auto ps = params.find("print_stats"); ps != params.end() && ps->is_object()) {
-        if (auto st = ps->find("state"); st != ps->end() && st->is_string()) {
-            frame_print_state_ = st->get<std::string>();
+        if (const auto st = helix::json_util::read_field<std::string>(*ps, "state")) {
+            frame_print_state_ = *st;
             frame_print_state_current_ = true;
         }
     }

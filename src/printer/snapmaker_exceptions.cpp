@@ -5,6 +5,7 @@
 
 #include "core/text_io.h"
 #include "display_numbering.h"
+#include "json_utils.h"
 #include "lvgl.h"
 #include "translation_loader.h"
 
@@ -876,9 +877,8 @@ std::optional<ActiveException> read_exception_entry(const nlohmann::json& entry)
     active.code.id = field_int(entry, "id");
     active.code.index = field_int(entry, "index");
     active.code.code = field_int(entry, "code");
-    auto firmware_text = entry.find("message");
-    if (firmware_text != entry.end() && firmware_text->is_string()) {
-        active.message = firmware_text->get<std::string>();
+    if (const auto firmware_text = helix::json_util::read_field<std::string>(entry, "message")) {
+        active.message = *firmware_text;
     }
     active.persistent = field_persistent(entry, "is_persistent");
     return active;

@@ -3,6 +3,7 @@
 
 #include "openams_status_parse.h"
 
+#include "json_utils.h"
 #include "openams_api.h"
 
 #include <algorithm>
@@ -357,10 +358,9 @@ ManagerStatus parse_manager_status(const json& manager) {
         // tension, so a reading under set_point is less compression, not slack
         // or pull. A manager that publishes no pressure leaves the lane with no
         // buffer rather than a made-up reading.
-        auto pressure = lane_json.find("pressure");
-        if (pressure != lane_json.end() && pressure->is_number()) {
+        if (const auto pressure = helix::json_util::read_field<float>(lane_json, "pressure")) {
             BufferHealth fps;
-            fps.fps_value = fps.smoothed_fps = pressure->get<float>();
+            fps.fps_value = fps.smoothed_fps = *pressure;
             fps.fps_reported = true;
             fps.compression_only = true;
             fps.filament_loaded = lane.loaded_slot >= 0;

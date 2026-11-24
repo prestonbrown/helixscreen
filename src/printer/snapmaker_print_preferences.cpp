@@ -3,6 +3,8 @@
 
 #include "snapmaker_print_preferences.h"
 
+#include "json_utils.h"
+
 #include "hv/json.hpp"
 
 namespace helix::snapmaker {
@@ -92,8 +94,8 @@ PrintPreferences read_print_preferences(const nlohmann::json& status) {
     p.filament_entangle_detect = read_flag(*ptc, "filament_entangle_detect");
     p.end_led_turn_off = read_flag(*ptc, "end_led_turn_off");
 
-    if (auto it = ptc->find("filament_entangle_sen"); it != ptc->end() && it->is_string()) {
-        p.filament_entangle_sen = it->get<std::string>();
+    if (const auto it = helix::json_util::read_field<std::string>(*ptc, "filament_entangle_sen")) {
+        p.filament_entangle_sen = *it;
     }
     p.end_unload_filament = read_flag_list(*ptc, "end_unload_filament");
     p.filament_soft = read_flag_list(*ptc, "filament_soft");

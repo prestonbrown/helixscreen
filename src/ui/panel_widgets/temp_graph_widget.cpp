@@ -479,7 +479,7 @@ void TempGraphWidget::build_default_config() {
 }
 
 bool TempGraphWidget::merge_discovered_extruders(nlohmann::json& config, bool enabled) {
-    if (!config.contains("sensors") || !config["sensors"].is_array())
+    if (!helix::json_util::find_array(config, "sensors"))
         config["sensors"] = nlohmann::json::array();
 
     auto& arr = config["sensors"];
@@ -639,7 +639,7 @@ TempGraphWidget::TempGraphConfigModal::sensor_display_name(const std::string& kl
 void TempGraphWidget::TempGraphConfigModal::populate_sensor_list() {
     rows_.clear();
 
-    if (!config_.contains("sensors") || !config_["sensors"].is_array())
+    if (!helix::json_util::find_array(config_, "sensors"))
         config_["sensors"] = nlohmann::json::array();
 
     // Modal-time safety net: TempGraphWidget::attach already auto-upgrades on

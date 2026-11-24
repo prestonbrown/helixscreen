@@ -268,7 +268,7 @@ struct PrinterDatabase {
         bool merged_sets = false;
         if (extension_data.contains("console_filter_sets") &&
             extension_data["console_filter_sets"].is_object()) {
-            if (!data.contains("console_filter_sets") || !data["console_filter_sets"].is_object()) {
+            if (!helix::json_util::find_object(data, "console_filter_sets")) {
                 data["console_filter_sets"] = json::object();
             }
             auto& incoming = extension_data["console_filter_sets"];
@@ -281,7 +281,7 @@ struct PrinterDatabase {
 
         // Validate structure. A file that only contributes filter sets is
         // legitimate, so only complain when it carried nothing at all.
-        if (!extension_data.contains("printers") || !extension_data["printers"].is_array()) {
+        if (!helix::json_util::find_array(extension_data, "printers")) {
             if (!merged_sets) {
                 load_errors.push_back(fmt::format("{}: missing 'printers' array", file_path));
                 spdlog::warn("[PrinterDetector] {}", load_errors.back());

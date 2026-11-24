@@ -109,9 +109,8 @@ bool read_tool_positions(const json& obj, Reading& r) {
         r.no_heat_tools = std::move(tools);
         saw = true;
     }
-    auto dc = obj.find("docks_calibrated");
-    if (dc != obj.end() && dc->is_boolean()) {
-        r.docks_calibrated = dc->get<bool>();
+    if (const auto dc = helix::json_util::read_field<bool>(obj, "docks_calibrated")) {
+        r.docks_calibrated = *dc;
         saw = true;
     }
     return saw;
@@ -123,9 +122,8 @@ bool read_toolchange_vars(const json& obj, Reading& r) {
         r.toolhead_state = *v;
         saw = true;
     }
-    auto mode = obj.find("mode");
-    if (mode != obj.end() && mode->is_string()) {
-        r.speed_mode = mode->get<std::string>();
+    if (const auto mode = helix::json_util::read_field<std::string>(obj, "mode")) {
+        r.speed_mode = *mode;
         saw = true;
     }
     return saw;

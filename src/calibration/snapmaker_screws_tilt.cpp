@@ -4,6 +4,7 @@
 #include "snapmaker_screws_tilt.h"
 
 #include "i_moonraker_client.h"
+#include "json_utils.h"
 #include "moonraker_advanced_api.h"
 #include "snapmaker_exceptions.h"
 #include "spdlog/spdlog.h"
@@ -66,10 +67,9 @@ AutoScrewsTiltResults parse_auto_screws_tilt(const nlohmann::json& status,
 
         // Coordinates and display names come from the configfile section.
         if (config_section.is_object()) {
-            const auto coords = config_section.find("screw" + std::to_string(i));
-            if (coords != config_section.end() && coords->is_string()) {
-                std::sscanf(coords->get_ref<const std::string&>().c_str(), "%f,%f", &screw.x_pos,
-                            &screw.y_pos);
+            if (const auto coords = helix::json_util::read_field<std::string>(
+                    config_section, ("screw" + std::to_string(i)).c_str())) {
+                std::sscanf(coords->c_str(), "%f,%f", &screw.x_pos, &screw.y_pos);
             }
             const auto name = config_section.find("screw" + std::to_string(i) + "_name");
             if (name != config_section.end() && name->is_string()) {
@@ -221,9 +221,9 @@ void reconcile_on_connect(IMoonrakerClient& client, const nlohmann::json& initia
         std::string probe_step;
         const auto module = status->find(kModuleName);
         if (module != status->end() && module->is_object()) {
-            const auto step = module->find("probe_step");
-            if (step != module->end() && step->is_string()) {
-                probe_step = step->get_ref<const std::string&>();
+            if (const auto step =
+                    helix::json_util::read_field<std::string>(*module, "probe_step")) {
+                probe_step = *step;
             }
         }
 
