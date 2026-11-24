@@ -201,6 +201,8 @@ fixes since 1.0.
 
 1.1 fixes a long list of crashes, hangs and printer-specific problems found since 1.0, including crashes when switching printers or shutting down, filament system faults on AFC, AD5X, ACE, QIDI Box, CFS and the Snapmaker U1, and K2, AD5M, AD5X and Android problems. The highlights:
 
+- **Saving a spool no longer pushes the editor off the screen** - the Save button shows the save in progress, and nothing above it moves.
+- **High Fly's date and day name no longer overlap** on a narrow clock column, and **Aqua Surface's clock shows AM or PM** in 12-hour mode.
 - **Every crash leaves a report you can send** - including crashes on background threads and ones that ran out of stack, which used to leave nothing.
 - **Switching printers could crash** - and the previous printer's data and fans no longer carry over to the new one.
 - **Unplugging a touchscreen or mouse** could crash the app or leave input dead.
