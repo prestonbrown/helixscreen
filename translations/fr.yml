@@ -77,6 +77,8 @@ translations:
   "Let the printer's tensioners set the belts": "Laisser les tendeurs de l'imprimante régler les courroies"
   ? "The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first."
   : "L'imprimante prend l'origine de X et Y si nécessaire, puis pousse la tête contre le coupeur pour trouver sa position. Déchargez d'abord le filament."
+  ? The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first. Clear the bed first.
+  : "L'imprimante prend l'origine de X et Y si nécessaire, puis pousse la tête contre le coupeur pour trouver sa position. Déchargez d'abord le filament. Dégagez d'abord le plateau."
   ? "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer."
   : "L'imprimante prend l'origine de X et Y, place la tête au centre du plateau et règle chaque courroie avec son tendeur. Les moteurs sont relâchés à la fin : prenez l'origine avant de déplacer l'imprimante."
   The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting.: L'imprimante n'a pas encore indiqué comment prendre cette tête. Réessayez lorsque son système de filament aura fini de se connecter.
@@ -616,6 +618,7 @@ translations:
   Bed clear · Start next: 'Plateau libre · Lancer le suivant'
   'Bed cooling, spools still on the bed:': 'Le plateau refroidit, les bobines sont toujours dessus :'
 
+  "Bed heater tuned": "Chauffage du plateau réglé"
   Bed is Level!: Le plateau est niveau !
   Bed is at {}, the print needs {}.: Le plateau est à {}, l'impression a besoin de {}.
   Bed is clear: Le plateau est dégagé
@@ -1085,6 +1088,7 @@ translations:
 
   Clear the bed and the nozzle, then restart the firmware.: Dégagez le plateau et la buse, puis redémarrez le firmware.
   Clear the bed and the nozzle, then try again.: Dégagez le plateau et la buse, puis réessayez.
+  "Clear the bed first.": "Dégagez d'abord le plateau."
   Clear the clog in head T{1} (a cold pull works), then resume.: Débouchez la tête T{1} (un cold pull fonctionne), puis reprenez.
   Clear the extruder?: 'Vider l''extrudeur ?'
   Clear the nozzle and the part, then restart the firmware.: Dégagez la buse et la pièce, puis redémarrez le firmware.
@@ -1523,6 +1527,8 @@ translations:
   Discard: Abandonner
   Discard Changes?: Abandonner les modifications ?
   Discard all: 'Tout abandonner'
+  "Discard failed: {}": "Échec de l'abandon : {}"
+  "Discard restarts Klipper to drop it.": "Abandonner redémarre Klipper pour l'effacer."
   Disconnected: Déconnecté
   Disconnected Time: Temps de déconnexion
   Disconnects: Déconnexions
@@ -2466,6 +2472,7 @@ translations:
   Importing {}...: 'Importation de {}...'
   In Progress: En cours
   In config · {}: 'Dans la configuration · {}'
+  "In use now. A restart forgets it unless you save it.": "Actif maintenant. Un redémarrage l'oublie si vous ne l'enregistrez pas."
   Inactive: Inactif
   Inch units not supported: 'Unités en pouces non prises en charge'
   Include Klipper/Moonraker logs: Inclure les journaux Klipper/Moonraker
@@ -2929,6 +2936,7 @@ translations:
   Make a smaller adjustment.: 'Faites un réglage plus petit.'
   Make color, material and spool changes in Spoolman.: "Modifiez la couleur, le matériau et la bobine dans Spoolman."
   Make sure every nozzle is clean.: Assurez-vous que toutes les buses sont propres.
+  "Make sure every nozzle is clean. Clear the bed first.": "Assurez-vous que toutes les buses sont propres. Dégagez d'abord le plateau."
   ? Make sure motor power is on, reseat the driver and check its pin in the printer's configuration, then restart the firmware.
   : Assurez-vous que l'alimentation des moteurs est allumée, remettez le pilote en place et vérifiez sa broche dans la configuration de l'imprimante, puis redémarrez le firmware.
   'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.': "Vérifiez qu'aucun filament n'est chargé dans la tête d'outil : il peut ramollir dans l'extrudeur pendant que le plateau chauffe."
@@ -3117,6 +3125,8 @@ translations:
   Needs attention: Attention requise
   Needs repair from a web interface: 'Doit être réparé depuis une interface web'
   Needs the {} package to switch spools: 'Nécessite le plugin {} pour changer de bobine'
+  "Needs you, about {} min": "Vous êtes requis, environ {} min"
+  "Needs you, about {} min: {}": "Vous êtes requis, environ {} min : {}"
   'Needs {}x{} free: remove or shrink a widget first': 'Nécessite {}x{} de libre : supprimez ou réduisez d''abord un widget'
   Net Weight (g): Poids net (g)
   Network: Réseau
@@ -3317,6 +3327,7 @@ translations:
   Not enough frequency data from the sweeps. Try again.: 'Pas assez de données de fréquence après les balayages. Réessayez.'
   Not enough room for this widget. Rearrange or remove widgets to make space.: Pas assez de place pour ce widget. Réorganisez ou supprimez des widgets pour libérer de l'espace.
   Not enough room to put the widget back. It stays removed.: 'Pas assez de place pour remettre le widget. Il reste supprimé.'
+  "Not in use yet. Klipper holds it until a save or a restart.": "Pas encore actif. Klipper le garde jusqu'à un enregistrement ou un redémarrage."
   Not in your spools? Set it up: Pas dans vos bobines ? Configurez-la
   Not loaded by its feeder: 'Non chargé par son alimentateur'
   Not now: Pas maintenant
@@ -3351,6 +3362,7 @@ translations:
   Which computer the Advanced power rows act on: 'Quel ordinateur les lignes d''alimentation d''Avancé concernent'
   'Which lane is in the toolhead?': 'Quelle voie est dans la tête ?'
   'Choose which lane is in the toolhead to unload it': 'Choisissez quelle voie est dans la tête pour la décharger'
+  "Nothing waits to be saved.": "Rien n'attend d'être enregistré."
   Nothing was changed. Temperature and material are kept, so a retry is one tap.: 'Rien n''a été modifié. La température et le matériau sont conservés, réessayer ne demande qu''un appui.'
   Nothing was saved: Rien n'a été enregistré
   Nothing was saved and the heaters are off.: Rien n'a été enregistré et les chauffages sont éteints.
@@ -3379,6 +3391,7 @@ translations:
   Nozzle diameter: "Diamètre de buse"
   Nozzle did not reach {} — {} canceled: La buse n'a pas atteint {} — {} annulé
   Nozzle flow: "Débit de buse"
+  "Nozzle heater tuned": "Chauffage de la buse réglé"
   Nozzle interval: 'Intervalle de la buse'
   Nozzle min cannot exceed max: Le minimum de la buse ne peut pas dépasser le maximum
   'Nozzle not changed: the printer did not confirm it': "Buse non modifiée : l'imprimante ne l'a pas confirmé"
@@ -3838,6 +3851,7 @@ translations:
   'Printing: start after this job': 'Impression en cours : démarrez après ce travail'
   Prints: Impressions
   Prints Trend: Tendance des impressions
+  "Prints on its own, about {} min": "Imprime seul, environ {} min"
   'Private:': 'Privé :'
   Probe: Sonde
   Probe Accuracy Failed: Échec du test de précision de la sonde
@@ -4275,6 +4289,7 @@ translations:
   Runs on its own once started: Fonctionne seul une fois lancé
   Runs everything this printer needs, in order: 'Exécute tout ce dont cette imprimante a besoin, dans l''ordre'
   Runs everything this printer needs, in order ·: 'Exécute tout ce dont cette imprimante a besoin, dans l''ordre ·'
+  "Runs on its own, about {} min": "Fonctionne seul, environ {} min"
   Runs the printer's tool offset calibration for every tool.: Lance la calibration des offsets d'outil de l'imprimante pour tous les outils.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': "SAVE_CONFIG a échoué : {}. Les décalages d'outil ont été appliqués mais non enregistrés. Lancez SAVE_CONFIG manuellement, sinon ils seront perdus au redémarrage."
   ? 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
@@ -4328,6 +4343,8 @@ translations:
   Save the new heater values to printer.cfg?: Enregistrer les nouvelles valeurs du chauffage dans printer.cfg ?
   Save the new heater values to printer.cfg? Klipper restarts.: Enregistrer les nouvelles valeurs du chauffage dans printer.cfg ? Klipper redémarre.
   Save to Config: "Enregistrer dans la config"
+  "Save to Config and Discard both restart Klipper.": "Enregistrer dans la config et Abandonner redémarrent tous deux Klipper."
+  "Save to Config keeps Klipper running. Discard restarts it.": "Enregistrer dans la config laisse Klipper tourner. Abandonner le redémarre."
   Save to Spool: Enregistrer sur la bobine
   Save to Spoolman: Enregistrer dans Spoolman
   Save to the printer config?: "Enregistrer dans la config de l'imprimante ?"
@@ -5251,6 +5268,8 @@ translations:
   The printer has not reported whether Auto-Replenish is on: 'L''imprimante n''a pas indiqué si le réapprovisionnement automatique est activé'
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
   : 'L''imprimante chauffe la buse, fait quelques mouvements de test dans un coin du plateau et les mesure elle-même. Elle répète jusqu''à ce que les mesures concordent, puis indique un seul chiffre.'
+  ? The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer. Clear the bed first.
+  : "L'imprimante prend l'origine de X et Y, place la tête au centre du plateau et règle chaque courroie avec son tendeur. Les moteurs sont relâchés à la fin : prenez l'origine avant de déplacer l'imprimante. Dégagez d'abord le plateau."
   The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear.: L'imprimante prend l'origine et balaie le coupeur (environ 1 minute). Laissez le chemin du filament dégagé.
   The printer homes if needed, then finds the cutter's position. Keep the filament path clear.: "L'imprimante prend l'origine si nécessaire, puis localise la position du coupeur. Laissez le chemin du filament dégagé."
   ? The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked.
@@ -5283,6 +5302,7 @@ translations:
   The printer moved the print to {}, not {}.: 'L''imprimante a passé l''impression sur {}, et non sur {}.'
   The printer may need a reboot afterwards.: 'Un redémarrage de l''imprimante peut être nécessaire ensuite.'
   The printer moves the toolhead and measures its motors.: 'L''imprimante déplace la tête et mesure ses moteurs.'
+  "The printer moves the toolhead and measures its motors. Clear the bed first.": "L'imprimante déplace la tête et mesure ses moteurs. Dégagez d'abord le plateau."
   The printer needs homing first: L'imprimante doit d'abord faire la prise d'origine
   The printer no longer has a print to resume.: L'imprimante n'a plus d'impression à reprendre.
   The printer reads the file up to the last saved position. A large file can take a minute.: L'imprimante lit le fichier jusqu'à la dernière position enregistrée. Un gros fichier peut prendre une minute.
@@ -5859,6 +5879,7 @@ translations:
   VM Peak: Pic de mémoire virtuelle
   VM Size: Taille de la mémoire virtuelle
   Validating bed mesh...: Validation du maillage du plateau...
+  "Value": "Valeur"
   Value must be between {} and {}: La valeur doit être entre {} et {}
   Values: "Valeurs"
   Values must not be negative: Les valeurs ne doivent pas être négatives
@@ -6103,6 +6124,7 @@ translations:
   Z motor calibration failed: Échec de l'étalonnage du moteur Z
   Z offset: 'Offset Z'
   Z offset by material: "Z-Offset par matériau"
+  "Z offset found": "Offset Z trouvé"
   Z offset not set: 'Décalage Z non défini'
   Z probes for bed leveling and mesh generation: Sondes Z pour la mise à niveau du plateau et la génération de maillage
   Z tilt: Inclinaison Z

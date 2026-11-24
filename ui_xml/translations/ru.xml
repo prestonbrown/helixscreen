@@ -617,6 +617,7 @@
   <translation tag="Bed check turned off" ru="Проверка стола отключена"/>
   <translation tag="Bed clear · Start next" ru="Стол свободен · Запустить следующую"/>
   <translation tag="Bed cooling, spools still on the bed:" ru="Стол остывает, катушки всё ещё на нём:"/>
+  <translation tag="Bed heater tuned" ru="Нагреватель стола настроен"/>
   <translation tag="Bed is Level!" ru="Стол выровнен!"/>
   <translation tag="Bed is at {}, the print needs {}." ru="Стол нагрет до {}, печати нужно {}."/>
   <translation tag="Bed is clear" ru="Стол свободен"/>
@@ -1069,6 +1070,7 @@
   <translation tag="Clear the area above and below the plate. Lay the spools on the plate, cover them with a box (a printed lid or the filament&apos;s packaging) and close the door." ru="Освободите место над столом и под ним. Положите катушки на стол, накройте их коробкой (напечатанной крышкой или упаковкой филамента) и закройте дверцу."/>
   <translation tag="Clear the bed and the nozzle, then restart the firmware." ru="Освободите стол и сопло, затем перезапустите прошивку."/>
   <translation tag="Clear the bed and the nozzle, then try again." ru="Освободите стол и сопло, затем попробуйте снова."/>
+  <translation tag="Clear the bed first." ru="Сначала освободите стол."/>
   <translation tag="Clear the clog in head T{1} (a cold pull works), then resume." ru="Устраните засор в головке T{1} (поможет холодная протяжка), затем продолжите."/>
   <translation tag="Clear the extruder?" ru="Очистить экструдер?"/>
   <translation tag="Clear the nozzle and the part, then restart the firmware." ru="Освободите сопло и деталь, затем перезапустите прошивку."/>
@@ -1470,6 +1472,8 @@
   <translation tag="Discard" ru="Отменить"/>
   <translation tag="Discard Changes?" ru="Отменить изменения?"/>
   <translation tag="Discard all" ru="Отменить все"/>
+  <translation tag="Discard failed: {}" ru="Не удалось отменить: {}"/>
+  <translation tag="Discard restarts Klipper to drop it." ru="Отмена перезапускает Klipper, чтобы сбросить результат."/>
   <translation tag="Disconnected" ru="Отключено"/>
   <translation tag="Disconnected Time" ru="Время отключения"/>
   <translation tag="Disconnects" ru="Отключения"/>
@@ -2397,6 +2401,7 @@
   <translation tag="Importing {}..." ru="Импорт {}..."/>
   <translation tag="In Progress" ru="В процессе"/>
   <translation tag="In config · {}" ru="В конфигурации · {}"/>
+  <translation tag="In use now. A restart forgets it unless you save it." ru="Используется сейчас. После перезапуска пропадёт, если не сохранить."/>
   <translation tag="Inactive" ru="Неактивно"/>
   <translation tag="Inch units not supported" ru="Дюймы не поддерживаются"/>
   <translation tag="Include Klipper/Moonraker logs" ru="Включить логи Klipper/Moonraker"/>
@@ -2847,6 +2852,7 @@
   <translation tag="Make a smaller adjustment." ru="Сделайте изменение меньше."/>
   <translation tag="Make color, material and spool changes in Spoolman." ru="Меняйте цвет, материал и катушку в Spoolman."/>
   <translation tag="Make sure every nozzle is clean." ru="Убедитесь, что все сопла чистые."/>
+  <translation tag="Make sure every nozzle is clean. Clear the bed first." ru="Убедитесь, что все сопла чистые. Сначала освободите стол."/>
   <translation tag="Make sure motor power is on, reseat the driver and check its pin in the printer&apos;s configuration, then restart the firmware." ru="Убедитесь, что питание моторов включено, переустановите драйвер и проверьте его пин в конфигурации принтера, затем перезапустите прошивку."/>
   <translation tag="Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats." ru="Убедитесь, что в печатающей головке нет филамента: он может размягчиться в экструдере, пока греется стол."/>
   <translation tag="Make sure one toolhead is on the carriage and the rest are docked, then home." ru="Убедитесь, что одна печатающая головка на каретке, а остальные в доках, затем выполните парковку."/>
@@ -3031,6 +3037,8 @@
   <translation tag="Needs file analysis, which isn&apos;t running." ru="Нужен анализ файлов, который не запущен."/>
   <translation tag="Needs repair from a web interface" ru="Требуется восстановление через веб-интерфейс"/>
   <translation tag="Needs the {} package to switch spools" ru="Для смены катушки нужен плагин {}"/>
+  <translation tag="Needs you, about {} min" ru="Нужны вы, около {} мин"/>
+  <translation tag="Needs you, about {} min: {}" ru="Нужны вы, около {} мин: {}"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" ru="Требуется {}x{} свободного места: сначала удалите или уменьшите виджет"/>
   <translation tag="Net Weight (g)" ru="Вес нетто (г)"/>
   <translation tag="Network" ru="Сеть"/>
@@ -3231,6 +3239,7 @@
   <translation tag="Not enough frequency data from the sweeps. Try again." ru="Недостаточно данных о частоте по результатам измерений. Попробуйте снова."/>
   <translation tag="Not enough room for this widget. Rearrange or remove widgets to make space." ru="Недостаточно места для этого виджета. Измените раскладку или удалите виджеты, чтобы освободить место."/>
   <translation tag="Not enough room to put the widget back. It stays removed." ru="Недостаточно места, чтобы вернуть виджет. Он остаётся удалённым."/>
+  <translation tag="Not in use yet. Klipper holds it until a save or a restart." ru="Пока не используется. Klipper хранит его до сохранения или перезапуска."/>
   <translation tag="Not in your spools? Set it up" ru="Нет в ваших катушках? Настроить"/>
   <translation tag="Not loaded by its feeder" ru="Не загружен через свой фидер"/>
   <translation tag="Not now" ru="Не сейчас"/>
@@ -3260,6 +3269,7 @@
   <translation tag="Nothing to save. Each step says why." ru="Нечего сохранять. У каждого шага указана причина."/>
   <translation tag="Nothing to tune here" ru="Здесь нечего настраивать"/>
   <translation tag="Nothing to unload: no filament at the nozzle" ru="Выгружать нечего: в сопле нет филамента"/>
+  <translation tag="Nothing waits to be saved." ru="Нечего сохранять."/>
   <translation tag="Nothing was changed. Temperature and material are kept, so a retry is one tap." ru="Ничего не изменилось. Температура и материал сохранены, повторить можно одним нажатием."/>
   <translation tag="Nothing was saved" ru="Ничего не сохранено"/>
   <translation tag="Nothing was saved and the heaters are off." ru="Ничего не сохранено, нагреватели выключены."/>
@@ -3288,6 +3298,7 @@
   <translation tag="Nozzle diameter" ru="Диаметр сопла"/>
   <translation tag="Nozzle did not reach {} — {} canceled" ru="Сопло не нагрелось до {} — «{}» отменено"/>
   <translation tag="Nozzle flow" ru="Поток сопла"/>
+  <translation tag="Nozzle heater tuned" ru="Нагреватель сопла настроен"/>
   <translation tag="Nozzle interval" ru="Интервал сопла"/>
   <translation tag="Nozzle min cannot exceed max" ru="Минимум сопла не может превышать максимум"/>
   <translation tag="Nozzle not changed: the printer did not confirm it" ru="Сопло не изменено: принтер не подтвердил"/>
@@ -3751,6 +3762,7 @@
   <translation tag="Printing: start after this job" ru="Идёт печать: начать после этой печати"/>
   <translation tag="Prints" ru="Печати"/>
   <translation tag="Prints Trend" ru="Тренд печатей"/>
+  <translation tag="Prints on its own, about {} min" ru="Печатает сам, около {} мин"/>
   <translation tag="Private:" ru="Закрытая:"/>
   <translation tag="Probe" ru="Зонд"/>
   <translation tag="Probe Accuracy Failed" ru="Ошибка теста точности зонда"/>
@@ -4184,6 +4196,7 @@
   <translation tag="Runs everything this printer needs, in order" ru="Выполняет всё, что нужно этому принтеру, по порядку"/>
   <translation tag="Runs everything this printer needs, in order ·" ru="Выполняет всё, что нужно этому принтеру, по порядку ·"/>
   <translation tag="Runs on its own once started" ru="После запуска работает сам"/>
+  <translation tag="Runs on its own, about {} min" ru="Работает сам, около {} мин"/>
   <translation tag="Runs the printer&apos;s tool offset calibration for every tool." ru="Запускает калибровку смещений инструментов принтера для всех инструментов."/>
   <translation tag="SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart." ru="Ошибка SAVE_CONFIG: {}. Смещения инструментов применены, но не сохранены. Выполните SAVE_CONFIG вручную, иначе они будут потеряны при перезапуске."/>
   <translation tag="SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart." ru="Ошибка SAVE_CONFIG: {}. Z-смещение применено, но не сохранено. Выполните SAVE_CONFIG вручную, иначе смещение будет потеряно при перезапуске."/>
@@ -4236,6 +4249,8 @@
   <translation tag="Save the new heater values to printer.cfg?" ru="Сохранить новые значения нагревателя в printer.cfg?"/>
   <translation tag="Save the new heater values to printer.cfg? Klipper restarts." ru="Сохранить новые значения нагревателя в printer.cfg? Klipper перезапустится."/>
   <translation tag="Save to Config" ru="Сохранить в конфигурацию"/>
+  <translation tag="Save to Config and Discard both restart Klipper." ru="«Сохранить в конфигурацию» и «Отменить» перезапускают Klipper."/>
+  <translation tag="Save to Config keeps Klipper running. Discard restarts it." ru="«Сохранить в конфигурацию» не останавливает Klipper. «Отменить» перезапускает его."/>
   <translation tag="Save to Spool" ru="Сохранить на катушку"/>
   <translation tag="Save to Spoolman" ru="Сохранить в Spoolman"/>
   <translation tag="Save to the printer config?" ru="Сохранить в конфигурацию принтера?"/>
@@ -5122,7 +5137,9 @@
   <translation tag="The printer has not reported whether Auto-Replenish is on" ru="Принтер не сообщил, включено ли автопополнение"/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." ru="Принтер нагревает сопло, делает несколько коротких тестовых перемещений в углу стола и сам их измеряет. Он повторяет, пока показания не сойдутся, и затем сообщает одно число."/>
   <translation tag="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first." ru="Принтер при необходимости паркует X и Y, затем подводит головку к резаку, чтобы определить его положение. Сначала выгрузите филамент."/>
+  <translation tag="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first. Clear the bed first." ru="Принтер при необходимости паркует X и Y, затем подводит головку к резаку, чтобы определить его положение. Сначала выгрузите филамент. Сначала освободите стол."/>
   <translation tag="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer." ru="Принтер паркует X и Y, переводит головку в центр стола и настраивает каждый ремень его натяжителем. По окончании моторы отключаются, поэтому выполните парковку перед перемещением принтера."/>
+  <translation tag="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer. Clear the bed first." ru="Принтер паркует X и Y, переводит головку в центр стола и настраивает каждый ремень его натяжителем. По окончании моторы отключаются, поэтому выполните парковку перед перемещением принтера. Сначала освободите стол."/>
   <translation tag="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear." ru="Принтер ищет ноль и прощупывает резак (около 1 минуты). Держите путь филамента свободным."/>
   <translation tag="The printer homes if needed, then finds the cutter&apos;s position. Keep the filament path clear." ru="Принтер при необходимости ищет ноль, затем определяет положение резака. Держите путь филамента свободным."/>
   <translation tag="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked." ru="Принтер выполнит парковку, затем отведёт стол как можно дальше от сопла. Некоторые катушки недостаточно термостойкие и могут деформироваться. С этого экрана ничего не будет двигаться, пока вы не подтвердите, что катушки сняты со стола; Mainsail, макросы и печать, отправленная из слайсера, не блокируются."/>
@@ -5149,6 +5166,7 @@
   <translation tag="The printer may need a reboot afterwards." ru="После этого может потребоваться перезагрузка принтера."/>
   <translation tag="The printer moved the print to {}, not {}." ru="Принтер перенёс печать на {}, а не на {}."/>
   <translation tag="The printer moves the toolhead and measures its motors." ru="Принтер перемещает печатающую головку и измеряет моторы."/>
+  <translation tag="The printer moves the toolhead and measures its motors. Clear the bed first." ru="Принтер перемещает печатающую головку и измеряет моторы. Сначала освободите стол."/>
   <translation tag="The printer needs homing first" ru="Сначала нужно выполнить парковку принтера"/>
   <translation tag="The printer no longer has a print to resume." ru="У принтера больше нет печати для продолжения."/>
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." ru="Принтер читает файл до последней сохранённой позиции. Большой файл может занять минуту."/>
@@ -5692,6 +5710,7 @@
   <translation tag="VM Peak" ru="Пик VM"/>
   <translation tag="VM Size" ru="Размер VM"/>
   <translation tag="Validating bed mesh..." ru="Валидация сетки стола..."/>
+  <translation tag="Value" ru="Значение"/>
   <translation tag="Value must be between {} and {}" ru="Значение должно быть от {} до {}"/>
   <translation tag="Values" ru="Значения"/>
   <translation tag="Values must not be negative" ru="Значения не должны быть отрицательными"/>
@@ -5937,6 +5956,7 @@
   <translation tag="Z motor calibration failed" ru="Не удалась калибровка двигателя Z"/>
   <translation tag="Z offset" ru="Смещение Z"/>
   <translation tag="Z offset by material" ru="Z-Offset по материалу"/>
+  <translation tag="Z offset found" ru="Смещение Z найдено"/>
   <translation tag="Z offset not set" ru="Смещение Z не задано"/>
   <translation tag="Z probes for bed leveling and mesh generation" ru="Z-зонды для выравнивания стола и создания сетки"/>
   <translation tag="Z tilt" ru="Наклон Z"/>
