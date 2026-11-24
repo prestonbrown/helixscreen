@@ -1036,7 +1036,9 @@ jobs:
 
         if [ -n "$TAG_MESSAGE" ] && [ "$TAG_MESSAGE" != "" ]; then
           echo "Using tag annotation for release notes"
-          echo "$TAG_MESSAGE" > release-notes.md
+          # The annotation is hard-wrapped for the terminal; GitHub renders each
+          # newline in a paragraph as a line break, so publish it unwrapped.
+          printf '%s\n' "$TAG_MESSAGE" | python3 scripts/unwrap-markdown.py > release-notes.md
         else
           echo "Generating release notes from commits"
           cat > release-notes.md << 'EOF'
@@ -1265,11 +1267,12 @@ jobs:
         VERSION="${GITHUB_REF_NAME}"
         RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/${VERSION}"
 
-        # This version's CHANGELOG.md section, HTML comments removed.
+        # This version's CHANGELOG.md section, HTML comments removed and soft
+        # wraps joined (Discord renders each newline as a line break).
         PLAIN_VERSION="${VERSION#v}"
         CHANGELOG=""
         if [ -f CHANGELOG.md ]; then
-          CHANGELOG=$(scripts/changelog-section.sh "$PLAIN_VERSION")
+          CHANGELOG=$(scripts/changelog-section.sh "$PLAIN_VERSION" | python3 scripts/unwrap-markdown.py)
         fi
 
         # The embed description holds 4096 chars. A longer entry is cut at the
@@ -1433,7 +1436,7 @@ jobs:
 
         # This version's CHANGELOG.md section, HTML comments removed.
         if [ -f CHANGELOG.md ]; then
-          NOTES=$(scripts/changelog-section.sh "$VERSION")
+          NOTES=$(scripts/changelog-section.sh "$VERSION" | python3 scripts/unwrap-markdown.py)
         fi
 
         if [ -z "$NOTES" ]; then
