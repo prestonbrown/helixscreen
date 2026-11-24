@@ -1,7 +1,7 @@
 # Lane Status Surface backend
 
 `AmsBackendLaneStatus` (`include/ams_backend_lane_status.h`) reads any filament
-system that publishes the Lane Status Surface, lane-status-spec RFC 0001
+system that publishes the Lane Status Surface RFC
 (draft 0.1, [prestonbrown/lane-status-spec](https://github.com/prestonbrown/lane-status-spec),
 branch `rfc-0001`). It needs no knowledge of the producer: a firmware mod that
 adopts the spec gets a filament panel here with no backend of its own
@@ -21,7 +21,7 @@ Discovery records a `lane_status` object in `printer.objects.list`
 - a vendor backend whose objects are present always wins (AFC, Happy Hare,
   OpenAMS, ACE, CFS, IFS, QIDI);
 - a status-only producer that wraps a system read natively (a U1, say) leaves
-  it to that backend, which is what RFC 0001 §4 asks of a consumer;
+  it to that backend, which is what the RFC's §4 asks of a consumer;
 - `lane_status` is the reader for a producer nothing else knows.
 
 `kind` and `wraps` are read but do not move the ranking, because discovery runs
@@ -48,7 +48,7 @@ lanes draw as one unit, named after the only unit when there is one.
 ## Records
 
 A record joins a lane by its `lane_name`; the outer key is advisory and
-`lane` is the slicer's index, which RFC 0001 lets follow the tool number
+`lane` is the slicer's index, which the RFC lets follow the tool number
 rather than the display order. The writer rule is Part B §8's: a record whose
 `writer` names another producer is skipped, a legacy record (no `writer`) is
 read only for a lane the producer wrote nothing for and then joins by `lane`,

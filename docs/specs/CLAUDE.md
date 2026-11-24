@@ -11,10 +11,10 @@ this directory is published conventions only.
 
 - [`filament_slots.md`](filament_slots.md) — the `lane_data` Moonraker-DB
   filament slot metadata convention. Written by AFC, Happy Hare, and
-  HelixScreen; read by OrcaSlicer 2.3.2+ (verified unchanged through
-  2.4.0-beta). Happy Hare writes `lane_data` directly via its Moonraker
-  component (`push_lane_data`), and OrcaSlicer prefers that over the live `mmu`
-  object. Since v2.0 it follows RFC 0001 (Lane Status Surface): one writer per
+  HelixScreen; read by OrcaSlicer 2.3.2 and later (verified at 2.5.2;
+  2.5.0 and later also read `filament_id`). Happy Hare writes `lane_data`
+  directly via its Moonraker component (`push_lane_data`), and OrcaSlicer
+  prefers that over the live `mmu` object. Since v2.0 it follows the Lane Status Surface RFC: one writer per
   machine, records carrying `writer` / `lss_version` / `lane_name` / `loaded`,
   and `null` for unknown values.
 
