@@ -4,6 +4,8 @@
 
 #if HELIX_HAS_SNAPMAKER
 
+#include "ui_calibration_holds.h"
+
 #include "core/static_panel_registry.h"
 #include "lvgl/lvgl.h"
 #include "overlay_base.h"
@@ -87,6 +89,7 @@ class SnapmakerNozzleOffsetOverlay : public OverlayBase {
 
     snapmaker::nozzle_offset::Runner runner_;
     SubjectManager subjects_;
+    helix::calibration::StageHolds holds_;
     bool held_prompt_open_ = false;
 };
 
@@ -98,6 +101,11 @@ inline SnapmakerNozzleOffsetOverlay& get_snapmaker_nozzle_offset_overlay() {
 [[nodiscard]] SnapmakerNozzleOffsetOverlay::Screen
 nozzle_offset_screen(snapmaker::nozzle_offset::Runner::Phase phase,
                      snapmaker::nozzle_offset::Prompt prompt);
+
+/// What a screen holds: every step heats or moves the heads, and the clean and
+/// plate prompts wait on the user's hands, so the screen stays awake there.
+[[nodiscard]] helix::calibration::StageNeeds
+nozzle_offset_stage_needs(SnapmakerNozzleOffsetOverlay::Screen screen);
 
 } // namespace helix::ui
 

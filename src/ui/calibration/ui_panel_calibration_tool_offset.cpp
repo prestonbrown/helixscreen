@@ -2,6 +2,7 @@
 
 #include "ui_panel_calibration_tool_offset.h"
 
+#include "ui_calibration_holds.h"
 #include "ui_callback_helpers.h"
 #include "ui_emergency_stop.h"
 #include "ui_error_reporting.h"
@@ -161,6 +162,7 @@ void ToolOffsetCalibrationPanel::on_deactivating(DeactivateReason reason) {
 
 void ToolOffsetCalibrationPanel::cleanup() {
     object_lifetime_.invalidate();
+    holds_.release();
     finish_idle_wait();
     tools_observer_.reset();
     active_tool_observer_.reset();
@@ -251,7 +253,7 @@ std::string ToolOffsetCalibrationPanel::start_prompt() const {
     // its temperatures, its sensor and its reference - else the built-in
     // note. Either way the one condition no firmware can check leads: a blob
     // of filament on a nozzle gets measured as part of the nozzle.
-    std::string text = lv_tr("Make sure every nozzle is clean.");
+    std::string text = lv_tr("Make sure every nozzle is clean. Clear the bed first.");
     text += "\n\n";
     text += hint_buffer_;
     text += "\n\n";
@@ -268,17 +270,17 @@ void ToolOffsetCalibrationPanel::start_calibration() {
         NOTIFY_ERROR("{}", lv_tr("This printer cannot calibrate tool offsets automatically"));
         return;
     }
-    ensure_bed_clear_then(lifetime_.token(), [this]() { confirm_calibration(); });
+    confirm_calibration();
 }
 
 void ToolOffsetCalibrationPanel::confirm_calibration() {
     if (run_active_) {
         return;
     }
-    const std::string prompt = start_prompt();
-    helix::ui::modal_confirm(lv_tr("Calibrate tool offsets?"), prompt.c_str(),
-                             ModalSeverity::Warning, lv_tr("Calibrate"),
-                             []() { get_global_tool_offset_cal_panel().begin_run(); });
+    // The one question before the machine moves; Calibrate also marks the bed cleared.
+    helix::confirm_calibration_start(lv_tr("Calibrate tool offsets?"), start_prompt(),
+                                     lv_tr("Calibrate"), lifetime_.token(),
+                                     []() { get_global_tool_offset_cal_panel().begin_run(); });
 }
 
 void ToolOffsetCalibrationPanel::begin_run() {
@@ -303,9 +305,8 @@ void ToolOffsetCalibrationPanel::begin_run() {
         NOTIFY_ERROR("{}", lv_tr("No tools to calibrate"));
         return;
     }
-    run_active_ = true;
+    set_run_active(true);
     last_error_.clear();
-    lv_subject_set_int(&active_, 1);
     lv_subject_set_string(&status_, lv_tr("Calibrating..."));
 
     spdlog::info("[ToolOffsetCal] Running {} over {} tools", gcode, tool_count);
@@ -399,13 +400,19 @@ void ToolOffsetCalibrationPanel::finish_idle_wait() {
     idle_wait_backstop_.end();
 }
 
+void ToolOffsetCalibrationPanel::set_run_active(bool active) {
+    run_active_ = active;
+    lv_subject_set_int(&active_, active ? 1 : 0);
+    // A run heats and probes every tool: the E-stop shows until it ends.
+    holds_.apply(helix::calibration::StageNeeds{/*machine_busy=*/active, /*hands_on=*/false});
+}
+
 void ToolOffsetCalibrationPanel::on_run_finished(bool ok, const std::string& error) {
     if (!run_active_) {
         return; // a Stop already settled it
     }
     finish_idle_wait();
-    run_active_ = false;
-    lv_subject_set_int(&active_, 0);
+    set_run_active(false);
 
     if (ok) {
         spdlog::info("[ToolOffsetCal] Calibration finished");
@@ -441,8 +448,7 @@ bool ToolOffsetCalibrationPanel::abort_in_progress_calibration() {
     // shutdown as the run's failure.
     object_lifetime_.invalidate();
     finish_idle_wait();
-    run_active_ = false;
-    lv_subject_set_int(&active_, 0);
+    set_run_active(false);
     lv_subject_set_string(&status_, lv_tr("Stopped"));
 
     helix::emergency_stop_and_restart(api, "ToolOffsetCal");
@@ -625,7 +631,8 @@ void open_tool_offset_cal_panel(lv_obj_t* parent_screen) {
         cmd.gcode = procedure.gcode;
         cmd.log_name = procedure.gcode;
         cmd.display_name = lv_tr("Tool Offsets");
-        start_calibration_gcode(get_moonraker_api(), cmd, /*needs_home=*/false, "[ToolOffsetCal]");
+        helix::calibration::start_held_calibration_gcode(get_moonraker_api(), cmd,
+                                                         /*needs_home=*/false, "[ToolOffsetCal]");
         return;
     }
     case cal::ProcedureKind::Panel:

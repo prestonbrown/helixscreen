@@ -41,8 +41,8 @@
                            left_label="Heater" right_label="Calibrate at" secondary_name="btn_advanced"
                            secondary_text="Advanced" secondary_callback="on_pid_advanced" primary_name="btn_start"
                            primary_bind_text="pid_cta_text" primary_callback="on_pid_start"
-                           primary_disabled_cond="pid_cal_not_idle eq 1" status_subject="pid_restart_note"
-                           status_color="#warning">
+                           primary_disabled_cond="pid_cal_not_idle eq 1" status_subject="pid_duration_text"
+                           status_sub_subject="pid_restart_note">
           <!-- What is calibrated, and what it runs today -->
           <lv_obj name="btn_heater_extruder"
                   width="100%" height="content" style_radius="#border_radius" style_border_width="2"
@@ -159,7 +159,6 @@
             </lv_obj>
           </calibration_intro-settings>
           <calibration_intro-badges>
-            <cal_intro_badge bind="pid_duration_text"/>
             <cal_intro_badge bind="pid_heats_to_text" variant="warm"/>
             <cal_intro_badge bind="pid_method_text">
               <!-- 480x272 keeps two badges on one line; Advanced shows the method -->
@@ -580,6 +579,16 @@
         <text_small width="80%"
                     text="Switching heater control to MPC. Klipper will restart." style_text_align="center"
                     style_text_color="#text_muted"/>
+      </lv_obj>
+      <!-- ================================================================== -->
+      <!-- STATE: REVIEW (6) - the result and its choices -->
+      <!-- ================================================================== -->
+      <lv_obj name="state_review"
+              width="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false">
+        <bind_flag_if_not_eq subject="pid_cal_state" flag="hidden" ref_value="6"/>
+        <calibration_result name="pid_result"
+                            prefix="pid_result" discard_callback="on_pid_result_discard"
+                            keep_callback="on_pid_result_keep" save_callback="on_pid_result_save"/>
       </lv_obj>
     </lv_obj>
   </view>

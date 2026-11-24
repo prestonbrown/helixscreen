@@ -3,6 +3,8 @@
 
 #if HELIX_HAS_CFS
 
+#include "ui_calibration_holds.h"
+
 #include "chute_jog_guard.h"
 #include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
@@ -77,7 +79,11 @@ class CfsChuteCalibrationOverlay : public OverlayBase {
     };
 
     ObserverGuard print_takeover_observer_;
+    helix::calibration::StageHolds holds_;
 
+    /// What a state holds: the home, the jog and the save all move the head;
+    /// jogging waits on the user's hands, so the screen stays awake.
+    [[nodiscard]] static helix::calibration::StageNeeds stage_needs(State state);
     void set_state(State state);
     void start_calibration();
     enum class Axis { X, Y };

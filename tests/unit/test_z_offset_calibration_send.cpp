@@ -24,6 +24,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/moonraker_client_mock_test_access.h"
 #include "app_globals.h"
 #include "calibration_run.h"
 #include "calibration_run_steps.h"
@@ -213,9 +214,18 @@ std::vector<std::string> probe_accept_scripts(
     ZOffsetCalibrationPanel panel;
     panel.init_subjects();
     panel.set_api(&api);
+    // The ACCEPT of a manual probe session stages the new offset for SAVE_CONFIG.
+    helix::MoonrakerClientMockTestAccess::stage_config_change(client, "probe", "z_offset", "1.234");
     send_accept_of(panel);
     for (int i = 0; i < 20; ++i) {
         helix::ui::UpdateQueue::instance().drain_until_empty();
+    }
+    // A standalone accept stops on the result page; this helper takes Save to Config.
+    if (panel.get_state() == ZOffsetCalibrationPanel::State::REVIEW) {
+        ZOffsetCalibrationTestAccess::result_save(panel);
+        for (int i = 0; i < 20; ++i) {
+            helix::ui::UpdateQueue::instance().drain_until_empty();
+        }
     }
     std::vector<std::string> sent = client.gcode_script_history();
     settings.set_z_offset_save_mode(static_cast<int>(helix::zoffset::SaveMode::Auto));
@@ -269,6 +279,57 @@ TEST_CASE_METHOD(CalibrationSendFixture,
                                                ZOffsetCalibrationStrategy::ENDSTOP);
         CHECK(after_accept(sent) == std::vector<std::string>{"SAVE_CONFIG"});
     }
+}
+
+TEST_CASE_METHOD(CalibrationSendFixture,
+                 "Calibration accept: the result waits for Save to Config, Keep for Now or Discard",
+                 "[ui_integration][zoffset][calibration_result]") {
+    auto& settings = helix::SettingsManager::instance();
+    settings.init_subjects();
+    settings.set_z_offset_save_mode(static_cast<int>(helix::zoffset::SaveMode::Show));
+    use_strategy(ZOffsetCalibrationStrategy::PROBE_CALIBRATE);
+
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    MoonrakerAPI api(client, get_printer_state());
+    ZOffsetCalibrationPanel panel;
+    panel.init_subjects();
+    panel.set_api(&api);
+    const auto settle = []() {
+        for (int i = 0; i < 20; ++i) {
+            helix::ui::UpdateQueue::instance().drain_until_empty();
+        }
+    };
+    // ACCEPT stages the probe's new z_offset for the next SAVE_CONFIG.
+    helix::MoonrakerClientMockTestAccess::stage_config_change(client, "probe", "z_offset", "1.234");
+    send_accept_of(panel);
+    settle();
+    REQUIRE(panel.get_state() == ZOffsetCalibrationPanel::State::REVIEW);
+    // The page waits as long as the user reads it: the ACCEPT's timeout is over.
+    CHECK_FALSE(ZOffsetCalibrationTestAccess::timeout_armed(panel));
+    CHECK(sent_any(client.gcode_script_history(), "ACCEPT"));
+    CHECK_FALSE(sent_any(client.gcode_script_history(), "SAVE_CONFIG"));
+    const int restarts = client.call_count("printer.restart");
+
+    SECTION("Keep for Now leaves it staged") {
+        ZOffsetCalibrationTestAccess::result_keep(panel);
+        settle();
+        CHECK_FALSE(sent_any(client.gcode_script_history(), "SAVE_CONFIG"));
+        CHECK(client.call_count("printer.restart") == restarts);
+    }
+    SECTION("Save after a restart dropped it says so instead of saving") {
+        helix::MoonrakerClientMockTestAccess::drop_pending_config(client);
+        ZOffsetCalibrationTestAccess::result_save(panel);
+        settle();
+        CHECK_FALSE(sent_any(client.gcode_script_history(), "SAVE_CONFIG"));
+        CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::ERROR);
+    }
+    SECTION("Discard restarts Klipper to drop it") {
+        ZOffsetCalibrationTestAccess::result_discard(panel);
+        settle();
+        CHECK_FALSE(sent_any(client.gcode_script_history(), "SAVE_CONFIG"));
+        CHECK(client.call_count("printer.restart") == restarts + 1);
+    }
+    settings.set_z_offset_save_mode(static_cast<int>(helix::zoffset::SaveMode::Auto));
 }
 
 TEST_CASE_METHOD(CalibrationSendFixture, "Calibration accept: an eddy probe saves its sweep",

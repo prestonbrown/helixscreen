@@ -13,6 +13,7 @@
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "calibration_catalog.h"
 #include "core/observer_factory.h"
 #include "core/update_queue.h"
 #include "filament_database.h"
@@ -570,21 +571,29 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     REQUIRE(duration != nullptr);
     panel.on_activate();
     drain();
-    const auto chip = [&] { return std::string(lv_subject_get_string(duration)); };
+    // The minutes in the footer's line: the number after "about".
+    const auto minutes = [&] {
+        const std::string line = lv_subject_get_string(duration);
+        const auto at = line.find_first_of("0123456789", line.find("about"));
+        REQUIRE(at != std::string::npos);
+        return std::stoi(line.substr(at));
+    };
+    const int probing =
+        helix::calibration::step_default_minutes(helix::calibration::StepKind::BedMesh);
 
-    // 20° to go at 2 s/°C is 40 s, a minute, on top of two minutes probing.
-    CHECK(chip() == "about 3 min with heat-up");
+    // 20° to go at 2 s/°C is 40 s, a minute, on top of the catalog's probing time.
+    CHECK(minutes() == probing + 1);
     panel.pick_heat_choice(0);
-    CHECK(chip() == "about 2 min");
+    CHECK(minutes() == probing);
     panel.pick_heat_choice(1);
-    CHECK(chip() == "about 3 min with heat-up");
+    CHECK(minutes() == probing + 1);
 
     // A colder bed takes longer, priced again when the panel opens.
     panel.on_deactivate(DeactivateReason::NavigateAway);
     set_bed(pla_c - 50.0, 0.0);
     panel.on_activate();
     drain();
-    CHECK(chip() == "about 4 min with heat-up");
+    CHECK(minutes() == probing + 2);
 }
 
 TEST_CASE_METHOD(BedMeshPanelFlowFixture,

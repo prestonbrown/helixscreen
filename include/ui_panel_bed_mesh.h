@@ -296,7 +296,7 @@ class BedMeshPanel : public OverlayBase {
     /// Bed temperature per heat choice; index 0 is the cold bed.
     std::array<int, 4> heat_choice_bed_c_{0, 60, 80, 100};
     helix::Subject bed_mesh_intro_duration_{};
-    char intro_duration_buf_[48] = {};
+    char intro_duration_buf_[128] = {};
     helix::Subject bed_mesh_intro_heat_{};
     char intro_heat_buf_[48] = {};
     helix::Subject bed_mesh_intro_points_{};

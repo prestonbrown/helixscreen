@@ -3,6 +3,7 @@
 
 #include "ui_panel_calibration_pid.h"
 
+#include "ui_calibration_time.h"
 #include "ui_callback_helpers.h"
 #include "ui_emergency_stop.h"
 #include "ui_error_reporting.h"
@@ -13,7 +14,9 @@
 
 #include "ams_state.h"
 #include "app_globals.h"
+#include "calibration_catalog_inputs.h"
 #include "calibration_history_store.h"
+#include "calibration_run_steps.h"
 #include "config.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
@@ -50,7 +53,7 @@
 
 // STATIC SUBJECT
 
-// State subject (0=IDLE, 1=CALIBRATING, 2=SAVING, 3=COMPLETE, 4=ERROR, 5=MIGRATING)
+// State subject (0=IDLE, 1=CALIBRATING, 2=SAVING, 3=COMPLETE, 4=ERROR, 5=MIGRATING, 6=REVIEW)
 static helix::Subject s_pid_cal_state;
 static bool s_callbacks_registered = false;
 
@@ -118,6 +121,7 @@ void PIDCalibrationPanel::init_subjects() {
 
     // Register state subject (shared across all instances)
     UI_MANAGED_SUBJECT_INT(s_pid_cal_state, 0, "pid_cal_state", subjects_);
+    result_view_.init_subjects(subjects_);
 
     UI_MANAGED_SUBJECT_STRING(subj_temp_display_, buf_temp_display_, "", "pid_temp_display",
                               subjects_);
@@ -264,6 +268,12 @@ void PIDCalibrationPanel::init_subjects() {
             {"on_pid_abort",
              [](lv_event_t*) { get_global_pid_cal_panel().handle_abort_clicked(); }},
             {"on_pid_done", [](lv_event_t*) { get_global_pid_cal_panel().handle_done_clicked(); }},
+            {"on_pid_result_save",
+             [](lv_event_t*) { get_global_pid_cal_panel().handle_result_save(); }},
+            {"on_pid_result_keep",
+             [](lv_event_t*) { get_global_pid_cal_panel().handle_result_keep(); }},
+            {"on_pid_result_discard",
+             [](lv_event_t*) { get_global_pid_cal_panel().handle_result_discard(); }},
             {"on_pid_retry",
              [](lv_event_t*) { get_global_pid_cal_panel().handle_retry_clicked(); }},
             // Temperature chips: the slot is read from the chip's name.
@@ -508,6 +518,7 @@ void PIDCalibrationPanel::on_deactivating(DeactivateReason reason) {
 
 void PIDCalibrationPanel::cleanup() {
     spdlog::debug("[PIDCal] Cleaning up");
+    holds_.release();
     run_lifetime_.invalidate();
     cancel_klippy_ready_wait();
     active_tool_observer_.reset();
@@ -555,6 +566,10 @@ void PIDCalibrationPanel::turn_off_fan() {
 
 // STATE MANAGEMENT
 
+helix::calibration::StageNeeds PIDCalibrationPanel::stage_needs(State state) {
+    return {/*machine_busy=*/state == State::CALIBRATING, /*hands_on=*/false};
+}
+
 void PIDCalibrationPanel::set_state(State new_state) {
     spdlog::debug("[PIDCal] State change: {} -> {}", static_cast<int>(state_),
                   static_cast<int>(new_state));
@@ -565,9 +580,10 @@ void PIDCalibrationPanel::set_state(State new_state) {
     }
 
     state_ = new_state;
+    holds_.apply(stage_needs(new_state));
 
     // Update subjects - XML bindings handle visibility automatically
-    // State mapping: 0=IDLE, 1=CALIBRATING, 2=SAVING, 3=COMPLETE, 4=ERROR, 5=MIGRATING
+    // State mapping: 0=IDLE, 1=CALIBRATING, 2=SAVING, 3=COMPLETE, 4=ERROR, 5=MIGRATING, 6=REVIEW
     lv_subject_set_int(&s_pid_cal_state, static_cast<int>(new_state));
     // Disable Start button in header when not idle
     lv_subject_set_int(&subj_cal_not_idle_, new_state != State::IDLE ? 1 : 0);
@@ -1047,6 +1063,7 @@ void PIDCalibrationPanel::handle_temp_down() {
 void PIDCalibrationPanel::handle_start_clicked() {
     spdlog::debug("[PIDCal] Start clicked (method={})",
                   selected_method_ == CalibMethod::MPC ? "MPC" : "PID");
+    run_switched_control_ = false;
     if (nozzle_heat_refused()) {
         return;
     }
@@ -1240,6 +1257,110 @@ void PIDCalibrationPanel::handle_done_clicked() {
     helix::nav::go_back();
 }
 
+void PIDCalibrationPanel::show_review(std::vector<helix::calibration::ResultRow> rows) {
+    const std::string title = selected_heater_ == Heater::EXTRUDER ? lv_tr("Nozzle heater tuned")
+                                                                   : lv_tr("Bed heater tuned");
+    const auto publish = [this, title, rows](const nlohmann::json& pending) {
+        const auto facts = result_facts(pending);
+        if (run_switched_control_) {
+            // printer.cfg already names the new control, which has no tuning until
+            // this result is saved: saving is the only outcome that leaves a heater
+            // that heats, so it happens at once, with no choice to leave unsaved.
+            if (!facts.own_staged) {
+                fail_result_lost();
+                return;
+            }
+            spdlog::info("[PIDCal] Control was switched: saving the result at once");
+            set_state(State::SAVING);
+            send_save_config();
+            return;
+        }
+        result_view_.publish(title, lv_subject_get_string(&subj_result_summary_), rows,
+                             helix::calibration::result_choices(facts));
+        set_state(State::REVIEW);
+    };
+    if (!api_) {
+        publish(nlohmann::json());
+        return;
+    }
+    api_->advanced().get_save_config_pending_items(
+        run_lifetime_.bg_cb("PIDCal.pending", publish),
+        run_lifetime_.bg_cb("PIDCal.pending_error",
+                            [publish](const MoonrakerError&) { publish(nlohmann::json()); }));
+}
+
+void PIDCalibrationPanel::handle_result_save() {
+    if (state_ != State::REVIEW || helix::calibration::refuse_result_restart()) {
+        return;
+    }
+    spdlog::info("[PIDCal] Result: Save to Config");
+    set_state(State::SAVING);
+    // A restart while the page was up drops the staged result: then the save
+    // would write nothing of it, and saying "saved" would be false.
+    const auto save_if_staged = [this](const nlohmann::json& pending) {
+        if (!result_facts(pending).own_staged) {
+            fail_result_lost();
+            return;
+        }
+        send_save_config();
+    };
+    if (!api_) {
+        return;
+    }
+    api_->advanced().get_save_config_pending_items(
+        run_lifetime_.bg_cb("PIDCal.save_pending", save_if_staged),
+        run_lifetime_.bg_cb("PIDCal.save_pending_error", [save_if_staged](const MoonrakerError&) {
+            save_if_staged(nlohmann::json());
+        }));
+}
+
+helix::calibration::ResultFacts
+PIDCalibrationPanel::result_facts(const nlohmann::json& pending) const {
+    const std::string heater = run_heater_;
+    return helix::calibration::staged_result_facts(
+        get_printer_state().get_discovery(), pending, [heater](const std::string& section) {
+            return section == heater || section.rfind("pid_profile " + heater + " ", 0) == 0;
+        });
+}
+
+void PIDCalibrationPanel::fail_result_lost() {
+    spdlog::warn("[PIDCal] The staged result is gone; nothing to save");
+    lv_subject_set_string(&subj_error_message_,
+                          lv_tr("The result is gone: Klipper restarted before it was saved. Run "
+                                "the calibration again."));
+    set_state(State::ERROR);
+}
+
+void PIDCalibrationPanel::handle_result_keep() {
+    if (state_ != State::REVIEW) {
+        return;
+    }
+    // Klipper keeps the staged result until a save or a restart; nothing to send.
+    spdlog::info("[PIDCal] Result: Keep for Now");
+    set_state(State::IDLE);
+    helix::nav::go_back();
+}
+
+void PIDCalibrationPanel::handle_result_discard() {
+    if (state_ != State::REVIEW || helix::calibration::refuse_result_restart()) {
+        return;
+    }
+    const bool drop =
+        result_view_.choices().discard == helix::calibration::DiscardMeaning::RestartDropsIt;
+    spdlog::info("[PIDCal] Result: Discard (restart={})", drop);
+    set_state(State::IDLE);
+    if (drop && api_) {
+        // A restart drops the staged result, and on a firmware that applied it
+        // live it reloads the old values from printer.cfg: the guided run's discard.
+        discarder_ = std::make_unique<helix::calibration::MoonrakerRunFinisher>(*api_);
+        discarder_->discard_all(
+            []() {},
+            [](const std::string& err) {
+                NOTIFY_ERROR("{}", fmt::format(fmt::runtime(lv_tr("Discard failed: {}")), err));
+            });
+    }
+}
+
 void PIDCalibrationPanel::handle_retry_clicked() {
     spdlog::debug("[PIDCal] Retry clicked");
     set_state(State::IDLE);
@@ -1285,9 +1406,11 @@ void PIDCalibrationPanel::on_calibration_result(bool success, float kp, float ki
                         helix::units::format_display_temp(target_temp_));
         lv_subject_set_string(&subj_result_summary_, summary.c_str());
 
-        // Save config (will transition to COMPLETE when done)
-        set_state(State::SAVING);
-        send_save_config();
+        const auto value = [](float v) { return fmt::format("{:.3f}", v); };
+        const auto before = [&](float v) { return has_old_values_ ? value(v) : std::string(); };
+        show_review({{lv_tr("Response (Kp)"), before(old_kp_), value(kp)},
+                     {lv_tr("Correction (Ki)"), before(old_ki_), value(ki)},
+                     {lv_tr("Damping (Kd)"), before(old_kd_), value(kd)}});
     } else {
         lv_subject_set_string(&subj_error_message_, error_message.c_str());
         set_state(State::ERROR);
@@ -1728,6 +1851,9 @@ void PIDCalibrationPanel::start_migration(CalibMethod target, bool adding_fan) {
                    : build_control_migration_edits(target, heater_wattage_, fan);
     const bool names_fan = to_mpc && !fan.empty();
 
+    // Rewriting `control:` leaves the heater untuned for its new control until
+    // this run's result is saved; only the fan line keeps the old tuning valid.
+    run_switched_control_ = !adding_fan;
     if (adding_fan) {
         spdlog::info("[PIDCal] Adding cooling_fan='{}' to MPC heater '{}'", fan, section);
     } else if (to_mpc) {
@@ -1841,8 +1967,11 @@ void PIDCalibrationPanel::on_mpc_result(const MoonrakerAdvancedAPI::MPCResult& r
                  result.block_heat_capacity, result.sensor_responsiveness, result.ambient_transfer,
                  result.fan_ambient_transfer);
 
-    set_state(State::SAVING);
-    send_save_config();
+    show_review(
+        {{lv_tr("Heat Capacity"), "", lv_subject_get_string(&subj_mpc_heat_capacity_)},
+         {lv_tr("Sensor Response"), "", lv_subject_get_string(&subj_mpc_sensor_resp_)},
+         {lv_tr("Ambient Transfer"), "", lv_subject_get_string(&subj_mpc_ambient_transfer_)},
+         {lv_tr("Fan Transfer"), "", result.fan_ambient_transfer}});
 }
 
 void PIDCalibrationPanel::on_mpc_progress(int phase, int total_phases, const std::string& desc) {
@@ -1950,16 +2079,6 @@ PIDCalibrationPanel::default_method(Heater heater, ControlType current, bool sup
         return CalibMethod::MPC;
     }
     return current == ControlType::MPC ? CalibMethod::MPC : CalibMethod::PID;
-}
-
-int PIDCalibrationPanel::estimate_minutes(Heater heater, CalibMethod method, bool measure_fan) {
-    if (heater == Heater::BED) {
-        return method == CalibMethod::MPC ? 20 : 8;
-    }
-    if (method == CalibMethod::MPC) {
-        return measure_fan ? 10 : 7;
-    }
-    return 5;
 }
 
 PIDCalibrationPanel::HeaterNote PIDCalibrationPanel::heater_note(ControlType current,
@@ -2072,8 +2191,9 @@ void PIDCalibrationPanel::update_heater_cards() {
 void PIDCalibrationPanel::update_badges() {
     const bool mpc = selected_method_ == CalibMethod::MPC;
     const int minutes = estimated_minutes(selected_method_);
-    lv_subject_set_string(&subj_duration_text_,
-                          fmt::format(fmt::runtime(lv_tr("about {} min")), minutes).c_str());
+    lv_subject_set_string(
+        &subj_duration_text_,
+        helix::calibration::time_away_line(helix::calibration::AwayKind::Runs, minutes).c_str());
     lv_subject_set_string(&subj_heats_to_text_,
                           fmt::format(fmt::runtime(lv_tr("heats to {}")),
                                       helix::units::format_display_temp(target_temp_))
@@ -2131,9 +2251,12 @@ void PIDCalibrationPanel::refresh_switch_text() {
 }
 
 int PIDCalibrationPanel::estimated_minutes(CalibMethod method) const {
-    const bool measure_fan = lv_subject_get_int(subj_fan_row_shown_.get()) == 1 &&
-                             lv_subject_get_int(subj_add_cooling_fan_.get()) == 1;
-    return estimate_minutes(selected_heater_, method, measure_fan);
+    helix::calibration::HeaterPricing heater =
+        helix::calibration::price_heater(get_printer_state(), heater_name(), target_temp_);
+    heater.mpc = method == CalibMethod::MPC;
+    heater.measure_fan = lv_subject_get_int(subj_fan_row_shown_.get()) == 1 &&
+                         lv_subject_get_int(subj_add_cooling_fan_.get()) == 1;
+    return helix::calibration::heaters_step_minutes({heater});
 }
 
 void PIDCalibrationPanel::handle_back_clicked() {

@@ -330,18 +330,34 @@ std::optional<PidGains> newly_staged_pid(const json& before, const json& now,
     return gains;
 }
 
+namespace {
+
+/// A probe section, or a scanning probe's model section: where a Z offset is staged.
+bool is_probe_offset_section(const std::string& name) {
+    static const json kNameOnly = json::object();
+    if (hw::classify_section(name, kNameOnly).kind == hw::ObjectKind::Probe) {
+        return true;
+    }
+    for (const auto& row : kModelOffsetRows) {
+        if (name.rfind(std::string(row.model_prefix), 0) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+} // namespace
+
+bool is_z_offset_section(const std::string& name) {
+    return name == "stepper_z" || is_probe_offset_section(name);
+}
+
 std::optional<double> staged_z_offset(const json& pending_items) {
     if (!pending_items.is_object()) {
         return std::nullopt;
     }
-    static const json kNameOnly = json::object();
     for (const auto& [name, body] : pending_items.items()) {
-        const bool probe = hw::classify_section(name, kNameOnly).kind == hw::ObjectKind::Probe;
-        bool model = false;
-        for (const auto& row : kModelOffsetRows) {
-            model = model || name.rfind(std::string(row.model_prefix), 0) == 0;
-        }
-        if (probe || model) {
+        if (is_probe_offset_section(name)) {
             for (const char* option : {"z_offset", "model_offset"}) {
                 if (const auto v = pending_number(body, option)) {
                     return v;

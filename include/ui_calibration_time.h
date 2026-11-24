@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+#pragma once
+
+// The one wording every calibration screen uses for its time, up front and as
+// plain information: what the printer does on its own, and what needs the owner.
+
+#include <string>
+
+namespace helix::calibration {
+
+/// What the printer does while the owner is away.
+enum class AwayKind {
+    Prints, ///< it prints a test piece
+    Runs,   ///< it runs a routine: probing, heating, a sweep
+};
+
+/// A duration as the lines say it: "25 min", "2 h", "1 h 36 min"; never below a minute.
+[[nodiscard]] std::string time_duration_text(int minutes);
+
+/// "Prints on its own, about 25 min" / "Runs on its own, about 1 h 36 min" (translated).
+[[nodiscard]] std::string time_away_line(AwayKind kind, int minutes);
+
+/// "Needs you, about 6 min: <task>", or without the task when @p task is empty (translated).
+[[nodiscard]] std::string time_you_line(int minutes, const std::string& task = {});
+
+} // namespace helix::calibration

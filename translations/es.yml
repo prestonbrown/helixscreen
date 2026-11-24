@@ -63,6 +63,8 @@ translations:
   "Find the filament cutter's position": "Localiza la posición del cortador de filamento"
   Let it cool, lower run_current for {1} or improve the cooling over the drivers, then restart the firmware.: Deja que se enfríe, baja run_current de {1} o mejora la refrigeración de los drivers, y reinicia el firmware.
   "Let the printer's tensioners set the belts": "Deja que los tensores de la impresora ajusten las correas"
+  ? The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament and clear the bed first.
+  : "La impresora hace home en X e Y si hace falta y luego lleva el cabezal contra la cuchilla para encontrar su posición. Descarga el filamento y despeja la cama primero."
   ? "The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first."
   : "La impresora referencia X e Y si hace falta y luego lleva el cabezal contra el cortador para localizar su posición. Descargue antes el filamento."
   ? "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer."
@@ -432,6 +434,7 @@ translations:
   Already mounted: 'Ya montada'
   Also keep this mesh for {}. Its prints that do not mesh load it at the start.: "¿Guardar también esta malla para {}? Sus impresiones que no hacen malla la cargan al inicio."
   Also measure part-fan cooling: Medir también la refrigeración del ventilador de pieza
+  "Also waiting to be saved: {}. Save and Discard include them.": "También pendiente de guardar: {}. Guardar y Descartar los incluyen."
   Always Show Bypass Spool: Mostrar siempre la bobina de bypass
   Always show Android navigation bar instead of using gestures: Mostrar siempre la barra de navegación de Android en lugar de usar gestos
   Ambient Transfer: Transferencia ambiente
@@ -604,6 +607,7 @@ translations:
   Bed clear · Start next: 'Cama libre · Iniciar siguiente'
   'Bed cooling, spools still on the bed:': 'La cama se enfría, las bobinas siguen encima:'
 
+  "Bed heater tuned": "Calentador de la cama ajustado"
   Bed is Level!: ¡La Cama está Nivelada!
   Bed is at {}, the print needs {}.: La cama está a {}, la impresión necesita {}.
   Bed is clear: La cama está despejada
@@ -849,6 +853,7 @@ translations:
   Cannot park while a print is active: 'No se puede aparcar mientras hay una impresión activa'
   Cannot perform this action now: Esta acción no se puede realizar ahora
   'Cannot reprint: not connected to printer': 'No se puede reimprimir: no conectado a la impresora'
+  "Cannot restart Klipper while printing": "No se puede reiniciar Klipper mientras imprime"
   Cannot restart Moonraker while printing: "No se puede reiniciar Moonraker durante la impresión"
   Cannot restart — no filename: No se puede reiniciar — sin nombre de archivo
   Cannot restore the stock screen while printing: 'No se puede restaurar la pantalla original durante una impresión'
@@ -1073,6 +1078,7 @@ translations:
 
   Clear the bed and the nozzle, then restart the firmware.: Despeja la cama y la boquilla, y reinicia el firmware.
   Clear the bed and the nozzle, then try again.: Despeja la cama y la boquilla, e inténtalo de nuevo.
+  "Clear the bed first.": "Despeja la cama primero."
   Clear the clog in head T{1} (a cold pull works), then resume.: Elimina la obstrucción del cabezal T{1} (una extracción en frío funciona) y reanuda.
   Clear the extruder?: '¿Vaciar el extrusor?'
   Clear the nozzle and the part, then restart the firmware.: Despeja la boquilla y la pieza, y reinicia el firmware.
@@ -1511,6 +1517,7 @@ translations:
   Discard: Descartar
   Discard Changes?: ¿Descartar Cambios?
   Discard all: 'Descartar todo'
+  "Discard failed: {}": "No se pudo descartar: {}"
   Disconnected: Desconectado
   Disconnected Time: Tiempo desconectado
   Disconnects: Desconexiones
@@ -2454,6 +2461,7 @@ translations:
   Importing {}...: 'Importando {}...'
   In Progress: En Progreso
   In config · {}: 'En la configuración · {}'
+  "In use now. A restart forgets it unless you save it.": "En uso ahora. Un reinicio lo olvida si no lo guardas."
   Inactive: Inactivo
   Inch units not supported: 'Unidades en pulgadas no compatibles'
   Include Klipper/Moonraker logs: Incluir registros de Klipper/Moonraker
@@ -2917,6 +2925,7 @@ translations:
   Make a smaller adjustment.: 'Haz un ajuste más pequeño.'
   Make color, material and spool changes in Spoolman.: "Cambia el color, el material y la bobina en Spoolman."
   Make sure every nozzle is clean.: Asegúrate de que todas las boquillas estén limpias.
+  "Make sure every nozzle is clean. Clear the bed first.": "Asegúrate de que todas las boquillas estén limpias. Despeja la cama primero."
   ? Make sure motor power is on, reseat the driver and check its pin in the printer's configuration, then restart the firmware.
   : Asegúrate de que la alimentación de los motores esté encendida, vuelve a asentar el driver y revisa su pin en la configuración de la impresora, y reinicia el firmware.
   'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.': 'Asegúrate de que no haya filamento cargado en el cabezal: puede ablandarse en el extrusor mientras la cama se calienta.'
@@ -3105,6 +3114,8 @@ translations:
   Needs attention: Requiere atención
   Needs repair from a web interface: 'Necesita reparación desde una interfaz web'
   Needs the {} package to switch spools: 'Necesita el plugin {} para cambiar de bobina'
+  "Needs you, about {}": "Te necesita, unos {}"
+  "Needs you, about {}: {}": "Te necesita, unos {}: {}"
   'Needs {}x{} free: remove or shrink a widget first': 'Necesita {}x{} libres: primero elimina o reduce un widget'
   Net Weight (g): Peso Neto (g)
   Network: Red
@@ -3305,6 +3316,7 @@ translations:
   Not enough frequency data from the sweeps. Try again.: 'No hay suficientes datos de frecuencia de los barridos. Intente de nuevo.'
   Not enough room for this widget. Rearrange or remove widgets to make space.: No hay espacio suficiente para este widget. Reorganiza o elimina widgets para hacer espacio.
   Not enough room to put the widget back. It stays removed.: 'No hay espacio suficiente para restaurar el widget. Sigue eliminado.'
+  "Not in use yet. Klipper holds it until a save or a restart.": "Aún no está en uso. Klipper lo guarda hasta que guardes o reinicies."
   Not in your spools? Set it up: ¿No está en tus bobinas? Configúralo
   Not loaded by its feeder: 'No cargado por su alimentador'
   Not now: Ahora no
@@ -3339,6 +3351,7 @@ translations:
   Which computer the Advanced power rows act on: 'Qué equipo afectan las filas de energía de Avanzado'
   'Which lane is in the toolhead?': '¿Qué carril está en el cabezal?'
   'Choose which lane is in the toolhead to unload it': 'Elige qué carril está en el cabezal para descargarlo'
+  "Nothing waits to be saved.": "No hay nada pendiente de guardar."
   Nothing was changed. Temperature and material are kept, so a retry is one tap.: 'No se cambió nada. La temperatura y el material se conservan, reintentar es un toque.'
   Nothing was saved: No se guardó nada
   Nothing was saved and the heaters are off.: No se guardó nada y los calentadores están apagados.
@@ -3367,6 +3380,7 @@ translations:
   Nozzle diameter: "Diámetro de boquilla"
   Nozzle did not reach {} — {} canceled: La boquilla no alcanzó {} — se canceló {}
   Nozzle flow: "Flujo de boquilla"
+  "Nozzle heater tuned": "Calentador de la boquilla ajustado"
   Nozzle interval: 'Intervalo de la boquilla'
   Nozzle min cannot exceed max: El mínimo de la boquilla no puede superar el máximo
   'Nozzle not changed: the printer did not confirm it': "Boquilla no cambiada: la impresora no lo confirmó"
@@ -3826,6 +3840,7 @@ translations:
   'Printing: start after this job': 'Imprimiendo: inicia tras esta impresión'
   Prints: Impresiones
   Prints Trend: Tendencia de Impresiones
+  "Prints on its own, about {}": "Imprime solo, unos {}"
   'Private:': 'Privado:'
   Probe: Sonda
   Probe Accuracy Failed: Prueba de Precisión de Sonda Fallida
@@ -4263,6 +4278,7 @@ translations:
   Runs on its own once started: Funciona solo una vez iniciado
   Runs everything this printer needs, in order: 'Ejecuta todo lo que necesita esta impresora, en orden'
   Runs everything this printer needs, in order ·: 'Ejecuta todo lo que necesita esta impresora, en orden ·'
+  "Runs on its own, about {}": "Funciona solo, unos {}"
   Runs the printer's tool offset calibration for every tool.: Ejecuta la calibración de offsets de herramienta de la impresora para todas las herramientas.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'SAVE_CONFIG falló: {}. Los offsets de herramienta se aplicaron pero no se guardaron. Ejecuta SAVE_CONFIG manualmente o se perderán al reiniciar.'
   ? 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
@@ -4316,6 +4332,8 @@ translations:
   Save the new heater values to printer.cfg?: ¿Guardar los nuevos valores del calentador en printer.cfg?
   Save the new heater values to printer.cfg? Klipper restarts.: ¿Guardar los nuevos valores del calentador en printer.cfg? Klipper se reiniciará.
   Save to Config: "Guardar en configuración"
+  "Save to Config and Discard both restart Klipper.": "Guardar en configuración y Descartar reinician Klipper."
+  "Save to Config keeps Klipper running. Discard restarts it.": "Guardar en configuración mantiene Klipper en marcha. Descartar lo reinicia."
   Save to Spool: Guardar en bobina
   Save to Spoolman: Guardar en Spoolman
   Save to the printer config?: "¿Guardar en la configuración de la impresora?"
@@ -5239,6 +5257,8 @@ translations:
   The printer has not reported whether Auto-Replenish is on: 'La impresora no ha indicado si el rellenado automático está activado'
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
   : 'La impresora calienta la boquilla, hace unos movimientos de prueba cortos en una esquina de la placa y los mide ella misma. Repite hasta que las lecturas coinciden y luego informa de un número.'
+  ? The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer. Clear the bed first.
+  : "La impresora referencia X e Y, lleva el cabezal al centro de la cama y ajusta cada correa con su tensor. Al terminar, los motores quedan liberados, así que haga home antes de mover la impresora. Despeja la cama primero."
   The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear.: La impresora referencia y barre el cortador (unos 60 segundos). Mantenga despejada la ruta del filamento.
   The printer homes if needed, then finds the cutter's position. Keep the filament path clear.: "La impresora referencia si hace falta y luego localiza la posición del cortador. Mantenga despejada la ruta del filamento."
   ? The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked.
@@ -5271,6 +5291,7 @@ translations:
   The printer moved the print to {}, not {}.: 'La impresora pasó la impresión a {}, no a {}.'
   The printer may need a reboot afterwards.: 'Puede que la impresora necesite reiniciarse después.'
   The printer moves the toolhead and measures its motors.: 'La impresora mueve el cabezal y mide sus motores.'
+  "The printer moves the toolhead and measures its motors. Clear the bed first.": "La impresora mueve el cabezal y mide sus motores. Despeja la cama primero."
   The printer needs homing first: Primero hay que referenciar la impresora
   The printer no longer has a print to resume.: La impresora ya no tiene una impresión para reanudar.
   The printer reads the file up to the last saved position. A large file can take a minute.: La impresora lee el archivo hasta la última posición guardada. Un archivo grande puede tardar un minuto.
@@ -5298,6 +5319,7 @@ translations:
   ? The remaining steps will not run. The printer finishes the command it is running first, and its heaters stay on until then.
   : "Los pasos restantes no se ejecutarán. La impresora termina primero el comando en curso y sus calentadores siguen encendidos hasta entonces."
   The requested position is outside the printer's bounds: 'La posición solicitada está fuera de los límites de la impresora'
+  "The result is gone: Klipper restarted before it was saved. Run the calibration again.": "El resultado se perdió: Klipper se reinició antes de guardarlo. Vuelve a ejecutar la calibración."
   The results say why.: "Los resultados dicen por qué."
   The right RFID reader in this CFS unit may need service: Puede que el lector RFID derecho de esta unidad CFS necesite servicio
   The running step stops at once and the printer restarts, which also drops the results of the steps that finished.: 'El paso en curso se detiene de inmediato y la impresora se reinicia, lo que también descarta los resultados de los pasos terminados.'
@@ -5847,6 +5869,7 @@ translations:
   VM Peak: Pico de VM
   VM Size: Tamaño de VM
   Validating bed mesh...: Validando malla de cama...
+  "Value": "Valor"
   Value must be between {} and {}: El valor debe estar entre {} y {}
   Values: "Valores"
   Values must not be negative: Los valores no deben ser negativos
@@ -6091,6 +6114,7 @@ translations:
   Z motor calibration failed: Falló la calibración del motor Z
   Z offset: 'Offset Z'
   Z offset by material: "Z-Offset por material"
+  "Z offset found": "Offset Z encontrado"
   Z offset not set: 'Desfase Z sin ajustar'
   Z probes for bed leveling and mesh generation: Sondas Z para nivelación de cama y generación de malla
   Z tilt: Inclinación Z
@@ -6400,6 +6424,7 @@ translations:
   '{} free of {}': '{} libres de {}'
   '{} h': '{} h'
   '{} h of {} h': '{} h de {} h'
+  "{} h {} min": "{} h {} min"
   '{} hand feed did not finish': '{}: la alimentación manual no terminó'
   '{} has no filament': '{} no tiene filamento'
   '{} has no filament type set': '{} no tiene tipo de filamento asignado'

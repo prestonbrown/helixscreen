@@ -20,6 +20,18 @@ struct PIDCalibrationPanelTestAccess {
     static void abort_clicked(PIDCalibrationPanel& p) {
         p.handle_abort_clicked();
     }
+    static bool holds_machine_busy(const PIDCalibrationPanel& p) {
+        return p.holds_.machine_busy();
+    }
+    static void result_save(PIDCalibrationPanel& p) {
+        p.handle_result_save();
+    }
+    static void result_keep(PIDCalibrationPanel& p) {
+        p.handle_result_keep();
+    }
+    static void result_discard(PIDCalibrationPanel& p) {
+        p.handle_result_discard();
+    }
     static void start_clicked(PIDCalibrationPanel& p) {
         p.handle_start_clicked();
     }
@@ -49,6 +61,13 @@ struct PIDCalibrationPanelTestAccess {
     }
     static void turn_off_fan(PIDCalibrationPanel& p) {
         p.turn_off_fan();
+    }
+    /// The run itself, as start or a finished migration begins it.
+    static void begin_pid_run(PIDCalibrationPanel& p) {
+        p.begin_calibration(PIDCalibrationPanel::CalibMethod::PID);
+    }
+    static void set_state(PIDCalibrationPanel& p, PIDCalibrationPanel::State state) {
+        p.set_state(state);
     }
     /// The confirmed migration, as confirm_migration() runs it.
     static void start_mpc_migration(PIDCalibrationPanel& p) {

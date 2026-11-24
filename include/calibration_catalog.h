@@ -189,12 +189,18 @@ struct HeaterPricing {
     /// PID_CALIBRATE repeats cycles until they agree within a TOLERANCE, rather
     /// than running a fixed number.
     bool tolerance = false;
+    /// MPC also measures how the part fan cools the nozzle.
+    bool measure_fan = false;
 };
 
 /// Seconds the calibration of one heater takes: heating to temperature, then
 /// the cycles a PID calibration runs at the length this heater's rate gives a
 /// cycle, or MPC's measurement.
 [[nodiscard]] float heater_calibration_seconds(const HeaterPricing& heater);
+
+/// Default minutes of a step the catalog prices with a fixed time (bed mesh, input
+/// shaper, ...), as applicable_steps() gives them; 0 for a kind it prices otherwise.
+[[nodiscard]] int step_default_minutes(StepKind kind);
 
 /// The Heaters step's whole minutes for @p heaters, at least 1; 0 for none.
 [[nodiscard]] int heaters_step_minutes(const std::vector<HeaterPricing>& heaters);

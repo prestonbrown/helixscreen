@@ -14,6 +14,7 @@
 #include "ui_panel_bed_mesh.h"
 
 #include "ui_bed_mesh.h"
+#include "ui_calibration_time.h"
 #include "ui_callback_helpers.h"
 #include "ui_emergency_stop.h"
 #include "ui_error_reporting.h"
@@ -84,13 +85,6 @@ static void on_profile_delete_cb(lv_event_t* e);
 // Constructor / Destructor
 
 static constexpr const char* kBedHeater = "heater_bed";
-
-namespace {
-
-/// The intro's estimate for probing alone, before any heat-up.
-constexpr int kIntroProbeMinutes = 2;
-
-} // namespace
 
 BedMeshPanel::BedMeshPanel() {
     // Initialize buffer contents
@@ -698,19 +692,18 @@ void BedMeshPanel::refresh_intro_duration() {
         return;
     }
     const int bed_c = heat_choice_bed_c_[static_cast<size_t>(choice)];
-    std::string text;
+    // The catalog's probing time, the one the guided run shows too.
+    int minutes = helix::calibration::step_default_minutes(helix::calibration::StepKind::BedMesh);
     if (bed_c > 0) {
         // The shared thermal model prices every other warm-up in the app.
         const float current_c = temperature_rules::deci_to_degrees_f(
             lv_subject_get_int(get_printer_state().temperature_state().get_bed_temp_subject()));
-        const int heat_minutes = helix::calibration::heating_minutes(
+        minutes += helix::calibration::heating_minutes(
             ThermalRateManager::instance().estimate_heating_seconds(kBedHeater, current_c,
                                                                     static_cast<float>(bed_c)));
-        text = fmt::format(fmt::runtime(lv_tr("about {} min with heat-up")),
-                           kIntroProbeMinutes + heat_minutes);
-    } else {
-        text = fmt::format(fmt::runtime(lv_tr("about {} min")), kIntroProbeMinutes);
     }
+    const std::string text =
+        helix::calibration::time_away_line(helix::calibration::AwayKind::Runs, minutes);
     snprintf(intro_duration_buf_, sizeof(intro_duration_buf_), "%s", text.c_str());
     lv_subject_set_string(&bed_mesh_intro_duration_, intro_duration_buf_);
 }

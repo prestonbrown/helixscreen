@@ -5,6 +5,7 @@
 
 #include "ui_belt_gap_gauge.h"
 #include "ui_belt_path_names.h"
+#include "ui_calibration_time.h"
 #include "ui_callback_helpers.h"
 #include "ui_frequency_response_chart.h"
 #include "ui_modal.h"
@@ -576,6 +577,7 @@ void BeltTensionPanel::on_deactivating(DeactivateReason reason) {
 
 void BeltTensionPanel::cleanup() {
     spdlog::debug("[BeltTension] Cleaning up");
+    holds_.release();
 
     cancel_run();
     clear_previews();
@@ -634,6 +636,18 @@ void BeltTensionPanel::set_view_state(ViewState state) {
     }
 
     place_chart(state);
+    refresh_holds();
+}
+
+helix::calibration::StageNeeds BeltTensionPanel::stage_needs(ViewState view, TunePhase phase) {
+    const bool tuning = view == ViewState::TUNING;
+    const bool sweeping = view == ViewState::RUNNING || (tuning && phase == TunePhase::SWEEPING);
+    return {/*machine_busy=*/sweeping, /*hands_on=*/tuning};
+}
+
+void BeltTensionPanel::refresh_holds() {
+    holds_.apply(stage_needs(static_cast<ViewState>(lv_subject_get_int(&s_belt_tension_state)),
+                             tune_phase_));
 }
 
 lv_obj_t* BeltTensionPanel::chart_host_for(ViewState state) const {
@@ -1786,6 +1800,7 @@ void BeltTensionPanel::set_tune_phase(TunePhase phase) {
     tune_phase_ = phase;
     lv_subject_set_int(&tune_phase_subject_, static_cast<int>(phase));
     refresh_tune();
+    refresh_holds();
 }
 
 void BeltTensionPanel::reset_tune_turns() {
@@ -2273,8 +2288,10 @@ void BeltTensionPanel::refresh_hw_sweep() {
              fmt::format(lv_tr("{:.0f}-{:.0f} Hz sweep"), sweep_cfg_.min_freq, sweep_cfg_.max_freq)
                  .c_str());
     lv_subject_set_string(&hw_sweep_subject_, hw_sweep_buf_);
-    snprintf(intro_minutes_buf_, sizeof(intro_minutes_buf_), "%s",
-             fmt::format(lv_tr("about {} min"), full_check_minutes()).c_str());
+    snprintf(
+        intro_minutes_buf_, sizeof(intro_minutes_buf_), "%s",
+        helix::calibration::time_away_line(helix::calibration::AwayKind::Runs, full_check_minutes())
+            .c_str());
     lv_subject_set_string(&intro_minutes_subject_, intro_minutes_buf_);
 }
 

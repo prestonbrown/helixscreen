@@ -103,8 +103,16 @@ void confirm_bed_cleared();
 /// already asks the user to clear the plate, so nothing asks again.
 void mark_bed_cleared();
 
-/// Every calibration that moves the toolhead starts through this: @p start runs straight
-/// away when no print may be on the bed, and otherwise only once the user answers the
+/// A calibration's one confirmation before the machine moves: @p title and @p message with
+/// @p confirm_text, where @p message asks for a clear bed. Confirming also marks the bed
+/// cleared, so nothing asks "Is the bed clear?" again, and then runs @p start unless a print
+/// took the machine meanwhile. Cancel or a dismissal runs @p on_declined. @p owner gates both.
+void confirm_calibration_start(const std::string& title, const std::string& message,
+                               const std::string& confirm_text, LifetimeToken owner,
+                               std::function<void()> start, std::function<void()> on_declined = {});
+
+/// Every calibration that moves the toolhead and asks nothing else starts through this: @p start
+/// runs straight away when no print may be on the bed, and otherwise only once the user answers the
 /// same "Is the bed clear?" question with Cleared, which also marks the bed cleared.
 /// Cancel or dismissing the question starts nothing and runs @p on_declined instead. @p owner
 /// gates both, so a screen closed while the question is up hears nothing back.

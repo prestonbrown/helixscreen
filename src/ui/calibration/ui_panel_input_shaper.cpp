@@ -3,6 +3,7 @@
 
 #include "ui_panel_input_shaper.h"
 
+#include "ui_calibration_time.h"
 #include "ui_callback_helpers.h"
 #include "ui_emergency_stop.h"
 #include "ui_event_safety.h"
@@ -15,6 +16,7 @@
 #include "accel_sensor_manager.h"
 #include "app_globals.h"
 #include "bed_plate_context.h"
+#include "calibration_catalog.h"
 #include "calibration_intro_text.h"
 #include "core/static_panel_registry.h"
 #include "core/static_subject_registry.h"
@@ -248,7 +250,10 @@ void InputShaperPanel::init_subjects() {
 
     // Intro
     UI_MANAGED_SUBJECT_INT(is_axis_choice_, 0, "is_axis_choice", subjects_);
-    UI_MANAGED_SUBJECT_STRING(is_intro_duration_, is_intro_duration_buf_, lv_tr("about 4 min"),
+    const std::string both_axes_time = helix::calibration::time_away_line(
+        helix::calibration::AwayKind::Runs,
+        helix::calibration::step_default_minutes(helix::calibration::StepKind::InputShaper));
+    UI_MANAGED_SUBJECT_STRING(is_intro_duration_, is_intro_duration_buf_, both_axes_time.c_str(),
                               "is_intro_duration", subjects_);
     UI_MANAGED_SUBJECT_STRING(is_intro_caption_, is_intro_caption_buf_, "", "is_intro_caption",
                               subjects_);
@@ -500,6 +505,7 @@ void InputShaperPanel::on_deactivating(DeactivateReason reason) {
 
 void InputShaperPanel::cleanup() {
     spdlog::debug("[InputShaper] Cleaning up");
+    holds_.release();
 
     // Expire all outstanding async tokens
     lifetime_.invalidate();
@@ -552,7 +558,12 @@ void InputShaperPanel::on_ui_destroyed() {
 
 // STATE MANAGEMENT
 
+helix::calibration::StageNeeds InputShaperPanel::stage_needs(State state) {
+    return {/*machine_busy=*/state == State::MEASURING, /*hands_on=*/false};
+}
+
 void InputShaperPanel::set_state(State new_state) {
+    holds_.apply(stage_needs(new_state));
     spdlog::debug("[InputShaper] State change: {} -> {}", static_cast<int>(state_),
                   static_cast<int>(new_state));
     if (new_state != State::MEASURING) {
@@ -2156,9 +2167,13 @@ void InputShaperPanel::handle_axis_choice(int choice) {
         return;
     }
     lv_subject_set_int(&is_axis_choice_, choice);
-    // A sweep is about two minutes per axis.
+    // The catalog prices both axes; one axis is half of it.
+    const int both =
+        helix::calibration::step_default_minutes(helix::calibration::StepKind::InputShaper);
     snprintf(is_intro_duration_buf_, sizeof(is_intro_duration_buf_), "%s",
-             choice == 0 ? lv_tr("about 4 min") : lv_tr("about 2 min"));
+             helix::calibration::time_away_line(helix::calibration::AwayKind::Runs,
+                                                choice == 0 ? both : std::max(1, both / 2))
+                 .c_str());
     lv_subject_set_string(&is_intro_duration_, is_intro_duration_buf_);
 }
 
