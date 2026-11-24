@@ -60,10 +60,14 @@ SPLASH_PIDFILE="${RUN_DIR}/helix-splash.pid"
 # supervisor subshell. spdlog handles the structured app log via syslog.
 #
 # Prefer FHS /var/log when its backing filesystem is persistent (the standard
-# Unix location for daemon logs). Fall back to ${DAEMON_DIR}/logs/ when /var/log
-# is tmpfs/ramfs: a RAM-backed log competes with Klipper for memory, and one
-# burst of unexpected output (a trace level left on) can fill tmpfs and stall a
-# print. DAEMON_DIR is persistent ext4 on every SysV platform.
+# Unix location for daemon logs). Fall back to a persistent directory OUTSIDE
+# the install tree when /var/log is tmpfs/ramfs: a RAM-backed log competes with
+# Klipper for memory, and one burst of unexpected output (a trace level left on)
+# can fill tmpfs and stall a print. A log inside DAEMON_DIR travels with the
+# tree an update swaps to <DAEMON_DIR>.old and then deletes, which would leave
+# the running supervisor writing to a deleted file, so the fallback is the
+# board's state root (where the app keeps helix.log) or, when no state root
+# exists yet, a .helixscreen/logs directory beside the install.
 LOGFILE=""
 if [ -d /var/log ] && [ -w /var/log ]; then
     # Resolve any symlink first: some Yocto/BusyBox systems (e.g., Elegoo CC1
@@ -86,6 +90,26 @@ if [ -d /var/log ] && [ -w /var/log ]; then
     esac
     unset _fs _real _check
 fi
+if [ -z "$LOGFILE" ]; then
+    # Same roots as kStateRoots in include/helix_install_roots.h, minus the
+    # plain-named legacy ones that can be a payload tree.
+    for _root in /mnt/UDISK/helixscreen-state /data/.helixscreen /usr/data/helixscreen-state \
+        /user-resource/helixscreen-state /userdata/helixscreen-state /srv/helixscreen-state \
+        /opt/config/mod_data/helixscreen-state; do
+        if [ -d "$_root" ] && [ -w "$_root" ]; then
+            LOGFILE="${_root}/logs/launcher.log"
+            break
+        fi
+    done
+    if [ -z "$LOGFILE" ]; then
+        _beside="$(dirname "$DAEMON_DIR")/.helixscreen/logs"
+        if mkdir -p "$_beside" 2>/dev/null && [ -w "$_beside" ]; then
+            LOGFILE="${_beside}/launcher.log"
+        fi
+    fi
+    unset _root _beside
+fi
+# Last resort: the install tree, which an update replaces.
 [ -n "$LOGFILE" ] || LOGFILE="${DAEMON_DIR}/logs/launcher.log"
 
 # Override asset directory if ui_xml/assets/config are not under DAEMON_DIR
@@ -168,8 +192,7 @@ start() {
     # which causes "getcwd: cannot access parent directories" errors from sh and chroot.
     cd / 2>/dev/null || true
 
-    # Ensure log directory exists (under DAEMON_DIR, persistent ext4 on all SysV
-    # platforms — see LOGFILE definition above). Belt-and-suspenders truncation
+    # Ensure log directory exists (see LOGFILE definition above). Belt-and-suspenders truncation
     # in case console output ever leaks back to stdout: 5 MB is plenty for shell
     # echoes + abort traces; spdlog handles structured logs via syslog/journal.
     mkdir -p "$(dirname "$LOGFILE")" 2>/dev/null || true
