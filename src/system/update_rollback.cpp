@@ -43,42 +43,45 @@ std::optional<bool>& device_proven_override() {
     return value;
 }
 
-// Platforms that never get rollback, by helix::platform key. This table is the
-// rollback capability's whole platform rule; generic code asks rollback_support().
-constexpr const char* kNoRollbackPlatforms[] = {
-    // /opt cannot hold both versions: the installer stages the old tree on
-    // another partition, which cannot be renamed back.
-    "k2",
-    // Desktop and Android builds never run the in-app installer; ESP32 updates by OTA.
-    "x86-desktop",
-    "android",
-    "esp32",
-    // VENDOR_OK: one row per platform key in the rollback capability's own table
-    // Has not passed the device plan.
-    "snapmaker-u1",
+// The platforms that passed the rollback device test plan, as helix::platform
+// key and the board that key must resolve to. Anything else, including a future
+// key or an unidentified board, gets no rollback until a device run adds a row.
+// This table is the rollback capability's whole platform rule; generic code asks
+// rollback_support().
+struct ProvenPlatform {
+    const char* platform_key;
+    helix::board::Board board;
 };
 
-// Boards behind an allowed platform key that never get rollback. The "mips" key
-// also serves these boards; untested; add after a device run.
-constexpr helix::board::Board kNoRollbackBoards[] = {
-    // VENDOR_OK: the rollback capability's own table keyed on helix::board
-    helix::board::Board::Ad5x,
-    helix::board::Board::Creator5,
-    helix::board::Board::Creator5Pro,
+// VENDOR_OK: one row per proven platform in the rollback capability's own table
+constexpr ProvenPlatform kRollbackProvenPlatforms[] = {
+    // systemd, proven on a Pi 3B.
+    {"pi", helix::board::Board::Generic},
+    {"pi32", helix::board::Board::Generic},
+    {"x86", helix::board::Board::Generic},
+    // SysV with the watchdog, proven on a K1C. The "mips" key also serves other
+    // boards, which stay off until their own device run.
+    {"mips", helix::board::Board::K1},
+    {"k1", helix::board::Board::K1},
+    // The K1's SysV launcher and init shape, on Klipper Mod (a Forge-X or Z-Mod
+    // tree reads as ModPayload).
+    {"ad5m", helix::board::Board::Ad5m}, // VENDOR_OK: a proven row of this table
 };
+
+bool platform_proven(const RollbackFacts& facts) {
+    for (const auto& row : kRollbackProvenPlatforms) {
+        if (facts.platform_key == row.platform_key && facts.board == row.board) {
+            return true;
+        }
+    }
+    return false;
+}
 
 } // namespace
 
 RollbackSupport rollback_support(const RollbackFacts& facts) {
-    for (const char* key : kNoRollbackPlatforms) {
-        if (facts.platform_key == key) {
-            return RollbackSupport::Platform;
-        }
-    }
-    for (const helix::board::Board board : kNoRollbackBoards) {
-        if (facts.board == board) {
-            return RollbackSupport::Platform;
-        }
+    if (!platform_proven(facts)) {
+        return RollbackSupport::Platform;
     }
     if (facts.install_suppressed) {
         return RollbackSupport::InstallSuppressed;

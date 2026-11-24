@@ -545,14 +545,17 @@ The platform rule:
 | Platform | Rollback | Why |
 |---|---|---|
 | Pi, Pi 32-bit, x86 (systemd) | Yes, with the watchdog | Same-filesystem swap under `INSTALL_PARENT`, which the unit lists in `ReadWritePaths` |
-| K1 series (`mips`), AD5M (Klipper Mod), CC1 | Yes, with the watchdog | SysV launcher loop; the watchdog hands the update restart back to it |
+| K1 series (`mips` or `k1` on the K1 board) | Yes, with the watchdog | SysV launcher loop; the watchdog hands the update restart back to it |
+| AD5M on Klipper Mod (`ad5m`) | Yes, with the watchdog | Same SysV shape as the K1. Klipper Mod leaves no Forge-X or Z-Mod marker (`/opt/config/mod`, `/ZMOD`, `/usr/prog`), so it is not a mod payload |
 | AD5M under Forge-X or ZMOD | No | The mod owns the install tree and updates it in place |
-| AD5X, Creator 5, Creator 5 Pro (any firmware) | No | Excluded by board (`kNoRollbackBoards`) behind the `mips` key: untested, add after a device run |
-| Snapmaker U1 | No | Not yet run through the device test plan (its release ships the watchdog, so the rule excludes it by key) |
+| AD5X, Creator 5, Creator 5 Pro (any firmware) | No | Share the `mips` key, but only the K1 board is proven: untested, add after a device run |
+| CC1 | No | Until a CC1 device run passes: its OpenWrt procd init and the COSMOS GUI switcher, which signals the watchdog's pidfile, are a second actor no run covered |
+| Snapmaker U1 | No | Not yet run through the device test plan (its release ships the watchdog) |
 | K2 | No | `/opt` cannot hold both versions; the old tree is staged off-partition |
 | x86 desktop, Android, ESP32 | No | They never run the in-app installer |
+| Any other platform key or board | No | The rule allows only what a device run proved |
 
-Every platform difference lives in `rollback_support()` and its `kNoRollbackPlatforms` and `kNoRollbackBoards` tables (`src/system/update_rollback.cpp`); the runtime facts (guard exported, watchdog parent, install suppressed, mod tree) decide the rest. An install whose layout turns out not to allow a kept copy fails the automatic install cleanly; nothing is changed.
+Every platform difference lives in `rollback_support()` and its allow-list `kRollbackProvenPlatforms` (platform key plus the board it must resolve to, `src/system/update_rollback.cpp`); the runtime facts (guard exported, watchdog parent, install suppressed, mod tree) decide the rest. An install whose layout turns out not to allow a kept copy fails the automatic install cleanly; nothing is changed.
 
 Known limits:
 
@@ -564,7 +567,7 @@ Known limits:
 
 #### Rollback device test plan
 
-A platform class gets Install overnight only after this plan passes on one of its devices. Passed, both on 2026-11-24 from 1.1.0-rc.4: **systemd** on a Raspberry Pi 3B (MainsailOS, Debian 13; covers Pi, Pi 32-bit and the x86 kiosk), and **SysV with the watchdog** on a Creality K1C (Simple AF, BusyBox init; covers the K1 series, the AD5M on Klipper Mod and the CC1). Results are on #1304. A platform or board that has not passed is excluded in `rollback_support()`: the Snapmaker U1 by key, and the AD5X and Creator 5 line by board.
+A platform class gets Install overnight only after this plan passes on one of its devices. Passed, both on 2026-11-24 from 1.1.0-rc.4: **systemd** on a Raspberry Pi 3B (MainsailOS, Debian 13; covers Pi, Pi 32-bit and the x86 kiosk), and **SysV with the watchdog** on a Creality K1C (Simple AF, BusyBox init; covers the K1 series and the AD5M on Klipper Mod). Results are on #1304. Passing adds a row to `kRollbackProvenPlatforms`; everything without one stays off.
 
 | Run | New version | Expected |
 |---|---|---|
@@ -583,15 +586,15 @@ Every run: the app logs `Automatic install: keeping the previous version` and `R
 Rerunning it on a device:
 
 1. Build the platform with the ctl server compiled in and, as uncommitted edits, `kAutoUpdateIdleSeconds = 60` (`include/system/auto_update_schedule.h`) so the idle wait is short. Install it with `install.sh --local --update`; it is the previous version. `bin/helix-watchdog` must be in the install, or Install overnight is absent and that is the platform's result.
-2. `HELIX_TEST_PRINTER=<host> HELIX_TEST_USERNAME=<user> scripts/serve-local-update.sh --platform <p> --configure-remote` once (on a non-Pi platform write its two files by hand, as the script's header says). Turn on `/beta_features` too, or the app keeps checking Stable instead of the dev channel. The K1 series asks for the `mips` asset key, so serve the `release-mips` zip under that key; `--platform k1` names the wrong one, and `release-mips` refuses a build with the ctl server, so package that one by hand.
+2. `HELIX_TEST_PRINTER=<host> HELIX_TEST_USERNAME=<user> scripts/serve-local-update.sh --platform <p> --configure-remote` once (on a non-Pi platform write its two files by hand, as the script's header says). Turn on `/beta_features` too, or the app keeps checking Stable instead of the dev channel. On a K1, `--platform k1` serves `helixscreen-mips.zip` under the `mips` asset key the app asks for. `release-mips` refuses a build with the ctl server, so package that one by hand.
 3. For each run, start the server, then restart the service: the app reads the manifest about 15 s after start and then once a day.
 4. R1 and R2 need real ELF stand-ins: `UpdateChecker` reads the new `bin/helix-screen`'s ELF header before install.sh runs and refuses a shell script ("Binary too small to be valid ELF"). Build them static with the platform's toolchain (for the K1, `mipsel-k1-linux-musl-gcc -static` from `toolchain-mips`); R2's must answer `--version`, which install.sh runs. R7's launcher can stay a shell script, since only `bin/helix-screen` is checked. Repack the zip with the stand-in and serve it with `--no-build`, which re-signs the manifest.
 5. Reach the window through Settings > Language & Time > Timezone: pick a zone where local time is just before 03:00 and leave the screen untouched. With no job and no power-loss resume pending, the install starts at the first 5-minute tick inside the window.
-6. Watch `$D` (`HELIX_ROLLBACK_DIR`, `<install parent>/.helixscreen/rollback-<install name>`) and catch `update_rollback.result` as it appears; the restored app deletes it within seconds. Launcher log: `journalctl -u helixscreen -f` on systemd; on the K1 `<install>/logs/launcher.log`, but after a swap the running launcher writes into the old tree's copy, so read `/proc/<launcher pid>/fd/2`. The K1 watchdog logs to syslog (`/var/log/messages`, tmpfs, UTC).
+6. Watch `$D` (`HELIX_ROLLBACK_DIR`, `<install parent>/.helixscreen/rollback-<install name>`) and catch `update_rollback.result` as it appears; the restored app deletes it within seconds. Launcher log: `journalctl -u helixscreen -f` on systemd. On SysV boards whose `/var/log` is tmpfs it is in the board's state root, `/usr/data/helixscreen-state/logs/launcher.log` on the K1 (`<install parent>/.helixscreen/logs/` before that root exists), outside the trees a swap moves. The K1 watchdog logs to syslog (`/var/log/messages`, tmpfs, UTC).
 
 On a real printer, check `print_stats` is idle before every install, restart and reboot.
 
-install.sh sets no umask of its own. Dropbear gives an ssh session umask 077, so an app started or restarted from an ssh shell installs its next update as a 0700 tree; one started at boot runs with 022 and installs 0755.
+install.sh sets umask 022, so a tree it installs is 0755 whether the app was started at boot or restarted from an ssh session (Dropbear's sessions run with umask 077).
 
 ---
 

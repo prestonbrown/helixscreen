@@ -187,7 +187,9 @@ print_summary() { # version
     else
         printf '%b\n\n' "${BOLD}HelixScreen $1 is installed ($_ps_channel channel). Reboot to start it.${NC}" >&2
         _summary_row Service "${INIT_SCRIPT_DEST:-}"
-        _summary_row "App log" "$(display_path "$INSTALL_DIR/logs/launcher.log")"
+        # The init script picks the launcher log's folder when it starts, so
+        # name the file and the tool that finds it rather than one guessed path.
+        _summary_row "App log" "launcher.log (Settings > Help & About > Upload Debug Bundle collects it)"
     fi
     if [ -n "${HELIX_CONFIG_EDITABLE:-}" ]; then
         _summary_row Config "$(display_path "$HELIX_CONFIG_EDITABLE")  (editable in Mainsail/Fluidd)"
