@@ -15,9 +15,11 @@
 #include "core/static_panel_registry.h"
 #include "core/subject.h"
 #include "overlay_base.h"
+#include "print_start_analyzer.h"
 #include "subject_managed_panel.h"
 
 #include <array>
+#include <optional>
 #include <string>
 
 namespace helix::settings {
@@ -49,6 +51,10 @@ class MaterialZOffsetOverlay : public OverlayBase {
 
   private:
     void refresh_values();
+    /// Publish which setup steps are still to do.
+    void refresh_setup_steps();
+    /// Read the print start macro to see whether it calls the helper yet.
+    void check_print_start();
 
     SubjectManager subjects_;
     std::array<helix::Subject, kMaterials.size()> value_subjects_{};
@@ -61,6 +67,13 @@ class MaterialZOffsetOverlay : public OverlayBase {
     helix::Subject slicer_line_subject_{};
     char macro_line_buf_[96]{};
     char slicer_line_buf_[64]{};
+    /// 1 while a setup step is still to do: adding the helper call to
+    /// PRINT_START, and having the slicer pass the material.
+    helix::Subject step_print_start_subject_{};
+    helix::Subject step_slicer_subject_{};
+    /// Whether the print start macro calls the helper; nullopt until read.
+    std::optional<bool> print_start_calls_;
+    helix::PrintStartAnalyzer analyzer_;
     std::string editing_title_; ///< The open keypad's title
     ObserverGuard rev_observer_;
 };

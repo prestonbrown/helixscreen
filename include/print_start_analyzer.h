@@ -27,6 +27,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 // Forward declarations
@@ -123,6 +124,10 @@ struct PrintStartAnalysis {
      * @brief Get operation by category (or nullptr if not found)
      */
     [[nodiscard]] const PrintStartOperation* get_operation(PrintStartOpCategory category) const;
+
+    /// Some macro the print start macro runs, itself included, is @p name
+    /// (case-insensitive). Only macros the printer defines are followed.
+    [[nodiscard]] bool calls_macro(std::string_view name) const;
 
     /**
      * @brief Generate a summary string for logging/debugging

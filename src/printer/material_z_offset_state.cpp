@@ -49,6 +49,10 @@ std::string enabled_key(const Config& config) {
     return config.df() + "material_z_offset/enabled";
 }
 
+std::string slicer_step_key(const Config& config) {
+    return config.df() + "material_z_offset/slicer_step_done";
+}
+
 const PrinterDiscovery& hw() {
     return get_printer_state().get_discovery();
 }
@@ -158,6 +162,21 @@ Status MaterialZOffsetState::status() const {
 bool MaterialZOffsetState::enabled() const {
     const Config* config = Config::get_instance();
     return config && config->get<bool>(enabled_key(*config), false);
+}
+
+bool MaterialZOffsetState::slicer_step_done() const {
+    const Config* config = Config::get_instance();
+    return config && config->get<bool>(slicer_step_key(*config), false);
+}
+
+void MaterialZOffsetState::mark_slicer_step_done() {
+    Config* config = Config::get_instance();
+    if (config && !slicer_step_done()) {
+        config->set<bool>(slicer_step_key(*config), true);
+        config->save();
+        spdlog::info("[MaterialZOffset] Slicer setup step marked done");
+    }
+    bump();
 }
 
 void MaterialZOffsetState::set_enabled(IMoonrakerAPI* api, bool on) {

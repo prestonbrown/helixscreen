@@ -122,3 +122,29 @@ TEST_CASE_METHOD(EstopVisibilityFixture,
     report_job_state("complete");
     CHECK(visible() == 0);
 }
+
+TEST_CASE_METHOD(EstopVisibilityFixture,
+                 "estop is visible while the app runs a machine-moving script with no job",
+                 "[recovery][estop][preparing][pa_tuner][machine_busy]") {
+    // A tuner's PRINT_START runs as a console script: the machine homes and
+    // heats while print_stats still reads standby.
+    report_job_state("standby");
+    REQUIRE(visible() == 0);
+    {
+        helix::MachineBusyToken busy;
+        busy.acquire();
+        CHECK(visible() == 1);
+
+        // The script ending into a print keeps the button up across the hand-off.
+        report_job_state("printing");
+        busy.reset();
+        CHECK(visible() == 1);
+        report_job_state("standby");
+        CHECK(visible() == 0);
+
+        busy.acquire();
+        CHECK(visible() == 1);
+    }
+    // Destroying the token (the flow closing) releases it.
+    CHECK(visible() == 0);
+}

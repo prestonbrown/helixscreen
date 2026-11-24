@@ -304,6 +304,31 @@ bool write_ready(const PrinterDiscovery& hw) {
     return p && p->ready(hw);
 }
 
+std::string helper_call_macro(const PrinterDiscovery& hw) {
+    if (zoffset::firmware_persists_z_offset(hw)) {
+        return {};
+    }
+    const Provider* p = match(hw);
+    // The HelixScreen row is the one with a hint macro; a vendor row's start
+    // macro applies its table on its own.
+    if (p && !p->hint_macro) {
+        return {};
+    }
+    return "HELIX_MATERIAL_OFFSET";
+}
+
+SetupSteps setup_steps(bool supported, const std::string& helper_call,
+                       std::optional<bool> print_start_calls, bool slicer_done) {
+    SetupSteps steps;
+    steps.install = !supported;
+    if (!helper_call.empty()) {
+        // Unread counts as not done: the line is shown until the macro proves it.
+        steps.print_start = !print_start_calls.value_or(false);
+        steps.slicer = !slicer_done;
+    }
+    return steps;
+}
+
 bool reports_application(const PrinterDiscovery& hw) {
     const Provider* p = match(hw);
     return p && p->reports_application;

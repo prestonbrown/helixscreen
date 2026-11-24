@@ -45,6 +45,13 @@ bool PrintStartAnalysis::has_operation(PrintStartOpCategory category) const {
         [category](const PrintStartOperation& op) { return op.category == category; });
 }
 
+bool PrintStartAnalysis::calls_macro(std::string_view name) const {
+    const std::string wanted = helix::text_io::to_upper(name);
+    return std::any_of(macro_chain.begin(), macro_chain.end(), [&wanted](const std::string& m) {
+        return helix::text_io::to_upper(m) == wanted;
+    });
+}
+
 const PrintStartOperation* PrintStartAnalysis::get_operation(PrintStartOpCategory category) const {
     auto it =
         std::find_if(operations.begin(), operations.end(),

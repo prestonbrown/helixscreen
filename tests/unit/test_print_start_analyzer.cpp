@@ -808,6 +808,27 @@ const char* const kVoronStartPrintBody = "[gcode_macro START_PRINT]\n"
 
 } // namespace
 
+TEST_CASE("PrintStartAnalyzer says whether the print start macro calls a helper macro",
+          "[print_start][follow][material_zoffset][pa_tuner]") {
+    const std::string helper = "[gcode_macro HELIX_MATERIAL_OFFSET]\n"
+                               "gcode:\n"
+                               "  RESPOND MSG=hi\n\n";
+    SECTION("called through a wrapper, in any case") {
+        auto result = analyze_single_file(helper + kWrapperPrintStart +
+                                          "\n[gcode_macro START_PRINT]\n"
+                                          "gcode:\n"
+                                          "  G28\n"
+                                          "  helix_material_offset MATERIAL={params.MATERIAL}\n");
+        REQUIRE(result.found);
+        CHECK(result.calls_macro("HELIX_MATERIAL_OFFSET"));
+    }
+    SECTION("defined but never called") {
+        auto result = analyze_single_file(helper + kUncontrolledStartPrintBody);
+        REQUIRE(result.found);
+        CHECK_FALSE(result.calls_macro("HELIX_MATERIAL_OFFSET"));
+    }
+}
+
 TEST_CASE("PrintStartAnalyzer follows a wrapper into the macro it calls", "[print_start][follow]") {
     auto result = analyze_single_file(std::string("[gcode_macro PRINT_START]\n"
                                                   "gcode:\n"

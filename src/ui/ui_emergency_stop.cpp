@@ -427,7 +427,8 @@ void EmergencyStopOverlay::update_visibility() {
     // no second spelling to drift.
     const auto lifecycle = printer_state_->print_state().get_print_lifecycle();
 
-    int new_value = job_holds_machine(lifecycle) ? 1 : 0;
+    // A script the app sent holds the machine with no job to report it.
+    int new_value = (job_holds_machine(lifecycle) || machine_busy_count_ > 0) ? 1 : 0;
     int current_value = lv_subject_get_int(&estop_visible_);
 
     if (new_value != current_value) {
@@ -435,6 +436,18 @@ void EmergencyStopOverlay::update_visibility() {
         spdlog::debug("[EmergencyStop] Visibility changed: {} (lifecycle={})", new_value,
                       static_cast<int>(lifecycle));
     }
+}
+
+void EmergencyStopOverlay::acquire_machine_busy() {
+    ++machine_busy_count_;
+    update_visibility();
+}
+
+void EmergencyStopOverlay::release_machine_busy() {
+    if (machine_busy_count_ > 0) {
+        --machine_busy_count_;
+    }
+    update_visibility();
 }
 
 void EmergencyStopOverlay::handle_click() {
@@ -829,6 +842,21 @@ void EmergencyStopOverlay::suppress_recovery_dialog(uint32_t duration_ms) {
     spdlog::info("[KlipperRecovery] Suppressing recovery dialog for {}ms", duration_ms);
 }
 
+void EmergencyStopOverlay::extend_recovery_suppression(uint32_t duration_ms) {
+    const uint32_t wanted = lv_tick_get() + duration_ms;
+    uint32_t current = suppress_recovery_until_.load(std::memory_order_relaxed);
+    do {
+        // A pending deadline later than the wanted one is a longer window some
+        // flow already asked for; keep it.
+        const bool pending = current != 0 && lv_tick_elaps(current) > (UINT32_MAX / 2);
+        if (pending && static_cast<int32_t>(current - wanted) > 0) {
+            return;
+        }
+    } while (!suppress_recovery_until_.compare_exchange_weak(current, wanted,
+                                                             std::memory_order_relaxed));
+    spdlog::info("[KlipperRecovery] Suppressing recovery dialog for {}ms", duration_ms);
+}
+
 bool EmergencyStopOverlay::is_recovery_suppressed() const {
     return deadline_pending(suppress_recovery_until_);
 }
@@ -1211,7 +1239,7 @@ const UiRequestRegistration s_expect_restart_registration{
 void begin_expected_klippy_restart(std::string message, IMoonrakerAPI* api) {
     // The suppression writes are atomic deadline stores, safe right here on
     // any thread; the toast is LVGL-facing so it hops to the main thread.
-    EmergencyStopOverlay::instance().suppress_recovery_dialog(recovery_suppression::LONG);
+    EmergencyStopOverlay::instance().extend_recovery_suppression(recovery_suppression::LONG);
     if (api) {
         api->suppress_disconnect_modal(kExpectedRestartDisconnectModalMs);
     }
