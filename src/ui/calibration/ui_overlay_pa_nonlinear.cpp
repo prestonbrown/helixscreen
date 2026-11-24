@@ -844,6 +844,9 @@ void PaNonlinearOverlay::on_print_state(PrintJobState state) {
     // Complete, or stopped by the user: judge what printed.
     set_stage(JUDGE);
     refresh();
+    if (lv_obj_t* root = overlay_root_) {
+        pa_tower_flourish(lv_obj_find_by_name(root, "pa_nl_judge_tower"));
+    }
 }
 
 void PaNonlinearOverlay::on_script_failed(int pass_seq, const MoonrakerError& err) {

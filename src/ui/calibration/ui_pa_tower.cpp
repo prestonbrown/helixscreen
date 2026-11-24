@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "ui_pa_tower.h"
 
+#include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
 #include "helix-xml/src/xml/lv_xml_widget.h"
@@ -36,6 +37,8 @@ struct TowerState {
     PaTowerModel model;
     float tap_mm = 0.0f;
     int tap_face = 0;
+    /// The flourish's strength, 255 at its start, fading to 0.
+    int32_t glow = 0;
 };
 
 /// A ruler height: whole millimeters without a decimal, others to one place.
@@ -538,6 +541,23 @@ void on_draw(lv_event_t* e) {
     } else {
         draw_continuous(obj, layer, st->model, l);
     }
+    if (st->glow > 0) {
+        // The flourish: a light wash over the tower that fades, and a bright line across its top.
+        const lv_color_t c = theme_manager_get_color("text");
+        const int32_t top = l.y_at(st->model.height_mm, std::max(1.0f, st->model.height_mm));
+        fill_rect(layer, {l.body_x1, top, l.body_x2, l.bottom}, c,
+                  static_cast<lv_opa_t>(st->glow / 4));
+        line(layer, l.body_x1 - 3, top, l.body_x2 + 3, top, c, 3, 0, 0,
+             static_cast<lv_opa_t>(st->glow));
+    }
+}
+
+void glow_exec(void* var, int32_t v) {
+    auto* obj = static_cast<lv_obj_t*>(var);
+    if (TowerState* st = state_of(obj)) {
+        st->glow = v;
+        lv_obj_invalidate(obj);
+    }
 }
 
 /// Which face screen @p x falls on: the faces split the body by their widths.
@@ -578,6 +598,7 @@ void on_clicked(lv_event_t* e) {
 
 void on_delete(lv_event_t* e) {
     lv_obj_t* obj = lv_event_get_current_target_obj(e);
+    lv_anim_delete(obj, glow_exec);
     delete state_of(obj);
     lv_obj_set_user_data(obj, nullptr);
 }
@@ -608,6 +629,21 @@ void pa_tower_set_model(lv_obj_t* tower, PaTowerModel model) {
     }
     st->model = std::move(model);
     lv_obj_invalidate(tower);
+}
+
+void pa_tower_flourish(lv_obj_t* tower) {
+    if (!state_of(tower) || !DisplaySettingsManager::instance().get_animations_enabled()) {
+        return;
+    }
+    lv_anim_delete(tower, glow_exec);
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, tower);
+    lv_anim_set_values(&a, 255, 0);
+    lv_anim_set_duration(&a, 900);
+    lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+    lv_anim_set_exec_cb(&a, glow_exec);
+    lv_anim_start(&a);
 }
 
 float pa_tower_tap_height(lv_obj_t* tower) {

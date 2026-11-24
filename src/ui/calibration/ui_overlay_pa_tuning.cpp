@@ -962,6 +962,9 @@ void PaTuningOverlay::on_print_state(PrintJobState state) {
         refresh_bands();
         set_stage(PICK);
         leave_print_status();
+        if (lv_obj_t* root = overlay_root_) {
+            pa_tower_flourish(lv_obj_find_by_name(root, "pa_tune_pick_tower"));
+        }
         spdlog::info("[{}] Test print ended; {} bands to pick from", get_name(),
                      session_.bands().size());
     } else {

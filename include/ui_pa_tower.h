@@ -84,6 +84,9 @@ struct PaTowerModel {
 
 void register_pa_tower_widget();
 void pa_tower_set_model(lv_obj_t* tower, PaTowerModel model);
+/// A short flourish when a tower is done: a wash that fades over 0.9 s. Nothing
+/// when animations are off.
+void pa_tower_flourish(lv_obj_t* tower);
 /// The height of the latest tap, in millimeters up from the plate.
 float pa_tower_tap_height(lv_obj_t* tower);
 /// The face (index into PaTowerModel::faces) the latest tap landed on; 0 for a banded tower.

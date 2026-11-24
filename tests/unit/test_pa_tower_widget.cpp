@@ -4,6 +4,7 @@
 #include "ui_pa_tower.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 
 #include "../catch_amalgamated.hpp"
@@ -70,4 +71,38 @@ TEST_CASE_METHOD(LVGLUITestFixture, "pa_tower: a banded tower with no bands yet 
     }
     CHECK(pa_tower_height_at(tower, 0) >= 0.0f);
     lv_obj_delete(tower);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "pa_tower: the finishing flourish fades out and stops",
+                 "[pa_tuner][pa_tower_widget]") {
+    lv_obj_t* tower =
+        static_cast<lv_obj_t*>(lv_xml_create(lv_screen_active(), "pa_tower", nullptr));
+    REQUIRE(tower != nullptr);
+    lv_obj_set_size(tower, 200, 400);
+    PaTowerModel m;
+    m.banded = false;
+    m.fill = PaTowerFill::Full;
+    m.faces = {helix::pa::TowerFace::Left};
+    pa_tower_set_model(tower, m);
+    auto& display = DisplaySettingsManager::instance();
+    const bool animations = display.get_animations_enabled();
+    display.set_animations_enabled(true);
+    pa_tower_flourish(tower);
+    CHECK(lv_anim_get(tower, nullptr) != nullptr);
+    process_lvgl(1200);
+    // Done within its 0.9 s: nothing of it still runs.
+    CHECK(lv_anim_get(tower, nullptr) == nullptr);
+    // A tower deleted mid-flourish takes its animation with it.
+    pa_tower_flourish(tower);
+    lv_obj_delete(tower);
+    process_lvgl(1200);
+
+    // With animations off there is no flourish at all.
+    lv_obj_t* still =
+        static_cast<lv_obj_t*>(lv_xml_create(lv_screen_active(), "pa_tower", nullptr));
+    display.set_animations_enabled(false);
+    pa_tower_flourish(still);
+    CHECK(lv_anim_get(still, nullptr) == nullptr);
+    lv_obj_delete(still);
+    display.set_animations_enabled(animations);
 }
