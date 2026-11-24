@@ -304,6 +304,7 @@ src/system/sheet_label_layout.cpp  # not in the v1 Core+AMS cut
 src/system/snapshot_qr_scanner.cpp  # not in the v1 Core+AMS cut
 src/system/sound_synthesis.cpp  # not in the v1 Core+AMS cut
 src/system/install_provenance.cpp  # telemetry only, not in the v1 Core+AMS cut
+src/system/install_root_cwd.cpp  # chdir() into the install tree; ESP-IDF has no chdir() and the firmware has no install tree
 src/system/telemetry_manager.cpp  # not in the v1 Core+AMS cut
 src/system/telemetry_outcomes.cpp  # telemetry only, not in the v1 Core+AMS cut
 src/system/tls_trust.cpp  # the concrete libhv client; the firmware has no TLS

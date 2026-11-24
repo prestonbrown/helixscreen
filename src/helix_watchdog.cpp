@@ -26,6 +26,7 @@
 #include "config.h"
 #include "core/data_root_resolver.h"
 #include "display_backend.h"
+#include "install_root_cwd.h"
 #ifdef HELIX_DISPLAY_DRM
 #include "display_backend_drm.h"
 #endif

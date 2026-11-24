@@ -94,14 +94,6 @@ std::optional<std::string> firmware_package_root(Board board,
 std::string resolve_install_root(const std::string& running_exe,
                                  const std::string& probe_root = "/");
 
-/// chdir() into the install tree (an absolute @p running_exe only) resolve_install_root(@p
-/// running_exe) finds, so relative config/ and ui_xml/ paths resolve there. Returns the directory
-/// entered; empty when no install tree is found or chdir fails (the working directory is then
-/// unchanged). Callers that outlive an in-place update pass a path that is re-resolved on every
-/// call (the launcher's binary path), not /proc/self/exe, which keeps naming the replaced tree's
-/// moved inode.
-std::string chdir_to_install_root(const std::string& running_exe);
-
 /// Test-only, main-thread-only: make current() answer @p board until reset with
 /// std::nullopt. HelixTestFixture::reset_all() resets it.
 void set_current_override(std::optional<Board> board);

@@ -5,6 +5,7 @@
 
 #include "board_identity.h"
 #include "helix_test_fixture.h"
+#include "install_root_cwd.h"
 #include "platform_info.h"
 #include "platform_table.h"
 #include "test_helpers/flashforge_layout_fixture.h"
