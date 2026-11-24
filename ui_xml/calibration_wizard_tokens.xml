@@ -150,6 +150,13 @@
     <!-- (components/calibration_intro.xml and its chips and badges).       -->
     <!-- ================================================================ -->
     <!-- Left column width beside the settings; portrait takes the full width. -->
+    <!-- An intro's diagram (layout="diagram"): its height in portrait. -->
+    <px name="cal_intro_diagram_portrait_h_micro" value="120"/>
+    <px name="cal_intro_diagram_portrait_h_tiny" value="140"/>
+    <px name="cal_intro_diagram_portrait_h_small" value="180"/>
+    <px name="cal_intro_diagram_portrait_h_medium" value="220"/>
+    <px name="cal_intro_diagram_portrait_h_large" value="260"/>
+    <px name="cal_intro_diagram_portrait_h_xlarge" value="300"/>
     <px name="cal_intro_left_w_micro" value="190"/>
     <px name="cal_intro_left_w_tiny" value="200"/>
     <px name="cal_intro_left_w_small" value="240"/>

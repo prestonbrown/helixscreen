@@ -9,7 +9,9 @@
      primary action at the bottom right. Portrait stacks the columns.
 
      Slots: now (the left column, the default), settings, badges
-     (cal_intro_badge pills). The primary carries the toolhead guard unless a
+     (cal_intro_badge pills), diagram. layout="diagram" swaps the left column
+     for the diagram slot, the full height of the page: a step whose intro is
+     a picture of what it will do (the pressure advance tower). The primary carries the toolhead guard unless a
      caller turns primary_moves_machine off, and is also disabled while primary_disabled_cond holds (the footer adds an
      unreachable printer to it); primary_bind_text retitles it live.
      Sizes: calibration_wizard_tokens.xml (its intro block). -->
@@ -18,6 +20,8 @@
     <slot name="now" target="cal_intro_now" default="true"/>
     <slot name="settings" target="cal_intro_settings"/>
     <slot name="badges" target="cal_intro_badges" hide_empty="true"/>
+    <slot name="diagram" target="cal_intro_diagram"/>
+    <prop name="layout" type="string" default="text"/>
     <prop name="left_label" type="string" default=""/>
     <prop name="left_label_tag" type="string" default=""/>
     <prop name="right_label" type="string" default=""/>
@@ -37,6 +41,7 @@
     <prop name="status_tag" type="string" default=""/>
     <prop name="status_subject" type="string" default=""/>
     <prop name="status_color" type="string" default="#text_muted"/>
+    <prop name="status_sub_subject" type="string" default=""/>
   </api>
   <styles>
     <style name="split_row" layout="flex" flex_flow="row"/>
@@ -45,6 +50,9 @@
     <style name="left_full" width="100%" height="content"/>
     <style name="right_grow" width="0" height="100%" flex_grow="1"/>
     <style name="right_full" width="100%" height="content" flex_grow="0"/>
+    <!-- The diagram sizes itself: a tower column, or a column of cards. -->
+    <style name="diagram_side" width="content" height="100%"/>
+    <style name="diagram_full" width="100%" height="#cal_intro_diagram_portrait_h"/>
   </styles>
   <view extends="lv_obj"
         width="100%" height="100%" style_pad_all="0" style_pad_gap="0" style_bg_opa="0" style_border_width="0"
@@ -56,9 +64,15 @@
       <bind_style_if_eq name="split_row" subject="ui_is_portrait" ref_value="0"/>
       <bind_style_if_eq name="split_column" subject="ui_is_portrait" ref_value="1"/>
       <bind_flag_if_eq subject="ui_is_portrait" flag="scrollable" ref_value="1"/>
+      <lv_obj name="cal_intro_diagram"
+              style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="column" scrollable="false"
+              hidden_if_prop_not_eq="$layout|diagram">
+        <bind_style_if_eq name="diagram_side" subject="ui_is_portrait" ref_value="0"/>
+        <bind_style_if_eq name="diagram_full" subject="ui_is_portrait" ref_value="1"/>
+      </lv_obj>
       <lv_obj name="cal_intro_left"
               style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0" style_border_width="0" flex_flow="column"
-              scrollable="false">
+              scrollable="false" hidden_if_prop_eq="$layout|diagram">
         <bind_style_if_eq name="left_fixed" subject="ui_is_portrait" ref_value="0"/>
         <bind_style_if_eq name="left_full" subject="ui_is_portrait" ref_value="1"/>
         <cal_intro_section_label name="cal_intro_left_label" text="$left_label" text_tag="$left_label_tag"/>
@@ -90,6 +104,7 @@
                          primary_tag="$primary_tag" primary_subject="$primary_bind_text"
                          primary_callback="$primary_callback" primary_disabled_cond="$primary_disabled_cond" divider="0"
                          primary_moves_machine="$primary_moves_machine" status="$status" status_tag="$status_tag"
-                         status_subject="$status_subject" status_color="$status_color"/>
+                         status_subject="$status_subject" status_color="$status_color"
+                         status_sub_subject="$status_sub_subject"/>
   </view>
 </component>

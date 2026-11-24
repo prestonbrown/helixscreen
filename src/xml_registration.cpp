@@ -29,6 +29,7 @@
 #include "ui_nav.h"
 #include "ui_notification_badge.h"
 #include "ui_overlay_temp_graph.h"
+#include "ui_pa_tower.h"
 #include "ui_panel_home.h"
 #include "ui_panel_settings.h"
 #include "ui_pin_entry_modal.h"
@@ -416,6 +417,7 @@ void register_xml_components() {
 #if !defined(HELIX_PLATFORM_ESP32)
     // Heater calibration is not in the ESP32 cut, and a reference here would link it.
     helix::ui::register_heater_response_sketch_widget(); // before the heater calibration XML
+    helix::ui::register_pa_tower_widget();               // before the pressure advance tuner XML
 #endif
 
     register_settings_panel_callbacks(); // Register callbacks before XML parse [L013]

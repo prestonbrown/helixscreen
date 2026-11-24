@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The pressure advance tuners' "where to look" card. At the left an inset of
+     the judged face (a pa_tower its owner fills, found by `tower_name`), with
+     the spots where the nozzle changes speed; at the right a caption, what to
+     look for (`bind_look`), and three edge-on samples: Right, Too little and
+     Too much advance, whose image paths are the string subjects `bind_src0`
+     to `bind_src2` (assets/images/pa/). The owner hides the card at the
+     smallest breakpoint, where it does not fit. -->
+<component>
+  <api>
+    <prop name="tower_name" type="string" default="pa_reference_tower"/>
+    <prop name="caption" type="string" default="Where to look"/>
+    <prop name="caption_tag" type="string" default="Where to look"/>
+    <prop name="bind_look" type="string" default=""/>
+    <prop name="bind_src0" type="string" default=""/>
+    <prop name="bind_src1" type="string" default=""/>
+    <prop name="bind_src2" type="string" default=""/>
+    <prop name="inset_w" type="string" default="#pa_ref_inset_w"/>
+  </api>
+  <view extends="lv_obj"
+        width="100%" height="content" style_bg_color="#screen_bg" style_bg_opa="255" style_border_width="1"
+        style_border_color="#border" style_radius="#border_radius" style_pad_all="#space_sm" style_pad_gap="#space_md"
+        flex_flow="row" scrollable="false" clickable="false">
+    <pa_tower name="$tower_name" width="$inset_w" height="#pa_ref_h" clickable="false"/>
+    <lv_obj width="0"
+            height="#pa_ref_h" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+            flex_flow="column" style_pad_gap="#space_xs" scrollable="false" clickable="false">
+      <cal_intro_section_label text="$caption" text_tag="$caption_tag"/>
+      <text_body name="pa_reference_look"
+                 width="100%" bind_text="$bind_look" long_mode="wrap" style_text_font="#font_small"
+                 style_text_color="#text"/>
+      <lv_obj width="100%"
+              height="0" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
+              style_pad_gap="#space_xs" scrollable="false" clickable="false">
+        <lv_obj width="0"
+                height="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="column"
+                style_pad_gap="#space_xxs" style_flex_cross_place="center" scrollable="false">
+          <lv_image name="pa_reference_right"
+                    width="100%" height="0" flex_grow="1" bind_src="$bind_src0" inner_align="contain"
+                    style_border_width="2" style_border_color="#success" style_radius="#border_radius_small"/>
+          <text_small text="Right" style_text_color="#success" style_text_font="#font_body_bold"/>
+        </lv_obj>
+        <lv_obj width="0"
+                height="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="column"
+                style_pad_gap="#space_xxs" style_flex_cross_place="center" scrollable="false">
+          <lv_image name="pa_reference_too_little"
+                    width="100%" height="0" flex_grow="1" bind_src="$bind_src1" inner_align="contain"/>
+          <text_small text="Too little" style_text_color="#warning"/>
+        </lv_obj>
+        <lv_obj width="0"
+                height="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="column"
+                style_pad_gap="#space_xxs" style_flex_cross_place="center" scrollable="false">
+          <lv_image name="pa_reference_too_much"
+                    width="100%" height="0" flex_grow="1" bind_src="$bind_src2" inner_align="contain"/>
+          <text_small text="Too much" style_text_color="#warning"/>
+        </lv_obj>
+      </lv_obj>
+    </lv_obj>
+  </view>
+</component>

@@ -370,6 +370,7 @@ src/ui/calibration/ui_panel_calibration_pa.cpp  # not in the v1 Core+AMS cut
 src/ui/calibration/ui_overlay_pa_tuning.cpp  # not in the v1 Core+AMS cut
 src/printer/pa_nonlinear_tuning.cpp  # only the PA tuning overlay uses it
 src/ui/calibration/ui_overlay_pa_nonlinear.cpp  # not in the v1 Core+AMS cut
+src/ui/calibration/ui_pa_tower.cpp  # only the PA tuning overlays draw it; not in the v1 Core+AMS cut
 src/ui/calibration/pa_tower_start.cpp  # only the PA tuners use it
 src/ui/filament/ui_head_picker.cpp  # not in the v1 Core+AMS cut
 src/ui/calibration/ui_panel_calibration_zoffset.cpp  # not in the v1 Core+AMS cut

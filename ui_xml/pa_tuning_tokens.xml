@@ -2,23 +2,77 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!--
-  Pressure-advance tuner tokens. The -/+ buttons are the screen's whole point
-  during a print: big enough to hit without looking away from the tower.
+  Pressure-advance tuner tokens. The -/+ buttons sit beside the value they
+  change, a touch target and a half each; the tower column and the reference
+  card are sized for the 800x480 design and scale by tier.
 -->
 <component>
   <consts>
-    <px name="pa_tune_nudge_w_micro" value="72"/>
-    <px name="pa_tune_nudge_w_tiny" value="88"/>
-    <px name="pa_tune_nudge_w_small" value="100"/>
-    <px name="pa_tune_nudge_w_medium" value="140"/>
-    <px name="pa_tune_nudge_w_large" value="160"/>
-    <px name="pa_tune_nudge_w_xlarge" value="180"/>
+    <px name="pa_tune_nudge_w_micro" value="56"/>
+    <px name="pa_tune_nudge_w_tiny" value="64"/>
+    <px name="pa_tune_nudge_w_small" value="76"/>
+    <px name="pa_tune_nudge_w_medium" value="88"/>
+    <px name="pa_tune_nudge_w_large" value="104"/>
+    <px name="pa_tune_nudge_w_xlarge" value="120"/>
 
-    <px name="pa_tune_nudge_h_micro" value="56"/>
-    <px name="pa_tune_nudge_h_tiny" value="72"/>
-    <px name="pa_tune_nudge_h_small" value="88"/>
-    <px name="pa_tune_nudge_h_medium" value="120"/>
-    <px name="pa_tune_nudge_h_large" value="140"/>
-    <px name="pa_tune_nudge_h_xlarge" value="160"/>
+    <px name="pa_tune_nudge_h_micro" value="44"/>
+    <px name="pa_tune_nudge_h_tiny" value="48"/>
+    <px name="pa_tune_nudge_h_small" value="60"/>
+    <px name="pa_tune_nudge_h_medium" value="70"/>
+    <px name="pa_tune_nudge_h_large" value="84"/>
+    <px name="pa_tune_nudge_h_xlarge" value="96"/>
+
+    <!-- The tower column at the left of every stage. -->
+    <px name="pa_tower_w_micro" value="104"/>
+    <px name="pa_tower_w_tiny" value="120"/>
+    <px name="pa_tower_w_small" value="160"/>
+    <px name="pa_tower_w_medium" value="200"/>
+    <px name="pa_tower_w_large" value="250"/>
+    <px name="pa_tower_w_xlarge" value="300"/>
+
+    <!-- The reference card: its face inset and its height. -->
+    <px name="pa_ref_inset_w_micro" value="60"/>
+    <px name="pa_ref_inset_w_tiny" value="80"/>
+    <px name="pa_ref_inset_w_small" value="110"/>
+    <px name="pa_ref_inset_w_medium" value="140"/>
+    <px name="pa_ref_inset_w_large" value="170"/>
+    <px name="pa_ref_inset_w_xlarge" value="200"/>
+
+    <px name="pa_ref_h_micro" value="80"/>
+    <px name="pa_ref_h_tiny" value="96"/>
+    <px name="pa_ref_h_small" value="130"/>
+    <px name="pa_ref_h_medium" value="150"/>
+    <px name="pa_ref_h_large" value="180"/>
+    <px name="pa_ref_h_xlarge" value="210"/>
+
+    <!-- The left / front labels before pass 2's two height rows. -->
+    <px name="pa_side_label_w_micro" value="34"/>
+    <px name="pa_side_label_w_tiny" value="40"/>
+    <px name="pa_side_label_w_small" value="56"/>
+    <px name="pa_side_label_w_medium" value="70"/>
+    <px name="pa_side_label_w_large" value="84"/>
+    <px name="pa_side_label_w_xlarge" value="96"/>
+
+    <!-- The nonlinear setup's tower cards, and the thumbnail in each. -->
+    <px name="pa_nl_cards_w_micro" value="180"/>
+    <px name="pa_nl_cards_w_tiny" value="200"/>
+    <px name="pa_nl_cards_w_small" value="250"/>
+    <px name="pa_nl_cards_w_medium" value="300"/>
+    <px name="pa_nl_cards_w_large" value="360"/>
+    <px name="pa_nl_cards_w_xlarge" value="420"/>
+    <px name="pa_nl_thumb_w_micro" value="44"/>
+    <px name="pa_nl_thumb_w_tiny" value="56"/>
+    <px name="pa_nl_thumb_w_small" value="96"/>
+    <px name="pa_nl_thumb_w_medium" value="120"/>
+    <px name="pa_nl_thumb_w_large" value="140"/>
+    <px name="pa_nl_thumb_w_xlarge" value="160"/>
+
+    <!-- The value between -/+: bold 28 is registered at every tier. -->
+    <string name="pa_tune_value_font_micro" value="noto_sans_bold_28"/>
+    <string name="pa_tune_value_font_tiny" value="noto_sans_bold_28"/>
+    <string name="pa_tune_value_font_small" value="noto_sans_bold_28"/>
+    <string name="pa_tune_value_font_medium" value="noto_sans_bold_40"/>
+    <string name="pa_tune_value_font_large" value="noto_sans_bold_40"/>
+    <string name="pa_tune_value_font_xlarge" value="noto_sans_bold_40"/>
   </consts>
 </component>
