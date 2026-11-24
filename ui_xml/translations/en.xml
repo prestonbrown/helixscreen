@@ -314,7 +314,7 @@
   <translation tag="Accelerometer not responding" en="Accelerometer not responding"/>
   <translation tag="Accelerometer ready" en="Accelerometer ready"/>
   <translation tag="Accelerometers" en="Accelerometers"/>
-  <translation tag="Accent" en="Accent"/>
+  <translation tag="Accents" en="Accents"/>
   <translation tag="Accept" en="Accept"/>
   <translation tag="Accepted Z Position: 0.000" en="Accepted Z Position: 0.000"/>
   <translation tag="Accepted Z Position: {:.3f}" en="Accepted Z Position: {:.3f}"/>
@@ -1474,6 +1474,7 @@
   <translation tag="Downloading... {:.1f}/{:.1f} MB" en="Downloading... {:.1f}/{:.1f} MB"/>
   <translation tag="Draw a ripple at each touch — helps diagnose offsets" en="Draw a ripple at each touch — helps diagnose offsets"/>
   <translation tag="Drive Cal" en="Drive Cal"/>
+  <translation tag="Drive blocks and trim" en="Drive blocks and trim"/>
   <translation tag="Drop shadow strength (0 = disabled)" en="Drop shadow strength (0 = disabled)"/>
   <translation tag="Dropped when the printer restarted" en="Dropped when the printer restarted"/>
   <translation tag="Dry" en="Dry"/>
@@ -2035,6 +2036,7 @@
   <translation tag="Found %zu printers" en="Found %zu printers"/>
   <translation tag="Found 1 printer" en="Found 1 printer"/>
   <translation tag="Found {} at {}." en="Found {} at {}."/>
+  <translation tag="Frame" en="Frame"/>
   <translation tag="Framerate" en="Framerate"/>
   <translation tag="Free space unknown" en="Free space unknown"/>
   <translation tag="Free the spool and pull the filament out of {} by hand, then try again." en="Free the spool and pull the filament out of {} by hand, then try again."/>
@@ -2047,7 +2049,6 @@
   <translation tag="Front" en="Front"/>
   <translation tag="Front Left" en="Front Left"/>
   <translation tag="Front Right" en="Front Right"/>
-  <translation tag="Front and side panels" en="Front and side panels"/>
   <translation tag="Full" en="Full"/>
   <translation tag="G-code Console" en="G-code Console"/>
   <translation tag="G-code Preview" en="G-code Preview"/>
@@ -2278,6 +2279,7 @@
   <translation tag="Homing timed out — printer may still be homing" en="Homing timed out — printer may still be homing"/>
   <translation tag="Homing, then probing..." en="Homing, then probing..."/>
   <translation tag="Homing..." en="Homing..."/>
+  <translation tag="Honeycomb panels, corner blocks and trays" en="Honeycomb panels, corner blocks and trays"/>
   <translation tag="Horizontal" en="Horizontal"/>
   <translation tag="Host" en="Host"/>
   <translation tag="Host Health" en="Host Health"/>
@@ -2787,7 +2789,6 @@
   <translation tag="Macros installed. Restart Klipper after the print to activate them." en="Macros installed. Restart Klipper after the print to activate them."/>
   <translation tag="Macros updated. Restart Klipper after the print to activate them." en="Macros updated. Restart Klipper after the print to activate them."/>
   <translation tag="Macros, G-code console, calibration tools (PID, input shaper, z-offset), firmware updates, and developer utilities." en="Macros, G-code console, calibration tools (PID, input shaper, z-offset), firmware updates, and developer utilities."/>
-  <translation tag="Main" en="Main"/>
   <translation tag="Main LED Strip" en="Main LED Strip"/>
   <translation tag="Maintaining" en="Maintaining"/>
   <translation tag="Maintenance" en="Maintenance"/>
@@ -3376,7 +3377,7 @@
   <translation tag="Pairing failed" en="Pairing failed"/>
   <translation tag="Pairing..." en="Pairing..."/>
   <translation tag="Panel Usage" en="Panel Usage"/>
-  <translation tag="Panels" en="Panels"/>
+  <translation tag="Panels and Corners" en="Panels and Corners"/>
   <translation tag="Paper Test Calibration" en="Paper Test Calibration"/>
   <translation tag="Paper drags: done" en="Paper drags: done"/>
   <translation tag="Parameters" en="Parameters"/>
@@ -4849,7 +4850,6 @@
   <translation tag="The bed&apos;s load cell read {1} g, above the {2} g limit, at Z {3}, and the printer shut down to protect itself." en="The bed&apos;s load cell read {1} g, above the {2} g limit, at Z {3}, and the printer shut down to protect itself."/>
   <translation tag="The bed&apos;s load cell read {1} g, above the {2} g limit, at Z {3}: the nozzle is dragging on the part, a part came loose, or the print warped. The print paused." en="The bed&apos;s load cell read {1} g, above the {2} g limit, at Z {3}: the nozzle is dragging on the part, a part came loose, or the print warped. The print paused."/>
   <translation tag="The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire." en="The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire."/>
-  <translation tag="The body and frame" en="The body and frame"/>
   <translation tag="The buffer may be disconnected, stuck, or faulty. Check it before retrying" en="The buffer may be disconnected, stuck, or faulty. Check it before retrying"/>
   <translation tag="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer" en="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer"/>
   <translation tag="The build plate should be on the bed but reads as removed." en="The build plate should be on the bed but reads as removed."/>
@@ -4923,6 +4923,7 @@
   <translation tag="The firmware could not read or write the driver for {1}. Motor power being off (UART drivers need it), a driver not seated or a wrong pin in the configuration can cause it." en="The firmware could not read or write the driver for {1}. Motor power being off (UART drivers need it), a driver not seated or a wrong pin in the configuration can cause it."/>
   <translation tag="The firmware&apos;s pressure advance tower needs a [pa_test] section in printer.cfg. HelixScreen adds it with a backup and restarts Klipper." en="The firmware&apos;s pressure advance tower needs a [pa_test] section in printer.cfg. HelixScreen adds it with a backup and restarts Klipper."/>
   <translation tag="The firmware&apos;s test tower is not in the printer&apos;s config. Adding it writes one section and restarts Klipper." en="The firmware&apos;s test tower is not in the printer&apos;s config. Adding it writes one section and restarts Klipper."/>
+  <translation tag="The frame, posts and rails" en="The frame, posts and rails"/>
   <translation tag="The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong." en="The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong."/>
   <translation tag="The gap didn&apos;t close (moved {:.1f} Hz). Try a bigger turn." en="The gap didn&apos;t close (moved {:.1f} Hz). Try a bigger turn."/>
   <translation tag="The gap grew after loosening {0}. Check you turned {0}&apos;s tensioner." en="The gap grew after loosening {0}. Check you turned {0}&apos;s tensioner."/>
@@ -5418,7 +5419,6 @@
   <translation tag="Translucent" en="Translucent"/>
   <translation tag="Tried ports {} and {}." en="Tried ports {} and {}."/>
   <translation tag="Trigger" en="Trigger"/>
-  <translation tag="Trim and small parts" en="Trim and small parts"/>
   <translation tag="Troubleshooting:" en="Troubleshooting:"/>
   <translation tag="Try Again" en="Try Again"/>
   <translation tag="Try adjusting your search or filters" en="Try adjusting your search or filters"/>

@@ -350,7 +350,7 @@
   <translation tag="Accelerometer not responding" ru="Акселерометр не отвечает"/>
   <translation tag="Accelerometer ready" ru="Акселерометр готов"/>
   <translation tag="Accelerometers" ru="Акселерометры"/>
-  <translation tag="Accent" ru="Акцент"/>
+  <translation tag="Accents" ru="Акценты"/>
   <translation tag="Accept" ru="Принять"/>
   <translation tag="Accepted Z Position: 0.000" ru="Принятая позиция Z: 0.000"/>
   <translation tag="Accepted Z Position: {:.3f}" ru="Принятая позиция Z: {:.3f}"/>
@@ -1519,6 +1519,7 @@
   <translation tag="Downloading... {:.1f}/{:.1f} MB" ru="Загрузка... {:.1f}/{:.1f} МБ"/>
   <translation tag="Draw a ripple at each touch — helps diagnose offsets" ru="Рисовать круг при каждом касании — помогает диагностировать смещения"/>
   <translation tag="Drive Cal" ru="Кал. привода"/>
+  <translation tag="Drive blocks and trim" ru="Приводные блоки и отделка"/>
   <translation tag="Drop shadow strength (0 = disabled)" ru="Интенсивность тени (0 = отключено)"/>
   <translation tag="Dropped when the printer restarted" ru="Потеряно при перезапуске принтера"/>
   <translation tag="Dry" ru="Сушка"/>
@@ -2083,6 +2084,7 @@
   <translation tag="Found %zu printers_one" ru="Найден %zu принтер"/>
   <translation tag="Found 1 printer" ru="Найден 1 принтер"/>
   <translation tag="Found {} at {}." ru="{} найден по адресу {}."/>
+  <translation tag="Frame" ru="Рама"/>
   <translation tag="Framerate" ru="Частота кадров"/>
   <translation tag="Free space unknown" ru="Свободное место неизвестно"/>
   <translation tag="Free the spool and pull the filament out of {} by hand, then try again." ru="{}: освободите катушку и вручную вытяните филамент, затем попробуйте снова."/>
@@ -2095,7 +2097,6 @@
   <translation tag="Front" ru="Спереди"/>
   <translation tag="Front Left" ru="Спереди слева"/>
   <translation tag="Front Right" ru="Спереди справа"/>
-  <translation tag="Front and side panels" ru="Передняя и боковые панели"/>
   <translation tag="Full" ru="Полный"/>
   <translation tag="G-code Console" ru="Консоль G-code"/>
   <translation tag="G-code Preview" ru="Просмотр G-code"/>
@@ -2326,6 +2327,7 @@
   <translation tag="Homing timed out — printer may still be homing" ru="Тайм-аут парковки — принтер может всё ещё выполнять парковку"/>
   <translation tag="Homing, then probing..." ru="Парковка, затем измерение..."/>
   <translation tag="Homing..." ru="Парковка..."/>
+  <translation tag="Honeycomb panels, corner blocks and trays" ru="Сотовые панели, угловые блоки и лотки"/>
   <translation tag="Horizontal" ru="Горизонтально"/>
   <translation tag="Host" ru="Хост"/>
   <translation tag="Host Health" ru="Состояние хоста"/>
@@ -2835,7 +2837,6 @@
   <translation tag="Macros installed. Restart Klipper after the print to activate them." ru="Макросы установлены. Перезапустите Klipper после печати, чтобы активировать их."/>
   <translation tag="Macros updated. Restart Klipper after the print to activate them." ru="Макросы обновлены. Перезапустите Klipper после печати, чтобы активировать их."/>
   <translation tag="Macros, G-code console, calibration tools (PID, input shaper, z-offset), firmware updates, and developer utilities." ru="Макросы, консоль G-code, инструменты калибровки (PID, Input Shaper, Z-смещение), обновления прошивки и утилиты для разработчиков."/>
-  <translation tag="Main" ru="Основной"/>
   <translation tag="Main LED Strip" ru="Основная LED-лента"/>
   <translation tag="Maintaining" ru="Поддержание"/>
   <translation tag="Maintenance" ru="Обслуживание"/>
@@ -3424,7 +3425,7 @@
   <translation tag="Pairing failed" ru="Ошибка сопряжения"/>
   <translation tag="Pairing..." ru="Сопряжение..."/>
   <translation tag="Panel Usage" ru="Использование панели"/>
-  <translation tag="Panels" ru="Панели"/>
+  <translation tag="Panels and Corners" ru="Панели и углы"/>
   <translation tag="Paper Test Calibration" ru="Калибровка бумажным тестом"/>
   <translation tag="Paper drags: done" ru="Бумага цепляется: готово"/>
   <translation tag="Parameters" ru="Параметры"/>
@@ -4915,7 +4916,6 @@
   <translation tag="The bed&apos;s load cell read {1} g, above the {2} g limit, at Z {3}, and the printer shut down to protect itself." ru="Тензодатчик стола показал {1} г, выше предела {2} г, при Z {3}, и принтер выключился для самозащиты."/>
   <translation tag="The bed&apos;s load cell read {1} g, above the {2} g limit, at Z {3}: the nozzle is dragging on the part, a part came loose, or the print warped. The print paused." ru="Тензодатчик стола показал {1} г, выше предела {2} г, при Z {3}: сопло задевает деталь, деталь отвалилась или модель покоробилась. Печать приостановлена."/>
   <translation tag="The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire." ru="Плата перезагрузилась сама, обычно из-за просадки питания или замыкания на проводе вентилятора или нагревателя."/>
-  <translation tag="The body and frame" ru="Корпус и рама"/>
   <translation tag="The buffer may be disconnected, stuck, or faulty. Check it before retrying" ru="Буфер может быть отключён, заклинен или неисправен. Проверьте его перед повтором"/>
   <translation tag="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer" ru="Буфер не фиксировал движение 16 секунд. Проверьте засор между CFS и экструдером или заклинивший буфер"/>
   <translation tag="The build plate should be on the bed but reads as removed." ru="Печатная пластина должна быть на столе, но числится снятой."/>
@@ -4989,6 +4989,7 @@
   <translation tag="The firmware could not read or write the driver for {1}. Motor power being off (UART drivers need it), a driver not seated or a wrong pin in the configuration can cause it." ru="Прошивка не смогла прочитать или записать драйвер {1}. Причиной может быть выключенное питание моторов (оно нужно драйверам UART), плохо установленный драйвер или неверный пин в конфигурации."/>
   <translation tag="The firmware&apos;s pressure advance tower needs a [pa_test] section in printer.cfg. HelixScreen adds it with a backup and restarts Klipper." ru="Башне Pressure Advance в прошивке нужна секция [pa_test] в printer.cfg. HelixScreen добавит её с резервной копией и перезапустит Klipper."/>
   <translation tag="The firmware&apos;s test tower is not in the printer&apos;s config. Adding it writes one section and restarts Klipper." ru="Тестовой башни прошивки нет в конфигурации принтера. Добавление запишет одну секцию и перезапустит Klipper."/>
+  <translation tag="The frame, posts and rails" ru="Рама, стойки и направляющие"/>
   <translation tag="The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong." ru="Порталу нужна коррекция {1} мм, больше допустимых {2} мм. Он сильно перекошен (после удара или провиснув при выключенном питании) или неверны точки зондирования либо порядок моторов Z."/>
   <translation tag="The gap didn&apos;t close (moved {:.1f} Hz). Try a bigger turn." ru="Разница не сократилась (сдвиг {:.1f} Гц). Поверните сильнее."/>
   <translation tag="The gap grew after loosening {0}. Check you turned {0}&apos;s tensioner." ru="Разница выросла после ослабления ({0}). Проверьте, что крутили натяжитель: {0}."/>
@@ -5484,7 +5485,6 @@
   <translation tag="Translucent" ru="Полупрозрачный"/>
   <translation tag="Tried ports {} and {}." ru="Проверены порты {} и {}."/>
   <translation tag="Trigger" ru="Триггер"/>
-  <translation tag="Trim and small parts" ru="Отделка и мелкие детали"/>
   <translation tag="Troubleshooting:" ru="Устранение неполадок:"/>
   <translation tag="Try Again" ru="Повторить"/>
   <translation tag="Try adjusting your search or filters" ru="Попробуйте изменить поиск или фильтры"/>

@@ -314,7 +314,7 @@
   <translation tag="Accelerometer not responding" ja="加速度センサーが応答しません"/>
   <translation tag="Accelerometer ready" ja="加速度センサー準備完了"/>
   <translation tag="Accelerometers" ja="加速度センサー"/>
-  <translation tag="Accent" ja="アクセント"/>
+  <translation tag="Accents" ja="アクセント"/>
   <translation tag="Accept" ja="承認"/>
   <translation tag="Accepted Z Position: 0.000" ja="確定Z位置: 0.000"/>
   <translation tag="Accepted Z Position: {:.3f}" ja="確定したZ位置: {:.3f}"/>
@@ -1474,6 +1474,7 @@
   <translation tag="Downloading... {:.1f}/{:.1f} MB" ja="ダウンロード中... {:.1f}/{:.1f} MB"/>
   <translation tag="Draw a ripple at each touch — helps diagnose offsets" ja="タッチごとに波紋を描画 — ズレの診断に役立ちます"/>
   <translation tag="Drive Cal" ja="ドライブキャリブレーション"/>
+  <translation tag="Drive blocks and trim" ja="ドライブブロックとトリム"/>
   <translation tag="Drop shadow strength (0 = disabled)" ja="影の強さ (0 = 無効)"/>
   <translation tag="Dropped when the printer restarted" ja="プリンターの再起動で破棄されました"/>
   <translation tag="Dry" ja="乾燥"/>
@@ -2035,6 +2036,7 @@
   <translation tag="Found %zu printers" ja="%zu台のプリンターを検出"/>
   <translation tag="Found 1 printer" ja="プリンター1台を検出"/>
   <translation tag="Found {} at {}." ja="{} を {} で検出しました。"/>
+  <translation tag="Frame" ja="フレーム"/>
   <translation tag="Framerate" ja="フレームレート"/>
   <translation tag="Free space unknown" ja="空き容量不明"/>
   <translation tag="Free the spool and pull the filament out of {} by hand, then try again." ja="スプールを外し、{} からフィラメントを手で引き抜いてから、もう一度お試しください。"/>
@@ -2047,7 +2049,6 @@
   <translation tag="Front" ja="手前"/>
   <translation tag="Front Left" ja="左手前"/>
   <translation tag="Front Right" ja="右手前"/>
-  <translation tag="Front and side panels" ja="前面と側面のパネル"/>
   <translation tag="Full" ja="フル"/>
   <translation tag="G-code Console" ja="G-code コンソール"/>
   <translation tag="G-code Preview" ja="G-code プレビュー"/>
@@ -2278,6 +2279,7 @@
   <translation tag="Homing timed out — printer may still be homing" ja="ホーミングがタイムアウトしました — プリンターはまだホーミング中の可能性があります"/>
   <translation tag="Homing, then probing..." ja="原点復帰してから測定中..."/>
   <translation tag="Homing..." ja="ホーミング中..."/>
+  <translation tag="Honeycomb panels, corner blocks and trays" ja="ハニカムパネル、コーナーブロック、トレイ"/>
   <translation tag="Horizontal" ja="水平"/>
   <translation tag="Host" ja="ホスト"/>
   <translation tag="Host Health" ja="ホストの状態"/>
@@ -2787,7 +2789,6 @@
   <translation tag="Macros installed. Restart Klipper after the print to activate them." ja="マクロをインストールしました。印刷後に Klipper を再起動すると有効になります。"/>
   <translation tag="Macros updated. Restart Klipper after the print to activate them." ja="マクロを更新しました。印刷後に Klipper を再起動すると有効になります。"/>
   <translation tag="Macros, G-code console, calibration tools (PID, input shaper, z-offset), firmware updates, and developer utilities." ja="マクロ、G-code コンソール、キャリブレーションツール（PID、入力シェイパー、Z オフセット）、ファームウェア更新、開発者向けユーティリティ。"/>
-  <translation tag="Main" ja="メイン"/>
   <translation tag="Main LED Strip" ja="メインLEDストリップ"/>
   <translation tag="Maintaining" ja="維持中"/>
   <translation tag="Maintenance" ja="メンテナンス"/>
@@ -3376,7 +3377,7 @@
   <translation tag="Pairing failed" ja="ペアリング失敗"/>
   <translation tag="Pairing..." ja="ペアリング中..."/>
   <translation tag="Panel Usage" ja="パネル使用状況"/>
-  <translation tag="Panels" ja="パネル"/>
+  <translation tag="Panels and Corners" ja="パネルとコーナー"/>
   <translation tag="Paper Test Calibration" ja="紙テストキャリブレーション"/>
   <translation tag="Paper drags: done" ja="紙が引っかかる：完了"/>
   <translation tag="Parameters" ja="パラメータ"/>
@@ -4849,7 +4850,6 @@
   <translation tag="The bed&apos;s load cell read {1} g, above the {2} g limit, at Z {3}, and the printer shut down to protect itself." ja="Z {3} でベッドのロードセルが {1} g（上限 {2} g）を検出したため、プリンターは保護のため停止しました。"/>
   <translation tag="The bed&apos;s load cell read {1} g, above the {2} g limit, at Z {3}: the nozzle is dragging on the part, a part came loose, or the print warped. The print paused." ja="Z {3} でベッドのロードセルが {1} g（上限 {2} g）を検出しました: ノズルが造形物を引きずっている、部品が外れた、または造形物が反りました。印刷を一時停止しました。"/>
   <translation tag="The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire." ja="ボードが勝手に再起動しました。通常、電源電圧の低下か、ファンまたはヒーターの配線のショートが原因です。"/>
-  <translation tag="The body and frame" ja="本体とフレーム"/>
   <translation tag="The buffer may be disconnected, stuck, or faulty. Check it before retrying" ja="バッファーが未接続、固着、または故障している可能性があります。再試行前に確認してください"/>
   <translation tag="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer" ja="バッファーが 16 秒間動きを検出しませんでした。CFS とエクストルーダーの間の詰まり、またはバッファーの固着を確認してください"/>
   <translation tag="The build plate should be on the bed but reads as removed." ja="ビルドプレートはベッドにあるはずですが、外れていると検出されています。"/>
@@ -4923,6 +4923,7 @@
   <translation tag="The firmware could not read or write the driver for {1}. Motor power being off (UART drivers need it), a driver not seated or a wrong pin in the configuration can cause it." ja="ファームウェアが {1} のドライバーを読み書きできませんでした。モーター電源がオフ（UART ドライバーには必要）、ドライバーの取り付け不良、または設定のピンの誤りが原因として考えられます。"/>
   <translation tag="The firmware&apos;s pressure advance tower needs a [pa_test] section in printer.cfg. HelixScreen adds it with a backup and restarts Klipper." ja="ファームウェアの Pressure Advance タワーには、printer.cfg に [pa_test] セクションが必要です。HelixScreen がバックアップを取ってから追加し、Klipper を再起動します。"/>
   <translation tag="The firmware&apos;s test tower is not in the printer&apos;s config. Adding it writes one section and restarts Klipper." ja="ファームウェアのテストタワーがプリンター設定にありません。追加すると、セクションが1つ書き込まれ、Klipper が再起動します。"/>
+  <translation tag="The frame, posts and rails" ja="フレーム、ポスト、レール"/>
   <translation tag="The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong." ja="ガントリーに {1} mm の補正が必要で、許容値 {2} mm を超えています。大きく傾いている（衝突後や電源オフ中のたわみ）か、プローブ点や Z モーターの順序が間違っています。"/>
   <translation tag="The gap didn&apos;t close (moved {:.1f} Hz). Try a bigger turn." ja="差が縮まりませんでした({:.1f} Hz移動)。もっと大きく回してください。"/>
   <translation tag="The gap grew after loosening {0}. Check you turned {0}&apos;s tensioner." ja="{0}を緩めた後に差が広がりました。{0}のテンショナーを回したか確認してください。"/>
@@ -5418,7 +5419,6 @@
   <translation tag="Translucent" ja="半透明"/>
   <translation tag="Tried ports {} and {}." ja="ポート{}と{}を試しました。"/>
   <translation tag="Trigger" ja="トリガー"/>
-  <translation tag="Trim and small parts" ja="トリムと小部品"/>
   <translation tag="Troubleshooting:" ja="トラブルシューティング:"/>
   <translation tag="Try Again" ja="再試行"/>
   <translation tag="Try adjusting your search or filters" ja="検索やフィルターを調整してみてください"/>

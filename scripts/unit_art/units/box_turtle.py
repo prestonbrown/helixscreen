@@ -60,7 +60,7 @@ def _corner(sc, cx, cy):
     """A corner block, flush with the frame's top rail."""
     z = TOP + 0.006
     post = [(cx, cy), (cx, cy + POST), (cx + POST, cy + POST), (cx + POST, cy)][::-1]
-    with sc.painted("main", CORNER):
+    with sc.painted("panels"):
         sc.prism(post, 0.0, z, CORNER, amb=0.75, dif=0.55, spec=0.2, power=16)
         sc.poly([(cx, cy, z), (cx + POST, cy, z), (cx + POST, cy + POST, z), (cx, cy + POST, z)], kit.shift(CORNER, 30))
 
@@ -68,7 +68,7 @@ def _corner(sc, cx, cy):
 def _posts(sc, corners, z0, z1):
     for cx, cy in corners:
         post = [(cx, cy), (cx, cy + 0.05), (cx + 0.05, cy + 0.05), (cx + 0.05, cy)][::-1]
-        with sc.painted("main", FRAME):
+        with sc.painted("main"):
             sc.prism(post, z0, z1, FRAME, amb=0.9, dif=0.5, spec=0.2, power=16)
 
 
@@ -79,8 +79,8 @@ def draw_art(sc, colors, tier, rear_posts_to=None):
     w = width(len(colors))
     foot = [(0, 0), (0, D), (w, D), (w, 0)][::-1]
     sc.poly([(0.0, 0.02, 0), (w + 0.03, 0.02, 0), (w + 0.03, D + 0.03, 0), (0, D + 0.03, 0)], "#000", 0.55, blur=True)
-    # The deck under the spools: the main body's inside, in its shadow.
-    with sc.painted("main", FRAME):
+    # The trays under the spools, printed in the panels' green.
+    with sc.painted("panels"):
         sc.poly([(0.02, 0.02, TOP), (w - 0.02, 0.02, TOP), (w - 0.02, D - 0.02, TOP), (0.02, D - 0.02, TOP)], DECK)
     # The rear corners stand behind the spools.
     for cx in (0.0, w - POST):
@@ -92,20 +92,20 @@ def draw_art(sc, colors, tier, rear_posts_to=None):
         # Each lane's filament leaves through the front face of its drive block.
         kit.outlet(sc, lane, (xc, 0.035, TOP + 0.028))
 
-    # Regions as the unit is printed: the main body (frame, corner blocks, posts), the accent
-    # parts (drive blocks, trim) and the honeycomb panels.
+    # Regions as the unit is printed: the gold frame, posts and rails (main); the drive blocks
+    # and trim (accent); the green corner blocks, honeycomb panels and trays (panels).
     sc.layer = "front"
-    with sc.painted("main", FRAME):
+    with sc.painted("main"):
         sc.prism(foot, 0.018, TOP, FRAME, amb=0.8, dif=0.5, spec=0.15, power=20)
     front = kit.shade(cam, PANEL, (0, -1, 0), amb=0.72, dif=0.42, spec=0)
     side = kit.shade(cam, PANEL, (1, 0, 0), amb=0.72, dif=0.42, spec=0)
-    with sc.painted("panels", PANEL):
+    with sc.painted("panels"):
         sc.poly(_front_rect(0.05, w - 0.05, PANEL_Z0, PANEL_Z1), front)
         sc.poly(_side_rect(w + 0.001, 0.05, D - 0.05, PANEL_Z0, PANEL_Z1), side)
         if detail:
             _honeycomb(sc, 0.05, w - 0.05, PANEL_Z0, PANEL_Z1, lambda a, b: (a, -0.002, b))
             _honeycomb(sc, 0.05, D - 0.05, PANEL_Z0, PANEL_Z1, lambda a, b: (w + 0.002, a, b))
-    with sc.painted("accent", RAIL_LINE):
+    with sc.painted("accent"):
         for z in (TOP - 0.004, PANEL_Z1 + 0.012, PANEL_Z0 - 0.012):
             sc.line([(0.06, -0.003, z), (w - 0.06, -0.003, z)], RAIL_LINE, 0.003)
     for lane, xc in enumerate(centers(len(colors))):
@@ -113,7 +113,7 @@ def draw_art(sc, colors, tier, rear_posts_to=None):
         sc.prism(roller, TOP, TOP + 0.03, ROLLER, amb=0.9, dif=0.5, spec=0.3, power=14)
         hub = [(xc - 0.035, 0.035), (xc - 0.035, 0.115), (xc + 0.035, 0.115), (xc + 0.035, 0.035)]
         # The drive block in front of each spool holds the lane's trigger (prep) sensor.
-        with sc.painted("accent", HUB):
+        with sc.painted("accent"):
             sc.prism(hub[::-1], TOP, TOP + 0.055, HUB, amb=0.75, dif=0.5, spec=0.1)
             kit.sensor_region(sc, lane, "prep", [(a, b, z) for a, b in hub for z in (TOP, TOP + 0.055)])
             sc.poly([(a, b, TOP + 0.055) for a, b in hub], kit.shift(HUB, 25))
@@ -132,16 +132,16 @@ GLASS = "#8d8579"
 def _top_rail(sc, x0, x1, y0, y1, z1):
     """An extrusion along one top edge of the enclosure."""
     foot = [(x0, y0), (x0, y1), (x1, y1), (x1, y0)][::-1]
-    with sc.painted("main", FRAME):
+    with sc.painted("main"):
         sc.prism(foot, z1 - RAIL, z1, FRAME, amb=0.9, dif=0.5, spec=0.2, power=16)
-    with sc.painted("accent", RAIL_LINE):
+    with sc.painted("accent"):
         sc.line([(x0, y0 - 0.001, z1 - RAIL * 0.5), (x1, y0 - 0.001, z1 - RAIL * 0.5)], RAIL_LINE, 0.004)
 
 
 def _top_corner(sc, cx, cy, z1):
     """A corner block joining the two top rails and the post below them."""
     top = [(cx, cy), (cx, cy + POST), (cx + POST, cy + POST), (cx + POST, cy)][::-1]
-    with sc.painted("main", CORNER):
+    with sc.painted("panels"):
         sc.prism(top, z1 - RAIL - 0.02, z1 + 0.012, CORNER, amb=0.75, dif=0.55, spec=0.2, power=16)
 
 

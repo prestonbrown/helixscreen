@@ -337,7 +337,12 @@ def _bake_layers(unit_id, draw, target, lane_count, render, has_carriage):
                             render(scene.lane_face_svg(lane, width, far), width, target / names[key])
             lanes.append(names)
         manifest["tiers"][tier] = {"width": width, "back": back, "front": front, "lanes": lanes}
-        # A printed unit's color regions: <tier>_<depth>_<region>.png and its _shade.png.
+        # A printed unit's color regions: <tier>_<depth>_<region>.png and its _shade.png. Masks a
+        # drawing no longer bakes go, so none is left behind for a region it dropped.
+        for depth in kit.UNIT_COLOR_DEPTHS:
+            for region in kit.UNIT_COLOR_REGIONS:
+                for stale in target.glob(f"{tier}_{depth}_{region}*.png"):
+                    stale.unlink()
         regions = {}
         for depth in kit.UNIT_COLOR_DEPTHS:
             for region in scene.regions(depth):
@@ -462,9 +467,9 @@ def generate_shell_table(units):
         dome = f"k_{unit.id}_dome" if dome_points else "nullptr"
         lid = "true" if t.lid_spans_row else "false"
         variants = sum(1 << lanes for lanes in unit.lane_variants)
-        regions = unit_color_regions(unit)
+        regions, bases = unit_color_regions(unit)
         # The row's optional tail, in UnitShell's field order, each with its default.
-        tail = [("nullptr, 0", "nullptr, 0"), ("nullptr, 0", "nullptr, 0"), (f"0x{t.lid_color:06x}", "0x000000"), (f"{t.spool_lift_px:.1f}f", "0.0f"), ("true" if t.plain_tray else "false", "false"), (f"0x{regions:02x}", "0x00"), (region_defaults(t, regions), "{}")]
+        tail = [("nullptr, 0", "nullptr, 0"), ("nullptr, 0", "nullptr, 0"), (f"0x{t.lid_color:06x}", "0x000000"), (f"{t.spool_lift_px:.1f}f", "0.0f"), ("true" if t.plain_tray else "false", "false"), (f"0x{regions:02x}", "0x00"), (region_defaults(bases), "{}")]
         if unit.carriage_step is not None:
             carriage = carriage_rows(unit)
             out.append(f"constexpr CarriageTrack k_{unit.id}_carriage[] = {{{', '.join(carriage)}}};")
@@ -524,26 +529,27 @@ COMBINERS = {"internal": "Internal", "external": "External", "none": "Absent"}
 
 
 def unit_color_regions(unit):
-    """UnitShell::color_regions: the region masks every baked lane count and tier of the unit
-    carries. A drawing that bakes a region at only some of them is refused, since the runtime
-    loads a mask by the bit alone."""
+    """UnitShell::color_regions and color_defaults: the region masks every baked lane count and
+    tier of the unit carries, and the color each region is drawn from, in UNIT_COLOR_REGIONS
+    order. A drawing whose regions differ between lane counts or tiers is refused, since the
+    runtime loads a mask by the bit alone."""
     found = set()
     for _, lanes in art_dirs(unit, "."):
         for tier in TIER_WIDTH:
             scene = kit.Scene(kit.ART_CAMERA)
             unit.draw_art(scene, ["#ffffff"] * lanes, tier)
-            found.add(scene.color_regions())
+            bases = scene.region_bases()
+            found.add((scene.color_regions(), bases if scene.color_regions() else ()))
     if len(found) != 1:
         raise ValueError(f"{unit.id}: its color regions differ between lane counts or tiers: {sorted(found)}")
     return found.pop()
 
 
-def region_defaults(tray, regions):
-    """UnitShell::color_defaults: the tray's body, accent and panel colors, the drawing's
-    own main, accent and panels; empty for a unit without color regions."""
-    if not regions:
+def region_defaults(bases):
+    """The generated color_defaults: each region's own color, 0 for a region not drawn."""
+    if not bases:
         return "{}"
-    return "{" + ", ".join(f"0x{c:06x}" for c in (tray.body, tray.accent, tray.panel)) + "}"
+    return "{" + ", ".join(f"0x{int(b[1:], 16) if b else 0:06x}" for b in bases) + "}"
 
 
 def combiner_name(unit):

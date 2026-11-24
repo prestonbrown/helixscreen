@@ -6,6 +6,7 @@
  */
 
 #include "ui_ams_device_operations_overlay.h"
+#include "ui_color_picker_view.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_ams_overview.h"
 #include "ui_unit_art.h"
@@ -642,12 +643,13 @@ TEST_CASE("unit colors: the menu offers the drawing's own colors, each preset an
     one.panels = 0x123456;
     CHECK(unit_color_option(one) == custom);
 
-    const UnitColors shown{0x111111, 0x222222, 0x333333};
-    CHECK(unit_colors_for_option(0, shown) == UnitColors{});
-    CHECK(unit_colors_for_option(1, shown) == presets[0].colors());
-    CHECK(unit_colors_for_option(custom, shown) == shown);
-    CHECK_FALSE(unit_colors_for_option(custom + 1, shown).has_value());
+    CHECK(unit_colors_for_option(0) == UnitColors{});
+    CHECK(unit_colors_for_option(1) == presets[0].colors());
+    // Custom saves nothing by itself: only a swatch the user changes does.
+    CHECK_FALSE(unit_colors_for_option(custom).has_value());
+    CHECK_FALSE(unit_colors_for_option(custom + 1).has_value());
 
+    const UnitColors shown{0x111111, 0x222222, 0x333333};
     UnitColors picked;
     picked.accent = 0xABCDEF;
     CHECK(unit_colors_shown(picked, shown) == UnitColors{0x111111, 0xABCDEF, 0x333333});
@@ -729,6 +731,29 @@ TEST_CASE_METHOD(UnitColorsRows,
     CHECK(subject_int("ams_unit_colors_available") == 1);
 }
 
+TEST_CASE_METHOD(UnitColorsRows, "unit colors: the rows follow the drawing picked under Unit Type",
+                 "[ams][unit-colors][ui_integration]") {
+    const AmsSystemInfo info = AmsState::instance().get_backend()->get_system_info();
+    const UnitTypeMenu menu = unit_type_menu(info.units[0], "", lv_tr("Automatic"));
+    int plain = 0, turtle = 0;
+    for (size_t i = 0; i < menu.choices.size(); ++i) {
+        const tray::UnitShell* shell = tray::unit_shell_by_id(menu.choices[i].shell_id);
+        REQUIRE(shell != nullptr);
+        if (shell->color_regions == 0 && plain == 0)
+            plain = static_cast<int>(i) + 1;
+        if (std::string(menu.choices[i].shell_id) == "box_turtle")
+            turtle = static_cast<int>(i) + 1;
+    }
+    REQUIRE(plain > 0);
+    REQUIRE(turtle > 0);
+    REQUIRE(subject_int("ams_unit_colors_available") == 1);
+
+    choose("unit_type_dropdown", plain);
+    CHECK(subject_int("ams_unit_colors_available") == 0);
+    choose("unit_type_dropdown", turtle);
+    CHECK(subject_int("ams_unit_colors_available") == 1);
+}
+
 TEST_CASE_METHOD(UnitColorsRows, "unit colors: a pick is saved and the unit's art redraws in it",
                  "[ams][unit-colors][ui_integration]") {
     const AmsSystemInfo info = AmsState::instance().get_backend()->get_system_info();
@@ -760,19 +785,52 @@ TEST_CASE_METHOD(UnitColorsRows, "unit colors: a pick is saved and the unit's ar
         CHECK(lv_obj_find_by_name(art, "front_accent_tint") == nullptr);
     }
 
-    SECTION("a swatch's picker") {
+    SECTION("Custom keeps the colors on screen and Original stays reachable") {
+        choose("unit_colors_dropdown", 1);
+        const int custom = unit_color_option_count() - 1;
+        choose("unit_colors_dropdown", custom);
+        CHECK(subject_int("ams_unit_colors_option") == custom);
+        // A refresh of the rows keeps Custom, though the colors still match the preset.
+        overlay().refresh();
+        settle();
+        CHECK(subject_int("ams_unit_colors_option") == custom);
+        CHECK(SettingsManager::instance().get_ams_unit_colors(turtle) ==
+              unit_color_presets()[0].colors());
+
+        choose("unit_colors_dropdown", 0);
+        CHECK(SettingsManager::instance().get_ams_unit_colors(turtle).empty());
+        CHECK(subject_int("ams_unit_colors_option") == 0);
+    }
+
+    SECTION("a swatch's picker saves only a color the user changed") {
         lv_obj_send_event(named("unit_color_main_swatch"), LV_EVENT_CLICKED, nullptr);
         settle();
         lv_obj_t* done = find_on_screen("cpm_done");
         REQUIRE(done != nullptr);
         lv_obj_send_event(done, LV_EVENT_CLICKED, nullptr);
         settle();
-        UnitColors saved = SettingsManager::instance().get_ams_unit_colors(turtle);
-        CHECK(saved.main == shell->color_defaults[0]);
+        // Done on the color it opened with leaves the drawing as baked.
+        CHECK(SettingsManager::instance().get_ams_unit_colors(turtle).empty());
+        CHECK(subject_int("ams_unit_colors_option") == 0);
+
+        lv_obj_send_event(named("unit_color_main_swatch"), LV_EVENT_CLICKED, nullptr);
+        settle();
+        ColorPickerView* picker = ColorPickerView::active();
+        REQUIRE(picker != nullptr);
+        picker->pick_cell(10);
+        const uint32_t picked = picker->color();
+        REQUIRE(picked != shell->color_defaults[0]);
+        done = find_on_screen("cpm_done");
+        REQUIRE(done != nullptr);
+        lv_obj_send_event(done, LV_EVENT_CLICKED, nullptr);
+        settle();
+        const UnitColors saved = SettingsManager::instance().get_ams_unit_colors(turtle);
+        CHECK(saved.main == picked);
         CHECK_FALSE(saved.accent.has_value());
+        CHECK_FALSE(saved.panels.has_value());
         CHECK(subject_int("ams_unit_colors_option") == unit_color_option_count() - 1);
         unit_art_set_unit(art, info, 0);
-        CHECK(tint_of(art, "back_main_tint") == shell->color_defaults[0]);
+        CHECK(tint_of(art, "back_main_tint") == picked);
         CHECK(lv_obj_find_by_name(art, "front_accent_tint") == nullptr);
     }
 }

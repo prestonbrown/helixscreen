@@ -340,7 +340,7 @@ translations:
   Accelerometer not responding: 'Beschleunigungssensor antwortet nicht'
   Accelerometer ready: Beschleunigungssensor bereit
   Accelerometers: Beschleunigungssensoren
-  Accent: 'Akzent'
+  Accents: 'Akzente'
   Accept: Akzeptieren
   'Accepted Z Position: 0.000': 'Akzeptierte Z-Position: 0.000'
   'Accepted Z Position: {:.3f}': 'Akzeptierte Z-Position: {:.3f}'
@@ -1560,6 +1560,7 @@ translations:
   Downloading... {:.1f}/{:.1f} MB: Wird heruntergeladen... {:.1f}/{:.1f} MB
   Draw a ripple at each touch — helps diagnose offsets: Bei jeder Berührung einen Effekt zeichnen — hilft beim Diagnostizieren von Versätzen
   Drive Cal: Antriebs-Kal.
+  Drive blocks and trim: 'Antriebsblöcke und Zierleisten'
   Drop shadow strength (0 = disabled): Schattenstärke (0 = deaktiviert)
   Dropped when the printer restarted: 'Beim Neustart des Druckers verworfen'
   Dry: Trocknen
@@ -2132,6 +2133,7 @@ translations:
   Found %zu printers: '%zu Drucker gefunden'
   Found 1 printer: 1 Drucker gefunden
   Found {} at {}.: '{} unter {} gefunden.'
+  Frame: 'Rahmen'
   Framerate: Bildrate
   Free space unknown: 'Freier Speicher unbekannt'
   Free the spool and pull the filament out of {} by hand, then try again.: Spule freimachen und das Filament von Hand aus {} herausziehen, dann erneut versuchen.
@@ -2144,7 +2146,6 @@ translations:
   Front: 'Vorne'
   Front Left: 'Vorne links'
   Front Right: 'Vorne rechts'
-  Front and side panels: 'Front- und Seitenwände'
   Full: Vollständig
   G-code Console: G-Code-Konsole
   G-code Preview: G-Code-Vorschau
@@ -2379,6 +2380,7 @@ translations:
   Homing timed out — printer may still be homing: Referenzfahrt Zeitüberschreitung — Drucker referenziert möglicherweise noch
   Homing, then probing...: "Referenzfahrt, dann Messung..."
   Homing...: Referenzfahrt...
+  Honeycomb panels, corner blocks and trays: 'Wabenpaneele, Eckblöcke und Ablagen'
   Horizontal: Horizontal
   Host: Host
   Host Health: Host-Zustand
@@ -2904,7 +2906,6 @@ translations:
   Macros installed. Restart Klipper after the print to activate them.: 'Makros installiert. Starten Sie Klipper nach dem Druck neu, um sie zu aktivieren.'
   Macros updated. Restart Klipper after the print to activate them.: 'Makros aktualisiert. Starten Sie Klipper nach dem Druck neu, um sie zu aktivieren.'
   'Macros, G-code console, calibration tools (PID, input shaper, z-offset), firmware updates, and developer utilities.': 'Makros, G-Code-Konsole, Kalibrierungswerkzeuge (PID, Input Shaper, Z-Offset), Firmware-Updates und Entwicklerwerkzeuge.'
-  Main: 'Haupt'
   Main LED Strip: Haupt-LED-Streifen
   Maintaining: Wird gehalten
   Maintenance: 'Wartung'
@@ -3508,7 +3509,7 @@ translations:
   Pairing failed: Kopplung fehlgeschlagen
   Pairing...: Kopplung...
   Panel Usage: Panel-Nutzung
-  Panels: 'Paneele'
+  Panels and Corners: 'Paneele und Ecken'
   Paper Test Calibration: Papiertest-Kalibrierung
   'Paper drags: done': "Papier schleift: fertig"
   Parameters: Parameter
@@ -5011,7 +5012,6 @@ translations:
   ? "The bed's load cell read {1} g, above the {2} g limit, at Z {3}: the nozzle is dragging on the part, a part came loose, or the print warped. The print paused."
   : 'Die Wägezelle des Betts hat {1} g gemessen, über dem Grenzwert von {2} g, bei Z {3}: Die Düse schleift über das Teil, ein Teil hat sich gelöst oder der Druck hat sich verzogen. Der Druck wurde pausiert.'
   The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire.: Die Platine hat sich selbst neu gestartet, meist durch einen Einbruch ihrer Stromversorgung oder einen Kurzschluss an einer Lüfter- oder Heizungsleitung.
-  The body and frame: 'Gehäuse und Rahmen'
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: Der Puffer ist möglicherweise nicht angeschlossen, klemmt oder ist defekt. Vor dem erneuten Versuch prüfen
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: Der Puffer hat 16 Sekunden lang keine Bewegung erkannt. Auf eine Blockade zwischen CFS und Extruder oder einen klemmenden Puffer prüfen
   The build plate should be on the bed but reads as removed.: 'Die Druckplatte sollte auf dem Bett liegen, gilt aber als entfernt.'
@@ -5093,6 +5093,7 @@ translations:
   ? The firmware's pressure advance tower needs a [pa_test] section in printer.cfg. HelixScreen adds it with a backup and restarts Klipper.
   : "Der Pressure-Advance-Turm der Firmware braucht einen Abschnitt [pa_test] in printer.cfg. HelixScreen fügt ihn mit einem Backup hinzu und startet Klipper neu."
   The firmware's test tower is not in the printer's config. Adding it writes one section and restarts Klipper.: "Der Test-Turm der Firmware ist nicht in der Druckerkonfiguration. Das Hinzufügen schreibt einen Abschnitt und startet Klipper neu."
+  The frame, posts and rails: 'Rahmen, Pfosten und Schienen'
   ? The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong.
   : Die Gantry benötigt eine Korrektur von {1} mm, mehr als die erlaubten {2} mm. Sie ist stark aus der Waage (nach einem Crash oder durch Absacken im ausgeschalteten Zustand), oder die Messpunkte oder die Reihenfolge der Z-Motoren sind falsch.
   The gap didn't close (moved {:.1f} Hz). Try a bigger turn.: "Der Abstand hat sich nicht verringert ({:.1f} Hz bewegt). Stärker drehen."
@@ -5645,7 +5646,6 @@ translations:
   Trailing: Nachlaufend
   Translucent: 'Transluzent'
   'Tried ports {} and {}.': "Versucht: Ports {} und {}."
-  Trim and small parts: 'Zierteile und Kleinteile'
   'Troubleshooting:': 'Fehlerbehebung:'
   Try adjusting your search or filters: Versuchen Sie Suche oder Filter anzupassen
   Try Again: 'Erneut versuchen'

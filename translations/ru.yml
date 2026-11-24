@@ -388,7 +388,7 @@ translations:
   Accelerometer not responding: 'Акселерометр не отвечает'
   Accelerometer ready: Акселерометр готов
   Accelerometers: Акселерометры
-  Accent: 'Акцент'
+  Accents: 'Акценты'
   Accept: Принять
   'Accepted Z Position: 0.000': 'Принятая позиция Z: 0.000'
   'Accepted Z Position: {:.3f}': 'Принятая позиция Z: {:.3f}'
@@ -1620,6 +1620,7 @@ translations:
   Downloading... {:.1f}/{:.1f} MB: Загрузка... {:.1f}/{:.1f} МБ
   Draw a ripple at each touch — helps diagnose offsets: Рисовать круг при каждом касании — помогает диагностировать смещения
   Drive Cal: Кал. привода
+  Drive blocks and trim: 'Приводные блоки и отделка'
   Drop shadow strength (0 = disabled): Интенсивность тени (0 = отключено)
   Dropped when the printer restarted: 'Потеряно при перезапуске принтера'
   Dry: Сушка
@@ -2196,6 +2197,7 @@ translations:
     other: 'Найдено %zu принтера'
   Found 1 printer: Найден 1 принтер
   Found {} at {}.: '{} найден по адресу {}.'
+  Frame: 'Рама'
   Framerate: Частота кадров
   Free space unknown: 'Свободное место неизвестно'
   Free the spool and pull the filament out of {} by hand, then try again.: '{}: освободите катушку и вручную вытяните филамент, затем попробуйте снова.'
@@ -2208,7 +2210,6 @@ translations:
   Front: 'Спереди'
   Front Left: 'Спереди слева'
   Front Right: 'Спереди справа'
-  Front and side panels: 'Передняя и боковые панели'
   Full: Полный
   G-code Console: Консоль G-code
   G-code Preview: Просмотр G-code
@@ -2443,6 +2444,7 @@ translations:
   Homing timed out — printer may still be homing: Тайм-аут парковки — принтер может всё ещё выполнять парковку
   Homing, then probing...: "Парковка, затем измерение..."
   Homing...: Парковка...
+  Honeycomb panels, corner blocks and trays: 'Сотовые панели, угловые блоки и лотки'
   Horizontal: Горизонтально
   Host: Хост
   Host Health: Состояние хоста
@@ -2968,7 +2970,6 @@ translations:
   Macros installed. Restart Klipper after the print to activate them.: 'Макросы установлены. Перезапустите Klipper после печати, чтобы активировать их.'
   Macros updated. Restart Klipper after the print to activate them.: 'Макросы обновлены. Перезапустите Klipper после печати, чтобы активировать их.'
   'Macros, G-code console, calibration tools (PID, input shaper, z-offset), firmware updates, and developer utilities.': 'Макросы, консоль G-code, инструменты калибровки (PID, Input Shaper, Z-смещение), обновления прошивки и утилиты для разработчиков.'
-  Main: 'Основной'
   Main LED Strip: Основная LED-лента
   Maintaining: Поддержание
   Maintenance: 'Обслуживание'
@@ -3572,7 +3573,7 @@ translations:
   Pairing failed: Ошибка сопряжения
   Pairing...: Сопряжение...
   Panel Usage: Использование панели
-  Panels: 'Панели'
+  Panels and Corners: 'Панели и углы'
   Paper Test Calibration: Калибровка бумажным тестом
   'Paper drags: done': "Бумага цепляется: готово"
   Parameters: Параметры
@@ -5099,7 +5100,6 @@ translations:
   ? "The bed's load cell read {1} g, above the {2} g limit, at Z {3}: the nozzle is dragging on the part, a part came loose, or the print warped. The print paused."
   : 'Тензодатчик стола показал {1} г, выше предела {2} г, при Z {3}: сопло задевает деталь, деталь отвалилась или модель покоробилась. Печать приостановлена.'
   The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire.: Плата перезагрузилась сама, обычно из-за просадки питания или замыкания на проводе вентилятора или нагревателя.
-  The body and frame: 'Корпус и рама'
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: Буфер может быть отключён, заклинен или неисправен. Проверьте его перед повтором
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: Буфер не фиксировал движение 16 секунд. Проверьте засор между CFS и экструдером или заклинивший буфер
   The build plate should be on the bed but reads as removed.: 'Печатная пластина должна быть на столе, но числится снятой.'
@@ -5181,6 +5181,7 @@ translations:
   ? The firmware's pressure advance tower needs a [pa_test] section in printer.cfg. HelixScreen adds it with a backup and restarts Klipper.
   : "Башне Pressure Advance в прошивке нужна секция [pa_test] в printer.cfg. HelixScreen добавит её с резервной копией и перезапустит Klipper."
   The firmware's test tower is not in the printer's config. Adding it writes one section and restarts Klipper.: "Тестовой башни прошивки нет в конфигурации принтера. Добавление запишет одну секцию и перезапустит Klipper."
+  The frame, posts and rails: 'Рама, стойки и направляющие'
   ? The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong.
   : Порталу нужна коррекция {1} мм, больше допустимых {2} мм. Он сильно перекошен (после удара или провиснув при выключенном питании) или неверны точки зондирования либо порядок моторов Z.
   The gap didn't close (moved {:.1f} Hz). Try a bigger turn.: "Разница не сократилась (сдвиг {:.1f} Гц). Поверните сильнее."
@@ -5733,7 +5734,6 @@ translations:
   Trailing: Отставание
   Translucent: 'Полупрозрачный'
   'Tried ports {} and {}.': "Проверены порты {} и {}."
-  Trim and small parts: 'Отделка и мелкие детали'
   'Troubleshooting:': 'Устранение неполадок:'
   Try adjusting your search or filters: Попробуйте изменить поиск или фильтры
   Try Again: 'Повторить'

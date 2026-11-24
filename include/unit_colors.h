@@ -81,9 +81,9 @@ int unit_color_option_count();
 /// else Custom.
 int unit_color_option(const UnitColors& colors);
 
-/// The colors choosing @p option saves: none for the drawing's own, the preset's, or for
-/// Custom @p shown (the colors on screen) made the user's own. nullopt past the menu.
-std::optional<UnitColors> unit_colors_for_option(int option, const UnitColors& shown);
+/// The colors choosing @p option saves: none for the drawing's own, or the preset's. nullopt
+/// for Custom, which saves nothing until a swatch changes, and past the menu.
+std::optional<UnitColors> unit_colors_for_option(int option);
 
 /// The colors as saved: {"main": "#RRGGBB", ...}, an unset region left out.
 nlohmann::json unit_colors_to_json(const UnitColors& colors);
