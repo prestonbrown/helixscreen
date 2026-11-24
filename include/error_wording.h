@@ -53,8 +53,9 @@ enum class Category {
 
 /// How the console presents the message. FollowPrint is the generic rule: a
 /// rejected command blocks while a print runs or is paused, and is a toast
-/// otherwise.
-enum class Severity { FollowPrint, Warning };
+/// otherwise. Warning is always a toast. Quiet is never shown, only logged and
+/// journaled: a firmware's own bookkeeping that stops nothing.
+enum class Severity { FollowPrint, Warning, Quiet };
 
 /// One recognized message.
 struct Classification {
@@ -80,6 +81,10 @@ struct Classification {
 /// only. nullopt for a message no row knows.
 [[nodiscard]] std::optional<Classification> classify(std::string_view text,
                                                      const PrinterDiscovery* hw = nullptr);
+
+/// True when a row classifies @p text as Quiet: whoever presents a firmware's
+/// error text records it and shows nothing. Pure.
+[[nodiscard]] bool is_quiet(std::string_view text, const PrinterDiscovery* hw = nullptr);
 
 /// A classification in the current language, captures filled in. Main thread
 /// only.

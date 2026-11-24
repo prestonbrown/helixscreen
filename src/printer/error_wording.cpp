@@ -405,10 +405,10 @@ constexpr Row kKlipperRows[] = {
      nullptr, nullptr},
 
     // AFC reports a failed Moonraker lookup (file metadata, stats) as a console
-    // error. It is AFC's own bookkeeping, stops nothing, and fires on every
-    // virtual print Moonraker has no file for (Kalico's PRINT_PA_TOWER), so it
-    // never blocks. Classify-only: AFC's own text is what the toast shows.
-    {"AFC-1", "Error getting data from moonraker", nullptr, nullptr, false, C::Filament, S::Warning,
+    // error and on its message queue. It is AFC's own bookkeeping, stops
+    // nothing, and fires on every virtual print Moonraker has no file for
+    // (Kalico's PRINT_PA_TOWER), so it goes to the log and history only.
+    {"AFC-1", "Error getting data from moonraker", nullptr, nullptr, false, C::Filament, S::Quiet,
      nullptr, nullptr, nullptr},
 
     // ---- Macros and G-code ----
@@ -582,6 +582,11 @@ std::optional<Classification> classify(std::string_view text, const PrinterDisco
         return c;
     }
     return std::nullopt;
+}
+
+bool is_quiet(std::string_view text, const PrinterDiscovery* hw) {
+    const auto c = classify(text, hw);
+    return c && c->severity == Severity::Quiet;
 }
 
 std::string Worded::detail() const {
