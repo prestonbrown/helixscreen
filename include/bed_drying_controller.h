@@ -232,6 +232,10 @@ class BedDryingController {
     AsyncLifetimeGuard lifetime_;
 };
 
+/// What the toolhead and filament-system sensors say about filament at the
+/// toolhead, with no controller needed; nullopt when none can say for certain.
+[[nodiscard]] std::optional<bool> current_toolhead_loaded();
+
 /// The app's controller; nullptr before SubjectInitializer creates it.
 BedDryingController* get_bed_drying_controller();
 
