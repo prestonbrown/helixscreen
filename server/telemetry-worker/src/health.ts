@@ -6,6 +6,7 @@
 import { num, str, type NotApplicable, type RawRow } from "./schema";
 import { printsByVersion } from "./prints";
 import { compareVersions } from "./versions";
+import { HANG_MIN_CLASSIFIED_SHARE } from "./loop/thresholds";
 import { classifyHangs, splitOf, type ClassifiedHang, type HangRow, type HangSplit, type MemSnapshot } from "./hang_cause";
 
 /** The counts one release's rates are computed from, over one window. */
@@ -196,6 +197,7 @@ export function buildHealth(
     return {
       device: str(x.device),
       at: num(x.at) * 1000,
+      uptimeSec: num(x.uptime),
       memAvailableMb: mem > 0 ? mem - 1 : null,
       pressure: str(x.pressure),
       weight: num(x.weight) || 1,
@@ -204,6 +206,7 @@ export function buildHealth(
   const snapshots: MemSnapshot[] = r("hang_snapshots").map((x) => ({
     device: str(x.device),
     at: num(x.at) * 1000,
+    uptimeSec: num(x.uptime),
     availableMb: num(x.available) - 1,
   }));
   const hangsCur = classifyHangs(r("hangs_cur").map(toHangRow), snapshots);
@@ -218,14 +221,19 @@ export function buildHealth(
       let devices = num(x.devices);
       let topDevice = errTopDevice.get(key) ?? 0;
       let split: HangSplit | undefined;
-      // Without hang rows (the query returned none) the aggregate stands as it is.
-      if (key === HANG_KEY && hangsCur.length > 0) {
+      let held = false;
+      // Without hang rows, or without the snapshots to classify them, the aggregate stands as it is.
+      if (key === HANG_KEY && hangsCur.length > 0 && rows.hang_snapshots !== undefined) {
         const blocked = appBlocked(hangsCur);
         const perDevice = new Map<string, number>();
         for (const h of blocked) perDevice.set(h.device, (perDevice.get(h.device) ?? 0) + h.weight);
         split = splitOf(hangsCur);
         cur = split.app_blocked;
-        prev = splitOf(hangsPrev).app_blocked;
+        const prevSplit = splitOf(hangsPrev);
+        prev = prevSplit.app_blocked;
+        // A week whose hangs mostly could not be classified says nothing about a rise from it.
+        const prevTotal = prevSplit.host_memory + prevSplit.app_blocked + prevSplit.unknown;
+        held = prevTotal > 0 && (prevSplit.host_memory + prevSplit.app_blocked) / prevTotal < HANG_MIN_CLASSIFIED_SHARE;
         devices = perDevice.size;
         topDevice = Math.max(0, ...perDevice.values());
       }
@@ -240,7 +248,7 @@ export function buildHealth(
         cur,
         prev,
         devices,
-        status: split && cur === 0 ? ("steady" as const) : status,
+        status: split && (cur === 0 || (held && status === "rising")) ? ("steady" as const) : status,
         ...(split ? { split } : {}),
       };
     })

@@ -21,5 +21,16 @@ export const NEW_ISSUES_PER_RUN = 5
 export const ALERT_REPEAT_DAYS = 30
 /** A main_loop_hang with less host memory than this (MB available) is the host running out, not the app blocking. */
 export const HANG_HOST_MEMORY_LOW_MB = 64
-/** Minutes before a hang a memory snapshot may sit and still describe the host at the hang; snapshots arrive hourly. */
-export const HANG_SNAPSHOT_WINDOW_MIN = 60
+/**
+ * Seconds of device uptime before a hang that a memory snapshot may sit and still describe
+ * the host at the hang; snapshots are taken hourly.
+ */
+export const HANG_SNAPSHOT_WINDOW_SEC = 3600
+/**
+ * Seconds between the Analytics Engine write times of events from one upload. A device
+ * uploads about once a day, so a hang and that day's snapshots share a write time, and
+ * only the uptime each carries says which snapshot came first.
+ */
+export const HANG_UPLOAD_BATCH_SEC = 10
+/** The share of a week's hangs that must be classifiable before the week is compared to the next. */
+export const HANG_MIN_CLASSIFIED_SHARE = 0.5
