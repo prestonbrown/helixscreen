@@ -305,6 +305,9 @@ class PaTuningOverlay : public OverlayBase {
     int picked_ = -1;
     /// The print reached "printing" for our file at least once.
     bool saw_printing_ = false;
+    /// The layer the printer showed when this run began observing; a leftover from
+    /// the previous job.
+    int layer_at_observe_ = 0;
     /// Spoolman's active spool when the result was shown, if any.
     std::optional<SpoolInfo> active_spool_;
     bool raise_on_start_ = true;

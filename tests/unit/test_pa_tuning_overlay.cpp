@@ -554,3 +554,20 @@ TEST_CASE_METHOD(TunerFixture, "a previous tower's end marker does not start thi
     CHECK(client.last_send_script() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0100");
     CHECK(overlay.nudge_by(0.005f));
 }
+
+TEST_CASE_METHOD(TunerFixture, "a previous job's layer below the tower top does not start this run",
+                 "[pa_tune][pa_tuner][timeout]") {
+    // An earlier tower ended at layer 40 and nothing cleared the count.
+    status({{"print_stats", {{"state", "standby"}, {"info", {{"current_layer", 40}}}}}});
+    start_session();
+    status(
+        {{"print_stats", {{"state", "printing"}, {"filename", PaTuningOverlay::TEST_FILENAME}}}});
+    CHECK(client.last_send_script().find("SET_PRESSURE_ADVANCE") == std::string::npos);
+    CHECK(overlay.session_for_test().state() == pa::TuningSession::State::Starting);
+    CHECK(overlay.session_for_test().bands().empty());
+
+    // This print's own first layer starts the ramp and the log.
+    printing(1);
+    CHECK(client.last_send_script() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0000");
+    CHECK(overlay.session_for_test().state() == pa::TuningSession::State::Printing);
+}
