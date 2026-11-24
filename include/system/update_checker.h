@@ -606,14 +606,22 @@ class UpdateChecker {
      * Tells helixscreen-update.service that the app is handling its own restart.
      * Creates the dir first: a box updated only through Moonraker may never have
      * had ~/.helixscreen created. Exposed as public static for unit testing.
+     * @param installer_pid install.sh's pid while it runs, so the sentinel
+     *        outlives a reconnect or restart meanwhile; 0 when none runs.
      * @return true when the sentinel was written
      */
-    static bool write_self_restart_sentinel();
+    static bool write_self_restart_sentinel(int installer_pid = 0);
+
+    /**
+     * @brief Does the sentinel name an install.sh that is still running? It is
+     *        then kept, whatever reconnect or restart happens meanwhile.
+     */
+    static bool sentinel_installer_running();
 
     /**
      * @brief After install.sh: keep the sentinel written before it when the
-     *        install succeeded (the restart follows), remove it otherwise.
-     *        Exposed for unit testing.
+     *        install succeeded (the restart follows) or install.sh may still be
+     *        running, remove it otherwise. Exposed for unit testing.
      */
     static void settle_self_restart_sentinel(bool installed);
 

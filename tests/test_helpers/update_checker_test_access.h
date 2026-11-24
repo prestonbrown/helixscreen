@@ -94,6 +94,11 @@ class UpdateCheckerTestAccess {
         c.restart_action_ = std::move(action);
     }
 
+    /// A cancel left by an earlier case makes do_install() return before the installer.
+    static void clear_download_cancelled(UpdateChecker& c) {
+        c.download_cancelled_ = false;
+    }
+
     /// Shrink the two "let the frame paint" holds so a test does not wait the
     /// production 2s + 1s.
     static void set_status_hold_ms(UpdateChecker& c, uint32_t complete_ms, uint32_t restart_ms) {
