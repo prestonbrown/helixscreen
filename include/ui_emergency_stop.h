@@ -202,6 +202,16 @@ class EmergencyStopOverlay {
     void suppress_recovery_dialog(uint32_t duration_ms = helix::recovery_suppression::LONG);
 
     /**
+     * @brief Suppress the recovery dialog for at least @p duration_ms from now
+     *
+     * Like suppress_recovery_dialog(), but never shortens a longer window that
+     * is already pending, so a generic restart announcement made inside a flow's
+     * own longer window (PID migration's EXTRA) leaves that window intact.
+     * Safe from any thread.
+     */
+    void extend_recovery_suppression(uint32_t duration_ms);
+
+    /**
      * @brief Check if recovery dialog suppression is active
      * @return true if suppression window is still active
      */

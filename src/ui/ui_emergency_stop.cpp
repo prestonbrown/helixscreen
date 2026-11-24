@@ -829,6 +829,21 @@ void EmergencyStopOverlay::suppress_recovery_dialog(uint32_t duration_ms) {
     spdlog::info("[KlipperRecovery] Suppressing recovery dialog for {}ms", duration_ms);
 }
 
+void EmergencyStopOverlay::extend_recovery_suppression(uint32_t duration_ms) {
+    const uint32_t wanted = lv_tick_get() + duration_ms;
+    uint32_t current = suppress_recovery_until_.load(std::memory_order_relaxed);
+    do {
+        // A pending deadline later than the wanted one is a longer window some
+        // flow already asked for; keep it.
+        const bool pending = current != 0 && lv_tick_elaps(current) > (UINT32_MAX / 2);
+        if (pending && static_cast<int32_t>(current - wanted) > 0) {
+            return;
+        }
+    } while (!suppress_recovery_until_.compare_exchange_weak(current, wanted,
+                                                             std::memory_order_relaxed));
+    spdlog::info("[KlipperRecovery] Suppressing recovery dialog for {}ms", duration_ms);
+}
+
 bool EmergencyStopOverlay::is_recovery_suppressed() const {
     return deadline_pending(suppress_recovery_until_);
 }
@@ -1211,7 +1226,7 @@ const UiRequestRegistration s_expect_restart_registration{
 void begin_expected_klippy_restart(std::string message, IMoonrakerAPI* api) {
     // The suppression writes are atomic deadline stores, safe right here on
     // any thread; the toast is LVGL-facing so it hops to the main thread.
-    EmergencyStopOverlay::instance().suppress_recovery_dialog(recovery_suppression::LONG);
+    EmergencyStopOverlay::instance().extend_recovery_suppression(recovery_suppression::LONG);
     if (api) {
         api->suppress_disconnect_modal(kExpectedRestartDisconnectModalMs);
     }
