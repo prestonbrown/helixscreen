@@ -1,4 +1,4 @@
-dev
+beta
 
 # Which update channel a tagged release from THIS branch publishes to.
 # Read by scripts/release-channel.sh, which drives .github/workflows/release.yml.
