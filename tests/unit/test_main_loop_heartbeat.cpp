@@ -93,6 +93,36 @@ TEST_CASE("MainLoopHangDetector re-arms after the loop recovers", "[hang][heartb
     REQUIRE(d.sample(2, 121000) == 60000);
 }
 
+TEST_CASE("MainLoopHangDetector gives a reported stall's real length once it ends",
+          "[hang][heartbeat]") {
+    MainLoopHangDetector d(kThresholdMs);
+
+    REQUIRE(d.sample(1, 0) == 0);
+    // The report reads just past the threshold however long the stall runs.
+    REQUIRE(d.sample(1, 60000) == 60000);
+    for (uint64_t t = 65000; t <= 240000; t += 5000) {
+        REQUIRE(d.sample(1, t) == 0);
+        CHECK(d.recovered_stall_ms() == 0);
+    }
+
+    // The loop moves again on the sample at 245s: that sample alone carries the length.
+    REQUIRE(d.sample(2, 245000) == 0);
+    CHECK(d.recovered_stall_ms() == 245000);
+
+    REQUIRE(d.sample(3, 250000) == 0);
+    CHECK(d.recovered_stall_ms() == 0);
+}
+
+TEST_CASE("MainLoopHangDetector gives no length for a pause under the threshold",
+          "[hang][heartbeat]") {
+    MainLoopHangDetector d(kThresholdMs);
+
+    REQUIRE(d.sample(1, 0) == 0);
+    REQUIRE(d.sample(1, 55000) == 0);
+    REQUIRE(d.sample(2, 58000) == 0);
+    CHECK(d.recovered_stall_ms() == 0);
+}
+
 TEST_CASE("MainLoopHangDetector honours a changed threshold", "[hang][heartbeat]") {
     MainLoopHangDetector d(kThresholdMs);
     d.set_threshold_ms(10000);
