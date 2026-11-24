@@ -37,6 +37,8 @@ struct TowerState {
     PaTowerModel model;
     float tap_mm = 0.0f;
     int tap_face = 0;
+    /// A press is down: the face it started on holds for the whole drag.
+    bool dragging = false;
     /// The flourish's strength, 255 at its start, fading to 0.
     int32_t glow = 0;
 };
@@ -583,17 +585,38 @@ int face_at(lv_obj_t* obj, const TowerState& st, int32_t x) {
     return static_cast<int>(m.faces.size() - 1);
 }
 
-void on_clicked(lv_event_t* e) {
+/// A press picks the height under the finger, and a drag keeps picking as it
+/// moves, on the face the press started on. A click with no press before it
+/// (remote control) picks once.
+void on_press(lv_event_t* e) {
     lv_obj_t* obj = lv_event_get_current_target_obj(e);
     lv_indev_t* indev = lv_indev_active();
     TowerState* st = state_of(obj);
     if (!indev || !st) {
         return;
     }
+    const lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_PRESS_LOST) {
+        st->dragging = false;
+        return;
+    }
+    // The click that ends a press lands where the finger lifted, maybe over
+    // the other face: the press already picked, so it only ends the drag.
+    if (code == LV_EVENT_CLICKED && st->dragging) {
+        st->dragging = false;
+        return;
+    }
     lv_point_t p;
     lv_indev_get_point(indev, &p);
-    st->tap_mm = pa_tower_height_at(obj, p.y);
-    st->tap_face = face_at(obj, *st, p.x);
+    if (code == LV_EVENT_PRESSED || code == LV_EVENT_CLICKED) {
+        st->tap_face = face_at(obj, *st, p.x);
+        st->dragging = code == LV_EVENT_PRESSED;
+    }
+    const float mm = pa_tower_height_at(obj, p.y);
+    if (code == LV_EVENT_PRESSING && std::abs(mm - st->tap_mm) < 0.05f) {
+        return;
+    }
+    st->tap_mm = mm;
     lv_obj_send_event(obj, LV_EVENT_VALUE_CHANGED, nullptr);
 }
 
@@ -611,7 +634,13 @@ void* tower_xml_create(lv_xml_parser_state_t* state, const char** /*attrs*/) {
     lv_obj_set_scrollable(obj, false);
     lv_obj_set_user_data(obj, new TowerState{});
     lv_obj_add_event_cb(obj, on_draw, LV_EVENT_DRAW_MAIN_END, nullptr);
-    lv_obj_add_event_cb(obj, on_clicked, LV_EVENT_CLICKED, nullptr);
+    // A drag on the tower picks a height; it never scrolls or swipes the page.
+    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLL_CHAIN);
+    lv_obj_remove_flag(obj, LV_OBJ_FLAG_GESTURE_BUBBLE);
+    for (lv_event_code_t code :
+         {LV_EVENT_PRESSED, LV_EVENT_PRESSING, LV_EVENT_PRESS_LOST, LV_EVENT_CLICKED}) {
+        lv_obj_add_event_cb(obj, on_press, code, nullptr);
+    }
     lv_obj_add_event_cb(obj, on_delete, LV_EVENT_DELETE, nullptr);
     return obj;
 }
