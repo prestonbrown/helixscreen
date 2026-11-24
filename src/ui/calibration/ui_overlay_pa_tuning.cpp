@@ -1407,7 +1407,7 @@ void PaTuningOverlay::save_for_material() {
     const std::string material = helix::presets::name(selected_preset_);
     const auto entry = helix::material_pa::linear_entry(*k);
     helix::material_zoffset::MaterialZOffsetState::instance().save_pa(
-        material, entry, [](bool ok, const std::string& message) {
+        api_, material, entry, [](bool ok, const std::string& message) {
             ToastManager::instance().show(ok ? ToastSeverity::SUCCESS : ToastSeverity::ERROR,
                                           message.c_str(), ok ? 3000 : 5000);
         });
