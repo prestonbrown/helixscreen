@@ -250,7 +250,8 @@ maps a held -1 to T0.
 
 ### Parking the Active Tool
 
-`AmsBackend::park_active_tool()` goes through the same gated path as a tool change
+`IToolPark::park_active_tool()` (`include/ams_tool_park.h`; callers reach it through
+`helix::usable_tool_park()`) goes through `AmsSubscriptionBackend::run_park_active_tool()`, the same gated path as a tool change
 (`FilamentOp::ParkTool` in `AmsSubscriptionBackend::run_filament_op`), with a stricter
 gate: a paused job refuses it too, on every backend, because a print resumed with its
 tool docked prints nothing. The refusal lives in the shared gate so any caller meets it,

@@ -9,13 +9,13 @@
  * `print_thumbnail_path` is published from the main thread inside an
  * `UpdateQueue::process_pending()` batch, and `lv_image_set_src` cascades
  * `update_align` -> `lv_obj_update_layout` up to the page grid. The idle sibling
- * (`reset_print_card_to_idle`) already carries both defences after three field
- * crashes; these cases pin the same two properties on the active path:
+ * (`reset_print_card_to_idle`) carries both defenses; these cases pin the same two properties on
+ * the active path:
  *
- *   1. nothing is written during the batch — the write lands on the next LVGL
+ *   1. nothing is written during the batch: the write lands on the next LVGL
  *      tick, via lv_async_call;
- *   2. once the card's subtree has been reparented onto lv_layer_top() — the
- *      shape populate_page's safe_clean_children() leaves behind — the write is
+ *   2. once the card's subtree has been reparented onto lv_layer_top() (the
+ *      shape populate_page's safe_clean_children() leaves behind), the write is
  *      skipped rather than relayouting a condemned tree (#1001).
  */
 

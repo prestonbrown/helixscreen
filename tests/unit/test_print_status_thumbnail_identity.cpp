@@ -8,12 +8,12 @@
  *
  * `print_thumbnail_path` is a shared subject with a single writer
  * (ActivePrintMediaManager) but no ordering relative to the panel's own view of
- * which file is printing. Before this, the panel applied whatever landed and
- * then stamped `displayed_file_` with its OWN current filename, without checking
- * that the path had been produced for that file. A late result for the previous
- * print therefore convinced ensure_preview_current() that the current file was
- * already on screen, so panel activation, re-entry and the next print start all
- * became no-ops — the wrong image stuck permanently rather than transiently.
+ * which file is printing. Applying whatever landed and stamping
+ * `displayed_file_` with the panel's OWN current filename, without checking that
+ * the path was produced for that file, would let a late result for the previous
+ * print convince ensure_preview_current() that the current file is already on
+ * screen. Panel activation, re-entry and the next print start would all become
+ * no-ops: the wrong image would stick permanently rather than transiently.
  *
  * PrinterState::set_print_thumbnail() stores the source filename before it
  * publishes the path, so an observer can compare identity instead of guessing.
@@ -131,14 +131,14 @@ TEST_CASE_METHOD(PrintStatusThumbFixture,
     CHECK(PrintStatusPanelTestAccess::displayed_file(panel()) == "usb_model.gcode");
 }
 
-// --- Externally-started prints ------------------------------------------------
+// Externally-started prints
 //
 // A print started from the app routes through PrintStartController, which calls
 // PrintStatusPanel::set_thumbnail_source() (ui_print_start_controller.cpp:241)
 // before the printer ever reports the new name. A print started from Mainsail,
 // Fluidd, or the printer's own screen does NOT: the panel learns the change only
-// from the print_filename subject. That path carries the stale-preview fix
-// (clear_gcode), so it needs its own coverage — the app-started path is not a
+// from the print_filename subject. That path clears stale geometry
+// (clear_gcode), so it needs its own coverage: the app-started path is not a
 // proxy for it.
 
 // A second real asset, so both publishes resolve and the two are distinguishable.
@@ -202,7 +202,7 @@ TEST_CASE_METHOD(PrintStatusThumbFixture,
     CHECK(PrintStatusPanelTestAccess::displayed_file(panel()) == "printB.gcode");
 }
 
-// --- Rewritten temp paths -----------------------------------------------------
+// Rewritten temp paths
 //
 // A print HelixScreen prepared runs from a rewritten copy, and print_stats
 // reports THAT path. ActivePrintMediaManager auto-resolves it back to the
@@ -260,7 +260,7 @@ TEST_CASE_METHOD(PrintStatusThumbFixture,
     CHECK(PrintStatusPanelTestAccess::displayed_file(panel()) == "Widget.gcode");
 }
 
-// --- The no-thumbnail placeholder -------------------------------------------
+// The no-thumbnail placeholder
 //
 // The shared path subject never publishes the empty string. A file whose
 // thumbnail has not been fetched (or does not exist) is published as
@@ -316,7 +316,7 @@ TEST_CASE_METHOD(PrintStatusThumbFixture,
     // deferred, so the publish lands under the PREVIOUS name, the path observer
     // correctly drops it, and the adopt branch is what applies it once the
     // filename catches up. Both branches stamp displayed_file_, so both need the
-    // exclusion — fixing one and not the other just moves the pin.
+    // exclusion.
     const std::string placeholder = helix::PrinterPrintState::no_thumbnail_placeholder();
 
     report_filename("printA.gcode");

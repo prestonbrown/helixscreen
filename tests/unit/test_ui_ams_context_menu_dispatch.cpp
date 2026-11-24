@@ -2,17 +2,15 @@
 
 /**
  * @file test_ui_ams_context_menu_dispatch.cpp
- * @brief Regression tests for the shared AMS context-menu action dispatch
+ * @brief Tests for the shared AMS context-menu action dispatch
  *
  * AmsPanel and AmsOverviewPanel each wire their own AmsContextMenu action
- * callback. The two switches drifted: Overview handled LOAD/UNLOAD/EDIT/
- * SPOOLMAN/RECOVER_POSITION/SCAN_QR and ended in `case CANCELLED: default:
- * break;`, so EJECT, SELECT_GATE, CHECK_GATE and CLEAR_SPOOL fell into the
- * default arm and were discarded with no toast and no log line. Multi-unit
- * setups render the Overview, so every AFC user with two units (e.g. BoxTurtle
- * + NightOwl) had a dead Eject button (prestonbrown/helixscreen#1258).
+ * callback. Overview's switch ends in `case CANCELLED: default: break;`, so an
+ * action only a panel's own switch handles (EJECT, SELECT_GATE, CHECK_GATE,
+ * CLEAR_SPOOL) would be discarded there with no toast and no log line.
+ * Multi-unit setups render the Overview (prestonbrown/helixscreen#1258).
  *
- * ams_dispatch_backend_action() now owns those five actions for both panels.
+ * ams_dispatch_backend_action() owns the backend-only actions for both panels.
  * These tests pin the contract: the backend-only actions are claimed, and the
  * panel-specific ones are declined so each panel's own switch still sees them.
  */
@@ -59,8 +57,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams dispatch: claims every backend-only act
     install_mock_backend();
 
     // These five must be handled centrally. If any one of them stops being
-    // claimed here, the Overview panel silently swallows it again — which is
-    // exactly the #1258 failure mode.
+    // claimed here, the Overview panel silently swallows it (#1258).
     const MenuAction shared[] = {MenuAction::EJECT, MenuAction::RECOVER_POSITION,
                                  MenuAction::CHECK_GATE, MenuAction::PRELOAD,
                                  MenuAction::CLEAR_SPOOL};
@@ -86,7 +83,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams dispatch: declines panel-specific actio
         CHECK_FALSE(helix::ui::ams_dispatch_backend_action(action, 0, nullptr));
     }
 
-    // CANCELLED is a dismissal, not an operation — never claimed.
+    // CANCELLED is a dismissal, not an operation, so it is never claimed.
     CHECK_FALSE(helix::ui::ams_dispatch_backend_action(MenuAction::CANCELLED, 0, nullptr));
 }
 
@@ -104,8 +101,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams dispatch: EJECT reaches the backend",
     helix::test::apply_edit(*backend, 1, info);
     helix::AmsState::instance().sync_from_backend();
 
-    // The whole point of #1258: the tap must actually arrive at the backend,
-    // not be consumed by a switch that has no case for it.
+    // The tap must actually arrive at the backend, not be consumed by a switch
+    // that has no case for it (#1258).
     REQUIRE(helix::ui::ams_dispatch_backend_action(MenuAction::EJECT, 1, nullptr));
 }
 
@@ -114,7 +111,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams dispatch: claims actions even with no b
     helix::AmsState::instance().init_subjects(true);
     helix::AmsState::instance().set_backend(nullptr);
 
-    // With no MFS the user still gets a warning toast — the action is handled,
+    // With no MFS the user still gets a warning toast: the action is handled,
     // so the caller must not fall through and double-report it.
     CHECK(helix::ui::ams_dispatch_backend_action(MenuAction::EJECT, 0, nullptr));
     CHECK(helix::ui::ams_dispatch_backend_action(MenuAction::CLEAR_SPOOL, 0, nullptr));
@@ -143,25 +140,19 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams dispatch: clears the external spool wit
 
 // The menu publishes "ams_slot_is_loaded" / "ams_slot_can_load" into the
 // process-wide XML subject registry, which resolves by name and holds a raw
-// pointer. Those subjects used to be instance members deinited in the
-// destructor, so every destroyed menu left the two names pointing at storage it
-// no longer owned — and three separate owners construct an AmsContextMenu
-// (AmsPanel, AmsOverviewPanel, ExternalSpoolMenu), so the first teardown
-// poisoned the names for the others.
-//
-// The nightly ASan run caught the consequence rather than the cause: a later
-// lv_xml_create() binding ams_context_menu.xml called
-// lv_subject_add_observer_obj() through the stale pointer, read a reused
-// allocation's subs_ll.n_size as 0, and memzero'd an observer into a 16-byte
-// heap block. The LV_SUBJECT_TYPE_INVALID guard did not catch it precisely
-// because the storage was live garbage rather than zeroed.
+// pointer. The subjects are therefore not instance members: three separate
+// owners construct an AmsContextMenu (AmsPanel, AmsOverviewPanel,
+// ExternalSpoolMenu), so a member subject freed with its menu would leave the
+// names pointing at storage nobody owns for the others. A later lv_xml_create()
+// binding ams_context_menu.xml would then call lv_subject_add_observer_obj()
+// through the stale pointer and write an observer into a reused heap block.
 //
 // The assertion is deliberately on the ADDRESS, not on the subject's contents.
 // lv_subject_deinit() resets neither `type` nor `subs_ll.n_size` (it only frees
 // the observer nodes), so a deinited subject is indistinguishable from a live
-// one by inspection — the defect was never "deinited", it was "freed". Reading
-// through the stale pointer to prove that would be UB and would only show up
-// under a sanitizer. Comparing pointer values is total and deterministic.
+// one by inspection: the defect is "freed", not "deinited". Reading through the
+// stale pointer to prove that would be UB and would only show up under a
+// sanitizer. Comparing pointer values is total and deterministic.
 TEST_CASE_METHOD(LVGLUITestFixture, "ams context menu: subjects outlive every menu instance",
                  "[ui][ams][context_menu][subjects]") {
     auto menu = std::make_unique<helix::ui::AmsContextMenu>();
@@ -172,7 +163,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams context menu: subjects outlive every me
     lv_subject_t* can_load_before = lv_xml_get_subject(nullptr, "ams_slot_can_load");
     REQUIRE(can_load_before != nullptr);
 
-    menu.reset(); // storage freed — the registry still resolves both names
+    menu.reset(); // storage freed, the registry still resolves both names
 
     for (const char* name : {"ams_slot_is_loaded", "ams_slot_can_load"}) {
         lv_subject_t* subject = lv_xml_get_subject(nullptr, name);
@@ -191,16 +182,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams context menu: subjects outlive every me
     CHECK(lv_xml_get_subject(nullptr, "ams_slot_can_load") == can_load_before);
 }
 
-// ============================================================================
 // Clear Spool vs an active print
-// ============================================================================
 
 namespace {
 
 /// Pin the print lifecycle for one case and restore a machine-free state on
 /// the way out, even when an assertion throws. The lifecycle subject outlives
 /// every test in this binary (the fixture resets plain data, not subject
-/// values), and CLEAR_SPOOL's behaviour depends on it: a case that died with
+/// values), and CLEAR_SPOOL's behavior depends on it: a case that died with
 /// Printing latched would change what any later test's clear is allowed to do.
 struct LifecycleGuard {
     explicit LifecycleGuard(PrintState state) {
@@ -357,9 +346,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(backend->cleared_slots.front() == 1);
 }
 
-// ============================================================================
 // An insert the hardware read nothing about (prestonbrown/helixscreen#1710)
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "ams insert: an unverified insert offers Clear, which runs Clear Spool",
@@ -449,9 +436,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     helix::ui::set_test_toast_hook(nullptr);
 }
 
-// ============================================================================
 // Clear error: a fault that outlived its dialog (prestonbrown/helixscreen#2049)
-// ============================================================================
 
 namespace {
 
@@ -494,9 +479,7 @@ LatchedFaultMock* install_latched_fault_mock() {
 
 } // namespace
 
-// ============================================================================
 // Mark Available: a gate the firmware marked empty after a failed pickup
-// ============================================================================
 
 namespace {
 

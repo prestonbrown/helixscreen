@@ -410,9 +410,7 @@ std::string mesh_profile_name(const PrinterDiscovery& hw, std::string_view mater
     return key ? std::string(p->mesh_prefix) + *key : std::string{};
 }
 
-// ============================================================================
 // The config file edit
-// ============================================================================
 
 namespace {
 
@@ -685,9 +683,7 @@ bool include_matches(std::string_view pattern, std::string_view path) {
     return false;
 }
 
-// ============================================================================
 // The primary material
-// ============================================================================
 
 std::string primary_material(const std::vector<ToolMaterial>& tools) {
     const ToolMaterial* best = nullptr;

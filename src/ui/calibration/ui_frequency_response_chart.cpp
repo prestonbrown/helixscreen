@@ -159,9 +159,7 @@ struct ui_frequency_response_chart_t {
     bool pulse_active = false;
 };
 
-// ============================================================================
 // Internal helpers
-// ============================================================================
 
 /**
  * @brief Find series by ID
@@ -426,9 +424,7 @@ static void apply_plot_colors(ui_frequency_response_chart_t* chart) {
                               LV_PART_MAIN);
 }
 
-// ============================================================================
 // Creation/Destruction
-// ============================================================================
 
 ui_frequency_response_chart_t* ui_frequency_response_chart_create(lv_obj_t* parent) {
     if (!parent) {
@@ -511,9 +507,7 @@ void ui_frequency_response_chart_destroy(ui_frequency_response_chart_t* chart) {
     spdlog::trace("[FreqChart] Destroyed");
 }
 
-// ============================================================================
 // Series Management
-// ============================================================================
 
 int ui_frequency_response_chart_add_series(ui_frequency_response_chart_t* chart, const char* name,
                                            lv_color_t color) {
@@ -553,7 +547,6 @@ int ui_frequency_response_chart_add_series(ui_frequency_response_chart_t* chart,
     strncpy(series->name, name, kMaxNameLen - 1);
     series->name[kMaxNameLen - 1] = '\0';
 
-    // Create LVGL series if in chart mode
     if (chart->chart_mode && chart->chart) {
         series->lv_series = lv_chart_add_series(chart->chart, color, LV_CHART_AXIS_PRIMARY_Y);
         if (series->lv_series) {
@@ -578,12 +571,10 @@ void ui_frequency_response_chart_remove_series(ui_frequency_response_chart_t* ch
         return;
     }
 
-    // Remove LVGL series if present
     if (series->lv_series && chart->chart) {
         lv_chart_remove_series(chart->chart, series->lv_series);
     }
 
-    // Clear data
     series->frequencies.clear();
     series->amplitudes.clear();
 
@@ -818,9 +809,7 @@ void ui_frequency_response_chart_clear_cursor(ui_frequency_response_chart_t* cha
     spdlog::debug("[FreqChart] Sweep cursor cleared");
 }
 
-// ============================================================================
 // Data Management
-// ============================================================================
 
 void ui_frequency_response_chart_set_data(ui_frequency_response_chart_t* chart, int series_id,
                                           const float* frequencies, const float* amplitudes,
@@ -853,7 +842,6 @@ void ui_frequency_response_chart_set_data(ui_frequency_response_chart_t* chart, 
         series->amplitudes.assign(amplitudes, amplitudes + count);
     }
 
-    // Update LVGL chart if in chart mode
     if (chart->chart_mode && chart->chart && series->lv_series) {
         update_chart_series(chart, series);
     }
@@ -893,9 +881,7 @@ void ui_frequency_response_chart_clear(ui_frequency_response_chart_t* chart) {
     spdlog::debug("[FreqChart] Cleared all data");
 }
 
-// ============================================================================
 // Peak Marking
-// ============================================================================
 
 void ui_frequency_response_chart_mark_peak(ui_frequency_response_chart_t* chart, int series_id,
                                            float peak_freq, float peak_amplitude) {
@@ -1010,9 +996,7 @@ void ui_frequency_response_chart_clear_peak(ui_frequency_response_chart_t* chart
     spdlog::debug("[FreqChart] Cleared peak for series {}", series_id);
 }
 
-// ============================================================================
 // Configuration
-// ============================================================================
 
 void ui_frequency_response_chart_set_freq_range(ui_frequency_response_chart_t* chart, float min,
                                                 float max) {
@@ -1052,9 +1036,7 @@ lv_obj_t* ui_frequency_response_chart_get_obj(ui_frequency_response_chart_t* cha
     return chart ? chart->root : nullptr;
 }
 
-// ============================================================================
 // Draw Callbacks
-// ============================================================================
 
 /**
  * @brief Draw subtle grid lines behind chart data
@@ -1257,9 +1239,7 @@ static void draw_peak_dots_cb(lv_event_t* e) {
     }
 }
 
-// ============================================================================
 // Custom Draw Helpers (muted and styled series, sweep cursor)
-// ============================================================================
 
 /**
  * @brief Chart plot area: the content box inside the chart widget's padding
@@ -1331,9 +1311,7 @@ static void stroke_polyline(lv_layer_t* layer, lv_draw_line_dsc_t dsc, const Cha
     }
 }
 
-// ============================================================================
 // Muted Series Drawing
-// ============================================================================
 
 /**
  * @brief Draw muted series as thin translucent polylines on top of chart data
@@ -1385,9 +1363,7 @@ static void draw_muted_series_cb(lv_event_t* e) {
     }
 }
 
-// ============================================================================
 // Styled Series and Sweep Cursor Drawing
-// ============================================================================
 
 /**
  * @brief Draw the sweep cursor and glow/fill-styled series in the draw-post pass
@@ -1547,9 +1523,7 @@ static void draw_styled_series_cb(lv_event_t* e) {
     }
 }
 
-// ============================================================================
 // Axis Label Draw Callbacks
-// ============================================================================
 
 /**
  * @brief Draw X-axis frequency labels below the chart content area
@@ -1892,9 +1866,7 @@ static void draw_y_axis_labels_cb(lv_event_t* e) {
     }
 }
 
-// ============================================================================
 // Hardware Adaptation
-// ============================================================================
 
 // NAMESPACE_OK: joins the header's global ui_frequency_response_chart_* API
 void ui_frequency_response_chart_configure_for_platform(ui_frequency_response_chart_t* chart,
@@ -1933,7 +1905,6 @@ void ui_frequency_response_chart_configure_for_platform(ui_frequency_response_ch
 
     // Create or destroy LVGL chart widget based on mode
     if (chart->chart_mode && !chart->chart) {
-        // Create LVGL chart
         chart->chart = lv_chart_create(chart->root);
         if (chart->chart) {
             lv_obj_set_size(chart->chart, LV_PCT(100), LV_PCT(100));

@@ -86,9 +86,7 @@ class TemperatureHistoryManager {
     TemperatureHistoryManager(const TemperatureHistoryManager&) = delete;
     TemperatureHistoryManager& operator=(const TemperatureHistoryManager&) = delete;
 
-    // ========================================================================
     // Data Access (thread-safe reads)
-    // ========================================================================
 
     /**
      * @brief Get all samples for a heater
@@ -129,9 +127,7 @@ class TemperatureHistoryManager {
      */
     [[nodiscard]] int get_sample_count(const std::string& heater_name) const;
 
-    // ========================================================================
     // Observer Pattern
-    // ========================================================================
 
     /**
      * @brief Callback type for history change notifications
@@ -183,9 +179,7 @@ class TemperatureHistoryManager {
      */
     void update_recent_sample_target(const std::string& heater_name, int target_deci);
 
-    // ========================================================================
     // Bulk Seeding
-    // ========================================================================
 
     /**
      * @brief Seed history from Moonraker's cached temperature_store

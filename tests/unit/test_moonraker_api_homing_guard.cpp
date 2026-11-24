@@ -26,9 +26,7 @@
 
 using namespace helix;
 
-// ============================================================================
 // Case 1: is_homing_gcode() token matcher
-// ============================================================================
 
 TEST_CASE("is_homing_gcode matches G28 as first token, case-insensitive", "[homing_guard][gcode]") {
     // Positive: G28 is the first whitespace-delimited token on some line.
@@ -50,9 +48,7 @@ TEST_CASE("is_homing_gcode matches G28 as first token, case-insensitive", "[homi
     CHECK_FALSE(is_homing_gcode("   \n  ")); // whitespace only
 }
 
-// ============================================================================
 // Fixture: MoonrakerAPI + mock client, print-state settable per test
-// ============================================================================
 
 namespace {
 
@@ -92,9 +88,7 @@ class HomingGuardApiFixture : public LVGLTestFixture {
 
 } // namespace
 
-// ============================================================================
 // Case 2: MoonrakerAPI::execute_gcode(G28) blocked while PRINTING / PAUSED
-// ============================================================================
 
 TEST_CASE_METHOD(HomingGuardApiFixture, "execute_gcode refuses G28 while a print is active",
                  "[homing_guard][mock]") {
@@ -119,9 +113,7 @@ TEST_CASE_METHOD(HomingGuardApiFixture, "execute_gcode refuses G28 while a print
     }
 }
 
-// ============================================================================
 // Case 3: STANDBY / COMPLETE allow G28
-// ============================================================================
 
 TEST_CASE_METHOD(HomingGuardApiFixture, "execute_gcode allows G28 when idle",
                  "[homing_guard][mock]") {
@@ -143,9 +135,7 @@ TEST_CASE_METHOD(HomingGuardApiFixture, "execute_gcode allows G28 when idle",
     }
 }
 
-// ============================================================================
 // Case 4: non-homing gcode is never blocked
-// ============================================================================
 
 TEST_CASE_METHOD(HomingGuardApiFixture, "execute_gcode sends non-homing gcode even while printing",
                  "[homing_guard][mock]") {
@@ -158,9 +148,7 @@ TEST_CASE_METHOD(HomingGuardApiFixture, "execute_gcode sends non-homing gcode ev
     CHECK_FALSE(mock_client.gcode_script_history().empty());
 }
 
-// ============================================================================
 // Case 5: MoonrakerMotionAPI::home_axes routes through the same guard
-// ============================================================================
 
 TEST_CASE_METHOD(HomingGuardApiFixture, "motion home_axes blocked while printing",
                  "[homing_guard][mock][motion]") {
@@ -183,9 +171,7 @@ TEST_CASE_METHOD(HomingGuardApiFixture, "motion home_axes blocked while printing
     }
 }
 
-// ============================================================================
 // Case 6: reject_homing_during_active_print() shared helper, unit-tested directly
-// ============================================================================
 
 TEST_CASE_METHOD(HomingGuardApiFixture,
                  "reject_homing_during_active_print rejects only homing during an active print",

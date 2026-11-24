@@ -31,9 +31,7 @@
 using namespace helix;
 using json = nlohmann::json;
 
-// ============================================================================
 // Test Fixture
-// ============================================================================
 
 class PrintCompletionTestFixture : public LVGLTestFixture {
   public:
@@ -69,7 +67,6 @@ class PrintCompletionTestFixture : public LVGLTestFixture {
         state_.update_from_status(status);
     }
 
-    // Get current print state enum
     PrintJobState get_print_state_enum() {
         return static_cast<PrintJobState>(
             lv_subject_get_int(state_.print_state().get_print_state_enum_subject()));
@@ -92,7 +89,6 @@ class PrintCompletionTestFixture : public LVGLTestFixture {
             this);
     }
 
-    // Get number of completion callbacks triggered
     int get_completion_callback_count() const {
         return completion_callback_count_;
     }
@@ -145,9 +141,7 @@ class PrintCompletionTestFixture : public LVGLTestFixture {
     PrintJobState last_completion_state_ = PrintJobState::STANDBY;
 };
 
-// ============================================================================
 // First Callback Skipping Tests
-// ============================================================================
 
 TEST_CASE_METHOD(PrintCompletionTestFixture,
                  "PrintCompletion: first callback is skipped on observer registration",
@@ -178,9 +172,7 @@ TEST_CASE_METHOD(PrintCompletionTestFixture,
     REQUIRE(get_completion_callback_count() == 0);
 }
 
-// ============================================================================
 // Normal Completion Flow Tests
-// ============================================================================
 
 TEST_CASE_METHOD(PrintCompletionTestFixture,
                  "PrintCompletion: PRINTING to COMPLETE triggers notification",
@@ -257,14 +249,12 @@ TEST_CASE_METHOD(PrintCompletionTestFixture,
     REQUIRE(get_last_completion_state() == PrintJobState::CANCELLED);
 }
 
-// ============================================================================
 // Startup Scenarios (Mid-Print Connection)
-// ============================================================================
 
 TEST_CASE_METHOD(PrintCompletionTestFixture,
                  "PrintCompletion: connecting mid-print does NOT trigger on first PRINTING update",
                  "[print_completion][startup]") {
-    // This is the key bug scenario:
+    // The scenario:
     // 1. HelixScreen starts while printer is already printing
     // 2. First status update shows PRINTING
     // 3. This should NOT trigger a completion notification
@@ -299,9 +289,7 @@ TEST_CASE_METHOD(PrintCompletionTestFixture,
     REQUIRE(get_completion_callback_count() == 0);
 }
 
-// ============================================================================
 // Multiple Print Cycle Tests
-// ============================================================================
 
 TEST_CASE_METHOD(PrintCompletionTestFixture,
                  "PrintCompletion: multiple print completions each trigger notification",
@@ -345,9 +333,7 @@ TEST_CASE_METHOD(PrintCompletionTestFixture,
     REQUIRE(get_completion_callback_count() == 1);
 }
 
-// ============================================================================
 // Non-Terminal State Transitions (Should NOT Trigger)
-// ============================================================================
 
 TEST_CASE_METHOD(PrintCompletionTestFixture,
                  "PrintCompletion: STANDBY to PRINTING does NOT trigger",
@@ -402,9 +388,7 @@ TEST_CASE_METHOD(PrintCompletionTestFixture, "PrintCompletion: ERROR to STANDBY 
     REQUIRE(get_completion_callback_count() == 1); // Still 1
 }
 
-// ============================================================================
 // Edge Cases
-// ============================================================================
 
 TEST_CASE_METHOD(PrintCompletionTestFixture, "PrintCompletion: same state update does NOT trigger",
                  "[print_completion][edge_case]") {
@@ -441,9 +425,7 @@ TEST_CASE_METHOD(PrintCompletionTestFixture,
     REQUIRE(get_last_completion_state() == PrintJobState::CANCELLED);
 }
 
-// ============================================================================
 // Completion stats formatting
-// ============================================================================
 
 TEST_CASE("build_completion_stats renders layers through the canonical formatter",
           "[print_completion][format]") {
@@ -488,9 +470,7 @@ TEST_CASE("build_completion_stats omits optional fields when unknown",
     }
 }
 
-// ============================================================================
 // What happens when a start dies before it prints
-// ============================================================================
 
 TEST_CASE("decide_preparing_exit_action distinguishes cancel from failure",
           "[print_completion][preparing]") {
@@ -535,8 +515,8 @@ TEST_CASE("decide_preparing_exit_action only cools down when no print is running
 
     SECTION("cancel, failure and timeout drop the heaters") {
         // A pre-start block heats to print temperature. If no print follows,
-        // leaving a bed at 105C is the worst outcome - it was observed on a K2
-        // after cancelling mid-mesh.
+        // leaving a bed at 105C is the worst outcome (seen on a K2 after
+        // cancelling mid-mesh).
         REQUIRE(decide_preparing_exit_action(PreparingExit::Cancelled).cool_down);
         REQUIRE(decide_preparing_exit_action(PreparingExit::Failed).cool_down);
         REQUIRE(decide_preparing_exit_action(PreparingExit::TimedOut).cool_down);
@@ -559,9 +539,7 @@ TEST_CASE("decide_preparing_exit_action only cools down when no print is running
     }
 }
 
-// ============================================================================
 // When a print ending should notify
-// ============================================================================
 
 TEST_CASE("should_notify_print_ended fires only when an active print reaches a terminal state",
           "[print_completion][lifecycle]") {
@@ -645,9 +623,8 @@ TEST_CASE("should_notify_print_ended fires only when an active print reaches a t
 
 TEST_CASE("started_new_job decides when the last print's result is stale",
           "[printcompletion][regression]") {
-    // Field report: a "Print Failed" dialog was still on screen after the user
-    // started a new print, sitting over the job that was already running. The
-    // modal describes the job that ended, so committing to another one makes
+    // A "Print Failed" dialog must not stay on screen over a newly started job.
+    // The modal describes the job that ended, so committing to another one makes
     // it false and it belongs off the screen.
 
     SECTION("committing to a job dismisses the previous result") {

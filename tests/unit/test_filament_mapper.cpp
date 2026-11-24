@@ -23,9 +23,7 @@
 
 using namespace helix;
 
-// =============================================================================
 // color_distance / colors_match
-// =============================================================================
 
 TEST_CASE("color_distance weighs channels by luminance", "[filament_mapper][color]") {
     for (const uint32_t c : {0x000000u, 0xFF0000u, 0xABCDEFu}) {
@@ -76,9 +74,7 @@ TEST_CASE("colors_match holds within the tolerance", "[filament_mapper][color]")
     }
 }
 
-// =============================================================================
 // materials_match
-// =============================================================================
 
 TEST_CASE("materials_match compares base materials and their compatibility groups",
           "[filament_mapper][material]") {
@@ -127,9 +123,7 @@ TEST_CASE("materials_match compares base materials and their compatibility group
     }
 }
 
-// =============================================================================
 // find_closest_color_slot
-// =============================================================================
 
 TEST_CASE("find_closest_color_slot takes the closest loaded lane within tolerance",
           "[filament_mapper][slot]") {
@@ -165,9 +159,7 @@ TEST_CASE("find_closest_color_slot takes the closest loaded lane within toleranc
     }
 }
 
-// =============================================================================
 // compute_defaults
-// =============================================================================
 // A tool takes, in order: the lane firmware maps to it, the closest colour
 // within tolerance among lanes of a compatible material, its own positional
 // lane, then any unclaimed lane not known to be incompatible. An empty lane
@@ -347,9 +339,7 @@ TEST_CASE("compute_defaults maps each tool to a lane", "[filament_mapper][comput
     }
 }
 
-// =============================================================================
 // use_current_assignments
-// =============================================================================
 
 TEST_CASE("FilamentMapper use_current_assignments", "[filament_mapper][current_assignments]") {
     SECTION("maps tools to slots positionally") {
@@ -672,9 +662,7 @@ TEST_CASE("compute_defaults handles many tools (12+)", "[filament_mapper][comput
     }
 }
 
-// =============================================================================
 // find_unresolved_tools
-// =============================================================================
 
 TEST_CASE("find_unresolved_tools", "[filament_mapper]") {
     using helix::FilamentMapper;
@@ -734,9 +722,7 @@ TEST_CASE("find_unresolved_tools", "[filament_mapper]") {
     }
 }
 
-// =============================================================================
 // format_slot_label
-// =============================================================================
 
 TEST_CASE("FilamentMapper format_slot_label", "[filament_mapper]") {
     SECTION("single-unit slot with material") {
@@ -818,9 +804,7 @@ TEST_CASE("FilamentMapper format_slot_label", "[filament_mapper]") {
     }
 }
 
-// =============================================================================
 // Colour mismatch — the per-chip surround's claim
-// =============================================================================
 // The stacked chip already SHOWS both colours, so this flag only decides
 // whether the chip is surrounded. Every guard below is a claim we must not make
 // falsely: a surround that fires on prints that are fine trains the user to
@@ -1013,9 +997,7 @@ TEST_CASE("materials_match handles non-AMS external spool comparison",
     }
 }
 
-// =============================================================================
 // Filament database temperature lookups (used by material mismatch warnings)
-// =============================================================================
 
 #include "filament_database.h"
 
@@ -1068,9 +1050,7 @@ TEST_CASE("filament database provides temp ranges for mismatch warnings",
     }
 }
 
-// =============================================================================
 // resolve_display_colors — DISPLAY color resolution (loaded slot vs slicer)
-// =============================================================================
 
 using helix::AvailableSlot;
 using helix::FilamentMapper;
@@ -1136,9 +1116,7 @@ TEST_CASE("resolve_display_colors shows a mapped tool's lane colour, else the sl
     }
 }
 
-// =============================================================================
 // effective_mappings / effective_tool_colors — the shared toggle-aware helpers
-// =============================================================================
 
 TEST_CASE("effective_mappings auto ON ignores firmware mapping and color-matches",
           "[filament_mapper][effective]") {
@@ -1259,9 +1237,7 @@ TEST_CASE("effective_tool_colors lays each tool's colour at its tool number",
     }
 }
 
-// =============================================================================
 // routed_tool_colors — a degenerate routing must not paint over the palette
-// =============================================================================
 
 constexpr auto Unvouched = helix::printer::ToolMappingOrigin::Unvouched;
 constexpr auto Deliberate = helix::printer::ToolMappingOrigin::Deliberate;
@@ -1455,10 +1431,8 @@ TEST_CASE("mapped_lane_display_number names the mapped lane within its unit",
     }
 }
 
-// =============================================================================
 // compute_defaults - the free-lane fallback is a guess, not a colour match
 // (prestonbrown/helixscreen#1862)
-// =============================================================================
 
 namespace {
 // T1 (red) colour-matches lane 0, which is T0's routed lane; T0 states no colour.
@@ -1544,9 +1518,7 @@ TEST_CASE("compute_defaults: a refused guess keeps the tool on its routed lane",
     }
 }
 
-// =============================================================================
 // pick_slot
-// =============================================================================
 
 TEST_CASE("pick_slot: a picked lane is marked user_picked and re-classified",
           "[filament_mapper][pick_slot]") {

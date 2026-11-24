@@ -13,6 +13,7 @@ setup() {
     cp "$REPO_ROOT/scripts/release-gate.sh" "$REPO_ROOT/scripts/generate-whatsnew.sh" \
         "$REPO_ROOT/scripts/android-version-code.sh" "$REPO_ROOT/scripts/changelog-section.sh" \
         "$REPO_ROOT/scripts/mock_symbol_pattern.txt" \
+        "$REPO_ROOT/scripts/release-channel.sh" \
         "$T/scripts/"
     cat >"$T/scripts/helix-claim" <<'CLAIM'
 #!/usr/bin/env bash
@@ -26,6 +27,7 @@ CLAIM
     git -C "$T" init -q
     git -C "$T" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
     echo "2.0.0" >"$T/VERSION.txt"
+    echo "stable" >"$T/RELEASE_CHANNEL"
     printf '## [2.0.0] - 2026-10-07\n\n[2.0.0]: https://example/compare/v1.9.0...v2.0.0\n' >"$T/CHANGELOG.md"
     mkdir -p "$T/android/whatsnew"
     echo "Two point oh." >"$T/android/whatsnew/2.0.0.txt"
@@ -139,4 +141,42 @@ FAKE
     run scripts/release-gate.sh fast
     [ "$status" -eq 0 ] || fail "$output"
     echo "$output" | grep -qE "^  PASS  release-health \(2 warnings\) " || fail "$output"
+}
+
+# A tag's channel comes from RELEASE_CHANNEL, so the version stage refuses a
+# version that the declared channel would route wrongly.
+set_release() {
+    local v=$1 channel=$2
+    echo "$v" >VERSION.txt
+    echo "$channel" >RELEASE_CHANNEL
+    printf '## [%s] - 2026-10-07\n\n[%s]: https://example/compare/v1.9.0...v%s\n' "$v" "$v" "$v" >CHANGELOG.md
+    echo "Text." >"android/whatsnew/$v.txt"
+}
+
+@test "a plain version on a beta channel fails the version stage" {
+    set_release 2.0.0 beta
+    run scripts/release-gate.sh fast
+    [ "$status" -ne 0 ] || fail "$output"
+    echo "$output" | grep -qE "^  FAIL  version " || fail "$output"
+    [[ "$output" == *"set RELEASE_CHANNEL to stable"* ]] || fail "$output"
+}
+
+@test "a plain version on the stable channel passes the version stage" {
+    set_release 2.0.0 stable
+    run scripts/release-gate.sh fast
+    echo "$output" | grep -qE "^  PASS  version " || fail "$output"
+}
+
+@test "a suffixed version on the stable channel fails the version stage" {
+    set_release 2.0.0-rc.1 stable
+    run scripts/release-gate.sh fast
+    [ "$status" -ne 0 ] || fail "$output"
+    echo "$output" | grep -qE "^  FAIL  version " || fail "$output"
+    [[ "$output" == *"prerelease suffix"* ]] || fail "$output"
+}
+
+@test "a suffixed version on the beta channel passes the version stage" {
+    set_release 2.0.0-rc.1 beta
+    run scripts/release-gate.sh fast
+    echo "$output" | grep -qE "^  PASS  version " || fail "$output"
 }

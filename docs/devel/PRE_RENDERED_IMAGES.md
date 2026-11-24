@@ -16,7 +16,7 @@ HelixScreen pre-renders splash screen images to LVGL binary format (`.bin`) at b
 
 ### Pre-rendered Image Sizes
 
-Size classes are the `UiBreakpoint` tiers from `include/ui_breakpoint.h`, selected
+Size classes are the `UiBreakpoint` tiers from `include/core/breakpoint.h`, selected
 from the **narrow axis** by `helix::get_splash_3d_size_name()`. The same word means
 the same resolution in an asset filename and in a layout override.
 

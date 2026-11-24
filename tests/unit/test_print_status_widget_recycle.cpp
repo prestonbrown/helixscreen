@@ -3,17 +3,17 @@
 
 /**
  * @file test_print_status_widget_recycle.cpp
- * @brief Regression: PrintStatusWidget must re-establish its imperative print-card
+ * @brief PrintStatusWidget must re-establish its imperative print-card
  *        flex layout (thumbnail row vs column) on attach.
  *
  * Same recycled-instance class as #1109. The row layout (1x2 / 3x2) is applied
  * only imperatively in on_size_changed, gated by `if (use_column == is_column_)
  * return;`. A fresh XML component defaults to column flow. Because is_column_
  * starts (and, on a recycled instance, persists) matching the non-column sizes,
- * on_size_changed early-returns and the row layout was never established on the
- * fresh component — leaving the card stuck in the default column arrangement.
+ * on_size_changed early-returns and the row layout would never be established on
+ * the fresh component, leaving the card stuck in the default column arrangement.
  *
- * apply_card_layout() is now also called from attach(), so the card matches the
+ * apply_card_layout() is also called from attach(), so the card matches the
  * persisted is_column_ regardless of the early-return.
  *
  * Teardown note: ~PrintStatusWidget intentionally does NOT reset the static
@@ -22,7 +22,7 @@
  * freed before the base fixture's reset_all runs, so we destroy the formatter
  * here — while those subjects are still alive — via destroy_formatter_for_test(),
  * matching the layout_gate tests. The flex-flow value is captured and asserted
- * AFTER that cleanup so a future regression fails cleanly instead of segfaulting
+ * AFTER that cleanup so a failure surfaces cleanly instead of segfaulting
  * the whole suite in teardown.
  */
 

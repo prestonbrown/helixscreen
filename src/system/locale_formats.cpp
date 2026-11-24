@@ -23,24 +23,18 @@
 
 namespace helix::locale {
 
-// ---------------------------------------------------------------------------
 // Cached locale state
-// ---------------------------------------------------------------------------
 static bool s_use_system_locale = false;
 static std::string s_current_lang = "en";
 
-// ---------------------------------------------------------------------------
 // Language code → POSIX locale name
-// ---------------------------------------------------------------------------
 static const std::unordered_map<std::string, const char*> k_locale_map = {
     {"en", "en_US.UTF-8"}, {"de", "de_DE.UTF-8"}, {"fr", "fr_FR.UTF-8"},
     {"es", "es_ES.UTF-8"}, {"ru", "ru_RU.UTF-8"}, {"pt", "pt_BR.UTF-8"},
     {"it", "it_IT.UTF-8"}, {"zh", "zh_CN.UTF-8"}, {"ja", "ja_JP.UTF-8"},
 };
 
-// ---------------------------------------------------------------------------
 // Fallback translation tables
-// ---------------------------------------------------------------------------
 
 // Day abbreviations indexed by tm_wday (0 = Sunday)
 static const std::unordered_map<std::string, std::array<const char*, 7>> k_day_abbr = {
@@ -128,9 +122,7 @@ static const std::unordered_map<std::string, std::array<const char*, 7>> k_day_f
     {"ja", {{u8"日曜日", u8"月曜日", u8"火曜日", u8"水曜日", u8"木曜日", u8"金曜日", u8"土曜日"}}},
 };
 
-// ---------------------------------------------------------------------------
 // Format pattern groups
-// ---------------------------------------------------------------------------
 
 enum class DatePatternGroup {
     EN,         // "{day}, {mon} {dd}"  (month first)
@@ -178,9 +170,7 @@ static ModifiedDatePatternGroup get_modified_date_pattern(const std::string& lan
     return ModifiedDatePatternGroup::CJK;
 }
 
-// ---------------------------------------------------------------------------
 // Helpers to get day/month name (system locale or fallback)
-// ---------------------------------------------------------------------------
 
 /// A localized name: the system locale's strftime `format` when it is active, else the
 /// active language's fallback table (English when it has none), `index` clamped to the table.
@@ -223,9 +213,7 @@ static std::string get_day_full_name(const struct tm* tm_info) {
     return localized_name(tm_info, "%A", k_day_full, tm_info->tm_wday);
 }
 
-// ---------------------------------------------------------------------------
 // Public API
-// ---------------------------------------------------------------------------
 
 std::string locale_current_language() {
     return s_current_lang;

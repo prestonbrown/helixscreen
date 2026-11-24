@@ -64,9 +64,7 @@ class BeltTensionCalibrator {
     BeltTensionCalibrator(BeltTensionCalibrator&&) = delete;
     BeltTensionCalibrator& operator=(BeltTensionCalibrator&&) = delete;
 
-    // ========================================================================
     // State Queries
-    // ========================================================================
 
     [[nodiscard]] State get_state() const {
         return state_.load();
@@ -83,9 +81,7 @@ class BeltTensionCalibrator {
     /// TEST_RESONANCES NAME= for a path; also the CSV basename Klipper writes.
     [[nodiscard]] static const char* output_name(BeltPath p);
 
-    // ========================================================================
     // Hardware Detection
-    // ========================================================================
 
     /**
      * @brief Detect printer hardware capabilities
@@ -98,9 +94,7 @@ class BeltTensionCalibrator {
      */
     void detect_hardware(BeltHardwareDetectCallback on_complete, BeltErrorCallback on_error);
 
-    // ========================================================================
     // Measurement
-    // ========================================================================
 
     /**
      * @brief Home if needed, then sweep one belt path
@@ -145,9 +139,7 @@ class BeltTensionCalibrator {
      */
     void buzz_path(BeltPath path, std::function<void()> on_done, BeltErrorCallback on_error);
 
-    // ========================================================================
     // Control
-    // ========================================================================
 
     /// Stop listening to the running sweep. The printer keeps sweeping.
     void cancel();

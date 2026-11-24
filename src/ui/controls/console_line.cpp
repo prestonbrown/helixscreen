@@ -107,7 +107,6 @@ std::vector<ConsoleTextSegment> parse_console_html_spans(const std::string& mess
             segments.push_back({message.substr(pos, span_start - pos), {}});
         }
 
-        // Find the class value (ends at >)
         size_t class_start = span_start + kSpanOpenLen;
         size_t class_end = message.find('>', class_start);
 

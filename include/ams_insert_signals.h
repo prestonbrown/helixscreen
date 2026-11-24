@@ -5,8 +5,8 @@
  * @file ams_insert_signals.h
  * @brief Capability of a filament system whose lanes report spool inserts themselves
  *
- * Reached with AmsBackend::as<IInsertSignals>(). The Snapmaker U1 and MultiACE implement it.
- * A backend without it has its inserts judged on the slot status, on lanes with a prep sensor,
+ * Reached with AmsBackend::as<IInsertSignals>(). The Snapmaker U1, MultiACE and AD5X IFS implement
+ * it. A backend without it has its inserts judged on the slot status, on lanes with a prep sensor,
  * and has no tag reader to wait for.
  */
 

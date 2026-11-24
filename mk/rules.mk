@@ -4,9 +4,7 @@
 # HelixScreen UI Prototype - Compilation Rules Module
 # Handles all compilation rules, linking, and main build targets
 
-# ============================================================================
 # UNLIMITED -j DETECTION AND AUTO-FIX
-# ============================================================================
 # Problem: 'make -j' (no number) means UNLIMITED parallelism in GNU Make.
 # This spawns hundreds of compiler processes, crushing the system (load 100+).
 #
@@ -15,11 +13,8 @@
 # The _PARALLEL_CHECKED variable prevents infinite recursion.
 #
 # MAKEFLAGS format: "j" = unlimited, " --jobserver-fds=X,Y -j" = bounded
-# ============================================================================
 
-# ============================================================================
 # TOOLCHAIN CHANGE DETECTION
-# ============================================================================
 # make compares timestamps, not toolchains, so one build dir survives both a
 # target switch and a compiler switch and ends up holding objects from each.
 #
@@ -29,7 +24,6 @@
 # write is then invisible to another and nothing reports a problem.
 #
 # .build-target records the target AND the compiler; either changing cleans.
-# ============================================================================
 TOOLCHAIN_MARKER := $(BUILD_DIR)/.build-target
 # Map pi-both → pi, pi32-both → pi32 so switching between single/dual-link
 # modes doesn't trigger an unnecessary clean (they share the same build dir)
@@ -181,9 +175,7 @@ $(TARGET): $(SDL2_LIB) $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(CONTRIBUTORS_H) $(APP
 # These are generated during compilation with -MMD -MP flags
 DEPFILES := $(wildcard $(OBJ_DIR)/*.d $(OBJ_DIR)/**/*.d)
 
-# ============================================================================
 # COMPILE COMMANDS FRAGMENT GENERATION
-# ============================================================================
 # Each compilation emits a .ccj (compile command JSON) fragment alongside .o
 # Running 'make compile_commands' merges them instantly (no full rebuild needed)
 #
@@ -202,7 +194,6 @@ DEPFILES := $(wildcard $(OBJ_DIR)/*.d $(OBJ_DIR)/**/*.d)
 # them through; escaping alone would hand the compiler a bare token and the
 # macro would expand to something that does not parse. Then the double quotes
 # are escaped again for JSON.
-# ============================================================================
 define emit-compile-command
 	@CMD="$(1) -c $(2) -o $(3)"; \
 	CMD_SH=$$(echo "$$CMD" | sed "s/\(-D[A-Za-z_][A-Za-z0-9_]*=\)\(\"[^\" ]*\"\)/\1'\2'/g"); \
@@ -267,9 +258,7 @@ $(APP_DNS_RESOLV_OBJ): $(LIBHV_DIR)/base/dns_resolv.c $(LIBHV_LIB)
 	$(Q)$(CC) $(CFLAGS) -I$(LIBHV_DIR)/base $(LIBHV_INC) -c $< -o $@
 endif
 
-# ----------------------------------------------------------------------------
 # Feature-flag stamp
-# ----------------------------------------------------------------------------
 # Toggling ENABLE_SCREENSAVER over an existing tree leaves every object compiled
 # under the previous flags: no source changed, so make rebuilds nothing, the
 # callers stay #ifdef'd out, and LTO drops the feature the new sources added.
@@ -658,9 +647,7 @@ compile_commands_full:
 	fi
 	$(ECHO) "$(GREEN)✓ compile_commands.json generated$(RESET)"
 
-# ============================================================================
 # Automatic Header Dependency Tracking
-# ============================================================================
 # Include generated .d files for proper header dependency tracking.
 # The - prefix means don't error if files don't exist (first build).
 # Files are generated during compilation with -MMD -MP flags.

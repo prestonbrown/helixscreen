@@ -27,6 +27,7 @@
 #include "display_settings_manager.h"
 #include "settings_manager.h"
 #include "src/ui/filament/unit_art_internal.h"
+#include "unit_colors.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -528,4 +529,101 @@ TEST_CASE_METHOD(UnitTypePanel, "unit type: a refresh with the pick unchanged ke
     process_lvgl(80);
     CHECK(AmsPanelTestAccess::detail_slot(overview(), 0) == slot);
     CHECK(unit_page_drawing() == "emu");
+}
+
+TEST_CASE("unit colors: saved per printer and per unit", "[ams][unit-colors]") {
+    TwoPrinterConfig config;
+    auto& settings = SettingsManager::instance();
+    UnitColors colors;
+    colors.main = 0x2E7D3A;
+    colors.accent = 0xD4A72C;
+    settings.set_ams_unit_colors("Turtle_1", colors);
+    CHECK(settings.get_ams_unit_colors("Turtle_1") == colors);
+    CHECK(settings.get_ams_unit_colors("Turtle_2").empty());
+    CHECK(Config::get_instance()->get<json>("/printers/printer-a/ams/unit_colors") ==
+          json{{"Turtle_1", {{"main", "#2E7D3A"}, {"accent", "#D4A72C"}}}});
+
+    config.use("printer-b");
+    CHECK(settings.get_ams_unit_colors("Turtle_1").empty());
+
+    config.use("printer-a");
+    settings.set_ams_unit_colors("Turtle_1", UnitColors{});
+    CHECK(settings.get_ams_unit_colors("Turtle_1").empty());
+    CHECK(Config::get_instance()->get<json>("/printers/printer-a/ams/unit_colors") ==
+          json::object());
+}
+
+namespace {
+
+AmsSystemInfo turtle_unit() {
+    AmsSystemInfo info = happy_hare_unit("Turtle_1", "", 4);
+    info.type = AmsType::AFC;
+    for (SlotInfo& s : info.units[0].slots) {
+        s.status = SlotStatus::AVAILABLE;
+        s.color_rgb = 0x40e0d0;
+    }
+    return info;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "unit colors: a drawing with no region masks stays as baked",
+                 "[ams][unit-colors]") {
+    TwoPrinterConfig config;
+    const AmsSystemInfo info = turtle_unit();
+    const tray::UnitShell* shell = unit_art_shell_for(info, 0);
+    REQUIRE(shell != nullptr);
+    REQUIRE(shell->color_regions == 0);
+
+    lv_obj_t* plain = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(plain, 230, 195);
+    unit_art_set_unit(plain, info, 0);
+    const std::vector<std::string> baked = unit_art_compose_order(plain);
+
+    UnitColors colors;
+    colors.main = 0x101010;
+    SettingsManager::instance().set_ams_unit_colors("Turtle_1", colors);
+    CHECK(unit_art_colors(info.units[0]) == colors);
+    lv_obj_t* colored = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(colored, 230, 195);
+    unit_art_set_unit(colored, info, 0);
+    CHECK(unit_art_compose_order(colored) == baked);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "unit colors: a drawing with region masks fills them with the user's colors",
+                 "[ams][unit-colors]") {
+    TwoPrinterConfig config;
+    const tray::UnitShell* turtle = tray::unit_shell_by_id("box_turtle");
+    REQUIRE(turtle != nullptr);
+    tray::UnitShell shell = *turtle;
+    shell.color_regions = unit_color_mask_bit(UnitArtDepth::Back, UnitColorRegion::Main) |
+                          unit_color_mask_bit(UnitArtDepth::Front, UnitColorRegion::Accent);
+    UnitColors colors;
+    colors.main = 0x123456;
+    colors.accent = 0xC02020;
+
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, 230, 195);
+    unit_art_detail::build_layers(art, unit_art_detail::data_of(art), &shell, 4,
+                                  unit_color_layers(shell.color_regions, colors));
+
+    const std::vector<std::string> order = unit_art_compose_order(art);
+    REQUIRE(order.size() > 6);
+    CHECK(order[0] == "back");
+    CHECK(order[1] == "back_main_tint");
+    CHECK(order[2] == "back_main_shade");
+    const auto front = std::find(order.begin(), order.end(), "front");
+    REQUIRE(front != order.end());
+    REQUIRE(front + 2 < order.end());
+    CHECK(*(front + 1) == "front_accent_tint");
+    CHECK(*(front + 2) == "front_accent_shade");
+
+    lv_obj_t* tint = lv_obj_find_by_name(art, "back_main_tint");
+    REQUIRE(tint != nullptr);
+    CHECK(lv_color_to_u32(lv_obj_get_style_image_recolor(tint, LV_PART_MAIN)) == 0xFF123456u);
+    CHECK(lv_obj_get_style_image_recolor_opa(tint, LV_PART_MAIN) == LV_OPA_COVER);
+    lv_obj_t* accent = lv_obj_find_by_name(art, "front_accent_tint");
+    REQUIRE(accent != nullptr);
+    CHECK(lv_color_to_u32(lv_obj_get_style_image_recolor(accent, LV_PART_MAIN)) == 0xFFC02020u);
 }

@@ -30,9 +30,7 @@ WifiBackendMock::~WifiBackendMock() {
     fprintf(stderr, "[WifiBackend] Mock backend destroyed\n");
 }
 
-// ============================================================================
 // Lifecycle Management
-// ============================================================================
 
 WiFiError WifiBackendMock::start() {
     if (running_) {
@@ -60,11 +58,9 @@ void WifiBackendMock::stop() {
     if (!running_)
         return;
 
-    // Signal threads to stop
     cancel_sim(scan_active_);
     cancel_sim(connect_active_);
 
-    // Wait for threads to complete
     if (scan_thread_.joinable()) {
         scan_thread_.join();
     }
@@ -83,9 +79,7 @@ bool WifiBackendMock::is_running() const {
     return running_;
 }
 
-// ============================================================================
 // Network Scanning
-// ============================================================================
 
 WiFiError WifiBackendMock::trigger_scan() {
     if (!running_) {
@@ -96,7 +90,6 @@ WiFiError WifiBackendMock::trigger_scan() {
 
     spdlog::debug("[WifiBackend] Mock: Triggering network scan");
 
-    // Clean up any existing scan thread
     cancel_sim(scan_active_);
     if (scan_thread_.joinable()) {
         scan_thread_.join();
@@ -117,7 +110,6 @@ WiFiError WifiBackendMock::get_scan_results(std::vector<WiFiNetwork>& networks) 
                          "WiFi scanner not ready", "Initialize the WiFi system first");
     }
 
-    // Add some realism - vary signal strengths slightly
     vary_signal_strengths();
 
     // Extract public WiFiNetwork objects (without passwords), collapse per-BSS
@@ -164,9 +156,7 @@ void WifiBackendMock::scan_thread_func() {
     dispatch_event("SCAN_COMPLETE");
 }
 
-// ============================================================================
 // Connection Management
-// ============================================================================
 
 WiFiError WifiBackendMock::connect_network(const std::string& ssid, const std::string& password,
                                            bool is_hidden) {
@@ -181,7 +171,6 @@ WiFiError WifiBackendMock::connect_network(const std::string& ssid, const std::s
                          "WiFi system not ready", "Initialize the WiFi system first");
     }
 
-    // Check if network exists in our mock list
     auto it = std::find_if(
         mock_networks_.begin(), mock_networks_.end(),
         [&ssid](const MockWiFiNetwork& mock_net) { return mock_net.network.ssid == ssid; });
@@ -192,7 +181,6 @@ WiFiError WifiBackendMock::connect_network(const std::string& ssid, const std::s
         return WiFiErrorHelper::network_not_found(ssid);
     }
 
-    // Validate password for secured networks
     if (it->network.is_secured && password.empty()) {
         LOG_WARN_INTERNAL("[WifiBackend] Mock: No password provided for secured network '{}'",
                           ssid); // PII_OK: mock backend, fixture SSIDs
@@ -314,7 +302,6 @@ void WifiBackendMock::connect_thread_func() {
         }
     }
 
-    // Find the network we're trying to connect to
     auto it = std::find_if(mock_networks_.begin(), mock_networks_.end(),
                            [this](const MockWiFiNetwork& mock_net) {
                                return mock_net.network.ssid == connecting_ssid_;
@@ -327,7 +314,6 @@ void WifiBackendMock::connect_thread_func() {
         return;
     }
 
-    // Validate password for secured networks
     if (it->network.is_secured) {
         if (connecting_password_.empty()) {
             spdlog::info("[WifiBackend] Mock: Auth failed - no password for secured network '{}'",
@@ -336,7 +322,6 @@ void WifiBackendMock::connect_thread_func() {
             return;
         }
 
-        // Check if password matches expected password
         if (connecting_password_ != it->password) {
             spdlog::debug("[WifiBackend] Mock: Auth failed - wrong password for '{}'",
                           connecting_ssid_); // PII_OK: mock backend, fixture SSIDs
@@ -362,9 +347,7 @@ void WifiBackendMock::connect_thread_func() {
     dispatch_event("CONNECTED", "ip=" + ip);
 }
 
-// ============================================================================
 // Status Queries
-// ============================================================================
 
 WifiBackend::ConnectionStatus WifiBackendMock::get_status() {
     ConnectionStatus status = {};
@@ -476,9 +459,7 @@ int WifiBackendMock::set_country_calls() const {
     return set_country_calls_;
 }
 
-// ============================================================================
 // Internal Helpers
-// ============================================================================
 
 void WifiBackendMock::init_mock_networks() {
     // Frequencies model a realistic mixed-band neighbourhood. "Office-Main"

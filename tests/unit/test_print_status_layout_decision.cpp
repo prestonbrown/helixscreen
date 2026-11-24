@@ -13,9 +13,7 @@
 
 using namespace helix::ui;
 
-// ============================================================================
 // exclude_side_list_geometry
-// ============================================================================
 
 TEST_CASE("exclude_side_list_geometry: landscape covers the right-hand column",
           "[print-status][portrait][layout-decision]") {
@@ -28,7 +26,7 @@ TEST_CASE("exclude_side_list_geometry: landscape covers the right-hand column",
 TEST_CASE("exclude_side_list_geometry: portrait covers the bottom of the stack",
           "[print-status][portrait][layout-decision]") {
     // A 44%-wide list anchored right covers 44% of *everything* in a stack and
-    // none of the controls fully — the bug. Full width, bottom-anchored, sized
+    // none of the controls fully. Full width, bottom-anchored, sized
     // in px from the measured control stack so the object map stays visible.
     const auto g = exclude_side_list_geometry(/*portrait=*/true, /*controls_h=*/300,
                                               /*content_h=*/1000, /*gap=*/12);

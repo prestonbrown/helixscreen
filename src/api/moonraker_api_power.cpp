@@ -23,9 +23,7 @@
 
 using namespace moonraker_internal;
 
-// ============================================================================
 // Power Device Control Operations
-// ============================================================================
 
 void MoonrakerAPI::get_power_devices(PowerDevicesCallback on_success, ErrorCallback on_error) {
     if (http_base_url_.empty()) {

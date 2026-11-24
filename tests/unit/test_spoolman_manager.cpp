@@ -50,10 +50,8 @@
 
 #include "../catch_amalgamated.hpp"
 
-// ============================================================================
 // TestAccess — friend class for private member inspection (L065: no test
 // methods on the class itself)
-// ============================================================================
 
 class SpoolmanManagerTestAccess {
   public:
@@ -128,13 +126,9 @@ class SpoolmanManagerTestAccess {
 
 using TA = SpoolmanManagerTestAccess;
 
-// ============================================================================
 // LVGL Init (once per translation unit, idempotent)
-// ============================================================================
 
-// ============================================================================
 // Fixture — reset singleton state between tests (L053)
-// ============================================================================
 
 struct SpoolmanFixture : public LVGLTestFixture {
     static bool queue_initialized;
@@ -162,9 +156,7 @@ struct SpoolmanFixture : public LVGLTestFixture {
 
 bool SpoolmanFixture::queue_initialized = false;
 
-// ============================================================================
 // Polling Refcount Tests
-// ============================================================================
 
 TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanManager: polling requests count up and down",
                  "[spoolman]") {
@@ -190,9 +182,7 @@ TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanManager: polling requests count up an
     CHECK(TA::poll_refcount(mgr) == 1);
 }
 
-// ============================================================================
 // Circuit Breaker Tests
-// ============================================================================
 
 TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanManager: reset clears all circuit breaker state",
                  "[spoolman]") {
@@ -226,9 +216,7 @@ TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanManager: set_api resets circuit break
     REQUIRE(TA::cb_open(mgr) == false);
 }
 
-// ============================================================================
 // Spoolman Availability Gating
-// ============================================================================
 
 TEST_CASE_METHOD(SpoolmanFixture,
                  "SpoolmanManager: start_polling defers until spoolman is available",
@@ -285,9 +273,7 @@ TEST_CASE_METHOD(SpoolmanFixture,
     }
 }
 
-// ============================================================================
 // refresh without API
-// ============================================================================
 
 TEST_CASE_METHOD(SpoolmanFixture,
                  "SpoolmanManager: refresh_spoolman_weights returns early without API",
@@ -298,9 +284,7 @@ TEST_CASE_METHOD(SpoolmanFixture,
     REQUIRE_NOTHROW(mgr.refresh_spoolman_weights());
 }
 
-// ============================================================================
 // SpoolmanOverlay poll-reference discipline (#1159)
-// ============================================================================
 //
 // The overlay applies the persisted sync_enabled setting on every open, and the
 // apply took an unmatched poll reference each time — refcount climbed forever and
@@ -450,9 +434,7 @@ TEST_CASE_METHOD(SpoolmanFixture,
     REQUIRE(TA::poll_refcount(mgr) == 1);
 }
 
-// ============================================================================
 // The lane's Spoolman record follows every fetch (prestonbrown/helixscreen#1653)
-// ============================================================================
 
 using helix::Ad5xIfsTestAccess;
 using helix::AmsBackend;
@@ -1028,10 +1010,8 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     CHECK(shown.brand == "Stored Brand");
 }
 
-// ============================================================================
 // A backend that serves its slots from a cache shows a filing at once
 // (prestonbrown/helixscreen#1653)
-// ============================================================================
 
 namespace {
 

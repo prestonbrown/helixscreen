@@ -102,11 +102,9 @@ TEST_CASE("Welcome header ladder picks a display face per breakpoint",
     }
 }
 
-// =============================================================================
 // Wiring - needs the ui_xml/ component tree readable from disk, so it is
 // marked [.ui_integration] like the wizard connection UI tests: run it from
 // the repo root.
-// =============================================================================
 
 class WizardLanguageUIFixture : public LVGLUITestFixture {
   public:

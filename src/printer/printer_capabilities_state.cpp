@@ -272,7 +272,6 @@ void PrinterCapabilitiesState::set_hardware(const PrinterDiscovery& hardware,
         Capability::HasTimelapse,
         (hardware.has_timelapse() || capability_value(Capability::HasTimelapse) != 0) ? 1 : 0);
 
-    // Firmware retraction capability (for G10/G11 retraction settings)
     set_capability(Capability::HasFirmwareRetraction, hardware.has_firmware_retraction() ? 1 : 0);
 
     // Chamber temperature sensor and heater capabilities
@@ -290,7 +289,6 @@ void PrinterCapabilitiesState::set_hardware(const PrinterDiscovery& hardware,
     set_capability(Capability::HasChamberAirOff,
                    helix::chamber_air::offers(hardware, AirMode::Off) ? 1 : 0);
 
-    // Screws tilt adjust capability
     set_capability(Capability::HasScrewsTilt, hardware.has_screws_tilt() ? 1 : 0);
     set_capability(Capability::HasExcludeObject, hardware.has_exclude_object() ? 1 : 0);
     set_capability(Capability::HasLayerPause, helix::layer_pause::supported(hardware) ? 1 : 0);

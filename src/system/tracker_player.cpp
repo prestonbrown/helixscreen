@@ -117,9 +117,7 @@ void TrackerPlayer::set_volume_override(int vol) {
     volume_override_ = vol;
 }
 
-// ---------------------------------------------------------------------------
 // Row processing — tick 0 of each row
-// ---------------------------------------------------------------------------
 
 void TrackerPlayer::process_row() {
     if (order_idx_ >= static_cast<int>(module_.num_orders)) {
@@ -306,9 +304,7 @@ void TrackerPlayer::process_row() {
     }
 }
 
-// ---------------------------------------------------------------------------
 // Per-tick effects — ticks 1..speed-1
-// ---------------------------------------------------------------------------
 
 void TrackerPlayer::process_tick_effects() {
     for (int ch = 0; ch < 4; ++ch) {
@@ -518,9 +514,7 @@ void TrackerPlayer::process_tick_effects() {
     }
 }
 
-// ---------------------------------------------------------------------------
 // Apply channel state to sound backend
-// ---------------------------------------------------------------------------
 
 void TrackerPlayer::apply_to_backend() {
     if (!backend_)
@@ -577,9 +571,7 @@ void TrackerPlayer::apply_to_backend() {
     std::atomic_thread_fence(std::memory_order_release);
 }
 
-// ---------------------------------------------------------------------------
 // Row advancement
-// ---------------------------------------------------------------------------
 
 void TrackerPlayer::advance_row() {
     if (next_order_ >= 0) {
@@ -604,9 +596,7 @@ void TrackerPlayer::advance_row() {
     }
 }
 
-// ---------------------------------------------------------------------------
 // PCM sample render callback — called from audio thread
-// ---------------------------------------------------------------------------
 
 void TrackerPlayer::render_audio(float* output, size_t frames, int sample_rate) {
     if (!playing_.load(std::memory_order_acquire) || sample_rate <= 0) {

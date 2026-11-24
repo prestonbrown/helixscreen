@@ -72,9 +72,7 @@ class CapabilityMatrix {
     CapabilityMatrix(CapabilityMatrix&&) = default;
     CapabilityMatrix& operator=(CapabilityMatrix&&) = default;
 
-    // =========================================================================
     // Source Addition
-    // =========================================================================
 
     /**
      * @brief Add capabilities from printer database
@@ -108,9 +106,7 @@ class CapabilityMatrix {
      */
     void add_from_file_scan(const gcode::ScanResult& scan);
 
-    // =========================================================================
     // Query Methods
-    // =========================================================================
 
     /**
      * @brief Check if an operation can be controlled
@@ -199,9 +195,7 @@ class CapabilityMatrix {
     FlatMap<OperationCategory, std::vector<CapabilitySource>> capabilities_;
 };
 
-// =============================================================================
 // Inline Implementations
-// =============================================================================
 
 inline void CapabilityMatrix::add_from_database(const PrePrintOptionSet& options) {
     for (const auto& opt : options.options) {

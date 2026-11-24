@@ -262,10 +262,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     }
 }
 
-// ============================================================================
 // The shared k2 preset's cooldown macro and a family member without the
 // heater it assumes
-// ============================================================================
 
 TEST_CASE_METHOD(
     LVGLUITestFixture,

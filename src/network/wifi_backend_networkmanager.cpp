@@ -11,9 +11,7 @@
 #include "system/child_process.h"
 
 #if !defined(__APPLE__) && !defined(__ANDROID__)
-// ============================================================================
 // Linux Implementation: NetworkManager fallback via nmcli
-// ============================================================================
 
 #include "core/text_io.h"
 #include "wifi_5ghz_detection.h"
@@ -33,9 +31,7 @@
 #include <unistd.h>
 #include <unordered_map>
 
-// ============================================================================
 // Lifecycle
-// ============================================================================
 
 WifiBackendNetworkManager::WifiBackendNetworkManager() {
     spdlog::debug("[WifiBackend] Initialized (NetworkManager mode)");
@@ -62,7 +58,6 @@ WiFiError WifiBackendNetworkManager::start() {
         return WiFiErrorHelper::success();
     }
 
-    // Check that NM is running and nmcli is available
     WiFiError prereq = check_system_prerequisites();
     daemon_refused_access_.store(prereq.result == WiFiResult::PERMISSION_DENIED);
     if (!prereq.success()) {
@@ -195,7 +190,6 @@ void WifiBackendNetworkManager::stop() {
 
     spdlog::info("[WifiBackend] Stopping NetworkManager backend");
 
-    // Signal threads to cancel
     scan_active_ = false;
     connect_active_ = false;
 
@@ -226,9 +220,7 @@ bool WifiBackendNetworkManager::is_running() const {
     return running_;
 }
 
-// ============================================================================
 // Event System
-// ============================================================================
 
 void WifiBackendNetworkManager::fire_event(const std::string& event_name, const std::string& data) {
     // Single source of truth for the connection-transition tracker: every
@@ -246,9 +238,7 @@ void WifiBackendNetworkManager::fire_event(const std::string& event_name, const 
     dispatch_event(event_name, data);
 }
 
-// ============================================================================
 // System Prerequisites
-// ============================================================================
 
 std::string WifiBackendNetworkManager::exec_nmcli(const std::string& args) {
     std::string cmd = "nmcli " + args + " 2>/dev/null";
@@ -373,9 +363,7 @@ std::string WifiBackendNetworkManager::detect_wifi_interface() {
     return "";
 }
 
-// ============================================================================
 // Scanning
-// ============================================================================
 
 WiFiError WifiBackendNetworkManager::trigger_scan() {
     if (!running_) {
@@ -383,7 +371,6 @@ WiFiError WifiBackendNetworkManager::trigger_scan() {
                          "WiFi system not ready");
     }
 
-    // Clean up existing scan thread
     scan_active_ = false;
     if (scan_thread_.joinable()) {
         scan_thread_.join();
@@ -404,7 +391,6 @@ WiFiError WifiBackendNetworkManager::trigger_scan() {
 void WifiBackendNetworkManager::scan_thread_func() {
     spdlog::debug("[WifiBackend] NM: Scan thread started");
 
-    // Request a rescan (may take a few seconds)
     exec_nmcli("device wifi rescan ifname " + wifi_interface_);
 
     // Wait for scan to complete (nmcli rescan is async)
@@ -428,7 +414,6 @@ void WifiBackendNetworkManager::scan_thread_func() {
 
     auto networks = parse_scan_output(output);
 
-    // Cache results
     size_t found_count = 0;
     {
         std::lock_guard<std::mutex> lock(networks_mutex_);
@@ -454,9 +439,7 @@ WiFiError WifiBackendNetworkManager::get_scan_results(std::vector<WiFiNetwork>& 
     return WiFiErrorHelper::success();
 }
 
-// ============================================================================
 // Parsing
-// ============================================================================
 
 std::vector<std::string> WifiBackendNetworkManager::split_nmcli_fields(const std::string& line) {
     std::vector<std::string> fields;
@@ -478,7 +461,6 @@ std::vector<std::string> WifiBackendNetworkManager::split_nmcli_fields(const std
                 current += line[i];
             }
         } else if (line[i] == ':') {
-            // Field separator
             fields.push_back(current);
             current.clear();
         } else {
@@ -486,7 +468,6 @@ std::vector<std::string> WifiBackendNetworkManager::split_nmcli_fields(const std
         }
     }
 
-    // Don't forget the last field
     fields.push_back(current);
     return fields;
 }
@@ -521,7 +502,6 @@ std::vector<WiFiNetwork> WifiBackendNetworkManager::parse_scan_output(const std:
         std::string security = fields[3];
         std::string freq_str = (fields.size() >= 5) ? fields[4] : "";
 
-        // Skip hidden networks (empty SSID)
         if (ssid.empty()) {
             continue;
         }
@@ -536,10 +516,8 @@ std::vector<WiFiNetwork> WifiBackendNetworkManager::parse_scan_output(const std:
             continue;
         }
 
-        // Clamp to valid range
         signal = std::max(0, std::min(100, signal));
 
-        // Determine security type
         bool is_secured = false;
         std::string security_type = "Open";
 
@@ -589,9 +567,7 @@ std::vector<WiFiNetwork> WifiBackendNetworkManager::parse_scan_output(const std:
     return networks;
 }
 
-// ============================================================================
 // Input Validation
-// ============================================================================
 
 std::string WifiBackendNetworkManager::validate_input(const std::string& input,
                                                       const std::string& field_name) {
@@ -618,9 +594,7 @@ std::string WifiBackendNetworkManager::validate_input(const std::string& input,
     return input;
 }
 
-// ============================================================================
 // Connection Management
-// ============================================================================
 
 WiFiError WifiBackendNetworkManager::connect_network(const std::string& ssid,
                                                      const std::string& password, bool is_hidden) {
@@ -629,7 +603,6 @@ WiFiError WifiBackendNetworkManager::connect_network(const std::string& ssid,
                          "WiFi system not ready");
     }
 
-    // Validate inputs
     std::string clean_ssid = validate_input(ssid, "SSID");
     if (clean_ssid.empty()) {
         return WiFiError(WiFiResult::INVALID_PARAMETERS,
@@ -648,7 +621,6 @@ WiFiError WifiBackendNetworkManager::connect_network(const std::string& ssid,
     spdlog::info("[WifiBackend] NM: Connecting to network '{}'{}", helix::redact::ssid(clean_ssid),
                  is_hidden ? " (hidden)" : "");
 
-    // Clean up existing connect thread
     connect_active_ = false;
     if (connect_thread_.joinable()) {
         connect_thread_.join();
@@ -894,7 +866,6 @@ WiFiError WifiBackendNetworkManager::disconnect_network() {
 
     spdlog::info("[WifiBackend] NM: Disconnecting from WiFi");
 
-    // nmcli device disconnect <iface>
     std::string result = exec_nmcli("device disconnect " + wifi_interface_);
 
     // nmcli reports success even if already disconnected
@@ -904,9 +875,7 @@ WiFiError WifiBackendNetworkManager::disconnect_network() {
     return WiFiErrorHelper::success();
 }
 
-// ============================================================================
 // Radio power
-// ============================================================================
 
 std::optional<bool> WifiBackendNetworkManager::query_radio_enabled() {
     return wifi_parse_nm_radio_state(exec_nmcli("radio wifi"));
@@ -953,9 +922,7 @@ bool WifiBackendNetworkManager::is_radio_enabled() const {
     return radio_enabled_.load();
 }
 
-// ============================================================================
 // Regulatory Country
-// ============================================================================
 
 bool WifiBackendNetworkManager::supports_country() const {
     return country_settable_.load();
@@ -1007,9 +974,7 @@ WiFiError WifiBackendNetworkManager::set_country(const std::string& code) {
                      "Regulatory domain still '" + now + "' after iw reg set " + clean);
 }
 
-// ============================================================================
 // Status
-// ============================================================================
 
 WifiBackend::ConnectionStatus WifiBackendNetworkManager::get_status() {
     std::lock_guard<std::mutex> lock(status_mutex_);
@@ -1033,7 +998,6 @@ std::optional<WifiBackend::ConnectionStatus> WifiBackendNetworkManager::poll_sta
         return std::nullopt;
     }
 
-    // Parse key:value pairs from device show output
     std::istringstream stream(dev_info);
     std::string line;
     bool getting_ipv4 = false;
@@ -1131,9 +1095,7 @@ bool WifiBackendNetworkManager::supports_5ghz() const {
     return supports_5ghz_cached_;
 }
 
-// ============================================================================
 // Background Status Polling
-// ============================================================================
 
 void WifiBackendNetworkManager::status_thread_func() {
     spdlog::debug("[WifiBackend] NM: Status polling thread started");
@@ -1241,9 +1203,7 @@ void WifiBackendNetworkManager::request_status_refresh() {
     status_cv_.notify_one();
 }
 
-// ============================================================================
 // IPv4 Configuration
-// ============================================================================
 
 helix::net::Ipv4Result WifiBackendNetworkManager::get_ipv4_config(helix::net::Ipv4Config& out) {
     return helix::net::store_read(ipv4_store_.get(), wifi_interface_, helix::net::Ipv4Link::Wifi,

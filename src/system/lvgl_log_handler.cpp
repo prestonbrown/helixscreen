@@ -439,7 +439,6 @@ void lvgl_log_callback(lv_log_level_t level, const char* buf) {
             spdlog::warn("  -> Expected type: {}", expected_type);
         }
 
-        // Try to extract and lookup subject pointer
         lv_subject_t* ptr = extract_subject_pointer(buf);
         log_subject_debug_info(ptr);
 

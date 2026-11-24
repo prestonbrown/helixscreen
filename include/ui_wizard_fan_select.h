@@ -131,7 +131,6 @@ class WizardFanSelectStep : public helix::wizard::Step {
     // Screen instance
     lv_obj_t* screen_root_ = nullptr;
 
-    // Subjects
     SubjectManager subjects_;
     helix::Subject hotend_fan_selected_{};
     helix::Subject part_fan_selected_{};
@@ -151,8 +150,6 @@ class WizardFanSelectStep : public helix::wizard::Step {
     bool subjects_initialized_ = false;
 };
 
-// ============================================================================
 // Global Instance Access
-// ============================================================================
 
 WizardFanSelectStep* get_wizard_fan_select_step();

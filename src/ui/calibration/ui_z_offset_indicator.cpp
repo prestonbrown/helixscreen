@@ -26,9 +26,7 @@
 
 using namespace helix;
 
-// ============================================================================
 // Widget Data
-// ============================================================================
 
 struct ZOffsetIndicatorData {
     int32_t current_pos = 0;        // Current animated position (0.1 micron units for smooth anim)
@@ -56,9 +54,7 @@ struct ZOffsetIndicatorData {
     lv_color_t color_secondary = {};
 };
 
-// ============================================================================
 // Auto-ranging scale
-// ============================================================================
 
 /// Predefined scale ranges in microns. Each is a symmetric ± range.
 /// We pick the smallest one that fits the current value with headroom.
@@ -106,18 +102,14 @@ static int32_t microns_to_y(int microns, int range_microns, int32_t scale_top,
     return center - (int32_t)((int64_t)microns * half_px / range_microns);
 }
 
-// ============================================================================
 // Animation Callbacks (forward declarations)
-// ============================================================================
 
 static void position_anim_cb(void* var, int32_t value);
 static void arrow_progress_anim_cb(void* var, int32_t value);
 static void arrow_opacity_anim_cb(void* var, int32_t value);
 static void on_draw_in_complete(lv_anim_t* anim);
 
-// ============================================================================
 // Drawing
-// ============================================================================
 
 /// Format a micron tick value as a label string into a static buffer pool.
 /// Returns a pointer that remains valid until the next frame (pool of 16 slots).
@@ -139,9 +131,7 @@ static const char* format_tick_label(int microns, int decimal_places) {
     return buf;
 }
 
-// ============================================================================
 // Tape mode
-// ============================================================================
 
 namespace {
 
@@ -624,9 +614,7 @@ static void indicator_draw_cb(lv_event_t* e) {
     }
 }
 
-// ============================================================================
 // Animation Callbacks
-// ============================================================================
 
 static void position_anim_cb(void* var, int32_t value) {
     lv_obj_t* obj = static_cast<lv_obj_t*>(var);
@@ -676,9 +664,7 @@ static void on_draw_in_complete(lv_anim_t* anim) {
     lv_anim_start(&fade);
 }
 
-// ============================================================================
 // Delete Callback
-// ============================================================================
 
 static void indicator_delete_cb(lv_event_t* e) {
     lv_obj_t* obj = (lv_obj_t*)lv_event_get_target(e);
@@ -690,9 +676,7 @@ static void indicator_delete_cb(lv_event_t* e) {
     lv_obj_set_user_data(obj, nullptr);
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 static void place_value(lv_obj_t* obj, int microns, bool animate);
 
@@ -773,9 +757,7 @@ void ui_z_offset_indicator_flash_direction(lv_obj_t* obj, int direction) {
     spdlog::trace("[ZOffsetIndicator] Flash direction: {}", direction > 0 ? "up" : "down");
 }
 
-// ============================================================================
 // XML Widget Registration
-// ============================================================================
 
 static void* z_offset_indicator_xml_create(lv_xml_parser_state_t* state, const char** attrs) {
     LV_UNUSED(attrs);

@@ -3137,8 +3137,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "the mock's colour sentinel is not a grey anyb
 TEST_CASE_METHOD(LVGLTestFixture, "the factory mock is registered before it starts",
                  "[lane][ingest][mock]") {
     ScopedRuntimeConfig scoped_config;
-    // A mode the mock backend simulates: the default is Happy Hare mock hardware.
-    helix::ScopedEnv ams_mode{"HELIX_MOCK_AMS", "ercf"};
+    // A fictional topology, which only the mock backend simulates; real-unit modes run
+    // the production backend over mock hardware.
+    helix::ScopedEnv ams_mode{"HELIX_MOCK_AMS", "stealth"};
     get_runtime_config()->test_mode = true;
     get_runtime_config()->use_real_ams = false;
     get_runtime_config()->disable_mock_ams = false;

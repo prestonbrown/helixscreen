@@ -94,7 +94,7 @@ TEST_CASE_METHOD(
 TEST_CASE_METHOD(HelixTestFixture,
                  "classify_primary_fans: lone named part fan (no bare 'fan') becomes .part",
                  "[fan_state][drift]") {
-    // User Discord report: the real part-cooling fan is a NAMED Klipper object
+    // A user report: the real part-cooling fan is a NAMED Klipper object
     // (output_pin fan0) with no bare "fan" and no configured part role. It classifies
     // as aux, so without the fallback .part is empty and the print-status view shows
     // 0% while the fan page (FanWidget -> fans_.front()) shows the live 80% fan.
@@ -123,14 +123,14 @@ TEST_CASE_METHOD(HelixTestFixture,
 
     auto picked = state.classify_primary_fans();
     REQUIRE(picked.part == "output_pin fan0");
-    // The named fan is now the part fan; aux falls through to the distinct fan.
+    // The named fan is the part fan; aux falls through to the distinct fan.
     REQUIRE(picked.aux == "controller_fan board");
 }
 
 TEST_CASE_METHOD(HelixTestFixture,
                  "classify_primary_fans: working bare 'fan' behind a heater stays .part",
                  "[fan_state][drift]") {
-    // Regression guard: a working bare "fan" discovered AFTER a heater_fan must
+    // A working bare "fan" discovered AFTER a heater_fan must
     // remain .part. The fallback skips HEATER_FAN so a leading hotend fan can never
     // be promoted into the part slot.
     PrinterFanState state;
@@ -156,9 +156,7 @@ TEST_CASE_METHOD(HelixTestFixture, "classify_primary_fans handles empty fan list
     REQUIRE(picked.aux.empty());
 }
 
-// -----------------------------------------------------------------------------
-// #1124 — runtime-adaptive part-fan selection (Sovol SV08 regression)
-// -----------------------------------------------------------------------------
+// #1124: runtime-adaptive part-fan selection (Sovol SV08)
 // Promoting the front-most non-heater fan whenever .part is the bare "fan"
 // sticks the SV08's real toolhead [fan] behind an idle controller_fan /
 // temperature_fan that sorts ahead of it. controller_fan and

@@ -35,6 +35,7 @@ constexpr const char* kMenus[] = {
     "print_status_configure_picker",
     "print_status_nozzle_tool_picker",
     "thermistor_configure_picker",
+    "unit_tile_configure_card",
     "thermistor_sensor_picker",
     "fan_picker",
     "led_picker",

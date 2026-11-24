@@ -227,8 +227,8 @@ void print_spool_label(const SpoolInfo& spool, PrintCallback callback) {
             printer.print_spool(spool, preset, callback);
         } else if (helix::bluetooth::is_brother_printer(bt_name.c_str())) {
             // Brother QL BT: RFCOMM only supports one connection at a time,
-            // so media detection requires a single-connection flow. For now,
-            // use the selected label size from settings.
+            // so media detection requires a single-connection flow. The
+            // label size comes from settings.
             helix::label::BrotherQLBluetoothPrinter printer;
             printer.set_device(bt_address);
             printer.print(bitmap, label_size, callback);

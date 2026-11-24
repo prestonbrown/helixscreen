@@ -151,7 +151,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Jog pad distance labels read on their own r
         lv_color_to_u32(theme_manager_get_contrast_adjusted_text(text, inner_fill));
     const uint32_t want_outer =
         lv_color_to_u32(theme_manager_get_contrast_adjusted_text(text, outer_fill));
-    // Precondition: the two fills want different colours, so a label painted
+    // Precondition: the two fills want different colors, so a label painted
     // for the wrong ring shows up below.
     REQUIRE(want_inner != want_outer);
     int inner = 0;

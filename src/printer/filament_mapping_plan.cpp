@@ -174,7 +174,6 @@ std::vector<helix::GcodeToolInfo> build_tool_info(const std::vector<std::string>
             tool.color_known = false;
         }
 
-        // Material
         if (i < materials.size()) {
             tool.material = materials[i];
         }

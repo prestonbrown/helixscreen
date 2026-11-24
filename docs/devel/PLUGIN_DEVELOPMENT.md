@@ -205,7 +205,7 @@ boundary (another plugin's icon is just artwork).
 
 Each `settings` entry has `key` (matching `[a-z0-9_]{1,64}`), `label` and `type`, and
 becomes one row of the plugin's settings screen
-(`src/plugin/plugin_settings_overlay.cpp#setting_row_spec`):
+(`src/ui/plugin/plugin_settings_overlay.cpp#setting_row_spec`):
 
 | Type | Extra fields | Row |
 |---|---|---|
@@ -401,7 +401,7 @@ top level of a `require`d module, or a coroutine the plugin creates itself
 | `helix.log.debug(msg)` | | also `info`, `warn`, `error` |
 | `print(...)` | | the sandbox's `print` logs at info with the plugin tag, one line capped at 4096 bytes |
 
-### helix.subject (`src/plugin/lua_bind_ui.cpp`)
+### helix.subject (`src/ui/plugin/lua_bind_ui.cpp`)
 
 | Call | Returns | Notes |
 |---|---|---|
@@ -413,7 +413,7 @@ top level of a `require`d module, or a coroutine the plugin creates itself
 
 Subjects are the plugin's whole output: XML binds to them, Lua sets them.
 
-### helix.ui (`src/plugin/lua_bind_ui.cpp`)
+### helix.ui (`src/ui/plugin/lua_bind_ui.cpp`)
 
 | Call | Returns | Notes |
 |---|---|---|
@@ -450,7 +450,7 @@ opens on top of a plugin surface, and the plugin surface is still there when it 
 Plugin dialogs from different plugins show one at a time, but a plugin never waits on
 its own dialog: its confirm or overlay opens over it at once. Presenting wakes the
 display; if waking brings up the lock screen, the surface waits until it is unlocked.
-`src/plugin/plugin_presenter.cpp#decide` is the rule. To ask something when a print
+`src/ui/plugin/plugin_presenter.cpp#decide` is the rule. To ask something when a print
 finishes, watch `print_state` and open a dialog when it reads `"complete"`; it appears
 once the user has dealt with the print-complete dialog (`examples/plugins/calibration-bridge`).
 | `helix.ui.text_width(str[, font])` | integer px | width `str` draws at in the live theme font, measured the way `c:text` draws it (no letter spacing, one line); `font` is a base token without the `font_` prefix (default `"body"`), and a size-suffixed or unknown token is an error, as for canvas text; `str` is at most 1024 bytes. Call it where the layout is decided (a widget hook, a canvas redraw), since the theme font changes with the display tier |
@@ -621,7 +621,7 @@ handler is called with the same table when the menu opens and returns `true` (sh
 (shown greyed, with the reason). In the table, an absent `visible` or `enabled` means
 `true` and `reason` is optional; the reason shows under the label whenever it is set. The
 result is read raw: its fields must be plain booleans and a string, and a table carrying
-a metatable is not a valid result (`src/plugin/plugin_host.cpp#read_check_value`).
+a metatable is not a valid result (`src/ui/plugin/plugin_host.cpp#read_check_value`).
 
 A check runs in check mode (`src/plugin/lua_runtime.cpp#call_sync`): anything with
 a side effect or a wait raises "`<call>` is not allowed in a menu check" before acting.
@@ -978,7 +978,7 @@ Everything else - subjects, the UI calls, `helix.sound`, `helix.printer`, `helix
 permission raises a Lua error naming it.
 
 Enabling a plugin shows what the user is approving, in the consent dialog's own words
-(`src/plugin/plugin_consent.cpp#permission_line`; rewording these is a product change):
+(`src/ui/plugin/plugin_consent.cpp#permission_line`; rewording these is a product change):
 
 - `gcode`: "Send any G-code command. This is full control of the printer: every macro,
   including ones that run shell commands, is reachable."
@@ -996,8 +996,8 @@ approval* instead of loading; enabling it again approves only the new lines.
 | Limit | Value | Source |
 |---|---|---|
 | Time per Lua entry | 50 ms of the main thread's CPU time, so a busy machine cannot trip it, or 1 s in all, which bounds an entry stalled off-CPU; once tripped, no depth of `pcall` holds the entry open | `include/lua_runtime.h#LuaRuntime/Limits`, `src/plugin/lua_runtime.cpp#budget_hook` |
-| Memory per plugin | the manifest's `memory_mb` (1-64, default 2) | `src/plugin/plugin_host.cpp#load` |
-| Memory, all plugins | min(RAM / 16, 64 MB); a plugin that does not fit stays *over memory budget* | `src/plugin/plugin_host.cpp#plugin_memory_budget` |
+| Memory per plugin | the manifest's `memory_mb` (1-64, default 2) | `src/ui/plugin/plugin_host.cpp#load` |
+| Memory, all plugins | min(RAM / 16, 64 MB); a plugin that does not fit stays *over memory budget* | `src/ui/plugin/plugin_host.cpp#plugin_memory_budget` |
 | Errors | the third within 60 s faults the plugin | `src/plugin/lua_runtime.cpp#report_error` |
 | Finalizers | `__gc` is not available to plugins: `setmetatable` raises on a metatable carrying it, since a finalizer runs outside every time budget | `src/plugin/lua_runtime.cpp#install_sandbox` |
 | Async results | a body that would cross the memory cap arrives as an error, not a fault | `include/lua_bindings.h#push_rpc_capped_body` |
@@ -1007,10 +1007,10 @@ approval* instead of loading; enabling it again approves only the new lines.
 | Canvas coordinates | finite, within +-16384; stroke and border widths 0 to 64 | `include/plugin_canvas.h#kMaxCanvasCoord` |
 | Canvas opa | 0 to 100 percent on line/polyline/arc/rect/circle, and fill_opa on polyline | `src/plugin/lua_bind_canvas.cpp` |
 | Canvas text | at most 256 bytes per string | `src/plugin/lua_bind_canvas.cpp` |
-| Measured text | at most 1024 bytes per `helix.ui.text_width` string | `src/plugin/lua_bind_ui.cpp` |
-| Dialogs | one `helix.ui.dialog` shown or waiting per plugin | `src/plugin/lua_bind_ui.cpp#kMaxDialogs` |
-| Confirms | one `helix.ui.confirm` shown or waiting per plugin | `src/plugin/lua_bind_ui.cpp#kMaxOpenConfirms` |
-| Editors | one `helix.ui.edit_number` or `helix.ui.edit_text` shown or waiting per plugin; a validator runs under the menu-check budget | `src/plugin/lua_bind_ui.cpp#start_editor` |
+| Measured text | at most 1024 bytes per `helix.ui.text_width` string | `src/ui/plugin/lua_bind_ui.cpp` |
+| Dialogs | one `helix.ui.dialog` shown or waiting per plugin | `src/ui/plugin/lua_bind_ui.cpp#kMaxDialogs` |
+| Confirms | one `helix.ui.confirm` shown or waiting per plugin | `src/ui/plugin/lua_bind_ui.cpp#kMaxOpenConfirms` |
+| Editors | one `helix.ui.edit_number` or `helix.ui.edit_text` shown or waiting per plugin; a validator runs under the menu-check budget | `src/ui/plugin/lua_bind_ui.cpp#start_editor` |
 | Sound cues | per plugin, 150 ms between `"ui"` cues and 1 s between `"event"` cues; a cue inside the gap is dropped | `include/lua_bindings.h#kPluginUiCueIntervalMs` |
 | Canvas list bytes | charged against the plugin memory cap as staged; a call that would cross it raises, never faults | `include/plugin_canvas.h#DisplayList/bytes` |
 | Tables | 8 columns, 500 rows, 256 bytes per cell or title, 128 bytes per row key; rows and columns count against `memory_mb` | `include/plugin_table.h#kMaxTableRows` |

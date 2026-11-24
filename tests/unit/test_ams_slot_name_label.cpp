@@ -92,9 +92,7 @@ SlotInfo named_slot(const char* spool_name, const char* color_name, const char* 
 
 } // namespace
 
-// ============================================================================
 // 1. The pure decision
-// ============================================================================
 
 TEST_CASE("slot_card_name: the brand, then Spoolman's vendor", "[ams][slot_name][pure]") {
     // Spool and filament names are free text that opens with a brand on one
@@ -233,9 +231,7 @@ TEST_CASE("slot_card_lines: a multibyte name is passed through whole", "[ams][sl
     CHECK(helix::slot_card_lines(accented, "PLA", "PLA", 4, false).name == accented);
 }
 
-// ============================================================================
 // 2. AmsState's per-slot name subject
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture, "AmsState: the slot name subject follows the backend",
                  "[ams][slot_name][state]") {
@@ -305,9 +301,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsState: a long multibyte name is cut on a
     ams.clear_backends();
 }
 
-// ============================================================================
 // 3. The widget
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: the name sits over the material",
                  "[ams][slot_name][ui]") {
@@ -514,9 +508,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: a brand too wide for the slot hid
     lv_obj_delete(slot);
 }
 
-// ============================================================================
 // An empty lane's label through the real status and material observers
-// ============================================================================
 
 namespace {
 

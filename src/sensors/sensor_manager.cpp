@@ -40,9 +40,7 @@ const char* SensorManager::name() const {
     return options_.name;
 }
 
-// ============================================================================
 // Lifecycle
-// ============================================================================
 
 void SensorManager::init_subjects() {
     if (subjects_initialized_) {
@@ -93,9 +91,7 @@ bool SensorManager::subjects_initialized() const {
     return subjects_initialized_;
 }
 
-// ============================================================================
 // Discovery and status
-// ============================================================================
 
 void SensorManager::discover(const PrinterDiscovery& hw) {
     if (!options_.from_printer_discovery) {
@@ -184,9 +180,7 @@ nlohmann::json SensorManager::extra_subscriptions(const PrinterDiscovery& /*hw*/
     return nlohmann::json::object();
 }
 
-// ============================================================================
 // Publishing
-// ============================================================================
 
 void SensorManager::publish() {
     bool sync = false;
@@ -226,9 +220,7 @@ void SensorManager::refresh_on_main_thread() {
     refresh_subjects();
 }
 
-// ============================================================================
 // Settings
-// ============================================================================
 
 const RoleSpec* SensorManager::role_spec(uint8_t id) const {
     for (const auto& spec : options_.roles) {
@@ -396,9 +388,7 @@ void SensorManager::save_settings() {
     spdlog::debug("[{}] Settings saved", options_.name);
 }
 
-// ============================================================================
 // Reads
-// ============================================================================
 
 size_t SensorManager::sensor_count() const {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
@@ -433,9 +423,7 @@ const SensorEntry* SensorManager::find_locked(std::string_view klipper_name) con
     return const_cast<SensorManager*>(this)->find_locked(klipper_name);
 }
 
-// ============================================================================
 // Edits
-// ============================================================================
 
 void SensorManager::set_role(std::string_view klipper_name, uint8_t role) {
     {
@@ -474,9 +462,7 @@ void SensorManager::set_enabled(std::string_view klipper_name, bool enabled) {
 
 void SensorManager::set_option(std::string_view /*klipper_name*/, bool /*value*/) {}
 
-// ============================================================================
 // Settings rows
-// ============================================================================
 
 std::vector<uint8_t> SensorManager::offered_roles() const {
     std::vector<uint8_t> out;
@@ -529,9 +515,7 @@ SensorRowView SensorManager::row(size_t index) const {
     return view;
 }
 
-// ============================================================================
 // Accessors
-// ============================================================================
 
 lv_subject_t* SensorManager::count_subject() {
     return &count_;
@@ -580,9 +564,7 @@ const SensorManager::Options& SensorManager::options() const {
     return options_;
 }
 
-// ============================================================================
 // Registry
-// ============================================================================
 
 std::vector<SensorManager*>& detail::mutable_sensor_managers() {
     static std::vector<SensorManager*> managers = {&FilamentSensorManager::instance(),

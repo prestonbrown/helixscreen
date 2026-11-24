@@ -807,9 +807,8 @@ AmsError AmsBackendIndx::follow_up_refusal_locked(int slot_index, const SlotInfo
     return AmsErrorHelper::success();
 }
 
-std::optional<AmsBackend::EditFollowUp>
-AmsBackendIndx::edit_follow_up(int slot_index, const SlotInfo& before,
-                               const SlotInfo& after) const {
+std::optional<EditFollowUp> AmsBackendIndx::edit_follow_up(int slot_index, const SlotInfo& before,
+                                                           const SlotInfo& after) const {
     if (print_holds_printer()) {
         return std::nullopt;
     }

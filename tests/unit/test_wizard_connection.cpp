@@ -6,9 +6,7 @@
 
 #include "../catch_amalgamated.hpp"
 
-// ============================================================================
 // IP/Hostname Validation Tests
-// ============================================================================
 
 TEST_CASE("Wizard Connection: IP address validation", "[wizard][connection][validation]") {
     SECTION("Valid IPv4 addresses") {
@@ -89,9 +87,7 @@ TEST_CASE("Wizard Connection: IP address validation", "[wizard][connection][vali
     }
 }
 
-// ============================================================================
 // Port Number Validation Tests
-// ============================================================================
 
 TEST_CASE("Wizard Connection: Port validation", "[wizard][connection][validation]") {
     SECTION("Valid port numbers") {
@@ -151,9 +147,7 @@ TEST_CASE("Wizard Connection: Port validation", "[wizard][connection][validation
     }
 }
 
-// ============================================================================
 // Default Host Resolution Tests
-// ============================================================================
 // Regression guard for "127.0.0.1 not pre-filled sometimes in the setup wizard":
 // factory reset and --wizard re-runs persist an empty moonraker_host, which
 // Config::get returns verbatim. resolve_moonraker_host_default() must treat an
@@ -184,9 +178,7 @@ TEST_CASE("Wizard Connection: Default host resolution", "[wizard][connection][pr
     }
 }
 
-// ============================================================================
 // URL Construction Tests
-// ============================================================================
 
 TEST_CASE("Wizard Connection: URL construction", "[wizard][connection]") {
     SECTION("Valid URL construction") {
@@ -229,9 +221,7 @@ TEST_CASE("Wizard Connection: URL construction", "[wizard][connection]") {
     }
 }
 
-// ============================================================================
 // Connection State Tests
-// ============================================================================
 
 TEST_CASE("Wizard Connection: State validation", "[wizard][connection][state]") {
     SECTION("Connection validation flag") {
@@ -272,16 +262,13 @@ TEST_CASE("Wizard Connection: State validation", "[wizard][connection][state]") 
 
         // These would be actual status messages set in the implementation
         for (const auto& test : status_tests) {
-            // Verify expected status format
             REQUIRE(test.expected_status.length() > 0);
             REQUIRE(test.expected_status.length() < 256); // Buffer size limit
         }
     }
 }
 
-// ============================================================================
 // Input Sanitization Tests
-// ============================================================================
 
 TEST_CASE("Wizard Connection: Input sanitization", "[wizard][connection][security]") {
     SECTION("Command injection prevention") {
@@ -335,9 +322,7 @@ TEST_CASE("Wizard Connection: Input sanitization", "[wizard][connection][securit
     }
 }
 
-// ============================================================================
 // Performance Tests
-// ============================================================================
 
 TEST_CASE("Wizard Connection: Performance", "[wizard][connection][performance][.benchmark]") {
     SECTION("Validation performance") {

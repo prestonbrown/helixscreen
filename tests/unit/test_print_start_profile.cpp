@@ -22,9 +22,7 @@
 #include "hv/json.hpp"
 
 using namespace helix;
-// ============================================================================
 // Helper to load default profile (works with or without JSON file)
-// ============================================================================
 
 static std::shared_ptr<PrintStartProfile> get_default_profile() {
     return PrintStartProfile::load_default();
@@ -34,9 +32,7 @@ static std::shared_ptr<PrintStartProfile> get_forge_x_profile() {
     return PrintStartProfile::load("forge_x");
 }
 
-// ============================================================================
 // Default Profile Loading Tests
-// ============================================================================
 
 TEST_CASE("PrintStartProfile: default profile loads successfully", "[profile][print]") {
     auto profile = get_default_profile();
@@ -57,9 +53,7 @@ TEST_CASE("PrintStartProfile: default profile loads successfully", "[profile][pr
     }
 }
 
-// ============================================================================
 // Forge-X Profile Loading Tests
-// ============================================================================
 
 TEST_CASE("PrintStartProfile: forge_x profile loads with signal formats", "[profile][print]") {
     auto profile = get_forge_x_profile();
@@ -90,9 +84,7 @@ TEST_CASE("PrintStartProfile: forge_x profile loads with signal formats", "[prof
 // test_print_start_collector.cpp ("default profile reads each phase from real
 // and generic lines"), through the same try_match_pattern() call.
 
-// ============================================================================
 // Forge-X Signal Format Matching Tests
-// ============================================================================
 
 TEST_CASE("PrintStartProfile: forge_x signal format matching for all 14 states",
           "[profile][print][signal]") {
@@ -155,9 +147,7 @@ TEST_CASE("PrintStartProfile: forge_x KAMP LEVELING message says 'Creating bed m
     REQUIRE(result.message == "Creating bed mesh...");
 }
 
-// ============================================================================
 // Signal Format Matching with Surrounding Context
-// ============================================================================
 
 TEST_CASE("PrintStartProfile: signal matching with surrounding text", "[profile][print][signal]") {
     auto profile = get_forge_x_profile();
@@ -188,9 +178,7 @@ TEST_CASE("PrintStartProfile: signal matching with surrounding text", "[profile]
     }
 }
 
-// ============================================================================
 // Forge-X Response Pattern Matching (Temperature Wait Lines)
-// ============================================================================
 
 TEST_CASE("PrintStartProfile: forge_x response patterns match temperature wait lines",
           "[profile][print][pattern]") {
@@ -231,9 +219,7 @@ TEST_CASE("PrintStartProfile: forge_x response patterns match temperature wait l
     }
 }
 
-// ============================================================================
 // Progress Mode Detection
-// ============================================================================
 
 TEST_CASE("PrintStartProfile: progress mode detection", "[profile][print]") {
     CHECK(get_default_profile()->progress_mode() == PrintStartProfile::ProgressMode::WEIGHTED);
@@ -254,9 +240,7 @@ TEST_CASE("PrintStartProfile: a profile's chamber step is chamber heating, not a
     }
 }
 
-// ============================================================================
 // Adaptive bed-mesh flag
-// ============================================================================
 
 TEST_CASE("PrintStartProfile: adaptive_meshing flag parses correctly", "[profile][print][mesh]") {
     for (const auto& [name, adaptive] :
@@ -269,9 +253,7 @@ TEST_CASE("PrintStartProfile: adaptive_meshing flag parses correctly", "[profile
     }
 }
 
-// ============================================================================
 // Missing Profile Fallback
-// ============================================================================
 
 TEST_CASE("PrintStartProfile: missing profile falls back to default", "[profile][print]") {
     auto profile = PrintStartProfile::load("nonexistent_profile_xyz");
@@ -286,9 +268,7 @@ TEST_CASE("PrintStartProfile: missing profile falls back to default", "[profile]
     REQUIRE(result.phase == PrintStartPhase::HOMING);
 }
 
-// ============================================================================
 // Malformed JSON Handling
-// ============================================================================
 
 TEST_CASE("PrintStartProfile: graceful handling of edge cases", "[profile][print]") {
     SECTION("Empty profile name loads default") {
@@ -337,9 +317,7 @@ TEST_CASE("PrintStartProfile: an unparseable default.json yields an empty Generi
     CHECK(PrintStartProfile::load("nonexistent_profile_xyz")->name() == "Generic");
 }
 
-// ============================================================================
 // Noise Rejection Tests (same as test_print_start_collector.cpp)
-// ============================================================================
 
 TEST_CASE("PrintStartProfile: default patterns reject noise lines", "[profile][print][negative]") {
     auto profile = get_default_profile();
@@ -371,9 +349,7 @@ TEST_CASE("PrintStartProfile: default patterns reject noise lines", "[profile][p
     }
 }
 
-// ============================================================================
 // Capture Group Substitution Tests
-// ============================================================================
 
 TEST_CASE("PrintStartProfile: capture group substitution in message templates",
           "[profile][print][pattern]") {
@@ -398,9 +374,7 @@ TEST_CASE("PrintStartProfile: capture group substitution in message templates",
     }
 }
 
-// ============================================================================
 // Creality K1 Profile Tests
-// ============================================================================
 
 static std::shared_ptr<PrintStartProfile> get_creality_k1_profile() {
     return PrintStartProfile::load("creality_k1");
@@ -560,18 +534,16 @@ TEST_CASE("PrintStartProfile: creality_k1 full print sequence progression",
     REQUIRE(detected.count(PrintStartPhase::PURGING) == 1);
 }
 
-// ============================================================================
 // Snapmaker U1 Profile Tests
 //
 // Ground truth captured from a live U1 print on 2026-05-19 by tailing
 // /var/log/messages and observing every line that hit
 // PrintStartCollector::on_gcode_response. The Snapmaker U1 PRINT_START
-// gcode_macro is essentially empty — every preprint phase is driven by
+// gcode_macro is essentially empty: every preprint phase is driven by
 // slicer-injected gcode running on a Klipper fork that emits state
 // transitions via SET_ACTION_CODE. These tests codify the response
-// strings actually observed so a future profile edit can't silently
+// strings actually observed so a profile edit can't silently
 // regress phase detection.
-// ============================================================================
 
 static std::shared_ptr<PrintStartProfile> get_snapmaker_u1_profile() {
     return PrintStartProfile::load("snapmaker_u1");
@@ -610,14 +582,14 @@ TEST_CASE("PrintStartProfile: snapmaker_u1 action-code signals route to correct 
     //   "// Success: Changed main state to PRINTING with action <CODE>"
     // PRINT_BED_DETECTING arrives ONLY via the second form (evidence:
     // "// Success: Changed main state to PRINTING with action PRINT_BED_DETECTING"
-    // at 23:23:26), which the pre-2026-06-18 profile missed entirely.
+    // at 23:23:26), so a profile matching only the first form misses it.
     struct ActionCase {
         std::string line;
         PrintStartPhase expected_phase;
         const char* expected_message;
     };
     std::vector<ActionCase> cases = {
-        // --- "Set action code" verb (evidence: gcode_store 23:24:27..23:31:00) ---
+        // "Set action code" verb (evidence: gcode_store 23:24:27..23:31:00)
         {"// Success: Set action code PRINT_SWITCH_CHECKING", PrintStartPhase::INITIALIZING,
          "Checking extruders..."},
         {"// Success: Set action code PRINT_AUTO_FEEDING", PrintStartPhase::INITIALIZING,
@@ -627,14 +599,14 @@ TEST_CASE("PrintStartProfile: snapmaker_u1 action-code signals route to correct 
         {"// Success: Set action code DETECT_PLATE", PrintStartPhase::BED_MESH,
          "Detecting plate..."},
         {"// Success: Set action code PRINT_PREEXTRUDING", PrintStartPhase::PURGING, "Priming..."},
-        // --- the mesh (evidence: gcode_store 2026-10-16 21:53:52..21:55:26): a
-        //     60 s bed soak with a countdown, four corner probes, then the mesh ---
+        // the mesh (evidence: gcode_store 2026-10-16 21:53:52..21:55:26): a
+        //     60 s bed soak with a countdown, four corner probes, then the mesh
         {"// Success: Set action code BED_PREHEATING", PrintStartPhase::SOAKING, "Heat Soaking..."},
         {"// Success: Set action code BED_PRESCANNING", PrintStartPhase::BED_MESH,
          "Validating bed mesh..."},
         {"// Success: Set action code BED_LEVELING", PrintStartPhase::BED_MESH, "Bed mesh..."},
-        // --- "Changed main state to PRINTING with action" verb
-        //     (evidence: gcode_store 23:23:26) ---
+        // "Changed main state to PRINTING with action" verb
+        //     (evidence: gcode_store 23:23:26)
         {"// Success: Changed main state to PRINTING with action PRINT_BED_DETECTING",
          PrintStartPhase::BED_MESH, "Inspecting bed..."},
         {"// Success: Changed main state to PRINTING with action PRINT_SWITCH_CHECKING",
@@ -705,7 +677,7 @@ TEST_CASE("PrintStartProfile: snapmaker_u1 response patterns match real preprint
         profile->try_match_pattern("// probe_start_x: 5.41250, probe_start_y: 4.79219", result));
 
     // "// z offset:" opens every G28 Z: after each tool pick (G28 Z I140 J140,
-    // the new tool's coil touching the bed centre at 140,140) and once more
+    // the new tool's coil touching the bed center at 140,140) and once more
     // before the mesh at (129.915,125.560). Neither is a mesh point: the
     // mesh's first point is (33.742,28.487), after BED_LEVELING (capture
     // 2026-10-16, 21:49:08.965 and 21:53:38.040). The line also follows
@@ -744,19 +716,17 @@ TEST_CASE("PrintStartProfile: snapmaker_u1 carries no silent_progression",
     // instant the SD job opens and idles ~90s before any action code, with
     // heater targets set/cleared throughout (ext_target=0 during the early idle
     // gap makes temps_ready trivially true). A temps-ready-based PURGING nudge
-    // would announce "Priming..." before the printer has even homed (live U1
-    // finding 2026-06-11). The gap is left to the last action-code phase +
-    // weighted progress instead. Guards against re-introducing the timer.
+    // would announce "Priming..." before the printer has even homed (seen on a live U1). The gap is
+    // left to the last action-code phase + weighted progress instead, so the
+    // profile carries no timer.
     REQUIRE(profile->silent_progression().empty());
 
-    // Adaptive meshing must stay on — the U1 slicer overrides MESH_MIN/MAX so
+    // Adaptive meshing must stay on: the U1 slicer overrides MESH_MIN/MAX so
     // the configfile probe_count (169) hugely overstates the real ~16 probes.
     REQUIRE(profile->adaptive_meshing());
 }
 
-// ============================================================================
 // Creality K2 Profile Tests
-// ============================================================================
 
 static std::shared_ptr<PrintStartProfile> get_creality_k2_profile() {
     return PrintStartProfile::load("creality_k2");
@@ -765,10 +735,9 @@ static std::shared_ptr<PrintStartProfile> get_creality_k2_profile() {
 /**
  * Every line below is a verbatim gcode_response captured from a K2 Plus
  * pre-print on 2026-08-16 (klippy.log 12:18:50-12:29:02, print
- * quattrobox_bottom_cover_ASA-GF). The profile that shipped before this was
- * written against the macro *names* in gcode_macro.cfg rather than against
- * what the firmware actually echoes, so four of its seven patterns never
- * matched anything on a real print.
+ * quattrobox_bottom_cover_ASA-GF). The profile matches what the firmware
+ * actually echoes, not the macro *names* in gcode_macro.cfg, which never appear
+ * in a real print's output.
  */
 TEST_CASE("PrintStartProfile: creality_k2 patterns match real K2 Plus gcode responses",
           "[profile][print][k2]") {
@@ -840,8 +809,8 @@ TEST_CASE("PrintStartProfile: creality_k2 keeps the M109 latch that the heater c
     // re-derives the shown phase from live temps, bed-first, which is what
     // actually puts "Heating Bed" on screen during the soak.
     //
-    // Removing this pattern showed "Cleaning Nozzle" for the whole 4-minute
-    // ASA bed soak on hardware, then timed out before the mesh (2026-08-16).
+    // Without this pattern the screen shows "Cleaning Nozzle" for the whole
+    // 4-minute ASA bed soak, then times out before the mesh (seen on hardware).
     PrintStartProfile::MatchResult result;
     REQUIRE(profile->try_match_pattern("// [GCODE]M109 S170", result));
     REQUIRE(result.phase == PrintStartPhase::HEATING_NOZZLE);
@@ -990,21 +959,19 @@ TEST_CASE("PrintStartProfile: creality_k2 rejects noise from K2 responses",
     }
 }
 
-// ============================================================================
 // Phase-Object Status Source Tests
 //
 // A profile may declare a status object whose field carries structured phase
 // state. The state strings map to phases through state_patterns - the same
 // compiled-pattern machinery console lines use - and the object gets
 // subscribed so those frames reach the collector.
-// ============================================================================
 
 TEST_CASE("PrintStartProfile: forge_x declares its phase object",
           "[profile][print][phase_object]") {
     auto profile = get_forge_x_profile();
     REQUIRE(profile != nullptr);
     // Strict on purpose: the JSON ships with the repo, so a missing phase
-    // object here is a regression, not an environment gap.
+    // object here is a failure, not an environment gap.
     REQUIRE(profile->name().find("Forge") != std::string::npos);
 
     REQUIRE(profile->has_phase_object());
@@ -1153,8 +1120,8 @@ TEST_CASE("PrintStartProfile: default patterns match macro narration, not just c
 TEST_CASE("PrintStartProfile: profiles without phase_object declare no status objects",
           "[profile][print][phase_object]") {
     // Absence must read as absence: no object name, no subscription request.
-    // The K2 profile doubles as the regression guard that a printer-specific
-    // profile with no phase object stays exactly as it was. (default.json
+    // The K2 profile also pins that a printer-specific profile with no phase
+    // object declares none. (default.json
     // declares both a phase object and status_signals rules, so its objects
     // are pinned separately in the status-signal tests below.)
     const auto k2 = PrintStartProfile::load("creality_k2");
@@ -1470,14 +1437,12 @@ TEST_CASE("PrintStartProfile: malformed state_patterns entries are skipped",
     REQUIRE(profile->required_status_objects().empty());
 }
 
-// ============================================================================
 // Status-Signal Rule Tests
 //
 // A profile may declare rules over status frames ("status_signals"): an
 // AND-list of predicates over one object's fields, mapping to the same
 // phase/message/weight contract response_patterns carry. Printers that cannot
 // narrate their pre-print get phase inference from physics instead of regexes.
-// ============================================================================
 
 TEST_CASE("PrintStartProfile: forge_x declares no status-signal rules",
           "[profile][print][status_signals]") {
@@ -1693,9 +1658,7 @@ TEST_CASE("PrintStartProfile: status-signal predicate ops table",
     CHECK(result.progress == 7);
 }
 
-// ============================================================================
 // Tag patterns
-// ============================================================================
 
 TEST_CASE("PrintStartProfile: tag patterns are their own list", "[profile][print][tag]") {
     auto profile = PrintStartProfileTestAccess::parse(nlohmann::json::parse(

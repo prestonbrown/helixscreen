@@ -4,13 +4,13 @@
 //
 // Inline element text through a HelixScreen SEMANTIC TYPOGRAPHY widget.
 //
-// The engine-level inline-text behaviour -- PCDATA accumulation, HTML-style
+// The engine-level inline-text behavior -- PCDATA accumulation, HTML-style
 // whitespace collapse, entity decoding, $prop/#const substitution, attribute
-// precedence, mixed content, the root-<view> drop -- now lives in the standalone
+// precedence, mixed content, the root-<view> drop -- lives in the standalone
 // helix-xml suite, in lib/helix-xml/tests/cases/test_inline_text.c. It drives
 // lv_label there, because helix-xml has no idea `text_muted` exists.
 //
-// What CANNOT move is the half that is HelixScreen's own contract: `text_muted`
+// The half that is HelixScreen's own contract stays here: `text_muted`
 // (and its siblings text_heading / text_body / text_small / text_xs) is a widget
 // registered by src/ui/components/ui_text.cpp with its own apply callback, ui_text_apply().
 // The engine synthesizes {text, translation_tag} from the inline content and

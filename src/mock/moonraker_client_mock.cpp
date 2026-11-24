@@ -1654,9 +1654,7 @@ std::string MoonrakerClientMock::get_print_state_string() const {
     }
 }
 
-// ============================================================================
 // Unified Print Control (internal implementation)
-// ============================================================================
 
 bool MoonrakerClientMock::start_print_internal(const std::string& filename) {
     // Build path to test G-code file
@@ -2160,9 +2158,7 @@ bool MoonrakerClientMock::toggle_filament_runout() {
     return true;
 }
 
-// ============================================================================
 // Simulation Helpers
-// ============================================================================
 
 bool MoonrakerClientMock::is_temp_stable(double current, double target, double tolerance) const {
     return std::abs(current - target) <= tolerance;
@@ -2306,9 +2302,7 @@ void MoonrakerClientMock::dispatch_enhanced_print_status() {
     dispatch_status_update(status);
 }
 
-// ============================================================================
 // Temperature Simulation
-// ============================================================================
 
 void MoonrakerClientMock::read_position_snapshot(double& x, double& y, double& z) const {
     std::lock_guard<std::mutex> pos_lock(pos_mutex_);
@@ -2861,9 +2855,7 @@ bool MoonrakerClientMock::led_effect_enabled(const std::string& object_name) con
     return enabled_led_effects_.count(object_name) > 0;
 }
 
-// ============================================================================
 // Fan Control Helper Methods
-// ============================================================================
 
 void MoonrakerClientMock::set_fan_speed_internal(const std::string& fan_name, double speed) {
     {
@@ -2903,9 +2895,7 @@ std::string MoonrakerClientMock::find_fan_by_suffix(const std::string& suffix) c
     return "";
 }
 
-// ============================================================================
 // G-code Offset Helper Methods
-// ============================================================================
 
 void MoonrakerClientMock::dispatch_gcode_move_update() {
     double z_offset = gcode_offset_z_.load();
@@ -3171,9 +3161,7 @@ void MoonrakerClientMock::dispatch_configfile_update() {
     dispatch_status_update(update);
 }
 
-// ============================================================================
 // Manual Probe Helper Methods (Z-offset calibration)
-// ============================================================================
 
 void MoonrakerClientMock::dispatch_manual_probe_update() {
     bool is_active = manual_probe_active_.load();
@@ -3201,9 +3189,7 @@ void MoonrakerClientMock::dispatch_manual_probe_update() {
                   is_active, z_position);
 }
 
-// ============================================================================
 // G-code Response Simulation (for PRINT_START progress tracking)
-// ============================================================================
 
 bool MoonrakerClientMock::simulate_pa_calibration(
     const std::string& script, helix::SharedCallback<void(const nlohmann::json&)> success_cb,
@@ -4073,9 +4059,7 @@ void MoonrakerClientMock::advance_print_start_simulation() {
     // This is handled in the simulation loop when temps are stable
 }
 
-// ============================================================================
 // Restart Simulation Helper Methods
-// ============================================================================
 
 void MoonrakerClientMock::trigger_restart(bool is_firmware) {
     klippy_state_.store(KlippyState::STARTUP);

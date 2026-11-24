@@ -19,9 +19,7 @@
 
 using namespace helix;
 
-// ============================================================================
 // CONSTRUCTOR / DESTRUCTOR
-// ============================================================================
 
 PanelBase::PanelBase(PrinterState& printer_state, IMoonrakerAPI* api)
     : printer_state_(printer_state), api_(api) {
@@ -33,9 +31,7 @@ PanelBase::~PanelBase() {
     cleanup_observers();
 }
 
-// ============================================================================
 // MOVE SEMANTICS
-// ============================================================================
 
 PanelBase::PanelBase(PanelBase&& other) noexcept
     : printer_state_(other.printer_state_), api_(other.api_), panel_(other.panel_.get()),
@@ -70,9 +66,7 @@ PanelBase& PanelBase::operator=(PanelBase&& other) noexcept {
     return *this;
 }
 
-// ============================================================================
 // CORE LIFECYCLE
-// ============================================================================
 
 void PanelBase::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     panel_ = panel;
@@ -84,9 +78,7 @@ void PanelBase::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     }
 }
 
-// ============================================================================
 // OBSERVER MANAGEMENT
-// ============================================================================
 
 void PanelBase::register_observer(lv_observer_t* observer) {
     if (observer) {
@@ -103,9 +95,7 @@ void PanelBase::cleanup_observers() {
     observers_.clear();
 }
 
-// ============================================================================
 // HOT-RELOAD REBUILD
-// ============================================================================
 
 bool PanelBase::rebuild() {
     if (!panel_ || !parent_screen_) {
@@ -179,9 +169,7 @@ bool PanelBase::rebuild() {
     return true;
 }
 
-// ============================================================================
 // FULL PAGE
-// ============================================================================
 
 bool PanelBase::embed(lv_obj_t* container) {
     auto& nav = NavigationManager::instance();

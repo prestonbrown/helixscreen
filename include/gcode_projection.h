@@ -12,9 +12,7 @@
 
 namespace helix::gcode {
 
-// ============================================================================
 // VIEW MODES
-// ============================================================================
 
 /// View mode for 2D projection of 3D toolpath data.
 /// Shared by all renderers (layer renderer, thumbnail renderer, etc.)
@@ -24,9 +22,7 @@ enum class ViewMode {
     ISOMETRIC ///< X/Y plane with isometric projection (45° rotation, Y compressed)
 };
 
-// ============================================================================
 // PROJECTION CONSTANTS
-// ============================================================================
 
 /// Projection constants for FRONT view (-45° azimuth, 45° elevation).
 /// Matching OrcaSlicer's default thumbnail camera (Camera.cpp zenit=45°, phi=45°).
@@ -99,9 +95,7 @@ enum class FitFraming {
     THUMBNAIL_PARITY,
 };
 
-// ============================================================================
 // PROJECTION PARAMETERS
-// ============================================================================
 
 /// Parameters for world-to-screen coordinate transformation.
 /// Captured as a snapshot for thread-safe rendering.
@@ -117,9 +111,7 @@ struct ProjectionParams {
         0.0f; ///< Vertical shift for UI overlap (layer renderer only, 0.0 for thumbnails)
 };
 
-// ============================================================================
 // PROJECTION FUNCTIONS
-// ============================================================================
 
 /// Convert world coordinates to screen pixel coordinates.
 ///
@@ -216,9 +208,7 @@ AutoFitResult compute_auto_fit(const AABB& raw_bb, ViewMode view_mode, int canva
                                float bottom_occlusion = 0.0f,
                                FitFraming framing = FitFraming::STANDARD);
 
-// ============================================================================
 // DEPTH SHADING
-// ============================================================================
 
 /// Depth shading constants shared by all 2D renderers.
 /// Bottom of model = darker, top = brighter. Back = slightly darker than front.
@@ -348,9 +338,7 @@ inline float compute_depth_brightness(float avg_z, float z_min, float z_max, flo
     return brightness;
 }
 
-// ============================================================================
 // CLIP-SPACE PROJECTION (shared by the pickers and the bracket/bbox passes)
-// ============================================================================
 
 /**
  * @brief Below this |w|, a clip-space point is degenerate and cannot be divided.

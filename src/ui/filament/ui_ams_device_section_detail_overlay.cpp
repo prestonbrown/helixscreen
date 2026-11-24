@@ -41,19 +41,13 @@
 
 namespace helix::ui {
 
-// ============================================================================
 // SINGLETON ACCESSOR
-// ============================================================================
 
-// ============================================================================
 // DESTRUCTOR
-// ============================================================================
 
 AmsDeviceSectionDetailOverlay::~AmsDeviceSectionDetailOverlay() = default;
 
-// ============================================================================
 // INITIALIZATION
-// ============================================================================
 
 void AmsDeviceSectionDetailOverlay::init_subjects() {
     init_subjects_guarded([this]() {
@@ -76,9 +70,7 @@ void AmsDeviceSectionDetailOverlay::register_callbacks() {
     });
 }
 
-// ============================================================================
 // UI CREATION
-// ============================================================================
 
 lv_obj_t* AmsDeviceSectionDetailOverlay::create(lv_obj_t* parent) {
     if (!OverlayBase::create(parent)) {
@@ -234,9 +226,7 @@ void AmsDeviceSectionDetailOverlay::refresh() {
     spdlog::debug("[{}] Created {} controls for section '{}'", get_name(), count, section_id_);
 }
 
-// ============================================================================
 // DYNAMIC CONTROL CREATION
-// ============================================================================
 
 std::string device_action_label(const helix::printer::DeviceAction& action) {
     std::string label = lv_tr(action.label.c_str());
@@ -463,9 +453,7 @@ void AmsDeviceSectionDetailOverlay::create_button(lv_obj_t* row,
     }
 }
 
-// ============================================================================
 // EVENT DISPATCH
-// ============================================================================
 
 const helix::printer::DeviceAction*
 AmsDeviceSectionDetailOverlay::action_for_event(lv_event_t* e) const {
@@ -565,9 +553,7 @@ void AmsDeviceSectionDetailOverlay::apply_slider_value(const helix::printer::Dev
     }
 }
 
-// ============================================================================
 // STATIC CALLBACKS
-// ============================================================================
 
 void AmsDeviceSectionDetailOverlay::on_action_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[AmsDeviceSectionDetailOverlay] on_action_clicked");

@@ -35,9 +35,7 @@ using sensors::RowToggle;
 using sensors::SensorManager;
 using sensors::SensorRowView;
 
-// ============================================================================
 // SensorRowSection
-// ============================================================================
 
 namespace {
 
@@ -291,9 +289,7 @@ void SensorRowSection::stop() {
     revision_observer_.reset();
 }
 
-// ============================================================================
 // SensorSettingsOverlay
-// ============================================================================
 
 SensorSettingsOverlay::~SensorSettingsOverlay() {
     for (auto& section : sections_) {
@@ -415,9 +411,7 @@ void SensorSettingsOverlay::update_total() {
     set_if_changed(total_count_, static_cast<int>(total));
 }
 
-// ============================================================================
 // CHAMBER ASSIGNMENT
-// ============================================================================
 
 ChamberAssignmentLabels chamber_assignment_labels() {
     return ChamberAssignmentLabels{lv_tr("Auto"), lv_tr("(none detected)"), lv_tr("not detected"),
@@ -475,9 +469,7 @@ void SensorSettingsOverlay::populate_chamber_assignment() {
     }
 }
 
-// ============================================================================
 // EVENT HANDLERS
-// ============================================================================
 
 void SensorSettingsOverlay::handle_switch_master_toggle_changed(bool enabled) {
     auto& mgr = helix::FilamentSensorManager::instance();

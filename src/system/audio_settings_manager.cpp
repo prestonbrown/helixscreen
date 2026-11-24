@@ -59,7 +59,6 @@ void AudioSettingsManager::init_subjects() {
 
     subjects_initialized_ = true;
 
-    // Self-register cleanup with StaticSubjectRegistry
     StaticSubjectRegistry::instance().register_deinit(
         "AudioSettingsManager", []() { AudioSettingsManager::instance().deinit_subjects(); });
 
@@ -83,9 +82,7 @@ void AudioSettingsManager::deinit_subjects() {
     spdlog::trace("[AudioSettingsManager] Subjects deinitialized");
 }
 
-// =============================================================================
 // GETTERS / SETTERS
-// =============================================================================
 
 float AudioSettingsManager::get_volume_scaled() const {
     float normalized = static_cast<float>(get_volume()) / 100.0f;

@@ -222,7 +222,6 @@ bool PrinterNetworkState::apply_webhooks(const nlohmann::json& webhooks, double 
             }
         }
 
-        // Capture state_message (error/shutdown reason text)
         if (const auto state_message =
                 json_util::read_field<std::string>(webhooks, "state_message")) {
             set_klippy_state_message(*state_message, message_describes);

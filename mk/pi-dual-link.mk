@@ -12,9 +12,7 @@
 #   build/pi/bin/helix-screen          — DRM binary
 #   build/pi-fbdev/bin/helix-screen    — fbdev binary (linked from shared objects)
 
-# =============================================================================
 # Fbdev binary output path
-# =============================================================================
 
 # Determine the fbdev build directory based on the DRM build directory
 # pi -> pi-fbdev, pi32 -> pi32-fbdev
@@ -39,9 +37,7 @@ ifeq ($(abspath $(FBDEV_TARGET)),$(abspath $(TARGET)))
 binary would overwrite $(TARGET). Use pi, pi32 or x86, or add the mapping above.)
 endif
 
-# =============================================================================
 # Fbdev display backend library
-# =============================================================================
 # Compile display backend sources with fbdev-only defines (no DRM/GLES).
 # These go into a separate directory to avoid colliding with the DRM objects.
 
@@ -80,9 +76,7 @@ $(DISPLAY_LIB_FBDEV): $(FBDEV_DISPLAY_OBJS) | $(BUILD_DIR)/lib
 $(FBDEV_DISPLAY_DIR):
 	$(Q)mkdir -p $@
 
-# =============================================================================
 # Fbdev crash reporter (different HELIX_BINARY_VARIANT)
-# =============================================================================
 
 FBDEV_VARIANT_DIR := $(BUILD_DIR)/fbdev-variant
 FBDEV_CRASH_OBJ := $(FBDEV_VARIANT_DIR)/crash_reporter.o
@@ -101,9 +95,7 @@ $(FBDEV_CRASH_OBJ): src/system/crash_reporter.cpp $(LIBHV_LIB) $(PATCHES_STAMP) 
 $(FBDEV_VARIANT_DIR):
 	$(Q)mkdir -p $@
 
-# =============================================================================
 # Fbdev GLES-variant objects (recompiled without ENABLE_GLES_3D)
-# =============================================================================
 # Files that use #ifdef ENABLE_GLES_3D to switch between GLES and CPU code paths.
 # Must be recompiled for fbdev without that define so the CPU fallback is used,
 # avoiding dynamic library dependencies on libGLESv2/libEGL/libgbm.
@@ -197,9 +189,7 @@ $(FBDEV_GLES_VARIANT_DIR)/probe_egl_cmd.o: src/application/probe_egl_cmd.cpp $(L
 $(FBDEV_GLES_VARIANT_DIR):
 	$(Q)mkdir -p $@
 
-# =============================================================================
 # LVGL DRM-specific objects (excluded from fbdev link)
-# =============================================================================
 # These LVGL sources reference DRM/libinput symbols and must not be linked
 # into the fbdev binary.
 
@@ -209,9 +199,7 @@ LVGL_DRM_DRIVER_OBJS := \
     $(OBJ_DIR)/lvgl/src/drivers/display/drm/lv_linux_drm_common.o \
     $(OBJ_DIR)/lvgl/src/drivers/libinput/lv_libinput.o
 
-# =============================================================================
 # Fbdev app objects — swap display backend, crash reporter, and GLES variants
-# =============================================================================
 # Start with all the objects from the DRM link, then:
 # 1. Remove DRM display backend objects (replaced by DISPLAY_LIB_FBDEV)
 # 2. Remove DRM crash_reporter.o (replaced by FBDEV_CRASH_OBJ)
@@ -232,15 +220,11 @@ DRM_DISPLAY_APP_OBJS := \
 FBDEV_APP_OBJS := $(filter-out $(DRM_DISPLAY_APP_OBJS) $(DRM_CRASH_OBJ) $(DRM_GLES_APP_OBJS),$(APP_OBJS))
 FBDEV_LVGL_OBJS := $(filter-out $(LVGL_DRM_DRIVER_OBJS),$(LVGL_OBJS))
 
-# =============================================================================
 # Fbdev linker flags (no DRM/GLES libraries)
-# =============================================================================
 
 FBDEV_LDFLAGS := $(filter-out -ldrm -linput -lEGL -lGLESv2 -lgbm,$(LDFLAGS))
 
-# =============================================================================
 # Fbdev link target
-# =============================================================================
 
 # The `| $(TARGET)` is an ORDER-ONLY prerequisite, and it is here for memory, not
 # correctness: it serialises the two links. Both binaries are independent
@@ -282,9 +266,7 @@ $(FBDEV_TARGET): $(APP_C_OBJS) $(FBDEV_APP_OBJS) $(FBDEV_GLES_VARIANT_OBJS) $(FB
 	@# like a binary from before the stamp existed.
 	$(Q)printf 'remote_control=%s\ndiag_uploads=%s\n' "$(ENABLE_REMOTE_CONTROL)" "$(ENABLE_DIAGNOSTIC_UPLOADS)" > $(dir $@).build-features
 
-# =============================================================================
 # Symbol extraction and stripping for both binaries
-# =============================================================================
 
 .PHONY: symbols-both strip-both verify-fbdev
 
@@ -307,9 +289,7 @@ else
 	@echo "STRIP_BINARY not set — skipping strip"
 endif
 
-# =============================================================================
 # Fbdev binary verification — catch accidental DRM/GLES symbol dependencies
-# =============================================================================
 
 verify-fbdev: $(FBDEV_TARGET)
 	@echo "Verifying fbdev binary has no DRM/GLES dependencies..."

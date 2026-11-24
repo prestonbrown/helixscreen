@@ -7,6 +7,7 @@
 #include "ams_dryer.h"
 #include "ams_gate_selector.h"
 #include "ams_print_routing.h"
+#include "ams_tool_park.h"
 #include "slot_registry.h"
 
 #include <atomic>
@@ -36,7 +37,8 @@ struct AfcMockUnit;
 class AmsBackendMock : public AmsBackend,
                        public IGateSelector,
                        public IDryer,
-                       public IPrintRouting {
+                       public IPrintRouting,
+                       public IToolPark {
   public:
     /// The mock keeps whatever an edit gives a slot, colors included.
     [[nodiscard]] bool stores_multi_color() const override {
@@ -54,6 +56,9 @@ class AmsBackendMock : public AmsBackend,
         }
         if (tag == helix::type_tag<IPrintRouting>()) {
             return static_cast<IPrintRouting*>(this);
+        }
+        if (tag == helix::type_tag<IToolPark>()) {
+            return static_cast<IToolPark*>(this);
         }
         return AmsBackend::capability(tag);
     }
@@ -178,6 +183,7 @@ class AmsBackendMock : public AmsBackend,
     AmsError change_tool(int tool_number) override;
     /// Docks the mounted tool on the personas whose hardware can (tool
     /// changer, Snapmaker U1): the unload simulation, ending with no tool.
+    /// Every persona publishes IToolPark; supports_tool_park() answers per persona.
     AmsError park_active_tool() override;
     [[nodiscard]] bool supports_tool_park() const override;
 
@@ -630,9 +636,6 @@ class AmsBackendMock : public AmsBackend,
      * Can also be set via HELIX_MOCK_AMS=afc environment variable.
      */
     void set_afc_mode(bool enabled);
-
-    /// Report unit 0 under @p name, as AFC reports "<type> <instance>".
-    void set_afc_unit_name(const std::string& name);
 
     /// Set the hardware model the first unit reports, as a real Happy Hare vendor would, and
     /// the path that unit's lanes take.

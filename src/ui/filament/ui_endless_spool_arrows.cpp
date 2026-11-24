@@ -23,9 +23,7 @@
 #include <memory>
 #include <vector>
 
-// ============================================================================
 // Constants
-// ============================================================================
 
 // Default dimensions
 static constexpr int32_t kDefaultWidth = 300;
@@ -49,9 +47,7 @@ static constexpr int32_t kHeightStep = 8; // Separation between overlapping line
 // Maximum backup connections supported
 static constexpr int kMaxSlots = helix::kAmsMaxSlots;
 
-// ============================================================================
 // Widget State
-// ============================================================================
 
 struct EndlessSpoolArrowsData {
     int slot_count = kDefaultSlotCount;
@@ -88,7 +84,6 @@ static void load_theme_colors(EndlessSpoolArrowsData* data) {
     // Use text_muted for subtle arrow color
     data->arrow_color = theme_manager_get_color("text_muted");
 
-    // Get responsive sizing from theme
     int32_t space_xxs = theme_manager_get_spacing("space_xxs");
     data->line_width = LV_MAX(2, space_xxs);
     data->lane_step = LV_MAX(data->line_width + 2, theme_manager_get_spacing("space_md"));
@@ -96,9 +91,7 @@ static void load_theme_colors(EndlessSpoolArrowsData* data) {
     spdlog::trace("[EndlessSpoolArrows] Theme colors loaded");
 }
 
-// ============================================================================
 // Helper Functions
-// ============================================================================
 
 // Calculate X position for a slot's center
 // Uses ABSOLUTE positioning with dynamic slot width from AmsPanel:
@@ -322,9 +315,7 @@ std::vector<EndlessSpoolMark> endless_spool_marks(const helix::printer::EndlessS
 
 } // namespace helix::ui
 
-// ============================================================================
 // Drawing Functions
-// ============================================================================
 
 // Draw a single line segment
 static void draw_line(lv_layer_t* layer, int32_t x1, int32_t y1, int32_t x2, int32_t y2,
@@ -450,9 +441,7 @@ static void draw_bracket(lv_layer_t* layer, const std::vector<int32_t>& member_x
     }
 }
 
-// ============================================================================
 // Main Draw Callback
-// ============================================================================
 
 static void endless_spool_arrows_draw_cb(lv_event_t* e) {
     lv_obj_t* obj = lv_event_get_target_obj(e);
@@ -462,7 +451,6 @@ static void endless_spool_arrows_draw_cb(lv_event_t* e) {
         return;
     }
 
-    // Get widget dimensions
     lv_area_t obj_coords;
     lv_obj_get_coords(obj, &obj_coords);
     int32_t height = lv_area_get_height(&obj_coords);
@@ -538,9 +526,7 @@ static void endless_spool_arrows_draw_cb(lv_event_t* e) {
     spdlog::trace("[EndlessSpoolArrows] Drew {} marks", marks.size());
 }
 
-// ============================================================================
 // Event Handlers
-// ============================================================================
 
 // Anchored ticks reach below the widget, down to the drawing they connect.
 static void endless_spool_arrows_ext_draw_cb(lv_event_t* e) {
@@ -563,9 +549,7 @@ static void endless_spool_arrows_delete_cb(lv_event_t* e) {
     }
 }
 
-// ============================================================================
 // XML Widget Interface
-// ============================================================================
 
 static void* endless_spool_arrows_xml_create(lv_xml_parser_state_t* state, const char** attrs) {
     LV_UNUSED(attrs);
@@ -591,7 +575,6 @@ static void* endless_spool_arrows_xml_create(lv_xml_parser_state_t* state, const
     lv_obj_set_scrollable(obj, false);
     lv_obj_set_clickable(obj, false);
 
-    // Register event handlers
     lv_obj_add_event_cb(obj, endless_spool_arrows_draw_cb, LV_EVENT_DRAW_POST, nullptr);
     lv_obj_add_event_cb(obj, endless_spool_arrows_delete_cb, LV_EVENT_DELETE, nullptr);
     lv_obj_add_event_cb(obj, endless_spool_arrows_ext_draw_cb, LV_EVENT_REFR_EXT_DRAW_SIZE,
@@ -635,9 +618,7 @@ static void endless_spool_arrows_xml_apply(lv_xml_parser_state_t* state, const c
     }
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 void ui_endless_spool_arrows_register(void) {
     lv_xml_register_widget("endless_spool_arrows", endless_spool_arrows_xml_create,
@@ -672,7 +653,6 @@ lv_obj_t* ui_endless_spool_arrows_create(lv_obj_t* parent) {
     lv_obj_set_scrollable(obj, false);
     lv_obj_set_clickable(obj, false);
 
-    // Register event handlers
     lv_obj_add_event_cb(obj, endless_spool_arrows_draw_cb, LV_EVENT_DRAW_POST, nullptr);
     lv_obj_add_event_cb(obj, endless_spool_arrows_delete_cb, LV_EVENT_DELETE, nullptr);
     lv_obj_add_event_cb(obj, endless_spool_arrows_ext_draw_cb, LV_EVENT_REFR_EXT_DRAW_SIZE,

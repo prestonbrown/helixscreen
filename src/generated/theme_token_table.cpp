@@ -65,7 +65,7 @@ const TokenEntry k_token_table[] = {
     {"px", "edit_spool_size_tiny", "80"},
     {"px", "edit_spool_size_small", "120"},
     {"px", "edit_spool_size_medium", "168"},
-    {"px", "edit_spool_size_large", "210"},
+    {"px", "edit_spool_size_large", "176"},
     {"px", "ams_edit_mode_dd_w_micro", "104"},
     {"px", "ams_edit_mode_dd_w_tiny", "110"},
     {"px", "ams_edit_mode_dd_w_small", "130"},

@@ -574,6 +574,14 @@ printer state. It is AFC's row in the generic fault-path provider table, `helix:
 | `pre extruder gear toolhead sensor` | past hub, short of the toolhead | `OUTPUT` |
 | `post extruder gear toolhead sensor` | at toolhead, short of the extruder gears | `TOOLHEAD` |
 
+Separately, `afc_fault_lane_sensor()` places a lane fault at one of the lane's own sensors, which
+the unit art tints (`SlotError::sensor`, `docs/devel/UNIT_ART.md`): the two load messages above are
+the load sensor, and `Runout triggered for lane <name> and runout lane is not setup to switch to
+another lane.` (AFC upstream lane module, `_perform_pause_runout`, the prep switch opening mid-print) is the
+prep sensor. Happy Hare's `Runout detected on T0 (gate 0) by mmu_entry_0` (Happy Hare 3:
+`Runout detected on mmu_pre_gate_0`) is its prep sensor, read by `helix::happy_hare`
+(`include/happy_hare_fault_position.h`).
+
 Matching is case-insensitive and **anchored on word boundaries** — the same open-console hazard as
 Channel 1 applies, and `File opened: check filament at triggering.gcode` must not resolve to a
 position. Anything else returns `std::nullopt`, and `afc_strip_position_diagram()` is gated on that

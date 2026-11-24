@@ -110,9 +110,7 @@ InputSensorManager& InputSensorManager::instance() {
 
 InputSensorManager::InputSensorManager() : SensorManager(make_options()) {}
 
-// ============================================================================
 // Discovery and status
-// ============================================================================
 
 void InputSensorManager::on_entries_changed() {
     prune_vanished_locked(readings_);
@@ -166,9 +164,7 @@ bool InputSensorManager::parse_status(const nlohmann::json& status) {
     return changed;
 }
 
-// ============================================================================
 // Reads
-// ============================================================================
 
 const InputReading& InputSensorManager::reading_locked(const std::string& klipper_name) const {
     static const InputReading kUnreported;
@@ -257,9 +253,7 @@ InputSensorManager::mid_print_door_warnings(const std::vector<std::string>& newl
     return warn;
 }
 
-// ============================================================================
 // Edits and settings
-// ============================================================================
 
 void InputSensorManager::set_option(std::string_view klipper_name, bool inverted) {
     {
@@ -310,9 +304,7 @@ void InputSensorManager::write_extra_settings(nlohmann::json& out) const {
     }
 }
 
-// ============================================================================
 // Subjects
-// ============================================================================
 
 void InputSensorManager::register_subjects(SubjectManager& subjects) {
     UI_MANAGED_SUBJECT_INT(door_check_subject_, 0, "input_door_check", subjects);

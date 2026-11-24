@@ -1126,6 +1126,18 @@ bool AmsBackendAd5xIfs::apply_ifs_tool_map_locked(const ad5x::ToolMap& parsed) {
     return true;
 }
 
+std::optional<bool> AmsBackendAd5xIfs::slot_insert_presence(int slot_index) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!valid_slot(slot_index) || !(ifs_status_ports_seen_.load() || has_per_port_sensors_))
+        return std::nullopt;
+    return port_presence_[static_cast<size_t>(slot_index)];
+}
+
+InsertIdentity AmsBackendAd5xIfs::slot_insert_identity(int slot_index) const {
+    (void)slot_index;
+    return InsertIdentity::NotRead;
+}
+
 void AmsBackendAd5xIfs::parse_port_sensor(int port_1based, bool detected) {
     int slot = port_1based - 1;
     if (valid_slot(slot)) {

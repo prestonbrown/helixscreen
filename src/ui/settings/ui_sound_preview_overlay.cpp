@@ -26,9 +26,7 @@ void SoundPreviewOverlay::on_deactivating(DeactivateReason) {
     clear_buttons();
 }
 
-// ==========================================================================
 // Button grid
-// ==========================================================================
 
 std::string SoundPreviewOverlay::display_name(const std::string& sound_name) {
     static const std::unordered_map<std::string, std::string> names = {

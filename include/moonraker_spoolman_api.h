@@ -92,9 +92,7 @@ class MoonrakerSpoolmanAPI : public helix::ISpoolmanAPI {
     explicit MoonrakerSpoolmanAPI(helix::IMoonrakerClient& client);
     virtual ~MoonrakerSpoolmanAPI() = default;
 
-    // ========================================================================
     // Spoolman Status & Spool Operations
-    // ========================================================================
 
     /**
      * @brief Get Spoolman connection status
@@ -145,9 +143,7 @@ class MoonrakerSpoolmanAPI : public helix::ISpoolmanAPI {
                             std::function<void(const std::vector<FilamentUsageRecord>&)> on_success,
                             ErrorCallback on_error) override;
 
-    // ========================================================================
     // Spool Update Operations
-    // ========================================================================
 
     /**
      * @brief Update a spool's remaining weight in Spoolman
@@ -203,9 +199,7 @@ class MoonrakerSpoolmanAPI : public helix::ISpoolmanAPI {
                                             SuccessCallback on_success,
                                             ErrorCallback on_error) override;
 
-    // ========================================================================
     // Vendor & Filament Operations
-    // ========================================================================
 
     /**
      * @brief Get the currency code Spoolman's prices are in (e.g. "EUR")
@@ -231,9 +225,7 @@ class MoonrakerSpoolmanAPI : public helix::ISpoolmanAPI {
     void get_spoolman_filaments(int vendor_id, helix::FilamentListCallback on_success,
                                 ErrorCallback on_error) override;
 
-    // ========================================================================
     // CRUD Operations
-    // ========================================================================
 
     /**
      * @brief Create a new vendor in Spoolman

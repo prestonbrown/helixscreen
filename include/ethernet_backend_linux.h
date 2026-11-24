@@ -42,9 +42,7 @@ class EthernetBackendLinux : public EthernetBackend {
     EthernetBackendLinux();
     ~EthernetBackendLinux() override;
 
-    // ========================================================================
     // EthernetBackend Interface Implementation
-    // ========================================================================
 
     bool has_interface() override;
     EthernetInfo get_info() override;

@@ -35,8 +35,7 @@
 // the test binary (see the header's note on ODR).
 #include "../test_helpers/print_start_controller_test_access.h"
 
-// ============================================================================
-// Remap-unsupported warning discriminator (Snapmaker U1 stale-toast bug).
+// Remap-unsupported warning discriminator (Snapmaker U1).
 //
 // apply_filament_remaps() must NOT toast "remap not supported" for a backend
 // that applies the remap via its firmware-native pre-print path — the U1's
@@ -44,11 +43,8 @@
 // mapping table. The toast is only correct for a backend with no route at all,
 // or with one it cannot use yet.
 //
-// Driven through REAL backends rather than hand-built capability values. The
-// retired two-argument form took a capability struct and a pre-send flag, which
-// a caller could pull from two different backends and which made a test's
-// premise a fiction it wrote itself: it could assert a shape no backend has.
-// ============================================================================
+// Driven through REAL backends rather than hand-built capability values, which
+// could assert a capability shape no backend has.
 
 TEST_CASE("remap warning: Snapmaker applies via its pre-print send, so it is SILENT",
           "[print-start][filament-gate][remap]") {
@@ -77,12 +73,10 @@ TEST_CASE("remap warning: a table-writing backend never warns",
 
 TEST_CASE("remap warning: a declared route that is not READY still warns",
           "[print-start][filament-gate][remap]") {
-    // The case the retired predicate could not see. AD5X IFS declares Native
-    // unconditionally, but before the printer.ifs tool_map is discovered
-    // set_tool_mapping() writes local state the firmware replays nothing from —
-    // the user's pick is dropped in silence. Warning is correct here, and was
-    // correct before only because a SECOND capability query happened to answer
-    // "not supported".
+    // AD5X IFS declares Native unconditionally, but before the printer.ifs
+    // tool_map is discovered set_tool_mapping() writes local state the firmware
+    // replays nothing from, so the user's pick would be dropped in silence.
+    // The warning is correct here.
     helix::test::StartedBackend<Ad5xIfsProbe> ad5x;
     CHECK(PrintStartControllerTestAccess::should_warn_remap_unsupported(ad5x));
 

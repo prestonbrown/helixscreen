@@ -26,9 +26,7 @@ using helix::gcode::strip_gcode_extension;
 
 namespace helix::ui {
 
-// ============================================================================
 // Static Methods
-// ============================================================================
 
 std::string PrintSelectCardView::get_default_thumbnail() {
     // Empty sentinel — views key the cube_outline icon on empty path.
@@ -49,9 +47,7 @@ bool PrintSelectCardView::has_real_thumbnail(const std::string& path) {
     return helix::fs::exists(std::string(fs_path));
 }
 
-// ============================================================================
 // Construction / Destruction
-// ============================================================================
 
 PrintSelectCardView::PrintSelectCardView() {
     spdlog::trace("[PrintSelectCardView] Constructed");
@@ -62,9 +58,7 @@ PrintSelectCardView::~PrintSelectCardView() {
     spdlog::trace("[PrintSelectCardView] Destroyed");
 }
 
-// ============================================================================
 // Setup / Cleanup
-// ============================================================================
 
 bool PrintSelectCardView::setup(lv_obj_t* container, FileClickCallback on_file_click,
                                 MetadataFetchCallback on_metadata_fetch) {
@@ -148,9 +142,7 @@ void PrintSelectCardView::cleanup() {
     spdlog::debug("[PrintSelectCardView] cleanup()");
 }
 
-// ============================================================================
 // Gradient Cache
-// ============================================================================
 
 // The color the cards sit on, when it is one solid color: the nearest ancestor
 // that paints an opaque, ungraded, image-free background.
@@ -220,9 +212,7 @@ void PrintSelectCardView::apply_gradient_to_card(lv_obj_t* card) {
     }
 }
 
-// ============================================================================
 // Pool Initialization
-// ============================================================================
 
 void PrintSelectCardView::init_pool(const CardDimensions& dims) {
     if (!container_ || pool_initialized_) {
@@ -420,9 +410,7 @@ void PrintSelectCardView::on_prebuild_tick(lv_timer_t* timer) {
     }
 }
 
-// ============================================================================
 // Card Configuration
-// ============================================================================
 
 #if defined(HELIX_PLATFORM_ESP32)
 void PrintSelectCardView::release_esp_thumbnails() {
@@ -483,7 +471,7 @@ void PrintSelectCardView::apply_thumbnail(lv_obj_t* card, CardWidgetData& data,
     } else {
         bool has_real_thumb = has_real_thumbnail(file.thumbnail_path);
 #if defined(HELIX_PLATFORM_ESP32)
-        // No disk thumbnail cache on this platform (Task 10 R6) — a fetched
+        // No disk thumbnail cache on this platform: a fetched
         // thumbnail lives in file.esp_thumbnail (PSRAM) instead of a file at
         // file.thumbnail_path, so has_real_thumbnail()'s on-disk exists
         // check alone would always report false here.
@@ -590,9 +578,7 @@ void PrintSelectCardView::configure_card(lv_obj_t* card, size_t pool_index, size
     lv_obj_set_hidden(card, false);
 }
 
-// ============================================================================
 // Population / Visibility
-// ============================================================================
 
 void PrintSelectCardView::populate(const std::vector<PrintFileData>& file_list,
                                    const CardDimensions& dims, bool preserve_scroll) {
@@ -664,7 +650,6 @@ void PrintSelectCardView::update_visible(const std::vector<PrintFileData>& file_
         return;
     }
 
-    // Get scroll position and container dimensions
     int32_t scroll_y = lv_obj_get_scroll_y(container_);
     int32_t viewport_height = lv_obj_get_height(container_);
 
@@ -741,9 +726,7 @@ void PrintSelectCardView::refresh_content(const std::vector<PrintFileData>& file
     }
 }
 
-// ============================================================================
 // Static Callbacks
-// ============================================================================
 
 void PrintSelectCardView::on_card_clicked(lv_event_t* e) {
     auto* self = static_cast<PrintSelectCardView*>(lv_event_get_user_data(e));

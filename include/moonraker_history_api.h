@@ -55,9 +55,7 @@ class MoonrakerHistoryAPI : public helix::IHistoryAPI {
     explicit MoonrakerHistoryAPI(helix::IMoonrakerClient& client);
     virtual ~MoonrakerHistoryAPI() = default;
 
-    // ========================================================================
     // Print History Operations
-    // ========================================================================
 
     /**
      * @brief Get paginated list of print history jobs

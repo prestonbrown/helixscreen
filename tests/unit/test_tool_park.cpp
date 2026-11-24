@@ -15,6 +15,7 @@
 #include "ams_backend_mock.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_backend_toolchanger.h"
+#include "ams_tool_park.h"
 #include "core/update_queue.h"
 #include "toolchanger_addon.h"
 
@@ -175,8 +176,8 @@ TEST_CASE("a changer's own unmount command parks; without one, nothing can",
 TEST_CASE("an AMS with one shared toolhead has no tool to park", "[ams][happy_hare][1784]") {
     HelixTestFixture fixture;
     AmsBackendHappyHare backend(nullptr, nullptr);
-    CHECK_FALSE(backend.supports_tool_park());
-    CHECK(backend.park_active_tool().result == AmsResult::NOT_SUPPORTED);
+    CHECK(backend.as<IToolPark>() == nullptr);
+    CHECK(usable_tool_park(&backend) == nullptr);
 }
 
 TEST_CASE("the mock parks only for the personas whose hardware can", "[ams][mock][1784]") {
@@ -202,6 +203,7 @@ TEST_CASE("the mock parks only for the personas whose hardware can", "[ams][mock
         backend.set_operation_delay(0);
         REQUIRE(backend.start());
         CHECK_FALSE(backend.supports_tool_park());
+        CHECK(usable_tool_park(&backend) == nullptr);
         CHECK(backend.park_active_tool().result == AmsResult::NOT_SUPPORTED);
         backend.stop();
     }

@@ -36,9 +36,7 @@
 #include <cstdio>
 #include <cstring>
 
-// ============================================================================
 // Constructor
-// ============================================================================
 
 SpoolmanPanel::SpoolmanPanel()
     : search_debounce_([this](const std::string&) { populate_spool_list(); }) {
@@ -49,13 +47,10 @@ SpoolmanPanel::~SpoolmanPanel() {
     deinit_subjects();
 }
 
-// ============================================================================
 // Subject Initialization
-// ============================================================================
 
 void SpoolmanPanel::init_subjects() {
     init_subjects_guarded([this]() {
-        // Initialize panel state subject (starts in LOADING state)
         UI_MANAGED_SUBJECT_INT(panel_state_subject_,
                                static_cast<int32_t>(SpoolmanPanelState::LOADING),
                                "spoolman_panel_state", subjects_);
@@ -76,9 +71,7 @@ void SpoolmanPanel::deinit_subjects() {
     spdlog::debug("[SpoolmanPanel] Subjects deinitialized");
 }
 
-// ============================================================================
 // Callback Registration
-// ============================================================================
 
 void SpoolmanPanel::register_callbacks() {
     register_xml_callbacks({
@@ -123,7 +116,6 @@ void SpoolmanPanel::register_callbacks() {
 
              auto& panel = get_global_spoolman_panel();
 
-             // Store the new query text
              const char* text = lv_textarea_get_text(textarea);
              panel.search_query_ = text ? text : "";
 
@@ -167,16 +159,13 @@ void SpoolmanPanel::register_callbacks() {
     });
 }
 
-// ============================================================================
 // Create
-// ============================================================================
 
 lv_obj_t* SpoolmanPanel::create(lv_obj_t* parent) {
     if (!OverlayBase::create(parent)) {
         return nullptr;
     }
 
-    // Find widget references
     spool_list_ = helix::ui::find_required(overlay_root_, "spool_list", get_name());
     if (!spool_list_) {
         return nullptr;
@@ -201,9 +190,7 @@ lv_obj_t* SpoolmanPanel::create(lv_obj_t* parent) {
     return overlay_root_;
 }
 
-// ============================================================================
 // Lifecycle Hooks
-// ============================================================================
 
 void SpoolmanPanel::on_activate() {
     // Call base class first
@@ -211,7 +198,6 @@ void SpoolmanPanel::on_activate() {
 
     spdlog::debug("[{}] on_activate()", get_name());
 
-    // Clear search and location filter on activation
     search_query_.clear();
     selected_location_.clear();
     lv_obj_t* search_box = helix::ui::find_required(overlay_root_, "search_box", get_name());
@@ -234,7 +220,6 @@ void SpoolmanPanel::on_ui_destroyed() {
 void SpoolmanPanel::on_deactivating(DeactivateReason) {
     SpoolmanManager::instance().stop_spoolman_polling();
 
-    // Clean up debounce timer
     search_debounce_.cancel();
 
     // Reset visible state but keep pool intact for reactivation
@@ -243,9 +228,7 @@ void SpoolmanPanel::on_deactivating(DeactivateReason) {
     spdlog::debug("[{}] on_deactivating()", get_name());
 }
 
-// ============================================================================
 // Data Loading
-// ============================================================================
 
 void SpoolmanPanel::refresh_spools() {
     // A queued archive/delete/duplicate completion refetches the GLOBAL panel
@@ -327,9 +310,7 @@ void SpoolmanPanel::refresh_spools() {
         });
 }
 
-// ============================================================================
 // UI State Management
-// ============================================================================
 
 void SpoolmanPanel::show_loading_state() {
     lv_subject_set_int(&panel_state_subject_, static_cast<int32_t>(SpoolmanPanelState::LOADING));
@@ -366,9 +347,7 @@ void SpoolmanPanel::update_spool_count() {
     }
 }
 
-// ============================================================================
 // Cache Lookup
-// ============================================================================
 
 const SpoolInfo* SpoolmanPanel::find_cached_spool(int spool_id) const {
     auto it = std::find_if(cached_spools_.begin(), cached_spools_.end(),
@@ -376,9 +355,7 @@ const SpoolInfo* SpoolmanPanel::find_cached_spool(int spool_id) const {
     return it != cached_spools_.end() ? &(*it) : nullptr;
 }
 
-// ============================================================================
 // Spool List Population
-// ============================================================================
 
 void SpoolmanPanel::populate_spool_list() {
     // An archive or delete answering after close refetches with no tree to fill.
@@ -399,7 +376,6 @@ void SpoolmanPanel::populate_spool_list() {
         search_query_ = text ? text : "";
     }
 
-    // Apply current search filter
     apply_filter();
     update_location_filter_dropdown();
 
@@ -504,15 +480,12 @@ void SpoolmanPanel::update_active_indicators() {
     list_view_.update_active_indicators(filtered_spools_, active_spool_id_);
 }
 
-// ============================================================================
 // Spool Selection
-// ============================================================================
 
 void SpoolmanPanel::handle_spool_clicked(lv_obj_t* row) {
     if (!row)
         return;
 
-    // Get spool ID from user_data
     void* user_data = lv_obj_get_user_data(row);
     int spool_id = static_cast<int>(reinterpret_cast<intptr_t>(user_data));
 
@@ -524,7 +497,6 @@ void SpoolmanPanel::handle_spool_clicked(lv_obj_t* row) {
         return;
     }
 
-    // Set up context menu action handler
     context_menu_.set_action_callback([this](helix::ui::SpoolmanContextMenu::MenuAction action,
                                              int id) { handle_context_action(action, id); });
 
@@ -618,9 +590,7 @@ void SpoolmanPanel::set_active_spool(int spool_id) {
         });
 }
 
-// ============================================================================
 // Edit Spool Modal
-// ============================================================================
 
 void SpoolmanPanel::show_edit_modal(int spool_id) {
     const SpoolInfo* spool = find_cached_spool(spool_id);
@@ -641,9 +611,7 @@ void SpoolmanPanel::show_edit_modal(int spool_id) {
     edit_modal_.show_for_spool(lv_screen_active(), *spool, api);
 }
 
-// ============================================================================
 // Delete Spool
-// ============================================================================
 
 void SpoolmanPanel::duplicate_spool(int spool_id) {
     helix::IMoonrakerAPI* api = get_moonraker_api();
@@ -785,9 +753,7 @@ void SpoolmanPanel::delete_spool(int spool_id) {
         });
 }
 
-// ============================================================================
 // Scroll Handler
-// ============================================================================
 
 void SpoolmanPanel::on_scroll(lv_event_t* e) {
     auto* self = static_cast<SpoolmanPanel*>(lv_event_get_user_data(e));

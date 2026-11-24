@@ -353,9 +353,7 @@ void leave_live_run(helix::IMoonrakerClient* client) {
     }
 }
 
-// ============================================================================
 // Runner
-// ============================================================================
 
 Runner::Runner(Hooks hooks) : hooks_(std::move(hooks)), steps_(build_sequence()) {}
 

@@ -45,9 +45,7 @@ ToolMapping mapped(int tool, int slot, int backend = 0) {
 
 } // namespace
 
-// =============================================================================
 // chip_severity
-// =============================================================================
 
 TEST_CASE("chip_severity: no lane, an empty lane and a different material block",
           "[filament_chip]") {
@@ -109,9 +107,7 @@ TEST_CASE("Auto prints from the lane the routing sends the tool to",
     CHECK(FilamentMapper::resolve_printing_slot(mapped(1, 0), slots, to_head_0) == &slots[0]);
 }
 
-// =============================================================================
 // chip_slot_label
-// =============================================================================
 
 TEST_CASE("chip_slot_label: one unit prints the bare 1-based number", "[filament_chip]") {
     std::vector<AvailableSlot> slots = {make_slot(0, 0, "PLA"), make_slot(1, 0, "PLA"),
@@ -173,9 +169,7 @@ TEST_CASE("slot_row_label: the dropdown names the unit the chip numbers", "[fila
     CHECK(slot_row_label(two[0], two) != slot_row_label(two[1], two));
 }
 
-// =============================================================================
 // rank_slots_for_tool / slot_fit_text
-// =============================================================================
 
 TEST_CASE("rank_slots_for_tool: tiers come in order and keep the input order inside one",
           "[filament_chip]") {
@@ -247,9 +241,7 @@ TEST_CASE("slot_fit_text: the reason, then the other tools sharing the slot", "[
     CHECK(slot_fit_text(r) == "empty, also T1, T3");
 }
 
-// =============================================================================
 // used_materials_text
-// =============================================================================
 
 TEST_CASE("used_materials_text: the used tools' materials, deduplicated in tool order",
           "[filament_chip]") {
@@ -261,9 +253,7 @@ TEST_CASE("used_materials_text: the used tools' materials, deduplicated in tool 
     CHECK(used_materials_text({}, std::set<int>{0}).empty());
 }
 
-// =============================================================================
 // split_filament_types / filament_type_text
-// =============================================================================
 
 TEST_CASE("split_filament_types: one trimmed entry per tool, empties kept in place",
           "[filament_chip]") {
@@ -284,9 +274,7 @@ TEST_CASE("filament_type_text: each material once, in tool order", "[filament_ch
     CHECK(filament_type_text(";;").empty());
 }
 
-// =============================================================================
 // loaded_severity
-// =============================================================================
 
 TEST_CASE("loaded_severity: unknown and Swap are Ok; a Loaded material that differs blocks",
           "[filament_chip]") {

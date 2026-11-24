@@ -17,9 +17,7 @@
 using json = nlohmann::json;
 namespace json_util = helix::json_util;
 
-// ============================================================================
 // Note name -> semitone offset from C
-// ============================================================================
 
 static const std::unordered_map<std::string, int>& note_semitones() {
     static const std::unordered_map<std::string, int> map = {
@@ -30,9 +28,7 @@ static const std::unordered_map<std::string, int>& note_semitones() {
     return map;
 }
 
-// ============================================================================
 // Waveform string -> enum
-// ============================================================================
 
 static Waveform parse_waveform(const std::string& s) {
     if (s == "square")
@@ -47,9 +43,7 @@ static Waveform parse_waveform(const std::string& s) {
     return Waveform::SQUARE;
 }
 
-// ============================================================================
 // Clamping helpers
-// ============================================================================
 
 static float clamp_freq(float freq) {
     return std::clamp(freq, 20.0f, 20000.0f);
@@ -63,9 +57,7 @@ static float clamp_velocity(float vel) {
     return std::clamp(vel, 0.0f, 1.0f);
 }
 
-// ============================================================================
 // ADSR parsing
-// ============================================================================
 
 static ADSREnvelope parse_envelope(const json& j, const ADSREnvelope& defaults) {
     ADSREnvelope env = defaults;
@@ -76,9 +68,7 @@ static ADSREnvelope parse_envelope(const json& j, const ADSREnvelope& defaults) 
     return env;
 }
 
-// ============================================================================
 // LFO parsing
-// ============================================================================
 
 static LFOParams parse_lfo(const json& j) {
     LFOParams lfo;
@@ -88,9 +78,7 @@ static LFOParams parse_lfo(const json& j) {
     return lfo;
 }
 
-// ============================================================================
 // Sweep parsing
-// ============================================================================
 
 static SweepParams parse_sweep(const json& j) {
     SweepParams sweep;
@@ -99,9 +87,7 @@ static SweepParams parse_sweep(const json& j) {
     return sweep;
 }
 
-// ============================================================================
 // Filter parsing
-// ============================================================================
 
 static FilterParams parse_filter(const json& j) {
     FilterParams filter;
@@ -111,9 +97,7 @@ static FilterParams parse_filter(const json& j) {
     return filter;
 }
 
-// ============================================================================
 // Step parsing
-// ============================================================================
 
 static SoundStep parse_step(const json& j, float bpm, Waveform default_wave, float default_vel,
                             const ADSREnvelope& default_env) {
@@ -205,9 +189,7 @@ static SoundStep parse_step(const json& j, float bpm, Waveform default_wave, flo
     return step;
 }
 
-// ============================================================================
 // Theme parsing from JSON object
-// ============================================================================
 
 static std::optional<SoundTheme> parse_theme(const json& j) {
     if (!j.is_object()) {
@@ -275,9 +257,7 @@ static std::optional<SoundTheme> parse_theme(const json& j) {
     return theme;
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 std::optional<SoundTheme> SoundThemeParser::load_from_file(const std::string& path) {
     const auto text = helix::text_io::read_file(path);

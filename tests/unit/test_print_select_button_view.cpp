@@ -63,9 +63,9 @@ TEST_CASE("button view: machine held without job_queue stays Disabled with today
 
 TEST_CASE("button view: macro analysis kills queue mode but the busy reason wins",
           "[print_select][button_view]") {
-    // Same precedence the pre-queue code had: can_start_new_print() decided
-    // first, so a machine-held print carries the busy reason even when an
-    // analysis is also running. Analysis only names itself on an idle machine.
+    // can_start_new_print() decides first, so a machine-held print carries the
+    // busy reason even when an analysis is also running. Analysis only names
+    // itself on an idle machine.
     auto in = machine_held(true);
     in.macro_analysis_running = true;
     const auto v = compute_print_select_button_view(in);

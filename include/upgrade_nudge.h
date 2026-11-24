@@ -12,9 +12,8 @@
  *
  * Decides when (and how insistently) to surface an available update to the
  * user. The intensity is a persistent config setting under
- * `/upgrade_nudge/intensity` in settings.json. Ships as `OFF` for now; gets
- * flipped to `AGGRESSIVE` via a release-coordination setting change at 1.0
- * launch — no code change needed.
+ * `/upgrade_nudge/intensity` in settings.json. The shipped default is `OFF`; a settings change
+ * to `AGGRESSIVE` turns it on with no code change.
  *
  * Gating:
  * - `Intensity::OFF`              — this class effectively no-ops. The Settings

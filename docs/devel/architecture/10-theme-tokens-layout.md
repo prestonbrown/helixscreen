@@ -9,7 +9,7 @@ Counts, recounted 2026-10-09 (method included so you can re-run it):
 | Theme presets shipped | 18 | `ls assets/config/themes/defaults/*.json \| wc -l` (nord, dracula, gruvbox, ...) |
 | Shared styles in the theme table | 41 | `StyleRole` entries before `COUNT` (`include/theme_manager.h#StyleRole`) |
 | `theme_manager_get_color()` call sites | 363 | `rg -c 'theme_manager_get_color\(' src include \| awk -F: '{s+=$2} END {print s}'` |
-| Breakpoint tiers | 7 | `UiBreakpoint` (`include/ui_breakpoint.h#UiBreakpoint`): Micro..XXLarge |
+| Breakpoint tiers | 7 | `UiBreakpoint` (`include/core/breakpoint.h#UiBreakpoint`): Micro..XXLarge |
 | Layout variants | 7 | `LayoutType` (`include/layout_manager.h#LayoutType`): standard, ultrawide, portrait, micro, micro_portrait, tiny, tiny_portrait |
 | globals.xml | 1444 lines | `wc -l ui_xml/globals.xml`: tiered consts and illustration colors, no semantic palette |
 | Top-level XML files the token scanner reads | 283 | `ls ui_xml/*.xml \| wc -l`: globals.xml plus 282 more, alphabetical last-wins |
@@ -50,7 +50,7 @@ flowchart TB
 | [`src/ui/theme/theme_manager_new.cpp`](../../../src/ui/theme/theme_manager_new.cpp) | `ThemeManager` singleton: the shared-style table and palette state |
 | [`src/ui/theme/theme_manager.cpp`](../../../src/ui/theme/theme_manager.cpp) | Init/deinit, `theme_manager_apply_theme()`, color lookups; process state lives in `ThemeRuntime` / `ThemeSubjects` ([`theme_manager_internal.h`](../../../src/ui/theme/theme_manager_internal.h)). The rest is split by job: `theme_token_scan.cpp` (discovery), `theme_tokens_register.cpp` (XML consts), `theme_responsive.cpp` (breakpoints, px tokens), `theme_fonts.cpp`, `theme_lvgl_apply.cpp` (the `helix_theme` wrapper), `theme_live_recolor.cpp` (the palette walker), `theme_color_math.cpp` (contrast, outline color), `overlay_geometry.cpp` (nav width, overlay sizes) |
 | [`src/ui/style_configs.cpp`](../../../src/ui/style_configs.cpp) | One `configure_*` function per `StyleRole`, writing palette colors into its style |
-| [`include/ui_breakpoint.h`](../../../include/ui_breakpoint.h) | The canonical 7-tier breakpoint ladder (`Micro`..`XXLarge`) and `breakpoint_for()` |
+| [`include/core/breakpoint.h`](../../../include/core/breakpoint.h) | The canonical 7-tier breakpoint ladder (`Micro`..`XXLarge`) and `breakpoint_for()` |
 | [`ui_xml/globals.xml`](../../../ui_xml/globals.xml) | Tiered `<px>`/`<str>`/`<color>` consts: the `globals` scope every `#token` resolves against |
 | [`src/ui/theme/theme_loader.cpp`](../../../src/ui/theme/theme_loader.cpp) | JSON theme loading: user themes dir first, then the 18 shipped defaults |
 | [`include/layout_manager.h`](../../../include/layout_manager.h) + [`src/layout_manager.cpp`](../../../src/layout_manager.cpp) | Aspect-ratio classification, `--layout` override, `variant_chain()` |
@@ -130,7 +130,7 @@ Both key off screen geometry, which makes them easy to conflate. They are indepe
 | | Breakpoints | Layout variants |
 |---|---|---|
 | Keyed by | narrow-axis (or vertical) resolution | aspect ratio |
-| Lives in | [`include/ui_breakpoint.h`](../../../include/ui_breakpoint.h) | [`src/layout_manager.cpp`](../../../src/layout_manager.cpp) |
+| Lives in | [`include/core/breakpoint.h`](../../../include/core/breakpoint.h) | [`src/layout_manager.cpp`](../../../src/layout_manager.cpp) |
 | Changes | token *values*, font sizes, the `ui_breakpoint` subject | `ui_is_portrait` / `ui_is_ultrawide`, the anchor table |
 | Example trigger | 800x480: `Medium`, `space_md=10` | 480x800 portrait: `ui_is_portrait` = 1 |
 | Forced for testing | not overridable (geometry is truth) | `--layout <type>` / `/display/layout` |
@@ -170,7 +170,7 @@ The traps, in rough order of how often they bite:
 - **Responsive tokens are top-level-only** (#1211); the gate runs in [`scripts/quality-checks.sh`](../../../scripts/quality-checks.sh).
 - **Tokens vs hex in C++:** `theme_manager_get_color()` resolves names; `theme_manager_parse_hex_color()` is for literal `#RRGGBB` strings only. The hex-count and hardcoded-pixel gates ratchet: never add to the baselines.
 - **Token names are global and last-wins.** A tiered const re-declared in a later top-level file silently overrides globals.xml. Prefix component-specific tokens (`ams_*`, `spool_*`) the way the existing files do.
-- **Never hand-roll breakpoint thresholds.** Use `breakpoint_for(res)` / `responsive_pick()` (`include/ui_breakpoint.h#breakpoint_for`) so the tier boundaries live in one place.
+- **Never hand-roll breakpoint thresholds.** Use `breakpoint_for(res)` / `responsive_pick()` (`include/core/breakpoint.h#breakpoint_for`) so the tier boundaries live in one place.
 - **Never hand-roll a tier check for a costly effect.** Ask `full_style_effects_allowed()`; a second copy of the rule drifts until two effects disagree about which boards can afford them.
 - **`ui_breakpoint` ref_values are enum ordinals.** Renumbering `UiBreakpoint` breaks every such binding invisibly.
 - **Palette lookups are not cached.** `theme_manager_get_color()` does string lookups against the const registry. Fine for setup code and observers; per-frame canvas renderers read `ThemeManager::instance().current_palette()` instead.
@@ -201,7 +201,7 @@ The traps, in rough order of how often they bite:
 7. `src/ui/theme/theme_tokens_register.cpp#helix::theme_detail/register_semantic_colors`: theme JSON palette to `card_bg`/`card_bg_light`/`card_bg_dark` consts.
 8. `src/ui/theme/theme_manager.cpp#theme_manager_apply_theme`: the whole live-switch sequence, including `reapply_xml_token_colors()` just above it.
 9. [`src/ui/theme/theme_live_recolor.cpp`](../../../src/ui/theme/theme_live_recolor.cpp): the walker, and the authored-property and chosen-style checks that keep it off what it does not own.
-10. `include/ui_breakpoint.h#UiBreakpoint`: the ladder, the narrow-axis thresholds, `breakpoint_for()`/`responsive_pick()`.
+10. `include/core/breakpoint.h#UiBreakpoint`: the ladder, the narrow-axis thresholds, `breakpoint_for()`/`responsive_pick()`.
 11. `ui_xml/globals.xml#space_xxs_tiny`: the `space_*` ladder in situ; note the comments documenting the register-before-parse ordering traps.
 12. `src/layout_manager.cpp#detect_layout_type`, then `src/layout_manager.cpp#variant_chain`.
 13. [`assets/config/default_layout.json`](../../../assets/config/default_layout.json): the anchor table and its `_comment` fields; then `src/system/panel_widget_config.cpp#build_default_grid` loading it through `variant_chain()`.

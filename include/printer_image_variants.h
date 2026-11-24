@@ -8,6 +8,7 @@
 
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <vector>
 
 /**
@@ -42,6 +43,16 @@ struct HardwareFacts {
     bool enclosure_top = false;
     /// The printer has a chamber heater, detected or manually assigned.
     bool has_chamber_heater = false;
+
+    /// Lists every field: one left out never advances the detected-facts
+    /// revision, so the image ignores changes to it.
+    bool operator==(const HardwareFacts& o) const {
+        return std::tie(filament_systems, enclosure_top, has_chamber_heater) ==
+               std::tie(o.filament_systems, o.enclosure_top, o.has_chamber_heater);
+    }
+    bool operator!=(const HardwareFacts& o) const {
+        return !(*this == o);
+    }
 };
 
 /// Whether @p key is a condition `image_variants` understands.

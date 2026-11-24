@@ -264,7 +264,7 @@ class PanelWidgetManager {
     /// event list.
     void notify_widget_defs_changed();
 
-    /// Get the PanelWidgetConfig for a panel (creates if needed).
+    /// The panel's cached_panel_widget_config() (include/panel_widget_config.h).
     class PanelWidgetConfig& get_widget_config(const std::string& panel_id);
 
   private:
@@ -350,13 +350,6 @@ class PanelWidgetManager {
         std::vector<std::string> widget_ids; // ordered list of active widget IDs
     };
     std::unordered_map<std::string, ActiveWidgetConfig> active_configs_;
-
-    /// Per-panel PanelWidgetConfig instances, cached by panel ID and lazily
-    /// created on first access. Main-thread only — no synchronization. A cached
-    /// config's load() is a no-op once loaded (#804); invalidation is explicit
-    /// via mark_dirty() (notify_config_changed) or clear_all_panel_configs()
-    /// (active-printer switch).
-    std::unordered_map<std::string, PanelWidgetConfig> panel_configs_;
 };
 
 } // namespace helix

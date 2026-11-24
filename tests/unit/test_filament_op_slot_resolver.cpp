@@ -7,11 +7,11 @@
  *
  * Run with: ./build/bin/helix-tests "[filament][op_slot]"
  *
- * Regression guard for prestonbrown/helixscreen#1065: on a single-extruder
- * multi-lane AMS (AD5X native ZMOD IFS) the backend never populates
- * tool_to_slot_map, so the old fallback collapsed the slot to the tool index
- * (0) and read slot 0's load-state — wrongly greying Unload while a *different*
- * lane was loaded to the toolhead. The loaded lane must come from current_slot.
+ * prestonbrown/helixscreen#1065: on a single-extruder multi-lane AMS (AD5X
+ * native ZMOD IFS) the backend never populates tool_to_slot_map, so a fallback
+ * that collapses the slot to the tool index (0) reads slot 0's load-state and
+ * wrongly greys Unload while a *different* lane is loaded to the toolhead. The
+ * loaded lane must come from current_slot.
  */
 
 #include "../test_helpers/print_state_test_drivers.h"
@@ -215,9 +215,7 @@ TEST_CASE("Panel op-target contract: Load follows the dropdown, Unload gated on 
     CHECK(panel_load_target(make_sys(/*tool_map=*/{}, /*current_slot=*/-1), /*T0=*/0, 1) == -1);
 }
 
-// ---------------------------------------------------------------------------
 // Print-state gating
-// ---------------------------------------------------------------------------
 //
 // Load/Unload both run through AmsSubscriptionBackend::check_preconditions(true)
 // -> refuse_if_printing(). The panel gated on load state alone, so during a

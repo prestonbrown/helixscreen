@@ -44,9 +44,7 @@ using helix::RecoveryAction;
 
 namespace {
 
-// ---------------------------------------------------------------------------
 // Expectation plumbing
-// ---------------------------------------------------------------------------
 
 /// Every field of a RecoveryAction, so nothing can drift unnoticed.
 struct ExpectedAction {
@@ -82,12 +80,10 @@ void check_common_shape(const ErrorEvent& e, helix::ErrorSource source) {
 
 } // namespace
 
-// ---------------------------------------------------------------------------
 // Backend drivers. Global scope, and named in the friend lists on
 // ams_backend_happy_hare.h / ams_backend_afc.h — the repo's established way for
 // a test to drive private backend state (an anonymous-namespace class cannot be
 // befriended).
-// ---------------------------------------------------------------------------
 
 namespace helix {
 
@@ -169,9 +165,7 @@ class InertBackend : public helix::AmsBackendMock {
 
 } // namespace
 
-// ===========================================================================
 // Happy Hare
-// ===========================================================================
 
 TEST_CASE("Characterization: Happy Hare runout event, filament at the toolhead",
           "[ams][happy_hare][error-center][characterization][1250]") {
@@ -264,9 +258,7 @@ TEST_CASE("Characterization: Happy Hare declines lines it does not own",
     CHECK_FALSE(hh.classify_error("!! something unrelated", ctx).has_value());
 }
 
-// ===========================================================================
 // AFC
-// ===========================================================================
 
 TEST_CASE("Characterization: AFC toolhead jam from a !! line",
           "[ams][afc][error-center][characterization][1250]") {
@@ -364,9 +356,7 @@ TEST_CASE("Characterization: AFC declines lines it does not own",
     CHECK_FALSE(afc.classify_error("!! tool_end triggered", ctx).has_value());
 }
 
-// ===========================================================================
 // Shared helpers and base defaults
-// ===========================================================================
 
 TEST_CASE("helix::is_bang_line / strip_bang_prefix preserve the hand-rolled edge cases",
           "[ams][error-center][characterization][1250]") {

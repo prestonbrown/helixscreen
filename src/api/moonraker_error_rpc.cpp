@@ -26,7 +26,6 @@ MoonrakerError MoonrakerError::from_json_rpc(const json& error_obj,
         err.message = extract_friendly_message(msg_it->get<std::string>());
     }
 
-    // Map specific error codes to types
     if (err.code == -32601) { // Method not found
         err.type = MoonrakerErrorType::VALIDATION_ERROR;
     } else if (err.message.find("not ready") != std::string::npos) {

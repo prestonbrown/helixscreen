@@ -316,7 +316,6 @@ class PACalibrationPanel : public OverlayBase {
     int attempts_seen_ = 0;
     int attempts_expected_ = 0;
 
-    // Subjects
     SubjectManager subjects_;
 
     helix::Subject state_subject_{};

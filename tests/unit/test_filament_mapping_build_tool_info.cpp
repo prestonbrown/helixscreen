@@ -75,7 +75,7 @@ TEST_CASE("build_tool_info: empty or invalid color falls back to grey",
     CHECK(tools[1].color_rgb == 0x808080);
 }
 
-// --- Unknown colors are not a color -----------------------------------------
+// Unknown colors are not a color
 //
 // Moonraker does not always report filament_colors. Every OrcaSlicer file on a
 // K2 Plus comes back with filament_type and no color key at all, so the palette
@@ -85,8 +85,9 @@ TEST_CASE("build_tool_info: empty or invalid color falls back to grey",
 //
 // Flagging that is what keeps a stand-in from being read as a claim: the
 // mapping pill paints a solid grey dot from color_rgb, and compute_defaults
-// runs a nearest-color search against the real lane colors. Both were acting on
-// 0x808080 as though the slicer had chosen it. (The regression this pins: a
+// runs a nearest-color search against the real lane colors. Both would act on
+// 0x808080 as though the slicer had chosen it (a re-opened 133MB print showed
+// "grey dot -> black dot" on a K2 Plus).
 // re-opened 133MB print showed "grey dot -> black dot" on a K2 Plus.)
 
 TEST_CASE("build_tool_info: a tool with no palette entry is color-unknown",

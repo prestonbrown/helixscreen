@@ -101,7 +101,7 @@ std::string find_rfkill_node(const std::string& sys_root, const std::string& net
 ///
 /// Used to gate WiFiManager's stored-radio-state reassert: reasserting "off"
 /// on a device whose only network path is the radio just disabled would
-/// strand it (helixscreen wifi-interface-identity Task 15, CC1 incident).
+/// strand it (seen on the CC1).
 ///
 /// Guards every filesystem walk with std::error_code; a missing or unreadable
 /// `<sys_root>/class/net` returns false rather than throwing.

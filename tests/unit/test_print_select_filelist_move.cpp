@@ -68,9 +68,7 @@ class PrintSelectFilelistFixture : public PrintSelectPanelFixture {
 
 } // namespace
 
-// ============================================================================
-// The regression: a move OUT of gcodes reports a foreign item root
-// ============================================================================
+// A move OUT of gcodes reports a foreign item root
 
 TEST_CASE_METHOD(PrintSelectFilelistFixture, "A move out of the gcodes root refreshes the listing",
                  "[print_select][filelist][1575]") {
@@ -130,9 +128,7 @@ TEST_CASE_METHOD(PrintSelectFilelistFixture,
     REQUIRE_FALSE(PrintSelectPanelTestAccess::list_contains(*panel_, file.name()));
 }
 
-// ============================================================================
 // Payload shapes the parse must survive before the filter can run
-// ============================================================================
 
 TEST_CASE_METHOD(PrintSelectFilelistFixture, "A filelist frame with null fields reaches the filter",
                  "[print_select][filelist][1575]") {

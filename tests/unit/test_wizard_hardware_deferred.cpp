@@ -95,9 +95,7 @@ class DeferredHardwareFixture : public HelixTestFixture {
     }
 };
 
-// ============================================================================
 // (a) A wizard that finished with Klipper down must not commit an empty snapshot
-// ============================================================================
 
 TEST_CASE_METHOD(DeferredHardwareFixture,
                  "Deferred hardware: Klipper-down completion records a debt instead of an empty "
@@ -137,9 +135,7 @@ TEST_CASE_METHOD(DeferredHardwareFixture,
     CHECK_FALSE(helix::wizard_hardware_snapshot_is_deferred(true, true));
 }
 
-// ============================================================================
 // (b) The marker is per-printer
-// ============================================================================
 
 TEST_CASE_METHOD(DeferredHardwareFixture,
                  "Deferred hardware: the marker is per-printer, not per-config",
@@ -178,9 +174,7 @@ TEST_CASE_METHOD(DeferredHardwareFixture,
     CHECK(helix::wizard_hardware_setup_deferred(&config));
 }
 
-// ============================================================================
 // (c) A normally-completed wizard sets no marker and is never prompted
-// ============================================================================
 
 TEST_CASE_METHOD(DeferredHardwareFixture, "Deferred hardware: a normal completion sets no marker",
                  "[wizard][hardware][deferred]") {
@@ -214,9 +208,7 @@ TEST_CASE_METHOD(DeferredHardwareFixture,
     CHECK_FALSE(helix::wizard_hardware_setup_deferred(&config));
 }
 
-// ============================================================================
 // (d) The snapshot IS written on the first successful discovery
-// ============================================================================
 
 TEST_CASE_METHOD(DeferredHardwareFixture,
                  "Deferred hardware: first successful discovery writes the owed snapshot",
@@ -331,9 +323,7 @@ TEST_CASE_METHOD(DeferredHardwareFixture,
     CHECK(HardwareValidator::acknowledge_discovered_hardware(nullptr, client.hardware()) == 0);
 }
 
-// ============================================================================
 // The re-run offer: which steps it presents
-// ============================================================================
 
 TEST_CASE_METHOD(DeferredHardwareFixture,
                  "Deferred hardware: the offer runs the hardware steps in wizard order",

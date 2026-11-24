@@ -43,6 +43,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ratchet  # noqa: E402
+from source_strip import blank_cxx, blank_xml_comments  # noqa: E402
 from staged_content import staged_files  # noqa: E402
 
 CPP_DIRS = ("src", "include")
@@ -73,8 +74,6 @@ CPP_FILL = re.compile(
     r"(?:\.bg_color\s*=|lv_obj_set_style_bg_color\s*\()[^;]*"
     r"(?:color_rgb|filament|spool|slot|\bled|led_|tool_color|swatch|preset)", re.I)
 CPP_WINDOW = 8
-LINE_COMMENT = re.compile(r"//.*$")
-XML_COMMENT = re.compile(r"<!--.*?-->", re.S)
 
 
 def exempt(rel: str) -> bool:
@@ -96,7 +95,7 @@ def count_xml(rel: str, text: str) -> tuple[dict[str, int], list[str]]:
     detail: list[str] = []
     lines = text.splitlines()
     # Blank out comments (keeping offsets) so commented-out markup is not counted.
-    scan = XML_COMMENT.sub(lambda m: re.sub(r"[^\n]", " ", m.group(0)), text)
+    scan = blank_xml_comments(text)
 
     # Walk the tags, tracking each open element's bound-bg child.
     stack: list[dict] = []
@@ -155,7 +154,7 @@ def count_cpp(rel: str, text: str) -> tuple[dict[str, int], list[str]]:
     counts: dict[str, int] = {}
     detail: list[str] = []
     raw_lines = text.splitlines()
-    code = [LINE_COMMENT.sub("", ln) for ln in raw_lines]
+    code = blank_cxx(text, strings="keep").splitlines()
     fills = [bool(CPP_FILL.search(c)) for c in code]
     prev_ok = False
     for i, raw in enumerate(raw_lines):

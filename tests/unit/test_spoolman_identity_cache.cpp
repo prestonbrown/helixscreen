@@ -45,11 +45,9 @@
 
 using namespace helix;
 
-// ============================================================================
 // TestAccess — the identity cache has no public reset, and the 5s refresh
 // debounce has to be defeated to poll twice inside one test (L065: friend class,
 // no test-only methods on the production class).
-// ============================================================================
 
 class SpoolmanIdentityTestAccess {
   public:
@@ -130,9 +128,7 @@ std::string material_text() {
 
 } // namespace
 
-// ============================================================================
 // Fixture
-// ============================================================================
 
 class IdentityCacheFixture : public LVGLTestFixture {
   public:
@@ -172,9 +168,7 @@ class IdentityCacheFixture : public LVGLTestFixture {
     }
 };
 
-// ============================================================================
 // 1. Cache semantics
-// ============================================================================
 
 TEST_CASE_METHOD(IdentityCacheFixture, "SpoolmanManager identity: a miss is nullopt",
                  "[spoolman][identity]") {
@@ -325,9 +319,7 @@ TEST_CASE_METHOD(IdentityCacheFixture,
     CHECK(SpoolmanManager::find_identity(43).has_value());
 }
 
-// ============================================================================
 // 2. The poll path — identity from the fetch that already happens
-// ============================================================================
 
 namespace {
 
@@ -469,9 +461,7 @@ TEST_CASE_METHOD(IdentityCacheFixture,
     CHECK(SpoolmanManager::find_identity(900).has_value());
 }
 
-// ============================================================================
 // 3. The label, end to end through AmsState
-// ============================================================================
 
 namespace {
 
@@ -656,9 +646,7 @@ TEST_CASE_METHOD(IdentityCacheFixture,
     ams.deinit_subjects();
 }
 
-// ============================================================================
 // 4. Arming the poll, and telling the UI when an identity lands
-// ============================================================================
 
 TEST_CASE_METHOD(IdentityCacheFixture,
                  "SpoolmanManager polling: a request made before Spoolman is available still arms",

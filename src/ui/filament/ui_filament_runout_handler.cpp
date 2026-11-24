@@ -8,6 +8,7 @@
 #include "ui_unload_lane_choice.h"
 
 #include "ams_backend.h"
+#include "ams_runout_other_head.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/observer_factory.h"
@@ -39,7 +40,8 @@ std::optional<helix::runout_other_head::RunoutFacts> printer_facts(int runout_he
     if (backend == nullptr || runout_head < 0) {
         return std::nullopt;
     }
-    return backend->runout_other_head_facts(runout_head);
+    const auto* reporter = backend->as<IRunoutOtherHead>();
+    return reporter != nullptr ? reporter->runout_other_head_facts(runout_head) : std::nullopt;
 }
 
 } // namespace

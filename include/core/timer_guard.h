@@ -87,11 +87,7 @@ class LvglTimerGuard {
  *
  * For long offline phases that report no percentage (input-shaper analysis,
  * PID settling): the bar is swapped for a spinner and this timer keeps a
- * "Phase... Ns" label moving so the screen never looks frozen. Extracted from
- * InputShaperPanel's analysis elapsed timer, which was a structural twin of
- * PIDCalibrationPanel's eta timer; the PID panel is the intended follow-up
- * consumer and is deliberately not migrated in the branch that introduced
- * this class.
+ * "Phase... Ns" label moving so the screen never looks frozen.
  *
  * Threading/lifecycle contract:
  * - begin()/cancel() must run on the main thread (they touch LVGL + subjects)

@@ -15,6 +15,7 @@
 #include "layout_manager.h"
 #include "lvgl/lvgl.h"
 #include "lvgl/src/display/lv_display_private.h" // screens[]: LVGL has no screen iterator
+#include "render_theme.h"
 #include "theme_loader.h"
 #include "theme_manager_internal.h"
 #include "theme_token_table.h"
@@ -661,6 +662,14 @@ lv_color_t theme_manager_get_color(const char* base_name) {
     }
     return lv_color_hex(0x000000);
 }
+
+namespace {
+// Installed at load rather than in theme_manager_init(): theme_manager_get_color()
+// answers from the XML token registry before init too (tests, early boot), and
+// the renderers must resolve exactly what it does in every state.
+[[maybe_unused]] const bool g_render_theme_installed =
+    (helix::render_theme::set_color_source(&theme_manager_get_color), true);
+} // namespace
 
 // NAMESPACE_OK: joins this header's global theme_manager_* free-function API
 bool theme_manager_has_color(const char* base_name) {

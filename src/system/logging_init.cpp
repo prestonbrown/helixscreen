@@ -584,8 +584,8 @@ bool should_add_console(LogTarget effective_target, bool enable_console, bool fo
         // rationale on should_add_console() in logging_init.h.
         //
         // test_mode attaches the console for ANY stdout kind, closing the gap for
-        // `--test -vv > file` (#1105's literal repro, which a reporter may well
-        // have redirected rather than piped). Safe because --test never runs in
+        // `--test -vv > file` (#1105; a reporter may redirect rather
+        // than pipe). Safe because --test never runs in
         // production: no systemd unit, init script, procd shim, or launcher
         // passes it, so test mode cannot reach a daemonized double-log path.
         if (test_mode)

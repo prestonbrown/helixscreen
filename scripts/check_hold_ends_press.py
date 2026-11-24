@@ -31,10 +31,13 @@
 from __future__ import annotations
 
 import argparse
+import functools
 import re
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
+
+from source_strip import blank_cxx
 
 PASS_MARKERS = ("end_press(", "HOLD_DECLINES_OK")
 
@@ -42,40 +45,24 @@ CPP_REGISTRATION = re.compile(
     r"lv_obj_add_event_cb\(\s*[^,]+,\s*&?([A-Za-z_][\w:]*)\s*,\s*LV_EVENT_LONG_PRESSED\b")
 
 
-def skip_literal(text: str, i: int) -> int:
-    """Index just past the string/char literal or comment starting at i, else i."""
-    if text.startswith("//", i):
-        end = text.find("\n", i)
-        return len(text) if end < 0 else end
-    if text.startswith("/*", i):
-        end = text.find("*/", i + 2)
-        return len(text) if end < 0 else end + 2
-    if text[i] in "\"'":
-        quote = text[i]
-        j = i + 1
-        while j < len(text) and text[j] != quote:
-            j += 2 if text[j] == "\\" else 1
-        return j + 1
-    return i
+@functools.lru_cache(maxsize=None)
+def _blanked(text: str) -> str:
+    return blank_cxx(text)
 
 
 def brace_body(text: str, open_idx: int) -> str | None:
-    """The text from the '{' at open_idx through its matching '}'."""
+    """The text from the '{' at open_idx through its matching '}'. Braces inside
+    comments and literals do not count."""
+    code = _blanked(text)
     depth = 0
-    i = open_idx
-    while i < len(text):
-        j = skip_literal(text, i)
-        if j != i:
-            i = j
-            continue
-        c = text[i]
+    for i in range(open_idx, len(code)):
+        c = code[i]
         if c == "{":
             depth += 1
         elif c == "}":
             depth -= 1
             if depth == 0:
                 return text[open_idx:i + 1]
-        i += 1
     return None
 
 

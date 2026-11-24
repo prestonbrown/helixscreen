@@ -14,7 +14,6 @@ void PrintSelectHistoryIntegration::merge_history_into_files(
     std::vector<PrintFileData>& files,
     const std::unordered_map<std::string, PrintHistoryStats>& stats_by_filename,
     const std::string& current_print_filename) {
-    // Extract basename from current print filename
     std::string current_print_basename = extract_basename(current_print_filename);
 
     for (auto& file : files) {

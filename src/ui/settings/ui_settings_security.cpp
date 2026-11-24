@@ -91,9 +91,7 @@ void SecuritySettingsOverlay::run_set_pin_flow() {
         });
 }
 
-// ============================================================================
 // EVENT HANDLERS
-// ============================================================================
 
 void SecuritySettingsOverlay::handle_change_pin_clicked() {
     spdlog::info("[{}] Change PIN clicked", get_name());

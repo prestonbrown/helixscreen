@@ -80,9 +80,7 @@ HELIX_PSRAM_BSS helix::Subject AmsContextMenu::slot_clear_shown_subject_;
 HELIX_PSRAM_BSS helix::Subject AmsContextMenu::slot_spoolman_shown_subject_;
 HELIX_PSRAM_BSS helix::Subject AmsContextMenu::slot_scan_qr_shown_subject_;
 
-// ============================================================================
 // Construction / Destruction
-// ============================================================================
 
 void AmsContextMenu::init_subjects() {
     s_subjects.ensure_init([] {
@@ -172,9 +170,7 @@ AmsContextMenu& AmsContextMenu::operator=(AmsContextMenu&& other) noexcept {
     return *this;
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 void AmsContextMenu::set_action_callback(ActionCallback callback) {
     action_callback_ = std::move(callback);
@@ -183,7 +179,6 @@ void AmsContextMenu::set_action_callback(ActionCallback callback) {
 bool AmsContextMenu::show_near_widget(lv_obj_t* parent, int slot_index, lv_obj_t* near_widget,
                                       bool is_loaded, AmsBackend* backend,
                                       std::optional<lv_point_t> tap) {
-    // Register callbacks once (idempotent)
     register_callbacks();
 
     // Store AMS-specific state BEFORE base class calls on_created
@@ -210,7 +205,6 @@ bool AmsContextMenu::show_anchored(lv_obj_t* parent, int item_index, lv_obj_t* a
 
 bool AmsContextMenu::show_for_external_spool(lv_obj_t* parent, lv_obj_t* anchor_widget,
                                              bool offer_toggle, std::optional<lv_point_t> tap) {
-    // Register callbacks once (idempotent)
     register_callbacks();
 
     // Configure for external spool mode (no backend operations)
@@ -230,9 +224,7 @@ bool AmsContextMenu::show_for_external_spool(lv_obj_t* parent, lv_obj_t* anchor_
     return result;
 }
 
-// ============================================================================
 // ContextMenu override
-// ============================================================================
 
 void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
     int slot_index = get_item_index();
@@ -343,8 +335,7 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
 
     // Check if system is busy (operation in progress). AmsSystemInfo::is_busy()
     // is the same predicate AmsSubscriptionBackend::check_preconditions() uses to
-    // refuse — this used to open-code it, which is how the filament panel came to
-    // have no busy term at all.
+    // refuse, so the menu and the backend cannot disagree about busy.
     bool system_busy = false;
     if (backend_) {
         AmsSystemInfo info = backend_->get_system_info();
@@ -465,10 +456,9 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
     }
 
     // Show Clear Spool whenever the slot carries an assignment, present or not
-    // (should_show_clear_spool). It used to be gated on an EMPTY slot, so it
-    // disappeared the moment a spool went in — exactly when stale metadata does
-    // damage, since that is when it gets printed with and when an edit aims a
-    // Spoolman write at the previous spool.
+    // (should_show_clear_spool). It is not gated on an empty slot: stale metadata
+    // does its damage once a spool is in, since that is when it gets printed with
+    // and when an edit aims a Spoolman write at the previous spool.
     if (backend_) {
         SlotInfo slot_info = backend_->get_slot_info(slot_index);
         lv_subject_set_int(&slot_clear_shown_subject_, should_show_clear_spool(slot_info) ? 1 : 0);
@@ -514,9 +504,7 @@ void AmsContextMenu::append_slot_plugin_rows(lv_obj_t* menu_obj, int slot_index)
         /*divider=*/false, PluginRowLayout::Column);
 }
 
-// ============================================================================
 // Event Handlers
-// ============================================================================
 
 void AmsContextMenu::dispatch_ams_action(MenuAction action) {
     int slot = get_item_index();
@@ -762,9 +750,7 @@ void AmsContextMenu::handle_scan_qr() {
     dispatch_ams_action(MenuAction::SCAN_QR);
 }
 
-// ============================================================================
 // Static Callback Registration
-// ============================================================================
 
 void AmsContextMenu::register_callbacks() {
     if (callbacks_registered_) {
@@ -792,9 +778,7 @@ void AmsContextMenu::register_callbacks() {
     spdlog::debug("[AmsContextMenu] Callbacks registered");
 }
 
-// ============================================================================
 // Static Callbacks (Instance Lookup via ContextMenu::active())
-// ============================================================================
 
 AmsContextMenu* AmsContextMenu::get_active_instance() {
     auto* self = ContextMenu::active_as<AmsContextMenu>();

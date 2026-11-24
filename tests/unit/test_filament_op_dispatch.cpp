@@ -78,11 +78,8 @@ BackendCaps fresh_ams() {
 
 } // namespace
 
-// =============================================================================
 // Tier selection
-// =============================================================================
 
-// ---------------------------------------------------------------------------
 // Macro override precedence (Settings > Macro Buttons)
 //
 // A macro the USER assigned outranks a filament system that would otherwise own
@@ -90,7 +87,6 @@ BackendCaps fresh_ams() {
 // to disagree about this — plan_load() let bypass fall through to the macro tier
 // while plan_unload() gated tier 1 on the backend merely existing — so a custom
 // Unload macro was silently discarded on every AMS printer.
-// ---------------------------------------------------------------------------
 
 TEST_CASE("dispatch: a user-configured macro outranks the backend on both ops",
           "[filament][dispatch][macro_override]") {
@@ -192,7 +188,6 @@ TEST_CASE("plan_load: bypass reaches the macro even with a backend present",
     CHECK(plan.ams_call == AmsCall::None);
 }
 
-// ---------------------------------------------------------------------------
 // Bypass suppresses tier 1 for the BYPASS spool. It must not suppress it for a
 // lane the user named.
 //
@@ -207,7 +202,6 @@ TEST_CASE("plan_load: bypass reaches the macro even with a backend present",
 // the way -- unless the bypass spool is still across the toolhead, which no
 // amount of gcode can fix (the switch sits above the cutter and reads the
 // upstream piece; only the user's hand clears it).
-// ---------------------------------------------------------------------------
 
 TEST_CASE("plan_load: a named lane under bypass reaches the backend, not the external macro",
           "[filament][dispatch][tier][bypass]") {
@@ -322,9 +316,7 @@ TEST_CASE("plan_load: a backend that never wanted a slot is untouched by the byp
     CHECK(plan.tier == FilamentTier::Macro);
 }
 
-// =============================================================================
 // Tier 1: what the backend is actually asked to do
-// =============================================================================
 
 TEST_CASE("plan_load: nothing seated dispatches a plain load", "[filament][dispatch]") {
     AmsSystemInfo sys = make_sys(4, -1);
@@ -419,9 +411,7 @@ TEST_CASE("plan_load: reloading the seated slot itself is a plain load, not a sw
     CHECK(plan.ams_arg == 2);
 }
 
-// =============================================================================
 // Refusals
-// =============================================================================
 
 TEST_CASE("plan_load: unresolved slot refuses with SelectSlot", "[filament][dispatch][refusal]") {
     AmsSystemInfo sys = make_sys(4, -1);
@@ -432,9 +422,7 @@ TEST_CASE("plan_load: unresolved slot refuses with SelectSlot", "[filament][disp
     CHECK(plan.refusal == FilamentRefusal::SelectSlot);
 }
 
-// =============================================================================
 // Unload — deliberately asymmetric with load
-// =============================================================================
 
 TEST_CASE("plan_unload: a present backend owns the unload even under bypass",
           "[filament][dispatch][bypass]") {
@@ -471,9 +459,7 @@ TEST_CASE("plan_unload: no backend falls through to macro then raw gcode",
     CHECK(without.tier == FilamentTier::RawGcode);
 }
 
-// =============================================================================
 // Bypass / external spool — the -2 sentinel is a TARGET, not "no slot"
-// =============================================================================
 
 TEST_CASE("unload_target_is_loaded: bypass reads the aggregate, not per-slot sensors",
           "[filament][dispatch][bypass]") {
@@ -601,9 +587,7 @@ TEST_CASE("plan_unload: an unaccounted toolhead unloads from the active head, an
     CHECK(other.tier == FilamentTier::Refused);
 }
 
-// =============================================================================
 // Manual pull — which unloads leave filament for the user to remove by hand
-// =============================================================================
 
 TEST_CASE("unload_needs_manual_pull: only unloads with no lane to retract into",
           "[filament][dispatch][bypass]") {

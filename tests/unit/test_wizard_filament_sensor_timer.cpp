@@ -11,9 +11,7 @@
 
 #include "../catch_amalgamated.hpp"
 
-// ============================================================================
 // Deferred refresh one-shot must not outlive the step (prestonbrown/helixscreen#1577)
-// ============================================================================
 // cleanup() cancels the one-shot, so the navigation path is covered. A teardown
 // that destroys the step WITHOUT calling cleanup() first must not leave it
 // armed on a freed `this`: StaticPanelRegistry::destroy_all() runs BEFORE

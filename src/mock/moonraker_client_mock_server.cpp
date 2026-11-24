@@ -1202,9 +1202,7 @@ json MoonrakerClientMock::mock_db_get(const std::string& ns, const std::string& 
     return value ? *value : json();
 }
 
-// ============================================================================
 // Simulated update_manager upgrade
-// ============================================================================
 
 namespace {
 /// What one simulated upgrade reports, one line per step.

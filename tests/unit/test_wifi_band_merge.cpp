@@ -33,9 +33,7 @@ const WiFiNetwork* find_ssid(const std::vector<WiFiNetwork>& nets, const std::st
 
 } // namespace
 
-// =============================================================================
 // Frequency -> band classification
-// =============================================================================
 
 TEST_CASE("wifi_band_flag_from_frequency classifies the WiFi bands", "[wifi][band][1189]") {
     SECTION("2.4GHz channels") {
@@ -71,9 +69,7 @@ TEST_CASE("WiFiNetwork derives band_mask from its frequency", "[wifi][band][1189
     CHECK(WiFiNetwork("Net", 60, true, "WPA2").band_mask == WIFI_BAND_NONE);
 }
 
-// =============================================================================
-// The regression itself: merging must not erase a band
-// =============================================================================
+// Merging must not erase a band
 
 TEST_CASE("Dual-band SSID keeps both bands after merge", "[wifi][band][1189]") {
     // The reporter's topology: one SSID, 2.4GHz stronger than its 5GHz twin.
@@ -171,9 +167,7 @@ TEST_CASE("Merge of an empty scan yields an empty list", "[wifi][band][1189]") {
     CHECK(wifi_merge_networks_by_ssid({}).empty());
 }
 
-// =============================================================================
 // UI formatting rules
-// =============================================================================
 
 TEST_CASE("wifi_format_band_label renders a compact badge", "[wifi][band][1189]") {
     CHECK(wifi_format_band_label(WIFI_BAND_NONE).empty());
@@ -223,9 +217,7 @@ TEST_CASE("Band badges are only offered when the scan spans bands", "[wifi][band
     }
 }
 
-// =============================================================================
 // Mock backend wiring — the dual-band SSID must survive to the picker
-// =============================================================================
 
 TEST_CASE("Mock backend surfaces its dual-band SSID as one row with both bands",
           "[wifi][band][1189][mock]") {

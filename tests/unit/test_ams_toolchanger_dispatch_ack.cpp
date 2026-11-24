@@ -5,10 +5,9 @@
  * @file test_ams_toolchanger_dispatch_ack.cpp
  * @brief klipper-toolchanger optimistic dispatch + macro-ack resolution (#1183).
  *
- * The AFC half of #1183 was fixed by resolving the operation on the macro's
- * gcode ack instead of waiting for a status transition that a no-op never
- * produces. klipper-toolchanger was never given the same treatment, and it has
- * the same hole for the same reason.
+ * AFC resolves the operation on the macro's gcode ack instead of waiting for a
+ * status transition that a no-op never produces (#1183). klipper-toolchanger
+ * needs the same, for the same reason.
  *
  * change_tool() stamps AmsAction::SELECTING optimistically and sends
  * `SELECT_TOOL TOOL="tool T<n>"` through the ack-discarding 1-arg execute_gcode(). The
@@ -152,9 +151,7 @@ bool trace_contains(const std::vector<helix::AmsAction>& trace, helix::AmsAction
 
 } // namespace
 
-// =============================================================================
 // The reported defect: a no-op SELECT_TOOL must still end the operation
-// =============================================================================
 
 TEST_CASE("Toolchanger mount of the already-mounted tool resolves on the macro ack",
           "[ams][toolchanger][dispatch][1183]") {
@@ -175,7 +172,7 @@ TEST_CASE("Toolchanger mount of the already-mounted tool resolves on the macro a
 
     h.ack(0);
 
-    // Asserting the end value alone would pass without the fix — IDLE is where
+    // Asserting the end value alone would pass vacuously — IDLE is where
     // this started. The busy leg above is the load-bearing half of the pair.
     CHECK(h.trace().back() == helix::AmsAction::IDLE);
     CHECK(h.action() == helix::AmsAction::IDLE);
@@ -201,9 +198,7 @@ TEST_CASE("Toolchanger no-op mount does not lock out the next operation",
     CHECK(h.sent().size() == 2);
 }
 
-// =============================================================================
-// Guard rails on the fix itself
-// =============================================================================
+// Guard rails on the ack resolution
 
 TEST_CASE("Toolchanger macro ack does not truncate a real tool change",
           "[ams][toolchanger][dispatch][1183]") {
@@ -267,9 +262,7 @@ TEST_CASE("Toolchanger dispatch failure reverts the optimistic action",
     CHECK_FALSE(h.get_system_info().is_busy());
 }
 
-// =============================================================================
 // Which argument form SELECT_TOOL takes
-// =============================================================================
 
 TEST_CASE("A changer whose SELECT_TOOL takes only tool numbers mounts with T=",
           "[ams][toolchanger][dispatch][commands]") {

@@ -6,15 +6,15 @@
  * @brief Tests for the pure preview-reconciliation decision function.
  *
  * These tests call the REAL helix::ui::decide_preview_action() (not a shadow
- * copy), so they double as the regression guard for the self-healing re-entry
+ * copy), so they also pin the self-healing re-entry
  * behavior: the decision reads ACTUAL widget state (thumbnail has source, gcode
  * has geometry) rather than intent bools that can lie after destroy-on-close /
  * memory reclaim.
  *
- * Bug context: navigating away from Print Status mid-print and back left the
- * preview blank because dedup guards said "showing X" while the recreated/
- * cleared widget showed nothing. decide_preview_action() makes a blank widget
- * always reload because it compares against widget reality.
+ * Navigating away from Print Status mid-print and back must not leave the
+ * preview blank when dedup guards say "showing X" but the recreated/cleared
+ * widget shows nothing. decide_preview_action() makes a blank widget always
+ * reload because it compares against widget reality.
  *
  * The thumbnail and the gcode viewer track which file they hold SEPARATELY:
  * the thumbnail subject observer can advance the thumbnail's marker (even while
@@ -96,7 +96,7 @@ TEST_CASE("Preview decision: thumbnail advanced to new file must still reload st
 
 TEST_CASE("Preview decision: gcode load is independent of current view mode",
           "[print_status][preview]") {
-    // Regression: the view-mode subject is 0 (thumbnail) at print start and only
+    // The view-mode subject is 0 (thumbnail) at print start and only
     // flips to 3D/2D AFTER the gcode loads. Gating the load on the display mode
     // deadlocks it — the gcode never downloads, so the mode never leaves
     // thumbnail, so the 3D render never appears. The decision must (re)load gcode
@@ -143,7 +143,7 @@ TEST_CASE("Preview decision: desired empty does nothing", "[print_status][previe
     }
 }
 
-// --- Thumbnail Only skips the whole G-code pipeline -------------------------
+// Thumbnail Only skips the whole G-code pipeline
 //
 // The setting is not a display choice. A viewer that is never shown still costs
 // the file's full download into the local cache, a sequential re-read to build
@@ -209,7 +209,7 @@ TEST_CASE("Preview decision: both gates must open to fetch", "[print_status][pre
     }
 }
 
-// --- The ladder behind viewer_enabled ---------------------------------------
+// The ladder behind viewer_enabled
 //
 // ensure_preview_current() derives the flag from helix::ui::preview_viewer_enabled(),
 // which resolves the same command-line > HELIX_GCODE_MODE > persisted-setting
@@ -246,7 +246,7 @@ TEST_CASE("Preview decision: the persisted Thumbnail Only setting closes the gat
     REQUIRE_FALSE(a.load_gcode);
 }
 
-// --- Stale geometry must leave the screen immediately -----------------------
+// Stale geometry must leave the screen immediately
 //
 // Reloading is not the same as clearing. The gcode load is deliberately
 // deferred (5s while the printer is still preparing, to avoid a memory spike),
@@ -297,9 +297,7 @@ TEST_CASE("Preview decision: the finished-print freeze is preserved", "[print_st
     REQUIRE_FALSE(a.clear_gcode);
 }
 
-// ============================================================================
 // preview_viewer_hidden - which widget the preview shows while it builds
-// ============================================================================
 
 TEST_CASE("preview_viewer_hidden - thumbnail mode hides the viewer", "[print_status][preview]") {
     CHECK(helix::ui::preview_viewer_hidden(helix::ui::kPreviewModeThumbnail, false));

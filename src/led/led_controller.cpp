@@ -64,9 +64,7 @@ helix::led::LedStripInfo macro_device_info(const helix::led::LedMacroInfo& macro
 
 namespace helix::led {
 
-// ============================================================================
 // LedController
-// ============================================================================
 
 LedController& LedController::instance() {
     static LedController s_instance;
@@ -595,9 +593,7 @@ void LedController::update_led_pin_config(const nlohmann::json& configfile_confi
     native_.update_pin_config(configfile_config);
 }
 
-// ============================================================================
 // NativeBackend
-// ============================================================================
 
 namespace {
 
@@ -789,7 +785,7 @@ void NativeBackend::StripColor::decompose(uint32_t& base_color, int& brightness_
 bool NativeBackend::update_from_status(const nlohmann::json& status) {
     bool carried = false;
     // Non-const iteration: the RGBW capability fix-up below patches the very
-    // strip the loop is holding (it used to re-scan strips_ to find it again).
+    // strip the loop is holding.
     for (auto& strip : strips_) {
         if (!status.contains(strip.id))
             continue;
@@ -834,9 +830,7 @@ bool NativeBackend::has_strip_color(const std::string& strip_id) const {
     return strip_colors_.count(strip_id) > 0;
 }
 
-// ============================================================================
 // LedEffectBackend
-// ============================================================================
 
 void LedEffectBackend::add_effect(const LedEffectInfo& effect) {
     effects_.push_back(effect);
@@ -1042,9 +1036,7 @@ std::string LedEffectBackend::display_name_for_effect(const std::string& config_
     return helix::prettify_name(raw);
 }
 
-// ============================================================================
 // WledBackend
-// ============================================================================
 
 void WledBackend::add_strip(const LedStripInfo& strip) {
     strips_.push_back(strip);
@@ -1163,9 +1155,7 @@ void WledBackend::poll_status(helix::SharedCallback<void()> on_complete) {
         }));
 }
 
-// ============================================================================
 // MacroBackend
-// ============================================================================
 
 void MacroBackend::add_macro(const LedMacroInfo& macro) {
     if (macro.display_name.empty()) {
@@ -1252,9 +1242,7 @@ bool MacroBackend::has_known_state(const std::string& macro_name) const {
     return false;
 }
 
-// ============================================================================
 // OutputPinBackend
-// ============================================================================
 
 void OutputPinBackend::add_pin(const LedStripInfo& pin) {
     pins_.push_back(pin);
@@ -1361,9 +1349,7 @@ void OutputPinBackend::set_pin_pwm(const std::string& pin_id, bool is_pwm) {
     }
 }
 
-// ============================================================================
 // LedController config persistence
-// ============================================================================
 
 void LedController::load_config() {
     auto* cfg = Config::get_instance();
@@ -2071,8 +2057,8 @@ void LedController::apply_startup_preference(const std::vector<std::string>& tar
     // The startup opportunity for this printer session is now spent, whether or not
     // the preference is enabled. This runs from the discovery-complete handler, and
     // notify_klippy_ready re-triggers discovery unconditionally, so every
-    // FIRMWARE_RESTART / M112 / klippy crash used to switch the lights back on over
-    // the user's manual OFF. "At start" means at start.
+    // FIRMWARE_RESTART / M112 / klippy crash would otherwise switch the lights back on
+    // over the user's manual OFF. "At start" means at start.
     startup_preference_applied_ = true;
 
     if (!led_on_at_start_) {

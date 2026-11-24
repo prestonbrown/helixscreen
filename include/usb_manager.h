@@ -54,9 +54,7 @@ class UsbManager {
     UsbManager(UsbManager&&) = delete;
     UsbManager& operator=(UsbManager&&) = delete;
 
-    // ========================================================================
     // Lifecycle
-    // ========================================================================
 
     /**
      * @brief Start USB monitoring
@@ -79,9 +77,7 @@ class UsbManager {
      */
     bool is_running() const;
 
-    // ========================================================================
     // Event Callbacks
-    // ========================================================================
 
     /**
      * @brief Set callback for drive events
@@ -93,9 +89,7 @@ class UsbManager {
      */
     void set_drive_callback(DriveCallback callback);
 
-    // ========================================================================
     // Drive Queries
-    // ========================================================================
 
     /**
      * @brief Get list of currently connected USB drives
@@ -123,9 +117,7 @@ class UsbManager {
      */
     std::shared_ptr<UsbBackend> backend_snapshot() const;
 
-    // ========================================================================
     // Test API (for UsbBackendMock)
-    // ========================================================================
 
     /**
      * @brief Get the underlying backend (for testing)

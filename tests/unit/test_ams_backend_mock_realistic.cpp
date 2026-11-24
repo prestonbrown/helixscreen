@@ -316,9 +316,7 @@ TEST_CASE("AmsBackendMock realistic mode can be cancelled",
     backend.stop();
 }
 
-// ============================================================================
-// Phase 5: Mock Loading State Machine - SELECTING, PAUSED, Recovery
-// ============================================================================
+// Mock Loading State Machine - SELECTING, PAUSED, Recovery
 
 TEST_CASE("AmsBackendMock tool change shows SELECTING phase", "[ams][mock][realistic][selecting]") {
     FastTimingScope timing_guard; // RAII: 1000x speedup, auto-restored
@@ -484,9 +482,7 @@ TEST_CASE("AmsBackendMock error recovery sequence", "[ams][mock][realistic][reco
     backend.stop();
 }
 
-// ============================================================================
 // Mock data consistency tests
-// ============================================================================
 
 TEST_CASE("Mock backend: slots have valid Spoolman IDs and filament data",
           "[ams][mock][slot-data]") {
@@ -544,9 +540,7 @@ TEST_CASE("Mock backend: slot data matches first N Spoolman mock spools",
     backend->stop();
 }
 
-// ============================================================================
 // manages_active_spool() — Mock never manages active spool (no real firmware)
-// ============================================================================
 
 TEST_CASE("Mock backend reports manages_active_spool=false", "[ams][mock][spoolman]") {
     auto backend = std::make_unique<AmsBackendMock>(4);
@@ -562,9 +556,7 @@ TEST_CASE("Mock backend in AFC mode still reports manages_active_spool=false",
     REQUIRE(backend->manages_active_spool() == false);
 }
 
-// ============================================================================
 // Simulated-Time Scaling
-// ============================================================================
 //
 // The mock applies --sim-speed in opposite directions: a load-phase delay is a
 // wait to be shortened, while the dryer is progress to be accelerated. The

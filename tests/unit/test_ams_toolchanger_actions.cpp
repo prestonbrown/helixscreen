@@ -85,9 +85,7 @@ class HoldReleaseGuard {
     std::thread thread_;
 };
 
-// =============================================================================
 // Mock toolchanger mode basics
-// =============================================================================
 
 TEST_CASE("Mock toolchanger mode gives PARALLEL topology and correct type",
           "[ams][toolchanger][toolchanger_actions]") {
@@ -133,9 +131,7 @@ TEST_CASE("Mock toolchanger mode gives PARALLEL topology and correct type",
     backend.stop();
 }
 
-// =============================================================================
 // change_tool sets SELECTING immediately
-// =============================================================================
 
 TEST_CASE("change_tool sets SELECTING immediately in mock toolchanger mode",
           "[ams][toolchanger][toolchanger_actions]") {
@@ -191,9 +187,7 @@ TEST_CASE("change_tool sets SELECTING immediately in mock toolchanger mode",
     backend.stop();
 }
 
-// =============================================================================
 // Lockout during in-flight operations
-// =============================================================================
 
 TEST_CASE("Lockout rejects operations during in-flight tool change",
           "[ams][toolchanger][toolchanger_actions]") {
@@ -235,9 +229,7 @@ TEST_CASE("Lockout rejects operations during in-flight tool change",
     backend.stop();
 }
 
-// =============================================================================
 // Load and Unload never mount or park
-// =============================================================================
 
 TEST_CASE("Load and Unload refuse in mock toolchanger mode, as the real backend does",
           "[ams][toolchanger][toolchanger_actions]") {
@@ -264,9 +256,7 @@ TEST_CASE("Load and Unload refuse in mock toolchanger mode, as the real backend 
     backend.stop();
 }
 
-// =============================================================================
 // change_tool with invalid slot
-// =============================================================================
 
 TEST_CASE("change_tool with invalid slot returns error in mock toolchanger mode",
           "[ams][toolchanger][toolchanger_actions]") {
@@ -296,9 +286,7 @@ TEST_CASE("change_tool with invalid slot returns error in mock toolchanger mode"
     backend.stop();
 }
 
-// =============================================================================
 // park_active_tool works
-// =============================================================================
 
 TEST_CASE("park_active_tool works in mock toolchanger mode",
           "[ams][toolchanger][toolchanger_actions]") {
@@ -335,9 +323,7 @@ TEST_CASE("park_active_tool works in mock toolchanger mode",
     backend.stop();
 }
 
-// =============================================================================
 // Sequential tool changes
-// =============================================================================
 
 TEST_CASE("Sequential tool changes succeed in mock toolchanger mode",
           "[ams][toolchanger][toolchanger_actions]") {
@@ -384,9 +370,7 @@ TEST_CASE("Sequential tool changes succeed in mock toolchanger mode",
     backend.stop();
 }
 
-// =============================================================================
 // change_tool on already-active tool (skip/no-op behavior)
-// =============================================================================
 
 TEST_CASE("change_tool on already-active tool in mock toolchanger mode",
           "[ams][toolchanger][toolchanger_actions]") {
@@ -415,9 +399,7 @@ TEST_CASE("change_tool on already-active tool in mock toolchanger mode",
     backend.stop();
 }
 
-// =============================================================================
 // Operations rejected when backend not started
-// =============================================================================
 
 TEST_CASE("Operations rejected when mock toolchanger backend not started",
           "[ams][toolchanger][toolchanger_actions]") {
@@ -439,9 +421,7 @@ TEST_CASE("Operations rejected when mock toolchanger backend not started",
     }
 }
 
-// =============================================================================
 // Realistic mode tool change phases
-// =============================================================================
 
 TEST_CASE("Realistic mode tool change shows SELECTING phase in toolchanger mode",
           "[ams][toolchanger][toolchanger_actions][slow]") {
@@ -490,9 +470,7 @@ TEST_CASE("Realistic mode tool change shows SELECTING phase in toolchanger mode"
     backend.stop();
 }
 
-// =============================================================================
 // A tool change never reads IDLE until the new tool is loaded
-// =============================================================================
 
 // The unload phase ends by clearing the loaded slot. If the action read IDLE
 // at that moment, a caller waiting for IDLE would take the half-finished

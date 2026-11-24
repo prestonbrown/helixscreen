@@ -11,6 +11,7 @@
 #include "../test_helpers/modal_answer.h"
 #include "../test_helpers/registered_backend.h"
 #include "ams_backend_mock.h"
+#include "ams_edit_follow_up.h"
 
 #include <optional>
 #include <string>
@@ -22,9 +23,16 @@ using namespace helix;
 namespace {
 
 /// A mock backend that offers a fixed follow-up, or none, and counts runs.
-class FollowUpBackend : public AmsBackendMock {
+class FollowUpBackend : public AmsBackendMock, public IEditFollowUp {
   public:
     FollowUpBackend() : AmsBackendMock(4) {}
+
+    [[nodiscard]] void* capability(helix::TypeTag tag) override {
+        if (tag == helix::type_tag<IEditFollowUp>()) {
+            return static_cast<IEditFollowUp*>(this);
+        }
+        return AmsBackendMock::capability(tag);
+    }
 
     std::optional<EditFollowUp> edit_follow_up(int, const SlotInfo&,
                                                const SlotInfo&) const override {

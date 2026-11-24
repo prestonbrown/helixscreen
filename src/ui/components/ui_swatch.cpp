@@ -36,9 +36,7 @@ uint32_t rgb_of(lv_color_t c) {
     return lv_color_to_u32(c) & 0xFFFFFF;
 }
 
-// ---------------------------------------------------------------------------
 // Geometry
-// ---------------------------------------------------------------------------
 
 float clamped_radius(const lv_area_t& a, int32_t radius) {
     const float w = static_cast<float>(lv_area_get_width(&a));
@@ -120,9 +118,7 @@ struct Lcg {
     }
 };
 
-// ---------------------------------------------------------------------------
 // Drawing helpers
-// ---------------------------------------------------------------------------
 
 void fill_shape(lv_layer_t* layer, const lv_area_t& area, int32_t radius, lv_color_t color,
                 lv_opa_t opa) {
@@ -247,9 +243,7 @@ void draw_edge(lv_layer_t* layer, const lv_area_t& area, int32_t radius, lv_opa_
     lv_draw_rect(layer, &dsc, &area);
 }
 
-// ---------------------------------------------------------------------------
 // Finish pixels
-// ---------------------------------------------------------------------------
 
 // Straight-alpha "over": @p src at coverage @p a onto @p dst.
 void blend_over(lv_color32_t& dst, lv_color_t src, uint8_t a) {
@@ -410,9 +404,7 @@ void sparkle_pixels(const PixelTarget& t) {
     }
 }
 
-// ---------------------------------------------------------------------------
 // Object paint
-// ---------------------------------------------------------------------------
 
 // Retained per-object paint, keyed by object. Main (UI) thread only: the
 // setters, the draw hook and the DELETE hook all run there.
@@ -511,9 +503,7 @@ ObjectPaint& ensure_paint(lv_obj_t* obj) {
     return registry[obj];
 }
 
-// ---------------------------------------------------------------------------
 // <swatch_paint> XML widget
-// ---------------------------------------------------------------------------
 
 void colors_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
     auto* obj = static_cast<lv_obj_t*>(lv_observer_get_target(observer));
@@ -643,9 +633,7 @@ void swatch_paint_xml_apply(lv_xml_parser_state_t* state, const char** attrs) {
 
 } // namespace
 
-// ---------------------------------------------------------------------------
 // Pure decisions
-// ---------------------------------------------------------------------------
 
 bool swatch_needs_edge(uint32_t rgb, uint32_t surface) {
     return helix::contrast_ratio(lv_color_hex(rgb), lv_color_hex(surface)) <
@@ -870,9 +858,7 @@ std::vector<SwatchPoint> swatch_texture_points(const lv_area_t& area, int32_t ra
     return texture_points(area, inside, count, seed);
 }
 
-// ---------------------------------------------------------------------------
 // Drawing
-// ---------------------------------------------------------------------------
 
 SwatchCache::~SwatchCache() {
     drop_texture();
@@ -1099,9 +1085,7 @@ SwatchPaint swatch_paint_for(const helix::SlotInfo& slot) {
                             slot.translucent);
 }
 
-// ---------------------------------------------------------------------------
 // Object paint
-// ---------------------------------------------------------------------------
 
 void apply_swatch_color(lv_obj_t* swatch, uint32_t primary_rgb,
                         const std::string& multi_color_hexes, SwatchFinish finish,

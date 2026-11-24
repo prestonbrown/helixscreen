@@ -62,7 +62,6 @@ void PowerPanel::init_subjects() {
         return;
     }
 
-    // Initialize status subject for reactive binding
     UI_MANAGED_SUBJECT_STRING(status_subject_, status_buf_, status_buf_, "power_status", subjects_);
     UI_MANAGED_SUBJECT_INT(has_devices_subject_, -1, "power_has_devices", subjects_);
 
@@ -374,7 +373,6 @@ void PowerPanel::set_selected_devices(const std::vector<std::string>& devices) {
 }
 
 void PowerPanel::on_devices_discovered(const std::vector<PowerDevice>& devices) {
-    // Update discovered device list
     discovered_devices_.clear();
     for (const auto& d : devices) {
         discovered_devices_.push_back(d.device);

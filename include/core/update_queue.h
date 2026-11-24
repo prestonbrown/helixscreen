@@ -796,7 +796,6 @@ inline void update_queue_shutdown() {
     UpdateQueue::instance().shutdown();
 }
 
-// ============================================================================
 // Widget-safe overloads
 //
 // The callback runs only if the widget is still alive when it fires, so async
@@ -805,7 +804,6 @@ inline void update_queue_shutdown() {
 // raw pointer is turned into a handle by hooking the widget, which off the LVGL
 // thread logs an error and drops the update (WeakWidget). A background thread
 // captures a handle made on the LVGL thread.
-// ============================================================================
 
 /**
  * @brief Queue a UI update with data and widget guard

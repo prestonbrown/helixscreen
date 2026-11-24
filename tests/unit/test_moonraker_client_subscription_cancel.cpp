@@ -50,9 +50,7 @@
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
-// ============================================================================
 // Test Fixture Base
-// ============================================================================
 
 /**
  * @brief Fixture for Moonraker client lifecycle tests
@@ -141,9 +139,7 @@ struct BorrowedEventLoopGuard {
     }
 };
 
-// ============================================================================
 // Subscription ID / Unsubscribe API Tests
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
                  "MoonrakerClient register_notify_update returns valid SubscriptionId",
@@ -240,17 +236,14 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
         [[maybe_unused]] SubscriptionId id2 =
             mock.register_notify_update([&callback2_count](json) { callback2_count++; });
 
-        // Unsubscribe callback 1 before connecting
         mock.unsubscribe_notify_update(id1);
 
         mock.connect("ws://mock/websocket", []() {}, []() {});
 
-        // Wait for callback 2 to receive notification
         REQUIRE(wait_for_count(callback2_count, 1, 1000));
 
         mock.stop_temperature_simulation();
 
-        // Callback 1 should not have been invoked
         REQUIRE(callback1_count.load() == 0);
         REQUIRE(callback2_count.load() >= 1);
 
@@ -271,15 +264,12 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
 
         mock.connect("ws://mock/websocket", []() {}, []() {});
 
-        // Wait for all to receive initial notification
         REQUIRE(wait_for_count(callback1_count, 1, 1000));
         REQUIRE(wait_for_count(callback2_count, 1, 1000));
         REQUIRE(wait_for_count(callback3_count, 1, 1000));
 
-        // Unsubscribe only callback 2
         mock.unsubscribe_notify_update(id2);
 
-        // Allow more notifications to arrive
         std::this_thread::sleep_for(std::chrono::milliseconds(600));
 
         mock.stop_temperature_simulation();
@@ -293,9 +283,7 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
     }
 }
 
-// ============================================================================
 // Method Callback Handler Names / Unregister Tests
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
                  "MoonrakerClient method callback registration with handler names",
@@ -307,7 +295,6 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
         client.register_method_callback("notify_gcode_response", "test_handler",
                                         [&called](json) { called = true; });
 
-        // Unregister should succeed
         bool result = client.unregister_method_callback("notify_gcode_response", "test_handler");
         REQUIRE(result == true);
     }
@@ -321,7 +308,6 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
         client.register_method_callback("notify_gcode_response", "handler2",
                                         [&handler2_called](json) { handler2_called = true; });
 
-        // Both should be unregisterable independently
         bool result1 = client.unregister_method_callback("notify_gcode_response", "handler1");
         bool result2 = client.unregister_method_callback("notify_gcode_response", "handler2");
 
@@ -333,15 +319,12 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
         client.register_method_callback("notify_gcode_response", "handler1", [](json) {});
         client.register_method_callback("notify_gcode_response", "handler2", [](json) {});
 
-        // Remove handler1
         bool result1 = client.unregister_method_callback("notify_gcode_response", "handler1");
         REQUIRE(result1 == true);
 
-        // handler2 should still exist
         bool result2 = client.unregister_method_callback("notify_gcode_response", "handler2");
         REQUIRE(result2 == true);
 
-        // handler1 should no longer exist
         bool result3 = client.unregister_method_callback("notify_gcode_response", "handler1");
         REQUIRE(result3 == false);
     }
@@ -374,7 +357,6 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
         bool result2 = client.unregister_method_callback("method2", "shared_name");
         REQUIRE(result2 == true);
 
-        // Both should now be gone
         bool result3 = client.unregister_method_callback("method1", "shared_name");
         bool result4 = client.unregister_method_callback("method2", "shared_name");
         REQUIRE(result3 == false);
@@ -382,9 +364,7 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
     }
 }
 
-// ============================================================================
 // Request Cancellation API Tests
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
                  "MoonrakerClient send_jsonrpc returns valid RequestId",
@@ -470,9 +450,7 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
     // must not be written inline here.
 }
 
-// ============================================================================
 // Mock Client Request ID Tests
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
                  "MoonrakerClientMock send_jsonrpc returns valid RequestId",
@@ -500,7 +478,6 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
             ids.push_back(id);
         }
 
-        // Verify all IDs are unique and incrementing
         for (size_t i = 1; i < ids.size(); i++) {
             REQUIRE(ids[i] > ids[i - 1]);
         }
@@ -510,9 +487,7 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
     mock.disconnect();
 }
 
-// ============================================================================
 // force_reconnect() Method Tests
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
                  "MoonrakerClient force_reconnect when not connected",
@@ -538,7 +513,6 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture, "MoonrakerClientMock force_rec
 
         mock.connect("ws://mock/websocket", [&connected_count]() { connected_count++; }, []() {});
 
-        // Wait for initial connection
         std::this_thread::sleep_for(std::chrono::milliseconds(300));
         REQUIRE(connected_count.load() == 1);
 
@@ -599,7 +573,6 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
         // Connect to a non-existent server (will fail quickly)
         client.connect("ws://127.0.0.1:19999/websocket", []() {}, []() {});
 
-        // Wait for connection attempt
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
         // Clear history and force reconnect
@@ -628,9 +601,7 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
     // disarms it and joins the loop before `client` destructs.
 }
 
-// ============================================================================
 // Thread Safety Tests
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
                  "MoonrakerClient subscription ID generation is thread-safe",
@@ -642,7 +613,6 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
         std::vector<SubscriptionId> ids(100);
         std::atomic<int> completed{0};
 
-        // Spawn 10 threads, each registering 10 callbacks
         for (int t = 0; t < 10; t++) {
             threads.emplace_back([&client, &ids, &completed, t]() {
                 for (int i = 0; i < 10; i++) {
@@ -653,14 +623,12 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
             });
         }
 
-        // Wait for all threads
         for (auto& thread : threads) {
             thread.join();
         }
 
         REQUIRE(completed.load() == 100);
 
-        // Verify all IDs are unique
         std::set<SubscriptionId> unique_ids(ids.begin(), ids.end());
         // Remove any kInvalidSubscriptionId entries
         unique_ids.erase(kInvalidSubscriptionId);
@@ -680,7 +648,6 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
         std::vector<SubscriptionId> ids;
         std::mutex ids_mutex;
 
-        // Producer thread: register callbacks
         std::thread producer([&]() {
             while (running.load()) {
                 SubscriptionId id = client.register_notify_update([](json) {});
@@ -693,7 +660,6 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
             }
         });
 
-        // Consumer thread: unregister callbacks
         std::thread consumer([&]() {
             while (running.load()) {
                 SubscriptionId id_to_remove = kInvalidSubscriptionId;
@@ -712,22 +678,18 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
             }
         });
 
-        // Run for a short duration
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         running.store(false);
 
         producer.join();
         consumer.join();
 
-        // Should have completed without crashes
         REQUIRE(subscribe_count.load() >= 0);
         REQUIRE(unsubscribe_count.load() >= 0);
     }
 }
 
-// ============================================================================
 // Mock Parity Tests - Verify Mock behaves like Real Client
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
                  "MoonrakerClientMock subscription API matches MoonrakerClient",
@@ -805,9 +767,7 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
     }
 }
 
-// ============================================================================
 // Edge Cases and Error Handling
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerClientLifecycleFixture, "MoonrakerClient handles subscription edge cases",
                  "[connection][edge_cases][eventloop][slow]") {
@@ -822,18 +782,15 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture, "MoonrakerClient handles subsc
             ids.push_back(id);
         }
 
-        // All should be valid
         for (const auto& id : ids) {
             REQUIRE(id >= 1);
         }
 
-        // All should be unsubscribeable
         for (const auto& id : ids) {
             bool result = client.unsubscribe_notify_update(id);
             REQUIRE(result == true);
         }
 
-        // All should now be invalid
         for (const auto& id : ids) {
             bool result = client.unsubscribe_notify_update(id);
             REQUIRE(result == false);
@@ -916,7 +873,6 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
 
             client.dispatch_status_update(status);
             REQUIRE(callback_count->load() == 10);
-            // Client destroyed here
         }
 
         // Sole remaining owner: all 10 stored callbacks went away with the client.
@@ -945,7 +901,6 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
             mock.dispatch_status_update(status);
             dispatched_while_alive = callback_count->load();
             REQUIRE(dispatched_while_alive >= before + 10);
-            // Mock destroyed here
         }
 
         REQUIRE(callback_count.use_count() == 1);
@@ -956,9 +911,7 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture,
     }
 }
 
-// ============================================================================
 // Integration Test - Full Workflow
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerClientLifecycleFixture, "Full subscription workflow with mock client",
                  "[connection][integration][eventloop][slow]") {
@@ -968,7 +921,6 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture, "Full subscription workflow wi
     std::vector<SubscriptionId> subscription_ids;
     std::mutex ids_mutex;
 
-    // Register 5 subscriptions
     for (int i = 0; i < 5; i++) {
         SubscriptionId id =
             mock.register_notify_update([&total_notifications](json) { total_notifications++; });
@@ -976,17 +928,13 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture, "Full subscription workflow wi
         subscription_ids.push_back(id);
     }
 
-    // Connect
     mock.connect("ws://mock/websocket", []() {}, []() {});
 
-    // Wait for initial notifications
     REQUIRE(wait_for_count(total_notifications, 5, 1000)); // All 5 should get initial notification
 
-    // Unsubscribe 2 of them
     mock.unsubscribe_notify_update(subscription_ids[0]);
     mock.unsubscribe_notify_update(subscription_ids[1]);
 
-    // Reset counter
     total_notifications.store(0);
 
     // Wait for more notifications from simulation. The mock dispatches every
@@ -1000,11 +948,8 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture, "Full subscription workflow wi
     int final_count = total_notifications.load();
     // Should have received notifications, but from only 3 active subscriptions.
     // The exact count depends on simulation timing; that it is non-zero does
-    // not. The assertion was `>= 0`, which an int can never fail.
-    //
-    // This is a real ordering assertion. If
-    // it ever flakes, that is a finding about subscription-cancel timing - do
-    // not weaken it back to `>= 0`.
+    // not. This is a real ordering assertion: if it ever flakes, that is a
+    // finding about subscription-cancel timing, not a reason to loosen it.
     REQUIRE(final_count > 0);
 
     // Force reconnect - note: mock doesn't store callbacks, so reconnect won't
@@ -1012,7 +957,6 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture, "Full subscription workflow wi
     // The subscriptions themselves remain registered though.
     REQUIRE_NOTHROW(mock.force_reconnect());
 
-    // Cleanup - unsubscribe remaining 3
     mock.unsubscribe_notify_update(subscription_ids[2]);
     mock.unsubscribe_notify_update(subscription_ids[3]);
     mock.unsubscribe_notify_update(subscription_ids[4]);

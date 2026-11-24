@@ -20,9 +20,7 @@
 
 using namespace helix;
 
-// ============================================================================
 // Test Macros (representative samples from real printers)
-// ============================================================================
 
 // Basic Voron-style PRINT_START with bed mesh and QGL
 static const char* kBasicPrintStart = R"(
@@ -94,9 +92,7 @@ M109 S{nozzle_temp}
 M190 S{bed_temp}
 )";
 
-// ============================================================================
 // Tests: Operation Detection
-// ============================================================================
 
 TEST_CASE("PrintStartAnalyzer: Basic operation detection", "[print_start][parsing]") {
     auto result = PrintStartAnalyzer::parse_macro("PRINT_START", kBasicPrintStart);
@@ -250,9 +246,7 @@ TEST_CASE("PrintStartAnalyzer: Alternative skip parameter patterns", "[print_sta
     }
 }
 
-// ============================================================================
 // Tests: Helper Functions
-// ============================================================================
 
 TEST_CASE("PrintStartAnalyzer: categorize_operation", "[print_start][helpers]") {
     REQUIRE(PrintStartAnalyzer::categorize_operation("BED_MESH_CALIBRATE") ==
@@ -318,9 +312,7 @@ TEST_CASE("PrintStartAnalyzer: summary generation", "[print_start][helpers]") {
     }
 }
 
-// ============================================================================
 // Tests: Edge Cases
-// ============================================================================
 
 TEST_CASE("PrintStartAnalyzer: Empty macro", "[print_start][edge]") {
     auto result = PrintStartAnalyzer::parse_macro("PRINT_START", "");
@@ -367,9 +359,7 @@ Quad_Gantry_Level
     REQUIRE(result.has_operation(PrintStartOpCategory::QGL));
 }
 
-// ============================================================================
 // Tests: New Helper Functions (operation_patterns.h)
-// ============================================================================
 
 TEST_CASE("PrintStart: is_bed_level_category helper", "[print_start]") {
     using helix::is_bed_level_category;
@@ -431,9 +421,7 @@ TEST_CASE("PrintStart: get_all_skip_variations includes unified BED_LEVEL", "[pr
     }
 }
 
-// ============================================================================
 // Tests: PERFORM_* Opt-In Parameter Detection (NEW)
-// ============================================================================
 
 // Opt-in macro using PERFORM_* pattern (HelixScreen standard)
 static const char* kPerformPrintStart = R"(
@@ -696,13 +684,11 @@ TEST_CASE("PrintStart: get_all_perform_variations helper", "[print_start][perfor
     }
 }
 
-// ============================================================================
 // Tests: Subdirectory Path Handling (FileInfo.path vs filename)
-// ============================================================================
 
 TEST_CASE("PrintStartAnalyzer: get_config_file_path helper", "[print_start][path]") {
-    // Tests the get_config_file_path() helper used in analyze() when processing FileInfo
-    // Bug fix: Previously used f.filename which loses subdirectory info
+    // Tests the get_config_file_path() helper used in analyze() when processing FileInfo.
+    // It must use the full path: f.filename alone loses subdirectory info.
 
     SECTION("Files in subdirectory - returns full path") {
         FileInfo file_in_subdir;
@@ -737,9 +723,7 @@ TEST_CASE("PrintStartAnalyzer: get_config_file_path helper", "[print_start][path
     }
 }
 
-// ============================================================================
 // Tests: Cached Content Search (no HTTP)
-// ============================================================================
 
 TEST_CASE("PrintStartAnalyzer searches pre-downloaded content", "[print_start]") {
     helix::PrintStartAnalyzer analyzer;
@@ -785,9 +769,7 @@ TEST_CASE("PrintStartAnalyzer cached search reports not found correctly", "[prin
     REQUIRE_FALSE(result.found);
 }
 
-// ============================================================================
 // Tests: Following Macros the Print Start Macro Calls
-// ============================================================================
 
 namespace {
 
@@ -1111,10 +1093,8 @@ TEST_CASE("PrintStartAnalyzer::analyze stops at a printer teardown mid-walk",
     CHECK(error.find("disconnected") != std::string::npos);
 }
 
-// ============================================================================
 // analyze(api): Klipper's configfile object first, readable files as fallback
 // (prestonbrown/helixscreen#2061)
-// ============================================================================
 
 namespace {
 

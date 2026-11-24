@@ -23,9 +23,7 @@
 using namespace helix;
 using json = nlohmann::json;
 
-// ============================================================================
 // Test Fixture
-// ============================================================================
 
 class PrintActiveTestFixture : public LVGLTestFixture {
   public:
@@ -53,12 +51,10 @@ class PrintActiveTestFixture : public LVGLTestFixture {
         state_.update_from_status(status);
     }
 
-    // Get current print_active value
     int get_print_active() {
         return lv_subject_get_int(state_.print_state().get_print_active_subject());
     }
 
-    // Get current print_state_enum value
     PrintJobState get_print_state_enum() {
         return static_cast<PrintJobState>(
             lv_subject_get_int(state_.print_state().get_print_state_enum_subject()));
@@ -68,9 +64,7 @@ class PrintActiveTestFixture : public LVGLTestFixture {
     PrinterState state_;
 };
 
-// ============================================================================
 // Test Cases
-// ============================================================================
 
 TEST_CASE_METHOD(PrintActiveTestFixture, "PrintActive: initial state is 0",
                  "[core][printer_state][print_active]") {
@@ -173,7 +167,6 @@ TEST_CASE_METHOD(PrintActiveTestFixture, "PrintActive: full lifecycle test",
     REQUIRE(get_print_active() == 0);
 }
 
-// ============================================================================
 // Pure predicate: PrinterPrintState::status_indicates_active_print
 //
 // This is the exact decision used by BOTH the print_active subject update and
@@ -181,7 +174,6 @@ TEST_CASE_METHOD(PrintActiveTestFixture, "PrintActive: full lifecycle test",
 // must consult the just-arrived status (the subject is stale at that point),
 // so this predicate is what blocks a reconfig wizard from launching over a live
 // print on a fresh connection. These cases lock that behavior down.
-// ============================================================================
 
 TEST_CASE("status_indicates_active_print: printing -> true",
           "[core][printer_state][print_active][print_state]") {

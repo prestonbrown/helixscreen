@@ -28,6 +28,7 @@
 #include "spdlog/spdlog.h"
 #include "system/telemetry_manager.h"
 #include "system_settings_manager.h"
+#include "unit_colors.h"
 #include "wizard_config_paths.h"
 
 #include <algorithm>
@@ -369,18 +370,14 @@ void SettingsManager::set_moonraker_client(IMoonrakerClient* client) {
     spdlog::debug("[SettingsManager] Moonraker client set: {}", client ? "connected" : "nullptr");
 }
 
-// =============================================================================
 // Z MOVEMENT STYLE
-// =============================================================================
 
 void SettingsManager::set_z_movement_style(ZMovementStyle style) {
     settings_.set(Key::ZMovementStyle, static_cast<int>(style));
     get_printer_state().apply_effective_bed_moves();
 }
 
-// =============================================================================
 // BED DRYING
-// =============================================================================
 
 void SettingsManager::set_enclosure_style(helix::bed_drying::EnclosureStyle style) {
     settings_.set(Key::EnclosureStyle, static_cast<int>(style));
@@ -432,9 +429,7 @@ bool SettingsManager::clear_bed_drying_record() {
     return set_bed_drying_record(helix::bed_drying::RunRecord{});
 }
 
-// =============================================================================
 // MAINTENANCE METERS
-// =============================================================================
 
 std::optional<helix::maintenance::State>
 SettingsManager::get_maintenance_record(const std::string& printer_prefix) const {
@@ -457,9 +452,7 @@ bool SettingsManager::set_maintenance_record(const std::string& printer_prefix,
     return true;
 }
 
-// =============================================================================
 // TOOLHEAD STYLE
-// =============================================================================
 
 ToolheadStyle SettingsManager::get_effective_toolhead_style() const {
     auto style = get_toolhead_style();
@@ -508,9 +501,7 @@ ToolheadStyle SettingsManager::dropdown_index_to_toolhead_style(int index) {
     return static_cast<ToolheadStyle>(index);
 }
 
-// ============================================================================
 // Jog Step Distances
-// ============================================================================
 
 float SettingsManager::get_jog_distance(JogMode mode, bool outer) const {
     // Clamp on read as well as write, so nothing reading the cache can turn a
@@ -624,9 +615,7 @@ void SettingsManager::set_console_filter_user_remove(const std::vector<std::stri
     write_console_filter_layer(kFilterUserRemoveLeaf, scope, patterns);
 }
 
-// ============================================================================
 // Macro Panel (per-printer hidden macro set)
-// ============================================================================
 
 std::vector<std::string> SettingsManager::get_hidden_macros() const {
     Config* config = Config::get_instance();
@@ -662,9 +651,7 @@ void SettingsManager::set_color_recents(const std::string& kind,
     config->save();
 }
 
-// ============================================================================
 // Spaghetti Detection Settings
-// ============================================================================
 
 bool SettingsManager::is_detection_seeded() const {
     return Config::get_instance()->get<bool>("/detection/seeded", false);
@@ -686,9 +673,7 @@ void SettingsManager::mark_detection_switch_adopted() {
     config->save();
 }
 
-// ============================================================================
 // Chamber Assignment
-// ============================================================================
 
 std::string SettingsManager::get_feeder_open_macro() const {
     return feeder_open_macro_;
@@ -753,7 +738,7 @@ void SettingsManager::set_mount_feed_purge_mm(int mm) {
 // A unit's picked drawing, per printer: {"<unit identity>": "<shell id>"}.
 namespace {
 constexpr const char* kAmsUnitDrawingsKey = "ams/unit_drawings";
-} // namespace
+}
 
 std::map<std::string, std::string> SettingsManager::get_ams_unit_drawings() const {
     std::map<std::string, std::string> out;
@@ -798,6 +783,46 @@ void SettingsManager::set_ams_unit_drawing(const std::string& unit_identity,
     spdlog::info("[SettingsManager] set_ams_unit_drawing({}, {})", unit_identity,
                  shell_id.empty() ? "automatic" : shell_id);
     config->set<json>(path, drawings);
+    config->save();
+}
+
+// A unit's picked colors, per printer: {"<unit identity>": {"main": "#RRGGBB", ...}}.
+namespace {
+constexpr const char* kAmsUnitColorsKey = "ams/unit_colors";
+} // namespace
+
+helix::UnitColors SettingsManager::get_ams_unit_colors(const std::string& unit_identity) const {
+    Config* config = Config::get_instance();
+    if (!config || unit_identity.empty()) {
+        return {};
+    }
+    const json all = config->get<json>(config->df() + kAmsUnitColorsKey, json::object());
+    if (!all.is_object()) {
+        return {};
+    }
+    const auto it = all.find(unit_identity);
+    return it == all.end() ? helix::UnitColors{} : helix::unit_colors_from_json(*it);
+}
+
+void SettingsManager::set_ams_unit_colors(const std::string& unit_identity,
+                                          const helix::UnitColors& colors) {
+    Config* config = Config::get_instance();
+    if (!config || unit_identity.empty()) {
+        return;
+    }
+    const std::string path = config->df() + kAmsUnitColorsKey;
+    json all = config->get<json>(path, json::object());
+    if (!all.is_object()) {
+        all = json::object();
+    }
+    if (colors.empty()) {
+        all.erase(unit_identity);
+    } else {
+        all[unit_identity] = helix::unit_colors_to_json(colors);
+    }
+    spdlog::info("[SettingsManager] set_ams_unit_colors({}, {})", unit_identity,
+                 colors.empty() ? std::string("baked") : all[unit_identity].dump());
+    config->set<json>(path, all);
     config->save();
 }
 
@@ -919,13 +944,9 @@ void SettingsManager::set_chamber_sensor_assignment(const std::string& value) {
     config->save();
 }
 
-// ============================================================================
 // Filament Settings
-// ============================================================================
 
-// ============================================================================
 // Barcode Scanner Settings
-// ============================================================================
 
 std::string SettingsManager::get_scanner_device_id() const {
     return scanner_device_id_;

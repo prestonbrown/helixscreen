@@ -26,9 +26,7 @@ static void drain() {
     helix::ui::UpdateQueue::instance().drain();
 }
 
-// ============================================================================
 // Test 1: Conditional bump_slots_version — no-op on identical sync
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "AMS slots_version does not increment on identical sync",
                  "[ams][perf]") {
@@ -73,9 +71,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "AMS slots_version does not increment on ident
     ams.deinit_subjects();
 }
 
-// ============================================================================
 // Test 2: Spool canvas dirty guard — set_color
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "Spool canvas set_color guards redundant redraws",
                  "[ams][perf]") {
@@ -104,9 +100,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Spool canvas set_color guards redundant redra
     }
 }
 
-// ============================================================================
 // Test 3: Spool canvas dirty guard — set_fill_level
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "Spool canvas set_fill_level guards redundant redraws",
                  "[ams][perf]") {
@@ -140,9 +134,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Spool canvas set_fill_level guards redundant 
     }
 }
 
-// ============================================================================
 // Test 4: ui_ams_slot_refresh does not crash with null
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "ui_ams_slot_refresh is safe with null widget", "[ams][perf]") {
     // ui_ams_slot_refresh should only update material/badge/error,

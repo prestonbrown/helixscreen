@@ -363,9 +363,7 @@ void MaterialSettingsManager::clear_preset_filament(int index) {
     save_presets_to_config();
 }
 
-// ============================================================================
 // Cold pull temperatures
-// ============================================================================
 
 namespace {
 
@@ -444,9 +442,7 @@ void MaterialSettingsManager::set_cold_pull_material(ColdPullMaterial m) {
 
 } // namespace helix
 
-// ============================================================================
 // Bridge function for filament_database.h
-// ============================================================================
 
 namespace filament {
 

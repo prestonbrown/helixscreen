@@ -10,6 +10,8 @@
     <prop name="tile_label_subject" type="string" default=""/>
     <prop name="tile_dir_subject" type="string" default=""/>
     <prop name="tile_target_subject" type="string" default=""/>
+    <!-- The reading with its unit text attached -->
+    <prop name="value_subject" type="string" default=""/>
   </api>
   <!-- Hardware gate (width_sensor_count) checked in C++ populate_widgets(). The glyph over
        its reading and caption, or beside them when the box is too short to
@@ -26,7 +28,7 @@
             clickable="false" event_bubble="true">
       <style name="styles.tile_column"/>
       <bind_style_if_eq name="styles.tile_fill" subject="$tile_dir_subject" ref_value="1"/>
-      <text_tiny name="width_value" bind_text="filament_diameter_text" clickable="false" event_bubble="true">
+      <text_tiny name="width_value" bind_text="$value_subject" clickable="false" event_bubble="true">
         <bind_tile_rung ladder="value" subject="$tile_icon_subject"/>
       </text_tiny>
       <text_tiny text="Width"

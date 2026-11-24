@@ -743,6 +743,7 @@ void AmsEditOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_INT(save_disabled_subject_, 1, "ams_edit_save_disabled", subjects_);
 
         UI_MANAGED_SUBJECT_INT(save_state_subject_, kSaveIdle, "ams_edit_save_state", subjects_);
+        UI_MANAGED_SUBJECT_INT(save_op_subject_, 0, "ams_edit_save_op", subjects_);
         UI_MANAGED_SUBJECT_STRING(save_error_subject_, save_error_buf_, "", "ams_edit_save_error",
                                   subjects_);
         UI_MANAGED_SUBJECT_STRING(save_wait_text_subject_, save_wait_text_buf_, "Saving...",
@@ -4084,6 +4085,8 @@ void AmsEditOverlay::set_save_state(int state, const std::string& error) {
         save_wait_action_observer_.reset();
     }
     lv_subject_set_int(&save_state_subject_, state);
+    // ui_button op-state: 1 = spinner in Save's icon slot while the commit waits.
+    lv_subject_set_int(&save_op_subject_, state == kSaveWaiting ? 1 : 0);
 }
 
 std::string AmsEditOverlay::save_wait_reason(const AmsBackend& backend, const AmsSystemInfo& info) {

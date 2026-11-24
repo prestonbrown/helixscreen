@@ -423,6 +423,50 @@ inline constexpr std::array<PersonaEntry, 16> kPersonas = {{
     return requested;
 }
 
+/// The one Happy Hare unit a mock AMS mode runs, as Happy Hare's mmu_unit publishes it.
+struct HappyHareMockUnit {
+    std::string_view mode;
+    std::string_view vendor;       ///< mmu_unit vendor: what the unit art keys on
+    std::string_view display_name; ///< mmu_unit display_name: the unit's shown name
+    /// "VirtualSelector" is a Type B unit whose lanes meet at a hub; every other selector
+    /// moves one path across the gates.
+    std::string_view selector_type;
+};
+
+/// The default persona's unit.
+inline constexpr HappyHareMockUnit kHappyHareErcf = {"", "ERCF", "ERCF", "LinearSelector"};
+
+/// The Happy Hare unit @p mode stands for: a selector rail or a vendor we have art for, the
+/// ERCF for the plain Happy Hare modes, nullptr for any other mode.
+[[nodiscard]] inline const HappyHareMockUnit* happy_hare_mock_unit(std::string_view mode) {
+    static constexpr HappyHareMockUnit kRows[] = {
+        {"ercf", "ERCF", "ERCF", "LinearSelector"},
+        {"tradrack", "Tradrack", "Tradrack", "LinearSelector"},
+        {"kms", "KMS", "KMS", "VirtualSelector"},
+        {"hh_vivid", "VVD", "BTT ViViD", "IndexedSelector"},
+        {"hh_qidi", "QIDI", "QIDI Box", "VirtualSelector"},
+        {"hh_htlf", "HTLF", "HTLF", "RotarySelector"},
+        {"hh_night_owl", "NightOwl", "Night Owl", "VirtualSelector"},
+        {"hh_box_turtle", "BoxTurtle", "Box Turtle", "VirtualSelector"},
+        {"hh_mmx", "MMX", "MMX", "ServoSelector"},
+        {"hh_3ms", "3MS", "3MS", "VirtualSelector"},
+        {"hh_emu", "EMU", "EMU", "VirtualSelector"},
+        // A YAMMU reports vendor "Other"; only its display_name names it.
+        {"hh_yammu", "Other", "YAMMU", "VirtualSelector"},
+        // Happy Hare's vendor for hardware it has no constant for: nothing names the unit.
+        {"hh_other", "Other", "MMU", "VirtualSelector"},
+    };
+    if (mode.empty() || mode == "happy_hare" || mode == "hh") {
+        return &kHappyHareErcf;
+    }
+    for (const HappyHareMockUnit& row : kRows) {
+        if (row.mode == mode) {
+            return &row;
+        }
+    }
+    return nullptr;
+}
+
 /// Which MedusaHC shipping configuration a mock AMS mode emulates. Every
 /// MedusaHC mode is mock HARDWARE: the CLI's --real-ams implication, AmsBackend's
 /// mock selection and MoonrakerClientMock all classify the mode through this.
@@ -520,6 +564,10 @@ inline constexpr std::array<const char*, 11> kMockBackendKnobs = {
         {"afc-ace", "AFC"},
         {"afc_cfs", "AFC"},
         {"afc-cfs", "AFC"},
+        {"quattro_box", "AFC"},
+        {"quattrobox", "AFC"},
+        {"afc_bmcu", "AFC"},
+        {"afc-bmcu", "AFC"},
         {"snapmaker", "Snapmaker"},
         {"snapswap", "Snapmaker"},
         {"u1", "Snapmaker"},
@@ -536,8 +584,9 @@ inline constexpr std::array<const char*, 11> kMockBackendKnobs = {
         return "persona";
     }
     // Happy Hare is the default: a persona that publishes `mmu` runs the production
-    // backend, unless a knob only the mock backend serves asks for its scenario.
-    const bool happy_hare_mode = mode == "happy_hare" || mode == "hh";
+    // backend, unless a knob only the mock backend serves asks for its scenario. A mode
+    // that names a Happy Hare unit runs it whatever the knobs say.
+    const bool happy_hare_mode = !mode.empty() && happy_hare_mock_unit(mode) != nullptr;
     if ((happy_hare_mode || (mode.empty() && !mock_backend_knob_set())) &&
         inherits_default(resolve_persona(printer_env).type, default_object::kHappyHareMmu)) {
         return "Happy Hare";

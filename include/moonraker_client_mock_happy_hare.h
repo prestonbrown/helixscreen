@@ -2,6 +2,7 @@
 #pragma once
 
 #include "json_fwd.h"
+#include "mock_persona.h"
 
 #include <cstdint>
 #include <string>
@@ -59,7 +60,9 @@ class HappyHareSim {
     /// @p environment_sensor the unit's environment_sensor object, "" for none.
     /// @p development also publishes what only Happy Hare's development branch has:
     /// `drying` and `endless_spool_auto_groups`.
-    HappyHareSim(int gates, std::string environment_sensor, bool development = false);
+    /// @p unit the hardware the one unit reports: vendor, name and selector.
+    HappyHareSim(int gates, std::string environment_sensor, bool development = false,
+                 const HappyHareMockUnit& unit = kHappyHareErcf);
 
     /// The whole printer.mmu object.
     [[nodiscard]] nlohmann::json status() const;
@@ -111,6 +114,7 @@ class HappyHareSim {
     std::vector<int> endless_spool_groups_;
     std::string environment_sensor_;
     bool development_ = false;
+    HappyHareMockUnit unit_;
     int gate_ = 0;
     int tool_ = 0;
     int filament_pos_ = kPosLoaded;

@@ -4,18 +4,18 @@
 // The seam between PrintStatusPanel's private PrintLifecycleState and the
 // published `print_lifecycle` subject.
 //
-// Before these, NOTHING exercised that seam: the 40 cases in
-// test_print_lifecycle_state.cpp all drive the class in isolation, so they would
-// keep passing against a panel that had stopped using it entirely. These pin the
-// panel's observable behaviour so a change to where its state comes from is
+// The 40 cases in test_print_lifecycle_state.cpp drive the class in isolation,
+// so they would keep passing against a panel that had stopped using it
+// entirely. These cases cover the seam instead. They pin the
+// panel's observable behavior so a change to where its state comes from is
 // visible instead of silent.
 //
 // Two jobs:
-//   1. Pin the Complete-screen freeze, which must survive the refactor. The
+//   1. Pin the Complete-screen freeze, which must hold as the panel's state
+//      source changes. The
 //      panel's latches are the reason a finished print still reads its final
 //      numbers after Moonraker zeroes the underlying subjects on STANDBY.
-//   2. Pin the agreement between the panel and the published subject. One of
-//      these is expected to FAIL until 0b lands - that is the point.
+//   2. Pin the agreement between the panel and the published subject.
 
 #include "ui_panel_print_status.h"
 
@@ -102,9 +102,7 @@ struct PanelLifecycleFixture : public LVGLTestFixture {
 
 } // namespace
 
-// ============================================================================
 // Agreement
-// ============================================================================
 
 TEST_CASE_METHOD(PanelLifecycleFixture, "panel and published lifecycle agree on a plain print",
                  "[print_status][lifecycle_seam]") {
@@ -160,14 +158,12 @@ TEST_CASE_METHOD(PanelLifecycleFixture, "clearing the phase hands off to the rep
     REQUIRE(panel_state() == published());
 }
 
-// ============================================================================
-// The Complete freeze - must survive 0b unchanged
-// ============================================================================
+// The Complete freeze
 
 TEST_CASE_METHOD(PanelLifecycleFixture, "a completed print keeps its numbers when Moonraker zeroes",
                  "[print_status][lifecycle_seam][freeze]") {
-    // This is what the panel's latches buy, and why deleting them would be a
-    // regression rather than a simplification. Moonraker reports zeroed
+    // This is what the panel's latches buy, and why deleting them would change
+    // behavior rather than simplify. Moonraker reports zeroed
     // progress/layers the moment a finished print settles to STANDBY; the
     // Complete screen must keep showing what the print actually did.
     state_.update_from_status(json{{"print_stats",
@@ -183,7 +179,7 @@ TEST_CASE_METHOD(PanelLifecycleFixture, "a completed print keeps its numbers whe
     drain();
     REQUIRE(panel_state() == PrintState::Complete);
 
-    // Moonraker now zeroes everything as the job settles.
+    // Moonraker zeroes everything as the job settles.
     state_.update_from_status(json{{"print_stats",
                                     {{"state", "standby"},
                                      {"print_duration", 0.0},
@@ -193,10 +189,10 @@ TEST_CASE_METHOD(PanelLifecycleFixture, "a completed print keeps its numbers whe
 
     // The freeze, asserted positively on the value it actually protects.
     //
-    // An earlier version asserted only `panel_state() != PrintState::Printing`,
-    // which is a tautology: derive_print_state(STANDBY, 0) is Idle under every
-    // possible implementation, so six of the seven enum values satisfied it and
-    // deleting every latch in the panel left it green.
+    // Asserting only `panel_state() != PrintState::Printing` would be a
+    // tautology: derive_print_state(STANDBY, 0) is Idle under every possible
+    // implementation, so six of the seven enum values satisfy it and deleting
+    // every latch in the panel would leave it green.
     //
     // The lifecycle DOES go Complete -> Idle here, by design - that is the
     // `print_ended` edge (print_lifecycle_state.cpp), which is what releases the
@@ -205,14 +201,13 @@ TEST_CASE_METHOD(PanelLifecycleFixture, "a completed print keeps its numbers whe
     // progress. Note the expected value is 100, not the 73 last reported:
     // should_freeze_complete forces the terminal values on the ->Complete edge,
     // which is why a finished print reads 100% / 240 of 240 / 0s rather than
-    // whatever the final sample happened to catch. Moonraker has since reported
-    // 0 and the panel must still say 100.
+    // whatever the final sample happened to catch. Moonraker reports
+    // 0 by then and the panel must still say 100.
     REQUIRE(panel_state() == PrintState::Idle);
     REQUIRE(panel_->get_progress() == 100);
 }
 
-// ============================================================================
-// The per-job resets — a side effect, not a state value
+// The per-job resets: a side effect, not a state value
 //
 // Every other test in this file asserts which STATE the panel holds. That is
 // exactly what missed this: for a print started in-app the panel is already
@@ -220,7 +215,6 @@ TEST_CASE_METHOD(PanelLifecycleFixture, "a completed print keeps its numbers whe
 // Preparing == current, returns state_changed=false and bails before the resets.
 // Panel and published lifecycle still AGREE the whole way, so an agreement
 // assertion passes while every side effect behind that early return is skipped.
-// ============================================================================
 
 TEST_CASE_METHOD(PanelLifecycleFixture,
                  "a print started in-app still clears the previous print's end-overlay dismissal",

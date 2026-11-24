@@ -22,9 +22,7 @@
 
 namespace helix::text_io {
 
-// ---------------------------------------------------------------------------
 // Whole files
-// ---------------------------------------------------------------------------
 
 /// The whole file, byte for byte (embedded NULs and CRLF kept), or its first
 /// @p max_bytes when it is longer. nullopt when the file cannot be opened or a
@@ -58,9 +56,7 @@ enum class Durability {
 bool write_file_atomic(const std::string& path, std::string_view data,
                        Durability durability = Durability::None);
 
-// ---------------------------------------------------------------------------
 // Streaming files, for inputs too big to hold (G-code) and incremental writes
-// ---------------------------------------------------------------------------
 
 struct FileCloser {
     void operator()(std::FILE* f) const noexcept {
@@ -124,9 +120,7 @@ class LineReader {
     std::size_t len_ = 0;
 };
 
-// ---------------------------------------------------------------------------
 // Splitting text already in memory
-// ---------------------------------------------------------------------------
 
 /// Records of `text` split on `delim`, with the same results a
 /// `while (std::getline(stream, line, delim))` loop produces:
@@ -353,11 +347,9 @@ inline std::string to_upper(std::string_view s) {
     return out;
 }
 
-// ---------------------------------------------------------------------------
 // Numbers. Strict: the whole view must be the number, no surrounding
 // whitespace. One leading '+' is accepted, as std::stoi/stod and >> accept it.
 // Always '.' as the decimal point, whatever the process locale.
-// ---------------------------------------------------------------------------
 
 /// An integer of type T in `base` (2-36, no "0x" prefix). nullopt on empty
 /// input, trailing characters, a sign T cannot hold, or overflow of T.
@@ -388,14 +380,12 @@ namespace detail {
 std::optional<double> parse_double_strtod(std::string_view s);
 } // namespace detail
 
-// ---------------------------------------------------------------------------
 // Numbers by std::sto* rules: leading whitespace skipped, the number read up to
 // the first character that cannot continue it, the rest ignored ("12abc" is 12,
 // "3.9" is 3 as an int). nullopt exactly where the std:: form throws: no number
 // at all, or a value outside T. The non-throwing drop-in for std::stoi, stol,
 // stoll, stoul, stoull, stof and stod; prefer parse_int/parse_double where a
 // caller has no reason to accept trailing text.
-// ---------------------------------------------------------------------------
 
 template <typename T> std::optional<T> parse_leading(std::string_view s, int base = 10) {
     static_assert(std::is_arithmetic_v<T> && !std::is_same_v<T, bool>);

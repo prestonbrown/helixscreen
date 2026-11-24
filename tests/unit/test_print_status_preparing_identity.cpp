@@ -50,11 +50,9 @@ struct PreparingIdentityFixture : public LVGLTestFixture {
         // those lv_subject_t members hold construction garbage, and
         // lv_subject_set_int() reads `type` from it: usually a dropped write
         // and a warning, but when the garbage reads as LV_SUBJECT_INT it walks
-        // the garbage `subs` list and SIGSEGVs. That is the isolated-run crash
-        // behind the 08-31/09-01 nightly order-dependence findings on this
-        // file — invisible in the suite, where earlier tests leave different
-        // bytes in the recycled allocation, and caught by valgrind as
-        // uninitialised reads at ui_panel_print_status.cpp:3367 and :1469.
+        // the garbage `subs` list and SIGSEGVs. That crash shows only in an
+        // isolated run: in the full suite earlier tests leave different bytes in
+        // the recycled allocation. Valgrind reports it as uninitialized reads.
         panel_->init_subjects();
         Access::set_thumbnail_widget(*panel_, lv_image_create(test_screen()));
     }

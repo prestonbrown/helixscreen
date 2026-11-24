@@ -30,9 +30,7 @@
 using namespace helix;
 using namespace helix::printer;
 
-// =============================================================================
 // Capability type - the three axes must be independently expressible
-// =============================================================================
 
 TEST_CASE("EndlessSpoolCapabilities separates availability, enablement and editability",
           "[ams][endless_spool][types]") {
@@ -109,9 +107,7 @@ TEST_CASE("Every restriction reason yields display text", "[ams][endless_spool][
     CHECK(endless_spool_restriction_text(EndlessSpoolRestriction::None).empty());
 }
 
-// =============================================================================
 // Group model + the single group-to-edge projection
-// =============================================================================
 
 TEST_CASE("Endless spool config models groups, not single successors",
           "[ams][endless_spool][types][projection]") {
@@ -225,9 +221,7 @@ TEST_CASE("Endless spool config models groups, not single successors",
     }
 }
 
-// =============================================================================
 // Base class: one set of guards, one reset loop, one eligibility default
-// =============================================================================
 
 TEST_CASE("Base class owns endless spool validation", "[ams][endless_spool][interface]") {
     AmsBackendMock backend(4);
@@ -277,8 +271,7 @@ TEST_CASE("Base class owns endless spool validation", "[ams][endless_spool][inte
         auto result = backend.set_endless_spool_backup(2, 2);
         CHECK_FALSE(result);
         CHECK(result.result == AmsResult::INVALID_SLOT);
-        // One wording, from AmsBackend - three backends used to phrase this
-        // three different ways.
+        // One wording, from AmsBackend, shared by every backend.
         CHECK(result.technical_msg.find("its own endless spool backup") != std::string::npos);
     }
 
@@ -325,8 +318,8 @@ TEST_CASE("Base reset loop clears every slot", "[ams][endless_spool][interface]"
         REQUIRE(backend.set_endless_spool_backup(2, 3));
         REQUIRE_FALSE(backend.get_endless_spool_config().empty());
 
-        // The mock never implemented reset and used to return NOT_SUPPORTED
-        // while advertising editable=true. It inherits a working one now.
+        // The mock advertises editable=true, so it must implement reset rather
+        // than return NOT_SUPPORTED.
         auto result = backend.reset_endless_spool();
         CHECK(result);
         CHECK(backend.get_endless_spool_config().empty());
@@ -449,9 +442,7 @@ TEST_CASE("Backup eligibility separates a grade change from a material mismatch"
     backend.stop();
 }
 
-// =============================================================================
 // AFC - PerSlot, always enabled, SET_RUNOUT transport
-// =============================================================================
 
 namespace helix {
 
@@ -547,8 +538,9 @@ TEST_CASE("AFC endless spool - per-slot, always on", "[ams][endless_spool][afc]"
     }
 
     SECTION("a rejected G-code leaves the registry alone") {
-        // The registry used to be written BEFORE the send, so a printer that
-        // refused the command left the UI drawing an arrow the hardware never had.
+        // The registry is written only after the send succeeds: a printer that
+        // refuses the command must not leave the UI drawing an arrow the hardware
+        // never had.
         helper.gcode_result = AmsErrorHelper::command_failed("SET_RUNOUT", "unknown command");
 
         auto result = helper.set_endless_spool_backup(1, 3);
@@ -573,9 +565,7 @@ TEST_CASE("AFC endless spool - per-slot, always on", "[ams][endless_spool][afc]"
     }
 }
 
-// =============================================================================
 // Happy Hare - Group editing, gated on the ENABLE bit
-// =============================================================================
 
 namespace helix {
 
@@ -776,9 +766,7 @@ TEST_CASE("Happy Hare endless spool - group editing", "[ams][endless_spool][happ
     }
 }
 
-// =============================================================================
 // Chains, cycles, and the retired flag
-// =============================================================================
 
 TEST_CASE("Endless spool edge cases", "[ams][endless_spool][edge]") {
     AmsBackendMock backend(4);
@@ -814,10 +802,8 @@ TEST_CASE("Availability has exactly one source of truth",
     REQUIRE(backend.start());
 
     SECTION("AmsSystemInfo carries the ENABLE bit only, and caps derive from it") {
-        // AmsSystemInfo::supports_endless_spool used to answer the availability
-        // question a second time and could disagree with the capabilities. There
-        // is no such field any more; what remains is the enable bit, and
-        // get_endless_spool_capabilities() reads it rather than answering itself.
+        // AmsSystemInfo holds only the enable bit; availability is answered once,
+        // by get_endless_spool_capabilities(), which reads that bit.
         auto info = backend.get_system_info();
         auto caps = backend.get_endless_spool_capabilities();
 
@@ -838,13 +824,11 @@ TEST_CASE("Availability has exactly one source of truth",
     backend.stop();
 }
 
-// =============================================================================
 // The status line: capability enums -> one bindable code + one sentence
 //
-// This is what Phase 2 put on screen, so it is pinned hard. The strings are the
+// This is what the status line puts on screen, so it is pinned hard. The strings are the
 // English source strings: lv_tr() is identity when no translation pack is loaded,
 // which is the state a unit-test binary runs in.
-// =============================================================================
 
 TEST_CASE("endless_spool_status turns capabilities into a status line",
           "[ams][endless_spool][status][1250]") {
@@ -948,8 +932,7 @@ TEST_CASE("endless_spool_status turns capabilities into a status line",
     }
 
     SECTION("CFS with auto-refill OFF is visibly different from CFS with it on") {
-        // The exact bug the Phase 1 refactor existed to make expressible: an
-        // enabled box and a disabled one used to render identically.
+        // An enabled box and a disabled one must not render identically.
         EndlessSpoolCapabilities on;
         on.availability = EndlessSpoolAvailability::Available;
         on.enabled = EndlessSpoolEnabled::On;
@@ -1106,9 +1089,7 @@ TEST_CASE("Every backend's real capabilities produce a sane status line",
     }
 }
 
-// =============================================================================
 // Rendering geometry - which marks the slot row draws for a relation
-// =============================================================================
 
 namespace {
 

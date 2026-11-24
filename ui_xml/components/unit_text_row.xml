@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- The configure card's row for a tile's unit text. A tap edits it; Default
+       drops the override and shows only while one is set. -->
+  <api>
+    <!-- The unit text shown on the row -->
+    <prop name="value_subject" type="string" default=""/>
+    <!-- 1 while an override is set -->
+    <prop name="custom_subject" type="string" default=""/>
+    <prop name="row_callback" type="string" default=""/>
+    <prop name="reset_callback" type="string" default=""/>
+  </api>
+  <view name="unit_row"
+        extends="lv_obj" width="100%" height="content" flex_flow="row" style_flex_cross_place="center"
+        style_pad_all="#space_xs" style_pad_gap="#space_xs" scrollable="false" clickable="true">
+    <style name="styles.press_wash" selector="pressed"/>
+    <event_cb trigger="clicked" callback="$row_callback"/>
+    <text_body text="Unit text" flex_grow="1" style_text_font="noto_sans_14" clickable="false" event_bubble="true"/>
+    <text_body name="unit_value"
+               bind_text="$value_subject" style_text_font="noto_sans_14" style_text_opa="180" clickable="false"
+               event_bubble="true"/>
+    <ui_button name="unit_reset" height="#button_height_sm" text="Default" variant="outline">
+      <bind_flag_if_eq subject="$custom_subject" flag="hidden" ref_value="0"/>
+      <event_cb trigger="clicked" callback="$reset_callback"/>
+    </ui_button>
+  </view>
+</component>

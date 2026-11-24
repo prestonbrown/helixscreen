@@ -457,8 +457,7 @@ void TouchCalibrationPanel::add_sample(Point raw, const Point* device_raw) {
 }
 
 void TouchCalibrationPanel::on_press(Point raw, const Point* device_raw) {
-    // Opt-out: legacy sample-on-press behavior (byte-for-byte the pre-#943 path)
-    // for A/B testing on real hardware.
+    // Opt-out: sample on press, with no debounce, for A/B testing on real hardware.
     if (!debounce_enabled_) {
         add_sample(raw, device_raw);
         return;

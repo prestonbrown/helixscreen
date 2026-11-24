@@ -18,9 +18,7 @@
 
 namespace helix {
 
-// ============================================================================
 // Known printer table
-// ============================================================================
 
 static const std::vector<KnownUsbPrinter> s_known_printers = {
     {0x0493, 0x8760, "Phomemo M110"},
@@ -49,9 +47,7 @@ std::string UsbPrinterDetector::get_printer_name(uint16_t vid, uint16_t pid) {
     return {};
 }
 
-// ============================================================================
 // Construction / destruction
-// ============================================================================
 
 UsbPrinterDetector::UsbPrinterDetector() = default;
 
@@ -59,9 +55,7 @@ UsbPrinterDetector::~UsbPrinterDetector() {
     stop_polling();
 }
 
-// ============================================================================
 // Scanning
-// ============================================================================
 
 std::vector<UsbPrinterInfo> UsbPrinterDetector::scan() {
     std::vector<UsbPrinterInfo> results;
@@ -132,9 +126,7 @@ std::vector<UsbPrinterInfo> UsbPrinterDetector::scan() {
 #endif // HELIX_HAS_LIBUSB
 }
 
-// ============================================================================
 // Polling
-// ============================================================================
 
 void UsbPrinterDetector::poll_timer_cb(_lv_timer_t* timer) {
     auto* self = static_cast<UsbPrinterDetector*>(lv_timer_get_user_data(timer));

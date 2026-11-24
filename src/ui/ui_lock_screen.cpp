@@ -16,26 +16,20 @@
 
 namespace helix::ui {
 
-// ============================================================================
 // Static callback forward declarations
-// ============================================================================
 
 static void lock_digit_clicked(lv_event_t* e);
 static void lock_backspace_clicked(lv_event_t* e);
 static void lock_confirm_clicked(lv_event_t* e);
 
-// ============================================================================
 // Singleton
-// ============================================================================
 
 LockScreenOverlay& LockScreenOverlay::instance() {
     static LockScreenOverlay inst;
     return inst;
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 bool LockScreenOverlay::is_visible() const {
     return overlay_ != nullptr;
@@ -60,9 +54,7 @@ void LockScreenOverlay::hide() {
     destroy_overlay();
 }
 
-// ============================================================================
 // Overlay lifecycle
-// ============================================================================
 
 void LockScreenOverlay::create_overlay() {
     // The lock_screen component is the full-screen root: background, card and
@@ -102,9 +94,7 @@ void LockScreenOverlay::destroy_overlay() {
     }
 }
 
-// ============================================================================
 // Digit input handling
-// ============================================================================
 
 void LockScreenOverlay::on_digit(int digit) {
     if (!is_visible()) {
@@ -168,9 +158,7 @@ void LockScreenOverlay::on_confirm() {
     }
 }
 
-// ============================================================================
 // Dot indicator updates
-// ============================================================================
 
 void LockScreenOverlay::update_dots() {
     if (pin_display_) {
@@ -185,9 +173,7 @@ void LockScreenOverlay::clear_digits() {
     spdlog::debug("[LockScreen] Digits cleared");
 }
 
-// ============================================================================
 // Error label visibility
-// ============================================================================
 
 void LockScreenOverlay::show_error(const char* text) {
     if (pin_display_) {
@@ -201,9 +187,7 @@ void LockScreenOverlay::hide_error() {
     }
 }
 
-// ============================================================================
 // Shake animation on wrong PIN
-// ============================================================================
 
 void LockScreenOverlay::shake_dots() {
     if (!overlay_) {
@@ -238,9 +222,7 @@ void LockScreenOverlay::shake_dots() {
     spdlog::debug("[LockScreen] Shake animation started");
 }
 
-// ============================================================================
 // Static XML event callbacks
-// ============================================================================
 
 /**
  * Handles digit button clicks for all 10 digit buttons (0-9).
@@ -272,9 +254,7 @@ static void lock_confirm_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_END();
 }
 
-// ============================================================================
 // Registration helper — called from xml_registration.cpp
-// ============================================================================
 
 void register_lock_screen_callbacks() {
     register_xml_callbacks({

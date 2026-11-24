@@ -44,7 +44,7 @@ Resolve the declared release channel and the R2 channels it publishes to.
 Options:
   --file PATH    RELEASE_CHANNEL file to read (default: repo root)
   --tag TAG      Git tag to cross-check against the channel (e.g. v1.1.0).
-                 A tag carrying a prerelease suffix may not publish to stable.
+                 A suffixed tag may not publish to stable; a plain tag must.
   --field FIELD  Print just one value: channel | channels | prerelease
   -h, --help     Show this help
 
@@ -141,6 +141,23 @@ if [ -n "$TAG" ] && [ "$CHANNEL" = "stable" ]; then
             echo "       channel 'stable'. The stable manifest is installed unattended," >&2
             echo "       so it serves finished releases only; tag stable releases as" >&2
             echo "       plain vX.Y.Z, or publish this candidate from a beta/dev branch." >&2
+            exit 1
+            ;;
+    esac
+fi
+
+# The reverse: a plain vX.Y.Z is a finished release and belongs to the stable
+# fleet. Tagged while the branch still declares a prerelease channel, it would
+# publish as a GitHub prerelease to beta and dev only, and the stable fleet would
+# never be offered it. The graduation commit flips RELEASE_CHANNEL to stable.
+if [ -n "$TAG" ] && [ "$CHANNEL" != "stable" ]; then
+    case "${TAG#v}" in
+        *-*) ;;
+        *)
+            echo "error: tag '$TAG' is a plain release version but '$FILE' declares" >&2
+            echo "error: channel '$CHANNEL', so it would publish as a prerelease and never" >&2
+            echo "error: reach the stable fleet. Fix: set RELEASE_CHANNEL to stable in the" >&2
+            echo "error: release commit. (A plain version is never tagged from the trunk.)" >&2
             exit 1
             ;;
     esac

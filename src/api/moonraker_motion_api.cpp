@@ -54,17 +54,13 @@ std::string format_gcode_value(double v) {
 
 } // namespace
 
-// ============================================================================
 // MoonrakerMotionAPI Implementation
-// ============================================================================
 
 MoonrakerMotionAPI::MoonrakerMotionAPI(helix::IMoonrakerClient& client, helix::PrinterState& state,
                                        const SafetyLimits& safety_limits)
     : client_(client), state_(state), safety_limits_(safety_limits) {}
 
-// ============================================================================
 // Motion Control Operations
-// ============================================================================
 
 void MoonrakerMotionAPI::home_axes(const std::string& axes, SuccessCallback on_success,
                                    ErrorCallback on_error) {
@@ -89,12 +85,10 @@ void MoonrakerMotionAPI::home_axes(const std::string& axes, SuccessCallback on_s
 
 void MoonrakerMotionAPI::move_axis(char axis, double distance, double feedrate,
                                    SuccessCallback on_success, ErrorCallback on_error) {
-    // Reject NaN/Inf before any G-code generation
     if (reject_non_finite({distance, feedrate}, "move_axis", on_error)) {
         return;
     }
 
-    // Validate axis
     if (!is_valid_axis(axis)) {
         report_validation_error(on_error, "move_axis",
                                 "Invalid axis: " + std::string(1, axis) +
@@ -103,7 +97,6 @@ void MoonrakerMotionAPI::move_axis(char axis, double distance, double feedrate,
         return;
     }
 
-    // Validate distance is within safety limits
     if (!is_safe_distance(distance, safety_limits_)) {
         report_validation_error(
             on_error, "move_axis",
@@ -184,12 +177,10 @@ void MoonrakerMotionAPI::move_relative(double dx, double dy, double dz, double x
 
 void MoonrakerMotionAPI::move_to_position(char axis, double position, double feedrate,
                                           SuccessCallback on_success, ErrorCallback on_error) {
-    // Reject NaN/Inf before any G-code generation
     if (reject_non_finite({position, feedrate}, "move_to_position", on_error)) {
         return;
     }
 
-    // Validate axis
     if (!is_valid_axis(axis)) {
         report_validation_error(on_error, "move_to_position",
                                 "Invalid axis character (must be X, Y, Z, or E)",
@@ -197,7 +188,6 @@ void MoonrakerMotionAPI::move_to_position(char axis, double position, double fee
         return;
     }
 
-    // Validate position is within safety limits
     if (!is_safe_position(position, safety_limits_)) {
         report_validation_error(
             on_error, "move_to_position",
@@ -290,9 +280,7 @@ void MoonrakerMotionAPI::move_to(const helix::AxisTarget& target, double xy_feed
     execute_gcode(gcode, on_success, on_error);
 }
 
-// ============================================================================
 // G-code Generation Helpers
-// ============================================================================
 
 std::string MoonrakerMotionAPI::generate_home_gcode(const std::string& axes) {
     if (axes.empty()) {
@@ -433,9 +421,7 @@ std::string MoonrakerMotionAPI::generate_absolute_move_gcode(char axis, double p
     return gcode;
 }
 
-// ============================================================================
 // G-code Execution
-// ============================================================================
 
 void MoonrakerMotionAPI::execute_gcode(const std::string& gcode, SuccessCallback on_success,
                                        ErrorCallback on_error, uint32_t timeout_ms,

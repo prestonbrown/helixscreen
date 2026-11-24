@@ -382,7 +382,6 @@ class AsyncLifetimeGuard {
 
 } // namespace helix
 
-// ============================================================================
 // Skip-rate telemetry — declared in this header because the three skip paths
 // below are the only producers. See `src/system/async_lifetime_guard.cpp` for
 // the implementation.
@@ -401,7 +400,6 @@ class AsyncLifetimeGuard {
 // overflow rolls into an "(other)" bucket. Slots are released again whenever a
 // window drains them to zero, so the bound is on tags active *per window*, not
 // on tags seen over the life of the process.
-// ============================================================================
 
 namespace helix::async_lifetime {
 

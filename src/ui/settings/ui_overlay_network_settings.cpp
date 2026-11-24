@@ -41,9 +41,7 @@
 
 using namespace helix;
 
-// ============================================================================
 // Helper Types
-// ============================================================================
 
 /**
  * @brief Per-instance network item data for click handling
@@ -97,9 +95,7 @@ static void network_item_delete_cb(lv_event_t* e) {
     }
 }
 
-// ============================================================================
 // Constructor / Destructor
-// ============================================================================
 
 NetworkSettingsOverlay::NetworkSettingsOverlay() {
     std::memset(ssid_buffer_, 0, sizeof(ssid_buffer_));
@@ -151,9 +147,7 @@ NetworkSettingsOverlay::~NetworkSettingsOverlay() {
     // NOTE: Do NOT use spdlog here - it may be destroyed during exit
 }
 
-// ============================================================================
 // Subject Initialization
-// ============================================================================
 
 void NetworkSettingsOverlay::init_subjects() {
     spdlog::debug("[NetworkSettingsOverlay] Initializing subjects");
@@ -213,9 +207,7 @@ void NetworkSettingsOverlay::init_subjects() {
     spdlog::debug("[NetworkSettingsOverlay] Subjects initialized");
 }
 
-// ============================================================================
 // Callback Registration
-// ============================================================================
 
 void NetworkSettingsOverlay::register_callbacks() {
     register_xml_callbacks({
@@ -253,9 +245,7 @@ void NetworkSettingsOverlay::register_callbacks() {
     });
 }
 
-// ============================================================================
 // Screen Creation
-// ============================================================================
 
 lv_obj_t* NetworkSettingsOverlay::create(lv_obj_t* parent_screen) {
     // Register wifi_network_item component first
@@ -297,7 +287,6 @@ lv_obj_t* NetworkSettingsOverlay::create(lv_obj_t* parent_screen) {
         spdlog::debug("[NetworkSettingsOverlay] WiFiManager obtained from global singleton");
     }
 
-    // Check WiFi hardware availability and update subject
     const bool hw_available = wifi_manager_ && wifi_manager_->has_hardware();
     lv_subject_set_int(&wifi_hardware_available_, hw_available ? 1 : 0);
     lv_subject_set_int(&wifi_toggle_locked_, hw_available ? 0 : 1);
@@ -305,20 +294,17 @@ lv_obj_t* NetworkSettingsOverlay::create(lv_obj_t* parent_screen) {
         spdlog::info("[NetworkSettingsOverlay] WiFi hardware not available - controls disabled");
     }
 
-    // Initialize Ethernet manager
     if (!ethernet_manager_) {
         ethernet_manager_ = std::make_unique<EthernetManager>();
         spdlog::debug("[NetworkSettingsOverlay] EthernetManager initialized");
     }
 
-    // Initialize NetworkTester
     if (!network_tester_) {
         network_tester_ = std::make_shared<NetworkTester>();
         network_tester_->init_self_reference(network_tester_);
         spdlog::debug("[NetworkSettingsOverlay] NetworkTester initialized");
     }
 
-    // Update initial connection status
     update_wifi_status();
     update_ethernet_status();
     update_any_network_connected();
@@ -327,9 +313,7 @@ lv_obj_t* NetworkSettingsOverlay::create(lv_obj_t* parent_screen) {
     return overlay_root_;
 }
 
-// ============================================================================
 // Lifecycle Hooks
-// ============================================================================
 
 void NetworkSettingsOverlay::on_activate() {
     OverlayBase::on_activate();
@@ -410,9 +394,7 @@ void NetworkSettingsOverlay::on_deactivating(DeactivateReason) {
     }
 }
 
-// ============================================================================
 // Cleanup
-// ============================================================================
 
 void NetworkSettingsOverlay::on_ui_destroyed() {
     detach_country_dropdown();
@@ -462,9 +444,7 @@ void NetworkSettingsOverlay::cleanup() {
     spdlog::debug("[NetworkSettingsOverlay] Cleanup complete");
 }
 
-// ============================================================================
 // Helper Functions
-// ============================================================================
 
 void NetworkSettingsOverlay::refresh_transport_status() {
     update_wifi_status();
@@ -673,8 +653,7 @@ void NetworkSettingsOverlay::update_ethernet_status() {
     // Kick off an async probe — the callback fires on the UI thread via
     // tok.defer() so it's safe to touch subjects there. No bare expired()
     // check on the bg thread: defer's own guard skips when the owner is
-    // gone, and dropping the bare check silences the bg_tok_expired_check
-    // detector for this site (3XNZQB2R audit).
+    // gone, so the bg_tok_expired_check detector has nothing to flag here.
     auto tok = lifetime_.token();
     eth_probe_token_ = tok;
     ethernet_manager_->get_info_async([this, tok](const EthernetInfo& info) {
@@ -793,7 +772,6 @@ void NetworkSettingsOverlay::build_network_list(const std::vector<WiFiNetwork>& 
 
     clear_network_list();
 
-    // Update count
     snprintf(count_buffer_, sizeof(count_buffer_), "(%zu)", networks.size());
     lv_subject_notify(&network_count_);
 
@@ -811,7 +789,6 @@ void NetworkSettingsOverlay::build_network_list(const std::vector<WiFiNetwork>& 
     // on a 2.4GHz-only radio every row would read "2.4G" (helixscreen#1189).
     const bool show_bands = helix::ui::wifi::wifi_scan_spans_multiple_bands(sorted_networks);
 
-    // Create network items
     static int item_counter = 0;
     for (const auto& network : sorted_networks) {
         const int icon_state = helix::ui::wifi::wifi_compute_signal_icon_state(
@@ -921,9 +898,7 @@ void NetworkSettingsOverlay::show_password_status(const std::string& text) {
     lv_subject_set_int(&password_status_shown_, text.empty() ? 0 : 1);
 }
 
-// ============================================================================
 // Event Handler Implementations
-// ============================================================================
 
 void NetworkSettingsOverlay::handle_wlan_toggle_changed(lv_event_t* e) {
     lv_obj_t* sw = static_cast<lv_obj_t*>(lv_event_get_target(e));
@@ -948,7 +923,7 @@ void NetworkSettingsOverlay::handle_wlan_toggle_changed(lv_event_t* e) {
     // Turning WiFi off on a device with no other network path is a one-way
     // door FROM THIS SCREEN — once the radio is off there is no wired
     // fallback to reach it and re-enable it remotely. This is the live-toggle
-    // twin of the startup no-strand guard (Task 15/CC1 incident): that guard
+    // twin of the startup no-strand guard: that guard
     // only covers the backend reasserting a stored "off" on boot, not the
     // user flipping the switch right here. Warn and let the user back out
     // before actually applying it.
@@ -1078,7 +1053,6 @@ void NetworkSettingsOverlay::finish_wlan_toggle(bool requested, bool success, bo
         lv_subject_set_int(&wifi_scanning_, 0);
         clear_network_list();
 
-        // Update connection status
         lv_subject_set_int(&wifi_connected_, 0);
         ssid_buffer_[0] = '\0';
         ip_buffer_[0] = '\0';
@@ -1095,7 +1069,6 @@ void NetworkSettingsOverlay::finish_wlan_toggle(bool requested, bool success, bo
     // still costs one write.
     SystemSettingsManager::instance().set_wifi_enabled(outcome.enabled);
 
-    // Update combined network status
     update_any_network_connected();
 }
 
@@ -1186,7 +1159,6 @@ void NetworkSettingsOverlay::handle_test_network_clicked() {
         return;
     }
 
-    // Find the step_container and create the step widget
     lv_obj_t* step_container = lv_obj_find_by_name(test_modal_, "step_container");
     if (!step_container) {
         spdlog::error("[NetworkSettingsOverlay] step_container not found in modal");
@@ -1311,7 +1283,6 @@ void NetworkSettingsOverlay::handle_network_test_close() {
         lv_subject_set_int(&test_running_, 0);
     }
 
-    // Hide the modal
     if (test_modal_) {
         helix::ui::modal_hide(test_modal_);
         test_modal_ = nullptr;
@@ -1476,9 +1447,7 @@ void NetworkSettingsOverlay::handle_network_forget_cancel() {
     pending_forget_ssid_.clear();
 }
 
-// ============================================================================
 // Password Modal Implementation
-// ============================================================================
 
 void NetworkSettingsOverlay::show_password_modal(const char* ssid) {
     spdlog::debug("[NetworkSettingsOverlay] Showing password modal for: {}",
@@ -1495,7 +1464,6 @@ void NetworkSettingsOverlay::show_password_modal(const char* ssid) {
     // No error line from a previous attempt
     show_password_status("");
 
-    // Show modal
     const char* modal_attrs[] = {"cancel_callback",
                                  "on_network_settings_password_cancel",
                                  "connect_callback",
@@ -1511,7 +1479,6 @@ void NetworkSettingsOverlay::show_password_modal(const char* ssid) {
         return;
     }
 
-    // Clear password input and register keyboard
     lv_obj_t* password_input = lv_obj_find_by_name(password_modal_, "password_input");
     if (password_input) {
         lv_textarea_set_text(password_input, "");
@@ -1549,7 +1516,6 @@ void NetworkSettingsOverlay::handle_password_connect_clicked() {
         return;
     }
 
-    // Get password from input
     lv_obj_t* password_input = lv_obj_find_by_name(password_modal_, "password_input");
     if (!password_input) {
         spdlog::error("[NetworkSettingsOverlay] Password input not found");
@@ -1567,7 +1533,6 @@ void NetworkSettingsOverlay::handle_password_connect_clicked() {
         return;
     }
 
-    // Show connecting state (hides form, shows spinner)
     lv_subject_set_int(&wifi_connecting_, 1);
 
     spdlog::info("[NetworkSettingsOverlay] Connecting to secured network: {}",

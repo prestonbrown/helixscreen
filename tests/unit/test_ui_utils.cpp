@@ -21,9 +21,7 @@ using helix::display_format::format_print_time;
 using helix::display_format::format_relative_time;
 using helix::display_format::format_uptime;
 
-// ============================================================================
 // format_print_time() Tests
-// ============================================================================
 
 TEST_CASE("UI Utils: format_print_time - minutes only", "[ui_utils][format]") {
     REQUIRE(format_print_time(0) == "0 min");
@@ -66,9 +64,7 @@ TEST_CASE("UI Utils: format_print_time - edge cases", "[ui_utils][format][edge]"
     }
 }
 
-// ============================================================================
 // format_filament_weight() Tests
-// ============================================================================
 
 TEST_CASE("UI Utils: format_filament_weight - less than 1 gram", "[ui_utils][format]") {
     REQUIRE(format_filament_weight(0.0f) == "0.0 g");
@@ -105,9 +101,7 @@ TEST_CASE("UI Utils: format_filament_weight - edge cases", "[ui_utils][format][e
     }
 }
 
-// ============================================================================
 // format_file_size() Tests
-// ============================================================================
 
 TEST_CASE("UI Utils: format_file_size - bytes", "[ui_utils][format]") {
     REQUIRE(format_file_size(0) == "0 B");
@@ -152,9 +146,7 @@ TEST_CASE("UI Utils: format_file_size - edge cases", "[ui_utils][format][edge]")
     }
 }
 
-// ============================================================================
 // format_modified_date() Tests
-// ============================================================================
 
 TEST_CASE("UI Utils: format_modified_date - valid timestamps", "[ui_utils][format]") {
     // January 15, 2025 14:30:00
@@ -181,9 +173,7 @@ TEST_CASE("UI Utils: format_modified_date - edge cases", "[ui_utils][format][edg
     }
 }
 
-// ============================================================================
 // format_relative_time() Tests
-// ============================================================================
 
 TEST_CASE("UI Utils: format_relative_time", "[ui_utils][format][i18n]") {
     SECTION("Just now - under 1 minute") {
@@ -212,9 +202,7 @@ TEST_CASE("UI Utils: format_relative_time", "[ui_utils][format][i18n]") {
     }
 }
 
-// ============================================================================
 // format_uptime() Tests
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "UI Utils: format_uptime", "[ui_utils][format][i18n][1939]") {
     struct RestoreEnglish {
@@ -238,13 +226,11 @@ TEST_CASE_METHOD(LVGLTestFixture, "UI Utils: format_uptime", "[ui_utils][format]
     }
 }
 
-// ============================================================================
 // ui_get_header_content_padding() Tests
-// ============================================================================
 
 // NOTE: ui_get_header_content_padding() returns theme_manager_get_spacing("space_lg"),
 // a responsive value the theme system scales per display breakpoint at theme init.
-// Responsiveness comes from the theme breakpoint, not a caller-supplied height — the
+// Responsiveness comes from the theme breakpoint, not a caller-supplied height: the
 // function takes no arguments.
 
 TEST_CASE("UI Utils: ui_get_header_content_padding - returns space_lg value",
@@ -263,9 +249,7 @@ TEST_CASE("UI Utils: ui_get_header_content_padding - returns space_lg value",
     }
 }
 
-// ============================================================================
 // ui_get_responsive_header_height() Tests
-// ============================================================================
 
 TEST_CASE("UI Utils: ui_get_responsive_header_height - screen sizes", "[ui_utils][responsive]") {
     SECTION("Tiny screen (320px)") {
@@ -312,9 +296,7 @@ TEST_CASE("UI Utils: ui_get_responsive_header_height - boundary values",
     }
 }
 
-// ============================================================================
 // ui_brightness_to_lightbulb_icon() Tests
-// ============================================================================
 
 TEST_CASE("UI Utils: ui_brightness_to_lightbulb_icon - off state", "[ui_utils][led]") {
     REQUIRE(strcmp(ui_brightness_to_lightbulb_icon(0), "lightbulb_outline") == 0);
@@ -351,9 +333,7 @@ TEST_CASE("UI Utils: ui_brightness_to_lightbulb_icon - full brightness", "[ui_ut
     REQUIRE(strcmp(ui_brightness_to_lightbulb_icon(255), "lightbulb_on") == 0);
 }
 
-// ============================================================================
 // disable_widget_clicks_recursive() Tests
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture,
                  "UI Utils: disable_widget_clicks_recursive - removes CLICKABLE from children",
@@ -397,7 +377,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     helix::ui::disable_widget_clicks_recursive(parent);
 
-    // Parent itself should NOT have CLICKABLE removed — only descendants
+    // Parent itself should NOT have CLICKABLE removed, only descendants
     REQUIRE(lv_obj_is_clickable(parent));
 }
 
@@ -414,9 +394,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(lv_obj_is_clickable(parent));
 }
 
-// ============================================================================
 // clear_pressed_state_recursive() Tests
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture,
                  "UI Utils: clear_pressed_state_recursive - clears PRESSED from tree",
@@ -459,14 +437,12 @@ TEST_CASE_METHOD(LVGLTestFixture,
                  "UI Utils: clear_pressed_state_recursive - no PRESSED state is no-op",
                  "[ui_utils][widget_flags][edge]") {
     lv_obj_t* obj = lv_obj_create(test_screen());
-    // Not pressed — should be a no-op
+    // Not pressed: should be a no-op
     helix::ui::clear_pressed_state_recursive(obj);
     REQUIRE_FALSE(lv_obj_has_state(obj, LV_STATE_PRESSED));
 }
 
-// ============================================================================
 // has_sane_parent_chain() Tests
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "UI Utils: has_sane_parent_chain - null is sane",
                  "[ui_utils][parent_chain]") {
@@ -501,33 +477,26 @@ TEST_CASE_METHOD(LVGLTestFixture, "UI Utils: has_sane_parent_chain - deep-but-bo
 
 TEST_CASE_METHOD(LVGLTestFixture, "UI Utils: has_sane_parent_chain - cycle returns false",
                  "[ui_utils][parent_chain][edge]") {
-    // Simulate the v0.99.35 bug: construct an obj whose parent pointer forms a
-    // cycle. We can't reach this state through normal LVGL APIs (lv_obj_set_parent
-    // rejects self-as-parent), so we poke obj->parent directly. This mirrors the
-    // real-world UAF / memory-reuse case that produced the SonicPad hang.
+    // An obj whose parent pointer forms a cycle, as a use-after-free or memory
+    // reuse produces. LVGL's public API cannot reach this state (lv_obj_set_parent
+    // rejects self-as-parent), so the test writes obj->parent directly: lv_obj_t is
+    // a private struct, so a reinterpret_cast to a mirror of its leading fields is
+    // the only route. That is UB, but acceptable for this test.
     lv_obj_t* a = lv_obj_create(test_screen());
     lv_obj_t* b = lv_obj_create(a);
-    // Force b->parent = a and a->parent = b (cycle of length 2)
-    // lv_obj_t is a private struct; use lv_obj_private.h-style access via the
-    // shim of reparenting through the API isn't possible, so we write directly.
-    // Offset of `parent` in lv_obj_t is 4 on 32-bit / 8 on 64-bit — use the
-    // field name via a reinterpret cast is UB but acceptable for this test.
-    // Simpler: lv_obj_set_parent cannot create cycles, so manually corrupt.
     struct LvObjPublic {
         void* class_p;
         lv_obj_t* parent;
     };
     reinterpret_cast<LvObjPublic*>(a)->parent = b;
-    // Now a->parent = b, b->parent = a → cycle.
+    // Now a->parent = b and b->parent = a: a cycle of length 2.
     REQUIRE_FALSE(helix::ui::has_sane_parent_chain(a));
     REQUIRE_FALSE(helix::ui::has_sane_parent_chain(b));
     // Restore before teardown so LVGL cleanup doesn't spin.
     reinterpret_cast<LvObjPublic*>(a)->parent = test_screen();
 }
 
-// ============================================================================
 // is_on_active_screen() Tests (#1001 trigger guard)
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "UI Utils: is_on_active_screen - null is false",
                  "[ui_utils][active_screen]") {
@@ -546,7 +515,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "UI Utils: is_on_active_screen - widget on act
 TEST_CASE_METHOD(LVGLTestFixture,
                  "UI Utils: is_on_active_screen - condemned widget on layer_top is false",
                  "[ui_utils][active_screen][edge]") {
-    // Reproduces the #1001 teardown state: safe_clean_children() reparents a
+    // The #1001 teardown state: safe_clean_children() reparents a
     // condemned subtree onto lv_layer_top() before async deletion. A widget rooted
     // at a layer (not the active screen) must read as "not on the active screen" so
     // PrintStatusWidget::reset_print_card_to_idle() skips the relayout that crashed.
@@ -596,9 +565,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     lv_display_remove_event_cb_with_user_data(disp, count_layout_pass, nullptr);
 }
 
-// ============================================================================
 // store_until_deleted()
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture,
                  "UI Utils: store_until_deleted clears the slot when the object dies",

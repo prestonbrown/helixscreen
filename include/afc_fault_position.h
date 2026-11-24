@@ -42,7 +42,8 @@ namespace helix::afc {
 
 /// The lane sensor an AFC fault message places the fault at: `CHECK FILAMENT AT TRIGGER` and
 /// `LOAD TRIGGER NOT TRIGGERED` both fire with the prep switch made and the load switch never
-/// reached, so both are the load sensor; NONE for any other message.
+/// reached, so both are the load sensor; `Runout triggered for lane <name> ...` is the prep
+/// sensor opening mid-print; NONE for any other message.
 [[nodiscard]] LaneSensor afc_fault_lane_sensor(std::string_view message);
 
 /**
