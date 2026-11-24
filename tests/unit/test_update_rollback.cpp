@@ -103,8 +103,17 @@ TEST_CASE("Rollback support: every fact must hold, and some platforms never can"
     CHECK(rollback_support(f) == RollbackSupport::ModPayload);
 }
 
-TEST_CASE("Rollback support: the capability follows the rule over this process's facts",
+TEST_CASE("Rollback support: once device-proven, the capability follows the rule over this "
+          "process's facts",
           "[auto_update][rollback]") {
+    struct ProvenSeam {
+        ProvenSeam() {
+            set_rollback_device_proven_for_test(true);
+        }
+        ~ProvenSeam() {
+            set_rollback_device_proven_for_test(std::nullopt);
+        }
+    } proven;
     {
         helix::ScopedEnv dir(kRollbackDirEnv, "/tmp/helix-rollback-guard");
         helix::ScopedEnv supervised("HELIX_SUPERVISED", "1");
@@ -121,6 +130,13 @@ TEST_CASE("Rollback support: the capability follows the rule over this process's
         }
     }
     helix::ScopedEnv no_dir(kRollbackDirEnv, nullptr);
+    CHECK_FALSE(auto_rollback_supported());
+}
+
+TEST_CASE("Rollback support: nothing is offered until the rollback path is device-proven",
+          "[auto_update][rollback]") {
+    helix::ScopedEnv dir(kRollbackDirEnv, "/tmp/helix-rollback-guard");
+    helix::ScopedEnv supervised("HELIX_SUPERVISED", "1");
     CHECK_FALSE(auto_rollback_supported());
 }
 

@@ -35,6 +35,11 @@ std::string path_in(const std::string& dir, const char* name) {
     return dir + "/" + name;
 }
 
+std::optional<bool>& device_proven_override() {
+    static std::optional<bool> value;
+    return value;
+}
+
 } // namespace
 
 RollbackSupport rollback_support(const RollbackFacts& facts) {
@@ -96,11 +101,16 @@ bool auto_rollback_supported() {
     }
     const RollbackSupport support = rollback_support(current_rollback_facts());
     spdlog::debug("[UpdateRollback] Automatic-update rollback: {}", rollback_support_name(support));
-    return support == RollbackSupport::Supported;
+    return device_proven_override().value_or(kRollbackDeviceProven) &&
+           support == RollbackSupport::Supported;
 }
 
 void set_auto_rollback_supported_for_test(std::optional<bool> value) {
     rollback_supported_override() = value;
+}
+
+void set_rollback_device_proven_for_test(std::optional<bool> value) {
+    device_proven_override() = value;
 }
 
 std::string rollback_dir() {
