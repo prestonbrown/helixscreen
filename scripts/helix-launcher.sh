@@ -1725,6 +1725,7 @@ helix_rollback_restore() {
         return 1
     fi
     rm -rf "${_hrr_failed}" 2>/dev/null || true
+    helix_rollback_clear_trial_markers
     _hrr_result=$(helix_rollback_file result)
     { printf 'from_version=%s\nto_version=%s\nreason=%s\n' "${RB_FROM}" "${RB_TO}" "$1" \
         > "${_hrr_result}.tmp" && mv "${_hrr_result}.tmp" "${_hrr_result}"; } 2>/dev/null || true
@@ -1734,6 +1735,26 @@ helix_rollback_restore() {
     # next start instead of during the stop.
     [ "${HELIX_SHUTTING_DOWN:-0}" != "1" ] || return 1
     return 0
+}
+
+# The failed version's crash state must not carry over to the restored one: the
+# watchdog's Safe Mode marker would start it without its printer connection,
+# and the crash-restart timestamps would count toward its own crash loop.
+# These live in the app's config dir (HELIX_CONFIG_DIR, else config/ under the
+# install) and, for the Safe Mode marker, a /tmp fallback.
+helix_rollback_clear_trial_markers() {
+    for _hct_dir in "${HELIX_CONFIG_DIR:-}" "${INSTALL_DIR}/config"; do
+        [ -n "$_hct_dir" ] || continue
+        for _hct_f in safe_mode.flag .crash_restart_count gpu_3d_guard gpu_blur_guard; do
+            if [ -e "$_hct_dir/$_hct_f" ]; then
+                rm -f "$_hct_dir/$_hct_f" 2>/dev/null && log "Cleared the failed version's $_hct_dir/$_hct_f"
+            fi
+        done
+    done
+    if [ -e /tmp/helix-screen-safe-mode.flag ]; then
+        rm -f /tmp/helix-screen-safe-mode.flag 2>/dev/null &&
+            log "Cleared the failed version's /tmp/helix-screen-safe-mode.flag"
+    fi
 }
 
 # helix_rollback_stop_child PID: end a guarded launch.
@@ -1846,6 +1867,7 @@ while :; do
             echo "$_rb_starts" > "$_rb_starts_f" 2>/dev/null || true
             if [ "$_rb_starts" -gt "${HELIX_ROLLBACK_MAX_STARTS}" ]; then
                 if helix_rollback_restore too_many_starts; then
+                    cd "${INSTALL_DIR}" 2>/dev/null || true
                     exec "${INSTALL_DIR}/bin/helix-launcher.sh" "$@"
                 fi
                 [ "${HELIX_SHUTTING_DOWN:-0}" != "1" ] || break
@@ -1861,6 +1883,9 @@ while :; do
         # with the rest of the trial's files.
         echo "$$" > "$(helix_rollback_file guard)" 2>/dev/null || true
         EXIT_CODE=0
+        # This shell's working directory is the tree it started in, which the
+        # swap moved to the kept copy; the app resolves config/ against it.
+        cd "${INSTALL_DIR}" 2>/dev/null || true
         HELIX_ROLLBACK_SUPERVISOR=$$ "${INSTALL_DIR}/bin/helix-launcher.sh" "$@" &
         RB_CHILD_PID=$!
         helix_rollback_watch $$ "${RB_CHILD_PID}" &
@@ -1900,6 +1925,7 @@ while :; do
         if helix_rollback_armed; then
             _rb_reason=$(helix_rollback_value "$(helix_rollback_file request)" reason)
             if helix_rollback_restore "${_rb_reason:-exit_${EXIT_CODE}}"; then
+                cd "${INSTALL_DIR}" 2>/dev/null || true
                 exec "${INSTALL_DIR}/bin/helix-launcher.sh" "$@"
             fi
         fi

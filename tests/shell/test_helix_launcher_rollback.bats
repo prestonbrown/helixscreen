@@ -114,6 +114,29 @@ assert_rolled_back() {
     [ "$(reason)" = "crash_loop" ]
 }
 
+@test "rollback: the restored version starts without the failed version's crash markers" {
+    # The failed version's watchdog left a Safe Mode marker and crash timestamps
+    # where the restored version will read them (a shared config dir, or the
+    # kept copy's own config/ when the trial ran there).
+    echo safe > "$PREVIOUS/config/safe_mode.flag"
+    echo 1 > "$PREVIOUS/config/.crash_restart_count"
+    set_app "$INSTALL" "exit 3"
+    set_app "$PREVIOUS" "ls -A config > '$BATS_TEST_TMPDIR/restored_config'; exit 0"
+    arm
+    launch
+    assert_rolled_back
+    ! grep -qx safe_mode.flag "$BATS_TEST_TMPDIR/restored_config"
+    ! grep -qx .crash_restart_count "$BATS_TEST_TMPDIR/restored_config"
+}
+
+@test "rollback: the guarded version runs in the new tree, not the kept copy" {
+    # The launcher's own working directory moved with the swap to the kept copy.
+    set_app "$INSTALL" "pwd -P > '$BATS_TEST_TMPDIR/cwd'; touch '$HELIX_ROLLBACK_DIR/update_rollback.healthy'; sleep 2; exit 0"
+    arm
+    ( cd "$PREVIOUS" && timeout 60 sh "$INSTALL/bin/helix-launcher.sh" >"$BATS_TEST_TMPDIR/launcher.log" 2>&1 ) || true
+    [ "$(cat "$BATS_TEST_TMPDIR/cwd")" = "$(cd "$INSTALL" && pwd -P)" ]
+}
+
 @test "rollback: a healthy report keeps the new version and drops the previous tree" {
     set_app "$INSTALL" "touch '$HELIX_ROLLBACK_DIR/update_rollback.healthy'; sleep 3; exit 0"
     arm
