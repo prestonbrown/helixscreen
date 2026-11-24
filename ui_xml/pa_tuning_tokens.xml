@@ -29,6 +29,14 @@
     <px name="pa_tower_w_medium" value="200"/>
     <px name="pa_tower_w_large" value="250"/>
     <px name="pa_tower_w_xlarge" value="300"/>
+    <!-- Judging two faces at once (left and front): each face keeps about the
+         width a lone face has, so a finger can set each height. -->
+    <px name="pa_tower_two_w_micro" value="130"/>
+    <px name="pa_tower_two_w_tiny" value="150"/>
+    <px name="pa_tower_two_w_small" value="210"/>
+    <px name="pa_tower_two_w_medium" value="260"/>
+    <px name="pa_tower_two_w_large" value="320"/>
+    <px name="pa_tower_two_w_xlarge" value="380"/>
 
     <!-- The reference card: its face inset and its height. -->
     <px name="pa_ref_inset_w_micro" value="60"/>

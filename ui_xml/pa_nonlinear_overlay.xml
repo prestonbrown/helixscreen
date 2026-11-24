@@ -14,6 +14,8 @@
   <styles>
     <style name="stage" width="100%" height="0" flex_grow="1" pad_all="0" bg_opa="0" border_width="0"/>
     <style name="side_column" width="0" height="100%" flex_grow="1" pad_all="0" bg_opa="0" border_width="0"/>
+    <style name="judge_tower_one" width="#pa_tower_w"/>
+    <style name="judge_tower_two" width="#pa_tower_two_w"/>
     <!-- The pass labels: styles, so the bound ones outrank the plain one. -->
     <style name="label_todo" text_color="#text_subtle"/>
     <style name="label_done" text_color="#text_muted"/>
@@ -228,8 +230,11 @@
         <lv_obj width="100%"
                 height="0" flex_grow="1" style_pad_all="0" style_pad_bottom="#space_sm" style_bg_opa="0"
                 style_border_width="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
-          <!-- A tap sets the height under the finger, on the face it lands on. -->
-          <pa_tower name="pa_nl_judge_tower" width="#pa_tower_w" height="100%" clickable="true">
+          <!-- A tap or drag sets the height under the finger, on the face it
+               starts on; two faces judged at once get a wider tower. -->
+          <pa_tower name="pa_nl_judge_tower" height="100%" clickable="true">
+            <bind_style name="judge_tower_one" subject="pa_nl_two_sided" ref_value="0"/>
+            <bind_style name="judge_tower_two" subject="pa_nl_two_sided" ref_value="1"/>
             <event_cb trigger="value_changed" callback="on_pa_nl_tower_tap"/>
           </pa_tower>
           <lv_obj flex_flow="column" style_pad_gap="#space_sm" scrollable="false">

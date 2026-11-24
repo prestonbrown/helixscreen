@@ -596,7 +596,9 @@ void PaNonlinearOverlay::refresh() {
     lv_subject_set_string(&height_value_,
                           format_value(helix::pa::value_at(pass.sweep, height_mm_)).c_str());
     if (two && !both) {
-        lv_subject_set_string(&verdict_, "");
+        // A left side that looks clean all the way up is best at the bottom
+        // (Kalico's guide, step 8): it converges below the front.
+        lv_subject_set_string(&verdict_, lv_tr("Left side clean all the way up? It is best at 0."));
         lv_subject_set_string(&judge_primary_, lv_tr("Set both heights"));
     } else if (two) {
         lv_subject_set_string(&verdict_, verdict_text(*proc_, height_mm_, front_mm_).c_str());
