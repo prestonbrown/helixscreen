@@ -2324,6 +2324,10 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
     int ret = -1;
     bool timed_out = false;
     std::vector<std::string> install_lines; // install.sh output, for the UI's failure detail
+    // install.sh's swap changes release_info.json, which helixscreen-update.path
+    // watches; without the sentinel that unit restarts the service under a
+    // running install.sh, before this process can finish the update.
+    write_self_restart_sentinel();
     {
         int log_fd = open(install_log.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0640);
         if (log_fd < 0) {
@@ -2477,6 +2481,7 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
         safe_exec({rm_bin, "-rf", extracted_dir});
     }
 
+    settle_self_restart_sentinel(ret == 0);
     if (ret != 0) {
         flog_error("[UpdateChecker] Install script failed with code {}", ret);
         // Build a user-visible error message with detail from the install log
@@ -2796,6 +2801,18 @@ bool UpdateChecker::write_self_restart_sentinel() {
     }
     spdlog::info("[UpdateChecker] Wrote self-restart sentinel: {}", sentinel);
     return true;
+}
+
+void UpdateChecker::settle_self_restart_sentinel(bool installed) {
+    if (installed) {
+        return;
+    }
+    // Nothing was installed, so no restart follows: a sentinel left behind would
+    // make helixscreen-update.path skip the restart after a later Moonraker update.
+    const std::string sentinel =
+        app_constants::update::backup_fallback_dir() + "/self_restart_sentinel";
+    std::error_code ec;
+    std::filesystem::remove(sentinel, ec);
 }
 
 std::string UpdateChecker::extract_installer_from_tarball(const std::string& tarball_path,
