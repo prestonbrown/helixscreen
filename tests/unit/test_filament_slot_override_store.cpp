@@ -63,9 +63,7 @@ std::unordered_map<int, helix::ams::LaneDataRecord> read_back(FilamentSlotOverri
 
 } // namespace
 
-// ============================================================================
 // Record shape (RFC 0001 §5)
-// ============================================================================
 
 TEST_CASE("a record HelixScreen writes carries the RFC 0001 keys", "[filament_slot_override]") {
     const json j = helix::ams::to_lane_data_record(2, polymaker_pla());
@@ -198,9 +196,7 @@ TEST_CASE("a lane record files whole as the Record source", "[filament_slot_over
     CHECK_FALSE(blank.remaining_weight_g.has_value());
 }
 
-// ============================================================================
 // Writing and reading the database
-// ============================================================================
 
 TEST_CASE("a save writes the record under the slot's key with a scan time",
           "[filament_slot_override]") {
@@ -298,9 +294,7 @@ TEST_CASE("a read the database refuses calls the failure path", "[filament_slot_
     CHECK(failed == 1);
 }
 
-// ============================================================================
 // The writer rule (RFC 0001 S2)
-// ============================================================================
 
 TEST_CASE("a record another producer writes is never overwritten",
           "[filament_slot_override][writer_rule]") {
@@ -342,9 +336,7 @@ TEST_CASE("a legacy record and one of our own are ours to replace",
     CHECK(saved == 2);
 }
 
-// ============================================================================
 // Extras namespaces (AFC, Happy Hare)
-// ============================================================================
 
 TEST_CASE("an extras namespace stores only what firmware cannot hold",
           "[filament_slot_override][extras]") {
@@ -386,9 +378,7 @@ TEST_CASE("an extras record's spool id, material and colour are ignored on read"
     CHECK_FALSE(r.color_set);
 }
 
-// ============================================================================
 // The persist tail
-// ============================================================================
 
 TEST_CASE("persist_staged_override saves only a slot that holds a record",
           "[filament_slot_override]") {
@@ -426,9 +416,7 @@ TEST_CASE_METHOD(HelixTestFixture, "a failed write withdraws the lane's pending 
     helix::ams::reset_lane_sources();
 }
 
-// ============================================================================
 // Mirror
-// ============================================================================
 
 TEST_CASE("FillUnsetOnly fills a blank record and leaves a set one",
           "[filament_slot_override][mirror]") {
@@ -479,9 +467,7 @@ TEST_CASE("OverwriteAlways follows firmware, and an empty slot is no signal",
     CHECK(overrides.count(1) == 0);
 }
 
-// ============================================================================
 // Temperatures and fingerprints
-// ============================================================================
 
 TEST_CASE("resolved_temps preserves explicit values, falls back to material DB",
           "[filament_slot_override]") {
@@ -578,9 +564,7 @@ TEST_CASE("SlotFingerprintTracker seeds baselines and confirms through a sink",
     CHECK(seen[1] == std::make_pair(1, std::string("X")));
 }
 
-// ============================================================================
 // Callbacks outlive the store
-// ============================================================================
 
 TEST_CASE("a save or clear answered after its store is gone still reports, without the store",
           "[filament_slot_override][lifetime]") {
@@ -659,9 +643,7 @@ TEST_CASE("clearing a record that is not there succeeds; a missing method does n
     CHECK_FALSE(clear());
 }
 
-// ============================================================================
 // The seated slot (AD5X boot)
-// ============================================================================
 
 TEST_CASE("the seated slot saves, loads and clears beside the lane records",
           "[filament_slot_override][seated]") {
@@ -752,9 +734,7 @@ TEST_CASE("a store with no API reports failure for the seated slot and never blo
     CHECK(cleared == false);
 }
 
-// ============================================================================
 // Orca's filament_id
-// ============================================================================
 
 namespace {
 
@@ -889,9 +869,7 @@ TEST_CASE("a stored color name made of the derived vocabulary is recomputed from
     }
 }
 
-// ============================================================================
 // The record a user edit builds
-// ============================================================================
 
 TEST_CASE("a user edit's record keeps a chosen colour and refuses the no-colour sentinel",
           "[filament_slot_override]") {
@@ -950,9 +928,7 @@ TEST_CASE("a user edit's record takes the nozzle midpoint and clears temps the s
     }
 }
 
-// ============================================================================
 // Fingerprints persist through the record
-// ============================================================================
 
 TEST_CASE("fingerprint persistence seeds from records and saves a baseline into the record",
           "[filament_slot_override][fingerprint]") {
@@ -988,9 +964,7 @@ TEST_CASE("fingerprint persistence seeds from records and saves a baseline into 
     CHECK(mock_printer.client.mock_db_get("lane_data", "lane3").is_null());
 }
 
-// ============================================================================
 // Spoolman's word on a linked spool amends the stored record
-// ============================================================================
 
 TEST_CASE("a Spoolman fetch amends the linked lane's record and keeps its colour",
           "[filament_slot_override][spoolman][1653]") {

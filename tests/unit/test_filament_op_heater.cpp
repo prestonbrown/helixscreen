@@ -63,9 +63,7 @@ using helix::ui::FilamentOpHeater;
 using helix::ui::PreheatDecision;
 using helix::ui::PreheatInputs;
 
-// ============================================================================
 // decide_preheat(): the rule, with no printer
-// ============================================================================
 
 namespace {
 
@@ -162,9 +160,7 @@ TEST_CASE("decide_preheat: targets stay between the floor and the hotend's maxim
     CHECK(cool.wait_c == 170);
 }
 
-// ============================================================================
 // The surfaces, end to end
-// ============================================================================
 
 namespace {
 
@@ -759,9 +755,7 @@ TEST_CASE_METHOD(HeaterFixture, "A backend op's end on the action feed schedules
     }
 }
 
-// ============================================================================
 // Ending a preheat that never completes
-// ============================================================================
 
 TEST_CASE_METHOD(HeaterFixture, "A print started during an idle preheat abandons it",
                  "[filament][preheat][heater][print_guard]") {
@@ -944,9 +938,7 @@ TEST_CASE_METHOD(HeaterFixture, "A progress report that starts another op leaves
     CHECK_FALSE(heater->get().pending());
 }
 
-// ============================================================================
 // The deferred dispatch
-// ============================================================================
 
 namespace {
 
@@ -987,9 +979,7 @@ TEST_CASE_METHOD(HeaterFixture, "A load that waited re-plans against the backend
     CHECK(sent("LOAD_FILAMENT"));
 }
 
-// ============================================================================
 // A guarded surface closed mid-preheat
-// ============================================================================
 
 namespace {
 
@@ -1088,9 +1078,7 @@ TEST_CASE_METHOD(HeaterFixture, "A closed surface's deferred macro dispatch rais
     helix::ui::set_filament_param_prompter({});
 }
 
-// ============================================================================
 // Which request is a re-tap
-// ============================================================================
 
 TEST_CASE_METHOD(HeaterFixture, "A load on another lane replaces the pending one",
                  "[filament][preheat][heater][cancel]") {
@@ -1205,9 +1193,7 @@ TEST_CASE_METHOD(HeaterFixture, "A request that cannot take the heater is told s
     CHECK_FALSE(second_ran);
 }
 
-// ============================================================================
 // Heat that a preheat ending unrun leaves behind
-// ============================================================================
 
 TEST_CASE_METHOD(HeaterFixture, "A replace that skips its preheat takes the heat over, then cools",
                  "[filament][preheat][heater][cancel]") {
@@ -1237,9 +1223,7 @@ TEST_CASE_METHOD(HeaterFixture, "A replace that skips its preheat takes the heat
         3000));
 }
 
-// ============================================================================
 // The cooldown and the backend watch
-// ============================================================================
 
 TEST_CASE_METHOD(HeaterFixture, "An op that runs at once cancels the previous op's cooldown",
                  "[filament][preheat][heater][cooldown]") {
@@ -1345,9 +1329,7 @@ TEST_CASE_METHOD(HeaterFixture, "A backend watch does not take a busy from befor
     CHECK(cd.has_pending_timer());
 }
 
-// ============================================================================
 // A lane mapped to another extruder
-// ============================================================================
 
 namespace {
 
@@ -1439,9 +1421,7 @@ TEST_CASE_METHOD(HeaterFixture, "A lane on extruder1 heats and cools extruder1, 
     helix::ToolState::instance().init_tools(single);
 }
 
-// ============================================================================
 // A CFS bypass unload
-// ============================================================================
 
 namespace {
 
@@ -1483,9 +1463,7 @@ TEST_CASE_METHOD(HeaterFixture, "A CFS bypass unload on a cold nozzle preheats f
     CHECK(cfs->dispatched.empty());
 }
 
-// ============================================================================
 // One surface, one op at a time
-// ============================================================================
 
 TEST_CASE_METHOD(HeaterFixture, "A second op from the same dialog waits its turn: it is refused",
                  "[filament][preheat][heater][cancel][runout]") {
@@ -1528,9 +1506,7 @@ TEST_CASE_METHOD(HeaterFixture, "A refused request hears that it was not run",
     CHECK(count_starting("UNLOAD_FILAMENT") == 0);
 }
 
-// ============================================================================
 // A paused print resuming under a pending preheat
-// ============================================================================
 
 TEST_CASE_METHOD(HeaterFixture,
                  "A reload requested during a pause is abandoned when the print resumes",

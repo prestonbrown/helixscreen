@@ -4,9 +4,7 @@
 # HelixScreen UI Prototype - Tools Module
 # Standalone diagnostic and utility programs
 
-# ==============================================================================
 # Moonraker Inspector Tool
-# ==============================================================================
 # Standalone diagnostic tool for querying Moonraker printer metadata
 # Usage: moonraker-inspector <ip_address> [port]
 
@@ -92,9 +90,7 @@ endif
 		exit 1; \
 	}
 
-# ==============================================================================
 # XML Constants Validator Tool
-# ==============================================================================
 # Pre-commit validation tool for checking responsive px and theme color pairs
 # Usage: validate-xml-constants (run from repo root)
 #
@@ -171,9 +167,7 @@ validate-xml-constants: $(VALIDATE_XML_BIN)
 	$(ECHO) "$(CYAN)Usage: $(YELLOW)./$(VALIDATE_XML_BIN)$(RESET)"
 	$(ECHO) "$(CYAN)Run from repo root to validate ui_xml/ constant sets$(RESET)"
 
-# ==============================================================================
 # XML Attribute Validator Tool
-# ==============================================================================
 # Pre-commit validation tool for catching unknown attributes in XML files
 # Usage: validate-xml-attributes [options] [files...]
 #
@@ -223,9 +217,7 @@ validate-xml-attrs: $(VALIDATE_ATTRS_BIN)
 	$(ECHO) "$(CYAN)Usage: $(YELLOW)./$(VALIDATE_ATTRS_BIN) [--warn-only] [--verbose] [files...]$(RESET)"
 	$(ECHO) "$(CYAN)Run from repo root to validate XML attributes$(RESET)"
 
-# ==============================================================================
 # helix-xml-linter (Python)
-# ==============================================================================
 # Schema-driven Python linter for ui_xml/. Catches unknown attributes, invalid
 # enum values, bad style props, undefined cross-refs. Pure stdlib — no install.
 #
@@ -276,9 +268,7 @@ check-xml-schema:
 		echo "$(RED)✗ $(XML_LINTER_SCHEMA) is stale: run make regen-xml-schema and commit it$(RESET)"; exit 1; \
 	fi
 
-# ==============================================================================
 # Theme token table (Python)
-# ==============================================================================
 # Build-time snapshot of every <color>/<px>/<string> design token in ui_xml/,
 # mirroring theme_token_scan.cpp's runtime scan (top-level files, sorted,
 # last-wins). Committed artifact consumed by src/generated/theme_token_table.cpp
@@ -299,9 +289,7 @@ regen-tokens:
 check-theme-tokens:
 	$(Q)python3 scripts/gen_theme_tokens.py --check
 
-# ==============================================================================
 # Doc citations: named anchors, line numbers rendered on demand
-# ==============================================================================
 # A committed citation names a place, never a line:
 #
 #   `src/printer/printer_state.cpp#update_from_status`
@@ -325,9 +313,7 @@ docs-pinned:
 check-doc-anchors:
 	$(Q)python3 scripts/doc_anchors.py --check
 
-# ==============================================================================
 # LVGL event-code table for the crash worker (Python)
-# ==============================================================================
 # The worker renders "code=42 (DELETE)" on every auto-filed crash issue, and that
 # label is frequently the whole diagnosis. A hand-typed table drifts whenever LVGL
 # inserts codes mid-enum (9.5 inserted four, which would file a DELETE crash as

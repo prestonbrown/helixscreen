@@ -129,9 +129,7 @@ TEST_CASE("A zero gate count yields no zones", "[ams][dryer][zones][bounds]") {
     CHECK(derive_environment_zones({"h"}, {"s"}, 0).empty());
 }
 
-// ============================================================================
 // Zone drying state
-// ============================================================================
 
 TEST_CASE("A zone with no gates in the cycle is idle", "[ams][dryer][zones][state]") {
     CHECK(fold_zone_drying_state({0, 1}, {"", "", "", ""}) == ZoneDryingState::Idle);
@@ -198,9 +196,7 @@ TEST_CASE("Nothing is queued behind a cycle that is not running", "[ams][dryer][
     CHECK(zones[1].state == ZoneDryingState::Idle);
 }
 
-// ============================================================================
 // Zone selector strategy
-// ============================================================================
 
 namespace {
 

@@ -429,7 +429,7 @@ bool run_display_migrations(json& data) {
     return changed;
 }
 
-} // end anonymous namespace
+} // namespace
 
 namespace helix::config_testing {
 bool run_display_migrations_for_test(nlohmann::json& data) {
@@ -1025,7 +1025,6 @@ void Config::init(const std::string& config_path) {
         }
 #endif
     } else {
-        // Create default config
         spdlog::info("[Config] Creating default config at {}", path);
         data = get_default_config("127.0.0.1", false);
         config_modified = true;
@@ -1168,9 +1167,7 @@ std::string Config::df() const {
     return "/printers/" + active_printer_id_ + "/";
 }
 
-// ============================================================================
 // Multi-printer support
-// ============================================================================
 
 std::string Config::get_active_printer_id() const {
     return active_printer_id_;

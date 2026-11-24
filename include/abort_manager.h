@@ -213,9 +213,7 @@ class AbortManager {
      */
     lv_subject_t* get_progress_message_subject();
 
-    // ========================================================================
     // Timeout Constants (public for testing)
-    // ========================================================================
 
     static constexpr uint32_t kHeaterInterruptTimeoutMs = 1000;                     ///< 1 second
     static constexpr uint32_t kProbeTimeoutMs = 2000;                               ///< 2 seconds
@@ -295,9 +293,7 @@ class AbortManager {
     // Invalidated by start_abort(), so replies from an earlier sequence are dropped
     helix::AsyncLifetimeGuard lifetime_;
 
-    // ========================================================================
     // State Machine Transitions
-    // ========================================================================
 
     /**
      * @brief Try HEATER_INTERRUPT command to probe for HEATER_INTERRUPT support
@@ -335,9 +331,7 @@ class AbortManager {
      */
     void complete_abort(const char* message);
 
-    // ========================================================================
     // Internal Callbacks
-    // ========================================================================
 
     void on_heater_interrupt_success();
     void on_heater_interrupt_error();
@@ -350,9 +344,7 @@ class AbortManager {
     void on_restart_sent(RecoveryOutcome outcome);
     void on_klippy_state_changed(KlippyState klippy_state);
 
-    // ========================================================================
     // Helper Methods
-    // ========================================================================
 
     /**
      * @brief Update state and notify observers

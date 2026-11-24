@@ -103,9 +103,7 @@ PaTuningOverlay::~PaTuningOverlay() {
     }
 }
 
-// ============================================================================
 // SUBJECTS
-// ============================================================================
 
 void PaTuningOverlay::init_subjects() {
     init_subjects_guarded([this]() {
@@ -236,9 +234,7 @@ void PaTuningOverlay::register_callbacks() {
     });
 }
 
-// ============================================================================
 // LIFECYCLE
-// ============================================================================
 
 void PaTuningOverlay::on_activate() {
     OverlayBase::on_activate();
@@ -283,9 +279,7 @@ void PaTuningOverlay::set_stage(Stage s) {
     }
 }
 
-// ============================================================================
 // SETUP
-// ============================================================================
 
 PaTuningOverlay::ChosenHead PaTuningOverlay::choose_head(const std::vector<PhysicalHead>& heads,
                                                          bool multi_extruder, int selected,
@@ -659,9 +653,7 @@ void PaTuningOverlay::delete_tower_file() {
         });
 }
 
-// ============================================================================
 // RUN
-// ============================================================================
 
 void PaTuningOverlay::begin_observing() {
     auto& state = get_printer_state();
@@ -826,9 +818,7 @@ void PaTuningOverlay::refresh_running() {
     refresh_bands(/*newest_first=*/true);
 }
 
-// ============================================================================
 // PICK / RESULT
-// ============================================================================
 
 void PaTuningOverlay::refresh_bands(bool newest_first) {
     auto bands = session_.bands(kMaxBands);

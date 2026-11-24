@@ -20,7 +20,6 @@ using namespace helix;
  * MoonrakerAPI Security Tests
  *
  * Tests comprehensive input validation for G-code command injection prevention.
- * These tests verify the security fixes for Issue #1 from the security review.
  *
  * Test Categories:
  * 1. Command injection prevention (newline, semicolon, control characters)
@@ -33,9 +32,7 @@ using namespace helix;
  * arbitrary G-code commands that could damage the printer or harm users.
  */
 
-// ============================================================================
 // Test Fixtures
-// ============================================================================
 
 class MoonrakerAPITestFixture : public LVGLTestFixture {
   public:
@@ -47,10 +44,8 @@ class MoonrakerAPITestFixture : public LVGLTestFixture {
         // Validation happens before any network I/O, so disconnected client is fine
         client = std::make_unique<MoonrakerClient>();
 
-        // Create API with client
         api = std::make_unique<MoonrakerAPI>(*client, state);
 
-        // Reset test state
         reset_callbacks();
     }
 
@@ -65,7 +60,6 @@ class MoonrakerAPITestFixture : public LVGLTestFixture {
         captured_error = MoonrakerError();
     }
 
-    // Standard callbacks for testing
     void success_callback() {
         success_called = true;
     }
@@ -82,20 +76,16 @@ class MoonrakerAPITestFixture : public LVGLTestFixture {
         return !error_called || captured_error.type != MoonrakerErrorType::VALIDATION_ERROR;
     }
 
-    // Test objects
     std::unique_ptr<MoonrakerClient> client;
     PrinterState state;
     std::unique_ptr<MoonrakerAPI> api;
 
-    // Callback tracking
     bool success_called = false;
     bool error_called = false;
     MoonrakerError captured_error;
 };
 
-// ============================================================================
 // Command Injection Tests - Heater Names
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerAPITestFixture,
                  "set_temperature rejects newline injection in heater name",
@@ -188,9 +178,7 @@ TEST_CASE_METHOD(MoonrakerAPITestFixture,
     }
 }
 
-// ============================================================================
 // Command Injection Tests - Fan Names
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerAPITestFixture, "set_fan_speed rejects injection in fan name",
                  "[api][security][injection]") {
@@ -216,9 +204,7 @@ TEST_CASE_METHOD(MoonrakerAPITestFixture, "set_fan_speed rejects injection in fa
     }
 }
 
-// ============================================================================
 // Command Injection Tests - Axes Parameters
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerAPITestFixture, "home_axes rejects invalid axis characters",
                  "[api][security][injection]") {
@@ -290,9 +276,7 @@ TEST_CASE_METHOD(MoonrakerAPITestFixture, "move_axis rejects invalid axis charac
     }
 }
 
-// ============================================================================
 // Range Validation Tests - Temperatures
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerAPITestFixture, "set_temperature validates temperature range",
                  "[api][security][range]") {
@@ -357,9 +341,7 @@ TEST_CASE_METHOD(MoonrakerAPITestFixture, "set_temperature validates temperature
     }
 }
 
-// ============================================================================
 // Range Validation Tests - Fan Speeds
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerAPITestFixture, "set_fan_speed validates speed range",
                  "[api][security][range]") {
@@ -413,9 +395,7 @@ TEST_CASE_METHOD(MoonrakerAPITestFixture, "set_fan_speed validates speed range",
     }
 }
 
-// ============================================================================
 // Range Validation Tests - Feedrates
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerAPITestFixture, "move_axis validates feedrate range",
                  "[api][security][range]") {
@@ -469,9 +449,7 @@ TEST_CASE_METHOD(MoonrakerAPITestFixture, "move_axis validates feedrate range",
     }
 }
 
-// ============================================================================
 // Range Validation Tests - Distances (Relative Movement)
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerAPITestFixture, "move_axis validates distance range",
                  "[api][security][range]") {
@@ -534,9 +512,7 @@ TEST_CASE_METHOD(MoonrakerAPITestFixture, "move_axis validates distance range",
     }
 }
 
-// ============================================================================
 // Range Validation Tests - Positions (Absolute Movement)
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerAPITestFixture, "move_to_position validates position range",
                  "[api][security][range]") {
@@ -590,9 +566,7 @@ TEST_CASE_METHOD(MoonrakerAPITestFixture, "move_to_position validates position r
     }
 }
 
-// ============================================================================
 // Valid Input Acceptance Tests - Identifiers
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerAPITestFixture, "set_temperature accepts valid heater names",
                  "[api][security][valid]") {
@@ -661,9 +635,7 @@ TEST_CASE_METHOD(MoonrakerAPITestFixture, "set_fan_speed accepts valid fan names
     }
 }
 
-// ============================================================================
 // Valid Input Acceptance Tests - Axes
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerAPITestFixture, "home_axes accepts valid axis specifications",
                  "[api][security][valid]") {
@@ -759,9 +731,7 @@ TEST_CASE_METHOD(MoonrakerAPITestFixture, "move_axis accepts valid axis characte
     }
 }
 
-// ============================================================================
 // Error Message Quality Tests
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerAPITestFixture, "Validation errors provide descriptive messages",
                  "[api][security][errors]") {
@@ -868,9 +838,7 @@ TEST_CASE_METHOD(MoonrakerAPITestFixture, "Validation errors include method name
     }
 }
 
-// ============================================================================
 // Edge Cases and Boundary Tests
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerAPITestFixture, "Validation handles edge cases",
                  "[api][security][edge]") {
@@ -923,9 +891,7 @@ TEST_CASE_METHOD(MoonrakerAPITestFixture, "Validation handles edge cases",
     }
 }
 
-// ============================================================================
 // G-code Generation Prevention Tests
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerAPITestFixture, "No G-code sent when validation fails",
                  "[api][security][gcode]") {
@@ -988,9 +954,7 @@ TEST_CASE_METHOD(MoonrakerAPITestFixture, "No G-code sent when validation fails"
     }
 }
 
-// ============================================================================
-// Lifecycle Safety Tests - Issue #4: Callback Cleanup on Destruction
-// ============================================================================
+// Lifecycle Safety Tests - Callback Cleanup on Destruction
 
 TEST_CASE("MoonrakerClient destructor clears callbacks",
           "[eventloop][api][security][lifecycle][slow]") {
@@ -1003,12 +967,10 @@ TEST_CASE("MoonrakerClient destructor clears callbacks",
         bool connected_called = false;
         bool disconnected_called = false;
 
-        // Start connection (will fail because no server)
         client->connect(
             "ws://127.0.0.1:9999/websocket", [&connected_called]() { connected_called = true; },
             [&disconnected_called]() { disconnected_called = true; });
 
-        // Destroy client immediately (before connection completes)
         client.reset();
 
         // Run event loop briefly to allow any pending events to fire
@@ -1080,7 +1042,6 @@ TEST_CASE("MoonrakerClient destructor clears callbacks",
             // The live client holds both copies.
             CHECK(sentinel.use_count() > 1);
 
-            // Destroy immediately
             client.reset();
 
             // ...and released them. Only our local reference is left. This is
@@ -1110,12 +1071,10 @@ TEST_CASE("MoonrakerClient destructor clears callbacks",
     SECTION("Destroy client during active connection (mock)") {
         auto client = std::make_unique<MoonrakerClient>();
 
-        // Register a persistent callback
         bool notify_callback_called = false;
         client->register_notify_update(
             [&notify_callback_called](json /* j */) { notify_callback_called = true; });
 
-        // Destroy client
         client.reset();
 
         // Create new JSON notification (simulating what would come from network)
@@ -1135,7 +1094,6 @@ TEST_CASE("MoonrakerClient cleanup_pending_requests is exception-safe",
         bool first_callback_called = false;
         bool second_callback_called = false;
 
-        // Register request with throwing error callback
         client->send_jsonrpc(
             "printer.info", json(), [](json) { /* Success */ },
             [&first_callback_called](const MoonrakerError& err) {
@@ -1143,7 +1101,6 @@ TEST_CASE("MoonrakerClient cleanup_pending_requests is exception-safe",
                 throw std::runtime_error("Test exception");
             });
 
-        // Register another request
         client->send_jsonrpc(
             "server.info", json(), [](json) { /* Success */ },
             [&second_callback_called](const MoonrakerError& err) {

@@ -11,9 +11,7 @@
 using ::PrintHistoryStats;
 using helix::ui::PrintSelectHistoryIntegration;
 
-// ============================================================================
 // Helper Functions
-// ============================================================================
 
 /**
  * @brief Create a file entry for testing
@@ -57,9 +55,7 @@ static PrintHistoryStats make_stats(PrintJobStatus status, int success = 0, int 
     return stats;
 }
 
-// ============================================================================
 // No History Tests
-// ============================================================================
 
 TEST_CASE("[HistoryIntegration] File with no history gets NEVER_PRINTED", "[HistoryIntegration]") {
     std::vector<PrintFileData> files = {
@@ -75,9 +71,7 @@ TEST_CASE("[HistoryIntegration] File with no history gets NEVER_PRINTED", "[Hist
     REQUIRE(files[0].success_count == 0);
 }
 
-// ============================================================================
 // Currently Printing Tests
-// ============================================================================
 
 TEST_CASE("[HistoryIntegration] File matching current print gets CURRENTLY_PRINTING",
           "[HistoryIntegration]") {
@@ -96,9 +90,7 @@ TEST_CASE("[HistoryIntegration] File matching current print gets CURRENTLY_PRINT
     REQUIRE(files[1].history_status == FileHistoryStatus::NEVER_PRINTED);
 }
 
-// ============================================================================
 // Completed Status Tests
-// ============================================================================
 
 TEST_CASE("[HistoryIntegration] Completed file shows COMPLETED status and success_count",
           "[HistoryIntegration]") {
@@ -115,9 +107,7 @@ TEST_CASE("[HistoryIntegration] Completed file shows COMPLETED status and succes
     REQUIRE(files[0].success_count == 3);
 }
 
-// ============================================================================
 // Failed Status Tests
-// ============================================================================
 
 TEST_CASE("[HistoryIntegration] Failed file shows FAILED status", "[HistoryIntegration]") {
     std::vector<PrintFileData> files = {
@@ -132,9 +122,7 @@ TEST_CASE("[HistoryIntegration] Failed file shows FAILED status", "[HistoryInteg
     REQUIRE(files[0].history_status == FileHistoryStatus::FAILED);
 }
 
-// ============================================================================
 // Cancelled Status Tests
-// ============================================================================
 
 TEST_CASE("[HistoryIntegration] Cancelled file shows CANCELLED status", "[HistoryIntegration]") {
     std::vector<PrintFileData> files = {
@@ -149,9 +137,7 @@ TEST_CASE("[HistoryIntegration] Cancelled file shows CANCELLED status", "[Histor
     REQUIRE(files[0].history_status == FileHistoryStatus::CANCELLED);
 }
 
-// ============================================================================
 // UUID Match Tests
-// ============================================================================
 
 TEST_CASE("[HistoryIntegration] UUID match confirms history", "[HistoryIntegration]") {
     const std::string uuid = "abc123-uuid-456";
@@ -169,9 +155,7 @@ TEST_CASE("[HistoryIntegration] UUID match confirms history", "[HistoryIntegrati
     REQUIRE(files[0].success_count == 2);
 }
 
-// ============================================================================
 // Size Match Tests
-// ============================================================================
 
 TEST_CASE("[HistoryIntegration] Size match confirms history", "[HistoryIntegration]") {
     const size_t file_size = 12345;
@@ -189,9 +173,7 @@ TEST_CASE("[HistoryIntegration] Size match confirms history", "[HistoryIntegrati
     REQUIRE(files[0].success_count == 1);
 }
 
-// ============================================================================
 // Directory Handling Tests
-// ============================================================================
 
 TEST_CASE("[HistoryIntegration] Directories are skipped", "[HistoryIntegration]") {
     std::vector<PrintFileData> files = {
@@ -216,9 +198,7 @@ TEST_CASE("[HistoryIntegration] Directories are skipped", "[HistoryIntegration]"
     REQUIRE(files[1].success_count == 2);
 }
 
-// ============================================================================
 // Extract Basename Tests
-// ============================================================================
 
 TEST_CASE("[HistoryIntegration] extract_basename strips path", "[HistoryIntegration]") {
     REQUIRE(PrintSelectHistoryIntegration::extract_basename("path/to/file.gcode") == "file.gcode");

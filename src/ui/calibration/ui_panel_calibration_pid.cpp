@@ -48,9 +48,7 @@
 #include <string>
 #include <utility>
 
-// ============================================================================
 // STATIC SUBJECT
-// ============================================================================
 
 // State subject (0=IDLE, 1=CALIBRATING, 2=SAVING, 3=COMPLETE, 4=ERROR, 5=MIGRATING)
 static helix::Subject s_pid_cal_state;
@@ -74,9 +72,7 @@ static PIDCalibrationPanel* existing_pid_cal_panel();
 static int get_material_nozzle_temp(const char* name);
 static int get_material_bed_temp(const char* name);
 
-// ============================================================================
 // CONSTRUCTOR / DESTRUCTOR
-// ============================================================================
 
 PIDCalibrationPanel::PIDCalibrationPanel() {
     // Zero out buffers
@@ -110,9 +106,7 @@ PIDCalibrationPanel::~PIDCalibrationPanel() {
     overlay_root_ = nullptr;
 }
 
-// ============================================================================
 // SUBJECT REGISTRATION
-// ============================================================================
 
 void PIDCalibrationPanel::init_subjects() {
     if (subjects_initialized_) {
@@ -125,7 +119,6 @@ void PIDCalibrationPanel::init_subjects() {
     // Register state subject (shared across all instances)
     UI_MANAGED_SUBJECT_INT(s_pid_cal_state, 0, "pid_cal_state", subjects_);
 
-    // Initialize string subjects with initial values
     UI_MANAGED_SUBJECT_STRING(subj_temp_display_, buf_temp_display_, "", "pid_temp_display",
                               subjects_);
 
@@ -252,7 +245,6 @@ void PIDCalibrationPanel::init_subjects() {
         }
     });
 
-    // Register XML event callbacks (once globally)
     if (!s_callbacks_registered) {
         register_xml_callbacks({
             {"on_pid_heater_extruder",
@@ -327,9 +319,7 @@ void PIDCalibrationPanel::deinit_subjects() {
     spdlog::debug("[PIDCal] Subjects deinitialized");
 }
 
-// ============================================================================
 // CREATE / SETUP
-// ============================================================================
 
 lv_obj_t* PIDCalibrationPanel::create(lv_obj_t* parent) {
     if (!OverlayBase::create(parent)) {
@@ -355,7 +345,6 @@ void PIDCalibrationPanel::setup_widgets() {
     // Event callbacks are registered via XML <event_cb> elements
     // State visibility is controlled via subject binding in XML
 
-    // Set initial state
     set_state(State::IDLE);
     update_temp_display();
     update_temp_hint();
@@ -363,9 +352,7 @@ void PIDCalibrationPanel::setup_widgets() {
     spdlog::debug("[PIDCal] Widget setup complete");
 }
 
-// ============================================================================
 // LIFECYCLE HOOKS
-// ============================================================================
 
 void PIDCalibrationPanel::on_activate() {
     // Call base class first
@@ -538,10 +525,8 @@ void PIDCalibrationPanel::cleanup() {
         helix::nav::unregister_overlay(overlay_root_);
     }
 
-    // Clear slider references
     fan_slider_ = nullptr;
 
-    // Call base class to set cleanup_called_ flag
     OverlayBase::cleanup();
 
     // Clear references
@@ -555,9 +540,7 @@ void PIDCalibrationPanel::on_ui_destroyed() {
     fan_slider_ = nullptr;
 }
 
-// ============================================================================
 // FAN CONTROL
-// ============================================================================
 
 void PIDCalibrationPanel::turn_off_fan() {
     if (!fan_sent_) {
@@ -570,9 +553,7 @@ void PIDCalibrationPanel::turn_off_fan() {
     }
 }
 
-// ============================================================================
 // STATE MANAGEMENT
-// ============================================================================
 
 void PIDCalibrationPanel::set_state(State new_state) {
     spdlog::debug("[PIDCal] State change: {} -> {}", static_cast<int>(state_),
@@ -612,9 +593,7 @@ void PIDCalibrationPanel::set_state(State new_state) {
     }
 }
 
-// ============================================================================
 // UI UPDATES
-// ============================================================================
 
 void PIDCalibrationPanel::update_fan_slider(int speed) {
     if (fan_slider_)
@@ -754,9 +733,7 @@ void PIDCalibrationPanel::update_temp_hint() {
     lv_subject_set_string(&subj_temp_hint_, "Select a material or adjust temperature");
 }
 
-// ============================================================================
 // TEMPERATURE GRAPH
-// ============================================================================
 
 void PIDCalibrationPanel::set_temp_control_panel(TemperatureService* tcp) {
     temp_control_panel_ = tcp;
@@ -792,7 +769,6 @@ void PIDCalibrationPanel::setup_pid_graph() {
     ui_temp_graph_set_y_axis(pid_graph_, is_extruder ? 100.0f : 50.0f, true);
     ui_temp_graph_set_axis_size(pid_graph_, "xs");
 
-    // Add single series for the active heater
     const char* series_name = is_extruder ? "Nozzle" : "Bed";
     lv_color_t color = is_extruder ? lv_color_hex(0xFF4444) : lv_color_hex(0x00CED1);
     pid_graph_series_id_ = ui_temp_graph_add_series(pid_graph_, series_name, color);
@@ -828,9 +804,7 @@ void PIDCalibrationPanel::teardown_pid_graph() {
     spdlog::debug("[{}] PID temp graph destroyed", get_name());
 }
 
-// ============================================================================
 // GCODE COMMANDS
-// ============================================================================
 
 void PIDCalibrationPanel::send_pid_calibrate() {
     if (!api_) {
@@ -851,7 +825,6 @@ void PIDCalibrationPanel::send_pid_calibrate() {
         fan_sent_ = true;
     }
 
-    // Update calibrating state label
     const char* label = (selected_heater_ == Heater::EXTRUDER) ? lv_tr("Extruder PID Tuning")
                                                                : lv_tr("Heated Bed PID Tuning");
     lv_subject_set_string(&subj_calibrating_heater_, label);
@@ -922,10 +895,6 @@ void PIDCalibrationPanel::send_save_config() {
         });
 }
 
-// ============================================================================
-// FETCH OLD PID VALUES
-// ============================================================================
-
 void PIDCalibrationPanel::fetch_old_pid_values() {
     has_old_values_ = false;
     if (!api_) {
@@ -954,9 +923,7 @@ void PIDCalibrationPanel::fetch_old_pid_values() {
         });
 }
 
-// ============================================================================
 // EVENT HANDLERS
-// ============================================================================
 
 void PIDCalibrationPanel::handle_heater_extruder_clicked() {
     if (state_ != State::IDLE)
@@ -1278,14 +1245,11 @@ void PIDCalibrationPanel::handle_retry_clicked() {
     set_state(State::IDLE);
 }
 
-// ============================================================================
 // PUBLIC METHODS
-// ============================================================================
 
 void PIDCalibrationPanel::on_calibration_result(bool success, float kp, float ki, float kd,
                                                 const std::string& error_message) {
     if (success) {
-        // Set progress to 100% on completion
         progress_tracker_.mark_complete();
         lv_subject_set_int(&subj_pid_progress_, 100);
         lv_subject_set_string(&subj_pid_progress_text_, lv_tr("Complete!"));
@@ -1330,9 +1294,7 @@ void PIDCalibrationPanel::on_calibration_result(bool success, float kp, float ki
     }
 }
 
-// ============================================================================
 // DEMO INJECTION
-// ============================================================================
 
 void PIDCalibrationPanel::inject_demo_results() {
     spdlog::info("[PIDCal] Injecting demo results for screenshot mode");
@@ -1379,9 +1341,7 @@ void PIDCalibrationPanel::inject_demo_results() {
     set_state(State::COMPLETE);
 }
 
-// ============================================================================
 // PROGRESS HANDLER
-// ============================================================================
 
 void PIDCalibrationPanel::on_pid_progress(int sample, float tolerance) {
     // First sample callback: progress is counted in samples from here on
@@ -1402,9 +1362,7 @@ void PIDCalibrationPanel::on_pid_progress(int sample, float tolerance) {
                   pid_estimated_total_, tolerance, progress_tracker_.progress_percent());
 }
 
-// ============================================================================
 // PHASE-AWARE PROGRESS TRACKING
-// ============================================================================
 
 lv_subject_t* PIDCalibrationPanel::progress_temp_subject() {
     auto& temps = get_printer_state().temperature_state();
@@ -1579,9 +1537,7 @@ void PIDCalibrationPanel::on_eta_timer_tick(lv_timer_t* timer) {
     self->update_progress_display();
 }
 
-// ============================================================================
 // HISTORICAL CALIBRATION DATA PERSISTENCE
-// ============================================================================
 
 void PIDCalibrationPanel::save_calibration_history() {
     auto* config = helix::Config::get_instance();
@@ -1624,9 +1580,7 @@ void PIDCalibrationPanel::save_calibration_history() {
                  heater_key, heat_rate, new_osc);
 }
 
-// ============================================================================
 // MPC: DETECTION, MIGRATION, CALIBRATION
-// ============================================================================
 
 bool PIDCalibrationPanel::needs_control_migration(ControlType current, CalibMethod target) {
     if (current == ControlType::UNKNOWN)
@@ -1910,9 +1864,7 @@ void PIDCalibrationPanel::on_mpc_progress(int phase, int total_phases, const std
                   progress);
 }
 
-// ============================================================================
 // MPC: METHOD / WATTAGE / FAN HANDLERS
-// ============================================================================
 
 void PIDCalibrationPanel::handle_method_pid_clicked() {
     if (state_ != State::IDLE)
@@ -1984,9 +1936,7 @@ void PIDCalibrationPanel::handle_fan_thorough_clicked() {
     spdlog::debug("[PIDCal] Fan breakpoints: {} (Thorough)", fan_breakpoints_);
 }
 
-// ============================================================================
 // INTRO, SWITCH PAGE AND ADVANCED
-// ============================================================================
 
 bool PIDCalibrationPanel::offers_control_switch() const {
     // Switching rewrites the heater's config section, which firmware that
@@ -2256,9 +2206,7 @@ void PIDCalibrationPanel::handle_switch_mpc_clicked() {
     start_migration(CalibMethod::MPC, false);
 }
 
-// ============================================================================
 // EVENT CALLBACKS
-// ============================================================================
 
 void PIDCalibrationPanel::on_fan_slider_changed(lv_event_t* e) {
     auto* panel = static_cast<PIDCalibrationPanel*>(lv_event_get_user_data(e));

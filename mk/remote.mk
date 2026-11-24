@@ -20,9 +20,7 @@
 #   - GCC/G++ and SDL2-dev (for native Linux builds)
 #   - rsync and SSH access
 
-# =============================================================================
 # Remote Build Configuration
-# =============================================================================
 
 # The build-hosts file has one parser, scripts/lib/build_hosts.sh, and make
 # asks it rather than reading the file itself. Each variable is read on first
@@ -55,9 +53,7 @@ $(call build_hosts_missing,REMOTE_DIR)
 endif
 endif
 
-# =============================================================================
 # Remote Sync Targets
-# =============================================================================
 
 .PHONY: remote-native remote-test remote-sync remote-fetch remote-fetch-full remote-clean remote-fetch-pi remote-fetch-ad5m remote-fetch-native remote-fetch-pi-full remote-fetch-ad5m-full
 
@@ -165,9 +161,7 @@ remote-clean:
 	ssh $(REMOTE_SSH_TARGET) "cd $(REMOTE_DIR) && make clean"
 	@echo "$(GREEN)✓ Remote build cleaned$(RESET)"
 
-# =============================================================================
 # Remote Build Targets
-# =============================================================================
 
 # remote-sync deliberately excludes .git (submodule .gitignore files would drop
 # files the cross build needs), so NOTHING on the build host can resolve HEAD and
@@ -230,9 +224,7 @@ remote-all: remote-sync
 	@$(MAKE) --no-print-directory remote-fetch
 	@echo "$(GREEN)$(BOLD)✓ All builds complete$(RESET)"
 
-# =============================================================================
 # Remote Status & Diagnostics
-# =============================================================================
 
 .PHONY: remote-status remote-ssh remote-linux-run
 
@@ -280,9 +272,7 @@ remote-linux-run:
 		wmctrl -r "LVGL" -e 0,100,100,-1,-1 2>/dev/null || true; \
 		wait $$SSH_PID
 
-# =============================================================================
 # Help
-# =============================================================================
 
 .PHONY: help-remote
 

@@ -146,7 +146,6 @@ class WizardPrinterIdentifyStep : public helix::wizard::Step {
 
     lv_obj_t* screen_root_ = nullptr;
 
-    // Printer preview image widget
     lv_obj_t* printer_preview_image_ = nullptr;
 
     // Printer type list container (populated once, reparented across wizard visits)
@@ -230,9 +229,7 @@ class WizardPrinterIdentifyStep : public helix::wizard::Step {
     static void on_vendor_tile_clicked(lv_event_t* e);
 };
 
-// ============================================================================
 // Auto-Detection Infrastructure
-// ============================================================================
 
 /**
  * @brief Printer auto-detection hint (confidence + reasoning)

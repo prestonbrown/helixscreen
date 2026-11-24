@@ -152,7 +152,7 @@ class RemoteControlServer {
     // Register built-in command handlers
     void register_builtin_handlers();
 
-    // Phase 1 handlers
+    // Navigation and state handlers
     nlohmann::json handle_ping(const nlohmann::json& params);
     nlohmann::json handle_navigate(const nlohmann::json& params);
     nlohmann::json handle_go_back(const nlohmann::json& params);
@@ -167,7 +167,7 @@ class RemoteControlServer {
     nlohmann::json handle_status(const nlohmann::json& params);
     nlohmann::json handle_demo(const nlohmann::json& params);
 
-    // Phase 2 handlers
+    // Subject and unfreeze handlers
     nlohmann::json handle_get_subject(const nlohmann::json& params);
     nlohmann::json handle_set_subject(const nlohmann::json& params);
     nlohmann::json handle_list_subjects(const nlohmann::json& params);
@@ -180,7 +180,7 @@ class RemoteControlServer {
     nlohmann::json handle_resize(const nlohmann::json& params);
     nlohmann::json handle_unfreeze(const nlohmann::json& params);
 
-    // Phase 3 handlers
+    // Widget interaction handlers
     nlohmann::json handle_click(const nlohmann::json& params);
     nlohmann::json handle_set_widget_value(const nlohmann::json& params);
     nlohmann::json handle_scenario(const nlohmann::json& params);

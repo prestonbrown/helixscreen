@@ -433,7 +433,6 @@ class TouchCalibrationPanel {
     /// Start countdown timer when entering VERIFY state
     void start_countdown_timer();
 
-    /// Stop countdown timer
     void stop_countdown_timer();
 
     /// Timer callback - static member

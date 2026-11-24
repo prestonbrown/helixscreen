@@ -30,10 +30,8 @@
 
 using helix::PrintStartPhase;
 
-// ============================================================================
 // Line classifiers under test: the collector's universal markers and the
 // response patterns of the shipped default profile.
-// ============================================================================
 
 namespace {
 
@@ -58,9 +56,7 @@ PrintStartPhase default_phase(const std::string& line) {
 
 } // namespace
 
-// ============================================================================
 // Universal markers
-// ============================================================================
 
 struct MarkerRow {
     const char* line;
@@ -158,9 +154,7 @@ TEST_CASE("PrintStart: RESPOND completion needs print and start as words",
     }
 }
 
-// ============================================================================
 // The default profile's response patterns
-// ============================================================================
 
 TEST_CASE("PrintStart: default profile reads each phase from real and generic lines",
           "[core][print][default_profile]") {
@@ -283,9 +277,7 @@ TEST_CASE("PrintStart: default profile reads each phase from real and generic li
     }
 }
 
-// ============================================================================
 // AREA A: HELIX:PHASE Signal Detection Tests
-// ============================================================================
 // Tests for check_helix_phase_signal() method which parses signals like:
 // - HELIX:PHASE:STARTING -> sets INITIALIZING phase
 // - HELIX:PHASE:COMPLETE -> sets COMPLETE phase
@@ -313,9 +305,7 @@ TEST_CASE("PrintStart: default profile reads each phase from real and generic li
 
 using namespace helix;
 using namespace helix::ui;
-// ============================================================================
 // HELIX:PHASE signals
-// ============================================================================
 
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "PrintStartCollector: each HELIX:PHASE signal shows its phase's banner",
@@ -372,9 +362,7 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     }
 }
 
-// ============================================================================
 // AREA B: Proactive Heater Detection Tests
-// ============================================================================
 // Tests for the proactive detection logic in check_fallback_completion() that
 // detects "Preparing" phase when:
 // - Collector is active but in IDLE phase
@@ -382,11 +370,8 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
 //
 // Note: PrintStartCollectorHeaterFixture is defined above and provides
 // helpers for temperature simulation.
-// ============================================================================
 
-// ============================================================================
 // Lifetime: the last reference may drop on a network thread
-// ============================================================================
 
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "PrintStartCollector: a last reference dropped off the main thread is "
@@ -419,9 +404,7 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     CHECK(helix::test::armed_timer_count(addr) == armed - 1);
 }
 
-// ============================================================================
 // Writer Independence (subject ownership)
-// ============================================================================
 
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "PrintStartCollector: M117 does not overwrite the phase label",
@@ -528,9 +511,7 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
 }
 
-// ============================================================================
 // Host-Side Pre-Start Echo Suppression
-// ============================================================================
 
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "Pre-start echo: the dispatched block's console echo claims no phase",
@@ -574,7 +555,6 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     CHECK(get_current_phase() == PrintStartPhase::HEATING_BED);
 }
 
-// ============================================================================
 // Heating-phase heater correction (signal-latched, temp-aware relabel)
 //
 // These drive the phase via the REAL gcode signal path (send_gcode_response),
@@ -583,7 +563,6 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
 // on the wrong heater. check_fallback_completion() must then re-derive the
 // shown heater from live temps, bed-first, without ever relabeling a
 // firmware's ordered non-heating phase.
-// ============================================================================
 
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "Heater correction: a latched heating phase follows the heater still heating",
@@ -659,9 +638,7 @@ TEST_CASE_METHOD(
     REQUIRE(get_current_phase() == PrintStartPhase::QGL);
 }
 
-// ============================================================================
 // Proactive heater detection (no firmware signal yet)
-// ============================================================================
 
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "Proactive detection: the heater still short of its target names the phase",
@@ -724,9 +701,7 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     }
 }
 
-// ============================================================================
 // Fallback Detection Requires Fallbacks Enabled
-// ============================================================================
 
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "Proactive detection requires fallbacks to be enabled",
@@ -762,9 +737,7 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     REQUIRE(get_current_phase() == PrintStartPhase::IDLE);
 }
 
-// ============================================================================
 // Decidegree Math Validation
-// ============================================================================
 
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "Decidegree math: temperature values are handled correctly",
@@ -822,9 +795,7 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     }
 }
 
-// ============================================================================
 // Completion Fallback Tests (Layer/Progress Detection)
-// ============================================================================
 
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "Fallback completion: layer count does not trigger COMPLETE",
@@ -1003,13 +974,10 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     }
 }
 
-// ============================================================================
 // AREA C: Sequential Progress Monotonic Guard Tests
-// ============================================================================
 // Tests that sequential mode progress never regresses, even when signals
 // are re-emitted in a different order (e.g., AD5M firmware re-emitting
 // HEATING after bed mesh probing).
-// ============================================================================
 
 /// A sequential profile narrated by "// State:" lines, with a phase object
 /// matched on its bare state and two position rules. The engine's
@@ -1163,9 +1131,7 @@ class PrintStartCollectorSequentialFixture : public PrintStartCollectorHeaterFix
     }
 };
 
-// ============================================================================
 // Sequential Progress Never Regresses on Repeated Signals
-// ============================================================================
 
 TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
                  "Sequential progress never regresses on repeated signals",
@@ -1190,9 +1156,7 @@ TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
     REQUIRE(get_current_progress() == 90);
 }
 
-// ============================================================================
 // Sequential Progress Allows Forward Movement
-// ============================================================================
 
 TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
                  "Sequential progress allows forward movement through all signals",
@@ -1232,9 +1196,7 @@ TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
     REQUIRE(prev_progress == 100);
 }
 
-// ============================================================================
 // Response Pattern Weight Doesn't Regress Sequential Progress
-// ============================================================================
 
 TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
                  "Response pattern weight doesn't regress sequential progress",
@@ -1252,9 +1214,7 @@ TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
     REQUIRE(get_current_progress() >= 25);
 }
 
-// ============================================================================
 // COMPLETE Always Reaches 100%
-// ============================================================================
 
 TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
                  "COMPLETE always reaches 100% regardless of prior progress",
@@ -1272,18 +1232,15 @@ TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
     REQUIRE(get_current_phase() == PrintStartPhase::COMPLETE);
 }
 
-// ============================================================================
-// ============================================================================
 // ETA RE-BASELINE TESTS
 //
 // Reproduced from the K1C capture of 2026-08-19: monitoring started before the
 // firmware set heater targets, so the first ETA publish anchored on a
 // target-less provisional estimate (215s). Real targets arrived one second
-// later and the recompute said 469s — but the strict monotonic guard clamped
+// later and the recompute said 469s, but the strict monotonic guard would clamp
 // every subsequent publish back down to 215s for the entire 369s prep. The
 // anchor must re-baseline when the weights' inputs change, not just when time
 // passes.
-// ============================================================================
 
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "ETA rises when heater targets arrive after monitoring started",
@@ -1460,8 +1417,8 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     drain_async_updates();
 
     // With bed 26C short at ~1s/C the unfinished heating work is ~26s of the
-    // bed phase alone; the estimate must still hold most of the prep. The old
-    // behavior dropped both 90s heating phases as "completed".
+    // bed phase alone; the estimate must still hold most of the prep, so the two
+    // 90s heating phases may not count as "completed".
     const int remaining =
         lv_subject_get_int(state().print_state().get_preprint_remaining_subject());
     REQUIRE(remaining > 150);
@@ -1509,7 +1466,6 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     REQUIRE(remaining > 100);
 }
 
-// ============================================================================
 // MESH ETA EXTRAPOLATION TESTS
 //
 // AD5X capture in bundle SQJ8SAL7: predictor history never recorded a
@@ -1517,7 +1473,6 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
 // way contributed nothing to the estimate and the countdown stayed pinned at
 // the pre-telemetry seed (~6s) for a 160s mesh. A phase the printer runs but
 // history never mapped still owes its live per-probe extrapolation.
-// ============================================================================
 
 namespace {
 
@@ -1674,7 +1629,6 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     }
 }
 
-// ============================================================================
 // ANCHOR-RELEASE RE-ARMING — every mesh segment gets its own release
 //
 // The extrapolation anchor release is one-shot per mesh SEGMENT: the flag is
@@ -1686,7 +1640,6 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
 // second segment (12s/probe -> 404s honest) and requires the raw 404: with
 // the flag left armed the monotonic clamp would freeze the countdown at the
 // first segment's value.
-// ============================================================================
 
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "mesh extrapolation anchor releases again on BED_MESH re-entry",
@@ -1873,10 +1826,8 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     REQUIRE(published_remaining(*this) == 404);
 }
 
-// ============================================================================
 // Timeout fallbacks (elapsed time and predictions set through
 // PrintStartCollectorTestAccess)
-// ============================================================================
 
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "Timeout fallback: when a quiet pre-print is declared started",
@@ -2300,9 +2251,7 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     REQUIRE(helix::PreprintPredictor::load_entries_from_config().empty());
 }
 
-// ============================================================================
 // PREDICTION SAVE/LOAD TESTS
-// ============================================================================
 
 TEST_CASE("PreprintPredictor load/save round-trip preserves entries",
           "[print][preprint][persistence]") {
@@ -2396,10 +2345,8 @@ TEST_CASE("PreprintPredictor has_predictions reflects actual entries", "[print][
     REQUIRE(predictor.has_predictions());
 }
 
-// ============================================================================
 // K2 gcode tag stream, matched by the K2 profile's tag_patterns; every
 // other printer's profile lacks them and falls through.
-// ============================================================================
 
 /**
  * @brief The K2 tag stream run under the profile that declares it
@@ -2484,12 +2431,10 @@ TEST_CASE_METHOD(K2TagStreamFixture, "Stock Klipper purge-line text falls throug
     REQUIRE(get_current_phase() != PrintStartPhase::PURGING);
 }
 
-// ============================================================================
 // QGL / bed-mesh conflation — Voron 2.4 PRINT_START runs QUAD_GANTRY_LEVEL
 // before BED_MESH_CALIBRATE. QGL probes 4 pads with `samples: 3` (default) =
 // 12 `probe at X,Y is z=Z` lines, which must neither enter BED_MESH nor count
 // against the bed_mesh probe total and throw the "X/Y" count off.
-// ============================================================================
 
 namespace {
 class VoronCollectorFixture : public PrintStartCollectorHeaterFixture {
@@ -2568,15 +2513,13 @@ TEST_CASE_METHOD(VoronCollectorFixture, "BED_MESH_CALIBRATE after QGL enters BED
     REQUIRE(msg.find("(7") == std::string::npos);
 }
 
-// ============================================================================
-// Snapmaker U1 sub-phase counter regression — the U1 routes multiple distinct
+// Snapmaker U1 sub-phase counter: the U1 routes multiple distinct
 // probe operations (Inspecting Bed, Detecting Plate, the bed mesh proper)
 // through one BED_MESH phase enum, switching only the message between them. The
 // probe counter must reset between sub-phases so the displayed "(N/M)" doesn't
 // accumulate to "(20/16)". Sub-phase action codes are the REAL ones captured
 // from the U1 gcode_store on 2026-06-18 (PRINT_BED_DETECTING → "Inspecting
 // bed...", DETECT_PLATE → "Detecting plate...").
-// ============================================================================
 
 namespace {
 class SnapmakerCollectorFixture : public PrintStartCollectorHeaterFixture {
@@ -2661,7 +2604,6 @@ TEST_CASE_METHOD(SnapmakerCollectorFixture,
     REQUIRE(msg.find("bed... (") == std::string::npos);
 }
 
-// ============================================================================
 // Snapmaker U1 pre-print phase reconciliation (issue #991-adjacent)
 //
 // The U1's firmware sets print_stats.state="printing" the instant the SD job
@@ -2680,7 +2622,6 @@ TEST_CASE_METHOD(SnapmakerCollectorFixture,
 //      heuristic must not regress the displayed phase back to the generic
 //      "Preparing Print..." (INITIALIZING) — the firmware is authoritative.
 // Verified against live capture on U1 @ 192.168.30.103, 2026-06-11.
-// ============================================================================
 
 TEST_CASE_METHOD(SnapmakerCollectorFixture,
                  "Snapmaker U1: no premature Cleaning/Purging before real firmware signals",
@@ -2802,14 +2743,12 @@ TEST_CASE_METHOD(SnapmakerCollectorFixture,
     REQUIRE(msg.find("(1)") == std::string::npos);
 }
 
-// ============================================================================
 // Snapmaker U1: the mesh announces itself in three action codes, a 60 s bed
 // soak (BED_PREHEATING), four corner probes (BED_PRESCANNING), then the mesh
 // (BED_LEVELING). G28 Z prints "// z offset:" 1 ms after BED_LEVELING; that
 // Z touch must not drag the display back to homing, and the corner probes must
 // not count as mesh points. Lines from the console of a U1 print on 2026-10-16
 // (gcode_store 21:54:52.876 .. 21:55:39.041).
-// ============================================================================
 
 TEST_CASE_METHOD(SnapmakerCollectorFixture,
                  "Snapmaker U1: BED_LEVELING restarts the count the corner pre-scan used",
@@ -2858,14 +2797,12 @@ TEST_CASE_METHOD(SnapmakerCollectorFixture,
     REQUIRE(get_current_message() == "Bed mesh (2)");
 }
 
-// ============================================================================
 // Snapmaker U1: M109/M190 run after DETECT_PLATE with no action code of their
 // own, and the bed warms concurrently with the whole announced sequence. The
 // heater only owns the label while a wait reports ("B:45.2 /100.0 T0:...",
 // once a second), since that wait blocks everything else. A phase signal ends
 // the wait at once; otherwise the first fallback tick after the reports stop
 // gives the announced phase back. A stray line mid-wait changes nothing.
-// ============================================================================
 
 namespace {
 /// The print's file behind a ranged-read transfers API, as the wait-line
@@ -3606,7 +3543,6 @@ TEST_CASE_METHOD(ArtilleryHeaterWaitFixture,
     REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
 }
 
-// ============================================================================
 // Snapmaker U1 replay: the console from PRINT_SWITCH_CHECKING to a
 // verify_heater shutdown, as Moonraker's gcode_store held it
 // (tests/fixtures/u1_heater_wait_console.txt, "HH:MM:SS.mmm line"). Three
@@ -3615,7 +3551,6 @@ TEST_CASE_METHOD(ArtilleryHeaterWaitFixture,
 // M190 S100 until the shutdown. The bed is far below 100C through all of them
 // and the active tool is T2. Each wait shows the heater its command names, the
 // cool-down included.
-// ============================================================================
 
 namespace {
 
@@ -3819,7 +3754,6 @@ class SnapmakerReplayFixture : public SnapmakerCollectorFixture {
 };
 } // namespace
 
-// ============================================================================
 // Snapmaker U1 replay with the print position: a one-head print's console from
 // file open to its first layer (tests/fixtures/u1_bmcu_console.txt, 2026-10-17),
 // virtual_sdcard.file_position as a 1 Hz poll saw it (u1_bmcu_positions.txt,
@@ -3827,7 +3761,6 @@ class SnapmakerReplayFixture : public SnapmakerCollectorFixture {
 // (u1_bmcu_start.gcode, from byte 12744). The head reports as T1. The
 // firmware's print_task_config skipped BED_MESH_CALIBRATE ("does not do
 // auto-leveling"), so the position jumps from G28 Z straight to M109 S260.
-// ============================================================================
 
 namespace {
 std::string u1_bmcu_file() {
@@ -4214,14 +4147,12 @@ TEST_CASE_METHOD(SnapmakerReplayFixture,
     REQUIRE(ranged_reads() == 6);
 }
 
-// ============================================================================
 // Snapmaker U1 replay: a 3-tool print's console from file open to the nozzle
 // heating for the prime line (tests/fixtures/u1_tool_probe_clean_console.txt,
 // 2026-10-16, t=0 at 21:48:13.136). Each G28 Z, after a tool pick or before the
 // mesh, prints "// z offset:" and touches one point; the mesh is announced by
 // BED_PREHEATING (a 60 s soak), BED_PRESCANNING (four corners) and
 // BED_LEVELING (36 points). Which heater a wait shows is not asserted here.
-// ============================================================================
 
 TEST_CASE_METHOD(SnapmakerReplayFixture,
                  "Snapmaker U1: real tool Z touches and the announced mesh replay in order",
@@ -4297,12 +4228,10 @@ TEST_CASE("heater wait report lines", "[print][collector][heater_wait]") {
         PrintStartCollectorTestAccess::is_heater_wait_report("// Success: Set action code X"));
 }
 
-// ============================================================================
 // A response_pattern whose phase enum was already detected may still refine
 // the MESSAGE when it differs (the U1 narrates "Probing Z..." and "Bed
 // mesh..." through enums a proactive or earlier signal already claimed), but
 // it may never move the phase backwards.
-// ============================================================================
 
 TEST_CASE_METHOD(SnapmakerCollectorFixture,
                  "Snapmaker U1: already-detected phase refines the message, never moves back",
@@ -4329,7 +4258,6 @@ TEST_CASE_METHOD(SnapmakerCollectorFixture,
     REQUIRE(get_current_message().find("Inspecting bed") != std::string::npos);
 }
 
-// ============================================================================
 // Full U1 pre-print replay at the device's real pace (one print, klippy.log
 // timestamps): homing, Z touch, bed inspect, extruder switch check, auto-feed,
 // the new tool's Z touch, plate detect + 4 probes — then ~129s of true silence
@@ -4339,7 +4267,6 @@ TEST_CASE_METHOD(SnapmakerCollectorFixture,
 // and the collector has no priming inference to guess at it: the last
 // declared phase owns the display through each silent stretch, and only the
 // genuine current_layer 0->1 edge completes the pre-print.
-// ============================================================================
 
 TEST_CASE_METHOD(SnapmakerCollectorFixture,
                  "Snapmaker U1: full pre-print replay at real pace - declared phases own the "
@@ -4431,12 +4358,10 @@ TEST_CASE_METHOD(SnapmakerCollectorFixture,
     REQUIRE(get_current_message().find("Starting Print") != std::string::npos);
 }
 
-// ============================================================================
 // Stock Klipper adaptive bed_mesh — "Adapted probe count: N,M" populates the
 // live denominator via the generic gcode_response parser (no profile-side
 // schema needed). Uses the default profile to verify the path works for
 // Voron / KAMP / generic Klipper setups that emit this line.
-// ============================================================================
 
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "Adapted probe count line populates mesh_probe_total_",
@@ -4564,9 +4489,7 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture, "PrintStartCollector - layer 
     }
 }
 
-// ============================================================================
 // Pre-mesh probe buffering (BED_MESH auto-entry from probe lines)
-// ============================================================================
 
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "PrintStartCollector: nozzle-clean probe touches do not enter BED_MESH",
@@ -4614,9 +4537,7 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
 }
 
-// ============================================================================
-// K2 Plus pre-print replay (end-to-end regression)
-// ============================================================================
+// K2 Plus pre-print replay (end to end)
 
 /**
  * @brief Replay a real K2 Plus PRINT_START through the collector
@@ -4764,9 +4685,7 @@ TEST_CASE_METHOD(K2PrintStartReplayFixture,
     REQUIRE(get_current_phase() == PrintStartPhase::PURGING);
 }
 
-// ============================================================================
 // K1C replay: probe lines are mesh data, not phase patterns
-// ============================================================================
 
 /**
  * @brief Replay a real K1C PRINT_START through the collector
@@ -4845,8 +4764,8 @@ TEST_CASE_METHOD(K1CPrintStartReplayFixture,
     REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
     REQUIRE(PrintStartCollectorTestAccess::get_mesh_probe_total(collector()) == 25);
 
-    // The rest of the sweep. Every line here used to re-match the profile's
-    // BED_MESH pattern and reset the counters, losing the denominator.
+    // The rest of the sweep. Every line here matches the profile's BED_MESH
+    // pattern, and none may reset the counters or lose the denominator.
     for (double y : {57.5, 110.0, 162.5, 215.0}) {
         for (double x : c) {
             point(x, y);
@@ -4970,9 +4889,7 @@ TEST_CASE_METHOD(K1CPrintStartReplayFixture,
     REQUIRE(get_current_message() == "Referenzfahrt...");
 }
 
-// ============================================================================
 // Timeout must key on quiet, not on elapsed time
-// ============================================================================
 
 /**
  * On any printer that meshes after heating, the heaters sit at target minutes
@@ -5089,12 +5006,10 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture, "A probe line counts as pre-p
     REQUIRE(get_current_phase() != PrintStartPhase::COMPLETE);
 }
 
-// ============================================================================
 // POSITION TELEMETRY INTEGRATION — silent-window refinement, end to end.
 // Coordinates below are the real K1C capture values (mesh 5..215, wipe strip
 // beyond Y=215, centre probes at ~(110,110), corner validation at the mesh
 // corners, sweep rows marching X at constant Y).
-// ============================================================================
 
 TEST_CASE_METHOD(K1CPrintStartReplayFixture,
                  "Position samples refine the silent window's status line",
@@ -5141,11 +5056,10 @@ TEST_CASE_METHOD(K1CPrintStartReplayFixture,
 TEST_CASE_METHOD(K1CPrintStartReplayFixture,
                  "Buffered pre-mesh probes are credited when the sweep march promotes BED_MESH",
                  "[print][collector][k1c][position]") {
-    // K1C capture 2026-08-20: the two front-row probes arrived before the
-    // position classifier's sweep-march verdict, were buffered ("Pre-mesh
-    // probe point 1/5 (buffering)"), and were then DISCARDED when the march
-    // promoted BED_MESH - the displayed count lagged the physical taps by 2
-    // for the whole mesh.
+    // K1C: the two front-row probes arrive before the position classifier's
+    // sweep-march verdict and are buffered ("Pre-mesh probe point 1/5
+    // (buffering)"). Promoting to BED_MESH must count them, or the displayed
+    // count lags the physical taps by 2 for the whole mesh.
     if (!have_profile_) {
         SKIP("creality_k1.json not available");
     }
@@ -5193,7 +5107,6 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     CHECK(get_current_message() == before);
 }
 
-// ============================================================================
 // PHASE-OBJECT STATUS SOURCE TESTS
 //
 // A profile may declare a status object whose field carries structured phase
@@ -5201,7 +5114,6 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
 // feed the same match/apply pipeline a console line takes, so weights and
 // progress behave identically. Console matching is untouched - both feeds
 // coexist and weights arbitrate.
-// ============================================================================
 
 TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
                  "Phase-object status frames drive phases like console lines",
@@ -5289,14 +5201,12 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     REQUIRE(get_current_phase() == PrintStartPhase::INITIALIZING);
 }
 
-// ============================================================================
 // CONTEXT-QUALIFIED PHASE OBJECT
 //
 // Forge-X publishes operation_context: a stack of nested steps (context_types,
 // outermost first) and current_state, the innermost step's state. One state
 // string means different things in different steps, so the profile matches
 // "<innermost type>/<state>". Moonraker sends only the fields that changed.
-// ============================================================================
 
 class ForgeXCollectorFixture : public PrintStartCollectorHeaterFixture {
   public:
@@ -5672,14 +5582,12 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     REQUIRE(get_current_phase() == PrintStartPhase::CLEANING);
 }
 
-// ============================================================================
 // STATUS-SIGNAL RULE TESTS
 //
 // Profiles may declare physical phase-inference rules ("status_signals"):
 // predicates over status objects, applied on the false->true rising edge only.
 // Matches feed apply_profile_match(), so weights arbitrate against console
 // narration exactly as they do for every other source.
-// ============================================================================
 
 TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
                  "at_cutter fires PURGING on the rising edge of both-negative position",
@@ -5862,9 +5770,7 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     REQUIRE(get_current_phase() == PrintStartPhase::INITIALIZING);
 }
 
-// ============================================================================
 // Simulated-Clock Scaling
-// ============================================================================
 //
 // The collector measures how long a pre-print takes. Reading the simulated
 // clock is what lets a mock run reach a 700-second pre-print without spending
@@ -5938,12 +5844,10 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     REQUIRE(get_current_phase() == PrintStartPhase::COMPLETE);
 }
 
-// ============================================================================
 // DECLARED HOLDS
 //
 // A profile pattern can name a capture group holding minutes the printer will
 // spend without a word (cosmos_cc1: "Heatsoak: 10.0m", then a silent G4).
-// ============================================================================
 
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "A declared hold counts as the printer talking until it ends",
@@ -6044,9 +5948,7 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     REQUIRE(get_current_phase() == PrintStartPhase::COMPLETE);
 }
 
-// ============================================================================
 // COSMOS (Elegoo Centauri Carbon) pre-print replay
-// ============================================================================
 
 /// How a COSMOS replay departs from the recorded print.
 struct CosmosReplayVariant {
@@ -6357,7 +6259,6 @@ TEST_CASE_METHOD(CosmosPrintStartReplayFixture,
                             "545:HEATING_NOZZLE 618:COMPLETE");
 }
 
-// ============================================================================
 // REAL FORGE-X 1.4.2 PRE-PRINT REPLAY
 //
 // An AD5M Pro on Forge-X 1.4.2 (2026-10-15, KAMP, ABS 105/265): the console
@@ -6367,7 +6268,6 @@ TEST_CASE_METHOD(CosmosPrintStartReplayFixture,
 // operation_context, which the capture did not record. kForgeXContextFrames
 // rebuilds it from the macros (base.cfg START_PRINT, KAMP, CLEAR_NOZZLE,
 // _WAIT_TEMPERATURE) against the console, as the deltas Moonraker sends.
-// ============================================================================
 
 namespace {
 struct ForgeXFrame {
@@ -7243,7 +7143,6 @@ TEST_CASE_METHOD(SilentVoronReplayFixture,
     CHECK(get_current_phase() != PrintStartPhase::PURGING);
 }
 
-// ============================================================================
 // Gantry leveling / Z tilt from configured probe points
 //
 // Klipper echoes nothing a START_PRINT macro runs, so QUAD_GANTRY_LEVEL and
@@ -7253,7 +7152,6 @@ TEST_CASE_METHOD(SilentVoronReplayFixture,
 // 2.4's console from Moonraker's gcode_store ("HH:MM:SS line", continuation
 // lines untimed): three QGL passes over four corners, then a 7x7 mesh offset
 // 25mm in Y by the probe. The replay carries no display text at all.
-// ============================================================================
 
 namespace {
 
@@ -7478,7 +7376,6 @@ TEST_CASE_METHOD(LevelingPointsFixture,
     CHECK(get_current_phase() == PrintStartPhase::INITIALIZING);
 }
 
-// ============================================================================
 // Stationary purges (blob/poop, waste chute) from motion alone
 //
 // The head holds still and the extruder runs forward without a break: Z climbs
@@ -7486,7 +7383,6 @@ TEST_CASE_METHOD(LevelingPointsFixture,
 // delivers them: the motion_report frame on the WebSocket path and the
 // position/velocity subjects on the main thread, where the collector's
 // observers and its 5s ETA tick sample them.
-// ============================================================================
 
 namespace {
 
@@ -7595,7 +7491,6 @@ TEST_CASE_METHOD(PurgeShapeFixture,
     CHECK(get_current_phase() == PrintStartPhase::BED_MESH);
 }
 
-// ============================================================================
 // K2 nozzle clear owns its own purge
 //
 // With the bed-mesh pre-print option on, a K2 heats the bed to print
@@ -7604,7 +7499,6 @@ TEST_CASE_METHOD(PurgeShapeFixture,
 // parks at the CFS extrude position and pushes filament to check flow before
 // it wipes, so its BOX_GO_TO_EXTRUDE_POS echo and its stationary extrusion
 // look exactly like the real purge.
-// ============================================================================
 
 namespace {
 
@@ -7774,9 +7668,7 @@ TEST_CASE_METHOD(PurgeShapeFixture,
     CHECK(get_current_phase() == PrintStartPhase::PURGING);
 }
 
-// ============================================================================
 // checklist_input
-// ============================================================================
 
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture, "checklist_input orders done phases by entry",
                  "[print][collector][checklist_input]") {

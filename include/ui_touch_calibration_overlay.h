@@ -379,9 +379,7 @@ class TouchCalibrationOverlay : public OverlayBase, public helix::ui::ITouchCali
     friend class TouchCalibrationOverlayTestAccess;
 };
 
-// ============================================================================
 // Global Instance Access
-// ============================================================================
 
 /**
  * @brief Get the global TouchCalibrationOverlay instance

@@ -29,9 +29,7 @@
 
 namespace helix {
 
-// ============================================================================
 // Helper functions
-// ============================================================================
 
 namespace {
 
@@ -92,9 +90,7 @@ void set_derived_capabilities(PlatformCapabilities& caps) {
     }
 }
 
-// ============================================================================
 // macOS-specific detection
-// ============================================================================
 
 #ifdef __APPLE__
 /**
@@ -126,9 +122,7 @@ int get_macos_cpu_cores() {
 
 } // namespace
 
-// ============================================================================
 // /proc/meminfo parsing
-// ============================================================================
 
 uint64_t parse_meminfo_kb(const std::string& content, const std::string& key) {
     if (key.empty()) {
@@ -153,9 +147,7 @@ size_t parse_meminfo_total_mb(const std::string& content) {
     return static_cast<size_t>(parse_meminfo_kb(content, "MemTotal") / 1024);
 }
 
-// ============================================================================
 // /proc/cpuinfo parsing
-// ============================================================================
 
 CpuInfo parse_cpuinfo(const std::string& content) {
     CpuInfo info;
@@ -241,9 +233,7 @@ CpuInfo parse_cpuinfo(const std::string& content) {
     return info;
 }
 
-// ============================================================================
 // PlatformCapabilities implementation
-// ============================================================================
 
 PlatformCapabilities PlatformCapabilities::detect() {
 #ifdef __APPLE__
@@ -287,9 +277,7 @@ PlatformCapabilities PlatformCapabilities::from_metrics(size_t ram_mb, int cores
     return caps;
 }
 
-// ============================================================================
 // Utility functions
-// ============================================================================
 
 bool full_style_effects_allowed(PlatformTier tier) {
     return tier == PlatformTier::STANDARD;

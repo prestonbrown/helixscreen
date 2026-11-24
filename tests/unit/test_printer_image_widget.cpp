@@ -3,6 +3,7 @@
 
 #include "../test_fixtures.h"
 #include "../test_helpers/config_test_access.h"
+#include "../test_helpers/log_capture.h"
 #include "../test_helpers/process_async_timers.h"
 #include "../test_helpers/typed_mock_backend.h"
 #include "ams_state.h"
@@ -658,6 +659,29 @@ TEST_CASE_METHOD(XMLTestFixture,
     CHECK(scene.source().find("creality-k2-cfs") != std::string::npos);
     AmsState::instance().clear_backends();
     CHECK(scene.source() == plain);
+}
+
+// The filament-system data revision moves on every unit status update, about
+// once a second on a printer with one. The image is re-resolved only when the
+// detected hardware changes, not on each tick.
+TEST_CASE_METHOD(XMLTestFixture,
+                 "PrinterImageWidget skips the image lookup when a data tick changes no hardware",
+                 "[panel_widget][printer_image][printer_image_variants]") {
+    VariantScene scene(test_screen(), "Creality K2");
+    AmsState::instance().add_backend(std::make_unique<helix::test::TypedMockBackend>(AmsType::CFS));
+    const std::string with_cfs = scene.source();
+    REQUIRE(with_cfs.find("creality-k2-cfs") != std::string::npos);
+
+    LogCapture log;
+    for (int i = 0; i < 5; ++i) {
+        AmsState::instance().bump_data_revision();
+    }
+    CHECK(scene.source() == with_cfs);
+    CHECK(log.count_containing("[PrinterDetector] image for") == 0);
+
+    AmsState::instance().clear_backends();
+    CHECK(scene.source().find("creality-k2-cfs") == std::string::npos);
+    CHECK(log.count_containing("[PrinterDetector] image for") > 0);
 }
 
 // The top can be fitted or lifted off while connected, so the widget follows the

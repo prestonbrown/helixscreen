@@ -14,9 +14,7 @@ using json = nlohmann::json;
 
 namespace helix {
 
-// =============================================================================
 // Fingerprint
-// =============================================================================
 
 std::string crash_fingerprint(const std::string& signal_name, const std::string& app_version,
                               const std::string& first_bt_frame) {
@@ -26,18 +24,14 @@ std::string crash_fingerprint(const std::string& signal_name, const std::string&
     return sig + "/" + ver + "/" + frame;
 }
 
-// =============================================================================
 // Singleton
-// =============================================================================
 
 CrashHistory& CrashHistory::instance() {
     static CrashHistory instance;
     return instance;
 }
 
-// =============================================================================
 // Lifecycle
-// =============================================================================
 
 void CrashHistory::init(const std::string& config_dir) {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -56,9 +50,7 @@ void CrashHistory::shutdown() {
     initialized_ = false;
 }
 
-// =============================================================================
 // Public API
-// =============================================================================
 
 void CrashHistory::add_entry(const CrashHistoryEntry& entry) {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -102,9 +94,7 @@ json CrashHistory::to_json() const {
     return entries_to_json();
 }
 
-// =============================================================================
 // Persistence
-// =============================================================================
 
 std::string CrashHistory::history_file_path() const {
     return config_dir_ + "/crash_history.json";
@@ -174,9 +164,7 @@ json CrashHistory::entries_to_json() const {
     return arr;
 }
 
-// =============================================================================
 // JSON serialization
-// =============================================================================
 
 CrashHistoryEntry CrashHistory::entry_from_json(const json& j) {
     CrashHistoryEntry entry;

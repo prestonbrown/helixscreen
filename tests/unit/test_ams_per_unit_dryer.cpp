@@ -52,7 +52,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Dryer scalar subjects mirror the selected uni
                  "[ams][dryer][multi-unit][mirror]") {
     auto& ams = AmsState::instance();
     ams.init_subjects(false); // MANDATORY: without this every lv_subject_set_int is a silent
-                              // no-op → false-RED (Task 4 caught this). Mirrors sibling
+                              // no-op → false-RED. Mirrors sibling
                               // test_ams_realtime_filament_state.cpp.
     ams.set_backend(make_two_box_qidi_one_drying());
 

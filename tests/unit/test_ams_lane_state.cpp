@@ -96,7 +96,7 @@ TEST_CASE("UNKNOWN with weights is ghosted, not blanked", "[ams][lane_state]") {
     // Presence unconfirmed but the scale is configured: the weight is real
     // user data, and hiding a weighed spool reads worse than showing it
     // dimmed. This is the deliberate resolution of the second #1368 UNKNOWN
-    // outcome (weights without identity used to split the surfaces).
+    // outcome: weights without identity must not split the surfaces.
     SECTION("no identity, weights configured") {
         SlotInfo s;
         s.status = SlotStatus::UNKNOWN;

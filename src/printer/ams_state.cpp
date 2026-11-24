@@ -19,6 +19,7 @@
 #include "ams_feeder_control.h"
 #include "ams_lane_faults.h"
 #include "ams_lane_state.h"
+#include "ams_print_area_intrusion.h"
 #include "ams_runout_grace.h"
 #include "ams_standing_fault.h"
 #include "ams_state_internal.h"
@@ -359,7 +360,8 @@ std::optional<AmsType> AmsState::primary_type() const {
 
 double AmsState::printable_y_shrink_mm() const {
     const AmsBackend* backend = get_backend();
-    return backend != nullptr ? backend->printable_y_shrink_mm() : 0.0;
+    const auto* intrusion = backend != nullptr ? backend->as<IPrintAreaIntrusion>() : nullptr;
+    return intrusion != nullptr ? intrusion->printable_y_shrink_mm() : 0.0;
 }
 
 std::optional<BackendTraits> AmsState::primary_traits() const {

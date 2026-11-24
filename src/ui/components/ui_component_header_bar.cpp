@@ -13,9 +13,7 @@
 #include <stdio.h>
 #include <vector>
 
-// ============================================================================
 // LIFECYCLE & RESPONSIVE BEHAVIOR
-// ============================================================================
 
 // Track all header_bar instances for resize handling
 static std::vector<lv_obj_t*> header_instances;
@@ -51,9 +49,7 @@ static void on_app_resize() {
     }
 }
 
-// ============================================================================
 // INITIALIZATION
-// ============================================================================
 
 void ui_component_header_bar_init() {
     // Register global resize callback for all header_bar instances

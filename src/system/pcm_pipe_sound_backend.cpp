@@ -59,9 +59,7 @@ bool reap_within(pid_t pid, int timeout_ms, int& status) {
 
 } // namespace
 
-// ============================================================================
 // Probes (pure, for tests)
-// ============================================================================
 
 std::vector<std::string> PcmPipeSoundBackend::default_players() {
     return {"/usr/bin/aplay", "/usr/local/bin/aplay", "/bin/aplay", "/usr/sbin/aplay"};
@@ -124,9 +122,7 @@ bool PcmPipeSoundBackend::available() {
     return has_playback_device(kSndDir);
 }
 
-// ============================================================================
 // Lifecycle
-// ============================================================================
 
 PcmPipeSoundBackend::PcmPipeSoundBackend() = default;
 
@@ -165,9 +161,7 @@ void PcmPipeSoundBackend::shutdown() {
     spdlog::info("[PcmPipeSound] Audio shutdown");
 }
 
-// ============================================================================
 // Player process
-// ============================================================================
 
 bool PcmPipeSoundBackend::spawn_player() {
     int fds[2];
@@ -288,9 +282,7 @@ bool PcmPipeSoundBackend::write_all(const void* buf, size_t len) {
     return true;
 }
 
-// ============================================================================
 // Render thread
-// ============================================================================
 
 void PcmPipeSoundBackend::ack_pass() {
     const uint32_t seq = resume_seq_.load(std::memory_order_relaxed);
@@ -430,9 +422,7 @@ void PcmPipeSoundBackend::render_loop() {
     stop_player();
 }
 
-// ============================================================================
 // Sequencer side
-// ============================================================================
 
 void PcmPipeSoundBackend::suspend() {
     std::lock_guard<std::mutex> lock(state_mutex_);
@@ -470,9 +460,7 @@ void PcmPipeSoundBackend::resume() {
         spdlog::debug("[PcmPipeSound] resume handoff timed out");
 }
 
-// ============================================================================
 // Voices
-// ============================================================================
 
 void PcmPipeSoundBackend::set_tone(float freq_hz, float amplitude, float duty_cycle) {
     set_voice(0, freq_hz, amplitude, duty_cycle);

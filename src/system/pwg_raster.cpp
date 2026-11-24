@@ -255,10 +255,8 @@ std::vector<uint8_t> generate(const LabelBitmap& page_bitmap, const PageParams& 
     std::vector<uint8_t> out;
     out.reserve(estimated);
 
-    // Sync word
     out.insert(out.end(), kSyncWord, kSyncWord + 4);
 
-    // Page header
     auto hdr = build_page_header(p);
     out.insert(out.end(), hdr.begin(), hdr.end());
 

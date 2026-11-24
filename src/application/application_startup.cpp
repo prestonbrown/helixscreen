@@ -108,16 +108,13 @@ bool Application::register_widgets() {
     helix::ui::register_filament_motion_glyph_widget();
     helix::ui::register_plate_glow_widget();
 
-    // Initialize component systems
     ui_component_header_bar_init();
 
     // Small delay to stabilize display
     DisplayManager::delay(100);
 
-    // Initialize memory profiling
     helix::MemoryProfiler::init(m_args.memory_report);
 
-    // Log system memory info
     auto mem = helix::get_system_memory_info();
     spdlog::debug("[Application] System memory: total={}MB, available={}MB", mem.total_kb / 1024,
                   mem.available_mb());
@@ -437,9 +434,8 @@ void Application::init_monitoring_services() {
     // alive and the screen lit, so the watchdog (which only supervises exit)
     // cannot see it and the user just gets a panel that ignores touch.
     //
-    // Detection only for now — this reports and does not kill. The abort
-    // lives behind one guarded call site below so turning it on later is a
-    // single change rather than a refactor.
+    // Detection only: this reports and does not kill. The abort lives behind
+    // one guarded call site below.
     {
         uint32_t hang_ms = helix::MainLoopHangDetector::kDefaultThresholdMs;
         if (const char* env = std::getenv("HELIX_HANG_THRESHOLD_SEC")) {
@@ -538,10 +534,8 @@ void Application::check_wifi_availability() {
     // start_async()es it — which is also where credentials are re-applied on
     // firmwares whose wpa_supplicant discards them.
     //
-    // This used to be gated on is_wifi_expected(), which defaults to false and
-    // is absent from settings.json on a Snapmaker U1 — so that device never
-    // started WiFi at boot at all, and only ever connected once the user opened
-    // a WiFi screen. Bringup is not a user-intent question.
+    // Bringup is not gated on is_wifi_expected(): it defaults to false and is absent
+    // from settings.json on a Snapmaker U1, which would then never start WiFi at boot.
     auto wifi = get_wifi_manager();
 
     // An IPv4 change the user never kept is undone at boot.

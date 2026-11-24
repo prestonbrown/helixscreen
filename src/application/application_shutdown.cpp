@@ -55,7 +55,6 @@ void Application::shutdown() {
 #endif
     helix::RemoteScreenService::instance().shutdown();
 
-    // Stop memory monitor
     helix::MemoryMonitor::instance().stop();
 
     spdlog::info("[Application] Shutting down...");

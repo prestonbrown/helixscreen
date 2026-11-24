@@ -138,7 +138,6 @@ void IppPrinter::print(const LabelBitmap& bitmap, const LabelSize& size, PrintCa
             });
         };
         try {
-            // Get the sheet template
             const auto& templates = label::get_sheet_templates();
             if (template_index < 0 || template_index >= static_cast<int>(templates.size())) {
                 fail(TR_NOOP("Invalid sheet template index: {} (have {})"), template_index,
@@ -157,7 +156,6 @@ void IppPrinter::print(const LabelBitmap& bitmap, const LabelSize& size, PrintCa
             auto page_bitmap =
                 label::tile_labels_on_page(bitmap, tmpl, label_count, start_position, dpi);
 
-            // Get page dimensions for PWG header
             auto page_dims = label::get_page_dimensions(paper_size, dpi);
 
             // Build PWG Raster data
@@ -183,7 +181,6 @@ void IppPrinter::print(const LabelBitmap& bitmap, const LabelSize& size, PrintCa
                 request.begin_job_attributes();
                 request.set_copies(1);
 
-                // Encode IPP request with PWG document data
                 auto ipp_body = request.encode_with_data(pwg_data);
                 spdlog::debug("IPP Printer: encoded IPP request: {} bytes total", ipp_body.size());
                 return ipp::post_request(host, port, resource_path, ipp_body, 30, transport);
@@ -228,7 +225,6 @@ void IppPrinter::print(const LabelBitmap& bitmap, const LabelSize& size, PrintCa
                 return;
             }
 
-            // Parse IPP response
             auto ipp_resp = ipp::parse_response(reinterpret_cast<const uint8_t*>(resp->body.data()),
                                                 resp->body.size());
 

@@ -85,6 +85,7 @@ The command above works on every supported printer, but each family has its own 
 | Snapmaker U1 | [Snapmaker U1 Install](guide/install-u1.md): stock firmware 1.2 or newer with Root access, or PAXX Extended Firmware |
 | BigTreeTech K-Touch (standalone ESP32 screen) | [K-Touch Install](guide/install-esp32.md): beta firmware, flashed from your browser or over USB |
 | A Linux desktop or laptop (HelixScreen in a window) | [Run HelixScreen in a Window on a Linux Desktop](guide/install-linux-desktop.md) |
+| A home server, NAS or Unraid box (HelixScreen in a Docker container, used from a browser) | [Run HelixScreen in a Docker Container](guide/install-docker.md) |
 | An Android phone or tablet | [Android App](#android-app-experimental) on this page |
 
 ---

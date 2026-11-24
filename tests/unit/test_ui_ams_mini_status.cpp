@@ -166,7 +166,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: cell has spool + mater
 }
 
 // An empty lane with no assigned identity names its purpose ("Empty"), matching
-// the ams_slot material label — "--" reads as "assigned, unknown material".
+// the ams_slot material label: "--" reads as "assigned, unknown material".
 TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: unassigned empty slot reads Empty",
                  "[ui][ams_mini][spool]") {
     ui_ams_mini_status_init();

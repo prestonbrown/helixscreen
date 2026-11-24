@@ -3,7 +3,7 @@
 
 /**
  * @file test_moonraker_client_send_gate.cpp
- * @brief Regression tests for the connection_state_ send gate (#909).
+ * @brief Tests for the connection_state_ send gate (#909).
  *
  * Context: libhv's WebSocketClient::send() only checks `channel != NULL`,
  * not the WS protocol state. A send issued while the client is CONNECTING /

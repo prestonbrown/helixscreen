@@ -267,8 +267,7 @@ TEST_CASE("has_non_wifi_network_path returns false when /sys/class/net is missin
 
 TEST_CASE("list_wpa_daemons returns all running daemons with correct data", "[wifi][interface]") {
     // Test that list_wpa_daemons walks the entire /proc tree and returns ALL
-    // wpa_supplicant processes, not just the first one. This is the key
-    // regression case: the old code would return on first match.
+    // wpa_supplicant processes, not just the first one.
     FakeRoot fr;
     fr.mkdirs("proc");
 

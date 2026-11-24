@@ -3,8 +3,7 @@
 
 #pragma once
 
-#include "ui_breakpoint.h"
-
+#include "core/breakpoint.h"
 #include "default_layout_resolver.h"
 #include "json_fwd.h"
 
@@ -135,9 +134,7 @@ class PanelWidgetConfig {
         return serialize_pages();
     }
 
-    // ========================================================================
     // Backward-compatible accessors (delegate to page 0)
-    // ========================================================================
 
     const std::vector<PanelWidgetEntry>& entries() const {
         return pages_[0].widgets;
@@ -147,9 +144,7 @@ class PanelWidgetConfig {
         return pages_[0].widgets;
     }
 
-    // ========================================================================
     // Multi-page accessors
-    // ========================================================================
 
     /// Number of pages
     size_t page_count() const {
@@ -647,5 +642,15 @@ class PanelWidgetConfig {
 /// Exported so the shipped-table tests resolve keys through the same function
 /// the loader uses.
 const char* choose_breakpoint_key(const nlohmann::json& by_bp, UiBreakpoint breakpoint);
+
+/// The process-wide PanelWidgetConfig for @p panel_id, created on first use
+/// from Config::get_instance(). Every access calls load(), a no-op once loaded
+/// (#804): a caller that edits the stored layout without the setters calls
+/// mark_dirty() on it to force the next reload. Main thread only.
+PanelWidgetConfig& cached_panel_widget_config(const std::string& panel_id);
+
+/// mark_printer_changed() on every cached config: the active printer changed,
+/// so each reloads from the new printer's /printers/<id>/panel_widgets path.
+void mark_cached_panel_widget_configs_printer_changed();
 
 } // namespace helix

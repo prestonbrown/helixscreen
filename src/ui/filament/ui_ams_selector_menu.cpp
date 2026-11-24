@@ -38,9 +38,7 @@ void init_menu_subjects() {
 // Static member initialization
 bool AmsSelectorMenu::callbacks_registered_ = false;
 
-// ============================================================================
 // Construction / Destruction
-// ============================================================================
 
 AmsSelectorMenu::AmsSelectorMenu() {
     init_menu_subjects();
@@ -70,9 +68,7 @@ AmsSelectorMenu& AmsSelectorMenu::operator=(AmsSelectorMenu&& other) noexcept {
     return *this;
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 void AmsSelectorMenu::set_action_callback(ActionCallback callback) {
     action_callback_ = std::move(callback);
@@ -80,7 +76,6 @@ void AmsSelectorMenu::set_action_callback(ActionCallback callback) {
 
 bool AmsSelectorMenu::show_at(lv_obj_t* parent, lv_obj_t* anchor, lv_point_t click_pt,
                               AmsBackend* backend) {
-    // Register callbacks once (idempotent)
     register_callbacks();
 
     // Store state BEFORE base class calls on_created
@@ -96,9 +91,7 @@ bool AmsSelectorMenu::show_at(lv_obj_t* parent, lv_obj_t* anchor, lv_point_t cli
     return result;
 }
 
-// ============================================================================
 // ContextMenu override
-// ============================================================================
 
 void AmsSelectorMenu::on_created(lv_obj_t* menu_obj) {
     // Hub-based (Type B) and virtual-selector topologies have no servo row.
@@ -118,9 +111,7 @@ void AmsSelectorMenu::on_created(lv_obj_t* menu_obj) {
     }
 }
 
-// ============================================================================
 // Event Handlers
-// ============================================================================
 
 void AmsSelectorMenu::dispatch_selector_action(SelectorAction action) {
     ActionCallback callback_copy = action_callback_;
@@ -188,9 +179,7 @@ void AmsSelectorMenu::handle_recover() {
     dispatch_selector_action(SelectorAction::RECOVER);
 }
 
-// ============================================================================
 // Static Callback Registration
-// ============================================================================
 
 void AmsSelectorMenu::register_callbacks() {
     if (callbacks_registered_) {
@@ -213,9 +202,7 @@ void AmsSelectorMenu::register_callbacks() {
     spdlog::debug("[AmsSelectorMenu] Callbacks registered");
 }
 
-// ============================================================================
 // Static Callbacks (Instance Lookup via ContextMenu::active())
-// ============================================================================
 
 AmsSelectorMenu* AmsSelectorMenu::get_active_instance() {
     auto* self = ContextMenu::active_as<AmsSelectorMenu>();
@@ -288,9 +275,7 @@ void AmsSelectorMenu::on_recover_cb(lv_event_t* /*e*/) {
     }
 }
 
-// ============================================================================
 // Dispatch
-// ============================================================================
 
 void ams_dispatch_selector_action(AmsSelectorMenu::SelectorAction a) {
     using SA = AmsSelectorMenu::SelectorAction;

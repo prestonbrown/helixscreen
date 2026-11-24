@@ -9,13 +9,16 @@
 #include "ui_gcode_viewer.h"
 #include "ui_print_status_tiles.h"
 
+#include "../test_helpers/log_capture.h"
 #include "../test_helpers/print_status_panel_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_geometry.h"
 #include "../test_helpers/scoped_portrait_layout.h"
+#include "../test_helpers/typed_mock_backend.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "config.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "led/led_controller.h"
@@ -32,6 +35,7 @@
 #include "theme_manager.h"
 #include "tool_state.h"
 #include "translation_loader.h"
+#include "wizard_config_paths.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -527,6 +531,33 @@ TEST_CASE_METHOD(Landscape800, "the printer tile follows a change of printer ima
     images.set_active_image("");
     settle();
     CHECK(subject_str("ps_printer_image_src") == before);
+}
+
+// The filament-system data revision moves on every unit status update; the tile
+// looks the image up again only when the detected hardware changes.
+TEST_CASE_METHOD(Landscape800, "the printer tile skips the image lookup on a data tick",
+                 "[print_status]") {
+    auto& ams = AmsState::instance();
+    ams.clear_backends();
+    helix::Config* cfg = helix::Config::get_instance();
+    cfg->set<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, "Creality K2");
+    tiles().use_displayed_image();
+    settle();
+
+    helix::LogCapture log;
+    for (int i = 0; i < 5; ++i) {
+        ams.bump_data_revision();
+        settle();
+    }
+    CHECK(log.count_containing("[PrinterDetector] image for") == 0);
+
+    ams.add_backend(std::make_unique<helix::test::TypedMockBackend>(AmsType::CFS));
+    settle();
+    CHECK(log.count_containing("[PrinterDetector] image for") > 0);
+
+    ams.clear_backends();
+    settle();
+    cfg->set<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, "");
 }
 
 TEST_CASE_METHOD(Landscape800, "chips lay out again when the printer tile resizes",
@@ -2036,10 +2067,8 @@ TEST_CASE_METHOD(Portrait600, "the lane tray leaves the pre-print checklist ever
     CHECK(preparing_tray_h <= printing_tray_h);
 }
 
-// ============================================================================
 // Inline Tune: where the layout has room, the Tune section shows beside the
 // print and the Tune button that opens the overlay goes.
-// ============================================================================
 
 namespace {
 

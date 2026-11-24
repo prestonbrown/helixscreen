@@ -53,9 +53,7 @@ void draw_screen_placeholder_rgb888(int w, int h, std::vector<uint8_t>& rgb) {
     });
 }
 
-// ---------------------------------------------------------------------------
 // ScreenFrameStore
-// ---------------------------------------------------------------------------
 
 ScreenFrameStore::ScreenFrameStore(Clock clock) : clock_(std::move(clock)) {}
 
@@ -299,9 +297,7 @@ void ScreenFrameStore::release() {
     release_locked();
 }
 
-// ---------------------------------------------------------------------------
 // ScreenServerSink
-// ---------------------------------------------------------------------------
 
 ScreenServerSink::ScreenServerSink(std::shared_ptr<ScreenFrameStore> store)
     : store_(std::move(store)) {}

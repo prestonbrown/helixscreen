@@ -3,13 +3,13 @@
 
 /**
  * @file test_moonraker_full_stack.cpp
- * @brief Integration tests for the Moonraker layer refactor
+ * @brief Integration tests for the Moonraker layer
  *
- * Tests the full integration of the refactored Moonraker layer:
- * - Phase 2: Event emitter pattern (MoonrakerClient emits events)
- * - Phase 3: Domain logic in MoonrakerAPI
- * - Phase 4: MockPrinterState shared between mocks
- * - Phase 5: UI callers migrated to use MoonrakerAPI
+ * Tests the full integration of the Moonraker layer:
+ * - Event emitter pattern (MoonrakerClient emits events)
+ * - Domain logic in MoonrakerAPI
+ * - MockPrinterState shared between mocks
+ * - UI callers going through MoonrakerAPI
  *
  * Test Categories:
  * 1. Print workflow with object exclusion (shared state synchronization)
@@ -62,9 +62,7 @@ static void let_both_run(const std::atomic<int>& a, const std::atomic<int>& b) {
     }
 }
 
-// ============================================================================
 // Full Stack Test Fixture
-// ============================================================================
 
 /**
  * @brief Test fixture for full-stack integration tests
@@ -83,13 +81,10 @@ class FullStackTestFixture : public LVGLTestFixture {
         : client_(MoonrakerClientMock::PrinterType::VORON_24,
                   1000.0) // 1000x speedup for fast tests
     {
-        // Create shared state
         shared_state_ = std::make_shared<MockPrinterState>();
 
-        // Attach shared state to client mock
         client_.set_mock_state(shared_state_);
 
-        // Initialize printer state for reactive data
         printer_state_.init_subjects(false);
         // execute_gcode() halted gate would otherwise reject all G-code: subjects
         // initialize to SHUTDOWN until production code observes a real state update.
@@ -124,9 +119,7 @@ class FullStackTestFixture : public LVGLTestFixture {
     std::unique_ptr<MoonrakerAPIMock> api_;
 };
 
-// ============================================================================
 // Test Case 1: Print Workflow with Object Exclusion
-// ============================================================================
 
 TEST_CASE_METHOD(FullStackTestFixture, "Full stack: Print workflow with object exclusion",
                  "[connection][integration][exclude]") {
@@ -149,12 +142,10 @@ TEST_CASE_METHOD(FullStackTestFixture, "Full stack: Print workflow with object e
     }
 
     SECTION("Multiple object exclusions synchronize correctly") {
-        // Exclude multiple objects
         client_.gcode_script("EXCLUDE_OBJECT NAME=Body");
         client_.gcode_script("EXCLUDE_OBJECT NAME=Support_1");
         client_.gcode_script("EXCLUDE_OBJECT NAME=Support_2");
 
-        // Verify all appear in API mock
         auto excluded = api_->get_excluded_objects_from_mock();
         REQUIRE(excluded.size() == 3);
         REQUIRE(excluded.count("Body") == 1);
@@ -163,7 +154,6 @@ TEST_CASE_METHOD(FullStackTestFixture, "Full stack: Print workflow with object e
     }
 
     SECTION("Print start clears excluded objects") {
-        // Add some excluded objects
         client_.gcode_script("EXCLUDE_OBJECT NAME=Part_1");
         client_.gcode_script("EXCLUDE_OBJECT NAME=Part_2");
         REQUIRE(api_->get_excluded_objects_from_mock().size() == 2);
@@ -171,23 +161,19 @@ TEST_CASE_METHOD(FullStackTestFixture, "Full stack: Print workflow with object e
         // Start a new print (this should clear excluded objects)
         client_.gcode_script("SDCARD_PRINT_FILE FILENAME=\"3DBenchy.gcode\"");
 
-        // Verify excluded objects are cleared
         REQUIRE(api_->get_excluded_objects_from_mock().empty());
         REQUIRE(client_.get_excluded_objects().empty());
     }
 
     SECTION("Restart clears excluded objects") {
-        // Add excluded object
         client_.gcode_script("EXCLUDE_OBJECT NAME=Part_1");
         REQUIRE(api_->get_excluded_objects_from_mock().size() == 1);
 
-        // Issue RESTART command
         client_.gcode_script("RESTART");
 
         // Wait for async restart to process
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-        // Verify excluded objects are cleared
         REQUIRE(api_->get_excluded_objects_from_mock().empty());
     }
 
@@ -195,7 +181,6 @@ TEST_CASE_METHOD(FullStackTestFixture, "Full stack: Print workflow with object e
         // Set available objects directly in shared state
         shared_state_->set_available_objects({"Body", "Brim", "Support_Tower"});
 
-        // Verify accessible from API mock
         auto available = api_->get_available_objects_from_mock();
         REQUIRE(available.size() == 3);
         REQUIRE(available[0] == "Body");
@@ -204,9 +189,7 @@ TEST_CASE_METHOD(FullStackTestFixture, "Full stack: Print workflow with object e
     }
 }
 
-// ============================================================================
 // Test Case 2: Temperature Control Cycle
-// ============================================================================
 
 TEST_CASE_METHOD(FullStackTestFixture, "Full stack: Temperature control cycle",
                  "[connection][integration][temperature]") {
@@ -245,9 +228,7 @@ TEST_CASE_METHOD(FullStackTestFixture, "Full stack: Temperature control cycle",
     }
 }
 
-// ============================================================================
 // Test Case 3: Bed Mesh Access Through API
-// ============================================================================
 
 TEST_CASE_METHOD(FullStackTestFixture, "Full stack: Bed mesh access through API",
                  "[connection][integration][bedmesh]") {
@@ -305,9 +286,7 @@ TEST_CASE_METHOD(FullStackTestFixture, "Full stack: Bed mesh access through API"
     }
 }
 
-// ============================================================================
 // Test Case 4: Event Emission and Handling
-// ============================================================================
 
 /**
  * @brief Test helper that exposes protected emit_event() for unit testing
@@ -319,7 +298,6 @@ class TestableMoonrakerClientMock : public MoonrakerClientMock {
   public:
     using MoonrakerClientMock::MoonrakerClientMock;
 
-    // Expose protected method for testing
     void test_emit_event(MoonrakerEventType type, const std::string& message, bool is_error = false,
                          const std::string& details = "") {
         emit_event(type, message, is_error, details);
@@ -398,7 +376,6 @@ TEST_CASE_METHOD(EventIntegrationFixture, "Full stack: Event emission and handli
     SECTION("Registered handler receives events") {
         client_.register_event_handler(create_capture_handler());
 
-        // Emit a test event
         client_.test_emit_event(MoonrakerEventType::CONNECTION_LOST, "Test connection lost", true);
 
         REQUIRE(has_event());
@@ -413,7 +390,6 @@ TEST_CASE_METHOD(EventIntegrationFixture, "Full stack: Event emission and handli
     SECTION("Multiple event types are captured correctly") {
         client_.register_event_handler(create_capture_handler());
 
-        // Emit sequence of events
         client_.test_emit_event(MoonrakerEventType::CONNECTION_LOST, "Disconnected", true);
         client_.test_emit_event(MoonrakerEventType::RECONNECTING, "Attempting reconnect", false);
         client_.test_emit_event(MoonrakerEventType::RECONNECTED, "Connected", false);
@@ -431,34 +407,27 @@ TEST_CASE_METHOD(EventIntegrationFixture, "Full stack: Event emission and handli
         client_.test_emit_event(MoonrakerEventType::KLIPPY_READY, "Ready", false);
         REQUIRE(event_count() == 1);
 
-        // Unregister by passing nullptr
         client_.register_event_handler(nullptr);
         reset();
 
-        // Should not receive new events
         REQUIRE_NOTHROW(
             client_.test_emit_event(MoonrakerEventType::KLIPPY_DISCONNECTED, "Disconnected", true));
         CHECK(event_count() == 0);
     }
 
     SECTION("Event handler exceptions are caught") {
-        // Register handler that throws
         client_.register_event_handler(
             [](const MoonrakerEvent&) { throw std::runtime_error("Handler threw exception"); });
 
-        // Should not propagate exception
         REQUIRE_NOTHROW(
             client_.test_emit_event(MoonrakerEventType::RPC_ERROR, "Trigger exception", true));
     }
 }
 
-// ============================================================================
 // Test Case 5: PrinterHardware Guessing
-// ============================================================================
 
 TEST_CASE_METHOD(FullStackTestFixture, "Full stack: PrinterHardware guessing",
                  "[integration][printer]") {
-    // Create PrinterHardware from the API's discovered hardware
     PrinterHardware hw(api_->hardware().heaters(), api_->hardware().sensors(),
                        api_->hardware().fans(), api_->hardware().leds());
 
@@ -488,9 +457,7 @@ TEST_CASE_METHOD(FullStackTestFixture, "Full stack: PrinterHardware guessing",
     }
 }
 
-// ============================================================================
 // Test Case 6: All Printer Types Integration
-// ============================================================================
 
 TEST_CASE_METHOD(HelixTestFixture, "Full stack: All printer types work correctly",
                  "[connection][integration][all_printers]") {
@@ -500,7 +467,6 @@ TEST_CASE_METHOD(HelixTestFixture, "Full stack: All printer types work correctly
     for (const auto* persona : helix::test::personas_one_per_type()) {
         DYNAMIC_SECTION(persona->id) {
             helix::test::PersonaEnv env(persona->id);
-            // Create full stack for this printer type
             auto shared_state = std::make_shared<MockPrinterState>();
 
             MoonrakerClientMock client(persona->type, 1000.0);
@@ -513,7 +479,6 @@ TEST_CASE_METHOD(HelixTestFixture, "Full stack: All printer types work correctly
             client.connect("ws://mock/websocket", []() {}, []() {});
             client.discover_printer([&]() { api.hardware() = client.hardware(); });
 
-            // Verify basic operations work via PrinterHardware
             PrinterHardware hw(api.hardware().heaters(), api.hardware().sensors(),
                                api.hardware().fans(), api.hardware().leds());
             std::string bed = hw.guess_bed_heater();
@@ -523,22 +488,18 @@ TEST_CASE_METHOD(HelixTestFixture, "Full stack: All printer types work correctly
             REQUIRE_FALSE(bed.empty());
             REQUIRE_FALSE(hotend.empty());
 
-            // Verify object exclusion works
             client.gcode_script("EXCLUDE_OBJECT NAME=Test_Part");
             auto excluded = api.get_excluded_objects_from_mock();
             REQUIRE(excluded.size() == 1);
             REQUIRE(excluded.count("Test_Part") == 1);
 
-            // Cleanup
             client.stop_temperature_simulation();
             client.disconnect();
         }
     }
 }
 
-// ============================================================================
 // Test Case 7: Concurrent Access to Shared State
-// ============================================================================
 
 TEST_CASE_METHOD(FullStackTestFixture, "Full stack: Concurrent access to shared state",
                  "[connection][integration][threading]") {
@@ -547,7 +508,6 @@ TEST_CASE_METHOD(FullStackTestFixture, "Full stack: Concurrent access to shared 
         std::atomic<int> add_count{0};
         std::atomic<int> read_count{0};
 
-        // Thread that adds excluded objects via client
         std::thread writer([this, &stop_flag, &add_count]() {
             int i = 0;
             while (!stop_flag.load()) {
@@ -557,7 +517,6 @@ TEST_CASE_METHOD(FullStackTestFixture, "Full stack: Concurrent access to shared 
             }
         });
 
-        // Thread that reads excluded objects via API
         std::thread reader([this, &stop_flag, &read_count]() {
             while (!stop_flag.load()) {
                 auto excluded = api_->get_excluded_objects_from_mock();
@@ -572,11 +531,9 @@ TEST_CASE_METHOD(FullStackTestFixture, "Full stack: Concurrent access to shared 
         writer.join();
         reader.join();
 
-        // Verify operations completed without crash
         REQUIRE(add_count.load() > 0);
         REQUIRE(read_count.load() > 0);
 
-        // Verify final state is consistent
         auto final_excluded = api_->get_excluded_objects_from_mock();
         auto client_excluded = client_.get_excluded_objects();
         REQUIRE(final_excluded.size() == client_excluded.size());
@@ -586,7 +543,6 @@ TEST_CASE_METHOD(FullStackTestFixture, "Full stack: Concurrent access to shared 
         std::atomic<bool> stop_flag{false};
         std::atomic<int> update_count{0};
 
-        // Thread that updates temperatures
         std::thread updater([this, &stop_flag, &update_count]() {
             double temp = 50.0;
             while (!stop_flag.load()) {
@@ -630,14 +586,11 @@ TEST_CASE_METHOD(FullStackTestFixture, "Full stack: Concurrent access to shared 
     }
 }
 
-// ============================================================================
 // Test Case 8: State Reset and Cleanup
-// ============================================================================
 
 TEST_CASE_METHOD(FullStackTestFixture, "Full stack: State reset and cleanup",
                  "[integration][connection]") {
     SECTION("MockPrinterState reset clears all state") {
-        // Set up various state
         shared_state_->extruder_temp = 200.0;
         shared_state_->bed_temp = 60.0;
         shared_state_->print_state = 1;
@@ -645,10 +598,8 @@ TEST_CASE_METHOD(FullStackTestFixture, "Full stack: State reset and cleanup",
         shared_state_->set_available_objects({"Object_A"});
         shared_state_->set_current_filename("test.gcode");
 
-        // Reset
         shared_state_->reset();
 
-        // Verify all state is cleared
         REQUIRE(shared_state_->extruder_temp == 25.0);
         REQUIRE(shared_state_->bed_temp == 25.0);
         REQUIRE(shared_state_->print_state == 0);
@@ -658,11 +609,9 @@ TEST_CASE_METHOD(FullStackTestFixture, "Full stack: State reset and cleanup",
     }
 
     SECTION("State changes persist through API and client") {
-        // Set state via shared state
         shared_state_->set_current_filename("persistent_file.gcode");
         shared_state_->set_available_objects({"Persistent_Object"});
 
-        // Verify via API
         auto available = api_->get_available_objects_from_mock();
         REQUIRE(available.size() == 1);
         REQUIRE(available[0] == "Persistent_Object");
@@ -672,9 +621,7 @@ TEST_CASE_METHOD(FullStackTestFixture, "Full stack: State reset and cleanup",
     }
 }
 
-// ============================================================================
 // Test Case 9: API Error Handling Integration
-// ============================================================================
 
 TEST_CASE_METHOD(HelixTestFixture, "Full stack: API error callbacks work correctly",
                  "[connection][integration][errors]") {
@@ -694,7 +641,7 @@ TEST_CASE_METHOD(HelixTestFixture, "Full stack: API error callbacks work correct
     SECTION("Async API methods invoke exactly one callback path") {
         // get_excluded_objects() answers from printer.objects.query and treats a
         // response with no exclude_object key as "nothing excluded" — success with an
-        // empty set, never on_error. A run where neither callback fires is the bug
+        // empty set, never on_error. A run where neither callback fires is what
         // this asserts against: the caller would wait forever on a reply that never came.
         bool success_called = false;
         bool error_called = false;
@@ -713,7 +660,7 @@ TEST_CASE_METHOD(HelixTestFixture, "Full stack: API error callbacks work correct
     }
 
     SECTION("Sync API methods return the discovered hardware") {
-        // Hardware guessing now uses PrinterHardware directly. VORON_24's discovery
+        // Hardware guessing uses PrinterHardware directly. VORON_24's discovery
         // seeds the canonical Klipper names, so these are exact, not merely non-empty.
         PrinterHardware hw(api.hardware().heaters(), api.hardware().sensors(),
                            api.hardware().fans(), api.hardware().leds());

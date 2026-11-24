@@ -23,9 +23,7 @@
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
-// ============================================================================
 // server.connection.identify Mock Handler Tests
-// ============================================================================
 
 TEST_CASE("MoonrakerClientMock handles server.connection.identify",
           "[moonraker][connection][identify]") {
@@ -44,7 +42,6 @@ TEST_CASE("MoonrakerClientMock handles server.connection.identify",
         mock.send_jsonrpc(
             "server.connection.identify", identify_params,
             [&](json response) {
-                // Verify response structure
                 REQUIRE(response.contains("result"));
                 REQUIRE(response["result"].contains("connection_id"));
                 connection_id = response["result"]["connection_id"].get<int>();
@@ -89,9 +86,7 @@ TEST_CASE("MoonrakerClientMock handles server.connection.identify",
     mock.disconnect();
 }
 
-// ============================================================================
 // Identify Integration with Discovery Flow
-// ============================================================================
 
 TEST_CASE_METHOD(HelixTestFixture,
                  "MoonrakerClientMock discover_printer doesn't fail due to identify",
@@ -107,7 +102,6 @@ TEST_CASE_METHOD(HelixTestFixture,
         // Mock's discover_printer is synchronous - callback should be invoked immediately
         REQUIRE(discovery_complete.load());
 
-        // Verify discovery populated expected data
         REQUIRE_FALSE(mock.hardware().hostname().empty());
         REQUIRE_FALSE(mock.hardware().heaters().empty());
     }
@@ -116,9 +110,7 @@ TEST_CASE_METHOD(HelixTestFixture,
     mock.disconnect();
 }
 
-// ============================================================================
 // Identification State Tracking Tests
-// ============================================================================
 
 namespace {
 

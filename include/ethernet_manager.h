@@ -60,9 +60,7 @@ class EthernetManager {
      */
     ~EthernetManager();
 
-    // ========================================================================
     // Status Queries
-    // ========================================================================
 
     /**
      * @brief Check if any Ethernet interface is present
@@ -141,9 +139,7 @@ class EthernetManager {
         std::shared_ptr<std::atomic<bool>> abandoned, helix::LifetimeToken token,
         helix::SharedCallback<void(helix::net::Ipv4Result::Status)> on_done);
 
-    // ========================================================================
     // Link Changes
-    // ========================================================================
 
     /**
      * @brief Be told when the Ethernet link or its address changes

@@ -28,9 +28,7 @@ MoonrakerPerformanceSource::~MoonrakerPerformanceSource() {
     stop();
 }
 
-// ----------------------------------------------------------------------------
 // start / stop
-// ----------------------------------------------------------------------------
 
 void MoonrakerPerformanceSource::start() {
     if (running_)
@@ -221,9 +219,7 @@ void MoonrakerPerformanceSource::stop() {
     last_disk_request_ = {};
 }
 
-// ----------------------------------------------------------------------------
 // on_proc_stat_payload  (main thread)
-// ----------------------------------------------------------------------------
 
 void MoonrakerPerformanceSource::on_proc_stat_payload(const json& body) {
     if (!body.is_object())
@@ -273,9 +269,7 @@ void MoonrakerPerformanceSource::on_proc_stat_payload(const json& body) {
         cb_(latest_);
 }
 
-// ----------------------------------------------------------------------------
 // on_mcu_status_update  (main thread)
-// ----------------------------------------------------------------------------
 
 void MoonrakerPerformanceSource::on_mcu_status_update(const std::string& name,
                                                       const json& payload) {
@@ -349,9 +343,7 @@ void MoonrakerPerformanceSource::on_mcu_status_update(const std::string& name,
         cb_(latest_);
 }
 
-// ----------------------------------------------------------------------------
 // format_throttle_text (static)
-// ----------------------------------------------------------------------------
 
 std::string
 MoonrakerPerformanceSource::format_throttle_text(uint32_t bits,

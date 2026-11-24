@@ -43,9 +43,7 @@
 
 namespace helix::ui::fpath {
 
-// ============================================================================
 // Shared per-draw derivations
-// ============================================================================
 
 BaseGeometry compute_base_geometry(lv_obj_t* obj, const FilamentPathData* data) {
     BaseGeometry g;
@@ -163,9 +161,7 @@ void warn_if_dropped(const PathPlan& plan) {
     }
 }
 
-// ============================================================================
 // PARALLEL topology (tool changers)
-// ============================================================================
 // Tool changers have independent toolheads: each slot is a complete tool with
 // its own extruder, entry → sensor → own toolhead + badge.
 
@@ -264,9 +260,7 @@ void render_parallel(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data) {
     draw_upstream_captions(ctx, rows);
 }
 
-// ============================================================================
 // MIXED topology (HTLF: direct + hub lanes)
-// ============================================================================
 // Some lanes go directly to their own nozzle (like PARALLEL), while others
 // converge through a hub box to a shared nozzle. Visual layout:
 //   [spool0] [spool1] [spool2] [spool3]
@@ -408,9 +402,7 @@ void render_mixed(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data) {
     draw_tools(ToolPass::Badge);
 }
 
-// ============================================================================
 // LINEAR / HUB topology
-// ============================================================================
 
 // Debug override: HELIX_FLOW_SEGMENT=PREP|LANE|HUB|OUTPUT|TOOLHEAD|NOZZLE
 //                 HELIX_FLOW_DIR=LOAD|UNLOAD
@@ -765,9 +757,7 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
     data->path_cache.valid = true;
 }
 
-// ============================================================================
 // DRAW_POST animation overlays
-// ============================================================================
 
 // Animation overlay for LINEAR/HUB — flow chevrons, heat glow, segment
 // transition filament tip. Reads the active path cached by the state-tied
@@ -864,9 +854,7 @@ void draw_animation_parallel(lv_layer_t* layer, const BaseGeometry& g,
 
 } // namespace
 
-// ============================================================================
 // Entry points (called by the layers module and the widget's DRAW_POST event)
-// ============================================================================
 
 void render_overlay_content(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data) {
     lv_area_t coords;

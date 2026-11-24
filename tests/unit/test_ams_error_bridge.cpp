@@ -245,13 +245,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsErrorBridge leaves the cooldown alone on
     process_lvgl(10);
 }
 
-// ============================================================================
 // Last-resort fallback: a backend that raises ERROR with no ErrorEvent and no
 // `!!` line (AmsBackendAfc's local action timeout) stops the spinner and shows
 // the user nothing at all, which reads as success. The bridge is the one place
 // that sees the ERROR edge application-wide, so it toasts — but only after a
 // deferred re-check finds the screen genuinely empty of this fault.
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture, "AmsErrorBridge toasts an ERROR nothing else surfaced",
                  "[error-center][ams-bridge][i18n]") {
@@ -415,7 +413,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsErrorBridge does not toast on non-ERROR 
     ams.set_backend(nullptr);
 }
 
-// ============================================================================
 // #1197: the fallback's "is this already visible" guard was modal-shaped only.
 // A fault GcodeErrorRouter classified to a TOAST goes through neither
 // presenter_ nor AmsPanel's dialog, so the bridge saw an empty screen and
@@ -426,7 +423,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsErrorBridge does not toast on non-ERROR 
 //
 // These drive the REAL router through GcodeErrorRouterTestAccess rather than
 // seeding the registry by hand: the recording site is half the contract.
-// ============================================================================
 
 namespace {
 /// Not paused, not printing — error_classify makes an uncoded `!!` a WARNING,
@@ -662,7 +658,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     ams.set_backend(nullptr);
 }
 
-// ============================================================================
 // A dismissal has to stick for the rest of the ERROR episode.
 //
 // The detail observer above re-consults current_error() on every
@@ -673,7 +668,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 // gcode as "close, send nothing": the tap never reaches the presenter's action
 // callback. With the presenter's only dedup keyed on the modal still being
 // visible, the dialog the user just closed came straight back.
-// ============================================================================
 
 namespace {
 /// The uncoded-`!!` shape from error_classify: one action whose empty gcode is

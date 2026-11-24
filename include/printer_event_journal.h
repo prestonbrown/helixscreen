@@ -79,9 +79,7 @@ struct JournalEntry {
 std::optional<std::size_t> journal_repeat_of(const std::vector<JournalEntry>& entries,
                                              const JournalEntry& e);
 
-// ---------------------------------------------------------------------------
 // Classification, pinned to the plugin's by tests/fixtures/journal/
-// ---------------------------------------------------------------------------
 
 /// @p line without its `!!` prefix and surrounding whitespace.
 std::string journal_error_text(const std::string& line);
@@ -106,9 +104,7 @@ bool is_recent_cause(double cause_time, double event_time);
 /// it never says "command" as the plugin can.
 std::string journal_pause_cause(const std::vector<JournalEntry>& entries, double now);
 
-// ---------------------------------------------------------------------------
 // Source decision
-// ---------------------------------------------------------------------------
 
 enum class JournalSource {
     Plugin, ///< the plugin's journal
@@ -134,9 +130,7 @@ struct JournalPlan {
 JournalPlan decide_journal_source(PluginFeatureState state,
                                   bool recorder_built = kLocalJournalRecorderBuilt);
 
-// ---------------------------------------------------------------------------
 // Wire format (server.helix.journal, the screen's file, the debug bundle)
-// ---------------------------------------------------------------------------
 
 std::optional<JournalEntry> journal_entry_from_json(const nlohmann::json& j);
 nlohmann::json journal_entry_to_json(const JournalEntry& e);
@@ -147,9 +141,7 @@ std::vector<JournalEntry> parse_journal_result(const nlohmann::json& result);
 nlohmann::json build_event_journal_section(JournalSource source,
                                            const std::vector<JournalEntry>& entries);
 
-// ---------------------------------------------------------------------------
 // Backfill: what Moonraker retains, turned into entries newer than @p since
-// ---------------------------------------------------------------------------
 
 /// `!!` responses of server.gcode_store.
 std::vector<JournalEntry> backfill_from_gcode_store(const std::vector<GcodeStoreEntry>& store,
@@ -167,9 +159,7 @@ std::vector<JournalEntry> backfill_from_klippy_log(const std::string& log, doubl
 bool backfill_needs_klippy_log(bool klippy_shutdown_now,
                                const std::vector<JournalEntry>& history_entries);
 
-// ---------------------------------------------------------------------------
 // The screen's own journal
-// ---------------------------------------------------------------------------
 
 /// Bounded by count and age, oldest first, safe from any thread.
 class LocalEventJournal {
@@ -211,9 +201,7 @@ class LocalEventJournal {
     std::uint32_t version_ = 0;
 };
 
-// ---------------------------------------------------------------------------
 // Presentation decision, shared by every view
-// ---------------------------------------------------------------------------
 
 enum class JournalSeverity { Info, Success, Warning, Error };
 

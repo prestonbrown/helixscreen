@@ -18,9 +18,7 @@
  * - Standard back button event handlers
  */
 
-// ============================================================================
 // HEADER BAR SETUP
-// ============================================================================
 
 /**
  * @brief Setup header bar with responsive height
@@ -35,9 +33,7 @@
  */
 lv_obj_t* ui_panel_setup_header(lv_obj_t* panel, lv_obj_t* parent_screen, const char* header_name);
 
-// ============================================================================
 // CONTENT PADDING SETUP
-// ============================================================================
 
 /**
  * @brief Setup responsive padding for content area
@@ -57,9 +53,7 @@ lv_obj_t* ui_panel_setup_header(lv_obj_t* panel, lv_obj_t* parent_screen, const 
 lv_obj_t* ui_panel_setup_content_padding(lv_obj_t* panel, lv_obj_t* parent_screen,
                                          const char* content_name);
 
-// ============================================================================
 // RESIZE CALLBACK SETUP
-// ============================================================================
 
 /**
  * @brief Context for panel resize callbacks
@@ -88,9 +82,7 @@ struct ui_panel_resize_context_t {
  */
 void ui_panel_setup_resize_callback(ui_panel_resize_context_t* context);
 
-// ============================================================================
 // OVERLAY PANEL SETUP (For panels using overlay_panel.xml wrapper)
-// ============================================================================
 
 namespace helix::ui {
 /**

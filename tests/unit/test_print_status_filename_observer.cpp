@@ -11,15 +11,14 @@
  * update_from_status(), so the ordering between the identity and the filename
  * subject is on the path under test rather than assumed.
  *
- * They were written against the older arrangement, where the panel resolved a
- * rewritten path into its own override and a re-entrant set_filename() could
- * retire it again before it was used. That churn is gone - PrinterPrintState
- * decides the identity once, before print_filename_ is published - but the cases
- * are kept because they pin behaviour that churn in that ordering threatens.
+ * PrinterPrintState decides the identity once, before print_filename_ is
+ * published, so the panel never resolves a rewritten path into its own override.
+ * The cases pin the ordering that keeps that true: a re-entrant set_filename()
+ * must not retire an override before it is used.
  *
  * The panel is exercised WITHOUT ActivePrintMediaManager, and the thumbnail is
  * published by hand. That is the point: the invariant is "the panel agrees with
- * whatever identity the manager stamps", so the manager's own behaviour must not
+ * whatever identity the manager stamps", so the manager's own behavior must not
  * be in the loop when asserting it.
  */
 

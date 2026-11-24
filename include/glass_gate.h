@@ -84,9 +84,7 @@ constexpr double kGlassFrameBudgetMs = 6.0;
 /// Nothing reaches the display. Main thread.
 double measure_glass_frame_ms(int32_t width, int32_t height);
 
-// ============================================================================
 // The running gate: availability, the effective state, live switching
-// ============================================================================
 
 using GlassMeasureFn = std::function<double(int32_t width, int32_t height)>;
 

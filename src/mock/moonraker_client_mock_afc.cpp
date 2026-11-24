@@ -9,7 +9,9 @@
 // HELIX_MOCK_AMS=afc_ace swaps the Box Turtle for an ACE Pro run through AFC DEV
 // (`[AFC_ACE Ace_1]` over `[AFC_lane laneN]`, no buffer), whose unit object carries
 // AFC_ACE.py's dryer and climate fields and which answers AFC_ACE_DRY /
-// AFC_ACE_DRY_STOP.
+// AFC_ACE_DRY_STOP. HELIX_MOCK_AMS=quattro_box and afc_bmcu run a Quattro Box or a
+// BMCU the same way, as `[AFC_QuattroBox QuattroBox_1]` / `[AFC_BMCU BMCU_1]` over
+// `[AFC_lane laneN]`, with the TurtleNeck buffer.
 
 #include "core/text_io.h"
 #include "mock_persona.h"
@@ -22,6 +24,7 @@
 #include <cstdlib>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 using namespace helix;
@@ -42,6 +45,32 @@ struct UnitShape {
 constexpr UnitShape kBoxTurtle = {"Turtle_1", "Box_Turtle", "AFC_BoxTurtle ", "AFC_stepper ", true};
 constexpr UnitShape kAce = {"Ace_1", "ACE", "AFC_ACE ", "AFC_lane ", false};
 constexpr UnitShape kCfs = {"cfs_1", "CFS", "AFC_CFS ", "AFC_lane ", false};
+// A TurtleNeck buffer belongs to the toolhead path, not the unit: these rigs carry one.
+constexpr UnitShape kQuattroBox = {"QuattroBox_1", "Quattro_Box", "AFC_QuattroBox ", "AFC_lane ",
+                                   true};
+constexpr UnitShape kBmcu = {"BMCU_1", "BMCU", "AFC_BMCU ", "AFC_lane ", true};
+
+/// The unit an AFC mock mode runs, nullptr for a mode that is not one.
+const UnitShape* unit_shape_for(std::string_view mode) {
+    struct Row {
+        std::string_view mode;
+        const UnitShape* shape;
+    };
+    static constexpr Row kRows[] = {
+        {"afc", &kBoxTurtle},         {"box_turtle", &kBoxTurtle},
+        {"boxturtle", &kBoxTurtle},   {"afc_ace", &kAce},
+        {"afc-ace", &kAce},           {"afc_cfs", &kCfs},
+        {"afc-cfs", &kCfs},           {"quattro_box", &kQuattroBox},
+        {"quattrobox", &kQuattroBox}, {"afc_bmcu", &kBmcu},
+        {"afc-bmcu", &kBmcu},
+    };
+    for (const Row& row : kRows) {
+        if (row.mode == mode) {
+            return row.shape;
+        }
+    }
+    return nullptr;
+}
 
 /// A lane's filament as the mock loads it. Spools 1-3 mirror the mock Spoolman's;
 /// the fourth lane is unlinked and weightless, the untracked-filament path.
@@ -89,9 +118,7 @@ bool MoonrakerClientMock::is_mock_afc_boxturtle() const {
     if (is_mock_reforge_afc()) {
         return false;
     }
-    const std::string mode = effective_mock_ams_env();
-    return mode == "afc" || mode == "box_turtle" || mode == "boxturtle" || mode == "afc_cfs" ||
-           mode == "afc-cfs" || is_mock_afc_ace();
+    return unit_shape_for(effective_mock_ams_env()) != nullptr;
 }
 
 bool MoonrakerClientMock::is_mock_afc_ace() const {
@@ -100,8 +127,10 @@ bool MoonrakerClientMock::is_mock_afc_ace() const {
 }
 
 namespace {
-const UnitShape& unit_shape(bool ace, bool cfs) {
-    return ace ? kAce : (cfs ? kCfs : kBoxTurtle);
+/// The unit the selected mode runs; the Box Turtle when no AFC mode is selected.
+const UnitShape& unit_shape() {
+    const UnitShape* shape = unit_shape_for(effective_mock_ams_env());
+    return shape ? *shape : kBoxTurtle;
 }
 bool afc_cfs_mode() {
     const std::string mode = effective_mock_ams_env();
@@ -150,7 +179,7 @@ void MoonrakerClientMock::init_afc_boxturtle(int lanes) {
 }
 
 void MoonrakerClientMock::append_afc_boxturtle_objects(nlohmann::json& objects) const {
-    const UnitShape& unit = unit_shape(is_mock_afc_ace(), afc_cfs_mode());
+    const UnitShape& unit = unit_shape();
     objects.push_back("AFC");
     objects.push_back(std::string(unit.object_prefix) + unit.name);
     if (unit.has_buffer) {
@@ -178,7 +207,7 @@ const char* mock_turtleneck_state() {
 } // namespace
 
 nlohmann::json MoonrakerClientMock::afc_boxturtle_status_json() const {
-    const UnitShape& unit = unit_shape(is_mock_afc_ace(), afc_cfs_mode());
+    const UnitShape& unit = unit_shape();
     const char* const kUnit = unit.name;
     std::vector<AfcLane> lanes;
     int loaded = -1;

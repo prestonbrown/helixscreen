@@ -21,9 +21,7 @@
 
 namespace helix::settings {
 
-// ============================================================================
 // KEYPAD-EDITABLE ROWS
-// ============================================================================
 
 namespace {
 
@@ -62,18 +60,14 @@ bool field_in_range(int raw) {
 
 } // namespace
 
-// ============================================================================
 // GLOBAL INSTANCE
-// ============================================================================
 
 void init_machine_limits_overlay(IMoonrakerAPI* api) {
     auto& overlay = get_machine_limits_overlay();
     overlay.set_api(api);
 }
 
-// ============================================================================
 // CONSTRUCTOR / DESTRUCTOR
-// ============================================================================
 
 MachineLimitsOverlay::~MachineLimitsOverlay() {
     if (apply_timer_) {
@@ -83,17 +77,13 @@ MachineLimitsOverlay::~MachineLimitsOverlay() {
     deinit_subjects();
 }
 
-// ============================================================================
 // CONFIGURATION
-// ============================================================================
 
 void MachineLimitsOverlay::set_api(IMoonrakerAPI* api) {
     api_ = api;
 }
 
-// ============================================================================
 // INITIALIZATION
-// ============================================================================
 
 void MachineLimitsOverlay::init_subjects() {
     // Em-dash stands in for an unknown value
@@ -171,9 +161,7 @@ void MachineLimitsOverlay::deinit_subjects() {
     deinit_subjects_base(subjects_);
 }
 
-// ============================================================================
 // LIFECYCLE HOOKS
-// ============================================================================
 
 void MachineLimitsOverlay::on_activate() {
     // Call base class first
@@ -210,9 +198,7 @@ void MachineLimitsOverlay::on_deactivating(DeactivateReason) {
     }
 }
 
-// ============================================================================
 // DATA REFRESH
-// ============================================================================
 
 void MachineLimitsOverlay::query_and_show(lv_obj_t* /*parent_screen*/) {
     if (api_) {
@@ -231,7 +217,6 @@ void MachineLimitsOverlay::query_and_show(lv_obj_t* /*parent_screen*/) {
                     current_limits_ = limits;
                     original_limits_ = limits;
 
-                    // Update display and sliders
                     update_display();
                     update_sliders();
 
@@ -254,21 +239,16 @@ void MachineLimitsOverlay::query_and_show(lv_obj_t* /*parent_screen*/) {
     }
 }
 
-// ============================================================================
 // DISPLAY UPDATES
-// ============================================================================
 
 void MachineLimitsOverlay::update_display() {
-    // Update max velocity display
     helix::format::format_speed_mm_s(current_limits_.max_velocity, velocity_buf_,
                                      sizeof(velocity_buf_));
     lv_subject_set_string(&max_velocity_display_subject_, velocity_buf_);
 
-    // Update max accel display
     helix::format::format_accel_mm_s2(current_limits_.max_accel, accel_buf_, sizeof(accel_buf_));
     lv_subject_set_string(&max_accel_display_subject_, accel_buf_);
 
-    // Update accel to decel display
     helix::format::format_accel_mm_s2(current_limits_.max_accel_to_decel, a2d_buf_,
                                       sizeof(a2d_buf_));
     lv_subject_set_string(&accel_to_decel_display_subject_, a2d_buf_);
@@ -284,7 +264,6 @@ void MachineLimitsOverlay::update_sliders() {
         return;
     }
 
-    // Update max velocity slider
     lv_obj_t* vel_slider =
         helix::ui::find_required(overlay_root_, "max_velocity_slider", get_name());
     if (vel_slider) {
@@ -292,14 +271,12 @@ void MachineLimitsOverlay::update_sliders() {
                             LV_ANIM_OFF);
     }
 
-    // Update max accel slider
     lv_obj_t* accel_slider =
         helix::ui::find_required(overlay_root_, "max_accel_slider", get_name());
     if (accel_slider) {
         lv_slider_set_value(accel_slider, static_cast<int>(current_limits_.max_accel), LV_ANIM_OFF);
     }
 
-    // Update accel to decel slider
     lv_obj_t* a2d_slider =
         helix::ui::find_required(overlay_root_, "accel_to_decel_slider", get_name());
     if (a2d_slider) {
@@ -330,9 +307,7 @@ void MachineLimitsOverlay::update_sliders() {
     }
 }
 
-// ============================================================================
 // EVENT HANDLERS
-// ============================================================================
 
 void MachineLimitsOverlay::handle_velocity_changed(int value) {
     current_limits_.max_velocity = static_cast<double>(value);
@@ -488,9 +463,7 @@ void MachineLimitsOverlay::apply_limits() {
             }));
 }
 
-// ============================================================================
 // KEYPAD
-// ============================================================================
 
 void MachineLimitsOverlay::on_keypad_value(float value, void* user_data) {
     auto* self = static_cast<MachineLimitsOverlay*>(user_data);

@@ -27,9 +27,7 @@ using helix::AmsState;
 
 using namespace helix::printer;
 
-// =============================================================================
 // Base Class Interface Tests
-// =============================================================================
 
 TEST_CASE("AmsBackend base class has tool mapping virtual methods",
           "[ams][tool_mapping][interface]") {
@@ -70,9 +68,7 @@ TEST_CASE("AmsBackend base class has tool mapping virtual methods",
     backend.stop();
 }
 
-// =============================================================================
 // Mock Backend Tests - Filament System Mode
-// =============================================================================
 
 TEST_CASE("Mock backend tool mapping - filament system mode", "[ams][tool_mapping][mock]") {
     AmsBackendMock backend(4);
@@ -145,9 +141,7 @@ TEST_CASE("Mock backend tool mapping - filament system mode", "[ams][tool_mappin
     backend.stop();
 }
 
-// =============================================================================
 // Mock Backend Tests - Tool Changer Mode
-// =============================================================================
 
 TEST_CASE("Mock backend tool mapping - tool changer mode",
           "[ams][tool_mapping][mock][toolchanger]") {
@@ -169,16 +163,12 @@ TEST_CASE("Mock backend tool mapping - tool changer mode",
     backend.stop();
 }
 
-// =============================================================================
 // Note: AFC and Happy Hare backend tests are covered in their respective
 // test files (test_ams_backend_afc.cpp, test_ams_backend_happy_hare.cpp)
 // which have proper test helper classes with friend access.
 // This file focuses on Mock backend and interface tests.
-// =============================================================================
 
-// =============================================================================
 // Edge Cases and Integration
-// =============================================================================
 
 TEST_CASE("Tool mapping edge cases", "[ams][tool_mapping][edge]") {
     AmsBackendMock backend(4);
@@ -212,10 +202,8 @@ TEST_CASE("Tool mapping with system_info integration", "[ams][tool_mapping][inte
     REQUIRE(backend.start());
 
     SECTION("tool_to_slot_map is published for a table-owning backend") {
-        // AmsSystemInfo::supports_tool_mapping used to carry a second copy of
-        // owns_tool_mapping_table()'s answer and was pinned here to agree with
-        // it. The field is gone; what a consumer actually needs from
-        // system_info is the table itself.
+        // owns_tool_mapping_table() is the one answer; what a consumer needs
+        // from system_info is the table itself.
         REQUIRE(backend.owns_tool_mapping_table());
         CHECK_FALSE(backend.get_system_info().tool_to_slot_map.empty());
     }
@@ -238,9 +226,7 @@ TEST_CASE("Tool mapping with system_info integration", "[ams][tool_mapping][inte
     backend.stop();
 }
 
-// =============================================================================
 // Backend Comparison Tests (Mock backend variations)
-// =============================================================================
 
 TEST_CASE("Tool mapping capabilities vary by backend mode", "[ams][tool_mapping][comparison]") {
     SECTION("Mock filament system writes a persistent mapping") {
@@ -270,9 +256,7 @@ TEST_CASE("Tool mapping capabilities vary by backend mode", "[ams][tool_mapping]
     }
 }
 
-// =============================================================================
 // Routing provenance
-// =============================================================================
 //
 // A routing that sends every routed tool to one lane reads two ways and the
 // numbers cannot separate them: a half-published firmware table degrades to it,

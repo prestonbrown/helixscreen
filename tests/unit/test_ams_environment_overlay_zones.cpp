@@ -389,8 +389,8 @@ TEST_CASE_METHOD(XMLTestFixture, "A refresh does not narrow a non-selector cross
     REQUIRE(zones.size() == 2);
     REQUIRE(zones[0].unit_index != zones[1].unit_index);
 
-    // with_selector = false: drilled-into detail view (Task 7's shape) or a List
-    // presentation too large for tabs (Task 8's). zone_count() reads 0 either way once
+    // with_selector = false: drilled-into detail view or a List
+    // presentation too large for tabs. zone_count() reads 0 either way once
     // with_selector_ is false, so it can't tell 1 zone from 2 here; check zones_ itself.
     auto& overlay = get_ams_environment_overlay();
     overlay.show_zone(lv_screen_active(), zones, 0, false);

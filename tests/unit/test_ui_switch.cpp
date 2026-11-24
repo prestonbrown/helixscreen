@@ -54,9 +54,7 @@ class SwitchTest {
     lv_display_t* display_ = nullptr;
 };
 
-// ============================================================================
 // Size Preset Parsing Tests
-// ============================================================================
 
 TEST_CASE("Switch size parsing - valid sizes", "[ui_switch][size]") {
     SwitchTest fixture;
@@ -168,9 +166,7 @@ TEST_CASE("Switch size parsing - edge cases", "[ui_switch][size][edge]") {
     }
 }
 
-// ============================================================================
 // Size Preset Initialization Tests
-// ============================================================================
 
 TEST_CASE("Size preset initialization - TINY screen", "[ui_switch][size][init]") {
     SwitchTest fixture;
@@ -256,9 +252,7 @@ TEST_CASE("Size preset initialization - screen size awareness", "[ui_switch][siz
     }
 }
 
-// ============================================================================
 // Error Handling Tests
-// ============================================================================
 
 TEST_CASE("Error handling - invalid inputs", "[ui_switch][error]") {
     SwitchTest fixture;
@@ -278,9 +272,7 @@ TEST_CASE("Error handling - invalid inputs", "[ui_switch][error]") {
     }
 }
 
-// ============================================================================
 // API Contract Tests
-// ============================================================================
 
 TEST_CASE("API contracts and guarantees", "[ui_switch][api][contract]") {
     SwitchTest fixture;
@@ -317,9 +309,7 @@ TEST_CASE("API contracts and guarantees", "[ui_switch][api][contract]") {
     }
 }
 
-// ============================================================================
 // Touch Target Tests
-// ============================================================================
 
 TEST_CASE("A tap anywhere on the drawn switch reaches it", "[ui_switch][touch]") {
     SwitchTest fixture;
@@ -357,7 +347,7 @@ TEST_CASE("A tap anywhere on the drawn switch reaches it", "[ui_switch][touch]")
 
 namespace {
 
-/// A flex row the way settings rows lay a switch out beside a neighbour.
+/// A flex row the way settings rows lay a switch out beside a neighbor.
 lv_obj_t* make_row(lv_obj_t* screen, int32_t gap) {
     lv_obj_t* row = lv_obj_create(screen);
     lv_obj_set_size(row, 600, 80);
@@ -401,7 +391,7 @@ TEST_CASE("A switch's touch area never takes a tap from its neighbour", "[ui_swi
     lv_obj_get_coords(sw, &a);
     const int32_t cy = (a.y1 + a.y2) / 2;
 
-    // The neighbour's own last column, right beside the switch.
+    // The neighbor's own last column, right beside the switch.
     const lv_point_t in_neighbour{n.x2, cy};
     CHECK(lv_indev_search_obj(screen, const_cast<lv_point_t*>(&in_neighbour)) == neighbour);
     // And the switch still takes the tap just short of its track.

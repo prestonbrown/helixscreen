@@ -109,9 +109,7 @@ WizardPresetPlan wizard_preset_plan(bool has_preset, int printer_count) {
     return plan;
 }
 
-// ============================================================================
 // Id-based pure navigation over the step registry.
-// ============================================================================
 
 namespace {
 

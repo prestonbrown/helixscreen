@@ -103,9 +103,7 @@ ReportSource report_source(PluginFeatureState storage);
 /// The report in a server.helix.storage result; nullopt when it is not one.
 std::optional<StorageReport> parse_storage_result(const nlohmann::json& result);
 
-// ---------------------------------------------------------------------------
 // File-API fallback
-// ---------------------------------------------------------------------------
 
 /// The fallback lists at most this many directories per report.
 inline constexpr std::size_t kMaxFallbackDirectories = 256;

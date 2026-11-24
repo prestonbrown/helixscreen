@@ -423,27 +423,27 @@ src/plugin/plugin_manifest.cpp  # not in the v1 Core+AMS cut
 src/plugin/lua_runtime.cpp  # not in the v1 Core+AMS cut
 src/plugin/plugin_backend_app.cpp  # not in the v1 Core+AMS cut
 src/plugin/lua_bind_core.cpp  # not in the v1 Core+AMS cut
-src/plugin/lua_bind_ui.cpp  # not in the v1 Core+AMS cut
+src/ui/plugin/lua_bind_ui.cpp  # not in the v1 Core+AMS cut
 src/plugin/lua_bind_printer.cpp  # not in the v1 Core+AMS cut
 src/plugin/lua_bind_moonraker.cpp  # not in the v1 Core+AMS cut
 src/plugin/lua_bind_io.cpp  # not in the v1 Core+AMS cut
-src/plugin/plugin_host.cpp  # not in the v1 Core+AMS cut
+src/ui/plugin/plugin_host.cpp  # not in the v1 Core+AMS cut
 src/plugin/plugin_xml_policy.cpp  # not in the v1 Core+AMS cut
 src/plugin/lua_bind_widget.cpp  # not in the v1 Core+AMS cut
 src/plugin/lua_bind_canvas.cpp  # not in the v1 Core+AMS cut
 src/plugin/lua_panel_widget.cpp  # not in the v1 Core+AMS cut
-src/plugin/plugin_overlay_host.cpp  # not in the v1 Core+AMS cut
-src/plugin/plugin_settings_overlay.cpp  # not in the v1 Core+AMS cut
-src/plugin/plugin_consent.cpp  # not in the v1 Core+AMS cut
-src/plugin/plugins_overlay.cpp  # not in the v1 Core+AMS cut
+src/ui/plugin/plugin_overlay_host.cpp  # not in the v1 Core+AMS cut
+src/ui/plugin/plugin_settings_overlay.cpp  # not in the v1 Core+AMS cut
+src/ui/plugin/plugin_consent.cpp  # not in the v1 Core+AMS cut
+src/ui/plugin/plugins_overlay.cpp  # not in the v1 Core+AMS cut
 src/plugin/plugin_source.cpp  # not in the v1 Core+AMS cut
 src/plugin/plugin_source_app.cpp  # not in the v1 Core+AMS cut
 src/plugin/plugin_dir_watcher.cpp  # not in the v1 Core+AMS cut
 src/plugin/plugin_canvas.cpp  # not in the v1 Core+AMS cut
 src/network/wifi_link_monitor.cpp  # only consumers are application.cpp and the debug bundle, both excluded
 src/ui/ui_presentation_gate.cpp  # not in the v1 Core+AMS cut
-src/plugin/plugin_dialog.cpp  # not in the v1 Core+AMS cut
-src/plugin/plugin_presenter.cpp  # not in the v1 Core+AMS cut
+src/ui/plugin/plugin_dialog.cpp  # not in the v1 Core+AMS cut
+src/ui/plugin/plugin_presenter.cpp  # not in the v1 Core+AMS cut
 src/plugin/plugin_surfaces.cpp  # not in the v1 Core+AMS cut
 src/plugin/plugin_consts.cpp  # not in the v1 Core+AMS cut
 src/system/jpeg_encode.cpp  # no screen server on the K-Touch: nothing to encode

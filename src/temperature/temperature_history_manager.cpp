@@ -262,9 +262,7 @@ bool TemperatureHistoryManager::add_sample_internal(const std::string& heater_na
     return true;
 }
 
-// ============================================================================
 // Bulk Seeding
-// ============================================================================
 
 void TemperatureHistoryManager::seed_from_store(const TemperatureStore& store, int64_t now_ms) {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -365,9 +363,7 @@ void TemperatureHistoryManager::seed_from_store(const TemperatureStore& store, i
                   store.size());
 }
 
-// ============================================================================
 // Subject Subscription
-// ============================================================================
 
 namespace {
 
@@ -589,9 +585,7 @@ void TemperatureHistoryManager::unsubscribe_from_subjects() {
     subscriptions_.clear();
 }
 
-// ============================================================================
 // Cached Target Methods
-// ============================================================================
 
 int TemperatureHistoryManager::get_cached_target(const std::string& heater_name) const {
     auto it = cached_targets_.find(heater_name);

@@ -123,7 +123,7 @@ TEST_CASE_METHOD(PrintStatusHeaderFixture,
 
 TEST_CASE("print_status_panel.xml puts the Files button in the header's actions slot",
           "[print_status][header_bar][1395]") {
-    // Structural companion to the behavioural test above: the Files entry is a
+    // Structural companion to the behavioral test above: the Files entry is a
     // button in the actions slot naming the folder icon and the navigation
     // callback. One file serves every layout class: print_status_body carries
     // the arrangement.

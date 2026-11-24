@@ -1141,7 +1141,7 @@ clears them when it sees no print in progress.
 Every refusal inside `INNER_AUTO_REPLENISH_FILAMENT` is log-and-return, so a clean reply proves
 nothing, and the pause ending proves nothing either (the firmware also resumes on the runout head
 when it refeeds in place). After sending, a `SwitchWatch` (`src/ui/modals/ui_runout_other_head_modal.cpp`)
-re-reads the backend's facts (`AmsBackend::runout_other_head_facts()`) every second and asks
+re-reads the backend's facts (`IRunoutOtherHead::runout_other_head_facts()`) every second and asks
 `runout_other_head::judge_switch()` (`src/printer/runout_other_head.cpp#judge_switch`), which judges
 the switch by its target: `extruder_map_table` moved every logical tool of the runout head onto
 `continues_on`, and the print left the pause. The firmware writes the routing before its RESUME,

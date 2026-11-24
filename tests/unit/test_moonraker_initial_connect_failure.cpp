@@ -5,12 +5,11 @@
  * @file test_moonraker_initial_connect_failure.cpp
  * @brief A socket that never opens must eventually say so.
  *
- * Context (K2 Plus, v0.99.98): the configured Moonraker
- * host was stale, so the WebSocket never opened once. The client retried every
- * ~3.1s for the whole session and told the user nothing — the only indication
- * was a disconnected icon that does not name the host it is failing to reach.
+ * With a stale Moonraker host the WebSocket never opens, and the client retries
+ * every ~3.1s. A disconnected icon alone does not name the host it is failing to
+ * reach, so the user must be told.
  *
- * The existing escalation could not fire, for two independent reasons:
+ * The health-timer escalation cannot cover this case, for two independent reasons:
  *   1. start_health_timer() is called only from on_ws_open(), so a socket that
  *      never opens never starts the timer that owns the stall check.
  *   2. That check requires state RECONNECTING, but the never-connected close
@@ -102,16 +101,14 @@ TEST_CASE("A never-opened WebSocket escalates to CONNECTION_FAILED",
 
     REQUIRE(saw_failure);
 
-    // The message must name the endpoint we could not reach. One
-    // reporter had a stale host in settings and no surface anywhere told them
-    // which address the app was dialing.
+    // The message must name the endpoint we could not reach, since a stale host
+    // in settings is otherwise invisible.
     CHECK(failure_message.find("19998") != std::string::npos);
 
     // kDeadUrl is loopback, i.e. the printer HelixScreen is running on. Telling
     // that user to "check that the printer is powered on and that this address
     // is correct" is advice they cannot act on — the screen in their hand proves
-    // the printer is up, and 127.0.0.1 is not wrong. Two AD5X debug
-    // bundles are two boots of exactly this, with Moonraker simply not running.
+    // the printer is up, and 127.0.0.1 is not wrong.
     CHECK(failure_message.find("this printer") != std::string::npos);
     CHECK(failure_message.find("address is correct") == std::string::npos);
 
@@ -161,8 +158,7 @@ TEST_CASE("A session that opened once does not re-fire the escalation after a dr
     // a successful session must not fire the never-connected notification.
     // libhv's internal auto-reconnect never re-enters connect(), so the
     // escalation's anchor still holds the original connect() timestamp and an
-    // elapsed time measured from it is meaningless there. (debug bundle
-    // L7MUPL3V)
+    // elapsed time measured from it is meaningless there.
     MockWebSocketServer server;
     REQUIRE(server.start(0) > 0);
 

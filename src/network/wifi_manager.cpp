@@ -68,9 +68,7 @@ bool WiFiManager::in_association_grace() const {
 // can be pointed at a fixture tree instead of the real /sys.
 std::string WiFiManager::sys_root_ = "/sys";
 
-// ============================================================================
 // Constructor / Destructor
-// ============================================================================
 
 WiFiManager::WiFiManager(bool silent) : scan_timer_(nullptr), scan_pending_(false) {
     spdlog::debug("[WiFiManager] Initializing with backend system{}",
@@ -409,9 +407,7 @@ WiFiManager::~WiFiManager() {
     }
 }
 
-// ============================================================================
 // Network Scanning
-// ============================================================================
 
 std::vector<WiFiNetwork> WiFiManager::scan_once() {
     if (!backend_) {
@@ -671,9 +667,7 @@ void WiFiManager::scan_timer_callback(lv_timer_t* timer) {
     }
 }
 
-// ============================================================================
 // Connection Management
-// ============================================================================
 
 namespace helix {
 
@@ -883,9 +877,7 @@ void WiFiManager::report_forget_result(
     }
 }
 
-// ============================================================================
 // Status Queries
-// ============================================================================
 
 bool WiFiManager::is_connected() {
     if (!backend_)
@@ -951,9 +943,7 @@ bool WiFiManager::supports_radio_toggle() {
     return backend_ && backend_->supports_radio_toggle();
 }
 
-// ============================================================================
 // Regulatory Country
-// ============================================================================
 
 bool WiFiManager::supports_country() {
     return backend_ && backend_->supports_country();
@@ -1109,9 +1099,7 @@ void WiFiManager::handle_regdom_change(const std::string& event_data) {
     }
 }
 
-// ============================================================================
 // Hardware Detection (Legacy Compatibility)
-// ============================================================================
 
 bool WiFiManager::has_hardware() {
     // Backend creation handles hardware availability
@@ -1284,9 +1272,7 @@ void WiFiManager::set_enabled_async(bool enabled, helix::LifetimeToken token,
         });
 }
 
-// ============================================================================
 // Control lane
-// ============================================================================
 
 void WiFiManager::submit_control(const char* tag, ControlKind kind, helix::Callback<void()> work,
                                  helix::Callback<void()> on_dropped) {
@@ -1579,9 +1565,7 @@ void WiFiManager::retry_async() {
     backend_->start_async();
 }
 
-// ============================================================================
 // Event Handling
-// ============================================================================
 
 // Helper struct for async callback dispatch
 // Uses weak_ptr to safely handle manager destruction before callback executes
@@ -1900,9 +1884,7 @@ void WiFiManager::handle_auth_failed(const std::string& event_data) {
         });
 }
 
-// ----------------------------------------------------------------------------
 // Auth-failure debounce (helixscreen#1050) — UI thread only
-// ----------------------------------------------------------------------------
 
 namespace {
 // Window to wait after a transient AUTH_FAILED for a CONNECTED to arrive. wpa_supplicant's
@@ -1967,9 +1949,7 @@ void WiFiManager::auth_fail_grace_timer_cb(lv_timer_t* timer) {
     self->deliver_auth_failure();
 }
 
-// ----------------------------------------------------------------------------
 // Connect watchdog — UI thread only
-// ----------------------------------------------------------------------------
 
 namespace {
 // Upper bound on how long a connect may stay pending with no terminal event. A
@@ -2031,9 +2011,7 @@ void WiFiManager::connect_timeout_timer_cb(lv_timer_t* timer) {
     self->deliver_connect_timeout();
 }
 
-// ============================================================================
 // State Observers
-// ============================================================================
 
 void WiFiManager::add_state_observer(helix::LifetimeToken token,
                                      helix::SharedCallback<void()> on_change) {
@@ -2080,9 +2058,7 @@ void WiFiManager::notify_state_observers(bool country_may_have_changed) {
     }
 }
 
-// ============================================================================
 // Shared Singleton Instance
-// ============================================================================
 
 // Global shared WiFiManager instance.
 //

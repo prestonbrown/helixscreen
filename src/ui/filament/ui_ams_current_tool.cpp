@@ -98,7 +98,6 @@ static void on_widget_created(lv_obj_t* widget) {
         ams.get_current_translucent_subject(), widget, [](lv_obj_t* obj, int) { repaint(obj); },
         ams.get_subjects_lifetime());
 
-    // Register cleanup callback
     lv_obj_add_event_cb(widget, on_delete, LV_EVENT_DELETE, nullptr);
 
     s_registry[widget] = std::move(data);

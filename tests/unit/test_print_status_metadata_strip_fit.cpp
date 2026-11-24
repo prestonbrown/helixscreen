@@ -4,18 +4,18 @@
  * @file test_print_status_metadata_strip_fit.cpp
  * @brief The metadata strip's rows must degrade when their labels do not fit.
  *
- * The layer/objects/filament row (print_status_preview_card.xml) was a flex
- * row of content-sized prose labels. LVGL computes a space_between row's
- * inter-item gap as (row_width - content_width) / (n-1) with no clamp at zero
- * (lv_flex.c place_content), so when the labels were together wider than the
- * row the gap went negative and adjacent labels rendered on top of each
- * other. Observed on a live K2 Plus (800x480) mid-print: the row is 363px
- * there and "Layer 474 / 1334 (55.4mm)" + "12 of 12 objects" + "92.6m used"
- * measured 393px, so each pair overlapped by 15px.
+ * LVGL computes a space_between row's inter-item gap as
+ * (row_width - content_width) / (n-1) with no clamp at zero (lv_flex.c
+ * place_content), so a row whose items are together wider than it gets a
+ * negative gap and adjacent items render on top of each other. On a K2 Plus
+ * (800x480) mid-print the layer/objects/filament row is 363px and "Layer 474 /
+ * 1334 (55.4mm)" + "12 of 12 objects" + "92.6m used" would measure 393px, so
+ * each pair would overlap by 15px.
  *
- * The strip is now icon clusters over bare values (language-neutral widths),
- * with the layer cluster growing and dotting as the overflow floor. The
- * contract these tests pin: no cluster ever starts before its left neighbour
+ * The strip (print_status_preview_card.xml) is icon clusters over bare values
+ * (language-neutral widths), with the layer cluster growing and dotting as the
+ * overflow floor. The
+ * contract these tests pin: no cluster ever starts before its left neighbor
  * ends, whatever the data, and an overflowing layer value yields instead of
  * interpenetrating. The strings below mirror that print at this fixture's
  * 800x480.
@@ -121,7 +121,7 @@ TEST_CASE_METHOD(MetadataStripFixture,
     // Simulate the multi-object print state: the whole objects cluster is
     // bound hidden while fewer than two objects are defined, and its text
     // arrives from a subject. Both are set directly here - the row's flex
-    // behaviour is under test, not the visibility binding.
+    // behavior is under test, not the visibility binding.
     lv_obj_t* objects_cluster = lv_obj_find_by_name(root_, "objects_cluster");
     REQUIRE(objects_cluster != nullptr);
     lv_obj_set_hidden(objects_cluster, false);
@@ -137,8 +137,8 @@ TEST_CASE_METHOD(MetadataStripFixture,
     const int filament_left = left_edge_screen(filament);
     CAPTURE(layer_right, objects_left, objects_right, filament_left);
 
-    // No cluster may start before its left neighbour ends. The unfixed row
-    // distributed its deficit as negative gaps, which lands here.
+    // No cluster may start before its left neighbor ends. A row that
+    // distributed its deficit as negative gaps would land here.
     REQUIRE(objects_left >= layer_right);
     REQUIRE(filament_left >= objects_right);
 

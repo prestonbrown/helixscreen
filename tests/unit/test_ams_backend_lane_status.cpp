@@ -86,9 +86,7 @@ helix::PrinterDiscovery discover(const std::vector<std::string>& names) {
 
 } // namespace
 
-// ============================================================================
 // Detection
-// ============================================================================
 
 TEST_CASE("lane_status claims a printer only when no backend of its own does",
           "[ams][lane_status][discovery]") {
@@ -118,9 +116,7 @@ TEST_CASE("lane_status claims a printer only when no backend of its own does",
     }
 }
 
-// ============================================================================
 // Each field mapped
-// ============================================================================
 
 TEST_CASE_METHOD(HelixTestFixture, "every lane_status key lands on the system",
                  "[ams][lane_status]") {
@@ -203,9 +199,7 @@ TEST_CASE_METHOD(HelixTestFixture, "every lane_data field lands on its lane",
     CHECK(b.get_slot_info(2).status == SlotStatus::EMPTY); // loaded: false
 }
 
-// ============================================================================
 // Absent, extra and foreign data
-// ============================================================================
 
 TEST_CASE_METHOD(HelixTestFixture, "an absent or extra key changes nothing it should not",
                  "[ams][lane_status]") {
@@ -275,9 +269,7 @@ TEST_CASE("lane_data records join by lane_name under the writer rule", "[ams][la
     CHECK(joined[2]->identity.material == "TPU");
 }
 
-// ============================================================================
 // Commands
-// ============================================================================
 
 TEST_CASE_METHOD(HelixTestFixture, "a controller's listed commands are sent; nothing else is",
                  "[ams][lane_status]") {

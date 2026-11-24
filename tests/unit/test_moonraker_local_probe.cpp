@@ -5,17 +5,16 @@
  * @file test_moonraker_local_probe.cpp
  * @brief Local /proc evidence about Moonraker, for when Moonraker cannot answer.
  *
- * Two AD5X debug bundles (v0.99.107): the WebSocket to
- * 127.0.0.1:7125 was refused instantly across two boots. Every Moonraker-derived
- * section of the bundle is fetched THROUGH Moonraker, so all five carried
- * `{"error": "No response from ..."}` and the bundle could not distinguish:
+ * When the WebSocket to 127.0.0.1:7125 is refused instantly, every
+ * Moonraker-derived section of a debug bundle (fetched THROUGH Moonraker) carries
+ * `{"error": "No response from ..."}`, and the bundle cannot distinguish:
  *
  *   - nothing listening on 7125 at all (service never started, or exited), from
  *   - Moonraker listening on the LAN address only, so a loopback dial is refused
  *     while the printer is perfectly reachable over the network.
  *
- * Those point at completely different fixes. These parsers are what make the
- * next bundle able to tell them apart.
+ * Those need completely different fixes. These parsers let a bundle tell them
+ * apart.
  */
 
 #include "system/moonraker_local_probe.h"
@@ -59,8 +58,8 @@ TEST_CASE("parse_listeners_for_port finds a loopback-only Moonraker", "[bundle][
 TEST_CASE("parse_listeners_for_port reports the bind address, not just presence",
           "[bundle][ad5x]") {
     // THE DISCRIMINATOR. 6E02A8C0 -> 192.168.2.110: Moonraker IS running, but a
-    // dial to 127.0.0.1 is refused. Indistinguishable from "not running" in the
-    // bundles that prompted this, and the two need opposite advice.
+    // dial to 127.0.0.1 is refused. Indistinguishable from "not running" without
+    // this parser, and the two need opposite advice.
     SECTION("bound to a single LAN address") {
         const auto found = parse_listeners_for_port(tcp4("6E02A8C0", "1BD5", "0A"), 7125, false);
         REQUIRE(found.size() == 1);
@@ -198,10 +197,9 @@ TEST_CASE("cmdline_matches_any picks out moonraker and klippy", "[bundle][ad5x]"
 /**
  * Deriving the log paths from the daemon's own argv.
  *
- * The alternative was a hardcoded list of per-platform data roots. The reporter
- * runs an AD5X under ZMOD, a layout nobody here has a device to verify, so such a
- * list would be fiction where it mattered and silently empty on every layout not
- * on it. argv is true wherever the daemon is actually running.
+ * A hardcoded list of per-platform data roots would be fiction on layouts nobody
+ * can verify (an AD5X under ZMOD, say) and silently empty on every layout not on
+ * it. argv is true wherever the daemon is actually running.
  */
 TEST_CASE("candidate_log_paths derives log locations from daemon argv", "[bundle][ad5x]") {
     SECTION("-d datapath gives <data>/logs/<name>") {
@@ -284,10 +282,10 @@ TEST_CASE("parse_log_hints pulls out only the flags it knows", "[bundle][ad5x]")
 }
 
 TEST_CASE("listeners_on_port reads the real /proc without false positives", "[bundle][ad5x]") {
-    // Exercises the actual /proc read rather than a fixture. The machine this was
-    // written on had three ESTABLISHED sockets whose REMOTE port was 7125 (live
-    // Moonraker connections to printers on the LAN) and no local listener — the
-    // shape that would make a sloppier parser report "Moonraker is listening
+    // Exercises the actual /proc read rather than a fixture. A developer machine can
+    // have ESTABLISHED sockets whose REMOTE port is 7125 (live Moonraker
+    // connections to printers on the LAN) and no local listener, the shape that
+    // would make a sloppier parser report "Moonraker is listening
     // here" on any developer box or on a screen-only device talking to a remote
     // printer.
     const auto found = helix::diag::listeners_on_port(7125);
@@ -309,9 +307,9 @@ TEST_CASE("listeners_on_port reads the real /proc without false positives", "[bu
 TEST_CASE("select_moonraker_processes reports daemons and never ourselves", "[bundle][ad5x]") {
     // A fixture table, not /proc. Read live, this rule is un-testable: whether
     // the interesting case is present at all is decided by what else the machine
-    // is running. On the box this was written on the live table offered three
-    // `tail -f .../klippy.log` and one agent shell — no daemon, and not one
-    // process the rule has an opinion about.
+    // is running. A developer box's live table can hold only
+    // `tail -f .../klippy.log` and shells: no daemon, and no process the rule has
+    // an opinion about.
     const std::vector<helix::diag::ProcMatch> table{
         {101,
          "/usr/bin/python3 /home/pi/moonraker/moonraker/moonraker.py -d /home/pi/printer_data"},
@@ -389,8 +387,7 @@ TEST_CASE("find_moonraker_processes survives the live /proc", "[bundle][ad5x]") 
 
     // Collected into one assertion rather than checked per entry on purpose: a
     // CHECK inside the loop would make even the ASSERTION COUNT of this file
-    // depend on what else the box is running, which is the property the rest of
-    // this change is removing.
+    // depend on what else the box is running.
     std::string malformed;
     for (const auto& p : live)
         if (p.pid <= 0 || p.cmdline.empty())

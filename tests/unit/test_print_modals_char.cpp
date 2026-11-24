@@ -19,9 +19,7 @@
 
 #include "../catch_amalgamated.hpp"
 
-// ============================================================================
 // Test Wrapper Classes - Expose protected methods for testing
-// ============================================================================
 
 /**
  * @brief Test wrapper that exposes protected hook methods for direct testing
@@ -51,9 +49,7 @@ class TestableRunoutGuidanceModal : public RunoutGuidanceModal {
     using RunoutGuidanceModal::on_tertiary;
 };
 
-// ============================================================================
 // CHARACTERIZATION: PrintCancelModal
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "CHAR: PrintCancelModal callback invocation",
                  "[characterization][modals]") {
@@ -80,9 +76,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "CHAR: PrintCancelModal callback invocation",
     }
 }
 
-// ============================================================================
 // CHARACTERIZATION: ExcludeObjectModal
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "CHAR: ExcludeObjectModal callback invocation",
                  "[characterization][modals]") {
@@ -116,9 +110,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "CHAR: ExcludeObjectModal callback invocation"
     }
 }
 
-// ============================================================================
 // CHARACTERIZATION: RunoutGuidanceModal
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "CHAR: RunoutGuidanceModal callback invocation",
                  "[characterization][modals]") {
@@ -191,9 +183,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "CHAR: RunoutGuidanceModal null callbacks don'
     REQUIRE_NOTHROW(modal.on_senary());
 }
 
-// ============================================================================
 // CHARACTERIZATION: Modal Base Class Behavior
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "CHAR: Modal hide() is safe when not visible",
                  "[characterization][modals]") {
@@ -203,9 +193,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "CHAR: Modal hide() is safe when not visible",
     REQUIRE_NOTHROW(modal.hide()); // Double-hide should also be safe
 }
 
-// ============================================================================
 // Documentation: Modal Pattern Summary
-// ============================================================================
 
 /**
  * SUMMARY OF PRINT STATUS MODAL PATTERNS:

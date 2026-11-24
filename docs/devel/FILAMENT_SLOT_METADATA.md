@@ -437,7 +437,7 @@ Some tags name a Spoolman spool. `TagReading::spoolman_id` carries it, and only 
 backend's own decoder fills it: each tag format has values that name no spool (a
 CFS stock tag's factory serial `000001`, a blank), and the decoder drops them, so a
 set id is always one to look up. It is a binding, not a property the slot shows,
-so provenance and `reset_to_tag()` ignore it. `AmsBackend::tags_name_spoolman_spools()`
+so provenance and `reset_to_tag()` ignore it. `ISpoolmanTagLinks::tags_name_spoolman_spools()`
 says whether a backend's tags can carry one; it gates the setting's row and
 nothing else.
 

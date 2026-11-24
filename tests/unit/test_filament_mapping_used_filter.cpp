@@ -203,9 +203,7 @@ TEST_CASE("find_by_tool_index: full palette resolves each tool to its own entry"
     }
 }
 
-// ============================================================================
 // The card holds what compute_mapping answers
-// ============================================================================
 
 TEST_CASE_METHOD(MappingCardRenderFixture,
                  "FilamentMappingCard holds what compute_mapping answers for the file",
@@ -248,9 +246,7 @@ TEST_CASE_METHOD(MappingCardRenderFixture,
     process_lvgl(100);
 }
 
-// ============================================================================
 // Chip subjects (full render path)
-// ============================================================================
 
 namespace {
 
@@ -518,9 +514,7 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "An unmapped chip carries no word in 
     process_lvgl(100);
 }
 
-// ============================================================================
 // Single-row truncation + "+N" overflow pill
-// ============================================================================
 
 TEST_CASE("chips_that_fit: capacity is what the row can actually hold",
           "[filament][filament_mapping][mapping][overflow]") {
@@ -790,9 +784,7 @@ TEST_CASE("resolve_mapped_slot: a mapping that outlived its lane resolves to not
     CHECK(helix::FilamentMapper::mapped_lane_display_number(ok, slots) == 1);
 }
 
-// ============================================================================
 // A chip tap opens the slot dropdown
-// ============================================================================
 
 namespace {
 

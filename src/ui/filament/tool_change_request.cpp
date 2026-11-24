@@ -7,6 +7,7 @@
 #include "ui_modal.h"
 
 #include "ams_state.h"
+#include "ams_tool_park.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
 #include "display_numbering.h"
@@ -260,8 +261,8 @@ ToolChangeVerdict offer_tool_change(const PrinterState& printer_state, int tool_
 }
 
 bool request_tool_park(const PrinterState& printer_state) {
-    AmsBackend* backend = AmsState::instance().get_backend();
-    if (!backend || !backend->supports_tool_park()) {
+    IToolPark* park = usable_tool_park(AmsState::instance().get_backend());
+    if (!park) {
         return false;
     }
     if (printer_state.print_state().spool_latch_active()) {
@@ -281,7 +282,7 @@ bool request_tool_park(const PrinterState& printer_state) {
         return false;
     }
     spdlog::info("[ToolPark] Parking T{}", active);
-    const AmsError err = backend->park_active_tool();
+    const AmsError err = park->park_active_tool();
     if (!err.success()) {
         notify_ams_error(err);
         return false;

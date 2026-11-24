@@ -3,6 +3,7 @@
 #include "fault_path_position.h"
 
 #include "afc_fault_position.h"
+#include "happy_hare_fault_position.h"
 
 #include <cctype>
 
@@ -16,8 +17,18 @@ struct Provider {
     LaneSensor (*lane_sensor)(std::string_view message);
 };
 
+std::optional<PathSegment> no_position(std::string_view) {
+    return std::nullopt;
+}
+
+std::string unstripped(std::string_view message) {
+    return std::string(message);
+}
+
 const Provider kProviders[] = {
     {&afc::afc_fault_position, &afc::afc_strip_position_diagram, &afc::afc_fault_lane_sensor},
+    // Happy Hare's messages carry no path diagram: it places a fault at a lane sensor only.
+    {&no_position, &unstripped, &happy_hare::happy_hare_fault_lane_sensor},
 };
 
 // Whether @p line names @p lane as a word of its own.

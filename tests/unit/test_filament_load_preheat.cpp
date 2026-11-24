@@ -54,9 +54,7 @@ int db_min(const std::string& material) {
 
 } // namespace
 
-// ===========================================================================
 // (a) The slot being loaded decides — not the slot that happens to be loaded
-// ===========================================================================
 //
 // Mutation check: make resolve_load_preheat_material() read a "current slot"
 // instead of target_slot_info and this section goes red.
@@ -73,9 +71,7 @@ TEST_CASE("Load preheats for the SELECTED lane, not the loaded one", "[filament]
     CHECK(resolved->material_name == "PETG");
 }
 
-// ===========================================================================
 // (b) An assigned external spool must not outrank an explicit AMS lane
-// ===========================================================================
 //
 // Mutation check: move the external-spool branch above the target-slot branch
 // (the old panel order) and every CHECK here fails.
@@ -139,9 +135,7 @@ TEST_CASE("Nothing named anywhere resolves to nullopt so the caller's tail runs"
     CHECK_FALSE(resolve_load_preheat_material(/*target_slot=*/-1, nullptr, nullptr).has_value());
 }
 
-// ===========================================================================
 // nozzle_recommended(), not nozzle_min
-// ===========================================================================
 //
 // A load pushes cold filament through the melt zone and usually purges behind
 // it — the highest-viscosity demand the hotend sees. nozzle_min is the edge

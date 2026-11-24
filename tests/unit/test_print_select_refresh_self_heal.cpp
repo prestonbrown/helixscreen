@@ -19,7 +19,6 @@
 
 using namespace std::chrono_literals;
 
-// ============================================================================
 // dir_error_should_reset_to_root: recover from a phantom current directory.
 //
 // FlashForge's Moonraker returned a doubled folder segment
@@ -28,7 +27,6 @@ using namespace std::chrono_literals;
 // fails because the directory is gone, the panel should fall back to root rather
 // than loop. Resetting only when NOT already at root prevents an infinite
 // reset->refresh->fail cycle if root itself ever errors.
-// ============================================================================
 
 TEST_CASE("dir_error_should_reset_to_root resets on a missing subfolder only",
           "[print_select][refresh][regression]") {
@@ -49,7 +47,6 @@ TEST_CASE("dir_error_should_reset_to_root resets on a missing subfolder only",
     }
 }
 
-// ============================================================================
 // connection_change_should_refresh: re-list on a reconnect, not on registration.
 //
 // The connection observer's first notification fires when it is registered and
@@ -57,7 +54,6 @@ TEST_CASE("dir_error_should_reset_to_root resets on a missing subfolder only",
 // its first visit, already connected, and on_activate() lists right after; a
 // forced refresh here supersedes that request and the first fill waits for a
 // second listing.
-// ============================================================================
 
 namespace {
 constexpr int kNoneYet = -1;

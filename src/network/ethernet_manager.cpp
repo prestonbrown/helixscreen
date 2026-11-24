@@ -13,7 +13,6 @@
 EthernetManager::EthernetManager() {
     spdlog::debug("[EthernetManager] Initializing Ethernet manager");
 
-    // Create appropriate backend for this platform
     backend_ = EthernetBackend::create();
 
     if (!backend_) {
@@ -115,9 +114,7 @@ std::string EthernetManager::get_ip_address() {
     return "";
 }
 
-// ============================================================================
 // Link Changes
-// ============================================================================
 
 namespace {
 

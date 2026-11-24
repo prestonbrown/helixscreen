@@ -16,8 +16,8 @@
  * any particular file. A mock that returns its attachment map instead is
  * trusted, because FilamentMapper::effective_routing() takes any non-empty answer as the truth,
  * so the preview would resolve every logical tool to its own head index: on
- * hardware, a cancelled T0-red / T2-black print rendered as a black body with a
- * red tail that way.
+ * hardware, that renders a cancelled T0-red / T2-black print as a black body
+ * with a red tail.
  *
  * firmware_default_routing() is the same class of divergence one step quieter:
  * the inherited lane-per-tool identity agrees with the U1's four fixed heads for
@@ -74,9 +74,7 @@ std::vector<AvailableSlot> lanes_of(const AmsBackend& backend) {
 
 } // namespace
 
-// ============================================================================
 // No task configured — the answer is "no opinion", on both backends
-// ============================================================================
 
 TEST_CASE("Mock Snapmaker with no print task publishes no routing", "[ams][snapmaker][mock]") {
     AmsBackendMock mock(4);
@@ -106,9 +104,7 @@ TEST_CASE("Mock Snapmaker with no task leaves the slicer palette alone", "[ams][
               .empty());
 }
 
-// ============================================================================
 // A task configured — the routing is the task's, not the lanes'
-// ============================================================================
 
 TEST_CASE("Mock Snapmaker publishes the configured task routing", "[ams][snapmaker][mock]") {
     AmsBackendMock mock(4);
@@ -142,8 +138,8 @@ TEST_CASE("HELIX_MOCK_REMAP stages a Snapmaker task, not a lane move",
           "[ams][snapmaker][mock][remap]") {
     // On a U1 a user remap does not move the lanes: it becomes the task's
     // extruder_map_table. The knob exists to show a non-identity routing in the
-    // swatches, which it can only do through the routing accessor now that the
-    // attachment map no longer stands in for one.
+    // swatches, which it can only do through the routing accessor, because the
+    // attachment map does not stand in for one.
     AmsBackendMock mock(4);
     mock.set_snapmaker_mode(true);
     REQUIRE(mock.get_tool_mapping().empty());
@@ -156,9 +152,7 @@ TEST_CASE("HELIX_MOCK_REMAP stages a Snapmaker task, not a lane move",
     CHECK(routing[2] == 0);
 }
 
-// ============================================================================
 // The firmware default is four fixed heads, not lane-per-tool
-// ============================================================================
 
 TEST_CASE("Mock Snapmaker declares the four-head U1 default routing",
           "[ams][snapmaker][mock][routing]") {
@@ -190,9 +184,7 @@ TEST_CASE("A non-Snapmaker mock stays lane-per-tool", "[ams][snapmaker][mock][ro
     CHECK(mock.firmware_default_routing().head(7) == 7);
 }
 
-// ============================================================================
 // Capability answers: the mock must not disagree with the hardware
-// ============================================================================
 
 // select_slot_moves_toolhead is a kTraits field the mock copies, and only
 // AmsSubscriptionBackend reads it; the mock derives straight from AmsBackend.

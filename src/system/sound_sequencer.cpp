@@ -222,7 +222,6 @@ void SoundSequencer::sequencer_loop() {
             last_tick = std::chrono::steady_clock::now();
         }
 
-        // Sleep for backend's minimum tick interval
         std::this_thread::sleep_for(tick_interval);
     }
 

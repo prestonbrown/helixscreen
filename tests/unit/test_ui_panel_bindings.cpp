@@ -3,7 +3,7 @@
 
 /**
  * @file test_ui_panel_bindings.cpp
- * @brief TDD tests for XML component subject-to-UI bindings
+ * @brief Tests for XML component subject-to-UI bindings
  *
  * These tests verify that LVGL subjects correctly update UI widgets through
  * declarative XML bindings.
@@ -131,34 +131,23 @@ static void check_homing_button_tracks_subject(lv_obj_t* panel, const char* butt
     CHECK(lv_color_to_u32(unhomed) != lv_color_to_u32(homed));
 }
 
-// =============================================================================
-// TEMPERATURE PANEL BINDING TESTS (NOZZLE + BED) - READY FOR IMPLEMENTATION
-// =============================================================================
-// XMLTestFixture initialization now works - the theme init hang was fixed by
-// deleting the test screen before theme initialization, then recreating it after.
+// Temperature panel bindings (nozzle + bed)
 //
-// Remaining issue: lv_timer_handler() hangs when there are async subject updates
-// scheduled. This prevents using process_lvgl() in tests that use XMLTestFixture.
+// lv_timer_handler() hangs when async subject updates are scheduled, so tests
+// that use XMLTestFixture cannot call process_lvgl().
 
 TEST_CASE_METHOD(XMLTestFixture, "temp_display: binds to extruder temperature subjects",
                  "[ui][temp_display][bind_current][bind_target]") {
-    // Test verifies the temp_display widget correctly binds to temperature subjects
-    // and displays the expected values.
-
-    // 1. Set temperature values BEFORE creating component using XML-registered subjects
     // Temperature is in decidegrees (200.0°C = 2000, 210.0°C = 2100)
     set_xml_subject("extruder_temp", 2000);   // 200.0°C
     set_xml_subject("extruder_target", 2100); // 210.0°C
 
-    // 2. temp_display is already registered by XMLTestFixture (ui_temp_display_init)
-    // Just need to create an instance with binding attributes
     const char* attrs[] = {"bind_current", "extruder_temp", "bind_target", "extruder_target",
                            "show_target",  "true",          nullptr};
     lv_obj_t* temp = create_component("temp_display", attrs);
     REQUIRE(temp != nullptr);
     REQUIRE(ui_temp_display_is_valid(temp));
 
-    // 3. Verify initial values are bound correctly
     // temp_display converts decidegrees to degrees (2000 -> 200)
     int displayed_current = ui_temp_display_get_current(temp);
     int displayed_target = ui_temp_display_get_target(temp);
@@ -169,75 +158,56 @@ TEST_CASE_METHOD(XMLTestFixture, "temp_display: binds to extruder temperature su
 
 TEST_CASE_METHOD(XMLTestFixture, "temp_display: reactive update when subject changes",
                  "[ui][temp_display][reactive]") {
-    // Test verifies the temp_display widget updates reactively when subjects change
-
-    // 1. Set initial temperatures using XML-registered subjects
     set_xml_subject("extruder_temp", 1500);   // 150.0°C
     set_xml_subject("extruder_target", 2000); // 200.0°C
 
-    // 2. Create temp_display with bindings
     const char* attrs[] = {"bind_current", "extruder_temp", "bind_target", "extruder_target",
                            "show_target",  "true",          nullptr};
     lv_obj_t* temp = create_component("temp_display", attrs);
     REQUIRE(temp != nullptr);
 
-    // 3. Verify initial values
     REQUIRE(ui_temp_display_get_current(temp) == 150);
     REQUIRE(ui_temp_display_get_target(temp) == 200);
 
-    // 4. Update subjects - this should trigger reactive update
     set_xml_subject("extruder_temp", 1800);   // 180.0°C
     set_xml_subject("extruder_target", 2200); // 220.0°C
 
-    // 5. Verify values updated reactively
     REQUIRE(ui_temp_display_get_current(temp) == 180);
     REQUIRE(ui_temp_display_get_target(temp) == 220);
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "temp_display: target shows -- when heater off (target=0)",
                  "[ui][temp_display][heater_off]") {
-    // Test verifies target displays "--" when heater is off (target=0)
-
-    // 1. Set current temp but target=0 (heater off) using XML-registered subjects
     set_xml_subject("extruder_temp", 250); // 25.0°C (ambient)
     set_xml_subject("extruder_target", 0); // Off
 
-    // 2. Create temp_display with bindings
     const char* attrs[] = {"bind_current", "extruder_temp", "bind_target", "extruder_target",
                            "show_target",  "true",          nullptr};
     lv_obj_t* temp = create_component("temp_display", attrs);
     REQUIRE(temp != nullptr);
 
-    // 3. Verify current shows actual value
     REQUIRE(ui_temp_display_get_current(temp) == 25);
 
-    // 4. Verify target is 0 (the display shows "--" but getter returns 0)
+    // Target is 0 (the display shows "--" but getter returns 0)
     REQUIRE(ui_temp_display_get_target(temp) == 0);
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "temp_display: binds to bed temperature subjects",
                  "[ui][temp_display][bind_current][bind_target]") {
-    // Test verifies the temp_display widget works with bed temperature subjects
-
-    // 1. Set bed temperature values using XML-registered subjects
     set_xml_subject("bed_temp", 600);   // 60.0°C
     set_xml_subject("bed_target", 700); // 70.0°C
 
-    // 2. Create temp_display with bed bindings
     const char* attrs[] = {"bind_current", "bed_temp", "bind_target", "bed_target",
                            "show_target",  "true",     nullptr};
     lv_obj_t* temp = create_component("temp_display", attrs);
     REQUIRE(temp != nullptr);
     REQUIRE(ui_temp_display_is_valid(temp));
 
-    // 3. Verify bed values are bound correctly
     REQUIRE(ui_temp_display_get_current(temp) == 60);
     REQUIRE(ui_temp_display_get_target(temp) == 70);
 }
 
-// =============================================================================
-// HOME PANEL BINDING TESTS (SKIP - complex dependencies)
-// =============================================================================
+// Home panel bindings
 
 TEST_CASE_METHOD(XMLTestFixture,
                  "panel_widget_printer_image: disconnected_overlay tracks connection",
@@ -257,9 +227,7 @@ TEST_CASE_METHOD(XMLTestFixture,
     CHECK(is_hidden(overlay));
 }
 
-// =============================================================================
-// CONTROLS PANEL BINDING TESTS (SKIP - complex dependencies)
-// =============================================================================
+// Controls panel bindings
 
 TEST_CASE_METHOD(XMLTestFixture, "controls_panel: pos_x binding updates position text",
                  "[ui][controls_panel][bind_text][.xml_required]") {
@@ -343,9 +311,7 @@ TEST_CASE_METHOD(XMLTestFixture, "controls_panel: part_fan_slider binding update
     CHECK(lv_slider_get_value(slider) == 0);
 }
 
-// =============================================================================
-// PRINT STATUS PANEL BINDING TESTS (.xml_required: need ui_xml/ on the relative path)
-// =============================================================================
+// Print status panel bindings (.xml_required: need ui_xml/ on the relative path)
 
 TEST_CASE_METHOD(XMLTestFixture,
                  "print_status_strip: the pre-print line replaces the print line while preparing",
@@ -405,9 +371,7 @@ TEST_CASE_METHOD(XMLTestFixture,
 // coverage lives in the temp_display cases above and in
 // test_chamber_panel_diagnostics.cpp (temp_graph_overlay).
 
-// =============================================================================
-// ADDITIONAL BINDING TESTS (MIXED PANELS - SKIP)
-// =============================================================================
+// Additional bindings (mixed panels)
 
 TEST_CASE_METHOD(XMLTestFixture, "controls_panel: all_homed drives btn_home_all background",
                  "[ui][controls_panel][bind_style][.xml_required]") {

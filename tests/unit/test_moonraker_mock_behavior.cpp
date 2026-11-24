@@ -85,12 +85,6 @@ using namespace helix;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
-// ============================================================================
-// Test Fixture for Mock Behavior Testing
-// ============================================================================
-// Test Fixture for Mock Behavior Testing
-// ============================================================================
-
 /**
  * @brief Test fixture that captures notifications from MoonrakerClientMock
  *
@@ -228,9 +222,7 @@ class TestableMoonrakerMock : public MoonrakerClientMock {
     using MoonrakerClient::dispatch_status_update;
 };
 
-// ============================================================================
 // Initial State Dispatch Tests
-// ============================================================================
 
 TEST_CASE("MoonrakerClientMock records the connection URL like the real client",
           "[connection][slow][url]") {
@@ -341,7 +333,6 @@ TEST_CASE("MoonrakerClientMock initial state dispatch", "[connection][slow][init
         // Should receive initial state callback
         REQUIRE(fixture.wait_for_callback(500));
 
-        // Verify we got at least one notification
         REQUIRE(!fixture.get_notifications().empty());
 
         // Stop simulation to avoid interference
@@ -402,7 +393,6 @@ TEST_CASE("MoonrakerClientMock initial state dispatch", "[connection][slow][init
                     return false;
                 }
 
-                // Check extruder structure (matches real Moonraker)
                 if (!status.contains("extruder"))
                     return false;
                 const json& extruder = status["extruder"];
@@ -411,7 +401,6 @@ TEST_CASE("MoonrakerClientMock initial state dispatch", "[connection][slow][init
                 if (!extruder["temperature"].is_number() || !extruder["target"].is_number())
                     return false;
 
-                // Check heater bed structure
                 if (!status.contains("heater_bed"))
                     return false;
                 const json& heater_bed = status["heater_bed"];
@@ -602,9 +591,7 @@ TEST_CASE("MoonrakerClientMock object snapshots report the mock's own homed_axes
     CHECK(snapshot("printer.objects.subscribe") == "x");
 }
 
-// ============================================================================
 // Notification Format Tests
-// ============================================================================
 
 TEST_CASE("MoonrakerClientMock notification format matches real Moonraker", "[connection][slow]") {
     MockBehaviorTestFixture fixture;
@@ -679,9 +666,7 @@ TEST_CASE("MoonrakerClientMock notification format matches real Moonraker", "[co
     }
 }
 
-// ============================================================================
 // Callback Invocation Tests
-// ============================================================================
 
 TEST_CASE("MoonrakerClientMock callback invocation", "[connection][slow][callbacks]") {
     MockBehaviorTestFixture fixture1;
@@ -752,9 +737,7 @@ TEST_CASE("MoonrakerClientMock callback invocation", "[connection][slow][callbac
     }
 }
 
-// ============================================================================
 // G-code Temperature Parsing Tests
-// ============================================================================
 
 TEST_CASE("MoonrakerClientMock G-code temperature parsing", "[connection][slow][gcode]") {
     MockBehaviorTestFixture fixture;
@@ -803,7 +786,6 @@ TEST_CASE("MoonrakerClientMock G-code temperature parsing", "[connection][slow][
         int result = mock.gcode_script("SET_HEATER_TEMPERATURE HEATER=extruder TARGET=200");
         REQUIRE(result == 0);
 
-        // Verify the target actually changed in status notifications
         REQUIRE(verify_extruder_target(200.0));
 
         mock.stop_temperature_simulation();
@@ -818,7 +800,6 @@ TEST_CASE("MoonrakerClientMock G-code temperature parsing", "[connection][slow][
         int result = mock.gcode_script("SET_HEATER_TEMPERATURE HEATER=heater_bed TARGET=60");
         REQUIRE(result == 0);
 
-        // Verify the target actually changed in status notifications
         REQUIRE(verify_bed_target(60.0));
 
         mock.stop_temperature_simulation();
@@ -833,7 +814,6 @@ TEST_CASE("MoonrakerClientMock G-code temperature parsing", "[connection][slow][
         int result = mock.gcode_script("M104 S210");
         REQUIRE(result == 0);
 
-        // Verify the target actually changed in status notifications
         REQUIRE(verify_extruder_target(210.0));
 
         mock.stop_temperature_simulation();
@@ -851,7 +831,6 @@ TEST_CASE("MoonrakerClientMock G-code temperature parsing", "[connection][slow][
         int result = mock.gcode_script("m104 S220");
         REQUIRE(result == 0);
 
-        // Verify the target actually changed in status notifications
         REQUIRE(verify_extruder_target(220.0));
 
         mock.stop_temperature_simulation();
@@ -866,7 +845,6 @@ TEST_CASE("MoonrakerClientMock G-code temperature parsing", "[connection][slow][
         int result = mock.gcode_script("M109 S215");
         REQUIRE(result == 0);
 
-        // Verify the target actually changed in status notifications
         REQUIRE(verify_extruder_target(215.0));
 
         mock.stop_temperature_simulation();
@@ -881,7 +859,6 @@ TEST_CASE("MoonrakerClientMock G-code temperature parsing", "[connection][slow][
         int result = mock.gcode_script("M140 S55");
         REQUIRE(result == 0);
 
-        // Verify the target actually changed in status notifications
         REQUIRE(verify_bed_target(55.0));
 
         mock.stop_temperature_simulation();
@@ -896,7 +873,6 @@ TEST_CASE("MoonrakerClientMock G-code temperature parsing", "[connection][slow][
         int result = mock.gcode_script("M190 S65");
         REQUIRE(result == 0);
 
-        // Verify the target actually changed in status notifications
         REQUIRE(verify_bed_target(65.0));
 
         mock.stop_temperature_simulation();
@@ -918,7 +894,6 @@ TEST_CASE("MoonrakerClientMock G-code temperature parsing", "[connection][slow][
         int result = mock.gcode_script("SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0");
         REQUIRE(result == 0);
 
-        // Verify the target changed to 0 in status notifications
         REQUIRE(verify_extruder_target(0.0));
 
         mock.stop_temperature_simulation();
@@ -926,9 +901,7 @@ TEST_CASE("MoonrakerClientMock G-code temperature parsing", "[connection][slow][
     }
 }
 
-// ============================================================================
 // Hardware Discovery Tests
-// ============================================================================
 
 TEST_CASE_METHOD(HelixTestFixture, "MoonrakerClientMock hardware discovery",
                  "[connection][hardware_discovery]") {
@@ -1076,9 +1049,7 @@ TEST_CASE_METHOD(HelixTestFixture, "MoonrakerClientMock hardware discovery",
     }
 }
 
-// ============================================================================
 // Connection State Tests
-// ============================================================================
 
 TEST_CASE("MoonrakerClientMock connection state", "[connection][slow][connection_state]") {
     SECTION("initial state is DISCONNECTED") {
@@ -1133,9 +1104,7 @@ TEST_CASE("MoonrakerClientMock connection state", "[connection][slow][connection
     }
 }
 
-// ============================================================================
 // Temperature Simulation Tests
-// ============================================================================
 
 TEST_CASE("MoonrakerClientMock temperature simulation", "[connection][slow]") {
     MockBehaviorTestFixture fixture;
@@ -1209,9 +1178,7 @@ TEST_CASE("MoonrakerClientMock temperature simulation", "[connection][slow]") {
     }
 }
 
-// ============================================================================
 // Bed Mesh Tests
-// ============================================================================
 
 TEST_CASE("MoonrakerClientMock bed mesh", "[slow][mock][calibration]") {
     SECTION("bed mesh is generated on construction") {
@@ -1299,17 +1266,14 @@ TEST_CASE("MoonrakerClientMock bed mesh", "[slow][mock][calibration]") {
         REQUIRE(bed_mesh_data.contains("profiles"));
         REQUIRE(bed_mesh_data.contains("mesh_params"));
 
-        // Verify profile_name
         REQUIRE(bed_mesh_data["profile_name"].is_string());
         REQUIRE(bed_mesh_data["profile_name"].get<std::string>() == "default");
 
-        // Verify probed_matrix is 2D array
         REQUIRE(bed_mesh_data["probed_matrix"].is_array());
         REQUIRE(bed_mesh_data["probed_matrix"].size() == 7); // 7x7 mesh
         REQUIRE(bed_mesh_data["probed_matrix"][0].is_array());
         REQUIRE(bed_mesh_data["probed_matrix"][0].size() == 7);
 
-        // Verify mesh bounds
         REQUIRE(bed_mesh_data["mesh_min"].is_array());
         REQUIRE(bed_mesh_data["mesh_min"].size() >= 2);
         REQUIRE(bed_mesh_data["mesh_max"].is_array());
@@ -1319,7 +1283,6 @@ TEST_CASE("MoonrakerClientMock bed mesh", "[slow][mock][calibration]") {
         REQUIRE(bed_mesh_data["profiles"].is_object());
         REQUIRE(bed_mesh_data["profiles"].contains("default"));
 
-        // Verify mesh_params
         REQUIRE(bed_mesh_data["mesh_params"].is_object());
         REQUIRE(bed_mesh_data["mesh_params"].contains("algo"));
         REQUIRE(bed_mesh_data["mesh_params"]["algo"].get<std::string>() == "lagrange");
@@ -1327,10 +1290,10 @@ TEST_CASE("MoonrakerClientMock bed mesh", "[slow][mock][calibration]") {
 
     SECTION("bed mesh is parsed correctly from initial notification") {
         // Test that dispatch_status_update correctly parses bed_mesh
-        // (previously this was broken - bed_mesh was in notification but never parsed)
+        // (bed_mesh arrives in the notification and must be parsed)
         MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
 
-        // Connect (triggers initial state dispatch which should now parse bed_mesh)
+        // Connect (triggers initial state dispatch, which parses bed_mesh)
         mock.connect("ws://mock/websocket", []() {}, []() {});
 
         // After connect, the mock should have parsed the bed mesh from its own notification
@@ -1343,7 +1306,6 @@ TEST_CASE("MoonrakerClientMock bed mesh", "[slow][mock][calibration]") {
         REQUIRE(mesh.y_count == 7);
         REQUIRE(mesh.algo == "lagrange");
 
-        // Verify profiles were also parsed
         const auto& profiles = mock.get_bed_mesh_profiles();
         REQUIRE(profiles.size() == 2);
         REQUIRE(std::find(profiles.begin(), profiles.end(), "default") != profiles.end());
@@ -1375,7 +1337,6 @@ TEST_CASE("MoonrakerClientMock bed mesh", "[slow][mock][calibration]") {
         mock.register_notify_update(fixture.create_capture_callback());
         mock.dispatch_status_update(status);
 
-        // Verify rectangular dimensions
         REQUIRE(mock.has_bed_mesh());
         const auto& mesh = mock.get_active_bed_mesh();
         REQUIRE(mesh.name == "rectangular");
@@ -1548,9 +1509,7 @@ TEST_CASE("MoonrakerClientMock bed mesh profiles store their heights", "[bed_mes
     }
 }
 
-// ============================================================================
 // send_jsonrpc Tests
-// ============================================================================
 
 TEST_CASE("MoonrakerClientMock send_jsonrpc methods", "[connection][jsonrpc]") {
     SECTION("send_jsonrpc without params returns success") {
@@ -1575,13 +1534,11 @@ TEST_CASE("MoonrakerClientMock send_jsonrpc methods", "[connection][jsonrpc]") {
             received_response = response;
         });
 
-        // Verify valid request ID returned
         REQUIRE(id != kInvalidRequestId);
 
         // Verify callback was invoked (printer.info is a registered handler)
         REQUIRE(callback_invoked);
 
-        // Verify the response contains expected fields
         REQUIRE(received_response.contains("result"));
         REQUIRE(received_response["result"].contains("state"));
         REQUIRE(received_response["result"]["state"].get<std::string>() == "ready");
@@ -1605,22 +1562,17 @@ TEST_CASE("MoonrakerClientMock send_jsonrpc methods", "[connection][jsonrpc]") {
             },
             [&](const MoonrakerError&) { error_invoked = true; }, 5000);
 
-        // Verify valid request ID returned
         REQUIRE(id != kInvalidRequestId);
 
-        // Verify success callback was invoked, not error callback
         REQUIRE(success_invoked);
         REQUIRE_FALSE(error_invoked);
 
-        // Verify the response contains expected printer info
         REQUIRE(received_response.contains("result"));
         REQUIRE(received_response["result"]["state"].get<std::string>() == "ready");
     }
 }
 
-// ============================================================================
 // Guessing Methods Tests (Use PrinterHardware with mock hardware data)
-// ============================================================================
 
 TEST_CASE_METHOD(HelixTestFixture, "PrinterHardware guessing methods work with mock hardware data",
                  "[printer]") {
@@ -1657,9 +1609,7 @@ TEST_CASE_METHOD(HelixTestFixture, "PrinterHardware guessing methods work with m
     }
 }
 
-// ============================================================================
-// G-code Motion Simulation Tests (Phase 1.6a)
-// ============================================================================
+// G-code Motion Simulation Tests
 
 TEST_CASE("MoonrakerClientMock G28 homing updates homed_axes", "[api][homing][slow]") {
     MockBehaviorTestFixture fixture;
@@ -1683,7 +1633,6 @@ TEST_CASE("MoonrakerClientMock G28 homing updates homed_axes", "[api][homing][sl
 
         mock.stop_temperature_simulation();
 
-        // Verify position is at 0,0,0 after homing
         bool found_zero_position = fixture.wait_for_matching(
             [](const json& n) {
                 const json& status = frame_status(n);
@@ -2005,9 +1954,7 @@ TEST_CASE("MoonrakerClientMock homed_axes in notifications", "[api][notification
     }
 }
 
-// ============================================================================
-// Print Job Simulation Tests (Phase 1.6b)
-// ============================================================================
+// Print Job Simulation Tests
 
 TEST_CASE("MoonrakerClientMock SDCARD_PRINT_FILE starts print", "[slow][print][start]") {
     MockBehaviorTestFixture fixture;
@@ -2028,7 +1975,6 @@ TEST_CASE("MoonrakerClientMock SDCARD_PRINT_FILE starts print", "[slow][print][s
                     return false;
                 }
                 const json& ps = status["print_stats"];
-                // Check both state and filename exist before accessing
                 if (!ps.contains("state") || !ps.contains("filename")) {
                     return false;
                 }
@@ -2344,7 +2290,6 @@ TEST_CASE("MoonrakerClientMock print completion triggers complete state", "[prin
         mock.register_notify_update(fixture.create_capture_callback());
         mock.connect("ws://mock/websocket", []() {}, []() {});
 
-        // Verify initial state is IDLE
         REQUIRE(mock.get_print_phase() == MoonrakerClientMock::MockPrintPhase::IDLE);
 
         // Start a print - transitions to PREHEAT or PRINTING
@@ -2515,9 +2460,7 @@ TEST_CASE("MoonrakerClientMock M112 reports Klipper's shutdown reason until a re
     helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
-// ============================================================================
-// Bed Mesh G-code Simulation Tests (Task 5)
-// ============================================================================
+// Bed Mesh G-code Simulation Tests
 
 TEST_CASE("MoonrakerClientMock BED_MESH_CALIBRATE generates new mesh",
           "[mock][calibration][gcode][slow]") {
@@ -2575,7 +2518,6 @@ TEST_CASE("MoonrakerClientMock BED_MESH_CALIBRATE generates new mesh",
             },
             2000));
 
-        // Verify profile name was updated
         REQUIRE(mock.get_active_bed_mesh().name == "custom_profile");
 
         mock.stop_temperature_simulation();
@@ -2627,7 +2569,6 @@ TEST_CASE("MoonrakerClientMock BED_MESH_CLEAR clears active mesh", "[mock][calib
         mock.register_notify_update(fixture.create_capture_callback());
         mock.connect("ws://mock/websocket", []() {}, []() {});
 
-        // Verify we have a bed mesh initially
         REQUIRE(mock.has_bed_mesh());
 
         fixture.reset();
@@ -2651,9 +2592,7 @@ TEST_CASE("MoonrakerClientMock BED_MESH_CLEAR clears active mesh", "[mock][calib
     }
 }
 
-// ============================================================================
 // Filament Type in Metadata Response Tests
-// ============================================================================
 
 TEST_CASE("MoonrakerClientMock - file metadata includes filament_type",
           "[mock][api][metadata][filament_type]") {
@@ -2792,9 +2731,7 @@ TEST_CASE("MoonrakerClientMock - file metadata with success/error callbacks",
     }
 }
 
-// ============================================================================
 // Fan Control Tests
-// ============================================================================
 
 namespace {
 
@@ -2886,9 +2823,7 @@ TEST_CASE("MoonrakerClientMock fan control", "[slow][mock][fan]") {
     (void)sub_id; // Callback auto-unregisters when mock destructs
 }
 
-// ============================================================================
 // Z Offset Tracking Tests
-// ============================================================================
 
 namespace {
 /// True when `n` is a gcode_move notification whose Z homing_origin equals `want`.
@@ -2986,9 +2921,7 @@ TEST_CASE("MoonrakerClientMock Z offset tracking", "[slow][mock][offset]") {
     (void)sub_id; // Callback auto-unregisters when mock destructs
 }
 
-// ============================================================================
 // RESTART / FIRMWARE_RESTART Tests
-// ============================================================================
 
 TEST_CASE("MoonrakerClientMock restart simulation", "[slow][mock][restart]") {
     // Use 100x speedup so restart delay is 20-30ms instead of 2-3 seconds
@@ -3032,7 +2965,6 @@ TEST_CASE("MoonrakerClientMock restart simulation", "[slow][mock][restart]") {
         mock.gcode_script("SDCARD_PRINT_FILE FILENAME=test.gcode");
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-        // Verify print is active (not IDLE)
         REQUIRE(mock.get_print_phase() != MoonrakerClientMock::MockPrintPhase::IDLE);
 
         fixture.reset();
@@ -3086,9 +3018,7 @@ TEST_CASE("MoonrakerClientMock restart simulation", "[slow][mock][restart]") {
     (void)sub_id; // Callback auto-unregisters when mock destructs
 }
 
-// ============================================================================
 // EXCLUDE_OBJECT G-code Parsing Tests
-// ============================================================================
 
 /**
  * @brief Tests for EXCLUDE_OBJECT command parsing in gcode_script()
@@ -3178,9 +3108,7 @@ TEST_CASE("MoonrakerClientMock parses EXCLUDE_OBJECT command", "[slow][mock][gco
     }
 }
 
-// ============================================================================
 // Emergency Stop and Restart Handler Tests
-// ============================================================================
 
 /**
  * @brief Tests for emergency stop and restart mock handlers
@@ -3249,20 +3177,16 @@ TEST_CASE("MoonrakerClientMock handles printer restart commands", "[mock][restar
     }
 }
 
-// ============================================================================
 // Idle Timeout Simulation Tests
-// ============================================================================
 
 TEST_CASE("MoonrakerClientMock idle_timeout simulation", "[mock][idle_timeout][slow]") {
     SECTION("idle_timeout triggers after configured duration") {
         MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
         MockBehaviorTestFixture fixture;
 
-        // Set 1 second timeout for testing
         mock.set_idle_timeout_seconds(1);
         REQUIRE(mock.get_idle_timeout_seconds() == 1);
 
-        // Verify initial state
         REQUIRE_FALSE(mock.is_idle_timeout_triggered());
         REQUIRE(mock.are_motors_enabled());
 
@@ -3298,7 +3222,6 @@ TEST_CASE("MoonrakerClientMock idle_timeout simulation", "[mock][idle_timeout][s
     SECTION("activity resets idle timeout") {
         MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
 
-        // Set 2 second timeout
         mock.set_idle_timeout_seconds(2);
 
         mock.connect("ws://mock/websocket", []() {}, []() {});
@@ -3324,7 +3247,6 @@ TEST_CASE("MoonrakerClientMock idle_timeout simulation", "[mock][idle_timeout][s
     SECTION("printing state prevents idle timeout") {
         MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
 
-        // Set 1 second timeout
         mock.set_idle_timeout_seconds(1);
 
         mock.connect("ws://mock/websocket", []() {}, []() {});
@@ -3346,7 +3268,6 @@ TEST_CASE("MoonrakerClientMock idle_timeout simulation", "[mock][idle_timeout][s
     SECTION("temperature commands reset idle timeout") {
         MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
 
-        // Set 2 second timeout
         mock.set_idle_timeout_seconds(2);
 
         mock.connect("ws://mock/websocket", []() {}, []() {});
@@ -3370,7 +3291,6 @@ TEST_CASE("MoonrakerClientMock idle_timeout simulation", "[mock][idle_timeout][s
     SECTION("movement commands reset idle timeout") {
         MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
 
-        // Set 2 second timeout
         mock.set_idle_timeout_seconds(2);
 
         mock.connect("ws://mock/websocket", []() {}, []() {});
@@ -3395,7 +3315,6 @@ TEST_CASE("MoonrakerClientMock idle_timeout simulation", "[mock][idle_timeout][s
     SECTION("idle_timeout state is returned in objects.query") {
         MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
 
-        // Set 1 second timeout
         mock.set_idle_timeout_seconds(1);
 
         mock.connect("ws://mock/websocket", []() {}, []() {});
@@ -3444,9 +3363,7 @@ TEST_CASE("MoonrakerClientMock idle_timeout simulation", "[mock][idle_timeout][s
     }
 }
 
-// ============================================================================
 // gcode_script return value contract: 0 = success, non-zero = error
-// ============================================================================
 
 TEST_CASE("MoonrakerClientMock gcode_script returns 0 on success", "[mock][gcode]") {
     MockBehaviorTestFixture fixture;
@@ -3714,11 +3631,9 @@ TEST_CASE("MoonrakerClientMock: periodic broadcasts carry each print-start step'
     mock.disconnect();
 }
 
-// ============================================================================
 // M117 precedence over periodic status broadcasts
-// ============================================================================
 //
-// Commit 959bb0140's central design property: once a user sends M117, that
+// Central design property: once a user sends M117, that
 // message must survive the mock's own periodic status broadcast (fired every
 // kNotificationIntervalTicks ticks from temperature_simulation_loop()) even
 // while the print is in a phase that would otherwise emit a canned string
@@ -3784,9 +3699,7 @@ TEST_CASE("MoonrakerClientMock: M117 message survives periodic status broadcasts
     mock.disconnect();
 }
 
-// ============================================================================
 // LED effect model: dispatch fan-out, STOP=1, and query truthfulness
-// ============================================================================
 //
 // A Lua plugin subscribes to printer objects as a notify_status_update METHOD
 // callback, so the mock's synthetic status updates must reach that registrant

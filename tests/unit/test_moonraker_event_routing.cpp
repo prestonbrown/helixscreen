@@ -68,12 +68,11 @@ TEST_CASE("Connection failure gets the Change-Address prompt, not a toast",
 }
 
 TEST_CASE("Connection failure degrades to a toast while a modal is open", "[moonraker][routing]") {
-    // AD5X bundle 865DXBQ7: the latched CONNECTION_FAILED fires ~60 s after
-    // startup, which on an unreachable printer is exactly when the user is in
-    // Settings > Network typing a WiFi password to fix it. The prompt was pushed
-    // at modal stack depth 2, over that keyboard, and the password had to be
-    // retyped from scratch. A toast carries the same information without taking
-    // the screen away.
+    // The latched CONNECTION_FAILED fires ~60 s after startup, which on an
+    // unreachable printer is exactly when the user is in Settings > Network typing
+    // a WiFi password to fix it. A prompt pushed at modal stack depth 2 would cover
+    // that keyboard and lose the password. A toast carries the same information
+    // without taking the screen away.
     auto d = decide_moonraker_event(MoonrakerEventType::CONNECTION_FAILED, kIsError, kNoWizard,
                                     kModalUp);
     REQUIRE(d.route == MoonrakerEventRoute::ErrorToast);
@@ -105,13 +104,11 @@ TEST_CASE("Connection failure degrades to a toast while a modal is open", "[moon
 
 TEST_CASE("Connection failure is suppressed entirely during the setup wizard",
           "[moonraker][routing][regression]") {
-    // Bundle L53W5PKG, a fresh install on a standalone display: with no saved
-    // host the app dials the 127.0.0.1 default, the latch fires 60 s later, and
-    // the change-address prompt landed on top of the wizard's Language step. It
-    // sat there 16.5 minutes before the user dismissed it and reached the
-    // wizard's own Connection step, which is the UI that collects the address
-    // and reports success or failure inline. Two host-entry prompts competing,
-    // one of them telling a display that Klipper "runs on this printer".
+    // A fresh install on a standalone display with no saved host dials the
+    // 127.0.0.1 default, and the latch fires 60 s later. A change-address prompt
+    // would land on top of the wizard's Language step and compete with the
+    // wizard's own Connection step, which collects the address and reports success
+    // or failure inline.
     //
     // Suppressed rather than degraded to a toast: with a modal open the user is
     // doing something else and needs to learn the connection failed, but inside
@@ -160,8 +157,8 @@ TEST_CASE("Error events carry the right untranslated title tag", "[moonraker][ro
 }
 
 TEST_CASE("Title tags are returned untranslated", "[moonraker][routing][1219]") {
-    // The regression this guards: if the decision ever calls lv_tr() itself, it
-    // is back to translating on whatever thread raised the event. Source strings
+    // If the decision ever calls lv_tr() itself, it
+    // translates on whatever thread raised the event. Source strings
     // are the English tags verbatim, and the routing TU must not link LVGL at all.
     REQUIRE(std::string(
                 decide_moonraker_event(MoonrakerEventType::CONNECTION_FAILED, kIsError, kNoWizard)
@@ -213,7 +210,7 @@ TEST_CASE("Connection restored is a success toast, connection lost a warning",
 TEST_CASE("Non-ready warnings still reach the warning-toast fallthrough",
           "[moonraker][routing][1219]") {
     // Only KLIPPY_READY is routed away as a lifecycle event; that short-circuit
-    // must not swallow its non-error neighbours.
+    // must not swallow its non-error neighbors.
     auto d = decide_moonraker_event(MoonrakerEventType::RPC_ERROR, kNotError, kNoWizard);
     REQUIRE(d.route == MoonrakerEventRoute::WarningToast);
 }

@@ -63,9 +63,7 @@ PathPoint seg_end_point(const PathSeg& s) {
 
 } // namespace
 
-// ============================================================================
 // seg_length / path_length
-// ============================================================================
 
 TEST_CASE("seg_length LINE is euclidean", "[filament-path][geometry]") {
     PathSeg s;
@@ -110,9 +108,7 @@ TEST_CASE("add_line skips zero-length, add ops respect MAX_SEGS", "[filament-pat
     REQUIRE(p.count == FilamentPath::kMaxSegs);
 }
 
-// ============================================================================
 // path_point_at
-// ============================================================================
 
 TEST_CASE("path_point_at endpoints and clamping on a single line", "[filament-path][geometry]") {
     FilamentPath p;
@@ -185,9 +181,7 @@ TEST_CASE("path_point_at exactly on segment boundary", "[filament-path][geometry
     REQUIRE(past.y == Catch::Approx(10.0f));
 }
 
-// ============================================================================
 // route_orthogonal — tangent continuity
-// ============================================================================
 
 // Endpoint chaining only (positions match end-to-end). Used for paths whose
 // joints are intentionally corners (the 45-degree jog).
@@ -280,9 +274,7 @@ TEST_CASE("route_orthogonal total length is analytic", "[filament-path][geometry
     REQUIRE(path_length(p) == Catch::Approx(expect).margin(1e-2));
 }
 
-// ============================================================================
 // route_orthogonal — clamping & degenerate cases
-// ============================================================================
 
 TEST_CASE("route_orthogonal large fillet clamped to dx/2", "[filament-path][geometry]") {
     // |dx|=40 -> r_eff capped at 20; dy=200 plenty. fillet_r=1000 huge.
@@ -357,9 +349,7 @@ TEST_CASE("route_orthogonal y1<=y0 fallback straight line", "[filament-path][geo
     REQUIRE(p2.segs[0].type == PathSeg::LINE);
 }
 
-// ============================================================================
 // End-to-end walk: monotonic progress, no jumps (catches angle-direction bugs)
-// ============================================================================
 
 TEST_CASE("route_orthogonal walk is smooth and monotonic (dx>0)", "[filament-path][geometry]") {
     FilamentPath p;
@@ -397,9 +387,7 @@ TEST_CASE("route_orthogonal walk is smooth and monotonic (dx<0)", "[filament-pat
     }
 }
 
-// ============================================================================
 // route_polyline_filleted — general filleted-polyline routing
-// ============================================================================
 
 // Analytic length of a filleted polyline: sum of trimmed straight runs plus the
 // arc lengths. We don't predict it; we cross-check path_length against a dense
@@ -599,9 +587,7 @@ TEST_CASE("route_polyline_filleted two-point degenerate is a single line",
     REQUIRE(p.segs[0].type == PathSeg::LINE);
 }
 
-// ---------------------------------------------------------------------------
 // build_merge_fan — separation-by-construction hub merge
-// ---------------------------------------------------------------------------
 
 namespace {
 // Perpendicular distance between two PARALLEL line segments, measured as the
@@ -859,9 +845,7 @@ TEST_CASE("merge fans on the measured detail canvases clear tube, halo and bands
     CHECK(entry_step >= BAND_STEP);
 }
 
-// ---------------------------------------------------------------------------
 // dash_polyline: one dash phase along the whole path
-// ---------------------------------------------------------------------------
 
 namespace {
 

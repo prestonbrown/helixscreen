@@ -24,9 +24,7 @@ namespace helix::config {
  */
 class EnvironmentConfig {
   public:
-    // ========================================================================
     // Generic type-safe parsers
-    // ========================================================================
 
     /**
      * @brief Parse integer environment variable with range validation
@@ -74,9 +72,7 @@ class EnvironmentConfig {
      */
     static std::optional<std::string> get_string(const char* name);
 
-    // ========================================================================
     // Application-specific helpers (HELIX_* environment variables)
-    // ========================================================================
 
     /**
      * @brief Get auto-quit timeout from HELIX_AUTO_QUIT_MS

@@ -242,6 +242,21 @@ CPP
     [ "$status" -eq 0 ]
 }
 
+@test "a call named inside a block comment is not an aborting call, one after the comment is" {
+    decide_all
+    cat > "$ROOT/src/printer/compiled.cpp" <<'CPP'
+// the firmware doesn't take this path
+int a = 1; /* j.at("x") */ auto b = j.at("name");
+/* a block that
+   calls j.at("y") on a line of its own */ int c = std::stoi(s);
+CPP
+    run_gate
+    [ "$status" -eq 1 ]
+    contains "src/printer/compiled.cpp:2: json .at" "$output"
+    contains "src/printer/compiled.cpp:4: std::sto*" "$output"
+    [ "${output#*compiled.cpp:4: json}" = "$output" ]
+}
+
 @test "flags try, catch and throw in a firmware-compiled file" {
     decide_all
     cat > "$ROOT/src/printer/compiled.cpp" <<'CPP'

@@ -36,9 +36,7 @@
 
 using namespace helix;
 
-// ============================================================================
 // Long-press delete: the detail overlay is never pushed
-// ============================================================================
 
 TEST_CASE_METHOD(PrintSelectPanelFixture,
                  "Confirmed long-press delete with the detail view never opened stays on "
@@ -69,9 +67,7 @@ TEST_CASE_METHOD(PrintSelectPanelFixture,
     REQUIRE_FALSE(file.on_disk());
 }
 
-// ============================================================================
 // The guard must not overcorrect: detail view open, delete from it
-// ============================================================================
 
 TEST_CASE_METHOD(PrintSelectPanelFixture,
                  "Confirmed delete from the open detail view closes it and returns to the list",
@@ -99,9 +95,7 @@ TEST_CASE_METHOD(PrintSelectPanelFixture,
     REQUIRE_FALSE(file.on_disk());
 }
 
-// ============================================================================
 // The mock: server.files.delete_file must behave like the other file methods
-// ============================================================================
 
 TEST_CASE("MoonrakerClientMock server.files.delete_file removes the file and reports absence",
           "[print_select][delete][mock]") {
@@ -160,9 +154,7 @@ TEST_CASE("MoonrakerClientMock server.files.delete_file removes the file and rep
     mock.disconnect();
 }
 
-// ============================================================================
 // Metadata rows for a file with no object height (prestonbrown/helixscreen#1713)
-// ============================================================================
 
 TEST_CASE_METHOD(PrintSelectPanelFixture,
                  "A file with no object or layer height shows the unavailable glyph alone",

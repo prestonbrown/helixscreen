@@ -37,15 +37,11 @@
  * - Event callback validation: Events should not fire when backend stopped
  */
 
-// ============================================================================
 // Global LVGL Initialization (called once)
-// ============================================================================
 
 // No LVGL initialization needed - WiFi backend uses std::thread, not LVGL timers
 
-// ============================================================================
 // Test Fixtures
-// ============================================================================
 
 class WiFiBackendTestFixture {
   public:
@@ -60,7 +56,6 @@ class WiFiBackendTestFixture {
     }
 
     ~WiFiBackendTestFixture() {
-        // Cleanup backend
         if (backend) {
             backend->stop();
         }
@@ -127,9 +122,7 @@ class WiFiBackendTestFixture {
     std::string last_event_data;
 };
 
-// ============================================================================
 // Backend Lifecycle Tests
-// ============================================================================
 
 TEST_CASE_METHOD(WiFiBackendTestFixture, "Backend lifecycle",
                  "[network][backend][lifecycle][slow]") {
@@ -191,9 +184,7 @@ TEST_CASE_METHOD(WiFiBackendTestFixture, "Backend lifecycle",
     }
 }
 
-// ============================================================================
 // Event System Tests
-// ============================================================================
 
 TEST_CASE_METHOD(WiFiBackendTestFixture, "Backend event system",
                  "[network][backend][events][slow]") {
@@ -267,9 +258,7 @@ TEST_CASE_METHOD(WiFiBackendTestFixture, "Backend event system",
     }
 }
 
-// ============================================================================
 // Mock Backend Scan Tests
-// ============================================================================
 
 TEST_CASE_METHOD(WiFiBackendTestFixture, "Mock backend scan behavior",
                  "[network][backend][mock][scan][slow]") {
@@ -303,7 +292,6 @@ TEST_CASE_METHOD(WiFiBackendTestFixture, "Mock backend scan behavior",
         // Wait for scan to complete with proper synchronization
         REQUIRE(wait_for_event_count(1, 5000));
 
-        // Get scan results
         std::vector<WiFiNetwork> networks;
         WiFiError result = backend->get_scan_results(networks);
         REQUIRE(result.success());
@@ -411,9 +399,7 @@ TEST_CASE_METHOD(WiFiBackendTestFixture, "Mock backend scan behavior",
     }
 }
 
-// ============================================================================
 // Mock Backend Connection Tests
-// ============================================================================
 
 TEST_CASE_METHOD(WiFiBackendTestFixture, "Mock backend connection behavior",
                  "[network][backend][mock][connect][slow]") {
@@ -441,7 +427,6 @@ TEST_CASE_METHOD(WiFiBackendTestFixture, "Mock backend connection behavior",
             notify_event();
         });
 
-        // Get a secured network
         backend->trigger_scan();
         REQUIRE(wait_for_event_count(1, 5000));
 
@@ -466,7 +451,6 @@ TEST_CASE_METHOD(WiFiBackendTestFixture, "Mock backend connection behavior",
             notify_event();
         });
 
-        // Get available networks
         backend->trigger_scan();
         REQUIRE(wait_for_event_count(1, 5000));
 
@@ -511,7 +495,6 @@ TEST_CASE_METHOD(WiFiBackendTestFixture, "Mock backend connection behavior",
             notify_event();
         });
 
-        // Get networks and connect
         backend->trigger_scan();
         REQUIRE(wait_for_event_count(1, 5000));
 
@@ -538,9 +521,7 @@ TEST_CASE_METHOD(WiFiBackendTestFixture, "Mock backend connection behavior",
     }
 }
 
-// ============================================================================
 // Timer Cleanup Tests
-// ============================================================================
 
 TEST_CASE_METHOD(WiFiBackendTestFixture, "Backend timer cleanup",
                  "[network][backend][cleanup][slow]") {
@@ -563,7 +544,6 @@ TEST_CASE_METHOD(WiFiBackendTestFixture, "Backend timer cleanup",
             notify_event();
         });
 
-        // Get networks
         backend->trigger_scan();
         REQUIRE(wait_for_event_count(1, 5000));
 
@@ -611,13 +591,9 @@ TEST_CASE_METHOD(WiFiBackendTestFixture, "Backend timer cleanup",
     }
 }
 
-// ============================================================================
 // Edge Cases
-// ============================================================================
 
-// ============================================================================
 // Non-Blocking Construction Tests (proposed API)
-// ============================================================================
 //
 // WifiBackend::create() currently calls the concrete backend's start()
 // inline on the calling thread. For WifiBackendNetworkManager that means
@@ -714,23 +690,21 @@ TEST_CASE_METHOD(WiFiBackendTestFixture, "Backend edge cases",
 }
 
 #if !defined(__APPLE__) && !defined(__ANDROID__)
-// ============================================================================
-// Regression: wpa_supplicant backend must NOT report "running" after a FAILED
-// init (helixscreen#1036).
+// wpa_supplicant backend must NOT report "running" after a FAILED init
+// (helixscreen#1036).
 //
 // On a fresh boot the control socket can be present (so discovery + preflight
 // pass) while wpa_supplicant isn't actually answering yet, so the control
-// connection / ATTACH fails. The old code keyed is_running() off init_complete_,
-// which signal_init_complete() sets on *every* init path — success OR failure —
-// so a dead backend reported as "running". The wizard then believed WiFi was up,
-// every scan returned "Backend not started", and nothing ever retried. is_running()
-// now keys off init_succeeded_ (set only on a fully-connected init), so a failed
-// init reports honestly and the retry paths re-attempt.
+// connection / ATTACH fails. is_running() keys off init_succeeded_ (set only on
+// a fully-connected init), not init_complete_, which signal_init_complete() sets
+// on *every* init path — success OR failure. Otherwise a dead backend reports
+// "running", the wizard believes WiFi is up, every scan returns "Backend not
+// started", and nothing ever retries. A failed init must report honestly so the
+// retry paths re-attempt.
 //
 // We fake the failure with a bound-but-unanswered AF_UNIX DGRAM socket pointed at
 // by HELIX_WPA_SOCKET_DIR: directory iteration + is_socket() + permission checks
 // pass, but it speaks no wpa protocol, so init_wpa() fails at connect/ATTACH.
-// ============================================================================
 TEST_CASE("WpaBackend honest is_running after failed init (#1036)",
           "[network][backend][wpa][slow]") {
     char dir_template[] = "/tmp/helix_wpa_test_XXXXXX";
@@ -768,14 +742,12 @@ TEST_CASE("WpaBackend honest is_running after failed init (#1036)",
     ::rmdir(dir);
 }
 
-// ============================================================================
 // read_ctrl_interface_from_conf — config-file ctrl_interface parsing (#1036)
 //
 // Vendor firmwares often launch `wpa_supplicant -c <conf>` with a non-standard
 // ctrl_interface set inside the config file rather than via -O/-C on the
 // command line. The /proc cmdline scan parses that file so we can auto-detect
 // the socket directory without a manual HELIX_WPA_SOCKET_DIR override.
-// ============================================================================
 TEST_CASE("WpaBackend never offers static IPv4, so the row hides", "[network][wifi][ipv4]") {
     WifiBackendWpaSupplicant backend;
     CHECK_FALSE(backend.supports_ipv4_config());

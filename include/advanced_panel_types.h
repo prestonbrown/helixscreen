@@ -22,9 +22,7 @@
 #include <functional>
 #include <string>
 
-// ============================================================================
 // Generic Callback Type Aliases
-// ============================================================================
 // These callbacks are used across multiple domains and don't belong
 // to any single feature area.
 

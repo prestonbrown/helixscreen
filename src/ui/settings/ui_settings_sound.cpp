@@ -72,9 +72,7 @@ void SoundSettingsOverlay::on_activate() {
     init_audio_device_dropdown();
 }
 
-// ============================================================================
 // INIT METHODS
-// ============================================================================
 
 // The slider takes its static XML value at construction, so the persisted
 // volume is pushed on every open.
@@ -151,9 +149,7 @@ void SoundSettingsOverlay::init_audio_device_dropdown() {
     }
 }
 
-// ============================================================================
 // EVENT HANDLERS
-// ============================================================================
 
 void SoundSettingsOverlay::handle_audio_device_changed(int index) {
     auto devices = helix::audio::list();

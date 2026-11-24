@@ -23,9 +23,7 @@
 
 using namespace helix;
 
-// ============================================================================
 // FanDial Implementation
-// ============================================================================
 
 namespace {
 constexpr const char* kRootName = "fan_dial_root";
@@ -528,9 +526,7 @@ void FanDial::update_fan_animation(int speed_pct) {
     }
 }
 
-// ============================================================================
 // XML Event Callbacks
-// ============================================================================
 
 FanDial* FanDial::from_event(lv_event_t* e) {
     for (auto* o = static_cast<lv_obj_t*>(lv_event_get_current_target(e)); o;

@@ -73,12 +73,10 @@ constexpr int kTypeDivergenceTolerance = 50;
 
 } // namespace
 
-// ============================================================================
 // Layer A — physical plausibility
 //
 // These catch data-entry typos: a transposed digit, a dropped decimal point, a
 // value pasted into the wrong column. Every one of them would ship silently.
-// ============================================================================
 
 TEST_CASE("MATERIALS - nozzle range is ordered and physically plausible",
           "[filament][database][invariant]") {
@@ -159,9 +157,7 @@ TEST_CASE("MATERIALS - drying temp is safely below the material's softening poin
     }
 }
 
-// ============================================================================
 // Layer A — structural / relational
-// ============================================================================
 
 TEST_CASE("MATERIALS - every compat group is served by a drying preset or is wholly dry",
           "[filament][database][invariant][drying]") {
@@ -522,9 +518,7 @@ TEST_CASE("MATERIALS - names survive JSON and Orca string matching",
     }
 }
 
-// ============================================================================
 // Cross-consumer guards — independent hardcoded lists that drift apart
-// ============================================================================
 
 #if HELIX_HAS_IFS
 TEST_CASE("AD5X firmware material whitelist all resolves", "[filament][database][invariant]") {
@@ -618,9 +612,9 @@ TEST_CASE_METHOD(HelixTestFixture, "every mock-backend fixture material resolves
 
 TEST_CASE("get_comfort_range covers EVERY material, and only real materials",
           "[filament][database][invariant]") {
-    // get_comfort_range() used to carry its own hardcoded 10-name list, which
-    // covered 10 of 66 materials and disagreed with MATERIALS on drying temps.
-    // It is now derived: humidity from the material's compat group, drying from
+    // get_comfort_range() is derived (a hardcoded name list would cover only a
+    // fraction of the materials and disagree with MATERIALS on drying temps):
+    // humidity from the material's compat group, drying from
     // get_drying_presets_by_group(). Coverage is therefore total by construction,
     // and this asserts that construction actually holds — a compat group with no
     // kGroupHumidityRanges row would fall into the fail-closed nullopt branch and
@@ -716,9 +710,7 @@ TEST_CASE("GROUP_HUMIDITY_RANGES covers every compat group exactly once",
     CHECK(rows == groups); // both directions: no gap, no orphan row
 }
 
-// ============================================================================
 // Layer B — catalog integrity
-// ============================================================================
 
 TEST_CASE_METHOD(HelixTestFixture, "catalog - shipped file loads a substantial catalog",
                  "[filament_data][invariant]") {
@@ -936,7 +928,7 @@ TEST_CASE_METHOD(HelixTestFixture, "catalog - product temps do not wildly contra
 
 TEST_CASE_METHOD(HelixTestFixture, "two-layer closure - every material type is reachable or is",
                  "[filament_data][invariant][closure]") {
-    // ============ THE structural guard for two-layer drift ============
+    // THE structural guard for two-layer drift
     //
     // Layer A (`types`) and Layer B (filaments.json, products) drift
     // because nothing forces them to agree, and every gap so far has been found by

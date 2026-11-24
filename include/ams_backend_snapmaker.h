@@ -5,8 +5,10 @@
 
 #include "ams_insert_signals.h"
 #include "ams_print_routing.h"
+#include "ams_runout_other_head.h"
 #include "ams_step_model.h"
 #include "ams_subscription_backend.h"
+#include "ams_tool_park.h"
 #include "core/timer_guard.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
@@ -59,7 +61,9 @@ class RunoutScopeTestAccess;
 class AmsBackendSnapmaker : public AmsSubscriptionBackend,
                             public helix::IStepOperation,
                             public helix::IInsertSignals,
-                            public helix::IPrintRouting {
+                            public helix::IPrintRouting,
+                            public helix::IRunoutOtherHead,
+                            public helix::IToolPark {
   public:
     [[nodiscard]] void* capability(helix::TypeTag tag) override {
         if (tag == helix::type_tag<helix::IInsertSignals>()) {
@@ -70,6 +74,12 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
         }
         if (tag == helix::type_tag<helix::IPrintRouting>()) {
             return static_cast<helix::IPrintRouting*>(this);
+        }
+        if (tag == helix::type_tag<helix::IRunoutOtherHead>()) {
+            return static_cast<helix::IRunoutOtherHead*>(this);
+        }
+        if (tag == helix::type_tag<helix::IToolPark>()) {
+            return static_cast<helix::IToolPark*>(this);
         }
         return AmsSubscriptionBackend::capability(tag);
     }
@@ -349,6 +359,9 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
   public:
     [[nodiscard]] bool supports_tool_park() const override {
         return true;
+    }
+    AmsError park_active_tool() override final {
+        return run_park_active_tool(supports_tool_park());
     }
 
   protected:

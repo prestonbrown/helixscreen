@@ -8,9 +8,7 @@
 
 using nlohmann::json;
 
-// ============================================================================
 // extract_friendly_message() tests
-// ============================================================================
 
 TEST_CASE("extract_friendly_message parses Klipper error strings", "[moonraker][error]") {
     SECTION("extracts message from Python dict repr with single quotes") {
@@ -85,9 +83,7 @@ TEST_CASE("extract_friendly_message parses Klipper error strings", "[moonraker][
     }
 }
 
-// ============================================================================
 // from_json_rpc() integration — error message gets cleaned up
-// ============================================================================
 
 TEST_CASE("from_json_rpc extracts friendly message from Klipper errors", "[moonraker][error]") {
     SECTION("Klipper homing error gets cleaned up") {
@@ -184,11 +180,8 @@ TEST_CASE("extract_friendly_message skips escaped quotes in the message value",
                 R"({"error":"x","message":"say \"hi\" twice"})") == R"(say "hi" twice)");
 }
 
-// ============================================================================
-// Factory field-setting — these guard the refactor that routes all
-// MoonrakerError construction in src/api/ through static factories. Each case
-// asserts the factory reproduces exactly what the old hand-rolled block set.
-// ============================================================================
+// Factory field-setting: all MoonrakerError construction in src/api/ goes through
+// static factories. Each case asserts the factory sets exactly the expected fields.
 
 TEST_CASE("MoonrakerError::unknown sets UNKNOWN type + message + optional method",
           "[moonraker][error]") {
@@ -214,7 +207,7 @@ TEST_CASE("MoonrakerError::http_status_error formats \"HTTP <code>\" and stores 
     CHECK(err.type == MoonrakerErrorType::UNKNOWN);
     CHECK(err.code == 404);
     CHECK(err.method == "get_power_devices");
-    // The exact string the hand-rolled blocks produced: "HTTP " + to_string(status).
+    // The exact string: "HTTP " + to_string(status).
     CHECK(err.message == "HTTP 404");
 
     // A different status must reflect in both fields (guards a hard-coded 404).

@@ -120,9 +120,7 @@ class MacroManager {
     MacroManager& operator=(MacroManager&&) = delete;
     ~MacroManager();
 
-    // ========================================================================
     // Status Queries
-    // ========================================================================
 
     /**
      * @brief Check if Helix macros are installed
@@ -185,9 +183,7 @@ class MacroManager {
      */
     [[nodiscard]] bool update_available() const;
 
-    // ========================================================================
     // Installation Operations
-    // ========================================================================
 
     /**
      * @brief Stage the Helix macros for installation
@@ -314,9 +310,7 @@ class MacroManager {
      */
     void uninstall(SuccessCallback on_success, ErrorCallback on_error);
 
-    // ========================================================================
     // Macro Content
-    // ========================================================================
 
     /**
      * @brief Get the macro configuration file content

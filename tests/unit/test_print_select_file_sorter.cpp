@@ -11,9 +11,7 @@ using helix::ui::PrintSelectFileSorter;
 using helix::ui::SortColumn;
 using helix::ui::SortDirection;
 
-// ============================================================================
 // Helper Functions
-// ============================================================================
 
 /**
  * @brief Create a file entry for testing
@@ -44,9 +42,7 @@ static PrintFileData make_dir(const std::string& name) {
     return dir;
 }
 
-// ============================================================================
 // Sorting by Filename Tests
-// ============================================================================
 
 TEST_CASE("[FileSorter] Sorting by filename ascending", "[FileSorter]") {
     PrintSelectFileSorter sorter;
@@ -87,9 +83,7 @@ TEST_CASE("[FileSorter] Sorting by filename descending", "[FileSorter]") {
     REQUIRE(files[2].filename == "apple.gcode");
 }
 
-// ============================================================================
 // Sorting by Size Tests
-// ============================================================================
 
 TEST_CASE("[FileSorter] Sorting by size", "[FileSorter]") {
     PrintSelectFileSorter sorter;
@@ -110,9 +104,7 @@ TEST_CASE("[FileSorter] Sorting by size", "[FileSorter]") {
     REQUIRE(files[2].filename == "large.gcode");
 }
 
-// ============================================================================
 // Sorting by Modified Date Tests
-// ============================================================================
 
 TEST_CASE("[FileSorter] Sorting by modified date", "[FileSorter]") {
     PrintSelectFileSorter sorter;
@@ -133,9 +125,7 @@ TEST_CASE("[FileSorter] Sorting by modified date", "[FileSorter]") {
     REQUIRE(files[2].filename == "recent.gcode");
 }
 
-// ============================================================================
 // Sorting by Print Time Tests
-// ============================================================================
 
 TEST_CASE("[FileSorter] Sorting by print time", "[FileSorter]") {
     PrintSelectFileSorter sorter;
@@ -156,9 +146,7 @@ TEST_CASE("[FileSorter] Sorting by print time", "[FileSorter]") {
     REQUIRE(files[2].filename == "long_time.gcode");
 }
 
-// ============================================================================
 // Sorting by Filament Tests
-// ============================================================================
 
 TEST_CASE("[FileSorter] Sorting by filament", "[FileSorter]") {
     PrintSelectFileSorter sorter;
@@ -179,9 +167,7 @@ TEST_CASE("[FileSorter] Sorting by filament", "[FileSorter]") {
     REQUIRE(files[2].filename == "high_filament.gcode");
 }
 
-// ============================================================================
 // Directories First Tests
-// ============================================================================
 
 TEST_CASE("[FileSorter] Directories always first", "[FileSorter]") {
     PrintSelectFileSorter sorter;
@@ -249,9 +235,7 @@ TEST_CASE("[FileSorter] Directories always first", "[FileSorter]") {
     }
 }
 
-// ============================================================================
 // Parent Directory ".." Always First Tests
-// ============================================================================
 
 TEST_CASE("[FileSorter] Parent directory '..' always sorts first", "[FileSorter]") {
     // NOTE: Default sort is MODIFIED DESCENDING. All directories get
@@ -329,9 +313,7 @@ TEST_CASE("[FileSorter] Parent directory '..' always sorts first", "[FileSorter]
     }
 }
 
-// ============================================================================
 // Toggle Sort Direction Tests
-// ============================================================================
 
 TEST_CASE("[FileSorter] Toggle sort direction", "[FileSorter]") {
     PrintSelectFileSorter sorter;
@@ -366,9 +348,7 @@ TEST_CASE("[FileSorter] Toggle sort direction", "[FileSorter]") {
     REQUIRE(files[2].filename == "c.gcode");
 }
 
-// ============================================================================
 // New Column Resets Direction Tests
-// ============================================================================
 
 TEST_CASE("[FileSorter] New column resets to ascending", "[FileSorter]") {
     PrintSelectFileSorter sorter;
@@ -396,9 +376,7 @@ TEST_CASE("[FileSorter] New column resets to ascending", "[FileSorter]") {
     REQUIRE(files[2].filename == "b.gcode"); // 3000 bytes
 }
 
-// ============================================================================
 // Edge Cases
-// ============================================================================
 
 TEST_CASE("[FileSorter] Empty list handling", "[FileSorter]") {
     PrintSelectFileSorter sorter;

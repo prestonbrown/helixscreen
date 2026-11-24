@@ -118,9 +118,7 @@ TouchGate check_touch_request(bool control_allowed, bool lan_mode, const std::st
     return TouchGate::Allowed;
 }
 
-// ---------------------------------------------------------------------------
 // PairingStore
-// ---------------------------------------------------------------------------
 
 std::string PairingStore::generate_code() {
     // Rejection sampling keeps every code equally likely.
@@ -267,9 +265,7 @@ bool remote_control_active(std::optional<std::chrono::steady_clock::time_point> 
     return last_touch && now - *last_touch < std::chrono::milliseconds(kRemoteControlActiveMs);
 }
 
-// ---------------------------------------------------------------------------
 // TouchSession
-// ---------------------------------------------------------------------------
 
 bool TouchSession::on_event(const TouchEvent& e, std::chrono::steady_clock::time_point now) {
     std::lock_guard<std::mutex> lock(mutex_);

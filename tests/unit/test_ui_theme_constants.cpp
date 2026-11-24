@@ -41,15 +41,12 @@ class ThemeConstantsFixture : public LVGLTestFixture {
         out << content;
     }
 
-    // Helper to check if a key exists in a map
     template <typename MapType> bool has_key(const MapType& map, const std::string& key) {
         return map.find(key) != map.end();
     }
 };
 
-// ============================================================================
 // Static Color Registration Tests
-// ============================================================================
 
 TEST_CASE_METHOD(ThemeConstantsFixture, "ui_theme: static color with no variants is registered",
                  "[ui_theme][constants][color]") {
@@ -95,9 +92,7 @@ TEST_CASE_METHOD(ThemeConstantsFixture, "ui_theme: multiple static colors are re
     cleanup_temp_dir();
 }
 
-// ============================================================================
 // Static Px Registration Tests
-// ============================================================================
 
 TEST_CASE_METHOD(ThemeConstantsFixture, "ui_theme: static px with no variants is registered",
                  "[ui_theme][constants][px]") {
@@ -143,16 +138,13 @@ TEST_CASE_METHOD(ThemeConstantsFixture, "ui_theme: multiple static px values are
     cleanup_temp_dir();
 }
 
-// ============================================================================
 // Dynamic Color Suffix Tests
-// ============================================================================
 
 TEST_CASE_METHOD(ThemeConstantsFixture,
                  "ui_theme: dynamic color suffixes are included in all-element parse",
                  "[ui_theme][constants][color][dynamic]") {
     setup_temp_xml_dir();
 
-    // Write XML with _light and _dark suffixes
     write_xml("theme.xml", R"(
 <component>
     <consts>
@@ -211,9 +203,7 @@ TEST_CASE_METHOD(ThemeConstantsFixture,
     cleanup_temp_dir();
 }
 
-// ============================================================================
 // Dynamic Px Suffix Tests
-// ============================================================================
 
 TEST_CASE_METHOD(ThemeConstantsFixture,
                  "ui_theme: dynamic px suffixes are included in all-element parse",
@@ -274,9 +264,7 @@ TEST_CASE_METHOD(ThemeConstantsFixture,
     cleanup_temp_dir();
 }
 
-// ============================================================================
 // Static and Dynamic Coexistence Tests
-// ============================================================================
 
 TEST_CASE_METHOD(ThemeConstantsFixture, "ui_theme: static and dynamic constants coexist correctly",
                  "[ui_theme][constants][coexist]") {
@@ -339,9 +327,7 @@ TEST_CASE_METHOD(ThemeConstantsFixture, "ui_theme: suffix parsing does not match
     cleanup_temp_dir();
 }
 
-// ============================================================================
 // Empty Directory Handling Tests
-// ============================================================================
 
 TEST_CASE_METHOD(ThemeConstantsFixture, "ui_theme: empty XML directory - graceful handling",
                  "[ui_theme][constants][edge]") {
@@ -378,15 +364,12 @@ TEST_CASE_METHOD(ThemeConstantsFixture, "ui_theme: NULL directory - graceful han
     REQUIRE(result.empty());
 }
 
-// ============================================================================
 // Malformed XML Handling Tests
-// ============================================================================
 
 TEST_CASE_METHOD(ThemeConstantsFixture, "ui_theme: malformed XML - graceful degradation",
                  "[ui_theme][constants][edge]") {
     setup_temp_xml_dir();
 
-    // Write invalid XML
     write_xml("invalid.xml", R"(
 <component>
     <consts>
@@ -432,9 +415,7 @@ TEST_CASE_METHOD(ThemeConstantsFixture, "ui_theme: malformed XML does not affect
     cleanup_temp_dir();
 }
 
-// ============================================================================
 // File Discovery Tests
-// ============================================================================
 
 TEST_CASE_METHOD(ThemeConstantsFixture, "ui_theme: find_xml_files returns sorted list",
                  "[ui_theme][constants][files]") {
@@ -463,7 +444,6 @@ TEST_CASE_METHOD(ThemeConstantsFixture, "ui_theme: find_xml_files ignores non-xm
 
     write_xml("test.xml", "<component/>");
 
-    // Create non-XML files
     std::ofstream(temp_dir / "readme.txt") << "test";
     std::ofstream(temp_dir / "data.json") << "{}";
 
@@ -475,9 +455,7 @@ TEST_CASE_METHOD(ThemeConstantsFixture, "ui_theme: find_xml_files ignores non-xm
     cleanup_temp_dir();
 }
 
-// ============================================================================
 // Multi-File Override Tests
-// ============================================================================
 
 TEST_CASE_METHOD(ThemeConstantsFixture, "ui_theme: later files override earlier files (last-wins)",
                  "[ui_theme][constants][override]") {
@@ -509,9 +487,7 @@ TEST_CASE_METHOD(ThemeConstantsFixture, "ui_theme: later files override earlier 
     cleanup_temp_dir();
 }
 
-// ============================================================================
 // String Element Tests
-// ============================================================================
 
 TEST_CASE_METHOD(ThemeConstantsFixture, "ui_theme: string elements are parsed correctly",
                  "[ui_theme][constants][string]") {
@@ -535,9 +511,7 @@ TEST_CASE_METHOD(ThemeConstantsFixture, "ui_theme: string elements are parsed co
     cleanup_temp_dir();
 }
 
-// ============================================================================
 // Constant Set Validation Tests
-// ============================================================================
 
 TEST_CASE_METHOD(ThemeConstantsFixture, "ui_theme: complete responsive px set passes validation",
                  "[ui_theme][validation][responsive]") {

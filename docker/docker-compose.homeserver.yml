@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# HelixScreen on a home server (docs/user/guide/install-docker.md).
+# Edit PRINTER_URL, then: docker compose -f docker-compose.homeserver.yml up -d
+# The screen opens in a browser at http://<this server>:7130/
+services:
+  helixscreen:
+    # Build it here (docker build -f docker/Dockerfile.homeserver docker), or use
+    # the image name you pushed it under.
+    image: helixscreen/homeserver:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.homeserver
+      args:
+        CHANNEL: stable
+    container_name: helixscreen
+    restart: unless-stopped
+    environment:
+      PRINTER_URL: 192.168.1.50:7125
+      # PAIR_CODE: "123456"
+      # SCREEN_SIZE: 1024x600
+    ports:
+      - "7130:7130"
+    volumes:
+      - helixscreen-config:/config
+
+volumes:
+  helixscreen-config:

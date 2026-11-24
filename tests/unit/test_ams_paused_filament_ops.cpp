@@ -11,11 +11,11 @@
  * recovery workflow, so refusing it everywhere made HelixScreen the only surface
  * that could not perform the recovery Klipper had just asked for.
  *
- * The gate is not removed, it is narrowed to where it was earned. AD5X IFS
+ * The gate applies only where it is needed. AD5X IFS
  * unloads via `_IFS_REMOVE_CURRENT_PRUTOK`, which runs a buried `_G28` inside
  * ZMOD firmware; on that loadcell-Z printer the probe drives the nozzle DOWN
  * into the part, tripping ZCONTROL_AUTO into a Klipper shutdown that needs a
- * firmware restart (bundle XWPBR2DX, commit 329e731e9). Layer 1's gcode-send
+ * firmware restart (bundle XWPBR2DX). Layer 1's gcode-send
  * guard never sees that `_G28`, so AD5X must still refuse while paused.
  *
  * The four cells these tests pin:
@@ -139,9 +139,7 @@ struct PausedGateFixture : public LVGLTestFixture {
 
 } // namespace
 
-// ============================================================================
 // The capability itself
-// ============================================================================
 
 TEST_CASE_METHOD(PausedGateFixture,
                  "filament_ops_self_home: AD5X is the only backend that claims it",
@@ -163,9 +161,7 @@ TEST_CASE_METHOD(PausedGateFixture,
     CHECK_FALSE(make<helix::AmsBackendSnapmaker>()->filament_ops_self_home());
 }
 
-// ============================================================================
 // Cell 1 + 2: PRINTING refuses for BOTH kinds of backend
-// ============================================================================
 
 TEST_CASE_METHOD(PausedGateFixture, "PRINTING refuses toolhead-motion ops on every backend",
                  "[ams][safety][paused]") {
@@ -212,9 +208,7 @@ TEST_CASE_METHOD(PausedGateFixture, "PRINTING refuses toolhead-motion ops on eve
     }
 }
 
-// ============================================================================
 // Cell 3: PAUSED still refuses on a self-homing backend (XWPBR2DX protection)
-// ============================================================================
 
 #if HELIX_HAS_IFS
 TEST_CASE_METHOD(PausedGateFixture, "PAUSED still refuses on AD5X — the buried _G28 would collide",
@@ -242,9 +236,7 @@ TEST_CASE_METHOD(PausedGateFixture, "PAUSED still refuses on AD5X — the buried
 }
 #endif // HELIX_HAS_IFS
 
-// ============================================================================
 // The load refinement: a self-homing backend whose home is skipped once homed
-// ============================================================================
 
 TEST_CASE("print_blocks_filament_load: the paused cell follows the homed toolhead",
           "[ams][safety][paused][ad5x]") {
@@ -365,9 +357,7 @@ TEST_CASE_METHOD(PausedGateFixture, "a paused AD5X loads only on a homed toolhea
 }
 #endif // HELIX_HAS_IFS
 
-// ============================================================================
 // Cell 4: PAUSED now SUCCEEDS on a backend that does not self-home
-// ============================================================================
 
 TEST_CASE_METHOD(PausedGateFixture,
                  "PAUSED allows toolhead-motion ops when the backend never homes",
@@ -395,8 +385,7 @@ TEST_CASE_METHOD(PausedGateFixture,
     }
 }
 
-// ============================================================================
-// Snapmaker U1 — the backend 329e731e9 missed
+// Snapmaker U1
 //
 // Every op below drives the toolhead: AUTO_FEEDING forwards to FEED_AUTO, which
 // homes and then switches tools before feeding, and `T{n}` moves the carriage.
@@ -406,7 +395,6 @@ TEST_CASE_METHOD(PausedGateFixture,
 //
 // Asserting `dispatched` (not just the AmsError) is the point: a guard placed
 // after the command is built returns the refusal AND still sends the G-code.
-// ============================================================================
 
 TEST_CASE_METHOD(PausedGateFixture, "Snapmaker refuses toolhead-motion filament ops while PRINTING",
                  "[ams][snapmaker][safety][paused]") {
@@ -503,9 +491,7 @@ TEST_CASE_METHOD(PausedGateFixture, "Snapmaker filament ops are untouched with n
     }
 }
 
-// ============================================================================
 // States that were never gated stay ungated
-// ============================================================================
 
 TEST_CASE_METHOD(PausedGateFixture, "inactive print states allow motion ops on every backend",
                  "[ams][safety][paused]") {
@@ -525,7 +511,6 @@ TEST_CASE_METHOD(PausedGateFixture, "inactive print states allow motion ops on e
     }
 }
 
-// ============================================================================
 // PREPARING — the window print_stats cannot describe
 //
 // A host-side pre-start block (the K2's forced bed mesh) runs BEFORE the printer
@@ -541,7 +526,6 @@ TEST_CASE_METHOD(PausedGateFixture, "inactive print states allow motion ops on e
 //
 // Mutation check: revert refuse_if_printing() to
 // print_occupies_toolhead(get_print_job_state()) and every case below fails.
-// ============================================================================
 
 TEST_CASE_METHOD(PausedGateFixture, "PREPARING refuses toolhead-motion ops on every backend",
                  "[ams][safety][preparing]") {
@@ -592,9 +576,7 @@ TEST_CASE_METHOD(PausedGateFixture, "abandoning the pre-print block re-permits f
     CHECK(afc->check_preconditions(true).success());
 }
 
-// ============================================================================
 // The error factory in isolation — the copy is the user-facing contract
-// ============================================================================
 
 TEST_CASE("AmsErrorHelper::print_active copy matches the state it describes",
           "[ams][safety][paused]") {
@@ -622,7 +604,6 @@ TEST_CASE("AmsErrorHelper::print_active copy matches the state it describes",
     }
 }
 
-// ============================================================================
 // The cold-lane exemption is about OUR gate, not the firmware's
 //
 // check_preconditions(false) never consults print state, which is right for
@@ -631,10 +612,9 @@ TEST_CASE("AmsErrorHelper::print_active copy matches the state it describes",
 // return`. That refusal ends in a bare return with the G-code still acked as
 // success, so an ungated Eject reports success and moves nothing.
 //
-// This is the one condition eject_lane() still checks locally. The rest of that
-// macro's if/elif chain used to be mirrored too and was removed in
-// prestonbrown/helixscreen#1258; this predicate stayed because it is stable
-// across every AFC version and is the same rule the context menu greys on.
+// This is the one condition eject_lane() checks locally, rather than mirroring
+// the rest of that macro's if/elif chain (prestonbrown/helixscreen#1258): it is
+// stable across every AFC version and is the same rule the context menu greys on.
 //
 // is_printing() is `print_stats.state == "printing"` exactly — NOT in_print() —
 // so PAUSED genuinely reaches the firmware and must stay allowed.
@@ -642,7 +622,6 @@ TEST_CASE("AmsErrorHelper::print_active copy matches the state it describes",
 // Mutation check: drop the refuse_if_printing() call from eject_lane() and the
 // PRINTING section fails; widen it to print_occupies_toolhead() and the PAUSED
 // section fails.
-// ============================================================================
 
 namespace helix {
 
@@ -742,9 +721,7 @@ TEST_CASE_METHOD(PausedGateFixture, "AFC is the backend whose cold lane ops the 
 #endif
 }
 
-// ============================================================================
 // Park Toolhead: the shared gate refuses a paused job for every caller
-// ============================================================================
 
 TEST_CASE_METHOD(PausedGateFixture, "park_active_tool is refused while paused or printing",
                  "[ams][safety][paused][park]") {

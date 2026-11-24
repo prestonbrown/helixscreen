@@ -224,9 +224,7 @@ void estimate_file(const std::string& filename, const FileMetadata& metadata,
     settle(p);
 }
 
-// ---------------------------------------------------------------------------
 // ActivePrintCost
-// ---------------------------------------------------------------------------
 
 namespace {
 

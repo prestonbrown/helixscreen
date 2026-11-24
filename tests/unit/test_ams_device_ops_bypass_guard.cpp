@@ -333,7 +333,7 @@ TEST_CASE_METHOD(DeviceOpsBypassFixture,
     backend->wait_for_operation_thread();
     settle();
 
-    // THE REGRESSION ASSERTION: the lane was unloaded on the way in. A direct
+    // The lane was unloaded on the way in. A direct
     // enable_bypass() leaves slot 0 LOADED while current_slot flips to -2 —
     // filament in a lane the firmware no longer feeds from.
     CHECK(backend->get_slot_info(0).status == SlotStatus::AVAILABLE);

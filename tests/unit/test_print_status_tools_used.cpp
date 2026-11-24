@@ -134,10 +134,10 @@ TEST_CASE_METHOD(ToolsUsedFixture, "A single-tool file still answers {0} when st
                  "[gcode][viewer][tools_used][slow]") {
     // The single-extruder convention, which is the half the two paths do NOT
     // share by construction: GCodeParser::finalize() writes {0} for a file that
-    // names no tool but carries a colour palette, while the streaming index
+    // names no tool but carries a color palette, while the streaming index
     // scan has no opinion about palettes and reports nothing. Both answers have
     // to agree for the same file, so the convention is applied where they meet.
-    // 3DBenchy carries no standalone T line at all and one filament colour, so
+    // 3DBenchy carries no standalone T line at all and one filament color, so
     // the raw index scan reports nothing and the convention is the only thing
     // that can produce an answer.
     const std::string asset = find_test_asset("3DBenchy.gcode");

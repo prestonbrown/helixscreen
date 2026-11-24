@@ -21,14 +21,11 @@
 
 using namespace helix;
 
-// ============================================================================
 // Basic State Tests
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "BusyOverlay initial state", "[ui_busy_overlay][state]") {
     spdlog::set_level(spdlog::level::debug);
 
-    // Ensure clean state before test
     BusyOverlay::hide();
 
     SECTION("Initially not visible") {
@@ -43,9 +40,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "BusyOverlay initial state", "[ui_busy_overlay
     spdlog::set_level(spdlog::level::warn);
 }
 
-// ============================================================================
 // Show Behavior Tests
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "BusyOverlay show with grace period", "[ui_busy_overlay][show]") {
     spdlog::set_level(spdlog::level::debug);
@@ -54,22 +49,18 @@ TEST_CASE_METHOD(LVGLTestFixture, "BusyOverlay show with grace period", "[ui_bus
     SECTION("Show starts as pending") {
         BusyOverlay::show("Testing...", 300);
 
-        // Should be pending, not yet visible
         REQUIRE(BusyOverlay::is_pending() == true);
         REQUIRE(BusyOverlay::is_visible() == false);
 
         BusyOverlay::hide();
     }
 
-    // NOTE: Timer-based test skipped due to LVGL timer interaction issues in headless mode
-    // The grace period functionality works correctly in the real app; this is a test
-    // infrastructure limitation. Manual testing confirms timers work in SDL mode.
-    // SECTION("Show becomes visible after grace period") { ... }
+    // The grace-period expiry is not covered here: LVGL timers do not run reliably in
+    // headless mode. It is checked by hand in SDL mode.
 
     SECTION("Show with zero grace period is immediate") {
         BusyOverlay::show("Testing...", 0);
 
-        // Should be visible immediately
         REQUIRE(BusyOverlay::is_visible() == true);
         REQUIRE(BusyOverlay::is_pending() == false);
 
@@ -80,9 +71,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "BusyOverlay show with grace period", "[ui_bus
     spdlog::set_level(spdlog::level::warn);
 }
 
-// ============================================================================
 // Hide Behavior Tests
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "BusyOverlay hide behavior", "[ui_busy_overlay][hide]") {
     spdlog::set_level(spdlog::level::debug);
@@ -94,11 +83,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "BusyOverlay hide behavior", "[ui_busy_overlay
 
         BusyOverlay::hide();
 
-        // Should cancel the pending show
         REQUIRE(BusyOverlay::is_pending() == false);
         REQUIRE(BusyOverlay::is_visible() == false);
-
-        // Timer interaction skipped - verified manually in SDL mode
     }
 
     SECTION("Hide removes visible overlay") {
@@ -112,7 +98,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "BusyOverlay hide behavior", "[ui_busy_overlay
     }
 
     SECTION("Hide is safe to call when not showing") {
-        // Should not crash
         BusyOverlay::hide();
         BusyOverlay::hide();
         BusyOverlay::hide();
@@ -125,9 +110,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "BusyOverlay hide behavior", "[ui_busy_overlay
     spdlog::set_level(spdlog::level::warn);
 }
 
-// ============================================================================
 // Multiple Cycle Tests
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "BusyOverlay multiple show/hide cycles",
                  "[ui_busy_overlay][cycle]") {
@@ -135,20 +118,15 @@ TEST_CASE_METHOD(LVGLTestFixture, "BusyOverlay multiple show/hide cycles",
     BusyOverlay::hide();
 
     SECTION("Multiple show/hide cycles work correctly") {
-        // First cycle
         BusyOverlay::show("First", 0);
         REQUIRE(BusyOverlay::is_visible() == true);
         BusyOverlay::hide();
         REQUIRE(BusyOverlay::is_visible() == false);
 
-        // Second cycle
         BusyOverlay::show("Second", 0);
         REQUIRE(BusyOverlay::is_visible() == true);
         BusyOverlay::hide();
         REQUIRE(BusyOverlay::is_visible() == false);
-
-        // Third cycle with grace period - timer tests skipped
-        // Verified manually in SDL mode
     }
 
     SECTION("Rapid show/hide doesn't cause issues") {
@@ -165,9 +143,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "BusyOverlay multiple show/hide cycles",
     spdlog::set_level(spdlog::level::warn);
 }
 
-// ============================================================================
 // Edge Cases
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "BusyOverlay edge cases", "[ui_busy_overlay][edge]") {
     spdlog::set_level(spdlog::level::debug);
@@ -177,11 +153,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "BusyOverlay edge cases", "[ui_busy_overlay][e
         BusyOverlay::show("First text", 300);
         REQUIRE(BusyOverlay::is_pending() == true);
 
-        // Second show updates text but doesn't restart timer
         BusyOverlay::show("Second text", 300);
         REQUIRE(BusyOverlay::is_pending() == true);
 
-        // Timer verification skipped - verified manually in SDL mode
         BusyOverlay::hide();
     }
 
@@ -189,7 +163,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "BusyOverlay edge cases", "[ui_busy_overlay][e
         BusyOverlay::show("First text", 0);
         REQUIRE(BusyOverlay::is_visible() == true);
 
-        // Second show should just update text
         BusyOverlay::show("Second text", 0);
         REQUIRE(BusyOverlay::is_visible() == true);
 
@@ -214,7 +187,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "BusyOverlay edge cases", "[ui_busy_overlay][e
     SECTION("Progress percentage bounds") {
         BusyOverlay::show("Test", 0);
 
-        // These shouldn't crash
         BusyOverlay::set_progress("Test", 0.0f);
         BusyOverlay::set_progress("Test", 100.0f);
         BusyOverlay::set_progress("Test", -5.0f);  // Below range

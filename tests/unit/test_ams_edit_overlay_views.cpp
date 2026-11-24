@@ -8,6 +8,7 @@
 
 #include "ui_ams_edit_overlay.h"
 #include "ui_ams_lane_settings.h"
+#include "ui_button.h"
 #include "ui_color_picker_page.h"
 #include "ui_component_keypad.h"
 #include "ui_modal.h"
@@ -800,9 +801,8 @@ TEST_CASE_METHOD(EditorFixture, "picker row names a spool by its filament name",
 
 TEST_CASE_METHOD(EditorFixture, "picker search burst renders once, after the pause",
                  "[ams_edit_overlay][picker][search]") {
-    // Regression: every value_changed used to rebuild the whole spool list
-    // synchronously - at a few hundred spools that froze the keyboard for the
-    // length of the rebuild, per keystroke (K2 Plus report 2026-08-30).
+    // A synchronous list rebuild per value_changed freezes the keyboard for the
+    // length of the rebuild, per keystroke, at a few hundred spools.
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
 
@@ -849,8 +849,8 @@ TEST_CASE_METHOD(EditorFixture, "picker search burst renders once, after the pau
 
 TEST_CASE_METHOD(EditorFixture, "picker zero-match shows no-match state, not fetch-error retry",
                  "[ams_edit_overlay][picker][search]") {
-    // The empty-filter result and the failed fetch used to share state 1, so
-    // a term that matches nothing flashed "No spools found - tap to retry"
+    // The empty-filter result and the failed fetch must not share state 1, or a
+    // term that matches nothing flashes "No spools found - tap to retry"
     // mid-word. A successful fetch with no matches is state 3: informational,
     // not an error, and not clickable.
     auto& overlay = get_ams_edit_overlay();
@@ -883,7 +883,7 @@ TEST_CASE_METHOD(EditorFixture, "picker zero-match shows no-match state, not fet
 
 TEST_CASE_METHOD(EditorFixture, "picker-entry spool selection commits and closes the editor",
                  "[ams_edit_overlay][picker][header_save]") {
-    // Task #13: when the editor is opened directly on the picker (context-menu
+    // When the editor is opened directly on the picker (context-menu
     // "Select spool"), choosing a spool is a one-tap commit — apply + close the
     // whole overlay via the header-Save commit path, firing completion with the
     // applied spool. Spoolman is left unavailable so commit_and_close takes the
@@ -977,11 +977,11 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
 TEST_CASE_METHOD(OverlayConsumerCommitFixture,
                  "picker-entry relink to a different spool never prompts or PATCHes the old spool",
                  "[ams_edit_overlay][filament_picker][picker][header_save]") {
-    // Task #16 regression: a slot linked to spool A, opened directly on the
-    // picker, then switched to a DIFFERENT spool B is a pure RELINK — not an
-    // edit of A's identity. The old "Different filament?" confirm + identity
-    // PATCH would clobber the wrong Spoolman record. Assert: no confirm modal,
-    // completion fires once with spool B, and NO spool/filament PATCH is sent.
+    // A slot linked to spool A, opened directly on the picker, then switched to a
+    // DIFFERENT spool B is a pure RELINK, not an edit of A's identity. The
+    // "Different filament?" confirm + identity PATCH would clobber the wrong Spoolman record.
+    // Assert: no confirm modal, completion fires once with spool B, and NO spool/filament PATCH is
+    // sent.
 
     // Seed the currently-linked spool A (id 7) so the open-time re-fetch has an
     // authoritative record and leaves original_info_ as A's identity.
@@ -1050,7 +1050,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
 TEST_CASE_METHOD(OverlayConsumerCommitFixture,
                  "Different Spool then Use never prompts or PATCHes the old spool",
                  "[ams_edit_overlay][filament_picker][picker][header_save]") {
-    // Task #16 through Edit Spool: Different Spool, then Use on another spool.
+    // Through Edit Spool: Different Spool, then Use on another spool.
     // Same relink semantics: no confirm, no PATCH of the old spool.
 
     SpoolInfo linked_a;
@@ -1111,11 +1111,11 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
 TEST_CASE_METHOD(OverlayConsumerCommitFixture,
                  "active_spool widget completion routes the edit through commit_slot_edit",
                  "[ams_edit_overlay][active_spool][commit]") {
-    // Final-review find: ActiveSpoolWidget is the sixth completion consumer of
-    // the shared edit overlay. Its backend-slot arm used to write the backend
-    // directly (apply_user_edit) — no server active-spool sync, no identity
-    // invalidation. The consumer commit owns both; this drives the widget's
-    // own click → editor → Save path and asserts the server sync fired.
+    // ActiveSpoolWidget is the sixth completion consumer of the shared edit
+    // overlay. Its backend-slot arm must not write the backend directly
+    // (apply_user_edit), which skips the server active-spool sync and the
+    // identity invalidation. The consumer commit owns both; this drives the
+    // widget's own click → editor → Save path and asserts the server sync fired.
 
     // The mock backend starts with slot 0 loaded and current by construction;
     // give that lane a Spoolman link the way a live one carries it.
@@ -1164,8 +1164,8 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     const SlotInfo after = backend->get_slot_info(0);
     REQUIRE(after.color_rgb == 0x1E5AA8u);
     REQUIRE(after.spoolman_id == 169);
-    // ...AND the server active-spool sync fired — the old direct-write arm
-    // never did, which is exactly the branch regression this pins.
+    // ...AND the server active-spool sync fired, which a direct backend write
+    // never does.
     REQUIRE(client.spoolman_mock().get_mock_active_spool_id() == 169);
 }
 
@@ -1866,9 +1866,7 @@ TEST_CASE("AmsEditOverlay::save_is_disabled holds Save shut while a save is in f
     }
 }
 
-// ============================================================================
 // Identity dropdown form: pure selection rules + option publishing
-// ============================================================================
 
 TEST_CASE("selection_from_slot splits family/variant/brand", "[ams_edit_overlay][dropdown]") {
     SlotInfo info;
@@ -3783,9 +3781,7 @@ TEST_CASE_METHOD(MockApiUiFixture,
     set_spoolman_available(false);
 }
 
-// ============================================================================
 // The lane's own settings: Assigned Tool and the Endless Spool backup
-// ============================================================================
 
 namespace {
 /// Open the editor on @p slot as the AMS panels do, with the slot as the
@@ -4469,9 +4465,7 @@ TEST_CASE_METHOD(MockApiUiFixture,
     process_lvgl(10);
 }
 
-// ============================================================================
 // Save waits for the lane to hold it
-// ============================================================================
 
 namespace {
 
@@ -4638,6 +4632,54 @@ TEST_CASE_METHOD(SaveAckFixture, "a save with the filament system idle just says
     client.fire_deferred("server.database.post_item");
     settle();
     CHECK(access.closed());
+}
+
+TEST_CASE_METHOD(SaveAckFixture, "a save in flight or failed moves nothing on the summary page",
+                 "[ams_edit_overlay][save_ack][layout]") {
+    AmsEditOverlayViewTestAccess access(get_ams_edit_overlay());
+    client.defer_next("server.database.post_item");
+    save_petg(access);
+    REQUIRE(access.save_state() == 1);
+    process_lvgl(10);
+
+    lv_obj_t* page = access.widget("summary_page");
+    lv_obj_t* card = access.widget("summary_card");
+    lv_obj_t* save = access.widget("btn_edit_save");
+    REQUIRE((page && card && save));
+    lv_obj_update_layout(page);
+    // The card heads the page, and Save ends on the screen.
+    const auto card_top = [&] { return lv_obj_get_y(card); };
+    const auto save_bottom = [&] {
+        lv_area_t a;
+        lv_obj_get_coords(save, &a);
+        return a.y2;
+    };
+    const int screen_h = lv_display_get_vertical_resolution(lv_obj_get_display(save));
+    const int idle_top = card_top();
+    const int idle_save_bottom = save_bottom();
+    CHECK(idle_top == 0);
+    CHECK(idle_save_bottom < screen_h);
+    // Save carries the progress itself: a spinner in its icon slot.
+    lv_obj_t* spinner = ui_button_get_op_spinner(save);
+    REQUIRE(spinner != nullptr);
+    CHECK_FALSE(lv_obj_has_flag(spinner, LV_OBJ_FLAG_HIDDEN));
+
+    client.fire_deferred_error("server.database.post_item",
+                               MoonrakerError::unknown("database is read-only"));
+    settle();
+    REQUIRE(access.save_state() == 2);
+    lv_obj_update_layout(page);
+    CHECK(card_top() == idle_top);
+    CHECK(save_bottom() == idle_save_bottom);
+    // The failure reads beside Save, inside the action row.
+    lv_obj_t* error = access.widget("save_error");
+    REQUIRE(error != nullptr);
+    CHECK_FALSE(lv_obj_has_flag(error, LV_OBJ_FLAG_HIDDEN));
+    lv_area_t e, row;
+    lv_obj_get_coords(error, &e);
+    lv_obj_get_coords(access.widget("summary_actions"), &row);
+    CHECK(e.y1 >= row.y1);
+    CHECK(e.y2 <= row.y2);
 }
 
 TEST_CASE_METHOD(SaveAckFixture, "a save whose write fails keeps the editor open and says why",
@@ -4823,10 +4865,8 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     }
     close_editor_overlay();
 }
-// ============================================================================
 // Assign Spool: sizes, common spools, the local assign and its history, the
 // closing toast.
-// ============================================================================
 
 namespace {
 struct AssignCapture {
@@ -5143,10 +5183,8 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     }
 }
 
-// ============================================================================
 // Review fixes: per-toast Undo, lane settings on Assign, list re-arm, Undo
 // guard, history writes, list cost.
-// ============================================================================
 
 namespace {
 /// Use spool @p spool_id on @p slot through a pick-a-spool session, committed

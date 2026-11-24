@@ -27,9 +27,7 @@
 
 using namespace helix;
 
-// ============================================================================
 // Per-widget user data (managed via static registry for safe shutdown)
-// ============================================================================
 
 /**
  * @brief User data stored on each ams_lane_bar widget.
@@ -131,9 +129,7 @@ static void cleanup_all_lane_bar_data() {
     spdlog::debug("[AmsLaneBar] Pre-deinit cleanup: all lane bar data released");
 }
 
-// ============================================================================
 // Rendering
-// ============================================================================
 
 /**
  * @brief Border is layered from TWO independent decorations over the base
@@ -241,9 +237,7 @@ static void apply_lane_color(LaneBarData* d, int color_int) {
     lv_obj_set_style_bg_opa(d->bar_fill, LV_OPA_COVER, LV_PART_MAIN);
 }
 
-// ============================================================================
 // Widget Event Handler (for cleanup)
-// ============================================================================
 
 static void ams_lane_bar_event_cb(lv_event_t* e) {
     lv_event_code_t code = lv_event_get_code(e);
@@ -256,9 +250,7 @@ static void ams_lane_bar_event_cb(lv_event_t* e) {
     }
 }
 
-// ============================================================================
 // Observers
-// ============================================================================
 
 /**
  * @brief Setup observers for the widget's current slot_index.
@@ -399,9 +391,7 @@ static void setup_lane_bar_observers(LaneBarData* data) {
     spdlog::trace("[AmsLaneBar] Created observers for slot {}", data->slot_index);
 }
 
-// ============================================================================
 // XML Handlers
-// ============================================================================
 
 static void* ams_lane_bar_xml_create(lv_xml_parser_state_t* state, const char** attrs) {
     void* parent = lv_xml_state_get_parent(state);
@@ -496,9 +486,7 @@ static void ams_lane_bar_xml_apply(lv_xml_parser_state_t* state, const char** at
     }
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 namespace helix::ui {
 void ams_lane_bar_create_range(lv_obj_t* parent, int first_slot_index, int slot_count,

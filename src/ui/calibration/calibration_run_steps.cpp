@@ -48,9 +48,7 @@ void stop_with_firmware_restart(IMoonrakerAPI& api, const char* tag) {
     emergency_stop_and_restart(&api, tag);
 }
 
-// ============================================================================
 // Heaters: PID_CALIBRATE per heater, or MPC_CALIBRATE where it already runs MPC
-// ============================================================================
 
 class HeatersStep : public CalibrationStep {
   public:
@@ -364,9 +362,7 @@ class HeatersStep : public CalibrationStep {
     helix::AsyncLifetimeGuard lifetime_;
 };
 
-// ============================================================================
 // Bed mesh: the bed mesh panel's own calibration, into the default profile
-// ============================================================================
 
 class BedMeshStep : public CalibrationStep {
   public:
@@ -462,9 +458,7 @@ class BedMeshStep : public CalibrationStep {
     bool aborted_ = false;
 };
 
-// ============================================================================
 // Input shaper: the calibrator's noise check, then both axes
-// ============================================================================
 
 class InputShaperStep : public CalibrationStep {
   public:
@@ -577,9 +571,7 @@ class InputShaperStep : public CalibrationStep {
     helix::AsyncLifetimeGuard lifetime_;
 };
 
-// ============================================================================
 // Z offset: the Z offset panel in run mode; leaving it unaccepted skips
-// ============================================================================
 
 class ZOffsetStep : public CalibrationStep {
   public:
@@ -839,9 +831,7 @@ std::unique_ptr<CalibrationStep> make_run_step(const StepInfo& info, const RunOp
     }
 }
 
-// ============================================================================
 // Finisher
-// ============================================================================
 
 std::unique_ptr<PrinterBusyWatch> make_printer_busy_watch(PrinterState& state) {
     return std::make_unique<IdleTimeoutBusyWatch>(state);

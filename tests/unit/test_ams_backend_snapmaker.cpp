@@ -183,9 +183,7 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker detection via filament_detect", "[
     }
 }
 
-// ============================================================================
 // Backend Construction Tests
-// ============================================================================
 
 #include "ams_backend_snapmaker.h"
 
@@ -235,14 +233,12 @@ TEST_CASE_METHOD(SnapmakerFixture, "AmsBackendSnapmaker construction", "[ams][sn
     }
 }
 
-// ============================================================================
 // The U1's own sequence homes and heats
 //
 // FEED_AUTO walks load_homing -> load_feeding -> load_heating -> ... and
 // unload_homing -> unload_picking -> unload_heating -> ..., setting its own
 // nozzle target from the lane's material. A UI preheat or G28 in front of it
 // is a second wait the firmware repeats anyway.
-// ============================================================================
 
 TEST_CASE_METHOD(SnapmakerFixture, "The U1 homes and heats for its own loads",
                  "[ams][snapmaker][homing][preheat]") {
@@ -264,9 +260,7 @@ TEST_CASE_METHOD(SnapmakerFixture, "The U1 homes and heats for its own loads",
                                                    &backend, /*toolhead_homed=*/false));
 }
 
-// ============================================================================
 // Feeder / Toolhead noun tests
-// ============================================================================
 
 TEST_CASE_METHOD(SnapmakerFixture,
                  "Snapmaker ToolInfo::display_label names the toolhead, not the feeder",
@@ -297,9 +291,7 @@ TEST_CASE_METHOD(SnapmakerFixture,
     AmsState::instance().clear_backends();
 }
 
-// ============================================================================
 // Operation Step Model Tests
-// ============================================================================
 
 TEST_CASE_METHOD(SnapmakerFixture,
                  "Snapmaker get_operation_step_model is the per-direction firmware sequence",
@@ -354,14 +346,12 @@ TEST_CASE_METHOD(SnapmakerFixture,
     }
 }
 
-// ============================================================================
 // Filament Operation Command Tests
-// ============================================================================
 
 TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker load routes through AUTO_FEEDING LOAD=1",
                  "[ams][snapmaker][load]") {
-    // The mirror of the unload contract below, and previously unasserted — the
-    // gap that let a UI-layer change silently swap this command for `T{n}`.
+    // The mirror of the unload contract below: pinned so a UI-layer change cannot
+    // silently swap this command for `T{n}`.
     //
     // FEED_AUTO silent-returns when passed no LOAD/UNLOAD parameter, and `T{n}`
     // only seats the carriage without feeding, so both wrong answers look like
@@ -431,13 +421,11 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker unload routes through AUTO_FEEDING
     }
 
     SECTION("unload_active_filament with T3 loaded dispatches EXTRUDER=3 (U1 field bug)") {
-        // Regression for the Snapmaker U1 Filament-panel-unload wrong-tool bug
-        // (Discord report from Bart, 2026-07-20): with T3 loaded, hitting Unload
-        // on the Filament panel sent EXTRUDER=0 (stale current_slot) and the
-        // firmware dutifully visited T0 first. The fix routes through
-        // unload_active_filament(), which resolves current_slot ONCE in the base
-        // class — same snapshot the UI's "is anything loaded?" guard used — so
-        // the two can never diverge.
+        // With T3 loaded, Unload on the Filament panel must send EXTRUDER=3, not
+        // EXTRUDER=0 from a stale current_slot (the firmware would visit T0
+        // first). unload_active_filament() resolves current_slot ONCE in the base
+        // class — the same snapshot the UI's "is anything loaded?" guard uses —
+        // so the two cannot diverge.
         helix::test::StartedBackend<CapturingSnapmakerBackend> backend;
         backend.set_loaded_slot(3);
         auto err = backend.unload_active_filament();
@@ -1470,9 +1458,7 @@ TEST_CASE_METHOD(SnapmakerFixture,
     }
 }
 
-// ============================================================================
 // Full 39-state channel_state coverage (action + operation_phase)
-// ============================================================================
 // Every firmware channel_state (filament_feed.py:34-72, firmware 20260608) maps
 // to the correct AmsAction and step index. Driven off the single
 // classify_channel_state() table in the backend.
@@ -1584,7 +1570,7 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker fail on an idle empty non-active l
 TEST_CASE_METHOD(SnapmakerFixture,
                  "Snapmaker motion-sensor runout path is independent of the loaded latch",
                  "[ams][snapmaker][channel_state][runout]") {
-    // No regression: mid-print runout is still driven by the per-tool motion
+    // Mid-print runout is driven by the per-tool motion
     // sensor (e{N}_filament), a different question from "is the lane loaded".
     // The loaded latch must NOT be touched by a motion-sensor runout — filament
     // that stops moving is still loaded at the toolhead, it just ran out upstream.
@@ -1634,9 +1620,7 @@ TEST_CASE_METHOD(SnapmakerFixture,
     }
 }
 
-// ============================================================================
 // Extruder State Parser Tests
-// ============================================================================
 
 TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker extruder state parsing", "[ams][snapmaker]") {
     SECTION("parses parked extruder") {
@@ -1733,9 +1717,7 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker extruder state parsing", "[ams][sn
     }
 }
 
-// ============================================================================
 // RFID Info Parser Tests
-// ============================================================================
 
 TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker RFID info parsing", "[ams][snapmaker]") {
     SECTION("parses full RFID tag data") {
@@ -1835,9 +1817,7 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker RFID info parsing", "[ams][snapmak
     }
 }
 
-// ============================================================================
-// Task 12: filament slot override integration
-// ============================================================================
+// Filament slot override integration
 
 TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker clear_slot_override drops the Spoolman handles",
                  "[ams][snapmaker][filament_slot_override][1625]") {
@@ -2179,8 +2159,8 @@ TEST_CASE_METHOD(SnapmakerFixture,
     CHECK(!mock_printer.client.mock_db_get("lane_data", "T0").is_null());
 
     // Simulate a subsequent Klipper status update with conflicting firmware
-    // data. Pre-Task-12 this wiped the user's edit; the fix is that
-    // apply_overrides re-layers the saved override over the parse output.
+    // data. The user's edit must survive: apply_overrides re-layers the
+    // saved override over the parse output.
     json status =
         make_filament_detect_status(0, "ABS", 0xFF0000FFu, "OtherBrand", json::array({1, 2, 3, 4}));
     backend.fire_status(status);
@@ -2600,9 +2580,7 @@ TEST_CASE_METHOD(SnapmakerFixture,
     }
 }
 
-// ============================================================================
 // Auto-mirror
-// ============================================================================
 
 TEST_CASE_METHOD(SnapmakerFixture,
                  "Snapmaker auto-mirror uses OverwriteAlways policy after firmware writeback",
@@ -2657,9 +2635,7 @@ TEST_CASE_METHOD(SnapmakerFixture,
     CHECK(lower == "#112233");
 }
 
-// ============================================================================
 // The auto-mirror and the lane's declaring sources (prestonbrown/helixscreen#1654)
-// ============================================================================
 //
 // OverwriteAlways hands a colour or material to firmware because a user's edit
 // reaches firmware too, so the two converge. A Spoolman record never reaches
@@ -2780,13 +2756,11 @@ TEST_CASE_METHOD(SnapmakerFixture,
     CHECK(backend.get_slot_info(0).color_rgb == 0x112233u);
 }
 
-// ============================================================================
 // prepare_for_resume: classify_pause() decides whether a pause can resume.
 // An inactive virtual_sdcard alone is not terminal; the terminal matchers
 // (dirty bed, defect exception 532 code 1) answer RESUME_REQUIRES_RESTART up
 // front. A recoverable pause whose head reads filament present skips the
 // recovery load; one reading absent needs the API to load it.
-// ============================================================================
 
 TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker prepare_for_resume classifies the pause",
                  "[ams][snapmaker][resume]") {
@@ -2873,12 +2847,10 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker prepare_for_resume authors a trans
     CHECK(captured.user_msg == std::string(expected));
 }
 
-// ---------------------------------------------------------------------------
 // #991 FIX 2 — the filament-config re-assert is sent as its OWN gcode and is
 // best-effort: a config rejection must NOT abort the heat/feed/extrude chain.
 // FIX 3 — when the AMS load fails, prepare_for_resume reports COMMAND_FAILED so
 // the caller never dispatches RESUME.
-// ---------------------------------------------------------------------------
 
 namespace {
 // Wire up a full mock stack + Snapmaker backend with slot 0 populated from a
@@ -2997,12 +2969,10 @@ TEST_CASE_METHOD(SnapmakerFixture,
     }
 }
 
-// ---------------------------------------------------------------------------
 // A head whose load failed holds Resume until its feeder reports load_finish
 // with no error. The head presence switch reads "present" for filament that
 // reached the toolhead and stopped short of the nozzle, so it vouches for
 // nothing.
-// ---------------------------------------------------------------------------
 
 namespace {
 /// prepare_for_resume once, drained; the answer it gave.
@@ -3395,16 +3365,14 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker resume after a paused manual load 
                            "AUTO_FEEDING EXTRUDER=0 LOAD=1 PRINTING=1") == 1);
 }
 
-// ============================================================================
 // last_print_tool_mapping — the routing a reprint has to replay
-// ============================================================================
 //
 // get_tool_mapping() answers "what routing is live right now" and deliberately
 // goes empty the moment extruders_used clears, which is exactly when a reprint
 // needs the answer. Nothing else on the reprint path can reconstruct it: there
 // is no detail view, no swatch card and no picker, so a remapped file could not
-// be reprinted at all — the empty remap resolved every used tool to its
-// firmware-default head and wrote that over the crossover.
+// be reprinted at all — an empty remap would resolve every used tool to its
+// firmware-default head and write that over the crossover.
 //
 // The snapshot is taken while the task is still configured, so it survives both
 // the gate closing and the firmware resetting its own table.
@@ -3492,9 +3460,7 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker records the routing a configured t
     }
 }
 
-// ============================================================================
 // Resume-refusal classification
-// ============================================================================
 
 // The U1 refuses RESUME while a used extruder has no material assigned, and
 // says so only on the `!!` broadcast channel: print_stats.exception keeps
@@ -3581,9 +3547,7 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker claims the not-edit-filament resum
     }
 }
 
-// ============================================================================
-// Task 13: the insert rule on the feed-port edge (#1710)
-// ============================================================================
+// The insert rule on the feed-port edge (#1710)
 // The port flag's false -> true edge is the insert; the tag reader's answer
 // for the new spool lands a frame or two later in filament_detect.info. These
 // tests pin the pending-verdict contract: the edge holds its judgement until
@@ -3843,14 +3807,12 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker has a toolhead sensor once a head 
     CHECK(backend.get_system_info().units[0].has_toolhead_sensor);
 }
 
-// ============================================================================
 // Golden sequence: one full status frame, then the deltas a U1 sends for a
 // load, an unload, an RFID insert, a failed batch head and a temperature-only
 // extruder update. Each frame is pinned as a text snapshot of what the parse
 // leaves behind (slots, action, working slot, latch, pending-insert state)
 // plus the side effects it dispatches after releasing the lock. Any reordering
 // of the parse sections shows up here as a changed line.
-// ============================================================================
 
 namespace {
 
@@ -4131,7 +4093,7 @@ action=Error phase=-1 detail='Feeder 1: Load failed' working=-1 tool=1 slot=1 lo
   s3 Available PETG/Snapmaker/Basic #445566 n0-0 b0 w500 latch=false pend=0 state=wait_insert detected=true
   batch_active=false port_present=1 events=0 gcodes= toasts=0 unloaded=1
 )GOLD";
-} // namespace
+}
 
 TEST_CASE_METHOD(SnapmakerGoldenFixture, "Snapmaker golden status sequence",
                  "[ams][snapmaker][golden]") {
@@ -4215,11 +4177,9 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker extruder delta frames keep the fie
     CHECK(held.switch_count == 7);
 }
 
-// ============================================================================
 // Empty carriage: toolhead.extruder names the last head used, not a mounted
 // one, so a head reporting PARKED is never the active tool
 // (prestonbrown/helixscreen#1784).
-// ============================================================================
 
 namespace {
 // The frame read from the U1 idle after a print: every head parked while
@@ -4350,9 +4310,7 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker forgets channel silence as a start
     CHECK(backend->get_slot_info(0).spool_name == "SnapSpeed");
 }
 
-// ============================================================================
 // print_task_config filament record: SET_PRINT_FILAMENT_CONFIG write + resume repair
-// ============================================================================
 //
 // The U1 refuses RESUME ("e<N> not edit filament") while a head the print uses
 // has no filament_type in print_task_config. Only an RFID spool or
@@ -5114,9 +5072,7 @@ TEST_CASE_METHOD(SnapmakerFixture,
     CHECK(index_of_containing(hist, "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=2 ") < hist.size());
 }
 
-// ============================================================================
 // Official-flag repair: a card-less head flagged official by an endpoint write
-// ============================================================================
 
 namespace {
 
@@ -5510,11 +5466,9 @@ TEST_CASE_METHOD(SnapmakerFixture,
     CHECK(h.backend.get_slot_info(2).material != "ABS");
 }
 
-// ============================================================================
 // print_task_config drift: the firmware forgets a head's record when filament
 // leaves the toolhead (an unload, unload-at-end, a runout), while the lane's
 // declaration stands for the spool still in the feeder.
-// ============================================================================
 
 namespace {
 
@@ -6096,10 +6050,8 @@ TEST_CASE_METHOD(SnapmakerFixture,
     CHECK(h.config_writes().size() == 2);
 }
 
-// ============================================================================
 // At a print's start, each head its file uses that its feeder reports not
 // loaded, and that the firmware will not load itself, gets one warning.
-// ============================================================================
 
 namespace {
 json used_heads(const std::vector<bool>& used) {

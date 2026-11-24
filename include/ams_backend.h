@@ -27,7 +27,6 @@
 #include "lane_binding.h"
 #include "lane_source_store.h"
 #include "print_start_params.h"
-#include "runout_other_head.h"
 #include "tool_mapping_origin.h"
 #include "toolchanger_addon.h"
 #include "toolhead_style.h"
@@ -181,16 +180,6 @@ match_material(const std::string& material, const std::vector<std::string>& list
 class AmsBackend : public AmsCapabilityHost {
   public:
     virtual ~AmsBackend() = default;
-
-    /**
-     * @brief Bed Y this system's mounted hardware makes unprintable, in mm
-     *
-     * A rear-mounted cassette can sit over the far edge of the bed; the
-     * print-start fit check subtracts this from the machine's Y limit.
-     */
-    [[nodiscard]] virtual double printable_y_shrink_mm() const {
-        return 0.0;
-    }
 
     // ========================================================================
     // Event Types
@@ -492,17 +481,6 @@ class AmsBackend : public AmsCapabilityHost {
      */
     [[nodiscard]] virtual bool tag_owns_filament_record(int slot_index) const {
         (void)slot_index;
-        return false;
-    }
-
-    /**
-     * @brief Whether this backend's tag readings can name a Spoolman spool
-     *
-     * True when tag_reading() fills TagReading::spoolman_id for tags that
-     * carry one. Gates the setting that links a lane to the spool its tag
-     * names; the linking itself reads only tag_reading().
-     */
-    [[nodiscard]] virtual bool tags_name_spoolman_spools() const {
         return false;
     }
 
@@ -1481,24 +1459,6 @@ class AmsBackend : public AmsCapabilityHost {
     virtual AmsError change_tool(int tool_number) = 0;
 
     /**
-     * @brief Put the tool on the carriage back in its dock (async)
-     *
-     * Leaves the carriage empty. Only a machine with docked toolheads can do
-     * this: a Snapmaker U1 sends PARK_EXTRUDER, klipper-toolchanger
-     * UNSELECT_TOOL. Results arrive as a state change, like unload_filament().
-     *
-     * @return not_loaded() when nothing is mounted; not_supported() by default
-     */
-    virtual AmsError park_active_tool() {
-        return AmsErrorHelper::not_supported("Tool park");
-    }
-
-    /// Whether park_active_tool() can act on this printer.
-    [[nodiscard]] virtual bool supports_tool_park() const {
-        return false;
-    }
-
-    /**
      * @brief The G-code a generated print sends to put tool @p tool's head on
      *        the carriage, moving no filament.
      *
@@ -2274,19 +2234,6 @@ class AmsBackend : public AmsCapabilityHost {
     }
 
     /**
-     * @brief What helix::runout_other_head needs to offer continuing a
-     *        runout-paused print on another loaded head (#2137).
-     *
-     * @param runout_head The head whose filament ran out.
-     * @note Overrides take the backend's own `mutex_`; callers must NOT hold it.
-     * @return Default: nullopt, this backend reports nothing to decide on.
-     */
-    [[nodiscard]] virtual std::optional<helix::runout_other_head::RunoutFacts>
-    runout_other_head_facts(int /*runout_head*/) const {
-        return std::nullopt;
-    }
-
-    /**
      * @brief The endless-spool relation for the whole system.
      *
      * Groups, not per-slot successors - see helix::printer::EndlessSpoolConfig.
@@ -2587,49 +2534,6 @@ class AmsBackend : public AmsCapabilityHost {
     /// it holds, filament ops and other machine-moving actions are refused.
     [[nodiscard]] virtual bool device_action_running() const {
         return false;
-    }
-
-    /// A question the UI asks after a slot edit commits, for printer state the
-    /// edit implies but did not write. Strings are translated.
-    struct EditFollowUp {
-        std::string title;
-        std::string message;
-        std::string confirm_label;
-    };
-
-    /**
-     * @brief What to offer after a slot edit, if anything
-     *
-     * @param slot_index The edited slot
-     * @param before The slot as it was before the edit
-     * @param after The slot as committed
-     * @return The question to ask, or nullopt for none
-     */
-    [[nodiscard]] virtual std::optional<EditFollowUp>
-    edit_follow_up(int slot_index, const SlotInfo& before, const SlotInfo& after) const {
-        (void)slot_index;
-        (void)before;
-        (void)after;
-        return std::nullopt;
-    }
-
-    /**
-     * @brief Apply the follow-up edit_follow_up() offered, once the user agrees
-     *
-     * Re-asks the offer's question first: the printer may have moved on while
-     * the dialog was up.
-     *
-     * @param slot_index The edited slot
-     * @param before The slot as it was before the edit
-     * @param after The slot as committed
-     * @return AmsError indicating success/failure
-     */
-    virtual AmsError run_edit_follow_up(int slot_index, const SlotInfo& before,
-                                        const SlotInfo& after) {
-        (void)slot_index;
-        (void)before;
-        (void)after;
-        return AmsErrorHelper::not_supported("Edit follow-up");
     }
 
     // ========================================================================

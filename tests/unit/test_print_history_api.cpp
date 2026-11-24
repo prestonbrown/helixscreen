@@ -31,9 +31,7 @@
 
 using namespace helix;
 
-// ============================================================================
 // Test Fixture
-// ============================================================================
 
 class PrintHistoryTestFixture : public LVGLTestFixture {
   public:
@@ -54,9 +52,7 @@ class PrintHistoryTestFixture : public LVGLTestFixture {
     std::unique_ptr<MoonrakerAPI> api_;
 };
 
-// ============================================================================
 // get_history_list Tests
-// ============================================================================
 
 // get_history_list() releases the response DOM as soon as the jobs are built,
 // because that document is the largest the app parses (714 KB / ~3.9 MB of heap
@@ -100,9 +96,7 @@ TEST_CASE_METHOD(PrintHistoryTestFixture, "get_history_list reads the response b
     }
 }
 
-// ============================================================================
 // get_history_totals Tests
-// ============================================================================
 
 TEST_CASE_METHOD(PrintHistoryTestFixture, "get_history_totals returns statistics",
                  "[history][api]") {
@@ -135,9 +129,7 @@ TEST_CASE_METHOD(PrintHistoryTestFixture, "get_history_totals returns statistics
     // So we don't test for them here
 }
 
-// ============================================================================
 // delete_history_job Tests
-// ============================================================================
 
 TEST_CASE_METHOD(PrintHistoryTestFixture, "delete_history_job calls success callback",
                  "[history][api]") {
@@ -174,9 +166,7 @@ TEST_CASE_METHOD(PrintHistoryTestFixture, "delete_history_job calls success call
     REQUIRE_FALSE(error_called.load());
 }
 
-// ============================================================================
 // PrintHistoryJob Parsing Tests
-// ============================================================================
 
 // A QIDI Q2 Moonraker copies slicer settings into metadata as JSON strings
 // (prestonbrown/helixscreen#1713). This row is verbatim from a Q2.
@@ -438,9 +428,7 @@ TEST_CASE("Parse job with null end_time (in-progress job)", "[history][parsing]"
     REQUIRE(job.layer_height == 0.2);
 }
 
-// ============================================================================
-// Real Voron Printer Data Tests (from user's 192.168.1.112)
-// ============================================================================
+// Real Voron Printer Data Tests
 
 // Exact JSON response from curl to real Voron printer
 static const char* kRealVoronHistory5Jobs = R"({
@@ -555,9 +543,7 @@ TEST_CASE("Parse real Voron printer history data", "[history][parsing][voron]") 
     REQUIRE(jobs[4].filament_used > 63000.0); // 63m of filament!
 }
 
-// ============================================================================
 // Status String Parsing Tests (production parse_job_status function)
-// ============================================================================
 
 TEST_CASE("Parse all Moonraker status strings", "[history][parsing]") {
     // Test the production parse_job_status() function from print_history_data.h
@@ -597,9 +583,7 @@ TEST_CASE("Parse all Moonraker status strings", "[history][parsing]") {
     }
 }
 
-// ============================================================================
 // Threading
-// ============================================================================
 
 // parse_history_job runs on the WebSocket thread while the language and time
 // format change on the main thread: under TSan this reports any setting,

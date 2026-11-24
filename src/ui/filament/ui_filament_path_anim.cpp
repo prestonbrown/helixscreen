@@ -132,9 +132,7 @@ void output_x_anim_cb(void* var, int32_t value) {
 
 } // namespace
 
-// ============================================================================
 // Segment transition
-// ============================================================================
 
 void start_segment_animation(lv_obj_t* obj, FilamentPathData* data, int from_segment,
                              int to_segment) {
@@ -195,9 +193,7 @@ void stop_segment_animation(lv_obj_t* obj, FilamentPathData* data) {
     stop_flow_animation(obj, data);
 }
 
-// ============================================================================
 // Error pulse
-// ============================================================================
 
 void start_error_pulse(lv_obj_t* obj, FilamentPathData* data) {
     if (!obj || !data || data->anim.error_pulse_active)
@@ -229,9 +225,7 @@ void stop_error_pulse(lv_obj_t* obj, FilamentPathData* data) {
     data->anim.error_pulse_opa = LV_OPA_COVER;
 }
 
-// ============================================================================
 // Heat glow pulse
-// ============================================================================
 
 void start_heat_pulse(lv_obj_t* obj, FilamentPathData* data) {
     if (!obj || !data || data->anim.heat_pulse_active)
@@ -263,9 +257,7 @@ void stop_heat_pulse(lv_obj_t* obj, FilamentPathData* data) {
     data->anim.heat_pulse_opa = LV_OPA_COVER;
 }
 
-// ============================================================================
 // Flow particles
-// ============================================================================
 
 namespace {
 
@@ -331,9 +323,7 @@ void set_manual_motion(lv_obj_t* obj, FilamentPathData* data, helix::FilamentMot
     queue_invalidate(obj);
 }
 
-// ============================================================================
 // Output-X slide (LINEAR topology)
-// ============================================================================
 
 void start_output_x_animation(lv_obj_t* obj, FilamentPathData* data, int32_t from_x, int32_t to_x) {
     if (!obj || !data)
@@ -368,9 +358,7 @@ void start_output_x_animation(lv_obj_t* obj, FilamentPathData* data, int32_t fro
     lv_anim_start(&anim);
 }
 
-// ============================================================================
 // Teardown
-// ============================================================================
 
 // output_x_anim_cb is intentionally not deleted here (matching the widget's
 // teardown contract): its exec/completed callbacks no-op once the registry

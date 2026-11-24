@@ -6,17 +6,16 @@
  *
  * PrintStatusPanel caches raw pointers into a widget tree whose lifetime it does
  * not own, and every PrinterState observer it registers lands as a queued
- * observe<int> lambda. The TSan nightly (08-30 and 08-31) died in exactly
- * that gap: a queued print-start-progress apply drained from a fixture
- * destructor AFTER lv_obj_delete(root) had freed the tree, so
- * on_print_start_progress_changed() ran lv_bar_set_value() on the freed
- * preparing bar.
+ * observe<int> lambda. That gap bites when a queued print-start-progress
+ * apply is drained from a fixture destructor AFTER lv_obj_delete(root) has
+ * freed the tree: on_print_start_progress_changed() would run
+ * lv_bar_set_value() on the freed preparing bar.
  *
- * The pointers were only being dropped on the explicit destroy_overlay_ui()
- * path (on_ui_destroyed()). A raw lv_obj_delete gives the panel no call — the
- * same hole PowerPanel had (#776 family), closed there with an LV_EVENT_DELETE
- * hook on the panel root. These tests pin the same contract here: populate,
- * delete the tree, then drain.
+ * The pointers are dropped on the explicit destroy_overlay_ui() path
+ * (on_ui_destroyed()), but a raw lv_obj_delete gives the panel no call, the
+ * same hole as PowerPanel (#776 family), closed with an LV_EVENT_DELETE hook on
+ * the panel root. These tests pin that contract: populate, delete the tree,
+ * then drain.
  */
 
 #include "ui_panel_print_status.h"
@@ -43,9 +42,9 @@ namespace {
 
 /// Is the panel's delete hook still installed on `obj` for this panel instance?
 ///
-/// Reaches into LVGL's event list rather than inferring from behaviour: the
+/// Reaches into LVGL's event list rather than inferring from behavior: the
 /// point is that the hook must be gone *before* anything can fire it, and a
-/// behavioural probe would have to trigger the very use-after-free under test.
+/// behavioral probe would have to trigger the very use-after-free under test.
 /// Same probe as test_power_panel_teardown_uaf.cpp.
 bool delete_hook_installed(lv_obj_t* obj, const void* panel) {
     for (uint32_t i = 0; i < lv_obj_get_event_count(obj); ++i) {
@@ -82,7 +81,7 @@ TEST_CASE_METHOD(
 
     // A print-start-progress change fires the panel's observe<int> observer
     // synchronously; the handler itself is queued. This is the pending lambda
-    // the nightly drained after the tree was already gone.
+    // that drains after the tree is already gone.
     lv_subject_set_int(state().print_state().get_print_start_progress_subject(), 42);
 
     // Tree dies while the handler is still sitting in the queue.
@@ -142,7 +141,7 @@ TEST_CASE_METHOD(PrintStatusPanelFixture,
     panel().destroy_overlay_ui(cached);
 
     // Deletion is deferred: the tree is detached but still allocated, so these
-    // probe it directly rather than inferring from behaviour.
+    // probe it directly rather than inferring from behavior.
     CHECK(cached == nullptr);
     CHECK_FALSE(delete_hook_installed(tree, &panel()));
     CHECK(panel().get_panel() == nullptr);

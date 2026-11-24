@@ -171,7 +171,6 @@ TEST_CASE("a trailing slash on the config root does not double up", "[local_incl
     CHECK(plan.include_line == "[include /mnt/UDISK/printer_data/config/helixscreen.conf]");
 }
 
-// ============================================================================
 // Symlinked trees — the AD5M
 //
 // /root/printer_data/config is a symlink to /opt/config (verified on the device,
@@ -179,7 +178,6 @@ TEST_CASE("a trailing slash on the config root does not double up", "[local_incl
 // two ways. A literal prefix test calls that a local-write case and would edit a
 // vendor file behind Moonraker's back on a printer whose config the file API
 // addresses perfectly well.
-// ============================================================================
 
 TEST_CASE("AD5M: a config reached through a symlinked root is not a local-write case",
           "[local_include]") {

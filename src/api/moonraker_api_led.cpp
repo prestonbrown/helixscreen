@@ -11,14 +11,11 @@
 
 using namespace moonraker_internal;
 
-// ============================================================================
 // LED Control Operations
-// ============================================================================
 
 void MoonrakerAPI::set_led(const std::string& led, double red, double green, double blue,
                            double white, SuccessCallback on_success, ErrorCallback on_error,
                            SuccessCallback on_queued, bool caller_surfaces_errors, bool silent) {
-    // Reject NaN/Inf before any G-code generation
     if (reject_non_finite({red, green, blue, white}, "set_led", on_error)) {
         return;
     }
@@ -30,7 +27,6 @@ void MoonrakerAPI::set_led(const std::string& led, double red, double green, dou
         return;
     }
 
-    // Clamp color values to 0.0-1.0 range
     red = std::clamp(red, 0.0, 1.0);
     green = std::clamp(green, 0.0, 1.0);
     blue = std::clamp(blue, 0.0, 1.0);

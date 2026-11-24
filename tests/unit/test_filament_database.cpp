@@ -13,9 +13,7 @@
 using namespace filament;
 using Catch::Approx;
 
-// ============================================================================
 // find_material tests
-// ============================================================================
 
 TEST_CASE("find_material - exact name lookup", "[filament][database]") {
     auto result = find_material("PLA");
@@ -73,9 +71,7 @@ TEST_CASE("find_material - verifies all new fields populated", "[filament][datab
     CHECK(std::string_view(result->compat_group) == "ABS_ASA");
 }
 
-// ============================================================================
 // resolve_alias tests
-// ============================================================================
 
 TEST_CASE("resolve_alias - Nylon resolves to PA", "[filament][database][alias]") {
     auto resolved = resolve_alias("Nylon");
@@ -107,9 +103,7 @@ TEST_CASE("resolve_alias - Polycarbonate resolves to PC", "[filament][database][
     CHECK(resolved == "PC");
 }
 
-// ============================================================================
 // find_material with aliases
-// ============================================================================
 
 TEST_CASE("find_material - Nylon alias returns PA info", "[filament][database][alias]") {
     auto result = find_material("Nylon");
@@ -132,9 +126,7 @@ TEST_CASE("find_material - ULTEM alias returns PEI info", "[filament][database][
     CHECK(std::string_view(result->compat_group) == "HIGH_TEMP");
 }
 
-// ============================================================================
 // are_materials_compatible tests
-// ============================================================================
 
 TEST_CASE("are_materials_compatible - same group PLA variants", "[filament][database][compat]") {
     CHECK(are_materials_compatible("PLA", "PLA-CF"));
@@ -188,9 +180,7 @@ TEST_CASE("are_materials_compatible - both unknown returns true", "[filament][da
     CHECK(are_materials_compatible("FooBar", "BazQux"));
 }
 
-// ============================================================================
 // get_compatibility_group tests
-// ============================================================================
 
 TEST_CASE("get_compatibility_group - known material returns group",
           "[filament][database][compat]") {
@@ -209,9 +199,7 @@ TEST_CASE("get_compatibility_group - unknown material returns nullptr",
     CHECK(get_compatibility_group("UnknownMaterial") == nullptr);
 }
 
-// ============================================================================
 // get_drying_presets_by_group tests
-// ============================================================================
 
 TEST_CASE("get_drying_presets_by_group - returns non-empty vector",
           "[filament][database][drying]") {
@@ -265,9 +253,7 @@ TEST_CASE("get_drying_presets_by_group - presets have unique groups",
     }
 }
 
-// ============================================================================
 // weight_to_length_m tests
-// ============================================================================
 
 TEST_CASE("weight_to_length_m - 1kg PLA calculation", "[filament][database][weight]") {
     // 1kg PLA (density 1.24 g/cm³) at 1.75mm diameter
@@ -301,9 +287,7 @@ TEST_CASE("weight_to_length_m - different densities", "[filament][database][weig
     CHECK(length_abs > length_pla); // ABS is less dense, more length per kg
 }
 
-// ============================================================================
 // MaterialInfo helper method tests
-// ============================================================================
 
 TEST_CASE("MaterialInfo::needs_enclosure - PLA does not need enclosure",
           "[filament][database][helpers]") {
@@ -395,9 +379,7 @@ TEST_CASE("MaterialInfo::nozzle_recommended - PEEK high temp", "[filament][datab
     CHECK(peek->nozzle_recommended() == 395);
 }
 
-// ============================================================================
 // Additional coverage tests
-// ============================================================================
 
 TEST_CASE("get_materials_by_category - Standard category", "[filament][database]") {
     auto materials = get_materials_by_category("Standard");
@@ -441,9 +423,7 @@ TEST_CASE("get_all_material_names - returns all materials", "[filament][database
     CHECK(names.size() == shipped_materials()->size());
 }
 
-// ============================================================================
-// Phase 1: New materials tests (composites, nylon variants, TPU variants, recycled)
-// ============================================================================
+// New materials tests (composites, nylon variants, TPU variants, recycled)
 
 TEST_CASE("Phase 1 - ABS composites exist", "[filament][database][phase1]") {
     // Carbon and glass fiber ABS variants
@@ -517,7 +497,7 @@ TEST_CASE("Phase 1 - PC-GF exists", "[filament][database][phase1]") {
 }
 
 TEST_CASE("Phase 1 - Material count increased", "[filament][database][phase1]") {
-    // After Phase 1, should have ~50 materials (35 original + ~15 new)
+    // The shipped list holds ~50 materials (35 base + ~15 composites and variants)
     CHECK(shipped_materials()->size() >= 48);
 }
 
@@ -541,9 +521,7 @@ TEST_CASE("Phase 1 - All compat groups have representatives", "[filament][databa
     CHECK(groups_found.count("HIGH_TEMP") == 1);
 }
 
-// ============================================================================
-// Phase 2: ams_types.h integration tests (get_default_drying_presets delegates to filament)
-// ============================================================================
+// ams_types.h integration tests (get_default_drying_presets delegates to filament)
 
 TEST_CASE("Phase 2 - get_default_drying_presets covers all compat groups",
           "[filament][database][phase2][ams]") {
@@ -553,7 +531,6 @@ TEST_CASE("Phase 2 - get_default_drying_presets covers all compat groups",
     // Should have presets for all 7 compat groups
     CHECK(presets.size() >= 7);
 
-    // Verify we have the expected groups
     auto has_preset = [&presets](std::string_view name) {
         for (const auto& p : presets) {
             if (p.name == name)
@@ -606,11 +583,9 @@ TEST_CASE("Phase 2 - get_default_drying_presets includes fan_pct",
     }
 }
 
-// ============================================================================
 // Orphan-type closure: types that shipped in assets/filaments.json with no
 // filament_database.h entry, so they inherited nothing (0 °C bed, 0 density,
 // empty compat group) through filament_catalog.cpp::to_effective().
-// ============================================================================
 
 TEST_CASE("orphan catalog types now resolve with complete data", "[filament][database]") {
     // Every one of these had >= 1 product in assets/filaments.json but no

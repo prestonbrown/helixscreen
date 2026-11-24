@@ -343,7 +343,6 @@ class TimelapseState {
     // both the WebSocket background thread and the UI thread)
     mutable std::mutex render_mutex_;
 
-    // Last successfully rendered filename
     std::string last_rendered_filename_;
 
     // Optional callback fired on render success (invoked via queue_update)

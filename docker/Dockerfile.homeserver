@@ -1,0 +1,89 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# HelixScreen on a home server: the released Linux x86_64 desktop build, run with no
+# display and no panel, pointed at a printer's Moonraker. Its screen is seen and driven
+# from a browser through Screen Sharing (docs/user/guide/screen-sharing.md).
+#
+# Build (from the repository root):
+#   docker build -t helixscreen/homeserver -f docker/Dockerfile.homeserver docker
+#   docker build -t helixscreen/homeserver:beta --build-arg CHANNEL=beta \
+#       -f docker/Dockerfile.homeserver docker
+#   docker build ... --build-arg RELEASE=v1.1.0 ...   # one particular release
+#
+# Run: docker/docker-compose.homeserver.yml, or docs/user/guide/install-docker.md.
+#
+# The package is downloaded from releases.helixscreen.org and checked against the
+# sha256 in the channel's manifest. Only releases that carry helixscreen-x86-desktop.zip
+# (1.1 and newer) can be built.
+
+FROM debian:bookworm-slim
+
+ARG CHANNEL=stable
+ARG RELEASE=
+# Required with RELEASE: the release zip's sha256, since only channel manifests publish one.
+ARG RELEASE_SHA256=
+ARG R2_BASE_URL=https://releases.helixscreen.org
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
+    apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates curl jq unzip libusb-1.0-0 && \
+    rm -rf /var/lib/apt/lists/*
+
+# Fetch the desktop package: the channel's newest release, or RELEASE when given.
+RUN set -eu; \
+    if [ -n "$RELEASE" ]; then \
+        url="$R2_BASE_URL/releases/$RELEASE/helixscreen-x86-desktop.zip"; \
+        sha="$RELEASE_SHA256"; \
+        if [ -z "$sha" ]; then echo "RELEASE needs RELEASE_SHA256 (the zip's sha256)" >&2; exit 1; fi; \
+    else \
+        curl -fsSL "$R2_BASE_URL/$CHANNEL/manifest.json" -o /tmp/manifest.json; \
+        url=$(jq -er '.assets["x86-desktop"].zip_url' /tmp/manifest.json); \
+        sha=$(jq -er '.assets["x86-desktop"].zip_sha256' /tmp/manifest.json); \
+    fi; \
+    curl -fsSL "$url" -o /tmp/helixscreen.zip; \
+    echo "$sha  /tmp/helixscreen.zip" | sha256sum -c -; \
+    mkdir -p /opt/helixscreen /tmp/pkg; \
+    unzip -q /tmp/helixscreen.zip -d /tmp/pkg; \
+    top=$(find /tmp/pkg -maxdepth 2 -type f -path '*/bin/helix-screen' | head -n1); \
+    cp -a "$(dirname "$(dirname "$top")")"/. /opt/helixscreen/; \
+    test -x /opt/helixscreen/bin/helix-screen; \
+    rm -rf /tmp/pkg /tmp/helixscreen.zip /tmp/manifest.json
+
+# A fresh settings file in this release's own format, with Screen Sharing and Allow
+# Remote Control on for the active printer. The entrypoint copies it to the config
+# volume on the first start. Booting the app once makes it write the defaults itself,
+# so the seed matches the packaged version whatever the config schema is by then.
+RUN set -eu; \
+    mkdir -p /tmp/seed; \
+    SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy HELIX_DATA_DIR=/opt/helixscreen \
+        HELIX_CONFIG_DIR=/tmp/seed timeout 15 /opt/helixscreen/bin/helix-screen \
+        --skip-wizard --moonraker 127.0.0.1:7125 >/tmp/seed.log 2>&1 || true; \
+    test -s /tmp/seed/settings.json || { cat /tmp/seed.log; exit 1; }; \
+    id=$(jq -er '.active_printer_id' /tmp/seed/settings.json); \
+    jq --arg id "$id" '.printers[$id].remote_screen = {enabled: true, control: true, webcam: false}' \
+        /tmp/seed/settings.json >/opt/helixscreen/homeserver-settings.json; \
+    rm -rf /tmp/seed /tmp/seed.log
+
+RUN useradd --uid 1000 --home-dir /config --no-create-home helix && \
+    mkdir -p /config && chown helix:helix /config
+
+COPY homeserver-entrypoint.sh /usr/local/bin/homeserver-entrypoint.sh
+RUN chmod 0755 /usr/local/bin/homeserver-entrypoint.sh
+
+ENV HELIX_DATA_DIR=/opt/helixscreen \
+    HELIX_CONFIG_DIR=/config \
+    SDL_VIDEODRIVER=dummy \
+    SDL_AUDIODRIVER=dummy
+
+USER helix
+WORKDIR /opt/helixscreen
+VOLUME /config
+EXPOSE 7130
+
+# The screen server answers /info on its own port once the app is up.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+    CMD curl -fsS http://127.0.0.1:7130/info >/dev/null || exit 1
+
+ENTRYPOINT ["/usr/local/bin/homeserver-entrypoint.sh"]

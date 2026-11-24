@@ -5,11 +5,16 @@
 
 #include "../../src/mock/moonraker_client_mock_internal.h"
 #include "../lvgl_test_fixture.h"
+#include "ams_backend.h"
+#include "ams_types.h"
 #include "happy_hare_status_parse.h"
 #include "mock_persona.h"
+#include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
+#include "printer_state.h"
 #include "test_helpers/scoped_env.h"
+#include "test_helpers/scoped_runtime_config.h"
 
 #include <algorithm>
 #include <functional>
@@ -83,9 +88,12 @@ struct AfcMock : MockHardware {
 TEST_CASE("mock_hardware_backend: migrated modes run production, the screenshot "
           "topologies stay on the mock backend",
           "[ams][mock]") {
-    for (const char* mode : {"toolchanger", "tool_changer", "tc", "afc", "box_turtle", "boxturtle",
-                             "ifs", "ad5x", "ad5x_ifs", "snapmaker", "snapswap", "u1", "medusahc",
-                             "indx", "cfs", "happy_hare", "hh"}) {
+    for (const char* mode :
+         {"toolchanger", "tool_changer", "tc",          "afc",      "box_turtle",
+          "boxturtle",   "ifs",          "ad5x",        "ad5x_ifs", "snapmaker",
+          "snapswap",    "u1",           "medusahc",    "indx",     "cfs",
+          "happy_hare",  "hh",           "quattro_box", "afc_bmcu", "ercf",
+          "tradrack",    "kms",          "hh_qidi",     "hh_vivid", "hh_other"}) {
         CAPTURE(mode);
         CHECK(helix::mock::mock_hardware_backend(mode, nullptr) != nullptr);
     }
@@ -105,7 +113,10 @@ TEST_CASE("mock_hardware_backend: migrated modes run production, the screenshot 
         helix::ScopedEnv state{"HELIX_MOCK_AMS_STATE", "grade"};
         CHECK(helix::mock::mock_hardware_backend("", nullptr) == nullptr);
         CHECK(helix::mock::mock_hardware_backend("happy_hare", nullptr) != nullptr);
+        CHECK(helix::mock::mock_hardware_backend("hh_qidi", nullptr) != nullptr);
     }
+    // A persona with no `mmu` keeps a named Happy Hare unit on the mock backend.
+    CHECK(helix::mock::mock_hardware_backend("hh_qidi", "cc1") == nullptr);
     helix::ScopedEnv idle{"HELIX_MOCK_AMS_STATE", "idle"};
     CHECK(helix::mock::mock_hardware_backend("", nullptr) != nullptr);
 }
@@ -477,4 +488,132 @@ TEST_CASE("SnapSwap mock: a runout continues on the head the empty one is labell
     CHECK(ptc["filament_color_multi"][0]["colors"][0] == "F08000");
     CHECK(ptc["auto_replenish_filament"] == false);
     CHECK(status["extruder3"]["active_pin"] == true);
+}
+
+TEST_CASE("Happy Hare mock: a named unit publishes its vendor and selector",
+          "[ams][mock][happy_hare]") {
+    auto [mode, vendor, type_b] = GENERATE(table<const char*, const char*, bool>(
+        {{"hh_qidi", "QIDI", true}, {"tradrack", "Tradrack", false}, {"hh_other", "Other", true}}));
+    CAPTURE(mode);
+    MockHardware hh(mode);
+    CHECK(hh.mock->hardware().mmu_type() == helix::AmsType::HAPPY_HARE);
+    const json unit = hh.mock->happy_hare_status_json()["mmu_machine"]["unit_0"];
+    CHECK(unit["vendor"] == vendor);
+    CHECK((unit["selector_type"] == "VirtualSelector") == type_b);
+    CHECK(hh.mock->happy_hare_config_sections()["mmu_unit unit0"]["encoder"] == !type_b);
+}
+
+TEST_CASE("AFC mock: a Quattro Box and a BMCU publish their own unit objects", "[ams][mock][afc]") {
+    auto [mode, unit_object, unit_entry] = GENERATE(table<const char*, const char*, const char*>(
+        {{"quattro_box", "AFC_QuattroBox QuattroBox_1", "Quattro_Box QuattroBox_1"},
+         {"afc_bmcu", "AFC_BMCU BMCU_1", "BMCU BMCU_1"}}));
+    CAPTURE(mode);
+    MockHardware afc(mode);
+    CHECK(afc.mock->hardware().mmu_type() == helix::AmsType::AFC);
+    const json status = afc.mock->afc_boxturtle_status_json();
+    CHECK(status["AFC"]["units"] == json::array({unit_entry}));
+    REQUIRE(status.contains(unit_object));
+    CHECK(status[unit_object]["lanes"].size() == 4);
+    CHECK(status.contains("AFC_lane lane1"));
+    // The toolhead path's TurtleNeck, which drives the loaded card's buffer and clog readouts.
+    CHECK(status["AFC"]["buffers"].size() == 1);
+    CHECK_FALSE(status.contains("mmu"));
+}
+
+namespace {
+/// --test as the app runs a mock-hardware mode: real discovery over the mock's objects
+/// builds the production backend, which then talks to the mock through its frames.
+struct ProductionOverMock : LVGLTestFixture {
+    helix::PrinterState state;
+    std::optional<MoonrakerClientMock> mock;
+    std::unique_ptr<MoonrakerAPIMock> api;
+    std::unique_ptr<helix::AmsBackend> backend;
+
+    void build(helix::AmsType expected) {
+        ScopedRuntimeConfig scoped;
+        auto* config = get_runtime_config();
+        config->test_mode = true;
+        config->use_real_ams = false;
+        REQUIRE(config->should_mock_ams());
+        // The mock backend declines: this mode is mock hardware.
+        REQUIRE(helix::AmsBackend::create(helix::AmsType::NONE, nullptr, nullptr) == nullptr);
+
+        mock.emplace(MoonrakerClientMock::PrinterType::VORON_24, 100.0);
+        state.init_subjects(false);
+        api = std::make_unique<MoonrakerAPIMock>(*mock, state);
+        const helix::PrinterDiscovery hw = mock->hardware();
+        REQUIRE(hw.mmu_type() == expected);
+        backend = helix::AmsBackend::create(hw.mmu_type(), api.get(), &*mock, &hw);
+        REQUIRE(backend != nullptr);
+        CHECK(backend->get_type() == expected);
+        backend->set_discovery(hw);
+        REQUIRE(backend->start().success());
+    }
+
+    void settle(int ms) {
+        process_lvgl(ms);
+    }
+};
+} // namespace
+
+TEST_CASE_METHOD(ProductionOverMock,
+                 "Happy Hare unit modes: the production backend loads and unloads over mock frames",
+                 "[ams][mock][happy_hare][real_backend]") {
+    auto [mode, vendor] = GENERATE(table<const char*, const char*>(
+        {{"hh_qidi", "QIDI"}, {"tradrack", "Tradrack"}, {"kms", "KMS"}}));
+    CAPTURE(mode);
+    helix::ScopedEnv ams{"HELIX_MOCK_AMS", mode};
+    helix::ScopedEnv printer{"HELIX_MOCK_PRINTER", nullptr};
+    build(helix::AmsType::HAPPY_HARE);
+    mock->dispatch_status_update(mock->happy_hare_status_json());
+    settle(500);
+
+    helix::AmsSystemInfo info = backend->get_system_info();
+    REQUIRE_FALSE(info.units.empty());
+    CHECK(info.units[0].model == vendor);
+    CHECK(info.current_slot == 0);
+    CHECK(info.filament_loaded);
+
+    REQUIRE(backend->unload_filament(-1).success());
+    settle(3500);
+    info = backend->get_system_info();
+    CHECK_FALSE(info.filament_loaded);
+    CHECK(mock->happy_hare_mmu_status()["filament_pos"] == 0);
+
+    REQUIRE(backend->load_filament(2).success());
+    settle(3500);
+    info = backend->get_system_info();
+    CHECK(info.current_slot == 2);
+    CHECK(info.filament_loaded);
+    CHECK(mock->happy_hare_mmu_status()["gate"] == 2);
+}
+
+TEST_CASE_METHOD(ProductionOverMock,
+                 "AFC unit modes: the production backend loads and unloads over mock frames",
+                 "[ams][mock][afc][real_backend]") {
+    auto [mode, instance] = GENERATE(
+        table<const char*, const char*>({{"quattro_box", "QuattroBox_1"}, {"afc_bmcu", "BMCU_1"}}));
+    CAPTURE(mode);
+    helix::ScopedEnv ams{"HELIX_MOCK_AMS", mode};
+    helix::ScopedEnv printer{"HELIX_MOCK_PRINTER", nullptr};
+    build(helix::AmsType::AFC);
+    mock->dispatch_status_update(mock->afc_boxturtle_status_json());
+    settle(500);
+
+    helix::AmsSystemInfo info = backend->get_system_info();
+    REQUIRE(info.units.size() == 1);
+    CAPTURE(info.units[0].name);
+    CHECK(info.units[0].name.find(instance) != std::string::npos);
+    CHECK(info.units[0].slot_count == 4);
+    CHECK(info.current_slot == 0);
+
+    REQUIRE(backend->unload_filament(-1).success());
+    settle(2500);
+    CHECK(mock->afc_boxturtle_status_json()["AFC"]["current_load"].is_null());
+    CHECK(backend->get_system_info().current_slot == -1);
+
+    REQUIRE(backend->load_filament(2).success());
+    settle(2500);
+    CHECK(mock->afc_boxturtle_status_json()["AFC"]["current_load"] == "lane3");
+    CHECK(backend->get_system_info().current_slot == 2);
 }

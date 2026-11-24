@@ -33,7 +33,7 @@ void fan_arc_attach_auto_resize(lv_obj_t* card_root) {
         return;
     }
     // dial_container, if present, is the size-driving container. Otherwise
-    // fall back to the arc's direct parent — same logic as the old impl.
+    // fall back to the arc's direct parent.
     lv_obj_t* container = lv_obj_find_by_name(card_root, "dial_container");
     if (!container)
         container = lv_obj_get_parent(arc);

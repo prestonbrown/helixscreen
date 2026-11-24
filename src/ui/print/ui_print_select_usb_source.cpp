@@ -111,16 +111,13 @@ void PrintSelectUsbSource::init_subjects() {
                   "print_source_usb_present, print_source_moonraker_usb_access)");
 }
 
-// ============================================================================
 // Setup
-// ============================================================================
 
 bool PrintSelectUsbSource::setup(lv_obj_t* panel) {
     if (!panel) {
         return false;
     }
 
-    // Find the source selector container
     source_selector_ = lv_obj_find_by_name(panel, "source_selector");
     if (!source_selector_) {
         spdlog::warn("[UsbSource] Source selector container not found");
@@ -167,9 +164,7 @@ void PrintSelectUsbSource::set_usb_manager(UsbManager* manager) {
     spdlog::debug("[UsbSource] UsbManager set");
 }
 
-// ============================================================================
 // Source Selection
-// ============================================================================
 
 void PrintSelectUsbSource::select_printer_source() {
     if (current_source_ == FileSource::PRINTER) {
@@ -203,9 +198,7 @@ void PrintSelectUsbSource::select_usb_source() {
     refresh_files();
 }
 
-// ============================================================================
 // USB Drive Events
-// ============================================================================
 
 void PrintSelectUsbSource::on_drive_inserted() {
     // A drive is now present. Whether the selector actually shows — i.e.
@@ -262,9 +255,7 @@ void PrintSelectUsbSource::on_drive_removed() {
     select_printer_source();
 }
 
-// ============================================================================
 // File Operations
-// ============================================================================
 
 void PrintSelectUsbSource::refresh_files() {
     usb_files_.clear();
@@ -309,9 +300,7 @@ void PrintSelectUsbSource::deliver_empty() {
     }
 }
 
-// ============================================================================
 // Internal Methods
-// ============================================================================
 
 void PrintSelectUsbSource::update_button_states() {
     // Update subject — XML bind_flag_if_not_eq handles button visibility/appearance

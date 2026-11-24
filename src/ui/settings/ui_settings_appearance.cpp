@@ -219,9 +219,7 @@ void AppearanceSettingsOverlay::init_theme_preset_dropdown(lv_obj_t* root) {
     }
 }
 
-// ============================================================================
 // THEME EXPLORER
-// ============================================================================
 
 void AppearanceSettingsOverlay::handle_theme_preset_changed(int index) {
     if (theme_explorer_overlay_ && lv_obj_is_visible(theme_explorer_overlay_)) {

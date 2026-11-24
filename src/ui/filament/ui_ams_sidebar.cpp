@@ -342,9 +342,7 @@ void init_button_gating_subjects() {
 
 } // namespace
 
-// ============================================================================
 // Construction / Destruction
-// ============================================================================
 
 AmsOperationSidebar::AmsOperationSidebar(PrinterState& ps) : printer_state_(ps) {
     spdlog::debug("[AmsSidebar] Constructed");
@@ -363,9 +361,7 @@ AmsOperationSidebar::~AmsOperationSidebar() {
     spdlog::debug("[AmsSidebar] Destroyed");
 }
 
-// ============================================================================
 // Static Callback Registration
-// ============================================================================
 
 void AmsOperationSidebar::register_callbacks_static() {
     // Must exist before ams_sidebar.xml is parsed — the Unload buttons bind it. Same
@@ -442,9 +438,7 @@ void AmsOperationSidebar::place_summary(bool portrait) {
     lv_obj_move_to_index(status_section_, 1);
 }
 
-// ============================================================================
 // Static Callback Routing
-// ============================================================================
 
 AmsOperationSidebar* AmsOperationSidebar::from_event(lv_event_t* e) {
     AmsOperationSidebar* self = open_sidebars().owner_of(lv_event_get_current_target_obj(e));
@@ -454,9 +448,7 @@ AmsOperationSidebar* AmsOperationSidebar::from_event(lv_event_t* e) {
     return self;
 }
 
-// ============================================================================
 // Static XML Callbacks
-// ============================================================================
 
 void AmsOperationSidebar::on_settings_clicked_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[AmsSidebar] on_settings_clicked");
@@ -471,9 +463,7 @@ void AmsOperationSidebar::on_settings_clicked_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_END();
 }
 
-// ============================================================================
 // Setup
-// ============================================================================
 
 bool AmsOperationSidebar::setup(lv_obj_t* panel) {
     if (!panel) {
@@ -573,9 +563,7 @@ void AmsOperationSidebar::setup_step_progress() {
     spdlog::debug("[AmsSidebar] Step progress widget created");
 }
 
-// ============================================================================
 // Observers
-// ============================================================================
 
 void AmsOperationSidebar::init_observers() {
     // Action observer: drives step progress and load completion detection
@@ -627,9 +615,9 @@ void AmsOperationSidebar::init_observers() {
         },
         AmsState::instance().get_subjects_lifetime());
 
-    // The two terms the sidebar never had. ams_filament_loaded is what the XML
-    // used to bind on its own; print state is the one whose absence let Unload
-    // dispatch mid-print and eat a backend refusal.
+    // Two terms gate Unload besides the busy state. ams_filament_loaded is also
+    // bound in XML; print state keeps Unload from dispatching mid-print and
+    // eating a backend refusal.
     //
     // print_lifecycle: PRINTING -> PAUSED is a gating edge (a pause UNGATES Unload
     // on every backend but AD5X, and print_active reads 1 across both so it never
@@ -748,9 +736,7 @@ void AmsOperationSidebar::init_observers() {
     // may not exist for coarse backends (legacy AmsAction fallback).
 }
 
-// ============================================================================
 // Cleanup
-// ============================================================================
 
 void AmsOperationSidebar::cleanup() {
     // Clear active flag FIRST to prevent observer callbacks from using freed widgets
@@ -827,9 +813,7 @@ void AmsOperationSidebar::cleanup() {
     spdlog::debug("[AmsSidebar] Cleaned up");
 }
 
-// ============================================================================
 // Sync from State (call on panel activate)
-// ============================================================================
 
 void AmsOperationSidebar::sync_from_state() {
     if (!sidebar_root_) {
@@ -854,9 +838,7 @@ void AmsOperationSidebar::sync_from_state() {
     refresh_button_gating();
 }
 
-// ============================================================================
 // Check Gates Visibility
-// ============================================================================
 
 void AmsOperationSidebar::update_check_gates_visibility() {
     if (!active_ || !sidebar_root_) {
@@ -866,9 +848,7 @@ void AmsOperationSidebar::update_check_gates_visibility() {
     lv_subject_set_int(&s_check_gates_shown, backend && backend->supports_gate_check() ? 1 : 0);
 }
 
-// ============================================================================
 // Reset Button Label
-// ============================================================================
 
 void AmsOperationSidebar::sync_reset_button_label() {
     if (!active_ || !sidebar_root_) {
@@ -884,9 +864,7 @@ void AmsOperationSidebar::sync_reset_button_label() {
     ui_button_set_text(btn_reset, lv_tr(label.c_str()));
 }
 
-// ============================================================================
 // Current Loaded Display
-// ============================================================================
 
 void AmsOperationSidebar::paint_loaded_filament() {
     if (!active_ || !sidebar_root_ || !loaded_card_)
@@ -911,9 +889,7 @@ void AmsOperationSidebar::update_current_loaded_display() {
     // Subjects updated reactively by sync_from_backend(); color swatch driven by color_observer_
 }
 
-// ============================================================================
 // Action Display
-// ============================================================================
 
 void AmsOperationSidebar::update_action_display(AmsAction action) {
     // Sidebar-only action display: step progress
@@ -921,9 +897,7 @@ void AmsOperationSidebar::update_action_display(AmsAction action) {
     update_step_progress(action);
 }
 
-// ============================================================================
 // Step Progress
-// ============================================================================
 
 void AmsOperationSidebar::recreate_step_progress_for_operation(StepOperationType op_type) {
     // Cleared even when no bar is built: start_operation() reads the first step
@@ -1365,7 +1339,6 @@ void AmsOperationSidebar::start_operation(StepOperationType op_type, int target_
     // belongs to it.
     AmsState::instance().set_narration_phase(-1, "");
 
-    // Create step progress with correct steps
     recreate_step_progress_for_operation(op_type);
 
     // Mark the operation busy right away (the XML binding hides the buttons on
@@ -1521,9 +1494,7 @@ void AmsOperationSidebar::refresh_heat_step_display() {
     update_step_progress(static_cast<AmsAction>(action_int));
 }
 
-// ============================================================================
 // Action Handlers
-// ============================================================================
 
 AmsOperationSidebar::OpInputs AmsOperationSidebar::read_op_inputs() const {
     AmsBackend* backend = AmsState::instance().get_backend();
@@ -1926,9 +1897,7 @@ void AmsOperationSidebar::handle_bypass_toggle() {
     lv_subject_notify(AmsState::instance().get_bypass_active_subject());
 }
 
-// ============================================================================
 // Preheat Logic
-// ============================================================================
 
 std::optional<int> AmsOperationSidebar::material_load_temp_for_slot(int slot_index) {
     // The rule FilamentOpHeater heats by, so the macro is offered the
@@ -2087,9 +2056,7 @@ void AmsOperationSidebar::run_backend_op_after_preheat(
     }
 }
 
-// ============================================================================
 // Shared Dispatch Plan
-// ============================================================================
 
 helix::ui::BackendCaps AmsOperationSidebar::read_backend_caps(AmsSystemInfo& info_out,
                                                               int target_slot) const {

@@ -25,7 +25,7 @@ printer image's live callouts are a third instance
 
 | Piece | Where | Notes |
 |-------|-------|-------|
-| Registry def | `src/ui/home/panel_widget_registry.cpp` | id, display name, icon, category, default/enabled, colspan/rowspan and their min/max, whether it may span half cells, `scope` |
+| Registry def | `src/system/panel_widget_registry.cpp` | id, display name, icon, category, default/enabled, colspan/rowspan and their min/max, whether it may span half cells, `scope` |
 | Widget class | `src/ui/panel_widgets/<name>_widget.{h,cpp}` | extends `PanelWidget`; implements `attach()` / `detach()` / `on_size_changed()` |
 | XML component | `ui_xml/components/panel_widget_<name>.xml` | the entire appearance |
 | Row/child components | `ui_xml/components/<name>_*.xml` | repeated fragments the widget creates per item |
@@ -218,7 +218,7 @@ is pure and has a boundary test; the widget measures, decides and publishes.
 | `print_stats` | `print_stats_tile_layout.h`, `include/print_activity.h` | - | this week's hours on one line at Strip; hours stacked over "this week" at Cell; seven day bars beside the hours at Wide; bars with weekday initials under them at Full; a lifetime line (prints, hours, filament in meters) where it fits whole |
 | `maintenance` | `maintenance_tile_layout.h`, `maintenance_model.h`, `include/maintenance_meters.h` | - | the ring of the meter closest to due with its hours left at Glance; its name and hours on one line at Strip; the ring over the name at Column and Cell; the ring beside a row per meter at Wide; a title, a row and a bar per meter and the total print time at Full. The ring is a square whose side the widget publishes (`maintenance_ring_d`), because an arc draws its circle from its top-left corner |
 
-All ten offer half-cell spans: their registry rows in `src/ui/home/panel_widget_registry.cpp`
+All ten offer half-cell spans: their registry rows in `src/system/panel_widget_registry.cpp`
 set `supports_half_col` and `supports_half_row` and a one-track minimum, which is the
 combination `PanelWidgetDef` requires for a minimum below a whole cell (the flag on that
 axis AND a `fits_at()` that can refuse). A Glance tile is therefore a legal 0.5x0.5

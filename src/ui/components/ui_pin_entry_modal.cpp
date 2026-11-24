@@ -41,9 +41,7 @@ PinEntryModal* PinEntryModal::from_event(lv_event_t* e) {
     return e ? open_pads().owner_of(lv_event_get_current_target_obj(e)) : nullptr;
 }
 
-// ============================================================================
 // Public static API
-// ============================================================================
 
 void PinEntryModal::show_pin_entry(const std::string& heading, PinCallback on_complete) {
     spdlog::debug("[PinEntryModal] show_pin_entry: heading='{}'", heading);
@@ -68,9 +66,7 @@ void PinEntryModal::dismiss() {
     }
 }
 
-// ============================================================================
 // Constructor / Destructor
-// ============================================================================
 
 PinEntryModal::PinEntryModal(const std::string& heading, PinCallback on_complete)
     : heading_(heading), on_complete_(std::move(on_complete)) {
@@ -82,9 +78,7 @@ PinEntryModal::~PinEntryModal() {
     spdlog::trace("[PinEntryModal] Destroyed");
 }
 
-// ============================================================================
 // UI Creation / Destruction
-// ============================================================================
 
 bool PinEntryModal::create() {
     lv_obj_t* screen = lv_screen_active();
@@ -106,7 +100,6 @@ bool PinEntryModal::create() {
     cover_chrome();
     helix::ui::bring_to_front(backdrop_);
 
-    // Create the dialog from XML component
     dialog_ =
         static_cast<lv_obj_t*>(lv_xml_create(backdrop_, "pin_entry_modal", pin_display_.attrs()));
     if (!dialog_) {
@@ -166,9 +159,7 @@ void PinEntryModal::destroy_async() {
     spdlog::debug("[PinEntryModal] Async destruction scheduled");
 }
 
-// ============================================================================
 // Digit input handling
-// ============================================================================
 
 void PinEntryModal::on_digit(int digit) {
     if (!dialog_) {
@@ -252,9 +243,7 @@ void PinEntryModal::on_cancel() {
     }
 }
 
-// ============================================================================
 // Dot indicator updates
-// ============================================================================
 
 void PinEntryModal::update_dots() {
     pin_display_.set_digit_count(static_cast<int>(digit_buffer_.size()));
@@ -266,9 +255,7 @@ void PinEntryModal::clear_digits() {
     hide_error();
 }
 
-// ============================================================================
 // Error label
-// ============================================================================
 
 void PinEntryModal::show_error(const char* text) {
     pin_display_.show_error(text);
@@ -278,9 +265,7 @@ void PinEntryModal::hide_error() {
     pin_display_.hide_error();
 }
 
-// ============================================================================
 // Static XML event callbacks
-// ============================================================================
 
 void PinEntryModal::on_digit_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("pin_modal_digit_clicked");
@@ -320,9 +305,7 @@ void PinEntryModal::on_cancel_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_END();
 }
 
-// ============================================================================
 // Callback registration
-// ============================================================================
 
 void PinEntryModal::register_callbacks() {
     register_xml_callbacks({

@@ -163,7 +163,6 @@ class BedMeshRenderThread {
     bed_mesh_render_colors_t colors_{};
     std::mutex colors_mutex_;
 
-    // Callback when frame is ready
     std::function<void()> frame_ready_callback_;
     std::mutex callback_mutex_;
 
