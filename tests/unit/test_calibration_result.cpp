@@ -92,6 +92,18 @@ TEST_CASE("A calibration's time reads the same on every screen", "[calibration_t
     CHECK(time_you_line(2).find("2") != std::string::npos);
 }
 
+TEST_CASE("A long calibration's time reads in hours and minutes", "[calibration_time]") {
+    using helix::calibration::time_duration_text;
+    // An hour or more names the hours: 102 min is 1 h and 42 min, not "102".
+    const std::string long_run = time_duration_text(102);
+    CHECK(long_run.find("102") == std::string::npos);
+    CHECK(long_run.find("1") != std::string::npos);
+    CHECK(long_run.find("42") != std::string::npos);
+    CHECK(time_duration_text(120).find("2") != std::string::npos);
+    CHECK(time_duration_text(120).find("0") == std::string::npos);
+    CHECK(time_duration_text(59).find("59") != std::string::npos);
+}
+
 TEST_CASE_METHOD(XMLTestFixture, "A result page shows its rows and only the choices it offers",
                  "[calibration_result][xml]") {
     SubjectManager subjects;

@@ -14,10 +14,13 @@ enum class AwayKind {
     Runs,   ///< it runs a routine: probing, heating, a sweep
 };
 
-/// "Prints on its own, about N min" / "Runs on its own, about N min" (translated).
+/// A duration as the lines say it: "25 min", "2 h", "1 h 36 min"; never below a minute.
+[[nodiscard]] std::string time_duration_text(int minutes);
+
+/// "Prints on its own, about 25 min" / "Runs on its own, about 1 h 36 min" (translated).
 [[nodiscard]] std::string time_away_line(AwayKind kind, int minutes);
 
-/// "Needs you, about N min: <task>", or without the task when @p task is empty (translated).
+/// "Needs you, about 6 min: <task>", or without the task when @p task is empty (translated).
 [[nodiscard]] std::string time_you_line(int minutes, const std::string& task = {});
 
 } // namespace helix::calibration

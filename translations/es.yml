@@ -3113,8 +3113,8 @@ translations:
   Needs attention: Requiere atención
   Needs repair from a web interface: 'Necesita reparación desde una interfaz web'
   Needs the {} package to switch spools: 'Necesita el plugin {} para cambiar de bobina'
-  "Needs you, about {} min": "Te necesita, unos {} min"
-  "Needs you, about {} min: {}": "Te necesita, unos {} min: {}"
+  "Needs you, about {}": "Te necesita, unos {}"
+  "Needs you, about {}: {}": "Te necesita, unos {}: {}"
   'Needs {}x{} free: remove or shrink a widget first': 'Necesita {}x{} libres: primero elimina o reduce un widget'
   Net Weight (g): Peso Neto (g)
   Network: Red
@@ -3839,7 +3839,7 @@ translations:
   'Printing: start after this job': 'Imprimiendo: inicia tras esta impresión'
   Prints: Impresiones
   Prints Trend: Tendencia de Impresiones
-  "Prints on its own, about {} min": "Imprime solo, unos {} min"
+  "Prints on its own, about {}": "Imprime solo, unos {}"
   'Private:': 'Privado:'
   Probe: Sonda
   Probe Accuracy Failed: Prueba de Precisión de Sonda Fallida
@@ -4277,7 +4277,7 @@ translations:
   Runs on its own once started: Funciona solo una vez iniciado
   Runs everything this printer needs, in order: 'Ejecuta todo lo que necesita esta impresora, en orden'
   Runs everything this printer needs, in order ·: 'Ejecuta todo lo que necesita esta impresora, en orden ·'
-  "Runs on its own, about {} min": "Funciona solo, unos {} min"
+  "Runs on its own, about {}": "Funciona solo, unos {}"
   Runs the printer's tool offset calibration for every tool.: Ejecuta la calibración de offsets de herramienta de la impresora para todas las herramientas.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'SAVE_CONFIG falló: {}. Los offsets de herramienta se aplicaron pero no se guardaron. Ejecuta SAVE_CONFIG manualmente o se perderán al reiniciar.'
   ? 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
@@ -6422,6 +6422,7 @@ translations:
   '{} free of {}': '{} libres de {}'
   '{} h': '{} h'
   '{} h of {} h': '{} h de {} h'
+  "{} h {} min": "{} h {} min"
   '{} hand feed did not finish': '{}: la alimentación manual no terminó'
   '{} has no filament': '{} no tiene filamento'
   '{} has no filament type set': '{} no tiene tipo de filamento asignado'

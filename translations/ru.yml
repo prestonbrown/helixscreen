@@ -3177,8 +3177,8 @@ translations:
   Needs attention: Требует внимания
   Needs repair from a web interface: 'Требуется восстановление через веб-интерфейс'
   Needs the {} package to switch spools: 'Для смены катушки нужен плагин {}'
-  "Needs you, about {} min": "Нужны вы, около {} мин"
-  "Needs you, about {} min: {}": "Нужны вы, около {} мин: {}"
+  "Needs you, about {}": "Нужны вы, около {}"
+  "Needs you, about {}: {}": "Нужны вы, около {}: {}"
   'Needs {}x{} free: remove or shrink a widget first': 'Требуется {}x{} свободного места: сначала удалите или уменьшите виджет'
   Net Weight (g): Вес нетто (г)
   Network: Сеть
@@ -3915,7 +3915,7 @@ translations:
   'Printing: start after this job': 'Идёт печать: начать после этой печати'
   Prints: Печати
   Prints Trend: Тренд печатей
-  "Prints on its own, about {} min": "Печатает сам, около {} мин"
+  "Prints on its own, about {}": "Печатает сам, около {}"
   'Private:': 'Закрытая:'
   Probe: Зонд
   Probe Accuracy Failed: Ошибка теста точности зонда
@@ -4357,7 +4357,7 @@ translations:
   Runs on its own once started: После запуска работает сам
   Runs everything this printer needs, in order: 'Выполняет всё, что нужно этому принтеру, по порядку'
   Runs everything this printer needs, in order ·: 'Выполняет всё, что нужно этому принтеру, по порядку ·'
-  "Runs on its own, about {} min": "Работает сам, около {} мин"
+  "Runs on its own, about {}": "Работает сам, около {}"
   Runs the printer's tool offset calibration for every tool.: Запускает калибровку смещений инструментов принтера для всех инструментов.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'Ошибка SAVE_CONFIG: {}. Смещения инструментов применены, но не сохранены. Выполните SAVE_CONFIG вручную, иначе они будут потеряны при перезапуске.'
   ? 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
@@ -6522,6 +6522,7 @@ translations:
   '{} free of {}': '{} свободно из {}'
   '{} h': '{} ч'
   '{} h of {} h': '{} ч из {} ч'
+  "{} h {} min": "{} ч {} мин"
   '{} hand feed did not finish': '{}: ручная подача не завершилась'
   '{} has no filament': '{}: нет филамента'
   '{} has no filament type set': '{}: не задан тип филамента'

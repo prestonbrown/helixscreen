@@ -2989,8 +2989,8 @@
   <translation tag="Needs file analysis, which isn&apos;t running." ja="ファイル解析が必要ですが、実行されていません。"/>
   <translation tag="Needs repair from a web interface" ja="Webインターフェースからの修復が必要です"/>
   <translation tag="Needs the {} package to switch spools" ja="スプール切り替えには {} プラグインが必要です"/>
-  <translation tag="Needs you, about {} min" ja="操作が必要、約 {} 分"/>
-  <translation tag="Needs you, about {} min: {}" ja="操作が必要、約 {} 分: {}"/>
+  <translation tag="Needs you, about {}" ja="操作が必要、約 {}"/>
+  <translation tag="Needs you, about {}: {}" ja="操作が必要、約 {}: {}"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" ja="空き {}x{} が必要です。先にウィジェットを削除または縮小してください"/>
   <translation tag="Net Weight (g)" ja="正味重量（g）"/>
   <translation tag="Network" ja="ネットワーク"/>
@@ -3705,7 +3705,7 @@
   <translation tag="Printing: start after this job" ja="印刷中：このジョブ後に開始"/>
   <translation tag="Prints" ja="印刷"/>
   <translation tag="Prints Trend" ja="印刷傾向"/>
-  <translation tag="Prints on its own, about {} min" ja="自動で印刷、約 {} 分"/>
+  <translation tag="Prints on its own, about {}" ja="自動で印刷、約 {}"/>
   <translation tag="Private:" ja="プライベート:"/>
   <translation tag="Probe" ja="プローブ"/>
   <translation tag="Probe Accuracy Failed" ja="プローブ精度テスト失敗"/>
@@ -4136,7 +4136,7 @@
   <translation tag="Runs everything this printer needs, in order" ja="このプリンターに必要なものを順にすべて実行"/>
   <translation tag="Runs everything this printer needs, in order ·" ja="このプリンターに必要なものを順にすべて実行 ·"/>
   <translation tag="Runs on its own once started" ja="開始後は自動で進みます"/>
-  <translation tag="Runs on its own, about {} min" ja="自動で実行、約 {} 分"/>
+  <translation tag="Runs on its own, about {}" ja="自動で実行、約 {}"/>
   <translation tag="Runs the printer&apos;s tool offset calibration for every tool." ja="プリンターのツールオフセットキャリブレーションをすべてのツールに対して実行します。"/>
   <translation tag="SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart." ja="SAVE_CONFIG に失敗しました: {}。ツールオフセットは適用されましたが保存されていません。SAVE_CONFIG を手動で実行しないと、再起動時に失われます。"/>
   <translation tag="SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart." ja="SAVE_CONFIG に失敗しました: {}。Zオフセットは適用されましたが保存されていません。SAVE_CONFIG を手動で実行しないと、再起動時にオフセットが失われます。"/>
@@ -6193,6 +6193,7 @@
   <translation tag="{} free of {}" ja="空き {} / {}"/>
   <translation tag="{} h" ja="{} 時間"/>
   <translation tag="{} h of {} h" ja="{} / {} 時間"/>
+  <translation tag="{} h {} min" ja="{} 時間 {} 分"/>
   <translation tag="{} hand feed did not finish" ja="{} の手動供給が完了しませんでした"/>
   <translation tag="{} has no filament" ja="{} にフィラメントがありません"/>
   <translation tag="{} has no filament type set" ja="{} にフィラメントの種類が設定されていません"/>

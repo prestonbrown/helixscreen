@@ -3090,8 +3090,8 @@ translations:
   Needs attention: Needs attention
   Needs repair from a web interface: Needs repair from a web interface
   Needs the {} package to switch spools: Needs the {} package to switch spools
-  Needs you, about {} min: Needs you, about {} min
-  'Needs you, about {} min: {}': 'Needs you, about {} min: {}'
+  Needs you, about {}: Needs you, about {}
+  'Needs you, about {}: {}': 'Needs you, about {}: {}'
   'Needs {}x{} free: remove or shrink a widget first': 'Needs {}x{} free: remove or shrink a widget first'
   Net Weight (g): Net Weight (g)
   Network: Network
@@ -3814,7 +3814,7 @@ translations:
   'Printing: start after this job': 'Printing: start after this job'
   Prints: Prints
   Prints Trend: Prints Trend
-  Prints on its own, about {} min: Prints on its own, about {} min
+  Prints on its own, about {}: Prints on its own, about {}
   'Private:': 'Private:'
   Probe: Probe
   Probe Accuracy Failed: Probe Accuracy Failed
@@ -4249,7 +4249,7 @@ translations:
   Runs everything this printer needs, in order: Runs everything this printer needs, in order
   Runs everything this printer needs, in order ·: Runs everything this printer needs, in order ·
   Runs on its own once started: Runs on its own once started
-  Runs on its own, about {} min: Runs on its own, about {} min
+  Runs on its own, about {}: Runs on its own, about {}
   Runs the printer's tool offset calibration for every tool.: Runs the printer's tool offset calibration for every tool.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.'
   ? 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
@@ -6383,6 +6383,7 @@ translations:
   '{} free of {}': '{} free of {}'
   '{} h': '{} h'
   '{} h of {} h': '{} h of {} h'
+  '{} h {} min': '{} h {} min'
   '{} hand feed did not finish': '{} hand feed did not finish'
   '{} has no filament': '{} has no filament'
   '{} has no filament type set': '{} has no filament type set'

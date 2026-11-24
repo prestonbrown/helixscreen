@@ -3037,8 +3037,8 @@
   <translation tag="Needs file analysis, which isn&apos;t running." ru="Нужен анализ файлов, который не запущен."/>
   <translation tag="Needs repair from a web interface" ru="Требуется восстановление через веб-интерфейс"/>
   <translation tag="Needs the {} package to switch spools" ru="Для смены катушки нужен плагин {}"/>
-  <translation tag="Needs you, about {} min" ru="Нужны вы, около {} мин"/>
-  <translation tag="Needs you, about {} min: {}" ru="Нужны вы, около {} мин: {}"/>
+  <translation tag="Needs you, about {}" ru="Нужны вы, около {}"/>
+  <translation tag="Needs you, about {}: {}" ru="Нужны вы, около {}: {}"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" ru="Требуется {}x{} свободного места: сначала удалите или уменьшите виджет"/>
   <translation tag="Net Weight (g)" ru="Вес нетто (г)"/>
   <translation tag="Network" ru="Сеть"/>
@@ -3762,7 +3762,7 @@
   <translation tag="Printing: start after this job" ru="Идёт печать: начать после этой печати"/>
   <translation tag="Prints" ru="Печати"/>
   <translation tag="Prints Trend" ru="Тренд печатей"/>
-  <translation tag="Prints on its own, about {} min" ru="Печатает сам, около {} мин"/>
+  <translation tag="Prints on its own, about {}" ru="Печатает сам, около {}"/>
   <translation tag="Private:" ru="Закрытая:"/>
   <translation tag="Probe" ru="Зонд"/>
   <translation tag="Probe Accuracy Failed" ru="Ошибка теста точности зонда"/>
@@ -4196,7 +4196,7 @@
   <translation tag="Runs everything this printer needs, in order" ru="Выполняет всё, что нужно этому принтеру, по порядку"/>
   <translation tag="Runs everything this printer needs, in order ·" ru="Выполняет всё, что нужно этому принтеру, по порядку ·"/>
   <translation tag="Runs on its own once started" ru="После запуска работает сам"/>
-  <translation tag="Runs on its own, about {} min" ru="Работает сам, около {} мин"/>
+  <translation tag="Runs on its own, about {}" ru="Работает сам, около {}"/>
   <translation tag="Runs the printer&apos;s tool offset calibration for every tool." ru="Запускает калибровку смещений инструментов принтера для всех инструментов."/>
   <translation tag="SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart." ru="Ошибка SAVE_CONFIG: {}. Смещения инструментов применены, но не сохранены. Выполните SAVE_CONFIG вручную, иначе они будут потеряны при перезапуске."/>
   <translation tag="SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart." ru="Ошибка SAVE_CONFIG: {}. Z-смещение применено, но не сохранено. Выполните SAVE_CONFIG вручную, иначе смещение будет потеряно при перезапуске."/>
@@ -6268,6 +6268,7 @@
   <translation tag="{} free of {}" ru="{} свободно из {}"/>
   <translation tag="{} h" ru="{} ч"/>
   <translation tag="{} h of {} h" ru="{} ч из {} ч"/>
+  <translation tag="{} h {} min" ru="{} ч {} мин"/>
   <translation tag="{} hand feed did not finish" ru="{}: ручная подача не завершилась"/>
   <translation tag="{} has no filament" ru="{}: нет филамента"/>
   <translation tag="{} has no filament type set" ru="{}: не задан тип филамента"/>

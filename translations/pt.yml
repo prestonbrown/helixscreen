@@ -3113,8 +3113,8 @@ translations:
   Needs attention: Requer atenção
   Needs repair from a web interface: 'Precisa de reparo por uma interface web'
   Needs the {} package to switch spools: 'Precisa do plugin {} para trocar de carretel'
-  "Needs you, about {} min": "Precisa de você, cerca de {} min"
-  "Needs you, about {} min: {}": "Precisa de você, cerca de {} min: {}"
+  "Needs you, about {}": "Precisa de você, cerca de {}"
+  "Needs you, about {}: {}": "Precisa de você, cerca de {}: {}"
   'Needs {}x{} free: remove or shrink a widget first': 'Precisa de {}x{} livres: primeiro remova ou reduza um widget'
   Net Weight (g): Peso Líquido (g)
   Network: Rede
@@ -3839,7 +3839,7 @@ translations:
   'Printing: start after this job': 'Imprimindo: inicie depois desta impressão'
   Prints: Impressões
   Prints Trend: Tendência de Impressões
-  "Prints on its own, about {} min": "Imprime sozinha, cerca de {} min"
+  "Prints on its own, about {}": "Imprime sozinha, cerca de {}"
   'Private:': 'Privado:'
   Probe: Sonda
   Probe Accuracy Failed: Precisão da Sonda Falhou
@@ -4277,7 +4277,7 @@ translations:
   Runs on its own once started: Funciona sozinho depois de iniciado
   Runs everything this printer needs, in order: 'Executa tudo o que esta impressora precisa, em ordem'
   Runs everything this printer needs, in order ·: 'Executa tudo o que esta impressora precisa, em ordem ·'
-  "Runs on its own, about {} min": "Funciona sozinha, cerca de {} min"
+  "Runs on its own, about {}": "Funciona sozinha, cerca de {}"
   Runs the printer's tool offset calibration for every tool.: Executa a calibração de offsets de ferramenta da impressora para todas as ferramentas.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'SAVE_CONFIG falhou: {}. Os offsets de ferramenta foram aplicados mas não salvos. Execute SAVE_CONFIG manualmente ou serão perdidos ao reiniciar.'
   ? 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
@@ -6422,6 +6422,7 @@ translations:
   '{} free of {}': '{} livres de {}'
   '{} h': '{} h'
   '{} h of {} h': '{} h de {} h'
+  "{} h {} min": "{} h {} min"
   '{} hand feed did not finish': 'Alimentação manual de {} não terminou'
   '{} has no filament': '{} não tem filamento'
   '{} has no filament type set': '{} não tem tipo de filamento definido'

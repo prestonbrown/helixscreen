@@ -3113,8 +3113,8 @@ translations:
   Needs attention: 対応が必要
   Needs repair from a web interface: 'Webインターフェースからの修復が必要です'
   Needs the {} package to switch spools: 'スプール切り替えには {} プラグインが必要です'
-  "Needs you, about {} min": "操作が必要、約 {} 分"
-  "Needs you, about {} min: {}": "操作が必要、約 {} 分: {}"
+  "Needs you, about {}": "操作が必要、約 {}"
+  "Needs you, about {}: {}": "操作が必要、約 {}: {}"
   'Needs {}x{} free: remove or shrink a widget first': 空き {}x{} が必要です。先にウィジェットを削除または縮小してください
   Net Weight (g): 正味重量（g）
   Network: ネットワーク
@@ -3839,7 +3839,7 @@ translations:
   'Printing: start after this job': '印刷中：このジョブ後に開始'
   Prints: 印刷
   Prints Trend: 印刷傾向
-  "Prints on its own, about {} min": "自動で印刷、約 {} 分"
+  "Prints on its own, about {}": "自動で印刷、約 {}"
   'Private:': 'プライベート:'
   Probe: プローブ
   Probe Accuracy Failed: プローブ精度テスト失敗
@@ -4277,7 +4277,7 @@ translations:
   Runs on its own once started: 開始後は自動で進みます
   Runs everything this printer needs, in order: 'このプリンターに必要なものを順にすべて実行'
   Runs everything this printer needs, in order ·: 'このプリンターに必要なものを順にすべて実行 ·'
-  "Runs on its own, about {} min": "自動で実行、約 {} 分"
+  "Runs on its own, about {}": "自動で実行、約 {}"
   Runs the printer's tool offset calibration for every tool.: プリンターのツールオフセットキャリブレーションをすべてのツールに対して実行します。
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'SAVE_CONFIG に失敗しました: {}。ツールオフセットは適用されましたが保存されていません。SAVE_CONFIG を手動で実行しないと、再起動時に失われます。'
   ? 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
@@ -6422,6 +6422,7 @@ translations:
   '{} free of {}': '空き {} / {}'
   '{} h': '{} 時間'
   '{} h of {} h': '{} / {} 時間'
+  "{} h {} min": "{} 時間 {} 分"
   '{} hand feed did not finish': '{} の手動供給が完了しませんでした'
   '{} has no filament': '{} にフィラメントがありません'
   '{} has no filament type set': '{} にフィラメントの種類が設定されていません'

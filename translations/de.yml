@@ -3113,8 +3113,8 @@ translations:
   Needs attention: Erfordert Aufmerksamkeit
   Needs repair from a web interface: 'Muss über eine Weboberfläche repariert werden'
   Needs the {} package to switch spools: 'Benötigt das Plugin {} für den Spulenwechsel'
-  "Needs you, about {} min": "Braucht dich, etwa {} Min."
-  "Needs you, about {} min: {}": "Braucht dich, etwa {} Min.: {}"
+  "Needs you, about {}": "Braucht dich, etwa {}"
+  "Needs you, about {}: {}": "Braucht dich, etwa {}: {}"
   'Needs {}x{} free: remove or shrink a widget first': 'Benötigt {}x{} an freiem Platz: zuerst ein Widget entfernen oder verkleinern'
   Net Weight (g): Nettogewicht (g)
   Network: Netzwerk
@@ -3839,7 +3839,7 @@ translations:
   'Printing: start after this job': 'Druck läuft: nach diesem Auftrag starten'
   Prints: Drucke
   Prints Trend: Drucktrend
-  "Prints on its own, about {} min": "Druckt selbstständig, etwa {} Min."
+  "Prints on its own, about {}": "Druckt selbstständig, etwa {}"
   'Private:': 'Privat:'
   Probe: Sonde
   Probe Accuracy Failed: Taster-Genauigkeitstest fehlgeschlagen
@@ -4277,7 +4277,7 @@ translations:
   Runs on its own once started: Läuft nach dem Start von selbst
   Runs everything this printer needs, in order: 'Führt alles aus, was dieser Drucker braucht, der Reihe nach'
   Runs everything this printer needs, in order ·: 'Führt alles aus, was dieser Drucker braucht, der Reihe nach ·'
-  "Runs on its own, about {} min": "Läuft selbstständig, etwa {} Min."
+  "Runs on its own, about {}": "Läuft selbstständig, etwa {}"
   Runs the printer's tool offset calibration for every tool.: Führt die Werkzeug-Offset-Kalibrierung des Druckers für alle Werkzeuge aus.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'SAVE_CONFIG fehlgeschlagen: {}. Die Werkzeug-Offsets wurden angewendet, aber nicht gespeichert. Führe SAVE_CONFIG manuell aus, sonst gehen sie beim Neustart verloren.'
   ? 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
@@ -6422,6 +6422,7 @@ translations:
   '{} free of {}': '{} frei von {}'
   '{} h': '{} Std'
   '{} h of {} h': '{} Std von {} Std'
+  "{} h {} min": "{} Std {} Min"
   '{} hand feed did not finish': '{}: manuelle Zuführung nicht abgeschlossen'
   '{} has no filament': '{} hat kein Filament'
   '{} has no filament type set': '{} hat keinen Filamenttyp gesetzt'

@@ -2989,8 +2989,8 @@
   <translation tag="Needs file analysis, which isn&apos;t running." de="Benötigt die Dateianalyse, die nicht läuft."/>
   <translation tag="Needs repair from a web interface" de="Muss über eine Weboberfläche repariert werden"/>
   <translation tag="Needs the {} package to switch spools" de="Benötigt das Plugin {} für den Spulenwechsel"/>
-  <translation tag="Needs you, about {} min" de="Braucht dich, etwa {} Min."/>
-  <translation tag="Needs you, about {} min: {}" de="Braucht dich, etwa {} Min.: {}"/>
+  <translation tag="Needs you, about {}" de="Braucht dich, etwa {}"/>
+  <translation tag="Needs you, about {}: {}" de="Braucht dich, etwa {}: {}"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" de="Benötigt {}x{} an freiem Platz: zuerst ein Widget entfernen oder verkleinern"/>
   <translation tag="Net Weight (g)" de="Nettogewicht (g)"/>
   <translation tag="Network" de="Netzwerk"/>
@@ -3705,7 +3705,7 @@
   <translation tag="Printing: start after this job" de="Druck läuft: nach diesem Auftrag starten"/>
   <translation tag="Prints" de="Drucke"/>
   <translation tag="Prints Trend" de="Drucktrend"/>
-  <translation tag="Prints on its own, about {} min" de="Druckt selbstständig, etwa {} Min."/>
+  <translation tag="Prints on its own, about {}" de="Druckt selbstständig, etwa {}"/>
   <translation tag="Private:" de="Privat:"/>
   <translation tag="Probe" de="Sonde"/>
   <translation tag="Probe Accuracy Failed" de="Taster-Genauigkeitstest fehlgeschlagen"/>
@@ -4136,7 +4136,7 @@
   <translation tag="Runs everything this printer needs, in order" de="Führt alles aus, was dieser Drucker braucht, der Reihe nach"/>
   <translation tag="Runs everything this printer needs, in order ·" de="Führt alles aus, was dieser Drucker braucht, der Reihe nach ·"/>
   <translation tag="Runs on its own once started" de="Läuft nach dem Start von selbst"/>
-  <translation tag="Runs on its own, about {} min" de="Läuft selbstständig, etwa {} Min."/>
+  <translation tag="Runs on its own, about {}" de="Läuft selbstständig, etwa {}"/>
   <translation tag="Runs the printer&apos;s tool offset calibration for every tool." de="Führt die Werkzeug-Offset-Kalibrierung des Druckers für alle Werkzeuge aus."/>
   <translation tag="SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart." de="SAVE_CONFIG fehlgeschlagen: {}. Die Werkzeug-Offsets wurden angewendet, aber nicht gespeichert. Führe SAVE_CONFIG manuell aus, sonst gehen sie beim Neustart verloren."/>
   <translation tag="SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart." de="SAVE_CONFIG fehlgeschlagen: {}. Der Z-Offset wurde angewendet, aber nicht gespeichert. Führe SAVE_CONFIG manuell aus, sonst geht der Offset beim Neustart verloren."/>
@@ -6193,6 +6193,7 @@
   <translation tag="{} free of {}" de="{} frei von {}"/>
   <translation tag="{} h" de="{} Std"/>
   <translation tag="{} h of {} h" de="{} Std von {} Std"/>
+  <translation tag="{} h {} min" de="{} Std {} Min"/>
   <translation tag="{} hand feed did not finish" de="{}: manuelle Zuführung nicht abgeschlossen"/>
   <translation tag="{} has no filament" de="{} hat kein Filament"/>
   <translation tag="{} has no filament type set" de="{} hat keinen Filamenttyp gesetzt"/>

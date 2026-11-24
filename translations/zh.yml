@@ -3113,8 +3113,8 @@ translations:
   Needs attention: 需要处理
   Needs repair from a web interface: '需要通过网页界面修复'
   Needs the {} package to switch spools: '切换料盘需要 {} 插件'
-  "Needs you, about {} min": "需要你操作，约 {} 分钟"
-  "Needs you, about {} min: {}": "需要你操作，约 {} 分钟：{}"
+  "Needs you, about {}": "需要你操作，约 {}"
+  "Needs you, about {}: {}": "需要你操作，约 {}：{}"
   'Needs {}x{} free: remove or shrink a widget first': 需要 {}x{} 空位。请先移除或缩小小组件
   Net Weight (g): 净重（克）
   Network: 网络
@@ -3839,7 +3839,7 @@ translations:
   'Printing: start after this job': '打印中：本次打印完成后开始'
   Prints: 打印次数
   Prints Trend: 打印趋势
-  "Prints on its own, about {} min": "自动打印，约 {} 分钟"
+  "Prints on its own, about {}": "自动打印，约 {}"
   'Private:': 私有：
   Probe: 探针
   Probe Accuracy Failed: 探针精度测试失败
@@ -4277,7 +4277,7 @@ translations:
   Runs on its own once started: 启动后自动运行
   Runs everything this printer needs, in order: '按顺序运行此打印机所需的一切'
   Runs everything this printer needs, in order ·: '按顺序运行此打印机所需的一切 ·'
-  "Runs on its own, about {} min": "自动运行，约 {} 分钟"
+  "Runs on its own, about {}": "自动运行，约 {}"
   Runs the printer's tool offset calibration for every tool.: 为所有工具运行打印机的工具偏移校准。
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': SAVE_CONFIG 失败：{}。工具偏移已应用但未保存。请手动执行 SAVE_CONFIG，否则重启后将丢失。
   ? 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
@@ -6422,6 +6422,7 @@ translations:
   '{} free of {}': '可用 {} / 共 {}'
   '{} h': '{} 小时'
   '{} h of {} h': '{} / {} 小时'
+  "{} h {} min": "{} 小时 {} 分钟"
   '{} hand feed did not finish': '{} 手动送料未完成'
   '{} has no filament': '{} 没有耗材'
   '{} has no filament type set': '{} 未设置耗材类型'
