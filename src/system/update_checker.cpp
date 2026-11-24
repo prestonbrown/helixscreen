@@ -2324,6 +2324,7 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
     int ret = -1;
     bool timed_out = false;
     std::vector<std::string> install_lines; // install.sh output, for the UI's failure detail
+    bool installer_may_run = false;         // waitpid failed: the child may still be running
     // install.sh's swap changes release_info.json, which helixscreen-update.path
     // watches; without the sentinel that unit restarts the service under a
     // running install.sh, before this process can finish the update.
@@ -2370,6 +2371,9 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
             execv(install_script.c_str(), const_cast<char**>(argv));
             _exit(127);
         } else {
+            // Naming the installer keeps the sentinel through a Moonraker
+            // reconnect or an app restart while install.sh still runs.
+            write_self_restart_sentinel(static_cast<int>(pid));
             // Parent: close our copy of the log fd and wait with timeout
             flog_info("[UpdateChecker] Forked install.sh as pid={}, waiting...", pid);
             if (log_fd >= 0)
@@ -2432,6 +2436,7 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
             case ChildWaitOutcome::WaitFailed:
                 flog_error("[UpdateChecker] waitpid(install) failed: {} (errno={})",
                            strerror(wait.wait_errno), wait.wait_errno);
+                installer_may_run = true;
                 break;
             }
         }
@@ -2481,7 +2486,7 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
         safe_exec({rm_bin, "-rf", extracted_dir});
     }
 
-    settle_self_restart_sentinel(ret == 0);
+    settle_self_restart_sentinel(ret == 0 || installer_may_run);
     if (ret != 0) {
         flog_error("[UpdateChecker] Install script failed with code {}", ret);
         // Build a user-visible error message with detail from the install log
@@ -2786,7 +2791,7 @@ void UpdateChecker::handle_external_update_complete() {
 // Static helpers
 // ============================================================================
 
-bool UpdateChecker::write_self_restart_sentinel() {
+bool UpdateChecker::write_self_restart_sentinel(int installer_pid) {
     const std::string dir = app_constants::update::backup_fallback_dir();
     const std::string sentinel = dir + "/self_restart_sentinel";
     std::error_code ec;
@@ -2794,13 +2799,29 @@ bool UpdateChecker::write_self_restart_sentinel() {
     if (ec) {
         spdlog::warn("[UpdateChecker] Failed to create {}: {}", dir, ec.message());
     }
-    std::ofstream ofs(sentinel);
+    std::ofstream ofs(sentinel, std::ios::trunc);
     if (!ofs) {
         spdlog::warn("[UpdateChecker] Failed to write sentinel: {}", sentinel);
         return false;
     }
+    if (installer_pid > 0) {
+        ofs << installer_pid << "\n";
+    }
     spdlog::info("[UpdateChecker] Wrote self-restart sentinel: {}", sentinel);
     return true;
+}
+
+bool UpdateChecker::sentinel_installer_running() {
+    std::ifstream in(app_constants::update::backup_fallback_dir() + "/self_restart_sentinel");
+    long pid = 0;
+    if (!(in >> pid) || pid <= 0) {
+        return false; // no file, or written without an installer (a restart is underway)
+    }
+    // A live pid is only the installer while it still runs install.sh: a reused
+    // pid belongs to something else.
+    std::ifstream cmdline("/proc/" + std::to_string(pid) + "/cmdline");
+    std::string args((std::istreambuf_iterator<char>(cmdline)), std::istreambuf_iterator<char>());
+    return args.find("install.sh") != std::string::npos;
 }
 
 void UpdateChecker::settle_self_restart_sentinel(bool installed) {
@@ -3740,7 +3761,10 @@ void UpdateChecker::on_connected(helix::IMoonrakerClient& client) {
         std::error_code ec;
         std::string sentinel =
             app_constants::update::backup_fallback_dir() + "/self_restart_sentinel";
-        if (fs::remove(sentinel, ec)) {
+        if (sentinel_installer_running()) {
+            spdlog::info(
+                "[UpdateChecker] Keeping the self-restart sentinel: install.sh is running");
+        } else if (fs::remove(sentinel, ec)) {
             spdlog::info("[UpdateChecker] Cleaned up self-restart sentinel");
             // Moonraker re-reads release_info.json only on a refresh, and its
             // own schedule can be a week apart, so Mainsail keeps showing the

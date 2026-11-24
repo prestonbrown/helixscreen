@@ -135,6 +135,43 @@ TEST_CASE("The install-time sentinel stays only for an install that succeeded",
     fs::remove_all(root);
 }
 
+TEST_CASE("The sentinel names install.sh and is kept only while it runs",
+          "[update_checker][sentinel]") {
+    namespace fs = std::filesystem;
+    const std::string prev = helix::app_constants::update::detail::backup_fallback_dir_ref();
+    const fs::path root =
+        fs::temp_directory_path() / ("helix-sentinel-pid-" + std::to_string(getpid()));
+    const fs::path dir = root / ".helixscreen";
+    fs::remove_all(root);
+    fs::create_directories(root);
+    helix::app_constants::update::detail::backup_fallback_dir_ref() = dir.string();
+
+    // A stand-in installer that is still running.
+    const fs::path script = root / "install.sh";
+    { std::ofstream(script) << "#!/bin/sh\nsleep 30\n"; }
+    const pid_t installer = fork();
+    if (installer == 0) {
+        execl("/bin/sh", "sh", script.c_str(), static_cast<char*>(nullptr));
+        _exit(127);
+    }
+    REQUIRE(installer > 0);
+    usleep(200 * 1000);
+
+    REQUIRE(UpdateChecker::write_self_restart_sentinel(installer));
+    CHECK(UpdateChecker::sentinel_installer_running());
+
+    kill(installer, SIGKILL);
+    waitpid(installer, nullptr, 0);
+    CHECK_FALSE(UpdateChecker::sentinel_installer_running());
+
+    // Written for a restart rather than an install: nothing to keep it for.
+    REQUIRE(UpdateChecker::write_self_restart_sentinel());
+    CHECK_FALSE(UpdateChecker::sentinel_installer_running());
+
+    helix::app_constants::update::detail::backup_fallback_dir_ref() = prev;
+    fs::remove_all(root);
+}
+
 TEST_CASE("Startup relinks the user config only on a deployed layout without a restarting service",
           "[update_checker][external_update][2147]") {
     namespace fs = std::filesystem;
@@ -1985,6 +2022,62 @@ TEST_CASE("do_install never runs the installer in test mode",
 
     CHECK(access(marker.c_str(), F_OK) != 0);
     CHECK(access(tarball.c_str(), F_OK) != 0);
+
+    remove_dir(tmp);
+}
+
+TEST_CASE("do_install holds the self-restart sentinel while install.sh runs",
+          "[update_checker][installer][do_install][sentinel]") {
+    auto tmp = make_temp_dir("helix_install_sentinel");
+    REQUIRE(!tmp.empty());
+    const std::string fallback = tmp + "/.helixscreen";
+    const std::string sentinel = fallback + "/self_restart_sentinel";
+
+    // A failing installer that records what it saw: the sentinel exists, and
+    // names it, while it runs.
+    const std::string seen = tmp + "/seen";
+    std::string inner = tmp + "/helixscreen";
+    mkdir(inner.c_str(), 0755);
+    create_file(inner + "/install.sh",
+                "#!/bin/sh\nsleep 1\n{ cat '" + sentinel +
+                    "' 2>/dev/null || echo missing; "
+                    "echo \"self=$$\"; } > '" +
+                    seen + "'\nexit 1\n",
+                true);
+    const std::string tarball = tmp + "/release.tar.gz";
+    std::string cmd =
+        "cd " + tmp + " && COPYFILE_DISABLE=1 tar czf release.tar.gz helixscreen/install.sh";
+    REQUIRE(std::system(cmd.c_str()) == 0);
+
+    const pid_t pid = fork();
+    if (pid == 0) {
+        ScopedRuntimeConfig scoped_config;
+        get_runtime_config()->test_mode = false;
+        helix::app_constants::update::detail::backup_fallback_dir_ref() = fallback;
+        auto& checker = UpdateChecker::instance();
+        UpdateCheckerTestAccess::clear_download_cancelled(checker);
+        UpdateCheckerTestAccess::set_restart_action(checker, [] {});
+        UpdateCheckerTestAccess::set_status_hold_ms(checker, 0, 0);
+        UpdateCheckerTestAccess::do_install(checker, tarball);
+        _exit(0);
+    }
+    REQUIRE(pid > 0);
+    int wstatus = 0;
+    for (int i = 0; i < 3000 && waitpid(pid, &wstatus, WNOHANG) == 0; ++i)
+        usleep(10 * 1000);
+    if (waitpid(pid, &wstatus, WNOHANG) == 0) {
+        kill(pid, SIGKILL);
+        waitpid(pid, &wstatus, 0);
+        FAIL("do_install did not return within 30s");
+    }
+
+    std::ifstream in(seen);
+    std::string named, self;
+    std::getline(in, named);
+    std::getline(in, self);
+    CHECK(self == "self=" + named);
+    // The install failed, so no restart follows and the sentinel is gone.
+    CHECK(access(sentinel.c_str(), F_OK) != 0);
 
     remove_dir(tmp);
 }
