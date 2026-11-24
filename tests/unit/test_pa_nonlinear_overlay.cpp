@@ -537,6 +537,31 @@ TEST_CASE_METHOD(NonlinearFixture,
         overlay.start_for_test(params(), pa::ExtruderKind::Bowden);
         CHECK(helix::ui::modal_get_top() == nullptr);
     }
+    SECTION("another material is not offered the session") {
+        auto petg = params();
+        petg.material = "PETG";
+        overlay.start_for_test(petg, pa::ExtruderKind::DirectDrive);
+        CHECK(helix::ui::modal_get_top() == nullptr);
+    }
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: another material starts its own procedure, never this one's "
+                 "values under its name",
+                 "[pa_nonlinear][pa_tuner][2174]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    print_tower();
+    overlay.adjust_height_for_test(50);
+    overlay.judge_for_test(1);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.procedure_for_test()->pass_number() == 2);
+
+    auto petg = params();
+    petg.material = "PETG";
+    overlay.start_for_test(petg, pa::ExtruderKind::DirectDrive);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.procedure_for_test() != nullptr);
+    CHECK(overlay.procedure_for_test()->pass_number() == 1);
 }
 
 TEST_CASE_METHOD(NonlinearFixture, "nonlinear tuner: one press of Stop cancels the tower",

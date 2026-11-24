@@ -117,8 +117,9 @@ TEST_CASE_METHOD(TunerFixture, "the tuner ramps K on its own print and takes a n
     CHECK(overlay.stage() == PaTuningOverlay::RESULT);
     CHECK(client.last_send_script() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0000");
     CHECK(shown("pa_tune_result_k") == "0.0000");
-    // A classic K can be written to the extruder's config section.
+    // A classic K can be written to the extruder's config section, and saved per material.
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_tune_can_save_config")) == 1);
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_tune_can_save_material")) == 1);
 }
 
 TEST_CASE_METHOD(TunerFixture, "a finished state from an earlier print does not end the run",
@@ -246,6 +247,8 @@ TEST_CASE_METHOD(TunerFixture,
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_tune_can_save_spool")) == 0);
     // pressure_advance is not a key a nonlinear model reads.
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_tune_can_save_config")) == 0);
+    // Stored per material it would print as MODEL=linear and drop the tuned offset.
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_tune_can_save_material")) == 0);
     CHECK(client.mock_db_get(pa::kMoonrakerNamespace, pa::kMoonrakerKey).is_null());
 }
 
