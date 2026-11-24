@@ -5,11 +5,12 @@
 
 /**
  * @file noto_sans_fonts.h
- * @brief The regular-weight Noto Sans faces, for any layer that draws text.
+ * @brief The Noto Sans text faces (regular, light, bold), for any layer that uses text.
  *
  * The faces are generated assets (assets/fonts), not UI code, so a renderer
- * can label what it draws without depending on ui_fonts.h, which declares the
- * rest of the UI's faces and includes this.
+ * can label what it draws, and CjkFontManager can attach CJK fallbacks to them,
+ * without depending on ui_fonts.h, which declares the rest of the UI's faces
+ * and includes this.
  */
 
 #include "lvgl/lvgl.h"
@@ -34,3 +35,29 @@ extern lv_font_t noto_sans_40;
 // no printer build carries them (see FONTS_XXLARGE in mk/fonts.mk).
 extern lv_font_t noto_sans_48;
 extern lv_font_t noto_sans_64;
+
+// Noto Sans - Light weight with extended Unicode (for text_small)
+extern lv_font_t noto_sans_light_10;
+extern lv_font_t noto_sans_light_11;
+extern lv_font_t noto_sans_light_12;
+extern lv_font_t noto_sans_light_14;
+extern lv_font_t noto_sans_light_16;
+extern lv_font_t noto_sans_light_18;
+extern lv_font_t noto_sans_light_20;
+extern lv_font_t noto_sans_light_26;
+// High-DPI scale rungs — see the noto_sans_48/64 note above.
+extern lv_font_t noto_sans_light_32;
+extern lv_font_t noto_sans_light_40;
+
+// Noto Sans - Bold weight with extended Unicode
+extern lv_font_t noto_sans_bold_14;
+extern lv_font_t noto_sans_bold_16;
+extern lv_font_t noto_sans_bold_18;
+extern lv_font_t noto_sans_bold_20;
+extern lv_font_t noto_sans_bold_24;
+extern lv_font_t noto_sans_bold_28;
+extern lv_font_t noto_sans_bold_32;
+extern lv_font_t noto_sans_bold_40;
+// High-DPI scale rungs — see the noto_sans_48/64 note above.
+extern lv_font_t noto_sans_bold_48;
+extern lv_font_t noto_sans_bold_64;

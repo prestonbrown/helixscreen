@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "ui_breakpoint.h"
+#include "core/breakpoint.h"
 
 #include <array>
 #include <functional>
