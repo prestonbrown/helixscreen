@@ -5,11 +5,21 @@
 // per-spool record the print history shows. The ownership, key and switch
 // rules come from the case table the plugin's suite reads too.
 
+#include "ui_update_queue.h"
+
+#include "../fake_moonraker_client.h"
+#include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/filament_accounting_cases.h"
+#include "../ui_test_utils.h"
+#include "app_globals.h"
 #include "filament_accounting.h"
+#include "filament_accounting_controller.h"
 #include "helix_plugin_features.h"
+#include "moonraker_api.h"
 #include "printer_discovery.h"
 #include "printer_plugin_status_state.h"
+#include "printer_state.h"
+#include "tool_state.h"
 
 #include <algorithm>
 #include <string>
@@ -325,4 +335,96 @@ TEST_CASE("filament accounting: who sets the spool for an explicit link of the l
     INFO("firmware keeping its own assignment (SpoolLink) is left to it");
     CHECK_FALSE(app_sets_spool_on_edit(ActiveSpoolOwner::Printer, false));
     CHECK_FALSE(app_sets_spool_on_edit(ActiveSpoolOwner::NoSpoolman, false));
+}
+
+namespace {
+
+/// The controller against a fake Moonraker published as the app's.
+struct OptInsFx : LVGLUITestFixture {
+    helix::test::FakeMoonrakerClient client;
+    MoonrakerAPI api{client, get_printer_state()};
+    IMoonrakerAPI* previous_api = nullptr;
+    std::unique_ptr<FilamentAccountingController> controller;
+
+    OptInsFx() {
+        previous_api = get_moonraker_api();
+        set_moonraker_api(&api);
+        controller = std::make_unique<FilamentAccountingController>();
+    }
+    ~OptInsFx() override {
+        controller.reset();
+        drain();
+        set_moonraker_api(previous_api);
+    }
+
+    static void drain() {
+        for (int i = 0; i < 5; ++i) {
+            ui::UpdateQueue::instance().drain();
+        }
+    }
+
+    /// Answer the newest get_item with @p record.
+    void read(const json& record) {
+        controller->read_opt_ins();
+        REQUIRE_FALSE(client.rpc_calls.empty());
+        auto call = client.rpc_calls.back();
+        REQUIRE(call.success_cb);
+        call.success_cb(
+            json{{"result",
+                  {{"namespace", "helix-screen"}, {"key", "plugin_features"}, {"value", record}}}});
+        drain();
+    }
+
+    /// Fail the newest get_item with @p err.
+    void fail_read(const MoonrakerError& err) {
+        controller->read_opt_ins();
+        REQUIRE_FALSE(client.rpc_calls.empty());
+        auto call = client.rpc_calls.back();
+        REQUIRE(call.error_cb);
+        call.error_cb(err);
+        drain();
+    }
+
+    FilamentAccountingSender sender() const {
+        return controller->fallback_sender(PluginFeatureState::Absent, ActiveSpoolOwner::Helix,
+                                           FallbackSenderRole::Sender);
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(OptInsFx, "filament accounting: a failed first read leaves the fallback off",
+                 "[plugin_filament]") {
+    MoonrakerError lost;
+    lost.type = MoonrakerErrorType::TIMEOUT;
+    fail_read(lost);
+    CHECK(sender() == FilamentAccountingSender::None);
+}
+
+TEST_CASE_METHOD(OptInsFx, "filament accounting: the fallback acts only on a record it read",
+                 "[plugin_filament]") {
+    INFO("nothing read yet: no switching");
+    CHECK(sender() == FilamentAccountingSender::None);
+
+    read(json::object());
+    INFO("an empty record, read: on");
+    CHECK(sender() == FilamentAccountingSender::App);
+
+    read(json{{kFilamentAccountingFeature, false}});
+    INFO("the user's false, read at the next job start: off");
+    CHECK(sender() == FilamentAccountingSender::None);
+
+    read(json::object());
+    REQUIRE(sender() == FilamentAccountingSender::App);
+    MoonrakerError lost;
+    lost.type = MoonrakerErrorType::TIMEOUT;
+    fail_read(lost);
+    INFO("a failed read keeps the last good one");
+    CHECK(sender() == FilamentAccountingSender::App);
+
+    MoonrakerError missing;
+    missing.code = 404;
+    fail_read(missing);
+    INFO("no record at all: on");
+    CHECK(sender() == FilamentAccountingSender::App);
 }

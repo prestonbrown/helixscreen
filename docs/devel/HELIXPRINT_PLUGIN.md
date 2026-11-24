@@ -863,7 +863,7 @@ stored record, the live ledger (`status: "in_progress"`) of the job printing, or
   itself. Pinned by `cases.json` `keys`.
 - App `filament_accounting_sender(plugin_feature("filament_accounting", 1), opted_in, owner,
   role)`: owner not Helix -> None; Ready -> Plugin; Disabled -> None; Absent -> App when opted
-  in and Sender. `opted_in` is `filament_accounting_opted_in(stored_opt_ins())`: true unless
+  in and Sender. `opted_in` is `filament_accounting_opted_in()` of the record: true unless
   the key holds `false`, the plugin's own rule.
 - `filament_usage_available(state)`: the history detail asks the plugin when the feature is
   reported at all (Ready or Disabled; records outlive the switch).
@@ -872,7 +872,10 @@ stored record, the live ledger (`status: "in_progress"`) of the job printing, or
 changes mid-print, for tools that print from their own extruder with a spool assigned to the
 tool (`ToolInfo::spoolman_id`, `backend_index < 0`): only while the feature is not Ready, only
 when not turned off and the owner is Helix, only for the Sender, and only after this connection's
-plugin probe. It reads the current active spool (`get_spoolman_status`) and applies
+plugin probe. It reads `plugin_features` itself at each plugin probe and each job start
+(`FilamentAccountingController#read_opt_ins`), so a `curl` change reaches the next print; until
+a read succeeds it switches nothing (`fallback_sender`), since an unread record would read as
+on over a user's `false`; a failed read keeps the last good one. A missing record is a successful read. It reads the current active spool (`get_spoolman_status`) and applies
 `decide_spool_switch`. Backend-fed lanes on a Helix-owned printer are switched by the lane-load
 sync. The fallback misses changes while the app is down, does nothing for single-extruder lane
 changes, and records no per-job usage; the plugin closes those gaps.
