@@ -45,6 +45,10 @@ exit 0'
     mock_command_script fake-no-mocks 'echo "no-mocks $*" >> "$CALLS"'
     export MAKE=fake-make TEST_HOST_RUN=fake-test-host-run HELIX_CLAIM=fake-claim
     export NO_MOCKS_CHECK=fake-no-mocks LAND_GATE_BASE_REF=HEAD
+    export SPLASH_LINK_BIN_DIR="$BATS_TEST_TMPDIR/splash-bin"
+    mkdir -p "$SPLASH_LINK_BIN_DIR"
+    touch "$SPLASH_LINK_BIN_DIR/helix-splash" "$SPLASH_LINK_BIN_DIR/helix-watchdog"
+    chmod +x "$SPLASH_LINK_BIN_DIR"/helix-*
     export HELIX_TEST_HOST=testhost.invalid HELIX_BUILD_HOSTS_FILE=/nonexistent
     unset CI_SHARDS CI_SHARD_TIMEOUT
     export TEST_HOST=0
@@ -65,7 +69,7 @@ row() { # <status> <step>: the table row for step has that status
     run "$GATE"
     [ "$status" -eq 0 ]
     for s in app-build ci-shards slow ui plugin python theme-tokens xml-schema lint-xml \
-        lvgl-event-codes no-mocks; do
+        lvgl-event-codes no-mocks splash-link; do
         row SKIP "$s"
     done
     row PASS quality
@@ -190,6 +194,51 @@ plan_of() { # <stage> <changed path>...: "<verdict> <why>" for the stage
     [[ "$(plan_of python src/app_globals.cpp)" == select* ]] || fail "verdict differs"
     [[ "$(plan_of python tests/unit/test_version.cpp)" == skip* ]] || fail "verdict differs"
     [[ "$(plan_of python scripts/CLAUDE.md)" == skip* ]] || fail "verdict differs"
+}
+
+# A scratch tree with the real splash, watchdog and display-lib makefiles and a
+# dependency file for every source they name: each lists only itself, and
+# config_migrations.cpp also lists the header chain the splash reaches.
+splash_fixture() {
+    local root="$BATS_TEST_TMPDIR/splashtree" src
+    mkdir -p "$root/mk" "$root/build/obj" "$root/include"
+    cp "$REPO_ROOT"/mk/splash.mk "$REPO_ROOT"/mk/watchdog.mk "$REPO_ROOT"/mk/display-lib.mk "$root/mk/"
+    cat "$root"/mk/*.mk | grep -v '^[[:space:]]*#' |
+        grep -oE '(src|tools)/[A-Za-z0-9_/]*[A-Za-z0-9_]\.cpp' | sort -u | while read -r src; do
+        [ "$src" != src/system/config_migrations.cpp ] || continue
+        printf 'build/obj/x.o: %s\n' "$src" >"$root/build/obj/$(echo "$src" | tr / _).d"
+    done
+    printf 'build/obj/m.o: src/system/config_migrations.cpp include/screensaver_setting.h \\\n include/screensaver_registry.h\n' \
+        >"$root/build/obj/system_config_migrations.d"
+    printf 'build/obj/p.o: src/ui/panel.cpp include/panel_only.h\n' >"$root/build/obj/panel.d"
+    echo "$root"
+}
+
+splash_plan() { # <root> <changed path>...: "<verdict> <why>" for splash-link
+    local root=$1
+    shift
+    python3 "$SELECT" --root "$root" plan --changed "$(IFS=,; echo "$*")" |
+        awk -F'\t' '$1 == "splash-link" { print $2 " " $3 }'
+}
+
+@test "plan: splash-link runs for a header the splash reaches, not for a pure ui_xml or an app-only header" {
+    local root
+    root=$(splash_fixture)
+    [[ "$(splash_plan "$root" include/screensaver_registry.h)" == run*config_migrations.cpp* ]] || fail "header"
+    [[ "$(splash_plan "$root" src/helix_splash.cpp)" == run* ]] || fail "splash source"
+    [[ "$(splash_plan "$root" ui_xml/home_panel.xml)" == skip* ]] || fail "ui_xml"
+    [[ "$(splash_plan "$root" src/ui/panel.cpp include/panel_only.h)" == skip* ]] || fail "app only"
+    [[ "$(splash_plan "$root" tests/unit/test_version.cpp docs/devel/BUILD_SYSTEM.md)" == skip* ]] || fail "tests"
+}
+
+@test "plan: splash-link runs for a build system change, and without a dependency file for any C++ path" {
+    local root
+    root=$(splash_fixture)
+    [[ "$(splash_plan "$root" mk/splash.mk)" == run* ]] || fail "makefile"
+    [[ "$(splash_plan "$root" lv_conf.h)" == run* ]] || fail "lv_conf"
+    rm "$root/build/obj/src_helix_splash.cpp.d"
+    [[ "$(splash_plan "$root" src/ui/panel.cpp)" == run*"no dependency file"* ]] || fail "fallback"
+    [[ "$(splash_plan "$root" ui_xml/home_panel.xml)" == skip* ]] || fail "ui_xml fallback"
 }
 
 ui_files_of() { # <changed path>...: the files the ui row selects, one line
