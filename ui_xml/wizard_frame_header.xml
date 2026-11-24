@@ -264,17 +264,17 @@
         </text_body>
       </lv_obj>
       <if cond="$progress eq 1">
-        <wizard_frame_steps name="cal_header_dots"
-                            mode="1" count_subject="$step_count_subject" current_subject="$step_current_subject">
+        <wizard_frame_dots name="cal_header_dots"
+                           count_subject="$step_count_subject" current_subject="$step_current_subject">
           <bind_flag_if cond="ui_breakpoint eq 0 or ui_is_portrait eq 1" flag="hidden"/>
-        </wizard_frame_steps>
+        </wizard_frame_dots>
       </if>
       <if cond="$progress eq 2">
-        <wizard_frame_steps name="cal_header_segments"
-                            mode="2" count_subject="$step_count_subject" current_subject="$step_current_subject"
-                            on_style="$segment_style">
+        <wizard_frame_segments name="cal_header_segments"
+                               count_subject="$step_count_subject" current_subject="$step_current_subject"
+                               on_style="$segment_style">
           <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
-        </wizard_frame_steps>
+        </wizard_frame_segments>
       </if>
     </lv_obj>
     <lv_bar name="cal_header_bar"

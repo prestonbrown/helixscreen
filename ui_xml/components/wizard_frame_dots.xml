@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The wizard header's progress dots, one per step: the current one a wide blue
+     pill. count_subject and current_subject (0-based) are int subjects; at most
+     10 steps. wizard_frame_segments is the segmented twin; the header's own
+     <if> picks one, since a <repeat> cannot sit inside an <if>. -->
+<component>
+  <api>
+    <prop name="count_subject" type="string" default=""/>
+    <prop name="current_subject" type="string" default=""/>
+  </api>
+  <consts>
+    <px name="dot" value="8"/>
+    <px name="dot_wide" value="22"/>
+    <px name="dot_gap" value="6"/>
+  </consts>
+  <styles>
+    <!-- text_subtle: an off dot must read on both themes' header backgrounds. -->
+    <style name="dot_off" width="#dot" height="#dot" bg_color="#text_subtle"/>
+    <style name="dot_on" width="#dot_wide" bg_color="#primary"/>
+  </styles>
+  <view extends="lv_obj"
+        width="content" height="content" style_pad_all="0" style_pad_gap="#dot_gap" style_bg_opa="0"
+        style_border_width="0" flex_flow="row" style_flex_cross_place="center" scrollable="false">
+    <repeat count="10">
+      <lv_obj style_radius="9999" style_bg_opa="255" style_border_width="0" scrollable="false">
+        <style name="dot_off"/>
+        <bind_flag_if cond="${count_subject} le ${i}" flag="hidden"/>
+        <bind_style_if name="dot_on" cond="${current_subject} eq ${i}"/>
+      </lv_obj>
+    </repeat>
+  </view>
+</component>
