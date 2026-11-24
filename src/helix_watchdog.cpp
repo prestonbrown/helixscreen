@@ -36,6 +36,7 @@
 #include "logging_init.h"
 #include "proc_comm.h"
 #include "system/crash_record.h"
+#include "system/update_rollback.h"
 #include "watchdog_isolated_dialog.h"
 #include "watchdog_restart_policy.h"
 
@@ -90,6 +91,28 @@ static constexpr int kDefaultAutoRestartSec = 30;
 // live in the policy header so they can be unit tested on hosts that never
 // build this binary.
 static constexpr int kRestartLoopExitCode = 42;
+
+// Is helix-launcher.sh's automatic-update rollback guard armed? The launcher
+// exports the directory; the app writes the marker after the install.
+static bool rollback_marker_present() {
+    const char* dir = getenv(helix::update::kRollbackDirEnv);
+    if (dir == nullptr || dir[0] == '\0') {
+        return false;
+    }
+    std::error_code ec;
+    return std::filesystem::exists(std::string(dir) + "/" + helix::update::kRollbackArmedFile, ec);
+}
+
+// A stop or shutdown during the rollback guard's window is not a failed
+// update: tell the launcher, which would otherwise restore the previous version.
+static void note_rollback_stop() {
+    if (!rollback_marker_present()) {
+        return;
+    }
+    const std::string path = std::string(getenv(helix::update::kRollbackDirEnv)) + "/" +
+                             helix::update::kRollbackStoppingFile;
+    std::ofstream(path).put('\n');
+}
 
 // Crash-loop detection (separate window from non-zero-exit loops above).
 // When the same crash signal repeats N times within M seconds, blind retry
@@ -1192,6 +1215,7 @@ static int run_watchdog(WatchdogArgs args) {
         // Check if we're shutting down
         if (g_quit) {
             spdlog::info("[Watchdog] Shutting down");
+            note_rollback_stop();
             break;
         }
 
@@ -1214,10 +1238,10 @@ static int run_watchdog(WatchdogArgs args) {
         // Normal exit (code 0) - just restart silently
         if (!crash.was_signaled && crash.exit_code == 0) {
             if (helix::watchdog::hand_clean_exit_to_service_manager(
-                    was_update_restart, getenv("HELIX_SERVICE_RESTARTS"))) {
-                spdlog::info(
-                    "[Watchdog] Update restart under a restarting service - exiting so the "
-                    "service restarts and refreshes its units");
+                    was_update_restart, getenv("HELIX_SERVICE_RESTARTS"),
+                    rollback_marker_present())) {
+                spdlog::info("[Watchdog] Update restart - exiting so the launcher or the service "
+                             "starts the new version");
                 break;
             }
             spdlog::info("[Watchdog] Child exited normally, restarting");
@@ -1315,6 +1339,7 @@ static int run_watchdog(WatchdogArgs args) {
         if (crash.was_signaled && (crash.signal_num == SIGTERM || crash.signal_num == SIGINT)) {
             spdlog::info("[Watchdog] Child received {} ({}), shutting down gracefully",
                          crash.signal_num, crash.signal_name);
+            note_rollback_stop();
             break;
         }
 

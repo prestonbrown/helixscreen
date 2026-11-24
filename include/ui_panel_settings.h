@@ -136,6 +136,9 @@ class SettingsPanel : public PanelBase {
     // neutral "updates aren't available" notice, mutually exclusive with the
     // firmware-managed notice above.
     helix::Subject updates_unavailable_subject_{};
+    // 1 where Install overnight is offered: helix::update::auto_rollback_supported()
+    // on an install that can update itself. Picks which Automatic Updates row shows.
+    helix::Subject auto_update_overnight_subject_{};
     // 1 once a plugin host exists: unhides the Plugins row (settings_panel.xml)
     helix::Subject plugins_available_subject_{};
     helix::Subject firmware_update_subject_{};

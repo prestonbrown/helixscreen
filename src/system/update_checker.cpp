@@ -50,6 +50,7 @@
 #include "system/sha256_util.h"
 #include "system/telemetry_manager.h"
 #include "system/tls_trust.h"
+#include "system/update_rollback.h"
 #include "system_power.h"
 #include "system_settings_manager.h"
 #include "update_manager_status.h"
@@ -70,10 +71,13 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <fcntl.h>
 #include <filesystem>
 #include <fstream>
+#include <future>
 #include <map>
+#include <memory>
 #include <set>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
@@ -107,6 +111,13 @@ constexpr int kHttpTimeoutSeconds = 30;
 /// restart before doing it itself. Must comfortably exceed one main-loop tick;
 /// the only thing it guards against is a main loop that is no longer running.
 constexpr int kRestartMarshalTimeoutMs = 5000;
+/// Where the "Update Rolled Back" notice waits until it has been seen.
+constexpr const char* kRollbackNoticeKey = "/update/rollback_notice";
+/// A sentinel younger than this may still be answering helixscreen-update.path's
+/// check, ten seconds after the tree changed.
+constexpr int kFreshSentinelSeconds = 30;
+/// How long the notice must be on screen before it is forgotten.
+constexpr int kRollbackNoticeSeconds = 120;
 
 /// Perform an HTTP GET using the best available stack.
 ///
@@ -501,16 +512,18 @@ int safe_exec(const std::vector<std::string>& args, bool capture_stderr = false)
     return exit_code;
 }
 
+} // namespace
+
 /**
- * @brief Clean up stale .old backup directory left by a previous update.
+ * Clean up a stale .old backup directory left by a previous update.
  *
  * When the in-app updater runs install.sh under systemd's NoNewPrivileges
  * constraint, the cleanup_old_install step can fail silently (sudo is blocked).
- * This leaves a helixscreen.old directory that wastes disk space.  We clean it
- * up at startup since we know the new version launched successfully.
+ * This leaves a helixscreen.old directory that wastes disk space. A .old kept
+ * for the launcher's rollback guard is not stale: it stays while the guard is
+ * armed, and the guard removes it once the new version is healthy.
  */
-void cleanup_stale_old_install() {
-    std::string install_root = app_get_writable_install_root();
+void UpdateChecker::cleanup_stale_old_install(const std::string& install_root) {
     if (install_root.empty()) {
         return;
     }
@@ -519,6 +532,10 @@ void cleanup_stale_old_install() {
     struct stat st {};
     if (stat(old_dir.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) {
         return; // no .old directory
+    }
+    if (helix::update::rollback_guard_armed()) {
+        spdlog::info("[UpdateChecker] Keeping {}: the rollback guard is armed", old_dir);
+        return;
     }
 
     spdlog::info("[UpdateChecker] Found stale backup from previous update: {}", old_dir);
@@ -535,6 +552,8 @@ void cleanup_stale_old_install() {
     // and Config::init() — do NOT delete them here. They protect against Moonraker
     // wiping the install directory during updates.
 }
+
+namespace {
 
 /**
  * @brief Extract a single member from a .tar.gz tarball.
@@ -874,7 +893,7 @@ void UpdateChecker::init() {
 
     // Clean up stale .old backup from a previous in-app update that may have
     // failed to remove it (e.g., NoNewPrivileges blocked sudo rm).
-    cleanup_stale_old_install();
+    cleanup_stale_old_install(app_get_writable_install_root());
 
     // Repair a stale/missing asset_name in release_info.json before anything can
     // ask Moonraker to update us. Self-healing is the point: an install with a
@@ -1504,7 +1523,7 @@ void UpdateChecker::report_download_status(DownloadStatus status, int progress,
 
 // Download and Install
 
-void UpdateChecker::start_download() {
+void UpdateChecker::start_download(InstallOrigin origin) {
     if (shutting_down_.load())
         return;
 
@@ -1659,7 +1678,7 @@ void UpdateChecker::start_download() {
     // inside the thread body would leave a window where neither is true.
     download_worker_active_.store(true);
     try {
-        download_thread_ = helix::make_thread([this]() {
+        download_thread_ = helix::make_thread([this, origin]() {
             // Clears on every exit path, including a throw out of do_download()
             // (which would terminate anyway, but leaving the flag set would
             // wedge every future attempt behind the re-entry guard).
@@ -1669,7 +1688,7 @@ void UpdateChecker::start_download() {
                     self->download_worker_active_.store(false);
                 }
             } guard{this};
-            do_download();
+            do_download(origin);
         });
     } catch (const std::system_error& e) {
         download_worker_active_.store(false);
@@ -1720,7 +1739,7 @@ void UpdateChecker::reap_download_thread(std::chrono::milliseconds wait) {
     download_thread_.join();
 }
 
-void UpdateChecker::do_download() {
+void UpdateChecker::do_download(InstallOrigin origin) {
     std::string url;
     std::string version;
     size_t download_bytes = 0;
@@ -1953,7 +1972,7 @@ void UpdateChecker::do_download() {
         }
     }
 
-    do_install(download_path);
+    do_install(download_path, origin);
 }
 
 UpdateChecker::ZipTool UpdateChecker::available_zip_tool() {
@@ -2128,7 +2147,7 @@ bool UpdateChecker::validate_elf_architecture(const std::string& tarball_path) {
     return true;
 }
 
-void UpdateChecker::do_install(const std::string& tarball_path) {
+void UpdateChecker::do_install(const std::string& tarball_path, InstallOrigin origin) {
     flog_info("[UpdateChecker] do_install() ENTER: tarball={}", tarball_path);
 
     std::string version;
@@ -2161,7 +2180,8 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
     // Resolve install root BEFORE install.sh runs.  After the installer swaps
     // the directory, /proc/self/exe shows "(deleted)" and app_get_install_root()
     // fails.  We need this path to chdir() after install.sh finishes (see below).
-    const std::string install_root = app_get_install_root();
+    const std::string install_root =
+        install_root_override_.empty() ? app_get_install_root() : install_root_override_;
 
     // Safety net: copy config to fallback dir BEFORE calling install.sh.
     // The installer backs up config to TMP_DIR, but under systemd's PrivateTmp=true
@@ -2265,11 +2285,15 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
     // probe" means the FS is genuinely healthy, not marginal.
     constexpr uint64_t kMinInstallLogFreeBytes = 5 * 1024 * 1024; // 5 MB
 
-    std::string install_log = "/var/log/helixscreen-install.log";
+    std::string install_log =
+        install_log_override_.empty() ? "/var/log/helixscreen-install.log" : install_log_override_;
     {
         auto probe = helix::system::probe_log_path_writable(install_log, kMinInstallLogFreeBytes);
         if (!probe.ok) {
-            const std::string fallback = tarball_path + ".install.log";
+            // Beside the backups, not beside the tarball: the tarball sits in the
+            // install tree, which install.sh's swap moves away mid-install.
+            const std::string fallback =
+                app_constants::update::backup_fallback_dir() + "/helixscreen-install.log";
             flog_warn("[UpdateChecker] {} not writable ({}), falling back to {}", install_log,
                       probe.error, fallback);
             install_log = fallback;
@@ -2322,12 +2346,54 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
                   staging_parent);
     }
 
+    // A manual install during an automatic install's trial ends that trial: the
+    // guard would otherwise restore the trial's predecessor over this install.
+    if (origin == InstallOrigin::User && helix::update::rollback_guard_armed()) {
+        flog_info("[UpdateChecker] Manual install: ending the automatic update's rollback trial");
+        helix::update::disarm_rollback_guard();
+    }
+
+    // An automatic install keeps the previous version beside the new one for the
+    // launcher's rollback guard; install.sh refuses an update that cannot.
+    const std::string rollback_guard_dir = helix::update::rollback_dir();
+    const bool keep_previous = helix::update::keep_previous_for_install(
+        origin == InstallOrigin::Automatic, helix::update::auto_rollback_supported(),
+        !rollback_guard_dir.empty());
+    // A print started from a slicer while the download ran owns the machine now.
+    if (origin == InstallOrigin::Automatic && machine_busy_from_worker()) {
+        flog_info("[UpdateChecker] Automatic install of {} skipped: a job holds the machine",
+                  version);
+        std::remove(tarball_path.c_str());
+        report_download_status(DownloadStatus::Idle, 0, "");
+        helix::ui::queue_update("UpdateChecker::auto_install_retry", [] {
+            UpdateChecker::instance().auto_install_attempted_version_.clear();
+        });
+        return;
+    }
+
+    std::string previous_file;
+    std::string swapped_file;
+    if (keep_previous) {
+        previous_file = rollback_guard_dir + "/" + helix::update::kRollbackPreviousFile;
+        swapped_file = rollback_guard_dir + "/" + helix::update::kRollbackSwappedFile;
+        std::remove(previous_file.c_str());
+        std::remove(swapped_file.c_str());
+        flog_info("[UpdateChecker] Automatic install: keeping the previous version ({})",
+                  previous_file);
+    }
+
     // Fork install.sh with its output redirected to a persistent log file.
     // Using a file instead of a pipe means we get the full output even if this
     // process is killed by systemd's stop_service during the install step.
     int ret = -1;
     bool timed_out = false;
     std::vector<std::string> install_lines; // install.sh output, for the UI's failure detail
+    bool installer_may_run = false;         // waitpid failed: the child may still be running
+    // install.sh's swap changes release_info.json, which helixscreen-update.path
+    // watches; without the sentinel that unit restarts the service under a
+    // running install.sh, before this process can finish the update.
+    installing_ = true;
+    write_self_restart_sentinel();
     {
         int log_fd = open(install_log.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0640);
         if (log_fd < 0) {
@@ -2360,6 +2426,11 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
             // Tell install.sh this is an in-app self-update so it skips
             // stop_service/start_service on SysV — the watchdog handles restart.
             setenv("HELIX_SELF_UPDATE", "1", 1);
+            if (keep_previous) {
+                setenv("HELIX_UPDATE_KEEP_PREVIOUS", "1", 1);
+                setenv("HELIX_UPDATE_PREVIOUS_FILE", previous_file.c_str(), 1);
+                setenv("HELIX_UPDATE_SWAPPED_FILE", swapped_file.c_str(), 1);
+            }
             // Pass the app-validated staging dir (computed on the parent above)
             // only when its parent is writable; else let the installer probe.
             if (staging_writable) {
@@ -2370,12 +2441,15 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
             execv(install_script.c_str(), const_cast<char**>(argv));
             _exit(127);
         } else {
+            // Naming the installer keeps the sentinel through a Moonraker
+            // reconnect or an app restart while install.sh still runs.
+            write_self_restart_sentinel(static_cast<int>(pid));
             // Parent: close our copy of the log fd and wait with timeout
             flog_info("[UpdateChecker] Forked install.sh as pid={}, waiting...", pid);
             if (log_fd >= 0)
                 close(log_fd);
 
-            constexpr int timeout_seconds = 600;
+            const int timeout_seconds = install_timeout_seconds_;
             constexpr auto kPollInterval = std::chrono::milliseconds(200);
             constexpr auto kTermGrace = std::chrono::milliseconds(500);
 
@@ -2428,10 +2502,15 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
                 timed_out = true;
                 flog_error("[UpdateChecker] install.sh timed out after {}s, {}", timeout_seconds,
                            wait.killed ? "killed" : "terminated");
+                // install.sh is reaped, but what it started (subshells, a hung
+                // child) is not. setsid() made it the leader of its own group, and
+                // the id stays reserved while any member lives.
+                ::kill(-pid, SIGKILL);
                 break;
             case ChildWaitOutcome::WaitFailed:
                 flog_error("[UpdateChecker] waitpid(install) failed: {} (errno={})",
                            strerror(wait.wait_errno), wait.wait_errno);
+                installer_may_run = true;
                 break;
             }
         }
@@ -2480,7 +2559,19 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
         safe_exec({rm_bin, "-rf", extracted_dir});
     }
 
-    if (ret != 0) {
+    // An automatic install whose swap already made the new tree live is not
+    // undone here: the launcher's guard judges it, as it would a clean install.
+    const bool swapped_then_failed =
+        helix::update::decide_after_install(
+            ret == 0, keep_previous,
+            keep_previous && !installer_may_run &&
+                helix::update::install_swapped_tree(rollback_guard_dir)) ==
+        helix::update::AfterInstall::RestartGuarded;
+    settle_self_restart_sentinel(ret == 0 || installer_may_run || swapped_then_failed);
+    if (ret != 0 && !swapped_then_failed) {
+        installing_ = false;
+    }
+    if (ret != 0 && !swapped_then_failed) {
         flog_error("[UpdateChecker] Install script failed with code {}", ret);
         // Build a user-visible error message with detail from the install log
         std::string ui_text =
@@ -2500,7 +2591,28 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
         return;
     }
 
-    spdlog::info("[UpdateChecker] Update installed successfully!");
+    if (swapped_then_failed) {
+        spdlog::warn("[UpdateChecker] install.sh failed (code {}) after the swap; restarting into "
+                     "v{} under the rollback guard",
+                     ret, version);
+        TelemetryManager::UpdateFailureDetail telemetry_detail;
+        telemetry_detail.install_detail =
+            install_failure_telemetry_detail(install_lines, device_identifiers());
+        TelemetryManager::instance().record_update_failure(
+            timed_out ? "install_timeout_after_swap" : "install_failed_after_swap", version,
+            helix::platform::current_key(), -1, -1, ret, telemetry_detail);
+    } else {
+        spdlog::info("[UpdateChecker] Update installed successfully!");
+    }
+
+    if (keep_previous) {
+        arm_rollback_guard(rollback_guard_dir, install_root, version,
+                           swapped_then_failed ? helix::update::kRollbackSwappedFile
+                                               : helix::update::kRollbackPreviousFile);
+    }
+    if (stop_after_arm_for_test_) {
+        return;
+    }
 
     // Restore CWD after install.sh moved/deleted the old install directory.
     // The init script does `cd $DAEMON_DIR` before launching, so our CWD was
@@ -2546,6 +2658,7 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
     // Write to ~/.helixscreen/ (survives PrivateTmp, accessible from update.service).
     // Also write legacy /tmp sentinel for backward compat with old service files.
     write_self_restart_sentinel();
+    installing_ = false;
     {
         // Legacy location (may not work with PrivateTmp=true)
         std::ofstream ofs_legacy("/tmp/helixscreen_self_restart");
@@ -2780,7 +2893,7 @@ void UpdateChecker::handle_external_update_complete() {
 
 // Static helpers
 
-bool UpdateChecker::write_self_restart_sentinel() {
+bool UpdateChecker::write_self_restart_sentinel(int installer_pid) {
     const std::string dir = app_constants::update::backup_fallback_dir();
     const std::string sentinel = dir + "/self_restart_sentinel";
     std::error_code ec;
@@ -2788,13 +2901,41 @@ bool UpdateChecker::write_self_restart_sentinel() {
     if (ec) {
         spdlog::warn("[UpdateChecker] Failed to create {}: {}", dir, ec.message());
     }
-    std::ofstream ofs(sentinel);
+    std::ofstream ofs(sentinel, std::ios::trunc);
     if (!ofs) {
         spdlog::warn("[UpdateChecker] Failed to write sentinel: {}", sentinel);
         return false;
     }
+    if (installer_pid > 0) {
+        ofs << installer_pid << "\n";
+    }
     spdlog::info("[UpdateChecker] Wrote self-restart sentinel: {}", sentinel);
     return true;
+}
+
+bool UpdateChecker::sentinel_installer_running() {
+    std::ifstream in(app_constants::update::backup_fallback_dir() + "/self_restart_sentinel");
+    long pid = 0;
+    if (!(in >> pid) || pid <= 0) {
+        return false; // no file, or written without an installer (a restart is underway)
+    }
+    // A live pid is only the installer while it still runs install.sh: a reused
+    // pid belongs to something else.
+    std::ifstream cmdline("/proc/" + std::to_string(pid) + "/cmdline");
+    std::string args((std::istreambuf_iterator<char>(cmdline)), std::istreambuf_iterator<char>());
+    return args.find("install.sh") != std::string::npos;
+}
+
+void UpdateChecker::settle_self_restart_sentinel(bool installed) {
+    if (installed) {
+        return;
+    }
+    // Nothing was installed, so no restart follows: a sentinel left behind would
+    // make helixscreen-update.path skip the restart after a later Moonraker update.
+    const std::string sentinel =
+        app_constants::update::backup_fallback_dir() + "/self_restart_sentinel";
+    std::error_code ec;
+    std::filesystem::remove(sentinel, ec);
 }
 
 std::string UpdateChecker::extract_installer_from_tarball(const std::string& tarball_path,
@@ -3669,6 +3810,93 @@ void UpdateChecker::dismiss_current_version() {
                           "show_update_modal");
 }
 
+void UpdateChecker::report_rollback(const helix::update::RollbackResult& result) {
+    spdlog::warn("[UpdateChecker] v{} did not start properly ({}); v{} was restored",
+                 result.to_version, result.reason, result.from_version);
+
+    auto* config = Config::get_instance();
+    config->set<std::string>("/update/dismissed_version", result.to_version);
+    config->save();
+
+    TelemetryManager::UpdateFailureDetail detail;
+    detail.install_detail = result.reason;
+    TelemetryManager::instance().record_update_failure(
+        "rollback", result.to_version, helix::platform::current_key(), -1, -1, -1, detail);
+
+    config->set<std::string>(kRollbackNoticeKey, helix::update::format_rollback_notice(result));
+    config->save();
+}
+
+void UpdateChecker::show_pending_rollback_notice() {
+    auto* config = Config::get_instance();
+    const auto notice =
+        helix::update::parse_rollback_notice(config->get<std::string>(kRollbackNoticeKey, ""));
+    if (!notice) {
+        return;
+    }
+    const std::string msg = fmt::format(lv_tr("v{} did not start properly, so v{} was put back."),
+                                        notice->to_version, notice->from_version);
+    publish_notification(NoticeSeverity::WARNING, msg, lv_tr("Update Rolled Back"));
+
+    // TIMER_DTOR_OK: one-shot, no owner, captures nothing; freed with LVGL
+    lv_timer_t* timer = lv_timer_create(
+        [](lv_timer_t*) {
+            auto* cfg = Config::get_instance();
+            cfg->set<std::string>(kRollbackNoticeKey, "");
+            cfg->save();
+        },
+        static_cast<uint32_t>(kRollbackNoticeSeconds) * 1000U, nullptr);
+    lv_timer_set_repeat_count(timer, 1);
+}
+
+void UpdateChecker::arm_rollback_guard(const std::string& guard_dir,
+                                       const std::string& install_root, const std::string& version,
+                                       const char* previous_note) {
+    std::string previous;
+    if (!helix::update::read_rollback_file(guard_dir, previous_note, previous)) {
+        spdlog::warn("[UpdateChecker] install.sh kept no previous version; no rollback armed");
+        return;
+    }
+    helix::update::remove_rollback_file(guard_dir, helix::update::kRollbackPreviousFile);
+    helix::update::remove_rollback_file(guard_dir, helix::update::kRollbackSwappedFile);
+
+    helix::update::RollbackMarker marker;
+    marker.install_dir = install_root;
+    marker.previous_dir = helix::update::rollback_value(previous, "previous_dir");
+    marker.from_version = HELIX_VERSION;
+    marker.to_version = version;
+    if (marker.install_dir.empty() || marker.previous_dir.empty()) {
+        spdlog::warn("[UpdateChecker] Previous version path unknown; no rollback armed");
+        return;
+    }
+    if (helix::update::write_rollback_file(guard_dir, helix::update::kRollbackArmedFile,
+                                           helix::update::format_rollback_marker(marker))) {
+        spdlog::info("[UpdateChecker] Rollback armed: v{} -> v{}, previous at {}",
+                     marker.from_version, marker.to_version, marker.previous_dir);
+        return;
+    }
+    // Nothing will restore it, and left in place it crowds the next update.
+    helix::update::discard_kept_previous(marker.install_dir, marker.previous_dir);
+}
+
+bool UpdateChecker::machine_busy_from_worker() {
+    if (machine_busy_hook_) {
+        return machine_busy_hook_();
+    }
+    auto answer = std::make_shared<std::promise<bool>>();
+    std::future<bool> result = answer->get_future();
+    helix::ui::queue_update("UpdateChecker::machine_busy", [answer]() {
+        auto& print_state = get_printer_state().print_state();
+        answer->set_value(job_holds_machine(print_state.get_print_lifecycle()) ||
+                          print_state.is_plr_snapshot_valid());
+    });
+    // No answer from the main thread is not a clear "idle".
+    if (result.wait_for(std::chrono::seconds(10)) != std::future_status::ready) {
+        return true;
+    }
+    return result.get();
+}
+
 // Auto-Check Timer
 
 namespace {
@@ -3707,23 +3935,58 @@ void helix::request_update_manager_refresh(helix::IMoonrakerClient& client,
         0, /*silent=*/true);
 }
 
+void UpdateChecker::settle_sentinel_after_connect(helix::IMoonrakerClient& client) {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    const std::string sentinel =
+        app_constants::update::backup_fallback_dir() + "/self_restart_sentinel";
+    if (installing_.load() || sentinel_installer_running()) {
+        spdlog::info("[UpdateChecker] Keeping the self-restart sentinel: install.sh is running");
+        return;
+    }
+    // helixscreen-update.path checks for the sentinel ten seconds after the
+    // tree changes. A sentinel written moments ago (a rollback's restore) is
+    // still answering that check, so it is removed once that has passed.
+    const auto written = fs::last_write_time(sentinel, ec);
+    if (!ec) {
+        const auto age = fs::file_time_type::clock::now() - written;
+        const auto fresh = std::chrono::seconds(kFreshSentinelSeconds);
+        if (age < fresh) {
+            const auto wait =
+                std::chrono::duration_cast<std::chrono::milliseconds>(fresh - age).count() + 1000;
+            spdlog::info("[UpdateChecker] Keeping the fresh self-restart sentinel for {} ms", wait);
+            if (sentinel_cleanup_timer_ == nullptr && lv_is_initialized()) {
+                sentinel_cleanup_timer_ = lv_timer_create(
+                    [](lv_timer_t*) {
+                        auto& self = UpdateChecker::instance();
+                        self.sentinel_cleanup_timer_ = nullptr;
+                        if (auto* c = get_moonraker_client()) {
+                            self.settle_sentinel_after_connect(*c);
+                        }
+                    },
+                    static_cast<uint32_t>(wait), nullptr);
+                lv_timer_set_repeat_count(sentinel_cleanup_timer_, 1);
+            }
+            return;
+        }
+    }
+    if (fs::remove(sentinel, ec)) {
+        spdlog::info("[UpdateChecker] Cleaned up self-restart sentinel");
+        // Moonraker re-reads release_info.json only on a refresh, and its
+        // own schedule can be a week apart, so Mainsail keeps showing the
+        // version we just replaced. "helixscreen" is the update_manager
+        // section the installer writes.
+        helix::request_update_manager_refresh(client, "helixscreen");
+    }
+}
+
 void UpdateChecker::on_connected(helix::IMoonrakerClient& client) {
     {
-        namespace fs = std::filesystem;
-        std::error_code ec;
-        std::string sentinel =
-            app_constants::update::backup_fallback_dir() + "/self_restart_sentinel";
-        if (fs::remove(sentinel, ec)) {
-            spdlog::info("[UpdateChecker] Cleaned up self-restart sentinel");
-            // Moonraker re-reads release_info.json only on a refresh, and its
-            // own schedule can be a week apart, so Mainsail keeps showing the
-            // version we just replaced. "helixscreen" is the update_manager
-            // section the installer writes.
-            helix::request_update_manager_refresh(client, "helixscreen");
-        }
+        settle_sentinel_after_connect(client);
         // Legacy: best-effort under PrivateTmp (sees private /tmp,
         // not real /tmp — stale real sentinels cleaned on reboot)
-        fs::remove("/tmp/helixscreen_self_restart", ec);
+        std::error_code ec;
+        std::filesystem::remove("/tmp/helixscreen_self_restart", ec);
     }
 
     // Detect when Moonraker finishes updating HelixScreen (e.g. via Mainsail).
@@ -3741,6 +4004,10 @@ void UpdateChecker::detach(helix::IMoonrakerClient& client) {
     moonraker_restarted_for_.clear();
     moonraker_mismatch_logged_.clear();
     client.unregister_method_callback(kUpdateResponseMethod, kExternalUpdateHandler);
+}
+
+namespace {
+constexpr uint32_t kAutoInstallTickMs = 5u * 60u * 1000u;
 }
 
 void UpdateChecker::start_auto_check() {
@@ -3810,6 +4077,14 @@ void UpdateChecker::start_auto_check() {
                     return;
                 }
 
+                if (SystemSettingsManager::instance().get_auto_update_mode() ==
+                    static_cast<int>(helix::update::AutoUpdateMode::Off)) {
+                    spdlog::info("[UpdateChecker] Auto-check: automatic updates are off, not "
+                                 "notifying about {}",
+                                 info->version);
+                    return;
+                }
+
                 if (self->is_version_dismissed(info->version)) {
                     spdlog::info("[UpdateChecker] Auto-check: version {} is dismissed",
                                  info->version);
@@ -3844,6 +4119,22 @@ void UpdateChecker::start_auto_check() {
         15000, this);
 
     lv_timer_set_repeat_count(auto_check_timer_, -1); // infinite repeats
+
+    // The overnight installer looks every few minutes so a window that opens while
+    // someone is at the screen still installs once they leave. An install that
+    // cannot update itself has nothing to schedule.
+    if (update_install_suppressed()) {
+        return;
+    }
+    auto_install_timer_ = lv_timer_create(
+        [](lv_timer_t* timer) {
+            auto* self = static_cast<UpdateChecker*>(lv_timer_get_user_data(timer));
+            if (self->shutting_down_.load())
+                return;
+            self->auto_update_tick(auto_update_now_from_system());
+        },
+        kAutoInstallTickMs, this);
+    lv_timer_set_repeat_count(auto_install_timer_, -1);
 }
 
 void UpdateChecker::cancel_auto_check_timer() {
@@ -3855,6 +4146,74 @@ void UpdateChecker::cancel_auto_check_timer() {
         helix::ui::lv_timer_cancel_safe(auto_check_timer_);
     }
     auto_check_timer_ = nullptr;
+    if (auto_install_timer_ && lv_is_initialized()) {
+        helix::ui::lv_timer_cancel_safe(auto_install_timer_);
+    }
+    auto_install_timer_ = nullptr;
+    if (sentinel_cleanup_timer_ && lv_is_initialized()) {
+        helix::ui::lv_timer_cancel_safe(sentinel_cleanup_timer_);
+    }
+    sentinel_cleanup_timer_ = nullptr;
+}
+
+UpdateChecker::AutoUpdateNow UpdateChecker::auto_update_now_from_system() {
+    AutoUpdateNow now;
+    const std::time_t t = std::time(nullptr);
+    std::tm local{};
+    if (localtime_r(&t, &local) != nullptr) {
+        now.local_minute_of_day = local.tm_hour * 60 + local.tm_min;
+        now.local_day = (local.tm_year + 1900) * 1000 + local.tm_yday;
+    }
+    now.seconds_since_touch =
+        lv_is_initialized() ? static_cast<int64_t>(lv_display_get_inactive_time(nullptr) / 1000)
+                            : 0;
+    return now;
+}
+
+helix::update::AutoUpdateDecision UpdateChecker::auto_update_tick(const AutoUpdateNow& now) {
+    using helix::update::AutoUpdateDecision;
+    helix::update::AutoUpdateInputs in;
+    in.mode = helix::update::effective_auto_update_mode(
+        SystemSettingsManager::instance().get_auto_update_mode(),
+        helix::update::auto_rollback_supported());
+    in.local_minute_of_day = now.local_minute_of_day;
+    in.seconds_since_touch = now.seconds_since_touch;
+    auto& print_state = get_printer_state().print_state();
+    in.lifecycle = print_state.get_print_lifecycle();
+    in.plr_pending = print_state.is_plr_snapshot_valid();
+
+    std::string version;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (status_ == Status::UpdateAvailable && cached_info_ && !cached_info_->is_downgrade &&
+            helix::release_is_verified(*cached_info_)) {
+            version = cached_info_->version;
+        }
+    }
+    // A version still on trial under the launcher's rollback guard settles first.
+    in.update_available = !version.empty() && !is_version_dismissed(version) &&
+                          version != auto_install_attempted_version_ && !download_in_flight() &&
+                          !helix::update::rollback_guard_armed();
+
+    if (now.local_day == auto_skip_day_) {
+        return AutoUpdateDecision::Wait;
+    }
+    const AutoUpdateDecision decision = helix::update::decide_auto_update(in);
+    if (decision == AutoUpdateDecision::RetryTomorrow) {
+        auto_skip_day_ = now.local_day;
+        spdlog::info("[UpdateChecker] Auto-update: v{} waits for tomorrow night (print or "
+                     "power-loss resume pending)",
+                     version);
+    } else if (decision == AutoUpdateDecision::InstallNow) {
+        spdlog::info("[UpdateChecker] Auto-update: installing v{} overnight", version);
+        auto_install_attempted_version_ = version;
+        if (auto_install_hook_) {
+            auto_install_hook_();
+        } else {
+            start_download(InstallOrigin::Automatic);
+        }
+    }
+    return decision;
 }
 
 void UpdateChecker::stop_auto_check() {

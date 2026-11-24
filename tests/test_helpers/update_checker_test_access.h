@@ -54,6 +54,12 @@ class UpdateCheckerTestAccess {
         c.last_check_time_ = {};
     }
 
+    /// Replace start_download() for auto_update_tick(); nullptr restores it.
+    static void set_auto_install_hook(UpdateChecker& c, std::function<void()> hook) {
+        c.auto_install_hook_ = std::move(hook);
+        c.auto_install_attempted_version_.clear();
+    }
+
     /// sync_moonraker_channel() against @p install_root: the test link has no
     /// resolvable install directory, so the public entry point always skips.
     static void sync_moonraker_channel_for(UpdateChecker& c, const std::string& install_root) {
@@ -95,6 +101,41 @@ class UpdateCheckerTestAccess {
         c.restart_action_ = std::move(action);
     }
 
+    /// Point install.sh's output at @p path instead of the system install log.
+    static void set_install_log(UpdateChecker& c, const std::string& path) {
+        c.install_log_override_ = path;
+    }
+
+    /// Shorten (or restore) how long do_install() waits for install.sh.
+    static void set_install_timeout(UpdateChecker& c, int seconds) {
+        c.install_timeout_seconds_ = seconds;
+    }
+
+    /// Run the install step as the automatic scheduler would.
+    static void do_install_automatic(UpdateChecker& c, const std::string& tarball_path) {
+        c.do_install(tarball_path, UpdateChecker::InstallOrigin::Automatic);
+    }
+
+    /// Answer machine_busy_from_worker() without the main thread; nullptr restores it.
+    static void set_machine_busy_hook(UpdateChecker& c, std::function<bool()> hook) {
+        c.machine_busy_hook_ = std::move(hook);
+    }
+
+    /// Install into @p root instead of the running binary's install root.
+    static void set_install_root(UpdateChecker& c, const std::string& root) {
+        c.install_root_override_ = root;
+    }
+
+    /// Make do_install() return right after arming the guard, before the restart.
+    static void set_stop_after_arm(UpdateChecker& c, bool stop) {
+        c.stop_after_arm_for_test_ = stop;
+    }
+
+    /// A cancel left by an earlier case makes do_install() return before the installer.
+    static void clear_download_cancelled(UpdateChecker& c) {
+        c.download_cancelled_ = false;
+    }
+
     /// Shrink the two "let the frame paint" holds so a test does not wait the
     /// production 2s + 1s.
     static void set_status_hold_ms(UpdateChecker& c, uint32_t complete_ms, uint32_t restart_ms) {
@@ -114,6 +155,18 @@ class UpdateCheckerTestAccess {
     /// RuntimeConfig::test_mode first.
     static void do_install(UpdateChecker& c, const std::string& tarball_path) {
         c.do_install(tarball_path);
+    }
+
+    /// The download worker's question to the main thread before an automatic
+    /// install runs install.sh.
+    static bool machine_busy_from_worker(UpdateChecker& c) {
+        return c.machine_busy_from_worker();
+    }
+
+    /// Forget a night the scheduler skipped and a version it already tried.
+    static void reset_auto_schedule(UpdateChecker& c) {
+        c.auto_skip_day_ = -1;
+        c.auto_install_attempted_version_.clear();
     }
 
     /// Drive the worker-thread half of the post-install sequence directly.

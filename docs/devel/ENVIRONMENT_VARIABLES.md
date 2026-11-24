@@ -2676,6 +2676,30 @@ Tells `install.sh` that it was spawned by HelixScreen's in-app update rather tha
 
 Set automatically — never by hand. Installer modules (`service.sh`, `competing_uis.sh`) branch on `_is_self_update()` to skip `stop_service`/`start_service` on SysV, because the watchdog handles the restart. The same fork also sets `TMP_DIR` to an app-validated staging directory when that directory's parent is writable, otherwise leaving the installer to probe for one.
 
+### `HELIX_ROLLBACK_DIR`
+
+Where `helix-launcher.sh`'s automatic-update rollback guard and the app exchange their marker files (`update_rollback.armed`, `.healthy`, `.request`, `.result`). The launcher exports it only when `helix-watchdog` is present; its absence tells the app that no guard is listening, so Install overnight is not offered (UPDATE_SYSTEM.md § "Automatic Updates and Rollback").
+
+| Property | Value |
+|----------|-------|
+| **Values** | A writable directory |
+| **Default** | `<install parent>/.helixscreen/rollback-<install dir name>`, set by the launcher, so installs side by side never share markers |
+| **Files** | `scripts/helix-launcher.sh`, `src/system/update_rollback.cpp`, `src/helix_watchdog.cpp` |
+
+### `HELIX_ROLLBACK_WINDOW`, `HELIX_ROLLBACK_POLL`, `HELIX_ROLLBACK_MAX_STARTS`
+
+The launcher's rollback guard: seconds a newly installed version has to report healthy (default 600), seconds between checks (default 5), and guarded starts before it restores the previous version without trying again (default 3). Read from the launcher's environment only; `helixscreen.env` cannot set them.
+
+### `HELIX_UPDATE_KEEP_PREVIOUS`, `HELIX_UPDATE_PREVIOUS_FILE`
+
+Set by the app's automatic install for `install.sh`: keep the previous install at `<install>.old` and write `previous_dir=<path>` to the named file, or refuse an update that cannot keep it. Never set by hand.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `1`; a file path |
+| **Default** | Unset |
+| **Files** | `src/system/update_checker.cpp`, `scripts/lib/installer/release.sh` (`_keep_previous_requested`, `cleanup_old_install`) |
+
 ---
 
 ## Systemd Service Configuration

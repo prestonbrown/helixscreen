@@ -23,7 +23,9 @@
 #include "json_fwd.h"
 #include "lvgl.h"
 #include "subject_managed_panel.h"
+#include "system/auto_update_schedule.h"
 #include "system/release_signature.h"
+#include "system/update_rollback.h"
 
 #include <atomic>
 #include <chrono>
@@ -276,7 +278,11 @@ class UpdateChecker {
     }
 
     // Download and install
-    void start_download();
+    /// Who asked for this install. An automatic one keeps the previous version
+    /// for the launcher's rollback guard; the origin travels with the download,
+    /// so a failed automatic attempt never colours a later manual install.
+    enum class InstallOrigin { User, Automatic };
+    void start_download(InstallOrigin origin = InstallOrigin::User);
     void cancel_download();
 
     /**
@@ -601,15 +607,56 @@ class UpdateChecker {
      * Tells helixscreen-update.service that the app is handling its own restart.
      * Creates the dir first: a box updated only through Moonraker may never have
      * had ~/.helixscreen created. Exposed as public static for unit testing.
+     * @param installer_pid install.sh's pid while it runs, so the sentinel
+     *        outlives a reconnect or restart meanwhile; 0 when none runs.
      * @return true when the sentinel was written
      */
-    static bool write_self_restart_sentinel();
+    static bool write_self_restart_sentinel(int installer_pid = 0);
+
+    /**
+     * @brief Does the sentinel name an install.sh that is still running? It is
+     *        then kept, whatever reconnect or restart happens meanwhile.
+     */
+    static bool sentinel_installer_running();
+
+    /**
+     * @brief on_connected()'s sentinel rule: keep it while an install runs or
+     *        while it is fresh (removed later by a one-shot timer), otherwise
+     *        remove it and ask Moonraker to refresh the update entry.
+     */
+    void settle_sentinel_after_connect(helix::IMoonrakerClient& client);
+
+    /**
+     * @brief After install.sh: keep the sentinel written before it when the
+     *        install succeeded (the restart follows) or install.sh may still be
+     *        running, remove it otherwise. Exposed for unit testing.
+     */
+    static void settle_self_restart_sentinel(bool installed);
+
+    /**
+     * @brief Remove <install_root>.old left by an earlier update, unless the
+     *        launcher's rollback guard still needs it. Exposed for unit testing.
+     */
+    static void cleanup_stale_old_install(const std::string& install_root);
 
     /** @brief Check if a version is dismissed (user chose to ignore) */
     bool is_version_dismissed(const std::string& version) const;
 
     /** @brief Dismiss the current cached update version (persists to config) */
     void dismiss_current_version();
+
+    /**
+     * @brief The launcher put the previous version back after an automatic
+     *        install of result.to_version did not come up healthy.
+     *
+     * Tells the user, records it, and dismisses that version so the scheduler
+     * never installs it unprompted again. Main thread.
+     */
+    void report_rollback(const helix::update::RollbackResult& result);
+
+    /// Shows the stored "Update Rolled Back" notice, if any, and forgets it once
+    /// it has been on screen for kRollbackNoticeSeconds. Main thread.
+    void show_pending_rollback_notice();
 
     /**
      * @brief Handle notification that Moonraker has finished updating HelixScreen
@@ -676,6 +723,27 @@ class UpdateChecker {
 
     /** @brief Stop automatic update checking */
     void stop_auto_check();
+
+    /// What the auto-update tick reads from the clock and the touch screen.
+    struct AutoUpdateNow {
+        int local_minute_of_day = 0;     ///< 0..1439, by the screen's timezone
+        int64_t seconds_since_touch = 0; ///< Time since the last touch
+        int local_day = 0;               ///< year * 1000 + day of year, local
+    };
+
+    /**
+     * @brief One pass of the Automatic updates scheduler (#1304). Main thread only.
+     *
+     * Gathers the setting, the print lifecycle, a pending power-loss resume and the
+     * cached release, asks decide_auto_update(), and on InstallNow runs the same
+     * download and install path as the Install Update button, without its confirm
+     * step. Only a forward, signature-verified, undismissed release qualifies.
+     * Installs at most once per release: a failed attempt waits for the next check.
+     */
+    helix::update::AutoUpdateDecision auto_update_tick(const AutoUpdateNow& now);
+
+    /// The clock and touch reading auto_update_tick() uses in production.
+    static AutoUpdateNow auto_update_now_from_system();
 
     // LVGL subjects for notification modal
     lv_subject_t* release_notes_subject();
@@ -921,6 +989,14 @@ class UpdateChecker {
     /// Latched by perform_update_restart() so the marshalled LVGL-thread call
     /// and the worker's backstop cannot both fork+exec.
     std::atomic<bool> restart_initiated_{false};
+    /// From the first sentinel write before install.sh until the install settles
+    /// (removed on failure, rewritten for the restart on success): the sentinel is
+    /// this process's to keep, whatever reconnect happens meanwhile.
+    std::atomic<bool> installing_{false};
+    /// Where do_install() logs install.sh's output instead of the system log; tests only.
+    std::string install_log_override_;
+    /// How long do_install() waits for install.sh before killing it.
+    int install_timeout_seconds_ = 600;
     /// How long each terminal frame is held so the LVGL thread can paint it.
     /// update_download_modal.xml documents 2s on Complete, then 1s on
     /// Restarting. Members rather than constants so tests need not wait 3s.
@@ -938,8 +1014,8 @@ class UpdateChecker {
     char download_text_buf_[256]{};
 
     // Download internals
-    void do_download();
-    void do_install(const std::string& tarball_path);
+    void do_download(InstallOrigin origin);
+    void do_install(const std::string& tarball_path, InstallOrigin origin = InstallOrigin::User);
 
     /**
      * @brief Publish the terminal frames, then hand the restart to the LVGL thread.
@@ -975,8 +1051,33 @@ class UpdateChecker {
     /// so the destructor can share it — spdlog may already be gone by then.
     void cancel_auto_check_timer();
 
+    /// Writes the rollback marker for the launcher's guard from the previous
+    /// version install.sh kept. Download worker, after a successful install.
+    static void arm_rollback_guard(const std::string& guard_dir, const std::string& install_root,
+                                   const std::string& version, const char* previous_note);
+
+    /// Does a job (or a pending power-loss resume) hold the machine? Asked on
+    /// the main thread from the download worker; false only on a clear answer.
+    bool machine_busy_from_worker();
+
     // Auto-check timer
     lv_timer_t* auto_check_timer_{nullptr};
+    lv_timer_t* auto_install_timer_{nullptr};
+    /// Removes a sentinel on_connected() found too fresh to remove yet.
+    lv_timer_t* sentinel_cleanup_timer_{nullptr};
+    /// Version the scheduler already started installing; never retried unprompted.
+    std::string auto_install_attempted_version_;
+    /// Replaces start_download() for auto_update_tick() in tests.
+    std::function<void()> auto_install_hook_;
+    /// Replaces machine_busy_from_worker()'s main-thread question in tests.
+    std::function<bool()> machine_busy_hook_;
+    /// do_install() returns once the guard is armed, before the restart; tests only.
+    bool stop_after_arm_for_test_ = false;
+    /// The install root do_install() installs into instead of this binary's; tests only.
+    std::string install_root_override_;
+    /// Local day (year * 1000 + day of year) the scheduler gave up on after
+    /// RetryTomorrow; later ticks that night wait without asking again.
+    int auto_skip_day_ = -1;
 
     // Notification subjects
     helix::Subject release_notes_subject_{};

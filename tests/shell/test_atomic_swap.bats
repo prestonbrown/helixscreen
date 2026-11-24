@@ -374,3 +374,124 @@ _extract_reporting_swap() {
     lacks "SWAPPED=swapped" "$output"
     lacks "SWAPPED=in-place" "$output"
 }
+
+# =============================================================================
+# Automatic install: keep the previous version for rollback (#1304)
+# =============================================================================
+
+@test "keep previous: an atomic-swap update keeps the old tree and records it" {
+    setup_existing_install
+    create_test_tarball "pi"
+    mock_no_new_privs
+    export HELIX_UPDATE_KEEP_PREVIOUS=1
+    export HELIX_UPDATE_PREVIOUS_FILE="$BATS_TEST_TMPDIR/previous"
+
+    extract_release "pi"
+    cleanup_old_install
+
+    [ -f "${INSTALL_DIR}.old/ui_xml/old.xml" ]
+    grep -q "old binary" "${INSTALL_DIR}.old/bin/helix-screen"
+    [ "$(cat "$HELIX_UPDATE_PREVIOUS_FILE")" = "previous_dir=${INSTALL_DIR}.old" ]
+}
+
+@test "keep previous: without the request the old tree is removed as before" {
+    setup_existing_install
+    create_test_tarball "pi"
+    mock_no_new_privs
+    export HELIX_UPDATE_PREVIOUS_FILE="$BATS_TEST_TMPDIR/previous"
+
+    extract_release "pi"
+    cleanup_old_install
+
+    [ ! -d "${INSTALL_DIR}.old" ]
+    [ ! -e "$HELIX_UPDATE_PREVIOUS_FILE" ]
+}
+
+@test "keep previous: an update that would replace in place is refused untouched" {
+    setup_existing_install
+    create_test_tarball "pi"
+    mock_no_new_privs
+    export HELIX_UPDATE_KEEP_PREVIOUS=1
+    chmod a-w "$BATS_TEST_TMPDIR/opt"
+
+    run extract_release "pi"
+    chmod u+w "$BATS_TEST_TMPDIR/opt"
+
+    [ "$status" -ne 0 ]
+    contains "cannot keep the previous version" "$output"
+    grep -q "old binary" "$INSTALL_DIR/bin/helix-screen"
+    [ -f "$INSTALL_DIR/ui_xml/old.xml" ]
+}
+
+@test "keep previous: a payload install is refused untouched" {
+    setup_existing_install
+    create_test_tarball "pi"
+    export HELIX_UPDATE_KEEP_PREVIOUS=1
+    export HELIX_MOD_PAYLOAD=1
+
+    run extract_release "pi"
+
+    [ "$status" -ne 0 ]
+    contains "cannot keep the previous version" "$output"
+    grep -q "old binary" "$INSTALL_DIR/bin/helix-screen"
+}
+
+@test "keep previous: the swap is recorded the moment the new tree is live" {
+    setup_existing_install
+    create_test_tarball "pi"
+    mock_no_new_privs
+    export HELIX_UPDATE_KEEP_PREVIOUS=1
+    export HELIX_UPDATE_SWAPPED_FILE="$BATS_TEST_TMPDIR/swapped"
+
+    extract_release "pi"
+
+    [ "$(cat "$HELIX_UPDATE_SWAPPED_FILE")" = "previous_dir=${INSTALL_DIR}.old" ]
+}
+
+@test "keep previous: a refused update records no swap" {
+    setup_existing_install
+    create_test_tarball "pi"
+    mock_no_new_privs
+    export HELIX_UPDATE_KEEP_PREVIOUS=1
+    export HELIX_UPDATE_SWAPPED_FILE="$BATS_TEST_TMPDIR/swapped"
+    chmod a-w "$BATS_TEST_TMPDIR/opt"
+
+    run extract_release "pi"
+    chmod u+w "$BATS_TEST_TMPDIR/opt"
+
+    [ "$status" -ne 0 ]
+    [ ! -e "$HELIX_UPDATE_SWAPPED_FILE" ]
+}
+
+@test "keep previous: an update not asked to keep the old tree records no swap" {
+    setup_existing_install
+    create_test_tarball "pi"
+    mock_no_new_privs
+    export HELIX_UPDATE_SWAPPED_FILE="$BATS_TEST_TMPDIR/swapped"
+
+    extract_release "pi"
+
+    [ ! -e "$HELIX_UPDATE_SWAPPED_FILE" ]
+}
+
+@test "keep previous: a swap whose final move fails records no swap" {
+    setup_existing_install
+    create_test_tarball "pi"
+    mock_no_new_privs
+    export HELIX_UPDATE_KEEP_PREVIOUS=1
+    export HELIX_UPDATE_SWAPPED_FILE="$BATS_TEST_TMPDIR/swapped"
+    # The move of the new tree into place fails; the old one is put back.
+    mv() {
+        case "$1" in
+            */extract*/helixscreen) return 1 ;;
+        esac
+        command mv "$@"
+    }
+
+    run extract_release "pi"
+
+    [ "$status" -ne 0 ]
+    contains "Failed to install new release" "$output"
+    [ ! -e "$HELIX_UPDATE_SWAPPED_FILE" ]
+    grep -q "old binary" "$INSTALL_DIR/bin/helix-screen"
+}

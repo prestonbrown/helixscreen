@@ -545,6 +545,7 @@ translations:
   Automatic: Automatisch
   Automatic Heater Control Calibration: Automatische Heizungsregelung Kalibrierung
   Automatic LED Control: Automatische LED-Steuerung
+  Automatic Updates: Automatische Updates
   Automatic calibration: 'Automatische Kalibrierung'
   Automatic cleanup: 'Automatische Bereinigung'
   Automatic filament feeding is still running.: 'Die automatische Filamentzuführung läuft noch.'
@@ -1571,6 +1572,8 @@ translations:
   Door Open: Tür offen
   'Door opened during print: {}': 'Tür während des Drucks geöffnet: {}'
   Door switches, buttons, and other on/off inputs: Türschalter, Taster und andere Ein/Aus-Eingänge
+  Download and ask: Herunterladen und fragen
+  Download and ask tells you when an update is ready to install: Herunterladen und fragen meldet, wenn ein Update zur Installation bereit ist
   Download update?: Update herunterladen?
   Download v{}?: v{} herunterladen?
   Downloading the timelapse plugin...: 'Zeitraffer-Plugin wird heruntergeladen...'
@@ -2518,6 +2521,8 @@ translations:
   Install Plugin: Plugin installieren
   Install Root: Installations-Verzeichnis
   Install Update: Update installieren
+  Install overnight: Nachts installieren
+  Install overnight restarts the screen at 3 AM when the printer is idle: Nachts installieren startet den Bildschirm um 3 Uhr neu, wenn der Drucker nicht arbeitet
   Install plugin: Plugin installieren
   Install script not found. Use the remote install command instead.: Installationsskript nicht gefunden. Verwenden Sie stattdessen den Remote-Installationsbefehl.
   'Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:': 'Installieren Sie das HelixPrint-Plugin für schnelle G-Code-Modifikationen. Führen Sie diesen Befehl per SSH auf Ihrem Drucker aus:'
@@ -5868,6 +5873,7 @@ translations:
   Update Failed: Update fehlgeschlagen
   Update Helper Macros: 'Hilfsmakros aktualisieren'
   Update Helper Macros?: 'Hilfsmakros aktualisieren?'
+  Update Rolled Back: Update zurückgesetzt
   Update Success: Update erfolgreich
   Update complete: 'Update abgeschlossen'
   Update from a Terminal: Update über ein Terminal
@@ -6399,6 +6405,7 @@ translations:
   uses about 30 cm of filament: verbraucht ca. 30 cm Filament
   v%s available: v%s verfügbar
   v%s has no build for the %s, so it can't be installed here. Pick a channel with a newer release.: v%s hat keinen Build für %s und kann hier nicht installiert werden. Wähle einen Update-Kanal mit einer neueren Version.
+  v{} did not start properly, so v{} was put back.: v{} ist nicht richtig gestartet, daher wurde v{} wiederhergestellt.
   v{} installed! Restarting...: v{} installiert! Neustart...
   v{} is available. Tap to update.: v{} ist verfügbar. Tippen zum Aktualisieren.
   waiting for the printer: "wartet auf den Drucker"

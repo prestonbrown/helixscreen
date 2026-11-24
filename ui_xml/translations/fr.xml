@@ -520,6 +520,7 @@
   <translation tag="Automatic" fr="Automatique"/>
   <translation tag="Automatic Heater Control Calibration" fr="Calibration automatique du chauffage"/>
   <translation tag="Automatic LED Control" fr="Contrôle LED automatique"/>
+  <translation tag="Automatic Updates" fr="Mises à jour automatiques"/>
   <translation tag="Automatic calibration" fr="Calibration automatique"/>
   <translation tag="Automatic cleanup" fr="Nettoyage automatique"/>
   <translation tag="Automatic filament feeding is still running." fr="L&apos;alimentation automatique du filament est toujours en cours."/>
@@ -1486,6 +1487,8 @@
   <translation tag="Door Open" fr="Porte ouverte"/>
   <translation tag="Door opened during print: {}" fr="Porte ouverte pendant l&apos;impression : {}"/>
   <translation tag="Door switches, buttons, and other on/off inputs" fr="Interrupteurs de porte, boutons et autres entrées marche/arrêt"/>
+  <translation tag="Download and ask" fr="Télécharger et demander"/>
+  <translation tag="Download and ask tells you when an update is ready to install" fr="Télécharger et demander vous prévient quand une mise à jour est prête à installer"/>
   <translation tag="Download update?" fr="Télécharger la mise à jour ?"/>
   <translation tag="Download v{}?" fr="Télécharger v{} ?"/>
   <translation tag="Downloading the timelapse plugin..." fr="Téléchargement du plugin timelapse..."/>
@@ -2415,6 +2418,8 @@
   <translation tag="Install Plugin" fr="Installer le plugin"/>
   <translation tag="Install Root" fr="Racine d&apos;installation"/>
   <translation tag="Install Update" fr="Installer la mise à jour"/>
+  <translation tag="Install overnight" fr="Installer la nuit"/>
+  <translation tag="Install overnight restarts the screen at 3 AM when the printer is idle" fr="Installer la nuit redémarre l&apos;écran à 3 h quand l&apos;imprimante est inactive"/>
   <translation tag="Install plugin" fr="Installer le plugin"/>
   <translation tag="Install script not found. Use the remote install command instead." fr="Script d&apos;installation introuvable. Utilisez plutôt la commande d&apos;installation distante."/>
   <translation tag="Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:" fr="Installez le plugin HelixPrint pour activer les modifications rapides de G-code. Exécutez cette commande via SSH sur votre imprimante :"/>
@@ -5645,6 +5650,7 @@
   <translation tag="Update Failed" fr="Mise à jour échouée"/>
   <translation tag="Update Helper Macros" fr="Mettre à jour les macros d&apos;aide"/>
   <translation tag="Update Helper Macros?" fr="Mettre à jour les macros d&apos;aide ?"/>
+  <translation tag="Update Rolled Back" fr="Mise à jour annulée"/>
   <translation tag="Update Success" fr="Mise à jour réussie"/>
   <translation tag="Update complete" fr="Mise à jour terminée"/>
   <translation tag="Update from a Terminal" fr="Mettre à jour depuis un terminal"/>
@@ -6177,6 +6183,7 @@
   <translation tag="uses about 30 cm of filament" fr="utilise environ 30 cm de filament"/>
   <translation tag="v%s available" fr="v%s disponible"/>
   <translation tag="v%s has no build for the %s, so it can&apos;t be installed here. Pick a channel with a newer release." fr="v%s n&apos;a pas de version pour %s et ne peut donc pas être installée ici. Choisissez un canal de mise à jour avec une version plus récente."/>
+  <translation tag="v{} did not start properly, so v{} was put back." fr="v{} n&apos;a pas démarré correctement, v{} a donc été rétablie."/>
   <translation tag="v{} installed! Restarting..." fr="v{} installée ! Redémarrage..."/>
   <translation tag="v{} is available. Tap to update." fr="v{} est disponible. Appuyez pour mettre à jour."/>
   <translation tag="waiting for the printer" fr="en attente de l&apos;imprimante"/>

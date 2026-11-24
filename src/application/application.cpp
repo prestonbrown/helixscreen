@@ -204,6 +204,7 @@
 #include "system/lvgl_thread_check.h"
 #include "system/telemetry_manager.h"
 #include "system/update_checker.h"
+#include "system/update_rollback.h"
 #include "system_settings_manager.h"
 #include "theme_manager.h"
 #include "u1_stock_detection_source.h"
@@ -866,6 +867,11 @@ int Application::run(int argc, char** argv) {
                       "widget layouts show their defaults. Restart to return to normal."),
                 0 /* sticky */);
         }
+
+        // A crash loop on an automatically installed version asks the launcher
+        // to roll it back; otherwise it reports healthy once it has run a while.
+        helix::update::on_ui_ready(s_safe_mode_active ||
+                                   get_runtime_config()->crash_loop_safe_mode);
 
         // Phase 14b: Check WiFi availability if expected
         check_wifi_availability();

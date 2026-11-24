@@ -597,6 +597,7 @@ translations:
   Automatic: Автоматический
   Automatic Heater Control Calibration: Автоматическая калибровка нагревателя
   Automatic LED Control: Автоматическое управление LED
+  Automatic Updates: Автоматические обновления
   Automatic calibration: 'Автоматическая калибровка'
   Automatic cleanup: 'Автоматическая очистка'
   Automatic filament feeding is still running.: 'Автоматическая подача филамента ещё выполняется.'
@@ -1631,6 +1632,8 @@ translations:
   Door Open: Дверь открыта
   'Door opened during print: {}': 'Дверь открыта во время печати: {}'
   Door switches, buttons, and other on/off inputs: Датчики дверей, кнопки и другие входы вкл/выкл
+  Download and ask: Загрузить и спросить
+  Download and ask tells you when an update is ready to install: Загрузить и спросить сообщает, когда обновление готово к установке
   Download update?: Загрузить обновление?
   Download v{}?: Загрузить v{}?
   Downloading the timelapse plugin...: 'Загрузка плагина таймлапса...'
@@ -2582,6 +2585,8 @@ translations:
   Install Plugin: Установить плагин
   Install Root: Корень установки
   Install Update: Установить обновление
+  Install overnight: Устанавливать ночью
+  Install overnight restarts the screen at 3 AM when the printer is idle: 'Устанавливать ночью перезапускает экран в 3:00, когда принтер простаивает'
   Install plugin: Установить плагин
   Install script not found. Use the remote install command instead.: Скрипт установки не найден. Используйте вместо этого команду удалённой установки.
   'Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:': 'Установите плагин HelixPrint для быстрой модификации G-code. Выполните эту команду через SSH на вашем принтере:'
@@ -5956,6 +5961,7 @@ translations:
   Update Failed: Ошибка обновления
   Update Helper Macros: 'Обновить вспомогательные макросы'
   Update Helper Macros?: 'Обновить вспомогательные макросы?'
+  Update Rolled Back: Обновление отменено
   Update Success: Обновление успешно
   Update complete: 'Обновление завершено'
   Update from a Terminal: Обновление через терминал
@@ -6491,6 +6497,7 @@ translations:
   uses about 30 cm of filament: расходует около 30 см филамента
   v%s available: Доступна v%s
   v%s has no build for the %s, so it can't be installed here. Pick a channel with a newer release.: Для v%s нет сборки для %s, поэтому её нельзя установить здесь. Выберите канал обновлений с более новым выпуском.
+  v{} did not start properly, so v{} was put back.: v{} не запустилась нормально, поэтому восстановлена v{}.
   v{} installed! Restarting...: v{} установлена! Перезапуск...
   v{} is available. Tap to update.: v{} доступна. Нажмите для обновления.
   waiting for the printer: "ожидание принтера"

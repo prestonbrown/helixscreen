@@ -186,6 +186,27 @@ esac
     [ -d "$roomy" ]
 }
 
+@test "tight + roomy alternate: an automatic install that must keep the old tree is refused" {
+    setup_existing_install
+    create_test_tarball "ad5m"
+
+    local roomy="$BATS_TEST_TMPDIR/roomy"
+    mkdir -p "$roomy"
+    export HELIX_ROLLBACK_CANDIDATES="$roomy"
+    export HELIX_UPDATE_KEEP_PREVIOUS=1
+
+    local install_parent
+    install_parent="$(dirname "$INSTALL_DIR")"
+    mock_df_du "$install_parent" "$roomy" 51200 1048576 200
+
+    run extract_release "ad5m"
+    echo "$output"
+    [ "$status" -ne 0 ]
+    contains "cannot keep the previous version" "$output"
+    grep -q "old binary" "$INSTALL_DIR/bin/helix-screen"
+    [ ! -d "$roomy/helixscreen-rollback" ]
+}
+
 # =============================================================================
 # Case 2: tight + no roomy alternate -> fails early, install untouched
 # =============================================================================
