@@ -255,6 +255,13 @@ bool SaverLabel::draw(SaverCanvas& canvas, const std::string& text, const DirtyR
     const int32_t pad = std::max<int32_t>(0, halo_.radius);
     const DirtyRect painted{box.x1 - pad, box.y1 - pad, box.x2 + pad, box.y2 + pad};
     canvas.mark_dirty(painted.x1, painted.y1, painted.x2, painted.y2);
+    // The repaint reaches only `painted`, so a line that runs on past the box is cut there
+    // rather than left behind where the next repaint cannot clear it.
+    const lv_area_t clip{
+        std::max(layer._clip_area.x1, painted.x1), std::max(layer._clip_area.y1, painted.y1),
+        std::min(layer._clip_area.x2, painted.x2), std::min(layer._clip_area.y2, painted.y2)};
+    layer._clip_area = clip;
+    layer.phy_clip_area = clip;
     if (pad > 0 && halo_.opa > 0) {
         // The text smeared round a ring and a half ring at low opacity reads as a soft shadow.
         lv_draw_label_dsc_t shade = label;

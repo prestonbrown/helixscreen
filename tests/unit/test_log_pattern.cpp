@@ -361,6 +361,28 @@ TEST_CASE("Ring tail limit counts entries, a run's summary riding with its entry
     REQUIRE(lines[2].find("line-three") != std::string::npos);
 }
 
+TEST_CASE("Ring line tail never exceeds the requested line count", "[logging][pattern][ring]") {
+    auto sink = make_ring({1.0, 2.0, 3.0, 4.0});
+    push(sink, 1000.0, "line-one");
+    push(sink, 1001.0, "line-two");
+    push(sink, 1002.0, "line-two");
+    push(sink, 1003.0, "line-three");
+
+    // line-two prints two lines, so 3 lines is its summary plus line-three.
+    auto lines = sink->last_formatted_lines(3);
+    REQUIRE(lines.size() == 3);
+    REQUIRE(lines[0].find("line-two") != std::string::npos);
+    REQUIRE(lines[1].find("repeated 1 more time") != std::string::npos);
+
+    lines = sink->last_formatted_lines(2);
+    REQUIRE(lines.size() == 2);
+    REQUIRE(lines[0].find("repeated 1 more time") != std::string::npos);
+    REQUIRE(lines[1].find("line-three") != std::string::npos);
+
+    REQUIRE(sink->last_formatted_lines(1).size() == 1);
+    REQUIRE(sink->last_formatted_lines(0).size() == 4);
+}
+
 TEST_CASE("Ring dump is idempotent", "[logging][pattern][1218][ring]") {
     // debug_bundle_collector probes the ring with a 1-line tail before
     // log_collector takes the real dump. Carrying step state across dumps made

@@ -374,6 +374,9 @@ class AmsEditOverlayViewTestAccess {
     void call_handle_weight_tap() {
         overlay_.handle_weight_tap();
     }
+    int save_op() {
+        return lv_subject_get_int(&overlay_.save_op_subject_);
+    }
     int save_state() {
         return lv_subject_get_int(&overlay_.save_state_subject_);
     }

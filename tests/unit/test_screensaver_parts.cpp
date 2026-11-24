@@ -1402,6 +1402,39 @@ TEST_CASE_METHOD(LVGLTestFixture,
     canvas.release();
 }
 
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a label too wide for its box draws nothing outside the dirty area",
+                 "[screensaver][screensaver_parts]") {
+    SaverCanvas canvas;
+    REQUIRE(canvas.create(lv_screen_active(), 320, 80, helix::ui::kLvDrawCanvasFormat));
+    helix::ui::SaverLabel label;
+    label.set_halo({{0, 0, 0}, LV_OPA_50, 4});
+    const DirtyRect box{100, 20, 139, 49};
+    // A long translated date: far wider than a 40 px box even in the smallest font.
+    const std::string text = "Воскресенье, тридцатое сентября две тысячи двадцать шестого года";
+    std::vector<DirtyRect> dirty;
+    REQUIRE(label.draw(canvas, text, box, {255, 255, 255}, LV_OPA_COVER, LV_TEXT_ALIGN_CENTER, {},
+                       dirty));
+    REQUIRE(dirty.size() == 1);
+    const helix::ui::PixelWriter reader(canvas.frame());
+    size_t inside = 0;
+    size_t outside = 0;
+    for (int32_t y = 0; y < canvas.height(); y++) {
+        for (int32_t x = 0; x < canvas.width(); x++) {
+            const helix::ui::Rgb c = reader.get(x, y);
+            if (c.r == 0 && c.g == 0 && c.b == 0) {
+                continue;
+            }
+            const bool in =
+                x >= dirty[0].x1 && x <= dirty[0].x2 && y >= dirty[0].y1 && y <= dirty[0].y2;
+            (in ? inside : outside)++;
+        }
+    }
+    CHECK(inside > 0);
+    CHECK(outside == 0);
+    canvas.release();
+}
+
 // ============================================================================
 // The sim test kit
 // ============================================================================

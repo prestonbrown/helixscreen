@@ -64,24 +64,28 @@ class MonotonicRingSink final : public spdlog::sinks::base_sink<std::mutex> {
         std::lock_guard<std::mutex> lock(base_sink<std::mutex>::mutex_);
         const size_t available = q_.size();
         const size_t count = lim > 0 ? (lim < available ? lim : available) : available;
+        return format_range(available - count, available);
+    }
 
-        ReplayGuard guard;
-        std::vector<std::string> out;
-        out.reserve(count);
-        for (size_t i = available - count; i < available; ++i) {
-            const Entry& e = q_.at(i);
-            guard.set_value(e.mono);
-            append_formatted(e.msg, out);
-            if (e.repeats > 0) {
-                const std::string summary = fmt::format(
-                    "[repeated {} more time{}] {}", e.repeats, e.repeats == 1 ? "" : "s",
-                    std::string_view(e.msg.payload.data(), e.msg.payload.size()));
-                spdlog::details::log_msg last{e.last_time, e.msg.source, e.msg.logger_name,
-                                              e.msg.level, summary};
-                last.thread_id = e.msg.thread_id;
-                guard.set_value(e.last_mono);
-                append_formatted(last, out);
-            }
+    /**
+     * @brief Oldest-first formatted lines, at most @p max_lines of them
+     *
+     * Counts printed lines, not entries: a collapsed run prints two, and a
+     * window that starts inside one begins at its summary line. 0 means all.
+     */
+    std::vector<std::string> last_formatted_lines(size_t max_lines) {
+        std::lock_guard<std::mutex> lock(base_sink<std::mutex>::mutex_);
+        const size_t available = q_.size();
+        size_t first = available;
+        size_t lines = 0;
+        while (first > 0 && (max_lines == 0 || lines < max_lines)) {
+            --first;
+            lines += q_.at(first).repeats > 0 ? 2 : 1;
+        }
+        auto out = format_range(first, available);
+        if (max_lines > 0 && out.size() > max_lines) {
+            out.erase(out.begin(),
+                      out.begin() + static_cast<std::ptrdiff_t>(out.size() - max_lines));
         }
         return out;
     }
@@ -134,6 +138,29 @@ class MonotonicRingSink final : public spdlog::sinks::base_sink<std::mutex> {
                         const spdlog::details::log_msg& incoming) {
         return held.level == incoming.level && held.logger_name == incoming.logger_name &&
                held.payload == incoming.payload;
+    }
+
+    // Caller holds the sink mutex.
+    std::vector<std::string> format_range(size_t first, size_t available) {
+        ReplayGuard guard;
+        std::vector<std::string> out;
+        out.reserve(available - first);
+        for (size_t i = first; i < available; ++i) {
+            const Entry& e = q_.at(i);
+            guard.set_value(e.mono);
+            append_formatted(e.msg, out);
+            if (e.repeats > 0) {
+                const std::string summary = fmt::format(
+                    "[repeated {} more time{}] {}", e.repeats, e.repeats == 1 ? "" : "s",
+                    std::string_view(e.msg.payload.data(), e.msg.payload.size()));
+                spdlog::details::log_msg last{e.last_time, e.msg.source, e.msg.logger_name,
+                                              e.msg.level, summary};
+                last.thread_id = e.msg.thread_id;
+                guard.set_value(e.last_mono);
+                append_formatted(last, out);
+            }
+        }
+        return out;
     }
 
     void append_formatted(const spdlog::details::log_msg& msg, std::vector<std::string>& out) {
