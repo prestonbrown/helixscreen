@@ -17,9 +17,11 @@
 // Pure: no LVGL, no network. The overlay prints what current() asks for and
 // reports what the user judged.
 
+#include "json_fwd.h"
 #include "pa_model.h"
 #include "pa_tuning.h"
 
+#include <optional>
 #include <vector>
 
 namespace helix::pa {
@@ -79,15 +81,44 @@ class NonlinearProcedure {
     /// @p height_mm is taken anyway.
     void record_verdict(SideVerdict verdict, float height_mm);
 
+    /// A judgement has been recorded that go_back() can take back.
+    bool can_go_back() const {
+        return !history_.empty();
+    }
+    /// Take back the latest judgement: the procedure is on the tower it judged
+    /// again, with the values that tower printed with. Returns the height that
+    /// was judged, or nullopt when there is nothing to take back.
+    std::optional<float> go_back();
+
+    ExtruderKind kind() const {
+        return kind_;
+    }
+
+    /// Everything a restart would lose, for from_json().
+    nlohmann::json to_json() const;
+    /// The procedure @p j describes, or nullopt when it describes none this
+    /// build can continue (another pass order, an index out of range).
+    static std::optional<NonlinearProcedure> from_json(const nlohmann::json& j);
+
   private:
+    /// The state before one judgement, so it can be put back.
+    struct Judged {
+        size_t index = 0;
+        int repeats = 0;
+        NonlinearValues values;
+        float height_mm = 0.0f;
+    };
+
     void apply(NlParam param, float value);
     void advance();
+    void remember(float height_mm);
 
     ExtruderKind kind_;
     std::vector<NonlinearPass> passes_;
     size_t index_ = 0;
     int repeats_ = 0;
     NonlinearValues values_;
+    std::vector<Judged> history_;
 };
 
 } // namespace helix::pa
