@@ -1308,7 +1308,7 @@ export function deviceQueries(id: string): string[] {
 /** Health windows as [newerDaysAgo, olderDaysAgo]; baseline holds the 28 days before cur and contains prev. */
 export const HEALTH_WINDOWS = { cur: [0, 7], prev: [7, 14], baseline: [7, 35] } as const;
 
-export type HealthQueryKey = HealthRowKey;
+export type HealthQueryKey = Exclude<HealthRowKey, "hang_snapshots">;
 
 /** The timestamp predicate for one [newerDaysAgo, olderDaysAgo] window. */
 export function windowClause(w: readonly [number, number]): string {
@@ -1359,6 +1359,44 @@ export function errorCodesSql(w: readonly [number, number], filters?: FilterPara
     FROM ${DATASET}
     WHERE ${windowClause(w)} AND index1 = 'error_encountered'${filterFor("error_encountered", filters)}
     GROUP BY category, code${byVersion ? ", version" : ""}`;
+}
+
+/** The code of the hang report the host-memory split classifies. */
+export const HANG_CATEGORY = "ui";
+export const HANG_CODE = "main_loop_hang";
+
+/**
+ * Every main_loop_hang in window `w`, one row per report, as rows
+ * { device, at, mem, pressure, weight }: `at` is epoch seconds, `mem` is the
+ * available host MB the hang carried (0 = the hang carried none; the column
+ * stores the value + 1), `pressure` is "" when absent.
+ */
+export function hangEventsSql(w: readonly [number, number], filters?: FilterParams): string {
+  return `SELECT
+      ${errorEnc("device_id")} as device,
+      toUnixTimestamp(timestamp) as at,
+      ${errorEnc("mem_available_mb")} as mem,
+      ${errorEnc("pressure_level")} as pressure,
+      ${SAMPLE_WEIGHT} as weight
+    FROM ${DATASET}
+    WHERE ${windowClause(w)} AND index1 = 'error_encountered'
+      AND ${errorEnc("category")} = '${HANG_CATEGORY}' AND ${errorEnc("code")} = '${HANG_CODE}'${filterFor("error_encountered", filters)}`;
+}
+
+/**
+ * Memory snapshots of `devices` in window `w`, as rows { device, at, available }:
+ * `at` is epoch seconds and `available` is the host MB available + 1. Snapshots
+ * from before the column existed carry 0 and are left out.
+ */
+export function hangSnapshotsSql(devices: string[], w: readonly [number, number]): string {
+  const ids = devices.map((d) => sanitizeFilterValue(d)).filter(Boolean);
+  return `SELECT
+      ${memSnap("device_id")} as device,
+      toUnixTimestamp(timestamp) as at,
+      ${memSnap("system_available_mb")} as available
+    FROM ${DATASET}
+    WHERE ${windowClause(w)} AND index1 = 'memory_snapshot' AND ${memSnap("system_available_mb")} > 0
+      AND ${ids.length > 0 ? `${memSnap("device_id")} IN (${ids.map((d) => `'${d}'`).join(", ")})` : SQL_FALSE}`;
 }
 
 /**
@@ -1442,6 +1480,8 @@ export function healthQueries(filters?: FilterParams, versions: string[] = []): 
     errors_prev: errors(prev),
     errors_baseline: errors(baseline),
     errors_by_device: errorsByDeviceSql(cur, filters),
+    hangs_cur: hangEventsSql(cur, filters),
+    hangs_prev: hangEventsSql(prev, filters),
     crashes_cur: crashes(cur),
     crashes_prev: crashes(prev),
     // The newest daily row; the window is wider than a day because the row's

@@ -552,6 +552,10 @@ const KINDS: PointKind[] = [
     dbl(3, "vm_size_kb"),
     dbl(4, "vm_peak_kb"),
     dbl(5, "vm_hwm_kb"),
+    // Host memory the whole system had free; stored + 1 (0 = absent) because 0 MB is a real reading.
+    // Older hang events carry no memory of their own, so the loop reads this series to tell
+    // a host out of memory from an app that blocked.
+    dbl(6, "system_available_mb", plusOne("system_available_mb")),
   ]),
 
   kind("memory_warning", [
@@ -948,7 +952,6 @@ export const R2_ONLY: Record<string, string[]> = mergeLists(
       "shared_clean_kb",
       "pss_kb",
       "system_total_mb",
-      "system_available_mb",
       "malloc_arena_kb",
       "malloc_uordblks_kb",
       "malloc_fordblks_kb",
