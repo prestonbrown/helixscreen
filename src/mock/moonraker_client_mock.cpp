@@ -37,7 +37,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <dirent.h>
 #include <fstream>
 #include <iomanip>
 #include <limits>
@@ -3543,21 +3542,36 @@ std::string MoonrakerClientMock::belt_csv_path(const std::string& axis_name,
            std::to_string(static_cast<long>(::getpid())) + ".csv";
 }
 
+namespace {
+
+/// Every belt CSV path this process' mocks wrote and have not yet removed.
+/// remove_belt_csvs() deletes exactly these: scanning /tmp for them costs a
+/// readdir of every entry there, seconds per call on a host whose /tmp holds
+/// hundreds of thousands of files.
+std::mutex& belt_csvs_mutex() {
+    static std::mutex m;
+    return m;
+}
+std::set<std::string>& belt_csvs_written() {
+    static std::set<std::string> paths;
+    return paths;
+}
+
+void note_belt_csv(const std::string& path) {
+    std::lock_guard<std::mutex> lock(belt_csvs_mutex());
+    belt_csvs_written().insert(path);
+}
+
+} // namespace
+
 void MoonrakerClientMock::remove_belt_csvs() {
-    // The axis/name parts come from the G-code, so match the fixed prefix and
-    // this process' PID suffix rather than enumerating paths.
-    const std::string prefix = "resonances_";
-    const std::string suffix = "_mock_" + std::to_string(static_cast<long>(::getpid())) + ".csv";
-    if (DIR* dir = opendir("/tmp")) {
-        while (struct dirent* entry = readdir(dir)) {
-            const std::string file(entry->d_name);
-            if (file.size() > prefix.size() + suffix.size() &&
-                file.compare(0, prefix.size(), prefix) == 0 &&
-                file.compare(file.size() - suffix.size(), suffix.size(), suffix) == 0) {
-                std::remove(("/tmp/" + file).c_str());
-            }
-        }
-        closedir(dir);
+    std::set<std::string> paths;
+    {
+        std::lock_guard<std::mutex> lock(belt_csvs_mutex());
+        paths.swap(belt_csvs_written());
+    }
+    for (const auto& path : paths) {
+        std::remove(path.c_str());
     }
 }
 
@@ -3866,6 +3880,7 @@ void MoonrakerClientMock::dispatch_test_resonances_response(const std::string& g
          max_freq = resonance_max_freq_, write, mode = belt_failure_] {
             if (!final_line.empty()) {
                 if (write) {
+                    note_belt_csv(csv_path);
                     // HELIX_MOCK_BELT_CSV_A/_B replay a real capture for that
                     // path instead of the synthetic curve.
                     const char* replay = std::getenv(path_letter == 'A' ? "HELIX_MOCK_BELT_CSV_A"
