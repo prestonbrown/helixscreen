@@ -6,6 +6,7 @@
 #include "json_utils.h"
 
 #include <algorithm>
+#include <cmath>
 
 #include "hv/json.hpp"
 
@@ -122,22 +123,99 @@ void NonlinearProcedure::record_verdict(SideVerdict verdict, float height_mm) {
     }
     remember(height_mm);
     const NonlinearPass& p = current();
-    if (verdict == SideVerdict::Same || repeats_ >= kMaxRepeats) {
+    if (!correction(verdict)) {
         apply(p.sweep.param, value_at(p.sweep, height_mm));
         advance();
         return;
     }
-    // The other parameter of the pair moves. Direct drive sweeps the advance
-    // and corrects the offset: a left side best lower than the front has too
-    // much offset. Bowden sweeps the offset and corrects the advance, the
-    // other way round.
-    const bool left_lower = verdict == SideVerdict::LeftLower;
-    if (p.sweep.param == NlParam::Advance) {
-        values_.nonlinear_offset *= left_lower ? 1.0f - kConvergeStep : 1.0f + kConvergeStep;
-    } else {
-        values_.linear_advance *= left_lower ? 1.0f + kConvergeStep : 1.0f - kConvergeStep;
+    if (const auto c = correction(verdict)) {
+        const float factor = c->raise ? 1.0f + kConvergeStep : 1.0f - kConvergeStep;
+        if (c->param == NlParam::Offset) {
+            values_.nonlinear_offset *= factor;
+        } else {
+            values_.linear_advance *= factor;
+        }
     }
     ++repeats_;
+}
+
+std::optional<Correction> NonlinearProcedure::correction(SideVerdict verdict) const {
+    if (done() || verdict == SideVerdict::Same || repeats_ >= kMaxRepeats) {
+        return std::nullopt;
+    }
+    // The other parameter of the pair moves (Kalico's guide, step 8). Direct
+    // drive sweeps the advance and corrects the offset: a left side best lower
+    // than the front has too much offset. Bowden sweeps the offset and corrects
+    // the advance, the other way round.
+    const bool left_lower = verdict == SideVerdict::LeftLower;
+    if (current().sweep.param == NlParam::Advance) {
+        return Correction{NlParam::Offset, !left_lower};
+    }
+    return Correction{NlParam::Advance, left_lower};
+}
+
+SideVerdict verdict_from_heights(float left_mm, float front_mm) {
+    // A hair of slack so a typed 26.5 against 27.5 counts as within 1 mm.
+    constexpr float kSlack = 1e-4f;
+    if (std::abs(left_mm - front_mm) <= kSameHeightMm + kSlack) {
+        return SideVerdict::Same;
+    }
+    return left_mm < front_mm ? SideVerdict::LeftLower : SideVerdict::LeftHigher;
+}
+
+FaceLayout tower_face_layout(TowerFace face, float size_x_mm, float size_y_mm) {
+    // The slow middle is SLOW_NOTCH_SIZE wide on any face, and the very slow
+    // segment VERY_SLOW_SEG long.
+    constexpr float kSlowNotchMm = 10.0f;
+    constexpr float kVerySlowMm = 0.2f;
+    FaceLayout f;
+    if (face == TowerFace::Left) {
+        // Back corner to front corner: medium, slow middle with the very slow
+        // segment at its center, medium.
+        f.width_mm = size_y_mm;
+        const float half = kSlowNotchMm / 2.0f / size_y_mm;
+        const float vs = kVerySlowMm / 2.0f / size_y_mm;
+        f.segments = {{0.0f, 0.5f - half, SpeedKind::Medium},
+                      {0.5f - half, 0.5f - vs, SpeedKind::Slow},
+                      {0.5f - vs, 0.5f + vs, SpeedKind::VerySlow},
+                      {0.5f + vs, 0.5f + half, SpeedKind::Slow},
+                      {0.5f + half, 1.0f, SpeedKind::Medium}};
+        f.spots = {{0.5f - half, SpotKind::SlowDown},
+                   {0.5f, SpotKind::VerySlowSpot},
+                   {0.5f + half, SpotKind::SpeedUp}};
+        return f;
+    }
+    // Left corner to right corner: fast with a dwell at size_x / 3 left of
+    // center, slow middle, fast, a very slow segment at size_x / 3 right of
+    // center, fast.
+    f.width_mm = size_x_mm;
+    const float half = kSlowNotchMm / 2.0f / size_x_mm;
+    const float third = (size_x_mm / 3.0f) / size_x_mm;
+    const float left_third = 0.5f - third;
+    const float right_third = 0.5f + third;
+    const float vs = kVerySlowMm / size_x_mm;
+    f.segments = {{0.0f, 0.5f - half, SpeedKind::Fast},
+                  {0.5f - half, 0.5f + half, SpeedKind::Slow},
+                  {0.5f + half, right_third, SpeedKind::Fast},
+                  {right_third, right_third + vs, SpeedKind::VerySlow},
+                  {right_third + vs, 1.0f, SpeedKind::Fast}};
+    f.spots = {{left_third, SpotKind::Pause},
+               {0.5f - half, SpotKind::SlowDown},
+               {0.5f + half, SpotKind::SpeedUp},
+               {right_third, SpotKind::VerySlowSpot}};
+    return f;
+}
+
+std::vector<TowerFace> judged_faces(TowerSide side) {
+    switch (side) {
+    case TowerSide::Left:
+        return {TowerFace::Left};
+    case TowerSide::Front:
+        return {TowerFace::Front};
+    case TowerSide::LeftVsFront:
+        break;
+    }
+    return {TowerFace::Left, TowerFace::Front};
 }
 
 nlohmann::json NonlinearProcedure::to_json() const {

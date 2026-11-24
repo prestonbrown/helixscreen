@@ -41,6 +41,51 @@ struct NonlinearPass {
     TowerSide judge = TowerSide::Left;
 };
 
+/// The firmware tower's height (Kalico's [pa_test] default).
+inline constexpr float kTowerHeightMm = 50.0f;
+/// Left and front heights closer than this count as the same.
+inline constexpr float kSameHeightMm = 1.0f;
+
+/// Where left and front looked best, as a verdict: Same within kSameHeightMm.
+SideVerdict verdict_from_heights(float left_mm, float front_mm);
+
+/// A face of the firmware tower, seen from outside it.
+enum class TowerFace : int { Left = 0, Front = 1 };
+enum class SpeedKind : int { Fast = 0, Medium = 1, Slow = 2, VerySlow = 3 };
+/// SlowDown and SpeedUp are the edges of the slow middle; a slow-down with too
+/// little advance leaves a bulge, a speed-up a thin spot.
+enum class SpotKind : int { SlowDown = 0, SpeedUp = 1, Pause = 2, VerySlowSpot = 3 };
+
+struct SpeedSegment {
+    float from = 0.0f; ///< fraction across the face, in print order
+    float to = 0.0f;
+    SpeedKind speed = SpeedKind::Fast;
+};
+struct TowerSpot {
+    float at = 0.0f; ///< fraction across the face
+    SpotKind kind = SpotKind::SlowDown;
+};
+/// How the nozzle crosses one face, left to right as seen from outside the
+/// tower (Kalico's klippy/extras/pa_test.py, gen_tower).
+struct FaceLayout {
+    float width_mm = 0.0f;
+    std::vector<SpeedSegment> segments;
+    std::vector<TowerSpot> spots; ///< in order across the face
+};
+/// The tower's default footprint, 50 x 40 mm.
+inline constexpr float kTowerSizeXMm = 50.0f;
+inline constexpr float kTowerSizeYMm = 40.0f;
+FaceLayout tower_face_layout(TowerFace face, float size_x_mm = kTowerSizeXMm,
+                             float size_y_mm = kTowerSizeYMm);
+/// The faces a pass's user looks at, left face first.
+std::vector<TowerFace> judged_faces(TowerSide side);
+
+/// What a two-sided verdict changes before the pass prints again.
+struct Correction {
+    NlParam param = NlParam::Offset;
+    bool raise = false; ///< about 10% up; otherwise about 10% down
+};
+
 class NonlinearProcedure {
   public:
     /// A pass repeated this often without left and front agreeing ends on the
@@ -80,6 +125,9 @@ class NonlinearProcedure {
     /// other parameter moves 10% and the pass repeats, until kMaxRepeats, when
     /// @p height_mm is taken anyway.
     void record_verdict(SideVerdict verdict, float height_mm);
+    /// What record_verdict(@p verdict) would change for the next tower, or
+    /// nullopt when it takes the height instead (Same, or the repeat limit).
+    std::optional<Correction> correction(SideVerdict verdict) const;
 
     /// A judgement has been recorded that go_back() can take back.
     bool can_go_back() const {

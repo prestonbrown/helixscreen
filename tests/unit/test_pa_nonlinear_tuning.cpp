@@ -150,3 +150,103 @@ TEST_CASE("nonlinear procedure: its saved form continues where it stopped",
     CHECK_FALSE(NonlinearProcedure::from_json(other).has_value());
     CHECK_FALSE(NonlinearProcedure::from_json(nlohmann::json::object()).has_value());
 }
+
+TEST_CASE("nonlinear tower: each face's speed changes sit where Kalico's tower path puts them",
+          "[pa_nonlinear][pa_tower_layout]") {
+    const FaceLayout left = tower_face_layout(TowerFace::Left);
+    // The 10 mm slow middle of the 40 mm left face, as fractions across the face.
+    REQUIRE(left.spots.size() == 3);
+    CHECK(left.spots[0].kind == SpotKind::SlowDown);
+    CHECK(left.spots[0].at == Catch::Approx(0.375f));
+    CHECK(left.spots[1].kind == SpotKind::VerySlowSpot);
+    CHECK(left.spots[1].at == Catch::Approx(0.5f));
+    CHECK(left.spots[2].kind == SpotKind::SpeedUp);
+    CHECK(left.spots[2].at == Catch::Approx(0.625f));
+    CHECK(left.segments.front().speed == SpeedKind::Medium);
+
+    const FaceLayout front = tower_face_layout(TowerFace::Front);
+    REQUIRE(front.spots.size() == 4);
+    // The pause at size_x / 3 left of center, the slow middle, the very slow
+    // spot at size_x / 3 right of center.
+    CHECK(front.spots[0].kind == SpotKind::Pause);
+    CHECK(front.spots[0].at == Catch::Approx(1.0f / 6.0f));
+    CHECK(front.spots[1].at == Catch::Approx(0.4f));
+    CHECK(front.spots[2].at == Catch::Approx(0.6f));
+    CHECK(front.spots[3].kind == SpotKind::VerySlowSpot);
+    CHECK(front.spots[3].at == Catch::Approx(5.0f / 6.0f));
+    CHECK(front.segments.front().speed == SpeedKind::Fast);
+
+    // A wider tower keeps the slow middle 10 mm wide.
+    const FaceLayout wide = tower_face_layout(TowerFace::Front, 100.0f, 40.0f);
+    CHECK(wide.spots[1].at == Catch::Approx(0.45f));
+    CHECK(wide.spots[2].at == Catch::Approx(0.55f));
+
+    // Segments run from one edge of the face to the other without gaps.
+    for (const FaceLayout* f : {&left, &front}) {
+        CHECK(f->segments.front().from == Catch::Approx(0.0f));
+        CHECK(f->segments.back().to == Catch::Approx(1.0f));
+        for (size_t i = 1; i < f->segments.size(); ++i) {
+            CHECK(f->segments[i].from == Catch::Approx(f->segments[i - 1].to));
+        }
+    }
+}
+
+TEST_CASE("nonlinear tower: the faces a pass judges", "[pa_nonlinear][pa_tower_layout]") {
+    CHECK(judged_faces(TowerSide::Left) == std::vector<TowerFace>{TowerFace::Left});
+    CHECK(judged_faces(TowerSide::Front) == std::vector<TowerFace>{TowerFace::Front});
+    CHECK(judged_faces(TowerSide::LeftVsFront) ==
+          std::vector<TowerFace>{TowerFace::Left, TowerFace::Front});
+}
+
+TEST_CASE("nonlinear procedure: two heights decide the verdict, same within a millimeter",
+          "[pa_nonlinear][pa_two_heights]") {
+    CHECK(verdict_from_heights(24.0f, 27.5f) == SideVerdict::LeftLower);
+    CHECK(verdict_from_heights(30.0f, 27.5f) == SideVerdict::LeftHigher);
+    CHECK(verdict_from_heights(27.0f, 27.5f) == SideVerdict::Same);
+    CHECK(verdict_from_heights(26.5f, 27.5f) == SideVerdict::Same);
+    CHECK(verdict_from_heights(26.4f, 27.5f) == SideVerdict::LeftLower);
+}
+
+TEST_CASE("nonlinear procedure: the next tower's correction follows Kalico's rule",
+          "[pa_nonlinear][pa_two_heights]") {
+    SECTION("direct drive: left below the front lowers the offset") {
+        NonlinearProcedure p(ExtruderKind::DirectDrive, ModelKind::Tanh);
+        p.record_height(16.0f);
+        REQUIRE(p.current().judge == TowerSide::LeftVsFront);
+        auto c = p.correction(SideVerdict::LeftLower);
+        REQUIRE(c.has_value());
+        CHECK(c->param == NlParam::Offset);
+        CHECK_FALSE(c->raise);
+        c = p.correction(SideVerdict::LeftHigher);
+        REQUIRE(c.has_value());
+        CHECK(c->param == NlParam::Offset);
+        CHECK(c->raise);
+        CHECK_FALSE(p.correction(SideVerdict::Same).has_value());
+
+        // The procedure applies what correction() says.
+        const float before = p.values().nonlinear_offset;
+        p.record_verdict(SideVerdict::LeftLower, 24.0f);
+        CHECK(p.values().nonlinear_offset < before);
+    }
+    SECTION("Bowden: left below the front raises the advance") {
+        NonlinearProcedure p(ExtruderKind::Bowden, ModelKind::Tanh);
+        p.record_height(20.0f);
+        REQUIRE(p.current().judge == TowerSide::LeftVsFront);
+        auto c = p.correction(SideVerdict::LeftLower);
+        REQUIRE(c.has_value());
+        CHECK(c->param == NlParam::Advance);
+        CHECK(c->raise);
+        const float before = p.values().linear_advance;
+        p.record_verdict(SideVerdict::LeftLower, 24.0f);
+        CHECK(p.values().linear_advance > before);
+    }
+    SECTION("a pass at its repeat limit takes the height: no correction") {
+        NonlinearProcedure p(ExtruderKind::DirectDrive, ModelKind::Tanh);
+        p.record_height(16.0f);
+        for (int i = 0; i < NonlinearProcedure::kMaxRepeats; ++i) {
+            p.record_verdict(SideVerdict::LeftLower, 24.0f);
+        }
+        REQUIRE(p.repeats() == NonlinearProcedure::kMaxRepeats);
+        CHECK_FALSE(p.correction(SideVerdict::LeftLower).has_value());
+    }
+}
