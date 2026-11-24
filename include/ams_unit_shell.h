@@ -107,6 +107,9 @@ struct UnitShell {
     /// The color region masks its drawing bakes, as unit_color_mask_bit bits; 0 for a unit
     /// drawn only in its own colors.
     uint8_t color_regions = 0;
+    /// The colors the drawing bakes for each region, in UnitColorRegion order: what a region
+    /// the user left unset shows. Zero for a unit without color regions.
+    uint32_t color_defaults[3] = {};
 };
 
 /// The head-on art for a unit built with @p lanes gates, or nullptr.

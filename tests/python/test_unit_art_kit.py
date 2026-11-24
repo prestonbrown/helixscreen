@@ -842,7 +842,9 @@ def test_the_shell_table_records_the_region_masks_a_drawing_bakes():
         return next(line for line in table.splitlines() if line.strip().startswith('{"%s"' % uid))
 
     bits = sum(kit.unit_color_mask_bit(*key.split("_")) for key in BOX_TURTLE_MASKS)
-    assert row("box_turtle").rstrip().endswith(f"0x{bits:02x}}},")
+    # The region bits, then the drawing's own main, accent and panels colors.
+    t = box_turtle.UNIT.tray
+    assert row("box_turtle").rstrip().endswith(f"0x{bits:02x}, {{0x{t.body:06x}, 0x{t.accent:06x}, 0x{t.panel:06x}}}}},")
     assert row("ace_pro").rstrip().endswith("0x0},")
 
 

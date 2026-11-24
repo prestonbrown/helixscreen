@@ -340,6 +340,7 @@ translations:
   Accelerometer not responding: 'El acelerómetro no responde'
   Accelerometer ready: Acelerómetro listo
   Accelerometers: Acelerómetros
+  Accent: 'Acento'
   Accept: Aceptar
   'Accepted Z Position: 0.000': 'Posición Z aceptada: 0.000'
   'Accepted Z Position: {:.3f}': 'Posición Z aceptada: {:.3f}'
@@ -489,6 +490,7 @@ translations:
   Arc moves not supported: 'Movimientos en arco no compatibles'
   Archive: Archivar
   Archive Spool?: ¿Archivar bobina?
+  Arctic White: 'Blanco ártico'
   Are you sure you want to cancel this print? All progress will be lost.: ¿Está seguro de que desea cancelar esta impresión? Todo el progreso se perderá.
   Are you sure? This will power off or restart this device.: ¿Está seguro? Esto apagará o reiniciará este dispositivo.
   Arrows + Home: 'Flechas + Inicio'
@@ -671,6 +673,7 @@ translations:
   Bowden tube length to this tool: "Longitud del tubo Bowden hasta esta herramienta"
   'Bowden: pull the tube from the extruder end, then pull the filament.': "Bowden: saque el tubo por el extremo del extrusor y luego tire del filamento."
   Box: Caja
+  Box Turtle Green and Gold: 'Box Turtle verde y dorado'
   Brand: Marca
   Brand and material come from Spoolman: La marca y el material provienen de Spoolman
   Brightness: Brillo
@@ -2141,6 +2144,7 @@ translations:
   Front: 'Delante'
   Front Left: 'Delante izquierda'
   Front Right: 'Delante derecha'
+  Front and side panels: 'Paneles frontal y laterales'
   Full: Completo
   G-code Console: Consola G-code
   G-code Preview: Vista Previa de G-code
@@ -2900,6 +2904,7 @@ translations:
   Macros installed. Restart Klipper after the print to activate them.: 'Macros instaladas. Reinicia Klipper después de la impresión para activarlas.'
   Macros updated. Restart Klipper after the print to activate them.: 'Macros actualizadas. Reinicia Klipper después de la impresión para activarlas.'
   'Macros, G-code console, calibration tools (PID, input shaper, z-offset), firmware updates, and developer utilities.': 'Macros, consola de G-code, herramientas de calibración (PID, input shaper, z-offset), actualizaciones de firmware y utilidades para desarrolladores.'
+  Main: 'Principal'
   Main LED Strip: Tira LED Principal
   Maintaining: Manteniendo
   Maintenance: 'Mantenimiento'
@@ -3451,6 +3456,7 @@ translations:
   Options: Opciones
   Or Enter Manually: O Ingrese Manualmente
   Or instead of turning the others: O en lugar de girar los demás
+  Original: 'Original'
   Original file location unknown: Ubicación del archivo original desconocida
   Oscillating... cycle %d/%d: Oscilando... ciclo %d/%d
   Other: Otro
@@ -3502,6 +3508,7 @@ translations:
   Pairing failed: Error al emparejar
   Pairing...: Emparejando...
   Panel Usage: Uso del panel
+  Panels: 'Paneles'
   Paper Test Calibration: Calibración con Prueba de Papel
   'Paper drags: done': "El papel roza: listo"
   Parameters: Parámetros
@@ -4733,6 +4740,7 @@ translations:
   Stays on PID: Sigue con PID
   Std Deviation: Desviación Estándar
   Stealth: Silencioso
+  Stealth Black: 'Negro sigilo'
   Stealth is quiet, Sport is fastest: Silencioso es el más callado, Deportivo el más rápido
   Step: Paso
   Step 1 of 3: Paso 1 de 3
@@ -5002,6 +5010,7 @@ translations:
   ? "The bed's load cell read {1} g, above the {2} g limit, at Z {3}: the nozzle is dragging on the part, a part came loose, or the print warped. The print paused."
   : 'La celda de carga de la cama leyó {1} g, por encima del límite de {2} g, en Z {3}: la boquilla está rozando la pieza, una pieza se soltó o la impresión se deformó. La impresión se pausó.'
   The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire.: La placa se reinició sola, normalmente por una caída en su fuente de alimentación o un cortocircuito en un cable de ventilador o calentador.
+  The body and frame: 'El cuerpo y el marco'
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: Puede que el búfer esté desconectado, atascado o averiado. Compruébelo antes de reintentar
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: El búfer no detectó movimiento durante 16 segundos. Compruebe si hay una obstrucción entre el CFS y el extrusor, o un búfer atascado
   The build plate should be on the bed but reads as removed.: 'La placa de impresión debería estar en la cama, pero figura como retirada.'
@@ -5022,6 +5031,7 @@ translations:
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : El cambio surte efecto cuando Klipper se reinicie. Se reiniciará el firmware de Klipper. Las operaciones activas se interrumpirán.
   'The change was not applied: the current settings could not be saved for a revert.': 'El cambio no se aplicó: no se pudo guardar la configuración actual para revertirla.'
+  The colors this unit was printed in: 'Los colores en que se imprimió esta unidad'
   ? The configuration includes or opens a file that is not there, often the include line a removed plugin left behind. Klipper's message names the file.
   : La configuración incluye o abre un archivo que no existe, a menudo la línea include que dejó un plugin eliminado. El mensaje de Klipper indica el archivo.
   The configuration names pin '{1}', which board '{2}' does not have.: La configuración nombra el pin '{1}', que la placa '{2}' no tiene.
@@ -5633,6 +5643,7 @@ translations:
   Trailing: Retrasado
   Translucent: 'Translúcido'
   'Tried ports {} and {}.': "Se probaron los puertos {} y {}."
+  Trim and small parts: 'Molduras y piezas pequeñas'
   'Troubleshooting:': 'Solución de problemas:'
   Try adjusting your search or filters: Intente ajustar su búsqueda o filtros
   Try Again: 'Reintentar'
@@ -5860,6 +5871,7 @@ translations:
   Volume: Volumen
   Volume of filament used during ramming: 'Volumen de filamento usado durante la compactación'
   Volume {}%: Volumen {}%
+  Voron Black and Red: 'Voron negro y rojo'
   WAITING: "ESPERANDO"
   WEIGHT SYNC: SINCRONIZACIÓN DE PESO
   WIDTH SENSORS: SENSORES DE ANCHO

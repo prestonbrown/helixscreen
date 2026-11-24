@@ -340,6 +340,7 @@ translations:
   Accelerometer not responding: Accelerometer not responding
   Accelerometer ready: Accelerometer ready
   Accelerometers: Accelerometers
+  Accent: Accent
   Accept: Accept
   'Accepted Z Position: 0.000': 'Accepted Z Position: 0.000'
   'Accepted Z Position: {:.3f}': 'Accepted Z Position: {:.3f}'
@@ -492,6 +493,7 @@ translations:
   Arc moves not supported: Arc moves not supported
   Archive: Archive
   Archive Spool?: Archive Spool?
+  Arctic White: Arctic White
   Are you sure you want to cancel this print? All progress will be lost.: Are you sure you want to cancel this print? All progress will be lost.
   Are you sure? This will power off or restart this device.: Are you sure? This will power off or restart this device.
   Arrows + Home: Arrows + Home
@@ -673,6 +675,7 @@ translations:
   Bowden tube length to this tool: Bowden tube length to this tool
   'Bowden: pull the tube from the extruder end, then pull the filament.': 'Bowden: pull the tube from the extruder end, then pull the filament.'
   Box: Box
+  Box Turtle Green and Gold: Box Turtle Green and Gold
   Brand: Brand
   Brand and material come from Spoolman: Brand and material come from Spoolman
   Brightness: Brightness
@@ -2130,6 +2133,7 @@ translations:
   Front: Front
   Front Left: Front Left
   Front Right: Front Right
+  Front and side panels: Front and side panels
   Full: Full
   G-code Console: G-code Console
   G-code Preview: G-code Preview
@@ -2875,6 +2879,7 @@ translations:
   Macros installed. Restart Klipper after the print to activate them.: Macros installed. Restart Klipper after the print to activate them.
   Macros updated. Restart Klipper after the print to activate them.: Macros updated. Restart Klipper after the print to activate them.
   'Macros, G-code console, calibration tools (PID, input shaper, z-offset), firmware updates, and developer utilities.': 'Macros, G-code console, calibration tools (PID, input shaper, z-offset), firmware updates, and developer utilities.'
+  Main: Main
   Main LED Strip: Main LED Strip
   Maintaining: Maintaining
   Maintenance: Maintenance
@@ -3425,6 +3430,7 @@ translations:
   Options: Options
   Or Enter Manually: Or Enter Manually
   Or instead of turning the others: Or instead of turning the others
+  Original: Original
   Original file location unknown: Original file location unknown
   Oscillating... cycle %d/%d: Oscillating... cycle %d/%d
   Other: Other
@@ -3476,6 +3482,7 @@ translations:
   Pairing failed: Pairing failed
   Pairing...: Pairing...
   Panel Usage: Panel Usage
+  Panels: Panels
   Paper Test Calibration: Paper Test Calibration
   'Paper drags: done': 'Paper drags: done'
   Parameters: Parameters
@@ -4702,6 +4709,7 @@ translations:
   Stay at the printer.: Stay at the printer.
   Std Deviation: Std Deviation
   Stealth: Stealth
+  Stealth Black: Stealth Black
   Stealth is quiet, Sport is fastest: Stealth is quiet, Sport is fastest
   Step: Step
   Step 1 of 3: Step 1 of 3
@@ -4968,6 +4976,7 @@ translations:
   ? "The bed's load cell read {1} g, above the {2} g limit, at Z {3}: the nozzle is dragging on the part, a part came loose, or the print warped. The print paused."
   : "The bed's load cell read {1} g, above the {2} g limit, at Z {3}: the nozzle is dragging on the part, a part came loose, or the print warped. The print paused."
   The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire.: The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire.
+  The body and frame: The body and frame
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: The buffer may be disconnected, stuck, or faulty. Check it before retrying
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer
   The build plate should be on the bed but reads as removed.: The build plate should be on the bed but reads as removed.
@@ -4988,6 +4997,7 @@ translations:
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   'The change was not applied: the current settings could not be saved for a revert.': 'The change was not applied: the current settings could not be saved for a revert.'
+  The colors this unit was printed in: The colors this unit was printed in
   ? The configuration includes or opens a file that is not there, often the include line a removed plugin left behind. Klipper's message names the file.
   : The configuration includes or opens a file that is not there, often the include line a removed plugin left behind. Klipper's message names the file.
   The configuration names pin '{1}', which board '{2}' does not have.: The configuration names pin '{1}', which board '{2}' does not have.
@@ -5593,6 +5603,7 @@ translations:
   Trailing: Trailing
   Translucent: Translucent
   'Tried ports {} and {}.': 'Tried ports {} and {}.'
+  Trim and small parts: Trim and small parts
   'Troubleshooting:': 'Troubleshooting:'
   Try adjusting your search or filters: Try adjusting your search or filters
   Try Again: Try Again
@@ -5826,6 +5837,7 @@ translations:
   Volume: Volume
   Volume of filament used during ramming: Volume of filament used during ramming
   Volume {}%: Volume {}%
+  Voron Black and Red: Voron Black and Red
   WAITING: WAITING
   WEIGHT SYNC: WEIGHT SYNC
   WIDTH SENSORS: WIDTH SENSORS

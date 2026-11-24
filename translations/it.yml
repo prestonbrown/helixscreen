@@ -340,6 +340,7 @@ translations:
   Accelerometer not responding: 'Accelerometro non risponde'
   Accelerometer ready: Accelerometro pronto
   Accelerometers: Accelerometri
+  Accent: 'Accento'
   Accept: Accetta
   'Accepted Z Position: 0.000': 'Posizione Z accettata: 0.000'
   'Accepted Z Position: {:.3f}': 'Posizione Z accettata: {:.3f}'
@@ -489,6 +490,7 @@ translations:
   Arc moves not supported: 'Movimenti ad arco non supportati'
   Archive: Archivia
   Archive Spool?: Archiviare bobina?
+  Arctic White: 'Bianco artico'
   Are you sure you want to cancel this print? All progress will be lost.: Sei sicuro di voler annullare questa stampa? Tutto il progresso verrà perso.
   Are you sure? This will power off or restart this device.: Sei sicuro? Questo spegnerà o riavvierà questo dispositivo.
   Arrows + Home: 'Frecce + Home'
@@ -671,6 +673,7 @@ translations:
   Bowden tube length to this tool: "Lunghezza del tubo Bowden fino a questo utensile"
   'Bowden: pull the tube from the extruder end, then pull the filament.': "Bowden: sfilare il tubo dal lato dell'estrusore, poi tirare il filamento."
   Box: Box
+  Box Turtle Green and Gold: 'Box Turtle verde e oro'
   Brand: Marca
   Brand and material come from Spoolman: Marca e materiale provengono da Spoolman
   Brightness: Luminosità
@@ -2141,6 +2144,7 @@ translations:
   Front: 'Davanti'
   Front Left: 'Davanti sinistra'
   Front Right: 'Davanti destra'
+  Front and side panels: 'Pannelli frontale e laterali'
   Full: Completo
   G-code Console: Console G-code
   G-code Preview: Anteprima G-code
@@ -2900,6 +2904,7 @@ translations:
   Macros installed. Restart Klipper after the print to activate them.: 'Macro installate. Riavvia Klipper dopo la stampa per attivarle.'
   Macros updated. Restart Klipper after the print to activate them.: 'Macro aggiornate. Riavvia Klipper dopo la stampa per attivarle.'
   'Macros, G-code console, calibration tools (PID, input shaper, z-offset), firmware updates, and developer utilities.': 'Macro, console G-code, strumenti di calibrazione (PID, input shaper, z-offset), aggiornamenti firmware e utilità per sviluppatori.'
+  Main: 'Principale'
   Main LED Strip: Striscia LED principale
   Maintaining: Mantenimento
   Maintenance: 'Manutenzione'
@@ -3451,6 +3456,7 @@ translations:
   Options: Opzioni
   Or Enter Manually: Oppure inserisci manualmente
   Or instead of turning the others: Oppure, invece di ruotare le altre
+  Original: 'Originale'
   Original file location unknown: Posizione del file originale sconosciuta
   Oscillating... cycle %d/%d: Oscillazione... ciclo %d/%d
   Other: Altro
@@ -3502,6 +3508,7 @@ translations:
   Pairing failed: Associazione fallita
   Pairing...: Associazione...
   Panel Usage: Utilizzo del pannello
+  Panels: 'Pannelli'
   Paper Test Calibration: Calibrazione test carta
   'Paper drags: done': "La carta striscia: fatto"
   Parameters: Parametri
@@ -4733,6 +4740,7 @@ translations:
   Stays on PID: Resta su PID
   Std Deviation: Dev. standard
   Stealth: Silenzioso
+  Stealth Black: 'Nero stealth'
   Stealth is quiet, Sport is fastest: Silenzioso è il più quieto, Sport il più veloce
   Step: Passaggio
   Step 1 of 3: Passaggio 1 di 3
@@ -5002,6 +5010,7 @@ translations:
   ? "The bed's load cell read {1} g, above the {2} g limit, at Z {3}: the nozzle is dragging on the part, a part came loose, or the print warped. The print paused."
   : "La cella di carico del piano ha letto {1} g, sopra il limite di {2} g, a Z {3}: l'ugello sta strisciando sul pezzo, un pezzo si è staccato oppure la stampa si è deformata. La stampa è in pausa."
   The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire.: La scheda si è riavviata da sola, di solito per un calo dell'alimentazione o un cortocircuito sul cavo di una ventola o di un riscaldatore.
+  The body and frame: 'Il corpo e il telaio'
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: Il buffer potrebbe essere scollegato, bloccato o guasto. Controllarlo prima di riprovare
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: Il buffer non ha rilevato movimento per 16 secondi. Verificare un'ostruzione tra CFS ed estrusore, o un buffer bloccato
   The build plate should be on the bed but reads as removed.: 'Il piano di stampa dovrebbe essere sul piano ma risulta rimosso.'
@@ -5022,6 +5031,7 @@ translations:
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : La modifica ha effetto dopo il riavvio di Klipper. Il firmware Klipper verrà riavviato. Le operazioni attive saranno interrotte.
   'The change was not applied: the current settings could not be saved for a revert.': 'La modifica non è stata applicata: impossibile salvare le impostazioni attuali per il ripristino.'
+  The colors this unit was printed in: 'I colori in cui è stata stampata questa unità'
   ? The configuration includes or opens a file that is not there, often the include line a removed plugin left behind. Klipper's message names the file.
   : La configurazione include o apre un file che non esiste, spesso la riga di include lasciata da un plugin rimosso. Il messaggio di Klipper indica il file.
   The configuration names pin '{1}', which board '{2}' does not have.: La configurazione indica il pin '{1}', che la scheda '{2}' non ha.
@@ -5633,6 +5643,7 @@ translations:
   Trailing: In ritardo
   Translucent: 'Traslucido'
   'Tried ports {} and {}.': "Provate le porte {} e {}."
+  Trim and small parts: 'Finiture e piccole parti'
   'Troubleshooting:': 'Risoluzione problemi:'
   Try adjusting your search or filters: Prova a modificare la ricerca o i filtri
   Try Again: 'Riprova'
@@ -5860,6 +5871,7 @@ translations:
   Volume: Volume
   Volume of filament used during ramming: 'Volume di filamento usato durante la compattazione'
   Volume {}%: Volume {}%
+  Voron Black and Red: 'Voron nero e rosso'
   WAITING: "IN ATTESA"
   WEIGHT SYNC: SINCRONIZZAZIONE PESO
   WIDTH SENSORS: SENSORI DI LARGHEZZA

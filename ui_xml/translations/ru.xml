@@ -350,6 +350,7 @@
   <translation tag="Accelerometer not responding" ru="Акселерометр не отвечает"/>
   <translation tag="Accelerometer ready" ru="Акселерометр готов"/>
   <translation tag="Accelerometers" ru="Акселерометры"/>
+  <translation tag="Accent" ru="Акцент"/>
   <translation tag="Accept" ru="Принять"/>
   <translation tag="Accepted Z Position: 0.000" ru="Принятая позиция Z: 0.000"/>
   <translation tag="Accepted Z Position: {:.3f}" ru="Принятая позиция Z: {:.3f}"/>
@@ -496,6 +497,7 @@
   <translation tag="Arc moves not supported" ru="Дуговые перемещения не поддерживаются"/>
   <translation tag="Archive" ru="Архивировать"/>
   <translation tag="Archive Spool?" ru="Архивировать катушку?"/>
+  <translation tag="Arctic White" ru="Арктический белый"/>
   <translation tag="Are you sure you want to cancel this print? All progress will be lost." ru="Вы уверены, что хотите отменить печать? Весь прогресс будет потерян."/>
   <translation tag="Are you sure? This will power off or restart this device." ru="Вы уверены? Это выключит или перезагрузит данное устройство."/>
   <translation tag="Arrows" ru="Стрелки"/>
@@ -687,6 +689,7 @@
   <translation tag="Bowden tube length to this tool" ru="Длина боуден-трубки до этого инструмента"/>
   <translation tag="Bowden: pull the tube from the extruder end, then pull the filament." ru="Боуден: снимите трубку со стороны экструдера, затем вытяните филамент."/>
   <translation tag="Box" ru="Бокс"/>
+  <translation tag="Box Turtle Green and Gold" ru="Box Turtle зелёный и золотой"/>
   <translation tag="Brand" ru="Бренд"/>
   <translation tag="Brand and material come from Spoolman" ru="Бренд и материал берутся из Spoolman"/>
   <translation tag="Brightness" ru="Яркость"/>
@@ -2092,6 +2095,7 @@
   <translation tag="Front" ru="Спереди"/>
   <translation tag="Front Left" ru="Спереди слева"/>
   <translation tag="Front Right" ru="Спереди справа"/>
+  <translation tag="Front and side panels" ru="Передняя и боковые панели"/>
   <translation tag="Full" ru="Полный"/>
   <translation tag="G-code Console" ru="Консоль G-code"/>
   <translation tag="G-code Preview" ru="Просмотр G-code"/>
@@ -2831,6 +2835,7 @@
   <translation tag="Macros installed. Restart Klipper after the print to activate them." ru="Макросы установлены. Перезапустите Klipper после печати, чтобы активировать их."/>
   <translation tag="Macros updated. Restart Klipper after the print to activate them." ru="Макросы обновлены. Перезапустите Klipper после печати, чтобы активировать их."/>
   <translation tag="Macros, G-code console, calibration tools (PID, input shaper, z-offset), firmware updates, and developer utilities." ru="Макросы, консоль G-code, инструменты калибровки (PID, Input Shaper, Z-смещение), обновления прошивки и утилиты для разработчиков."/>
+  <translation tag="Main" ru="Основной"/>
   <translation tag="Main LED Strip" ru="Основная LED-лента"/>
   <translation tag="Maintaining" ru="Поддержание"/>
   <translation tag="Maintenance" ru="Обслуживание"/>
@@ -3368,6 +3373,7 @@
   <translation tag="Options" ru="Параметры"/>
   <translation tag="Or Enter Manually" ru="Или введите вручную"/>
   <translation tag="Or instead of turning the others" ru="Или вместо вращения остальных винтов"/>
+  <translation tag="Original" ru="Оригинал"/>
   <translation tag="Original file location unknown" ru="Расположение исходного файла неизвестно"/>
   <translation tag="Oscillating... cycle %d/%d" ru="Осцилляция... цикл %d/%d"/>
   <translation tag="Other" ru="Другое"/>
@@ -3418,6 +3424,7 @@
   <translation tag="Pairing failed" ru="Ошибка сопряжения"/>
   <translation tag="Pairing..." ru="Сопряжение..."/>
   <translation tag="Panel Usage" ru="Использование панели"/>
+  <translation tag="Panels" ru="Панели"/>
   <translation tag="Paper Test Calibration" ru="Калибровка бумажным тестом"/>
   <translation tag="Paper drags: done" ru="Бумага цепляется: готово"/>
   <translation tag="Parameters" ru="Параметры"/>
@@ -4650,6 +4657,7 @@
   <translation tag="Stays on PID" ru="Остаётся на PID"/>
   <translation tag="Std Deviation" ru="Станд. отклонение"/>
   <translation tag="Stealth" ru="Тихий"/>
+  <translation tag="Stealth Black" ru="Чёрный стелс"/>
   <translation tag="Stealth is quiet, Sport is fastest" ru="Тихий самый тихий, Спорт самый быстрый"/>
   <translation tag="Step" ru="Шаг"/>
   <translation tag="Step 1 of 3" ru="Шаг 1 из 3"/>
@@ -4906,6 +4914,7 @@
   <translation tag="The bed&apos;s load cell read {1} g, above the {2} g limit, at Z {3}, and the printer shut down to protect itself." ru="Тензодатчик стола показал {1} г, выше предела {2} г, при Z {3}, и принтер выключился для самозащиты."/>
   <translation tag="The bed&apos;s load cell read {1} g, above the {2} g limit, at Z {3}: the nozzle is dragging on the part, a part came loose, or the print warped. The print paused." ru="Тензодатчик стола показал {1} г, выше предела {2} г, при Z {3}: сопло задевает деталь, деталь отвалилась или модель покоробилась. Печать приостановлена."/>
   <translation tag="The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire." ru="Плата перезагрузилась сама, обычно из-за просадки питания или замыкания на проводе вентилятора или нагревателя."/>
+  <translation tag="The body and frame" ru="Корпус и рама"/>
   <translation tag="The buffer may be disconnected, stuck, or faulty. Check it before retrying" ru="Буфер может быть отключён, заклинен или неисправен. Проверьте его перед повтором"/>
   <translation tag="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer" ru="Буфер не фиксировал движение 16 секунд. Проверьте засор между CFS и экструдером или заклинивший буфер"/>
   <translation tag="The build plate should be on the bed but reads as removed." ru="Печатная пластина должна быть на столе, но числится снятой."/>
@@ -4924,6 +4933,7 @@
   <translation tag="The chamber&apos;s circulation fan is on but reads no speed." ru="Вентилятор циркуляции камеры включён, но скорость не определяется."/>
   <translation tag="The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted." ru="Изменение вступает в силу после перезапуска Klipper. Прошивка Klipper будет перезапущена. Активные операции будут прерваны."/>
   <translation tag="The change was not applied: the current settings could not be saved for a revert." ru="Изменение не применено: не удалось сохранить текущие настройки для отката."/>
+  <translation tag="The colors this unit was printed in" ru="Цвета, в которых напечатан этот блок"/>
   <translation tag="The configuration includes or opens a file that is not there, often the include line a removed plugin left behind. Klipper&apos;s message names the file." ru="Конфигурация включает или открывает несуществующий файл, часто это строка include, оставшаяся от удалённого плагина. Файл указан в сообщении Klipper."/>
   <translation tag="The configuration names pin &apos;{1}&apos;, which board &apos;{2}&apos; does not have." ru="В конфигурации указан пин &apos;{1}&apos;, которого нет на плате &apos;{2}&apos;."/>
   <translation tag="The configuration needs a missing module" ru="Конфигурации нужен отсутствующий модуль"/>
@@ -5472,6 +5482,7 @@
   <translation tag="Translucent" ru="Полупрозрачный"/>
   <translation tag="Tried ports {} and {}." ru="Проверены порты {} и {}."/>
   <translation tag="Trigger" ru="Триггер"/>
+  <translation tag="Trim and small parts" ru="Отделка и мелкие детали"/>
   <translation tag="Troubleshooting:" ru="Устранение неполадок:"/>
   <translation tag="Try Again" ru="Повторить"/>
   <translation tag="Try adjusting your search or filters" ru="Попробуйте изменить поиск или фильтры"/>
@@ -5708,6 +5719,7 @@
   <translation tag="Volume" ru="Громкость"/>
   <translation tag="Volume of filament used during ramming" ru="Объём филамента, расходуемый при рэмминге"/>
   <translation tag="Volume {}%" ru="Громкость {}%"/>
+  <translation tag="Voron Black and Red" ru="Voron чёрный и красный"/>
   <translation tag="WAITING" ru="ОЖИДАНИЕ"/>
   <translation tag="WEIGHT SYNC" ru="СИНХРОНИЗАЦИЯ ВЕСА"/>
   <translation tag="WIDTH SENSORS" ru="ДАТЧИКИ ШИРИНЫ"/>

@@ -462,8 +462,9 @@ def generate_shell_table(units):
         dome = f"k_{unit.id}_dome" if dome_points else "nullptr"
         lid = "true" if t.lid_spans_row else "false"
         variants = sum(1 << lanes for lanes in unit.lane_variants)
+        regions = unit_color_regions(unit)
         # The row's optional tail, in UnitShell's field order, each with its default.
-        tail = [("nullptr, 0", "nullptr, 0"), ("nullptr, 0", "nullptr, 0"), (f"0x{t.lid_color:06x}", "0x000000"), (f"{t.spool_lift_px:.1f}f", "0.0f"), ("true" if t.plain_tray else "false", "false"), (f"0x{unit_color_regions(unit):02x}", "0x00")]
+        tail = [("nullptr, 0", "nullptr, 0"), ("nullptr, 0", "nullptr, 0"), (f"0x{t.lid_color:06x}", "0x000000"), (f"{t.spool_lift_px:.1f}f", "0.0f"), ("true" if t.plain_tray else "false", "false"), (f"0x{regions:02x}", "0x00"), (region_defaults(t, regions), "{}")]
         if unit.carriage_step is not None:
             carriage = carriage_rows(unit)
             out.append(f"constexpr CarriageTrack k_{unit.id}_carriage[] = {{{', '.join(carriage)}}};")
@@ -535,6 +536,14 @@ def unit_color_regions(unit):
     if len(found) != 1:
         raise ValueError(f"{unit.id}: its color regions differ between lane counts or tiers: {sorted(found)}")
     return found.pop()
+
+
+def region_defaults(tray, regions):
+    """UnitShell::color_defaults: the tray's body, accent and panel colors, the drawing's
+    own main, accent and panels; empty for a unit without color regions."""
+    if not regions:
+        return "{}"
+    return "{" + ", ".join(f"0x{c:06x}" for c in (tray.body, tray.accent, tray.panel)) + "}"
 
 
 def combiner_name(unit):
