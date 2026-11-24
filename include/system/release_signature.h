@@ -20,7 +20,8 @@ inline constexpr std::string_view kReleasePublicKey =
 /// The dev-channel key: alpha releases are signed with it so they publish without a
 /// reviewer. Trusted on the dev channel only, never on stable or beta. Empty while no dev key
 /// exists; once `.github/release-minisign-dev.pub` holds a key, a test pins the two equal.
-inline constexpr std::string_view kDevPublicKey = "";
+inline constexpr std::string_view kDevPublicKey =
+    "RWQ5WGSrpMb3A20ZeKsMXemkvV0Cbbhtf2H+IecKhyrn/ln5w3zhM0tv";
 
 /// The keys a channel manifest may be signed with: @c release on every channel, @c dev on the
 /// dev channel only. An empty @c dev trusts no second key.
