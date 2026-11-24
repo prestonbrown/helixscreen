@@ -264,6 +264,7 @@ void PaTuningOverlay::on_activate() {
 }
 
 void PaTuningOverlay::cleanup() {
+    decision_awake_.reset();
     active_tool_observer_.reset();
     stop_observing();
     OverlayBase::cleanup();
@@ -275,6 +276,11 @@ bool PaTuningOverlay::session_active() const {
 
 void PaTuningOverlay::set_stage(Stage s) {
     stage_ = s;
+    if (s == PICK || s == RESULT) {
+        decision_awake_.acquire();
+    } else {
+        decision_awake_.reset();
+    }
     if (subjects_initialized_) {
         lv_subject_set_int(&stage_subject_, s);
     }

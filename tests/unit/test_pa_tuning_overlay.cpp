@@ -463,3 +463,22 @@ TEST_CASE_METHOD(TunerFixture, "a classic K tower is refused on a nonlinear extr
     // The setup now offers the Nonlinear tuner instead.
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_tune_nl_mode")) == 1);
 }
+
+TEST_CASE_METHOD(TunerFixture, "the display stays awake on the pick and result stages only",
+                 "[pa_tune][pa_tuner][awake]") {
+    start_session();
+    printing(1);
+    report_k(0.0);
+    printing(22);
+    report_k(0.01);
+    CHECK_FALSE(overlay.awake_held_for_test());
+    status({{"print_stats", {{"state", "complete"}}}});
+    REQUIRE(overlay.stage() == PaTuningOverlay::PICK);
+    CHECK(overlay.awake_held_for_test());
+    overlay.select_band_for_test(1);
+    overlay.apply_pick_for_test();
+    REQUIRE(overlay.stage() == PaTuningOverlay::RESULT);
+    CHECK(overlay.awake_held_for_test());
+    overlay.cleanup();
+    CHECK_FALSE(overlay.awake_held_for_test());
+}

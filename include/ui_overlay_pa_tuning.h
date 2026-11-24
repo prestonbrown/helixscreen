@@ -9,6 +9,7 @@
 #include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
 #include "core/subject.h"
+#include "display_awake_hold.h"
 #include "i_moonraker_api.h"
 #include "klipper_config_editor.h"
 #include "overlay_base.h"
@@ -157,6 +158,9 @@ class PaTuningOverlay : public OverlayBase {
     }
     void save_to_spool_for_test() {
         save_to_spool();
+    }
+    bool awake_held_for_test() const {
+        return decision_awake_.held();
     }
     void save_to_config_for_test() {
         save_to_config();
@@ -348,6 +352,10 @@ class PaTuningOverlay : public OverlayBase {
     char error_buf_[192] = {};
 
     helix::system::KlipperConfigEditor config_editor_;
+
+    /// Held while the pick or the result waits on the user, so the screensaver
+    /// never covers the decision.
+    helix::DisplayAwakeToken decision_awake_;
 
     ObserverGuard print_state_observer_;
     ObserverGuard layer_observer_;
