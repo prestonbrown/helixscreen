@@ -37,12 +37,17 @@ _reaped_pid() {
     [ -d "$dir" ]
 }
 
-@test "the first fill sweeps the dirs of owners that are gone, and only those" {
+@test "the first fill sweeps the hour-old dirs of owners that are gone, and only those" {
     dead=$(_reaped_pid)
-    mkdir -p "$ROOT/bats-test-$dead-abcdef/sub" "$ROOT/bats-test-$$-abcdef" "$ROOT/other-dir"
+    mkdir -p "$ROOT/bats-test-$dead-abcdef/sub" "$ROOT/bats-test-$dead-recent" \
+        "$ROOT/bats-test-$$-abcdef" "$ROOT/other-dir"
+    touch -t 202001010000 "$ROOT/bats-test-$dead-abcdef" "$ROOT/bats-test-$$-abcdef" \
+        "$ROOT/other-dir"
     run _old_bats ""
     [ "$status" -eq 0 ]
     [ ! -e "$ROOT/bats-test-$dead-abcdef" ]
+    # A dead-looking owner may be a live run in another pid namespace.
+    [ -d "$ROOT/bats-test-$dead-recent" ]
     [ -d "$ROOT/bats-test-$$-abcdef" ]
     [ -d "$ROOT/other-dir" ]
 }

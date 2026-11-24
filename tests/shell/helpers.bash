@@ -26,6 +26,8 @@ export HELIX_INSTALL_VERBOSE=1
 # A dir made here is named for the bats process that owns it (bats-test-<pid>-*),
 # and bats removes none of them: the previous test's dir goes when the next test
 # starts, and the first fill in a process sweeps the dirs of owners that are gone.
+# A dead-looking owner's dir is kept until it is an hour old: a run in another
+# pid namespace sharing this /tmp would otherwise lose its live dirs.
 _helix_sweep_bats_tmpdirs() {
     local d owner
     for d in "${BATS_TMPDIR:-/tmp}"/bats-test-[0-9]*-*; do
@@ -33,7 +35,8 @@ _helix_sweep_bats_tmpdirs() {
         owner=${d##*/bats-test-}
         owner=${owner%%-*}
         case $owner in '' | *[!0-9]*) continue ;; esac
-        kill -0 "$owner" 2>/dev/null || rm -rf -- "$d"
+        kill -0 "$owner" 2>/dev/null && continue
+        [ -n "$(find "$d" -maxdepth 0 -mmin +60 2>/dev/null)" ] && rm -rf -- "$d"
     done
 }
 if [ -z "$BATS_TEST_TMPDIR" ] || { [ -n "$HELIX_BATS_TMPDIR_FILLED" ] &&

@@ -13,9 +13,11 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <ctime>
 #include <fcntl.h>
 #include <string>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -40,25 +42,57 @@ pid_t reaped_pid() {
 
 } // namespace
 
-TEST_CASE("the sandbox sweep removes only the sandboxes of runs that are gone", "[test_sandbox]") {
+/// Backdate @p path's mtime by two hours: past the sweep's age guard.
+static void age(const std::string& path) {
+    const struct timeval old[2] = {{time(nullptr) - 7200, 0}, {time(nullptr) - 7200, 0}};
+    utimes(path.c_str(), old);
+}
+
+TEST_CASE("the sandbox sweep removes only hour-old sandboxes of runs that are gone",
+          "[test_sandbox]") {
     char tmpl[] = "/tmp/helix_sweep_test_XXXXXX";
     REQUIRE(mkdtemp(tmpl) != nullptr);
     const std::string parent = tmpl;
-    const std::string dead = parent + "/" + std::to_string(reaped_pid());
-    const std::string live = parent + "/" + std::to_string(getpid());
-    const std::string other = parent + "/not-a-run";
-    for (const auto& dir : {dead, dead + "/cache", live, other}) {
-        REQUIRE(mkdir(dir.c_str(), 0700) == 0);
+    const std::string dead_pid = std::to_string(reaped_pid());
+    SECTION("run sandboxes, named by pid") {
+        const std::string dead = parent + "/" + dead_pid;
+        const std::string recent = parent + "/" + std::to_string(reaped_pid());
+        const std::string live = parent + "/" + std::to_string(getpid());
+        const std::string other = parent + "/not-a-run";
+        for (const auto& dir : {dead, dead + "/cache", recent, live, other}) {
+            REQUIRE(mkdir(dir.c_str(), 0700) == 0);
+        }
+        std::FILE* f = std::fopen((dead + "/cache/thumb").c_str(), "w");
+        REQUIRE(f != nullptr);
+        std::fclose(f);
+        for (const auto& dir : {dead, live, other}) {
+            age(dir);
+        }
+
+        CHECK(helix::test::sweep_dead_sandboxes(parent.c_str()) == 1);
+
+        CHECK_FALSE(helix::fs::exists(dead));
+        // A dead-looking pid may be a live run in another pid namespace.
+        CHECK(helix::fs::exists(recent));
+        CHECK(helix::fs::exists(live));
+        CHECK(helix::fs::exists(other));
     }
-    std::FILE* f = std::fopen((dead + "/cache/thumb").c_str(), "w");
-    REQUIRE(f != nullptr);
-    std::fclose(f);
+    SECTION("config sandboxes, named by prefix and pid") {
+        const std::string prefix = helix::test::kConfigSandboxPrefix;
+        const std::string dead = parent + "/" + prefix + dead_pid;
+        const std::string bare = parent + "/" + dead_pid;
+        const std::string live = parent + "/" + prefix + std::to_string(getpid());
+        for (const auto& dir : {dead, bare, live}) {
+            REQUIRE(mkdir(dir.c_str(), 0700) == 0);
+            age(dir);
+        }
 
-    CHECK(helix::test::sweep_dead_sandboxes(parent.c_str()) == 1);
+        CHECK(helix::test::sweep_dead_sandboxes(parent.c_str(), prefix.c_str()) == 1);
 
-    CHECK_FALSE(helix::fs::exists(dead));
-    CHECK(helix::fs::exists(live));
-    CHECK(helix::fs::exists(other));
+        CHECK_FALSE(helix::fs::exists(dead));
+        CHECK(helix::fs::exists(bare));
+        CHECK(helix::fs::exists(live));
+    }
     helix::test::remove_sandbox_tree(parent.c_str());
 }
 

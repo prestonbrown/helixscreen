@@ -78,6 +78,8 @@ __attribute__((constructor(101))) static void helix_pin_test_cache_sandbox() {
     if (mkdir(parent, 0777) == 0)
         chmod(parent, 01777);
     helix::test::sweep_dead_sandboxes(parent);
+    helix::test::sweep_dead_sandboxes(helix::test::config_sandbox_base(),
+                                      helix::test::kConfigSandboxPrefix);
 
     char root[sizeof(g_cache_sandbox)];
     if (snprintf(root, sizeof(root), "%s/%ld", parent, (long)getpid()) <= 0)

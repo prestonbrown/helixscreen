@@ -65,6 +65,7 @@
 #include "test_helpers/layout_manager_test_access.h"
 #include "test_helpers/print_control_buttons_test_access.h"
 #include "test_helpers/printer_state_test_access.h"
+#include "test_helpers/test_sandbox.h"
 #include "test_helpers/tips_manager_test_access.h"
 #include "thermal_rate_model.h"
 #include "tool_heads_model.h"
@@ -152,20 +153,12 @@ struct ConfigSandbox {
     ConfigSandbox() {
         std::error_code ec;
         // Prefer tmpfs. Config::save() fsyncs the temp file AND the parent
-        // directory (#943 durability fix), so with the sandbox on a disk-backed
-        // /tmp every save() in the suite costs two real disk syncs — measured at
-        // ~10s added to a 82s `make test-run`, because save() used to be a
-        // silent no-op whenever the singleton had no path. On tmpfs the fsyncs
-        // are free and the suite runs at its previous speed.
-        fs::path base = "/dev/shm";
-        if (!fs::is_directory(base, ec)) {
-            base = fs::temp_directory_path(ec);
-            if (ec || base.empty()) {
-                base = "/tmp";
-            }
-        }
-        // pid keeps the parallel Catch2 shards from sharing a sandbox.
-        base /= "helix-test-config-" + std::to_string(::getpid());
+        // directory, so on a disk-backed /tmp every save() in the suite costs two
+        // real disk syncs (about 10s of an 82s run). On tmpfs they are free.
+        // pid keeps the parallel Catch2 shards from sharing a sandbox; a run that
+        // dies leaves it for the next run's startup sweep (test_main.cpp).
+        fs::path base = fs::path(helix::test::config_sandbox_base()) /
+                        (helix::test::kConfigSandboxPrefix + std::to_string(::getpid()));
         fs::remove_all(base, ec);
         fs::create_directories(base / "state", ec);
         fs::create_directories(base / "backup", ec);
