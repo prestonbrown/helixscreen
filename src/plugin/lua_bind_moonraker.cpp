@@ -331,11 +331,11 @@ void deliver_status(LuaRuntime* rtp, LifetimeToken token,
 // The status table of a printer.objects.query reply, which the backend hands over as the
 // whole JSON-RPC message: {"result": {"status": {...}}}. Empty when it has none.
 json query_status(const json& response) {
-    auto res = response.is_object() ? response.find("result") : response.end();
-    if (res == response.end() || !res->is_object())
+    const json* res = helix::json_util::find_object(response, "result");
+    if (res == nullptr)
         return json::object();
-    auto st = res->find("status");
-    return st != res->end() && st->is_object() ? *st : json::object();
+    const json* st = helix::json_util::find_object(*res, "status");
+    return st != nullptr ? *st : json::object();
 }
 
 // Delivers `status` as a snapshot to subscription `only`, or to every live subscription

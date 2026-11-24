@@ -27,8 +27,7 @@ bool same_filament(const Entry& a, const Entry& b) {
 
 /// @p item's string member @p key, or empty when it is absent or not a string.
 std::string string_member(const nlohmann::json& item, const char* key) {
-    const auto it = item.find(key);
-    return (it != item.end() && it->is_string()) ? it->get<std::string>() : std::string();
+    return helix::json_util::read_field<std::string>(item, key).value_or(std::string());
 }
 
 } // namespace

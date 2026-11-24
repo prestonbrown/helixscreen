@@ -21,16 +21,15 @@ namespace {
 using json = nlohmann::json;
 
 const json* section_of(const json& settings, std::string_view name) {
-    const auto it = settings.find(std::string(name));
-    return it != settings.end() && it->is_object() ? &*it : nullptr;
+    return helix::json_util::find_object(settings, std::string(name));
 }
 
 const json* number_in(const json* section, std::string_view option) {
     if (!section) {
         return nullptr;
     }
-    const auto it = section->find(std::string(option));
-    return it != section->end() && it->is_number() ? &*it : nullptr;
+    const json* value = helix::json_util::find_member(*section, std::string(option));
+    return value != nullptr && value->is_number() ? value : nullptr;
 }
 
 // Probes that keep the offset in a model section of their own, one row each:

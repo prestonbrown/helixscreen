@@ -757,8 +757,7 @@ bool four_digits(const std::string& s, size_t at) {
 /// any other type reads as 0: the shape of a printer's payload is data, not a
 /// contract violation to throw on, so a string field is never parsed.
 int field_int(const nlohmann::json& entry, const char* key) {
-    auto it = entry.find(key);
-    return it != entry.end() && it->is_number_integer() ? it->get<int>() : 0;
+    return helix::json_util::read_integer_field(entry, key).value_or(0);
 }
 
 /// Read the persistence flag. Both spellings are live: a Python bool

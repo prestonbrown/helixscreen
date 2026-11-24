@@ -6,6 +6,7 @@
 #include "core/observer_factory.h"
 #include "gcode_response_lines.h"
 #include "i_moonraker_client.h"
+#include "json_utils.h"
 #include "lvgl.h"
 #include "signal_macro_names.h"
 
@@ -39,8 +40,7 @@ nlohmann::json quiet_counts() {
 }
 
 int quiet_count(const nlohmann::json& counts, const std::string& name) {
-    auto it = counts.find(name);
-    return it != counts.end() && it->is_number_integer() ? it->get<int>() : 0;
+    return helix::json_util::read_integer_field(counts, name).value_or(0);
 }
 
 std::string joined(const std::vector<std::string>& names) {

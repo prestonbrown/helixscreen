@@ -223,8 +223,7 @@ const nlohmann::json* save_variables(const nlohmann::json& status) {
     if (!sv) {
         return nullptr;
     }
-    auto it = sv->find("variables");
-    return it != sv->end() && it->is_object() ? &(*it) : nullptr;
+    return helix::json_util::find_object(*sv, "variables");
 }
 
 std::optional<int> read_indx(const nlohmann::json& status, const std::string& /*store_object*/,

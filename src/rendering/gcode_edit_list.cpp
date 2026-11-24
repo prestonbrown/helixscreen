@@ -83,8 +83,8 @@ std::optional<int64_t> small_int(const json& v) {
 }
 
 const std::string* string_member(const json& obj, const char* key) {
-    const auto it = obj.find(key);
-    return it != obj.end() && it->is_string() ? it->get_ptr<const std::string*>() : nullptr;
+    const json* value = helix::json_util::find_member(obj, key);
+    return value != nullptr && value->is_string() ? value->get_ptr<const std::string*>() : nullptr;
 }
 
 std::optional<json> remap_edit(const std::map<int, int>& remap) {

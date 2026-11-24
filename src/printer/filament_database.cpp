@@ -38,8 +38,7 @@ std::mutex g_table_mutex;
 Tables g_tables;
 
 int get_int(const nlohmann::json& j, const char* key) {
-    auto it = j.find(key);
-    return (it != j.end() && it->is_number()) ? it->get<int>() : 0;
+    return helix::json_util::read_field<int>(j, key).value_or(0);
 }
 
 /// One `types` object, shipped or user, as a MaterialInfo. Missing fields read
@@ -56,7 +55,6 @@ MaterialInfo to_material_info(const nlohmann::json& t, bool user_defined) {
         if (category.empty())
             category = "Custom";
     }
-    auto density = t.find("density");
     MaterialInfo m{
         .name = intern(name),
         .nozzle_min = get_int(t, "nozzle_min"),
@@ -65,8 +63,7 @@ MaterialInfo to_material_info(const nlohmann::json& t, bool user_defined) {
         .category = intern(category),
         .dry_temp_c = get_int(t, "dry_temp"),
         .dry_time_min = get_int(t, "dry_time"),
-        .density_g_cm3 =
-            (density != t.end() && density->is_number()) ? density->get<float>() : 0.0f,
+        .density_g_cm3 = helix::json_util::read_field<float>(t, "density").value_or(0.0f),
         .chamber_temp_c = get_int(t, "chamber"),
         .compat_group = intern(group),
     };

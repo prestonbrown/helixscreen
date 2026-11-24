@@ -49,8 +49,7 @@ std::vector<std::string> user_paths() {
 }
 
 int get_int(const nlohmann::json& j, const char* key, int def) {
-    auto it = j.find(key);
-    return (it != j.end() && it->is_number()) ? it->get<int>() : def;
+    return helix::json_util::read_field<int>(j, key).value_or(def);
 }
 
 /// Resolve one product JSON into an EffectiveFilament, inheriting from its type.

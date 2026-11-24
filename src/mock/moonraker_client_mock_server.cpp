@@ -454,8 +454,7 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
     // server.webcams.post_item / delete_item, keyed as Moonraker keys them: by uid when
     // the request carries one (404 when no entry has it), else by name.
     auto webcam_str = [](const json& j, const char* key) {
-        auto it = j.find(key);
-        return it != j.end() && it->is_string() ? it->get<std::string>() : std::string();
+        return helix::json_util::read_field<std::string>(j, key).value_or(std::string());
     };
     auto find_webcam = [webcam_str](std::vector<json>& items, const json& params) {
         const std::string uid = webcam_str(params, "uid");

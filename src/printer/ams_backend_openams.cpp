@@ -36,8 +36,7 @@ constexpr const char* kCancel = openams::kCommandCancel;
 constexpr const char* kReset = openams::kCommandReset;
 
 const json* object_member(const json& object, const char* key) {
-    auto it = object.find(key);
-    return it != object.end() && it->is_object() ? &(*it) : nullptr;
+    return helix::json_util::find_object(object, key);
 }
 
 /// A fault code in plain words; an unfamiliar code reads as the unit's own text.
@@ -75,8 +74,7 @@ bool apply_unit_faults(std::vector<AmsUnit>& units,
 }
 
 std::string string_member(const json& object, const char* key) {
-    auto it = object.find(key);
-    return it != object.end() && it->is_string() ? it->get<std::string>() : std::string();
+    return helix::json_util::read_field<std::string>(object, key).value_or(std::string());
 }
 
 } // namespace

@@ -217,17 +217,10 @@ const ParamRow* find_param_row(std::string_view key) {
     return nullptr;
 }
 
-const nlohmann::json* find_member(const nlohmann::json& obj, const std::string& key) {
-    if (!obj.is_object()) {
-        return nullptr;
-    }
-    const auto it = obj.find(key);
-    return it == obj.end() ? nullptr : &*it;
-}
+using json_util::find_member;
 
 std::string read_string_member(const nlohmann::json& obj, const std::string& key) {
-    const auto* v = find_member(obj, key);
-    return v && v->is_string() ? v->get<std::string>() : std::string{};
+    return json_util::read_field<std::string>(obj, key).value_or(std::string{});
 }
 
 /// A Happy Hare config list (e.g. environment_sensors) as trimmed names.
