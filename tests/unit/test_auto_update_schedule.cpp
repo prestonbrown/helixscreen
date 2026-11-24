@@ -52,6 +52,7 @@ AutoUpdateInputs ready_to_install() {
     in.local_minute_of_day = kThreeAm + 10;
     in.lifecycle = PrintState::Idle;
     in.plr_pending = false;
+    in.klippy_ready = true;
     in.seconds_since_touch = kAutoUpdateIdleSeconds;
     return in;
 }
@@ -143,6 +144,12 @@ TEST_CASE("Auto-update decision: installs only when every condition holds", "[au
         in.plr_pending = true;
         CHECK(decide_auto_update(in) == AutoUpdateDecision::RetryTomorrow);
     }
+    SECTION("Klipper not ready waits, ready installs") {
+        auto in = ready_to_install();
+        CHECK(decide_auto_update(in) == AutoUpdateDecision::InstallNow);
+        in.klippy_ready = false; // startup, shutdown or error
+        CHECK(decide_auto_update(in) == AutoUpdateDecision::Wait);
+    }
     SECTION("a recent touch waits inside the window") {
         auto in = ready_to_install();
         in.seconds_since_touch = kAutoUpdateIdleSeconds - 1;
@@ -169,6 +176,7 @@ class AutoUpdateTickFixture : public LVGLTestFixture {
     AutoUpdateTickFixture() {
         PrinterStateTestAccess::reset(printer_state);
         printer_state.init_subjects(false);
+        printer_state.set_klippy_state_sync(KlippyState::READY);
         SystemSettingsManager::instance().init_subjects();
         helix::update::set_auto_rollback_supported_for_test(true);
         SystemSettingsManager::instance().set_auto_update_mode(
@@ -217,6 +225,28 @@ TEST_CASE_METHOD(AutoUpdateTickFixture, "Auto-update tick: installs once in the 
     // The same release is never retried unprompted, even with the window still open.
     CHECK(checker.auto_update_tick(at(kThreeAm + 10)) == AutoUpdateDecision::Wait);
     CHECK(installs == 1);
+}
+
+TEST_CASE_METHOD(AutoUpdateTickFixture, "Auto-update tick: no install while Klipper is not ready",
+                 "[auto_update]") {
+    for (KlippyState bad : {KlippyState::ERROR, KlippyState::SHUTDOWN, KlippyState::STARTUP}) {
+        printer_state.set_klippy_state_sync(bad);
+        CHECK(checker.auto_update_tick(at(kThreeAm + 5)) == AutoUpdateDecision::Wait);
+        CHECK(installs == 0);
+    }
+    printer_state.set_klippy_state_sync(KlippyState::READY);
+    CHECK(checker.auto_update_tick(at(kThreeAm + 10)) == AutoUpdateDecision::InstallNow);
+    CHECK(installs == 1);
+}
+
+TEST_CASE_METHOD(AutoUpdateTickFixture,
+                 "Auto-update install re-check: Klipper not ready counts as busy",
+                 "[auto_update]") {
+    CHECK_FALSE(UpdateCheckerTestAccess::machine_busy_on_main());
+    for (KlippyState bad : {KlippyState::ERROR, KlippyState::SHUTDOWN, KlippyState::STARTUP}) {
+        printer_state.set_klippy_state_sync(bad);
+        CHECK(UpdateCheckerTestAccess::machine_busy_on_main());
+    }
 }
 
 TEST_CASE_METHOD(AutoUpdateTickFixture,

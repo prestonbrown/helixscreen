@@ -3880,17 +3880,23 @@ void UpdateChecker::arm_rollback_guard(const std::string& guard_dir,
     helix::update::discard_kept_previous(marker.install_dir, marker.previous_dir);
 }
 
+bool UpdateChecker::machine_busy_on_main() {
+    auto& print_state = get_printer_state().print_state();
+    const bool klippy_ready =
+        lv_subject_get_int(get_printer_state().network_state().get_klippy_state_subject()) ==
+        static_cast<int>(KlippyState::READY);
+    return job_holds_machine(print_state.get_print_lifecycle()) ||
+           print_state.is_plr_snapshot_valid() || !klippy_ready;
+}
+
 bool UpdateChecker::machine_busy_from_worker() {
     if (machine_busy_hook_) {
         return machine_busy_hook_();
     }
     auto answer = std::make_shared<std::promise<bool>>();
     std::future<bool> result = answer->get_future();
-    helix::ui::queue_update("UpdateChecker::machine_busy", [answer]() {
-        auto& print_state = get_printer_state().print_state();
-        answer->set_value(job_holds_machine(print_state.get_print_lifecycle()) ||
-                          print_state.is_plr_snapshot_valid());
-    });
+    helix::ui::queue_update("UpdateChecker::machine_busy",
+                            [answer]() { answer->set_value(machine_busy_on_main()); });
     // No answer from the main thread is not a clear "idle".
     if (result.wait_for(std::chrono::seconds(10)) != std::future_status::ready) {
         return true;
@@ -4193,6 +4199,9 @@ helix::update::AutoUpdateDecision UpdateChecker::auto_update_tick(const AutoUpda
     auto& print_state = get_printer_state().print_state();
     in.lifecycle = print_state.get_print_lifecycle();
     in.plr_pending = print_state.is_plr_snapshot_valid();
+    in.klippy_ready =
+        lv_subject_get_int(get_printer_state().network_state().get_klippy_state_subject()) ==
+        static_cast<int>(KlippyState::READY);
 
     std::string version;
     {

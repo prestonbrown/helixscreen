@@ -47,6 +47,11 @@ AutoUpdateDecision decide_auto_update(const AutoUpdateInputs& in) {
     if (job_holds_machine(in.lifecycle) || in.plr_pending) {
         return AutoUpdateDecision::RetryTomorrow;
     }
+    // A Klipper in error, shutdown or startup needs the user, and the restart
+    // would bury the message. It may recover while the window is still open.
+    if (!in.klippy_ready) {
+        return AutoUpdateDecision::Wait;
+    }
     // Someone is at the screen. The window may still have time once they leave.
     if (in.seconds_since_touch < kAutoUpdateIdleSeconds) {
         return AutoUpdateDecision::Wait;
