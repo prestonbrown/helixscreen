@@ -428,9 +428,10 @@ void PaNonlinearOverlay::on_print_state(PrintJobState state) {
         }
         return;
     }
-    // Only how a job ended ends the pass: loading the tower resets print_stats
-    // to standby before it prints, and that frame is no end.
-    if (!job_has_ended(state)) {
+    // Loading the tower resets print_stats to standby before it prints, and
+    // that frame is no end. Once the tower has printed, standby ends it too: a
+    // restart mid-tower, or a cancel folded into one frame, reports nothing else.
+    if (!job_has_ended(state) && !saw_printing_) {
         return;
     }
     // Before the script returns, the state showing is the previous pass's.

@@ -223,6 +223,10 @@ TEST_CASE_METHOD(NonlinearFixture,
     CHECK(sent_since(before).find("M84") == std::string::npos);
     tower("printing");
     CHECK(overlay.stage() == PaNonlinearOverlay::PRINTING);
+    // A standby once it has printed (a restart mid-tower) still ends the pass.
+    tower("standby");
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(overlay.stage() == PaNonlinearOverlay::JUDGE);
 }
 
 TEST_CASE_METHOD(NonlinearFixture,
