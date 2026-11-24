@@ -452,6 +452,7 @@
   <translation tag="Applied for this session only: {}" de="Nur für diese Sitzung angewendet: {}"/>
   <translation tag="Applied to {} as linear_advance, the nonlinear model&apos;s high-speed slope. Klipper forgets it on restart: enter {} as linear_advance in the extruder&apos;s config section." de="Als linear_advance auf {} angewendet, die Steigung des nichtlinearen Modells bei hoher Geschwindigkeit. Klipper vergisst den Wert beim Neustart: {} als linear_advance im Extruder-Abschnitt der Konfiguration eintragen."/>
   <translation tag="Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." de="Auf {} angewendet. Klipper vergisst den Wert beim Neustart: Trage {} als Pressure Advance im Filamentprofil deines Slicers ein oder speichere ihn auf der Spule."/>
+  <translation tag="Applied to {}. Klipper forgets it on restart: save {} to the config, or enter it as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." de="Auf {} angewendet. Klipper vergisst den Wert beim Neustart: Speichere {} in der Konfiguration, trage ihn als Pressure Advance im Filamentprofil deines Slicers ein oder speichere ihn auf der Spule."/>
   <translation tag="Applies to" de="Gilt für"/>
   <translation tag="Apply" de="Anwenden"/>
   <translation tag="Apply a thin film of the lubricant your manual names." de="Einen dünnen Film des im Handbuch genannten Schmiermittels auftragen."/>
@@ -608,6 +609,7 @@
   <translation tag="Belts" de="Riemen"/>
   <translation tag="Belts already match" de="Riemen passen bereits"/>
   <translation tag="Belts stretch and settle; loose ones cause ringing and layer shifts." de="Riemen dehnen und setzen sich; lockere verursachen Ringing und Layerversatz."/>
+  <translation tag="Best height" de="Beste Höhe"/>
   <translation tag="Best height, measured up from the plate" de="Beste Höhe, vom Heizbett aus gemessen"/>
   <translation tag="Beta" de="Beta"/>
   <translation tag="Beta features: OFF" de="Beta-Funktionen: AUS"/>
@@ -1180,6 +1182,7 @@
   <translation tag="Context" de="Kontext"/>
   <translation tag="Continue" de="Fortfahren"/>
   <translation tag="Continue on Another Toolhead" de="Auf anderem Werkzeugkopf fortfahren"/>
+  <translation tag="Continue the earlier tuning?" de="Mit dem früheren Tuning fortfahren?"/>
   <translation tag="Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes." de="Druck auf {} fortsetzen? Der Drucker verlegt den Rest des Drucks dorthin, heizt ihn auf und setzt fort."/>
   <translation tag="Continue with the remaining steps, or stop the calibration?" de="Mit den übrigen Schritten fortfahren oder die Kalibrierung stoppen?"/>
   <translation tag="Continues from {} on runout" de="Bei Auslauf weiter mit {}"/>
@@ -3397,6 +3400,7 @@
   <translation tag="Pass" de="Durchgang"/>
   <translation tag="Pass the missing parameter from the slicer&apos;s start G-code, or give it a default in the macro." de="Den fehlenden Parameter aus dem Start-G-Code des Slicers übergeben oder ihm im Makro einen Standardwert geben."/>
   <translation tag="Pass {} of {}: {}" de="Durchgang {} von {}: {}"/>
+  <translation tag="Passes judged before are kept and pass {} of {} is next. Start Over begins again from pass 1." de="Zuvor beurteilte Durchgänge bleiben erhalten, als Nächstes folgt Durchgang {} von {}. „Neu beginnen“ startet wieder bei Durchgang 1."/>
   <translation tag="Password" de="Passwort"/>
   <translation tag="Password cannot be empty" de="Passwort darf nicht leer sein"/>
   <translation tag="Password is required for secured networks" de="Passwort ist für gesicherte Netzwerke erforderlich"/>
@@ -3550,6 +3554,7 @@
   <translation tag="Pressure advance" de="Pressure Advance"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." de="Pressure Advance steigt mit der Turmhöhe. Beobachte die Ecken: Tippe jederzeit - oder +, dann stoppt die Rampe und du kannst deinen eigenen Wert beurteilen."/>
   <translation tag="Pressure advance tuning" de="Pressure-Advance-Tuning"/>
+  <translation tag="Pressure advance {} is written to the {} section." de="Pressure Advance {} wird in den Abschnitt {} geschrieben."/>
   <translation tag="Pressure on the bed" de="Druck auf dem Bett"/>
   <translation tag="Pressure:" de="Druck:"/>
   <translation tag="Preview" de="Vorschau"/>
@@ -4173,6 +4178,7 @@
   <translation tag="Save to Config" de="In Konfiguration speichern"/>
   <translation tag="Save to Spool" de="Auf Spule speichern"/>
   <translation tag="Save to Spoolman" de="In Spoolman speichern"/>
+  <translation tag="Save to the printer config?" de="In der Druckerkonfiguration speichern?"/>
   <translation tag="Save writes the print&apos;s material; off, it saves one offset for every print" de="Speichern schreibt das Material des Drucks; aus, speichert es einen Offset für jeden Druck"/>
   <translation tag="Save writes these values to the extruder&apos;s config section and restarts Klipper. Keep runs them until the next restart." de="Speichern schreibt diese Werte in den Extruder-Abschnitt der Konfiguration und startet Klipper neu. Behalten wendet sie bis zum nächsten Neustart an."/>
   <translation tag="Save {} mm for {}? Other materials keep their own offsets." de="{} mm für {} speichern? Andere Materialien behalten ihre eigenen Offsets."/>
@@ -4182,6 +4188,7 @@
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." de="In Spoolman gespeichert, aber Preis, Standort, Los und Notizen der Spule wurden nicht gespeichert."/>
   <translation tag="Saved to crash_report.txt (QR not available)" de="In crash_report.txt gespeichert (QR nicht verfügbar)"/>
   <translation tag="Saved to printer configuration." de="In Druckerkonfiguration gespeichert."/>
+  <translation tag="Saved to the printer config. It survives a restart." de="In der Druckerkonfiguration gespeichert. Der Wert bleibt nach einem Neustart erhalten."/>
   <translation tag="Saved to {}. It applies whenever this filament becomes active." de="Auf {} gespeichert. Der Wert wird angewendet, sobald dieses Filament aktiv wird."/>
   <translation tag="Saved values, and whether to ask before running" de="Gespeicherte Werte und ob vor dem Ausführen gefragt wird"/>
   <translation tag="Saved {} mm" de="Gespeichert {} mm"/>
@@ -4557,6 +4564,7 @@
   <translation tag="Start Guided Tuning" de="Geführtes Tuning starten"/>
   <translation tag="Start Heating" de="Aufheizen starten"/>
   <translation tag="Start K" de="Start-K"/>
+  <translation tag="Start Over" de="Neu beginnen"/>
   <translation tag="Start Print" de="Druck starten"/>
   <translation tag="Start Probing" de="Abtasten starten"/>
   <translation tag="Start a new {} h interval? The hours counted so far are discarded." de="Ein neues Intervall von {} Std beginnen? Die bisher gezählten Stunden werden verworfen."/>
@@ -5128,6 +5136,7 @@
   <translation tag="The temperature was changed elsewhere." de="Die Temperatur wurde anderswo geändert."/>
   <translation tag="The tensioners pull each belt to its target" de="Die Spanner ziehen jeden Riemen auf seinen Zielwert"/>
   <translation tag="The test tower is not in the printer&apos;s config yet." de="Der Test-Turm ist noch nicht in der Druckerkonfiguration."/>
+  <translation tag="The test tower needs filament in the toolhead. Load it from the Filament panel, then start again." de="Der Testturm braucht Filament im Werkzeugkopf. Lade es im Filament-Bereich und starte dann erneut."/>
   <translation tag="The thermocouple or PT100 amplifier reported a fault or a reading out of range." de="Der Thermoelement- oder PT100-Verstärker hat einen Fehler oder einen Messwert außerhalb des Bereichs gemeldet."/>
   <translation tag="The time, date, and system uptime" de="Uhrzeit, Datum und Betriebszeit"/>
   <translation tag="The timelapse could not be downloaded" de="Der Zeitraffer konnte nicht heruntergeladen werden"/>
@@ -5208,6 +5217,7 @@
   <translation tag="This doesn&apos;t match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?" de="Das passt nicht zur verknüpften Spoolman-Spule. In Spoolman aktualisieren oder Verknüpfung lösen und auf diesem Platz behalten?"/>
   <translation tag="This dryer cannot run while filament from the unit is loaded" de="Der Trockner kann nicht laufen, solange Filament aus der Einheit geladen ist"/>
   <translation tag="This extruder runs the nonlinear model, so the tower sweeps its linear advance, not a classic K." de="Dieser Extruder nutzt das nichtlineare Modell, daher variiert der Turm sein Linear Advance, kein klassisches K."/>
+  <translation tag="This extruder runs the nonlinear model. A classic K tower would overwrite part of it: use the Nonlinear tuner." de="Dieser Extruder nutzt das nichtlineare Modell. Ein klassischer K-Turm würde einen Teil davon überschreiben: Nutze den Nichtlinear-Tuner."/>
   <translation tag="This feature requires different hardware or configuration" de="Diese Funktion erfordert andere Hardware oder Konfiguration"/>
   <translation tag="This filament system does not report buffer or flow data." de="Dieses Filamentsystem meldet keine Puffer- oder Flussdaten."/>
   <translation tag="This filament system keeps its own spool records" de="Dieses Filamentsystem führt seine Spulendaten selbst"/>
@@ -5248,6 +5258,7 @@
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." de="Dieser Drucker hat keine Zeitzone, daher zeigt seine Uhr UTC. Wähle deine."/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." de="Dieser Drucker hat keinen Befehl {}, daher kann der Z-Offset nicht gespeichert werden."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." de="Dieser Drucker sieht aus wie ein {} ({}% Konfidenz), ist aber als {} eingerichtet. Ein falscher Typ wendet falsche Optionen und Voreinstellungen für die Druckvorbereitung an."/>
+  <translation tag="This printer runs a nonlinear pressure advance model, and a classic K tower would overwrite part of it. Use the Nonlinear tuner." de="Dieser Drucker nutzt ein nichtlineares Pressure-Advance-Modell, und ein klassischer K-Turm würde einen Teil davon überschreiben. Nutze den Nichtlinear-Tuner."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" de="Den INDX-Makros dieses Druckers fehlt: {}"/>
   <translation tag="This printer&apos;s Moonraker rejected its API key. Check the key in Settings &gt; Connection." de="Das Moonraker dieses Druckers hat seinen API-Schlüssel abgelehnt. Prüfe den Schlüssel unter Einstellungen &gt; Verbindung."/>
   <translation tag="This printer&apos;s Moonraker requires a login. Add its API key in Settings &gt; Connection." de="Das Moonraker dieses Druckers verlangt eine Anmeldung. Trage seinen API-Schlüssel unter Einstellungen &gt; Verbindung ein."/>
@@ -6224,6 +6235,7 @@
   <translation tag="{} ran out of filament during the print, and auto refill is off." de="Das Filament von {} ist während des Drucks ausgegangen, und automatisches Nachfüllen ist aus."/>
   <translation tag="{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament." de="{} hat kein {} mehr. Wähle einen geladenen Werkzeugkopf, um den Druck zu beenden. Er behält die für das ursprüngliche Filament geslicten Temperaturen."/>
   <translation tag="{} ran out, and the printer has not said what it was printing." de="{} ist leer, und der Drucker hat nicht gemeldet, womit er gedruckt hat."/>
+  <translation tag="{} runs a nonlinear model, so this value was not applied: a classic K would replace only part of it. To use {} as linear_advance, enter it in the extruder&apos;s config section." de="{} nutzt ein nichtlineares Modell, daher wurde dieser Wert nicht angewendet: Ein klassischer K-Wert würde nur einen Teil davon ersetzen. Um {} als linear_advance zu verwenden, trage ihn im Extruder-Abschnitt der Konfiguration ein."/>
   <translation tag="{} serial" de="{} Seriennummer"/>
   <translation tag="{} set to {}" de="{} auf {} gesetzt"/>
   <translation tag="{} set to {} {}" de="{} auf {} {} gesetzt"/>

@@ -488,6 +488,7 @@
   <translation tag="Applied for this session only: {}" ru="Применено только на этот сеанс: {}"/>
   <translation tag="Applied to {} as linear_advance, the nonlinear model&apos;s high-speed slope. Klipper forgets it on restart: enter {} as linear_advance in the extruder&apos;s config section." ru="Применено к {} как linear_advance, наклон нелинейной модели на высокой скорости. Klipper забывает это при перезапуске: введите {} как linear_advance в секции экструдера конфигурации."/>
   <translation tag="Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." ru="Применено к {}. Klipper забудет значение после перезапуска: укажите {} как Pressure Advance в профиле филамента в слайсере или сохраните его на катушку."/>
+  <translation tag="Applied to {}. Klipper forgets it on restart: save {} to the config, or enter it as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." ru="Применено к {}. Klipper забывает значение при перезапуске: сохраните {} в конфигурации, введите его как Pressure advance в профиле филамента слайсера или сохраните на катушке."/>
   <translation tag="Applies to" ru="Применяется к"/>
   <translation tag="Apply" ru="Применить"/>
   <translation tag="Apply a thin film of the lubricant your manual names." ru="Нанесите тонкий слой смазки, указанной в руководстве."/>
@@ -650,6 +651,7 @@
   <translation tag="Belts" ru="Ремни"/>
   <translation tag="Belts already match" ru="Ремни уже совпадают"/>
   <translation tag="Belts stretch and settle; loose ones cause ringing and layer shifts." ru="Ремни растягиваются и садятся; слабые вызывают рябь и смещение слоёв."/>
+  <translation tag="Best height" ru="Лучшая высота"/>
   <translation tag="Best height, measured up from the plate" ru="Лучшая высота, отсчитанная от стола"/>
   <translation tag="Beta" ru="Бета"/>
   <translation tag="Beta features: OFF" ru="Beta-функции: ВЫКЛ"/>
@@ -1225,6 +1227,7 @@
   <translation tag="Context" ru="Контекст"/>
   <translation tag="Continue" ru="Продолжить"/>
   <translation tag="Continue on Another Toolhead" ru="Продолжить на другой печатающей головке"/>
+  <translation tag="Continue the earlier tuning?" ru="Продолжить предыдущую настройку?"/>
   <translation tag="Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes." ru="Продолжить печать на {}? Принтер перенесёт на неё остаток печати, нагреет её и возобновит печать."/>
   <translation tag="Continue with the remaining steps, or stop the calibration?" ru="Продолжить оставшиеся шаги или остановить калибровку?"/>
   <translation tag="Continues from {} on runout" ru="При окончании продолжает с {}"/>
@@ -3445,6 +3448,7 @@
   <translation tag="Pass" ru="Проход"/>
   <translation tag="Pass the missing parameter from the slicer&apos;s start G-code, or give it a default in the macro." ru="Передайте недостающий параметр из стартового G-code слайсера или задайте для него значение по умолчанию в макросе."/>
   <translation tag="Pass {} of {}: {}" ru="Проход {} из {}: {}"/>
+  <translation tag="Passes judged before are kept and pass {} of {} is next. Start Over begins again from pass 1." ru="Уже оценённые проходы сохраняются, следующий — проход {} из {}. «Начать заново» возвращает к проходу 1."/>
   <translation tag="Password" ru="Пароль"/>
   <translation tag="Password cannot be empty" ru="Пароль не может быть пустым"/>
   <translation tag="Password is required for secured networks" ru="Для защищённых сетей требуется пароль"/>
@@ -3604,6 +3608,7 @@
   <translation tag="Pressure advance" ru="Pressure Advance"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." ru="Pressure Advance растёт вместе с башней. Следите за углами: нажмите - или + в любой момент, и рампа остановится, чтобы вы оценили своё значение."/>
   <translation tag="Pressure advance tuning" ru="Настройка Pressure Advance"/>
+  <translation tag="Pressure advance {} is written to the {} section." ru="Pressure advance {} записывается в раздел {}."/>
   <translation tag="Pressure on the bed" ru="Давление на стол"/>
   <translation tag="Pressure:" ru="Давление:"/>
   <translation tag="Preview" ru="Предпросмотр"/>
@@ -4233,6 +4238,7 @@
   <translation tag="Save to Config" ru="Сохранить в конфигурацию"/>
   <translation tag="Save to Spool" ru="Сохранить на катушку"/>
   <translation tag="Save to Spoolman" ru="Сохранить в Spoolman"/>
+  <translation tag="Save to the printer config?" ru="Сохранить в конфигурацию принтера?"/>
   <translation tag="Save writes the print&apos;s material; off, it saves one offset for every print" ru="Сохранение пишет материал печати; выкл. — одно смещение для всех печатей"/>
   <translation tag="Save writes these values to the extruder&apos;s config section and restarts Klipper. Keep runs them until the next restart." ru="Сохранить записывает эти значения в секцию экструдера конфигурации и перезапускает Klipper. Оставить применяет их до следующего перезапуска."/>
   <translation tag="Save {} mm for {}? Other materials keep their own offsets." ru="Сохранить {} мм для {}? Другие материалы сохранят свои смещения."/>
@@ -4242,6 +4248,7 @@
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." ru="Сохранено в Spoolman, но цена, расположение, партия и заметки катушки не сохранились."/>
   <translation tag="Saved to crash_report.txt (QR not available)" ru="Сохранено в crash_report.txt (QR недоступен)"/>
   <translation tag="Saved to printer configuration." ru="Сохранено в конфигурацию принтера."/>
+  <translation tag="Saved to the printer config. It survives a restart." ru="Сохранено в конфигурации принтера. Значение сохранится после перезапуска."/>
   <translation tag="Saved to {}. It applies whenever this filament becomes active." ru="Сохранено в {}. Применяется каждый раз, когда этот филамент становится активным."/>
   <translation tag="Saved values, and whether to ask before running" ru="Сохранённые значения и запрос перед запуском"/>
   <translation tag="Saved {} mm" ru="Сохранено {} мм"/>
@@ -4623,6 +4630,7 @@
   <translation tag="Start Guided Tuning" ru="Начать пошаговую настройку"/>
   <translation tag="Start Heating" ru="Начать нагрев"/>
   <translation tag="Start K" ru="Начальный K"/>
+  <translation tag="Start Over" ru="Начать заново"/>
   <translation tag="Start Print" ru="Начать печать"/>
   <translation tag="Start Probing" ru="Начать зондирование"/>
   <translation tag="Start a new {} h interval? The hours counted so far are discarded." ru="Начать новый интервал {} ч? Отсчитанные часы будут сброшены."/>
@@ -5194,6 +5202,7 @@
   <translation tag="The temperature was changed elsewhere." ru="Температуру изменили в другом месте."/>
   <translation tag="The tensioners pull each belt to its target" ru="Натяжители тянут каждый ремень до целевого натяжения"/>
   <translation tag="The test tower is not in the printer&apos;s config yet." ru="Тестовой башни пока нет в конфигурации принтера."/>
+  <translation tag="The test tower needs filament in the toolhead. Load it from the Filament panel, then start again." ru="Тестовой башне нужен филамент в печатающей головке. Загрузите его на панели «Филамент» и начните снова."/>
   <translation tag="The thermocouple or PT100 amplifier reported a fault or a reading out of range." ru="Усилитель термопары или PT100 сообщил о неисправности или показаниях вне диапазона."/>
   <translation tag="The time, date, and system uptime" ru="Время, дата и время работы системы"/>
   <translation tag="The timelapse could not be downloaded" ru="Не удалось загрузить таймлапс"/>
@@ -5274,6 +5283,7 @@
   <translation tag="This doesn&apos;t match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?" ru="Не совпадает со связанной катушкой Spoolman. Обновить в Spoolman или отвязать и оставить на этом слоте?"/>
   <translation tag="This dryer cannot run while filament from the unit is loaded" ru="Сушилка не может работать, пока загружен филамент из этого узла"/>
   <translation tag="This extruder runs the nonlinear model, so the tower sweeps its linear advance, not a classic K." ru="Этот экструдер работает на нелинейной модели, поэтому башня изменяет его Linear Advance, а не классический K."/>
+  <translation tag="This extruder runs the nonlinear model. A classic K tower would overwrite part of it: use the Nonlinear tuner." ru="Этот экструдер использует нелинейную модель. Классическая K-башня перезапишет часть её параметров: используйте нелинейную настройку."/>
   <translation tag="This feature requires different hardware or configuration" ru="Для этой функции требуется другое оборудование или конфигурация"/>
   <translation tag="This filament system does not report buffer or flow data." ru="Эта система филамента не сообщает данные буфера и потока."/>
   <translation tag="This filament system keeps its own spool records" ru="Эта система подачи филамента сама ведёт записи о катушках"/>
@@ -5314,6 +5324,7 @@
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." ru="У этого принтера не задан часовой пояс, поэтому часы показывают UTC. Выберите свой."/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." ru="У этого принтера нет команды {}, поэтому Z-смещение нельзя сохранить."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." ru="Этот принтер похож на {} (уверенность {}%), но настроен как {}. Неверный тип применяет неправильные параметры перед печатью и пресеты."/>
+  <translation tag="This printer runs a nonlinear pressure advance model, and a classic K tower would overwrite part of it. Use the Nonlinear tuner." ru="Этот принтер использует нелинейную модель pressure advance, и классическая K-башня перезапишет часть её параметров. Используйте нелинейную настройку."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" ru="В макросах INDX этого принтера отсутствует: {}"/>
   <translation tag="This printer&apos;s Moonraker rejected its API key. Check the key in Settings &gt; Connection." ru="Moonraker этого принтера отклонил его API-ключ. Проверьте ключ в Настройки &gt; Соединение."/>
   <translation tag="This printer&apos;s Moonraker requires a login. Add its API key in Settings &gt; Connection." ru="Moonraker этого принтера требует входа. Добавьте его API-ключ в Настройки &gt; Соединение."/>
@@ -6308,6 +6319,7 @@
   <translation tag="{} ran out of filament during the print, and auto refill is off." ru="{}: филамент закончился во время печати, а автопополнение выключено."/>
   <translation tag="{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament." ru="В {} закончился {}. Выберите заряженную печатающую головку, чтобы завершить печать. Она сохранит температуры, нарезанные для исходного филамента."/>
   <translation tag="{} ran out, and the printer has not said what it was printing." ru="В {} закончился филамент, а принтер не сообщил, чем печатал."/>
+  <translation tag="{} runs a nonlinear model, so this value was not applied: a classic K would replace only part of it. To use {} as linear_advance, enter it in the extruder&apos;s config section." ru="{} использует нелинейную модель, поэтому это значение не применено: классический K заменил бы лишь часть параметров. Чтобы использовать {} как linear_advance, введите его в разделе экструдера в конфигурации."/>
   <translation tag="{} serial" ru="Серийный номер {}"/>
   <translation tag="{} set to {}" ru="{} установлено на {}"/>
   <translation tag="{} set to {} {}" ru="{} установлено на {} {}"/>

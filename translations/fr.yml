@@ -493,6 +493,8 @@ translations:
   : "Appliqué à {} comme linear_advance, la pente à haute vitesse du modèle non linéaire. Klipper l'oublie au redémarrage : saisissez {} comme linear_advance dans la section de l'extrudeur de la configuration."
   ? "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   : "Appliqué à {}. Klipper l'oublie au redémarrage : saisissez {} comme Pressure Advance dans le profil de filament de votre trancheur, ou enregistrez-le sur la bobine."
+  ? "Applied to {}. Klipper forgets it on restart: save {} to the config, or enter it as Pressure advance in your slicer's filament profile, or save it to the spool."
+  : "Appliqué à {}. Klipper oublie la valeur au redémarrage : enregistrez {} dans la config, saisissez-la comme Pressure advance dans le profil de filament de votre slicer ou enregistrez-la sur la bobine."
   Applies to: S'applique à
   Apply: Appliquer
   Apply a thin film of the lubricant your manual names.: "Appliquez un film fin du lubrifiant indiqué par le manuel."
@@ -648,6 +650,7 @@ translations:
   Belts: "Courroies"
   Belts already match: "Les courroies concordent déjà"
   Belts stretch and settle; loose ones cause ringing and layer shifts.: "Les courroies s'étirent et se tassent ; détendues, elles causent ringing et décalages de couches."
+  Best height: "Meilleure hauteur"
   Best height, measured up from the plate: "Meilleure hauteur, mesurée depuis le plateau"
   Beta: Bêta
   'Beta features: OFF': 'Fonctionnalités Beta : OFF'
@@ -1240,6 +1243,7 @@ translations:
   Context: Contexte
   Continue: Continuer
   Continue on Another Toolhead: 'Continuer sur une autre tête d''outil'
+  Continue the earlier tuning?: "Reprendre le réglage précédent ?"
   Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes.: 'Continuer l''impression sur {} ? L''imprimante lui confie le reste de l''impression, la chauffe et reprend.'
   Continue with the remaining steps, or stop the calibration?: 'Continuer avec les étapes restantes ou arrêter l''étalonnage ?'
   Continues from {} on runout: 'En fin de filament, reprend depuis {}'
@@ -3541,6 +3545,7 @@ translations:
   Pass: "Passe"
   Pass the missing parameter from the slicer's start G-code, or give it a default in the macro.: Transmettez le paramètre manquant depuis le G-code de démarrage du trancheur, ou donnez-lui une valeur par défaut dans la macro.
   'Pass {} of {}: {}': "Passe {} sur {} : {}"
+  Passes judged before are kept and pass {} of {} is next. Start Over begins again from pass 1.: "Les passes déjà jugées sont conservées et la passe {} sur {} suit. Recommencer repart de la passe 1."
   Password: Mot de passe
   Password cannot be empty: Le mot de passe ne peut pas être vide
   Password is required for secured networks: Un mot de passe est requis pour les réseaux sécurisés
@@ -3695,6 +3700,7 @@ translations:
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : "Le Pressure Advance augmente avec la hauteur de la tour. Observez les angles : touchez - ou + quand vous voulez et la rampe s'arrête pour que vous jugiez votre propre valeur."
   Pressure advance tuning: 'Réglage du Pressure Advance'
+  Pressure advance {} is written to the {} section.: "Pressure advance {} est écrit dans la section {}."
   Pressure on the bed: Pression sur le plateau
   'Pressure:': 'Pression :'
   Pressed: Appuyé
@@ -4324,6 +4330,7 @@ translations:
   Save to Config: "Enregistrer dans la config"
   Save to Spool: Enregistrer sur la bobine
   Save to Spoolman: Enregistrer dans Spoolman
+  Save to the printer config?: "Enregistrer dans la config de l'imprimante ?"
   Save writes the print's material; off, it saves one offset for every print: "Enregistrer écrit le matériau de l'impression ; désactivé, un seul décalage pour toutes les impressions"
   Save writes these values to the extruder's config section and restarts Klipper. Keep runs them until the next restart.: "Enregistrer écrit ces valeurs dans la section de l'extrudeur de la configuration et redémarre Klipper. Conserver les applique jusqu'au prochain redémarrage."
   Save {} mm for {}? Other materials keep their own offsets.: "Enregistrer {} mm pour {} ? Les autres matériaux gardent leurs propres décalages."
@@ -4336,6 +4343,7 @@ translations:
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: 'Enregistré dans Spoolman, mais le prix, l''emplacement, le lot et les notes de la bobine n''ont pas été enregistrés.'
   Saved to crash_report.txt (QR not available): Enregistré dans crash_report.txt (QR non disponible)
   Saved to printer configuration.: Enregistré dans la configuration de l'imprimante.
+  Saved to the printer config. It survives a restart.: "Enregistré dans la config de l'imprimante. Elle survit à un redémarrage."
   Saved to {}. It applies whenever this filament becomes active.: Enregistré sur {}. Appliqué chaque fois que ce filament devient actif.
   Saved values, and whether to ask before running: 'Valeurs enregistrées et demande de confirmation avant exécution ou non'
   Saved. Spoolman is offline, so price, location, lot and notes stay here unsaved.: 'Enregistré. Spoolman est hors ligne, donc le prix, l''emplacement, le lot et les notes restent ici sans être enregistrés.'
@@ -4716,6 +4724,7 @@ translations:
   Start Guided Tuning: "Démarrer le réglage guidé"
   Start Heating: "Démarrer la chauffe"
   Start K: K initial
+  Start Over: "Recommencer"
   Start Print: Lancer l'impression
   Start Probing: Démarrer le palpage
   Start a new {} h interval? The hours counted so far are discarded.: 'Commencer un nouvel intervalle de {} h ? Les heures comptées jusqu’ici sont perdues.'
@@ -5321,6 +5330,7 @@ translations:
   The temperature was changed elsewhere.: "La température a été modifiée ailleurs."
   The tensioners pull each belt to its target: 'Les tendeurs amènent chaque courroie à sa tension cible'
   The test tower is not in the printer's config yet.: "La tour de test n'est pas encore dans la configuration de l'imprimante."
+  The test tower needs filament in the toolhead. Load it from the Filament panel, then start again.: "La tour de test a besoin de filament dans la tête d'outil. Chargez-le depuis le panneau Filament, puis recommencez."
   The thermocouple or PT100 amplifier reported a fault or a reading out of range.: L'amplificateur de thermocouple ou de PT100 a signalé un défaut ou une mesure hors plage.
   The time, date, and system uptime: Heure, date et temps de fonctionnement
   The timelapse could not be downloaded: 'Le timelapse n''a pas pu être téléchargé'
@@ -5427,6 +5437,7 @@ translations:
   This dryer cannot run while filament from the unit is loaded: 'Ce séchoir ne peut pas fonctionner tant que du filament de l''unité est chargé'
   Failed to start. See the Moonraker log.: "Échec du démarrage. Voir le journal de Moonraker."
   This extruder runs the nonlinear model, so the tower sweeps its linear advance, not a classic K.: "Cet extrudeur utilise le modèle non linéaire : la tour fait varier son Linear Advance, pas un K classique."
+  'This extruder runs the nonlinear model. A classic K tower would overwrite part of it: use the Nonlinear tuner.': "Cet extrudeur utilise le modèle non linéaire. Une tour K classique en écraserait une partie : utilisez le réglage non linéaire."
   This feature requires different hardware or configuration: Cette fonctionnalité requiert un autre matériel ou une autre configuration
   Stopped. Restart Moonraker to start it again.: "Arrêté. Redémarrez Moonraker pour le relancer."
   This filament system does not report buffer or flow data.: Ce système de filament ne fournit ni données de tampon ni données de débit.
@@ -5480,6 +5491,8 @@ translations:
   'This printer has no {} command, so the Z-offset cannot be saved.': 'Cette imprimante n''a pas de commande {}, le décalage Z ne peut donc pas être enregistré.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Cette imprimante ressemble à un {} ({} % de confiance), mais elle est configurée en {}. Un type erroné applique des options et des préréglages de pré-impression incorrects.
+  ? This printer runs a nonlinear pressure advance model, and a classic K tower would overwrite part of it. Use the Nonlinear tuner.
+  : "Cette imprimante utilise un modèle de pressure advance non linéaire, et une tour K classique en écraserait une partie. Utilisez le réglage non linéaire."
   "This printer's INDX macros are missing: {}": "Il manque aux macros INDX de cette imprimante : {}"
   This printer's Moonraker rejected its API key. Check the key in Settings > Connection.: 'Le Moonraker de cette imprimante a refusé sa clé API. Vérifiez la clé dans Paramètres > Connexion.'
   This printer's Moonraker requires a login. Add its API key in Settings > Connection.: 'Le Moonraker de cette imprimante exige une connexion. Ajoutez sa clé API dans Paramètres > Connexion.'
@@ -6461,6 +6474,8 @@ translations:
   '{} ran out of filament during the print, and auto refill is off.': "{} est tombé à court de filament pendant l'impression, et le réapprovisionnement automatique est désactivé."
   '{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament.': '{} n''a plus de {}. Choisissez une tête d''outil chargée pour terminer l''impression. Elle garde les températures tranchées pour le filament d''origine.'
   '{} ran out, and the printer has not said what it was printing.': '{} est épuisé, et l''imprimante n''a pas indiqué ce qu''elle imprimait.'
+  ? "{} runs a nonlinear model, so this value was not applied: a classic K would replace only part of it. To use {} as linear_advance, enter it in the extruder's config section."
+  : "{} utilise un modèle non linéaire, cette valeur n'a donc pas été appliquée : un K classique n'en remplacerait qu'une partie. Pour utiliser {} comme linear_advance, saisissez-la dans la section de l'extrudeur de la config."
   '{} serial': 'N° de série {}'
   '{} set to {}': '{} réglé sur {}'
   '{} set to {} {}': '{} réglé sur {} {}'

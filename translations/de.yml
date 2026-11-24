@@ -481,6 +481,8 @@ translations:
   : "Als linear_advance auf {} angewendet, die Steigung des nichtlinearen Modells bei hoher Geschwindigkeit. Klipper vergisst den Wert beim Neustart: {} als linear_advance im Extruder-Abschnitt der Konfiguration eintragen."
   ? "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   : 'Auf {} angewendet. Klipper vergisst den Wert beim Neustart: Trage {} als Pressure Advance im Filamentprofil deines Slicers ein oder speichere ihn auf der Spule.'
+  ? "Applied to {}. Klipper forgets it on restart: save {} to the config, or enter it as Pressure advance in your slicer's filament profile, or save it to the spool."
+  : "Auf {} angewendet. Klipper vergisst den Wert beim Neustart: Speichere {} in der Konfiguration, trage ihn als Pressure Advance im Filamentprofil deines Slicers ein oder speichere ihn auf der Spule."
   Applies to: Gilt für
   Apply: Anwenden
   Apply a thin film of the lubricant your manual names.: "Einen dünnen Film des im Handbuch genannten Schmiermittels auftragen."
@@ -636,6 +638,7 @@ translations:
   Belts: "Riemen"
   Belts already match: "Riemen passen bereits"
   Belts stretch and settle; loose ones cause ringing and layer shifts.: "Riemen dehnen und setzen sich; lockere verursachen Ringing und Layerversatz."
+  Best height: "Beste Höhe"
   Best height, measured up from the plate: "Beste Höhe, vom Heizbett aus gemessen"
   Beta: Beta
   'Beta features: OFF': 'Beta-Funktionen: AUS'
@@ -1228,6 +1231,7 @@ translations:
   Context: Kontext
   Continue: Fortfahren
   Continue on Another Toolhead: 'Auf anderem Werkzeugkopf fortfahren'
+  Continue the earlier tuning?: "Mit dem früheren Tuning fortfahren?"
   Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes.: 'Druck auf {} fortsetzen? Der Drucker verlegt den Rest des Drucks dorthin, heizt ihn auf und setzt fort.'
   Continue with the remaining steps, or stop the calibration?: 'Mit den übrigen Schritten fortfahren oder die Kalibrierung stoppen?'
   Continues from {} on runout: 'Bei Auslauf weiter mit {}'
@@ -3529,6 +3533,7 @@ translations:
   Pass: "Durchgang"
   Pass the missing parameter from the slicer's start G-code, or give it a default in the macro.: Den fehlenden Parameter aus dem Start-G-Code des Slicers übergeben oder ihm im Makro einen Standardwert geben.
   'Pass {} of {}: {}': "Durchgang {} von {}: {}"
+  Passes judged before are kept and pass {} of {} is next. Start Over begins again from pass 1.: "Zuvor beurteilte Durchgänge bleiben erhalten, als Nächstes folgt Durchgang {} von {}. „Neu beginnen“ startet wieder bei Durchgang 1."
   Password: Passwort
   Password cannot be empty: Passwort darf nicht leer sein
   Password is required for secured networks: Passwort ist für gesicherte Netzwerke erforderlich
@@ -3683,6 +3688,7 @@ translations:
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'Pressure Advance steigt mit der Turmhöhe. Beobachte die Ecken: Tippe jederzeit - oder +, dann stoppt die Rampe und du kannst deinen eigenen Wert beurteilen.'
   Pressure advance tuning: 'Pressure-Advance-Tuning'
+  Pressure advance {} is written to the {} section.: "Pressure Advance {} wird in den Abschnitt {} geschrieben."
   Pressure on the bed: Druck auf dem Bett
   'Pressure:': 'Druck:'
   Pressed: Gedrückt
@@ -4312,6 +4318,7 @@ translations:
   Save to Config: "In Konfiguration speichern"
   Save to Spool: Auf Spule speichern
   Save to Spoolman: In Spoolman speichern
+  Save to the printer config?: "In der Druckerkonfiguration speichern?"
   Save writes the print's material; off, it saves one offset for every print: "Speichern schreibt das Material des Drucks; aus, speichert es einen Offset für jeden Druck"
   Save writes these values to the extruder's config section and restarts Klipper. Keep runs them until the next restart.: "Speichern schreibt diese Werte in den Extruder-Abschnitt der Konfiguration und startet Klipper neu. Behalten wendet sie bis zum nächsten Neustart an."
   Save {} mm for {}? Other materials keep their own offsets.: "{} mm für {} speichern? Andere Materialien behalten ihre eigenen Offsets."
@@ -4324,6 +4331,7 @@ translations:
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: 'In Spoolman gespeichert, aber Preis, Standort, Los und Notizen der Spule wurden nicht gespeichert.'
   Saved to crash_report.txt (QR not available): In crash_report.txt gespeichert (QR nicht verfügbar)
   Saved to printer configuration.: In Druckerkonfiguration gespeichert.
+  Saved to the printer config. It survives a restart.: "In der Druckerkonfiguration gespeichert. Der Wert bleibt nach einem Neustart erhalten."
   Saved to {}. It applies whenever this filament becomes active.: Auf {} gespeichert. Der Wert wird angewendet, sobald dieses Filament aktiv wird.
   Saved values, and whether to ask before running: 'Gespeicherte Werte und ob vor dem Ausführen gefragt wird'
   Saved. Spoolman is offline, so price, location, lot and notes stay here unsaved.: 'Gespeichert. Spoolman ist offline, daher bleiben Preis, Standort, Los und Notizen hier ungespeichert.'
@@ -4704,6 +4712,7 @@ translations:
   Start Guided Tuning: "Geführtes Tuning starten"
   Start Heating: "Aufheizen starten"
   Start K: Start-K
+  Start Over: "Neu beginnen"
   Start Print: Druck starten
   Start Probing: Abtasten starten
   Start a new {} h interval? The hours counted so far are discarded.: 'Ein neues Intervall von {} Std beginnen? Die bisher gezählten Stunden werden verworfen.'
@@ -5309,6 +5318,7 @@ translations:
   The temperature was changed elsewhere.: "Die Temperatur wurde anderswo geändert."
   The tensioners pull each belt to its target: 'Die Spanner ziehen jeden Riemen auf seinen Zielwert'
   The test tower is not in the printer's config yet.: "Der Test-Turm ist noch nicht in der Druckerkonfiguration."
+  The test tower needs filament in the toolhead. Load it from the Filament panel, then start again.: "Der Testturm braucht Filament im Werkzeugkopf. Lade es im Filament-Bereich und starte dann erneut."
   The thermocouple or PT100 amplifier reported a fault or a reading out of range.: Der Thermoelement- oder PT100-Verstärker hat einen Fehler oder einen Messwert außerhalb des Bereichs gemeldet.
   The time, date, and system uptime: Uhrzeit, Datum und Betriebszeit
   The timelapse could not be downloaded: 'Der Zeitraffer konnte nicht heruntergeladen werden'
@@ -5415,6 +5425,7 @@ translations:
   This dryer cannot run while filament from the unit is loaded: 'Der Trockner kann nicht laufen, solange Filament aus der Einheit geladen ist'
   Failed to start. See the Moonraker log.: "Start fehlgeschlagen. Siehe Moonraker-Log."
   This extruder runs the nonlinear model, so the tower sweeps its linear advance, not a classic K.: "Dieser Extruder nutzt das nichtlineare Modell, daher variiert der Turm sein Linear Advance, kein klassisches K."
+  'This extruder runs the nonlinear model. A classic K tower would overwrite part of it: use the Nonlinear tuner.': "Dieser Extruder nutzt das nichtlineare Modell. Ein klassischer K-Turm würde einen Teil davon überschreiben: Nutze den Nichtlinear-Tuner."
   This feature requires different hardware or configuration: Diese Funktion erfordert andere Hardware oder Konfiguration
   Stopped. Restart Moonraker to start it again.: "Gestoppt. Moonraker neu starten, um es wieder zu starten."
   This filament system does not report buffer or flow data.: Dieses Filamentsystem meldet keine Puffer- oder Flussdaten.
@@ -5468,6 +5479,8 @@ translations:
   'This printer has no {} command, so the Z-offset cannot be saved.': 'Dieser Drucker hat keinen Befehl {}, daher kann der Z-Offset nicht gespeichert werden.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Dieser Drucker sieht aus wie ein {} ({}% Konfidenz), ist aber als {} eingerichtet. Ein falscher Typ wendet falsche Optionen und Voreinstellungen für die Druckvorbereitung an.
+  ? This printer runs a nonlinear pressure advance model, and a classic K tower would overwrite part of it. Use the Nonlinear tuner.
+  : "Dieser Drucker nutzt ein nichtlineares Pressure-Advance-Modell, und ein klassischer K-Turm würde einen Teil davon überschreiben. Nutze den Nichtlinear-Tuner."
   "This printer's INDX macros are missing: {}": "Den INDX-Makros dieses Druckers fehlt: {}"
   This printer's Moonraker rejected its API key. Check the key in Settings > Connection.: 'Das Moonraker dieses Druckers hat seinen API-Schlüssel abgelehnt. Prüfe den Schlüssel unter Einstellungen > Verbindung.'
   This printer's Moonraker requires a login. Add its API key in Settings > Connection.: 'Das Moonraker dieses Druckers verlangt eine Anmeldung. Trage seinen API-Schlüssel unter Einstellungen > Verbindung ein.'
@@ -6449,6 +6462,8 @@ translations:
   '{} ran out of filament during the print, and auto refill is off.': Das Filament von {} ist während des Drucks ausgegangen, und automatisches Nachfüllen ist aus.
   '{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament.': '{} hat kein {} mehr. Wähle einen geladenen Werkzeugkopf, um den Druck zu beenden. Er behält die für das ursprüngliche Filament geslicten Temperaturen.'
   '{} ran out, and the printer has not said what it was printing.': '{} ist leer, und der Drucker hat nicht gemeldet, womit er gedruckt hat.'
+  ? "{} runs a nonlinear model, so this value was not applied: a classic K would replace only part of it. To use {} as linear_advance, enter it in the extruder's config section."
+  : "{} nutzt ein nichtlineares Modell, daher wurde dieser Wert nicht angewendet: Ein klassischer K-Wert würde nur einen Teil davon ersetzen. Um {} als linear_advance zu verwenden, trage ihn im Extruder-Abschnitt der Konfiguration ein."
   '{} serial': '{} Seriennummer'
   '{} set to {}': '{} auf {} gesetzt'
   '{} set to {} {}': '{} auf {} {} gesetzt'
