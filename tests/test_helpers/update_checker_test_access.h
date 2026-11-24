@@ -94,6 +94,11 @@ class UpdateCheckerTestAccess {
         c.restart_action_ = std::move(action);
     }
 
+    /// True while a recheck of a fresh self-restart sentinel is scheduled.
+    static bool sentinel_cleanup_pending(const UpdateChecker& c) {
+        return c.sentinel_cleanup_timer_ != nullptr;
+    }
+
     /// Point install.sh's output at @p path instead of the system install log.
     static void set_install_log(UpdateChecker& c, const std::string& path) {
         c.install_log_override_ = path;

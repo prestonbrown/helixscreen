@@ -1045,6 +1045,7 @@ class UpdateChecker {
     /// Cancel the auto-check timer without logging. Split out of stop_auto_check()
     /// so the destructor can share it — spdlog may already be gone by then.
     void cancel_auto_check_timer();
+    void cancel_sentinel_cleanup_timer();
 
     /// Writes the rollback marker for the launcher's guard from the previous
     /// version install.sh kept. Download worker, after a successful install.
