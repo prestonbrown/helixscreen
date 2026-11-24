@@ -9,15 +9,19 @@
 #include "esp_heap_caps.h"
 #include "esp_lcd_panel_rgb.h"
 #include "esp_log.h"
+#include "esp_private/periph_ctrl.h"
 #include "esp_pthread.h"
+#include "esp_system.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
+#include "hal/lcd_ll.h"
 #include "ktouch.h"
 #include "lvgl.h"
 #include "ota_health.h"
 #include "serial_snapshot.h"
+#include "soc/lcd_cam_struct.h"
 #include "src/xml/lv_xml.h"
 #include "touch_input.h"
 
@@ -106,6 +110,15 @@ static volatile uint32_t s_presents;
 // vsync semaphore: given by the on_vsync ISR every frame, taken by the presenter
 // to align each blit to a fresh frame top.
 static SemaphoreHandle_t s_vsync_sem;
+
+// Restart handshake: the shutdown handler sets s_stopping, the presenter gives
+// s_present_parked from between blits and suspends itself, and only then is the
+// panel stopped.
+static volatile bool s_stopping;
+static SemaphoreHandle_t s_present_parked;
+#define PRESENT_PARK_WAIT_MS 500
+// Two frame periods, rounded up to whole milliseconds.
+#define PANEL_DRAIN_MS ((int)((2 * FRAME_LINES * LINE_US_X100 + 99999) / 100000))
 
 // Presenter handoff: the completed-cycle dirty Y-union, published by flush_cb on
 // flush_is_last and consumed by the presenter. Guarded by a portMUX critical
@@ -409,6 +422,10 @@ static void present_blit(int32_t y1, int32_t y2) {
 static void present_task(void* arg) {
     (void)arg;
     while (true) {
+        if (s_stopping) {
+            xSemaphoreGive(s_present_parked);
+            vTaskSuspend(NULL);
+        }
         portENTER_CRITICAL(&s_present_mux);
         bool have = s_frame_pending;
         portEXIT_CRITICAL(&s_present_mux);
@@ -450,6 +467,35 @@ static void present_task(void* arg) {
         if (locked)
             xSemaphoreGive(s_shadow_lock);
     }
+}
+
+// esp_restart() halts the other CPU wherever it is, then disables the caches and
+// resets the DMA engines. The panel's bounce ISR copies from the PSRAM FB and
+// preloads the cache after every bounce buffer, and the presenter DMAs into the
+// FB; a restart that lands mid-access can hang until the RTC watchdog resets
+// the chip, which then boots as a watchdog reset (prestonbrown/helixscreen#1752).
+// So both stop first: the presenter parks between blits, the LCD interrupts are
+// masked, the controller stops pulling from the bounce DMA, and an ISR already
+// running gets two frames to finish. The panel is stopped, not deleted:
+// esp_lcd_panel_del gates the LCD clock and frees the GDMA channel before it
+// frees the interrupt, and the shared-vector dispatcher then reads the gated
+// status register as set and runs the ISR against the freed channel. The reset
+// that follows clears the peripheral anyway. Runs inside esp_restart(), before
+// the scheduler stops.
+static void lvgl_glue_shutdown(void) {
+    s_stopping = true;
+    // Wakes a presenter waiting on a frame now rather than at its 50ms poll.
+    xSemaphoreGive(s_vsync_sem);
+    if (xSemaphoreTake(s_present_parked, pdMS_TO_TICKS(PRESENT_PARK_WAIT_MS)) != pdTRUE) {
+        ESP_LOGW(TAG, "restart: presenter still blitting; panel left running");
+        return;
+    }
+    PERIPH_RCC_ATOMIC() {
+        lcd_ll_enable_interrupt(&LCD_CAM, LCD_LL_EVENT_RGB, false);
+    }
+    lcd_ll_stop(&LCD_CAM);
+    lcd_ll_clear_interrupt_status(&LCD_CAM, UINT32_MAX);
+    vTaskDelay(pdMS_TO_TICKS(PANEL_DRAIN_MS));
 }
 
 static uint32_t tick_cb(void) {
@@ -536,10 +582,14 @@ static void* ui_thread_main(void* arg) {
     app_boot_set_retained_frame(s_shadow, FB_STRIDE, NULL, 0, scroll_claim_rows);
 
     // Presenter task — the only writer of the panel FB.
+    s_present_parked = xSemaphoreCreateBinary();
     if (xTaskCreate(present_task, "present", PRESENT_STACK_BYTES, NULL, PRESENT_TASK_PRIO, NULL) !=
         pdPASS) {
         ESP_LOGE(TAG, "FATAL: no presenter task");
         abort();
+    }
+    if (!s_present_parked || esp_register_shutdown_handler(lvgl_glue_shutdown) != ESP_OK) {
+        ESP_LOGW(TAG, "no restart handler; esp_restart() runs with the panel live");
     }
 
     s_ui_build();
