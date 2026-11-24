@@ -130,7 +130,7 @@ TEST_CASE_METHOD(XMLTestFixture, "Converted overlays withdraw their subject name
         {"AmsDeviceOperations",
          []() { helix::ui::get_ams_device_operations_overlay().init_subjects(); },
          {"ams_device_ops_system_info", "ams_device_ops_supports_bypass",
-          "ams_device_ops_fw_supports_bypass", "ams_device_ops_hw_bypass_sensor",
+          "ams_device_ops_bypass_override_offered", "ams_device_ops_hw_bypass_sensor",
           "ams_device_ops_supports_auto_heat", "ams_device_ops_has_backend",
           "ams_device_ops_bypass_is_virtual", "ams_device_ops_record_only_identity",
           "ams_device_ops_printer_retains_spool_info", "ams_device_ops_can_reset_endless_spool",

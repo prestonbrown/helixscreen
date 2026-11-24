@@ -541,25 +541,55 @@ TEST_CASE("Bypass availability override", "[ams][bypass][override]") {
     using helix::bypass_available;
 
     SECTION("firmware saying yes needs no override") {
-        CHECK(bypass_available(true, /*force=*/false));
-        CHECK(bypass_available(true, /*force=*/true));
+        CHECK(bypass_available(true, /*force=*/false, /*overridable=*/true));
+        CHECK(bypass_available(true, /*force=*/true, /*overridable=*/true));
     }
 
     SECTION("firmware saying no hides the controls by default") {
-        CHECK_FALSE(bypass_available(false, /*force=*/false));
+        CHECK_FALSE(bypass_available(false, /*force=*/false, /*overridable=*/true));
     }
 
     SECTION("the override is the only thing that contradicts the firmware") {
-        CHECK(bypass_available(false, /*force=*/true));
+        CHECK(bypass_available(false, /*force=*/true, /*overridable=*/true));
     }
 
     SECTION("with the override off, the resolver is exactly the firmware value") {
         // Guards the short-circuit in bypass_available_for(): a machine that
         // reports a bypass must never depend on a setting to keep it.
         REQUIRE_FALSE(SettingsManager::instance().get_ams_force_bypass_controls());
-        CHECK(helix::bypass_available_for(true));
-        CHECK_FALSE(helix::bypass_available_for(false));
+        AmsSystemInfo yes;
+        yes.supports_bypass = true;
+        CHECK(helix::bypass_available_for(yes));
+        CHECK_FALSE(helix::bypass_available_for(AmsSystemInfo{}));
     }
+}
+
+// A toolhead per lane (Snapmaker U1, tool changers) or a bypass-less box has no
+// bypass for the override to reach: enable_bypass() refuses every time, so the
+// override row is not offered and turning the setting on adds no controls. Nor is
+// it offered with no filament system at all (a CFS printer with no box).
+TEST_CASE("Bypass override is offered only where the system could bypass",
+          "[ams][bypass][override]") {
+    AmsSystemInfo u1;
+    u1.type = AmsType::SNAPMAKER;
+    AmsSystemInfo hh;
+    hh.type = AmsType::HAPPY_HARE;
+    AmsSystemInfo cfs_no_box;
+    cfs_no_box.type = AmsType::CFS;
+    cfs_no_box.external_spool_only = true;
+
+    CHECK_FALSE(helix::bypass_override_offered(u1));
+    CHECK_FALSE(helix::bypass_override_offered(cfs_no_box));
+    CHECK(helix::bypass_override_offered(hh));
+    AmsSystemInfo hh_reports = hh;
+    hh_reports.supports_bypass = true;
+    CHECK_FALSE(helix::bypass_override_offered(hh_reports));
+
+    SettingsManager::instance().set_ams_force_bypass_controls(true);
+    CHECK_FALSE(helix::bypass_available_for(u1));
+    CHECK_FALSE(helix::bypass_available_for(cfs_no_box));
+    CHECK(helix::bypass_available_for(hh));
+    SettingsManager::instance().set_ams_force_bypass_controls(false);
 }
 
 TEST_CASE("AFC toolchanger: the captured machine hides its bypass node",

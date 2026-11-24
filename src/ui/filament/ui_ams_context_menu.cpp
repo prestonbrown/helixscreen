@@ -292,9 +292,8 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
         // answer BypassToggleController refuses on, asked before the button is
         // drawn rather than after the user taps it.
         const bool bypass_offered =
-            backend &&
-            helix::bypass_toggle_offered(helix::bypass_available_for(ext_sys.supports_bypass),
-                                         ext_sys.has_hardware_bypass_sensor);
+            backend && helix::bypass_toggle_offered(helix::bypass_available_for(ext_sys),
+                                                    ext_sys.has_hardware_bypass_sensor);
         if (bypass_offered) {
             // Names the action, not the state, so it reads as a command.
             lv_subject_set_string(&slot_bypass_text_subject_, backend->is_bypass_active()
