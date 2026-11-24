@@ -127,6 +127,13 @@ class PaTuningOverlay : public OverlayBase {
     };
     /// The pre-print routing for the tower: its tool on its own head.
     static std::map<int, int> tower_routing(int tuned_tool);
+    /// What Save to Config hands the config editor for @p extruder: the K as its
+    /// pressure_advance option, and the setting Klipper must report after the restart.
+    struct ConfigWrite {
+        std::vector<helix::system::ConfigEdit> edits;
+        std::vector<helix::system::ExpectedSetting> expected;
+    };
+    static ConfigWrite config_write_for(const std::string& extruder, float k);
     /// Why the tower cannot start on @p params' head, or empty when it can. A
     /// tower aimed at a tool needs the command that mounts that tool's head;
     /// without it the tower would heat one head and print through whichever
@@ -158,6 +165,10 @@ class PaTuningOverlay : public OverlayBase {
     }
     void save_to_spool_for_test() {
         save_to_spool();
+    }
+    /// Stand in for the tower's Print Status page, which tests have no panel for.
+    void set_print_status_page_for_test(lv_obj_t* page) {
+        print_status_page_override_ = page;
     }
     bool awake_held_for_test() const {
         return decision_awake_.held();
@@ -296,6 +307,7 @@ class PaTuningOverlay : public OverlayBase {
     /// Spoolman's active spool when the result was shown, if any.
     std::optional<SpoolInfo> active_spool_;
     bool raise_on_start_ = true;
+    lv_obj_t* print_status_page_override_ = nullptr;
     bool start_analysis_requested_ = false;
     bool start_macro_purges_ = false;
 

@@ -1,6 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_nav.h"
+#include "ui_nav_manager.h"
 #include "ui_overlay_pa_tuning.h"
 #include "ui_print_tune_overlay.h"
 
@@ -18,6 +20,7 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "spoolman_types.h"
+#include "theme_manager.h"
 #include "tool_state.h"
 #include "tune_controller.h"
 
@@ -237,7 +240,8 @@ TEST_CASE_METHOD(TunerFixture,
     helix::ui::UpdateQueue::instance().drain();
     helix::ui::UpdateQueue::instance().drain();
     REQUIRE(overlay.stage() == PaTuningOverlay::RESULT);
-    CHECK(client.last_send_script() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0100");
+    // A bare ADVANCE= would replace only linear_advance: nothing is sent.
+    CHECK(client.last_send_script().find("ADVANCE=") == std::string::npos);
 
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_tune_can_save_spool")) == 0);
     // pressure_advance is not a key a nonlinear model reads.
@@ -481,4 +485,51 @@ TEST_CASE_METHOD(TunerFixture, "the display stays awake on the pick and result s
     CHECK(overlay.awake_held_for_test());
     overlay.cleanup();
     CHECK_FALSE(overlay.awake_held_for_test());
+}
+
+TEST_CASE("Save to Config writes the K as the extruder's pressure_advance",
+          "[pa_tune][pa_tuner][config]") {
+    const auto write = PaTuningOverlay::config_write_for("extruder1", 0.0375f);
+    REQUIRE(write.edits.size() == 1);
+    CHECK(write.edits[0].type == helix::system::ConfigEdit::Type::ADD_KEY);
+    CHECK(write.edits[0].key == "pressure_advance");
+    CHECK(write.edits[0].value == "0.0375");
+    REQUIRE(write.expected.size() == 1);
+    CHECK(write.expected[0].section == "extruder1");
+    CHECK(write.expected[0].option == "pressure_advance");
+    CHECK(write.expected[0].value == "0.0375");
+}
+
+TEST_CASE_METHOD(TunerFixture, "the tower's Print Status page leaves the stack when its print ends",
+                 "[pa_tune][pa_tuner][nav]") {
+    theme_manager_register_responsive_spacing(lv_display_get_default());
+    auto& nav = NavigationManager::instance();
+    nav.init();
+    std::array<lv_obj_t*, kUiPanelCount> roots{};
+    for (auto& r : roots) {
+        r = lv_obj_create(lv_screen_active());
+    }
+    nav.set_panels(roots.data());
+    lv_obj_t* page = lv_obj_create(lv_screen_active());
+    nav.register_overlay_instance(page, nullptr);
+    nav.push_overlay(page);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(helix::nav::is_in_stack(page));
+    overlay.set_print_status_page_for_test(page);
+
+    start_session();
+    printing(1);
+    report_k(0.0);
+    printing(22);
+    report_k(0.01);
+    CHECK(helix::nav::is_in_stack(page)); // still there while the tower prints
+    status({{"print_stats", {{"state", "complete"}}}});
+    REQUIRE(overlay.stage() == PaTuningOverlay::PICK);
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(400);
+    helix::ui::UpdateQueue::instance().drain();
+    // The page's Reprint would run the tower outside the tuner, and Done would
+    // land on it instead of where the tuner was opened.
+    CHECK_FALSE(helix::nav::is_in_stack(page));
+    nav.deinit_subjects();
 }

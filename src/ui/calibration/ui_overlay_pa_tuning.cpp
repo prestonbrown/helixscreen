@@ -586,7 +586,7 @@ bool PaTuningOverlay::refuse_unmountable_head(const helix::pa::TestPrintParams& 
 bool PaTuningOverlay::refuse_nonlinear_model(const helix::pa::TestPrintParams& params) {
     // SET_PRESSURE_ADVANCE ADVANCE= under a nonlinear model replaces only
     // linear_advance and keeps the tuned offset: a mix nobody tuned.
-    if (!get_printer_state().temperature_state().extruder_pa_model(params.heater).nonlinear()) {
+    if (!helix::tune::pressure_advance_is_nonlinear(params.heater)) {
         return false;
     }
     nl_mode_choice_ = true;
@@ -789,11 +789,14 @@ void PaTuningOverlay::leave_print_status() {
     // The tower's Print Status page offers a Reprint that would run the tower
     // outside the tuner. It goes, so the way out of the tuner leads back to where
     // the tuner was opened from, with the tuner on top until then.
-    if (auto* print_status = helix::lazy_global_if_exists<PrintStatusPanel>()) {
-        lv_obj_t* page = print_status->get_panel();
-        if (page && helix::nav::is_in_stack(page)) {
-            helix::nav::close_overlay(page);
+    lv_obj_t* page = print_status_page_override_;
+    if (!page) {
+        if (auto* print_status = helix::lazy_global_if_exists<PrintStatusPanel>()) {
+            page = print_status->get_panel();
         }
+    }
+    if (page && helix::nav::is_in_stack(page)) {
+        helix::nav::close_overlay(page);
     }
     if (raise_on_start_) {
         object_lifetime_.defer("PaTuningOverlay::raise", [this]() { raise(kRaiseAttempts); });
@@ -977,9 +980,9 @@ void PaTuningOverlay::show_result() {
     if (get_printer_state().temperature_state().extruder_pa_model(extruder_).nonlinear()) {
         lv_subject_set_string(
             &result_note_,
-            fmt::format(fmt::runtime(lv_tr("Applied to {} as linear_advance, the nonlinear "
-                                           "model's high-speed slope. Klipper forgets it on "
-                                           "restart: enter {} as linear_advance in the "
+            fmt::format(fmt::runtime(lv_tr("{} runs a nonlinear model, so this value was not "
+                                           "applied: a classic K would replace only part of it. "
+                                           "To use {} as linear_advance, enter it in the "
                                            "extruder's config section.")),
                         extruder_label(), text)
                 .c_str());
@@ -1100,17 +1103,24 @@ void PaTuningOverlay::save_to_config() {
         lv_tr("Save"), []() { get_global_pa_tuning_overlay().write_config(); }, owned_confirm());
 }
 
+PaTuningOverlay::ConfigWrite PaTuningOverlay::config_write_for(const std::string& extruder,
+                                                               float k) {
+    const std::string value = helix::pa::format_k(k);
+    return {{{helix::system::ConfigEdit::Type::ADD_KEY, "pressure_advance", value}},
+            {{extruder, "pressure_advance", value}}};
+}
+
 void PaTuningOverlay::write_config() {
     const auto k = session_.result();
     if (stage_ != RESULT || !k || !api_) {
         return;
     }
-    const std::string value = helix::pa::format_k(*k);
+    const ConfigWrite write = config_write_for(extruder_, *k);
     lv_subject_set_int(&can_save_config_, 0);
     lv_subject_set_string(&spoolman_text_, lv_tr("Writing printer.cfg and restarting Klipper"));
     auto token = object_lifetime_.token();
     config_editor_.safe_multi_edit(
-        *api_, extruder_, {{helix::system::ConfigEdit::Type::ADD_KEY, "pressure_advance", value}},
+        *api_, extruder_, write.edits,
         [token, this]() {
             token.defer("PaTuningOverlay::config_saved", [this]() {
                 lv_subject_set_string(&spoolman_text_,
@@ -1123,7 +1133,7 @@ void PaTuningOverlay::write_config() {
                 lv_subject_set_string(&spoolman_text_, err.c_str());
             });
         },
-        15000, {{extruder_, "pressure_advance", value}});
+        15000, write.expected);
 }
 
 void PaTuningOverlay::publish_to_moonraker(float k) {
