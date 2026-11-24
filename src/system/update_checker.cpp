@@ -2261,7 +2261,8 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
     // probe" means the FS is genuinely healthy, not marginal.
     constexpr uint64_t kMinInstallLogFreeBytes = 5 * 1024 * 1024; // 5 MB
 
-    std::string install_log = "/var/log/helixscreen-install.log";
+    std::string install_log =
+        install_log_override_.empty() ? "/var/log/helixscreen-install.log" : install_log_override_;
     {
         auto probe = helix::system::probe_log_path_writable(install_log, kMinInstallLogFreeBytes);
         if (!probe.ok) {
@@ -2328,6 +2329,7 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
     // install.sh's swap changes release_info.json, which helixscreen-update.path
     // watches; without the sentinel that unit restarts the service under a
     // running install.sh, before this process can finish the update.
+    installing_ = true;
     write_self_restart_sentinel();
     {
         int log_fd = open(install_log.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0640);
@@ -2488,6 +2490,9 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
 
     settle_self_restart_sentinel(ret == 0 || installer_may_run);
     if (ret != 0) {
+        installing_ = false;
+    }
+    if (ret != 0) {
         flog_error("[UpdateChecker] Install script failed with code {}", ret);
         // Build a user-visible error message with detail from the install log
         std::string ui_text =
@@ -2553,6 +2558,7 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
     // Write to ~/.helixscreen/ (survives PrivateTmp, accessible from update.service).
     // Also write legacy /tmp sentinel for backward compat with old service files.
     write_self_restart_sentinel();
+    installing_ = false;
     {
         // Legacy location (may not work with PrivateTmp=true)
         std::ofstream ofs_legacy("/tmp/helixscreen_self_restart");
@@ -3761,7 +3767,7 @@ void UpdateChecker::on_connected(helix::IMoonrakerClient& client) {
         std::error_code ec;
         std::string sentinel =
             app_constants::update::backup_fallback_dir() + "/self_restart_sentinel";
-        if (sentinel_installer_running()) {
+        if (installing_.load() || sentinel_installer_running()) {
             spdlog::info(
                 "[UpdateChecker] Keeping the self-restart sentinel: install.sh is running");
         } else if (fs::remove(sentinel, ec)) {
