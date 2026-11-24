@@ -977,6 +977,12 @@ class UpdateChecker {
     /// Latched by perform_update_restart() so the marshalled LVGL-thread call
     /// and the worker's backstop cannot both fork+exec.
     std::atomic<bool> restart_initiated_{false};
+    /// From the first sentinel write before install.sh until the install settles
+    /// (removed on failure, rewritten for the restart on success): the sentinel is
+    /// this process's to keep, whatever reconnect happens meanwhile.
+    std::atomic<bool> installing_{false};
+    /// Where do_install() logs install.sh's output instead of the system log; tests only.
+    std::string install_log_override_;
     /// How long each terminal frame is held so the LVGL thread can paint it.
     /// update_download_modal.xml documents 2s on Complete, then 1s on
     /// Restarting. Members rather than constants so tests need not wait 3s.

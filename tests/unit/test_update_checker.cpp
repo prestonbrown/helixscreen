@@ -2070,6 +2070,7 @@ TEST_CASE("do_install holds the self-restart sentinel while install.sh runs",
         helix::app_constants::update::detail::backup_fallback_dir_ref() = fallback;
         auto& checker = UpdateChecker::instance();
         UpdateCheckerTestAccess::clear_download_cancelled(checker);
+        UpdateCheckerTestAccess::set_install_log(checker, tmp + "/install.log");
         UpdateCheckerTestAccess::set_restart_action(checker, [] {});
         UpdateCheckerTestAccess::set_status_hold_ms(checker, 0, 0);
         UpdateCheckerTestAccess::do_install(checker, tarball);

@@ -94,6 +94,11 @@ class UpdateCheckerTestAccess {
         c.restart_action_ = std::move(action);
     }
 
+    /// Point install.sh's output at @p path instead of the system install log.
+    static void set_install_log(UpdateChecker& c, const std::string& path) {
+        c.install_log_override_ = path;
+    }
+
     /// A cancel left by an earlier case makes do_install() return before the installer.
     static void clear_download_cancelled(UpdateChecker& c) {
         c.download_cancelled_ = false;

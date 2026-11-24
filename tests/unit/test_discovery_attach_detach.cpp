@@ -19,8 +19,10 @@
 #include "system/update_checker.h"
 #include "timelapse_state.h"
 
+#include <csignal>
 #include <filesystem>
 #include <fstream>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include "../catch_amalgamated.hpp"
@@ -119,6 +121,32 @@ TEST_CASE("detach leaves nothing subscribed", "[discovery_attach][threading]") {
     detach_connection_features(client);
 
     CHECK(client.live_handlers() == before);
+}
+
+TEST_CASE("a sentinel naming a running install.sh survives a reconnect",
+          "[discovery_attach][update_checker][sentinel]") {
+    ScratchSentinelDir scratch;
+    FakeMoonrakerClient client;
+    // A stand-in installer still running, as when install.sh restarts Moonraker.
+    const fs::path script = scratch.root / "install.sh";
+    { std::ofstream(script) << "#!/bin/sh\nsleep 30\n"; }
+    const pid_t installer = fork();
+    if (installer == 0) {
+        execl("/bin/sh", "sh", script.c_str(), static_cast<char*>(nullptr));
+        _exit(127);
+    }
+    REQUIRE(installer > 0);
+    usleep(200 * 1000);
+    REQUIRE(UpdateChecker::write_self_restart_sentinel(installer));
+
+    UpdateChecker::instance().on_connected(client);
+    CHECK(fs::exists(scratch.sentinel()));
+    CHECK(client.rpc_count("machine.update.refresh") == 0);
+
+    kill(installer, SIGKILL);
+    waitpid(installer, nullptr, 0);
+    UpdateChecker::instance().on_connected(client);
+    CHECK_FALSE(fs::exists(scratch.sentinel()));
 }
 
 TEST_CASE("a surviving self-restart sentinel is cleared once and Moonraker is told to refresh",
