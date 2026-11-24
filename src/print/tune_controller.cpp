@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "tune_controller.h"
 
+#include "app_globals.h"
 #include "filament_database.h"
 #include "format_utils.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "pa_tuning.h"
+#include "printer_state.h"
 #include "spdlog/spdlog.h"
 #include "system/notify_tr.h"
 
@@ -52,8 +54,17 @@ void set_flow_percent(IMoonrakerAPI* api, int pct) {
         });
 }
 
+bool pressure_advance_is_nonlinear(const std::string& extruder) {
+    return get_printer_state().temperature_state().extruder_pa_model(extruder).nonlinear();
+}
+
 void set_pressure_advance(IMoonrakerAPI* api, const std::string& extruder, float k) {
     if (!api || extruder.empty()) {
+        return;
+    }
+    if (pressure_advance_is_nonlinear(extruder)) {
+        spdlog::warn("[TuneController] Not sending ADVANCE= to {}: it runs a nonlinear model",
+                     extruder);
         return;
     }
     const float value = helix::pa::clamp_k(k);

@@ -33,9 +33,15 @@ void set_flow_percent(IMoonrakerAPI* api, int pct);
 /// buttons give 0.005.
 inline constexpr float kPaTuneStep = 0.001f;
 
+/// Whether `extruder` runs a nonlinear pressure-advance model. A bare
+/// SET_PRESSURE_ADVANCE ADVANCE= there replaces only linear_advance and keeps the
+/// tuned offset, a mix nobody tuned, so no classic-K path may send one.
+bool pressure_advance_is_nonlinear(const std::string& extruder);
+
 /// Clamp and send SET_PRESSURE_ADVANCE for `extruder`. No-op when `api` is
-/// null. The printer's reported pressure_advance is the readback: callers
-/// display that, not the value they asked for. Errors surface via NOTIFY_ERROR.
+/// null, or when `extruder` runs a nonlinear model (see above). The printer's reported
+/// pressure_advance is the readback: callers display that, not the value they asked for. Errors
+/// surface via NOTIFY_ERROR.
 void set_pressure_advance(IMoonrakerAPI* api, const std::string& extruder, float k);
 
 /// K from the active-extruder pressure-advance subject (K x 10000), nullopt
