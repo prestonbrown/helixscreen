@@ -3602,6 +3602,7 @@
   <translation tag="Pressure Advance Calibration" it="Calibrazione pressure advance"/>
   <translation tag="Pressure Advance Tuning" it="Taratura Pressure Advance"/>
   <translation tag="Pressure advance" it="Pressure Advance"/>
+  <translation tag="Pressure advance by material" it="Pressure Advance per materiale"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." it="Il Pressure Advance sale man mano che la torre cresce. Osserva gli angoli: tocca - o + quando vuoi e la rampa si ferma così puoi valutare il tuo valore."/>
   <translation tag="Pressure advance tuning" it="Taratura Pressure Advance"/>
   <translation tag="Pressure advance {} is written to the {} section." it="Pressure advance {} viene scritto nella sezione {}."/>
@@ -4242,6 +4243,7 @@
   <translation tag="Save {} mm for {}? Other materials keep their own offsets." it="Salvare {} mm per {}? Gli altri materiali mantengono i propri offset."/>
   <translation tag="Saved Z-Offset" it="Z-Offset Salvato"/>
   <translation tag="Saved for the mounted head; other heads keep their own" it="Salvato per la testina montata; le altre testine mantengono il proprio"/>
+  <translation tag="Saved for {}. Every {} print starts with it." it="Salvato per {}. Ogni stampa in {} parte con questo valore."/>
   <translation tag="Saved offset" it="Offset salvato"/>
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." it="Salvato in Spoolman, ma prezzo, posizione, lotto e note della bobina non sono stati salvati."/>
   <translation tag="Saved to crash_report.txt (QR not available)" it="Salvato in crash_report.txt (QR non disponibile)"/>
@@ -5095,6 +5097,7 @@
   <translation tag="The print may have failed" it="La stampa potrebbe essere fallita"/>
   <translation tag="The print moved to {} but did not resume. Check {}, then press Resume." it="La stampa è passata a {} ma non è ripresa. Controlla {}, poi premi Riprendi."/>
   <translation tag="The print settings sent with the file could not be applied." it="Impossibile applicare le impostazioni di stampa inviate con il file."/>
+  <translation tag="The print-start macro applies each material&apos;s saved tuner result, else the config&apos;s" it="La macro di avvio applica il risultato salvato di ogni materiale, altrimenti quello della configurazione"/>
   <translation tag="The printable size in millimeters (X × Y × Z), from the axis limits in the printer&apos;s Klipper config." it="La dimensione stampabile in millimetri (X × Y × Z), dai limiti degli assi nella configurazione Klipper della stampante."/>
   <translation tag="The printer applied this value and keeps it for this tool." it="La stampante ha applicato questo valore e lo conserva per questo strumento."/>
   <translation tag="The printer can draw a priming line before a print. HelixScreen offers it in the pre-print options." it="La stampante può tracciare una linea di priming prima di una stampa. HelixScreen la offre nelle opzioni di pre-stampa."/>
@@ -5654,6 +5657,7 @@
   <translation tag="Update printer software and firmware" it="Aggiorna software e firmware della stampante"/>
   <translation tag="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls." it="Aggiorna il plugin HelixPrint alla 1.5.0 per nascondere le vecchie chiamate di PRINT_START."/>
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." it="Aggiornare anche il modello del riscaldatore INDX? {} ora contiene {}: densità {:.2f}, capacità termica {:.2f}."/>
+  <translation tag="Update the helper macros to save per material." it="Aggiorna le macro di ausilio per salvare per materiale."/>
   <translation tag="Update your security PIN" it="Aggiorna il tuo PIN di sicurezza in questa installazione."/>
   <translation tag="Update {} from {} to {}?" it="Aggiornare {} da {} a {}?"/>
   <translation tag="Update {} system packages?" it="Aggiornare {} pacchetti di sistema?"/>

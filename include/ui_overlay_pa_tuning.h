@@ -303,6 +303,8 @@ class PaTuningOverlay : public OverlayBase {
     /// Ask, then write the result as pressure_advance in the extruder's config section.
     void save_to_config();
     void write_config();
+    /// Store the result for the run's material (material_pa.h).
+    void save_for_material();
     /// Show @p spool_id as the spool Save to Spool writes to.
     void fetch_result_spool(int spool_id);
     /// Whether sending K now is ours to do: always during our print, otherwise

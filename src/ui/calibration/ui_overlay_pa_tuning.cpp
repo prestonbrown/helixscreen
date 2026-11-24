@@ -27,6 +27,7 @@
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "macro_param_cache.h"
+#include "material_z_offset_state.h"
 #include "pa_tower_start.h"
 #include "preset_materials.h"
 #include "print_start_analyzer.h"
@@ -268,6 +269,8 @@ void PaTuningOverlay::register_callbacks() {
         {"on_pa_tune_apply", [](lv_event_t*) { get_global_pa_tuning_overlay().apply_pick(); }},
         {"on_pa_tune_save_config",
          [](lv_event_t*) { get_global_pa_tuning_overlay().save_to_config(); }},
+        {"on_pa_tune_save_material",
+         [](lv_event_t*) { get_global_pa_tuning_overlay().save_for_material(); }},
         {"on_pa_tune_save_spool",
          [](lv_event_t*) { get_global_pa_tuning_overlay().save_to_spool(); }},
         {"on_pa_tune_discard",
@@ -1391,6 +1394,20 @@ void PaTuningOverlay::save_to_config() {
                     extruder_)
             .c_str(),
         lv_tr("Save"), []() { get_global_pa_tuning_overlay().write_config(); }, owned_confirm());
+}
+
+void PaTuningOverlay::save_for_material() {
+    const auto k = session_.result();
+    if (stage_ != RESULT || !k) {
+        return;
+    }
+    const std::string material = helix::presets::name(selected_preset_);
+    const auto entry = helix::material_pa::linear_entry(*k);
+    helix::material_zoffset::MaterialZOffsetState::instance().save_pa(
+        material, entry, [](bool ok, const std::string& message) {
+            ToastManager::instance().show(ok ? ToastSeverity::SUCCESS : ToastSeverity::ERROR,
+                                          message.c_str(), ok ? 3000 : 5000);
+        });
 }
 
 PaTuningOverlay::ConfigWrite PaTuningOverlay::config_write_for(const std::string& extruder,

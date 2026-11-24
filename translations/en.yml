@@ -3712,6 +3712,7 @@ translations:
   Press Scan to search: Press Scan to search
   Pressure Advance Tuning: Pressure Advance Tuning
   Pressure advance: Pressure advance
+  Pressure advance by material: Pressure advance by material
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   Pressure advance tuning: Pressure advance tuning
@@ -4363,6 +4364,7 @@ translations:
   "Saved {} mm": "Saved {} mm"
   Saved {} mm for {}: Saved {} mm for {}
   "Saved {} mm, {} mm after Save": "Saved {} mm, {} mm after Save"
+  Saved for {}. Every {} print starts with it.: Saved for {}. Every {} print starts with it.
   Saved offset: Saved offset
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: Saved to Spoolman, but the spool's price, location, lot and notes didn't save.
   Saved to crash_report.txt (QR not available): Saved to crash_report.txt (QR not available)
@@ -5248,6 +5250,7 @@ translations:
   The print may have failed: The print may have failed
   The print moved to {} but did not resume. Check {}, then press Resume.: The print moved to {} but did not resume. Check {}, then press Resume.
   The print settings sent with the file could not be applied.: The print settings sent with the file could not be applied.
+  The print-start macro applies each material's saved tuner result, else the config's: The print-start macro applies each material's saved tuner result, else the config's
   The printable size in millimeters (X × Y × Z), from the axis limits in the printer's Klipper config.: The printable size in millimeters (X × Y × Z), from the axis limits in the printer's Klipper config.
   The printer applied this value and keeps it for this tool.: 'The printer applied this value and keeps it for this tool.'
   The printer can draw a priming line before a print. HelixScreen offers it in the pre-print options.: The printer can draw a priming line before a print. HelixScreen offers it in the pre-print options.
@@ -5846,6 +5849,7 @@ translations:
   Update printer software and firmware: Update printer software and firmware
   Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.: Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': 'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.'
+  Update the helper macros to save per material.: Update the helper macros to save per material.
   Update your security PIN: Update your security PIN
   Update {} from {} to {}?: Update {} from {} to {}?
   Update {} system packages?: Update {} system packages?

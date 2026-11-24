@@ -264,6 +264,10 @@ class PaNonlinearOverlay : public OverlayBase {
     void send_values();
 
     void save_to_config();
+    /// Store the values for the run's material (material_pa.h).
+    void save_for_material();
+    /// The run's material as the result screen names it.
+    std::string material_name() const;
     void discard();
     void close_procedure();
 

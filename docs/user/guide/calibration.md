@@ -608,10 +608,20 @@ The values in the list are what the printer reported while each band printed, so
 
 **After you apply:**
 
-- The value is active right away, but Klipper forgets it at the next restart. Enter it as **Pressure advance** in your slicer's filament profile.
+- The value is active right away, but Klipper forgets it at the next restart. Keep it with **Save to Config**, **Save for <material>** (below), or by entering it as **Pressure advance** in your slicer's filament profile.
 - If Spoolman is connected and a spool is active, **Save to Spool** stores it on that spool's filament. See [Pressure advance per filament](filament-tracking.md#pressure-advance-per-filament).
 
 You can leave the tuner during the print; the steps keep going. Open it again from **Tuner** in the print's **Tune** overlay.
+
+### Saving pressure advance for a material
+
+Both tuners' result screens have **Save for <material>**, named after the material you picked at setup. It stores the result for that material only, and from then on every print of that material starts with it, the same way [Z Offset by Material](z-offset-by-material.md) applies a first-layer offset. A material you have not saved anything for prints with the values in your printer's config. Saving does not restart Klipper.
+
+It needs HelixScreen's helper macros, version 2.4.0 or later, with `HELIX_MATERIAL_OFFSET` in your `PRINT_START` and your slicer passing `MATERIAL=`. The setup is the same as for [Z Offset by Material](z-offset-by-material.md#any-other-printer-helixscreens-macro); the two features share that one macro line, and each has its own switch. The button stays greyed out until the macros are installed and up to date.
+
+**Turn pressure advance off in your slicer's filament profile** (in OrcaSlicer, untick **Enable pressure advance** in the filament settings). A slicer that sets it sends its own value after your start macro has run, and that value wins for the whole print. Under a nonlinear model it is worse: the slicer's value replaces only the linear advance and keeps the tuned offset, so the print runs a mix nobody tuned.
+
+Saving for a material turns the feature on. To turn it off, switch off **Pressure advance by material** under **Settings > Printing > Z Offset by Material**; prints then keep whatever pressure advance the printer already has.
 
 ### Nonlinear pressure advance (Kalico)
 

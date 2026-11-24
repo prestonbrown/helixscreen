@@ -180,8 +180,9 @@ target (`mesh_offer()`); a cold-bed mesh is offered to none. Klipper keeps profi
 
 ## Setup
 
-The helper pack (`assets/config/helix_macros.cfg`, v2.3.0) defines `HELIX_MATERIAL_OFFSET`
-and `_HELIX_MATERIAL`. `MacroManager` adds a `[save_variables]` section
+The helper pack (`assets/config/helix_macros.cfg`, v2.4.0) defines `HELIX_MATERIAL_OFFSET`,
+`_HELIX_MATERIAL` and `_HELIX_MATERIAL_PA`, which applies pressure advance per material
+([PRESSURE_ADVANCE_TUNING.md](PRESSURE_ADVANCE_TUNING.md#per-material)). `MacroManager` adds a `[save_variables]` section
 (`helix_variables.cfg` beside `printer.cfg`, path from `printer.info`) to the staged file
 on a printer that has none, and an update keeps a section the installed file carries. A
 printer with its own `[save_variables]` keeps it. User steps:

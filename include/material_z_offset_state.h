@@ -10,6 +10,7 @@
 #include "core/observer_guard.h"
 #include "helix_shared_callback.h"
 #include "json_fwd.h"
+#include "material_pa.h"
 #include "material_z_offset.h"
 
 #include <deque>
@@ -45,8 +46,9 @@ class MaterialZOffsetState {
   public:
     static MaterialZOffsetState& instance();
 
-    /// Publishes material_zoffset_status, material_zoffset_enabled and
-    /// material_zoffset_rev. Main thread, before XML binds them.
+    /// Publishes material_zoffset_status, material_zoffset_enabled,
+    /// material_pa_ready, material_pa_enabled and material_zoffset_rev. Main thread, before XML
+    /// binds them.
     void init_subjects();
 
     /// A new discovery: drop the last printer's table and re-read the row.
@@ -108,6 +110,19 @@ class MaterialZOffsetState {
     using Done = helix::SharedCallback<void(bool ok, const std::string& message)>;
     void save_offset(const std::string& material, int microns, Done done);
 
+    // --- Pressure advance by material (material_pa.h) ----------------------
+
+    /// The printer's start macro applies pressure advance per material and
+    /// can store it: a tuner's "Save for <material>" is offered.
+    [[nodiscard]] bool pa_ready() const;
+    /// The per-printer setting; off until a result is saved for a material.
+    [[nodiscard]] bool pa_enabled() const;
+    /// Store the setting and switch the macro to match.
+    void set_pa_enabled(IMoonrakerAPI* api, bool on);
+    /// Persist @p entry for @p material and turn the feature on. @p done runs
+    /// on the main thread with a user-facing message.
+    void save_pa(const std::string& material, const material_pa::Entry& entry, Done done);
+
     /// The bed mesh profile a fresh mesh is offered under after a calibration:
     /// {material, profile} for the material whose usual bed temperature is
     /// closest to @p bed_c among @p materials, or nullopt when the feature is
@@ -129,6 +144,7 @@ class MaterialZOffsetState {
     [[nodiscard]] std::string print_material() const;
     [[nodiscard]] bool material_known() const;
     void send_enable(IMoonrakerAPI* api, bool on);
+    void send_pa_enable(IMoonrakerAPI* api, bool on);
     void run_next_save();
     void run_save(const std::string& material, int microns, Done done);
     void write_config_file(const std::string& material, int microns, const std::string& message,

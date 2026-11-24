@@ -3602,6 +3602,7 @@
   <translation tag="Pressure Advance Calibration" es="Calibración de Pressure Advance"/>
   <translation tag="Pressure Advance Tuning" es="Ajuste de Pressure Advance"/>
   <translation tag="Pressure advance" es="Pressure Advance"/>
+  <translation tag="Pressure advance by material" es="Pressure Advance por material"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." es="Pressure Advance sube a medida que crece la torre. Observa las esquinas: toca - o + cuando quieras y la rampa se detiene para que juzgues tu propio valor."/>
   <translation tag="Pressure advance tuning" es="Ajuste de Pressure Advance"/>
   <translation tag="Pressure advance {} is written to the {} section." es="Pressure advance {} se escribe en la sección {}."/>
@@ -4242,6 +4243,7 @@
   <translation tag="Save {} mm for {}? Other materials keep their own offsets." es="¿Guardar {} mm para {}? Los demás materiales conservan sus propios offsets."/>
   <translation tag="Saved Z-Offset" es="Z-Offset guardado"/>
   <translation tag="Saved for the mounted head; other heads keep their own" es="Guardado para el cabezal montado; los demás cabezales conservan el suyo"/>
+  <translation tag="Saved for {}. Every {} print starts with it." es="Guardado para {}. Cada impresión de {} empieza con él."/>
   <translation tag="Saved offset" es="Offset guardado"/>
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." es="Guardado en Spoolman, pero el precio, la ubicación, el lote y las notas de la bobina no se guardaron."/>
   <translation tag="Saved to crash_report.txt (QR not available)" es="Guardado en crash_report.txt (QR no disponible)"/>
@@ -5095,6 +5097,7 @@
   <translation tag="The print may have failed" es="Puede que la impresión haya fallado"/>
   <translation tag="The print moved to {} but did not resume. Check {}, then press Resume." es="La impresión pasó a {} pero no se reanudó. Revisa {} y pulsa Reanudar."/>
   <translation tag="The print settings sent with the file could not be applied." es="No se pudieron aplicar los ajustes de impresión enviados con el archivo."/>
+  <translation tag="The print-start macro applies each material&apos;s saved tuner result, else the config&apos;s" es="La macro de inicio aplica el resultado guardado de cada material, o el de la configuración"/>
   <translation tag="The printable size in millimeters (X × Y × Z), from the axis limits in the printer&apos;s Klipper config." es="El tamaño imprimible en milímetros (X × Y × Z), según los límites de los ejes en la configuración de Klipper de la impresora."/>
   <translation tag="The printer applied this value and keeps it for this tool." es="La impresora aplicó este valor y lo conserva para esta herramienta."/>
   <translation tag="The printer can draw a priming line before a print. HelixScreen offers it in the pre-print options." es="La impresora puede trazar una línea de purga antes de imprimir. HelixScreen la ofrece en las opciones previas a la impresión."/>
@@ -5654,6 +5657,7 @@
   <translation tag="Update printer software and firmware" es="Actualiza el software y el firmware de la impresora"/>
   <translation tag="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls." es="Actualice el plugin HelixPrint a 1.5.0 para ocultar las llamadas antiguas de PRINT_START."/>
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." es="¿Actualizar también el modelo del calentador INDX? {} ahora tiene {}: densidad {:.2f}, capacidad calorífica {:.2f}."/>
+  <translation tag="Update the helper macros to save per material." es="Actualiza las macros de ayuda para guardar por material."/>
   <translation tag="Update your security PIN" es="Actualice su PIN de seguridad en esta instalación."/>
   <translation tag="Update {} from {} to {}?" es="¿Actualizar {} de {} a {}?"/>
   <translation tag="Update {} system packages?" es="¿Actualizar {} paquetes del sistema?"/>

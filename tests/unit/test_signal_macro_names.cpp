@@ -142,9 +142,11 @@ TEST_CASE("kVisibleNames lists every signal macro the bundled pack defines", "[s
 
     std::vector<std::string> pack_signals;
     for (const auto& name : hidden_sections(pack)) {
-        // State, the plan and the two signals that were never spelled visibly have no forwarder.
-        if (name != "_HELIX_STATE" && name != "_HELIX_MATERIAL" && name != "_HELIX_PLAN" &&
-            name != "_HELIX_PHASE_SOAKING" && name != "_HELIX_PHASE_HEATING_CHAMBER") {
+        // State, the plan, the material macros' internals and the two signals that were never
+        // spelled visibly have no forwarder.
+        if (name != "_HELIX_STATE" && name != "_HELIX_MATERIAL" && name != "_HELIX_MATERIAL_PA" &&
+            name != "_HELIX_PLAN" && name != "_HELIX_PHASE_SOAKING" &&
+            name != "_HELIX_PHASE_HEATING_CHAMBER") {
             pack_signals.push_back(name);
         }
     }
@@ -391,7 +393,7 @@ const json kOldPackObjects =
 const json kCurrentPackObjects =
     json::array({"gcode_macro _HELIX_READY", "gcode_macro _HELIX_STATE", "gcode_macro _HELIX_PLAN",
                  "gcode_macro HELIX_START_PRINT", "gcode_macro HELIX_UNLOAD_FILAMENT",
-                 "gcode_macro HELIX_MATERIAL_OFFSET"});
+                 "gcode_macro HELIX_MATERIAL_OFFSET", "gcode_macro _HELIX_MATERIAL_PA"});
 
 } // namespace
 

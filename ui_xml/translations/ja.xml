@@ -3602,6 +3602,7 @@
   <translation tag="Pressure Advance Calibration" ja="プレッシャーアドバンスキャリブレーション"/>
   <translation tag="Pressure Advance Tuning" ja="Pressure Advance調整"/>
   <translation tag="Pressure advance" ja="Pressure Advance"/>
+  <translation tag="Pressure advance by material" ja="素材別 Pressure Advance"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." ja="タワーが高くなるにつれてPressure Advanceが上がります。角を見てください: いつでも-か+をタップするとランプが止まり、自分の値を判断できます。"/>
   <translation tag="Pressure advance tuning" ja="Pressure Advance調整"/>
   <translation tag="Pressure advance {} is written to the {} section." ja="Pressure advance {}を{}セクションに書き込みます。"/>
@@ -4242,6 +4243,7 @@
   <translation tag="Save {} mm for {}? Other materials keep their own offsets." ja="{} mm を {} に保存しますか？他の素材のオフセットは変わりません。"/>
   <translation tag="Saved Z-Offset" ja="保存されたZ-Offset"/>
   <translation tag="Saved for the mounted head; other heads keep their own" ja="装着中のツールヘッドに保存されます。他のツールヘッドは各自の値を保持します"/>
+  <translation tag="Saved for {}. Every {} print starts with it." ja="{} に保存しました。{} の印刷はすべてこの値で始まります。"/>
   <translation tag="Saved offset" ja="保存済みオフセット"/>
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." ja="Spoolmanに保存しましたが、スプールの価格、場所、ロット、メモは保存されませんでした。"/>
   <translation tag="Saved to crash_report.txt (QR not available)" ja="crash_report.txt に保存しました（QR 利用不可）"/>
@@ -5095,6 +5097,7 @@
   <translation tag="The print may have failed" ja="印刷が失敗した可能性があります"/>
   <translation tag="The print moved to {} but did not resume. Check {}, then press Resume." ja="印刷は {} に移りましたが、再開されませんでした。{} を確認してから「再開」を押してください。"/>
   <translation tag="The print settings sent with the file could not be applied." ja="ファイルとともに送られた印刷設定を適用できませんでした。"/>
+  <translation tag="The print-start macro applies each material&apos;s saved tuner result, else the config&apos;s" ja="印刷開始マクロが素材ごとに保存した結果を適用し、なければ設定ファイルの値を使います"/>
   <translation tag="The printable size in millimeters (X × Y × Z), from the axis limits in the printer&apos;s Klipper config." ja="印刷可能なサイズ（mm、X × Y × Z）。プリンターのKlipper設定の軸リミットから取得します。"/>
   <translation tag="The printer applied this value and keeps it for this tool." ja="プリンターはこの値を適用し、このツールに保存しました。"/>
   <translation tag="The printer can draw a priming line before a print. HelixScreen offers it in the pre-print options." ja="プリンターは印刷前にプライミングラインを描けます。HelixScreenは印刷前オプションで選べます。"/>
@@ -5654,6 +5657,7 @@
   <translation tag="Update printer software and firmware" ja="プリンターのソフトウェアとファームウェアを更新"/>
   <translation tag="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls." ja="PRINT_START の古いコマンドを非表示にするには、HelixPrint プラグインを 1.5.0 に更新してください。"/>
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." ja="INDXヒーターモデルも更新しますか？{}は{}になりました：密度 {:.2f}、熱容量 {:.2f}。"/>
+  <translation tag="Update the helper macros to save per material." ja="素材ごとに保存するにはヘルパーマクロを更新してください。"/>
   <translation tag="Update your security PIN" ja="セキュリティ PIN を更新"/>
   <translation tag="Update {} from {} to {}?" ja="{} を {} から {} に更新しますか?"/>
   <translation tag="Update {} system packages?" ja="{} 件のシステムパッケージを更新しますか?"/>
