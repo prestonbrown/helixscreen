@@ -327,17 +327,12 @@ void PaNonlinearOverlay::deinit_subjects() {
 
 void PaNonlinearOverlay::register_callbacks() {
     register_xml_callbacks({
-        {"on_pa_nl_add_tower",
-         [](lv_event_t*) { get_global_pa_nonlinear_overlay().add_tower_section(); }},
-        {"on_pa_nl_print", [](lv_event_t*) { get_global_pa_nonlinear_overlay().confirm_print(); }},
         {"on_pa_nl_stop", [](lv_event_t*) { get_global_pa_nonlinear_overlay().stop_tower(); }},
         {"on_pa_nl_height",
          [](lv_event_t* e) { get_global_pa_nonlinear_overlay().adjust_height(user_int(e)); }},
         {"on_pa_nl_height_edit",
          [](lv_event_t*) { get_global_pa_nonlinear_overlay().edit_height(); }},
         {"on_pa_nl_back", [](lv_event_t*) { get_global_pa_nonlinear_overlay().go_back(); }},
-        {"on_pa_nl_judge",
-         [](lv_event_t* e) { get_global_pa_nonlinear_overlay().judge(user_int(e)); }},
         {"on_pa_nl_judge_primary",
          [](lv_event_t*) { get_global_pa_nonlinear_overlay().judge_primary(); }},
         {"on_pa_nl_ready_primary",

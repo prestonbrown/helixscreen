@@ -236,8 +236,6 @@ void PaTuningOverlay::register_callbacks() {
          [](lv_event_t* e) { get_global_pa_tuning_overlay().adjust_ramp_k(true, user_int(e)); }},
         {"on_pa_tune_end_k",
          [](lv_event_t* e) { get_global_pa_tuning_overlay().adjust_ramp_k(false, user_int(e)); }},
-        {"on_pa_tune_start",
-         [](lv_event_t*) { get_global_pa_tuning_overlay().confirm_and_start(); }},
         {"on_pa_tune_primary", [](lv_event_t*) { get_global_pa_tuning_overlay().setup_primary(); }},
         {"on_pa_tune_tower_tap",
          [](lv_event_t* e) {
@@ -252,8 +250,6 @@ void PaTuningOverlay::register_callbacks() {
                  self.refresh_setup();
              }
          }},
-        {"on_pa_tune_start_nonlinear",
-         [](lv_event_t*) { get_global_pa_tuning_overlay().start_nonlinear(); }},
         {"on_pa_tune_nudge",
          [](lv_event_t* e) { get_global_pa_tuning_overlay().nudge(user_int(e)); }},
         {"on_pa_tune_step",
@@ -264,8 +260,6 @@ void PaTuningOverlay::register_callbacks() {
              self.refresh_running();
          }},
         {"on_pa_tune_end", [](lv_event_t*) { get_global_pa_tuning_overlay().end_test(); }},
-        {"on_pa_tune_band",
-         [](lv_event_t* e) { get_global_pa_tuning_overlay().select_band(user_int(e)); }},
         {"on_pa_tune_keep",
          [](lv_event_t*) { get_global_pa_tuning_overlay().select_band(kMaxBands); }},
         {"on_pa_tune_apply", [](lv_event_t*) { get_global_pa_tuning_overlay().apply_pick(); }},
