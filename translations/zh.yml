@@ -156,6 +156,7 @@ translations:
   20 minutes: 20分钟
   24 Hour: 24 小时
   24-hour: 24小时制
+  24H: '24小时'
   270°: 270°
   270° Clockwise: 顺时针 270°
   2D Heatmap: 2D 热图
@@ -460,6 +461,7 @@ translations:
   An unknown error occurred.: 发生未知错误。
   An unload was asked for, but the Box's buffer sensor sees no filament in the path.: 请求了卸载，但料盒的缓冲器传感器在通路中检测不到耗材。
   An update is available: 有可用更新
+  Analog Clock: '指针时钟'
   Analyzing data...: 正在分析数据...
   Analyzing data... {}s: 正在分析数据... {} 秒
   Analyzing the {} axis: '正在分析 {} 轴'
@@ -586,6 +588,7 @@ translations:
   Based on the newest {} prints: '基于最近 {} 次打印'
   Batch load failed: 批量加载失败
   Batch unload failed: 批量卸载失败
+  Bauhaus: '包豪斯'
   Beacon auto-calibrate sent: Beacon自动校准已发送
   Beacon calibrate sent: Beacon校准已发送
   Bed: 热床
@@ -1036,6 +1039,7 @@ translations:
   Choose the order of day, month and year: 选择日、月、年的顺序
   Choose what to power off or restart.: 选择要关闭或重启的对象。
   Choose which releases to get, and whether to share anonymous statistics.: '选择要获取的版本，以及是否共享匿名统计数据。'
+  Chronograph: '计时码表'
   'Chute position: X {:.1f}, Y {:.1f}': '排料口位置: X {:.1f}, Y {:.1f}'
 
   Clean: '清洁'
@@ -1096,6 +1100,7 @@ translations:
   Cleared: 已清空
   Cleared from settings — system unpair failed, may need OS Bluetooth: 已从设置中清除；系统解除配对失败，可能需使用系统蓝牙设置
   Clipboard unavailable - use SSH: 剪贴板不可用 - 请使用 SSH
+  Clock Face: '表盘'
   Clog: 堵料
   Clog Auto: 自动堵料
   Clog Detection: 堵料检测
@@ -1619,6 +1624,7 @@ translations:
   ELECTRONICS & ACCESSORIES: '电子设备与配件'
   EMERGENCY STOP: 紧急停止
   EMPTY: 空
+  ENDS: '结束'
   ETA {}: '预计 {}'
   EXTRAS: 其他
   ? 'Each correction increased the difference between the probe points: the Z motors are mapped to the wrong corners, or the probe is not repeatable.'
@@ -2696,6 +2702,7 @@ translations:
   LED strip available for lighting control: LED 灯带可用于照明控制
   LED strip available. Add to config for lighting control?: '检测到 LED 灯带。添加到配置中以控制照明？'
   LEDs: LED
+  LEFT: '剩余'
   LOAD CELLS: '称重传感器'
   LOADED: 已加载
   LOCKED: 已锁定
@@ -3152,6 +3159,7 @@ translations:
   "Needs you, about {}": "需要你操作，约 {}"
   "Needs you, about {}: {}": "需要你操作，约 {}：{}"
   'Needs {}x{} free: remove or shrink a widget first': 需要 {}x{} 空位。请先移除或缩小小组件
+  Neon: '霓虹'
   Net Weight (g): 净重（克）
   Network: 网络
   Network Address: 网络地址
@@ -3384,6 +3392,7 @@ translations:
   Nothing to tune here: "这里没有需要调整的"
   'Nothing to unload: no filament at the nozzle': '没有可卸载的耗材: 喷嘴处没有耗材'
   Whether the Z arrows follow the bed or the Z value: "Z 按钮跟随热床还是 Z 值"
+  Which analog clock to show: '要显示的指针时钟'
   Which belt is each path?: "每条路径是哪条皮带?"
   Which belt is which?: "哪条皮带是哪条?"
   Which computer the Advanced power rows act on: '高级面板电源项作用的计算机'
@@ -3515,6 +3524,7 @@ translations:
   Or instead of turning the others: 或者，无需转动其他螺丝
   Original: '原始'
   Original file location unknown: 原始文件位置未知
+  Orrery: '太阳系仪'
   Oscillating... cycle %d/%d: 振荡中... 循环 %d/%d
   Other: 其他
   Other…: '其他…'
@@ -3545,6 +3555,7 @@ translations:
   PLA: PLA
   PLA - Black: PLA - 黑色
   POWER: 电源
+  PRINT: '打印'
   PRINT OPTIONS: 打印选项
   PRINTER: 打印机
   PRINTER FIRMWARE: '打印机固件'
@@ -3739,6 +3750,7 @@ translations:
   Press Scan to search: 按扫描搜索
   Pressure Advance Tuning: 压力提前调校
   Pressure advance: 压力提前
+  Pressure advance by material: '按材料压力提前'
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : '压力提前随测试塔升高而增加。查看角落: 随时点击-或+,自动步进就会停止,方便你判断自己的数值。'
   Pressure advance tuning: '压力提前调校'
@@ -4389,6 +4401,7 @@ translations:
   "Saved {} mm": "已保存 {} mm"
   Saved {} mm for {}: "已将 {} mm 保存到 {}"
   "Saved {} mm, {} mm after Save": "已保存 {} mm，保存后 {} mm"
+  Saved for {}. Every {} print starts with it.: '已为 {} 保存。每次 {} 打印都以此开始。'
   Saved offset: "已保存偏移"
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: '已保存到 Spoolman，但料盘的价格、位置、批次和备注未保存。'
   Saved to crash_report.txt (QR not available): 已保存到 crash_report.txt（二维码不可用）
@@ -4617,6 +4630,7 @@ translations:
   Show whatever curves you last had visible on the full graph.: 显示您上次在完整图表上可见的曲线。
   Showing the 50 newest files. See more in the printer's web UI.: '仅显示最新的 50 个文件。更多请在打印机网页界面查看。'
   Shows the new K next to the old one. You choose to save it: 在旧值旁显示新的 K 值，由你决定是否保存
+  Shuffle: '轮换'
   Shut down or restart the host: 关闭或重启主机
   Shutdown: 关机
   Shutdown / Reboot: 关机 / 重启
@@ -4809,6 +4823,7 @@ translations:
   State: 状态
   Static: '静态'
   Station: '工位'
+  Station Clock: '车站时钟'
   Status: 状态
   Status icons: 状态图标
   Stay at the printer.: 请留在打印机旁。
@@ -5283,6 +5298,7 @@ translations:
   The print may have failed: '打印可能已失败'
   The print moved to {} but did not resume. Check {}, then press Resume.: '打印已转移到 {} 但未恢复。请检查 {}，然后按“恢复”。'
   The print settings sent with the file could not be applied.: '无法应用随文件发送的打印设置。'
+  The print-start macro applies each material's saved tuner result, else the config's: '打印开始宏应用每种材料保存的调校结果，否则使用配置中的值'
   The printable size in millimeters (X × Y × Z), from the axis limits in the printer's Klipper config.: '可打印尺寸（毫米，X × Y × Z），取自打印机 Klipper 配置中的轴限位。'
   The printer applied this value and keeps it for this tool.: '打印机已应用此值，并为该工具保存。'
   The printer can draw a priming line before a print. HelixScreen offers it in the pre-print options.: '打印机可在打印前画一条预挤出线。HelixScreen 在打印前选项中提供该功能。'
@@ -5881,6 +5897,7 @@ translations:
   Update printer software and firmware: '更新打印机软件和固件'
   Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.: '将 HelixPrint 插件更新到 1.5.0 以隐藏 PRINT_START 中的旧调用。'
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': 同时更新INDX加热器模型？{}现在装的是{}：密度 {:.2f}，热容 {:.2f}。
+  Update the helper macros to save per material.: '更新帮助宏以按材料保存。'
   Update your security PIN: 更新您的安全 PIN
   Update {} from {} to {}?: '将 {} 从 {} 更新到 {}?'
   Update {} system packages?: '更新 {} 个系统软件包?'

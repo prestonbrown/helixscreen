@@ -5,6 +5,7 @@
 
 #include "color_utils.h"
 #include "core/text_io.h"
+#include "json_utils.h"
 #include "lane_translation.h"
 
 #include <algorithm>
@@ -117,14 +118,14 @@ SaveVariables parse_save_variables(const json& variables, int known_slot_count) 
     if (!variables.is_object()) {
         return out;
     }
-    if (auto it = variables.find("box_count"); it != variables.end() && it->is_number_integer()) {
-        const int box_count = it->get<int>();
+    if (const auto it = helix::json_util::read_integer_field(variables, "box_count")) {
+        const int box_count = *it;
         if (box_count >= 0 && box_count <= kMaxBoxes) {
             out.box_count = box_count;
         }
     }
-    if (auto it = variables.find("enable_box"); it != variables.end() && it->is_number_integer()) {
-        out.enable_box = it->get<int>() != 0;
+    if (const auto it = helix::json_util::read_integer_field(variables, "enable_box")) {
+        out.enable_box = *it != 0;
     }
 
     const int slot_count =
@@ -132,11 +133,12 @@ SaveVariables parse_save_variables(const json& variables, int known_slot_count) 
 
     // value_t<N> = "slot<M>" — tool N prints from global slot M.
     for (int t = 0; t < slot_count; ++t) {
-        const auto it = variables.find("value_t" + std::to_string(t));
-        if (it == variables.end() || !it->is_string()) {
+        const auto it =
+            helix::json_util::read_field<std::string>(variables, "value_t" + std::to_string(t));
+        if (!it) {
             continue;
         }
-        if (auto idx = parse_slot_name(it->get<std::string>(), slot_count)) {
+        if (auto idx = parse_slot_name(*it, slot_count)) {
             out.tool_slots.emplace_back(t, *idx);
         }
     }
@@ -185,8 +187,8 @@ SaveVariables parse_save_variables(const json& variables, int known_slot_count) 
         ids.vendor_id = read_id("vendor_slot" + suffix);
     }
 
-    if (auto it = variables.find("last_load_slot"); it != variables.end() && it->is_string()) {
-        const std::string val = it->get<std::string>();
+    if (const auto it = helix::json_util::read_field<std::string>(variables, "last_load_slot")) {
+        const std::string val = *it;
         if (val == "slot-1") {
             out.last_load_slot = -1;
         } else if (auto idx = parse_slot_name(val, slot_count)) {
@@ -198,8 +200,8 @@ SaveVariables parse_save_variables(const json& variables, int known_slot_count) 
 
 std::map<int, ControllerSlotDelta> parse_controller_status(const json& controller) {
     std::map<int, ControllerSlotDelta> out;
-    const auto box_it = controller.find("box");
-    if (box_it == controller.end() || !box_it->is_object()) {
+    auto* box_it = helix::json_util::find_object(controller, "box");
+    if (box_it == nullptr) {
         return out;
     }
     constexpr std::string_view kInfo = "_filament_info_";
@@ -260,8 +262,8 @@ std::optional<int> parse_box_unit_index(const std::string& key) {
 
 std::optional<std::vector<std::pair<int, std::int64_t>>>
 parse_box_drying_state(const json& box_extras) {
-    auto ds_it = box_extras.find("box_drying_state");
-    if (ds_it == box_extras.end() || !ds_it->is_object()) {
+    auto* ds_it = helix::json_util::find_object(box_extras, "box_drying_state");
+    if (ds_it == nullptr) {
         return std::nullopt;
     }
     std::vector<std::pair<int, std::int64_t>> out;
@@ -296,8 +298,8 @@ ConfigSettings parse_config_settings(const json& settings) {
             continue;
         }
         if (key.rfind("heater_generic heater_box", 0) == 0) {
-            if (auto m = it->find("max_temp"); m != it->end() && m->is_number()) {
-                out.dryer_max_temp = m->get<float>();
+            if (const auto m = helix::json_util::read_field<float>(*it, "max_temp")) {
+                out.dryer_max_temp = *m;
             }
         } else if (key.rfind("box_config box", 0) == 0) {
             if (auto m = it->find("target_max_temp_heater_generic");
@@ -306,9 +308,9 @@ ConfigSettings parse_config_settings(const json& settings) {
             }
         }
     }
-    if (auto fm = settings.find("force_move"); fm != settings.end() && fm->is_object()) {
-        if (auto en = fm->find("enable_force_move"); en != fm->end() && en->is_boolean()) {
-            out.force_move = en->get<bool>();
+    if (auto* fm = helix::json_util::find_object(settings, "force_move")) {
+        if (const auto en = helix::json_util::read_field<bool>(*fm, "enable_force_move")) {
+            out.force_move = *en;
         }
     }
     return out;
@@ -321,8 +323,8 @@ std::array<BoxReading, kMaxBoxes> parse_heater_status(const json& notification) 
 
     std::array<BoxReading, kMaxBoxes> readings;
     const auto raise = [](std::optional<float>& slot, const json& obj, const char* field) {
-        if (auto f = obj.find(field); f != obj.end() && f->is_number()) {
-            const float v = f->get<float>();
+        if (const auto f = helix::json_util::read_field<float>(obj, field)) {
+            const float v = *f;
             if (!slot || v > *slot) {
                 slot = v;
             }

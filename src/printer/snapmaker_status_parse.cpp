@@ -261,8 +261,8 @@ PrintTaskConfigDelta parse_print_task_config(const nlohmann::json& status) {
     PrintTaskConfigDelta d;
     d.preferences = read_print_preferences(status);
 
-    const auto ptc_it = status.find("print_task_config");
-    if (ptc_it == status.end() || !ptc_it->is_object()) {
+    auto* ptc_it = helix::json_util::find_object(status, "print_task_config");
+    if (ptc_it == nullptr) {
         return d;
     }
     const auto& ptc = *ptc_it;
@@ -379,8 +379,8 @@ StatusDelta parse_status(const nlohmann::json& status, const std::string& batch_
     }
 
     if (!batch_macro_object.empty()) {
-        const auto macro = status.find(batch_macro_object);
-        if (macro != status.end() && macro->is_object()) {
+        auto* macro = helix::json_util::find_object(status, batch_macro_object);
+        if (macro != nullptr) {
             d.batch_doing = ams::read_field<bool>(*macro, "doing");
         }
     }

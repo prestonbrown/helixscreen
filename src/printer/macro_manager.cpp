@@ -134,6 +134,10 @@ std::string with_alias_block(std::string content, const std::string& block) {
  * matching version bump in helix_macros.cfg).
  */
 std::optional<std::string> parse_installed_version(const PrinterDiscovery& hardware) {
+    if (hardware.has_macro("_HELIX_MATERIAL_PA")) {
+        return "2.4.0";
+    }
+
     // has_helix_macro() only sees names starting HELIX_.
     if (hardware.has_helix_macro("HELIX_MATERIAL_OFFSET")) {
         return "2.3.0";
@@ -561,8 +565,9 @@ std::string MacroManager::with_save_variables(const std::string& content,
     if (out.back() != '\n') {
         out += '\n';
     }
-    out += "\n# Per-material Z offsets (HELIX_MATERIAL_OFFSET) are kept here. HelixScreen\n"
-           "# adds this section only to a printer that had no [save_variables] of its own.\n";
+    out += "\n# Per-material Z offsets and pressure advance (HELIX_MATERIAL_OFFSET) are kept\n"
+           "# here. HelixScreen adds this section only to a printer that had no\n"
+           "# [save_variables] of its own.\n";
     out += block;
     return out;
 }

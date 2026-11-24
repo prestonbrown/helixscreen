@@ -379,12 +379,12 @@ void AmsBackendQidi::apply_query_response(const nlohmann::json& response) {
     if (!response.is_object()) {
         return;
     }
-    auto result_it = response.find("result");
-    if (result_it == response.end() || !result_it->is_object()) {
+    auto* result_it = helix::json_util::find_object(response, "result");
+    if (result_it == nullptr) {
         return;
     }
-    auto status_it = result_it->find("status");
-    if (status_it == result_it->end() || !status_it->is_object()) {
+    auto* status_it = helix::json_util::find_object(*result_it, "status");
+    if (status_it == nullptr) {
         return;
     }
     handle_status(*status_it);
@@ -404,10 +404,10 @@ void AmsBackendQidi::handle_status(const nlohmann::json& notification) {
     // `{"save_variables": {"variables": {...}}}`. Unwrap and feed the inner
     // variables payload to parse_save_variables.
     bool parsed_variables = false;
-    auto sv_it = notification.find("save_variables");
-    if (sv_it != notification.end() && sv_it->is_object()) {
-        auto vars_it = sv_it->find("variables");
-        if (vars_it != sv_it->end() && vars_it->is_object()) {
+    auto* sv_it = helix::json_util::find_object(notification, "save_variables");
+    if (sv_it != nullptr) {
+        auto* vars_it = helix::json_util::find_object(*sv_it, "variables");
+        if (vars_it != nullptr) {
             parse_save_variables(*vars_it);
             parsed_variables = true;
         }

@@ -52,6 +52,9 @@ struct Table {
     /// The printer-side switch the start macro obeys, where the row has one;
     /// nullopt until read.
     std::optional<bool> enabled;
+    /// The printer-side switch for pressure advance by material, where the
+    /// row carries it; nullopt until read.
+    std::optional<bool> pa_enabled;
 };
 
 // --- Detection -------------------------------------------------------------
@@ -69,6 +72,11 @@ std::vector<std::string> required_status_objects(const PrinterDiscovery& hw);
 /// Whether the row can persist a value right now. A row can match yet need
 /// one more piece of setup (HelixScreen's macro without [save_variables]).
 bool write_ready(const PrinterDiscovery& hw);
+
+/// The row's start macro also applies pressure advance per material and the
+/// printer can store it (material_pa.h): the helper pack that carries it, and
+/// a [save_variables] store. Never on a printer with more than one extruder.
+bool pressure_advance_ready(const PrinterDiscovery& hw);
 
 /// Whether the start macro reports each time it applies an offset, so a Save
 /// can tell a print that applied a material from one whose PRINT_START never
@@ -118,6 +126,11 @@ bool merge_status(const PrinterDiscovery& hw, const nlohmann::json& status, Tabl
 /// (unknown) material, nullopt when the row cannot store that name or no row
 /// matches.
 std::optional<std::string> material_key(const PrinterDiscovery& hw, std::string_view material);
+
+/// The key HelixScreen's macro builds from @p material: lower case, with '-',
+/// ' ', '+' and '.' turned into '_'. kDefaultKey for an empty material,
+/// nullopt for a name that leaves anything but [a-z0-9_].
+std::optional<std::string> helix_key(std::string_view material);
 
 /// The display name of a storage key: "DEFAULT", "PETG".
 std::string display_name(std::string_view key);

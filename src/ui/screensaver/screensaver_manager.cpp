@@ -11,6 +11,7 @@
 #include "refresh_period_hold.h"
 #include "screen_hide_hold.h"
 #include "screensaver.h"
+#include "screensaver_analog_clock.h"
 #include "screensaver_aqua.h"
 #include "screensaver_base.h"
 #include "screensaver_bounce.h"
@@ -67,6 +68,7 @@ ScreensaverManager::ScreensaverManager()
     screensavers_.push_back(std::make_unique<helix::ui::AquaScreensaver>());
     screensavers_.push_back(std::make_unique<helix::ui::HighFlyScreensaver>());
     screensavers_.push_back(std::make_unique<helix::ui::NixieClockScreensaver>());
+    screensavers_.push_back(std::make_unique<helix::ui::AnalogClockScreensaver>());
     for (auto& saver : screensavers_) {
         if (helix::ui::ClockInputSink* sink = saver->clock_input_sink()) {
             sink->set_input_source([this] { return clock_input(); });

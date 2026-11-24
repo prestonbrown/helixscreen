@@ -18,6 +18,7 @@
 #include "core/run_after.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
+#include "material_z_offset_state.h"
 #include "pa_tower_start.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
@@ -222,12 +223,20 @@ std::optional<helix::pa::NonlinearProcedure> saved_procedure(const nlohmann::jso
     return proc ? helix::pa::NonlinearProcedure::from_json(*proc) : std::nullopt;
 }
 
-/// The saved procedure for @p heater and @p kind, or nullopt.
-std::optional<nlohmann::json> saved_session(const std::string& heater,
-                                            helix::pa::ExtruderKind kind) {
+/// The saved session on @p heater, whatever it tuned, or nullptr.
+const nlohmann::json* heater_session(const std::string& heater) {
     const auto* cfg = helix::Config::get_instance();
     const nlohmann::json* j = cfg ? cfg->try_get_json(cfg->df() + kSessionKey) : nullptr;
-    if (!j || json_util::safe_string(*j, "heater") != heater) {
+    return j && json_util::safe_string(*j, "heater") == heater ? j : nullptr;
+}
+
+/// The saved procedure for @p heater, @p kind and @p material, or nullopt.
+/// Another material's passes are not this one's: its values would be saved
+/// under this material's name.
+std::optional<nlohmann::json> saved_session(const std::string& heater, helix::pa::ExtruderKind kind,
+                                            const std::string& material) {
+    const nlohmann::json* j = heater_session(heater);
+    if (!j || json_util::safe_string(*j, "material") != material) {
         return std::nullopt;
     }
     const auto restored = saved_procedure(*j);
@@ -349,6 +358,8 @@ void PaNonlinearOverlay::register_callbacks() {
                                                          pa_tower_tap_height(tower));
          }},
         {"on_pa_nl_save", [](lv_event_t*) { get_global_pa_nonlinear_overlay().save_to_config(); }},
+        {"on_pa_nl_save_material",
+         [](lv_event_t*) { get_global_pa_nonlinear_overlay().save_for_material(); }},
         {"on_pa_nl_keep",
          [](lv_event_t*) {
              auto& self = get_global_pa_nonlinear_overlay();
@@ -391,16 +402,33 @@ void PaNonlinearOverlay::start(const helix::pa::TestPrintParams& params,
         refresh();
         return;
     }
-    const bool resume = proc_ && params_.heater == params.heater && kind_ == kind;
+    // The procedure belongs to one head, extruder kind and material: resuming
+    // it for another material would save its values under that one's name.
+    const bool resume = proc_ && params_.heater == params.heater && kind_ == kind &&
+                        params_.material == params.material;
+    // On the same head the model from before any tuning stays the one to put
+    // back: the printer state still shows the old procedure's values until the
+    // restore below lands.
+    const std::optional<helix::pa::PaModel> carried =
+        proc_ && params_.heater == params.heater ? std::optional(original_) : std::nullopt;
     if (proc_ && !resume) {
-        // Another head or extruder kind: the old extruder gets its own model
-        // back before the new procedure starts.
+        // Another head, extruder kind or material: the old extruder gets its
+        // own model back before the new procedure starts.
         restore_original();
     }
     params_ = params;
     if (!resume) {
         kind_ = kind;
         original_ = get_printer_state().temperature_state().extruder_pa_model(params.heater);
+        if (carried) {
+            original_ = *carried;
+        } else if (const nlohmann::json* session = heater_session(params.heater)) {
+            // A session left on this head, for any material or kind: the
+            // extruder may still run its values, so only its original counts.
+            if (const auto* original = json_util::find_object(*session, "original")) {
+                original_ = model_from(*original);
+            }
+        }
         proc_.emplace(kind, original_.kind == helix::pa::ModelKind::Recipr
                                 ? helix::pa::ModelKind::Recipr
                                 : helix::pa::ModelKind::Tanh);
@@ -408,7 +436,7 @@ void PaNonlinearOverlay::start(const helix::pa::TestPrintParams& params,
         set_stage(READY);
         spdlog::info("[{}] Nonlinear tuning on {}, {} passes", get_name(), params.heater,
                      proc_->pass_count());
-        if (const auto saved = saved_session(params.heater, kind)) {
+        if (const auto saved = saved_session(params.heater, kind, params.material)) {
             // The extruder may still run a saved session's values: its own model
             // is the one recorded before that session, whatever the answer.
             if (const auto* original = json_util::find_object(*saved, "original")) {
@@ -493,9 +521,7 @@ void PaNonlinearOverlay::refresh() {
     lv_subject_set_string(
         &run_note_, lv_tr("No need to stay; this screen waits for you when the tower is done."));
     lv_subject_set_string(&save_material_,
-                          fmt::format(fmt::runtime(lv_tr("Save for {}")),
-                                      params_.material.empty() ? "PLA" : params_.material)
-                              .c_str());
+                          fmt::format(fmt::runtime(lv_tr("Save for {}")), material_name()).c_str());
 
     // The pass bar: each pass's value, the done ones with what they found.
     const auto& v = proc_->values();
@@ -1209,6 +1235,23 @@ void PaNonlinearOverlay::save_to_config() {
         15000, std::move(expected));
 }
 
+std::string PaNonlinearOverlay::material_name() const {
+    return params_.material.empty() ? "PLA" : params_.material;
+}
+
+void PaNonlinearOverlay::save_for_material() {
+    if (stage_ != RESULT || !proc_) {
+        return;
+    }
+    const std::string material = material_name();
+    const auto entry = helix::material_pa::nonlinear_entry(proc_->values());
+    helix::material_zoffset::MaterialZOffsetState::instance().save_pa(
+        api_, material, entry, [](bool ok, const std::string& message) {
+            ToastManager::instance().show(ok ? ToastSeverity::SUCCESS : ToastSeverity::ERROR,
+                                          message.c_str(), ok ? 3000 : 5000);
+        });
+}
+
 void PaNonlinearOverlay::discard() {
     if (!proc_) {
         close();
@@ -1252,6 +1295,7 @@ void PaNonlinearOverlay::save_session() {
         return;
     }
     cfg->set<nlohmann::json>(cfg->df() + kSessionKey, {{"heater", params_.heater},
+                                                       {"material", params_.material},
                                                        {"procedure", proc_->to_json()},
                                                        {"original", model_json(original_)}});
     cfg->save();

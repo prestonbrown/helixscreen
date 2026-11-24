@@ -184,7 +184,7 @@ HELIX_MOCK_MACRO_COUNT=130 ./build/bin/helix-screen --test -vv
 
 ### `HELIX_MOCK_MATERIAL_ZOFFSET`
 
-A printer with a per-material Z offset table (prestonbrown/helixscreen#2142, [MATERIAL_Z_OFFSET.md](MATERIAL_Z_OFFSET.md)). `start_print_vars` adds a K2-style `[gcode_macro _START_PRINT_VARS]` (PLA 0, PETG 0.04, ABS -0.02, ASA 0, DEFAULT 0) defined in a mock `overrides.cfg` that `printer.cfg` includes, so a Save edits that file. `helix_macro` adds HelixScreen's `HELIX_MATERIAL_OFFSET` with `[save_variables]` (PLA 0.02, PETG 0.06, DEFAULT 0). Every mock print start applies the file's first filament's offset as the start macro would, preferring the material the screen passed in `_HELIX_MATERIAL.next` on the helper-macro printer. Turn the feature on in Settings > Printing > Z Offset by Material.
+A printer with a per-material Z offset table (prestonbrown/helixscreen#2142, [MATERIAL_Z_OFFSET.md](MATERIAL_Z_OFFSET.md)). `start_print_vars` adds a K2-style `[gcode_macro _START_PRINT_VARS]` (PLA 0, PETG 0.04, ABS -0.02, ASA 0, DEFAULT 0) defined in a mock `overrides.cfg` that `printer.cfg` includes, so a Save edits that file. `helix_macro` adds HelixScreen's `HELIX_MATERIAL_OFFSET` and `_HELIX_MATERIAL_PA` with `[save_variables]` (PLA 0.02, PETG 0.06, DEFAULT 0), so the pressure advance tuners offer Save for <material>; the mock accepts the `helix_pa_*` writes and applies none. Every mock print start applies the file's first filament's offset as the start macro would, preferring the material the screen passed in `_HELIX_MATERIAL.next` on the helper-macro printer. Turn the feature on in Settings > Printing > Z Offset by Material.
 
 | Property | Value |
 |----------|-------|

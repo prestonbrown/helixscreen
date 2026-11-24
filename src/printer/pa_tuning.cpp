@@ -4,6 +4,7 @@
 #include "pa_tuning.h"
 
 #include "gcode_wait_line.h"
+#include "json_utils.h"
 
 #include <spdlog/fmt/fmt.h>
 
@@ -648,13 +649,13 @@ nlohmann::json merge_moonraker_record(const nlohmann::json& existing, const Save
                             {"updated", saved.updated}};
     out["version"] = 1;
     out["last"] = entry;
-    if (!out.contains("extruders") || !out["extruders"].is_object()) {
+    if (!helix::json_util::find_object(out, "extruders")) {
         out["extruders"] = nlohmann::json::object();
     }
     if (!saved.extruder.empty()) {
         out["extruders"][saved.extruder] = entry;
     }
-    if (!out.contains("filaments") || !out["filaments"].is_object()) {
+    if (!helix::json_util::find_object(out, "filaments")) {
         out["filaments"] = nlohmann::json::object();
     }
     if (saved.filament_id > 0) {

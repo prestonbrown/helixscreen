@@ -35,8 +35,8 @@ std::map<int, int> tool_spools_from_file(const nlohmann::json& file,
     if (!file.is_object()) {
         return {};
     }
-    const auto printers = file.find(kPrinters);
-    if (printers == file.end() || !printers->is_object()) {
+    auto* printers = helix::json_util::find_object(file, kPrinters);
+    if (printers == nullptr) {
         return tool_spools_from_set(file);
     }
     const auto mine = printers->find(printer_id);
@@ -63,8 +63,8 @@ std::optional<nlohmann::json> file_keeping_tools(const nlohmann::json& file,
     if (!file.is_object()) {
         return std::nullopt;
     }
-    const auto printers = file.find(kPrinters);
-    if (printers == file.end() || !printers->is_object()) {
+    auto* printers = helix::json_util::find_object(file, kPrinters);
+    if (printers == nullptr) {
         nlohmann::json kept = set_keeping_tools(file, owed);
         if (tool_spools_from_set(kept).empty()) {
             return std::nullopt;

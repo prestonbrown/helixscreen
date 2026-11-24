@@ -225,6 +225,9 @@ const std::vector<Row>& rows() {
          "date_format", false,
          [](int v) { dm().set_date_format(static_cast<helix::DateFormat>(v)); },
          GET(dm().get_date_format), SUBJ(dm().subject_date_format)},
+        {"settings_screensaver_clock_face", Mgr::Display, false, "/display/screensaver_clock_face",
+         false, 0, 0, 5, "screensaver_clock_face", true, SETI(dm().set_screensaver_clock_face),
+         GET(dm().get_screensaver_clock_face), {}},
 
         // SystemSettingsManager
         {"update_channel", Mgr::System, false, "/update/channel", false, 0, 0, 2, "update_channel",

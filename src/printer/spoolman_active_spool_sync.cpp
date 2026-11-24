@@ -256,11 +256,11 @@ void on_spoolman_status_changed(ISpoolmanAPI& spoolman, const nlohmann::json& ms
         return;
     }
     const auto& status = params[0];
-    const auto it = status.find("spoolman_connected");
-    if (it == status.end() || !it->is_boolean()) {
+    const auto it = helix::json_util::read_field<bool>(status, "spoolman_connected");
+    if (!it) {
         return;
     }
-    const bool connected = it->get<bool>();
+    const bool connected = *it;
     spdlog::info("[Application] Spoolman {} (status notification)",
                  connected ? "connected" : "disconnected");
     get_printer_state().capabilities_state().set_spoolman_available(connected);

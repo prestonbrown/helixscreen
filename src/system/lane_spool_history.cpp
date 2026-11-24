@@ -7,6 +7,7 @@
 #include "color_utils.h"
 #include "core/text_io.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "moonraker_error.h"
 
 #include <spdlog/spdlog.h>
@@ -26,8 +27,7 @@ bool same_filament(const Entry& a, const Entry& b) {
 
 /// @p item's string member @p key, or empty when it is absent or not a string.
 std::string string_member(const nlohmann::json& item, const char* key) {
-    const auto it = item.find(key);
-    return (it != item.end() && it->is_string()) ? it->get<std::string>() : std::string();
+    return helix::json_util::read_field<std::string>(item, key).value_or(std::string());
 }
 
 } // namespace
@@ -94,9 +94,8 @@ std::vector<Entry> from_json(const nlohmann::json& value) {
         if (rgb != item.end() && rgb->is_number_unsigned()) {
             e.color_rgb = rgb->get<uint32_t>() & 0xFFFFFF;
         }
-        const auto total = item.find("total_g");
-        if (total != item.end() && total->is_number()) {
-            e.total_weight_g = total->get<float>();
+        if (const auto total = helix::json_util::read_field<float>(item, "total_g")) {
+            e.total_weight_g = *total;
         }
         out.push_back(std::move(e));
         if (out.size() >= kMaxEntries) {

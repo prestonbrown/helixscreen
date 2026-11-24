@@ -140,13 +140,13 @@ void TimelapseState::handle_timelapse_event(const nlohmann::json& event) {
         return;
     }
 
-    auto action_it = event.find("action");
-    if (action_it == event.end() || !action_it->is_string()) {
+    const auto action_it = helix::json_util::read_field<std::string>(event, "action");
+    if (!action_it) {
         spdlog::debug("[TimelapseState] Event missing or invalid 'action' field");
         return;
     }
 
-    const std::string& action = action_it->get_ref<const std::string&>();
+    const std::string& action = *action_it;
 
     if (action == "newframe") {
         // Increment frame count — read+write both inside ui_queue_update

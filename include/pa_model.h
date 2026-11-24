@@ -56,6 +56,10 @@ struct PaModel {
     }
 };
 
+/// The name SET_PRESSURE_ADVANCE MODEL= and the config take: "linear" for
+/// Classic and Linear, "tanh", "recipr".
+const char* model_name(ModelKind kind);
+
 /// Extruder status fields the model is read from.
 inline constexpr std::array<std::string_view, 7> kStatusFields = {
     "pressure_advance", "pressure_advance_model", "linear_advance",

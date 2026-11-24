@@ -4,6 +4,7 @@
 
 #include "core/text_io.h"
 #include "filament_database.h"
+#include "material_pa.h"
 #include "moonraker_types.h"
 #include "print_cost.h"
 #include "print_start_inputs.h"
@@ -126,6 +127,8 @@ std::optional<WritePlan> vars_write(const Table& table, const std::string& key, 
 // loads the helix_<key> mesh profile when it exists. Its Jinja builds the key
 // with lower and four replaces; helix_key() is the same rule.
 
+} // namespace
+
 std::optional<std::string> helix_key(std::string_view material) {
     std::string key = text_io::to_lower(text_io::trim(material));
     if (key.empty()) {
@@ -142,6 +145,8 @@ std::optional<std::string> helix_key(std::string_view material) {
     return key;
 }
 
+namespace {
+
 bool helix_merge(const json& status, Table& table) {
     bool changed = false;
     if (const json* sv = member(status, "save_variables")) {
@@ -150,6 +155,12 @@ bool helix_merge(const json& status, Table& table) {
                 const bool on = flag->get<double>() != 0.0;
                 changed |= table.enabled != on;
                 table.enabled = on;
+            }
+            if (const json* flag = member(*vars, material_pa::kEnabledVar);
+                flag && flag->is_number()) {
+                const bool on = flag->get<double>() != 0.0;
+                changed |= table.pa_enabled != on;
+                table.pa_enabled = on;
             }
             for (auto it = vars->begin(); it != vars->end(); ++it) {
                 const std::string& name = it.key();
@@ -226,6 +237,9 @@ struct Provider {
     /// Printer-side save variable the start macro obeys; nullptr where the
     /// macro applies its table on every print.
     const char* enable_var;
+    /// Macro the start macro hands the material to for its pressure advance;
+    /// nullptr where the row carries none.
+    const char* pa_macro;
 };
 
 bool always_ready(const PrinterDiscovery&) {
@@ -252,6 +266,7 @@ const std::vector<Provider>& providers() {
          false,
          nullptr,
          nullptr,
+         nullptr,
          nullptr},
         {"HelixScreen macro",
          "HELIX_MATERIAL_OFFSET",
@@ -264,7 +279,8 @@ const std::vector<Provider>& providers() {
          true,
          "_HELIX_MATERIAL",
          kHelixMeshPrefix,
-         kHelixEnabledVar},
+         kHelixEnabledVar,
+         material_pa::kApplyMacro},
     };
     return table;
 }
@@ -327,6 +343,17 @@ SetupSteps setup_steps(bool supported, const std::string& helper_call,
         steps.slicer = !slicer_done;
     }
     return steps;
+}
+
+bool pressure_advance_ready(const PrinterDiscovery& hw) {
+    // One value per material cannot serve several extruders: the start macro
+    // cannot tell which tool the material is for, and it stays off there too.
+    const auto& objects = hw.printer_objects();
+    if (std::find(objects.begin(), objects.end(), "extruder1") != objects.end()) {
+        return false;
+    }
+    const Provider* p = match(hw);
+    return p && p->pa_macro && p->ready(hw) && hw.has_macro(p->pa_macro);
 }
 
 bool reports_application(const PrinterDiscovery& hw) {

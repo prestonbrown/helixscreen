@@ -143,6 +143,14 @@ From then on, `HELIX_MATERIAL_OFFSET` loads that mesh at the start of each print
 
 ---
 
+## Pressure Advance per Material
+
+The same `HELIX_MATERIAL_OFFSET` line also applies a pressure advance for each material, once you save one from the pressure advance tuner's result screen with **Save for <material>**. See [Saving pressure advance for a material](calibration.md#saving-pressure-advance-for-a-material). It has its own switch, **Pressure advance by material**, on this settings screen, so you can use either feature without the other. A material with no saved pressure advance prints with the values in your printer's config. It isn't offered on printers with more than one extruder.
+
+Turn pressure advance off in your slicer's filament profile, or the slicer's value replaces the material's.
+
+---
+
 ## The Default Offset
 
 **Any other material** (DEFAULT) is used when:

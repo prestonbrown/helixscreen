@@ -35,11 +35,11 @@ constexpr std::array<const char*, 3> kModeMacros = {"MODE_STEALTH", "MODE_NORMAL
 /// A strict int: Klipper serializes these variables as JSON ints, and a
 /// float or string here is a macro set this module does not understand.
 std::optional<int> strict_int(const json& obj, const char* key) {
-    auto it = obj.find(key);
-    if (it == obj.end() || !it->is_number_integer()) {
+    const auto it = helix::json_util::read_integer_field(obj, key);
+    if (!it) {
         return std::nullopt;
     }
-    return it->get<int>();
+    return *it;
 }
 
 /// The macro name a status key or object name refers to, upper-case; empty
@@ -98,8 +98,8 @@ bool read_tool_positions(const json& obj, Reading& r) {
         r.tool_count = std::clamp(*v, 0, kMaxTools);
         saw = true;
     }
-    auto nh = obj.find("no_heat_tools");
-    if (nh != obj.end() && nh->is_array()) {
+    auto* nh = helix::json_util::find_array(obj, "no_heat_tools");
+    if (nh != nullptr) {
         std::set<int> tools;
         for (const auto& t : *nh) {
             if (t.is_number_integer()) {
@@ -109,9 +109,8 @@ bool read_tool_positions(const json& obj, Reading& r) {
         r.no_heat_tools = std::move(tools);
         saw = true;
     }
-    auto dc = obj.find("docks_calibrated");
-    if (dc != obj.end() && dc->is_boolean()) {
-        r.docks_calibrated = dc->get<bool>();
+    if (const auto dc = helix::json_util::read_field<bool>(obj, "docks_calibrated")) {
+        r.docks_calibrated = *dc;
         saw = true;
     }
     return saw;
@@ -123,17 +122,16 @@ bool read_toolchange_vars(const json& obj, Reading& r) {
         r.toolhead_state = *v;
         saw = true;
     }
-    auto mode = obj.find("mode");
-    if (mode != obj.end() && mode->is_string()) {
-        r.speed_mode = mode->get<std::string>();
+    if (const auto mode = helix::json_util::read_field<std::string>(obj, "mode")) {
+        r.speed_mode = *mode;
         saw = true;
     }
     return saw;
 }
 
 bool read_presets(const json& obj, Reading& r) {
-    auto it = obj.find("filament_presets");
-    if (it == obj.end() || !it->is_object()) {
+    auto* it = helix::json_util::find_object(obj, "filament_presets");
+    if (it == nullptr) {
         return false;
     }
     std::map<std::string, FilamentPreset> presets;
@@ -164,8 +162,8 @@ std::optional<Reading> read_status(const nlohmann::json& status) {
             continue;
         }
         if (key == "save_variables") {
-            auto vars = value.find("variables");
-            if (vars != value.end() && vars->is_object()) {
+            auto* vars = helix::json_util::find_object(value, "variables");
+            if (vars != nullptr) {
                 saw |= read_save_variables(*vars, r);
             }
             continue;

@@ -4,6 +4,7 @@
 
 #include "color_utils.h"
 #include "core/text_io.h"
+#include "json_utils.h"
 #include "macro_param_cache.h"
 #include "printer_discovery.h"
 #include "zmod_color_status.h"
@@ -350,14 +351,14 @@ std::optional<ToolReading> read_medusahc(const nlohmann::json& obj) {
     }
 
     // idle / changing / dropping / picking: the words name the swap direction.
-    if (auto it = obj.find("operation"); it != obj.end() && it->is_string()) {
-        r.operation = it->get<std::string>();
+    if (const auto it = helix::json_util::read_field<std::string>(obj, "operation")) {
+        r.operation = *it;
         r.phase_names_direction = true;
         saw_anything = true;
     }
 
-    if (auto it = obj.find("last_error"); it != obj.end() && it->is_string()) {
-        r.last_error = it->get<std::string>();
+    if (const auto it = helix::json_util::read_field<std::string>(obj, "last_error")) {
+        r.last_error = *it;
         saw_anything = true;
     }
     if (auto target = int_field(obj, "target_tool")) {
@@ -380,8 +381,8 @@ std::optional<ToolReading> read_medusahc(const nlohmann::json& obj) {
     // per dock. Sergei, 2026-08-24: "e: 1 means that a tool is installed on
     // the toolhead ... tN: 1 means that the corresponding tool is seated in its
     // dock."
-    auto sensors = obj.find("sensors");
-    if (sensors != obj.end() && sensors->is_object()) {
+    auto* sensors = helix::json_util::find_object(obj, "sensors");
+    if (sensors != nullptr) {
         for (const auto& [key, value] : sensors->items()) {
             auto flag = as_bool(value);
             if (!flag) {
@@ -613,23 +614,23 @@ std::optional<AfcStateReading> read_afc_state(const nlohmann::json& status) {
         return std::nullopt;
     }
     AfcStateReading r;
-    if (auto state = obj->find("current_state"); state != obj->end() && state->is_string()) {
-        r.current_state = state->get<std::string>();
+    if (const auto state = helix::json_util::read_field<std::string>(*obj, "current_state")) {
+        r.current_state = *state;
     }
-    if (auto err = obj->find("error_state"); err != obj->end() && err->is_boolean()) {
-        r.error_state = err->get<bool>();
+    if (const auto err = helix::json_util::read_field<bool>(*obj, "error_state")) {
+        r.error_state = *err;
     }
-    if (auto msg = obj->find("message"); msg != obj->end() && msg->is_string()) {
-        r.message = msg->get<std::string>();
+    if (const auto msg = helix::json_util::read_field<std::string>(*obj, "message")) {
+        r.message = *msg;
     }
-    if (auto lanes = obj->find("lanes"); lanes != obj->end() && lanes->is_array()) {
+    if (auto* lanes = helix::json_util::find_array(*obj, "lanes")) {
         for (const auto& lane_name : *lanes) {
             if (!lane_name.is_string()) {
                 continue;
             }
             const std::string key = "AFC_lane " + lane_name.get<std::string>();
-            const auto lane = status.find(key);
-            if (lane == status.end() || !lane->is_object()) {
+            auto* lane = helix::json_util::find_object(status, key);
+            if (lane == nullptr) {
                 continue;
             }
             // The afclite shim sends one "Tn"; the built-in emulation a list of them.
@@ -820,8 +821,8 @@ std::optional<MaterialReading> read_materials(const nlohmann::json& status, int 
     if (!status.is_object()) {
         return std::nullopt;
     }
-    auto it = status.find(kZmodColorObject);
-    if (it == status.end() || !it->is_object()) {
+    auto* it = helix::json_util::find_object(status, kZmodColorObject);
+    if (it == nullptr) {
         return std::nullopt;
     }
     MaterialReading r;
@@ -853,8 +854,8 @@ std::optional<ToolReading> read_tool(const nlohmann::json& status) {
     }
     // [medusahc] wins when present: it reads pin_watch itself and adds the
     // operation phase and the explicit sensor_error flag on top.
-    auto medusa = status.find(kMedusaObject);
-    if (medusa != status.end() && medusa->is_object()) {
+    auto* medusa = helix::json_util::find_object(status, kMedusaObject);
+    if (medusa != nullptr) {
         if (auto r = read_medusahc(*medusa)) {
             return r;
         }
@@ -866,8 +867,8 @@ std::optional<ToolReading> read_tool(const nlohmann::json& status) {
             }
         }
     }
-    auto zmod = status.find(kZmodColorObject);
-    if (zmod != status.end() && zmod->is_object()) {
+    auto* zmod = helix::json_util::find_object(status, kZmodColorObject);
+    if (zmod != nullptr) {
         if (auto r = read_zmod_color(*zmod)) {
             return r;
         }

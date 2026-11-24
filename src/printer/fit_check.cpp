@@ -39,8 +39,7 @@ std::optional<double> number(const json& v) {
 }
 
 const json* section(const json& settings, const char* name) {
-    const json* s = json_util::find_member(settings, name);
-    return s != nullptr && s->is_object() ? s : nullptr;
+    return json_util::find_object(settings, name);
 }
 
 /// A numeric option: @p fallback when the section leaves it out, unset when it

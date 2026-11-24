@@ -1455,8 +1455,8 @@ UpdateChecker::repair_release_info(const std::string& install_root) {
     }
 
     std::string current;
-    if (auto it = existing.find("asset_name"); it != existing.end() && it->is_string()) {
-        current = it->get<std::string>();
+    if (const auto it = helix::json_util::read_field<std::string>(existing, "asset_name")) {
+        current = *it;
     }
     if (current == want) {
         // Already correct — do not touch the file. No boot-time disk churn, and
@@ -2658,7 +2658,8 @@ void UpdateChecker::do_install(const std::string& tarball_path, InstallOrigin or
     // Write to ~/.helixscreen/ (survives PrivateTmp, accessible from update.service).
     // Also write legacy /tmp sentinel for backward compat with old service files.
     write_self_restart_sentinel();
-    installing_ = false;
+    // installing_ stays set: the process exits right after the status hold, and a
+    // reconnect during the hold must keep this pid-less sentinel.
     {
         // Legacy location (may not work with PrivateTmp=true)
         std::ofstream ofs_legacy("/tmp/helixscreen_self_restart");

@@ -408,11 +408,7 @@ namespace {
 using nlohmann::json;
 
 const json* status_member(const json& status, std::string_view key) {
-    if (!status.is_object()) {
-        return nullptr;
-    }
-    const auto it = status.find(std::string(key));
-    return it == status.end() || !it->is_object() ? nullptr : &*it;
+    return json_util::find_object(status, std::string(key));
 }
 
 bool pin_latched(const json& status, std::string_view object) {
@@ -426,8 +422,8 @@ json planned_position(const json& status) {
     if (!toolhead) {
         return json::array();
     }
-    const auto it = toolhead->find("position");
-    return it != toolhead->end() && it->is_array() ? *it : json::array();
+    const json* position = json_util::find_array(*toolhead, "position");
+    return position ? *position : json::array();
 }
 
 /// "extruder", "extruder1", ...: the sections a candidate K could have been

@@ -49,8 +49,8 @@ bool PanelWidgetConfig::has_uninterpretable_coordinates(const nlohmann::json& pa
     if (config_version < kCoordinateSystemNamedFrom || !panel_node.is_object()) {
         return false;
     }
-    auto pages = panel_node.find("pages");
-    if (pages == panel_node.end() || !pages->is_array()) {
+    auto* pages = helix::json_util::find_array(panel_node, "pages");
+    if (pages == nullptr) {
         return false;
     }
     // A `default` block (or its older spelling, "anchors": "pending") names the
@@ -75,8 +75,8 @@ bool PanelWidgetConfig::has_uninterpretable_coordinates(const nlohmann::json& pa
         if (!page.is_object()) {
             continue;
         }
-        auto widgets = page.find("widgets");
-        if (widgets == page.end() || !widgets->is_array()) {
+        auto* widgets = helix::json_util::find_array(page, "widgets");
+        if (widgets == nullptr) {
             continue;
         }
         for (const auto& entry : *widgets) {
@@ -296,7 +296,7 @@ void PanelWidgetConfig::load() {
         // other grids. Absent on every layout written before per-grid storage,
         // which reads as "not stamped yet" and is handled by switch_to_grid().
         grid_signature_ = helix::json_util::safe_string(saved, "grid");
-        if (auto p = saved.find("parked_grids"); p != saved.end() && p->is_object()) {
+        if (auto* p = helix::json_util::find_object(saved, "parked_grids")) {
             parked_grids_ = *p;
         }
 
@@ -1368,7 +1368,7 @@ void PanelWidgetConfig::switch_to_grid(int cols, int rows) {
     // Park the outgoing arrangement before touching anything.
     parked_grids_[outgoing] = serialize_pages();
 
-    if (auto it = parked_grids_.find(target); it != parked_grids_.end() && it->is_object()) {
+    if (auto* it = helix::json_util::find_object(parked_grids_, target)) {
         restore_pages(*it);
         parked_grids_.erase(target);
         grid_signature_ = target;
@@ -1561,8 +1561,8 @@ void PanelWidgetConfig::install_default(std::vector<PanelWidgetEntry> rebuilt,
 }
 
 bool PanelWidgetConfig::parked_layout_is_users(const std::string& signature) const {
-    auto it = parked_grids_.find(signature);
-    if (it == parked_grids_.end() || !it->is_object()) {
+    auto* it = helix::json_util::find_object(parked_grids_, signature);
+    if (it == nullptr) {
         return false;
     }
     const json* block = helix::json_util::find_member(*it, "default");

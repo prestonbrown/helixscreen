@@ -64,11 +64,11 @@ bool firmware_reacts_to_opening(const InputConfigReaction& reaction, bool invert
 
 InputConfigReaction input_config_reaction(const nlohmann::json& section) {
     const auto acts = [&section](const char* key) {
-        const auto it = section.find(key);
-        if (it == section.end() || !it->is_string()) {
+        const auto it = helix::json_util::read_field<std::string>(section, key);
+        if (!it) {
             return false;
         }
-        const auto& text = it->get_ref<const std::string&>();
+        const auto& text = *it;
         return std::any_of(text.begin(), text.end(),
                            [](char c) { return !std::isspace(static_cast<unsigned char>(c)); });
     };

@@ -205,10 +205,8 @@ static void parse_mode_palette(const nlohmann::json& palette_json, ModePalette& 
 
     for (size_t i = 0; i < 16; ++i) {
         const char* name = names[i];
-        std::string value;
-        if (palette_json.contains(name) && palette_json[name].is_string()) {
-            value = palette_json[name].get<std::string>();
-        }
+        std::string value =
+            helix::json_util::read_field<std::string>(palette_json, name).value_or("");
         if (value.empty()) {
             spdlog::warn("[ThemeLoader] Missing/empty '{}' in {}.{}, using default", name, filename,
                          mode_name);

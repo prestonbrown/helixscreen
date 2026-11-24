@@ -537,6 +537,68 @@ TEST_CASE_METHOD(NonlinearFixture,
         overlay.start_for_test(params(), pa::ExtruderKind::Bowden);
         CHECK(helix::ui::modal_get_top() == nullptr);
     }
+    SECTION("another material is not offered the session") {
+        auto petg = params();
+        petg.material = "PETG";
+        overlay.start_for_test(petg, pa::ExtruderKind::DirectDrive);
+        CHECK(helix::ui::modal_get_top() == nullptr);
+    }
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: another material starts its own procedure, never this one's "
+                 "values under its name",
+                 "[pa_nonlinear][pa_tuner][2174]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    print_tower();
+    overlay.adjust_height_for_test(50);
+    overlay.judge_for_test(1);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.procedure_for_test()->pass_number() == 2);
+
+    auto petg = params();
+    petg.material = "PETG";
+    overlay.start_for_test(petg, pa::ExtruderKind::DirectDrive);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.procedure_for_test() != nullptr);
+    CHECK(overlay.procedure_for_test()->pass_number() == 1);
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: another material on the same extruder keeps the model from "
+                 "before any tuning as the one to put back",
+                 "[pa_nonlinear][pa_tuner][pa_nl_session][2174]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    print_tower();
+    overlay.adjust_height_for_test(50);
+    overlay.judge_for_test(1);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(session_saved());
+    // The extruder now runs PLA's procedure values.
+    status({{"extruder",
+             {{"pressure_advance_model", "tanh"},
+              {"linear_advance", 0.0},
+              {"nonlinear_offset", 0.3},
+              {"linearization_velocity", 1.0}}}});
+
+    auto petg = params();
+    petg.material = "PETG";
+    SECTION("in memory") {
+        // The procedure on screen alone knows the model from before it.
+        clear_saved_session();
+        overlay.start_for_test(petg, pa::ExtruderKind::DirectDrive);
+    }
+    SECTION("after a restart of the screen") {
+        overlay.forget_for_test();
+        overlay.start_for_test(petg, pa::ExtruderKind::DirectDrive);
+        // PLA's passes are not offered to PETG.
+        CHECK(helix::ui::modal_get_top() == nullptr);
+    }
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.procedure_for_test()->pass_number() == 1);
+    overlay.discard_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(client.last_send_script().find("MODEL=linear ADVANCE=0.040000") != std::string::npos);
 }
 
 TEST_CASE_METHOD(NonlinearFixture, "nonlinear tuner: one press of Stop cancels the tower",

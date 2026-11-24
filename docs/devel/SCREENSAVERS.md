@@ -28,12 +28,14 @@ This doc is the map: which file owns what, how the gate decides, and how to add 
 | `include/board_fingerprint.h` | `BoardFacts`, `board_fingerprint()` and `current_board_facts()`: the board identity the level store keys on, shared with the glass gate (`include/glass_gate.h`) so both measure again on the same boards |
 | `include/screensaver.h`, `src/ui/screensaver/screensaver_manager.cpp` | `ScreensaverManager`: factories, holds, the gate, the too-heavy fallback and the last-resort black screen |
 | `include/screensaver_usage.h` | `SaverUsage`: seconds shown, starts, run endings and settled levels per saver, which the manager writes and telemetry reads (`screensaver_usage` in `docs/devel/TELEMETRY_ADMIN.md`). Always compiled |
-| `include/ui_screensaver.h`, `include/screensaver_starfield.h`, `include/screensaver_pipes.h`, `include/screensaver_bounce.h`, `include/screensaver_fireworks.h`, `include/screensaver_hyperspace.h`, `include/screensaver_flip_clock.h`, `include/screensaver_fireflies.h`, `include/screensaver_aqua.h`, `include/screensaver_highfly.h`, `include/screensaver_nixie_clock.h` | The savers |
+| `include/ui_screensaver.h`, `include/screensaver_starfield.h`, `include/screensaver_pipes.h`, `include/screensaver_bounce.h`, `include/screensaver_fireworks.h`, `include/screensaver_hyperspace.h`, `include/screensaver_flip_clock.h`, `include/screensaver_fireflies.h`, `include/screensaver_aqua.h`, `include/screensaver_highfly.h`, `include/screensaver_nixie_clock.h`, `include/screensaver_analog_clock.h` | The savers |
 | `include/screensaver_pipes_sim.h` | 3D Pipes: the node grid and growth rules, one screen of pipes, the meshes, the z-buffered rasterizer and the dissolve. No LVGL |
 | `include/screensaver_maze_sim.h`, `include/screensaver_maze.h` | The 3D maze: maze generation and opening up, the wall-following walk, the raycaster and its fog (the sim, no LVGL), and picking wall art from the thumbnail cache (the saver) |
 | `include/screensaver_fireflies_sim.h` | Fireflies: the swarms, their modes and wind, and the additive drawing (`FirefliesSim`). No LVGL |
 | `include/screensaver_flip_clock_sim.h` | Flip clock: the cards a reading shows (`flip_face`, `FlipClockState`), the card layout and its proportions (`CardGeometry`), and the drawing (`FlipClockSim`). No LVGL |
 | `include/screensaver_nixie_clock_sim.h` | Nixie clock: the tube proportions (`kNixieTubeGeometry`), the cached tube art (`NixieTubeArt`) and the drawing (`NixieClockSim`); `NixieClockState` is the flip clock's state. No LVGL |
+| `include/screensaver_analog_clock_sim.h`, `include/screensaver_analog_faces.h` | Analog clock: the faces (`AnalogStyle`), the hands' motion (`analog_hands`, `analog_spring`), the layout, the cached dial and the hands' boxes (`AnalogClockSim`), and what each face draws. No LVGL |
+| `include/screensaver_analog_paint.h` | Antialiased shapes from distance fields (`APainter`): discs, rings, arcs, wedges, tapered bars, trails, glows and soft shadows over a FrameTarget. No LVGL |
 | `include/screensaver_clock_reading.h` | What every clock saver reads: `ClockState` (the countdown, pause and done-hold machine), `ClockReading`, `clock_time`, `clock_drift_at`. No LVGL |
 | `include/screensaver_clock.h` | The app side of the clock savers: `saver_clock_now`, `clock_print_phase`, the print, date and AM/PM text, `clock_font_fitting`, and `SaverLabel`, a text line kept over a scene that repaints beneath it |
 | `include/screensaver_stroke_digits.h` | Digits as strokes along lines and arcs, rasterised at any size and stroke weight: the flip clock's bold cards, Aqua's ring digits and High Fly's thin numerals |
@@ -71,7 +73,9 @@ bouncing printer and bouncing logo (one class; `BouncingLogoScreensaver` swaps t
 and then draws its tunnel and goo in 2x2 blocks, drops the goo, draws the tunnel in 4x4 blocks, and
 last drops the tunnel and flies 96 of its 160 stars; the flip clock per `kFlipClockLevels`: the folding
 flip at 33 ms, then an instant digit swap checked every 250 ms; the nixie clock per `kNixieClockLevels`:
-the cross-fade and cathode cycling at 33 ms, then an instant swap checked every 250 ms; fireflies per `kFirefliesLevels`:
+the cross-fade and cathode cycling at 33 ms, then an instant swap checked every 250 ms; the analog clock per
+`kAnalogClockLevels`: each face's own motion with trails and glows at 16 and 33 ms, then every face ticking
+once a second with neither, checked every 250 ms; fireflies per `kFirefliesLevels`:
 33 ms past level 0, then tails one pixel wide with no glow halo, then 120 flies with 1.5 s tails
 at 50 ms, and last 48 flies with 0.75 s tails at 100 ms; Aqua Surface per `kAquaLevels`: the
 water at half resolution at 33 ms, then quarter resolution with fewer slices at 50 ms and
@@ -392,7 +396,7 @@ wandering every 8 to 15 s: stop, loop, glow, hyperspeed, split, merge and a wind
 
 ## Flip clock
 
-The clock savers (the flip clock, the nixie clock, Aqua Surface and High Fly) are the ones that read app state.
+The clock savers (the flip clock, the nixie clock, the analog clock, Aqua Surface and High Fly) are the ones that read app state.
 `SaverHost::print_status` hands them the print lifecycle, the remaining time the print status panel shows (`print_time_left`, smoothed
 by `PrintEtaEstimator`) and the displayed progress; `saver_clock_now()` adds the local time,
 the date and the Time Format setting. `ClockState` (shared with Aqua Surface and High Fly)
@@ -474,6 +478,45 @@ clock.
   a countdown's smaller tubes with the small row), about 150 KB at 480x272. The firmware builds
   no savers, so the K-Touch carries none of it.
 - **No flicker.** A flickering tube would redraw every frame.
+
+## Analog clock
+
+One saver, five faces, picked by the Clock Face setting (`/display/screensaver_clock_face`: 0 to 4
+in `AnalogStyle` order, 5 Shuffle, a different face each run). The Random saver shuffles the face
+too (`analog_style_for_run`). The Clock Face row in Settings > Display shows only while Analog Clock
+is the chosen saver.
+
+| Face | Motion | A running print |
+|---|---|---|
+| Chronograph (default) | Smooth sweep | The bezel fills; subdials show progress, time left and the finish time. Paused, the seconds hand stops where it stands |
+| Station Clock | Sprung: each step overshoots and settles (`analog_spring`, `kAnalogSpringMs`); the minute hand holds all minute and springs over at :00 | An arc on the rim from the hour hand to a dot at the finish time |
+| Neon | Sweep with a magenta afterglow behind the seconds hand | A ring outside the dial, and the time left in words |
+| Bauhaus | Ticks once a second | A wedge from the hour hand to the finish time, and a side column (under the clock on a portrait screen) with the date, the state and a progress bar |
+| Orrery | Planets on orbits, each trailing a short comet tail | A dotted outer orbit fills |
+
+With no print the chronograph's subdials show a 24-hour hand and the weekday. A paused or ended
+print takes `print_state_color` wherever the face shows the print.
+
+- **The dial is cached.** `AnalogClockSim` draws everything but the hands (dial, print display,
+  subdial hands) into its own frame-sized buffer, and only when what that shows changes
+  (`DialKey`: the minute, the print's state, progress and countdown minute, the date). A burn-in
+  drift step waits for the next such redraw, so a redraw paints the whole frame about once a
+  minute. Time left is shown in whole minutes rounded up (`analog_countdown_minutes`), so its
+  words change only with the dial. Every other frame restores the dial under the
+  boxes the moving hands left and draws all the hands clipped to those boxes, so a still minute
+  hand costs nothing and a ticking face writes nothing between ticks.
+- **Text goes into the dial.** The sim places each text (`AnalogText`, a role and a box); the
+  saver words it in the user's language and draws it into the dial through a hidden LVGL canvas
+  over the sim's buffer (`AnalogClockScreensaver::write_texts`), so the hands pass over the text
+  and a subdial's own hand passes under its number.
+- **Shapes.** Every shape is a signed distance evaluated per pixel over its box (`APainter`), with
+  one coverage rule (`edge_cover`): a crisp edge, a glow (the shape grown and softened at low
+  alpha) and a drop shadow (offset and softened) are the same call. The afterglow and comet tails
+  are a ring band whose alpha falls with the angle behind the head (`APainter::trail`), drawn
+  analytically, so there is no history buffer.
+- **Smallest screens.** At a short side of 390 px or less the chronograph leaves out its subdial
+  captions and keeps the numbers.
+- **Memory.** One frame-sized dial buffer: 1.5 MB at 800x480 on a 32 bpp build, 750 KB at 16 bpp.
 
 ## Long runs
 

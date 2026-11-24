@@ -3,6 +3,8 @@
 
 #include "snapmaker_print_preferences.h"
 
+#include "json_utils.h"
+
 #include "hv/json.hpp"
 
 namespace helix::snapmaker {
@@ -28,7 +30,7 @@ std::optional<bool> read_flag(const nlohmann::json& obj, const char* key) {
 /// A per-toolhead list of flags, in either spelling; empty when absent.
 std::vector<bool> read_flag_list(const nlohmann::json& ptc, const char* key) {
     std::vector<bool> out;
-    if (auto it = ptc.find(key); it != ptc.end() && it->is_array()) {
+    if (auto* it = helix::json_util::find_array(ptc, key)) {
         for (const auto& v : *it) {
             if (v.is_boolean()) {
                 out.push_back(v.get<bool>());
@@ -83,8 +85,8 @@ PrintPreferences read_print_preferences(const nlohmann::json& status) {
     if (!status.is_object()) {
         return p;
     }
-    auto ptc = status.find("print_task_config");
-    if (ptc == status.end() || !ptc->is_object()) {
+    auto* ptc = helix::json_util::find_object(status, "print_task_config");
+    if (ptc == nullptr) {
         return p;
     }
     p.auto_replenish = read_flag(*ptc, "auto_replenish_filament");
@@ -92,8 +94,8 @@ PrintPreferences read_print_preferences(const nlohmann::json& status) {
     p.filament_entangle_detect = read_flag(*ptc, "filament_entangle_detect");
     p.end_led_turn_off = read_flag(*ptc, "end_led_turn_off");
 
-    if (auto it = ptc->find("filament_entangle_sen"); it != ptc->end() && it->is_string()) {
-        p.filament_entangle_sen = it->get<std::string>();
+    if (const auto it = helix::json_util::read_field<std::string>(*ptc, "filament_entangle_sen")) {
+        p.filament_entangle_sen = *it;
     }
     p.end_unload_filament = read_flag_list(*ptc, "end_unload_filament");
     p.filament_soft = read_flag_list(*ptc, "filament_soft");

@@ -156,6 +156,7 @@ translations:
   20 minutes: 20 Minuten
   24 Hour: 24 Stunden
   24-hour: 24-Stunden
+  24H: '24 STD'
   270°: 270°
   270° Clockwise: 270° im Uhrzeigersinn
   2D Heatmap: 2D-Heatmap
@@ -460,6 +461,7 @@ translations:
   An unknown error occurred.: Ein unbekannter Fehler ist aufgetreten.
   An unload was asked for, but the Box's buffer sensor sees no filament in the path.: Ein Entladen wurde angefordert, aber der Puffersensor der Box erkennt kein Filament im Weg.
   An update is available: Eine Aktualisierung ist verfügbar
+  Analog Clock: 'Analoguhr'
   Analyzing data...: Analysiere Daten...
   Analyzing data... {}s: Analysiere Daten... {}s
   Analyzing the {} axis: 'Die {}-Achse wird analysiert'
@@ -586,6 +588,7 @@ translations:
   Based on the newest {} prints: 'Basierend auf den neuesten {} Drucken'
   Batch load failed: Mehrfachladen fehlgeschlagen
   Batch unload failed: Mehrfachentladen fehlgeschlagen
+  Bauhaus: 'Bauhaus'
   Beacon auto-calibrate sent: Beacon Auto-Kalibrierung gesendet
   Beacon calibrate sent: Beacon Kalibrierung gesendet
   Bed: Heizbett
@@ -1036,6 +1039,7 @@ translations:
   Choose the order of day, month and year: Reihenfolge von Tag, Monat und Jahr wählen
   Choose what to power off or restart.: Wählen Sie, was ausgeschaltet oder neu gestartet werden soll.
   Choose which releases to get, and whether to share anonymous statistics.: 'Wähle, welche Versionen du erhältst und ob du anonyme Statistiken teilst.'
+  Chronograph: 'Chronograph'
   'Chute position: X {:.1f}, Y {:.1f}': 'Position des Auswurfschachts: X {:.1f}, Y {:.1f}'
 
   Clean: 'Reinigen'
@@ -1096,6 +1100,7 @@ translations:
   Cleared: Geräumt
   Cleared from settings — system unpair failed, may need OS Bluetooth: Aus Einstellungen entfernt – System-Entkopplung fehlgeschlagen, ggf. OS-Bluetooth nötig
   Clipboard unavailable - use SSH: Zwischenablage nicht verfügbar - verwenden Sie SSH
+  Clock Face: 'Zifferblatt'
   Clog: Verstopfung
   Clog Auto: Verstopfung Automatisch
   Clog Detection: Verstopfungserkennung
@@ -1619,6 +1624,7 @@ translations:
   ELECTRONICS & ACCESSORIES: 'ELEKTRONIK & ZUBEHÖR'
   EMERGENCY STOP: NOTAUS
   EMPTY: LEER
+  ENDS: 'ENDE'
   ETA {}: 'Ende {}'
   EXTRAS: EXTRAS
   ? 'Each correction increased the difference between the probe points: the Z motors are mapped to the wrong corners, or the probe is not repeatable.'
@@ -2696,6 +2702,7 @@ translations:
   LED strip available for lighting control: LED-Streifen zur Beleuchtungssteuerung verfügbar
   LED strip available. Add to config for lighting control?: 'LED-Streifen verfügbar. Zur Konfiguration hinzufügen, um die Beleuchtung zu steuern?'
   LEDs: LEDs
+  LEFT: 'REST'
   LOAD CELLS: 'WÄGEZELLEN'
   LOADED: GELADEN
   LOCKED: GESPERRT
@@ -3152,6 +3159,7 @@ translations:
   "Needs you, about {}": "Braucht dich, etwa {}"
   "Needs you, about {}: {}": "Braucht dich, etwa {}: {}"
   'Needs {}x{} free: remove or shrink a widget first': 'Benötigt {}x{} an freiem Platz: zuerst ein Widget entfernen oder verkleinern'
+  Neon: 'Neon'
   Net Weight (g): Nettogewicht (g)
   Network: Netzwerk
   Network Address: Netzwerkadresse
@@ -3384,6 +3392,7 @@ translations:
   Nothing to tune here: "Hier gibt es nichts einzustellen"
   'Nothing to unload: no filament at the nozzle': 'Nichts zu entladen: kein Filament an der Düse'
   Whether the Z arrows follow the bed or the Z value: "Ob die Z-Pfeile dem Bett oder dem Z-Wert folgen"
+  Which analog clock to show: 'Welche Analoguhr angezeigt wird'
   Which belt is each path?: "Welcher Riemen ist welcher Pfad?"
   Which belt is which?: "Welcher Riemen ist welcher?"
   Which computer the Advanced power rows act on: 'Welchen Computer die Energie-Zeilen unter Erweitert betreffen'
@@ -3515,6 +3524,7 @@ translations:
   Or instead of turning the others: Oder statt die anderen zu drehen
   Original: 'Original'
   Original file location unknown: Speicherort der Originaldatei unbekannt
+  Orrery: 'Planetarium'
   Oscillating... cycle %d/%d: Oszilliert... Zyklus %d/%d
   Other: Andere
   Other…: 'Andere…'
@@ -3545,6 +3555,7 @@ translations:
   PLA: PLA
   PLA - Black: PLA - Schwarz
   POWER: STROM
+  PRINT: 'DRUCK'
   PRINT OPTIONS: DRUCKOPTIONEN
   PRINTER: DRUCKER
   PRINTER FIRMWARE: 'DRUCKER-FIRMWARE'
@@ -3739,6 +3750,7 @@ translations:
   Press Scan to search: Scannen drücken zum Suchen
   Pressure Advance Tuning: Pressure-Advance-Tuning
   Pressure advance: Pressure Advance
+  Pressure advance by material: 'Pressure Advance nach Material'
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'Pressure Advance steigt mit der Turmhöhe. Beobachte die Ecken: Tippe jederzeit - oder +, dann stoppt die Rampe und du kannst deinen eigenen Wert beurteilen.'
   Pressure advance tuning: 'Pressure-Advance-Tuning'
@@ -4389,6 +4401,7 @@ translations:
   "Saved {} mm": "Gespeichert {} mm"
   Saved {} mm for {}: "{} mm für {} gespeichert"
   "Saved {} mm, {} mm after Save": "Gespeichert {} mm, {} mm nach dem Speichern"
+  Saved for {}. Every {} print starts with it.: 'Für {} gespeichert. Jeder {}-Druck startet damit.'
   Saved offset: "Gespeicherter Offset"
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: 'In Spoolman gespeichert, aber Preis, Standort, Los und Notizen der Spule wurden nicht gespeichert.'
   Saved to crash_report.txt (QR not available): In crash_report.txt gespeichert (QR nicht verfügbar)
@@ -4617,6 +4630,7 @@ translations:
   Show whatever curves you last had visible on the full graph.: Zeigt die zuletzt im vollständigen Diagramm sichtbaren Kurven an.
   Showing the 50 newest files. See more in the printer's web UI.: 'Es werden die 50 neuesten Dateien angezeigt. Mehr findest du in der Weboberfläche des Druckers.'
   Shows the new K next to the old one. You choose to save it: Zeigt den neuen K neben dem alten. Du entscheidest, ob er gespeichert wird
+  Shuffle: 'Abwechselnd'
   Shut down or restart the host: Host herunterfahren oder neu starten
   Shutdown: Herunterfahren
   Shutdown / Reboot: Herunterfahren / Neustart
@@ -4809,6 +4823,7 @@ translations:
   State: Status
   Static: 'Statisch'
   Station: 'Station'
+  Station Clock: 'Bahnhofsuhr'
   Status: Status
   Status icons: Status-Icons
   Stay at the printer.: Bleib am Drucker.
@@ -5283,6 +5298,7 @@ translations:
   The print may have failed: 'Der Druck ist möglicherweise fehlgeschlagen'
   The print moved to {} but did not resume. Check {}, then press Resume.: 'Der Druck wurde auf {} verlegt, aber nicht fortgesetzt. {} prüfen, dann Fortsetzen drücken.'
   The print settings sent with the file could not be applied.: 'Die mit der Datei gesendeten Druckeinstellungen konnten nicht übernommen werden.'
+  The print-start macro applies each material's saved tuner result, else the config's: 'Das Druckstart-Makro wendet das gespeicherte Tuning-Ergebnis jedes Materials an, sonst das der Konfiguration'
   The printable size in millimeters (X × Y × Z), from the axis limits in the printer's Klipper config.: 'Die druckbare Größe in Millimetern (X × Y × Z), aus den Achsgrenzen der Klipper-Konfiguration des Druckers.'
   The printer applied this value and keeps it for this tool.: 'Der Drucker hat diesen Wert übernommen und behält ihn für dieses Werkzeug.'
   The printer can draw a priming line before a print. HelixScreen offers it in the pre-print options.: 'Der Drucker kann vor dem Druck eine Vorbereitungslinie ziehen. HelixScreen bietet das in den Vordruck-Optionen an.'
@@ -5881,6 +5897,7 @@ translations:
   Update printer software and firmware: 'Drucker-Software und Firmware aktualisieren'
   Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.: 'Aktualisieren Sie das HelixPrint-Plugin auf 1.5.0, um alte PRINT_START-Aufrufe auszublenden.'
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': 'Auch das INDX-Heizungsmodell aktualisieren? {} enthält jetzt {}: Dichte {:.2f}, Wärmekapazität {:.2f}.'
+  Update the helper macros to save per material.: 'Aktualisiere die Hilfsmakros, um pro Material zu speichern.'
   Update your security PIN: Sicherheits-PIN aktualisieren nicht verfügbar.
   Update {} from {} to {}?: '{} von {} auf {} aktualisieren?'
   Update {} system packages?: '{} Systempakete aktualisieren?'

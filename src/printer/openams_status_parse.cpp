@@ -3,6 +3,7 @@
 
 #include "openams_status_parse.h"
 
+#include "json_utils.h"
 #include "openams_api.h"
 
 #include <algorithm>
@@ -19,37 +20,29 @@ constexpr const char* kCommandActions[] = {kCommandLoad, kCommandUnload, kComman
                                            kCommandReset};
 
 const json* object_member(const json& object, const char* key) {
-    auto it = object.find(key);
-    return it != object.end() && it->is_object() ? &(*it) : nullptr;
+    return helix::json_util::find_object(object, key);
 }
 
 const json& array_member(const json& object, const char* key) {
     static const json kEmpty = json::array();
-    auto it = object.find(key);
-    return it != object.end() && it->is_array() ? *it : kEmpty;
+    const json* array = helix::json_util::find_array(object, key);
+    return array ? *array : kEmpty;
 }
 
 std::string string_member(const json& object, const char* key, std::string fallback = {}) {
-    auto it = object.find(key);
-    return it != object.end() && it->is_string() ? it->get<std::string>() : std::move(fallback);
+    return helix::json_util::read_field<std::string>(object, key).value_or(std::move(fallback));
 }
 
 bool bool_member(const json& object, const char* key, bool fallback) {
-    auto it = object.find(key);
-    return it != object.end() && it->is_boolean() ? it->get<bool>() : fallback;
+    return helix::json_util::read_field<bool>(object, key).value_or(fallback);
 }
 
 int int_member(const json& object, const char* key, int fallback) {
-    auto it = object.find(key);
-    return it != object.end() && it->is_number_integer() ? it->get<int>() : fallback;
+    return helix::json_util::read_integer_field(object, key).value_or(fallback);
 }
 
 std::optional<double> number_member(const json& object, const char* key) {
-    auto it = object.find(key);
-    if (it == object.end() || !it->is_number()) {
-        return std::nullopt;
-    }
-    return it->get<double>();
+    return helix::json_util::read_field<double>(object, key);
 }
 
 bool lists_string(const json& array, const char* value) {
@@ -357,16 +350,15 @@ ManagerStatus parse_manager_status(const json& manager) {
         // tension, so a reading under set_point is less compression, not slack
         // or pull. A manager that publishes no pressure leaves the lane with no
         // buffer rather than a made-up reading.
-        auto pressure = lane_json.find("pressure");
-        if (pressure != lane_json.end() && pressure->is_number()) {
+        if (const auto pressure = helix::json_util::read_field<float>(lane_json, "pressure")) {
             BufferHealth fps;
-            fps.fps_value = fps.smoothed_fps = pressure->get<float>();
+            fps.fps_value = fps.smoothed_fps = *pressure;
             fps.fps_reported = true;
             fps.compression_only = true;
             fps.filament_loaded = lane.loaded_slot >= 0;
-            auto set_point = lane_json.find("set_point");
-            if (set_point != lane_json.end() && set_point->is_number()) {
-                fps.fps_set_point = set_point->get<float>();
+            if (const auto set_point =
+                    helix::json_util::read_field<float>(lane_json, "set_point")) {
+                fps.fps_set_point = *set_point;
             }
             lane_fps[lane.id] = fps;
         }

@@ -217,6 +217,14 @@ class MoonrakerDiscoverySequence {
     /// any other error, which discovery carries on past.
     bool stop_for_refused_login(const MoonrakerError& err);
 
+    /// Hand @p reason to the stored on_error callback, once, and drop on_complete with it.
+    void report_discovery_error(const std::string& reason);
+
+    // The identify reply: a refused login stops discovery, anything else carries on to the
+    // Klippy gate.
+    void on_identified(uint64_t seq, const json& identify_response);
+    void on_identify_failed(uint64_t seq, const MoonrakerError& err);
+
     /**
      * @brief Continue discovery after server.connection.identify
      *
@@ -224,6 +232,11 @@ class MoonrakerDiscoverySequence {
      * or shutdown, proceeds to continue_discovery_objects(). Otherwise aborts.
      */
     void continue_discovery(uint64_t seq);
+
+    // The gate's server.info reply: ready or shutdown goes on to the object list; any other
+    // state runs the partial discovery and defers, and a failed request aborts.
+    void on_klippy_gate(uint64_t seq, const json& server_info_response);
+    void on_klippy_gate_failed(uint64_t seq, const MoonrakerError& err);
 
     /**
      * @brief Discover Moonraker-managed power devices (fire-and-forget)

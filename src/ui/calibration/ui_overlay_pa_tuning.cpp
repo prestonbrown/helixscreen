@@ -27,6 +27,7 @@
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "macro_param_cache.h"
+#include "material_z_offset_state.h"
 #include "pa_tower_start.h"
 #include "preset_materials.h"
 #include "print_start_analyzer.h"
@@ -155,6 +156,7 @@ void PaTuningOverlay::init_subjects() {
                                   subjects_);
         UI_MANAGED_SUBJECT_INT(can_save_spool_, 0, "pa_tune_can_save_spool", subjects_);
         UI_MANAGED_SUBJECT_INT(can_save_config_, 0, "pa_tune_can_save_config", subjects_);
+        UI_MANAGED_SUBJECT_INT(can_save_material_, 0, "pa_tune_can_save_material", subjects_);
         UI_MANAGED_SUBJECT_STRING(error_, error_buf_, "", "pa_tune_error", subjects_);
         UI_MANAGED_SUBJECT_STRING(time_line_, time_line_buf_, "", "pa_tune_time_line", subjects_);
         UI_MANAGED_SUBJECT_INT(lin_blocked_, 0, "pa_tune_lin_blocked", subjects_);
@@ -268,6 +270,8 @@ void PaTuningOverlay::register_callbacks() {
         {"on_pa_tune_apply", [](lv_event_t*) { get_global_pa_tuning_overlay().apply_pick(); }},
         {"on_pa_tune_save_config",
          [](lv_event_t*) { get_global_pa_tuning_overlay().save_to_config(); }},
+        {"on_pa_tune_save_material",
+         [](lv_event_t*) { get_global_pa_tuning_overlay().save_for_material(); }},
         {"on_pa_tune_save_spool",
          [](lv_event_t*) { get_global_pa_tuning_overlay().save_to_spool(); }},
         {"on_pa_tune_discard",
@@ -1263,6 +1267,7 @@ void PaTuningOverlay::show_result() {
     active_spool_.reset();
     lv_subject_set_int(&can_save_spool_, 0);
     lv_subject_set_int(&can_save_config_, 0);
+    lv_subject_set_int(&can_save_material_, 0);
 
     // Under a nonlinear model the tower swept linear_advance. That is no
     // classic K: a spool or a slicer reading the published record would apply
@@ -1291,6 +1296,7 @@ void PaTuningOverlay::show_result() {
             .c_str());
     lv_subject_set_string(&spoolman_text_, lv_tr("Looking for the active spool..."));
     lv_subject_set_int(&can_save_config_, api_ ? 1 : 0);
+    lv_subject_set_int(&can_save_material_, 1);
     set_stage(RESULT);
 
     if (!api_) {
@@ -1391,6 +1397,20 @@ void PaTuningOverlay::save_to_config() {
                     extruder_)
             .c_str(),
         lv_tr("Save"), []() { get_global_pa_tuning_overlay().write_config(); }, owned_confirm());
+}
+
+void PaTuningOverlay::save_for_material() {
+    const auto k = session_.result();
+    if (stage_ != RESULT || !k || lv_subject_get_int(&can_save_material_) != 1) {
+        return;
+    }
+    const std::string material = helix::presets::name(selected_preset_);
+    const auto entry = helix::material_pa::linear_entry(*k);
+    helix::material_zoffset::MaterialZOffsetState::instance().save_pa(
+        api_, material, entry, [](bool ok, const std::string& message) {
+            ToastManager::instance().show(ok ? ToastSeverity::SUCCESS : ToastSeverity::ERROR,
+                                          message.c_str(), ok ? 3000 : 5000);
+        });
 }
 
 PaTuningOverlay::ConfigWrite PaTuningOverlay::config_write_for(const std::string& extruder,

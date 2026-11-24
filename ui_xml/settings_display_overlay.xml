@@ -38,6 +38,16 @@
         <display_screensaver_after_row/>
         <display_sleep_row/>
         <display_screensaver_row/>
+        <!-- The analog clock's face, shown only while the Analog Clock saver (type 14) is chosen.
+             Starts hidden so it stays hidden wherever the binding cannot resolve. -->
+        <setting_dropdown_row name="row_screensaver_clock_face"
+                              label="Clock Face" icon="clock" description="Which analog clock to show"
+                              options="Chronograph&#10;Station Clock&#10;Neon&#10;Bauhaus&#10;Orrery&#10;Shuffle"
+                              options_tag="Chronograph&#10;Station Clock&#10;Neon&#10;Bauhaus&#10;Orrery&#10;Shuffle"
+                              bind_selected="settings_screensaver_clock_face"
+                              callback="on_screensaver_clock_face_changed" hidden="true">
+          <bind_flag_if cond="settings_screensaver_type ne 14 or settings_has_screensaver eq 0" flag="hidden"/>
+        </setting_dropdown_row>
         <!-- Test Screensaver button (hidden when Off is selected). Starts hidden so it
              stays hidden wherever the binding cannot resolve. -->
         <lv_obj name="container_test_screensaver"

@@ -49,8 +49,7 @@ std::vector<std::string> user_paths() {
 }
 
 int get_int(const nlohmann::json& j, const char* key, int def) {
-    auto it = j.find(key);
-    return (it != j.end() && it->is_number()) ? it->get<int>() : def;
+    return helix::json_util::read_field<int>(j, key).value_or(def);
 }
 
 /// Resolve one product JSON into an EffectiveFilament, inheriting from its type.
@@ -84,7 +83,7 @@ EffectiveFilament to_effective(const nlohmann::json& p) {
                           .value_or(base ? base->density_g_cm3 : 0.0f);
     e.compat_group = base ? base->compat_group : "";
 
-    if (auto it = p.find("codes"); it != p.end() && it->is_object()) {
+    if (auto* it = helix::json_util::find_object(p, "codes")) {
         for (auto& [scheme, code] : it->items()) {
             if (code.is_string())
                 e.codes[scheme] = code.get<std::string>();
