@@ -10,11 +10,11 @@
 #include "screensaver_motion.h"
 #include "theme_manager.h"
 
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
 #include <ctime>
-#include <fmt/format.h>
 
 namespace helix::ui {
 
