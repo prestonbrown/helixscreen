@@ -83,11 +83,10 @@
       </text_small>
     </lv_obj>
     <wizard_frame_footer name="cal_result_footer"
-                         back_text="Discard" back_tag="Discard" back_callback="$discard_callback"
-                         back_name="btn_result_discard" skip_text="Keep for Now" skip_tag="Keep for Now"
-                         skip_callback="$keep_callback" skip_name="btn_result_keep"
+                         back_text="Discard" back_callback="$discard_callback" back_name="btn_result_discard"
+                         skip_text="Keep for Now" skip_callback="$keep_callback" skip_name="btn_result_keep"
                          skip_hide_subject="${prefix}_hide_keep" primary_text="Save to Config"
-                         primary_tag="Save to Config" primary_callback="$save_callback" primary_name="btn_result_save"
+                         primary_callback="$save_callback" primary_name="btn_result_save"
                          primary_hide_subject="${prefix}_hide_save"/>
   </view>
 </component>

@@ -3,8 +3,9 @@
 
 #include "lvgl/lvgl.h"
 
+#include <spdlog/fmt/fmt.h>
+
 #include <algorithm>
-#include <fmt/format.h>
 
 namespace helix::calibration {
 

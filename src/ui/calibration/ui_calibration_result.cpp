@@ -8,8 +8,9 @@
 #include "printer_state.h"
 #include "subject_managed_panel.h"
 
+#include <spdlog/fmt/fmt.h>
+
 #include <cstdio>
-#include <fmt/format.h>
 
 namespace helix::calibration {
 
