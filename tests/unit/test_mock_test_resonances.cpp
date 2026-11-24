@@ -4,13 +4,16 @@
 #include "belt_settle.h"
 #include "lvgl/lvgl.h"
 #include "mock_persona.h"
+#include "mock_planted_gcodes.h"
 #include "moonraker_client_mock.h"
 #include "resonance_console.h"
 #include "shaper_csv_parser.h"
 
 #include <algorithm>
+#include <cstdio>
 #include <limits>
 #include <string>
+#include <unistd.h>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -55,13 +58,35 @@ TEST_CASE_METHOD(BeltMockFixture, "mock sweep emits Klipper's exact lines", "[be
     REQUIRE(path);
     CHECK(lines.front() == "Testing frequency 5 Hz");
     CHECK(lines[lines.size() - 2] == "Testing frequency 135 Hz");
-    CHECK(lines.back().rfind(
-              "Resonances data written to /tmp/resonances_axis=1.000,-1.000,0.000_helix_belt_a_",
-              0) == 0);
+    CHECK(lines.back().rfind("Resonances data written to " + helix::mock::scratch_dir() +
+                                 "/resonances_axis=1.000,-1.000,0.000_helix_belt_a_",
+                             0) == 0);
     auto d = parse_resonance_csv(*path);
     REQUIRE(d.error == ResonanceCsvError::NONE);
     auto peak = find_peak_frequency(d.curve, 20.0f, d.curve.back().first);
     CHECK(peak.frequency == Catch::Approx(mock.belt_peak_hz('A')).margin(1.0f));
+}
+
+TEST_CASE_METHOD(BeltMockFixture,
+                 "removing the belt CSVs deletes what the mock wrote and nothing else in /tmp",
+                 "[belt][mock]") {
+    auto path =
+        run("TEST_RESONANCES AXIS=1,-1 OUTPUT=resonances NAME=helix_belt_a SWEEPING_PERIOD=0");
+    REQUIRE(path);
+    REQUIRE(access(path->c_str(), F_OK) == 0);
+    // Named like a belt CSV of this process, but no mock wrote it: the removal
+    // works from what it wrote, never from a scan of /tmp.
+    const std::string bystander =
+        MoonrakerClientMock::belt_csv_path("axis=0.000,0.000,1.000", "not_the_mock");
+    std::FILE* f = std::fopen(bystander.c_str(), "w");
+    REQUIRE(f != nullptr);
+    std::fclose(f);
+
+    MoonrakerClientMock::remove_belt_csvs();
+
+    CHECK(access(path->c_str(), F_OK) != 0);
+    CHECK(access(bystander.c_str(), F_OK) == 0);
+    std::remove(bystander.c_str());
 }
 
 TEST_CASE_METHOD(BeltMockFixture, "re-testing a path walks it toward the other", "[belt][mock]") {

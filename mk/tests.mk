@@ -1049,7 +1049,7 @@ CATCH2_COMPILE = $(CXX) $(CXXFLAGS) $(1)
 
 # Compile test main (Catch2 runner)
 # Note: No DEPFLAGS for Catch2 infrastructure - rarely changes
-$(TEST_MAIN_OBJ): $(TEST_DIR)/test_main.cpp $(TEST_DIR)/test_helpers/stale_binary_check.h $(ABI_STAMP)
+$(TEST_MAIN_OBJ): $(TEST_DIR)/test_main.cpp $(TEST_DIR)/test_helpers/stale_binary_check.h $(TEST_DIR)/test_helpers/test_sandbox.h $(ABI_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[TEST-MAIN]$(RESET) $<"
 	$(Q)$(call TEST_MAIN_COMPILE) -c $< -o $@
