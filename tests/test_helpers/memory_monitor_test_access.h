@@ -17,9 +17,10 @@ class MemoryMonitorTestAccess {
   public:
     static void fire_warning(MemoryMonitor& monitor, MemoryPressureLevel level,
                              const std::string& reason, const MemoryStats& stats,
-                             const MemoryInfo& sys_info, int64_t growth_kb) {
+                             const MemoryInfo& sys_info, int64_t growth_kb,
+                             const char* reason_code = "") {
         monitor.fire_warning(level, reason, stats, sys_info, growth_kb, /*report=*/true,
-                             /*dispatch=*/true);
+                             /*dispatch=*/true, reason_code);
     }
 };
 
