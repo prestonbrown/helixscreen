@@ -30,6 +30,7 @@
 #include "lvgl.h"
 #include "macro_param_cache.h"
 #include "pa_tower_start.h"
+#include "panel_widget_size.h"
 #include "preset_materials.h"
 #include "print_start_analyzer.h"
 #include "printer_state.h"
@@ -645,16 +646,26 @@ void PaTuningOverlay::refresh_setup() {
         est =
             helix::calibration::linear_pa_tower_estimate(helix::pa::estimate_print_seconds(params));
     }
-    // The calibration screens' shared wording for time.
-    lv_subject_set_string(&time_line_,
-                          helix::calibration::time_away_line(helix::calibration::AwayKind::Prints,
-                                                             est.walk_away_minutes)
-                              .c_str());
-    lv_subject_set_string(&time_sub_,
-                          helix::calibration::time_you_line(std::max(1, est.hands_minutes),
-                                                            nl ? lv_tr("one look at each tower")
-                                                               : lv_tr("pick the band"))
-                              .c_str());
+    // The calibration screens' shared wording for time. With room for it,
+    // what pressure advance is for leads, over both times on one line.
+    const std::string away = helix::calibration::time_away_line(
+        helix::calibration::AwayKind::Prints, est.walk_away_minutes);
+    const auto bp = helix::widget_size::current_breakpoint();
+    if (bp == UiBreakpoint::Micro || bp == UiBreakpoint::Tiny) {
+        lv_subject_set_string(&time_line_, away.c_str());
+        lv_subject_set_string(&time_sub_,
+                              helix::calibration::time_you_line(std::max(1, est.hands_minutes),
+                                                                nl ? lv_tr("one look at each tower")
+                                                                   : lv_tr("pick the band"))
+                                  .c_str());
+    } else {
+        lv_subject_set_string(&time_line_,
+                              lv_tr("Pressure advance keeps corners sharp and lines even."));
+        lv_subject_set_string(&time_sub_, fmt::format("{}. {}.", away,
+                                                      helix::calibration::time_you_line(
+                                                          std::max(1, est.hands_minutes)))
+                                              .c_str());
+    }
     lv_subject_set_string(&primary_text_, nl ? lv_tr("Start Tuning") : lv_tr("Print Tower"));
     lv_subject_set_string(&save_material_, fmt::format(fmt::runtime(lv_tr("Save for {}")),
                                                        helix::presets::name(selected_preset_))

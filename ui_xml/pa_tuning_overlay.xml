@@ -178,10 +178,6 @@
             <bind_flag_if_eq subject="pa_tune_nl_mode" flag="hidden" ref_value="1"/>
           </text_small>
           <text_small name="pa_error" width="100%" bind_text="pa_tune_error" long_mode="wrap" style_text_color="#danger"/>
-          <text_small name="pa_intro_desc"
-                      width="100%" style_margin_top="#space_xs" style_text_font="#cal_font_subtitle"
-                      style_text_color="#text_muted" style_text_line_space="#space_xxs" long_mode="wrap"
-                      text="Pressure advance pushes filament ahead of speed changes, so corners stay sharp and lines keep an even width."/>
         </calibration_intro-settings>
       </calibration_intro>
 
