@@ -4,15 +4,18 @@
 #include "ui_overlay_pa_nonlinear.h"
 
 #include "ui_callback_helpers.h"
+#include "ui_component_keypad.h"
 #include "ui_modal.h"
 #include "ui_nav.h"
 #include "ui_toast_manager.h"
 
 #include "app_globals.h"
 #include "bed_plate_context.h"
+#include "config.h"
 #include "core/observer_factory.h"
 #include "core/run_after.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 
@@ -22,6 +25,8 @@
 #include <algorithm>
 #include <cmath>
 #include <string>
+
+#include "hv/json.hpp"
 
 namespace helix::ui {
 
@@ -74,6 +79,63 @@ std::string format_value(float v) {
     return fmt::format("{:.4f}", v);
 }
 
+/// Where the procedure under way is saved, under the printer's settings.
+constexpr const char* kSessionKey = "pa_nonlinear_session";
+
+nlohmann::json model_json(const helix::pa::PaModel& m) {
+    nlohmann::json j = {{"kind", static_cast<int>(m.kind)}};
+    const auto put = [&j](const char* key, const std::optional<float>& v) {
+        if (v) {
+            j[key] = *v;
+        }
+    };
+    put("k", m.k);
+    put("advance", m.linear_advance);
+    put("offset", m.nonlinear_offset);
+    put("velocity", m.linearization_velocity);
+    put("time_offset", m.time_offset);
+    put("smooth_time", m.smooth_time);
+    return j;
+}
+
+helix::pa::PaModel model_from(const nlohmann::json& j) {
+    helix::pa::PaModel m;
+    const int kind = json_util::safe_int(j, "kind");
+    if (kind >= static_cast<int>(helix::pa::ModelKind::Classic) &&
+        kind <= static_cast<int>(helix::pa::ModelKind::Recipr)) {
+        m.kind = static_cast<helix::pa::ModelKind>(kind);
+    }
+    const auto get = [&j](const char* key) { return json_util::read_field<float>(j, key); };
+    m.k = get("k");
+    m.linear_advance = get("advance");
+    m.nonlinear_offset = get("offset");
+    m.linearization_velocity = get("velocity");
+    m.time_offset = get("time_offset");
+    m.smooth_time = get("smooth_time");
+    return m;
+}
+
+/// The procedure a saved session holds, or nullopt.
+std::optional<helix::pa::NonlinearProcedure> saved_procedure(const nlohmann::json& saved) {
+    const auto* proc = json_util::find_object(saved, "procedure");
+    return proc ? helix::pa::NonlinearProcedure::from_json(*proc) : std::nullopt;
+}
+
+/// The saved procedure for @p heater and @p kind, or nullopt.
+std::optional<nlohmann::json> saved_session(const std::string& heater,
+                                            helix::pa::ExtruderKind kind) {
+    const auto* cfg = helix::Config::get_instance();
+    const nlohmann::json* j = cfg ? cfg->try_get_json(cfg->df() + kSessionKey) : nullptr;
+    if (!j || json_util::safe_string(*j, "heater") != heater) {
+        return std::nullopt;
+    }
+    const auto restored = saved_procedure(*j);
+    if (!restored || restored->kind() != kind || restored->done()) {
+        return std::nullopt;
+    }
+    return *j;
+}
+
 } // namespace
 
 PaNonlinearOverlay::PaNonlinearOverlay() = default;
@@ -81,6 +143,7 @@ PaNonlinearOverlay::PaNonlinearOverlay() = default;
 PaNonlinearOverlay::~PaNonlinearOverlay() {
     print_state_observer_.reset();
     z_observer_.reset();
+    pa_observer_.reset();
     if (!StaticPanelRegistry::is_destroyed()) {
         deinit_subjects();
     }
@@ -100,6 +163,7 @@ void PaNonlinearOverlay::init_subjects() {
                                   subjects_);
         UI_MANAGED_SUBJECT_STRING(live_text_, live_text_buf_, "", "pa_nl_live_text", subjects_);
         UI_MANAGED_SUBJECT_INT(two_sided_, 0, "pa_nl_two_sided", subjects_);
+        UI_MANAGED_SUBJECT_INT(can_back_, 0, "pa_nl_can_back", subjects_);
         UI_MANAGED_SUBJECT_STRING(height_, height_buf_, "", "pa_nl_height", subjects_);
         UI_MANAGED_SUBJECT_STRING(height_value_, height_value_buf_, "", "pa_nl_height_value",
                                   subjects_);
@@ -120,6 +184,9 @@ void PaNonlinearOverlay::register_callbacks() {
         {"on_pa_nl_stop", [](lv_event_t*) { get_global_pa_nonlinear_overlay().stop_tower(); }},
         {"on_pa_nl_height",
          [](lv_event_t* e) { get_global_pa_nonlinear_overlay().adjust_height(user_int(e)); }},
+        {"on_pa_nl_height_edit",
+         [](lv_event_t*) { get_global_pa_nonlinear_overlay().edit_height(); }},
+        {"on_pa_nl_back", [](lv_event_t*) { get_global_pa_nonlinear_overlay().go_back(); }},
         {"on_pa_nl_judge",
          [](lv_event_t* e) { get_global_pa_nonlinear_overlay().judge(user_int(e)); }},
         {"on_pa_nl_save", [](lv_event_t*) { get_global_pa_nonlinear_overlay().save_to_config(); }},
@@ -141,8 +208,13 @@ void PaNonlinearOverlay::on_activate() {
     set_stage(stage_);
 }
 
+void PaNonlinearOverlay::on_deactivating(DeactivateReason /*reason*/) {
+    decision_awake_.reset();
+}
+
 void PaNonlinearOverlay::cleanup() {
     // The tower keeps printing with the screen closed; its observers stay.
+    decision_awake_.reset();
     OverlayBase::cleanup();
 }
 
@@ -176,6 +248,9 @@ void PaNonlinearOverlay::start(const helix::pa::TestPrintParams& params,
         set_stage(READY);
         spdlog::info("[{}] Nonlinear tuning on {}, {} passes", get_name(), params.heater,
                      proc_->pass_count());
+        if (const auto saved = saved_session(params.heater, kind)) {
+            offer_resume(*saved);
+        }
     }
     if (subjects_initialized_) {
         lv_subject_set_string(&error_, "");
@@ -185,6 +260,11 @@ void PaNonlinearOverlay::start(const helix::pa::TestPrintParams& params,
 
 void PaNonlinearOverlay::set_stage(Stage s) {
     stage_ = s;
+    if (s == JUDGE || s == RESULT) {
+        decision_awake_.acquire();
+    } else {
+        decision_awake_.reset();
+    }
     if (subjects_initialized_) {
         lv_subject_set_int(&stage_subject_, s);
         lv_subject_set_int(&busy_, s == PREPARING ? 1 : 0);
@@ -230,6 +310,7 @@ void PaNonlinearOverlay::refresh() {
         return;
     }
     lv_subject_set_int(&has_tower_, tower_available() ? 1 : 0);
+    lv_subject_set_int(&can_back_, proc_->can_go_back() ? 1 : 0);
     const auto& v = proc_->values();
     lv_subject_set_string(
         &values_,
@@ -271,7 +352,7 @@ void PaNonlinearOverlay::refresh() {
     }
     lv_subject_set_string(&pass_hint_, hint);
     lv_subject_set_int(&two_sided_, pass.judge == helix::pa::TowerSide::LeftVsFront ? 1 : 0);
-    lv_subject_set_string(&height_, fmt::format("{:.0f} mm", height_mm_).c_str());
+    lv_subject_set_string(&height_, fmt::format("{:.1f} mm", height_mm_).c_str());
     lv_subject_set_string(
         &height_value_,
         fmt::format("= {}", format_value(helix::pa::value_at(pass.sweep, height_mm_))).c_str());
@@ -376,6 +457,11 @@ void PaNonlinearOverlay::begin_observing() {
     z_observer_ = helix::ui::observe<int>(
         state.motion_state().get_gcode_position_z_subject(), this,
         [](PaNonlinearOverlay* self, int) { self->refresh_live(); }, lifetime);
+    // The sweep sets each height's value after the move that reaches it, so
+    // the readout follows the model as well as the height.
+    pa_observer_ = helix::ui::observe<int>(
+        state.temperature_state().get_pa_model_revision_subject(), this,
+        [](PaNonlinearOverlay* self, int) { self->refresh_live(); }, lifetime);
     // RAW_PRINT_STATE_OK: the pass follows the firmware tower's own job, from
     // the edge it starts to the edge it ends, cancel and error included.
     print_state_observer_ = helix::ui::observe_print_state(
@@ -386,6 +472,7 @@ void PaNonlinearOverlay::begin_observing() {
 void PaNonlinearOverlay::stop_observing() {
     print_state_observer_.reset();
     z_observer_.reset();
+    pa_observer_.reset();
 }
 
 void PaNonlinearOverlay::refresh_live() {
@@ -433,13 +520,12 @@ void PaNonlinearOverlay::on_print_state(PrintJobState state) {
         return;
     }
     stop_observing();
+    finish_tower(state);
     if (state == PrintJobState::ERROR) {
-        finish_tower();
         fail(lv_tr("The tower stopped with an error. Nothing was changed."));
         return;
     }
     // Complete, or stopped by the user: judge what printed.
-    finish_tower();
     set_stage(JUDGE);
     refresh();
 }
@@ -494,11 +580,14 @@ void PaNonlinearOverlay::on_script_done(int pass_seq) {
     arm_start_watchdog(pass_seq, kTowerStartTimeoutMs, true);
 }
 
-void PaNonlinearOverlay::finish_tower() {
-    send_ending(true);
+void PaNonlinearOverlay::finish_tower(PrintJobState state) {
+    // A job that did not complete (canceled, refused, cut off by a restart) has
+    // had its heaters turned off already: the end macro's retract would fail.
+    send_ending(true, state == PrintJobState::COMPLETE ? helix::pa::JobEnd::Completed
+                                                       : helix::pa::JobEnd::Stopped);
 }
 
-void PaNonlinearOverlay::send_ending(bool release_machine) {
+void PaNonlinearOverlay::send_ending(bool release_machine, helix::pa::JobEnd end) {
     if (!api_ || !proc_) {
         return;
     }
@@ -507,7 +596,7 @@ void PaNonlinearOverlay::send_ending(bool release_machine) {
     std::string script = helix::pa::disarm_tuning_tower_gcode() + "\n" +
                          helix::pa::set_nonlinear_gcode(params_.heater, proc_->values());
     if (release_machine) {
-        for (const auto& line : helix::pa::machine_finish_lines(params_)) {
+        for (const auto& line : helix::pa::machine_finish_lines(params_, end)) {
             script += "\n" + line;
         }
     }
@@ -527,16 +616,15 @@ void PaNonlinearOverlay::stop_tower() {
         lv_tr("Stop the tower?"),
         lv_tr("The print is canceled and you judge what has printed so far."),
         ModalSeverity::Warning, lv_tr("Stop"),
-        []() {
-            auto& self = get_global_pa_nonlinear_overlay();
-            if (!self.api_) {
+        [this]() {
+            if (!api_) {
                 return;
             }
-            self.api_->job().cancel_print([]() {},
-                                          [](const MoonrakerError& err) {
-                                              spdlog::warn("[PA Nonlinear] Cancel failed: {}",
-                                                           err.message);
-                                          });
+            api_->job().cancel_print([]() {},
+                                     [](const MoonrakerError& err) {
+                                         spdlog::warn("[PA Nonlinear] Cancel failed: {}",
+                                                      err.message);
+                                     });
         },
         owned_confirm());
 }
@@ -559,11 +647,56 @@ void PaNonlinearOverlay::raise(int attempts_left) {
 
 // JUDGE
 
-void PaNonlinearOverlay::adjust_height(int step_mm) {
+void PaNonlinearOverlay::adjust_height(int step_tenths) {
+    set_height(height_mm_ + static_cast<float>(step_tenths) / 10.0f);
+}
+
+void PaNonlinearOverlay::set_height(float height_mm) {
     if (stage_ != JUDGE) {
         return;
     }
-    height_mm_ = std::clamp(height_mm_ + static_cast<float>(step_mm), 0.0f, kTowerHeightMm);
+    // Tenths: the steps and the keypad both land on them, and float sums drift.
+    height_mm_ = std::clamp(std::round(height_mm * 10.0f) / 10.0f, 0.0f, kTowerHeightMm);
+    refresh();
+}
+
+void PaNonlinearOverlay::edit_height() {
+    if (stage_ != JUDGE) {
+        return;
+    }
+    ui_keypad_config_t config{};
+    config.initial_value = height_mm_;
+    config.min_value = 0.0f;
+    config.max_value = kTowerHeightMm;
+    config.allow_decimal = true;
+    config.allow_negative = false;
+    config.max_fraction_digits = 1;
+    config.title_label = lv_tr("Best height");
+    config.unit_label = "mm";
+    config.on_confirm = [this, token = object_lifetime_.token()](float v) {
+        if (!token.expired()) {
+            set_height(v);
+        }
+    };
+    ui_keypad_show(&config);
+}
+
+void PaNonlinearOverlay::go_back() {
+    if (!proc_ || !(stage_ == READY || stage_ == JUDGE || stage_ == RESULT)) {
+        return;
+    }
+    const auto height = proc_->go_back();
+    if (!height) {
+        return;
+    }
+    // The printer runs what the re-opened tower printed with until it is judged again.
+    send_values();
+    save_session();
+    set_stage(JUDGE);
+    height_mm_ = *height;
+    if (subjects_initialized_) {
+        lv_subject_set_string(&error_, "");
+    }
     refresh();
 }
 
@@ -582,6 +715,7 @@ void PaNonlinearOverlay::judge(int verdict) {
 
 void PaNonlinearOverlay::after_judgement() {
     send_values();
+    save_session();
     height_mm_ = kTowerHeightMm / 2.0f;
     set_stage(proc_->done() ? RESULT : READY);
     refresh();
@@ -670,9 +804,75 @@ void PaNonlinearOverlay::restore_original() {
 
 void PaNonlinearOverlay::close_procedure() {
     stop_observing();
+    clear_saved_session();
     proc_.reset();
     set_stage(READY);
     close();
+}
+
+// SESSION
+
+void PaNonlinearOverlay::save_session() {
+    auto* cfg = Config::get_instance();
+    if (!cfg || !proc_) {
+        return;
+    }
+    cfg->set<nlohmann::json>(cfg->df() + kSessionKey, {{"heater", params_.heater},
+                                                       {"procedure", proc_->to_json()},
+                                                       {"original", model_json(original_)}});
+    cfg->save();
+}
+
+void PaNonlinearOverlay::clear_saved_session() {
+    auto* cfg = Config::get_instance();
+    if (!cfg || !cfg->exists(cfg->df() + kSessionKey)) {
+        return;
+    }
+    std::string printer = cfg->df();
+    printer.pop_back(); // the section itself, without its trailing '/'
+    cfg->get_json(printer).erase(kSessionKey);
+    cfg->save();
+}
+
+void PaNonlinearOverlay::offer_resume(const nlohmann::json& saved) {
+    const auto proc = saved_procedure(saved);
+    if (!proc) {
+        return;
+    }
+    ConfirmOptions options = owned_confirm();
+    options.cancel_text = lv_tr("Start Over");
+    // owned_confirm()'s token keeps both callbacks from outliving this object.
+    options.on_cancel = [this]() { clear_saved_session(); };
+    modal_confirm(
+        lv_tr("Continue the earlier tuning?"),
+        fmt::format(fmt::runtime(lv_tr("Passes judged before are kept and pass {} "
+                                       "of {} is next. Start Over begins again from "
+                                       "pass 1.")),
+                    proc->pass_number(), proc->pass_count())
+            .c_str(),
+        ModalSeverity::Info, lv_tr("Continue"), [this, saved]() { resume(saved); }, options);
+}
+
+void PaNonlinearOverlay::resume(const nlohmann::json& saved) {
+    if (!proc_ || stage_ != READY) {
+        return;
+    }
+    auto proc = saved_procedure(saved);
+    if (!proc || proc->kind() != kind_) {
+        return;
+    }
+    proc_ = std::move(proc);
+    if (const auto* original = json_util::find_object(saved, "original")) {
+        original_ = model_from(*original);
+    }
+    spdlog::info("[{}] Continuing nonlinear tuning on {} at pass {}", get_name(), params_.heater,
+                 proc_->pass_number());
+    // The printer may have restarted since: it runs the procedure's values again,
+    // unless a job holds it.
+    if (!job_holds_machine(get_printer_state().print_state().get_print_lifecycle())) {
+        send_values();
+    }
+    refresh();
 }
 
 } // namespace helix::ui
