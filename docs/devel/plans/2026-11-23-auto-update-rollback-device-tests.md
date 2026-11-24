@@ -6,10 +6,15 @@
 
 | Run | New version | Expected |
 |---|---|---|
-| R1 launch failure | `bin/helix-screen` replaced by `#!/bin/sh` + `exit 1` | The watchdog gives up (exit 42); the launcher restores the previous version at once. Reason `exit_42` |
-| R2 hang | `bin/helix-screen` replaced by `#!/bin/sh` + `sleep 100000` | Nothing reports healthy; the launcher restores the previous version after 600 s. Reason `timeout` |
-| R3 happy path | The unmodified 99.0.0 build | It reports healthy at 150 s; the previous tree is deleted, and only that tree |
-| R4 power cut | R2's build; pull power about 60 s after the restart | After boot the guard resumes with a start count of 2 and restores at the timeout |
+| R1 launch failure | `bin/helix-screen` replaced by `#!/bin/sh` + `exit 1` | helix-watchdog retries with its backoff (3, 6, 12, 24, 48 s; `decide_restart_action`, `kRestartLoopMaxFailures` = 5) and gives up with exit 42 after about 95 s, well inside the window. The child launcher exits 42 and the guard restores. Reason `exit_42`. If the reason reads `timeout`, the watchdog kept retrying: record that as a finding |
+| R2 hang | `bin/helix-screen` replaced by `#!/bin/sh` + `sleep 100000` | Nothing reports healthy; restored after 600 s. Reason `timeout` |
+| R3 happy path | The unmodified 99.0.0 build | Reports healthy at 150 s. The kept tree, and only that tree, is deleted (on systemd only after the restarted start is healthy too) |
+| R4 power cut | R2's build; pull power about 60 s after the restart | After boot the guard resumes at start 2 and restores at the timeout |
+| R5 crash loop, real UI | A real 99.0.0 build with one scratch line after `helix::crash_loop_detected_and_record();` in `src/application/application.cpp`: `if (!get_runtime_config()->crash_loop_safe_mode) std::abort();` | It aborts on each normal start; the watchdog's crash dialog restarts it after 30 s. The fourth start, inside the detector's 120 s window, comes up in crash-loop safe mode, and its UI writes `.request`. Reason `crash_loop`, well before the 600 s timeout. If the starts are too far apart for the detector, the run ends as `timeout`: record the start times from the app log |
+| R6 too many starts | R2's build | After the restart, `echo 3 > $D/update_rollback.starts` and reboot (or power-cycle three times inside the window). The next launcher restores before starting 99.0.0. Reason `too_many_starts`, and the app log shows no 99.0.0 start after the reboot |
+| R7 broken new launcher | R3's build with `bin/helix-launcher.sh` replaced by `#!/bin/sh` + `exit 2` | The guard runs the new tree's launcher as its child, so this fails at once. Reason `exit_2` |
+| R8 stop during the window | R3's build | About 60 s after the restart: SysV `/etc/init.d/S99helixscreen stop` (use the platform's init script name), systemd `systemctl stop helixscreen`. Expect launcher log `stopped during the rollback window` or `Stopped during the rollback window`, no `Rolling back`, and `.armed`, `.old` and the new tree still present. Then start the service again: `start 2`, healthy, `.old` removed. Repeat once with `reboot` instead of stop |
+| R9 shipping build, manual update | The landing build (constant false), installed normally; serve 99.0.0 | Settings > Updates shows no Install overnight. Install Update installs 99.0.0 exactly as before this branch: afterwards no `<install>.old`, no `update_rollback.*` files, no `rollback guard` line in the launcher log. On SysV the watchdog respawns in place (`Child exited normally, restarting` after the update-restart marker); on systemd the service restarts once |
 
 ## Setup, once per device
 
@@ -22,7 +27,8 @@
 ## Making each build
 
 - R3: `scripts/serve-local-update.sh --platform <p>` builds, signs and serves 99.0.0.
-- R1 and R2: build once as for R3 and stop the server. Unzip `dist/helixscreen-<p>.zip`, replace `helixscreen/bin/helix-screen` (or the flat `bin/helix-screen` in a zip) with the two-line script from the table, `chmod +x` it, and zip it back. Then run `scripts/serve-local-update.sh --platform <p> --no-build`, which re-signs the manifest over the changed archive.
+- R5: build with the scratch line, then serve it as for R3.
+- R1, R2 and R7: build once as for R3 and stop the server. Unzip `dist/helixscreen-<p>.zip`, replace `helixscreen/bin/helix-screen` (R7: `helixscreen/bin/helix-launcher.sh`; or the flat `bin/...` in a zip) with the two-line script from the table, `chmod +x` it, and zip it back. Then run `scripts/serve-local-update.sh --platform <p> --no-build`, which re-signs the manifest over the changed archive.
 
 ## Watching a run (all runs)
 
@@ -42,13 +48,14 @@ Launcher log: `journalctl -u helixscreen -f` on systemd. On SysV, follow whereve
 **Every run**
 - App log: `Automatic install: keeping the previous version`, then `Rollback armed: v<old> -> v99.0.0, previous at <install>.old`.
 - `update_rollback.armed` appears; `<install>.old` exists and holds the previous `bin/helix-screen`.
-- Launcher log: `Update installed; relaunching under the rollback guard`, then `Starting v99.0.0 under the rollback guard (start 1, window 600s)`. On SysV this shows the watchdog handing back. If it is missing there, the old watchdog respawned in place and the platform fails.
+- Launcher log: `Update installed; relaunching under the rollback guard`, then `Starting v99.0.0 under the rollback guard (start 1, window 600s)`, then the NEW launcher's own start lines (`Selected binary`, `Starting main application`) from a second launcher PID. On SysV this shows the watchdog handing back. If it is missing there, the old watchdog respawned in place and the platform fails.
+- During the run no `helixscreen-update.service` restart appears in the journal (systemd), including right after a rollback.
 
-**R1, R2 and R4 (rollback)**
+**R1, R2, R4, R5, R6 and R7 (rollback)**
 - Launcher log: `Rolling back v99.0.0 to v<old> (reason: <reason>)` and `Rolled back to v<old>`, with the reason from the table.
 - `.result` holds `from_version=<old>`, `to_version=99.0.0` and that reason.
 - About → Version shows the old version, and the screen works: touch, printer status, a jog.
-- The notification "Update Rolled Back" reads "v99.0.0 did not start properly, so v<old> was put back.", and it stays in notification history.
+- The notification "Update Rolled Back" reads "v99.0.0 did not start properly, so v<old> was put back.", and it stays in notification history. Restart the service within 120 s of the rollback: the notice appears again. Restart after 120 s: it does not.
 - `<install>.failed`, `<install>.old` and `update_rollback.armed`/`.starts`/`.request` are gone. Settings, `helixscreen.env`, printer config and user themes are as they were before the install.
 - `/update/dismissed_version` in settings.json is `99.0.0`, and no new install starts at the next tick, even with the window still open.
 - R4 only: after boot the launcher log shows `start 2`.
@@ -58,6 +65,7 @@ Launcher log: `journalctl -u helixscreen -f` on systemd. On SysV, follow whereve
 - On systemd only: the service restarts once more right after that, for the unit refresh. It must come back on 99.0.0 with no rollback.
 - Gone: only `<install>.old` and the `update_rollback.*` files. Still present: the install, its `config/` (diff it against a copy taken before the run), `<install parent>/.helixscreen/` and its other files, `printer_data`, and any other `<install>.old.<n>` the user had.
 - Run `ls -la <install parent>` before and after: no other entry appears or disappears.
+- Start a print from the slicer between the install and the restart (or between the healthy report and the systemd unit-refresh restart): the restart waits until the print ends (`restart waits for the job to end`, or the watcher's busy hold), and the print is never interrupted by a UI restart.
 
 ## Platform classes
 
