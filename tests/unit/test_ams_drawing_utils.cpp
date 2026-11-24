@@ -21,9 +21,7 @@ using helix::SlotError;
 using helix::SlotInfo;
 using helix::SlotStatus;
 
-// ============================================================================
 // SlotInfo::is_present tests
-// ============================================================================
 
 TEST_CASE("SlotInfo::is_present returns false for EMPTY", "[ams_draw][slot_info]") {
     SlotInfo slot;
@@ -61,9 +59,7 @@ TEST_CASE("SlotInfo::is_present returns true for BLOCKED", "[ams_draw][slot_info
     REQUIRE(slot.is_present());
 }
 
-// ============================================================================
 // Color utility tests
-// ============================================================================
 
 TEST_CASE("ams_draw::lighten_color adds amount clamped to 255", "[ams_draw][color]") {
     lv_color_t c = lv_color_make(100, 200, 250);
@@ -107,9 +103,7 @@ TEST_CASE("ams_draw::blend_color clamps factor to [0,1]", "[ams_draw][color]") {
     REQUIRE(above.red == 200);
 }
 
-// ============================================================================
 // Severity & Error tests
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::severity_color maps ERROR to danger",
                  "[ams_draw][severity]") {
@@ -156,9 +150,7 @@ TEST_CASE("ams_draw::worst_unit_severity finds ERROR among warnings", "[ams_draw
     REQUIRE(ams_draw::worst_unit_severity(unit) == SlotError::ERROR);
 }
 
-// ============================================================================
 // Fill percent tests
-// ============================================================================
 
 TEST_CASE("ams_draw::fill_percent_from_slot with known weight", "[ams_draw][fill]") {
     SlotInfo slot;
@@ -215,9 +207,7 @@ TEST_CASE("ams_draw::fill_percent_from_slot custom min_pct", "[ams_draw][fill]")
     REQUIRE(ams_draw::fill_percent_from_slot(slot, 10) == 10);
 }
 
-// ============================================================================
 // Bar width tests
-// ============================================================================
 
 TEST_CASE("ams_draw::calc_bar_width distributes evenly", "[ams_draw][bar_width]") {
     int32_t w = ams_draw::calc_bar_width(100, 4, 2, 6, 14);
@@ -239,9 +229,7 @@ TEST_CASE("ams_draw::calc_bar_width handles zero slots", "[ams_draw][bar_width]"
     REQUIRE(w == 14);
 }
 
-// ============================================================================
 // Display name tests
-// ============================================================================
 
 TEST_CASE("unit_display_name uses name when set", "[ams_draw][display_name]") {
     AmsUnit unit;
@@ -283,9 +271,7 @@ TEST_CASE("unit_display_name with display_name no underscores", "[ams_draw][disp
     REQUIRE(helix::ui::unit_display_name(unit, 0) == "My Unit");
 }
 
-// ============================================================================
 // Transparent Container
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::create_transparent_container basic properties",
                  "[ams_draw][container]") {
@@ -298,9 +284,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::create_transparent_container basic 
     REQUIRE_FALSE(lv_obj_is_scrollable(c));
 }
 
-// ============================================================================
 // Error Badge
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::create_error_badge creates circle",
                  "[ams_draw][badge]") {
@@ -324,9 +308,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::update_error_badge shows on error",
     REQUIRE(lv_obj_is_hidden(badge));
 }
 
-// ============================================================================
 // Pulse Animation
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::start_pulse and stop_pulse don't crash",
                  "[ams_draw][pulse]") {
@@ -349,9 +331,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::start_pulse and stop_pulse don't cr
     REQUIRE(lv_obj_get_style_shadow_width(dot, LV_PART_MAIN) == 0);
 }
 
-// ============================================================================
 // Slot Bar Column
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::create_slot_column creates all parts",
                  "[ams_draw][slot_bar]") {
@@ -368,9 +348,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::create_slot_column creates all part
     REQUIRE(lv_obj_get_parent(col.status_line) == col.container);
 }
 
-// ============================================================================
 // Logo Helper
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::apply_logo hides image when no logo found",
                  "[ams_draw][logo]") {

@@ -194,34 +194,53 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         const IFirmwarePromptDedup* prompt_dedup = nullptr;
         const ISharedSpoolLanes* shared_spools = nullptr;
         const ILaneFaults* lane_faults = nullptr;
+        const IRunoutOtherHead* runout_other_head = nullptr;
+        const IPrintAreaIntrusion* print_area = nullptr;
+        const ISpoolmanTagLinks* tag_links = nullptr;
+        const IEditFollowUp* edit_follow_up = nullptr;
+        const IToolPark* park = nullptr;
     };
     const Row rows[] = {
         {.backend = &ace, .dryer = &ace},
-        {.backend = &ad5x, .steps = &ad5x, .routing = &ad5x},
+        {.backend = &ad5x, .steps = &ad5x, .insert = &ad5x, .routing = &ad5x},
         {.backend = &multi_ace,
          .steps = &multi_ace,
          .insert = &multi_ace,
          .dryer = &multi_ace,
          .routing = &multi_ace,
-         .shared_spools = &multi_ace},
+         .shared_spools = &multi_ace,
+         .runout_other_head = &multi_ace,
+         .park = &multi_ace},
         {.backend = &openams, .dryer = &openams},
         {.backend = &qidi, .dryer = &qidi},
-        {.backend = &snapmaker, .steps = &snapmaker, .insert = &snapmaker, .routing = &snapmaker},
-        {.backend = &indx, .feeder = &indx, .steps = &indx},
-        {.backend = &tool_changer, .feeder = &tool_changer, .steps = &tool_changer},
+        {.backend = &snapmaker,
+         .steps = &snapmaker,
+         .insert = &snapmaker,
+         .routing = &snapmaker,
+         .runout_other_head = &snapmaker,
+         .park = &snapmaker},
+        {.backend = &indx, .feeder = &indx, .steps = &indx, .edit_follow_up = &indx, .park = &indx},
+        {.backend = &tool_changer,
+         .feeder = &tool_changer,
+         .steps = &tool_changer,
+         .park = &tool_changer},
         {.backend = &afc,
          .recovery = &afc,
          .narration = &afc,
          .dryer = &afc,
          .retention = &afc,
          .lane_faults = &afc},
-        {.backend = &cfs, .calibration = &cfs, .routing = &cfs},
+        {.backend = &cfs,
+         .calibration = &cfs,
+         .routing = &cfs,
+         .print_area = &cfs,
+         .tag_links = &cfs},
         {.backend = &happy_hare,
          .gates = &happy_hare,
          .dryer = &happy_hare,
          .clog = &happy_hare,
          .prompt_dedup = &happy_hare},
-        {.backend = &mock, .gates = &mock, .dryer = &mock, .routing = &mock},
+        {.backend = &mock, .gates = &mock, .dryer = &mock, .routing = &mock, .park = &mock},
     };
     struct NothingImplementsThis {};
     for (const Row& row : rows) {
@@ -240,6 +259,11 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         CHECK(row.backend->as<IFirmwarePromptDedup>() == row.prompt_dedup);
         CHECK(row.backend->as<ISharedSpoolLanes>() == row.shared_spools);
         CHECK(row.backend->as<ILaneFaults>() == row.lane_faults);
+        CHECK(row.backend->as<IRunoutOtherHead>() == row.runout_other_head);
+        CHECK(row.backend->as<IPrintAreaIntrusion>() == row.print_area);
+        CHECK(row.backend->as<ISpoolmanTagLinks>() == row.tag_links);
+        CHECK(row.backend->as<IEditFollowUp>() == row.edit_follow_up);
+        CHECK(row.backend->as<IToolPark>() == row.park);
         // A start that promises a pre-print step needs something to build it.
         CHECK((!row.backend->requires_preprint_send() || row.routing != nullptr));
         CHECK(row.backend->as<NothingImplementsThis>() == nullptr);
@@ -278,9 +302,7 @@ TEST_CASE("Mock AFC load leaves only the new lane loaded", "[ams][mock][traits]"
     mock.stop();
 }
 
-// ============================================================================
 // Runout ownership
-// ============================================================================
 
 namespace {
 

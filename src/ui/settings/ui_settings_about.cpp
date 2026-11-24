@@ -61,9 +61,7 @@ AboutSettingsOverlay::~AboutSettingsOverlay() {
 #endif
 }
 
-// ============================================================================
 // INITIALIZATION
-// ============================================================================
 
 void AboutSettingsOverlay::init_subjects() {
     init_subjects_guarded([this]() {
@@ -218,9 +216,7 @@ lv_obj_t* AboutSettingsOverlay::create(lv_obj_t* parent) {
     return overlay_root_;
 }
 
-// ============================================================================
 // LIFECYCLE
-// ============================================================================
 
 void AboutSettingsOverlay::on_activate() {
     OverlayBase::on_activate();
@@ -258,9 +254,7 @@ void AboutSettingsOverlay::on_deactivating(DeactivateReason) {
 #endif
 }
 
-// ============================================================================
 // CONTRIBUTOR MARQUEE
-// ============================================================================
 
 void AboutSettingsOverlay::setup_contributor_marquee() {
     lv_obj_t* marquee_container =
@@ -292,9 +286,7 @@ void AboutSettingsOverlay::setup_contributor_marquee() {
                   kContributorCount);
 }
 
-// ============================================================================
 // INFO ROWS
-// ============================================================================
 
 void AboutSettingsOverlay::populate_info_rows() {
     // Version

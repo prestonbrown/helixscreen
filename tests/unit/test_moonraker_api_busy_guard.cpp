@@ -45,14 +45,12 @@ void set_print_start_phase(PrinterState& state, PrintStartPhase phase) {
 
 } // namespace
 
-// ============================================================================
 // Benign discretionary gcode (fan/temp/LED) QUEUES while a blocking op is active
-// ============================================================================
 
 TEST_CASE_METHOD(BusyGuardApiFixture,
                  "execute_gcode queues benign discretionary gcode while homing/leveling",
                  "[busy_guard][mock]") {
-    // #1108: benign commands are no longer rejected — they queue in Klipper and run
+    // #1108: benign commands are not rejected: they queue in Klipper and run
     // when the lock frees. The command must actually be SENT and no error surfaced.
     SECTION("idle_timeout Printing + not a file print queues a fan command") {
         set_idle_printing(true); // homing/leveling holds the gcode lock
@@ -79,19 +77,17 @@ TEST_CASE_METHOD(BusyGuardApiFixture,
     }
 }
 
-// ============================================================================
 // The queued path settles callers through a DISTINCT "queued" outcome (#1129)
-// ============================================================================
 
 TEST_CASE_METHOD(BusyGuardApiFixture,
                  "queued discretionary gcode settles via on_queued, never on_success",
                  "[busy_guard][mock][led]") {
     // Two failure modes bracket this path.
     //
-    // Dropping BOTH callbacks (the original #1108 shape) wedges callers that pair
+    // Dropping BOTH callbacks wedges callers that pair
     // a dispatch counter with them — LedController's note_command_dispatched /
     // note_command_settled drive the led_command_in_flight subject the light
-    // buttons disable on, so the buttons greyed out permanently (#1129).
+    // buttons disable on, so the buttons grayed out permanently (#1129).
     //
     // Settling via on_success is a different bug: for every other caller
     // on_success means "the printer did it". Cooldown sends
@@ -192,9 +188,7 @@ TEST_CASE_METHOD(BusyGuardApiFixture, "a refused move never fires on_queued",
     CHECK(mock_client.gcode_script_history().empty());
 }
 
-// ============================================================================
 // A physical MOVE is still REFUSED while a blocking op is active
-// ============================================================================
 
 TEST_CASE_METHOD(BusyGuardApiFixture, "execute_gcode refuses a raw move while homing/leveling",
                  "[busy_guard][mock]") {
@@ -212,9 +206,7 @@ TEST_CASE_METHOD(BusyGuardApiFixture, "execute_gcode refuses a raw move while ho
     CHECK(mock_client.gcode_script_history().empty());
 }
 
-// ============================================================================
 // Discretionary gcode is NOT blocked when the printer is idle
-// ============================================================================
 
 TEST_CASE_METHOD(BusyGuardApiFixture, "execute_gcode allows discretionary gcode when idle",
                  "[busy_guard][mock]") {
@@ -229,9 +221,7 @@ TEST_CASE_METHOD(BusyGuardApiFixture, "execute_gcode allows discretionary gcode 
     CHECK_FALSE(mock_client.gcode_script_history().empty());
 }
 
-// ============================================================================
 // Discretionary gcode is NOT blocked during a real file print
-// ============================================================================
 
 TEST_CASE_METHOD(BusyGuardApiFixture,
                  "execute_gcode allows discretionary gcode during an active print",
@@ -257,9 +247,7 @@ TEST_CASE_METHOD(BusyGuardApiFixture,
     }
 }
 
-// ============================================================================
 // Print start holds the same gate even while print_stats says PRINTING
-// ============================================================================
 //
 // The START macro (heat soak, mesh, probing) holds Klipper's single-threaded
 // gcode lock for minutes while print_stats already reports PRINTING — the
@@ -460,9 +448,7 @@ TEST_CASE_METHOD(BusyGuardApiFixture,
     CHECK(state.calibration_state().claim_busy_queue_toast());
 }
 
-// ============================================================================
 // Non-discretionary (recovery/homing) gcode is NEVER blocked by the busy guard
-// ============================================================================
 
 TEST_CASE_METHOD(BusyGuardApiFixture,
                  "execute_gcode always allows non-discretionary gcode even while busy",
@@ -484,9 +470,7 @@ TEST_CASE_METHOD(BusyGuardApiFixture,
     }
 }
 
-// ============================================================================
 // Self-inflicted busy (app's own jog in flight) is NOT blocked
-// ============================================================================
 
 TEST_CASE_METHOD(BusyGuardApiFixture,
                  "execute_gcode allows discretionary gcode while app motion is in flight",
@@ -509,16 +493,14 @@ TEST_CASE_METHOD(BusyGuardApiFixture,
     state.app_motion_activity().note_done();
 }
 
-// ============================================================================
 // The refusal reason survives all the way to the user-facing string
-// ============================================================================
 
 TEST_CASE("MoonrakerError::user_message prefers a populated message for NOT_READY",
           "[busy_guard][errors]") {
-    // user_message() returned the type-based string BEFORE checking `message`,
-    // so every guard's specific reason was overridden by the generic
-    // "wait for initialization" text — which is actively wrong for a transient
-    // blocking op the user should just retry.
+    // user_message() must check `message` BEFORE falling back to the type-based
+    // string, or every guard's specific reason is replaced by the generic
+    // "wait for initialization" text, which is wrong for a transient blocking op
+    // the user should just retry.
     MoonrakerError busy;
     busy.type = MoonrakerErrorType::NOT_READY;
     busy.message = "Printer is busy — try again in a moment";
@@ -536,8 +518,7 @@ TEST_CASE("MoonrakerError::user_message prefers a populated message for NOT_READ
 
     // TIMEOUT / CONNECTION_LOST deliberately keep their curated type text: their
     // `message` fields carry diagnostic detail ("WebSocket connection lost"),
-    // which is jargon beside the friendly string. Narrow fix, not a blanket
-    // "message always wins".
+    // which is jargon beside the friendly string.
     CHECK(MoonrakerError::connection_lost("printer.gcode.script").user_message() ==
           "Connection to printer lost.");
     CHECK(MoonrakerError::timeout("printer.gcode.script", 30000).user_message() ==
@@ -549,8 +530,8 @@ TEST_CASE_METHOD(BusyGuardApiFixture, "busy refusal reaches the user as the busy
     set_idle_printing(true);
     set_print_state(PrintJobState::STANDBY);
 
-    // A move is still refused (benign fan/temp/LED now queue instead); its message
-    // is what the toast renders — the whole point of the guard's message.
+    // A move is refused (benign fan/temp/LED queue instead); its message
+    // is what the toast renders.
     api->execute_gcode("G0 X10 F3000", nullptr,
                        [this](const MoonrakerError& err) { error_cb(err); });
 
@@ -558,9 +539,7 @@ TEST_CASE_METHOD(BusyGuardApiFixture, "busy refusal reaches the user as the busy
     CHECK(captured_error.user_message() == "Printer is busy — try again in a moment");
 }
 
-// ============================================================================
 // Motion API routes through the same guard
-// ============================================================================
 
 TEST_CASE_METHOD(BusyGuardApiFixture, "motion execute_gcode refuses discretionary move while busy",
                  "[busy_guard][mock][motion]") {
@@ -586,9 +565,7 @@ TEST_CASE_METHOD(BusyGuardApiFixture, "motion execute_gcode refuses discretionar
     }
 }
 
-// ============================================================================
 // Self-busy comes from episode ownership alone
-// ============================================================================
 
 namespace {
 
@@ -661,7 +638,7 @@ TEST_CASE_METHOD(BusyGuardApiFixture,
                  "[busy_guard][mock][motion][1108]") {
     // The app's jog started the episode 4 s ago and acked. A later jog has sat
     // unacked for 2.5 s: Klipper is running someone else's command, so the
-    // busy-ness is no longer the app's.
+    // busy-ness is not the app's.
     set_idle_printing(true);
     set_print_state(PrintJobState::STANDBY);
     const auto start = observe_episode_start(state, std::chrono::seconds(4));

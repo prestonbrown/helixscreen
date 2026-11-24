@@ -21,16 +21,14 @@ using helix::SlotInfo;
  * @file test_ams_system_tool_layout.cpp
  * @brief Unit tests for compute_system_tool_layout()
  *
- * Tests the physical nozzle position calculation that fixes the bug where
- * HUB units with unique per-lane mapped_tool values (real AFC behavior)
- * inflated the total nozzle count in the system path canvas.
+ * Tests the physical nozzle position calculation: HUB units with unique
+ * per-lane mapped_tool values (real AFC behavior) must not inflate the total
+ * nozzle count in the system path canvas.
  */
 
 using namespace ams_draw;
 
-// ============================================================================
 // Core: HUB units with unique per-lane mapped_tools (the user's bug)
-// ============================================================================
 
 TEST_CASE("SystemToolLayout: 3 HUB units with unique mapped_tools", "[ams][tool_layout]") {
     // 3 HUB units, slots have mapped_tool {0-3}, {4-7}, {8-11}
@@ -65,9 +63,7 @@ TEST_CASE("SystemToolLayout: 3 HUB units with unique mapped_tools", "[ams][tool_
     }
 }
 
-// ============================================================================
 // User's exact mixed setup (Box Turtle + 2x OpenAMS)
-// ============================================================================
 
 TEST_CASE("SystemToolLayout: user's exact mixed setup", "[ams][tool_layout]") {
     // HUB(mapped 0-3) + HUB(mapped 4-7) + PARALLEL(mapped 8-11)
@@ -101,9 +97,7 @@ TEST_CASE("SystemToolLayout: user's exact mixed setup", "[ams][tool_layout]") {
     CHECK(layout.units[2].tool_count == 1);
 }
 
-// ============================================================================
 // Mock mixed topology (HUB + HUB + PARALLEL)
-// ============================================================================
 
 TEST_CASE("SystemToolLayout: mock mixed topology", "[ams][tool_layout]") {
     helix::AmsBackendMock backend(4);
@@ -124,9 +118,7 @@ TEST_CASE("SystemToolLayout: mock mixed topology", "[ams][tool_layout]") {
     CHECK(layout.units[2].tool_count == 1);
 }
 
-// ============================================================================
 // All-PARALLEL system (tool changer, 3 units)
-// ============================================================================
 
 TEST_CASE("SystemToolLayout: all-PARALLEL system", "[ams][tool_layout]") {
     AmsSystemInfo info;
@@ -199,9 +191,7 @@ TEST_CASE("SystemToolLayout: a unit feeding one nozzle stands left of one fannin
     CHECK(layout.display_order == std::vector<int>{1, 0});
 }
 
-// ============================================================================
 // Virtual→physical mapping for active tool highlighting
-// ============================================================================
 
 TEST_CASE("SystemToolLayout: virtual to physical mapping", "[ams][tool_layout]") {
     // HUB unit with mapped_tool {4,5,6,7} → all map to same physical nozzle
@@ -235,9 +225,7 @@ TEST_CASE("SystemToolLayout: virtual to physical mapping", "[ams][tool_layout]")
     }
 }
 
-// ============================================================================
 // Physical→virtual label mapping
-// ============================================================================
 
 TEST_CASE("SystemToolLayout: physical to virtual label mapping", "[ams][tool_layout]") {
     // HUB(mapped 0-3) + HUB(mapped 4-7)
@@ -269,9 +257,7 @@ TEST_CASE("SystemToolLayout: physical to virtual label mapping", "[ams][tool_lay
     CHECK(layout.physical_to_virtual_label[1] == 4); // Min of {4,5,6,7}
 }
 
-// ============================================================================
 // Single HUB unit (no multi-tool)
-// ============================================================================
 
 TEST_CASE("SystemToolLayout: single HUB unit", "[ams][tool_layout]") {
     AmsSystemInfo info;
@@ -300,9 +286,7 @@ TEST_CASE("SystemToolLayout: single HUB unit", "[ams][tool_layout]") {
     CHECK(layout.units[0].first_physical_tool == 0);
 }
 
-// ============================================================================
 // Empty system
-// ============================================================================
 
 TEST_CASE("SystemToolLayout: empty system", "[ams][tool_layout]") {
     AmsSystemInfo info;
@@ -316,9 +300,7 @@ TEST_CASE("SystemToolLayout: empty system", "[ams][tool_layout]") {
     CHECK(layout.physical_to_virtual_label.empty());
 }
 
-// ============================================================================
 // PARALLEL unit with no mapped_tool data (fallback)
-// ============================================================================
 
 TEST_CASE("SystemToolLayout: PARALLEL with no mapped_tool data", "[ams][tool_layout]") {
     AmsSystemInfo info;
@@ -345,9 +327,7 @@ TEST_CASE("SystemToolLayout: PARALLEL with no mapped_tool data", "[ams][tool_lay
     CHECK(layout.units[0].tool_count == 4);
 }
 
-// ============================================================================
 // HUB unit with no mapped_tool data
-// ============================================================================
 
 TEST_CASE("SystemToolLayout: HUB with no mapped_tool data", "[ams][tool_layout]") {
     AmsSystemInfo info;
@@ -378,9 +358,7 @@ TEST_CASE("SystemToolLayout: HUB with no mapped_tool data", "[ams][tool_layout]"
     CHECK(layout.units[0].hub_group == -1);
 }
 
-// ============================================================================
 // Full user scenario: virtual→physical for active tool in mixed setup
-// ============================================================================
 
 TEST_CASE("SystemToolLayout: mixed setup active tool mapping", "[ams][tool_layout]") {
     helix::AmsBackendMock backend(4);
@@ -419,9 +397,7 @@ TEST_CASE("SystemToolLayout: mixed setup active tool mapping", "[ams][tool_layou
     }
 }
 
-// ============================================================================
 // hub_tool_label overrides min_virtual_tool for labels
-// ============================================================================
 
 TEST_CASE("SystemToolLayout: hub_tool_label overrides min_virtual_tool for labels",
           "[ams][tool_layout]") {
@@ -451,9 +427,7 @@ TEST_CASE("SystemToolLayout: hub_tool_label overrides min_virtual_tool for label
     CHECK(layout.physical_to_virtual_label[0] == 4);
 }
 
-// ============================================================================
 // hub_tool_label maps to physical nozzle
-// ============================================================================
 
 TEST_CASE("SystemToolLayout: hub_tool_label used for display label not virtual mapping",
           "[ams][tool_layout]") {
@@ -492,9 +466,7 @@ TEST_CASE("SystemToolLayout: hub_tool_label used for display label not virtual m
     CHECK(layout.physical_to_virtual_label[0] == 5);
 }
 
-// ============================================================================
 // Mixed setup correct labels with hub_tool_label
-// ============================================================================
 
 TEST_CASE("SystemToolLayout: mixed setup correct labels with hub_tool_label",
           "[ams][tool_layout]") {
@@ -568,9 +540,7 @@ TEST_CASE("SystemToolLayout: mixed setup correct labels with hub_tool_label",
     CHECK(layout.physical_to_virtual_label[5] == 5);
 }
 
-// ============================================================================
 // Shared toolhead: multiple HUB units feeding into one extruder
-// ============================================================================
 
 TEST_CASE("SystemToolLayout: 3 HUB units sharing same hub_tool_label merge to 1 nozzle",
           "[ams][tool_layout]") {
@@ -664,9 +634,7 @@ TEST_CASE("SystemToolLayout: PARALLEL unit with shared mapped_tools (toolchanger
     CHECK(layout.physical_to_virtual_label[2] == 2);
 }
 
-// ============================================================================
 // PARALLEL: shared extruder deduplication (#364)
-// ============================================================================
 
 TEST_CASE("SystemToolLayout: PARALLEL shared extruder dedup via extruder_name",
           "[ams][tool_layout]") {
@@ -731,9 +699,7 @@ TEST_CASE("SystemToolLayout: PARALLEL shared extruder dedup via extruder_name",
     CHECK(layout.physical_to_virtual_label[2] == 1); // extruder2 -> min(T1,T3) = T1
 }
 
-// ============================================================================
 // PARALLEL: cross-unit lane remapping (#363)
-// ============================================================================
 
 TEST_CASE("SystemToolLayout: PARALLEL cross-unit remap does not inflate tool count",
           "[ams][tool_layout]") {
@@ -845,9 +811,7 @@ TEST_CASE("SystemToolLayout: 2 HUB units with different hub_tool_labels stay sep
     CHECK(layout.physical_to_virtual_label[1] == 1);
 }
 
-// ============================================================================
 // MIXED topology tests (lane_is_hub_routed)
-// ============================================================================
 
 TEST_CASE("SystemToolLayout: MIXED topology hub lanes share single nozzle position",
           "[ams][tool_layout][mixed]") {
@@ -975,9 +939,7 @@ TEST_CASE("SystemToolLayout: MIXED with all hub lanes gives tool_count 1",
     CHECK(layout.units[0].tool_count == 1);
 }
 
-// ============================================================================
 // Multi-unit mock regression: single toolhead must produce 1 nozzle
-// ============================================================================
 
 TEST_CASE("SystemToolLayout: multi-unit mock produces 1 physical tool", "[ams][tool_layout]") {
     // Regression test: multi-unit mock (Box Turtle + Night Owl) both feed
@@ -1040,9 +1002,7 @@ TEST_CASE("SystemToolLayout: 2 HUB units sharing hub_tool_label=0 merge to 1 noz
     CHECK(layout.units[1].tool_count == 1);
 }
 
-// ============================================================================
 // Absent units: a box held at its address while off the bus
-// ============================================================================
 
 TEST_CASE("SystemToolLayout: an absent unit feeds no nozzle and moves no other unit",
           "[ams][tool_layout][ams_draw][1464]") {
@@ -1085,9 +1045,7 @@ TEST_CASE("SystemToolLayout: an absent unit feeds no nozzle and moves no other u
     }
 }
 
-// ============================================================================
 // Hub groups: units whose lanes join one hub on the way to a toolhead
-// ============================================================================
 
 namespace {
 
@@ -1235,9 +1193,7 @@ TEST_CASE("Toolhead badges: several toolheads are named by extruder, never by a 
     }
 }
 
-// ============================================================================
 // A lane naming an already-placed nozzle's extruder shares that nozzle
-// ============================================================================
 
 namespace {
 
@@ -1436,9 +1392,7 @@ TEST_CASE("SystemToolLayout: a MIXED unit shares placed nozzles too", "[ams][too
     CHECK(layout.virtual_to_physical.at(6) == 0); // hub group on head 1's nozzle
 }
 
-// ============================================================================
 // unit_feeds_toolhead: whether a unit view draws a route on to a toolhead
-// ============================================================================
 
 TEST_CASE("SystemToolLayout: an unwired hub unit feeds no toolhead and a wired one does",
           "[ams][tool_layout]") {

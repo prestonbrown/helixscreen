@@ -169,7 +169,6 @@ class NotificationHistoryPanel : public PanelBase {
      */
     void handle_history_version_change(int32_t version);
 
-    // Action dispatch
     void dispatch_action(const char* action);
 };
 

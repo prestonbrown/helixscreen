@@ -23,9 +23,7 @@ using namespace helix::ui;
 static_assert(SpoolmanListView::kPoolSize > SpoolmanListView::kBufferRows * 2,
               "pool must be larger than the buffer above + below the viewport");
 
-// ============================================================================
 // Unit Tests (LVGLTestFixture - minimal LVGL, no XML)
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "SpoolmanListView - setup with null container",
                  "[spoolman_list_view]") {
@@ -67,9 +65,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "SpoolmanListView - cleanup without setup",
 // pool_.empty() early return (src/ui/filament/ui_spoolman_list_view.cpp:295 and friends).
 // The XML-backed cases below cover the same calls for real.
 
-// ============================================================================
 // Integration Tests (LVGLUITestFixture - full XML component registration)
-// ============================================================================
 
 static std::vector<SpoolInfo> make_test_spools(int count) {
     std::vector<SpoolInfo> spools;
@@ -262,14 +258,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - refresh_content rewrites
     REQUIRE(std::string(lv_label_get_text(weight_label)) == "42 g");
 }
 
-// ============================================================================
 // Container replacement (hot-reload rebuild) — prestonbrown/helixscreen#1396
 //
 // OverlayBase::rebuild() and PanelBase::rebuild() delete the widget tree and
 // re-create it via create() on the SAME panel instance. The list view is a
 // member of that panel, so it survives while every pool row and spacer it
 // cached dangles. setup() with the fresh container must drop the dead pool.
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - container deletion drops the cached pool",
                  "[spoolman_list_view][ui_integration][hot-reload]") {

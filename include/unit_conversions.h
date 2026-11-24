@@ -7,9 +7,7 @@
 
 namespace helix::units {
 
-// ============================================================================
 // Temperature Conversions (decidegrees = degrees × 10)
-// ============================================================================
 
 /**
  * @brief Convert Celsius to decidegrees (for UI display with 0.1° precision)
@@ -33,9 +31,7 @@ inline double from_decidegrees(int decidegrees) {
     return static_cast<double>(decidegrees) / 10.0;
 }
 
-// ============================================================================
 // Percent Conversions (0.0-1.0 ratio → 0-100 integer)
-// ============================================================================
 
 /**
  * @brief Convert ratio (0.0-1.0) to percent integer (0-100)
@@ -59,9 +55,7 @@ inline double from_percent(int percent) {
     return static_cast<double>(percent) / 100.0;
 }
 
-// ============================================================================
 // Length Conversions (centimillimeters = mm × 100)
-// ============================================================================
 
 /**
  * @brief Convert millimeters to centimillimeters (for 0.01mm precision)
@@ -85,9 +79,7 @@ inline double from_centimm(int centimm) {
     return static_cast<double>(centimm) / 100.0;
 }
 
-// ============================================================================
 // Speed/Rate Conversions
-// ============================================================================
 
 /**
  * @brief Convert speed factor (e.g., 0.5 for 50% speed) to percent

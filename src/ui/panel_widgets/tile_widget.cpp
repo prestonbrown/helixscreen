@@ -31,9 +31,7 @@ struct TileContentRow {
 constexpr TileContentRow kPureXmlTiles[] = {
     {"notifications", "", "", "Alerts", false, true},
     {"firmware_restart", "", "", "Restart", false, false},
-    {"humidity", "100%", "100%", "Humidity", true, false},
     {"lock", "", "", "Lock", false, false},
-    {"width_sensor", "8.88 mm", "8.88 mm", "Width", true, false},
 };
 
 } // namespace

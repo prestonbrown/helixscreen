@@ -101,9 +101,7 @@ class WizardLanguageChooserStep : public helix::wizard::Step {
         return "Wizard Language Chooser";
     }
 
-    // ========================================================================
     // State accessors for testing and wizard flow
-    // ========================================================================
 
     /**
      * @brief Get the screen root object

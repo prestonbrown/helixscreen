@@ -3,7 +3,7 @@
 
 /**
  * @file test_moonraker_client_reconnect.cpp
- * @brief Regression tests for install-once WebSocket callbacks.
+ * @brief Tests for install-once WebSocket callbacks.
  *
  * connect() must not reassign the inherited libhv std::function callbacks
  * (onopen/onmessage/onclose) on every call. During a change-host reconnect
@@ -11,7 +11,7 @@
  * the OLD onclose while the main thread reassigns it, freeing the running
  * lambda's heap storage: use-after-free, SIGSEGV with a garbage `this`.
  *
- * Fix: install the three callbacks exactly ONCE (install_ws_callbacks(), guarded by
+ * Mechanism: the three callbacks are installed exactly ONCE (install_ws_callbacks(), guarded by
  * ws_callbacks_installed_ under connect_mutex_). The trampolines read per-connect state
  * from last_url_/last_on_connected_/last_on_disconnected_ instead of captures, and
  * self-cancel via a weak_ptr to destruction_guard_.
@@ -23,8 +23,8 @@
  *
  * The URLs point at loopback ports nothing listens on, so open() fails fast with no
  * external dependency. A short, deterministic settle() between cycles avoids a
- * pre-existing libhv-internal race under rapid open()/close() churn (see the cadence note
- * below) — that race is inside libhv, not HelixScreen.
+ * libhv-internal race under rapid open()/close() churn (see the cadence note
+ * below); that race is inside libhv, not HelixScreen.
  */
 
 #include "../../include/moonraker_client.h"
@@ -52,7 +52,7 @@ constexpr const char* kBadUrl2 = "ws://127.0.0.1:19997/websocket"; // simulate c
 // connect()/disconnect() back-to-back races libhv's hio/onCustomEvent machinery and
 // SIGSEGVs *inside libhv* (crash backtrace is entirely hio_get / eventfd_read_cb /
 // onCustomEvent on the libhv loop thread — no HelixScreen frame, and the install-once
-// trampolines are not even on the stack). That is a pre-existing libhv limitation, not a
+// trampolines are not even on the stack). That is a libhv limitation, not a
 // HelixScreen defect, and it is why the existing connection tests insert settle delays
 // between connect attempts. We follow the same convention with a short (non-blocking,
 // deterministic) settle between cycles. The install-once invariant (ws_callbacks_installed_
@@ -85,7 +85,7 @@ TEST_CASE("MoonrakerClient install-once: callbacks installed on first connect, n
 
 TEST_CASE("MoonrakerClient install-once: repeated connect/disconnect never reinstalls or crashes",
           "[moonraker][connection][reconnect][eventloop][slow]") {
-    // Default-construct — see the note in the previous TEST_CASE (#1146).
+    // Default-construct, as in the TEST_CASE above (#1146).
     MoonrakerClient client;
 
     // Repeated connect/disconnect against unreachable hosts, alternating URLs to mimic a
@@ -155,9 +155,7 @@ TEST_CASE("MoonrakerClient install-once: destruction during pending connect is s
     }
 }
 
-// ============================================================================
 // What disconnect() does and does not stop
-// ============================================================================
 //
 // disconnect() drops a WebSocket connection; it does not retire the client. The three
 // trampolines gate on destruction_guard_, callback_lifecycle_mutex_ and is_destroying_,
@@ -177,7 +175,7 @@ TEST_CASE("disconnect() leaves the guard the WS trampolines gate on intact",
 
     client->disconnect();
 
-    // Disconnect is a connection event, not an object event. A callback arriving now
+    // Disconnect is a connection event, not an object event. A callback arriving afterwards
     // still finds the guard alive and proceeds.
     REQUIRE_FALSE(guard.expired());
 

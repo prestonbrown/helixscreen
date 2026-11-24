@@ -197,7 +197,6 @@ std::vector<uint8_t> makeid_encode_bitmap_raw(const LabelBitmap& bitmap, int pri
 
 std::vector<MakeIdBitmapChunk>
 makeid_encode_bitmap(const LabelBitmap& bitmap, int printer_width_bytes, int max_cols_per_chunk) {
-    // Encode full bitmap to column-major
     auto full_data = makeid_encode_bitmap_raw(bitmap, printer_width_bytes);
     int bpc = printer_width_bytes;
     int total_cols = bitmap.height();

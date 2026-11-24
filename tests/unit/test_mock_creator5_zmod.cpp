@@ -208,17 +208,18 @@ TEST_CASE("The mock persona and HELIX_MOCK_AMS pick the mock AMS's type",
     config->use_real_ams = false;
     REQUIRE(config->should_mock_ams());
 
-    // The AFC topology still simulated by the mock backend; `afc` itself is mock hardware.
-    auto [variable, value, type] = GENERATE(table<const char*, const char*, helix::AmsType>(
-        {{"HELIX_MOCK_AMS", "quattro_box", helix::AmsType::AFC},
-         {"HELIX_MOCK_AMS", "quattrobox", helix::AmsType::AFC},
-         {"HELIX_MOCK_AMS", "afc_bmcu", helix::AmsType::AFC},
-         {"HELIX_MOCK_AMS", "ace", helix::AmsType::ACE}}));
-    CAPTURE(variable, value);
-    helix::ScopedEnv env{variable, value};
-    auto backend = helix::AmsBackend::create(helix::AmsType::NONE, nullptr, nullptr);
-    REQUIRE(backend != nullptr);
-    CHECK(backend->get_system_info().type == type);
+    // The ACE identity is still simulated by the mock backend.
+    {
+        helix::ScopedEnv env{"HELIX_MOCK_AMS", "ace"};
+        auto backend = helix::AmsBackend::create(helix::AmsType::NONE, nullptr, nullptr);
+        REQUIRE(backend != nullptr);
+        CHECK(backend->get_system_info().type == helix::AmsType::ACE);
+    }
+    // Every AFC unit is mock hardware: the mock backend declines it.
+    const char* afc_mode = GENERATE("afc", "quattro_box", "quattrobox", "afc_bmcu");
+    CAPTURE(afc_mode);
+    helix::ScopedEnv env{"HELIX_MOCK_AMS", afc_mode};
+    CHECK(helix::AmsBackend::create(helix::AmsType::NONE, nullptr, nullptr) == nullptr);
 }
 
 TEST_CASE("A mock-hardware persona declines the mock AMS backend", "[mock][creator5][zmod]") {

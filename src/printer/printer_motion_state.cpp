@@ -237,9 +237,7 @@ void PrinterMotionState::update_from_status(const nlohmann::json& status) {
     }
 }
 
-// ============================================================================
 // PENDING Z-OFFSET DELTA TRACKING
-// ============================================================================
 
 void PrinterMotionState::add_pending_z_offset_delta(int delta_microns) {
     int current = lv_subject_get_int(&pending_z_offset_delta_);

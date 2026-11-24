@@ -351,14 +351,14 @@ void graceful_quit_signal_handler(int sig) {
             errno = saved_errno;
             return;
         }
-        // A supervisor stop is not a crash. Because this path skips
-        // Application::shutdown() — the only other place the crash-restart
-        // marker is cleared — every SIGTERM used to leave its start timestamp
-        // behind. On the Elegoo CC1, COSMOS's resonance-calibration macro
-        // stops and starts the UI through gui-switcher (SIGTERM by pidfile);
-        // three of those inside the 120s window tripped "Crash loop detected"
-        // and HelixScreen refused to boot. unlink(2) is async-signal-safe;
-        // the path was cached at startup so nothing is constructed here.
+        // A supervisor stop is not a crash. This path skips
+        // Application::shutdown(), the only other place the crash-restart
+        // marker is cleared, so the marker must go here or a SIGTERM leaves its
+        // start timestamp behind. On the Elegoo CC1, COSMOS's resonance-calibration
+        // macro stops and starts the UI through gui-switcher (SIGTERM by pidfile);
+        // three of those inside the 120s window would trip "Crash loop detected"
+        // and refuse to boot. unlink(2) is async-signal-safe; the path was cached
+        // at startup so nothing is constructed here.
         helix::clear_crash_marker_signal_safe();
         // Blank the panel, or the last frame shows through a reboot's boot
         // screen. open/write/close only; a no-op unless fbdev registered it.
@@ -467,7 +467,6 @@ int Application::run(int argc, char** argv) {
     helix::android_configure_backup_dirs();
 #endif
 
-    // Ensure we're running from the project root
     ensure_project_root_cwd();
 
     // Phase 1: Parse command line args
@@ -676,7 +675,7 @@ int Application::run(int argc, char** argv) {
     get_printer_state().set_active_printer_name(m_config->get_active_printer_name());
 
     // Phase 9b: Initialize Moonraker (creates client + API)
-    // Now works because PrinterState exists from phase 9a.
+    // PrinterState exists from phase 9a.
     // Start HTTP executors first — the Moonraker APIs submit to them on
     // every request. Two lanes (fast for REST, slow for file transfers)
     // prevent a large upload from head-of-line blocking status polls.
@@ -711,12 +710,9 @@ int Application::run(int argc, char** argv) {
     }
 
     // Sync TelemetryManager's LVGL subject with its current enabled state.
-    // TelemetryManager already loaded the value from settings.json in init();
-    // this call no longer needs to pull from SystemSettingsManager (which
-    // used to be a separate source of truth — the sync here silently
-    // disabled telemetry whenever settings.json lacked /telemetry_enabled).
-    // Instead, re-assert the already-loaded state so start_auto_send() runs
-    // now that discovery has completed.
+    // TelemetryManager loaded the value from settings.json in init(); re-assert
+    // that state (SystemSettingsManager is not a second source of truth) so
+    // start_auto_send() runs now that discovery has completed.
     TelemetryManager::instance().set_enabled(TelemetryManager::instance().is_enabled());
 
     init_sound_services();
@@ -737,7 +733,7 @@ int Application::run(int argc, char** argv) {
     // which the watchdog interprets as a deterministic crash and (after
     // kCrashLoopMaxCrashes) shows the recovery dialog. main_loop()'s own
     // crash guard wraps its iterations but does not cover this pre-loop
-    // window — a follow_overlay regression can hit exactly here, in
+    // window — a follow_overlay failure can hit exactly here, in
     // HomePanel::finalize_setup() → set_config(null) (json::type_error::306).
     // Catch + log + breadcrumb + toast + continue so the user gets a degraded
     // but usable app instead of a watchdog crash loop they can only escape by
@@ -984,7 +980,6 @@ int Application::main_loop() {
     spdlog::info("[Application] Entering main loop");
     m_running = true;
 
-    // Initialize timing
     uint32_t start_time = DisplayManager::get_ticks();
     m_last_timeout_check = start_time;
     m_timeout_check_interval = static_cast<uint32_t>(
@@ -1020,7 +1015,6 @@ int Application::main_loop() {
 
     m_splash_manager.arm_invalidation_failsafe(DisplayManager::get_ticks());
 
-    // Configure main loop handler
     helix::application::MainLoopHandler::Config loop_config;
     loop_config.screenshot_enabled = m_args.screenshot_enabled;
     loop_config.screenshot_delay_ms = static_cast<uint32_t>(m_args.screenshot_delay_sec) * 1000U;
@@ -1033,9 +1027,6 @@ int Application::main_loop() {
     helix::ui::glass_gate_start();
 
     // Show one-time post-migration notice before entering the main loop.
-    // Splash handoff timing risk on target hardware (AD5M, Pi 3B) is theoretical —
-    // verify on real hardware as part of Task 5 manual checks. If it's an issue,
-    // move this call after the post-splash refresh block or defer via lv_async_call.
 #if HELIX_ENABLE_SCREENSAVER
     show_screensaver_migration_notice_if_pending();
 #endif
@@ -1127,7 +1118,6 @@ int Application::main_loop() {
             // Process timeouts
             check_timeouts();
 
-            // Process Moonraker notifications
             process_notifications();
 
             // Asleep, queued work wakes the loop (the enqueue hook) and runs here, in the
@@ -1136,7 +1126,6 @@ int Application::main_loop() {
                 helix::ui::UpdateQueue::instance().drain_until_empty();
             }
 
-            // Check display sleep
             m_display->check_display_sleep();
 
             // Periodic full-screen invalidation on fbdev (self-heal kernel console bleed-through)

@@ -42,9 +42,7 @@
 
 using namespace helix;
 
-// ============================================================================
 // SoundManager singleton
-// ============================================================================
 
 namespace {
 
@@ -285,7 +283,6 @@ void SoundManager::play(const std::string& sound_name, SoundPriority priority) {
         load_theme(theme_name_);
     }
 
-    // Look up sound in current theme
     auto it = current_theme_.sounds.find(sound_name);
     if (it == current_theme_.sounds.end()) {
         spdlog::debug("[SoundManager] play('{}') - sound not in theme '{}'", sound_name,
@@ -555,9 +552,7 @@ bool SoundManager::can_play_music() const {
     return backend_ && (backend_->supports_render_source() || backend_->voice_count() > 1);
 }
 
-// ============================================================================
 // Tracker playback (MOD/MED files)
-// ============================================================================
 
 #ifdef HELIX_HAS_TRACKER
 void SoundManager::play_file(const std::string& path, SoundPriority priority) {
@@ -601,7 +596,6 @@ void SoundManager::play_file(const std::string& path, SoundPriority priority) {
     }
     sequencer_->stop();
 
-    // Create and start tracker
     tracker_ = std::make_unique<helix::audio::TrackerPlayer>(backend_);
     tracker_->load(std::move(*module));
     tracker_priority_ = priority;

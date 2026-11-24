@@ -67,16 +67,12 @@
 using namespace helix;
 using namespace helix::ui;
 
-// ============================================================================
 // Test Fixture: Mock Dependencies
-// ============================================================================
 
 // PrintPreparationManager has nullable dependencies - we can test formatting
 // and state management without actual API/printer connections.
 
-// ============================================================================
 // Tests: Macro Analysis Formatting
-// ============================================================================
 
 namespace {
 /// The pre-start block carries a line per applicable PreStartGcode option, so a
@@ -100,9 +96,7 @@ TEST_CASE("PrintPreparationManager: has_macro_analysis when no analysis availabl
     REQUIRE(manager.has_macro_analysis() == false);
 }
 
-// ============================================================================
 // Tests: File Operations Scanning
-// ============================================================================
 
 TEST_CASE("PrintPreparationManager: scan cache state when no scan done",
           "[print_preparation][gcode]") {
@@ -124,9 +118,7 @@ TEST_CASE("PrintPreparationManager: clear_scan_cache", "[print_preparation][gcod
     }
 }
 
-// ============================================================================
 // Tests: Resource Safety
-// ============================================================================
 
 TEST_CASE_METHOD(HelixTestFixture, "PrintPreparationManager: can_modify_gcode",
                  "[print_preparation][safety]") {
@@ -175,8 +167,7 @@ TEST_CASE_METHOD(HelixTestFixture, "PrintPreparationManager: can_modify_gcode",
 
     SECTION("file size does not enter into it") {
         // The rewrite streams a line at a time, so the answer cannot depend on
-        // how big the file is. A size rule here is what the retired
-        // ModificationCapability struct still claimed to enforce.
+        // how big the file is, so no size rule applies.
         manager.set_dependencies(nullptr, &printer_state);
         printer_state.set_helix_plugin_installed(true);
         helix::ui::UpdateQueue::instance().drain();
@@ -319,9 +310,7 @@ TEST_CASE("PrintPreparationManager: get_temp_directory", "[print_preparation][sa
     }
 }
 
-// ============================================================================
-// Tests: Option-State Provider (replaces removed legacy subject API)
-// ============================================================================
+// Tests: Option-State Provider
 
 /**
  * The pre-print options framework reads option state through
@@ -450,9 +439,7 @@ TEST_CASE("PrintPreparationManager: the option-state provider decides each optio
     }
 }
 
-// ============================================================================
 // Tests: Lifecycle Management
-// ============================================================================
 
 TEST_CASE("PrintPreparationManager: is_print_in_progress", "[print_preparation][lifecycle]") {
     PrintPreparationManager manager;
@@ -463,16 +450,12 @@ TEST_CASE("PrintPreparationManager: is_print_in_progress", "[print_preparation][
     }
 }
 
-// ============================================================================
 // Tests: Move Semantics
-// ============================================================================
 
 // PrintPreparationManager is non-movable (contains AsyncLifetimeGuard)
 // Move constructor/assignment tests removed
 
-// ============================================================================
 // Tests: Capability Database Key Naming Convention
-// ============================================================================
 
 /**
  * BUG: collect_macro_skip_params() looks up "bed_leveling" but database uses "bed_mesh".
@@ -588,9 +571,7 @@ TEST_CASE("PrintPreparationManager: collect_macro_skip_params uses correct optio
     }
 }
 
-// ============================================================================
 // Tests: Macro Analysis Progress Tracking
-// ============================================================================
 
 /**
  * Tests for macro analysis in-progress flag behavior.
@@ -630,9 +611,7 @@ TEST_CASE("PrintPreparationManager: macro analysis in-progress tracking",
     }
 }
 
-// ============================================================================
 // Tests: Capabilities from PrinterState (LT1 Refactor)
-// ============================================================================
 
 /**
  * Tests for the LT1 refactor: capabilities should come from PrinterState.
@@ -981,9 +960,7 @@ TEST_CASE_METHOD(HelixTestFixture,
     }
 }
 
-// ============================================================================
 // Tests: Pre-Print Option Set Cache Behavior (using PrinterDetector directly)
-// ============================================================================
 
 /**
  * Tests for PrinterDetector pre-print option set lookup behavior.
@@ -1054,9 +1031,7 @@ TEST_CASE("PrintPreparationManager: pre-print options cache behavior",
     }
 }
 
-// ============================================================================
 // Tests: Database option key consistency
-// ============================================================================
 
 /**
  * Verifies the option ids used by the database match those produced by
@@ -1079,9 +1054,7 @@ TEST_CASE("PrintPreparationManager: option id keys are consistent",
     }
 }
 
-// ============================================================================
-// T3a: collect_pre_start_gcode_lines — per-option line emission
-// ============================================================================
+// collect_pre_start_gcode_lines: per-option line emission
 
 /**
  * Locks `collect_pre_start_gcode_lines()` for the K2 Plus DB shape: one
@@ -1150,9 +1123,7 @@ TEST_CASE_METHOD(HelixTestFixture,
     CHECK(manager.enabled_options_need_material([](const std::string&) { return -1; }));
 }
 
-// ============================================================================
-// T3b: build_pre_start_gcode_block — the actual join contract
-// ============================================================================
+// build_pre_start_gcode_block: the actual join contract
 
 /**
  * `start_print()` calls `build_pre_start_gcode_block()` with the live inputs;
@@ -1203,9 +1174,7 @@ TEST_CASE("PrintPreparationManager: build_pre_start_gcode_block (join contract)"
     }
 }
 
-// ============================================================================
 // Tests: Macro Analysis Retry Logic (with MockWebSocketServer)
-// ============================================================================
 
 /**
  * @brief Test fixture for macro analysis retry tests using real WebSocket infrastructure
@@ -1299,7 +1268,7 @@ class MacroAnalysisRetryFixture {
         // Disconnect posts a close event to the libhv event loop. The Channel
         // must remain alive until that event is dispatched (or the loop is
         // stopped), otherwise the loop thread will run Channel::close() on
-        // freed memory — heap-use-after-free observed under ASAN nightly.
+        // freed memory (heap-use-after-free under ASAN).
         if (client_) {
             client_->disconnect();
         }
@@ -1323,8 +1292,8 @@ class MacroAnalysisRetryFixture {
         // Stop the event loop BEFORE deleting client_. Once stop(true) returns,
         // the loop thread has joined and no further posted events will fire,
         // so it is safe to free the Channel. Doing this in the opposite order
-        // (delete client → loop processes posted close → UAF on Channel) is
-        // exactly the bug the ASAN nightly caught.
+        // (delete client → loop processes posted close → UAF on Channel)
+        // is a use-after-free.
         loop_thread_->stop(true);
 
         api_.reset();
@@ -1767,9 +1736,7 @@ TEST_CASE_METHOD(MacroAnalysisRetryFixture,
     }
 }
 
-// ============================================================================
-// Tests: Provider-Driven Option State (replaces removed legacy subject API)
-// ============================================================================
+// Tests: Provider-Driven Option State
 
 /**
  * The pre-print options framework reads option state through OptionStateProvider.
@@ -1785,10 +1752,10 @@ TEST_CASE_METHOD(MacroAnalysisRetryFixture,
 
 TEST_CASE("PrintPreparationManager: hidden options don't produce macro skip params",
           "[print_preparation][p1][subjects]") {
-    // Bug regression: when an option is hidden (provider returns -1, NOT_APPLICABLE),
-    // collect_macro_skip_params() must NOT emit a skip param for it. The old
-    // visibility=0 + unchecked combination was misclassified as "user disabled"
-    // and produced phantom SKIP_* params, triggering unnecessary file modification.
+    // When an option is hidden (provider returns -1, NOT_APPLICABLE),
+    // collect_macro_skip_params() must NOT emit a skip param for it. A
+    // visibility=0 + unchecked combination is not "user disabled"; treating it
+    // so would produce phantom SKIP_* params and needless file modification.
     lv_init_safe();
     PrintPreparationManager manager;
     MockOptionState state;
@@ -1828,9 +1795,7 @@ TEST_CASE("PrintPreparationManager: hidden options don't produce macro skip para
     }
 }
 
-// ============================================================================
 // Tests: CapabilityMatrix Integration (P3)
-// ============================================================================
 
 /**
  * @brief Phase 3 Tests: CapabilityMatrix integration into PrintPreparationManager
@@ -2108,13 +2073,11 @@ TEST_CASE_METHOD(HelixTestFixture, "PrintPreparationManager: collect_macro_skip_
     }
 }
 
-// ============================================================================
-// Tests: Option State Provider (Phase 3 — pre-print options framework)
-// ============================================================================
+// Tests: Option State Provider (pre-print options framework)
 
 /**
- * Phase 3 introduced an OptionStateProvider callback so the print-detail
- * panel can surface dynamic per-option subjects without the manager knowing
+ * An OptionStateProvider callback lets the print-detail
+ * panel surface dynamic per-option subjects without the manager knowing
  * about their LVGL pointers. The manager's get_option_state(id) overload
  * resolves through three layers:
  *   1. Provider (when set and returning 0/1)
@@ -2211,9 +2174,7 @@ TEST_CASE_METHOD(HelixTestFixture,
     }
 }
 
-// ============================================================================
 // The operation registry: the one list of controllable operations
-// ============================================================================
 //
 // Adding a controllable operation means an OperationCategory value, an
 // OperationRegistry entry, keyword patterns, skip/perform parameter variations,
@@ -2312,12 +2273,10 @@ TEST_CASE("PrepManager: the operation registry lists every controllable operatio
     }
 }
 
-// ============================================================================
-// Tests: PreStartGcode strategy emission (Phase 4 — ai_detect proof)
-// ============================================================================
+// Tests: PreStartGcode strategy emission (ai_detect proof)
 
 /**
- * Phase 4 closes the loop on the new framework: a printer (K2 Plus) declares
+ * The framework's end-to-end proof: a printer (K2 Plus) declares
  * `ai_detect` as a `pre_start_gcode` strategy in printer_database.json with
  * `gcode_template = "LOAD_AI_RUN SWITCH={value}"`. When the user toggles the
  * switch, `collect_pre_start_gcode_lines()` must emit exactly the rendered
@@ -2471,16 +2430,13 @@ TEST_CASE("PrintPreparationManager: collect_pre_start_gcode_lines empty when no 
     REQUIRE(lines.empty());
 }
 
-// ============================================================================
-// Post-Phase-3.5 framework tests (T1-T5 from review)
-// ============================================================================
+// Option framework tests
 
 TEST_CASE_METHOD(HelixTestFixture,
                  "PrintPreparationManager: collect_ops_to_disable returns ops user disabled",
                  "[print_preparation][gcode][framework]") {
-    // T1: Verifies the post-Phase-3.5 path where collect_ops_to_disable()
-    // resolves user intent through get_option_state() (provider-driven) for
-    // the embedded-op skip set.
+    // collect_ops_to_disable() resolves user intent through get_option_state()
+    // (provider-driven) for the embedded-op skip set.
     lv_init_safe();
     PrinterState& printer_state = get_printer_state();
     PrinterStateTestAccess::reset(printer_state);
@@ -2535,9 +2491,9 @@ TEST_CASE_METHOD(HelixTestFixture,
                  "PrintPreparationManager: K2 bed_mesh runs the mesh macro only when enabled",
                  "[print_preparation][framework][k2_plus]") {
     // The K2's mesh lives in BED_MESH_CALIBRATE_START_PRINT, which START_PRINT
-    // never calls. The option used to map to a PREPARE param that the pipeline
-    // deliberately never sends (it is only a visibility sentinel), so the
-    // toggle homed and wiped the nozzle and never produced a mesh at all.
+    // never calls. A PREPARE param would not do: the pipeline deliberately
+    // never sends it (it is only a visibility sentinel), so the toggle would
+    // home and wipe the nozzle and never produce a mesh.
     //
     // The macro has no "off" form, so disabled must emit nothing rather than a
     // zero — hence emit_when_disabled=false. GCODE_FILE keeps the sweep trimmed
@@ -2679,7 +2635,7 @@ TEST_CASE_METHOD(HelixTestFixture,
 TEST_CASE_METHOD(HelixTestFixture,
                  "PrintPreparationManager: collect_pre_start_gcode_lines skips NOT_APPLICABLE",
                  "[print_preparation][framework][ai_detect]") {
-    // T5: K2 Plus has ai_detect (PreStartGcode strategy). When the provider
+    // K2 Plus has ai_detect (PreStartGcode strategy). When the provider
     // returns -1 (not bound) AND the option's default_enabled is false, the
     // option resolves to DISABLED — emitting SWITCH=0. To get NOT_APPLICABLE,
     // we'd need an option that isn't in the DB at all, which means it can't
@@ -2706,7 +2662,6 @@ TEST_CASE_METHOD(HelixTestFixture,
     REQUIRE(lines.empty());
 }
 
-// ============================================================================
 // disabling_option_requires_plugin — pre-print toggle plugin-gating predicate
 //
 // A pre-print toggle is hidden (via the renderer's visibility subject) when
@@ -2721,8 +2676,7 @@ TEST_CASE_METHOD(HelixTestFixture,
 //
 // The K2 Plus PREPARE case (MacroParam bed_mesh + setup_gcode) MUST stay
 // visible: its native START_PRINT/PRINT_PREPARED handles the skip without the
-// plugin. That is the shipped regression these tests guard against.
-// ============================================================================
+// plugin; these tests pin that.
 
 namespace {
 
@@ -2950,11 +2904,9 @@ TEST_CASE_METHOD(HelixTestFixture,
     REQUIRE(fx.requires_plugin("bed_mesh") == false);
 }
 
-// ============================================================================
 // An option whose value a self-storing firmware holds strips no embedded op,
 // however it came to be off: that firmware skips the file's own command when
 // its setting is off.
-// ============================================================================
 
 TEST_CASE_METHOD(HelixTestFixture, "collect_ops_to_disable: a firmware-held option strips nothing",
                  "[print_preparation][preprint][firmware_seeded]") {
@@ -3087,7 +3039,6 @@ TEST_CASE_METHOD(HelixTestFixture,
         fx.ps.profile_state().pre_print_option_set().find("bed_mesh")->default_from_firmware);
 }
 
-// ============================================================================
 // A start that dies inside the manager must retire the preparing job
 //
 // The modify and remap routes end without an error message, so
@@ -3099,7 +3050,6 @@ TEST_CASE_METHOD(HelixTestFixture,
 //
 // Mutation check: delete the abandon_start() call from the exit this drives and
 // the REQUIRE_FALSE below fails.
-// ============================================================================
 
 TEST_CASE_METHOD(HelixTestFixture,
                  "PrintPreparationManager: a start that dies inside the manager retires the "
@@ -3162,14 +3112,12 @@ TEST_CASE_METHOD(HelixTestFixture,
     REQUIRE(state.print_state().last_preparing_exit() == helix::PreparingExit::Failed);
 }
 
-// ============================================================================
 // modify_and_print_with_remap(): download -> rewrite -> upload -> plugin start
 //
 // Every hop is asynchronous through the UpdateQueue, and each deferred stage
 // enqueues the next one, so a single drain() only advances the chain by one
 // step. The helpers below drive it to quiescence and read back what the mocks
 // were asked to do.
-// ============================================================================
 
 namespace {
 
@@ -3925,9 +3873,7 @@ TEST_CASE_METHOD(HelixTestFixture,
     }
 }
 
-// ============================================================================
 // STALE PRE-START ACK GUARD
-// ============================================================================
 
 TEST_CASE_METHOD(MacroAnalysisRetryFixture,
                  "PrintPreparationManager: stale pre-start ack does not relaunch a print",
@@ -3959,22 +3905,17 @@ TEST_CASE_METHOD(MacroAnalysisRetryFixture,
     REQUIRE(starts.load() == 0);
 }
 
-// ============================================================================
 // A SLOW pre-start that was never cancelled must still start the print
-// ============================================================================
 //
-// The staleness bound this replaces read elapsed time as a proxy for "the user
-// no longer wants this". On a K2 Plus (2026-08-25) that proxy was wrong in the
-// expensive direction: a pre-start block containing a bed mesh legitimately ran
-// 494s, the RPC returned SUCCESS, and the 180s bound threw the print away with
-// no error shown. The user had told it to print a 32-hour job and it silently
-// did nothing.
+// Elapsed time is no proxy for "the user no longer wants this". On a K2 Plus a
+// pre-start block containing a bed mesh legitimately runs 494s and the RPC
+// still returns SUCCESS; dropping that ack silently discards a print the user
+// asked for.
 //
-// A backed-up ack (the K1C case the bound was written for) and a slow-but-wanted
-// macro arrive through the same callback with the same signature, so no clock
-// can separate them. The preparing-job epoch can: PrinterPrintState bumps it on
-// begin_preparing and zeroes it on retire_preparing, so cancel, failure and
-// supersede all change it while a job that is simply taking its time does not.
+// A backed-up ack (the K1C case) and a slow-but-wanted macro arrive through
+// the same callback with the same signature, so no clock can separate them. The preparing-job epoch
+// can: PrinterPrintState bumps it on begin_preparing and zeroes it on retire_preparing, so cancel,
+// failure and supersede all change it while a job that is simply taking its time does not.
 
 TEST_CASE_METHOD(MacroAnalysisRetryFixture,
                  "PrintPreparationManager: a slow pre-start still starts when nothing retired it",
@@ -3994,7 +3935,7 @@ TEST_CASE_METHOD(MacroAnalysisRetryFixture,
     REQUIRE(epoch != 0);
     PrintPreparationManagerTestAccess::set_pre_start_epoch(manager_, epoch);
 
-    // Eight minutes of bed mesh — well past the old 180s bound.
+    // Eight minutes of bed mesh, far longer than any plausible clock bound.
     PrintPreparationManagerTestAccess::set_pre_start_sent_ago(manager_, std::chrono::minutes(8));
 
     // The SUCCESS path is asynchronous — it reaches the printer over the mock
@@ -4010,7 +3951,7 @@ TEST_CASE_METHOD(MacroAnalysisRetryFixture,
     };
     PrintPreparationManagerTestAccess::continue_print_start(manager_, "mesh_print.gcode", cb);
 
-    // THE REGRESSION: this was dropped, silently, after eight minutes of work.
+    // The slow ack must still start the print.
     REQUIRE(wait_for([&]() { return completed.load(); }, 5000));
     CHECK(success.load());
     CHECK(starts.load() == 1);
@@ -4019,9 +3960,8 @@ TEST_CASE_METHOD(MacroAnalysisRetryFixture,
 TEST_CASE_METHOD(MacroAnalysisRetryFixture,
                  "PrintPreparationManager: a retired job drops its pre-start ack however fresh",
                  "[preparation][stale][preprint]") {
-    // The other half of the same rule, and the one the old bound was protecting:
-    // intent is gone, so the ack must not start anything — and crucially this
-    // holds with NO time having passed, which a staleness bound could never see.
+    // The other half of the same rule: intent is gone, so the ack must not start anything, and
+    // crucially this holds with NO time having passed, which a staleness bound could never see.
     std::atomic<int> starts{0};
     server_->clear_handlers();
     server_->on_method("printer.print.start", [&](const json&) -> json {
@@ -4092,9 +4032,7 @@ TEST_CASE_METHOD(MacroAnalysisRetryFixture,
     CHECK_FALSE(success);
 }
 
-// ============================================================================
 // Detail-view rows from PRINT_START analysis
-// ============================================================================
 
 namespace {
 
@@ -4526,9 +4464,7 @@ TEST_CASE_METHOD(
     manager.set_dependencies(nullptr, nullptr);
 }
 
-// ============================================================================
 // Heat soak: the printer's soak macro, run ahead of the start when switched on
-// ============================================================================
 
 namespace {
 

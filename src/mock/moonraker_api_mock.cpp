@@ -61,9 +61,7 @@ MoonrakerFileTransferAPIMock::MoonrakerFileTransferAPIMock(MoonrakerClient& clie
         "[MoonrakerFileTransferAPIMock] Created - HTTP methods will use local test files");
 }
 
-// ============================================================================
 // MoonrakerAdvancedAPIMock Implementation
-// ============================================================================
 
 MoonrakerAdvancedAPIMock::MoonrakerAdvancedAPIMock(MoonrakerClient& client, MoonrakerAPI& api)
     : MoonrakerAdvancedAPI(client, api) {}
@@ -149,9 +147,7 @@ MoonrakerTimelapseAPIMock& MoonrakerAPIMock::timelapse_mock() {
     return static_cast<MoonrakerTimelapseAPIMock&>(*timelapse_api_);
 }
 
-// ============================================================================
 // Connection/Subscription/Database Proxy Overrides (mock no-ops)
-// ============================================================================
 
 SubscriptionId
 MoonrakerAPIMock::subscribe_notifications(helix::SharedCallback<void(const json&)> callback) {
@@ -400,9 +396,7 @@ void MoonrakerFileAPIMock::delete_file(const std::string& filename, SuccessCallb
     }
 }
 
-// ============================================================================
 // MoonrakerJobAPIMock
-// ============================================================================
 
 helix::MoonrakerJobAPIMock::MoonrakerJobAPIMock(helix::IMoonrakerClient& client,
                                                 const helix::PrinterState* state)
@@ -1151,9 +1145,7 @@ void MoonrakerFileTransferAPIMock::download_thumbnail(const std::string& thumbna
     }
 }
 
-// ============================================================================
 // Power Device Methods
-// ============================================================================
 
 void MoonrakerAPIMock::get_power_devices(PowerDevicesCallback on_success, ErrorCallback on_error) {
     (void)on_error; // Mock never fails
@@ -1227,9 +1219,7 @@ void MoonrakerAPIMock::set_device_power(const std::string& device, const std::st
     helix::PowerDeviceState::instance().update_device_status(device, new_state ? "on" : "off");
 }
 
-// ============================================================================
 // Sensor Mock
-// ============================================================================
 
 void MoonrakerAPIMock::get_sensors(SensorsCallback on_success, ErrorCallback /*on_error*/) {
     spdlog::info("[MoonrakerAPIMock] Returning mock sensors");
@@ -1248,9 +1238,7 @@ void MoonrakerAPIMock::get_sensors(SensorsCallback on_success, ErrorCallback /*o
     }
 }
 
-// ============================================================================
 // MoonrakerRestAPIMock Implementation
-// ============================================================================
 
 MoonrakerRestAPIMock::MoonrakerRestAPIMock(MoonrakerClient& client,
                                            const std::string& http_base_url)
@@ -1370,9 +1358,7 @@ void MoonrakerRestAPIMock::get_server_config(RestCallback on_success, ErrorCallb
     }
 }
 
-// ============================================================================
 // Mock klippy UDS
-// ============================================================================
 
 namespace {
 
@@ -1437,9 +1423,7 @@ const char* mock_klippy_uds_address() {
 
 } // namespace
 
-// ============================================================================
 // Shared State Methods
-// ============================================================================
 
 void MoonrakerAPIMock::set_mock_state(std::shared_ptr<MockPrinterState> state) {
     mock_state_ = state;
@@ -1464,9 +1448,7 @@ std::vector<std::string> MoonrakerAPIMock::get_available_objects_from_mock() con
     return {};
 }
 
-// ============================================================================
 // MockScrewsTiltState Implementation
-// ============================================================================
 
 MockScrewsTiltState::MockScrewsTiltState() {
     reset();
@@ -1617,9 +1599,7 @@ std::string MockScrewsTiltState::diff_to_adjustment(float diff_mm) {
     return std::string(buf);
 }
 
-// ============================================================================
 // MoonrakerAdvancedAPIMock - Calibration Overrides
-// ============================================================================
 
 void MoonrakerAdvancedAPIMock::calculate_screws_tilt(ScrewTiltCallback on_success,
                                                      ErrorCallback /*on_error*/) {
@@ -1712,9 +1692,7 @@ void MoonrakerAdvancedAPIMock::start_bed_mesh_calibrate(
     lv_timer_set_repeat_count(timer, ctx->total + 1); // +1 for final completion check
 }
 
-// ============================================================================
 // MoonrakerRestAPIMock - REST Endpoint Methods
-// ============================================================================
 
 void MoonrakerRestAPIMock::call_rest_get(const std::string& endpoint, RestCallback on_complete) {
     spdlog::debug("[MoonrakerAPIMock] REST GET: {}", endpoint);
@@ -1813,9 +1791,7 @@ void MoonrakerRestAPIMock::call_rest_post(const std::string& endpoint, const nlo
     }
 }
 
-// ============================================================================
 // MoonrakerTimelapseAPIMock Implementation
-// ============================================================================
 
 MoonrakerTimelapseAPIMock::MoonrakerTimelapseAPIMock(MoonrakerClient& client,
                                                      const std::string& http_base_url)

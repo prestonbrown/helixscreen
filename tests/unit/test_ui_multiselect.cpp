@@ -21,9 +21,7 @@ using namespace helix::ui;
 // widgets and tokens it builds with on screen.
 using MultiSelectTestFixture = LVGLUITestFixture;
 
-// ============================================================================
 // Basic Lifecycle Tests
-// ============================================================================
 
 TEST_CASE_METHOD(MultiSelectTestFixture, "UiMultiselect: default state", "[multiselect]") {
     UiMultiselect ms;
@@ -44,9 +42,7 @@ TEST_CASE_METHOD(MultiSelectTestFixture, "UiMultiselect: attach and detach", "[m
     REQUIRE_FALSE(ms.is_attached());
 }
 
-// ============================================================================
 // Item Management
-// ============================================================================
 
 TEST_CASE_METHOD(MultiSelectTestFixture, "UiMultiselect: set items", "[multiselect]") {
     UiMultiselect ms;
@@ -143,9 +139,7 @@ TEST_CASE_METHOD(MultiSelectTestFixture,
     CHECK(lv_obj_has_state(lv_obj_find_by_name(row_y, "check"), LV_STATE_CHECKED));
 }
 
-// ============================================================================
 // Selection Operations
-// ============================================================================
 
 TEST_CASE_METHOD(MultiSelectTestFixture, "UiMultiselect: set_selected", "[multiselect]") {
     UiMultiselect ms;
@@ -181,9 +175,7 @@ TEST_CASE_METHOD(MultiSelectTestFixture, "UiMultiselect: select_all and deselect
     REQUIRE(ms.get_selected_count() == 0);
 }
 
-// ============================================================================
 // Callback Tests
-// ============================================================================
 
 TEST_CASE_METHOD(MultiSelectTestFixture, "UiMultiselect: callback fires on set_selected",
                  "[multiselect]") {
@@ -241,9 +233,7 @@ TEST_CASE_METHOD(MultiSelectTestFixture, "UiMultiselect: set_items without attac
     REQUIRE(ms.item_count() == 0);
 }
 
-// ============================================================================
 // Move Semantics
-// ============================================================================
 
 TEST_CASE_METHOD(MultiSelectTestFixture, "UiMultiselect: move constructor", "[multiselect]") {
     UiMultiselect ms;

@@ -68,9 +68,7 @@ namespace helix::ui {
 
 namespace tio = ::helix::text_io;
 
-// ============================================================================
 // Lifecycle
-// ============================================================================
 
 PrintSelectDetailView::~PrintSelectDetailView() {
     // lifetime_ destructor auto-invalidates all outstanding tokens
@@ -138,9 +136,7 @@ PrintSelectDetailView::~PrintSelectDetailView() {
     helix::ui::safe_delete_deferred(overlay_root_);
 }
 
-// ============================================================================
 // Setup
-// ============================================================================
 
 void PrintSelectDetailView::init_subjects() {
     if (subjects_initialized_) {
@@ -509,9 +505,7 @@ void PrintSelectDetailView::set_analysis_dependencies(IMoonrakerAPI* api,
     prep_manager_->set_dependencies(api_, printer_state_);
 }
 
-// ============================================================================
 // Visibility
-// ============================================================================
 
 void PrintSelectDetailView::set_file_palette(const std::vector<std::string>& filament_colors,
                                              const std::vector<std::string>& filament_materials) {
@@ -719,9 +713,7 @@ void PrintSelectDetailView::hide() {
     spdlog::debug("[DetailView] Detail view hidden");
 }
 
-// ============================================================================
 // Shared G-code Download (one file + one download for scan + viewer preview)
-// ============================================================================
 
 std::string PrintSelectDetailView::canonical_gcode_path() const {
     // Keyed on the FULL relative path (not just the filename) so same-name files
@@ -896,9 +888,7 @@ void PrintSelectDetailView::ensure_gcode_downloaded(
         });
 }
 
-// ============================================================================
 // Lifecycle Hooks (called by NavigationManager)
-// ============================================================================
 
 void PrintSelectDetailView::on_activate() {
     // Call base class first
@@ -1119,9 +1109,7 @@ void PrintSelectDetailView::cleanup() {
     OverlayBase::cleanup();
 }
 
-// ============================================================================
 // Destroy-on-close support
-// ============================================================================
 
 void PrintSelectDetailView::on_root_deleted(lv_event_t* e) {
     auto* self = static_cast<PrintSelectDetailView*>(lv_event_get_user_data(e));
@@ -1252,9 +1240,7 @@ void PrintSelectDetailView::on_ui_destroyed() {
     // It will be re-wired with dependencies in show() -> set_dependencies().
 }
 
-// ============================================================================
 // Delete Confirmation
-// ============================================================================
 
 void PrintSelectDetailView::show_delete_confirmation(const std::string& filename) {
     // Create message with current filename
@@ -1296,9 +1282,7 @@ void PrintSelectDetailView::hide_delete_confirmation() {
     }
 }
 
-// ============================================================================
 // Resize Handling
-// ============================================================================
 
 void PrintSelectDetailView::handle_resize(lv_obj_t* parent_screen) {
     if (!tree_alive() || !parent_screen) {
@@ -1313,9 +1297,7 @@ void PrintSelectDetailView::handle_resize(lv_obj_t* parent_screen) {
     }
 }
 
-// ============================================================================
 // Internal Methods
-// ============================================================================
 
 void PrintSelectDetailView::update_history_status(FileHistoryStatus status, int success_count) {
     char buf[64] = "";
@@ -1342,9 +1324,7 @@ void PrintSelectDetailView::update_history_status(FileHistoryStatus status, int 
     lv_subject_set_int(&detail_history_status_, static_cast<int>(status));
 }
 
-// ============================================================================
 // G-code Viewer
-// ============================================================================
 
 void PrintSelectDetailView::cancel_progress_timer() {
     if (!progress_timer_) {
@@ -1675,7 +1655,6 @@ void PrintSelectDetailView::render_authoritative_chips(const std::set<int>& tool
 }
 
 void PrintSelectDetailView::recompute_preflight() {
-    // ------------------------------------------------------------------
     // Backend-agnostic pre-flight validation (single source of truth for the
     // print-start gate).
     //
@@ -1689,7 +1668,6 @@ void PrintSelectDetailView::recompute_preflight() {
     // Guarded on tools_used availability: a no-op until EITHER the viewer has
     // parsed (full platforms) OR the headless scan has completed (2D-only) — both
     // feed tools_used_effective(). Before either there is nothing to validate.
-    // ------------------------------------------------------------------
     const std::set<int> used = tools_used_effective();
     if (used.empty() && !headless_scan_done_) {
         // Nothing parsed yet and no headless result: defer. (An empty set AFTER a
@@ -2670,9 +2648,7 @@ void PrintSelectDetailView::begin_viewer_load(const std::string& path,
     helix::ui::gcode_viewer_load_file(gcode_viewer_, path.c_str());
 }
 
-// ============================================================================
 // Pre-print Estimate Label Update
-// ============================================================================
 
 void PrintSelectDetailView::update_prep_time_label() {
     if (!prep_manager_) {
@@ -2758,9 +2734,7 @@ void PrintSelectDetailView::refresh_print_cost() {
         });
 }
 
-// ============================================================================
 // Dynamic option-row population
-// ============================================================================
 //
 // `pre_print_options_container_` is populated from the active printer's
 // `PrePrintOptionSet`. Each option becomes a row with a label + switch in a
@@ -2870,7 +2844,7 @@ void PrintSelectDetailView::populate_option_rows() {
 
     // Wire up the option-state provider on the prep manager so that
     // collect_macro_skip_params() reads from these dynamic subjects. -1 means
-    // "not bound" — manager falls back to its legacy subject path or the
+    // "not bound" — manager falls back to its subject path or the
     // option's default.
     if (prep_manager_) {
         prep_manager_->set_option_state_provider([this](const std::string& id) -> int {

@@ -20,9 +20,7 @@ using namespace helix::print_cost;
 using Catch::Approx;
 using json = nlohmann::json;
 
-// ---------------------------------------------------------------------------
 // Grams
-// ---------------------------------------------------------------------------
 
 TEST_CASE("file_tool_grams: per-tool weights give one line per printing tool",
           "[print_cost][grams]") {
@@ -70,9 +68,7 @@ TEST_CASE("file_tool_grams: no weight and no length gives nothing", "[print_cost
     CHECK(file_tool_grams(md, "PLA", 1.75f).empty());
 }
 
-// ---------------------------------------------------------------------------
 // Price per gram
-// ---------------------------------------------------------------------------
 
 TEST_CASE("price_per_gram: the spool's price over its initial weight wins", "[print_cost][price]") {
     CostSettings s;
@@ -112,9 +108,7 @@ TEST_CASE("price_per_gram: a material without its own price uses the default, el
     CHECK(none.per_gram == 0.0);
 }
 
-// ---------------------------------------------------------------------------
 // Totals
-// ---------------------------------------------------------------------------
 
 TEST_CASE("electricity_cost: watts x hours x price, zero unless all are set",
           "[print_cost][electricity]") {
@@ -212,9 +206,7 @@ TEST_CASE("currency_option: finds the saved code's option, and none for an unkno
     CHECK_FALSE(currency_option(kOptions, "US").has_value()); // a prefix is not a match
 }
 
-// ---------------------------------------------------------------------------
 // Record
-// ---------------------------------------------------------------------------
 
 TEST_CASE("record_key: percent-encodes every byte Moonraker could read as structure",
           "[print_cost][record]") {
@@ -292,9 +284,7 @@ TEST_CASE("parse_record: rejects what cannot be shown safely", "[print_cost][rec
     CHECK(kept->actual.has_value());
 }
 
-// ---------------------------------------------------------------------------
 // Source choice
-// ---------------------------------------------------------------------------
 
 TEST_CASE("choose_estimate: the record for this version of the file wins", "[print_cost][choice]") {
     const auto r = parse_record(full_record());

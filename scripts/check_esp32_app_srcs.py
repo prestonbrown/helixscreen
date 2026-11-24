@@ -97,6 +97,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from qc_file_cache import FileCache, digest  # noqa: E402
+from source_strip import blank_cxx  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_MANIFEST = REPO_ROOT / "firmware/helixscreen-esp32/components/helixapp/app_srcs.txt"
@@ -253,8 +254,11 @@ def firmware_code_lines(text: str, defines: dict[str, str | None], includes: boo
     whose condition this cannot evaluate counts as compiled. With `includes`,
     compiled #include directives are yielded too.
     """
-    stack, in_block_comment = [], False
-    lines = text.splitlines()
+    stack = []
+    # Comments are blanked over the whole file first, so a block comment that
+    # opens or closes mid-line, or a quote inside a comment, never reaches the
+    # per-line preprocessor walk below.
+    lines = blank_cxx(text, strings="keep").splitlines()
     for lineno, raw in enumerate(lines, 1):
         line = raw
         if line.lstrip().startswith("#"):
@@ -262,13 +266,9 @@ def firmware_code_lines(text: str, defines: dict[str, str | None], includes: boo
                 line = line[:-1] + " " + lines[lineno]
                 lines[lineno] = ""
                 lineno += 1
-        if in_block_comment:
-            if "*/" not in line:
-                continue
-            line, in_block_comment = line.split("*/", 1)[1], False
         stripped = line.strip()
         if stripped.startswith("#"):
-            directive = re.sub(r"\s+", " ", stripped[1:].split("//", 1)[0]).strip()
+            directive = re.sub(r"\s+", " ", stripped[1:]).strip()
             # Each frame: [does the firmware compile this branch (None = unknown),
             #              has an earlier branch of this #if been compiled,
             #              could an earlier branch have been compiled].
@@ -293,10 +293,7 @@ def firmware_code_lines(text: str, defines: dict[str, str | None], includes: boo
                   and not any(frame[0] is False for frame in stack)):
                 yield lineno, stripped
             continue
-        code = STRING_LITERAL.sub('""', line).split("//", 1)[0]
-        if "/*" in code:
-            code, rest = code.split("/*", 1)
-            in_block_comment = "*/" not in rest
+        code = STRING_LITERAL.sub('""', line)
         if any(frame[0] is False for frame in stack):
             continue
         yield lineno, code
@@ -526,10 +523,7 @@ def compute(manifest: Path, exclusions: Path, src_root: Path) -> Findings:
         if f in compiled:
             for m in LOCALE_INCLUDE.finditer(text):
                 locale_includes.append((f, text.count("\n", 0, m.start()) + 1, m.group(1)))
-        for lineno, line in enumerate(text.splitlines(), 1):
-            code = line.split("//", 1)[0]
-            if code.lstrip().startswith("*"):
-                continue
+        for lineno, code in enumerate(blank_cxx(text, strings="keep").splitlines(), 1):
             for pattern, why, fix in ABORTING_CALLS:
                 if pattern.search(code):
                     aborting_calls.append((f, lineno, why, fix))
@@ -803,8 +797,7 @@ def compute_link(manifest: Path, exclusions: Path, src_root: Path, obj_root: Pat
         defines: its identifiers (raw, and with comments and strings blanked), the
         identifiers and #include names in the branches the firmware compiles, every
         #include name, and each `using Alias = ...;` with the words it names."""
-        code = re.sub(r"/\*.*?\*/|//[^\n]*", " ", text, flags=re.S)
-        code = STRING_LITERAL.sub('""', code)
+        code = STRING_LITERAL.sub('""', blank_cxx(text, strings="keep"))
         return {
             "raw_words": sorted(set(IDENTIFIER.findall(text))),
             "words": sorted(set(IDENTIFIER.findall(code))),

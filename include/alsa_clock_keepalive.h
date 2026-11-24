@@ -20,8 +20,8 @@ namespace helix::audio {
  * (prestonbrown/helixscreen#1337). Every UI sound we ship is 7-100 ms, so all
  * of them land inside that window and are never heard at all.
  *
- * The idle park added in v0.99.114 stops the clock after every sound, which is
- * what exposed this. Parking is still worth having on outputs that do NOT
+ * The idle park stops the clock after every sound, which is
+ * what exposes this. Parking is still worth having on outputs that do NOT
  * re-lock — an on-board codec costs ~172 writer wakeups/sec at our period size,
  * which matters on a host sharing a CPU with Klipper — so the park is kept and
  * suppressed only for this class of sink.

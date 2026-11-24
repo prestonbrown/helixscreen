@@ -46,9 +46,7 @@ typedef struct helix_bt_context helix_bt_context;
 /// Discovery callback — called per device found. user_data is pass-through.
 typedef void (*helix_bt_discover_cb)(const helix_bt_device* dev, void* user_data);
 
-// ============================================================================
 // Function pointer typedefs for dlsym() resolution
-// ============================================================================
 
 /// Return plugin metadata. Must return api_version == HELIX_BT_API_VERSION.
 typedef helix_bt_plugin_info* (*helix_bt_get_info_fn)(void);
@@ -125,9 +123,7 @@ typedef int (*helix_bt_remove_device_fn)(helix_bt_context* ctx, const char* mac)
 typedef int (*helix_bt_sdp_find_rfcomm_channel_fn)(helix_bt_context* ctx, const char* mac,
                                                    uint16_t uuid16, int* out_channel);
 
-// ============================================================================
 // Symbol name macros for dlsym()
-// ============================================================================
 
 #define HELIX_BT_SYM_GET_INFO "helix_bt_get_info"
 #define HELIX_BT_SYM_INIT "helix_bt_init"

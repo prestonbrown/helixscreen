@@ -87,9 +87,7 @@ Extent extent_of(const AmsMiniGridPlan& p, const AmsMiniGridMetrics& m) {
 
 } // namespace
 
-// ============================================================================
 // plan_ams_mini_grid
-// ============================================================================
 
 TEST_CASE("ams_mini grid: one unit in a wide box takes one row", "[ams_mini][grid]") {
     const AmsMiniGridMetrics m = metrics(false);
@@ -168,9 +166,7 @@ TEST_CASE("ams_mini grid: every plan fits its box", "[ams_mini][grid]") {
     }
 }
 
-// ============================================================================
 // Grid or strip
-// ============================================================================
 
 TEST_CASE("ams_mini scroll: as many usable rows as the height holds", "[ams_mini][grid]") {
     using helix::ui::plan_ams_mini_scroll;
@@ -218,9 +214,7 @@ TEST_CASE("ams_mini grid: unit groups give way to one block when they cost a thi
     CHECK(ams_mini_grid_prefers_flat(23, 24, 24));
 }
 
-// ============================================================================
 // The widget
-// ============================================================================
 
 namespace {
 

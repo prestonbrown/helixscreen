@@ -36,16 +36,12 @@ using helix::temperature_rules::deci_to_degrees_f;
 using helix::temperature_rules::format_temp_number;
 using helix::ui::temperature::get_heating_state_color;
 
-// ============================================================================
 // Constants
-// ============================================================================
 
 /** Magic number to identify temp_display widgets ("TMP1" as ASCII) */
 static constexpr uint32_t kTempDisplayMagic = 0x544D5031;
 
-// ============================================================================
 // Per-widget user data
-// ============================================================================
 
 /**
  * @brief User data stored on each temp_display widget
@@ -127,9 +123,7 @@ static TempDisplayData* get_data(lv_obj_t* obj) {
     return s_registry.get(obj);
 }
 
-// ============================================================================
 // Internal helpers
-// ============================================================================
 
 /** Get font based on size string using shared helper */
 static const lv_font_t* get_font_for_size(const char* size) {
@@ -340,7 +334,6 @@ static void update_display(TempDisplayData* data) {
     // is off, so the tile falls back to a bare current reading.
     apply_target_visibility(data);
 
-    // Update heating accent color
     update_heating_color(data);
 }
 
@@ -390,9 +383,7 @@ static void on_delete(lv_event_t* e) {
     }
 }
 
-// ============================================================================
 // Subject observer callbacks for reactive binding
-// ============================================================================
 
 /** Observer callback for current temperature subject */
 static void current_temp_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
@@ -487,9 +478,7 @@ static void mode_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
     update_heating_color(data);
 }
 
-// ============================================================================
 // XML widget callbacks
-// ============================================================================
 
 /**
  * XML create callback for <temp_display> widget
@@ -591,7 +580,6 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
                                     data_ptr->trailing_target ? muted_color : text_color,
                                     LV_PART_MAIN);
 
-        // Initialize target text subject
         snprintf(data_ptr->target_text_buf, sizeof(data_ptr->target_text_buf), "%s",
                  data_ptr->trailing_target ? lv_tr("Off") : "—");
         data_ptr->target_text_subject.init_string(data_ptr->target_text_buf, nullptr,
@@ -606,7 +594,6 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
         create_unit_label();
     }
 
-    // Initialize current text subject
     snprintf(data_ptr->current_text_buf, sizeof(data_ptr->current_text_buf), "—");
     data_ptr->current_text_subject.init_string(data_ptr->current_text_buf, nullptr,
                                                sizeof(data_ptr->current_text_buf),
@@ -616,7 +603,6 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
     data_ptr->current_text_observer =
         lv_label_bind_text(data_ptr->current_label, &data_ptr->current_text_subject, nullptr);
 
-    // Register data and cleanup
     s_registry.set(container, data_ptr.release());
     lv_obj_add_event_cb(container, on_delete, LV_EVENT_DELETE, nullptr);
 
@@ -730,7 +716,6 @@ static void ui_temp_display_apply_cb(lv_xml_parser_state_t* state, const char** 
                 // Set initial value
                 data->target_deci = lv_subject_get_int(subject);
                 data->target_temp = deci_to_degrees(data->target_deci);
-                // Update target label text if it exists
                 format_target_text(data);
                 // Apply initial heating color
                 update_heating_color(data);
@@ -793,9 +778,7 @@ static void ui_temp_display_apply_cb(lv_xml_parser_state_t* state, const char** 
     lv_xml_obj_apply(state, attrs);
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 void ui_temp_display_init(void) {
     lv_xml_register_widget("temp_display", ui_temp_display_create_cb, ui_temp_display_apply_cb);

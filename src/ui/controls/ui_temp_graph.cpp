@@ -127,7 +127,7 @@ std::vector<std::pair<int, int>> segment_target_buf(const int16_t* buf, int coun
 
 // Collapse runs of equal target values within [first, second) into single line
 // segments. The target trace is a step function, so a held setpoint produces a
-// long run of identical samples that the old per-sample draw rendered as one
+// long run of identical samples that a per-sample draw would render as one
 // sub-pixel dashed line per sample (up to ~1200 per series). Each returned pair
 // (a, b) means "draw a line from buffer index a to index b"; the union of the
 // returned pairs is geometrically identical to connecting every consecutive
@@ -769,10 +769,10 @@ static void gradient_recompute(ui_temp_graph_t* graph) {
                                .count();
     graph->gradient_render_us_total += static_cast<uint64_t>(render_us);
     ++graph->gradient_render_count;
-    // debug, not info: the measurement is done (K2 Plus: 167ms median before,
-    // ~10ms after), and a line every couple of seconds on every printer forever
-    // is not worth it. HELIX_TEMP_GRAPH_GRAD_SKIP=0 plus -vv brings it back.
-    spdlog::debug("[TempGraph {}] gradient render #{} ({}x{}, {} series) {}us "
+    // Trace: a visible graph re-renders every few seconds, and at debug this line
+    // alone would fill most of a small device's bundle log ring within an hour.
+    // -vvv brings it back for profiling.
+    spdlog::trace("[TempGraph {}] gradient render #{} ({}x{}, {} series) {}us "
                   "[fill {}us init {}us cols {}us finish {}us] [skipped {}, mean {}us]",
                   static_cast<const void*>(graph), graph->gradient_render_count, g.cw, g.ch,
                   graph->series_count, render_us, t_fill, t_init, t_cols, t_finish,
@@ -794,8 +794,8 @@ static void gradient_render_start_cb(lv_event_t* e) {
 }
 
 // Render gradient fills by reading chart data directly.
-// LVGL 9.5 changed DRAW_TASK_ADDED to fire during rendering (after all draw events),
-// so we can no longer add draw tasks from that callback. Instead, we compute pixel
+// LVGL 9.5 fires DRAW_TASK_ADDED during rendering (after all draw events), so draw
+// tasks cannot be added from that callback. Instead, we compute pixel
 // positions from the raw chart series data and draw gradient fills in DRAW_MAIN_END.
 static void draw_gradient_cb(lv_event_t* e) {
     ui_temp_graph_t* graph = static_cast<ui_temp_graph_t*>(lv_event_get_user_data(e));
@@ -1140,9 +1140,7 @@ static void draw_target_lines_cb(lv_event_t* e) {
         // accent tick at the current setpoint stays full-color for emphasis.
         lv_color_t muted = mute_color(meta->color, LV_OPA_30, graph->cached_graph_bg);
 
-        // -----------------------------------------------------------------
         // Legacy horizontal-line mode (fallback when TARGET_HISTORY is off)
-        // -----------------------------------------------------------------
         if (!history_mode) {
             int32_t content_y =
                 chart_height - lv_map(static_cast<int32_t>(meta->target_temp * kTempScale),
@@ -1168,9 +1166,7 @@ static void draw_target_lines_cb(lv_event_t* e) {
             continue;
         }
 
-        // -----------------------------------------------------------------
         // History mode — polyline of target_deci_buf samples with breaks
-        // -----------------------------------------------------------------
         if (!meta->target_deci_buf || meta->target_head <= 0)
             continue;
 
@@ -1435,9 +1431,9 @@ static void draw_x_axis_labels_cb(lv_event_t* e) {
 
         // Only draw if different from last label
         if (strcmp(now_str, prev_label) != 0) {
-            // Box ends on the right edge of the content area. The old fixed box
-            // ran 36px past it, and no ext_draw_size covers the overhang, so the
-            // tail of the time was clipped away.
+            // Box ends on the right edge of the content area: no ext_draw_size
+            // covers an overhang, so a box running past it would clip the tail of
+            // the time.
             lv_point_t now_size;
             lv_text_get_size(&now_size, now_str, graph->axis_font, 0, 0, LV_COORD_MAX,
                              LV_TEXT_FLAG_NONE);
@@ -1970,7 +1966,6 @@ SeriesId ui_temp_graph_add_series(ui_temp_graph_t* graph, const char* name, lv_c
     // The gradient callback skips POINT_NONE values when iterating series data.
     lv_chart_set_all_values(graph->chart, ser, LV_CHART_POINT_NONE);
 
-    // Initialize series metadata
     ui_temp_series_meta_t* meta = &graph->series_meta[slot];
     meta->id = static_cast<SeriesId>(graph->next_series_id++);
     meta->chart_series = ser;
@@ -2016,7 +2011,6 @@ void ui_temp_graph_remove_series(ui_temp_graph_t* graph, SeriesId series_id) {
 
     lv_chart_remove_series(graph->chart, meta->chart_series);
 
-    // Free target history buffer
     delete[] meta->target_deci_buf;
 
     // Clear metadata (also zeros target_deci_buf, target_cap and target_head)

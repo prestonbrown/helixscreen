@@ -50,9 +50,7 @@ const auto contains_html_spans = &helix::ui::contains_console_html_spans;
 const auto parse_html_spans = &helix::ui::parse_console_html_spans;
 } // namespace
 
-// ============================================================================
 // Error Message Detection Tests
-// ============================================================================
 
 TEST_CASE("Console: is_error_message() flags !! and a leading Error, any case",
           "[ui][error_detection]") {
@@ -91,9 +89,7 @@ TEST_CASE("Console: is_temp_message() needs a digit right after T: or B: and a s
     }
 }
 
-// ============================================================================
 // Command History Buffer Tests
-// ============================================================================
 
 TEST_CASE("Console: Up and Down walk the history cursor and stop at its ends",
           "[ui][command_history]") {
@@ -110,13 +106,11 @@ TEST_CASE("Console: Up and Down walk the history cursor and stop at its ends",
     CHECK(step(0, 3, LV_KEY_ENTER) == std::nullopt);
 }
 
-// ============================================================================
 // HTML spans
-// ============================================================================
 
 namespace {
 
-/// parse_html_spans() as one string: segments joined by '|', a coloured one as "class:text".
+/// parse_html_spans() as one string: segments joined by '|', a colored one as "class:text".
 std::string spans(const std::string& line) {
     std::string out;
     for (const auto& seg : parse_html_spans(line)) {
@@ -164,7 +158,7 @@ TEST_CASE("Console: parse_html_spans() splits a line into coloured segments", "[
                   "<span class=success--text> AND LOADED</span>",
                   "lane1 tool cmd: T0  |success:LOCKED|success: AND LOADED"},
              // An empty span is dropped; no '>' leaves the rest plain; no </span>
-             // still colours the content; an unknown class parses plain; quotes match.
+             // still colors the content; an unknown class parses plain; quotes match.
              Case{"<span class=success--text></span>", ""},
              Case{"<span class=success--text", "<span class=success--text"},
              Case{"<span class=success--text>content", "success:content"},
@@ -176,12 +170,10 @@ TEST_CASE("Console: parse_html_spans() splits a line into coloured segments", "[
     }
 }
 
-// ============================================================================
 // Tap-to-Paste: entry id resolution
 //
 // These exercise the REAL ConsolePanel::find_entry_by_id, not a replica. The
 // function is static and takes the container, so no panel instance is built.
-// ============================================================================
 
 namespace {
 
@@ -240,11 +232,9 @@ TEST_CASE("Console: find_entry_by_id resolves live entries only, never 0 or a pr
     }
 }
 
-// ============================================================================
 // should_display() — the one filtering decision, shared by the history and live
 // paths. Calls the real ConsolePanel static (not a replica) because the history
 // and live paths must agree on what the filters drop.
-// ============================================================================
 
 TEST_CASE("Console: should_display() drops noise and temperatures only under their toggles",
           "[ui][console_filter]") {
@@ -269,9 +259,7 @@ TEST_CASE("Console: should_display() drops noise and temperatures only under the
     CHECK(shown("// HELIX:READY", false, false, false));
 }
 
-// ============================================================================
 // The overlay: input and history list
-// ============================================================================
 
 using namespace helix;
 
@@ -326,7 +314,7 @@ lv_obj_t* named(lv_obj_t* root, const char* name) {
 }
 
 /// Every console line as drawn, oldest first: a plain label's text, or a
-/// spangroup's spans joined (the timestamped and coloured render).
+/// spangroup's spans joined (the timestamped and colored render).
 std::vector<std::string> console_lines(lv_obj_t* root) {
     lv_obj_t* container = named(root, "console_container");
     std::vector<std::string> out;

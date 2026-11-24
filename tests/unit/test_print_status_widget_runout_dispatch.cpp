@@ -9,12 +9,11 @@
  *
  * FilamentPanel, AmsOperationSidebar and FilamentRunoutHandler all route Load
  * through plan_load() (see test_filament_op_dispatch.cpp and
- * test_filament_dispatch_surfaces.cpp). PrintStatusWidget's idle runout dialog
- * was the one left over: its "Load filament" button called
- * set_active(PanelId::Filament), which navigated the dashboard away and left the
- * user to find the Load button themselves — on a printer with no AMS and no
- * LOAD_FILAMENT macro, to press a button that would then fall back to raw gcode
- * anyway.
+ * test_filament_dispatch_surfaces.cpp), and so does PrintStatusWidget's idle
+ * runout dialog. Its "Load filament" button must not navigate the dashboard away
+ * with set_active(PanelId::Filament) and leave the user to find the Load button
+ * themselves, which on a printer with no AMS and no LOAD_FILAMENT macro would
+ * only fall back to raw gcode anyway.
  *
  * This is the idle runout (nothing printing), so it carries the same
  * ParamPolicy::Suppress constraint as FilamentRunoutHandler: a MacroParamModal
@@ -64,7 +63,7 @@ class IdleRunoutDispatchFixture : public LVGLTestFixture {
             s_widget_subjects_ready = true;
         }
         // PrintStatusWidget's static-inline subjects come from its own ctor, not
-        // from init_widget_subjects() — the "print_status" registry row carries a
+        // from init_widget_subjects(): the "print_status" registry row carries a
         // null init_subjects hook. Idempotent.
         PrintStatusWidget::init_static_subjects();
 
@@ -74,7 +73,7 @@ class IdleRunoutDispatchFixture : public LVGLTestFixture {
         set_moonraker_api(api.get());
 
         // No AMS backend: the shape a basic runout-sensor printer has, and the
-        // one the old code answered by navigating away.
+        // one a navigate-away handler would mishandle.
         helix::AmsState::instance().clear_backends();
         // Empty cache => MacroParamKnowledge::UNKNOWN, i.e. the branch that WOULD
         // prompt. The only way to prove Suppress suppresses something.
@@ -151,8 +150,8 @@ TEST_CASE_METHOD(IdleRunoutDispatchFixture,
     helix::ui::UpdateQueue::instance().drain();
 
     CHECK(gcode_sent_containing("LOAD_FILAMENT"));
-    // The old arm was set_active(PanelId::Filament) — it tore the dashboard out
-    // from under the dialog the user was standing in.
+    // Navigating (set_active(PanelId::Filament)) would tear the dashboard out
+    // from under the dialog the user is standing in.
     CHECK(NavigationManager::instance().get_active() == before);
 }
 

@@ -144,9 +144,8 @@ bool on_main_thread() noexcept {
     // pattern from a bare Mechanism C anti-pattern — both inline the same
     // `expired()` call and the captured LR points at the next instruction
     // in either case. scripts/check_l081_anti_pattern.py is the authoritative
-    // static gate; this runtime emit is informational only. Field bundles
-    // (#UMAX4U2G v0.99.60 et al.) showed 8 distinct LRs all resolving to
-    // correct tok.defer() callsites — debug-level avoids that noise in
+    // static gate; this runtime emit is informational only. Every LR seen in field bundles
+    // resolved to a correct tok.defer() callsite, so debug level avoids that noise in
     // production logs while telemetry still captures occurrence rates.
     spdlog::debug("[LifetimeToken] bg-thread expired() check at lr={} "
                   "(cluster:pstat-async-delete — verify tok.defer() wraps body)",
@@ -171,7 +170,6 @@ bool on_main_thread() noexcept {
 
 } // namespace helix::internal
 
-// ============================================================================
 // helix::async_lifetime — skip-rate telemetry for AsyncLifetimeGuard
 //
 // See the declaration block at the bottom of include/async_lifetime_guard.h
@@ -192,7 +190,6 @@ bool on_main_thread() noexcept {
 //     (e.g. test fixtures driving process_pending manually).
 //   * Tag pointers are string literals per UpdateQueue::TaggedCallback's
 //     contract, so pointer-equality interning is sound and allocation-free.
-// ============================================================================
 
 namespace helix::async_lifetime {
 

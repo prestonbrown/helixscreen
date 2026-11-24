@@ -32,9 +32,7 @@
 using namespace helix;
 using helix::ui::find_required;
 
-// ============================================================================
 // Constants
-// ============================================================================
 
 namespace {
 
@@ -48,9 +46,7 @@ constexpr int kFilamentRowBarMaxPct = 30;
 
 } // namespace
 
-// ============================================================================
 // CONSTRUCTOR
-// ============================================================================
 
 HistoryDashboardPanel::HistoryDashboardPanel() : history_manager_(get_print_history_manager()) {}
 
@@ -64,9 +60,7 @@ HistoryDashboardPanel::~HistoryDashboardPanel() {
     }
 }
 
-// ============================================================================
 // Subject Initialization
-// ============================================================================
 
 void HistoryDashboardPanel::init_subjects() {
     // Initialize subject for empty state visibility binding
@@ -121,9 +115,7 @@ void HistoryDashboardPanel::deinit_subjects() {
     spdlog::debug("[{}] Subjects deinitialized", get_name());
 }
 
-// ============================================================================
 // Callback Registration
-// ============================================================================
 
 void HistoryDashboardPanel::register_callbacks() {
     register_xml_callbacks({
@@ -157,9 +149,7 @@ void HistoryDashboardPanel::register_callbacks() {
     });
 }
 
-// ============================================================================
 // Create
-// ============================================================================
 
 lv_obj_t* HistoryDashboardPanel::create(lv_obj_t* parent) {
     if (!OverlayBase::create(parent)) {
@@ -190,9 +180,7 @@ lv_obj_t* HistoryDashboardPanel::create(lv_obj_t* parent) {
     return overlay_root_;
 }
 
-// ============================================================================
 // Lifecycle Hooks
-// ============================================================================
 
 void HistoryDashboardPanel::on_ui_destroyed() {
     trend_series_ = nullptr;
@@ -236,9 +224,7 @@ void HistoryDashboardPanel::on_deactivating(DeactivateReason) {
     // Call base class last
 }
 
-// ============================================================================
 // PUBLIC API
-// ============================================================================
 
 void HistoryDashboardPanel::set_time_filter(HistoryTimeFilter filter) {
     if (current_filter_ == filter) {
@@ -257,9 +243,7 @@ void HistoryDashboardPanel::set_time_filter(HistoryTimeFilter filter) {
     refresh_data();
 }
 
-// ============================================================================
 // DATA FETCHING
-// ============================================================================
 
 void HistoryDashboardPanel::refresh_data() {
     if (!history_manager_) {
@@ -426,7 +410,6 @@ void HistoryDashboardPanel::update_statistics(const std::vector<PrintHistoryJob>
         }
     }
 
-    // Calculate success rate
     double success_rate = 0.0;
     if (total_prints > 0) {
         success_rate =
@@ -455,9 +438,7 @@ void HistoryDashboardPanel::update_statistics(const std::vector<PrintHistoryJob>
                   format_filament(total_filament), success_rate);
 }
 
-// ============================================================================
 // FORMATTING HELPERS
-// ============================================================================
 
 std::string HistoryDashboardPanel::format_duration(double seconds) {
     return helix::format::duration(static_cast<int>(seconds));
@@ -483,9 +464,7 @@ std::string HistoryDashboardPanel::format_filament(double mm) {
     return buf;
 }
 
-// ============================================================================
 // CHART HELPERS
-// ============================================================================
 
 void HistoryDashboardPanel::create_trend_chart() {
     if (!trend_chart_container_) {
@@ -493,7 +472,6 @@ void HistoryDashboardPanel::create_trend_chart() {
         return;
     }
 
-    // Create line chart for prints trend
     trend_chart_ = lv_chart_create(trend_chart_container_);
     if (!trend_chart_) {
         spdlog::error("[{}] Failed to create trend chart", get_name());
@@ -690,7 +668,6 @@ void HistoryDashboardPanel::update_filament_chart(const std::vector<PrintHistory
         fil_shown_pool_.set_int(i, 0);
     }
 
-    // Aggregate filament by type
     std::map<std::string, double> filament_by_type;
 
     for (const auto& job : jobs) {

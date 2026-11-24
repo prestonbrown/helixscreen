@@ -266,13 +266,10 @@ bool Application::init_display() {
                      pre_set_dpi, scale.lvgl_dpi);
     }
 
-    // Get active screen
     m_screen = lv_screen_active();
 
-    // Set window icon
     ui_set_window_icon(m_display->display());
 
-    // Initialize resize handler
     m_display->init_resize_handler(m_screen);
 
     // Refresh theme tokens (nav_width, overlay widths, spacing) and the
@@ -377,10 +374,8 @@ bool Application::init_theme() {
         return false;
     }
 
-    // Initialize theme
     theme_manager_init(m_display->display(), dark_mode);
 
-    // Apply background color to screen
     theme_manager_apply_bg_color(m_screen, "screen_bg", LV_PART_MAIN);
 
     // Show LVGL splash screen only when no external splash process is running.
@@ -470,8 +465,8 @@ void Application::run_rotation_probe_and_layout() {
             }
 
             // Rotation changed screen dimensions — refresh theme layout constants
-            // (nav_width, overlay widths, spacing tokens) that were calculated
-            // during Phase 6 with pre-rotation dimensions.
+            // (nav_width, overlay widths, spacing tokens) that theme init
+            // calculated from the pre-rotation dimensions.
             if (m_screen_width != pre_w || m_screen_height != pre_h) {
                 theme_manager_refresh_layout_constants(m_display->display());
             }

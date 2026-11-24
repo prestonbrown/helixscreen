@@ -12,9 +12,7 @@
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
 
-// ============================================================================
 // Helper: Build a multi-unit AmsSystemInfo for direct struct tests
-// ============================================================================
 
 /**
  * @brief Create a test AmsSystemInfo with the given unit configuration
@@ -51,9 +49,7 @@ static helix::AmsSystemInfo make_multi_unit_info(const std::vector<int>& slots_p
     return info;
 }
 
-// ============================================================================
 // Test helpers for AFC and Happy Hare backends
-// ============================================================================
 
 namespace helix {
 
@@ -157,9 +153,7 @@ class AmsBackendHHMultiUnitHelper : public AmsBackendHappyHare {
 };
 } // namespace helix
 
-// ============================================================================
 // Section 1: AmsSystemInfo multi-unit helpers (ams_types.h)
-// ============================================================================
 
 TEST_CASE("AmsSystemInfo is_multi_unit returns false for empty units", "[ams][multi-unit]") {
     helix::AmsSystemInfo info;
@@ -406,14 +400,11 @@ TEST_CASE("AmsSystemInfo total_slots matches sum across units", "[ams][multi-uni
     }
 }
 
-// ============================================================================
 // Section 2: AFC Backend multi-unit parsing
-// ============================================================================
 //
 // NOTE: These tests define the EXPECTED behavior for multi-unit AFC support.
 // The AFC backend's initialize_slots() currently always creates 1 unit.
 // Tests for multi-unit will FAIL initially - this is TDD.
-// ============================================================================
 
 TEST_CASE("AFC single-unit backward compatibility", "[ams][multi-unit][afc]") {
     // Single unit with 4 lanes -- this is the existing behavior and should pass
@@ -604,9 +595,7 @@ TEST_CASE("AFC multi-unit: single unit in units array is backward compatible",
     REQUIRE_FALSE(info.is_multi_unit());
 }
 
-// ============================================================================
 // Section 3: Happy Hare Backend multi-unit support
-// ============================================================================
 //
 // Happy Hare can report multi-unit configurations via:
 // - num_units: integer number of physical units
@@ -614,7 +603,6 @@ TEST_CASE("AFC multi-unit: single unit in units array is backward compatible",
 //
 // Currently the backend always creates 1 unit. These tests define the
 // expected multi-unit behavior and will FAIL initially (TDD).
-// ============================================================================
 
 TEST_CASE("Happy Hare single-unit backward compatibility", "[ams][multi-unit][happy-hare]") {
     // Standard single-unit Happy Hare with integer num_gates
@@ -817,9 +805,7 @@ TEST_CASE("Happy Hare multi-unit: three units", "[ams][multi-unit][happy-hare]")
     REQUIRE(info.is_multi_unit());
 }
 
-// ============================================================================
 // Global-to-Local Slot Index Mapping
-// ============================================================================
 
 // The conversion AmsOverviewPanel's detail view performs on a slot tap: the
 // widget carries a GLOBAL slot index, the detail view is indexed locally. Both

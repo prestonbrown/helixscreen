@@ -12,12 +12,6 @@
 
 namespace helix {
 
-void AmsBackendMock::set_afc_unit_name(const std::string& name) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (!system_info_.units.empty())
-        system_info_.units[0].name = name;
-}
-
 void AmsBackendMock::set_unit_model(const std::string& model, PathTopology topology) {
     std::lock_guard<std::mutex> lock(mutex_);
     if (system_info_.units.empty())

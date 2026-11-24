@@ -422,9 +422,7 @@ AdjustResult adjust(IMoonrakerAPI* api, PrinterState* ps, double session_base_mm
     return AdjustResult{delta_mm, new_offset, true, false};
 }
 
-// ============================================================================
 // Save availability
-// ============================================================================
 
 SaveAvailability current_save_availability() {
     PrinterState& ps = get_printer_state();

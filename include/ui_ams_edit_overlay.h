@@ -593,6 +593,7 @@ class AmsEditOverlay : public OverlayBase {
     /// kSaveFailed with save_error_subject_ saying why.
     helix::Subject save_state_subject_{};
     helix::Subject save_error_subject_{}; ///< "ams_edit_save_error"
+    helix::Subject save_op_subject_{};    ///< "ams_edit_save_op": Save's op-state, 1 while waiting
     /// The line a waiting save shows ("ams_edit_save_wait_text"): what the
     /// filament system is doing ahead of it, else "Saving...".
     helix::Subject save_wait_text_subject_{};

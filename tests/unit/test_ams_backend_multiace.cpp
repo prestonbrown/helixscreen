@@ -198,9 +198,7 @@ TEST_CASE_METHOD(MultiAcePrintFixture,
           AmsBackend::FilamentOpEligibility::AlreadyLoaded);
 }
 
-// ============================================================================
 // Detection and construction
-// ============================================================================
 
 TEST_CASE_METHOD(MultiAcePrintFixture, "factory builds MultiAce only for a multiACE U1",
                  "[multiace]") {
@@ -284,9 +282,7 @@ TEST_CASE("multiACE subscribes the ace object only beside a U1", "[multiace]") {
     CHECK_FALSE(AmsBackendSnapmaker::required_status_objects(discover(kU1Objects)).contains("ace"));
 }
 
-// ============================================================================
 // Units and bays
-// ============================================================================
 
 TEST_CASE_METHOD(MultiAceFixture, "head mode shows each ACE as a hub into its head", "[multiace]") {
     CapturingMultiAce b;
@@ -399,9 +395,7 @@ TEST_CASE_METHOD(MultiAceFixture, "api_version 2 and normal mode behave as plain
     }
 }
 
-// ============================================================================
 // The heads an ACE feeds
-// ============================================================================
 
 TEST_CASE_METHOD(MultiAceFixture, "ACE gate is not head port presence", "[multiace]") {
     CapturingMultiAce b;
@@ -462,9 +456,7 @@ TEST_CASE_METHOD(MultiAceFixture, "ACE head unload ends at preload_finish", "[mu
     }
 }
 
-// ============================================================================
 // Commands
-// ============================================================================
 
 TEST_CASE_METHOD(MultiAceFixture, "load bay emits ACE and SLOT always", "[multiace]") {
     CapturingMultiAce b;
@@ -761,9 +753,7 @@ TEST_CASE_METHOD(MultiAceFixture, "batch load runs the single-load checks per he
     }
 }
 
-// ============================================================================
 // Dryer
-// ============================================================================
 
 TEST_CASE_METHOD(MultiAceFixture, "dry targets the unit", "[multiace]") {
     CapturingMultiAce b;
@@ -795,9 +785,7 @@ TEST_CASE_METHOD(MultiAceFixture, "dry targets the unit", "[multiace]") {
     CHECK(b.sent[1] == "ACE_DRY ACE=3 TEMP=50 DURATION=180");
 }
 
-// ============================================================================
 // Errors
-// ============================================================================
 
 TEST_CASE_METHOD(MultiAceFixture, "coded 525 error files under its head", "[multiace]") {
     CapturingMultiAce b;
@@ -1131,9 +1119,7 @@ TEST_CASE_METHOD(MultiAceFixture, "a loaded head with no recorded source refuses
     CHECK(b.sent.empty());
 }
 
-// ============================================================================
 // Spool identity: upstream bays, numbering, captions
-// ============================================================================
 
 TEST_CASE_METHOD(MultiAceFixture, "a routed head's spool lives in its bay", "[multiace]") {
     CapturingMultiAce b;
@@ -1287,9 +1273,7 @@ TEST_CASE_METHOD(MultiAceFixture, "spool numbers skip no index the engine left o
     CHECK(numbers == expected);
 }
 
-// ============================================================================
 // Bay identity editing
-// ============================================================================
 
 TEST_CASE_METHOD(MultiAceFixture, "a bay edit lands and survives the engine's frames",
                  "[multiace][ams]") {

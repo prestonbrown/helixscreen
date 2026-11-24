@@ -7,7 +7,6 @@ using namespace helix;
 
 #include "../catch_amalgamated.hpp"
 
-// ============================================================================
 // k2-improvements profile
 //
 // The mod replaces Creality's START_PRINT on stock firmware and narrates each
@@ -15,7 +14,6 @@ using namespace helix;
 // below is the literal text its macros emit (features/macros/*.cfg upstream).
 // Its heat soak and M191 chamber wait are the longest stretches of the
 // sequence and are the reason SOAKING exists.
-// ============================================================================
 
 TEST_CASE("PrintStartProfile: k2_improvements maps the mod's narration",
           "[profile][print][k2improvements]") {

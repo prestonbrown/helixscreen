@@ -3,7 +3,7 @@
 
 #include "prerender_size_class.h"
 
-#include "ui_breakpoint.h"
+#include "core/breakpoint.h"
 
 #include <algorithm>
 #include <cstring>

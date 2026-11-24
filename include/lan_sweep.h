@@ -103,10 +103,8 @@ struct LanSweepLimits {
     size_t worker_stack_bytes = 16 * 1024;
 };
 
-// ----------------------------------------------------------------------------
 // Platform pieces: one definition per platform (src/network/lan_sweep_posix.cpp
 // on Linux and macOS, the firmware's helixapp/lan_sweep_esp.cpp on the ESP32).
-// ----------------------------------------------------------------------------
 
 /// Printer discovery on the real network: mDNS plus the LAN sweep, or the sweep alone
 /// where there is no mDNS.

@@ -263,9 +263,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(ctx.tools_used == std::set<int>{0, 2});
 }
 
-// ============================================================================
 // FileStartFactsLoader
-// ============================================================================
 
 namespace {
 
@@ -429,9 +427,7 @@ TEST_CASE_METHOD(LoaderFixture, "a later load supersedes an unanswered one",
     CHECK(answered == std::vector<std::string>{second.name()});
 }
 
-// ============================================================================
 // The file's tools, as the pre-print step and the slicer-start check read them
-// ============================================================================
 
 TEST_CASE("file_tools_used reads scanned tools, then per-tool weights",
           "[print_start_inputs][reprint]") {

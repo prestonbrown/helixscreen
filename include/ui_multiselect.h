@@ -93,7 +93,6 @@ class UiMultiselect {
     /// Get keys of all selected items
     std::vector<std::string> get_selected_keys() const;
 
-    /// Get count of selected items
     size_t get_selected_count() const;
 
     void select_all();

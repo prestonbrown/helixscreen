@@ -146,7 +146,6 @@ std::string wifi_get_device_mac(const std::string& interface) {
     const std::string result =
         helix::run_capture("ifconfig " + interface + " 2>/dev/null", exit_code);
 
-    // Parse for "ether XX:XX:XX:XX:XX:XX" line
     const std::string ether_prefix = "ether ";
     size_t ether_pos = result.find(ether_prefix);
     if (ether_pos == std::string::npos) {

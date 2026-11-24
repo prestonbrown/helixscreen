@@ -43,9 +43,7 @@ class SystemSettingsManager {
     /** @brief Deinitialize LVGL subjects (called by StaticSubjectRegistry) */
     void deinit_subjects();
 
-    // =========================================================================
     // LANGUAGE SETTINGS
-    // =========================================================================
 
     /**
      * @brief Get current language code
@@ -87,9 +85,7 @@ class SystemSettingsManager {
     /** @brief Get dropdown index for language code */
     static int language_code_to_index(const std::string& code);
 
-    // =========================================================================
     // UPDATE CHANNEL SETTINGS
-    // =========================================================================
 
     /** @brief Get current update channel (0=Stable, 1=Beta, 2=Dev) */
     int get_update_channel() const {
@@ -108,9 +104,7 @@ class SystemSettingsManager {
     /** @brief Set and persist the automatic updates mode */
     void set_auto_update_mode(int mode);
 
-    // =========================================================================
     // TELEMETRY SETTINGS
-    // =========================================================================
 
     bool get_telemetry_enabled() const {
         return settings_.get_bool(Key::TelemetryEnabled);
@@ -119,9 +113,7 @@ class SystemSettingsManager {
     /** @brief Set telemetry enabled state (persists to config + notifies TelemetryManager) */
     void set_telemetry_enabled(bool enabled);
 
-    // =========================================================================
     // WIFI SETTINGS
-    // =========================================================================
 
     /**
      * @brief Stored WiFi radio on/off choice (default true, also before init_subjects())
@@ -171,9 +163,7 @@ class SystemSettingsManager {
     /// Persist the last real country the radio reported.
     void set_wifi_country_last_seen(const std::string& code);
 
-    // =========================================================================
     // PLUGIN INSTALL PROMPT
-    // =========================================================================
 
     /// The user asked never to be offered the HelixPrint plugin again.
     /// Readable before init_subjects(), like the rest of this group.
@@ -189,9 +179,7 @@ class SystemSettingsManager {
 
     void set_plugin_prompt_snooze(int64_t snoozed_at_s, int unmeasured_starts);
 
-    // =========================================================================
     // LOG LEVEL SETTINGS
-    // =========================================================================
 
     /** @brief Get current log level index (0=Warn, 1=Info, 2=Debug, 3=Trace) */
     int get_log_level_index() const;
@@ -199,9 +187,7 @@ class SystemSettingsManager {
     /** @brief Set log level by dropdown index, apply immediately, and persist */
     void set_log_level_by_index(int index);
 
-    // =========================================================================
     // SUBJECT ACCESSORS (for XML binding)
-    // =========================================================================
 
     /** @brief Language subject (integer: index into language options) */
     lv_subject_t* subject_language() {

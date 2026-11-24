@@ -93,10 +93,8 @@
 using json = nlohmann::json;
 namespace fs = std::filesystem;
 
-// =============================================================================
 // Static buffers for async-signal-safe crash handler
 // All data must be pre-allocated -- NO heap in the signal handler.
-// =============================================================================
 
 static constexpr size_t MAX_PATH_LEN = 512;
 
@@ -184,9 +182,7 @@ static const char* s_error_log_ring = nullptr;
 static unsigned int s_error_log_capacity = 0;
 static volatile const unsigned int* s_error_log_next = nullptr;
 
-// =============================================================================
 // Heap snapshot cache
-// =============================================================================
 //
 // Refreshed from the main loop (non-signal-safe calls: open, read, mallinfo2,
 // lv_mem_monitor). Signal handler reads these fields directly — pure memory
@@ -232,9 +228,7 @@ static volatile unsigned int s_current_event_code = 0;
 static volatile const char* s_current_event_target_class = nullptr;
 static char s_current_event_target_name[32] = {0};
 
-// =============================================================================
 // Breadcrumb ring buffer (activity context for crash diagnosis)
-// =============================================================================
 
 /// Single breadcrumb slot. Size = 72 bytes.
 struct BreadcrumbSlot {
@@ -327,14 +321,10 @@ void crash_handler::set_terminate_context(const char* what) noexcept {
     s_terminate_msg[n] = '\0';
 }
 
-// =============================================================================
 // Async-signal-safe helpers
 // These use ONLY functions from the POSIX async-signal-safe list.
-// =============================================================================
 
-// =============================================================================
 // ELF load base discovery (called at install time, NOT in signal handler)
-// =============================================================================
 
 // __executable_start is a linker-defined symbol at the beginning of the ELF image.
 // On static-PIE, its runtime address reflects the ASLR offset.
@@ -1359,9 +1349,7 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* ucontext) {
 
 } // anonymous namespace
 
-// =============================================================================
 // Public API
-// =============================================================================
 
 void crash_handler::register_callback_tag_ptr(volatile const char* const* tag_ptr) {
     s_callback_tag_ptr = tag_ptr;
@@ -1570,7 +1558,6 @@ void crash_handler::refresh_heap_snapshot() noexcept {
     __atomic_store_n(&s_heap_snapshot.ts_ms, publish_ts, __ATOMIC_RELEASE);
 }
 
-// -----------------------------------------------------------------------------
 // Breadcrumb producers (single-producer: LVGL/UI thread only)
 //
 // note() is lock-free and signal-reader-safe (the signal handler dumping the
@@ -1581,7 +1568,6 @@ void crash_handler::refresh_heap_snapshot() noexcept {
 // navigation, modals, the per-frame tick, and boot initialization — so the
 // single-producer contract holds. Do not call from background threads or
 // signal handlers.
-// -----------------------------------------------------------------------------
 
 namespace {
 
@@ -2077,13 +2063,11 @@ void crash_handler::write_mock_crash_file(const std::string& crash_file_path) {
     spdlog::info("[CrashHandler] Wrote mock crash file: {}", crash_file_path);
 }
 
-// =============================================================================
 // trigger_test_crash() — deterministic SIGSEGV for verifying the unwind path.
 // Each level is noinline + externally visible so the five stack frames appear
 // in crash.txt. The top-level symbols are clustered in the static namespace
 // below; they're only meant to be called via trigger_test_crash() and should
 // not be reachable from normal code paths.
-// =============================================================================
 
 namespace {
 

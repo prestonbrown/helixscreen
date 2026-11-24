@@ -45,11 +45,9 @@ using helix_test::b64;
 using helix_test::unb64;
 using helix_test::wait_until;
 
-// ============================================================================
 // Fixture: fake daemon + repointed env + event-counting backend handle.
 // Event counting follows the WiFiBackendTestFixture cv/timeout shape from
 // test_wifi_backends.cpp; assertions on counts stay on the main thread.
-// ============================================================================
 class NetdBackendFixture {
   public:
     static constexpr int kReconnectMs = 200;
@@ -200,10 +198,8 @@ class NetdBackendFixture {
     std::map<std::string, int> counts_;
 };
 
-// ============================================================================
 // 1. Interface drift: every pure virtual through the base pointer, and the
 //    capability answers this backend must pin.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd backend interface surface", "[netd][wifi]") {
     // Not running before start(): operations report NOT_INITIALIZED, not a
     // crash or a silent success.
@@ -257,9 +253,7 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd backend interface surface", "[netd][w
     REQUIRE_FALSE(backend_->supports_5ghz());
 }
 
-// ============================================================================
 // 2. Handshake: start() connects and speaks SUBSCRIBE then GET, byte-exact.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd start sends SUBSCRIBE then GET", "[netd][wifi]") {
     REQUIRE(backend_->start().success());
     REQUIRE(backend_->is_running());
@@ -271,13 +265,11 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd start sends SUBSCRIBE then GET", "[ne
     REQUIRE(lines[1] == "GET");
 }
 
-// ============================================================================
 // 2b. Factory selection: when the daemon's socket is present (the fixture's
 //     HELIX_NETD_SOCKET), WifiBackend::create() returns the netd backend —
 //     proven behaviorally by the SUBSCRIBE handshake, not by type inspection
 //     (the build is -fno-rtti). Reordering the factory branches so the probe
 //     is skipped would leave nothing speaking to the fake daemon.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd factory selects the netd backend", "[netd][wifi]") {
     std::unique_ptr<WifiBackend> selected = WifiBackend::create(false);
     REQUIRE(selected != nullptr);
@@ -291,10 +283,8 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd factory selects the netd backend", "[
     selected->stop();
 }
 
-// ============================================================================
 // 3. Snapshot pushes surface through get_status(), and a status read never
 //    writes to the socket.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd snapshot pushes drive get_status", "[netd][wifi]") {
     register_standard_events();
     REQUIRE(start_and_settle());
@@ -331,11 +321,9 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd snapshot pushes drive get_status", "[
     REQUIRE(server_->recorded_line_count() == before);
 }
 
-// ============================================================================
 // 4. State-diff events: one CONNECTED on the offline->connected transition,
 //    one DISCONNECTED on the drop. Non-state fields and connected->connected
 //    transitions must not re-fire.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd state diff fires CONNECTED and DISCONNECTED once",
                  "[netd][wifi]") {
     register_standard_events();
@@ -362,12 +350,10 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd state diff fires CONNECTED and DISCON
     REQUIRE(event_count("DISCONNECTED") == 1);
 }
 
-// ============================================================================
 // 4b. A drop that passes through an intermediate state must still surface:
 //     CONNECTED -> RETRYING (beacon loss) -> DISCONNECTED is ONE disconnect.
 //     The old terminal-state gate consumed was_connected_ on the RETRYING
 //     push and swallowed the drop entirely.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd drop via RETRYING still fires DISCONNECTED",
                  "[netd][wifi]") {
     register_standard_events();
@@ -391,11 +377,9 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd drop via RETRYING still fires DISCONN
     REQUIRE(event_count("CONNECTED") == 1);
 }
 
-// ============================================================================
 // 4c. Ack attribution: a late ERR for an accepted-but-unacked SCAN must never
 //     read as a verdict on a join sent behind it — the join stays accepted,
 //     the scan completes, and no join-failure event fires.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd late scan error does not fail a parked join",
                  "[netd][wifi]") {
     use_long_watchdog();
@@ -432,10 +416,8 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd late scan error does not fail a parke
     REQUIRE(event_count("AUTH_FAILED") == 0);
 }
 
-// ============================================================================
 // 5. Join wire format: byte-exact CONNECT_WIFI lines, psk token omitted
 //    entirely for open networks.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd connect_network sends exact wire lines",
                  "[netd][wifi]") {
     REQUIRE(start_and_settle());
@@ -467,11 +449,9 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd connect_network sends exact wire line
     }
 }
 
-// ============================================================================
 // 6. Rejected join: connect_network returns immediately (fire-and-forget —
 //    the daemon owns the join), and the terminal ERR WRONG_KEY arrives as
 //    ONE AUTH_FAILED event, not multiplied by RETRYING pushes or repeats.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd rejected join maps to AUTH_FAILED once",
                  "[netd][wifi]") {
     register_standard_events();
@@ -502,10 +482,8 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd rejected join maps to AUTH_FAILED onc
     REQUIRE(event_count("AUTH_FAILED") == 1);
 }
 
-// ============================================================================
 // 7. Scan: rows then OK => exactly one SCAN_COMPLETE; per-BSS rows merge
 //    into one SSID row with the union of bands and the stronger signal.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd scan rows merge and complete once", "[netd][wifi]") {
     use_long_watchdog();
     register_standard_events();
@@ -541,11 +519,9 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd scan rows merge and complete once", "
     REQUIRE(backend_->supports_5ghz());
 }
 
-// ============================================================================
 // A completed scan yields exactly one SCAN_COMPLETE even after the watchdog
 // deadline passes. Short watchdog on purpose: it does not matter which path
 // completed the scan, only that no second completion follows.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd completed scan is not completed again by the watchdog",
                  "[netd][wifi]") {
     register_standard_events();
@@ -564,12 +540,10 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd completed scan is not completed again
     REQUIRE(event_count("SCAN_COMPLETE") == 1);
 }
 
-// ============================================================================
 // 8. A refused scan: fire-and-forget means the ERR arrives as a daemon line
 //    and completes the scan through the outstanding-scan attribution — one
 //    SCAN_COMPLETE, an empty cache (nothing was found), and the caller's
 //    return is success (the obligation is discharged by the event).
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd refused scan completes empty", "[netd][wifi]") {
     use_long_watchdog();
     register_standard_events();
@@ -593,11 +567,9 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd refused scan completes empty", "[netd
     REQUIRE(networks.empty());
 }
 
-// ============================================================================
 // 9. Accepted scan against a daemon that goes silent: the ack window times
 //    out (the scan reads as accepted), nothing ever arrives, and the
 //    watchdog alone completes it (the scan scheduler must never latch).
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd scan watchdog completes a silent scan", "[netd][wifi]") {
     register_standard_events();
     REQUIRE(start_and_settle());
@@ -617,10 +589,8 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd scan watchdog completes a silent scan
     REQUIRE(wait_for_event("SCAN_COMPLETE", 1));
 }
 
-// ============================================================================
 // 10. Daemon death: the backend survives, keeps serving the last snapshot,
 //     reconnects within the window, and NEVER sends CANCEL.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd daemon death survives and reconnects", "[netd][wifi]") {
     register_standard_events();
     REQUIRE(start_and_settle());
@@ -663,10 +633,8 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd daemon death survives and reconnects"
     REQUIRE(backend_->get_status().connected);
 }
 
-// ============================================================================
 // 11. stop() closes the connection without CANCEL, and start() works again
 //     on the still-running event loop.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd stop closes silently and start reuses the loop",
                  "[netd][wifi]") {
     REQUIRE(start_and_settle());
@@ -699,9 +667,7 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd stop closes silently and start reuses
     }));
 }
 
-// ============================================================================
 // 12. The shared dBm -> percent mapping (wifi_signal_percent_from_dbm).
-// ============================================================================
 TEST_CASE("wifi signal percent from dbm clamps and scales", "[netd][wifi]") {
     REQUIRE(wifi_signal_percent_from_dbm(-30) == 100);
     REQUIRE(wifi_signal_percent_from_dbm(-52) == 63);
@@ -710,12 +676,10 @@ TEST_CASE("wifi signal percent from dbm clamps and scales", "[netd][wifi]") {
     REQUIRE(wifi_signal_percent_from_dbm(-60) == 50);
 }
 
-// ============================================================================
 // 13. MAC retry (#1399): a box booted in ETHERNET mode has no wlan0 when
 //     init runs, so the init-time read legitimately finds nothing. The
 //     CONNECTED transition must retry the read and the result must surface
 //     through get_status(), or the MAC stays blank for the whole session.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd MAC read retries on the CONNECTED transition",
                  "[netd][wifi][1399]") {
     // wlan0 appearing late: the first read (init) finds no interface, every
@@ -747,7 +711,6 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd MAC read retries on the CONNECTED tra
     REQUIRE(backend_->get_status().mac_address == injected_mac);
 }
 
-// ============================================================================
 // 14. Ack attribution with BOTH a join and a scan outstanding (#1398): the
 //     join's auth-failure ERR must resolve the JOIN (AUTH_FAILED), not be
 //     consumed as the pending scan's completion. The reachable shape is a
@@ -755,7 +718,6 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd MAC read retries on the CONNECTED tra
 //     reverse is refused synchronously — see the gate case below): netd
 //     retries a wrong-password join for tens of seconds, so the collision is
 //     routine. The scan loses the tie and its watchdog owns it.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd auth ERR with a scan pending resolves the join first",
                  "[netd][wifi][1398]") {
     // Long watchdog: within this case the scan can only be completed by the
@@ -793,7 +755,6 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd auth ERR with a scan pending resolves
     REQUIRE(event_count("SCAN_COMPLETE") == 1); // no second, misread completion
 }
 
-// ============================================================================
 // 14b. The daemon runs one op at a time: a scan requested while a join is
 //      outstanding is DEFERRED, not refused. A synchronous refusal would
 //      toast "scan failed" for an action the UI itself initiated (the
@@ -801,7 +762,6 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd auth ERR with a scan pending resolves
 //      ladder) and latch the scanning spinner. The deferred scan goes out
 //      the moment the join resolves, and its completion satisfies the
 //      trigger_scan obligation.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd scan during a join defers until the join resolves",
                  "[netd][wifi][1398]") {
     backend_ = std::make_unique<WifiBackendNetd>(kReconnectMs, 10000);
@@ -846,12 +806,10 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd scan during a join defers until the j
     }
 }
 
-// ============================================================================
 // 14c. ERR BUSY reaching a backend with a join in flight is the JOIN's
 //      rejection (the daemon denies CONNECT_WIFI while an op flag is
 //      active). Single-flight guarantees no scan can be co-pending, so the
 //      verdict resolves the join as a disconnect.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd ERR BUSY during a join resolves the join not the scan",
                  "[netd][wifi][1398]") {
     backend_ = std::make_unique<WifiBackendNetd>(kReconnectMs, 10000);
@@ -874,13 +832,11 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd ERR BUSY during a join resolves the j
     REQUIRE(event_count("SCAN_COMPLETE") == 0);
 }
 
-// ============================================================================
 // 15. Reconnect handshake vs a pending scan (#1398): the liveness give-up
 //     closes the connection DELIBERATELY (no drop-detection path runs), so a
 //     scan pending at that moment survives into the new connection — and the
 //     handshake's seed ack would be consumed as an instant empty-scan
 //     completion. The new connection must never answer the old one's scan.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd reconnect handshake does not complete a pending scan",
                  "[netd][wifi][1398]") {
     // Shrunk liveness so the deliberate close lands inside the case; a long
@@ -932,12 +888,10 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd reconnect handshake does not complete
     REQUIRE(wait_for_event("SCAN_COMPLETE", 2));
 }
 
-// ============================================================================
 // 16. Liveness probes are owned and single (#1398): one probe chain covers
 //     every outstanding op (not one GET per command against a quiet daemon),
 //     and stop() retires the chain — a stopped backend stays silent, and the
 //     chain cannot follow the backend into a restart.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd liveness probe is single and stops with the backend",
                  "[netd][wifi][1398]") {
     // A give-up far outside the case: what the probe chain does when the daemon
@@ -1006,12 +960,10 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd liveness probe is single and stops wi
     REQUIRE(line_count("SUBSCRIBE") == 2);
 }
 
-// ============================================================================
 // 17. Joining the network we are already on (#1398): the daemon ignores a
 //     redundant CONNECT_WIFI, so the request must resolve from the snapshot —
 //     a prompt synthetic CONNECTED and nothing on the wire. A different
 //     network still takes the wire path.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd joining the current network resolves from the snapshot",
                  "[netd][wifi][1398]") {
     register_standard_events();
@@ -1065,12 +1017,10 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd joining the current network resolves 
     REQUIRE(other.success());
 }
 
-// ============================================================================
 // A refused scan keeps the previous list on screen (#1398): the daemon
 // answers a mid-join scan with ERR BUSY, and a scan that never ran must not
 // blank the rows the UI is showing. The cache turns over only when the new
 // scan's first row arrives (rows precede the completing OK).
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd refused scan keeps the previous rows",
                  "[netd][wifi][1398]") {
     use_long_watchdog();
@@ -1113,7 +1063,6 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd refused scan keeps the previous rows"
     }
 }
 
-// ============================================================================
 // stop() with a scan outstanding honors the trigger_scan contract as divided
 // by #1405: the manager owns the scheduler latch at the stop boundary, so the
 // backend stays SILENT — it clears its internal single-flight flag (a
@@ -1121,7 +1070,6 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd refused scan keeps the previous rows"
 // scan's rows. The #1398-era interim had cleanup_netd() dispatch a synthetic
 // SCAN_COMPLETE here; with WiFiManager unlatching on the swap itself
 // (test_wifi_manager_scan_unlatch.cpp) that would double-resolve.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd stop with a pending scan stays silent and reusable",
                  "[netd][wifi][1398][1405]") {
     use_long_watchdog();
@@ -1173,12 +1121,10 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd stop with a pending scan stays silent
     REQUIRE(wait_for_event("SCAN_COMPLETE", 2));
 }
 
-// ============================================================================
 // A scan that RAN and found nothing clears the list honestly: AP turned off,
 // out of range - the daemon answers OK with no rows, and serving the
 // previous SSIDs would offer ghost networks a user can tap into a full join
 // timeout. (An ERR'd scan keeps them: it never ran.)
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd completed-empty scan clears ghost rows",
                  "[netd][wifi][1398]") {
     use_long_watchdog();
@@ -1217,12 +1163,10 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd completed-empty scan clears ghost row
     }
 }
 
-// ============================================================================
 // An unknown ERR reason still completes a pending scan immediately (no
 // closed reason table): a future daemon's new vocabulary must not hang the
 // scan to the watchdog. With single-flight, no join can be co-pending, so
 // the scan owns whatever ack arrives.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd unknown ERR completes the pending scan",
                  "[netd][wifi][1398]") {
     backend_ = std::make_unique<WifiBackendNetd>(kReconnectMs, 10000);
@@ -1243,11 +1187,9 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd unknown ERR completes the pending sca
     REQUIRE(event_count("AUTH_FAILED") == 0);
 }
 
-// ============================================================================
 // A join that ends via the DISCONNECTED state edge (no ERR ack, no CONNECTED)
 // must clear the in-flight latch: a stuck flag blocks every later scan - the
 // single-flight gate turns it from inert bookkeeping into a scan killer.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd drop-edge join end reopens scanning",
                  "[netd][wifi][1398]") {
     use_long_watchdog();
@@ -1282,7 +1224,6 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd drop-edge join end reopens scanning",
     REQUIRE(wait_for_event("SCAN_COMPLETE", 1));
 }
 
-// ============================================================================
 // A dead daemon can never produce a synthetic "Connected". The credential-free
 // reselect answers a join from the snapshot instead of going to the wire, and
 // is_running() deliberately stays true across socket loss (the reconnect timer
@@ -1293,7 +1234,6 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd drop-edge join end reopens scanning",
 // and THEN completes the scan it killed, so SCAN_COMPLETE arriving proves the
 // socket is already gone. Reconnect and watchdog are pushed past the case so
 // neither can re-open the connection or complete the scan first.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd dead socket refuses to fabricate a connect",
                  "[netd][wifi]") {
     backend_ = std::make_unique<WifiBackendNetd>(60000, 60000);
@@ -1338,7 +1278,6 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd dead socket refuses to fabricate a co
     REQUIRE(event_count("CONNECTED") == 1);
 }
 
-// ============================================================================
 // Scan rows the daemon broadcasts with no scan of ours outstanding are
 // dropped, not staged. netd pushes to every subscriber, so another client's
 // scan streams rows at us; staging them grew the cache for the life of the
@@ -1348,7 +1287,6 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd dead socket refuses to fabricate a co
 // Ordering is established without a sleep: a snapshot field pushed after the
 // foreign row is only visible through get_status() once the loop thread has
 // processed everything ahead of it, the row included.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd rows with no scan outstanding are dropped",
                  "[netd][wifi]") {
     use_long_watchdog();
@@ -1377,11 +1315,9 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd rows with no scan outstanding are dro
     REQUIRE(rows[0].ssid == "Ours");
 }
 
-// ============================================================================
 // A 5 GHz row still counts as evidence even when it belongs to nobody's scan:
 // the radio demonstrably saw the band. The ownership drop above must not take
 // supports_5ghz() down with it.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd unowned 5GHz row still proves band support",
                  "[netd][wifi]") {
     // Band edges: 4.9 GHz and UNII-4 are 5 GHz, Wi-Fi 6E (5925+) is not
@@ -1400,14 +1336,12 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd unowned 5GHz row still proves band su
     REQUIRE(backend_->supports_5ghz() == is_5ghz);
 }
 
-// ============================================================================
 // Rows staged by a scan that was abandoned rather than completed must not
 // survive into the next scan's published list. stop() clears the in-flight
 // flag WITHOUT completing (the manager owns the scheduler at that boundary,
 // #1405), so the staging cache is left holding rows; the start() that follows
 // retires the orphaned scan through finish_scan(), and that is where they
 // have to be dropped.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd abandoned scan rows do not reach the next scan",
                  "[netd][wifi]") {
     use_long_watchdog();
@@ -1458,14 +1392,12 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd abandoned scan rows do not reach the 
     REQUIRE(rows.empty());
 }
 
-// ============================================================================
 // The wpa_supplicant fallback question. WiFiManager swaps a failed backend for
 // wpa_supplicant on the strength of this answer alone, and the daemon enforces
 // a single transport while driving the supplicant itself — so the answer may
 // only be yes when the daemon's socket could not be reached at all. Any other
 // init failure leaves the daemon in charge of the hardware, and starting
 // wpa_supplicant against it puts two clients on one radio.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd unreachable daemon admits the wpa_supplicant fallback",
                  "[netd][wifi]") {
     std::atomic<int> init_failed{0};
@@ -1516,12 +1448,10 @@ TEST_CASE_METHOD(NetdBackendFixture,
     REQUIRE_FALSE(backend_->supports_wpa_supplicant_fallback());
 }
 
-// ============================================================================
 // 8. Single transport: netd answers a Wi-Fi join by downing eth0 and moving
 //    the address to wlan0 (prestonbrown/helixscreen#1398), so the join must
 //    still reach the wire while Ethernet holds the link. The backend only
 //    ADVISES that the wired link is about to go.
-// ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd sends a Wi-Fi join whatever holds the link",
                  "[1542][1398][netd][wifi]") {
     struct Row {

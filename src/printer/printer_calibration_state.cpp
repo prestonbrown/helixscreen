@@ -167,7 +167,6 @@ void PrinterCalibrationState::update_from_status(const nlohmann::json& status) {
         }
     }
 
-    // Parse firmware_retraction settings (G10/G11 retraction parameters)
     if (const auto* firmware_retraction = json_util::find_member(status, "firmware_retraction")) {
         const auto& fr = *firmware_retraction;
 

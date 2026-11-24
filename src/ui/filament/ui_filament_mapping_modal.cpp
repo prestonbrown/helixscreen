@@ -72,9 +72,7 @@ FilamentMappingModal::FilamentMappingModal() {
     lv_xml_register_event_cb(nullptr, "filament_mapping_auto_toggle_cb", auto_toggle_cb);
 }
 
-// ============================================================================
 // Configuration
-// ============================================================================
 
 void FilamentMappingModal::set_tool_info(const std::vector<helix::GcodeToolInfo>& tools) {
     tool_info_ = tools;
@@ -96,9 +94,7 @@ void FilamentMappingModal::set_start_macro_note(std::string note) {
     start_macro_note_ = std::move(note);
 }
 
-// ============================================================================
 // Modal lifecycle
-// ============================================================================
 
 void FilamentMappingModal::on_show() {
     wire_ok_button("btn_primary");
@@ -160,9 +156,7 @@ void FilamentMappingModal::revert() {
     }
 }
 
-// ============================================================================
 // Row building
-// ============================================================================
 
 void FilamentMappingModal::rebuild_rows() {
     lv_subject_set_int(
@@ -255,9 +249,7 @@ lv_obj_t* FilamentMappingModal::create_tool_row(int tool_index) {
     return row;
 }
 
-// ============================================================================
 // Display text helpers
-// ============================================================================
 
 const helix::AvailableSlot*
 FilamentMappingModal::find_mapped_slot(const helix::ToolMapping& mapping) const {
@@ -293,9 +285,7 @@ std::string FilamentMappingModal::get_slot_display_text(const helix::ToolMapping
     return helix::ui::active_tool_lane_label(helix::ui::active_lane_noun(), mapping.mapped_slot);
 }
 
-// ============================================================================
 // Row tap -> slot picker
-// ============================================================================
 
 void FilamentMappingModal::row_clicked_cb(lv_event_t* e) {
     auto* self = Modal::from_event<FilamentMappingModal>(e);
@@ -345,9 +335,7 @@ void FilamentMappingModal::on_slot_selected(int tool_index,
     rebuild_rows();
 }
 
-// ============================================================================
 // Toggle: keep current assignments
-// ============================================================================
 
 void FilamentMappingModal::auto_toggle_cb(lv_event_t* e) {
     auto* self = Modal::from_event<FilamentMappingModal>(e);

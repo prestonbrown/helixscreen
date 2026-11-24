@@ -31,7 +31,6 @@ class CrashReportModal : public Modal {
     /// Set the crash report data before showing
     void set_report(const CrashReporter::CrashReport& report);
 
-    /// Show the modal on the given parent
     bool show_modal(lv_obj_t* parent);
 
     /// One-shot form: show on the active screen and hand the instance to

@@ -3,6 +3,7 @@
 
 #include "ams_feeder_control.h"
 #include "ams_state.h"
+#include "ams_tool_park.h"
 #include "core/subject.h"
 #include "helix/ui/text_metrics.h"
 #include "helix_psram_attr.h"
@@ -88,7 +89,7 @@ ToolPicker& tool_picker() {
 ToolSwitcherActions tool_switcher_actions_offered() {
     ToolSwitcherActions actions;
     if (const AmsBackend* backend = AmsState::instance().get_backend()) {
-        actions.park = backend->supports_tool_park();
+        actions.park = usable_tool_park(backend) != nullptr;
         const IFeederControl* const feeder = backend->as<IFeederControl>();
         actions.feeder = feeder && feeder->supports_feeder_control();
     }

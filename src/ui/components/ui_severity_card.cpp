@@ -101,7 +101,6 @@ void ui_severity_card_finalize(lv_obj_t* obj) {
         return;
     }
 
-    // Get stored severity from user data
     const char* severity = (const char*)lv_obj_get_user_data(obj);
     if (!severity) {
         spdlog::debug("[SeverityCard] No severity in user_data, defaulting to 'info'");

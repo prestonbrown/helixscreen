@@ -6,7 +6,7 @@
  * @brief Unit tests for ui_spinner.cpp - Reactive spinner widget
  *
  * A spinner's arc reads the shared StyleRole::Spinner style rather than an
- * inline colour, so a theme change recolours every spinner in place.
+ * inline color, so a theme change recolors every spinner in place.
  */
 
 #include "ui_spinner.h"
@@ -70,9 +70,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_spinner: every spinner recolours with th
     lv_obj_delete(large);
 }
 
-// ============================================================================
 // Hidden spinners stop animating
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "ui_spinner: a hidden spinner stops animating and resumes when shown",

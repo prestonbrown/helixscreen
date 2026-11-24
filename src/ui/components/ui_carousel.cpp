@@ -668,7 +668,6 @@ void ui_carousel_remove_item(lv_obj_t* carousel, int index) {
         state->current_page = new_count - 1;
     }
 
-    // Update page subject if changed
     if (state->page_subject) {
         lv_subject_set_int(state->page_subject, state->current_page);
     }

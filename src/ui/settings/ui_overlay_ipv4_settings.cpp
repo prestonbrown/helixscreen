@@ -88,9 +88,7 @@ std::string ipv4_row_summary(const helix::net::Ipv4Config& config) {
     return std::string(lv_tr("Static")) + " " + config.address;
 }
 
-// ============================================================================
 // Keep-or-revert dialog
-// ============================================================================
 
 void Ipv4KeepModal::on_show() {
     wire_ok_button("btn_primary");
@@ -121,9 +119,7 @@ void Ipv4KeepModal::on_dismissed() {
     }
 }
 
-// ============================================================================
 // Overlay
-// ============================================================================
 
 Ipv4SettingsOverlay& get_ipv4_settings_overlay() {
     return helix::lazy_global<Ipv4SettingsOverlay>("Ipv4SettingsOverlay");
@@ -277,9 +273,7 @@ void Ipv4SettingsOverlay::refresh_job_held() {
     }
 }
 
-// ----------------------------------------------------------------------------
 // Link plumbing
-// ----------------------------------------------------------------------------
 
 bool Ipv4SettingsOverlay::link_supported() {
     if (link_ == helix::net::Ipv4Link::Wifi) {
@@ -307,9 +301,7 @@ void Ipv4SettingsOverlay::read_link_config(
     }
 }
 
-// ----------------------------------------------------------------------------
 // Form
-// ----------------------------------------------------------------------------
 
 void Ipv4SettingsOverlay::set_error(const char* text) {
     lv_subject_set_string(&error_, text ? text : "");
@@ -370,9 +362,7 @@ void Ipv4SettingsOverlay::fill_form(const helix::net::Ipv4Config& config) {
     copy_to(current_, std::string(lv_tr("Currently:")) + " " + ipv4_row_summary(config));
 }
 
-// ----------------------------------------------------------------------------
 // Change flow
-// ----------------------------------------------------------------------------
 
 void Ipv4SettingsOverlay::handle_apply() {
     if (!loaded_ || change_pending() || lv_subject_get_int(&busy_)) {

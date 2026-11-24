@@ -60,9 +60,7 @@ class MoonrakerRestAPI : public helix::IRestAPI {
     MoonrakerRestAPI(helix::IMoonrakerClient& client, const std::string& http_base_url);
     virtual ~MoonrakerRestAPI();
 
-    // ========================================================================
     // Generic REST Endpoint Operations (for Moonraker extensions)
-    // ========================================================================
 
     /**
      * @brief Call a Moonraker extension REST endpoint with GET
@@ -93,9 +91,7 @@ class MoonrakerRestAPI : public helix::IRestAPI {
     void call_rest_post(const std::string& endpoint, const json& params,
                         RestCallback on_complete) override;
 
-    // ========================================================================
     // WLED Control Operations (Moonraker WLED Bridge)
-    // ========================================================================
 
     /**
      * @brief Get list of discovered WLED strips via Moonraker bridge

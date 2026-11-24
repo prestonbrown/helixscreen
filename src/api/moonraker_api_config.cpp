@@ -8,9 +8,7 @@
 
 using namespace moonraker_internal;
 
-// ============================================================================
 // Configuration Query Operations
-// ============================================================================
 
 void MoonrakerAPI::query_configfile(JsonCallback on_success, ErrorCallback on_error) {
     spdlog::debug("[Moonraker API] Querying configfile object");

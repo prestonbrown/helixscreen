@@ -5,16 +5,14 @@
  * @file test_moonraker_api_disconnected_gcode.cpp
  * @brief The klippy-halted gate must not speak for a printer we never reached.
  *
- * Context (K2 Plus, v0.99.98): the WebSocket to
- * Moonraker never opened once for the whole session. klippy_state therefore
- * still held its startup default of SHUTDOWN (printer_network_state.cpp,
- * "default to SHUTDOWN until confirmed ready") — there is no UNKNOWN value to
- * distinguish "never heard from Klipper" from "Klipper e-stopped".
+ * When the WebSocket to Moonraker never opens, klippy_state holds its startup
+ * default of SHUTDOWN (printer_network_state.cpp, "default to SHUTDOWN until
+ * confirmed ready"); there is no UNKNOWN value to distinguish "never heard from
+ * Klipper" from "Klipper e-stopped".
  *
- * MoonrakerAPI::execute_gcode's gate read only that subject, so every G-code
- * was refused with "Klipper is halted — restart firmware to continue". The PID
- * calibration screen printed that verbatim, sending the reporter to restart
- * firmware on a printer whose firmware was fine and simply unreachable.
+ * A gate that read only that subject would refuse every G-code with "Klipper is
+ * halted — restart firmware to continue", sending the user to restart firmware on
+ * a printer that is fine and simply unreachable.
  *
  * The gate may only claim Klipper is halted when we are actually connected to
  * it. Disconnected, the request falls through to client_.send_jsonrpc, whose
@@ -69,7 +67,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     state.init_subjects(false);
 
     // Deliberately NOT setting klippy_state: it sits at its startup default of
-    // SHUTDOWN, which is precisely what made the old gate misfire. Asserting the
+    // SHUTDOWN, the state a halt-based gate would misread as a halt. Asserting the
     // default here keeps the test honest if that default ever changes.
     REQUIRE(lv_subject_get_int(state.network_state().get_klippy_state_subject()) ==
             static_cast<int>(KlippyState::SHUTDOWN));

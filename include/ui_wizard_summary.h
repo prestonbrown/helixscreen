@@ -165,9 +165,7 @@ class WizardSummaryStep : public helix::wizard::Step {
     std::string format_hotend_summary();
 };
 
-// ============================================================================
 // Global Instance Access
-// ============================================================================
 
 /**
  * @brief Get the global WizardSummaryStep instance

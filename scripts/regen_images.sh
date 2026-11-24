@@ -59,7 +59,7 @@ NC="$LVGL_NC"
 #   else                     target = (screen_width * 3) / 5;  // 60%
 #
 # These are the EXACT sizes the splash logo renders at - NO runtime scaling needed!
-# Classes are the UiBreakpoint tiers (include/ui_breakpoint.h). This is a subset
+# Classes are the UiBreakpoint tiers (include/core/breakpoint.h). This is a subset
 # of the classes the 3D splash generates; a lookup that misses falls back to
 # scaling the PNG, so the tiers with no logo here cost nothing.
 ALL_SCREEN_SIZES=(

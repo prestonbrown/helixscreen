@@ -651,60 +651,6 @@ std::string AmsBackend::normalize_material(const std::string& material) const {
 
 #ifdef HELIX_ENABLE_MOCKS
 
-namespace {
-
-/// A HELIX_MOCK_AMS value that shows one Happy Hare unit of a vendor we have art for: the
-/// vendor string Happy Hare publishes, and the path its selector type gives the lanes.
-struct MockVendorUnit {
-    std::string_view mock_value;
-    const char* vendor;
-    PathTopology topology;
-};
-
-const MockVendorUnit* mock_vendor_unit(std::string_view mock_value) {
-    static constexpr MockVendorUnit kRows[] = {
-        {"kms", "KMS", PathTopology::HUB},
-        {"hh_vivid", "VVD", PathTopology::LINEAR},
-        {"hh_qidi", "QIDI", PathTopology::HUB},
-        {"hh_htlf", "HTLF", PathTopology::LINEAR},
-        {"hh_night_owl", "NightOwl", PathTopology::HUB},
-        {"hh_box_turtle", "BoxTurtle", PathTopology::HUB},
-        {"hh_mmx", "MMX", PathTopology::LINEAR},
-        {"hh_3ms", "3MS", PathTopology::HUB},
-        {"hh_emu", "EMU", PathTopology::HUB},
-        {"hh_yammu", "YAMMU", PathTopology::HUB},
-        // Happy Hare's vendor for hardware it has no constant for: nothing names the unit.
-        {"hh_other", "Other", PathTopology::HUB},
-    };
-    for (const MockVendorUnit& row : kRows) {
-        if (row.mock_value == mock_value)
-            return &row;
-    }
-    return nullptr;
-}
-
-/// The AFC unit name a HELIX_MOCK_AMS value that shows one AFC unit we have art for runs as
-/// ("<type> <instance>", as AFC names them), or nullptr for any other value.
-const char* mock_afc_unit_name(std::string_view mock_value) {
-    struct Row {
-        std::string_view mock_value;
-        const char* unit_name;
-    };
-    static constexpr Row kRows[] = {
-        {"quattro_box", "Quattro_Box QuattroBox_1"},
-        {"quattrobox", "Quattro_Box QuattroBox_1"},
-        {"afc_bmcu", "BMCU BMCU_1"},
-        {"afc-bmcu", "BMCU BMCU_1"},
-    };
-    for (const Row& row : kRows) {
-        if (row.mock_value == mock_value)
-            return row.unit_name;
-    }
-    return nullptr;
-}
-
-} // namespace
-
 // Helper to create mock backend with optional features.
 //
 // `mock_client` (when non-null) is the client the caller wants the AMS mock
@@ -715,7 +661,6 @@ static std::unique_ptr<AmsBackendMock>
 create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullptr) {
     const std::string ams_type = helix::mock::effective_mock_ams(std::getenv("HELIX_MOCK_AMS"),
                                                                  std::getenv("HELIX_MOCK_PRINTER"));
-    const char* afc_unit = mock_afc_unit_name(ams_type);
     if (const int real = helix::mock::mock_real_lane_count(ams_type, gate_count);
         real != gate_count) {
         spdlog::info("[AMS Backend] Mock {} is built with {} lanes; ignoring {} gates", ams_type,
@@ -752,16 +697,14 @@ create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullpt
     // HELIX_MOCK_AMS — topology/type selection
     // ========================================================================
     if (!ams_type.empty()) {
-        if (afc_unit) {
-            mock->set_afc_mode(true);
-            mock->set_afc_unit_name(afc_unit);
-            spdlog::info("[AMS Backend] Mock AFC unit {}", afc_unit);
-        } else if (ams_type == "ercf" || ams_type == "tradrack") {
-            mock->set_unit_model(ams_type == "ercf" ? "ERCF" : "Tradrack");
-            spdlog::info("[AMS Backend] Mock selector rail: {}", ams_type);
-        } else if (const MockVendorUnit* vendor = mock_vendor_unit(ams_type)) {
-            mock->set_unit_model(vendor->vendor, vendor->topology);
-            spdlog::info("[AMS Backend] Mock Happy Hare {} unit", vendor->vendor);
+        // A Happy Hare unit reaches here only on a persona that publishes no `mmu`.
+        if (const helix::mock::HappyHareMockUnit* unit =
+                helix::mock::happy_hare_mock_unit(ams_type);
+            unit && unit != &helix::mock::kHappyHareErcf) {
+            mock->set_unit_model(std::string(unit->vendor), unit->selector_type == "VirtualSelector"
+                                                                ? PathTopology::HUB
+                                                                : PathTopology::LINEAR);
+            spdlog::info("[AMS Backend] Mock Happy Hare {} unit", unit->vendor);
         } else if (ams_type == "mixed") {
             mock->set_mixed_topology_mode(true);
             spdlog::info("[AMS Backend] Mock mixed topology mode enabled");

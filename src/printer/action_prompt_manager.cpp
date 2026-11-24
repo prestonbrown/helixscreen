@@ -76,21 +76,16 @@ void ActionPromptManager::set_instance(ActionPromptManager* instance) {
     }
 }
 
-// ============================================================================
 // Static Parsing Functions
-// ============================================================================
 
 std::optional<ActionLineResult> ActionPromptManager::parse_action_line(const std::string& line) {
-    // Find the "// action:" prefix, allowing leading whitespace
     const std::string prefix = "// action:";
 
-    // Skip leading whitespace
     size_t start = 0;
     while (start < line.size() && (line[start] == ' ' || line[start] == '\t')) {
         ++start;
     }
 
-    // Check if the line starts with "// action:" after whitespace
     if (line.size() < start + prefix.size()) {
         return std::nullopt;
     }
@@ -99,13 +94,11 @@ std::optional<ActionLineResult> ActionPromptManager::parse_action_line(const std
         return std::nullopt;
     }
 
-    // Extract the rest after "// action:"
     size_t command_start = start + prefix.size();
     if (command_start >= line.size()) {
         return std::nullopt;
     }
 
-    // Find the end of the command (first space or end of line)
     size_t command_end = command_start;
     while (command_end < line.size() && line[command_end] != ' ' && line[command_end] != '\t') {
         ++command_end;
@@ -145,7 +138,6 @@ PromptButton ActionPromptManager::parse_button_spec(const std::string& spec) {
         return button;
     }
 
-    // Split by '|' character
     std::vector<std::string> parts;
     size_t start = 0;
     size_t pos = 0;
@@ -156,7 +148,6 @@ PromptButton ActionPromptManager::parse_button_spec(const std::string& spec) {
     }
     parts.push_back(spec.substr(start));
 
-    // Field 0 = label
     if (!parts.empty()) {
         button.label = parts[0];
     }
@@ -196,9 +187,7 @@ PromptButton ActionPromptManager::parse_button_spec(const std::string& spec) {
     return button;
 }
 
-// ============================================================================
 // State Machine
-// ============================================================================
 
 const PromptData* ActionPromptManager::get_current_prompt() const {
     if (m_state == State::SHOWING && m_current_prompt) {
@@ -307,21 +296,16 @@ void ActionPromptManager::process_line(const std::string& line) {
     }
 }
 
-// ============================================================================
 // Command Handlers
-// ============================================================================
 
 void ActionPromptManager::handle_prompt_begin(const std::string& payload) {
-    // If currently showing, close the current prompt first
     if (m_state == State::SHOWING && m_on_close) {
         m_on_close();
     }
 
-    // Create a new prompt
     m_current_prompt = std::make_unique<PromptData>();
     m_current_prompt->title = payload;
 
-    // Reset group tracking for this new prompt
     m_in_group = false;
     // Note: m_next_group_id is NOT reset - it keeps incrementing across prompts
 
@@ -344,7 +328,6 @@ void ActionPromptManager::handle_prompt_button(const std::string& payload, bool 
     PromptButton button = parse_button_spec(payload);
     button.is_footer = is_footer;
 
-    // Assign group_id if currently in a group
     if (m_in_group) {
         button.group_id = m_current_prompt->current_group_id;
     } else {
@@ -359,7 +342,6 @@ void ActionPromptManager::handle_prompt_button_group_start() {
         return;
     }
 
-    // Assign a new group ID
     m_current_prompt->current_group_id = m_next_group_id++;
     m_in_group = true;
 }
@@ -369,7 +351,6 @@ void ActionPromptManager::handle_prompt_button_group_end() {
         return;
     }
 
-    // End the current group
     m_current_prompt->current_group_id = -1;
     m_in_group = false;
 }
@@ -392,12 +373,10 @@ void ActionPromptManager::handle_prompt_end() {
         return; // Nothing to end
     }
 
-    // Fire close callback only if we were showing
     if (m_state == State::SHOWING && m_on_close) {
         m_on_close();
     }
 
-    // Clear the prompt and return to IDLE
     m_current_prompt.reset();
     m_in_group = false;
     set_state(State::IDLE);
@@ -410,9 +389,7 @@ void ActionPromptManager::handle_notify(const std::string& payload) {
     }
 }
 
-// ============================================================================
 // Test/Development Helpers
-// ============================================================================
 
 void ActionPromptManager::trigger_test_prompt() {
     spdlog::info("[ActionPromptManager] Triggering test prompt");

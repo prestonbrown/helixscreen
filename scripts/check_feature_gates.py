@@ -25,6 +25,9 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from source_strip import blank_cxx  # noqa: E402
+
 HEADER = "include/helix_features.h"
 
 # Presence flags the build defines (or not) from what the host offers; tested with
@@ -59,10 +62,6 @@ IFNDEF = re.compile(r"^\s*#\s*ifndef\s+(HELIX_HAS_[A-Z0-9_]+)\s*$")
 DASH_D = re.compile(r"-D(HELIX_HAS_[A-Z0-9_]+)\b(?!\$)")
 
 
-def strip_line_comment(text, marker):
-    return text.split(marker, 1)[0]
-
-
 def source_files(root):
     for rel in SOURCE_DIRS:
         base = root / rel
@@ -76,10 +75,11 @@ def source_files(root):
             yield path
 
 
-def previous_code_line(lines, index):
+def previous_code_line(code_lines, index):
+    """The nearest non-blank line above `index` in a comment-blanked view."""
     for j in range(index - 1, -1, -1):
-        stripped = lines[j].strip()
-        if stripped and not stripped.startswith("//"):
+        stripped = code_lines[j].strip()
+        if stripped:
             return stripped
     return ""
 
@@ -96,7 +96,9 @@ def main():
 
     findings = []
     declared = set()
-    header_lines = header.read_text(errors="replace").splitlines()
+    header_text = header.read_text(errors="replace")
+    header_lines = header_text.splitlines()
+    header_code = blank_cxx(header_text, strings="keep").splitlines()
     for i, line in enumerate(header_lines):
         m = DEFINE.match(line)
         if not m:
@@ -106,7 +108,7 @@ def main():
             findings.append(f"{HEADER}:{i + 1}: write `#define {name} <digits>` with nothing "
                             f"after it; the Makefile reads only that form")
         declared.add(name)
-        guard = IFNDEF.match(previous_code_line(header_lines, i))
+        guard = IFNDEF.match(previous_code_line(header_code, i))
         if not guard or guard.group(1) != name:
             findings.append(f"{HEADER}:{i + 1}: {name}'s default needs its own #ifndef "
                             f"{name} guard, or a build's -D cannot override it")
@@ -120,7 +122,7 @@ def main():
         rel = path.relative_to(root).as_posix()
         if rel == HEADER:
             continue
-        lines = path.read_text(errors="replace").splitlines()
+        lines = blank_cxx(path.read_text(errors="replace"), strings="keep").splitlines()
         for i, line in enumerate(lines):
             m = DEFINE.match(line)
             if m:
@@ -133,12 +135,12 @@ def main():
                 continue
             c = CONDITIONAL.match(line)
             if c:
-                for groups in PRESENCE_TEST.findall(strip_line_comment(line, "//")):
+                for groups in PRESENCE_TEST.findall(line):
                     name = groups[0] or groups[1]
                     if name in declared:
                         findings.append(f"{rel}:{i + 1}: tests whether {name} is defined, "
                                         f"which every build makes true; test it with #if")
-                for name in GATE.findall(strip_line_comment(c.group(2), "//")):
+                for name in GATE.findall(c.group(2)):
                     uses.append((rel, i + 1, name))
 
     known = declared | self_defined | PROBED
@@ -153,7 +155,7 @@ def main():
             continue
         rel = path.relative_to(root).as_posix()
         for i, line in enumerate(path.read_text(errors="replace").splitlines()):
-            for name in DASH_D.findall(strip_line_comment(line, "#")):
+            for name in DASH_D.findall(line.split("#", 1)[0]):
                 if name not in known:
                     findings.append(f"{rel}:{i + 1}: passes {name}, which no source declares")
     for relpath in CMAKE_FILES:
@@ -161,7 +163,7 @@ def main():
         if not path.is_file():
             continue
         for i, line in enumerate(path.read_text(errors="replace").splitlines()):
-            for name in GATE.findall(strip_line_comment(line, "#")):
+            for name in GATE.findall(line.split("#", 1)[0]):
                 if name not in known:
                     findings.append(f"{relpath}:{i + 1}: passes {name}, which no source declares")
 
@@ -172,7 +174,7 @@ def main():
             continue
         rel = path.relative_to(root).as_posix()
         for i, line in enumerate(path.read_text(errors="replace").splitlines()):
-            for name in zero.findall(strip_line_comment(line, "#")):
+            for name in zero.findall(line.split("#", 1)[0]):
                 findings.append(f"{rel}:{i + 1}: {name}=0 still counts as defined to #ifdef; "
                                 f"leave a presence flag out to turn it off")
 

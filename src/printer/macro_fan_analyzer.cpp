@@ -15,14 +15,12 @@ namespace helix {
 MacroFanAnalysis MacroFanAnalyzer::analyze(const nlohmann::json& config_settings) const {
     MacroFanAnalysis result;
 
-    // Parse M106 macro for SET_PIN PIN=fanN patterns
     if (const auto* m106 = json_util::find_member(config_settings, "gcode_macro m106")) {
         if (const auto gcode = json_util::read_field<std::string>(*m106, "gcode")) {
             extract_set_pin_fans(*gcode, result);
         }
     }
 
-    // Parse M107 macro for additional SET_PIN PIN=fanN patterns
     if (const auto* m107 = json_util::find_member(config_settings, "gcode_macro m107")) {
         if (const auto gcode = json_util::read_field<std::string>(*m107, "gcode")) {
             extract_set_pin_fans(*gcode, result);

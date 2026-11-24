@@ -6,13 +6,13 @@
  * @brief Tests for the pure auto-navigation gate used by print start navigation.
  *
  * These tests call the REAL helix::print_start_nav_should_navigate() /
- * helix::printer_has_job() (not shadow copies), so they are the
- * regression guard for the auto-open-print-status gate.
+ * helix::printer_has_job() (not shadow copies), so they guard
+ * the auto-open-print-status gate.
  *
  * The gate must fire on any inactive→active edge, not just →PRINTING:
  * firmware power-loss recovery surfaces the restored job as PAUSED at
  * initial connect (STANDBY→PAUSED), then resumes (#1099). The resume
- * edge itself (PAUSED→PRINTING) must NOT navigate — users who deliberately
+ * edge itself (PAUSED→PRINTING) must NOT navigate: users who deliberately
  * navigated away mid-print would be yanked back on every resume.
  */
 

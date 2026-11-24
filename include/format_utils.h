@@ -9,9 +9,7 @@
 
 namespace helix::format {
 
-// =============================================================================
 // Constants
-// =============================================================================
 
 /**
  * @brief Unavailable/unknown value placeholder (em dash)
@@ -21,9 +19,7 @@ namespace helix::format {
  */
 inline constexpr const char* UNAVAILABLE = "—";
 
-// =============================================================================
 // Percentage Formatting
-// =============================================================================
 
 /**
  * @brief Format integer percentage with % suffix
@@ -88,9 +84,7 @@ char* format_percent_float(double percent, int decimals, char* buf, size_t size)
  */
 char* format_humidity(int humidity_x10, char* buf, size_t size);
 
-// =============================================================================
 // Distance/Length Formatting
-// =============================================================================
 
 /**
  * @brief Format distance in millimeters with configurable precision
@@ -115,9 +109,7 @@ char* format_distance_mm(double mm, int precision, char* buf, size_t size);
  */
 char* format_diameter_mm(float mm, char* buf, size_t size);
 
-// =============================================================================
 // Speed Formatting
-// =============================================================================
 
 /**
  * @brief Format speed in mm/s (whole number)
@@ -154,9 +146,7 @@ char* format_speed_mm_min(double speed, char* buf, size_t size);
  */
 char* format_speed_mm_s_float(double speed, int decimals, char* buf, size_t size);
 
-// =============================================================================
 // Acceleration Formatting
-// =============================================================================
 
 /**
  * @brief Format acceleration in mm/s²
@@ -168,9 +158,7 @@ char* format_speed_mm_s_float(double speed, int decimals, char* buf, size_t size
  */
 char* format_accel_mm_s2(double accel, char* buf, size_t size);
 
-// =============================================================================
 // Frequency Formatting
-// =============================================================================
 
 /**
  * @brief Format frequency in Hz (1 decimal place)
@@ -182,9 +170,7 @@ char* format_accel_mm_s2(double accel, char* buf, size_t size);
  */
 char* format_frequency_hz(double hz, char* buf, size_t size);
 
-// =============================================================================
 // Duration Formatting
-// =============================================================================
 
 /// Looks up a unit format ("%dh %dm") in the current language.
 using Translator = const char* (*)(const char*);
@@ -269,9 +255,7 @@ std::string duration_padded(int total_seconds);
  */
 std::string format_filament_length(double mm);
 
-// =============================================================================
 // Clock Time Formatting
-// =============================================================================
 
 /**
  * @brief Format remaining seconds as an estimated finish clock time string

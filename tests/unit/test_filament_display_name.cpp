@@ -40,9 +40,7 @@ SlotInfo make_afc_slot() {
 
 } // namespace
 
-// ============================================================================
 // compose_filament_label — joining
-// ============================================================================
 
 TEST_CASE("compose_filament_label: joins brand, name and material", "[filament][label]") {
     SECTION("bare name") {
@@ -77,9 +75,7 @@ TEST_CASE("compose_filament_label: joins brand, name and material", "[filament][
     }
 }
 
-// ============================================================================
 // compose_filament_label — brand deduplication
-// ============================================================================
 
 TEST_CASE("compose_filament_label: brand already in the name is not repeated",
           "[filament][label]") {
@@ -113,9 +109,7 @@ TEST_CASE("compose_filament_label: brand already in the name is not repeated",
     }
 }
 
-// ============================================================================
 // compose_filament_label — material deduplication
-// ============================================================================
 
 TEST_CASE("compose_filament_label: material already in the name is not repeated",
           "[filament][label]") {
@@ -152,12 +146,10 @@ TEST_CASE("compose_filament_label: material already in the name is not repeated"
     }
 }
 
-// ============================================================================
 // compose_filament_label — word-boundary traps
 //
 // These are the partial-word false positives a bare substring search produces.
 // Each assertion here fails if the boundary check is downgraded to find().
-// ============================================================================
 
 TEST_CASE("compose_filament_label: a material the name already states is dropped",
           "[filament][label]") {
@@ -233,9 +225,7 @@ TEST_CASE("compose_filament_label: a material the name already states is dropped
     }
 }
 
-// ============================================================================
 // compose_filament_label — whitespace
-// ============================================================================
 
 TEST_CASE("compose_filament_label: collapses and trims whitespace", "[filament][label]") {
     SECTION("leading and trailing whitespace is trimmed") {
@@ -267,9 +257,7 @@ TEST_CASE("compose_filament_label: collapses and trims whitespace", "[filament][
     }
 }
 
-// ============================================================================
 // resolve_filament_label — precedence
-// ============================================================================
 
 TEST_CASE("resolve_filament_label: slot fields outrank the Spoolman identity",
           "[filament][label]") {
@@ -389,9 +377,7 @@ TEST_CASE("resolve_filament_label: the algorithmic color name is the last naming
     }
 }
 
-// ============================================================================
 // resolve_filament_label — the never-empty guarantee
-// ============================================================================
 
 TEST_CASE("resolve_filament_label: never returns an empty string", "[filament][label]") {
     SlotInfo bare;
@@ -425,9 +411,7 @@ TEST_CASE("resolve_filament_label: never returns an empty string", "[filament][l
     }
 }
 
-// ============================================================================
 // resolve_filament_label — dedup reached through the resolver
-// ============================================================================
 
 TEST_CASE("resolve_filament_label: dedup applies across the merged layers", "[filament][label]") {
     SECTION("identity vendor already inside the slot spool name") {
@@ -456,9 +440,7 @@ TEST_CASE("resolve_filament_label: dedup applies across the merged layers", "[fi
     }
 }
 
-// ============================================================================
-// Regression
-// ============================================================================
+// AFC label resolution
 
 TEST_CASE("resolve_filament_label: AFC BoxTurtle slot renders its Spoolman name, not the "
           "algorithmic color",
@@ -532,9 +514,7 @@ TEST_CASE("resolve_filament_label: the AFC writer and the picker writer agree",
     }
 }
 
-// ============================================================================
 // resolve_filament_label_parts — the split form
-// ============================================================================
 
 TEST_CASE("resolve_filament_label_parts: exposes the resolved fields separately",
           "[filament][label]") {

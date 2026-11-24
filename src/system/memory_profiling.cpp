@@ -4,8 +4,6 @@
 /**
  * @file memory_profiling.cpp
  * @brief Development-time memory profiling implementation
- *
- * Extracted from main.cpp to improve modularity and reusability.
  */
 
 #include "memory_profiling.h"
@@ -22,9 +20,7 @@
 
 namespace helix {
 
-// ============================================================================
 // Internal State
-// ============================================================================
 
 namespace {
 
@@ -86,7 +82,6 @@ void sigusr1_handler(int /*signum*/) {
  * Checks for signal-requested snapshots and periodic reporting.
  */
 void memory_report_timer_cb(lv_timer_t* /*timer*/) {
-    // Check if signal requested a snapshot
     if (g_snapshot_requested.exchange(false, std::memory_order_acquire)) {
         log_memory_snapshot_impl("signal");
     }
@@ -99,9 +94,7 @@ void memory_report_timer_cb(lv_timer_t* /*timer*/) {
 
 } // anonymous namespace
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 void MemoryProfiler::init(bool enable_periodic) {
     if (g_initialized) {

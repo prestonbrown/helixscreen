@@ -18,9 +18,7 @@
 
 namespace helix::ui {
 
-// ============================================================================
 // Construction / Destruction
-// ============================================================================
 
 ContextMenu::ContextMenu() {
     spdlog::trace("[ContextMenu] Constructed");
@@ -67,9 +65,7 @@ ContextMenu& ContextMenu::operator=(ContextMenu&& other) noexcept {
     return *this;
 }
 
-// ============================================================================
 // Active-menu registry and the XML callbacks that route through it
-// ============================================================================
 
 ContextMenu* ContextMenu::active() {
     // The backdrop can be destroyed without going through hide(): a screen swap takes
@@ -102,9 +98,7 @@ void ContextMenu::register_shared_callbacks() {
     });
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 void ContextMenu::set_action_callback(ActionCallback callback) {
     action_callback_ = std::move(callback);
@@ -150,7 +144,6 @@ bool ContextMenu::show_impl(lv_obj_t* parent, int item_index, lv_obj_t* anchor, 
     anchor_align_ = align;
     anchor_widget_ = anchor;
 
-    // Create context menu from XML
     menu_ = static_cast<lv_obj_t*>(lv_xml_create(parent, xml_component_name(), nullptr));
     if (!menu_) {
         spdlog::error("[ContextMenu] Failed to create menu from XML: {}", xml_component_name());
@@ -309,9 +302,7 @@ int32_t ContextMenu::row_width_for_text(lv_obj_t* row, lv_obj_t* label, const ch
     return width;
 }
 
-// ============================================================================
 // Protected Helpers
-// ============================================================================
 
 lv_obj_t* ContextMenu::card() const {
     return menu_ ? lv_obj_find_by_name(menu_, menu_card_name()) : nullptr;
@@ -345,9 +336,7 @@ void ContextMenu::dispatch_action(int action) {
     }
 }
 
-// ============================================================================
 // Row sizing
-// ============================================================================
 
 // DECLARATIVE_OK: measured layout. A menu card sized `width="content"` cannot stretch
 // its rows declaratively — LVGL flex has no cross-axis stretch, and giving a row
@@ -412,9 +401,7 @@ void ContextMenu::stretch_rows_to_card(lv_obj_t* menu_card) {
     stretch_rows_in(menu_card);
 }
 
-// ============================================================================
 // Fitting the card to the screen
-// ============================================================================
 
 // DECLARATIVE_OK: measured layout. Whether the stacked card overflows depends on how
 // many rows the backend left visible, which is only known after on_created() has run
@@ -565,9 +552,7 @@ void ContextMenu::tidy_column_groups(lv_obj_t* columns) {
     }
 }
 
-// ============================================================================
 // Positioning
-// ============================================================================
 
 lv_point_t ContextMenu::compute_card_pos(lv_point_t card, lv_area_t anchor, lv_point_t bounds,
                                          int32_t margin, int32_t gap, AnchorMode mode,

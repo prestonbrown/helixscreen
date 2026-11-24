@@ -14,6 +14,7 @@
 #include "ams_unit_shell.h"
 #include "lvgl/lvgl.h"
 #include "spool_spin.h"
+#include "unit_colors.h"
 
 #include <cstdint>
 #include <map>
@@ -22,6 +23,7 @@
 
 namespace helix {
 struct AmsSystemInfo;
+struct AmsUnit;
 struct SlotInfo;
 } // namespace helix
 
@@ -72,6 +74,10 @@ UnitArtLane unit_art_lane(const SlotInfo& slot);
 /// The drawing this printer's user picked for each of @p info's units (Settings > Multi-Filament
 /// System Management > Unit Type), as the resolver takes them. Every unit picture reads it.
 tray::ShellChoices unit_art_choices(const AmsSystemInfo& info);
+
+/// The colors this printer's user picked for @p unit (Colors in the unit's settings): the
+/// regions its drawing bakes masks for take them.
+UnitColors unit_art_colors(const AmsUnit& unit);
 
 /// The picks that take effect, by unit identity: a unit whose pick the resolver draws. A
 /// screen laid out for one set lays itself out again when the set changes; units coming,
@@ -151,7 +157,9 @@ UnitArtLaneMark unit_art_lane_mark(lv_obj_t* art, int lane);
 /// The drawing's layers in the order they are composed, back to front: "back", each lane's
 /// stack left to right ("lane<N>_glow", "lane<N>_body", "lane<N>_tint", "lane<N>_shade",
 /// "lane<N>_dim", "lane<N>_rim", as the drawing has them), then "front" and, on a full
-/// drawing, "sensor_faults".
+/// drawing, "sensor_faults". A unit colored by the user (unit_art_colors) whose drawing bakes
+/// region masks adds "back_<region>_tint" and "back_<region>_shade" after "back", and
+/// "front_<region>_tint" and "front_<region>_shade" after "front".
 std::vector<std::string> unit_art_compose_order(lv_obj_t* art);
 
 /// Whether lane @p lane's filament is masked to a part-wound spool, and to what percent.

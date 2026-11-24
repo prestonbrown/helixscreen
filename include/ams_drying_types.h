@@ -20,9 +20,7 @@
 
 namespace helix {
 
-// ============================================================================
 // Dryer Types (for AMS systems with integrated drying)
-// ============================================================================
 
 /**
  * @brief Preset drying profile

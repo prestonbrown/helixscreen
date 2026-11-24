@@ -55,6 +55,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from source_strip import blank_cxx  # noqa: E402
 from check_esp32_app_srcs import (  # noqa: E402
     DEFAULT_EXCLUSIONS, DEFAULT_FIRMWARE_ROOT, DEFAULT_MANIFEST, DEFAULT_SRC_ROOT,
     QUALIFIED_CALLEE, STRING_LITERAL, defined_functions, display, firmware_code_lines,
@@ -63,7 +64,6 @@ from check_esp32_app_srcs import (  # noqa: E402
 
 MARKER = "ESP32_STUB_OK"
 HEADER_EXTS = (".h", ".hpp")
-COMMENT = re.compile(r"/\*.*?\*/|//[^\n]*", re.S)
 SCOPE = re.compile(r"(\w+)::")
 QUALIFIED = re.compile(r"(\w+)::(~?\w+)\s*\(")
 
@@ -79,8 +79,7 @@ def class_members(names: set[str]) -> set[tuple[str, str]]:
 
 
 def stripped(text: str) -> str:
-    code = STRING_LITERAL.sub('""', text)
-    return COMMENT.sub(" ", code)
+    return STRING_LITERAL.sub('""', blank_cxx(text, strings="keep"))
 
 
 def matching_brace(code: str, open_at: int) -> int:

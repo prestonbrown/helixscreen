@@ -9,6 +9,7 @@
 #include "../test_helpers/backend_user_edit.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
+#include "ams_spoolman_tag_links.h"
 #include "ams_state.h"
 #include "ams_tag_reading.h"
 #include "app_globals.h"
@@ -35,9 +36,15 @@ constexpr int kOtherSpool = 4243;
 constexpr int kMissingSpool = 98765;
 
 /// A mock whose slots' tags name the spools a test sets.
-class TaggedMock : public AmsBackendMock {
+class TaggedMock : public AmsBackendMock, public ISpoolmanTagLinks {
   public:
     using AmsBackendMock::AmsBackendMock;
+    [[nodiscard]] void* capability(helix::TypeTag tag) override {
+        if (tag == helix::type_tag<ISpoolmanTagLinks>()) {
+            return static_cast<ISpoolmanTagLinks*>(this);
+        }
+        return AmsBackendMock::capability(tag);
+    }
 
     [[nodiscard]] std::optional<ams::TagReading> tag_reading(int slot_index) const override {
         auto it = tag_ids.find(slot_index);

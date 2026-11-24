@@ -557,7 +557,7 @@ void AmsState::clear_external_spool_info() {
 }
 
 void AmsState::apply_external_spool_store(const SlotInfo& info) {
-    // S5 + S7 — same emptiness predicate as the FilamentPanel completion arm
+    // Same emptiness predicate as the FilamentPanel completion arm.
     const SlotInfo original = raw_external_spool_info().value_or(SlotInfo{});
     if (info.spoolman_id > 0 || !info.material.empty()) {
         store_external_spool_info(info);
@@ -574,7 +574,7 @@ void AmsState::apply_external_spool_store(const SlotInfo& info) {
 }
 
 void AmsState::invalidate_stale_external_identity(const SlotInfo& info) {
-    // S6 — stale identity otherwise survives until a server 404
+    // A stale identity otherwise survives until a server 404.
     const int previous_id = get_external_spool_info().value_or(SlotInfo{}).spoolman_id;
     if (previous_id > 0 && previous_id != info.spoolman_id) {
         SpoolmanManager::invalidate_identity(previous_id);
@@ -584,7 +584,7 @@ void AmsState::invalidate_stale_external_identity(const SlotInfo& info) {
 void AmsState::commit_external_spool_edit(const SlotInfo& info) {
     assert_main_thread();
 
-    // S1 — match the server active spool to what we are committing, only
+    // Match the server active spool to what we are committing, only
     // while the external spool is what feeds: set it unless the printer keeps
     // its own assignment; an unlink clears the spool it unlinked.
     if (api_ && external_spool_feeds()) {
@@ -605,7 +605,6 @@ void AmsState::commit_external_spool_edit(const SlotInfo& info) {
 
     invalidate_stale_external_identity(info);
 
-    // S5 + S7
     apply_external_spool_store(info);
 }
 

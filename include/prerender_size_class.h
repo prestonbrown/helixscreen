@@ -16,7 +16,7 @@
  *
  * ## The names are the layout system's names
  *
- * The classes are the `UiBreakpoint` tiers from `include/ui_breakpoint.h`, and
+ * The classes are the `UiBreakpoint` tiers from `include/core/breakpoint.h`, and
  * `get_splash_3d_size_name()` resolves them by calling `breakpoint_for()`. One
  * ladder, one axis, one vocabulary: `medium` is an 800x480 panel whether you
  * read it in an asset filename or in a layout override.

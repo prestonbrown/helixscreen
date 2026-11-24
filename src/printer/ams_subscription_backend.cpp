@@ -958,10 +958,10 @@ AmsError AmsSubscriptionBackend::change_tool(int tool_number) {
     return run_filament_op(FilamentOp::ChangeTool, tool_number);
 }
 
-AmsError AmsSubscriptionBackend::park_active_tool() {
+AmsError AmsSubscriptionBackend::run_park_active_tool(bool supported) {
     // Unsupported is the answer whatever state the backend is in, so it comes
     // before the gate's not-started and busy refusals.
-    if (!supports_tool_park()) {
+    if (!supported) {
         return AmsErrorHelper::not_supported("Tool park");
     }
     return run_filament_op(FilamentOp::ParkTool, -1);

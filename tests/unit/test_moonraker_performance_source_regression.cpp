@@ -9,25 +9,21 @@
 
 /**
  * @file test_moonraker_performance_source_regression.cpp
- * @brief Source-level regression guards for the v0.99.68 subscription wipe.
+ * @brief Source-level guards: MoonrakerPerformanceSource must never subscribe.
  *
- * Bug: MoonrakerPerformanceSource::rediscover_mcus() called
- * printer.objects.subscribe with only MCU objects. Moonraker docs:
+ * Moonraker docs: "A new request will override a previous request." A
+ * printer.objects.subscribe call carrying only MCU objects (as
+ * rediscover_mcus() would send) wipes the discovery-sequence subscription
+ * (heaters, fans, print_stats, virtual_sdcard, AFC, ...), so every
+ * notify_status_update for the core UI stops arriving and the screen freezes
+ * on the last known values.
  *
- *   "A new request will override a previous request."
- *
- * So that call wiped the discovery-sequence subscription (heaters, fans,
- * print_stats, virtual_sdcard, AFC, …) — every notify_status_update for the
- * core UI stopped arriving, leaving the screen frozen on the last known
- * values. User-visible symptom: "doesn't change heater target and if you
- * start a print", "hanging in updating values".
- *
- * Fix: MCU objects ride the union subscription built by
+ * MCU objects ride the union subscription built by
  * MoonrakerDiscoverySequence::build_subscription_objects(). PerformanceSource
- * only registers a notify_status_update handler — never subscribes.
+ * only registers a notify_status_update handler and never subscribes.
  *
- * These tests assert at the source level so reviewers can't accidentally
- * re-introduce the bug without tripping a clearly-named failure. The
+ * These tests assert at the source level so the rule cannot be broken without
+ * tripping a clearly-named failure. The
  * field-coverage half of the contract is in
  * test_moonraker_subscription_fields.cpp (MCU section).
  */

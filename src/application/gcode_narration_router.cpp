@@ -25,7 +25,7 @@ namespace {
 
 constexpr const char* kNotifyHandlerName = "gcode_narration_router";
 
-} // namespace
+}
 
 GcodeNarrationRouter::GcodeNarrationRouter(IMoonrakerAPI* api, IMoonrakerClient* client)
     : api_(api), client_(client) {

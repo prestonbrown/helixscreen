@@ -58,9 +58,7 @@ std::string current_user_name() {
 
 } // namespace
 
-// ---------------------------------------------------------------------------
 // Pure helpers
-// ---------------------------------------------------------------------------
 
 TerminalInputKind classify_terminal_insert(std::string_view text) {
     if (text.size() == 1 && text[0] == static_cast<char>(LV_KEY_DEL)) {
@@ -127,9 +125,7 @@ void open_host_terminal(lv_obj_t* parent_screen) {
                   });
 }
 
-// ---------------------------------------------------------------------------
 // Lifecycle
-// ---------------------------------------------------------------------------
 
 HostTerminalPanel::~HostTerminalPanel() {
     end_session("destroyed");
@@ -263,9 +259,7 @@ void HostTerminalPanel::on_ui_destroyed() {
     capture_ = nullptr;
 }
 
-// ---------------------------------------------------------------------------
 // Session
-// ---------------------------------------------------------------------------
 
 void HostTerminalPanel::start_session() {
     if (session_) {
@@ -352,9 +346,7 @@ void HostTerminalPanel::flush_input() {
     }
 }
 
-// ---------------------------------------------------------------------------
 // Drawing
-// ---------------------------------------------------------------------------
 
 void HostTerminalPanel::render() {
     dirty_ = false;
@@ -471,9 +463,7 @@ void HostTerminalPanel::set_status(const std::string& text) {
     lv_subject_set_int(&status_visible_subject_, text.empty() ? 0 : 1);
 }
 
-// ---------------------------------------------------------------------------
 // Input
-// ---------------------------------------------------------------------------
 
 void HostTerminalPanel::reset_capture_field() {
     if (!capture_) {

@@ -29,9 +29,7 @@
 
 #include "../catch_amalgamated.hpp"
 
-// ============================================================================
 // Subject Macro Tests
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture,
                  "UI_SUBJECT_INIT_AND_REGISTER_STRING copies a separate source into the buffer",
@@ -58,9 +56,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "UI_SUBJECT_INIT_AND_REGISTER_INT works correc
     REQUIRE(lv_subject_get_int(&test_subject) == 42);
 }
 
-// ============================================================================
 // Summary screen
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Summary asks for telemetry only on the first printer",
                  "[wizard][summary]") {

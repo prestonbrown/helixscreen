@@ -154,9 +154,7 @@ enum class CurrencySource { Setting = 0, Spoolman };
 [[nodiscard]] Breakdown scaled(const Breakdown& estimate, double filament_fraction,
                                double elapsed_seconds, const CostSettings& settings);
 
-// ---------------------------------------------------------------------------
 // Shared cost record
-// ---------------------------------------------------------------------------
 
 inline constexpr const char* kRecordNamespace = "helix-screen";
 inline constexpr const char* kRecordKeyRoot = "print_cost";

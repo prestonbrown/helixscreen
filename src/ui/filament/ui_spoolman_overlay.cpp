@@ -55,17 +55,13 @@ static constexpr const char* kDbKeyRefreshInterval = "spoolman_weight_refresh_in
 static constexpr const char* kLegacyDbKeySyncEnabled = "ams_spoolman_sync_enabled";
 static constexpr const char* kLegacyDbKeyRefreshInterval = "ams_weight_refresh_interval";
 
-// ============================================================================
 // DESTRUCTOR
-// ============================================================================
 
 SpoolmanOverlay::SpoolmanOverlay() = default;
 
 SpoolmanOverlay::~SpoolmanOverlay() = default;
 
-// ============================================================================
 // INITIALIZATION
-// ============================================================================
 
 void SpoolmanOverlay::init_subjects() {
     init_subjects_guarded([this]() {
@@ -77,7 +73,6 @@ void SpoolmanOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_INT(refresh_interval_subject_, kDefaultRefreshIntervalSeconds,
                                "ams_spoolman_refresh_interval", subjects_);
 
-        // Initialize scanner device status subject
         auto scanner_name = helix::SettingsManager::instance().get_scanner_device_name();
         auto scanner_id = helix::SettingsManager::instance().get_scanner_device_id();
         const char* status = scanner_id.empty() ? lv_tr("Auto-detect") : scanner_name.c_str();
@@ -146,9 +141,7 @@ void SpoolmanOverlay::register_callbacks() {
     });
 }
 
-// ============================================================================
 // UI CREATION
-// ============================================================================
 
 lv_obj_t* SpoolmanOverlay::create(lv_obj_t* parent) {
     if (!OverlayBase::create(parent)) {
@@ -186,9 +179,7 @@ void SpoolmanOverlay::refresh() {
     update_ui_from_subjects();
 }
 
-// ============================================================================
 // DATABASE OPERATIONS
-// ============================================================================
 
 void SpoolmanOverlay::load_from_database() {
     if (!api_) {
@@ -314,9 +305,7 @@ void SpoolmanOverlay::save_refresh_interval(int interval_seconds) {
         });
 }
 
-// ============================================================================
 // UTILITY METHODS
-// ============================================================================
 
 int SpoolmanOverlay::dropdown_index_to_seconds(int index) {
     // Dropdown options: "30s", "1 min", "2 min", "5 min"
@@ -350,7 +339,6 @@ int SpoolmanOverlay::seconds_to_dropdown_index(int seconds) {
 }
 
 void SpoolmanOverlay::update_ui_from_subjects() {
-    // Update dropdown to match current interval
     if (interval_dropdown_) {
         int interval_seconds = lv_subject_get_int(&refresh_interval_subject_);
         int dropdown_index = seconds_to_dropdown_index(interval_seconds);
@@ -404,9 +392,7 @@ void SpoolmanOverlay::on_deactivating(DeactivateReason) {
     set_poll_ref(false);
 }
 
-// ============================================================================
 // BARCODE SCANNER PICKER
-// ============================================================================
 
 void SpoolmanOverlay::handle_barcode_scanner_clicked() {
     spdlog::debug("[{}] Barcode Scanner clicked - opening settings overlay", get_name());
@@ -421,9 +407,7 @@ void SpoolmanOverlay::update_scanner_status_text() {
     lv_subject_set_string(&scanner_device_status_subject_, scanner_status_buf_);
 }
 
-// ============================================================================
 // SERVER SETUP
-// ============================================================================
 
 void SpoolmanOverlay::set_setup_status(const char* text, bool is_error) {
     lv_subject_set_string(&setup_status_subject_, text);
@@ -520,9 +504,7 @@ void SpoolmanOverlay::probe_spoolman_server(const std::string& host, const std::
     });
 }
 
-// ============================================================================
 // CONFIG WRITE CHAIN
-// ============================================================================
 
 void SpoolmanOverlay::report_spoolman_error(const char* status_text, const char* toast_text,
                                             const std::string& detail) {
@@ -1392,9 +1374,7 @@ void SpoolmanOverlay::verify_spoolman_connected() {
         });
 }
 
-// ============================================================================
 // CHANGE, REMOVE, URL DISPLAY
-// ============================================================================
 
 void SpoolmanOverlay::update_server_url_display() {
     if (!api_)

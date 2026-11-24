@@ -302,9 +302,8 @@ void ALSASoundBackend::set_filter(const std::string& type, float cutoff) {
 void ALSASoundBackend::suspend() {
     if (keep_clock_alive_) {
         // Never stop the clock on a sink that re-locks. The render thread keeps
-        // writing silence, which is exactly what this backend did before
-        // v0.99.114 and what kept the receiver locked; parking here is what
-        // made every short UI sound inaudible (#1337). resume() is then a no-op
+        // writing silence, which keeps the receiver locked; parking
+        // here makes every short UI sound inaudible (#1337). resume() is then a no-op
         // too, since suspended_ never becomes true.
         return;
     }

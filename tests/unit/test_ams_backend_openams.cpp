@@ -134,9 +134,7 @@ struct TmpCacheDir {
 
 } // namespace
 
-// ============================================================================
 // Discovery: who claims the printer
-// ============================================================================
 
 TEST_CASE("OpenAMS claims the printer only once its status shows the UI API",
           "[ams][openams][discovery]") {
@@ -194,9 +192,7 @@ TEST_CASE("AFC keeps the printer when oams_manager is also present", "[ams][open
     }
 }
 
-// ============================================================================
 // Status model
-// ============================================================================
 
 TEST_CASE_METHOD(HelixTestFixture, "OpenAMS publishes its FPS as a one-sided pressure",
                  "[ams][openams]") {
@@ -336,9 +332,7 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS unloads the asked slot's lane while 
     CHECK(backend.operations == std::vector<std::string>{"OPENAMS_UNLOAD FPS=fps1"});
 }
 
-// ============================================================================
 // Load and tool change, through the public entry points
-// ============================================================================
 
 TEST_CASE_METHOD(HelixTestFixture, "OpenAMS load dispatches the advertised command and completes",
                  "[ams][openams]") {
@@ -480,9 +474,7 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS refuses every action while the manag
     CHECK(backend.operations.empty());
 }
 
-// ============================================================================
 // Missing commands disable only their own action
-// ============================================================================
 
 TEST_CASE_METHOD(HelixTestFixture, "OpenAMS without load macros still shows status and unloads",
                  "[ams][openams]") {
@@ -536,9 +528,7 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS without reset or cancel refuses just
     CHECK(backend.commands.empty());
 }
 
-// ============================================================================
 // Cancel
-// ============================================================================
 
 TEST_CASE_METHOD(HelixTestFixture, "OpenAMS cancel", "[ams][openams]") {
     OpenAmsHarness backend;
@@ -586,9 +576,7 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS offers Abort only when cancel can re
     CHECK_FALSE(backend.can_cancel_operation());
 }
 
-// ============================================================================
 // Slot identity persistence
-// ============================================================================
 
 TEST_CASE_METHOD(HelixTestFixture, "OpenAMS repaints a slot from the lane, not the stored record",
                  "[ams][openams][filament_slot_override]") {
@@ -791,9 +779,7 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS locates a reported error during a pe
     CHECK(backend.infer_error_segment() == helix::PathSegment::OUTPUT);
 }
 
-// ============================================================================
 // Two units on one lane: an AMS HT (slot 0) and an AMS 2 Pro (slots 1-4)
-// ============================================================================
 
 TEST_CASE_METHOD(HelixTestFixture,
                  "OpenAMS units on one lane share one hub, with or without the openams extras",
@@ -982,9 +968,7 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS names no macro in its missing-comman
     }
 }
 
-// ============================================================================
 // Spool links that arrive after start
-// ============================================================================
 
 namespace {
 
@@ -1199,15 +1183,13 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK_FALSE(helix::ams::lane_sources(rig.reg.lane(2)).pending.has_value());
 }
 
-// ============================================================================
 // Unit faults
-// ============================================================================
 
 namespace {
 
 const std::string kClearHt = "OAMS_CLEAR_FAULT OAMS=1\nOAMSM_CLEAR_ERRORS";
 
-} // namespace
+}
 
 TEST_CASE_METHOD(HelixTestFixture, "OpenAMS surfaces a latched unit fault in plain words",
                  "[ams][openams][fault]") {
@@ -1320,9 +1302,7 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS shows no fault and resets as before 
     CHECK(backend.commands == std::vector<std::string>{"OAMSM_CLEAR_ERRORS"});
 }
 
-// ============================================================================
 // Environment and dryer
-// ============================================================================
 
 TEST_CASE_METHOD(HelixTestFixture, "OpenAMS publishes no environment or dryer without devices",
                  "[ams][openams][environment][dryer]") {
@@ -1555,9 +1535,7 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS fleet mock publishes twelve units on
     CHECK(backend.get_tool_mapping().size() == 45);
 }
 
-// ============================================================================
 // Tool serving slot, endless spool, and backup-slot dispatch
-// ============================================================================
 
 namespace {
 

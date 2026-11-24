@@ -40,9 +40,7 @@ bool job_holds_now() {
 }
 } // namespace
 
-// ============================================================================
 // GLOBAL INSTANCE
-// ============================================================================
 
 TimelapseInstallOverlay& get_global_timelapse_install() {
     auto* instance = helix::lazy_global_if_exists<TimelapseInstallOverlay>();
@@ -58,9 +56,7 @@ void init_global_timelapse_install(IMoonrakerAPI* api) {
     spdlog::trace("[Timelapse Install] Initialized");
 }
 
-// ============================================================================
 // CONSTRUCTOR & LIFECYCLE
-// ============================================================================
 
 TimelapseInstallOverlay::TimelapseInstallOverlay(IMoonrakerAPI* api) : api_(api) {}
 
@@ -151,9 +147,7 @@ void TimelapseInstallOverlay::cleanup() {
     OverlayBase::cleanup();
 }
 
-// ============================================================================
 // WIZARD FLOW
-// ============================================================================
 
 void TimelapseInstallOverlay::start_wizard() {
     wizard_active_ = true;
@@ -221,9 +215,7 @@ void TimelapseInstallOverlay::reveal_card() {
     }
 }
 
-// ============================================================================
 // STEP 1: CHECK WEBCAM
-// ============================================================================
 
 void TimelapseInstallOverlay::step_check_webcam() {
     const unsigned gen = run_generation_;
@@ -268,9 +260,7 @@ void TimelapseInstallOverlay::step_check_webcam() {
             }));
 }
 
-// ============================================================================
 // STEP 2: CHECK PLUGIN
-// ============================================================================
 
 void TimelapseInstallOverlay::step_check_plugin() {
     const unsigned gen = run_generation_;
@@ -303,9 +293,7 @@ void TimelapseInstallOverlay::step_check_plugin() {
                         }));
 }
 
-// ============================================================================
 // STEP 3: INSTALL PLUGIN
-// ============================================================================
 
 void TimelapseInstallOverlay::step_install_plugin() {
     TimelapseSetupFacts facts;
@@ -503,9 +491,7 @@ void TimelapseInstallOverlay::on_local_install_done(const LocalPluginResult& res
     step_configure_moonraker();
 }
 
-// ============================================================================
 // RECHECK AFTER SSH INSTALL
-// ============================================================================
 
 void TimelapseInstallOverlay::recheck_after_install() {
     const unsigned gen = run_generation_;
@@ -541,9 +527,7 @@ void TimelapseInstallOverlay::recheck_after_install() {
             }));
 }
 
-// ============================================================================
 // STEP 4: CONFIGURE MOONRAKER
-// ============================================================================
 
 void TimelapseInstallOverlay::step_configure_moonraker() {
     set_step(Step::CONFIGURE_MOONRAKER);
@@ -755,9 +739,7 @@ std::string TimelapseInstallOverlay::append_timelapse_config(const std::string& 
     return result;
 }
 
-// ============================================================================
 // STEP 5: RESTART MOONRAKER
-// ============================================================================
 
 void TimelapseInstallOverlay::step_restart_moonraker() {
     const unsigned gen = run_generation_;
@@ -807,9 +789,7 @@ void TimelapseInstallOverlay::step_restart_moonraker() {
             }));
 }
 
-// ============================================================================
 // STEP 6: VERIFY
-// ============================================================================
 
 void TimelapseInstallOverlay::step_verify() {
     const unsigned gen = run_generation_;
@@ -860,9 +840,7 @@ void TimelapseInstallOverlay::step_verify() {
         }));
 }
 
-// ============================================================================
 // PUBLIC OPENER (called from advanced panel)
-// ============================================================================
 
 void open_timelapse_install() {
     get_global_timelapse_install().show(lv_screen_active());

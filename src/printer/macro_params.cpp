@@ -100,9 +100,7 @@ MacroDefaultKind classify_default(std::string_view text) {
 
 } // namespace
 
-// ============================================================================
 // parse_macro_params — extract Klipper gcode_macro parameters from template
-// ============================================================================
 
 std::vector<MacroParam> helix::parse_macro_params(const std::string& gcode_template) {
     std::vector<MacroParam> result;

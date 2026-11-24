@@ -18,10 +18,11 @@
  * The branching itself is shipped code: helix::ui::panel_load_outcome() and
  * panel_unload_outcome() (ui_panel_filament.h) ARE execute_load()/execute_unload()
  * from the plan onward, and the panel reads the same struct for its toast copy,
- * its slot-picker redirect, its backend argument and its manual-pull arm. This
- * file used to carry a hand-written copy of that branching instead, and it had
- * drifted: the BypassLoaded refusal shipped in plan_load() without ever reaching
- * the copy, which fell through to SelectSlot and asserted the wrong toast plus an
+ * its slot-picker redirect, its backend argument and its manual-pull arm. The
+ * tests call that shipped code rather than a hand-written copy of the branching:
+ * a copy drifts (e.g. the BypassLoaded refusal in plan_load() never reaching it,
+ * so it would assert the wrong toast plus an AMS-panel redirect the panel never
+ * performs).
  * AMS-panel redirect the panel never performs.
  *
  * What the outcome deliberately does NOT carry is the dispatch: the backend call,
@@ -110,9 +111,7 @@ BackendCaps bypassed_ams() {
 
 } // namespace
 
-// =============================================================================
 // Load — refusals
-// =============================================================================
 
 TEST_CASE("Load with no resolved slot redirects to the AMS slot picker",
           "[filament][dispatch][wiring]") {
@@ -126,9 +125,7 @@ TEST_CASE("Load with no resolved slot redirects to the AMS slot picker",
     CHECK_FALSE(out.guard_armed);
 }
 
-// =============================================================================
 // Load — tier 1 entry points
-// =============================================================================
 
 TEST_CASE("Load with nothing seated calls load_filament on the selected slot",
           "[filament][dispatch][wiring]") {
@@ -176,9 +173,7 @@ TEST_CASE("Load with filament seated and no tool mapping still calls load_filame
     CHECK(out.guard_armed);
 }
 
-// =============================================================================
 // Load — tiers 2 and 3
-// =============================================================================
 
 TEST_CASE("Load under bypass reaches the configured macro, not the backend",
           "[filament][dispatch][wiring][bypass]") {
@@ -256,9 +251,7 @@ TEST_CASE("Load with no backend and no macro falls back to raw gcode",
     CHECK(out.tier == FilamentTier::RawGcode);
 }
 
-// =============================================================================
 // Unload — deliberately asymmetric with load
-// =============================================================================
 
 TEST_CASE("Unload with nothing loaded warns and dispatches nothing",
           "[filament][dispatch][wiring]") {
@@ -317,9 +310,7 @@ TEST_CASE("Unload with no backend falls through macro then raw gcode",
     CHECK(without.tier == FilamentTier::RawGcode);
 }
 
-// =============================================================================
 // Unload — the manual-pull prompt
-// =============================================================================
 
 TEST_CASE("Unloading the bypass spool arms the manual-pull prompt",
           "[filament][dispatch][wiring][bypass]") {

@@ -27,9 +27,7 @@ void register_touch_calibration_overlay_callbacks() {
     get_touch_calibration_overlay().register_callbacks();
 }
 
-// ============================================================================
 // Constructor / Destructor
-// ============================================================================
 
 TouchCalibrationOverlay::TouchCalibrationOverlay() {
     controller_.attach(*this);
@@ -77,7 +75,6 @@ TouchCalibrationOverlay::TouchCalibrationOverlay() {
             return;
         }
 
-        // Reset accept button text
         snprintf(accept_text_buffer_, sizeof(accept_text_buffer_), "Accept");
         lv_subject_set_string(&accept_button_text_, accept_text_buffer_);
 
@@ -184,9 +181,7 @@ TouchCalibrationOverlay::~TouchCalibrationOverlay() {
     crosshair_ = nullptr;
 }
 
-// ============================================================================
 // Subject Initialization
-// ============================================================================
 
 void TouchCalibrationOverlay::init_subjects() {
     if (subjects_initialized_) {
@@ -211,9 +206,7 @@ void TouchCalibrationOverlay::init_subjects() {
     spdlog::debug("[{}] Subjects initialized", get_name());
 }
 
-// ============================================================================
 // Callback Registration
-// ============================================================================
 
 void TouchCalibrationOverlay::register_callbacks() {
     spdlog::debug("[{}] Registering event callbacks", get_name());
@@ -238,9 +231,7 @@ void TouchCalibrationOverlay::register_callbacks() {
     spdlog::debug("[{}] Event callbacks registered", get_name());
 }
 
-// ============================================================================
 // Screen Creation
-// ============================================================================
 
 lv_obj_t* TouchCalibrationOverlay::create(lv_obj_t* parent) {
     spdlog::debug("[{}] Creating overlay from XML", get_name());
@@ -253,7 +244,6 @@ lv_obj_t* TouchCalibrationOverlay::create(lv_obj_t* parent) {
     // Reset cleanup flag when (re)creating
     cleanup_called_ = false;
 
-    // Create overlay from XML
     overlay_root_ = helix::ui::create_xml_hidden(parent, "touch_calibration_overlay");
 
     if (!overlay_root_) {
@@ -269,9 +259,7 @@ lv_obj_t* TouchCalibrationOverlay::create(lv_obj_t* parent) {
     return overlay_root_;
 }
 
-// ============================================================================
 // Show/Hide
-// ============================================================================
 
 bool TouchCalibrationOverlay::show(lv_obj_t* parent_screen, CompletionCallback callback) {
     completion_callback_ = std::move(callback);
@@ -322,9 +310,7 @@ void TouchCalibrationOverlay::hide() {
     spdlog::info("[{}] Overlay hidden", get_name());
 }
 
-// ============================================================================
 // Lifecycle Hooks
-// ============================================================================
 
 void TouchCalibrationOverlay::on_activate() {
     // Call base class first
@@ -373,7 +359,6 @@ void TouchCalibrationOverlay::on_activate() {
                        lv_obj_get_height(scr) - chip_h - kCancelChipInset);
     }
 
-    // Initialize crosshair position if calibrating
     update_crosshair_position();
 }
 
@@ -404,9 +389,7 @@ void TouchCalibrationOverlay::on_deactivating(DeactivateReason reason) {
     controller_.end();
 }
 
-// ============================================================================
 // Cleanup
-// ============================================================================
 
 void TouchCalibrationOverlay::cleanup() {
     spdlog::debug("[{}] Cleaning up", get_name());
@@ -416,7 +399,6 @@ void TouchCalibrationOverlay::cleanup() {
         helix::nav::unregister_overlay(overlay_root_);
     }
 
-    // Call base class to set cleanup_called_ flag
     OverlayBase::cleanup();
 
     // Cancel any in-progress calibration
@@ -436,7 +418,6 @@ void TouchCalibrationOverlay::cleanup() {
     // Clear widget pointers
     crosshair_ = nullptr;
 
-    // Clear callback
     completion_callback_ = nullptr;
     callback_invoked_ = false;
 
@@ -448,9 +429,7 @@ void TouchCalibrationOverlay::cleanup() {
     spdlog::debug("[{}] Cleanup complete", get_name());
 }
 
-// ============================================================================
 // Event Handlers
-// ============================================================================
 
 void TouchCalibrationOverlay::handle_accept_clicked() {
     spdlog::info("[{}] Accept calibration clicked", get_name());
@@ -483,7 +462,6 @@ void TouchCalibrationOverlay::handle_accept_clicked() {
 
     unattended_verify_rounds_ = 0;
 
-    // Reset accept button text for next calibration
     snprintf(accept_text_buffer_, sizeof(accept_text_buffer_), "Accept");
     lv_subject_set_string(&accept_button_text_, accept_text_buffer_);
 
@@ -637,9 +615,7 @@ void TouchCalibrationOverlay::handle_cancel_clicked() {
     handle_back_clicked();
 }
 
-// ============================================================================
 // UI Update Helpers
-// ============================================================================
 
 void TouchCalibrationOverlay::update_state_subject() {
     if (!controller_.panel()) {

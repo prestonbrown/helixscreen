@@ -47,7 +47,7 @@ struct FormatterScope {
 
 TEST_CASE_METHOD(HelixTestFixture, "DetailedFormatter writes layer and time",
                  "[print_status][formatter]") {
-    // Tear down any inherited formatter BEFORE resetting PrinterState — otherwise
+    // Tear down any inherited formatter BEFORE resetting PrinterState, otherwise
     // its observers point to subjects that are about to be deinit'd/reinit'd, and
     // FormatterScope's later destroy walks a recycled lv_subject_t (macOS SIGSEGV).
     PrintStatusWidget::destroy_formatter_for_test();
@@ -253,7 +253,7 @@ TEST_CASE_METHOD(HelixTestFixture, "DetailedFormatter nozzle text (decidegree ro
 
     REQUIRE(std::string(lv_subject_get_string(
                 lv_xml_get_subject(nullptr, "print_status_nozzle_text"))) == "216 / 220°C");
-    // bed_text / chamber_text are no longer formatted by the widget — the
+    // bed_text / chamber_text are not formatted by the widget; the
     // XML's temp_display widgets bind directly to bed_temp / chamber_temp.
 }
 
@@ -303,14 +303,12 @@ TEST_CASE_METHOD(HelixTestFixture, "DetailedFormatter multi-extruder label and g
                 lv_xml_get_subject(nullptr, "print_status_nozzle_badge_text"))) == "");
 }
 
-// =============================================================================
 // Idle tile: which history job it describes
 //
 // Moonraker recomputes each job's `exists` flag per history request, so a job
 // whose gcode has been deleted comes back with exists == false. The idle tile
 // offers "Reprint Last" for whatever it names, so it must describe the newest
 // job that can still be reprinted, not simply the newest job.
-// =============================================================================
 
 namespace {
 
@@ -441,12 +439,10 @@ TEST_CASE_METHOD(HelixTestFixture, "DetailedFormatter re-renders its text on a l
     CHECK(subject_text("print_status_idle_when") == "Completed 2h ago");
 }
 
-// =============================================================================
 // describe_last_print: what the idle tile says about the newest reprintable job.
 // Moonraker leaves end_time null (parsed as 0) and the durations and filament at
 // 0 on in_progress rows and on rows it marks interrupted after a power loss
 // (prestonbrown/helixscreen#1713).
-// =============================================================================
 
 namespace {
 

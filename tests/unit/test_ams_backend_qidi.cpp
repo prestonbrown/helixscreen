@@ -116,10 +116,8 @@ static void clear_as_the_menu_does(helix::AmsBackend& backend, int slot) {
     backend.clear_slot_override(slot);
 }
 
-// =====================================================================
 // Type identification — pin down what the stub already advertises so
 // later refactors don't silently change it.
-// =====================================================================
 
 TEST_CASE("QIDI Box type identification", "[ams][qidi_box]") {
     AmsBackendQidi backend(nullptr, nullptr);
@@ -146,9 +144,7 @@ TEST_CASE("QIDI Box default system_info shape", "[ams][qidi_box]") {
     CHECK(AmsBackendQidi(nullptr, nullptr).get_system_info().units[0].name == "QIDI Box 1");
 }
 
-// =====================================================================
 // parse_save_variables: enable_box gate
-// =====================================================================
 // `box_extras.py` reads `save_variables.variables.enable_box` and treats
 // 0 as "Box installed but disabled" / 1 as "Box active." Mirror that
 // onto AmsUnit::connected so the UI can show the right state.
@@ -166,9 +162,7 @@ TEST_CASE("QIDI Box parse_save_variables: enable_box drives the unit's connectio
     CHECK_FALSE(backend.get_system_info().units[0].has_toolhead_sensor);
 }
 
-// =====================================================================
 // parse_save_variables: box_count resizes the system
-// =====================================================================
 // `box_detect.py` writes save_variables.variables.box_count whenever USB
 // enumeration changes. Each physical box = 4 slots, chainable up to 4
 // boxes / 16 slots. The backend must model one AmsUnit per physical box so
@@ -241,9 +235,7 @@ TEST_CASE("QIDI Box: four boxes converge on one toolhead in the system path layo
     }
 }
 
-// =====================================================================
 // parse_save_variables: per-slot state from slot<N> values
-// =====================================================================
 // box_stepper.py writes save_variables.variables.slot<N> as the slot's
 // state machine cursor. From box_stepper.py LED-state mapping:
 //   0   = empty / no filament
@@ -290,9 +282,7 @@ TEST_CASE("QIDI Box per-slot negative states map to BLOCKED", "[ams][qidi_box]")
     }
 }
 
-// =====================================================================
 // parse_save_variables: value_t<N> tool->slot mapping
-// =====================================================================
 // box_extras.py stores tool mappings as save_variables.variables.value_t<N>
 // with value "slot<M>". This means "tool N prints from slot M." Default
 // (when value_t<N> is missing) is tool N = slot N, which the resize
@@ -312,9 +302,7 @@ TEST_CASE("QIDI Box parse_save_variables: value_t<N>=slot<M> maps tool N to slot
     REQUIRE(info.units[0].slots[3].mapped_tool == 1);
 }
 
-// =====================================================================
 // handle_status routes save_variables changes through to parse
-// =====================================================================
 // Moonraker delivers save_variables changes inside notify_status_update as
 // `{"save_variables": {"variables": {...}}}`. The backend must extract the
 // inner variables payload and feed it to parse_save_variables so live
@@ -347,9 +335,7 @@ TEST_CASE("QIDI Box handle_status_update ignores unrelated keys", "[ams][qidi_bo
     REQUIRE(backend.get_system_info().total_slots == 4);
 }
 
-// =====================================================================
 // last_load_slot: which slot is currently in the extruder
-// =====================================================================
 // box_extras.py is the source of truth for "which slot is loaded right
 // now." Per-slot `slot<N>=2` is the secondary signal (and may be stale
 // after error recovery). When last_load_slot is set, that slot must be
@@ -397,9 +383,7 @@ TEST_CASE("QIDI Box last_load_slot=slot-1 means nothing is in the extruder", "[a
     REQUIRE(backend.get_current_tool() == -1);
 }
 
-// ============================================================================
 // slot<N>: 2 is firmware truth on its own
-// ============================================================================
 
 TEST_CASE("QIDI Box reports a slot loaded from its state word alone", "[ams][qidi_box][1199]") {
     // No last_load_slot has ever been seen, so the aggregate pair is empty;
@@ -422,9 +406,7 @@ TEST_CASE("QIDI Box out-of-range slots are false, not a crash", "[ams][qidi_box]
     CHECK_FALSE(backend.slot_is_actively_loaded(99));
 }
 
-// ============================================================================
 // The ordering hole: a slot<N> repeat must not demote the seated slot
-// ============================================================================
 
 TEST_CASE("QIDI Box keeps the seated slot LOADED across a slot-only payload",
           "[ams][qidi_box][1199]") {
@@ -459,9 +441,7 @@ TEST_CASE("QIDI Box a blocked seated slot stays BLOCKED", "[ams][qidi_box][1199]
     CHECK_FALSE(backend.slot_is_actively_loaded(2));
 }
 
-// ============================================================================
 // A toolchange moves the stamp, and never leaves two slots loaded
-// ============================================================================
 
 TEST_CASE("QIDI Box moves the LOADED stamp on a tool change", "[ams][qidi_box][1199]") {
     helix::test::StartedBackend<AmsBackendQidi> backend;
@@ -476,9 +456,7 @@ TEST_CASE("QIDI Box moves the LOADED stamp on a tool change", "[ams][qidi_box][1
     CHECK_FALSE(backend.slot_is_actively_loaded(0));
 }
 
-// =====================================================================
 // parse_save_variables: RFID per-slot indices
-// =====================================================================
 // box_extras.py writes save_variables.variables.filament_slot<N> (1-99,
 // index into officiall_filas_list.cfg), color_slot<N> (1-24, index into
 // the color palette), and vendor_slot<N> (always 1 in the wild so far).
@@ -486,9 +464,7 @@ TEST_CASE("QIDI Box moves the LOADED stamp on a tool change", "[ams][qidi_box][1
 // to material/color happens in a follow-up cycle once the cfg resolver
 // lands.
 
-// =====================================================================
 // handle_status: heater_box drying state + aht20_f humidity
-// =====================================================================
 // The QIDI Box has per-box drying: heater_generic heater_box<N> provides
 // temperature + target, aht20_f heater_box<N> provides humidity. Each physical
 // box is modeled as its own AmsUnit so the UI can show the matching env data.
@@ -523,9 +499,7 @@ TEST_CASE("QIDI Box multiple heater_box readings populate matching units", "[ams
     REQUIRE(info.units[1].environment->temperature_c == Catch::Approx(22.5).epsilon(0.01));
 }
 
-// =====================================================================
 // apply_query_response: bootstrap from printer.objects.query result
-// =====================================================================
 // on_started() issues a printer.objects.query to fetch the initial state
 // of save_variables (and per-box heater objects when they exist). The
 // response shape is `{result: {status: {save_variables: {...}, ...}}}`.
@@ -582,9 +556,7 @@ TEST_CASE("QIDI Box notifications without heater data leave environment alone", 
     REQUIRE(info.units[0].environment->temperature_c == Catch::Approx(40.0).epsilon(0.01));
 }
 
-// =====================================================================
 // Write-path: always enabled (commands verified vs QIDI firmware, #1030)
-// =====================================================================
 
 TEST_CASE("QIDI Box reports environment sensors (dryer indicator reachable)", "[ams][qidi_box]") {
     helix::test::StartedBackend<RecordingQidiBackend> backend;
@@ -831,14 +803,12 @@ TEST_CASE("QIDI Box [force_move] disabled keeps lane eject off", "[ams][qidi_box
     REQUIRE_FALSE(backend.supports_lane_eject());
 }
 
-// ---------------------------------------------------------------------------
 // Controller dialect (multi_color_controller): the Max 4 box rejects the
 // box_stepper FORCE_MOVE with "Invalid pin value" and drives load, unload and
 // eject through the multi_color_controller command surface instead. Presence of
 // a [multi_color_controller] config section is the dialect discriminator: the
 // Max 4 and Q2 firmware 01.01.02.x carry it, Q2 1.1.x and the Plus 4 do not.
 // (prestonbrown/helixscreen#1083)
-// ---------------------------------------------------------------------------
 
 TEST_CASE("QIDI Box multi_color_controller dialect loads and unloads through the controller",
           "[ams][qidi_box][write_path][max4]") {
@@ -928,9 +898,7 @@ TEST_CASE("QIDI Box Max 4 dialect still rejects an out-of-range slot",
     REQUIRE(backend.sent.empty());
 }
 
-// =====================================================================
 // Full-stack integration: on_started actually fires the bootstrap query
-// =====================================================================
 // Unit-style tests (above) cover what we DO with response data, but they
 // pass nullptr for the Moonraker stack so they don't prove on_started()
 // even dispatches the query. This test wires up the full MoonrakerClientMock
@@ -981,9 +949,7 @@ TEST_CASE("QIDI Box write-path rejects out-of-range slot/tool indices",
     REQUIRE(backend.sent.empty());
 }
 
-// =====================================================================
 // last_load_slot also drives current_slot / current_tool / filament_loaded
-// =====================================================================
 // The AmsSubscriptionBackend base exposes these via get_current_slot() /
 // get_current_tool() / is_filament_loaded(), reading directly from
 // system_info_. Mirroring last_load_slot onto slot.status alone left the
@@ -1001,9 +967,7 @@ TEST_CASE("QIDI Box current_tool follows value_t mapping", "[ams][qidi_box]") {
     REQUIRE(backend.get_current_tool() == 0);
 }
 
-// =====================================================================
 // is_tool_change reflects through to AmsAction
-// =====================================================================
 // box_extras.py sets save_variables.is_tool_change=1 while
 // _BOX_CHANGE_FILAMENT is running, clears it on completion. Map this
 // onto AmsAction so the UI shows an in-flight indicator.
@@ -1049,9 +1013,7 @@ TEST_CASE("QIDI Box parse_save_variables applies cached profile to SlotInfo temp
     REQUIRE(info.units[0].slots[0].nozzle_temp_max == 225);
 }
 
-// =====================================================================
 // Dryer capabilities (issue #1019)
-// =====================================================================
 // The QIDI Box has a PTC box heater that acts as a filament dryer.
 // The backend must advertise dryer support with sane defaults so the
 // UI shows the dryer control panel.
@@ -1181,10 +1143,8 @@ TEST_CASE("QIDI Box dries with the box's timer commands, else the bare heater",
     CHECK(hint.find("°C") == std::string::npos);
 }
 
-// =====================================================================
 // apply_filas_list: extended parse — filament name + type, colordict,
 // vendor_list (stock QIDI officiall_filas_list.cfg, real excerpts)
-// =====================================================================
 
 // A trimmed-but-real excerpt of the stock file: a few fila sections plus
 // the colordict and vendor_list tail. Mirrors the real ConfigParser
@@ -1253,9 +1213,7 @@ max_temp = 240
     REQUIRE(QidiBoxTestAccess::vendor_count(backend) == 0);
 }
 
-// =====================================================================
 // Read-path resolution: slot_rfid_ ids → SlotInfo material/color/brand
-// =====================================================================
 // Once the filas list is cached, parse_save_variables must resolve the raw
 // filament_slot/color_slot/vendor_slot indices onto the SlotInfo fields the
 // UI reads (material, color_rgb, brand) — in addition to the nozzle temps it
@@ -1314,9 +1272,7 @@ TEST_CASE("QIDI Box read-path resolution survives before filas list loads", "[am
     REQUIRE(QidiBoxTestAccess::filament_id(backend, 0) == 1);
 }
 
-// =====================================================================
 // Reverse lookups (pure) for apply_user_edit()
-// =====================================================================
 
 TEST_CASE("QIDI Box resolve_fila_id matches name then falls back to type", "[ams][qidi_box]") {
     std::map<int, AmsBackendQidi::FilaProfile> profiles;
@@ -1363,9 +1319,7 @@ TEST_CASE("QIDI Box resolve_vendor_id matches name, falls back to Generic", "[am
     REQUIRE(QidiBoxTestAccess::resolve_vendor_id(no_generic, "Polymaker") == 0);
 }
 
-// =====================================================================
 // apply_user_edit: write reverse-mapped ids back to save_variables
-// =====================================================================
 
 TEST_CASE("QIDI Box apply_user_edit emits SAVE_VARIABLE for all three ids",
           "[ams][qidi_box][write_path]") {
@@ -1785,9 +1739,7 @@ TEST_CASE("QIDI Box apply_user_edit carries an explicit zero for a cleared field
     }
 }
 
-// ---------------------------------------------------------------------------
 // Error-center bridge: current_error()
-// ---------------------------------------------------------------------------
 
 TEST_CASE("QIDI Box current_error returns nullopt when no slots are blocked",
           "[ams][qidi_box][error-center]") {
@@ -2070,9 +2022,7 @@ TEST_CASE("QIDI Box console fault gets Retry only once retry_step names it",
     CHECK(named->recovery_actions[0].requires_paused);
 }
 
-// =====================================================================
 // AmsAction::ERROR from BLOCKED lane (AmsErrorBridge hook)
-// =====================================================================
 // AmsErrorBridge fires when a backend's action transitions INTO ERROR and
 // current_error() returns an event. QIDI's parser never set ERROR — it only
 // ever wrote LOADING or IDLE — so the bridge was unreachable in production.
@@ -2105,12 +2055,10 @@ TEST_CASE("QIDI Box blocked lane sets action to ERROR so AmsErrorBridge fires",
     REQUIRE(backend.get_system_info().action != AmsAction::ERROR);
 }
 
-// =====================================================================
 // Homing guard (Layer 2): refuse toolhead-motion filament ops while a
 // print is active. QIDI gates via refuse_if_printing() directly (it does
 // NOT use check_preconditions()'s running_/busy checks). A mid-print
 // load/unload moves the toolhead and can collide with the part.
-// =====================================================================
 
 namespace {
 
@@ -2248,11 +2196,9 @@ TEST_CASE("QIDI adjusts live on a plain heater and not once the box owns the tim
     }
 }
 
-// =====================================================================
 // Spool-swap detection: a changed RFID fingerprint outranks edits made
 // for the previous spool, the same contract CFS and Snapmaker enforce
 // through the shared SlotFingerprintTracker.
-// =====================================================================
 
 namespace {
 // Per-test tmp cache dir, same idiom as test_ams_backend_cfs.cpp.
@@ -2551,11 +2497,9 @@ TEST_CASE("QIDI Box a poll between the edit and its echo keeps the edit on scree
     CHECK(shown.color_rgb == 0x060606u);
 }
 
-// =====================================================================
 // Clear Spool: the Box has no clear command, so erasing what the firmware
 // remembers is three bare-int SAVE_VARIABLEs (row ids start at 1, so 0
 // names no row and reads as unset).
-// =====================================================================
 
 TEST_CASE("QIDI Box clearing a spool writes the three identity zeros", "[ams][qidi_box]") {
     helix::test::RegisteredWired<RecordingQidiBackend> harness;
@@ -2832,9 +2776,7 @@ TEST_CASE("QIDI Box explains an unavailable eject", "[ams][qidi_box]") {
     }
 }
 
-// =====================================================================
 // String filament ids and colour lists (Box firmware 02.03.01.21 and later)
-// =====================================================================
 //
 // The stock screen saves `filament_slot<N> = 'QFA90'` and
 // `color_slot<N> = ['228332']`, and multi_color_controller publishes each

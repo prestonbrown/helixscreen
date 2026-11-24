@@ -801,9 +801,7 @@ bool release_is_verified(const UpdateChecker::ReleaseInfo& info) {
 }
 } // namespace helix
 
-// ============================================================================
 // Channel Version Comparison
-// ============================================================================
 
 // Deliberately at global scope rather than in the anonymous namespace above:
 // it is declared in the header and exercised directly by
@@ -822,9 +820,7 @@ ChannelVersionRelation compare_channel_version(const std::string& installed,
     return *served > *current ? ChannelVersionRelation::Newer : ChannelVersionRelation::Older;
 }
 
-// ============================================================================
 // Singleton Instance
-// ============================================================================
 
 UpdateChecker& UpdateChecker::instance() {
     static UpdateChecker instance;
@@ -857,9 +853,7 @@ UpdateChecker::~UpdateChecker() {
     reap_download_thread(std::chrono::milliseconds(250));
 }
 
-// ============================================================================
 // Lifecycle
-// ============================================================================
 
 void UpdateChecker::init() {
     if (initialized_) {
@@ -947,9 +941,7 @@ void UpdateChecker::shutdown() {
     spdlog::debug("[UpdateChecker] Shutdown complete");
 }
 
-// ============================================================================
 // Subject Accessors
-// ============================================================================
 
 lv_subject_t* UpdateChecker::status_subject() {
     return &status_subject_;
@@ -1012,9 +1004,7 @@ lv_subject_t* UpdateChecker::changelog_visible_subject() {
     return &changelog_visible_subject_;
 }
 
-// ============================================================================
 // Download Getters
-// ============================================================================
 
 bool UpdateChecker::download_in_flight() const {
     return download_worker_active_.load();
@@ -1512,9 +1502,7 @@ void UpdateChecker::report_download_status(DownloadStatus status, int progress,
     });
 }
 
-// ============================================================================
 // Download and Install
-// ============================================================================
 
 void UpdateChecker::start_download() {
     if (shutting_down_.load())
@@ -2657,9 +2645,7 @@ void UpdateChecker::perform_update_restart(const std::string& install_root) {
 #undef flog_debug
 #undef FLOG
 
-// ============================================================================
 // External update detection (Moonraker notify_update_response)
-// ============================================================================
 
 bool UpdateChecker::is_deployed_layout(const std::string& install_root) {
     if (install_root.empty()) {
@@ -2792,9 +2778,7 @@ void UpdateChecker::handle_external_update_complete() {
     ::_exit(0);
 }
 
-// ============================================================================
 // Static helpers
-// ============================================================================
 
 bool UpdateChecker::write_self_restart_sentinel() {
     const std::string dir = app_constants::update::backup_fallback_dir();
@@ -2902,9 +2886,7 @@ UpdateChecker::find_local_installer(const std::vector<std::string>& extra_search
     return "";
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 namespace {
 
@@ -3111,9 +3093,7 @@ void UpdateChecker::recheck_for_channel() {
     check_for_updates();
 }
 
-// ============================================================================
 // Worker Thread
-// ============================================================================
 
 void UpdateChecker::do_check() {
     spdlog::debug("[UpdateChecker] Worker thread started");
@@ -3228,9 +3208,7 @@ bool UpdateChecker::report_play_verdict(ReleaseInfo manifest, const std::string&
 }
 #endif
 
-// ============================================================================
 // Channel-specific fetch methods
-// ============================================================================
 
 bool UpdateChecker::stanza_file_editable(const std::string& file, bool mod_host) {
     if (!mod_host)
@@ -3640,9 +3618,7 @@ std::string UpdateChecker::effective_r2_base_url() {
     return url;
 }
 
-// ============================================================================
 // Dismissed Version
-// ============================================================================
 
 bool UpdateChecker::is_version_dismissed(const std::string& version) const {
     auto* config = Config::get_instance();
@@ -3689,9 +3665,7 @@ void UpdateChecker::dismiss_current_version() {
     ui_notification_info_with_action(lv_tr("Update Available"), msg.c_str(), "show_update_modal");
 }
 
-// ============================================================================
 // Auto-Check Timer
-// ============================================================================
 
 namespace {
 constexpr const char* kUpdateResponseMethod = "notify_update_response";
@@ -3784,10 +3758,8 @@ void UpdateChecker::start_auto_check() {
         return;
     }
 
-    // A machine that can check but cannot install. Report it: this state shipped
-    // in v0.99.96 and was found in v0.99.113 only because one user kept pushing on
-    // Discord — in aggregate it would have shown as a cohort of installs that
-    // never once fetched a manifest. Emitted here rather than from init() because
+    // A machine that can check but cannot install. Report it: in aggregate it shows as a cohort of
+    // installs that never once fetched a manifest. Emitted here rather than from init() because
     // TelemetryManager::init() runs after UpdateChecker::init() (application.cpp),
     // and after the auto_check_timer_ guard so a Moonraker reconnect does not
     // re-send it. Firmware-managed installs returned above and are not reported:

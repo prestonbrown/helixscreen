@@ -9,8 +9,6 @@
  * - Download files from test assets regardless of working directory
  * - Upload files (mock always succeeds)
  * - Handle missing files with proper error callbacks
- *
- * TDD: These tests are written BEFORE the implementation is complete.
  */
 
 #include "moonraker_api_mock.h"
@@ -29,9 +27,7 @@
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
-// ============================================================================
 // Test Fixture
-// ============================================================================
 
 class MoonrakerAPIMockTestFixture {
   public:
@@ -46,9 +42,7 @@ class MoonrakerAPIMockTestFixture {
     std::unique_ptr<MoonrakerAPIMock> api_;
 };
 
-// ============================================================================
 // download_file Tests
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
                  "MoonrakerAPIMock download_file finds existing test file",
@@ -68,7 +62,6 @@ TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
     REQUIRE(success_called.load());
     REQUIRE_FALSE(error_called.load());
     REQUIRE(downloaded_content.size() > 100); // Should have substantial content
-    // Verify it looks like G-code
     REQUIRE(downloaded_content.find("G") != std::string::npos);
 }
 
@@ -104,7 +97,6 @@ TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
         "gcodes", "some/nested/path/3DBenchy.gcode",
         [&](const std::string& content) {
             success_called.store(true);
-            // Verify we got actual content
             REQUIRE(content.size() > 100);
         },
         [&](const MoonrakerError&) { error_called.store(true); });
@@ -126,18 +118,13 @@ TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
 
     api_->transfers().download_file(
         "gcodes", "3DBenchy.gcode", [&](const std::string&) { success_called.store(true); },
-        [&](const MoonrakerError& err) {
-            // Log the error for debugging if this fails
-            INFO("download_file error: " << err.message);
-        });
+        [&](const MoonrakerError& err) { INFO("download_file error: " << err.message); });
 
     // Should succeed from project root or build/bin/
     REQUIRE(success_called.load());
 }
 
-// ============================================================================
 // download_file_partial Tests (Partial/Range Download)
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
                  "MoonrakerAPIMock download_file_partial returns limited content",
@@ -170,7 +157,6 @@ TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
     std::string downloaded_content;
     constexpr size_t kMaxBytes = 10 * 1024 * 1024; // 10MB limit (larger than file)
 
-    // First get full file size
     std::string full_content;
     api_->transfers().download_file(
         "gcodes", "3DBenchy.gcode", [&](const std::string& content) { full_content = content; },
@@ -222,14 +208,12 @@ TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
     std::string partial_content;
     constexpr size_t kPartialSize = 500;
 
-    // Get full file
     api_->transfers().download_file(
         "gcodes", "3DBenchy.gcode", [&](const std::string& content) { full_content = content; },
         [](const MoonrakerError&) {});
 
     REQUIRE(full_content.size() > kPartialSize);
 
-    // Get partial file
     api_->transfers().download_file_partial(
         "gcodes", "3DBenchy.gcode", kPartialSize,
         [&](const std::string& content) { partial_content = content; },
@@ -240,9 +224,7 @@ TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
     REQUIRE(full_content.substr(0, kPartialSize) == partial_content);
 }
 
-// ============================================================================
 // upload_file Tests
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerAPIMockTestFixture, "MoonrakerAPIMock upload_file always succeeds",
                  "[mock][api][upload]") {
@@ -291,9 +273,7 @@ TEST_CASE_METHOD(MoonrakerAPIMockTestFixture, "MoonrakerAPIMock upload_file hand
     REQUIRE(success_called.load());
 }
 
-// ============================================================================
 // download_file_to_path Tests (Streaming Download)
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
                  "MoonrakerAPIMock download_file_to_path creates file at destination",
@@ -308,7 +288,6 @@ TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
     // file_size that races a std::remove.
     std::string dest_path = "/tmp/helix_test_download_" + std::to_string(getpid()) + ".gcode";
 
-    // Clean up any existing file
     std::remove(dest_path.c_str());
 
     api_->transfers().download_file_to_path(
@@ -323,11 +302,9 @@ TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
     REQUIRE_FALSE(error_called.load());
     REQUIRE(received_path == dest_path);
 
-    // Verify file exists and has content
     REQUIRE(std::filesystem::exists(dest_path));
     REQUIRE(std::filesystem::file_size(dest_path) > 100);
 
-    // Clean up
     std::remove(dest_path.c_str());
 }
 
@@ -338,7 +315,6 @@ TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
     std::string dest_path =
         "/tmp/helix_test_download_content_" + std::to_string(getpid()) + ".gcode";
 
-    // Clean up
     std::remove(dest_path.c_str());
 
     // First, get content via regular download_file
@@ -365,7 +341,6 @@ TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
 
     REQUIRE(content.str() == original_content);
 
-    // Clean up
     std::remove(dest_path.c_str());
 }
 
@@ -402,7 +377,6 @@ TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
     std::string dest_path =
         "/tmp/helix_test_download_nested_" + std::to_string(getpid()) + ".gcode";
 
-    // Clean up
     std::remove(dest_path.c_str());
 
     // Path with nested directories should still find the file
@@ -414,13 +388,10 @@ TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
     REQUIRE(std::filesystem::exists(dest_path));
     REQUIRE(std::filesystem::file_size(dest_path) > 100);
 
-    // Clean up
     std::remove(dest_path.c_str());
 }
 
-// ============================================================================
 // Edge Cases
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
                  "MoonrakerAPIMock download_file handles null success callback",
@@ -432,7 +403,6 @@ TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
         api_->transfers().download_file("gcodes", "3DBenchy.gcode", nullptr,
                                         [&](const MoonrakerError&) { error_called.store(true); }));
 
-    // Verify no error occurred (file exists)
     REQUIRE_FALSE(error_called.load());
 }
 
@@ -446,7 +416,6 @@ TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
         "gcodes", "nonexistent.gcode", [&](const std::string&) { success_called.store(true); },
         nullptr));
 
-    // Verify success was not called (file doesn't exist)
     REQUIRE_FALSE(success_called.load());
 }
 
@@ -460,13 +429,10 @@ TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
         api_->transfers().upload_file("gcodes", "test.gcode", "G28", nullptr,
                                       [&](const MoonrakerError&) { error_called.store(true); }));
 
-    // Verify no error occurred (upload succeeds in mock)
     REQUIRE_FALSE(error_called.load());
 }
 
-// ============================================================================
 // JSON-RPC Handler Tests
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
                  "MoonrakerClientMock handles server.files.get_directory", "[mock][api][files]") {
@@ -540,9 +506,7 @@ TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
     CHECK(reported == 2);
 }
 
-// ============================================================================
 // Simulation Frames as Method Callbacks
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
                  "MoonrakerClientMock simulation delivers status frames to method callbacks",
@@ -576,9 +540,7 @@ TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
     CHECK(frames >= 2);
 }
 
-// ============================================================================
 // Config-Root Downloads
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
                  "MoonrakerAPIMock download_file_to_path serves the injected config root",

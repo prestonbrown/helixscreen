@@ -36,9 +36,7 @@ using json = nlohmann::json;
 
 using namespace helix;
 
-// ============================================================================
 // Test Fixture
-// ============================================================================
 
 class WizardFilamentSensorSelectTestFixture : public LVGLTestFixture {
   public:
@@ -114,9 +112,7 @@ class WizardFilamentSensorSelectTestFixture : public LVGLTestFixture {
 
 // Static members
 
-// ============================================================================
 // get_standalone_sensor_count() Tests
-// ============================================================================
 
 TEST_CASE_METHOD(WizardFilamentSensorSelectTestFixture,
                  "WizardFilamentSensorSelectStep - get_standalone_sensor_count",
@@ -168,9 +164,7 @@ TEST_CASE_METHOD(WizardFilamentSensorSelectTestFixture,
     }
 }
 
-// ============================================================================
 // should_skip() Tests
-// ============================================================================
 
 TEST_CASE_METHOD(WizardFilamentSensorSelectTestFixture,
                  "WizardFilamentSensorSelectStep - should_skip", "[wizard][filament][skip]") {
@@ -212,9 +206,7 @@ TEST_CASE_METHOD(WizardFilamentSensorSelectTestFixture,
     }
 }
 
-// ============================================================================
 // auto_configure_single_sensor() Tests
-// ============================================================================
 
 TEST_CASE_METHOD(WizardFilamentSensorSelectTestFixture,
                  "WizardFilamentSensorSelectStep - auto_configure_single_sensor",
@@ -314,9 +306,7 @@ TEST_CASE_METHOD(WizardFilamentSensorSelectTestFixture,
     }
 }
 
-// ============================================================================
 // Integration Tests: Wizard Skip Flow
-// ============================================================================
 
 TEST_CASE_METHOD(WizardFilamentSensorSelectTestFixture,
                  "WizardFilamentSensorSelectStep - wizard skip flow integration",
@@ -383,9 +373,7 @@ TEST_CASE_METHOD(WizardFilamentSensorSelectTestFixture,
     }
 }
 
-// ============================================================================
 // Edge Cases
-// ============================================================================
 
 TEST_CASE_METHOD(WizardFilamentSensorSelectTestFixture,
                  "WizardFilamentSensorSelectStep - edge cases", "[wizard][filament][edge]") {
@@ -442,9 +430,7 @@ TEST_CASE_METHOD(WizardFilamentSensorSelectTestFixture,
     }
 }
 
-// ============================================================================
 // One standalone filter for the wizard and Settings
-// ============================================================================
 
 TEST_CASE_METHOD(
     WizardFilamentSensorSelectTestFixture,

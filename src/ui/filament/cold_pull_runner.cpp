@@ -605,9 +605,7 @@ void ColdPullRunner::cancel() {
     after_event();
 }
 
-// ============================================================================
 // Setup
-// ============================================================================
 
 void ColdPullRunner::select_material(ColdPullMaterial material) {
     material_ = material;
@@ -664,9 +662,7 @@ ColdPullRefusal ColdPullRunner::start_from_setup() {
     return start(material_, setup_temps_, hold);
 }
 
-// ============================================================================
 // Publishing
-// ============================================================================
 
 void ColdPullRunner::publish_setup() {
     // Setup shows what start() will send: a stored edit outside this head's range

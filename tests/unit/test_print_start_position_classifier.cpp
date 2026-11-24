@@ -66,13 +66,11 @@ size_t first_index_of(const std::vector<PositionActivity>& tl, PositionActivity 
 
 } // namespace
 
-// ============================================================================
 // Corpus replay tests — real K1C geometry from the 2026-08-19 klippy capture.
 // Mesh bounds on this machine: 5..215 both axes; the wipe strip sits at
 // Y≈225, beyond the mesh area. The prep chain order observed on hardware:
-// nozzle wipe → centre Z probes (ACCURATE_G28) → 4-corner mesh validation
+// nozzle wipe → center Z probes (ACCURATE_G28) → 4-corner mesh validation
 // (full-chain prints) → serpentine mesh sweep.
-// ============================================================================
 
 TEST_CASE("Position classifier tracks the pre-fix K1C prep chain", "[print][collector][position]") {
     auto corpus = load_window("prefetch_d");
@@ -90,7 +88,7 @@ TEST_CASE("Position classifier tracks the pre-fix K1C prep chain", "[print][coll
     REQUIRE(corner != SIZE_MAX);
     REQUIRE(raster != SIZE_MAX);
 
-    // The observed chain order: wipe → centre probes → corners → sweep.
+    // The observed chain order: wipe → center probes → corners → sweep.
     CHECK(wipe < center);
     CHECK(center < corner);
     CHECK(corner < raster);
@@ -116,7 +114,7 @@ TEST_CASE("Position classifier tracks a second pre-fix print identically",
     REQUIRE(corner != SIZE_MAX);
     REQUIRE(raster != SIZE_MAX);
 
-    // The observed chain order: wipe → centre probes → corners → sweep.
+    // The observed chain order: wipe → center probes → corners → sweep.
     CHECK(wipe < center);
     CHECK(center < corner);
     CHECK(corner < raster);
@@ -139,7 +137,7 @@ TEST_CASE("Position classifier tracks the flowrate print prep chain",
 
     // This print started through the pre-start gcode block, whose
     // CX_ROUGH_G28 still runs the levelling calibration: the same
-    // wipe → centre → corner-tour → sweep chain as the stock macro.
+    // wipe → center → corner-tour → sweep chain as the stock macro.
     REQUIRE(wipe != SIZE_MAX);
     REQUIRE(center != SIZE_MAX);
     REQUIRE(corner != SIZE_MAX);

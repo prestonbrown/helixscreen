@@ -21,9 +21,7 @@
 
 using namespace helix;
 
-// ============================================================================
 // Backends that make the blocking window observable
-// ============================================================================
 
 namespace {
 
@@ -110,9 +108,7 @@ bool spin_until(const std::function<bool()>& pred, int timeout_ms = 5000) {
 
 } // namespace
 
-// ============================================================================
 // WiFiManager::set_enabled_async — the toggle must not block the LVGL thread
-// ============================================================================
 
 TEST_CASE("set_enabled_async returns before the backend radio call completes",
           "[wifi][manager][radio][async]") {
@@ -269,9 +265,7 @@ TEST_CASE("~WiFiManager waits for an in-flight radio op instead of freeing the b
     helix::ui::UpdateQueue::instance().drain();
 }
 
-// ============================================================================
 // Reconcile rule — how the optimistic flip folds reality back in
-// ============================================================================
 
 TEST_CASE("reconcile_radio_toggle keeps an optimistic flip that reality agreed with",
           "[wifi][radio][reconcile]") {
@@ -334,9 +328,7 @@ TEST_CASE("reconcile_radio_toggle never persists the request over reality",
     }
 }
 
-// ============================================================================
 // nmcli radio-state parsing (drives WifiBackendNetworkManager::is_radio_enabled)
-// ============================================================================
 
 TEST_CASE("wifi_parse_nm_radio_state reads nmcli's enabled/disabled answer", "[wifi][nm][radio]") {
     CHECK(wifi_parse_nm_radio_state("enabled\n") == std::optional<bool>(true));
@@ -374,9 +366,7 @@ TEST_CASE("wifi_parse_nm_device_state reads GENERAL.STATE", "[wifi][nm][wifi_dhc
     CHECK(state.getting_ipv4 == getting_ipv4);
 }
 
-// ============================================================================
 // The stored expectation belongs to the radio, not to whoever flipped it
-// ============================================================================
 
 TEST_CASE("A radio toggle records the state the radio reached, caller alive or not",
           "[wifi][manager][radio][async]") {

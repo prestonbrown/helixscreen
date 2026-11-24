@@ -212,9 +212,7 @@ void LedSettingsOverlay::register_callbacks() {
     });
 }
 
-// ============================================================================
 // LIFECYCLE
-// ============================================================================
 
 void LedSettingsOverlay::on_activate() {
     OverlayBase::on_activate();
@@ -231,9 +229,7 @@ void LedSettingsOverlay::on_dismissed() {
     editing_macro_index_ = -1;
 }
 
-// ============================================================================
 // INTERNAL METHODS
-// ============================================================================
 
 void LedSettingsOverlay::init_led_on_at_start_toggle() {
     if (!overlay_root_)
@@ -430,9 +426,7 @@ void LedSettingsOverlay::handle_remove_macro_preset(int preset_index) {
     lv_subject_set_int(&macro_draft_preset_count_, n - 1);
 }
 
-// ============================================================================
 // MACRO DEVICE HANDLERS
-// ============================================================================
 
 void LedSettingsOverlay::discard_unsaved_macro_entry() {
     if (editing_macro_index_ < 0)
@@ -576,7 +570,6 @@ void LedSettingsOverlay::handle_save_macro_device(int index) {
     // --- Validation ---
     // Trim and check for empty name
     std::string display_name = updated[index].display_name;
-    // Trim whitespace
     auto start = display_name.find_first_not_of(" \t\n\r");
     auto end = display_name.find_last_not_of(" \t\n\r");
     display_name = (start == std::string::npos) ? "" : display_name.substr(start, end - start + 1);
@@ -609,9 +602,7 @@ void LedSettingsOverlay::handle_save_macro_device(int index) {
     populate_macro_devices();
 }
 
-// ============================================================================
 // LED CHIP SELECTION
-// ============================================================================
 
 void LedSettingsOverlay::populate_led_chips() {
     if (!overlay_root_)
@@ -696,9 +687,7 @@ void LedSettingsOverlay::handle_led_chip_clicked(const std::string& led_name) {
     populate_auto_state_rows();
 }
 
-// ============================================================================
 // EVENT HANDLERS
-// ============================================================================
 
 void LedSettingsOverlay::handle_led_on_at_start_changed(bool enabled) {
     spdlog::info("[{}] LED on at start toggled: {}", get_name(), enabled ? "ON" : "OFF");
@@ -738,9 +727,7 @@ void LedSettingsOverlay::handle_auto_state_changed(bool enabled) {
     }
 }
 
-// ============================================================================
 // AUTO-STATE MAPPING EDITOR
-// ============================================================================
 
 static std::optional<size_t> state_row_index(const std::string& key) {
     for (size_t i = 0; i < kStateRowCount; ++i) {

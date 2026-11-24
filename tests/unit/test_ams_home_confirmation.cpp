@@ -121,9 +121,7 @@ TEST_CASE("ensure_homed_then reports G28 failure through on_error", "[ams][homin
     CHECK(backend.captured.empty());
 }
 
-// =====================================================================
 // A tool changer mount on an unhomed printer
-// =====================================================================
 // dispatch_operation() stamps SELECTING before it calls ensure_homed_then(),
 // so any gap between the two leaves the backend busy with nothing on the way.
 // With no confirmation to wait on, the G28 and the swap go out in the same
@@ -204,9 +202,7 @@ TEST_CASE("an unload through execute_filament_unload on a tool changer homes not
     CHECK(tc.sent().empty());
 }
 
-// =====================================================================
 // dispatch_payload's "custom" branch (integration)
-// =====================================================================
 // Unit-style tests above use HomingProbeBackend, whose api_ is null -- they
 // never leave dispatch_payload()'s legacy branch (the hardcoded execute_gcode
 // virtuals), so they cannot prove a caller's non-default on_error/timeout_ms/
@@ -255,12 +251,8 @@ TEST_CASE("ensure_homed_then custom timeout/silent bypass the hardcoded virtuals
     CHECK(seen == "boom");
 }
 
-// =====================================================================
-// AmsBackendCfs::dispatch_action_script (Task 5: collapse the CFS fork)
-// =====================================================================
-// dispatch_action_script used to hand-duplicate ensure_homed_then's
-// query/parse/G28 sequence purely to get on_error plumbing the base lacked.
-// It now collapses to a single ensure_homed_then() call with on_error set and
+// AmsBackendCfs::dispatch_action_script
+// dispatch_action_script is a single ensure_homed_then() call with on_error set and
 // silent=false -- which always lands on dispatch_payload()'s "custom" branch
 // (see the integration test above), so these tests need a live api_/client_
 // exactly like that one: a null-api_ probe would short-circuit dispatch_payload
@@ -320,9 +312,7 @@ TEST_CASE("CFS Fork variant never homes via dispatch_action_script", "[ams][homi
     CHECK_FALSE(client.last_send_silent());
 }
 
-// =====================================================================
 // FilamentPanel: an unhomed macro-tier load homes only when its profile says so
-// =====================================================================
 
 namespace {
 

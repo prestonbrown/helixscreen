@@ -92,9 +92,7 @@ constexpr const char* kTempBetweenTwo = "{% set l = params.LENGTH|default(100)|f
 
 } // namespace
 
-// =============================================================================
 // Load
-// =============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "Load runs a temperature-only macro with the live extruder target, no dialog",
@@ -160,9 +158,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(h.sent_for("LOAD_FILAMENT").empty());
 }
 
-// =============================================================================
 // Unload and Purge take the same rule
-// =============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "Unload hands a temperature-only macro the live extruder target",
@@ -231,9 +227,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(h.sent_for("PURGE").empty());
 }
 
-// =============================================================================
 // Which temperature: the hotter known one, never below the extrusion minimum
-// =============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Load never sends a live target below the extrusion minimum",
                  "[filament][prefill]") {
@@ -394,9 +388,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(h.sent_for("PURGE") == Scripts{"PURGE PURGE_TEMP=235"});
 }
 
-// =============================================================================
 // Multi-extruder: the limits and target are the op's own extruder's
-// =============================================================================
 
 namespace {
 constexpr const char* kPurgeTempOnly =
@@ -520,9 +512,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Purge offers its temperature only as PURGE_
     CHECK(h.sent_for("PURGE").empty());
 }
 
-// =============================================================================
 // MacroParamModal: a prefill is the field's text
-// =============================================================================
 
 namespace {
 
@@ -674,9 +664,7 @@ TEST_CASE_METHOD(ParamModalFixture,
     CHECK(helix::MacroParamModalTestAccess::field_slot_count(modal) == params.size());
 }
 
-// =============================================================================
 // Purge preamble and the operation guard
-// =============================================================================
 
 // A purge preamble (home, then travel to the purge bin) runs under the homing
 // budget, which is longer than the panel's operation timeout. The operation
@@ -813,9 +801,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK_FALSE(TA::operation_active(*h.panel));
 }
 
-// ============================================================================
 // The built-in purge over a backend's waste chute
-// ============================================================================
 
 namespace {
 

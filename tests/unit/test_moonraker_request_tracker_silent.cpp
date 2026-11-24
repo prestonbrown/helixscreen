@@ -3,7 +3,7 @@
 
 /**
  * @file test_moonraker_request_tracker_silent.cpp
- * @brief Regression tests for MoonrakerRequestTracker::check_timeouts() silent-mode behavior.
+ * @brief Tests for MoonrakerRequestTracker::check_timeouts() silent-mode behavior.
  *
  * Context: exclude_object and other long-running RPCs opt into `silent=true` so the
  * global REQUEST_TIMEOUT event (which surfaces a user-facing toast) is suppressed when
@@ -118,7 +118,6 @@ TEST_CASE("check_timeouts still emits REQUEST_TIMEOUT for non-silent requests",
     }
 }
 
-// ============================================================================
 // route_response() error dedup: a request whose caller declared it surfaces the
 // error itself is handling its own error UI. It must NOT also emit the generic
 // "Printer command failed" toast, and it must record correlation so the `!!`
@@ -127,7 +126,6 @@ TEST_CASE("check_timeouts still emits REQUEST_TIMEOUT for non-silent requests",
 //
 // `silent` alone is a weaker claim and must NOT record: it means "no automatic
 // toast from us", not "the user has been told".
-// ============================================================================
 
 namespace {
 

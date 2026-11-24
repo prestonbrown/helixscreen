@@ -119,7 +119,7 @@ json make_stock_box_json() {
 
 } // namespace
 
-// --- Schema discrimination -------------------------------------------------
+// Schema discrimination
 //
 // Schema must be decided from the PAYLOAD, never from PrinterDetector. The
 // affected printer is a K2 Plus by every model signal — model detection cannot
@@ -157,7 +157,7 @@ TEST_CASE("CFS schema detection", "[ams][cfs][flat]") {
     }
 }
 
-// --- Flat parse ------------------------------------------------------------
+// Flat parse
 
 TEST_CASE("CFS flat schema: unit and slot topology", "[ams][cfs][flat]") {
     auto info = AmsBackendCfs::parse_box_status(make_flat_box_json());
@@ -359,7 +359,7 @@ TEST_CASE("CFS flat schema: slot status transitions", "[ams][cfs][flat]") {
     }
 }
 
-// --- Runout signal ---------------------------------------------------------
+// Runout signal
 //
 // filament_detected is the box gate's own presence boolean, the flat analogue
 // of stock's filament_useup. `runout` is NOT that signal: it is the
@@ -437,7 +437,7 @@ TEST_CASE("CFS flat schema: unit environment and path sensors", "[ams][cfs][flat
     }
 }
 
-// --- Robustness ------------------------------------------------------------
+// Robustness
 //
 // Same discipline as the stock parser: a null or wrong-typed field must
 // degrade to a sentinel, never throw out of parse_box_status and drop the
@@ -498,7 +498,7 @@ TEST_CASE("CFS flat schema: malformed payloads degrade, never throw", "[ams][cfs
     }
 }
 
-// --- Fork macro dialect ----------------------------------------------------
+// Fork macro dialect
 //
 // Signatures taken from the module itself (box.py `_register_commands` /
 // `cmd_load` / `cmd_unload` / `_register_t_commands`), not inferred:
@@ -564,7 +564,7 @@ TEST_CASE("CFS Fork dialect: gcode builders", "[ams][cfs][flat][fork]") {
     }
 }
 
-// --- Fork dialect detection ------------------------------------------------
+// Fork dialect detection
 
 TEST_CASE("CFS Fork dialect: detected from the supported Box API version",
           "[ams][cfs][flat][fork]") {
@@ -596,7 +596,7 @@ TEST_CASE("CFS Fork dialect: detected from the supported Box API version",
     }
 }
 
-// --- Fork slot metadata write ----------------------------------------------
+// Fork slot metadata write
 
 TEST_CASE("CFS Fork dialect: slot metadata write", "[ams][cfs][flat][fork]") {
     // _BOX_SLOT_SET SLOT=<n> MATERIAL="<str>" COLOR="#RRGGBB" BRAND="..." NAME="..."
@@ -638,7 +638,7 @@ TEST_CASE("CFS Fork dialect: slot metadata write", "[ams][cfs][flat][fork]") {
     }
 }
 
-// --- Stock regression ------------------------------------------------------
+// Stock regression
 //
 // The two-axis split must not perturb the stock path. This is the guard that
 // the schema dispatch is additive.
@@ -659,9 +659,7 @@ TEST_CASE("CFS stock schema still parses after the flat split", "[ams][cfs][flat
     REQUIRE(info.endless_spool_enabled == true);
 }
 
-// ============================================================================
 // Real four-box payload (K2 Plus, box_count 4)
-// ============================================================================
 
 namespace {
 
@@ -774,13 +772,11 @@ TEST_CASE("CFS flat: four boxes converge on one toolhead in the system path layo
     }
 }
 
-// ============================================================================
 // Golden sequence: stock frames merged as deltas (a unit joining, the active
 // lane letter, the toolhead switch, a runout latch, a bay insert, a unit going
 // off the bus), the extruder and motor objects, then a flat fork frame. Each
 // frame is pinned as a text snapshot of everything the parse leaves behind plus
 // the gcode it dispatches after releasing the lock.
-// ============================================================================
 
 namespace {
 
@@ -960,7 +956,7 @@ slot=-1 tool=-1 loaded=true runout=true action=Idle bypass=true declared=false e
   unit3 absent=false first=12: [Empty // #808080] [Empty // #808080] [Empty // #808080] [Empty // #808080]
   events=1 gcodes=''
 )GOLD";
-} // namespace
+}
 
 TEST_CASE_METHOD(CfsGoldenFixture, "CFS golden status sequence", "[ams][cfs][golden]") {
     const std::vector<std::pair<std::string, json>> frames = {
@@ -1003,12 +999,10 @@ TEST_CASE_METHOD(CfsGoldenFixture, "CFS golden status sequence", "[ams][cfs][gol
     CHECK(all == kCfsGolden);
 }
 
-// ============================================================================
 // Flat frames are deltas. Klipper sends a status object's changed top-level
 // fields only, each one whole, so a frame that edits a slot carries `slots`
 // and nothing else. The backend reads the box as the sum of every frame
 // since the session began (Jacob10383/k2-plus-custom-firmware#3).
-// ============================================================================
 
 namespace {
 

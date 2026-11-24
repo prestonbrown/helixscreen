@@ -51,9 +51,7 @@ MacrosPanel::~MacrosPanel() {
     deinit_subjects();
 }
 
-// ============================================================================
 // Subject Initialization
-// ============================================================================
 
 void MacrosPanel::init_subjects() {
     {
@@ -93,9 +91,7 @@ void MacrosPanel::deinit_subjects() {
     spdlog::debug("[{}] Subjects deinitialized", get_name());
 }
 
-// ============================================================================
 // Callback Registration
-// ============================================================================
 
 void MacrosPanel::register_callbacks() {
     // Row identity comes from the event_cb user_data ("$row_index" string).
@@ -154,9 +150,7 @@ void MacrosPanel::register_callbacks() {
     });
 }
 
-// ============================================================================
 // Create
-// ============================================================================
 
 lv_obj_t* MacrosPanel::create(lv_obj_t* parent) {
     // Reset the slot count BEFORE building the XML so the freshly-created
@@ -208,9 +202,7 @@ lv_obj_t* MacrosPanel::create(lv_obj_t* parent) {
     return overlay_root_;
 }
 
-// ============================================================================
 // Lifecycle Hooks
-// ============================================================================
 
 void MacrosPanel::on_activate() {
     OverlayBase::on_activate();
@@ -263,9 +255,7 @@ void MacrosPanel::on_ui_destroyed() {
     slot_hidden_pool_.reclaim();
 }
 
-// ============================================================================
 // Row model
-// ============================================================================
 
 bool MacrosPanel::refresh_macros() {
     helix::IMoonrakerAPI* api = get_moonraker_api();
@@ -499,9 +489,7 @@ std::string MacrosPanel::prettify_macro_name(const std::string& name) {
     return helix::get_display_name(name, helix::DeviceType::MACRO);
 }
 
-// ============================================================================
 // Run path
-// ============================================================================
 
 void MacrosPanel::fetch_params_and_execute(const std::string& macro_name) {
     helix::IMoonrakerAPI* api = get_moonraker_api();
@@ -624,9 +612,7 @@ void MacrosPanel::execute_with_params(const std::string& macro_name,
                                get_printer_state().get_discovery());
 }
 
-// ============================================================================
 // Event Handlers
-// ============================================================================
 
 void MacrosPanel::handle_row_clicked(size_t i) {
     if (i >= displayed_.size()) {

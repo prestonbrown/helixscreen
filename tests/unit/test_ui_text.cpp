@@ -66,9 +66,7 @@ class TextTest {
     lv_obj_t* screen_ = nullptr;
 };
 
-// ============================================================================
 // Public API Tests - NULL pointer handling
-// ============================================================================
 
 TEST_CASE("ui_text_set_stroke handles NULL label", "[ui_text][api][error]") {
     TextTest fixture;
@@ -77,9 +75,7 @@ TEST_CASE("ui_text_set_stroke handles NULL label", "[ui_text][api][error]") {
     REQUIRE_NOTHROW(ui_text_set_stroke(nullptr, 2, lv_color_black(), LV_OPA_COVER));
 }
 
-// ============================================================================
 // Stroke Property Application Tests
-// ============================================================================
 
 TEST_CASE("ui_text_set_stroke applies stroke properties", "[ui_text][stroke]") {
     TextTest fixture;
@@ -123,9 +119,7 @@ TEST_CASE("ui_text_set_stroke applies stroke properties", "[ui_text][stroke]") {
     lv_obj_delete(label);
 }
 
-// ============================================================================
 // Edge Cases
-// ============================================================================
 
 TEST_CASE("ui_text_set_stroke edge cases", "[ui_text][stroke][edge]") {
     TextTest fixture;
@@ -156,9 +150,7 @@ TEST_CASE("ui_text_set_stroke edge cases", "[ui_text][stroke][edge]") {
     lv_obj_delete(label);
 }
 
-// ============================================================================
 // Text Transform Tests
-// ============================================================================
 
 TEST_CASE("text_transform uppercase via event callback", "[ui_text][transform]") {
     TextTest fixture;
@@ -241,9 +233,7 @@ TEST_CASE("text_transform uppercase via event callback", "[ui_text][transform]")
     lv_obj_delete(label);
 }
 
-// ============================================================================
 // API Contract Tests
-// ============================================================================
 
 TEST_CASE("ui_text API contracts", "[ui_text][api][contract]") {
     TextTest fixture;

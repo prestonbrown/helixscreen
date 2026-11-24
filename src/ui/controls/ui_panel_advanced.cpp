@@ -63,9 +63,7 @@ void init_global_advanced_panel(PrinterState& printer_state, IMoonrakerAPI* api)
                                                      []() { g_advanced_panel.reset(); });
 }
 
-// ============================================================================
 // CONSTRUCTOR
-// ============================================================================
 
 AdvancedPanel::AdvancedPanel(PrinterState& printer_state, IMoonrakerAPI* api)
     : PanelBase(printer_state, api) {
@@ -76,9 +74,7 @@ AdvancedPanel::~AdvancedPanel() {
     deinit_subjects();
 }
 
-// ============================================================================
 // PANELBASE IMPLEMENTATION
-// ============================================================================
 
 void AdvancedPanel::init_subjects() {
     // Register XML event callbacks (must be done BEFORE XML is created)
@@ -182,9 +178,7 @@ void AdvancedPanel::refresh_notification_history_row() {
     lv_subject_set_int(&show_notification_history_subject_, bell_on_home ? 0 : 1);
 }
 
-// ============================================================================
 // NAVIGATION HANDLERS
-// ============================================================================
 
 void AdvancedPanel::handle_spoolman_clicked() {
     get_global_spoolman_panel().show(parent_screen_);
@@ -236,9 +230,7 @@ void AdvancedPanel::handle_pa_tuning_clicked() {
 #endif
 }
 
-// ============================================================================
 // STATIC EVENT CALLBACKS (registered via lv_xml_register_event_cb)
-// ============================================================================
 
 void AdvancedPanel::on_spoolman_clicked(lv_event_t* /*e*/) {
     get_global_advanced_panel().handle_spoolman_clicked();
@@ -297,9 +289,7 @@ void AdvancedPanel::on_advanced_reboot_clicked(lv_event_t* /*e*/) {
     get_global_advanced_panel().handle_power_clicked(PowerIntent::Reboot);
 }
 
-// ============================================================================
 // POWER HANDLER — shares the same dialog the home-panel power widget uses
-// ============================================================================
 
 void AdvancedPanel::handle_power_clicked(PowerIntent intent) {
     spdlog::debug("[{}] Power row clicked, opening shutdown dialog", get_name());
@@ -307,18 +297,14 @@ void AdvancedPanel::handle_power_clicked(PowerIntent intent) {
                                 intent);
 }
 
-// ============================================================================
 // TIMELAPSE SETUP HANDLER
-// ============================================================================
 
 void AdvancedPanel::handle_timelapse_setup_clicked() {
     spdlog::info("[{}] Timelapse setup clicked", get_name());
     open_timelapse_install();
 }
 
-// ============================================================================
 // HELIX HELPER MACRO HANDLERS (helix_macros.cfg)
-// ============================================================================
 
 bool AdvancedPanel::job_holds_machine_now() const {
     // job_holds_machine, not print_active: a host-side Preparing job has
@@ -573,9 +559,7 @@ void AdvancedPanel::on_klippy_state_for_skips(int state) {
         on_error);
 }
 
-// ============================================================================
 // HELIXPRINT PLUGIN HANDLERS
-// ============================================================================
 
 void AdvancedPanel::handle_helix_plugin_install_clicked() {
     spdlog::debug("[{}] HelixPrint Plugin Install clicked", get_name());

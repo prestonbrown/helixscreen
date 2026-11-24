@@ -49,9 +49,7 @@ static constexpr int32_t kClearBtnSize = 24;
 // Right padding the clear button adds to the textarea for itself.
 static constexpr int32_t kClearBtnExtraPad = kClearBtnSize + 4;
 
-// ============================================================================
 // Observer / Binding Callbacks
-// ============================================================================
 
 /**
  * Thread-local flag to prevent reentrancy during two-way binding updates.
@@ -114,9 +112,7 @@ static void textarea_value_changed_cb(lv_event_t* e) {
     }
 }
 
-// ============================================================================
 // Clear Button Support
-// ============================================================================
 
 /**
  * Find the clear button icon child of a textarea.
@@ -219,9 +215,7 @@ static lv_obj_t* create_clear_button(lv_obj_t* textarea) {
     return btn;
 }
 
-// ============================================================================
 // Suffix Support
-// ============================================================================
 
 /**
  * Lay out the suffix inside the textarea's right padding, between the text and
@@ -277,9 +271,7 @@ static lv_obj_t* create_suffix(lv_obj_t* textarea) {
     return suffix;
 }
 
-// ============================================================================
 // Vertical Fit
-// ============================================================================
 
 /**
  * Shrink the vertical padding of a fixed-height one-line input until one line of
@@ -306,9 +298,7 @@ static void fit_pad_to_height_cb(lv_event_t* e) {
     }
 }
 
-// ============================================================================
 // XML Widget Callbacks
-// ============================================================================
 
 /**
  * XML create callback for <text_input>.
@@ -480,9 +470,7 @@ static void ui_text_input_apply(lv_xml_parser_state_t* state, const char** attrs
     }
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 void ui_text_input_init() {
     lv_xml_register_widget("text_input", ui_text_input_create, ui_text_input_apply);

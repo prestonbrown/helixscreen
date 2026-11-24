@@ -129,7 +129,6 @@ class ProbeOverlay : public OverlayBase {
     helix::Subject probe_z_offset_display_{};
     helix::Subject probe_z_offset_known_{}; ///< 1 when the probe's Z offset is known
 
-    // State subject for overlay mode
     helix::Subject probe_overlay_state_{};
 
     // Cartographer subjects
@@ -213,7 +212,6 @@ class ProbeOverlay : public OverlayBase {
     // Ceiling on an absorbed transport loss during PROBE_ACCURACY
     OperationTimeoutGuard probe_acc_backstop_;
 
-    // Config editor
     helix::system::KlipperConfigEditor config_editor_;
     std::string editing_field_key_; // Current field being edited
     std::string probe_section_;     // Config section name (e.g., "probe", "bltouch")
@@ -226,7 +224,6 @@ class ProbeOverlay : public OverlayBase {
 
     helix::IMoonrakerAPI* api_ = nullptr;
 
-    // Type-specific panel container
     lv_obj_t* type_panel_container_ = nullptr;
 
     void on_ui_destroyed() override {

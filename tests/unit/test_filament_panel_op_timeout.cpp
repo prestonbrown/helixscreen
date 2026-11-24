@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
  * @file test_filament_panel_op_timeout.cpp
- * @brief Regression guard (#1183): a filament operation that never reports back
+ * @brief #1183: a filament operation that never reports back
  *        must not leave its button spinning forever. A second section at the
  *        bottom covers the mirror-image defect — an operation that reports back
  *        `ok` for a macro that aborted part-way through.
@@ -328,7 +328,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "#1183: a timed-out gcode op stops its spinn
     process_lvgl(20); // let the thawed error callback drain before teardown
 }
 
-// ============================================================================
 // Unknown-command abort
 //
 // Run with: ./build/bin/helix-tests "[ui_integration][filament][unknown_command]"
@@ -354,7 +353,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "#1183: a timed-out gcode op stops its spinn
 //   - drop the command name from the toast -> "fails the running op" fails
 //   - remove the op_aborted_.reset() in op_started() -> "a later operation is
 //     not eaten by a stale abort" fails
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture, "unknown-command response fails the running filament op",
                  "[ui_integration][filament][unknown_command]") {
@@ -497,7 +495,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a later operation is not eaten by a stale a
     CHECK(TA::op_load_state(*h.panel) == 2); // done/checkmark
 }
 
-// ============================================================================
 // Manual motion (filament_manual_motion)
 //
 // Run with: ./build/bin/helix-tests "[filament-chevrons]"
@@ -507,7 +504,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a later operation is not eaten by a stale a
 // the motion lasts for the later of the move's own duration and the answer; a
 // failure or timeout ends it at once. The update queue is frozen in each case
 // so the disconnected test API's error callback cannot end the motion first.
-// ============================================================================
 
 namespace {
 

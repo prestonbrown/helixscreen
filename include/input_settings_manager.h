@@ -44,9 +44,7 @@ class InputSettingsManager {
     /** @brief Deinitialize LVGL subjects (called by StaticSubjectRegistry) */
     void deinit_subjects();
 
-    // =========================================================================
     // GETTERS / SETTERS
-    // =========================================================================
 
     /** @brief Momentum decay rate (5-50, higher = faster decay), applied live to every pointer. */
     int get_scroll_throw() const {
@@ -116,9 +114,7 @@ class InputSettingsManager {
         restart_pending_ = false;
     }
 
-    // =========================================================================
     // SUBJECT ACCESSORS (for XML binding)
-    // =========================================================================
 
     /** @brief Scroll throw subject (integer: 5-50) */
     lv_subject_t* subject_scroll_throw() {

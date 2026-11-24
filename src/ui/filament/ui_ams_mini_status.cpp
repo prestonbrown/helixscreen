@@ -46,9 +46,7 @@
 #include <string>
 #include <vector>
 
-// ============================================================================
 // Layout constants
-// ============================================================================
 
 /** Minimum bar width in pixels (prevents bars from becoming invisible) */
 static constexpr int32_t kMinBarWidthPx = 3;
@@ -89,9 +87,7 @@ static int lane_badge_px(int spool_size) {
     return std::min(spool_size, kMaxSpoolImgPx) * 2 / 5;
 }
 
-// ============================================================================
 // Per-widget user data
-// ============================================================================
 
 /** Magic number to identify ams_mini_status widgets ("AMS1" as ASCII) */
 static constexpr uint32_t kAmsMiniStatusMagic = 0x414D5331;
@@ -280,9 +276,7 @@ static bool rebuild_spools(AmsMiniStatusData* data);
 static void rebuild(AmsMiniStatusData* data);
 static void sync_from_ams_state(AmsMiniStatusData* data);
 
-// ============================================================================
 // Internal helpers
-// ============================================================================
 
 /** The XML flex-place name of the strip's bars_align. */
 static const char* bars_align_name(lv_flex_align_t align) {
@@ -697,7 +691,6 @@ static void rebuild_bars(AmsMiniStatusData* data) {
         helix::ui::safe_delete_deferred(condemned_parent);
     }
 
-    // Update overflow label
     if (data->overflow_label) {
         if (overflow_count > 0) {
             lv_label_set_text_fmt(data->overflow_label, "+%d", overflow_count);
@@ -776,7 +769,7 @@ static const char* spool_material_text(const SpoolCellData& cd) {
  * values.
  *
  * @return 0 when there is nothing to draw. If the font token cannot be
- *         resolved (a theme that never initialized), falls back to the old flat
+ *         resolved (a theme that never initialized), falls back to a flat
  *         34px rather than 0 - a wrong reservation still lays out, a zero one
  *         packs unreadable cells.
  */
@@ -1424,7 +1417,7 @@ static bool rebuild_spools(AmsMiniStatusData* data) {
     const lv_font_t* pct_font = theme_manager_get_font("font_xs");
     const int pct_h = line_h(pct_font, 12);
 
-    // ---- Plan ----
+    // ---- Plan
     // Every lane at a usable spool: all of them in the box when they fit (the
     // largest spool), else as many rows as the height holds, scrolling
     // sideways. Only an auto tray (the home tile) titles its unit groups.
@@ -1812,9 +1805,7 @@ static void bind_bypass_observers(AmsMiniStatusData* data, lv_obj_t* container) 
                      settings.get_subjects_lifetime());
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 /**
  * @brief Build the strip from the ams_mini_status_frame component and bind it
@@ -1836,7 +1827,6 @@ static lv_obj_t* create_mini_status(lv_obj_t* parent, int32_t height, const char
     data_ptr->bars_container = lv_obj_find_by_name(container, "ams_bars_container");
     data_ptr->overflow_label = lv_obj_find_by_name(container, "ams_overflow_label");
 
-    // Register and set up cleanup
     AmsMiniStatusData* data = data_ptr.release();
     s_registry.set(container, data);
     lv_obj_add_event_cb(container, on_delete, LV_EVENT_DELETE, nullptr);
@@ -2049,9 +2039,7 @@ bool ui_ams_mini_status_is_valid(lv_obj_t* obj) {
     return data && data->magic == kAmsMiniStatusMagic;
 }
 
-// ============================================================================
 // Auto-binding to AmsState
-// ============================================================================
 
 /**
  * @brief Sync widget state from AmsState backend
@@ -2106,7 +2094,6 @@ static void sync_from_ams_state(AmsMiniStatusData* data) {
             data->absent_slots.push_back(i);
         }
     }
-    // Clear any stale unit rows beyond current count
     for (int u = data->unit_count; u < 8; ++u) {
         data->unit_rows[u].first_slot = 0;
         data->unit_rows[u].slot_count = 0;
@@ -2176,9 +2163,7 @@ static void sync_from_ams_state(AmsMiniStatusData* data) {
     spdlog::trace("[AmsMiniStatus] Synced from AmsState: {} slots", slot_count);
 }
 
-// ============================================================================
 // XML Widget Registration
-// ============================================================================
 
 /**
  * @brief XML create callback - creates widget with responsive sizing

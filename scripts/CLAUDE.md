@@ -38,6 +38,7 @@ are in `docs/devel/SCRIPTS_REFERENCE.md`, and the script's own header carries th
 | `android-version-code.sh` | The single definition of the Android versionCode |
 | `generate-whatsnew.sh` | Writes the Play Store "What's new" file from `android/whatsnew/<version>.txt` |
 | `changelog-section.sh` | Prints one version's `CHANGELOG.md` section; the one extractor every publisher uses |
+| `unwrap-markdown.py` | `[FILE]`: joins soft-wrapped markdown lines (stdin to stdout), leaving fences, tables, headings and blockquotes alone. Release.yml pipes the GitHub body, Discord post and manifest notes through it. Tests: `tests/python/test_unwrap_markdown.py` |
 | `generate-upload-keystore.sh` | One-time Android upload keystore generation; output in `~/.android-keystore/`, never the tree |
 
 ### Performance Measurement

@@ -22,9 +22,7 @@
 #include <memory>
 #include <utility>
 
-// ============================================================================
 // GLOBAL INSTANCE ACCESSOR
-// ============================================================================
 
 static PrintLightTimelapseControls* g_light_timelapse_controls = nullptr;
 
@@ -42,13 +40,9 @@ void set_global_light_timelapse_controls(PrintLightTimelapseControls* instance) 
     g_light_timelapse_controls = instance;
 }
 
-// ============================================================================
 // XML EVENT CALLBACKS (free functions using global accessor)
-// ============================================================================
 
-// ============================================================================
 // CONSTRUCTOR / DESTRUCTOR
-// ============================================================================
 
 PrintLightTimelapseControls::PrintLightTimelapseControls() = default;
 
@@ -56,9 +50,7 @@ PrintLightTimelapseControls::~PrintLightTimelapseControls() {
     deinit_subjects();
 }
 
-// ============================================================================
 // SUBJECT INITIALIZATION
-// ============================================================================
 
 void PrintLightTimelapseControls::init_subjects() {
     if (subjects_initialized_) {
@@ -117,9 +109,7 @@ void PrintLightTimelapseControls::set_printer_state(helix::PrinterState& printer
         printer_state.get_subjects_lifetime());
 }
 
-// ============================================================================
 // BUTTON HANDLERS
-// ============================================================================
 
 void PrintLightTimelapseControls::handle_light_button() {
     // Drives what the home light buttons drive (the light the user picked), or
@@ -165,9 +155,7 @@ void PrintLightTimelapseControls::handle_timelapse_button() {
     }
 }
 
-// ============================================================================
 // STATE UPDATES
-// ============================================================================
 
 void PrintLightTimelapseControls::refresh_light_state() {
     if (!subjects_initialized_) {

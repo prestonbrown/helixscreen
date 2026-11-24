@@ -35,9 +35,7 @@ std::string ethernet_wait_status(const helix::netd::NetdSnapshot& snap) {
 
 } // namespace
 
-// ============================================================================
 // Construction / teardown
-// ============================================================================
 
 EthernetBackendNetd::EthernetBackendNetd(const std::string& sysfs_root,
                                          std::function<EthernetInfo()> kernel_state)
@@ -61,9 +59,7 @@ EthernetBackendNetd::~EthernetBackendNetd() {
     spdlog::trace("[EthernetNetd] netd backend destroyed");
 }
 
-// ============================================================================
 // EthernetBackend Interface Implementation
-// ============================================================================
 
 bool EthernetBackendNetd::has_interface() {
     // Pure sysfs: the daemon is never consulted, so the Ethernet row's

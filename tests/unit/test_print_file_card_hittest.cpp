@@ -8,7 +8,7 @@
 // Hit-testing for print_file_card: the whole card face must resolve to card_root,
 // which owns the CLICKED/LONG_PRESSED handlers (ui_print_select_card_view.cpp).
 // Decorative children (metadata overlay and its rows) must not absorb the press.
-// Regression: prestonbrown/helixscreen#1101
+// #1101
 
 #include "../test_fixtures.h"
 
@@ -91,14 +91,14 @@ TEST_CASE_METHOD(XMLTestFixture, "print_file_card: metadata area routes clicks t
     }
 }
 
-// The metadata row and its two groups are content-sized. They were percentage-sized
-// inside a content-sized parent, which makes each depend on the other: the parent
-// asks the child for its height, the child answers with a fraction of the parent,
-// and both settle at zero. The labels then laid out past the bottom of the card and
-// the print time and filament weight were invisible at every breakpoint.
+// The metadata row and its two groups are content-sized. Percentage sizes inside
+// a content-sized parent make each depend on the other: the parent asks the child
+// for its height, the child answers with a fraction of the parent, and both
+// settle at zero. The labels would then lay out past the bottom of the card and
+// the print time and filament weight would be invisible at every breakpoint.
 // The hit-test case above does not cover this — routing still resolves correctly
 // when the row is a few pixels tall.
-// Regression: prestonbrown/helixscreen#1208
+// #1208
 TEST_CASE_METHOD(XMLTestFixture, "print_file_card: metadata row keeps a real height",
                  "[xml][print_file_card][layout][1208]") {
     REQUIRE(register_component("print_file_card"));

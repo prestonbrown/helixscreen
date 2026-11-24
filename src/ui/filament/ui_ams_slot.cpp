@@ -51,9 +51,7 @@
 
 using namespace helix;
 
-// ============================================================================
 // Per-widget user data (managed via static registry for safe shutdown)
-// ============================================================================
 
 /**
  * @brief User data stored on each ams_slot widget
@@ -161,9 +159,7 @@ static void cleanup_all_slot_data() {
     spdlog::debug("[AmsSlot] Pre-deinit cleanup: all slot data released");
 }
 
-// ============================================================================
 // Name and Material Labels
-// ============================================================================
 
 /**
  * @brief Paint the name and material lines from the per-slot subjects.
@@ -353,9 +349,7 @@ static void bind_drying_badge(AmsSlotData* data, lv_subject_t* subject) {
     }
 }
 
-// ============================================================================
 // Observer Callbacks
-// ============================================================================
 
 // Helper functions for observer logic (called by lambdas and initial triggers)
 
@@ -581,9 +575,7 @@ static void apply_tool_badge(AmsSlotData* data, int mapped_tool, bool is_overrid
         spdlog::trace("[AmsSlot] Slot {} tool badge: hidden", data->slot_index);
     }
 }
-// ============================================================================
 // Widget Event Handler (for cleanup)
-// ============================================================================
 
 /**
  * @brief Event handler for widget lifecycle (DELETE event for cleanup)
@@ -618,9 +610,7 @@ static void ams_slot_event_cb(lv_event_t* e) {
     }
 }
 
-// ============================================================================
 // Widget Creation (Internal)
-// ============================================================================
 /**
  * @brief Setup observers for a given slot index
  * Uses observer factory pattern for type-safe lambda observers
@@ -869,9 +859,7 @@ static void setup_slot_observers(AmsSlotData* data) {
     spdlog::trace("[AmsSlot] Created observers for slot {}", data->slot_index);
 }
 
-// ============================================================================
 // XML Handlers
-// ============================================================================
 
 /**
  * @brief XML create handler for ams_slot
@@ -943,7 +931,6 @@ static void* ams_slot_xml_create(lv_xml_parser_state_t* state, const char** attr
     lv_obj_add_event_cb(obj, ams_slot_event_cb, LV_EVENT_SIZE_CHANGED, nullptr);
     lv_obj_set_adv_hittest(obj, true);
 
-    // Apply responsive slot width
     int32_t space_lg = theme_manager_get_spacing("space_lg");
     int32_t slot_width = (space_lg * 5) + 10; // ~90px - fits spool + padding
     lv_obj_set_width(obj, slot_width);
@@ -968,7 +955,6 @@ static void ams_slot_xml_apply(lv_xml_parser_state_t* state, const char** attrs)
     // Apply standard lv_obj properties first
     lv_xml_obj_apply(state, attrs);
 
-    // Get user data
     auto* data = get_slot_data(obj);
     if (!data) {
         spdlog::error("[AmsSlot] No user data in xml_apply");
@@ -983,7 +969,6 @@ static void ams_slot_xml_apply(lv_xml_parser_state_t* state, const char** attrs)
         if (strcmp(name, "slot_index") == 0) {
             int new_index = atoi(value);
             if (new_index != data->slot_index) {
-                // Clear existing observers
                 data->status_lifetime.reset();
                 data->lane_state_lifetime.reset();
                 data->material_lifetime.reset();
@@ -1017,9 +1002,7 @@ static void ams_slot_xml_apply(lv_xml_parser_state_t* state, const char** attrs)
     }
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 void ui_ams_slot_register(void) {
     // The view embeds <ams_lane_spool>; it must be registered before the view
@@ -1331,7 +1314,6 @@ void ui_ams_slot_set_layout_info(lv_obj_t* obj, int slot_index, int total_count,
         lv_obj_set_style_text_align(data->material_label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
         lv_obj_set_pos(data->material_label, 0, label_y);
 
-        // Create dashed leader line connecting label to spool
         if (!data->leader_line) {
             data->leader_line = lv_line_create(obj);
             lv_obj_set_ignore_layout(data->leader_line, true);
@@ -1546,9 +1528,7 @@ void ui_ams_slot_move_badge_to_layer(lv_obj_t* obj, lv_obj_t* badge_layer, int32
                   badge_y);
 }
 
-// ============================================================================
 // Pulse Animation for Loading Operations
-// ============================================================================
 
 void ui_ams_slot_set_pulsing(lv_obj_t* obj, bool pulsing) {
     if (!obj) {

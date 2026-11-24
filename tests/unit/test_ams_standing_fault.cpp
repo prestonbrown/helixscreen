@@ -134,9 +134,7 @@ class AfcStandingFaultHelper : public AmsBackendAfc {
 
 } // namespace helix
 
-// ============================================================================
 // The fault's cause
-// ============================================================================
 
 TEST_CASE("standing_fault_cause says why the fault stands", "[ams-standing-fault]") {
     SECTION("paused: the stop reason") {
@@ -166,9 +164,7 @@ TEST_CASE("standing_fault_cause says why the fault stands", "[ams-standing-fault
     }
 }
 
-// ============================================================================
 // The trigger decision
-// ============================================================================
 
 TEST_CASE("StandingFaultTrigger fires when a fault stands outside a running print",
           "[ams-standing-fault]") {
@@ -229,9 +225,7 @@ TEST_CASE("StandingFaultTrigger fires when a fault stands outside a running prin
     }
 }
 
-// ============================================================================
 // The detail: the `!!` line, not AFC.message
-// ============================================================================
 
 TEST_CASE("AFC current_error_with_cause tells the fault by the bang line",
           "[ams-standing-fault][afc]") {
@@ -287,9 +281,7 @@ TEST_CASE("AFC status detail drops an error message AFC is no longer in",
     }
 }
 
-// ============================================================================
 // Desktop: AmsErrorBridge raises the recovery modal
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture, "AmsErrorBridge raises a fault that stood before the pause",
                  "[ams-standing-fault][ams-bridge]") {
@@ -400,9 +392,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     uninstall(*this);
 }
 
-// ============================================================================
 // Firmware: the AMS loading-error dialog, AMS panel closed
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture, "AmsStandingFaultDialog opens without the AMS panel",
                  "[ams-standing-fault][ams]") {
@@ -585,9 +575,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     uninstall(*this);
 }
 
-// ============================================================================
 // AmsState holds the cause; the sidebar shows it
-// ============================================================================
 
 namespace {
 

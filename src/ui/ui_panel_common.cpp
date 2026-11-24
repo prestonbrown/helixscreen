@@ -11,9 +11,7 @@
 
 #include <spdlog/spdlog.h>
 
-// ============================================================================
 // HEADER BAR SETUP
-// ============================================================================
 
 lv_obj_t* ui_panel_setup_header(lv_obj_t* panel, lv_obj_t* parent_screen, const char* header_name) {
     if (!panel || !parent_screen || !header_name) {
@@ -32,9 +30,7 @@ lv_obj_t* ui_panel_setup_header(lv_obj_t* panel, lv_obj_t* parent_screen, const 
     return header;
 }
 
-// ============================================================================
 // CONTENT PADDING SETUP
-// ============================================================================
 
 lv_obj_t* ui_panel_setup_content_padding(lv_obj_t* panel, lv_obj_t* parent_screen,
                                          const char* content_name) {
@@ -62,9 +58,7 @@ lv_obj_t* ui_panel_setup_content_padding(lv_obj_t* panel, lv_obj_t* parent_scree
     return content;
 }
 
-// ============================================================================
 // RESIZE CALLBACK SETUP
-// ============================================================================
 
 // Generic resize callback that uses context to update content padding
 static void panel_resize_callback_wrapper(ui_panel_resize_context_t* context) {
@@ -142,9 +136,7 @@ void ui_panel_setup_resize_callback(ui_panel_resize_context_t* context) {
                   context->content_name);
 }
 
-// ============================================================================
 // OVERLAY PANEL SETUP (For panels using overlay_panel.xml wrapper)
-// ============================================================================
 
 namespace helix::ui {
 lv_obj_t* create_xml_hidden(lv_obj_t* parent, const char* component, const char** attrs) {

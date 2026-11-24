@@ -6,6 +6,7 @@
 #include "ui_modal.h"
 
 #include "ams_backend.h"
+#include "ams_edit_follow_up.h"
 #include "ams_state.h"
 #include "lvgl.h"
 
@@ -15,10 +16,11 @@ namespace helix::ui {
 
 void offer_edit_follow_up(int slot_index, const SlotInfo& before, const SlotInfo& after) {
     AmsBackend* backend = AmsState::instance().get_backend();
-    if (!backend) {
+    const auto* follow_up = backend != nullptr ? backend->as<IEditFollowUp>() : nullptr;
+    if (!follow_up) {
         return;
     }
-    const auto offer = backend->edit_follow_up(slot_index, before, after);
+    const auto offer = follow_up->edit_follow_up(slot_index, before, after);
     if (!offer) {
         return;
     }
@@ -31,10 +33,11 @@ void offer_edit_follow_up(int slot_index, const SlotInfo& before, const SlotInfo
         [slot_index, before, after]() {
             // Re-fetched: the backend can be replaced while the dialog is up.
             AmsBackend* current = AmsState::instance().get_backend();
-            if (!current) {
+            auto* runner = current != nullptr ? current->as<IEditFollowUp>() : nullptr;
+            if (!runner) {
                 return;
             }
-            const AmsError err = current->run_edit_follow_up(slot_index, before, after);
+            const AmsError err = runner->run_edit_follow_up(slot_index, before, after);
             if (!err.success()) {
                 notify_ams_error(err);
             }

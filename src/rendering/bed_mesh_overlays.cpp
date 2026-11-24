@@ -5,14 +5,13 @@
 
 #include "bed_mesh_overlays.h"
 
-#include "ui_fonts.h"
-
 #include "bed_grid.h"
 #include "bed_mesh_buffer.h"
 #include "bed_mesh_coordinate_transform.h"
 #include "bed_mesh_internal.h"
 #include "bed_mesh_projection.h"
-#include "theme_manager.h"
+#include "core/noto_sans_fonts.h"
+#include "render_theme.h"
 
 #include <spdlog/spdlog.h>
 
@@ -209,7 +208,7 @@ void render_heatmap_overlay(lv_layer_t* layer, const bed_mesh_renderer_t* render
     lv_draw_rect_dsc_t border_dsc;
     lv_draw_rect_dsc_init(&border_dsc);
     border_dsc.bg_opa = LV_OPA_TRANSP;
-    border_dsc.border_color = theme_manager_get_color("elevated_bg");
+    border_dsc.border_color = helix::render_theme::color("elevated_bg");
     border_dsc.border_width = 1;
     border_dsc.border_opa = LV_OPA_60;
     border_dsc.radius = 2;
@@ -256,10 +255,10 @@ void render_heatmap_overlay(lv_layer_t* layer, const bed_mesh_renderer_t* render
 
     lv_draw_rect_dsc_t tooltip_bg;
     lv_draw_rect_dsc_init(&tooltip_bg);
-    tooltip_bg.bg_color = theme_manager_get_color("card_bg");
+    tooltip_bg.bg_color = helix::render_theme::color("card_bg");
     tooltip_bg.bg_opa = LV_OPA_90;
     tooltip_bg.radius = 6;
-    tooltip_bg.border_color = theme_manager_get_color("elevated_bg");
+    tooltip_bg.border_color = helix::render_theme::color("elevated_bg");
     tooltip_bg.border_width = 1;
     tooltip_bg.border_opa = LV_OPA_60;
 
@@ -268,7 +267,7 @@ void render_heatmap_overlay(lv_layer_t* layer, const bed_mesh_renderer_t* render
 
     lv_draw_label_dsc_t label_dsc;
     lv_draw_label_dsc_init(&label_dsc);
-    label_dsc.color = theme_manager_get_color("text");
+    label_dsc.color = helix::render_theme::color("text");
     label_dsc.font = &noto_sans_14;
     label_dsc.text = z_text;
     label_dsc.text_local = 1; // z_text is a stack buffer; the draw is deferred
@@ -304,7 +303,7 @@ void render_axis_labels(lv_layer_t* layer, const bed_mesh_renderer_t* renderer, 
 
     lv_draw_label_dsc_t label_dsc;
     lv_draw_label_dsc_init(&label_dsc);
-    label_dsc.color = theme_manager_get_color("text");
+    label_dsc.color = helix::render_theme::color("text");
     label_dsc.font = small_canvas ? &noto_sans_10 : &noto_sans_14;
     label_dsc.opa = LV_OPA_90;
     label_dsc.align = LV_TEXT_ALIGN_CENTER;
@@ -427,7 +426,7 @@ void render_numeric_axis_ticks(lv_layer_t* layer, const bed_mesh_renderer_t* ren
     // Configure label drawing style (smaller font than axis letters)
     lv_draw_label_dsc_t label_dsc;
     lv_draw_label_dsc_init(&label_dsc);
-    label_dsc.color = theme_manager_get_color("text");
+    label_dsc.color = helix::render_theme::color("text");
     label_dsc.font = &noto_sans_10; // Smaller font for numeric labels
     label_dsc.opa = LV_OPA_80;      // Slightly more transparent than axis letters
     label_dsc.align = LV_TEXT_ALIGN_CENTER;

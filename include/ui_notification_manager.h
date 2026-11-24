@@ -136,9 +136,7 @@ class NotificationManager {
     // Event callback for notification history button (static to work with LVGL XML API)
     static void notification_history_clicked(lv_event_t* e);
 
-    // ============================================================================
     // Notification State Subjects (drive XML reactive bindings)
-    // ============================================================================
 
     // RAII subject manager for automatic cleanup
     SubjectManager subjects_;
@@ -166,9 +164,7 @@ class NotificationManager {
     bool initialized_ = false;
 };
 
-// ============================================================================
 // FREE FUNCTIONS (in helix::ui namespace)
-// ============================================================================
 
 namespace helix::ui {
 

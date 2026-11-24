@@ -73,9 +73,7 @@ bool buttonmatrix_button_area(lv_obj_t* obj, uint32_t btn_id, lv_area_t* out) {
 static constexpr int32_t kKeyboardSlideDurationMs = 200;
 static constexpr int32_t kKeyboardExitDurationMs = 150;
 
-// ============================================================================
 // STATIC DATA
-// ============================================================================
 
 // Alternative character mapping table (Gboard-style layout)
 const KeyboardManager::AltCharMapping KeyboardManager::alt_char_map_[] = {
@@ -174,18 +172,14 @@ static const lv_buttonmatrix_ctrl_t kb_ctrl_num_improved[] = {
     static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED | 1),
     static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED | 1)};
 
-// ============================================================================
 // SINGLETON INSTANCE
-// ============================================================================
 
 KeyboardManager& KeyboardManager::instance() {
     static KeyboardManager instance;
     return instance;
 }
 
-// ============================================================================
 // HELPER METHODS
-// ============================================================================
 
 const char* KeyboardManager::find_alternatives(char base_char) const {
     // A user-reordered list wins over the shipped order for this session.
@@ -381,9 +375,7 @@ void KeyboardManager::apply_keyboard_mode() {
     lv_obj_invalidate(keyboard_);
 }
 
-// ============================================================================
 // EVENT CALLBACKS
-// ============================================================================
 
 void KeyboardManager::textarea_focus_event_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("textarea_focus_event_cb");
@@ -522,9 +514,9 @@ void KeyboardManager::longpress_event_handler(lv_event_t* e) {
 
             // Nothing is inserted yet. Insertion happens on RELEASE so that sliding
             // onto an exposed alternative selects it, and sliding away cancels.
-            // Inserting here (the old auto-insert path) made the overlay decorative:
-            // the character was already committed before the user could aim at it,
-            // and sliding away to cancel still left it in the field.
+            // Inserting here would make the overlay decorative: the character would
+            // be committed before the user could aim at it, and sliding away to
+            // cancel would still leave it in the field.
             spdlog::info("[KeyboardManager] LONG_PRESSED '{}' - overlay shown, awaiting release",
                          mgr.pressed_char_ ? mgr.log_char(mgr.pressed_char_) : '?');
         }
@@ -603,7 +595,7 @@ void KeyboardManager::longpress_event_handler(lv_event_t* e) {
                     // Held and released without sliding. A long-press is a deliberate
                     // request for the alternate, so honour it rather than falling back
                     // to the primary — this is the one-gesture path (hold 'f' -> '_')
-                    // that users rely on, and it is what the old auto-insert did.
+                    // that users rely on.
                     // With auto_insert_alt_ off, the release lands on the primary
                     // instead and the alternate requires sliding onto the popover.
                     if (in_place_char != 0 && mgr.context_textarea_ != nullptr) {
@@ -955,9 +947,7 @@ void KeyboardManager::keyboard_draw_alternative_chars(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_END();
 }
 
-// ============================================================================
 // KEYBOARD MANAGER IMPLEMENTATION
-// ============================================================================
 
 namespace {
 // Keyboard slide-up / screen-shift animations, gated once for all four call
@@ -1608,7 +1598,6 @@ void KeyboardManager::reset() {
     // reason (#776); safe_delete_deferred() nulls overlay_ and no-ops if already null.
     helix::ui::safe_delete_deferred(overlay_);
 
-    // Reset all state so init() can be called again
     longpress_state_ = LP_IDLE;
     pressed_btn_id_ = 0;
     pressed_char_ = 0;

@@ -48,9 +48,7 @@ std::string panel_macro() {
 
 } // namespace
 
-// ============================================================================
 // LIFECYCLE
-// ============================================================================
 
 ToolOffsetCalibrationPanel::~ToolOffsetCalibrationPanel() {
     idle_wait_observer_.reset();
@@ -172,9 +170,7 @@ void ToolOffsetCalibrationPanel::cleanup() {
     OverlayBase::cleanup();
 }
 
-// ============================================================================
 // ROWS
-// ============================================================================
 
 void ToolOffsetCalibrationPanel::refresh_rows() {
     if (!subjects_initialized_) {
@@ -244,9 +240,7 @@ void ToolOffsetCalibrationPanel::refresh_row_values(int head_index) {
     }
 }
 
-// ============================================================================
 // RUN
-// ============================================================================
 
 bool ToolOffsetCalibrationPanel::printer_supports_calibration() {
     return cal::supported(get_printer_state().get_discovery());
@@ -455,9 +449,7 @@ bool ToolOffsetCalibrationPanel::abort_in_progress_calibration() {
     return true;
 }
 
-// ============================================================================
 // SAVE
-// ============================================================================
 
 void ToolOffsetCalibrationPanel::save_offsets() {
     if (run_active_) {
@@ -547,9 +539,7 @@ void ToolOffsetCalibrationPanel::send_save() {
         &ps);
 }
 
-// ============================================================================
 // ROWS FOLLOW TOOLSTATE
-// ============================================================================
 
 void ToolOffsetCalibrationPanel::on_tools_changed() {
     // The macro's SET_TOOL_PARAMETER writes land here mid-run, so the rows
@@ -562,9 +552,7 @@ void ToolOffsetCalibrationPanel::on_tools_changed() {
     }
 }
 
-// ============================================================================
 // ADVANCED-PANEL ROW ENTRY
-// ============================================================================
 
 void init_tool_offset_row_handler() {
     register_xml_callbacks({

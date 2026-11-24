@@ -36,9 +36,7 @@
 
 using namespace helix::printer;
 
-// =============================================================================
 // Type Tests - DeviceSection struct
-// =============================================================================
 
 TEST_CASE("DeviceSection struct exists and has required fields", "[ams][device_actions][types]") {
     SECTION("default construction") {
@@ -77,9 +75,7 @@ TEST_CASE("DeviceSection struct exists and has required fields", "[ams][device_a
     }
 }
 
-// =============================================================================
 // Type Tests - DeviceAction struct
-// =============================================================================
 
 TEST_CASE("DeviceAction struct exists and has required fields", "[ams][device_actions][types]") {
     SECTION("default construction") {
@@ -212,9 +208,7 @@ TEST_CASE("DeviceAction struct exists and has required fields", "[ams][device_ac
     }
 }
 
-// =============================================================================
 // Type Tests - ActionType enum
-// =============================================================================
 
 TEST_CASE("ActionType enum values and conversion", "[ams][device_actions][types]") {
     SECTION("all action types exist") {
@@ -238,9 +232,7 @@ TEST_CASE("ActionType enum values and conversion", "[ams][device_actions][types]
     }
 }
 
-// =============================================================================
 // Base Class Interface Tests
-// =============================================================================
 
 TEST_CASE("AmsBackend base class has device action virtual methods",
           "[ams][device_actions][interface]") {
@@ -277,9 +269,7 @@ TEST_CASE("AmsBackend base class has device action virtual methods",
     backend.stop();
 }
 
-// =============================================================================
 // Mock Backend Tests - Default Actions
-// =============================================================================
 
 TEST_CASE("AmsBackendMock device actions - default configuration", "[ams][device_actions][mock]") {
     helix::AmsBackendMock backend(4);
@@ -359,9 +349,7 @@ TEST_CASE("AmsBackendMock device actions - default configuration", "[ams][device
     backend.stop();
 }
 
-// =============================================================================
 // Mock Backend Tests - execute_device_action
-// =============================================================================
 
 TEST_CASE("AmsBackendMock execute_device_action behavior", "[ams][device_actions][mock]") {
     helix::AmsBackendMock backend(4);
@@ -422,9 +410,7 @@ TEST_CASE("AmsBackendMock execute_device_action behavior", "[ams][device_actions
     backend.stop();
 }
 
-// =============================================================================
 // Mock Backend Tests - Setters
-// =============================================================================
 
 TEST_CASE("AmsBackendMock device action setters", "[ams][device_actions][mock]") {
     helix::AmsBackendMock backend(4);
@@ -478,9 +464,7 @@ TEST_CASE("AmsBackendMock device action setters", "[ams][device_actions][mock]")
     backend.stop();
 }
 
-// =============================================================================
 // Mock Backend Tests - Disabled Actions
-// =============================================================================
 
 TEST_CASE("AmsBackendMock handles disabled actions", "[ams][device_actions][mock]") {
     helix::AmsBackendMock backend(4);
@@ -524,9 +508,7 @@ TEST_CASE("AmsBackendMock handles disabled actions", "[ams][device_actions][mock
     backend.stop();
 }
 
-// =============================================================================
 // Mock Backend Tests - Different Action Types with Values
-// =============================================================================
 
 TEST_CASE("AmsBackendMock execute with different value types", "[ams][device_actions][mock]") {
     helix::AmsBackendMock backend(4);
@@ -623,9 +605,7 @@ TEST_CASE("AmsBackendMock execute with different value types", "[ams][device_act
     backend.stop();
 }
 
-// =============================================================================
 // ACE Backend Device Action Tests
-// =============================================================================
 
 TEST_CASE("ACE device actions - sections and actions", "[ams][device_actions][ace]") {
     // Create ACE backend with null dependencies (for structure testing)
@@ -739,9 +719,7 @@ TEST_CASE("ACE device actions - execute valid actions", "[ams][device_actions][a
     }
 }
 
-// =============================================================================
 // device_action_value: the one reader of a control's value
-// =============================================================================
 
 TEST_CASE("device_action_value reads a number whatever type carries it",
           "[ams][device_actions][device_action_value]") {
@@ -796,9 +774,7 @@ TEST_CASE("device_action_value reads bools and strings exactly",
     CHECK_FALSE(device_action_value<std::string>(std::any("Auto"), "mode").second.success());
 }
 
-// =============================================================================
 // ToolChanger Backend Stub Tests
-// =============================================================================
 
 TEST_CASE("ToolChanger device actions stubs", "[ams][device_actions][toolchanger]") {
     // Create ToolChanger backend with null dependencies (for stub testing)
@@ -829,9 +805,7 @@ TEST_CASE("ToolChanger device actions stubs", "[ams][device_actions][toolchanger
     }
 }
 
-// =============================================================================
 // Edge Cases and Integration
-// =============================================================================
 
 TEST_CASE("Device actions edge cases", "[ams][device_actions][edge]") {
     helix::AmsBackendMock backend(4);
@@ -980,9 +954,7 @@ TEST_CASE("Device actions thread safety", "[ams][device_actions][mock]") {
     backend.stop();
 }
 
-// =============================================================================
 // Integration with Tool Changer Mode
-// =============================================================================
 
 TEST_CASE("Mock backend device actions in tool changer mode",
           "[ams][device_actions][mock][toolchanger]") {
@@ -1015,9 +987,7 @@ TEST_CASE("Mock backend device actions in tool changer mode",
     backend.stop();
 }
 
-// =============================================================================
 // Tracked device actions and edit follow-ups (AmsSubscriptionBackend gate)
-// =============================================================================
 
 namespace {
 
