@@ -73,7 +73,13 @@
                     <bind_style_if_ge name="card_title" subject="ui_breakpoint" ref_value="1"/>
                   </text_body>
                   <text_small width="100%"
-                              bind_text="pa_tune_nl_look_${i}" style_text_color="#text_muted" long_mode="wrap"/>
+                              bind_text="pa_tune_nl_look_${i}" style_text_color="#text_muted" long_mode="wrap">
+                    <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+                  </text_small>
+                  <text_small width="100%"
+                              bind_text="pa_tune_nl_look_short_${i}" style_text_color="#text_muted" long_mode="dots">
+                    <bind_flag_if_ge subject="ui_breakpoint" flag="hidden" ref_value="1"/>
+                  </text_small>
                 </lv_obj>
               </lv_obj>
             </repeat>
@@ -331,9 +337,10 @@
         <lv_obj width="100%"
                 height="0" flex_grow="1" style_pad_all="0" style_pad_bottom="#space_sm" style_bg_opa="0"
                 style_border_width="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
+          <!-- The card takes the page's height and spreads its lines over it. -->
           <lv_obj name="pa_result_card"
-                  width="0" height="content" flex_grow="1" style_bg_color="#screen_bg" style_bg_opa="255"
-                  style_border_width="1" style_border_color="#border" style_radius="#border_radius"
+                  width="0" height="100%" flex_grow="1" style_flex_main_place="space_evenly" style_bg_color="#screen_bg"
+                  style_bg_opa="255" style_border_width="1" style_border_color="#border" style_radius="#border_radius"
                   style_pad_all="#space_md" flex_flow="column" style_pad_gap="#space_xxs"
                   style_flex_cross_place="center" scrollable="false">
             <text_small text="Pressure advance" style_text_color="#text_muted"/>
@@ -343,9 +350,15 @@
                         width="100%" bind_text="pa_tune_result_note" long_mode="wrap" style_text_align="center"
                         style_text_color="#success"/>
             <pa_value_row label="Before" bind_value="pa_tune_before_k"/>
-            <pa_value_row bind_label="pa_tune_pick_band" bind_value="pa_tune_pick_range">
-              <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
-            </pa_value_row>
+            <!-- The band row only when a band was picked: a held value has none. -->
+            <lv_obj name="pa_result_band"
+                    width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                    scrollable="false">
+              <bind_flag_if_eq subject="pa_tune_band_picked" flag="hidden" ref_value="0"/>
+              <pa_value_row bind_label="pa_tune_pick_band" bind_value="pa_tune_pick_range">
+                <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+              </pa_value_row>
+            </lv_obj>
             <!-- Save to Spool lives on the card: the footer holds the saves that write the printer. -->
             <ui_button name="pa_btn_save_spool"
                        width="100%" height="#cal_button_h" variant="outline" icon="spoolman" text="Save to Spool">
@@ -396,16 +409,15 @@
             <event_cb trigger="clicked" callback="on_pa_tune_done"/>
           </ui_button>
           <!-- Saving per material is #2174; drawn now, built then. -->
-          <!-- Room above and right of the button for its release tag. -->
-          <lv_obj width="content"
-                  height="content" style_pad_all="0" style_pad_top="#space_sm" style_pad_right="#space_sm"
-                  style_bg_opa="0" style_border_width="0" scrollable="false" clickable="false">
-            <ui_button name="pa_btn_save_material"
-                       height="#cal_button_h" variant="outline" bind_text="pa_tune_save_material" disabled="true"/>
-            <status_pill text="1.2"
-                         variant="info" floating="true" align="top_right" style_translate_x="#space_sm"
-                         style_translate_y="#space_md_neg" clickable="false"/>
-          </lv_obj>
+          <!-- Its release tag sits in the button, right of the label. -->
+          <ui_button name="pa_btn_save_material"
+                     height="#cal_button_h" variant="outline" bind_text="pa_tune_save_material" disabled="true"
+                     layout="row" style_pad_column="#space_xs">
+            <status_pill text="1.2" variant="info" clickable="false">
+              <!-- The smallest footer has no room for it beside four buttons. -->
+              <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+            </status_pill>
+          </ui_button>
           <ui_button name="pa_btn_save_config" height="#cal_button_h" icon="check" text="Save to Config">
             <bind_state_if_eq subject="pa_tune_can_save_config" state="disabled" ref_value="0"/>
             <event_cb trigger="clicked" callback="on_pa_tune_save_config"/>

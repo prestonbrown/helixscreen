@@ -584,9 +584,13 @@ TEST_CASE_METHOD(TunerFixture, "a tap on the pick screen's tower picks the band 
     const auto bands = overlay.session_for_test().bands();
     REQUIRE(bands.size() == 2);
 
+    const auto band_picked = [] {
+        return lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_tune_band_picked"));
+    };
     // Inside the second band.
     overlay.tower_tap_for_test((bands[1].z_low + bands[1].z_high) / 2.0f);
     CHECK(overlay.picked_for_test() == 1);
+    CHECK(band_picked() == 1);
     CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "pa_tune_pick_k"))) ==
           "0.0100");
     // Inside the first.
@@ -608,4 +612,31 @@ TEST_CASE_METHOD(TunerFixture,
     // Bowden checks the offset a second time: four towers, four cards, as the time line counts.
     overlay.set_kind_for_test(pa::ExtruderKind::Bowden);
     CHECK(cards() == 4);
+}
+
+TEST_CASE_METHOD(TunerFixture,
+                 "each nonlinear setup card says where to look, short on small screens",
+                 "[pa_tune][pa_tuner][pa_tune_setup]") {
+    const auto text = [](const std::string& name) {
+        return std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, name.c_str())));
+    };
+    const auto thumb = [](int i) {
+        const auto name = "pa_tune_nl_thumb_" + std::to_string(i);
+        return std::string(static_cast<const char*>(
+            lv_subject_get_pointer(lv_xml_get_subject(nullptr, name.c_str()))));
+    };
+    overlay.set_kind_for_test(pa::ExtruderKind::DirectDrive);
+    // The left-side card has a shorter line for the smallest screens; the others have one line.
+    const std::string left = text("pa_tune_nl_look_0"),
+                      left_short = text("pa_tune_nl_look_short_0");
+    CHECK_FALSE(left_short.empty());
+    CHECK(left_short.size() < left.size());
+    CHECK(text("pa_tune_nl_look_short_1") == text("pa_tune_nl_look_1"));
+
+    // Bowden's first tower is judged on the front in plain light; only the time offset's is lit.
+    overlay.set_kind_for_test(pa::ExtruderKind::Bowden);
+    REQUIRE(text("pa_tune_nl_pass_0").find("Linear advance") != std::string::npos);
+    REQUIRE(text("pa_tune_nl_pass_2").find("Time offset") != std::string::npos);
+    CHECK(thumb(0) != thumb(2));
+    CHECK(thumb(0).find("front") != std::string::npos);
 }

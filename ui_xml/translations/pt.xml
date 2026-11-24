@@ -2638,6 +2638,7 @@
   <translation tag="Left side {:.1f} mm lower: the next tower raises the advance 10%." pt="Lado esquerdo {:.1f} mm mais baixo: a próxima torre aumenta o Pressure Advance em 10%."/>
   <translation tag="Left side: at what height do the edges of the slow middle look cleanest?" pt="Lado esquerdo: em que altura as bordas do meio lento ficam mais limpas?"/>
   <translation tag="Left side: the two edges of the slow middle, 5 mm either side of center." pt="Lado esquerdo: as duas bordas do meio lento, 5 mm de cada lado do centro."/>
+  <translation tag="Left: slow middle" pt="Esquerda: meio lento"/>
   <translation tag="Left: the slow middle&apos;s edges" pt="Esquerda: bordas do meio lento"/>
   <translation tag="Leftover material found" pt="Material residual encontrado"/>
   <translation tag="Length of filament to purge" pt="Comprimento de filamento a purgar"/>

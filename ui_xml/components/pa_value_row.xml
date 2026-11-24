@@ -8,7 +8,8 @@
      optional muted detail before it (`bind_detail`, "was 0.0400"), left out at
      the smallest breakpoint. The row
      highlights while the int subject `hl_subject` equals `hl_value`: the value
-     a pass sweeps, or the band picked. -->
+     a pass sweeps, or the band picked. value_font sets the value's face: a
+     result reads larger than a running column. -->
 <component>
   <api>
     <prop name="label" type="string" default=""/>
@@ -18,6 +19,7 @@
     <prop name="bind_detail" type="string" default=""/>
     <prop name="hl_subject" type="string" default=""/>
     <prop name="hl_value" type="int" default="-1"/>
+    <prop name="value_font" type="string" default="#font_body_bold"/>
   </api>
   <styles>
     <!-- Styles, not inline attributes, so the bound highlight can outrank the plain row. -->
@@ -41,6 +43,6 @@
         <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
       </text_small>
     </lv_obj>
-    <text_body name="pa_value_value" bind_text="$bind_value" style_text_font="#font_body_bold" style_text_align="right"/>
+    <text_body name="pa_value_value" bind_text="$bind_value" style_text_font="$value_font" style_text_align="right"/>
   </view>
 </component>

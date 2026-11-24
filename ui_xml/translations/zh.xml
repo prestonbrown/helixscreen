@@ -2638,6 +2638,7 @@
   <translation tag="Left side {:.1f} mm lower: the next tower raises the advance 10%." zh="左侧低 {:.1f} mm：下一个测试塔将压力提前提高 10%。"/>
   <translation tag="Left side: at what height do the edges of the slow middle look cleanest?" zh="左侧：慢速中段的边缘在什么高度看起来最干净？"/>
   <translation tag="Left side: the two edges of the slow middle, 5 mm either side of center." zh="左侧：慢速中段的两条边缘，中心两侧各 5 mm。"/>
+  <translation tag="Left: slow middle" zh="左：慢速中段"/>
   <translation tag="Left: the slow middle&apos;s edges" zh="左：慢速中段的边缘"/>
   <translation tag="Leftover material found" zh="发现残留材料"/>
   <translation tag="Length of filament to purge" zh="要排出的耗材长度"/>

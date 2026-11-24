@@ -2781,6 +2781,7 @@ translations:
   'Left side: at what height do the edges of the slow middle look cleanest?': "Côté gauche : à quelle hauteur les bords du milieu lent sont-ils les plus propres ?"
   'Left side: the two edges of the slow middle, 5 mm either side of center.': "Côté gauche : les deux bords du milieu lent, à 5 mm de part et d'autre du centre."
   "Left: the slow middle's edges": "Gauche : bords du milieu lent"
+  "Left: slow middle": "Gauche : milieu lent"
   Leftover material found: 'Résidus de matière détectés'
   Length of filament to purge: 'Longueur de filament à purger'
   Length of the cooling tube section: 'Longueur de la section du tube de refroidissement'

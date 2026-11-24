@@ -169,6 +169,9 @@ void PaTuningOverlay::init_subjects() {
                                       fmt::format("pa_tune_nl_pass_{}", i).c_str(), subjects_);
             UI_MANAGED_SUBJECT_STRING(nl_look_[i], nl_look_buf_[i], "",
                                       fmt::format("pa_tune_nl_look_{}", i).c_str(), subjects_);
+            UI_MANAGED_SUBJECT_STRING(nl_look_short_[i], nl_look_short_buf_[i], "",
+                                      fmt::format("pa_tune_nl_look_short_{}", i).c_str(),
+                                      subjects_);
             UI_MANAGED_SUBJECT_POINTER(nl_thumb_[i], nullptr,
                                        fmt::format("pa_tune_nl_thumb_{}", i).c_str(), subjects_);
         }
@@ -183,6 +186,7 @@ void PaTuningOverlay::init_subjects() {
                                        fmt::format("pa_tune_ref_src_{}", i).c_str(), subjects_);
         }
         UI_MANAGED_SUBJECT_STRING(pick_band_, pick_band_buf_, "", "pa_tune_pick_band", subjects_);
+        UI_MANAGED_SUBJECT_INT(band_picked_, 0, "pa_tune_band_picked", subjects_);
         UI_MANAGED_SUBJECT_STRING(pick_range_, pick_range_buf_, "", "pa_tune_pick_range",
                                   subjects_);
         UI_MANAGED_SUBJECT_STRING(pick_k_, pick_k_buf_, "", "pa_tune_pick_k", subjects_);
@@ -613,6 +617,7 @@ void PaTuningOverlay::refresh_setup() {
     for (int i = 0; i < kNlPassCards; ++i) {
         std::string name;
         std::string look;
+        std::string look_short;
         if (i < order.pass_count()) {
             const auto& pass = order.pass_at(static_cast<size_t>(i));
             name = fmt::format("{}. {}", i + 1, nonlinear_param_label(pass.sweep.param));
@@ -622,6 +627,7 @@ void PaTuningOverlay::refresh_setup() {
             switch (pass.judge) {
             case helix::pa::TowerSide::Left:
                 look = lv_tr("Left: the slow middle's edges");
+                look_short = lv_tr("Left: slow middle");
                 thumb = kThumbLeft;
                 break;
             case helix::pa::TowerSide::LeftVsFront:
@@ -638,6 +644,8 @@ void PaTuningOverlay::refresh_setup() {
         }
         lv_subject_set_string(&nl_pass_[i], name.c_str());
         lv_subject_set_string(&nl_look_[i], look.c_str());
+        lv_subject_set_string(&nl_look_short_[i],
+                              look_short.empty() ? look.c_str() : look_short.c_str());
     }
     refresh_towers();
 }
@@ -1202,7 +1210,9 @@ void PaTuningOverlay::refresh_pick_values() {
     const auto original = session_.original_k();
     lv_subject_set_string(&before_k_, original ? helix::pa::format_k(*original).c_str() : "--");
     const auto bands = session_.bands(kMaxBands);
-    if (picked_ >= 0 && picked_ < static_cast<int>(bands.size())) {
+    const bool picked = picked_ >= 0 && picked_ < static_cast<int>(bands.size());
+    lv_subject_set_int(&band_picked_, picked ? 1 : 0);
+    if (picked) {
         const auto& b = bands[static_cast<size_t>(picked_)];
         lv_subject_set_string(&pick_band_,
                               fmt::format(fmt::runtime(lv_tr("Band {}")), picked_ + 1).c_str());

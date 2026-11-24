@@ -2833,6 +2833,7 @@ translations:
   'Left side: at what height do the edges of the slow middle look cleanest?': "Левая сторона: на какой высоте края медленной середины выглядят чище всего?"
   'Left side: the two edges of the slow middle, 5 mm either side of center.': "Левая сторона: два края медленной середины, по 5 mm в обе стороны от центра."
   "Left: the slow middle's edges": "Слева: края медленной середины"
+  "Left: slow middle": "Слева: медленная середина"
   Leftover material found: 'Обнаружены остатки материала'
   Length of filament to purge: 'Длина филамента для прочистки'
   Length of the cooling tube section: 'Длина участка трубки охлаждения'

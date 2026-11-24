@@ -2638,6 +2638,7 @@
   <translation tag="Left side {:.1f} mm lower: the next tower raises the advance 10%." ja="左側が {:.1f} mm 低い: 次のタワーでは Pressure Advance を 10% 上げます。"/>
   <translation tag="Left side: at what height do the edges of the slow middle look cleanest?" ja="左側: 遅い中央部の端が最もきれいに見える高さはどこですか？"/>
   <translation tag="Left side: the two edges of the slow middle, 5 mm either side of center." ja="左側: 遅い中央部の両端、中心から左右 5 mm。"/>
+  <translation tag="Left: slow middle" ja="左: 遅い中央部"/>
   <translation tag="Left: the slow middle&apos;s edges" ja="左: 遅い中央部の端"/>
   <translation tag="Leftover material found" ja="残留物が見つかりました"/>
   <translation tag="Length of filament to purge" ja="パージするフィラメントの長さ"/>

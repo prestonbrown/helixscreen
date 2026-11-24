@@ -813,6 +813,12 @@ TEST_CASE_METHOD(NonlinearFixture,
     set_int("pa_tune_can_save_config", 1);
     CHECK_FALSE(disabled(root, "pa_btn_save_config"));
 
+    // The band row shows only when a band was picked; a held value has none.
+    set_int("pa_tune_band_picked", 0);
+    CHECK(hidden(root, "pa_result_band"));
+    set_int("pa_tune_band_picked", 1);
+    CHECK_FALSE(hidden(root, "pa_result_band"));
+
     // Save to Spool shows only with a spool to save to.
     set_int("pa_tune_can_save_spool", 0);
     CHECK(hidden(root, "pa_btn_save_spool"));

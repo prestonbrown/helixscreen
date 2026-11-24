@@ -2769,6 +2769,7 @@ translations:
   'Left side: at what height do the edges of the slow middle look cleanest?': "左侧：慢速中段的边缘在什么高度看起来最干净？"
   'Left side: the two edges of the slow middle, 5 mm either side of center.': "左侧：慢速中段的两条边缘，中心两侧各 5 mm。"
   "Left: the slow middle's edges": "左：慢速中段的边缘"
+  "Left: slow middle": "左：慢速中段"
   Leftover material found: '发现残留材料'
   Length of filament to purge: '要排出的耗材长度'
   Length of the cooling tube section: '冷却管段的长度'

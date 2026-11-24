@@ -2638,6 +2638,7 @@
   <translation tag="Left side {:.1f} mm lower: the next tower raises the advance 10%." en="Left side {:.1f} mm lower: the next tower raises the advance 10%."/>
   <translation tag="Left side: at what height do the edges of the slow middle look cleanest?" en="Left side: at what height do the edges of the slow middle look cleanest?"/>
   <translation tag="Left side: the two edges of the slow middle, 5 mm either side of center." en="Left side: the two edges of the slow middle, 5 mm either side of center."/>
+  <translation tag="Left: slow middle" en="Left: slow middle"/>
   <translation tag="Left: the slow middle&apos;s edges" en="Left: the slow middle&apos;s edges"/>
   <translation tag="Leftover material found" en="Leftover material found"/>
   <translation tag="Length of filament to purge" en="Length of filament to purge"/>

@@ -61,10 +61,12 @@
  *   pa_tune_can_save_spool (int), pa_tune_can_save_config (int)
  * - pa_tune_error (string)
  * - pa_tune_time_line / pa_tune_time_sub / pa_tune_primary_text (string): the setup footer
- * - pa_tune_material_temps, pa_tune_nl_pass_N / pa_tune_nl_look_N (string): the setup
+ * - pa_tune_material_temps, pa_tune_nl_pass_N / pa_tune_nl_look_N (string): the setup;
+ *   pa_tune_nl_look_short_N, the look in a few words for the smallest screens
  * - pa_tune_next_text / pa_tune_hint (string): the running dial
  * - pa_tune_look, pa_tune_ref_src_N, pa_tune_pick_band / pa_tune_pick_range /
- *   pa_tune_pick_k / pa_tune_before_k / pa_tune_apply_text (string): the pick
+ *   pa_tune_pick_k / pa_tune_before_k / pa_tune_apply_text (string): the pick;
+ *   pa_tune_band_picked (int), 1 while a band is picked rather than a held value
  * - pa_tune_save_material (string): the result
  */
 namespace helix {
@@ -413,6 +415,8 @@ class PaTuningOverlay : public OverlayBase {
     char nl_pass_buf_[kNlPassCards][48] = {};
     helix::Subject nl_look_[kNlPassCards]{};
     char nl_look_buf_[kNlPassCards][64] = {};
+    helix::Subject nl_look_short_[kNlPassCards]{};
+    char nl_look_short_buf_[kNlPassCards][64] = {};
     helix::Subject nl_thumb_[kNlPassCards]{};
     helix::Subject next_text_{};
     char next_text_buf_[64] = {};
@@ -422,6 +426,7 @@ class PaTuningOverlay : public OverlayBase {
     char look_buf_[96] = {};
     /// Image paths, as pointer subjects the samples' bind_src reads.
     helix::Subject ref_src_[3]{};
+    helix::Subject band_picked_{};
     helix::Subject pick_band_{};
     char pick_band_buf_[32] = {};
     helix::Subject pick_range_{};

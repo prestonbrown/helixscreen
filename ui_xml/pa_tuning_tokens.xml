@@ -74,5 +74,14 @@
     <string name="pa_tune_value_font_medium" value="noto_sans_bold_40"/>
     <string name="pa_tune_value_font_large" value="noto_sans_bold_40"/>
     <string name="pa_tune_value_font_xlarge" value="noto_sans_bold_40"/>
+
+    <!-- A result row's value: a step above the running column's, small enough
+         that the label and its "was" still fit beside it in a half-width card. -->
+    <string name="pa_result_value_font_micro" value="noto_sans_bold_14"/>
+    <string name="pa_result_value_font_tiny" value="noto_sans_bold_16"/>
+    <string name="pa_result_value_font_small" value="noto_sans_bold_18"/>
+    <string name="pa_result_value_font_medium" value="noto_sans_bold_20"/>
+    <string name="pa_result_value_font_large" value="noto_sans_bold_24"/>
+    <string name="pa_result_value_font_xlarge" value="noto_sans_bold_28"/>
   </consts>
 </component>
