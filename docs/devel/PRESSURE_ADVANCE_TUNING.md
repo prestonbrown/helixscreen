@@ -122,8 +122,11 @@ keeps the ramp going, and the Tune overlay shows a Tuner button while a run is a
 | `_offset`, `_velocity`, `_time_offset`, `_smooth_time` | not written | written |
 
 The key is the Z offset macro's (`material_zoffset::helix_key()`), since `HELIX_MATERIAL_OFFSET`
-builds both and passes it as `_HELIX_MATERIAL_PA KEY=`. An empty material has no entry. The model
-goes last, and the macro counts an entry only once its model is there.
+builds both and passes it as `_HELIX_MATERIAL_PA KEY="<key>"`, only while the switch is on, so
+the off path sends nothing new. The macro drops `" ' \ # ; *` from the material and turns a tab
+into a space first: Klipper's parser cuts arguments at `#`, `;` and `*`, and a tab splits one. An
+empty material has no entry. A save clears the model (`""`) first and writes it last, and the
+macro uses an entry only with a model it can run, so a save that stops partway is never used.
 
 `_HELIX_MATERIAL_PA` (`assets/config/helix_macros.cfg`) sends one `SET_PRESSURE_ADVANCE EXTRUDER=
 <active extruder>` naming every parameter the firmware has: `MODEL`, `ADVANCE`, `OFFSET`,
@@ -133,9 +136,10 @@ on classic firmware. Every parameter must be named because Kalico's `cmd_SET_PRE
 builds a fresh model on a model change and `PANonLinearModel.update` keeps any one left out. A
 parameter the entry does not carry (all but `advance` for a linear entry) comes from
 `configfile.settings[<extruder>]`, so a linear entry never picks up a nonlinear entry's leftovers.
-A material with no entry gets the config's values, not the live ones a slicer left behind. A
-nonlinear entry on firmware without models is skipped with a console line. `applied` records
-the entry used, or `CONFIG`.
+A material with no entry gets the config's values, not the live ones a slicer left behind. So
+does an entry whose model the firmware cannot run (unknown, empty, or nonlinear on firmware
+without models), with a console line: sending nothing would leave the previous print's material
+value live. `applied` records the entry used, or `CONFIG`.
 
 Offered (`material_pa_ready`) only where the HelixScreen macro row of Z offset by material
 matches, the printer has `[save_variables]`, and the pack defines `_HELIX_MATERIAL_PA`
@@ -144,9 +148,20 @@ The per-printer setting `material_pa/enabled` is off by default, a Save turns it
 Settings row **Pressure advance by material** turns it off; `reconcile()` corrects the printer's
 switch to match when Settings opens.
 
-Limits: the entry applies to whichever extruder is active when `PRINT_START` runs, so a
-multi-extruder printer gets one value per material, not per tool. The time offset is stored per
-material, though it may be a property of the machine. Firmware that owns the Z offset (ZMOD,
+**Never on more than one extruder.** `pressure_advance_ready()` is false when the printer has an
+`extruder1`, and the macro does nothing when `configfile.settings` has one. The slicer's
+material is the initial tool's, `PRINT_START` usually runs before that tool's `T<n>`, and neither
+tuner records which extruder it tuned, so a per-material value would land on whichever tool was
+active. Per tool needs the entry to carry the extruder and the macro to run at tool pickup.
+
+The nonlinear tuner's procedure and its saved session belong to one head, extruder kind and
+material (`PaNonlinearOverlay::start`, `saved_session`): opening it for another material starts a
+fresh procedure, so Save for <material> never stores one material's passes under another's name.
+The classic tuner's Save for <material> follows `pa_tune_can_save_material`, 0 whenever the
+extruder runs a nonlinear model (the result is then a `linear_advance`, and a linear entry would
+switch the extruder to `MODEL=linear` at print start).
+
+Limits: the time offset is stored per material, though it may be a property of the machine. Firmware that owns the Z offset (ZMOD,
 Forge-X, Helper-Script) and printers on the `_START_PRINT_VARS` row get no per-material pressure
 advance: neither calls HelixScreen's macro.
 

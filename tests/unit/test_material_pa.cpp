@@ -72,6 +72,7 @@ TEST_CASE("material pa: the key is the Z offset macro's key", "[material_pa]") {
 TEST_CASE("material pa: a linear result writes K, its model and the switch", "[material_pa]") {
     const auto lines = script_lines(mpa::save_gcode("PETG-CF", mpa::linear_entry(0.0421f)));
     const std::vector<std::string> expected = {
+        "SAVE_VARIABLE VARIABLE=helix_pa_petg_cf_model VALUE='\"\"'",
         "SAVE_VARIABLE VARIABLE=helix_pa_petg_cf_advance VALUE=0.042100",
         "SAVE_VARIABLE VARIABLE=helix_pa_petg_cf_model VALUE='\"linear\"'",
         "SAVE_VARIABLE VARIABLE=helix_material_pa_enabled VALUE=1",
@@ -79,7 +80,8 @@ TEST_CASE("material pa: a linear result writes K, its model and the switch", "[m
     CHECK(lines == expected);
 }
 
-TEST_CASE("material pa: a nonlinear result writes every parameter, the model last",
+TEST_CASE("material pa: a nonlinear result writes every parameter, the model cleared first "
+          "and written last",
           "[material_pa]") {
     pa::NonlinearValues v;
     v.model = pa::ModelKind::Tanh;
@@ -90,6 +92,7 @@ TEST_CASE("material pa: a nonlinear result writes every parameter, the model las
     v.smooth_time = 0.02f;
     const auto lines = script_lines(mpa::save_gcode("PLA", mpa::nonlinear_entry(v)));
     const std::vector<std::string> expected = {
+        "SAVE_VARIABLE VARIABLE=helix_pa_pla_model VALUE='\"\"'",
         "SAVE_VARIABLE VARIABLE=helix_pa_pla_advance VALUE=0.012000",
         "SAVE_VARIABLE VARIABLE=helix_pa_pla_offset VALUE=0.160000",
         "SAVE_VARIABLE VARIABLE=helix_pa_pla_velocity VALUE=1.000000",
@@ -101,7 +104,7 @@ TEST_CASE("material pa: a nonlinear result writes every parameter, the model las
     CHECK(lines == expected);
 
     v.model = pa::ModelKind::Recipr;
-    CHECK(script_lines(mpa::save_gcode("PLA", mpa::nonlinear_entry(v)))[5] ==
+    CHECK(script_lines(mpa::save_gcode("PLA", mpa::nonlinear_entry(v)))[6] ==
           "SAVE_VARIABLE VARIABLE=helix_pa_pla_model VALUE='\"recipr\"'");
 }
 
@@ -125,6 +128,16 @@ TEST_CASE("material pa: offered only where HelixScreen's macro applies it", "[ma
     // No store to write.
     CHECK_FALSE(mz::pressure_advance_ready(
         printer_with({"HELIX_MATERIAL_OFFSET", "_HELIX_MATERIAL", "_HELIX_MATERIAL_PA"}, false)));
+    // Several extruders: one value per material cannot say which tool it is for.
+    {
+        PrinterDiscovery hw;
+        json objects =
+            json::array({"gcode_move", "toolhead", "extruder", "extruder1", "save_variables",
+                         "gcode_macro HELIX_MATERIAL_OFFSET", "gcode_macro _HELIX_MATERIAL",
+                         "gcode_macro _HELIX_MATERIAL_PA"});
+        hw.parse_objects(objects);
+        CHECK_FALSE(mz::pressure_advance_ready(hw));
+    }
     // A printer whose own start macro keeps the Z table never calls ours.
     CHECK_FALSE(mz::pressure_advance_ready(
         printer_with({"_START_PRINT_VARS", "HELIX_MATERIAL_OFFSET", "_HELIX_MATERIAL_PA"}, true)));

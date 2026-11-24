@@ -621,6 +621,10 @@ It needs HelixScreen's helper macros, version 2.4.0 or later, with `HELIX_MATERI
 
 **Turn pressure advance off in your slicer's filament profile** (in OrcaSlicer, untick **Enable pressure advance** in the filament settings). A slicer that sets it sends its own value after your start macro has run, and that value wins for the whole print. Under a nonlinear model it is worse: the slicer's value replaces only the linear advance and keeps the tuned offset, so the print runs a mix nobody tuned.
 
+**Printers with more than one extruder** (tool changers, IDEX) don't offer it: the button stays greyed out and the setting is hidden. The material your slicer names is the first tool's, and `PRINT_START` usually runs before that tool is picked up, so one value per material would land on whichever tool happened to be active.
+
+A material whose saved entry the firmware can't run (a nonlinear model after you switch from Kalico to mainline Klipper, for example) prints with your config's values, and the console says so.
+
 Saving for a material turns the feature on. To turn it off, switch off **Pressure advance by material** under **Settings > Printing > Z Offset by Material**; prints then keep whatever pressure advance the printer already has.
 
 ### Nonlinear pressure advance (Kalico)

@@ -57,8 +57,10 @@ std::optional<std::string> storage_key(std::string_view material);
 std::string var_name(std::string_view key, std::string_view field);
 
 /// The script that saves @p entry for @p material and turns the switch on:
-/// one SAVE_VARIABLE per variable, the model last: the macro counts an entry
-/// only once its model is there. Empty when the material has no storage key.
+/// one SAVE_VARIABLE per variable. The model is cleared first and written
+/// last: the macro uses an entry only with a model it can run, so a script
+/// that stops partway never leaves a half-written entry in use. Empty when
+/// the material has no storage key.
 std::string save_gcode(std::string_view material, const Entry& entry);
 
 /// SAVE_VARIABLE for the switch.
