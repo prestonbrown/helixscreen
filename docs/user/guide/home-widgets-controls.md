@@ -44,7 +44,7 @@ Then a tap on the plate opens the Motion panel, like a tap anywhere else on the 
 
 ### Preset buttons
 
-At 2x3 and larger, three preset buttons sit under the plate. By default they are **Front**, **Center** and **Park**. To change them:
+At 2x3 and larger, three preset buttons sit under the plate. By default they are **Front**, **Center** and **Park**. On a printer with docked tools (a tool changer or the Snapmaker U1) the third button is **Dock tool** instead. To change them:
 
 1. Enter Edit Mode and open the Toolhead widget's menu.
 2. Tap **Configure**. The **Presets** picker opens with a tab for each of the three buttons.
@@ -54,6 +54,7 @@ At 2x3 and larger, three preset buttons sit under the plate. By default they are
 |--------|----------------------|
 | One of the nine positions (Rear Left to Front Right) | Moves the toolhead there, the same as the [Move tab](motion.md#move-tab) |
 | **Park** | Parks the toolhead, the same as [Park](motion.md#park) on the Motion screen |
+| **Dock tool** | Puts the mounted tool back in its dock, the same as **Park** in the tool picker. Only offered on a printer that can park a tool. It is refused while a print is running or paused, and says so when no tool is mounted |
 | **Z +10** / **Z -10** | Moves Z by 10 mm. While your last print may still be on the bed, **Z -10** stops at the height that clears it |
 | **Macro** | Runs a macro you pick from the list that follows, asking for its parameters or a confirmation first, the way a [Macro Button](home-widgets.md#macro-button-confirmation) with **Require Confirmation?** turned on does |
 | **Empty** | Hides the button |
