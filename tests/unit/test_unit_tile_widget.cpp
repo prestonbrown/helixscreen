@@ -91,6 +91,19 @@ TEST_CASE_METHOD(LVGLUITestFixture, "unit tile: humidity unit override relabels 
     CHECK(text_of(hidden, "humidity_value") == "--");
 }
 
+TEST_CASE_METHOD(LVGLUITestFixture, "unit tile: a detached tile stops following its sensor",
+                 "[unit_tile]") {
+    lv_subject_set_int(humidity_subject(), 612);
+    HumidityTile tile(test_screen(), config_with(nullptr), "humidity:1",
+                      UnitTileWidget::humidity_spec());
+    tile.create_tile(test_screen());
+    REQUIRE(text_of(tile, "humidity_value") == "61%");
+    tile.widget().detach_tile();
+    lv_subject_set_int(humidity_subject(), 455);
+    process_lvgl(50);
+    CHECK(text_of(tile, "humidity_value") == "61%");
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture, "unit tile: width unit override replaces the default unit",
                  "[unit_tile][unit_override]") {
     lv_subject_set_int(width_subject(), 1750);
