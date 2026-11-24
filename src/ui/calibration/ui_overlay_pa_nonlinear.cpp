@@ -588,8 +588,8 @@ void PaNonlinearOverlay::on_script_done(int pass_seq) {
         return;
     }
     script_done_ = true;
-    // The start script is done homing and heating; the tower's job covers the rest.
-    start_busy_.reset();
+    // start_busy_ stays: the heaters are hot and the start macro's moves may
+    // still be draining until the tower's job reports printing.
     // PRINT_PA_TOWER returned; the tower should be printing within moments.
     arm_start_watchdog(pass_seq, kTowerStartTimeoutMs, true);
 }
