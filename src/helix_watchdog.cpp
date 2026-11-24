@@ -1150,6 +1150,9 @@ static int run_watchdog(WatchdogArgs args) {
     std::deque<CrashEvent> recent_crashes;
 
     while (!g_quit) {
+        // An in-app update moves and deletes the tree the watchdog started in; re-resolve from
+        // the launcher's binary path (not /proc/self/exe) before the config read and the spawn.
+        helix::chdir_to_install_root(args.child_binary);
         const int launch_rotation = helix::watchdog::rotation_for_launch(
             args.cli_rotation, [] { return read_config_rotation(0); });
         if (launch_rotation != args.rotation) {
@@ -1466,6 +1469,12 @@ int main(int argc, char** argv) {
             args.height = kDefaultHeight;
             spdlog::info("[Watchdog] Using default resolution: {}x{}", args.width, args.height);
         }
+    }
+
+    // Relative config/ paths (rotation, crash dialog settings) resolve from the install root.
+    const std::string install_root = helix::chdir_to_install_root(args.child_binary);
+    if (!install_root.empty()) {
+        spdlog::info("[Watchdog] Working directory: {}", install_root);
     }
 
     args.rotation = helix::watchdog::rotation_for_launch(args.cli_rotation,

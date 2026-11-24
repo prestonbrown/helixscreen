@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <sys/stat.h>
+#include <unistd.h>
 
 namespace helix {
 
@@ -76,6 +77,17 @@ std::string resolve_install_root(const std::string& exe_path, const std::string&
         return *package;
     }
     return {};
+}
+
+std::string chdir_to_install_root(const std::string& exe_path) {
+    if (exe_path.empty() || exe_path[0] != '/') {
+        return {};
+    }
+    std::string root = resolve_install_root(exe_path);
+    if (root.empty() || chdir(root.c_str()) != 0) {
+        return {};
+    }
+    return root;
 }
 
 std::string get_user_config_dir() {

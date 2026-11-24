@@ -36,6 +36,18 @@ std::string resolve_data_root_from_exe(const std::string& exe_path);
 std::string resolve_install_root(const std::string& exe_path, const std::string& probe_root = "/");
 
 /**
+ * @brief chdir() into the install root resolve_install_root(@p exe_path) finds
+ *
+ * Relative config/ and ui_xml/ paths then resolve there. Only an absolute @p exe_path is
+ * accepted: a relative one stops naming the binary once the cwd moves. A caller that outlives
+ * an in-place update passes a path that is re-resolved on every call (the launcher's binary
+ * path), not /proc/self/exe, which keeps naming the replaced tree's moved inode.
+ *
+ * @return The directory entered; empty when none is found or chdir fails (cwd unchanged)
+ */
+std::string chdir_to_install_root(const std::string& exe_path);
+
+/**
  * @brief Check whether a directory is a valid HelixScreen data root
  *
  * A valid data root must contain a ui_xml/ subdirectory.

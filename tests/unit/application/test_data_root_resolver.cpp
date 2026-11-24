@@ -425,3 +425,33 @@ TEST_CASE("resolve_install_root finds nothing for a bind-mounted binary on a boa
 
     CHECK(helix::resolve_install_root(gui.string(), tree.root).empty());
 }
+
+TEST_CASE("chdir_to_install_root leaves a deleted working directory for the install root",
+          "[data_root][install_root]") {
+    helix::test::InstallTreeFixture tree;
+    const fs::path exe = tree.make_tree("opt/helixscreen");
+    const fs::path install = exe.parent_path().parent_path();
+
+    // The cwd a watchdog is left with after an update deletes the tree it started in.
+    const fs::path stale = tree.make_tree("opt/helixscreen.old").parent_path().parent_path();
+    const fs::path original = fs::current_path();
+    REQUIRE(chdir(stale.c_str()) == 0);
+    fs::remove_all(stale);
+
+    const std::string entered = helix::chdir_to_install_root(exe.string());
+    char buf[4096];
+    const char* cwd = getcwd(buf, sizeof(buf));
+    const std::string now = cwd ? cwd : "";
+    REQUIRE(chdir(original.c_str()) == 0);
+
+    CHECK(entered == install.string());
+    CHECK(fs::equivalent(now, install));
+}
+
+TEST_CASE("chdir_to_install_root changes nothing when no install tree is found",
+          "[data_root][install_root]") {
+    const fs::path before = fs::current_path();
+    CHECK(helix::chdir_to_install_root("/nonexistent/bin/helix-screen").empty());
+    CHECK(helix::chdir_to_install_root("relative/bin/helix-screen").empty());
+    CHECK(fs::current_path() == before);
+}
