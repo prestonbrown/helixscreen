@@ -440,10 +440,18 @@ TEST_CASE_METHOD(PidHeadsFixture, "A finished calibration waits for the user's c
 
     // PID_CALIBRATE stages its gains for the next SAVE_CONFIG.
     helix::MoonrakerClientMockTestAccess::stage_config_change(client, "extruder", "pid_kp",
-                                                              "22.865");
-    panel.on_calibration_result(true, 22.865f, 1.292f, 101.178f);
+                                                              "25.000");
+    panel.on_calibration_result(true, 25.0f, 1.5f, 110.0f);
     helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(panel.get_state() == PIDCalibrationPanel::State::REVIEW);
+    // Before is the gain printer.cfg runs today (the mock's 22.865), not the staged one.
+    auto text = [](const char* name) {
+        lv_subject_t* s = lv_xml_get_subject(nullptr, name);
+        REQUIRE(s != nullptr);
+        return std::string(lv_subject_get_string(s));
+    };
+    CHECK(text("pid_result_before_0") == "22.865");
+    CHECK(text("pid_result_after_0") == "25.000");
     // Nothing is written until the user says so.
     CHECK_FALSE(sent("SAVE_CONFIG"));
     CHECK(subject_int("pid_result_in_run_2") == 1);
