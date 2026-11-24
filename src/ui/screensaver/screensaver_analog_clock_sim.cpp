@@ -38,6 +38,10 @@ void copy_box(const FrameTarget& dial, FrameTarget& frame, const DirtyRect& box)
 
 } // namespace
 
+int32_t analog_countdown_minutes(int32_t countdown_s) {
+    return (std::max(0, countdown_s) + 59) / 60;
+}
+
 AnalogMotion analog_motion(AnalogStyle style, bool smooth) {
     if (!smooth) {
         return AnalogMotion::TICK;
@@ -136,7 +140,7 @@ bool AnalogClockSim::DialKey::operator==(const DialKey& o) const {
            minute_of_day == o.minute_of_day && countdown_min == o.countdown_min &&
            eta_minute == o.eta_minute && has_countdown == o.has_countdown && use_24h == o.use_24h &&
            date.year == o.date.year && date.month == o.date.month && date.day == o.date.day &&
-           date.weekday == o.date.weekday && dx == o.dx && dy == o.dy;
+           date.weekday == o.date.weekday;
 }
 
 void AnalogClockSim::init(FrameTarget& frame, size_t level, const AnalogFace& face) {
@@ -147,6 +151,7 @@ void AnalogClockSim::init(FrameTarget& frame, size_t level, const AnalogFace& fa
     sub_ms_ = 0;
     frozen_second_ = -1.0f;
     drift_.reset();
+    drift_pending_ = false;
     prepare(0, frame, face);
     std::vector<DirtyRect> dirty;
     compose(frame, dirty);
@@ -188,12 +193,10 @@ AnalogClockSim::DialKey AnalogClockSim::key_for(const AnalogFace& face) const {
     k.progress_pct = r.progress_pct;
     k.minute_of_day = r.time.hour_of_day * 60 + r.time.minute;
     k.has_countdown = r.has_countdown;
-    k.countdown_min = r.has_countdown ? r.countdown_s / 60 : 0;
+    k.countdown_min = r.has_countdown ? analog_countdown_minutes(r.countdown_s) : 0;
     k.eta_minute = r.mode == ClockMode::COUNTDOWN ? r.eta_minute_of_day : 0;
     k.use_24h = r.use_24h;
     k.date = r.date;
-    k.dx = drift_.dx;
-    k.dy = drift_.dy;
     return k;
 }
 
@@ -236,9 +239,9 @@ bool AnalogClockSim::prepare(uint32_t dt_ms, const FrameTarget& frame, const Ana
     } else {
         sub_ms_ = std::min<uint32_t>(sub_ms_ + dt_ms, 999);
     }
-    if (drift_.step(dt_ms)) {
-        relayout(frame, style_);
-    }
+    // A drift step waits for the next dial redraw, at most a minute away, rather than
+    // repainting the whole frame on its own.
+    drift_pending_ = drift_.step(dt_ms) || drift_pending_;
     mode_ = face.reading.mode;
 
     AnalogHands next = hands_for(face);
@@ -255,6 +258,10 @@ bool AnalogClockSim::prepare(uint32_t dt_ms, const FrameTarget& frame, const Ana
     const DialKey key = key_for(face);
     const bool redraw = !keyed_ || !(key == key_);
     if (redraw) {
+        if (drift_pending_) {
+            drift_pending_ = false;
+            relayout(frame, style_);
+        }
         draw_dial(face);
         key_ = key;
         keyed_ = true;
@@ -295,23 +302,9 @@ void AnalogClockSim::compose(FrameTarget& frame, std::vector<DirtyRect>& dirty) 
     }
     hands_ = next;
     boxes_ = next_boxes;
-    if (dirty.empty()) {
-        return;
-    }
-    // Boxes that overlap are joined, so each pixel is restored and drawn once.
-    for (bool merged = true; merged;) {
-        merged = false;
-        for (size_t i = 0; i < dirty.size() && !merged; i++) {
-            for (size_t j = i + 1; j < dirty.size(); j++) {
-                if (dirty[i].intersects(dirty[j])) {
-                    dirty[i].add(dirty[j]);
-                    dirty.erase(dirty.begin() + static_cast<std::ptrdiff_t>(j));
-                    merged = true;
-                    break;
-                }
-            }
-        }
-    }
+    // Each box restores the dial and draws every hand clipped to it, so where boxes overlap
+    // the later one leaves the same pixels. Joining them would cover the whole face whenever
+    // two hands move, as every hand's box holds the centre.
     for (const DirtyRect& box : dirty) {
         copy_box(dial_, frame, box);
         draw_hands(frame, box);
@@ -333,6 +326,7 @@ void AnalogClockSim::clear() {
     base_ = AnalogGeom{};
     geom_ = AnalogGeom{};
     drift_.reset();
+    drift_pending_ = false;
     keyed_ = false;
     repaint_ = true;
     last_second_ = -1;

@@ -74,7 +74,7 @@ and then draws its tunnel and goo in 2x2 blocks, drops the goo, draws the tunnel
 last drops the tunnel and flies 96 of its 160 stars; the flip clock per `kFlipClockLevels`: the folding
 flip at 33 ms, then an instant digit swap checked every 250 ms; the nixie clock per `kNixieClockLevels`:
 the cross-fade and cathode cycling at 33 ms, then an instant swap checked every 250 ms; the analog clock per
-`kAnalogClockLevels`: each face's own motion with trails and glows at 33 ms, then every face ticking
+`kAnalogClockLevels`: each face's own motion with trails and glows at 16 and 33 ms, then every face ticking
 once a second with neither, checked every 250 ms; fireflies per `kFirefliesLevels`:
 33 ms past level 0, then tails one pixel wide with no glow halo, then 120 flies with 1.5 s tails
 at 50 ms, and last 48 flies with 0.75 s tails at 100 ms; Aqua Surface per `kAquaLevels`: the
@@ -499,8 +499,10 @@ print takes `print_state_color` wherever the face shows the print.
 
 - **The dial is cached.** `AnalogClockSim` draws everything but the hands (dial, print display,
   subdial hands) into its own frame-sized buffer, and only when what that shows changes
-  (`DialKey`: the minute, the print's state, progress and countdown minute, the date, the drift
-  step). A redraw then paints the whole frame once. Every other frame restores the dial under the
+  (`DialKey`: the minute, the print's state, progress and countdown minute, the date). A burn-in
+  drift step waits for the next such redraw, so a redraw paints the whole frame about once a
+  minute. Time left is shown in whole minutes rounded up (`analog_countdown_minutes`), so its
+  words change only with the dial. Every other frame restores the dial under the
   boxes the moving hands left and draws all the hands clipped to those boxes, so a still minute
   hand costs nothing and a ticking face writes nothing between ticks.
 - **Text goes into the dial.** The sim places each text (`AnalogText`, a role and a box); the

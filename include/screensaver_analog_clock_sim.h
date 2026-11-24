@@ -79,6 +79,10 @@ struct AnalogHands {
     }
 };
 
+/// Whole minutes a clock shows for `countdown_s` seconds left, rounded up: the last minute
+/// reads 1, never 0, and the words change only when the dial is drawn again.
+int32_t analog_countdown_minutes(int32_t countdown_s);
+
 /// Where the hands point at `time`, `sub_ms` (0 to 999) past its second, moving by `motion`.
 /// The minute hand moves each whole second, and the hour hand with it; a SPRUNG minute hand
 /// holds for the whole minute and springs over at :00.
@@ -215,8 +219,6 @@ class AnalogClockSim {
         bool has_countdown = false;
         bool use_24h = false;
         ClockDate date;
-        int32_t dx = 0;
-        int32_t dy = 0;
 
         bool operator==(const DialKey& o) const;
     };
@@ -234,6 +236,7 @@ class AnalogClockSim {
     AnalogGeom base_;
     AnalogGeom geom_;
     ClockDrift drift_;
+    bool drift_pending_ = false;
     DialKey key_;
     bool keyed_ = false;
     bool repaint_ = true;

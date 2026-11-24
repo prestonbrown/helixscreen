@@ -41,9 +41,9 @@ std::string first_char(const std::string& s) {
     return s.substr(0, std::min(len, s.size()));
 }
 
-/// "2:31" for a countdown of 2 h 31 min.
+/// "2:31" for a countdown of 2 h 30 min 1 s to 2 h 31 min.
 std::string hours_minutes(int32_t seconds) {
-    const int32_t minutes = std::max(0, seconds) / 60;
+    const int32_t minutes = analog_countdown_minutes(seconds);
     return fmt::format("{}:{:02}", minutes / 60, minutes % 60);
 }
 
@@ -148,7 +148,9 @@ void AnalogClockScreensaver::write_texts() {
 }
 
 std::string AnalogClockScreensaver::text_for(const AnalogText& text) const {
-    const ClockReading& r = clock_.reading();
+    // Time left in whole minutes, rounded up, as the sim keys its redraws on.
+    ClockReading r = clock_.reading();
+    r.countdown_s = analog_countdown_minutes(r.countdown_s) * 60;
     switch (text.role) {
     case AnalogTextRole::DATE_WINDOW: {
         const struct tm t = tm_for(r.date);

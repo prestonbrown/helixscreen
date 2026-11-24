@@ -9,6 +9,11 @@ namespace helix::ui {
 
 namespace {
 
+/// Length of (x, y). std::hypot guards against overflow at a per-pixel cost no frame needs.
+inline float len2d(float x, float y) {
+    return std::sqrt(x * x + y * y);
+}
+
 constexpr float kDegToRad = 0.017453292f;
 constexpr float kRadToDeg = 57.29578f;
 
@@ -89,7 +94,7 @@ void APainter::shade(float x1, float y1, float x2, float y2, Rgb color, float al
 void APainter::disc(APt c, float r, Rgb color, const AEdge& e) {
     const float reach = r + e.grow + e.soft;
     shade(c.x - reach, c.y - reach, c.x + reach, c.y + reach, color, e.alpha,
-          [&](float px, float py) { return edge_cover(std::hypot(px - c.x, py - c.y) - r, e); });
+          [&](float px, float py) { return edge_cover(len2d(px - c.x, py - c.y) - r, e); });
 }
 
 void APainter::ring(APt c, float r_in, float r_out, Rgb color, const AEdge& e) {
@@ -149,7 +154,7 @@ void APainter::segment(APt a, APt b, float w, Rgb color, bool round, const AEdge
     shade(std::min(a.x, b.x) - pad, std::min(a.y, b.y) - pad, std::max(a.x, b.x) + pad,
           std::max(a.y, b.y) + pad, color, e.alpha, [&](float px, float py) {
               const float t = std::clamp(((px - a.x) * vx + (py - a.y) * vy) / len2, 0.0f, 1.0f);
-              const float d = std::hypot(px - (a.x + vx * t), py - (a.y + vy * t)) - w * 0.5f;
+              const float d = len2d(px - (a.x + vx * t), py - (a.y + vy * t)) - w * 0.5f;
               return edge_cover(d, e);
           });
 }
@@ -183,16 +188,16 @@ void APainter::radial_disc(APt c, float r, Rgb inner, Rgb outer, float fx, float
     DirtyRect box = apaint_box(c.x - reach, c.y - reach, c.x + reach, c.y + reach, 0.0f);
     box = {std::max(box.x1, clip_.x1), std::max(box.y1, clip_.y1), std::min(box.x2, clip_.x2),
            std::min(box.y2, clip_.y2)};
-    const float span = r * (1.0f + std::hypot(fx, fy));
+    const float span = r * (1.0f + len2d(fx, fy));
     for (int32_t y = box.y1; y <= box.y2; y++) {
         const float py = static_cast<float>(y) + 0.5f;
         for (int32_t x = box.x1; x <= box.x2; x++) {
             const float px = static_cast<float>(x) + 0.5f;
-            const float cov = edge_cover(std::hypot(px - c.x, py - c.y) - r, AEdge{});
+            const float cov = edge_cover(len2d(px - c.x, py - c.y) - r, AEdge{});
             if (cov <= 0.0f) {
                 continue;
             }
-            const float t = std::min(1.0f, std::hypot(px - focus.x, py - focus.y) / span);
+            const float t = std::min(1.0f, len2d(px - focus.x, py - focus.y) / span);
             const Rgb col = mix_rgb(inner, outer, t);
             if (cov >= 0.999f) {
                 writer_.put_dithered(x, y, col);
@@ -278,7 +283,7 @@ void APainter::round_rect(float x1, float y1, float x2, float y2, float radius, 
     shade(x1 - pad, y1 - pad, x2 + pad, y2 + pad, color, e.alpha, [&](float px, float py) {
         const float qx = std::fabs(px - cx) - hx + radius;
         const float qy = std::fabs(py - cy) - hy + radius;
-        const float outside = std::hypot(std::max(qx, 0.0f), std::max(qy, 0.0f));
+        const float outside = len2d(std::max(qx, 0.0f), std::max(qy, 0.0f));
         const float d = outside + std::min(std::max(qx, qy), 0.0f) - radius;
         return edge_cover(d, e);
     });

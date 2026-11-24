@@ -141,14 +141,16 @@ TEST_CASE(
     CHECK(analog_style_for_run(0, true, 0, 0) != AnalogStyle::CHRONOGRAPH);
 }
 
-TEST_CASE("every analog face's dirty boxes cover what it changes, with and without a print",
+TEST_CASE("every analog face's dirty boxes cover what it changes, with and without a print, at "
+          "every level and across a drift step",
           "[screensaver][screensaver_analog_clock]") {
     const AnalogStyle style = GENERATE(from_range(std::begin(kStyles), std::end(kStyles)));
     const ClockMode mode = GENERATE(ClockMode::CLOCK, ClockMode::COUNTDOWN, ClockMode::PAUSED);
     const PixelFormat format = GENERATE(PixelFormat::XRGB8888, PixelFormat::RGB565);
-    CAPTURE(static_cast<int>(style), static_cast<int>(mode), static_cast<int>(format));
+    const size_t level = GENERATE(size_t{0}, kTickLevel);
+    CAPTURE(static_cast<int>(style), static_cast<int>(mode), static_cast<int>(format), level);
     AnalogRun r(style, 400, 240, print_reading_for(mode, 40, hms(9, 41, 58)), format);
-    r.init(0);
+    r.init(level);
     size_t changed = 0;
     size_t uncovered = 0;
     for (int i = 0; i < 90; i++) {
@@ -159,8 +161,31 @@ TEST_CASE("every analog face's dirty boxes cover what it changes, with and witho
         changed += d.changed;
         uncovered += d.uncovered;
     }
+    // A drift step lands with the next minute's redraw.
+    const std::vector<uint8_t> before = r.frame.snapshot();
+    r.face.reading = print_reading_for(mode, 40, hms(9, 43, 1));
+    r.step(helix::ui::kClockDriftStepMs);
+    uncovered += diff_against(before, r.frame, r.dirty).uncovered;
     CHECK(changed > 0);
     CHECK(uncovered == 0);
+}
+
+TEST_CASE("time left counts whole minutes rounded up, and its last minute redraws the dial",
+          "[screensaver][screensaver_analog_clock]") {
+    CHECK(helix::ui::analog_countdown_minutes(0) == 0);
+    CHECK(helix::ui::analog_countdown_minutes(1) == 1);
+    CHECK(helix::ui::analog_countdown_minutes(60) == 1);
+    CHECK(helix::ui::analog_countdown_minutes(61) == 2);
+
+    // 61 s left reads 2 minutes and 59 s reads 1, inside one minute of the wall clock.
+    AnalogRun r(AnalogStyle::NEON, 400, 240,
+                print_reading_for(ClockMode::COUNTDOWN, 90, hms(9, 41, 0), 61));
+    r.init(kTickLevel);
+    r.face.reading = print_reading_for(ClockMode::COUNTDOWN, 90, hms(9, 41, 2), 59);
+    CHECK(r.sim.prepare(2000, r.frame.target, r.face));
+    r.sim.compose(r.frame.target, r.dirty);
+    r.face.reading = print_reading_for(ClockMode::COUNTDOWN, 90, hms(9, 41, 31), 30);
+    CHECK_FALSE(r.sim.prepare(29000, r.frame.target, r.face));
 }
 
 TEST_CASE("between ticks an analog frame writes nothing, and the dial redraws only when what it "
@@ -257,11 +282,12 @@ TEST_CASE("every face's text sits on the screen at every size and drift",
     r.init(0);
     const DirtyRect screen =
         DirtyRect::whole(static_cast<int32_t>(size.first), static_cast<int32_t>(size.second));
-    // Ten drift steps visit the corners of the drift range.
+    // Ten drift steps, each landing with the next minute, visit the corners of the drift range.
     for (int step = 0; step < 10; step++) {
         for (const AnalogText& t : r.sim.texts()) {
             CHECK(helix::test::contains(screen, t.box));
         }
+        r.face.reading = print_reading_for(mode, 62, hms(10, 10 + step, 36));
         r.step(helix::ui::kClockDriftStepMs);
     }
 }
