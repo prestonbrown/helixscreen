@@ -716,6 +716,9 @@ void PaTuningOverlay::delete_tower_file() {
 
 void PaTuningOverlay::begin_observing() {
     auto& state = get_printer_state();
+    // Whatever layer the last job left behind is not this run's: the PRINTING
+    // edge replays a layer only if it moved since here.
+    layer_at_observe_ = lv_subject_get_int(state.print_state().get_print_layer_current_subject());
     const auto lifetime = state.get_subjects_lifetime();
     pa_observer_ = helix::ui::observe<int>(
         state.temperature_state().get_active_extruder_pressure_advance_subject(), this,
@@ -750,8 +753,11 @@ void PaTuningOverlay::on_print_state(PrintJobState state) {
         // M190 and time out. A layer that arrived in the same status frame, ahead of
         // the state, is replayed here.
         set_stage(RUNNING);
-        on_layer(lv_subject_get_int(
-            get_printer_state().print_state().get_print_layer_current_subject()));
+        if (const int layer = lv_subject_get_int(
+                get_printer_state().print_state().get_print_layer_current_subject());
+            layer != layer_at_observe_) {
+            on_layer(layer);
+        }
         refresh_running();
         // Print Status opens itself on every print start; the tuner is what
         // this print is for, so it goes back on top once that push has run.
