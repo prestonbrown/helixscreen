@@ -69,6 +69,23 @@ TEST_CASE("a fault repeated with new coordinates is the same fault", "[dup_dialo
     CHECK(fault_dedup_key("A", "x") != fault_dedup_key("B", "x"));
     CHECK(fault_dedup_key("T", "Lost communication with MCU 'mcu1'") !=
           fault_dedup_key("T", "Lost communication with MCU 'mcu2'"));
+    CHECK(fault_dedup_key("T", "Heater 'extruder1' too hot") !=
+          fault_dedup_key("T", "Heater 'extruder2' too hot"));
+}
+
+TEST_CASE("an apostrophe inside a word does not open a quote", "[dup_dialogs]") {
+    using helix::ui::fault_dedup_key;
+    CHECK(fault_dedup_key("T", "Can't reach 210.5") == fault_dedup_key("T", "Can't reach 211.0"));
+    CHECK(fault_dedup_key("T", "It's 5 past, won't retry 7") ==
+          fault_dedup_key("T", "It's 6 past, won't retry 8"));
+    // A quoted name after a contraction still counts as a name.
+    CHECK(fault_dedup_key("T", "Can't find 'mcu1' at 5") !=
+          fault_dedup_key("T", "Can't find 'mcu2' at 5"));
+    CHECK(fault_dedup_key("T", "Can't find 'mcu1' at 5") ==
+          fault_dedup_key("T", "Can't find 'mcu1' at 9"));
+    // An unclosed leading quote keeps the rest exact rather than crashing or folding.
+    CHECK(fault_dedup_key("T", "lost 'mcu1 at 5") != fault_dedup_key("T", "lost 'mcu2 at 5"));
+    CHECK(fault_dedup_key("T", "'") == fault_dedup_key("T", "'"));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "a burst of refused moves shows one dialog even over another",

@@ -108,12 +108,21 @@ std::string fault_dedup_key(const char* title, const char* message) {
     key.reserve(text.size());
     // A name Klipper quotes ('mcu1', 'EBBCan') is what tells two faults apart, so
     // its digits stay; every other number (coordinates, counters, line numbers,
-    // clock ticks) collapses.
+    // clock ticks) collapses. A quote opens only at the start of a token and closes
+    // only at the end of one, so the apostrophe in "can't" or "it's" is plain text.
+    const auto is_word = [](char c) {
+        return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+    };
     bool quoted = false;
     bool in_number = false;
-    for (const char ch : text) {
+    for (size_t i = 0; i < text.size(); ++i) {
+        const char ch = text[i];
         if (ch == '\'') {
-            quoted = !quoted;
+            if (quoted) {
+                quoted = i + 1 < text.size() && is_word(text[i + 1]);
+            } else {
+                quoted = i == 0 || !is_word(text[i - 1]);
+            }
         }
         const bool digit = ch >= '0' && ch <= '9';
         if (digit && !quoted) {
