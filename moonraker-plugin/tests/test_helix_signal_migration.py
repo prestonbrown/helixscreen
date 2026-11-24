@@ -415,4 +415,4 @@ class TestFeatureEntry:
         assert "/server/helix/signal_migration" not in mock_server.endpoints
 
     def test_the_plugin_version_moved_past_the_last_release(self):
-        assert helix_print.PLUGIN_VERSION == "1.5.0"
+        assert helix_print.PLUGIN_VERSION == "1.5.1"
