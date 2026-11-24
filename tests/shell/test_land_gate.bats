@@ -216,6 +216,23 @@ order_of() { grep -nx "$1" "$CALLS.order" | head -n 1 | cut -d: -f1; }
     [ "$(order_of "end unit-sweep")" -lt "$(order_of "start quality")" ]
 }
 
+@test "splash-link starts after quality ends, wherever quality runs" {
+    UNIT_SWEEP_SECS=2 run "$GATE"
+    [ "$status" -eq 0 ]
+    row PASS splash-link
+    [ "$(order_of "end quality")" -lt "$(order_of "start watchdog")" ]
+    : >"$CALLS.order"
+    TEST_HOST=1 run "$GATE"
+    [ "$status" -eq 0 ]
+    [ "$(order_of "end quality")" -lt "$(order_of "start watchdog")" ]
+}
+
+@test "splash-link does not wait for a unit lane that died without a quality row" {
+    HOOK_unit_sweep="$(kill_lane_hook unit)" run "$GATE"
+    [ "$status" -eq 1 ]
+    row PASS splash-link
+}
+
 @test "bats still runs when the app build fails" {
     RC_app=2 run "$GATE"
     [ "$status" -eq 1 ]
