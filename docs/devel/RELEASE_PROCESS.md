@@ -28,7 +28,7 @@ MAJOR.MINOR.PATCH[-PRERELEASE]
 | **MAJOR** | Breaking changes (config format, API, incompatible UI changes) |
 | **MINOR** | New features, backwards-compatible |
 | **PATCH** | Bug fixes, documentation, minor improvements |
-| **PRERELEASE** | Trunk builds heading for the next MINOR: `-beta.N` |
+| **PRERELEASE** | `-alpha.N` from the trunk (dev channel); `-beta.N` and `-rc.N` from a release branch |
 
 > ### A prerelease sorts below its release, and the whole scheme rests on that
 >
@@ -65,14 +65,26 @@ and is not used.
 - `v1.1.1` - Bug fix on the 1.1 line
 - `v2.0.0` - Breaking changes
 
-### The trunk's beta line
+### The trunk's alpha line
 
-Each minor's betas start on `main` and finish on that minor's own branch. The 1.1
-betas began on the trunk; from `1.1.0-beta.14` on, `release/1.1` carries them, and
-the trunk has moved on to 1.2:
+The trunk ships alphas of the next minor to the dev channel. A minor's betas and
+release candidates come from its own release branch, which holds the beta
+channel:
 
 | Branch | Versions | Channel |
 |--------|----------|---------|
+| `release/1.0` | `1.0.0`, `1.0.1`, `1.0.2` ... | stable |
+| `release/1.1` | `1.1.0`, `1.1.1` ... | stable |
+| `main` | `1.2.0-alpha.1`, `1.2.0-alpha.2` ... | dev |
+| `release/1.2`, once cut | `1.2.0-beta.N`, `1.2.0-rc.N`, then `1.2.0` | beta + dev, then stable |
+
+The trunk names the release it is heading for, so an alpha install says which
+minor it belongs to. Precedence runs `1.2.0-alpha.N < 1.2.0-beta.N < 1.2.0-rc.N <
+1.2.0`, so each step from dev to beta to stable is a forward move, and a `1.1.x`
+hotfix on the stable line never looks like an upgrade to an alpha. See
+`BRANCHING.md`.
+
+--------|----------|---------|
 | `release/1.0` | `1.0.0`, `1.0.1`, `1.0.2` ... | stable |
 | `release/1.1` | `1.1.0-beta.N`, `1.1.0-rc.N`, then `1.1.0`, `1.1.1` ... | beta + dev, then stable |
 | `main` | `1.2.0-beta.1` ... (untagged until `1.1.0` ships) | dev, then beta + dev |
@@ -344,8 +356,7 @@ git push origin release/1.1 v1.1.0
 
 Dropping the suffix is itself the promotion: `1.1.0` outranks every
 `1.1.0-beta.N`, so the beta fleet is offered it as an ordinary forward step.
-`main`, already at `1.2.0-beta.1`, then switches its `RELEASE_CHANNEL` from `dev`
-back to `beta` and may tag again.
+`main` stays on `dev` and keeps tagging `-alpha.N` builds of the next minor.
 
 ---
 

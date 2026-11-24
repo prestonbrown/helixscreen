@@ -2876,7 +2876,7 @@ AmsError AmsBackendCfs::enable_bypass() {
     // Same policy as the other capability questions: the user's force override
     // is folded in by bypass_available_for, never written into
     // supports_bypass itself.
-    if (!helix::bypass_available_for(system_info_.supports_bypass)) {
+    if (!helix::bypass_available_for(system_info_)) {
         return AmsError(AmsResult::NOT_SUPPORTED, "Bypass not supported",
                         lv_tr("No verified bypass command for this CFS firmware"), "");
     }

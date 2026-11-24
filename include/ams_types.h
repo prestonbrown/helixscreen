@@ -115,6 +115,10 @@ struct AmsTypeTraits {
     /// The system counts its lanes from 0 in its own tools, so the screen does
     /// too until the user picks a numbering for the printer.
     bool lanes_count_from_zero = false;
+    /// The system can engage a bypass when the user overrides a firmware "no".
+    /// False where every filament path is its own or the box has no bypass, so
+    /// enable_bypass() always refuses and the override is not offered.
+    bool bypass_overridable = true;
 };
 
 // i18n: do not translate - the names below are product names
@@ -126,19 +130,20 @@ inline constexpr AmsTypeTraits kAmsTypeTraits[] = {
      TR_NOOP("AFC buffer"), true},
     {AmsType::ACE, "ACE", "ACE", "ace", "ace", AmsBufferRows::None, nullptr},
     {AmsType::TOOL_CHANGER, "Tool Changer", "Tool Changer", "tool_changer", "toolchanger",
-     AmsBufferRows::None, nullptr},
+     AmsBufferRows::None, nullptr, false, false},
     {AmsType::AD5X_IFS, "AD5X IFS", "FlashForge IFS", "ifs", "ifs", AmsBufferRows::None, nullptr},
     {AmsType::CFS, "CFS", "Creality CFS", "cfs", "cfs", AmsBufferRows::None, nullptr},
     {AmsType::SNAPMAKER, "Snapmaker", "Snapmaker SnapSwap", "snapmaker", "snapmaker",
-     AmsBufferRows::None, nullptr},
+     AmsBufferRows::None, nullptr, false, false},
     {AmsType::QIDI_BOX, "QIDI Box", "QIDI Box", "qidi_box", "qidi_box", AmsBufferRows::None,
-     nullptr},
-    {AmsType::OPENAMS, "OpenAMS", "OpenAMS", "openams", "openams", AmsBufferRows::None, nullptr},
-    {AmsType::INDX, "INDX", "INDX", "indx", "indx", AmsBufferRows::None, nullptr},
+     nullptr, false, false},
+    {AmsType::OPENAMS, "OpenAMS", "OpenAMS", "openams", "openams", AmsBufferRows::None, nullptr,
+     false, false},
+    {AmsType::INDX, "INDX", "INDX", "indx", "indx", AmsBufferRows::None, nullptr, false, false},
     // Not a product: the producer names itself in lane_status.producer.name, which
     // replaces this name on screen once the first status arrives.
     {AmsType::LANE_STATUS, "Lane Status", "Lane Status Surface", "lane_status", "lane_status",
-     AmsBufferRows::None, nullptr},
+     AmsBufferRows::None, nullptr, false, false},
 };
 
 /// The row for @p type; the NONE row for a value with none.
