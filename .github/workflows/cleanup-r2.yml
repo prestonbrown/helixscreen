@@ -17,6 +17,9 @@ jobs:
   cleanup:
     name: Prune old R2 releases
     runs-on: ubuntu-latest
+    # The bucket's write token lives only in release-signing, whose reviewer approves
+    # each run. docs/devel/RELEASE_SIGNING.md.
+    environment: release-signing
 
     steps:
     - name: Check out the comparator

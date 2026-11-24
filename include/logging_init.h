@@ -492,9 +492,9 @@ spdlog::level::level_enum resolve_log_level(int cli_verbosity, const std::string
  * syslog-target devices (AD5X/AD5M) falls back to stale leftover files and only
  * carries WARN-filtered /var/log/messages lines.
  *
- * Returns at most `num_lines` of the most-recent formatted log lines, oldest
- * first. Empty before init() has installed the sink (e.g. the watchdog build,
- * which does not call init() with a ring sink) or if nothing has been logged.
+ * Returns at most `num_lines` printed lines (a repeated-line summary counts as
+ * one), most recent, oldest first. Empty before init() has installed the sink (e.g. the watchdog
+ * build, which does not call init() with a ring sink) or if nothing has been logged.
  *
  * @param num_lines Max lines to return (0 = all retained)
  * @return Newline-joined recent log lines, or empty string

@@ -355,8 +355,11 @@ Dev always receives every release, making it the bleeding-edge channel.
 | Variable | `R2_PUBLIC_URL` | Public CDN URL (e.g., `https://releases.helixscreen.org`) |
 | Variable | `R2_BUCKET_NAME` | R2 bucket name (default: `helixscreen-releases`) |
 | Secret | `R2_ACCOUNT_ID` | Cloudflare account ID |
-| Secret | `R2_ACCESS_KEY_ID` | R2 API access key |
-| Secret | `R2_SECRET_ACCESS_KEY` | R2 API secret key |
+| Secret (environments `release-signing`, `release-signing-dev`) | `R2_ACCESS_KEY_ID` | R2 write key for the release bucket |
+| Secret (same environments) | `R2_SECRET_ACCESS_KEY` | R2 write secret for the release bucket |
+| Secret (repo) | `R2_SCRATCH_ACCESS_KEY_ID` | R2 key for the dry-run scratch bucket |
+| Secret (repo) | `R2_SCRATCH_SECRET_ACCESS_KEY` | R2 secret for the dry-run scratch bucket |
+| Variable | `R2_SCRATCH_BUCKET_NAME` | Scratch bucket (default: `helixscreen-ci-scratch`) |
 
 ### Non-Fatal Upload
 
