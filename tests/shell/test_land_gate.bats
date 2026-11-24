@@ -11,7 +11,7 @@ load helpers
 REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 GATE="$REPO_ROOT/scripts/land-gate.sh"
 
-ALL_STEPS="app-build ci-shards slow bats ui plugin python theme-tokens xml-schema lint-xml lvgl-event-codes no-mocks quality"
+ALL_STEPS="app-build ci-shards slow bats ui plugin python theme-tokens xml-schema lint-xml lvgl-event-codes no-mocks splash-link quality"
 
 # Every make here is a stub, and a stub must never reach the real make or the
 # jobpool shim: JOBPOOL=0 keeps the shim out of any make that does run, and the
@@ -64,6 +64,10 @@ echo "output of no-mocks"
 exit "${RC_no_mocks:-0}"'
     export MAKE=fake-make TEST_HOST_RUN=fake-test-host-run HELIX_CLAIM=fake-claim
     export NO_MOCKS_CHECK=fake-no-mocks LAND_GATE_BASE_REF=HEAD
+    export SPLASH_LINK_BIN_DIR="$BATS_TEST_TMPDIR/splash-bin"
+    mkdir -p "$SPLASH_LINK_BIN_DIR"
+    touch "$SPLASH_LINK_BIN_DIR/helix-splash" "$SPLASH_LINK_BIN_DIR/helix-watchdog"
+    chmod +x "$SPLASH_LINK_BIN_DIR"/helix-*
     export HELIX_TEST_HOST=testhost.invalid HELIX_BUILD_HOSTS_FILE=/nonexistent
     unset CI_SHARDS CI_SHARD_TIMEOUT
     export TEST_HOST=0
@@ -175,10 +179,25 @@ row() { # <status> <step>: the table row for step has that status
     row BLOCKED ui
     row BLOCKED plugin
     row BLOCKED no-mocks
+    row BLOCKED splash-link
     row BLOCKED quality
     refute_grep "make test-ui-ci" "$CALLS"
     refute_grep "^no-mocks " "$CALLS"
     row PASS bats
+}
+
+@test "splash-link builds CI's splash and watchdog targets and needs both binaries" {
+    run "$GATE"
+    [ "$status" -eq 0 ]
+    row PASS splash-link
+    grep -qx "make watchdog PLATFORM_TARGET=x86-fbdev SKIP_OPTIONAL_DEPS=1" "$CALLS"
+    rm "$SPLASH_LINK_BIN_DIR/helix-watchdog"
+    run "$GATE"
+    [ "$status" -eq 1 ]
+    row FAIL splash-link
+    contains "helix-watchdog missing" "$(cat "$LAND_GATE_LOGDIR/splash-link.log")"
+    RC_watchdog=2 run "$GATE"
+    row FAIL splash-link
 }
 
 # order_of <event>: its line number in the stubs' start/end log.
@@ -495,14 +514,14 @@ gate_in_tree() { run bash -c 'cd "$1" && shift && "$@"' _ "$T" "$GATE" "$@"; }
     [ "$status" -eq 1 ]
     row PASS bats
     : >"$CALLS"
-    RC_test_shell=1 gate_in_tree --rerun app-build,plugin,no-mocks
+    RC_test_shell=1 gate_in_tree --rerun app-build,plugin,no-mocks,splash-link
     [ "$status" -eq 1 ]
     grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=without BATS_ALL=1" "$CALLS"
     grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=needs BATS_ALL=1" "$CALLS"
     row PASS app-build
     row FAIL bats
     [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
-    gate_in_tree --rerun app-build,plugin,no-mocks
+    gate_in_tree --rerun app-build,plugin,no-mocks,splash-link
     [ "$status" -eq 0 ]
     [ -f "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
 }
@@ -850,7 +869,7 @@ teardown() {
     [ "$(echo "$line" | awk '{print $6}')" = "$(git rev-parse HEAD)" ]
     contains " lint-xml=FAIL:" "$line"
     contains " app-build=PASS:" "$line"
-    [ "$(echo "$line" | grep -o ' [a-z0-9-]*=[A-Z]*:' | wc -l)" -eq 13 ]
+    [ "$(echo "$line" | grep -o ' [a-z0-9-]*=[A-Z]*:' | wc -l)" -eq 14 ]
 }
 
 @test "app-build records what it recompiled, which shared stamps moved, and the ccache delta" {
