@@ -62,8 +62,12 @@ sig = run.find('s3cp "release-files/manifest-${CHANNEL}.json.minisig" '
                '"s3://${R2_BUCKET}/%s${CHANNEL}/manifest.json.minisig"' % pfx)
 man = run.find('s3cp "release-files/manifest-${CHANNEL}.json" '
                '"s3://${R2_BUCKET}/%s${CHANNEL}/manifest.json"' % pfx)
-served = run.find('%s${CHANNEL}/manifest.json.minisig" '
-                  '| cmp -s - "release-files/manifest-${CHANNEL}.json.minisig"' % pfx)
+# upload-r2 reads through fetch_served, which prefixes R2_PREFIX itself and reads the public URL
+# (publish) or the bucket (dry run); recovery reads the URL directly.
+tail = '| cmp -s - "release-files/manifest-${CHANNEL}.json.minisig"'
+served = run.find('fetch_served "${CHANNEL}/manifest.json.minisig" ' + tail)
+if served < 0:
+    served = run.find('%s${CHANNEL}/manifest.json.minisig" ' % pfx + tail)
 bad = []
 if sig < 0: bad.append("no upload of the channel's manifest.json.minisig")
 if man < 0: bad.append("no upload of the channel's manifest.json")

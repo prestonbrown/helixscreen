@@ -315,3 +315,31 @@ PY
     [ "$status" -eq 0 ] || echo "$output"
     [ "$status" -eq 0 ]
 }
+
+@test "a dry run never checks what the public URL serves" {
+    run python3 - <<'PY'
+import yaml
+jobs = yaml.safe_load(open(".github/workflows/release.yml"))["jobs"]
+bad = []
+BARE = "${{ vars.R2_PUBLIC_URL }}"
+for jname in ("upload-r2", "dry-run-verify"):
+    for step in jobs[jname]["steps"]:
+        name = step.get("name", "?")
+        if name == "Guard against channel downgrade":
+            continue
+        for key, val in (step.get("env") or {}).items():
+            if str(val).strip().endswith(BARE) and "publish" not in str(val):
+                bad.append(f"{jname}/{name}: {key} is the public URL in every mode")
+        if BARE in str(job_env := jobs[jname].get("env") or {}):
+            bad.append(f"{jname}: job env names the public URL")
+        lines = step.get("run", "").split("\n")
+        for i, line in enumerate(lines):
+            if "curl" in line and not line.lstrip().startswith("#"):
+                if not any('RELEASE_MODE" = publish' in l for l in lines[max(0, i - 3):i]):
+                    bad.append(f"{jname}/{name}: curl outside a publish branch: {line.strip()}")
+print("\n".join(bad))
+raise SystemExit(1 if bad else 0)
+PY
+    [ "$status" -eq 0 ] || echo "$output"
+    [ "$status" -eq 0 ]
+}

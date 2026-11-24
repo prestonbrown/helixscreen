@@ -1550,7 +1550,7 @@ jobs:
         RELEASE_NOTES: ${{ steps.notes.outputs.notes }}
         RELEASE_VERSION: ${{ steps.version.outputs.version }}
         RELEASE_TAG: ${{ steps.version.outputs.tag }}
-        R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+        R2_PUBLIC_URL: ${{ needs.plan.outputs.mode == 'publish' && vars.R2_PUBLIC_URL || 'https://scratch.invalid' }}
         UPLOAD_CHANNELS: ${{ steps.channels.outputs.channels }}
       run: |
         chmod +x scripts/generate-manifest.sh
@@ -1577,20 +1577,37 @@ jobs:
 
     - name: Upload artifacts and manifests to R2
       env:
-        AWS_ACCESS_KEY_ID: ${{ needs.plan.outputs.mode == 'publish' && secrets.R2_ACCESS_KEY_ID || secrets.R2_SCRATCH_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ needs.plan.outputs.mode == 'publish' && secrets.R2_SECRET_ACCESS_KEY || secrets.R2_SCRATCH_SECRET_ACCESS_KEY }}
+        # The publish pair exists only in a signing environment and the scratch pair only
+        # outside one; the script picks by mode and never falls back from one to the other.
+        R2_PUBLISH_KEY_ID: ${{ needs.plan.outputs.mode == 'publish' && secrets.R2_ACCESS_KEY_ID || '' }}
+        R2_PUBLISH_SECRET: ${{ needs.plan.outputs.mode == 'publish' && secrets.R2_SECRET_ACCESS_KEY || '' }}
+        R2_SCRATCH_KEY_ID: ${{ needs.plan.outputs.mode != 'publish' && secrets.R2_SCRATCH_ACCESS_KEY_ID || '' }}
+        R2_SCRATCH_SECRET: ${{ needs.plan.outputs.mode != 'publish' && secrets.R2_SCRATCH_SECRET_ACCESS_KEY || '' }}
         # R2 rejects AWS region names; runners without a default region pick us-west-2.
         AWS_DEFAULT_REGION: auto
         R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
         RELEASE_VERSION: ${{ steps.version.outputs.version }}
         R2_BUCKET: ${{ needs.plan.outputs.mode == 'publish' && (vars.R2_BUCKET_NAME || 'helixscreen-releases') || (vars.R2_SCRATCH_BUCKET_NAME || 'helixscreen-ci-scratch') }}
-        R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+        R2_PUBLIC_URL: ${{ needs.plan.outputs.mode == 'publish' && vars.R2_PUBLIC_URL || 'https://scratch.invalid' }}
         UPLOAD_CHANNELS: ${{ steps.channels.outputs.channels }}
       run: |
         [ "$RELEASE_MODE" = publish ] || [[ "$R2_PREFIX" == dry-run/?*/ ]] || {
           echo "::error::dry run with R2_PREFIX='${R2_PREFIX}'; refusing to write live R2 paths"
           exit 1
         }
+        if [ "$RELEASE_MODE" = publish ]; then
+          [ -n "$R2_PUBLISH_KEY_ID" ] && [ -n "$R2_PUBLISH_SECRET" ] || {
+            echo "::error::the signing environment holds no R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY"
+            exit 1
+          }
+          export AWS_ACCESS_KEY_ID="$R2_PUBLISH_KEY_ID" AWS_SECRET_ACCESS_KEY="$R2_PUBLISH_SECRET"
+        else
+          [ -n "$R2_SCRATCH_KEY_ID" ] && [ -n "$R2_SCRATCH_SECRET" ] || {
+            echo "::error::R2_SCRATCH_ACCESS_KEY_ID / R2_SCRATCH_SECRET_ACCESS_KEY are not configured"
+            exit 1
+          }
+          export AWS_ACCESS_KEY_ID="$R2_SCRATCH_KEY_ID" AWS_SECRET_ACCESS_KEY="$R2_SCRATCH_SECRET"
+        fi
         # Retry wrapper for transient R2 errors. A 504 Gateway Timeout on a large
         # multipart upload can exhaust the AWS CLI's own retries and abort this
         # step before the manifest uploads, which pins every client to the
@@ -1610,6 +1627,25 @@ jobs:
             sleep $((attempt * 10))
             attempt=$((attempt + 1))
           done
+        }
+
+        # What a client would be served. A publish run reads the public URL, which proves the
+        # CDN serves the release; a dry run writes a bucket with no public domain, so it reads
+        # the same keys back with the scratch credentials.
+        fetch_served() {
+          if [ "$RELEASE_MODE" = publish ]; then
+            curl -fsS "${R2_PUBLIC_URL}/${R2_PREFIX}$1"
+          else
+            aws s3 cp "s3://${R2_BUCKET}/${R2_PREFIX}$1" - --endpoint-url "$R2_ENDPOINT"
+          fi
+        }
+        reachable() {
+          if [ "$RELEASE_MODE" = publish ]; then
+            curl -fsSI "$1" >/dev/null
+          else
+            aws s3 ls "s3://${R2_BUCKET}/${R2_PREFIX}${1#"${R2_PUBLIC_URL}/${R2_PREFIX}"}" \
+              --endpoint-url "$R2_ENDPOINT" | grep -q .
+          fi
         }
 
         # 1. Upload the .zip artifacts the manifest references. These MUST land
@@ -1651,7 +1687,7 @@ jobs:
           served=""
           body=""
           for attempt in 1 2 3 4; do
-            body=$(curl -fsS "${R2_PUBLIC_URL}/${R2_PREFIX}${CHANNEL}/manifest.json" || true)
+            body=$(fetch_served "${CHANNEL}/manifest.json" || true)
             served=$(jq -r '.version // empty' <<<"$body" 2>/dev/null || true)
             [ "$served" = "$RELEASE_VERSION" ] && break
             echo "  attempt ${attempt}: served '${served:-<none>}', expected '${RELEASE_VERSION}'; retrying in 5s..."
@@ -1663,7 +1699,7 @@ jobs:
           fi
           sig_served=false
           for attempt in 1 2 3 4; do
-            if curl -fsS "${R2_PUBLIC_URL}/${R2_PREFIX}${CHANNEL}/manifest.json.minisig" \
+            if fetch_served "${CHANNEL}/manifest.json.minisig" \
                 | cmp -s - "release-files/manifest-${CHANNEL}.json.minisig"; then
               sig_served=true; break
             fi
@@ -1682,7 +1718,7 @@ jobs:
             [ -n "$esp_url" ] || continue
             reached=false
             for attempt in 1 2 3 4; do
-              if curl -fsSI "$esp_url" >/dev/null; then reached=true; break; fi
+              if reachable "$esp_url"; then reached=true; break; fi
               echo "  attempt ${attempt}: ${esp_url} not reachable; retrying in 5s..."
               sleep 5
             done
@@ -1910,8 +1946,12 @@ jobs:
 
     - name: Upload symbols to R2
       env:
-        AWS_ACCESS_KEY_ID: ${{ needs.plan.outputs.mode == 'publish' && secrets.R2_ACCESS_KEY_ID || secrets.R2_SCRATCH_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ needs.plan.outputs.mode == 'publish' && secrets.R2_SECRET_ACCESS_KEY || secrets.R2_SCRATCH_SECRET_ACCESS_KEY }}
+        # The publish pair exists only in a signing environment and the scratch pair only
+        # outside one; the script picks by mode and never falls back from one to the other.
+        R2_PUBLISH_KEY_ID: ${{ needs.plan.outputs.mode == 'publish' && secrets.R2_ACCESS_KEY_ID || '' }}
+        R2_PUBLISH_SECRET: ${{ needs.plan.outputs.mode == 'publish' && secrets.R2_SECRET_ACCESS_KEY || '' }}
+        R2_SCRATCH_KEY_ID: ${{ needs.plan.outputs.mode != 'publish' && secrets.R2_SCRATCH_ACCESS_KEY_ID || '' }}
+        R2_SCRATCH_SECRET: ${{ needs.plan.outputs.mode != 'publish' && secrets.R2_SCRATCH_SECRET_ACCESS_KEY || '' }}
         # R2 rejects AWS region names; runners without a default region pick us-west-2.
         AWS_DEFAULT_REGION: auto
         R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
@@ -1922,6 +1962,19 @@ jobs:
           echo "::error::dry run with R2_PREFIX='${R2_PREFIX}'; refusing to write live R2 paths"
           exit 1
         }
+        if [ "$RELEASE_MODE" = publish ]; then
+          [ -n "$R2_PUBLISH_KEY_ID" ] && [ -n "$R2_PUBLISH_SECRET" ] || {
+            echo "::error::the signing environment holds no R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY"
+            exit 1
+          }
+          export AWS_ACCESS_KEY_ID="$R2_PUBLISH_KEY_ID" AWS_SECRET_ACCESS_KEY="$R2_PUBLISH_SECRET"
+        else
+          [ -n "$R2_SCRATCH_KEY_ID" ] && [ -n "$R2_SCRATCH_SECRET" ] || {
+            echo "::error::R2_SCRATCH_ACCESS_KEY_ID / R2_SCRATCH_SECRET_ACCESS_KEY are not configured"
+            exit 1
+          }
+          export AWS_ACCESS_KEY_ID="$R2_SCRATCH_KEY_ID" AWS_SECRET_ACCESS_KEY="$R2_SCRATCH_SECRET"
+        fi
         # Retry wrapper for transient R2 errors (mirrors upload-r2's s3cp).
         s3cp() {
           local attempt=1 max=4
@@ -2155,7 +2208,8 @@ jobs:
 
     - name: Verify release artifact against R2
       env:
-        BASE_URL: ${{ vars.R2_PUBLIC_URL }}/${{ needs.plan.outputs.r2_prefix }}
+        # The scratch bucket has no public domain; the manifests were generated against this placeholder.
+        BASE_URL: https://scratch.invalid/${{ needs.plan.outputs.r2_prefix }}
         VERSION: ${{ needs.plan.outputs.version }}
         PLATFORMS: ${{ needs.plan.outputs.platforms }}
         CHANNELS: ${{ needs.release.outputs.channels }}
