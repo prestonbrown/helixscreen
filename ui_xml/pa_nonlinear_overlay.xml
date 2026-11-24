@@ -14,10 +14,7 @@
   <styles>
     <style name="stage" width="100%" height="0" flex_grow="1" pad_all="0" bg_opa="0" border_width="0"/>
     <style name="side_column" width="0" height="100%" flex_grow="1" pad_all="0" bg_opa="0" border_width="0"/>
-    <!-- The pass bar: styles, so the bound ones outrank the plain one. -->
-    <style name="seg_todo" bg_color="#elevated_bg" bg_opa="255"/>
-    <style name="seg_done" bg_color="#success"/>
-    <style name="seg_now" bg_color="#primary"/>
+    <!-- The pass labels: styles, so the bound ones outrank the plain one. -->
     <style name="label_todo" text_color="#text_subtle"/>
     <style name="label_done" text_color="#text_muted"/>
     <style name="label_now" text_color="#text" text_font="#font_body_bold"/>
@@ -40,28 +37,27 @@
                                    style_pad_gap="#space_sm" scrollable="false">
       <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
 
-      <!-- The passes: a bar each, done ones in green with the value they found. -->
+      <!-- The passes: the wizard's segments, done ones green, with the value
+           each found in a label row on the segments' gap. -->
       <lv_obj name="pa_nl_pass_steps"
-              width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
-              style_border_width="0" flex_flow="row" scrollable="false">
+              width="100%" height="content" style_pad_all="0" style_pad_gap="#space_xxs" style_bg_opa="0"
+              style_border_width="0" flex_flow="column" scrollable="false">
         <bind_flag_if cond="pa_nl_stage ne 0 and pa_nl_stage ne 3" flag="hidden"/>
-        <repeat count="4">
-          <lv_obj width="0"
-                  height="content" flex_grow="1" style_pad_all="0" style_pad_gap="#space_xxs" style_bg_opa="0"
-                  style_border_width="0" flex_flow="column" scrollable="false">
-            <bind_flag_if cond="pa_nl_pass_count le ${i}" flag="hidden"/>
-            <lv_obj width="100%" height="#space_xs" style_radius="9999" style_border_width="0" scrollable="false">
-              <style name="seg_todo"/>
-              <bind_style_if name="seg_done" cond="pa_nl_pass_index gt ${i}"/>
-              <bind_style_if name="seg_now" cond="pa_nl_pass_index eq ${i}"/>
-            </lv_obj>
-            <text_small width="100%" bind_text="pa_nl_pass_label_${i}" long_mode="dots">
+        <wizard_frame_segments name="pa_nl_pass_segments"
+                               width="100%" seg_width="0" seg_grow="1" gap="#space_sm" count_subject="pa_nl_pass_count"
+                               current_subject="pa_nl_pass_index" done_style="seg_on_done"/>
+        <lv_obj width="100%"
+                height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0" style_border_width="0"
+                flex_flow="row" scrollable="false">
+          <repeat count="4">
+            <text_small width="0" flex_grow="1" bind_text="pa_nl_pass_label_${i}" long_mode="dots">
               <style name="label_todo"/>
+              <bind_flag_if cond="pa_nl_pass_count le ${i}" flag="hidden"/>
               <bind_style_if name="label_done" cond="pa_nl_pass_index gt ${i}"/>
               <bind_style_if name="label_now" cond="pa_nl_pass_index eq ${i}"/>
             </text_small>
-          </lv_obj>
-        </repeat>
+          </repeat>
+        </lv_obj>
       </lv_obj>
 
       <!-- ============================================================ -->

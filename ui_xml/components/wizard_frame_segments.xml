@@ -3,14 +3,22 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- The wizard header's progress segments, one per step: the done and current
      ones lit (on_style: seg_on blue, seg_on_warn amber for a step that needs
-     you), the rest a dim track. count_subject and current_subject (0-based) are
-     int subjects; at most 10 steps. wizard_frame_dots is the dotted twin; the
+     you), the rest a dim track. done_style recolors the done ones only
+     (seg_on_done green; the default leaves them as lit). count_subject and
+     current_subject (0-based) are int subjects; at most 10 steps. The size props
+     stretch the strip across a page: width="100%" seg_width="0" seg_grow="1",
+     with a label row below on the same gap lining up under the segments. wizard_frame_dots is the dotted twin; the
      header's own <if> picks one, since a <repeat> cannot sit inside an <if>. -->
 <component>
   <api>
     <prop name="count_subject" type="string" default=""/>
     <prop name="current_subject" type="string" default=""/>
     <prop name="on_style" type="string" default="seg_on"/>
+    <prop name="done_style" type="string" default="seg_as_lit"/>
+    <prop name="width" type="string" default="content"/>
+    <prop name="seg_width" type="string" default="#seg_w"/>
+    <prop name="seg_grow" type="string" default="0"/>
+    <prop name="gap" type="string" default="#seg_gap"/>
   </api>
   <consts>
     <px name="seg_w" value="34"/>
@@ -21,16 +29,21 @@
     <style name="seg_off" bg_color="#elevated_bg"/>
     <style name="seg_on" bg_color="#primary"/>
     <style name="seg_on_warn" bg_color="#warning"/>
+    <style name="seg_on_done" bg_color="#success"/>
+    <!-- done_style's default: a done segment keeps on_style's color. -->
+    <style name="seg_as_lit" bg_opa="255"/>
   </styles>
   <view extends="lv_obj"
-        width="content" height="content" style_pad_all="0" style_pad_gap="#seg_gap" style_bg_opa="0"
-        style_border_width="0" flex_flow="row" style_flex_cross_place="center" scrollable="false">
+        width="$width" height="content" style_pad_all="0" style_pad_gap="$gap" style_bg_opa="0" style_border_width="0"
+        flex_flow="row" style_flex_cross_place="center" scrollable="false">
     <repeat count="10">
-      <lv_obj width="#seg_w"
-              height="#seg_h" style_radius="9999" style_bg_opa="255" style_border_width="0" scrollable="false">
+      <lv_obj width="$seg_width"
+              height="#seg_h" flex_grow="$seg_grow" style_radius="9999" style_bg_opa="255" style_border_width="0"
+              scrollable="false">
         <style name="seg_off"/>
         <bind_flag_if cond="${count_subject} le ${i}" flag="hidden"/>
         <bind_style_if name="$on_style" cond="${current_subject} ge ${i}"/>
+        <bind_style_if name="$done_style" cond="${current_subject} gt ${i}"/>
       </lv_obj>
     </repeat>
   </view>

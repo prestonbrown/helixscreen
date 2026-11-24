@@ -79,3 +79,35 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the wizard header draws one progress mark p
     lv_obj_delete(header);
     helix::ui::UpdateQueue::instance().drain();
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture, "done_style recolors only the done segments",
+                 "[calibration_run][wizard_progress]") {
+    step_subject("test_wizard_step_count", 3);
+    step_subject("test_wizard_step_current", 1);
+    const bool recolored = GENERATE(false, true);
+    CAPTURE(recolored);
+
+    const char* attrs[] = {"count_subject",
+                           "test_wizard_step_count",
+                           "current_subject",
+                           "test_wizard_step_current",
+                           recolored ? "done_style" : nullptr,
+                           "seg_on_done",
+                           nullptr};
+    auto* segs =
+        static_cast<lv_obj_t*>(lv_xml_create(lv_screen_active(), "wizard_frame_segments", attrs));
+    REQUIRE(segs != nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+    auto color = [&](uint32_t i) {
+        return lv_color_to_u32(lv_obj_get_style_bg_color(lv_obj_get_child(segs, i), LV_PART_MAIN));
+    };
+    const uint32_t done = color(0), current = color(1), todo = color(2);
+
+    CHECK(current != todo);
+    // The done segment differs from the current one only when done_style asks.
+    CHECK((done != current) == recolored);
+    CHECK(done != todo);
+
+    lv_obj_delete(segs);
+    helix::ui::UpdateQueue::instance().drain();
+}
