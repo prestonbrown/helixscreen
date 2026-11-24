@@ -271,6 +271,37 @@ TEST_CASE_METHOD(SleepWhilePrintingFixture, "a print starting wakes an idle disp
     mgr.wake_display();
 }
 
+TEST_CASE_METHOD(
+    SleepWhilePrintingFixture,
+    "a display awake hold taken behind the screensaver or sleep brings the screen back",
+    "[application][display][sleep][display-awake-hold][pa_tuner]") {
+    // A tuner's tower ends behind the screensaver and its judge screen opens,
+    // waiting on the user: the hold it takes then must uncover the screen, not
+    // only keep an awake one up.
+    const bool saver = GENERATE(false, true);
+    CAPTURE(saver);
+    DisplaySettingsManager::instance().set_sleep_while_printing(true);
+    drive_lifecycle("standby");
+    DisplayManager mgr;
+    go_idle(*this, mgr, saver);
+    REQUIRE(is_idle(mgr));
+
+    {
+        helix::DisplayAwakeToken token;
+        token.acquire();
+        mgr.check_display_sleep();
+        CHECK_FALSE(is_idle(mgr));
+
+        // Held, the screen stays up however long nobody touches it.
+        go_idle(*this, mgr, saver);
+        CHECK_FALSE(is_idle(mgr));
+    }
+
+    go_idle(*this, mgr, saver);
+    CHECK(is_idle(mgr));
+    mgr.wake_display();
+}
+
 TEST_CASE_METHOD(SleepWhilePrintingFixture,
                  "a print the screen already knew of does not wake it again",
                  "[application][display][sleep][print-start-wake]") {
