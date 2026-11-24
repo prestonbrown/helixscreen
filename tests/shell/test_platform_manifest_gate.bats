@@ -193,6 +193,19 @@ EOF
     contains "literal size 300" "$output"
 }
 
+@test "gate: silent on an example filename in a block comment" {
+    make_tree
+    cat > "$TREE/src/system/fake_doc.cpp" <<'EOF'
+/*
+   Reads assets/images/printers/prerendered/<stem>-<size>.bin, for example
+   voron-300.bin, the size 300 a wide panel reads.
+*/
+std::string tier(const std::string& stem, int size);
+EOF
+    run python3 "$GATE" --quiet --root "$TREE"
+    [[ "$output" != *"literal size"* ]] || fail "$output"
+}
+
 @test "gate: silent on the custom-image cache, which keeps every size" {
     # Custom images are written on the device and nothing prunes them, so naming
     # both sizes there is correct. Flagging it would train people to ignore this.
