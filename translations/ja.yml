@@ -538,6 +538,7 @@ translations:
   Automatic: 自動
   Automatic Heater Control Calibration: 自動ヒーター制御キャリブレーション
   Automatic LED Control: 自動LED制御
+  Automatic Updates: 自動更新
   Automatic calibration: '自動キャリブレーション'
   Automatic cleanup: '自動クリーンアップ'
   Automatic filament feeding is still running.: 'フィラメントの自動供給がまだ動作中です。'
@@ -1549,6 +1550,8 @@ translations:
   Door Open: ドアが開いています
   'Door opened during print: {}': '印刷中にドアが開きました: {}'
   Door switches, buttons, and other on/off inputs: ドアスイッチ、ボタン、その他のオン/オフ入力
+  Download and ask: ダウンロードして確認
+  Download and ask tells you when an update is ready to install: ダウンロードして確認は、更新をインストールできるようになったらお知らせします
   Download update?: アップデートをダウンロードしますか？
   Download v{}?: v{}をダウンロードしますか？
   Downloading the timelapse plugin...: 'タイムラプスプラグインをダウンロード中...'
@@ -2484,6 +2487,8 @@ translations:
   Install Plugin: プラグインをインストール
   Install Root: インストールルート
   Install Update: 更新をインストール
+  Install overnight: 定時インストール
+  Install overnight restarts the screen at 3 AM when the printer is idle: 定時インストールは、プリンターが待機中のとき3:00に画面を再起動します
   Install plugin: プラグインをインストール
   Install script not found. Use the remote install command instead.: インストールスクリプトが見つかりません。代わりにリモートインストールコマンドを使用してください。
   'Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:': '高速 G-code 修正を有効にするために HelixPrint プラグインをインストールしてください。プリンターで SSH 経由でこのコマンドを実行してください:'

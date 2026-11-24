@@ -510,6 +510,7 @@
   <translation tag="Automatic" zh="自动"/>
   <translation tag="Automatic Heater Control Calibration" zh="自动加热控制校准"/>
   <translation tag="Automatic LED Control" zh="自动 LED 控制"/>
+  <translation tag="Automatic Updates" zh="自动更新"/>
   <translation tag="Automatic calibration" zh="自动校准"/>
   <translation tag="Automatic cleanup" zh="自动清理"/>
   <translation tag="Automatic filament feeding is still running." zh="自动送料仍在进行。"/>
@@ -1463,6 +1464,8 @@
   <translation tag="Door Open" zh="门已打开"/>
   <translation tag="Door opened during print: {}" zh="打印时门被打开：{}"/>
   <translation tag="Door switches, buttons, and other on/off inputs" zh="门开关、按钮及其他开/关输入"/>
+  <translation tag="Download and ask" zh="下载并询问"/>
+  <translation tag="Download and ask tells you when an update is ready to install" zh="下载并询问会在更新可以安装时通知您"/>
   <translation tag="Download update?" zh="下载更新？"/>
   <translation tag="Download v{}?" zh="下载 v{}？"/>
   <translation tag="Downloading the timelapse plugin..." zh="正在下载延时摄影插件..."/>
@@ -2380,6 +2383,8 @@
   <translation tag="Install Plugin" zh="安装插件"/>
   <translation tag="Install Root" zh="安装根目录"/>
   <translation tag="Install Update" zh="安装更新"/>
+  <translation tag="Install overnight" zh="定时安装"/>
+  <translation tag="Install overnight restarts the screen at 3 AM when the printer is idle" zh="定时安装会在打印机空闲时于 3:00 重启屏幕"/>
   <translation tag="Install plugin" zh="安装插件"/>
   <translation tag="Install script not found. Use the remote install command instead." zh="未找到安装脚本。请改用远程安装命令。"/>
   <translation tag="Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:" zh="安装 HelixPrint 插件以启用快速 G-code 修改。通过 SSH 在打印机上运行此命令："/>

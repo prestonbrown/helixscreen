@@ -510,6 +510,7 @@
   <translation tag="Automatic" en="Automatic"/>
   <translation tag="Automatic Heater Control Calibration" en="Automatic Heater Control Calibration"/>
   <translation tag="Automatic LED Control" en="Automatic LED Control"/>
+  <translation tag="Automatic Updates" en="Automatic Updates"/>
   <translation tag="Automatic calibration" en="Automatic calibration"/>
   <translation tag="Automatic cleanup" en="Automatic cleanup"/>
   <translation tag="Automatic filament feeding is still running." en="Automatic filament feeding is still running."/>
@@ -1463,6 +1464,8 @@
   <translation tag="Door Open" en="Door Open"/>
   <translation tag="Door opened during print: {}" en="Door opened during print: {}"/>
   <translation tag="Door switches, buttons, and other on/off inputs" en="Door switches, buttons, and other on/off inputs"/>
+  <translation tag="Download and ask" en="Download and ask"/>
+  <translation tag="Download and ask tells you when an update is ready to install" en="Download and ask tells you when an update is ready to install"/>
   <translation tag="Download update?" en="Download update?"/>
   <translation tag="Download v{}?" en="Download v{}?"/>
   <translation tag="Downloading the timelapse plugin..." en="Downloading the timelapse plugin..."/>
@@ -2380,6 +2383,8 @@
   <translation tag="Install Plugin" en="Install Plugin"/>
   <translation tag="Install Root" en="Install Root"/>
   <translation tag="Install Update" en="Install Update"/>
+  <translation tag="Install overnight" en="Install overnight"/>
+  <translation tag="Install overnight restarts the screen at 3 AM when the printer is idle" en="Install overnight restarts the screen at 3 AM when the printer is idle"/>
   <translation tag="Install plugin" en="Install plugin"/>
   <translation tag="Install script not found. Use the remote install command instead." en="Install script not found. Use the remote install command instead."/>
   <translation tag="Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:" en="Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:"/>

@@ -541,6 +541,7 @@ translations:
   Automatic: Automatic
   Automatic Heater Control Calibration: Automatic Heater Control Calibration
   Automatic LED Control: Automatic LED Control
+  Automatic Updates: Automatic Updates
   Automatic calibration: Automatic calibration
   Automatic cleanup: Automatic cleanup
   Automatic filament feeding is still running.: Automatic filament feeding is still running.
@@ -1547,6 +1548,8 @@ translations:
   Door Open: Door Open
   'Door opened during print: {}': 'Door opened during print: {}'
   Door switches, buttons, and other on/off inputs: Door switches, buttons, and other on/off inputs
+  Download and ask: Download and ask
+  Download and ask tells you when an update is ready to install: Download and ask tells you when an update is ready to install
   Download update?: Download update?
   Download v{}?: Download v{}?
   Downloading the timelapse plugin...: Downloading the timelapse plugin...
@@ -2471,6 +2474,8 @@ translations:
   Install Plugin: Install Plugin
   Install Root: Install Root
   Install Update: Install Update
+  Install overnight: Install overnight
+  Install overnight restarts the screen at 3 AM when the printer is idle: Install overnight restarts the screen at 3 AM when the printer is idle
   Install plugin: Install plugin
   Install script not found. Use the remote install command instead.: Install script not found. Use the remote install command instead.
   'Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:': 'Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:'

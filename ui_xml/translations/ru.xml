@@ -549,6 +549,7 @@
   <translation tag="Automatic" ru="Автоматический"/>
   <translation tag="Automatic Heater Control Calibration" ru="Автоматическая калибровка нагревателя"/>
   <translation tag="Automatic LED Control" ru="Автоматическое управление LED"/>
+  <translation tag="Automatic Updates" ru="Автоматические обновления"/>
   <translation tag="Automatic calibration" ru="Автоматическая калибровка"/>
   <translation tag="Automatic cleanup" ru="Автоматическая очистка"/>
   <translation tag="Automatic filament feeding is still running." ru="Автоматическая подача филамента ещё выполняется."/>
@@ -1508,6 +1509,8 @@
   <translation tag="Door Open" ru="Дверь открыта"/>
   <translation tag="Door opened during print: {}" ru="Дверь открыта во время печати: {}"/>
   <translation tag="Door switches, buttons, and other on/off inputs" ru="Датчики дверей, кнопки и другие входы вкл/выкл"/>
+  <translation tag="Download and ask" ru="Загрузить и спросить"/>
+  <translation tag="Download and ask tells you when an update is ready to install" ru="Загрузить и спросить сообщает, когда обновление готово к установке"/>
   <translation tag="Download update?" ru="Загрузить обновление?"/>
   <translation tag="Download v{}?" ru="Загрузить v{}?"/>
   <translation tag="Downloading the timelapse plugin..." ru="Загрузка плагина таймлапса..."/>
@@ -2428,6 +2431,8 @@
   <translation tag="Install Plugin" ru="Установить плагин"/>
   <translation tag="Install Root" ru="Корень установки"/>
   <translation tag="Install Update" ru="Установить обновление"/>
+  <translation tag="Install overnight" ru="Устанавливать ночью"/>
+  <translation tag="Install overnight restarts the screen at 3 AM when the printer is idle" ru="Устанавливать ночью перезапускает экран в 3:00, когда принтер простаивает"/>
   <translation tag="Install plugin" ru="Установить плагин"/>
   <translation tag="Install script not found. Use the remote install command instead." ru="Скрипт установки не найден. Используйте вместо этого команду удалённой установки."/>
   <translation tag="Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:" ru="Установите плагин HelixPrint для быстрой модификации G-code. Выполните эту команду через SSH на вашем принтере:"/>

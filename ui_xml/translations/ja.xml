@@ -510,6 +510,7 @@
   <translation tag="Automatic" ja="自動"/>
   <translation tag="Automatic Heater Control Calibration" ja="自動ヒーター制御キャリブレーション"/>
   <translation tag="Automatic LED Control" ja="自動LED制御"/>
+  <translation tag="Automatic Updates" ja="自動更新"/>
   <translation tag="Automatic calibration" ja="自動キャリブレーション"/>
   <translation tag="Automatic cleanup" ja="自動クリーンアップ"/>
   <translation tag="Automatic filament feeding is still running." ja="フィラメントの自動供給がまだ動作中です。"/>
@@ -1463,6 +1464,8 @@
   <translation tag="Door Open" ja="ドアが開いています"/>
   <translation tag="Door opened during print: {}" ja="印刷中にドアが開きました: {}"/>
   <translation tag="Door switches, buttons, and other on/off inputs" ja="ドアスイッチ、ボタン、その他のオン/オフ入力"/>
+  <translation tag="Download and ask" ja="ダウンロードして確認"/>
+  <translation tag="Download and ask tells you when an update is ready to install" ja="ダウンロードして確認は、更新をインストールできるようになったらお知らせします"/>
   <translation tag="Download update?" ja="アップデートをダウンロードしますか？"/>
   <translation tag="Download v{}?" ja="v{}をダウンロードしますか？"/>
   <translation tag="Downloading the timelapse plugin..." ja="タイムラプスプラグインをダウンロード中..."/>
@@ -2380,6 +2383,8 @@
   <translation tag="Install Plugin" ja="プラグインをインストール"/>
   <translation tag="Install Root" ja="インストールルート"/>
   <translation tag="Install Update" ja="更新をインストール"/>
+  <translation tag="Install overnight" ja="定時インストール"/>
+  <translation tag="Install overnight restarts the screen at 3 AM when the printer is idle" ja="定時インストールは、プリンターが待機中のとき3:00に画面を再起動します"/>
   <translation tag="Install plugin" ja="プラグインをインストール"/>
   <translation tag="Install script not found. Use the remote install command instead." ja="インストールスクリプトが見つかりません。代わりにリモートインストールコマンドを使用してください。"/>
   <translation tag="Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:" ja="高速 G-code 修正を有効にするために HelixPrint プラグインをインストールしてください。プリンターで SSH 経由でこのコマンドを実行してください:"/>

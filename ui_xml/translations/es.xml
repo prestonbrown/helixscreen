@@ -510,6 +510,7 @@
   <translation tag="Automatic" es="Automático"/>
   <translation tag="Automatic Heater Control Calibration" es="Calibración Automática de Control de Calentador"/>
   <translation tag="Automatic LED Control" es="Control Automático de LED"/>
+  <translation tag="Automatic Updates" es="Actualizaciones automáticas"/>
   <translation tag="Automatic calibration" es="Calibración automática"/>
   <translation tag="Automatic cleanup" es="Limpieza automática"/>
   <translation tag="Automatic filament feeding is still running." es="La alimentación automática de filamento sigue en curso."/>
@@ -1463,6 +1464,8 @@
   <translation tag="Door Open" es="Puerta abierta"/>
   <translation tag="Door opened during print: {}" es="Puerta abierta durante la impresión: {}"/>
   <translation tag="Door switches, buttons, and other on/off inputs" es="Interruptores de puerta, botones y otras entradas de encendido/apagado"/>
+  <translation tag="Download and ask" es="Descargar y preguntar"/>
+  <translation tag="Download and ask tells you when an update is ready to install" es="Descargar y preguntar te avisa cuando una actualización está lista para instalar"/>
   <translation tag="Download update?" es="¿Descargar actualización?"/>
   <translation tag="Download v{}?" es="¿Descargar v{}?"/>
   <translation tag="Downloading the timelapse plugin..." es="Descargando el plugin de timelapse..."/>
@@ -2380,6 +2383,8 @@
   <translation tag="Install Plugin" es="Instalar Plugin"/>
   <translation tag="Install Root" es="Raíz de Instalación"/>
   <translation tag="Install Update" es="Instalar actualización"/>
+  <translation tag="Install overnight" es="Instalar por la noche"/>
+  <translation tag="Install overnight restarts the screen at 3 AM when the printer is idle" es="Instalar por la noche reinicia la pantalla a las 3 AM cuando la impresora está inactiva"/>
   <translation tag="Install plugin" es="Instalar plugin"/>
   <translation tag="Install script not found. Use the remote install command instead." es="Script de instalación no encontrado. Use el comando de instalación remota en su lugar."/>
   <translation tag="Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:" es="Instale el plugin HelixPrint para habilitar modificaciones rápidas de G-code. Ejecute este comando vía SSH en su impresora:"/>

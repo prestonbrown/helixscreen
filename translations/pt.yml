@@ -538,6 +538,7 @@ translations:
   Automatic: Automático
   Automatic Heater Control Calibration: Calibração Automática de Controle de Aquecedor
   Automatic LED Control: Controle Automático de LED
+  Automatic Updates: Atualizações automáticas
   Automatic calibration: 'Calibração automática'
   Automatic cleanup: 'Limpeza automática'
   Automatic filament feeding is still running.: 'A alimentação automática de filamento ainda está em andamento.'
@@ -1549,6 +1550,8 @@ translations:
   Door Open: Porta aberta
   'Door opened during print: {}': 'Porta aberta durante a impressão: {}'
   Door switches, buttons, and other on/off inputs: Interruptores de porta, botões e outras entradas liga/desliga
+  Download and ask: Baixar e perguntar
+  Download and ask tells you when an update is ready to install: Baixar e perguntar avisa quando uma atualização está pronta para instalar
   Download update?: Baixar atualização?
   Download v{}?: Baixar v{}?
   Downloading the timelapse plugin...: 'Baixando o plugin de timelapse...'
@@ -2484,6 +2487,8 @@ translations:
   Install Plugin: Instalar Plugin
   Install Root: Raiz de Instalação
   Install Update: Instalar Atualização
+  Install overnight: Instalar de madrugada
+  Install overnight restarts the screen at 3 AM when the printer is idle: Instalar de madrugada reinicia a tela às 3h quando a impressora está ociosa
   Install plugin: Instalar plugin
   Install script not found. Use the remote install command instead.: Script de instalação não encontrado. Use o comando de instalação remota.
   'Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:': 'Instale o plugin HelixPrint para habilitar modificações rápidas de G-code. Execute este comando via SSH na sua impressora:'

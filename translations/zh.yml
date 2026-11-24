@@ -538,6 +538,7 @@ translations:
   Automatic: 自动
   Automatic Heater Control Calibration: 自动加热控制校准
   Automatic LED Control: 自动 LED 控制
+  Automatic Updates: 自动更新
   Automatic calibration: '自动校准'
   Automatic cleanup: '自动清理'
   Automatic filament feeding is still running.: '自动送料仍在进行。'
@@ -1549,6 +1550,8 @@ translations:
   Door Open: 门已打开
   'Door opened during print: {}': 打印时门被打开：{}
   Door switches, buttons, and other on/off inputs: 门开关、按钮及其他开/关输入
+  Download and ask: 下载并询问
+  Download and ask tells you when an update is ready to install: 下载并询问会在更新可以安装时通知您
   Download update?: 下载更新？
   Download v{}?: 下载 v{}？
   Downloading the timelapse plugin...: '正在下载延时摄影插件...'
@@ -2484,6 +2487,8 @@ translations:
   Install Plugin: 安装插件
   Install Root: 安装根目录
   Install Update: 安装更新
+  Install overnight: 定时安装
+  Install overnight restarts the screen at 3 AM when the printer is idle: 定时安装会在打印机空闲时于 3:00 重启屏幕
   Install plugin: 安装插件
   Install script not found. Use the remote install command instead.: 未找到安装脚本。请改用远程安装命令。
   'Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:': 安装 HelixPrint 插件以启用快速 G-code 修改。通过 SSH 在打印机上运行此命令：
