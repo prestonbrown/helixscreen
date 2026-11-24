@@ -668,6 +668,11 @@ void PaNonlinearOverlay::refresh_towers() {
 
     PaTowerModel judge = base;
     judge.fill = PaTowerFill::Full;
+    if (judge_top_mm_ < kTowerHeightMm) {
+        // Stopped early: the tower shows what printed, up to where it stopped.
+        judge.fill = PaTowerFill::Live;
+        judge.printed_mm = judge_top_mm_;
+    }
     if (two) {
         if (left_set_) {
             judge.markers.push_back({0, height_mm_, false, "L"});
@@ -768,6 +773,8 @@ void PaNonlinearOverlay::print_pass() {
 
     saw_printing_ = false;
     time_left_est_.reset();
+    reached_mm_ = 0.0f;
+    judge_top_mm_ = kTowerHeightMm;
     script_done_ = false;
     // The tower about to print is judged fresh: a two-sided pass with neither height set.
     left_set_ = front_set_ = proc_->current().judge != helix::pa::TowerSide::LeftVsFront;
@@ -835,6 +842,7 @@ void PaNonlinearOverlay::refresh_live() {
         &live_text_,
         fmt::format(fmt::runtime(lv_tr("{} at {:.1f} mm")), param_label(param), z).c_str());
 
+    reached_mm_ = std::max(reached_mm_, z);
     const auto progress = helix::pa::tower_layer_progress(z);
     lv_subject_set_string(&layer_text_,
                           fmt::format(fmt::runtime(lv_tr("Layer {} of {} · {:.1f} mm")),
@@ -888,7 +896,12 @@ void PaNonlinearOverlay::on_print_state(PrintJobState state) {
         fail(lv_tr("The tower stopped with an error. Nothing was changed."));
         return;
     }
-    // Complete, or stopped by the user: judge what printed.
+    // Complete, or stopped by the user: judge what printed, and only that, in
+    // the tenths the height picker steps in.
+    judge_top_mm_ = state == PrintJobState::COMPLETE
+                        ? kTowerHeightMm
+                        : std::clamp(std::round(reached_mm_ * 10.0f) / 10.0f,
+                                     helix::pa::kTowerLayerMm, kTowerHeightMm);
     set_stage(JUDGE);
     refresh();
     if (lv_obj_t* root = overlay_root_) {
@@ -1017,12 +1030,12 @@ void PaNonlinearOverlay::raise(int attempts_left) {
 
 /// A step on a height still showing "--" lands on the middle of the tower,
 /// where the user can see it; the next step moves from there.
-static float stepped_height(bool set, float current_mm, int step_tenths) {
-    return set ? current_mm + static_cast<float>(step_tenths) / 10.0f : kTowerHeightMm / 2.0f;
+static float stepped_height(bool set, float current_mm, int step_tenths, float top_mm) {
+    return set ? current_mm + static_cast<float>(step_tenths) / 10.0f : top_mm / 2.0f;
 }
 
 void PaNonlinearOverlay::adjust_height(int step_tenths) {
-    set_height(stepped_height(left_set_, height_mm_, step_tenths));
+    set_height(stepped_height(left_set_, height_mm_, step_tenths, judge_top_mm_));
 }
 
 void PaNonlinearOverlay::set_height(float height_mm) {
@@ -1030,7 +1043,7 @@ void PaNonlinearOverlay::set_height(float height_mm) {
         return;
     }
     // Tenths: the steps and the keypad both land on them, and float sums drift.
-    height_mm_ = std::clamp(std::round(height_mm * 10.0f) / 10.0f, 0.0f, kTowerHeightMm);
+    height_mm_ = std::clamp(std::round(height_mm * 10.0f) / 10.0f, 0.0f, judge_top_mm_);
     left_set_ = true;
     refresh();
 }
@@ -1042,7 +1055,7 @@ void PaNonlinearOverlay::edit_height() {
     ui_keypad_config_t config{};
     config.initial_value = height_mm_;
     config.min_value = 0.0f;
-    config.max_value = kTowerHeightMm;
+    config.max_value = judge_top_mm_;
     config.allow_decimal = true;
     config.allow_negative = false;
     config.max_fraction_digits = 1;
@@ -1117,14 +1130,14 @@ void PaNonlinearOverlay::judge_primary() {
 }
 
 void PaNonlinearOverlay::adjust_front_height(int step_tenths) {
-    set_front_height(stepped_height(front_set_, front_mm_, step_tenths));
+    set_front_height(stepped_height(front_set_, front_mm_, step_tenths, judge_top_mm_));
 }
 
 void PaNonlinearOverlay::set_front_height(float height_mm) {
     if (stage_ != JUDGE) {
         return;
     }
-    front_mm_ = std::clamp(std::round(height_mm * 10.0f) / 10.0f, 0.0f, kTowerHeightMm);
+    front_mm_ = std::clamp(std::round(height_mm * 10.0f) / 10.0f, 0.0f, judge_top_mm_);
     front_set_ = true;
     refresh();
 }
@@ -1136,7 +1149,7 @@ void PaNonlinearOverlay::edit_front_height() {
     ui_keypad_config_t config{};
     config.initial_value = front_mm_;
     config.min_value = 0.0f;
-    config.max_value = kTowerHeightMm;
+    config.max_value = judge_top_mm_;
     config.allow_decimal = true;
     config.allow_negative = false;
     config.max_fraction_digits = 1;

@@ -155,6 +155,9 @@ class PaNonlinearOverlay : public OverlayBase {
     void back_for_test() {
         go_back();
     }
+    float judge_top_for_test() const {
+        return judge_top_mm_;
+    }
     float height_for_test() const {
         return height_mm_;
     }
@@ -320,6 +323,10 @@ class PaNonlinearOverlay : public OverlayBase {
     helix::Subject time_left_{};
     char time_left_buf_[32] = {};
     std::optional<helix::pa::TowerTimeLeft> time_left_est_;
+    /// The highest the nozzle reached this pass, and the top of what is
+    /// judged: the whole tower, or what printed before a stop.
+    float reached_mm_ = 0.0f;
+    float judge_top_mm_ = helix::pa::kTowerHeightMm;
     helix::Subject two_sided_{};
     helix::Subject can_back_{};
     helix::Subject height_{};

@@ -539,6 +539,38 @@ TEST_CASE_METHOD(NonlinearFixture,
     }
 }
 
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: a tower stopped early is judged only up to where it reached",
+                 "[pa_nonlinear][pa_tuner][pa_nl_height]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    tower("printing");
+    status({{"gcode_move", {{"gcode_position", {100.0, 100.0, 18.4, 0.0}}}}});
+    // A travel move lower down leaves the height reached where it was.
+    status({{"gcode_move", {{"gcode_position", {100.0, 100.0, 3.0, 0.0}}}}});
+    tower("cancelled");
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::JUDGE);
+    CHECK(overlay.judge_top_for_test() == Catch::Approx(18.4f));
+
+    overlay.adjust_height_for_test(1000);
+    CHECK(overlay.height_for_test() == Catch::Approx(18.4f));
+    overlay.tower_tap_for_test(0, 40.0f);
+    CHECK(overlay.height_for_test() == Catch::Approx(18.4f));
+}
+
+TEST_CASE_METHOD(NonlinearFixture, "nonlinear tuner: a tower that completes is judged to its top",
+                 "[pa_nonlinear][pa_tuner][pa_nl_height]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    tower("printing");
+    status({{"gcode_move", {{"gcode_position", {100.0, 100.0, 18.4, 0.0}}}}});
+    tower("complete");
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::JUDGE);
+    CHECK(overlay.judge_top_for_test() == Catch::Approx(50.0f));
+}
+
 TEST_CASE_METHOD(NonlinearFixture, "nonlinear tuner: one press of Stop cancels the tower",
                  "[pa_nonlinear][pa_tuner][pa_nl_stop]") {
     overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
