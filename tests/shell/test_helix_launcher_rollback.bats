@@ -252,6 +252,45 @@ touch '$HELIX_ROLLBACK_DIR/update_rollback.healthy'; sleep 2; exit 0"
     [ ! -e "$HELIX_ROLLBACK_DIR/update_rollback.armed" ]
 }
 
+# The guarded version reports healthy and the guard finishes; later, in the
+# same boot, it installs the next update automatically: keeps itself at .old,
+# arms a 1.1.0 -> 1.2.0 marker and exits 0 for the restart. $1: the run that
+# installs; earlier runs stay up until the watcher ends them.
+second_update_app() {
+    local run=$1
+    set_app "$INSTALL" "n=\$(cat '$BATS_TEST_TMPDIR/runs' 2>/dev/null || echo 0); n=\$((n+1)); echo \$n > '$BATS_TEST_TMPDIR/runs'
+if [ \$n = $run ]; then
+  touch '$HELIX_ROLLBACK_DIR/update_rollback.healthy'; sleep 4
+  cp -r '$INSTALL' '$PREVIOUS'; echo v2 > '$PREVIOUS/TREE'; echo v3 > '$INSTALL/TREE'
+  printf 'install_dir=%s\\nprevious_dir=%s\\nfrom_version=1.1.0\\nto_version=1.2.0\\n' '$INSTALL' '$PREVIOUS' > '$HELIX_ROLLBACK_DIR/update_rollback.armed'
+  exit 0
+fi
+[ \$n -lt $run ] && { touch '$HELIX_ROLLBACK_DIR/update_rollback.healthy'; sleep 30; }
+touch '$HELIX_ROLLBACK_DIR/update_rollback.healthy'; sleep 3; exit 0"
+}
+
+@test "rollback: a second automatic update after a finished guard is guarded, not rolled back" {
+    second_update_app 1
+    arm
+    export HELIX_ROLLBACK_WINDOW=60
+    launch
+    [ "$(cat "$INSTALL/TREE")" = "v3" ]
+    [ ! -e "$HELIX_ROLLBACK_DIR/update_rollback.result" ]
+    [ ! -e "$HELIX_ROLLBACK_DIR/update_rollback.armed" ]
+    [ ! -e "$PREVIOUS" ]
+}
+
+@test "rollback: a second automatic update after the units phase is guarded, not rolled back" {
+    # Run 1 hands off for the unit refresh; run 2 finishes the guard and installs.
+    second_update_app 2
+    arm
+    export HELIX_SERVICE_RESTARTS=1 HELIX_ROLLBACK_WINDOW=60
+    launch
+    launch
+    [ "$(cat "$INSTALL/TREE")" = "v3" ]
+    [ ! -e "$HELIX_ROLLBACK_DIR/update_rollback.result" ]
+}
+
 @test "rollback: too many guarded starts restores without launching the new version" {
     set_app "$INSTALL" 'sleep 30'
     arm
@@ -298,4 +337,11 @@ touch '$HELIX_ROLLBACK_DIR/update_rollback.healthy'; sleep 2; exit 0"
     set_app "$INSTALL" "echo \"dir=\${HELIX_ROLLBACK_DIR:-}\" > '$BATS_TEST_TMPDIR/env'; exit 0"
     launch
     [ "$(cat "$BATS_TEST_TMPDIR/env")" = "dir=$HELIX_ROLLBACK_DIR" ]
+}
+
+@test "rollback: each install gets its own guard directory beside it" {
+    unset HELIX_ROLLBACK_DIR
+    set_app "$INSTALL" "echo \"dir=\${HELIX_ROLLBACK_DIR:-}\" > '$BATS_TEST_TMPDIR/env'; exit 0"
+    launch
+    [ "$(cat "$BATS_TEST_TMPDIR/env")" = "dir=$BATS_TEST_TMPDIR/opt/.helixscreen/rollback-helixscreen" ]
 }

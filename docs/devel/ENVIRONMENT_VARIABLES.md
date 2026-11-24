@@ -2683,7 +2683,7 @@ Where `helix-launcher.sh`'s automatic-update rollback guard and the app exchange
 | Property | Value |
 |----------|-------|
 | **Values** | A writable directory |
-| **Default** | `<install parent>/.helixscreen`, set by the launcher |
+| **Default** | `<install parent>/.helixscreen/rollback-<install dir name>`, set by the launcher, so installs side by side never share markers |
 | **Files** | `scripts/helix-launcher.sh`, `src/system/update_rollback.cpp`, `src/helix_watchdog.cpp` |
 
 ### `HELIX_ROLLBACK_WINDOW`, `HELIX_ROLLBACK_POLL`, `HELIX_ROLLBACK_MAX_STARTS`

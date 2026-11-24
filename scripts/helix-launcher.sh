@@ -1416,7 +1416,9 @@ fi
 # HELIX_ROLLBACK_DIR that a guard is listening, and keeps its marker files
 # there, beside the install rather than inside it so a swap leaves them alone.
 if [ "${USE_WATCHDOG}" = "1" ]; then
-    : "${HELIX_ROLLBACK_DIR:=$(dirname "${INSTALL_DIR}")/.helixscreen}"
+    # One directory per install, so two installs beside each other never read
+    # each other's markers.
+    : "${HELIX_ROLLBACK_DIR:=$(dirname "${INSTALL_DIR}")/.helixscreen/rollback-$(basename "${INSTALL_DIR}")}"
     if mkdir -p "${HELIX_ROLLBACK_DIR}" 2>/dev/null && [ -w "${HELIX_ROLLBACK_DIR}" ]; then
         export HELIX_ROLLBACK_DIR
     else
@@ -1707,7 +1709,7 @@ helix_rollback_restore() {
     log "Rolling back v${RB_TO} to v${RB_FROM} (reason: $1)"
     # The renames below change release_info.json, which helixscreen-update.path
     # watches; this sentinel tells it the restart is handled here.
-    : > "${HELIX_ROLLBACK_DIR}/self_restart_sentinel" 2>/dev/null || true
+    touch "$(dirname "${INSTALL_DIR}")/.helixscreen/self_restart_sentinel" 2>/dev/null || true
     rm -rf "${_hrr_failed}" 2>/dev/null || true
     if ! mv "${RB_INSTALL_REAL}" "${_hrr_failed}" 2>/dev/null; then
         log "Rollback failed: could not move ${RB_INSTALL_REAL} aside; keeping v${RB_TO}"
@@ -1726,6 +1728,9 @@ helix_rollback_restore() {
         > "${_hrr_result}.tmp" && mv "${_hrr_result}.tmp" "${_hrr_result}"; } 2>/dev/null || true
     helix_rollback_disarm
     log "Rolled back to v${RB_FROM}"
+    # A stop that arrived during the swap: the restored version starts on the
+    # next start instead of during the stop.
+    [ "${HELIX_SHUTTING_DOWN:-0}" != "1" ] || return 1
     return 0
 }
 
@@ -1761,7 +1766,7 @@ helix_rollback_watch() {
             if [ ! -f "$(helix_rollback_file busy)" ]; then
                 { echo units > "$(helix_rollback_file phase)" &&
                     echo 0 > "$(helix_rollback_file starts)" &&
-                    : > "$(helix_rollback_file handoff)"; } 2>/dev/null || true
+                    touch "$(helix_rollback_file handoff)"; } 2>/dev/null || true
                 rm -f "$(helix_rollback_file healthy)" 2>/dev/null || true
                 helix_rollback_stop_child "$2"
                 return 0
@@ -1841,6 +1846,7 @@ while :; do
                 if helix_rollback_restore too_many_starts; then
                     exec "${INSTALL_DIR}/bin/helix-launcher.sh" "$@"
                 fi
+                [ "${HELIX_SHUTTING_DOWN:-0}" != "1" ] || break
             else
                 RB_GUARDING=1
             fi
@@ -1849,6 +1855,7 @@ while :; do
 
     if [ "${RB_GUARDING}" = "1" ]; then
         log "Starting v${RB_TO} under the rollback guard (start ${_rb_starts}, window ${HELIX_ROLLBACK_WINDOW}s)"
+        _rb_guarded=$(cat "$(helix_rollback_file armed)" 2>/dev/null || true)
         EXIT_CODE=0
         HELIX_ROLLBACK_SUPERVISOR=$$ "${INSTALL_DIR}/bin/helix-launcher.sh" "$@" &
         RB_CHILD_PID=$!
@@ -1874,6 +1881,12 @@ while :; do
         if ! helix_rollback_marker_present; then
             # Healthy and finished; the child ran its own respawn rules.
             break
+        fi
+        if [ "$(cat "$(helix_rollback_file armed)" 2>/dev/null || true)" != "${_rb_guarded}" ]; then
+            # This guard finished healthy, and the version it passed has since
+            # installed the next update: a fresh install restart, guarded anew.
+            log "Update installed; relaunching under the rollback guard"
+            continue
         fi
         if [ ! -f "$(helix_rollback_file request)" ] && [ -f "$(helix_rollback_file stopping)" ]; then
             rm -f "$(helix_rollback_file stopping)" 2>/dev/null || true
