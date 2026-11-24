@@ -528,7 +528,7 @@ Users can dismiss a specific version via the "Ignore" button. The dismissed vers
 
 ### Automatic Updates and Rollback (prestonbrown/helixscreen#1304)
 
-Settings > Updates > Automatic Updates stores `/update/auto_mode` (`helix::update::AutoUpdateMode`: 0 Off, 1 Download and ask, 2 Install overnight; default 1). `UpdateChecker::auto_update_tick()` runs every 5 minutes and asks `decide_auto_update()` (`src/system/auto_update_schedule.cpp`) what to do. Install overnight is offered only where `helix::update::auto_rollback_supported()` is true, and that stays false everywhere until `kRollbackDeviceProven` (`include/system/update_rollback.h`) is set after the device test plan (`docs/devel/plans/2026-11-23-auto-update-rollback-device-tests.md`) passes; elsewhere the row lists Off and Download and ask, and a stored Install overnight runs as Download and ask (`effective_auto_update_mode()`).
+Settings > Updates > Automatic Updates stores `/update/auto_mode` (`helix::update::AutoUpdateMode`: 0 Off, 1 Download and ask, 2 Install overnight; default 1). `UpdateChecker::auto_update_tick()` runs every 5 minutes and asks `decide_auto_update()` (`src/system/auto_update_schedule.cpp`) what to do. Install overnight is offered only where `helix::update::auto_rollback_supported()` is true: the platform rule below accepts the install and the device test plan (§ "Rollback device test plan") has passed for its platform class (`kRollbackDeviceProven`, `include/system/update_rollback.h`). Elsewhere the row lists Off and Download and ask, and a stored Install overnight runs as Download and ask (`effective_auto_update_mode()`).
 
 Rollback, in order:
 
@@ -540,24 +540,55 @@ Rollback, in order:
 6. The watcher waits up to `HELIX_ROLLBACK_WINDOW` (600 s). Healthy: it deletes the previous tree and the marker. If that version later installs the next update in the same run, the new marker starts a fresh guard. Under `helixscreen.service` it first ends the launch (once nothing is busy) so the service restarts with refreshed units, writes `update_rollback.phase = units`, and keeps the previous tree until that restarted start is healthy too. A stop or shutdown (`update_rollback.stopping`, written by the watchdog on SIGTERM or SIGINT, or a signal to the launcher) ends the window without restoring; the guard resumes on the next start. A request, the window running out, any other exit of the guarded launch, or more than `HELIX_ROLLBACK_MAX_STARTS` (3) guarded starts: it writes `self_restart_sentinel` (so `helixscreen-update.path` does not restart the service over the renames), moves the new tree aside, moves the previous one back, writes `update_rollback.result` and execs the restored launcher.
 7. The restored version reads the result, records an `update_failure` with reason `rollback`, stores the failed version as dismissed so the scheduler never installs it again unprompted, and shows "Update Rolled Back". The notice is kept in `/update/rollback_notice` and shown on every start until it has been up for 120 s, so a restart right after the rollback does not lose it.
 
-Once device-proven, the platform rule is:
+The platform rule:
 
 | Platform | Rollback | Why |
 |---|---|---|
 | Pi, Pi 32-bit, x86 (systemd) | Yes, with the watchdog | Same-filesystem swap under `INSTALL_PARENT`, which the unit lists in `ReadWritePaths` |
 | K1 / MIPS, AD5M (Klipper Mod), CC1 | Yes, with the watchdog | SysV launcher loop; the watchdog hands the update restart back to it |
 | AD5M / AD5X under Forge-X or ZMOD | No | The mod owns the install tree and updates it in place |
-| Snapmaker U1 | Only where the watchdog ships | Without it no guard is exported and the app restarts itself outside the launcher |
+| Snapmaker U1 | No | Not yet run through the device test plan (its release ships the watchdog, so the rule excludes it by key) |
 | K2 | No | `/opt` cannot hold both versions; the old tree is staged off-partition |
 | x86 desktop, Android, ESP32 | No | They never run the in-app installer |
 
-Every platform difference lives in `rollback_support()` (`src/system/update_rollback.cpp`); the runtime facts (guard exported, watchdog parent, install suppressed, mod tree) decide the rest. An install whose layout turns out not to allow a kept copy fails the automatic install cleanly; nothing is changed.
+Every platform difference lives in `rollback_support()` and its `kNoRollbackPlatforms` table (`src/system/update_rollback.cpp`); the runtime facts (guard exported, watchdog parent, install suppressed, mod tree) decide the rest. An install whose layout turns out not to allow a kept copy fails the automatic install cleanly; nothing is changed.
 
 Known limits:
 
 - Settings the new version wrote during its window stay as it left them where `config/*` are symlinks into `printer_data/config/helixscreen/` (§ "Moonraker Integration"); the restored version reads them as any older build reads newer settings.
 - The window is wall-clock local time. On a board without a real-time clock whose time never syncs, 03:00 can be any real hour; the idle and no-job checks still apply.
 - A unit refresh that breaks `ExecStartPre` stops the service before any launcher runs, so no guard can see it.
+- A manual install (Install Update) that fails after its swap leaves the new tree live with no guard: only an automatic install keeps the previous tree and arms the guard from the swap note.
+- An install.sh that times out is stopped where it is, so the steps after that point do not run; past the swap, the guard still judges the tree that is live.
+
+#### Rollback device test plan
+
+A platform class gets Install overnight only after this plan passes on one of its devices. Passed, both on 2026-11-24 from 1.1.0-rc.4: **systemd** on a Raspberry Pi 3B (MainsailOS, Debian 13; covers Pi, Pi 32-bit and the x86 kiosk), and **SysV with the watchdog** on a Creality K1C (Simple AF, BusyBox init; covers the K1 series / MIPS, the AD5M on Klipper Mod and the CC1). Results are on #1304. A class that has not passed is excluded by key in `rollback_support()`.
+
+| Run | New version | Expected |
+|---|---|---|
+| R1 launch failure | A static ELF for the platform that exits 1 | The watchdog backs off (3, 6, 12, 24, 48 s) and exits 42 after about 95 s; restored, reason `exit_42` |
+| R2 hang | A static ELF that prints a version for `--version` and otherwise sleeps | Nothing reports healthy; restored after 600 s, reason `timeout` |
+| R3 happy path | The unmodified 99.0.0 build | Healthy at 150 s; only `<install>.old` and the `update_rollback.*` files are removed (on systemd after the restarted start is healthy too). `ls -la <install parent>` and a `config/` diff before and after show nothing else changed |
+| R4 reboot during a hang | R2's build, reboot about 60 s in | Start 2 after boot, restored at that start's timeout |
+| R5 crash loop | 99.0.0 with `if (!get_runtime_config()->crash_loop_safe_mode) std::abort();` after `helix::crash_loop_detected_and_record();` in `src/application/application.cpp` | The watchdog's crash dialog spaces the starts, so its Safe Mode start (not the app's 3-in-120 s detector) writes `.request`; restored, reason `crash_loop` |
+| R6 too many starts | R2's build; `echo 3 > $D/update_rollback.starts`, reboot | Restored before 99.0.0 starts, reason `too_many_starts` |
+| R7 broken new launcher | R3's build with `<install>/bin/helix-launcher.sh` replaced by `#!/bin/sh` + `exit 2` | Restored at once, reason `exit_2` |
+| R8 stop during the window | R3's build; stop the service (and once, reboot) about 60 s in | "Stopped during the rollback window", no rollback, the trial files and `.old` kept; the next start resumes at start 2 and passes |
+| R9 manual update | A build with `kRollbackDeviceProven` set false as a scratch edit, or on a platform the rule excludes | No Install overnight row; Install Update installs as before: no `.old`, no `update_rollback.*`, no guard line |
+
+Every run: the app logs `Automatic install: keeping the previous version` and `Rollback armed: ...`; the launcher logs `Update installed; relaunching under the rollback guard`, then the new launcher's own start lines from a child PID (on SysV this is the watchdog handing back; a respawn in place fails the class). After a rollback: "Update Rolled Back" shows (again on a restart within 120 s, not after), `/update/dismissed_version` is 99.0.0 and no install starts at the next tick, About shows the old version, and on SysV no second launcher or orphaned `helix-screen` remains.
+
+Rerunning it on a device:
+
+1. Build the platform with the ctl server compiled in and, as uncommitted edits, `kAutoUpdateIdleSeconds = 60` (`include/system/auto_update_schedule.h`) so the idle wait is short. Install it with `install.sh --local --update`; it is the previous version. `bin/helix-watchdog` must be in the install, or Install overnight is absent and that is the platform's result.
+2. `HELIX_TEST_PRINTER=<host> HELIX_TEST_USERNAME=<user> scripts/serve-local-update.sh --platform <p> --configure-remote` once (on a non-Pi platform write its two files by hand, as the script's header says). Turn on `/beta_features` too, or the app keeps checking Stable instead of the dev channel. The K1 series asks for the `mips` asset key, so serve the `release-mips` zip under that key; `--platform k1` names the wrong one.
+3. For each run, start the server, then restart the service: the app reads the manifest about 15 s after start and then once a day.
+4. R1 and R2 need real ELF stand-ins: `UpdateChecker` reads the new `bin/helix-screen`'s ELF header before install.sh runs and refuses a shell script. Repack the zip with the stand-in and serve it with `--no-build`, which re-signs the manifest.
+5. Reach the window through Settings > Language & Time > Timezone: pick a zone where local time is just before 03:00 and leave the screen untouched. With no job and no power-loss resume pending, the install starts at the first 5-minute tick inside the window.
+6. Watch `$D` (`HELIX_ROLLBACK_DIR`, `<install parent>/.helixscreen/rollback-<install name>`) and catch `update_rollback.result` as it appears; the restored app deletes it within seconds. Launcher log: `journalctl -u helixscreen -f` on systemd; on the K1 `<install>/logs/launcher.log`, but after a swap the running launcher writes into the old tree's copy, so read `/proc/<launcher pid>/fd/2`. The K1 watchdog logs to syslog (`/var/log/messages`, tmpfs, UTC).
+
+On a real printer, check `print_stats` is idle before every install, restart and reboot.
 
 ---
 

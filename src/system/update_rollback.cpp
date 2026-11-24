@@ -43,16 +43,28 @@ std::optional<bool>& device_proven_override() {
     return value;
 }
 
+// Platforms that never get rollback, by helix::platform key. This table is the
+// rollback capability's whole platform rule; generic code asks rollback_support().
+constexpr const char* kNoRollbackPlatforms[] = {
+    // /opt cannot hold both versions: the installer stages the old tree on
+    // another partition, which cannot be renamed back.
+    "k2",
+    // Desktop and Android builds never run the in-app installer; ESP32 updates by OTA.
+    "x86-desktop",
+    "android",
+    "esp32",
+    // VENDOR_OK: one row per platform key in the rollback capability's own table
+    // Ships the watchdog but has not passed the rollback device test plan.
+    "snapmaker-u1",
+};
+
 } // namespace
 
 RollbackSupport rollback_support(const RollbackFacts& facts) {
-    // Install layouts that cannot hold two versions side by side. The K2's
-    // /opt overlay is too small for both, so its installer stages the old tree
-    // on another partition, which cannot be renamed back. Desktop and Android
-    // builds never run the in-app installer; ESP32 updates by OTA.
-    if (facts.platform_key == "k2" || facts.platform_key == "x86-desktop" ||
-        facts.platform_key == "android" || facts.platform_key == "esp32") {
-        return RollbackSupport::Platform;
+    for (const char* key : kNoRollbackPlatforms) {
+        if (facts.platform_key == key) {
+            return RollbackSupport::Platform;
+        }
     }
     if (facts.install_suppressed) {
         return RollbackSupport::InstallSuppressed;

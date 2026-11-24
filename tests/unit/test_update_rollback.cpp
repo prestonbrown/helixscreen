@@ -82,12 +82,12 @@ struct RollbackDirFixture : public LVGLTestFixture {
 TEST_CASE("Rollback support: every fact must hold, and some platforms never can",
           "[auto_update][rollback]") {
     CHECK(rollback_support(supported_facts()) == RollbackSupport::Supported);
-    for (const char* key : {"pi", "pi32", "k1", "mips", "ad5m", "cc1", "snapmaker-u1", "x86"}) {
+    for (const char* key : {"pi", "pi32", "k1", "mips", "ad5m", "cc1", "x86"}) {
         auto f = supported_facts();
         f.platform_key = key;
         CHECK(rollback_support(f) == RollbackSupport::Supported);
     }
-    for (const char* key : {"k2", "x86-desktop", "android", "esp32"}) {
+    for (const char* key : {"k2", "x86-desktop", "android", "esp32", "snapmaker-u1"}) {
         auto f = supported_facts();
         f.platform_key = key;
         CHECK(rollback_support(f) == RollbackSupport::Platform);
@@ -110,17 +110,8 @@ TEST_CASE("Rollback support: every fact must hold, and some platforms never can"
     CHECK(rollback_support(f) == RollbackSupport::ModPayload);
 }
 
-TEST_CASE("Rollback support: once device-proven, the capability follows the rule over this "
-          "process's facts",
+TEST_CASE("Rollback support: the capability follows the rule over this process's facts",
           "[auto_update][rollback]") {
-    struct ProvenSeam {
-        ProvenSeam() {
-            set_rollback_device_proven_for_test(true);
-        }
-        ~ProvenSeam() {
-            set_rollback_device_proven_for_test(std::nullopt);
-        }
-    } proven;
     {
         helix::ScopedEnv dir(kRollbackDirEnv, "/tmp/helix-rollback-guard");
         helix::ScopedEnv supervised("HELIX_SUPERVISED", "1");
@@ -140,8 +131,16 @@ TEST_CASE("Rollback support: once device-proven, the capability follows the rule
     CHECK_FALSE(auto_rollback_supported());
 }
 
-TEST_CASE("Rollback support: nothing is offered until the rollback path is device-proven",
+TEST_CASE("Rollback support: nothing is offered while the rollback path is not device-proven",
           "[auto_update][rollback]") {
+    struct UnprovenSeam {
+        UnprovenSeam() {
+            set_rollback_device_proven_for_test(false);
+        }
+        ~UnprovenSeam() {
+            set_rollback_device_proven_for_test(std::nullopt);
+        }
+    } unproven;
     helix::ScopedEnv dir(kRollbackDirEnv, "/tmp/helix-rollback-guard");
     helix::ScopedEnv supervised("HELIX_SUPERVISED", "1");
     CHECK_FALSE(auto_rollback_supported());

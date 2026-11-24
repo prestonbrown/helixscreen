@@ -68,12 +68,12 @@ RollbackFacts current_rollback_facts();
 bool auto_rollback_supported();
 
 /// Has the rollback path (install.sh keeping the previous tree, the launcher's
-/// guard, the watchdog hand-back) passed the device test plan in
-/// docs/devel/plans/2026-11-23-auto-update-rollback-device-tests.md? Until it
-/// has, auto_rollback_supported() is false everywhere and Install overnight
-/// stays hidden. It becomes true per platform, inside rollback_support()'s
-/// platform rule, as each platform class passes the plan.
-inline constexpr bool kRollbackDeviceProven = false;
+/// guard, the watchdog hand-back) passed the device test plan (UPDATE_SYSTEM.md
+/// § "Rollback device test plan")? It has for the systemd and the SysV-with-
+/// watchdog classes; a platform outside them is excluded in rollback_support().
+/// While false, auto_rollback_supported() is false everywhere and Install
+/// overnight stays hidden.
+inline constexpr bool kRollbackDeviceProven = true;
 
 /// Replaces auto_rollback_supported()'s answer for tests; std::nullopt restores it.
 void set_auto_rollback_supported_for_test(std::optional<bool> value);
