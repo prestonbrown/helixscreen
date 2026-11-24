@@ -12,6 +12,7 @@
 #include "ui_print_tune_overlay.h"
 #include "ui_toast_manager.h"
 
+#include "active_material_provider.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "display_numbering.h"
@@ -24,6 +25,7 @@
 #include "print_start_analyzer.h"
 #include "printer_state.h"
 #include "spoolman_types.h"
+#include "text_io.h"
 #include "tool_state.h"
 #include "tune_controller.h"
 
@@ -40,6 +42,53 @@
 namespace helix::ui {
 
 namespace {
+
+/// The loaded spool's material and the nozzle and bed temperatures its lane or
+/// spool record gives it, when a spool is loaded and names a material.
+struct LoadedMaterial {
+    std::string material;
+    int nozzle = 0;
+    int bed = 0;
+};
+std::optional<LoadedMaterial> loaded_material() {
+    const auto active = helix::get_active_material();
+    if (!active || active->material_name.empty()) {
+        return std::nullopt;
+    }
+    const int nozzle = active->material_info.nozzle_recommended();
+    if (nozzle <= 0) {
+        return std::nullopt;
+    }
+    return LoadedMaterial{active->material_name, nozzle, active->material_info.bed_temp};
+}
+
+/// The material chip that names the loaded spool's material, or -1.
+int loaded_chip(const std::optional<LoadedMaterial>& loaded) {
+    if (!loaded) {
+        return -1;
+    }
+    for (int i = 0; i < helix::presets::kPresetCount; ++i) {
+        if (helix::text_io::equals_ignore_case(helix::presets::name(i), loaded->material)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/// A material chip's print temperatures: the loaded spool's when the chip names
+/// its material, since the spool's own record outranks a material default;
+/// otherwise the preset's.
+std::optional<helix::presets::SlotTemps> chip_temps(int slot,
+                                                    const std::optional<LoadedMaterial>& loaded) {
+    auto temps = helix::presets::slot_temps(slot);
+    if (temps && slot == loaded_chip(loaded)) {
+        temps->nozzle = loaded->nozzle;
+        if (loaded->bed > 0) {
+            temps->bed = loaded->bed;
+        }
+    }
+    return temps;
+}
 
 /// Ramp endpoint step on the setup screen, per extruder kind.
 float ramp_step(helix::pa::ExtruderKind kind) {
@@ -171,8 +220,9 @@ void PaTuningOverlay::register_callbacks() {
                  return;
              }
              const int slot = user_int(e);
-             if (const auto temps = helix::presets::slot_temps(slot)) {
+             if (const auto temps = chip_temps(slot, loaded_material())) {
                  self.selected_preset_ = slot;
+                 self.preset_picked_ = true;
                  self.nozzle_temp_ = temps->nozzle;
                  self.bed_temp_ = temps->bed;
              }
@@ -232,7 +282,12 @@ void PaTuningOverlay::on_activate() {
             tools.get_active_tool_subject(), this,
             [](PaTuningOverlay* self, int) { self->heads_.refresh(); },
             tools.get_subjects_lifetime());
-        if (const auto temps = helix::presets::slot_temps(selected_preset_)) {
+        // The loaded spool picks the material until the user taps another chip.
+        const auto loaded = loaded_material();
+        if (const int chip = loaded_chip(loaded); chip >= 0 && !preset_picked_) {
+            selected_preset_ = chip;
+        }
+        if (const auto temps = chip_temps(selected_preset_, loaded)) {
             nozzle_temp_ = temps->nozzle;
             bed_temp_ = temps->bed;
         }
@@ -246,6 +301,7 @@ void PaTuningOverlay::on_activate() {
 }
 
 void PaTuningOverlay::cleanup() {
+    preset_picked_ = false;
     active_tool_observer_.reset();
     stop_observing();
     OverlayBase::cleanup();
@@ -300,8 +356,9 @@ PaTuningOverlay::ChosenHead PaTuningOverlay::chosen_head() const {
 }
 
 void PaTuningOverlay::refresh_presets() {
+    const auto loaded = loaded_material();
     for (int i = 0; i < kPresetSlots; ++i) {
-        const auto temps = helix::presets::slot_temps(i);
+        const auto temps = chip_temps(i, loaded);
         lv_subject_copy_string(&preset_temp_[i],
                                temps ? fmt::format("{}° / {}°", temps->nozzle, temps->bed).c_str()
                                      : "");
