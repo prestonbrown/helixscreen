@@ -95,16 +95,17 @@ struct MaterialInfo {
 
     bool user_defined = false; ///< Defined by the user overlay, no shipped row
 
-    /// A stated print temperature inside the nozzle range (a catalog product's
-    /// own), 0 = none: the material's rows state only a range.
-    int nozzle_stated = 0;
+    /// The loaded spool's own print temperature (the picked product's, else
+    /// its lane's), resolved by build_active_material(); 0 = none, and the
+    /// material's rows never carry one. The range above stays the limits.
+    int print_temp = 0;
 
     /**
-     * @brief Recommended nozzle temperature: the stated one when it lies in
-     *        the range, else the midpoint of the range (temp_for_window()).
+     * @brief Recommended nozzle temperature: print_temp when one is known,
+     *        else the midpoint of the range
      */
     [[nodiscard]] constexpr int nozzle_recommended() const {
-        return temp_for_window(nozzle_min, nozzle_max, nozzle_stated);
+        return print_temp > 0 ? print_temp : temp_for_window(nozzle_min, nozzle_max);
     }
 
     /**
