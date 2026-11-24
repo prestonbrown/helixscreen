@@ -121,6 +121,12 @@ std::string rollback_dir() {
     return dir != nullptr ? std::string(dir) : std::string();
 }
 
+bool rollback_guard_armed() {
+    const std::string dir = rollback_dir();
+    std::error_code ec;
+    return !dir.empty() && std::filesystem::exists(path_in(dir, kRollbackArmedFile), ec);
+}
+
 bool keep_previous_for_install(bool automatic, bool rollback_supported, bool guard_listening) {
     return automatic && rollback_supported && guard_listening;
 }

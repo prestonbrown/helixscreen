@@ -4044,8 +4044,10 @@ helix::update::AutoUpdateDecision UpdateChecker::auto_update_tick(const AutoUpda
             version = cached_info_->version;
         }
     }
+    // A version still on trial under the launcher's rollback guard settles first.
     in.update_available = !version.empty() && !is_version_dismissed(version) &&
-                          version != auto_install_attempted_version_ && !download_in_flight();
+                          version != auto_install_attempted_version_ && !download_in_flight() &&
+                          !helix::update::rollback_guard_armed();
 
     if (now.local_day == auto_skip_day_) {
         return AutoUpdateDecision::Wait;

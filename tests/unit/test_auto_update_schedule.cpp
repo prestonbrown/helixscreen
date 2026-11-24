@@ -16,10 +16,13 @@
 #include "system/update_rollback.h"
 #include "system_settings_manager.h"
 #include "test_helpers/printer_state_test_access.h"
+#include "test_helpers/scoped_env.h"
 #include "test_helpers/update_checker_test_access.h"
 
 #include <atomic>
 #include <chrono>
+#include <cstdlib>
+#include <filesystem>
 #include <thread>
 
 #include "../catch_amalgamated.hpp"
@@ -245,6 +248,25 @@ TEST_CASE_METHOD(AutoUpdateTickFixture,
     CHECK(checker.auto_update_tick(at(kThreeAm + 5, kAutoUpdateIdleSeconds, kToday + 1)) ==
           AutoUpdateDecision::InstallNow);
     CHECK(installs == 1);
+}
+
+TEST_CASE_METHOD(AutoUpdateTickFixture,
+                 "Auto-update tick: nothing installs while the last update is on trial",
+                 "[auto_update]") {
+    std::string tmpl =
+        (std::filesystem::temp_directory_path() / "helix-rollback-tick-XXXXXX").string();
+    REQUIRE(mkdtemp(tmpl.data()) != nullptr);
+    helix::ScopedEnv dir(helix::update::kRollbackDirEnv, tmpl.c_str());
+    REQUIRE(helix::update::write_rollback_file(tmpl, helix::update::kRollbackArmedFile, "x=1\n"));
+
+    CHECK(checker.auto_update_tick(at(kThreeAm + 5)) != AutoUpdateDecision::InstallNow);
+    CHECK(installs == 0);
+
+    helix::update::remove_rollback_file(tmpl, helix::update::kRollbackArmedFile);
+    CHECK(checker.auto_update_tick(at(kThreeAm + 10)) == AutoUpdateDecision::InstallNow);
+    CHECK(installs == 1);
+    std::error_code ec;
+    std::filesystem::remove_all(tmpl, ec);
 }
 
 TEST_CASE("Auto-update: only an automatic install keeps the previous version",

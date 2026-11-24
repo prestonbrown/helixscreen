@@ -82,6 +82,10 @@ void set_rollback_device_proven_for_test(std::optional<bool> value);
 /// The launcher's rollback directory, or empty when no guard is listening.
 std::string rollback_dir();
 
+/// Is a rollback armed right now (the previous version installed is still on
+/// trial)? The scheduler installs nothing automatically until it is settled.
+bool rollback_guard_armed();
+
 /// Does this install keep the previous version for the guard? Only an
 /// automatic install does, and only where rollback is supported and a guard
 /// is listening.
