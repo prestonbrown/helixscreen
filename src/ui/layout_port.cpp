@@ -55,9 +55,11 @@ std::map<int, int> map_boundaries(const std::vector<LegacyPlacement>& saved, boo
     const int cell = GridLayout::TRACKS_PER_CELL;
 
     // Every boundary any positioned widget uses, plus both grid edges.
+    // A disabled widget's edges are left out: it held no space on the old grid,
+    // so its stale coordinates must not move an edge an enabled widget sits on.
     std::set<int> bounds = {0, old_n};
     for (const auto& p : saved) {
-        if (p.col < 0 || p.row < 0)
+        if (p.col < 0 || p.row < 0 || !p.enabled)
             continue;
         bounds.insert(column_axis ? p.col : p.row);
         bounds.insert(column_axis ? p.col + p.colspan : p.row + p.rowspan);
@@ -70,7 +72,7 @@ std::map<int, int> map_boundaries(const std::vector<LegacyPlacement>& saved, boo
     auto half_ok = [&](int b) {
         bool touched = false;
         for (const auto& p : saved) {
-            if (p.col < 0 || p.row < 0)
+            if (p.col < 0 || p.row < 0 || !p.enabled)
                 continue;
             const int lo = column_axis ? p.col : p.row;
             const int hi = lo + (column_axis ? p.colspan : p.rowspan);
@@ -196,7 +198,19 @@ std::vector<PortedPlacement> port_legacy_layout(const std::vector<LegacyPlacemen
         }
     };
 
-    for (size_t i = 0; i < saved.size(); ++i) {
+    // Enabled widgets first: the live grid never counted a disabled one, so a
+    // disabled widget is seated only in space every enabled widget left free.
+    std::vector<size_t> order;
+    order.reserve(saved.size());
+    for (bool enabled_pass : {true, false}) {
+        for (size_t i = 0; i < saved.size(); ++i) {
+            if (saved[i].enabled == enabled_pass) {
+                order.push_back(i);
+            }
+        }
+    }
+
+    for (size_t i : order) {
         const auto& in = saved[i];
         if (in.col < 0 || in.row < 0) {
             continue; // never had a position; auto-placement already owns it

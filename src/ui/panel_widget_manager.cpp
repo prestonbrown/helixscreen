@@ -127,7 +127,7 @@ void port_legacy_page_layouts(PanelWidgetConfig& widget_config, const std::strin
         std::vector<LegacyPlacement> saved;
         saved.reserve(entries.size());
         for (const auto& e : entries) {
-            saved.push_back({e.id, e.col, e.row, e.colspan, e.rowspan});
+            saved.push_back({e.id, e.col, e.row, e.colspan, e.rowspan, e.enabled});
             if (e.has_grid_position()) {
                 ++positioned;
             }
