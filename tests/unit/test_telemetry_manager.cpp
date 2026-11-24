@@ -35,6 +35,7 @@
 #include "moonraker_client_mock.h"
 #include "platform_table.h"
 #include "printer_discovery.h"
+#include "printer_event_journal.h"
 #include "printer_state.h"
 #include "runtime_config.h"
 #include "screensaver_registry.h"
@@ -732,6 +733,16 @@ TEST_CASE_METHOD(TelemetryTestFixture,
         events = events_named(tm, "filament_op");
         REQUIRE(events.size() == 2);
         CHECK(events[1]["outcome"] == "aborted");
+
+        // A failure is classed by the fault's cause, not the operation's line.
+        ams_state.set_action(helix::AmsAction::LOADING);
+        state.print_state().set_last_gcode_error("Filament jam detected in lane 1",
+                                                 helix::wall_now_s());
+        ams_state.set_action(helix::AmsAction::ERROR);
+        events = events_named(tm, "filament_op");
+        REQUIRE(events.size() == 3);
+        CHECK(events[2]["outcome"] == "failed");
+        CHECK(events[2]["error_class"] == "jam");
     }
     PrinterStateTestAccess::reset(state);
 }
