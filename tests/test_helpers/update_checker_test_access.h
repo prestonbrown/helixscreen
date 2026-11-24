@@ -101,6 +101,11 @@ class UpdateCheckerTestAccess {
         c.restart_action_ = std::move(action);
     }
 
+    /// Mark an install as running (or not) without running install.sh.
+    static void set_installing(UpdateChecker& c, bool installing) {
+        c.installing_ = installing;
+    }
+
     /// True while a recheck of a fresh self-restart sentinel is scheduled.
     static bool sentinel_cleanup_pending(const UpdateChecker& c) {
         return c.sentinel_cleanup_timer_ != nullptr;
