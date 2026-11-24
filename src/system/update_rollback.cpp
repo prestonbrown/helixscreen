@@ -3,6 +3,7 @@
 #include "system/update_rollback.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "lvgl.h"
 #include "platform_info.h"
 #include "platform_table.h"
@@ -342,6 +343,14 @@ void on_ui_ready(bool safe_mode) {
     lv_timer_set_repeat_count(timer, 1);
 
     update_busy_file(nullptr);
+    // A print starting is seen at once; the timer catches a power-loss resume
+    // and deletes itself once the rollback is disarmed.
+    auto& ps = get_printer_state();
+    static int s_anchor = 0;
+    static ObserverGuard s_lifecycle_observer;
+    s_lifecycle_observer = helix::ui::observe<int>(
+        ps.print_state().get_print_lifecycle_subject(), &s_anchor,
+        [](int*, int) { refresh_rollback_busy_file(); }, ps.get_subjects_lifetime());
     // TIMER_DTOR_OK: no owner, captures nothing, deletes itself once disarmed
     lv_timer_create([](lv_timer_t* t) { update_busy_file(t); }, kRollbackBusyPollMs, nullptr);
 }

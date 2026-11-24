@@ -106,7 +106,6 @@ class UpdateCheckerTestAccess {
     /// sequence again.
     static void reset_restart_state(UpdateChecker& c) {
         c.restart_initiated_.store(false);
-        c.restart_deferred_.store(false);
     }
 
     /// Run the install step on @p tarball_path. Outside test mode this runs
@@ -116,19 +115,16 @@ class UpdateCheckerTestAccess {
         c.do_install(tarball_path);
     }
 
-    /// The restart an automatic install makes; it waits for a job to end.
-    static void restart_when_idle(UpdateChecker& c, const std::string& install_root) {
-        c.restart_when_idle(install_root);
+    /// The download worker's question to the main thread before an automatic
+    /// install runs install.sh.
+    static bool machine_busy_from_worker(UpdateChecker& c) {
+        return c.machine_busy_from_worker();
     }
 
     /// Forget a night the scheduler skipped and a version it already tried.
     static void reset_auto_schedule(UpdateChecker& c) {
         c.auto_skip_day_ = -1;
         c.auto_install_attempted_version_.clear();
-    }
-
-    static bool restart_deferred(const UpdateChecker& c) {
-        return c.restart_deferred_.load();
     }
 
     /// Drive the worker-thread half of the post-install sequence directly.

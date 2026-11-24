@@ -18,6 +18,10 @@
 #include "test_helpers/printer_state_test_access.h"
 #include "test_helpers/update_checker_test_access.h"
 
+#include <atomic>
+#include <chrono>
+#include <thread>
+
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
 
@@ -252,29 +256,33 @@ TEST_CASE("Auto-update: only an automatic install keeps the previous version",
     CHECK_FALSE(keep_previous_for_install(true, true, false));
 }
 
-TEST_CASE_METHOD(AutoUpdateTickFixture,
-                 "Auto-update restart: waits while a job holds the machine, then restarts",
-                 "[auto_update]") {
-    int restarts = 0;
-    UpdateCheckerTestAccess::reset_restart_state(checker);
-    UpdateCheckerTestAccess::set_restart_action(checker, [&restarts] { ++restarts; });
+TEST_CASE_METHOD(
+    AutoUpdateTickFixture,
+    "Auto-update install: the worker asks the main thread whether a job holds the machine",
+    "[auto_update]") {
+    // Asked from the download worker right before install.sh, which swaps the
+    // trees: a print started during the download keeps the old version.
+    auto ask = [&] {
+        std::atomic<bool> done{false};
+        bool busy = false;
+        std::thread worker([&] {
+            busy = UpdateCheckerTestAccess::machine_busy_from_worker(checker);
+            done = true;
+        });
+        while (!done.load()) {
+            helix::ui::UpdateQueue::instance().drain();
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        worker.join();
+        return busy;
+    };
+    CHECK_FALSE(ask());
     drive_lifecycle("printing");
-
-    UpdateCheckerTestAccess::restart_when_idle(checker, "/opt/helixscreen");
-    CHECK(restarts == 0);
-    CHECK(UpdateCheckerTestAccess::restart_deferred(checker));
-    UpdateCheckerTestAccess::restart_when_idle(checker, "/opt/helixscreen");
-    CHECK(restarts == 0);
-
+    CHECK(ask());
     drive_lifecycle("standby");
-    REQUIRE_FALSE(job_holds_machine(printer_state.print_state().get_print_lifecycle()));
-    REQUIRE_FALSE(printer_state.print_state().is_plr_snapshot_valid());
-    // What the 60 s retry timer runs.
-    UpdateCheckerTestAccess::restart_when_idle(checker, "/opt/helixscreen");
-    CHECK(restarts == 1);
-
-    UpdateCheckerTestAccess::set_restart_action(checker, nullptr);
-    UpdateCheckerTestAccess::reset_restart_state(checker);
+    CHECK_FALSE(ask());
+    lv_subject_set_int(printer_state.print_state().get_plr_snapshot_valid_subject(), 1);
+    CHECK(ask());
 }
 
 TEST_CASE_METHOD(AutoUpdateTickFixture, "Auto-update tick: a pending power-loss resume waits",

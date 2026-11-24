@@ -35,7 +35,7 @@
 Keep these running on the device before the install starts:
 
 ```sh
-D=<install parent>/.helixscreen      # HELIX_ROLLBACK_DIR: /home/pi/.helixscreen on a Pi, /usr/data/.helixscreen on a K1
+D=<install parent>/.helixscreen/rollback-helixscreen   # HELIX_ROLLBACK_DIR: /home/pi/.helixscreen/rollback-helixscreen on a Pi
 while :; do date +%T; ls -la "$D" | grep update_rollback; ls -d <install>* ; sleep 5; done
 # The restored app deletes .result within seconds of starting, so catch it as it appears:
 while :; do [ -f "$D/update_rollback.result" ] && { date +%T; cat "$D/update_rollback.result"; break; }; sleep 0.2; done
@@ -65,7 +65,9 @@ Launcher log: `journalctl -u helixscreen -f` on systemd. On SysV, follow whereve
 - On systemd only: the service restarts once more right after that, for the unit refresh. It must come back on 99.0.0 with no rollback.
 - Gone: only `<install>.old` and the `update_rollback.*` files. Still present: the install, its `config/` (diff it against a copy taken before the run), `<install parent>/.helixscreen/` and its other files, `printer_data`, and any other `<install>.old.<n>` the user had.
 - Run `ls -la <install parent>` before and after: no other entry appears or disappears.
-- Start a print from the slicer between the install and the restart (or between the healthy report and the systemd unit-refresh restart): the restart waits until the print ends (`restart waits for the job to end`, or the watcher's busy hold), and the print is never interrupted by a UI restart.
+- Start a print from the slicer while 99.0.0 downloads: the app log says `Automatic install of 99.0.0 skipped: a job holds the machine`, nothing is swapped, and the install happens the next night.
+- Start a print just before the healthy report on systemd: the unit-refresh restart waits until it ends (the `.busy` file appears within a second of the print starting).
+- Leave R3's 99.0.0 running into the next night with a 99.0.1 served: it installs under a fresh guard (`Starting v99.0.1 under the rollback guard`), not a rollback.
 
 ## Platform classes
 

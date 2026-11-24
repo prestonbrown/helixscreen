@@ -956,9 +956,6 @@ class UpdateChecker {
     /// Latched by perform_update_restart() so the marshalled LVGL-thread call
     /// and the worker's backstop cannot both fork+exec.
     std::atomic<bool> restart_initiated_{false};
-    /// An automatic install's restart is waiting for a job to finish; the
-    /// worker's restart backstop stands down.
-    std::atomic<bool> restart_deferred_{false};
     /// How long each terminal frame is held so the LVGL thread can paint it.
     /// update_download_modal.xml documents 2s on Complete, then 1s on
     /// Restarting. Members rather than constants so tests need not wait 3s.
@@ -992,8 +989,7 @@ class UpdateChecker {
      * Split out of do_install() so the ordering is unit-testable — do_install()
      * itself runs install.sh and cannot be.
      */
-    void finish_install_and_restart(const std::string& install_root, const std::string& version,
-                                    InstallOrigin origin = InstallOrigin::User);
+    void finish_install_and_restart(const std::string& install_root, const std::string& version);
 
     /**
      * @brief Restart into the newly installed binary. Does not return.
@@ -1022,12 +1018,6 @@ class UpdateChecker {
     /// Does a job (or a pending power-loss resume) hold the machine? Asked on
     /// the main thread from the download worker; false only on a clear answer.
     bool machine_busy_from_worker();
-
-    /// An automatic install's restart waits while a job holds the machine.
-    lv_timer_t* restart_wait_timer_{nullptr};
-    std::string restart_pending_root_;
-    /// Restart once nothing holds the machine; @p install_root as for perform_update_restart().
-    void restart_when_idle(const std::string& install_root);
 
     // Auto-check timer
     lv_timer_t* auto_check_timer_{nullptr};

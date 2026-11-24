@@ -2592,11 +2592,11 @@ void UpdateChecker::do_install(const std::string& tarball_path, InstallOrigin or
         std::ofstream ofs_legacy("/tmp/helixscreen_self_restart");
     }
 
-    finish_install_and_restart(install_root, version, origin);
+    finish_install_and_restart(install_root, version);
 }
 
 void UpdateChecker::finish_install_and_restart(const std::string& install_root,
-                                               const std::string& version, InstallOrigin origin) {
+                                               const std::string& version) {
     // Runs on the download worker.
     //
     // report_download_status() only QUEUES its subject writes
@@ -2616,13 +2616,8 @@ void UpdateChecker::finish_install_and_restart(const std::string& install_root,
     report_download_status(DownloadStatus::Restarting, 100, "");
     std::this_thread::sleep_for(std::chrono::milliseconds(restart_hold_ms_));
 
-    const bool automatic = origin == InstallOrigin::Automatic;
-    helix::ui::queue_update("UpdateChecker::restart_after_install", [install_root, automatic]() {
-        if (automatic) {
-            UpdateChecker::instance().restart_when_idle(install_root);
-        } else {
-            UpdateChecker::instance().perform_update_restart(install_root);
-        }
+    helix::ui::queue_update("UpdateChecker::restart_after_install", [install_root]() {
+        UpdateChecker::instance().perform_update_restart(install_root);
     });
 
     // Backstop: nothing may leave a half-installed process running just because
@@ -2631,41 +2626,10 @@ void UpdateChecker::finish_install_and_restart(const std::string& install_root,
     // perform_update_restart() is once-only, so at most one of the two forks.
     const auto deadline =
         std::chrono::steady_clock::now() + std::chrono::milliseconds(kRestartMarshalTimeoutMs);
-    while (!restart_initiated_.load() && !restart_deferred_.load() &&
-           std::chrono::steady_clock::now() < deadline) {
+    while (!restart_initiated_.load() && std::chrono::steady_clock::now() < deadline) {
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
-    if (restart_deferred_.load()) {
-        return;
-    }
     perform_update_restart(install_root);
-}
-
-void UpdateChecker::restart_when_idle(const std::string& install_root) {
-    // Main thread. The restart that would take the screen away from a print
-    // started after the install waits for it to finish.
-    auto& print_state = get_printer_state().print_state();
-    if (!job_holds_machine(print_state.get_print_lifecycle()) &&
-        !print_state.is_plr_snapshot_valid()) {
-        if (restart_wait_timer_ && lv_is_initialized()) {
-            helix::ui::lv_timer_cancel_safe(restart_wait_timer_);
-        }
-        restart_wait_timer_ = nullptr;
-        perform_update_restart(install_root);
-        return;
-    }
-    if (restart_wait_timer_ != nullptr) {
-        return;
-    }
-    spdlog::info("[UpdateChecker] Automatic update installed; restart waits for the job to end");
-    restart_deferred_ = true;
-    restart_pending_root_ = install_root;
-    restart_wait_timer_ = lv_timer_create(
-        [](lv_timer_t*) {
-            auto& self = UpdateChecker::instance();
-            self.restart_when_idle(self.restart_pending_root_);
-        },
-        60 * 1000, nullptr);
 }
 
 void UpdateChecker::perform_update_restart(const std::string& install_root) {
@@ -4044,10 +4008,6 @@ void UpdateChecker::cancel_auto_check_timer() {
         helix::ui::lv_timer_cancel_safe(auto_install_timer_);
     }
     auto_install_timer_ = nullptr;
-    if (restart_wait_timer_ && lv_is_initialized()) {
-        helix::ui::lv_timer_cancel_safe(restart_wait_timer_);
-    }
-    restart_wait_timer_ = nullptr;
 }
 
 UpdateChecker::AutoUpdateNow UpdateChecker::auto_update_now_from_system() {

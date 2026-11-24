@@ -258,11 +258,13 @@ TEST_CASE_METHOD(RollbackDirFixture,
     drive("printing");
     on_ui_ready(/*safe_mode=*/false);
     CHECK(has(kRollbackBusyFile));
+    // The lifecycle observer follows without waiting for the 30 s timer.
     drive("standby");
     REQUIRE_FALSE(job_holds_machine(printer_state.print_state().get_print_lifecycle()));
     REQUIRE_FALSE(printer_state.print_state().is_plr_snapshot_valid());
-    refresh_rollback_busy_file(); // what the 30 s timer runs
     CHECK_FALSE(has(kRollbackBusyFile));
+    drive("printing");
+    CHECK(has(kRollbackBusyFile));
 
     PrinterStateTestAccess::reset(printer_state);
     printer_state.init_subjects(false);
