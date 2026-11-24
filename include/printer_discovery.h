@@ -260,10 +260,12 @@ class PrinterDiscovery {
     /// `zmod_color` and without the afclite shim's own object, with lanes
     /// `lane1..N` where lane N is physical slot N (the AD5X's IFS port, the
     /// Creator 5's head). Z-Mod's lane picker publishing AFC-shaped objects,
-    /// not the AFC project. A plain fact about the object list; backend
-    /// selection decides what it means.
+    /// not the AFC project: the emulation registers no `AFC_extruder` and no
+    /// `AFC_hub`, which the AFC add-on (`zmod_afc_full`) always does. A plain
+    /// fact about the object list; backend selection decides what it means.
     [[nodiscard]] bool has_zmod_afc() const {
-        return has_afc_object_ && has_zmod_color_ && !has_zmod_afclite_;
+        return has_afc_object_ && has_zmod_color_ && !has_zmod_afclite_ &&
+               afc_extruder_names_.empty() && afc_hub_names_.empty();
     }
 
     /// The [medusahc] object exists. A plain fact about the object list; what
