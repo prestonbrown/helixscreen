@@ -188,6 +188,8 @@ class QidiPlrOfferFixture : public LVGLTestFixture {
             json{{"print_stats", {{"state", "standby"}}},
                  {"save_variables", {{"variables", {{"was_interrupted", true}}}}}});
         ps.print_state().set_print_start_state(PrintStartPhase::IDLE, "", 0);
+        // Discovery's plugin check answered: no plugin.
+        ps.plugin_status_state().set_features({});
         settle();
         REQUIRE(ps.print_state().is_plr_interrupted_flag());
     }
@@ -212,6 +214,28 @@ TEST_CASE_METHOD(QidiPlrOfferFixture, "Qidi PLR offers recovery when the printer
     PlrOfferController controller;
     settle();
 
+    CHECK(PlrOfferControllerTestAccess::prompted(controller));
+}
+
+TEST_CASE_METHOD(QidiPlrOfferFixture, "Qidi PLR waits for discovery's plugin check",
+                 "[plr][qidi]") {
+    // The flag arrives with the first status, seconds before the plugin check
+    // answers; a prompt shown then keeps the legacy resume even when the plugin
+    // turns out to serve this printer.
+    auto& ps = get_printer_state();
+    PrinterStateTestAccess::reset(ps);
+    ps.init_subjects(false);
+    lv_subject_set_int(ps.print_state().get_plr_resume_macro_subject(), 1);
+    ps.update_from_status(json{{"print_stats", {{"state", "standby"}}},
+                               {"save_variables", {{"variables", {{"was_interrupted", true}}}}}});
+    settle();
+
+    PlrOfferController controller;
+    settle();
+    REQUIRE_FALSE(PlrOfferControllerTestAccess::prompted(controller));
+
+    ps.plugin_status_state().set_features({});
+    settle();
     CHECK(PlrOfferControllerTestAccess::prompted(controller));
 }
 
@@ -291,6 +315,7 @@ TEST_CASE_METHOD(QidiPlrOfferFixture, "Qidi PLR: a disconnect reset lets a recon
                        static_cast<int>(ConnectionState::CONNECTED));
     lv_subject_set_int(ps.print_state().get_plr_resume_macro_subject(), 1);
     ps.update_from_status(json{{"save_variables", {{"variables", {{"was_interrupted", true}}}}}});
+    ps.plugin_status_state().set_features({});
     settle();
 
     CHECK(PlrOfferControllerTestAccess::prompted(controller));
@@ -409,7 +434,7 @@ TEST_CASE_METHOD(PluginPlrOfferFixture,
 }
 
 TEST_CASE_METHOD(PluginPlrOfferFixture,
-                 "Plugin PLR: the legacy QIDI macros offer until the plugin answers",
+                 "Plugin PLR: the legacy QIDI macros wait for the plugin's answer",
                  "[plr][generic][qidi]") {
     auto& ps = get_printer_state();
     // The firmware layout both serve: the legacy macros and their flag.
@@ -419,8 +444,25 @@ TEST_CASE_METHOD(PluginPlrOfferFixture,
 
     PlrOfferController controller;
     settle();
-    // Before the plugin answers, the legacy backend is all there is.
-    REQUIRE(PlrOfferControllerTestAccess::prompted(controller));
+    REQUIRE_FALSE(PlrOfferControllerTestAccess::prompted(controller));
+
+    SECTION("the plugin's print_state adapter offers, and its guided resume wins") {
+        PlrOfferControllerTestAccess::plugin_status_arrived(
+            controller, offering(helix::PlrPluginBackend::QidiPrintState));
+        settle();
+        REQUIRE(PlrOfferControllerTestAccess::prompted(controller));
+        CHECK(PlrOfferControllerTestAccess::last_backend(controller) ==
+              helix::PlrBackendType::GENERIC);
+    }
+    SECTION("the plugin serves no recovery here, so the legacy macros offer") {
+        auto status = offering(helix::PlrPluginBackend::None);
+        status.offer_available = false;
+        PlrOfferControllerTestAccess::plugin_status_arrived(controller, status);
+        settle();
+        REQUIRE(PlrOfferControllerTestAccess::prompted(controller));
+        CHECK(PlrOfferControllerTestAccess::last_backend(controller) ==
+              helix::PlrBackendType::QIDI);
+    }
 }
 
 TEST_CASE_METHOD(PluginPlrOfferFixture,
@@ -529,6 +571,35 @@ TEST_CASE_METHOD(PluginPlrOfferFixture, "Plugin PLR asks the plugin once Klipper
     set_moonraker_api(nullptr);
     CHECK(before == 0);
     CHECK(after == 1);
+}
+
+TEST_CASE_METHOD(PluginPlrOfferFixture,
+                 "Plugin PLR: a failed status request lets the legacy QIDI macros offer",
+                 "[plr][generic][qidi]") {
+    auto& ps = get_printer_state();
+    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
+    MoonrakerAPIMock api{client, ps};
+    set_moonraker_api(&api);
+    lv_subject_set_int(ps.print_state().get_plr_resume_macro_subject(), 1);
+    ps.update_from_status(json{{"save_variables", {{"variables", {{"was_interrupted", true}}}}}});
+    client.fail_next(helix::kPlrStatusRpc);
+    // The profile write re-reads the features, from a mock with no plugin;
+    // failing it keeps the plr feature Ready for this case.
+    client.fail_next("server.database.post_item");
+    set_link(ps, ConnectionState::CONNECTED, helix::KlippyState::READY);
+    PlrOfferController controller;
+    settle();
+    const int asked = client.call_count(helix::kPlrStatusRpc);
+    const bool offered = PlrOfferControllerTestAccess::prompted(controller);
+    const auto backend = PlrOfferControllerTestAccess::last_backend(controller);
+    const int feature =
+        lv_subject_get_int(ps.plugin_status_state().get_plr_feature_state_subject());
+    set_moonraker_api(nullptr);
+    REQUIRE(asked == 1);
+    // Still Ready: only the failure, not a feature change, released the wait.
+    REQUIRE(feature == static_cast<int>(helix::PluginFeatureState::Ready));
+    CHECK(offered);
+    CHECK(backend == helix::PlrBackendType::QIDI);
 }
 
 TEST_CASE_METHOD(PluginPlrOfferFixture, "Plugin PLR asks the plugin when the printer connects",

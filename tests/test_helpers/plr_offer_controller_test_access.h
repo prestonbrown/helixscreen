@@ -34,4 +34,8 @@ class PlrOfferControllerTestAccess {
     static bool has_plugin_status(const helix::ui::PlrOfferController& c) {
         return c.plugin_status_.has_value();
     }
+    /// The backend evaluate_offer resolves from the controller's signals now.
+    static helix::PlrBackendType last_backend(const helix::ui::PlrOfferController& c) {
+        return helix::plr_offer_availability(c.read_signals(), c.probe_).backend;
+    }
 };

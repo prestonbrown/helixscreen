@@ -66,7 +66,7 @@ HELIX_TEMP_TABLE = "helix_temp_files"
 DB_RECORD_MAX_AGE = 30 * 86400
 
 # Plugin version - used for API version detection by clients
-PLUGIN_VERSION = "1.4.1"
+PLUGIN_VERSION = "1.4.2"
 
 # Shape of the status reply; 2 added the `features` map
 STATUS_API = 2
