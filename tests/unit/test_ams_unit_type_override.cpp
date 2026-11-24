@@ -776,3 +776,28 @@ TEST_CASE_METHOD(UnitColorsRows, "unit colors: a pick is saved and the unit's ar
         CHECK(lv_obj_find_by_name(art, "front_accent_tint") == nullptr);
     }
 }
+
+TEST_CASE_METHOD(UnitTypePanel, "unit colors: the unit page on screen redraws in new colors",
+                 "[ams][unit-colors][ui_integration]") {
+    install(true);
+    open();
+    overview().show_unit_view(0);
+    settle();
+    process_lvgl(80);
+    lv_obj_t* art = lv_obj_find_by_name(lv_screen_active(), "unit_view_art");
+    REQUIRE(art != nullptr);
+    REQUIRE(lv_obj_find_by_name(art, "front_accent_tint") == nullptr);
+
+    // What the Colors rows do on a pick: save, then ask every picture to refresh.
+    const UnitColorPreset& preset = unit_color_presets()[0];
+    SettingsManager::instance().set_ams_unit_colors(identity(0), preset.colors());
+    AmsState::instance().bump_slots_version();
+    settle();
+    process_lvgl(80);
+    art = lv_obj_find_by_name(lv_screen_active(), "unit_view_art");
+    REQUIRE(art != nullptr);
+    lv_obj_t* accent = lv_obj_find_by_name(art, "front_accent_tint");
+    REQUIRE(accent != nullptr);
+    CHECK((lv_color_to_u32(lv_obj_get_style_image_recolor(accent, LV_PART_MAIN)) & 0xFFFFFFu) ==
+          preset.accent);
+}

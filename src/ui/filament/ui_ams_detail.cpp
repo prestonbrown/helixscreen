@@ -405,6 +405,8 @@ void helix::ui::ams_detail_sync_slot_states(helix::ui::WidgetRef slot_widgets[],
             lv_obj_remove_state(slot, LV_STATE_DISABLED);
         }
     }
+    // The unit's colors can change with no lane changing: the art follows every refresh.
+    refresh_unit_view_art();
     refresh_unit_view_marks();
 }
 

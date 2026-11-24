@@ -58,6 +58,8 @@ int over_lane_label_rows(const helix::ui::WidgetRef slot_widgets[], int count,
 int32_t art_lane_band_drop();
 /// Marks each lane of the unit view's art as its slot shows it.
 void refresh_unit_view_marks();
+/// Draws the unit view's art from the current system info: its lanes and the unit's colors.
+void refresh_unit_view_art();
 /// Lays the labels over the unit out from s_tray; returns the highest top any reaches,
 /// INT32_MAX with none.
 int32_t place_unit_labels();
