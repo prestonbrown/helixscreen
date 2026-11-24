@@ -1000,6 +1000,7 @@ class HelixPlr:
         self.follower = None  # type: Optional[LayerFollower]
         self._follow_future = None  # type: Optional[Any]
         self._follow_at = float("-inf")
+        self._follow_retry_at = float("-inf")
         self._follow_executor = None  # type: Optional[Any]
         self.qidi = None  # type: Optional[Any]
         self._active_backend = "none"
@@ -1315,10 +1316,12 @@ class HelixPlr:
     async def _note_print_path(self) -> None:
         """Record the file Klipper is reading (virtual_sdcard.file_path).
         file_position counts its bytes, and on some firmware it is a copy (a
-        cache file, or a plate extracted from a .3mf), not the gcodes file."""
+        cache file, or a plate extracted from a .3mf), not the gcodes file.
+        A job's first frames can still carry the previous job's path while the
+        firmware prepares the new file, so a later path replaces it."""
         job = self.job
         path = _obj(self.status, "virtual_sdcard").get("file_path")
-        if job is None or "print_path" in job or not isinstance(path, str) or not path:
+        if job is None or not isinstance(path, str) or not path or job.get("print_path") == path:
             return
         try:
             identity = file_identity(Path(path))
@@ -1327,6 +1330,8 @@ class HelixPlr:
         job["print_path"] = path
         job["print_identity"] = identity
         await self._ns_put(JOB_KEY, job)
+        if self.follower is not None and self.follower.path != Path(path).resolve():
+            await self._stop_follower(None)
 
     def print_target(self) -> Optional[Tuple[Path, Optional[str], Dict[str, Any]]]:
         """(file to scan, its layer index, the identity that index is for):
@@ -1428,7 +1433,18 @@ class HelixPlr:
         enough past the last one. One step runs at a time."""
         if not isinstance(file_position, int):
             return
-        if self._follow_future is not None and not self._follow_future.done():
+        future = self._follow_future
+        if future is not None:
+            if not future.done():
+                return
+            self._follow_future = None
+            if not future.cancelled() and future.exception() is not None:
+                # Its file is gone or unreadable: drop it, and build the next one
+                # from the current target after a pause, not on every frame.
+                logging.warning("HelixPrint: PLR layer follower failed: %s", future.exception())
+                self.follower = None
+                self._follow_retry_at = now + FOLLOW_INTERVAL_S
+        if now < self._follow_retry_at:
             return
         if self.follower is None:
             self.follower = self._make_follower()
@@ -1440,9 +1456,7 @@ class HelixPlr:
         if behind <= 0 or (behind < FOLLOW_MIN_BYTES and now - self._follow_at < FOLLOW_INTERVAL_S):
             return
         self._follow_at = now
-        future = self._executor().submit(self.follower.step, file_position)
-        future.add_done_callback(self._follow_done)
-        self._follow_future = future
+        self._follow_future = self._executor().submit(self.follower.step, file_position)
 
     @staticmethod
     def _follow_done(future: Any) -> None:
@@ -1458,8 +1472,8 @@ class HelixPlr:
         if self._follow_future is not None:
             try:
                 await asyncio.wrap_future(self._follow_future)
-            except Exception:
-                pass
+            except Exception as e:
+                logging.warning("HelixPrint: PLR layer follower failed: %s", e)
         self._follow_future = None
         try:
             await asyncio.wrap_future(self._executor().submit(follower.finish, file_size))
@@ -1553,6 +1567,7 @@ class HelixPlr:
         await self._ns_put(NEWEST_JOB_KEY, {"job_id": job_id, "filename": filename})
         await self._stop_follower(None)
         self._follow_at = self.clock()
+        self._follow_retry_at = float("-inf")
         self.policy.reset()
         self._switch = (False, float("-inf"))
         if self.store_error is None:

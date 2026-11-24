@@ -95,6 +95,8 @@ PlrOfferController::PlrOfferController() {
             if (seq > 0) {
                 self->probe_answered_this_connect_ = true;
                 self->publish_profile();
+                // A firmware backend waiting on the plugin's answer may offer now.
+                self->evaluate_offer();
             }
         },
         ps.get_subjects_lifetime());
@@ -127,6 +129,9 @@ PlrCapabilitySignals PlrOfferController::read_signals() const {
     caps.saved_recovery_file = ps.print_state().plr_saved_file();
     caps.plr_feature =
         ps.plugin_status_state().plugin_feature(kPlrFeatureName, kPlrFeatureMinVersion);
+    caps.plugin_answer_pending =
+        !probe_answered_this_connect_ || (caps.plr_feature == PluginFeatureState::Ready &&
+                                          !plugin_status_ && !plugin_status_failed_);
     if (plugin_status_) {
         caps.plugin_backend = plugin_status_->backend;
         caps.plugin_offer_available = plugin_status_->offer_available;
@@ -361,8 +366,11 @@ void PlrOfferController::request_plugin_status() {
                                 return;
                             }
                             // Silent: the next Klipper-ready or plugin edge asks again.
+                            // Meanwhile a firmware backend stops waiting on it.
                             plugin_status_inflight_ = false;
+                            plugin_status_failed_ = true;
                             spdlog::warn("[PLR] Plugin recovery status failed: {}", err.message);
+                            evaluate_offer();
                         }));
 }
 
@@ -371,9 +379,12 @@ void PlrOfferController::on_plr_feature_changed(int state) {
         last_plr_feature_state_ = state;
         // Saving switched on or off changes the plugin's answer.
         plugin_status_.reset();
+        plugin_status_failed_ = false;
     }
     publish_profile();
     request_plugin_status();
+    // A feature that stopped being Ready no longer holds a firmware backend back.
+    evaluate_offer();
 }
 
 void PlrOfferController::publish_profile() {
@@ -453,6 +464,7 @@ void PlrOfferController::on_connection_state_changed(int new_conn_state) {
         probe_ = PlrProbeSession{};
         plugin_status_.reset();
         plugin_status_inflight_ = false;
+        plugin_status_failed_ = false;
         published_profile_type_.reset();
         probe_answered_this_connect_ = false;
         ++connection_generation_;
