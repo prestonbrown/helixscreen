@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "core/notification_api.h"
 #include "display_numbering.h"
+#include "notice.h"
 
 // config.cpp and config_storage_file.cpp parse this header in the splash
 // build, whose include path reaches lib/lvgl but not lib/ — the lvgl/lvgl.h
@@ -656,7 +656,7 @@ inline void notify_ams_error(const AmsError& err, const char* context = nullptr)
     }
     const std::string body = ams_error_body(err, context);
     spdlog::error("[USER] {} [{}] {}", body, ams_result_to_string(err.result), err.technical_msg);
-    ui_notification_error_with_detail(body.c_str(), err.suggestion.c_str());
+    publish_detail_notification(NoticeSeverity::ERROR, body, err.suggestion);
 }
 
 /**
@@ -672,7 +672,7 @@ inline void notify_ams_warning(const AmsError& err, const char* context = nullpt
     }
     const std::string body = ams_error_body(err, context);
     spdlog::warn("[USER] {} [{}] {}", body, ams_result_to_string(err.result), err.technical_msg);
-    ui_notification_warning_with_detail(body.c_str(), err.suggestion.c_str());
+    publish_detail_notification(NoticeSeverity::WARNING, body, err.suggestion);
 }
 
 } // namespace helix::ui

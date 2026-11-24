@@ -2022,7 +2022,7 @@ void AmsBackendAfc::apply_afc_state(const afc::StateDelta& afc, std::string& def
                         // Notification history only (no toast)
                         spdlog::debug("[AMS AFC] Toast suppressed (prompt={}, op={}): {}",
                                       afc_prompt_active, operation_active, msg_text);
-                        ui_notification_info_with_action("AFC", msg_text.c_str(), "afc_message");
+                        publish_history_entry(NoticeSeverity::INFO, "AFC", msg_text, "afc_message");
                     } else if (msg_type == "error" && surfaced_by_previous_session) {
                         // A previous session already surfaced this text and AFC
                         // latched it; recorded in operation_detail, not
@@ -3433,8 +3433,8 @@ void AmsBackendAfc::check_afc_feature_level(const nlohmann::json& lane_status) {
     // this notice is latched to fire once ever — a mis-timed read would pin the
     // wrong variant permanently. One sentence that is true either way costs
     // nothing and cannot go stale.
-    ui_notification_info_with_action(
-        lv_tr("AFC Update Available"),
+    publish_history_entry(
+        NoticeSeverity::INFO, lv_tr("AFC Update Available"),
         lv_tr("Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament "
               "names, which otherwise need Spoolman."),
         "afc_message");
@@ -5900,7 +5900,7 @@ AmsError AmsBackendAfc::enable_bypass() {
             return precondition;
         }
 
-        if (!helix::bypass_available_for(system_info_.supports_bypass)) {
+        if (!helix::bypass_available_for(system_info_)) {
             return AmsError(AmsResult::WRONG_STATE, "Bypass not supported",
                             lv_tr("This AFC system does not support bypass mode"), "");
         }

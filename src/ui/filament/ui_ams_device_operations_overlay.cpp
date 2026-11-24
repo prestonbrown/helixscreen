@@ -64,8 +64,8 @@ void AmsDeviceOperationsOverlay::init_subjects() {
         // Capability subjects
         UI_MANAGED_SUBJECT_INT(supports_bypass_subject_, 0, "ams_device_ops_supports_bypass",
                                subjects_);
-        UI_MANAGED_SUBJECT_INT(fw_supports_bypass_subject_, 0, "ams_device_ops_fw_supports_bypass",
-                               subjects_);
+        UI_MANAGED_SUBJECT_INT(bypass_override_offered_subject_, 0,
+                               "ams_device_ops_bypass_override_offered", subjects_);
         UI_MANAGED_SUBJECT_INT(hw_bypass_sensor_subject_, 0, "ams_device_ops_hw_bypass_sensor",
                                subjects_);
         UI_MANAGED_SUBJECT_INT(supports_auto_heat_subject_, 0, "ams_device_ops_supports_auto_heat",
@@ -599,7 +599,7 @@ void AmsDeviceOperationsOverlay::update_from_backend() {
         spdlog::warn("[{}] No backend available", get_name());
         lv_subject_set_int(&has_backend_subject_, 0);
         lv_subject_set_int(&supports_bypass_subject_, 0);
-        lv_subject_set_int(&fw_supports_bypass_subject_, 0);
+        lv_subject_set_int(&bypass_override_offered_subject_, 0);
         lv_subject_set_int(&hw_bypass_sensor_subject_, 0);
         lv_subject_set_int(&supports_auto_heat_subject_, 0);
         lv_subject_set_int(&bypass_is_virtual_subject_, 0);
@@ -654,9 +654,9 @@ void AmsDeviceOperationsOverlay::update_from_backend() {
     lv_subject_set_string(&details_subject_, details_buf_);
     lv_subject_set_int(&has_details_subject_, details.empty() ? 0 : 1);
 
-    lv_subject_set_int(&supports_bypass_subject_,
-                       helix::bypass_available_for(info.supports_bypass) ? 1 : 0);
-    lv_subject_set_int(&fw_supports_bypass_subject_, info.supports_bypass ? 1 : 0);
+    lv_subject_set_int(&supports_bypass_subject_, helix::bypass_available_for(info) ? 1 : 0);
+    lv_subject_set_int(&bypass_override_offered_subject_,
+                       helix::bypass_override_offered(info) ? 1 : 0);
     lv_subject_set_int(&hw_bypass_sensor_subject_, info.has_hardware_bypass_sensor ? 1 : 0);
 
     lv_subject_set_int(&supports_auto_heat_subject_, backend->supports_auto_heat_on_load() ? 1 : 0);

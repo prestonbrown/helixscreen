@@ -28,7 +28,7 @@ run cannot finish overnight, on an idle machine. Base is the commit before batch
 files where a wrong answer hits hardware:
 
 1. `src/printer/ams_backend*.cpp` and the capability interfaces, print routing first
-2. `src/printer/notice.cpp`, `publish_ui_request` handlers: `OpenHardwareHealth` and the held prompt have no direct test
+2. `src/core/notice.cpp`, `publish_ui_request` handlers: `OpenHardwareHealth` and the held prompt have no direct test
 3. `src/network/ipv4_*`: the store wiring runs real nmcli and has no test, so `required=false` would survive
 4. Released overlays' lifecycle
 

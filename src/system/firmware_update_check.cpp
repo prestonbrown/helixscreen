@@ -4,12 +4,12 @@
 
 #include "app_globals.h"
 #include "core/http_executor.h"
-#include "core/notification_api.h"
 #include "core/update_queue.h"
 #include "helix_version.h"
 #include "hv/requests.h"
 #include "json_utils.h"
 #include "lvgl.h"
+#include "notice.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 
@@ -212,12 +212,12 @@ void on_update_check_tick() {
             if (newly_found) {
                 spdlog::info("[FirmwareUpdate] {} firmware {} is available", owner,
                              outcome.update->version);
-                ui_notification_info(
-                    lv_tr("Firmware Update"),
+                publish_notification(
+                    NoticeSeverity::INFO,
                     fmt::format(fmt::runtime(lv_tr("{} firmware {} is available. Open Settings > "
                                                    "System > Firmware Update to install it.")),
-                                owner, outcome.update->version)
-                        .c_str());
+                                owner, outcome.update->version),
+                    lv_tr("Firmware Update"));
             }
         });
     });

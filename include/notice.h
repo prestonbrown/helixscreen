@@ -27,6 +27,26 @@ using NoticeActionCallback = void (*)(void* user_data);
 
 inline constexpr uint32_t kNoticeDefaultDurationMs = 4000;
 
+/// How much of the UI's attention a notice asks for. The UI picks the widgets.
+enum class NoticeDelivery : uint8_t {
+    /// A toast for @ref Notice::duration_ms, with the optional action button.
+    Toast,
+    /// A toast at the UI's standard length for the severity, when the user's
+    /// minimum toast severity lets it through, plus a notification-history row
+    /// that keeps @ref Notice::title. With @ref Notice::detail the toast carries
+    /// it as a second line; @ref Notice::sticky keeps that toast until closed.
+    Notification,
+    /// A notification-history row and no toast; tapping the row dispatches
+    /// @ref Notice::history_action.
+    HistoryOnly,
+    /// A dialog the user must acknowledge, titled @ref Notice::title, plus a
+    /// history row. ERROR only.
+    Alert,
+};
+
+/// @ref Notice::duration_ms, the action fields and @ref Notice::keep_in_history
+/// shape a Toast only; the other deliveries take the UI's standard lengths and
+/// their own history rows.
 struct Notice {
     NoticeSeverity severity = NoticeSeverity::INFO;
     std::string message;
@@ -37,6 +57,11 @@ struct Notice {
     /// Also files the notice in notification history, for one the user may need to
     /// read after its toast has gone.
     bool keep_in_history = false;
+    NoticeDelivery delivery = NoticeDelivery::Toast;
+    std::string title{};          ///< Notification, HistoryOnly, Alert
+    std::string detail{};         ///< Notification: what the user can do about it
+    bool sticky = false;          ///< Notification with a detail: never auto-dismisses
+    std::string history_action{}; ///< HistoryOnly: the action id a tap dispatches
 };
 
 using NoticeSubscriber = void (*)(const Notice&);
@@ -53,6 +78,20 @@ NoticeSubscriber set_notice_subscriber(NoticeSubscriber subscriber);
 /// Hand @p notice to the subscriber on this thread. With none installed the
 /// notice is logged and dropped.
 void publish_notice(const Notice& notice);
+
+/// Publish a Notification-delivery notice; an empty @p title leaves it untitled.
+void publish_notification(NoticeSeverity severity, std::string message, std::string title = {});
+
+/// Publish a Notification whose toast adds @p detail, what the user can do about it.
+void publish_detail_notification(NoticeSeverity severity, std::string message, std::string detail,
+                                 bool sticky = false);
+
+/// Publish a HistoryOnly notice whose row dispatches @p action when tapped.
+void publish_history_entry(NoticeSeverity severity, std::string title, std::string message,
+                           std::string action);
+
+/// Publish an Alert: an ERROR the user must acknowledge in a dialog titled @p title.
+void publish_alert(std::string title, std::string message);
 
 /// Something only the UI can do, named here so the layer asking for it includes
 /// no UI header. The file that owns the UI installs the handler.

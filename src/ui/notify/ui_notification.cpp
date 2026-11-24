@@ -45,6 +45,36 @@ static bool should_show_toast(ToastSeverity sev) {
         static_cast<int>(sev), helix::ui::notifications::get_min_toast_severity_cache());
 }
 
+namespace {
+
+ToastSeverity notice_toast_severity(helix::NoticeSeverity severity) {
+    switch (severity) {
+    case helix::NoticeSeverity::SUCCESS:
+        return ToastSeverity::SUCCESS;
+    case helix::NoticeSeverity::WARNING:
+        return ToastSeverity::WARNING;
+    case helix::NoticeSeverity::ERROR:
+        return ToastSeverity::ERROR;
+    case helix::NoticeSeverity::INFO:
+        break;
+    }
+    return ToastSeverity::INFO;
+}
+
+// Empty means absent: the paths below tell an untitled call by a null title.
+const char* or_null(const std::string& s) {
+    return s.empty() ? nullptr : s.c_str();
+}
+
+// Standard toast length per severity for a one-line notification.
+uint32_t notification_duration_ms(ToastSeverity severity) {
+    return severity == ToastSeverity::WARNING ? 5000 : 4000;
+}
+
+constexpr uint32_t kDetailToastMs = 8000;
+
+} // namespace
+
 // RAII observer guard for automatic cleanup
 static ObserverGuard s_notification_observer;
 
@@ -279,15 +309,18 @@ void ui_notification_deinit() {
 // ============================================================================
 
 void ui_notification_info(const char* message) {
-    show_notification(nullptr, message, ToastSeverity::INFO, 4000);
+    show_notification(nullptr, message, ToastSeverity::INFO,
+                      notification_duration_ms(ToastSeverity::INFO));
 }
 
 void ui_notification_success(const char* message) {
-    show_notification(nullptr, message, ToastSeverity::SUCCESS, 4000);
+    show_notification(nullptr, message, ToastSeverity::SUCCESS,
+                      notification_duration_ms(ToastSeverity::SUCCESS));
 }
 
 void ui_notification_warning(const char* message) {
-    show_notification(nullptr, message, ToastSeverity::WARNING, 5000);
+    show_notification(nullptr, message, ToastSeverity::WARNING,
+                      notification_duration_ms(ToastSeverity::WARNING));
 }
 
 // Helper to show notification with optional title. When title is null/empty the
@@ -354,7 +387,8 @@ static void show_notification(const char* title, const char* message, ToastSever
 }
 
 void ui_notification_info(const char* title, const char* message) {
-    show_notification(title, message, ToastSeverity::INFO, 4000);
+    show_notification(title, message, ToastSeverity::INFO,
+                      notification_duration_ms(ToastSeverity::INFO));
 }
 
 // A history row with no toast. @p action may be null.
@@ -419,11 +453,13 @@ void ui_notification_warning_with_action(const char* title, const char* message,
 }
 
 void ui_notification_success(const char* title, const char* message) {
-    show_notification(title, message, ToastSeverity::SUCCESS, 4000);
+    show_notification(title, message, ToastSeverity::SUCCESS,
+                      notification_duration_ms(ToastSeverity::SUCCESS));
 }
 
 void ui_notification_warning(const char* title, const char* message) {
-    show_notification(title, message, ToastSeverity::WARNING, 5000);
+    show_notification(title, message, ToastSeverity::WARNING,
+                      notification_duration_ms(ToastSeverity::WARNING));
 }
 
 namespace {
@@ -434,6 +470,7 @@ struct DetailNotification {
     std::string detail;
     uint32_t duration_ms;
     std::string joined; ///< The history row: both halves on one line
+    std::string title;  ///< The history row's title; empty when untitled
 };
 
 /// Two-line toast + a joined history row.
@@ -445,7 +482,7 @@ struct DetailNotification {
 /// on the main thread unconditionally, which is what NotificationHistory and
 /// lv_tick_get() need.
 void show_detail_notification(ToastSeverity severity, const char* message, const char* detail,
-                              uint32_t duration_ms) {
+                              uint32_t duration_ms, const char* title = nullptr) {
     if (!message || !*message) {
         spdlog::warn("[Notification] Attempted to show detail notification with empty message");
         return;
@@ -463,9 +500,10 @@ void show_detail_notification(ToastSeverity severity, const char* message, const
 
     // A history row is one line, and the pre-init startup queue only carries
     // one string, so both get the halves joined.
-    auto params = std::make_unique<DetailNotification>(DetailNotification{
-        severity, message, detail, duration_ms, std::string(message) + " - " + detail});
-    report_event(severity, nullptr, params->joined.c_str(), nullptr, duration_ms == 0);
+    auto params = std::make_unique<DetailNotification>(
+        DetailNotification{severity, message, detail, duration_ms,
+                           std::string(message) + " - " + detail, title ? title : ""});
+    report_event(severity, title, params->joined.c_str(), nullptr, duration_ms == 0);
 
     helix::ui::queue_update<DetailNotification>(std::move(params), [](DetailNotification* p) {
         const std::string& joined = p->joined;
@@ -483,7 +521,8 @@ void show_detail_notification(ToastSeverity severity, const char* message, const
         entry.severity = p->severity;
         entry.was_modal = false;
         entry.was_read = false;
-        entry.title[0] = '\0';
+        strncpy(entry.title, p->title.c_str(), sizeof(entry.title) - 1);
+        entry.title[sizeof(entry.title) - 1] = '\0';
         strncpy(entry.message, joined.c_str(), sizeof(entry.message) - 1);
         entry.message[sizeof(entry.message) - 1] = '\0';
 
@@ -499,11 +538,11 @@ void show_detail_notification(ToastSeverity severity, const char* message, const
 } // namespace
 
 void ui_notification_error_with_detail(const char* message, const char* detail) {
-    show_detail_notification(ToastSeverity::ERROR, message, detail, 8000);
+    show_detail_notification(ToastSeverity::ERROR, message, detail, kDetailToastMs);
 }
 
 void ui_notification_warning_with_detail(const char* message, const char* detail) {
-    show_detail_notification(ToastSeverity::WARNING, message, detail, 8000);
+    show_detail_notification(ToastSeverity::WARNING, message, detail, kDetailToastMs);
 }
 
 // NAMESPACE_OK: joins this header's global ui_notification_* free-function API
@@ -617,6 +656,32 @@ void ui_notification_error(const char* title, const char* message, bool modal) {
 
 void ui_notification_printer_fault(const char* title, const char* message) {
     show_error_notification(title, message, /*modal=*/true, /*fault=*/true);
+}
+
+void helix::ui::present_notification_notice(const Notice& notice) {
+    const ToastSeverity severity = notice_toast_severity(notice.severity);
+    const char* title = or_null(notice.title);
+    const char* message = notice.message.c_str();
+    switch (notice.delivery) {
+    case NoticeDelivery::HistoryOnly:
+        add_history_only_entry(severity, title, message, or_null(notice.history_action));
+        return;
+    case NoticeDelivery::Alert:
+        // Non-null even when empty: an alert is a dialog whatever its title.
+        show_error_notification(notice.title.c_str(), message, /*modal=*/true, /*fault=*/false);
+        return;
+    case NoticeDelivery::Notification:
+    case NoticeDelivery::Toast:
+        break;
+    }
+    if (!notice.detail.empty()) {
+        show_detail_notification(severity, message, notice.detail.c_str(),
+                                 notice.sticky ? 0 : kDetailToastMs, title);
+    } else if (severity == ToastSeverity::ERROR) {
+        show_error_notification(title, message, /*modal=*/false, /*fault=*/false);
+    } else {
+        show_notification(title, message, severity, notification_duration_ms(severity));
+    }
 }
 
 // ============================================================================

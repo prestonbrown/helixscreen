@@ -20,9 +20,9 @@
 
 #include "env_refusal_notice.h"
 
-#include "core/notification_api.h"
 #include "i18n_plural.h"
 #include "lvgl.h"
+#include "notice.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -116,7 +116,8 @@ void surface_env_refusal_from_launcher() {
         // ignored - an auto-dismissing toast would re-hide that before the
         // user has read it.
         const EnvRefusalCopy copy = env_refusal_copy(notice.refusal);
-        ui_notification_warning_sticky(copy.message.c_str(), copy.fix.c_str());
+        publish_detail_notification(NoticeSeverity::WARNING, copy.message, copy.fix,
+                                    /*sticky=*/true);
     }
 
     if (notice.skipped_lines == 0) {
@@ -145,7 +146,7 @@ void surface_env_refusal_from_launcher() {
                                        "{} lines in helixscreen.env were ignored", listed)),
             listed);
     }
-    ui_notification_warning_with_detail(message.c_str(), detail.c_str());
+    publish_detail_notification(NoticeSeverity::WARNING, message, detail);
 }
 
 } // namespace helix

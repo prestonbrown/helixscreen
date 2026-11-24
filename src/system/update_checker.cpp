@@ -19,7 +19,6 @@
 #include "app_globals.h"
 #include "config.h"
 #include "core/log_redact.h"
-#include "core/notification_api.h"
 #include "core/observer_factory.h"
 #include "core/text_io.h"
 #include "core/timer_guard.h"
@@ -3661,7 +3660,8 @@ void UpdateChecker::dismiss_current_version() {
 
     // Add history-only notification so user can find the update later
     std::string msg = fmt::format(lv_tr("v{} is available. Tap to update."), version);
-    ui_notification_info_with_action(lv_tr("Update Available"), msg.c_str(), "show_update_modal");
+    publish_history_entry(NoticeSeverity::INFO, lv_tr("Update Available"), msg,
+                          "show_update_modal");
 }
 
 // Auto-Check Timer

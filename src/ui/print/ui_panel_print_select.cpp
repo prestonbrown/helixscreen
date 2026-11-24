@@ -20,6 +20,7 @@
 #include "ui_icon.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
+#include "ui_notification.h"
 #include "ui_panel_print_status.h"
 #include "ui_preflight_check_modal.h"
 #include "ui_print_select_file_sorter.h"
