@@ -215,6 +215,7 @@ void PaNonlinearOverlay::on_deactivating(DeactivateReason /*reason*/) {
 void PaNonlinearOverlay::cleanup() {
     // The tower keeps printing with the screen closed; its observers stay.
     decision_awake_.reset();
+    start_busy_.reset();
     OverlayBase::cleanup();
 }
 
@@ -249,6 +250,11 @@ void PaNonlinearOverlay::start(const helix::pa::TestPrintParams& params,
         spdlog::info("[{}] Nonlinear tuning on {}, {} passes", get_name(), params.heater,
                      proc_->pass_count());
         if (const auto saved = saved_session(params.heater, kind)) {
+            // The extruder may still run a saved session's values: its own model
+            // is the one recorded before that session, whatever the answer.
+            if (const auto* original = json_util::find_object(*saved, "original")) {
+                original_ = model_from(*original);
+            }
             offer_resume(*saved);
         }
     }
@@ -260,14 +266,14 @@ void PaNonlinearOverlay::start(const helix::pa::TestPrintParams& params,
 
 void PaNonlinearOverlay::set_stage(Stage s) {
     stage_ = s;
-    if (s == JUDGE || s == RESULT) {
+    if (s == JUDGE) {
         decision_awake_.acquire();
     } else {
         decision_awake_.reset();
     }
-    if (s == PREPARING) {
-        start_busy_.acquire();
-    } else {
+    // Taken by print_pass() while its start script runs; a config write also
+    // shows PREPARING and moves nothing.
+    if (s != PREPARING) {
         start_busy_.reset();
     }
     if (subjects_initialized_) {
@@ -442,6 +448,7 @@ void PaNonlinearOverlay::print_pass() {
     lv_subject_set_string(&live_text_, lv_tr("Heating and homing"));
     lv_subject_set_string(&live_value_, "--");
     set_stage(PREPARING);
+    start_busy_.acquire();
     begin_observing();
     spdlog::info("[{}] Pass {} on {}: {}", get_name(), proc_->pass_number(), params_.heater,
                  helix::pa::tuning_tower_gcode(proc_->current().sweep));
@@ -582,6 +589,8 @@ void PaNonlinearOverlay::on_script_done(int pass_seq) {
         return;
     }
     script_done_ = true;
+    // The start script is done homing and heating; the tower's job covers the rest.
+    start_busy_.reset();
     // PRINT_PA_TOWER returned; the tower should be printing within moments.
     arm_start_watchdog(pass_seq, kTowerStartTimeoutMs, true);
 }
@@ -695,8 +704,11 @@ void PaNonlinearOverlay::go_back() {
     if (!height) {
         return;
     }
-    // The printer runs what the re-opened tower printed with until it is judged again.
-    send_values();
+    // The printer runs what the re-opened tower printed with until it is judged
+    // again, unless another job holds it.
+    if (!job_holds_machine(get_printer_state().print_state().get_print_lifecycle())) {
+        send_values();
+    }
     save_session();
     set_stage(JUDGE);
     height_mm_ = *height;
@@ -849,6 +861,10 @@ void PaNonlinearOverlay::offer_resume(const nlohmann::json& saved) {
     options.cancel_text = lv_tr("Start Over");
     // owned_confirm()'s token keeps both callbacks from outliving this object.
     options.on_cancel = [this]() { clear_saved_session(); };
+    // No answer starts fresh and leaves the saved session to be offered again.
+    options.on_dismiss = [this]() {
+        spdlog::info("[{}] Resume offer dismissed; starting from pass 1", get_name());
+    };
     modal_confirm(
         lv_tr("Continue the earlier tuning?"),
         fmt::format(fmt::runtime(lv_tr("Passes judged before are kept and pass {} "
@@ -868,9 +884,6 @@ void PaNonlinearOverlay::resume(const nlohmann::json& saved) {
         return;
     }
     proc_ = std::move(proc);
-    if (const auto* original = json_util::find_object(saved, "original")) {
-        original_ = model_from(*original);
-    }
     spdlog::info("[{}] Continuing nonlinear tuning on {} at pass {}", get_name(), params_.heater,
                  proc_->pass_number());
     // The printer may have restarted since: it runs the procedure's values again,
