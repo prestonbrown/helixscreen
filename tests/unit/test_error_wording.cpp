@@ -268,6 +268,24 @@ TEST_CASE("Kalico's calibration warning classifies as a warning with its own wor
 using helix::ClassifyContext;
 using helix::ErrorSeverity;
 
+TEST_CASE("AFC's failed Moonraker lookup mid-print is a toast, not a blocking modal",
+          "[error-wording][classify][pa_tuner][afc_metadata][pa_mutation]") {
+    // AFC asks Moonraker for the metadata of a virtual print (Kalico's PA tower)
+    // that has no file, and reports the 404 as a console error every pass.
+    ClassifyContext ctx;
+    ctx.is_printing = true;
+    auto e = helix::error_classify::classify(
+        "!! Error getting data from moonraker, check AFC.log for more information", ctx);
+    REQUIRE(e.has_value());
+    CHECK(e->severity == ErrorSeverity::WARNING);
+    CHECK(e->detail.find("AFC.log") != std::string::npos);
+
+    // An unrelated uncoded fault at the same moment still blocks.
+    auto other = helix::error_classify::classify("!! Some fault nobody classified", ctx);
+    REQUIRE(other.has_value());
+    CHECK(other->severity == ErrorSeverity::CRITICAL);
+}
+
 TEST_CASE("a worded console error leads with its summary and keeps Klipper's text",
           "[error-wording][classify]") {
     ClassifyContext ctx;
