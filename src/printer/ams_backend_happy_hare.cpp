@@ -2848,15 +2848,6 @@ bool edits_gate_map(const SlotInfo& old, const SlotInfo& info, bool weights) {
            info.spool_name != old.spool_name || info.brand != old.brand ||
            info.spoolman_id != old.spoolman_id || (weights && edits_gate_weights(old, info));
 }
-
-/// The one nozzle temperature a gate map holds, from a slot's range: the
-/// midpoint of a range, the single value otherwise, 0 for none.
-int gate_map_temperature(const SlotInfo& info) {
-    if (info.nozzle_temp_min > 0 && info.nozzle_temp_max > info.nozzle_temp_min) {
-        return (info.nozzle_temp_min + info.nozzle_temp_max) / 2;
-    }
-    return info.nozzle_temp_min > 0 ? info.nozzle_temp_min : info.nozzle_temp_max;
-}
 } // namespace
 
 AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& info) {
@@ -2896,7 +2887,7 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
         v4 = is_v4_locked();
         old_color_rgb = entry->info.color_rgb;
         old_name = entry->info.spool_name;
-        old_temp = gate_map_temperature(entry->info);
+        old_temp = entry->info.nozzle_print_temp();
         weights = gate_map_holds_weights_locked();
         old_weights.remaining_weight_g = entry->info.remaining_weight_g;
         old_weights.total_weight_g = entry->info.total_weight_g;
@@ -3060,7 +3051,7 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
     // Temperature: one per gate, named on every write. Happy Hare reads an
     // omitted TEMP as default_extruder_temp, which would overwrite the gate's
     // own, and TEMP=0 as "keep the stored value".
-    if (const int temp = gate_map_temperature(info); temp > 0 && temp != old_temp) {
+    if (const int temp = info.nozzle_print_temp(); temp > 0 && temp != old_temp) {
         cmd += fmt::format(" TEMP={}", temp);
         has_changes = true;
     } else if (has_changes) {

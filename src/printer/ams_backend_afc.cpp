@@ -5507,23 +5507,14 @@ std::string set_weight_command(const std::string& lane_name, float remaining_wei
     return fmt::format("SET_WEIGHT LANE={} WEIGHT={:.0f}", lane_name, remaining_weight_g);
 }
 
-/// The one nozzle temperature AFC holds for a lane: the middle of the slot's
-/// range, which is also what the UI preheats to. 0 when the slot states none.
-int lane_extruder_temp(const SlotInfo& slot) {
-    if (slot.nozzle_temp_min > 0 && slot.nozzle_temp_max > 0) {
-        return (slot.nozzle_temp_min + slot.nozzle_temp_max) / 2;
-    }
-    return std::max(slot.nozzle_temp_min, slot.nozzle_temp_max);
-}
-
 /// AFC_SET_SPOOL_TEMP for an edit that changed a stated temperature, or for any
 /// edit when @p resend (AFC has just wiped the lane's), naming only the
 /// temperatures the edit states; nullopt when there is nothing to send.
 std::optional<std::string> spool_temp_command(const std::string& lane_name, const SlotInfo& before,
                                               const SlotInfo& after, bool resend) {
-    const int extruder = lane_extruder_temp(after);
+    const int extruder = after.nozzle_print_temp();
     const int bed = std::max(after.bed_temp, 0);
-    const bool changed = resend || extruder != lane_extruder_temp(before) || bed != before.bed_temp;
+    const bool changed = resend || extruder != before.nozzle_print_temp() || bed != before.bed_temp;
     if (!changed || (extruder <= 0 && bed <= 0)) {
         return std::nullopt;
     }
