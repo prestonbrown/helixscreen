@@ -112,6 +112,29 @@ TEST_CASE("Self-restart sentinel creates a missing fallback dir", "[update_check
     fs::remove_all(root);
 }
 
+TEST_CASE("The install-time sentinel stays only for an install that succeeded",
+          "[update_checker][sentinel]") {
+    namespace fs = std::filesystem;
+    const std::string prev = helix::app_constants::update::detail::backup_fallback_dir_ref();
+    const fs::path root =
+        fs::temp_directory_path() / ("helix-sentinel-settle-" + std::to_string(getpid()));
+    const fs::path dir = root / ".helixscreen";
+    fs::remove_all(root);
+    helix::app_constants::update::detail::backup_fallback_dir_ref() = dir.string();
+
+    // Written before install.sh runs; a successful install restarts next.
+    REQUIRE(UpdateChecker::write_self_restart_sentinel());
+    UpdateChecker::settle_self_restart_sentinel(true);
+    CHECK(fs::exists(dir / "self_restart_sentinel"));
+
+    // A failed install (or fork) restarts nothing, so the sentinel goes.
+    UpdateChecker::settle_self_restart_sentinel(false);
+    CHECK_FALSE(fs::exists(dir / "self_restart_sentinel"));
+
+    helix::app_constants::update::detail::backup_fallback_dir_ref() = prev;
+    fs::remove_all(root);
+}
+
 TEST_CASE("Startup relinks the user config only on a deployed layout without a restarting service",
           "[update_checker][external_update][2147]") {
     namespace fs = std::filesystem;

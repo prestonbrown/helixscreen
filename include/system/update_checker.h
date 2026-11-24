@@ -610,6 +610,13 @@ class UpdateChecker {
      */
     static bool write_self_restart_sentinel();
 
+    /**
+     * @brief After install.sh: keep the sentinel written before it when the
+     *        install succeeded (the restart follows), remove it otherwise.
+     *        Exposed for unit testing.
+     */
+    static void settle_self_restart_sentinel(bool installed);
+
     /** @brief Check if a version is dismissed (user chose to ignore) */
     bool is_version_dismissed(const std::string& version) const;
 
