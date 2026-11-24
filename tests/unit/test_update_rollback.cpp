@@ -82,33 +82,42 @@ struct RollbackDirFixture : public LVGLTestFixture {
 
 TEST_CASE("Rollback support: every fact must hold, and some platforms never can",
           "[auto_update][rollback]") {
+    using helix::board::Board;
     CHECK(rollback_support(supported_facts()) == RollbackSupport::Supported);
-    for (const char* key : {"pi", "pi32", "k1", "mips", "ad5m", "cc1", "x86"}) {
-        auto f = supported_facts();
-        f.platform_key = key;
-        CHECK(rollback_support(f) == RollbackSupport::Supported);
-    }
-    for (const char* key : {"k2", "x86-desktop", "android", "esp32", "snapmaker-u1"}) {
-        auto f = supported_facts();
-        f.platform_key = key;
-        CHECK(rollback_support(f) == RollbackSupport::Platform);
-    }
-    // The SysV class the device plan proved, each on its own platform key.
+    // Each platform the device plan proved, on the board its key resolves to.
     for (const auto& [key, board] :
-         {std::pair{"mips", helix::board::Board::K1}, std::pair{"ad5m", helix::board::Board::Ad5m},
-          std::pair{"cc1", helix::board::Board::Cc1}}) {
+         {std::pair{"pi", Board::Generic}, std::pair{"pi32", Board::Generic},
+          std::pair{"x86", Board::Generic}, std::pair{"mips", Board::K1},
+          std::pair{"k1", Board::K1}, std::pair{"ad5m", Board::Ad5m}}) {
         auto f = supported_facts();
         f.platform_key = key;
         f.board = board;
+        INFO("platform " << key);
         CHECK(rollback_support(f) == RollbackSupport::Supported);
     }
-    for (const auto board : {helix::board::Board::Ad5x, helix::board::Board::Creator5,
-                             helix::board::Board::Creator5Pro}) {
+    // Everything else is off: known platforms no device run covered, and a key
+    // this rule has never heard of.
+    for (const auto& [key, board] :
+         {std::pair{"k2", Board::K2}, std::pair{"x86-desktop", Board::Generic},
+          std::pair{"android", Board::Generic}, std::pair{"esp32", Board::Generic},
+          std::pair{"snapmaker-u1", Board::SnapmakerU1}, std::pair{"cc1", Board::Cc1},
+          std::pair{"riscv-future", Board::Generic}}) {
         auto f = supported_facts();
-        f.platform_key = "mips";
+        f.platform_key = key;
         f.board = board;
-        INFO("board " << helix::board::info(board).key);
+        INFO("platform " << key);
         CHECK(rollback_support(f) == RollbackSupport::Platform);
+    }
+    // The "mips" key is proven only on the K1: every other board, and one it
+    // could not identify, is off.
+    for (const auto board : {Board::Ad5x, Board::Creator5, Board::Creator5Pro, Board::Generic}) {
+        for (const char* key : {"mips", "k1"}) {
+            auto f = supported_facts();
+            f.platform_key = key;
+            f.board = board;
+            INFO("platform " << key << " board " << helix::board::info(board).key);
+            CHECK(rollback_support(f) == RollbackSupport::Platform);
+        }
     }
 
     auto f = supported_facts();

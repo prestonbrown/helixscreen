@@ -545,14 +545,17 @@ The platform rule:
 | Platform | Rollback | Why |
 |---|---|---|
 | Pi, Pi 32-bit, x86 (systemd) | Yes, with the watchdog | Same-filesystem swap under `INSTALL_PARENT`, which the unit lists in `ReadWritePaths` |
-| K1 series (`mips`), AD5M (Klipper Mod), CC1 | Yes, with the watchdog | SysV launcher loop; the watchdog hands the update restart back to it |
+| K1 series (`mips` or `k1` on the K1 board) | Yes, with the watchdog | SysV launcher loop; the watchdog hands the update restart back to it |
+| AD5M on Klipper Mod (`ad5m`) | Yes, with the watchdog | Same SysV shape as the K1. Klipper Mod leaves no Forge-X or Z-Mod marker (`/opt/config/mod`, `/ZMOD`, `/usr/prog`), so it is not a mod payload |
 | AD5M under Forge-X or ZMOD | No | The mod owns the install tree and updates it in place |
-| AD5X, Creator 5, Creator 5 Pro (any firmware) | No | Excluded by board (`kNoRollbackBoards`) behind the `mips` key: untested, add after a device run |
-| Snapmaker U1 | No | Not yet run through the device test plan (its release ships the watchdog, so the rule excludes it by key) |
+| AD5X, Creator 5, Creator 5 Pro (any firmware) | No | Share the `mips` key, but only the K1 board is proven: untested, add after a device run |
+| CC1 | No | Until a CC1 device run passes: its OpenWrt procd init and the COSMOS GUI switcher, which signals the watchdog's pidfile, are a second actor no run covered |
+| Snapmaker U1 | No | Not yet run through the device test plan (its release ships the watchdog) |
 | K2 | No | `/opt` cannot hold both versions; the old tree is staged off-partition |
 | x86 desktop, Android, ESP32 | No | They never run the in-app installer |
+| Any other platform key or board | No | The rule allows only what a device run proved |
 
-Every platform difference lives in `rollback_support()` and its `kNoRollbackPlatforms` and `kNoRollbackBoards` tables (`src/system/update_rollback.cpp`); the runtime facts (guard exported, watchdog parent, install suppressed, mod tree) decide the rest. An install whose layout turns out not to allow a kept copy fails the automatic install cleanly; nothing is changed.
+Every platform difference lives in `rollback_support()` and its allow-list `kRollbackProvenPlatforms` (platform key plus the board it must resolve to, `src/system/update_rollback.cpp`); the runtime facts (guard exported, watchdog parent, install suppressed, mod tree) decide the rest. An install whose layout turns out not to allow a kept copy fails the automatic install cleanly; nothing is changed.
 
 Known limits:
 
@@ -564,7 +567,7 @@ Known limits:
 
 #### Rollback device test plan
 
-A platform class gets Install overnight only after this plan passes on one of its devices. Passed, both on 2026-11-24 from 1.1.0-rc.4: **systemd** on a Raspberry Pi 3B (MainsailOS, Debian 13; covers Pi, Pi 32-bit and the x86 kiosk), and **SysV with the watchdog** on a Creality K1C (Simple AF, BusyBox init; covers the K1 series, the AD5M on Klipper Mod and the CC1). Results are on #1304. A platform or board that has not passed is excluded in `rollback_support()`: the Snapmaker U1 by key, and the AD5X and Creator 5 line by board.
+A platform class gets Install overnight only after this plan passes on one of its devices. Passed, both on 2026-11-24 from 1.1.0-rc.4: **systemd** on a Raspberry Pi 3B (MainsailOS, Debian 13; covers Pi, Pi 32-bit and the x86 kiosk), and **SysV with the watchdog** on a Creality K1C (Simple AF, BusyBox init; covers the K1 series and the AD5M on Klipper Mod). Results are on #1304. Passing adds a row to `kRollbackProvenPlatforms`; everything without one stays off.
 
 | Run | New version | Expected |
 |---|---|---|

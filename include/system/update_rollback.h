@@ -48,7 +48,7 @@ enum class RollbackSupport {
     NotSupervised,     ///< No watchdog above this process to hand the restart back
     InstallSuppressed, ///< The app cannot install updates here at all
     ModPayload,        ///< A mod owns the install tree and updates it in place
-    Platform,          ///< This platform or board cannot keep both versions, or is unproven
+    Platform,          ///< This platform and board has not passed the device test plan
 };
 
 /// What decides rollback support, gathered so the rule itself stays pure.
@@ -73,7 +73,7 @@ bool auto_rollback_supported();
 /// Has the rollback path (install.sh keeping the previous tree, the launcher's
 /// guard, the watchdog hand-back) passed the device test plan (UPDATE_SYSTEM.md
 /// § "Rollback device test plan")? It has for the systemd and the SysV-with-
-/// watchdog classes; a platform outside them is excluded in rollback_support().
+/// watchdog classes; rollback_support() allows only the platforms that passed.
 /// While false, auto_rollback_supported() is false everywhere and Install
 /// overnight stays hidden.
 inline constexpr bool kRollbackDeviceProven = true;
