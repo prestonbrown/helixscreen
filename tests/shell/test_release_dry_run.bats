@@ -291,3 +291,18 @@ plant_dual() {
     [ "$status" -ne 0 ]
     [[ "$output" == *"not one platform"* ]] || fail "$output"
 }
+
+# A dev-channel alpha refreshes the website's 1.2 docs, so the dispatch may
+# depend on a published release and nothing about its channel.
+@test "the docs deploy dispatch fires for every published release, whatever its channel" {
+    run python3 - "$YML" <<'PY'
+import sys, yaml
+with open(sys.argv[1]) as fh:
+    cond = yaml.safe_load(fh)["jobs"]["notify-website"]["if"]
+missing = [t for t in ("publish-release.result == 'success'", "plan.outputs.mode == 'publish'") if t not in cond]
+gated = [t for t in ("channel", "prerelease") if t in cond]
+print(f"missing {missing}, channel-gated by {gated}: {cond}")
+sys.exit(1 if missing or gated else 0)
+PY
+    [ "$status" -eq 0 ] || fail "$output"
+}
