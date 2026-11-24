@@ -240,6 +240,16 @@ TEST_CASE_METHOD(AutoUpdateTickFixture, "Auto-update tick: no install while Klip
 }
 
 TEST_CASE_METHOD(AutoUpdateTickFixture,
+                 "Auto-update install re-check: Klipper not ready counts as busy",
+                 "[auto_update]") {
+    CHECK_FALSE(UpdateCheckerTestAccess::machine_busy_on_main());
+    for (KlippyState bad : {KlippyState::ERROR, KlippyState::SHUTDOWN, KlippyState::STARTUP}) {
+        printer_state.set_klippy_state_sync(bad);
+        CHECK(UpdateCheckerTestAccess::machine_busy_on_main());
+    }
+}
+
+TEST_CASE_METHOD(AutoUpdateTickFixture,
                  "Auto-update tick: a stored Install overnight asks where rollback is missing",
                  "[auto_update]") {
     helix::update::set_auto_rollback_supported_for_test(false);
