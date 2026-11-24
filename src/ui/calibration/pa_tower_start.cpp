@@ -45,16 +45,9 @@ bool refuse_empty_toolhead(int tool, LifetimeToken owner) {
 
 void confirm_tower_print(const std::string& message, LifetimeToken owner,
                          std::function<void()> start) {
-    ConfirmOptions options;
-    options.owner_token = std::move(owner);
-    modal_confirm(
-        lv_tr("Print the test tower?"), message.c_str(), ModalSeverity::Warning, lv_tr("Start"),
-        [start = std::move(start)]() {
-            // The dialog asked for a clear plate, so nothing asks again.
-            mark_bed_cleared();
-            start();
-        },
-        options);
+    // The calibrations' one confirmation: it marks the bed cleared, so nothing asks again.
+    confirm_calibration_start(lv_tr("Print the test tower?"), message, lv_tr("Start"),
+                              std::move(owner), std::move(start));
 }
 
 } // namespace helix::ui

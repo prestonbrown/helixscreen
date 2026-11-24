@@ -2,6 +2,7 @@
 #include "ui_calibration_run_overlay.h"
 
 #include "ui_calibration_hub_overlay.h"
+#include "ui_calibration_time.h"
 #include "ui_callback_helpers.h"
 #include "ui_modal.h"
 #include "ui_nav.h"
@@ -687,15 +688,15 @@ void CalibrationRunOverlay::publish_prereqs() {
         paper = paper || (s.needs_hands && (s.prereqs & calibration::kPrereqPaper));
     }
     lv_subject_set_int(&has_hands_, hands > 0 ? 1 : 0);
-    set_text(you_line_, fmt::format(fmt::runtime(lv_tr("Needs you, about {} min")), hands));
+    set_text(you_line_, calibration::time_you_line(hands));
     std::string you_steps = join_names(mine);
     if (paper) {
         you_steps += " ";
         you_steps += lv_tr("paper test");
     }
     set_text(you_steps_, you_steps + ". " + lv_tr("Stay at the printer."));
-    set_text(away_line_,
-             fmt::format(fmt::runtime(lv_tr("Prints on its own, about {} min")), total - hands));
+    // The run's own steps probe, heat and sweep: it runs, it prints nothing.
+    set_text(away_line_, calibration::time_away_line(calibration::AwayKind::Runs, total - hands));
     std::string away_steps = join_names(away);
     if (!away_steps.empty()) {
         away_steps += ".";

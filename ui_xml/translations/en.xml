@@ -3018,7 +3018,6 @@
   <translation tag="Needs repair from a web interface" en="Needs repair from a web interface"/>
   <translation tag="Needs the {} package to switch spools" en="Needs the {} package to switch spools"/>
   <translation tag="Needs you, about {}" en="Needs you, about {}"/>
-  <translation tag="Needs you, about {} min" en="Needs you, about {} min"/>
   <translation tag="Needs you, about {}: {}" en="Needs you, about {}: {}"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" en="Needs {}x{} free: remove or shrink a widget first"/>
   <translation tag="Net Weight (g)" en="Net Weight (g)"/>
@@ -3741,7 +3740,6 @@
   <translation tag="Prints" en="Prints"/>
   <translation tag="Prints Trend" en="Prints Trend"/>
   <translation tag="Prints on its own, about {}" en="Prints on its own, about {}"/>
-  <translation tag="Prints on its own, about {} min" en="Prints on its own, about {} min"/>
   <translation tag="Private:" en="Private:"/>
   <translation tag="Probe" en="Probe"/>
   <translation tag="Probe Accuracy Failed" en="Probe Accuracy Failed"/>

@@ -3,6 +3,7 @@
 
 #include "ui_overlay_pa_tuning.h"
 
+#include "ui_calibration_time.h"
 #include "ui_callback_helpers.h"
 #include "ui_error_reporting.h"
 #include "ui_modal.h"
@@ -583,16 +584,15 @@ void PaTuningOverlay::refresh_setup() {
         est =
             helix::calibration::linear_pa_tower_estimate(helix::pa::estimate_print_seconds(params));
     }
-    // The calibration run's own two lines, so both screens share one string each.
-    lv_subject_set_string(
-        &time_line_,
-        fmt::format(fmt::runtime(lv_tr("Prints on its own, about {} min")), est.walk_away_minutes)
-            .c_str());
+    // The calibration screens' shared wording for time.
+    lv_subject_set_string(&time_line_,
+                          helix::calibration::time_away_line(helix::calibration::AwayKind::Prints,
+                                                             est.walk_away_minutes)
+                              .c_str());
     lv_subject_set_string(&time_sub_,
-                          fmt::format("{}: {}",
-                                      fmt::format(fmt::runtime(lv_tr("Needs you, about {} min")),
-                                                  std::max(1, est.hands_minutes)),
-                                      nl ? lv_tr("one look at each tower") : lv_tr("pick the band"))
+                          helix::calibration::time_you_line(std::max(1, est.hands_minutes),
+                                                            nl ? lv_tr("one look at each tower")
+                                                               : lv_tr("pick the band"))
                               .c_str());
     lv_subject_set_string(&primary_text_, nl ? lv_tr("Start Tuning") : lv_tr("Print Tower"));
     lv_subject_set_string(&save_material_, fmt::format(fmt::runtime(lv_tr("Save for {}")),
@@ -607,7 +607,8 @@ void PaTuningOverlay::refresh_setup() {
     // The nonlinear tuner's towers: what each sweeps and judges, its picture by the side judged.
     static const char* const kThumbLeft = "A:assets/images/pa/nl_pass_1_thumb.png";
     static const char* const kThumbBoth = "A:assets/images/pa/nl_pass_2_thumb.png";
-    static const char* const kThumbFront = "A:assets/images/pa/nl_pass_3_thumb.png";
+    static const char* const kThumbFrontLit = "A:assets/images/pa/nl_pass_3_thumb.png";
+    static const char* const kThumbFront = "A:assets/images/pa/nl_pass_front_thumb.png";
     lv_subject_set_int(&nl_pass_count_, std::min(order.pass_count(), kNlPassCards));
     for (int i = 0; i < kNlPassCards; ++i) {
         std::string name;
@@ -615,7 +616,9 @@ void PaTuningOverlay::refresh_setup() {
         if (i < order.pass_count()) {
             const auto& pass = order.pass_at(static_cast<size_t>(i));
             name = fmt::format("{}. {}", i + 1, nonlinear_param_label(pass.sweep.param));
-            const char* thumb = kThumbFront;
+            // The lamp means the time offset's side light and nothing else.
+            const char* thumb =
+                pass.sweep.param == helix::pa::NlParam::TimeOffset ? kThumbFrontLit : kThumbFront;
             switch (pass.judge) {
             case helix::pa::TowerSide::Left:
                 look = lv_tr("Left: the slow middle's edges");

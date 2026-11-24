@@ -3,6 +3,7 @@
 
 #include "ui_overlay_pa_nonlinear.h"
 
+#include "ui_calibration_time.h"
 #include "ui_callback_helpers.h"
 #include "ui_component_keypad.h"
 #include "ui_modal.h"
@@ -485,8 +486,8 @@ void PaNonlinearOverlay::refresh() {
                           has_tower ? lv_tr("Print Tower") : lv_tr("Add Tower to Config"));
     const auto estimate = helix::calibration::firmware_pa_tower_estimate();
     lv_subject_set_string(&time_line_,
-                          fmt::format(fmt::runtime(lv_tr("Prints on its own, about {} min")),
-                                      estimate.walk_away_minutes)
+                          helix::calibration::time_away_line(helix::calibration::AwayKind::Prints,
+                                                             estimate.walk_away_minutes)
                               .c_str());
     lv_subject_set_string(&time_sub_, lv_tr("No need to stay while it prints"));
     lv_subject_set_string(

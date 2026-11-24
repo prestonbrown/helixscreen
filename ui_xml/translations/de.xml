@@ -3018,7 +3018,6 @@
   <translation tag="Needs repair from a web interface" de="Muss über eine Weboberfläche repariert werden"/>
   <translation tag="Needs the {} package to switch spools" de="Benötigt das Plugin {} für den Spulenwechsel"/>
   <translation tag="Needs you, about {}" de="Braucht dich, etwa {}"/>
-  <translation tag="Needs you, about {} min" de="Du wirst gebraucht, etwa {} Min."/>
   <translation tag="Needs you, about {}: {}" de="Braucht dich, etwa {}: {}"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" de="Benötigt {}x{} an freiem Platz: zuerst ein Widget entfernen oder verkleinern"/>
   <translation tag="Net Weight (g)" de="Nettogewicht (g)"/>
@@ -3741,7 +3740,6 @@
   <translation tag="Prints" de="Drucke"/>
   <translation tag="Prints Trend" de="Drucktrend"/>
   <translation tag="Prints on its own, about {}" de="Druckt selbstständig, etwa {}"/>
-  <translation tag="Prints on its own, about {} min" de="Druckt selbstständig, etwa {} Min."/>
   <translation tag="Private:" de="Privat:"/>
   <translation tag="Probe" de="Sonde"/>
   <translation tag="Probe Accuracy Failed" de="Taster-Genauigkeitstest fehlgeschlagen"/>

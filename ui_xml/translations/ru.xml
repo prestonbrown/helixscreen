@@ -3066,7 +3066,6 @@
   <translation tag="Needs repair from a web interface" ru="Требуется восстановление через веб-интерфейс"/>
   <translation tag="Needs the {} package to switch spools" ru="Для смены катушки нужен плагин {}"/>
   <translation tag="Needs you, about {}" ru="Нужны вы, около {}"/>
-  <translation tag="Needs you, about {} min" ru="Нужны вы, около {} мин"/>
   <translation tag="Needs you, about {}: {}" ru="Нужны вы, около {}: {}"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" ru="Требуется {}x{} свободного места: сначала удалите или уменьшите виджет"/>
   <translation tag="Net Weight (g)" ru="Вес нетто (г)"/>
@@ -3798,7 +3797,6 @@
   <translation tag="Prints" ru="Печати"/>
   <translation tag="Prints Trend" ru="Тренд печатей"/>
   <translation tag="Prints on its own, about {}" ru="Печатает сам, около {}"/>
-  <translation tag="Prints on its own, about {} min" ru="Печатает само, около {} мин"/>
   <translation tag="Private:" ru="Закрытая:"/>
   <translation tag="Probe" ru="Зонд"/>
   <translation tag="Probe Accuracy Failed" ru="Ошибка теста точности зонда"/>

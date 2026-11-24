@@ -3018,7 +3018,6 @@
   <translation tag="Needs repair from a web interface" ja="Webインターフェースからの修復が必要です"/>
   <translation tag="Needs the {} package to switch spools" ja="スプール切り替えには {} プラグインが必要です"/>
   <translation tag="Needs you, about {}" ja="操作が必要、約 {}"/>
-  <translation tag="Needs you, about {} min" ja="操作が必要、約{}分"/>
   <translation tag="Needs you, about {}: {}" ja="操作が必要、約 {}: {}"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" ja="空き {}x{} が必要です。先にウィジェットを削除または縮小してください"/>
   <translation tag="Net Weight (g)" ja="正味重量（g）"/>
@@ -3741,7 +3740,6 @@
   <translation tag="Prints" ja="印刷"/>
   <translation tag="Prints Trend" ja="印刷傾向"/>
   <translation tag="Prints on its own, about {}" ja="自動で印刷、約 {}"/>
-  <translation tag="Prints on its own, about {} min" ja="自動で印刷、約{}分"/>
   <translation tag="Private:" ja="プライベート:"/>
   <translation tag="Probe" ja="プローブ"/>
   <translation tag="Probe Accuracy Failed" ja="プローブ精度テスト失敗"/>
