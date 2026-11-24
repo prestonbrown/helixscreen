@@ -90,7 +90,7 @@ If a print holds the printer, the install waits for the next night. The screen r
 
 If the new version doesn't start properly (it won't launch, hangs, or keeps crashing), HelixScreen puts the version you had back by itself, within about ten minutes. The next time it starts you'll see **Update Rolled Back**, and it won't install that version by itself again. Your settings are kept.
 
-**Install overnight** is listed only on printers where HelixScreen can roll an update back: Raspberry Pi and other systemd installs, and printers such as the Creality K1 series, the AD5M on Klipper Mod and the Elegoo Centauri Carbon. On other printers the choices are **Off** and **Download and ask**.
+**Install overnight** is listed only on printers where HelixScreen can roll an update back: Raspberry Pi and other systemd installs, and printers such as the Creality K1 series, the AD5M on Klipper Mod and the Elegoo Centauri Carbon. It isn't offered yet on the Snapmaker U1, the FlashForge AD5X or the Creator 5 line. On those and other printers the choices are **Off** and **Download and ask**.
 
 ---
 

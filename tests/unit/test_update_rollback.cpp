@@ -26,6 +26,7 @@
 #include <fstream>
 #include <string>
 #include <unistd.h>
+#include <utility>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -90,6 +91,23 @@ TEST_CASE("Rollback support: every fact must hold, and some platforms never can"
     for (const char* key : {"k2", "x86-desktop", "android", "esp32", "snapmaker-u1"}) {
         auto f = supported_facts();
         f.platform_key = key;
+        CHECK(rollback_support(f) == RollbackSupport::Platform);
+    }
+    // The SysV class the device plan proved, each on its own platform key.
+    for (const auto& [key, board] :
+         {std::pair{"mips", helix::board::Board::K1}, std::pair{"ad5m", helix::board::Board::Ad5m},
+          std::pair{"cc1", helix::board::Board::Cc1}}) {
+        auto f = supported_facts();
+        f.platform_key = key;
+        f.board = board;
+        CHECK(rollback_support(f) == RollbackSupport::Supported);
+    }
+    for (const auto board : {helix::board::Board::Ad5x, helix::board::Board::Creator5,
+                             helix::board::Board::Creator5Pro}) {
+        auto f = supported_facts();
+        f.platform_key = "mips";
+        f.board = board;
+        INFO("board " << helix::board::info(board).key);
         CHECK(rollback_support(f) == RollbackSupport::Platform);
     }
 

@@ -54,8 +54,17 @@ constexpr const char* kNoRollbackPlatforms[] = {
     "android",
     "esp32",
     // VENDOR_OK: one row per platform key in the rollback capability's own table
-    // Ships the watchdog but has not passed the rollback device test plan.
+    // Has not passed the device plan.
     "snapmaker-u1",
+};
+
+// Boards behind an allowed platform key that never get rollback. The "mips" key
+// also serves these boards; untested; add after a device run.
+constexpr helix::board::Board kNoRollbackBoards[] = {
+    // VENDOR_OK: the rollback capability's own table keyed on helix::board
+    helix::board::Board::Ad5x,
+    helix::board::Board::Creator5,
+    helix::board::Board::Creator5Pro,
 };
 
 } // namespace
@@ -63,6 +72,11 @@ constexpr const char* kNoRollbackPlatforms[] = {
 RollbackSupport rollback_support(const RollbackFacts& facts) {
     for (const char* key : kNoRollbackPlatforms) {
         if (facts.platform_key == key) {
+            return RollbackSupport::Platform;
+        }
+    }
+    for (const helix::board::Board board : kNoRollbackBoards) {
+        if (facts.board == board) {
             return RollbackSupport::Platform;
         }
     }
@@ -103,6 +117,7 @@ const char* rollback_support_name(RollbackSupport support) {
 RollbackFacts current_rollback_facts() {
     RollbackFacts facts;
     facts.platform_key = helix::platform::current_key();
+    facts.board = helix::board::current();
     facts.guard_dir = env_set(kRollbackDirEnv);
     facts.supervised = env_set("HELIX_SUPERVISED");
     facts.install_suppressed = update_install_suppressed();

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "board_identity.h"
+
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -46,14 +48,15 @@ enum class RollbackSupport {
     NotSupervised,     ///< No watchdog above this process to hand the restart back
     InstallSuppressed, ///< The app cannot install updates here at all
     ModPayload,        ///< A mod owns the install tree and updates it in place
-    Platform,          ///< This platform's install layout cannot keep both versions
+    Platform,          ///< This platform or board cannot keep both versions, or is unproven
 };
 
 /// What decides rollback support, gathered so the rule itself stays pure.
 struct RollbackFacts {
-    std::string platform_key; ///< helix::platform::current_key()
-    bool guard_dir = false;   ///< HELIX_ROLLBACK_DIR is set
-    bool supervised = false;  ///< HELIX_SUPERVISED is set (a watchdog parent)
+    std::string platform_key;                                 ///< helix::platform::current_key()
+    helix::board::Board board = helix::board::Board::Generic; ///< helix::board::current()
+    bool guard_dir = false;                                   ///< HELIX_ROLLBACK_DIR is set
+    bool supervised = false; ///< HELIX_SUPERVISED is set (a watchdog parent)
     bool install_suppressed = false;
     bool mod_payload = false; ///< Forge-X or ZMOD owns the install tree
 };
