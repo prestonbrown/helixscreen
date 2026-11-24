@@ -84,7 +84,7 @@
     <px name="edit_spool_size_tiny" value="80"/>
     <px name="edit_spool_size_small" value="120"/>
     <px name="edit_spool_size_medium" value="168"/>
-    <px name="edit_spool_size_large" value="210"/>
+    <px name="edit_spool_size_large" value="176"/>
     <!-- The color page's Single / Gradient / Coaxial dropdown
          (ams_edit_multi_color.xml): wide enough for its longest option. -->
     <px name="ams_edit_mode_dd_w_micro" value="104"/>
@@ -229,21 +229,6 @@
               width="100%" height="100%" flex_flow="column" style_pad_all="0" style_pad_gap="#ams_edit_vgap"
               scrollable="false" hidden="true">
         <bind_flag_if_not_eq subject="ams_edit_page" flag="hidden" ref_value="0"/>
-
-        <!-- While the lane records load or a save waits or fails, one line
-             says so above the card. -->
-        <text_small name="lane_records_loading"
-                    width="100%" long_mode="dots" text="Loading lane details…" style_text_color="#text_muted">
-          <bind_flag_if_eq subject="ams_lane_records_ready" flag="hidden" ref_value="1"/>
-        </text_small>
-        <text_small name="save_waiting"
-                    width="100%" long_mode="dots" bind_text="ams_edit_save_wait_text" style_text_color="#text_muted">
-          <bind_flag_if_not_eq subject="ams_edit_save_state" flag="hidden" ref_value="1"/>
-        </text_small>
-        <text_small name="save_error"
-                    width="100%" long_mode="dots" bind_text="ams_edit_save_error" style_text_color="#danger">
-          <bind_flag_if_not_eq subject="ams_edit_save_state" flag="hidden" ref_value="2"/>
-        </text_small>
 
         <!-- The lane holds one filament and its linked spool says another:
              the note names the spool's and offers both ways to settle it. -->
@@ -399,21 +384,41 @@
             <bind_state_if_eq subject="ams_edit_clear_blocked" state="disabled" ref_value="1"/>
             <event_cb trigger="clicked" callback="ams_edit_clear_spool_cb"/>
           </ui_button>
-          <!-- Why Clear is greyed: the print draws from this lane. -->
+          <!-- One status slot beside Save: lane records still loading, what a
+               waiting save is queued behind, a save that failed, or why Clear
+               is greyed (the print draws from this lane). The slot sits in
+               the action row, so a status never moves the rows above it; a
+               save in progress also shows as Save's spinner. -->
+          <text_small name="lane_records_loading"
+                      width="1" height="#button_height" flex_grow="1" long_mode="dots" text="Loading lane details…"
+                      style_text_color="#text_muted">
+            <bind_flag_if_eq subject="ams_lane_records_ready" flag="hidden" ref_value="1"/>
+          </text_small>
+          <text_small name="save_waiting"
+                      width="1" height="#button_height" flex_grow="1" long_mode="dots"
+                      bind_text="ams_edit_save_wait_text" style_text_color="#text_muted">
+            <bind_flag_if cond="ams_edit_save_state ne 1" flag="hidden"/>
+          </text_small>
+          <text_small name="save_error"
+                      width="1" height="#button_height" flex_grow="1" long_mode="dots" bind_text="ams_edit_save_error"
+                      style_text_color="#danger">
+            <bind_flag_if cond="ams_edit_save_state ne 2" flag="hidden"/>
+          </text_small>
           <text_small name="clear_hint"
                       width="1" flex_grow="1" bind_text="ams_edit_clear_hint" long_mode="wrap"
                       style_text_color="#text_muted">
-            <bind_flag_if_eq subject="ams_edit_clear_blocked" flag="hidden" ref_value="0"/>
+            <bind_flag_if cond="ams_edit_clear_blocked eq 0 or ams_edit_save_state ne 0" flag="hidden"/>
           </text_small>
           <lv_obj width="1"
                   height="content" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
                   scrollable="false" clickable="false">
-            <bind_flag_if_eq subject="ams_edit_clear_blocked" flag="hidden" ref_value="1"/>
+            <bind_flag_if cond="ams_edit_clear_blocked eq 1 or ams_edit_save_state ne 0" flag="hidden"/>
           </lv_obj>
           <ui_button name="btn_edit_save"
-                     width="content" height="#button_height" text="Save" variant="primary"
-                     style_min_width="#ams_edit_weight_w">
-            <bind_state_if cond="ams_edit_save_disabled eq 1 or ams_lane_records_ready eq 0" state="disabled"/>
+                     width="content" height="#button_height" icon="check" text="Save" variant="primary"
+                     style_min_width="#ams_edit_weight_w" bind_op_state="ams_edit_save_op">
+            <bind_state_if cond="ams_edit_save_disabled eq 1 or ams_edit_save_state eq 1 or ams_lane_records_ready eq 0"
+                           state="disabled"/>
             <event_cb trigger="clicked" callback="ams_edit_save_cb"/>
           </ui_button>
         </lv_obj>
