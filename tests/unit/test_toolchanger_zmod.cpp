@@ -1047,3 +1047,64 @@ TEST_CASE("A rejected Z-Mod swap ends: its markers never say idle",
     CHECK(tc.get_current_action() == AmsAction::IDLE);
     CHECK_FALSE(tc.get_system_info().is_busy());
 }
+
+// Lines are verbatim from zmod_color.py cmd_T_CALIBRATE_EXTRUDERS (Z-Mod 1.7.5,
+// read off a Creator 5 Pro), with the respond_info framing the wire adds.
+TEST_CASE("Z-Mod's extruder calibration lines classify into steps",
+          "[toolchanger][zmod][calibration]") {
+    using Kind = toolchanger_addon::ZmodCalibrationStep::Kind;
+
+    auto station_start = toolchanger_addon::parse_zmod_calibration_line("// [CALIB] TS: ...");
+    REQUIRE(station_start.has_value());
+    CHECK(station_start->kind == Kind::Started);
+    CHECK(station_start->station);
+
+    auto station = toolchanger_addon::parse_zmod_calibration_line(
+        "// [CALIB] TS: X=120.1234 Y=-3.5000 Z=2.0010");
+    REQUIRE(station.has_value());
+    CHECK(station->kind == Kind::Measured);
+    CHECK(station->station);
+    CHECK(station->x_um == 120123);
+    CHECK(station->y_um == -3500);
+    CHECK(station->z_um == 2001);
+
+    auto started = toolchanger_addon::parse_zmod_calibration_line("// [CALIB] T2: ...");
+    REQUIRE(started.has_value());
+    CHECK(started->kind == Kind::Started);
+    CHECK(started->tool == 2);
+    CHECK_FALSE(started->station);
+
+    auto measured = toolchanger_addon::parse_zmod_calibration_line(
+        "// [CALIB] T3: X=0.250000 Y=-0.125000 Z=0.040000");
+    REQUIRE(measured.has_value());
+    CHECK(measured->kind == Kind::Measured);
+    CHECK(measured->tool == 3);
+    CHECK(measured->x_um == 250);
+    CHECK(measured->y_um == -125);
+    CHECK(measured->z_um == 40);
+
+    auto skipped =
+        toolchanger_addon::parse_zmod_calibration_line("// [CALIB] T1: Skipped (parameter T1=0)");
+    REQUIRE(skipped.has_value());
+    CHECK(skipped->kind == Kind::Skipped);
+    CHECK(skipped->tool == 1);
+
+    // The Russian build words it "Пропущен (параметр T0=0)".
+    auto ru =
+        toolchanger_addon::parse_zmod_calibration_line("// [CALIB] T0: Пропущен (параметр T0=0)");
+    REQUIRE(ru.has_value());
+    CHECK(ru->kind == Kind::Skipped);
+    CHECK(ru->tool == 0);
+
+    auto done = toolchanger_addon::parse_zmod_calibration_line("// Calibration complete.");
+    REQUIRE(done.has_value());
+    CHECK(done->kind == Kind::Complete);
+
+    // The closing summary repeats the offsets as plain "// T0: X=" lines, and
+    // other console chatter says nothing about a step.
+    CHECK_FALSE(
+        toolchanger_addon::parse_zmod_calibration_line("// T0: X=0.250000 Y=-0.125000 Z=0.040000"));
+    CHECK_FALSE(
+        toolchanger_addon::parse_zmod_calibration_line("// Grab attempt for T0: 1 of 5..."));
+    CHECK_FALSE(toolchanger_addon::parse_zmod_calibration_line("// [CALIB] garbage"));
+}
