@@ -6126,6 +6126,7 @@ translations:
   You are needed for the first {} min, then it runs on its own: 最初の{}分は操作が必要で、その後は自動で進みます
   You can skip this and calibrate later in Settings.: スキップして後で設定でキャリブレーションできます。
   You have unsaved changes. Discard them?: 保存されていない変更があります。破棄しますか？
+  You will judge: "判定するところ"
   You, about {} min: 'あなたの操作、約{}分'
   'You: about {} min at the start, then it runs on its own': '最初の約{}分だけ操作が必要で、その後は自動で進みます'
   Your PID values are kept. You can switch back here any time.: PID の値は保持されます。いつでもここで元に戻せます。

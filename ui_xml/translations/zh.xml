@@ -5907,6 +5907,7 @@
   <translation tag="You are needed for the first {} min, then it runs on its own" zh="前 {} 分钟需要您参与，之后自动运行"/>
   <translation tag="You can skip this and calibrate later in Settings." zh="您可以跳过此步骤，稍后在设置中进行校准。"/>
   <translation tag="You have unsaved changes. Discard them?" zh="您有未保存的更改。是否丢弃？"/>
+  <translation tag="You will judge" zh="你要评判的"/>
   <translation tag="You, about {} min" zh="需要您约 {} 分钟"/>
   <translation tag="You: about {} min at the start, then it runs on its own" zh="开始时需要您约 {} 分钟，之后自动运行"/>
   <translation tag="Your PID values are kept. You can switch back here any time." zh="您的 PID 值会保留。随时可以在这里切换回来。"/>

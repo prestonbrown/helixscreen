@@ -5907,6 +5907,7 @@
   <translation tag="You are needed for the first {} min, then it runs on its own" ja="最初の{}分は操作が必要で、その後は自動で進みます"/>
   <translation tag="You can skip this and calibrate later in Settings." ja="スキップして後で設定でキャリブレーションできます。"/>
   <translation tag="You have unsaved changes. Discard them?" ja="保存されていない変更があります。破棄しますか？"/>
+  <translation tag="You will judge" ja="判定するところ"/>
   <translation tag="You, about {} min" ja="あなたの操作、約{}分"/>
   <translation tag="You: about {} min at the start, then it runs on its own" ja="最初の約{}分だけ操作が必要で、その後は自動で進みます"/>
   <translation tag="Your PID values are kept. You can switch back here any time." ja="PID の値は保持されます。いつでもここで元に戻せます。"/>

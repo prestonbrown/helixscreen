@@ -6214,6 +6214,7 @@ translations:
   You are needed for the first {} min, then it runs on its own: Вы нужны первые {} мин, дальше всё идёт само
   You can skip this and calibrate later in Settings.: Вы можете пропустить это и откалибровать позже в настройках.
   You have unsaved changes. Discard them?: У вас есть несохранённые изменения. Отменить их?
+  You will judge: "Что вы оцените"
   You, about {} min: 'Вы, около {} мин'
   'You: about {} min at the start, then it runs on its own': 'Вы: около {} мин в начале, затем всё идёт само'
   Your PID values are kept. You can switch back here any time.: Ваши значения PID сохраняются. Вернуться можно здесь в любой момент.

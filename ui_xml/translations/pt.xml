@@ -5907,6 +5907,7 @@
   <translation tag="You are needed for the first {} min, then it runs on its own" pt="Você é necessário nos primeiros {} min, depois funciona sozinho"/>
   <translation tag="You can skip this and calibrate later in Settings." pt="Você pode pular isto e calibrar depois nas Configurações."/>
   <translation tag="You have unsaved changes. Discard them?" pt="Você tem alterações não salvas. Descartar?"/>
+  <translation tag="You will judge" pt="Você vai avaliar"/>
   <translation tag="You, about {} min" pt="Você, cerca de {} min"/>
   <translation tag="You: about {} min at the start, then it runs on its own" pt="Você: cerca de {} min no início, depois roda sozinho"/>
   <translation tag="Your PID values are kept. You can switch back here any time." pt="Os seus valores PID são mantidos. Pode voltar aqui a qualquer momento."/>

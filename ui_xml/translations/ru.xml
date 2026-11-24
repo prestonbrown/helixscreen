@@ -5973,6 +5973,7 @@
   <translation tag="You are needed for the first {} min, then it runs on its own" ru="Вы нужны первые {} мин, дальше всё идёт само"/>
   <translation tag="You can skip this and calibrate later in Settings." ru="Вы можете пропустить это и откалибровать позже в настройках."/>
   <translation tag="You have unsaved changes. Discard them?" ru="У вас есть несохранённые изменения. Отменить их?"/>
+  <translation tag="You will judge" ru="Что вы оцените"/>
   <translation tag="You, about {} min" ru="Вы, около {} мин"/>
   <translation tag="You: about {} min at the start, then it runs on its own" ru="Вы: около {} мин в начале, затем всё идёт само"/>
   <translation tag="Your PID values are kept. You can switch back here any time." ru="Ваши значения PID сохраняются. Вернуться можно здесь в любой момент."/>
