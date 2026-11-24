@@ -2205,6 +2205,7 @@ TEST_CASE("A reconnect during the restart hold keeps the sentinel of a successfu
     REQUIRE(!tmp.empty());
     const std::string fallback = tmp + "/.helixscreen";
     const std::string sentinel = fallback + "/self_restart_sentinel";
+    const std::string legacy = tmp + "/helixscreen_self_restart";
     std::string inner = tmp + "/helixscreen";
     mkdir(inner.c_str(), 0755);
     create_file(inner + "/install.sh", "#!/bin/sh\nexit 0\n", true);
@@ -2218,6 +2219,7 @@ TEST_CASE("A reconnect during the restart hold keeps the sentinel of a successfu
         ScopedRuntimeConfig scoped_config;
         get_runtime_config()->test_mode = false;
         helix::app_constants::update::detail::backup_fallback_dir_ref() = fallback;
+        helix::app_constants::update::detail::legacy_self_restart_sentinel_ref() = legacy;
         auto& checker = UpdateChecker::instance();
         UpdateCheckerTestAccess::clear_download_cancelled(checker);
         UpdateCheckerTestAccess::set_install_log(checker, tmp + "/install.log");
@@ -2233,7 +2235,8 @@ TEST_CASE("A reconnect during the restart hold keeps the sentinel of a successfu
         });
         UpdateCheckerTestAccess::set_status_hold_ms(checker, 0, 0);
         UpdateCheckerTestAccess::do_install(checker, tarball);
-        _exit(access(sentinel.c_str(), F_OK) == 0 ? 0 : 1);
+        // The legacy sentinel lands at its configured path, never the host's /tmp.
+        _exit(access(sentinel.c_str(), F_OK) != 0 ? 1 : access(legacy.c_str(), F_OK) != 0 ? 2 : 0);
     }
     REQUIRE(pid > 0);
     int wstatus = 0;
@@ -2244,6 +2247,7 @@ TEST_CASE("A reconnect during the restart hold keeps the sentinel of a successfu
         waitpid(pid, &wstatus, 0);
         FAIL("do_install did not return within 30s");
     }
+    INFO("child exit " << WEXITSTATUS(wstatus) << " (1: no sentinel, 2: no legacy sentinel)");
     CHECK((WIFEXITED(wstatus) && WEXITSTATUS(wstatus) == 0));
 
     remove_dir(tmp);

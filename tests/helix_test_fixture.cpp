@@ -186,6 +186,8 @@ struct ConfigSandbox {
     void apply() const {
         app_constants::update::detail::state_dir_ref() = dir + "/state";
         app_constants::update::detail::backup_fallback_dir_ref() = dir + "/backup";
+        app_constants::update::detail::legacy_self_restart_sentinel_ref() =
+            dir + "/helixscreen_self_restart";
     }
 
     ~ConfigSandbox() {

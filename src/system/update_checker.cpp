@@ -2662,7 +2662,7 @@ void UpdateChecker::do_install(const std::string& tarball_path, InstallOrigin or
     // reconnect during the hold must keep this pid-less sentinel.
     {
         // Legacy location (may not work with PrivateTmp=true)
-        std::ofstream ofs_legacy("/tmp/helixscreen_self_restart");
+        std::ofstream ofs_legacy(app_constants::update::legacy_self_restart_sentinel());
     }
 
     finish_install_and_restart(install_root, version);
@@ -2845,7 +2845,7 @@ void UpdateChecker::handle_external_update_complete() {
     // Write sentinel so helixscreen-update.service (systemd path watcher) skips
     // its restart — we're handling it here.  Same sentinel as self-update path.
     write_self_restart_sentinel();
-    { std::ofstream ofs_legacy("/tmp/helixscreen_self_restart"); }
+    { std::ofstream ofs_legacy(app_constants::update::legacy_self_restart_sentinel()); }
 
     // Write restart marker so watchdog knows this exit is expected
     {
@@ -3991,7 +3991,7 @@ void UpdateChecker::on_connected(helix::IMoonrakerClient& client) {
         // Legacy: best-effort under PrivateTmp (sees private /tmp,
         // not real /tmp — stale real sentinels cleaned on reboot)
         std::error_code ec;
-        std::filesystem::remove("/tmp/helixscreen_self_restart", ec);
+        std::filesystem::remove(app_constants::update::legacy_self_restart_sentinel(), ec);
     }
 
     // Detect when Moonraker finishes updating HelixScreen (e.g. via Mainsail).
