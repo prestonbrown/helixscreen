@@ -30,20 +30,26 @@
       <bind_flag_if_eq subject="tune_pa_session_active" flag="hidden" ref_value="0"/>
       <event_cb trigger="clicked" callback="on_tune_open_pa_tuner"/>
     </ui_button>
+    <!-- Under a nonlinear model a bare ADVANCE= would replace only part of the
+         model, so the steps are disabled; the Nonlinear tuner changes it. -->
     <!-- Coarse steps give way in portrait and on the smallest panels, where the
          row shares its width with the reset button. -->
     <ui_button name="btn_pa_minus_5" width="#tune_pa_btn_w" height="#button_height_sm" text="-.005">
       <bind_flag_if cond="$coarse_hidden_cond" flag="hidden"/>
+      <bind_state_if_eq subject="extruder_pa_nonlinear" state="disabled" ref_value="1"/>
       <event_cb trigger="clicked" callback="on_tune_pa_adjust" user_data="-5"/>
     </ui_button>
     <ui_button name="btn_pa_minus_1" width="#tune_pa_btn_w" height="#button_height_sm" text="-.001">
+      <bind_state_if_eq subject="extruder_pa_nonlinear" state="disabled" ref_value="1"/>
       <event_cb trigger="clicked" callback="on_tune_pa_adjust" user_data="-1"/>
     </ui_button>
     <ui_button name="btn_pa_plus_1" width="#tune_pa_btn_w" height="#button_height_sm" text="+.001">
+      <bind_state_if_eq subject="extruder_pa_nonlinear" state="disabled" ref_value="1"/>
       <event_cb trigger="clicked" callback="on_tune_pa_adjust" user_data="1"/>
     </ui_button>
     <ui_button name="btn_pa_plus_5" width="#tune_pa_btn_w" height="#button_height_sm" text="+.005">
       <bind_flag_if cond="$coarse_hidden_cond" flag="hidden"/>
+      <bind_state_if_eq subject="extruder_pa_nonlinear" state="disabled" ref_value="1"/>
       <event_cb trigger="clicked" callback="on_tune_pa_adjust" user_data="5"/>
     </ui_button>
   </view>

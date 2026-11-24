@@ -468,7 +468,7 @@ TEST_CASE_METHOD(TunerFixture, "a classic K tower is refused on a nonlinear extr
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_tune_nl_mode")) == 1);
 }
 
-TEST_CASE_METHOD(TunerFixture, "the display stays awake on the pick and result stages only",
+TEST_CASE_METHOD(TunerFixture, "the display stays awake on the pick stage only",
                  "[pa_tune][pa_tuner][awake]") {
     start_session();
     printing(1);
@@ -479,11 +479,13 @@ TEST_CASE_METHOD(TunerFixture, "the display stays awake on the pick and result s
     status({{"print_stats", {{"state", "complete"}}}});
     REQUIRE(overlay.stage() == PaTuningOverlay::PICK);
     CHECK(overlay.awake_held_for_test());
+    // A covered tuner no longer waits on the user.
+    overlay.on_deactivating(DeactivateReason::NavigateAway);
+    CHECK_FALSE(overlay.awake_held_for_test());
     overlay.select_band_for_test(1);
     overlay.apply_pick_for_test();
     REQUIRE(overlay.stage() == PaTuningOverlay::RESULT);
-    CHECK(overlay.awake_held_for_test());
-    overlay.cleanup();
+    // The result is not held: a screen left on it must let the display sleep.
     CHECK_FALSE(overlay.awake_held_for_test());
 }
 
@@ -532,4 +534,23 @@ TEST_CASE_METHOD(TunerFixture, "the tower's Print Status page leaves the stack w
     // land on it instead of where the tuner was opened.
     CHECK_FALSE(helix::nav::is_in_stack(page));
     nav.deinit_subjects();
+}
+
+TEST_CASE_METHOD(TunerFixture, "a previous tower's end marker does not start this run",
+                 "[pa_tune][pa_tuner][timeout]") {
+    // The last tower ended on its layer past the top; nothing clears that count.
+    status({{"print_stats", {{"state", "standby"}, {"info", {{"current_layer", 157}}}}}});
+    start_session();
+    status(
+        {{"print_stats", {{"state", "printing"}, {"filename", PaTuningOverlay::TEST_FILENAME}}}});
+    CHECK(client.last_send_script().find("SET_PRESSURE_ADVANCE") == std::string::npos);
+    CHECK(overlay.session_for_test().state() == pa::TuningSession::State::Starting);
+
+    printing(1);
+    CHECK(client.last_send_script() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0000");
+    report_k(0.0);
+    printing(22);
+    // The ramp runs: the stale marker did not declare this tower done.
+    CHECK(client.last_send_script() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0100");
+    CHECK(overlay.nudge_by(0.005f));
 }

@@ -263,6 +263,12 @@ void PaTuningOverlay::on_activate() {
     set_stage(stage_);
 }
 
+void PaTuningOverlay::on_deactivating(DeactivateReason reason) {
+    // A covered or closed tuner no longer waits on the user; on_activate() re-applies.
+    decision_awake_.reset();
+    OverlayBase::on_deactivating(reason);
+}
+
 void PaTuningOverlay::cleanup() {
     decision_awake_.reset();
     active_tool_observer_.reset();
@@ -276,7 +282,7 @@ bool PaTuningOverlay::session_active() const {
 
 void PaTuningOverlay::set_stage(Stage s) {
     stage_ = s;
-    if (s == PICK || s == RESULT) {
+    if (s == PICK) {
         decision_awake_.acquire();
     } else {
         decision_awake_.reset();
@@ -437,10 +443,10 @@ std::optional<helix::pa::PrintArea> PaTuningOverlay::printable_area() {
 }
 
 void PaTuningOverlay::analyze_start_macro() {
-    if (!api_ || start_analysis_requested_) {
+    if (!api_ || start_analysis_in_flight_) {
         return;
     }
-    start_analysis_requested_ = true;
+    start_analysis_in_flight_ = true;
     auto tok = object_lifetime_.token();
     PrintStartAnalyzer analyzer;
     analyzer.analyze(
@@ -448,6 +454,7 @@ void PaTuningOverlay::analyze_start_macro() {
         [tok, this](const PrintStartAnalysis& analysis) {
             tok.defer("PaTuningOverlay::start_macro_analysed",
                       [this, purges = analysis.has_operation(PrintStartOpCategory::PURGE_LINE)]() {
+                          start_analysis_in_flight_ = false;
                           start_macro_purges_ = purges;
                           spdlog::debug("[{}] Start macro {} a purge line", get_name(),
                                         purges ? "draws" : "draws no");
@@ -455,8 +462,7 @@ void PaTuningOverlay::analyze_start_macro() {
         },
         [tok, this](const MoonrakerError& err) {
             tok.defer("PaTuningOverlay::start_macro_analysis_failed", [this, msg = err.message]() {
-                // The next visit to the setup asks again.
-                start_analysis_requested_ = false;
+                start_analysis_in_flight_ = false;
                 spdlog::debug("[{}] Start macro analysis failed: {}", get_name(), msg);
             });
         });

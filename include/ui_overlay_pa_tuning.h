@@ -106,6 +106,7 @@ class PaTuningOverlay : public OverlayBase {
     }
 
     void on_activate() override;
+    void on_deactivating(DeactivateReason reason) override;
     void cleanup() override;
 
     void set_api(IMoonrakerAPI* api) {
@@ -308,7 +309,7 @@ class PaTuningOverlay : public OverlayBase {
     std::optional<SpoolInfo> active_spool_;
     bool raise_on_start_ = true;
     lv_obj_t* print_status_page_override_ = nullptr;
-    bool start_analysis_requested_ = false;
+    bool start_analysis_in_flight_ = false;
     bool start_macro_purges_ = false;
 
     SubjectManager subjects_;

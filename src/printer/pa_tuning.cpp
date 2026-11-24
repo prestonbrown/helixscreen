@@ -330,7 +330,8 @@ std::string generate_test_gcode(const TestPrintParams& p) {
         const double first_half = plan.halves.front();
         line(fmt::format("G1 X{:.3f} Y{:.3f} F{:.0f}", cx - first_half, cy - first_half, travel_f));
         line(fmt::format("G1 Z{:.3f} F600", z));
-        if (layer == 1) {
+        if (layer == 1 && !p.skip_prime) {
+            // Undoes the prime line's retract.
             line("G1 E0.8 F2100");
         }
         bool first_loop = true;
@@ -534,6 +535,11 @@ void TuningSession::on_print_started() {
 }
 
 void TuningSession::on_layer(int layer) {
+    // A layer past the tower's last, seen before this print has reported one, is
+    // the end marker a previous tower left behind: not this print's start.
+    if (state_ == State::Starting && layer > layer_count(geometry_, ramp_.bands)) {
+        return;
+    }
     if (state_ == State::Starting && layer > 0) {
         on_print_started();
     }
