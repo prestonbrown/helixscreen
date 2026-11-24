@@ -337,7 +337,12 @@ def _bake_layers(unit_id, draw, target, lane_count, render, has_carriage):
                             render(scene.lane_face_svg(lane, width, far), width, target / names[key])
             lanes.append(names)
         manifest["tiers"][tier] = {"width": width, "back": back, "front": front, "lanes": lanes}
-        # A printed unit's color regions: <tier>_<depth>_<region>.png and its _shade.png.
+        # A printed unit's color regions: <tier>_<depth>_<region>.png and its _shade.png. Masks a
+        # drawing no longer bakes go, so none is left behind for a region it dropped.
+        for depth in kit.UNIT_COLOR_DEPTHS:
+            for region in kit.UNIT_COLOR_REGIONS:
+                for stale in target.glob(f"{tier}_{depth}_{region}*.png"):
+                    stale.unlink()
         regions = {}
         for depth in kit.UNIT_COLOR_DEPTHS:
             for region in scene.regions(depth):
@@ -533,7 +538,7 @@ def unit_color_regions(unit):
         for tier in TIER_WIDTH:
             scene = kit.Scene(kit.ART_CAMERA)
             unit.draw_art(scene, ["#ffffff"] * lanes, tier)
-            bases = tuple(scene.region_bases.get(r) for r in kit.UNIT_COLOR_REGIONS)
+            bases = scene.region_bases()
             found.add((scene.color_regions(), bases if scene.color_regions() else ()))
     if len(found) != 1:
         raise ValueError(f"{unit.id}: its color regions differ between lane counts or tiers: {sorted(found)}")

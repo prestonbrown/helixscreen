@@ -320,7 +320,7 @@
   <translation tag="Accelerometer not responding" fr="L&apos;accéléromètre ne répond pas"/>
   <translation tag="Accelerometer ready" fr="Accéléromètre prêt"/>
   <translation tag="Accelerometers" fr="Accéléromètres"/>
-  <translation tag="Accent" fr="Accent"/>
+  <translation tag="Accents" fr="Accents"/>
   <translation tag="Accept" fr="Accepter"/>
   <translation tag="Accepted Z Position: 0.000" fr="Position Z acceptée : 0.000"/>
   <translation tag="Accepted Z Position: {:.3f}" fr="Position Z acceptée : {:.3f}"/>
@@ -1480,6 +1480,7 @@
   <translation tag="Downloading... {:.1f}/{:.1f} MB" fr="Téléchargement... {:.1f}/{:.1f} Mo"/>
   <translation tag="Draw a ripple at each touch — helps diagnose offsets" fr="Dessine une ondulation à chaque contact — aide à diagnostiquer les décalages"/>
   <translation tag="Drive Cal" fr="Cal entraîn."/>
+  <translation tag="Drive blocks and trim" fr="Blocs d&apos;entraînement et finitions"/>
   <translation tag="Drop shadow strength (0 = disabled)" fr="Intensité de l&apos;ombre portée (0 = désactivé)"/>
   <translation tag="Dropped when the printer restarted" fr="Perdu au redémarrage de l&apos;imprimante"/>
   <translation tag="Dry" fr="Sécher"/>
@@ -2041,6 +2042,7 @@
   <translation tag="Found %zu printers" fr="%zu imprimantes trouvées"/>
   <translation tag="Found 1 printer" fr="1 imprimante trouvée"/>
   <translation tag="Found {} at {}." fr="{} trouvée à {}."/>
+  <translation tag="Frame" fr="Cadre"/>
   <translation tag="Framerate" fr="Fréquence d&apos;images"/>
   <translation tag="Free space unknown" fr="Espace libre inconnu"/>
   <translation tag="Free the spool and pull the filament out of {} by hand, then try again." fr="Libérez la bobine et retirez le filament de {} à la main, puis réessayez."/>
@@ -2053,7 +2055,6 @@
   <translation tag="Front" fr="Avant"/>
   <translation tag="Front Left" fr="Avant gauche"/>
   <translation tag="Front Right" fr="Avant droit"/>
-  <translation tag="Front and side panels" fr="Panneaux avant et latéraux"/>
   <translation tag="Full" fr="Complet"/>
   <translation tag="G-code Console" fr="Console G-code"/>
   <translation tag="G-code Preview" fr="Aperçu G-code"/>
@@ -2284,6 +2285,7 @@
   <translation tag="Homing timed out — printer may still be homing" fr="Délai de prise d&apos;origine dépassé — l&apos;imprimante est peut-être encore en cours"/>
   <translation tag="Homing, then probing..." fr="Mise à l&apos;origine, puis palpage..."/>
   <translation tag="Homing..." fr="Mise à l&apos;origine..."/>
+  <translation tag="Honeycomb panels, corner blocks and trays" fr="Panneaux en nid d&apos;abeille, blocs d&apos;angle et plateaux"/>
   <translation tag="Horizontal" fr="Horizontal"/>
   <translation tag="Host" fr="Hôte"/>
   <translation tag="Host Health" fr="État de l&apos;hôte"/>
@@ -2793,7 +2795,6 @@
   <translation tag="Macros installed. Restart Klipper after the print to activate them." fr="Macros installées. Redémarrez Klipper après l&apos;impression pour les activer."/>
   <translation tag="Macros updated. Restart Klipper after the print to activate them." fr="Macros mises à jour. Redémarrez Klipper après l&apos;impression pour les activer."/>
   <translation tag="Macros, G-code console, calibration tools (PID, input shaper, z-offset), firmware updates, and developer utilities." fr="Macros, console G-code, outils de calibration (PID, Input Shaper, Z-offset), mises à jour du firmware et utilitaires pour développeurs."/>
-  <translation tag="Main" fr="Principale"/>
   <translation tag="Main LED Strip" fr="Bandeau LED principal"/>
   <translation tag="Maintaining" fr="Maintien"/>
   <translation tag="Maintenance" fr="Maintenance"/>
@@ -3382,7 +3383,7 @@
   <translation tag="Pairing failed" fr="Échec de l&apos;appairage"/>
   <translation tag="Pairing..." fr="Appairage..."/>
   <translation tag="Panel Usage" fr="Utilisation des panneaux"/>
-  <translation tag="Panels" fr="Panneaux"/>
+  <translation tag="Panels and Corners" fr="Panneaux et coins"/>
   <translation tag="Paper Test Calibration" fr="Calibration par test papier"/>
   <translation tag="Paper drags: done" fr="Le papier frotte : terminé"/>
   <translation tag="Parameters" fr="Paramètres"/>
@@ -4854,7 +4855,6 @@
   <translation tag="The bed&apos;s load cell read {1} g, above the {2} g limit, at Z {3}, and the printer shut down to protect itself." fr="La cellule de charge du plateau a mesuré {1} g, au-dessus de la limite de {2} g, à Z {3}, et l&apos;imprimante s&apos;est arrêtée pour se protéger."/>
   <translation tag="The bed&apos;s load cell read {1} g, above the {2} g limit, at Z {3}: the nozzle is dragging on the part, a part came loose, or the print warped. The print paused." fr="La cellule de charge du plateau a mesuré {1} g, au-dessus de la limite de {2} g, à Z {3} : la buse frotte sur la pièce, une pièce s&apos;est détachée, ou l&apos;impression s&apos;est déformée. L&apos;impression est en pause."/>
   <translation tag="The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire." fr="La carte a redémarré d&apos;elle-même, généralement à cause d&apos;une baisse de son alimentation ou d&apos;un court-circuit sur un fil de ventilateur ou de chauffage."/>
-  <translation tag="The body and frame" fr="Le corps et le cadre"/>
   <translation tag="The buffer may be disconnected, stuck, or faulty. Check it before retrying" fr="Le tampon est peut-être débranché, bloqué ou défectueux. Vérifiez-le avant de réessayer"/>
   <translation tag="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer" fr="Le tampon n&apos;a détecté aucun mouvement pendant 16 secondes. Vérifiez s&apos;il y a une obstruction entre le CFS et l&apos;extrudeur, ou un tampon bloqué"/>
   <translation tag="The build plate should be on the bed but reads as removed." fr="La plaque d&apos;impression devrait être sur le plateau mais est détectée comme retirée."/>
@@ -4928,6 +4928,7 @@
   <translation tag="The firmware could not read or write the driver for {1}. Motor power being off (UART drivers need it), a driver not seated or a wrong pin in the configuration can cause it." fr="Le firmware n&apos;a pas pu lire ou écrire le pilote de {1}. Une alimentation des moteurs coupée (les pilotes UART en ont besoin), un pilote mal enfiché ou une mauvaise broche dans la configuration peuvent en être la cause."/>
   <translation tag="The firmware&apos;s pressure advance tower needs a [pa_test] section in printer.cfg. HelixScreen adds it with a backup and restarts Klipper." fr="La tour de Pressure Advance du firmware nécessite une section [pa_test] dans printer.cfg. HelixScreen l&apos;ajoute avec une sauvegarde et redémarre Klipper."/>
   <translation tag="The firmware&apos;s test tower is not in the printer&apos;s config. Adding it writes one section and restarts Klipper." fr="La tour de test du firmware n&apos;est pas dans la configuration de l&apos;imprimante. L&apos;ajouter écrit une section et redémarre Klipper."/>
+  <translation tag="The frame, posts and rails" fr="Le cadre, les montants et les rails"/>
   <translation tag="The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong." fr="Le portique a besoin d&apos;une correction de {1} mm, plus que les {2} mm autorisés. Il est très loin du niveau (après une collision, ou affaissé hors tension), ou les points de palpage ou l&apos;ordre des moteurs Z sont incorrects."/>
   <translation tag="The gap didn&apos;t close (moved {:.1f} Hz). Try a bigger turn." fr="L&apos;écart ne s&apos;est pas réduit (déplacé de {:.1f} Hz). Tournez davantage."/>
   <translation tag="The gap grew after loosening {0}. Check you turned {0}&apos;s tensioner." fr="L&apos;écart a grandi après détente de {0}. Vérifiez que vous avez tourné le tendeur de {0}."/>
@@ -5422,7 +5423,6 @@
   <translation tag="Translucent" fr="Translucide"/>
   <translation tag="Tried ports {} and {}." fr="Ports {} et {} essayés."/>
   <translation tag="Trigger" fr="Déclencheur"/>
-  <translation tag="Trim and small parts" fr="Finitions et petites pièces"/>
   <translation tag="Troubleshooting:" fr="Dépannage :"/>
   <translation tag="Try Again" fr="Réessayer"/>
   <translation tag="Try adjusting your search or filters" fr="Essayez d&apos;ajuster votre recherche ou vos filtres"/>

@@ -273,8 +273,8 @@ class ScaledScene:
     def extrude_x(self, profile, x0, x1, color, opacity, front):
         self.scene.extrude_x(self._pts(profile), x0 * self.k, x1 * self.k, color, opacity, front)
 
-    def painted(self, region, base):
-        return self.scene.painted(region, base)
+    def painted(self, region):
+        return self.scene.painted(region)
 
 
 def carriage_step(scene, step):
@@ -340,10 +340,9 @@ class Item:
     tag: str
     blur: bool = False
     spool: object = None  # the lane whose spool this item is part of, flanges and core included
-    # The color region a printed unit's owner can recolor ("main", "accent", "panels"), and the
-    # region's color the item was shaded from; None for a part drawn only in its own color.
+    # The color region a printed unit's owner can recolor ("main", "accent", "panels"); None for
+    # a part drawn only in its own color.
     region: object = None
-    region_base: object = None
 
     def svg(self, fill=None, opacity=None, grow=0.0):
         """grow outlines a filled polygon by that stroke width, so it covers its own edge pixels."""
@@ -374,6 +373,10 @@ UNIT_COLOR_REGIONS = ("main", "accent", "panels")
 UNIT_COLOR_DEPTHS = ("back", "front")
 # How far, in output pixels, a region's mask strokes past each part's outline.
 REGION_GROW_PX = 1.0
+# How far apart, in degrees, the hues of one region's parts may be, and the saturation below
+# which a part is gray enough to belong to any region.
+REGION_HUE_SPREAD = 20
+REGION_GRAY_SATURATION = 0.15
 # The narrowest drawing whose region masks grow.
 REGION_GROW_MIN_WIDTH = 100
 
@@ -389,12 +392,26 @@ def _luma(color):
 
 
 def region_gray(color, base):
-    """color as a gray at its lightness against base, the region color it was shaded from:
-    the light the region's parts take, whatever color fills them."""
-    if not color.startswith("#") or not base.startswith("#"):
-        raise ValueError(f"a recolorable part needs a flat color, not {color!r}")
+    """color as a gray at its lightness against base, its region's color: the light the
+    region's parts take, whatever color fills them."""
     k = min(1.0, _luma(color) / max(1.0, _luma(base)))
     return hexc((255 * k,) * 3)
+
+
+def _hue_sat(color):
+    import colorsys
+
+    h, _, s = colorsys.rgb_to_hls(*(c / 255 for c in rgb(color)))
+    return h * 360, s
+
+
+def same_hue(a, b):
+    """Whether a and b are shades of one color: hues within REGION_HUE_SPREAD degrees, or
+    either too gray (a highlight or deep shadow) to carry a hue."""
+    (ha, sa), (hb, sb) = _hue_sat(a), _hue_sat(b)
+    if min(sa, sb) < REGION_GRAY_SATURATION:
+        return True
+    return min(abs(ha - hb), 360 - abs(ha - hb)) <= REGION_HUE_SPREAD
 
 
 _INVERT = (
@@ -423,31 +440,48 @@ class Scene:
         self.current_spool = None
         # The color region being drawn (Scene.painted) and the color its items are shaded from.
         self.region = None
-        self.region_base = None
-        # The color each region's parts are drawn from, by region.
-        self.region_bases = {}
 
     @contextmanager
-    def painted(self, region, base):
-        """Draw the items inside as part of a recolorable region whose own color is base."""
+    def painted(self, region):
+        """Draw the items inside as part of a recolorable region: parts printed in one color,
+        which the user's color for the region replaces (Scene.region_base)."""
         if region not in UNIT_COLOR_REGIONS:
             raise ValueError(f"unknown color region {region!r}")
-        # A region is one printed color: the user's color for it replaces every part in it.
-        first = self.region_bases.setdefault(region, base)
-        if first != base:
-            raise ValueError(f"color region {region!r} is drawn from {first} and {base}; one color per region")
-        saved = self.region, self.region_base
-        self.region, self.region_base = region, base
+        saved = self.region
+        self.region = region
         try:
             yield
         finally:
-            self.region, self.region_base = saved
+            self.region = saved
+
+    def _region_parts(self, region):
+        return [i for i in self.items if i.region == region and i.lane is None and not i.blur]
+
+    def region_base(self, region):
+        """The region's color: its brightest part's, so every other part is a shade of it and
+        the user's color is the region's lit face. A region is one printed color: a part of
+        another hue is refused."""
+        parts = self._region_parts(region)
+        if not parts:
+            return None
+        for i in parts:
+            if not i.fill.startswith("#"):
+                raise ValueError(f"a recolorable part needs a flat color, not {i.fill!r}")
+        base = max((i.fill for i in parts), key=_luma)
+        for i in parts:
+            if not same_hue(i.fill, base):
+                raise ValueError(f"color region {region!r} holds {i.fill} and {base}; one printed color per region")
+        return base
+
+    def region_bases(self):
+        """Each region's color (Scene.region_base), in UNIT_COLOR_REGIONS order."""
+        return tuple(self.region_base(r) for r in UNIT_COLOR_REGIONS)
 
     def _add(self, pts3, fill, opacity, stroke, sw, closed, lane, tag, blur=False):
         self.items.append(
             Item(
                 [self.camera.project(p) for p in pts3], fill, opacity, stroke, sw, closed, self.layer, lane, tag, blur,
-                self.current_spool, self.region, self.region_base,
+                self.current_spool, self.region,
             )
         )
 
@@ -724,8 +758,9 @@ class Scene:
     def region_shade_svg(self, layer, region, width):
         """Black at the region's darkness in layer, laid over its recolored mask."""
         grow = self._region_grow(width)
+        base = self.region_base(region)
         lit = "".join(
-            i.svg(fill=region_gray(i.fill, i.region_base), grow=grow)
+            i.svg(fill=region_gray(i.fill, base), grow=grow)
             for i in self._layer_items(layer) if i.region == region and i.lane is None and not i.blur
         )
         body = f'<g mask="url(#cover)"><g filter="url(#shade)"><rect {self._frame()} fill="#fff"/>{lit}</g></g>'

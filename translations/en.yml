@@ -340,7 +340,7 @@ translations:
   Accelerometer not responding: Accelerometer not responding
   Accelerometer ready: Accelerometer ready
   Accelerometers: Accelerometers
-  Accent: Accent
+  Accents: Accents
   Accept: Accept
   'Accepted Z Position: 0.000': 'Accepted Z Position: 0.000'
   'Accepted Z Position: {:.3f}': 'Accepted Z Position: {:.3f}'
@@ -1558,6 +1558,7 @@ translations:
   Downloading... {:.1f}/{:.1f} MB: Downloading... {:.1f}/{:.1f} MB
   Draw a ripple at each touch — helps diagnose offsets: Draw a ripple at each touch — helps diagnose offsets
   Drive Cal: Drive Cal
+  Drive blocks and trim: Drive blocks and trim
   Drop shadow strength (0 = disabled): Drop shadow strength (0 = disabled)
   Dropped when the printer restarted: Dropped when the printer restarted
   Dry: Dry
@@ -2121,6 +2122,7 @@ translations:
   Found %zu printers: Found %zu printers
   Found 1 printer: Found 1 printer
   Found {} at {}.: Found {} at {}.
+  Frame: Frame
   Framerate: Framerate
   Free space unknown: Free space unknown
   Free the spool and pull the filament out of {} by hand, then try again.: Free the spool and pull the filament out of {} by hand, then try again.
@@ -2133,7 +2135,6 @@ translations:
   Front: Front
   Front Left: Front Left
   Front Right: Front Right
-  Front and side panels: Front and side panels
   Full: Full
   G-code Console: G-code Console
   G-code Preview: G-code Preview
@@ -2367,6 +2368,7 @@ translations:
   Homing timed out — printer may still be homing: Homing timed out — printer may still be homing
   Homing, then probing...: Homing, then probing...
   Homing...: Homing...
+  Honeycomb panels, corner blocks and trays: Honeycomb panels, corner blocks and trays
   Horizontal: Horizontal
   Host: Host
   Host Health: Host Health
@@ -2879,7 +2881,6 @@ translations:
   Macros installed. Restart Klipper after the print to activate them.: Macros installed. Restart Klipper after the print to activate them.
   Macros updated. Restart Klipper after the print to activate them.: Macros updated. Restart Klipper after the print to activate them.
   'Macros, G-code console, calibration tools (PID, input shaper, z-offset), firmware updates, and developer utilities.': 'Macros, G-code console, calibration tools (PID, input shaper, z-offset), firmware updates, and developer utilities.'
-  Main: Main
   Main LED Strip: Main LED Strip
   Maintaining: Maintaining
   Maintenance: Maintenance
@@ -3482,7 +3483,7 @@ translations:
   Pairing failed: Pairing failed
   Pairing...: Pairing...
   Panel Usage: Panel Usage
-  Panels: Panels
+  Panels and Corners: Panels and Corners
   Paper Test Calibration: Paper Test Calibration
   'Paper drags: done': 'Paper drags: done'
   Parameters: Parameters
@@ -4976,7 +4977,6 @@ translations:
   ? "The bed's load cell read {1} g, above the {2} g limit, at Z {3}: the nozzle is dragging on the part, a part came loose, or the print warped. The print paused."
   : "The bed's load cell read {1} g, above the {2} g limit, at Z {3}: the nozzle is dragging on the part, a part came loose, or the print warped. The print paused."
   The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire.: The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire.
-  The body and frame: The body and frame
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: The buffer may be disconnected, stuck, or faulty. Check it before retrying
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer
   The build plate should be on the bed but reads as removed.: The build plate should be on the bed but reads as removed.
@@ -5058,6 +5058,7 @@ translations:
   ? The firmware's pressure advance tower needs a [pa_test] section in printer.cfg. HelixScreen adds it with a backup and restarts Klipper.
   : The firmware's pressure advance tower needs a [pa_test] section in printer.cfg. HelixScreen adds it with a backup and restarts Klipper.
   The firmware's test tower is not in the printer's config. Adding it writes one section and restarts Klipper.: The firmware's test tower is not in the printer's config. Adding it writes one section and restarts Klipper.
+  The frame, posts and rails: The frame, posts and rails
   ? The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong.
   : The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong.
   The gap didn't close (moved {:.1f} Hz). Try a bigger turn.: The gap didn't close (moved {:.1f} Hz). Try a bigger turn.
@@ -5603,7 +5604,6 @@ translations:
   Trailing: Trailing
   Translucent: Translucent
   'Tried ports {} and {}.': 'Tried ports {} and {}.'
-  Trim and small parts: Trim and small parts
   'Troubleshooting:': 'Troubleshooting:'
   Try adjusting your search or filters: Try adjusting your search or filters
   Try Again: Try Again

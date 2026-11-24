@@ -53,7 +53,7 @@ void UnitColors::set(UnitColorRegion region, std::optional<uint32_t> rgb) {
 const std::vector<UnitColorPreset>& unit_color_presets() {
     static const std::vector<UnitColorPreset> kPresets{
         {"voron_black_red", TR_NOOP("Voron Black and Red"), 0x1C1C1C, 0xD7262E, 0x3A3A3A},
-        {"turtle_green_gold", TR_NOOP("Box Turtle Green and Gold"), 0x2E7D3A, 0xD4A72C, 0x24302A},
+        {"turtle_green_gold", TR_NOOP("Box Turtle Green and Gold"), 0xC9A040, 0xE8CC7A, 0x2E7D3A},
         {"stealth_black", TR_NOOP("Stealth Black"), 0x1C1C1C, 0x3C3C3C, 0x2A2A2A},
         {"arctic_white", TR_NOOP("Arctic White"), 0xE8E8E8, 0x4A90D9, 0xBFC5CC},
     };

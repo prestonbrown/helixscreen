@@ -226,15 +226,16 @@
               <event_cb trigger="value_changed" callback="on_ams_unit_colors_changed"/>
             </lv_dropdown>
           </setting_row>
-          <setting_row name="row_unit_color_main" label="Main" description="The body and frame">
+          <setting_row name="row_unit_color_main" label="Frame" description="The frame, posts and rails">
             <color_swatch name="unit_color_main_swatch"
                           index="0" color_subject="ams_unit_color_main" callback="on_ams_unit_color_clicked"/>
           </setting_row>
-          <setting_row name="row_unit_color_accent" label="Accent" description="Trim and small parts">
+          <setting_row name="row_unit_color_accent" label="Accents" description="Drive blocks and trim">
             <color_swatch name="unit_color_accent_swatch"
                           index="1" color_subject="ams_unit_color_accent" callback="on_ams_unit_color_clicked"/>
           </setting_row>
-          <setting_row name="row_unit_color_panels" label="Panels" description="Front and side panels">
+          <setting_row name="row_unit_color_panels"
+                       label="Panels and Corners" description="Honeycomb panels, corner blocks and trays">
             <color_swatch name="unit_color_panels_swatch"
                           index="2" color_subject="ams_unit_color_panels" callback="on_ams_unit_color_clicked"/>
           </setting_row>

@@ -340,7 +340,7 @@ translations:
   Accelerometer not responding: '加速度计无响应'
   Accelerometer ready: 加速度传感器就绪
   Accelerometers: 加速度传感器
-  Accent: '强调色'
+  Accents: '强调色'
   Accept: 接受
   'Accepted Z Position: 0.000': '已接受 Z 位置: 0.000'
   'Accepted Z Position: {:.3f}': '已确认 Z 位置：{:.3f}'
@@ -1560,6 +1560,7 @@ translations:
   Downloading... {:.1f}/{:.1f} MB: 下载中... {:.1f}/{:.1f} MB
   Draw a ripple at each touch — helps diagnose offsets: 在每次触摸时绘制涟漪 — 有助于诊断偏移
   Drive Cal: 驱动校准
+  Drive blocks and trim: '驱动块和边条'
   Drop shadow strength (0 = disabled): 阴影强度（0 = 禁用）
   Dropped when the printer restarted: '打印机重启时已丢弃'
   Dry: 烘干
@@ -2132,6 +2133,7 @@ translations:
   Found %zu printers: 找到 %zu 台打印机
   Found 1 printer: 找到 1 台打印机
   Found {} at {}.: '已发现 {}，地址为 {}。'
+  Frame: '框架'
   Framerate: 帧率
   Free space unknown: '可用空间未知'
   Free the spool and pull the filament out of {} by hand, then try again.: 请松开料盘，手动将耗材从 {} 中拉出，然后重试。
@@ -2144,7 +2146,6 @@ translations:
   Front: '前'
   Front Left: '左前'
   Front Right: '右前'
-  Front and side panels: '前面板和侧面板'
   Full: 完整
   G-code Console: G-code 控制台
   G-code Preview: G-code 预览
@@ -2379,6 +2380,7 @@ translations:
   Homing timed out — printer may still be homing: 回零超时 — 打印机可能仍在回零
   Homing, then probing...: "归位后探测中..."
   Homing...: 正在归零...
+  Honeycomb panels, corner blocks and trays: '格栅面板、角块和底盘'
   Horizontal: 水平
   Host: 主机
   Host Health: 主机状态
@@ -2904,7 +2906,6 @@ translations:
   Macros installed. Restart Klipper after the print to activate them.: '宏已安装。打印结束后重启 Klipper 即可启用。'
   Macros updated. Restart Klipper after the print to activate them.: '宏已更新。打印结束后重启 Klipper 即可启用。'
   'Macros, G-code console, calibration tools (PID, input shaper, z-offset), firmware updates, and developer utilities.': 宏、G-code 控制台、校准工具（PID、输入整形、Z 偏移）、固件更新以及开发者实用工具。
-  Main: '主色'
   Main LED Strip: 主 LED 灯带
   Maintaining: 保持中
   Maintenance: '维护'
@@ -3508,7 +3509,7 @@ translations:
   Pairing failed: 配对失败
   Pairing...: 正在配对...
   Panel Usage: 面板使用情况
-  Panels: '面板'
+  Panels and Corners: '面板和角块'
   Paper Test Calibration: 纸张测试校准
   'Paper drags: done': "纸有阻力：完成"
   Parameters: 参数
@@ -5010,7 +5011,6 @@ translations:
   ? "The bed's load cell read {1} g, above the {2} g limit, at Z {3}: the nozzle is dragging on the part, a part came loose, or the print warped. The print paused."
   : 热床称重传感器在 Z {3} 处读数为 {1} g，超过 {2} g 的上限：喷嘴刮到模型、零件松脱，或打印件翘曲。打印已暂停。
   The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire.: 主板自行重启，通常是电源电压瞬间下降，或风扇、加热器线路短路。
-  The body and frame: '主体和框架'
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: 缓冲器可能未连接、卡住或损坏。请检查后重试
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: 缓冲器已 16 秒未检测到运动。请检查 CFS 与挤出机之间是否堵塞，或缓冲器是否卡住
   The build plate should be on the bed but reads as removed.: '打印板应在热床上，却显示为已取下。'
@@ -5092,6 +5092,7 @@ translations:
   ? The firmware's pressure advance tower needs a [pa_test] section in printer.cfg. HelixScreen adds it with a backup and restarts Klipper.
   : "固件的压力提前测试塔需要 printer.cfg 中有 [pa_test] 段。HelixScreen 会先备份再添加，并重启 Klipper。"
   The firmware's test tower is not in the printer's config. Adding it writes one section and restarts Klipper.: "固件的测试塔不在打印机配置中。添加会写入一个段并重启 Klipper。"
+  The frame, posts and rails: '框架、支杆和导轨'
   ? The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong.
   : 龙门需要 {1} mm 的校正，超过允许的 {2} mm。龙门严重不平（撞机后或断电时下垂），或探测点或 Z 电机顺序有误。
   The gap didn't close (moved {:.1f} Hz). Try a bigger turn.: "差距没有缩小(移动了 {:.1f} Hz)。请转得更多一些。"
@@ -5643,7 +5644,6 @@ translations:
   Trailing: 滞后
   Translucent: '半透明'
   'Tried ports {} and {}.': "已尝试端口 {} 和 {}。"
-  Trim and small parts: '边条和小零件'
   'Troubleshooting:': 故障排除：
   Try adjusting your search or filters: 尝试调整搜索或筛选条件
   Try Again: '重试'
