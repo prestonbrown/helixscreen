@@ -75,6 +75,8 @@
 #                         repo into the existing dist/ zip so script-only
 #                         changes (install.sh, no binary changes) can be tested
 #                         immediately.
+#   --print-asset         Print the zip name and manifest asset key for the
+#                         platform, then exit without building.
 #   --port PORT           HTTP port to listen on (default: 8765).
 #
 # SIGNING
@@ -122,6 +124,7 @@ BUILD=1
 BUMP=1
 CONFIGURE_REMOTE=0
 PLATFORM=pi
+PRINT_ASSET=0
 
 VALID_PLATFORMS="pi pi32 ad5m cc1 k1 k2 snapmaker-u1"
 
@@ -131,6 +134,7 @@ while [[ $# -gt 0 ]]; do
         --configure-remote) CONFIGURE_REMOTE=1; shift ;;
         --no-build)         BUILD=0; shift ;;
         --no-bump)          BUMP=0; shift ;;
+        --print-asset)      PRINT_ASSET=1; shift ;;
         --platform)         PLATFORM=$2; shift 2 ;;
         --port)             PORT=$2; shift 2 ;;
         --help|-h)
@@ -179,12 +183,26 @@ else
     TEST_VERSION="$BASE_VERSION"
 fi
 
+# The installer's platform-to-asset table decides the name, so k1 serves the
+# unified helixscreen-mips.zip and the manifest key is the zip's platform part.
+# shellcheck source=lib/installer/platform.sh
+# The installer modules assume unset variables are empty.
+set +u
+. "$SCRIPT_DIR/lib/installer/platform.sh"
+set -u
+ZIP_NAME="$(helix_self_update_asset "$PLATFORM")"
+ASSET_KEY="${ZIP_NAME#helixscreen-}"
+ASSET_KEY="${ASSET_KEY%.zip}"
+
+if [[ $PRINT_ASSET -eq 1 ]]; then
+    echo "$ZIP_NAME $ASSET_KEY"
+    exit 0
+fi
+
 # install.sh prepends "v" to the manifest version, so the manifest must use
 # bare version numbers (e.g. "99.0.0") to avoid "vv99.0.0" in the installer.
 VERSION_BARE="${TEST_VERSION}"
 VERSION="v${TEST_VERSION}"
-# The release zip carries no version in its name (make release-<platform>).
-ZIP_NAME="helixscreen-${PLATFORM}.zip"
 ZIP_PATH="$PROJECT_DIR/dist/$ZIP_NAME"
 
 # ── Local IP ──────────────────────────────────────────────────────────────────
@@ -284,7 +302,7 @@ cat > "$MANIFEST_PATH" <<EOF
   "tag": "${VERSION}",
   "notes": "serve-local-update test build",
   "assets": {
-    "${PLATFORM}": {
+    "${ASSET_KEY}": {
       "url": "${BASE_URL}/${ZIP_NAME}",
       "sha256": "${ZIP_SHA256}",
       "size": ${ZIP_SIZE},
