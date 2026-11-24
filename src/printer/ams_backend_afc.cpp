@@ -6535,7 +6535,7 @@ AmsError AmsBackendAfc::enable_bypass() {
             return precondition;
         }
 
-        if (!helix::bypass_available_for(system_info_.supports_bypass)) {
+        if (!helix::bypass_available_for(system_info_)) {
             return AmsError(AmsResult::WRONG_STATE, "Bypass not supported",
                             lv_tr("This AFC system does not support bypass mode"), "");
         }

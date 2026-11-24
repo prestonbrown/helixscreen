@@ -265,9 +265,8 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
         if (lv_obj_t* btn_bypass =
                 helix::ui::find_required(menu_obj, "btn_bypass_toggle", "AmsContextMenu")) {
             const bool bypass_offered =
-                backend &&
-                helix::bypass_toggle_offered(helix::bypass_available_for(ext_sys.supports_bypass),
-                                             ext_sys.has_hardware_bypass_sensor);
+                backend && helix::bypass_toggle_offered(helix::bypass_available_for(ext_sys),
+                                                        ext_sys.has_hardware_bypass_sensor);
             if (bypass_offered) {
                 lv_obj_remove_flag(btn_bypass, LV_OBJ_FLAG_HIDDEN);
                 // Names the action, not the state, so it reads as a command.

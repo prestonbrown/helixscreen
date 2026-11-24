@@ -28,7 +28,7 @@ namespace {
 /// toggle() and the enable path in begin_engage() ask it here so neither can
 /// answer it differently from the surfaces that decide whether to draw a toggle.
 bool bypass_toggle_allowed(const AmsSystemInfo& info) {
-    if (helix::bypass_toggle_offered(helix::bypass_available_for(info.supports_bypass),
+    if (helix::bypass_toggle_offered(helix::bypass_available_for(info),
                                      info.has_hardware_bypass_sensor)) {
         return true;
     }

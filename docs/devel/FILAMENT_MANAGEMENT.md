@@ -3259,15 +3259,17 @@ sites, where three of the four had already drifted apart, so neither may be re-d
 | `bypass_available(supports_bypass, force_override)` | `ams_bypass_policy.h` | `supports_bypass \|\| force_override` - folds the user's override into the firmware's report |
 | `bypass_node_visible(supports_bypass, bypass_active, bypass_is_virtual, always_show)` | `ui_bypass_spool_widget.h` | Additionally hides a *virtual* bypass sensor (`AmsBackend::bypass_is_virtual()`, AFC) while disengaged (#1229) unless `always_show` |
 
-`bypass_available_for(bool)` and `bypass_node_visible_for(const AmsBackend*)` gather the live
+`bypass_available_for(const AmsSystemInfo&)` and `bypass_node_visible_for(const AmsBackend*)` gather the live
 inputs from `SettingsManager` and the backend; the render sites call the `_for` variants. The
 firmware's own `supports_bypass` is never overwritten, so switching the override off restores
 reality without a re-parse.
 
 Settings keys (per-printer, under `df() + "ams/"`): `force_bypass_controls`,
 `always_show_bypass_spool`. The **Enable Bypass Controls** row in `ams_device_operations.xml`
-binds `hidden` to `ams_device_ops_fw_supports_bypass == 1`, so it self-hides on hardware that
-already reports a bypass. Flipping it calls `AmsState::sync_from_backend()` +
+binds `hidden` to `ams_device_ops_bypass_override_offered == 0` (`bypass_override_offered()`), so
+it hides on hardware that already reports a bypass, on a printer with no filament system, and on a
+kind of system that can never bypass (`AmsTypeTraits::bypass_overridable`: the U1, tool changers,
+the QIDI Box, OpenAMS and INDX). Flipping it calls `AmsState::sync_from_backend()` +
 `update_from_backend()` because both gating subjects are recomputed from the backend, not from
 the setting, and neither moves on its own.
 

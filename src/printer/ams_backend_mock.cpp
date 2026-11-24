@@ -1444,7 +1444,7 @@ AmsError AmsBackendMock::enable_bypass() {
             return AmsErrorHelper::not_connected("Mock backend not started");
         }
 
-        if (!helix::bypass_available_for(system_info_.supports_bypass)) {
+        if (!helix::bypass_available_for(system_info_)) {
             return AmsError(AmsResult::WRONG_STATE, "Bypass not supported",
                             lv_tr("This system does not support bypass mode"), "");
         }

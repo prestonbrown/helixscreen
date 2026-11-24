@@ -14,6 +14,7 @@
 #include "../ui_test_utils.h"
 #include "ams_backend_afc.h"
 #include "ams_backend_snapmaker.h"
+#include "ams_bypass_policy.h"
 #include "ams_state.h"
 #include "ams_step_operation.h"
 #include "ams_types.h"
@@ -226,6 +227,13 @@ TEST_CASE_METHOD(SnapmakerFixture, "AmsBackendSnapmaker construction", "[ams][sn
         AmsBackendSnapmaker backend(nullptr, nullptr);
         auto info = backend.get_system_info();
         REQUIRE(info.type_name == "Snapmaker SnapSwap");
+    }
+
+    SECTION("the bypass override is not offered") {
+        AmsBackendSnapmaker backend(nullptr, nullptr);
+        auto info = backend.get_system_info();
+        CHECK_FALSE(info.supports_bypass);
+        CHECK_FALSE(helix::bypass_override_offered(info));
     }
 
     SECTION("has 4 slots in 1 unit") {
