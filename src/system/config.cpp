@@ -614,8 +614,8 @@ static bool is_installer_seed_document(const json& config) {
     if (helix::json_util::find_object(config, "printer")) {
         return false;
     }
-    const auto printers = config.find("printers");
-    if (printers != config.end() && printers->is_object()) {
+    auto* printers = helix::json_util::find_object(config, "printers");
+    if (printers != nullptr) {
         for (const auto& [key, value] : printers->items()) {
             if (value.is_object()) {
                 return false;

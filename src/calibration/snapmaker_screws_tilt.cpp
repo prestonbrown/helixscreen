@@ -114,8 +114,8 @@ std::optional<int> main_state_from_status(const nlohmann::json& status) {
     if (!status.is_object()) {
         return std::nullopt;
     }
-    const auto manager = status.find("machine_state_manager");
-    if (manager == status.end() || !manager->is_object()) {
+    auto* manager = helix::json_util::find_object(status, "machine_state_manager");
+    if (manager == nullptr) {
         return std::nullopt;
     }
     const auto state = manager->find("main_state");
@@ -133,12 +133,12 @@ const nlohmann::json* query_status(const nlohmann::json& response) {
     if (!response.is_object()) {
         return nullptr;
     }
-    const auto result = response.find("result");
-    if (result == response.end() || !result->is_object()) {
+    auto* result = helix::json_util::find_object(response, "result");
+    if (result == nullptr) {
         return nullptr;
     }
-    const auto status = result->find("status");
-    if (status == result->end() || !status->is_object()) {
+    auto* status = helix::json_util::find_object(*result, "status");
+    if (status == nullptr) {
         return nullptr;
     }
     return &*status;
@@ -167,10 +167,10 @@ AutoScrewsTiltResults results_from_query(const nlohmann::json& response) {
     }
 
     nlohmann::json config_section = nlohmann::json::object();
-    const auto configfile = status->find("configfile");
-    if (configfile != status->end() && configfile->is_object()) {
-        const auto settings = configfile->find("settings");
-        if (settings != configfile->end() && settings->is_object()) {
+    auto* configfile = helix::json_util::find_object(*status, "configfile");
+    if (configfile != nullptr) {
+        auto* settings = helix::json_util::find_object(*configfile, "settings");
+        if (settings != nullptr) {
             const auto section = settings->find(kModuleName);
             if (section != settings->end() && section->is_object()) {
                 config_section = *section;

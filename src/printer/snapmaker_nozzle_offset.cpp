@@ -5,6 +5,7 @@
 
 #include "connection_state.h"
 #include "i_moonraker_client.h"
+#include "json_utils.h"
 #include "moonraker_error.h"
 #include "printer_discovery.h"
 #include "snapmaker_exceptions.h"
@@ -62,7 +63,7 @@ const nlohmann::json* status_map(const nlohmann::json& response) {
         result != response.end() && result->is_object()) {
         status = &*result;
     }
-    if (const auto inner = status->find("status"); inner != status->end() && inner->is_object()) {
+    if (auto* inner = helix::json_util::find_object(*status, "status")) {
         status = &*inner;
     }
     return status->is_object() ? status : nullptr;

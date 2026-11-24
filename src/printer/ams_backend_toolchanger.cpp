@@ -1032,7 +1032,7 @@ void AmsBackendToolChanger::handle_status(const nlohmann::json& params) {
     // A status frame comes only from a ready Klippy: what a run stopped by a
     // lost connection owes its heaters can go out, once the frames have said
     // whether a print holds the printer.
-    if (auto ps = params.find("print_stats"); ps != params.end() && ps->is_object()) {
+    if (auto* ps = helix::json_util::find_object(params, "print_stats")) {
         if (const auto st = helix::json_util::read_field<std::string>(*ps, "state")) {
             frame_print_state_ = *st;
             frame_print_state_current_ = true;

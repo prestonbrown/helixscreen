@@ -3647,20 +3647,20 @@ void AmsBackendAfc::query_lane_data() {
 AmsBackendAfc::ConfigfileTopology
 AmsBackendAfc::parse_configfile_topology(const nlohmann::json& response) {
     ConfigfileTopology topo;
-    const auto result = response.find("result");
-    if (result == response.end() || !result->is_object()) {
+    auto* result = helix::json_util::find_object(response, "result");
+    if (result == nullptr) {
         return topo;
     }
-    const auto status = result->find("status");
-    if (status == result->end() || !status->is_object()) {
+    auto* status = helix::json_util::find_object(*result, "status");
+    if (status == nullptr) {
         return topo;
     }
-    const auto configfile = status->find("configfile");
-    if (configfile == status->end() || !configfile->is_object()) {
+    auto* configfile = helix::json_util::find_object(*status, "configfile");
+    if (configfile == nullptr) {
         return topo;
     }
-    const auto settings = configfile->find("settings");
-    if (settings == configfile->end() || !settings->is_object()) {
+    auto* settings = helix::json_util::find_object(*configfile, "settings");
+    if (settings == nullptr) {
         return topo;
     }
     topo.answered = true;

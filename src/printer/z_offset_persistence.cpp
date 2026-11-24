@@ -3,6 +3,7 @@
 #include "z_offset_persistence.h"
 
 #include "config.h"
+#include "json_utils.h"
 #include "printer_discovery.h"
 #include "spdlog/spdlog.h"
 #include "toolchanger_addon.h"
@@ -114,8 +115,8 @@ std::optional<int> read_zmod(const nlohmann::json& status) {
     }
     // ZMOD stores a per-axis dict; LOAD_GCODE_OFFSET iterates it, so sibling
     // axes are legal and only z concerns us.
-    auto offsets = variables->find("gcode_offsets");
-    if (offsets == variables->end() || !offsets->is_object()) {
+    auto* offsets = helix::json_util::find_object(*variables, "gcode_offsets");
+    if (offsets == nullptr) {
         return std::nullopt;
     }
     auto z = offsets->find("z");
@@ -191,8 +192,8 @@ std::optional<int> read_helper_script(const nlohmann::json& status) {
     if (!variables) {
         return std::nullopt;
     }
-    auto zoffset = variables->find("zoffset");
-    if (zoffset == variables->end() || !zoffset->is_object()) {
+    auto* zoffset = helix::json_util::find_object(*variables, "zoffset");
+    if (zoffset == nullptr) {
         return std::nullopt;
     }
     auto z = zoffset->find("z");

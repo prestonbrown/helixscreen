@@ -94,8 +94,8 @@ std::optional<std::array<float, 3>> parse_probe_point(const nlohmann::json& valu
 
 ResonanceTesterConfig parse_resonance_tester_config(const nlohmann::json& settings) {
     ResonanceTesterConfig cfg;
-    const auto rt = settings.find("resonance_tester");
-    if (rt == settings.end() || !rt->is_object()) {
+    auto* rt = helix::json_util::find_object(settings, "resonance_tester");
+    if (rt == nullptr) {
         return cfg;
     }
     // configfile reports numbers, but some forks echo strings — accept both

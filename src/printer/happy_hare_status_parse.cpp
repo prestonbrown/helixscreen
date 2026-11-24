@@ -652,7 +652,7 @@ GateIdentityDelta parse_gate_identity(const nlohmann::json& mmu) {
 MmuTelemetryDelta parse_telemetry(const nlohmann::json& mmu) {
     MmuTelemetryDelta d;
     d.espooler_active = ams::read_field<std::string>(mmu, "espooler_active");
-    if (const auto it = mmu.find("espooler"); it != mmu.end() && it->is_array()) {
+    if (auto* it = helix::json_util::find_array(mmu, "espooler")) {
         std::vector<std::string> ops;
         ops.reserve(it->size());
         for (const auto& op : *it) {
@@ -664,7 +664,7 @@ MmuTelemetryDelta parse_telemetry(const nlohmann::json& mmu) {
     d.sync_feedback_bias = ams::read_field<float>(mmu, "sync_feedback_bias_modelled");
     d.sync_feedback_bias_raw = ams::read_field<float>(mmu, "sync_feedback_bias_raw");
     d.sync_feedback_enabled = ams::read_field<bool>(mmu, "sync_feedback_enabled");
-    if (const auto it = mmu.find("fans"); it != mmu.end() && it->is_array()) {
+    if (auto* it = helix::json_util::find_array(mmu, "fans")) {
         std::vector<MmuFanUnit> fans;
         for (const auto& entry : *it) {
             if (!entry.is_object()) {
@@ -694,7 +694,7 @@ MmuTelemetryDelta parse_telemetry(const nlohmann::json& mmu) {
     if (const auto* flowguard = json_util::find_object(mmu, "flowguard")) {
         d.flowguard = read_flowguard(*flowguard);
     }
-    if (const auto it = mmu.find("tangle_prevention"); it != mmu.end() && it->is_object()) {
+    if (auto* it = helix::json_util::find_object(mmu, "tangle_prevention")) {
         TanglePreventionDelta tp;
         tp.enabled = ams::read_field<bool>(*it, "enabled");
         tp.active = ams::read_field<bool>(*it, "active");
@@ -750,7 +750,7 @@ MmuStatusDelta parse_mmu_status(const nlohmann::json& mmu) {
         d.sensors = read_sensors(*sensors);
     }
 
-    if (const auto it = mmu.find("drying"); it != mmu.end() && it->is_array()) {
+    if (auto* it = helix::json_util::find_array(mmu, "drying")) {
         std::vector<std::optional<DryingCycle>> cycles;
         cycles.reserve(it->size());
         for (const auto& entry : *it) {

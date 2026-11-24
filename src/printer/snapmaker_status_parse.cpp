@@ -261,8 +261,8 @@ PrintTaskConfigDelta parse_print_task_config(const nlohmann::json& status) {
     PrintTaskConfigDelta d;
     d.preferences = read_print_preferences(status);
 
-    const auto ptc_it = status.find("print_task_config");
-    if (ptc_it == status.end() || !ptc_it->is_object()) {
+    auto* ptc_it = helix::json_util::find_object(status, "print_task_config");
+    if (ptc_it == nullptr) {
         return d;
     }
     const auto& ptc = *ptc_it;

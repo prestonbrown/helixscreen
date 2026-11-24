@@ -1103,12 +1103,12 @@ void ActivePrintMediaManager::register_moonraker_listeners() {
                 const json& p = (*params_it)[0];
                 if (p.is_object()) {
                     action = json_util::safe_string(p, "action");
-                    const auto item_it = p.find("item");
-                    if (item_it != p.end() && item_it->is_object()) {
+                    auto* item_it = helix::json_util::find_object(p, "item");
+                    if (item_it != nullptr) {
                         item_path = json_util::safe_string(*item_it, "path");
                     }
-                    const auto src_it = p.find("source_item");
-                    if (src_it != p.end() && src_it->is_object()) {
+                    auto* src_it = helix::json_util::find_object(p, "source_item");
+                    if (src_it != nullptr) {
                         source_path = json_util::safe_string(*src_it, "path");
                     }
                 }

@@ -439,7 +439,7 @@ bool PluginHost::load(PluginInfo& info) {
 
     json block = deps_.read_block();
     if (block.is_object()) {
-        if (auto s = block.find("settings"); s != block.end() && s->is_object()) {
+        if (auto* s = helix::json_util::find_object(block, "settings")) {
             if (auto e = s->find(id); e != s->end() && e->is_object())
                 l.settings = *e;
         }

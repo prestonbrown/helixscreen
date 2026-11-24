@@ -349,8 +349,8 @@ CfsSchema AmsBackendCfs::detect_schema(const nlohmann::json& box_json) {
     // is_array(), not contains(): a disconnected-unit sentinel could put a
     // scalar "-1" here, and a string json has size() == 1, which would let a
     // bounds-checked loop index into it and throw type_error.305.
-    auto it = box_json.find("slots");
-    if (it != box_json.end() && it->is_array()) {
+    auto* it = helix::json_util::find_array(box_json, "slots");
+    if (it != nullptr) {
         return CfsSchema::Flat;
     }
     return CfsSchema::Stock;
@@ -368,8 +368,8 @@ AmsBackendCfs::parse_box_status(const nlohmann::json& box_json,
 // holder (external_slot = max_physical_slot + 1 — it moves with the configured
 // box_count, so it must be read from the payload, never recomputed).
 static int find_external_slot_index(const nlohmann::json& box_json) {
-    auto it = box_json.find("slots");
-    if (it == box_json.end() || !it->is_array()) {
+    auto* it = helix::json_util::find_array(box_json, "slots");
+    if (it == nullptr) {
         return -1;
     }
     for (const auto& slot_json : *it) {
@@ -416,8 +416,8 @@ flat_box_reports(const nlohmann::json& box_json) {
     if (AmsBackendCfs::fork_api_revision(box_json) < 2) {
         return std::nullopt;
     }
-    auto it = box_json.find("boxes");
-    if (it == box_json.end() || !it->is_array()) {
+    auto* it = helix::json_util::find_array(box_json, "boxes");
+    if (it == nullptr) {
         return std::nullopt;
     }
     std::map<int, FlatBoxReport> reports;
@@ -443,8 +443,8 @@ flat_box_reports(const nlohmann::json& box_json) {
 // without an index takes the count of bays before it.
 static std::vector<int> flat_bay_indices(const nlohmann::json& box_json) {
     std::vector<int> indices;
-    auto it = box_json.find("slots");
-    if (it == box_json.end() || !it->is_array()) {
+    auto* it = helix::json_util::find_array(box_json, "slots");
+    if (it == nullptr) {
         return indices;
     }
     for (const auto& slot_json : *it) {
@@ -580,8 +580,8 @@ AmsSystemInfo AmsBackendCfs::parse_flat_box_status(const nlohmann::json& box_jso
     // degenerate range is truthful, whereas leaving min at 0 would render as
     // "0-300°C".
     std::unordered_map<std::string, int> material_temps;
-    auto materials_it = box_json.find("materials");
-    if (materials_it != box_json.end() && materials_it->is_object()) {
+    auto* materials_it = helix::json_util::find_object(box_json, "materials");
+    if (materials_it != nullptr) {
         for (const auto& [name, spec] : materials_it->items()) {
             if (!spec.is_object()) {
                 continue;
@@ -606,8 +606,8 @@ AmsSystemInfo AmsBackendCfs::parse_flat_box_status(const nlohmann::json& box_jso
     // load_path describes the shared feed path: an encoder, a buffer, and a
     // printhead sensor. Stock CFS reports none of these, so these flags light
     // up path visualization that the stock backend cannot drive.
-    auto path_it = box_json.find("load_path");
-    if (path_it != box_json.end() && path_it->is_object()) {
+    auto* path_it = helix::json_util::find_object(box_json, "load_path");
+    if (path_it != nullptr) {
         const auto& path = *path_it;
 
         auto encoder_it = path.find("encoder");
@@ -616,8 +616,8 @@ AmsSystemInfo AmsBackendCfs::parse_flat_box_status(const nlohmann::json& box_jso
         auto sensor_it = path.find("printhead_sensor");
         unit.has_toolhead_sensor = sensor_it != path.end() && sensor_it->is_object();
 
-        auto buffer_it = path.find("buffer");
-        if (buffer_it != path.end() && buffer_it->is_object()) {
+        auto* buffer_it = helix::json_util::find_object(path, "buffer");
+        if (buffer_it != nullptr) {
             BufferHealth buffer;
             // `active` is the fork's enable flag. state_code/status_code are
             // small enums whose meanings are NOT documented anywhere we can
@@ -636,8 +636,8 @@ AmsSystemInfo AmsBackendCfs::parse_flat_box_status(const nlohmann::json& box_jso
     // a present box did not list reads EMPTY.
     std::map<int, AmsUnit> boxes;
     const auto bay_indices = flat_bay_indices(box_json);
-    auto slots_it = box_json.find("slots");
-    if (slots_it != box_json.end() && slots_it->is_array()) {
+    auto* slots_it = helix::json_util::find_array(box_json, "slots");
+    if (slots_it != nullptr) {
         size_t bay_ordinal = 0;
         for (const auto& slot_json : *slots_it) {
             // A non-object entry (a "-1" sentinel, say) is skipped rather than
@@ -770,12 +770,12 @@ AmsBackendCfs::parse_flat_runout_edges(const nlohmann::json& box_json) {
     // identical material and colour, in slot order, and runout_recovery swaps to
     // chain[0]; the tail is not a succession, so the head is the one edge
     // stated. null means nothing is loaded: no plan.
-    auto runout_it = box_json.find("runout");
-    if (runout_it == box_json.end() || !runout_it->is_object()) {
+    auto* runout_it = helix::json_util::find_object(box_json, "runout");
+    if (runout_it == nullptr) {
         return std::nullopt;
     }
-    auto chain_it = runout_it->find("chain");
-    if (chain_it == runout_it->end() || !chain_it->is_array()) {
+    auto* chain_it = helix::json_util::find_array(*runout_it, "chain");
+    if (chain_it == nullptr) {
         return std::nullopt;
     }
     const auto bays = flat_bay_indices(box_json);
@@ -1311,8 +1311,8 @@ void AmsBackendCfs::handle_box_frame(const nlohmann::json& box, bool print_holds
         // parse's own, so a fingerprint can never address a different
         // bay than the parse put a spool on.
         const auto bay_indices = flat_bay_indices(box);
-        auto slots_it = box.find("slots");
-        if (slots_it != box.end() && slots_it->is_array()) {
+        auto* slots_it = helix::json_util::find_array(box, "slots");
+        if (slots_it != nullptr) {
             size_t bay_ordinal = 0;
             for (const auto& slot_json : *slots_it) {
                 if (!slot_json.is_object() ||

@@ -58,8 +58,8 @@ void U1StockSource::query_module(const char* what,
         "printer.objects.query", params,
         [on_module](const json& resp) {
             const json* module = nullptr;
-            if (auto r = resp.find("result"); r != resp.end() && r->is_object()) {
-                if (auto st = r->find("status"); st != r->end() && st->is_object()) {
+            if (auto* r = helix::json_util::find_object(resp, "result")) {
+                if (auto* st = helix::json_util::find_object(*r, "status")) {
                     if (auto dd = st->find("defect_detection");
                         dd != st->end() && dd->is_object()) {
                         module = &*dd;

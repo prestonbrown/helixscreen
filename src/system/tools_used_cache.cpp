@@ -41,8 +41,8 @@ bool ToolsUsedCache::load_from_disk() {
         entries_.clear();
         return false;
     }
-    const auto it = j.find("entries");
-    if (it == j.end() || !it->is_object()) {
+    auto* it = helix::json_util::find_object(j, "entries");
+    if (it == nullptr) {
         return false;
     }
     for (auto entry = it->begin(); entry != it->end(); ++entry) {

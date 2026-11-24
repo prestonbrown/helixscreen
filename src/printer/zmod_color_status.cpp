@@ -64,8 +64,8 @@ std::optional<std::vector<std::optional<Slot>>> parse_slots(const nlohmann::json
 }
 
 std::optional<std::vector<std::pair<int, std::uint32_t>>> parse_palette(const nlohmann::json& obj) {
-    auto it = obj.find("palette");
-    if (it == obj.end() || !it->is_array()) {
+    auto* it = helix::json_util::find_array(obj, "palette");
+    if (it == nullptr) {
         return std::nullopt;
     }
     std::vector<std::pair<int, std::uint32_t>> out;
@@ -82,8 +82,8 @@ std::optional<std::vector<std::pair<int, std::uint32_t>>> parse_palette(const nl
 }
 
 std::optional<std::vector<std::string>> parse_valid_types(const nlohmann::json& obj) {
-    auto it = obj.find("valid_types");
-    if (it == obj.end() || !it->is_array()) {
+    auto* it = helix::json_util::find_array(obj, "valid_types");
+    if (it == nullptr) {
         return std::nullopt;
     }
     std::vector<std::string> out;

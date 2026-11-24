@@ -88,7 +88,7 @@ Status parse_status(const json& object) {
     }
     s.spec_version = json_util::safe_string(object, "spec_version");
     s.readable = major_of(s.spec_version) == kSpecMajor;
-    if (const auto p = object.find("producer"); p != object.end() && p->is_object()) {
+    if (auto* p = helix::json_util::find_object(object, "producer")) {
         s.producer_name = json_util::safe_string(*p, "name");
         s.producer_version = json_util::safe_string(*p, "version");
         s.producer_url = json_util::safe_string(*p, "url");
@@ -110,7 +110,7 @@ Status parse_status(const json& object) {
         s.current_lane.clear();
     }
     s.state = json_util::safe_string(object, "state");
-    if (const auto e = object.find("error"); e != object.end() && e->is_object()) {
+    if (auto* e = helix::json_util::find_object(object, "error")) {
         s.error_active = json_util::safe_bool(*e, "active", false);
         s.error_message = json_util::safe_string(*e, "message");
         s.error_type = json_util::safe_string(*e, "type");

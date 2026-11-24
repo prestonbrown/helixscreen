@@ -4,6 +4,7 @@
 
 #include "bed_mesh_presence.h"
 #include "core/text_io.h"
+#include "json_utils.h"
 
 namespace helix::skip_wrappers {
 
@@ -216,7 +217,7 @@ bool update_gates(Gates& gates, const nlohmann::json& status) {
         return false;
     }
     bool changed = false;
-    if (auto mesh = status.find("bed_mesh"); mesh != status.end() && mesh->is_object()) {
+    if (auto* mesh = helix::json_util::find_object(status, "bed_mesh")) {
         if (auto m = mesh->find("probed_matrix"); m != mesh->end()) {
             changed |= fold_bool(gates.mesh_loaded, probed_matrix_has_mesh(*m));
         }

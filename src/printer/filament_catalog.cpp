@@ -84,7 +84,7 @@ EffectiveFilament to_effective(const nlohmann::json& p) {
                           .value_or(base ? base->density_g_cm3 : 0.0f);
     e.compat_group = base ? base->compat_group : "";
 
-    if (auto it = p.find("codes"); it != p.end() && it->is_object()) {
+    if (auto* it = helix::json_util::find_object(p, "codes")) {
         for (auto& [scheme, code] : it->items()) {
             if (code.is_string())
                 e.codes[scheme] = code.get<std::string>();

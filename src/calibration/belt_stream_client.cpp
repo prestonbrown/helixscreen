@@ -370,8 +370,8 @@ void BeltStreamClient::handle_frame(std::string_view frame) {
         return; // Not ours.
     }
 
-    const auto params_it = doc.find("params");
-    if (params_it == doc.end() || !params_it->is_object()) {
+    auto* params_it = helix::json_util::find_object(doc, "params");
+    if (params_it == nullptr) {
         return;
     }
     const json& params = *params_it;
@@ -391,8 +391,8 @@ void BeltStreamClient::handle_frame(std::string_view frame) {
         batch.overflows = counter_delta(*overflows, prev_overflows_);
     }
 
-    const auto data_it = params.find("data");
-    if (data_it != params.end() && data_it->is_array()) {
+    auto* data_it = helix::json_util::find_array(params, "data");
+    if (data_it != nullptr) {
         batch.samples.reserve(data_it->size());
         for (const auto& row : *data_it) {
             if (!row.is_array() || static_cast<int>(row.size()) <= col_max_) {

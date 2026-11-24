@@ -381,8 +381,8 @@ std::optional<ToolReading> read_medusahc(const nlohmann::json& obj) {
     // per dock. Sergei, 2026-08-24: "e: 1 means that a tool is installed on
     // the toolhead ... tN: 1 means that the corresponding tool is seated in its
     // dock."
-    auto sensors = obj.find("sensors");
-    if (sensors != obj.end() && sensors->is_object()) {
+    auto* sensors = helix::json_util::find_object(obj, "sensors");
+    if (sensors != nullptr) {
         for (const auto& [key, value] : sensors->items()) {
             auto flag = as_bool(value);
             if (!flag) {
@@ -623,7 +623,7 @@ std::optional<AfcStateReading> read_afc_state(const nlohmann::json& status) {
     if (const auto msg = helix::json_util::read_field<std::string>(*obj, "message")) {
         r.message = *msg;
     }
-    if (auto lanes = obj->find("lanes"); lanes != obj->end() && lanes->is_array()) {
+    if (auto* lanes = helix::json_util::find_array(*obj, "lanes")) {
         for (const auto& lane_name : *lanes) {
             if (!lane_name.is_string()) {
                 continue;

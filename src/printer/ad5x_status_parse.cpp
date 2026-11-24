@@ -252,8 +252,8 @@ std::string normalize_module_color_hex(const std::string& value) {
 }
 
 bool read_ifs_materials_object(const json& obj, ZColorSilentResult& result) {
-    auto slots_it = obj.find("slots");
-    if (slots_it == obj.end() || !slots_it->is_object()) {
+    auto* slots_it = helix::json_util::find_object(obj, "slots");
+    if (slots_it == nullptr) {
         return false;
     }
     bool saw_slot = false;
@@ -300,7 +300,7 @@ IfsModuleObject parse_ifs_module_object(const json& obj) {
     // bitmask the per-lane sensors and zmod's Ports array carry. All or
     // nothing across the array - one non-integer entry discards the presence
     // view rather than inventing values.
-    if (auto lc = obj.find("loaded_channels"); lc != obj.end() && lc->is_array()) {
+    if (auto* lc = helix::json_util::find_array(obj, "loaded_channels")) {
         std::array<bool, kDefaultPorts> ports{};
         bool usable = true;
         for (const auto& ch : *lc) {
@@ -388,7 +388,7 @@ SaveVariables parse_save_variables(const json& vars, const std::string& known_pr
         out.prefix = "less_waste";
     }
 
-    if (auto it = vars.find("bambufy_custom_types"); it != vars.end() && it->is_array()) {
+    if (auto* it = helix::json_util::find_array(vars, "bambufy_custom_types")) {
         std::vector<std::string> names;
         for (const auto& t : *it) {
             if (t.is_string() && !t.get_ref<const std::string&>().empty()) {
@@ -447,8 +447,8 @@ SaveVariables parse_save_variables(const json& vars, const std::string& known_pr
 }
 
 std::optional<ToolMap> parse_ifs_tool_map(const json& ifs_object) {
-    const auto it = ifs_object.find("tool_map");
-    if (it == ifs_object.end() || !it->is_object()) {
+    auto* it = helix::json_util::find_object(ifs_object, "tool_map");
+    if (it == nullptr) {
         return std::nullopt;
     }
     ToolMap parsed{};
@@ -472,7 +472,7 @@ std::optional<ToolMap> parse_ifs_tool_map(const json& ifs_object) {
 StatusFrame parse_status_frame(const json& status, const std::string& known_prefix) {
     StatusFrame frame;
     if (const auto sv = status.find("save_variables"); sv != status.end()) {
-        if (const auto vars = sv->find("variables"); vars != sv->end() && vars->is_object()) {
+        if (auto* vars = helix::json_util::find_object(*sv, "variables")) {
             frame.save_variables = parse_save_variables(*vars, known_prefix);
         }
     }
@@ -537,7 +537,7 @@ std::optional<FilamentEjectTable> parse_filament_json(const std::string& content
 
     FilamentEjectTable table;
     auto& def = table.default_params;
-    if (auto def_it = root.find("default"); def_it != root.end() && def_it->is_object()) {
+    if (auto* def_it = helix::json_util::find_object(root, "default")) {
         def = {read_int(*def_it, "filament_tube_length", 1000),
                read_int(*def_it, "filament_ifs_speed", 1200)};
     }
@@ -556,8 +556,8 @@ std::optional<AdventurerFile> parse_adventurer_json(const std::string& content) 
         return std::nullopt;
     }
     AdventurerFile file;
-    auto ffm_it = doc.find("FFMInfo");
-    if (ffm_it == doc.end() || !ffm_it->is_object()) {
+    auto* ffm_it = helix::json_util::find_object(doc, "FFMInfo");
+    if (ffm_it == nullptr) {
         return file;
     }
     const auto& ffm = *ffm_it;

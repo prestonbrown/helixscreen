@@ -531,7 +531,7 @@ void PrinterPrintState::cache_gcode_z(const nlohmann::json& status) {
     // gcode_position is [X, Y, Z, E] in raw mm (NOT centimm — only motion_state
     // converts). This lives at the top level of the status payload, so it may
     // arrive on an update that carries no virtual_sdcard.
-    if (auto gm_it = status.find("gcode_move"); gm_it != status.end() && gm_it->is_object()) {
+    if (auto* gm_it = helix::json_util::find_object(status, "gcode_move")) {
         if (auto pos_it = gm_it->find("gcode_position");
             pos_it != gm_it->end() && pos_it->is_array() && pos_it->size() >= 3 &&
             (*pos_it)[2].is_number()) {

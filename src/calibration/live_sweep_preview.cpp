@@ -9,6 +9,7 @@
 #include "helix_thread.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
+#include "json_utils.h"
 #include "rest_response.h"
 #include "runtime_config.h"
 
@@ -147,15 +148,15 @@ std::string parse_klippy_uds_address(const nlohmann::json& data) {
         return {};
     }
     const nlohmann::json* root = &data;
-    if (const auto result = data.find("result"); result != data.end() && result->is_object()) {
+    if (auto* result = helix::json_util::find_object(data, "result")) {
         root = &*result;
     }
-    const auto config = root->find("config");
-    if (config == root->end() || !config->is_object()) {
+    auto* config = helix::json_util::find_object(*root, "config");
+    if (config == nullptr) {
         return {};
     }
-    const auto server = config->find("server");
-    if (server == config->end() || !server->is_object()) {
+    auto* server = helix::json_util::find_object(*config, "server");
+    if (server == nullptr) {
         return {};
     }
     const auto address = server->find("klippy_uds_address");

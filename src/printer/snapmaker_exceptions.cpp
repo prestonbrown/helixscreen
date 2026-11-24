@@ -860,8 +860,8 @@ bool status_carries_exceptions(const nlohmann::json& status) {
     if (!status.is_object()) {
         return false;
     }
-    auto manager = status.find("exception_manager");
-    if (manager == status.end() || !manager->is_object()) {
+    auto* manager = helix::json_util::find_object(status, "exception_manager");
+    if (manager == nullptr) {
         return false;
     }
     auto exceptions = manager->find("exceptions");

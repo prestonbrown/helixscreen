@@ -98,8 +98,8 @@ bool read_tool_positions(const json& obj, Reading& r) {
         r.tool_count = std::clamp(*v, 0, kMaxTools);
         saw = true;
     }
-    auto nh = obj.find("no_heat_tools");
-    if (nh != obj.end() && nh->is_array()) {
+    auto* nh = helix::json_util::find_array(obj, "no_heat_tools");
+    if (nh != nullptr) {
         std::set<int> tools;
         for (const auto& t : *nh) {
             if (t.is_number_integer()) {
@@ -130,8 +130,8 @@ bool read_toolchange_vars(const json& obj, Reading& r) {
 }
 
 bool read_presets(const json& obj, Reading& r) {
-    auto it = obj.find("filament_presets");
-    if (it == obj.end() || !it->is_object()) {
+    auto* it = helix::json_util::find_object(obj, "filament_presets");
+    if (it == nullptr) {
         return false;
     }
     std::map<std::string, FilamentPreset> presets;
@@ -162,8 +162,8 @@ std::optional<Reading> read_status(const nlohmann::json& status) {
             continue;
         }
         if (key == "save_variables") {
-            auto vars = value.find("variables");
-            if (vars != value.end() && vars->is_object()) {
+            auto* vars = helix::json_util::find_object(value, "variables");
+            if (vars != nullptr) {
                 saw |= read_save_variables(*vars, r);
             }
             continue;

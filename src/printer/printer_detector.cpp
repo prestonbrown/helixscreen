@@ -2045,8 +2045,8 @@ nlohmann::json database_rules() {
     if (!g_database.load()) {
         return nlohmann::json::array();
     }
-    const auto it = g_database.data.find("probe_preparation");
-    if (it == g_database.data.end() || !it->is_array()) {
+    auto* it = helix::json_util::find_array(g_database.data, "probe_preparation");
+    if (it == nullptr) {
         return nlohmann::json::array();
     }
     return *it;

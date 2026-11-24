@@ -311,8 +311,8 @@ static bool send_request(int fd, const nlohmann::json& request) {
 
 /// The --timeout a request carries in its params, in whole seconds; 0 when it has none.
 static int requested_timeout(const nlohmann::json& request) {
-    const auto params = request.find("params");
-    if (params == request.end() || !params->is_object()) {
+    auto* params = helix::json_util::find_object(request, "params");
+    if (params == nullptr) {
         return 0;
     }
     const auto t = params->find("timeout");
@@ -1284,8 +1284,8 @@ static void print_describe_grouped(const nlohmann::json& result) {
             // abort, not a throw. The dump comes from the server, which may be a
             // different build than this client.
             bool has = false;
-            const auto actions_it = w.find("actions");
-            if (actions_it != w.end() && actions_it->is_array()) {
+            auto* actions_it = helix::json_util::find_array(w, "actions");
+            if (actions_it != nullptr) {
                 for (const auto& a : *actions_it) {
                     if (a == verb) {
                         has = true;

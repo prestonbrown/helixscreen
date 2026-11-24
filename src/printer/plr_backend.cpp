@@ -274,12 +274,12 @@ const std::string* plr_parse_recovery_file(const nlohmann::json& status) {
 }
 
 int plr_parse_interrupted_flag(const nlohmann::json& status) {
-    auto sv_it = status.find("save_variables");
-    if (sv_it == status.end() || !sv_it->is_object()) {
+    auto* sv_it = helix::json_util::find_object(status, "save_variables");
+    if (sv_it == nullptr) {
         return -1;
     }
-    auto vars_it = sv_it->find("variables");
-    if (vars_it == sv_it->end() || !vars_it->is_object()) {
+    auto* vars_it = helix::json_util::find_object(*sv_it, "variables");
+    if (vars_it == nullptr) {
         return -1;
     }
     auto wi_it = vars_it->find("was_interrupted");
@@ -290,12 +290,12 @@ int plr_parse_interrupted_flag(const nlohmann::json& status) {
 }
 
 bool plr_parse_saved_file(const nlohmann::json& status, std::optional<std::string>& out) {
-    auto sv_it = status.find("save_variables");
-    if (sv_it == status.end() || !sv_it->is_object()) {
+    auto* sv_it = helix::json_util::find_object(status, "save_variables");
+    if (sv_it == nullptr) {
         return false;
     }
-    auto vars_it = sv_it->find("variables");
-    if (vars_it == sv_it->end() || !vars_it->is_object()) {
+    auto* vars_it = helix::json_util::find_object(*sv_it, "variables");
+    if (vars_it == nullptr) {
         return false;
     }
     out.reset();
@@ -307,8 +307,8 @@ bool plr_parse_saved_file(const nlohmann::json& status, std::optional<std::strin
 }
 
 bool plr_parse_power_loss_signal(const nlohmann::json& status) {
-    auto stats_it = status.find("print_stats");
-    if (stats_it == status.end() || !stats_it->is_object()) {
+    auto* stats_it = helix::json_util::find_object(status, "print_stats");
+    if (stats_it == nullptr) {
         return false;
     }
     auto pl_it = stats_it->find("power_loss");
@@ -323,8 +323,8 @@ bool plr_probe_recovery_available(const PlrDetectResult& r) {
 }
 
 bool plr_parse_check_continue_response(const nlohmann::json& response, PlrDetectResult& out) {
-    auto result_it = response.find("result");
-    if (result_it == response.end() || !result_it->is_object()) {
+    auto* result_it = helix::json_util::find_object(response, "result");
+    if (result_it == nullptr) {
         return false;
     }
     auto file_it = result_it->find("file_state");

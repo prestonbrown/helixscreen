@@ -465,8 +465,8 @@ static void migrate_v16_to_v17(json& config, const std::string& /*config_path*/)
 /// normalize_versionless_document(), which copies an old root-level flag into
 /// the printer it creates, so one place covers both shapes.
 static bool records_finished_wizard(const json& config) {
-    const auto printers = config.find("printers");
-    if (printers == config.end() || !printers->is_object()) {
+    auto* printers = helix::json_util::find_object(config, "printers");
+    if (printers == nullptr) {
         return false;
     }
     const auto printer =
@@ -1098,8 +1098,8 @@ static void migrate_v23_to_v24(json& config, const std::string& /*config_path*/)
     // numbers are cells. A layout whose entries carry no coordinates has no
     // such numbers, so the tag would be cleared again having converted nothing.
     auto has_coordinates = [](const json& panel) {
-        auto p = panel.find("pages");
-        if (p == panel.end() || !p->is_array()) {
+        auto* p = helix::json_util::find_array(panel, "pages");
+        if (p == nullptr) {
             return false;
         }
         for (const auto& page : *p) {

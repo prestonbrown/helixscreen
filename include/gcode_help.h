@@ -1,3 +1,4 @@
+#include "json_utils.h"
 // Copyright (C) 2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -17,8 +18,8 @@ namespace helix {
 /// to Klipper, so this list is the only way to tell one apart before sending.
 [[nodiscard]] inline std::optional<bool> gcode_help_lists(const nlohmann::json& response,
                                                           const char* command) {
-    const auto result = response.find("result");
-    if (result == response.end() || !result->is_object()) {
+    auto* result = helix::json_util::find_object(response, "result");
+    if (result == nullptr) {
         return std::nullopt;
     }
     return result->contains(command);

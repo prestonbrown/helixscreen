@@ -282,8 +282,8 @@ constexpr int kZmodChangeIdleChannel = 99;
     if (it == status.end() || !it->is_object()) {
         return std::nullopt;
     }
-    auto data = it->find("last_data");
-    if (data == it->end() || !data->is_object()) {
+    auto* data = helix::json_util::find_object(*it, "last_data");
+    if (data == nullptr) {
         return std::nullopt;
     }
     auto channel = data->find("channel");
@@ -4654,7 +4654,7 @@ bool AmsBackendAd5xIfs::apply_zmod_status_objects(const json& status) {
             result.ifs_chan = *zmod_last_chan_;
         }
     }
-    if (auto it = status.find("zmod_color"); it != status.end() && it->is_object()) {
+    if (auto* it = helix::json_util::find_object(status, "zmod_color")) {
         ad5x::read_zmod_color_object(*it, result, ffm_channel);
         saw_object = true;
     }
@@ -4716,7 +4716,7 @@ bool AmsBackendAd5xIfs::apply_ifs_module_objects(const json& status) {
             saw_module_content = true;
         }
     }
-    if (auto it = status.find("ifs_materials"); it != status.end() && it->is_object()) {
+    if (auto* it = helix::json_util::find_object(status, "ifs_materials")) {
         if (ad5x::read_ifs_materials_object(*it, result)) {
             saw_module_content = true;
         }

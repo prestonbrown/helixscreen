@@ -85,8 +85,8 @@ PrintPreferences read_print_preferences(const nlohmann::json& status) {
     if (!status.is_object()) {
         return p;
     }
-    auto ptc = status.find("print_task_config");
-    if (ptc == status.end() || !ptc->is_object()) {
+    auto* ptc = helix::json_util::find_object(status, "print_task_config");
+    if (ptc == nullptr) {
         return p;
     }
     p.auto_replenish = read_flag(*ptc, "auto_replenish_filament");

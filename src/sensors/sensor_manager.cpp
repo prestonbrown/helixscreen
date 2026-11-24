@@ -293,7 +293,7 @@ std::string saved_klipper_name(const nlohmann::json& item) {
 void SensorManager::apply_settings_locked(const nlohmann::json& saved) {
     // Lenient: a wrong-typed field is skipped and the rest still applies. A role
     // that is present reads as none unless it names a role.
-    if (const auto sensors = saved.find("sensors"); sensors != saved.end() && sensors->is_array()) {
+    if (auto* sensors = helix::json_util::find_array(saved, "sensors")) {
         for (const auto& item : *sensors) {
             const std::string klipper_name = saved_klipper_name(item);
             if (klipper_name.empty()) {
@@ -357,8 +357,8 @@ std::vector<std::string> SensorManager::saved_sensor_names() const {
     if (saved == nullptr || !saved->is_object()) {
         return names;
     }
-    const auto sensors = saved->find("sensors");
-    if (sensors == saved->end() || !sensors->is_array()) {
+    auto* sensors = helix::json_util::find_array(*saved, "sensors");
+    if (sensors == nullptr) {
         return names;
     }
     for (const auto& item : *sensors) {

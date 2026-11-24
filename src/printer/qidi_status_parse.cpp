@@ -199,8 +199,8 @@ SaveVariables parse_save_variables(const json& variables, int known_slot_count) 
 
 std::map<int, ControllerSlotDelta> parse_controller_status(const json& controller) {
     std::map<int, ControllerSlotDelta> out;
-    const auto box_it = controller.find("box");
-    if (box_it == controller.end() || !box_it->is_object()) {
+    auto* box_it = helix::json_util::find_object(controller, "box");
+    if (box_it == nullptr) {
         return out;
     }
     constexpr std::string_view kInfo = "_filament_info_";
@@ -261,8 +261,8 @@ std::optional<int> parse_box_unit_index(const std::string& key) {
 
 std::optional<std::vector<std::pair<int, std::int64_t>>>
 parse_box_drying_state(const json& box_extras) {
-    auto ds_it = box_extras.find("box_drying_state");
-    if (ds_it == box_extras.end() || !ds_it->is_object()) {
+    auto* ds_it = helix::json_util::find_object(box_extras, "box_drying_state");
+    if (ds_it == nullptr) {
         return std::nullopt;
     }
     std::vector<std::pair<int, std::int64_t>> out;
@@ -307,7 +307,7 @@ ConfigSettings parse_config_settings(const json& settings) {
             }
         }
     }
-    if (auto fm = settings.find("force_move"); fm != settings.end() && fm->is_object()) {
+    if (auto* fm = helix::json_util::find_object(settings, "force_move")) {
         if (const auto en = helix::json_util::read_field<bool>(*fm, "enable_force_move")) {
             out.force_move = *en;
         }

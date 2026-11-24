@@ -3,6 +3,7 @@
 #include "chamber_air_modes.h"
 
 #include "enclosure_top.h"
+#include "json_utils.h"
 #include "printer_discovery.h"
 #include "translation_loader.h"
 
@@ -138,8 +139,8 @@ Reading top_cover_read(const PrinterDiscovery& hw, const json& status) {
         return r;
     }
     r.present = enclosure_top::fitted_from_status(hw, status);
-    auto obj = status.find("purifier");
-    if (obj == status.end() || !obj->is_object()) {
+    auto* obj = helix::json_util::find_object(status, "purifier");
+    if (obj == nullptr) {
         return r;
     }
     if (auto m = obj->find("mode"); m != obj->end()) {
