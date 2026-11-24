@@ -1239,8 +1239,9 @@ namespace {
 /// Every FIRMWARE_RESTART this editor sends is one the app asked for, so the
 /// recovery dialog and the disconnect modal must read it as a restart, not a
 /// fault. Owned here rather than by each caller, so no Save path can forget it.
-void announce_expected_restart(IMoonrakerAPI& api) {
-    helix::publish_ui_request({helix::UiRequestKind::ExpectKlippyRestart, -1, &api});
+/// @p message is the toast's untranslated text; empty shows the generic one.
+void announce_expected_restart(IMoonrakerAPI& api, const std::string& message = {}) {
+    helix::publish_ui_request({helix::UiRequestKind::ExpectKlippyRestart, -1, &api, 0, message});
 }
 
 } // namespace
@@ -1501,7 +1502,7 @@ void KlipperConfigEditor::restart_and_monitor(IMoonrakerAPI& api, RestartRecover
                                               SuccessCallback on_success, ErrorCallback on_error,
                                               int restart_timeout_ms,
                                               std::vector<ExpectedSetting> expected) {
-    announce_expected_restart(api);
+    announce_expected_restart(api, restart_announcement_);
     api.restart_firmware(
         [this, &api, recovery, on_success, on_error, restart_timeout_ms, expected,
          poll_interval = restart_poll_interval_]() {

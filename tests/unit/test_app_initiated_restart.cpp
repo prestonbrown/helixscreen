@@ -7,16 +7,22 @@
 // section and restarts) are the shared path, so the editor arms that window.
 
 #include "ui_emergency_stop.h"
+#include "ui_toast_manager.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/emergency_stop_test_access.h"
 #include "../test_helpers/moonraker_client_test_access.h"
+#include "../ui_test_utils.h"
 #include "core/http_executor.h"
 #include "core/update_queue.h"
 #include "klipper_config_editor.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
+
+#include <algorithm>
+#include <string>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -38,8 +44,22 @@ TEST_CASE_METHOD(LVGLTestFixture, "a config editor safe edit marks its restart a
                                                              helix::ConnectionState::CONNECTED);
     client.set_simulation_speedup(1000.0);
 
+    ToastManager::instance().init();
+    std::vector<std::string> toasts;
+    helix::ui::set_test_toast_hook([&toasts](ToastSeverity, const std::string& message, uint32_t) {
+        toasts.push_back(message);
+    });
+    // The hook captures a local: clear it on every exit, a failed REQUIRE included.
+    struct HookReset {
+        ~HookReset() {
+            helix::ui::set_test_toast_hook(nullptr);
+        }
+    } hook_reset;
+
     KlipperConfigEditor editor;
     editor.set_restart_poll_interval(std::chrono::milliseconds(1));
+    // The caller's own words announce the restart, not a generic line.
+    editor.set_restart_announcement("Saving the extruder section... Klipper will restart.");
     bool succeeded = false;
     std::string error;
     editor.safe_multi_edit(
@@ -58,6 +78,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "a config editor safe edit marks its restart a
     // recovery dialog nor the disconnect modal reads it as a fault.
     CHECK(estop.is_recovery_suppressed());
     CHECK(api.suppress_disconnect_modal_calls() >= 1);
+    process_lvgl(50);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(std::find(toasts.begin(), toasts.end(),
+                    "Saving the extruder section... Klipper will restart.") != toasts.end());
 
     process_lvgl(1200);
     helix::ui::UpdateQueue::instance().drain();
