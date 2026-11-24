@@ -73,6 +73,24 @@ EOF
     contains "#ifndef" "$output"
 }
 
+@test "a comment beside or under the #ifndef guard does not hide it" {
+    cat > "$ROOT/include/helix_features.h" <<'EOF2'
+#pragma once
+#ifndef HELIX_HAS_LABEL_PRINTER  // a build may pass -DHELIX_HAS_LABEL_PRINTER=0
+// Label printing.
+#define HELIX_HAS_LABEL_PRINTER 1
+#endif
+EOF2
+    run python3 "$GATE" --root "$ROOT"
+    [ "$status" -eq 0 ] || fail "$output"
+}
+
+@test "a conditional inside a block comment is not a use" {
+    printf '/*\n#if HELIX_HAS_RETIRED_WIDGET\n*/\nint r;\n' > "$ROOT/src/ui/retired.cpp"
+    run python3 "$GATE" --root "$ROOT"
+    [ "$status" -eq 0 ] || fail "$output"
+}
+
 @test "a second default for a declared gate outside the header is refused" {
     printf '#ifndef HELIX_HAS_LABEL_PRINTER\n#define HELIX_HAS_LABEL_PRINTER 0\n#endif\n' > "$ROOT/src/ui/local.cpp"
     run python3 "$GATE" --root "$ROOT"
