@@ -78,30 +78,57 @@ int hide_fault_modals() {
     return dismissed;
 }
 
+// The title is the key up to its first newline.
+std::string title_of(const std::string& key) {
+    return key.substr(0, key.find('\n'));
+}
+
+// A fault whose text keeps changing in ways the key cannot fold must not stack
+// without bound: past kMaxFaultModalsPerTitle the oldest one under the title goes.
+void retire_oldest_with_title(const std::string& key) {
+    const std::string title = title_of(key);
+    std::vector<lv_obj_t*> live;
+    for (const auto& entry : s_fault_keys) {
+        if (title_of(entry.second) == title && modal_live(entry.first)) {
+            live.push_back(entry.first);
+        }
+    }
+    // The dialog about to be tracked takes one slot.
+    while (live.size() + 1 > static_cast<size_t>(kMaxFaultModalsPerTitle)) {
+        Modal::hide(live.front(), ModalCloseReason::External);
+        live.erase(live.begin());
+    }
+}
+
 } // namespace
 
 std::string fault_dedup_key(const char* title, const char* message) {
     const std::string text = std::string(title ? title : "") + "\n" + (message ? message : "");
     std::string key;
     key.reserve(text.size());
-    size_t i = 0;
-    const auto digit = [&text](size_t at) {
-        return at < text.size() && text[at] >= '0' && text[at] <= '9';
-    };
-    while (i < text.size()) {
-        if (!digit(i)) {
-            key += text[i++];
+    // A name Klipper quotes ('mcu1', 'EBBCan') is what tells two faults apart, so
+    // its digits stay; every other number (coordinates, counters, line numbers,
+    // clock ticks) collapses.
+    bool quoted = false;
+    bool in_number = false;
+    for (const char ch : text) {
+        if (ch == '\'') {
+            quoted = !quoted;
+        }
+        const bool digit = ch >= '0' && ch <= '9';
+        if (digit && !quoted) {
+            if (!in_number) {
+                key += '#';
+            }
+            in_number = true;
             continue;
         }
-        // A number run: digits, with '.' only between digits.
-        size_t end = i;
-        bool decimal = false;
-        while (digit(end) || (text[end] == '.' && digit(end + 1) && end > i)) {
-            decimal = decimal || text[end] == '.';
-            ++end;
+        // A '.' inside a number belongs to it.
+        if (in_number && ch == '.') {
+            continue;
         }
-        key += decimal ? std::string("#") : text.substr(i, end - i);
-        i = end;
+        in_number = false;
+        key += ch;
     }
     return key;
 }
@@ -121,6 +148,7 @@ void track_fault_modal(lv_obj_t* dialog, const std::string& key) {
     }
     s_fault_modals.push_back(dialog);
     if (!key.empty()) {
+        retire_oldest_with_title(key);
         s_fault_keys.emplace_back(dialog, key);
     }
     // DECLARATIVE_OK: LV_EVENT_DELETE cleanup has no declarative equivalent.
