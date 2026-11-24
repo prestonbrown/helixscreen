@@ -103,7 +103,7 @@ ToolheadPresetConfigModal::ToolheadPresetConfigModal(ToolheadPresetSlots slots,
                                                      ChangeCallback on_change)
     : slots_(std::move(slots)), on_change_(std::move(on_change)) {}
 
-std::vector<ToolheadPresetSlot> ToolheadPresetConfigModal::choices() {
+std::vector<ToolheadPresetSlot> ToolheadPresetConfigModal::choices(bool can_dock_tool) {
     std::vector<ToolheadPresetSlot> out;
     for (const auto& p : kMotionPresetTokens) {
         ToolheadPresetSlot slot;
@@ -111,9 +111,11 @@ std::vector<ToolheadPresetSlot> ToolheadPresetConfigModal::choices() {
         slot.position = p.preset;
         out.push_back(slot);
     }
-    for (const auto kind : {ToolheadPresetSlot::Kind::Park, ToolheadPresetSlot::Kind::ZUp,
-                            ToolheadPresetSlot::Kind::ZDown, ToolheadPresetSlot::Kind::Macro,
-                            ToolheadPresetSlot::Kind::Empty}) {
+    for (const auto kind : {ToolheadPresetSlot::Kind::Park, ToolheadPresetSlot::Kind::DockTool,
+                            ToolheadPresetSlot::Kind::ZUp, ToolheadPresetSlot::Kind::ZDown,
+                            ToolheadPresetSlot::Kind::Macro, ToolheadPresetSlot::Kind::Empty}) {
+        if (kind == ToolheadPresetSlot::Kind::DockTool && !can_dock_tool)
+            continue;
         ToolheadPresetSlot slot;
         slot.kind = kind;
         out.push_back(slot);
@@ -144,7 +146,7 @@ void ToolheadPresetConfigModal::select_slot(std::size_t index) {
 }
 
 void ToolheadPresetConfigModal::pick_choice(std::size_t choice) {
-    const auto all = choices();
+    const auto all = choices(can_dock_tool_);
     if (choice >= all.size())
         return;
     if (all[choice].kind == ToolheadPresetSlot::Kind::Macro) {
@@ -216,7 +218,8 @@ void ToolheadPresetConfigModal::populate_list() {
         return;
     }
 
-    const auto all = choices();
+    can_dock_tool_ = toolhead_can_dock_tool();
+    const auto all = choices(can_dock_tool_);
     for (std::size_t i = 0; i < all.size(); ++i) {
         std::string label;
         switch (all[i].kind) {
