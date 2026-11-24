@@ -509,16 +509,18 @@ int safe_exec(const std::vector<std::string>& args, bool capture_stderr = false)
     return exit_code;
 }
 
+} // namespace
+
 /**
- * @brief Clean up stale .old backup directory left by a previous update.
+ * Clean up a stale .old backup directory left by a previous update.
  *
  * When the in-app updater runs install.sh under systemd's NoNewPrivileges
  * constraint, the cleanup_old_install step can fail silently (sudo is blocked).
- * This leaves a helixscreen.old directory that wastes disk space.  We clean it
- * up at startup since we know the new version launched successfully.
+ * This leaves a helixscreen.old directory that wastes disk space. A .old kept
+ * for the launcher's rollback guard is not stale: it stays while the guard is
+ * armed, and the guard removes it once the new version is healthy.
  */
-void cleanup_stale_old_install() {
-    std::string install_root = app_get_writable_install_root();
+void UpdateChecker::cleanup_stale_old_install(const std::string& install_root) {
     if (install_root.empty()) {
         return;
     }
@@ -527,6 +529,10 @@ void cleanup_stale_old_install() {
     struct stat st {};
     if (stat(old_dir.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) {
         return; // no .old directory
+    }
+    if (helix::update::rollback_guard_armed()) {
+        spdlog::info("[UpdateChecker] Keeping {}: the rollback guard is armed", old_dir);
+        return;
     }
 
     spdlog::info("[UpdateChecker] Found stale backup from previous update: {}", old_dir);
@@ -543,6 +549,8 @@ void cleanup_stale_old_install() {
     // and Config::init() — do NOT delete them here. They protect against Moonraker
     // wiping the install directory during updates.
 }
+
+namespace {
 
 /**
  * @brief Extract a single member from a .tar.gz tarball.
@@ -880,7 +888,7 @@ void UpdateChecker::init() {
 
     // Clean up stale .old backup from a previous in-app update that may have
     // failed to remove it (e.g., NoNewPrivileges blocked sudo rm).
-    cleanup_stale_old_install();
+    cleanup_stale_old_install(app_get_writable_install_root());
 
     // Repair a stale/missing asset_name in release_info.json before anything can
     // ask Moonraker to update us. Self-healing is the point: an install with a

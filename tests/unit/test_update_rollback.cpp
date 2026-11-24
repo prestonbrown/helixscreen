@@ -17,6 +17,7 @@
 #include "core/update_queue.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
+#include "system/update_checker.h"
 #include "system/update_rollback.h"
 #include "test_helpers/printer_state_test_access.h"
 #include "test_helpers/scoped_env.h"
@@ -268,4 +269,20 @@ TEST_CASE_METHOD(RollbackDirFixture,
 
     PrinterStateTestAccess::reset(printer_state);
     printer_state.init_subjects(false);
+}
+
+TEST_CASE_METHOD(RollbackDirFixture,
+                 "Startup cleanup keeps the kept copy only while the rollback guard is armed",
+                 "[auto_update][rollback]") {
+    const std::string root = dir + "/helixscreen";
+    std::filesystem::create_directories(root + ".old/bin");
+
+    arm();
+    UpdateChecker::cleanup_stale_old_install(root);
+    CHECK(std::filesystem::exists(root + ".old/bin"));
+
+    // Outside a trial window it is stale and goes, as before.
+    remove_rollback_file(dir, kRollbackArmedFile);
+    UpdateChecker::cleanup_stale_old_install(root);
+    CHECK_FALSE(std::filesystem::exists(root + ".old"));
 }

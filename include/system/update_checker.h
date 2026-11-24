@@ -617,6 +617,12 @@ class UpdateChecker {
      */
     static void settle_self_restart_sentinel(bool installed);
 
+    /**
+     * @brief Remove <install_root>.old left by an earlier update, unless the
+     *        launcher's rollback guard still needs it. Exposed for unit testing.
+     */
+    static void cleanup_stale_old_install(const std::string& install_root);
+
     /** @brief Check if a version is dismissed (user chose to ignore) */
     bool is_version_dismissed(const std::string& version) const;
 
