@@ -376,7 +376,7 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
 
 TEST_CASE_METHOD(PrintTuneZOffsetFixture,
                  "PrintTune: under a nonlinear model the row names linear advance and steps it",
-                 "[ui_integration][pa_tune][pa_model]") {
+                 "[ui_integration][pa_tune][pa_model][pa_mutation]") {
     state().update_from_status(json{{"extruder", json{{"pressure_advance_model", "tanh"},
                                                       {"linear_advance", 0.017},
                                                       {"nonlinear_offset", 0.1},
@@ -390,6 +390,19 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     CHECK(lv_obj_has_flag(k_label, LV_OBJ_FLAG_HIDDEN));
     CHECK_FALSE(lv_obj_has_flag(la_label, LV_OBJ_FLAG_HIDDEN));
 
+    // A tap would send a bare ADVANCE=, which changes only part of the model:
+    // the step buttons are off. The Nonlinear tuner changes it.
+    const char* steps[] = {"btn_pa_minus_5", "btn_pa_minus_1", "btn_pa_plus_1", "btn_pa_plus_5"};
+    const auto all_steps_disabled = [&](bool disabled) {
+        for (const char* name : steps) {
+            lv_obj_t* btn = lv_obj_find_by_name(overlay.get_panel(), name);
+            REQUIRE(btn != nullptr);
+            CAPTURE(name);
+            CHECK(lv_obj_has_state(btn, LV_STATE_DISABLED) == disabled);
+        }
+    };
+    all_steps_disabled(true);
+
     overlay.handle_pa_adjust(1);
     helix::ui::UpdateQueue::instance().drain();
     CHECK(last_gcode() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0180");
@@ -400,6 +413,7 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     helix::ui::UpdateQueue::instance().drain();
     CHECK_FALSE(lv_obj_has_flag(k_label, LV_OBJ_FLAG_HIDDEN));
     CHECK(lv_obj_has_flag(la_label, LV_OBJ_FLAG_HIDDEN));
+    all_steps_disabled(false);
 }
 
 TEST_CASE_METHOD(PrintTuneZOffsetFixture,

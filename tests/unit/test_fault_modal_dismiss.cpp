@@ -156,9 +156,12 @@ TEST_CASE_METHOD(FaultModalFixture, "A fault modal the user already acknowledged
     REQUIRE(Modal::get_top() == nullptr);
 
     // The registry must not still hold the handle and count it as a dismissal —
-    // that is how "dismissed 2 modals" gets logged for a single dialog.
-    CHECK(dismiss_fault_modals() == 0);
+    // that is how "dismissed 2 modals" gets logged for a single dialog. Counted
+    // before the sweep, which empties the registry whatever it held, once the
+    // closed dialog's widgets are gone.
+    process_lvgl(1000);
     CHECK(helix::ui::tracked_fault_modal_count() == 0);
+    CHECK(dismiss_fault_modals() == 0);
 }
 
 TEST_CASE_METHOD(FaultModalFixture, "Cascading fault modals all clear in one sweep",

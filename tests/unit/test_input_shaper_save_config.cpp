@@ -400,7 +400,7 @@ TEST_CASE_METHOD(SaveConfigFixture, "the auto-revert warning survives the panel 
 }
 
 TEST_CASE_METHOD(SaveConfigFixture, "the success toast survives the panel closing",
-                 "[input_shaper][save_config]") {
+                 "[input_shaper][save_config][pa_mutation]") {
     ::InputShaperPanelTestAccess::seed_axis(panel_, 'X', make_x_result(), make_curves(), kMzvChip);
     ::InputShaperPanelTestAccess::seed_axis(panel_, 'Y', make_y_result(), make_curves(), kMzvChip);
 
@@ -412,6 +412,10 @@ TEST_CASE_METHOD(SaveConfigFixture, "the success toast survives the panel closin
     REQUIRE(settle());
 
     CHECK(toasts.saw("Input shaper settings applied!"));
+    // The restart is announced in the save's own words, not as a bare firmware
+    // restart.
+    CHECK(toasts.messages().size() >= 2);
+    CHECK_FALSE(toasts.saw("Firmware restarting"));
 
     // The write itself still happened - the toast is not standing in for it.
     CHECK(has_substr(uploaded(kOptionsPath), "shaper_type_x: mzv"));
