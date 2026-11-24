@@ -694,7 +694,7 @@ void CalibrationRunOverlay::publish_prereqs() {
         paper = paper || (s.needs_hands && (s.prereqs & calibration::kPrereqPaper));
     }
     lv_subject_set_int(&has_hands_, hands > 0 ? 1 : 0);
-    set_text(you_line_, fmt::format(fmt::runtime(lv_tr("You, about {} min")), hands));
+    set_text(you_line_, fmt::format(fmt::runtime(lv_tr("Needs you, about {} min")), hands));
     std::string you_steps = join_names(mine);
     if (paper) {
         you_steps += " ";
@@ -702,7 +702,7 @@ void CalibrationRunOverlay::publish_prereqs() {
     }
     set_text(you_steps_, you_steps + ". " + lv_tr("Stay at the printer."));
     set_text(away_line_,
-             fmt::format(fmt::runtime(lv_tr("Walk away, about {} min")), total - hands));
+             fmt::format(fmt::runtime(lv_tr("Prints on its own, about {} min")), total - hands));
     std::string away_steps = join_names(away);
     if (!away_steps.empty()) {
         away_steps += ".";
