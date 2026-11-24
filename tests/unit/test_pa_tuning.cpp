@@ -112,6 +112,20 @@ TEST_CASE("generated gcode reports layers, heats, and never sets K", "[pa_tuning
           gcode.rfind("CURRENT_LAYER="));
 }
 
+TEST_CASE("the tower draws no prime line after a start macro that purged", "[pa_tuning][prime]") {
+    TestPrintParams p;
+    const std::string with_prime = generate_test_gcode(p);
+    // The prime line ends in a retract; the tower's own first layer never retracts early.
+    CHECK(with_prime.find("G1 E-0.8 F2100") != std::string::npos);
+
+    p.skip_prime = true;
+    const std::string without = generate_test_gcode(p);
+    CHECK(without.find("G1 E-0.8 F2100") == std::string::npos);
+    // The tower itself is untouched.
+    CHECK(count_occurrences(without, "SET_PRINT_STATS_INFO CURRENT_LAYER=") ==
+          count_occurrences(with_prime, "SET_PRINT_STATS_INFO CURRENT_LAYER="));
+}
+
 TEST_CASE("generated gcode heats the chosen extruder by name before selecting its tool",
           "[pa_tuning]") {
     TestPrintParams p;

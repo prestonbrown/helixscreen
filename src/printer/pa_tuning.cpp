@@ -296,18 +296,24 @@ std::string generate_test_gcode(const TestPrintParams& p) {
     line("M107");
     line(fmt::format("SET_PRINT_STATS_INFO TOTAL_LAYER={}", layers));
 
-    // Prime line along the front edge, clear of the tower and its brim.
-    const double prime_x0 = std::max<double>(p.bed_x_min + 10.0, cx - 40.0);
-    const double prime_y = p.bed_y_min + 5.0;
-    const double prime_len = 60.0;
-    const double prime_epm = e_per_mm(w * 1.5, g.first_layer_mm, p.filament_diameter_mm);
     const double travel_f = 150.0 * 60.0;
-    line("G1 Z5 F600");
-    line(fmt::format("G1 X{:.3f} Y{:.3f} F{:.0f}", prime_x0, prime_y, travel_f));
-    line(fmt::format("G1 Z{:.3f} F600", g.first_layer_mm));
-    line(fmt::format("G1 X{:.3f} E{:.5f} F1200", prime_x0 + prime_len, prime_len * prime_epm));
-    line("G1 E-0.8 F2100");
-    line(fmt::format("G1 Z{:.3f} F600", g.first_layer_mm + 0.4));
+    // Prime line along the front edge, clear of the tower and its brim. A start
+    // macro that purged already left one on the plate.
+    if (!p.skip_prime) {
+        const double prime_x0 = std::max<double>(p.bed_x_min + 10.0, cx - 40.0);
+        const double prime_y = p.bed_y_min + 5.0;
+        const double prime_len = 60.0;
+        const double prime_epm = e_per_mm(w * 1.5, g.first_layer_mm, p.filament_diameter_mm);
+        line("G1 Z5 F600");
+        line(fmt::format("G1 X{:.3f} Y{:.3f} F{:.0f}", prime_x0, prime_y, travel_f));
+        line(fmt::format("G1 Z{:.3f} F600", g.first_layer_mm));
+        line(fmt::format("G1 X{:.3f} E{:.5f} F1200", prime_x0 + prime_len, prime_len * prime_epm));
+        line("G1 E-0.8 F2100");
+        line(fmt::format("G1 Z{:.3f} F600", g.first_layer_mm + 0.4));
+    } else {
+        // The macro leaves the nozzle wherever its purge ended.
+        line("G1 Z5 F600");
+    }
 
     for (int layer = 1; layer <= layers; ++layer) {
         const double h = layer_height_of(g, layer);

@@ -172,6 +172,8 @@ struct TestPrintParams {
     int fan_percent = 100;
     MachineMacros macros;
     std::string material;
+    /// The start macro already purged: the tower draws no prime line of its own.
+    bool skip_prime = false;
 };
 
 /// Generate the test print: starts through the printer's start macro (or homes
