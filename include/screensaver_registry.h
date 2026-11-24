@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "lvgl/lvgl.h"
-
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
@@ -54,10 +52,6 @@ enum SaverDepth : uint8_t {
     SAVER_DEPTH_16 = 1u << 0,
     SAVER_DEPTH_32 = 1u << 1,
 };
-
-/// The SaverDepth bit this build draws at, for registry queries such as
-/// default_screensaver_type(). A 16 bpp build compiles only the savers carrying SAVER_DEPTH_16.
-inline constexpr uint8_t kSaverBuildDepth = LV_COLOR_DEPTH == 16 ? SAVER_DEPTH_16 : SAVER_DEPTH_32;
 
 /// Where a saver shows a print: in its own scene, or on the shared progress card.
 enum class PrintDisplay : uint8_t { SCENE, CARD };
