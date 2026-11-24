@@ -4192,6 +4192,9 @@ helix::update::AutoUpdateDecision UpdateChecker::auto_update_tick(const AutoUpda
     auto& print_state = get_printer_state().print_state();
     in.lifecycle = print_state.get_print_lifecycle();
     in.plr_pending = print_state.is_plr_snapshot_valid();
+    in.klippy_ready =
+        lv_subject_get_int(get_printer_state().network_state().get_klippy_state_subject()) ==
+        static_cast<int>(KlippyState::READY);
 
     std::string version;
     {
