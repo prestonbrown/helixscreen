@@ -5,6 +5,8 @@
 
 #include <lvgl/lvgl.h>
 
+#include <string>
+
 /**
  * @file fault_modal_registry.h
  * @brief Tracks alert modals that describe a fault ON THE PRINTER (#1266)
@@ -36,7 +38,26 @@ namespace helix::ui {
  * **Main thread only.** No-op on nullptr, so a failed modal_alert() can be
  * passed straight through.
  */
-void track_fault_modal(lv_obj_t* dialog);
+void track_fault_modal(lv_obj_t* dialog, const std::string& key = {});
+
+/**
+ * @brief The identity a fault dialog dedups on: its title and message with each
+ *        decimal number (a coordinate, a measured value) collapsed to "#"
+ *
+ * One cause repeated with new numbers ("Must home axis first: 94.700 86.700"
+ * then "...: 60.000 105.000") is the same fault. Integers stay: "MCU 1" and
+ * "MCU 2" are different faults.
+ */
+std::string fault_dedup_key(const char* title, const char* message);
+
+/**
+ * @brief Whether a dialog tracked with @p key is still on screen, anywhere in the
+ *        modal stack and not animating out
+ *
+ * A repeat of the same fault raised while another dialog sits on top of it must
+ * not stack a second copy. **Main thread only.**
+ */
+bool fault_modal_showing(const std::string& key);
 
 /**
  * @brief Dismiss every tracked fault modal still on screen

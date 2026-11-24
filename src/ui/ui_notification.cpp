@@ -207,7 +207,11 @@ static void async_error_callback(void* user_data) {
 
         if (data->modal && data->has_title) {
             // Check if a modal with the same title is already showing
-            if (top_modal_shows_title(data->title)) {
+            const std::string fault_key =
+                data->fault ? helix::ui::fault_dedup_key(data->title, data->message)
+                            : std::string();
+            if (data->fault ? helix::ui::fault_modal_showing(fault_key)
+                            : top_modal_shows_title(data->title)) {
                 spdlog::debug("[Notification] Skipping duplicate modal (async): '{}'", data->title);
                 delete data;
                 return;
@@ -217,7 +221,7 @@ static void async_error_callback(void* user_data) {
             lv_obj_t* dialog =
                 helix::ui::modal_alert(data->title, data->message, ModalSeverity::Error, "OK");
             if (data->fault) {
-                helix::ui::track_fault_modal(dialog);
+                helix::ui::track_fault_modal(dialog, fault_key);
             }
 
             helix::ui::notification_update(NotificationStatus::ERROR);
@@ -536,7 +540,9 @@ static void show_error_notification(const char* title, const char* message, bool
         if (modal && title) {
             // Check if a modal with the same title is already showing
             // This prevents duplicate modals when multiple components report the same error
-            if (top_modal_shows_title(title)) {
+            const std::string fault_key =
+                fault ? helix::ui::fault_dedup_key(title, message) : std::string();
+            if (fault ? helix::ui::fault_modal_showing(fault_key) : top_modal_shows_title(title)) {
                 spdlog::debug("[Notification] Skipping duplicate modal: '{}'", title);
                 return;
             }
@@ -544,7 +550,7 @@ static void show_error_notification(const char* title, const char* message, bool
             // Show modal dialog for critical errors
             lv_obj_t* dialog = helix::ui::modal_alert(title, message, ModalSeverity::Error, "OK");
             if (fault) {
-                helix::ui::track_fault_modal(dialog);
+                helix::ui::track_fault_modal(dialog, fault_key);
             }
 
             helix::ui::notification_update(NotificationStatus::ERROR);

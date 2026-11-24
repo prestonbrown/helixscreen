@@ -20,6 +20,9 @@ namespace {
 // handler, both of which LVGL already guarantees run on the main thread.
 std::vector<lv_obj_t*> s_fault_modals;
 
+// The dedup key each tracked dialog was raised with; empty keys are not stored.
+std::vector<std::pair<lv_obj_t*, std::string>> s_fault_keys;
+
 // Drop the handle whenever the dialog dies by ANY route — the user's OK, a
 // backdrop tap, our own sweep, ModalStack::clear() at teardown. Without this the
 // vector accumulates dead pointers across a long session, and since a freed
@@ -31,6 +34,10 @@ void forget_fault_modal(lv_event_t* e) {
     if (it != s_fault_modals.end()) {
         s_fault_modals.erase(it);
     }
+    s_fault_keys.erase(
+        std::remove_if(s_fault_keys.begin(), s_fault_keys.end(),
+                       [dialog](const auto& entry) { return entry.first == dialog; }),
+        s_fault_keys.end());
 }
 
 // The dialog currently restating the printer fault, or nullptr.
@@ -73,11 +80,49 @@ int hide_fault_modals() {
 
 } // namespace
 
-void track_fault_modal(lv_obj_t* dialog) {
+std::string fault_dedup_key(const char* title, const char* message) {
+    const std::string text = std::string(title ? title : "") + "\n" + (message ? message : "");
+    std::string key;
+    key.reserve(text.size());
+    size_t i = 0;
+    const auto digit = [&text](size_t at) {
+        return at < text.size() && text[at] >= '0' && text[at] <= '9';
+    };
+    while (i < text.size()) {
+        if (!digit(i)) {
+            key += text[i++];
+            continue;
+        }
+        // A number run: digits, with '.' only between digits.
+        size_t end = i;
+        bool decimal = false;
+        while (digit(end) || (text[end] == '.' && digit(end + 1) && end > i)) {
+            decimal = decimal || text[end] == '.';
+            ++end;
+        }
+        key += decimal ? std::string("#") : text.substr(i, end - i);
+        i = end;
+    }
+    return key;
+}
+
+bool fault_modal_showing(const std::string& key) {
+    if (key.empty()) {
+        return false;
+    }
+    return std::any_of(s_fault_keys.begin(), s_fault_keys.end(), [&key](const auto& entry) {
+        return entry.second == key && modal_live(entry.first);
+    });
+}
+
+void track_fault_modal(lv_obj_t* dialog, const std::string& key) {
     if (!dialog) {
         return; // modal_alert() already logged why it failed
     }
     s_fault_modals.push_back(dialog);
+    if (!key.empty()) {
+        s_fault_keys.emplace_back(dialog, key);
+    }
     // DECLARATIVE_OK: LV_EVENT_DELETE cleanup has no declarative equivalent.
     lv_obj_add_event_cb(dialog, forget_fault_modal, LV_EVENT_DELETE, nullptr);
 }
