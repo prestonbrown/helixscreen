@@ -5550,6 +5550,7 @@
   <translation tag="Update Failed" zh="更新失败"/>
   <translation tag="Update Helper Macros" zh="更新帮助宏"/>
   <translation tag="Update Helper Macros?" zh="更新帮助宏？"/>
+  <translation tag="Update Rolled Back" zh="更新已回滚"/>
   <translation tag="Update Success" zh="更新成功"/>
   <translation tag="Update complete" zh="更新完成"/>
   <translation tag="Update from a Terminal" zh="通过终端更新"/>
@@ -6064,6 +6065,7 @@
   <translation tag="uses about 30 cm of filament" zh="消耗约 30 cm 耗材"/>
   <translation tag="v%s available" zh="v%s 可用"/>
   <translation tag="v%s has no build for the %s, so it can&apos;t be installed here. Pick a channel with a newer release." zh="v%s 没有适用于 %s 的版本，因此无法在此安装。请选择有更新版本的更新通道。"/>
+  <translation tag="v{} did not start properly, so v{} was put back." zh="v{} 未能正常启动，因此已恢复 v{}。"/>
   <translation tag="v{} installed! Restarting..." zh="已安装 v{}！正在重启..."/>
   <translation tag="v{} is available. Tap to update." zh="v{} 可用。点击以更新。"/>
   <translation tag="waiting for the printer" zh="正在等待打印机"/>

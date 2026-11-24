@@ -5773,6 +5773,7 @@ translations:
   Update Failed: 更新失败
   Update Helper Macros: '更新帮助宏'
   Update Helper Macros?: '更新帮助宏？'
+  Update Rolled Back: 更新已回滚
   Update Success: 更新成功
   Update complete: '更新完成'
   Update from a Terminal: 通过终端更新
@@ -6288,6 +6289,7 @@ translations:
   uses about 30 cm of filament: 消耗约 30 cm 耗材
   v%s available: v%s 可用
   v%s has no build for the %s, so it can't be installed here. Pick a channel with a newer release.: v%s 没有适用于 %s 的版本，因此无法在此安装。请选择有更新版本的更新通道。
+  v{} did not start properly, so v{} was put back.: v{} 未能正常启动，因此已恢复 v{}。
   v{} installed! Restarting...: 已安装 v{}！正在重启...
   v{} is available. Tap to update.: v{} 可用。点击以更新。
   waiting for the printer: "正在等待打印机"

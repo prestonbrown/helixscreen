@@ -5773,6 +5773,7 @@ translations:
   Update Failed: 更新失敗
   Update Helper Macros: 'ヘルパーマクロを更新'
   Update Helper Macros?: 'ヘルパーマクロを更新しますか？'
+  Update Rolled Back: 更新を元に戻しました
   Update Success: 更新成功
   Update complete: '更新が完了しました'
   Update from a Terminal: ターミナルから更新
@@ -6288,6 +6289,7 @@ translations:
   uses about 30 cm of filament: フィラメントを約30cm使用
   v%s available: v%s が利用可能です
   v%s has no build for the %s, so it can't be installed here. Pick a channel with a newer release.: v%s には %s 用のビルドがないため、ここにはインストールできません。より新しいリリースがある更新チャンネルを選んでください。
+  v{} did not start properly, so v{} was put back.: v{} が正常に起動しなかったため、v{} に戻しました。
   v{} installed! Restarting...: v{} をインストールしました！再起動中...
   v{} is available. Tap to update.: v{} が利用可能です。タップして更新してください。
   waiting for the printer: "プリンター待ち"

@@ -5861,6 +5861,7 @@ translations:
   Update Failed: Ошибка обновления
   Update Helper Macros: 'Обновить вспомогательные макросы'
   Update Helper Macros?: 'Обновить вспомогательные макросы?'
+  Update Rolled Back: Обновление отменено
   Update Success: Обновление успешно
   Update complete: 'Обновление завершено'
   Update from a Terminal: Обновление через терминал
@@ -6380,6 +6381,7 @@ translations:
   uses about 30 cm of filament: расходует около 30 см филамента
   v%s available: Доступна v%s
   v%s has no build for the %s, so it can't be installed here. Pick a channel with a newer release.: Для v%s нет сборки для %s, поэтому её нельзя установить здесь. Выберите канал обновлений с более новым выпуском.
+  v{} did not start properly, so v{} was put back.: v{} не запустилась нормально, поэтому восстановлена v{}.
   v{} installed! Restarting...: v{} установлена! Перезапуск...
   v{} is available. Tap to update.: v{} доступна. Нажмите для обновления.
   waiting for the printer: "ожидание принтера"

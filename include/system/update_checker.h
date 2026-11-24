@@ -24,6 +24,7 @@
 #include "lvgl.h"
 #include "subject_managed_panel.h"
 #include "system/auto_update_schedule.h"
+#include "system/update_rollback.h"
 
 #include <atomic>
 #include <chrono>
@@ -612,6 +613,15 @@ class UpdateChecker {
     void dismiss_current_version();
 
     /**
+     * @brief The launcher put the previous version back after an automatic
+     *        install of result.to_version did not come up healthy.
+     *
+     * Tells the user, records it, and dismisses that version so the scheduler
+     * never installs it unprompted again. Main thread.
+     */
+    void report_rollback(const helix::update::RollbackResult& result);
+
+    /**
      * @brief Handle notification that Moonraker has finished updating HelixScreen
      *
      * Called when we receive a notify_update_response indicating our own update
@@ -991,6 +1001,11 @@ class UpdateChecker {
     /// so the destructor can share it — spdlog may already be gone by then.
     void cancel_auto_check_timer();
 
+    /// Writes the rollback marker for the launcher's guard from the previous
+    /// version install.sh kept. Download worker, after a successful install.
+    static void arm_rollback_guard(const std::string& guard_dir, const std::string& install_root,
+                                   const std::string& version);
+
     // Auto-check timer
     lv_timer_t* auto_check_timer_{nullptr};
     lv_timer_t* auto_install_timer_{nullptr};
@@ -998,6 +1013,9 @@ class UpdateChecker {
     std::string auto_install_attempted_version_;
     /// Replaces start_download() for auto_update_tick() in tests.
     std::function<void()> auto_install_hook_;
+    /// The download in flight was started by auto_update_tick(): install it
+    /// keeping the previous version for the launcher's rollback guard.
+    std::atomic<bool> auto_install_in_flight_{false};
 
     // Notification subjects
     helix::Subject release_notes_subject_{};

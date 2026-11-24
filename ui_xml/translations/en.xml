@@ -5550,6 +5550,7 @@
   <translation tag="Update Failed" en="Update Failed"/>
   <translation tag="Update Helper Macros" en="Update Helper Macros"/>
   <translation tag="Update Helper Macros?" en="Update Helper Macros?"/>
+  <translation tag="Update Rolled Back" en="Update Rolled Back"/>
   <translation tag="Update Success" en="Update Success"/>
   <translation tag="Update complete" en="Update complete"/>
   <translation tag="Update from a Terminal" en="Update from a Terminal"/>
@@ -6064,6 +6065,7 @@
   <translation tag="uses about 30 cm of filament" en="uses about 30 cm of filament"/>
   <translation tag="v%s available" en="v%s available"/>
   <translation tag="v%s has no build for the %s, so it can&apos;t be installed here. Pick a channel with a newer release." en="v%s has no build for the %s, so it can&apos;t be installed here. Pick a channel with a newer release."/>
+  <translation tag="v{} did not start properly, so v{} was put back." en="v{} did not start properly, so v{} was put back."/>
   <translation tag="v{} installed! Restarting..." en="v{} installed! Restarting..."/>
   <translation tag="v{} is available. Tap to update." en="v{} is available. Tap to update."/>
   <translation tag="waiting for the printer" en="waiting for the printer"/>

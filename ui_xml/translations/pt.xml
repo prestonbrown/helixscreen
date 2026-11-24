@@ -5550,6 +5550,7 @@
   <translation tag="Update Failed" pt="Atualização Falhou"/>
   <translation tag="Update Helper Macros" pt="Atualizar macros de ajuda"/>
   <translation tag="Update Helper Macros?" pt="Atualizar macros de ajuda?"/>
+  <translation tag="Update Rolled Back" pt="Atualização revertida"/>
   <translation tag="Update Success" pt="Atualização Bem-sucedida"/>
   <translation tag="Update complete" pt="Atualização concluída"/>
   <translation tag="Update from a Terminal" pt="Atualizar a partir de um terminal"/>
@@ -6064,6 +6065,7 @@
   <translation tag="uses about 30 cm of filament" pt="usa cerca de 30 cm de filamento"/>
   <translation tag="v%s available" pt="v%s disponível"/>
   <translation tag="v%s has no build for the %s, so it can&apos;t be installed here. Pick a channel with a newer release." pt="v%s não tem uma versão para %s, então não pode ser instalada aqui. Escolha um canal de atualização com uma versão mais recente."/>
+  <translation tag="v{} did not start properly, so v{} was put back." pt="v{} não iniciou corretamente, então v{} foi restaurada."/>
   <translation tag="v{} installed! Restarting..." pt="v{} instalado! Reiniciando..."/>
   <translation tag="v{} is available. Tap to update." pt="v{} disponível. Toque para atualizar."/>
   <translation tag="waiting for the printer" pt="aguardando a impressora"/>

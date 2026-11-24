@@ -5773,6 +5773,7 @@ translations:
   Update Failed: Actualización fallida
   Update Helper Macros: 'Actualizar macros de ayuda'
   Update Helper Macros?: '¿Actualizar macros de ayuda?'
+  Update Rolled Back: Actualización revertida
   Update Success: Actualización correcta
   Update complete: 'Actualización completada'
   Update from a Terminal: Actualizar desde un terminal
@@ -6288,6 +6289,7 @@ translations:
   uses about 30 cm of filament: usa unos 30 cm de filamento
   v%s available: v%s disponible
   v%s has no build for the %s, so it can't be installed here. Pick a channel with a newer release.: v%s no tiene una versión para %s, así que no se puede instalar aquí. Elige un canal de actualización con una versión más reciente.
+  v{} did not start properly, so v{} was put back.: v{} no se inició correctamente, así que se restauró v{}.
   v{} installed! Restarting...: ¡v{} instalado! Reiniciando...
   v{} is available. Tap to update.: v{} disponible. Toque para actualizar.
   waiting for the printer: "esperando a la impresora"

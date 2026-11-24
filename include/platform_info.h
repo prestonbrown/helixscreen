@@ -96,6 +96,10 @@ const char* flashforge_mod_tree_name(FlashForgeModTree tree);
 /// (the installer's find_moonraker_conf answer on a mod host).
 bool firmware_mod_owns_moonraker_conf(const std::string& probe_root = "/");
 
+/// True when a firmware mod owns HelixScreen's install tree and updates it in
+/// place, so an update never leaves the previous version beside the new one.
+bool firmware_mod_owns_install_tree(const std::string& probe_root = "/");
+
 /// The three FlashForge boards the unified MIPS payload ships on. Answered by
 /// flashforge_machine_id() below.
 enum class FlashForgeMachine {

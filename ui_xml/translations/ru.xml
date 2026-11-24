@@ -5616,6 +5616,7 @@
   <translation tag="Update Failed" ru="Ошибка обновления"/>
   <translation tag="Update Helper Macros" ru="Обновить вспомогательные макросы"/>
   <translation tag="Update Helper Macros?" ru="Обновить вспомогательные макросы?"/>
+  <translation tag="Update Rolled Back" ru="Обновление отменено"/>
   <translation tag="Update Success" ru="Обновление успешно"/>
   <translation tag="Update complete" ru="Обновление завершено"/>
   <translation tag="Update from a Terminal" ru="Обновление через терминал"/>
@@ -6133,6 +6134,7 @@
   <translation tag="uses about 30 cm of filament" ru="расходует около 30 см филамента"/>
   <translation tag="v%s available" ru="Доступна v%s"/>
   <translation tag="v%s has no build for the %s, so it can&apos;t be installed here. Pick a channel with a newer release." ru="Для v%s нет сборки для %s, поэтому её нельзя установить здесь. Выберите канал обновлений с более новым выпуском."/>
+  <translation tag="v{} did not start properly, so v{} was put back." ru="v{} не запустилась нормально, поэтому восстановлена v{}."/>
   <translation tag="v{} installed! Restarting..." ru="v{} установлена! Перезапуск..."/>
   <translation tag="v{} is available. Tap to update." ru="v{} доступна. Нажмите для обновления."/>
   <translation tag="waiting for the printer" ru="ожидание принтера"/>

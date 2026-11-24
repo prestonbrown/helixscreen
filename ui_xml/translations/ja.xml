@@ -5550,6 +5550,7 @@
   <translation tag="Update Failed" ja="更新失敗"/>
   <translation tag="Update Helper Macros" ja="ヘルパーマクロを更新"/>
   <translation tag="Update Helper Macros?" ja="ヘルパーマクロを更新しますか？"/>
+  <translation tag="Update Rolled Back" ja="更新を元に戻しました"/>
   <translation tag="Update Success" ja="更新成功"/>
   <translation tag="Update complete" ja="更新が完了しました"/>
   <translation tag="Update from a Terminal" ja="ターミナルから更新"/>
@@ -6064,6 +6065,7 @@
   <translation tag="uses about 30 cm of filament" ja="フィラメントを約30cm使用"/>
   <translation tag="v%s available" ja="v%s が利用可能です"/>
   <translation tag="v%s has no build for the %s, so it can&apos;t be installed here. Pick a channel with a newer release." ja="v%s には %s 用のビルドがないため、ここにはインストールできません。より新しいリリースがある更新チャンネルを選んでください。"/>
+  <translation tag="v{} did not start properly, so v{} was put back." ja="v{} が正常に起動しなかったため、v{} に戻しました。"/>
   <translation tag="v{} installed! Restarting..." ja="v{} をインストールしました！再起動中..."/>
   <translation tag="v{} is available. Tap to update." ja="v{} が利用可能です。タップして更新してください。"/>
   <translation tag="waiting for the printer" ja="プリンター待ち"/>

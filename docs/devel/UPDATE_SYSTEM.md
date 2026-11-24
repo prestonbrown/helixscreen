@@ -518,6 +518,30 @@ The auto-check callback:
 
 Users can dismiss a specific version via the "Ignore" button. The dismissed version is stored in config at `/update/dismissed_version`. A version is considered dismissed if it is **less than or equal to** the dismissed version -- so only a *newer* version than what was dismissed triggers a notification.
 
+### Automatic Updates and Rollback (prestonbrown/helixscreen#1304)
+
+Settings > Updates > Automatic Updates stores `/update/auto_mode` (`helix::update::AutoUpdateMode`: 0 Off, 1 Download and ask, 2 Install overnight; default 1). `UpdateChecker::auto_update_tick()` runs every 5 minutes and asks `decide_auto_update()` (`src/system/auto_update_schedule.cpp`) what to do. Install overnight is offered only where `helix::update::auto_rollback_supported()` is true; elsewhere the row lists Off and Download and ask, and a stored Install overnight runs as Download and ask (`effective_auto_update_mode()`).
+
+Rollback, in order:
+
+1. The automatic install runs `install.sh` with `HELIX_UPDATE_KEEP_PREVIOUS=1`. The installer keeps the previous tree at `<install>.old` and names it in `HELIX_UPDATE_PREVIOUS_FILE`, or refuses before touching anything when the update would not leave such a copy (in-place, payload, or off-partition updates).
+2. `UpdateChecker::arm_rollback_guard()` writes `update_rollback.armed` (install dir, previous dir, both versions) into `HELIX_ROLLBACK_DIR`, which `helix-launcher.sh` exports when the watchdog is present.
+3. The update restart: with the marker present, `helix-watchdog` exits to the launcher (`hand_clean_exit_to_service_manager`) instead of respawning in place, so the launcher starts the new version under its guard.
+4. The new version, once its UI is up (`helix::update::on_ui_ready()`), writes `update_rollback.request` when the existing crash-loop detector put it in safe mode, or `update_rollback.healthy` after 150 s.
+5. The launcher's watcher waits up to `HELIX_ROLLBACK_WINDOW` (600 s). Healthy: it deletes the previous tree and the marker, and under `helixscreen.service` ends the launch so the service restarts with refreshed units. A request, the window running out, any exit of the guarded launch, or more than `HELIX_ROLLBACK_MAX_STARTS` (3) guarded starts: it moves the new tree aside, moves the previous one back, writes `update_rollback.result` and execs the restored launcher.
+6. The restored version reads the result, shows "Update Rolled Back", records an `update_failure` with reason `rollback`, and stores the failed version as dismissed so the scheduler never installs it again unprompted.
+
+| Platform | Rollback | Why |
+|---|---|---|
+| Pi, Pi 32-bit, x86 (systemd) | Yes, with the watchdog | Same-filesystem swap under `INSTALL_PARENT`, which the unit lists in `ReadWritePaths` |
+| K1 / MIPS, AD5M (Klipper Mod), CC1 | Yes, with the watchdog | SysV launcher loop; the watchdog hands the update restart back to it |
+| AD5M / AD5X under Forge-X or ZMOD | No | The mod owns the install tree and updates it in place |
+| Snapmaker U1 | Only where the watchdog ships | Without it no guard is exported and the app restarts itself outside the launcher |
+| K2 | No | `/opt` cannot hold both versions; the old tree is staged off-partition |
+| x86 desktop, Android, ESP32 | No | They never run the in-app installer |
+
+Every platform difference lives in `rollback_support()` (`src/system/update_rollback.cpp`); the runtime facts (guard exported, watchdog parent, install suppressed, mod tree) decide the rest. An install whose layout turns out not to allow a kept copy fails the automatic install cleanly; nothing is changed.
+
 ---
 
 ## Moonraker Integration

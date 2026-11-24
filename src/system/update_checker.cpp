@@ -2323,6 +2323,20 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
                   staging_parent);
     }
 
+    // An automatic install keeps the previous version beside the new one for the
+    // launcher's rollback guard; install.sh refuses an update that cannot.
+    const std::string rollback_guard_dir = helix::update::rollback_dir();
+    const bool keep_previous = auto_install_in_flight_.exchange(false) &&
+                               helix::update::auto_rollback_supported() &&
+                               !rollback_guard_dir.empty();
+    std::string previous_file;
+    if (keep_previous) {
+        previous_file = rollback_guard_dir + "/" + helix::update::kRollbackPreviousFile;
+        std::remove(previous_file.c_str());
+        flog_info("[UpdateChecker] Automatic install: keeping the previous version ({})",
+                  previous_file);
+    }
+
     // Fork install.sh with its output redirected to a persistent log file.
     // Using a file instead of a pipe means we get the full output even if this
     // process is killed by systemd's stop_service during the install step.
@@ -2361,6 +2375,10 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
             // Tell install.sh this is an in-app self-update so it skips
             // stop_service/start_service on SysV — the watchdog handles restart.
             setenv("HELIX_SELF_UPDATE", "1", 1);
+            if (keep_previous) {
+                setenv("HELIX_UPDATE_KEEP_PREVIOUS", "1", 1);
+                setenv("HELIX_UPDATE_PREVIOUS_FILE", previous_file.c_str(), 1);
+            }
             // Pass the app-validated staging dir (computed on the parent above)
             // only when its parent is writable; else let the installer probe.
             if (staging_writable) {
@@ -2502,6 +2520,10 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
     }
 
     spdlog::info("[UpdateChecker] Update installed successfully!");
+
+    if (keep_previous) {
+        arm_rollback_guard(rollback_guard_dir, install_root, version);
+    }
 
     // Restore CWD after install.sh moved/deleted the old install directory.
     // The init script does `cd $DAEMON_DIR` before launching, so our CWD was
@@ -3666,6 +3688,51 @@ void UpdateChecker::dismiss_current_version() {
     ui_notification_info_with_action(lv_tr("Update Available"), msg.c_str(), "show_update_modal");
 }
 
+void UpdateChecker::report_rollback(const helix::update::RollbackResult& result) {
+    spdlog::warn("[UpdateChecker] v{} did not start properly ({}); v{} was restored",
+                 result.to_version, result.reason, result.from_version);
+
+    auto* config = Config::get_instance();
+    config->set<std::string>("/update/dismissed_version", result.to_version);
+    config->save();
+
+    TelemetryManager::UpdateFailureDetail detail;
+    detail.install_detail = result.reason;
+    TelemetryManager::instance().record_update_failure(
+        "rollback", result.to_version, helix::platform::current_key(), -1, -1, -1, detail);
+
+    const std::string msg = fmt::format(lv_tr("v{} did not start properly, so v{} was put back."),
+                                        result.to_version, result.from_version);
+    ui_notification_warning(lv_tr("Update Rolled Back"), msg.c_str());
+}
+
+void UpdateChecker::arm_rollback_guard(const std::string& guard_dir,
+                                       const std::string& install_root,
+                                       const std::string& version) {
+    std::string previous;
+    if (!helix::update::read_rollback_file(guard_dir, helix::update::kRollbackPreviousFile,
+                                           previous)) {
+        spdlog::warn("[UpdateChecker] install.sh kept no previous version; no rollback armed");
+        return;
+    }
+    helix::update::remove_rollback_file(guard_dir, helix::update::kRollbackPreviousFile);
+
+    helix::update::RollbackMarker marker;
+    marker.install_dir = install_root;
+    marker.previous_dir = helix::update::rollback_value(previous, "previous_dir");
+    marker.from_version = HELIX_VERSION;
+    marker.to_version = version;
+    if (marker.install_dir.empty() || marker.previous_dir.empty()) {
+        spdlog::warn("[UpdateChecker] Previous version path unknown; no rollback armed");
+        return;
+    }
+    if (helix::update::write_rollback_file(guard_dir, helix::update::kRollbackArmedFile,
+                                           helix::update::format_rollback_marker(marker))) {
+        spdlog::info("[UpdateChecker] Rollback armed: v{} -> v{}, previous at {}",
+                     marker.from_version, marker.to_version, marker.previous_dir);
+    }
+}
+
 // Auto-Check Timer
 
 namespace {
@@ -3933,6 +4000,7 @@ helix::update::AutoUpdateDecision UpdateChecker::auto_update_tick(const AutoUpda
         if (auto_install_hook_) {
             auto_install_hook_();
         } else {
+            auto_install_in_flight_ = true;
             start_download();
         }
     }

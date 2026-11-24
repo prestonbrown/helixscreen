@@ -2,8 +2,53 @@
 #pragma once
 
 #include <optional>
+#include <string>
 
+/// Automatic-update rollback (#1304). An automatic install keeps the previous
+/// install beside the new one and arms helix-launcher.sh's guard by writing
+/// kRollbackArmedFile into the directory the launcher exports as
+/// HELIX_ROLLBACK_DIR. The new version reports itself healthy (or asks for a
+/// rollback when the crash-loop detector fired); the launcher restores the
+/// previous tree when it does not, and leaves kRollbackResultFile for the
+/// restored version to tell the user. The file names are shared with the
+/// launcher and the watchdog, so they live here as constants.
 namespace helix::update {
+
+inline constexpr const char* kRollbackDirEnv = "HELIX_ROLLBACK_DIR";
+inline constexpr const char* kRollbackArmedFile = "update_rollback.armed";
+inline constexpr const char* kRollbackHealthyFile = "update_rollback.healthy";
+inline constexpr const char* kRollbackRequestFile = "update_rollback.request";
+inline constexpr const char* kRollbackResultFile = "update_rollback.result";
+/// Written by install.sh when it kept the previous tree: `previous_dir=<path>`.
+inline constexpr const char* kRollbackPreviousFile = "update_rollback.previous";
+
+/// How long the new version runs before it calls itself healthy. Longer than
+/// the crash-loop detector's 120 s window, so a loop is seen first.
+inline constexpr int kRollbackHealthySeconds = 150;
+
+/// Why this install can or cannot roll an automatic update back.
+enum class RollbackSupport {
+    Supported,
+    NoGuard,           ///< The launcher exported no HELIX_ROLLBACK_DIR (no watchdog)
+    NotSupervised,     ///< No watchdog above this process to hand the restart back
+    InstallSuppressed, ///< The app cannot install updates here at all
+    ModPayload,        ///< A mod owns the install tree and updates it in place
+    Platform,          ///< This platform's install layout cannot keep both versions
+};
+
+/// What decides rollback support, gathered so the rule itself stays pure.
+struct RollbackFacts {
+    std::string platform_key; ///< helix::platform::current_key()
+    bool guard_dir = false;   ///< HELIX_ROLLBACK_DIR is set
+    bool supervised = false;  ///< HELIX_SUPERVISED is set (a watchdog parent)
+    bool install_suppressed = false;
+    bool mod_payload = false; ///< Forge-X or ZMOD owns the install tree
+};
+
+/// The rule, per platform. Every platform difference for rollback lives here.
+RollbackSupport rollback_support(const RollbackFacts& facts);
+const char* rollback_support_name(RollbackSupport support);
+RollbackFacts current_rollback_facts();
 
 /// Can this install put the previous version back on its own when an automatic
 /// install does not come up healthy? Install overnight is offered only where it can.
@@ -11,5 +56,47 @@ bool auto_rollback_supported();
 
 /// Replaces auto_rollback_supported()'s answer for tests; std::nullopt restores it.
 void set_auto_rollback_supported_for_test(std::optional<bool> value);
+
+/// The launcher's rollback directory, or empty when no guard is listening.
+std::string rollback_dir();
+
+/// The kept previous install an armed rollback restores.
+struct RollbackMarker {
+    std::string install_dir;
+    std::string previous_dir;
+    std::string from_version;
+    std::string to_version;
+};
+
+/// `key=value` lines, the form the launcher reads with sed.
+std::string format_rollback_marker(const RollbackMarker& marker);
+
+/// The value of the first `key=` line in @p text, or empty.
+std::string rollback_value(const std::string& text, const std::string& key);
+
+/// Writes @p name in @p dir through a temporary file and a rename.
+bool write_rollback_file(const std::string& dir, const char* name, const std::string& content);
+bool read_rollback_file(const std::string& dir, const char* name, std::string& out);
+void remove_rollback_file(const std::string& dir, const char* name);
+
+/// What the just-started version tells the guard.
+enum class StartupHealth {
+    NotArmed,          ///< No rollback pending: nothing to report
+    RequestRollback,   ///< The crash-loop detector put this run in safe mode
+    ReportWhenSettled, ///< Report healthy after kRollbackHealthySeconds
+};
+StartupHealth decide_startup_health(bool armed, bool safe_mode);
+
+/// What the launcher left after putting the previous version back.
+struct RollbackResult {
+    std::string from_version; ///< The version running now, restored
+    std::string to_version;   ///< The version that did not come up
+    std::string reason;       ///< timeout, crash_loop, too_many_starts, exit_<code>
+};
+std::optional<RollbackResult> parse_rollback_result(const std::string& text);
+
+/// Called once the UI is up: tells the user about a rollback the launcher
+/// made, and reports this version's health to an armed guard. Needs LVGL.
+void on_ui_ready(bool safe_mode);
 
 } // namespace helix::update

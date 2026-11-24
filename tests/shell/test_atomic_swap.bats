@@ -374,3 +374,64 @@ _extract_reporting_swap() {
     lacks "SWAPPED=swapped" "$output"
     lacks "SWAPPED=in-place" "$output"
 }
+
+# =============================================================================
+# Automatic install: keep the previous version for rollback (#1304)
+# =============================================================================
+
+@test "keep previous: an atomic-swap update keeps the old tree and records it" {
+    setup_existing_install
+    create_test_tarball "pi"
+    mock_no_new_privs
+    export HELIX_UPDATE_KEEP_PREVIOUS=1
+    export HELIX_UPDATE_PREVIOUS_FILE="$BATS_TEST_TMPDIR/previous"
+
+    extract_release "pi"
+    cleanup_old_install
+
+    [ -f "${INSTALL_DIR}.old/ui_xml/old.xml" ]
+    grep -q "old binary" "${INSTALL_DIR}.old/bin/helix-screen"
+    [ "$(cat "$HELIX_UPDATE_PREVIOUS_FILE")" = "previous_dir=${INSTALL_DIR}.old" ]
+}
+
+@test "keep previous: without the request the old tree is removed as before" {
+    setup_existing_install
+    create_test_tarball "pi"
+    mock_no_new_privs
+    export HELIX_UPDATE_PREVIOUS_FILE="$BATS_TEST_TMPDIR/previous"
+
+    extract_release "pi"
+    cleanup_old_install
+
+    [ ! -d "${INSTALL_DIR}.old" ]
+    [ ! -e "$HELIX_UPDATE_PREVIOUS_FILE" ]
+}
+
+@test "keep previous: an update that would replace in place is refused untouched" {
+    setup_existing_install
+    create_test_tarball "pi"
+    mock_no_new_privs
+    export HELIX_UPDATE_KEEP_PREVIOUS=1
+    chmod a-w "$BATS_TEST_TMPDIR/opt"
+
+    run extract_release "pi"
+    chmod u+w "$BATS_TEST_TMPDIR/opt"
+
+    [ "$status" -ne 0 ]
+    contains "cannot keep the previous version" "$output"
+    grep -q "old binary" "$INSTALL_DIR/bin/helix-screen"
+    [ -f "$INSTALL_DIR/ui_xml/old.xml" ]
+}
+
+@test "keep previous: a payload install is refused untouched" {
+    setup_existing_install
+    create_test_tarball "pi"
+    export HELIX_UPDATE_KEEP_PREVIOUS=1
+    export HELIX_MOD_PAYLOAD=1
+
+    run extract_release "pi"
+
+    [ "$status" -ne 0 ]
+    contains "cannot keep the previous version" "$output"
+    grep -q "old binary" "$INSTALL_DIR/bin/helix-screen"
+}

@@ -1935,6 +1935,26 @@ payload_replace_contents() {
     return 0
 }
 
+# HELIX_UPDATE_KEEP_PREVIOUS=1 (set by the app's automatic install, #1304):
+# the previous install must survive this update, intact and beside the new
+# one, so the launcher can put it back if the new version never comes up
+# healthy. Only the same-filesystem swap leaves such a copy; every other
+# update shape (in place, payload, off-partition) is refused before it
+# touches the existing install.
+_keep_previous_requested() {
+    [ "${HELIX_UPDATE_KEEP_PREVIOUS:-}" = "1" ]
+}
+
+# _refuse_without_kept_copy WHY EXTRACT_DIR: stop an update that cannot keep
+# the previous install.
+_refuse_without_kept_copy() {
+    log_error "This update cannot keep the previous version to roll back to ($1); nothing was changed."
+    log_error "Install it from Settings > Updates instead."
+    cd / 2>/dev/null || true
+    rm -rf "$2"
+    exit 1
+}
+
 # Extract archive with atomic swap and rollback protection.
 # Dispatches on _ARCHIVE_FORMAT for zip vs tar.gz. Expects the archive already
 # staged at _archive_tmp_path() by download_release() or use_local_tarball().
@@ -2100,6 +2120,7 @@ extract_release() {
     # is the standalone-install contract; the payload root must never be mv'd
     # aside or rm -rf'd as a whole, so none of it may run in this mode.
     if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ]; then
+        _keep_previous_requested && _refuse_without_kept_copy "payload install" "$extract_dir"
         # shellcheck disable=SC2034  # INSTALL_SWAPPED is read by main.sh (install_state_line)
         INSTALL_SWAPPED=in-place
         if ! payload_replace_contents "$new_install" "${INSTALL_DIR}"; then
@@ -2148,6 +2169,8 @@ extract_release() {
                 log_info "Parent dir writable — using atomic swap"
                 # Fall through to the standard atomic swap path below
             else
+                _keep_previous_requested &&
+                    _refuse_without_kept_copy "parent directory read-only" "$extract_dir"
                 log_info "Self-update: replacing install contents in-place (parent read-only)..."
 
                 # The loops below rm -rf every child of INSTALL_DIR — refuse
@@ -2253,6 +2276,8 @@ extract_release() {
         swap_margin_mb=10
 
         if [ "$install_free_mb" -lt $(( new_install_mb + swap_margin_mb )) ]; then
+            _keep_previous_requested &&
+                _refuse_without_kept_copy "install partition too full to hold both versions" "$extract_dir"
             # Tight: the install partition can't hold old + new simultaneously.
             roomy=$(detect_rollback_dir "$new_install_mb" "$install_parent") || roomy=""
             if [ -n "$roomy" ]; then
@@ -2809,8 +2834,26 @@ cleanup_old_install() {
         return 0
     fi
 
+    # The automatic install's rollback copy stays, and its path goes to the
+    # app, which arms the launcher's rollback guard with it.
+    _kept_previous=""
+    if _keep_previous_requested && [ -n "${INSTALL_BACKUP:-}" ] && [ -d "$INSTALL_BACKUP" ]; then
+        case "$INSTALL_BACKUP" in
+            "${INSTALL_DIR}.old"|"${INSTALL_DIR}.old."*)
+                _kept_previous="$INSTALL_BACKUP"
+                if [ -n "${HELIX_UPDATE_PREVIOUS_FILE:-}" ] &&
+                    printf 'previous_dir=%s\n' "$_kept_previous" > "$HELIX_UPDATE_PREVIOUS_FILE"; then
+                    log_info "Kept the previous installation for rollback: $_kept_previous"
+                else
+                    log_warn "Kept the previous installation at $_kept_previous, but could not record it for rollback"
+                fi
+                ;;
+        esac
+    fi
+
     # Clean both the standard .old and any timestamped fallback backups
     for _backup in "${INSTALL_DIR}.old" "${INSTALL_DIR}.old."*; do
+        [ "$_backup" = "$_kept_previous" ] && continue
         if [ -d "$_backup" ]; then
             rm -rf "$_backup" 2>/dev/null || $SUDO rm -rf "$_backup" 2>/dev/null || true
             log_info "Cleaned up previous installation backup: $_backup"
