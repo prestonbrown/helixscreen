@@ -3,6 +3,7 @@
 
 #include "ams_state.h"
 #include "app_constants.h"
+#include "filament_catalog.h"
 #include "filament_temperature_source.h"
 
 namespace helix {
@@ -32,15 +33,16 @@ ActiveMaterial build_active_material(const SlotInfo& slot) {
     // by this.
     result.firmware_temps = filament_temps::lookup_filament_temperatures(slot);
 
-    // Resolve material_info via the three-tier precedence (#961):
+    // Resolve material_info via the tier precedence (#961):
     //   1. User override (Material Temps overlay) — highest
-    //   2. Vendor preset (slot.nozzle_temp_*, written by backend from
+    //   2. The catalog product the user picked for the slot (slot.catalog_id)
+    //   3. Vendor preset (slot.nozzle_temp_*, written by backend from
     //      RFID/cfg/Klipper config)
-    //   3. Internal filament DB default — lowest
+    //   4. Internal filament DB default — lowest
     //
     // find_material() already merges user overrides into the DB result, so
-    // its return value gives us tier 1 (where set) + tier 3 (everywhere
-    // else). We then need to layer in tier 2 ONLY for fields the user
+    // its return value gives us tier 1 (where set) + tier 4 (everywhere
+    // else). We then need to layer in tiers 3 and 2 ONLY for fields the user
     // didn't touch — get_material_override() returns the sparse override so
     // we can tell which fields are user-set.
     auto db_mat = filament::find_material(slot.material);
@@ -49,7 +51,7 @@ ActiveMaterial build_active_material(const SlotInfo& slot) {
     if (db_mat.has_value()) {
         result.material_info = *db_mat;
 
-        // Tier 2 (vendor preset) wins over tier 3 (DB) but loses to tier 1
+        // Tier 3 (vendor preset) wins over tier 4 (DB) but loses to tier 1
         // (user override). Per-field — if the user overrode only nozzle_min,
         // the vendor preset still wins on nozzle_max.
         if (slot.nozzle_temp_min > 0 && !(user_ovr && user_ovr->nozzle_min)) {
@@ -79,6 +81,12 @@ ActiveMaterial build_active_material(const SlotInfo& slot) {
             .compat_group = "UNKNOWN",
         };
     }
+
+    // Tier 2: a firmware's lane temperature may be one HelixScreen itself
+    // wrote, collapsed from the product's range, so the pick states the
+    // product's own numbers more exactly than the lane does.
+    printer::FilamentCatalog::apply_product_temps(result.material_info, slot.catalog_id,
+                                                  slot.material, user_ovr);
 
     return result;
 }

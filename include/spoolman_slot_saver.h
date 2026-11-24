@@ -173,8 +173,8 @@ class SpoolmanSlotSaver {
      * them (a spool name describes the identity it came with). Otherwise the
      * catalog product (or the precise type) followed by the colour name (the
      * slot's own, else describe_color()). Temperatures are the slot's nozzle
-     * range and catalog recommendation through spoolman::temperature_for_range()
-     * and its bed temperature.
+     * print temperature (SlotInfo::nozzle_print_temp()) and its bed
+     * temperature.
      */
     static NewFilament new_filament_for(const SlotInfo& original, const SlotInfo& edited);
 
