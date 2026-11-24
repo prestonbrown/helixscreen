@@ -90,6 +90,24 @@ TEST_CASE("uncoded !! while printing but not paused offers nothing", "[error-cen
     REQUIRE(e->recovery_actions.empty());
 }
 
+TEST_CASE("AFC's failed Moonraker lookup mid-print is a toast, not a blocking modal",
+          "[error-center][classify][pa_tuner][afc_metadata]") {
+    // AFC asks Moonraker for the metadata of a virtual print (Kalico's PA tower)
+    // that has no file, and reports the 404 as a console error every pass.
+    ClassifyContext ctx;
+    ctx.is_printing = true;
+    auto e =
+        classify("!! Error getting data from moonraker, check AFC.log for more information", ctx);
+    REQUIRE(e.has_value());
+    CHECK(e->severity == helix::ErrorSeverity::WARNING);
+    CHECK(e->detail.find("AFC.log") != std::string::npos);
+
+    // An unrelated uncoded fault at the same moment still blocks.
+    auto other = classify("!! Some fault nobody classified", ctx);
+    REQUIRE(other.has_value());
+    CHECK(other->severity == helix::ErrorSeverity::CRITICAL);
+}
+
 TEST_CASE("uncoded !! while idle is unchanged by the Resume affordance",
           "[error-center][classify]") {
     ClassifyContext ctx; // neither paused nor printing
