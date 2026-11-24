@@ -163,6 +163,38 @@ Verdict verify(std::string_view message, std::string_view minisig, std::string_v
     return Verdict::Ok;
 }
 
+namespace {
+
+// Whether the trusted comment of @p minisig, a signature verify() accepted, carries the token
+// `channel:<channel>`.
+bool trusted_comment_names_channel(std::string_view minisig, std::string_view channel) {
+    const auto lines = split_lines(trim(minisig));
+    if (lines.size() != 4)
+        return false;
+    std::string_view comment = lines[2].substr(kTrustedPrefix.size());
+    constexpr std::string_view kChannelPrefix = "channel:";
+    while (!comment.empty()) {
+        const size_t sp = comment.find_first_of(" \t");
+        const std::string_view token = comment.substr(0, sp);
+        if (starts_with(token, kChannelPrefix) && token.substr(kChannelPrefix.size()) == channel)
+            return true;
+        if (sp == std::string_view::npos)
+            break;
+        comment.remove_prefix(sp + 1);
+    }
+    return false;
+}
+
+} // namespace
+
+Verdict verify_channel_manifest(std::string_view message, std::string_view minisig,
+                                std::string_view channel, std::string_view public_key) {
+    const Verdict verdict = verify(message, minisig, public_key);
+    if (verdict != Verdict::Ok)
+        return verdict;
+    return trusted_comment_names_channel(minisig, channel) ? Verdict::Ok : Verdict::WrongChannel;
+}
+
 const char* describe(Verdict v) {
     switch (v) {
     case Verdict::Ok:
@@ -177,6 +209,8 @@ const char* describe(Verdict v) {
         return "signed with a key other than the release key";
     case Verdict::BadSignature:
         return "the signature does not match the manifest";
+    case Verdict::WrongChannel:
+        return "the signature was made for another channel";
     }
     return "unknown signature verdict";
 }

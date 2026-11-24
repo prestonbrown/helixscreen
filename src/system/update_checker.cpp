@@ -771,16 +771,17 @@ bool parse_release_manifest(const std::string& json_str, UpdateChecker::ReleaseI
 }
 
 bool parse_signed_release_manifest(const std::string& json_str, int sig_status,
-                                   const std::string& sig_body, std::string_view public_key,
-                                   UpdateChecker::ReleaseInfo& info, std::string& error,
-                                   const std::vector<std::string>& asset_keys) {
+                                   const std::string& sig_body, std::string_view channel,
+                                   std::string_view public_key, UpdateChecker::ReleaseInfo& info,
+                                   std::string& error, const std::vector<std::string>& asset_keys) {
     if (sig_status != 200) {
         error = sig_status == 0
                     ? "could not fetch the manifest signature"
                     : "manifest is not signed (signature HTTP " + std::to_string(sig_status) + ")";
         return false;
     }
-    const auto verdict = release_signature::verify(json_str, sig_body, public_key);
+    const auto verdict =
+        release_signature::verify_channel_manifest(json_str, sig_body, channel, public_key);
     if (verdict != release_signature::Verdict::Ok) {
         error = std::string("manifest signature refused: ") + release_signature::describe(verdict);
         return false;
@@ -3872,7 +3873,7 @@ UpdateChecker::ManifestFetch UpdateChecker::fetch_r2_manifest(const std::string&
         return ManifestFetch::Unreachable;
     }
     const auto result =
-        fetch_verified_manifest(base + "/" + channel + "/manifest.json", info, error);
+        fetch_verified_manifest(base + "/" + channel + "/manifest.json", channel, info, error);
     if (result == ManifestFetch::Ok) {
         spdlog::debug("[UpdateChecker] R2 manifest parsed: {} ({})", info.version, channel);
     } else {
@@ -3882,6 +3883,7 @@ UpdateChecker::ManifestFetch UpdateChecker::fetch_r2_manifest(const std::string&
 }
 
 UpdateChecker::ManifestFetch UpdateChecker::fetch_verified_manifest(const std::string& manifest_url,
+                                                                    const std::string& channel,
                                                                     ReleaseInfo& info,
                                                                     std::string& error) {
     spdlog::debug("[UpdateChecker] Requesting manifest: {}", manifest_url);
@@ -3906,8 +3908,9 @@ UpdateChecker::ManifestFetch UpdateChecker::fetch_verified_manifest(const std::s
     if (cancelled_)
         return ManifestFetch::Unreachable;
 
-    if (!helix::parse_signed_release_manifest(body, sig_status, sig_body, cached_release_pubkey_,
-                                              info, error, this_build_release_asset_keys())) {
+    if (!helix::parse_signed_release_manifest(body, sig_status, sig_body, channel,
+                                              cached_release_pubkey_, info, error,
+                                              this_build_release_asset_keys())) {
         spdlog::error("[UpdateChecker] {} refused: {}", manifest_url, error);
         return ManifestFetch::Refused;
     }
@@ -4041,7 +4044,8 @@ bool UpdateChecker::fetch_dev_release(ReleaseInfo& info, std::string& error) {
         if (dev_url.back() != '/') {
             dev_url += '/';
         }
-        return fetch_verified_manifest(dev_url + "manifest.json", info, error) == ManifestFetch::Ok;
+        return fetch_verified_manifest(dev_url + "manifest.json", "dev", info, error) ==
+               ManifestFetch::Ok;
     }
 
     // No explicit dev_url -- use R2 default

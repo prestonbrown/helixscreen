@@ -47,8 +47,9 @@ TEST_CASE("signed manifest: a good signature yields a verified, installable rele
           "[update_checker][signature]") {
     UpdateChecker::ReleaseInfo info;
     std::string error;
-    REQUIRE(helix::parse_signed_release_manifest(
-        fixture("manifest.json"), 200, fixture("good.minisig"), test_key(), info, error, kPi));
+    REQUIRE(helix::parse_signed_release_manifest(fixture("manifest.json"), 200,
+                                                 fixture("good.minisig"), "dev", test_key(), info,
+                                                 error, kPi));
     CHECK(info.version == "99.0.0");
     CHECK(info.sha256 == kPiZipSha);
     CHECK(info.signature_verified);
@@ -63,28 +64,33 @@ TEST_CASE("signed manifest: unsigned or badly signed manifests are refused untou
     std::string error;
 
     SECTION("no signature served") {
-        CHECK_FALSE(helix::parse_signed_release_manifest(manifest, 404, "Not Found", test_key(),
-                                                         info, error, kPi));
+        CHECK_FALSE(helix::parse_signed_release_manifest(manifest, 404, "Not Found", "dev",
+                                                         test_key(), info, error, kPi));
         CHECK(error.find("not signed") != std::string::npos);
     }
     SECTION("signature unreachable") {
-        CHECK_FALSE(
-            helix::parse_signed_release_manifest(manifest, 0, "", test_key(), info, error, kPi));
+        CHECK_FALSE(helix::parse_signed_release_manifest(manifest, 0, "", "dev", test_key(), info,
+                                                         error, kPi));
     }
     SECTION("manifest changed after signing") {
         std::string tampered = manifest;
         tampered.replace(tampered.find(kPiZipSha), 64, std::string(64, 'f'));
         CHECK_FALSE(helix::parse_signed_release_manifest(tampered, 200, fixture("good.minisig"),
-                                                         test_key(), info, error, kPi));
+                                                         "dev", test_key(), info, error, kPi));
         CHECK(error.find("signature refused") != std::string::npos);
     }
     SECTION("signed by another key") {
         CHECK_FALSE(helix::parse_signed_release_manifest(manifest, 200, fixture("other.minisig"),
-                                                         test_key(), info, error, kPi));
+                                                         "dev", test_key(), info, error, kPi));
     }
     SECTION("legacy signature") {
         CHECK_FALSE(helix::parse_signed_release_manifest(manifest, 200, fixture("legacy.minisig"),
-                                                         test_key(), info, error, kPi));
+                                                         "dev", test_key(), info, error, kPi));
+    }
+    SECTION("signed for another channel") {
+        CHECK_FALSE(helix::parse_signed_release_manifest(manifest, 200, fixture("good.minisig"),
+                                                         "stable", test_key(), info, error, kPi));
+        CHECK(error.find("another channel") != std::string::npos);
     }
     CHECK(info.version == "sentinel");
     CHECK_FALSE(info.signature_verified);
@@ -105,8 +111,8 @@ TEST_CASE("signed manifest: a release is installable only when signed and hashed
     // A signed manifest with no asset for this board carries no hash to check against.
     UpdateChecker::ReleaseInfo no_asset;
     REQUIRE(helix::parse_signed_release_manifest(fixture("manifest.json"), 200,
-                                                 fixture("good.minisig"), test_key(), no_asset,
-                                                 error, {"k2"}));
+                                                 fixture("good.minisig"), "dev", test_key(),
+                                                 no_asset, error, {"k2"}));
     REQUIRE(no_asset.signature_verified);
     CHECK_FALSE(helix::release_is_verified(no_asset));
 }

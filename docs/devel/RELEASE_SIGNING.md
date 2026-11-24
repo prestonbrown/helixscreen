@@ -9,7 +9,8 @@ its hash together: the swapped manifest fails its signature on every client that
 Signatures are **prehashed** (`minisign -S -H` semantics, algorithm `ED`: Ed25519 over the
 BLAKE2b-512 of the file). Every checker refuses a legacy signature over the raw file. The
 trusted comment (`file:manifest.json channel:<channel>`) is covered by the signature's global
-signature, so it cannot be moved onto another channel's signature.
+signature, and the update checker requires it to name the channel it fetched, so a manifest
+signed for one channel is refused on another.
 
 ## Key files
 
@@ -34,14 +35,15 @@ every client again. The secret half is held offline and reaches CI only as an en
 |---------|---------|-------|
 | Release workflow | A signature that does not verify, prehashed, against `.github/release-minisign.pub`; a missing secret; a placeholder `.pub` | `scripts/sign-release-manifest.sh` |
 | Easy installer | A release list with no signature, a wrong-key, legacy or failing one, before any hash in it is used for `helix_install` or the K-Touch zip | `fetch_signed_release_list()` in helix-installer's release step |
-| HelixScreen's update checker | The same, before the manifest is parsed; a release that did not come from a verified manifest is never downloaded | `src/system/update_checker.cpp#fetch_verified_manifest`, `#start_download` |
+| HelixScreen's update checker | The same, before the manifest is parsed, plus a trusted comment naming another channel; a release that did not come from a verified manifest is never downloaded | `src/system/update_checker.cpp#fetch_verified_manifest`, `#start_download` |
 | `install.sh` | Nothing (out of scope) | see below |
 
 ### The update checker
 
 `UpdateChecker::fetch_verified_manifest()` fetches `manifest.json`, then `manifest.json.minisig`,
-and hands both to `helix::parse_signed_release_manifest()`, which parses the manifest only after
-`release_signature::verify()` accepts the signature. Only then is `ReleaseInfo::signature_verified`
+and hands both, with the channel it fetched, to `helix::parse_signed_release_manifest()`, which
+parses the manifest only after `release_signature::verify_channel_manifest()` accepts the
+signature and finds `channel:<that channel>` in its trusted comment. Only then is `ReleaseInfo::signature_verified`
 set. `start_download()` refuses any release for which `helix::release_is_verified()` is false
 (unsigned, or no SHA-256 to check the download against), and `do_download()` refuses a download
 with no hash rather than skipping the check.
@@ -61,7 +63,8 @@ with no hash rather than skipping the check.
   ```
 
   The file is trusted only when root or the app's user owns it and nothing else can write it,
-  the same rule that already lets it redirect where updates come from.
+  the same rule that already lets it redirect where updates come from. The signature's
+  trusted comment must still name the channel (`-t "file:manifest.json channel:dev"`).
 
 ### The ESP32 firmware
 
@@ -152,8 +155,8 @@ Tests use throwaway keys only (`tests/fixtures/release_signing/README.md`), neve
 
 | Test | Covers |
 |------|--------|
-| `tests/unit/test_release_signature.cpp` (`[release_signature]`) | Good prehashed signature, tampered manifest, wrong key, legacy signature, edited trusted comment, malformed input, compiled-in key equals `.github/release-minisign.pub` |
-| `tests/unit/test_update_checker_signature.cpp` (`[update_checker][signature]`) | Unsigned and badly signed manifests refused, a good one parsed as verified, GitHub releases never installable, and a full check against a loopback server |
+| `tests/unit/test_release_signature.cpp` (`[release_signature]`) | Good prehashed signature, tampered manifest, wrong key, legacy signature, edited trusted comment, malformed input, a manifest signed for one channel refused on another (keys made in the test), compiled-in key equals `.github/release-minisign.pub` |
+| `tests/unit/test_update_checker_signature.cpp` (`[update_checker][signature]`) | Unsigned, badly signed and other-channel manifests refused, a good one parsed as verified, GitHub releases never installable, and a full check against a loopback server |
 | `tests/shell/test_release_manifest_signing.bats` | The release and recovery workflows' signing step, upload order, secret gating and environment |
 
 Signing a test manifest by hand:
