@@ -83,6 +83,26 @@ bool reports_application(const PrinterDiscovery& hw);
 /// next print (prestonbrown/helixscreen#1401), so no save may do it.
 bool start_macro_applies(const PrinterDiscovery& hw, const Table& table);
 
+/// The macro the owner's own print start macro must call for offsets to apply:
+/// HELIX_MATERIAL_OFFSET where HelixScreen's row matches or no row does yet
+/// (installing the helper macros is the setup). Empty where the printer's start
+/// macro keeps the table itself, or its firmware owns the Z offset.
+std::string helper_call_macro(const PrinterDiscovery& hw);
+
+/// Which one-time setup steps Settings still shows. Each stays until it is
+/// done or not needed on this printer.
+struct SetupSteps {
+    bool install = false;     ///< Install the helper macros
+    bool print_start = false; ///< Add the helper call to PRINT_START
+    bool slicer = false;      ///< Have the slicer pass MATERIAL=
+};
+
+/// @p supported is supported(hw); @p helper_call is helper_call_macro(hw);
+/// @p print_start_calls whether the print start macro calls it (nullopt until
+/// read); @p slicer_done the owner said the slicer passes the material.
+SetupSteps setup_steps(bool supported, const std::string& helper_call,
+                       std::optional<bool> print_start_calls, bool slicer_done);
+
 /// G-code that turns the start macro's printer-side switch on or off, or empty
 /// where the row has none.
 std::string enable_gcode(const PrinterDiscovery& hw, bool on);
