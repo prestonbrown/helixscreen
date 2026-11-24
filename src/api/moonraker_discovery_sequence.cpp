@@ -170,7 +170,7 @@ void MoonrakerDiscoverySequence::on_identified(uint64_t seq, const json& identif
         return;
 
     if (const json* result = helix::json_util::find_member(identify_response, "result")) {
-        auto conn_id = result->value("connection_id", 0);
+        const int conn_id = helix::json_util::read_field<int>(*result, "connection_id").value_or(0);
         spdlog::info("[Moonraker Client] Identified to Moonraker (connection_id: {})", conn_id);
         identified_.store(true);
         helix::moonraker_auth::mark_authorized();
