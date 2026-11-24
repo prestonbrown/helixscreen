@@ -2,8 +2,8 @@
 <!-- Copyright (C) 2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- A calibration's result page: what was measured, a Before / After table
-     (calibration_run_result_row, the guided run's look), and the result
-     choices in the calibration wizard footer: Discard at the left, Keep for
+     (calibration_run_result_row, the guided run's look), two lines on what
+     the choices do, and the choices in the calibration wizard footer: Discard at the left, Keep for
      Now and Save to Config (the primary) at the right. Which choices show, and
      what each line says, comes from helix::calibration::result_choices()
      (include/calibration_result_choices.h); the screen publishes it under
@@ -15,8 +15,8 @@
        <prefix>_keep_<i>           1 (every row goes into the save)
        <prefix>_before_<i>         row i before
        <prefix>_after_<i>          row i measured
-       <prefix>_status             the footer's line: what Keep for Now leaves
-       <prefix>_status_sub         its second line: what Save to Config does
+       <prefix>_status             under the table: what Keep for Now leaves
+       <prefix>_status_sub         under it: what Save to Config and Discard do
        <prefix>_hide_keep          1 hides Keep for Now
        <prefix>_hide_save          1 hides Save to Config
      Callbacks: discard_callback, keep_callback, save_callback. -->
@@ -32,17 +32,24 @@
         flex_flow="column" scrollable="false">
     <lv_obj name="cal_result_body"
             width="100%" height="0" flex_grow="1" style_pad_left="#cal_page_pad_x" style_pad_right="#cal_page_pad_x"
-            style_pad_top="#space_md" style_pad_bottom="#space_xs" style_pad_gap="#space_xs" style_bg_opa="0"
+            style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_pad_gap="#space_xs" style_bg_opa="0"
             style_border_width="0" flex_flow="column" scrollable="false">
-      <text_heading name="cal_result_title" width="100%" bind_text="${prefix}_title" long_mode="dots"/>
+      <!-- 480x272 keeps only the rows: the header names the screen, and four
+           rows fill the height between it and the footer. -->
+      <text_heading name="cal_result_title" width="100%" bind_text="${prefix}_title" long_mode="dots">
+        <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+      </text_heading>
       <text_body name="cal_result_summary"
                  width="100%" bind_text="${prefix}_summary" long_mode="wrap" style_text_color="#text_muted"
-                 style_pad_bottom="#space_sm"/>
+                 style_pad_bottom="#space_sm">
+        <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+      </text_body>
       <!-- Column heads, on the rows' grid (calibration_run_result_row). -->
-      <lv_obj width="100%"
-              height="content" style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="0"
+      <lv_obj name="cal_result_heads"
+              width="100%" height="content" style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="0"
               style_pad_bottom="#space_xs" style_pad_gap="#space_md" style_bg_opa="0" style_border_width="0"
               flex_flow="row" scrollable="false">
+        <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
         <text_small width="0"
                     flex_grow="11" text="Value" text_transform="uppercase" style_text_font="#cal_font_badge"
                     style_text_color="#text_muted" style_text_opa="204"/>
@@ -61,6 +68,16 @@
           <calibration_run_result_row prefix="$prefix" step="$i" label_subject="${prefix}_label_${i}"/>
         </repeat>
       </lv_obj>
+      <!-- What Keep for Now leaves, then what Save and Discard do. Too long for
+           the footer beside three buttons; 480x272 has no room left for them. -->
+      <text_body name="cal_result_status"
+                 width="100%" bind_text="${prefix}_status" long_mode="wrap" style_pad_top="#space_sm">
+        <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+      </text_body>
+      <text_small name="cal_result_status_sub"
+                  width="100%" bind_text="${prefix}_status_sub" long_mode="wrap" style_text_color="#text_muted">
+        <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+      </text_small>
     </lv_obj>
     <wizard_frame_footer name="cal_result_footer"
                          back_text="Discard" back_tag="Discard" back_callback="$discard_callback"
@@ -68,7 +85,6 @@
                          skip_callback="$keep_callback" skip_name="btn_result_keep"
                          skip_hide_subject="${prefix}_hide_keep" primary_text="Save to Config"
                          primary_tag="Save to Config" primary_callback="$save_callback" primary_name="btn_result_save"
-                         primary_hide_subject="${prefix}_hide_save" status_subject="${prefix}_status"
-                         status_sub_subject="${prefix}_status_sub"/>
+                         primary_hide_subject="${prefix}_hide_save"/>
   </view>
 </component>

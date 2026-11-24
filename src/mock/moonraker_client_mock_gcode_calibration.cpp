@@ -116,10 +116,16 @@ MoonrakerClientMock::gcode_pid_calibrate(const std::string& gcode) {
     }
     snprintf(buf, sizeof(buf), "PID parameters: pid_Kp=%.3f pid_Ki=%.3f pid_Kd=%.3f", kp, ki, kd);
     hold_heater_for_calibration(heater, target);
-    play_console_lines(std::move(lines), 500, [this, heater, result = std::string(buf)] {
-        hold_heater_for_calibration(heater, 0.0);
-        dispatch_gcode_response(result);
-    });
+    play_console_lines(std::move(lines), 500,
+                       [this, heater, kp, ki, kd, result = std::string(buf)] {
+                           hold_heater_for_calibration(heater, 0.0);
+                           // Klipper stages the gains for the next SAVE_CONFIG as it reports them.
+                           stage_config_change(heater, "control", "pid");
+                           stage_config_change(heater, "pid_kp", fmt::format("{:.3f}", kp));
+                           stage_config_change(heater, "pid_ki", fmt::format("{:.3f}", ki));
+                           stage_config_change(heater, "pid_kd", fmt::format("{:.3f}", kd));
+                           dispatch_gcode_response(result);
+                       });
 
     return 0; // Success - results come asynchronously via gcode_response
     return std::nullopt;

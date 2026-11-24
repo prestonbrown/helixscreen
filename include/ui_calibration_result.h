@@ -18,16 +18,16 @@ struct ResultRow {
     std::string after;
 };
 
-/// The footer's first line for @p choices: what Keep for Now leaves behind (translated).
+/// The page's first note for @p choices: what Keep for Now leaves behind (translated).
 [[nodiscard]] std::string result_keep_line(const ResultChoices& choices);
-/// The footer's second line: what Save to Config and Discard do (translated).
+/// The page's second note: what Save to Config and Discard do (translated).
 [[nodiscard]] std::string result_save_line(const ResultChoices& choices);
 
 /**
  * @brief The subjects behind one components/calibration_result.xml
  *
  * Publishes the page's title, summary, up to kRows Before / After rows and the
- * choices' footer, under one prefix (the component's `prefix` prop). The screen
+ * choices' notes and buttons, under one prefix (the component's `prefix` prop). The screen
  * owns the callbacks. Main thread only; the view must not move once its
  * subjects are registered.
  */
