@@ -2070,8 +2070,10 @@ jobs:
   # ============================================================================
   # Trigger a docs rebuild + deploy on helixscreen-website for every published
   # release. The website ignores the dispatched tag: it resolves each docs
-  # version (stable at the root, the beta line under /<version>/) from its own
-  # release-tag prefix, so any release rebuilds every version correctly.
+  # version (stable at the root, the other lines under /<version>/) from its own
+  # release-tag prefix, so any release rebuilds every version correctly. That
+  # includes a dev-channel alpha (v1.2.0-alpha.N), which refreshes the /1.2/
+  # docs: do not gate this job on the channel.
   # Requires WEBSITE_DISPATCH_TOKEN: PAT with contents:write on helixscreen-website.
   # ============================================================================
   notify-website:
