@@ -2097,9 +2097,6 @@ TEST_CASE("A timed-out install.sh is stopped together with everything it started
 
 TEST_CASE("The install log falls back beside the backups, outside the install tree",
           "[update_checker][installer][do_install]") {
-    if (access("/var/log", W_OK) == 0) {
-        SKIP("/var/log is writable here, so the fallback is never taken");
-    }
     auto tmp = make_temp_dir("helix_install_log");
     REQUIRE(!tmp.empty());
     std::string inner = tmp + "/helixscreen";
@@ -2119,7 +2116,8 @@ TEST_CASE("The install log falls back beside the backups, outside the install tr
         mkdir(fallback.c_str(), 0755);
         auto& checker = UpdateChecker::instance();
         UpdateCheckerTestAccess::clear_download_cancelled(checker);
-        UpdateCheckerTestAccess::set_install_log(checker, "");
+        // Unwritable even for root, so the fallback is always taken.
+        UpdateCheckerTestAccess::set_install_log(checker, "/proc/helix-no-such-dir/install.log");
         UpdateCheckerTestAccess::set_restart_action(checker, [] {});
         UpdateCheckerTestAccess::set_status_hold_ms(checker, 0, 0);
         UpdateCheckerTestAccess::do_install(checker, tarball);
