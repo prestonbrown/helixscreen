@@ -250,3 +250,21 @@ TEST_CASE("nonlinear procedure: the next tower's correction follows Kalico's rul
         CHECK_FALSE(p.correction(SideVerdict::LeftLower).has_value());
     }
 }
+
+TEST_CASE("nonlinear procedure: a two-sided judgement keeps both heights through a restart",
+          "[pa_nonlinear][pa_two_heights]") {
+    NonlinearProcedure p(ExtruderKind::DirectDrive, ModelKind::Tanh);
+    p.record_height(16.0f);
+    p.record_heights(18.0f, 30.0f);
+    REQUIRE(p.repeats() == 1);
+    auto restored = NonlinearProcedure::from_json(p.to_json());
+    REQUIRE(restored.has_value());
+    const auto j = restored->go_back_judgement();
+    REQUIRE(j.has_value());
+    REQUIRE(j->left_mm.has_value());
+    REQUIRE(j->front_mm.has_value());
+    CHECK(*j->left_mm == Catch::Approx(18.0f));
+    CHECK(*j->front_mm == Catch::Approx(30.0f));
+    CHECK(restored->pass_number() == 2);
+    CHECK(restored->repeats() == 0);
+}

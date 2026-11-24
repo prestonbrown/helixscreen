@@ -40,7 +40,6 @@
                                    style_pad_gap="#space_sm" scrollable="false">
       <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
 
-      <!-- The passes: done ones lit with the value they found. -->
       <!-- The passes: a bar each, done ones in green with the value they found. -->
       <lv_obj name="pa_nl_pass_steps"
               width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
@@ -342,7 +341,8 @@
                              back_callback="on_pa_nl_back" back_name="pa_nl_btn_judge_back"
                              back_subject="pa_nl_back_text" back_hide_cond="pa_nl_can_back eq 0"
                              primary_name="pa_nl_btn_use" primary_subject="pa_nl_judge_primary"
-                             primary_callback="on_pa_nl_judge_primary" primary_icon="check"/>
+                             primary_callback="on_pa_nl_judge_primary" primary_icon="check"
+                             primary_disabled_cond="pa_nl_heights_set eq 0"/>
       </lv_obj>
 
       <!-- ============================================================ -->

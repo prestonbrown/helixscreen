@@ -129,6 +129,10 @@ class NonlinearProcedure {
     /// other parameter moves 10% and the pass repeats, until kMaxRepeats, when
     /// @p height_mm is taken anyway.
     void record_verdict(SideVerdict verdict, float height_mm);
+    /// A two-sided pass judged from where each side looked best: the verdict
+    /// comes from verdict_from_heights() and the height taken is the middle.
+    /// Both heights are remembered, so going back re-opens them as entered.
+    void record_heights(float left_mm, float front_mm);
     /// What record_verdict(@p verdict) would change for the next tower, or
     /// nullopt when it takes the height instead (Same, or the repeat limit).
     std::optional<Correction> correction(SideVerdict verdict) const;
@@ -141,6 +145,15 @@ class NonlinearProcedure {
     /// again, with the values that tower printed with. Returns the height that
     /// was judged, or nullopt when there is nothing to take back.
     std::optional<float> go_back();
+    /// The heights a judgement re-opened by go_back_judgement() was made with:
+    /// the one height, or for a two-sided pass the left's and the front's.
+    struct Reopened {
+        float height_mm = 0.0f;
+        std::optional<float> left_mm;
+        std::optional<float> front_mm;
+    };
+    /// go_back(), with both of a two-sided pass's heights.
+    std::optional<Reopened> go_back_judgement();
 
     ExtruderKind kind() const {
         return kind_;
@@ -159,11 +172,16 @@ class NonlinearProcedure {
         int repeats = 0;
         NonlinearValues values;
         float height_mm = 0.0f;
+        std::optional<float> left_mm;
+        std::optional<float> front_mm;
     };
 
     void apply(NlParam param, float value);
+    void judge_two_sided(SideVerdict verdict, float height_mm, std::optional<float> left_mm,
+                         std::optional<float> front_mm);
     void advance();
-    void remember(float height_mm);
+    void remember(float height_mm, std::optional<float> left_mm = std::nullopt,
+                  std::optional<float> front_mm = std::nullopt);
 
     ExtruderKind kind_;
     std::vector<NonlinearPass> passes_;

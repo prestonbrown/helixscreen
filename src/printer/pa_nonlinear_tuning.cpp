@@ -87,11 +87,17 @@ void NonlinearProcedure::advance() {
     repeats_ = 0;
 }
 
-void NonlinearProcedure::remember(float height_mm) {
-    history_.push_back(Judged{index_, repeats_, values_, height_mm});
+void NonlinearProcedure::remember(float height_mm, std::optional<float> left_mm,
+                                  std::optional<float> front_mm) {
+    history_.push_back(Judged{index_, repeats_, values_, height_mm, left_mm, front_mm});
 }
 
 std::optional<float> NonlinearProcedure::go_back() {
+    const auto j = go_back_judgement();
+    return j ? std::optional<float>(j->height_mm) : std::nullopt;
+}
+
+std::optional<NonlinearProcedure::Reopened> NonlinearProcedure::go_back_judgement() {
     if (history_.empty()) {
         return std::nullopt;
     }
@@ -100,7 +106,7 @@ std::optional<float> NonlinearProcedure::go_back() {
     index_ = j.index;
     repeats_ = j.repeats;
     values_ = j.values;
-    return j.height_mm;
+    return Reopened{j.height_mm, j.left_mm, j.front_mm};
 }
 
 void NonlinearProcedure::record_height(float height_mm) {
@@ -118,23 +124,33 @@ void NonlinearProcedure::record_height(float height_mm) {
 }
 
 void NonlinearProcedure::record_verdict(SideVerdict verdict, float height_mm) {
+    judge_two_sided(verdict, height_mm, std::nullopt, std::nullopt);
+}
+
+void NonlinearProcedure::record_heights(float left_mm, float front_mm) {
+    judge_two_sided(verdict_from_heights(left_mm, front_mm), (left_mm + front_mm) / 2.0f, left_mm,
+                    front_mm);
+}
+
+void NonlinearProcedure::judge_two_sided(SideVerdict verdict, float height_mm,
+                                         std::optional<float> left_mm,
+                                         std::optional<float> front_mm) {
     if (done()) {
         return;
     }
-    remember(height_mm);
+    remember(height_mm, left_mm, front_mm);
     const NonlinearPass& p = current();
-    if (!correction(verdict)) {
+    const auto c = correction(verdict);
+    if (!c) {
         apply(p.sweep.param, value_at(p.sweep, height_mm));
         advance();
         return;
     }
-    if (const auto c = correction(verdict)) {
-        const float factor = c->raise ? 1.0f + kConvergeStep : 1.0f - kConvergeStep;
-        if (c->param == NlParam::Offset) {
-            values_.nonlinear_offset *= factor;
-        } else {
-            values_.linear_advance *= factor;
-        }
+    const float factor = c->raise ? 1.0f + kConvergeStep : 1.0f - kConvergeStep;
+    if (c->param == NlParam::Offset) {
+        values_.nonlinear_offset *= factor;
+    } else {
+        values_.linear_advance *= factor;
     }
     ++repeats_;
 }
@@ -221,10 +237,15 @@ std::vector<TowerFace> judged_faces(TowerSide side) {
 nlohmann::json NonlinearProcedure::to_json() const {
     nlohmann::json history = nlohmann::json::array();
     for (const auto& h : history_) {
-        history.push_back({{"index", h.index},
-                           {"repeats", h.repeats},
-                           {"values", values_json(h.values)},
-                           {"height", h.height_mm}});
+        nlohmann::json entry = {{"index", h.index},
+                                {"repeats", h.repeats},
+                                {"values", values_json(h.values)},
+                                {"height", h.height_mm}};
+        if (h.left_mm && h.front_mm) {
+            entry["left"] = *h.left_mm;
+            entry["front"] = *h.front_mm;
+        }
+        history.push_back(std::move(entry));
     }
     return {{"kind", static_cast<int>(kind_)},
             {"passes", passes_.size()},
@@ -257,7 +278,9 @@ std::optional<NonlinearProcedure> NonlinearProcedure::from_json(const nlohmann::
             Judged judged{json_util::safe_size_t(h, "index"),
                           std::max(0, json_util::safe_int(h, "repeats")),
                           values_from(hv ? *hv : nlohmann::json::object()),
-                          json_util::safe_float(h, "height")};
+                          json_util::safe_float(h, "height"),
+                          json_util::read_field<float>(h, "left"),
+                          json_util::read_field<float>(h, "front")};
             if (judged.index >= passes) {
                 return std::nullopt;
             }

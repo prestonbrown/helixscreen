@@ -50,7 +50,7 @@
  * ## Subject bindings
  *
  * - pa_nl_stage (int) - Stage below
- * - pa_nl_pass_title / pa_nl_pass_hint / pa_nl_values (string)
+ * - pa_nl_pass_title / pa_nl_pass_hint (string)
  * - pa_nl_has_tower (int), pa_nl_busy (int: 1 readying a print, 2 writing the config)
  * - pa_nl_live_value / pa_nl_live_text (string)
  * - pa_nl_two_sided (int), pa_nl_height / pa_nl_height_value (string)
@@ -62,7 +62,8 @@
  * - pa_nl_look (string), pa_nl_ref_src_N (string): the "where to look" card
  * - pa_nl_time_line / pa_nl_time_sub / pa_nl_run_note / pa_nl_run_chip (string)
  * - pa_nl_ready_primary / pa_nl_judge_primary / pa_nl_back_text (string)
- * - pa_nl_param / pa_nl_height_front / pa_nl_verdict (string): pass 2's two heights
+ * - pa_nl_param / pa_nl_height_front / pa_nl_verdict (string): pass 2's two heights,
+ *   pa_nl_heights_set (int: 0 while a two-sided pass has a height not yet judged)
  * - pa_nl_result_live / pa_nl_save_material (string)
  *
  * Every judgement is saved with the printer's settings, so a restart of the
@@ -283,6 +284,10 @@ class PaNonlinearOverlay : public OverlayBase {
     float height_mm_ = 25.0f;
     /// Pass 2: where the front looked best (height_mm_ holds the left's).
     float front_mm_ = 25.0f;
+    /// Each side's height has been set by a tap, a step or the keypad. A
+    /// two-sided pass opens with neither, so it can't be accepted unjudged.
+    bool left_set_ = true;
+    bool front_set_ = true;
     bool saw_printing_ = false;
     /// The current pass's script returned: PRINT_PA_TOWER was accepted.
     bool script_done_ = false;
@@ -298,8 +303,6 @@ class PaNonlinearOverlay : public OverlayBase {
     char pass_title_buf_[96] = {};
     helix::Subject pass_hint_{};
     char pass_hint_buf_[384] = {};
-    helix::Subject values_{};
-    char values_buf_[192] = {};
     helix::Subject has_tower_{};
     helix::Subject busy_{};
     helix::Subject live_value_{};
@@ -350,6 +353,7 @@ class PaNonlinearOverlay : public OverlayBase {
     char param_buf_[48] = {};
     helix::Subject height_front_{};
     char height_front_buf_[24] = {};
+    helix::Subject heights_set_{};
     helix::Subject verdict_{};
     char verdict_buf_[160] = {};
     helix::Subject result_live_{};

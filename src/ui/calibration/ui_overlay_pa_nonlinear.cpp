@@ -268,7 +268,6 @@ void PaNonlinearOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_INT(stage_subject_, READY, "pa_nl_stage", subjects_);
         UI_MANAGED_SUBJECT_STRING(pass_title_, pass_title_buf_, "", "pa_nl_pass_title", subjects_);
         UI_MANAGED_SUBJECT_STRING(pass_hint_, pass_hint_buf_, "", "pa_nl_pass_hint", subjects_);
-        UI_MANAGED_SUBJECT_STRING(values_, values_buf_, "", "pa_nl_values", subjects_);
         UI_MANAGED_SUBJECT_INT(has_tower_, 0, "pa_nl_has_tower", subjects_);
         UI_MANAGED_SUBJECT_INT(busy_, 0, "pa_nl_busy", subjects_);
         UI_MANAGED_SUBJECT_STRING(live_value_, live_value_buf_, "--", "pa_nl_live_value",
@@ -313,6 +312,7 @@ void PaNonlinearOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_STRING(height_front_, height_front_buf_, "", "pa_nl_height_front",
                                   subjects_);
         UI_MANAGED_SUBJECT_STRING(verdict_, verdict_buf_, "", "pa_nl_verdict", subjects_);
+        UI_MANAGED_SUBJECT_INT(heights_set_, 1, "pa_nl_heights_set", subjects_);
         UI_MANAGED_SUBJECT_STRING(result_live_, result_live_buf_, "", "pa_nl_result_live",
                                   subjects_);
         UI_MANAGED_SUBJECT_STRING(save_material_, save_material_buf_, "", "pa_nl_save_material",
@@ -591,11 +591,18 @@ void PaNonlinearOverlay::refresh() {
     const bool two = pass.judge == helix::pa::TowerSide::LeftVsFront;
     lv_subject_set_int(&two_sided_, two ? 1 : 0);
     lv_subject_set_string(&param_, param_label(pass.sweep.param));
-    lv_subject_set_string(&height_, fmt::format("{:.1f} mm", height_mm_).c_str());
-    lv_subject_set_string(&height_front_, fmt::format("{:.1f} mm", front_mm_).c_str());
+    const bool both = !two || (left_set_ && front_set_);
+    lv_subject_set_int(&heights_set_, both ? 1 : 0);
+    lv_subject_set_string(&height_,
+                          two && !left_set_ ? "--" : fmt::format("{:.1f} mm", height_mm_).c_str());
+    lv_subject_set_string(&height_front_,
+                          !front_set_ ? "--" : fmt::format("{:.1f} mm", front_mm_).c_str());
     lv_subject_set_string(&height_value_,
                           format_value(helix::pa::value_at(pass.sweep, height_mm_)).c_str());
-    if (two) {
+    if (two && !both) {
+        lv_subject_set_string(&verdict_, "");
+        lv_subject_set_string(&judge_primary_, lv_tr("Set both heights"));
+    } else if (two) {
         lv_subject_set_string(&verdict_, verdict_text(*proc_, height_mm_, front_mm_).c_str());
         const auto c = proc_->correction(helix::pa::verdict_from_heights(height_mm_, front_mm_));
         lv_subject_set_string(&judge_primary_, c ? lv_tr("Print Again")
@@ -654,7 +661,12 @@ void PaNonlinearOverlay::refresh_towers() {
     PaTowerModel judge = base;
     judge.fill = PaTowerFill::Full;
     if (two) {
-        judge.markers = {{0, height_mm_, false, "L"}, {1, front_mm_, true, "F"}};
+        if (left_set_) {
+            judge.markers.push_back({0, height_mm_, false, "L"});
+        }
+        if (front_set_) {
+            judge.markers.push_back({1, front_mm_, true, "F"});
+        }
     } else {
         judge.markers = {{0, height_mm_, false, ""}};
     }
@@ -748,6 +760,8 @@ void PaNonlinearOverlay::print_pass() {
 
     saw_printing_ = false;
     script_done_ = false;
+    // The tower about to print is judged fresh: a two-sided pass with neither height set.
+    left_set_ = front_set_ = proc_->current().judge != helix::pa::TowerSide::LeftVsFront;
     const int pass_seq = ++pass_seq_;
     lv_subject_set_string(&error_, "");
     lv_subject_set_string(&live_text_, lv_tr("Starting the tower"));
@@ -982,6 +996,7 @@ void PaNonlinearOverlay::set_height(float height_mm) {
     }
     // Tenths: the steps and the keypad both land on them, and float sums drift.
     height_mm_ = std::clamp(std::round(height_mm * 10.0f) / 10.0f, 0.0f, kTowerHeightMm);
+    left_set_ = true;
     refresh();
 }
 
@@ -1010,8 +1025,8 @@ void PaNonlinearOverlay::go_back() {
     if (!proc_ || !(stage_ == READY || stage_ == JUDGE || stage_ == RESULT)) {
         return;
     }
-    const auto height = proc_->go_back();
-    if (!height) {
+    const auto reopened = proc_->go_back_judgement();
+    if (!reopened) {
         return;
     }
     // The printer runs what the re-opened tower printed with until it is judged
@@ -1021,7 +1036,16 @@ void PaNonlinearOverlay::go_back() {
     }
     save_session();
     set_stage(JUDGE);
-    height_mm_ = *height;
+    // The judgement comes back as entered: both of a two-sided pass's heights.
+    if (reopened->left_mm && reopened->front_mm) {
+        height_mm_ = *reopened->left_mm;
+        front_mm_ = *reopened->front_mm;
+        left_set_ = front_set_ = true;
+    } else {
+        height_mm_ = reopened->height_mm;
+        const bool two = proc_->current().judge == helix::pa::TowerSide::LeftVsFront;
+        left_set_ = front_set_ = !two;
+    }
     if (subjects_initialized_) {
         lv_subject_set_string(&error_, "");
     }
@@ -1049,10 +1073,11 @@ void PaNonlinearOverlay::judge_primary() {
         judge(1);
         return;
     }
-    // The heights decide the verdict; the middle of the two is the height
-    // taken when they agree, or when the pass stops repeating.
-    const auto verdict = helix::pa::verdict_from_heights(height_mm_, front_mm_);
-    proc_->record_verdict(verdict, (height_mm_ + front_mm_) / 2.0f);
+    // Both faces must have been judged: a height left at its start was never looked at.
+    if (!left_set_ || !front_set_) {
+        return;
+    }
+    proc_->record_heights(height_mm_, front_mm_);
     after_judgement();
 }
 
@@ -1065,6 +1090,7 @@ void PaNonlinearOverlay::set_front_height(float height_mm) {
         return;
     }
     front_mm_ = std::clamp(std::round(height_mm * 10.0f) / 10.0f, 0.0f, kTowerHeightMm);
+    front_set_ = true;
     refresh();
 }
 
@@ -1114,6 +1140,10 @@ void PaNonlinearOverlay::after_judgement() {
     save_session();
     height_mm_ = kTowerHeightMm / 2.0f;
     front_mm_ = kTowerHeightMm / 2.0f;
+    // A two-sided pass opens with neither height judged; a one-sided one with
+    // the middle of the tower to step from.
+    left_set_ = front_set_ =
+        proc_->done() || proc_->current().judge != helix::pa::TowerSide::LeftVsFront;
     set_stage(proc_->done() ? RESULT : READY);
     refresh();
 }
