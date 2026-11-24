@@ -477,6 +477,8 @@ TEST_CASE_METHOD(TwoExtruderTemps,
                  "changes, and only then",
                  "[core][temperature][pa_model][pa_tuner][pa_nl_live]") {
     lv_subject_t* rev = state.get_pa_model_revision_subject();
+    // The nonlinear tuner's live readout observes it.
+    REQUIRE(helix::subject_is_live(rev));
     state.update_from_status({{"extruder",
                                {{"pressure_advance_model", "tanh"},
                                 {"linear_advance", 0.0},
