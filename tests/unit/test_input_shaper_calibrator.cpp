@@ -794,6 +794,11 @@ TEST_CASE_METHOD(InputShaperCalibratorTestFixture, "state returns to IDLE on err
     // calibrator.cpp:240-245 unwinds the machine on the homing error path.
     CHECK(calibrator_.get_state() == InputShaperCalibrator::State::IDLE);
     CHECK_FALSE(calibrator_.is_active());
+    // The firmware's own words are kept for the outcome's failure class...
+    CHECK(calibrator_.last_error_cause() == "Move out of range: 300.000 > 250.00");
+    // ...until the next run starts.
+    calibrator_.run_calibration('X', nullptr, nullptr, nullptr);
+    CHECK(calibrator_.last_error_cause().empty());
 }
 
 TEST_CASE_METHOD(InputShaperCalibratorTestFixture,

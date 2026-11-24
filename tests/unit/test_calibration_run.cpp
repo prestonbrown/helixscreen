@@ -461,6 +461,9 @@ TEST_CASE_METHOD(RunFixture, "each step that ran reports its end once, a stopped
     std::string cause;
     run->set_step_end_sink([&](const CalibrationRun::StepEnd& end) {
         ends.emplace_back(end.info.id, end.status);
+        // Timed from the step's own start, which a test runs in well under a minute.
+        CHECK(end.duration_sec >= 0);
+        CHECK(end.duration_sec < 60);
         if (end.status == StepStatus::Failed) {
             failure = std::string(end.message);
             cause = std::string(end.cause);
@@ -913,9 +916,24 @@ TEST_CASE_METHOD(RunFixture,
     fakes[0]->late = StepOutcome::finished({"Nozzle 22 / 1 / 100", {}});
     fakes[0]->fail("printer still busy");
     CHECK(ends.empty());
-    busy->go_idle();
-    REQUIRE(ends.size() == 1);
-    CHECK(ends[0] == StepStatus::Finished);
+    SECTION("the printer goes idle") {
+        busy->go_idle();
+        REQUIRE(ends.size() == 1);
+        CHECK(ends[0] == StepStatus::Finished);
+    }
+    // Every other way the wait ends reports the failure, once.
+    SECTION("the wait passes its ceiling") {
+        busy->time_out();
+        CHECK(ends == std::vector<StepStatus>{StepStatus::Failed});
+    }
+    SECTION("Klipper restarts during the wait") {
+        run->klippy_restarted();
+        CHECK(ends == std::vector<StepStatus>{StepStatus::Failed});
+    }
+    SECTION("the user stops the run during the wait") {
+        run->stop();
+        CHECK(ends == std::vector<StepStatus>{StepStatus::Failed});
+    }
 }
 
 TEST_CASE("the PID gains Klipper staged are read from the pending config", "[calibration_run]") {
