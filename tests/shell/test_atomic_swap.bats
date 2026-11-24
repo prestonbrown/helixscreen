@@ -473,3 +473,25 @@ _extract_reporting_swap() {
 
     [ ! -e "$HELIX_UPDATE_SWAPPED_FILE" ]
 }
+
+@test "keep previous: a swap whose final move fails records no swap" {
+    setup_existing_install
+    create_test_tarball "pi"
+    mock_no_new_privs
+    export HELIX_UPDATE_KEEP_PREVIOUS=1
+    export HELIX_UPDATE_SWAPPED_FILE="$BATS_TEST_TMPDIR/swapped"
+    # The move of the new tree into place fails; the old one is put back.
+    mv() {
+        case "$1" in
+            */extract*/helixscreen) return 1 ;;
+        esac
+        command mv "$@"
+    }
+
+    run extract_release "pi"
+
+    [ "$status" -ne 0 ]
+    contains "Failed to install new release" "$output"
+    [ ! -e "$HELIX_UPDATE_SWAPPED_FILE" ]
+    grep -q "old binary" "$INSTALL_DIR/bin/helix-screen"
+}

@@ -33,6 +33,7 @@
 #include "platform_info.h"
 #include "platform_table.h"
 #include "runtime_config.h"
+#include "system/update_rollback.h"
 #include "version.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -2250,6 +2251,63 @@ TEST_CASE("A manual install ends an automatic update's rollback trial first",
     std::getline(in, state);
     CHECK(state == "disarmed");
     CHECK(access(armed.c_str(), F_OK) != 0);
+
+    remove_dir(tmp);
+}
+
+TEST_CASE("An automatic install that fails after its swap arms the guard from the swap note",
+          "[update_checker][installer][do_install][rollback]") {
+    auto tmp = make_temp_dir("helix_install_swapped");
+    REQUIRE(!tmp.empty());
+    const std::string guard = tmp + "/rollback";
+    mkdir(guard.c_str(), 0755);
+    const std::string previous = tmp + "/helixscreen-app.old";
+
+    // An installer that swapped the tree (and says so), then failed.
+    std::string inner = tmp + "/helixscreen";
+    mkdir(inner.c_str(), 0755);
+    create_file(inner + "/install.sh",
+                "#!/bin/sh\nprintf 'previous_dir=%s\\n' '" + previous +
+                    "' > \"$HELIX_UPDATE_SWAPPED_FILE\"\nexit 1\n",
+                true);
+    const std::string tarball = tmp + "/release.tar.gz";
+    std::string cmd =
+        "cd " + tmp + " && COPYFILE_DISABLE=1 tar czf release.tar.gz helixscreen/install.sh";
+    REQUIRE(std::system(cmd.c_str()) == 0);
+
+    const pid_t pid = fork();
+    if (pid == 0) {
+        ScopedRuntimeConfig scoped_config;
+        get_runtime_config()->test_mode = false;
+        setenv("HELIX_ROLLBACK_DIR", guard.c_str(), 1);
+        helix::update::set_auto_rollback_supported_for_test(true);
+        helix::app_constants::update::detail::backup_fallback_dir_ref() = tmp + "/.helixscreen";
+        auto& checker = UpdateChecker::instance();
+        UpdateCheckerTestAccess::clear_download_cancelled(checker);
+        UpdateCheckerTestAccess::set_install_log(checker, tmp + "/install.log");
+        UpdateCheckerTestAccess::set_machine_busy_hook(checker, [] { return false; });
+        UpdateCheckerTestAccess::set_stop_after_arm(checker, true);
+        UpdateCheckerTestAccess::set_install_root(checker, tmp + "/helixscreen-app");
+        UpdateCheckerTestAccess::set_restart_action(checker, [] {});
+        UpdateCheckerTestAccess::set_status_hold_ms(checker, 0, 0);
+        UpdateCheckerTestAccess::do_install_automatic(checker, tarball);
+        _exit(0);
+    }
+    REQUIRE(pid > 0);
+    int wstatus = 0;
+    for (int i = 0; i < 3000 && waitpid(pid, &wstatus, WNOHANG) == 0; ++i)
+        usleep(10 * 1000);
+    if (waitpid(pid, &wstatus, WNOHANG) == 0) {
+        kill(pid, SIGKILL);
+        waitpid(pid, &wstatus, 0);
+        FAIL("do_install did not return within 30s");
+    }
+
+    std::ifstream in(guard + "/update_rollback.armed");
+    std::string marker((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    CHECK(marker.find("install_dir=" + tmp + "/helixscreen-app\n") != std::string::npos);
+    CHECK(marker.find("previous_dir=" + previous + "\n") != std::string::npos);
+    CHECK(access((guard + "/update_rollback.swapped").c_str(), F_OK) != 0);
 
     remove_dir(tmp);
 }

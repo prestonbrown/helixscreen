@@ -1064,6 +1064,12 @@ class UpdateChecker {
     std::string auto_install_attempted_version_;
     /// Replaces start_download() for auto_update_tick() in tests.
     std::function<void()> auto_install_hook_;
+    /// Replaces machine_busy_from_worker()'s main-thread question in tests.
+    std::function<bool()> machine_busy_hook_;
+    /// do_install() returns once the guard is armed, before the restart; tests only.
+    bool stop_after_arm_for_test_ = false;
+    /// The install root do_install() installs into instead of this binary's; tests only.
+    std::string install_root_override_;
     /// Local day (year * 1000 + day of year) the scheduler gave up on after
     /// RetryTomorrow; later ticks that night wait without asking again.
     int auto_skip_day_ = -1;

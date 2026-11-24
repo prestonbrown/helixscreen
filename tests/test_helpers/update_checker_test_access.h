@@ -104,6 +104,26 @@ class UpdateCheckerTestAccess {
         c.install_timeout_seconds_ = seconds;
     }
 
+    /// Run the install step as the automatic scheduler would.
+    static void do_install_automatic(UpdateChecker& c, const std::string& tarball_path) {
+        c.do_install(tarball_path, UpdateChecker::InstallOrigin::Automatic);
+    }
+
+    /// Answer machine_busy_from_worker() without the main thread; nullptr restores it.
+    static void set_machine_busy_hook(UpdateChecker& c, std::function<bool()> hook) {
+        c.machine_busy_hook_ = std::move(hook);
+    }
+
+    /// Install into @p root instead of the running binary's install root.
+    static void set_install_root(UpdateChecker& c, const std::string& root) {
+        c.install_root_override_ = root;
+    }
+
+    /// Make do_install() return right after arming the guard, before the restart.
+    static void set_stop_after_arm(UpdateChecker& c, bool stop) {
+        c.stop_after_arm_for_test_ = stop;
+    }
+
     /// A cancel left by an earlier case makes do_install() return before the installer.
     static void clear_download_cancelled(UpdateChecker& c) {
         c.download_cancelled_ = false;

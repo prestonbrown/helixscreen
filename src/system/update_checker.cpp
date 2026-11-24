@@ -2178,7 +2178,8 @@ void UpdateChecker::do_install(const std::string& tarball_path, InstallOrigin or
     // Resolve install root BEFORE install.sh runs.  After the installer swaps
     // the directory, /proc/self/exe shows "(deleted)" and app_get_install_root()
     // fails.  We need this path to chdir() after install.sh finishes (see below).
-    const std::string install_root = app_get_install_root();
+    const std::string install_root =
+        install_root_override_.empty() ? app_get_install_root() : install_root_override_;
 
     // Safety net: copy config to fallback dir BEFORE calling install.sh.
     // The installer backs up config to TMP_DIR, but under systemd's PrivateTmp=true
@@ -2561,7 +2562,8 @@ void UpdateChecker::do_install(const std::string& tarball_path, InstallOrigin or
     const bool swapped_then_failed =
         helix::update::decide_after_install(
             ret == 0, keep_previous,
-            keep_previous && helix::update::install_swapped_tree(rollback_guard_dir)) ==
+            keep_previous && !installer_may_run &&
+                helix::update::install_swapped_tree(rollback_guard_dir)) ==
         helix::update::AfterInstall::RestartGuarded;
     settle_self_restart_sentinel(ret == 0 || installer_may_run || swapped_then_failed);
     if (ret != 0 && !swapped_then_failed) {
@@ -2605,6 +2607,9 @@ void UpdateChecker::do_install(const std::string& tarball_path, InstallOrigin or
         arm_rollback_guard(rollback_guard_dir, install_root, version,
                            swapped_then_failed ? helix::update::kRollbackSwappedFile
                                                : helix::update::kRollbackPreviousFile);
+    }
+    if (stop_after_arm_for_test_) {
+        return;
     }
 
     // Restore CWD after install.sh moved/deleted the old install directory.
@@ -3870,6 +3875,9 @@ void UpdateChecker::arm_rollback_guard(const std::string& guard_dir,
 }
 
 bool UpdateChecker::machine_busy_from_worker() {
+    if (machine_busy_hook_) {
+        return machine_busy_hook_();
+    }
     auto answer = std::make_shared<std::promise<bool>>();
     std::future<bool> result = answer->get_future();
     helix::ui::queue_update("UpdateChecker::machine_busy", [answer]() {
