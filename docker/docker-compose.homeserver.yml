@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # HelixScreen on a home server (docs/user/guide/install-docker.md).
-# Edit MOONRAKER_URL, then: docker compose -f docker-compose.homeserver.yml up -d
+# Edit PRINTER_URL, then: docker compose -f docker-compose.homeserver.yml up -d
 # The screen opens in a browser at http://<this server>:7130/
 services:
   helixscreen:
@@ -16,9 +16,9 @@ services:
     container_name: helixscreen
     restart: unless-stopped
     environment:
-      MOONRAKER_URL: 192.168.1.50:7125
-      # HELIX_PAIR_CODE: "123456"
-      # HELIX_SCREEN_SIZE: 1024x600
+      PRINTER_URL: 192.168.1.50:7125
+      # PAIR_CODE: "123456"
+      # SCREEN_SIZE: 1024x600
     ports:
       - "7130:7130"
     volumes:
