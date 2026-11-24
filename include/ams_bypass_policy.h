@@ -76,9 +76,11 @@ struct BypassMacros {
 }
 
 /// Whether the "Enable Bypass Controls" override can change anything on this
-/// system: the firmware says no, and the backend could act on a yes.
-[[nodiscard]] constexpr bool bypass_override_offered(const AmsSystemInfo& info) {
-    return !info.supports_bypass && info.bypass_overridable;
+/// system: there is a filament system, its firmware says no, and its kind could
+/// act on a yes.
+[[nodiscard]] inline bool bypass_override_offered(const AmsSystemInfo& info) {
+    return info.presents_filament_system() && !info.supports_bypass &&
+           ams_type_traits(info.type).bypass_overridable;
 }
 /**
  * @brief Whether a bypass toggle should be offered at all on this machine.

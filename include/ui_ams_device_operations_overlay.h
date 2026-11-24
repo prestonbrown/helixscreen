@@ -175,10 +175,9 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
     /// Folds in the force-bypass override, so this is what gates the controls.
     helix::Subject supports_bypass_subject_{};
 
-    /// Subject for the firmware's own bypass report, override NOT applied
-    /// (0=firmware says none, 1=firmware reports one). Gates the override row:
-    /// it appears only when the firmware says no, and stays visible once the
-    /// user turns the override on so they can turn it back off.
+    /// Gates the "Enable Bypass Controls" row:
+    /// 1 when the override can change anything (bypass_override_offered()). It
+    /// stays 1 once the user turns the override on, so they can turn it back off.
     helix::Subject bypass_override_offered_subject_{};
 
     /// Subject for hardware bypass sensor (0=virtual toggle, 1=hardware sensor)

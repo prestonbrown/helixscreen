@@ -3471,8 +3471,10 @@ reality without a re-parse.
 
 Settings keys (per-printer, under `df() + "ams/"`): `force_bypass_controls`,
 `always_show_bypass_spool`. The **Enable Bypass Controls** row in `ams_device_operations.xml`
-binds `hidden` to `ams_device_ops_fw_supports_bypass == 1`, so it self-hides on hardware that
-already reports a bypass. Flipping it calls `AmsState::sync_from_backend()` +
+binds `hidden` to `ams_device_ops_bypass_override_offered == 0` (`bypass_override_offered()`), so
+it hides on hardware that already reports a bypass, on a printer with no filament system, and on a
+kind of system that can never bypass (`AmsTypeTraits::bypass_overridable`: the U1, tool changers,
+the QIDI Box, OpenAMS, INDX and lane_status). Flipping it calls `AmsState::sync_from_backend()` +
 `update_from_backend()` because both gating subjects are recomputed from the backend, not from
 the setting, and neither moves on its own.
 

@@ -566,23 +566,30 @@ TEST_CASE("Bypass availability override", "[ams][bypass][override]") {
 
 // A toolhead per lane (Snapmaker U1, tool changers) or a bypass-less box has no
 // bypass for the override to reach: enable_bypass() refuses every time, so the
-// override row is not offered and turning the setting on adds no controls.
-TEST_CASE("Bypass override is not offered where the backend cannot bypass",
+// override row is not offered and turning the setting on adds no controls. Nor is
+// it offered with no filament system at all (a CFS printer with no box).
+TEST_CASE("Bypass override is offered only where the system could bypass",
           "[ams][bypass][override]") {
-    AmsSystemInfo per_head;
-    per_head.bypass_overridable = false;
-    CHECK_FALSE(helix::bypass_override_offered(per_head));
-    CHECK_FALSE(helix::bypass_available(false, /*force=*/true, per_head.bypass_overridable));
+    AmsSystemInfo u1;
+    u1.type = AmsType::SNAPMAKER;
+    AmsSystemInfo hh;
+    hh.type = AmsType::HAPPY_HARE;
+    AmsSystemInfo cfs_no_box;
+    cfs_no_box.type = AmsType::CFS;
+    cfs_no_box.external_spool_only = true;
+
+    CHECK_FALSE(helix::bypass_override_offered(u1));
+    CHECK_FALSE(helix::bypass_override_offered(cfs_no_box));
+    CHECK(helix::bypass_override_offered(hh));
+    AmsSystemInfo hh_reports = hh;
+    hh_reports.supports_bypass = true;
+    CHECK_FALSE(helix::bypass_override_offered(hh_reports));
 
     SettingsManager::instance().set_ams_force_bypass_controls(true);
-    CHECK_FALSE(helix::bypass_available_for(per_head));
-    CHECK(helix::bypass_available_for(AmsSystemInfo{}));
+    CHECK_FALSE(helix::bypass_available_for(u1));
+    CHECK_FALSE(helix::bypass_available_for(cfs_no_box));
+    CHECK(helix::bypass_available_for(hh));
     SettingsManager::instance().set_ams_force_bypass_controls(false);
-
-    CHECK(helix::bypass_override_offered(AmsSystemInfo{}));
-    AmsSystemInfo reports_bypass;
-    reports_bypass.supports_bypass = true;
-    CHECK_FALSE(helix::bypass_override_offered(reports_bypass));
 }
 
 TEST_CASE("AFC toolchanger: the captured machine hides its bypass node",

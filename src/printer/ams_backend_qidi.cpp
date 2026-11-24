@@ -223,7 +223,6 @@ AmsBackendQidi::AmsBackendQidi(IMoonrakerAPI* api, helix::IMoonrakerClient* clie
     system_info_.type_name = "QIDI Box"; // i18n: do not translate - product name
     system_info_.total_slots = kNumSlots;
     system_info_.supports_bypass = false;
-    system_info_.bypass_overridable = false;
     system_info_.supports_purge = false;
     system_info_.tip_method = TipMethod::CUT;
 

@@ -56,7 +56,7 @@ bool bypass_available_for(const AmsSystemInfo& info) {
     }
     return bypass_available(info.supports_bypass,
                             SettingsManager::instance().get_ams_force_bypass_controls(),
-                            info.bypass_overridable);
+                            bypass_override_offered(info));
 }
 
 } // namespace helix
