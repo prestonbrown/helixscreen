@@ -90,14 +90,12 @@ int unit_color_option(const UnitColors& colors) {
     return unit_color_option_count() - 1;
 }
 
-std::optional<UnitColors> unit_colors_for_option(int option, const UnitColors& shown) {
+std::optional<UnitColors> unit_colors_for_option(int option) {
     const auto& presets = unit_color_presets();
     if (option == 0)
         return UnitColors{};
     if (option >= 1 && option <= static_cast<int>(presets.size()))
         return presets[static_cast<size_t>(option - 1)].colors();
-    if (option == unit_color_option_count() - 1)
-        return shown;
     return std::nullopt;
 }
 

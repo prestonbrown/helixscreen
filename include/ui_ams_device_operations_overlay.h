@@ -143,6 +143,8 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
     void update_unit_type(const helix::AmsSystemInfo* info);
     void on_unit_type_unit_picked(int option);
     void on_unit_type_picked(int option);
+    /// Fill the Unit Type and Colors rows again from the backend's current units.
+    void refill_unit_rows();
 
     /// Fill the Colors rows for unit @p pos of @p info, the unit the Unit Type rows set:
     /// shown only when the drawing it is shown with bakes color regions.
@@ -271,6 +273,11 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
     /// The unit's picked colors and the colors its drawing bakes, as the rows were filled.
     helix::UnitColors unit_colors_picked_;
     helix::UnitColors unit_colors_baked_;
+    /// Custom was chosen for the unit the rows set and no preset or Original since: the menu
+    /// stays on Custom even while the colors still match a preset.
+    bool unit_colors_custom_ = false;
+    /// The unit unit_colors_custom_ belongs to.
+    std::string unit_colors_identity_;
     ColorPickerModal unit_color_picker_;
 
     /// AMS action and can-cancel observers that keep can_abort_subject_
