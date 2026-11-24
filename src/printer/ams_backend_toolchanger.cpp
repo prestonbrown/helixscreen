@@ -88,6 +88,7 @@ AmsBackendToolChanger::AmsBackendToolChanger(IMoonrakerAPI* api, IMoonrakerClien
     system_info_.type_name = TR_NOOP("Tool Changer");
 
     system_info_.supports_bypass = false; // No bypass on tool changers
+    system_info_.bypass_overridable = false;
     system_info_.has_hardware_bypass_sensor = false;
 
     spdlog::debug("[AMS ToolChanger] Backend created");

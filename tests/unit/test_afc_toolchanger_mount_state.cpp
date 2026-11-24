@@ -541,25 +541,48 @@ TEST_CASE("Bypass availability override", "[ams][bypass][override]") {
     using helix::bypass_available;
 
     SECTION("firmware saying yes needs no override") {
-        CHECK(bypass_available(true, /*force=*/false));
-        CHECK(bypass_available(true, /*force=*/true));
+        CHECK(bypass_available(true, /*force=*/false, /*overridable=*/true));
+        CHECK(bypass_available(true, /*force=*/true, /*overridable=*/true));
     }
 
     SECTION("firmware saying no hides the controls by default") {
-        CHECK_FALSE(bypass_available(false, /*force=*/false));
+        CHECK_FALSE(bypass_available(false, /*force=*/false, /*overridable=*/true));
     }
 
     SECTION("the override is the only thing that contradicts the firmware") {
-        CHECK(bypass_available(false, /*force=*/true));
+        CHECK(bypass_available(false, /*force=*/true, /*overridable=*/true));
     }
 
     SECTION("with the override off, the resolver is exactly the firmware value") {
         // Guards the short-circuit in bypass_available_for(): a machine that
         // reports a bypass must never depend on a setting to keep it.
         REQUIRE_FALSE(SettingsManager::instance().get_ams_force_bypass_controls());
-        CHECK(helix::bypass_available_for(true));
-        CHECK_FALSE(helix::bypass_available_for(false));
+        AmsSystemInfo yes;
+        yes.supports_bypass = true;
+        CHECK(helix::bypass_available_for(yes));
+        CHECK_FALSE(helix::bypass_available_for(AmsSystemInfo{}));
     }
+}
+
+// A toolhead per lane (Snapmaker U1, tool changers) or a bypass-less box has no
+// bypass for the override to reach: enable_bypass() refuses every time, so the
+// override row is not offered and turning the setting on adds no controls.
+TEST_CASE("Bypass override is not offered where the backend cannot bypass",
+          "[ams][bypass][override]") {
+    AmsSystemInfo per_head;
+    per_head.bypass_overridable = false;
+    CHECK_FALSE(helix::bypass_override_offered(per_head));
+    CHECK_FALSE(helix::bypass_available(false, /*force=*/true, per_head.bypass_overridable));
+
+    SettingsManager::instance().set_ams_force_bypass_controls(true);
+    CHECK_FALSE(helix::bypass_available_for(per_head));
+    CHECK(helix::bypass_available_for(AmsSystemInfo{}));
+    SettingsManager::instance().set_ams_force_bypass_controls(false);
+
+    CHECK(helix::bypass_override_offered(AmsSystemInfo{}));
+    AmsSystemInfo reports_bypass;
+    reports_bypass.supports_bypass = true;
+    CHECK_FALSE(helix::bypass_override_offered(reports_bypass));
 }
 
 TEST_CASE("AFC toolchanger: the captured machine hides its bypass node",

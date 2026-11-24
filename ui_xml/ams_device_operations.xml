@@ -128,8 +128,8 @@
           <bind_flag_if cond="ams_device_ops_tags_name_spools and printer_has_spoolman" flag="hidden" invert="true"/>
         </setting_toggle_row>
         <!-- Offer the bypass controls on a machine whose firmware reports none.
-             Shown only while the firmware says no, so it stays available for the
-             user to switch back off. Happy Hare defaults [mmu_machine] has_bypass
+             Shown only while the firmware says no and the backend could act on a
+             yes, so it stays available for the user to switch back off. Happy Hare defaults [mmu_machine] has_bypass
              to 0 for mmu_vendor "Other" (a Qidi Box reports exactly that), yet
              its select_bypass() never checks the flag — MMU_SELECT_BYPASS
              deselects the gear steppers and reports gate -2 either way. -->
@@ -137,7 +137,7 @@
                             label="Enable Bypass Controls" icon="source_branch"
                             description="Firmware reports no bypass. Enable if you feed filament straight to the extruder"
                             subject="ams_force_bypass_controls" callback="on_ams_force_bypass_controls_toggled">
-          <bind_flag_if_eq subject="ams_device_ops_fw_supports_bypass" flag="hidden" ref_value="1"/>
+          <bind_flag_if_eq subject="ams_device_ops_bypass_override_offered" flag="hidden" ref_value="0"/>
         </setting_toggle_row>
         <!-- Endless Spool on/off, for every backend whose firmware takes the
              switch. Checked follows the backend's reported state, not the tap. -->

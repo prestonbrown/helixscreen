@@ -45,6 +45,7 @@ AmsBackendLaneStatus::AmsBackendLaneStatus(IMoonrakerAPI* api, IMoonrakerClient*
     system_info_.type_name = ams_type_to_string(AmsType::LANE_STATUS);
     system_info_.version = "unknown";
     system_info_.supports_bypass = false;
+    system_info_.bypass_overridable = false;
 }
 
 // ============================================================================
@@ -136,6 +137,7 @@ void AmsBackendLaneStatus::rebuild_locked() {
                          : std::string(ams_type_to_string(AmsType::LANE_STATUS));
     next.version = !status_.producer_version.empty() ? status_.producer_version : "unknown";
     next.supports_bypass = false;
+    next.bypass_overridable = false;
     next.total_slots = static_cast<int>(lanes.size());
     next.current_slot = status_.lane_index(status_.current_lane);
     next.filament_loaded = next.current_slot >= 0;

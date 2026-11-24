@@ -97,6 +97,7 @@ AmsBackendOpenAms::AmsBackendOpenAms(IMoonrakerAPI* api, IMoonrakerClient* clien
     system_info_.type_name = "OpenAMS"; // i18n: do not translate - product name
     system_info_.version = "unknown";
     system_info_.supports_bypass = false;
+    system_info_.bypass_overridable = false;
 }
 
 // ============================================================================
@@ -220,6 +221,7 @@ void AmsBackendOpenAms::parse_snapshot_locked() {
     next.type_name = system_info_.type_name;
     next.version = std::to_string(openams::kApiVersion);
     next.supports_bypass = false;
+    next.bypass_overridable = false;
     next.units = std::move(parsed.units);
     next.total_slots = parsed.total_slots;
     next.filament_loaded = parsed.filament_loaded;

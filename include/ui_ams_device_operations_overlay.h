@@ -179,7 +179,7 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
     /// (0=firmware says none, 1=firmware reports one). Gates the override row:
     /// it appears only when the firmware says no, and stays visible once the
     /// user turns the override on so they can turn it back off.
-    helix::Subject fw_supports_bypass_subject_{};
+    helix::Subject bypass_override_offered_subject_{};
 
     /// Subject for hardware bypass sensor (0=virtual toggle, 1=hardware sensor)
     helix::Subject hw_bypass_sensor_subject_{};

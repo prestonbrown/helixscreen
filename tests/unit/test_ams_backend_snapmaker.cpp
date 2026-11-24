@@ -231,6 +231,13 @@ TEST_CASE_METHOD(SnapmakerFixture, "AmsBackendSnapmaker construction", "[ams][sn
         auto info = backend.get_system_info();
         REQUIRE(info.tip_method == TipMethod::NONE);
     }
+
+    SECTION("no bypass for the override to reach: each head has its own path") {
+        AmsBackendSnapmaker backend(nullptr, nullptr);
+        auto info = backend.get_system_info();
+        CHECK_FALSE(info.supports_bypass);
+        CHECK_FALSE(info.bypass_overridable);
+    }
 }
 
 // The U1's own sequence homes and heats

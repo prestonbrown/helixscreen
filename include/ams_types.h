@@ -1781,6 +1781,10 @@ struct AmsSystemInfo {
     bool endless_spool_groups_reported = false;
 
     bool supports_bypass = false; ///< Has bypass selector position
+    /// The backend can engage a bypass when the user overrides a firmware "no".
+    /// False where every filament path is its own and enable_bypass() can never
+    /// act (a toolhead per lane, a bypass-less box), so the override is not offered.
+    bool bypass_overridable = true;
     /// The hardware is there in firmware but nothing feeds through it, so the
     /// printer runs one external spool (a CFS-ready printer with no box on the
     /// bus, #1904). The backend still owns load and unload; the UI presents no
