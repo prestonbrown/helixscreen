@@ -284,6 +284,13 @@ Write `NEW_VERSION` (just the version string, with trailing newline) to `VERSION
   ```
 - Update the previous version's link if needed (the `[PREVIOUS]` entry should compare against its predecessor, not HEAD)
 
+### Set RELEASE_CHANNEL (stable versions only)
+A version with no `-` suffix publishes to `stable` only if `RELEASE_CHANNEL` says `stable`.
+When graduating a beta line (`1.1.0-rc.N` to `1.1.0`, or any plain `X.Y.Z`), set the file
+to `stable` in this same release commit (`docs/devel/RELEASE_PROCESS.md` "Graduating the
+beta line"). A suffixed version keeps `beta` or `dev`. `make release-gate` and the
+Release workflow both refuse a mismatch. Never do this on the trunk: main never tags a plain `X.Y.Z`.
+
 ### Write the Play Store "What's new" (stable releases only)
 For a version with no `-` suffix, write `android/whatsnew/{NEW_VERSION}.txt`: plain text,
 at most 500 characters, what changed for a Play Store user, distilled from the entry
@@ -302,7 +309,8 @@ Run `git diff` and show a brief summary of what changed.
 make release-gate TIERS=fast
 ```
 
-Checks that `VERSION.txt` has a `## [X.Y.Z] - date` heading and a `[X.Y.Z]:` compare
+Checks that `RELEASE_CHANNEL` agrees with the version (plain `X.Y.Z` needs `stable`, a
+suffixed version must not have it), that `VERSION.txt` has a `## [X.Y.Z] - date` heading and a `[X.Y.Z]:` compare
 link in `CHANGELOG.md`, that the tag does not exist yet, that the Play Store text
 generates (a stable version needs `android/whatsnew/{NEW_VERSION}.txt`), and that the
 installer bundles build. Any FAIL row → STOP and fix it before committing.
@@ -315,8 +323,9 @@ installer bundles build. Any FAIL row → STOP and fix it before committing.
 In the release worktree, on `release-prep/v{NEW_VERSION}` (its parent is `RELEASE_SHA`):
 
 ```bash
-git commit -m "chore(release): v{NEW_VERSION}" -- VERSION.txt CHANGELOG.md
-# A stable release also commits android/whatsnew/{NEW_VERSION}.txt (new file:
+git commit -m "chore(release): v{NEW_VERSION}" -- VERSION.txt CHANGELOG.md RELEASE_CHANNEL
+# RELEASE_CHANNEL is listed even when unchanged; a stable version must have set it
+# to `stable` in Step 5. A stable release also commits android/whatsnew/{NEW_VERSION}.txt (new file:
 # `git add -N` it first). Append tools/xml-linter/schema/schema.json if Step 2's
 # regeneration changed it, and any other file modified in Step 5.
 git rev-parse HEAD^    # must print RELEASE_SHA: the release is exactly what CI proved, plus this commit

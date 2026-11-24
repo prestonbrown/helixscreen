@@ -8,7 +8,8 @@
 # still carrying the ctl server) surfaces for the first time on the tag.
 #
 # usage: scripts/release-gate.sh [fast] [heavy]      (default: both)
-#   fast   VERSION.txt has a CHANGELOG entry and is not tagged yet; the Play Store "What's
+#   fast   VERSION.txt has a CHANGELOG entry, is not tagged yet and agrees with RELEASE_CHANNEL
+#          (plain X.Y.Z needs stable, a suffixed version must not have it); the Play Store "What's
 #          new" generates (a stable version needs android/whatsnew/<version>.txt);
 #          installer bundles build;
 #          release-health prints the newest beta against stable in telemetry (informational,
@@ -63,6 +64,9 @@ check_version() {
     [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]] || { echo "not MAJOR.MINOR.PATCH[-PRERELEASE]"; return 1; }
     grep -q "^## \[$v\] - " CHANGELOG.md || { echo "CHANGELOG.md has no '## [$v] - <date>' entry"; return 1; }
     grep -q "^\[$v\]: " CHANGELOG.md || { echo "CHANGELOG.md has no '[$v]:' compare link"; return 1; }
+    # Same rule release.yml applies to the tag: plain X.Y.Z needs RELEASE_CHANNEL=stable,
+    # a suffixed version must not have it.
+    scripts/release-channel.sh --tag "v$v" --field channel || return 1
     if git rev-parse -q --verify "refs/tags/v$v" >/dev/null; then
         echo "tag v$v already exists: bump VERSION.txt first"
         return 1
