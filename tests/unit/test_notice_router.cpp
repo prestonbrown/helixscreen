@@ -424,3 +424,34 @@ TEST_CASE("U1 SSH down publishes a sticky warning that says what to do",
     CHECK(g_captured[0].sticky);
     CHECK_FALSE(g_captured[0].detail.empty());
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Notification notices published off the main thread present only on it",
+                 "[toast][notification][notice]") {
+    auto& toasts = ToastManager::instance();
+    toasts.init();
+    ui_notification_init(); // records this thread as the main thread
+    NotificationHistory::instance().clear();
+    ToastLog log;
+
+    std::thread([] {
+        helix::publish_notification(NoticeSeverity::WARNING, "from wifi");
+        helix::publish_detail_notification(NoticeSeverity::WARNING, "refused", "fix it");
+        helix::publish_history_entry(NoticeSeverity::INFO, "AFC", "lane 2 ready", "afc_message");
+    }).join();
+
+    CHECK(log.shown.empty());
+    CHECK(NotificationHistory::instance().count() == 0);
+
+    drain();
+    REQUIRE(log.shown.size() == 2);
+    for (const auto& shown : log.shown) {
+        CHECK(shown.thread == std::this_thread::get_id());
+    }
+    CHECK(NotificationHistory::instance().count() == 3);
+
+    ui_notification_deinit();
+    NotificationHistory::instance().clear();
+    toasts.deinit_subjects();
+    drain();
+}
