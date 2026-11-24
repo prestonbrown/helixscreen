@@ -38,6 +38,7 @@ enum class TimeFormat { HOUR_12 = 0, HOUR_24 = 1 };
  * - time_format (12H/24H)
  * - temp_unit (°C/°F; display and entry only, state stays Celsius)
  * - date_format (day/month/year order; unset follows the language)
+ * - screensaver_clock_face (the analog clock saver's face, or Shuffle)
  * - printer_image (config-only, no subject)
  * - bed_mesh_show_zero_plane (config-only, no subject)
  *
@@ -171,6 +172,15 @@ class DisplaySettingsManager {
     }
     void set_screensaver_print_progress(bool enabled) {
         settings_.set(Key::ScreensaverPrintProgress, enabled);
+    }
+
+    /// The analog clock saver's face: 0 to 4 in helix::ui::AnalogStyle order, 5 a different
+    /// face each run.
+    int get_screensaver_clock_face() const {
+        return std::clamp(settings_.get(Key::ScreensaverClockFace), 0, 5);
+    }
+    void set_screensaver_clock_face(int face) {
+        settings_.set(Key::ScreensaverClockFace, std::clamp(face, 0, 5));
     }
 
     // =========================================================================
@@ -708,6 +718,7 @@ class DisplaySettingsManager {
         ScreensaverPrintProgress,
         TempUnit,
         DateFormat,
+        ScreensaverClockFace,
         COUNT
     };
     settings::PersistedSettings<Key, static_cast<size_t>(Key::COUNT)> settings_;

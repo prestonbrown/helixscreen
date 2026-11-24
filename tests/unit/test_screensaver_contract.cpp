@@ -8,6 +8,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/screensaver_sim_kit.h"
 #include "../test_helpers/screensaver_test_access.h"
+#include "screensaver_analog_clock.h"
 #include "screensaver_aqua.h"
 #include "screensaver_bounce.h"
 #include "screensaver_canvas.h"
@@ -31,6 +32,7 @@
 // What every saver promises the manager and the gate, checked once over every saver type.
 // A saver's own tests cover what is particular to it.
 
+using helix::ui::AnalogClockScreensaver;
 using helix::ui::AquaScreensaver;
 using helix::ui::FirefliesScreensaver;
 using helix::ui::FireworksScreensaver;
@@ -88,6 +90,10 @@ template <> struct CanvasSaverTraits<NixieClockScreensaver> {
     static constexpr lv_color_format_t kFormat = kLvDrawCanvasFormat;
     static constexpr bool kDefersLevel = false;
 };
+template <> struct CanvasSaverTraits<AnalogClockScreensaver> {
+    static constexpr lv_color_format_t kFormat = kLvDrawCanvasFormat;
+    static constexpr bool kDefersLevel = false;
+};
 
 /// The sim a SimSaver runs.
 template <typename Saver> using SimOf = std::decay_t<decltype(std::declval<const Saver&>().sim())>;
@@ -106,12 +112,12 @@ template <typename Saver> struct SaverFixture : LVGLTestFixture {};
     FlyingToasterScreensaver, StarfieldScreensaver, PipesScreensaver,                              \
         helix::BouncingPrinterScreensaver, helix::BouncingLogoScreensaver, FireworksScreensaver,   \
         MazeScreensaver, HyperspaceScreensaver, FlipClockScreensaver, FirefliesScreensaver,        \
-        AquaScreensaver, HighFlyScreensaver, NixieClockScreensaver
+        AquaScreensaver, HighFlyScreensaver, NixieClockScreensaver, AnalogClockScreensaver
 
 #define HELIX_CANVAS_SAVERS                                                                        \
     StarfieldScreensaver, PipesScreensaver, FireworksScreensaver, MazeScreensaver,                 \
         HyperspaceScreensaver, FlipClockScreensaver, FirefliesScreensaver, AquaScreensaver,        \
-        HighFlyScreensaver, NixieClockScreensaver
+        HighFlyScreensaver, NixieClockScreensaver, AnalogClockScreensaver
 
 // ============================================================================
 // Every saver

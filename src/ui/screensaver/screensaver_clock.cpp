@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <ctime>
+#include <iterator>
 #include <utility>
 
 namespace helix::ui {
@@ -25,6 +26,9 @@ namespace {
 
 /// Breakpoint fonts a clock line may use, largest first.
 constexpr const char* kClockFonts[] = {"font_heading", "font_body", "font_small", "font_xs"};
+/// The same, led by the bold display face clock digits use.
+constexpr const char* kClockDisplayFonts[] = {"font_xl", "font_heading", "font_body", "font_small",
+                                              "font_xs"};
 
 /// A local struct tm at `minute_of_day` today, for the app's time formatters.
 struct tm tm_at_minute(int32_t minute_of_day) {
@@ -189,9 +193,12 @@ std::string clock_meridiem_text(ClockMeridiem meridiem) {
     return buf;
 }
 
-const lv_font_t* clock_font_fitting(int32_t height, int32_t width, const char* text) {
+const lv_font_t* clock_font_fitting(int32_t height, int32_t width, const char* text, bool display) {
     const lv_font_t* chosen = nullptr;
-    for (const char* token : kClockFonts) {
+    const auto fonts = display ? std::begin(kClockDisplayFonts) : std::begin(kClockFonts);
+    const auto end = display ? std::end(kClockDisplayFonts) : std::end(kClockFonts);
+    for (auto it = fonts; it != end; ++it) {
+        const char* token = *it;
         const lv_font_t* font = theme_manager_get_font(token);
         if (font == nullptr) {
             continue;

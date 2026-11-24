@@ -139,6 +139,7 @@
   <translation tag="20 minutes" zh="20分钟"/>
   <translation tag="24 Hour" zh="24 小时"/>
   <translation tag="24-hour" zh="24小时制"/>
+  <translation tag="24H" zh="24小时"/>
   <translation tag="270°" zh="270°"/>
   <translation tag="270° Clockwise" zh="顺时针 270°"/>
   <translation tag="2D Heatmap" zh="2D 热图"/>
@@ -431,6 +432,7 @@
   <translation tag="An unknown error occurred." zh="发生未知错误。"/>
   <translation tag="An unload was asked for, but the Box&apos;s buffer sensor sees no filament in the path." zh="请求了卸载，但料盒的缓冲器传感器在通路中检测不到耗材。"/>
   <translation tag="An update is available" zh="有可用更新"/>
+  <translation tag="Analog Clock" zh="指针时钟"/>
   <translation tag="Analyzing data..." zh="正在分析数据..."/>
   <translation tag="Analyzing data... {}s" zh="正在分析数据... {} 秒"/>
   <translation tag="Analyzing the {} axis" zh="正在分析 {} 轴"/>
@@ -556,6 +558,7 @@
   <translation tag="Basic" zh="标准"/>
   <translation tag="Batch load failed" zh="批量加载失败"/>
   <translation tag="Batch unload failed" zh="批量卸载失败"/>
+  <translation tag="Bauhaus" zh="包豪斯"/>
   <translation tag="Beacon auto-calibrate sent" zh="Beacon自动校准已发送"/>
   <translation tag="Beacon calibrate sent" zh="Beacon校准已发送"/>
   <translation tag="Bed" zh="热床"/>
@@ -992,6 +995,7 @@
   <translation tag="Choose what to power off or restart." zh="选择要关闭或重启的对象。"/>
   <translation tag="Choose which lane is in the toolhead to unload it" zh="请选择打印头里的料道以卸载"/>
   <translation tag="Choose which releases to get, and whether to share anonymous statistics." zh="选择要获取的版本，以及是否共享匿名统计数据。"/>
+  <translation tag="Chronograph" zh="计时码表"/>
   <translation tag="Chute position: X {:.1f}, Y {:.1f}" zh="排料口位置: X {:.1f}, Y {:.1f}"/>
   <translation tag="Clean" zh="清洁"/>
   <translation tag="Clean Brush" zh="清洁刷子"/>
@@ -1049,6 +1053,7 @@
   <translation tag="Cleared from settings — system unpair failed, may need OS Bluetooth" zh="已从设置中清除；系统解除配对失败，可能需使用系统蓝牙设置"/>
   <translation tag="Clipboard" zh="剪贴板"/>
   <translation tag="Clipboard unavailable - use SSH" zh="剪贴板不可用 - 请使用 SSH"/>
+  <translation tag="Clock Face" zh="表盘"/>
   <translation tag="Clog" zh="堵料"/>
   <translation tag="Clog Auto" zh="自动堵料"/>
   <translation tag="Clog Detection" zh="堵料检测"/>
@@ -1525,6 +1530,7 @@
   <translation tag="ELECTRONICS &amp; ACCESSORIES" zh="电子设备与配件"/>
   <translation tag="EMERGENCY STOP" zh="紧急停止"/>
   <translation tag="EMPTY" zh="空"/>
+  <translation tag="ENDS" zh="结束"/>
   <translation tag="ETA {}" zh="预计 {}"/>
   <translation tag="EXTRAS" zh="其他"/>
   <translation tag="Each correction increased the difference between the probe points: the Z motors are mapped to the wrong corners, or the probe is not repeatable." zh="每次校正都让探测点之间的差值变大：Z 电机对应的角落配置错误，或探针重复性差。"/>
@@ -2579,6 +2585,7 @@
   <translation tag="LED strip available for lighting control" zh="LED 灯带可用于照明控制"/>
   <translation tag="LED strip available. Add to config for lighting control?" zh="检测到 LED 灯带。添加到配置中以控制照明？"/>
   <translation tag="LEDs" zh="LED"/>
+  <translation tag="LEFT" zh="剩余"/>
   <translation tag="LOAD CELLS" zh="称重传感器"/>
   <translation tag="LOADED" zh="已加载"/>
   <translation tag="LOCKED" zh="已锁定"/>
@@ -3026,6 +3033,7 @@
   <translation tag="Needs you, about {}" zh="需要你操作，约 {}"/>
   <translation tag="Needs you, about {}: {}" zh="需要你操作，约 {}：{}"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" zh="需要 {}x{} 空位。请先移除或缩小小组件"/>
+  <translation tag="Neon" zh="霓虹"/>
   <translation tag="Net Weight (g)" zh="净重（克）"/>
   <translation tag="Network" zh="网络"/>
   <translation tag="Network Address" zh="网络地址"/>
@@ -3379,6 +3387,7 @@
   <translation tag="Or instead of turning the others" zh="或者，无需转动其他螺丝"/>
   <translation tag="Original" zh="原始"/>
   <translation tag="Original file location unknown" zh="原始文件位置未知"/>
+  <translation tag="Orrery" zh="太阳系仪"/>
   <translation tag="Oscillating... cycle %d/%d" zh="振荡中... 循环 %d/%d"/>
   <translation tag="Other" zh="其他"/>
   <translation tag="Other…" zh="其他…"/>
@@ -3408,6 +3417,7 @@
   <translation tag="PLA" zh="PLA"/>
   <translation tag="PLA - Black" zh="PLA - 黑色"/>
   <translation tag="POWER" zh="电源"/>
+  <translation tag="PRINT" zh="打印"/>
   <translation tag="PRINT OPTIONS" zh="打印选项"/>
   <translation tag="PRINTER" zh="打印机"/>
   <translation tag="PRINTER FIRMWARE" zh="打印机固件"/>
@@ -4468,6 +4478,7 @@
   <translation tag="Show whatever curves you last had visible on the full graph." zh="显示您上次在完整图表上可见的曲线。"/>
   <translation tag="Showing the 50 newest files. See more in the printer&apos;s web UI." zh="仅显示最新的 50 个文件。更多请在打印机网页界面查看。"/>
   <translation tag="Shows the new K next to the old one. You choose to save it" zh="在旧值旁显示新的 K 值，由你决定是否保存"/>
+  <translation tag="Shuffle" zh="轮换"/>
   <translation tag="Shut down or restart the host" zh="关闭或重启主机"/>
   <translation tag="Shutdown" zh="关机"/>
   <translation tag="Shutdown / Reboot" zh="关机 / 重启"/>
@@ -4655,6 +4666,7 @@
   <translation tag="State" zh="状态"/>
   <translation tag="Static" zh="静态"/>
   <translation tag="Station" zh="工位"/>
+  <translation tag="Station Clock" zh="车站时钟"/>
   <translation tag="Status" zh="状态"/>
   <translation tag="Status icons" zh="状态图标"/>
   <translation tag="Stay at the printer." zh="请留在打印机旁。"/>
@@ -5818,6 +5830,7 @@
   <translation tag="Where to look" zh="观察位置"/>
   <translation tag="Whether filament is loaded" zh="耗材是否已装载"/>
   <translation tag="Whether the Z arrows follow the bed or the Z value" zh="Z 按钮跟随热床还是 Z 值"/>
+  <translation tag="Which analog clock to show" zh="要显示的指针时钟"/>
   <translation tag="Which belt is each path?" zh="每条路径是哪条皮带?"/>
   <translation tag="Which belt is which?" zh="哪条皮带是哪条?"/>
   <translation tag="Which computer the Advanced power rows act on" zh="高级面板电源项作用的计算机"/>

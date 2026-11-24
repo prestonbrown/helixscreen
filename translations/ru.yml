@@ -204,6 +204,7 @@ translations:
   20 minutes: 20 минут
   24 Hour: 24 часа
   24-hour: 24-часовой
+  24H: '24 Ч'
   270°: 270°
   270° Clockwise: 270° по часовой стрелке
   2D Heatmap: 2D тепловая карта
@@ -508,6 +509,7 @@ translations:
   An unknown error occurred.: Произошла неизвестная ошибка.
   An unload was asked for, but the Box's buffer sensor sees no filament in the path.: Запрошена выгрузка, но датчик буфера Бокса не видит филамент в тракте.
   An update is available: Доступно обновление
+  Analog Clock: 'Аналоговые часы'
   Analyzing data...: Анализ данных...
   Analyzing data... {}s: Анализ данных... {} с
   Analyzing the {} axis: 'Анализ оси {}'
@@ -642,6 +644,7 @@ translations:
   Based on the newest {} prints: 'По последним печатям ({})'
   Batch load failed: Ошибка пакетной загрузки
   Batch unload failed: Ошибка пакетной выгрузки
+  Bauhaus: 'Баухаус'
   Beacon auto-calibrate sent: Beacon автокалибровка отправлена
   Beacon calibrate sent: Beacon калибровка отправлена
   Bed: Стол
@@ -1092,6 +1095,7 @@ translations:
   Choose the order of day, month and year: Выберите порядок дня, месяца и года
   Choose what to power off or restart.: Выберите, что выключить или перезагрузить.
   Choose which releases to get, and whether to share anonymous statistics.: 'Выберите, какие выпуски получать и делиться ли анонимной статистикой.'
+  Chronograph: 'Хронограф'
   'Chute position: X {:.1f}, Y {:.1f}': 'Позиция лотка прочистки: X {:.1f}, Y {:.1f}'
 
   Clean: 'Очистить'
@@ -1152,6 +1156,7 @@ translations:
   Cleared: Очищено
   Cleared from settings — system unpair failed, may need OS Bluetooth: Удалено из настроек; не удалось отменить сопряжение в системе, возможно нужен Bluetooth ОС
   Clipboard unavailable - use SSH: Буфер обмена недоступен - используйте SSH
+  Clock Face: 'Циферблат'
   Clog: Засор
   Clog Auto: 'Засор: авто'
   Clog Detection: Обнаружение засора
@@ -1679,6 +1684,7 @@ translations:
   ELECTRONICS & ACCESSORIES: 'ЭЛЕКТРОНИКА И АКСЕССУАРЫ'
   EMERGENCY STOP: АВАРИЙНАЯ ОСТАНОВКА
   EMPTY: ПУСТО
+  ENDS: 'КОНЕЦ'
   ETA {}: 'Окончание {}'
   EXTRAS: ДОПОЛНИТЕЛЬНО
   ? 'Each correction increased the difference between the probe points: the Z motors are mapped to the wrong corners, or the probe is not repeatable.'
@@ -2760,6 +2766,7 @@ translations:
   LED strip available for lighting control: Светодиодная лента доступна для управления освещением
   LED strip available. Add to config for lighting control?: 'Доступна LED-лента. Добавить в конфигурацию для управления подсветкой?'
   LEDs: LED
+  LEFT: 'ОСТАЛОСЬ'
   LOAD CELLS: 'ТЕНЗОДАТЧИКИ'
   LOADED: ЗАГРУЖЕН
   LOCKED: ЗАБЛОКИРОВАНО
@@ -3216,6 +3223,7 @@ translations:
   "Needs you, about {}": "Нужны вы, около {}"
   "Needs you, about {}: {}": "Нужны вы, около {}: {}"
   'Needs {}x{} free: remove or shrink a widget first': 'Требуется {}x{} свободного места: сначала удалите или уменьшите виджет'
+  Neon: 'Неон'
   Net Weight (g): Вес нетто (г)
   Network: Сеть
   Network Address: Сетевой адрес
@@ -3448,6 +3456,7 @@ translations:
   Nothing to tune here: "Здесь нечего настраивать"
   'Nothing to unload: no filament at the nozzle': 'Выгружать нечего: в сопле нет филамента'
   Whether the Z arrows follow the bed or the Z value: "Следуют ли стрелки Z за столом или за значением Z"
+  Which analog clock to show: 'Какие аналоговые часы показывать'
   Which belt is each path?: "Какой ремень у каждого пути?"
   Which belt is which?: "Где какой ремень?"
   Which computer the Advanced power rows act on: 'На какой компьютер действуют пункты питания в разделе Дополнительно'
@@ -3579,6 +3588,7 @@ translations:
   Or instead of turning the others: Или вместо вращения остальных винтов
   Original: 'Оригинал'
   Original file location unknown: Расположение исходного файла неизвестно
+  Orrery: 'Планетарий'
   Oscillating... cycle %d/%d: Осцилляция... цикл %d/%d
   Other: Другое
   Other…: 'Другое…'
@@ -3609,6 +3619,7 @@ translations:
   PLA: PLA
   PLA - Black: PLA - Чёрный
   POWER: ПИТАНИЕ
+  PRINT: 'ПЕЧАТЬ'
   PRINT OPTIONS: ПАРАМЕТРЫ ПЕЧАТИ
   PRINTER: ПРИНТЕР
   PRINTER FIRMWARE: 'ПРОШИВКА ПРИНТЕРА'
@@ -4697,6 +4708,7 @@ translations:
   Show whatever curves you last had visible on the full graph.: Показывать те кривые, что были видны на полном графике в последний раз.
   Showing the 50 newest files. See more in the printer's web UI.: 'Показаны 50 последних файлов. Остальные - в веб-интерфейсе принтера.'
   Shows the new K next to the old one. You choose to save it: Показывает новый K рядом со старым. Сохранять или нет, решаете вы
+  Shuffle: 'По очереди'
   Shut down or restart the host: Выключение или перезагрузка хоста
   Shutdown: Выключение
   Shutdown / Reboot: Выключение / Перезагрузка
@@ -4897,6 +4909,7 @@ translations:
   State: Состояние
   Static: 'Статический'
   Station: 'Станция'
+  Station Clock: 'Вокзальные часы'
   Status: Статус
   Status icons: Иконки статуса
   Stay at the printer.: Оставайтесь у принтера.

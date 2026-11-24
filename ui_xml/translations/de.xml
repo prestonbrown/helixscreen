@@ -139,6 +139,7 @@
   <translation tag="20 minutes" de="20 Minuten"/>
   <translation tag="24 Hour" de="24 Stunden"/>
   <translation tag="24-hour" de="24-Stunden"/>
+  <translation tag="24H" de="24 STD"/>
   <translation tag="270°" de="270°"/>
   <translation tag="270° Clockwise" de="270° im Uhrzeigersinn"/>
   <translation tag="2D Heatmap" de="2D-Heatmap"/>
@@ -431,6 +432,7 @@
   <translation tag="An unknown error occurred." de="Ein unbekannter Fehler ist aufgetreten."/>
   <translation tag="An unload was asked for, but the Box&apos;s buffer sensor sees no filament in the path." de="Ein Entladen wurde angefordert, aber der Puffersensor der Box erkennt kein Filament im Weg."/>
   <translation tag="An update is available" de="Eine Aktualisierung ist verfügbar"/>
+  <translation tag="Analog Clock" de="Analoguhr"/>
   <translation tag="Analyzing data..." de="Analysiere Daten..."/>
   <translation tag="Analyzing data... {}s" de="Analysiere Daten... {}s"/>
   <translation tag="Analyzing the {} axis" de="Die {}-Achse wird analysiert"/>
@@ -556,6 +558,7 @@
   <translation tag="Basic" de="Standard"/>
   <translation tag="Batch load failed" de="Mehrfachladen fehlgeschlagen"/>
   <translation tag="Batch unload failed" de="Mehrfachentladen fehlgeschlagen"/>
+  <translation tag="Bauhaus" de="Bauhaus"/>
   <translation tag="Beacon auto-calibrate sent" de="Beacon Auto-Kalibrierung gesendet"/>
   <translation tag="Beacon calibrate sent" de="Beacon Kalibrierung gesendet"/>
   <translation tag="Bed" de="Heizbett"/>
@@ -992,6 +995,7 @@
   <translation tag="Choose what to power off or restart." de="Wählen Sie, was ausgeschaltet oder neu gestartet werden soll."/>
   <translation tag="Choose which lane is in the toolhead to unload it" de="Wähle, welche Spur im Druckkopf steckt, um sie zu entladen"/>
   <translation tag="Choose which releases to get, and whether to share anonymous statistics." de="Wähle, welche Versionen du erhältst und ob du anonyme Statistiken teilst."/>
+  <translation tag="Chronograph" de="Chronograph"/>
   <translation tag="Chute position: X {:.1f}, Y {:.1f}" de="Position des Auswurfschachts: X {:.1f}, Y {:.1f}"/>
   <translation tag="Clean" de="Reinigen"/>
   <translation tag="Clean Brush" de="Bürste reinigen"/>
@@ -1049,6 +1053,7 @@
   <translation tag="Cleared from settings — system unpair failed, may need OS Bluetooth" de="Aus Einstellungen entfernt – System-Entkopplung fehlgeschlagen, ggf. OS-Bluetooth nötig"/>
   <translation tag="Clipboard" de="Zwischenablage"/>
   <translation tag="Clipboard unavailable - use SSH" de="Zwischenablage nicht verfügbar - verwenden Sie SSH"/>
+  <translation tag="Clock Face" de="Zifferblatt"/>
   <translation tag="Clog" de="Verstopfung"/>
   <translation tag="Clog Auto" de="Verstopfung Automatisch"/>
   <translation tag="Clog Detection" de="Verstopfungserkennung"/>
@@ -1525,6 +1530,7 @@
   <translation tag="ELECTRONICS &amp; ACCESSORIES" de="ELEKTRONIK &amp; ZUBEHÖR"/>
   <translation tag="EMERGENCY STOP" de="NOTAUS"/>
   <translation tag="EMPTY" de="LEER"/>
+  <translation tag="ENDS" de="ENDE"/>
   <translation tag="ETA {}" de="Ende {}"/>
   <translation tag="EXTRAS" de="EXTRAS"/>
   <translation tag="Each correction increased the difference between the probe points: the Z motors are mapped to the wrong corners, or the probe is not repeatable." de="Jede Korrektur hat den Unterschied zwischen den Messpunkten vergrößert: Die Z-Motoren sind den falschen Ecken zugeordnet oder der Taster misst nicht wiederholgenau."/>
@@ -2579,6 +2585,7 @@
   <translation tag="LED strip available for lighting control" de="LED-Streifen zur Beleuchtungssteuerung verfügbar"/>
   <translation tag="LED strip available. Add to config for lighting control?" de="LED-Streifen verfügbar. Zur Konfiguration hinzufügen, um die Beleuchtung zu steuern?"/>
   <translation tag="LEDs" de="LEDs"/>
+  <translation tag="LEFT" de="REST"/>
   <translation tag="LOAD CELLS" de="WÄGEZELLEN"/>
   <translation tag="LOADED" de="GELADEN"/>
   <translation tag="LOCKED" de="GESPERRT"/>
@@ -3026,6 +3033,7 @@
   <translation tag="Needs you, about {}" de="Braucht dich, etwa {}"/>
   <translation tag="Needs you, about {}: {}" de="Braucht dich, etwa {}: {}"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" de="Benötigt {}x{} an freiem Platz: zuerst ein Widget entfernen oder verkleinern"/>
+  <translation tag="Neon" de="Neon"/>
   <translation tag="Net Weight (g)" de="Nettogewicht (g)"/>
   <translation tag="Network" de="Netzwerk"/>
   <translation tag="Network Address" de="Netzwerkadresse"/>
@@ -3379,6 +3387,7 @@
   <translation tag="Or instead of turning the others" de="Oder statt die anderen zu drehen"/>
   <translation tag="Original" de="Original"/>
   <translation tag="Original file location unknown" de="Speicherort der Originaldatei unbekannt"/>
+  <translation tag="Orrery" de="Planetarium"/>
   <translation tag="Oscillating... cycle %d/%d" de="Oszilliert... Zyklus %d/%d"/>
   <translation tag="Other" de="Andere"/>
   <translation tag="Other…" de="Andere…"/>
@@ -3408,6 +3417,7 @@
   <translation tag="PLA" de="PLA"/>
   <translation tag="PLA - Black" de="PLA - Schwarz"/>
   <translation tag="POWER" de="STROM"/>
+  <translation tag="PRINT" de="DRUCK"/>
   <translation tag="PRINT OPTIONS" de="DRUCKOPTIONEN"/>
   <translation tag="PRINTER" de="DRUCKER"/>
   <translation tag="PRINTER FIRMWARE" de="DRUCKER-FIRMWARE"/>
@@ -4468,6 +4478,7 @@
   <translation tag="Show whatever curves you last had visible on the full graph." de="Zeigt die zuletzt im vollständigen Diagramm sichtbaren Kurven an."/>
   <translation tag="Showing the 50 newest files. See more in the printer&apos;s web UI." de="Es werden die 50 neuesten Dateien angezeigt. Mehr findest du in der Weboberfläche des Druckers."/>
   <translation tag="Shows the new K next to the old one. You choose to save it" de="Zeigt den neuen K neben dem alten. Du entscheidest, ob er gespeichert wird"/>
+  <translation tag="Shuffle" de="Abwechselnd"/>
   <translation tag="Shut down or restart the host" de="Host herunterfahren oder neu starten"/>
   <translation tag="Shutdown" de="Herunterfahren"/>
   <translation tag="Shutdown / Reboot" de="Herunterfahren / Neustart"/>
@@ -4655,6 +4666,7 @@
   <translation tag="State" de="Status"/>
   <translation tag="Static" de="Statisch"/>
   <translation tag="Station" de="Station"/>
+  <translation tag="Station Clock" de="Bahnhofsuhr"/>
   <translation tag="Status" de="Status"/>
   <translation tag="Status icons" de="Status-Icons"/>
   <translation tag="Stay at the printer." de="Bleib am Drucker."/>
@@ -5818,6 +5830,7 @@
   <translation tag="Where to look" de="Worauf du achten musst"/>
   <translation tag="Whether filament is loaded" de="Ob Filament geladen ist"/>
   <translation tag="Whether the Z arrows follow the bed or the Z value" de="Ob die Z-Pfeile dem Bett oder dem Z-Wert folgen"/>
+  <translation tag="Which analog clock to show" de="Welche Analoguhr angezeigt wird"/>
   <translation tag="Which belt is each path?" de="Welcher Riemen ist welcher Pfad?"/>
   <translation tag="Which belt is which?" de="Welcher Riemen ist welcher?"/>
   <translation tag="Which computer the Advanced power rows act on" de="Welchen Computer die Energie-Zeilen unter Erweitert betreffen"/>

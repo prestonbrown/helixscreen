@@ -139,6 +139,7 @@
   <translation tag="20 minutes" ja="20分"/>
   <translation tag="24 Hour" ja="24時間"/>
   <translation tag="24-hour" ja="24時間制"/>
+  <translation tag="24H" ja="24時間"/>
   <translation tag="270°" ja="270°"/>
   <translation tag="270° Clockwise" ja="270° 時計回り"/>
   <translation tag="2D Heatmap" ja="2Dヒートマップ"/>
@@ -431,6 +432,7 @@
   <translation tag="An unknown error occurred." ja="不明なエラーが発生しました。"/>
   <translation tag="An unload was asked for, but the Box&apos;s buffer sensor sees no filament in the path." ja="排出が要求されましたが、ボックスのバッファーセンサーが経路にフィラメントを検出していません。"/>
   <translation tag="An update is available" ja="更新があります"/>
+  <translation tag="Analog Clock" ja="アナログ時計"/>
   <translation tag="Analyzing data..." ja="データを解析中..."/>
   <translation tag="Analyzing data... {}s" ja="データを解析中... {}s"/>
   <translation tag="Analyzing the {} axis" ja="{}軸を解析中"/>
@@ -556,6 +558,7 @@
   <translation tag="Basic" ja="標準"/>
   <translation tag="Batch load failed" ja="一括装填に失敗しました"/>
   <translation tag="Batch unload failed" ja="一括排出に失敗しました"/>
+  <translation tag="Bauhaus" ja="バウハウス"/>
   <translation tag="Beacon auto-calibrate sent" ja="Beacon自動キャリブレーション送信済み"/>
   <translation tag="Beacon calibrate sent" ja="Beaconキャリブレーション送信済み"/>
   <translation tag="Bed" ja="ベッド"/>
@@ -992,6 +995,7 @@
   <translation tag="Choose what to power off or restart." ja="電源オフまたは再起動する対象を選択してください。"/>
   <translation tag="Choose which lane is in the toolhead to unload it" ja="取り出すには、ツールヘッドに入っているレーンを選んでください"/>
   <translation tag="Choose which releases to get, and whether to share anonymous statistics." ja="受け取るリリースと、匿名の統計を共有するかどうかを選択します。"/>
+  <translation tag="Chronograph" ja="クロノグラフ"/>
   <translation tag="Chute position: X {:.1f}, Y {:.1f}" ja="パージシュート位置: X {:.1f}, Y {:.1f}"/>
   <translation tag="Clean" ja="清掃"/>
   <translation tag="Clean Brush" ja="ブラシを清掃"/>
@@ -1049,6 +1053,7 @@
   <translation tag="Cleared from settings — system unpair failed, may need OS Bluetooth" ja="設定から削除しました。システムのペアリング解除に失敗、OS の Bluetooth 設定が必要な場合があります"/>
   <translation tag="Clipboard" ja="クリップボード"/>
   <translation tag="Clipboard unavailable - use SSH" ja="クリップボード利用不可 - SSHを使用してください"/>
+  <translation tag="Clock Face" ja="文字盤"/>
   <translation tag="Clog" ja="詰まり"/>
   <translation tag="Clog Auto" ja="詰まり: 自動"/>
   <translation tag="Clog Detection" ja="詰まり検出"/>
@@ -1525,6 +1530,7 @@
   <translation tag="ELECTRONICS &amp; ACCESSORIES" ja="電子機器とアクセサリー"/>
   <translation tag="EMERGENCY STOP" ja="緊急停止"/>
   <translation tag="EMPTY" ja="空"/>
+  <translation tag="ENDS" ja="終了"/>
   <translation tag="ETA {}" ja="終了予定 {}"/>
   <translation tag="EXTRAS" ja="その他"/>
   <translation tag="Each correction increased the difference between the probe points: the Z motors are mapped to the wrong corners, or the probe is not repeatable." ja="補正するたびにプローブ点の差が大きくなりました: Z モーターが違う角に割り当てられているか、プローブの再現性がありません。"/>
@@ -2579,6 +2585,7 @@
   <translation tag="LED strip available for lighting control" ja="照明制御用の LED ストリップが利用可能です"/>
   <translation tag="LED strip available. Add to config for lighting control?" ja="LEDストリップが使用可能です。照明制御のために設定に追加しますか？"/>
   <translation tag="LEDs" ja="LED"/>
+  <translation tag="LEFT" ja="残り"/>
   <translation tag="LOAD CELLS" ja="ロードセル"/>
   <translation tag="LOADED" ja="装填済み"/>
   <translation tag="LOCKED" ja="ロック中"/>
@@ -3026,6 +3033,7 @@
   <translation tag="Needs you, about {}" ja="操作が必要、約 {}"/>
   <translation tag="Needs you, about {}: {}" ja="操作が必要、約 {}: {}"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" ja="空き {}x{} が必要です。先にウィジェットを削除または縮小してください"/>
+  <translation tag="Neon" ja="ネオン"/>
   <translation tag="Net Weight (g)" ja="正味重量（g）"/>
   <translation tag="Network" ja="ネットワーク"/>
   <translation tag="Network Address" ja="ネットワークアドレス"/>
@@ -3379,6 +3387,7 @@
   <translation tag="Or instead of turning the others" ja="他のネジを回す代わりに"/>
   <translation tag="Original" ja="オリジナル"/>
   <translation tag="Original file location unknown" ja="元のファイルの場所が不明です"/>
+  <translation tag="Orrery" ja="太陽系儀"/>
   <translation tag="Oscillating... cycle %d/%d" ja="振動中... サイクル %d/%d"/>
   <translation tag="Other" ja="その他"/>
   <translation tag="Other…" ja="その他…"/>
@@ -3408,6 +3417,7 @@
   <translation tag="PLA" ja="PLA"/>
   <translation tag="PLA - Black" ja="PLA - ブラック"/>
   <translation tag="POWER" ja="電源"/>
+  <translation tag="PRINT" ja="印刷"/>
   <translation tag="PRINT OPTIONS" ja="印刷オプション"/>
   <translation tag="PRINTER" ja="プリンター"/>
   <translation tag="PRINTER FIRMWARE" ja="プリンターのファームウェア"/>
@@ -4468,6 +4478,7 @@
   <translation tag="Show whatever curves you last had visible on the full graph." ja="フルグラフで最後に表示していた曲線を表示します。"/>
   <translation tag="Showing the 50 newest files. See more in the printer&apos;s web UI." ja="最新の50ファイルを表示しています。それ以外はプリンターのWeb画面で確認してください。"/>
   <translation tag="Shows the new K next to the old one. You choose to save it" ja="新しいKを以前の値と並べて表示します。保存するかはあなたが選びます"/>
+  <translation tag="Shuffle" ja="毎回変える"/>
   <translation tag="Shut down or restart the host" ja="ホストのシャットダウンまたは再起動"/>
   <translation tag="Shutdown" ja="シャットダウン"/>
   <translation tag="Shutdown / Reboot" ja="シャットダウン / 再起動"/>
@@ -4655,6 +4666,7 @@
   <translation tag="State" ja="状態"/>
   <translation tag="Static" ja="固定"/>
   <translation tag="Station" ja="ステーション"/>
+  <translation tag="Station Clock" ja="駅の時計"/>
   <translation tag="Status" ja="ステータス"/>
   <translation tag="Status icons" ja="ステータスアイコン"/>
   <translation tag="Stay at the printer." ja="プリンターのそばにいてください。"/>
@@ -5818,6 +5830,7 @@
   <translation tag="Where to look" ja="見る場所"/>
   <translation tag="Whether filament is loaded" ja="フィラメントの装填状態"/>
   <translation tag="Whether the Z arrows follow the bed or the Z value" ja="ZボタンがベッドとZ値のどちらに従うか"/>
+  <translation tag="Which analog clock to show" ja="表示するアナログ時計"/>
   <translation tag="Which belt is each path?" ja="各パスはどのベルト?"/>
   <translation tag="Which belt is which?" ja="どのベルトがどれ?"/>
   <translation tag="Which computer the Advanced power rows act on" ja="詳細設定の電源項目が操作するコンピューター"/>
