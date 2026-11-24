@@ -9,10 +9,10 @@
 #include "ui_toast_manager.h"
 
 #include "app_globals.h"
-#include "bed_plate_context.h"
 #include "core/observer_factory.h"
 #include "core/run_after.h"
 #include "i_moonraker_api.h"
+#include "pa_tower_start.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 
@@ -314,16 +314,14 @@ void PaNonlinearOverlay::confirm_print() {
     if (stage_ != READY || !proc_ || proc_->done()) {
         return;
     }
-    ensure_bed_clear_then(lifetime_.token(), [this]() {
-        modal_confirm(
-            lv_tr("Print the test tower?"),
-            fmt::format(fmt::runtime(lv_tr("Clear the plate and load {}. The firmware prints its "
-                                           "tower in the middle of the bed while it sweeps {}.")),
-                        params_.material, param_label(proc_->current().sweep.param))
-                .c_str(),
-            ModalSeverity::Warning, lv_tr("Start"),
-            []() { get_global_pa_nonlinear_overlay().print_pass(); }, owned_confirm());
-    });
+    if (refuse_empty_toolhead(params_.tool, object_lifetime_.token())) {
+        return;
+    }
+    confirm_tower_print(
+        fmt::format(fmt::runtime(lv_tr("Clear the plate and load {}. The firmware prints its "
+                                       "tower in the middle of the bed while it sweeps {}.")),
+                    params_.material, param_label(proc_->current().sweep.param)),
+        object_lifetime_.token(), []() { get_global_pa_nonlinear_overlay().print_pass(); });
 }
 
 void PaNonlinearOverlay::print_pass() {
@@ -336,6 +334,9 @@ void PaNonlinearOverlay::print_pass() {
     }
     if (!tower_available()) {
         fail(lv_tr("The test tower is not in the printer's config yet."));
+        return;
+    }
+    if (refuse_empty_toolhead(params_.tool, object_lifetime_.token())) {
         return;
     }
     std::string script;

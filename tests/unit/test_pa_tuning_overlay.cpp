@@ -114,6 +114,8 @@ TEST_CASE_METHOD(TunerFixture, "the tuner ramps K on its own print and takes a n
     CHECK(overlay.stage() == PaTuningOverlay::RESULT);
     CHECK(client.last_send_script() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0000");
     CHECK(shown("pa_tune_result_k") == "0.0000");
+    // A classic K can be written to the extruder's config section.
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_tune_can_save_config")) == 1);
 }
 
 TEST_CASE_METHOD(TunerFixture, "a finished state from an earlier print does not end the run",
@@ -238,6 +240,8 @@ TEST_CASE_METHOD(TunerFixture,
     CHECK(client.last_send_script() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0100");
 
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_tune_can_save_spool")) == 0);
+    // pressure_advance is not a key a nonlinear model reads.
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_tune_can_save_config")) == 0);
     CHECK(client.mock_db_get(pa::kMoonrakerNamespace, pa::kMoonrakerKey).is_null());
 }
 
@@ -420,4 +424,42 @@ TEST_CASE_METHOD(TunerFixture, "the Tune row's Tuner button follows the run whil
     overlay.apply_pick_for_test();
     REQUIRE_FALSE(overlay.session_active());
     CHECK(lv_subject_get_int(active) == 0);
+}
+
+TEST_CASE_METHOD(TunerFixture, "no K is sent while the start macro is still heating",
+                 "[pa_tune][pa_tuner][timeout]") {
+    start_session();
+    // Printing, but no layer yet: PRINT_START is still homing and heating, and a
+    // SET_PRESSURE_ADVANCE sent now would queue behind its M190.
+    printing(0);
+    CHECK(client.last_send_script().find("SET_PRESSURE_ADVANCE") == std::string::npos);
+    printing(1);
+    CHECK(client.last_send_script() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0000");
+}
+
+TEST_CASE_METHOD(TunerFixture, "ending the test puts the original K back before any pick",
+                 "[pa_tune][pa_tuner][restore]") {
+    start_session(); // the printer ran K 0.04 before the test
+    printing(1);
+    report_k(0.0);
+    printing(22);
+    report_k(0.01);
+    // A cancel never reaches the tower's own restore line.
+    status({{"print_stats", {{"state", "cancelled"}}}});
+    REQUIRE(overlay.stage() == PaTuningOverlay::PICK);
+    CHECK(client.last_send_script() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0400");
+}
+
+TEST_CASE_METHOD(TunerFixture, "a classic K tower is refused on a nonlinear extruder",
+                 "[pa_tune][pa_tuner][pa_model]") {
+    status({{"extruder", {{"pressure_advance_model", "tanh"}, {"linear_advance", 0.02}}}});
+    REQUIRE(get_printer_state().temperature_state().extruder_pa_model("extruder").nonlinear());
+    overlay.choose_model_for_test(false);
+
+    overlay.confirm_and_start_for_test();
+    CHECK_FALSE(overlay.error_for_test().empty());
+    CHECK(overlay.stage() == PaTuningOverlay::SETUP);
+    CHECK(client.last_send_script().find("ADVANCE=") == std::string::npos);
+    // The setup now offers the Nonlinear tuner instead.
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_tune_nl_mode")) == 1);
 }

@@ -185,12 +185,16 @@ void BedDryingController::cancel_timer() {
     timer_ = nullptr;
 }
 
-std::optional<bool> BedDryingController::toolhead_loaded() const {
+std::optional<bool> current_toolhead_loaded() {
     const auto& fsm = FilamentSensorManager::instance();
     lv_subject_t* ams_loaded = AmsState::instance().get_filament_loaded_subject();
     return toolhead_loaded_from(sensor_answer(fsm, FilamentSensorRole::TOOLHEAD),
                                 sensor_answer(fsm, FilamentSensorRole::RUNOUT),
                                 ams_loaded && lv_subject_get_int(ams_loaded) != 0);
+}
+
+std::optional<bool> BedDryingController::toolhead_loaded() const {
+    return current_toolhead_loaded();
 }
 
 int BedDryingController::bed_temp_for(const Material& material) const {

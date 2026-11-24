@@ -25,7 +25,8 @@ firmware-measured calibration is a separate screen (`include/ui_panel_calibratio
 2. `pa::generate_test_gcode()` writes a 40 mm hollow square tower centred on the bed
    (`toolhead.axis_minimum/maximum` in gcode space): two walls at 100 mm/s, 0.2 mm
    layers (line width from `[extruder] nozzle_diameter`), a 1 mm base, ten 3 mm bands, a
-   brim and a prime line. It starts through the printer's own start macro, found by
+   brim and a prime line (skipped when the start macro already purges, per
+   `PrintStartAnalyzer`). It starts through the printer's own start macro, found by
    `pa::pick_machine_macros()` among `PrintStartAnalyzer::kMacroNames` in the discovered
    macro set, passing bed and nozzle temperatures under the parameter names that macro
    takes (`BED_TEMP`/`BED`/..., `EXTRUDER_TEMP`/`EXTRUDER`/...). A macro that takes no
@@ -48,10 +49,14 @@ field added to the extruder subscription),
    whoever changed it, so the log is the truth even when a console command or a macro
    interfered.
 6. When the print ends by any route (completion, End Test, error) the picker shows the
-   log merged into bands (height range -> K). Pick one or keep the current value. A run
-   that printed no layer, or one the user discards, restores the K it started with.
+   log merged into bands (height range -> K). Pick one or keep the current value. The K
+   the run started with is put back the moment the print ends, so a cancelled tower never
+   leaves a test K live; only an accepted band changes it. A run that printed no layer,
+   or one the user discards, also restores the K it started with.
 7. The result is applied live and shown with a note to enter it in the slicer's filament
-   profile. Save to Spool writes it to the active spool's Spoolman filament. It is always
+   profile. Save to Config writes `pressure_advance` into the extruder's section (the
+   same `KlipperConfigEditor` route the nonlinear tuner saves through, with a Klipper
+   restart). Save to Spool writes it to the active spool's Spoolman filament. It is always
    published to Moonraker's database (below).
 
 The run belongs to the overlay object, not its widget tree: backing out to Print Status
@@ -74,6 +79,18 @@ keeps the ramp going, and the Tune overlay shows a Tuner button while a run is a
 - **The file is spent.** When the tower's print ends by any route, or fails to start,
   `helix_pa_tuning.gcode` is deleted from the printer; history then marks the job's
   file as gone and offers no reprint, which would restore a stale K.
+- **One question before a tower.** Both tuners ask "Print the test tower?" and nothing
+  else (`confirm_tower_print()`, `include/pa_tower_start.h`); Start marks the bed cleared.
+  An empty toolhead refuses the tower first (`refuse_empty_toolhead()`, from the head's own
+  `head_has_filament()` or the toolhead sensors) and offers the Filament panel; an unknown
+  state never blocks.
+- **No K before layer 1.** The start macro is still heating until the first layer reports,
+  and a `SET_PRESSURE_ADVANCE` sent earlier waits behind its `M190` and times out. The
+  ramp's first K goes out with layer 1.
+- **A nonlinear extruder refuses the classic tower**: a bare `ADVANCE=` replaces only
+  `linear_advance` and keeps the tuned offset. The setup steers to the Nonlinear tuner.
+- **Done** leaves the tower's Print Status page off the stack, so it returns to where the
+  tuner was opened and no Reprint of the tower stays reachable.
 - **Foreign prints.** Outside the run's own print, nothing sends K while
   `job_holds_machine()`: a pick, a discard or a restore never lands in another job.
 - **Printable area.** `pa::printable_area()`: the `[bed_mesh]` plate within the axes, so
