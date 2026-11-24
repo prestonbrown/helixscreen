@@ -560,12 +560,13 @@ TEST_CASE_METHOD(NonlinearFixture,
     overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
     CHECK_FALSE(overlay.holds_machine_busy_for_test());
     overlay.print_pass_for_test();
-    // The start script is out until its reply is delivered.
+    // The start script homes and heats.
     REQUIRE(overlay.stage() == PaNonlinearOverlay::PREPARING);
     CHECK(overlay.holds_machine_busy_for_test());
-    // Once PRINT_PA_TOWER has returned, the tower's print job keeps the E-stop up.
+    // PRINT_PA_TOWER answers before the start macro's moves drain and before
+    // the tower's job exists: the token holds until the job reports printing.
     helix::ui::UpdateQueue::instance().drain();
-    CHECK_FALSE(overlay.holds_machine_busy_for_test());
+    CHECK(overlay.holds_machine_busy_for_test());
     tower("printing");
     CHECK_FALSE(overlay.holds_machine_busy_for_test());
 }
