@@ -9,6 +9,7 @@
 #include "ui_nav.h"
 #include "ui_overlay_pa_nonlinear.h"
 #include "ui_panel_print_select.h"
+#include "ui_panel_print_status.h"
 #include "ui_print_start_controller.h"
 #include "ui_print_tune_overlay.h"
 #include "ui_toast_manager.h"
@@ -23,6 +24,7 @@
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "macro_param_cache.h"
+#include "pa_tower_start.h"
 #include "preset_materials.h"
 #include "print_start_analyzer.h"
 #include "printer_state.h"
@@ -149,6 +151,7 @@ void PaTuningOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_STRING(spoolman_text_, spoolman_text_buf_, "", "pa_tune_spoolman_text",
                                   subjects_);
         UI_MANAGED_SUBJECT_INT(can_save_spool_, 0, "pa_tune_can_save_spool", subjects_);
+        UI_MANAGED_SUBJECT_INT(can_save_config_, 0, "pa_tune_can_save_config", subjects_);
         UI_MANAGED_SUBJECT_STRING(error_, error_buf_, "", "pa_tune_error", subjects_);
     });
 }
@@ -220,6 +223,8 @@ void PaTuningOverlay::register_callbacks() {
         {"on_pa_tune_keep",
          [](lv_event_t*) { get_global_pa_tuning_overlay().select_band(kMaxBands); }},
         {"on_pa_tune_apply", [](lv_event_t*) { get_global_pa_tuning_overlay().apply_pick(); }},
+        {"on_pa_tune_save_config",
+         [](lv_event_t*) { get_global_pa_tuning_overlay().save_to_config(); }},
         {"on_pa_tune_save_spool",
          [](lv_event_t*) { get_global_pa_tuning_overlay().save_to_spool(); }},
         {"on_pa_tune_discard",
@@ -251,13 +256,21 @@ void PaTuningOverlay::on_activate() {
         heads_.refresh();
         refresh_presets();
         refresh_setup();
+        analyze_start_macro();
     } else if (stage_ == RUNNING || stage_ == STARTING) {
         refresh_running();
     }
     set_stage(stage_);
 }
 
+void PaTuningOverlay::on_deactivating(DeactivateReason reason) {
+    // A covered or closed tuner no longer waits on the user; on_activate() re-applies.
+    decision_awake_.reset();
+    OverlayBase::on_deactivating(reason);
+}
+
 void PaTuningOverlay::cleanup() {
+    decision_awake_.reset();
     active_tool_observer_.reset();
     stop_observing();
     OverlayBase::cleanup();
@@ -269,6 +282,11 @@ bool PaTuningOverlay::session_active() const {
 
 void PaTuningOverlay::set_stage(Stage s) {
     stage_ = s;
+    if (s == PICK) {
+        decision_awake_.acquire();
+    } else {
+        decision_awake_.reset();
+    }
     if (subjects_initialized_) {
         lv_subject_set_int(&stage_subject_, s);
     }
@@ -353,6 +371,7 @@ helix::pa::TestPrintParams PaTuningOverlay::build_params() const {
     p.filament_diameter_mm = state.get_discovery().filament_diameter_mm();
     p.nozzle_diameter_mm = state.get_discovery().nozzle_diameter_mm();
     p.macros = machine_macros();
+    p.skip_prime = start_macro_purges_;
     if (const auto area = printable_area()) {
         p.bed_x_min = area->x_min;
         p.bed_x_max = area->x_max;
@@ -423,6 +442,32 @@ std::optional<helix::pa::PrintArea> PaTuningOverlay::printable_area() {
     return helix::pa::printable_area(src);
 }
 
+void PaTuningOverlay::analyze_start_macro() {
+    if (!api_ || start_analysis_in_flight_) {
+        return;
+    }
+    start_analysis_in_flight_ = true;
+    auto tok = object_lifetime_.token();
+    PrintStartAnalyzer analyzer;
+    analyzer.analyze(
+        api_,
+        [tok, this](const PrintStartAnalysis& analysis) {
+            tok.defer("PaTuningOverlay::start_macro_analysed",
+                      [this, purges = analysis.has_operation(PrintStartOpCategory::PURGE_LINE)]() {
+                          start_analysis_in_flight_ = false;
+                          start_macro_purges_ = purges;
+                          spdlog::debug("[{}] Start macro {} a purge line", get_name(),
+                                        purges ? "draws" : "draws no");
+                      });
+        },
+        [tok, this](const MoonrakerError& err) {
+            tok.defer("PaTuningOverlay::start_macro_analysis_failed", [this, msg = err.message]() {
+                start_analysis_in_flight_ = false;
+                spdlog::debug("[{}] Start macro analysis failed: {}", get_name(), msg);
+            });
+        });
+}
+
 void PaTuningOverlay::refresh_model_choice() {
     const auto model =
         get_printer_state().temperature_state().extruder_pa_model(chosen_head().extruder);
@@ -473,8 +518,8 @@ void PaTuningOverlay::refresh_setup() {
     std::string text = fmt::format("{} {}", summary, starts);
     if (get_printer_state().temperature_state().extruder_pa_model(params.heater).nonlinear()) {
         text += " ";
-        text += lv_tr("This extruder runs the nonlinear model, so the tower sweeps its linear "
-                      "advance, not a classic K.");
+        text += lv_tr("This extruder runs the nonlinear model. A classic K tower would overwrite "
+                      "part of it: use the Nonlinear tuner.");
     }
     lv_subject_set_string(&summary_, text.c_str());
 
@@ -490,10 +535,6 @@ ConfirmOptions PaTuningOverlay::owned_confirm() {
 }
 
 void PaTuningOverlay::confirm_and_start() {
-    ensure_bed_clear_then(lifetime_.token(), [this]() { confirm_once_bed_clear(); });
-}
-
-void PaTuningOverlay::confirm_once_bed_clear() {
     if (stage_ != SETUP) {
         return;
     }
@@ -505,7 +546,10 @@ void PaTuningOverlay::confirm_once_bed_clear() {
         return;
     }
     const auto params = build_params();
-    if (refuse_unmountable_head(params)) {
+    if (refuse_unmountable_head(params) || refuse_nonlinear_model(params)) {
+        return;
+    }
+    if (refuse_empty_toolhead(params.tool, object_lifetime_.token())) {
         return;
     }
     const std::string msg = fmt::format(
@@ -515,9 +559,8 @@ void PaTuningOverlay::confirm_once_bed_clear() {
                     params.material),
         lv_tr("Pressure advance climbs as the tower grows. Watch the corners: tap - or + "
               "whenever you like and the ramp stops so you can judge your own value."));
-    modal_confirm(
-        lv_tr("Print the test tower?"), msg.c_str(), ModalSeverity::Warning, lv_tr("Start"),
-        []() { get_global_pa_tuning_overlay().begin_upload(); }, owned_confirm());
+    confirm_tower_print(msg, object_lifetime_.token(),
+                        []() { get_global_pa_tuning_overlay().begin_upload(); });
 }
 
 void PaTuningOverlay::fail_start(const std::string& message) {
@@ -546,6 +589,18 @@ bool PaTuningOverlay::refuse_unmountable_head(const helix::pa::TestPrintParams& 
     return true;
 }
 
+bool PaTuningOverlay::refuse_nonlinear_model(const helix::pa::TestPrintParams& params) {
+    // SET_PRESSURE_ADVANCE ADVANCE= under a nonlinear model replaces only
+    // linear_advance and keeps the tuned offset: a mix nobody tuned.
+    if (!helix::tune::pressure_advance_is_nonlinear(params.heater)) {
+        return false;
+    }
+    nl_mode_choice_ = true;
+    fail_start(lv_tr("This printer runs a nonlinear pressure advance model, and a classic K "
+                     "tower would overwrite part of it. Use the Nonlinear tuner."));
+    return true;
+}
+
 bool PaTuningOverlay::refuse_blocked_nozzle() {
     // The tower heats its extruder by name, which no printer-side M104 guard
     // sees, so the filament system's refusal is checked here.
@@ -562,11 +617,15 @@ void PaTuningOverlay::begin_upload() {
         fail_start(lv_tr("No connection to the printer."));
         return;
     }
+    if (job_holds_machine(get_printer_state().print_state().get_print_lifecycle())) {
+        fail_start(lv_tr("A print is already running."));
+        return;
+    }
     if (refuse_blocked_nozzle()) {
         return;
     }
     const auto params = build_params();
-    if (refuse_unmountable_head(params)) {
+    if (refuse_unmountable_head(params) || refuse_nonlinear_model(params)) {
         return;
     }
     const float size_needed = params.geometry.size_mm + 2.0f * kBedMarginMm;
@@ -657,6 +716,9 @@ void PaTuningOverlay::delete_tower_file() {
 
 void PaTuningOverlay::begin_observing() {
     auto& state = get_printer_state();
+    // Whatever layer the last job left behind is not this run's: the PRINTING
+    // edge replays a layer only if it moved since here.
+    layer_at_observe_ = lv_subject_get_int(state.print_state().get_print_layer_current_subject());
     const auto lifetime = state.get_subjects_lifetime();
     pa_observer_ = helix::ui::observe<int>(
         state.temperature_state().get_active_extruder_pressure_advance_subject(), this,
@@ -686,8 +748,16 @@ void PaTuningOverlay::on_print_state(PrintJobState state) {
             return;
         }
         saw_printing_ = true;
-        session_.on_print_started();
+        // The session starts ramping at the first layer, not here: until then the
+        // start macro is still heating, and a K sent now would queue behind its
+        // M190 and time out. A layer that arrived in the same status frame, ahead of
+        // the state, is replayed here.
         set_stage(RUNNING);
+        if (const int layer = lv_subject_get_int(
+                get_printer_state().print_state().get_print_layer_current_subject());
+            layer != layer_at_observe_) {
+            on_layer(layer);
+        }
         refresh_running();
         // Print Status opens itself on every print start; the tuner is what
         // this print is for, so it goes back on top once that push has run.
@@ -705,13 +775,43 @@ void PaTuningOverlay::on_print_state(PrintJobState state) {
     stop_observing();
     delete_tower_file();
     if (session_.state() == helix::pa::TuningSession::State::Picking) {
+        restore_original_k();
         picked_ = -1;
         refresh_bands();
         set_stage(PICK);
+        leave_print_status();
         spdlog::info("[{}] Test print ended; {} bands to pick from", get_name(),
                      session_.bands().size());
     } else {
         fail_start(lv_tr("The print ended before any layer was printed. Nothing was changed."));
+    }
+}
+
+void PaTuningOverlay::restore_original_k() {
+    // A test K stays live on a cancelled tower, which never reaches its own
+    // restore. Until the user accepts a band, the machine keeps the K it had.
+    const auto original = session_.original_k();
+    if (!original || std::fabs(session_.current_k() - *original) < 0.00005f) {
+        return;
+    }
+    send_k(*original);
+}
+
+void PaTuningOverlay::leave_print_status() {
+    // The tower's Print Status page offers a Reprint that would run the tower
+    // outside the tuner. It goes, so the way out of the tuner leads back to where
+    // the tuner was opened from, with the tuner on top until then.
+    lv_obj_t* page = print_status_page_source_ ? print_status_page_source_() : nullptr;
+    if (!page && !print_status_page_source_) {
+        if (auto* print_status = helix::lazy_global_if_exists<PrintStatusPanel>()) {
+            page = print_status->get_panel();
+        }
+    }
+    if (page && helix::nav::is_in_stack(page)) {
+        helix::nav::close_overlay(page);
+    }
+    if (raise_on_start_) {
+        object_lifetime_.defer("PaTuningOverlay::raise", [this]() { raise(kRaiseAttempts); });
     }
 }
 
@@ -838,7 +938,7 @@ void PaTuningOverlay::refresh_bands(bool newest_first) {
     lv_subject_set_int(&band_count_, n);
     lv_subject_set_int(&keep_selected_, picked_ == kMaxBands ? 1 : 0);
     lv_subject_set_string(&keep_text_, fmt::format(fmt::runtime(lv_tr("Keep current ({})")),
-                                                   helix::pa::format_k(session_.current_k()))
+                                                   helix::pa::format_k(session_.ending_k()))
                                            .c_str());
     lv_subject_set_int(&has_pick_, picked_ >= 0 ? 1 : 0);
 }
@@ -884,6 +984,7 @@ void PaTuningOverlay::show_result() {
     lv_subject_set_string(&result_k_, text.c_str());
     active_spool_.reset();
     lv_subject_set_int(&can_save_spool_, 0);
+    lv_subject_set_int(&can_save_config_, 0);
 
     // Under a nonlinear model the tower swept linear_advance. That is no
     // classic K: a spool or a slicer reading the published record would apply
@@ -891,9 +992,9 @@ void PaTuningOverlay::show_result() {
     if (get_printer_state().temperature_state().extruder_pa_model(extruder_).nonlinear()) {
         lv_subject_set_string(
             &result_note_,
-            fmt::format(fmt::runtime(lv_tr("Applied to {} as linear_advance, the nonlinear "
-                                           "model's high-speed slope. Klipper forgets it on "
-                                           "restart: enter {} as linear_advance in the "
+            fmt::format(fmt::runtime(lv_tr("{} runs a nonlinear model, so this value was not "
+                                           "applied: a classic K would replace only part of it. "
+                                           "To use {} as linear_advance, enter it in the "
                                            "extruder's config section.")),
                         extruder_label(), text)
                 .c_str());
@@ -904,12 +1005,14 @@ void PaTuningOverlay::show_result() {
 
     lv_subject_set_string(
         &result_note_,
-        fmt::format(fmt::runtime(lv_tr("Applied to {}. Klipper forgets it on restart: enter "
-                                       "{} as Pressure advance in your slicer's filament "
-                                       "profile, or save it to the spool.")),
-                    extruder_label(), text)
+        fmt::format(
+            fmt::runtime(lv_tr("Applied to {}. Klipper forgets it on restart: save {} to the "
+                               "config, or enter it as Pressure advance in your "
+                               "slicer's filament profile, or save it to the spool.")),
+            extruder_label(), text)
             .c_str());
     lv_subject_set_string(&spoolman_text_, lv_tr("Looking for the active spool..."));
+    lv_subject_set_int(&can_save_config_, api_ ? 1 : 0);
     set_stage(RESULT);
 
     if (!api_) {
@@ -996,6 +1099,53 @@ void PaTuningOverlay::save_to_spool() {
                 lv_subject_set_int(&can_save_spool_, 1);
                 helix::notify_error_tr(TR_NOOP("Failed to save to Spoolman: {}"), err);
             }));
+}
+
+void PaTuningOverlay::save_to_config() {
+    const auto k = session_.result();
+    if (stage_ != RESULT || !k || !api_ || lv_subject_get_int(&can_save_config_) != 1) {
+        return;
+    }
+    const std::string value = helix::pa::format_k(*k);
+    confirm_config_rewrite(
+        lv_tr("Save to the printer config?"),
+        fmt::format(fmt::runtime(lv_tr("Pressure advance {} is written to the {} section.")), value,
+                    extruder_)
+            .c_str(),
+        lv_tr("Save"), []() { get_global_pa_tuning_overlay().write_config(); }, owned_confirm());
+}
+
+PaTuningOverlay::ConfigWrite PaTuningOverlay::config_write_for(const std::string& extruder,
+                                                               float k) {
+    const std::string value = helix::pa::format_k(k);
+    return {{{helix::system::ConfigEdit::Type::ADD_KEY, "pressure_advance", value}},
+            {{extruder, "pressure_advance", value}}};
+}
+
+void PaTuningOverlay::write_config() {
+    const auto k = session_.result();
+    if (stage_ != RESULT || !k || !api_) {
+        return;
+    }
+    const ConfigWrite write = config_write_for(extruder_, *k);
+    lv_subject_set_int(&can_save_config_, 0);
+    lv_subject_set_string(&spoolman_text_, lv_tr("Writing printer.cfg and restarting Klipper"));
+    auto token = object_lifetime_.token();
+    config_editor_.safe_multi_edit(
+        *api_, extruder_, write.edits,
+        [token, this]() {
+            token.defer("PaTuningOverlay::config_saved", [this]() {
+                lv_subject_set_string(&spoolman_text_,
+                                      lv_tr("Saved to the printer config. It survives a restart."));
+            });
+        },
+        [token, this](const std::string& err) {
+            token.defer("PaTuningOverlay::config_save_failed", [this, err]() {
+                lv_subject_set_int(&can_save_config_, 1);
+                lv_subject_set_string(&spoolman_text_, err.c_str());
+            });
+        },
+        15000, write.expected);
 }
 
 void PaTuningOverlay::publish_to_moonraker(float k) {

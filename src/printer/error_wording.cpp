@@ -404,6 +404,13 @@ constexpr Row kKlipperRows[] = {
     {"FS-1", "Filament runout", nullptr, nullptr, false, C::Filament, S::FollowPrint, nullptr,
      nullptr, nullptr},
 
+    // AFC reports a failed Moonraker lookup (file metadata, stats) as a console
+    // error. It is AFC's own bookkeeping, stops nothing, and fires on every
+    // virtual print Moonraker has no file for (Kalico's PRINT_PA_TOWER), so it
+    // never blocks. Classify-only: AFC's own text is what the toast shows.
+    {"AFC-1", "Error getting data from moonraker", nullptr, nullptr, false, C::Filament, S::Warning,
+     nullptr, nullptr, nullptr},
+
     // ---- Macros and G-code ----
     // Classify-only, for the journal: an unknown command answers on a `//`
     // info line, a malformed one as a console error the generic rule presents.

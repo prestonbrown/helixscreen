@@ -529,6 +529,8 @@ translations:
   : "Применено к {} как linear_advance, наклон нелинейной модели на высокой скорости. Klipper забывает это при перезапуске: введите {} как linear_advance в секции экструдера конфигурации."
   ? "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   : 'Применено к {}. Klipper забудет значение после перезапуска: укажите {} как Pressure Advance в профиле филамента в слайсере или сохраните его на катушку.'
+  ? "Applied to {}. Klipper forgets it on restart: save {} to the config, or enter it as Pressure advance in your slicer's filament profile, or save it to the spool."
+  : "Применено к {}. Klipper забывает значение при перезапуске: сохраните {} в конфигурации, введите его как Pressure advance в профиле филамента слайсера или сохраните на катушке."
   Applies to: Применяется к
   Apply: Применить
   Apply a thin film of the lubricant your manual names.: "Нанесите тонкий слой смазки, указанной в руководстве."
@@ -692,6 +694,7 @@ translations:
   Belts: "Ремни"
   Belts already match: "Ремни уже совпадают"
   Belts stretch and settle; loose ones cause ringing and layer shifts.: "Ремни растягиваются и садятся; слабые вызывают рябь и смещение слоёв."
+  Best height: "Лучшая высота"
   Best height, measured up from the plate: "Лучшая высота, отсчитанная от стола"
   Beta: Бета
   'Beta features: OFF': 'Beta-функции: ВЫКЛ'
@@ -1288,6 +1291,7 @@ translations:
   Context: Контекст
   Continue: Продолжить
   Continue on Another Toolhead: 'Продолжить на другой печатающей головке'
+  Continue the earlier tuning?: "Продолжить предыдущую настройку?"
   Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes.: 'Продолжить печать на {}? Принтер перенесёт на неё остаток печати, нагреет её и возобновит печать.'
   Continue with the remaining steps, or stop the calibration?: 'Продолжить оставшиеся шаги или остановить калибровку?'
   Continues from {} on runout: 'При окончании продолжает с {}'
@@ -3593,6 +3597,7 @@ translations:
   Pass: "Проход"
   Pass the missing parameter from the slicer's start G-code, or give it a default in the macro.: Передайте недостающий параметр из стартового G-code слайсера или задайте для него значение по умолчанию в макросе.
   'Pass {} of {}: {}': "Проход {} из {}: {}"
+  Passes judged before are kept and pass {} of {} is next. Start Over begins again from pass 1.: "Уже оценённые проходы сохраняются, следующий — проход {} из {}. «Начать заново» возвращает к проходу 1."
   Password: Пароль
   Password cannot be empty: Пароль не может быть пустым
   Password is required for secured networks: Для защищённых сетей требуется пароль
@@ -3755,6 +3760,7 @@ translations:
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'Pressure Advance растёт вместе с башней. Следите за углами: нажмите - или + в любой момент, и рампа остановится, чтобы вы оценили своё значение.'
   Pressure advance tuning: 'Настройка Pressure Advance'
+  Pressure advance {} is written to the {} section.: "Pressure advance {} записывается в раздел {}."
   Pressure on the bed: Давление на стол
   'Pressure:': 'Давление:'
   Pressed: Нажата
@@ -4392,6 +4398,7 @@ translations:
   Save to Config: "Сохранить в конфигурацию"
   Save to Spool: Сохранить на катушку
   Save to Spoolman: Сохранить в Spoolman
+  Save to the printer config?: "Сохранить в конфигурацию принтера?"
   Save writes the print's material; off, it saves one offset for every print: "Сохранение пишет материал печати; выкл. — одно смещение для всех печатей"
   Save writes these values to the extruder's config section and restarts Klipper. Keep runs them until the next restart.: "Сохранить записывает эти значения в секцию экструдера конфигурации и перезапускает Klipper. Оставить применяет их до следующего перезапуска."
   Save {} mm for {}? Other materials keep their own offsets.: "Сохранить {} мм для {}? Другие материалы сохранят свои смещения."
@@ -4404,6 +4411,7 @@ translations:
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: 'Сохранено в Spoolman, но цена, расположение, партия и заметки катушки не сохранились.'
   Saved to crash_report.txt (QR not available): Сохранено в crash_report.txt (QR недоступен)
   Saved to printer configuration.: Сохранено в конфигурацию принтера.
+  Saved to the printer config. It survives a restart.: "Сохранено в конфигурации принтера. Значение сохранится после перезапуска."
   Saved to {}. It applies whenever this filament becomes active.: Сохранено в {}. Применяется каждый раз, когда этот филамент становится активным.
   Saved values, and whether to ask before running: 'Сохранённые значения и запрос перед запуском'
   Saved. Spoolman is offline, so price, location, lot and notes stay here unsaved.: 'Сохранено. Spoolman не в сети, поэтому цена, расположение, партия и заметки остаются здесь несохранёнными.'
@@ -4792,6 +4800,7 @@ translations:
   Start Guided Tuning: "Начать пошаговую настройку"
   Start Heating: "Начать нагрев"
   Start K: Начальный K
+  Start Over: "Начать заново"
   Start Print: Начать печать
   Start Probing: Начать зондирование
   Start a new {} h interval? The hours counted so far are discarded.: 'Начать новый интервал {} ч? Отсчитанные часы будут сброшены.'
@@ -5397,6 +5406,7 @@ translations:
   The temperature was changed elsewhere.: "Температуру изменили в другом месте."
   The tensioners pull each belt to its target: 'Натяжители тянут каждый ремень до целевого натяжения'
   The test tower is not in the printer's config yet.: "Тестовой башни пока нет в конфигурации принтера."
+  The test tower needs filament in the toolhead. Load it from the Filament panel, then start again.: "Тестовой башне нужен филамент в печатающей головке. Загрузите его на панели «Филамент» и начните снова."
   The thermocouple or PT100 amplifier reported a fault or a reading out of range.: Усилитель термопары или PT100 сообщил о неисправности или показаниях вне диапазона.
   The time, date, and system uptime: Время, дата и время работы системы
   The timelapse could not be downloaded: 'Не удалось загрузить таймлапс'
@@ -5503,6 +5513,7 @@ translations:
   This dryer cannot run while filament from the unit is loaded: 'Сушилка не может работать, пока загружен филамент из этого узла'
   Failed to start. See the Moonraker log.: "Не удалось запустить. См. журнал Moonraker."
   This extruder runs the nonlinear model, so the tower sweeps its linear advance, not a classic K.: "Этот экструдер работает на нелинейной модели, поэтому башня изменяет его Linear Advance, а не классический K."
+  'This extruder runs the nonlinear model. A classic K tower would overwrite part of it: use the Nonlinear tuner.': "Этот экструдер использует нелинейную модель. Классическая K-башня перезапишет часть её параметров: используйте нелинейную настройку."
   This feature requires different hardware or configuration: Для этой функции требуется другое оборудование или конфигурация
   Stopped. Restart Moonraker to start it again.: "Остановлено. Перезапустите Moonraker, чтобы запустить снова."
   This filament system does not report buffer or flow data.: Эта система филамента не сообщает данные буфера и потока.
@@ -5556,6 +5567,8 @@ translations:
   'This printer has no {} command, so the Z-offset cannot be saved.': 'У этого принтера нет команды {}, поэтому Z-смещение нельзя сохранить.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Этот принтер похож на {} (уверенность {}%), но настроен как {}. Неверный тип применяет неправильные параметры перед печатью и пресеты.
+  ? This printer runs a nonlinear pressure advance model, and a classic K tower would overwrite part of it. Use the Nonlinear tuner.
+  : "Этот принтер использует нелинейную модель pressure advance, и классическая K-башня перезапишет часть её параметров. Используйте нелинейную настройку."
   "This printer's INDX macros are missing: {}": "В макросах INDX этого принтера отсутствует: {}"
   This printer's Moonraker rejected its API key. Check the key in Settings > Connection.: 'Moonraker этого принтера отклонил его API-ключ. Проверьте ключ в Настройки > Соединение.'
   This printer's Moonraker requires a login. Add its API key in Settings > Connection.: 'Moonraker этого принтера требует входа. Добавьте его API-ключ в Настройки > Соединение.'
@@ -6561,6 +6574,8 @@ translations:
   '{} ran out of filament during the print, and auto refill is off.': '{}: филамент закончился во время печати, а автопополнение выключено.'
   '{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament.': 'В {} закончился {}. Выберите заряженную печатающую головку, чтобы завершить печать. Она сохранит температуры, нарезанные для исходного филамента.'
   '{} ran out, and the printer has not said what it was printing.': 'В {} закончился филамент, а принтер не сообщил, чем печатал.'
+  ? "{} runs a nonlinear model, so this value was not applied: a classic K would replace only part of it. To use {} as linear_advance, enter it in the extruder's config section."
+  : "{} использует нелинейную модель, поэтому это значение не применено: классический K заменил бы лишь часть параметров. Чтобы использовать {} как linear_advance, введите его в разделе экструдера в конфигурации."
   '{} serial': 'Серийный номер {}'
   '{} set to {}': '{} установлено на {}'
   '{} set to {} {}': '{} установлено на {} {}'

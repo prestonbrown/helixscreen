@@ -13,6 +13,7 @@
 #include "core/observer_factory.h"
 #include "material_z_offset.h"
 #include "material_z_offset_state.h"
+#include "moonraker_error.h"
 #include "printer_state.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -64,6 +65,9 @@ void MaterialZOffsetOverlay::init_subjects() {
     UI_MANAGED_SUBJECT_STRING(slicer_line_subject_, slicer_line_buf_,
                               "MATERIAL={filament_type[initial_extruder]}",
                               "material_zoffset_slicer_line", subjects_);
+    UI_MANAGED_SUBJECT_INT(step_print_start_subject_, 1, "material_zoffset_step_print_start",
+                           subjects_);
+    UI_MANAGED_SUBJECT_INT(step_slicer_subject_, 1, "material_zoffset_step_slicer", subjects_);
 }
 
 void MaterialZOffsetOverlay::register_callbacks() {
@@ -77,6 +81,11 @@ void MaterialZOffsetOverlay::register_callbacks() {
          [](lv_event_t* e) {
              material_zoffset::MaterialZOffsetState::instance().set_enabled(
                  get_moonraker_api(), helix::ui::event_checked(e));
+         }},
+        {"on_material_zoffset_slicer_done",
+         [](lv_event_t*) {
+             // The state's rev bump refreshes the steps of an open overlay.
+             material_zoffset::MaterialZOffsetState::instance().mark_slicer_step_done();
          }},
     });
 }
@@ -98,6 +107,40 @@ void MaterialZOffsetOverlay::before_show() {
         state.rev_subject(), this,
         [](MaterialZOffsetOverlay* self, int) { self->refresh_values(); }, state.rev_lifetime());
     refresh_values();
+    check_print_start();
+}
+
+void MaterialZOffsetOverlay::check_print_start() {
+    auto* api = get_moonraker_api();
+    const std::string helper =
+        material_zoffset::helper_call_macro(get_printer_state().get_discovery());
+    if (!api || helper.empty()) {
+        return;
+    }
+    analyzer_.analyze(
+        api,
+        lifetime_.bg_cb("MaterialZOffsetOverlay::print_start_analyzed",
+                        [this, helper](const helix::PrintStartAnalysis& analysis) {
+                            print_start_calls_ = analysis.found && analysis.calls_macro(helper);
+                            spdlog::debug("[{}] {} {} {}", get_name(),
+                                          analysis.found ? analysis.macro_name : "PRINT_START",
+                                          *print_start_calls_ ? "calls" : "does not call", helper);
+                            refresh_setup_steps();
+                        }),
+        lifetime_.bg_cb("MaterialZOffsetOverlay::print_start_unread",
+                        [this](const MoonrakerError& err) {
+                            spdlog::warn("[{}] Could not read the print start macro: {}",
+                                         get_name(), err.message);
+                        }));
+}
+
+void MaterialZOffsetOverlay::refresh_setup_steps() {
+    const auto& hw = get_printer_state().get_discovery();
+    const auto steps = material_zoffset::setup_steps(
+        material_zoffset::supported(hw), material_zoffset::helper_call_macro(hw),
+        print_start_calls_, material_zoffset::MaterialZOffsetState::instance().slicer_step_done());
+    lv_subject_set_int(&step_print_start_subject_, steps.print_start ? 1 : 0);
+    lv_subject_set_int(&step_slicer_subject_, steps.slicer ? 1 : 0);
 }
 
 void MaterialZOffsetOverlay::on_ui_destroyed() {
@@ -105,6 +148,7 @@ void MaterialZOffsetOverlay::on_ui_destroyed() {
 }
 
 void MaterialZOffsetOverlay::refresh_values() {
+    refresh_setup_steps();
     const auto& state = material_zoffset::MaterialZOffsetState::instance();
     const auto& hw = get_printer_state().get_discovery();
     const auto& table = state.table();

@@ -9,13 +9,16 @@
 #include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
 #include "core/subject.h"
+#include "display_awake_hold.h"
 #include "i_moonraker_api.h"
+#include "klipper_config_editor.h"
 #include "overlay_base.h"
 #include "pa_tuning.h"
 #include "spoolman_types.h"
 #include "subject_managed_panel.h"
 #include "tool_state.h"
 
+#include <functional>
 #include <lvgl.h>
 #include <map>
 #include <optional>
@@ -55,7 +58,7 @@
  *   pa_tune_band_selected_N (int), pa_tune_keep_selected (int),
  *   pa_tune_keep_text (string), pa_tune_has_pick (int)
  * - pa_tune_result_k / pa_tune_result_note / pa_tune_spoolman_text (string),
- *   pa_tune_can_save_spool (int)
+ *   pa_tune_can_save_spool (int), pa_tune_can_save_config (int)
  * - pa_tune_error (string)
  */
 namespace helix {
@@ -104,6 +107,7 @@ class PaTuningOverlay : public OverlayBase {
     }
 
     void on_activate() override;
+    void on_deactivating(DeactivateReason reason) override;
     void cleanup() override;
 
     void set_api(IMoonrakerAPI* api) {
@@ -125,6 +129,13 @@ class PaTuningOverlay : public OverlayBase {
     };
     /// The pre-print routing for the tower: its tool on its own head.
     static std::map<int, int> tower_routing(int tuned_tool);
+    /// What Save to Config hands the config editor for @p extruder: the K as its
+    /// pressure_advance option, and the setting Klipper must report after the restart.
+    struct ConfigWrite {
+        std::vector<helix::system::ConfigEdit> edits;
+        std::vector<helix::system::ExpectedSetting> expected;
+    };
+    static ConfigWrite config_write_for(const std::string& extruder, float k);
     /// Why the tower cannot start on @p params' head, or empty when it can. A
     /// tower aimed at a tool needs the command that mounts that tool's head;
     /// without it the tower would heat one head and print through whichever
@@ -156,6 +167,17 @@ class PaTuningOverlay : public OverlayBase {
     }
     void save_to_spool_for_test() {
         save_to_spool();
+    }
+    /// Where the tower's Print Status page comes from, for tests with no panel of
+    /// their own to stand in for it.
+    void set_print_status_page_source_for_test(std::function<lv_obj_t*()> source) {
+        print_status_page_source_ = std::move(source);
+    }
+    bool awake_held_for_test() const {
+        return decision_awake_.held();
+    }
+    void save_to_config_for_test() {
+        save_to_config();
     }
     /// Nudge K by @p delta when a run is printing; false (nothing sent)
     /// otherwise. The Tune overlay's PA row goes through here during a run.
@@ -197,13 +219,17 @@ class PaTuningOverlay : public OverlayBase {
     /// Whether the chosen head's firmware offers a nonlinear model, and the
     /// Linear K / Nonlinear choice that follows from it.
     void refresh_model_choice();
-    /// confirm_and_start() once the bed is known clear.
-    void confirm_once_bed_clear();
+    /// Learn once whether the start macro draws its own purge line, so the tower
+    /// does not add a second one.
+    void analyze_start_macro();
     /// Confirm-dialog options whose callbacks die with this object.
     ConfirmOptions owned_confirm();
     void begin_upload();
     /// Fail the start when the filament system refuses to heat the nozzle.
     bool refuse_blocked_nozzle();
+    /// Fail the start on a nonlinear model: a bare ADVANCE= would replace only part
+    /// of the tuned model. Steers the setup to the Nonlinear tuner.
+    bool refuse_nonlinear_model(const helix::pa::TestPrintParams& params);
     /// Fail the start when the chosen head has no command that mounts it.
     bool refuse_unmountable_head(const helix::pa::TestPrintParams& params);
     void fail_start(const std::string& message);
@@ -230,6 +256,11 @@ class PaTuningOverlay : public OverlayBase {
     void raise(int attempts_left);
     static constexpr int kRaiseAttempts = 60;
     void on_pa_reported(int subject_value);
+    /// Put back the K the run started from when its print ended without the
+    /// tower's own restore (a cancel), so a test K never stays live unaccepted.
+    void restore_original_k();
+    /// Take the tower's Print Status page off the stack once the print is over.
+    void leave_print_status();
     void nudge(int direction);
     void end_test();
     void refresh_running();
@@ -241,6 +272,9 @@ class PaTuningOverlay : public OverlayBase {
     void apply_pick();
     void show_result();
     void save_to_spool();
+    /// Ask, then write the result as pressure_advance in the extruder's config section.
+    void save_to_config();
+    void write_config();
     /// Show @p spool_id as the spool Save to Spool writes to.
     void fetch_result_spool(int spool_id);
     /// Whether sending K now is ours to do: always during our print, otherwise
@@ -273,9 +307,15 @@ class PaTuningOverlay : public OverlayBase {
     int picked_ = -1;
     /// The print reached "printing" for our file at least once.
     bool saw_printing_ = false;
+    /// The layer the printer showed when this run began observing; a leftover from
+    /// the previous job.
+    int layer_at_observe_ = 0;
     /// Spoolman's active spool when the result was shown, if any.
     std::optional<SpoolInfo> active_spool_;
     bool raise_on_start_ = true;
+    std::function<lv_obj_t*()> print_status_page_source_;
+    bool start_analysis_in_flight_ = false;
+    bool start_macro_purges_ = false;
 
     SubjectManager subjects_;
 
@@ -324,9 +364,16 @@ class PaTuningOverlay : public OverlayBase {
     helix::Subject spoolman_text_{};
     char spoolman_text_buf_[160] = {};
     helix::Subject can_save_spool_{};
+    helix::Subject can_save_config_{};
 
     helix::Subject error_{};
     char error_buf_[192] = {};
+
+    helix::system::KlipperConfigEditor config_editor_;
+
+    /// Held while the pick or the result waits on the user, so the screensaver
+    /// never covers the decision.
+    helix::DisplayAwakeToken decision_awake_;
 
     ObserverGuard print_state_observer_;
     ObserverGuard layer_observer_;

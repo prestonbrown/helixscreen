@@ -481,6 +481,8 @@ translations:
   : "{} を linear_advance として適用しました。これは非線形モデルの高速域の傾きです。Klipper は再起動すると忘れます。プリンター設定のエクストルーダーのセクションに、linear_advance として {} を入力してください。"
   ? "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   : '{}に適用しました。Klipperは再起動で忘れます: スライサーのフィラメントプロファイルでPressure Advanceに{}を入力するか、スプールに保存してください。'
+  ? "Applied to {}. Klipper forgets it on restart: save {} to the config, or enter it as Pressure advance in your slicer's filament profile, or save it to the spool."
+  : "{}に適用しました。Klipperは再起動すると値を忘れます。{}を設定に保存するか、スライサーのフィラメントプロファイルにPressure advanceとして入力するか、スプールに保存してください。"
   Applies to: 適用対象
   Apply: 適用
   Apply a thin film of the lubricant your manual names.: "マニュアル指定の潤滑剤を薄く塗ります。"
@@ -636,6 +638,7 @@ translations:
   Belts: "ベルト"
   Belts already match: "ベルトはすでに一致しています"
   Belts stretch and settle; loose ones cause ringing and layer shifts.: "ベルトは伸びてなじみます。緩むとリンギングや層ズレの原因に。"
+  Best height: "最適な高さ"
   Best height, measured up from the plate: "最適な高さ（ベッドから測定）"
   Beta: ベータ
   'Beta features: OFF': 'ベータ機能: OFF'
@@ -1228,6 +1231,7 @@ translations:
   Context: コンテキスト
   Continue: 続行
   Continue on Another Toolhead: '別のツールヘッドで続行'
+  Continue the earlier tuning?: "前回の調整を続けますか？"
   Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes.: '{}で印刷を続行しますか？プリンターは残りの印刷をそこへ移し、加熱して再開します。'
   Continue with the remaining steps, or stop the calibration?: '残りのステップを続けますか、それともキャリブレーションを停止しますか？'
   Continues from {} on runout: 'フィラメント切れ時は{}から続行'
@@ -3529,6 +3533,7 @@ translations:
   Pass: "パス"
   Pass the missing parameter from the slicer's start G-code, or give it a default in the macro.: スライサーの開始 G-code から不足しているパラメーターを渡すか、マクロに既定値を設定してください。
   'Pass {} of {}: {}': "パス {}/{}: {}"
+  Passes judged before are kept and pass {} of {} is next. Start Over begins again from pass 1.: "判定済みのパスは保持され、次は{}/{}番目のパスです。「やり直す」はパス1から再開します。"
   Password: パスワード
   Password cannot be empty: パスワードを入力してください
   Password is required for secured networks: セキュリティ保護されたネットワークにはパスワードが必要です
@@ -3683,6 +3688,7 @@ translations:
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'タワーが高くなるにつれてPressure Advanceが上がります。角を見てください: いつでも-か+をタップするとランプが止まり、自分の値を判断できます。'
   Pressure advance tuning: 'Pressure Advance調整'
+  Pressure advance {} is written to the {} section.: "Pressure advance {}を{}セクションに書き込みます。"
   Pressure on the bed: ベッドに圧力がかかっています
   'Pressure:': '圧力:'
   Pressed: 押下
@@ -4312,6 +4318,7 @@ translations:
   Save to Config: "設定に保存"
   Save to Spool: スプールに保存
   Save to Spoolman: Spoolman に保存
+  Save to the printer config?: "プリンターの設定に保存しますか？"
   Save writes the print's material; off, it saves one offset for every print: "保存は印刷中の素材に書き込みます。オフにすると全印刷で1つのオフセットを保存します"
   Save writes these values to the extruder's config section and restarts Klipper. Keep runs them until the next restart.: "保存すると、これらの値がプリンター設定のエクストルーダーのセクションに書き込まれ、Klipper が再起動します。保持すると、次の再起動までこれらの値を使用します。"
   Save {} mm for {}? Other materials keep their own offsets.: "{} mm を {} に保存しますか？他の素材のオフセットは変わりません。"
@@ -4324,6 +4331,7 @@ translations:
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: 'Spoolmanに保存しましたが、スプールの価格、場所、ロット、メモは保存されませんでした。'
   Saved to crash_report.txt (QR not available): crash_report.txt に保存しました（QR 利用不可）
   Saved to printer configuration.: プリンター設定に保存しました。
+  Saved to the printer config. It survives a restart.: "プリンターの設定に保存しました。再起動後も保持されます。"
   Saved to {}. It applies whenever this filament becomes active.: '{}に保存しました。このフィラメントが使用中になるたびに適用されます。'
   Saved values, and whether to ask before running: '保存した値と、実行前に確認するかどうか'
   Saved. Spoolman is offline, so price, location, lot and notes stay here unsaved.: '保存しました。Spoolmanがオフラインのため、価格、場所、ロット、メモは未保存のままここに残ります。'
@@ -4704,6 +4712,7 @@ translations:
   Start Guided Tuning: "ガイド付きチューニングを開始"
   Start Heating: "加熱開始"
   Start K: 開始K
+  Start Over: "やり直す"
   Start Print: 印刷を開始
   Start Probing: プローブ開始
   Start a new {} h interval? The hours counted so far are discarded.: '新しい {} 時間の間隔を開始しますか？これまでの時間は破棄されます。'
@@ -5309,6 +5318,7 @@ translations:
   The temperature was changed elsewhere.: "温度が別の場所で変更されました。"
   The tensioners pull each belt to its target: 'テンショナーが各ベルトを目標まで引っ張ります'
   The test tower is not in the printer's config yet.: "テストタワーはまだプリンター設定にありません。"
+  The test tower needs filament in the toolhead. Load it from the Filament panel, then start again.: "テストタワーにはツールヘッドにフィラメントが必要です。フィラメントパネルから装填してから、もう一度開始してください。"
   The thermocouple or PT100 amplifier reported a fault or a reading out of range.: 熱電対または PT100 アンプが異常または範囲外の値を報告しました。
   The time, date, and system uptime: 時間、日付、稼働時間
   The timelapse could not be downloaded: 'タイムラプスをダウンロードできませんでした'
@@ -5415,6 +5425,7 @@ translations:
   This dryer cannot run while filament from the unit is loaded: 'このユニットのフィラメントが装填されている間は乾燥機を動作できません'
   Failed to start. See the Moonraker log.: "起動に失敗しました。Moonrakerのログを確認してください。"
   This extruder runs the nonlinear model, so the tower sweeps its linear advance, not a classic K.: "このエクストルーダーは非線形モデルを使用しているため、タワーは従来のKではなくLinear Advanceを変化させます。"
+  'This extruder runs the nonlinear model. A classic K tower would overwrite part of it: use the Nonlinear tuner.': "このエクストルーダーは非線形モデルを使用しています。従来のKタワーではその一部が上書きされます。非線形チューナーを使用してください。"
   This feature requires different hardware or configuration: この機能には別のハードウェアまたは設定が必要です
   Stopped. Restart Moonraker to start it again.: "停止しました。Moonrakerを再起動すると再開します。"
   This filament system does not report buffer or flow data.: このフィラメントシステムはバッファーやフローのデータを報告しません。
@@ -5468,6 +5479,8 @@ translations:
   'This printer has no {} command, so the Z-offset cannot be saved.': 'このプリンターには {} コマンドがないため、Zオフセットを保存できません。'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : このプリンターは {} のようです（信頼度 {}%）が、{} として設定されています。誤ったタイプでは不正確な印刷前オプションとプリセットが適用されます。
+  ? This printer runs a nonlinear pressure advance model, and a classic K tower would overwrite part of it. Use the Nonlinear tuner.
+  : "このプリンターは非線形のPressure advanceモデルを使用しており、従来のKタワーではその一部が上書きされます。非線形チューナーを使用してください。"
   "This printer's INDX macros are missing: {}": "このプリンターのINDXマクロに不足があります: {}"
   This printer's Moonraker rejected its API key. Check the key in Settings > Connection.: 'このプリンターのMoonrakerがAPIキーを拒否しました。設定 > 接続 でキーを確認してください。'
   This printer's Moonraker requires a login. Add its API key in Settings > Connection.: 'このプリンターのMoonrakerはログインを要求しています。設定 > 接続 でAPIキーを追加してください。'
@@ -6449,6 +6462,8 @@ translations:
   '{} ran out of filament during the print, and auto refill is off.': 印刷中に {} のフィラメントが切れましたが、自動補充はオフです。
   '{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament.': '{}の{}が切れました。印刷を仕上げる装填済みのツールヘッドを選んでください。元のフィラメント用にスライスされた温度のままです。'
   '{} ran out, and the printer has not said what it was printing.': '{}が切れましたが、プリンターは何を印刷していたかを報告していません。'
+  ? "{} runs a nonlinear model, so this value was not applied: a classic K would replace only part of it. To use {} as linear_advance, enter it in the extruder's config section."
+  : "{}は非線形モデルを使用しているため、この値は適用されませんでした。従来のKでは一部しか置き換えられません。{}をlinear_advanceとして使うには、設定のエクストルーダーセクションに入力してください。"
   '{} serial': '{} シリアル番号'
   '{} set to {}': '{} を {} に設定しました'
   '{} set to {} {}': '{} を {} {} に設定しました'

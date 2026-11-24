@@ -484,6 +484,8 @@ translations:
   : "Applied to {} as linear_advance, the nonlinear model's high-speed slope. Klipper forgets it on restart: enter {} as linear_advance in the extruder's config section."
   ? "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   : "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
+  ? "Applied to {}. Klipper forgets it on restart: save {} to the config, or enter it as Pressure advance in your slicer's filament profile, or save it to the spool."
+  : "Applied to {}. Klipper forgets it on restart: save {} to the config, or enter it as Pressure advance in your slicer's filament profile, or save it to the spool."
   Applies to: Applies to
   Apply: Apply
   Apply a thin film of the lubricant your manual names.: Apply a thin film of the lubricant your manual names.
@@ -638,6 +640,7 @@ translations:
   Belts: Belts
   Belts already match: Belts already match
   Belts stretch and settle; loose ones cause ringing and layer shifts.: Belts stretch and settle; loose ones cause ringing and layer shifts.
+  Best height: Best height
   Best height, measured up from the plate: Best height, measured up from the plate
   Beta: Beta
   'Beta features: OFF': 'Beta features: OFF'
@@ -1229,6 +1232,7 @@ translations:
   Context: Context
   Continue: Continue
   Continue on Another Toolhead: Continue on Another Toolhead
+  Continue the earlier tuning?: Continue the earlier tuning?
   Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes.: Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes.
   Continue with the remaining steps, or stop the calibration?: Continue with the remaining steps, or stop the calibration?
   Continues from {} on runout: Continues from {} on runout
@@ -3503,6 +3507,7 @@ translations:
   Pass: Pass
   Pass the missing parameter from the slicer's start G-code, or give it a default in the macro.: Pass the missing parameter from the slicer's start G-code, or give it a default in the macro.
   'Pass {} of {}: {}': 'Pass {} of {}: {}'
+  Passes judged before are kept and pass {} of {} is next. Start Over begins again from pass 1.: Passes judged before are kept and pass {} of {} is next. Start Over begins again from pass 1.
   Password: Password
   Password cannot be empty: Password cannot be empty
   Password is required for secured networks: Password is required for secured networks
@@ -3656,6 +3661,7 @@ translations:
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   Pressure advance tuning: Pressure advance tuning
+  Pressure advance {} is written to the {} section.: Pressure advance {} is written to the {} section.
   Pressure on the bed: Pressure on the bed
   'Pressure:': 'Pressure:'
   Pressed: Pressed
@@ -4286,6 +4292,7 @@ translations:
   Save to Config: Save to Config
   Save to Spool: Save to Spool
   Save to Spoolman: Save to Spoolman
+  Save to the printer config?: Save to the printer config?
   Save writes the print's material; off, it saves one offset for every print: Save writes the print's material; off, it saves one offset for every print
   Save writes these values to the extruder's config section and restarts Klipper. Keep runs them until the next restart.: Save writes these values to the extruder's config section and restarts Klipper. Keep runs them until the next restart.
   Save {} mm for {}? Other materials keep their own offsets.: Save {} mm for {}? Other materials keep their own offsets.
@@ -4298,6 +4305,7 @@ translations:
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: Saved to Spoolman, but the spool's price, location, lot and notes didn't save.
   Saved to crash_report.txt (QR not available): Saved to crash_report.txt (QR not available)
   Saved to printer configuration.: Saved to printer configuration.
+  Saved to the printer config. It survives a restart.: Saved to the printer config. It survives a restart.
   Saved to {}. It applies whenever this filament becomes active.: Saved to {}. It applies whenever this filament becomes active.
   Saved values, and whether to ask before running: Saved values, and whether to ask before running
   Saved. Spoolman is offline, so price, location, lot and notes stay here unsaved.: Saved. Spoolman is offline, so price, location, lot and notes stay here unsaved.
@@ -4674,6 +4682,7 @@ translations:
   Start Guided Tuning: Start Guided Tuning
   Start Heating: Start Heating
   Start K: Start K
+  Start Over: Start Over
   Start Print: Start Print
   Start Probing: Start Probing
   Start a new {} h interval? The hours counted so far are discarded.: Start a new {} h interval? The hours counted so far are discarded.
@@ -5272,6 +5281,7 @@ translations:
   The temperature was changed elsewhere.: The temperature was changed elsewhere.
   The tensioners pull each belt to its target: The tensioners pull each belt to its target
   The test tower is not in the printer's config yet.: The test tower is not in the printer's config yet.
+  The test tower needs filament in the toolhead. Load it from the Filament panel, then start again.: The test tower needs filament in the toolhead. Load it from the Filament panel, then start again.
   The thermocouple or PT100 amplifier reported a fault or a reading out of range.: The thermocouple or PT100 amplifier reported a fault or a reading out of range.
   The time, date, and system uptime: The time, date, and system uptime
   The timelapse could not be downloaded: The timelapse could not be downloaded
@@ -5379,6 +5389,7 @@ translations:
   This dryer cannot run while filament from the unit is loaded: This dryer cannot run while filament from the unit is loaded
   Failed to start. See the Moonraker log.: "Failed to start. See the Moonraker log."
   This extruder runs the nonlinear model, so the tower sweeps its linear advance, not a classic K.: This extruder runs the nonlinear model, so the tower sweeps its linear advance, not a classic K.
+  'This extruder runs the nonlinear model. A classic K tower would overwrite part of it: use the Nonlinear tuner.': 'This extruder runs the nonlinear model. A classic K tower would overwrite part of it: use the Nonlinear tuner.'
   This feature requires different hardware or configuration: This feature requires different hardware or configuration
   Stopped. Restart Moonraker to start it again.: "Stopped. Restart Moonraker to start it again."
   This filament system does not report buffer or flow data.: This filament system does not report buffer or flow data.
@@ -5428,6 +5439,8 @@ translations:
   'This printer has no {} command, so the Z-offset cannot be saved.': 'This printer has no {} command, so the Z-offset cannot be saved.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
+  ? This printer runs a nonlinear pressure advance model, and a classic K tower would overwrite part of it. Use the Nonlinear tuner.
+  : This printer runs a nonlinear pressure advance model, and a classic K tower would overwrite part of it. Use the Nonlinear tuner.
   "This printer's INDX macros are missing: {}": "This printer's INDX macros are missing: {}"
   This printer's Moonraker rejected its API key. Check the key in Settings > Connection.: This printer's Moonraker rejected its API key. Check the key in Settings > Connection.
   This printer's Moonraker requires a login. Add its API key in Settings > Connection.: This printer's Moonraker requires a login. Add its API key in Settings > Connection.
@@ -6410,6 +6423,8 @@ translations:
   '{} ran out of filament during the print, and auto refill is off.': '{} ran out of filament during the print, and auto refill is off.'
   '{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament.': '{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament.'
   '{} ran out, and the printer has not said what it was printing.': '{} ran out, and the printer has not said what it was printing.'
+  ? "{} runs a nonlinear model, so this value was not applied: a classic K would replace only part of it. To use {} as linear_advance, enter it in the extruder's config section."
+  : "{} runs a nonlinear model, so this value was not applied: a classic K would replace only part of it. To use {} as linear_advance, enter it in the extruder's config section."
   '{} serial': '{} serial'
   '{} set to {}': '{} set to {}'
   '{} set to {} {}': '{} set to {} {}'

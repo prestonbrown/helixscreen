@@ -174,6 +174,12 @@ const char* part_too_tall_text() {
     return lv_tr("The part on the bed is too tall to clear. Remove it, then tap Cleared.");
 }
 
+void mark_bed_cleared() {
+    if (BedOccupancyState* state = get_bed_occupancy_state()) {
+        state->mark_cleared();
+    }
+}
+
 namespace {
 
 /// "Is the bed clear?" with @p message; Cleared marks the bed cleared, then runs @p then.
@@ -195,9 +201,7 @@ void ask_bed_cleared(const char* message, std::function<void()> then,
     ui::modal_confirm(
         lv_tr("Is the bed clear?"), message, ModalSeverity::Warning, lv_tr("Cleared"),
         [then = std::move(then), declined, owner_alive]() {
-            if (BedOccupancyState* state = get_bed_occupancy_state()) {
-                state->mark_cleared();
-            }
+            mark_bed_cleared();
             if (!then || !owner_alive()) {
                 return;
             }

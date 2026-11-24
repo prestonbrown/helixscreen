@@ -452,6 +452,7 @@
   <translation tag="Applied for this session only: {}" ja="このセッションのみ適用: {}"/>
   <translation tag="Applied to {} as linear_advance, the nonlinear model&apos;s high-speed slope. Klipper forgets it on restart: enter {} as linear_advance in the extruder&apos;s config section." ja="{} を linear_advance として適用しました。これは非線形モデルの高速域の傾きです。Klipper は再起動すると忘れます。プリンター設定のエクストルーダーのセクションに、linear_advance として {} を入力してください。"/>
   <translation tag="Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." ja="{}に適用しました。Klipperは再起動で忘れます: スライサーのフィラメントプロファイルでPressure Advanceに{}を入力するか、スプールに保存してください。"/>
+  <translation tag="Applied to {}. Klipper forgets it on restart: save {} to the config, or enter it as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." ja="{}に適用しました。Klipperは再起動すると値を忘れます。{}を設定に保存するか、スライサーのフィラメントプロファイルにPressure advanceとして入力するか、スプールに保存してください。"/>
   <translation tag="Applies to" ja="適用対象"/>
   <translation tag="Apply" ja="適用"/>
   <translation tag="Apply a thin film of the lubricant your manual names." ja="マニュアル指定の潤滑剤を薄く塗ります。"/>
@@ -608,6 +609,7 @@
   <translation tag="Belts" ja="ベルト"/>
   <translation tag="Belts already match" ja="ベルトはすでに一致しています"/>
   <translation tag="Belts stretch and settle; loose ones cause ringing and layer shifts." ja="ベルトは伸びてなじみます。緩むとリンギングや層ズレの原因に。"/>
+  <translation tag="Best height" ja="最適な高さ"/>
   <translation tag="Best height, measured up from the plate" ja="最適な高さ（ベッドから測定）"/>
   <translation tag="Beta" ja="ベータ"/>
   <translation tag="Beta features: OFF" ja="ベータ機能: OFF"/>
@@ -1180,6 +1182,7 @@
   <translation tag="Context" ja="コンテキスト"/>
   <translation tag="Continue" ja="続行"/>
   <translation tag="Continue on Another Toolhead" ja="別のツールヘッドで続行"/>
+  <translation tag="Continue the earlier tuning?" ja="前回の調整を続けますか？"/>
   <translation tag="Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes." ja="{}で印刷を続行しますか？プリンターは残りの印刷をそこへ移し、加熱して再開します。"/>
   <translation tag="Continue with the remaining steps, or stop the calibration?" ja="残りのステップを続けますか、それともキャリブレーションを停止しますか？"/>
   <translation tag="Continues from {} on runout" ja="フィラメント切れ時は{}から続行"/>
@@ -3397,6 +3400,7 @@
   <translation tag="Pass" ja="パス"/>
   <translation tag="Pass the missing parameter from the slicer&apos;s start G-code, or give it a default in the macro." ja="スライサーの開始 G-code から不足しているパラメーターを渡すか、マクロに既定値を設定してください。"/>
   <translation tag="Pass {} of {}: {}" ja="パス {}/{}: {}"/>
+  <translation tag="Passes judged before are kept and pass {} of {} is next. Start Over begins again from pass 1." ja="判定済みのパスは保持され、次は{}/{}番目のパスです。「やり直す」はパス1から再開します。"/>
   <translation tag="Password" ja="パスワード"/>
   <translation tag="Password cannot be empty" ja="パスワードを入力してください"/>
   <translation tag="Password is required for secured networks" ja="セキュリティ保護されたネットワークにはパスワードが必要です"/>
@@ -3550,6 +3554,7 @@
   <translation tag="Pressure advance" ja="Pressure Advance"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." ja="タワーが高くなるにつれてPressure Advanceが上がります。角を見てください: いつでも-か+をタップするとランプが止まり、自分の値を判断できます。"/>
   <translation tag="Pressure advance tuning" ja="Pressure Advance調整"/>
+  <translation tag="Pressure advance {} is written to the {} section." ja="Pressure advance {}を{}セクションに書き込みます。"/>
   <translation tag="Pressure on the bed" ja="ベッドに圧力がかかっています"/>
   <translation tag="Pressure:" ja="圧力:"/>
   <translation tag="Preview" ja="プレビュー"/>
@@ -4173,6 +4178,7 @@
   <translation tag="Save to Config" ja="設定に保存"/>
   <translation tag="Save to Spool" ja="スプールに保存"/>
   <translation tag="Save to Spoolman" ja="Spoolman に保存"/>
+  <translation tag="Save to the printer config?" ja="プリンターの設定に保存しますか？"/>
   <translation tag="Save writes the print&apos;s material; off, it saves one offset for every print" ja="保存は印刷中の素材に書き込みます。オフにすると全印刷で1つのオフセットを保存します"/>
   <translation tag="Save writes these values to the extruder&apos;s config section and restarts Klipper. Keep runs them until the next restart." ja="保存すると、これらの値がプリンター設定のエクストルーダーのセクションに書き込まれ、Klipper が再起動します。保持すると、次の再起動までこれらの値を使用します。"/>
   <translation tag="Save {} mm for {}? Other materials keep their own offsets." ja="{} mm を {} に保存しますか？他の素材のオフセットは変わりません。"/>
@@ -4182,6 +4188,7 @@
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." ja="Spoolmanに保存しましたが、スプールの価格、場所、ロット、メモは保存されませんでした。"/>
   <translation tag="Saved to crash_report.txt (QR not available)" ja="crash_report.txt に保存しました（QR 利用不可）"/>
   <translation tag="Saved to printer configuration." ja="プリンター設定に保存しました。"/>
+  <translation tag="Saved to the printer config. It survives a restart." ja="プリンターの設定に保存しました。再起動後も保持されます。"/>
   <translation tag="Saved to {}. It applies whenever this filament becomes active." ja="{}に保存しました。このフィラメントが使用中になるたびに適用されます。"/>
   <translation tag="Saved values, and whether to ask before running" ja="保存した値と、実行前に確認するかどうか"/>
   <translation tag="Saved {} mm" ja="保存値 {} mm"/>
@@ -4557,6 +4564,7 @@
   <translation tag="Start Guided Tuning" ja="ガイド付きチューニングを開始"/>
   <translation tag="Start Heating" ja="加熱開始"/>
   <translation tag="Start K" ja="開始K"/>
+  <translation tag="Start Over" ja="やり直す"/>
   <translation tag="Start Print" ja="印刷を開始"/>
   <translation tag="Start Probing" ja="プローブ開始"/>
   <translation tag="Start a new {} h interval? The hours counted so far are discarded." ja="新しい {} 時間の間隔を開始しますか？これまでの時間は破棄されます。"/>
@@ -5128,6 +5136,7 @@
   <translation tag="The temperature was changed elsewhere." ja="温度が別の場所で変更されました。"/>
   <translation tag="The tensioners pull each belt to its target" ja="テンショナーが各ベルトを目標まで引っ張ります"/>
   <translation tag="The test tower is not in the printer&apos;s config yet." ja="テストタワーはまだプリンター設定にありません。"/>
+  <translation tag="The test tower needs filament in the toolhead. Load it from the Filament panel, then start again." ja="テストタワーにはツールヘッドにフィラメントが必要です。フィラメントパネルから装填してから、もう一度開始してください。"/>
   <translation tag="The thermocouple or PT100 amplifier reported a fault or a reading out of range." ja="熱電対または PT100 アンプが異常または範囲外の値を報告しました。"/>
   <translation tag="The time, date, and system uptime" ja="時間、日付、稼働時間"/>
   <translation tag="The timelapse could not be downloaded" ja="タイムラプスをダウンロードできませんでした"/>
@@ -5208,6 +5217,7 @@
   <translation tag="This doesn&apos;t match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?" ja="リンクされた Spoolman スプールと一致しません。Spoolman で更新するか、リンクを解除してこのスロットに保持しますか？"/>
   <translation tag="This dryer cannot run while filament from the unit is loaded" ja="このユニットのフィラメントが装填されている間は乾燥機を動作できません"/>
   <translation tag="This extruder runs the nonlinear model, so the tower sweeps its linear advance, not a classic K." ja="このエクストルーダーは非線形モデルを使用しているため、タワーは従来のKではなくLinear Advanceを変化させます。"/>
+  <translation tag="This extruder runs the nonlinear model. A classic K tower would overwrite part of it: use the Nonlinear tuner." ja="このエクストルーダーは非線形モデルを使用しています。従来のKタワーではその一部が上書きされます。非線形チューナーを使用してください。"/>
   <translation tag="This feature requires different hardware or configuration" ja="この機能には別のハードウェアまたは設定が必要です"/>
   <translation tag="This filament system does not report buffer or flow data." ja="このフィラメントシステムはバッファーやフローのデータを報告しません。"/>
   <translation tag="This filament system keeps its own spool records" ja="このフィラメントシステムはスプールの記録を自身で管理しています"/>
@@ -5248,6 +5258,7 @@
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." ja="このプリンターにはタイムゾーンがないため、時計は UTC を表示しています。お住まいの地域を選んでください。"/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." ja="このプリンターには {} コマンドがないため、Zオフセットを保存できません。"/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." ja="このプリンターは {} のようです（信頼度 {}%）が、{} として設定されています。誤ったタイプでは不正確な印刷前オプションとプリセットが適用されます。"/>
+  <translation tag="This printer runs a nonlinear pressure advance model, and a classic K tower would overwrite part of it. Use the Nonlinear tuner." ja="このプリンターは非線形のPressure advanceモデルを使用しており、従来のKタワーではその一部が上書きされます。非線形チューナーを使用してください。"/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" ja="このプリンターのINDXマクロに不足があります: {}"/>
   <translation tag="This printer&apos;s Moonraker rejected its API key. Check the key in Settings &gt; Connection." ja="このプリンターのMoonrakerがAPIキーを拒否しました。設定 &gt; 接続 でキーを確認してください。"/>
   <translation tag="This printer&apos;s Moonraker requires a login. Add its API key in Settings &gt; Connection." ja="このプリンターのMoonrakerはログインを要求しています。設定 &gt; 接続 でAPIキーを追加してください。"/>
@@ -6224,6 +6235,7 @@
   <translation tag="{} ran out of filament during the print, and auto refill is off." ja="印刷中に {} のフィラメントが切れましたが、自動補充はオフです。"/>
   <translation tag="{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament." ja="{}の{}が切れました。印刷を仕上げる装填済みのツールヘッドを選んでください。元のフィラメント用にスライスされた温度のままです。"/>
   <translation tag="{} ran out, and the printer has not said what it was printing." ja="{}が切れましたが、プリンターは何を印刷していたかを報告していません。"/>
+  <translation tag="{} runs a nonlinear model, so this value was not applied: a classic K would replace only part of it. To use {} as linear_advance, enter it in the extruder&apos;s config section." ja="{}は非線形モデルを使用しているため、この値は適用されませんでした。従来のKでは一部しか置き換えられません。{}をlinear_advanceとして使うには、設定のエクストルーダーセクションに入力してください。"/>
   <translation tag="{} serial" ja="{} シリアル番号"/>
   <translation tag="{} set to {}" ja="{} を {} に設定しました"/>
   <translation tag="{} set to {} {}" ja="{} を {} {} に設定しました"/>

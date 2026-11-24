@@ -472,6 +472,30 @@ TEST_CASE_METHOD(TwoExtruderTemps,
     CHECK(lv_subject_get_int(active) == 5000);
 }
 
+TEST_CASE_METHOD(TwoExtruderTemps,
+                 "PrinterTemperatureState: the model revision moves when a pressure-advance field "
+                 "changes, and only then",
+                 "[core][temperature][pa_model][pa_tuner][pa_nl_live]") {
+    lv_subject_t* rev = state.get_pa_model_revision_subject();
+    state.update_from_status({{"extruder",
+                               {{"pressure_advance_model", "tanh"},
+                                {"linear_advance", 0.0},
+                                {"nonlinear_offset", 0.0},
+                                {"linearization_velocity", 1.0}}}});
+    const int start = lv_subject_get_int(rev);
+
+    // A field no model reads, or one repeated unchanged, is no change.
+    state.update_from_status({{"extruder", {{"temperature", 200.0}, {"nonlinear_offset", 0.0}}}});
+    CHECK(lv_subject_get_int(rev) == start);
+
+    // A field the active model does not show (the offset) still counts.
+    state.update_from_status({{"extruder", {{"nonlinear_offset", 0.002}}}});
+    CHECK(lv_subject_get_int(rev) == start + 1);
+    // So does another extruder's.
+    state.update_from_status({{"extruder1", {{"pressure_advance", 0.3}}}});
+    CHECK(lv_subject_get_int(rev) == start + 2);
+}
+
 TEST_CASE_METHOD(
     TwoExtruderTemps,
     "PrinterTemperatureState: the fitted nozzle an extruder reports is kept per extruder",

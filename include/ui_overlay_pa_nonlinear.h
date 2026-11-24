@@ -3,12 +3,15 @@
 
 #pragma once
 
+#include "ui_emergency_stop.h"
 #include "ui_modal.h"
 
 #include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
 #include "core/subject.h"
+#include "display_awake_hold.h"
 #include "i_moonraker_api.h"
+#include "json_fwd.h"
 #include "klipper_config_editor.h"
 #include "overlay_base.h"
 #include "pa_model.h"
@@ -51,7 +54,11 @@
  * - pa_nl_has_tower (int), pa_nl_busy (int: 1 readying a print, 2 writing the config)
  * - pa_nl_live_value / pa_nl_live_text (string)
  * - pa_nl_two_sided (int), pa_nl_height / pa_nl_height_value (string)
+ * - pa_nl_can_back (int: a judgement can be taken back)
  * - pa_nl_error (string)
+ *
+ * Every judgement is saved with the printer's settings, so a restart of the
+ * screen offers to continue the procedure where it stopped.
  */
 namespace helix {
 enum class PrintJobState;
@@ -96,6 +103,7 @@ class PaNonlinearOverlay : public OverlayBase {
     }
 
     void on_activate() override;
+    void on_deactivating(DeactivateReason reason) override;
     void cleanup() override;
 
     void set_api(IMoonrakerAPI* api) {
@@ -125,11 +133,37 @@ class PaNonlinearOverlay : public OverlayBase {
     void print_pass_for_test() {
         print_pass();
     }
-    void adjust_height_for_test(int step_mm) {
-        adjust_height(step_mm);
+    void adjust_height_for_test(int step_tenths) {
+        adjust_height(step_tenths);
+    }
+    void edit_height_for_test() {
+        edit_height();
+    }
+    void back_for_test() {
+        go_back();
+    }
+    float height_for_test() const {
+        return height_mm_;
+    }
+    /// What a restart of the screen loses: the procedure in memory.
+    void forget_for_test() {
+        proc_.reset();
+        set_stage(READY);
+    }
+    void stop_for_test() {
+        stop_tower();
+    }
+    bool keeps_display_awake_for_test() const {
+        return decision_awake_.held();
+    }
+    bool holds_machine_busy_for_test() const {
+        return start_busy_.held();
     }
     void judge_for_test(int verdict) {
         judge(verdict);
+    }
+    void save_for_test() {
+        save_to_config();
     }
     void discard_for_test() {
         discard();
@@ -158,10 +192,11 @@ class PaNonlinearOverlay : public OverlayBase {
     void begin_observing();
     void stop_observing();
     void on_print_state(PrintJobState state);
-    void finish_tower();
+    /// The tower's job ended in @p state: only a completed one runs the end macro.
+    void finish_tower(PrintJobState state);
     /// Disarm the sweep, put the procedure's values back, and with
-    /// @p release_machine run the end lines.
-    void send_ending(bool release_machine);
+    /// @p release_machine run the end lines for a job that ended as @p end.
+    void send_ending(bool release_machine, helix::pa::JobEnd end = helix::pa::JobEnd::Completed);
     /// PRINT_PA_TOWER returned for pass @p pass_seq.
     void on_script_done(int pass_seq);
     /// The ready script failed. Only a refusal ends the pass: a timeout or a
@@ -178,7 +213,13 @@ class PaNonlinearOverlay : public OverlayBase {
     void raise(int attempts_left);
     static constexpr int kRaiseAttempts = 60;
 
-    void adjust_height(int step_mm);
+    /// Move the judged height by @p step_tenths of a millimeter.
+    void adjust_height(int step_tenths);
+    /// Type the judged height on the numeric keypad.
+    void edit_height();
+    void set_height(float height_mm);
+    /// Take back the latest judgement and judge its tower again.
+    void go_back();
     /// One-sided: any value takes the height. Two-sided: a SideVerdict.
     void judge(int verdict);
     void after_judgement();
@@ -188,6 +229,13 @@ class PaNonlinearOverlay : public OverlayBase {
     void save_to_config();
     void discard();
     void close_procedure();
+
+    /// Write the procedure, and the model to restore, to the printer's settings.
+    void save_session();
+    void clear_saved_session();
+    /// Offer to continue the saved procedure @p saved in place of the fresh one.
+    void offer_resume(const nlohmann::json& saved);
+    void resume(const nlohmann::json& saved);
 
     IMoonrakerAPI* api_ = nullptr;
     Stage stage_ = READY;
@@ -221,6 +269,7 @@ class PaNonlinearOverlay : public OverlayBase {
     helix::Subject live_text_{};
     char live_text_buf_[96] = {};
     helix::Subject two_sided_{};
+    helix::Subject can_back_{};
     helix::Subject height_{};
     char height_buf_[24] = {};
     helix::Subject height_value_{};
@@ -228,8 +277,16 @@ class PaNonlinearOverlay : public OverlayBase {
     helix::Subject error_{};
     char error_buf_[192] = {};
 
+    /// Held while a judgement waits on the user, so the screensaver does not
+    /// cover it.
+    helix::DisplayAwakeToken decision_awake_;
+    /// Keeps the E-stop up while the start script homes and heats: no print
+    /// job exists until the firmware tower begins.
+    helix::MachineBusyToken start_busy_;
+
     ObserverGuard print_state_observer_;
     ObserverGuard z_observer_;
+    ObserverGuard pa_observer_;
 };
 
 inline PaNonlinearOverlay& get_global_pa_nonlinear_overlay() {

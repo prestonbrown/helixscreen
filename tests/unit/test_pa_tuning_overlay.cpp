@@ -1,6 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_nav.h"
+#include "ui_nav_manager.h"
 #include "ui_overlay_pa_tuning.h"
 #include "ui_print_tune_overlay.h"
 
@@ -18,6 +20,7 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "spoolman_types.h"
+#include "theme_manager.h"
 #include "tool_state.h"
 #include "tune_controller.h"
 
@@ -114,6 +117,8 @@ TEST_CASE_METHOD(TunerFixture, "the tuner ramps K on its own print and takes a n
     CHECK(overlay.stage() == PaTuningOverlay::RESULT);
     CHECK(client.last_send_script() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0000");
     CHECK(shown("pa_tune_result_k") == "0.0000");
+    // A classic K can be written to the extruder's config section.
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_tune_can_save_config")) == 1);
 }
 
 TEST_CASE_METHOD(TunerFixture, "a finished state from an earlier print does not end the run",
@@ -235,9 +240,12 @@ TEST_CASE_METHOD(TunerFixture,
     helix::ui::UpdateQueue::instance().drain();
     helix::ui::UpdateQueue::instance().drain();
     REQUIRE(overlay.stage() == PaTuningOverlay::RESULT);
-    CHECK(client.last_send_script() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0100");
+    // A bare ADVANCE= would replace only linear_advance: nothing is sent.
+    CHECK(client.last_send_script().find("ADVANCE=") == std::string::npos);
 
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_tune_can_save_spool")) == 0);
+    // pressure_advance is not a key a nonlinear model reads.
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_tune_can_save_config")) == 0);
     CHECK(client.mock_db_get(pa::kMoonrakerNamespace, pa::kMoonrakerKey).is_null());
 }
 
@@ -420,4 +428,146 @@ TEST_CASE_METHOD(TunerFixture, "the Tune row's Tuner button follows the run whil
     overlay.apply_pick_for_test();
     REQUIRE_FALSE(overlay.session_active());
     CHECK(lv_subject_get_int(active) == 0);
+}
+
+TEST_CASE_METHOD(TunerFixture, "no K is sent while the start macro is still heating",
+                 "[pa_tune][pa_tuner][timeout]") {
+    start_session();
+    // Printing, but no layer yet: PRINT_START is still homing and heating, and a
+    // SET_PRESSURE_ADVANCE sent now would queue behind its M190.
+    printing(0);
+    CHECK(client.last_send_script().find("SET_PRESSURE_ADVANCE") == std::string::npos);
+    printing(1);
+    CHECK(client.last_send_script() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0000");
+}
+
+TEST_CASE_METHOD(TunerFixture, "ending the test puts the original K back before any pick",
+                 "[pa_tune][pa_tuner][restore]") {
+    start_session(); // the printer ran K 0.04 before the test
+    printing(1);
+    report_k(0.0);
+    printing(22);
+    report_k(0.01);
+    // A cancel never reaches the tower's own restore line.
+    status({{"print_stats", {{"state", "cancelled"}}}});
+    REQUIRE(overlay.stage() == PaTuningOverlay::PICK);
+    CHECK(client.last_send_script() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0400");
+}
+
+TEST_CASE_METHOD(TunerFixture, "a classic K tower is refused on a nonlinear extruder",
+                 "[pa_tune][pa_tuner][pa_model]") {
+    status({{"extruder", {{"pressure_advance_model", "tanh"}, {"linear_advance", 0.02}}}});
+    REQUIRE(get_printer_state().temperature_state().extruder_pa_model("extruder").nonlinear());
+    overlay.choose_model_for_test(false);
+
+    overlay.confirm_and_start_for_test();
+    CHECK_FALSE(overlay.error_for_test().empty());
+    CHECK(overlay.stage() == PaTuningOverlay::SETUP);
+    CHECK(client.last_send_script().find("ADVANCE=") == std::string::npos);
+    // The setup now offers the Nonlinear tuner instead.
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_tune_nl_mode")) == 1);
+}
+
+TEST_CASE_METHOD(TunerFixture, "the display stays awake on the pick stage only",
+                 "[pa_tune][pa_tuner][awake]") {
+    start_session();
+    printing(1);
+    report_k(0.0);
+    printing(22);
+    report_k(0.01);
+    CHECK_FALSE(overlay.awake_held_for_test());
+    status({{"print_stats", {{"state", "complete"}}}});
+    REQUIRE(overlay.stage() == PaTuningOverlay::PICK);
+    CHECK(overlay.awake_held_for_test());
+    // A covered tuner no longer waits on the user.
+    overlay.on_deactivating(DeactivateReason::NavigateAway);
+    CHECK_FALSE(overlay.awake_held_for_test());
+    overlay.select_band_for_test(1);
+    overlay.apply_pick_for_test();
+    REQUIRE(overlay.stage() == PaTuningOverlay::RESULT);
+    // The result is not held: a screen left on it must let the display sleep.
+    CHECK_FALSE(overlay.awake_held_for_test());
+}
+
+TEST_CASE("Save to Config writes the K as the extruder's pressure_advance",
+          "[pa_tune][pa_tuner][config]") {
+    const auto write = PaTuningOverlay::config_write_for("extruder1", 0.0375f);
+    REQUIRE(write.edits.size() == 1);
+    CHECK(write.edits[0].type == helix::system::ConfigEdit::Type::ADD_KEY);
+    CHECK(write.edits[0].key == "pressure_advance");
+    CHECK(write.edits[0].value == "0.0375");
+    REQUIRE(write.expected.size() == 1);
+    CHECK(write.expected[0].section == "extruder1");
+    CHECK(write.expected[0].option == "pressure_advance");
+    CHECK(write.expected[0].value == "0.0375");
+}
+
+TEST_CASE_METHOD(TunerFixture, "the tower's Print Status page leaves the stack when its print ends",
+                 "[pa_tune][pa_tuner][nav]") {
+    theme_manager_register_responsive_spacing(lv_display_get_default());
+    auto& nav = NavigationManager::instance();
+    nav.init();
+    std::array<lv_obj_t*, kUiPanelCount> roots{};
+    for (auto& r : roots) {
+        r = lv_obj_create(lv_screen_active());
+    }
+    nav.set_panels(roots.data());
+    lv_obj_t* page = lv_obj_create(lv_screen_active());
+    nav.register_overlay_instance(page, nullptr);
+    nav.push_overlay(page);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(helix::nav::is_in_stack(page));
+    overlay.set_print_status_page_source_for_test([page]() { return page; });
+
+    start_session();
+    printing(1);
+    report_k(0.0);
+    printing(22);
+    report_k(0.01);
+    CHECK(helix::nav::is_in_stack(page)); // still there while the tower prints
+    status({{"print_stats", {{"state", "complete"}}}});
+    REQUIRE(overlay.stage() == PaTuningOverlay::PICK);
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(400);
+    helix::ui::UpdateQueue::instance().drain();
+    // The page's Reprint would run the tower outside the tuner, and Done would
+    // land on it instead of where the tuner was opened.
+    CHECK_FALSE(helix::nav::is_in_stack(page));
+    nav.deinit_subjects();
+}
+
+TEST_CASE_METHOD(TunerFixture, "a previous tower's end marker does not start this run",
+                 "[pa_tune][pa_tuner][timeout]") {
+    // The last tower ended on its layer past the top; nothing clears that count.
+    status({{"print_stats", {{"state", "standby"}, {"info", {{"current_layer", 157}}}}}});
+    start_session();
+    status(
+        {{"print_stats", {{"state", "printing"}, {"filename", PaTuningOverlay::TEST_FILENAME}}}});
+    CHECK(client.last_send_script().find("SET_PRESSURE_ADVANCE") == std::string::npos);
+    CHECK(overlay.session_for_test().state() == pa::TuningSession::State::Starting);
+
+    printing(1);
+    CHECK(client.last_send_script() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0000");
+    report_k(0.0);
+    printing(22);
+    // The ramp runs: the stale marker did not declare this tower done.
+    CHECK(client.last_send_script() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0100");
+    CHECK(overlay.nudge_by(0.005f));
+}
+
+TEST_CASE_METHOD(TunerFixture, "a previous job's layer below the tower top does not start this run",
+                 "[pa_tune][pa_tuner][timeout]") {
+    // An earlier tower ended at layer 40 and nothing cleared the count.
+    status({{"print_stats", {{"state", "standby"}, {"info", {{"current_layer", 40}}}}}});
+    start_session();
+    status(
+        {{"print_stats", {{"state", "printing"}, {"filename", PaTuningOverlay::TEST_FILENAME}}}});
+    CHECK(client.last_send_script().find("SET_PRESSURE_ADVANCE") == std::string::npos);
+    CHECK(overlay.session_for_test().state() == pa::TuningSession::State::Starting);
+    CHECK(overlay.session_for_test().bands().empty());
+
+    // This print's own first layer starts the ramp and the log.
+    printing(1);
+    CHECK(client.last_send_script() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0000");
+    CHECK(overlay.session_for_test().state() == pa::TuningSession::State::Printing);
 }

@@ -296,18 +296,24 @@ std::string generate_test_gcode(const TestPrintParams& p) {
     line("M107");
     line(fmt::format("SET_PRINT_STATS_INFO TOTAL_LAYER={}", layers));
 
-    // Prime line along the front edge, clear of the tower and its brim.
-    const double prime_x0 = std::max<double>(p.bed_x_min + 10.0, cx - 40.0);
-    const double prime_y = p.bed_y_min + 5.0;
-    const double prime_len = 60.0;
-    const double prime_epm = e_per_mm(w * 1.5, g.first_layer_mm, p.filament_diameter_mm);
     const double travel_f = 150.0 * 60.0;
-    line("G1 Z5 F600");
-    line(fmt::format("G1 X{:.3f} Y{:.3f} F{:.0f}", prime_x0, prime_y, travel_f));
-    line(fmt::format("G1 Z{:.3f} F600", g.first_layer_mm));
-    line(fmt::format("G1 X{:.3f} E{:.5f} F1200", prime_x0 + prime_len, prime_len * prime_epm));
-    line("G1 E-0.8 F2100");
-    line(fmt::format("G1 Z{:.3f} F600", g.first_layer_mm + 0.4));
+    // Prime line along the front edge, clear of the tower and its brim. A start
+    // macro that purged already left one on the plate.
+    if (!p.skip_prime) {
+        const double prime_x0 = std::max<double>(p.bed_x_min + 10.0, cx - 40.0);
+        const double prime_y = p.bed_y_min + 5.0;
+        const double prime_len = 60.0;
+        const double prime_epm = e_per_mm(w * 1.5, g.first_layer_mm, p.filament_diameter_mm);
+        line("G1 Z5 F600");
+        line(fmt::format("G1 X{:.3f} Y{:.3f} F{:.0f}", prime_x0, prime_y, travel_f));
+        line(fmt::format("G1 Z{:.3f} F600", g.first_layer_mm));
+        line(fmt::format("G1 X{:.3f} E{:.5f} F1200", prime_x0 + prime_len, prime_len * prime_epm));
+        line("G1 E-0.8 F2100");
+        line(fmt::format("G1 Z{:.3f} F600", g.first_layer_mm + 0.4));
+    } else {
+        // The macro leaves the nozzle wherever its purge ended.
+        line("G1 Z5 F600");
+    }
 
     for (int layer = 1; layer <= layers; ++layer) {
         const double h = layer_height_of(g, layer);
@@ -324,7 +330,8 @@ std::string generate_test_gcode(const TestPrintParams& p) {
         const double first_half = plan.halves.front();
         line(fmt::format("G1 X{:.3f} Y{:.3f} F{:.0f}", cx - first_half, cy - first_half, travel_f));
         line(fmt::format("G1 Z{:.3f} F600", z));
-        if (layer == 1) {
+        if (layer == 1 && !p.skip_prime) {
+            // Undoes the prime line's retract.
             line("G1 E0.8 F2100");
         }
         bool first_loop = true;
@@ -398,20 +405,25 @@ std::vector<std::string> machine_ready_lines(const TestPrintParams& p) {
     return out;
 }
 
-std::vector<std::string> machine_finish_lines(const TestPrintParams& p) {
+std::vector<std::string> machine_finish_lines(const TestPrintParams& p, JobEnd end) {
     std::vector<std::string> out;
-    if (!p.macros.end.empty()) {
-        out.push_back(p.macros.end);
-    } else {
-        out.emplace_back("G91");
-        out.emplace_back("G1 Z10 F600");
-        out.emplace_back("G90");
+    const bool completed = end == JobEnd::Completed;
+    if (completed) {
+        if (!p.macros.end.empty()) {
+            out.push_back(p.macros.end);
+        } else {
+            out.emplace_back("G91");
+            out.emplace_back("G1 Z10 F600");
+            out.emplace_back("G90");
+        }
     }
     // Cool down even after an end macro: not every one turns everything off.
     out.push_back(fmt::format("SET_HEATER_TEMPERATURE HEATER={} TARGET=0", p.heater));
     out.emplace_back("M140 S0");
-    out.emplace_back("M107");
-    out.emplace_back("M84");
+    if (completed) {
+        out.emplace_back("M107");
+        out.emplace_back("M84");
+    }
     return out;
 }
 
@@ -523,6 +535,11 @@ void TuningSession::on_print_started() {
 }
 
 void TuningSession::on_layer(int layer) {
+    // A layer past the tower's last, seen before this print has reported one, is
+    // the end marker a previous tower left behind: not this print's start.
+    if (state_ == State::Starting && layer > layer_count(geometry_, ramp_.bands)) {
+        return;
+    }
     if (state_ == State::Starting && layer > 0) {
         on_print_started();
     }

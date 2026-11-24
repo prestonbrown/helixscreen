@@ -452,6 +452,7 @@
   <translation tag="Applied for this session only: {}" es="Aplicado solo en esta sesión: {}"/>
   <translation tag="Applied to {} as linear_advance, the nonlinear model&apos;s high-speed slope. Klipper forgets it on restart: enter {} as linear_advance in the extruder&apos;s config section." es="Aplicado a {} como linear_advance, la pendiente de alta velocidad del modelo no lineal. Klipper lo olvida al reiniciar: introduce {} como linear_advance en la sección del extrusor de la configuración."/>
   <translation tag="Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." es="Aplicado a {}. Klipper lo olvida al reiniciar: introduce {} como Pressure Advance en el perfil de filamento de tu laminador o guárdalo en la bobina."/>
+  <translation tag="Applied to {}. Klipper forgets it on restart: save {} to the config, or enter it as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." es="Aplicado a {}. Klipper olvida el valor al reiniciar: guarda {} en la configuración, introdúcelo como Pressure advance en el perfil de filamento de tu slicer o guárdalo en la bobina."/>
   <translation tag="Applies to" es="Se aplica a"/>
   <translation tag="Apply" es="Aplicar"/>
   <translation tag="Apply a thin film of the lubricant your manual names." es="Aplica una capa fina del lubricante que indica el manual."/>
@@ -608,6 +609,7 @@
   <translation tag="Belts" es="Correas"/>
   <translation tag="Belts already match" es="Las correas ya coinciden"/>
   <translation tag="Belts stretch and settle; loose ones cause ringing and layer shifts." es="Las correas se estiran y asientan; flojas causan ringing y desplazamiento de capas."/>
+  <translation tag="Best height" es="Mejor altura"/>
   <translation tag="Best height, measured up from the plate" es="Mejor altura, medida desde la cama"/>
   <translation tag="Beta" es="Beta"/>
   <translation tag="Beta features: OFF" es="Funciones Beta: OFF"/>
@@ -1180,6 +1182,7 @@
   <translation tag="Context" es="Contexto"/>
   <translation tag="Continue" es="Continuar"/>
   <translation tag="Continue on Another Toolhead" es="Continuar en otro cabezal"/>
+  <translation tag="Continue the earlier tuning?" es="¿Continuar el ajuste anterior?"/>
   <translation tag="Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes." es="¿Continuar la impresión en {}? La impresora le pasa el resto de la impresión, lo calienta y reanuda."/>
   <translation tag="Continue with the remaining steps, or stop the calibration?" es="¿Continuar con los pasos restantes o detener la calibración?"/>
   <translation tag="Continues from {} on runout" es="Al agotarse continúa desde {}"/>
@@ -3397,6 +3400,7 @@
   <translation tag="Pass" es="Pasada"/>
   <translation tag="Pass the missing parameter from the slicer&apos;s start G-code, or give it a default in the macro." es="Pasa el parámetro que falta desde el G-code de inicio del laminador, o dale un valor por defecto en la macro."/>
   <translation tag="Pass {} of {}: {}" es="Pasada {} de {}: {}"/>
+  <translation tag="Passes judged before are kept and pass {} of {} is next. Start Over begins again from pass 1." es="Las pasadas ya evaluadas se conservan y la siguiente es la pasada {} de {}. Empezar de nuevo vuelve a la pasada 1."/>
   <translation tag="Password" es="Contraseña"/>
   <translation tag="Password cannot be empty" es="La contraseña no puede estar vacía"/>
   <translation tag="Password is required for secured networks" es="Se requiere contraseña para redes protegidas"/>
@@ -3550,6 +3554,7 @@
   <translation tag="Pressure advance" es="Pressure Advance"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." es="Pressure Advance sube a medida que crece la torre. Observa las esquinas: toca - o + cuando quieras y la rampa se detiene para que juzgues tu propio valor."/>
   <translation tag="Pressure advance tuning" es="Ajuste de Pressure Advance"/>
+  <translation tag="Pressure advance {} is written to the {} section." es="Pressure advance {} se escribe en la sección {}."/>
   <translation tag="Pressure on the bed" es="Presión sobre la cama"/>
   <translation tag="Pressure:" es="Presión:"/>
   <translation tag="Preview" es="Vista previa"/>
@@ -4173,6 +4178,7 @@
   <translation tag="Save to Config" es="Guardar en configuración"/>
   <translation tag="Save to Spool" es="Guardar en bobina"/>
   <translation tag="Save to Spoolman" es="Guardar en Spoolman"/>
+  <translation tag="Save to the printer config?" es="¿Guardar en la configuración de la impresora?"/>
   <translation tag="Save writes the print&apos;s material; off, it saves one offset for every print" es="Guardar escribe el material de la impresión; desactivado, guarda un offset para todas las impresiones"/>
   <translation tag="Save writes these values to the extruder&apos;s config section and restarts Klipper. Keep runs them until the next restart." es="Guardar escribe estos valores en la sección del extrusor de la configuración y reinicia Klipper. Mantener los usa hasta el próximo reinicio."/>
   <translation tag="Save {} mm for {}? Other materials keep their own offsets." es="¿Guardar {} mm para {}? Los demás materiales conservan sus propios offsets."/>
@@ -4182,6 +4188,7 @@
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." es="Guardado en Spoolman, pero el precio, la ubicación, el lote y las notas de la bobina no se guardaron."/>
   <translation tag="Saved to crash_report.txt (QR not available)" es="Guardado en crash_report.txt (QR no disponible)"/>
   <translation tag="Saved to printer configuration." es="Guardado en la configuración de la impresora."/>
+  <translation tag="Saved to the printer config. It survives a restart." es="Guardado en la configuración de la impresora. Se conserva tras reiniciar."/>
   <translation tag="Saved to {}. It applies whenever this filament becomes active." es="Guardado en {}. Se aplica cada vez que este filamento se activa."/>
   <translation tag="Saved values, and whether to ask before running" es="Valores guardados y si se debe preguntar antes de ejecutar"/>
   <translation tag="Saved {} mm" es="Guardado {} mm"/>
@@ -4557,6 +4564,7 @@
   <translation tag="Start Guided Tuning" es="Iniciar ajuste guiado"/>
   <translation tag="Start Heating" es="Iniciar calentamiento"/>
   <translation tag="Start K" es="K inicial"/>
+  <translation tag="Start Over" es="Empezar de nuevo"/>
   <translation tag="Start Print" es="Iniciar Impresión"/>
   <translation tag="Start Probing" es="Iniciar Sondeo"/>
   <translation tag="Start a new {} h interval? The hours counted so far are discarded." es="¿Iniciar un nuevo intervalo de {} h? Las horas contadas hasta ahora se descartan."/>
@@ -5128,6 +5136,7 @@
   <translation tag="The temperature was changed elsewhere." es="La temperatura se cambió desde otro lugar."/>
   <translation tag="The tensioners pull each belt to its target" es="Los tensores llevan cada correa a su tensión objetivo"/>
   <translation tag="The test tower is not in the printer&apos;s config yet." es="La torre de prueba aún no está en la configuración de la impresora."/>
+  <translation tag="The test tower needs filament in the toolhead. Load it from the Filament panel, then start again." es="La torre de prueba necesita filamento en el cabezal. Cárgalo desde el panel de Filamento y vuelve a empezar."/>
   <translation tag="The thermocouple or PT100 amplifier reported a fault or a reading out of range." es="El amplificador del termopar o PT100 informó de un fallo o de una lectura fuera de rango."/>
   <translation tag="The time, date, and system uptime" es="Hora, fecha y tiempo de actividad"/>
   <translation tag="The timelapse could not be downloaded" es="No se pudo descargar el timelapse"/>
@@ -5208,6 +5217,7 @@
   <translation tag="This doesn&apos;t match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?" es="No coincide con el carrete vinculado de Spoolman. ¿Actualizarlo en Spoolman o desvincularlo y mantenerlo en este carril?"/>
   <translation tag="This dryer cannot run while filament from the unit is loaded" es="Este secador no puede funcionar mientras haya filamento de la unidad cargado"/>
   <translation tag="This extruder runs the nonlinear model, so the tower sweeps its linear advance, not a classic K." es="Este extrusor usa el modelo no lineal, así que la torre barre su linear advance, no una K clásica."/>
+  <translation tag="This extruder runs the nonlinear model. A classic K tower would overwrite part of it: use the Nonlinear tuner." es="Este extrusor usa el modelo no lineal. Una torre K clásica sobrescribiría parte de él: usa el ajuste No lineal."/>
   <translation tag="This feature requires different hardware or configuration" es="Esta función requiere otro hardware u otra configuración"/>
   <translation tag="This filament system does not report buffer or flow data." es="Este sistema de filamento no informa datos de búfer ni de flujo."/>
   <translation tag="This filament system keeps its own spool records" es="Este sistema de filamento guarda sus propios registros de bobinas"/>
@@ -5248,6 +5258,7 @@
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." es="Esta impresora no tiene zona horaria, así que su reloj marca UTC. Elige la tuya."/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." es="Esta impresora no tiene el comando {}, así que no se puede guardar el Z-offset."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." es="Esta impresora parece una {} ({}% de confianza), pero está configurada como {}. Un tipo erróneo aplica opciones y preajustes de preimpresión incorrectos."/>
+  <translation tag="This printer runs a nonlinear pressure advance model, and a classic K tower would overwrite part of it. Use the Nonlinear tuner." es="Esta impresora usa un modelo de pressure advance no lineal, y una torre K clásica sobrescribiría parte de él. Usa el ajuste No lineal."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" es="A las macros de INDX de esta impresora les falta: {}"/>
   <translation tag="This printer&apos;s Moonraker rejected its API key. Check the key in Settings &gt; Connection." es="El Moonraker de esta impresora rechazó su clave API. Revisa la clave en Ajustes &gt; Conexión."/>
   <translation tag="This printer&apos;s Moonraker requires a login. Add its API key in Settings &gt; Connection." es="El Moonraker de esta impresora requiere inicio de sesión. Añade su clave API en Ajustes &gt; Conexión."/>
@@ -6224,6 +6235,7 @@
   <translation tag="{} ran out of filament during the print, and auto refill is off." es="{} se quedó sin filamento durante la impresión, y el rellenado automático está desactivado."/>
   <translation tag="{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament." es="{} se quedó sin {}. Elige un cabezal cargado para terminar la impresión. Mantiene las temperaturas laminadas para el filamento original."/>
   <translation tag="{} ran out, and the printer has not said what it was printing." es="{} se agotó, y la impresora no ha indicado qué estaba imprimiendo."/>
+  <translation tag="{} runs a nonlinear model, so this value was not applied: a classic K would replace only part of it. To use {} as linear_advance, enter it in the extruder&apos;s config section." es="{} usa un modelo no lineal, así que este valor no se aplicó: una K clásica solo reemplazaría parte de él. Para usar {} como linear_advance, introdúcelo en la sección del extrusor de la configuración."/>
   <translation tag="{} serial" es="N.º de serie de {}"/>
   <translation tag="{} set to {}" es="{} ajustado a {}"/>
   <translation tag="{} set to {} {}" es="{} ajustado a {} {}"/>

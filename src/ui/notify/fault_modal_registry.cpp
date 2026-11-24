@@ -20,6 +20,9 @@ namespace {
 // handler, both of which LVGL already guarantees run on the main thread.
 std::vector<lv_obj_t*> s_fault_modals;
 
+// The dedup key each tracked dialog was raised with; empty keys are not stored.
+std::vector<std::pair<lv_obj_t*, std::string>> s_fault_keys;
+
 // Drop the handle whenever the dialog dies by ANY route — the user's OK, a
 // backdrop tap, our own sweep, ModalStack::clear() at teardown. Without this the
 // vector accumulates dead pointers across a long session, and since a freed
@@ -31,6 +34,10 @@ void forget_fault_modal(lv_event_t* e) {
     if (it != s_fault_modals.end()) {
         s_fault_modals.erase(it);
     }
+    s_fault_keys.erase(
+        std::remove_if(s_fault_keys.begin(), s_fault_keys.end(),
+                       [dialog](const auto& entry) { return entry.first == dialog; }),
+        s_fault_keys.end());
 }
 
 // The dialog currently restating the printer fault, or nullptr.
@@ -71,13 +78,79 @@ int hide_fault_modals() {
     return dismissed;
 }
 
+// The title is the key up to its first newline.
+std::string title_of(const std::string& key) {
+    return key.substr(0, key.find('\n'));
+}
+
+// A fault whose text keeps changing in ways the key cannot fold must not stack
+// without bound: past kMaxFaultModalsPerTitle the oldest one under the title goes.
+void retire_oldest_with_title(const std::string& key) {
+    const std::string title = title_of(key);
+    std::vector<lv_obj_t*> live;
+    for (const auto& entry : s_fault_keys) {
+        if (title_of(entry.second) == title && modal_live(entry.first)) {
+            live.push_back(entry.first);
+        }
+    }
+    // The dialog about to be tracked takes one slot.
+    while (live.size() + 1 > static_cast<size_t>(kMaxFaultModalsPerTitle)) {
+        Modal::hide(live.front(), ModalCloseReason::External);
+        live.erase(live.begin());
+    }
+}
+
 } // namespace
 
-void track_fault_modal(lv_obj_t* dialog) {
+std::string fault_dedup_key(const char* title, const char* message) {
+    const std::string text = std::string(title ? title : "") + "\n" + (message ? message : "");
+    std::string key;
+    key.reserve(text.size());
+    // A name Klipper quotes ('mcu1', 'EBBCan') is what tells two faults apart, so
+    // its digits stay; every other number (coordinates, counters, line numbers,
+    // clock ticks) collapses.
+    bool quoted = false;
+    bool in_number = false;
+    for (const char ch : text) {
+        if (ch == '\'') {
+            quoted = !quoted;
+        }
+        const bool digit = ch >= '0' && ch <= '9';
+        if (digit && !quoted) {
+            if (!in_number) {
+                key += '#';
+            }
+            in_number = true;
+            continue;
+        }
+        // A '.' inside a number belongs to it.
+        if (in_number && ch == '.') {
+            continue;
+        }
+        in_number = false;
+        key += ch;
+    }
+    return key;
+}
+
+bool fault_modal_showing(const std::string& key) {
+    if (key.empty()) {
+        return false;
+    }
+    return std::any_of(s_fault_keys.begin(), s_fault_keys.end(), [&key](const auto& entry) {
+        return entry.second == key && modal_live(entry.first);
+    });
+}
+
+void track_fault_modal(lv_obj_t* dialog, const std::string& key) {
     if (!dialog) {
         return; // modal_alert() already logged why it failed
     }
     s_fault_modals.push_back(dialog);
+    if (!key.empty()) {
+        retire_oldest_with_title(key);
+        s_fault_keys.emplace_back(dialog, key);
+    }
     // DECLARATIVE_OK: LV_EVENT_DELETE cleanup has no declarative equivalent.
     lv_obj_add_event_cb(dialog, forget_fault_modal, LV_EVENT_DELETE, nullptr);
 }

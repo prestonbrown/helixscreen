@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../../include/app_globals.h"
+#include "../../include/core/update_queue.h"
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/printer_state.h"
@@ -67,6 +69,23 @@ TEST_CASE_METHOD(TuneFixture, "an in-range value is sent unmodified", "[tune_con
     // two clamping tests above pass for the wrong reason.
     helix::tune::set_speed_percent(api.get(), 120);
     REQUIRE(last_sent() == "M220 S120");
+}
+
+TEST_CASE_METHOD(TuneFixture, "a nonlinear extruder gets no bare ADVANCE=",
+                 "[tune_controller][pa_model][mock]") {
+    auto& global = get_printer_state();
+    global.init_subjects(false);
+    global.temperature_state().init_extruders({"extruder"});
+    helix::tune::set_pressure_advance(api.get(), "extruder", 0.04f);
+    CHECK(last_sent() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0400");
+
+    // Under tanh, ADVANCE= would replace only linear_advance and keep the offset.
+    global.update_from_status(
+        {{"extruder", {{"pressure_advance_model", "tanh"}, {"linear_advance", 0.02}}}});
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(helix::tune::pressure_advance_is_nonlinear("extruder"));
+    helix::tune::set_pressure_advance(api.get(), "extruder", 0.05f);
+    CHECK(last_sent() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0400");
 }
 
 TEST_CASE("a null api sends nothing and does not crash", "[tune_controller]") {

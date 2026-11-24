@@ -3,8 +3,11 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Settings > Printing > Z Offset by Material (prestonbrown/helixscreen#2142): one
      Z offset per material, applied by the print-start macro, and an optional stored
-     bed mesh per material. material_zoffset_status: 0 no storage on this printer
-     (setup steps), 1 the helper macros need an update, 2 ready. -->
+     bed mesh per material. material_zoffset_status: 0 no storage on this printer,
+     1 the helper macros need an update, 2 ready. Each setup step stays until it
+     is done: step 1 while there is no storage, step 2 while PRINT_START does not
+     call the helper (material_zoffset_step_print_start), step 3 until the owner
+     says the slicer passes the material (material_zoffset_step_slicer). -->
 <component>
   <view name="material_z_offset_overlay" extends="overlay_panel" title="Z Offset by Material" bg_color="#screen_bg">
     <overlay_panel-overlay_content style_pad_top="0"
@@ -15,13 +18,14 @@
                   long_mode="wrap" style_pad_left="#space_md" style_pad_right="#space_md" style_pad_bottom="#space_sm"/>
       <!-- Setup: no storage this screen can use -->
       <setting_group name="group_setup">
-        <bind_flag_if_not_eq subject="material_zoffset_status" flag="hidden" ref_value="0"/>
+        <bind_flag_if cond="material_zoffset_status ne 0 and material_zoffset_step_print_start eq 0 and material_zoffset_step_slicer eq 0"
+                      flag="hidden"/>
         <setting_group_header title="ONE-TIME SETUP"/>
         <!-- Firmware that supervises HelixScreen provides the macros itself (#2154). -->
         <lv_obj name="step_install"
                 width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_ver="#space_md"
                 style_pad_hor="#space_lg" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
-          <bind_flag_if_eq subject="firmware_supervised" flag="hidden" ref_value="1"/>
+          <bind_flag_if cond="firmware_supervised eq 1 or material_zoffset_status ne 0" flag="hidden"/>
           <text_body width="100%"
                      text="1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets."
                      long_mode="wrap" wrap_at_spaces="true"/>
@@ -32,6 +36,7 @@
         <lv_obj name="step_print_start"
                 width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_ver="#space_md"
                 style_pad_hor="#space_lg" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
+          <bind_flag_if_eq subject="material_zoffset_step_print_start" flag="hidden" ref_value="0"/>
           <text_body width="100%"
                      text="2. In PRINT_START, after homing and probing and before your own mesh step, add this line:"
                      long_mode="wrap"/>
@@ -40,9 +45,13 @@
         <lv_obj name="step_slicer"
                 width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_ver="#space_md"
                 style_pad_hor="#space_lg" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
+          <bind_flag_if_eq subject="material_zoffset_step_slicer" flag="hidden" ref_value="0"/>
           <text_body width="100%"
                      text="3. Have the slicer's start G-code pass the material to PRINT_START:" long_mode="wrap"/>
           <code_block bind_text="material_zoffset_slicer_line"/>
+          <ui_button name="btn_slicer_done" width="100%" variant="secondary" text="Done">
+            <event_cb trigger="clicked" callback="on_material_zoffset_slicer_done"/>
+          </ui_button>
         </lv_obj>
       </setting_group>
       <!-- The helper macros predate the [save_variables] store -->

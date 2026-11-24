@@ -106,6 +106,43 @@ TEST_CASE("material zoffset: which printers get a row", "[material_zoffset]") {
     }
 }
 
+TEST_CASE("material zoffset: each setup step stays until it is done or not needed",
+          "[material_zoffset][pa_tuner][material_setup]") {
+    SECTION("the helper call is what HelixScreen's row and a printer with no row need") {
+        CHECK(mz::helper_call_macro(helix_printer()) == "HELIX_MATERIAL_OFFSET");
+        CHECK(mz::helper_call_macro(printer_with({"START_PRINT"}, true)) ==
+              "HELIX_MATERIAL_OFFSET");
+        CHECK(mz::helper_call_macro(vars_printer()).empty());
+        CHECK(mz::helper_call_macro(printer_with({"SAVE_ZMOD_DATA"}, true)).empty());
+    }
+    const std::string helper = "HELIX_MATERIAL_OFFSET";
+    SECTION("installing the macros leaves the PRINT_START and slicer steps up") {
+        const auto before = mz::setup_steps(false, helper, std::nullopt, false);
+        CHECK(before.install);
+        CHECK(before.print_start);
+        CHECK(before.slicer);
+        const auto after = mz::setup_steps(true, helper, false, false);
+        CHECK_FALSE(after.install);
+        CHECK(after.print_start);
+        CHECK(after.slicer);
+    }
+    SECTION("an unread PRINT_START keeps its step; one that calls the helper clears it") {
+        CHECK(mz::setup_steps(true, helper, std::nullopt, false).print_start);
+        const auto done = mz::setup_steps(true, helper, true, false);
+        CHECK_FALSE(done.print_start);
+        CHECK(done.slicer);
+    }
+    SECTION("the slicer step goes once the owner says it is done") {
+        CHECK_FALSE(mz::setup_steps(true, helper, true, true).slicer);
+    }
+    SECTION("a start macro that keeps the table itself needs neither") {
+        const auto vars = mz::setup_steps(true, "", std::nullopt, false);
+        CHECK_FALSE(vars.install);
+        CHECK_FALSE(vars.print_start);
+        CHECK_FALSE(vars.slicer);
+    }
+}
+
 // ============================================================================
 // Reading
 // ============================================================================

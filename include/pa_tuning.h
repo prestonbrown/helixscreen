@@ -172,6 +172,8 @@ struct TestPrintParams {
     int fan_percent = 100;
     MachineMacros macros;
     std::string material;
+    /// The start macro already purged: the tower draws no prime line of its own.
+    bool skip_prime = false;
 };
 
 /// Generate the test print: starts through the printer's start macro (or homes
@@ -184,9 +186,20 @@ std::string generate_test_gcode(const TestPrintParams& p);
 /// opens with them; a print the firmware generates sends them first.
 std::vector<std::string> machine_ready_lines(const TestPrintParams& p);
 
-/// The lines that end a test print: the end macro or a lift, then heaters,
-/// fan and motors off.
-std::vector<std::string> machine_finish_lines(const TestPrintParams& p);
+/// How a test print's job ended, which decides what its finish may send.
+enum class JobEnd {
+    /// The print ran to its end: the machine is hot and where the print left it.
+    Completed,
+    /// Canceled, refused or lost: the firmware's cancel path has already run the
+    /// end of the print and turned the heaters off, so the nozzle may be cold.
+    Stopped,
+};
+
+/// The lines that end a test print. Completed: the end macro or a lift, then
+/// heaters, fan and motors off. Stopped: heaters off only, since an end macro
+/// that retracts fails on a cold nozzle.
+std::vector<std::string> machine_finish_lines(const TestPrintParams& p,
+                                              JobEnd end = JobEnd::Completed);
 
 /// Rough wall-clock for the print itself, heat-up excluded.
 int estimate_print_seconds(const TestPrintParams& p);

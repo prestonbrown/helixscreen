@@ -452,6 +452,7 @@
   <translation tag="Applied for this session only: {}" zh="仅本次会话生效：{}"/>
   <translation tag="Applied to {} as linear_advance, the nonlinear model&apos;s high-speed slope. Klipper forgets it on restart: enter {} as linear_advance in the extruder&apos;s config section." zh="已作为 linear_advance 应用到 {}，即非线性模型的高速斜率。Klipper 重启后会丢失该值：请在挤出机配置段中将 {} 填为 linear_advance。"/>
   <translation tag="Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." zh="已应用到{}。Klipper重启后会丢失: 请在切片软件的耗材配置中将压力提前设为{},或保存到料盘。"/>
+  <translation tag="Applied to {}. Klipper forgets it on restart: save {} to the config, or enter it as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." zh="已应用到 {}。Klipper 重启后会丢失该值：请将 {} 保存到配置中，或在切片软件的耗材配置中填写为 Pressure advance，或保存到料盘。"/>
   <translation tag="Applies to" zh="适用于"/>
   <translation tag="Apply" zh="应用"/>
   <translation tag="Apply a thin film of the lubricant your manual names." zh="薄薄涂一层手册指定的润滑剂。"/>
@@ -608,6 +609,7 @@
   <translation tag="Belts" zh="皮带"/>
   <translation tag="Belts already match" zh="皮带已经匹配"/>
   <translation tag="Belts stretch and settle; loose ones cause ringing and layer shifts." zh="皮带会拉伸松弛；过松会导致振纹和层错位。"/>
+  <translation tag="Best height" zh="最佳高度"/>
   <translation tag="Best height, measured up from the plate" zh="最佳高度（从热床向上测量）"/>
   <translation tag="Beta" zh="测试版"/>
   <translation tag="Beta features: OFF" zh="测试版功能: 关"/>
@@ -1180,6 +1182,7 @@
   <translation tag="Context" zh="上下文"/>
   <translation tag="Continue" zh="继续"/>
   <translation tag="Continue on Another Toolhead" zh="在另一个工具头上继续"/>
+  <translation tag="Continue the earlier tuning?" zh="继续之前的调校？"/>
   <translation tag="Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes." zh="在{}上继续打印？打印机会将剩余打印转到该工具头，加热后继续。"/>
   <translation tag="Continue with the remaining steps, or stop the calibration?" zh="继续剩余步骤，还是停止校准？"/>
   <translation tag="Continues from {} on runout" zh="用尽时从{}继续"/>
@@ -3397,6 +3400,7 @@
   <translation tag="Pass" zh="轮次"/>
   <translation tag="Pass the missing parameter from the slicer&apos;s start G-code, or give it a default in the macro." zh="请在切片软件的起始 G-code 中传入缺少的参数，或在宏中为其设置默认值。"/>
   <translation tag="Pass {} of {}: {}" zh="轮次 {}/{}：{}"/>
+  <translation tag="Passes judged before are kept and pass {} of {} is next. Start Over begins again from pass 1." zh="已评判的轮次会保留，下一轮是第 {} 轮（共 {} 轮）。重新开始将从第 1 轮开始。"/>
   <translation tag="Password" zh="密码"/>
   <translation tag="Password cannot be empty" zh="密码不能为空"/>
   <translation tag="Password is required for secured networks" zh="加密网络需要密码"/>
@@ -3550,6 +3554,7 @@
   <translation tag="Pressure advance" zh="压力提前"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." zh="压力提前随测试塔升高而增加。查看角落: 随时点击-或+,自动步进就会停止,方便你判断自己的数值。"/>
   <translation tag="Pressure advance tuning" zh="压力提前调校"/>
+  <translation tag="Pressure advance {} is written to the {} section." zh="Pressure advance {} 将写入 {} 部分。"/>
   <translation tag="Pressure on the bed" zh="热床受压"/>
   <translation tag="Pressure:" zh="压力:"/>
   <translation tag="Preview" zh="预览"/>
@@ -4173,6 +4178,7 @@
   <translation tag="Save to Config" zh="保存到配置"/>
   <translation tag="Save to Spool" zh="保存到料盘"/>
   <translation tag="Save to Spoolman" zh="保存到 Spoolman"/>
+  <translation tag="Save to the printer config?" zh="保存到打印机配置？"/>
   <translation tag="Save writes the print&apos;s material; off, it saves one offset for every print" zh="保存会写入本次打印的材料；关闭时为所有打印保存同一个偏移"/>
   <translation tag="Save writes these values to the extruder&apos;s config section and restarts Klipper. Keep runs them until the next restart." zh="保存会将这些值写入挤出机配置段并重启 Klipper。保留则使用这些值直到下次重启。"/>
   <translation tag="Save {} mm for {}? Other materials keep their own offsets." zh="保存 {} mm 到 {}？其他材料保持各自的偏移。"/>
@@ -4182,6 +4188,7 @@
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." zh="已保存到 Spoolman，但料盘的价格、位置、批次和备注未保存。"/>
   <translation tag="Saved to crash_report.txt (QR not available)" zh="已保存到 crash_report.txt（二维码不可用）"/>
   <translation tag="Saved to printer configuration." zh="已保存到打印机配置。"/>
+  <translation tag="Saved to the printer config. It survives a restart." zh="已保存到打印机配置。重启后仍然有效。"/>
   <translation tag="Saved to {}. It applies whenever this filament becomes active." zh="已保存到{}。每当该耗材启用时都会应用。"/>
   <translation tag="Saved values, and whether to ask before running" zh="保存的值,以及运行前是否询问"/>
   <translation tag="Saved {} mm" zh="已保存 {} mm"/>
@@ -4557,6 +4564,7 @@
   <translation tag="Start Guided Tuning" zh="开始引导式调优"/>
   <translation tag="Start Heating" zh="开始加热"/>
   <translation tag="Start K" zh="起始K值"/>
+  <translation tag="Start Over" zh="重新开始"/>
   <translation tag="Start Print" zh="开始打印"/>
   <translation tag="Start Probing" zh="开始探测"/>
   <translation tag="Start a new {} h interval? The hours counted so far are discarded." zh="开始新的 {} 小时间隔？目前累计的小时数将被清除。"/>
@@ -5128,6 +5136,7 @@
   <translation tag="The temperature was changed elsewhere." zh="温度已在其他位置更改。"/>
   <translation tag="The tensioners pull each belt to its target" zh="张紧器将每条皮带拉到目标张力"/>
   <translation tag="The test tower is not in the printer&apos;s config yet." zh="测试塔尚未加入打印机配置。"/>
+  <translation tag="The test tower needs filament in the toolhead. Load it from the Filament panel, then start again." zh="测试塔需要工具头中有耗材。请在耗材面板中加载，然后重新开始。"/>
   <translation tag="The thermocouple or PT100 amplifier reported a fault or a reading out of range." zh="热电偶或 PT100 放大器报告故障或读数超出范围。"/>
   <translation tag="The time, date, and system uptime" zh="时间、日期和系统运行时长"/>
   <translation tag="The timelapse could not be downloaded" zh="无法下载延时摄影"/>
@@ -5208,6 +5217,7 @@
   <translation tag="This doesn&apos;t match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?" zh="与关联的 Spoolman 料盘不匹配。在 Spoolman 中更新，还是取消关联并保留在此料位？"/>
   <translation tag="This dryer cannot run while filament from the unit is loaded" zh="此单元的耗材处于装载状态时，烘干机无法运行"/>
   <translation tag="This extruder runs the nonlinear model, so the tower sweeps its linear advance, not a classic K." zh="此挤出机使用非线性模型，因此测试塔扫描的是其线性提前，而不是经典的 K 值。"/>
+  <translation tag="This extruder runs the nonlinear model. A classic K tower would overwrite part of it: use the Nonlinear tuner." zh="此挤出机使用非线性模型。经典 K 值测试塔会覆盖其中一部分：请使用非线性调校。"/>
   <translation tag="This feature requires different hardware or configuration" zh="此功能需要不同的硬件或配置"/>
   <translation tag="This filament system does not report buffer or flow data." zh="此耗材系统不报告缓冲器或流量数据。"/>
   <translation tag="This filament system keeps its own spool records" zh="此耗材系统自行管理料盘记录"/>
@@ -5248,6 +5258,7 @@
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." zh="此打印机未设置时区，时钟显示的是 UTC。请选择您的时区。"/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." zh="此打印机没有 {} 命令，因此无法保存 Z 偏移。"/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." zh="此打印机看起来是 {}（置信度 {}%），但当前设置为 {}。错误的类型会应用不正确的打印前选项和预设。"/>
+  <translation tag="This printer runs a nonlinear pressure advance model, and a classic K tower would overwrite part of it. Use the Nonlinear tuner." zh="此打印机使用非线性 Pressure advance 模型，经典 K 值测试塔会覆盖其中一部分。请使用非线性调校。"/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" zh="此打印机的 INDX 宏缺少：{}"/>
   <translation tag="This printer&apos;s Moonraker rejected its API key. Check the key in Settings &gt; Connection." zh="此打印机的 Moonraker 拒绝了其 API 密钥。请在 设置 &gt; 连接 中检查密钥。"/>
   <translation tag="This printer&apos;s Moonraker requires a login. Add its API key in Settings &gt; Connection." zh="此打印机的 Moonraker 要求登录。请在 设置 &gt; 连接 中添加其 API 密钥。"/>
@@ -6224,6 +6235,7 @@
   <translation tag="{} ran out of filament during the print, and auto refill is off." zh="{} 在打印过程中耗材用尽，且自动续料已关闭。"/>
   <translation tag="{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament." zh="{}的{}已耗尽。请选择一个已装载的工具头来完成打印。它沿用为原耗材切片的温度。"/>
   <translation tag="{} ran out, and the printer has not said what it was printing." zh="{}已耗尽，打印机未报告其正在打印的耗材。"/>
+  <translation tag="{} runs a nonlinear model, so this value was not applied: a classic K would replace only part of it. To use {} as linear_advance, enter it in the extruder&apos;s config section." zh="{} 使用非线性模型，因此未应用该值：经典 K 值只会替换其中一部分。要将 {} 用作 linear_advance，请在配置的挤出机部分中填写。"/>
   <translation tag="{} serial" zh="{} 序列号"/>
   <translation tag="{} set to {}" zh="{} 已设为 {}"/>
   <translation tag="{} set to {} {}" zh="{} 已设为 {} {}"/>

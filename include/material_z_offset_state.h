@@ -69,6 +69,10 @@ class MaterialZOffsetState {
     /// disagree, either way (a fresh [save_variables] file, a switch written
     /// elsewhere, or a send that never landed).
     void reconcile(IMoonrakerAPI* api);
+    /// The owner said the slicer passes the material to the print start
+    /// macro, so the setup's slicer step is done. Per printer, persisted.
+    [[nodiscard]] bool slicer_step_done() const;
+    void mark_slicer_step_done();
     /// The printer-side switch is on while this screen's setting is off.
     [[nodiscard]] bool switch_disagrees() const;
     /// The start macro applies per-material offsets at print start whatever

@@ -99,6 +99,10 @@ bool run_park_toolhead_macro(IMoonrakerAPI* api, AsyncLifetimeGuard& lifetime, c
 /// that moment, so a printer switch while the dialog is up clears nothing stale.
 void confirm_bed_cleared();
 
+/// Record the bed as cleared, which drops the lift over the last print. For a dialog that
+/// already asks the user to clear the plate, so nothing asks again.
+void mark_bed_cleared();
+
 /// Every calibration that moves the toolhead starts through this: @p start runs straight
 /// away when no print may be on the bed, and otherwise only once the user answers the
 /// same "Is the bed clear?" question with Cleared, which also marks the bed cleared.
