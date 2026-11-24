@@ -307,3 +307,25 @@ TEST_CASE_METHOD(RollbackDirFixture, "Disarming drops the marker and every file 
     // A result the restored version has not shown yet is not part of a trial.
     CHECK(has(kRollbackResultFile));
 }
+
+TEST_CASE("After install.sh: a failure past an automatic install's swap restarts under the guard",
+          "[auto_update][rollback]") {
+    CHECK(decide_after_install(true, true, false) == AfterInstall::Restart);
+    CHECK(decide_after_install(true, false, false) == AfterInstall::Restart);
+    // The new tree is live: restarting lets the guard keep it or put the old one back.
+    CHECK(decide_after_install(false, true, true) == AfterInstall::RestartGuarded);
+    // Before the swap the old tree is still live, so a failure changes nothing.
+    CHECK(decide_after_install(false, true, false) == AfterInstall::Fail);
+    // A manual install keeps no copy to restore, so it reports the failure as before.
+    CHECK(decide_after_install(false, false, true) == AfterInstall::Fail);
+}
+
+TEST_CASE_METHOD(RollbackDirFixture, "The swap note counts only when it names the kept copy",
+                 "[auto_update][rollback]") {
+    CHECK_FALSE(install_swapped_tree(dir));
+    REQUIRE(write_rollback_file(dir, kRollbackSwappedFile, "\n"));
+    CHECK_FALSE(install_swapped_tree(dir));
+    REQUIRE(write_rollback_file(dir, kRollbackSwappedFile, "previous_dir=/opt/helixscreen.old\n"));
+    CHECK(install_swapped_tree(dir));
+    CHECK_FALSE(install_swapped_tree(""));
+}

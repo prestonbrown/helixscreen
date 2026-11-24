@@ -2350,6 +2350,12 @@ extract_release() {
     fi
     # shellcheck disable=SC2034  # read by main.sh (install_state_line)
     INSTALL_SWAPPED=swapped
+    # The new tree is live from here on: an automatic install that fails past
+    # this point must still go through the rollback guard, so say so now.
+    if _keep_previous_requested && [ -n "${HELIX_UPDATE_SWAPPED_FILE:-}" ] && [ -n "${INSTALL_BACKUP:-}" ]; then
+        printf 'previous_dir=%s\n' "$INSTALL_BACKUP" > "$HELIX_UPDATE_SWAPPED_FILE" 2>/dev/null ||
+            log_warn "Could not record the swap for rollback"
+    fi
 
     # Phase 6: Restore config and settings
     # User's config always takes priority over bundled defaults so customizations

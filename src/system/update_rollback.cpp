@@ -134,6 +134,19 @@ void disarm_rollback_guard() {
     }
 }
 
+bool install_swapped_tree(const std::string& dir) {
+    std::string note;
+    return !dir.empty() && read_rollback_file(dir, kRollbackSwappedFile, note) &&
+           !rollback_value(note, "previous_dir").empty();
+}
+
+AfterInstall decide_after_install(bool installed, bool keep_previous, bool swapped) {
+    if (installed) {
+        return AfterInstall::Restart;
+    }
+    return keep_previous && swapped ? AfterInstall::RestartGuarded : AfterInstall::Fail;
+}
+
 bool rollback_guard_armed() {
     const std::string dir = rollback_dir();
     std::error_code ec;

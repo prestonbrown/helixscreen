@@ -1049,7 +1049,7 @@ class UpdateChecker {
     /// Writes the rollback marker for the launcher's guard from the previous
     /// version install.sh kept. Download worker, after a successful install.
     static void arm_rollback_guard(const std::string& guard_dir, const std::string& install_root,
-                                   const std::string& version);
+                                   const std::string& version, const char* previous_note);
 
     /// Does a job (or a pending power-loss resume) hold the machine? Asked on
     /// the main thread from the download worker; false only on a clear answer.

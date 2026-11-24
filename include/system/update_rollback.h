@@ -22,6 +22,9 @@ inline constexpr const char* kRollbackRequestFile = "update_rollback.request";
 inline constexpr const char* kRollbackResultFile = "update_rollback.result";
 /// Written by install.sh when it kept the previous tree: `previous_dir=<path>`.
 inline constexpr const char* kRollbackPreviousFile = "update_rollback.previous";
+/// Written by install.sh the moment its swap makes the new tree live, with the
+/// same `previous_dir=<path>`: an install that fails after it is judged by the guard.
+inline constexpr const char* kRollbackSwappedFile = "update_rollback.swapped";
 /// Present while the guarded version is running a job, so the launcher holds
 /// the restart it would otherwise make after a healthy report.
 inline constexpr const char* kRollbackBusyFile = "update_rollback.busy";
@@ -85,6 +88,19 @@ std::string rollback_dir();
 /// Is a rollback armed right now (the previous version installed is still on
 /// trial)? The scheduler installs nothing automatically until it is settled.
 bool rollback_guard_armed();
+
+/// Did install.sh record (kRollbackSwappedFile) that its swap made the new tree live?
+bool install_swapped_tree(const std::string& dir);
+
+/// What follows install.sh's exit.
+enum class AfterInstall {
+    Restart,        ///< Installed: restart into the new version
+    RestartGuarded, ///< Failed after an automatic install's swap: the guard judges it
+    Fail,           ///< Failed with the old tree still live: report and stay
+};
+/// @p swapped is install_swapped_tree(); it counts only for an install keeping
+/// the previous version (an automatic one), whose guard can restore it.
+AfterInstall decide_after_install(bool installed, bool keep_previous, bool swapped);
 
 /// Drops an armed guard and every file of its trial. A manual install does this
 /// first: the trial it would otherwise end in is for the version it replaces,

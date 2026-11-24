@@ -2369,9 +2369,12 @@ void UpdateChecker::do_install(const std::string& tarball_path, InstallOrigin or
     }
 
     std::string previous_file;
+    std::string swapped_file;
     if (keep_previous) {
         previous_file = rollback_guard_dir + "/" + helix::update::kRollbackPreviousFile;
+        swapped_file = rollback_guard_dir + "/" + helix::update::kRollbackSwappedFile;
         std::remove(previous_file.c_str());
+        std::remove(swapped_file.c_str());
         flog_info("[UpdateChecker] Automatic install: keeping the previous version ({})",
                   previous_file);
     }
@@ -2423,6 +2426,7 @@ void UpdateChecker::do_install(const std::string& tarball_path, InstallOrigin or
             if (keep_previous) {
                 setenv("HELIX_UPDATE_KEEP_PREVIOUS", "1", 1);
                 setenv("HELIX_UPDATE_PREVIOUS_FILE", previous_file.c_str(), 1);
+                setenv("HELIX_UPDATE_SWAPPED_FILE", swapped_file.c_str(), 1);
             }
             // Pass the app-validated staging dir (computed on the parent above)
             // only when its parent is writable; else let the installer probe.
@@ -2552,11 +2556,18 @@ void UpdateChecker::do_install(const std::string& tarball_path, InstallOrigin or
         safe_exec({rm_bin, "-rf", extracted_dir});
     }
 
-    settle_self_restart_sentinel(ret == 0 || installer_may_run);
-    if (ret != 0) {
+    // An automatic install whose swap already made the new tree live is not
+    // undone here: the launcher's guard judges it, as it would a clean install.
+    const bool swapped_then_failed =
+        helix::update::decide_after_install(
+            ret == 0, keep_previous,
+            keep_previous && helix::update::install_swapped_tree(rollback_guard_dir)) ==
+        helix::update::AfterInstall::RestartGuarded;
+    settle_self_restart_sentinel(ret == 0 || installer_may_run || swapped_then_failed);
+    if (ret != 0 && !swapped_then_failed) {
         installing_ = false;
     }
-    if (ret != 0) {
+    if (ret != 0 && !swapped_then_failed) {
         flog_error("[UpdateChecker] Install script failed with code {}", ret);
         // Build a user-visible error message with detail from the install log
         std::string ui_text =
@@ -2576,10 +2587,24 @@ void UpdateChecker::do_install(const std::string& tarball_path, InstallOrigin or
         return;
     }
 
-    spdlog::info("[UpdateChecker] Update installed successfully!");
+    if (swapped_then_failed) {
+        spdlog::warn("[UpdateChecker] install.sh failed (code {}) after the swap; restarting into "
+                     "v{} under the rollback guard",
+                     ret, version);
+        TelemetryManager::UpdateFailureDetail telemetry_detail;
+        telemetry_detail.install_detail =
+            install_failure_telemetry_detail(install_lines, device_identifiers());
+        TelemetryManager::instance().record_update_failure(
+            timed_out ? "install_timeout_after_swap" : "install_failed_after_swap", version,
+            helix::platform::current_key(), -1, -1, ret, telemetry_detail);
+    } else {
+        spdlog::info("[UpdateChecker] Update installed successfully!");
+    }
 
     if (keep_previous) {
-        arm_rollback_guard(rollback_guard_dir, install_root, version);
+        arm_rollback_guard(rollback_guard_dir, install_root, version,
+                           swapped_then_failed ? helix::update::kRollbackSwappedFile
+                                               : helix::update::kRollbackPreviousFile);
     }
 
     // Restore CWD after install.sh moved/deleted the old install directory.
@@ -3815,15 +3840,15 @@ void UpdateChecker::show_pending_rollback_notice() {
 }
 
 void UpdateChecker::arm_rollback_guard(const std::string& guard_dir,
-                                       const std::string& install_root,
-                                       const std::string& version) {
+                                       const std::string& install_root, const std::string& version,
+                                       const char* previous_note) {
     std::string previous;
-    if (!helix::update::read_rollback_file(guard_dir, helix::update::kRollbackPreviousFile,
-                                           previous)) {
+    if (!helix::update::read_rollback_file(guard_dir, previous_note, previous)) {
         spdlog::warn("[UpdateChecker] install.sh kept no previous version; no rollback armed");
         return;
     }
     helix::update::remove_rollback_file(guard_dir, helix::update::kRollbackPreviousFile);
+    helix::update::remove_rollback_file(guard_dir, helix::update::kRollbackSwappedFile);
 
     helix::update::RollbackMarker marker;
     marker.install_dir = install_root;
