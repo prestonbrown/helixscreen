@@ -166,7 +166,10 @@ STAGES = ('app-build', 'ci-shards', 'slow', 'bats', 'ui', 'plugin', 'python',
 AUX_MAKEFILES = ('mk/splash.mk', 'mk/watchdog.mk', 'mk/display-lib.mk')
 AUX_DEP_DIRS = ('build/obj', 'build/display', 'build/x86-fbdev/splash',
                 'build/x86-fbdev/watchdog', 'build/x86-fbdev/display')
-AUX_BUILD_INPUTS = ('Makefile', 'mk/', 'lv_conf.h', 'lib/', 'patches/')
+# Only the submodules whose headers or objects the splash and watchdog link
+# (helix-xml is not among them).
+AUX_BUILD_INPUTS = ('Makefile', 'mk/', 'lv_conf.h', 'lib/lvgl', 'lib/libhv', 'lib/spdlog',
+                    'patches/')
 AUX_SOURCE_RE = re.compile(r'(?:src|tools)/[\w/]*\w\.cpp')
 
 
@@ -657,23 +660,41 @@ def aux_sources(root):
     return sorted(found)
 
 
+def _mtime(path):
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return 0
+
+
 def splash_link_verdict(root, changed):
     """(run, why) | (skip, why): does the change reach a source the splash or
-    watchdog builds? Their compile flags carry no LVGL include path, so a header
-    that gains one breaks them while every app object still compiles. A source's
+    watchdog builds? Their compile flags lack the include path that makes
+    "lvgl/lvgl.h" resolve, so a header that gains that include breaks them
+    while every app object still compiles. A source's
     reach is the union of its dependency files under the app build and the
     x86-fbdev build this stage leaves behind; helix_splash.cpp and
     helix_watchdog.cpp only get one once that stage has run in the tree, and a
-    source with no .d falls back to any changed C++ path under src/, include/
-    or tools/."""
+    source with no usable .d (missing, or older than a prerequisite or one of
+    the makefiles) falls back to any changed C++ path under src/, include/ or
+    tools/."""
     code = [c for c in changed if not is_doc(c)]
     hit = next((c for c in code if matches(c, AUX_BUILD_INPUTS)), None)
     if hit:
         return 'run', f'{hit} changed (build system or submodule)'
     deps = {}
+    mk_time = max((_mtime(root / mk) for mk in AUX_MAKEFILES), default=0)
     for d in AUX_DEP_DIRS:
-        for src, found in load_depfiles(root / d).items():
-            deps.setdefault(src, set()).update(found)
+        for dep in Path(root / d).rglob('*.d'):
+            try:
+                src, found = parse_depfile(dep.read_text(errors='replace'))
+                born = dep.stat().st_mtime
+            except OSError:
+                continue
+            # make's own staleness rule: a .d older than a prerequisite, or than
+            # a makefile naming the sources, describes a build that has moved on.
+            if src and born >= mk_time and all(born >= _mtime(root / f) for f in found):
+                deps.setdefault(src, set()).update(found)
     reach = {}
     unbuilt = []
     for src in aux_sources(root):
