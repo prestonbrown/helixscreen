@@ -15,13 +15,17 @@ namespace helix::ui {
 
 namespace {
 
-// Dialogs raised for a printer-side fault. Main-thread only: every mutation
-// happens either beside a modal_alert() call or inside an LV_EVENT_DELETE
-// handler, both of which LVGL already guarantees run on the main thread.
-std::vector<lv_obj_t*> s_fault_modals;
+// A dialog raised for a printer-side fault, and the dedup key it was raised
+// with (empty: none).
+struct TrackedFault {
+    lv_obj_t* dialog;
+    std::string key;
+};
 
-// The dedup key each tracked dialog was raised with; empty keys are not stored.
-std::vector<std::pair<lv_obj_t*, std::string>> s_fault_keys;
+// Main-thread only: every mutation happens either beside a modal_alert() call
+// or inside an LV_EVENT_DELETE handler, both of which LVGL already guarantees
+// run on the main thread.
+std::vector<TrackedFault> s_fault_modals;
 
 // Drop the handle whenever the dialog dies by ANY route — the user's OK, a
 // backdrop tap, our own sweep, ModalStack::clear() at teardown. Without this the
@@ -30,14 +34,10 @@ std::vector<std::pair<lv_obj_t*, std::string>> s_fault_keys;
 // name an unrelated live widget.
 void forget_fault_modal(lv_event_t* e) {
     auto* dialog = static_cast<lv_obj_t*>(lv_event_get_target(e));
-    auto it = std::find(s_fault_modals.begin(), s_fault_modals.end(), dialog);
-    if (it != s_fault_modals.end()) {
-        s_fault_modals.erase(it);
-    }
-    s_fault_keys.erase(
-        std::remove_if(s_fault_keys.begin(), s_fault_keys.end(),
-                       [dialog](const auto& entry) { return entry.first == dialog; }),
-        s_fault_keys.end());
+    s_fault_modals.erase(
+        std::remove_if(s_fault_modals.begin(), s_fault_modals.end(),
+                       [dialog](const TrackedFault& entry) { return entry.dialog == dialog; }),
+        s_fault_modals.end());
 }
 
 // The dialog currently restating the printer fault, or nullptr.
@@ -59,11 +59,12 @@ int hide_fault_modals() {
     // Modal::hide() can delete the backdrop synchronously when there is no exit
     // animation to run, which fires forget_fault_modal() and mutates
     // s_fault_modals mid-iteration. Walk a detached copy.
-    std::vector<lv_obj_t*> pending;
+    std::vector<TrackedFault> pending;
     pending.swap(s_fault_modals);
 
     int dismissed = 0;
-    for (lv_obj_t* dialog : pending) {
+    for (const TrackedFault& entry : pending) {
+        lv_obj_t* dialog = entry.dialog;
         // Untracked = already acknowledged and the widgets are gone. Exiting =
         // acknowledged a frame ago and still animating out. Counting either
         // would report dismissals this sweep did not make.
@@ -88,9 +89,9 @@ std::string title_of(const std::string& key) {
 void retire_oldest_with_title(const std::string& key) {
     const std::string title = title_of(key);
     std::vector<lv_obj_t*> live;
-    for (const auto& entry : s_fault_keys) {
-        if (title_of(entry.second) == title && modal_live(entry.first)) {
-            live.push_back(entry.first);
+    for (const TrackedFault& entry : s_fault_modals) {
+        if (!entry.key.empty() && title_of(entry.key) == title && modal_live(entry.dialog)) {
+            live.push_back(entry.dialog);
         }
     }
     // The dialog about to be tracked takes one slot.
@@ -137,20 +138,19 @@ bool fault_modal_showing(const std::string& key) {
     if (key.empty()) {
         return false;
     }
-    return std::any_of(s_fault_keys.begin(), s_fault_keys.end(), [&key](const auto& entry) {
-        return entry.second == key && modal_live(entry.first);
-    });
+    return std::any_of(
+        s_fault_modals.begin(), s_fault_modals.end(),
+        [&key](const TrackedFault& entry) { return entry.key == key && modal_live(entry.dialog); });
 }
 
 void track_fault_modal(lv_obj_t* dialog, const std::string& key) {
     if (!dialog) {
         return; // modal_alert() already logged why it failed
     }
-    s_fault_modals.push_back(dialog);
     if (!key.empty()) {
         retire_oldest_with_title(key);
-        s_fault_keys.emplace_back(dialog, key);
     }
+    s_fault_modals.push_back({dialog, key});
     // DECLARATIVE_OK: LV_EVENT_DELETE cleanup has no declarative equivalent.
     lv_obj_add_event_cb(dialog, forget_fault_modal, LV_EVENT_DELETE, nullptr);
 }
