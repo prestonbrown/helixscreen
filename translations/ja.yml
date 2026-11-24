@@ -3734,6 +3734,7 @@ translations:
   Press Scan to search: スキャンを押して検索
   Pressure Advance Tuning: Pressure Advance調整
   Pressure advance: Pressure Advance
+  Pressure advance by material: '素材別 Pressure Advance'
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'タワーが高くなるにつれてPressure Advanceが上がります。角を見てください: いつでも-か+をタップするとランプが止まり、自分の値を判断できます。'
   Pressure advance tuning: 'Pressure Advance調整'
@@ -4384,6 +4385,7 @@ translations:
   "Saved {} mm": "保存値 {} mm"
   Saved {} mm for {}: "{} mm を {} に保存しました"
   "Saved {} mm, {} mm after Save": "保存値 {} mm、保存後 {} mm"
+  Saved for {}. Every {} print starts with it.: '{} に保存しました。{} の印刷はすべてこの値で始まります。'
   Saved offset: "保存済みオフセット"
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: 'Spoolmanに保存しましたが、スプールの価格、場所、ロット、メモは保存されませんでした。'
   Saved to crash_report.txt (QR not available): crash_report.txt に保存しました（QR 利用不可）
@@ -5278,6 +5280,7 @@ translations:
   The print may have failed: '印刷が失敗した可能性があります'
   The print moved to {} but did not resume. Check {}, then press Resume.: '印刷は {} に移りましたが、再開されませんでした。{} を確認してから「再開」を押してください。'
   The print settings sent with the file could not be applied.: 'ファイルとともに送られた印刷設定を適用できませんでした。'
+  The print-start macro applies each material's saved tuner result, else the config's: '印刷開始マクロが素材ごとに保存した結果を適用し、なければ設定ファイルの値を使います'
   The printable size in millimeters (X × Y × Z), from the axis limits in the printer's Klipper config.: '印刷可能なサイズ（mm、X × Y × Z）。プリンターのKlipper設定の軸リミットから取得します。'
   The printer applied this value and keeps it for this tool.: 'プリンターはこの値を適用し、このツールに保存しました。'
   The printer can draw a priming line before a print. HelixScreen offers it in the pre-print options.: 'プリンターは印刷前にプライミングラインを描けます。HelixScreenは印刷前オプションで選べます。'
@@ -5875,6 +5878,7 @@ translations:
   Update printer software and firmware: 'プリンターのソフトウェアとファームウェアを更新'
   Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.: 'PRINT_START の古いコマンドを非表示にするには、HelixPrint プラグインを 1.5.0 に更新してください。'
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': INDXヒーターモデルも更新しますか？{}は{}になりました：密度 {:.2f}、熱容量 {:.2f}。
+  Update the helper macros to save per material.: '素材ごとに保存するにはヘルパーマクロを更新してください。'
   Update your security PIN: セキュリティ PIN を更新
   Update {} from {} to {}?: '{} を {} から {} に更新しますか?'
   Update {} system packages?: '{} 件のシステムパッケージを更新しますか?'

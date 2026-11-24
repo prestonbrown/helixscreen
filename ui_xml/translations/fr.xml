@@ -3603,6 +3603,7 @@
   <translation tag="Pressure Advance Calibration" fr="Calibration Pressure Advance"/>
   <translation tag="Pressure Advance Tuning" fr="Réglage du Pressure Advance"/>
   <translation tag="Pressure advance" fr="Pressure Advance"/>
+  <translation tag="Pressure advance by material" fr="Pressure Advance par matériau"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." fr="Le Pressure Advance augmente avec la hauteur de la tour. Observez les angles : touchez - ou + quand vous voulez et la rampe s&apos;arrête pour que vous jugiez votre propre valeur."/>
   <translation tag="Pressure advance tuning" fr="Réglage du Pressure Advance"/>
   <translation tag="Pressure advance {} is written to the {} section." fr="Pressure advance {} est écrit dans la section {}."/>
@@ -4243,6 +4244,7 @@
   <translation tag="Save {} mm for {}? Other materials keep their own offsets." fr="Enregistrer {} mm pour {} ? Les autres matériaux gardent leurs propres décalages."/>
   <translation tag="Saved Z-Offset" fr="Z-Offset enregistré"/>
   <translation tag="Saved for the mounted head; other heads keep their own" fr="Enregistré pour la tête d&apos;outil montée ; les autres têtes d&apos;outil gardent le leur"/>
+  <translation tag="Saved for {}. Every {} print starts with it." fr="Enregistré pour {}. Chaque impression en {} commence avec."/>
   <translation tag="Saved offset" fr="Décalage enregistré"/>
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." fr="Enregistré dans Spoolman, mais le prix, l&apos;emplacement, le lot et les notes de la bobine n&apos;ont pas été enregistrés."/>
   <translation tag="Saved to crash_report.txt (QR not available)" fr="Enregistré dans crash_report.txt (QR non disponible)"/>
@@ -5096,6 +5098,7 @@
   <translation tag="The print may have failed" fr="L&apos;impression a peut-être échoué"/>
   <translation tag="The print moved to {} but did not resume. Check {}, then press Resume." fr="L&apos;impression est passée sur {} mais n&apos;a pas repris. Vérifiez {}, puis appuyez sur Reprendre."/>
   <translation tag="The print settings sent with the file could not be applied." fr="Les paramètres d&apos;impression envoyés avec le fichier n&apos;ont pas pu être appliqués."/>
+  <translation tag="The print-start macro applies each material&apos;s saved tuner result, else the config&apos;s" fr="La macro de début d&apos;impression applique le résultat enregistré de chaque matériau, sinon celui de la configuration"/>
   <translation tag="The printable size in millimeters (X × Y × Z), from the axis limits in the printer&apos;s Klipper config." fr="La taille imprimable en millimètres (X × Y × Z), d&apos;après les limites des axes dans la configuration Klipper de l&apos;imprimante."/>
   <translation tag="The printer applied this value and keeps it for this tool." fr="L&apos;imprimante a appliqué cette valeur et la conserve pour cet outil."/>
   <translation tag="The printer can draw a priming line before a print. HelixScreen offers it in the pre-print options." fr="L&apos;imprimante peut tracer une ligne d&apos;amorçage avant une impression. HelixScreen la propose dans les options de pré-impression."/>
@@ -5654,6 +5657,7 @@
   <translation tag="Update printer software and firmware" fr="Mettre à jour les logiciels et le firmware de l&apos;imprimante"/>
   <translation tag="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls." fr="Mettez à jour le plugin HelixPrint vers 1.5.0 pour masquer les anciens appels de PRINT_START."/>
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." fr="Mettre aussi à jour le modèle de chauffage INDX ? {} contient maintenant {} : densité {:.2f}, capacité thermique {:.2f}."/>
+  <translation tag="Update the helper macros to save per material." fr="Mettez à jour les macros d&apos;aide pour enregistrer par matériau."/>
   <translation tag="Update your security PIN" fr="Mettez à jour votre PIN de sécurité sur cette installation."/>
   <translation tag="Update {} from {} to {}?" fr="Mettre à jour {} de {} vers {} ?"/>
   <translation tag="Update {} system packages?" fr="Mettre à jour {} paquets système ?"/>

@@ -3734,6 +3734,7 @@ translations:
   Press Scan to search: Pressione Escanear para buscar
   Pressure Advance Tuning: Ajuste de Pressure Advance
   Pressure advance: Pressure Advance
+  Pressure advance by material: 'Pressure Advance por material'
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'O Pressure Advance sobe à medida que a torre cresce. Observe os cantos: toque em - ou + quando quiser e a rampa para, para você julgar seu próprio valor.'
   Pressure advance tuning: 'Ajuste de Pressure Advance'
@@ -4384,6 +4385,7 @@ translations:
   "Saved {} mm": "Salvo {} mm"
   Saved {} mm for {}: "Salvo {} mm para {}"
   "Saved {} mm, {} mm after Save": "Salvo {} mm, {} mm após salvar"
+  Saved for {}. Every {} print starts with it.: 'Salvo para {}. Toda impressão em {} começa com ele.'
   Saved offset: "Offset salvo"
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: 'Salvo no Spoolman, mas o preço, a localização, o lote e as notas do carretel não foram salvos.'
   Saved to crash_report.txt (QR not available): Salvo em crash_report.txt (QR não disponível)
@@ -5278,6 +5280,7 @@ translations:
   The print may have failed: 'A impressão pode ter falhado'
   The print moved to {} but did not resume. Check {}, then press Resume.: 'A impressão passou para {} mas não foi retomada. Verifique {} e toque em Retomar.'
   The print settings sent with the file could not be applied.: 'Não foi possível aplicar as configurações de impressão enviadas com o arquivo.'
+  The print-start macro applies each material's saved tuner result, else the config's: 'A macro de início aplica o resultado salvo de cada material, ou o da configuração'
   The printable size in millimeters (X × Y × Z), from the axis limits in the printer's Klipper config.: 'O tamanho imprimível em milímetros (X × Y × Z), a partir dos limites dos eixos na configuração Klipper da impressora.'
   The printer applied this value and keeps it for this tool.: 'A impressora aplicou este valor e o mantém para esta ferramenta.'
   The printer can draw a priming line before a print. HelixScreen offers it in the pre-print options.: 'A impressora pode traçar uma linha de purga antes da impressão. O HelixScreen a oferece nas opções de pré-impressão.'
@@ -5875,6 +5878,7 @@ translations:
   Update printer software and firmware: 'Atualize o software e o firmware da impressora'
   Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.: 'Atualize o plugin HelixPrint para 1.5.0 para ocultar as chamadas antigas do PRINT_START.'
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': 'Atualizar também o modelo do aquecedor INDX? {} agora contém {}: densidade {:.2f}, capacidade térmica {:.2f}.'
+  Update the helper macros to save per material.: 'Atualize as macros de ajuda para salvar por material.'
   Update your security PIN: Atualize seu PIN de segurança nesta instalação.
   Update {} from {} to {}?: 'Atualizar {} de {} para {}?'
   Update {} system packages?: 'Atualizar {} pacotes do sistema?'

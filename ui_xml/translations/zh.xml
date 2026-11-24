@@ -3597,6 +3597,7 @@
   <translation tag="Pressure Advance Calibration" zh="压力提前校准"/>
   <translation tag="Pressure Advance Tuning" zh="压力提前调校"/>
   <translation tag="Pressure advance" zh="压力提前"/>
+  <translation tag="Pressure advance by material" zh="按材料压力提前"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." zh="压力提前随测试塔升高而增加。查看角落: 随时点击-或+,自动步进就会停止,方便你判断自己的数值。"/>
   <translation tag="Pressure advance tuning" zh="压力提前调校"/>
   <translation tag="Pressure advance {} is written to the {} section." zh="Pressure advance {} 将写入 {} 部分。"/>
@@ -4237,6 +4238,7 @@
   <translation tag="Save {} mm for {}? Other materials keep their own offsets." zh="保存 {} mm 到 {}？其他材料保持各自的偏移。"/>
   <translation tag="Saved Z-Offset" zh="已保存 Z 偏移"/>
   <translation tag="Saved for the mounted head; other heads keep their own" zh="已为当前安装的工具头保存；其他工具头保留各自的值"/>
+  <translation tag="Saved for {}. Every {} print starts with it." zh="已为 {} 保存。每次 {} 打印都以此开始。"/>
   <translation tag="Saved offset" zh="已保存偏移"/>
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." zh="已保存到 Spoolman，但料盘的价格、位置、批次和备注未保存。"/>
   <translation tag="Saved to crash_report.txt (QR not available)" zh="已保存到 crash_report.txt（二维码不可用）"/>
@@ -5090,6 +5092,7 @@
   <translation tag="The print may have failed" zh="打印可能已失败"/>
   <translation tag="The print moved to {} but did not resume. Check {}, then press Resume." zh="打印已转移到 {} 但未恢复。请检查 {}，然后按“恢复”。"/>
   <translation tag="The print settings sent with the file could not be applied." zh="无法应用随文件发送的打印设置。"/>
+  <translation tag="The print-start macro applies each material&apos;s saved tuner result, else the config&apos;s" zh="打印开始宏应用每种材料保存的调校结果，否则使用配置中的值"/>
   <translation tag="The printable size in millimeters (X × Y × Z), from the axis limits in the printer&apos;s Klipper config." zh="可打印尺寸（毫米，X × Y × Z），取自打印机 Klipper 配置中的轴限位。"/>
   <translation tag="The printer applied this value and keeps it for this tool." zh="打印机已应用此值，并为该工具保存。"/>
   <translation tag="The printer can draw a priming line before a print. HelixScreen offers it in the pre-print options." zh="打印机可在打印前画一条预挤出线。HelixScreen 在打印前选项中提供该功能。"/>
@@ -5648,6 +5651,7 @@
   <translation tag="Update printer software and firmware" zh="更新打印机软件和固件"/>
   <translation tag="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls." zh="将 HelixPrint 插件更新到 1.5.0 以隐藏 PRINT_START 中的旧调用。"/>
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." zh="同时更新INDX加热器模型？{}现在装的是{}：密度 {:.2f}，热容 {:.2f}。"/>
+  <translation tag="Update the helper macros to save per material." zh="更新帮助宏以按材料保存。"/>
   <translation tag="Update your security PIN" zh="更新您的安全 PIN"/>
   <translation tag="Update {} from {} to {}?" zh="将 {} 从 {} 更新到 {}?"/>
   <translation tag="Update {} system packages?" zh="更新 {} 个系统软件包?"/>

@@ -3806,6 +3806,7 @@ translations:
   Press Scan to search: Нажмите «Поиск» для сканирования
   Pressure Advance Tuning: Настройка Pressure Advance
   Pressure advance: Pressure Advance
+  Pressure advance by material: 'Pressure Advance по материалу'
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'Pressure Advance растёт вместе с башней. Следите за углами: нажмите - или + в любой момент, и рампа остановится, чтобы вы оценили своё значение.'
   Pressure advance tuning: 'Настройка Pressure Advance'
@@ -4464,6 +4465,7 @@ translations:
   "Saved {} mm": "Сохранено {} мм"
   Saved {} mm for {}: "Сохранено {} мм для {}"
   "Saved {} mm, {} mm after Save": "Сохранено {} мм, {} мм после сохранения"
+  Saved for {}. Every {} print starts with it.: 'Сохранено для {}. Каждая печать {} начинается с этим значением.'
   Saved offset: "Сохранённое смещение"
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: 'Сохранено в Spoolman, но цена, расположение, партия и заметки катушки не сохранились.'
   Saved to crash_report.txt (QR not available): Сохранено в crash_report.txt (QR недоступен)
@@ -5366,6 +5368,7 @@ translations:
   The print may have failed: 'Возможно, печать не удалась'
   The print moved to {} but did not resume. Check {}, then press Resume.: 'Печать перешла на {}, но не продолжилась. Проверьте {}, затем нажмите «Продолжить».'
   The print settings sent with the file could not be applied.: 'Не удалось применить настройки печати, отправленные с файлом.'
+  The print-start macro applies each material's saved tuner result, else the config's: 'Стартовый макрос применяет сохранённый результат для каждого материала, иначе значение из конфигурации'
   The printable size in millimeters (X × Y × Z), from the axis limits in the printer's Klipper config.: 'Размер области печати в миллиметрах (X × Y × Z) по пределам осей в конфигурации Klipper принтера.'
   The printer applied this value and keeps it for this tool.: 'Принтер применил это значение и сохранил его для этого инструмента.'
   The printer can draw a priming line before a print. HelixScreen offers it in the pre-print options.: 'Принтер может нарисовать линию прочистки перед печатью. HelixScreen предлагает ее в параметрах подготовки к печати.'
@@ -5963,6 +5966,7 @@ translations:
   Update printer software and firmware: 'Обновление программ и прошивки принтера'
   Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.: 'Обновите плагин HelixPrint до 1.5.0, чтобы скрыть старые вызовы в PRINT_START.'
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': 'Обновить и модель нагревателя INDX? В {} теперь {}: плотность {:.2f}, теплоёмкость {:.2f}.'
+  Update the helper macros to save per material.: 'Обновите вспомогательные макросы, чтобы сохранять по материалу.'
   Update your security PIN: Обновите ваш PIN-код
   Update {} from {} to {}?: 'Обновить {} с {} до {}?'
   Update {} system packages?: 'Обновить системные пакеты ({})?'

@@ -82,6 +82,11 @@ void MaterialZOffsetOverlay::register_callbacks() {
              material_zoffset::MaterialZOffsetState::instance().set_enabled(
                  get_moonraker_api(), helix::ui::event_checked(e));
          }},
+        {"on_material_pa_enabled_changed",
+         [](lv_event_t* e) {
+             material_zoffset::MaterialZOffsetState::instance().set_pa_enabled(
+                 get_moonraker_api(), helix::ui::event_checked(e));
+         }},
         {"on_material_zoffset_slicer_done",
          [](lv_event_t*) {
              // The state's rev bump refreshes the steps of an open overlay.

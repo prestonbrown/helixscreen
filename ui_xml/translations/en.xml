@@ -3597,6 +3597,7 @@
   <translation tag="Pressure Advance Calibration" en="Pressure Advance Calibration"/>
   <translation tag="Pressure Advance Tuning" en="Pressure Advance Tuning"/>
   <translation tag="Pressure advance" en="Pressure advance"/>
+  <translation tag="Pressure advance by material" en="Pressure advance by material"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." en="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value."/>
   <translation tag="Pressure advance tuning" en="Pressure advance tuning"/>
   <translation tag="Pressure advance {} is written to the {} section." en="Pressure advance {} is written to the {} section."/>
@@ -4237,6 +4238,7 @@
   <translation tag="Save {} mm for {}? Other materials keep their own offsets." en="Save {} mm for {}? Other materials keep their own offsets."/>
   <translation tag="Saved Z-Offset" en="Saved Z-Offset"/>
   <translation tag="Saved for the mounted head; other heads keep their own" en="Saved for the mounted head; other heads keep their own"/>
+  <translation tag="Saved for {}. Every {} print starts with it." en="Saved for {}. Every {} print starts with it."/>
   <translation tag="Saved offset" en="Saved offset"/>
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." en="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save."/>
   <translation tag="Saved to crash_report.txt (QR not available)" en="Saved to crash_report.txt (QR not available)"/>
@@ -5090,6 +5092,7 @@
   <translation tag="The print may have failed" en="The print may have failed"/>
   <translation tag="The print moved to {} but did not resume. Check {}, then press Resume." en="The print moved to {} but did not resume. Check {}, then press Resume."/>
   <translation tag="The print settings sent with the file could not be applied." en="The print settings sent with the file could not be applied."/>
+  <translation tag="The print-start macro applies each material&apos;s saved tuner result, else the config&apos;s" en="The print-start macro applies each material&apos;s saved tuner result, else the config&apos;s"/>
   <translation tag="The printable size in millimeters (X × Y × Z), from the axis limits in the printer&apos;s Klipper config." en="The printable size in millimeters (X × Y × Z), from the axis limits in the printer&apos;s Klipper config."/>
   <translation tag="The printer applied this value and keeps it for this tool." en="The printer applied this value and keeps it for this tool."/>
   <translation tag="The printer can draw a priming line before a print. HelixScreen offers it in the pre-print options." en="The printer can draw a priming line before a print. HelixScreen offers it in the pre-print options."/>
@@ -5648,6 +5651,7 @@
   <translation tag="Update printer software and firmware" en="Update printer software and firmware"/>
   <translation tag="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls." en="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls."/>
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." en="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}."/>
+  <translation tag="Update the helper macros to save per material." en="Update the helper macros to save per material."/>
   <translation tag="Update your security PIN" en="Update your security PIN"/>
   <translation tag="Update {} from {} to {}?" en="Update {} from {} to {}?"/>
   <translation tag="Update {} system packages?" en="Update {} system packages?"/>

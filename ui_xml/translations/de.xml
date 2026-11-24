@@ -3597,6 +3597,7 @@
   <translation tag="Pressure Advance Calibration" de="Pressure-Advance-Kalibrierung"/>
   <translation tag="Pressure Advance Tuning" de="Pressure-Advance-Tuning"/>
   <translation tag="Pressure advance" de="Pressure Advance"/>
+  <translation tag="Pressure advance by material" de="Pressure Advance nach Material"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." de="Pressure Advance steigt mit der Turmhöhe. Beobachte die Ecken: Tippe jederzeit - oder +, dann stoppt die Rampe und du kannst deinen eigenen Wert beurteilen."/>
   <translation tag="Pressure advance tuning" de="Pressure-Advance-Tuning"/>
   <translation tag="Pressure advance {} is written to the {} section." de="Pressure Advance {} wird in den Abschnitt {} geschrieben."/>
@@ -4237,6 +4238,7 @@
   <translation tag="Save {} mm for {}? Other materials keep their own offsets." de="{} mm für {} speichern? Andere Materialien behalten ihre eigenen Offsets."/>
   <translation tag="Saved Z-Offset" de="Gespeicherter Z-Offset"/>
   <translation tag="Saved for the mounted head; other heads keep their own" de="Für den aufgesetzten Werkzeugkopf gespeichert; die anderen Werkzeugköpfe behalten ihren eigenen"/>
+  <translation tag="Saved for {}. Every {} print starts with it." de="Für {} gespeichert. Jeder {}-Druck startet damit."/>
   <translation tag="Saved offset" de="Gespeicherter Offset"/>
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." de="In Spoolman gespeichert, aber Preis, Standort, Los und Notizen der Spule wurden nicht gespeichert."/>
   <translation tag="Saved to crash_report.txt (QR not available)" de="In crash_report.txt gespeichert (QR nicht verfügbar)"/>
@@ -5090,6 +5092,7 @@
   <translation tag="The print may have failed" de="Der Druck ist möglicherweise fehlgeschlagen"/>
   <translation tag="The print moved to {} but did not resume. Check {}, then press Resume." de="Der Druck wurde auf {} verlegt, aber nicht fortgesetzt. {} prüfen, dann Fortsetzen drücken."/>
   <translation tag="The print settings sent with the file could not be applied." de="Die mit der Datei gesendeten Druckeinstellungen konnten nicht übernommen werden."/>
+  <translation tag="The print-start macro applies each material&apos;s saved tuner result, else the config&apos;s" de="Das Druckstart-Makro wendet das gespeicherte Tuning-Ergebnis jedes Materials an, sonst das der Konfiguration"/>
   <translation tag="The printable size in millimeters (X × Y × Z), from the axis limits in the printer&apos;s Klipper config." de="Die druckbare Größe in Millimetern (X × Y × Z), aus den Achsgrenzen der Klipper-Konfiguration des Druckers."/>
   <translation tag="The printer applied this value and keeps it for this tool." de="Der Drucker hat diesen Wert übernommen und behält ihn für dieses Werkzeug."/>
   <translation tag="The printer can draw a priming line before a print. HelixScreen offers it in the pre-print options." de="Der Drucker kann vor dem Druck eine Vorbereitungslinie ziehen. HelixScreen bietet das in den Vordruck-Optionen an."/>
@@ -5648,6 +5651,7 @@
   <translation tag="Update printer software and firmware" de="Drucker-Software und Firmware aktualisieren"/>
   <translation tag="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls." de="Aktualisieren Sie das HelixPrint-Plugin auf 1.5.0, um alte PRINT_START-Aufrufe auszublenden."/>
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." de="Auch das INDX-Heizungsmodell aktualisieren? {} enthält jetzt {}: Dichte {:.2f}, Wärmekapazität {:.2f}."/>
+  <translation tag="Update the helper macros to save per material." de="Aktualisiere die Hilfsmakros, um pro Material zu speichern."/>
   <translation tag="Update your security PIN" de="Sicherheits-PIN aktualisieren nicht verfügbar."/>
   <translation tag="Update {} from {} to {}?" de="{} von {} auf {} aktualisieren?"/>
   <translation tag="Update {} system packages?" de="{} Systempakete aktualisieren?"/>

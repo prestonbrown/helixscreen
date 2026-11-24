@@ -75,6 +75,12 @@
                             label="Z offset by material" icon="layers"
                             description="Save writes the print's material; off, it saves one offset for every print"
                             subject="material_zoffset_enabled" callback="on_material_zoffset_enabled_changed"/>
+        <setting_toggle_row name="row_material_pa_enabled"
+                            label="Pressure advance by material" icon="nozzle"
+                            description="The print-start macro applies each material's saved tuner result, else the config's"
+                            subject="material_pa_enabled" callback="on_material_pa_enabled_changed">
+          <bind_flag_if_eq subject="material_pa_ready" flag="hidden" ref_value="0"/>
+        </setting_toggle_row>
       </setting_group>
       <setting_group name="group_materials">
         <bind_flag_if_not_eq subject="material_zoffset_status" flag="hidden" ref_value="2"/>
