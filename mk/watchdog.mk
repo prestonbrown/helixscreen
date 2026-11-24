@@ -90,6 +90,7 @@ WATCHDOG_EXTRA_OBJS := $(BUILD_DIR)/watchdog/config.o \
                        $(BUILD_DIR)/watchdog/config_storage_file.o \
                        $(BUILD_DIR)/watchdog/backlight_backend.o \
                        $(BUILD_DIR)/watchdog/data_root_resolver.o \
+                       $(BUILD_DIR)/watchdog/install_root_chdir.o \
                        $(BUILD_DIR)/watchdog/helix_paths.o \
                        $(BUILD_DIR)/watchdog/crash_record.o \
                        $(BUILD_DIR)/watchdog/text_io.o \
@@ -143,6 +144,11 @@ $(BUILD_DIR)/watchdog/backlight_backend.o: src/api/backlight_backend.cpp $(LIBHV
 # Compile data_root_resolver for watchdog (zero deps; provides writable_path,
 # get_user_config_dir, etc. for HELIX_CONFIG_DIR-aware path resolution)
 $(BUILD_DIR)/watchdog/data_root_resolver.o: src/application/data_root_resolver.cpp $(ABI_STAMP) | $(BUILD_DIR)/watchdog
+	@echo "[CXX] $< (watchdog)"
+	$(Q)$(CXX) $(WATCHDOG_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
+
+# chdir into the install root (the ESP32 firmware has no working directory and omits this file)
+$(BUILD_DIR)/watchdog/install_root_chdir.o: src/application/install_root_chdir.cpp $(ABI_STAMP) | $(BUILD_DIR)/watchdog
 	@echo "[CXX] $< (watchdog)"
 	$(Q)$(CXX) $(WATCHDOG_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
