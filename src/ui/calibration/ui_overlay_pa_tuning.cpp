@@ -801,8 +801,8 @@ void PaTuningOverlay::leave_print_status() {
     // The tower's Print Status page offers a Reprint that would run the tower
     // outside the tuner. It goes, so the way out of the tuner leads back to where
     // the tuner was opened from, with the tuner on top until then.
-    lv_obj_t* page = print_status_page_override_;
-    if (!page) {
+    lv_obj_t* page = print_status_page_source_ ? print_status_page_source_() : nullptr;
+    if (!page && !print_status_page_source_) {
         if (auto* print_status = helix::lazy_global_if_exists<PrintStatusPanel>()) {
             page = print_status->get_panel();
         }

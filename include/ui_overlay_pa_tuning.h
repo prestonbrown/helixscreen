@@ -18,6 +18,7 @@
 #include "subject_managed_panel.h"
 #include "tool_state.h"
 
+#include <functional>
 #include <lvgl.h>
 #include <map>
 #include <optional>
@@ -167,9 +168,10 @@ class PaTuningOverlay : public OverlayBase {
     void save_to_spool_for_test() {
         save_to_spool();
     }
-    /// Stand in for the tower's Print Status page, which tests have no panel for.
-    void set_print_status_page_for_test(lv_obj_t* page) {
-        print_status_page_override_ = page;
+    /// Where the tower's Print Status page comes from, for tests with no panel of
+    /// their own to stand in for it.
+    void set_print_status_page_source_for_test(std::function<lv_obj_t*()> source) {
+        print_status_page_source_ = std::move(source);
     }
     bool awake_held_for_test() const {
         return decision_awake_.held();
@@ -311,7 +313,7 @@ class PaTuningOverlay : public OverlayBase {
     /// Spoolman's active spool when the result was shown, if any.
     std::optional<SpoolInfo> active_spool_;
     bool raise_on_start_ = true;
-    lv_obj_t* print_status_page_override_ = nullptr;
+    std::function<lv_obj_t*()> print_status_page_source_;
     bool start_analysis_in_flight_ = false;
     bool start_macro_purges_ = false;
 

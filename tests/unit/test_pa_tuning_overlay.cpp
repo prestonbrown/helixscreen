@@ -517,7 +517,7 @@ TEST_CASE_METHOD(TunerFixture, "the tower's Print Status page leaves the stack w
     nav.push_overlay(page);
     helix::ui::UpdateQueue::instance().drain();
     REQUIRE(helix::nav::is_in_stack(page));
-    overlay.set_print_status_page_for_test(page);
+    overlay.set_print_status_page_source_for_test([page]() { return page; });
 
     start_session();
     printing(1);
