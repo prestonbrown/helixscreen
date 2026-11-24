@@ -156,6 +156,7 @@ translations:
   20 minutes: 20分
   24 Hour: 24時間
   24-hour: 24時間制
+  24H: '24時間'
   270°: 270°
   270° Clockwise: 270° 時計回り
   2D Heatmap: 2Dヒートマップ
@@ -460,6 +461,7 @@ translations:
   An unknown error occurred.: 不明なエラーが発生しました。
   An unload was asked for, but the Box's buffer sensor sees no filament in the path.: 排出が要求されましたが、ボックスのバッファーセンサーが経路にフィラメントを検出していません。
   An update is available: 更新があります
+  Analog Clock: 'アナログ時計'
   Analyzing data...: データを解析中...
   Analyzing data... {}s: データを解析中... {}s
   Analyzing the {} axis: '{}軸を解析中'
@@ -586,6 +588,7 @@ translations:
   Based on the newest {} prints: '最新の{}件の印刷に基づく'
   Batch load failed: 一括装填に失敗しました
   Batch unload failed: 一括排出に失敗しました
+  Bauhaus: 'バウハウス'
   Beacon auto-calibrate sent: Beacon自動キャリブレーション送信済み
   Beacon calibrate sent: Beaconキャリブレーション送信済み
   Bed: ベッド
@@ -1036,6 +1039,7 @@ translations:
   Choose the order of day, month and year: 日・月・年の並び順を選択
   Choose what to power off or restart.: 電源オフまたは再起動する対象を選択してください。
   Choose which releases to get, and whether to share anonymous statistics.: '受け取るリリースと、匿名の統計を共有するかどうかを選択します。'
+  Chronograph: 'クロノグラフ'
   'Chute position: X {:.1f}, Y {:.1f}': 'パージシュート位置: X {:.1f}, Y {:.1f}'
 
   Clean: '清掃'
@@ -1096,6 +1100,7 @@ translations:
   Cleared: クリア済み
   Cleared from settings — system unpair failed, may need OS Bluetooth: 設定から削除しました。システムのペアリング解除に失敗、OS の Bluetooth 設定が必要な場合があります
   Clipboard unavailable - use SSH: クリップボード利用不可 - SSHを使用してください
+  Clock Face: '文字盤'
   Clog: 詰まり
   Clog Auto: '詰まり: 自動'
   Clog Detection: 詰まり検出
@@ -1619,6 +1624,7 @@ translations:
   ELECTRONICS & ACCESSORIES: '電子機器とアクセサリー'
   EMERGENCY STOP: 緊急停止
   EMPTY: 空
+  ENDS: '終了'
   ETA {}: '終了予定 {}'
   EXTRAS: その他
   ? 'Each correction increased the difference between the probe points: the Z motors are mapped to the wrong corners, or the probe is not repeatable.'
@@ -2696,6 +2702,7 @@ translations:
   LED strip available for lighting control: 照明制御用の LED ストリップが利用可能です
   LED strip available. Add to config for lighting control?: 'LEDストリップが使用可能です。照明制御のために設定に追加しますか？'
   LEDs: LED
+  LEFT: '残り'
   LOAD CELLS: 'ロードセル'
   LOADED: 装填済み
   LOCKED: ロック中
@@ -3152,6 +3159,7 @@ translations:
   "Needs you, about {}": "操作が必要、約 {}"
   "Needs you, about {}: {}": "操作が必要、約 {}: {}"
   'Needs {}x{} free: remove or shrink a widget first': 空き {}x{} が必要です。先にウィジェットを削除または縮小してください
+  Neon: 'ネオン'
   Net Weight (g): 正味重量（g）
   Network: ネットワーク
   Network Address: ネットワークアドレス
@@ -3384,6 +3392,7 @@ translations:
   Nothing to tune here: "ここで調整するものはありません"
   'Nothing to unload: no filament at the nozzle': '取り出すものがありません: ノズルにフィラメントがありません'
   Whether the Z arrows follow the bed or the Z value: "ZボタンがベッドとZ値のどちらに従うか"
+  Which analog clock to show: '表示するアナログ時計'
   Which belt is each path?: "各パスはどのベルト?"
   Which belt is which?: "どのベルトがどれ?"
   Which computer the Advanced power rows act on: '詳細設定の電源項目が操作するコンピューター'
@@ -3515,6 +3524,7 @@ translations:
   Or instead of turning the others: 他のネジを回す代わりに
   Original: 'オリジナル'
   Original file location unknown: 元のファイルの場所が不明です
+  Orrery: '太陽系儀'
   Oscillating... cycle %d/%d: 振動中... サイクル %d/%d
   Other: その他
   Other…: 'その他…'
@@ -3545,6 +3555,7 @@ translations:
   PLA: PLA
   PLA - Black: PLA - ブラック
   POWER: 電源
+  PRINT: '印刷'
   PRINT OPTIONS: 印刷オプション
   PRINTER: プリンター
   PRINTER FIRMWARE: 'プリンターのファームウェア'
@@ -4619,6 +4630,7 @@ translations:
   Show whatever curves you last had visible on the full graph.: フルグラフで最後に表示していた曲線を表示します。
   Showing the 50 newest files. See more in the printer's web UI.: '最新の50ファイルを表示しています。それ以外はプリンターのWeb画面で確認してください。'
   Shows the new K next to the old one. You choose to save it: 新しいKを以前の値と並べて表示します。保存するかはあなたが選びます
+  Shuffle: '毎回変える'
   Shut down or restart the host: ホストのシャットダウンまたは再起動
   Shutdown: シャットダウン
   Shutdown / Reboot: シャットダウン / 再起動
@@ -4811,6 +4823,7 @@ translations:
   State: 状態
   Static: '固定'
   Station: 'ステーション'
+  Station Clock: '駅の時計'
   Status: ステータス
   Status icons: ステータスアイコン
   Stay at the printer.: プリンターのそばにいてください。

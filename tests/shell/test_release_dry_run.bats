@@ -191,6 +191,25 @@ verify() {
     [[ "$output" == *"a release ships no tarball: $ART/helixscreen-pi-v$VERSION.tar.gz"* ]] || fail "$output"
 }
 
+@test "verifier allows the HelixPrint plugin tarball in the release dir and the artifact dir" {
+    command -v jq >/dev/null || skip "jq not installed"
+    make_fixture
+    echo "plugin" > "$ART/helix-print-plugin.tar.gz"
+    echo "plugin" > "$REL/helix-print-plugin.tar.gz"
+    verify
+    [ "$status" -eq 0 ] || fail "$output"
+}
+
+@test "verifier still fails on another tarball beside the plugin tarball in R2" {
+    command -v jq >/dev/null || skip "jq not installed"
+    make_fixture
+    echo "plugin" > "$REL/helix-print-plugin.tar.gz"
+    echo "pi tarball" > "$REL/helixscreen-pi.tar.gz"
+    verify
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"a release ships no tarball: $REL/helixscreen-pi.tar.gz"* ]] || fail "$output"
+}
+
 @test "verifier fails when install.sh differs" {
     command -v jq >/dev/null || skip "jq not installed"
     make_fixture
@@ -305,4 +324,56 @@ print(f"missing {missing}, channel-gated by {gated}: {cond}")
 sys.exit(1 if missing or gated else 0)
 PY
     [ "$status" -eq 0 ] || fail "$output"
+}
+
+@test "the release bucket's write token is read only inside a signing environment" {
+    run python3 - <<'PY'
+import glob, yaml
+bad = []
+for path in glob.glob(".github/workflows/*.yml"):
+    jobs = yaml.safe_load(open(path)).get("jobs") or {}
+    for jname, job in jobs.items():
+        text = yaml.safe_dump(job)
+        env = str(job.get("environment", ""))
+        if "secrets.R2_ACCESS_KEY_ID" in text and "release-signing" not in env:
+            bad.append(f"{path}:{jname}: reads the release R2 token outside a signing environment")
+        if jname == "dry-run-verify" and ("secrets.R2_ACCESS_KEY_ID" in text
+                                          or "helixscreen-releases" in text):
+            bad.append(f"{path}:{jname}: a dry run names the release bucket or its token")
+        if "secrets.R2_SCRATCH_ACCESS_KEY_ID" in text and "helixscreen-releases" in text \
+                and "publish" not in text:
+            bad.append(f"{path}:{jname}: scratch token beside the release bucket in no publish gate")
+print("\n".join(bad))
+raise SystemExit(1 if bad else 0)
+PY
+    [ "$status" -eq 0 ] || echo "$output"
+    [ "$status" -eq 0 ]
+}
+
+@test "a dry run never checks what the public URL serves" {
+    run python3 - <<'PY'
+import yaml
+jobs = yaml.safe_load(open(".github/workflows/release.yml"))["jobs"]
+bad = []
+BARE = "${{ vars.R2_PUBLIC_URL }}"
+for jname in ("upload-r2", "dry-run-verify"):
+    for step in jobs[jname]["steps"]:
+        name = step.get("name", "?")
+        if name == "Guard against channel downgrade":
+            continue
+        for key, val in (step.get("env") or {}).items():
+            if str(val).strip().endswith(BARE) and "publish" not in str(val):
+                bad.append(f"{jname}/{name}: {key} is the public URL in every mode")
+        if BARE in str(job_env := jobs[jname].get("env") or {}):
+            bad.append(f"{jname}: job env names the public URL")
+        lines = step.get("run", "").split("\n")
+        for i, line in enumerate(lines):
+            if "curl" in line and not line.lstrip().startswith("#"):
+                if not any('RELEASE_MODE" = publish' in l for l in lines[max(0, i - 3):i]):
+                    bad.append(f"{jname}/{name}: curl outside a publish branch: {line.strip()}")
+print("\n".join(bad))
+raise SystemExit(1 if bad else 0)
+PY
+    [ "$status" -eq 0 ] || echo "$output"
+    [ "$status" -eq 0 ]
 }

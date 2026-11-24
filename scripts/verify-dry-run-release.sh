@@ -68,9 +68,10 @@ for p in $PLATFORMS; do
     done
 done
 
-# Releases ship zips only.
+# Releases ship zips, plus the HelixPrint plugin tarball and nothing else.
 for dir in "$ARTIFACT" "$RELEASE_DIR"; do
     for f in "$dir"/*.tar.gz; do
+        [ "$(basename "$f")" = helix-print-plugin.tar.gz ] && continue
         [ -e "$f" ] && fail "a release ships no tarball: $f"
     done
 done

@@ -776,7 +776,7 @@ std::string tail_ring_buffer(int num_lines) {
         return {};
     }
     size_t lim = num_lines > 0 ? static_cast<size_t>(num_lines) : 0;
-    auto lines = sink->last_formatted(lim); // oldest-first, already formatted
+    auto lines = sink->last_formatted_lines(lim); // oldest-first, already formatted
     if (lines.empty()) {
         return {};
     }

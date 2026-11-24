@@ -98,8 +98,10 @@ std::string clock_meridiem_text(ClockMeridiem meridiem);
 std::string clock_minute_text(int32_t minute_of_day);
 
 /// Largest breakpoint text font no taller than `height` px and, when `text` is given, no wider
-/// than `width` px on one line; the smallest when none fits.
-const lv_font_t* clock_font_fitting(int32_t height, int32_t width = 0, const char* text = nullptr);
+/// than `width` px on one line; the smallest when none fits. With `display`, the bold display
+/// face clock digits use is tried first.
+const lv_font_t* clock_font_fitting(int32_t height, int32_t width = 0, const char* text = nullptr,
+                                    bool display = false);
 
 /**
  * @brief One line of text a saver keeps on its canvas over pixels it redraws itself

@@ -139,6 +139,7 @@
   <translation tag="20 minutes" es="20 minutos"/>
   <translation tag="24 Hour" es="24 horas"/>
   <translation tag="24-hour" es="24 horas"/>
+  <translation tag="24H" es="24 H"/>
   <translation tag="270°" es="270°"/>
   <translation tag="270° Clockwise" es="270° en sentido horario"/>
   <translation tag="2D Heatmap" es="Mapa de calor 2D"/>
@@ -431,6 +432,7 @@
   <translation tag="An unknown error occurred." es="Se produjo un error desconocido."/>
   <translation tag="An unload was asked for, but the Box&apos;s buffer sensor sees no filament in the path." es="Se pidió una descarga, pero el sensor del búfer de la Caja no detecta filamento en la ruta."/>
   <translation tag="An update is available" es="Hay una actualización disponible"/>
+  <translation tag="Analog Clock" es="Reloj analógico"/>
   <translation tag="Analyzing data..." es="Analizando datos..."/>
   <translation tag="Analyzing data... {}s" es="Analizando datos... {}s"/>
   <translation tag="Analyzing the {} axis" es="Analizando el eje {}"/>
@@ -556,6 +558,7 @@
   <translation tag="Basic" es="Básico"/>
   <translation tag="Batch load failed" es="Error al cargar por lotes"/>
   <translation tag="Batch unload failed" es="Error al descargar por lotes"/>
+  <translation tag="Bauhaus" es="Bauhaus"/>
   <translation tag="Beacon auto-calibrate sent" es="Beacon auto-calibración enviada"/>
   <translation tag="Beacon calibrate sent" es="Beacon calibración enviada"/>
   <translation tag="Bed" es="Cama"/>
@@ -992,6 +995,7 @@
   <translation tag="Choose what to power off or restart." es="Elija qué apagar o reiniciar."/>
   <translation tag="Choose which lane is in the toolhead to unload it" es="Elige qué carril está en el cabezal para descargarlo"/>
   <translation tag="Choose which releases to get, and whether to share anonymous statistics." es="Elige qué versiones recibir y si compartir estadísticas anónimas."/>
+  <translation tag="Chronograph" es="Cronógrafo"/>
   <translation tag="Chute position: X {:.1f}, Y {:.1f}" es="Posición del conducto de purga: X {:.1f}, Y {:.1f}"/>
   <translation tag="Clean" es="Limpiar"/>
   <translation tag="Clean Brush" es="Limpiar cepillo"/>
@@ -1049,6 +1053,7 @@
   <translation tag="Cleared from settings — system unpair failed, may need OS Bluetooth" es="Borrado de los ajustes; falló el desemparejamiento del sistema, puede que necesite el Bluetooth del SO"/>
   <translation tag="Clipboard" es="Portapapeles"/>
   <translation tag="Clipboard unavailable - use SSH" es="Portapapeles no disponible - use SSH"/>
+  <translation tag="Clock Face" es="Esfera"/>
   <translation tag="Clog" es="Obstrucción"/>
   <translation tag="Clog Auto" es="Obstrucción automática"/>
   <translation tag="Clog Detection" es="Detección de obstrucción"/>
@@ -1525,6 +1530,7 @@
   <translation tag="ELECTRONICS &amp; ACCESSORIES" es="ELECTRÓNICA Y ACCESORIOS"/>
   <translation tag="EMERGENCY STOP" es="PARADA DE EMERGENCIA"/>
   <translation tag="EMPTY" es="VACÍO"/>
+  <translation tag="ENDS" es="FIN"/>
   <translation tag="ETA {}" es="Fin {}"/>
   <translation tag="EXTRAS" es="EXTRAS"/>
   <translation tag="Each correction increased the difference between the probe points: the Z motors are mapped to the wrong corners, or the probe is not repeatable." es="Cada corrección aumentó la diferencia entre los puntos de sondeo: los motores Z están asignados a las esquinas equivocadas o la sonda no es repetible."/>
@@ -2579,6 +2585,7 @@
   <translation tag="LED strip available for lighting control" es="Tira LED disponible para control de iluminación"/>
   <translation tag="LED strip available. Add to config for lighting control?" es="Tira LED disponible. ¿Añadirla a la configuración para controlar la iluminación?"/>
   <translation tag="LEDs" es="LEDs"/>
+  <translation tag="LEFT" es="RESTA"/>
   <translation tag="LOAD CELLS" es="CELDAS DE CARGA"/>
   <translation tag="LOADED" es="CARGADO"/>
   <translation tag="LOCKED" es="BLOQUEADO"/>
@@ -3026,6 +3033,7 @@
   <translation tag="Needs you, about {}" es="Te necesita, unos {}"/>
   <translation tag="Needs you, about {}: {}" es="Te necesita, unos {}: {}"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" es="Necesita {}x{} libres: primero elimina o reduce un widget"/>
+  <translation tag="Neon" es="Neón"/>
   <translation tag="Net Weight (g)" es="Peso Neto (g)"/>
   <translation tag="Network" es="Red"/>
   <translation tag="Network Address" es="Dirección de Red"/>
@@ -3379,6 +3387,7 @@
   <translation tag="Or instead of turning the others" es="O en lugar de girar los demás"/>
   <translation tag="Original" es="Original"/>
   <translation tag="Original file location unknown" es="Ubicación del archivo original desconocida"/>
+  <translation tag="Orrery" es="Planetario"/>
   <translation tag="Oscillating... cycle %d/%d" es="Oscilando... ciclo %d/%d"/>
   <translation tag="Other" es="Otro"/>
   <translation tag="Other…" es="Otro…"/>
@@ -3408,6 +3417,7 @@
   <translation tag="PLA" es="PLA"/>
   <translation tag="PLA - Black" es="PLA - Negro"/>
   <translation tag="POWER" es="ENERGÍA"/>
+  <translation tag="PRINT" es="IMPRESIÓN"/>
   <translation tag="PRINT OPTIONS" es="OPCIONES DE IMPRESIÓN"/>
   <translation tag="PRINTER" es="IMPRESORA"/>
   <translation tag="PRINTER FIRMWARE" es="FIRMWARE DE LA IMPRESORA"/>
@@ -4470,6 +4480,7 @@
   <translation tag="Show whatever curves you last had visible on the full graph." es="Mostrar las curvas que tenías visibles por última vez en el gráfico completo."/>
   <translation tag="Showing the 50 newest files. See more in the printer&apos;s web UI." es="Se muestran los 50 archivos más recientes. Consulta el resto en la interfaz web de la impresora."/>
   <translation tag="Shows the new K next to the old one. You choose to save it" es="Muestra el nuevo K junto al anterior. Tú decides si guardarlo"/>
+  <translation tag="Shuffle" es="Alternar"/>
   <translation tag="Shut down or restart the host" es="Apagar o reiniciar el host"/>
   <translation tag="Shutdown" es="Apagar"/>
   <translation tag="Shutdown / Reboot" es="Apagar / Reiniciar"/>
@@ -4657,6 +4668,7 @@
   <translation tag="State" es="Estado"/>
   <translation tag="Static" es="Estática"/>
   <translation tag="Station" es="Estación"/>
+  <translation tag="Station Clock" es="Reloj de estación"/>
   <translation tag="Status" es="Estado"/>
   <translation tag="Status icons" es="Iconos de estado"/>
   <translation tag="Stay at the printer." es="Quédate junto a la impresora."/>
@@ -5822,6 +5834,7 @@
   <translation tag="Where to look" es="Dónde mirar"/>
   <translation tag="Whether filament is loaded" es="Si hay filamento cargado"/>
   <translation tag="Whether the Z arrows follow the bed or the Z value" es="Si las flechas Z siguen a la cama o al valor Z"/>
+  <translation tag="Which analog clock to show" es="Qué reloj analógico mostrar"/>
   <translation tag="Which belt is each path?" es="¿Qué correa es cada ruta?"/>
   <translation tag="Which belt is which?" es="¿Qué correa es cuál?"/>
   <translation tag="Which computer the Advanced power rows act on" es="Qué equipo afectan las filas de energía de Avanzado"/>

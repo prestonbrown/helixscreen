@@ -155,6 +155,7 @@ translations:
   20 minutes: 20 minutes
   24 Hour: 24 Hour
   24-hour: 24-hour
+  24H: 24H
   270°: 270°
   270° Clockwise: 270° Clockwise
   2D Heatmap: 2D Heatmap
@@ -463,6 +464,7 @@ translations:
   An unknown error occurred.: An unknown error occurred.
   An unload was asked for, but the Box's buffer sensor sees no filament in the path.: An unload was asked for, but the Box's buffer sensor sees no filament in the path.
   An update is available: An update is available
+  Analog Clock: Analog Clock
   Analyzing data...: Analyzing data...
   Analyzing data... {}s: Analyzing data... {}s
   Analyzing the {} axis: Analyzing the {} axis
@@ -589,6 +591,7 @@ translations:
   Based on the newest {} prints: Based on the newest {} prints
   Batch load failed: Batch load failed
   Batch unload failed: Batch unload failed
+  Bauhaus: Bauhaus
   Beacon auto-calibrate sent: Beacon auto-calibrate sent
   Beacon calibrate sent: Beacon calibrate sent
   Bed: Bed
@@ -1040,6 +1043,7 @@ translations:
   Choose the order of day, month and year: Choose the order of day, month and year
   Choose what to power off or restart.: Choose what to power off or restart.
   Choose which releases to get, and whether to share anonymous statistics.: Choose which releases to get, and whether to share anonymous statistics.
+  Chronograph: Chronograph
   'Chute position: X {:.1f}, Y {:.1f}': 'Chute position: X {:.1f}, Y {:.1f}'
   Clean: Clean
   Clean Brush: Clean Brush
@@ -1097,6 +1101,7 @@ translations:
   Cleared: Cleared
   Cleared from settings — system unpair failed, may need OS Bluetooth: Cleared from settings — system unpair failed, may need OS Bluetooth
   Clipboard unavailable - use SSH: Clipboard unavailable - use SSH
+  Clock Face: Clock Face
   Clog: Clog
   Clog Auto: Clog Auto
   Clog Detection: Clog Detection
@@ -1612,6 +1617,7 @@ translations:
   ELECTRONICS & ACCESSORIES: ELECTRONICS & ACCESSORIES
   EMERGENCY STOP: EMERGENCY STOP
   EMPTY: EMPTY
+  ENDS: ENDS
   ETA {}: ETA {}
   EXTRAS: EXTRAS
   ? 'Each correction increased the difference between the probe points: the Z motors are mapped to the wrong corners, or the probe is not repeatable.'
@@ -2681,6 +2687,7 @@ translations:
   LED strip available for lighting control: LED strip available for lighting control
   LED strip available. Add to config for lighting control?: LED strip available. Add to config for lighting control?
   LEDs: LEDs
+  LEFT: LEFT
   LOAD CELLS: LOAD CELLS
   LOADED: LOADED
   LOCKED: LOCKED
@@ -3129,6 +3136,7 @@ translations:
   Needs you, about {}: Needs you, about {}
   'Needs you, about {}: {}': 'Needs you, about {}: {}'
   'Needs {}x{} free: remove or shrink a widget first': 'Needs {}x{} free: remove or shrink a widget first'
+  Neon: Neon
   Net Weight (g): Net Weight (g)
   Network: Network
   Network Address: Network Address
@@ -3359,6 +3367,7 @@ translations:
   Nothing to tune here: Nothing to tune here
   'Nothing to unload: no filament at the nozzle': 'Nothing to unload: no filament at the nozzle'
   Whether the Z arrows follow the bed or the Z value: Whether the Z arrows follow the bed or the Z value
+  Which analog clock to show: Which analog clock to show
   Which belt is each path?: Which belt is each path?
   Which belt is which?: Which belt is which?
   Which computer the Advanced power rows act on: 'Which computer the Advanced power rows act on'
@@ -3489,6 +3498,7 @@ translations:
   Or instead of turning the others: Or instead of turning the others
   Original: Original
   Original file location unknown: Original file location unknown
+  Orrery: Orrery
   Oscillating... cycle %d/%d: Oscillating... cycle %d/%d
   Other: Other
   Other…: Other…
@@ -3519,6 +3529,7 @@ translations:
   PLA: PLA
   PLA - Black: PLA - Black
   POWER: POWER
+  PRINT: PRINT
   PRINT OPTIONS: PRINT OPTIONS
   PRINTER: PRINTER
   PRINTER FIRMWARE: PRINTER FIRMWARE
@@ -4592,6 +4603,7 @@ translations:
   Show whatever curves you last had visible on the full graph.: Show whatever curves you last had visible on the full graph.
   Showing the 50 newest files. See more in the printer's web UI.: Showing the 50 newest files. See more in the printer's web UI.
   Shows the new K next to the old one. You choose to save it: Shows the new K next to the old one. You choose to save it
+  Shuffle: Shuffle
   Shut down or restart the host: Shut down or restart the host
   Shutdown: Shutdown
   Shutdown / Reboot: Shutdown / Reboot
@@ -4780,6 +4792,7 @@ translations:
   State: State
   Static: Static
   Station: Station
+  Station Clock: Station Clock
   Status: Status
   Status icons: Status icons
   Stays on MPC: Stays on MPC

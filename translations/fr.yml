@@ -168,6 +168,7 @@ translations:
   20 minutes: 20 minutes
   24 Hour: 24 heures
   24-hour: 24 heures
+  24H: '24 H'
   270°: 270°
   270° Clockwise: 270° dans le sens horaire
   2D Heatmap: Carte thermique 2D
@@ -472,6 +473,7 @@ translations:
   An unknown error occurred.: Une erreur inconnue s'est produite.
   An unload was asked for, but the Box's buffer sensor sees no filament in the path.: Un déchargement a été demandé, mais le capteur du tampon de la Box ne détecte aucun filament dans le trajet.
   An update is available: Une mise à jour est disponible
+  Analog Clock: 'Horloge analogique'
   Analyzing data...: Analyse des données...
   Analyzing data... {}s: Analyse des données... {}s
   Analyzing the {} axis: 'Analyse de l''axe {}'
@@ -598,6 +600,7 @@ translations:
   Based on the newest {} prints: 'Basé sur les {} impressions les plus récentes'
   Batch load failed: Échec du chargement groupé
   Batch unload failed: Échec du déchargement groupé
+  Bauhaus: 'Bauhaus'
   Beacon auto-calibrate sent: Beacon auto-calibrage envoyé
   Beacon calibrate sent: Beacon calibrage envoyé
   Bed: Plateau
@@ -1048,6 +1051,7 @@ translations:
   Choose the order of day, month and year: Choisir l'ordre du jour, du mois et de l'année
   Choose what to power off or restart.: Choisissez ce qu'il faut éteindre ou redémarrer.
   Choose which releases to get, and whether to share anonymous statistics.: 'Choisissez les versions à recevoir et si vous partagez des statistiques anonymes.'
+  Chronograph: 'Chronographe'
   'Chute position: X {:.1f}, Y {:.1f}': 'Position de la goulotte de purge : X {:.1f}, Y {:.1f}'
 
   Clean: 'Nettoyer'
@@ -1108,6 +1112,7 @@ translations:
   Cleared: Dégagé
   Cleared from settings — system unpair failed, may need OS Bluetooth: Effacé des paramètres ; échec du désappairage système, utiliser le Bluetooth de l'OS si besoin
   Clipboard unavailable - use SSH: Presse-papiers indisponible - utilisez SSH
+  Clock Face: 'Cadran'
   Clog: Bouchon
   Clog Auto: Bouchon auto
   Clog Detection: Détection de bouchon
@@ -1631,6 +1636,7 @@ translations:
   ELECTRONICS & ACCESSORIES: 'ÉLECTRONIQUE & ACCESSOIRES'
   EMERGENCY STOP: ARRÊT D'URGENCE
   EMPTY: VIDE
+  ENDS: 'FIN'
   ETA {}: 'Fin {}'
   EXTRAS: SUPPLÉMENTS
   ? 'Each correction increased the difference between the probe points: the Z motors are mapped to the wrong corners, or the probe is not repeatable.'
@@ -2708,6 +2714,7 @@ translations:
   LED strip available for lighting control: Bandeau LED disponible pour le contrôle de l'éclairage
   LED strip available. Add to config for lighting control?: 'Bandeau LED disponible. L''ajouter à la configuration pour contrôler l''éclairage ?'
   LEDs: LEDs
+  LEFT: 'RESTE'
   LOAD CELLS: 'CELLULES DE CHARGE'
   LOADED: CHARGÉ
   LOCKED: VERROUILLÉ
@@ -3164,6 +3171,7 @@ translations:
   "Needs you, about {}": "Vous êtes requis, environ {}"
   "Needs you, about {}: {}": "Vous êtes requis, environ {} : {}"
   'Needs {}x{} free: remove or shrink a widget first': 'Nécessite {}x{} de libre : supprimez ou réduisez d''abord un widget'
+  Neon: 'Néon'
   Net Weight (g): Poids net (g)
   Network: Réseau
   Network Address: Adresse réseau
@@ -3396,6 +3404,7 @@ translations:
   Nothing to tune here: "Rien à régler ici"
   'Nothing to unload: no filament at the nozzle': 'Rien à décharger : pas de filament à la buse'
   Whether the Z arrows follow the bed or the Z value: "Indique si les flèches Z suivent le plateau ou la valeur Z"
+  Which analog clock to show: 'Quelle horloge analogique afficher'
   Which belt is each path?: "Quelle courroie correspond à chaque chemin ?"
   Which belt is which?: "Quelle courroie est laquelle ?"
   Which computer the Advanced power rows act on: 'Quel ordinateur les lignes d''alimentation d''Avancé concernent'
@@ -3527,6 +3536,7 @@ translations:
   Or instead of turning the others: Ou, au lieu de tourner les autres
   Original: 'Original'
   Original file location unknown: Emplacement du fichier original inconnu
+  Orrery: 'Planétaire'
   Oscillating... cycle %d/%d: Oscillation... cycle %d/%d
   Other: Autre
   Other…: 'Autre…'
@@ -3557,6 +3567,7 @@ translations:
   PLA: PLA
   PLA - Black: PLA - Noir
   POWER: ALIMENTATION
+  PRINT: 'IMPRESSION'
   PRINT OPTIONS: OPTIONS D'IMPRESSION
   PRINTER: IMPRIMANTE
   PRINTER FIRMWARE: 'FIRMWARE DE L''IMPRIMANTE'
@@ -4631,6 +4642,7 @@ translations:
   Show whatever curves you last had visible on the full graph.: Afficher les dernières courbes visibles sur le graphique complet.
   Showing the 50 newest files. See more in the printer's web UI.: 'Les 50 fichiers les plus récents sont affichés. Consultez les autres dans l''interface web de l''imprimante.'
   Shows the new K next to the old one. You choose to save it: Affiche le nouveau K à côté de l'ancien. Vous choisissez de l'enregistrer
+  Shuffle: 'Alterner'
   Shut down or restart the host: Éteindre ou redémarrer l'hôte
   Shutdown: Éteindre
   Shutdown / Reboot: Éteindre / Redémarrer
@@ -4823,6 +4835,7 @@ translations:
   State: État
   Static: 'Statique'
   Station: 'Station'
+  Station Clock: 'Horloge de gare'
   Status: État
   Status icons: Icônes d'état
   Stay at the printer.: Restez près de l'imprimante.

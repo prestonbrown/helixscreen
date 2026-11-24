@@ -139,6 +139,7 @@
   <translation tag="20 minutes" en="20 minutes"/>
   <translation tag="24 Hour" en="24 Hour"/>
   <translation tag="24-hour" en="24-hour"/>
+  <translation tag="24H" en="24H"/>
   <translation tag="270°" en="270°"/>
   <translation tag="270° Clockwise" en="270° Clockwise"/>
   <translation tag="2D Heatmap" en="2D Heatmap"/>
@@ -431,6 +432,7 @@
   <translation tag="An unknown error occurred." en="An unknown error occurred."/>
   <translation tag="An unload was asked for, but the Box&apos;s buffer sensor sees no filament in the path." en="An unload was asked for, but the Box&apos;s buffer sensor sees no filament in the path."/>
   <translation tag="An update is available" en="An update is available"/>
+  <translation tag="Analog Clock" en="Analog Clock"/>
   <translation tag="Analyzing data..." en="Analyzing data..."/>
   <translation tag="Analyzing data... {}s" en="Analyzing data... {}s"/>
   <translation tag="Analyzing the {} axis" en="Analyzing the {} axis"/>
@@ -556,6 +558,7 @@
   <translation tag="Basic" en="Basic"/>
   <translation tag="Batch load failed" en="Batch load failed"/>
   <translation tag="Batch unload failed" en="Batch unload failed"/>
+  <translation tag="Bauhaus" en="Bauhaus"/>
   <translation tag="Beacon auto-calibrate sent" en="Beacon auto-calibrate sent"/>
   <translation tag="Beacon calibrate sent" en="Beacon calibrate sent"/>
   <translation tag="Bed" en="Bed"/>
@@ -992,6 +995,7 @@
   <translation tag="Choose what to power off or restart." en="Choose what to power off or restart."/>
   <translation tag="Choose which lane is in the toolhead to unload it" en="Choose which lane is in the toolhead to unload it"/>
   <translation tag="Choose which releases to get, and whether to share anonymous statistics." en="Choose which releases to get, and whether to share anonymous statistics."/>
+  <translation tag="Chronograph" en="Chronograph"/>
   <translation tag="Chute position: X {:.1f}, Y {:.1f}" en="Chute position: X {:.1f}, Y {:.1f}"/>
   <translation tag="Clean" en="Clean"/>
   <translation tag="Clean Brush" en="Clean Brush"/>
@@ -1049,6 +1053,7 @@
   <translation tag="Cleared from settings — system unpair failed, may need OS Bluetooth" en="Cleared from settings — system unpair failed, may need OS Bluetooth"/>
   <translation tag="Clipboard" en="Clipboard"/>
   <translation tag="Clipboard unavailable - use SSH" en="Clipboard unavailable - use SSH"/>
+  <translation tag="Clock Face" en="Clock Face"/>
   <translation tag="Clog" en="Clog"/>
   <translation tag="Clog Auto" en="Clog Auto"/>
   <translation tag="Clog Detection" en="Clog Detection"/>
@@ -1525,6 +1530,7 @@
   <translation tag="ELECTRONICS &amp; ACCESSORIES" en="ELECTRONICS &amp; ACCESSORIES"/>
   <translation tag="EMERGENCY STOP" en="EMERGENCY STOP"/>
   <translation tag="EMPTY" en="EMPTY"/>
+  <translation tag="ENDS" en="ENDS"/>
   <translation tag="ETA {}" en="ETA {}"/>
   <translation tag="EXTRAS" en="EXTRAS"/>
   <translation tag="Each correction increased the difference between the probe points: the Z motors are mapped to the wrong corners, or the probe is not repeatable." en="Each correction increased the difference between the probe points: the Z motors are mapped to the wrong corners, or the probe is not repeatable."/>
@@ -2579,6 +2585,7 @@
   <translation tag="LED strip available for lighting control" en="LED strip available for lighting control"/>
   <translation tag="LED strip available. Add to config for lighting control?" en="LED strip available. Add to config for lighting control?"/>
   <translation tag="LEDs" en="LEDs"/>
+  <translation tag="LEFT" en="LEFT"/>
   <translation tag="LOAD CELLS" en="LOAD CELLS"/>
   <translation tag="LOADED" en="LOADED"/>
   <translation tag="LOCKED" en="LOCKED"/>
@@ -3026,6 +3033,7 @@
   <translation tag="Needs you, about {}" en="Needs you, about {}"/>
   <translation tag="Needs you, about {}: {}" en="Needs you, about {}: {}"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" en="Needs {}x{} free: remove or shrink a widget first"/>
+  <translation tag="Neon" en="Neon"/>
   <translation tag="Net Weight (g)" en="Net Weight (g)"/>
   <translation tag="Network" en="Network"/>
   <translation tag="Network Address" en="Network Address"/>
@@ -3379,6 +3387,7 @@
   <translation tag="Or instead of turning the others" en="Or instead of turning the others"/>
   <translation tag="Original" en="Original"/>
   <translation tag="Original file location unknown" en="Original file location unknown"/>
+  <translation tag="Orrery" en="Orrery"/>
   <translation tag="Oscillating... cycle %d/%d" en="Oscillating... cycle %d/%d"/>
   <translation tag="Other" en="Other"/>
   <translation tag="Other…" en="Other…"/>
@@ -3408,6 +3417,7 @@
   <translation tag="PLA" en="PLA"/>
   <translation tag="PLA - Black" en="PLA - Black"/>
   <translation tag="POWER" en="POWER"/>
+  <translation tag="PRINT" en="PRINT"/>
   <translation tag="PRINT OPTIONS" en="PRINT OPTIONS"/>
   <translation tag="PRINTER" en="PRINTER"/>
   <translation tag="PRINTER FIRMWARE" en="PRINTER FIRMWARE"/>
@@ -4470,6 +4480,7 @@
   <translation tag="Show whatever curves you last had visible on the full graph." en="Show whatever curves you last had visible on the full graph."/>
   <translation tag="Showing the 50 newest files. See more in the printer&apos;s web UI." en="Showing the 50 newest files. See more in the printer&apos;s web UI."/>
   <translation tag="Shows the new K next to the old one. You choose to save it" en="Shows the new K next to the old one. You choose to save it"/>
+  <translation tag="Shuffle" en="Shuffle"/>
   <translation tag="Shut down or restart the host" en="Shut down or restart the host"/>
   <translation tag="Shutdown" en="Shutdown"/>
   <translation tag="Shutdown / Reboot" en="Shutdown / Reboot"/>
@@ -4657,6 +4668,7 @@
   <translation tag="State" en="State"/>
   <translation tag="Static" en="Static"/>
   <translation tag="Station" en="Station"/>
+  <translation tag="Station Clock" en="Station Clock"/>
   <translation tag="Status" en="Status"/>
   <translation tag="Status icons" en="Status icons"/>
   <translation tag="Stay at the printer." en="Stay at the printer."/>
@@ -5822,6 +5834,7 @@
   <translation tag="Where to look" en="Where to look"/>
   <translation tag="Whether filament is loaded" en="Whether filament is loaded"/>
   <translation tag="Whether the Z arrows follow the bed or the Z value" en="Whether the Z arrows follow the bed or the Z value"/>
+  <translation tag="Which analog clock to show" en="Which analog clock to show"/>
   <translation tag="Which belt is each path?" en="Which belt is each path?"/>
   <translation tag="Which belt is which?" en="Which belt is which?"/>
   <translation tag="Which computer the Advanced power rows act on" en="Which computer the Advanced power rows act on"/>
