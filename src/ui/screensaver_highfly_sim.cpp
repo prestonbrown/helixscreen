@@ -609,6 +609,9 @@ float highfly_layer_visibility(float deck_z, float layer_z) {
 
 // ---------- Clock layout ----------
 
+/// The date line's narrowest column, px: "September 30, 2026" in the smallest breakpoint font.
+constexpr int32_t kHighflyDateColumnMinW = 140;
+
 HighFlyClockLayout layout_highfly_clock(int32_t w, int32_t h, int32_t dx, int32_t dy) {
     const float s = std::min(static_cast<float>(h) / 480.0f, static_cast<float>(w) / 800.0f);
     HighFlyClockLayout l;
@@ -644,9 +647,18 @@ HighFlyClockLayout layout_highfly_clock(int32_t w, int32_t h, int32_t dx, int32_
     const int32_t lx1 = px(0.05f * static_cast<float>(w)) + dx;
     const int32_t lx2 =
         std::min(px(0.30f * static_cast<float>(w)) + dx, l.digits[0].x1 - px(0.1f * u));
-    const int32_t date_y = y1 + px(0.10f * static_cast<float>(gh));
-    l.date_line = {lx1, date_y, lx2, date_y + line_h - 1};
-    l.day_line = {lx1, date_y + line_h, lx2, date_y + 2 * line_h - 1};
+    int32_t date_y = y1 + px(0.10f * static_cast<float>(gh));
+    int32_t block_x1 = lx1;
+    int32_t block_x2 = lx2;
+    if (block_x2 - block_x1 + 1 < kHighflyDateColumnMinW) {
+        // Too narrow for "September 30, 2026" in the smallest font: the block moves into the
+        // sky over the numerals and takes their width.
+        block_x1 = l.digits[0].x1;
+        block_x2 = l.digits[4].x2;
+        date_y = std::max(4, y1 - 2 * line_h - px(0.1f * u));
+    }
+    l.date_line = {block_x1, date_y, block_x2, date_y + line_h - 1};
+    l.day_line = {block_x1, date_y + line_h, block_x2, date_y + 2 * line_h - 1};
     l.halo = std::max(3, px(0.12f * u));
     l.second_halo = std::max(2, px(0.12f * u * 0.6f));
     l.bounds = {};
@@ -1514,6 +1526,15 @@ void HighFlySim::paint_all(FrameTarget& frame, const ClockReading& reading) {
     boxes_.clear();
     last_boxes_.clear();
     compose(0);
+    // The next frame repaints where these towers stood, as it does for every frame after.
+    Billboard boards[kHighflyLayerCount + 3];
+    const size_t n = collect_billboards(boards, std::size(boards));
+    for (size_t i = 0; i < n; i++) {
+        const DirtyRect b = boards[i].wrap ? DirtyRect{} : billboard_box(boards[i]);
+        if (!b.empty() && boxes_.size() < kBoxCap) {
+            boxes_.push_back(b);
+        }
+    }
     upscale_frame(frame_, iw_, ih_, scale_, 0, ih_, frame);
     draw_numerals(frame, reading);
     painted_ = true;

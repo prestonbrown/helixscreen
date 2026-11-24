@@ -224,7 +224,7 @@ TEST_CASE("the high fly clock fits every screen at every drift", "[screensaver][
                 CHECK(l.bounds.x2 < s.w);
                 CHECK(l.bounds.y2 < s.h);
                 CHECK(l.date_line.x2 > l.date_line.x1);
-                CHECK(l.date_line.x2 < l.digits[0].x1);
+                CHECK((l.date_line.x2 < l.digits[0].x1 || l.day_line.y2 < l.digits[0].y1));
             }
         }
     }
@@ -845,3 +845,37 @@ TEST_CASE_METHOD(LVGLTestFixture,
 }
 
 #endif // HELIX_ENABLE_SCREENSAVER
+
+#if HELIX_ENABLE_SCREENSAVER
+TEST_CASE_METHOD(LVGLTestFixture, "the high fly date and day name each fit their line on one row",
+                 "[screensaver][highfly][clock]") {
+    struct Size {
+        int32_t w, h;
+    };
+    for (const bool use_24h : {false, true}) {
+        ClockReading r = reading_at(9 * 3600 + 41 * 60, use_24h);
+        r.date.year = 2026;
+        r.date.month = 9;
+        r.date.day = 30;
+        r.date.weekday = 3;
+        const helix::ui::ClockLines lines = helix::ui::clock_lines(r);
+        for (const Size s :
+             {Size{400, 240}, Size{480, 272}, Size{480, 320}, Size{800, 480}, Size{1024, 600}}) {
+            CAPTURE(s.w, s.h, use_24h, lines.first, lines.second);
+            const HighFlyClockLayout l = layout_highfly_clock(s.w, s.h, 0, 0);
+            for (const auto& [text, box] :
+                 {std::pair{lines.first, l.date_line}, std::pair{lines.second, l.day_line}}) {
+                CAPTURE(text);
+                const lv_font_t* font = helix::ui::clock_font_fitting(
+                    box.y2 - box.y1 + 1, box.x2 - box.x1 + 1, text.c_str());
+                REQUIRE(font != nullptr);
+                lv_point_t size{};
+                lv_text_get_size(&size, text.c_str(), font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+                CHECK(size.x <= box.x2 - box.x1 + 1);
+            }
+            CHECK(l.date_line.y2 < l.day_line.y1);
+            CHECK(l.bounds.y1 >= 0);
+        }
+    }
+}
+#endif
