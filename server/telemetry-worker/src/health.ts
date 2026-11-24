@@ -6,6 +6,8 @@
 import { num, str, type NotApplicable, type RawRow } from "./schema";
 import { printsByVersion } from "./prints";
 import { compareVersions } from "./versions";
+import { HANG_MIN_CLASSIFIED_SHARE } from "./loop/thresholds";
+import { classifyHangs, splitOf, type ClassifiedHang, type HangRow, type HangSplit, type MemSnapshot } from "./hang_cause";
 
 /** The counts one release's rates are computed from, over one window. */
 export interface ReleaseCounts {
@@ -46,7 +48,12 @@ export type HealthBlock = "crashes" | "errors" | "prints" | "updates";
 export interface HealthPayload {
   fleet: { actives_cur: number; actives_prev: number; cdn_sources: number | null; cdn_date: string | null };
   releases: { version: string; cur: ReleaseWindow; prev: ReleaseWindow }[];
-  errors: { category: string; code: string; cur: number; prev: number; devices: number; status: "new" | "rising" | "steady" }[];
+  /**
+   * `split` is set on main_loop_hang only. That row's cur, prev and devices count the
+   * app-blocked share, so a host out of memory never reads as a rising app bug; `split`
+   * has the full breakdown for the current week.
+   */
+  errors: { category: string; code: string; cur: number; prev: number; devices: number; status: "new" | "rising" | "steady"; split?: HangSplit }[];
   crash_clusters: { signal: string; fault_code: string; version: string; board: string; cur: number; prev: number; devices: number }[];
   data_health: { kind: string; latest: number; median: number; low: boolean }[];
   not_applicable: NotApplicable<HealthBlock>;
@@ -60,6 +67,7 @@ export type HealthRowKey =
   | "prints_cur" | "prints_prev"
   | "print_sessions_cur" | "print_sessions_prev"
   | "errors_cur" | "errors_prev" | "errors_baseline" | "errors_by_device"
+  | "hangs_cur" | "hangs_prev" | "hang_snapshots"
   | "crashes_cur" | "crashes_prev"
   | "cdn_latest" | "kind_days";
 
@@ -70,6 +78,9 @@ export const RISING_MIN_COUNT = 5;
 export const RISING_MIN_DEVICES = 2;
 /** An error never rises when one device accounts for more than this share of its count. */
 export const RISING_MAX_DEVICE_SHARE = 0.5;
+
+/** The error row the host-memory split applies to. */
+const HANG_KEY = "ui\u0000main_loop_hang";
 
 /** A kind is low when its latest complete day is under this share of its median. */
 const LOW_SHARE = 0.5;
@@ -152,11 +163,11 @@ const ALL_REPORTED: NotApplicable<HealthBlock> = { crashes: null, errors: null, 
  * `notApplicable` names, per block, a filter its kinds cannot carry.
  */
 export function buildHealth(
-  rows: Record<HealthRowKey, unknown[]>,
+  rows: Record<Exclude<HealthRowKey, "hang_snapshots">, unknown[]> & { hang_snapshots?: unknown[] },
   today: string,
   notApplicable: NotApplicable<HealthBlock> = ALL_REPORTED,
 ): HealthPayload {
-  const r = (k: HealthRowKey): RawRow[] => (rows[k] ?? []) as RawRow[];
+  const r = (k: HealthRowKey): RawRow[] => ((rows as Record<string, unknown[] | undefined>)[k] ?? []) as RawRow[];
   const crashesReported = notApplicable.crashes === null;
   const printsCur = printsByVersion(r("prints_cur"), r("print_sessions_cur"));
   const printsPrev = printsByVersion(r("prints_prev"), r("print_sessions_prev"));
@@ -179,19 +190,67 @@ export function buildHealth(
   for (const x of r("errors_by_device")) {
     errTopDevice.set(errKey(x), Math.max(errTopDevice.get(errKey(x)) ?? 0, num(x.count)));
   }
-  const risesBeyondOneDevice = (key: string, cur: number, devices: number): boolean =>
-    devices >= RISING_MIN_DEVICES && (errTopDevice.get(key) ?? 0) <= RISING_MAX_DEVICE_SHARE * cur;
+  const risesBeyondOneDevice = (key: string, cur: number, devices: number, topDevice: number): boolean =>
+    devices >= RISING_MIN_DEVICES && topDevice <= RISING_MAX_DEVICE_SHARE * cur;
+  const toHangRow = (x: RawRow): HangRow => {
+    const mem = num(x.mem);
+    return {
+      device: str(x.device),
+      at: num(x.at) * 1000,
+      uptimeSec: num(x.uptime),
+      memAvailableMb: mem > 0 ? mem - 1 : null,
+      pressure: str(x.pressure),
+      weight: num(x.weight) || 1,
+    };
+  };
+  const snapshots: MemSnapshot[] = r("hang_snapshots").map((x) => ({
+    device: str(x.device),
+    at: num(x.at) * 1000,
+    uptimeSec: num(x.uptime),
+    availableMb: num(x.available) - 1,
+  }));
+  const hangsCur = classifyHangs(r("hangs_cur").map(toHangRow), snapshots);
+  const hangsPrev = classifyHangs(r("hangs_prev").map(toHangRow), snapshots);
+  const appBlocked = (hs: ClassifiedHang[]) => hs.filter((h) => h.cause === "app_blocked");
   const errors = r("errors_cur")
     .filter((x) => num(x.count) > 0)
     .map((x) => {
-      const cur = num(x.count);
-      const prev = errPrev.get(errKey(x)) ?? 0;
-      const status: HealthPayload["errors"][number]["status"] = !errBaseline.has(errKey(x))
+      const key = errKey(x);
+      let cur = num(x.count);
+      let prev = errPrev.get(key) ?? 0;
+      let devices = num(x.devices);
+      let topDevice = errTopDevice.get(key) ?? 0;
+      let split: HangSplit | undefined;
+      let held = false;
+      // Without hang rows, or without the snapshots to classify them, the aggregate stands as it is.
+      if (key === HANG_KEY && hangsCur.length > 0 && rows.hang_snapshots !== undefined) {
+        const blocked = appBlocked(hangsCur);
+        const perDevice = new Map<string, number>();
+        for (const h of blocked) perDevice.set(h.device, (perDevice.get(h.device) ?? 0) + h.weight);
+        split = splitOf(hangsCur);
+        cur = split.app_blocked;
+        const prevSplit = splitOf(hangsPrev);
+        prev = prevSplit.app_blocked;
+        // A week whose hangs mostly could not be classified says nothing about a rise from it.
+        const prevTotal = prevSplit.host_memory + prevSplit.app_blocked + prevSplit.unknown;
+        held = prevTotal > 0 && (prevSplit.host_memory + prevSplit.app_blocked) / prevTotal < HANG_MIN_CLASSIFIED_SHARE;
+        devices = perDevice.size;
+        topDevice = Math.max(0, ...perDevice.values());
+      }
+      const status: HealthPayload["errors"][number]["status"] = !errBaseline.has(key)
         ? "new"
-        : cur >= RISING_FACTOR * prev && cur >= RISING_MIN_COUNT && risesBeyondOneDevice(errKey(x), cur, num(x.devices))
+        : cur >= RISING_FACTOR * prev && cur >= RISING_MIN_COUNT && risesBeyondOneDevice(key, cur, devices, topDevice)
           ? "rising"
           : "steady";
-      return { category: str(x.category), code: str(x.code), cur, prev, devices: num(x.devices), status };
+      return {
+        category: str(x.category),
+        code: str(x.code),
+        cur,
+        prev,
+        devices,
+        status: split && (cur === 0 || (held && status === "rising")) ? ("steady" as const) : status,
+        ...(split ? { split } : {}),
+      };
     })
     .sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || b.cur - a.cur);
 

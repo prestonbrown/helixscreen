@@ -22,9 +22,11 @@
 #include "ui_fonts.h"
 
 #include "backlight_backend.h"
+#include "board_identity.h"
 #include "config.h"
 #include "core/data_root_resolver.h"
 #include "display_backend.h"
+#include "install_root_cwd.h"
 #ifdef HELIX_DISPLAY_DRM
 #include "display_backend_drm.h"
 #endif
@@ -36,6 +38,7 @@
 #include "logging_init.h"
 #include "proc_comm.h"
 #include "system/crash_record.h"
+#include "system/update_rollback.h"
 #include "watchdog_isolated_dialog.h"
 #include "watchdog_restart_policy.h"
 
@@ -90,6 +93,28 @@ static constexpr int kDefaultAutoRestartSec = 30;
 // live in the policy header so they can be unit tested on hosts that never
 // build this binary.
 static constexpr int kRestartLoopExitCode = 42;
+
+// Is helix-launcher.sh's automatic-update rollback guard armed? The launcher
+// exports the directory; the app writes the marker after the install.
+static bool rollback_marker_present() {
+    const char* dir = getenv(helix::update::kRollbackDirEnv);
+    if (dir == nullptr || dir[0] == '\0') {
+        return false;
+    }
+    std::error_code ec;
+    return std::filesystem::exists(std::string(dir) + "/" + helix::update::kRollbackArmedFile, ec);
+}
+
+// A stop or shutdown during the rollback guard's window is not a failed
+// update: tell the launcher, which would otherwise restore the previous version.
+static void note_rollback_stop() {
+    if (!rollback_marker_present()) {
+        return;
+    }
+    const std::string path = std::string(getenv(helix::update::kRollbackDirEnv)) + "/" +
+                             helix::update::kRollbackStoppingFile;
+    std::ofstream(path).put('\n');
+}
 
 // Crash-loop detection (separate window from non-zero-exit loops above).
 // When the same crash signal repeats N times within M seconds, blind retry
@@ -1130,6 +1155,9 @@ static int run_watchdog(WatchdogArgs args) {
     std::deque<CrashEvent> recent_crashes;
 
     while (!g_quit) {
+        // An in-app update moves and deletes the tree the watchdog started in; re-resolve from
+        // the launcher's binary path (not /proc/self/exe) before the config read and the spawn.
+        helix::board::chdir_to_install_root(args.child_binary);
         const int launch_rotation = helix::watchdog::rotation_for_launch(
             args.cli_rotation, [] { return read_config_rotation(0); });
         if (launch_rotation != args.rotation) {
@@ -1192,6 +1220,7 @@ static int run_watchdog(WatchdogArgs args) {
         // Check if we're shutting down
         if (g_quit) {
             spdlog::info("[Watchdog] Shutting down");
+            note_rollback_stop();
             break;
         }
 
@@ -1214,10 +1243,10 @@ static int run_watchdog(WatchdogArgs args) {
         // Normal exit (code 0) - just restart silently
         if (!crash.was_signaled && crash.exit_code == 0) {
             if (helix::watchdog::hand_clean_exit_to_service_manager(
-                    was_update_restart, getenv("HELIX_SERVICE_RESTARTS"))) {
-                spdlog::info(
-                    "[Watchdog] Update restart under a restarting service - exiting so the "
-                    "service restarts and refreshes its units");
+                    was_update_restart, getenv("HELIX_SERVICE_RESTARTS"),
+                    rollback_marker_present())) {
+                spdlog::info("[Watchdog] Update restart - exiting so the launcher or the service "
+                             "starts the new version");
                 break;
             }
             spdlog::info("[Watchdog] Child exited normally, restarting");
@@ -1315,6 +1344,7 @@ static int run_watchdog(WatchdogArgs args) {
         if (crash.was_signaled && (crash.signal_num == SIGTERM || crash.signal_num == SIGINT)) {
             spdlog::info("[Watchdog] Child received {} ({}), shutting down gracefully",
                          crash.signal_num, crash.signal_name);
+            note_rollback_stop();
             break;
         }
 
@@ -1446,6 +1476,12 @@ int main(int argc, char** argv) {
             args.height = kDefaultHeight;
             spdlog::info("[Watchdog] Using default resolution: {}x{}", args.width, args.height);
         }
+    }
+
+    // Relative config/ paths (rotation, crash dialog settings) resolve from the install root.
+    const std::string install_root = helix::board::chdir_to_install_root(args.child_binary);
+    if (!install_root.empty()) {
+        spdlog::info("[Watchdog] Working directory: {}", install_root);
     }
 
     args.rotation = helix::watchdog::rotation_for_launch(args.cli_rotation,

@@ -7,6 +7,7 @@
 #include "core/update_queue.h"
 #include "exception_policy.h"
 #include "helix_thread.h"
+#include "system/crash_handler.h"
 
 #include <spdlog/spdlog.h>
 
@@ -208,6 +209,15 @@ void MemoryMonitor::check_main_loop_liveness() {
                                   .count());
 
     const uint32_t stalled_ms = hang_detector_.sample(MainLoopHeartbeat::count(), now_ms);
+    if (const uint32_t recovered_ms = hang_detector_.recovered_stall_ms(); recovered_ms > 0) {
+        // The hang report fires as the stall crosses the threshold, so it never
+        // says how long the stall went on. This line is where that length lives.
+        spdlog::warn("[MemoryMonitor] UI main loop resumed after a {}ms stall (within one "
+                     "{}ms sample)",
+                     recovered_ms, interval_ms_.load());
+        crash_handler::breadcrumb::note("main_loop", "resumed",
+                                        static_cast<long>(recovered_ms / 1000));
+    }
     if (stalled_ms == 0) {
         return;
     }

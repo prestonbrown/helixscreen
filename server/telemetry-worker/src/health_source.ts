@@ -2,7 +2,7 @@
 // Runs the Health queries and builds the payload. The dashboard's health route and the
 // feedback loop both read it here.
 
-import { healthQueries, notApplicableFor, executeQuery, type FilterParams, type QueryConfig } from "./queries";
+import { hangSnapshotsSql, healthQueries, HEALTH_WINDOWS, notApplicableFor, executeQuery, type FilterParams, type QueryConfig } from "./queries";
 import { buildHealth, type HealthBlock, type HealthPayload, type HealthRowKey } from "./health";
 
 /** The Health blocks a filter can leave unreported. */
@@ -16,11 +16,33 @@ export async function fetchHealth(config: QueryConfig, today: string, filters?: 
   };
   const versions = (topRes.data ?? []).map((r) => String(r.ver));
   const queries = healthQueries(filters, versions);
-  const rest = Object.keys(queries).filter((k) => k !== "top_versions") as HealthRowKey[];
+  const rest = Object.keys(queries).filter((k) => k !== "top_versions") as Exclude<HealthRowKey, "hang_snapshots">[];
   const results = await Promise.all(rest.map((k) => executeQuery(config, queries[k])));
   const rows = { top_versions: topRes.data ?? [] } as Record<HealthRowKey, unknown[]>;
   rest.forEach((k, i) => {
     rows[k] = (results[i] as { data?: unknown[] } | null)?.data ?? [];
   });
+  // The devices that hung, so the snapshot query reads only their series.
+  const hangDevices = [...new Set([...rows.hangs_cur, ...rows.hangs_prev].map((h) => String((h as { device: string }).device)))];
+  try {
+    rows.hang_snapshots = hangDevices.length === 0 ? [] : await hangSnapshots(config, hangDevices);
+  } catch (err) {
+    // Left unset, buildHealth reports main_loop_hang as the plain total.
+    console.error(`[health] ${new Date().toISOString()} hang snapshots failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
   return buildHealth(rows, today, notApplicableFor(HEALTH_BLOCKS, filters));
+}
+
+/** Devices per snapshot query, to keep the SQL a sane length. */
+const SNAPSHOT_DEVICES_PER_QUERY = 100;
+
+async function hangSnapshots(config: QueryConfig, devices: string[]): Promise<unknown[]> {
+  const chunks: string[][] = [];
+  for (let i = 0; i < devices.length; i += SNAPSHOT_DEVICES_PER_QUERY) {
+    chunks.push(devices.slice(i, i + SNAPSHOT_DEVICES_PER_QUERY));
+  }
+  // The window reaches one day past the oldest hang so its latest earlier snapshot is in range.
+  const window = [0, HEALTH_WINDOWS.prev[1] + 1] as const;
+  const results = await Promise.all(chunks.map((c) => executeQuery(config, hangSnapshotsSql(c, window))));
+  return results.flatMap((res) => (res as { data?: unknown[] } | null)?.data ?? []);
 }

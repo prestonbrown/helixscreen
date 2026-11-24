@@ -13,14 +13,20 @@
 #include "ui_settings_about.h"
 
 #include "../fake_moonraker_client.h"
+#include "../test_helpers/update_checker_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_constants.h"
 #include "core/update_queue.h"
 #include "system/update_checker.h"
 #include "timelapse_state.h"
 
+#include <chrono>
+#include <csignal>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
+#include <string>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include "../catch_amalgamated.hpp"
@@ -65,6 +71,11 @@ struct ScratchSentinelDir {
     }
     fs::path sentinel() const {
         return root / "self_restart_sentinel";
+    }
+    /// As if written a minute ago, past helixscreen-update.path's check.
+    void age_sentinel() const {
+        fs::last_write_time(sentinel(),
+                            fs::file_time_type::clock::now() - std::chrono::seconds(60));
     }
 };
 
@@ -121,12 +132,112 @@ TEST_CASE("detach leaves nothing subscribed", "[discovery_attach][threading]") {
     CHECK(client.live_handlers() == before);
 }
 
+TEST_CASE("a sentinel naming a running install.sh survives a reconnect",
+          "[discovery_attach][update_checker][sentinel]") {
+    ScratchSentinelDir scratch;
+    FakeMoonrakerClient client;
+    // A stand-in installer still running, as when install.sh restarts Moonraker.
+    const fs::path script = scratch.root / "install.sh";
+    { std::ofstream(script) << "#!/bin/sh\nsleep 30\n"; }
+    const pid_t installer = fork();
+    if (installer == 0) {
+        execl("/bin/sh", "sh", script.c_str(), static_cast<char*>(nullptr));
+        _exit(127);
+    }
+    REQUIRE(installer > 0);
+    // Wait until the child is the shell running install.sh, as the check reads it.
+    bool running = false;
+    for (int i = 0; i < 500 && !running; ++i) {
+        std::ifstream cmdline("/proc/" + std::to_string(installer) + "/cmdline");
+        std::string args((std::istreambuf_iterator<char>(cmdline)),
+                         std::istreambuf_iterator<char>());
+        running = args.find("install.sh") != std::string::npos;
+        if (!running) {
+            usleep(10 * 1000);
+        }
+    }
+    REQUIRE(running);
+    REQUIRE(UpdateChecker::write_self_restart_sentinel(installer));
+    // Old enough that only the running installer can keep it.
+    fs::last_write_time(scratch.sentinel(),
+                        fs::file_time_type::clock::now() - std::chrono::seconds(60));
+
+    UpdateChecker::instance().on_connected(client);
+    CHECK(fs::exists(scratch.sentinel()));
+    CHECK(client.rpc_count("machine.update.refresh") == 0);
+
+    kill(installer, SIGKILL);
+    waitpid(installer, nullptr, 0);
+    scratch.age_sentinel();
+    UpdateChecker::instance().on_connected(client);
+    CHECK_FALSE(fs::exists(scratch.sentinel()));
+}
+
+TEST_CASE("a sentinel written moments ago outlives the connect, then goes with the refresh",
+          "[discovery_attach][update_checker][sentinel]") {
+    ScratchSentinelDir scratch;
+    FakeMoonrakerClient client;
+    lv_init_safe();
+    auto& checker = UpdateChecker::instance();
+    // A rollback's restore writes it just before the restored version starts;
+    // helixscreen-update.path checks for it ten seconds after the swap.
+    REQUIRE(UpdateChecker::write_self_restart_sentinel());
+
+    checker.on_connected(client);
+    CHECK(fs::exists(scratch.sentinel()));
+    CHECK(client.rpc_count("machine.update.refresh") == 0);
+    REQUIRE(UpdateCheckerTestAccess::sentinel_cleanup_pending(checker));
+
+    // What the one-shot timer runs once the sentinel has aged.
+    scratch.age_sentinel();
+    checker.settle_sentinel_after_connect(client);
+    CHECK_FALSE(fs::exists(scratch.sentinel()));
+    CHECK(client.rpc_count("machine.update.refresh") == 1);
+    CHECK_FALSE(UpdateCheckerTestAccess::sentinel_cleanup_pending(checker));
+
+    UpdateChecker::instance().detach(client);
+}
+
+TEST_CASE("detach before a fresh sentinel's recheck takes the recheck with it",
+          "[discovery_attach][update_checker][sentinel]") {
+    ScratchSentinelDir scratch;
+    FakeMoonrakerClient client;
+    lv_init_safe();
+    auto& checker = UpdateChecker::instance();
+    REQUIRE(UpdateChecker::write_self_restart_sentinel());
+
+    checker.on_connected(client);
+    REQUIRE(UpdateCheckerTestAccess::sentinel_cleanup_pending(checker));
+
+    checker.detach(client);
+    CHECK_FALSE(UpdateCheckerTestAccess::sentinel_cleanup_pending(checker));
+    // Still fresh: the next connect settles it.
+    CHECK(fs::exists(scratch.sentinel()));
+}
+
+TEST_CASE("a sentinel dated in the future is stale, not fresh",
+          "[discovery_attach][update_checker][sentinel]") {
+    ScratchSentinelDir scratch;
+    FakeMoonrakerClient client;
+    // Written before a reboot onto a clock that is behind.
+    REQUIRE(UpdateChecker::write_self_restart_sentinel());
+    fs::last_write_time(scratch.sentinel(),
+                        fs::file_time_type::clock::now() + std::chrono::hours(3));
+
+    UpdateChecker::instance().on_connected(client);
+    CHECK_FALSE(fs::exists(scratch.sentinel()));
+    CHECK(client.rpc_count("machine.update.refresh") == 1);
+
+    UpdateChecker::instance().detach(client);
+}
+
 TEST_CASE("a surviving self-restart sentinel is cleared once and Moonraker is told to refresh",
           "[discovery_attach][update_checker]") {
     ScratchSentinelDir scratch;
     FakeMoonrakerClient client;
     REQUIRE(UpdateChecker::write_self_restart_sentinel());
     REQUIRE(fs::exists(scratch.sentinel()));
+    scratch.age_sentinel();
 
     UpdateChecker::instance().on_connected(client);
     CHECK_FALSE(fs::exists(scratch.sentinel()));

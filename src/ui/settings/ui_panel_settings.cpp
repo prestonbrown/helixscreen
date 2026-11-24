@@ -59,6 +59,7 @@
 #include "standard_macros.h"
 #include "system/telemetry_manager.h"
 #include "system/update_checker.h"
+#include "system/update_rollback.h"
 #include "system_settings_manager.h"
 #include "theme_manager.h"
 #include "wifi_manager.h"
@@ -129,6 +130,17 @@ void SettingsPanel::init_subjects() {
     UI_MANAGED_SUBJECT_INT(updates_unavailable_subject_,
                            (install_suppressed && !externally_managed) ? 1 : 0,
                            "updates_unavailable", subjects_);
+
+    // Install overnight restarts the screen with nobody watching, so it is offered
+    // only where a failed install puts the previous version back on its own.
+#if defined(HELIX_PLATFORM_ESP32)
+    const bool overnight_available = false;
+#else
+    const bool overnight_available =
+        !install_suppressed && helix::update::auto_rollback_supported();
+#endif
+    UI_MANAGED_SUBJECT_INT(auto_update_overnight_subject_, overnight_available ? 1 : 0,
+                           "auto_update_overnight_available", subjects_);
 
     // 0 until Application::init_plugins loads at least one plugin, so the row
     // stays hidden until there is something to show

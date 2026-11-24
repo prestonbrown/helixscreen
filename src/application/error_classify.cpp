@@ -53,7 +53,11 @@ std::optional<ErrorEvent> classify(const std::string& raw_line, const ClassifyCo
     // (klipper_error_classify). Any other firmware code is shown to the user
     // but classifies like an uncoded `!!`, so a fault raised mid-print still
     // blocks rather than reading as a transient toast.
-    if (!is_bang) { // "Error:" command error
+    if (known && known->severity == error_wording::Severity::Quiet) {
+        // A firmware's own bookkeeping: logged and journaled, never shown.
+        e.source = ErrorSource::KLIPPER;
+        e.severity = ErrorSeverity::INFO;
+    } else if (!is_bang) { // "Error:" command error
         e.source = ErrorSource::KLIPPER;
         e.severity = ErrorSeverity::WARNING;
     } else if (!code.empty() && scheme == FirmwareCodeScheme::ErrorTable) {

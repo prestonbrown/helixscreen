@@ -8,6 +8,7 @@
 
 #include <array>
 #include <sys/stat.h>
+#include <unistd.h>
 
 namespace helix::board {
 

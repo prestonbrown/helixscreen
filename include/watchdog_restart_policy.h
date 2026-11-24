@@ -293,12 +293,21 @@ inline RestartDecision decide_restart_action(ExecFailureClass cls, int consecuti
  * it for an init script wrapped by systemd-sysv-generator, whose unit does not
  * restart. Every other clean exit respawns in place.
  *
+ * An automatic install that armed helix-launcher.sh's rollback guard (#1304)
+ * exits too, under any service manager: the launcher starts the new version
+ * under the guard, which a respawn in place would skip.
+ *
  * @param was_update_restart  The child left the update-restart marker.
  * @param service_restarts    getenv("HELIX_SERVICE_RESTARTS").
+ * @param rollback_armed      The launcher's rollback marker is present.
  */
 inline bool hand_clean_exit_to_service_manager(bool was_update_restart,
-                                               const char* service_restarts) {
-    return was_update_restart && service_restarts != nullptr && service_restarts[0] != '\0';
+                                               const char* service_restarts,
+                                               bool rollback_armed = false) {
+    if (!was_update_restart) {
+        return false;
+    }
+    return rollback_armed || (service_restarts != nullptr && service_restarts[0] != '\0');
 }
 
 // =============================================================================

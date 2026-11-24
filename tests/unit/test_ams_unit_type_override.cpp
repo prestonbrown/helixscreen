@@ -711,6 +711,15 @@ lv_obj_t* find_on_screen(const char* name) {
 
 } // namespace
 
+TEST_CASE_METHOD(UnitColorsRows, "unit colors: the rows hide when the filament system goes away",
+                 "[ams][unit-colors][ui_integration]") {
+    REQUIRE(subject_int("ams_unit_colors_available") == 1);
+    AmsState::instance().set_backend(nullptr);
+    overlay().refresh();
+    settle();
+    CHECK(subject_int("ams_unit_colors_available") == 0);
+}
+
 TEST_CASE_METHOD(UnitColorsRows,
                  "unit colors: the rows show only for a unit whose drawing has masks",
                  "[ams][unit-colors][ui_integration]") {

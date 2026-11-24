@@ -236,6 +236,9 @@ const std::vector<Row>& rows() {
         {"settings_wifi_enabled", Mgr::System, false, "/wifi_enabled", true, 1, 0, 1,
          "wifi_enabled", true, SETB(sys().set_wifi_enabled), GET(sys().get_wifi_enabled),
          SUBJ(sys().subject_wifi_enabled)},
+        {"settings_auto_update_mode", Mgr::System, false, "/update/auto_mode", false, 1, 0, 2,
+         "auto_update_mode", true, SETI(sys().set_auto_update_mode),
+         GET(sys().get_auto_update_mode), SUBJ(sys().subject_auto_update_mode)},
 
         // SettingsManager
         {"settings_z_movement_style", Mgr::Settings, true, "z_movement_style", false, 0, 0, 2,

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "error_classify.h"
 #include "error_wording.h"
+#include "gcode_error_router.h"
 
 #include <string>
 #include <vector>
@@ -268,17 +269,19 @@ TEST_CASE("Kalico's calibration warning classifies as a warning with its own wor
 using helix::ClassifyContext;
 using helix::ErrorSeverity;
 
-TEST_CASE("AFC's failed Moonraker lookup mid-print is a toast, not a blocking modal",
+TEST_CASE("AFC's failed Moonraker lookup mid-print is never shown",
           "[error-wording][classify][pa_tuner][afc_metadata][pa_mutation]") {
     // AFC asks Moonraker for the metadata of a virtual print (Kalico's PA tower)
     // that has no file, and reports the 404 as a console error every pass.
+    const std::string line =
+        "!! Error getting data from moonraker, check AFC.log for more information";
+    CHECK(helix::error_wording::is_quiet(line));
     ClassifyContext ctx;
     ctx.is_printing = true;
-    auto e = helix::error_classify::classify(
-        "!! Error getting data from moonraker, check AFC.log for more information", ctx);
+    auto e = helix::error_classify::classify(line, ctx);
     REQUIRE(e.has_value());
-    CHECK(e->severity == ErrorSeverity::WARNING);
-    CHECK(e->detail.find("AFC.log") != std::string::npos);
+    CHECK(e->severity == ErrorSeverity::INFO);
+    CHECK(helix::decide_presentation(*e) == helix::PresentAs::NONE);
 
     // An unrelated uncoded fault at the same moment still blocks.
     auto other = helix::error_classify::classify("!! Some fault nobody classified", ctx);

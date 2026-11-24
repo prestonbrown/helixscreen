@@ -548,6 +548,7 @@ translations:
   Automatic: Automatic
   Automatic Heater Control Calibration: Automatic Heater Control Calibration
   Automatic LED Control: Automatic LED Control
+  Automatic Updates: Automatic Updates
   Automatic calibration: Automatic calibration
   Automatic cleanup: Automatic cleanup
   Automatic filament feeding is still running.: Automatic filament feeding is still running.
@@ -1569,6 +1570,8 @@ translations:
   Door Open: Door Open
   'Door opened during print: {}': 'Door opened during print: {}'
   Door switches, buttons, and other on/off inputs: Door switches, buttons, and other on/off inputs
+  Download and ask: Download and ask
+  Download and ask tells you when an update is ready to install: Download and ask tells you when an update is ready to install
   Download update?: Download update?
   Download v{}?: Download v{}?
   Downloading the timelapse plugin...: Downloading the timelapse plugin...
@@ -2505,6 +2508,8 @@ translations:
   Install Plugin: Install Plugin
   Install Root: Install Root
   Install Update: Install Update
+  Install overnight: Install overnight
+  Install overnight restarts the screen at 3 AM when the printer is idle: Install overnight restarts the screen at 3 AM when the printer is idle
   Install plugin: Install plugin
   Install script not found. Use the remote install command instead.: Install script not found. Use the remote install command instead.
   'Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:': 'Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:'
@@ -5831,6 +5836,7 @@ translations:
   Update Failed: Update Failed
   Update Helper Macros: Update Helper Macros
   Update Helper Macros?: Update Helper Macros?
+  Update Rolled Back: Update Rolled Back
   Update Success: Update Success
   Update complete: Update complete
   Update from a Terminal: Update from a Terminal
@@ -6360,6 +6366,7 @@ translations:
   uses about 30 cm of filament: uses about 30 cm of filament
   v%s available: v%s available
   v%s has no build for the %s, so it can't be installed here. Pick a channel with a newer release.: v%s has no build for the %s, so it can't be installed here. Pick a channel with a newer release.
+  v{} did not start properly, so v{} was put back.: v{} did not start properly, so v{} was put back.
   v{} installed! Restarting...: v{} installed! Restarting...
   v{} is available. Tap to update.: v{} is available. Tap to update.
   waiting for the printer: waiting for the printer

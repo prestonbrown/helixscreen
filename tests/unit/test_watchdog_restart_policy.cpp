@@ -273,6 +273,17 @@ TEST_CASE("Only an update restart under a restarting service is handed off",
     CHECK_FALSE(hand_clean_exit_to_service_manager(false, nullptr));
 }
 
+TEST_CASE("An update restart with the rollback guard armed goes back to the launcher",
+          "[watchdog][restart][auto_update]") {
+    // SysV has no restarting service, but the launcher must start the new
+    // version under its guard.
+    CHECK(hand_clean_exit_to_service_manager(true, nullptr, true));
+    CHECK(hand_clean_exit_to_service_manager(true, "1", true));
+    // An ordinary clean exit still respawns in place, armed or not.
+    CHECK_FALSE(hand_clean_exit_to_service_manager(false, nullptr, true));
+    CHECK_FALSE(hand_clean_exit_to_service_manager(false, "1", true));
+}
+
 TEST_CASE("An explicit -r holds for every launch without reading the saved rotation",
           "[watchdog][rotation]") {
     int reads = 0;

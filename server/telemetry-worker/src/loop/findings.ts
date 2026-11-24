@@ -103,7 +103,18 @@ function errorFindings(health: HealthPayload): Ranked[] {
       fingerprint: fingerprint('error_code', [e.category, e.code]),
       actions: actionsFor(false, e.status !== 'steady' && e.devices >= ERROR_ISSUE_DEVICES),
       title: `Error ${e.category} ${e.code} ${e.status}`,
-      summary: { category: e.category, code: e.code, status: e.status, count: e.cur, previous_count: e.prev, devices: e.devices },
+      summary: {
+        category: e.category,
+        code: e.code,
+        status: e.status,
+        count: e.cur,
+        previous_count: e.prev,
+        devices: e.devices,
+        // A hang's count above is the app-blocked share; these are this week's whole.
+        ...(e.split
+          ? { hangs_app_blocked: e.split.app_blocked, hangs_host_out_of_memory: e.split.host_memory, hangs_cause_unknown: e.split.unknown }
+          : {}),
+      },
       dashboardPath: '/stability',
     },
   }))

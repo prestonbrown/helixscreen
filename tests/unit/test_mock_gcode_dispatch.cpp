@@ -1503,7 +1503,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "a single-tool print keeps the simulated activ
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,
-                 "a heater calibration holds its heater at the target until it ends",
+                 "a heater calibration holds its heater at the target until it ends, then "
+                 "stages its gains",
                  "[mock][gcode_dispatch][calibration_live]") {
     // Klipper heats the heater to the calibration temperature for the whole
     // calibration and turns it off at the end; the guided run's heater card
@@ -1515,4 +1516,12 @@ TEST_CASE_METHOD(LVGLTestFixture,
         process_lvgl(100);
     }
     CHECK(mock.extruder_target() == 0.0);
+    // Klipper stages the new gains for the next SAVE_CONFIG as it reports them.
+    CHECK(mock.save_config_pending());
+    const auto staged = mock.save_config_pending_items();
+    REQUIRE(staged.contains("extruder"));
+    CHECK(staged["extruder"]["control"] == "pid");
+    CHECK(staged["extruder"].contains("pid_kp"));
+    CHECK(staged["extruder"].contains("pid_ki"));
+    CHECK(staged["extruder"].contains("pid_kd"));
 }

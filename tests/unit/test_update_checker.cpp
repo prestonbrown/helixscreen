@@ -33,6 +33,7 @@
 #include "platform_info.h"
 #include "platform_table.h"
 #include "runtime_config.h"
+#include "system/update_rollback.h"
 #include "version.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -107,6 +108,66 @@ TEST_CASE("Self-restart sentinel creates a missing fallback dir", "[update_check
 
     CHECK(UpdateChecker::write_self_restart_sentinel());
     CHECK(fs::exists(dir / "self_restart_sentinel"));
+
+    helix::app_constants::update::detail::backup_fallback_dir_ref() = prev;
+    fs::remove_all(root);
+}
+
+TEST_CASE("The install-time sentinel stays only for an install that succeeded",
+          "[update_checker][sentinel]") {
+    namespace fs = std::filesystem;
+    const std::string prev = helix::app_constants::update::detail::backup_fallback_dir_ref();
+    const fs::path root =
+        fs::temp_directory_path() / ("helix-sentinel-settle-" + std::to_string(getpid()));
+    const fs::path dir = root / ".helixscreen";
+    fs::remove_all(root);
+    helix::app_constants::update::detail::backup_fallback_dir_ref() = dir.string();
+
+    // Written before install.sh runs; a successful install restarts next.
+    REQUIRE(UpdateChecker::write_self_restart_sentinel());
+    UpdateChecker::settle_self_restart_sentinel(true);
+    CHECK(fs::exists(dir / "self_restart_sentinel"));
+
+    // A failed install (or fork) restarts nothing, so the sentinel goes.
+    UpdateChecker::settle_self_restart_sentinel(false);
+    CHECK_FALSE(fs::exists(dir / "self_restart_sentinel"));
+
+    helix::app_constants::update::detail::backup_fallback_dir_ref() = prev;
+    fs::remove_all(root);
+}
+
+TEST_CASE("The sentinel names install.sh and is kept only while it runs",
+          "[update_checker][sentinel]") {
+    namespace fs = std::filesystem;
+    const std::string prev = helix::app_constants::update::detail::backup_fallback_dir_ref();
+    const fs::path root =
+        fs::temp_directory_path() / ("helix-sentinel-pid-" + std::to_string(getpid()));
+    const fs::path dir = root / ".helixscreen";
+    fs::remove_all(root);
+    fs::create_directories(root);
+    helix::app_constants::update::detail::backup_fallback_dir_ref() = dir.string();
+
+    // A stand-in installer that is still running.
+    const fs::path script = root / "install.sh";
+    { std::ofstream(script) << "#!/bin/sh\nsleep 30\n"; }
+    const pid_t installer = fork();
+    if (installer == 0) {
+        execl("/bin/sh", "sh", script.c_str(), static_cast<char*>(nullptr));
+        _exit(127);
+    }
+    REQUIRE(installer > 0);
+    usleep(200 * 1000);
+
+    REQUIRE(UpdateChecker::write_self_restart_sentinel(installer));
+    CHECK(UpdateChecker::sentinel_installer_running());
+
+    kill(installer, SIGKILL);
+    waitpid(installer, nullptr, 0);
+    CHECK_FALSE(UpdateChecker::sentinel_installer_running());
+
+    // Written for a restart rather than an install: nothing to keep it for.
+    REQUIRE(UpdateChecker::write_self_restart_sentinel());
+    CHECK_FALSE(UpdateChecker::sentinel_installer_running());
 
     helix::app_constants::update::detail::backup_fallback_dir_ref() = prev;
     fs::remove_all(root);
@@ -1976,6 +2037,277 @@ TEST_CASE("do_install never runs the installer in test mode",
 
     CHECK(access(marker.c_str(), F_OK) != 0);
     CHECK(access(tarball.c_str(), F_OK) != 0);
+
+    remove_dir(tmp);
+}
+
+TEST_CASE("A timed-out install.sh is stopped together with everything it started",
+          "[update_checker][installer][do_install]") {
+    auto tmp = make_temp_dir("helix_install_timeout");
+    REQUIRE(!tmp.empty());
+    // An installer stuck in a pipeline, with a child of its own still running.
+    const std::string child_pid = tmp + "/child_pid";
+    std::string inner = tmp + "/helixscreen";
+    mkdir(inner.c_str(), 0755);
+    create_file(inner + "/install.sh",
+                "#!/bin/sh\nsleep 300 &\necho $! > '" + child_pid + "'\nsleep 300\n", true);
+    const std::string tarball = tmp + "/release.tar.gz";
+    std::string cmd =
+        "cd " + tmp + " && COPYFILE_DISABLE=1 tar czf release.tar.gz helixscreen/install.sh";
+    REQUIRE(std::system(cmd.c_str()) == 0);
+
+    const pid_t pid = fork();
+    if (pid == 0) {
+        ScopedRuntimeConfig scoped_config;
+        get_runtime_config()->test_mode = false;
+        helix::app_constants::update::detail::backup_fallback_dir_ref() = tmp + "/.helixscreen";
+        auto& checker = UpdateChecker::instance();
+        UpdateCheckerTestAccess::clear_download_cancelled(checker);
+        UpdateCheckerTestAccess::set_install_log(checker, tmp + "/install.log");
+        UpdateCheckerTestAccess::set_install_timeout(checker, 2);
+        UpdateCheckerTestAccess::set_restart_action(checker, [] {});
+        UpdateCheckerTestAccess::set_status_hold_ms(checker, 0, 0);
+        UpdateCheckerTestAccess::do_install(checker, tarball);
+        _exit(0);
+    }
+    REQUIRE(pid > 0);
+    int wstatus = 0;
+    for (int i = 0; i < 3000 && waitpid(pid, &wstatus, WNOHANG) == 0; ++i)
+        usleep(10 * 1000);
+    if (waitpid(pid, &wstatus, WNOHANG) == 0) {
+        kill(pid, SIGKILL);
+        waitpid(pid, &wstatus, 0);
+        FAIL("do_install did not return within 30s");
+    }
+
+    std::ifstream in(child_pid);
+    pid_t child = 0;
+    REQUIRE(in >> child);
+    REQUIRE(child > 0);
+    usleep(200 * 1000);
+    const bool alive = kill(child, 0) == 0;
+    if (alive) {
+        kill(child, SIGKILL);
+    }
+    CHECK_FALSE(alive);
+
+    remove_dir(tmp);
+}
+
+TEST_CASE("The install log falls back beside the backups, outside the install tree",
+          "[update_checker][installer][do_install]") {
+    if (access("/var/log", W_OK) == 0) {
+        SKIP("/var/log is writable here, so the fallback is never taken");
+    }
+    auto tmp = make_temp_dir("helix_install_log");
+    REQUIRE(!tmp.empty());
+    std::string inner = tmp + "/helixscreen";
+    mkdir(inner.c_str(), 0755);
+    create_file(inner + "/install.sh", "#!/bin/sh\necho from-installer\nexit 1\n", true);
+    const std::string tarball = tmp + "/release.tar.gz";
+    std::string cmd =
+        "cd " + tmp + " && COPYFILE_DISABLE=1 tar czf release.tar.gz helixscreen/install.sh";
+    REQUIRE(std::system(cmd.c_str()) == 0);
+    const std::string fallback = tmp + "/.helixscreen";
+
+    const pid_t pid = fork();
+    if (pid == 0) {
+        ScopedRuntimeConfig scoped_config;
+        get_runtime_config()->test_mode = false;
+        helix::app_constants::update::detail::backup_fallback_dir_ref() = fallback;
+        mkdir(fallback.c_str(), 0755);
+        auto& checker = UpdateChecker::instance();
+        UpdateCheckerTestAccess::clear_download_cancelled(checker);
+        UpdateCheckerTestAccess::set_install_log(checker, "");
+        UpdateCheckerTestAccess::set_restart_action(checker, [] {});
+        UpdateCheckerTestAccess::set_status_hold_ms(checker, 0, 0);
+        UpdateCheckerTestAccess::do_install(checker, tarball);
+        _exit(0);
+    }
+    REQUIRE(pid > 0);
+    int wstatus = 0;
+    for (int i = 0; i < 3000 && waitpid(pid, &wstatus, WNOHANG) == 0; ++i)
+        usleep(10 * 1000);
+    if (waitpid(pid, &wstatus, WNOHANG) == 0) {
+        kill(pid, SIGKILL);
+        waitpid(pid, &wstatus, 0);
+        FAIL("do_install did not return within 30s");
+    }
+
+    std::ifstream log(fallback + "/helixscreen-install.log");
+    std::string line;
+    std::getline(log, line);
+    CHECK(line == "from-installer");
+    CHECK(access((tarball + ".install.log").c_str(), F_OK) != 0);
+
+    remove_dir(tmp);
+}
+
+TEST_CASE("do_install holds the self-restart sentinel while install.sh runs",
+          "[update_checker][installer][do_install][sentinel]") {
+    auto tmp = make_temp_dir("helix_install_sentinel");
+    REQUIRE(!tmp.empty());
+    const std::string fallback = tmp + "/.helixscreen";
+    const std::string sentinel = fallback + "/self_restart_sentinel";
+
+    // A failing installer that records what it saw: the sentinel exists, and
+    // names it, while it runs.
+    const std::string seen = tmp + "/seen";
+    std::string inner = tmp + "/helixscreen";
+    mkdir(inner.c_str(), 0755);
+    create_file(inner + "/install.sh",
+                "#!/bin/sh\nsleep 1\n{ cat '" + sentinel +
+                    "' 2>/dev/null || echo missing; "
+                    "echo \"self=$$\"; } > '" +
+                    seen + "'\nexit 1\n",
+                true);
+    const std::string tarball = tmp + "/release.tar.gz";
+    std::string cmd =
+        "cd " + tmp + " && COPYFILE_DISABLE=1 tar czf release.tar.gz helixscreen/install.sh";
+    REQUIRE(std::system(cmd.c_str()) == 0);
+
+    const pid_t pid = fork();
+    if (pid == 0) {
+        ScopedRuntimeConfig scoped_config;
+        get_runtime_config()->test_mode = false;
+        helix::app_constants::update::detail::backup_fallback_dir_ref() = fallback;
+        auto& checker = UpdateChecker::instance();
+        UpdateCheckerTestAccess::clear_download_cancelled(checker);
+        UpdateCheckerTestAccess::set_install_log(checker, tmp + "/install.log");
+        UpdateCheckerTestAccess::set_restart_action(checker, [] {});
+        UpdateCheckerTestAccess::set_status_hold_ms(checker, 0, 0);
+        UpdateCheckerTestAccess::do_install(checker, tarball);
+        _exit(0);
+    }
+    REQUIRE(pid > 0);
+    int wstatus = 0;
+    for (int i = 0; i < 3000 && waitpid(pid, &wstatus, WNOHANG) == 0; ++i)
+        usleep(10 * 1000);
+    if (waitpid(pid, &wstatus, WNOHANG) == 0) {
+        kill(pid, SIGKILL);
+        waitpid(pid, &wstatus, 0);
+        FAIL("do_install did not return within 30s");
+    }
+
+    std::ifstream in(seen);
+    std::string named, self;
+    std::getline(in, named);
+    std::getline(in, self);
+    CHECK(self == "self=" + named);
+    // The install failed, so no restart follows and the sentinel is gone.
+    CHECK(access(sentinel.c_str(), F_OK) != 0);
+
+    remove_dir(tmp);
+}
+
+TEST_CASE("A manual install ends an automatic update's rollback trial first",
+          "[update_checker][installer][do_install][rollback]") {
+    auto tmp = make_temp_dir("helix_install_disarm");
+    REQUIRE(!tmp.empty());
+    const std::string guard = tmp + "/rollback";
+    mkdir(guard.c_str(), 0755);
+    const std::string armed = guard + "/update_rollback.armed";
+    create_file(armed, "install_dir=/x\n", false);
+
+    // The installer records whether the trial was still armed when it ran.
+    const std::string seen = tmp + "/seen";
+    std::string inner = tmp + "/helixscreen";
+    mkdir(inner.c_str(), 0755);
+    create_file(inner + "/install.sh",
+                "#!/bin/sh\n{ [ -e '" + armed + "' ] && echo armed || echo disarmed; } > '" + seen +
+                    "'\nexit 1\n",
+                true);
+    const std::string tarball = tmp + "/release.tar.gz";
+    std::string cmd =
+        "cd " + tmp + " && COPYFILE_DISABLE=1 tar czf release.tar.gz helixscreen/install.sh";
+    REQUIRE(std::system(cmd.c_str()) == 0);
+
+    const pid_t pid = fork();
+    if (pid == 0) {
+        ScopedRuntimeConfig scoped_config;
+        get_runtime_config()->test_mode = false;
+        setenv("HELIX_ROLLBACK_DIR", guard.c_str(), 1);
+        helix::app_constants::update::detail::backup_fallback_dir_ref() = tmp + "/.helixscreen";
+        auto& checker = UpdateChecker::instance();
+        UpdateCheckerTestAccess::clear_download_cancelled(checker);
+        UpdateCheckerTestAccess::set_install_log(checker, tmp + "/install.log");
+        UpdateCheckerTestAccess::set_restart_action(checker, [] {});
+        UpdateCheckerTestAccess::set_status_hold_ms(checker, 0, 0);
+        UpdateCheckerTestAccess::do_install(checker, tarball); // a manual (user) install
+        _exit(0);
+    }
+    REQUIRE(pid > 0);
+    int wstatus = 0;
+    for (int i = 0; i < 3000 && waitpid(pid, &wstatus, WNOHANG) == 0; ++i)
+        usleep(10 * 1000);
+    if (waitpid(pid, &wstatus, WNOHANG) == 0) {
+        kill(pid, SIGKILL);
+        waitpid(pid, &wstatus, 0);
+        FAIL("do_install did not return within 30s");
+    }
+
+    std::ifstream in(seen);
+    std::string state;
+    std::getline(in, state);
+    CHECK(state == "disarmed");
+    CHECK(access(armed.c_str(), F_OK) != 0);
+
+    remove_dir(tmp);
+}
+
+TEST_CASE("An automatic install that fails after its swap arms the guard from the swap note",
+          "[update_checker][installer][do_install][rollback]") {
+    auto tmp = make_temp_dir("helix_install_swapped");
+    REQUIRE(!tmp.empty());
+    const std::string guard = tmp + "/rollback";
+    mkdir(guard.c_str(), 0755);
+    const std::string previous = tmp + "/helixscreen-app.old";
+
+    // An installer that swapped the tree (and says so), then failed.
+    std::string inner = tmp + "/helixscreen";
+    mkdir(inner.c_str(), 0755);
+    create_file(inner + "/install.sh",
+                "#!/bin/sh\nprintf 'previous_dir=%s\\n' '" + previous +
+                    "' > \"$HELIX_UPDATE_SWAPPED_FILE\"\nexit 1\n",
+                true);
+    const std::string tarball = tmp + "/release.tar.gz";
+    std::string cmd =
+        "cd " + tmp + " && COPYFILE_DISABLE=1 tar czf release.tar.gz helixscreen/install.sh";
+    REQUIRE(std::system(cmd.c_str()) == 0);
+
+    const pid_t pid = fork();
+    if (pid == 0) {
+        ScopedRuntimeConfig scoped_config;
+        get_runtime_config()->test_mode = false;
+        setenv("HELIX_ROLLBACK_DIR", guard.c_str(), 1);
+        helix::update::set_auto_rollback_supported_for_test(true);
+        helix::app_constants::update::detail::backup_fallback_dir_ref() = tmp + "/.helixscreen";
+        auto& checker = UpdateChecker::instance();
+        UpdateCheckerTestAccess::clear_download_cancelled(checker);
+        UpdateCheckerTestAccess::set_install_log(checker, tmp + "/install.log");
+        UpdateCheckerTestAccess::set_machine_busy_hook(checker, [] { return false; });
+        UpdateCheckerTestAccess::set_stop_after_arm(checker, true);
+        UpdateCheckerTestAccess::set_install_root(checker, tmp + "/helixscreen-app");
+        UpdateCheckerTestAccess::set_restart_action(checker, [] {});
+        UpdateCheckerTestAccess::set_status_hold_ms(checker, 0, 0);
+        UpdateCheckerTestAccess::do_install_automatic(checker, tarball);
+        _exit(0);
+    }
+    REQUIRE(pid > 0);
+    int wstatus = 0;
+    for (int i = 0; i < 3000 && waitpid(pid, &wstatus, WNOHANG) == 0; ++i)
+        usleep(10 * 1000);
+    if (waitpid(pid, &wstatus, WNOHANG) == 0) {
+        kill(pid, SIGKILL);
+        waitpid(pid, &wstatus, 0);
+        FAIL("do_install did not return within 30s");
+    }
+
+    std::ifstream in(guard + "/update_rollback.armed");
+    std::string marker((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    CHECK(marker.find("install_dir=" + tmp + "/helixscreen-app\n") != std::string::npos);
+    CHECK(marker.find("previous_dir=" + previous + "\n") != std::string::npos);
+    CHECK(access((guard + "/update_rollback.swapped").c_str(), F_OK) != 0);
 
     remove_dir(tmp);
 }

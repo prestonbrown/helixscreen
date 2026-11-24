@@ -20,11 +20,13 @@
 #include "config.h"
 #include "core/update_queue.h"
 #include "moonraker_api.h"
+#include "notice.h"
 #include "system/afc_message_dedup.h"
 #include "test_helpers/afc_test_access.h"
 #include "test_helpers/config_test_access.h"
 #include "test_helpers/log_capture.h"
 
+#include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -448,8 +450,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
                  "AFC Error Handling: a message a previous session surfaced is not re-toasted",
                  "[afc][error_handling][1589]") {
     ActionPromptManager::set_instance(nullptr);
-    const std::string latched =
-        "Error getting data from moonraker, check AFC.log for more information";
+    const std::string latched = "Hub not clear when trying to load, CHECK FILAMENT PATH";
 
     SECTION("A message unchanged since the previous session raises no toast or event") {
         DedupSeedDir seed(latched);
@@ -610,8 +611,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
                  "AFC Error Handling: the dedup store fails open when it cannot keep a record",
                  "[afc][error_handling][1589]") {
     ActionPromptManager::set_instance(nullptr);
-    const std::string latched =
-        "Error getting data from moonraker, check AFC.log for more information";
+    const std::string latched = "Hub not clear when trying to load, CHECK FILAMENT PATH";
 
     SECTION("A clear whose write fails takes the record off disk anyway") {
         DedupSeedDir seed(latched);
@@ -741,4 +741,68 @@ TEST_CASE_METHOD(LVGLTestFixture,
     }
 
     ActionPromptManager::set_instance(nullptr);
+}
+
+// ============================================================================
+// AFC's own bookkeeping errors go to history only
+// ============================================================================
+//
+// AFC reports a failed Moonraker metadata lookup (every Kalico PA tower pass,
+// a virtual job with no file) as an error message. It stops nothing, so it
+// reaches notification history and never a toast or an error event.
+
+namespace {
+std::vector<helix::Notice> g_afc_notices;
+void capture_afc_notice(const helix::Notice& notice) {
+    g_afc_notices.push_back(notice);
+}
+struct CapturedAfcNotices {
+    helix::NoticeSubscriber previous;
+    CapturedAfcNotices() : previous(helix::set_notice_subscriber(capture_afc_notice)) {
+        g_afc_notices.clear();
+    }
+    ~CapturedAfcNotices() {
+        helix::set_notice_subscriber(previous);
+    }
+    size_t count(helix::NoticeDelivery delivery, const std::string& text) const {
+        size_t n = 0;
+        for (const auto& notice : g_afc_notices) {
+            n += (notice.delivery == delivery && notice.message == text) ? 1 : 0;
+        }
+        return n;
+    }
+};
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "AFC Error Handling: a failed Moonraker lookup is history only, a real error "
+                 "still toasts",
+                 "[afc][error_handling][afc_metadata]") {
+    DedupSeedDir seed("");
+    ActionPromptManager::set_instance(nullptr);
+    AfcErrorHandlingHelper afc;
+    std::vector<std::string> events;
+    afc.set_event_callback(
+        [&events](const std::string& event, const std::string&) { events.push_back(event); });
+    CapturedAfcNotices notices;
+
+    SECTION("The metadata lookup failure is recorded, not shown") {
+        const std::string lookup =
+            "Error getting data from moonraker, check AFC.log for more information";
+        afc.feed_afc_message(lookup, "error");
+
+        CHECK(notices.count(helix::NoticeDelivery::HistoryOnly, lookup) == 1);
+        CHECK(notices.count(helix::NoticeDelivery::Notification, lookup) == 0);
+        CHECK(std::count(events.begin(), events.end(), AmsBackend::kEventError) == 0);
+    }
+
+    SECTION("A lane failure toasts and raises an error event") {
+        const std::string failure =
+            "lane1 filament did not trigger hub sensor, CHECK FILAMENT PATH";
+        afc.feed_afc_message(failure, "error");
+
+        CHECK(notices.count(helix::NoticeDelivery::Notification, failure) == 1);
+        CHECK(notices.count(helix::NoticeDelivery::HistoryOnly, failure) == 0);
+        CHECK(std::count(events.begin(), events.end(), AmsBackend::kEventError) == 1);
+    }
 }

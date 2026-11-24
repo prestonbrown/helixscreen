@@ -514,6 +514,7 @@
   <translation tag="Automatic" de="Automatisch"/>
   <translation tag="Automatic Heater Control Calibration" de="Automatische Heizungsregelung Kalibrierung"/>
   <translation tag="Automatic LED Control" de="Automatische LED-Steuerung"/>
+  <translation tag="Automatic Updates" de="Automatische Updates"/>
   <translation tag="Automatic calibration" de="Automatische Kalibrierung"/>
   <translation tag="Automatic cleanup" de="Automatische Bereinigung"/>
   <translation tag="Automatic filament feeding is still running." de="Die automatische Filamentzuführung läuft noch."/>
@@ -1480,6 +1481,8 @@
   <translation tag="Door Open" de="Tür offen"/>
   <translation tag="Door opened during print: {}" de="Tür während des Drucks geöffnet: {}"/>
   <translation tag="Door switches, buttons, and other on/off inputs" de="Türschalter, Taster und andere Ein/Aus-Eingänge"/>
+  <translation tag="Download and ask" de="Herunterladen und fragen"/>
+  <translation tag="Download and ask tells you when an update is ready to install" de="Herunterladen und fragen meldet, wenn ein Update zur Installation bereit ist"/>
   <translation tag="Download update?" de="Update herunterladen?"/>
   <translation tag="Download v{}?" de="v{} herunterladen?"/>
   <translation tag="Downloading the timelapse plugin..." de="Zeitraffer-Plugin wird heruntergeladen..."/>
@@ -2409,6 +2412,8 @@
   <translation tag="Install Plugin" de="Plugin installieren"/>
   <translation tag="Install Root" de="Installations-Verzeichnis"/>
   <translation tag="Install Update" de="Update installieren"/>
+  <translation tag="Install overnight" de="Nachts installieren"/>
+  <translation tag="Install overnight restarts the screen at 3 AM when the printer is idle" de="Nachts installieren startet den Bildschirm um 3 Uhr neu, wenn der Drucker nicht arbeitet"/>
   <translation tag="Install plugin" de="Plugin installieren"/>
   <translation tag="Install script not found. Use the remote install command instead." de="Installationsskript nicht gefunden. Verwenden Sie stattdessen den Remote-Installationsbefehl."/>
   <translation tag="Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:" de="Installieren Sie das HelixPrint-Plugin für schnelle G-Code-Modifikationen. Führen Sie diesen Befehl per SSH auf Ihrem Drucker aus:"/>
@@ -5639,6 +5644,7 @@
   <translation tag="Update Failed" de="Update fehlgeschlagen"/>
   <translation tag="Update Helper Macros" de="Hilfsmakros aktualisieren"/>
   <translation tag="Update Helper Macros?" de="Hilfsmakros aktualisieren?"/>
+  <translation tag="Update Rolled Back" de="Update zurückgesetzt"/>
   <translation tag="Update Success" de="Update erfolgreich"/>
   <translation tag="Update complete" de="Update abgeschlossen"/>
   <translation tag="Update from a Terminal" de="Update über ein Terminal"/>
@@ -6171,6 +6177,7 @@
   <translation tag="uses about 30 cm of filament" de="verbraucht ca. 30 cm Filament"/>
   <translation tag="v%s available" de="v%s verfügbar"/>
   <translation tag="v%s has no build for the %s, so it can&apos;t be installed here. Pick a channel with a newer release." de="v%s hat keinen Build für %s und kann hier nicht installiert werden. Wähle einen Update-Kanal mit einer neueren Version."/>
+  <translation tag="v{} did not start properly, so v{} was put back." de="v{} ist nicht richtig gestartet, daher wurde v{} wiederhergestellt."/>
   <translation tag="v{} installed! Restarting..." de="v{} installiert! Neustart..."/>
   <translation tag="v{} is available. Tap to update." de="v{} ist verfügbar. Tippen zum Aktualisieren."/>
   <translation tag="waiting for the printer" de="wartet auf den Drucker"/>

@@ -12,6 +12,8 @@
  * Written TDD-style - tests WILL FAIL if TelemetryManager is removed.
  */
 
+#include "ui_ams_device_operations_overlay.h"
+
 #include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
@@ -35,6 +37,7 @@
 #include "moonraker_client_mock.h"
 #include "platform_table.h"
 #include "printer_discovery.h"
+#include "printer_event_journal.h"
 #include "printer_state.h"
 #include "runtime_config.h"
 #include "screensaver_registry.h"
@@ -732,6 +735,26 @@ TEST_CASE_METHOD(TelemetryTestFixture,
         events = events_named(tm, "filament_op");
         REQUIRE(events.size() == 2);
         CHECK(events[1]["outcome"] == "aborted");
+
+        // A failure is classed by the fault's cause, not the operation's line.
+        ams_state.set_action(helix::AmsAction::LOADING);
+        state.print_state().set_last_gcode_error("Filament jam detected in lane 1",
+                                                 helix::wall_now_s());
+        ams_state.set_action(helix::AmsAction::ERROR);
+        events = events_named(tm, "filament_op");
+        REQUIRE(events.size() == 3);
+        CHECK(events[2]["outcome"] == "failed");
+        CHECK(events[2]["error_class"] == "jam");
+
+        // The filament panel's Abort ends the running operation as aborted.
+        ams_state.set_action(helix::AmsAction::IDLE);
+        ams_state.set_action(helix::AmsAction::LOADING);
+        helix::ui::abort_ams_operation();
+        ams_state.set_action(helix::AmsAction::IDLE);
+        tm.flush_filament_ops(); // a repeat of the abort above is pooled
+        events = events_named(tm, "filament_op");
+        REQUIRE(events.size() == 4);
+        CHECK(events[3]["outcome"] == "aborted");
     }
     PrinterStateTestAccess::reset(state);
 }

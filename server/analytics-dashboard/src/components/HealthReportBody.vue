@@ -68,7 +68,7 @@
 
   <DashSection title="Errors" :loading="loading" :error="error">
     <template v-if="data">
-      <ChartCaption :text="`${WINDOW}; click a row to find the code on the Stability tab`" />
+      <ChartCaption :text="`${WINDOW}; click a row to find the code on the Stability tab; main_loop_hang counts only hangs not caused by a host low on memory`" />
       <NoData v-if="data.errors.length === 0" :not-applicable="data.not_applicable.errors" />
       <div v-else class="table-wrapper event-log">
         <table class="data-table">
@@ -91,7 +91,14 @@
               @click="filters.go(router, '/stability', [], `#${errorAnchor(e.code)}`)"
             >
               <td><span class="badge category">{{ e.category }}</span></td>
-              <td class="mono">{{ e.code }}</td>
+              <td class="mono">
+                {{ e.code }}
+                <div v-if="e.split" class="cause-split">
+                  {{ e.split.app_blocked.toLocaleString() }} app blocked,
+                  {{ e.split.host_memory.toLocaleString() }} host out of memory,
+                  {{ e.split.unknown.toLocaleString() }} unknown
+                </div>
+              </td>
               <td class="mono">{{ e.cur.toLocaleString() }}</td>
               <td class="mono">{{ e.prev.toLocaleString() }}</td>
               <td class="mono">{{ e.devices.toLocaleString() }}</td>
@@ -228,6 +235,11 @@ function clusterEntries(c: HealthData['crash_clusters'][number]): [DashFilterKey
 </script>
 
 <style scoped>
+.cause-split {
+  font-size: 0.8em;
+  color: var(--text-secondary);
+}
+
 .badge.status-new {
   background: rgba(239, 68, 68, 0.15);
   color: #f87171;

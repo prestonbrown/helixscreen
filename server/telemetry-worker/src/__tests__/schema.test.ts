@@ -185,6 +185,7 @@ describe("POINT_KINDS table", () => {
           "app_version": "blob2",
           "device_id": "blob1",
           "rss_kb": "double2",
+          "system_available_mb": "double6",
           "trigger": "blob4",
           "uptime_sec": "double1",
           "vm_hwm_kb": "double5",

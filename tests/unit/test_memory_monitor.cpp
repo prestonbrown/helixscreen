@@ -416,6 +416,17 @@ TEST_CASE("MemoryMonitor pressure responder registration", "[memory_monitor]") {
 // pressure_level_to_string
 // =============================================================================
 
+TEST_CASE("a reported memory warning carries its cause's reason code", "[memory_monitor]") {
+    auto& monitor = MemoryMonitor::instance();
+    std::string code;
+    monitor.set_warning_callback(
+        [&code](const MemoryWarningEvent& event) { code = event.reason_code; });
+    MemoryMonitorTestAccess::fire_warning(monitor, MemoryPressureLevel::warning, "test pressure",
+                                          MemoryStats{}, MemoryInfo{}, 0, "available_warning");
+    monitor.set_warning_callback(nullptr);
+    CHECK(code == "available_warning");
+}
+
 TEST_CASE("pressure_level_to_string", "[memory_monitor]") {
     REQUIRE(std::string(pressure_level_to_string(MemoryPressureLevel::none)) == "none");
     REQUIRE(std::string(pressure_level_to_string(MemoryPressureLevel::elevated)) == "elevated");
