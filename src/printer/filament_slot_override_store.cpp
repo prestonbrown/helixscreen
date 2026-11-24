@@ -392,13 +392,7 @@ ResolvedTemps resolved_temps(const FilamentSlotOverride& o) {
 
 void populate_temps_from_slot_info(FilamentSlotOverride& ovr, const SlotInfo& info) {
     ovr.bed_temp = info.bed_temp;
-    if (info.nozzle_temp_min > 0 && info.nozzle_temp_max > info.nozzle_temp_min) {
-        ovr.nozzle_temp = (info.nozzle_temp_min + info.nozzle_temp_max) / 2;
-    } else if (info.nozzle_temp_min > 0) {
-        ovr.nozzle_temp = info.nozzle_temp_min;
-    } else {
-        ovr.nozzle_temp = 0;
-    }
+    ovr.nozzle_temp = info.nozzle_print_temp();
 }
 
 FilamentSlotOverride user_override_from_slot_info(const SlotInfo& edited,

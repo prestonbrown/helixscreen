@@ -130,9 +130,9 @@ ResolvedTemps resolved_temps(const FilamentSlotOverride& o);
 
 // Populate the override's temp fields from a SlotInfo carrying user/Spoolman
 // values. Called from each backend's apply_user_edit to centralize the SlotInfo
-// → FilamentSlotOverride temp wiring. nozzle_temp is the midpoint of
-// nozzle_temp_min/max when both differ, else nozzle_temp_min when set, else
-// 0 (which signals to resolved_temps that the material-DB default should win).
+// → FilamentSlotOverride temp wiring. nozzle_temp is SlotInfo::nozzle_print_temp():
+// 0 when the slot states none, which signals to resolved_temps that the
+// picked product's or the material-DB default should win.
 void populate_temps_from_slot_info(FilamentSlotOverride& ovr, const SlotInfo& info);
 
 // The record a backend writes for a user's edit that left the lane at

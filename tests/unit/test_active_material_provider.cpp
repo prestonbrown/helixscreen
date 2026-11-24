@@ -240,6 +240,91 @@ TEST_CASE_METHOD(OverrideFixture,
 }
 
 // ============================================================================
+// A catalog product picked for the slot (slot.catalog_id) states the loaded
+// spool's temperatures more exactly than a firmware lane's single number. The
+// product is the bundled SUNLU "PLA+ 2.0": type PLA, 190-240, prints at 220,
+// bed 55. The lane holds 215, the middle of that range.
+
+namespace {
+SlotInfo lane_with_sunlu_pick() {
+    SlotInfo slot;
+    slot.material = "PLA";
+    slot.brand = "SUNLU";
+    slot.catalog_id = "sunlu-pla-plus-2-0";
+    slot.nozzle_temp_min = 215;
+    slot.nozzle_temp_max = 215;
+    slot.bed_temp = 60;
+    return slot;
+}
+} // namespace
+
+TEST_CASE_METHOD(OverrideFixture, "build_active_material: a picked product sets the print temp",
+                 "[active_material][build][precedence]") {
+    const auto result = build_active_material(lane_with_sunlu_pick());
+
+    CHECK(result.material_info.nozzle_recommended() == 220);
+    CHECK(result.material_info.nozzle_min == 190);
+    CHECK(result.material_info.nozzle_max == 240);
+    CHECK(result.material_info.bed_temp == 55);
+}
+
+TEST_CASE_METHOD(OverrideFixture,
+                 "build_active_material: a user material override beats the picked product",
+                 "[active_material][build][precedence]") {
+    filament::MaterialOverride ovr;
+    ovr.nozzle_min = 210;
+    ovr.nozzle_max = 214;
+    ovr.bed_temp = 65;
+    MaterialSettingsManager::instance().set_override("PLA", ovr);
+
+    const auto result = build_active_material(lane_with_sunlu_pick());
+
+    CHECK(result.material_info.nozzle_min == 210);
+    CHECK(result.material_info.nozzle_max == 214);
+    // The product's 220 lies outside the user's range, so the range decides.
+    CHECK(result.material_info.nozzle_recommended() == 212);
+    CHECK(result.material_info.bed_temp == 65);
+}
+
+TEST_CASE_METHOD(OverrideFixture, "build_active_material: no product keeps the lane's temps",
+                 "[active_material][build][precedence]") {
+    SlotInfo slot = lane_with_sunlu_pick();
+    slot.catalog_id.clear();
+
+    const auto result = build_active_material(slot);
+
+    CHECK(result.material_info.nozzle_recommended() == 215);
+    CHECK(result.material_info.bed_temp == 60);
+}
+
+TEST_CASE_METHOD(OverrideFixture,
+                 "build_active_material: a product naming another material lays nothing",
+                 "[active_material][build][precedence]") {
+    // A stale pick: the lane now holds PETG from the firmware.
+    SlotInfo slot = lane_with_sunlu_pick();
+    slot.material = "PETG";
+    slot.nozzle_temp_min = 245;
+    slot.nozzle_temp_max = 245;
+
+    const auto result = build_active_material(slot);
+
+    CHECK(result.material_info.nozzle_recommended() == 245);
+    CHECK(result.material_info.bed_temp == 60);
+}
+
+TEST_CASE("SlotInfo::nozzle_print_temp: a staged product temp inside the range wins",
+          "[active_material][build]") {
+    SlotInfo slot;
+    slot.nozzle_temp_min = 190;
+    slot.nozzle_temp_max = 240;
+    CHECK(slot.nozzle_print_temp() == 215);
+    slot.nozzle_temp_recommended = 220;
+    CHECK(slot.nozzle_print_temp() == 220);
+    slot.nozzle_temp_recommended = 250;
+    CHECK(slot.nozzle_print_temp() == 215);
+}
+
+// ============================================================================
 // Spool preset matching logic tests
 // ============================================================================
 

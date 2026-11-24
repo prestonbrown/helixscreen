@@ -169,6 +169,17 @@ TEST_CASE_METHOD(LVGLTestFixture,
         CHECK((temps > unlink && temps < sent));
         CHECK((vendor > unlink && vendor < sent));
     }
+    SECTION("a picked product sends its own print temperature, not its range's middle") {
+        afc.gcodes.clear();
+        SlotInfo info = edited_lane();
+        info.nozzle_temp_min = 190;
+        info.nozzle_temp_max = 240;
+        info.nozzle_temp_recommended = 220;
+        info.bed_temp = 55;
+        REQUIRE(afc.apply_user_edit(1, info).success());
+        CHECK(std::count(afc.gcodes.begin(), afc.gcodes.end(),
+                         "AFC_SET_SPOOL_TEMP LANE=lane2 EXTRUDER_TEMP=220 BED_TEMP=55") == 1);
+    }
     SECTION("a vendor that cannot be sent stays in HelixScreen's record") {
         afc.gcodes.clear();
         SlotInfo info = edited_lane();
