@@ -388,6 +388,7 @@ translations:
   Accelerometer not responding: 'Акселерометр не отвечает'
   Accelerometer ready: Акселерометр готов
   Accelerometers: Акселерометры
+  Accents: 'Акценты'
   Accept: Принять
   'Accepted Z Position: 0.000': 'Принятая позиция Z: 0.000'
   'Accepted Z Position: {:.3f}': 'Принятая позиция Z: {:.3f}'
@@ -537,6 +538,7 @@ translations:
   Arc moves not supported: 'Дуговые перемещения не поддерживаются'
   Archive: Архивировать
   Archive Spool?: Архивировать катушку?
+  Arctic White: 'Арктический белый'
   Are you sure you want to cancel this print? All progress will be lost.: Вы уверены, что хотите отменить печать? Весь прогресс будет потерян.
   Are you sure? This will power off or restart this device.: Вы уверены? Это выключит или перезагрузит данное устройство.
   Arrows + Home: 'Стрелки + Домой'
@@ -728,6 +730,7 @@ translations:
   Bowden tube length to this tool: "Длина боуден-трубки до этого инструмента"
   'Bowden: pull the tube from the extruder end, then pull the filament.': "Боуден: снимите трубку со стороны экструдера, затем вытяните филамент."
   Box: Бокс
+  Box Turtle Green and Gold: 'Box Turtle зелёный и золотой'
   Brand: Бренд
   Brand and material come from Spoolman: Бренд и материал берутся из Spoolman
   Brightness: Яркость
@@ -1620,6 +1623,7 @@ translations:
   Downloading... {:.1f}/{:.1f} MB: Загрузка... {:.1f}/{:.1f} МБ
   Draw a ripple at each touch — helps diagnose offsets: Рисовать круг при каждом касании — помогает диагностировать смещения
   Drive Cal: Кал. привода
+  Drive blocks and trim: 'Приводные блоки и отделка'
   Drop shadow strength (0 = disabled): Интенсивность тени (0 = отключено)
   Dropped when the printer restarted: 'Потеряно при перезапуске принтера'
   Dry: Сушка
@@ -2196,6 +2200,7 @@ translations:
     other: 'Найдено %zu принтера'
   Found 1 printer: Найден 1 принтер
   Found {} at {}.: '{} найден по адресу {}.'
+  Frame: 'Рама'
   Framerate: Частота кадров
   Free space unknown: 'Свободное место неизвестно'
   Free the spool and pull the filament out of {} by hand, then try again.: '{}: освободите катушку и вручную вытяните филамент, затем попробуйте снова.'
@@ -2442,6 +2447,7 @@ translations:
   Homing timed out — printer may still be homing: Тайм-аут парковки — принтер может всё ещё выполнять парковку
   Homing, then probing...: "Парковка, затем измерение..."
   Homing...: Парковка...
+  Honeycomb panels, corner blocks and trays: 'Сотовые панели, угловые блоки и лотки'
   Horizontal: Горизонтально
   Host: Хост
   Host Health: Состояние хоста
@@ -3520,6 +3526,7 @@ translations:
   Options: Параметры
   Or Enter Manually: Или введите вручную
   Or instead of turning the others: Или вместо вращения остальных винтов
+  Original: 'Оригинал'
   Original file location unknown: Расположение исходного файла неизвестно
   Oscillating... cycle %d/%d: Осцилляция... цикл %d/%d
   Other: Другое
@@ -3571,6 +3578,7 @@ translations:
   Pairing failed: Ошибка сопряжения
   Pairing...: Сопряжение...
   Panel Usage: Использование панели
+  Panels and Corners: 'Панели и углы'
   Paper Test Calibration: Калибровка бумажным тестом
   'Paper drags: done': "Бумага цепляется: готово"
   Parameters: Параметры
@@ -4819,6 +4827,7 @@ translations:
   Startup, auto-control, and macro devices: Запуск, автоуправление и макро-устройства
   State: Состояние
   Static: 'Статический'
+  Station: 'Станция'
   Status: Статус
   Status icons: Иконки статуса
   Stay at the printer.: Оставайтесь у принтера.
@@ -4826,6 +4835,7 @@ translations:
   Stays on PID: Остаётся на PID
   Std Deviation: Станд. отклонение
   Stealth: Тихий
+  Stealth Black: 'Чёрный стелс'
   Stealth is quiet, Sport is fastest: Тихий самый тихий, Спорт самый быстрый
   Step: Шаг
   Step 1 of 3: Шаг 1 из 3
@@ -5115,6 +5125,7 @@ translations:
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : Изменение вступает в силу после перезапуска Klipper. Прошивка Klipper будет перезапущена. Активные операции будут прерваны.
   'The change was not applied: the current settings could not be saved for a revert.': 'Изменение не применено: не удалось сохранить текущие настройки для отката.'
+  The colors this unit was printed in: 'Цвета, в которых напечатан этот блок'
   ? The configuration includes or opens a file that is not there, often the include line a removed plugin left behind. Klipper's message names the file.
   : Конфигурация включает или открывает несуществующий файл, часто это строка include, оставшаяся от удалённого плагина. Файл указан в сообщении Klipper.
   The configuration names pin '{1}', which board '{2}' does not have.: В конфигурации указан пин '{1}', которого нет на плате '{2}'.
@@ -5175,6 +5186,7 @@ translations:
   ? The firmware's pressure advance tower needs a [pa_test] section in printer.cfg. HelixScreen adds it with a backup and restarts Klipper.
   : "Башне Pressure Advance в прошивке нужна секция [pa_test] в printer.cfg. HelixScreen добавит её с резервной копией и перезапустит Klipper."
   The firmware's test tower is not in the printer's config. Adding it writes one section and restarts Klipper.: "Тестовой башни прошивки нет в конфигурации принтера. Добавление запишет одну секцию и перезапустит Klipper."
+  The frame, posts and rails: 'Рама, стойки и направляющие'
   ? The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong.
   : Порталу нужна коррекция {1} мм, больше допустимых {2} мм. Он сильно перекошен (после удара или провиснув при выключенном питании) или неверны точки зондирования либо порядок моторов Z.
   The gap didn't close (moved {:.1f} Hz). Try a bigger turn.: "Разница не сократилась (сдвиг {:.1f} Гц). Поверните сильнее."
@@ -5678,6 +5690,7 @@ translations:
   Tool cycle finished: Перебор инструментов завершён
   Tool is seated: Инструмент установлен
   Tool may be half seated: "Инструмент может быть установлен не полностью"
+  Tool offset calibration complete: 'Калибровка смещений инструментов завершена'
   Tool offsets: 'Смещения инструментов'
   Tool offsets (mm): Смещения инструментов (мм)
   Tool offsets saved: Смещения инструментов сохранены
@@ -5954,6 +5967,7 @@ translations:
   Volume: Громкость
   Volume of filament used during ramming: 'Объём филамента, расходуемый при рэмминге'
   Volume {}%: Громкость {}%
+  Voron Black and Red: 'Voron чёрный и красный'
   WAITING: "ОЖИДАНИЕ"
   WEIGHT SYNC: СИНХРОНИЗАЦИЯ ВЕСА
   WIDTH SENSORS: ДАТЧИКИ ШИРИНЫ
@@ -6516,6 +6530,7 @@ translations:
   '{} matches.': '{} подходит.'
   '{} may be half seated on the head. Check it by hand.': "{} может быть установлен на печатающую головку не полностью. Проверьте вручную."
   '{} may cause unintended changes. Are you sure?': '{} может привести к непреднамеренным изменениям. Вы уверены?'
+  '{} measured: X {:.3f} Y {:.3f} Z {:.3f} mm': '{} измерено: X {:.3f} Y {:.3f} Z {:.3f} мм'
   '{} meter reset': 'Счётчик «{}» сброшен'
   '{} min': '{} мин'
   '{} min ago': '{} мин. назад'

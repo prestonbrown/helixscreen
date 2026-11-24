@@ -816,3 +816,116 @@ def test_a_far_flange_is_cut_by_its_own_core_and_near_flange_but_not_its_filamen
     assert near and all(id(i) in over for i in near)
     assert filament and not any(id(i) in over for i in filament)
     assert not any(id(i) in over for i in scene._vent_items(0, far=True))
+
+
+BOX_TURTLES = [box_turtle.UNIT, box_turtle.ENCLOSED]
+# The green corner blocks and trays stand behind the spools, and the enclosure's rear posts.
+BOX_TURTLE_MASKS = {
+    box_turtle.UNIT.id: ("back_panels", "front_main", "front_accent", "front_panels"),
+    box_turtle.ENCLOSED.id: ("back_main", "back_panels", "front_main", "front_accent", "front_panels"),
+}
+
+
+@pytest.mark.parametrize("unit", BOX_TURTLES, ids=lambda u: u.id)
+def test_the_box_turtle_ships_its_color_region_masks_at_both_tiers(unit):
+    for root, lanes in build.art_dirs(unit, REPO / "assets/images/units"):
+        manifest = json.loads((root / "manifest.json").read_text())
+        on_disk = {f.name for f in root.glob("*.png") if any(f"_{r}" in f.name for r in kit.UNIT_COLOR_REGIONS)}
+        listed = set()
+        for tier in ("full", "thumb"):
+            regions = manifest["tiers"][tier].get("regions", {})
+            assert sorted(regions) == sorted(BOX_TURTLE_MASKS[unit.id]), (lanes, tier)
+            listed |= {name for names in regions.values() for name in names.values()}
+            for key, names in regions.items():
+                assert names == {"color": f"{tier}_{key}.png", "shade": f"{tier}_{key}_shade.png"}
+                for name in names.values():
+                    assert (root / name).stat().st_size > 0, (lanes, name)
+        # No mask from a region the drawing no longer bakes is left behind.
+        assert on_disk == listed, lanes
+
+
+def test_the_shell_table_records_the_region_masks_a_drawing_bakes():
+    table = build.generate_shell_table([box_turtle.UNIT, ace_pro.UNIT])
+
+    def row(uid):
+        return next(line for line in table.splitlines() if line.strip().startswith('{"%s"' % uid))
+
+    bits = sum(kit.unit_color_mask_bit(*key.split("_")) for key in BOX_TURTLE_MASKS[box_turtle.UNIT.id])
+    # The region bits, then the drawing's own main, accent and panels colors.
+    scene = kit.Scene(kit.ART_CAMERA)
+    box_turtle.UNIT.draw_art(scene, ["#ffffff"] * 4, "full")
+    defaults = ", ".join(f"0x{c[1:]}" for c in scene.region_bases())
+    assert row("box_turtle").rstrip().endswith(f"0x{bits:02x}, {{{defaults}}}}},")
+    assert row("ace_pro").rstrip().endswith("0x0},")
+
+
+def test_a_unit_drawn_only_in_its_own_colors_bakes_no_region_masks(tmp_path):
+    build.bake_unit(ace_pro.UNIT, tmp_path, render=lambda svg, w, path: path.write_bytes(b"png"))
+    manifest = json.loads((tmp_path / ace_pro.UNIT.id / "manifest.json").read_text())
+    assert all("regions" not in t for t in manifest["tiers"].values())
+    assert not list((tmp_path / ace_pro.UNIT.id).glob("*_main*"))
+
+
+def _alpha_at(svg_text, tmp_path, points):
+    from PIL import Image
+
+    png = tmp_path / "mask.png"
+    build.rsvg_render(svg_text, 100, png)
+    with Image.open(png) as im:
+        im = im.convert("RGBA")
+        return [im.getpixel((round(x * im.width), round(y * im.height)))[3] for x, y in points]
+
+
+def test_a_region_mask_is_cut_by_a_solid_part_in_front_but_not_by_glass(tmp_path):
+    scene = kit.Scene(kit.FACE_CAMERA)
+    scene.margin = 0.0
+    scene.layer = "front"
+
+    def square(x0, x1, fill, opacity=1.0):
+        scene.poly([(x0, -0.01, 0.0), (x1, -0.01, 0.0), (x1, -0.01, 1.0), (x0, -0.01, 1.0)], fill, opacity)
+
+    with scene.painted("panels"):
+        square(0.0, 3.0, "#336699")
+    square(1.0, 2.0, "#000000")
+    square(2.0, 3.0, "#8d8579", opacity=0.2)
+    bare, solid, glass = _alpha_at(scene.region_color_svg("front", "panels", 100), tmp_path, [(0.15, 0.5), (0.5, 0.5), (0.85, 0.5)])
+    assert bare == 255 and glass == 255
+    assert solid == 0
+
+
+def test_a_region_shade_carries_each_parts_light_against_the_regions_color():
+    assert kit.region_gray("#336699", "#336699") == "#ffffff"
+    dark = kit.region_gray(kit.scale("#336699", 0.5), "#336699")
+    assert 0x70 <= kit.rgb(dark)[0] <= 0x90
+    assert kit.region_gray("#ffffff", "#336699") == "#ffffff"
+
+
+def _tri(scene, fill):
+    scene.poly([(0, 0, 0), (1, 0, 0), (1, 0, 1)], fill)
+
+
+def test_a_color_region_is_one_printed_color_lit_at_its_brightest_part():
+    scene = kit.Scene(kit.ART_CAMERA)
+    with scene.painted("panels"):
+        _tri(scene, "#1f5a3e")
+        _tri(scene, kit.shift("#1f6a4a", 30))
+        _tri(scene, "#0e2c1f")
+    # Its color is its brightest part, so every other part is a shade of it.
+    assert scene.region_base("panels") == kit.shift("#1f6a4a", 30)
+    assert scene.region_base("accent") is None
+
+    with scene.painted("panels"):
+        _tri(scene, "#b7a06e")
+    with pytest.raises(ValueError):
+        scene.region_base("panels")
+
+
+@pytest.mark.parametrize("unit", BOX_TURTLES, ids=lambda u: u.id)
+def test_the_box_turtle_regions_follow_its_printed_colors(unit):
+    """Gold frame (main), drive blocks and trim (accent), green corners, panels and trays."""
+    scene = kit.Scene(kit.ART_CAMERA)
+    unit.draw_art(scene, ["#ffffff"] * 4, "full")
+    main, accent, panels = scene.region_bases()
+    assert kit.same_hue(main, box_turtle.FRAME)
+    assert kit.same_hue(accent, box_turtle.HUB)
+    assert kit.same_hue(panels, box_turtle.PANEL) and not kit.same_hue(panels, box_turtle.FRAME)

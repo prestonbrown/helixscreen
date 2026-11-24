@@ -43,6 +43,16 @@
 #                     branch's packaged units compiled with mocks off, their objects
 #                     scanned for mock symbols. The release gate's cross build sees the
 #                     linked result; this sees it before the branch lands
+#   splash-link       CI's "Link splash + watchdog (non-LTO)" job, after app-build:
+#                     make PLATFORM_TARGET=x86-fbdev SKIP_OPTIONAL_DEPS=1 splash
+#                     watchdog, then both binaries must exist. Their compile
+#                     flags lack the include path that resolves "lvgl/lvgl.h" and
+#                     they link DISPLAY_LIB whole, which no other step builds. It
+#                     starts after ui, plugin, no-mocks and quality (wherever it
+#                     runs) finish: its
+#                     libhv build rewrites headers they compile against. Runs
+#                     when a changed path is a source either compiles or a
+#                     header one reaches (gate_select.py)
 #   quality           make quality: the full quality-checks.sh sweep pre-push runs,
 #                     after app-build, since its clang gate reads the build's
 #                     compile commands, and after a local ci-shards, since it
@@ -139,12 +149,14 @@ LAND_GATE_STEP_TIMEOUT=${LAND_GATE_STEP_TIMEOUT:-3600}
 # the tree's teardown.
 LAND_GATE_HISTORY=${LAND_GATE_HISTORY:-${XDG_STATE_HOME:-$HOME/.local/state}/helixscreen/land-gate-history.tsv}
 ROWS_DIR="$LAND_GATE_LOGDIR/rows"
+# The unit lane's process id, for the lane that waits on its quality step.
+UNIT_LANE_PIDFILE="$LAND_GATE_LOGDIR/unit-lane.pid"
 # What gate_select.py planned for this run, and the change it planned from.
 PLAN="$LAND_GATE_LOGDIR/plan.tsv"
 CHANGED_LIST="$LAND_GATE_LOGDIR/changed.txt"
 RESULTS_DIR="$LAND_GATE_LOGDIR/results"
 
-STEPS="app-build ci-shards slow bats ui plugin python theme-tokens xml-schema lint-xml lvgl-event-codes no-mocks quality"
+STEPS="app-build ci-shards slow bats ui plugin python theme-tokens xml-schema lint-xml lvgl-event-codes no-mocks splash-link quality"
 
 TIMEOUT_BIN=$(command -v timeout || command -v gtimeout || true)
 
@@ -231,6 +243,25 @@ no_mocks_check() {
     local base
     base=$(branch_base) || return 1
     "$NO_MOCKS_CHECK" --base "$base"
+}
+
+# The binaries splash-link must find, where CI's step looks for them.
+SPLASH_LINK_BIN_DIR=${SPLASH_LINK_BIN_DIR:-build/x86-fbdev/bin}
+
+# CI's link-aux-binaries job. The splash and watchdog targets print "not built"
+# and exit 0 on a desktop build, so the binaries' existence is the check.
+splash_link() {
+    local bin rc=0
+    "$MAKE" --no-print-directory PLATFORM_TARGET=x86-fbdev SKIP_OPTIONAL_DEPS=1 splash watchdog || return 1
+    for bin in helix-splash helix-watchdog; do
+        if [ -x "$SPLASH_LINK_BIN_DIR/$bin" ]; then
+            echo "OK: $SPLASH_LINK_BIN_DIR/$bin ($(stat -c%s "$SPLASH_LINK_BIN_DIR/$bin") bytes)"
+        else
+            echo "✗ $SPLASH_LINK_BIN_DIR/$bin missing: the link check did not link anything"
+            rc=1
+        fi
+    done
+    return $rc
 }
 
 # The stamps every compiled object depends on: one that moves rebuilds all of them.
@@ -333,6 +364,20 @@ bats_halves() {
     return 0
 }
 
+# wait_for_local_quality: a local-sweep gate runs quality in the unit lane, after
+# the sweep. It compiles against the headers splash-link's libhv build rewrites,
+# so splash-link waits for quality's row, or for the unit lane to die without one.
+wait_for_local_quality() {
+    local waited=0 pid=""
+    [ "$SWEEP_WHERE" = local ] || return 0
+    while [ ! -f "$ROWS_DIR/quality" ] && [ "$waited" -lt "$LAND_GATE_STEP_TIMEOUT" ]; do
+        [ -n "$pid" ] || pid=$(cat "$UNIT_LANE_PIDFILE" 2>/dev/null || true)
+        if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then break; fi
+        sleep 1
+        waited=$((waited + 1))
+    done
+}
+
 # run_step <name>: one step, by its table name. The gate's lanes and a rerun
 # both run steps through here, so a rerun runs exactly what the gate ran.
 run_step() {
@@ -374,6 +419,7 @@ run_step() {
         lint-xml) step lint-xml "${mk[@]}" lint-xml ;;
         lvgl-event-codes) step lvgl-event-codes "${mk[@]}" check-lvgl-event-codes ;;
         no-mocks) step no-mocks bash "$SELF" --no-mocks-check ;;
+        splash-link) step splash-link bash "$SELF" --splash-link ;;
         quality)
             # A docs-only change: the gates whose triggers its paths match.
             # Any other selected change: the path-scoped gates read only it.
@@ -415,11 +461,18 @@ lane() {
                 run_step no-mocks &
                 if [ "$SWEEP_WHERE" != local ]; then run_step quality & fi
                 wait
+                # The x86-fbdev build re-installs libhv's headers in the shared
+                # lib/libhv/include/hv, which the lanes above compile against, so
+                # it starts only once they are done, and, when quality runs in the
+                # unit lane (a local sweep), once that has its row.
+                wait_for_local_quality
+                run_step splash-link
             else
                 head -n 1 "$LAND_GATE_LOGDIR/app-build.why.log" 2>/dev/null | sed "s/^/[$(date +%H:%M:%S)] /"
                 blocked ui "app-build failed"
                 blocked plugin "app-build failed"
                 blocked no-mocks "app-build failed"
+                blocked splash-link "app-build failed"
                 [ "$SWEEP_WHERE" = local ] || blocked quality "app-build failed"
             fi ;;
         bats) run_step bats ;;
@@ -441,6 +494,10 @@ fi
 # A step runs under timeout, which can only start a program, not a function.
 if [ "${1:-}" = --no-mocks-check ]; then
     no_mocks_check
+    exit $?
+fi
+if [ "${1:-}" = --splash-link ]; then
+    splash_link
     exit $?
 fi
 if [ "${1:-}" = --app-build ]; then
@@ -563,6 +620,7 @@ done
 trap '"$HELIX_CLAIM" release-if-owned-by "$claim_pid" "build:$tree" >/dev/null 2>&1' EXIT
 
 mkdir -p "$ROWS_DIR" || exit 2
+rm -f "$UNIT_LANE_PIDFILE"
 rm -f "$ROWS_DIR"/*
 gate_t0=$SECONDS
 
@@ -780,7 +838,10 @@ start_lane bats
 # A local C++ run waits for the app build: two makes in one tree race on its
 # objects and stamps.
 while [ ! -f "$ROWS_DIR/app-build" ] && kill -0 "$APP_LANE_PID" 2>/dev/null; do sleep 1; done
-[ "$SWEEP_WHERE" = local ] && start_lane unit
+if [ "$SWEEP_WHERE" = local ]; then
+    start_lane unit
+    echo "${PIDS[-1]}" >"$UNIT_LANE_PIDFILE"
+fi
 
 for p in "${PIDS[@]}"; do wait "$p"; done
 trap - INT TERM HUP

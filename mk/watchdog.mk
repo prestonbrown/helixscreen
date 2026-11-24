@@ -94,6 +94,7 @@ WATCHDOG_EXTRA_OBJS := $(BUILD_DIR)/watchdog/config.o \
                        $(BUILD_DIR)/watchdog/platform_capabilities.o \
                        $(BUILD_DIR)/watchdog/helix_regex.o \
                        $(BUILD_DIR)/watchdog/ui_notification_stub.o \
+                       $(BUILD_DIR)/watchdog/notice.o \
                        $(BUILD_DIR)/watchdog/drm_mode_matching.o \
                        $(BUILD_DIR)/watchdog/fbdev_size_helper.o \
                        $(BUILD_DIR)/watchdog/fbdev_signal_clear.o \
@@ -177,6 +178,12 @@ $(BUILD_DIR)/watchdog/platform_capabilities.o: src/system/platform_capabilities.
 
 # Regex engine; platform_capabilities.cpp parses /proc/cpuinfo with it.
 $(BUILD_DIR)/watchdog/helix_regex.o: src/system/helix_regex.cpp $(ABI_STAMP) | $(BUILD_DIR)/watchdog
+	@echo "[CXX] $< (watchdog)"
+	$(Q)$(CXX) $(WATCHDOG_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
+
+# config.cpp reports errors through NOTIFY_*, which publish a Notice (src/core/notice.cpp).
+# The watchdog has no subscriber, so a published notice is logged.
+$(BUILD_DIR)/watchdog/notice.o: src/core/notice.cpp $(ABI_STAMP) | $(BUILD_DIR)/watchdog
 	@echo "[CXX] $< (watchdog)"
 	$(Q)$(CXX) $(WATCHDOG_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 

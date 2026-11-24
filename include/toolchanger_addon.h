@@ -255,6 +255,32 @@ std::optional<ToolReading> parse_zmod_marker(const std::string& line);
 /// `home` and none said HEAD. nullopt for every other console line.
 std::optional<ToolReading> parse_zmod_tinfo_line(const std::string& line, bool& block_ended_out);
 
+/// One step of Z-Mod's Creator 5 extruder calibration (`_T_CALIBRATE_EXTRUDERS`,
+/// run by `CALIBRATE_EXTRUDERS`), as its `[CALIB]` console lines report it.
+struct ZmodCalibrationStep {
+    enum class Kind {
+        Started,  ///< "[CALIB] T1: ...": measuring has begun on this target
+        Skipped,  ///< "[CALIB] T1: Skipped (parameter T1=0)": left out by the T<n>=0 flag
+        Measured, ///< "[CALIB] T1: X=.. Y=.. Z=..": the target's position, in microns
+        Complete, ///< "Calibration complete.": offsets are written
+    };
+    Kind kind = Kind::Started;
+    /// The head 0..3, or -1 for the calibration station ("TS") and for Complete.
+    int tool = -1;
+    bool station = false; ///< The line is about the station ("TS"), not a head
+    std::optional<int> x_um;
+    std::optional<int> y_um;
+    std::optional<int> z_um;
+};
+
+/// Classify one gcode-response line of Z-Mod's extruder calibration. The
+/// station is measured first, then each head in turn; a Measured head line
+/// carries the head's absolute position, which Z-Mod writes to extruder.json.
+/// The Russian-language build words Skipped and Complete differently, so those
+/// two key on the parts that are the same in both: the `T<n>=0)` tail, and the
+/// English or Russian completion sentence. nullopt for every other console line.
+std::optional<ZmodCalibrationStep> parse_zmod_calibration_line(const std::string& line);
+
 /// What Z-Mod's afclite shim said in one status frame. The object is the
 /// firmware's own AFC compat surface; the fields read here are the ones whose
 /// semantics a boolean or the bundle evidence fixes. `current_state` is

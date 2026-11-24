@@ -340,6 +340,7 @@ translations:
   Accelerometer not responding: '加速度センサーが応答しません'
   Accelerometer ready: 加速度センサー準備完了
   Accelerometers: 加速度センサー
+  Accents: 'アクセント'
   Accept: 承認
   'Accepted Z Position: 0.000': '確定Z位置: 0.000'
   'Accepted Z Position: {:.3f}': '確定したZ位置: {:.3f}'
@@ -489,6 +490,7 @@ translations:
   Arc moves not supported: 'アーク移動は非対応です'
   Archive: アーカイブ
   Archive Spool?: スプールをアーカイブしますか？
+  Arctic White: 'アークティックホワイト'
   Are you sure you want to cancel this print? All progress will be lost.: この印刷をキャンセルしますか？すべての進行状況が失われます。
   Are you sure? This will power off or restart this device.: よろしいですか？このデバイスの電源がオフまたは再起動されます。
   Arrows + Home: '方向キー + ホーム'
@@ -672,6 +674,7 @@ translations:
   Bowden tube length to this tool: "このツールまでのボーデンチューブ長"
   'Bowden: pull the tube from the extruder end, then pull the filament.': "ボーデン: エクストルーダー側からチューブを抜き、フィラメントを引き抜いてください。"
   Box: ボックス
+  Box Turtle Green and Gold: 'Box Turtle グリーン&ゴールド'
   Brand: ブランド
   Brand and material come from Spoolman: ブランドと素材は Spoolman から取得されます
   Brightness: 明るさ
@@ -1560,6 +1563,7 @@ translations:
   Downloading... {:.1f}/{:.1f} MB: ダウンロード中... {:.1f}/{:.1f} MB
   Draw a ripple at each touch — helps diagnose offsets: タッチごとに波紋を描画 — ズレの診断に役立ちます
   Drive Cal: ドライブキャリブレーション
+  Drive blocks and trim: 'ドライブブロックとトリム'
   Drop shadow strength (0 = disabled): 影の強さ (0 = 無効)
   Dropped when the printer restarted: 'プリンターの再起動で破棄されました'
   Dry: 乾燥
@@ -2132,6 +2136,7 @@ translations:
   Found %zu printers: '%zu台のプリンターを検出'
   Found 1 printer: プリンター1台を検出
   Found {} at {}.: '{} を {} で検出しました。'
+  Frame: 'フレーム'
   Framerate: フレームレート
   Free space unknown: '空き容量不明'
   Free the spool and pull the filament out of {} by hand, then try again.: スプールを外し、{} からフィラメントを手で引き抜いてから、もう一度お試しください。
@@ -2378,6 +2383,7 @@ translations:
   Homing timed out — printer may still be homing: ホーミングがタイムアウトしました — プリンターはまだホーミング中の可能性があります
   Homing, then probing...: "原点復帰してから測定中..."
   Homing...: ホーミング中...
+  Honeycomb panels, corner blocks and trays: 'ハニカムパネル、コーナーブロック、トレイ'
   Horizontal: 水平
   Host: ホスト
   Host Health: ホストの状態
@@ -3456,6 +3462,7 @@ translations:
   Options: オプション
   Or Enter Manually: または手動で入力
   Or instead of turning the others: 他のネジを回す代わりに
+  Original: 'オリジナル'
   Original file location unknown: 元のファイルの場所が不明です
   Oscillating... cycle %d/%d: 振動中... サイクル %d/%d
   Other: その他
@@ -3507,6 +3514,7 @@ translations:
   Pairing failed: ペアリング失敗
   Pairing...: ペアリング中...
   Panel Usage: パネル使用状況
+  Panels and Corners: 'パネルとコーナー'
   Paper Test Calibration: 紙テストキャリブレーション
   'Paper drags: done': "紙が引っかかる：完了"
   Parameters: パラメータ
@@ -4731,6 +4739,7 @@ translations:
   Startup, auto-control, and macro devices: 起動、自動制御、マクロデバイス
   State: 状態
   Static: '固定'
+  Station: 'ステーション'
   Status: ステータス
   Status icons: ステータスアイコン
   Stay at the printer.: プリンターのそばにいてください。
@@ -4738,6 +4747,7 @@ translations:
   Stays on PID: PID のまま
   Std Deviation: 標準偏差
   Stealth: 静音
+  Stealth Black: 'ステルスブラック'
   Stealth is quiet, Sport is fastest: 静音は静か、スポーツは最速
   Step: ステップ
   Step 1 of 3: ステップ 1/3
@@ -5027,6 +5037,7 @@ translations:
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : 変更は Klipper の再起動後に反映されます。Klipperファームウェアを再起動します。実行中の操作は中断されます。
   'The change was not applied: the current settings could not be saved for a revert.': '変更は適用されませんでした: 復元用に現在の設定を保存できませんでした。'
+  The colors this unit was printed in: 'このユニットを印刷した色'
   ? The configuration includes or opens a file that is not there, often the include line a removed plugin left behind. Klipper's message names the file.
   : 設定が存在しないファイルをインクルードまたは開こうとしています。削除したプラグインのインクルード行が残っていることがよくあります。Klipper のメッセージにファイル名が示されています。
   The configuration names pin '{1}', which board '{2}' does not have.: 設定でピン '{1}' が指定されていますが、ボード '{2}' にはそのピンがありません。
@@ -5087,6 +5098,7 @@ translations:
   ? The firmware's pressure advance tower needs a [pa_test] section in printer.cfg. HelixScreen adds it with a backup and restarts Klipper.
   : "ファームウェアの Pressure Advance タワーには、printer.cfg に [pa_test] セクションが必要です。HelixScreen がバックアップを取ってから追加し、Klipper を再起動します。"
   The firmware's test tower is not in the printer's config. Adding it writes one section and restarts Klipper.: "ファームウェアのテストタワーがプリンター設定にありません。追加すると、セクションが1つ書き込まれ、Klipper が再起動します。"
+  The frame, posts and rails: 'フレーム、ポスト、レール'
   ? The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong.
   : ガントリーに {1} mm の補正が必要で、許容値 {2} mm を超えています。大きく傾いている（衝突後や電源オフ中のたわみ）か、プローブ点や Z モーターの順序が間違っています。
   The gap didn't close (moved {:.1f} Hz). Try a bigger turn.: "差が縮まりませんでした({:.1f} Hz移動)。もっと大きく回してください。"
@@ -5590,6 +5602,7 @@ translations:
   Tool cycle finished: ツールの順次交換が完了しました
   Tool is seated: ツールは装着済み
   Tool may be half seated: "ツールが半分しか装着されていない可能性があります"
+  Tool offset calibration complete: 'ツールオフセットの校正が完了しました'
   Tool offsets: 'ツールオフセット'
   Tool offsets (mm): ツールオフセット (mm)
   Tool offsets saved: ツールオフセットを保存しました
@@ -5866,6 +5879,7 @@ translations:
   Volume: 音量
   Volume of filament used during ramming: 'ラミング時に使用するフィラメント量'
   Volume {}%: 音量 {}%
+  Voron Black and Red: 'Voron ブラック&レッド'
   WAITING: "待機中"
   WEIGHT SYNC: 重量同期
   WIDTH SENSORS: 幅センサー
@@ -6416,6 +6430,7 @@ translations:
   '{} matches.': '{} が一致します。'
   '{} may be half seated on the head. Check it by hand.': "{}がツールヘッドに半分しか装着されていない可能性があります。手で確認してください。"
   '{} may cause unintended changes. Are you sure?': '{} は意図しない変更を引き起こす可能性があります。よろしいですか？'
+  '{} measured: X {:.3f} Y {:.3f} Z {:.3f} mm': '{} 測定値: X {:.3f} Y {:.3f} Z {:.3f} mm'
   '{} meter reset': '{}のメーターをリセットしました'
   '{} min': '{} 分'
   '{} min ago': '{}分前'

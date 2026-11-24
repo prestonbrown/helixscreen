@@ -1012,6 +1012,13 @@ void unit_view_lane_changed(void* /*user*/) {
             relabel_if_lanes_changed();
         });
     }
+    if (!s_tray.art || !s_tray.art_obj)
+        return;
+    refresh_unit_view_art();
+    refresh_unit_view_marks();
+}
+
+void refresh_unit_view_art() {
     lv_obj_t* art = s_tray.art_obj;
     if (!s_tray.art || !art)
         return;
@@ -1022,7 +1029,6 @@ void unit_view_lane_changed(void* /*user*/) {
     if (u < 0 || u >= static_cast<int>(info->units.size()))
         return;
     helix::ui::unit_art_set_unit(art, *info, u, helix::ui::unit_reports_climate(s_tray.unit_index));
-    refresh_unit_view_marks();
 }
 
 } // namespace helix::ui::ams_detail_layout

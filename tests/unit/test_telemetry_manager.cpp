@@ -550,6 +550,43 @@ TEST_CASE_METHOD(TelemetryTestFixture,
 }
 
 TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Print outcome observer registered mid-job keeps nothing from the job before it",
+                 "[telemetry][print_outcome]") {
+    lv_init_safe();
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    auto& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+    auto* job = state.print_state().get_print_state_enum_subject();
+    auto* progress = state.print_state().get_print_progress_subject();
+    auto set_job = [&](PrintJobState s) { lv_subject_set_int(job, static_cast<int>(s)); };
+
+    {
+        helix::test::ScopedMockAms ams({{0xFF0000, "PETG"}});
+        {
+            auto guards = tm.init_print_outcome_observer();
+            set_job(PrintJobState::PRINTING);
+            lv_subject_set_int(progress, 90);
+        }
+        // Another job is running when the observer comes back (a reconnect or
+        // printer switch), so it sees no start of a job to reset on.
+        lv_subject_set_int(progress, 10);
+        ams.load(0, 0x00FF00, "ABS", helix::SlotStatus::LOADED);
+        {
+            auto guards = tm.init_print_outcome_observer();
+            lv_subject_set_int(progress, 20);
+            set_job(PrintJobState::CANCELLED);
+            auto outcome = last_print_outcome(tm);
+            REQUIRE(outcome.is_object());
+            CHECK(outcome["progress_pct"] == 20);
+            CHECK(outcome["filament_type"] == "ABS");
+        }
+    }
+    PrinterStateTestAccess::reset(state);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
                  "Print outcome never sends a material type only the user defined",
                  "[telemetry][print_outcome]") {
     lv_init_safe();
@@ -697,6 +734,63 @@ TEST_CASE_METHOD(TelemetryTestFixture,
         CHECK(events[1]["outcome"] == "aborted");
     }
     PrinterStateTestAccess::reset(state);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "filament_op pool is sent by the snapshot and at shutdown, and dropped with "
+                 "the queue or when telemetry is turned off",
+                 "[telemetry][filament_op]") {
+    using namespace helix::telemetry;
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    auto succeed = [&]() {
+        tm.record_filament_op("ace", FilamentOp::Load, FilamentOpOutcome::Succeeded,
+                              FilamentOpError::NoError, 20, false);
+    };
+    auto pooled_sent = [&]() {
+        tm.flush_filament_ops();
+        return events_named(tm, "filament_op").size();
+    };
+
+    SECTION("the periodic snapshot queues the pool") {
+        succeed();
+        tm.fire_periodic_snapshot();
+        auto events = events_named(tm, "filament_op");
+        REQUIRE(events.size() == 1);
+        CHECK(events[0]["count"] == 1);
+    }
+    SECTION("shutdown queues the pool before saving the queue") {
+        succeed();
+        tm.shutdown();
+        tm.init(temp_dir().string());
+        CHECK(events_named(tm, "filament_op").size() == 1);
+    }
+    SECTION("turning telemetry off drops what was pooled while it was on") {
+        succeed();
+        tm.set_enabled(false);
+        tm.set_enabled(true);
+        CHECK(pooled_sent() == 0);
+    }
+    SECTION("clearing the queue drops the pool too") {
+        succeed();
+        tm.clear_queue();
+        CHECK(pooled_sent() == 0);
+    }
+    SECTION("a new session forgets the last one's failures") {
+        auto fail = [&]() {
+            tm.record_filament_op("ercf", FilamentOp::Unload, FilamentOpOutcome::Failed,
+                                  FilamentOpError::Jam, 20, false);
+        };
+        fail();
+        REQUIRE(events_named(tm, "filament_op").size() == 1);
+        tm.shutdown();
+        tm.init(temp_dir().string());
+        tm.set_enabled(true);
+        tm.clear_queue();
+        // Inside the repeat interval, but the first failure of this session.
+        fail();
+        CHECK(events_named(tm, "filament_op").size() == 1);
+    }
 }
 
 // ============================================================================

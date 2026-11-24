@@ -5,6 +5,8 @@
 
 #include <spdlog/spdlog.h>
 
+#include <utility>
+
 namespace helix {
 
 namespace {
@@ -28,6 +30,46 @@ void publish_notice(const Notice& notice) {
         return;
     }
     s_subscriber(notice);
+}
+
+void publish_notification(NoticeSeverity severity, std::string message, std::string title) {
+    Notice notice;
+    notice.severity = severity;
+    notice.message = std::move(message);
+    notice.delivery = NoticeDelivery::Notification;
+    notice.title = std::move(title);
+    publish_notice(notice);
+}
+
+void publish_detail_notification(NoticeSeverity severity, std::string message, std::string detail,
+                                 bool sticky) {
+    Notice notice;
+    notice.severity = severity;
+    notice.message = std::move(message);
+    notice.delivery = NoticeDelivery::Notification;
+    notice.detail = std::move(detail);
+    notice.sticky = sticky;
+    publish_notice(notice);
+}
+
+void publish_history_entry(NoticeSeverity severity, std::string title, std::string message,
+                           std::string action) {
+    Notice notice;
+    notice.severity = severity;
+    notice.message = std::move(message);
+    notice.delivery = NoticeDelivery::HistoryOnly;
+    notice.title = std::move(title);
+    notice.history_action = std::move(action);
+    publish_notice(notice);
+}
+
+void publish_alert(std::string title, std::string message) {
+    Notice notice;
+    notice.severity = NoticeSeverity::ERROR;
+    notice.message = std::move(message);
+    notice.delivery = NoticeDelivery::Alert;
+    notice.title = std::move(title);
+    publish_notice(notice);
 }
 
 UiRequestHandler set_ui_request_handler(UiRequestKind kind, UiRequestHandler handler) {

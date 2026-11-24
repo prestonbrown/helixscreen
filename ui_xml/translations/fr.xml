@@ -320,6 +320,7 @@
   <translation tag="Accelerometer not responding" fr="L&apos;accéléromètre ne répond pas"/>
   <translation tag="Accelerometer ready" fr="Accéléromètre prêt"/>
   <translation tag="Accelerometers" fr="Accéléromètres"/>
+  <translation tag="Accents" fr="Accents"/>
   <translation tag="Accept" fr="Accepter"/>
   <translation tag="Accepted Z Position: 0.000" fr="Position Z acceptée : 0.000"/>
   <translation tag="Accepted Z Position: {:.3f}" fr="Position Z acceptée : {:.3f}"/>
@@ -466,6 +467,7 @@
   <translation tag="Arc moves not supported" fr="Déplacements en arc non pris en charge"/>
   <translation tag="Archive" fr="Archiver"/>
   <translation tag="Archive Spool?" fr="Archiver la bobine ?"/>
+  <translation tag="Arctic White" fr="Blanc arctique"/>
   <translation tag="Are you sure you want to cancel this print? All progress will be lost." fr="Êtes-vous sûr de vouloir annuler cette impression ? Toute la progression sera perdue."/>
   <translation tag="Are you sure? This will power off or restart this device." fr="Êtes-vous sûr ? Cela va éteindre ou redémarrer cet appareil."/>
   <translation tag="Arrows" fr="Flèches"/>
@@ -652,6 +654,7 @@
   <translation tag="Bowden tube length to this tool" fr="Longueur du tube Bowden jusqu&apos;à cet outil"/>
   <translation tag="Bowden: pull the tube from the extruder end, then pull the filament." fr="Bowden : retirez le tube côté extrudeur, puis tirez le filament."/>
   <translation tag="Box" fr="Boîte"/>
+  <translation tag="Box Turtle Green and Gold" fr="Box Turtle vert et or"/>
   <translation tag="Brand" fr="Marque"/>
   <translation tag="Brand and material come from Spoolman" fr="La marque et le matériau proviennent de Spoolman"/>
   <translation tag="Brightness" fr="Luminosité"/>
@@ -1480,6 +1483,7 @@
   <translation tag="Downloading... {:.1f}/{:.1f} MB" fr="Téléchargement... {:.1f}/{:.1f} Mo"/>
   <translation tag="Draw a ripple at each touch — helps diagnose offsets" fr="Dessine une ondulation à chaque contact — aide à diagnostiquer les décalages"/>
   <translation tag="Drive Cal" fr="Cal entraîn."/>
+  <translation tag="Drive blocks and trim" fr="Blocs d&apos;entraînement et finitions"/>
   <translation tag="Drop shadow strength (0 = disabled)" fr="Intensité de l&apos;ombre portée (0 = désactivé)"/>
   <translation tag="Dropped when the printer restarted" fr="Perdu au redémarrage de l&apos;imprimante"/>
   <translation tag="Dry" fr="Sécher"/>
@@ -2041,6 +2045,7 @@
   <translation tag="Found %zu printers" fr="%zu imprimantes trouvées"/>
   <translation tag="Found 1 printer" fr="1 imprimante trouvée"/>
   <translation tag="Found {} at {}." fr="{} trouvée à {}."/>
+  <translation tag="Frame" fr="Cadre"/>
   <translation tag="Framerate" fr="Fréquence d&apos;images"/>
   <translation tag="Free space unknown" fr="Espace libre inconnu"/>
   <translation tag="Free the spool and pull the filament out of {} by hand, then try again." fr="Libérez la bobine et retirez le filament de {} à la main, puis réessayez."/>
@@ -2283,6 +2288,7 @@
   <translation tag="Homing timed out — printer may still be homing" fr="Délai de prise d&apos;origine dépassé — l&apos;imprimante est peut-être encore en cours"/>
   <translation tag="Homing, then probing..." fr="Mise à l&apos;origine, puis palpage..."/>
   <translation tag="Homing..." fr="Mise à l&apos;origine..."/>
+  <translation tag="Honeycomb panels, corner blocks and trays" fr="Panneaux en nid d&apos;abeille, blocs d&apos;angle et plateaux"/>
   <translation tag="Horizontal" fr="Horizontal"/>
   <translation tag="Host" fr="Hôte"/>
   <translation tag="Host Health" fr="État de l&apos;hôte"/>
@@ -3331,6 +3337,7 @@
   <translation tag="Options" fr="Options"/>
   <translation tag="Or Enter Manually" fr="Ou entrer manuellement"/>
   <translation tag="Or instead of turning the others" fr="Ou, au lieu de tourner les autres"/>
+  <translation tag="Original" fr="Original"/>
   <translation tag="Original file location unknown" fr="Emplacement du fichier original inconnu"/>
   <translation tag="Oscillating... cycle %d/%d" fr="Oscillation... cycle %d/%d"/>
   <translation tag="Other" fr="Autre"/>
@@ -3381,6 +3388,7 @@
   <translation tag="Pairing failed" fr="Échec de l&apos;appairage"/>
   <translation tag="Pairing..." fr="Appairage..."/>
   <translation tag="Panel Usage" fr="Utilisation des panneaux"/>
+  <translation tag="Panels and Corners" fr="Panneaux et coins"/>
   <translation tag="Paper Test Calibration" fr="Calibration par test papier"/>
   <translation tag="Paper drags: done" fr="Le papier frotte : terminé"/>
   <translation tag="Parameters" fr="Paramètres"/>
@@ -4588,6 +4596,7 @@
   <translation tag="Startup, auto-control, and macro devices" fr="Démarrage, contrôle auto et appareils macro"/>
   <translation tag="State" fr="État"/>
   <translation tag="Static" fr="Statique"/>
+  <translation tag="Station" fr="Station"/>
   <translation tag="Status" fr="État"/>
   <translation tag="Status icons" fr="Icônes d&apos;état"/>
   <translation tag="Stay at the printer." fr="Restez près de l&apos;imprimante."/>
@@ -4595,6 +4604,7 @@
   <translation tag="Stays on PID" fr="Reste en PID"/>
   <translation tag="Std Deviation" fr="Écart type"/>
   <translation tag="Stealth" fr="Silencieux"/>
+  <translation tag="Stealth Black" fr="Noir furtif"/>
   <translation tag="Stealth is quiet, Sport is fastest" fr="Silencieux est discret, Sport est le plus rapide"/>
   <translation tag="Step" fr="Étape"/>
   <translation tag="Step 1 of 3" fr="Étape 1 sur 3"/>
@@ -4869,6 +4879,7 @@
   <translation tag="The chamber&apos;s circulation fan is on but reads no speed." fr="Le ventilateur de circulation de l&apos;enceinte est allumé mais n&apos;indique aucune vitesse."/>
   <translation tag="The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted." fr="Le changement prend effet après le redémarrage de Klipper. Le firmware Klipper sera redémarré. Les opérations actives seront interrompues."/>
   <translation tag="The change was not applied: the current settings could not be saved for a revert." fr="La modification n&apos;a pas été appliquée : les paramètres actuels n&apos;ont pas pu être enregistrés pour une restauration."/>
+  <translation tag="The colors this unit was printed in" fr="Les couleurs dans lesquelles cette unité a été imprimée"/>
   <translation tag="The configuration includes or opens a file that is not there, often the include line a removed plugin left behind. Klipper&apos;s message names the file." fr="La configuration inclut ou ouvre un fichier absent, souvent la ligne include laissée par un plugin supprimé. Le message de Klipper indique le fichier."/>
   <translation tag="The configuration names pin &apos;{1}&apos;, which board &apos;{2}&apos; does not have." fr="La configuration nomme la broche &apos;{1}&apos;, que la carte &apos;{2}&apos; ne possède pas."/>
   <translation tag="The configuration needs a missing module" fr="La configuration nécessite un module manquant"/>
@@ -4923,6 +4934,7 @@
   <translation tag="The firmware could not read or write the driver for {1}. Motor power being off (UART drivers need it), a driver not seated or a wrong pin in the configuration can cause it." fr="Le firmware n&apos;a pas pu lire ou écrire le pilote de {1}. Une alimentation des moteurs coupée (les pilotes UART en ont besoin), un pilote mal enfiché ou une mauvaise broche dans la configuration peuvent en être la cause."/>
   <translation tag="The firmware&apos;s pressure advance tower needs a [pa_test] section in printer.cfg. HelixScreen adds it with a backup and restarts Klipper." fr="La tour de Pressure Advance du firmware nécessite une section [pa_test] dans printer.cfg. HelixScreen l&apos;ajoute avec une sauvegarde et redémarre Klipper."/>
   <translation tag="The firmware&apos;s test tower is not in the printer&apos;s config. Adding it writes one section and restarts Klipper." fr="La tour de test du firmware n&apos;est pas dans la configuration de l&apos;imprimante. L&apos;ajouter écrit une section et redémarre Klipper."/>
+  <translation tag="The frame, posts and rails" fr="Le cadre, les montants et les rails"/>
   <translation tag="The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong." fr="Le portique a besoin d&apos;une correction de {1} mm, plus que les {2} mm autorisés. Il est très loin du niveau (après une collision, ou affaissé hors tension), ou les points de palpage ou l&apos;ordre des moteurs Z sont incorrects."/>
   <translation tag="The gap didn&apos;t close (moved {:.1f} Hz). Try a bigger turn." fr="L&apos;écart ne s&apos;est pas réduit (déplacé de {:.1f} Hz). Tournez davantage."/>
   <translation tag="The gap grew after loosening {0}. Check you turned {0}&apos;s tensioner." fr="L&apos;écart a grandi après détente de {0}. Vérifiez que vous avez tourné le tendeur de {0}."/>
@@ -5369,6 +5381,7 @@
   <translation tag="Tool cycle finished" fr="Rotation des outils terminée"/>
   <translation tag="Tool is seated" fr="L&apos;outil est en place"/>
   <translation tag="Tool may be half seated" fr="L&apos;outil est peut-être mal engagé"/>
+  <translation tag="Tool offset calibration complete" fr="Calibration des décalages d&apos;outil terminée"/>
   <translation tag="Tool offsets" fr="Offsets d&apos;outil"/>
   <translation tag="Tool offsets (mm)" fr="Offsets d&apos;outil (mm)"/>
   <translation tag="Tool offsets saved" fr="Offsets d&apos;outil enregistrés"/>
@@ -5654,6 +5667,7 @@
   <translation tag="Volume" fr="Volume"/>
   <translation tag="Volume of filament used during ramming" fr="Volume de filament utilisé pendant le bourrage"/>
   <translation tag="Volume {}%" fr="Volume {}%"/>
+  <translation tag="Voron Black and Red" fr="Voron noir et rouge"/>
   <translation tag="WAITING" fr="EN ATTENTE"/>
   <translation tag="WEIGHT SYNC" fr="SYNCHRONISATION DU POIDS"/>
   <translation tag="WIDTH SENSORS" fr="CAPTEURS DE LARGEUR"/>
@@ -6197,6 +6211,7 @@
   <translation tag="{} matches." fr="{} correspond."/>
   <translation tag="{} may be half seated on the head. Check it by hand." fr="{} est peut-être mal engagé sur la tête d&apos;outil. Vérifiez à la main."/>
   <translation tag="{} may cause unintended changes. Are you sure?" fr="{} peut entraîner des modifications non souhaitées. Êtes-vous sûr ?"/>
+  <translation tag="{} measured: X {:.3f} Y {:.3f} Z {:.3f} mm" fr="{} mesuré : X {:.3f} Y {:.3f} Z {:.3f} mm"/>
   <translation tag="{} meter reset" fr="Compteur {} réinitialisé"/>
   <translation tag="{} min" fr="{} min"/>
   <translation tag="{} min ago" fr="il y a {} min"/>

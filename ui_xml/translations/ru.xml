@@ -350,6 +350,7 @@
   <translation tag="Accelerometer not responding" ru="Акселерометр не отвечает"/>
   <translation tag="Accelerometer ready" ru="Акселерометр готов"/>
   <translation tag="Accelerometers" ru="Акселерометры"/>
+  <translation tag="Accents" ru="Акценты"/>
   <translation tag="Accept" ru="Принять"/>
   <translation tag="Accepted Z Position: 0.000" ru="Принятая позиция Z: 0.000"/>
   <translation tag="Accepted Z Position: {:.3f}" ru="Принятая позиция Z: {:.3f}"/>
@@ -496,6 +497,7 @@
   <translation tag="Arc moves not supported" ru="Дуговые перемещения не поддерживаются"/>
   <translation tag="Archive" ru="Архивировать"/>
   <translation tag="Archive Spool?" ru="Архивировать катушку?"/>
+  <translation tag="Arctic White" ru="Арктический белый"/>
   <translation tag="Are you sure you want to cancel this print? All progress will be lost." ru="Вы уверены, что хотите отменить печать? Весь прогресс будет потерян."/>
   <translation tag="Are you sure? This will power off or restart this device." ru="Вы уверены? Это выключит или перезагрузит данное устройство."/>
   <translation tag="Arrows" ru="Стрелки"/>
@@ -688,6 +690,7 @@
   <translation tag="Bowden tube length to this tool" ru="Длина боуден-трубки до этого инструмента"/>
   <translation tag="Bowden: pull the tube from the extruder end, then pull the filament." ru="Боуден: снимите трубку со стороны экструдера, затем вытяните филамент."/>
   <translation tag="Box" ru="Бокс"/>
+  <translation tag="Box Turtle Green and Gold" ru="Box Turtle зелёный и золотой"/>
   <translation tag="Brand" ru="Бренд"/>
   <translation tag="Brand and material come from Spoolman" ru="Бренд и материал берутся из Spoolman"/>
   <translation tag="Brightness" ru="Яркость"/>
@@ -1519,6 +1522,7 @@
   <translation tag="Downloading... {:.1f}/{:.1f} MB" ru="Загрузка... {:.1f}/{:.1f} МБ"/>
   <translation tag="Draw a ripple at each touch — helps diagnose offsets" ru="Рисовать круг при каждом касании — помогает диагностировать смещения"/>
   <translation tag="Drive Cal" ru="Кал. привода"/>
+  <translation tag="Drive blocks and trim" ru="Приводные блоки и отделка"/>
   <translation tag="Drop shadow strength (0 = disabled)" ru="Интенсивность тени (0 = отключено)"/>
   <translation tag="Dropped when the printer restarted" ru="Потеряно при перезапуске принтера"/>
   <translation tag="Dry" ru="Сушка"/>
@@ -2083,6 +2087,7 @@
   <translation tag="Found %zu printers_one" ru="Найден %zu принтер"/>
   <translation tag="Found 1 printer" ru="Найден 1 принтер"/>
   <translation tag="Found {} at {}." ru="{} найден по адресу {}."/>
+  <translation tag="Frame" ru="Рама"/>
   <translation tag="Framerate" ru="Частота кадров"/>
   <translation tag="Free space unknown" ru="Свободное место неизвестно"/>
   <translation tag="Free the spool and pull the filament out of {} by hand, then try again." ru="{}: освободите катушку и вручную вытяните филамент, затем попробуйте снова."/>
@@ -2325,6 +2330,7 @@
   <translation tag="Homing timed out — printer may still be homing" ru="Тайм-аут парковки — принтер может всё ещё выполнять парковку"/>
   <translation tag="Homing, then probing..." ru="Парковка, затем измерение..."/>
   <translation tag="Homing..." ru="Парковка..."/>
+  <translation tag="Honeycomb panels, corner blocks and trays" ru="Сотовые панели, угловые блоки и лотки"/>
   <translation tag="Horizontal" ru="Горизонтально"/>
   <translation tag="Host" ru="Хост"/>
   <translation tag="Host Health" ru="Состояние хоста"/>
@@ -3373,6 +3379,7 @@
   <translation tag="Options" ru="Параметры"/>
   <translation tag="Or Enter Manually" ru="Или введите вручную"/>
   <translation tag="Or instead of turning the others" ru="Или вместо вращения остальных винтов"/>
+  <translation tag="Original" ru="Оригинал"/>
   <translation tag="Original file location unknown" ru="Расположение исходного файла неизвестно"/>
   <translation tag="Oscillating... cycle %d/%d" ru="Осцилляция... цикл %d/%d"/>
   <translation tag="Other" ru="Другое"/>
@@ -3423,6 +3430,7 @@
   <translation tag="Pairing failed" ru="Ошибка сопряжения"/>
   <translation tag="Pairing..." ru="Сопряжение..."/>
   <translation tag="Panel Usage" ru="Использование панели"/>
+  <translation tag="Panels and Corners" ru="Панели и углы"/>
   <translation tag="Paper Test Calibration" ru="Калибровка бумажным тестом"/>
   <translation tag="Paper drags: done" ru="Бумага цепляется: готово"/>
   <translation tag="Parameters" ru="Параметры"/>
@@ -4648,6 +4656,7 @@
   <translation tag="Startup, auto-control, and macro devices" ru="Запуск, автоуправление и макро-устройства"/>
   <translation tag="State" ru="Состояние"/>
   <translation tag="Static" ru="Статический"/>
+  <translation tag="Station" ru="Станция"/>
   <translation tag="Status" ru="Статус"/>
   <translation tag="Status icons" ru="Иконки статуса"/>
   <translation tag="Stay at the printer." ru="Оставайтесь у принтера."/>
@@ -4655,6 +4664,7 @@
   <translation tag="Stays on PID" ru="Остаётся на PID"/>
   <translation tag="Std Deviation" ru="Станд. отклонение"/>
   <translation tag="Stealth" ru="Тихий"/>
+  <translation tag="Stealth Black" ru="Чёрный стелс"/>
   <translation tag="Stealth is quiet, Sport is fastest" ru="Тихий самый тихий, Спорт самый быстрый"/>
   <translation tag="Step" ru="Шаг"/>
   <translation tag="Step 1 of 3" ru="Шаг 1 из 3"/>
@@ -4929,6 +4939,7 @@
   <translation tag="The chamber&apos;s circulation fan is on but reads no speed." ru="Вентилятор циркуляции камеры включён, но скорость не определяется."/>
   <translation tag="The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted." ru="Изменение вступает в силу после перезапуска Klipper. Прошивка Klipper будет перезапущена. Активные операции будут прерваны."/>
   <translation tag="The change was not applied: the current settings could not be saved for a revert." ru="Изменение не применено: не удалось сохранить текущие настройки для отката."/>
+  <translation tag="The colors this unit was printed in" ru="Цвета, в которых напечатан этот блок"/>
   <translation tag="The configuration includes or opens a file that is not there, often the include line a removed plugin left behind. Klipper&apos;s message names the file." ru="Конфигурация включает или открывает несуществующий файл, часто это строка include, оставшаяся от удалённого плагина. Файл указан в сообщении Klipper."/>
   <translation tag="The configuration names pin &apos;{1}&apos;, which board &apos;{2}&apos; does not have." ru="В конфигурации указан пин &apos;{1}&apos;, которого нет на плате &apos;{2}&apos;."/>
   <translation tag="The configuration needs a missing module" ru="Конфигурации нужен отсутствующий модуль"/>
@@ -4983,6 +4994,7 @@
   <translation tag="The firmware could not read or write the driver for {1}. Motor power being off (UART drivers need it), a driver not seated or a wrong pin in the configuration can cause it." ru="Прошивка не смогла прочитать или записать драйвер {1}. Причиной может быть выключенное питание моторов (оно нужно драйверам UART), плохо установленный драйвер или неверный пин в конфигурации."/>
   <translation tag="The firmware&apos;s pressure advance tower needs a [pa_test] section in printer.cfg. HelixScreen adds it with a backup and restarts Klipper." ru="Башне Pressure Advance в прошивке нужна секция [pa_test] в printer.cfg. HelixScreen добавит её с резервной копией и перезапустит Klipper."/>
   <translation tag="The firmware&apos;s test tower is not in the printer&apos;s config. Adding it writes one section and restarts Klipper." ru="Тестовой башни прошивки нет в конфигурации принтера. Добавление запишет одну секцию и перезапустит Klipper."/>
+  <translation tag="The frame, posts and rails" ru="Рама, стойки и направляющие"/>
   <translation tag="The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong." ru="Порталу нужна коррекция {1} мм, больше допустимых {2} мм. Он сильно перекошен (после удара или провиснув при выключенном питании) или неверны точки зондирования либо порядок моторов Z."/>
   <translation tag="The gap didn&apos;t close (moved {:.1f} Hz). Try a bigger turn." ru="Разница не сократилась (сдвиг {:.1f} Гц). Поверните сильнее."/>
   <translation tag="The gap grew after loosening {0}. Check you turned {0}&apos;s tensioner." ru="Разница выросла после ослабления ({0}). Проверьте, что крутили натяжитель: {0}."/>
@@ -5429,6 +5441,7 @@
   <translation tag="Tool cycle finished" ru="Перебор инструментов завершён"/>
   <translation tag="Tool is seated" ru="Инструмент установлен"/>
   <translation tag="Tool may be half seated" ru="Инструмент может быть установлен не полностью"/>
+  <translation tag="Tool offset calibration complete" ru="Калибровка смещений инструментов завершена"/>
   <translation tag="Tool offsets" ru="Смещения инструментов"/>
   <translation tag="Tool offsets (mm)" ru="Смещения инструментов (мм)"/>
   <translation tag="Tool offsets saved" ru="Смещения инструментов сохранены"/>
@@ -5714,6 +5727,7 @@
   <translation tag="Volume" ru="Громкость"/>
   <translation tag="Volume of filament used during ramming" ru="Объём филамента, расходуемый при рэмминге"/>
   <translation tag="Volume {}%" ru="Громкость {}%"/>
+  <translation tag="Voron Black and Red" ru="Voron чёрный и красный"/>
   <translation tag="WAITING" ru="ОЖИДАНИЕ"/>
   <translation tag="WEIGHT SYNC" ru="СИНХРОНИЗАЦИЯ ВЕСА"/>
   <translation tag="WIDTH SENSORS" ru="ДАТЧИКИ ШИРИНЫ"/>
@@ -6266,6 +6280,7 @@
   <translation tag="{} matches." ru="{} подходит."/>
   <translation tag="{} may be half seated on the head. Check it by hand." ru="{} может быть установлен на печатающую головку не полностью. Проверьте вручную."/>
   <translation tag="{} may cause unintended changes. Are you sure?" ru="{} может привести к непреднамеренным изменениям. Вы уверены?"/>
+  <translation tag="{} measured: X {:.3f} Y {:.3f} Z {:.3f} mm" ru="{} измерено: X {:.3f} Y {:.3f} Z {:.3f} мм"/>
   <translation tag="{} meter reset" ru="Счётчик «{}» сброшен"/>
   <translation tag="{} min" ru="{} мин"/>
   <translation tag="{} min ago" ru="{} мин. назад"/>

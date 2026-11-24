@@ -352,6 +352,7 @@ translations:
   Accelerometer not responding: 'L''accéléromètre ne répond pas'
   Accelerometer ready: Accéléromètre prêt
   Accelerometers: Accéléromètres
+  Accents: 'Accents'
   Accept: Accepter
   'Accepted Z Position: 0.000': 'Position Z acceptée : 0.000'
   'Accepted Z Position: {:.3f}': 'Position Z acceptée : {:.3f}'
@@ -501,6 +502,7 @@ translations:
   Arc moves not supported: 'Déplacements en arc non pris en charge'
   Archive: Archiver
   Archive Spool?: Archiver la bobine ?
+  Arctic White: 'Blanc arctique'
   Are you sure you want to cancel this print? All progress will be lost.: Êtes-vous sûr de vouloir annuler cette impression ? Toute la progression sera perdue.
   Are you sure? This will power off or restart this device.: Êtes-vous sûr ? Cela va éteindre ou redémarrer cet appareil.
   Arrows + Home: 'Flèches + Origine'
@@ -684,6 +686,7 @@ translations:
   Bowden tube length to this tool: "Longueur du tube Bowden jusqu'à cet outil"
   'Bowden: pull the tube from the extruder end, then pull the filament.': "Bowden : retirez le tube côté extrudeur, puis tirez le filament."
   Box: Boîte
+  Box Turtle Green and Gold: 'Box Turtle vert et or'
   Brand: Marque
   Brand and material come from Spoolman: La marque et le matériau proviennent de Spoolman
   Brightness: Luminosité
@@ -1572,6 +1575,7 @@ translations:
   Downloading... {:.1f}/{:.1f} MB: Téléchargement... {:.1f}/{:.1f} Mo
   Draw a ripple at each touch — helps diagnose offsets: Dessine une ondulation à chaque contact — aide à diagnostiquer les décalages
   Drive Cal: Cal entraîn.
+  Drive blocks and trim: 'Blocs d''entraînement et finitions'
   Drop shadow strength (0 = disabled): Intensité de l'ombre portée (0 = désactivé)
   Dropped when the printer restarted: 'Perdu au redémarrage de l''imprimante'
   Dry: Sécher
@@ -2144,6 +2148,7 @@ translations:
   Found %zu printers: '%zu imprimantes trouvées'
   Found 1 printer: 1 imprimante trouvée
   Found {} at {}.: '{} trouvée à {}.'
+  Frame: 'Cadre'
   Framerate: Fréquence d'images
   Free space unknown: 'Espace libre inconnu'
   Free the spool and pull the filament out of {} by hand, then try again.: Libérez la bobine et retirez le filament de {} à la main, puis réessayez.
@@ -2390,6 +2395,7 @@ translations:
   Homing timed out — printer may still be homing: Délai de prise d'origine dépassé — l'imprimante est peut-être encore en cours
   Homing, then probing...: "Mise à l'origine, puis palpage..."
   Homing...: Mise à l'origine...
+  Honeycomb panels, corner blocks and trays: 'Panneaux en nid d''abeille, blocs d''angle et plateaux'
   Horizontal: Horizontal
   Host: Hôte
   Host Health: 'État de l''hôte'
@@ -3468,6 +3474,7 @@ translations:
   Options: Options
   Or Enter Manually: Ou entrer manuellement
   Or instead of turning the others: Ou, au lieu de tourner les autres
+  Original: 'Original'
   Original file location unknown: Emplacement du fichier original inconnu
   Oscillating... cycle %d/%d: Oscillation... cycle %d/%d
   Other: Autre
@@ -3519,6 +3526,7 @@ translations:
   Pairing failed: Échec de l'appairage
   Pairing...: Appairage...
   Panel Usage: Utilisation des panneaux
+  Panels and Corners: 'Panneaux et coins'
   Paper Test Calibration: Calibration par test papier
   'Paper drags: done': "Le papier frotte : terminé"
   Parameters: Paramètres
@@ -4743,6 +4751,7 @@ translations:
   Startup, auto-control, and macro devices: Démarrage, contrôle auto et appareils macro
   State: État
   Static: 'Statique'
+  Station: 'Station'
   Status: État
   Status icons: Icônes d'état
   Stay at the printer.: Restez près de l'imprimante.
@@ -4750,6 +4759,7 @@ translations:
   Stays on PID: Reste en PID
   Std Deviation: Écart type
   Stealth: Silencieux
+  Stealth Black: 'Noir furtif'
   Stealth is quiet, Sport is fastest: Silencieux est discret, Sport est le plus rapide
   Step: Étape
   Step 1 of 3: Étape 1 sur 3
@@ -5039,6 +5049,7 @@ translations:
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : Le changement prend effet après le redémarrage de Klipper. Le firmware Klipper sera redémarré. Les opérations actives seront interrompues.
   'The change was not applied: the current settings could not be saved for a revert.': 'La modification n''a pas été appliquée : les paramètres actuels n''ont pas pu être enregistrés pour une restauration.'
+  The colors this unit was printed in: 'Les couleurs dans lesquelles cette unité a été imprimée'
   ? The configuration includes or opens a file that is not there, often the include line a removed plugin left behind. Klipper's message names the file.
   : La configuration inclut ou ouvre un fichier absent, souvent la ligne include laissée par un plugin supprimé. Le message de Klipper indique le fichier.
   The configuration names pin '{1}', which board '{2}' does not have.: La configuration nomme la broche '{1}', que la carte '{2}' ne possède pas.
@@ -5099,6 +5110,7 @@ translations:
   ? The firmware's pressure advance tower needs a [pa_test] section in printer.cfg. HelixScreen adds it with a backup and restarts Klipper.
   : "La tour de Pressure Advance du firmware nécessite une section [pa_test] dans printer.cfg. HelixScreen l'ajoute avec une sauvegarde et redémarre Klipper."
   The firmware's test tower is not in the printer's config. Adding it writes one section and restarts Klipper.: "La tour de test du firmware n'est pas dans la configuration de l'imprimante. L'ajouter écrit une section et redémarre Klipper."
+  The frame, posts and rails: 'Le cadre, les montants et les rails'
   ? The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong.
   : Le portique a besoin d'une correction de {1} mm, plus que les {2} mm autorisés. Il est très loin du niveau (après une collision, ou affaissé hors tension), ou les points de palpage ou l'ordre des moteurs Z sont incorrects.
   The gap didn't close (moved {:.1f} Hz). Try a bigger turn.: "L'écart ne s'est pas réduit (déplacé de {:.1f} Hz). Tournez davantage."
@@ -5602,6 +5614,7 @@ translations:
   Tool cycle finished: Rotation des outils terminée
   Tool is seated: L'outil est en place
   Tool may be half seated: "L'outil est peut-être mal engagé"
+  Tool offset calibration complete: 'Calibration des décalages d''outil terminée'
   Tool offsets: 'Offsets d''outil'
   Tool offsets (mm): Offsets d'outil (mm)
   Tool offsets saved: Offsets d'outil enregistrés
@@ -5878,6 +5891,7 @@ translations:
   Volume: Volume
   Volume of filament used during ramming: 'Volume de filament utilisé pendant le bourrage'
   Volume {}%: Volume {}%
+  Voron Black and Red: 'Voron noir et rouge'
   WAITING: "EN ATTENTE"
   WEIGHT SYNC: SYNCHRONISATION DU POIDS
   WIDTH SENSORS: CAPTEURS DE LARGEUR
@@ -6428,6 +6442,7 @@ translations:
   '{} matches.': '{} correspond.'
   '{} may be half seated on the head. Check it by hand.': "{} est peut-être mal engagé sur la tête d'outil. Vérifiez à la main."
   '{} may cause unintended changes. Are you sure?': '{} peut entraîner des modifications non souhaitées. Êtes-vous sûr ?'
+  '{} measured: X {:.3f} Y {:.3f} Z {:.3f} mm': '{} mesuré : X {:.3f} Y {:.3f} Z {:.3f} mm'
   '{} meter reset': 'Compteur {} réinitialisé'
   '{} min': '{} min'
   '{} min ago': il y a {} min

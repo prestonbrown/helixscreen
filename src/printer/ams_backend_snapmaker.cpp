@@ -12,7 +12,6 @@
 #include "batch_feed_reconcile.h"
 #include "color_utils.h"
 #include "config.h"
-#include "core/notification_api.h"
 #include "core/text_io.h"
 #include "display_numbering.h"
 #include "filament_database.h"
@@ -1580,11 +1579,11 @@ void AmsBackendSnapmaker::warn_unloaded_used_heads(const std::string& filename, 
                 helix::ui::ToolLabelForm::Full);
             spdlog::warn("{} '{}' uses tool {}, whose feeder reports it not loaded",
                          backend_log_tag(), filename, head);
-            ui_notification_warning(
+            publish_notification(
+                NoticeSeverity::WARNING,
                 fmt::format(fmt::runtime(lv_tr("{} isn't loaded. The print will pause when it "
                                                "needs it.")),
-                            tool)
-                    .c_str());
+                            tool));
         }
     };
     if (file_tools_probe_) {

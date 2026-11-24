@@ -158,7 +158,19 @@ PYTHON_CXX_READERS = (
 # Stages each step of the gate has, in the gate's order.
 STAGES = ('app-build', 'ci-shards', 'slow', 'bats', 'ui', 'plugin', 'python',
           'theme-tokens', 'xml-schema', 'lint-xml', 'lvgl-event-codes', 'no-mocks',
-          'quality')
+          'splash-link', 'quality')
+
+# helix-splash and helix-watchdog: the makefiles naming their sources, the
+# dependency-file directories the app build leaves those sources' .d in, and
+# the paths whose change rebuilds them whatever a source includes.
+AUX_MAKEFILES = ('mk/splash.mk', 'mk/watchdog.mk', 'mk/display-lib.mk')
+AUX_DEP_DIRS = ('build/obj', 'build/display', 'build/x86-fbdev/splash',
+                'build/x86-fbdev/watchdog', 'build/x86-fbdev/display')
+# Only the submodules whose headers or objects the splash and watchdog link
+# (helix-xml is not among them).
+AUX_BUILD_INPUTS = ('Makefile', 'mk/', 'lv_conf.h', 'lib/lvgl', 'lib/libhv', 'lib/spdlog',
+                    'patches/')
+AUX_SOURCE_RE = re.compile(r'(?:src|tools)/[\w/]*\w\.cpp')
 
 
 
@@ -636,6 +648,72 @@ def select_ui(root, changed):
         return 'full', f'{len(chosen)} of {len(files)} files reached', [], {}
     return 'select', f'{len(chosen)} of {len(files)} files: smoke and what the change reaches', chosen, reasons
 
+def aux_sources(root):
+    """Every source helix-splash and helix-watchdog compile or link whole,
+    read from the makefiles that name them."""
+    found = set()
+    for mk in AUX_MAKEFILES:
+        text = read_text(root, mk) or ''
+        for line in text.splitlines():
+            if not line.lstrip().startswith('#'):
+                found.update(AUX_SOURCE_RE.findall(line))
+    return sorted(found)
+
+
+def _mtime(path):
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return 0
+
+
+def splash_link_verdict(root, changed):
+    """(run, why) | (skip, why): does the change reach a source the splash or
+    watchdog builds? Their compile flags lack the include path that makes
+    "lvgl/lvgl.h" resolve, so a header that gains that include breaks them
+    while every app object still compiles. A source's
+    reach is the union of its dependency files under the app build and the
+    x86-fbdev build this stage leaves behind; helix_splash.cpp and
+    helix_watchdog.cpp only get one once that stage has run in the tree, and a
+    source with no usable .d (missing, or older than a prerequisite or one of
+    the makefiles) falls back to any changed C++ path under src/, include/ or
+    tools/."""
+    code = [c for c in changed if not is_doc(c)]
+    hit = next((c for c in code if matches(c, AUX_BUILD_INPUTS)), None)
+    if hit:
+        return 'run', f'{hit} changed (build system or submodule)'
+    deps = {}
+    mk_time = max((_mtime(root / mk) for mk in AUX_MAKEFILES), default=0)
+    for d in AUX_DEP_DIRS:
+        for dep in Path(root / d).rglob('*.d'):
+            try:
+                src, found = parse_depfile(dep.read_text(errors='replace'))
+                born = dep.stat().st_mtime
+            except OSError:
+                continue
+            # make's own staleness rule: a .d older than a prerequisite, or than
+            # a makefile naming the sources, describes a build that has moved on.
+            if src and born >= mk_time and all(born >= _mtime(root / f) for f in found):
+                deps.setdefault(src, set()).update(found)
+    reach = {}
+    unbuilt = []
+    for src in aux_sources(root):
+        if src in deps:
+            for f in deps[src] | {src}:
+                reach.setdefault(f, src)
+        else:
+            unbuilt.append(src)
+    for c in code:
+        if c in reach:
+            return 'run', f'{c} reaches {reach[c]}, which helix-splash or helix-watchdog builds'
+    if unbuilt:
+        c = next((c for c in code if c.endswith(SOURCE_EXT)
+                  and c.startswith(('src/', 'include/', 'tools/'))), None)
+        if c:
+            return 'run', f'{c} changed and {unbuilt[0]} has no dependency file to rule it out'
+    return 'skip', 'no changed path reaches a splash or watchdog source'
+
+
 # --------------------------------------------------------------------------
 # Stage plan
 # --------------------------------------------------------------------------
@@ -684,6 +762,9 @@ def plan(root, changed):
                              ' '.join(PYTHON_CXX_READERS)))
             else:
                 rows.append((s, 'skip', 'nothing it reads changed', ''))
+        elif s == 'splash-link':
+            v, why = splash_link_verdict(root, changed)
+            rows.append((s, v, why, ''))
         elif s == 'ui':
             v, why, files, _ = select_ui(root, changed)
             rows.append((s, v, why, ' '.join(files)))

@@ -85,6 +85,7 @@ SPLASH_EXTRA_OBJS := \
     $(BUILD_DIR)/splash/text_io.o \
     $(BUILD_DIR)/splash/helix_fs.o \
     $(BUILD_DIR)/splash/ui_notification_stub.o \
+    $(BUILD_DIR)/splash/notice.o \
     $(BUILD_DIR)/splash/drm_mode_matching.o \
     $(BUILD_DIR)/splash/fbdev_size_helper.o \
     $(BUILD_DIR)/splash/fbdev_signal_clear.o \
@@ -169,6 +170,12 @@ $(BUILD_DIR)/splash/pending_startup_warnings.o: src/system/pending_startup_warni
 
 # Compile backlight backend for splash (with HELIX_SPLASH_ONLY to skip runtime_config dependency)
 $(BUILD_DIR)/splash/backlight_backend.o: src/platform/display/backlight_backend.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(ABI_STAMP) | $(BUILD_DIR)/splash
+	@echo "[CXX] $< (splash)"
+	$(Q)$(CXX) $(SPLASH_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
+
+# config.cpp and config_storage_file.cpp report errors through NOTIFY_*, which publish a
+# Notice (src/core/notice.cpp). The splash has no subscriber, so a published notice is logged.
+$(BUILD_DIR)/splash/notice.o: src/core/notice.cpp $(ABI_STAMP) | $(BUILD_DIR)/splash
 	@echo "[CXX] $< (splash)"
 	$(Q)$(CXX) $(SPLASH_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 

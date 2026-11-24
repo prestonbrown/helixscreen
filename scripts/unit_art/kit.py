@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Projection, shading and SVG layers shared by every unit drawing."""
 import math
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Callable, List, Optional, Tuple
 
@@ -272,6 +273,9 @@ class ScaledScene:
     def extrude_x(self, profile, x0, x1, color, opacity, front):
         self.scene.extrude_x(self._pts(profile), x0 * self.k, x1 * self.k, color, opacity, front)
 
+    def painted(self, region):
+        return self.scene.painted(region)
+
 
 def carriage_step(scene, step):
     """One gate of world-space travel as a fraction of the art's width on screen."""
@@ -336,8 +340,12 @@ class Item:
     tag: str
     blur: bool = False
     spool: object = None  # the lane whose spool this item is part of, flanges and core included
+    # The color region a printed unit's owner can recolor ("main", "accent", "panels"); None for
+    # a part drawn only in its own color.
+    region: object = None
 
-    def svg(self, fill=None, opacity=None):
+    def svg(self, fill=None, opacity=None, grow=0.0):
+        """grow outlines a filled polygon by that stroke width, so it covers its own edge pixels."""
         d = " ".join(f"{x:.4f},{y:.4f}" for x, y in self.points)
         f = self.fill if fill is None else fill
         op = self.opacity if opacity is None else opacity
@@ -351,10 +359,59 @@ class Item:
         if self.stroke:
             stroke = self.stroke if fill is None else fill
             attrs = f' stroke="{stroke}" stroke-width="{self.stroke_width}" stroke-linejoin="round"'
+        elif grow > 0.0015:
+            attrs = f' stroke="{f}" stroke-width="{grow}" stroke-linejoin="round"'
         elif op >= 1.0:
             attrs = f' stroke="{f}" stroke-width="0.0015"'
         blur = ' filter="url(#soft)"' if self.blur else ""
         return f'<polygon points="{d}" fill="{f}" fill-opacity="{op}"{attrs}{blur}/>'
+
+
+# The regions a printed unit's owner can recolor, in the order of UnitColorRegion
+# (include/unit_colors.h), and the depths their masks bake at (UnitArtDepth).
+UNIT_COLOR_REGIONS = ("main", "accent", "panels")
+UNIT_COLOR_DEPTHS = ("back", "front")
+# How far, in output pixels, a region's mask strokes past each part's outline.
+REGION_GROW_PX = 1.0
+# How far apart, in degrees, the hues of one region's parts may be, and the saturation below
+# which a part is gray enough to belong to any region.
+REGION_HUE_SPREAD = 20
+REGION_GRAY_SATURATION = 0.15
+# The narrowest drawing whose region masks grow.
+REGION_GROW_MIN_WIDTH = 100
+
+
+def unit_color_mask_bit(depth, region):
+    """The bit UnitShell::color_regions sets for region's mask at depth (unit_color_mask_bit)."""
+    return 1 << (UNIT_COLOR_DEPTHS.index(depth) * len(UNIT_COLOR_REGIONS) + UNIT_COLOR_REGIONS.index(region))
+
+
+def _luma(color):
+    r, g, b = rgb(color)
+    return 0.299 * r + 0.587 * g + 0.114 * b
+
+
+def region_gray(color, base):
+    """color as a gray at its lightness against base, its region's color: the light the
+    region's parts take, whatever color fills them."""
+    k = min(1.0, _luma(color) / max(1.0, _luma(base)))
+    return hexc((255 * k,) * 3)
+
+
+def _hue_sat(color):
+    import colorsys
+
+    h, _, s = colorsys.rgb_to_hls(*(c / 255 for c in rgb(color)))
+    return h * 360, s
+
+
+def same_hue(a, b):
+    """Whether a and b are shades of one color: hues within REGION_HUE_SPREAD degrees, or
+    either too gray (a highlight or deep shadow) to carry a hue."""
+    (ha, sa), (hb, sb) = _hue_sat(a), _hue_sat(b)
+    if min(sa, sb) < REGION_GRAY_SATURATION:
+        return True
+    return min(abs(ha - hb), 360 - abs(ha - hb)) <= REGION_HUE_SPREAD
 
 
 _INVERT = (
@@ -381,12 +438,50 @@ class Scene:
         self.sensors = {}
         # The lane whose spool is being drawn: spool.draw_spool sets it around its items.
         self.current_spool = None
+        # The color region being drawn (Scene.painted) and the color its items are shaded from.
+        self.region = None
+
+    @contextmanager
+    def painted(self, region):
+        """Draw the items inside as part of a recolorable region: parts printed in one color,
+        which the user's color for the region replaces (Scene.region_base)."""
+        if region not in UNIT_COLOR_REGIONS:
+            raise ValueError(f"unknown color region {region!r}")
+        saved = self.region
+        self.region = region
+        try:
+            yield
+        finally:
+            self.region = saved
+
+    def _region_parts(self, region):
+        return [i for i in self.items if i.region == region and i.lane is None and not i.blur]
+
+    def region_base(self, region):
+        """The region's color: its brightest part's, so every other part is a shade of it and
+        the user's color is the region's lit face. A region is one printed color: a part of
+        another hue is refused."""
+        parts = self._region_parts(region)
+        if not parts:
+            return None
+        for i in parts:
+            if not i.fill.startswith("#"):
+                raise ValueError(f"a recolorable part needs a flat color, not {i.fill!r}")
+        base = max((i.fill for i in parts), key=_luma)
+        for i in parts:
+            if not same_hue(i.fill, base):
+                raise ValueError(f"color region {region!r} holds {i.fill} and {base}; one printed color per region")
+        return base
+
+    def region_bases(self):
+        """Each region's color (Scene.region_base), in UNIT_COLOR_REGIONS order."""
+        return tuple(self.region_base(r) for r in UNIT_COLOR_REGIONS)
 
     def _add(self, pts3, fill, opacity, stroke, sw, closed, lane, tag, blur=False):
         self.items.append(
             Item(
                 [self.camera.project(p) for p in pts3], fill, opacity, stroke, sw, closed, self.layer, lane, tag, blur,
-                self.current_spool,
+                self.current_spool, self.region,
             )
         )
 
@@ -613,3 +708,60 @@ class Scene:
         lit = "".join(i.svg() for i in self.items if i.lane == lane)
         body = f'<g mask="url(#cover)"><g filter="url(#shade)"><rect {self._frame()} fill="#fff"/>{lit}</g></g>'
         return self._wrap(width, body, self._coverage_mask(lane))
+
+    # A printed unit's color regions: per depth (the back layer behind the spools, the front
+    # layer before them), a white mask where the region shows and the light it takes. The
+    # runtime fills the mask with the user's color and lays the shading over it, as it does a
+    # lane's filament.
+
+    def _layer_items(self, layer):
+        return self.back_items() if layer == "back" and self.spools else [i for i in self.items if i.layer == layer]
+
+    def regions(self, layer):
+        """The color regions drawn in layer, in UNIT_COLOR_REGIONS order."""
+        found = {i.region for i in self._layer_items(layer) if i.lane is None}
+        return [r for r in UNIT_COLOR_REGIONS if r in found]
+
+    def color_regions(self):
+        """UnitShell::color_regions: a bit per region mask the drawing bakes."""
+        return sum(unit_color_mask_bit(layer, r) for layer in UNIT_COLOR_DEPTHS for r in self.regions(layer))
+
+    def _region_grow(self, width):
+        # The region's own parts reach REGION_GROW_PX past their outlines, so the tint covers the
+        # edge pixels the baked layer blends with its baked color.
+        # A thumbnail's parts are a few pixels across: grown as far, they would visibly fatten.
+        px = REGION_GROW_PX if width >= REGION_GROW_MIN_WIDTH else REGION_GROW_PX / 2
+        _, _, vw, _ = self._viewbox()
+        return px * vw / width
+
+    def _region_cover(self, layer, region, width):
+        # Whatever solid the layer draws over the region later cuts it. Glass does not: the
+        # region shows through it in the user's color, without the glass's haze.
+        grow = self._region_grow(width)
+        items = [i for i in self._layer_items(layer) if i.lane is None and not i.blur]
+        body = "".join(
+            i.svg(fill="#fff", grow=grow) if i.region == region else i.svg(fill="#000")
+            for i in items
+            if i.region == region or i.opacity >= 1.0
+        )
+        # The growth stays inside what the layer draws, so the unit's outline keeps its edge.
+        drawn = "".join(i.svg(fill="#fff", opacity=1.0) for i in items)
+        return (
+            f'<mask id="drawn" maskUnits="userSpaceOnUse" {self._frame()}>{drawn}</mask>'
+            f'<mask id="cover" maskUnits="userSpaceOnUse" {self._frame()}><g mask="url(#drawn)">{body}</g></mask>'
+        )
+
+    def region_color_svg(self, layer, region, width):
+        """White where region shows in layer; the runtime recolors it."""
+        return self._wrap(width, f'<rect {self._frame()} fill="#fff" mask="url(#cover)"/>', self._region_cover(layer, region, width))
+
+    def region_shade_svg(self, layer, region, width):
+        """Black at the region's darkness in layer, laid over its recolored mask."""
+        grow = self._region_grow(width)
+        base = self.region_base(region)
+        lit = "".join(
+            i.svg(fill=region_gray(i.fill, base), grow=grow)
+            for i in self._layer_items(layer) if i.region == region and i.lane is None and not i.blur
+        )
+        body = f'<g mask="url(#cover)"><g filter="url(#shade)"><rect {self._frame()} fill="#fff"/>{lit}</g></g>'
+        return self._wrap(width, body, self._region_cover(layer, region, width))

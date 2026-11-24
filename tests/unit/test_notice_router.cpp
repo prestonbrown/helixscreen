@@ -8,17 +8,24 @@
 
 #include "ui_button.h"
 #include "ui_emergency_stop.h"
+#include "ui_notification.h"
+#include "ui_notification_history.h"
 #include "ui_toast_manager.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/toast_log.h"
+#include "../ui_test_utils.h"
+#include "ams_error.h"
+#include "core/error_reporting.h"
 #include "core/update_queue.h"
 #include "hardware_validator.h"
 #include "notice.h"
 #include "print_completion.h"
 #include "print_start_navigation.h"
+#include "u1_stock_screen.h"
 
+#include <cstdlib>
 #include <string>
 #include <thread>
 #include <vector>
@@ -259,4 +266,215 @@ TEST_CASE_METHOD(LVGLTestFixture,
         CHECK(estop.is_recovery_suppressed());
     }
     estop.suppress_recovery_dialog(0);
+}
+
+namespace {
+
+/// Every ui_notification_* event reported while this is in scope.
+struct NotificationEvents {
+    std::vector<helix::ui::NotificationEvent> events;
+    NotificationEvents() {
+        helix::ui::set_test_notification_event_hook(
+            [this](const helix::ui::NotificationEvent& e) { events.push_back(e); });
+    }
+    ~NotificationEvents() {
+        helix::ui::set_test_notification_event_hook(nullptr);
+    }
+};
+
+const NotificationHistoryEntry* history_row(const std::vector<NotificationHistoryEntry>& rows,
+                                            const std::string& message) {
+    for (const auto& row : rows) {
+        if (message == row.message) {
+            return &row;
+        }
+    }
+    return nullptr;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Each notice delivery reaches the notification path it names",
+                 "[toast][notification][notice]") {
+    auto& toasts = ToastManager::instance();
+    toasts.init();
+    NotificationHistory::instance().clear();
+    NotificationEvents seen;
+    ToastLog log;
+
+    SECTION("a titled notification toasts title and message and keeps the title in history") {
+        helix::publish_notification(NoticeSeverity::INFO, "loaded", "Startup");
+        drain();
+        log.expect_one(ToastSeverity::INFO, "Startup: loaded", 4000);
+        REQUIRE(seen.events.size() == 1);
+        CHECK(seen.events[0].title == "Startup");
+        const auto rows = NotificationHistory::instance().get_all();
+        const auto* row = history_row(rows, "loaded");
+        REQUIRE(row != nullptr);
+        CHECK(std::string(row->title) == "Startup");
+    }
+    SECTION("a warning notification stays up longer than an info one") {
+        helix::publish_notification(NoticeSeverity::WARNING, "careful");
+        drain();
+        log.expect_one(ToastSeverity::WARNING, "careful", 5000);
+    }
+    SECTION("an error notification is a toast, not a dialog") {
+        helix::publish_notification(NoticeSeverity::ERROR, "it broke", "Save");
+        drain();
+        log.expect_one(ToastSeverity::ERROR, "it broke", 6000);
+        const auto rows = NotificationHistory::instance().get_all();
+        const auto* row = history_row(rows, "it broke");
+        REQUIRE(row != nullptr);
+        CHECK_FALSE(row->was_modal);
+    }
+    SECTION("a detail rides the toast's second line; sticky never dismisses") {
+        helix::publish_detail_notification(NoticeSeverity::WARNING, "refused", "fix it");
+        helix::publish_detail_notification(NoticeSeverity::WARNING, "stuck", "read me", true);
+        drain();
+        REQUIRE(log.shown.size() == 2);
+        CHECK(log.shown[0].message == "refused - fix it");
+        CHECK(log.shown[0].duration_ms == 8000);
+        CHECK(log.shown[1].message == "stuck - read me");
+        CHECK(log.shown[1].duration_ms == 0);
+        REQUIRE(seen.events.size() == 2);
+        CHECK_FALSE(seen.events[0].sticky);
+        CHECK(seen.events[1].sticky);
+    }
+    SECTION("a history entry adds a tappable row and no toast") {
+        helix::publish_history_entry(NoticeSeverity::INFO, "Update Available", "v9 is out",
+                                     "show_update_modal");
+        drain();
+        CHECK(log.shown.empty());
+        REQUIRE(seen.events.size() == 1);
+        CHECK(seen.events[0].title == "Update Available");
+        CHECK(seen.events[0].action == "show_update_modal");
+        const auto rows = NotificationHistory::instance().get_all();
+        const auto* row = history_row(rows, "v9 is out");
+        REQUIRE(row != nullptr);
+        CHECK(std::string(row->action) == "show_update_modal");
+    }
+    SECTION("a titled notification with a detail keeps its title in history") {
+        Notice notice;
+        notice.severity = NoticeSeverity::WARNING;
+        notice.message = "refused";
+        notice.delivery = helix::NoticeDelivery::Notification;
+        notice.title = "Env File";
+        notice.detail = "fix it";
+        publish_notice(notice);
+        drain();
+        const auto rows = NotificationHistory::instance().get_all();
+        const auto* row = history_row(rows, "refused - fix it");
+        REQUIRE(row != nullptr);
+        CHECK(std::string(row->title) == "Env File");
+    }
+    SECTION("an alert with an empty title is still a dialog") {
+        helix::publish_alert("", "untitled failure");
+        drain();
+        CHECK(log.shown.empty());
+        const auto rows = NotificationHistory::instance().get_all();
+        const auto* row = history_row(rows, "untitled failure");
+        REQUIRE(row != nullptr);
+        CHECK(row->was_modal);
+    }
+    SECTION("an alert is a dialog") {
+        helix::publish_alert("Connection Failed", "unreachable");
+        drain();
+        CHECK(log.shown.empty());
+        const auto rows = NotificationHistory::instance().get_all();
+        const auto* row = history_row(rows, "unreachable");
+        REQUIRE(row != nullptr);
+        CHECK(row->was_modal);
+    }
+
+    NotificationHistory::instance().clear();
+    toasts.deinit_subjects();
+    drain();
+}
+
+TEST_CASE("The report macros publish notices rather than calling the UI",
+          "[notification][notice]") {
+    CapturedNotices notices;
+    NOTIFY_WARNING("disk at {}%", 91);
+    NOTIFY_ERROR_T("Save Failed", "could not write {}", "a.cfg");
+    NOTIFY_ERROR_MODAL("Connection Failed", "no route");
+    ErrorContext("Probe").warning("drifted");
+
+    REQUIRE(g_captured.size() == 4);
+    CHECK(g_captured[0].delivery == helix::NoticeDelivery::Notification);
+    CHECK(g_captured[0].severity == NoticeSeverity::WARNING);
+    CHECK(g_captured[0].message == "disk at 91%");
+    CHECK(g_captured[0].title.empty());
+    CHECK(g_captured[1].delivery == helix::NoticeDelivery::Notification);
+    CHECK(g_captured[1].severity == NoticeSeverity::ERROR);
+    CHECK(g_captured[1].title == "Save Failed");
+    CHECK(g_captured[1].message == "could not write a.cfg");
+    CHECK(g_captured[2].delivery == helix::NoticeDelivery::Alert);
+    CHECK(g_captured[2].title == "Connection Failed");
+    CHECK(g_captured[3].message == "Probe: drifted");
+}
+
+TEST_CASE("A filament backend's error publishes its suggestion as the notice's detail",
+          "[notification][notice][ams]") {
+    CapturedNotices notices;
+    const helix::AmsError err(helix::AmsResult::BUSY, "op in flight", "Unit is busy",
+                              "Wait for the current operation to finish");
+    helix::ui::notify_ams_error(err);
+    helix::ui::notify_ams_warning(err);
+    helix::ui::notify_ams_error(helix::AmsError{});
+
+    REQUIRE(g_captured.size() == 2);
+    for (const Notice& n : g_captured) {
+        CHECK(n.delivery == helix::NoticeDelivery::Notification);
+        CHECK(n.message == helix::ui::ams_error_body(err, nullptr));
+        CHECK(n.detail == "Wait for the current operation to finish");
+        CHECK_FALSE(n.sticky);
+    }
+    CHECK(g_captured[0].severity == NoticeSeverity::ERROR);
+    CHECK(g_captured[1].severity == NoticeSeverity::WARNING);
+}
+
+TEST_CASE("U1 SSH down publishes a sticky warning that says what to do",
+          "[notification][notice][u1]") {
+    CapturedNotices notices;
+    ::setenv(helix::u1::kRootSshDownEnv, "1", 1);
+    helix::u1::surface_root_ssh_down_from_hook();
+    ::unsetenv(helix::u1::kRootSshDownEnv);
+    helix::u1::surface_root_ssh_down_from_hook();
+
+    REQUIRE(g_captured.size() == 1);
+    CHECK(g_captured[0].delivery == helix::NoticeDelivery::Notification);
+    CHECK(g_captured[0].severity == NoticeSeverity::WARNING);
+    CHECK(g_captured[0].sticky);
+    CHECK_FALSE(g_captured[0].detail.empty());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Notification notices published off the main thread present only on it",
+                 "[toast][notification][notice]") {
+    auto& toasts = ToastManager::instance();
+    toasts.init();
+    ui_notification_init(); // records this thread as the main thread
+    NotificationHistory::instance().clear();
+    ToastLog log;
+
+    std::thread([] {
+        helix::publish_notification(NoticeSeverity::WARNING, "from wifi");
+        helix::publish_detail_notification(NoticeSeverity::WARNING, "refused", "fix it");
+        helix::publish_history_entry(NoticeSeverity::INFO, "AFC", "lane 2 ready", "afc_message");
+    }).join();
+
+    CHECK(log.shown.empty());
+    CHECK(NotificationHistory::instance().count() == 0);
+
+    drain();
+    REQUIRE(log.shown.size() == 2);
+    for (const auto& shown : log.shown) {
+        CHECK(shown.thread == std::this_thread::get_id());
+    }
+    CHECK(NotificationHistory::instance().count() == 3);
+
+    ui_notification_deinit();
+    NotificationHistory::instance().clear();
+    toasts.deinit_subjects();
+    drain();
 }

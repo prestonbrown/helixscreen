@@ -19,7 +19,6 @@
 #include "app_globals.h"
 #include "config.h"
 #include "core/log_redact.h"
-#include "core/notification_api.h"
 #include "core/observer_factory.h"
 #include "core/text_io.h"
 #include "core/timer_guard.h"
@@ -3703,7 +3702,8 @@ void UpdateChecker::dismiss_current_version() {
 
     // Add history-only notification so user can find the update later
     std::string msg = fmt::format(lv_tr("v{} is available. Tap to update."), version);
-    ui_notification_info_with_action(lv_tr("Update Available"), msg.c_str(), "show_update_modal");
+    publish_history_entry(NoticeSeverity::INFO, lv_tr("Update Available"), msg,
+                          "show_update_modal");
 }
 
 void UpdateChecker::report_rollback(const helix::update::RollbackResult& result) {
@@ -3732,7 +3732,7 @@ void UpdateChecker::show_pending_rollback_notice() {
     }
     const std::string msg = fmt::format(lv_tr("v{} did not start properly, so v{} was put back."),
                                         notice->to_version, notice->from_version);
-    ui_notification_warning(lv_tr("Update Rolled Back"), msg.c_str());
+    publish_notification(NoticeSeverity::WARNING, msg, lv_tr("Update Rolled Back"));
 
     // TIMER_DTOR_OK: one-shot, no owner, captures nothing; freed with LVGL
     lv_timer_t* timer = lv_timer_create(

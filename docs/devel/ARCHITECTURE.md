@@ -211,10 +211,16 @@ empties a directory-to-header pair bans it tree-wide through `CLEARED_PAIRS`, an
 `qc_layering` fails that pair's return at every push and landing. The
 upward includes the tree still carries are tracked in #1952.
 
-To tell the user something, `src/printer` publishes a plain `helix::Notice`
-(`include/notice.h`) with `publish_notice()`, which delivers on the calling thread.
-`src/ui/notify/ui_toast_manager.cpp` subscribes during static initialization and
-shows the toast; `ToastManager` marshals its own widget work to the main thread.
+To tell the user something, a layer below the UI publishes a plain `helix::Notice`
+(`include/notice.h`, implemented in `src/core/notice.cpp`) with `publish_notice()`,
+which delivers on the calling thread. The `NOTIFY_*` macros (`core/error_reporting.h`)
+and `publish_notification()`, `publish_detail_notification()`,
+`publish_history_entry()` and `publish_alert()` build one; its `NoticeDelivery` says
+how much attention it asks for (a toast, a toast with a history row, a history row
+alone, a dialog). `src/ui/notify/ui_toast_manager.cpp` subscribes during static
+initialization and presents it, handing every delivery but a plain toast to the
+`ui_notification_*` paths; both marshal their widget work to the main thread. The
+`ui_notification_*` functions themselves are UI API (`include/ui_notification.h`).
 What is more than a toast (a prompt, a navigation, a recovery window) is a
 `helix::UiRequest` of a typed `UiRequestKind`, published with `publish_ui_request()`.
 The UI file that owns the action installs that kind's handler with a

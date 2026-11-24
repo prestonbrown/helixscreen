@@ -212,6 +212,34 @@
             <event_cb trigger="value_changed" callback="on_ams_unit_type_changed"/>
           </lv_dropdown>
         </setting_row>
+        <!-- Colors: the colors a printed unit was printed in. Shown only when the unit's
+             drawing bakes color regions; Original keeps the drawing's own colors. -->
+        <lv_obj name="unit_colors_rows"
+                width="100%" height="content" style_pad_all="0" style_pad_gap="0" style_bg_opa="0"
+                style_border_width="0" flex_flow="column" scrollable="false">
+          <bind_flag_if_eq subject="ams_unit_colors_available" flag="hidden" ref_value="0"/>
+          <setting_row name="row_unit_colors"
+                       label="Colors" icon="palette" description="The colors this unit was printed in">
+            <lv_dropdown name="unit_colors_dropdown"
+                         width="40%" height="content" style_min_height="#touch_target_min" style_radius="#border_radius"
+                         bind_options="ams_unit_colors_options" bind_value="ams_unit_colors_option">
+              <event_cb trigger="value_changed" callback="on_ams_unit_colors_changed"/>
+            </lv_dropdown>
+          </setting_row>
+          <setting_row name="row_unit_color_main" label="Frame" description="The frame, posts and rails">
+            <color_swatch name="unit_color_main_swatch"
+                          index="0" color_subject="ams_unit_color_main" callback="on_ams_unit_color_clicked"/>
+          </setting_row>
+          <setting_row name="row_unit_color_accent" label="Accents" description="Drive blocks and trim">
+            <color_swatch name="unit_color_accent_swatch"
+                          index="1" color_subject="ams_unit_color_accent" callback="on_ams_unit_color_clicked"/>
+          </setting_row>
+          <setting_row name="row_unit_color_panels"
+                       label="Panels and Corners" description="Honeycomb panels, corner blocks and trays">
+            <color_swatch name="unit_color_panels_swatch"
+                          index="2" color_subject="ams_unit_color_panels" callback="on_ams_unit_color_clicked"/>
+          </setting_row>
+        </lv_obj>
       </ui_card>
       <!-- ================================================================== -->
       <!-- Section List (progressive disclosure — rows push detail overlays) -->

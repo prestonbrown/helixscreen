@@ -314,6 +314,7 @@
   <translation tag="Accelerometer not responding" en="Accelerometer not responding"/>
   <translation tag="Accelerometer ready" en="Accelerometer ready"/>
   <translation tag="Accelerometers" en="Accelerometers"/>
+  <translation tag="Accents" en="Accents"/>
   <translation tag="Accept" en="Accept"/>
   <translation tag="Accepted Z Position: 0.000" en="Accepted Z Position: 0.000"/>
   <translation tag="Accepted Z Position: {:.3f}" en="Accepted Z Position: {:.3f}"/>
@@ -460,6 +461,7 @@
   <translation tag="Arc moves not supported" en="Arc moves not supported"/>
   <translation tag="Archive" en="Archive"/>
   <translation tag="Archive Spool?" en="Archive Spool?"/>
+  <translation tag="Arctic White" en="Arctic White"/>
   <translation tag="Are you sure you want to cancel this print? All progress will be lost." en="Are you sure you want to cancel this print? All progress will be lost."/>
   <translation tag="Are you sure? This will power off or restart this device." en="Are you sure? This will power off or restart this device."/>
   <translation tag="Arrows" en="Arrows"/>
@@ -646,6 +648,7 @@
   <translation tag="Bowden tube length to this tool" en="Bowden tube length to this tool"/>
   <translation tag="Bowden: pull the tube from the extruder end, then pull the filament." en="Bowden: pull the tube from the extruder end, then pull the filament."/>
   <translation tag="Box" en="Box"/>
+  <translation tag="Box Turtle Green and Gold" en="Box Turtle Green and Gold"/>
   <translation tag="Brand" en="Brand"/>
   <translation tag="Brand and material come from Spoolman" en="Brand and material come from Spoolman"/>
   <translation tag="Brightness" en="Brightness"/>
@@ -1474,6 +1477,7 @@
   <translation tag="Downloading... {:.1f}/{:.1f} MB" en="Downloading... {:.1f}/{:.1f} MB"/>
   <translation tag="Draw a ripple at each touch — helps diagnose offsets" en="Draw a ripple at each touch — helps diagnose offsets"/>
   <translation tag="Drive Cal" en="Drive Cal"/>
+  <translation tag="Drive blocks and trim" en="Drive blocks and trim"/>
   <translation tag="Drop shadow strength (0 = disabled)" en="Drop shadow strength (0 = disabled)"/>
   <translation tag="Dropped when the printer restarted" en="Dropped when the printer restarted"/>
   <translation tag="Dry" en="Dry"/>
@@ -2035,6 +2039,7 @@
   <translation tag="Found %zu printers" en="Found %zu printers"/>
   <translation tag="Found 1 printer" en="Found 1 printer"/>
   <translation tag="Found {} at {}." en="Found {} at {}."/>
+  <translation tag="Frame" en="Frame"/>
   <translation tag="Framerate" en="Framerate"/>
   <translation tag="Free space unknown" en="Free space unknown"/>
   <translation tag="Free the spool and pull the filament out of {} by hand, then try again." en="Free the spool and pull the filament out of {} by hand, then try again."/>
@@ -2277,6 +2282,7 @@
   <translation tag="Homing timed out — printer may still be homing" en="Homing timed out — printer may still be homing"/>
   <translation tag="Homing, then probing..." en="Homing, then probing..."/>
   <translation tag="Homing..." en="Homing..."/>
+  <translation tag="Honeycomb panels, corner blocks and trays" en="Honeycomb panels, corner blocks and trays"/>
   <translation tag="Horizontal" en="Horizontal"/>
   <translation tag="Host" en="Host"/>
   <translation tag="Host Health" en="Host Health"/>
@@ -3325,6 +3331,7 @@
   <translation tag="Options" en="Options"/>
   <translation tag="Or Enter Manually" en="Or Enter Manually"/>
   <translation tag="Or instead of turning the others" en="Or instead of turning the others"/>
+  <translation tag="Original" en="Original"/>
   <translation tag="Original file location unknown" en="Original file location unknown"/>
   <translation tag="Oscillating... cycle %d/%d" en="Oscillating... cycle %d/%d"/>
   <translation tag="Other" en="Other"/>
@@ -3375,6 +3382,7 @@
   <translation tag="Pairing failed" en="Pairing failed"/>
   <translation tag="Pairing..." en="Pairing..."/>
   <translation tag="Panel Usage" en="Panel Usage"/>
+  <translation tag="Panels and Corners" en="Panels and Corners"/>
   <translation tag="Paper Test Calibration" en="Paper Test Calibration"/>
   <translation tag="Paper drags: done" en="Paper drags: done"/>
   <translation tag="Parameters" en="Parameters"/>
@@ -4582,6 +4590,7 @@
   <translation tag="Startup, auto-control, and macro devices" en="Startup, auto-control, and macro devices"/>
   <translation tag="State" en="State"/>
   <translation tag="Static" en="Static"/>
+  <translation tag="Station" en="Station"/>
   <translation tag="Status" en="Status"/>
   <translation tag="Status icons" en="Status icons"/>
   <translation tag="Stay at the printer." en="Stay at the printer."/>
@@ -4589,6 +4598,7 @@
   <translation tag="Stays on PID" en="Stays on PID"/>
   <translation tag="Std Deviation" en="Std Deviation"/>
   <translation tag="Stealth" en="Stealth"/>
+  <translation tag="Stealth Black" en="Stealth Black"/>
   <translation tag="Stealth is quiet, Sport is fastest" en="Stealth is quiet, Sport is fastest"/>
   <translation tag="Step" en="Step"/>
   <translation tag="Step 1 of 3" en="Step 1 of 3"/>
@@ -4863,6 +4873,7 @@
   <translation tag="The chamber&apos;s circulation fan is on but reads no speed." en="The chamber&apos;s circulation fan is on but reads no speed."/>
   <translation tag="The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted." en="The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted."/>
   <translation tag="The change was not applied: the current settings could not be saved for a revert." en="The change was not applied: the current settings could not be saved for a revert."/>
+  <translation tag="The colors this unit was printed in" en="The colors this unit was printed in"/>
   <translation tag="The configuration includes or opens a file that is not there, often the include line a removed plugin left behind. Klipper&apos;s message names the file." en="The configuration includes or opens a file that is not there, often the include line a removed plugin left behind. Klipper&apos;s message names the file."/>
   <translation tag="The configuration names pin &apos;{1}&apos;, which board &apos;{2}&apos; does not have." en="The configuration names pin &apos;{1}&apos;, which board &apos;{2}&apos; does not have."/>
   <translation tag="The configuration needs a missing module" en="The configuration needs a missing module"/>
@@ -4917,6 +4928,7 @@
   <translation tag="The firmware could not read or write the driver for {1}. Motor power being off (UART drivers need it), a driver not seated or a wrong pin in the configuration can cause it." en="The firmware could not read or write the driver for {1}. Motor power being off (UART drivers need it), a driver not seated or a wrong pin in the configuration can cause it."/>
   <translation tag="The firmware&apos;s pressure advance tower needs a [pa_test] section in printer.cfg. HelixScreen adds it with a backup and restarts Klipper." en="The firmware&apos;s pressure advance tower needs a [pa_test] section in printer.cfg. HelixScreen adds it with a backup and restarts Klipper."/>
   <translation tag="The firmware&apos;s test tower is not in the printer&apos;s config. Adding it writes one section and restarts Klipper." en="The firmware&apos;s test tower is not in the printer&apos;s config. Adding it writes one section and restarts Klipper."/>
+  <translation tag="The frame, posts and rails" en="The frame, posts and rails"/>
   <translation tag="The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong." en="The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong."/>
   <translation tag="The gap didn&apos;t close (moved {:.1f} Hz). Try a bigger turn." en="The gap didn&apos;t close (moved {:.1f} Hz). Try a bigger turn."/>
   <translation tag="The gap grew after loosening {0}. Check you turned {0}&apos;s tensioner." en="The gap grew after loosening {0}. Check you turned {0}&apos;s tensioner."/>
@@ -5363,6 +5375,7 @@
   <translation tag="Tool cycle finished" en="Tool cycle finished"/>
   <translation tag="Tool is seated" en="Tool is seated"/>
   <translation tag="Tool may be half seated" en="Tool may be half seated"/>
+  <translation tag="Tool offset calibration complete" en="Tool offset calibration complete"/>
   <translation tag="Tool offsets" en="Tool offsets"/>
   <translation tag="Tool offsets (mm)" en="Tool offsets (mm)"/>
   <translation tag="Tool offsets saved" en="Tool offsets saved"/>
@@ -5648,6 +5661,7 @@
   <translation tag="Volume" en="Volume"/>
   <translation tag="Volume of filament used during ramming" en="Volume of filament used during ramming"/>
   <translation tag="Volume {}%" en="Volume {}%"/>
+  <translation tag="Voron Black and Red" en="Voron Black and Red"/>
   <translation tag="WAITING" en="WAITING"/>
   <translation tag="WEIGHT SYNC" en="WEIGHT SYNC"/>
   <translation tag="WIDTH SENSORS" en="WIDTH SENSORS"/>
@@ -6191,6 +6205,7 @@
   <translation tag="{} matches." en="{} matches."/>
   <translation tag="{} may be half seated on the head. Check it by hand." en="{} may be half seated on the head. Check it by hand."/>
   <translation tag="{} may cause unintended changes. Are you sure?" en="{} may cause unintended changes. Are you sure?"/>
+  <translation tag="{} measured: X {:.3f} Y {:.3f} Z {:.3f} mm" en="{} measured: X {:.3f} Y {:.3f} Z {:.3f} mm"/>
   <translation tag="{} meter reset" en="{} meter reset"/>
   <translation tag="{} min" en="{} min"/>
   <translation tag="{} min ago" en="{} min ago"/>

@@ -340,6 +340,7 @@ translations:
   Accelerometer not responding: '加速度计无响应'
   Accelerometer ready: 加速度传感器就绪
   Accelerometers: 加速度传感器
+  Accents: '强调色'
   Accept: 接受
   'Accepted Z Position: 0.000': '已接受 Z 位置: 0.000'
   'Accepted Z Position: {:.3f}': '已确认 Z 位置：{:.3f}'
@@ -489,6 +490,7 @@ translations:
   Arc moves not supported: '不支持 G2/G3 圆周移动'
   Archive: 归档
   Archive Spool?: 归档料盘？
+  Arctic White: '极地白'
   Are you sure you want to cancel this print? All progress will be lost.: 确定要取消此打印吗？所有进度将丢失。
   Are you sure? This will power off or restart this device.: 确定吗？这将关闭或重启此设备。
   Arrows + Home: '方向键 + 归位'
@@ -672,6 +674,7 @@ translations:
   Bowden tube length to this tool: "到此工具的 Bowden 管长度"
   'Bowden: pull the tube from the extruder end, then pull the filament.': "Bowden:从挤出机端拔出导管,然后拉出耗材。"
   Box: 料盒
+  Box Turtle Green and Gold: 'Box Turtle 经典配色'
   Brand: 品牌
   Brand and material come from Spoolman: 品牌和材料来自 Spoolman
   Brightness: 亮度
@@ -1560,6 +1563,7 @@ translations:
   Downloading... {:.1f}/{:.1f} MB: 下载中... {:.1f}/{:.1f} MB
   Draw a ripple at each touch — helps diagnose offsets: 在每次触摸时绘制涟漪 — 有助于诊断偏移
   Drive Cal: 驱动校准
+  Drive blocks and trim: '驱动块和边条'
   Drop shadow strength (0 = disabled): 阴影强度（0 = 禁用）
   Dropped when the printer restarted: '打印机重启时已丢弃'
   Dry: 烘干
@@ -2132,6 +2136,7 @@ translations:
   Found %zu printers: 找到 %zu 台打印机
   Found 1 printer: 找到 1 台打印机
   Found {} at {}.: '已发现 {}，地址为 {}。'
+  Frame: '框架'
   Framerate: 帧率
   Free space unknown: '可用空间未知'
   Free the spool and pull the filament out of {} by hand, then try again.: 请松开料盘，手动将耗材从 {} 中拉出，然后重试。
@@ -2378,6 +2383,7 @@ translations:
   Homing timed out — printer may still be homing: 回零超时 — 打印机可能仍在回零
   Homing, then probing...: "归位后探测中..."
   Homing...: 正在归零...
+  Honeycomb panels, corner blocks and trays: '格栅面板、角块和底盘'
   Horizontal: 水平
   Host: 主机
   Host Health: 主机状态
@@ -3456,6 +3462,7 @@ translations:
   Options: 选项
   Or Enter Manually: 或手动输入
   Or instead of turning the others: 或者，无需转动其他螺丝
+  Original: '原始'
   Original file location unknown: 原始文件位置未知
   Oscillating... cycle %d/%d: 振荡中... 循环 %d/%d
   Other: 其他
@@ -3507,6 +3514,7 @@ translations:
   Pairing failed: 配对失败
   Pairing...: 正在配对...
   Panel Usage: 面板使用情况
+  Panels and Corners: '面板和角块'
   Paper Test Calibration: 纸张测试校准
   'Paper drags: done': "纸有阻力：完成"
   Parameters: 参数
@@ -4731,6 +4739,7 @@ translations:
   Startup, auto-control, and macro devices: 启动、自动控制和宏设备
   State: 状态
   Static: '静态'
+  Station: '工位'
   Status: 状态
   Status icons: 状态图标
   Stay at the printer.: 请留在打印机旁。
@@ -4738,6 +4747,7 @@ translations:
   Stays on PID: 保持 PID
   Std Deviation: 标准差
   Stealth: 静音
+  Stealth Black: '隐形黑'
   Stealth is quiet, Sport is fastest: 静音最安静，运动最快
   Step: 步骤
   Step 1 of 3: 第 1 步，共 3 步
@@ -5027,6 +5037,7 @@ translations:
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : 更改在 Klipper 重启后生效。将重启 Klipper 固件。所有正在进行的操作将被中断。
   'The change was not applied: the current settings could not be saved for a revert.': '未应用更改：无法保存当前设置以便还原。'
+  The colors this unit was printed in: '这台设备打印时使用的颜色'
   ? The configuration includes or opens a file that is not there, often the include line a removed plugin left behind. Klipper's message names the file.
   : 配置包含或打开了一个不存在的文件，通常是已移除插件留下的 include 行。Klipper 的消息中注明了该文件。
   The configuration names pin '{1}', which board '{2}' does not have.: 配置中指定了引脚 '{1}'，但主板 '{2}' 没有该引脚。
@@ -5087,6 +5098,7 @@ translations:
   ? The firmware's pressure advance tower needs a [pa_test] section in printer.cfg. HelixScreen adds it with a backup and restarts Klipper.
   : "固件的压力提前测试塔需要 printer.cfg 中有 [pa_test] 段。HelixScreen 会先备份再添加，并重启 Klipper。"
   The firmware's test tower is not in the printer's config. Adding it writes one section and restarts Klipper.: "固件的测试塔不在打印机配置中。添加会写入一个段并重启 Klipper。"
+  The frame, posts and rails: '框架、支杆和导轨'
   ? The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong.
   : 龙门需要 {1} mm 的校正，超过允许的 {2} mm。龙门严重不平（撞机后或断电时下垂），或探测点或 Z 电机顺序有误。
   The gap didn't close (moved {:.1f} Hz). Try a bigger turn.: "差距没有缩小(移动了 {:.1f} Hz)。请转得更多一些。"
@@ -5590,6 +5602,7 @@ translations:
   Tool cycle finished: 依次更换工具完成
   Tool is seated: 工具已装好
   Tool may be half seated: "工具可能未完全安装到位"
+  Tool offset calibration complete: '工具偏移校准完成'
   Tool offsets: '工具偏移'
   Tool offsets (mm): 工具偏移 (mm)
   Tool offsets saved: 工具偏移已保存
@@ -5866,6 +5879,7 @@ translations:
   Volume: 音量
   Volume of filament used during ramming: '填充过程中使用的耗材体积'
   Volume {}%: 音量 {}%
+  Voron Black and Red: 'Voron 黑红'
   WAITING: "等待中"
   WEIGHT SYNC: 重量同步
   WIDTH SENSORS: 宽度传感器
@@ -6416,6 +6430,7 @@ translations:
   '{} matches.': '{} 匹配。'
   '{} may be half seated on the head. Check it by hand.': "{} 可能未完全安装到工具头上，请手动检查。"
   '{} may cause unintended changes. Are you sure?': '{} 可能导致意外更改。确定吗？'
+  '{} measured: X {:.3f} Y {:.3f} Z {:.3f} mm': '{} 测量值：X {:.3f} Y {:.3f} Z {:.3f} mm'
   '{} meter reset': '{}计数器已重置'
   '{} min': '{} 分钟'
   '{} min ago': '{} 分钟前'
