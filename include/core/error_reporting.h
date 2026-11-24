@@ -9,6 +9,7 @@
 #include <spdlog/spdlog.h>
 
 #include <string>
+#include <utility>
 
 /**
  * @file error_reporting.h
@@ -68,8 +69,8 @@
 #define NOTIFY_ERROR(msg, ...)                                                                     \
     do {                                                                                           \
         std::string formatted_msg = ::fmt::format(msg, ##__VA_ARGS__);                             \
-        spdlog::error("[USER] {}", formatted_msg);                                                 \
-        ::helix::publish_notification(::helix::NoticeSeverity::ERROR, formatted_msg);              \
+        spdlog::error("[USER] {}", std::move(formatted_msg));                                      \
+        ::helix::publish_notification(::helix::NoticeSeverity::ERROR, std::move(formatted_msg));   \
     } while (0)
 
 /**
@@ -81,8 +82,9 @@
 #define NOTIFY_ERROR_T(title, msg, ...)                                                            \
     do {                                                                                           \
         std::string formatted_msg = ::fmt::format(msg, ##__VA_ARGS__);                             \
-        spdlog::error("[USER] {}: {}", title, formatted_msg);                                      \
-        ::helix::publish_notification(::helix::NoticeSeverity::ERROR, formatted_msg, title);       \
+        spdlog::error("[USER] {}: {}", title, std::move(formatted_msg));                           \
+        ::helix::publish_notification(::helix::NoticeSeverity::ERROR, std::move(formatted_msg),    \
+                                      title);                                                      \
     } while (0)
 
 /**
@@ -94,8 +96,8 @@
 #define NOTIFY_WARNING(msg, ...)                                                                   \
     do {                                                                                           \
         std::string formatted_msg = ::fmt::format(msg, ##__VA_ARGS__);                             \
-        spdlog::warn("[USER] {}", formatted_msg);                                                  \
-        ::helix::publish_notification(::helix::NoticeSeverity::WARNING, formatted_msg);            \
+        spdlog::warn("[USER] {}", std::move(formatted_msg));                                       \
+        ::helix::publish_notification(::helix::NoticeSeverity::WARNING, std::move(formatted_msg)); \
     } while (0)
 
 /**
@@ -104,8 +106,9 @@
 #define NOTIFY_WARNING_T(title, msg, ...)                                                          \
     do {                                                                                           \
         std::string formatted_msg = ::fmt::format(msg, ##__VA_ARGS__);                             \
-        spdlog::warn("[USER] {}: {}", title, formatted_msg);                                       \
-        ::helix::publish_notification(::helix::NoticeSeverity::WARNING, formatted_msg, title);     \
+        spdlog::warn("[USER] {}: {}", title, std::move(formatted_msg));                            \
+        ::helix::publish_notification(::helix::NoticeSeverity::WARNING, std::move(formatted_msg),  \
+                                      title);                                                      \
     } while (0)
 
 /**
@@ -114,8 +117,8 @@
 #define NOTIFY_INFO(msg, ...)                                                                      \
     do {                                                                                           \
         std::string formatted_msg = ::fmt::format(msg, ##__VA_ARGS__);                             \
-        spdlog::info("[USER] {}", formatted_msg);                                                  \
-        ::helix::publish_notification(::helix::NoticeSeverity::INFO, formatted_msg);               \
+        spdlog::info("[USER] {}", std::move(formatted_msg));                                       \
+        ::helix::publish_notification(::helix::NoticeSeverity::INFO, std::move(formatted_msg));    \
     } while (0)
 
 /**
@@ -124,8 +127,9 @@
 #define NOTIFY_INFO_T(title, msg, ...)                                                             \
     do {                                                                                           \
         std::string formatted_msg = ::fmt::format(msg, ##__VA_ARGS__);                             \
-        spdlog::info("[USER] {}: {}", title, formatted_msg);                                       \
-        ::helix::publish_notification(::helix::NoticeSeverity::INFO, formatted_msg, title);        \
+        spdlog::info("[USER] {}: {}", title, std::move(formatted_msg));                            \
+        ::helix::publish_notification(::helix::NoticeSeverity::INFO, std::move(formatted_msg),     \
+                                      title);                                                      \
     } while (0)
 
 /**
@@ -134,8 +138,8 @@
 #define NOTIFY_SUCCESS(msg, ...)                                                                   \
     do {                                                                                           \
         std::string formatted_msg = ::fmt::format(msg, ##__VA_ARGS__);                             \
-        spdlog::info("[USER] {}", formatted_msg);                                                  \
-        ::helix::publish_notification(::helix::NoticeSeverity::SUCCESS, formatted_msg);            \
+        spdlog::info("[USER] {}", std::move(formatted_msg));                                       \
+        ::helix::publish_notification(::helix::NoticeSeverity::SUCCESS, std::move(formatted_msg)); \
     } while (0)
 
 /**
@@ -144,8 +148,9 @@
 #define NOTIFY_SUCCESS_T(title, msg, ...)                                                          \
     do {                                                                                           \
         std::string formatted_msg = ::fmt::format(msg, ##__VA_ARGS__);                             \
-        spdlog::info("[USER] {}: {}", title, formatted_msg);                                       \
-        ::helix::publish_notification(::helix::NoticeSeverity::SUCCESS, formatted_msg, title);     \
+        spdlog::info("[USER] {}: {}", title, std::move(formatted_msg));                            \
+        ::helix::publish_notification(::helix::NoticeSeverity::SUCCESS, std::move(formatted_msg),  \
+                                      title);                                                      \
     } while (0)
 
 // ============================================================================
@@ -161,8 +166,8 @@
 #define NOTIFY_ERROR_MODAL(title, msg, ...)                                                        \
     do {                                                                                           \
         std::string formatted_msg = ::fmt::format(msg, ##__VA_ARGS__);                             \
-        spdlog::error("[CRITICAL] {}: {}", title, formatted_msg);                                  \
-        ::helix::publish_alert(title, formatted_msg);                                              \
+        spdlog::error("[CRITICAL] {}: {}", title, std::move(formatted_msg));                       \
+        ::helix::publish_alert(title, std::move(formatted_msg));                                   \
     } while (0)
 
 // ============================================================================
@@ -217,7 +222,7 @@ class ErrorContext {
     void warning(const char* details) {
         spdlog::warn("[{}] {}", operation_, details);
         std::string msg = ::fmt::format("{}: {}", operation_, details);
-        ::helix::publish_notification(::helix::NoticeSeverity::WARNING, msg);
+        ::helix::publish_notification(::helix::NoticeSeverity::WARNING, std::move(msg));
     }
 
   private:

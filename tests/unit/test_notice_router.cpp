@@ -353,6 +353,29 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Each notice delivery reaches the notificati
         REQUIRE(row != nullptr);
         CHECK(std::string(row->action) == "show_update_modal");
     }
+    SECTION("a titled notification with a detail keeps its title in history") {
+        Notice notice;
+        notice.severity = NoticeSeverity::WARNING;
+        notice.message = "refused";
+        notice.delivery = helix::NoticeDelivery::Notification;
+        notice.title = "Env File";
+        notice.detail = "fix it";
+        publish_notice(notice);
+        drain();
+        const auto rows = NotificationHistory::instance().get_all();
+        const auto* row = history_row(rows, "refused - fix it");
+        REQUIRE(row != nullptr);
+        CHECK(std::string(row->title) == "Env File");
+    }
+    SECTION("an alert with an empty title is still a dialog") {
+        helix::publish_alert("", "untitled failure");
+        drain();
+        CHECK(log.shown.empty());
+        const auto rows = NotificationHistory::instance().get_all();
+        const auto* row = history_row(rows, "untitled failure");
+        REQUIRE(row != nullptr);
+        CHECK(row->was_modal);
+    }
     SECTION("an alert is a dialog") {
         helix::publish_alert("Connection Failed", "unreachable");
         drain();

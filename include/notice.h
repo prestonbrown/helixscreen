@@ -40,10 +40,13 @@ enum class NoticeDelivery : uint8_t {
     /// @ref Notice::history_action.
     HistoryOnly,
     /// A dialog the user must acknowledge, titled @ref Notice::title, plus a
-    /// history row. ERROR only; without a title it is a Notification.
+    /// history row. ERROR only.
     Alert,
 };
 
+/// @ref Notice::duration_ms, the action fields and @ref Notice::keep_in_history
+/// shape a Toast only; the other deliveries take the UI's standard lengths and
+/// their own history rows.
 struct Notice {
     NoticeSeverity severity = NoticeSeverity::INFO;
     std::string message;

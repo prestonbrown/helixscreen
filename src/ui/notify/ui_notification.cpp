@@ -470,6 +470,7 @@ struct DetailNotification {
     std::string detail;
     uint32_t duration_ms;
     std::string joined; ///< The history row: both halves on one line
+    std::string title;  ///< The history row's title; empty when untitled
 };
 
 /// Two-line toast + a joined history row.
@@ -481,7 +482,7 @@ struct DetailNotification {
 /// on the main thread unconditionally, which is what NotificationHistory and
 /// lv_tick_get() need.
 void show_detail_notification(ToastSeverity severity, const char* message, const char* detail,
-                              uint32_t duration_ms) {
+                              uint32_t duration_ms, const char* title = nullptr) {
     if (!message || !*message) {
         spdlog::warn("[Notification] Attempted to show detail notification with empty message");
         return;
@@ -499,9 +500,10 @@ void show_detail_notification(ToastSeverity severity, const char* message, const
 
     // A history row is one line, and the pre-init startup queue only carries
     // one string, so both get the halves joined.
-    auto params = std::make_unique<DetailNotification>(DetailNotification{
-        severity, message, detail, duration_ms, std::string(message) + " - " + detail});
-    report_event(severity, nullptr, params->joined.c_str(), nullptr, duration_ms == 0);
+    auto params = std::make_unique<DetailNotification>(
+        DetailNotification{severity, message, detail, duration_ms,
+                           std::string(message) + " - " + detail, title ? title : ""});
+    report_event(severity, title, params->joined.c_str(), nullptr, duration_ms == 0);
 
     helix::ui::queue_update<DetailNotification>(std::move(params), [](DetailNotification* p) {
         const std::string& joined = p->joined;
@@ -519,7 +521,8 @@ void show_detail_notification(ToastSeverity severity, const char* message, const
         entry.severity = p->severity;
         entry.was_modal = false;
         entry.was_read = false;
-        entry.title[0] = '\0';
+        strncpy(entry.title, p->title.c_str(), sizeof(entry.title) - 1);
+        entry.title[sizeof(entry.title) - 1] = '\0';
         strncpy(entry.message, joined.c_str(), sizeof(entry.message) - 1);
         entry.message[sizeof(entry.message) - 1] = '\0';
 
@@ -664,7 +667,8 @@ void helix::ui::present_notification_notice(const Notice& notice) {
         add_history_only_entry(severity, title, message, or_null(notice.history_action));
         return;
     case NoticeDelivery::Alert:
-        show_error_notification(title, message, /*modal=*/true, /*fault=*/false);
+        // Non-null even when empty: an alert is a dialog whatever its title.
+        show_error_notification(notice.title.c_str(), message, /*modal=*/true, /*fault=*/false);
         return;
     case NoticeDelivery::Notification:
     case NoticeDelivery::Toast:
@@ -672,7 +676,7 @@ void helix::ui::present_notification_notice(const Notice& notice) {
     }
     if (!notice.detail.empty()) {
         show_detail_notification(severity, message, notice.detail.c_str(),
-                                 notice.sticky ? 0 : kDetailToastMs);
+                                 notice.sticky ? 0 : kDetailToastMs, title);
     } else if (severity == ToastSeverity::ERROR) {
         show_error_notification(title, message, /*modal=*/false, /*fault=*/false);
     } else {
