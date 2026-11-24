@@ -113,7 +113,7 @@ static SemaphoreHandle_t s_vsync_sem;
 
 // Restart handshake: the shutdown handler sets s_stopping, the presenter gives
 // s_present_parked from between blits and suspends itself, and only then is the
-// panel it writes deleted.
+// panel stopped.
 static volatile bool s_stopping;
 static SemaphoreHandle_t s_present_parked;
 #define PRESENT_PARK_WAIT_MS 500
@@ -460,7 +460,7 @@ static void present_task(void* arg) {
             y1 = 0;
         if (y2 > BOARD_LCD_V_RES - 1)
             y2 = BOARD_LCD_V_RES - 1;
-        if (y2 >= y1 && !s_stopping) {
+        if (y2 >= y1) {
             present_blit(y1, y2);
             s_presents++;
         }
