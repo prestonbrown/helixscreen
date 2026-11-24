@@ -87,8 +87,8 @@ def test_cli_reads_stdin():
 
 
 def test_indented_code_block_keeps_its_lines():
-    src = "intro\n\n    a = 1\n    b = 2\n\nafter\nwrapped\n"
-    assert unwrap(src) == "intro\n\n    a = 1\n    b = 2\n\nafter wrapped\n"
+    src = "intro\n\n    a = 1\n    - b\n    c = 2\n\nafter\nwrapped\n"
+    assert unwrap(src) == "intro\n\n    a = 1\n    - b\n    c = 2\n\nafter wrapped\n"
 
 
 def test_indented_paragraph_inside_a_list_item_still_joins():
