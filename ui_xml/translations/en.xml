@@ -4577,6 +4577,7 @@
   <translation tag="Startup, auto-control, and macro devices" en="Startup, auto-control, and macro devices"/>
   <translation tag="State" en="State"/>
   <translation tag="Static" en="Static"/>
+  <translation tag="Station" en="Station"/>
   <translation tag="Status" en="Status"/>
   <translation tag="Status icons" en="Status icons"/>
   <translation tag="Stay at the printer." en="Stay at the printer."/>
@@ -5358,6 +5359,7 @@
   <translation tag="Tool cycle finished" en="Tool cycle finished"/>
   <translation tag="Tool is seated" en="Tool is seated"/>
   <translation tag="Tool may be half seated" en="Tool may be half seated"/>
+  <translation tag="Tool offset calibration complete" en="Tool offset calibration complete"/>
   <translation tag="Tool offsets" en="Tool offsets"/>
   <translation tag="Tool offsets (mm)" en="Tool offsets (mm)"/>
   <translation tag="Tool offsets saved" en="Tool offsets saved"/>
@@ -6184,6 +6186,7 @@
   <translation tag="{} matches." en="{} matches."/>
   <translation tag="{} may be half seated on the head. Check it by hand." en="{} may be half seated on the head. Check it by hand."/>
   <translation tag="{} may cause unintended changes. Are you sure?" en="{} may cause unintended changes. Are you sure?"/>
+  <translation tag="{} measured: X {:.3f} Y {:.3f} Z {:.3f} mm" en="{} measured: X {:.3f} Y {:.3f} Z {:.3f} mm"/>
   <translation tag="{} meter reset" en="{} meter reset"/>
   <translation tag="{} min" en="{} min"/>
   <translation tag="{} min ago" en="{} min ago"/>

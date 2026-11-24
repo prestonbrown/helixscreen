@@ -4695,6 +4695,7 @@ translations:
   Startup, auto-control, and macro devices: Startup, auto-control, and macro devices
   State: State
   Static: Static
+  Station: Station
   Status: Status
   Status icons: Status icons
   Stays on MPC: Stays on MPC
@@ -5545,6 +5546,7 @@ translations:
   Tool cycle finished: Tool cycle finished
   Tool is seated: Tool is seated
   Tool may be half seated: Tool may be half seated
+  Tool offset calibration complete: Tool offset calibration complete
   Tool offsets: Tool offsets
   Tool offsets (mm): Tool offsets (mm)
   Tool offsets saved: Tool offsets saved
@@ -6370,6 +6372,7 @@ translations:
   '{} matches.': '{} matches.'
   '{} may be half seated on the head. Check it by hand.': '{} may be half seated on the head. Check it by hand.'
   '{} may cause unintended changes. Are you sure?': '{} may cause unintended changes. Are you sure?'
+  '{} measured: X {:.3f} Y {:.3f} Z {:.3f} mm': '{} measured: X {:.3f} Y {:.3f} Z {:.3f} mm'
   '{} meter reset': '{} meter reset'
   '{} min': '{} min'
   '{} min ago': '{} min ago'

@@ -299,8 +299,7 @@ void AmsBackendToolChanger::unregister_zmod_marker_listener() {
 }
 
 void AmsBackendToolChanger::on_zmod_marker_line(const std::string& line) {
-    if (helix::tool_offset_calibration::parse_progress_line(line)) {
-        helix::tool_offset_calibration::report_progress_line(line);
+    if (helix::tool_offset_calibration::report_progress_line(line)) {
         return;
     }
     if (auto reading = helix::toolchanger_addon::parse_zmod_marker(line)) {

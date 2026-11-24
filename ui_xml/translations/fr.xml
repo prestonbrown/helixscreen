@@ -4583,6 +4583,7 @@
   <translation tag="Startup, auto-control, and macro devices" fr="Démarrage, contrôle auto et appareils macro"/>
   <translation tag="State" fr="État"/>
   <translation tag="Static" fr="Statique"/>
+  <translation tag="Station"/>
   <translation tag="Status" fr="État"/>
   <translation tag="Status icons" fr="Icônes d&apos;état"/>
   <translation tag="Stay at the printer." fr="Restez près de l&apos;imprimante."/>
@@ -5364,6 +5365,7 @@
   <translation tag="Tool cycle finished" fr="Rotation des outils terminée"/>
   <translation tag="Tool is seated" fr="L&apos;outil est en place"/>
   <translation tag="Tool may be half seated" fr="L&apos;outil est peut-être mal engagé"/>
+  <translation tag="Tool offset calibration complete"/>
   <translation tag="Tool offsets" fr="Offsets d&apos;outil"/>
   <translation tag="Tool offsets (mm)" fr="Offsets d&apos;outil (mm)"/>
   <translation tag="Tool offsets saved" fr="Offsets d&apos;outil enregistrés"/>
@@ -6190,6 +6192,7 @@
   <translation tag="{} matches." fr="{} correspond."/>
   <translation tag="{} may be half seated on the head. Check it by hand." fr="{} est peut-être mal engagé sur la tête d&apos;outil. Vérifiez à la main."/>
   <translation tag="{} may cause unintended changes. Are you sure?" fr="{} peut entraîner des modifications non souhaitées. Êtes-vous sûr ?"/>
+  <translation tag="{} measured: X {:.3f} Y {:.3f} Z {:.3f} mm"/>
   <translation tag="{} meter reset" fr="Compteur {} réinitialisé"/>
   <translation tag="{} min" fr="{} min"/>
   <translation tag="{} min ago" fr="il y a {} min"/>

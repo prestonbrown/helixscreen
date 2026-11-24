@@ -556,10 +556,22 @@ void ToolOffsetCalibrationPanel::on_tools_changed() {
 
 namespace {
 
+/// The head's label as the panel rows spell it.
+std::string head_label_for_tool(int tool) {
+    auto& tools = helix::ToolState::instance();
+    for (const helix::PhysicalHead& head : tools.physical_heads()) {
+        if (head.holds_tool(tool)) {
+            return helix::ui::active_head_label(tools.head_identity(head),
+                                                helix::ui::ToolLabelForm::Code);
+        }
+    }
+    return helix::ui::tool_label(tool);
+}
+
 /// A printer-prompt calibration has no panel; its steps surface as toasts.
 void show_calibration_progress(const cal::ProgressEvent& event) {
     const std::string target =
-        event.station ? std::string(lv_tr("Station")) : fmt::format("T{}", event.tool);
+        event.station ? std::string(lv_tr("Station")) : head_label_for_tool(event.tool);
     switch (event.kind) {
     case cal::ProgressEvent::Kind::Started:
         NOTIFY_INFO("{}", fmt::format(fmt::runtime(lv_tr("Measuring {}")), target));

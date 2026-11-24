@@ -1121,9 +1121,12 @@ TEST_CASE("Z-Mod calibration console lines reach the progress sink",
     CHECK(cal::is_progress_line("// Calibration complete."));
     CHECK_FALSE(cal::is_progress_line("// echo: ok"));
 
+    // The completion sentence is untagged, so only a run in progress owns it.
+    CHECK_FALSE(cal::report_progress_line("// Calibration complete."));
     cal::report_progress_line("// [CALIB] T3: X=0.250000 Y=-0.125000 Z=0.040000");
     cal::report_progress_line("// [CALIB] T1: Skipped (parameter T1=0)");
-    cal::report_progress_line("// Calibration complete.");
+    CHECK(cal::report_progress_line("// Calibration complete."));
+    CHECK_FALSE(cal::report_progress_line("// Calibration complete."));
     cal::report_progress_line("// echo: ok");
     cal::set_progress_sink(nullptr);
 
@@ -1133,4 +1136,17 @@ TEST_CASE("Z-Mod calibration console lines reach the progress sink",
     CHECK(heard[0].z_um == 40);
     CHECK(heard[1].kind == cal::ProgressEvent::Kind::Skipped);
     CHECK(heard[2].kind == cal::ProgressEvent::Kind::Complete);
+}
+
+TEST_CASE("Z-Mod's Russian completion sentence and garbled coordinates",
+          "[toolchanger][zmod][calibration]") {
+    using Kind = toolchanger_addon::ZmodCalibrationStep::Kind;
+    auto done = toolchanger_addon::parse_zmod_calibration_line("// Калибровка завершена.");
+    REQUIRE(done.has_value());
+    CHECK(done->kind == Kind::Complete);
+
+    CHECK_FALSE(toolchanger_addon::parse_zmod_calibration_line(
+        "// [CALIB] T0: X=nan Y=0.000000 Z=0.000000"));
+    CHECK_FALSE(toolchanger_addon::parse_zmod_calibration_line(
+        "// [CALIB] T0: X=1e30 Y=0.000000 Z=0.000000"));
 }

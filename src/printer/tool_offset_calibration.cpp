@@ -98,6 +98,14 @@ ProgressSink& progress_sink() {
     return sink;
 }
 
+/// A run is in progress from its first tagged line until its completion line.
+/// The completion sentence carries no tag, so a macro that prints the same words
+/// outside a run must not read as one.
+bool& run_in_progress() {
+    static bool active = false;
+    return active;
+}
+
 } // namespace
 
 bool is_progress_line(const std::string& line) {
@@ -138,11 +146,23 @@ void set_progress_sink(ProgressSink sink) {
     progress_sink() = std::move(sink);
 }
 
-void report_progress_line(const std::string& line) {
+bool report_progress_line(const std::string& line) {
     const auto event = parse_progress_line(line);
-    if (event && progress_sink()) {
+    if (!event) {
+        return false;
+    }
+    if (event->kind == ProgressEvent::Kind::Complete) {
+        if (!run_in_progress()) {
+            return false;
+        }
+        run_in_progress() = false;
+    } else {
+        run_in_progress() = true;
+    }
+    if (progress_sink()) {
         progress_sink()(*event);
     }
+    return true;
 }
 
 Procedure resolve_procedure(const PrinterDiscovery& hw) {

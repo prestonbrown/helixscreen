@@ -521,6 +521,12 @@ std::optional<ZmodCalibrationStep> parse_zmod_calibration_line(const std::string
         if (!mm) {
             return std::nullopt;
         }
+        // A position is a few hundred mm at most; nan, inf or a runaway value is
+        // a garbled line, not a reading.
+        constexpr double kMaxPositionMm = 10000.0;
+        if (!std::isfinite(*mm) || std::fabs(*mm) > kMaxPositionMm) {
+            return std::nullopt;
+        }
         return static_cast<int>(std::lround(*mm * 1000.0));
     };
     step.x_um = axis("X=");

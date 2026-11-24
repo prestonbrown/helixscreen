@@ -95,8 +95,9 @@ std::optional<ProgressEvent> parse_progress_line(const std::string& line);
 using ProgressSink = std::function<void(const ProgressEvent&)>;
 void set_progress_sink(ProgressSink sink);
 
-/// Parse @p line and hand the step to the sink. Main thread.
-void report_progress_line(const std::string& line);
+/// Parse @p line and hand the step to the sink. True when the line was a step of
+/// a run; a completion sentence with no run in progress is not one. Main thread.
+bool report_progress_line(const std::string& line);
 
 /// The procedure the Tool Offsets entry runs on this printer.
 Procedure resolve_procedure(const PrinterDiscovery& hw);

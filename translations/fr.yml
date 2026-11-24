@@ -4738,6 +4738,7 @@ translations:
   Startup, auto-control, and macro devices: Démarrage, contrôle auto et appareils macro
   State: État
   Static: 'Statique'
+  Station: ''
   Status: État
   Status icons: Icônes d'état
   Stay at the printer.: Restez près de l'imprimante.
@@ -5597,6 +5598,7 @@ translations:
   Tool cycle finished: Rotation des outils terminée
   Tool is seated: L'outil est en place
   Tool may be half seated: "L'outil est peut-être mal engagé"
+  Tool offset calibration complete: ''
   Tool offsets: 'Offsets d''outil'
   Tool offsets (mm): Offsets d'outil (mm)
   Tool offsets saved: Offsets d'outil enregistrés
@@ -6421,6 +6423,7 @@ translations:
   '{} matches.': '{} correspond.'
   '{} may be half seated on the head. Check it by hand.': "{} est peut-être mal engagé sur la tête d'outil. Vérifiez à la main."
   '{} may cause unintended changes. Are you sure?': '{} peut entraîner des modifications non souhaitées. Êtes-vous sûr ?'
+  '{} measured: X {:.3f} Y {:.3f} Z {:.3f} mm': ''
   '{} meter reset': 'Compteur {} réinitialisé'
   '{} min': '{} min'
   '{} min ago': il y a {} min
