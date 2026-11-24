@@ -16,6 +16,9 @@
  */
 class EmergencyStopOverlayTestAccess {
   public:
+    static int machine_busy_count(const EmergencyStopOverlay& o) {
+        return o.machine_busy_count_;
+    }
     static RecoveryReason recovery_reason(const EmergencyStopOverlay& o) {
         return o.recovery_reason_;
     }

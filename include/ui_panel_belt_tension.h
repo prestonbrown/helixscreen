@@ -5,6 +5,7 @@
 
 #include "ui_belt_names_modal.h"
 #include "ui_belt_retest_menu.h"
+#include "ui_calibration_holds.h"
 #include "ui_widget_ref.h"
 
 #include "belt_gating.h"
@@ -200,7 +201,15 @@ class BeltTensionPanel : public OverlayBase {
     /// ALREADY_MATCHED's secondary action: go on to the calibration turn.
     void handle_tune_calibrate_anyway_clicked();
 
+    /// What a view holds: a sweep shakes the machine; the tuning loop waits on the
+    /// user's hands on a tensioner, so the screen stays awake through it.
+    [[nodiscard]] static helix::calibration::StageNeeds stage_needs(ViewState view,
+                                                                    TunePhase phase);
+
   private:
+    helix::calibration::StageHolds holds_;
+    /// Applies stage_needs() for the current view and tune phase.
+    void refresh_holds();
     /// One path's measurement history. `previous` holds the curve the
     /// re-test is measuring against, so RESULTS can ghost it.
     struct PathRun {

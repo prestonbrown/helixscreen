@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "ui_belt_cutter_cal.h"
 
+#include "ui_calibration_holds.h"
 #include "ui_callback_helpers.h"
 #include "ui_error_reporting.h"
 
@@ -68,7 +69,8 @@ void send(IMoonrakerAPI* api, std::string gcode, const char* log_name, const cha
     cmd.display_name = lv_tr(display_key);
     cmd.timeout_ms = timeout_ms;
     // Both routines home X and Y themselves.
-    start_calibration_gcode(api, cmd, /*needs_home=*/false, "[BeltCutterCal]");
+    helix::calibration::start_held_calibration_gcode(api, cmd, /*needs_home=*/false,
+                                                     "[BeltCutterCal]");
 }
 
 } // namespace

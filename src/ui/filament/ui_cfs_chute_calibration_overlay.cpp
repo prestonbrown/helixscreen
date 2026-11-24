@@ -59,6 +59,7 @@ ICfsCalibration* chute_backend() {
 } // namespace
 
 CfsChuteCalibrationOverlay::~CfsChuteCalibrationOverlay() {
+    holds_.release();
     if (subjects_initialized_) {
         subjects_.deinit_all();
     }
@@ -182,6 +183,7 @@ void CfsChuteCalibrationOverlay::on_deactivating(DeactivateReason reason) {
     if (reason == DeactivateReason::Suspended) {
         return;
     }
+    holds_.release();
     // Leaving mid-flow must stop the step chain: the flag first, so a cancel
     // during the home is already visible when the home-done defer runs.
     cancel_requested_->store(true);
@@ -206,8 +208,14 @@ void CfsChuteCalibrationOverlay::on_ui_destroyed() {
 
 // STEP MACHINE
 
+helix::calibration::StageNeeds CfsChuteCalibrationOverlay::stage_needs(State state) {
+    const bool busy = state == State::HOMING || state == State::ADJUSTING || state == State::SAVING;
+    return {/*machine_busy=*/busy, /*hands_on=*/state == State::ADJUSTING};
+}
+
 void CfsChuteCalibrationOverlay::set_state(State state) {
     lv_subject_set_int(&s_cfs_chute_state, static_cast<int>(state));
+    holds_.apply(stage_needs(state));
 }
 
 void CfsChuteCalibrationOverlay::start_calibration() {

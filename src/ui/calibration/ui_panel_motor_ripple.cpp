@@ -81,6 +81,7 @@ MotorRipplePanel& get_motor_ripple_panel() {
 MotorRipplePanel::MotorRipplePanel() = default;
 
 MotorRipplePanel::~MotorRipplePanel() {
+    holds_.release();
     runner_.reset();
     deinit_subjects_base(subjects_);
 }
@@ -176,14 +177,20 @@ void MotorRipplePanel::on_dismissed() {
         spdlog::info("[MotorRipple] Closed mid-run: cancelling");
         runner_->cancel();
     }
+    holds_.release();
 }
 
 void MotorRipplePanel::on_ui_destroyed() {
     destroy_chart();
 }
 
+helix::calibration::StageNeeds MotorRipplePanel::stage_needs(View view) {
+    return {/*machine_busy=*/view == View::Running, /*hands_on=*/false};
+}
+
 void MotorRipplePanel::set_view(View v) {
     lv_subject_set_int(&view_, static_cast<int>(v));
+    holds_.apply(stage_needs(v));
 }
 
 void MotorRipplePanel::fail(const std::string& reason) {

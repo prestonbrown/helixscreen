@@ -361,6 +361,7 @@ void ZOffsetCalibrationPanel::on_deactivating(DeactivateReason reason) {
 
 void ZOffsetCalibrationPanel::cleanup() {
     spdlog::debug("[ZOffsetCal] Cleaning up");
+    holds_.release();
 
     // Cancel any pending operation timeout
     operation_guard_.end();
@@ -392,11 +393,18 @@ void ZOffsetCalibrationPanel::on_ui_destroyed() {
 
 // STATE MANAGEMENT
 
+helix::calibration::StageNeeds ZOffsetCalibrationPanel::stage_needs(State state) {
+    const bool busy =
+        state == State::WARMING || state == State::PROBING || state == State::ADJUSTING;
+    return {/*machine_busy=*/busy, /*hands_on=*/state == State::ADJUSTING};
+}
+
 void ZOffsetCalibrationPanel::set_state(State new_state) {
     spdlog::debug("[ZOffsetCal] State change: {} -> {}", static_cast<int>(state_),
                   static_cast<int>(new_state));
     const State old_state = state_;
     state_ = new_state;
+    holds_.apply(stage_needs(new_state));
     if (new_state == State::ADJUSTING && old_state != State::ADJUSTING) {
         begin_adjust_session(old_state == State::PROBING);
     }

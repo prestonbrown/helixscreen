@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "ui_calibration_holds.h"
+
 #include "async_lifetime_guard.h"
 #include "core/observer_guard.h"
 #include "core/operation_timeout_guard.h"
@@ -137,6 +139,8 @@ class ToolOffsetCalibrationPanel : public OverlayBase {
 
   private:
     void on_run_finished(bool ok, const std::string& error);
+    /// The run flag, its subject and the E-stop hold, together.
+    void set_run_active(bool active);
     /// Repaint every row from ToolState
     void refresh_rows();
     void refresh_row_values(int head_index);
@@ -154,6 +158,7 @@ class ToolOffsetCalibrationPanel : public OverlayBase {
     /// A calibration rpc is in flight (or being waited out, see
     /// begin_idle_wait). Cleared by its completion, a failure, or Stop.
     bool run_active_ = false;
+    helix::calibration::StageHolds holds_;
     /// Text of the failure that ended the last run or save; empty when it
     /// succeeded. on_activate() shows it, so a failure survives leaving the
     /// panel and coming back.

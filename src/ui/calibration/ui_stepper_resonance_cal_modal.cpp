@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "ui_stepper_resonance_cal_modal.h"
 
+#include "ui_calibration_holds.h"
 #include "ui_callback_helpers.h"
 #include "ui_error_reporting.h"
 
@@ -118,8 +119,8 @@ void start_stepper_resonance_cal(int tool) {
     cmd.host_effect =
         procedure.restarts_klipper ? MacroHostEffect::Restarts : MacroHostEffect::None;
     cmd.timeout_ms = kCalibrationTimeoutMs;
-    start_calibration_gcode(get_moonraker_api(), cmd, procedure.needs_home,
-                            "[StepperResonanceCal]");
+    helix::calibration::start_held_calibration_gcode(get_moonraker_api(), cmd, procedure.needs_home,
+                                                     "[StepperResonanceCal]");
 }
 
 void init_stepper_resonance_cal_row_handler() {

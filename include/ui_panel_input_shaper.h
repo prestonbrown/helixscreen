@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "ui_calibration_holds.h"
 #include "ui_frequency_response_chart.h"
 #include "ui_shaper_sweep_chart.h"
 #include "ui_widget_ref.h"
@@ -209,7 +210,11 @@ class InputShaperPanel : public OverlayBase {
     void handle_chip_x_clicked(int index);
     void handle_chip_y_clicked(int index);
 
+    /// What a state holds: MEASURING shakes the machine, so the E-stop shows.
+    [[nodiscard]] static helix::calibration::StageNeeds stage_needs(State state);
+
   private:
+    helix::calibration::StageHolds holds_;
     friend class InputShaperPanelTestAccess;
 
     // Subject manager for RAII cleanup

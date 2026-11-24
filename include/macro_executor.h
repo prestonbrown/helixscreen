@@ -244,6 +244,9 @@ struct MachineGcode {
     MacroHostEffect host_effect = MacroHostEffect::None;
     /// 0 means IMoonrakerAPI::kMacroTimeoutMs.
     uint32_t timeout_ms = 0;
+    /// Runs once on the main thread when the send is over, whatever the outcome:
+    /// answered, failed, absorbed, refused before sending, or homing failed.
+    std::function<void()> on_finished;
 };
 
 /// Send @p cmd and report its outcome. A null @p api logs and sends nothing.

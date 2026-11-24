@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_calibration_holds.h"
+
 #include "calibration_owned_heat.h"
 #include "core/observer_guard.h"
 #include "core/operation_timeout_guard.h"
@@ -188,7 +190,12 @@ class ZOffsetCalibrationPanel : public OverlayBase {
      */
     void on_calibration_result(bool success, const std::string& message);
 
+    /// What a state holds: warming and probing move or heat the machine; the paper
+    /// test also needs the user's hands, so the screen stays awake through it.
+    [[nodiscard]] static helix::calibration::StageNeeds stage_needs(State state);
+
   private:
+    helix::calibration::StageHolds holds_;
     void on_ui_destroyed() override;
 
     // API reference

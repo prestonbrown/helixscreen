@@ -576,6 +576,7 @@ void BeltTensionPanel::on_deactivating(DeactivateReason reason) {
 
 void BeltTensionPanel::cleanup() {
     spdlog::debug("[BeltTension] Cleaning up");
+    holds_.release();
 
     cancel_run();
     clear_previews();
@@ -634,6 +635,18 @@ void BeltTensionPanel::set_view_state(ViewState state) {
     }
 
     place_chart(state);
+    refresh_holds();
+}
+
+helix::calibration::StageNeeds BeltTensionPanel::stage_needs(ViewState view, TunePhase phase) {
+    const bool tuning = view == ViewState::TUNING;
+    const bool sweeping = view == ViewState::RUNNING || (tuning && phase == TunePhase::SWEEPING);
+    return {/*machine_busy=*/sweeping, /*hands_on=*/tuning};
+}
+
+void BeltTensionPanel::refresh_holds() {
+    holds_.apply(stage_needs(static_cast<ViewState>(lv_subject_get_int(&s_belt_tension_state)),
+                             tune_phase_));
 }
 
 lv_obj_t* BeltTensionPanel::chart_host_for(ViewState state) const {
@@ -1786,6 +1799,7 @@ void BeltTensionPanel::set_tune_phase(TunePhase phase) {
     tune_phase_ = phase;
     lv_subject_set_int(&tune_phase_subject_, static_cast<int>(phase));
     refresh_tune();
+    refresh_holds();
 }
 
 void BeltTensionPanel::reset_tune_turns() {

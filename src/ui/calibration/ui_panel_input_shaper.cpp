@@ -500,6 +500,7 @@ void InputShaperPanel::on_deactivating(DeactivateReason reason) {
 
 void InputShaperPanel::cleanup() {
     spdlog::debug("[InputShaper] Cleaning up");
+    holds_.release();
 
     // Expire all outstanding async tokens
     lifetime_.invalidate();
@@ -552,7 +553,12 @@ void InputShaperPanel::on_ui_destroyed() {
 
 // STATE MANAGEMENT
 
+helix::calibration::StageNeeds InputShaperPanel::stage_needs(State state) {
+    return {/*machine_busy=*/state == State::MEASURING, /*hands_on=*/false};
+}
+
 void InputShaperPanel::set_state(State new_state) {
+    holds_.apply(stage_needs(new_state));
     spdlog::debug("[InputShaper] State change: {} -> {}", static_cast<int>(state_),
                   static_cast<int>(new_state));
     if (new_state != State::MEASURING) {

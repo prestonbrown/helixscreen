@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "ui_calibration_holds.h"
 #include "ui_widget_ref.h"
 
 #include "calibration_types.h" // For ScrewTiltResult
@@ -159,7 +160,12 @@ class ScrewsTiltPanel : public OverlayBase {
     /// Open the share modal: full result set as text + QR for a phone.
     void handle_share_clicked();
 
+    /// What a state holds: PROBING moves the machine; RESULTS waits on the user
+    /// turning screws, so the screen stays awake.
+    [[nodiscard]] static helix::calibration::StageNeeds stage_needs(State state);
+
   private:
+    helix::calibration::StageHolds holds_;
     // State management
     State state_ = State::IDLE;
     void set_state(State new_state);

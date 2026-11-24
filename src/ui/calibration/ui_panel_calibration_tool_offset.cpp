@@ -2,6 +2,7 @@
 
 #include "ui_panel_calibration_tool_offset.h"
 
+#include "ui_calibration_holds.h"
 #include "ui_callback_helpers.h"
 #include "ui_emergency_stop.h"
 #include "ui_error_reporting.h"
@@ -161,6 +162,7 @@ void ToolOffsetCalibrationPanel::on_deactivating(DeactivateReason reason) {
 
 void ToolOffsetCalibrationPanel::cleanup() {
     object_lifetime_.invalidate();
+    holds_.release();
     finish_idle_wait();
     tools_observer_.reset();
     active_tool_observer_.reset();
@@ -303,9 +305,8 @@ void ToolOffsetCalibrationPanel::begin_run() {
         NOTIFY_ERROR("{}", lv_tr("No tools to calibrate"));
         return;
     }
-    run_active_ = true;
+    set_run_active(true);
     last_error_.clear();
-    lv_subject_set_int(&active_, 1);
     lv_subject_set_string(&status_, lv_tr("Calibrating..."));
 
     spdlog::info("[ToolOffsetCal] Running {} over {} tools", gcode, tool_count);
@@ -399,13 +400,19 @@ void ToolOffsetCalibrationPanel::finish_idle_wait() {
     idle_wait_backstop_.end();
 }
 
+void ToolOffsetCalibrationPanel::set_run_active(bool active) {
+    run_active_ = active;
+    lv_subject_set_int(&active_, active ? 1 : 0);
+    // A run heats and probes every tool: the E-stop shows until it ends.
+    holds_.apply(helix::calibration::StageNeeds{/*machine_busy=*/active, /*hands_on=*/false});
+}
+
 void ToolOffsetCalibrationPanel::on_run_finished(bool ok, const std::string& error) {
     if (!run_active_) {
         return; // a Stop already settled it
     }
     finish_idle_wait();
-    run_active_ = false;
-    lv_subject_set_int(&active_, 0);
+    set_run_active(false);
 
     if (ok) {
         spdlog::info("[ToolOffsetCal] Calibration finished");
@@ -441,8 +448,7 @@ bool ToolOffsetCalibrationPanel::abort_in_progress_calibration() {
     // shutdown as the run's failure.
     object_lifetime_.invalidate();
     finish_idle_wait();
-    run_active_ = false;
-    lv_subject_set_int(&active_, 0);
+    set_run_active(false);
     lv_subject_set_string(&status_, lv_tr("Stopped"));
 
     helix::emergency_stop_and_restart(api, "ToolOffsetCal");
@@ -625,7 +631,8 @@ void open_tool_offset_cal_panel(lv_obj_t* parent_screen) {
         cmd.gcode = procedure.gcode;
         cmd.log_name = procedure.gcode;
         cmd.display_name = lv_tr("Tool Offsets");
-        start_calibration_gcode(get_moonraker_api(), cmd, /*needs_home=*/false, "[ToolOffsetCal]");
+        helix::calibration::start_held_calibration_gcode(get_moonraker_api(), cmd,
+                                                         /*needs_home=*/false, "[ToolOffsetCal]");
         return;
     }
     case cal::ProcedureKind::Panel:

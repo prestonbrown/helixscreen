@@ -508,6 +508,7 @@ void PIDCalibrationPanel::on_deactivating(DeactivateReason reason) {
 
 void PIDCalibrationPanel::cleanup() {
     spdlog::debug("[PIDCal] Cleaning up");
+    holds_.release();
     run_lifetime_.invalidate();
     cancel_klippy_ready_wait();
     active_tool_observer_.reset();
@@ -555,6 +556,10 @@ void PIDCalibrationPanel::turn_off_fan() {
 
 // STATE MANAGEMENT
 
+helix::calibration::StageNeeds PIDCalibrationPanel::stage_needs(State state) {
+    return {/*machine_busy=*/state == State::CALIBRATING, /*hands_on=*/false};
+}
+
 void PIDCalibrationPanel::set_state(State new_state) {
     spdlog::debug("[PIDCal] State change: {} -> {}", static_cast<int>(state_),
                   static_cast<int>(new_state));
@@ -565,6 +570,7 @@ void PIDCalibrationPanel::set_state(State new_state) {
     }
 
     state_ = new_state;
+    holds_.apply(stage_needs(new_state));
 
     // Update subjects - XML bindings handle visibility automatically
     // State mapping: 0=IDLE, 1=CALIBRATING, 2=SAVING, 3=COMPLETE, 4=ERROR, 5=MIGRATING

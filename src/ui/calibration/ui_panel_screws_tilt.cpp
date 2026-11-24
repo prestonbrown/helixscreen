@@ -240,6 +240,7 @@ void ScrewsTiltPanel::on_deactivating(DeactivateReason reason) {
 
 void ScrewsTiltPanel::cleanup() {
     spdlog::debug("[ScrewsTilt] Cleanup called");
+    holds_.release();
 
     // Unregister from NavigationManager
     if (overlay_root_) {
@@ -251,10 +252,15 @@ void ScrewsTiltPanel::cleanup() {
 
 // STATE MANAGEMENT
 
+helix::calibration::StageNeeds ScrewsTiltPanel::stage_needs(State state) {
+    return {/*machine_busy=*/state == State::PROBING, /*hands_on=*/state == State::RESULTS};
+}
+
 void ScrewsTiltPanel::set_state(State new_state) {
     spdlog::debug("[ScrewsTilt] State change: {} -> {}", static_cast<int>(state_),
                   static_cast<int>(new_state));
     state_ = new_state;
+    holds_.apply(stage_needs(new_state));
 
     // Update subject - XML bindings handle visibility automatically
     // State mapping: 0=IDLE, 1=PROBING, 2=RESULTS, 3=ERROR

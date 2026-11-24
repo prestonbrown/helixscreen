@@ -104,9 +104,17 @@ SnapmakerNozzleOffsetOverlay::Screen nozzle_offset_screen(Phase phase,
     return Screen::Intro;
 }
 
+helix::calibration::StageNeeds
+nozzle_offset_stage_needs(SnapmakerNozzleOffsetOverlay::Screen screen) {
+    using Screen = SnapmakerNozzleOffsetOverlay::Screen;
+    const bool hands = screen == Screen::CleanNozzle || screen == Screen::RemovePlate;
+    return {/*machine_busy=*/hands || screen == Screen::Working, /*hands_on=*/hands};
+}
+
 SnapmakerNozzleOffsetOverlay::SnapmakerNozzleOffsetOverlay() : runner_(make_hooks()) {}
 
 SnapmakerNozzleOffsetOverlay::~SnapmakerNozzleOffsetOverlay() {
+    holds_.release();
     if (subjects_initialized_) {
         subjects_.deinit_all();
     }
@@ -280,6 +288,7 @@ void SnapmakerNozzleOffsetOverlay::refresh() {
     const Phase phase = runner_.phase();
     const nozzle_offset::Step* step = runner_.current_step();
     const auto screen = nozzle_offset_screen(phase, runner_.prompt());
+    holds_.apply(nozzle_offset_stage_needs(screen));
 
     if (screen == Screen::Working) {
         lv_subject_set_string(&s_title, step_title(phase, step).c_str());

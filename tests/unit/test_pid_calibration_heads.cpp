@@ -405,6 +405,22 @@ TEST_CASE_METHOD(PidHeadsFixture, "Leaving a calibrating panel stops only what n
     helix::test::set_wire_state(get_printer_state(), PrintJobState::STANDBY);
 }
 
+TEST_CASE_METHOD(PidHeadsFixture, "A heating calibration shows the E-stop until it ends",
+                 "[pid][calibration_holds]") {
+    get_printer_state().init_subjects(false);
+    load_tools(nlohmann::json::array({"extruder", "heater_bed"}));
+    Access::activate(panel);
+    REQUIRE_FALSE(Access::holds_machine_busy(panel));
+    start();
+    REQUIRE(panel.get_state() == PIDCalibrationPanel::State::CALIBRATING);
+    CHECK(Access::holds_machine_busy(panel));
+
+    // Walking away aborts the run and drops the hold with it.
+    panel.on_deactivating(DeactivateReason::NavigateAway);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK_FALSE(Access::holds_machine_busy(panel));
+}
+
 namespace {
 std::string progress_text() {
     lv_subject_t* s = lv_xml_get_subject(nullptr, "pid_progress_text");

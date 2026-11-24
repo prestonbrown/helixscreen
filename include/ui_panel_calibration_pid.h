@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "ui_calibration_holds.h"
 #include "ui_head_picker.h"
 #include "ui_temp_graph.h"
 
@@ -148,6 +149,9 @@ class PIDCalibrationPanel : public OverlayBase {
     /// Rough minutes a run takes, shown before it starts. Measuring the part
     /// fan adds MPC's fan breakpoints.
     [[nodiscard]] static int estimate_minutes(Heater heater, CalibMethod method, bool measure_fan);
+
+    /// What a state holds: CALIBRATING heats, so the E-stop shows.
+    [[nodiscard]] static helix::calibration::StageNeeds stage_needs(State state);
 
     /// What a heater card says will happen to its control.
     enum class HeaterNote { StaysPid, StaysMpc, SwitchesToMpc, SwitchesToPid };
@@ -301,6 +305,7 @@ class PIDCalibrationPanel : public OverlayBase {
     }
 
   private:
+    helix::calibration::StageHolds holds_;
     // Client/API references
     // Note: overlay_root_ inherited from OverlayBase
     helix::IMoonrakerAPI* api_ = nullptr;
