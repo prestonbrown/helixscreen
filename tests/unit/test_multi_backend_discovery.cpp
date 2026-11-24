@@ -509,6 +509,27 @@ TEST_CASE_METHOD(MultiBackendFixture,
     CHECK(systems[0].type == helix::AmsType::AD5X_IFS);
 }
 
+TEST_CASE_METHOD(MultiBackendFixture,
+                 "PrinterDiscovery: the full AFC add-on on Z-Mod keeps the AFC backend",
+                 "[ams][afc][ad5x][multi-backend][2033]") {
+    helix::PrinterDiscovery hw;
+    // zmod_afc_full's ad5x_afc.cfg: [AFC], [AFC_extruder extruder], [AFC_hub IFS],
+    // [AFC_IFS IFS] and four lanes, beside Z-Mod's own zmod_color and IFS sensor.
+    auto objects = zmod_builtin_afc_objects();
+    objects.push_back("filament_motion_sensor ifs_motion_sensor");
+    objects.push_back("AFC_extruder extruder");
+    objects.push_back("AFC_hub IFS");
+    objects.push_back("zmod_afc_full");
+    hw.parse_objects(objects);
+
+    REQUIRE(hw.has_mmu());
+    CHECK_FALSE(hw.has_zmod_afc());
+    CHECK(hw.mmu_type() == helix::AmsType::AFC);
+    const auto& systems = hw.detected_ams_systems();
+    REQUIRE(systems.size() == 1);
+    CHECK(systems[0].type == helix::AmsType::AFC);
+}
+
 TEST_CASE_METHOD(MultiBackendFixture, "PrinterDiscovery: AFC lanes without zmod_color stay AFC",
                  "[ams][afc][multi-backend][2033]") {
     helix::PrinterDiscovery hw;
