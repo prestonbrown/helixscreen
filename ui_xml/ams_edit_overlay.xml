@@ -424,19 +424,17 @@
           <text_small name="save_error"
                       width="1" height="#button_height" flex_grow="1" long_mode="dots" bind_text="ams_edit_save_error"
                       style_text_color="#danger">
-            <bind_flag_if cond="ams_edit_save_state ne 2 or ams_lane_records_ready eq 0" flag="hidden"/>
+            <bind_flag_if cond="ams_edit_save_state ne 2" flag="hidden"/>
           </text_small>
           <text_small name="clear_hint"
                       width="1" flex_grow="1" bind_text="ams_edit_clear_hint" long_mode="wrap"
                       style_text_color="#text_muted">
-            <bind_flag_if cond="ams_edit_clear_blocked eq 0 or ams_edit_save_state eq 2 or ams_lane_records_ready eq 0"
-                          flag="hidden"/>
+            <bind_flag_if cond="ams_edit_clear_blocked eq 0 or ams_edit_save_state eq 2" flag="hidden"/>
           </text_small>
           <lv_obj width="1"
                   height="content" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
                   scrollable="false" clickable="false">
-            <bind_flag_if cond="ams_edit_clear_blocked eq 1 or ams_edit_save_state eq 2 or ams_lane_records_ready eq 0"
-                          flag="hidden"/>
+            <bind_flag_if cond="ams_edit_clear_blocked eq 1 or ams_edit_save_state eq 2" flag="hidden"/>
           </lv_obj>
           <ui_button name="btn_edit_save"
                      width="content" height="#button_height" icon="check" text="Save" variant="primary"
