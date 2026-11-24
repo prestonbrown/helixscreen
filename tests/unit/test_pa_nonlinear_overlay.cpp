@@ -1,16 +1,23 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_component_keypad.h"
+#include "ui_modal.h"
+#include "ui_nav_manager.h"
 #include "ui_overlay_pa_nonlinear.h"
 
-#include "../lvgl_test_fixture.h"
+#include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/scoped_env.h"
 #include "app_globals.h"
+#include "config.h"
 #include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+
+#include <array>
+#include <initializer_list>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -21,7 +28,24 @@ using nlohmann::json;
 
 namespace {
 
-struct NonlinearFixture : LVGLTestFixture {
+/// The procedure saved under the printer's settings, gone.
+void clear_saved_session() {
+    auto* cfg = Config::get_instance();
+    if (!cfg->exists(cfg->df() + "pa_nonlinear_session")) {
+        return;
+    }
+    std::string printer = cfg->df();
+    printer.pop_back();
+    cfg->get_json(printer).erase("pa_nonlinear_session");
+}
+
+bool session_saved() {
+    auto* cfg = Config::get_instance();
+    return cfg->exists(cfg->df() + "pa_nonlinear_session");
+}
+
+// LVGLUITestFixture: the confirm dialogs and the keypad are XML components.
+struct NonlinearFixture : LVGLUITestFixture {
     // Firmware with selectable models, and its tower module unless a case
     // says otherwise. Declared before the client, which reads them.
     helix::ScopedEnv pa_model_env;
@@ -49,8 +73,10 @@ struct NonlinearFixture : LVGLTestFixture {
         overlay.set_api(&api);
         overlay.set_raise_on_start_for_test(false);
         status({{"extruder", {{"pressure_advance_model", "linear"}, {"pressure_advance", 0.04}}}});
+        clear_saved_session();
     }
     ~NonlinearFixture() override {
+        clear_saved_session();
         overlay.cleanup();
         status({{"print_stats", {{"state", "standby"}, {"filename", ""}}}});
         client.disconnect();
@@ -74,6 +100,25 @@ struct NonlinearFixture : LVGLTestFixture {
     void tower(const char* state) {
         status({{"print_stats",
                  {{"state", state}, {"filename", PaNonlinearOverlay::kTowerPrintName}}}});
+    }
+
+    /// Print the current pass and let the tower end in @p end.
+    void print_tower(const char* end = "complete") {
+        overlay.print_pass_for_test();
+        helix::ui::UpdateQueue::instance().drain();
+        tower("printing");
+        tower(end);
+        helix::ui::UpdateQueue::instance().drain();
+    }
+
+    /// Press @p button ("btn_primary" / "btn_secondary") on the dialog on top.
+    static void press_dialog(const char* button) {
+        lv_obj_t* dialog = helix::ui::modal_get_top();
+        REQUIRE(dialog != nullptr);
+        lv_obj_t* btn = lv_obj_find_by_name(dialog, button);
+        REQUIRE(btn != nullptr);
+        lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
+        helix::ui::UpdateQueue::instance().drain();
     }
 
     /// The scripts sent since @p from, joined.
@@ -143,7 +188,7 @@ TEST_CASE_METHOD(NonlinearFixture,
     CHECK(ending.find("SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0") != std::string::npos);
 
     // Pass 1 judges the left side alone: the height is the answer.
-    overlay.adjust_height_for_test(5); // 25 -> 30 mm
+    overlay.adjust_height_for_test(50); // 25 -> 30 mm
     overlay.judge_for_test(1);
     helix::ui::UpdateQueue::instance().drain();
     const auto* proc = overlay.procedure_for_test();
@@ -301,4 +346,236 @@ TEST_CASE_METHOD(NonlinearFixture, "nonlinear tuner: a start the printer refuses
     overlay.print_pass_for_test();
     helix::ui::UpdateQueue::instance().drain();
     CHECK(overlay.stage() == PaNonlinearOverlay::READY);
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: a stopped tower ends without the end macro, a completed one "
+                 "with it",
+                 "[pa_nonlinear][pa_tuner][pa_nl_finish]") {
+    auto p = params();
+    p.macros.end = "PRINT_END";
+    overlay.start_for_test(p, pa::ExtruderKind::DirectDrive);
+
+    SECTION("canceled") {
+        overlay.print_pass_for_test();
+        helix::ui::UpdateQueue::instance().drain();
+        tower("printing");
+        const size_t before = client.gcode_script_history().size();
+        tower("cancelled");
+        helix::ui::UpdateQueue::instance().drain();
+        const std::string ending = sent_since(before);
+        INFO(ending);
+        // The cancel macro already ran the end of the print and cooled the
+        // nozzle: a second end macro retracts into a cold nozzle.
+        CHECK(ending.find("PRINT_END") == std::string::npos);
+        CHECK(ending.find("TUNING_TOWER COMMAND=G4") != std::string::npos);
+        CHECK(ending.find("MODEL=tanh") != std::string::npos);
+        CHECK(ending.find("SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0") != std::string::npos);
+        CHECK(overlay.stage() == PaNonlinearOverlay::JUDGE);
+    }
+    SECTION("completed") {
+        overlay.print_pass_for_test();
+        helix::ui::UpdateQueue::instance().drain();
+        tower("printing");
+        const size_t before = client.gcode_script_history().size();
+        tower("complete");
+        helix::ui::UpdateQueue::instance().drain();
+        const std::string ending = sent_since(before);
+        INFO(ending);
+        CHECK(ending.find("PRINT_END") != std::string::npos);
+    }
+}
+
+namespace {
+
+/// The keypad opens over the active screen, with navigation seeded as the app does.
+struct KeypadHost {
+    std::array<lv_obj_t*, kUiPanelCount> panels{};
+    KeypadHost() {
+        for (auto& p : panels) {
+            p = lv_obj_create(lv_screen_active());
+        }
+        NavigationManager::instance().set_panels(panels.data());
+        ui_keypad_init(lv_screen_active());
+    }
+    ~KeypadHost() {
+        NavigationManager::instance().shutdown();
+    }
+    KeypadHost(const KeypadHost&) = delete;
+    KeypadHost& operator=(const KeypadHost&) = delete;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: the judged height moves in half millimeters, stays on the "
+                 "tower, and can be typed",
+                 "[pa_nonlinear][pa_tuner][pa_nl_height]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    print_tower();
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::JUDGE);
+    const float start = overlay.height_for_test();
+
+    overlay.adjust_height_for_test(5);
+    CHECK(overlay.height_for_test() == Catch::Approx(start + 0.5f));
+    overlay.adjust_height_for_test(-50);
+    CHECK(overlay.height_for_test() == Catch::Approx(start - 4.5f));
+    overlay.adjust_height_for_test(-1000);
+    CHECK(overlay.height_for_test() == Catch::Approx(0.0f));
+    overlay.adjust_height_for_test(1000);
+    CHECK(overlay.height_for_test() == Catch::Approx(50.0f));
+
+    KeypadHost host;
+    overlay.edit_height_for_test();
+    process_lvgl(100);
+    REQUIRE(ui_keypad_is_visible());
+    lv_obj_t* keypad = lv_obj_find_by_name(lv_screen_active(), "keypad_panel");
+    REQUIRE(keypad != nullptr);
+    for (const char* key : {"btn_backspace", "btn_backspace", "btn_backspace", "btn_backspace",
+                            "btn_backspace", "btn_1", "btn_2", "btn_dot", "btn_5"}) {
+        lv_obj_t* btn = lv_obj_find_by_name(keypad, key);
+        REQUIRE(btn != nullptr);
+        lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
+    }
+    lv_xml_get_event_cb(nullptr, "on_keypad_confirm")(nullptr);
+    process_lvgl(600);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(overlay.height_for_test() == Catch::Approx(12.5f));
+    // The value the tower printed at that height follows the height.
+    const std::string value =
+        lv_subject_get_string(lv_xml_get_subject(nullptr, "pa_nl_height_value"));
+    CHECK(value.find("0.1250") != std::string::npos);
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: back re-opens the previous judgement with the values its "
+                 "tower printed with",
+                 "[pa_nonlinear][pa_tuner][pa_nl_back]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    const auto can_back = [] {
+        return lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_nl_can_back"));
+    };
+    CHECK(can_back() == 0);
+    print_tower();
+    overlay.adjust_height_for_test(50); // 30 mm
+    overlay.judge_for_test(1);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.procedure_for_test()->pass_number() == 2);
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::READY);
+    CHECK(can_back() == 1);
+
+    overlay.back_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(overlay.stage() == PaNonlinearOverlay::JUDGE);
+    CHECK(overlay.procedure_for_test()->pass_number() == 1);
+    CHECK(overlay.height_for_test() == Catch::Approx(30.0f));
+    // The printer runs what pass 1's tower printed with again.
+    CHECK(client.last_send_script().find("OFFSET=0.000000") != std::string::npos);
+    CHECK(can_back() == 0);
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: judged passes survive a restart of the screen and can be "
+                 "continued or started over",
+                 "[pa_nonlinear][pa_tuner][pa_nl_session]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    print_tower();
+    overlay.adjust_height_for_test(50); // 30 mm
+    overlay.judge_for_test(1);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(session_saved());
+    // By now the extruder runs the procedure's values: the model to put back
+    // on Discard is the one from before the procedure.
+    status({{"extruder", {{"pressure_advance_model", "tanh"}, {"linear_advance", 0.0}}}});
+
+    overlay.forget_for_test();
+    REQUIRE(overlay.procedure_for_test() == nullptr);
+
+    SECTION("continue") {
+        overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+        press_dialog("btn_primary");
+        const auto* proc = overlay.procedure_for_test();
+        REQUIRE(proc != nullptr);
+        CHECK(proc->pass_number() == 2);
+        CHECK(proc->values().nonlinear_offset == Catch::Approx(0.30f));
+        CHECK(proc->can_go_back());
+
+        overlay.discard_for_test();
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(client.last_send_script().find("MODEL=linear ADVANCE=0.040000") != std::string::npos);
+        CHECK_FALSE(session_saved());
+    }
+    SECTION("start over") {
+        overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+        press_dialog("btn_secondary");
+        REQUIRE(overlay.procedure_for_test() != nullptr);
+        CHECK(overlay.procedure_for_test()->pass_number() == 1);
+        CHECK_FALSE(session_saved());
+    }
+    SECTION("another extruder kind is not offered the session") {
+        overlay.start_for_test(params(), pa::ExtruderKind::Bowden);
+        CHECK(helix::ui::modal_get_top() == nullptr);
+    }
+}
+
+TEST_CASE_METHOD(NonlinearFixture, "nonlinear tuner: one press of Stop cancels the tower",
+                 "[pa_nonlinear][pa_tuner][pa_nl_stop]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    tower("printing");
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::PRINTING);
+
+    const uint32_t before = api.job().cancels_sent();
+    overlay.stop_for_test();
+    press_dialog("btn_primary");
+    CHECK(api.job().cancels_sent() == before + 1);
+    process_lvgl(1000);
+    CHECK(helix::ui::modal_get_top() == nullptr);
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: the screen stays awake while a judgement or the result waits",
+                 "[pa_nonlinear][pa_tuner][pa_nl_awake]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    CHECK_FALSE(overlay.keeps_display_awake_for_test());
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    tower("printing");
+    CHECK_FALSE(overlay.keeps_display_awake_for_test());
+    tower("complete");
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::JUDGE);
+    CHECK(overlay.keeps_display_awake_for_test());
+    CHECK(helix::display_awake_hold().is_held());
+
+    overlay.judge_for_test(1);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::READY);
+    CHECK_FALSE(overlay.keeps_display_awake_for_test());
+    CHECK_FALSE(helix::display_awake_hold().is_held());
+
+    // Leaving the screen lets it sleep.
+    overlay.back_for_test();
+    REQUIRE(overlay.keeps_display_awake_for_test());
+    overlay.on_deactivate(DeactivateReason::NavigateAway);
+    CHECK_FALSE(helix::display_awake_hold().is_held());
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: the live value follows a swept value that changes without the "
+                 "height moving",
+                 "[pa_nonlinear][pa_tuner][pa_nl_live]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    tower("printing");
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::PRINTING);
+    const auto live = [] {
+        return std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "pa_nl_live_value")));
+    };
+    // Pass 1 sweeps the offset; the firmware sets the first height's value after
+    // the move that reached it.
+    status({{"extruder", {{"nonlinear_offset", 0.002}}}});
+    CHECK(live() == "0.0020");
 }

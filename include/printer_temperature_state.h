@@ -162,6 +162,12 @@ class PrinterTemperatureState {
         return &active_extruder_pa_nonlinear_;
     }
 
+    /// Counts changes to any extruder's pressure-advance model, a field of it or
+    /// the model itself. Observe it to follow what extruder_pa_model() returns.
+    lv_subject_t* get_pa_model_revision_subject() {
+        return &pa_model_revision_;
+    }
+
     /// A specific extruder's reported pressure advance (primary_value()),
     /// nullopt until it reports one or when no such extruder exists.
     std::optional<float> extruder_pressure_advance(const std::string& name) const;
@@ -602,6 +608,7 @@ class PrinterTemperatureState {
     helix::Subject active_extruder_power_{};
     helix::Subject active_extruder_pa_{};
     helix::Subject active_extruder_pa_nonlinear_{};
+    helix::Subject pa_model_revision_{};
     /// The active extruder's model while init_extruders() has not listed it.
     helix::pa::PaModel unlisted_active_pa_;
     helix::Subject bed_power_{};
