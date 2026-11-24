@@ -207,6 +207,9 @@ class PaTuningOverlay : public OverlayBase {
     void stop_observing();
     void on_print_state(PrintJobState state);
     void on_layer(int layer);
+    /// A tower that ended without a pick still holds a test K: send the
+    /// original back, so the machine keeps the K it had until a band is accepted.
+    void restore_original_k();
     /// Put the tuner on top of the navigation stack, re-pushing it when
     /// something buried it. Retries while the stack is still releasing it.
     void raise(int attempts_left);
@@ -255,6 +258,9 @@ class PaTuningOverlay : public OverlayBase {
     int picked_ = -1;
     /// The print reached "printing" for our file at least once.
     bool saw_printing_ = false;
+    /// The layer the printer showed when this run began observing; a leftover from
+    /// the previous job.
+    int layer_at_observe_ = 0;
     /// Spoolman's active spool when the result was shown, if any.
     std::optional<SpoolInfo> active_spool_;
     bool raise_on_start_ = true;

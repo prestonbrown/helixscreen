@@ -605,6 +605,9 @@ void PaTuningOverlay::delete_tower_file() {
 
 void PaTuningOverlay::begin_observing() {
     auto& state = get_printer_state();
+    // Whatever layer the last job left behind is not this run's: the PRINTING
+    // edge replays a layer only if it moved since here.
+    layer_at_observe_ = lv_subject_get_int(state.print_state().get_print_layer_current_subject());
     const auto lifetime = state.get_subjects_lifetime();
     pa_observer_ = helix::ui::observe<int>(
         state.temperature_state().get_active_extruder_pressure_advance_subject(), this,
@@ -634,8 +637,16 @@ void PaTuningOverlay::on_print_state(PrintJobState state) {
             return;
         }
         saw_printing_ = true;
-        session_.on_print_started();
+        // The session starts ramping at the first layer, not here: until then the
+        // start macro is still heating, and a K sent now would queue behind its
+        // M190 and time out. A layer that arrived in the same status frame, ahead of
+        // the state, is replayed here.
         set_stage(RUNNING);
+        if (const int layer = lv_subject_get_int(
+                get_printer_state().print_state().get_print_layer_current_subject());
+            layer != layer_at_observe_) {
+            on_layer(layer);
+        }
         refresh_running();
         // Print Status opens itself on every print start; the tuner is what
         // this print is for, so it goes back on top once that push has run.
@@ -653,6 +664,7 @@ void PaTuningOverlay::on_print_state(PrintJobState state) {
     stop_observing();
     delete_tower_file();
     if (session_.state() == helix::pa::TuningSession::State::Picking) {
+        restore_original_k();
         picked_ = -1;
         refresh_bands();
         set_stage(PICK);
@@ -661,6 +673,16 @@ void PaTuningOverlay::on_print_state(PrintJobState state) {
     } else {
         fail_start(lv_tr("The print ended before any layer was printed. Nothing was changed."));
     }
+}
+
+void PaTuningOverlay::restore_original_k() {
+    // A test K stays live on a cancelled tower, which never reaches its own
+    // restore. Until the user accepts a band, the machine keeps the K it had.
+    const auto original = session_.original_k();
+    if (!original || std::fabs(session_.current_k() - *original) < 0.00005f) {
+        return;
+    }
+    send_k(*original);
 }
 
 void PaTuningOverlay::raise(int attempts_left) {
@@ -788,7 +810,7 @@ void PaTuningOverlay::refresh_bands(bool newest_first) {
     lv_subject_set_int(&band_count_, n);
     lv_subject_set_int(&keep_selected_, picked_ == kMaxBands ? 1 : 0);
     lv_subject_copy_string(&keep_text_, fmt::format(fmt::runtime(lv_tr("Keep current ({})")),
-                                                    helix::pa::format_k(session_.current_k()))
+                                                    helix::pa::format_k(session_.ending_k()))
                                             .c_str());
     lv_subject_set_int(&has_pick_, picked_ >= 0 ? 1 : 0);
 }
