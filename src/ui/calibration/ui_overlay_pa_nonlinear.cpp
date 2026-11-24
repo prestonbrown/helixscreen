@@ -986,8 +986,14 @@ void PaNonlinearOverlay::raise(int attempts_left) {
 
 // JUDGE
 
+/// A step on a height still showing "--" lands on the middle of the tower,
+/// where the user can see it; the next step moves from there.
+static float stepped_height(bool set, float current_mm, int step_tenths) {
+    return set ? current_mm + static_cast<float>(step_tenths) / 10.0f : kTowerHeightMm / 2.0f;
+}
+
 void PaNonlinearOverlay::adjust_height(int step_tenths) {
-    set_height(height_mm_ + static_cast<float>(step_tenths) / 10.0f);
+    set_height(stepped_height(left_set_, height_mm_, step_tenths));
 }
 
 void PaNonlinearOverlay::set_height(float height_mm) {
@@ -1082,7 +1088,7 @@ void PaNonlinearOverlay::judge_primary() {
 }
 
 void PaNonlinearOverlay::adjust_front_height(int step_tenths) {
-    set_front_height(front_mm_ + static_cast<float>(step_tenths) / 10.0f);
+    set_front_height(stepped_height(front_set_, front_mm_, step_tenths));
 }
 
 void PaNonlinearOverlay::set_front_height(float height_mm) {

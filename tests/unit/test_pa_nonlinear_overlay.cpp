@@ -674,8 +674,13 @@ TEST_CASE_METHOD(NonlinearFixture,
     REQUIRE(overlay.stage() == PaNonlinearOverlay::JUDGE);
     // Left best at 24 mm, front at 27.5: the left is lower, so the offset drops
     // and the same pass prints again.
+    // The first step on a "--" height shows the middle of the tower; the next moves from it.
+    overlay.adjust_height_for_test(-10);
+    CHECK(overlay.height_for_test() == Catch::Approx(25.0f));
     overlay.adjust_height_for_test(-10);
     overlay.adjust_front_height_for_test(25);
+    overlay.adjust_front_height_for_test(25);
+    CHECK(overlay.height_for_test() == Catch::Approx(24.0f));
     CHECK(overlay.front_height_for_test() == Catch::Approx(27.5f));
     overlay.judge_primary_for_test();
     helix::ui::UpdateQueue::instance().drain();
@@ -688,7 +693,9 @@ TEST_CASE_METHOD(NonlinearFixture,
     print_tower();
     client.cancel_print_internal();
     helix::ui::UpdateQueue::instance().drain();
-    overlay.adjust_height_for_test(20);       // 27 mm
+    overlay.adjust_height_for_test(20); // 25 mm: the middle first
+    overlay.adjust_height_for_test(20); // 27 mm
+    overlay.adjust_front_height_for_test(25);
     overlay.adjust_front_height_for_test(25); // 27.5 mm
     overlay.judge_primary_for_test();
     helix::ui::UpdateQueue::instance().drain();
