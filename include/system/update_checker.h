@@ -990,6 +990,8 @@ class UpdateChecker {
     std::atomic<bool> installing_{false};
     /// Where do_install() logs install.sh's output instead of the system log; tests only.
     std::string install_log_override_;
+    /// How long do_install() waits for install.sh before killing it.
+    int install_timeout_seconds_ = 600;
     /// How long each terminal frame is held so the LVGL thread can paint it.
     /// update_download_modal.xml documents 2s on Complete, then 1s on
     /// Restarting. Members rather than constants so tests need not wait 3s.

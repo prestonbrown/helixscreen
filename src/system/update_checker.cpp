@@ -2287,7 +2287,10 @@ void UpdateChecker::do_install(const std::string& tarball_path, InstallOrigin or
     {
         auto probe = helix::system::probe_log_path_writable(install_log, kMinInstallLogFreeBytes);
         if (!probe.ok) {
-            const std::string fallback = tarball_path + ".install.log";
+            // Beside the backups, not beside the tarball: the tarball sits in the
+            // install tree, which install.sh's swap moves away mid-install.
+            const std::string fallback =
+                app_constants::update::backup_fallback_dir() + "/helixscreen-install.log";
             flog_warn("[UpdateChecker] {} not writable ({}), falling back to {}", install_log,
                       probe.error, fallback);
             install_log = fallback;
@@ -2439,7 +2442,7 @@ void UpdateChecker::do_install(const std::string& tarball_path, InstallOrigin or
             if (log_fd >= 0)
                 close(log_fd);
 
-            constexpr int timeout_seconds = 600;
+            const int timeout_seconds = install_timeout_seconds_;
             constexpr auto kPollInterval = std::chrono::milliseconds(200);
             constexpr auto kTermGrace = std::chrono::milliseconds(500);
 
@@ -2492,6 +2495,10 @@ void UpdateChecker::do_install(const std::string& tarball_path, InstallOrigin or
                 timed_out = true;
                 flog_error("[UpdateChecker] install.sh timed out after {}s, {}", timeout_seconds,
                            wait.killed ? "killed" : "terminated");
+                // install.sh is reaped, but what it started (subshells, a hung
+                // child) is not. setsid() made it the leader of its own group, and
+                // the id stays reserved while any member lives.
+                ::kill(-pid, SIGKILL);
                 break;
             case ChildWaitOutcome::WaitFailed:
                 flog_error("[UpdateChecker] waitpid(install) failed: {} (errno={})",

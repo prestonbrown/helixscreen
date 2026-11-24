@@ -99,6 +99,11 @@ class UpdateCheckerTestAccess {
         c.install_log_override_ = path;
     }
 
+    /// Shorten (or restore) how long do_install() waits for install.sh.
+    static void set_install_timeout(UpdateChecker& c, int seconds) {
+        c.install_timeout_seconds_ = seconds;
+    }
+
     /// A cancel left by an earlier case makes do_install() return before the installer.
     static void clear_download_cancelled(UpdateChecker& c) {
         c.download_cancelled_ = false;
