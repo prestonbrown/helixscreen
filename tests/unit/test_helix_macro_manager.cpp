@@ -64,7 +64,7 @@ class MacroManagerTestFixture {
              "gcode_macro HELIX_START_PRINT", "gcode_macro HELIX_CLEAN_NOZZLE",
              "gcode_macro HELIX_BED_MESH_IF_NEEDED", "gcode_macro HELIX_UNLOAD_FILAMENT",
              "gcode_macro _HELIX_STATE", "gcode_macro _HELIX_PLAN",
-             "gcode_macro HELIX_MATERIAL_OFFSET", "bed_mesh"});
+             "gcode_macro HELIX_MATERIAL_OFFSET", "gcode_macro _HELIX_MATERIAL_PA", "bed_mesh"});
         hardware_.parse_objects(objects);
     }
 
