@@ -38,6 +38,7 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "settings_manager.h"
+#include "system/telemetry_manager.h"
 #include "test_helpers/backend_harness.h"
 #include "test_helpers/backend_user_edit.h"
 #include "test_helpers/cfs_box_fixtures.h"
@@ -5074,6 +5075,15 @@ TEST_CASE("CFS clear_fault sends nothing, so a Reset mid-print cannot cancel it"
     CHECK(backend.clear_fault(0).success());
     CHECK(backend.clear_fault(-1).success());
     CHECK(backend.captured.empty());
+}
+
+TEST_CASE("CFS cancel counts as a cancel the screen sent, for the print outcome",
+          "[ams][cfs][telemetry]") {
+    auto& tm = TelemetryManager::instance();
+    helix::test::StartedBackend<CfsRemapHelper> backend;
+    const auto before = tm.print_cancels_requested();
+    REQUIRE(backend.cancel().success());
+    CHECK(tm.print_cancels_requested() == before + 1);
 }
 
 TEST_CASE("CFS clear_fault retires a phase fault without a command", "[ams][cfs][clear_fault]") {
