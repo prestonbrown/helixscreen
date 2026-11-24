@@ -23,6 +23,8 @@
 #include <csignal>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
+#include <string>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -142,8 +144,22 @@ TEST_CASE("a sentinel naming a running install.sh survives a reconnect",
         _exit(127);
     }
     REQUIRE(installer > 0);
-    usleep(200 * 1000);
+    // Wait until the child is the shell running install.sh, as the check reads it.
+    bool running = false;
+    for (int i = 0; i < 500 && !running; ++i) {
+        std::ifstream cmdline("/proc/" + std::to_string(installer) + "/cmdline");
+        std::string args((std::istreambuf_iterator<char>(cmdline)),
+                         std::istreambuf_iterator<char>());
+        running = args.find("install.sh") != std::string::npos;
+        if (!running) {
+            usleep(10 * 1000);
+        }
+    }
+    REQUIRE(running);
     REQUIRE(UpdateChecker::write_self_restart_sentinel(installer));
+    // Old enough that only the running installer can keep it.
+    fs::last_write_time(scratch.sentinel(),
+                        fs::file_time_type::clock::now() - std::chrono::seconds(60));
 
     UpdateChecker::instance().on_connected(client);
     CHECK(fs::exists(scratch.sentinel()));
