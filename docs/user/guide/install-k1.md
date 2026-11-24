@@ -153,10 +153,10 @@ Logs, which you need when reporting a problem:
 
 ```bash
 tail -100 /usr/data/helixscreen-state/logs/helix.log   # the app's log
-tail -100 /usr/data/helixscreen/logs/launcher.log      # startup and crash output
+tail -100 /usr/data/helixscreen-state/logs/launcher.log  # startup and crash output
 ```
 
-The app's log is kept outside the HelixScreen folder, so an update does not delete it. The startup log stays inside the HelixScreen folder because the K1's `/var/log` is held in memory and cleared at every restart.
+Both logs are kept outside the HelixScreen folder, so an update does not delete them, and off `/var/log`, which the K1 holds in memory and clears at every restart. Until HelixScreen has created `/usr/data/helixscreen-state`, the startup log is in `/usr/data/.helixscreen/logs/`.
 
 **If SSH stops working after an update.** Every time HelixScreen starts or stops on a K1, it adds a timestamped line to `helixscreen-ssh.log` saying whether the SSH server (`dropbear`) is running and whether anything is listening on port 22. The file is in Moonraker's logs folder, so you can download it from Mainsail or Fluidd without SSH: find it in the `logs` folder of the file browser (the **Machine** page in Mainsail, the **Configure** page in Fluidd). Over SSH it is `/usr/data/printer_data/logs/helixscreen-ssh.log`. On a K1 without that folder it is `/usr/data/helixscreen-state/logs/helixscreen-ssh.log`. The file is trimmed to about 64 KB. Include it when you report the problem, and debug bundles pick it up as well.
 
