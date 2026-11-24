@@ -166,9 +166,7 @@ class WizardPrinterIdentifyUIFixture : public LVGLUITestFixture {
 
 } // namespace
 
-// ============================================================================
 // Search
-// ============================================================================
 
 TEST_CASE_METHOD(WizardPrinterIdentifyUIFixture, "Wizard printer search filters visible rows",
                  "[wizard][selector]") {
@@ -280,9 +278,7 @@ TEST_CASE_METHOD(WizardPrinterIdentifyUIFixture, "Wizard printer name gates Next
     CHECK_FALSE(get_wizard_printer_identify_step()->is_validated());
 }
 
-// ============================================================================
 // Vendor drill-in
-// ============================================================================
 
 TEST_CASE_METHOD(WizardPrinterIdentifyUIFixture,
                  "Wizard vendor tiles hold the vendor name to one line",
@@ -341,9 +337,7 @@ TEST_CASE_METHOD(WizardPrinterIdentifyUIFixture, "Wizard vendor tile drills into
     CHECK(view() == kViewTiles);
 }
 
-// ============================================================================
 // Prior selection: auto-drill through the revisit (cached) path
-// ============================================================================
 
 TEST_CASE_METHOD(WizardPrinterIdentifyUIFixture,
                  "Wizard re-entry opens the selected machine's vendor at the machine",
@@ -408,9 +402,7 @@ TEST_CASE_METHOD(WizardPrinterIdentifyUIFixture,
     step->cleanup();
 }
 
-// ============================================================================
 // Singleton buckets: pseudo-machines must stay reachable and selectable
-// ============================================================================
 
 TEST_CASE_METHOD(WizardPrinterIdentifyUIFixture, "Wizard singleton tiles drill into their own row",
                  "[wizard][selector]") {
@@ -447,9 +439,7 @@ TEST_CASE_METHOD(WizardPrinterIdentifyUIFixture, "Wizard singleton tiles drill i
     }
 }
 
-// ============================================================================
 // Real-database grouping completeness
-// ============================================================================
 
 TEST_CASE("Wizard selector groups every visible machine exactly once", "[selector][wizard]") {
     const auto entries = detector_entries();
@@ -487,9 +477,7 @@ TEST_CASE("Wizard selector groups every visible machine exactly once", "[selecto
     CHECK(bucket_of("Unknown") == "Unknown");
 }
 
-// ============================================================================
 // Ambiguous detection hands the choice to the user (#1606, #1607)
-// ============================================================================
 
 namespace {
 

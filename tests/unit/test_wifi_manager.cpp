@@ -86,9 +86,7 @@ struct SysFixture {
  * - No callback registration: Networks weren't populating
  */
 
-// ============================================================================
 // Test Fixtures
-// ============================================================================
 
 namespace {
 
@@ -221,9 +219,7 @@ class WiFiManagerTestFixture : public LVGLTestFixture {
     std::string connection_error;
 };
 
-// ============================================================================
 // Instance Creation Tests
-// ============================================================================
 
 TEST_CASE_METHOD(WiFiManagerTestFixture, "WiFiManager instance creation",
                  "[.slow][macos-wifi][network][instance]") {
@@ -254,9 +250,7 @@ TEST_CASE_METHOD(WiFiManagerTestFixture, "WiFiManager instance creation",
     }
 }
 
-// ============================================================================
 // Backend Initialization Tests
-// ============================================================================
 
 // Fixtures elsewhere in the binary shut the process-wide UpdateQueue down in
 // their destructors, and a shut-down queue drops every callback. Every result
@@ -330,9 +324,7 @@ TEST_CASE_METHOD(WiFiManagerTestFixture, "Backend initialization state",
 #endif // HELIX_ENABLE_MOCKS
 }
 
-// ============================================================================
 // Scan Callback Preservation Tests (CRITICAL)
-// ============================================================================
 
 TEST_CASE_METHOD(WiFiManagerTestFixture, "Scan callback preservation",
                  "[.slow][macos-wifi][network][scan][callback]") {
@@ -441,9 +433,7 @@ TEST_CASE_METHOD(WiFiManagerTestFixture, "Scan callback preservation",
 #endif // HELIX_ENABLE_MOCKS
 }
 
-// ============================================================================
 // Scan Lifecycle Tests
-// ============================================================================
 
 TEST_CASE_METHOD(WiFiManagerTestFixture, "Network scanning lifecycle",
                  "[.slow][macos-wifi][network][scan]") {
@@ -500,9 +490,7 @@ TEST_CASE_METHOD(WiFiManagerTestFixture, "Network scanning lifecycle",
 #endif // HELIX_ENABLE_MOCKS
 }
 
-// ============================================================================
 // Connection Management Tests
-// ============================================================================
 
 TEST_CASE_METHOD(WiFiManagerTestFixture, "WiFi connection management",
                  "[.slow][macos-wifi][network][connection]") {
@@ -586,9 +574,7 @@ TEST_CASE("WiFiManager::connect threads the hidden-network flag to the backend",
     helix::ui::UpdateQueue::instance().drain();
 }
 
-// ============================================================================
 // Status Query Tests
-// ============================================================================
 
 TEST_CASE_METHOD(WiFiManagerTestFixture, "WiFi status queries",
                  "[.slow][macos-wifi][network][status]") {
@@ -627,9 +613,7 @@ TEST_CASE_METHOD(WiFiManagerTestFixture, "WiFi status queries",
     // }
 }
 
-// ============================================================================
 // Edge Cases & Error Handling
-// ============================================================================
 
 TEST_CASE_METHOD(WiFiManagerTestFixture, "WiFi edge cases",
                  "[.slow][macos-wifi][network][edge-cases]") {
@@ -686,9 +670,7 @@ TEST_CASE_METHOD(WiFiManagerTestFixture, "WiFi edge cases",
 #endif // HELIX_ENABLE_MOCKS
 }
 
-// ============================================================================
 // Network Information Tests
-// ============================================================================
 
 // Asserts on the mock backend's seeded network list, so it runs against the mock
 // on every platform rather than whatever the machine's real radio can see.
@@ -750,15 +732,12 @@ TEST_CASE_METHOD(WiFiManagerTestFixture, "WiFi network information", "[network][
 #endif // HELIX_ENABLE_MOCKS
 }
 
-// ============================================================================
-// State Observer Tests (#819 regression)
-// ============================================================================
+// State Observer Tests (#819)
 //
-// Regression coverage for the NetworkWidget startup race (#819 follow-up):
-// widget attached before the wpa_supplicant backend's async init completed,
-// got an empty STATUS response, and had no wake-up path. Fix added an
-// observer list to WiFiManager that fans out backend state transitions so
-// UI consumers can refresh once the backend is actually ready.
+// NetworkWidget startup race: a widget attached before the wpa_supplicant
+// backend's async init completed gets an empty STATUS response and needs a
+// wake-up path. WiFiManager keeps an observer list that fans out backend state
+// transitions so UI consumers can refresh once the backend is actually ready.
 //
 // These tests use the mock backend's connect flow — slow (2-3s per test
 // because connect_thread_func sleeps 2000+rng()%1000ms), which is why
@@ -999,10 +978,9 @@ TEST_CASE("set_enabled(false) turns the radio off without stopping the backend",
 // helixscreen: a radio the user switched off must not come back on just
 // because the process restarted. WiFiManager's READY handler reasserts the
 // stored SystemSettingsManager choice onto the backend the first time it can
-// act on it — but only when a non-WiFi network path is actually up (Task 15:
-// CC1 was stranded when this reassert ran unconditionally on a device whose
-// only network path was the radio it had just been told to disable). The
-// reassert is deferred through AsyncLifetimeGuard (READY can fire on a
+// act on it — but only when a non-WiFi network path is actually up (a device
+// whose only network path is the radio it was told to disable would otherwise be
+// stranded). The reassert is deferred through AsyncLifetimeGuard (READY can fire on a
 // background thread), so the test must drain UpdateQueue before asserting —
 // see tests/CLAUDE.md "Deferred work needs an explicit drain".
 TEST_CASE("READY reasserts a stored WiFi-off setting onto the backend when a wired path exists",
@@ -1265,7 +1243,6 @@ TEST_CASE("READY refusal path also clears a stale radio block, not just the stor
     Config::get_instance()->set_wifi_expected(false);
 }
 
-// ============================================================================
 // Absent capabilities: "this platform cannot do that" is not "your request
 // failed", and it is not silence either.
 //
@@ -1275,7 +1252,6 @@ TEST_CASE("READY refusal path also clears a stale radio block, not just the stor
 // network 'X'", and the radio toggle raised nothing at all, because
 // report_radio_result() suppresses errors whenever a network path is up —
 // which is precisely the state a user toggling a working radio off is in.
-// ============================================================================
 
 namespace {
 

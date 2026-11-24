@@ -58,9 +58,7 @@ void init_menu_subjects() {
 // Static member initialization
 bool SpoolmanContextMenu::callbacks_registered_ = false;
 
-// ============================================================================
 // Construction / Destruction
-// ============================================================================
 
 SpoolmanContextMenu::SpoolmanContextMenu() {
     init_menu_subjects();
@@ -88,9 +86,7 @@ SpoolmanContextMenu& SpoolmanContextMenu::operator=(SpoolmanContextMenu&& other)
     return *this;
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 void SpoolmanContextMenu::set_action_callback(ActionCallback callback) {
     action_callback_ = std::move(callback);
@@ -112,9 +108,7 @@ bool SpoolmanContextMenu::show_for_spool(lv_obj_t* parent, const SpoolInfo& spoo
     return show_around_widget(parent, spool.id, near_widget);
 }
 
-// ============================================================================
 // ContextMenu override
-// ============================================================================
 
 void SpoolmanContextMenu::on_created(lv_obj_t* menu_obj) {
     // Header: "Vendor Material" (e.g., "Polymaker PLA")
@@ -164,9 +158,7 @@ void SpoolmanContextMenu::on_created(lv_obj_t* menu_obj) {
                   pending_spool_.display_name());
 }
 
-// ============================================================================
 // Event Handlers
-// ============================================================================
 
 void SpoolmanContextMenu::dispatch_spoolman_action(MenuAction action) {
     int spool_id = get_item_index();
@@ -214,9 +206,7 @@ void SpoolmanContextMenu::handle_delete() {
     dispatch_spoolman_action(MenuAction::DELETE);
 }
 
-// ============================================================================
 // Static Callback Registration
-// ============================================================================
 
 void SpoolmanContextMenu::register_callbacks() {
     if (callbacks_registered_) {
@@ -236,9 +226,7 @@ void SpoolmanContextMenu::register_callbacks() {
     spdlog::debug("[SpoolmanContextMenu] Callbacks registered");
 }
 
-// ============================================================================
 // Static Callbacks (Instance Lookup via ContextMenu::active())
-// ============================================================================
 
 SpoolmanContextMenu* SpoolmanContextMenu::get_active_instance() {
     auto* self = ContextMenu::active_as<SpoolmanContextMenu>();

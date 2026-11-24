@@ -20,7 +20,6 @@ namespace helix {
 /**
  * @brief Memory profiling subsystem
  *
- * Extracted from main.cpp to improve separation of concerns.
  * Integrates with LVGL timers and Unix signals for reporting.
  */
 class MemoryProfiler {

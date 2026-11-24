@@ -156,18 +156,14 @@ void ensure_ams_widgets_registered() {
 // Context menu callbacks handled by helix::ui::AmsContextMenu class
 // Slot editor callbacks handled by helix::ui::AmsEditOverlay class
 
-// ============================================================================
 // Construction
-// ============================================================================
 
 AmsPanel::AmsPanel(PrinterState& printer_state, IMoonrakerAPI* api)
     : PanelBase(printer_state, api) {
     spdlog::debug("[AmsPanel] Constructed");
 }
 
-// ============================================================================
 // PanelBase Interface
-// ============================================================================
 
 void AmsPanel::init_subjects() {
     if (subjects_initialized_) {
@@ -365,7 +361,6 @@ void AmsPanel::init_subjects() {
     external_spool_observer_ = observe<int>(
         AmsState::instance().get_external_spool_color_subject(), this,
         [](AmsPanel* self, int /*color_int*/) {
-            // Update path canvas bypass indicator
             if (self->path_canvas_) {
                 // Use full spool info check (not just color != 0) to handle black spools correctly
                 auto ext_spool = AmsState::instance().get_external_spool_info();
@@ -728,9 +723,7 @@ void AmsPanel::clear_panel_reference() {
     spdlog::debug("[AMS Panel] Cleared all widget references");
 }
 
-// ============================================================================
 // Setup Helpers
-// ============================================================================
 
 void AmsPanel::setup_slots() {
     lv_obj_t* unit_detail = helix::ui::find_required(panel_, "unit_detail", get_name());
@@ -758,7 +751,6 @@ void AmsPanel::create_slots(int count) {
     // Show the environment chip for this unit; update_tray places it on the lid.
     ams_detail_pre_show_env_indicator(detail_widgets_, kAllUnits);
 
-    // Create new slots
     if (const auto info = AmsState::instance().system_info())
         laid_out_drawings_ = helix::ui::unit_art_effective_picks(*info);
     auto result = ams_detail_create_slots(detail_widgets_, slot_widgets_, kMaxVisibleSlots,
@@ -772,7 +764,6 @@ void AmsPanel::create_slots(int count) {
     // Move badges to overlay layer (in front of tray)
     ams_detail_update_badges(detail_widgets_, slot_widgets_, result.slot_count, result.layout);
 
-    // Update path canvas sizing
     if (path_canvas_) {
         ui_filament_path_canvas_set_slot_overlap(path_canvas_, result.layout.overlap);
         ui_filament_path_canvas_set_slot_width(path_canvas_, result.layout.slot_width);
@@ -781,7 +772,7 @@ void AmsPanel::create_slots(int count) {
     spdlog::info("[{}] Created {} slot widgets via shared helpers", get_name(), result.slot_count);
 
     // Wire per-slot LIVE path observers so pushing/pulling filament redraws the
-    // path in real time (Task 1). Re-built here because the slot count is known.
+    // path in real time. Built here because the slot count is known.
     setup_slot_path_observers(result.slot_count);
 
     helix::ui::ams_detail_lay_out_unit(detail_widgets_, slot_widgets_, result.slot_count, kAllUnits,
@@ -834,8 +825,6 @@ void AmsPanel::setup_slot_path_observers(int slot_count) {
     spdlog::debug("[AmsPanel] Wired {} per-slot path observers (offset={})",
                   slot_path_observers_.size(), slot_offset);
 }
-
-// on_slot_count_changed migrated to lambda in init_subjects()
 
 void AmsPanel::setup_path_canvas() {
     path_canvas_ = helix::ui::find_required(panel_, "path_canvas", get_name());
@@ -989,7 +978,6 @@ void AmsPanel::update_endless_arrows_from_backend() {
     spdlog::trace("[{}] Endless spool relation has {} group(s) over {} slots", get_name(),
                   config.groups.size(), slot_count);
 
-    // Get slot width and overlap from current layout
     int32_t slot_width = kDefaultSlotWidth;
     int32_t overlap = 0;
     int32_t offset = 0;
@@ -1005,7 +993,6 @@ void AmsPanel::update_endless_arrows_from_backend() {
         }
     }
 
-    // Update canvas
     ui_endless_spool_arrows_set_slot_count(endless_arrows_, slot_count);
     ui_endless_spool_arrows_set_slot_width(endless_arrows_, slot_width);
     ui_endless_spool_arrows_set_slot_overlap(endless_arrows_, overlap);
@@ -1018,9 +1005,7 @@ void AmsPanel::update_endless_arrows_from_backend() {
 
 // Step progress, start_operation, preheat methods moved to AmsOperationSidebar
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 void AmsPanel::refresh_slots() {
     if (!panel_ || !subjects_initialized_) {
@@ -1037,7 +1022,7 @@ void AmsPanel::refresh_slots() {
     int current_slot = lv_subject_get_int(AmsState::instance().get_current_slot_subject());
     update_current_slot_highlight(current_slot);
 
-    // P2 (#1045): a per-slot status change (e.g. idle-lane unload) must also
+    // A per-slot status change (e.g. idle-lane unload, #1045) must also
     // re-read the backend's per-slot filament segments so a now-empty lane's
     // stale lane→hub tube is cleared. update_path_canvas_from_backend() reads
     // get_slot_filament_segment() live and repaints the canvas. It internally
@@ -1049,9 +1034,7 @@ void AmsPanel::refresh_slots() {
             ams_detail_setup_path_canvas(path_canvas_, slot_grid_, kAllUnits, backend, *info));
 }
 
-// ============================================================================
 // UI Update Handlers
-// ============================================================================
 
 void AmsPanel::update_slot_colors() {
     int slot_count = lv_subject_get_int(AmsState::instance().get_slot_count_subject());
@@ -1062,19 +1045,16 @@ void AmsPanel::update_slot_colors() {
         }
 
         if (i >= slot_count) {
-            // Hide slots beyond configured count
             lv_obj_set_hidden(slot_widgets_[i], true);
             continue;
         }
 
         lv_obj_set_hidden(slot_widgets_[i], false);
 
-        // Material and fill are no longer pushed here: the ams_slot widget
-        // observes its own per-slot subjects (AmsState::get_slot_material_subject
-        // / get_slot_fill_subject), written by sync_from_backend. Observing in
-        // the widget means every panel that hosts an ams_slot stays reactive —
-        // the AmsOverviewPanel "100% full" fill bug (structural) and the #1065
-        // "material stuck, color updates" bug are both fixed at the widget, so no
+        // Material and fill are not pushed here: the ams_slot widget observes its
+        // own per-slot subjects (AmsState::get_slot_material_subject /
+        // get_slot_fill_subject), written by sync_from_backend. Observing in the
+        // widget keeps every panel that hosts an ams_slot reactive (#1065), so no
         // container re-reads them imperatively. Only non-subject state (tool
         // badge, error indicator) is refreshed from the backend here.
         ui_ams_slot_refresh(slot_widgets_[i]);
@@ -1096,9 +1076,7 @@ void AmsPanel::update_current_slot_highlight(int slot_index) {
     }
 }
 
-// ============================================================================
 // Event Callbacks
-// ============================================================================
 
 void AmsPanel::on_bypass_spool_clicked(void* user_data) {
     auto* self = static_cast<AmsPanel*>(user_data);
@@ -1223,16 +1201,9 @@ void AmsPanel::on_slot_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_END();
 }
 
-// ============================================================================
-// Observer Callbacks
-// ============================================================================
+// Observer Callbacks live as lambdas in init_subjects().
 
-// on_slots_version_changed, on_action_changed, on_current_slot_changed, on_path_state_changed
-// all migrated to lambdas in init_subjects()
-
-// ============================================================================
 // Action Handlers
-// ============================================================================
 
 void AmsPanel::handle_slot_tap(int slot_index) {
     spdlog::info("[{}] Slot {} tapped", get_name(), slot_index);
@@ -1245,15 +1216,12 @@ void AmsPanel::handle_slot_tap(int slot_index) {
         return;
     }
 
-    // Show context menu near the tapped slot
     if (slot_index >= 0 && slot_index < kMaxVisibleSlots && slot_widgets_[slot_index]) {
         show_context_menu(slot_index, slot_widgets_[slot_index]);
     }
 }
 
-// ============================================================================
 // Context Menu Management (delegates to helix::ui::open_slot_context_menu)
-// ============================================================================
 
 void AmsPanel::show_context_menu(int slot_index, lv_obj_t* near_widget,
                                  std::optional<lv_point_t> tap) {
@@ -1298,7 +1266,6 @@ void AmsPanel::show_loading_error_modal() {
         error_modal_ = std::make_unique<helix::ui::AmsLoadingErrorModal>();
     }
 
-    // Get error details from backend
     AmsSystemInfo info = backend->get_system_info();
     // A fixed phrase is stored as its catalog key; firmware text passes through.
     std::string error_message = lv_tr(info.operation_detail.c_str());
@@ -1432,9 +1399,7 @@ void AmsPanel::dismiss_error_modal_silently(const char* reason) {
     error_modal_->dismiss_silently();
 }
 
-// ============================================================================
 // Global Instance
-// ============================================================================
 
 static helix::ui::WidgetRef s_ams_panel_obj;
 // Theme generation the cached tree was built under; its widgets keep the
@@ -1484,7 +1449,6 @@ AmsPanel& get_global_ams_panel() {
         // Initialize AmsState subjects BEFORE XML creation so bindings work
         AmsState::instance().init_subjects(true);
 
-        // Create the panel on the active screen
         lv_obj_t* screen = lv_screen_active();
         s_ams_panel_obj = helix::ui::create_xml_hidden(screen, "ams_panel");
 

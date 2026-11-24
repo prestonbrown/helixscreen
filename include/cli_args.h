@@ -29,7 +29,6 @@ struct CliArgs {
     int x_pos = -1;                 // -1 = not set
     int y_pos = -1;                 // -1 = not set
 
-    // Wizard
     bool force_wizard = false;
     int wizard_step = -1;     // -1 = not set
     bool skip_wizard = false; // --skip-wizard: suppress the first-run wizard
@@ -59,7 +58,6 @@ struct CliArgs {
     // Display rotation (passed by watchdog, or CLI override)
     int rotation = 0; // 0, 90, 180, 270 degrees
 
-    // Layout override
     std::string layout; // --layout: override auto-detected layout ("auto", "standard",
                         // "ultrawide", "portrait", "micro", "tiny", etc.)
 
@@ -71,7 +69,6 @@ struct CliArgs {
     std::string detect_host = "127.0.0.1";
     int detect_port = helix::kDefaultMoonrakerPort;
 
-    // Remote control server
     bool remote_control = false;                // --remote: enable remote control server
     std::string remote_socket;                  // --remote-socket: override socket path
     std::string remote_transport = "socket";    // --remote-transport: socket|http

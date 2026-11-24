@@ -31,7 +31,6 @@
 #include "load_cell_manager.h"
 #include "moonraker_types.h"
 #include "panel_widget_config.h"
-#include "panel_widget_manager.h"
 #include "platform_capabilities.h"
 #include "platform_table.h"
 #include "print_stop_reason.h"
@@ -2332,7 +2331,7 @@ nlohmann::json TelemetryManager::build_settings_snapshot_event() const {
     // Home widget placement snapshot
     try {
         json widgets = json::array();
-        auto& widget_config = helix::PanelWidgetManager::instance().get_widget_config("home");
+        auto& widget_config = helix::cached_panel_widget_config("home");
         for (const auto& page : widget_config.pages()) {
             for (const auto& entry : page.widgets) {
                 if (entry.enabled) {

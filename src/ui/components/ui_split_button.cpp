@@ -106,7 +106,6 @@ void update_split_button_contrast(lv_obj_t* sb) {
     set_contrast(data->label);
     set_contrast(data->icon);
 
-    // Update the arrow button's chevron icon
     if (data->arrow_btn) {
         lv_obj_t* arrow_icon = lv_obj_get_child(data->arrow_btn, 0);
         set_contrast(arrow_icon);

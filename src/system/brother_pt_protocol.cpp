@@ -212,7 +212,6 @@ std::vector<uint8_t> brother_pt_build_raster(const LabelBitmap& bitmap, int tape
             }
         }
 
-        // Check if all zeros
         bool all_white = true;
         for (int b = 0; b < kBrotherPtRasterRowBytes; b++) {
             if (padded_row[b] != 0x00) {

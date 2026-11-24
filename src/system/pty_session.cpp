@@ -127,9 +127,7 @@ std::string choose_shell(const char* shell_env,
     return "/bin/sh";
 }
 
-// ---------------------------------------------------------------------------
 // OutputBuffer
-// ---------------------------------------------------------------------------
 
 bool OutputBuffer::append(std::string_view bytes, bool& was_empty) {
     std::unique_lock<std::mutex> lock(mutex_);
@@ -172,9 +170,7 @@ std::size_t OutputBuffer::size() const {
     return bytes_.size();
 }
 
-// ---------------------------------------------------------------------------
 // PtySession
-// ---------------------------------------------------------------------------
 
 PtySession::~PtySession() {
     stop();

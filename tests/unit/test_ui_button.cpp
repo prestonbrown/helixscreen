@@ -28,22 +28,15 @@
 
 #include "../catch_amalgamated.hpp"
 
-// ============================================================================
-// Test Fixture with ui_button registered
-// ============================================================================
-
 class UiButtonTestFixture : public XMLTestFixture {
   public:
     UiButtonTestFixture() : XMLTestFixture() {
-        // Initialize icon name buffer with initial value
         strncpy(icon_buf_, "light", sizeof(icon_buf_) - 1);
         icon_buf_[sizeof(icon_buf_) - 1] = '\0';
 
-        // Register a test subject for bind_icon tests
         icon_subject_.init_string(icon_buf_, nullptr, sizeof(icon_buf_), icon_buf_);
         lv_xml_register_subject(nullptr, "test_icon_subject", &icon_subject_);
 
-        // Register a test subject for bind_text tests
         text_subject_.init_string(text_buf_, nullptr, sizeof(text_buf_), "Close");
         lv_xml_register_subject(nullptr, "test_text_subject", &text_subject_);
 
@@ -56,23 +49,14 @@ class UiButtonTestFixture : public XMLTestFixture {
         spdlog::debug("[UiButtonTestFixture] Cleaned up");
     }
 
-    /**
-     * @brief Get the test icon subject for bind_icon tests
-     */
     lv_subject_t* icon_subject() {
         return &icon_subject_;
     }
 
-    /**
-     * @brief Set the icon subject value
-     */
     void set_icon_name(const char* name) {
         lv_subject_set_string(&icon_subject_, name);
     }
 
-    /**
-     * @brief Set the text subject value
-     */
     void set_text(const char* text) {
         lv_subject_set_string(&text_subject_, text);
     }
@@ -130,13 +114,10 @@ class UiButtonTestFixture : public XMLTestFixture {
     char text_buf_[64];
 };
 
-// ============================================================================
-// bind_icon Tests
-// ============================================================================
+// bind_icon
 
 TEST_CASE_METHOD(UiButtonTestFixture, "ui_button can be created via XML",
                  "[ui_button][xml][quick]") {
-    // Simple test to verify button creation works
     const char* attrs[] = {"text", "Test", nullptr};
 
     lv_obj_t* btn = create_button(attrs);
@@ -188,7 +169,6 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button solid variant label is readable
 
 TEST_CASE_METHOD(UiButtonTestFixture, "ui_button bind_icon basic creation works",
                  "[ui_button][xml][quick]") {
-    // Just test that we can create a button with bind_icon without hanging
     const char* attrs[] = {"text", "Test", "bind_icon", "test_icon_subject", nullptr};
     lv_obj_t* btn = create_button(attrs);
     REQUIRE(btn != nullptr);
@@ -196,21 +176,17 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button bind_icon basic creation works"
 }
 
 TEST_CASE_METHOD(UiButtonTestFixture, "ui_button bind_icon updates icon from subject",
-                 "[ui_button][xml][slow]") { // Marked .slow - hangs in CI environment
-    // Create button with bind_icon attribute bound to test subject
+                 "[ui_button][xml][slow]") { // .slow: hangs in the CI environment
     const char* attrs[] = {"text", "Test", "bind_icon", "test_icon_subject", nullptr};
 
     lv_obj_t* btn = create_button(attrs);
     REQUIRE(btn != nullptr);
 
-    // Process LVGL to apply bindings - use shorter time
     process_lvgl(10);
 
-    // Check child count
     uint32_t child_count = lv_obj_get_child_count(btn);
     REQUIRE(child_count >= 2); // Should have label + icon
 
-    // Find the icon child
     lv_obj_t* icon = nullptr;
     const char* expected_codepoint = helix::ui::icon::lookup_codepoint("light");
 
@@ -229,25 +205,22 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button bind_icon updates icon from sub
     INFO("Initial icon should be 'light' codepoint");
     REQUIRE(strcmp(lv_label_get_text(icon), expected_codepoint) == 0);
 
-    // Update subject to different icon
     set_icon_name("light_off");
     process_lvgl(10);
 
-    // Verify icon changed
     const char* new_expected = helix::ui::icon::lookup_codepoint("light_off");
     INFO("Icon should update to 'light_off' codepoint after subject change");
     REQUIRE(strcmp(lv_label_get_text(icon), new_expected) == 0);
 }
 
 TEST_CASE_METHOD(UiButtonTestFixture, "ui_button bind_icon creates icon if none exists",
-                 "[ui_button][xml][slow]") { // Marked .slow - hangs in CI environment
+                 "[ui_button][xml][slow]") { // .slow: hangs in the CI environment
     // Create button with NO initial icon, but with bind_icon
     const char* attrs[] = {"text", "No Icon", "bind_icon", "test_icon_subject", nullptr};
 
     lv_obj_t* btn = create_button(attrs);
     REQUIRE(btn != nullptr);
 
-    // Process LVGL to apply bindings
     process_lvgl(50);
 
     // Should have created an icon from the subject value
@@ -270,23 +243,19 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button bind_icon creates icon if none 
 }
 
 TEST_CASE_METHOD(UiButtonTestFixture, "ui_button bind_icon handles missing subject gracefully",
-                 "[ui_button][xml][slow]") { // Marked .slow - hangs in CI environment
-    // Create button with bind_icon pointing to non-existent subject
+                 "[ui_button][xml][slow]") { // .slow: hangs in the CI environment
     const char* attrs[] = {"text", "Test", "bind_icon", "nonexistent_subject", nullptr};
 
     lv_obj_t* btn = create_button(attrs);
     REQUIRE(btn != nullptr);
 
-    // Should not crash, button should still be created
     process_lvgl(50);
 
-    // Button should exist and be valid
     REQUIRE(helix::test::widget_in_tree(btn));
 }
 
 TEST_CASE_METHOD(UiButtonTestFixture, "ui_button bind_icon handles empty string value",
-                 "[ui_button][xml][slow]") { // Marked .slow - hangs in CI environment
-    // Set subject to empty string first
+                 "[ui_button][xml][slow]") { // .slow: hangs in the CI environment
     set_icon_name("");
 
     const char* attrs[] = {"text", "Test", "bind_icon", "test_icon_subject", nullptr};
@@ -294,16 +263,14 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button bind_icon handles empty string 
     lv_obj_t* btn = create_button(attrs);
     REQUIRE(btn != nullptr);
 
-    // Should not crash
     process_lvgl(50);
 
-    // Button should exist and be valid
     REQUIRE(helix::test::widget_in_tree(btn));
 }
 
 TEST_CASE_METHOD(UiButtonTestFixture,
                  "ui_button bind_icon works with existing icon attribute overrides",
-                 "[ui_button][xml][slow]") { // Marked .slow - hangs in CI environment
+                 "[ui_button][xml][slow]") { // .slow: hangs in the CI environment
     // Create button with both static icon and bind_icon
     // bind_icon should override the static icon
     const char* attrs[] = {"text", "Test", "icon", "settings", "bind_icon", "test_icon_subject",
@@ -336,13 +303,10 @@ TEST_CASE_METHOD(UiButtonTestFixture,
     REQUIRE(strcmp(lv_label_get_text(icon), helix::ui::icon::lookup_codepoint("light")) == 0);
 }
 
-// ============================================================================
-// bind_op_state Tests — int subject drives idle/busy/done icon-slot rendering
-//
-// 0 = idle  → original icon glyph visible, no spinner
-// 1 = busy  → glyph label hidden, animated spinner arc visible in icon slot
-// 2 = done  → "check" glyph visible, no spinner
-// ============================================================================
+// bind_op_state: an int subject drives idle/busy/done icon-slot rendering.
+//   0 = idle: original icon glyph visible, no spinner
+//   1 = busy: glyph label hidden, animated spinner arc visible in the icon slot
+//   2 = done: "check" glyph visible, no spinner
 
 TEST_CASE_METHOD(UiButtonTestFixture, "ui_button bind_op_state renders idle/busy/done states",
                  "[ui_button][xml][op_state][quick]") {
@@ -434,7 +398,7 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button stays icon-only through its op-
 TEST_CASE_METHOD(UiButtonTestFixture,
                  "ui_button without bind_op_state has no spinner and behaves normally",
                  "[ui_button][xml][op_state][quick]") {
-    // Backward compatibility: a plain icon button must not gain a spinner.
+    // A plain icon button must not gain a spinner.
     const char* attrs[] = {"text", "Light", "icon", "light", nullptr};
     lv_obj_t* btn = create_button(attrs);
     REQUIRE(btn != nullptr);
@@ -447,9 +411,7 @@ TEST_CASE_METHOD(UiButtonTestFixture,
     REQUIRE(strcmp(lv_label_get_text(icon), helix::ui::icon::lookup_codepoint("light")) == 0);
 }
 
-// ============================================================================
-// bind_text Tests — bind_text always resolves as subject name
-// ============================================================================
+// bind_text: always resolves as a subject name
 
 TEST_CASE_METHOD(UiButtonTestFixture,
                  "ui_button bind_text with non-existent subject falls back to literal",
@@ -497,7 +459,7 @@ TEST_CASE_METHOD(UiButtonTestFixture,
 TEST_CASE_METHOD(UiButtonTestFixture,
                  "ui_button bind_text with @ prefix strips it and resolves subject",
                  "[ui_button][xml][bind_text][quick]") {
-    // @ prefix is stripped for backward compatibility with text="@subject" convention
+    // The @ prefix is stripped, matching the text="@subject" convention
     const char* attrs[] = {"bind_text", "@test_text_subject", nullptr};
 
     lv_obj_t* btn = create_button(attrs);
@@ -543,15 +505,11 @@ TEST_CASE_METHOD(UiButtonTestFixture,
     REQUIRE(strcmp(lv_label_get_text(label), "Close") == 0);
 }
 
-// ============================================================================
-// Deferred contrast after delete (#924)
-//
-// Integration-level coverage of the deferred-contrast path: a STYLE_CHANGED
-// event defers update_button_text_contrast through the UpdateQueue; if the
-// button is destroyed before the queue drains, the deferred recompute must be
-// skipped rather than crashing. test_ui_button_defer_reuse.cpp covers the same
-// path through the anonymous-namespace internals.
-// ============================================================================
+// Deferred contrast after delete (#924): a STYLE_CHANGED event defers
+// update_button_text_contrast through the UpdateQueue; if the button is
+// destroyed before the queue drains, the deferred recompute must be skipped
+// rather than crashing. test_ui_button_defer_reuse.cpp covers the same path
+// through the anonymous-namespace internals.
 
 TEST_CASE_METHOD(UiButtonTestFixture,
                  "ui_button deferred contrast on a deleted button is safely skipped",
@@ -572,9 +530,7 @@ TEST_CASE_METHOD(UiButtonTestFixture,
     REQUIRE_NOTHROW(helix::ui::UpdateQueue::instance().drain_until_empty());
 }
 
-// ============================================================================
-// icon_position + bind_icon Tests
-// ============================================================================
+// icon_position + bind_icon
 //
 // A button that declares icon_position="top"/"bottom" but has no static icon=
 // attribute gets its icon created later, by the bind_icon apply pass. That pass
@@ -627,8 +583,7 @@ TEST_CASE_METHOD(UiButtonTestFixture,
     REQUIRE(icon_idx > label_idx);
 }
 
-// Regression guard: the default (no icon_position) must keep producing a row
-// with the icon to the LEFT of the label, exactly as before.
+// The default (no icon_position) produces a row with the icon to the LEFT of the label.
 TEST_CASE_METHOD(UiButtonTestFixture,
                  "ui_button bind_icon without icon_position still lays out as a row",
                  "[ui_button][xml][quick]") {
@@ -648,8 +603,8 @@ TEST_CASE_METHOD(UiButtonTestFixture,
     REQUIRE(icon_idx < label_idx);
 }
 
-// icon_position="right" with bind_icon must keep the row flow and place the
-// icon after the label — the one position the pre-existing code already honoured.
+// icon_position="right" with bind_icon keeps the row flow and places the
+// icon after the label.
 TEST_CASE_METHOD(UiButtonTestFixture,
                  "ui_button bind_icon honours icon_position=right without a static icon",
                  "[ui_button][xml][quick]") {
@@ -670,9 +625,7 @@ TEST_CASE_METHOD(UiButtonTestFixture,
     REQUIRE(icon_idx > label_idx);
 }
 
-// ============================================================================
 // label_hidden_subject / label_hidden_if_bp_eq
-// ============================================================================
 
 namespace {
 /// The button's text label: the label child that is not its icon glyph.
@@ -968,9 +921,7 @@ TEST_CASE_METHOD(UiButtonTestFixture,
     CHECK(s_invalidations == 0);
 }
 
-// ============================================================================
 // Rows that share space by content (prestonbrown/helixscreen#1307)
-// ============================================================================
 
 namespace {
 /// A flex row of fixed width, the shape of the Home and filament-op rows.

@@ -107,9 +107,7 @@ std::string first_output_line(const std::string& text) {
     return std::string(helix::text_io::trim(text.substr(0, text.find('\n'))));
 }
 
-// ============================================================================
 // NetworkManager
-// ============================================================================
 
 // A change runs up to six nmcli calls (two lookups and a read to snapshot, a
 // modify, reapply, then up) inside WiFiManager's 58 s IPv4 deadline: 55 s

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // While the exclude-object side list is open, the print status panel keeps the
-// G-code viewer's numbered badges in step with it: the same number and colour
+// G-code viewer's numbered badges in step with it: the same number and color
 // per object as the list's chips, refreshed when objects are excluded or the
 // printing object moves, and gone when the list closes.
 

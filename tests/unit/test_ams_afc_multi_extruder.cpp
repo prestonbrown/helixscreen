@@ -41,9 +41,7 @@
 #include "hv/json.hpp"
 
 using namespace helix;
-// ============================================================================
 // Test helper for multi-extruder AFC parsing
-// ============================================================================
 
 namespace helix {
 
@@ -157,9 +155,7 @@ class AmsBackendAfcMultiExtruderHelper : public AmsBackendAfc {
 };
 } // namespace helix
 
-// ============================================================================
 // AfcExtruderInfo struct tests
-// ============================================================================
 
 TEST_CASE("AfcExtruderInfo default construction", "[ams][afc][multi_extruder]") {
     AfcExtruderInfo info{};
@@ -182,9 +178,7 @@ TEST_CASE("AfcExtruderInfo construction with values", "[ams][afc][multi_extruder
     CHECK(info.available_lanes[1] == "lane2");
 }
 
-// ============================================================================
 // Single extruder (standard AFC, no toolchanger)
-// ============================================================================
 
 TEST_CASE("AFC single extruder: num_extruders defaults to 1", "[ams][afc][multi_extruder]") {
     AmsBackendAfcMultiExtruderHelper helper;
@@ -234,9 +228,7 @@ TEST_CASE("AFC.system webhook: single extruder carries its whole lane list",
     CHECK(ext.available_lanes == std::vector<std::string>{"lane1", "lane2", "lane3", "lane4"});
 }
 
-// ============================================================================
 // Multi-extruder (toolchanger with AFC)
-// ============================================================================
 
 TEST_CASE("AFC.system webhook: num_extruders=2 with two extruder entries",
           "[ams][afc][multi_extruder][webhook]") {
@@ -322,9 +314,7 @@ TEST_CASE("AFC.system webhook: lane_loaded can be empty (no filament loaded)",
     CHECK(extruders[1].lane_loaded.empty());
 }
 
-// ============================================================================
 // Lane-to-extruder mapping
-// ============================================================================
 
 TEST_CASE("AFC.system webhook: each extruder tracks its available lanes",
           "[ams][afc][multi_extruder][webhook]") {
@@ -349,9 +339,7 @@ TEST_CASE("AFC.system webhook: each extruder tracks its available lanes",
     CHECK(extruders[1].available_lanes[0] == "lane5");
 }
 
-// ============================================================================
 // Per-extruder bowden length device action
-// ============================================================================
 
 TEST_CASE("AFC single extruder: single bowden_length action", "[ams][afc][multi_extruder]") {
     AmsBackendAfcMultiExtruderHelper helper;
@@ -446,9 +434,7 @@ TEST_CASE("AFC.system webhook: bowden actions have correct labels",
     }
 }
 
-// ============================================================================
 // State update: extruder data updates on subsequent AFC state messages
-// ============================================================================
 
 TEST_CASE("AFC.system webhook: state updates replace extruder data",
           "[ams][afc][multi_extruder][webhook]") {
@@ -480,9 +466,7 @@ TEST_CASE("AFC.system webhook: state updates replace extruder data",
     CHECK(helper.get_extruders()[1].lane_loaded == "lane3");
 }
 
-// ============================================================================
 // Edge cases
-// ============================================================================
 
 // Status shape: a real frame with neither `system` nor `extruders`. This is what
 // a delta update looks like, and it must not disturb what discovery already

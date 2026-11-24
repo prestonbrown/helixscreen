@@ -4,9 +4,7 @@
 # HelixScreen UI Prototype - Font & Icon Generation Module
 # Handles font generation and Material Design icons
 
-# =============================================================================
 # Per-tier font file lists
-# =============================================================================
 # Each tier lists the text fonts and icon fonts its globals.xml constants reference.
 # FONT_SRCS is assembled from the union of declared FONT_TIERS.
 
@@ -210,7 +208,7 @@ $(FONT_SRCS): .fonts.stamp
 generate-fonts: .fonts.stamp
 
 # Validate that all icons in ui_icon_codepoints.h are present in compiled fonts
-# This prevents the bug where icons are added to code but fonts aren't regenerated
+# Catches icons added to code whose fonts were not regenerated.
 validate-fonts:
 	$(ECHO) "$(CYAN)Validating icon font codepoints...$(RESET)"
 	$(Q)if [ -f scripts/validate_icon_fonts.sh ]; then \

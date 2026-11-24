@@ -7,8 +7,7 @@
 // The helper choosing between relative and absolute is unit-tested in
 // test_z_offset_utils.cpp. These tests pin the WIRING: that the overlay seeds its
 // base from the resolved offset (not the raw live one) and hands the helper the
-// right arguments. That is the half that regressed, and the half a helper test
-// cannot see.
+// right arguments. That is the half a helper test cannot see.
 //
 // Background: ZMOD zeroes gcode_move's live offset in END_PRINT/CANCEL_PRINT and
 // keeps the real one in save_variables.gcode_offsets. An idle relative
@@ -220,8 +219,8 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
                  "PrintTune: mid-print baby-step still sends the relative Z_ADJUST form",
                  "[ui_integration][zoffset][zmod]") {
     // Mid-print START_PRINT has already applied the stored offset, so the live
-    // value IS the base and the cheap relative form is correct. This is the
-    // guard against the fix changing behavior during a print.
+    // value IS the base and the cheap relative form is correct. This pins
+    // that the stored-offset handling leaves printing behavior unchanged.
     set_persisted_offset(-0.15);
     set_live_offset(-0.15);
     set_printing(true);
@@ -272,9 +271,9 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture, "PrintTune: MOVE=1 is omitted when the
 TEST_CASE_METHOD(PrintTuneZOffsetFixture,
                  "PrintTune: an offset already past the travel guard still steps normally",
                  "[ui_integration][zoffset][1280][regression]") {
-    // #1280: the guard used to clamp the ABSOLUTE offset to +/-2mm. A toolhead
-    // running +2.5mm was yanked to 2.000 on the first tap -- a 0.5mm nose dive
-    // into the print. The guard bounds session travel now, so a step is a step.
+    // #1280: the guard bounds session travel, not the ABSOLUTE offset. A toolhead
+    // running +2.5mm must not be clamped to 2.000 on the first tap (a 0.5mm nose
+    // dive into the print), so a step is a step.
     set_live_offset(2.5);
     set_printing(true);
     set_homed(true);
@@ -308,7 +307,7 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
 
 TEST_CASE_METHOD(PrintTuneZOffsetFixture, "PrintTune: session travel is still bounded at 2mm",
                  "[ui_integration][zoffset][1280]") {
-    // The guard has to survive the fix: 60 x 0.05mm would reach 3mm of travel,
+    // Session travel stays bounded: 60 x 0.05mm would reach 3mm of travel,
     // and must stop at 2mm past the offset the overlay opened on.
     set_live_offset(2.5);
     set_printing(true);
@@ -625,10 +624,8 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     lv_subject_set_int(portrait, portrait_before);
 }
 
-// ============================================================================
 // Print Status's inline Tune section: the same controls, live without the
 // overlay ever being built.
-// ============================================================================
 
 namespace {
 

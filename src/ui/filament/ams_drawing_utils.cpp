@@ -20,9 +20,7 @@
 
 namespace ams_draw {
 
-// ============================================================================
 // Color Utilities
-// ============================================================================
 
 lv_color_t lighten_color(lv_color_t c, uint8_t amount) {
     return lv_color_make(std::min(255, c.red + amount), std::min(255, c.green + amount),
@@ -42,9 +40,7 @@ lv_color_t blend_color(lv_color_t c1, lv_color_t c2, float factor) {
                          static_cast<uint8_t>(c1.blue + (c2.blue - c1.blue) * factor));
 }
 
-// ============================================================================
 // Severity & Error Helpers
-// ============================================================================
 
 lv_color_t severity_color(helix::SlotError::Severity severity) {
     switch (severity) {
@@ -67,9 +63,7 @@ helix::SlotError::Severity worst_unit_severity(const helix::AmsUnit& unit) {
     return worst;
 }
 
-// ============================================================================
 // Data Helpers
-// ============================================================================
 
 int floor_fill_pct(int pct, int min_pct) {
     // Canonical fill semantics (SlotInfo::display_fill_pct): real ratio when
@@ -97,13 +91,9 @@ int32_t calc_bar_width(int32_t container_width, int slot_count, int32_t gap, int
     return std::clamp(width, min_width, max_width);
 }
 
-// ============================================================================
 // Presentation Helpers
-// ============================================================================
 
-// ============================================================================
 // LVGL Widget Factories
-// ============================================================================
 
 lv_obj_t* create_transparent_container(lv_obj_t* parent) {
     lv_obj_t* c = lv_obj_create(parent);
@@ -115,9 +105,7 @@ lv_obj_t* create_transparent_container(lv_obj_t* parent) {
     return c;
 }
 
-// ============================================================================
 // Pulse Animation
-// ============================================================================
 
 static void pulse_scale_anim_cb(void* var, int32_t value) {
     auto* obj = static_cast<lv_obj_t*>(var);
@@ -202,9 +190,7 @@ void stop_pulse(lv_obj_t* dot) {
     lv_obj_set_style_shadow_opa(dot, LV_OPA_TRANSP, LV_PART_MAIN);
 }
 
-// ============================================================================
 // Error Badge
-// ============================================================================
 
 lv_obj_t* create_error_badge(lv_obj_t* parent, int32_t size) {
     lv_obj_t* badge = lv_obj_create(parent);
@@ -240,9 +226,7 @@ void update_error_badge(lv_obj_t* badge, bool has_error, helix::SlotError::Sever
     }
 }
 
-// ============================================================================
 // Slot Bar Column
-// ============================================================================
 
 SlotColumn create_slot_column(lv_obj_t* parent, int32_t bar_width, int32_t bar_height,
                               int32_t bar_radius) {
@@ -274,9 +258,7 @@ SlotColumn create_slot_column(lv_obj_t* parent, int32_t bar_width, int32_t bar_h
     return col;
 }
 
-// ============================================================================
 // Logo Helpers
-// ============================================================================
 
 void apply_logo(lv_obj_t* image, const helix::AmsUnit& unit, const helix::AmsSystemInfo& info) {
     if (!image) {
@@ -307,9 +289,7 @@ void apply_logo(lv_obj_t* image, const std::string& type_name) {
     }
 }
 
-// ============================================================================
 // System Tool Layout
-// ============================================================================
 
 SystemToolLayout compute_system_tool_layout(const helix::AmsSystemInfo& info,
                                             const helix::AmsBackend* backend) {

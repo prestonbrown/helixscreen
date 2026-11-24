@@ -33,10 +33,8 @@
 
 namespace helix {
 
-// ============================================================================
 // State shared between the overlay and row click callbacks.
 // Only one catalog overlay can be open at a time.
-// ============================================================================
 
 namespace {
 
@@ -311,9 +309,7 @@ std::string format_track_span(int tracks) {
 
 } // namespace
 
-// ============================================================================
 // Row creation
-// ============================================================================
 
 lv_obj_t* WidgetCatalogOverlay::create_row(lv_obj_t* parent, const char* name, const char* icon,
                                            const char* description, int colspan, int rowspan,
@@ -532,9 +528,7 @@ void WidgetCatalogOverlay::on_search_changed(lv_event_t* e) {
     apply_search(text ? text : "");
 }
 
-// ============================================================================
 // Category grouping
-// ============================================================================
 
 std::vector<const PanelWidgetDef*>
 WidgetCatalogOverlay::widgets_in_category(WidgetCategory category) {
@@ -555,9 +549,7 @@ lv_obj_t* WidgetCatalogOverlay::active_category_root() {
     return g_catalog_state.category_root;
 }
 
-// ============================================================================
 // Populate rows
-// ============================================================================
 
 void WidgetCatalogOverlay::populate_category_rows(lv_obj_t* group) {
     const auto& categories = get_widget_categories();
@@ -719,9 +711,7 @@ lv_obj_t* WidgetCatalogOverlay::create_widget_row(
     return row;
 }
 
-// ============================================================================
 // Show
-// ============================================================================
 
 void WidgetCatalogOverlay::close() {
     close_catalog();
@@ -773,7 +763,6 @@ void WidgetCatalogOverlay::show(lv_obj_t* parent_screen, const PanelWidgetConfig
     g_catalog_state.on_close = std::move(on_close);
     g_catalog_state.fits = std::move(fits);
 
-    // Create overlay from XML
     auto* overlay = helix::ui::create_xml_hidden(parent_screen, "widget_catalog_overlay");
     if (!overlay) {
         spdlog::error("[WidgetCatalog] Failed to create widget_catalog_overlay from XML");
@@ -870,8 +859,7 @@ void WidgetCatalogOverlay::show(lv_obj_t* parent_screen, const PanelWidgetConfig
             release_catalog_state();
             // The pop that triggered this callback has already run, so the
             // widget is off the stack and safe to reclaim. Without this the
-            // header back button leaks the whole tree the same way close_catalog
-            // used to.
+            // header back button leaks the whole tree.
             retire_overlay(overlay, "catalog_root_reclaim");
             spdlog::debug("[WidgetCatalog] Closed via navigation go_back");
         }
@@ -886,9 +874,7 @@ void WidgetCatalogOverlay::show(lv_obj_t* parent_screen, const PanelWidgetConfig
                  get_widget_categories().size(), get_all_widget_defs().size());
 }
 
-// ============================================================================
 // Category sub-page
-// ============================================================================
 
 void WidgetCatalogOverlay::show_category(WidgetCategory category) {
     const WidgetCategoryDef* def = find_widget_category(category);
@@ -963,9 +949,7 @@ void WidgetCatalogOverlay::show_widget_page(const char* title, const char* title
     spdlog::info("[WidgetCatalog] Dived into '{}' ({} widgets)", title_tag, defs.size());
 }
 
-// ============================================================================
 // Hardware gate changes
-// ============================================================================
 
 void WidgetCatalogOverlay::refresh_gated_rows() {
     if (!g_catalog_state.overlay_root || !g_catalog_state.config) {

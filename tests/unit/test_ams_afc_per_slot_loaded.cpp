@@ -99,9 +99,7 @@ nlohmann::json idle_lane() {
 
 } // namespace
 
-// ============================================================================
 // The authority seam
-// ============================================================================
 
 TEST_CASE("Per-slot load authority is opt-in at the AmsBackend seam", "[ams][afc][1194]") {
     SECTION("AFC claims it — its parse carries tool_loaded per lane") {
@@ -125,9 +123,7 @@ TEST_CASE("Per-slot load authority is opt-in at the AmsBackend seam", "[ams][afc
     }
 }
 
-// ============================================================================
 // slot_is_actively_loaded — per-lane tool_loaded outranks the aggregate
-// ============================================================================
 
 TEST_CASE("AFC slot_is_actively_loaded follows the lane AFC seated, not current_slot",
           "[ams][afc][1194][1183]") {
@@ -186,9 +182,7 @@ TEST_CASE("AFC slot_is_actively_loaded follows the lane AFC seated, not current_
     }
 }
 
-// ============================================================================
 // slot_has_filament_at_toolhead — the extruder sensors, attributed by lane
-// ============================================================================
 
 TEST_CASE("AFC slot_has_filament_at_toolhead reports the extruder sensors for the loaded lane",
           "[ams][afc][1194]") {
@@ -263,9 +257,7 @@ TEST_CASE("AFC slot_has_filament_at_toolhead reports the extruder sensors for th
     }
 }
 
-// ============================================================================
 // Which lane each head holds (prestonbrown/helixscreen#1811)
-// ============================================================================
 
 TEST_CASE("AFC topology marks the lane seated in each head, mounted or parked",
           "[ams][afc][ams-topology][seated-lane]") {

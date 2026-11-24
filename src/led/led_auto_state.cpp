@@ -255,9 +255,7 @@ void LedAutoState::unsubscribe_observers() {
     spdlog::debug("[LedAutoState] Unsubscribed from printer state observers");
 }
 
-// ============================================================================
 // Config persistence
-// ============================================================================
 
 void LedAutoState::load_config() {
     auto* cfg = Config::get_instance();

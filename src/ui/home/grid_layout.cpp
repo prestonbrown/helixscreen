@@ -36,9 +36,7 @@ static int clamp_bp(UiBreakpoint bp) {
     return v;
 }
 
-// ---------------------------------------------------------------------------
 // Static helpers
-// ---------------------------------------------------------------------------
 
 GridDimensions GridLayout::get_dimensions(UiBreakpoint bp, int content_w, int content_h) {
     // A cell is TRACKS_PER_CELL tracks, and only a whole cell can be occupied,
@@ -95,9 +93,7 @@ std::vector<int32_t> GridLayout::make_row_dsc(int nrows) {
     return dsc;
 }
 
-// ---------------------------------------------------------------------------
 // Instance methods
-// ---------------------------------------------------------------------------
 
 GridLayout::GridLayout(UiBreakpoint bp, GridDimensions dims) : breakpoint_(bp), dims_(dims) {}
 

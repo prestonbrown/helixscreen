@@ -69,7 +69,7 @@ struct ClampedCell {
 /// `col_step` / `row_step` are the track boundaries the widget may occupy. A
 /// saved layout can carry an origin or span off those boundaries — written by a
 /// build where the widget still declared half-cell support, or edited by hand —
-/// and the load path used to honour it verbatim, so the straddle survived every
+/// and honouring it verbatim would keep the straddle across every
 /// restart (#1126). Snapping DOWN keeps the widget's top-left where the user put
 /// it to within half a cell; if the snapped position now collides, the caller's
 /// existing fallback re-seats it through auto-placement.
@@ -362,7 +362,7 @@ void PanelWidgetManager::init_widget_subjects() {
     }
     widget_subjects_initialized_ = true;
 
-    // Self-register per-printer cache invalidation. panel_configs_ / active_configs_
+    // Self-register per-printer cache invalidation. The panel configs / active_configs_
     // both derive from /printers/<active>/panel_widgets/<panel>, so an
     // active-printer change must drop them (#804). This manager is a process-lifetime
     // singleton, so there is no matching unregister().
@@ -582,7 +582,6 @@ lv_obj_t* create_tile(lv_obj_t* container, WidgetSlot& slot, const TileCell& cel
 
     const auto t_attach = std::chrono::steady_clock::now();
 
-    // Place in grid cell
     lv_obj_set_grid_cell(widget, LV_GRID_ALIGN_STRETCH, cell.col, cell.colspan,
                          LV_GRID_ALIGN_STRETCH, cell.row, cell.rowspan);
 
@@ -1507,13 +1506,11 @@ PanelWidgetManager::populate_widgets(const std::string& panel_id, lv_obj_t* cont
                                             grid.cols(), grid.rows(), card_col_step, card_row_step);
 
             // Whether a widget wants the shared card is a property of the
-            // widget, not of its size — `merges_into_card` in the registry. It
-            // used to be inferred from "is this exactly one cell", which
-            // conflated wanting a card with being small and was wrong both
-            // ways: a 2x1 fan_stack paints nothing of its own and got no
-            // background, while a one-cell ams brings its own and got two.
+            // widget, not of its size — `merges_into_card` in the registry. Size
+            // does not decide it: a 2x1 fan_stack paints nothing of its own and
+            // needs the background, while a one-cell ams brings its own.
             //
-            // Geometry no longer has a say. In tracks a widget's footprint is
+            // Geometry has no say. In tracks a widget's footprint is
             // exact whatever its size or alignment, so the flag alone decides:
             // a widget that opts out blocks merges through the tracks it
             // touches and is on its own for a background.
@@ -2219,10 +2216,7 @@ void PanelWidgetManager::clear_all_panel_configs() {
     // PREVIOUS printer's /printers/<id>/panel_widgets/<panel> path. Mark each
     // dirty so the next load() re-reads from the now-current Config::df() path
     // (the #804 load() guard otherwise serves the stale layout indefinitely).
-    for (auto& [panel_id, config] : panel_configs_) {
-        (void)panel_id;
-        config.mark_printer_changed();
-    }
+    mark_cached_panel_widget_configs_printer_changed();
     // Drop the per-page widget-list cache wholesale — it keys on "panel:page" and
     // describes the old printer's resolved widget list. Grid descriptors stay
     // put: they are keyed by container, so grids laid out for the previous
@@ -2259,20 +2253,7 @@ void PanelWidgetManager::on_container_delete(lv_event_t* e) {
 }
 
 PanelWidgetConfig& PanelWidgetManager::get_widget_config(const std::string& panel_id) {
-    // Per-panel config instances cached by panel ID in panel_configs_.
-    // Main-thread only — no synchronization on the map.
-    auto it = panel_configs_.find(panel_id);
-    if (it == panel_configs_.end()) {
-        it = panel_configs_.emplace(panel_id, PanelWidgetConfig(panel_id, *Config::get_instance()))
-                 .first;
-    }
-    // load() is a no-op if already loaded. Callers that bypass the setters must
-    // call notify_config_changed() → mark_dirty() (or clear_all_panel_configs()
-    // on a printer switch) to trigger a reload. Previously this unconditionally
-    // reloaded on every access, churning pages_ many times per panel populate
-    // and leaving outer frames exposed to invalidated references (#804).
-    it->second.load();
-    return it->second;
+    return cached_panel_widget_config(panel_id);
 }
 
 // -- PanelWidget base class --

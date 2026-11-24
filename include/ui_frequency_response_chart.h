@@ -61,9 +61,7 @@
 
 struct ui_frequency_response_chart_t;
 
-// ============================================================================
 // Creation/Destruction
-// ============================================================================
 
 /**
  * @brief Create a new frequency response chart widget
@@ -87,9 +85,7 @@ ui_frequency_response_chart_t* ui_frequency_response_chart_create(lv_obj_t* pare
  */
 void ui_frequency_response_chart_destroy(ui_frequency_response_chart_t* chart);
 
-// ============================================================================
 // Series Management
-// ============================================================================
 
 /**
  * @brief Add a new data series to the chart
@@ -400,9 +396,7 @@ struct FrFillSegmentOpa {
 [[nodiscard]] FrFillSegmentOpa fr_chart_fill_segment_opa(int32_t top_a_y, int32_t top_b_y,
                                                          int32_t bottom_y);
 
-// ============================================================================
 // Data Management
-// ============================================================================
 
 /**
  * @brief Set frequency response data for a series
@@ -430,9 +424,7 @@ void ui_frequency_response_chart_set_data(ui_frequency_response_chart_t* chart, 
  */
 void ui_frequency_response_chart_clear(ui_frequency_response_chart_t* chart);
 
-// ============================================================================
 // Peak Marking
-// ============================================================================
 
 /**
  * @brief Mark a resonance peak on a series
@@ -508,9 +500,7 @@ ui_frequency_response_chart_get_series_amplitudes(ui_frequency_response_chart_t*
 [[nodiscard]] std::vector<FrChartMarker>
 ui_frequency_response_chart_get_markers(ui_frequency_response_chart_t* chart, int series_id);
 
-// ============================================================================
 // Configuration
-// ============================================================================
 
 /**
  * @brief Set the frequency axis range
@@ -556,9 +546,7 @@ ui_frequency_response_chart_get_amplitude_range(ui_frequency_response_chart_t* c
  */
 lv_obj_t* ui_frequency_response_chart_get_obj(ui_frequency_response_chart_t* chart);
 
-// ============================================================================
 // Hardware Adaptation
-// ============================================================================
 
 /**
  * @brief Configure chart for a specific platform tier
@@ -615,9 +603,7 @@ size_t ui_frequency_response_chart_get_max_points(ui_frequency_response_chart_t*
  */
 bool ui_frequency_response_chart_is_chart_mode(ui_frequency_response_chart_t* chart);
 
-// ============================================================================
 // Axis unit and shaded x-bands
-// ============================================================================
 
 /// One shaded stretch of the x axis, in the axis' own unit.
 // NAMESPACE_OK: extends this header's file-scope C chart API

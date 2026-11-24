@@ -34,9 +34,7 @@
 
 using namespace helix;
 
-// ============================================================================
 // LONG-PRESS RENAME HELPERS
-// ============================================================================
 
 namespace {
 
@@ -109,9 +107,7 @@ lv_obj_t* open_fan_control_overlay(lv_obj_t* parent_screen) {
 }
 } // namespace helix
 
-// ============================================================================
 // CONSTRUCTOR / DESTRUCTOR
-// ============================================================================
 
 FanControlOverlay::FanControlOverlay(PrinterState& printer_state) : printer_state_(printer_state) {}
 
@@ -129,9 +125,7 @@ FanControlOverlay::~FanControlOverlay() {
     spdlog::trace("[FanControlOverlay] Destroyed");
 }
 
-// ============================================================================
 // OVERLAYBASE IMPLEMENTATION
-// ============================================================================
 
 void FanControlOverlay::on_fan_rename_hold(lv_event_t* e) {
     if (lv_event_get_code(e) == LV_EVENT_PRESSED) {
@@ -319,9 +313,7 @@ void FanControlOverlay::on_root_deleted(lv_event_t* e) {
     self.overlay_root_ = nullptr;
 }
 
-// ============================================================================
 // PRIVATE HELPERS
-// ============================================================================
 
 void FanControlOverlay::set_auto_fan_speed_text(AutoFanCard::SpeedText& speed, int speed_pct,
                                                 std::optional<int> rpm) {
@@ -739,16 +731,13 @@ void FanControlOverlay::unsubscribe_from_fan_speeds() {
         afd.animation.unbind();
     }
 
-    // Clear auto fan observers
     fan_speed_observers_.clear();
     fan_rpm_observer_.reset();
 
     spdlog::trace("[{}] Unsubscribed from fan speed subjects", get_name());
 }
 
-// ============================================================================
 // FAN ICON SPIN ANIMATION
-// ============================================================================
 
 void FanControlOverlay::update_auto_fan_animation(AutoFanCard& card, int speed_pct) {
     card.last_speed_pct = speed_pct;

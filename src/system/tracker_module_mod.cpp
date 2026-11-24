@@ -12,11 +12,9 @@
 
 namespace helix::audio {
 
-// ---------------------------------------------------------------------------
 // Amiga period table — standard ProTracker periods for octaves 0-9
 // Index 0 = C-0 (note 1), each entry is the Amiga hardware period value.
 // 12 notes per octave: C C# D D# E F F# G G# A A# B
-// ---------------------------------------------------------------------------
 // clang-format off
 static const uint16_t kAmigaPeriods[] = {
     // Octave 0 (notes 1-12)
@@ -70,9 +68,7 @@ uint16_t TrackerModule::note_to_period(uint8_t note) {
     return kAmigaPeriods[note - 1];
 }
 
-// ---------------------------------------------------------------------------
 // parse_mod
-// ---------------------------------------------------------------------------
 
 std::optional<TrackerModule> parse_mod(const uint8_t* data, size_t size) {
     // MOD layout:
@@ -325,9 +321,7 @@ std::optional<TrackerModule> parse_mod(const uint8_t* data, size_t size) {
     return mod;
 }
 
-// ---------------------------------------------------------------------------
 // TrackerModule static methods
-// ---------------------------------------------------------------------------
 
 float TrackerModule::note_to_freq(uint8_t note) {
     if (note == 0)

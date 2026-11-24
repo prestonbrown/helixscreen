@@ -15,9 +15,7 @@
 
 using namespace helix;
 
-// ============================================================================
 // Test Access — friend class declared in PrintLifecycleState
-// ============================================================================
 
 class PrintLifecycleStateTestAccess {
   public:
@@ -44,9 +42,7 @@ class PrintLifecycleStateTestAccess {
 
 using TA = PrintLifecycleStateTestAccess;
 
-// ============================================================================
 // Race Condition Tests — known bugs where stale zero values arrive late
-// ============================================================================
 
 TEST_CASE("Progress=0 before Complete does not reset display", "[lifecycle][race]") {
     PrintLifecycleState sm;
@@ -161,9 +157,7 @@ TEST_CASE("Data updates rejected in Idle state", "[lifecycle][race]") {
     REQUIRE(sm.on_time_left_changed(0, PrintOutcome::NONE) == false);
 }
 
-// ============================================================================
 // State Transition Tests
-// ============================================================================
 
 TEST_CASE("STANDBY transitions to Idle", "[lifecycle][state]") {
     PrintLifecycleState sm;
@@ -262,9 +256,7 @@ TEST_CASE("Resume (Paused->Printing) sets should_reset_progress_bar=false", "[li
     REQUIRE(result.should_reset_progress_bar == false);
 }
 
-// ============================================================================
 // Preparing State Tests
-// ============================================================================
 
 TEST_CASE("Phase != 0 transitions to Preparing", "[lifecycle][preparing]") {
     PrintLifecycleState sm;
@@ -307,9 +299,7 @@ TEST_CASE("Duration updates ignored during Preparing", "[lifecycle][preparing]")
     REQUIRE(accepted == false);
 }
 
-// ============================================================================
 // print_ended & gcode_loaded Tests
-// ============================================================================
 
 TEST_CASE("Complete/Cancelled/Error do NOT trigger print_ended", "[lifecycle][state]") {
     // Resources (thumbnail, gcode, viewer) persist through terminal states.
@@ -464,9 +454,7 @@ TEST_CASE("should_show_viewer includes Preparing and Complete", "[lifecycle][vie
     }
 }
 
-// ============================================================================
 // Edge Cases
-// ============================================================================
 
 TEST_CASE("Progress clamped to 0-100", "[lifecycle]") {
     PrintLifecycleState sm;
@@ -524,7 +512,6 @@ TEST_CASE("Temperature/speed/flow always accepted", "[lifecycle]") {
     }
 }
 
-// ============================================================================
 // map_current_layer_to_viewer — layer rescaling used by both the live update
 // path and the terminal→Idle re-freeze path in PrintStatusPanel.
 //
@@ -535,7 +522,6 @@ TEST_CASE("Temperature/speed/flow always accepted", "[lifecycle]") {
 // guard could reject the update. The viewer-layer mapping lives here so it
 // can be exercised without instantiating the full panel; the panel calls
 // this helper in both the live and re-freeze paths so they cannot drift.
-// ============================================================================
 
 TEST_CASE("map_current_layer_to_viewer rescales by total_layers", "[lifecycle][viewer]") {
     PrintLifecycleState sm;
@@ -566,9 +552,8 @@ TEST_CASE("map_current_layer_to_viewer returns current_layer when viewer has no 
 
 TEST_CASE("map_current_layer_to_viewer stays frozen after Complete→Idle",
           "[lifecycle][viewer][race]") {
-    // This is the direct regression coverage for the bug where the panel's
-    // from_terminal_to_idle re-freeze path forgot to update the gcode viewer.
-    // After Moonraker sends zeroed subjects on STANDBY, the lifecycle guard
+    // Covers the panel's from_terminal_to_idle re-freeze path updating the
+    // gcode viewer. After Moonraker sends zeroed subjects on STANDBY, the lifecycle guard
     // keeps current_layer_ at its terminal value, so the mapping still yields
     // the final printed layer — not 0.
     PrintLifecycleState sm;
@@ -617,9 +602,7 @@ TEST_CASE("Duration ignored when outcome != NONE", "[lifecycle][guard]") {
     REQUIRE(sm.elapsed_seconds() == 500);
 }
 
-// ============================================================================
 // derive_print_state - the single job-state -> UI-state mapping
-// ============================================================================
 
 TEST_CASE("derive_print_state maps every job state", "[lifecycle][state]") {
     // The mapping from Moonraker's PrintJobState to the UI-level PrintState was

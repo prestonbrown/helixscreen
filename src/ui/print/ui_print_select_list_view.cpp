@@ -22,9 +22,7 @@ using helix::gcode::strip_gcode_extension;
 
 namespace helix::ui {
 
-// ============================================================================
 // Construction / Destruction
-// ============================================================================
 
 PrintSelectListView::PrintSelectListView() {
     spdlog::trace("[PrintSelectListView] Constructed");
@@ -35,9 +33,7 @@ PrintSelectListView::~PrintSelectListView() {
     spdlog::trace("[PrintSelectListView] Destroyed");
 }
 
-// ============================================================================
 // Setup / Cleanup
-// ============================================================================
 
 bool PrintSelectListView::setup(lv_obj_t* container, FileClickCallback on_file_click,
                                 MetadataFetchCallback on_metadata_fetch) {
@@ -79,7 +75,6 @@ void PrintSelectListView::clear_cached_state() {
         }
     }
 
-    // Clear data structures
     list_data_pool_.clear();
     list_pool_.clear();
     list_pool_indices_.clear();
@@ -108,9 +103,7 @@ void PrintSelectListView::cleanup() {
     spdlog::debug("[PrintSelectListView] cleanup()");
 }
 
-// ============================================================================
 // Pool Initialization
-// ============================================================================
 
 void PrintSelectListView::init_pool() {
     if (!container_ || !list_pool_.empty()) {
@@ -192,9 +185,7 @@ void PrintSelectListView::init_pool() {
     spdlog::debug("[PrintSelectListView] Pool initialized with {} rows", list_pool_.size());
 }
 
-// ============================================================================
 // Row Configuration
-// ============================================================================
 
 void PrintSelectListView::configure_row(lv_obj_t* row, size_t pool_index, size_t file_index,
                                         const PrintFileData& file) {
@@ -251,9 +242,7 @@ void PrintSelectListView::configure_row(lv_obj_t* row, size_t pool_index, size_t
     lv_obj_set_hidden(row, false);
 }
 
-// ============================================================================
 // Population / Visibility
-// ============================================================================
 
 void PrintSelectListView::populate(const std::vector<PrintFileData>& file_list,
                                    bool preserve_scroll) {
@@ -327,7 +316,6 @@ void PrintSelectListView::update_visible(const std::vector<PrintFileData>& file_
         return;
     }
 
-    // Get scroll position and container dimensions
     int32_t scroll_y = lv_obj_get_scroll_y(container_);
     int32_t viewport_height = lv_obj_get_height(container_);
 
@@ -391,9 +379,7 @@ void PrintSelectListView::refresh_content(const std::vector<PrintFileData>& file
     }
 }
 
-// ============================================================================
 // Animation
-// ============================================================================
 
 void PrintSelectListView::animate_entrance() {
     if (list_pool_.empty()) {
@@ -459,9 +445,7 @@ void PrintSelectListView::animate_entrance() {
     spdlog::debug("[PrintSelectListView] Entrance animation started ({} rows)", animated_count);
 }
 
-// ============================================================================
 // Static Callbacks
-// ============================================================================
 
 void PrintSelectListView::on_row_clicked(lv_event_t* e) {
     auto* self = static_cast<PrintSelectListView*>(lv_event_get_user_data(e));

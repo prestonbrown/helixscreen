@@ -9,6 +9,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "ams_backend_ad5x_ifs.h"
+#include "ams_insert_signals.h"
 #include "ams_types.h"
 #include "app_globals.h"
 #include "printer_discovery.h"
@@ -397,4 +398,40 @@ TEST_CASE("AD5X IFS keeps Z-Mod's AFC lane map in step with a pick",
         backend.set_tool_mapping(0, 2);
         CHECK(backend.sent().empty());
     }
+}
+
+TEST_CASE("AD5X IFS reports no port presence until a port reading has been seen",
+          "[ams][ad5x_ifs][zmod_status][insert_presence]") {
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
+    auto* signals = backend.as<helix::IInsertSignals>();
+    REQUIRE(signals != nullptr);
+
+    // Stock ZMOD with no Ports object: every lane is unknown, never empty.
+    for (int i = 0; i < 4; ++i)
+        CHECK_FALSE(signals->slot_insert_presence(i).has_value());
+
+    // A color frame alone (head sensor, slot hasFilament) is not a port reading.
+    backend.fire_status(live_color_frame());
+    for (int i = 0; i < 4; ++i)
+        CHECK_FALSE(signals->slot_insert_presence(i).has_value());
+}
+
+TEST_CASE("AD5X IFS port presence follows zmod_ifs.Ports by zero-based slot",
+          "[ams][ad5x_ifs][zmod_status][insert_presence]") {
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
+    auto* signals = backend.as<helix::IInsertSignals>();
+    REQUIRE(signals != nullptr);
+
+    backend.fire_status(ifs_frame(1, {true, false, false, true}));
+
+    CHECK(signals->slot_insert_presence(0) == std::optional<bool>(true));
+    CHECK(signals->slot_insert_presence(1) == std::optional<bool>(false));
+    CHECK(signals->slot_insert_presence(2) == std::optional<bool>(false));
+    CHECK(signals->slot_insert_presence(3) == std::optional<bool>(true));
+    CHECK_FALSE(signals->slot_insert_presence(-1).has_value());
+    CHECK_FALSE(signals->slot_insert_presence(4).has_value());
+
+    // A Ports-only diff moves the lane it names.
+    backend.fire_status(json{{"zmod_ifs", {{"Ports", json::array({true, true, false, true})}}}});
+    CHECK(signals->slot_insert_presence(1) == std::optional<bool>(true));
 }

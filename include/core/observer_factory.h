@@ -95,9 +95,7 @@ ObserverGuard observe(lv_subject_t* subject, Owner* owner, Handler&& handler,
                                 dispatch, lifetime);
 }
 
-// ============================================================================
 // Domain-Specific Observer Helpers
-// ============================================================================
 
 /**
  * @brief Create print state observer with typed PrintJobState

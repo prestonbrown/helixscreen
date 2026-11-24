@@ -727,13 +727,11 @@ void MoonrakerManager::create_api(const RuntimeConfig& runtime_config) {
 
     set_moonraker_api(m_api.get());
 
-    // Set API for AmsState Spoolman integration
     AmsState::instance().set_moonraker_api(m_api.get());
 
     // Set API for FilamentSensorManager bypass runout arming
     FilamentSensorManager::instance().set_moonraker_api(m_api.get());
 
-    // Set API for SpoolmanManager weight polling
     SpoolmanManager::instance().set_api(m_api.get());
 
     // Publish / fetch the home layout through Moonraker's database
@@ -1008,7 +1006,6 @@ void MoonrakerManager::init_print_start_collector() {
             spdlog::info("[MoonrakerManager] PRINT_START collector started (commit)");
         });
 
-    // Observer for print start phase completion
     m_print_start_phase_observer = observe_for_collector<int>(
         ps.print_state().get_print_start_phase_subject(), wiring, state_lifetime,
         [](PrintStartWiring&, PrintStartCollector& collector, int value) {

@@ -7,9 +7,7 @@
 
 using namespace moonraker_internal;
 
-// ============================================================================
 // report_error() tests
-// ============================================================================
 
 TEST_CASE("report_error basic functionality", "[moonraker][error][helpers]") {
     SECTION("invokes callback with correct error type") {
@@ -69,9 +67,7 @@ TEST_CASE("report_error covers all error types", "[moonraker][error][helpers]") 
     }
 }
 
-// ============================================================================
 // report_http_error() tests
-// ============================================================================
 
 TEST_CASE("report_http_error status code mapping", "[moonraker][error][http]") {
     MoonrakerError captured;
@@ -113,9 +109,7 @@ TEST_CASE("report_http_error status code mapping", "[moonraker][error][http]") {
     }
 }
 
-// ============================================================================
 // report_connection_error() tests
-// ============================================================================
 
 TEST_CASE("report_connection_error", "[moonraker][error][connection]") {
     MoonrakerError captured;
@@ -134,9 +128,7 @@ TEST_CASE("report_connection_error", "[moonraker][error][connection]") {
     }
 }
 
-// ============================================================================
 // report_parse_error() tests
-// ============================================================================
 
 TEST_CASE("report_parse_error", "[moonraker][error][parse]") {
     MoonrakerError captured;
@@ -155,9 +147,7 @@ TEST_CASE("report_parse_error", "[moonraker][error][parse]") {
     }
 }
 
-// ============================================================================
 // json_string_list_or() tests
-// ============================================================================
 
 TEST_CASE("json_string_list_or normalizes filament type formats", "[moonraker][helpers]") {
     SECTION("semicolon-delimited string passes through") {
@@ -226,9 +216,7 @@ TEST_CASE("json_string_list_or normalizes filament type formats", "[moonraker][h
     }
 }
 
-// ============================================================================
 // MoonrakerError static factories
-// ============================================================================
 
 TEST_CASE("MoonrakerError::not_ready / validation_error factories set fields",
           "[moonraker][error][helpers]") {

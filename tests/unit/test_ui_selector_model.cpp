@@ -21,7 +21,7 @@ namespace {
 // A slice of the real printer list shape: real machines carry a manufacturer,
 // the pseudo-machines ("Custom/Other", "Unknown") carry none. "PFA Micron"
 // stands in for the vendors whose model names do not contain the vendor
-// string (PrintersForAnts, Positron3D) — label-only matching misses those.
+// string (PrintersForAnts, Positron3D): label-only matching misses those.
 std::vector<SelectorEntry> sample_entries() {
     return {
         {"Anycubic Kobra 2", "Anycubic", 0},
@@ -52,9 +52,7 @@ const SelectorGroup* find_group(const std::vector<SelectorGroup>& groups, const 
 
 } // namespace
 
-// ============================================================================
 // Bucket resolution
-// ============================================================================
 
 TEST_CASE("Selector: bucket resolution follows the empty-group rule", "[selector]") {
     using helix::ui::selector_bucket_of;
@@ -81,9 +79,7 @@ TEST_CASE("Selector: grouping and group-name agree with bucket resolution", "[se
     }
 }
 
-// ============================================================================
 // Matching
-// ============================================================================
 
 TEST_CASE("Selector: empty query matches every entry", "[selector]") {
     const auto entries = sample_entries();
@@ -111,7 +107,7 @@ TEST_CASE("Selector: query matches the vendor and surfaces all its machines", "[
 TEST_CASE("Selector: query matching only the vendor, not any model name, still hits",
           "[selector]") {
     const auto entries = sample_entries();
-    // "ants" appears in no model label — only in the PrintersForAnts bucket.
+    // "ants" appears in no model label, only in the PrintersForAnts bucket.
     CHECK(labels_of(filter_selector_entries(entries, "ants")) ==
           std::vector<std::string>{"PFA Micron"});
     CHECK(labels_of(filter_selector_entries(entries, "printersforants")) ==
@@ -132,9 +128,7 @@ TEST_CASE("Selector: query matching nothing yields an empty list", "[selector]")
     CHECK(filter_selector_entries(entries, "zzz").empty());
 }
 
-// ============================================================================
 // Description matching (the widget catalog's entries carry a description)
-// ============================================================================
 
 TEST_CASE("Selector: query matching only the description still hits", "[selector]") {
     std::vector<SelectorEntry> entries = {
@@ -159,7 +153,7 @@ TEST_CASE("Selector: description matching is case-insensitive substring", "[sele
 
 TEST_CASE("Selector: entries with no description keep matching label and group only",
           "[selector]") {
-    // The wizard's shape: {model, manufacturer, id} — the description field stays
+    // The wizard's shape: {model, manufacturer, id}; the description field stays
     // empty, and neither matching path may regress to require it.
     std::vector<SelectorEntry> entries = {
         {"Creality K1 Max", "Creality", 1},
@@ -185,9 +179,7 @@ TEST_CASE("Selector: filter_selector_entries is exactly the entries the predicat
     }
 }
 
-// ============================================================================
 // Grouping
-// ============================================================================
 
 TEST_CASE("Selector: grouping puts every entry in exactly one bucket", "[selector]") {
     const auto entries = sample_entries();
@@ -260,9 +252,7 @@ TEST_CASE("Selector: an empty entry list groups to nothing", "[selector]") {
     CHECK(group_selector_entries({}).empty());
 }
 
-// ============================================================================
 // Prior-selection drill-in target
-// ============================================================================
 
 TEST_CASE("Selector: a real machine's group resolves to its vendor", "[selector]") {
     const auto entries = sample_entries();

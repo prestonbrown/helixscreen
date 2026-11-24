@@ -137,9 +137,9 @@ TEST_CASE_METHOD(HelixTestFixture, "user overlay overrides and adds", "[filament
 TEST_CASE_METHOD(HelixTestFixture, "user overlay accepts legacy bare-array product form",
                  "[filament_catalog]") {
     // Backward-compat: a pre-#1120 overlay is a bare JSON array of products with
-    // no orca_type_map. The reader must still merge those products — this is the
-    // legacy read path #1120 explicitly preserves. Regression guard: the shared
-    // fixture moved to object form, which left this branch otherwise uncovered.
+    // no orca_type_map. The reader must still merge those products — the legacy
+    // read path #1120 preserves. The shared fixture is in object form, so this
+    // branch needs its own case.
     constexpr const char* TMP = "/tmp/helix_user_bare_array_products_test.json";
     {
         std::ofstream out(TMP);
@@ -196,7 +196,7 @@ TEST_CASE_METHOD(HelixTestFixture, "load_user_orca_type_map_from bare array retu
 
 TEST_CASE_METHOD(HelixTestFixture, "load_user_orca_type_map_from object without key returns empty",
                  "[filament_catalog]") {
-    // Object form but only filaments[] (the shape shipped Phase 1 expected) —
+    // Object form but only filaments[] (the first shipped overlay shape) —
     // valid overlay, just no Orca contribution. Not an error.
     constexpr const char* TMP = "/tmp/helix_user_no_key_test.json";
     {
@@ -208,7 +208,7 @@ TEST_CASE_METHOD(HelixTestFixture, "load_user_orca_type_map_from object without 
     std::remove(TMP);
 }
 
-// ---- save_user_products_to ----
+// save_user_products_to
 
 namespace {
 // Helper: read a small file into a string (empty string on failure).
@@ -437,7 +437,7 @@ TEST_CASE_METHOD(HelixTestFixture, "save_user_products_to empty product list wri
     remove_save_tmp();
 }
 
-// ---- load_user_products + upsert/remove (read-modify-write for the edit UI) ----
+// load_user_products + upsert/remove (read-modify-write for the edit UI)
 
 TEST_CASE_METHOD(HelixTestFixture, "load_user_products_from reads authored products",
                  "[filament_catalog][user_save]") {
@@ -517,7 +517,7 @@ TEST_CASE_METHOD(HelixTestFixture, "product edit round-trip preserves orca_type_
             << R"("orca_type_map":{"CustomPLA":"PLA"}})";
     }
 
-    // --- Add a new product (the modal's "+ Add custom filament" flow) ---
+    // Add a new product (the modal's "+ Add custom filament" flow)
     auto products = FilamentCatalog::load_user_products_from(kSaveTmp);
     CHECK_FALSE(FilamentCatalog::upsert_product(
         products, {{"id", "user-petg"}, {"type", "PETG"}, {"nozzle", 240}, {"source", "user"}}));
@@ -529,7 +529,7 @@ TEST_CASE_METHOD(HelixTestFixture, "product edit round-trip preserves orca_type_
     auto map1 = FilamentCatalog::load_user_orca_type_map_from(kSaveTmp);
     CHECK(map1.at("CustomPLA") == "PLA");
 
-    // --- Edit an existing product (override-by-id) ---
+    // Edit an existing product (override-by-id)
     FilamentCatalog::upsert_product(
         after_add, {{"id", "user-pla"}, {"type", "PLA"}, {"nozzle", 225}, {"source", "user"}});
     REQUIRE(FilamentCatalog::save_user_products_to(after_add, kSaveTmp));
@@ -538,7 +538,7 @@ TEST_CASE_METHOD(HelixTestFixture, "product edit round-trip preserves orca_type_
     REQUIRE(edited != nullptr);
     CHECK(edited->nozzle_recommended == 225); // edit applied
 
-    // --- Delete / Restore-Defaults (remove the overlay entry) ---
+    // Delete / Restore-Defaults (remove the overlay entry)
     auto after_edit = FilamentCatalog::load_user_products_from(kSaveTmp);
     CHECK(FilamentCatalog::remove_product(after_edit, "user-petg"));
     REQUIRE(FilamentCatalog::save_user_products_to(after_edit, kSaveTmp));
@@ -552,11 +552,9 @@ TEST_CASE_METHOD(HelixTestFixture, "product edit round-trip preserves orca_type_
     remove_save_tmp();
 }
 
-// ---------------------------------------------------------------------------
 // FilamentProductEditModal form logic (pure, LVGL-free): build_product_json,
 // derive_product_id, validate_product_form. Tag [user_save] with the rest of
 // the write-path tests.
-// ---------------------------------------------------------------------------
 
 TEST_CASE_METHOD(HelixTestFixture, "build_product_json always emits id, type, source",
                  "[filament_catalog][user_save]") {
@@ -679,7 +677,7 @@ TEST_CASE_METHOD(HelixTestFixture, "validate_product_form rejects nozzle min gre
     CHECK(validate_product_form(one_bound, err));
 }
 
-// ---- load_codes_cached ----
+// load_codes_cached
 //
 // The CFS box parser calls this on every full box update. load_codes() re-parses
 // the whole 100 KB bundled catalog each time, so the cache is what keeps a spool

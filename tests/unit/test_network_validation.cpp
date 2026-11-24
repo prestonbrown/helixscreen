@@ -5,9 +5,7 @@
 
 #include "../catch_amalgamated.hpp"
 
-// ============================================================================
 // IP Address Validation Tests (via shared utils)
-// ============================================================================
 
 TEST_CASE("Network validation: Valid IPv4 addresses", "[validation][network][ip]") {
     REQUIRE(is_valid_ip_or_hostname("192.168.1.1") == true);
@@ -93,9 +91,7 @@ TEST_CASE("Network validation: Edge cases", "[validation][network][edge]") {
     REQUIRE(is_valid_port("65535") == true);
 }
 
-// ============================================================================
 // Connection test failure classification
-// ============================================================================
 
 #include <cerrno>
 #include <string>
@@ -158,9 +154,7 @@ TEST_CASE("Connect failure: each kind gets its own hint, mobile data on Android 
     CHECK(refused != unknown);
 }
 
-// ============================================================================
 // Which ports a connection test tries
-// ============================================================================
 
 TEST_CASE("Moonraker ports: the untouched default falls back to port 80",
           "[validation][network][port_fallback]") {

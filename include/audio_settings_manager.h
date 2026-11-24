@@ -45,9 +45,7 @@ class AudioSettingsManager {
     /** @brief Deinitialize LVGL subjects (called by StaticSubjectRegistry) */
     void deinit_subjects();
 
-    // =========================================================================
     // GETTERS / SETTERS
-    // =========================================================================
 
     /** @brief Master sound switch */
     bool get_sounds_enabled() const {
@@ -127,9 +125,7 @@ class AudioSettingsManager {
      */
     void refresh_backend_subjects();
 
-    // =========================================================================
     // SUBJECT ACCESSORS (for XML binding)
-    // =========================================================================
 
     /** @brief Sounds enabled subject (integer: 0=off, 1=on) */
     lv_subject_t* subject_sounds_enabled() {

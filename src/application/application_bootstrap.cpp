@@ -106,7 +106,6 @@ void Application::ensure_project_root_cwd() {
 }
 
 bool Application::parse_args(int argc, char** argv) {
-    // Parse CLI args first
     if (!helix::parse_cli_args(argc, argv, m_args, m_screen_width, m_screen_height)) {
         return false;
     }

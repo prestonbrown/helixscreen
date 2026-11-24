@@ -25,9 +25,7 @@
  * recompiling the entire keyboard event handling logic.
  */
 
-//=============================================================================
 // KEYBOARD LAYOUT CONSTANTS
-//=============================================================================
 
 // Macro for keyboard buttons with popover support (C++ requires explicit cast)
 #define LV_KEYBOARD_CTRL_BUTTON_FLAGS                                                              \
@@ -37,9 +35,7 @@
 // Double space for spacebar (appears mostly blank but is unique/detectable)
 #define SPACEBAR_TEXT "  "
 
-//=============================================================================
 // LAYOUT MAPS
-//=============================================================================
 
 // Lowercase alphabet (Gboard-style: no number row)
 static const char* const kb_map_alpha_lc[] = {
@@ -411,9 +407,7 @@ static const lv_buttonmatrix_ctrl_t kb_ctrl_alt_symbols[] = {
                                         LV_BUTTONMATRIX_CTRL_CUSTOM_1 | 3) // Enter
 };
 
-//=============================================================================
 // PUBLIC API IMPLEMENTATION
-//=============================================================================
 
 const char* const* keyboard_layout_get_map(keyboard_layout_mode_t mode, bool caps_lock_active) {
     switch (mode) {

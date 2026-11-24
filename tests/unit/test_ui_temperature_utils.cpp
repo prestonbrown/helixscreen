@@ -14,9 +14,7 @@
 using namespace helix::temperature_rules;
 using namespace helix::ui::temperature;
 
-// ============================================================================
 // deci_to_degrees() Tests
-// ============================================================================
 
 TEST_CASE("Temperature Utils: deci_to_degrees truncates decidegrees to whole degrees",
           "[temp_utils][characterization][observer][temperature]") {
@@ -35,9 +33,7 @@ TEST_CASE("Temperature Utils: deci_to_degrees_f preserves decimals",
     REQUIRE(deci_to_degrees_f(2109) == Catch::Approx(210.9f));
 }
 
-// ============================================================================
 // validate_and_clamp() Tests
-// ============================================================================
 
 TEST_CASE("Temperature Utils: validate_and_clamp - valid temperature", "[temp_utils][validate]") {
     int temp = 200;
@@ -122,9 +118,7 @@ TEST_CASE("Temperature Utils: validate_and_clamp - typical ranges", "[temp_utils
     }
 }
 
-// ============================================================================
 // validate_and_clamp_pair() Tests
-// ============================================================================
 
 TEST_CASE("Temperature Utils: validate_and_clamp_pair - both valid", "[temp_utils][validate]") {
     int current = 200;
@@ -209,9 +203,7 @@ TEST_CASE("Temperature Utils: validate_and_clamp_pair - realistic scenarios",
     }
 }
 
-// ============================================================================
 // is_extrusion_safe() Tests
-// ============================================================================
 
 TEST_CASE("Temperature Utils: is_extrusion_safe - above minimum", "[temp_utils][safety]") {
     REQUIRE(is_extrusion_safe(200, 170) == true);
@@ -261,9 +253,7 @@ TEST_CASE("Temperature Utils: is_extrusion_safe - different minimums", "[temp_ut
     }
 }
 
-// ============================================================================
 // get_extrusion_safety_status() Tests
-// ============================================================================
 
 TEST_CASE("Temperature Utils: get_extrusion_safety_status - safe", "[temp_utils][safety]") {
     const char* status = get_extrusion_safety_status(200, 170);
@@ -326,9 +316,7 @@ TEST_CASE("Temperature Utils: get_extrusion_safety_status - edge cases",
     }
 }
 
-// ============================================================================
 // Integration Scenarios
-// ============================================================================
 
 TEST_CASE("Temperature Utils: Integration - PLA printing scenario", "[temp_utils][integration]") {
     int nozzle_current = 205;
@@ -336,15 +324,12 @@ TEST_CASE("Temperature Utils: Integration - PLA printing scenario", "[temp_utils
     int bed_current = 60;
     int bed_target = 60;
 
-    // Validate nozzle temps
     bool nozzle_valid = validate_and_clamp_pair(nozzle_current, nozzle_target, 0, 300, "Nozzle");
     REQUIRE(nozzle_valid == true);
 
-    // Validate bed temps
     bool bed_valid = validate_and_clamp_pair(bed_current, bed_target, 0, 120, "Bed");
     REQUIRE(bed_valid == true);
 
-    // Check extrusion safety
     REQUIRE(is_extrusion_safe(nozzle_current, 170) == true);
 
     const char* status = get_extrusion_safety_status(nozzle_current, 170);
@@ -355,7 +340,6 @@ TEST_CASE("Temperature Utils: Integration - Cold start scenario", "[temp_utils][
     int nozzle_current = 22; // Room temperature
     int nozzle_target = 210;
 
-    // Validate temps
     bool valid = validate_and_clamp_pair(nozzle_current, nozzle_target, 0, 300, "Nozzle");
     REQUIRE(valid == true);
 
@@ -373,7 +357,6 @@ TEST_CASE("Temperature Utils: Integration - Invalid input handling",
     int nozzle_current = 500; // Way too high
     int nozzle_target = -50;  // Invalid negative
 
-    // Should clamp both
     bool valid = validate_and_clamp_pair(nozzle_current, nozzle_target, 0, 300, "Nozzle");
     REQUIRE(valid == false);
     REQUIRE(nozzle_current == 300); // Clamped to max
@@ -389,24 +372,21 @@ TEST_CASE("Temperature Utils: Integration - ABS printing scenario", "[temp_utils
     int bed_current = 100;
     int bed_target = 100;
 
-    // Validate nozzle temps (higher for ABS)
+    // Higher temperatures for ABS.
     bool nozzle_valid = validate_and_clamp_pair(nozzle_current, nozzle_target, 0, 300, "Nozzle");
     REQUIRE(nozzle_valid == true);
 
-    // Validate bed temps (higher for ABS)
     bool bed_valid = validate_and_clamp_pair(bed_current, bed_target, 0, 120, "Bed");
     REQUIRE(bed_valid == true);
 
-    // Check extrusion safety (higher minimum for ABS)
+    // Higher minimum extrusion temperature for ABS.
     REQUIRE(is_extrusion_safe(nozzle_current, 220) == true);
 
     const char* status = get_extrusion_safety_status(nozzle_current, 220);
     REQUIRE(std::string(status) == "Ready");
 }
 
-// ============================================================================
 // format_temperature() Tests
-// ============================================================================
 
 TEST_CASE("Temperature Utils: format_temperature - basic formatting", "[temp_utils][format]") {
     char buf[16];
@@ -439,9 +419,7 @@ TEST_CASE("Temperature Utils: format_temperature - returns buffer pointer",
     REQUIRE(result == buf);
 }
 
-// ============================================================================
 // format_temperature_pair() Tests
-// ============================================================================
 
 TEST_CASE("Temperature Utils: format_temperature_pair - basic formatting", "[temp_utils][format]") {
     char buf[24];
@@ -479,9 +457,7 @@ TEST_CASE("Temperature Utils: format_temperature_pair - basic formatting", "[tem
     }
 }
 
-// ============================================================================
-// format_temperature_f() Tests (NEW - float formatting)
-// ============================================================================
+// format_temperature_f() Tests (float formatting)
 
 TEST_CASE("Temperature Utils: format_temp_number - compact-wide rule", "[temp_utils][format]") {
     char buf[16];
@@ -522,14 +498,12 @@ TEST_CASE("Temperature Utils: format_temp_number - compact-wide rule", "[temp_ut
     }
 }
 
-// ============================================================================
 // displayed_deci() — the reading as it actually renders
 //
 // format_temp_number() drops the decimal at and above 100C, so the number on a
-// card is a ROUNDED value while the heating color and the status word beside it
-// used to be derived from a TRUNCATED one. displayed_deci() is the single place
+// card is a ROUNDED value, so the heating color and the status word beside it
+// must derive from the rounded reading too. displayed_deci() is the single place
 // that snaps a reading to the precision the UI shows, so all three agree.
-// ============================================================================
 
 TEST_CASE("Temperature Utils: displayed_deci snaps to the rendered precision",
           "[temp_utils][format]") {
@@ -559,7 +533,7 @@ TEST_CASE("Temperature Utils: displayed_deci snaps to the rendered precision",
 TEST_CASE("Temperature Utils: the status word never contradicts the number shown",
           "[temp_utils][heater_display]") {
     // 222.9 with a 220 target renders as "223". Classifying the truncated 222
-    // put a green "Ready" next to a card reading 223 / 220.
+    // would put a green "Ready" next to a card reading 223 / 220.
     SECTION("Above the band: the rounded reading is what gets classified") {
         auto result = heater_display(2229, 2200);
         REQUIRE(result.temp == "223 / 220°C");
@@ -664,9 +638,7 @@ TEST_CASE("Temperature Utils: format_temperature_f - float formatting", "[temp_u
     }
 }
 
-// ============================================================================
-// format_temperature_pair_f() Tests (NEW - float pair formatting)
-// ============================================================================
+// format_temperature_pair_f() Tests (float pair formatting)
 
 TEST_CASE("Temperature Utils: format_temperature_pair_f - float pair formatting",
           "[temp_utils][format]") {
@@ -703,9 +675,7 @@ TEST_CASE("Temperature Utils: format_temperature_pair_f - float pair formatting"
     }
 }
 
-// ============================================================================
 // format_temperature_range() Tests
-// ============================================================================
 
 TEST_CASE("Temperature Utils: format_temperature_range - AMS material temps",
           "[temp_utils][format]") {
@@ -759,9 +729,7 @@ TEST_CASE("Temperature Utils: format_temperature_range - AMS material temps",
     }
 }
 
-// ============================================================================
 // SafetyLimits in whole degrees
-// ============================================================================
 
 TEST_CASE("Temperature Utils: extrusion_floor_c rounds a fractional minimum up",
           "[temp_utils][safety]") {
@@ -826,9 +794,7 @@ TEST_CASE("Temperature Utils: keypad titles are the heater's short name", "[temp
     CHECK(heater_keypad_title(HeaterType::Chamber) == "Chamber");
 }
 
-// ============================================================================
 // build_cooldown_gcode() Tests (#1768)
-// ============================================================================
 
 TEST_CASE("Temperature Utils: default cooldown turns off every extruder heater",
           "[temp_utils][cooldown]") {

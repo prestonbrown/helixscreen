@@ -194,7 +194,6 @@ bool DisplayManager::init(const Config& config) {
         return false;
     }
 
-    // Initialize LVGL library
     lv_init();
 
     // lv_init() builds both cache objects even when lv_conf.h sizes them at 0,
@@ -207,8 +206,8 @@ bool DisplayManager::init(const Config& config) {
     // must come after it but before any display backend setup).
     helix::logging::register_lvgl_log_handler();
 
-    // Initialize helix-xml engine (extracted from LVGL 9.5)
-    // Must be called after lv_init() - sets up XML component scopes, widget registry, etc.
+    // Initialize helix-xml engine. Must be called after lv_init(); sets up XML component scopes,
+    // widget registry, etc.
     lv_xml_init();
 
     // Create display backend (auto-detects: DRM → framebuffer → SDL)
@@ -275,7 +274,6 @@ bool DisplayManager::init(const Config& config) {
     };
     propagate_size_explicit(m_backend.get());
 
-    // Create LVGL display
     m_display = m_backend->create_display(m_width, m_height);
 
     // If the primary backend failed to create a display, try falling back
@@ -587,7 +585,6 @@ void DisplayManager::shutdown() {
     m_backlight.reset();
     m_backend.reset();
 
-    // Shutdown UI update queue before LVGL
     helix::ui::update_queue_shutdown();
 
     // Quit SDL before LVGL deinit - must be called outside the SDL event handler.
@@ -796,7 +793,6 @@ void DisplayManager::finish_input_setup(int scroll_throw, int scroll_limit) {
         arm_pointer_reopen();
     }
 
-    // Create keyboard input device (optional)
     create_keyboard_input();
 
     // Refresh pacing overrides, now that the refresh, animation, input and update-queue
@@ -841,9 +837,7 @@ void DisplayManager::setup_keyboard_group() {
     spdlog::trace("[DisplayManager] Created default input group for keyboard");
 }
 
-// ============================================================================
 // Static Timing Functions
-// ============================================================================
 
 uint32_t DisplayManager::get_ticks() {
 #ifdef HELIX_DISPLAY_SDL
@@ -883,9 +877,7 @@ void DisplayManager::restore_flush_cb(lv_display_flush_cb_t flush_cb) {
     }
 }
 
-// ============================================================================
 // Display sleep forwarders
-// ============================================================================
 
 void DisplayManager::check_display_sleep() {
     // Called right after the loop applies notifications, outside any batch.
@@ -978,9 +970,7 @@ bool DisplayManager::is_software_rotated() const {
            m_backend->applied_rotation_degrees(m_display) != 0;
 }
 
-// ============================================================================
 // Touch Calibration
-// ============================================================================
 
 bool DisplayManager::apply_touch_calibration(const helix::TouchCalibration& cal) {
     if (!cal.valid) {
@@ -1044,9 +1034,7 @@ void DisplayManager::enable_affine_calibration() {
     }
 }
 
-// ============================================================================
 // Wake-touch press cancel
-// ============================================================================
 
 void DisplayManager::cancel_pointer_presses() {
     // A pointer whose read callback is not wrapped (SDL's mouse, which Android's touch also
@@ -1066,9 +1054,7 @@ void DisplayManager::cancel_pointer_presses() {
     }
 }
 
-// ============================================================================
 // Sleep-Aware Input Wrapper
-// ============================================================================
 
 void DisplayManager::sleep_aware_read_cb(lv_indev_t* indev, lv_indev_data_t* data) {
     auto* dm = DisplayManager::instance();
@@ -1116,9 +1102,7 @@ void DisplayManager::install_sleep_aware_input_wrapper() {
     spdlog::info("[DisplayManager] Sleep-aware input wrapper installed");
 }
 
-// ============================================================================
 // DRM→fbdev Fallback
-// ============================================================================
 
 bool DisplayManager::try_drm_to_fbdev_fallback(lv_display_rotation_t rot, bool splash_active) {
     if (!m_backend->needs_fbdev_for_rotation(rot)) {
@@ -1182,9 +1166,7 @@ void DisplayManager::warn_fbdev_high_dpi() {
         helix::PendingStartupWarnings::Severity::WARNING, toast_msg);
 }
 
-// ============================================================================
 // Rotation Probe (first-boot auto-detect)
-// ============================================================================
 
 void DisplayManager::run_rotation_probe() {
     if (!m_display || !m_pointer) {
@@ -1331,9 +1313,7 @@ void DisplayManager::settle_display_rotation(lv_display_rotation_t rot, int phys
     m_backend->set_display_rotation(m_display, rot, phys_w, phys_h);
 }
 
-// ============================================================================
 // Window Resize Handler (Desktop/SDL)
-// ============================================================================
 
 void DisplayManager::fan_out_resize() {
     if (m_shutting_down) {
@@ -1451,9 +1431,7 @@ void DisplayManager::register_resize_callback(ResizeCallback callback) {
                   m_resize_callbacks.size());
 }
 
-// ============================================================================
 // Color Transform (gamma + warmth)
-// ============================================================================
 
 void DisplayManager::install_color_transform_hook() {
     if (!m_display) {

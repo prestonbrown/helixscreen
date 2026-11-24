@@ -40,9 +40,7 @@ bool helix::parse_timelapse_settings(const std::string& body, TimelapseSettings&
     return true;
 }
 
-// ============================================================================
 // Constructor
-// ============================================================================
 
 MoonrakerTimelapseAPI::MoonrakerTimelapseAPI(IMoonrakerClient& client,
                                              const std::string& http_base_url)
@@ -50,9 +48,7 @@ MoonrakerTimelapseAPI::MoonrakerTimelapseAPI(IMoonrakerClient& client,
 
 MoonrakerTimelapseAPI::~MoonrakerTimelapseAPI() = default;
 
-// ============================================================================
 // Timelapse Operations (Moonraker-Timelapse Plugin)
-// ============================================================================
 
 void MoonrakerTimelapseAPI::get_timelapse_settings(TimelapseSettingsCallback on_success,
                                                    ErrorCallback on_error) {
@@ -133,7 +129,6 @@ void MoonrakerTimelapseAPI::set_timelapse_settings(const TimelapseSettings& sett
         return;
     }
 
-    // Validate framerate (reasonable bounds: 1-120 fps)
     if (settings.output_framerate < 1 || settings.output_framerate > 120) {
         helix::report_validation_error(
             on_error, "set_timelapse_settings", "Invalid timelapse framerate (must be 1-120)",
@@ -253,9 +248,7 @@ void MoonrakerTimelapseAPI::post_one_setting(const std::string& query, const cha
     });
 }
 
-// ============================================================================
 // Timelapse Render / Frame Operations
-// ============================================================================
 
 void MoonrakerTimelapseAPI::render_timelapse(SuccessCallback on_success, ErrorCallback on_error) {
     spdlog::debug("[Timelapse API] Triggering timelapse render");
@@ -299,9 +292,7 @@ void MoonrakerTimelapseAPI::get_last_frame_info(
         on_error);
 }
 
-// ============================================================================
 // Webcam Operations
-// ============================================================================
 
 void MoonrakerTimelapseAPI::get_webcam_list(WebcamListCallback on_success, ErrorCallback on_error) {
     spdlog::debug("[Timelapse API] get_webcam_list()");

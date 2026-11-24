@@ -145,9 +145,7 @@ std::string get_prerendered_printer_path(const std::string& printer_name, int sc
     return asset_component_uri("assets/images/printers/generic-corexy.png");
 }
 
-// =========================================================================
 // Persistent printer image cache (exact widget dimensions)
-// =========================================================================
 
 static constexpr const char* kPrinterCacheSubdir = "printer_images";
 

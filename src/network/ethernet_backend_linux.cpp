@@ -51,7 +51,6 @@ bool EthernetBackendLinux::is_ethernet_interface(const std::string& name) {
 }
 
 std::string EthernetBackendLinux::read_operstate(const std::string& interface) {
-    // Read <sysfs root>/class/net/<interface>/operstate
     std::string path = sysfs_root_ + "/class/net/" + interface + "/operstate";
     std::ifstream file(path);
 
@@ -119,9 +118,7 @@ EthernetInfo EthernetBackendLinux::get_info() {
     return helix::ethernet::select_interface(ethernet_interfaces);
 }
 
-// ============================================================================
 // IPv4 Configuration
-// ============================================================================
 
 // The interface is chosen when a change is prepared and recorded in its
 // snapshot; apply never picks again, so a revert cannot land on another NIC.

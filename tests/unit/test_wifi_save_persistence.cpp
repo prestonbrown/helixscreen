@@ -17,9 +17,9 @@
  * memory only, so every power-off silently lost the user's WiFi — matching the
  * field report "WiFi disconnects every time I turn off the printer".
  *
- * The old code took `save_result == "OK\n"` as proof and logged "Configuration
- * saved to disk". These tests pin the rule that replaced it: the config file's
- * contents are the only authority on whether credentials will survive a reboot.
+ * `save_result == "OK\n"` is not proof the credentials were saved. These tests pin
+ * the rule: the config file's contents are the only authority on whether
+ * credentials will survive a reboot.
  */
 
 using helix::wifi::detail::classify_removal_result;

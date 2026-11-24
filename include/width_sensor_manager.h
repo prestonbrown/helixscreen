@@ -31,9 +31,6 @@ class WidthSensorManager : public SensorManager {
     /// Diameter subject: mm x 1000, -1 when no enabled sensor holds the role.
     [[nodiscard]] lv_subject_t* get_diameter_subject();
 
-    /// Formatted diameter ("1.75mm" or "--"), written by the home widget.
-    [[nodiscard]] lv_subject_t* get_diameter_text_subject();
-
     /// "Hall width sensor", with "Hall · hall_filament_width_sensor" underneath.
     [[nodiscard]] SensorRowView row(size_t index) const override;
 
@@ -55,8 +52,6 @@ class WidthSensorManager : public SensorManager {
 
     std::map<std::string, WidthSensorState> readings_; ///< by klipper_name
     helix::Subject diameter_{};
-    helix::Subject diameter_text_{};
-    char diameter_text_buf_[16]{};
 };
 
 } // namespace helix::sensors

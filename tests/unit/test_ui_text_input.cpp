@@ -37,9 +37,7 @@ static lv_obj_t* create_text_input(lv_obj_t* parent, const char** attrs) {
     return static_cast<lv_obj_t*>(lv_xml_create(parent, "text_input", attrs));
 }
 
-// ============================================================================
 // Placeholder Attribute Tests
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture, "text_input placeholder attribute sets placeholder text",
                  "[text_input][xml][placeholder]") {
@@ -75,9 +73,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "text_input placeholder attribute sets place
     }
 }
 
-// ============================================================================
 // placeholder_tag Translation Tests
-// ============================================================================
 
 #if LV_USE_TRANSLATION
 TEST_CASE_METHOD(LVGLUITestFixture, "text_input placeholder_tag translates the placeholder",
@@ -114,7 +110,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "text_input placeholder_tag translates the p
 
     SECTION("placeholder_tag overrides placeholder_text when both are present") {
         lv_translation_set_language("de");
-        // placeholder_text first, placeholder_tag second — the order the XML uses
+        // placeholder_text first, placeholder_tag second: the order the XML uses
         const char* attrs[] = {"placeholder_text", "literal fallback", "placeholder_tag",
                                "ti_test_placeholder", nullptr};
         lv_obj_t* text_input = create_text_input(test_screen(), attrs);
@@ -127,9 +123,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "text_input placeholder_tag translates the p
 }
 #endif // LV_USE_TRANSLATION
 
-// ============================================================================
 // Max Length Attribute Tests
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture, "text_input max_length attribute limits input",
                  "[text_input][xml][max_length]") {
@@ -181,9 +175,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "text_input max_length attribute limits inpu
     }
 }
 
-// ============================================================================
 // Combined Attribute Tests
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture, "text_input combined attributes work together",
                  "[text_input][xml]") {
@@ -215,16 +207,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "text_input combined attributes work togethe
     }
 }
 
-// ============================================================================
 // Two-way bind_text, multiline ordering, clear button, keyboard hint
 //
-// None of the below could run until src/ui/components/ui_text_input.cpp was linked into the
-// test binary. While ui_test_utils.cpp registered a hand-written <text_input>,
-// every case in this file exercised that copy, and the copy implemented none of
-// these four features — so they shipped across 113 bind_text files, 11
-// keyboard_hint files, 3 multiline files and both search boxes with no coverage
-// at all.
-// ============================================================================
+// These four features are used across 113 bind_text files, 11 keyboard_hint
+// files, 3 multiline files and both search boxes, so they run against the real
+// src/ui/components/ui_text_input.cpp linked into the test binary, not a
+// hand-written <text_input> stand-in.
 
 namespace {
 
@@ -338,7 +326,7 @@ TEST_CASE_METHOD(TextInputBindingFixture, "text_input bind_text refuses a bad su
     SECTION("an unknown subject name leaves the widget usable but unbound") {
         const char* attrs[] = {"bind_text", "no_such_subject", nullptr};
         lv_obj_t* ta = create_text_input(test_screen(), attrs);
-        REQUIRE(ta != nullptr); // warns and continues — must not abort the parse
+        REQUIRE(ta != nullptr); // warns and continues, must not abort the parse
 
         lv_textarea_set_text(ta, "still editable");
         lv_obj_send_event(ta, LV_EVENT_VALUE_CHANGED, nullptr);
@@ -543,7 +531,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "text_input keyboard_hint round-trips throug
 TEST_CASE_METHOD(LVGLUITestFixture, "text_input keyboard_hint guards foreign user_data",
                  "[text_input][xml][keyboard_hint]") {
     // The hint is packed into user_data behind a magic value because user_data is
-    // shared territory — ui_button stores a UiButtonData* there. Without the magic
+    // shared territory: ui_button stores a UiButtonData* there. Without the magic
     // check, any textarea carrying an unrelated pointer would answer with whatever
     // its low nibble happened to be.
     SECTION("a null object is safe") {
@@ -564,9 +552,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "text_input keyboard_hint guards foreign use
     }
 }
 
-// ============================================================================
 // Suffix
-// ============================================================================
 
 namespace {
 

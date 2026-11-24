@@ -27,9 +27,7 @@
 
 namespace helix::settings {
 
-// ============================================================================
 // LIFECYCLE HOOKS
-// ============================================================================
 
 void HardwareHealthOverlay::on_activate() {
     OverlayBase::on_activate();
@@ -39,7 +37,6 @@ void HardwareHealthOverlay::on_activate() {
 }
 
 void HardwareHealthOverlay::on_deactivating(DeactivateReason) {
-    // Clean up any open modal dialog
     if (hardware_save_dialog_) {
         helix::ui::modal_hide(hardware_save_dialog_);
         hardware_save_dialog_ = nullptr;
@@ -47,9 +44,7 @@ void HardwareHealthOverlay::on_deactivating(DeactivateReason) {
     pending_hardware_save_.clear();
 }
 
-// ============================================================================
 // INTERNAL METHODS
-// ============================================================================
 
 void HardwareHealthOverlay::populate_hardware_issues() {
     if (!overlay_root_) {
@@ -85,10 +80,8 @@ void HardwareHealthOverlay::populate_hardware_issues() {
             return;
         }
 
-        // Clear existing children
         helix::ui::safe_clean_children(list);
 
-        // Add issue rows
         for (const auto& issue : issues) {
             // Create row with severity attribute for colored left border
             const std::string index = std::to_string(issue_names_.size());
@@ -125,9 +118,7 @@ void HardwareHealthOverlay::populate_hardware_issues() {
                   result.newly_discovered.size(), result.changed_from_last_session.size());
 }
 
-// ============================================================================
 // EVENT HANDLERS
-// ============================================================================
 
 void HardwareHealthOverlay::register_callbacks() {
     register_xml_callbacks({
@@ -214,7 +205,6 @@ void HardwareHealthOverlay::handle_hardware_save_confirm() {
 
     Config* cfg = Config::get_instance();
 
-    // Add to expected hardware list
     HardwareValidator::add_expected_hardware(cfg, pending_hardware_save_);
     ToastManager::instance().show(ToastSeverity::SUCCESS, lv_tr("Hardware saved to config"), 2000);
     spdlog::info("[{}] Added hardware '{}' to expected list", get_name(), pending_hardware_save_);

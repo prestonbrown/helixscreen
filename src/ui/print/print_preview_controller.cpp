@@ -402,13 +402,11 @@ bool PrintPreviewController::apply_tool_colors() {
     // actually prints N. No palette, no tool-count branch, no active-lane
     // special case — a 1-tool file and an N-tool file take this exact path.
     //
-    // What used to be here asked "what mapping SHOULD this print use" (the
-    // slicer palette matched against lane colors) and then patched the gaps with
-    // fallbacks. That is the right question BEFORE a print, and it still lives
-    // in PrintSelectDetailView where it decides what to send. Once the print is
-    // underway the question is "what mapping IS in effect", and the firmware
-    // answers it exactly — so inferring it here was guessing at something already
-    // known, and the guess is what forced the special cases.
+    // This asks "what mapping IS in effect", which the firmware answers exactly
+    // once the print is underway. "What mapping SHOULD this print use" (the slicer
+    // palette matched against lane colors) is the question BEFORE a print and
+    // lives in PrintSelectDetailView, where it decides what to send. Inferring the
+    // mapping here would guess at something already known and force special cases.
     if (helix::ui::gcode_viewer_apply_ams_tool_colors(gcode_viewer_)) {
         return true;
     }

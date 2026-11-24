@@ -239,7 +239,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art widget: flattens its layers once siz
     CHECK(unit_art_is_flattened(art));
     AmsSystemInfo other = ace_system();
     other.units[0].slots[0].color_rgb = 0x00ff00;
-    unit_art_set_unit(art, other, 0); // a new colour must flatten again, not keep the old image
+    unit_art_set_unit(art, other, 0); // a new color must flatten again, not keep the old image
     CHECK(unit_art_is_flattened(art));
     CHECK(lv_color_to_u32(
               lv_obj_get_style_image_recolor(unit_art_lane_color_obj(art, 0), LV_PART_MAIN)) ==

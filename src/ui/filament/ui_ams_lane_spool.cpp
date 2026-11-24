@@ -34,7 +34,6 @@
 
 using namespace helix;
 
-// ============================================================================
 // Spool visual construction (file-local)
 //
 // The layered spool graphic the widget renders: a spool canvas seen from the
@@ -42,7 +41,6 @@ using namespace helix;
 // empty lane's bare reel and the error dot. Lives here rather than ams_draw because the
 // ams_lane_spool widget is its only consumer; kGhostOpa and the error/lane
 // badges it composes with stay shared in ams_drawing_utils.
-// ============================================================================
 
 /// Widget handles produced by create_spool_visual()
 struct SpoolVisual {
@@ -176,9 +174,7 @@ static void spool_visual_set_fill(const SpoolVisual& sv, float fill) {
         ui_spool_canvas_set_fill_level(sv.canvas, LV_CLAMP(0.0f, fill, 1.0f));
 }
 
-// ============================================================================
 // Per-widget user data (managed via static registry for safe shutdown)
-// ============================================================================
 
 /**
  * @brief User data stored on each ams_lane_spool widget.
@@ -281,9 +277,7 @@ static void cleanup_all_lane_spool_data() {
     spdlog::debug("[AmsLaneSpool] Pre-deinit cleanup: all lane spool data released");
 }
 
-// ============================================================================
 // Rendering
-// ============================================================================
 
 static void glow_opa_anim_cb(void* obj, int32_t value) {
     lv_obj_set_style_opa(static_cast<lv_obj_t*>(obj), static_cast<lv_opa_t>(value), LV_PART_MAIN);
@@ -458,9 +452,7 @@ static void apply_fill_pct(LaneSpoolData* d, int pct) {
     notify_listener(d);
 }
 
-// ============================================================================
 // Widget Event Handler (for cleanup)
-// ============================================================================
 
 static void ams_lane_spool_event_cb(lv_event_t* e) {
     lv_event_code_t code = lv_event_get_code(e);
@@ -472,9 +464,7 @@ static void ams_lane_spool_event_cb(lv_event_t* e) {
     }
 }
 
-// ============================================================================
 // Observers
-// ============================================================================
 
 /**
  * @brief Setup observers for the widget's current slot.
@@ -604,9 +594,7 @@ static void setup_lane_spool_observers(LaneSpoolData* data) {
     spdlog::trace("[AmsLaneSpool] Created observers for slot {}", data->slot_index);
 }
 
-// ============================================================================
 // XML Handlers
-// ============================================================================
 
 static void* ams_lane_spool_xml_create(lv_xml_parser_state_t* state, const char** attrs) {
     void* parent = lv_xml_state_get_parent(state);
@@ -697,9 +685,7 @@ static void ams_lane_spool_xml_apply(lv_xml_parser_state_t* state, const char** 
     }
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 namespace helix::ui {
 

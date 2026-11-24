@@ -74,9 +74,7 @@ int brightness(lv_color32_t c) {
 
 } // namespace
 
-// ---------------------------------------------------------------------------
 // Pure decisions
-// ---------------------------------------------------------------------------
 
 TEST_CASE("swatch_colors_need_edge: any colour blending into any surface asks for an edge",
           "[swatch]") {
@@ -184,7 +182,7 @@ TEST_CASE("swatch_split_polygons: equal-area bands, every vertex inside the shap
         }
         CHECK(sum == Catch::Approx(total).epsilon(0.001));
     }
-    // Colour 0 takes the top-left, the last colour the bottom-right.
+    // Color 0 takes the top-left, the last color the bottom-right.
     const auto two = helix::ui::swatch_split_polygons(a, LV_RADIUS_CIRCLE, 2);
     for (const auto& p : two[0]) {
         CHECK(p.x + p.y <= 40.0f + 0.01f);
@@ -192,7 +190,7 @@ TEST_CASE("swatch_split_polygons: equal-area bands, every vertex inside the shap
     for (const auto& p : two[1]) {
         CHECK(p.x + p.y >= 40.0f - 0.01f);
     }
-    // One colour is the whole shape.
+    // One color is the whole shape.
     CHECK(helix::ui::swatch_split_polygons(a, 0, 1).size() == 1);
 }
 
@@ -241,9 +239,7 @@ TEST_CASE("swatch_texture_points: spread evenly, no bare patches", "[swatch]") {
     CHECK(fewest >= 2);
 }
 
-// ---------------------------------------------------------------------------
 // Pixels
-// ---------------------------------------------------------------------------
 
 TEST_CASE_METHOD(LVGLTestFixture, "draw_swatch: a circle leaves its corners to the background",
                  "[swatch]") {
@@ -284,7 +280,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "draw_swatch: blend runs the colours left to r
     c.paint(p);
     CHECK(c.px(1, 20).red > 230);
     CHECK(c.px(38, 20).green > 230);
-    // The middle is a mix, not either band, and a column is one colour.
+    // The middle is a mix, not either band, and a column is one color.
     const lv_color32_t mid = c.px(20, 20);
     CHECK(mid.red > 80);
     CHECK(mid.green > 80);
@@ -475,7 +471,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_xml_register_subject(nullptr, "test_swatch_colors", &colors_subject);
     lv_xml_register_subject(nullptr, "test_swatch_color", &color_subject);
 
-    // A colours binding falling below two colours keeps the colour C++ set.
+    // A colors binding falling below two colors keeps the color C++ set.
     const char* multi_attrs[] = {"bind_colors", "test_swatch_colors", "width", "40", "height", "40",
                                  nullptr};
     auto* multi = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "swatch_paint", multi_attrs));
@@ -486,7 +482,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(colors.size() == 1);
     CHECK(lv_color_eq(colors[0], lv_color_hex(0xAA5500)));
 
-    // A colour binding after a clear paints again.
+    // A color binding after a clear paints again.
     const char* bound_attrs[] = {"bind_color", "test_swatch_color", "width", "40", "height", "40",
                                  nullptr};
     auto* bound = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "swatch_paint", bound_attrs));
@@ -513,9 +509,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     color_subject.reset();
 }
 
-// ---------------------------------------------------------------------------
 // Object paint
-// ---------------------------------------------------------------------------
 
 TEST_CASE_METHOD(LVGLTestFixture, "apply_swatch_color: one colour, or the multi-colour list",
                  "[swatch]") {
@@ -526,12 +520,12 @@ TEST_CASE_METHOD(LVGLTestFixture, "apply_swatch_color: one colour, or the multi-
     auto colors = helix::ui::swatch_paint_colors(sw);
     REQUIRE(colors.size() == 1);
     CHECK(lv_color_eq(colors[0], lv_color_hex(0x123456)));
-    // The style background is the painter's; bg_color carries the colour for
+    // The style background is the painter's; bg_color carries the color for
     // click handlers.
     CHECK(lv_obj_get_style_bg_opa(sw, LV_PART_MAIN) == LV_OPA_TRANSP);
     CHECK(lv_color_eq(lv_obj_get_style_bg_color(sw, LV_PART_MAIN), lv_color_hex(0x123456)));
 
-    // A single listed colour is not a split: the primary paints.
+    // A single listed color is not a split: the primary paints.
     helix::ui::apply_swatch_color(sw, 0x00FF00, "#AABBCC");
     colors = helix::ui::swatch_paint_colors(sw);
     REQUIRE(colors.size() == 1);

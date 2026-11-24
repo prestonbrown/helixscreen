@@ -19,9 +19,7 @@
 
 using namespace helix;
 
-// ============================================================================
 // Helper: Create a base SlotInfo for tests
-// ============================================================================
 
 /// The server holds only spool 42, the spool make_test_slot() links.
 static void serve_only_linked_spool(MoonrakerClientMock& client) {
@@ -57,9 +55,7 @@ static NewFilament record(const char* material, const char* color_hex) {
     return f;
 }
 
-// ============================================================================
 // detect_changes() Tests
-// ============================================================================
 
 TEST_CASE("SpoolmanSlotSaver detect_changes: filament fields and spool fields each set their level",
           "[spoolman][slot_saver]") {
@@ -140,9 +136,7 @@ TEST_CASE("SpoolmanSlotSaver detect_changes: catalog product changed sets filame
     }
 }
 
-// ============================================================================
 // save() Tests
-// ============================================================================
 
 /// The mock printer and API every save() case talks to.
 struct SaverApiFixture {
@@ -246,7 +240,6 @@ TEST_CASE_METHOD(SaverApiFixture,
     REQUIRE(callback_called);
     REQUIRE(callback_success);
 
-    // Verify weight was updated in mock
     for (const auto& spool : client.spoolman_mock().get_mock_spools()) {
         if (spool.id == 42) {
             REQUIRE(spool.remaining_weight_g == Catch::Approx(650.0));
@@ -397,10 +390,8 @@ TEST_CASE_METHOD(
     }
 }
 
-// ============================================================================
 // Filament repoint tests (save() resolves via find-or-create then PATCHes the
 // spool's filament_id — it never mutates the existing filament record)
-// ============================================================================
 
 TEST_CASE_METHOD(
     SaverApiFixture,
@@ -537,7 +528,6 @@ TEST_CASE_METHOD(SaverApiFixture,
     REQUIRE(got.repointed_filament);
     REQUIRE(got.new_filament_id == 104);
 
-    // Verify spool was PATCHed.
     auto& updates = client.spoolman_mock().spool_updates;
     REQUIRE(updates.size() == 1);
     REQUIRE(updates[0].spool_id == 42);
@@ -587,9 +577,7 @@ TEST_CASE("SpoolmanSlotSaver save succeeds even when original has no filament_id
     REQUIRE(client.spoolman_mock().filament_updates.empty());
 }
 
-// ============================================================================
 // color_to_hex format tests
-// ============================================================================
 
 TEST_CASE("SpoolmanSlotSaver color_to_hex produces hex without # prefix (observed via create)",
           "[spoolman][slot_saver]") {
@@ -620,9 +608,7 @@ TEST_CASE("SpoolmanSlotSaver color_to_hex produces hex without # prefix (observe
     REQUIRE(hex[0] != '#');
 }
 
-// ============================================================================
 // is_filament_complete() Tests
-// ============================================================================
 
 TEST_CASE("SpoolmanSlotSaver is_filament_complete: a brand, a material and a chosen colour",
           "[spoolman][slot_saver]") {
@@ -640,9 +626,7 @@ TEST_CASE("SpoolmanSlotSaver is_filament_complete: a brand, a material and a cho
         SpoolmanSlotSaver::is_filament_complete(slot("Polymaker", "PLA", kAmsDefaultSlotColor)));
 }
 
-// ============================================================================
 // find_or_create_vendor() Tests
-// ============================================================================
 
 TEST_CASE_METHOD(
     SaverApiFixture,
@@ -685,9 +669,7 @@ TEST_CASE_METHOD(SaverApiFixture,
     REQUIRE(client.spoolman_mock().created_vendors[0]["name"] == "eSUN");
 }
 
-// ============================================================================
 // find_or_create_filament() Tests
-// ============================================================================
 
 TEST_CASE_METHOD(SaverApiFixture,
                  "SpoolmanSlotSaver find_or_create_filament: mismatched material -> creates new",
@@ -762,9 +744,7 @@ TEST_CASE_METHOD(SaverApiFixture,
     REQUIRE(client.spoolman_mock().created_filaments.empty());
 }
 
-// ============================================================================
 // repoint_spool() Tests
-// ============================================================================
 
 TEST_CASE_METHOD(SaverApiFixture,
                  "SpoolmanSlotSaver repoint_spool: PATCHes spool with new filament_id",
@@ -787,9 +767,7 @@ TEST_CASE_METHOD(SaverApiFixture,
     REQUIRE(updates[0].patch["filament_id"] == 101);
 }
 
-// ============================================================================
 // Incompleteness + skip-on-match paths (save() behavior)
-// ============================================================================
 
 TEST_CASE_METHOD(
     SaverApiFixture,
@@ -894,9 +872,7 @@ TEST_CASE_METHOD(SaverApiFixture,
     REQUIRE(client.spoolman_mock().created_filaments.empty());
 }
 
-// ============================================================================
 // save(): no linked spool -> create-new-spool path
-// ============================================================================
 
 TEST_CASE_METHOD(
     SaverApiFixture,
@@ -994,9 +970,7 @@ TEST_CASE_METHOD(
     REQUIRE_FALSE(payload.contains("remaining_weight"));
 }
 
-// ============================================================================
 // save(): combined filament + weight change against an existing target filament
-// ============================================================================
 
 TEST_CASE("SpoolmanSlotSaver save: linked spool + filament resolves to existing filament + weight "
           "change -> repoint PATCH and weight write both fire",
@@ -1061,9 +1035,7 @@ TEST_CASE("SpoolmanSlotSaver save: linked spool + filament resolves to existing 
     }
 }
 
-// ============================================================================
 // LinkIntent — the create-vs-update decision must be EXPLICIT
-// ============================================================================
 //
 // save() inferred it from state: `if (!edited.spoolman_id)`. That single line is
 // why a lane could never create a new spool once it carried a link — and a lane
@@ -1292,9 +1264,7 @@ TEST_CASE("build_spool_patches: a spool weight edit reaches the spool the displa
     CHECK(reread->spool_weight_g == Catch::Approx(edited.spool_weight_g));
 }
 
-// ============================================================================
 // apply_save_result_identity() Tests
-// ============================================================================
 
 static SlotInfo make_orca_linked_slot() {
     SlotInfo slot = make_test_slot();
@@ -1372,9 +1342,7 @@ TEST_CASE("SpoolmanSlotSaver apply_save_result_identity: no new spool and no rep
     CHECK(committed.spoolman_orca_filament_id == "GFL99");
 }
 
-// ============================================================================
 // The filament record a new spool files under
-// ============================================================================
 
 /// eSUN ABS+ in Deep Gray, as the editor stages it: the precise type, the
 /// material database's ranges, no spool name.

@@ -16,8 +16,8 @@
  * test_ams_post_unload_runout_grace.cpp beside the grace it must not burn.
  *
  * The state is driven through the real inputs - update_from_status() plus
- * set_print_start_state() - never by writing print_state_enum, which no longer
- * reaches the widget.
+ * set_print_start_state() - never by writing print_state_enum, which does not
+ * reach the widget.
  */
 
 #include "../lvgl_test_fixture.h"
@@ -146,9 +146,7 @@ class PreparingCardFixture : public LVGLTestFixture {
 
 } // namespace
 
-// ============================================================================
 // The card variant
-// ============================================================================
 
 TEST_CASE_METHOD(PreparingCardFixture, "Print card reads idle when nothing is running",
                  "[print_status_widget][print_state]") {
@@ -167,8 +165,8 @@ TEST_CASE_METHOD(PreparingCardFixture, "Print card reads idle when nothing is ru
 
 TEST_CASE_METHOD(PreparingCardFixture, "Print card goes active once the printer reports the job",
                  "[print_status_widget][print_state]") {
-    // Characterization of what already worked, so the migration cannot trade one
-    // broken window for another.
+    // Once the printer reports the job the card must stay active, so reading the
+    // lifecycle does not trade one broken window for another.
     PrintStatusWidget w;
     lv_obj_t* container = create_mock_tree();
     w.attach(container, test_screen());
@@ -191,7 +189,7 @@ TEST_CASE_METHOD(PreparingCardFixture, "Print card goes active once the printer 
 
 TEST_CASE_METHOD(PreparingCardFixture, "Print card is active during a host-side pre-print block",
                  "[print_status_widget][print_state]") {
-    // THE K2 DEFECT. print_stats reads standby for the whole block, so the card
+    // The K2 case: print_stats reads standby for the whole block, so the card
     // claimed the printer was idle while it homed and probed.
     PrintStatusWidget w;
     lv_obj_t* container = create_mock_tree();

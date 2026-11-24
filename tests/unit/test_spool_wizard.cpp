@@ -22,9 +22,7 @@
 
 #include "../catch_amalgamated.hpp"
 
-// ============================================================================
 // Step Navigation Tests
-// ============================================================================
 
 TEST_CASE("SpoolWizardOverlay walks its steps forward and back", "[spool_wizard]") {
     using Step = SpoolWizardOverlay::Step;
@@ -145,9 +143,7 @@ TEST_CASE_METHOD(HelixTestFixture, "SpoolWizardOverlay on_create_requested enter
     CHECK_FALSE(completed);
 }
 
-// ============================================================================
 // Vendor List Tests
-// ============================================================================
 
 TEST_CASE("sorted_vendors sorts case-insensitively and keeps one per name", "[spool_wizard]") {
     auto result = SpoolWizardOverlay::sorted_vendors(
@@ -245,9 +241,7 @@ TEST_CASE("spool details start empty", "[spool_wizard]") {
     CHECK(wizard.spool_remaining_weight() == 0);
 }
 
-// ============================================================================
 // Filament creation payload
-// ============================================================================
 
 TEST_CASE("filament_create_payload sends Spoolman one integer per temperature",
           "[spool_wizard][spoolman]") {
@@ -353,9 +347,7 @@ TEST_CASE("vendor_create_payload keeps the website Spoolman has no field for",
     CHECK((*it)["comment"] == "https://acme.example");
 }
 
-// ============================================================================
 // Screensaver
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "a screensaver wake keeps the wizard's step and entries",
                  "[spool_wizard][suspend]") {

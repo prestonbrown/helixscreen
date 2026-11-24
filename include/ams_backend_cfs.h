@@ -19,7 +19,9 @@ namespace helix::printer {
 #if HELIX_HAS_CFS
 
 #include "ams_cfs_calibration.h"
+#include "ams_print_area_intrusion.h"
 #include "ams_print_routing.h"
+#include "ams_spoolman_tag_links.h"
 #include "ams_subscription_backend.h"
 #include "async_lifetime_guard.h"
 #include "cfs_daemon_sync.h"
@@ -128,7 +130,11 @@ enum class CfsSchema {
 };
 
 /// CFS (Creality Filament System) backend — K1 + K2 series printers with RS-485 CFS units
-class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, public IPrintRouting {
+class AmsBackendCfs : public AmsSubscriptionBackend,
+                      public ICfsCalibration,
+                      public IPrintRouting,
+                      public IPrintAreaIntrusion,
+                      public ISpoolmanTagLinks {
   public:
     AmsBackendCfs(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
 
@@ -138,6 +144,12 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
         }
         if (tag == helix::type_tag<IPrintRouting>()) {
             return static_cast<IPrintRouting*>(this);
+        }
+        if (tag == helix::type_tag<IPrintAreaIntrusion>()) {
+            return static_cast<IPrintAreaIntrusion*>(this);
+        }
+        if (tag == helix::type_tag<ISpoolmanTagLinks>()) {
+            return static_cast<ISpoolmanTagLinks*>(this);
         }
         return AmsSubscriptionBackend::capability(tag);
     }

@@ -4,9 +4,9 @@
 /**
  * @file test_wifi_observer_notification.cpp
  * @brief Tests for WiFiManager state observer notification on CONNECTED
- *        and DISCONNECTED events — regression coverage for the NetworkWidget
- *        race where DISCONNECTED events were silently ignored and CONNECTED
- *        events arriving before the backend's first status poll were missed
+ *        and DISCONNECTED events — covers the NetworkWidget race where
+ *        DISCONNECTED events must not be ignored and CONNECTED events arriving
+ *        before the backend's first status poll must not be missed
  *        (prestonbrown/helixscreen#1059).
  *
  * The handlers normally fire from the backend event thread; here we drive

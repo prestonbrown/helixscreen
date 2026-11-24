@@ -113,9 +113,7 @@ class UsbBackend {
      */
     using EventCallback = std::function<void(UsbEvent event, const UsbDrive& drive)>;
 
-    // ========================================================================
     // Lifecycle Management
-    // ========================================================================
 
     /**
      * @brief Initialize and start the USB backend
@@ -141,9 +139,7 @@ class UsbBackend {
      */
     virtual bool is_running() const = 0;
 
-    // ========================================================================
     // Event System
-    // ========================================================================
 
     /**
      * @brief Register callback for USB drive events
@@ -155,9 +151,7 @@ class UsbBackend {
      */
     virtual void set_event_callback(EventCallback callback) = 0;
 
-    // ========================================================================
     // Drive Queries
-    // ========================================================================
 
     /**
      * @brief Get list of currently mounted USB drives
@@ -180,9 +174,7 @@ class UsbBackend {
     virtual UsbError scan_for_gcode(const std::string& mount_path, std::vector<UsbGcodeFile>& files,
                                     int max_depth = 3) = 0;
 
-    // ========================================================================
     // Factory Method
-    // ========================================================================
 
     /**
      * @brief Create appropriate backend for current platform

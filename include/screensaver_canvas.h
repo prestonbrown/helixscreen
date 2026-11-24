@@ -37,10 +37,6 @@ inline constexpr lv_color_format_t kSaverBuildCanvasFormat =
 inline constexpr lv_color_format_t kLvDrawCanvasFormat =
     LV_COLOR_DEPTH == 16 ? LV_COLOR_FORMAT_RGB565 : LV_COLOR_FORMAT_ARGB8888;
 
-/// The SaverDepth bit this build draws at, for registry queries such as
-/// default_screensaver_type(). A 16 bpp build compiles only the savers carrying SAVER_DEPTH_16.
-inline constexpr uint8_t kSaverBuildDepth = LV_COLOR_DEPTH == 16 ? SAVER_DEPTH_16 : SAVER_DEPTH_32;
-
 /// PixelWriter format of a canvas: RGB565 for an RGB565 canvas, XRGB8888 for a 4-byte one.
 constexpr PixelFormat pixel_format_for(lv_color_format_t cf) {
     return cf == LV_COLOR_FORMAT_RGB565 ? PixelFormat::RGB565 : PixelFormat::XRGB8888;

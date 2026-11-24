@@ -1326,7 +1326,7 @@ TEST_CASE_METHOD(PagingFixture, "Unit view in portrait: the page dots take a row
     CHECK(da.y2 < sizes[size][1]);
 }
 
-// ---- Art tiles on the overview ----
+// Art tiles on the overview
 
 namespace {
 
@@ -1602,9 +1602,7 @@ TEST_CASE_METHOD(PagingFixture, "Overview tile: an overflowing row shows only wh
     CHECK(whole >= 1);
 }
 
-// ============================================================================
 // Overview cards: the lane bars come first
-// ============================================================================
 
 namespace {
 bool card_shows(lv_obj_t* card, const char* name) {

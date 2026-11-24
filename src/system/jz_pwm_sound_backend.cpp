@@ -207,9 +207,7 @@ bool JzPwmSoundBackend::available() {
     return false;
 }
 
-// ============================================================================
 // Phrase renderer - the tracker path's DSP
-// ============================================================================
 
 std::vector<uint32_t> jz_pwm_render_phrase(const JzPhraseRow* rows, int n_rows,
                                            const JzPwmRenderParams& p, const JzPwmVoiceKnobs& k) {
@@ -340,9 +338,7 @@ int jz_phrase_clip(JzPhraseRow* rows, int n_rows, float budget_ms) {
     return n_rows;
 }
 
-// ============================================================================
 // JzPwmSoundBackend
-// ============================================================================
 
 JzPwmSoundBackend::JzPwmSoundBackend() {
     g_live_jz_pwm = this;
@@ -486,9 +482,7 @@ void JzPwmSoundBackend::flush_step() {
     enqueue_frame(std::move(words), (uint32_t)ms);
 }
 
-// ============================================================================
 // Sound daemon client (fx-pwm serve over /tmp/fx-pwm.sock)
-// ============================================================================
 
 bool JzPwmSoundBackend::ensure_daemon() {
     if (sock_ >= 0)
@@ -665,9 +659,7 @@ void JzPwmSoundBackend::enqueue_frame(std::vector<uint32_t>&& words, uint32_t ho
     send_cv_.notify_one();
 }
 
-// ============================================================================
 // Voice path: rolling row history -> phrases
-// ============================================================================
 
 void JzPwmSoundBackend::set_voice(int slot, float freq_hz, float amplitude, float duty_cycle) {
     (void)duty_cycle; /* the wave render carries the tone */

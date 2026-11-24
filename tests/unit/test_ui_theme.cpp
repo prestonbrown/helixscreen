@@ -17,9 +17,7 @@
 // lv_color_to_u32() returns 0xAARRGGBB, we only care about 0x00RRGGBB
 #define COLOR_RGB(color) (lv_color_to_u32(color) & 0x00FFFFFF)
 
-// ============================================================================
 // Color Parsing Tests
-// ============================================================================
 
 TEST_CASE("UI Theme: Parse valid hex color", "[ui_theme][color]") {
     lv_color_t color = theme_manager_parse_hex_color("#FF0000");
@@ -95,9 +93,7 @@ TEST_CASE("UI Theme: Parse typical UI colors", "[ui_theme][color]") {
     }
 }
 
-// ============================================================================
 // Error Handling Tests
-// ============================================================================
 
 TEST_CASE("UI Theme: Handle invalid color strings", "[ui_theme][color][error]") {
     SECTION("NULL pointer") {
@@ -143,9 +139,7 @@ TEST_CASE("UI Theme: Handle malformed hex strings", "[ui_theme][color][error]") 
     }
 }
 
-// ============================================================================
 // Edge Cases
-// ============================================================================
 
 TEST_CASE("UI Theme: Color parsing edge cases", "[ui_theme][color][edge]") {
     SECTION("All zeros") {
@@ -179,9 +173,7 @@ TEST_CASE("UI Theme: Color parsing edge cases", "[ui_theme][color][edge]") {
     }
 }
 
-// ============================================================================
 // Consistency Tests
-// ============================================================================
 
 TEST_CASE("UI Theme: Multiple parses of same color", "[ui_theme][color]") {
     const char* color_str = "#2196F3";
@@ -194,9 +186,7 @@ TEST_CASE("UI Theme: Multiple parses of same color", "[ui_theme][color]") {
     REQUIRE(COLOR_RGB(color2) == COLOR_RGB(color3));
 }
 
-// ============================================================================
 // Integration Tests with LVGL
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "UI Theme: Parsed colors work with LVGL",
                  "[ui_theme][integration]") {
@@ -207,9 +197,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "UI Theme: Parsed colors work with LVGL",
     REQUIRE(COLOR_RGB(lv_obj_get_style_bg_color(obj, LV_PART_MAIN)) == 0x0000FF);
 }
 
-// ============================================================================
 // Color Comparison Tests
-// ============================================================================
 
 TEST_CASE("UI Theme: Color equality", "[ui_theme][color]") {
     lv_color_t color1 = theme_manager_parse_hex_color("#FF0000");
@@ -220,9 +208,7 @@ TEST_CASE("UI Theme: Color equality", "[ui_theme][color]") {
     REQUIRE(COLOR_RGB(color1) != COLOR_RGB(color3));
 }
 
-// ============================================================================
 // Real-world Color Examples
-// ============================================================================
 
 TEST_CASE("UI Theme: Parse colors from globals.xml", "[ui_theme][color][integration]") {
     // These are typical colors that might appear in globals.xml
@@ -262,17 +248,14 @@ TEST_CASE("UI Theme: Parse colors from globals.xml", "[ui_theme][color][integrat
     }
 }
 
-// ============================================================================
 // Responsive Breakpoint Tests
-// ============================================================================
 
 TEST_CASE("UI Theme: Breakpoint suffix detection", "[ui_theme][responsive]") {
     SECTION("Micro breakpoint (≤272px)") {
         // The tier 480x272 lands in: the argument is responsive_dimension(), the
-        // SMALLER of width and height, so a 480x272 panel resolves on 272. It was
-        // untested until now because the header documented only five of the seven
-        // tiers this function returns, omitting _micro entirely - and _tiny's own
-        // case probes 320, which is above the micro boundary and so never noticed.
+        // SMALLER of width and height, so a 480x272 panel resolves on 272. _tiny's
+        // own case probes 320, which is above the micro boundary, so only this case
+        // covers _micro.
         REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(272), "_micro") == 0);
         REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(240), "_micro") == 0);
     }
@@ -343,7 +326,7 @@ TEST_CASE("UI Theme: Breakpoint boundary conditions", "[ui_theme][responsive]") 
 }
 
 TEST_CASE("UI Theme: Target hardware resolutions", "[ui_theme][responsive]") {
-    // Test against the specific target hardware — breakpoint uses screen HEIGHT
+    // Test against the specific target hardware: the breakpoint uses screen HEIGHT
     SECTION("480x320 (tiny screen) → TINY") {
         // height=320 ≤390 → TINY
         REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(320), "_tiny") == 0);
@@ -398,11 +381,9 @@ TEST_CASE("UI Theme: Font height helper", "[ui_theme][responsive]") {
     }
 }
 
-// ============================================================================
 // Multi-File Responsive Constants Tests
-// ============================================================================
-// These tests verify the extension of responsive constants (_small/_medium/_large)
-// to work with ALL XML files, not just globals.xml.
+// Responsive constants (_small/_medium/_large) are read from ALL XML files, not
+// just globals.xml.
 // Functions under test: parse_xml_file_for_suffix(), find_xml_files(),
 // parse_all_xml_for_suffix()
 

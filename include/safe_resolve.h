@@ -37,7 +37,7 @@ inline int safe_resolve(const std::string& host, int port, struct sockaddr_in& a
 
 #if defined(__GLIBC__) && (defined(__arm__) || defined(__mips__))
     // On embedded 32-bit glibc, getaddrinfo() can SIGSEGV inside __check_pf/
-    // gaih_inet even when libnss_dns.so loads (v0.99.62 AD5M crash,
+    // gaih_inet even when libnss_dns.so loads (seen as an AD5M crash,
     // fault_addr 0x62). Use direct UDP DNS resolution and fail closed if it
     // doesn't succeed — falling through to getaddrinfo() reintroduces the
     // very crash this function was written to prevent.

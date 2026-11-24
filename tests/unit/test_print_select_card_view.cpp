@@ -28,9 +28,7 @@
 
 using helix::ui::PrintSelectCardView;
 
-// ============================================================================
 // Thumbnail paths
-// ============================================================================
 
 TEST_CASE("CardView: is_placeholder_thumbnail means an empty path", "[ui][card_view]") {
     CHECK(PrintSelectCardView::is_placeholder_thumbnail(""));
@@ -54,9 +52,7 @@ TEST_CASE("CardView: has_real_thumbnail finds a file, with or without the A: pre
     CHECK_FALSE(PrintSelectCardView::has_real_thumbnail("A:" + tmp.string()));
 }
 
-// ============================================================================
 // Card pool sizing
-// ============================================================================
 
 namespace {
 

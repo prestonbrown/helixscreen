@@ -114,7 +114,6 @@ class WizardHeaterSelectStep : public helix::wizard::Step {
     // Screen instance
     lv_obj_t* screen_root_ = nullptr;
 
-    // Subjects
     SubjectManager subjects_;
     helix::Subject bed_heater_selected_{};
     helix::Subject hotend_heater_selected_{};
@@ -127,8 +126,6 @@ class WizardHeaterSelectStep : public helix::wizard::Step {
     bool subjects_initialized_ = false;
 };
 
-// ============================================================================
 // Global Instance Access
-// ============================================================================
 
 WizardHeaterSelectStep* get_wizard_heater_select_step();

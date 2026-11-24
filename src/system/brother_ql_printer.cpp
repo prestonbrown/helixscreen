@@ -78,7 +78,6 @@ void BrotherQLPrinter::print_label(const std::string& host, int port, const Labe
             error = fmt::format("socket() failed: {}", strerror(errno));
             spdlog::error("Brother QL: {}", error);
         } else {
-            // Set send timeout
             struct timeval tv {};
             tv.tv_sec = 10;
             setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));

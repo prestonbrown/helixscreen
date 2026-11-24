@@ -12,7 +12,6 @@
 #include "ui_icon_picker.h"
 #include "ui_temperature_utils.h"
 #include "ui_text.h"
-#include "ui_text_entry_modal.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
@@ -20,7 +19,6 @@
 #include "core/subject.h"
 #include "core/temp_unit_subject.h"
 #include "core/temperature_units.h"
-#include "core/text_io.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "helix_psram_attr.h"
@@ -29,6 +27,7 @@
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
 #include "printer_state.h"
+#include "src/ui/panel_widgets/unit_override.h"
 #include "temperature_controller.h"
 #include "temperature_sensor_manager.h"
 #include "theme_manager.h"
@@ -93,12 +92,6 @@ static constexpr const char* kDefaultIcon = "thermometer";
 
 /// The widest unit a reading carries with no override, for sizing the tile.
 constexpr const char* kDefaultUnit = "\u00B0C";
-constexpr const char* kUnitOverrideKey = "unit_override";
-/// Longest unit text the dialog accepts, in characters.
-constexpr uint32_t kMaxUnitChars = 8;
-/// Longest unit text stored, in bytes: kMaxUnitChars of four-byte UTF-8, and
-/// within the subject buffers that draw it.
-constexpr size_t kMaxUnitBytes = kMaxUnitChars * 4;
 
 /// What the tile measures: its widest reading, carrying @p unit.
 helix::TileSizing::Content sizing_content(const std::string& unit) {
@@ -621,14 +614,11 @@ void ThermistorWidget::select_icon(const std::string& name) {
 }
 
 std::string ThermistorWidget::unit_text(const std::optional<std::string>& unit_override) {
-    return unit_override ? *unit_override : std::string(helix::units::display_temp_symbol());
+    return unit_override::resolve(unit_override, helix::units::display_temp_symbol());
 }
 
 void ThermistorWidget::set_unit_override(std::optional<std::string> unit) {
-    if (unit) {
-        unit = std::string(text_io::utf8_prefix(*unit, kMaxUnitBytes));
-    }
-    unit_override_ = std::move(unit);
+    unit_override_ = unit_override::clamp(std::move(unit));
     save_config();
     apply_unit();
     configure_picker_.fill_unit_row();
@@ -653,27 +643,9 @@ void ThermistorWidget::apply_unit() {
 void ThermistorWidget::show_unit_entry(ThermistorWidget* self, LifetimeToken token,
                                        std::string panel, std::string instance_id,
                                        std::string initial) {
-    helix::ui::TextEntryModal::Config entry;
-    entry.title = lv_tr("Unit text");
-    entry.initial = std::move(initial);
-    entry.placeholder = lv_tr("Leave empty for no unit");
-    entry.accept_text = lv_tr("Save");
-    entry.max_length = kMaxUnitChars;
-    // A rebuild retires the token; the edit then goes straight to the stored
-    // config and the rebuilt tile reads it from there.
-    entry.on_accept = [self, token, panel = std::move(panel),
-                       id = std::move(instance_id)](const std::string& text) {
-        if (!token.expired()) { // L081_OK: on_accept runs on the UI thread, from the OK button
-            self->set_unit_override(text);
-            return;
-        }
-        auto& mgr = PanelWidgetManager::instance();
-        nlohmann::json config = mgr.get_widget_config(panel).get_widget_config(id);
-        config[kUnitOverrideKey] = std::string(text_io::utf8_prefix(text, kMaxUnitBytes));
-        mgr.get_widget_config(panel).set_widget_config(id, config);
-        mgr.notify_config_changed(panel);
-    };
-    helix::ui::TextEntryModal::show_owned(std::move(entry));
+    unit_override::show_entry([self](const std::string& text) { self->set_unit_override(text); },
+                              std::move(token), std::move(panel), std::move(instance_id),
+                              std::move(initial));
 }
 
 void ThermistorWidget::on_temp_changed(int decidegrees) {
@@ -707,10 +679,7 @@ void ThermistorWidget::set_config(const nlohmann::json& config) {
     // Read icon
     icon_name_ = json_util::read_field<std::string>(config, "icon").value_or(icon_name_);
 
-    unit_override_.reset();
-    if (auto unit = json_util::read_field<std::string>(config, kUnitOverrideKey)) {
-        unit_override_ = std::string(text_io::utf8_prefix(*unit, kMaxUnitBytes));
-    }
+    unit_override_ = unit_override::from_config(config);
     apply_unit();
 
     // Migrate old format: {"sensor": "x"} -> sensors_ vector
@@ -768,11 +737,7 @@ void ThermistorWidget::save_config() {
     } else {
         config.erase("icon");
     }
-    if (unit_override_) {
-        config[kUnitOverrideKey] = *unit_override_;
-    } else {
-        config.erase(kUnitOverrideKey);
-    }
+    unit_override::to_config(config, unit_override_);
     config_ = config;
     save_widget_config(config);
     spdlog::debug("[ThermistorWidget] Saved config: {} sensors, mode={} icon={}", sensors_.size(),
@@ -866,7 +831,8 @@ void ThermistorWidget::ConfigurePicker::fill_rows() {
 
 void ThermistorWidget::ConfigurePicker::fill_unit_row() {
     const auto& unit = owner_.unit_override_;
-    const std::string shown = unit && unit->empty() ? std::string(lv_tr("None")) : unit_text(unit);
+    const std::string shown =
+        unit_override::unit_row_value(unit, helix::units::display_temp_symbol());
     lv_subject_set_string(&s_cfg_unit_subject, shown.c_str());
     lv_subject_set_int(&s_cfg_unit_custom_subject, unit ? 1 : 0);
 }

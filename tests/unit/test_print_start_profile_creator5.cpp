@@ -19,14 +19,12 @@
 
 using namespace helix;
 
-// ============================================================================
 // FlashForge Creator 5 Profile Tests
 //
 // Console lines are verbatim from Moonraker's gcode_store on a Creator 5 Pro
 // running Z-Mod 1.7.5 (2026-11-06): one start with a saved mesh, one that built
 // a full 10x10 mesh. The whole starts replay through the collector at the end of
 // this file (tests/fixtures/c5_zmod_*_start.txt).
-// ============================================================================
 
 namespace {
 
@@ -191,7 +189,7 @@ TEST_CASE("PrintStartProfile: creator5 announces a start with Z-Mod's per-tool t
     REQUIRE(profile != nullptr);
     REQUIRE(generic != nullptr);
 
-    // PRINT_ZCOLOR prints the table once the colour prompt is answered, 80-90s
+    // PRINT_ZCOLOR prints the table once the color prompt is answered, 80-90s
     // before print_stats takes the file.
     CHECK(profile->announces_print_start(kCreatorFiveStartTable));
     CHECK_FALSE(generic->announces_print_start(kCreatorFiveStartTable));
@@ -211,10 +209,9 @@ TEST_CASE("PrintStartProfile: creator5 announces a start with Z-Mod's per-tool t
     }
 }
 
-// ============================================================================
 // FlashForge Creator 5 on Z-Mod: real pre-print replays
 //
-// A Creator 5 Pro on Z-Mod 1.7.5 (2026-11-06), from the answer to Z-Mod's colour
+// A Creator 5 Pro on Z-Mod 1.7.5 (2026-11-06), from the answer to Z-Mod's color
 // prompt (t=0) to "START_PRINT has finished its work.":
 //   c5_zmod_saved_mesh_start.txt - loads the saved mesh, then waits about 200s
 //     for the bed to cool from the +10C it held during the tool pickup.
@@ -222,7 +219,6 @@ TEST_CASE("PrintStartProfile: creator5 announces a start with Z-Mod's per-tool t
 //     probes a 10x10 mesh three samples a point, then picks the tool up again.
 // print_stats leaves standby only when the file opens, 80-90s in, which is
 // where the collector arms.
-// ============================================================================
 
 class CreatorFivePrintStartReplayFixture : public PrintStartCollectorHeaterFixture {
   public:
@@ -399,7 +395,7 @@ TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
                  "PrintStartCollector: a Creator 5 Z-Mod start with a saved mesh, however it arms",
                  "[print][collector][creator5][integration][2054]") {
     REQUIRE(have_profile_);
-    // Z-Mod's preparation before print_stats takes the file: the colour table, the
+    // Z-Mod's preparation before print_stats takes the file: the color table, the
     // tool pickup and the two heater normalization waits.
     const std::string before_file = "0:INITIALIZING:Preparing...\n"
                                     "45:INITIALIZING:Picking up tool\n"

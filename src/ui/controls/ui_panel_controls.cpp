@@ -86,9 +86,7 @@ void format_fan_speed(int pct, char* buf, size_t size) {
 
 } // namespace
 
-// ============================================================================
 // CONSTRUCTOR
-// ============================================================================
 
 ControlsPanel::ControlsPanel(PrinterState& printer_state, IMoonrakerAPI* api)
     : PanelBase(printer_state, api) {
@@ -106,9 +104,7 @@ ControlsPanel::~ControlsPanel() {
     // panel teardown removes the dialog.
 }
 
-// ============================================================================
 // PANELBASE IMPLEMENTATION
-// ============================================================================
 
 void ControlsPanel::init_subjects() {
     if (subjects_initialized_) {
@@ -311,7 +307,6 @@ void ControlsPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     // panel's printer state.
     helix::ui::TargetTool::instance().attach(printer_state_);
 
-    // Register observers for live data updates
     register_observers();
 
     // Populate secondary fans on initial setup (will be empty until discovery)
@@ -385,9 +380,7 @@ void ControlsPanel::refresh_all_displays() {
     spdlog::trace("[{}] All displays refreshed after activation", get_name());
 }
 
-// ============================================================================
 // PRIVATE HELPERS
-// ============================================================================
 
 void ControlsPanel::register_observers() {
     // Subscribe to fan updates (skip formatting when hidden)
@@ -509,9 +502,7 @@ void ControlsPanel::register_observers() {
     spdlog::trace("[{}] Observers registered for dashboard live data", get_name());
 }
 
-// ============================================================================
 // DISPLAY UPDATE HELPERS
-// ============================================================================
 
 void ControlsPanel::update_more_sensors() {
     if (!subjects_initialized_) {
@@ -693,9 +684,7 @@ void ControlsPanel::handle_save_z_offset() {
     helix::zoffset::save_dirty_offsets_shared();
 }
 
-// ============================================================================
 // V2 CARD CLICK HANDLERS
-// ============================================================================
 
 void ControlsPanel::handle_quick_actions_clicked() {
     helix::open_motion_panel(parent_screen_);
@@ -715,9 +704,7 @@ void ControlsPanel::handle_secondary_fans_clicked() {
     }
 }
 
-// ============================================================================
 // QUICK ACTION BUTTON HANDLERS
-// ============================================================================
 
 void ControlsPanel::run_quick_action(uint32_t timeout_ms, const QuickActionText& text,
                                      const QuickActionDispatch& dispatch) {
@@ -837,9 +824,7 @@ void ControlsPanel::run_z_tilt() {
                      });
 }
 
-// ============================================================================
 // SPEED/FLOW OVERRIDE HANDLERS
-// ============================================================================
 
 void ControlsPanel::update_speed_display() {
     int speed_pct = 100;
@@ -850,9 +835,7 @@ void ControlsPanel::update_speed_display() {
     lv_subject_set_string(&speed_override_subject_, speed_override_buf_);
 }
 
-// ============================================================================
 // FAN SLIDER HANDLER
-// ============================================================================
 
 void ControlsPanel::handle_fan_slider_changed(int value) {
     // Defensive validation - slider should already be 0-100 but clamp anyway
@@ -880,9 +863,7 @@ void ControlsPanel::handle_fan_slider_changed(int value) {
     }
 }
 
-// ============================================================================
 // CALIBRATION HANDLERS
-// ============================================================================
 
 void ControlsPanel::handle_motors_clicked() {
     spdlog::debug("[{}] Motors Disable card clicked - showing confirmation", get_name());
@@ -979,9 +960,7 @@ void ControlsPanel::handle_calibration_motors() {
     handle_motors_clicked();
 }
 
-// ============================================================================
 // XML CALLBACKS
-// ============================================================================
 
 // Unified macro callback - extracts index from user_data
 void ControlsPanel::on_macro(lv_event_t* e) {
@@ -1046,9 +1025,7 @@ void ControlsPanel::update_secondary_fan_speed(const std::string& object_name, i
     }
 }
 
-// ============================================================================
 // MORE-SENSORS LINK
-// ============================================================================
 
 void ControlsPanel::handle_secondary_temps_clicked() {
     spdlog::debug("[{}] Secondary temps overflow clicked - opening sensors overlay", get_name());
@@ -1056,9 +1033,7 @@ void ControlsPanel::handle_secondary_temps_clicked() {
     overlay.show(parent_screen_);
 }
 
-// ============================================================================
 // GLOBAL INSTANCE (needed by main.cpp)
-// ============================================================================
 
 ControlsPanel& get_global_controls_panel() {
     return helix::lazy_global<ControlsPanel>("ControlsPanel", get_printer_state(), nullptr);

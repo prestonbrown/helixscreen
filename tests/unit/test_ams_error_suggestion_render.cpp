@@ -53,9 +53,7 @@ struct AmsErrorRenderFixture : public HelixTestFixture {
 
 } // namespace
 
-// ============================================================================
 // The regression itself
-// ============================================================================
 
 TEST_CASE_METHOD(AmsErrorRenderFixture, "a rendered AmsError carries its suggestion",
                  "[ams][error-render]") {
@@ -96,9 +94,7 @@ TEST_CASE_METHOD(AmsErrorRenderFixture, "warnings render the suggestion too",
     CHECK(errors.empty());
 }
 
-// ============================================================================
 // Composition rules
-// ============================================================================
 
 TEST_CASE_METHOD(AmsErrorRenderFixture, "a context word prefixes the message, never the suggestion",
                  "[ams][error-render]") {
@@ -145,9 +141,7 @@ TEST_CASE_METHOD(AmsErrorRenderFixture, "a successful AmsError reports nothing",
     CHECK(warnings.empty());
 }
 
-// ============================================================================
 // display_text() — the flattened form, for boundaries that carry one string
-// ============================================================================
 
 TEST_CASE("AmsError::display_text joins both user-facing halves", "[ams][error-render]") {
     SECTION("both present") {

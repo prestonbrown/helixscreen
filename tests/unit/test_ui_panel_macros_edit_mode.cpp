@@ -34,9 +34,7 @@ static size_t index_of(MacrosPanel& p, const std::string& name) {
     return static_cast<size_t>(it - d.begin());
 }
 
-// ===========================================================================
 // Pure decision logic (no LVGL, no singletons)
-// ===========================================================================
 
 TEST_CASE("seed hides exactly the _-prefixed macros when key absent", "[macros][editmode]") {
     std::vector<std::string> all = {"CLEAN_NOZZLE", "LOAD", "_HOME_Z", "_CALIBRATE", "PRINT_START"};
@@ -116,9 +114,7 @@ TEST_CASE("per-row values: the defaults button needs edit mode AND known params"
     REQUIRE(run_mode.defaults_hidden == 1);
 }
 
-// ===========================================================================
 // SettingsManager round-trip
-// ===========================================================================
 
 TEST_CASE_METHOD(HelixTestFixture, "hidden-macro save round-trips through settings",
                  "[macros][editmode]") {
@@ -136,9 +132,7 @@ TEST_CASE_METHOD(HelixTestFixture, "hidden-macro save round-trips through settin
     REQUIRE(std::find(got.begin(), got.end(), "_HOME_Z") != got.end());
 }
 
-// ===========================================================================
 // Panel model methods (friend-driven; subjects only, no row widgets)
-// ===========================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "enter edit mode shows all macros incl. _-prefixed",
                  "[macros][editmode]") {

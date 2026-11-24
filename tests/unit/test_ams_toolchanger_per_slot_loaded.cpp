@@ -79,9 +79,7 @@ class ToolChangerLoadHelper : public helix::AmsBackendToolChanger {
 
 } // namespace
 
-// ============================================================================
 // The authority seam — deliberately NOT claimed
-// ============================================================================
 
 TEST_CASE("Toolchanger stays on the aggregate load rule", "[ams][toolchanger][1199]") {
     // Not a style choice: there is no per-tool filament signal for a per-slot
@@ -90,9 +88,7 @@ TEST_CASE("Toolchanger stays on the aggregate load rule", "[ams][toolchanger][11
     CHECK_FALSE(backend.has_per_slot_loaded_authority());
 }
 
-// ============================================================================
 // toolchanger.tool_number is the one authority
-// ============================================================================
 
 TEST_CASE("Toolchanger reports only the carriage tool actively loaded",
           "[ams][toolchanger][1199]") {
@@ -156,9 +152,7 @@ TEST_CASE("Toolchanger out-of-range slots are false, not a crash", "[ams][toolch
     CHECK_FALSE(backend.can_unload_from_toolhead(99));
 }
 
-// ============================================================================
 // `mounted` is not that authority
-// ============================================================================
 
 TEST_CASE("Toolchanger with mounted true on every tool still names one loaded",
           "[ams][toolchanger][1199]") {
@@ -209,9 +203,7 @@ TEST_CASE("Toolchanger keeps the carriage tool loaded across a tool-only delta",
     CHECK(backend.can_unload_from_toolhead(2));
 }
 
-// ============================================================================
 // Unmount is offered for the carriage tool only
-// ============================================================================
 
 TEST_CASE("Toolchanger offers Unload only for the tool on the carriage",
           "[ams][toolchanger][1199]") {

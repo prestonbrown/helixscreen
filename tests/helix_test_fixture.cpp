@@ -746,7 +746,7 @@ void HelixTestFixture::reset_all(bool case_start) {
     // earlier tests would show up in a forked child's crash file.
     helix::CrashErrorLogSink::instance().clear_for_test();
 
-    // PanelWidgetManager's panel_configs_ cache is a process-wide map keyed by
+    // The panel widget config cache (cached_panel_widget_config) is a process-wide map keyed by
     // panel_id. Once a test calls get_widget_config("home") — directly or
     // indirectly (HomePanel::on_home_grid_long_press hits it at line 934 of
     // ui_panel_home.cpp) — the cached PanelWidgetConfig carries the active

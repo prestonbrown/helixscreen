@@ -527,7 +527,7 @@ TEST_CASE_METHOD(XMLTestFixture, "a material no catalog product carries is still
     helix::ui::UpdateQueue::instance().drain();
 }
 
-// === Favorites / starred filaments (#1100) ===
+// Favorites / starred filaments (#1100)
 
 TEST_CASE_METHOD(XMLTestFixture, "starring a product floats it to the top of its vendor view",
                  "[filament_picker][catalog_selector][favorites]") {

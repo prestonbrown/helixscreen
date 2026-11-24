@@ -114,9 +114,7 @@ std::string filter_lines_before(const std::string& content, int64_t cutoff_epoch
 
 } // namespace
 
-// =============================================================================
 // Singleton
-// =============================================================================
 
 bool heap_snapshot_age_is_plausible(long age_ms, int uptime_sec) {
     if (age_ms < 0) {
@@ -131,9 +129,7 @@ bool heap_snapshot_age_is_plausible(long age_ms, int uptime_sec) {
     return age_ms <= static_cast<long>(uptime_sec) * 1000 + kSlackMs;
 }
 
-// =============================================================================
 // Lifecycle
-// =============================================================================
 
 void CrashReporter::init(const std::string& config_dir) {
     if (initialized_) {
@@ -149,9 +145,7 @@ void CrashReporter::shutdown() {
     initialized_ = false;
 }
 
-// =============================================================================
 // Detection
-// =============================================================================
 
 bool CrashReporter::has_crash_report() const {
     if (!initialized_) {
@@ -168,9 +162,7 @@ std::string CrashReporter::report_file_path() const {
     return config_dir_ + "/crash_report.txt";
 }
 
-// =============================================================================
 // Report Collection
-// =============================================================================
 
 CrashReporter::CrashReport CrashReporter::collect_report() {
     CrashReport report;
@@ -359,9 +351,7 @@ CrashReporter::CrashReport CrashReporter::collect_report() {
     return report;
 }
 
-// =============================================================================
 // Log Tail
-// =============================================================================
 
 std::string CrashReporter::get_log_tail(int num_lines) {
     // Build the file-log search list: defaults plus the test-visible config_dir
@@ -388,9 +378,7 @@ std::string CrashReporter::get_log_tail(int num_lines) {
     return result;
 }
 
-// =============================================================================
 // Report Formatting
-// =============================================================================
 
 nlohmann::json CrashReporter::report_to_json(const CrashReport& report) {
     json j;
@@ -706,9 +694,7 @@ std::string CrashReporter::report_to_text(const CrashReport& report) {
     return ss.str();
 }
 
-// =============================================================================
 // GitHub URL
-// =============================================================================
 
 std::string CrashReporter::generate_github_url(const CrashReport& report) {
     // Build a pre-filled GitHub issue URL
@@ -842,7 +828,6 @@ std::string CrashReporter::generate_github_url(const CrashReport& report) {
 
     // Truncate body if URL exceeds 2000 chars
     if (url.size() > 2000) {
-        // Rebuild with minimal body
         std::string minimal_body = "## Crash: " + report.signal_name + " in v" +
                                    report.app_version + " on " + report.platform;
         url = "https://github.com/" + std::string(GITHUB_REPO) +
@@ -853,9 +838,7 @@ std::string CrashReporter::generate_github_url(const CrashReport& report) {
     return url;
 }
 
-// =============================================================================
 // File Save
-// =============================================================================
 
 bool CrashReporter::save_to_file(const CrashReport& report) {
     std::string path = report_file_path();
@@ -884,9 +867,7 @@ bool CrashReporter::save_to_file(const CrashReport& report) {
     return true;
 }
 
-// =============================================================================
 // Crash File Lifecycle
-// =============================================================================
 
 void CrashReporter::consume_crash_file() {
     // Rotate crash files to keep the last 3 raw crash dumps for analysis:
@@ -905,9 +886,7 @@ void CrashReporter::consume_crash_file() {
     spdlog::debug("[CrashReporter] Rotated crash file");
 }
 
-// =============================================================================
 // Deduplication
-// =============================================================================
 
 std::string CrashReporter::fingerprint(const CrashReport& report) {
     std::string first_frame = report.backtrace.empty() ? "" : report.backtrace[0];
@@ -919,9 +898,7 @@ bool CrashReporter::is_duplicate(const CrashReport& report) const {
     return helix::CrashHistory::instance().has_fingerprint(fp);
 }
 
-// =============================================================================
 // Auto-Send
-// =============================================================================
 
 namespace {
 

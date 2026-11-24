@@ -377,9 +377,7 @@ class WizardConnectionStep : public helix::wizard::Step {
     static void on_printer_selected_cb(lv_event_t* e);
 };
 
-// ============================================================================
 // Global Instance Access
-// ============================================================================
 
 /**
  * @brief Get the global WizardConnectionStep instance

@@ -1,14 +1,9 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Exercises the preset-reassignment logic formerly driven through
-// MaterialPickerMenu (deleted in Task 8 of the Phase 2 offline filament
-// picker project -- FilamentPanel now uses catalog_picker_ instead).
-// MaterialPickerMenu itself was pure UI plumbing: a ContextMenu subclass
-// whose dispatch_select()/dispatch_reset() just forwarded a row tap to a
-// locally-injected std::function, with no interaction with FilamentPanel or
-// MaterialSettingsManager. That mechanism has no logic equivalent once the
-// widget is gone.
+// // Exercises the preset-reassignment logic behind FilamentPanel's catalog
+// // picker (catalog_picker_). The picker widget itself is pure UI plumbing; the
+// // chain under test is below.
 //
 // The chain itself is production code, not a local reconstruction of one:
 // helix::filament_presets::reassign_preset_if_valid() is the guard-then-persist
@@ -103,8 +98,7 @@ TEST_CASE_METHOD(PresetResetFixture,
 
 // FilamentPanel::reset_presets_to_defaults()'s persistence half. In-depth
 // coverage of the write itself already lives in test_material_settings_manager.cpp,
-// so this ties the reset transition -- the one MaterialPickerMenu::dispatch_reset()
-// used to trigger -- back to a prior reassignment.
+// so this ties the reset transition back to a prior reassignment.
 TEST_CASE_METHOD(PresetResetFixture, "reset_to_defaults restores defaults after a reassignment",
                  "[material_settings][presets]") {
     auto& mgr = MaterialSettingsManager::instance();

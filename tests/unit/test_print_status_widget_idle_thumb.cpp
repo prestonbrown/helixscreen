@@ -99,9 +99,7 @@ class PrintStatusIdleThumbFixture : public LVGLTestFixture {
     static constexpr const char* kBenchyPath = "A:assets/images/benchy_thumbnail_white.png";
 };
 
-// =============================================================================
 // Tests: Idle thumbnail falls back to benchy when no history
-// =============================================================================
 
 TEST_CASE_METHOD(PrintStatusIdleThumbFixture,
                  "PrintStatusWidget: idle state shows benchy when no history available",
@@ -176,8 +174,7 @@ TEST_CASE_METHOD(PrintStatusIdleThumbFixture,
     process_lvgl(200);
 }
 
-// =============================================================================
-// Regression: attach() must defer the initial idle reset (AD5M SY6JLLKJ)
+// attach() must defer the initial idle reset
 //
 // Calling reset_print_card_to_idle() synchronously from attach() cascades:
 //   lv_subject_set_string(idle_thumb_path) → bind_src observer →
@@ -187,7 +184,6 @@ TEST_CASE_METHOD(PrintStatusIdleThumbFixture,
 // time). The widget defers the initial reset via lv_async_call. This test pins
 // the deferral invariant: idle_thumb_path_subject_ must NOT be touched
 // synchronously during attach().
-// =============================================================================
 TEST_CASE_METHOD(PrintStatusIdleThumbFixture,
                  "PrintStatusWidget: attach() defers initial idle reset (no sync subject notify)",
                  "[print_status_widget][idle_thumb][regression]") {
@@ -301,7 +297,6 @@ TEST_CASE_METHOD(PrintStatusIdleThumbFixture,
     widget.detach();
 }
 
-// =============================================================================
 // The idle thumbnail fetch: staleness guard + the shared subject
 //
 // reset_print_card_to_idle() resolves "the last print's thumbnail" and is
@@ -320,7 +315,6 @@ TEST_CASE_METHOD(PrintStatusIdleThumbFixture,
 // and a cache state that misses the pre-scaled .bin. The fixture below builds
 // exactly that; a test that skipped it would assert against the benchy
 // early-return and pin nothing.
-// =============================================================================
 
 namespace {
 
@@ -602,7 +596,7 @@ TEST_CASE_METHOD(PrintStatusIdleThumbHistoryFixture,
 
 // The SYNCHRONOUS probe at the top of the idle resolve asked the cache
 // get_if_optimized(key, target) with no source_modified, so mtime validation
-// never ran on it — the same defect the detail-view fetch had. Re-slice a model
+// never ran on it, as in the detail-view fetch. Re-slice a model
 // under the same filename and the idle card serves the previous slice's render
 // forever, because the probe answers before the guarded async fetch is ever
 // reached.
@@ -635,13 +629,13 @@ TEST_CASE_METHOD(PrintStatusIdleThumbHistoryFixture,
     REQUIRE(planted.success);
     REQUIRE(ThumbnailCache::is_lvgl_path(planted.output_path));
 
-    // --- Fresh: written now, so newer than the history entry's source. ---
+    // Fresh: written now, so newer than the history entry's source.
     PrintStatusWidgetTestAccess::reset_to_idle(widget);
     REQUIRE(subject_value() == planted.output_path);
     REQUIRE(get_idle_thumb_src(container) == planted.output_path);
 
-    // --- Stale: the same filename re-sliced and printed again, so the history
-    // head's source is now newer than the render on disk. ---
+    // Stale: the same filename re-sliced and printed again, so the history
+    // head's source is now newer than the render on disk.
     auto jobs = history_->get_jobs();
     jobs.front().modified =
         std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch()).count() +
@@ -653,7 +647,7 @@ TEST_CASE_METHOD(PrintStatusIdleThumbHistoryFixture,
     // servable, so a refusal below is about the mtime and not an empty cache.
     // (Deliberately not the source_modified-carrying lookup — that one deletes
     // the entry it rejects, which would hand the widget an empty cache and let
-    // the assertion pass against unfixed code.)
+    // the assertion pass vacuously.)
     REQUIRE(cached_bin(cache, key, target) == planted.output_path);
 
     PrintStatusWidgetTestAccess::reset_to_idle(widget);
@@ -823,14 +817,12 @@ TEST_CASE_METHOD(PrintStatusIdleThumbHistoryFixture,
     cache.invalidate(key);
 }
 
-// =============================================================================
 // The idle thumbnail must describe a file that still exists
 //
 // The cache key is the job's thumbnail path and the freshness stamp is the
 // job's `modified`, neither of which changes when the gcode is deleted. Nothing
 // 404s, so the cached render of a deleted file is served forever unless the
 // resolve skips jobs whose `exists` flag is false.
-// =============================================================================
 
 namespace {
 

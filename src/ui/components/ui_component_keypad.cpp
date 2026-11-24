@@ -37,9 +37,7 @@
 #include <cstdlib>
 #include <cstring>
 
-// ============================================================================
 // Reactive State (Subject for XML binding)
-// ============================================================================
 static helix::Subject keypad_display_subject;
 static char keypad_display_buf[16] = "";
 // The keypad is shared by every numeric field in the app, so it has to say which
@@ -104,15 +102,11 @@ static float confirmed_value = 0.0f;
 static std::string confirmed_text;
 static helix::ui::KeypadInput input;
 
-// ============================================================================
 // Forward declarations
-// ============================================================================
 static void update_display();
 static void handle_confirm();
 
-// ============================================================================
 // Subject Initialization (call BEFORE XML creation)
-// ============================================================================
 void ui_keypad_init_subjects() {
     if (subjects_initialized) {
         return;
@@ -156,9 +150,7 @@ void ui_keypad_deinit_subjects() {
     spdlog::debug("[Keypad] Subjects deinitialized");
 }
 
-// ============================================================================
 // Widget Initialization (call AFTER XML creation)
-// ============================================================================
 void ui_keypad_init(lv_obj_t* parent) {
     if (!parent) {
         spdlog::error("[Keypad] Cannot init keypad: parent is null");
@@ -248,9 +240,7 @@ static bool ensure_keypad_built() {
     return true;
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 bool ui_keypad_show(const ui_keypad_config_t* config) {
     if (!config) {
         spdlog::error("[Keypad] Cannot show keypad: invalid config");
@@ -437,9 +427,7 @@ lv_subject_t* ui_keypad_get_display_subject() {
     return &keypad_display_subject;
 }
 
-// ============================================================================
 // Input Logic
-// ============================================================================
 static void update_display() {
     lv_subject_set_string(&keypad_display_subject, input.buf);
 }

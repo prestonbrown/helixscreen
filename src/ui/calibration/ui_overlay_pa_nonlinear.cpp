@@ -86,9 +86,7 @@ PaNonlinearOverlay::~PaNonlinearOverlay() {
     }
 }
 
-// ============================================================================
 // SUBJECTS
-// ============================================================================
 
 void PaNonlinearOverlay::init_subjects() {
     init_subjects_guarded([this]() {
@@ -135,9 +133,7 @@ void PaNonlinearOverlay::register_callbacks() {
     });
 }
 
-// ============================================================================
 // LIFECYCLE
-// ============================================================================
 
 void PaNonlinearOverlay::on_activate() {
     OverlayBase::on_activate();
@@ -222,9 +218,7 @@ ConfirmOptions PaNonlinearOverlay::owned_confirm() {
     return options;
 }
 
-// ============================================================================
 // READY
-// ============================================================================
 
 bool PaNonlinearOverlay::tower_available() const {
     return tower_added_ ||
@@ -374,9 +368,7 @@ void PaNonlinearOverlay::print_pass() {
                         IMoonrakerAPI::kPreStartMacroTimeoutMs, false, nullptr, true);
 }
 
-// ============================================================================
 // PRINTING
-// ============================================================================
 
 void PaNonlinearOverlay::begin_observing() {
     auto& state = get_printer_state();
@@ -565,9 +557,7 @@ void PaNonlinearOverlay::raise(int attempts_left) {
     show(lv_screen_active());
 }
 
-// ============================================================================
 // JUDGE
-// ============================================================================
 
 void PaNonlinearOverlay::adjust_height(int step_mm) {
     if (stage_ != JUDGE) {
@@ -609,9 +599,7 @@ void PaNonlinearOverlay::send_values() {
         0, false, nullptr, /*caller_surfaces_errors=*/false);
 }
 
-// ============================================================================
 // RESULT
-// ============================================================================
 
 void PaNonlinearOverlay::save_to_config() {
     if (stage_ != RESULT || !api_ || !proc_) {

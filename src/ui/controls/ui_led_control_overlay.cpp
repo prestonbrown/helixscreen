@@ -46,9 +46,7 @@ lv_color_t light_color() {
 
 } // namespace
 
-// ============================================================================
 // OVERLAYBASE IMPLEMENTATION
-// ============================================================================
 
 void LedControlOverlay::init_subjects() {
     {
@@ -218,9 +216,7 @@ void LedControlOverlay::on_root_deleted(lv_event_t* e) {
     overlay->overlay_root_ = nullptr;
 }
 
-// ============================================================================
 // TABS AND FOCUS
-// ============================================================================
 
 void LedControlOverlay::rebuild_tabs() {
     auto& ctrl = LedController::instance();
@@ -328,9 +324,7 @@ void LedControlOverlay::load_page_state() {
     current_white_ = look.w;
 }
 
-// ============================================================================
 // PAGE SUBJECTS
-// ============================================================================
 
 void LedControlOverlay::publish_page() {
     const auto* info = focused_info();
@@ -523,9 +517,7 @@ void LedControlOverlay::on_led_state_changed() {
     }
 }
 
-// ============================================================================
 // ACTION HANDLERS
-// ============================================================================
 
 void LedControlOverlay::handle_tab_clicked(int index) {
     if (index < 0 || static_cast<size_t>(index) >= devices_.size()) {

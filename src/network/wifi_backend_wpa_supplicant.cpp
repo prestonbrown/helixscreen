@@ -101,9 +101,7 @@ bool is_hidden_scan_ssid(const std::string& ssid) {
 } // namespace helix::wifi::detail
 
 #if !defined(__APPLE__) && !defined(__ANDROID__)
-// ============================================================================
 // Linux Implementation: Full wpa_supplicant integration
-// ============================================================================
 
 #include "wpa_ctrl.h"
 
@@ -492,7 +490,6 @@ WiFiError WifiBackendWpaSupplicant::start() {
     spdlog::debug("[WifiBackend] Starting wpa_supplicant backend...");
     shutdown_requested_ = false;
 
-    // Pre-flight checks before starting event loop
     WiFiError preflight_result = check_system_prerequisites();
     if (!preflight_result.success()) {
         // User-facing critical error - wpa_supplicant not running or no permissions
@@ -536,7 +533,6 @@ WiFiError WifiBackendWpaSupplicant::start() {
         init_complete_ = false;
         loop()->runInLoop(std::bind(&WifiBackendWpaSupplicant::init_wpa, this));
     } else {
-        // Start new event loop thread with initialization callback
         spdlog::info("[WifiBackend] Starting event loop thread");
         init_complete_ = false;
         try {
@@ -551,7 +547,6 @@ WiFiError WifiBackendWpaSupplicant::start() {
         }
     }
 
-    // Wait for init_wpa() to complete (with timeout)
     {
         std::unique_lock<std::mutex> lock(init_mutex_);
         if (!init_cv_.wait_for(lock, std::chrono::seconds(5),
@@ -689,20 +684,16 @@ void WifiBackendWpaSupplicant::stop() {
     spdlog::debug("[WifiBackend] WiFi backend disabled");
 }
 
-// ============================================================================
 // System Validation and Permission Checking
-// ============================================================================
 
 WiFiError WifiBackendWpaSupplicant::check_system_prerequisites() {
     spdlog::debug("[WifiBackend] Performing system prerequisites check");
 
-    // 1. Check WiFi hardware availability
     WiFiError hw_result = check_wifi_hardware();
     if (!hw_result.success()) {
         return hw_result;
     }
 
-    // 2. Check if any wpa_supplicant sockets exist
     std::vector<std::string> socket_paths = wpa_socket_dirs();
     bool socket_found = false;
     std::string accessible_socket;
@@ -722,12 +713,10 @@ WiFiError WifiBackendWpaSupplicant::check_system_prerequisites() {
                 if (fs::is_socket(entry.path())) {
                     std::string socket_path = entry.path().string();
 
-                    // Skip P2P sockets
                     if (socket_path.find("p2p") == std::string::npos) {
                         socket_found = true;
                         spdlog::debug("[WifiBackend] Found wpa_supplicant socket: {}", socket_path);
 
-                        // Check permissions for this socket
                         WiFiError perm_result = check_socket_permissions(socket_path);
                         if (perm_result.success()) {
                             accessible_socket = socket_path;
@@ -776,7 +765,6 @@ WiFiError WifiBackendWpaSupplicant::check_socket_permissions(const std::string& 
     const char* cli_dir = resolve_wpa_client_dir();
     struct wpa_ctrl* test_ctrl = wpa_ctrl_open2(socket_path.c_str(), cli_dir);
     if (!test_ctrl) {
-        // Get more specific error information
         int err = errno;
         std::string error_detail = "wpa_ctrl_open failed: " + std::string(strerror(err));
 
@@ -823,7 +811,6 @@ WiFiError WifiBackendWpaSupplicant::check_wifi_hardware() {
             for (const auto& entry : fs::directory_iterator(net_path)) {
                 std::string iface = entry.path().filename().string();
 
-                // Check for common WiFi interface patterns
                 if (iface.find("wlan") == 0 || iface.find("wlp") == 0 || iface.find("wlx") == 0 ||
                     iface.find("wifi") == 0) {
                     // Verify it's a wireless interface by checking for wireless directory
@@ -851,7 +838,6 @@ WiFiError WifiBackendWpaSupplicant::check_wifi_hardware() {
         iface_list += (iface_list.empty() ? "" : ", ") + n;
     spdlog::debug("[WifiBackend] WiFi-capable interface(s) present: {}", iface_list);
 
-    // Check RF-kill status
     try {
         const std::string rfkill_path = "/sys/class/rfkill";
         if (fs::exists(rfkill_path)) {
@@ -906,9 +892,7 @@ WiFiError WifiBackendWpaSupplicant::check_wifi_hardware() {
     return WiFiErrorHelper::success();
 }
 
-// ============================================================================
 // wpa_supplicant Communication
-// ============================================================================
 
 void WifiBackendWpaSupplicant::init_wpa() {
     spdlog::trace("[WifiBackend] init_wpa() called in event loop thread");
@@ -952,7 +936,6 @@ void WifiBackendWpaSupplicant::init_wpa() {
         }
     }
 
-    // Helper to signal completion and notify waiters
     auto signal_init_complete = [this]() {
         init_complete_ = true;
         init_cv_.notify_all();
@@ -984,7 +967,6 @@ void WifiBackendWpaSupplicant::init_wpa() {
         spdlog::debug("[WifiBackend] Using client socket dir: {}", cli_dir);
     }
 
-    // Open control connection (for sending commands)
     bool ctrl_open = false;
     {
         std::lock_guard<std::mutex> lock(cmd_mutex_);
@@ -1011,7 +993,6 @@ void WifiBackendWpaSupplicant::init_wpa() {
         return;
     }
 
-    // Open monitor connection (for receiving events)
     mon_conn = wpa_ctrl_open2(wpa_socket.c_str(),
                               cli_dir); // SECURITY: Use member variable to prevent leak
     if (mon_conn == nullptr) {
@@ -1032,7 +1013,6 @@ void WifiBackendWpaSupplicant::init_wpa() {
         return;
     }
 
-    // Attach to wpa_supplicant event stream
     if (wpa_ctrl_attach(mon_conn) != 0) {
         LOG_ERROR_INTERNAL("Failed to attach to wpa_supplicant events");
         dispatch_event("INIT_FAILED", "Failed to attach to wpa_supplicant events");
@@ -1043,7 +1023,6 @@ void WifiBackendWpaSupplicant::init_wpa() {
     }
     spdlog::debug("[WifiBackend] Attached to wpa_supplicant event stream");
 
-    // Get file descriptor for monitor socket
     int monfd = wpa_ctrl_get_fd(mon_conn);
     if (monfd < 0) {
         LOG_ERROR_INTERNAL("Failed to get monitor socket file descriptor");
@@ -1078,7 +1057,6 @@ void WifiBackendWpaSupplicant::init_wpa() {
         return;
     }
 
-    // Set up I/O callbacks
     hio_set_context(mon_io_, this); // Store 'this' pointer for static callback
     hio_setcb_read(mon_io_, WifiBackendWpaSupplicant::_handle_wpa_events); // Static trampoline
     hio_read_start(mon_io_); // Start monitoring socket for events
@@ -1162,13 +1140,11 @@ void WifiBackendWpaSupplicant::resolve_and_store_interface() {
     }
 
     // Seed radio_enabled_ from the actual hardware state. The atomic
-    // defaults to true and, until now, nothing ever corrected it from a real
-    // rfkill read — so a radio already soft-blocked when the process starts
-    // (the block survives a reboot; see check_wifi_hardware()) showed the UI
-    // toggle ON over a radio that cannot associate, the same class of state
-    // lie this branch exists to eliminate. No rfkill node at all means there
-    // is nothing to query; default to enabled rather than reporting a false
-    // "off".
+    // defaults to true, so without a real rfkill read a radio already
+    // soft-blocked at process start (the block survives a reboot; see
+    // check_wifi_hardware()) would show the UI toggle ON over a radio that
+    // cannot associate. No rfkill node at all means there is nothing to
+    // query; default to enabled rather than reporting a false "off".
     {
         bool hw_radio_enabled = true;
         if (resolved && !resolved->rfkill_node.empty()) {
@@ -1226,7 +1202,6 @@ void WifiBackendWpaSupplicant::cleanup_wpa() {
         mon_io_ = nullptr;
     }
 
-    // Close monitor connection (detach from events)
     if (mon_conn) {
         spdlog::trace("[WifiBackend] Detaching from wpa_supplicant events");
         wpa_ctrl_detach(mon_conn); // Detach from event stream
@@ -1283,7 +1258,6 @@ void WifiBackendWpaSupplicant::handle_wpa_events(void* data, int len) {
         return;
     }
 
-    // Convert to string (may contain newlines)
     std::string event = std::string(static_cast<char*>(data), len);
 
     spdlog::trace("[WifiBackend] Event received: {}", helix::redact::names_in_text(event));
@@ -1325,7 +1299,6 @@ static constexpr int kMaxStaleReplies = 16;
 
 // Helper function to sanitize commands for logging (remove passwords)
 static std::string sanitize_command_for_log(const std::string& cmd) {
-    // Check if command contains password
     if (cmd.find(" psk ") != std::string::npos) {
         size_t psk_pos = cmd.find(" psk ");
         return cmd.substr(0, psk_pos + 5) + "\"[REDACTED]\"";
@@ -1398,7 +1371,6 @@ std::string WifiBackendWpaSupplicant::send_command(const std::string& cmd) {
         return "";
     }
 
-    // Null-terminate response
     resp[len] = '\0';
 
     // SECURITY: Don't log password responses
@@ -1411,9 +1383,7 @@ std::string WifiBackendWpaSupplicant::send_command(const std::string& cmd) {
     return std::string(resp, len);
 }
 
-// ============================================================================
 // WifiBackend Interface Implementation
-// ============================================================================
 
 bool WifiBackendWpaSupplicant::is_running() const {
     // "Running" means we have live wpa_supplicant connections, not merely that
@@ -1732,9 +1702,7 @@ WiFiError WifiBackendWpaSupplicant::connect_network(const std::string& ssid,
             return WiFiErrorHelper::connection_failed("Failed to add network to wpa_supplicant");
         }
 
-        // Parse network ID (should be a number)
         network_id = add_result;
-        // Remove trailing newline
         if (!network_id.empty() && network_id.back() == '\n') {
             network_id.pop_back();
         }
@@ -1751,7 +1719,6 @@ WiFiError WifiBackendWpaSupplicant::connect_network(const std::string& ssid,
         spdlog::debug("[WifiBackend] Added network with ID: {}", network_id);
     }
 
-    // Step 2: Set SSID
     std::string set_ssid_cmd = "SET_NETWORK " + network_id + " ssid \"" + clean_ssid + "\"";
     std::string ssid_result = send_command(set_ssid_cmd);
     if (ssid_result != "OK\n") {
@@ -1784,7 +1751,6 @@ WiFiError WifiBackendWpaSupplicant::connect_network(const std::string& ssid,
 
     // Step 3: Set security (PSK for secured networks, key_mgmt for open)
     if (clean_password.empty()) {
-        // Open network
         std::string set_open_cmd = "SET_NETWORK " + network_id + " key_mgmt NONE";
         std::string open_result = send_command(set_open_cmd);
         if (open_result != "OK\n") {
@@ -1798,7 +1764,6 @@ WiFiError WifiBackendWpaSupplicant::connect_network(const std::string& ssid,
         }
         spdlog::debug("[WifiBackend] Configured as open network");
     } else {
-        // Secured network with PSK
         std::string set_psk_cmd = "SET_NETWORK " + network_id + " psk \"" + clean_password + "\"";
         std::string psk_result = send_command(set_psk_cmd);
         if (psk_result != "OK\n") {
@@ -1848,9 +1813,8 @@ WiFiError WifiBackendWpaSupplicant::connect_network(const std::string& ssid,
     // /etc/network/if-pre-up.d/wpa-conf.sh)
     //
     // The reply is not trusted: the U1's wpa_supplicant answers OK and never
-    // writes the file, so the old `save_result == "OK\n"` check logged
-    // "saved to disk" while the credentials existed only in daemon memory and
-    // died at the next power-off. Re-read the config and look for the SSID.
+    // writes the file, so the credentials would live only in daemon memory and
+    // die at the next power-off. Re-read the config and look for the SSID.
     const std::string save_result = send_command("SAVE_CONFIG");
     const auto conf = read_wpa_conf_after_save();
 
@@ -2107,7 +2071,6 @@ WifiBackend::ConnectionStatus WifiBackendWpaSupplicant::get_status() {
         return status;
     }
 
-    // Parse key=value pairs from STATUS output
     std::istringstream stream(raw_status);
     std::string line;
 
@@ -2115,7 +2078,6 @@ WifiBackend::ConnectionStatus WifiBackendWpaSupplicant::get_status() {
         if (line.empty())
             continue;
 
-        // Find key=value separator
         size_t eq_pos = line.find('=');
         if (eq_pos == std::string::npos)
             continue;
@@ -2124,7 +2086,6 @@ WifiBackend::ConnectionStatus WifiBackendWpaSupplicant::get_status() {
         std::string value = line.substr(eq_pos + 1);
 
         if (key == "wpa_state") {
-            // Check if fully connected
             status.connected = (value == "COMPLETED");
         } else if (key == "ssid") {
             status.ssid = value;
@@ -2277,9 +2238,7 @@ void WifiBackendWpaSupplicant::resolve_5ghz_support() {
     }
 }
 
-// ============================================================================
 // Helper Methods (encapsulate wpa_supplicant ugliness)
-// ============================================================================
 
 std::vector<WiFiNetwork> WifiBackendWpaSupplicant::parse_scan_results(const std::string& raw) {
     std::vector<WiFiNetwork> networks;
@@ -2335,14 +2294,12 @@ std::vector<WiFiNetwork> WifiBackendWpaSupplicant::parse_scan_results(const std:
             continue;
         }
 
-        // Convert dBm to percentage
         int signal_percent = dbm_to_percentage(signal_dbm);
 
         // Detect security type
         bool is_secured = false;
         std::string security_type = detect_security_type(flags, is_secured);
 
-        // Parse frequency
         int freq_mhz = 0;
         try {
             freq_mhz = std::stoi(freq_str);
@@ -2350,7 +2307,6 @@ std::vector<WiFiNetwork> WifiBackendWpaSupplicant::parse_scan_results(const std:
             // Ignore parse errors, keep 0
         }
 
-        // Create network entry
         WiFiNetwork network(ssid, signal_percent, is_secured, security_type, freq_mhz);
         networks.push_back(network);
 
@@ -2401,9 +2357,7 @@ std::string WifiBackendWpaSupplicant::detect_security_type(const std::string& fl
 }
 
 #else
-// ============================================================================
 // macOS Stub Implementation: No-op for simulator
-// ============================================================================
 
 // Empty file - all methods are inline in header
 

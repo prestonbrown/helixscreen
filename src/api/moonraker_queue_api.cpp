@@ -8,9 +8,7 @@
 #include "moonraker_gcode_guards.h"
 #include "spdlog/spdlog.h"
 
-// ============================================================================
 // MoonrakerQueueAPI Implementation
-// ============================================================================
 
 namespace {
 
@@ -43,9 +41,7 @@ MoonrakerQueueAPI::MoonrakerQueueAPI(helix::IMoonrakerClient& client,
                                      const helix::PrinterState* state)
     : client_(client), state_(state) {}
 
-// ============================================================================
 // Queue Operations
-// ============================================================================
 
 void MoonrakerQueueAPI::get_queue_status(StatusCallback on_success, ErrorCallback on_error) {
     spdlog::debug("[Moonraker API] Querying job queue status");

@@ -46,18 +46,14 @@
 using namespace helix;
 using helix::ui::observe;
 
-// ============================================================================
 // STATIC STATE
-// ============================================================================
 
 static bool s_callbacks_registered = false;
 
 /// Default bed temperature for calibration warm-up (°C)
 static constexpr int kDefaultWarmBedTemp = 45;
 
-// ============================================================================
 // CONSTRUCTOR / DESTRUCTOR
-// ============================================================================
 
 ZOffsetCalibrationPanel::~ZOffsetCalibrationPanel() {
     // Applying [L011]: No mutex in destructors
@@ -74,9 +70,7 @@ ZOffsetCalibrationPanel::~ZOffsetCalibrationPanel() {
     overlay_root_ = nullptr;
 }
 
-// ============================================================================
 // SUBJECT REGISTRATION
-// ============================================================================
 
 void ZOffsetCalibrationPanel::init_subjects() {
     if (subjects_initialized_) {
@@ -119,7 +113,6 @@ void ZOffsetCalibrationPanel::init_subjects() {
 
     subjects_initialized_ = true;
 
-    // Register XML event callbacks (once globally)
     if (!s_callbacks_registered) {
         register_xml_callbacks({
             {"on_zoffset_start_clicked",
@@ -163,9 +156,7 @@ void ZOffsetCalibrationPanel::init_subjects() {
     spdlog::debug("[ZOffsetCal] Subjects and callbacks registered");
 }
 
-// ============================================================================
 // CREATE / SETUP
-// ============================================================================
 
 lv_obj_t* ZOffsetCalibrationPanel::create(lv_obj_t* parent) {
     if (!OverlayBase::create(parent)) {
@@ -262,9 +253,7 @@ void ZOffsetCalibrationPanel::setup_widgets() {
     spdlog::debug("[ZOffsetCal] Widget setup complete");
 }
 
-// ============================================================================
 // LIFECYCLE HOOKS
-// ============================================================================
 
 void ZOffsetCalibrationPanel::set_readout(helix::Subject& subject, const char* text) {
     if (subjects_initialized_) {
@@ -384,14 +373,12 @@ void ZOffsetCalibrationPanel::cleanup() {
     // Nullify widget pointers BEFORE resetting observers — any cascading
     // observer callbacks during teardown will see null and bail out.
 
-    // Reset ObserverGuards (applying [L020])
     manual_probe_active_observer_.reset();
     manual_probe_z_observer_.reset();
     klippy_state_observer_.reset();
     bed_temp_lifetime_.reset();
     bed_temp_observer_.reset();
 
-    // Call base class to set cleanup_called_ flag
     OverlayBase::cleanup();
 }
 
@@ -403,9 +390,7 @@ void ZOffsetCalibrationPanel::on_ui_destroyed() {
     language_observer_.reset();
 }
 
-// ============================================================================
 // STATE MANAGEMENT
-// ============================================================================
 
 void ZOffsetCalibrationPanel::set_state(State new_state) {
     spdlog::debug("[ZOffsetCal] State change: {} -> {}", static_cast<int>(state_),
@@ -527,9 +512,7 @@ void ZOffsetCalibrationPanel::arm_saving_timeout() {
     });
 }
 
-// ============================================================================
 // GCODE COMMANDS (strategy-aware dispatch)
-// ============================================================================
 
 using helix::zoffset_cal::ReadingPoint;
 
@@ -1178,9 +1161,7 @@ void ZOffsetCalibrationPanel::abort_manual_probe_if_active() {
     send_manual_probe_abort();
 }
 
-// ============================================================================
 // EVENT HANDLERS
-// ============================================================================
 
 void ZOffsetCalibrationPanel::handle_start_clicked() {
     spdlog::debug("[ZOffsetCal] Start clicked");
@@ -1332,9 +1313,7 @@ void ZOffsetCalibrationPanel::before_disconnect() {
     heat_.before_disconnect();
 }
 
-// ============================================================================
 // PUBLIC METHODS
-// ============================================================================
 
 void ZOffsetCalibrationPanel::update_z_position(float z_position) {
     current_z_ = z_position;
@@ -1365,9 +1344,7 @@ void ZOffsetCalibrationPanel::on_calibration_result(bool success, const std::str
     }
 }
 
-// ============================================================================
 // GLOBAL INSTANCE AND ROW CLICK HANDLER
-// ============================================================================
 
 void init_zoffset_row_handler() {
     register_xml_callbacks({

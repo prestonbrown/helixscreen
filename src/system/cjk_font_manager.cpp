@@ -3,9 +3,8 @@
 
 #include "cjk_font_manager.h"
 
-#include "ui_fonts.h"
-
 #include "core/locale_code.h"
+#include "core/noto_sans_fonts.h"
 #include "spdlog/spdlog.h"
 
 #include <algorithm>

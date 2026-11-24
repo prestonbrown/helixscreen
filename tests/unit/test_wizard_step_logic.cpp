@@ -13,10 +13,8 @@
 
 using helix::wizard::StepId;
 
-// ----------------------------------------------------------------------------
 // Id-based skip-vector helpers. The wizard navigates a StepId registry; these
 // build the full 14-entry vector and flip named steps off.
-// ----------------------------------------------------------------------------
 static std::vector<helix::StepSkip> full_vec() {
     std::vector<helix::StepSkip> v;
     for (int i = 0; i < helix::wizard::STEP_COUNT; ++i)
@@ -30,9 +28,7 @@ static void skip_step(std::vector<helix::StepSkip>& v, StepId s) {
             e.skipped = true;
 }
 
-// ============================================================================
 // Default vector (no skips) — baseline behavior
-// ============================================================================
 
 TEST_CASE("Default: all 14 steps shown", "[wizard][step_logic]") {
     REQUIRE(helix::wizard_visible_count(full_vec()) == helix::wizard::STEP_COUNT);
@@ -61,9 +57,7 @@ TEST_CASE("Default: prev walks all steps backward", "[wizard][step_logic]") {
     REQUIRE_FALSE(helix::wizard_prev(StepId::TouchCalibration, v).has_value());
 }
 
-// ============================================================================
 // Preset mode: skip hardware steps
-// ============================================================================
 
 TEST_CASE("Preset mode: skip hardware steps", "[wizard][step_logic][preset]") {
     auto v = full_vec();
@@ -161,11 +155,9 @@ TEST_CASE("Preset mode: connection also skipped", "[wizard][step_logic][preset]"
     REQUIRE(helix::wizard_next(StepId::ScreenPower, v) == StepId::Preferences);
 }
 
-// ============================================================================
 // Preset skip policy (wizard_preset_plan) — single source of truth for when a
 // preset lets the wizard skip hardware steps, decoupled from the first-run
 // telemetry fast path.
-// ============================================================================
 
 TEST_CASE("Preset plan: no preset means no preset-driven skips", "[wizard][step_logic][preset]") {
     auto plan = helix::wizard_preset_plan(/*has_preset=*/false, /*printer_count=*/1);
@@ -246,9 +238,7 @@ TEST_CASE(
     REQUIRE(helix::wizard_visible_count(v) == 4); // connection, preferences, summary, calibration
 }
 
-// ============================================================================
 // Id-based pure navigation over the step registry (StepId + StepSkip vector).
-// ============================================================================
 
 static std::vector<helix::StepSkip> all_visible() {
     std::vector<helix::StepSkip> v;
@@ -294,15 +284,13 @@ TEST_CASE("id-nav: display number counts visible predecessors", "[wizard][step_l
     REQUIRE(helix::wizard_display_number(StepId::Connection, v) == 2);
 }
 
-// ============================================================================
-// Registry preset-skip regression tests (Task 20). These drive the live step
+// Registry preset-skip tests. These drive the live step
 // singletons through step_by_id()->should_skip(ctx) and assert that the PRESET
 // branch dominates: when preset.skip_hardware is set, the hardware steps skip
 // regardless of any live hardware state they would otherwise consult.
 //
 // Context is built directly (NOT via build_context(), which needs a live app):
 // only the fields the preset policy reads are populated.
-// ============================================================================
 
 static helix::wizard::StepContext preset_ctx(bool has_preset, int printers) {
     helix::wizard::StepContext c;
@@ -371,16 +359,14 @@ TEST_CASE_METHOD(HelixTestFixture,
     REQUIRE(std::string(after->component_name()) == "wizard_heater_select");
 }
 
-// ============================================================================
 // Preset marker authority (wizard_preset_is_authoritative)
 //
 // The top-level "preset" marker is written the moment printer-identify's
 // cleanup() runs — which is on Back as well as Next. Because has_preset() also
 // collapses printer-identify, every hardware picker AND the summary, an
-// interrupted run (crash, power cut, user quits) used to come back with all of
+// interrupted run (crash, power cut, user quits) would come back with all of
 // those steps gone, pinned to a pick the user never confirmed and with no
 // in-app route to the hardware pages. These pin the three states apart.
-// ============================================================================
 
 TEST_CASE("Preset authority: no marker is never authoritative", "[wizard][step_logic][preset]") {
     for (bool provisional : {false, true}) {

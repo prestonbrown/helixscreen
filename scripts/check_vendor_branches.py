@@ -63,7 +63,6 @@ BOARD_PROBE = re.compile(
     r"|(?:->|\.)\s*name\s*\(\s*\)\s*\)?\s*(?:==|!=)"
     r"|(?:==|!=)\s*\(?\s*[A-Za-z_][\w:]*(?:\s*(?:->|\.)\s*\w+)*\s*(?:->|\.)\s*name\s*\(\s*\)"
 )
-LINE_COMMENT = re.compile(r"//.*$")
 
 _VENDOR_WORDS = (
     r"zmod|forge_?x|creality|flashforge|snapmaker|qidi|bambu|elegoo|anycubic|sovol|voron|prusa"
@@ -167,6 +166,7 @@ def count_text(rel: str, text: str) -> tuple[dict[str, int], list[str]]:
     pp_start = 0
     pp_opt = False
     vendor = vendor_hits(rel, text)
+    code_lines = None  # comments blanked, built on the first line that needs it
     for lineno, raw in enumerate(text.split("\n"), start=1):
         opt_out = "VENDOR_OK:" in raw or prev_ok
         stripped = raw.strip()
@@ -199,7 +199,9 @@ def count_text(rel: str, text: str) -> tuple[dict[str, int], list[str]]:
             hits.append("platform-macro")
         # Substring guards: these patterns run over every line of the tree at commit time.
         if "AmsType::" in raw or "name" in raw or "flashforge_" in raw or "ad5x_mod" in raw:
-            code = LINE_COMMENT.sub("", raw)
+            if code_lines is None:
+                code_lines = blank_cxx(text, strings="keep").split("\n")
+            code = code_lines[lineno - 1]
             if AMSTYPE_BRANCH.search(code):
                 hits.append("amstype-branch")
             if BOARD_PROBE.search(code):

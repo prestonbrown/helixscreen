@@ -63,9 +63,7 @@ static std::string default_timelapse_dir() {
     return std::string(home ? home : "/root") + "/" + kTimelapseDataSubpath;
 }
 
-// ============================================================================
 // GLOBAL INSTANCE
-// ============================================================================
 
 TimelapseVideosOverlay& get_global_timelapse_videos() {
     auto* instance = helix::lazy_global_if_exists<TimelapseVideosOverlay>();
@@ -103,9 +101,7 @@ bool helix::ui::timelapse_viewer_available() {
     return true;
 }
 
-// ============================================================================
 // CONSTRUCTOR
-// ============================================================================
 
 TimelapseVideosOverlay::TimelapseVideosOverlay(helix::IMoonrakerAPI* api) : api_(api) {}
 
@@ -120,9 +116,7 @@ void TimelapseVideosOverlay::init_subjects() {
     });
 }
 
-// ============================================================================
 // LIFECYCLE
-// ============================================================================
 
 void TimelapseVideosOverlay::register_callbacks() {
     register_xml_callbacks({
@@ -208,9 +202,7 @@ void TimelapseVideosOverlay::ensure_gradient_cache(int32_t card_width, int32_t c
     cached_gradient_dark_ = dark;
 }
 
-// ============================================================================
 // VIDEO LIST FETCHING
-// ============================================================================
 
 void TimelapseVideosOverlay::fetch_frame_info() {
     if (!api_)
@@ -248,9 +240,7 @@ void TimelapseVideosOverlay::fetch_video_list() {
         });
 }
 
-// ============================================================================
 // VIDEO GRID MANAGEMENT
-// ============================================================================
 
 static constexpr int kCardDefaultHeight = 220;
 
@@ -283,7 +273,6 @@ TimelapseCardDimensions TimelapseVideosOverlay::calculate_card_dimensions() {
         render_height = lv_obj_get_height(render_section);
     }
 
-    // Grid container top padding
     int32_t grid_pad_top = lv_obj_get_style_pad_top(video_grid_container_, LV_PART_MAIN);
 
     // Content row gap (between render section and grid)
@@ -293,7 +282,6 @@ TimelapseCardDimensions TimelapseVideosOverlay::calculate_card_dimensions() {
     int32_t available_height = overlay_height - header_height - content_pad_top -
                                content_pad_bottom - render_height - grid_pad_top - content_gap;
 
-    // Card gap from grid container
     int card_gap = lv_obj_get_style_pad_row(video_grid_container_, LV_PART_MAIN);
 
     // Calculate card height for 2 rows
@@ -586,9 +574,7 @@ void TimelapseVideosOverlay::show_card_thumbnail(lv_obj_t* card, const std::stri
     }
 }
 
-// ============================================================================
 // THUMBNAILS EXTRACTED FROM THE VIDEO
-// ============================================================================
 
 void TimelapseVideosOverlay::load_extracted_thumbnail(lv_obj_t* card, const VideoEntry& video) {
     ThumbnailRequest req;
@@ -699,9 +685,7 @@ void TimelapseVideosOverlay::finish_extraction(const ExtractJob& job,
     run_next_extraction();
 }
 
-// ============================================================================
 // PLAYBACK CAPABILITY
-// ============================================================================
 
 void TimelapseVideosOverlay::detect_playback_capability() {
     // Neither ffmpeg on PATH nor the board's size changes while the app runs.
@@ -742,9 +726,7 @@ TimelapseVideosOverlay::open_inputs(const std::string& filename) const {
     return in;
 }
 
-// ============================================================================
 // VIDEO PLAYBACK
-// ============================================================================
 
 void TimelapseVideosOverlay::fetch_timelapse_root() {
     // Only same-host playback opens the file by path; a remote host streams it.
@@ -880,9 +862,7 @@ void TimelapseVideosOverlay::play_video(const std::string& filename) {
         });
 }
 
-// ============================================================================
 // DELETE CONFIRMATION
-// ============================================================================
 
 void TimelapseVideosOverlay::confirm_delete(const std::string& filename) {
     pending_delete_filename_ = filename;
@@ -933,9 +913,7 @@ void TimelapseVideosOverlay::confirm_delete(const std::string& filename) {
         opts);
 }
 
-// ============================================================================
 // STATIC EVENT HANDLERS
-// ============================================================================
 
 void TimelapseVideosOverlay::on_card_clicked(lv_event_t* e) {
     auto* self = static_cast<TimelapseVideosOverlay*>(lv_event_get_user_data(e));

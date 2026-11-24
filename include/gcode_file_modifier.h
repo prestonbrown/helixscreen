@@ -218,9 +218,7 @@ class GCodeFileModifier {
      */
     [[nodiscard]] ModificationResult apply_streaming(const std::string& filepath);
 
-    // =========================================================================
     // Convenience methods for common operations
-    // =========================================================================
 
     /**
      * @brief Disable a detected operation by commenting it out
@@ -268,9 +266,7 @@ class GCodeFileModifier {
         const ScanResult& scan_result,
         const std::vector<std::pair<std::string, std::string>>& skip_params);
 
-    // =========================================================================
     // Static utilities
-    // =========================================================================
 
     /**
      * @brief Generate a temp file path for modified G-code

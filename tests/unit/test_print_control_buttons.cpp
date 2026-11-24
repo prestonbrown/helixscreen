@@ -92,7 +92,7 @@ TEST_CASE_METHOD(ControlButtonsFixture, "primary label is translated and follows
 // harness no printer discovery runs, so the Pause/Resume/Cancel slots are
 // EMPTY (kFallbackMacros has "" for all three, and init() is never called).
 // The pure enable logic (active && pending==None && slot_ok) is fully covered
-// by Task 1's [print_control_view] tests; here we assert the controller wires
+// by the [print_control_view] tests; here we assert the controller wires
 // the slot-availability gate through correctly: with empty slots, the primary
 // button is disabled even while PRINTING/PAUSED.
 TEST_CASE_METHOD(ControlButtonsFixture, "primary disabled when macro slots empty",
@@ -195,8 +195,8 @@ TEST_CASE_METHOD(ControlButtonsFixture, "klipper error with nothing pending is i
     REQUIRE(read_str("print_control_primary_label") == "Pause");
 }
 
-// Regression test for the nightly [slow] crash (segfault in lv_observer_delete
-// during ~PrintControlButtons at process exit, plus mid-run
+// Guards against a crash (segfault in lv_observer_delete during
+// ~PrintControlButtons at process exit, plus mid-run
 // "malloc(): unaligned tcache chunk detected" aborts).
 //
 // PrintControlButtons is a process-lifetime singleton that observes the GLOBAL

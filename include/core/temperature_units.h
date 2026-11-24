@@ -20,9 +20,7 @@ namespace helix::units {
 /// The unit temperatures are shown and entered in. Stored as this int in settings.
 enum class TempUnit : uint8_t { Celsius = 0, Fahrenheit = 1 };
 
-// ---------------------------------------------------------------------------
 // Pure conversions: no state, the unit is an argument.
-// ---------------------------------------------------------------------------
 
 /// A Celsius temperature in @p unit.
 double celsius_to_unit(double celsius, TempUnit unit);
@@ -39,10 +37,8 @@ int unit_to_celsius_whole(double value, TempUnit unit);
 /// The unit's symbol, "°C" or "°F".
 const char* temp_unit_symbol(TempUnit unit);
 
-// ---------------------------------------------------------------------------
 // The user's display unit. DisplaySettingsManager sets it from the setting;
 // it defaults to Celsius until then.
-// ---------------------------------------------------------------------------
 
 TempUnit display_temp_unit();
 void set_display_temp_unit(TempUnit unit);

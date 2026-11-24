@@ -3,10 +3,10 @@
 
 /**
  * @file test_moonraker_client_teardown_race.cpp
- * @brief Regression tests for the client/event-loop teardown SIGSEGV (#1212)
+ * @brief Tests for the client/event-loop teardown SIGSEGV (#1212)
  *
  * libhv arms an auto-reconnect timer whenever a connect attempt fails, and
- * never stores its TimerID — so nothing could cancel it. Two consequences,
+ * never stores its TimerID, so nothing can cancel it. Two consequences,
  * one test each:
  *
  * 1. The armed timer calls TcpClientEventLoopTmpl::startConnect() on the event
@@ -64,7 +64,7 @@ TEST_CASE_METHOD(HelixTestFixture,
     REQUIRE(loop_thread->loop()->loop() == nullptr); // precondition: null window is real
 
     // Reaches createsocket() -> hio_get(NULL, fd). Without the null guard this
-    // is the SIGSEGV above, so a regression kills the process rather than
+    // is the SIGSEGV above, so a failure kills the process rather than
     // failing the assertion.
     int rc = client.connect(kDeadUrl, []() {}, []() {});
 

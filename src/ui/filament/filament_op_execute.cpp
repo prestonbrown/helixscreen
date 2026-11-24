@@ -11,6 +11,7 @@
 #include "ams_backend.h"
 #include "ams_print_routing.h"
 #include "ams_state.h"
+#include "ams_tool_park.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
 #include "filament_macro_profiles.h"
@@ -36,9 +37,7 @@
 
 namespace helix::ui {
 
-// ============================================================================
 // Live-state half of the decision
-// ============================================================================
 
 OpNozzle resolve_op_nozzle(AmsBackend* backend, int slot, PrinterState& state,
                            const SafetyLimits& limits) {
@@ -111,7 +110,7 @@ FilamentHeadView read_filament_head_view(AmsBackend* backend, PrinterState& stat
     const AmsSystemInfo& sys = *snapshot;
     view.max_heads_per_op = backend->max_heads_per_filament_op();
     view.heads_dock = backend->carriage_can_be_empty();
-    view.supports_park = backend->supports_tool_park();
+    view.supports_park = usable_tool_park(backend) != nullptr;
     view.system_busy = sys.is_busy();
     view.print_blocks_op = print_blocks_filament_op(state.print_state().get_print_lifecycle(),
                                                     backend->filament_ops_self_home());
@@ -188,9 +187,7 @@ FilamentOpPlan plan_live_unload(const BackendCaps& caps, int target_slot, bool t
                        macro_info.get_source() == MacroSource::CONFIGURED);
 }
 
-// ============================================================================
 // Preheat
-// ============================================================================
 
 PreheatSkip preheat_skip_reason(const FilamentOpPlan& plan, StandardMacroSlot slot,
                                 AmsBackend* backend) {
@@ -247,9 +244,7 @@ const char* preheat_skip_name(PreheatSkip reason) {
     return "none";
 }
 
-// ============================================================================
 // Homing
-// ============================================================================
 
 bool prerequisite_home_needed(FilamentTier tier, bool toolhead_homed, bool backend_delegates_homing,
                               bool macro_needs_home_first) {
@@ -280,9 +275,7 @@ bool needs_prerequisite_home(const FilamentOpPlan& plan, StandardMacroSlot slot,
     return prerequisite_home_needed(plan.tier, toolhead_homed, delegates, macro_needs_home);
 }
 
-// ============================================================================
 // Surface hooks
-// ============================================================================
 
 namespace {
 
@@ -533,9 +526,7 @@ void send_after_before_macro(const FilamentOpSurface& surface, const FilamentOpP
 
 } // namespace
 
-// ============================================================================
 // Load
-// ============================================================================
 
 // backend/slot resolution stays with each caller: a dialog whose only target is
 // the backend's own active slot does not generalize to every surface.
@@ -750,9 +741,7 @@ void execute_filament_load(AmsBackend* backend, int slot, const FilamentOpSurfac
         });
 }
 
-// ============================================================================
 // Unload
-// ============================================================================
 
 // target_is_loaded is a caller-supplied input rather than recomputed here — see
 // unload_target_is_loaded()'s doc comment for why callers must not each answer
@@ -911,9 +900,7 @@ void execute_filament_unload(AmsBackend* backend, int slot, bool target_is_loade
         });
 }
 
-// ============================================================================
 // Purge
-// ============================================================================
 
 void run_after_purge_preamble(helix::IMoonrakerAPI* api, const char* log_tag,
                               std::function<void()> purge,

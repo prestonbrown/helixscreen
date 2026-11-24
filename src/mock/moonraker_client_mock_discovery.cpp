@@ -941,7 +941,7 @@ void MoonrakerClientMock::populate_capabilities() {
     // Stepper travel limits, matching the configfile.settings the query and
     // subscribe handlers report. The real discovery sequence derives the build
     // volume from these before detection runs, so the mock has to carry them or
-    // --test detects against an empty volume the live path no longer sees.
+    // --test detects against an empty volume the live path never sees.
     const auto axis_max = persona.axis_max;
     const auto axis_min = persona.axis_min;
     mock_config["stepper_x"] = {{"position_min", axis_min.x},

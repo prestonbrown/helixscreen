@@ -3126,8 +3126,8 @@ never names a firmware:
   Hare take a tool remap while paused and are the next candidates. A plan is refused whole, never
   partial.
 
-A backend joins by adding its provider row and overriding `AmsBackend::runout_other_head_facts()`
-(`include/ams_backend.h`), which returns a `RunoutFacts` snapshot: the runout head, pause state,
+A backend joins by adding its provider row and implementing `IRunoutOtherHead::runout_other_head_facts()`
+(`include/ams_runout_other_head.h`), which returns a `RunoutFacts` snapshot: the runout head, pause state,
 active head, each head's nozzle, feeder, record and `load_failed`, the logical-tool routing, and
 `printer_busy`. `runout_other_head::supported(type)` gates the whole feature.
 
@@ -3846,11 +3846,12 @@ opens).
 #### Edit follow-ups
 
 After a slot edit commits, `helix::ui::offer_edit_follow_up()` (`src/ui/filament/ui_ams_edit_follow_up.cpp`)
-asks the backend's `edit_follow_up(slot, before, after)` whether the edit implies printer state
-it did not write, and offers it as a confirm; yes runs `run_edit_follow_up(slot, after)`, which
-`AmsSubscriptionBackend` refuses while a print holds the printer, paused included. Every
-`commit_slot_edit()` call site calls it on success or a partial apply. The default offers
-nothing. INDX offers its heater-model update after a material edit.
+asks the backend's `IEditFollowUp::edit_follow_up(slot, before, after)` (`include/ams_edit_follow_up.h`)
+whether the edit implies printer state it did not write, and offers it as a confirm; yes runs
+`run_edit_follow_up(slot, before, after)`, which `AmsSubscriptionBackend` refuses while a print holds the
+printer, paused included, before `do_run_edit_follow_up()`. Every `commit_slot_edit()` call site calls it on
+success or a partial apply. A backend without the capability offers nothing. INDX offers its heater-model
+update after a material edit.
 
 #### Unavailable operations explain themselves
 
@@ -3864,13 +3865,18 @@ sliders in its **Filament Control** section (`AmsBackendQidi::get_device_actions
 
 ## Mock Mode for Testing
 
-The `AmsBackendMock` simulates any of the supported backend types for UI development and testing.
+Most `HELIX_MOCK_AMS` modes are mock HARDWARE: `MoonrakerClientMock` publishes the objects a real
+controller does and answers the G-code its backend sends, so `--test` runs the production backend
+(`helix::mock::mock_hardware_backend()` in `include/mock_persona.h` is the one list). `AmsBackendMock`
+remains for the fictional screenshot topologies (`mixed`, `multi`, `torture`, `stealth`,
+`afc_direct`, `vivid`, `htlf_toolchanger`), the `ace` identity, the default Happy Hare when a
+scenario knob only it serves is set, and as a seedable backend for unit tests.
 
 ### Activation
 
 Mock mode is activated when `RuntimeConfig::should_mock_ams()` returns true (typically via the `--test` CLI flag). The factory method `AmsBackend::create()` automatically returns a mock backend in this case.
 
-Pass `--real-ams` alongside `--test` to opt back out and drive a real backend (e.g. `AmsBackendHappyHare`) against the mock Moonraker client instead of `AmsBackendMock`. This is what makes backend-specific chokepoints reachable under `--test`: for example `AmsSubscriptionBackend::ensure_homed_then()`'s G28 in front of an unhomed operation, which `AmsBackendMock` never goes near since it doesn't inherit `AmsSubscriptionBackend`. The default persona's Happy Hare is itself mock hardware: `helix::mock::HappyHareSim` (`src/mock/moonraker_client_mock_happy_hare.cpp`) publishes Happy Hare 4 on one ERCF and answers the `MMU_*` and `T<n>` commands the backend sends, stepping `action` and `filament_pos` through each move, so plain `--test` already runs `AmsBackendHappyHare` unless a knob only `AmsBackendMock` serves is set (`docs/devel/MOCK_ENVIRONMENT_VARIABLES.md` § `HELIX_MOCK_AMS`).
+Pass `--real-ams` alongside `--test` to opt back out and drive a real backend (e.g. `AmsBackendHappyHare`) against the mock Moonraker client instead of `AmsBackendMock`. This is what makes backend-specific chokepoints reachable under `--test`: for example `AmsSubscriptionBackend::ensure_homed_then()`'s G28 in front of an unhomed operation, which `AmsBackendMock` never goes near since it doesn't inherit `AmsSubscriptionBackend`. The default persona's Happy Hare is itself mock hardware: `helix::mock::HappyHareSim` (`src/mock/moonraker_client_mock_happy_hare.cpp`) publishes Happy Hare 4 on one unit (an ERCF by default; `ercf`, `tradrack`, `kms` and the `hh_*` modes name another) and answers the `MMU_*` and `T<n>` commands the backend sends, stepping `action` and `filament_pos` through each move, so plain `--test` already runs `AmsBackendHappyHare` unless a knob only `AmsBackendMock` serves is set (`docs/devel/MOCK_ENVIRONMENT_VARIABLES.md` § `HELIX_MOCK_AMS`).
 
 **`--real-ams` seeds Happy Hare only and does not compose with `HELIX_MOCK_AMS`.** The backend comes from mock hardware discovery, not from `HELIX_MOCK_AMS`: that variable is read inside `AmsBackend::create()`'s mock branch (`src/printer/ams_backend.cpp`), which `--real-ams` bypasses entirely. So a mode `AmsBackendMock` simulates (`mixed`, say) combined with `--real-ams` gets the default persona's Happy Hare, not that topology. The modes that are mock hardware (`helix::mock::mock_hardware_backend()`) imply `--real-ams` on their own.
 
@@ -4053,7 +4059,7 @@ Create include/ams_backend_mysystem.h and src/printer/ams_backend_mysystem.cpp. 
 
 - `start()`, `stop()`, `is_running()`, `set_event_callback()` -- Lifecycle and events (`final`). Use the `on_started()`, `on_stopping()`, `on_stopped()` and `additional_start_checks()` hooks instead
 - `get_current_action()`, `get_current_tool()`, `get_current_slot()`, `is_filament_loaded()` -- State queries (`final`). `get_slot_info()` is implemented too and stays overridable
-- `load_filament()`, `unload_filament()`, `select_slot()`, `change_tool()`, `park_active_tool()`, `load_filament_batch()`, `unload_filament_batch()` -- Filament operations (`final`). Each runs the print-active gate and the one-operation claim, then calls your `do_*` hook, so a backend cannot skip the gate
+- `load_filament()`, `unload_filament()`, `select_slot()`, `change_tool()`, `load_filament_batch()`, `unload_filament_batch()` -- Filament operations (`final`). Each runs the print-active gate and the one-operation claim, then calls your `do_*` hook, so a backend cannot skip the gate. A backend that implements `IToolPark` answers `park_active_tool()` with `run_park_active_tool(supports_tool_park())`, the same gate and claim before `do_park_active_tool()`
 
 **Required overrides.** The subscription base's own pure virtuals:
 
@@ -4148,6 +4154,21 @@ A caller spells out what a backend without the interface means: the sidebar's bu
   switcher treats every error on a docking machine as a changer error.
 - `INarrationMatcher` (`include/ams_narration_matcher.h`) -- What a console line means to the step
   bar; see the toolchange narration seam below. AFC implements it.
+- `IRunoutOtherHead` (`include/ams_runout_other_head.h`) -- The `RunoutFacts` snapshot that decides whether a
+  runout-paused print can continue on another loaded head (§ Continuing a runout on another head). The Snapmaker U1 and
+  MultiACE implement it. Without it the runout flow offers no other head.
+- `IPrintAreaIntrusion` (`include/ams_print_area_intrusion.h`) -- Bed Y the mounted hardware makes unprintable,
+  which the print-start fit check subtracts. CFS implements it for the K1 upgrade's rear cassette. Without it the
+  system takes no bed area.
+- `ISpoolmanTagLinks` (`include/ams_spoolman_tag_links.h`) -- Whether tag readings can name a Spoolman spool, which
+  gates the Link Spools from Tags setting. CFS implements it (stock schema). Without it the setting is hidden.
+- `IToolPark` (`include/ams_tool_park.h`) -- Docking the mounted tool: `supports_tool_park()` per machine and
+  `park_active_tool()`, which runs through `AmsSubscriptionBackend::run_park_active_tool()` (print gate and
+  claim). The tool changer, INDX, the Snapmaker U1, MultiACE and the mock implement it. Callers ask
+  `helix::usable_tool_park()`, nullptr where the machine cannot park.
+- `IEditFollowUp` (`include/ams_edit_follow_up.h`) -- The question a slot edit raises about printer state it did
+  not write, and the run on yes (§ Edit follow-ups). INDX implements it; its run goes through
+  `AmsSubscriptionBackend::run_edit_follow_up()`, which refuses while a print holds the printer.
 
 **Optional overrides (with default implementations):**
 

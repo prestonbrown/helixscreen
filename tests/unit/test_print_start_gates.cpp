@@ -41,9 +41,7 @@ const PrintStartGate& gate_named(const char* name) {
 }
 } // namespace
 
-// ---------------------------------------------------------------------------
-// unresolved_tools_in — ported from PrintStartController::unresolved_tools_for
-// ---------------------------------------------------------------------------
+// unresolved_tools_in
 
 TEST_CASE("unresolved_tools_in: single-color never warns", "[print-start][gate-pipeline]") {
     auto ctx = ctx_with([](PrintStartContext& c) {
@@ -90,9 +88,7 @@ TEST_CASE("unresolved_tools_in: multi-color unresolved tool is reported",
     CHECK(out[0] == 1);
 }
 
-// ---------------------------------------------------------------------------
-// insufficient_spool_weight_in — ported from initiate() inline math
-// ---------------------------------------------------------------------------
+// insufficient_spool_weight_in
 
 TEST_CASE("insufficient_spool_weight_in: no spool / no weight / no metadata",
           "[print-start][gate-pipeline]") {
@@ -154,7 +150,7 @@ TEST_CASE("insufficient_spool_weight_in: length fallback via material density",
     });
     auto r = insufficient_spool_weight_in(ctx);
     REQUIRE(r.has_value());
-    // 100m of 1.75mm PLA at 1.24 g/cm3 ≈ 298g — must exceed 5g by a wide margin.
+    // 100m of 1.75mm PLA at 1.24 g/cm3 ≈ 298g, so it must exceed 5g by a wide margin.
     CHECK(r->first > 250.0f);
     CHECK(r->second == 5.0f);
 }
@@ -182,11 +178,11 @@ TEST_CASE("insufficient_spool_weight_in: length fallback uses the printer's fila
 
 TEST_CASE("insufficient_spool_weight_in: silent on a lane-fed AMS print",
           "[print-start][gate-pipeline]") {
-    // K2 Plus, 2026-08-24: the user mapped a large print from T1 to T2 and kept
-    // getting "needs about N g but the spool has about 386 g". 386 g was the
-    // BYPASS spool - the print was lane-fed and would never touch it. The rule
-    // weighs the file's whole-file total against the single external spool, so
-    // neither input moves when a tool is remapped: the warning was unanswerable.
+    // K2 Plus: a large print mapped from T1 to T2 must not warn "needs about N g
+    // but the spool has about 386 g" when 386 g is the BYPASS spool the lane-fed
+    // print never touches. The rule weighs the file's whole-file total against
+    // the single external spool, so neither input moves when a tool is remapped
+    // and such a warning would be unanswerable.
     auto lane_fed = ctx_with([](PrintStartContext& c) {
         SlotInfo spool;
         spool.remaining_weight_g = 386.0f;
@@ -225,8 +221,8 @@ TEST_CASE("insufficient_spool_weight_in: still warns when the bypass IS the feed
 
 TEST_CASE("insufficient_spool_weight_in: still warns with no AMS at all",
           "[print-start][gate-pipeline]") {
-    // A single-extruder printer has no lanes to feed from - the original,
-    // correct scope of this rule, which must survive the narrowing.
+    // A single-extruder printer has no lanes to feed from, which is the
+    // rule's core scope.
     auto no_ams = ctx_with([](PrintStartContext& c) {
         SlotInfo spool;
         spool.remaining_weight_g = 30.0f;
@@ -241,9 +237,7 @@ TEST_CASE("insufficient_spool_weight_in: still warns with no AMS at all",
     CHECK(insufficient_spool_weight_in(no_ams).has_value());
 }
 
-// ---------------------------------------------------------------------------
-// material_mismatches_in — ported from find_material_mismatches()
-// ---------------------------------------------------------------------------
+// material_mismatches_in
 
 TEST_CASE("material_mismatches_in: no detail view -> none", "[print-start][gate-pipeline]") {
     CHECK(material_mismatches_in(ctx_with([](PrintStartContext&) {})).empty());
@@ -338,13 +332,13 @@ TEST_CASE("material_mismatches_in: non-AMS external spool mismatch",
 
 TEST_CASE("material_mismatches_in: bypass print compares external spool, not lanes",
           "[print-start][gate-pipeline]") {
-    // K2 CFS regression: file sliced ASA-GF on lane 2, bypass engaged,
-    // external spool set to Spoolman PLA. The lane mapping is irrelevant —
-    // the dialog must name the external spool's material.
+    // K2 CFS: file sliced ASA-GF on lane 2, bypass engaged, external spool set
+    // to Spoolman PLA. The lane mapping is irrelevant: the dialog must name the external spool's
+    // material.
     auto make = [](const char* spool_material) {
         return ctx_with([&](PrintStartContext& c) {
             c.has_file_facts = true;
-            c.ams_available = true; // AMS present — bypass is what redirects
+            c.ams_available = true; // AMS present; bypass is what redirects
             c.any_bypass_active = true;
             c.tools_used = {1};
             c.filament_color_count = 4; // full profile palette, one tool used
@@ -352,7 +346,7 @@ TEST_CASE("material_mismatches_in: bypass print compares external spool, not lan
             t.tool_index = 1;
             t.material = "ASA-GF";
             c.tool_info = {t};
-            ToolMapping m; // lane mapping would be a MATCH — must be ignored
+            ToolMapping m; // a lane MATCH, which must be ignored
             m.tool_index = 1;
             m.mapped_slot = 1;
             m.material_mismatch = false;
@@ -373,19 +367,17 @@ TEST_CASE("material_mismatches_in: bypass print compares external spool, not lan
 
     // Same comparator as every other path: a same-family grade change
     // (ASA vs ASA-GF) is not a MATERIAL mismatch. It is still reported, as a
-    // grade change, by the second pass — see the grade cases below.
+    // grade change, by the second pass; see the grade cases below.
     auto grade = material_mismatches_in(make("ASA"));
     REQUIRE(grade.size() == 1);
     CHECK(grade[0].grade_only);
     CHECK(material_mismatches_in(make("ASA-CF"))[0].grade_only);
 
-    // Unknown spool material — nothing to compare, stay silent.
+    // Unknown spool material: nothing to compare, stay silent.
     CHECK(material_mismatches_in(make("")).empty());
 }
 
-// ---------------------------------------------------------------------------
-// Grade mismatches — same polymer, different filler
-// ---------------------------------------------------------------------------
+// Grade mismatches: same polymer, different filler
 
 TEST_CASE("material_mismatches_in: non-AMS grade change is flagged grade_only",
           "[print-start][gate-pipeline][grade]") {
@@ -412,7 +404,7 @@ TEST_CASE("material_mismatches_in: non-AMS grade change is flagged grade_only",
     CHECK(material_mismatches_in(make("PLA+", "PLA")).empty());
     CHECK(material_mismatches_in(make("Silk PLA", "PLA")).empty());
 
-    // A real material mismatch is NOT grade_only — the harder finding wins.
+    // A real material mismatch is NOT grade_only: the harder finding wins.
     auto hard = material_mismatches_in(make("ABS", "PLA"));
     REQUIRE(hard.size() == 1);
     CHECK_FALSE(hard[0].grade_only);
@@ -456,7 +448,7 @@ TEST_CASE("material_mismatches_in: bypass grade change is flagged grade_only",
 
 TEST_CASE("material_mismatches_in: AMS grade change is flagged on a matched lane",
           "[print-start][gate-pipeline][grade]") {
-    // material_mismatch is false — FilamentMapper considers the lane a match —
+    // material_mismatch is false (FilamentMapper considers the lane a match)
     // yet the lane holds the unfilled grade of a filled file.
     auto make = [](const char* slot_material, double weight) {
         return ctx_with([&](PrintStartContext& c) {
@@ -522,7 +514,7 @@ TEST_CASE("gate material_compatibility: grade-only dialog names the abrasive dir
     CHECK(benign.body.find("hardened") == std::string::npos);
     CHECK(benign.body.find("ASA-GF") != std::string::npos);
 
-    // A hard mismatch keeps the original dialog, even alongside a grade row.
+    // A hard mismatch keeps the plain dialog, even alongside a grade row.
     auto hard = gate.evaluate(ctx_for("PETG", "PLA"));
     REQUIRE(hard.verdict == CheckResult::Verdict::Warn);
     CHECK_FALSE(hard.title.empty());
@@ -532,7 +524,7 @@ TEST_CASE("gate material_compatibility: grade-only dialog names the abrasive dir
 TEST_CASE("material_mismatches_in: bypass falls back to palette materials",
           "[print-start][gate-pipeline]") {
     // No mapping-card tool_info (e.g. scan produced tools_used but the card
-    // was never built) — the file's palette still names the used tool's
+    // was never built); the file's palette still names the used tool's
     // material.
     auto ctx = ctx_with([](PrintStartContext& c) {
         c.has_file_facts = true;
@@ -550,9 +542,7 @@ TEST_CASE("material_mismatches_in: bypass falls back to palette materials",
     CHECK(out[0].loaded_material == "PETG");
 }
 
-// ---------------------------------------------------------------------------
 // default_print_start_gates: order + names
-// ---------------------------------------------------------------------------
 
 TEST_CASE("default gate list: names in behavior-preserving order", "[print-start][gate-pipeline]") {
     auto& gates = default_print_start_gates();
@@ -583,9 +573,7 @@ TEST_CASE("default gate list: the two new gates keep their relative order",
     CHECK(gates[7].name == "required_filament_present");
 }
 
-// ---------------------------------------------------------------------------
 // mixed_temperature_materials: materials the file uses that cannot share a print
-// ---------------------------------------------------------------------------
 
 TEST_CASE("materials_conflict_in_temperature: verdict per material pair",
           "[print-start][gate-pipeline][mixed-temp]") {
@@ -695,9 +683,7 @@ TEST_CASE("gate mixed_temperature_materials: the message names where the materia
     CHECK(many_nozzles.body.find("chamber") != std::string::npos);
 }
 
-// ---------------------------------------------------------------------------
-// bypass_engaged_lane_print + unaccounted_toolhead_filament (new gates)
-// ---------------------------------------------------------------------------
+// bypass_engaged_lane_print + unaccounted_toolhead_filament gates
 
 TEST_CASE("gate bypass_engaged_lane_print: fires only on bypass + multi-color",
           "[print-start][gate-pipeline]") {
@@ -720,9 +706,9 @@ TEST_CASE("gate bypass_engaged_lane_print: fires only on bypass + multi-color",
 
 TEST_CASE("gate bypass_engaged_lane_print: used-tool count beats palette size",
           "[print-start][gate-pipeline]") {
-    // K2 CFS regression: a single-tool file sliced on a 4-lane profile carries
+    // K2 CFS: a single-tool file sliced on a 4-lane profile carries
     // a full palette (PLA;ASA-GF;ASA-GF;PLA) but extrudes from one tool. The
-    // print needs no lanes, so bypass is the legitimate source — no warning.
+    // print needs no lanes, so bypass is the legitimate source, so no warning.
     auto& g = gate_named("bypass_engaged_lane_print");
     auto single_used_tool = ctx_with([](PrintStartContext& c) {
         c.any_bypass_active = true;
@@ -770,9 +756,7 @@ TEST_CASE("gate unaccounted_toolhead_filament: verdict matrix", "[print-start][g
     CHECK_FALSE(r.proceed_label.empty());
 }
 
-// ---------------------------------------------------------------------------
-// required_filament_present gate (ported from the old controller chain)
-// ---------------------------------------------------------------------------
+// required_filament_present gate
 
 TEST_CASE("gate required_filament_present: auto-unload backends suppress entirely",
           "[print-start][gate-pipeline]") {
@@ -869,7 +853,7 @@ TEST_CASE("gate required_filament_present: single-tool bypass ignores empty lane
     CHECK(gate_named("required_filament_present").evaluate(ctx).verdict ==
           CheckResult::Verdict::Pass);
 
-    // Multi-tool bypass still needs lanes — lane truth stays active there.
+    // Multi-tool bypass still needs lanes: lane truth stays active there.
     auto multi = ctx_with([](PrintStartContext& c) {
         c.ams_manages_filament = true;
         c.has_active_backend = true;
@@ -908,9 +892,7 @@ TEST_CASE("gate required_filament_present: runout disabled/unavailable -> pass",
           CheckResult::Verdict::Pass);
 }
 
-// ---------------------------------------------------------------------------
 // unresolved_tools + material gates: verdict shape only (rules covered above)
-// ---------------------------------------------------------------------------
 
 TEST_CASE("gate unresolved_tools: warns with Start Anyway and verbatim title",
           "[print-start][gate-pipeline]") {
@@ -1006,9 +988,7 @@ TEST_CASE("gate material_compatibility: names the gcode tool, not the physical l
     CHECK(f.find("°C") == std::string::npos);
 }
 
-// ---------------------------------------------------------------------------
-// Runner mechanics (toy gates — no printer state needed)
-// ---------------------------------------------------------------------------
+// Runner mechanics (toy gates, no printer state needed)
 
 #include "ui_modal.h"
 #include "ui_print_start_controller.h"
@@ -1181,17 +1161,14 @@ TEST_CASE("gate runner: all-pass reaches execute (button re-enabled once, no mod
     CHECK(fx.button_updates == 1);
 }
 
-// ---------------------------------------------------------------------------
 // insufficient_lane_weights_in - the lane-fed counterpart
 //
-// Modelled on the real case that motivated it (K2 Plus, 2026-08-24): an
-// OrcaSlicer 2.4.2 file whose footer reads
+// Modeled on a K2 Plus case: an OrcaSlicer 2.4.2 file whose footer reads
 //   ; filament used [g] = 0.00, 863.07, 0.00, 0.00, 0.00
 // i.e. tool 1 needs 863 g. Lane 2 (slot index 1) held a Spoolman spool with
 // 65 g left; lane 3 (slot index 2) held 1000 g. The user remapped from the
-// first to the second and the old whole-file-vs-external-spool check could not
-// tell the difference, because neither of its inputs mentions a tool.
-// ---------------------------------------------------------------------------
+// first to the second. A whole-file-vs-external-spool check cannot tell the
+// difference, because neither of its inputs mentions a tool.
 
 namespace {
 
@@ -1345,12 +1322,10 @@ TEST_CASE("gate_insufficient_lane_weight: multi-unit lane names the unit-local p
     CHECK(result.body.find("Lane 6") == std::string::npos);
 }
 
-// ---------------------------------------------------------------------------
 // unaccounted_toolhead_filament: the remedy follows the hardware
-// ---------------------------------------------------------------------------
 //
-// The detection was always right (a K2 Plus reported filament_detected=true at
-// the toolhead while box.T1.filament read "None"), but the advice was not. The
+// Detection is right (a K2 Plus reported filament_detected=true at the toolhead
+// while box.T1.filament read "None"); the advice must match the hardware. The
 // CFS has a lane-free heat/cut/retract - bypass_unload_gcode(), built without
 // the bay envelopes precisely because a stood-down box cannot answer a bay
 // operation - so directing the user to pull filament out of a hot toolhead by
@@ -1394,10 +1369,8 @@ TEST_CASE("gate unaccounted_toolhead_filament: a missing capability entry reads 
     CHECK(r.body.find("Pull it out manually") != std::string::npos);
 }
 
-// ---------------------------------------------------------------------------
 // printer_stopping_command - a file that calls a command this printer turns
 // into an emergency stop
-// ---------------------------------------------------------------------------
 
 namespace {
 PrinterStopCheck stops_at(size_t line, const char* command, const char* message) {
@@ -1487,9 +1460,7 @@ TEST_CASE("gate runner: a block shows a dialog and never starts the print",
     CHECK(fx.cancelled == 1);
 }
 
-// ---------------------------------------------------------------------------
 // door_open: an open door only matters to a material that needs a warm enclosure
-// ---------------------------------------------------------------------------
 
 TEST_CASE("enclosure_material_in: only materials that want a warm chamber count",
           "[print-start][gate-pipeline][door]") {

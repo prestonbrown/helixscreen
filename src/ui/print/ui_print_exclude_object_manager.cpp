@@ -20,16 +20,12 @@
 
 namespace helix::ui {
 
-// ============================================================================
 // Constants
-// ============================================================================
 
 /// Undo window duration in milliseconds
 constexpr uint32_t kExcludeUndoWindowMs = 5000;
 
-// ============================================================================
 // PrintExcludeObjectManager Implementation
-// ============================================================================
 
 PrintExcludeObjectManager::PrintExcludeObjectManager(IMoonrakerAPI* api,
                                                      PrinterState& printer_state,
@@ -124,9 +120,7 @@ void PrintExcludeObjectManager::set_gcode_viewer(lv_obj_t* gcode_viewer) {
     }
 }
 
-// ============================================================================
 // Long-press Handler
-// ============================================================================
 
 void PrintExcludeObjectManager::on_object_long_pressed(lv_obj_t* viewer, const char* object_name,
                                                        void* user_data) {
@@ -204,9 +198,7 @@ void PrintExcludeObjectManager::request_exclude(const std::string& object_name) 
     handle_object_long_press(object_name.c_str());
 }
 
-// ============================================================================
 // Modal Confirmation Handlers
-// ============================================================================
 
 void PrintExcludeObjectManager::handle_exclude_confirmed() {
     spdlog::info("[PrintExcludeObjectManager] Exclusion confirmed for '{}'",
@@ -255,7 +247,6 @@ void PrintExcludeObjectManager::handle_exclude_cancelled() {
     spdlog::info("[PrintExcludeObjectManager] Exclusion cancelled for '{}'",
                  pending_exclude_object_);
 
-    // Clear pending state
     pending_exclude_object_.clear();
 
     // Clear selection in viewer
@@ -284,16 +275,13 @@ void PrintExcludeObjectManager::handle_exclude_undo() {
         helix::ui::gcode_viewer_set_excluded_objects(gcode_viewer_, excluded_objects_);
     }
 
-    // Clear pending
     pending_exclude_object_.clear();
 
     // Show confirmation that undo succeeded
     ToastManager::instance().show(ToastSeverity::SUCCESS, lv_tr("Exclusion canceled"), 2000);
 }
 
-// ============================================================================
 // Timer Callback
-// ============================================================================
 
 void PrintExcludeObjectManager::exclude_undo_timer_cb(lv_timer_t* timer) {
     auto* self = static_cast<PrintExcludeObjectManager*>(lv_timer_get_user_data(timer));
@@ -352,9 +340,7 @@ void PrintExcludeObjectManager::exclude_undo_timer_cb(lv_timer_t* timer) {
     }
 }
 
-// ============================================================================
 // Observer Callback
-// ============================================================================
 
 void PrintExcludeObjectManager::on_excluded_objects_changed() {
     // Sync excluded objects from PrinterState (Klipper/Moonraker)

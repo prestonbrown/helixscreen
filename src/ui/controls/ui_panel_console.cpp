@@ -66,20 +66,15 @@ std::string format_timestamp(double timestamp) {
 
 } // namespace
 
-// ============================================================================
 // Constructor
-// ============================================================================
 
 ConsolePanel::~ConsolePanel() {
     deinit_subjects();
 }
 
-// ============================================================================
 // Subject Initialization
-// ============================================================================
 
 void ConsolePanel::init_subjects() {
-    // Initialize status subject for reactive binding
     UI_MANAGED_SUBJECT_STRING(status_subject_, status_buf_, lv_tr("Loading history..."),
                               "console_status", subjects_);
     // Status label visibility (1 = visible, 0 = hidden)
@@ -153,9 +148,7 @@ ConsolePanel::entry_from_gcode_response(const nlohmann::json& msg) {
     return entry;
 }
 
-// ============================================================================
 // Callback Registration
-// ============================================================================
 
 void ConsolePanel::register_callbacks() {
     register_xml_callbacks({
@@ -185,9 +178,7 @@ void ConsolePanel::register_callbacks() {
     });
 }
 
-// ============================================================================
 // Create
-// ============================================================================
 
 lv_obj_t* ConsolePanel::create(lv_obj_t* parent) {
     if (!OverlayBase::create(parent)) {
@@ -228,9 +219,7 @@ lv_obj_t* ConsolePanel::create(lv_obj_t* parent) {
     return overlay_root_;
 }
 
-// ============================================================================
 // Lifecycle Hooks
-// ============================================================================
 
 void ConsolePanel::on_activate() {
     // Call base class first
@@ -264,9 +253,7 @@ void ConsolePanel::on_ui_destroyed() {
     gcode_input_ = nullptr;
 }
 
-// ============================================================================
 // Data Loading
-// ============================================================================
 
 void ConsolePanel::fetch_history() {
     // I5: Prevent concurrent fetches (rapid activate/deactivate cycles). A
@@ -588,9 +575,7 @@ void ConsolePanel::update_visibility() {
     lv_subject_set_int(&status_visible_subject_, status_buf_[0] != '\0' ? 1 : 0);
 }
 
-// ============================================================================
 // Real-time G-code Response Streaming
-// ============================================================================
 
 void ConsolePanel::subscribe_to_gcode_responses() {
     if (is_subscribed_) {

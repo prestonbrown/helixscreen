@@ -13,8 +13,8 @@
 #include "lv_draw_buf_guard.h"
 #include "memory_monitor.h"
 #include "memory_utils.h"
+#include "render_theme.h"
 #include "system/crash_handler.h"
-#include "theme_manager.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -290,7 +290,7 @@ void GCodeLayerRenderer::set_tool_color_overrides(const std::vector<uint32_t>& a
 
 lv_color_t GCodeLayerRenderer::default_extrusion_color() {
     // Info blue reads against the dark preview background.
-    return theme_manager_get_color("info");
+    return helix::render_theme::color("info");
 }
 
 void GCodeLayerRenderer::reset_colors() {
@@ -301,10 +301,10 @@ void GCodeLayerRenderer::reset_colors() {
     color_extrusion_ = default_extrusion_color();
 
     // Travel: subtle secondary color (grey)
-    color_travel_ = theme_manager_get_color("text_muted");
+    color_travel_ = helix::render_theme::color("text_muted");
 
     // Support: orange/warning color to distinguish from model
-    color_support_ = theme_manager_get_color("warning");
+    color_support_ = helix::render_theme::color("warning");
 
     // Selection cues from ui_xml/gcode_tokens.xml. Resolved here, on the main
     // thread, because every consumer is either a rasterizer inner loop or the

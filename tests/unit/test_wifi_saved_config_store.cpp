@@ -230,9 +230,9 @@ TEST_CASE("Non-ASCII and invalid-UTF-8 SSID bytes do not crash save()/load()",
     //      dump() defaults to throwing on this, which would unwind out of
     //      connect_network() and permanently hang the connect UI. It must not
     //      throw — and write_store()'s escape_bytes() encoding means exact
-    //      byte preservation IS required (and achieved) even for invalid
-    //      UTF-8: see the M12 regression test below for why silently mangling
-    //      it (the old U+FFFD-substitution behaviour) is itself a bug, not an
+    // byte preservation IS required (and achieved) even for invalid
+    // UTF-8: see the non-UTF-8 reconnect test below for why silently mangling
+    // it (U+FFFD substitution) is itself a bug, not an acceptable fallback.
     //      acceptable fallback.
     ConfigDirGuard guard("store_utf8");
 
@@ -287,18 +287,16 @@ TEST_CASE("Non-ASCII and invalid-UTF-8 SSID bytes do not crash save()/load()",
 
 TEST_CASE("Reconnecting to a non-UTF-8 SSID does not grow the store unbounded",
           "[network][wifi][savedconfig][store][1229]") {
-    // M12 regression. Before escape_bytes()/unescape_bytes(), write_store()
-    // asked nlohmann's dump() to substitute U+FFFD for any invalid-UTF-8 byte
-    // in an SSID (real routers broadcast arbitrary octets; see the test
-    // above for why such SSIDs reach here at all). That mangled text, once
-    // read back by parse_store(), never string-equals the RAW SSID
-    // save() is called with on every subsequent connect — so the dedup-by-
-    // SSID check in save() silently stopped matching and appended a fresh
-    // duplicate cleartext-PSK record on every single reconnect attempt,
-    // forever. Simulating "reconnect N times" as N sequential save() calls
-    // with the same raw, invalid-UTF-8 SSID — exactly what connect_network()
-    // does on each successful connection — the store must still hold exactly
-    // one entry for it, the same guarantee save()'s dedup already gives every
+    // write_store() must not let nlohmann's dump() substitute U+FFFD for an
+    // invalid-UTF-8 byte in an SSID (real routers broadcast arbitrary octets; see the
+    // test above for why such SSIDs reach here at all). Mangled text, once read back
+    // by parse_store(), never string-equals the RAW SSID save() is called with on
+    // every subsequent connect, so the dedup-by-SSID check in save() would stop
+    // matching and append a fresh duplicate cleartext-PSK record on every reconnect
+    // attempt, forever. Simulating "reconnect N times" as N sequential save() calls
+    // with the same raw, invalid-UTF-8 SSID — exactly what connect_network() does on
+    // each successful connection — the store must still hold exactly one entry for
+    // it, the same guarantee save()'s dedup gives every ordinary (valid-UTF-8) SSID.
     // ordinary (valid-UTF-8) SSID.
     ConfigDirGuard guard("store_utf8_dedup");
 

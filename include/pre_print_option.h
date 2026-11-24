@@ -213,9 +213,7 @@ struct PrePrintOptionSet {
     bool declares_capability(const std::string& capability) const;
 };
 
-// ----------------------------------------------------------------------------
 // Free functions
-// ----------------------------------------------------------------------------
 
 /**
  * @brief Parse a single option from JSON. Returns nullopt on malformed input

@@ -5,8 +5,7 @@
  * @file moonraker_timelapse_api.h
  * @brief Timelapse and webcam operations via Moonraker
  *
- * Extracted from MoonrakerAPI to encapsulate all timelapse and webcam
- * functionality in a dedicated class. Uses MoonrakerClient for JSON-RPC
+ * Encapsulates all timelapse and webcam functionality. Uses MoonrakerClient for JSON-RPC
  * transport and HTTP for timelapse plugin settings.
  */
 
@@ -69,9 +68,7 @@ class MoonrakerTimelapseAPI : public helix::ITimelapseAPI {
                                    const std::string& http_base_url);
     virtual ~MoonrakerTimelapseAPI();
 
-    // ========================================================================
     // Timelapse Settings (HTTP-based — Moonraker-Timelapse plugin)
-    // ========================================================================
 
     /**
      * @brief Get current timelapse settings
@@ -120,9 +117,7 @@ class MoonrakerTimelapseAPI : public helix::ITimelapseAPI {
     void set_timelapse_values(const std::vector<std::pair<std::string, std::string>>& values,
                               SuccessCallback on_success, ErrorCallback on_error) override;
 
-    // ========================================================================
     // Timelapse Render / Frame Operations (JSON-RPC)
-    // ========================================================================
 
     /**
      * @brief Trigger timelapse video rendering
@@ -145,9 +140,7 @@ class MoonrakerTimelapseAPI : public helix::ITimelapseAPI {
     void get_last_frame_info(std::function<void(const LastFrameInfo&)> on_success,
                              ErrorCallback on_error) override;
 
-    // ========================================================================
     // Webcam Operations (JSON-RPC)
-    // ========================================================================
 
     /**
      * @brief Get list of configured webcams

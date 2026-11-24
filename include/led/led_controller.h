@@ -401,7 +401,6 @@ class LedController {
         return output_pin_;
     }
 
-    // Discovery
     void discover_from_hardware(const helix::PrinterDiscovery& hardware);
 
     /// The led capability is turned off for this printer: its firmware declares

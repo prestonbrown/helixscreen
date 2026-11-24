@@ -114,9 +114,7 @@ bool armed() {
 
 } // namespace
 
-// ============================================================================
 // 1. Arming — across a whole operation, not an edge
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "Post-unload grace arms when an operation ends after UNLOADING",
                  "[runout][grace][ams]") {
@@ -164,9 +162,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Post-unload grace arms when an operation ends
     ams.clear_backends();
 }
 
-// ============================================================================
 // 2. Consumption — one shot only
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "Post-unload grace is one-shot", "[runout][grace][ams]") {
     auto& ams = AmsState::instance();
@@ -267,9 +263,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Filament returning retires the post-unload gr
     ams.clear_backends();
 }
 
-// ============================================================================
 // 3. Bounds — time and lifetime
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "Post-unload grace expires instead of waiting forever",
                  "[runout][grace][ams]") {
@@ -348,9 +342,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Teardown mid-unload leaves nothing to arm lat
     ams.clear_backends();
 }
 
-// ============================================================================
 // 4. PrintStatusWidget consumes it last
-// ============================================================================
 
 namespace {
 

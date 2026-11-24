@@ -103,9 +103,7 @@ void SDLSoundBackend::resume() {
                   obtained.samples);
 }
 
-// ============================================================================
 // SoundBackend interface — write through to voice_slots_[0] or all slots
-// ============================================================================
 
 void SDLSoundBackend::set_tone(float freq_hz, float amplitude, float duty_cycle) {
     set_voice(0, freq_hz, amplitude, duty_cycle);
@@ -185,9 +183,7 @@ void SDLSoundBackend::clear_render_source() {
     render_source_ = nullptr;
 }
 
-// ============================================================================
 // Audio callback (runs in SDL audio thread)
-// ============================================================================
 
 void SDLSoundBackend::audio_callback(void* userdata, uint8_t* stream, int len) {
     auto* self = static_cast<SDLSoundBackend*>(userdata);

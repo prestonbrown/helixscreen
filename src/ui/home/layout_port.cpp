@@ -18,14 +18,12 @@ namespace helix {
 
 namespace {
 
-// ---------------------------------------------------------------------------
 // Frozen pre-v22 grid constants.
 //
 // These are dead values in the live grid — it derives both axes from one
 // square-cell target — and exist only to reconstruct what the saved
 // coordinates were counted against. Nothing here may be "kept in sync" with
 // GridLayout: the whole point is that it describes a grid that no longer runs.
-// ---------------------------------------------------------------------------
 
 /// main GridLayout::GRID_DIMS, {cols, rows} per breakpoint. Six tiers, because
 /// XXLarge did not exist yet and clamped onto XLarge.

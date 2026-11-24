@@ -51,9 +51,7 @@ namespace helix::ui {
 constexpr int kDefaultDryerTempC = 55;
 constexpr int kDefaultDryerDurationMin = 240;
 
-// ============================================================================
 // DESTRUCTOR
-// ============================================================================
 
 AmsEnvironmentOverlay::~AmsEnvironmentOverlay() {
     if (subjects_initialized_ && lv_is_initialized()) {
@@ -61,9 +59,7 @@ AmsEnvironmentOverlay::~AmsEnvironmentOverlay() {
     }
 }
 
-// ============================================================================
 // INITIALIZATION
-// ============================================================================
 
 std::vector<std::string> AmsEnvironmentOverlay::fallback_comfort_materials() {
     std::vector<std::string> out;
@@ -210,9 +206,7 @@ void AmsEnvironmentOverlay::register_callbacks() {
     }
 }
 
-// ============================================================================
 // UI CREATION
-// ============================================================================
 
 lv_obj_t* AmsEnvironmentOverlay::create(lv_obj_t* parent) {
     // The tab <repeat> starts empty: on_ui_destroyed() released the pools a stale
@@ -255,9 +249,7 @@ lv_obj_t* AmsEnvironmentOverlay::create(lv_obj_t* parent) {
     return overlay_root_;
 }
 
-// ============================================================================
 // SHOW / REFRESH
-// ============================================================================
 
 void AmsEnvironmentOverlay::show_zone(lv_obj_t* parent_screen,
                                       std::vector<helix::printer::EnvironmentZone> zones,
@@ -566,9 +558,7 @@ void AmsEnvironmentOverlay::refresh() {
     update_from_backend();
 }
 
-// ============================================================================
 // LIFECYCLE
-// ============================================================================
 
 void AmsEnvironmentOverlay::on_activate() {
     OverlayBase::on_activate();
@@ -659,9 +649,7 @@ void AmsEnvironmentOverlay::on_ui_destroyed() {
     dry_gate_selected_pool_.reclaim();
 }
 
-// ============================================================================
 // BACKEND QUERIES
-// ============================================================================
 
 void AmsEnvironmentOverlay::update_from_backend() {
     AmsBackend* backend = AmsState::instance().get_backend();
@@ -926,9 +914,7 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
     lv_subject_set_int(&all_zones_visible_subject_, offer_all_zones ? 1 : 0);
 }
 
-// ============================================================================
 // MATERIAL COMFORT RANGES
-// ============================================================================
 
 void AmsEnvironmentOverlay::update_comfort_text(float humidity_pct) {
     // Without a live humidity reading the comfort verdict is meaningless: a 0%
@@ -971,8 +957,7 @@ void AmsEnvironmentOverlay::update_comfort_text(float humidity_pct) {
     }
 
     // Fall back to the user's configured quick-preset materials if no slots are
-    // loaded. Previously a fourth hardcoded list ({"PLA","PETG","ABS","PA"})
-    // that disagreed with every other preset copy in the codebase.
+    // loaded, so this list agrees with every other preset copy in the codebase.
     if (loaded_materials.empty()) {
         loaded_materials = fallback_comfort_materials();
     }
@@ -1003,26 +988,21 @@ void AmsEnvironmentOverlay::update_comfort_text(float humidity_pct) {
         // Set status subject (controls which icon variant is visible in XML)
         lv_subject_set_int(&comfort_status_[row_idx], status_val);
 
-        // Set text subject
         snprintf(comfort_text_buf_[row_idx], sizeof(comfort_text_buf_[row_idx]),
                  "%s: %s (< %.0f%%)", mat_name.c_str(), status_text, range->max_humidity_good);
         lv_subject_set_string(&comfort_text_[row_idx], comfort_text_buf_[row_idx]);
 
-        // Show row
         lv_subject_set_int(&comfort_visible_[row_idx], 1);
 
         row_idx++;
     }
 
-    // Hide unused rows
     for (int i = row_idx; i < kMaxComfortRows; ++i) {
         lv_subject_set_int(&comfort_visible_[i], 0);
     }
 }
 
-// ============================================================================
 // DRYER PRESETS
-// ============================================================================
 
 void AmsEnvironmentOverlay::populate_presets() {
     AmsBackend* backend = AmsState::instance().get_backend();
@@ -1153,9 +1133,7 @@ void AmsEnvironmentOverlay::auto_select_preset() {
     }
 }
 
-// ============================================================================
 // STATIC CALLBACKS
-// ============================================================================
 
 std::string stopped_lanes_text(const std::vector<int>& gates, LaneNoun noun) {
     std::string lanes;

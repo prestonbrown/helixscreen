@@ -88,6 +88,9 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from source_strip import blank_cxx  # noqa: E402
+
 ROOT = Path(__file__).resolve().parent.parent
 
 CXX_EXT = {".h", ".hh", ".hpp", ".hxx", ".cpp", ".cc", ".cxx", ".inc", ".inl", ".ipp", ".mm"}
@@ -182,14 +185,7 @@ def code_only(text):
 
     Offsets and newlines are preserved, so a match position is a source position.
     """
-    out = list(text)
-    for kind, s, e in lex(text):
-        if kind in ("comment", "string"):
-            for i in range(s, e):
-                if out[i] != "\n":
-                    out[i] = " "
-    blanked = "".join(out)
-    return PP_LINE_RE.sub(lambda m: re.sub(r"[^\n]", " ", m.group(0)), blanked)
+    return blank_cxx(text, preprocessor=True)
 
 
 # ---------------------------------------------------------------------------

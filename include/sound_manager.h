@@ -127,7 +127,6 @@ class SoundManager {
     /// Set active theme by name (loads from config/sounds/<name>.json)
     void set_theme(const std::string& theme_name);
 
-    /// Get current theme name
     std::string get_current_theme() const;
 
     /// Scan config/sounds/ for available .json theme files

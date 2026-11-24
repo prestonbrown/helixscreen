@@ -5,12 +5,10 @@
  * @file test_filament_mapping_visibility.cpp
  * @brief Pins the merged FilamentMappingCard::should_show() predicate.
  *
- * The card used to hide itself on backends whose tool mapping is not editable
- * (Snapmaker U1, ACE), because a second surface - the print-detail FILAMENTS
- * card - rendered the same information there. That second surface is gone, so
- * hiding on non-editable backends would show the user nothing at all. The
- * dead-control concern it existed for now lives entirely on the tap affordance
- * (PrintSelectDetailView::current_remap_block).
+ * The card does not hide itself on backends whose tool mapping is not editable
+ * (Snapmaker U1, ACE): no second surface renders the same information there,
+ * so hiding would show the user nothing at all. The dead-control concern lives
+ * entirely on the tap affordance (PrintSelectDetailView::current_remap_block).
  *
  * The two gates that MUST survive the merge are pinned here too: the bypass
  * single-lane suppression (a K2 user printed off the bypass spool after reading
@@ -315,14 +313,13 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "Card shows a single-tool file on a m
 TEST_CASE_METHOD(MappingCardRenderFixture,
                  "An explicit empty used-tools set does not hide the card",
                  "[filament_mapping][visibility]") {
-    // Pins the fix for a real regression this task introduced and review
-    // caught: the tool-count rule originally read used_tools_->size()
-    // directly, so an explicit (non-nullopt) EMPTY set forced tool_count to 0
-    // and hid the card even with a non-empty tool_info_ — unlike every other
-    // reader of used_tools_ in this class (the bypass gate above,
-    // apply_used_tools_filter()'s documented contract), which treats an empty
-    // set as "no answer, show all". The fix reuses print_lane_requirement(),
-    // which has that same fallback built in, so this must SHOW.
+    // The tool-count rule must not read used_tools_->size() directly: an explicit
+    // (non-nullopt) EMPTY set would force tool_count to 0 and hide the card even
+    // with a non-empty tool_info_ — unlike every other reader of used_tools_ in
+    // this class (the bypass gate above, apply_used_tools_filter()'s documented
+    // contract), which treats an empty set as "no answer, show all". The rule reuses
+    // print_lane_requirement(), which has that same fallback built in, so this must
+    // SHOW.
     card.set_used_tools(std::set<int>{});
     card.update({"#FF0000", "#00FF00"}, {"PLA", "PETG"});
     CHECK(card.should_show());

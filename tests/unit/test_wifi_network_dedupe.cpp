@@ -16,11 +16,11 @@
 using helix::ConfigDirGuard;
 
 /**
- * connect_network() used to ADD_NETWORK unconditionally on every connect. A
- * real user's wpa_supplicant had reached network id 7 for a handful of
- * networks, and duplicate all-enabled entries give wpa_supplicant more
- * candidates to roam between after a reboot — a plausible contributor to that
- * user's printer reassociating to a 5 GHz SSID they had explicitly forgotten.
+ * connect_network() must not ADD_NETWORK unconditionally on every connect: a
+ * real user's wpa_supplicant reached network id 7 for a handful of networks,
+ * and duplicate all-enabled entries give wpa_supplicant more candidates to
+ * roam between after a reboot — a plausible contributor to that user's printer
+ * reassociating to a 5 GHz SSID they had explicitly forgotten.
  *
  * find_network_id() locates an already-saved entry for an SSID in a raw
  * LIST_NETWORKS reply so connect_network() can reuse it instead of stacking a
@@ -75,7 +75,7 @@ TEST_CASE("find_network_id matches the last line without a trailing newline", "[
  * a user who wanted a 5GHz SSID gone had no in-app path and had to fall back
  * to the vendor screen (the exact path that failed them in the first place).
  *
- * Task 11's helix::wifi::store re-adds any stored network wpa_supplicant does
+ * helix::wifi::store re-adds any stored network wpa_supplicant does
  * not know about at every backend init (reconcile_saved_networks()). A forget
  * that only touches wpa_supplicant's LIST_NETWORKS would therefore be
  * silently undone the next time the printer boots — forget_network() must
@@ -241,7 +241,7 @@ TEST_CASE("forget_network on an unknown SSID returns NETWORK_NOT_FOUND", "[wifi]
 
 TEST_CASE("forget_network removes the SSID from HelixScreen's own credential store",
           "[wifi][forget][store]") {
-    // The critical cross-task requirement: Task 11's reconcile_saved_networks()
+    // The critical requirement: reconcile_saved_networks()
     // re-adds anything left in helix::wifi::store at every backend init, so a
     // forget that only forgets the backend's own idea of "saved" would be
     // silently resurrected on the next boot. Prove the store file itself

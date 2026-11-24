@@ -27,7 +27,7 @@
  * ## Navigation:
  * - Entry: Advanced Panel -> "Print History" action row
  * - Back: Returns to Advanced Panel
- * - "View Full History": Opens HistoryListPanel (Stage 3)
+ * - "View Full History": Opens HistoryListPanel
  *
  * ## Time Filtering:
  * The panel supports 5 time filters (Day/Week/Month/Year/All) that update
