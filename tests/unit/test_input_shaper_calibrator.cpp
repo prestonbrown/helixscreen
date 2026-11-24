@@ -392,6 +392,22 @@ TEST_CASE_METHOD(InputShaperCalibratorTestFixture,
 }
 
 TEST_CASE_METHOD(InputShaperCalibratorTestFixture,
+                 "a failed accelerometer check keeps the firmware's cause until the next check",
+                 "[calibrator][input_shaper][accel][error]") {
+    unhome();
+    calibrator_.check_accelerometer([this](float noise) { on_accel_check(noise); },
+                                    [this](const std::string& err) { on_error(err); });
+    REQUIRE(api_->g28_pending());
+    fail_homing("Move out of range: 300.000 > 250.00");
+    REQUIRE(error_received_);
+    CHECK(calibrator_.last_error_cause() == "Move out of range: 300.000 > 250.00");
+
+    unhome();
+    calibrator_.check_accelerometer(nullptr, nullptr);
+    CHECK(calibrator_.last_error_cause().empty());
+}
+
+TEST_CASE_METHOD(InputShaperCalibratorTestFixture,
                  "check_accelerometer with null callbacks does not crash",
                  "[calibrator][input_shaper][accel][edge_case]") {
     // Runs the whole measurement chain with nowhere to report it.
