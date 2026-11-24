@@ -772,8 +772,9 @@ bool parse_release_manifest(const std::string& json_str, UpdateChecker::ReleaseI
 
 bool parse_signed_release_manifest(const std::string& json_str, int sig_status,
                                    const std::string& sig_body, std::string_view channel,
-                                   std::string_view public_key, UpdateChecker::ReleaseInfo& info,
-                                   std::string& error, const std::vector<std::string>& asset_keys) {
+                                   const release_signature::ChannelKeys& keys,
+                                   UpdateChecker::ReleaseInfo& info, std::string& error,
+                                   const std::vector<std::string>& asset_keys) {
     if (sig_status != 200) {
         error = sig_status == 0
                     ? "could not fetch the manifest signature"
@@ -781,7 +782,7 @@ bool parse_signed_release_manifest(const std::string& json_str, int sig_status,
         return false;
     }
     const auto verdict =
-        release_signature::verify_channel_manifest(json_str, sig_body, channel, public_key);
+        release_signature::verify_channel_manifest(json_str, sig_body, channel, keys);
     if (verdict != release_signature::Verdict::Ok) {
         error = std::string("manifest signature refused: ") + release_signature::describe(verdict);
         return false;
@@ -2993,10 +2994,13 @@ void UpdateChecker::check_for_updates(Callback callback) {
     warn_legacy_update_url_keys(config);
     const auto update_urls = helix::config_trust::read_update_urls();
     cached_dev_url_ = update_urls.dev_url;
-    cached_release_pubkey_ = update_urls.release_pubkey.empty()
-                                 ? std::string(helix::release_signature::kReleasePublicKey)
-                                 : update_urls.release_pubkey;
-    if (!update_urls.release_pubkey.empty()) {
+    // A key named in update_urls.json replaces both compiled-in keys on every channel.
+    if (update_urls.release_pubkey.empty()) {
+        cached_release_pubkey_ = std::string(helix::release_signature::kTrustedKeys.release);
+        cached_dev_pubkey_ = std::string(helix::release_signature::kTrustedKeys.dev);
+    } else {
+        cached_release_pubkey_ = update_urls.release_pubkey;
+        cached_dev_pubkey_.clear();
         spdlog::warn("[UpdateChecker] release manifests are checked against the key in "
                      "update_urls.json, not the release key");
     }
@@ -3908,9 +3912,9 @@ UpdateChecker::ManifestFetch UpdateChecker::fetch_verified_manifest(const std::s
     if (cancelled_)
         return ManifestFetch::Unreachable;
 
-    if (!helix::parse_signed_release_manifest(body, sig_status, sig_body, channel,
-                                              cached_release_pubkey_, info, error,
-                                              this_build_release_asset_keys())) {
+    const helix::release_signature::ChannelKeys keys{cached_release_pubkey_, cached_dev_pubkey_};
+    if (!helix::parse_signed_release_manifest(body, sig_status, sig_body, channel, keys, info,
+                                              error, this_build_release_asset_keys())) {
         spdlog::error("[UpdateChecker] {} refused: {}", manifest_url, error);
         return ManifestFetch::Refused;
     }

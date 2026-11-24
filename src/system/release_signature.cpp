@@ -188,8 +188,10 @@ bool trusted_comment_names_channel(std::string_view minisig, std::string_view ch
 } // namespace
 
 Verdict verify_channel_manifest(std::string_view message, std::string_view minisig,
-                                std::string_view channel, std::string_view public_key) {
-    const Verdict verdict = verify(message, minisig, public_key);
+                                std::string_view channel, const ChannelKeys& keys) {
+    Verdict verdict = verify(message, minisig, keys.release);
+    if (verdict == Verdict::WrongKey && channel == kDevChannel && !keys.dev.empty())
+        verdict = verify(message, minisig, keys.dev);
     if (verdict != Verdict::Ok)
         return verdict;
     return trusted_comment_names_channel(minisig, channel) ? Verdict::Ok : Verdict::WrongChannel;
@@ -206,7 +208,7 @@ const char* describe(Verdict v) {
     case Verdict::LegacySignature:
         return "the signature is not prehashed (legacy minisign)";
     case Verdict::WrongKey:
-        return "signed with a key other than the release key";
+        return "signed with a key this channel does not trust";
     case Verdict::BadSignature:
         return "the signature does not match the manifest";
     case Verdict::WrongChannel:

@@ -32,6 +32,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEFAULT_FILE="${SCRIPT_DIR}/../RELEASE_CHANNEL"
 
 FILE="$DEFAULT_FILE"
+DEV_PUBKEY="${SCRIPT_DIR}/../.github/release-minisign-dev.pub"
 FIELD=""
 TAG=""
 
@@ -45,7 +46,10 @@ Options:
   --file PATH    RELEASE_CHANNEL file to read (default: repo root)
   --tag TAG      Git tag to cross-check against the channel (e.g. v1.1.0).
                  A suffixed tag may not publish to stable; a plain tag must.
-  --field FIELD  Print just one value: channel | channels | prerelease
+  --dev-pubkey PATH
+                 The dev-channel public key file (default:
+                 .github/release-minisign-dev.pub)
+  --field FIELD  Print just one value: channel | channels | prerelease | signing
   -h, --help     Show this help
 
 With no --field, prints KEY=value lines suitable for \$GITHUB_OUTPUT:
@@ -53,6 +57,7 @@ With no --field, prints KEY=value lines suitable for \$GITHUB_OUTPUT:
   channel=beta
   channels=beta dev
   prerelease=true
+  signing=main
 
 Channel mapping:
   stable -> stable          (full GitHub release, triggers docs deploy)
@@ -62,6 +67,12 @@ Channel mapping:
 Note that stable does NOT publish to dev. The dev channel follows the devel
 line alone so its manifest version only ever moves forward; a 1.0.x hotfix
 publishing to dev would otherwise roll dev users back from 1.1.x.
+
+Signing key (docs/devel/RELEASE_SIGNING.md):
+  dev   the channels are exactly "dev", the dev public key file holds a key,
+        and the tag (when given) is an alpha, vX.Y.Z-alpha.N[.more]. Signed
+        in the release-signing-dev environment, which needs no reviewer.
+  main  everything else. Signed in release-signing, behind its reviewer.
 EOF
 }
 
@@ -75,6 +86,11 @@ while [ $# -gt 0 ]; do
         --tag)
             TAG="${2:-}"
             [ -n "$TAG" ] || { echo "error: --tag requires a value" >&2; exit 2; }
+            shift 2
+            ;;
+        --dev-pubkey)
+            DEV_PUBKEY="${2:-}"
+            [ -n "$DEV_PUBKEY" ] || { echo "error: --dev-pubkey requires a path" >&2; exit 2; }
             shift 2
             ;;
         --field)
@@ -163,17 +179,34 @@ if [ -n "$TAG" ] && [ "$CHANNEL" != "stable" ]; then
     esac
 fi
 
+# Which key signs the manifests. The dev key may sign only a release that
+# publishes to dev and nothing else: clients trust it on the dev channel alone,
+# and its environment admits alpha tags without a reviewer. Until the dev public
+# key is committed (a key line, RW plus 54 base64 characters), every release
+# signs with the release key, so clients learn the dev key before anything is
+# signed with it.
+SIGNING="main"
+if [ "$CHANNELS" = "dev" ] && [ -f "$DEV_PUBKEY" ] \
+    && sed -n 2p "$DEV_PUBKEY" | grep -Eq '^RW[A-Za-z0-9+/]{54}$'; then
+    case "$TAG" in
+        "") SIGNING="dev" ;;
+        v*-alpha.*) SIGNING="dev" ;;
+    esac
+fi
+
 case "$FIELD" in
     "")
         echo "channel=$CHANNEL"
         echo "channels=$CHANNELS"
         echo "prerelease=$PRERELEASE"
+        echo "signing=$SIGNING"
         ;;
     channel)    echo "$CHANNEL" ;;
     channels)   echo "$CHANNELS" ;;
     prerelease) echo "$PRERELEASE" ;;
+    signing)    echo "$SIGNING" ;;
     *)
-        echo "error: unknown field '$FIELD' (want: channel, channels, prerelease)" >&2
+        echo "error: unknown field '$FIELD' (want: channel, channels, prerelease, signing)" >&2
         exit 2
         ;;
 esac

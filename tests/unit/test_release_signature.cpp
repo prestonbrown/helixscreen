@@ -12,6 +12,7 @@
 
 #include "../catch_amalgamated.hpp"
 
+using helix::release_signature::ChannelKeys;
 using helix::release_signature::Verdict;
 using helix::release_signature::verify;
 using helix::release_signature::verify_channel_manifest;
@@ -112,6 +113,12 @@ std::string channel_comment(const std::string& channel) {
     return "file:manifest.json channel:" + channel;
 }
 
+// Whether a .pub file's text holds a real minisign key line, not a placeholder.
+bool holds_key(const std::string& pub) {
+    const std::string line = key_line(pub);
+    return line.size() == 56 && line.rfind("RW", 0) == 0;
+}
+
 } // namespace
 
 TEST_CASE("release signature: a prehashed signature by the key verifies", "[release_signature]") {
@@ -184,10 +191,93 @@ TEST_CASE("release signature: the compiled-in key is the one release.yml verifie
           std::string(helix::release_signature::kReleasePublicKey));
 }
 
+TEST_CASE("release signature: the dev key is trusted on the dev channel only",
+          "[release_signature]") {
+    const TestKey release(1);
+    const TestKey dev(2);
+    const std::string release_pub = release.pub();
+    const std::string dev_pub = dev.pub();
+    const ChannelKeys keys{release_pub, dev_pub};
+    const std::string manifest = R"({"version":"9.9.9","assets":{}})";
+    const std::string tampered = R"({"version":"9.9.8","assets":{}})";
+
+    struct Row {
+        const TestKey* key;
+        const char* signer;
+        const char* channel;
+        Verdict valid;
+        Verdict changed;
+    };
+    const Row rows[] = {
+        {&release, "release", "stable", Verdict::Ok, Verdict::BadSignature},
+        {&release, "release", "beta", Verdict::Ok, Verdict::BadSignature},
+        {&release, "release", "dev", Verdict::Ok, Verdict::BadSignature},
+        {&dev, "dev", "stable", Verdict::WrongKey, Verdict::WrongKey},
+        {&dev, "dev", "beta", Verdict::WrongKey, Verdict::WrongKey},
+        {&dev, "dev", "dev", Verdict::Ok, Verdict::BadSignature},
+    };
+    for (const auto& row : rows) {
+        INFO(row.signer << " key, " << row.channel << " channel");
+        const std::string sig = row.key->sign(manifest, channel_comment(row.channel));
+        CHECK(verify_channel_manifest(manifest, sig, row.channel, keys) == row.valid);
+        CHECK(verify_channel_manifest(tampered, sig, row.channel, keys) == row.changed);
+    }
+}
+
+TEST_CASE("release signature: the dev key cannot sign for another channel", "[release_signature]") {
+    const TestKey release(1);
+    const TestKey dev(2);
+    const std::string release_pub = release.pub();
+    const std::string dev_pub = dev.pub();
+    const ChannelKeys keys{release_pub, dev_pub};
+    const std::string manifest = R"({"version":"9.9.9","assets":{}})";
+
+    // The release key's dev manifest replayed onto stable or beta.
+    const std::string release_dev = release.sign(manifest, channel_comment("dev"));
+    CHECK(verify_channel_manifest(manifest, release_dev, "stable", keys) == Verdict::WrongChannel);
+    CHECK(verify_channel_manifest(manifest, release_dev, "beta", keys) == Verdict::WrongChannel);
+
+    // The dev key naming stable in its own comment is still the wrong key for stable.
+    const std::string dev_as_stable = dev.sign(manifest, channel_comment("stable"));
+    CHECK(verify_channel_manifest(manifest, dev_as_stable, "stable", keys) == Verdict::WrongKey);
+    CHECK(verify_channel_manifest(manifest, dev_as_stable, "dev", keys) == Verdict::WrongChannel);
+}
+
+TEST_CASE("release signature: with no dev key, the dev channel trusts the release key alone",
+          "[release_signature]") {
+    const TestKey release(1);
+    const TestKey dev(2);
+    const std::string release_pub = release.pub();
+    const ChannelKeys keys{release_pub, ""};
+    const std::string manifest = R"({"version":"9.9.9","assets":{}})";
+
+    CHECK(verify_channel_manifest(manifest, dev.sign(manifest, channel_comment("dev")), "dev",
+                                  keys) == Verdict::WrongKey);
+    CHECK(verify_channel_manifest(manifest, release.sign(manifest, channel_comment("dev")), "dev",
+                                  keys) == Verdict::Ok);
+}
+
+TEST_CASE("release signature: the compiled-in dev key is the one release.yml signs alphas with",
+          "[release_signature]") {
+    // The dev key reaches clients one release before CI signs with it, so the header may carry
+    // it while .github/release-minisign-dev.pub is still the placeholder; once the .pub holds
+    // a key, the two are the same key.
+    const std::string pub = read_file(".github/release-minisign-dev.pub");
+    const std::string compiled(helix::release_signature::kDevPublicKey);
+    if (holds_key(pub)) {
+        CHECK(key_line(pub) == compiled);
+    }
+    if (!compiled.empty()) {
+        CHECK(compiled != std::string(helix::release_signature::kReleasePublicKey));
+        CHECK(verify("", "", compiled) != Verdict::MalformedKey);
+    }
+}
+
 TEST_CASE("release signature: a manifest signed for one channel is refused on another",
           "[release_signature]") {
     const TestKey release(1);
-    const std::string pub = release.pub();
+    const std::string release_pub = release.pub();
+    const ChannelKeys pub{release_pub, ""};
     const std::string manifest = R"({"version":"9.9.9","assets":{}})";
 
     for (const char* channel : {"stable", "beta", "dev"}) {
@@ -214,7 +304,7 @@ TEST_CASE("release signature: a manifest signed for one channel is refused on an
 
     // The fixtures are signed for dev.
     CHECK(verify_channel_manifest(fixture("manifest.json"), fixture("good.minisig"), "dev",
-                                  fixture("test.pub")) == Verdict::Ok);
+                                  ChannelKeys{fixture("test.pub"), ""}) == Verdict::Ok);
     CHECK(verify_channel_manifest(fixture("manifest.json"), fixture("good.minisig"), "stable",
-                                  fixture("test.pub")) == Verdict::WrongChannel);
+                                  ChannelKeys{fixture("test.pub"), ""}) == Verdict::WrongChannel);
 }

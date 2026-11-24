@@ -23,6 +23,7 @@
 #include "json_fwd.h"
 #include "lvgl.h"
 #include "subject_managed_panel.h"
+#include "system/release_signature.h"
 
 #include <atomic>
 #include <chrono>
@@ -779,7 +780,8 @@ class UpdateChecker {
                                     std::string& error);
 
     /// GETs @p manifest_url and `<manifest_url>.minisig` and parses the manifest only when
-    /// the signature verifies as @p channel's manifest against cached_release_pubkey_.
+    /// the signature verifies as @p channel's manifest against cached_release_pubkey_, or on
+    /// the dev channel cached_dev_pubkey_.
     ManifestFetch fetch_verified_manifest(const std::string& manifest_url,
                                           const std::string& channel, ReleaseInfo& info,
                                           std::string& error);
@@ -874,6 +876,8 @@ class UpdateChecker {
     /// The key channel manifests must verify against: the compiled-in release key unless
     /// update_urls.json names another.
     std::string cached_release_pubkey_;
+    /// The dev key, trusted on the dev channel only; empty when update_urls.json names a key.
+    std::string cached_dev_pubkey_;
 
     // Diagnostics-only mirror of the two Config-derived values above, deliberately
     // SEPARATE from cached_* so it can be refreshed at any time on the main thread
@@ -1036,17 +1040,19 @@ bool parse_release_manifest(const std::string& json_str, UpdateChecker::ReleaseI
  * @brief parse_release_manifest() only after the manifest's minisign signature verifies
  *
  * @p sig_status and @p sig_body are the HTTP result of fetching `<manifest URL>.minisig`.
- * A missing signature, one by another key, a legacy (not prehashed) one, one made for another
- * channel, or a manifest changed after signing fails with @p error set and @p info untouched.
- * On success info.signature_verified is true. docs/devel/RELEASE_SIGNING.md.
+ * A missing signature, one by a key @p channel does not trust, a legacy (not prehashed) one,
+ * one made for another channel, or a manifest changed after signing fails with @p error set
+ * and @p info untouched. On success info.signature_verified is true.
+ * docs/devel/RELEASE_SIGNING.md.
  *
  * @param channel The channel the manifest was fetched for; its signature must name it
- * @param public_key Base64 minisign key line the signature must verify against
+ * @param keys The keys it may be signed with (release_signature::verify_channel_manifest)
  */
 bool parse_signed_release_manifest(const std::string& json_str, int sig_status,
                                    const std::string& sig_body, std::string_view channel,
-                                   std::string_view public_key, UpdateChecker::ReleaseInfo& info,
-                                   std::string& error, const std::vector<std::string>& asset_keys);
+                                   const helix::release_signature::ChannelKeys& keys,
+                                   UpdateChecker::ReleaseInfo& info, std::string& error,
+                                   const std::vector<std::string>& asset_keys);
 
 /// Whether @p info may be downloaded and installed: it came from a manifest whose signature
 /// verified and carries the SHA-256 the download is checked against.
