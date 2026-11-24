@@ -97,6 +97,8 @@ const std::array<PlrProvider, 5>& providers() {
         // was_interrupted says an interrupted print is on record; the stock
         // firmware clears it on every normal end or cancel. The macros record
         // no filename, so virtual_sdcard.file_path is display-only.
+        // The row above displaces it once the plugin answers, so it offers
+        // nothing until then: a prompt shown first would keep the legacy resume.
         {PlrBackendType::QIDI, "qidi",
          [](const PrinterDiscovery& hw) {
              return plr_resume_macro_present(hw)
@@ -107,7 +109,9 @@ const std::array<PlrProvider, 5>& providers() {
          [](const PlrCapabilitySignals& caps) {
              return caps.resume_macro && caps.interrupted_flag;
          },
-         [](const PlrCapabilitySignals&, const PlrProbeSession&) { return true; },
+         [](const PlrCapabilitySignals& caps, const PlrProbeSession&) {
+             return !caps.plugin_answer_pending;
+         },
          status_recovery_file},
         // Creality K/Ender/Hi fork: print_stats.power_loss marks the firmware,
         // and nothing in discovery does, so every printer subscribes it;
