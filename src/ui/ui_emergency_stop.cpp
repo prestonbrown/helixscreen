@@ -1229,10 +1229,13 @@ namespace helix {
 namespace ui {
 
 namespace {
-// The literal is the one the PID and input-shaper saves use for this event.
+// A request's text, when it carries one, is the initiating flow's own
+// announcement (KlipperConfigEditor::set_restart_announcement()).
 const UiRequestRegistration s_expect_restart_registration{
     UiRequestKind::ExpectKlippyRestart, [](const UiRequest& request) {
-        begin_expected_klippy_restart("Firmware restarting...", request.api);
+        begin_expected_klippy_restart(request.text.empty() ? std::string("Firmware restarting...")
+                                                           : request.text,
+                                      request.api);
     }};
 } // namespace
 

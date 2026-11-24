@@ -34,6 +34,7 @@
 #include "shaper_response.h"
 #include "shaper_selection.h"
 #include "theme_manager.h"
+#include "translation_loader.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -1104,6 +1105,9 @@ void InputShaperPanel::save_configuration() {
     //
     // Only the config-card refresh belongs to the panel, so only that half is
     // guarded by the panel's token.
+    // safe_multi_edit() ends in FIRMWARE_RESTART and announces it; this is
+    // the announcement's text.
+    config_editor_.set_restart_announcement(TR_NOOP("Saving config... Klipper will restart."));
     config_editor_.safe_multi_edit(
         *api_, "input_shaper", edits,
         [this, token]() {

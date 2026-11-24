@@ -280,6 +280,12 @@ class KlipperConfigEditor {
         restart_poll_interval_ = interval;
     }
 
+    /// The toast that announces the editor's FIRMWARE_RESTART, untranslated
+    /// English. Empty, the default, shows the generic "Firmware restarting...".
+    void set_restart_announcement(std::string message) {
+        restart_announcement_ = std::move(message);
+    }
+
     /// Perform a safe config edit: edit value, restart firmware, monitor health.
     /// If Klipper fails to restart within the timeout, auto-restore backups
     /// and restart again.
@@ -361,6 +367,7 @@ class KlipperConfigEditor {
     FeatureStateSource feature_state_source_;
 
     std::chrono::milliseconds restart_poll_interval_{500};
+    std::string restart_announcement_;
 
     /// Remember a freshly submitted health monitor so the destructor can wait
     /// for it, and drop the futures of monitors that have already finished.
