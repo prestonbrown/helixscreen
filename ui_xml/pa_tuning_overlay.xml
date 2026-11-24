@@ -56,9 +56,7 @@
                   width="#pa_nl_cards_w" height="100%" style_pad_all="0" style_bg_opa="0" style_border_width="0"
                   flex_flow="column" style_pad_gap="#space_xs" scrollable="false" hidden="true">
             <bind_flag_if_eq subject="pa_tune_nl_mode" flag="hidden" ref_value="0"/>
-            <cal_intro_section_label width="100%"
-                                     text="Each tower tunes one value" text_tag="Each tower tunes one value"
-                                     long_mode="wrap"/>
+            <cal_intro_section_label width="100%" text="Each tower tunes one value" long_mode="wrap"/>
             <repeat count="4">
               <lv_obj width="100%"
                       height="0" flex_grow="1" style_bg_color="#screen_bg" style_bg_opa="255" style_border_width="1"
@@ -90,11 +88,11 @@
             <style name="plain_row"/>
             <bind_flag_if_eq subject="pa_tune_nl_available" flag="hidden" ref_value="0"/>
             <cal_intro_chip name="pa_model_linear"
-                            label="Linear K" label_tag="Linear K" no_detail="true" label_align="center"
-                            choice="pa_tune_nl_mode" value="0" index="0" callback="on_pa_tune_model"/>
+                            label="Linear K" no_detail="true" label_align="center" choice="pa_tune_nl_mode" value="0"
+                            index="0" callback="on_pa_tune_model"/>
             <cal_intro_chip name="pa_model_nonlinear"
-                            label="Nonlinear" label_tag="Nonlinear" no_detail="true" label_align="center"
-                            choice="pa_tune_nl_mode" value="1" index="1" callback="on_pa_tune_model"/>
+                            label="Nonlinear" no_detail="true" label_align="center" choice="pa_tune_nl_mode" value="1"
+                            index="1" callback="on_pa_tune_model"/>
           </lv_obj>
           <lv_obj name="pa_tool_row" flex_flow="row" style_pad_gap="#space_xs" scrollable="false">
             <style name="plain_row"/>
@@ -107,7 +105,7 @@
           </lv_obj>
           <lv_obj flex_flow="row" style_flex_cross_place="center" scrollable="false">
             <style name="plain_row"/>
-            <cal_intro_section_label text="Material" text_tag="Material"/>
+            <cal_intro_section_label text="Material"/>
             <text_small width="0"
                         flex_grow="1" bind_text="pa_tune_material_temps" style_text_align="right"
                         style_text_color="#text_muted"/>
@@ -135,15 +133,15 @@
                               index="$i" callback="on_pa_tune_preset"/>
             </repeat>
           </lv_obj>
-          <cal_intro_section_label text="Extruder" text_tag="Extruder"/>
+          <cal_intro_section_label text="Extruder"/>
           <lv_obj name="pa_kind_row" flex_flow="row" style_pad_gap="#space_xs" scrollable="false">
             <style name="plain_row"/>
             <cal_intro_chip name="pa_kind_direct"
-                            label="Direct drive" label_tag="Direct drive" no_detail="true" label_align="center"
-                            choice="pa_tune_kind" value="0" index="0" callback="on_pa_tune_kind"/>
+                            label="Direct drive" no_detail="true" label_align="center" choice="pa_tune_kind" value="0"
+                            index="0" callback="on_pa_tune_kind"/>
             <cal_intro_chip name="pa_kind_bowden"
-                            label="Bowden" label_tag="Bowden" no_detail="true" label_align="center"
-                            choice="pa_tune_kind" value="1" index="1" callback="on_pa_tune_kind"/>
+                            label="Bowden" no_detail="true" label_align="center" choice="pa_tune_kind" value="1"
+                            index="1" callback="on_pa_tune_kind"/>
           </lv_obj>
           <!-- Linear K: the sweep. -->
           <lv_obj name="pa_sweep" flex_flow="column" style_pad_gap="#space_xs" scrollable="false">
@@ -278,7 +276,7 @@
                 <temp_display size="sm" show_target="true" bind_current="bed_temp" bind_target="bed_target"/>
               </lv_obj>
             </lv_obj>
-            <cal_intro_section_label text="Step" text_tag="Step"/>
+            <cal_intro_section_label text="Step"/>
             <z_adjust_steps name="pa_steps"
                             width="100%" subject="pa_tune_step_idx" callback="on_pa_tune_step" text0="0.001"
                             text1="0.005" text2="0.01" text3="0.05" two_rows="false" chip_h="#touch_target_min"/>

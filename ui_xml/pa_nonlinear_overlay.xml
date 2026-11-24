@@ -78,9 +78,8 @@
               <bind_flag_if_ge subject="ui_breakpoint" flag="hidden" ref_value="1"/>
             </text_heading>
             <pa_reference name="pa_nl_ready_reference"
-                          tower_name="pa_nl_ready_ref_tower" caption="You will judge" caption_tag="You will judge"
-                          bind_look="pa_nl_look" bind_src0="pa_nl_ref_src_0" bind_src1="pa_nl_ref_src_1"
-                          bind_src2="pa_nl_ref_src_2">
+                          tower_name="pa_nl_ready_ref_tower" caption="You will judge" bind_look="pa_nl_look"
+                          bind_src0="pa_nl_ref_src_0" bind_src1="pa_nl_ref_src_1" bind_src2="pa_nl_ref_src_2">
               <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
             </pa_reference>
             <text_body name="pa_nl_look_micro"
