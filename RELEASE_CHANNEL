@@ -1,4 +1,4 @@
-beta
+dev
 
 # Which update channel a tagged release from THIS branch publishes to.
 # Read by scripts/release-channel.sh, which drives .github/workflows/release.yml.
@@ -12,14 +12,13 @@ beta
 # routing is a property of the branch. The dev channel cannot be spelled in a
 # version at all, and a plain vX.Y.Z tag cut from the trunk would otherwise reach
 # the stable fleet. The version string says only where the build sits in the
-# ordering: main ships 1.2.0-beta.N, which helix::version::Version orders above
-# every 1.1.x and below the 1.2.0 that release/1.2 will ship. See
-# docs/devel/RELEASE_PROCESS.md § "The trunk's beta line".
+# ordering: main ships 1.2.0-alpha.N, which helix::version::Version orders above
+# every 1.1.x and below the 1.2.0-beta.N and 1.2.0 that release/1.2 will ship. See
+# docs/devel/RELEASE_PROCESS.md § "The trunk's alpha line".
 #
-# This branch is the trunk. While release/1.1 publishes the 1.1 betas, the
-# beta channel belongs to it, so the trunk says `dev`: a 1.2 build on the beta
-# channel would make release.yml's downgrade guard refuse every later 1.1 beta.
-# Once 1.1.0 ships and release/1.1 says `stable`, the trunk goes back to `beta`.
+# This branch is the trunk, and the trunk publishes to dev only: its alphas are
+# the dev channel's builds. Betas and release candidates belong to a release
+# branch, which holds the beta channel (beta also publishes to dev).
 #
 # A trunk that said `stable` would publish its whole line to every stable
 # install on the next tag, and the downgrade guard cannot refuse it: a higher

@@ -21,8 +21,8 @@
 # is just tagging the right branch:
 #
 #   release/1.0  RELEASE_CHANNEL=stable  -> stable
-#   release/1.1  RELEASE_CHANNEL=beta    -> beta + dev  (stable from 1.1.0)
-#   main         RELEASE_CHANNEL=dev     -> dev         (beta again after 1.1.0)
+#   release/1.1  RELEASE_CHANNEL=stable  -> stable
+#   main         RELEASE_CHANNEL=dev     -> dev         (X.Y.0-alpha.N)
 #
 # Shared by CI (.github/workflows/release.yml) and local dev releases.
 

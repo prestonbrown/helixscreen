@@ -278,7 +278,7 @@ consumes its output; nothing is inferred from the tag string.
 | `dev` | `dev` | prerelease | no |
 
 Each maintenance line carries its own value, so cutting a release is just tagging
-the right branch (`release/1.0` holds `stable`, `main` holds `beta`).
+the right branch (`release/1.0` holds `stable`, `main` holds `dev`).
 
 **Why not derive it from the tag.** Routing is a property of the branch, not of the
 version string. Three things break when the tag decides: the `dev` channel cannot
@@ -289,7 +289,7 @@ tested on a prerelease channel while still belonging to the stable line. Declari
 the channel in a tracked file per branch makes cutting a release nothing but tagging
 the right branch. The version string is then free to say only what it means:
 `1.1.0-beta.3` is the third beta of 1.1, and `helix::version::Version` orders it
-below `1.1.0` on precedence. See `RELEASE_PROCESS.md` § "The trunk's beta line".
+below `1.1.0` on precedence. See `RELEASE_PROCESS.md` § "The trunk's alpha line".
 
 **Stable does not publish to `dev`.** The `dev` channel follows the devel line
 alone so its manifest only ever moves forward; a `1.0.x` hotfix publishing to `dev`

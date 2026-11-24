@@ -5,19 +5,19 @@ or, for a 1.1 fix, off `release/1.1`.
 
 | Branch | Purpose | `RELEASE_CHANNEL` | A tag here publishes to |
 |--------|---------|-------------------|-------------------------|
-| `main` | The trunk. All development lands here. Versions `1.2.0-beta.N`. | `dev` | dev |
-| `release/1.1` | The 1.1 line: the remaining 1.1 betas, then `1.1.0` and its fixes. | `beta`, `stable` from `1.1.0` | beta + dev, then stable |
+| `main` | The trunk. All development lands here. Versions `1.2.0-alpha.N`. | `dev` | dev |
+| `release/1.1` | The 1.1 line: `1.1.0` and its fixes. | `stable` | stable |
 | `release/1.0` | The 1.0 maintenance line. | `stable` | stable |
 
-**Only one branch may hold the beta channel.** `release.yml`'s downgrade guard
-refuses a tag whose version is below what a channel already serves, and `beta`
-publishes to dev as well. While `release/1.1` ships `1.1.0-beta.N` on `beta`, the
-trunk says `dev` and is not tagged at all, because a `1.2.0-beta.1` on dev would
-make the guard refuse every later 1.1 beta. When `1.1.0` ships, `release/1.1`
-moves to `stable` and the trunk goes back to `beta`.
+**The trunk publishes alphas to dev; a release branch holds beta.** `main` tags
+`X.Y.0-alpha.N`, which publish to the dev channel only. Betas and release
+candidates come from that minor's release branch, whose `beta` channel publishes
+to dev as well. Semver puts `1.2.0-alpha.N` below `1.2.0-beta.1`, so a dev install
+moves forward from the last alpha to the first beta, and `release.yml`'s downgrade
+guard never refuses either line.
 
 **There is no development branch.** Work goes to `main` through a feature branch
-and a merge, and `main` is what ships to the beta and dev channels.
+and a merge, and `main` is what ships to the dev channel.
 
 ## Which way fixes flow
 
