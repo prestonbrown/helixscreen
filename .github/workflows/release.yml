@@ -161,6 +161,24 @@ jobs:
           echo "platforms=$(jq -r '[.include[].platform] | join(" ")' <<<"$MATRIX")"
         } | tee -a "$GITHUB_OUTPUT"
 
+    # The tag is cross-checked against the branch's RELEASE_CHANNEL before any
+    # build starts: a plain vX.Y.Z on a prerelease channel, or a suffixed tag on
+    # stable, fails here in seconds rather than after the platform matrix.
+    # The release job resolves the channel again for its outputs.
+    - name: Checkout channel declaration
+      if: ${{ env.RELEASE_MODE == 'publish' }}
+      uses: actions/checkout@v6
+      with:
+        sparse-checkout: |
+          RELEASE_CHANNEL
+          scripts/release-channel.sh
+          .github/release-minisign-dev.pub
+        sparse-checkout-cone-mode: false
+
+    - name: Check the tag against RELEASE_CHANNEL
+      if: ${{ env.RELEASE_MODE == 'publish' }}
+      run: scripts/release-channel.sh --tag "$GITHUB_REF_NAME"
+
   # ============================================================================
   # Build embedded platform binaries using Docker cross-compilation
   # ============================================================================
