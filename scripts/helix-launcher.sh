@@ -1008,6 +1008,14 @@ helix_wait_for_predecessor() {
 # sweep by name would take the successor down with us: Z-Mod restarts the UI
 # by killing it by name and starting a new launcher while this one exits.
 helix_stop_own_children() {
+    helix_stop_children_of $$
+}
+
+# helix_stop_children_of PID: the same sweep for the processes another
+# launcher started (one this launcher runs as its child, under the rollback
+# guard). The launcher itself is left to its caller.
+helix_stop_children_of() {
+    _hso_owner=$1
     for _hso_d in "$HELIX_PROC_ROOT"/[0-9]*; do
         _hso_pid=${_hso_d##*/}
         [ "$_hso_pid" != "$$" ] || continue
@@ -1018,8 +1026,8 @@ helix_stop_own_children() {
         esac
         _hso_env=$(tr '\0' '\n' 2>/dev/null < "$_hso_d/environ") || continue
         case "$HELIX_NL$_hso_env$HELIX_NL" in
-            *"${HELIX_NL}HELIX_LAUNCHER_PID=$$${HELIX_NL}"*)
-                log "Stopping ${_hpp_prog} (PID ${_hso_pid}) left behind by this launcher"
+            *"${HELIX_NL}HELIX_LAUNCHER_PID=${_hso_owner}${HELIX_NL}"*)
+                log "Stopping ${_hpp_prog} (PID ${_hso_pid}) started by launcher ${_hso_owner}"
                 kill "$_hso_pid" 2>/dev/null || true
                 ;;
         esac
@@ -1448,6 +1456,12 @@ cleanup() {
     # an orphan of a SIGKILLed watchdog. Never sweep by name: that is the
     # init script's stop(), and here it would also kill a successor.
     helix_stop_own_children
+    # A launch running under the rollback guard is a child launcher with its
+    # own processes.
+    if [ -n "${RB_CHILD_PID:-}" ]; then
+        helix_stop_children_of "${RB_CHILD_PID}"
+        kill "${RB_CHILD_PID}" 2>/dev/null || true
+    fi
     # Remove the GUI pidfile we advertised (CC1 gui-switcher) so a stale PID
     # can't be signalled after we exit, unless a successor's live watchdog has
     # already rewritten it. HELIX_GUI_PIDFILE is exported by the platform hook;
@@ -1592,12 +1606,17 @@ _is_crash_exit() {
 
 # --- Automatic-update rollback guard (#1304) ---------------------------------
 # After an automatic install the app leaves update_rollback.armed in
-# HELIX_ROLLBACK_DIR, naming the kept previous tree. Each guarded launch
-# counts itself (.starts); a background watcher waits for the new version to
-# report itself healthy (.healthy) or to ask for a rollback (.request: the
-# app's crash-loop detector fired), and gives up after the window. Anything
-# but a healthy report puts the previous tree back and starts it, leaving
-# .result for the restored app to tell the user.
+# HELIX_ROLLBACK_DIR, naming the kept previous tree, and the watchdog hands
+# the update restart back to this loop. The guarded launch runs the NEW
+# tree's own launcher as a child of this one, so its script, platform hooks
+# and environment are on trial together with its binaries. A background
+# watcher waits for the new version to report itself healthy (.healthy) or
+# to ask for a rollback (.request, the app's crash-loop detector), and gives
+# up after the window. Anything but a healthy report or a stop (.stopping,
+# written by the watchdog) puts the previous tree back and starts it, leaving
+# .result for the restored app. Under helixscreen.service a healthy report
+# first ends the launch so the service restarts with the new units, and the
+# previous tree is kept until that start is healthy too (.phase = units).
 HELIX_ROLLBACK_WINDOW="${HELIX_ROLLBACK_WINDOW:-600}"
 HELIX_ROLLBACK_POLL="${HELIX_ROLLBACK_POLL:-5}"
 HELIX_ROLLBACK_MAX_STARTS="${HELIX_ROLLBACK_MAX_STARTS:-3}"
@@ -1611,45 +1630,67 @@ helix_rollback_value() {
     sed -n "s/^$2=//p" "$1" 2>/dev/null | head -n 1
 }
 
+# A marker exists, valid or not. The watchdog hands the update restart back
+# on exactly this, so this loop must always relaunch when it sees one.
+helix_rollback_marker_present() {
+    [ -n "${HELIX_ROLLBACK_DIR:-}" ] && [ -f "$(helix_rollback_file armed)" ]
+}
+
 helix_rollback_disarm() {
-    for _hrd_f in armed starts healthy request; do
+    for _hrd_f in armed starts healthy request stopping busy phase handoff; do
         rm -f "$(helix_rollback_file "$_hrd_f")" 2>/dev/null || true
     done
 }
 
-# Is a usable rollback armed for THIS install? Sets RB_PREVIOUS, RB_FROM and
-# RB_TO. A marker naming another tree, or a previous tree that is not a
-# sibling ${INSTALL_DIR}.old[.N] holding a binary, is dropped: those paths
-# are about to be renamed and deleted.
+# helix_rollback_real DIR: DIR with every symlink resolved, or nothing.
+helix_rollback_real() {
+    (cd "$1" 2>/dev/null && pwd -P)
+}
+
+# Is $1 (resolved) the sibling ${RB_INSTALL_REAL}.old[.N] holding a binary?
+helix_rollback_is_kept_copy() {
+    case "$1" in
+        "${RB_INSTALL_REAL}.old") ;;
+        "${RB_INSTALL_REAL}.old."*)
+            case "${1#"${RB_INSTALL_REAL}.old."}" in
+                "" | *[!0-9]*) return 1 ;;
+            esac
+            ;;
+        *) return 1 ;;
+    esac
+    [ -x "$1/bin/helix-screen" ]
+}
+
+# Is a usable rollback armed for THIS install? Sets RB_PREVIOUS (resolved),
+# RB_INSTALL_REAL, RB_FROM and RB_TO. Paths are compared resolved: the app
+# names its install by /proc/self/exe, while this launcher may run through a
+# symlink. A marker naming another tree is dropped, and a kept copy it named
+# is removed when it is this install's own sibling, since nothing will
+# restore it.
 helix_rollback_armed() {
-    [ -n "${HELIX_ROLLBACK_DIR:-}" ] || return 1
+    helix_rollback_marker_present || return 1
     _hra_m=$(helix_rollback_file armed)
-    [ -f "$_hra_m" ] || return 1
-    RB_PREVIOUS=$(helix_rollback_value "$_hra_m" previous_dir)
+    RB_INSTALL_REAL=$(helix_rollback_real "${INSTALL_DIR}")
+    RB_PREVIOUS=$(helix_rollback_real "$(helix_rollback_value "$_hra_m" previous_dir)")
     RB_FROM=$(helix_rollback_value "$_hra_m" from_version)
     RB_TO=$(helix_rollback_value "$_hra_m" to_version)
     _hra_install=$(helix_rollback_value "$_hra_m" install_dir)
     _hra_ok=1
-    [ "$_hra_install" = "${INSTALL_DIR}" ] || _hra_ok=0
-    case "$RB_PREVIOUS" in
-        "${INSTALL_DIR}.old") ;;
-        "${INSTALL_DIR}.old."*)
-            case "${RB_PREVIOUS#"${INSTALL_DIR}.old."}" in
-                "" | *[!0-9]*) _hra_ok=0 ;;
-            esac
-            ;;
-        *) _hra_ok=0 ;;
-    esac
-    [ -x "${RB_PREVIOUS}/bin/helix-screen" ] || _hra_ok=0
-    if [ "$_hra_ok" != "1" ]; then
-        log "Rollback marker unusable (install ${_hra_install}, previous ${RB_PREVIOUS}); dropping it"
-        helix_rollback_disarm
-        return 1
+    [ -n "${RB_INSTALL_REAL}" ] || _hra_ok=0
+    [ "$(helix_rollback_real "$_hra_install")" = "${RB_INSTALL_REAL}" ] || _hra_ok=0
+    if [ "$_hra_ok" = "1" ] && helix_rollback_is_kept_copy "${RB_PREVIOUS}"; then
+        return 0
     fi
-    return 0
+    log "Rollback marker unusable (install ${_hra_install}, previous ${RB_PREVIOUS:-none}); dropping it"
+    if [ -n "${RB_INSTALL_REAL}" ] && [ -n "${RB_PREVIOUS}" ] && helix_rollback_is_kept_copy "${RB_PREVIOUS}"; then
+        log "Removing the kept copy nothing will restore: ${RB_PREVIOUS}"
+        rm -rf "${RB_PREVIOUS}" 2>/dev/null || true
+    fi
+    helix_rollback_disarm
+    return 1
 }
 
-# The new version reported healthy: the previous tree is no longer needed.
+# The new version passed: the previous tree is no longer needed.
 helix_rollback_finish_healthy() {
     log "v${RB_TO} is healthy; removing the kept v${RB_FROM} at ${RB_PREVIOUS}"
     rm -rf "${RB_PREVIOUS}" 2>/dev/null || true
@@ -1657,65 +1698,90 @@ helix_rollback_finish_healthy() {
 }
 
 # helix_rollback_restore REASON: put the previous tree back. 0 when it is in
-# place (the caller then starts it), 1 when the swap failed and the new tree
-# stays. Either way the marker is dropped so a failed restore is not retried
-# on every start.
+# place (the caller then starts it); 1 when the swap failed (the new tree
+# stays, the marker is dropped so it is not retried every start) or a stop
+# arrived first (nothing moved, the marker stays).
 helix_rollback_restore() {
-    _hrr_failed="${INSTALL_DIR}.failed"
+    [ "${HELIX_SHUTTING_DOWN:-0}" != "1" ] || return 1
+    _hrr_failed="${RB_INSTALL_REAL}.failed"
     log "Rolling back v${RB_TO} to v${RB_FROM} (reason: $1)"
+    # The renames below change release_info.json, which helixscreen-update.path
+    # watches; this sentinel tells it the restart is handled here.
+    : > "${HELIX_ROLLBACK_DIR}/self_restart_sentinel" 2>/dev/null || true
     rm -rf "${_hrr_failed}" 2>/dev/null || true
-    if ! mv "${INSTALL_DIR}" "${_hrr_failed}" 2>/dev/null; then
-        log "Rollback failed: could not move ${INSTALL_DIR} aside; keeping v${RB_TO}"
+    if ! mv "${RB_INSTALL_REAL}" "${_hrr_failed}" 2>/dev/null; then
+        log "Rollback failed: could not move ${RB_INSTALL_REAL} aside; keeping v${RB_TO}"
         helix_rollback_disarm
         return 1
     fi
-    if ! mv "${RB_PREVIOUS}" "${INSTALL_DIR}" 2>/dev/null; then
-        mv "${_hrr_failed}" "${INSTALL_DIR}" 2>/dev/null || true
+    if ! mv "${RB_PREVIOUS}" "${RB_INSTALL_REAL}" 2>/dev/null; then
+        mv "${_hrr_failed}" "${RB_INSTALL_REAL}" 2>/dev/null || true
         log "Rollback failed: could not move ${RB_PREVIOUS} into place; keeping v${RB_TO}"
         helix_rollback_disarm
         return 1
     fi
     rm -rf "${_hrr_failed}" 2>/dev/null || true
     _hrr_result=$(helix_rollback_file result)
-    printf 'from_version=%s\nto_version=%s\nreason=%s\n' "${RB_FROM}" "${RB_TO}" "$1" \
-        > "${_hrr_result}.tmp" 2>/dev/null && mv "${_hrr_result}.tmp" "${_hrr_result}"
+    { printf 'from_version=%s\nto_version=%s\nreason=%s\n' "${RB_FROM}" "${RB_TO}" "$1" \
+        > "${_hrr_result}.tmp" && mv "${_hrr_result}.tmp" "${_hrr_result}"; } 2>/dev/null || true
     helix_rollback_disarm
     log "Rolled back to v${RB_FROM}"
     return 0
 }
 
+# helix_rollback_stop_child PID: end a guarded launch.
+helix_rollback_stop_child() {
+    helix_stop_children_of "$1"
+    kill "$1" 2>/dev/null || true
+}
+
 # Runs in the background beside one guarded launch, as a subshell of this
-# launcher, so helix_stop_own_children reaches the launch's processes.
-# $1: the launcher's PID; the watcher ends with it.
+# launcher. $1: this launcher's PID (the watcher ends with it); $2: the child
+# launcher running the new version.
 helix_rollback_watch() {
     _hrw_waited=0
-    while [ "$_hrw_waited" -lt "${HELIX_ROLLBACK_WINDOW}" ]; do
+    _hrw_healthy=0
+    while :; do
         sleep "${HELIX_ROLLBACK_POLL}"
         _hrw_waited=$((_hrw_waited + HELIX_ROLLBACK_POLL))
         kill -0 "$1" 2>/dev/null || return 0
         [ -f "$(helix_rollback_file armed)" ] || return 0
         if [ -f "$(helix_rollback_file healthy)" ]; then
-            helix_rollback_finish_healthy
-            # helixscreen.service refreshes its units only when the service
-            # itself restarts; ending this launch now lets it.
-            if [ -n "${HELIX_SERVICE_RESTARTS:-}" ]; then
-                helix_stop_own_children
+            if [ -z "${HELIX_SERVICE_RESTARTS:-}" ] ||
+                [ "$(cat "$(helix_rollback_file phase)" 2>/dev/null)" = "units" ]; then
+                helix_rollback_finish_healthy
+                return 0
             fi
-            return 0
+            # helixscreen.service refreshes its units only when it restarts.
+            # That restart waits while a job holds the machine.
+            if [ "$_hrw_healthy" = "0" ]; then
+                log "v${RB_TO} is healthy; restarting the service to start it with its own units"
+                _hrw_healthy=1
+            fi
+            if [ ! -f "$(helix_rollback_file busy)" ]; then
+                { echo units > "$(helix_rollback_file phase)" &&
+                    echo 0 > "$(helix_rollback_file starts)" &&
+                    : > "$(helix_rollback_file handoff)"; } 2>/dev/null || true
+                rm -f "$(helix_rollback_file healthy)" 2>/dev/null || true
+                helix_rollback_stop_child "$2"
+                return 0
+            fi
+            continue
         fi
         [ -f "$(helix_rollback_file request)" ] && break
+        [ "$_hrw_waited" -lt "${HELIX_ROLLBACK_WINDOW}" ] || break
     done
-    [ -f "$(helix_rollback_file armed)" ] || return 0
-    [ -f "$(helix_rollback_file healthy)" ] && return 0
     _hrw_req=$(helix_rollback_file request)
-    [ -f "$_hrw_req" ] || printf 'reason=timeout\n' > "$_hrw_req"
+    [ -f "$_hrw_req" ] || printf 'reason=timeout\n' > "$_hrw_req" 2>/dev/null || true
     log "v${RB_TO} did not come up healthy ($(helix_rollback_value "$_hrw_req" reason)); stopping it"
-    helix_stop_own_children
+    helix_rollback_stop_child "$2"
 }
 
-# Set while a launch runs under the guard; the watcher's PID.
+# Set while a launch runs under the guard: the watcher's and the child
+# launcher's PIDs.
 RB_GUARDING=0
 RB_WATCH_PID=""
+RB_CHILD_PID=""
 
 # Boot-time SIGTERM self-heal (disabled by default; the Snapmaker U1 platform
 # hook opts in via HELIX_BOOT_RESPAWN_MAX). Some firmwares send helix-screen a
@@ -1758,10 +1824,14 @@ fi
 # Use "cmd || EXIT_CODE=$?" to capture non-zero exit codes under set -e,
 # allowing the crash fallback logic below to run instead of aborting the script.
 while :; do
-    if helix_rollback_armed; then
-        if [ -f "$(helix_rollback_file healthy)" ]; then
+    # A launcher started as the guarded child never guards itself.
+    if [ -z "${HELIX_ROLLBACK_SUPERVISOR:-}" ] && helix_rollback_armed; then
+        if [ -f "$(helix_rollback_file healthy)" ] &&
+            { [ -z "${HELIX_SERVICE_RESTARTS:-}" ] ||
+                [ "$(cat "$(helix_rollback_file phase)" 2>/dev/null)" = "units" ]; }; then
             helix_rollback_finish_healthy
         else
+            rm -f "$(helix_rollback_file healthy)" "$(helix_rollback_file stopping)"                 "$(helix_rollback_file handoff)" 2>/dev/null || true
             _rb_starts_f=$(helix_rollback_file starts)
             _rb_starts=$(cat "$_rb_starts_f" 2>/dev/null || echo 0)
             case "$_rb_starts" in "" | *[!0-9]*) _rb_starts=0 ;; esac
@@ -1772,12 +1842,51 @@ while :; do
                     exec "${INSTALL_DIR}/bin/helix-launcher.sh" "$@"
                 fi
             else
-                log "Starting v${RB_TO} under the rollback guard (start ${_rb_starts}, window ${HELIX_ROLLBACK_WINDOW}s)"
-                helix_rollback_watch $$ &
-                RB_WATCH_PID=$!
                 RB_GUARDING=1
             fi
         fi
+    fi
+
+    if [ "${RB_GUARDING}" = "1" ]; then
+        log "Starting v${RB_TO} under the rollback guard (start ${_rb_starts}, window ${HELIX_ROLLBACK_WINDOW}s)"
+        EXIT_CODE=0
+        HELIX_ROLLBACK_SUPERVISOR=$$ "${INSTALL_DIR}/bin/helix-launcher.sh" "$@" &
+        RB_CHILD_PID=$!
+        helix_rollback_watch $$ "${RB_CHILD_PID}" &
+        RB_WATCH_PID=$!
+        wait "${RB_CHILD_PID}" || EXIT_CODE=$?
+        # A trap interrupts wait; the child is still ending.
+        while kill -0 "${RB_CHILD_PID}" 2>/dev/null; do
+            wait "${RB_CHILD_PID}" || EXIT_CODE=$?
+        done
+        kill "${RB_WATCH_PID}" 2>/dev/null || true
+        RB_CHILD_PID=""
+        RB_GUARDING=0
+        if [ "${HELIX_SHUTTING_DOWN:-0}" = "1" ]; then
+            log "Stopped during the rollback window; the guard resumes on the next start"
+            break
+        fi
+        if [ -f "$(helix_rollback_file handoff)" ]; then
+            rm -f "$(helix_rollback_file handoff)" "$(helix_rollback_file stopping)" 2>/dev/null || true
+            log "Ending this launch so the service restarts v${RB_TO} with its units"
+            break
+        fi
+        if ! helix_rollback_marker_present; then
+            # Healthy and finished; the child ran its own respawn rules.
+            break
+        fi
+        if [ ! -f "$(helix_rollback_file request)" ] && [ -f "$(helix_rollback_file stopping)" ]; then
+            rm -f "$(helix_rollback_file stopping)" 2>/dev/null || true
+            log "v${RB_TO} was stopped during the rollback window; the guard resumes on the next start"
+            break
+        fi
+        if helix_rollback_armed; then
+            _rb_reason=$(helix_rollback_value "$(helix_rollback_file request)" reason)
+            if helix_rollback_restore "${_rb_reason:-exit_${EXIT_CODE}}"; then
+                exec "${INSTALL_DIR}/bin/helix-launcher.sh" "$@"
+            fi
+        fi
+        break
     fi
 
     _run_start=$(date +%s 2>/dev/null || echo 0)
@@ -1819,21 +1928,10 @@ while :; do
         log "helix-screen (${RETRY_BACKEND}) fallback exited with code ${EXIT_CODE}"
     fi
 
-    if [ "${RB_GUARDING}" = "1" ]; then
-        kill "${RB_WATCH_PID}" 2>/dev/null || true
-        RB_GUARDING=0
-        if [ "${HELIX_SHUTTING_DOWN:-0}" != "1" ] && helix_rollback_armed; then
-            if [ -f "$(helix_rollback_file healthy)" ]; then
-                helix_rollback_finish_healthy
-            else
-                _rb_reason=$(helix_rollback_value "$(helix_rollback_file request)" reason)
-                if helix_rollback_restore "${_rb_reason:-exit_${EXIT_CODE}}"; then
-                    exec "${INSTALL_DIR}/bin/helix-launcher.sh" "$@"
-                fi
-            fi
-        fi
-    elif [ "${HELIX_SHUTTING_DOWN:-0}" != "1" ] && helix_rollback_armed; then
-        # The app installed an update and handed the restart to this loop.
+    if [ -z "${HELIX_ROLLBACK_SUPERVISOR:-}" ] && [ "${HELIX_SHUTTING_DOWN:-0}" != "1" ] &&
+        helix_rollback_marker_present; then
+        # The app installed an update and the watchdog handed the restart to
+        # this loop. A marker the guard cannot use still relaunches, unguarded.
         log "Update installed; relaunching under the rollback guard"
         continue
     fi

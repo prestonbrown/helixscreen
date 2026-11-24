@@ -103,6 +103,17 @@ static bool rollback_marker_present() {
     return std::filesystem::exists(std::string(dir) + "/" + helix::update::kRollbackArmedFile, ec);
 }
 
+// A stop or shutdown during the rollback guard's window is not a failed
+// update: tell the launcher, which would otherwise restore the previous version.
+static void note_rollback_stop() {
+    if (!rollback_marker_present()) {
+        return;
+    }
+    const std::string path = std::string(getenv(helix::update::kRollbackDirEnv)) + "/" +
+                             helix::update::kRollbackStoppingFile;
+    std::ofstream(path).put('\n');
+}
+
 // Crash-loop detection (separate window from non-zero-exit loops above).
 // When the same crash signal repeats N times within M seconds, blind retry
 // is provably futile — every "Restart App" produces the same crash from the
@@ -1204,6 +1215,7 @@ static int run_watchdog(WatchdogArgs args) {
         // Check if we're shutting down
         if (g_quit) {
             spdlog::info("[Watchdog] Shutting down");
+            note_rollback_stop();
             break;
         }
 
@@ -1327,6 +1339,7 @@ static int run_watchdog(WatchdogArgs args) {
         if (crash.was_signaled && (crash.signal_num == SIGTERM || crash.signal_num == SIGINT)) {
             spdlog::info("[Watchdog] Child received {} ({}), shutting down gracefully",
                          crash.signal_num, crash.signal_name);
+            note_rollback_stop();
             break;
         }
 

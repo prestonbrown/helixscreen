@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include <cstdint>
 #include <optional>
 #include <string>
 
@@ -21,10 +22,19 @@ inline constexpr const char* kRollbackRequestFile = "update_rollback.request";
 inline constexpr const char* kRollbackResultFile = "update_rollback.result";
 /// Written by install.sh when it kept the previous tree: `previous_dir=<path>`.
 inline constexpr const char* kRollbackPreviousFile = "update_rollback.previous";
+/// Present while the guarded version is running a job, so the launcher holds
+/// the restart it would otherwise make after a healthy report.
+inline constexpr const char* kRollbackBusyFile = "update_rollback.busy";
+/// Written by helix-watchdog when it was told to stop (SIGTERM, SIGINT): the
+/// guarded launch ended because of a stop or shutdown, not a failure.
+inline constexpr const char* kRollbackStoppingFile = "update_rollback.stopping";
 
 /// How long the new version runs before it calls itself healthy. Longer than
 /// the crash-loop detector's 120 s window, so a loop is seen first.
 inline constexpr int kRollbackHealthySeconds = 150;
+
+/// How often the guarded version refreshes kRollbackBusyFile.
+inline constexpr uint32_t kRollbackBusyPollMs = 30 * 1000;
 
 /// Why this install can or cannot roll an automatic update back.
 enum class RollbackSupport {
@@ -72,6 +82,20 @@ void set_rollback_device_proven_for_test(std::optional<bool> value);
 /// The launcher's rollback directory, or empty when no guard is listening.
 std::string rollback_dir();
 
+/// Does this install keep the previous version for the guard? Only an
+/// automatic install does, and only where rollback is supported and a guard
+/// is listening.
+bool keep_previous_for_install(bool automatic, bool rollback_supported, bool guard_listening);
+
+/// Is @p previous the tree install.sh keeps beside @p install_root
+/// (`<install_root>.old` or `<install_root>.old.<digits>`)? Pure string rule;
+/// callers canonicalize both first.
+bool is_kept_previous_of(const std::string& install_root, const std::string& previous);
+
+/// Removes a kept previous tree nothing will restore (a marker that could not
+/// be armed), after checking it is the sibling install.sh made.
+void discard_kept_previous(const std::string& install_root, const std::string& previous);
+
 /// The kept previous install an armed rollback restores.
 struct RollbackMarker {
     std::string install_dir;
@@ -106,6 +130,16 @@ struct RollbackResult {
     std::string reason;       ///< timeout, crash_loop, too_many_starts, exit_<code>
 };
 std::optional<RollbackResult> parse_rollback_result(const std::string& text);
+
+/// The notice for a rollback, stored in config until it has been on screen a
+/// while, so a restart right after the rollback cannot lose it.
+std::string format_rollback_notice(const RollbackResult& result);
+std::optional<RollbackResult> parse_rollback_notice(const std::string& stored);
+
+/// Writes kRollbackBusyFile while a rollback is armed and a job (or a pending
+/// power-loss resume) holds the machine, and removes it otherwise. on_ui_ready()
+/// repeats it every kRollbackBusyPollMs. Main thread.
+void refresh_rollback_busy_file();
 
 /// Called once the UI is up: tells the user about a rollback the launcher
 /// made, and reports this version's health to an armed guard. Needs LVGL.

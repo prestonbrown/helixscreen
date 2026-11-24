@@ -126,16 +126,114 @@ assert_rolled_back() {
     [ "$(cat "$LAUNCHES")" = "new" ]
 }
 
-@test "rollback: a healthy report under a restarting service ends the launch for a unit refresh" {
+@test "rollback: under a restarting service the previous tree is kept until the restarted start is healthy" {
     set_app "$INSTALL" "touch '$HELIX_ROLLBACK_DIR/update_rollback.healthy'; sleep 30"
     arm
     export HELIX_SERVICE_RESTARTS=1 HELIX_ROLLBACK_WINDOW=60
     SECONDS=0
     launch
     [ "$SECONDS" -lt 30 ]
+    # First healthy start: the launch ends for the unit refresh, nothing deleted yet.
     [ "$(cat "$INSTALL/TREE")" = "new" ]
+    [ -d "$PREVIOUS" ]
+    [ "$(cat "$HELIX_ROLLBACK_DIR/update_rollback.phase")" = "units" ]
+
+    # The service restarts it: healthy again, now the previous tree goes.
+    set_app "$INSTALL" "touch '$HELIX_ROLLBACK_DIR/update_rollback.healthy'; sleep 2; exit 0"
+    launch
     [ ! -e "$PREVIOUS" ]
     [ ! -e "$HELIX_ROLLBACK_DIR/update_rollback.armed" ]
+    [ ! -e "$HELIX_ROLLBACK_DIR/update_rollback.phase" ]
+    [ "$(cat "$LAUNCHES")" = "$(printf 'new\nnew')" ]
+}
+
+@test "rollback: the unit-refresh restart waits while a job holds the machine" {
+    set_app "$INSTALL" "touch '$HELIX_ROLLBACK_DIR/update_rollback.healthy' '$HELIX_ROLLBACK_DIR/update_rollback.busy'
+sleep 4; rm -f '$HELIX_ROLLBACK_DIR/update_rollback.busy'; sleep 30"
+    arm
+    export HELIX_SERVICE_RESTARTS=1 HELIX_ROLLBACK_WINDOW=60
+    SECONDS=0
+    launch
+    [ "$SECONDS" -ge 4 ]
+    [ "$SECONDS" -lt 30 ]
+    [ "$(cat "$HELIX_ROLLBACK_DIR/update_rollback.phase")" = "units" ]
+}
+
+@test "rollback: a stop during the window keeps the new version and resumes the guard next start" {
+    # What helix-watchdog does when an init script stops it mid-window.
+    set_app "$INSTALL" "touch '$HELIX_ROLLBACK_DIR/update_rollback.stopping'; exit 0"
+    arm
+    launch
+    [ "$(cat "$INSTALL/TREE")" = "new" ]
+    [ -d "$PREVIOUS" ]
+    [ -e "$HELIX_ROLLBACK_DIR/update_rollback.armed" ]
+    [ ! -e "$HELIX_ROLLBACK_DIR/update_rollback.result" ]
+    [ "$(cat "$LAUNCHES")" = "new" ]
+
+    set_app "$INSTALL" "touch '$HELIX_ROLLBACK_DIR/update_rollback.healthy'; sleep 2; exit 0"
+    launch
+    [ ! -e "$PREVIOUS" ]
+    [ ! -e "$HELIX_ROLLBACK_DIR/update_rollback.armed" ]
+}
+
+@test "rollback: a shutdown signal to the launcher during the window restores nothing" {
+    set_app "$INSTALL" 'sleep 30'
+    arm
+    export HELIX_ROLLBACK_WINDOW=60
+    sh "$INSTALL/bin/helix-launcher.sh" >"$BATS_TEST_TMPDIR/launcher.log" 2>&1 &
+    local pid=$!
+    sleep 3
+    kill -TERM "$pid"
+    wait "$pid" || true
+    [ "$(cat "$INSTALL/TREE")" = "new" ]
+    [ -d "$PREVIOUS" ]
+    [ -e "$HELIX_ROLLBACK_DIR/update_rollback.armed" ]
+    [ ! -e "$HELIX_ROLLBACK_DIR/update_rollback.result" ]
+}
+
+@test "rollback: a broken launcher in the new tree is rolled back too" {
+    # The install swaps in a launcher that cannot start anything while this
+    # one runs; a rename, as install.sh's swap is, so this shell's script stays.
+    set_app "$INSTALL" "printf '#!/bin/sh\\nexit 2\\n' > '$INSTALL/bin/launcher.new'
+chmod +x '$INSTALL/bin/launcher.new'; mv '$INSTALL/bin/launcher.new' '$INSTALL/bin/helix-launcher.sh'
+printf 'install_dir=%s\\nprevious_dir=%s\\nfrom_version=1.0.0\\nto_version=1.1.0\\n' '$INSTALL' '$PREVIOUS' > '$HELIX_ROLLBACK_DIR/update_rollback.armed'
+exit 0"
+    launch
+    assert_rolled_back
+    [ "$(reason)" = "exit_2" ]
+    [ "$(cat "$LAUNCHES")" = "$(printf 'new\nold')" ]
+}
+
+@test "rollback: an install reached through a symlink rolls back by its real path" {
+    local real="$BATS_TEST_TMPDIR/real"
+    mkdir -p "$real"
+    mv "$INSTALL" "$PREVIOUS" "$real/"
+    rmdir "$BATS_TEST_TMPDIR/opt"
+    ln -s "$real" "$BATS_TEST_TMPDIR/opt"
+    set_app "$INSTALL" 'exit 3'
+    # The app names its install by /proc/self/exe: the resolved path.
+    printf 'install_dir=%s\nprevious_dir=%s\nfrom_version=1.0.0\nto_version=1.1.0\n' \
+        "$real/helixscreen" "$real/helixscreen.old" > "$HELIX_ROLLBACK_DIR/update_rollback.armed"
+    launch
+    [ "$(cat "$real/helixscreen/TREE")" = "old" ]
+    [ -L "$BATS_TEST_TMPDIR/opt" ]
+    [ ! -e "$real/helixscreen.old" ]
+    [ "$(reason)" = "exit_3" ]
+}
+
+@test "rollback: an unusable marker at the install restart still relaunches the new version" {
+    # Before the guard, the watchdog respawned in place here; the launcher must
+    # never leave the screen dark instead.
+    set_app "$INSTALL" "if [ ! -e '$BATS_TEST_TMPDIR/installed' ]; then
+    touch '$BATS_TEST_TMPDIR/installed'
+    printf 'install_dir=/somewhere/else\\nprevious_dir=%s\\n' '$PREVIOUS' > '$HELIX_ROLLBACK_DIR/update_rollback.armed'
+fi
+exit 0"
+    launch
+    [ "$(cat "$LAUNCHES")" = "$(printf 'new\nnew')" ]
+    [ ! -e "$HELIX_ROLLBACK_DIR/update_rollback.armed" ]
+    # Nothing will restore the kept copy, so it does not linger.
+    [ ! -e "$PREVIOUS" ]
 }
 
 @test "rollback: the install restart hands over to a guarded launch" {
@@ -178,14 +276,15 @@ touch '$HELIX_ROLLBACK_DIR/update_rollback.healthy'; sleep 2; exit 0"
     [ "$(cat "$LAUNCHES")" = "new" ]
 }
 
-@test "rollback: a marker for another install path is dropped untouched" {
+@test "rollback: a marker for another install path is dropped, and its unused kept copy removed" {
     set_app "$INSTALL" 'exit 0'
     printf 'install_dir=/somewhere/else\nprevious_dir=%s\n' "$PREVIOUS" \
         > "$HELIX_ROLLBACK_DIR/update_rollback.armed"
     launch
     [ "$(cat "$INSTALL/TREE")" = "new" ]
-    [ -d "$PREVIOUS" ]
+    [ ! -e "$PREVIOUS" ]
     [ ! -e "$HELIX_ROLLBACK_DIR/update_rollback.armed" ]
+    [ "$(cat "$LAUNCHES")" = "new" ]
 }
 
 @test "rollback: no watchdog, no guard advertised" {
