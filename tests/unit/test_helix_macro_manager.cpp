@@ -316,10 +316,11 @@ TEST_CASE("MacroManager - the forwarded content has one section per name", "[con
 
 TEST_CASE("MacroManager - the forwarders leave the pack version alone", "[config][content]") {
     PrinterDiscovery forwarded;
-    forwarded.parse_objects(json::array(
-        {"gcode_macro HELIX_READY", "gcode_macro _HELIX_READY", "gcode_macro _HELIX_STATE",
-         "gcode_macro _HELIX_PLAN", "gcode_macro HELIX_START_PRINT",
-         "gcode_macro HELIX_UNLOAD_FILAMENT", "gcode_macro HELIX_MATERIAL_OFFSET"}));
+    forwarded.parse_objects(
+        json::array({"gcode_macro HELIX_READY", "gcode_macro _HELIX_READY",
+                     "gcode_macro _HELIX_STATE", "gcode_macro _HELIX_PLAN",
+                     "gcode_macro HELIX_START_PRINT", "gcode_macro HELIX_UNLOAD_FILAMENT",
+                     "gcode_macro HELIX_MATERIAL_OFFSET", "gcode_macro _HELIX_MATERIAL_PA"}));
 
     CHECK(MacroManager::evaluate_status(forwarded) == MacroInstallStatus::INSTALLED);
 }
@@ -329,18 +330,18 @@ TEST_CASE("MacroManager - the hidden pack still reads as the current version",
     // The pack's version is inferred from which macros exist, and a printer on
     // the hidden names must not be offered an update for lacking HELIX_READY.
     PrinterDiscovery hidden;
-    hidden.parse_objects(
-        json::array({"gcode_macro _HELIX_STATE", "gcode_macro _HELIX_READY",
-                     "gcode_macro HELIX_START_PRINT", "gcode_macro HELIX_CLEAN_NOZZLE",
-                     "gcode_macro HELIX_BED_MESH_IF_NEEDED", "gcode_macro HELIX_UNLOAD_FILAMENT",
-                     "gcode_macro _HELIX_PLAN", "gcode_macro HELIX_MATERIAL_OFFSET"}));
+    hidden.parse_objects(json::array(
+        {"gcode_macro _HELIX_STATE", "gcode_macro _HELIX_READY", "gcode_macro HELIX_START_PRINT",
+         "gcode_macro HELIX_CLEAN_NOZZLE", "gcode_macro HELIX_BED_MESH_IF_NEEDED",
+         "gcode_macro HELIX_UNLOAD_FILAMENT", "gcode_macro _HELIX_PLAN",
+         "gcode_macro HELIX_MATERIAL_OFFSET", "gcode_macro _HELIX_MATERIAL_PA"}));
 
     CHECK(MacroManager::evaluate_status(hidden) == MacroInstallStatus::INSTALLED);
 }
 
 TEST_CASE("MacroManager - the pack carries the plan signals, hidden only", "[config][content]") {
     const std::string pack = MacroManager::get_macro_content();
-    CHECK(pack.rfind("# helix_macros v2.3.0", 0) == 0);
+    CHECK(pack.rfind("# helix_macros v2.4.0", 0) == 0);
     for (const char* section :
          {"_HELIX_PLAN", "_HELIX_PHASE_SOAKING", "_HELIX_PHASE_HEATING_CHAMBER"}) {
         INFO(section);
@@ -359,7 +360,8 @@ TEST_CASE("MacroManager - the pack carries the plan signals, hidden only", "[con
     CHECK(shipped.find("[gcode_macro HELIX_PLAN]") == std::string::npos);
 }
 
-TEST_CASE("MacroManager - the material offset macro marks the 2.3.0 pack", "[config][content]") {
+TEST_CASE("MacroManager - the material macros mark the 2.3.0 and 2.4.0 packs",
+          "[config][content]") {
     auto discovered = [](std::vector<const char*> extra) {
         json objects =
             json::array({"gcode_macro _HELIX_STATE", "gcode_macro _HELIX_READY",
@@ -375,6 +377,9 @@ TEST_CASE("MacroManager - the material offset macro marks the 2.3.0 pack", "[con
     };
     CHECK(MacroManager::evaluate_status(discovered({})) == MacroInstallStatus::OUTDATED);
     CHECK(MacroManager::evaluate_status(discovered({"gcode_macro HELIX_MATERIAL_OFFSET"})) ==
+          MacroInstallStatus::OUTDATED);
+    CHECK(MacroManager::evaluate_status(discovered(
+              {"gcode_macro HELIX_MATERIAL_OFFSET", "gcode_macro _HELIX_MATERIAL_PA"})) ==
           MacroInstallStatus::INSTALLED);
 }
 

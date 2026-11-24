@@ -14,8 +14,6 @@
 
 namespace helix::pa {
 
-namespace {
-
 const char* model_name(ModelKind kind) {
     switch (kind) {
     case ModelKind::Recipr:
@@ -28,6 +26,8 @@ const char* model_name(ModelKind kind) {
     }
     return "linear";
 }
+
+namespace {
 
 const char* param_name(NlParam p) {
     switch (p) {

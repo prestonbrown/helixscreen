@@ -34,6 +34,8 @@ namespace {
 helix::WidgetSubjects s_subjects{"MaterialZOffsetState"};
 helix::Subject s_status;
 helix::Subject s_enabled;
+helix::Subject s_pa_ready;
+helix::Subject s_pa_enabled;
 helix::Subject s_rev;
 
 /// A save whose file changes under it is edited again this many times in all.
@@ -47,6 +49,10 @@ constexpr uint64_t kMaxScannedBytes = 1024 * 1024;
 
 std::string enabled_key(const Config& config) {
     return config.df() + "material_z_offset/enabled";
+}
+
+std::string pa_enabled_key(const Config& config) {
+    return config.df() + "material_pa/enabled";
 }
 
 std::string slicer_step_key(const Config& config) {
@@ -92,6 +98,8 @@ void MaterialZOffsetState::init_subjects() {
     s_subjects.ensure_init([] {
         UI_MANAGED_SUBJECT_INT(s_status, 0, "material_zoffset_status", s_subjects);
         UI_MANAGED_SUBJECT_INT(s_enabled, 0, "material_zoffset_enabled", s_subjects);
+        UI_MANAGED_SUBJECT_INT(s_pa_ready, 0, "material_pa_ready", s_subjects);
+        UI_MANAGED_SUBJECT_INT(s_pa_enabled, 0, "material_pa_enabled", s_subjects);
         UI_MANAGED_SUBJECT_INT(s_rev, 0, "material_zoffset_rev", s_subjects);
     });
     publish();
@@ -111,6 +119,8 @@ void MaterialZOffsetState::publish() {
     }
     lv_subject_set_int(&s_status, static_cast<int>(status()));
     lv_subject_set_int(&s_enabled, enabled() ? 1 : 0);
+    lv_subject_set_int(&s_pa_ready, pa_ready() ? 1 : 0);
+    lv_subject_set_int(&s_pa_enabled, pa_enabled() ? 1 : 0);
 }
 
 void MaterialZOffsetState::bump() {
@@ -199,6 +209,87 @@ void MaterialZOffsetState::reconcile(IMoonrakerAPI* api) {
     if (status() == Status::Ready && table_.enabled != enabled()) {
         send_enable(api, enabled());
     }
+    if (pa_ready() && table_.pa_enabled != pa_enabled()) {
+        send_pa_enable(api, pa_enabled());
+    }
+}
+
+bool MaterialZOffsetState::pa_ready() const {
+    return pressure_advance_ready(hw());
+}
+
+bool MaterialZOffsetState::pa_enabled() const {
+    const Config* config = Config::get_instance();
+    return config && config->get<bool>(pa_enabled_key(*config), false);
+}
+
+void MaterialZOffsetState::set_pa_enabled(IMoonrakerAPI* api, bool on) {
+    Config* config = Config::get_instance();
+    if (config && on != pa_enabled()) {
+        config->set<bool>(pa_enabled_key(*config), on);
+        config->save();
+        spdlog::info("[MaterialPA] Pressure advance by material {}", on ? "on" : "off");
+    }
+    send_pa_enable(api, on);
+    bump();
+}
+
+void MaterialZOffsetState::send_pa_enable(IMoonrakerAPI* api, bool on) {
+    if (!api || !pa_ready()) {
+        return;
+    }
+    api->execute_gcode(
+        material_pa::enable_gcode(on), nullptr,
+        [](const MoonrakerError& err) {
+            spdlog::warn("[MaterialPA] Could not switch the start macro: {}", err.message);
+        },
+        0, /*silent=*/true, nullptr, /*caller_surfaces_errors=*/false);
+}
+
+void MaterialZOffsetState::save_pa(const std::string& material, const material_pa::Entry& entry,
+                                   Done done) {
+    IMoonrakerAPI* api = get_moonraker_api();
+    if (!api || !pa_ready()) {
+        if (done) {
+            done(false, api ? lv_tr("Update the helper macros to save per material.")
+                            : lv_tr("No printer connection"));
+        }
+        return;
+    }
+    const std::string gcode = material_pa::save_gcode(material, entry);
+    if (gcode.empty()) {
+        if (done) {
+            done(false, fmt::format(fmt::runtime(lv_tr("{} cannot be stored on this printer.")),
+                                    material));
+        }
+        return;
+    }
+    spdlog::info("[MaterialPA] Saving {} pressure advance for {}", pa::model_name(entry.model),
+                 material);
+    const std::string message = fmt::format(
+        fmt::runtime(lv_tr("Saved for {}. Every {} print starts with it.")), material, material);
+    auto saved = [this, message, done]() {
+        Config* config = Config::get_instance();
+        if (config && !pa_enabled()) {
+            config->set<bool>(pa_enabled_key(*config), true);
+            config->save();
+        }
+        bump();
+        if (done) {
+            done(true, message);
+        }
+    };
+    // ERROR_OWNERSHIP_OK: the failure goes to done(), which the result screen shows.
+    api->execute_gcode(gcode, lifetime_.bg_cb("MaterialPA::saved", saved),
+                       lifetime_.bg_cb("MaterialPA::save_failed",
+                                       [done](const MoonrakerError& err) {
+                                           spdlog::error("[MaterialPA] Save failed: {}",
+                                                         err.message);
+                                           if (done) {
+                                               done(false, err.localized_message());
+                                           }
+                                       }),
+                       0, false, nullptr, /*caller_surfaces_errors=*/true);
 }
 
 bool MaterialZOffsetState::switch_disagrees() const {

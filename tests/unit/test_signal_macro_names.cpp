@@ -391,7 +391,7 @@ const json kOldPackObjects =
 const json kCurrentPackObjects =
     json::array({"gcode_macro _HELIX_READY", "gcode_macro _HELIX_STATE", "gcode_macro _HELIX_PLAN",
                  "gcode_macro HELIX_START_PRINT", "gcode_macro HELIX_UNLOAD_FILAMENT",
-                 "gcode_macro HELIX_MATERIAL_OFFSET"});
+                 "gcode_macro HELIX_MATERIAL_OFFSET", "gcode_macro _HELIX_MATERIAL_PA"});
 
 } // namespace
 
