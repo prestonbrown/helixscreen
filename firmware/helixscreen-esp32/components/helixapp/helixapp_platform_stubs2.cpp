@@ -520,7 +520,7 @@ void UpdateChecker::init() {
 }
 void UpdateChecker::on_language_changed() {}
 void UpdateChecker::clear_cache() {}
-void UpdateChecker::start_download() {}
+void UpdateChecker::start_download(InstallOrigin) {}
 void UpdateChecker::cancel_download() {}
 lv_subject_t* UpdateChecker::download_status_subject() {
     return &download_status_subject_;
