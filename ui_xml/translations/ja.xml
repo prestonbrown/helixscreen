@@ -1523,6 +1523,7 @@
   <translation tag="Each fan can only be selected once" ja="各ファンは一度のみ選択できます"/>
   <translation tag="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead." ja="このプリンターでは各ツールヘッドが自分の Z-offset を持ちます。代わりにツールオフセット校正を使ってください。"/>
   <translation tag="Each tap sets a new value from this layer up." ja="タップするたびに、この層から上の値が新しくなります。"/>
+  <translation tag="Each tower tunes one value" ja="各タワーで 1 つの値を調整"/>
   <translation tag="Edit" ja="編集"/>
   <translation tag="Edit Filament" ja="フィラメントを編集"/>
   <translation tag="Edit Slot" ja="スロットを編集"/>
@@ -4388,6 +4389,7 @@
   <translation tag="Set and watch the bed temperature" ja="ベッド温度の設定と監視"/>
   <translation tag="Set and watch the chamber temperature" ja="チャンバー温度の設定と監視"/>
   <translation tag="Set and watch the nozzle temperature" ja="ノズル温度の設定と監視"/>
+  <translation tag="Set both heights" ja="両方の高さを設定"/>
   <translation tag="Set duration between 1 and {} minutes" ja="時間は 1〜{} 分にしてください"/>
   <translation tag="Set how bright the screen is and when it rests. You can change any of these later in Settings." ja="画面の明るさと休止するタイミングを設定します。すべて後で「設定」から変更できます。"/>
   <translation tag="Set local timezone for time display" ja="時刻表示用のローカルタイムゾーンを設定"/>

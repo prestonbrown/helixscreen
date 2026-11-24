@@ -1676,6 +1676,7 @@ translations:
   Each fan can only be selected once: Каждый вентилятор можно выбрать только один раз
   Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: 'У каждой печатающей головки на этом принтере своё Z-смещение. Используйте калибровку смещений инструментов.'
   Each tap sets a new value from this layer up.: "Каждое касание задаёт новое значение начиная с этого слоя."
+  Each tower tunes one value: "Каждая башня настраивает одно значение"
   Edit: Редактировать
   Edit Filament: Редактировать филамент
   Edit Slot: Редактировать слот
@@ -4614,6 +4615,7 @@ translations:
   Set and watch the bed temperature: Установка и контроль температуры стола
   Set and watch the chamber temperature: Установка и контроль температуры камеры
   Set and watch the nozzle temperature: Установка и контроль температуры сопла
+  Set both heights: "Задайте обе высоты"
   Set duration between 1 and {} minutes: 'Установите длительность от 1 до {} минут'
   Set how bright the screen is and when it rests. You can change any of these later in Settings.: 'Настройте яркость экрана и когда он отдыхает. Всё это можно изменить позже в Настройках.'
   Set local timezone for time display: Установить часовой пояс для отображения времени

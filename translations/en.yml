@@ -1609,6 +1609,7 @@ translations:
   Each fan can only be selected once: Each fan can only be selected once
   Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: 'Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.'
   Each tap sets a new value from this layer up.: Each tap sets a new value from this layer up.
+  Each tower tunes one value: Each tower tunes one value
   Edit: Edit
   Edit Filament: Edit Filament
   Edit Slot: Edit Slot
@@ -4507,6 +4508,7 @@ translations:
   Set and watch the bed temperature: Set and watch the bed temperature
   Set and watch the chamber temperature: Set and watch the chamber temperature
   Set and watch the nozzle temperature: Set and watch the nozzle temperature
+  Set both heights: Set both heights
   Set duration between 1 and {} minutes: Set duration between 1 and {} minutes
   Set how bright the screen is and when it rests. You can change any of these later in Settings.: Set how bright the screen is and when it rests. You can change any of these later in Settings.
   Set local timezone for time display: Set local timezone for time display

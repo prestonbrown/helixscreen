@@ -1523,6 +1523,7 @@
   <translation tag="Each fan can only be selected once" it="Ogni ventola può essere selezionata solo una volta"/>
   <translation tag="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead." it="Ogni testina ha il proprio Z-offset su questa stampante. Usa invece la calibrazione dell&apos;offset utensile."/>
   <translation tag="Each tap sets a new value from this layer up." it="Ogni tocco imposta un nuovo valore da questo strato in su."/>
+  <translation tag="Each tower tunes one value" it="Ogni torre regola un valore"/>
   <translation tag="Edit" it="Modifica"/>
   <translation tag="Edit Filament" it="Modifica filamento"/>
   <translation tag="Edit Slot" it="Modifica Slot"/>
@@ -4388,6 +4389,7 @@
   <translation tag="Set and watch the bed temperature" it="Imposta e monitora la temperatura piano"/>
   <translation tag="Set and watch the chamber temperature" it="Imposta e monitora la temperatura camera"/>
   <translation tag="Set and watch the nozzle temperature" it="Imposta e monitora la temperatura ugello"/>
+  <translation tag="Set both heights" it="Imposta entrambe le altezze"/>
   <translation tag="Set duration between 1 and {} minutes" it="Imposta una durata tra 1 e {} minuti"/>
   <translation tag="Set how bright the screen is and when it rests. You can change any of these later in Settings." it="Scegli la luminosità dello schermo e quando va a riposo. Puoi cambiare tutto più tardi in Impostazioni."/>
   <translation tag="Set local timezone for time display" it="Imposta fuso orario locale per l&apos;ora"/>

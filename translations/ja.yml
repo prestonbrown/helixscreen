@@ -1616,6 +1616,7 @@ translations:
   Each fan can only be selected once: 各ファンは一度のみ選択できます
   Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: 'このプリンターでは各ツールヘッドが自分の Z-offset を持ちます。代わりにツールオフセット校正を使ってください。'
   Each tap sets a new value from this layer up.: "タップするたびに、この層から上の値が新しくなります。"
+  Each tower tunes one value: "各タワーで 1 つの値を調整"
   Edit: 編集
   Edit Filament: フィラメントを編集
   Edit Slot: スロットを編集
@@ -4534,6 +4535,7 @@ translations:
   Set and watch the bed temperature: ベッド温度の設定と監視
   Set and watch the chamber temperature: チャンバー温度の設定と監視
   Set and watch the nozzle temperature: ノズル温度の設定と監視
+  Set both heights: "両方の高さを設定"
   Set duration between 1 and {} minutes: '時間は 1〜{} 分にしてください'
   Set how bright the screen is and when it rests. You can change any of these later in Settings.: '画面の明るさと休止するタイミングを設定します。すべて後で「設定」から変更できます。'
   Set local timezone for time display: 時刻表示用のローカルタイムゾーンを設定

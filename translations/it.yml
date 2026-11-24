@@ -1616,6 +1616,7 @@ translations:
   Each fan can only be selected once: Ogni ventola può essere selezionata solo una volta
   Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: 'Ogni testina ha il proprio Z-offset su questa stampante. Usa invece la calibrazione dell''offset utensile.'
   Each tap sets a new value from this layer up.: "Ogni tocco imposta un nuovo valore da questo strato in su."
+  Each tower tunes one value: "Ogni torre regola un valore"
   Edit: Modifica
   Edit Filament: Modifica filamento
   Edit Slot: Modifica Slot
@@ -4534,6 +4535,7 @@ translations:
   Set and watch the bed temperature: Imposta e monitora la temperatura piano
   Set and watch the chamber temperature: Imposta e monitora la temperatura camera
   Set and watch the nozzle temperature: Imposta e monitora la temperatura ugello
+  Set both heights: "Imposta entrambe le altezze"
   Set duration between 1 and {} minutes: 'Imposta una durata tra 1 e {} minuti'
   Set how bright the screen is and when it rests. You can change any of these later in Settings.: 'Scegli la luminosità dello schermo e quando va a riposo. Puoi cambiare tutto più tardi in Impostazioni.'
   Set local timezone for time display: Imposta fuso orario locale per l'ora

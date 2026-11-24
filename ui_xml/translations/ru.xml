@@ -1568,6 +1568,7 @@
   <translation tag="Each fan can only be selected once" ru="Каждый вентилятор можно выбрать только один раз"/>
   <translation tag="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead." ru="У каждой печатающей головки на этом принтере своё Z-смещение. Используйте калибровку смещений инструментов."/>
   <translation tag="Each tap sets a new value from this layer up." ru="Каждое касание задаёт новое значение начиная с этого слоя."/>
+  <translation tag="Each tower tunes one value" ru="Каждая башня настраивает одно значение"/>
   <translation tag="Edit" ru="Редактировать"/>
   <translation tag="Edit Filament" ru="Редактировать филамент"/>
   <translation tag="Edit Slot" ru="Редактировать слот"/>
@@ -4448,6 +4449,7 @@
   <translation tag="Set and watch the bed temperature" ru="Установка и контроль температуры стола"/>
   <translation tag="Set and watch the chamber temperature" ru="Установка и контроль температуры камеры"/>
   <translation tag="Set and watch the nozzle temperature" ru="Установка и контроль температуры сопла"/>
+  <translation tag="Set both heights" ru="Задайте обе высоты"/>
   <translation tag="Set duration between 1 and {} minutes" ru="Установите длительность от 1 до {} минут"/>
   <translation tag="Set how bright the screen is and when it rests. You can change any of these later in Settings." ru="Настройте яркость экрана и когда он отдыхает. Всё это можно изменить позже в Настройках."/>
   <translation tag="Set local timezone for time display" ru="Установить часовой пояс для отображения времени"/>

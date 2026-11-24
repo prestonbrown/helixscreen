@@ -1523,6 +1523,7 @@
   <translation tag="Each fan can only be selected once" en="Each fan can only be selected once"/>
   <translation tag="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead." en="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead."/>
   <translation tag="Each tap sets a new value from this layer up." en="Each tap sets a new value from this layer up."/>
+  <translation tag="Each tower tunes one value" en="Each tower tunes one value"/>
   <translation tag="Edit" en="Edit"/>
   <translation tag="Edit Filament" en="Edit Filament"/>
   <translation tag="Edit Slot" en="Edit Slot"/>
@@ -4388,6 +4389,7 @@
   <translation tag="Set and watch the bed temperature" en="Set and watch the bed temperature"/>
   <translation tag="Set and watch the chamber temperature" en="Set and watch the chamber temperature"/>
   <translation tag="Set and watch the nozzle temperature" en="Set and watch the nozzle temperature"/>
+  <translation tag="Set both heights" en="Set both heights"/>
   <translation tag="Set duration between 1 and {} minutes" en="Set duration between 1 and {} minutes"/>
   <translation tag="Set how bright the screen is and when it rests. You can change any of these later in Settings." en="Set how bright the screen is and when it rests. You can change any of these later in Settings."/>
   <translation tag="Set local timezone for time display" en="Set local timezone for time display"/>

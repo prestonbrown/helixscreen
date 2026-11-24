@@ -1523,6 +1523,7 @@
   <translation tag="Each fan can only be selected once" zh="每个风扇只能选择一次"/>
   <translation tag="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead." zh="此打印机的每个工具头都有自己的 Z 偏移。请改用工具偏移校准。"/>
   <translation tag="Each tap sets a new value from this layer up." zh="每次点按都会从这一层起设置新值。"/>
+  <translation tag="Each tower tunes one value" zh="每座塔调整一个值"/>
   <translation tag="Edit" zh="编辑"/>
   <translation tag="Edit Filament" zh="编辑耗材"/>
   <translation tag="Edit Slot" zh="编辑槽位"/>
@@ -4388,6 +4389,7 @@
   <translation tag="Set and watch the bed temperature" zh="设置并监控热床温度"/>
   <translation tag="Set and watch the chamber temperature" zh="设置并监控腔体温度"/>
   <translation tag="Set and watch the nozzle temperature" zh="设置并监控喷嘴温度"/>
+  <translation tag="Set both heights" zh="设置两个高度"/>
   <translation tag="Set duration between 1 and {} minutes" zh="请设置 1 到 {} 分钟之间的时长"/>
   <translation tag="Set how bright the screen is and when it rests. You can change any of these later in Settings." zh="设置屏幕亮度以及何时休眠。以后可在“设置”中更改。"/>
   <translation tag="Set local timezone for time display" zh="设置本地时区以显示时间"/>

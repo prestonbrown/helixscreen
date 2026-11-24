@@ -1616,6 +1616,7 @@ translations:
   Each fan can only be selected once: 每个风扇只能选择一次
   Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: '此打印机的每个工具头都有自己的 Z 偏移。请改用工具偏移校准。'
   Each tap sets a new value from this layer up.: "每次点按都会从这一层起设置新值。"
+  Each tower tunes one value: "每座塔调整一个值"
   Edit: 编辑
   Edit Filament: 编辑耗材
   Edit Slot: 编辑槽位
@@ -4534,6 +4535,7 @@ translations:
   Set and watch the bed temperature: 设置并监控热床温度
   Set and watch the chamber temperature: 设置并监控腔体温度
   Set and watch the nozzle temperature: 设置并监控喷嘴温度
+  Set both heights: "设置两个高度"
   Set duration between 1 and {} minutes: '请设置 1 到 {} 分钟之间的时长'
   Set how bright the screen is and when it rests. You can change any of these later in Settings.: '设置屏幕亮度以及何时休眠。以后可在“设置”中更改。'
   Set local timezone for time display: 设置本地时区以显示时间
