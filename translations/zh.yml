@@ -784,6 +784,7 @@ translations:
   Calibration & Tools: 校准与工具
   Calibration Complete!: 校准完成！
   Calibration Failed: 校准失败
+  Calibration Outcome: '校准结果'
   Calibration Saved: 校准已保存
   Calibration and system configuration: '校准与系统配置'
   Calibration canceled.: 校准已取消。
@@ -828,6 +829,7 @@ translations:
   Cancel print: '取消打印'
   Cancel sent. The printer finishes its start sequence, then stops before printing.: '已发送取消。打印机会先完成启动流程，然后在打印前停止。'
   Canceled: 已取消
+  Canceled From: '取消来源'
   Canceling turns the chamber target off so the wait ends, then stops the print.: '取消会关闭腔体目标温度以结束等待，然后停止打印。'
   'Cannot add to queue: internal error': '无法添加到队列：内部错误'
   Cannot be changed from here on a multi-unit MMU: 多单元 MMU 无法在此处更改
@@ -1265,6 +1267,7 @@ translations:
   Could not answer the connection request: '无法响应连接请求'
   'Could not check {} - it stays in the queue': '无法检查 {} – 保留在队列中'
   Cut: "剪切"
+  'During Print: ': '打印期间: '
   ? "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip."
   : "打印时，您可以看到每个加热器、风扇和灯的状态标签、启动流程清单，以及集中在一条栏中的进度和控制按钮。"
   "Every screen and setting explained": "每个界面和设置的说明"
@@ -1909,6 +1912,7 @@ translations:
   'Failed to upload the rewritten G-code: {}': 上传改写后的 G-code 失败：{}
   'Failed: {}': '失败：{}'
   'Failed: {}. Saves {}': '失败：{}。将保存 {}'
+  Failure Reason: '失败原因'
   'Faint lines: compensation off. Bright lines: compensation on.': '浅色线条：补偿关闭。亮色线条：补偿开启。'
   Fair match: "匹配中等"
   Fan: 风扇
@@ -1960,6 +1964,7 @@ translations:
   Filament Mapping is unavailable: 耗材映射不可用
   Filament Mapping isn't supported on this printer, so the print uses the tools assigned on the printer: 此打印机不支持耗材映射，因此打印将使用打印机上分配的工具
   Filament Runout: 耗材用尽
+  Filament Operation: '耗材操作'
   Filament Operations: 耗材操作
   Filament Sensor: 耗材传感器
   Filament Sensors: '耗材传感器'
@@ -3435,6 +3440,7 @@ translations:
   This filament system keeps its own spool records: "此耗材系统自行管理料盘记录"
   AFC has no Spoolman configured: "AFC 未设置 Spoolman"
   Opened: 已打开
+  Operation: '操作'
   Operation already in progress: 操作正在进行中
   Operation timed out: 操作超时
   Operations: 操作
@@ -3843,6 +3849,7 @@ translations:
   Profile names cannot contain ';': "配置名称不能包含 ';'"
   Profile renamed: 配置文件已重命名
   Profiles: 配置
+  Progress: '进度'
   Progress, file, and time remaining: 进度、文件和剩余时间
   Prompt before running this macro: 运行此宏前询问
   Provide a boolean {}: '请为 {} 提供布尔值'
@@ -5535,6 +5542,7 @@ translations:
   Timelapse rendered successfully: 延时视频渲染成功
   Timelapse videos: '延时摄影视频'
   Timeout: '超时'
+  Times: '次数'
   Timezone: 时区
   Tip Forming: '尖端成型'
   Tip Forming Failed: '料尖成型失败'
@@ -6311,6 +6319,7 @@ translations:
   '{} MCUs': '{} 个 MCU'
   '{} MPC': '{} MPC'
   '{} PID': '{} PID'
+  '{} Sensor': '{}传感器'
   '{} Settings': '{}设置'
   '{} Tools': '{} 个工具'
   '{} accelerometers': '{} 个加速度传感器'

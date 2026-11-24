@@ -59,13 +59,17 @@ export type HealthRowKey =
   | "release_devices_cur" | "release_devices_prev"
   | "prints_cur" | "prints_prev"
   | "print_sessions_cur" | "print_sessions_prev"
-  | "errors_cur" | "errors_prev" | "errors_baseline"
+  | "errors_cur" | "errors_prev" | "errors_baseline" | "errors_by_device"
   | "crashes_cur" | "crashes_prev"
   | "cdn_latest" | "kind_days";
 
 /** An error rises when this week is at least this multiple of last week and at least RISING_MIN_COUNT. */
 const RISING_FACTOR = 2;
-const RISING_MIN_COUNT = 5;
+export const RISING_MIN_COUNT = 5;
+/** An error reported by fewer distinct devices than this never rises: one device is not a trend. */
+export const RISING_MIN_DEVICES = 2;
+/** An error never rises when one device accounts for more than this share of its count. */
+export const RISING_MAX_DEVICE_SHARE = 0.5;
 
 /** A kind is low when its latest complete day is under this share of its median. */
 const LOW_SHARE = 0.5;
@@ -170,6 +174,13 @@ export function buildHealth(
   const errKey = (x: RawRow) => `${str(x.category)}\u0000${str(x.code)}`;
   const errPrev = new Map(r("errors_prev").map((x) => [errKey(x), num(x.count)]));
   const errBaseline = new Set(r("errors_baseline").map(errKey));
+  // The busiest device's count per code; a code with no row here has no device over the query's floor.
+  const errTopDevice = new Map<string, number>();
+  for (const x of r("errors_by_device")) {
+    errTopDevice.set(errKey(x), Math.max(errTopDevice.get(errKey(x)) ?? 0, num(x.count)));
+  }
+  const risesBeyondOneDevice = (key: string, cur: number, devices: number): boolean =>
+    devices >= RISING_MIN_DEVICES && (errTopDevice.get(key) ?? 0) <= RISING_MAX_DEVICE_SHARE * cur;
   const errors = r("errors_cur")
     .filter((x) => num(x.count) > 0)
     .map((x) => {
@@ -177,7 +188,7 @@ export function buildHealth(
       const prev = errPrev.get(errKey(x)) ?? 0;
       const status: HealthPayload["errors"][number]["status"] = !errBaseline.has(errKey(x))
         ? "new"
-        : cur >= RISING_FACTOR * prev && cur >= RISING_MIN_COUNT
+        : cur >= RISING_FACTOR * prev && cur >= RISING_MIN_COUNT && risesBeyondOneDevice(errKey(x), cur, num(x.devices))
           ? "rising"
           : "steady";
       return { category: str(x.category), code: str(x.code), cur, prev, devices: num(x.devices), status };

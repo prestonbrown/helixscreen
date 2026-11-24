@@ -261,6 +261,12 @@ class InputShaperCalibrator {
         return results_;
     }
 
+    /// Moonraker's untranslated error text behind the last on_error, for
+    /// classifying the failure; empty when the failure was the calibrator's own.
+    [[nodiscard]] const std::string& last_error_cause() const {
+        return last_error_cause_;
+    }
+
     /**
      * @brief Apply input shaper settings to printer
      *
@@ -288,6 +294,7 @@ class InputShaperCalibrator {
     IMoonrakerAPI* api_ = nullptr; ///< Non-owning pointer to API
     State state_ = State::IDLE;
     CalibrationResults results_;
+    std::string last_error_cause_;
 
     /**
      * @brief Async callback safety guard for ensure_homed_then().

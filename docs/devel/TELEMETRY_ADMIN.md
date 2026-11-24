@@ -480,6 +480,14 @@ Content-Type: application/json
   the rest of the envelope is not enforced, so older clients keep ingesting
 - Rate limited: 10 requests/min per IP
 - Dual-writes to R2 (permanent) + Analytics Engine (90-day)
+- Per-device flood cap: a device may add at most `ERROR_EVENTS_PER_DEVICE_PER_DAY` (100,
+  `src/flood_cap.ts`) `error_encountered` events a UTC day to Analytics Engine, so one device cannot
+  swamp an error code's totals. R2 keeps the raw batch whole. The tally is one small object per device
+  per day at `caps/errors/YYYY-MM-DD/<device_id>.json` (`{"stored": n, "dropped": n}`), read and written
+  once per request that carries that device's error events; list it with `wrangler r2 object` or the R2
+  dashboard to see who flooded and how much was dropped. The response gains `"capped": n` when events
+  were dropped. Concurrent requests can overshoot the cap by a few events, and an R2 failure leaves the
+  events uncapped. The daily 02:10 snapshot cron deletes tallies older than `TALLY_KEEP_DAYS` (3) days. Before deleting a tally that dropped events it writes one `error_flood` point to Analytics Engine (`blob1` device_id, `blob2` day, `double1` dropped), so the dropped counts stay queryable for the 90-day window; the worker writes this kind itself and no client event maps to it.
 
 ### Admin Endpoints (all require `X-API-Key: <ADMIN_API_KEY>`)
 
@@ -531,6 +539,8 @@ The 02:10 cron is the unrelated CDN snapshot. Each loop run is isolated: a failu
 ### Findings and thresholds
 
 `findings.ts` turns the Health payload and the update-failure groups into findings. Each finding has a kind (crash cluster, error code, update failure, release regression, data health, printer), a fingerprint, and the actions it earns: every finding appears in the report, some also raise an alert or file an issue. Every number that decides this lives in `server/telemetry-worker/src/loop/thresholds.ts`, with a comment each; change them there and nowhere else. That file also holds the cap on new issues per run (the rest wait for the next run) and the alert repeat interval.
+
+An error code is `rising` only when its week count is at least `RISING_FACTOR` (2) times last week's and at least `RISING_MIN_COUNT` (5), at least `RISING_MIN_DEVICES` (2) distinct devices report it, and no single device accounts for more than `RISING_MAX_DEVICE_SHARE` (half) of the count (`src/health.ts`; the per-device counts come from the `errors_by_device` query). A code held back by those tests reads `steady`, so one stuck device cannot raise a trend alert.
 
 A crash cluster finding is one (signal, fault code, version), summed across boards: the Health payload splits a cluster by board, and since a device reports one board, the per-board device counts add up exactly. The finding lists its boards, files at `CLUSTER_ISSUE_DEVICES` summed devices, and alerts only when no board saw the crash the week before. A run handles each fingerprint once. Its issue body names the prefix (`<SIGNAL>/<version>/`) that the crash worker's fingerprint gives matching crash-report issues, with a `label:crash` search for it, so a report can be linked by hand.
 
@@ -856,6 +866,7 @@ Fired when `MemoryMonitor` detects a threshold breach. Rate-limited to at most o
   "timestamp": "<ISO8601>",
   "level": "warning",
   "reason": "RSS 185MB exceeds warning threshold 180MB",
+  "reason_code": "rss_warning",
   "uptime_sec": 3600,
   "rss_kb": 189440,
   "vm_size_kb": 524288,
@@ -877,6 +888,8 @@ Fired when `MemoryMonitor` detects a threshold breach. Rate-limited to at most o
   ]
 }
 ```
+
+`reason` is free text with the measurements in it, so it never groups. `reason_code` is the stable id of the band that set the level (`rss_critical`, `rss_warning`, `available_critical`, `available_warning`, `growth`, `sustained_low_available`, `hysteresis`; `src/system/memory_monitor.cpp#memory_pressure_cause_code`). Analytics Engine stores the code in `blob5` (`reason`) instead of the text: the worker uses the client's `reason_code`, or, when it is absent or not one of those seven, derives the same code from the text (`memoryReasonCode` in the worker's `schema.ts`; unknown wording becomes a slug of its words with the numbers dropped). `blob5` holds a reason code from the first worker deploy after 1.2.0-beta.1 on; older rows hold the client's text.
 
 `top_processes` is present at `warning` and `critical` only: each process named by `telemetry_process_name()` and its RSS. A comm is free text chosen by whoever built the binary, so it is sent only when it names a program on the fixed list in `kKnownPrograms` (`src/system/memory_utils.cpp#telemetry_process_name`) (HelixScreen, the Klipper stack, camera streamers, stock vendor UIs, the daemons of printer-host images), matched on the first 15 characters as the kernel keeps them; any other process is `other`. An interpreter (python, python3, python3.11, node, bash, sh, dash, ash) has its arguments after argv[0] matched against a second fixed list (`klipper`, `moonraker`, `obico`, `klipperscreen`, `crowsnest`, `octoapp`, `spoolman`), and keeps its interpreter name when none matches. Arguments and paths are never sent. Analytics Engine stores it as `blob13` (`name:MB` joined by commas) and the largest RSS as `double9`.
 

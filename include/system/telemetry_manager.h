@@ -63,6 +63,7 @@
 #include "memory_monitor.h"
 #include "screensaver_usage.h"
 #include "subject_managed_panel.h"
+#include "system/telemetry_outcomes.h"
 
 #include <array>
 #include <atomic>
@@ -134,15 +135,21 @@ const char* gcode_render_mode_name(int mode);
  * @brief Stable telemetry id for an overlay
  *
  * The root object's name is the XML component's identity and does not change
- * with wording or translation; the lifecycle name is the fallback for roots
- * that carry none. Both missing or empty yields "unnamed".
+ * with wording or translation. A root whose XML names none is named
+ * "<component>_#" by the XML engine; the "_#" auto-index marker is dropped so
+ * the id is the component name. The lifecycle name is the fallback for roots
+ * that carry no name at all. Both missing or empty yields "unnamed".
  *
  * @param root_obj_name Overlay root's lv_obj name (may be null)
  * @param lifecycle_name IPanelLifecycle::get_name() (may be null)
  */
 inline std::string overlay_telemetry_id(const char* root_obj_name, const char* lifecycle_name) {
-    if (root_obj_name && *root_obj_name)
-        return root_obj_name;
+    if (root_obj_name && *root_obj_name) {
+        std::string id = root_obj_name;
+        if (id.size() > 2 && id.compare(id.size() - 2, 2, "_#") == 0)
+            id.resize(id.size() - 2);
+        return id;
+    }
     if (lifecycle_name && *lifecycle_name)
         return lifecycle_name;
     return "unnamed";
@@ -165,6 +172,15 @@ struct UpdateFailureDetail {
     int transfer_code = 0;      ///< TransferFailure::code; 0 when there is none
     std::string host;           ///< release host the transfer failed at, or "other"
     std::string install_detail; ///< scrubbed cause line from install.sh's output
+};
+
+/// Why and where a print ended, for a print_outcome event. Every field is a
+/// number or a fixed token; an unset field is left out of the event.
+struct PrintOutcomeDetail {
+    int progress_pct = -1;     ///< highest progress the job reached, 0-100; -1 omits
+    std::string cancel_origin; ///< "in_app" or "external" for a cancel; empty omits
+    /// telemetry::failure_class_name() of why it failed or was canceled; empty omits
+    std::string failure_class;
 };
 
 } // namespace helix
@@ -295,10 +311,12 @@ class TelemetryManager {
      * @param filament_type Filament material (e.g., "PLA", "PETG", "ABS")
      * @param nozzle_temp Target nozzle temperature in degrees C
      * @param bed_temp Target bed temperature in degrees C
+     * @param detail Progress, cancel origin and failure class; unset fields are omitted
      */
     void record_print_outcome(const std::string& outcome, int duration_sec, int phases_completed,
                               float filament_used_mm, const std::string& filament_type,
-                              int nozzle_temp, int bed_temp);
+                              int nozzle_temp, int bed_temp,
+                              const helix::PrintOutcomeDetail& detail = {});
 
     /**
      * @brief Record an update failure event
@@ -483,6 +501,21 @@ class TelemetryManager {
      * the last consume. Used internally by the print telemetry observer.
      */
     bool consume_print_started_in_app();
+
+    /**
+     * @brief Count a print cancel the screen sent as a CANCEL_PRINT macro
+     *
+     * A cancel through IMoonrakerJobAPI::cancel_print() is counted there
+     * (cancels_sent()); every other cancel the screen sends (the configured
+     * cancel macro, a filament system's own cancel) calls this, so a canceled
+     * print_outcome reads cancel_origin "in_app". Thread-safe.
+     */
+    void notify_print_cancel_requested();
+
+    /// How many times notify_print_cancel_requested() has been called. Any thread.
+    [[nodiscard]] uint32_t print_cancels_requested() const {
+        return print_cancels_requested_.load(std::memory_order_relaxed);
+    }
 
     /**
      * @brief Record a non-fatal error event (rate-limited)
@@ -807,6 +840,54 @@ class TelemetryManager {
      */
     std::vector<ObserverGuard> init_print_outcome_observer();
 
+    /**
+     * @brief Record a load, unload or tool change as a filament_op event
+     *
+     * Events are tallies: `count` operations alike in every other field.
+     * Successes are pooled and queued by flush_filament_ops(). A failure or
+     * abort is queued at once, unless one alike was queued within
+     * kFilamentOpRepeatInterval or kMaxFilamentOpFailures were queued this
+     * session; then it is pooled. So a long multicolor print adds a few events,
+     * a stuck retry loop cannot flood the queue, and every operation is counted.
+     * No-op if telemetry is disabled. Thread-safe.
+     *
+     * @param backend ams_type_telemetry_slug() of the filament system
+     */
+    void record_filament_op(const std::string& backend, helix::telemetry::FilamentOp op,
+                            helix::telemetry::FilamentOpOutcome outcome,
+                            helix::telemetry::FilamentOpError error, int duration_sec,
+                            bool during_print);
+
+    /**
+     * @brief Observe the filament system's action and record each operation it
+     *        runs (telemetry::FilamentOpTracker), on whichever backend.
+     *
+     * Call once during initialization, after AmsState's subjects exist.
+     */
+    std::vector<ObserverGuard> init_filament_op_observer();
+
+    /// Queue every pooled filament_op tally. Runs with each periodic snapshot
+    /// and at shutdown. Thread-safe.
+    void flush_filament_ops();
+
+    /**
+     * @brief Record how one calibration step ended (calibration_outcome)
+     *
+     * @param type the step's catalog id (calibration::StepInfo::id, "input_shaper");
+     *        anything but [a-z0-9_]{1,32} is dropped, so no free text is sent
+     * @param failure_class why it failed; None unless @p outcome is Failed
+     *
+     * Measured results stay on the device. No-op if telemetry is disabled.
+     * Thread-safe.
+     */
+    void record_calibration_outcome(const std::string& type,
+                                    helix::telemetry::CalibrationOutcome outcome,
+                                    helix::telemetry::FailureClass failure_class, int duration_sec);
+
+    /// The user asked the filament system to cancel its operation: the one
+    /// running ends as aborted. Main thread.
+    void notify_filament_op_cancel_requested();
+
     // =========================================================================
     // DEVICE ID UTILITIES (public for testing)
     // =========================================================================
@@ -1054,7 +1135,8 @@ class TelemetryManager {
     nlohmann::json build_print_outcome_event(const std::string& outcome, int duration_sec,
                                              int phases_completed, float filament_used_mm,
                                              const std::string& filament_type, int nozzle_temp,
-                                             int bed_temp) const;
+                                             int bed_temp,
+                                             const helix::PrintOutcomeDetail& detail = {}) const;
 
     nlohmann::json build_update_failed_event(const std::string& reason, const std::string& version,
                                              const std::string& platform, int http_code,
@@ -1200,6 +1282,28 @@ class TelemetryManager {
     /// Bucket a duration in seconds into a human-readable range string
     static std::string bucket_duration(int sec);
 
+    /// Bucket a duration of seconds to minutes (a filament operation, a
+    /// calibration step) into a range string
+    static std::string bucket_short_duration(int sec);
+
+    /// One filament_op tally: operations alike in every field but how many.
+    struct FilamentOpTally {
+        std::string backend;
+        helix::telemetry::FilamentOp op{};
+        helix::telemetry::FilamentOpOutcome outcome{};
+        helix::telemetry::FilamentOpError error{};
+        std::string duration_bucket;
+        bool during_print = false;
+        int64_t count = 1;
+    };
+
+    nlohmann::json build_filament_op_event(const FilamentOpTally& tally) const;
+
+    nlohmann::json build_calibration_outcome_event(const std::string& type,
+                                                   helix::telemetry::CalibrationOutcome outcome,
+                                                   helix::telemetry::FailureClass failure_class,
+                                                   int duration_sec) const;
+
     /**
      * @brief Get the double-hashed device identifier
      * @return Hex-encoded hashed device ID for inclusion in events
@@ -1245,6 +1349,9 @@ class TelemetryManager {
 
     /// Set by notify_print_started_in_app(), consumed by print_start_context recording
     std::atomic<bool> print_started_in_app_{false};
+
+    /// Counted by notify_print_cancel_requested()
+    std::atomic<uint32_t> print_cancels_requested_{0};
 
     /// Timestamp of when init() was called (for uptime calculation)
     std::chrono::steady_clock::time_point init_time_{};
@@ -1366,6 +1473,18 @@ class TelemetryManager {
     // Protected by mutex_ — accessed from background threads via record_error().
     std::unordered_map<std::string, std::chrono::steady_clock::time_point> error_rate_limit_;
     static constexpr auto kErrorRateLimitInterval = std::chrono::minutes{5};
+
+    // filament_op pooling. Protected by mutex_.
+    static constexpr int kMaxFilamentOpFailures = 50;
+    static constexpr auto kFilamentOpRepeatInterval = std::chrono::minutes{5};
+    /// Distinct pooled tallies past which the pool is flushed early.
+    static constexpr size_t kMaxPooledFilamentOps = 32;
+    int filament_op_failures_ = 0;
+    /// Last queued time of each failing tally key.
+    std::unordered_map<std::string, std::chrono::steady_clock::time_point>
+        filament_op_last_failure_;
+    /// Pooled tallies by key, built into events when they are queued.
+    std::unordered_map<std::string, FilamentOpTally> filament_op_pool_;
     /// Processes a memory_warning at warning or critical names, largest first.
     static constexpr size_t kTopProcessCount = 3;
 

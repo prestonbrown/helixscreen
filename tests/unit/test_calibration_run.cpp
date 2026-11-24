@@ -453,6 +453,33 @@ TEST_CASE_METHOD(RunFixture, "stop aborts the running step and keeps what finish
     CHECK(run->can_save());
 }
 
+TEST_CASE_METHOD(RunFixture, "each step that ran reports its end once, a stopped one as aborted",
+                 "[calibration_run][telemetry]") {
+    make_run(4);
+    std::vector<std::pair<std::string, StepStatus>> ends;
+    std::string failure;
+    std::string cause;
+    run->set_step_end_sink([&](const CalibrationRun::StepEnd& end) {
+        ends.emplace_back(end.info.id, end.status);
+        if (end.status == StepStatus::Failed) {
+            failure = std::string(end.message);
+            cause = std::string(end.cause);
+        }
+    });
+    run->start();
+    fakes[0]->finish("0.120 mm");
+    // The shown message is translated; the cause is the firmware's own words.
+    fakes[1]->ctx_->done(StepOutcome::failed("Heizungsfehler", "ADC out of range"));
+    run->stop();
+    const std::vector<std::pair<std::string, StepStatus>> want = {
+        {"a", StepStatus::Finished}, {"b", StepStatus::Failed}, {"c", StepStatus::Aborted}};
+    // The step that never ran reports nothing, and the stopped step's own
+    // Aborted report after the stop is not a second end.
+    CHECK(ends == want);
+    CHECK(failure == "Heizungsfehler");
+    CHECK(cause == "ADC out of range");
+}
+
 TEST_CASE_METHOD(RunFixture, "a stop that restarts the firmware loses what finished",
                  "[calibration_run]") {
     make_run(2);
@@ -870,6 +897,25 @@ TEST_CASE_METHOD(RunFixture,
     CHECK(status_of(0) == StepStatus::Finished);
     CHECK(run->entries()[0].result.summary == "Nozzle 22 / 1 / 100 · Bed 14.9 / 0.4 / 140");
     CHECK(fakes[1]->starts == 1);
+}
+
+TEST_CASE_METHOD(RunFixture,
+                 "a failed step the run waits on reports its end once the wait settles it",
+                 "[calibration_run][telemetry]") {
+    make_run(2);
+    auto watch = std::make_unique<FakeBusyWatch>();
+    FakeBusyWatch* busy = watch.get();
+    busy->printer_busy = true;
+    run->set_busy_watch(std::move(watch));
+    std::vector<StepStatus> ends;
+    run->set_step_end_sink([&](const CalibrationRun::StepEnd& end) { ends.push_back(end.status); });
+    run->start();
+    fakes[0]->late = StepOutcome::finished({"Nozzle 22 / 1 / 100", {}});
+    fakes[0]->fail("printer still busy");
+    CHECK(ends.empty());
+    busy->go_idle();
+    REQUIRE(ends.size() == 1);
+    CHECK(ends[0] == StepStatus::Finished);
 }
 
 TEST_CASE("the PID gains Klipper staged are read from the pending config", "[calibration_run]") {

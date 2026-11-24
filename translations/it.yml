@@ -784,6 +784,7 @@ translations:
   Calibration & Tools: Calibrazione e Strumenti
   Calibration Complete!: Calibrazione completata!
   Calibration Failed: Calibrazione fallita
+  Calibration Outcome: 'Esito calibrazione'
   Calibration Saved: Calibrazione salvata
   Calibration and system configuration: 'Calibrazione e configurazione di sistema'
   Calibration canceled.: Calibrazione annullata.
@@ -828,6 +829,7 @@ translations:
   Cancel print: 'Annulla stampa'
   Cancel sent. The printer finishes its start sequence, then stops before printing.: 'Annullamento inviato. La stampante completa la sequenza di avvio, poi si ferma prima di stampare.'
   Canceled: Annullato
+  Canceled From: 'Annullato da'
   Canceling turns the chamber target off so the wait ends, then stops the print.: 'L''annullamento spegne il target della camera per terminare l''attesa, poi ferma la stampa.'
   'Cannot add to queue: internal error': 'Impossibile aggiungere alla coda: errore interno'
   Cannot be changed from here on a multi-unit MMU: Non modificabile da qui su un MMU multi-unità
@@ -1265,6 +1267,7 @@ translations:
   Could not answer the connection request: 'Impossibile rispondere alla richiesta di connessione'
   'Could not check {} - it stays in the queue': 'Impossibile verificare {} – resta in coda'
   Cut: "Taglia"
+  'During Print: ': 'Durante la stampa: '
   ? "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip."
   : "Durante la stampa vedi un indicatore per ogni riscaldatore, ventola e luce, l'elenco della sequenza di avvio, e avanzamento e comandi in un'unica barra."
   "Every screen and setting explained": "Ogni schermata e impostazione spiegata"
@@ -1909,6 +1912,7 @@ translations:
   'Failed to upload the rewritten G-code: {}': 'Caricamento del G-code riscritto fallito: {}'
   'Failed: {}': 'Non riuscito: {}'
   'Failed: {}. Saves {}': 'Non riuscito: {}. Salva {}'
+  Failure Reason: 'Causa dell''errore'
   'Faint lines: compensation off. Bright lines: compensation on.': 'Linee tenui: compensazione disattivata. Linee brillanti: compensazione attivata.'
   Fair match: "Corrispondenza discreta"
   Fan: Ventola
@@ -1960,6 +1964,7 @@ translations:
   Filament Mapping is unavailable: La mappatura filamento non è disponibile
   Filament Mapping isn't supported on this printer, so the print uses the tools assigned on the printer: Questa stampante non supporta la mappatura filamento, quindi la stampa usa gli strumenti assegnati sulla stampante
   Filament Runout: Esaurimento filamento
+  Filament Operation: 'Operazione filamento'
   Filament Operations: Operazioni filamento
   Filament Sensor: Sensore filamento
   Filament Sensors: 'Sensori filamento'
@@ -3435,6 +3440,7 @@ translations:
   This filament system keeps its own spool records: "Questo sistema di filamento gestisce da sé i dati delle bobine"
   AFC has no Spoolman configured: "AFC non ha Spoolman configurato"
   Opened: Aperta
+  Operation: 'Operazione'
   Operation already in progress: Operazione già in corso
   Operation timed out: Timeout dell'operazione
   Operations: Operazioni
@@ -3843,6 +3849,7 @@ translations:
   Profile names cannot contain ';': "I nomi dei profili non possono contenere ';'"
   Profile renamed: Profilo rinominato
   Profiles: Profili
+  Progress: 'Avanzamento'
   Progress, file, and time remaining: Avanzamento, file e tempo rimanente
   Prompt before running this macro: Chiedi prima di eseguire questa macro
   Provide a boolean {}: 'Fornisci un valore booleano per {}'
@@ -5535,6 +5542,7 @@ translations:
   Timelapse rendered successfully: Timelapse renderizzato con successo
   Timelapse videos: 'Video timelapse'
   Timeout: 'Timeout'
+  Times: 'Volte'
   Timezone: Fuso orario
   Tip Forming: 'Formazione della punta'
   Tip Forming Failed: 'Formazione della punta non riuscita'
@@ -6311,6 +6319,7 @@ translations:
   '{} MCUs': '{} MCU'
   '{} MPC': '{} MPC'
   '{} PID': '{} PID'
+  '{} Sensor': 'Sensore {}'
   '{} Settings': 'Impostazioni {}'
   '{} Tools': '{} utensili'
   '{} accelerometers': '{} accelerometri'

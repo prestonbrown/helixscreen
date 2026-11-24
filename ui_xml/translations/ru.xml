@@ -796,6 +796,7 @@
   <translation tag="Calibration &amp; Tools" ru="Калибровка и инструменты"/>
   <translation tag="Calibration Complete!" ru="Калибровка завершена!"/>
   <translation tag="Calibration Failed" ru="Ошибка калибровки"/>
+  <translation tag="Calibration Outcome" ru="Результат калибровки"/>
   <translation tag="Calibration Saved" ru="Калибровка сохранена"/>
   <translation tag="Calibration and system configuration" ru="Калибровка и настройка системы"/>
   <translation tag="Calibration canceled." ru="Калибровка отменена."/>
@@ -840,6 +841,7 @@
   <translation tag="Cancel print" ru="Отменить печать"/>
   <translation tag="Cancel sent. The printer finishes its start sequence, then stops before printing." ru="Отмена отправлена. Принтер завершит стартовую последовательность и остановится до начала печати."/>
   <translation tag="Canceled" ru="Отменено"/>
+  <translation tag="Canceled From" ru="Отменено из"/>
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." ru="Отмена выключит целевую температуру камеры, чтобы ожидание закончилось, затем остановит печать."/>
   <translation tag="Cannot add to queue: internal error" ru="Не удалось добавить в очередь: внутренняя ошибка"/>
   <translation tag="Cannot be changed from here on a multi-unit MMU" ru="Нельзя изменить здесь на MMU с несколькими блоками"/>
@@ -1534,6 +1536,7 @@
   <translation tag="Duplicate command in the configuration" ru="Дублирующаяся команда в конфигурации"/>
   <translation tag="Duplicated" ru="Дублировано"/>
   <translation tag="Duration" ru="Длительность"/>
+  <translation tag="During Print: " ru="Во время печати: "/>
   <translation tag="During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip." ru="Во время печати вы видите индикатор каждого нагревателя, вентилятора и подсветки, список шагов запуска, а также прогресс и управление в одной полосе."/>
   <translation tag="During auto refill, the old filament would not purge out of the toolhead." ru="Во время автопополнения не удалось прочистить печатающую головку от старого филамента."/>
   <translation tag="Dust and old grease on the X and Y rails or rods cause noise, ringing and wear." ru="Пыль и старая смазка на рельсах или валах X и Y вызывают шум, рябь и износ."/>
@@ -1860,6 +1863,7 @@
   <translation tag="Failed to upload the rewritten G-code: {}" ru="Не удалось загрузить переписанный G-code: {}"/>
   <translation tag="Failed: {}" ru="Ошибка: {}"/>
   <translation tag="Failed: {}. Saves {}" ru="Ошибка: {}. Сохранится: {}"/>
+  <translation tag="Failure Reason" ru="Причина сбоя"/>
   <translation tag="Faint lines: compensation off. Bright lines: compensation on." ru="Бледные линии: компенсация выключена. Яркие линии: компенсация включена."/>
   <translation tag="Fair match" ru="Среднее совпадение"/>
   <translation tag="Fan" ru="Вентилятор"/>
@@ -1912,6 +1916,7 @@
   <translation tag="Filament Mapping is not available on this device." ru="Сопоставление филамента недоступно на этом устройстве."/>
   <translation tag="Filament Mapping is unavailable" ru="Сопоставление филамента недоступно"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" ru="Этот принтер не поддерживает сопоставление филамента, поэтому печать использует инструменты, назначенные на принтере"/>
+  <translation tag="Filament Operation" ru="Операция с филаментом"/>
   <translation tag="Filament Operations" ru="Операции с филаментом"/>
   <translation tag="Filament Runout" ru="Окончание филамента"/>
   <translation tag="Filament Sensor" ru="Датчик филамента"/>
@@ -3352,6 +3357,7 @@
   <translation tag="OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here" ru="OpenAMS хранит эту катушку в Spoolman, который здесь принимает только материал, цвет, бренд и вес"/>
   <translation tag="OpenAMS manages this spool&apos;s link" ru="Привязкой этой катушки управляет OpenAMS"/>
   <translation tag="Opened" ru="Открыта"/>
+  <translation tag="Operation" ru="Операция"/>
   <translation tag="Operation already in progress" ru="Операция уже выполняется"/>
   <translation tag="Operation timed out" ru="Время ожидания операции истекло"/>
   <translation tag="Operations" ru="Операции"/>
@@ -3771,6 +3777,7 @@
   <translation tag="Profile names cannot contain &apos;;&apos;" ru="Имена профилей не могут содержать &apos;;&apos;"/>
   <translation tag="Profile renamed" ru="Профиль переименован"/>
   <translation tag="Profiles" ru="Профили"/>
+  <translation tag="Progress" ru="Прогресс"/>
   <translation tag="Progress, file, and time remaining" ru="Прогресс, файл и остаток времени"/>
   <translation tag="Prompt before running this macro" ru="Спрашивать перед запуском этого макроса"/>
   <translation tag="Provide a boolean {}" ru="Укажите логическое значение для {}"/>
@@ -5376,6 +5383,7 @@
   <translation tag="Timelapse rendered successfully" ru="Таймлапс успешно отрендерен"/>
   <translation tag="Timelapse videos" ru="Видео таймлапса"/>
   <translation tag="Timeout" ru="Время ожидания истекло"/>
+  <translation tag="Times" ru="Количество"/>
   <translation tag="Timezone" ru="Часовой пояс"/>
   <translation tag="Tip Forming" ru="Формирование кончика"/>
   <translation tag="Tip Forming Failed" ru="Не удалось сформировать кончик"/>
@@ -6154,6 +6162,7 @@
   <translation tag="{} MCUs" ru="{} MCU"/>
   <translation tag="{} MPC" ru="{} MPC"/>
   <translation tag="{} PID" ru="{} PID"/>
+  <translation tag="{} Sensor" ru="Датчик {}"/>
   <translation tag="{} Settings" ru="Настройки: {}"/>
   <translation tag="{} Tools" ru="Инструментов: {}"/>
   <translation tag="{} accelerometers" ru="Акселерометров: {}"/>

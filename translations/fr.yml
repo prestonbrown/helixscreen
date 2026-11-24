@@ -796,6 +796,7 @@ translations:
   Calibration & Tools: Calibration et outils
   Calibration Complete!: Calibration terminée !
   Calibration Failed: Calibration échouée
+  Calibration Outcome: 'Résultat de calibration'
   Calibration Saved: Calibration enregistrée
   Calibration and system configuration: 'Calibration et configuration système'
   Calibration canceled.: Calibration annulée.
@@ -840,6 +841,7 @@ translations:
   Cancel print: 'Annuler l''impression'
   Cancel sent. The printer finishes its start sequence, then stops before printing.: 'Annulation envoyée. L''imprimante termine sa séquence de démarrage, puis s''arrête avant d''imprimer.'
   Canceled: Annulé
+  Canceled From: 'Annulé depuis'
   Canceling turns the chamber target off so the wait ends, then stops the print.: 'L''annulation coupe la consigne de la chambre pour mettre fin à l''attente, puis arrête l''impression.'
   'Cannot add to queue: internal error': 'Impossible d''ajouter à la file : erreur interne'
   Cannot be changed from here on a multi-unit MMU: Non modifiable ici sur un MMU multi-unités
@@ -1277,6 +1279,7 @@ translations:
   Could not answer the connection request: 'Impossible de répondre à la demande de connexion'
   'Could not check {} - it stays in the queue': 'Impossible de vérifier {} – reste dans la file'
   Cut: "Couper"
+  'During Print: ': 'Pendant l''impression : '
   ? "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip."
   : "Pendant une impression, retrouvez une pastille pour chaque chauffage, ventilateur et lumière, la liste des étapes de démarrage, ainsi que la progression et les commandes dans un seul bandeau."
   "Every screen and setting explained": "Chaque écran et réglage expliqué"
@@ -1921,6 +1924,7 @@ translations:
   'Failed to upload the rewritten G-code: {}': "Échec de l'envoi du G-Code réécrit : {}"
   'Failed: {}': 'Échec : {}'
   'Failed: {}. Saves {}': 'Échec : {}. Enregistre {}'
+  Failure Reason: 'Cause de l''échec'
   'Faint lines: compensation off. Bright lines: compensation on.': 'Lignes pâles : compensation désactivée. Lignes vives : compensation activée.'
   Fair match: "Correspondance moyenne"
   Fan: Ventilateur
@@ -1972,6 +1976,7 @@ translations:
   Filament Mapping is unavailable: Le mappage du filament est indisponible
   Filament Mapping isn't supported on this printer, so the print uses the tools assigned on the printer: Cette imprimante ne prend pas en charge le mappage du filament, l'impression utilise donc les outils attribués sur l'imprimante
   Filament Runout: Fin de filament
+  Filament Operation: 'Opération filament'
   Filament Operations: Opérations filament
   Filament Sensor: Capteur de filament
   Filament Sensors: 'Capteurs de filament'
@@ -3447,6 +3452,7 @@ translations:
   This filament system keeps its own spool records: "Ce système de filament tient ses propres fiches de bobines"
   AFC has no Spoolman configured: "AFC n'a pas de Spoolman configuré"
   Opened: Ouverte
+  Operation: 'Opération'
   Operation already in progress: Opération déjà en cours
   Operation timed out: Délai dépassé pour l'opération
   Operations: Opérations
@@ -3855,6 +3861,7 @@ translations:
   Profile names cannot contain ';': "Les noms de profil ne peuvent pas contenir ';'"
   Profile renamed: Profil renommé
   Profiles: Profils
+  Progress: 'Progression'
   Progress, file, and time remaining: Progression, fichier et temps restant
   Prompt before running this macro: Demander avant d'exécuter cette macro
   Provide a boolean {}: 'Indiquez une valeur booléenne pour {}'
@@ -5547,6 +5554,7 @@ translations:
   Timelapse rendered successfully: Timelapse rendu avec succès
   Timelapse videos: 'Vidéos timelapse'
   Timeout: 'Délai dépassé'
+  Times: 'Nombre'
   Timezone: Fuseau horaire
   Tip Forming: 'Formation de pointe'
   Tip Forming Failed: 'Échec de la formation de la pointe'
@@ -6323,6 +6331,7 @@ translations:
   '{} MCUs': '{} MCU'
   '{} MPC': '{} MPC'
   '{} PID': '{} PID'
+  '{} Sensor': 'Capteur {}'
   '{} Settings': 'Paramètres de {}'
   '{} Tools': '{} outils'
   '{} accelerometers': '{} accéléromètres'

@@ -317,11 +317,12 @@ class HeatersStep : public CalibrationStep {
         failed_index_ = index_;
         failed_mpc_ = mpc_;
         if (summaries_.empty()) {
-            ctx->done(StepOutcome::failed(message));
+            ctx->done(StepOutcome::failed(message, why));
             return;
         }
         // The heaters tuned before this one are staged in Klipper.
-        ctx->done(StepOutcome::failed_after(message, {joined_summary(), values_, joined_brief()}));
+        ctx->done(
+            StepOutcome::failed_after(message, {joined_summary(), values_, joined_brief()}, why));
     }
 
     static std::string joined(const std::vector<std::string>& parts) {
@@ -396,19 +397,21 @@ class BedMeshStep : public CalibrationStep {
                      std::move(values)}));
             }
         };
-        hooks.failed = [this](const std::string& why, const std::string& staged_profile) {
+        hooks.failed = [this](const std::string& why, const std::string& staged_profile,
+                              const std::string& cause) {
             auto* c = take();
             if (!c) {
                 return;
             }
             if (staged_profile.empty()) {
-                c->done(StepOutcome::failed(why));
+                c->done(StepOutcome::failed(why, cause));
                 return;
             }
             c->done(StepOutcome::failed_after(
                 why,
                 {fmt::format(fmt::runtime(lv_tr("a temporary mesh profile '{}'")), staged_profile),
-                 {{"profile", staged_profile}}}));
+                 {{"profile", staged_profile}}},
+                cause));
         };
         hooks.probed = [this](int current, int total) {
             if (!ctx_) {
@@ -508,10 +511,11 @@ class InputShaperStep : public CalibrationStep {
                     c->done(StepOutcome::failed_after(
                         why,
                         {join_shaper_axes(format_shaper_axis(x.shaper_type, x.shaper_freq), ""),
-                         {{"x", {{"type", x.shaper_type}, {"freq", x.shaper_freq}}}}}));
+                         {{"x", {{"type", x.shaper_type}, {"freq", x.shaper_freq}}}}},
+                        calibrator_->last_error_cause()));
                     return;
                 }
-                c->done(StepOutcome::failed(why));
+                c->done(StepOutcome::failed(why, calibrator_->last_error_cause()));
             }));
     }
 

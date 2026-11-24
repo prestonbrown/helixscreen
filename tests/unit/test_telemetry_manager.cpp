@@ -19,6 +19,7 @@
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_board.h"
+#include "../test_helpers/scoped_mock_ams.h"
 #include "../test_helpers/scoped_moonraker_api.h"
 #include "../test_helpers/scoped_moonraker_client.h"
 #include "../test_helpers/telemetry_manager_test_access.h"
@@ -29,6 +30,7 @@
 #include "config.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
+#include "filament_database.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "platform_table.h"
@@ -426,6 +428,273 @@ TEST_CASE_METHOD(TelemetryTestFixture,
         auto second = last_print_outcome(tm);
         CHECK(second["nozzle_temp"] == 200);
         CHECK(second["bed_temp"] == 50);
+    }
+    PrinterStateTestAccess::reset(state);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Print outcome observer says how far the job got, who canceled it and why "
+                 "it failed",
+                 "[telemetry][print_outcome]") {
+    lv_init_safe();
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    auto& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    auto* job = state.print_state().get_print_state_enum_subject();
+    auto* progress = state.print_state().get_print_progress_subject();
+    auto* message = state.print_state().get_print_message_subject();
+    lv_subject_set_int(state.network_state().get_klippy_state_subject(),
+                       static_cast<int>(KlippyState::READY));
+    auto set_job = [&](PrintJobState s) { lv_subject_set_int(job, static_cast<int>(s)); };
+    helix::test::FakeMoonrakerClient client;
+    MoonrakerAPI api(client, state);
+    ScopedMoonrakerApi installed(&api);
+    auto cancel_from_screen = [&]() {
+        api.job().cancel_print([] {}, [](const MoonrakerError&) {});
+    };
+
+    {
+        auto guards = tm.init_print_outcome_observer();
+
+        // A cancel from elsewhere, after the cancel macro reset the file position.
+        set_job(PrintJobState::PRINTING);
+        lv_subject_set_int(progress, 37);
+        lv_subject_set_int(progress, 0);
+        set_job(PrintJobState::CANCELLED);
+        auto external = last_print_outcome(tm);
+        CHECK(external["progress_pct"] == 37);
+        CHECK(external["cancel_origin"] == "external");
+        CHECK(external["failure_class"] == "none");
+
+        // A cancel the screen sent.
+        set_job(PrintJobState::STANDBY);
+        set_job(PrintJobState::PRINTING);
+        lv_subject_set_int(progress, 12);
+        cancel_from_screen();
+        set_job(PrintJobState::CANCELLED);
+        auto in_app = last_print_outcome(tm);
+        CHECK(in_app["progress_pct"] == 12);
+        CHECK(in_app["cancel_origin"] == "in_app");
+
+        // A cancel the screen sent as a CANCEL_PRINT macro.
+        set_job(PrintJobState::STANDBY);
+        set_job(PrintJobState::PRINTING);
+        tm.notify_print_cancel_requested();
+        set_job(PrintJobState::CANCELLED);
+        CHECK(last_print_outcome(tm)["cancel_origin"] == "in_app");
+
+        // A cancel asked for before a job started is not that job's.
+        set_job(PrintJobState::STANDBY);
+        cancel_from_screen();
+        set_job(PrintJobState::PRINTING);
+        set_job(PrintJobState::CANCELLED);
+        CHECK(last_print_outcome(tm)["cancel_origin"] == "external");
+
+        // A failure says why, as a class and never in Klipper's words.
+        set_job(PrintJobState::STANDBY);
+        set_job(PrintJobState::PRINTING);
+        lv_subject_set_int(progress, 80);
+        lv_subject_set_string(message, "Heater extruder not heating at expected rate");
+        set_job(PrintJobState::ERROR);
+        auto failed = last_print_outcome(tm);
+        CHECK(failed["failure_class"] == "thermal_runaway");
+        CHECK_FALSE(failed.contains("cancel_origin"));
+        CHECK(failed.dump().find("Heater") == std::string::npos);
+
+        // A finished job reports neither.
+        lv_subject_set_string(message, "");
+        set_job(PrintJobState::STANDBY);
+        set_job(PrintJobState::PRINTING);
+        lv_subject_set_int(progress, 100);
+        set_job(PrintJobState::COMPLETE);
+        auto done = last_print_outcome(tm);
+        CHECK(done["progress_pct"] == 100);
+        CHECK_FALSE(done.contains("cancel_origin"));
+        CHECK_FALSE(done.contains("failure_class"));
+    }
+    PrinterStateTestAccess::reset(state);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Print outcome falls back to the loaded lane's material when the file names "
+                 "none",
+                 "[telemetry][print_outcome]") {
+    lv_init_safe();
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    auto& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+    auto* job = state.print_state().get_print_state_enum_subject();
+    auto set_job = [&](PrintJobState s) { lv_subject_set_int(job, static_cast<int>(s)); };
+
+    {
+        helix::test::ScopedMockAms ams({{0xFF0000, "PETG"}});
+        auto guards = tm.init_print_outcome_observer();
+        set_job(PrintJobState::PRINTING);
+        set_job(PrintJobState::COMPLETE);
+        CHECK(last_print_outcome(tm)["filament_type"] == "PETG");
+
+        // The lane printed from outranks what is loaded when the job ends: end
+        // gcode may have unloaded it and loaded another.
+        set_job(PrintJobState::STANDBY);
+        set_job(PrintJobState::PRINTING);
+        ams.load(0, 0x00FF00, "ABS", helix::SlotStatus::LOADED);
+        set_job(PrintJobState::COMPLETE);
+        CHECK(last_print_outcome(tm)["filament_type"] == "PETG");
+    }
+    PrinterStateTestAccess::reset(state);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Print outcome never sends a material type only the user defined",
+                 "[telemetry][print_outcome]") {
+    lv_init_safe();
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    auto& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+    auto* job = state.print_state().get_print_state_enum_subject();
+    auto set_job = [&](PrintJobState s) { lv_subject_set_int(job, static_cast<int>(s)); };
+
+    write_file("user_types.json", R"({"types": [{"name": "Bobs Garage Blend", "nozzle_min": 210,
+                                                 "nozzle_max": 230, "bed": 60}]})");
+    filament::load_materials_from("assets/filaments.json",
+                                  (temp_dir() / "user_types.json").string());
+    REQUIRE(filament::find_material("Bobs Garage Blend"));
+    {
+        helix::test::ScopedMockAms ams({{0xFF0000, "Bobs Garage Blend"}});
+        auto guards = tm.init_print_outcome_observer();
+        set_job(PrintJobState::PRINTING);
+        set_job(PrintJobState::COMPLETE);
+        auto outcome = last_print_outcome(tm);
+        REQUIRE(outcome.is_object());
+        CHECK(outcome["filament_type"] == "");
+    }
+    filament::reload_materials();
+    PrinterStateTestAccess::reset(state);
+}
+
+// ============================================================================
+// filament_op [telemetry][filament_op]
+// ============================================================================
+
+namespace {
+
+std::vector<json> events_named(TelemetryManager& tm, const std::string& name) {
+    std::vector<json> out;
+    for (const auto& e : tm.get_queue_snapshot()) {
+        if (e.value("event", "") == name) {
+            out.push_back(e);
+        }
+    }
+    return out;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(TelemetryTestFixture, "filament_op event carries fixed tokens only",
+                 "[telemetry][filament_op]") {
+    using namespace helix::telemetry;
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    tm.record_filament_op("afc", FilamentOp::ToolChange, FilamentOpOutcome::Failed,
+                          FilamentOpError::Hub, 75, true);
+    auto events = events_named(tm, "filament_op");
+    REQUIRE(events.size() == 1);
+    const auto& e = events[0];
+    CHECK(e["backend"] == "afc");
+    CHECK(e["op"] == "tool_change");
+    CHECK(e["outcome"] == "failed");
+    CHECK(e["error_class"] == "hub");
+    CHECK(e["duration_bucket"] == "1-2min");
+    CHECK(e["during_print"] == true);
+    CHECK(e["count"] == 1);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "filament_op pools repeats into counted tallies so nothing floods or is lost",
+                 "[telemetry][filament_op]") {
+    using namespace helix::telemetry;
+    using namespace std::chrono_literals;
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    auto fail = [&](FilamentOpError error) {
+        tm.record_filament_op("ace", FilamentOp::Load, FilamentOpOutcome::Failed, error, 20, false);
+    };
+    auto total = [&]() {
+        int64_t n = 0;
+        for (const auto& e : events_named(tm, "filament_op")) {
+            n += e["count"].get<int64_t>();
+        }
+        return n;
+    };
+
+    // A failure is queued at once; the same failure repeating is pooled.
+    for (int i = 0; i < 20; ++i) {
+        fail(FilamentOpError::Jam);
+    }
+    CHECK(events_named(tm, "filament_op").size() == 1);
+    // A different failure is its own.
+    fail(FilamentOpError::Hub);
+    CHECK(events_named(tm, "filament_op").size() == 2);
+    // After the interval the next one is queued and carries the repeats pooled since.
+    TelemetryManagerTestAccess::advance_clock(tm, 5min);
+    fail(FilamentOpError::Jam);
+    auto events = events_named(tm, "filament_op");
+    REQUIRE(events.size() == 3);
+    CHECK(events[2]["count"] == 20);
+    CHECK(total() == 22);
+
+    // A long multicolor print: every success counted, in one pooled row.
+    tm.clear_queue();
+    for (int i = 0; i < 600; ++i) {
+        tm.record_filament_op("ace", FilamentOp::ToolChange, FilamentOpOutcome::Succeeded,
+                              FilamentOpError::NoError, 20, true);
+    }
+    CHECK(events_named(tm, "filament_op").empty());
+    tm.flush_filament_ops();
+    events = events_named(tm, "filament_op");
+    REQUIRE(events.size() == 1);
+    CHECK(events[0]["count"] == 600);
+    CHECK(events[0]["outcome"] == "success");
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "filament_op observer records the filament system's operations",
+                 "[telemetry][filament_op]") {
+    lv_init_safe();
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    auto& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+    {
+        helix::test::ScopedMockAms ams(2);
+        auto guards = tm.init_filament_op_observer();
+        auto& ams_state = helix::AmsState::instance();
+        ams_state.set_action(helix::AmsAction::UNLOADING);
+        ams_state.set_action(helix::AmsAction::LOADING);
+        ams_state.set_action(helix::AmsAction::IDLE);
+        CHECK(events_named(tm, "filament_op").empty()); // successes are pooled
+        tm.flush_filament_ops();
+        auto events = events_named(tm, "filament_op");
+        REQUIRE(events.size() == 1);
+        CHECK(events[0]["op"] == "tool_change");
+        CHECK(events[0]["outcome"] == "success");
+        CHECK(events[0]["error_class"] == "none");
+        CHECK(events[0]["during_print"] == false);
+
+        ams_state.set_action(helix::AmsAction::LOADING);
+        tm.notify_filament_op_cancel_requested();
+        ams_state.set_action(helix::AmsAction::IDLE);
+        events = events_named(tm, "filament_op");
+        REQUIRE(events.size() == 2);
+        CHECK(events[1]["outcome"] == "aborted");
     }
     PrinterStateTestAccess::reset(state);
 }
@@ -1555,6 +1824,7 @@ TEST_CASE("overlay_telemetry_id: object name, then lifecycle name, then 'unnamed
         {"fan_control_overlay", nullptr, "fan_control_overlay"},
         {nullptr, "Fan Control", "Fan Control"},
         {"", "Fan Control", "Fan Control"},
+        {"numeric_keypad_panel_#", nullptr, "numeric_keypad_panel"},
         {"", nullptr, "unnamed"},
         {nullptr, nullptr, "unnamed"},
         {nullptr, "", "unnamed"},
@@ -3263,4 +3533,26 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Identity: no identity dir keeps the file
 
     CHECK(fs::exists(d.config / "telemetry_device.json"));
     CHECK_FALSE(fs::exists(d.state));
+}
+
+// ============================================================================
+// calibration_outcome [telemetry][calibration_outcome]
+// ============================================================================
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "calibration_outcome carries the step's type and fixed tokens, never free text",
+                 "[telemetry][calibration_outcome]") {
+    using namespace helix::telemetry;
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    tm.record_calibration_outcome("input_shaper", CalibrationOutcome::Failed,
+                                  FailureClass::Accelerometer, 400);
+    tm.record_calibration_outcome("Bed mesh: 0.2 mm", CalibrationOutcome::Completed,
+                                  FailureClass::NotFailed, 10);
+    auto events = events_named(tm, "calibration_outcome");
+    REQUIRE(events.size() == 1);
+    CHECK(events[0]["type"] == "input_shaper");
+    CHECK(events[0]["outcome"] == "failed");
+    CHECK(events[0]["failure_class"] == "accelerometer");
+    CHECK(events[0]["duration_bucket"] == "5-15min");
 }

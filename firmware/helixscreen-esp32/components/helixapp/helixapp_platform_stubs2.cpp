@@ -690,6 +690,8 @@ int resolve_label_printer_channel(const std::string&, int) {
 // --- TelemetryManager, third batch (see rounds 1-2) ---------------------------
 void TelemetryManager::notify_widget_interaction(const std::string&) {}
 void TelemetryManager::notify_print_started_in_app() {}
+void TelemetryManager::notify_print_cancel_requested() {}
+void TelemetryManager::notify_filament_op_cancel_requested() {}
 
 // The lock-free crash/telemetry context globals normally defined in
 // telemetry_manager.cpp — subject pipeline and panels write them

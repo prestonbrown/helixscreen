@@ -155,6 +155,14 @@ class IJobAPI {
     virtual void resume_print(SuccessCallback on_success, ErrorCallback on_error) = 0;
 
     virtual void cancel_print(SuccessCallback on_success, ErrorCallback on_error) = 0;
+
+    /// How many cancels cancel_print() has sent since startup. No cancel made
+    /// elsewhere passes here, so two readings tell whether the screen sent one
+    /// in between; the screen's CANCEL_PRINT macro cancels report through
+    /// TelemetryManager::notify_print_cancel_requested() instead. Any thread.
+    [[nodiscard]] virtual uint32_t cancels_sent() const {
+        return 0;
+    }
 };
 
 /**

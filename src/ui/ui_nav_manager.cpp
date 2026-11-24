@@ -1404,8 +1404,15 @@ void NavigationManager::push_overlay(lv_obj_t* overlay_panel, bool hide_previous
             }
 #endif
         }
-        TelemetryManager::instance().notify_overlay_opened(helix::overlay_telemetry_id(
-            lv_obj_get_name(overlay_panel), lc ? lc->get_name() : nullptr));
+        std::string telemetry_id = helix::overlay_telemetry_id(lv_obj_get_name(overlay_panel),
+                                                               lc ? lc->get_name() : nullptr);
+        if (telemetry_id == "unnamed") {
+            spdlog::warn("[NavigationManager] push_overlay({}): root has no name and no "
+                         "lifecycle; panel_usage will record it as 'unnamed'. Name the XML root "
+                         "or build it with create_xml_hidden().",
+                         (void*)overlay_panel);
+        }
+        TelemetryManager::instance().notify_overlay_opened(telemetry_id);
         crash_handler::breadcrumb::note("overlay+", overlay_name.c_str());
 
         // Lifecycle: Deactivate what's currently visible before showing new overlay

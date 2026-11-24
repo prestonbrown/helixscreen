@@ -754,6 +754,7 @@
   <translation tag="Calibration &amp; Tools" de="Kalibrierung &amp; Werkzeuge"/>
   <translation tag="Calibration Complete!" de="Kalibrierung abgeschlossen!"/>
   <translation tag="Calibration Failed" de="Kalibrierung fehlgeschlagen"/>
+  <translation tag="Calibration Outcome" de="Kalibrierungsergebnis"/>
   <translation tag="Calibration Saved" de="Kalibrierung gespeichert"/>
   <translation tag="Calibration and system configuration" de="Kalibrierung und Systemkonfiguration"/>
   <translation tag="Calibration canceled." de="Kalibrierung abgebrochen."/>
@@ -798,6 +799,7 @@
   <translation tag="Cancel print" de="Druck abbrechen"/>
   <translation tag="Cancel sent. The printer finishes its start sequence, then stops before printing." de="Abbruch gesendet. Der Drucker beendet seine Startsequenz und hält dann vor dem Drucken an."/>
   <translation tag="Canceled" de="Abgebrochen"/>
+  <translation tag="Canceled From" de="Abgebrochen über"/>
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." de="Beim Abbrechen wird das Kammerziel ausgeschaltet, damit das Warten endet; dann wird der Druck gestoppt."/>
   <translation tag="Cannot add to queue: internal error" de="Zur Warteschlange hinzufügen nicht möglich: interner Fehler"/>
   <translation tag="Cannot be changed from here on a multi-unit MMU" de="Bei einer MMU mit mehreren Einheiten hier nicht änderbar"/>
@@ -1489,6 +1491,7 @@
   <translation tag="Duplicate command in the configuration" de="Doppelter Befehl in der Konfiguration"/>
   <translation tag="Duplicated" de="Dupliziert"/>
   <translation tag="Duration" de="Dauer"/>
+  <translation tag="During Print: " de="Während des Drucks: "/>
   <translation tag="During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip." de="Während des Drucks sehen Sie je einen Chip für Heizungen, Lüfter und Licht, eine Checkliste der Startsequenz sowie Fortschritt und Steuerung in einer Leiste."/>
   <translation tag="During auto refill, the old filament would not purge out of the toolhead." de="Beim automatischen Nachfüllen ließ sich das alte Filament nicht aus dem Werkzeugkopf spülen."/>
   <translation tag="Dust and old grease on the X and Y rails or rods cause noise, ringing and wear." de="Staub und altes Fett auf X/Y-Schienen oder -Stangen verursachen Lärm, Ringing und Verschleiß."/>
@@ -1815,6 +1818,7 @@
   <translation tag="Failed to upload the rewritten G-code: {}" de="Umgeschriebener G-code konnte nicht hochgeladen werden: {}"/>
   <translation tag="Failed: {}" de="Fehlgeschlagen: {}"/>
   <translation tag="Failed: {}. Saves {}" de="Fehlgeschlagen: {}. Gespeichert wird {}"/>
+  <translation tag="Failure Reason" de="Fehlerursache"/>
   <translation tag="Faint lines: compensation off. Bright lines: compensation on." de="Blasse Linien: Kompensation aus. Helle Linien: Kompensation ein."/>
   <translation tag="Fair match" de="Mäßige Passung"/>
   <translation tag="Fan" de="Lüfter"/>
@@ -1867,6 +1871,7 @@
   <translation tag="Filament Mapping is not available on this device." de="Die Filament-Zuordnung ist auf diesem Gerät nicht verfügbar."/>
   <translation tag="Filament Mapping is unavailable" de="Filament-Zuordnung ist nicht verfügbar"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" de="Filament-Zuordnung wird von diesem Drucker nicht unterstützt, daher verwendet der Druck die am Drucker zugewiesenen Werkzeuge"/>
+  <translation tag="Filament Operation" de="Filament-Operation"/>
   <translation tag="Filament Operations" de="Filament-Operationen"/>
   <translation tag="Filament Runout" de="Filament aufgebraucht"/>
   <translation tag="Filament Sensor" de="Filamentsensor"/>
@@ -3304,6 +3309,7 @@
   <translation tag="OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here" de="OpenAMS verwaltet diese Spule in Spoolman, das hier nur Material, Farbe, Marke und Gewicht annimmt"/>
   <translation tag="OpenAMS manages this spool&apos;s link" de="OpenAMS verwaltet die Verknüpfung dieser Spule"/>
   <translation tag="Opened" de="Geöffnet"/>
+  <translation tag="Operation" de="Operation"/>
   <translation tag="Operation already in progress" de="Vorgang läuft bereits"/>
   <translation tag="Operation timed out" de="Zeitüberschreitung beim Vorgang"/>
   <translation tag="Operations" de="Operationen"/>
@@ -3711,6 +3717,7 @@
   <translation tag="Profile names cannot contain &apos;;&apos;" de="Profilnamen dürfen kein &apos;;&apos; enthalten"/>
   <translation tag="Profile renamed" de="Profil umbenannt"/>
   <translation tag="Profiles" de="Profile"/>
+  <translation tag="Progress" de="Fortschritt"/>
   <translation tag="Progress, file, and time remaining" de="Fortschritt, Datei und Restzeit"/>
   <translation tag="Prompt before running this macro" de="Vor dem Ausführen dieses Makros nachfragen"/>
   <translation tag="Provide a boolean {}" de="Geben Sie einen booleschen Wert für {} an"/>
@@ -5310,6 +5317,7 @@
   <translation tag="Timelapse rendered successfully" de="Zeitraffer erfolgreich gerendert"/>
   <translation tag="Timelapse videos" de="Zeitraffer-Videos"/>
   <translation tag="Timeout" de="Zeitüberschreitung"/>
+  <translation tag="Times" de="Anzahl"/>
   <translation tag="Timezone" de="Zeitzone"/>
   <translation tag="Tip Forming" de="Spitzenformung"/>
   <translation tag="Tip Forming Failed" de="Spitzenformung fehlgeschlagen"/>
@@ -6085,6 +6093,7 @@
   <translation tag="{} MCUs" de="{} MCUs"/>
   <translation tag="{} MPC" de="{} MPC"/>
   <translation tag="{} PID" de="{} PID"/>
+  <translation tag="{} Sensor" de="{}-Sensor"/>
   <translation tag="{} Settings" de="{}-Einstellungen"/>
   <translation tag="{} Tools" de="{} Werkzeuge"/>
   <translation tag="{} accelerometers" de="{} Beschleunigungssensoren"/>

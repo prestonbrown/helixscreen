@@ -5,6 +5,8 @@
 
 #include "temperature_sensor_types.h"
 
+#include <spdlog/fmt/fmt.h>
+
 #include <cstdint>
 #include <string>
 #include <utility>
@@ -53,6 +55,42 @@ temp_graph_sensor_series(const std::vector<sensors::TemperatureSensorConfig>& se
         out.push_back({&sensor, temp_graph_sensor_group(sensor.role)});
     }
     return out;
+}
+
+/// The chip text for @p display_name: without a trailing " Temperature".
+[[nodiscard]] inline std::string temp_graph_chip_label(const std::string& display_name) {
+    const std::string suffix = " Temperature";
+    if (display_name.size() > suffix.size() &&
+        display_name.compare(display_name.size() - suffix.size(), suffix.size(), suffix) == 0) {
+        return display_name.substr(0, display_name.size() - suffix.size());
+    }
+    return display_name;
+}
+
+/**
+ * @brief Chip texts for the graph's series, in series order.
+ *
+ * A series whose text matches an earlier chip's (a chamber sensor beside the
+ * chamber heater series) is run through @p sensor_format ("{} Sensor", one translatable string so
+ * each language orders the words itself) in place of its trailing " Temperature", so the earlier
+ * chip keeps the plain name. A series is only reworded on a real collision.
+ */
+[[nodiscard]] inline std::vector<std::string>
+temp_graph_chip_labels(const std::vector<std::string>& display_names,
+                       const std::string& sensor_format) {
+    std::vector<std::string> labels;
+    labels.reserve(display_names.size());
+    for (const auto& name : display_names) {
+        std::string label = temp_graph_chip_label(name);
+        for (const auto& earlier : labels) {
+            if (earlier == label) {
+                label = fmt::format(fmt::runtime(sensor_format), label);
+                break;
+            }
+        }
+        labels.push_back(std::move(label));
+    }
+    return labels;
 }
 
 /// The opt-in choices the graph remembers.
