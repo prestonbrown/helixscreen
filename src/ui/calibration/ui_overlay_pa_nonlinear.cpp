@@ -94,9 +94,8 @@ const char* look_text(const helix::pa::NonlinearPass& pass, bool judging) {
     case helix::pa::TowerSide::LeftVsFront:
         return judging
                    ? lv_tr("The height where the left side is cleanest, then where the front is.")
-                   : lv_tr(
-                         "Left side and front, each at its slow edges. Each comes out clean at its "
-                         "own height; they should match.");
+                   : lv_tr("Left side and front, each at its slow edges. They should come out "
+                           "clean at the same height; if not, this pass prints again.");
     case helix::pa::TowerSide::Front:
         break;
     }
@@ -110,39 +109,6 @@ const char* look_text(const helix::pa::NonlinearPass& pass, bool judging) {
     }
     return judging ? lv_tr("Front: where do the marked spots look cleanest?")
                    : lv_tr("Front: the edges of the slow middle, the pause and the slow spot.");
-}
-
-/// What pass 2's two heights decide, in words: the next tower's change, or
-/// the height taken.
-std::string verdict_text(const helix::pa::NonlinearProcedure& proc, float left_mm, float front_mm) {
-    using helix::pa::NlParam;
-    const auto verdict = helix::pa::verdict_from_heights(left_mm, front_mm);
-    const float apart = std::abs(left_mm - front_mm);
-    const auto c = proc.correction(verdict);
-    if (!c) {
-        if (verdict == helix::pa::SideVerdict::Same) {
-            return fmt::format(
-                fmt::runtime(lv_tr("Left and front agree: {:.1f} mm is the answer.")),
-                (left_mm + front_mm) / 2.0f);
-        }
-        return fmt::format(fmt::runtime(lv_tr("Still {:.1f} mm apart after {} towers: the "
-                                              "middle, {:.1f} mm, is taken.")),
-                           apart, proc.repeats() + 1, (left_mm + front_mm) / 2.0f);
-    }
-    const bool lower = verdict == helix::pa::SideVerdict::LeftLower;
-    if (c->param == NlParam::Offset) {
-        return fmt::format(
-            fmt::runtime(
-                c->raise
-                    ? lv_tr("Left side {:.1f} mm higher: the next tower raises the offset 10%.")
-                    : lv_tr("Left side {:.1f} mm lower: the next tower lowers the offset 10%.")),
-            apart);
-    }
-    return fmt::format(
-        fmt::runtime(
-            lower ? lv_tr("Left side {:.1f} mm lower: the next tower raises the advance 10%.")
-                  : lv_tr("Left side {:.1f} mm higher: the next tower lowers the advance 10%.")),
-        apart);
 }
 
 /// What a failed save says. Klipper refusing an option no model reads is
@@ -179,6 +145,34 @@ std::optional<float> reported(const helix::pa::PaModel& m, helix::pa::NlParam p)
 
 std::string format_value(float v) {
     return fmt::format("{:.4f}", v);
+}
+
+/// What pass 2's two heights decide, in words: the next tower's change, or
+/// the height taken.
+std::string verdict_text(const helix::pa::NonlinearProcedure& proc, float left_mm, float front_mm) {
+    using helix::pa::NlParam;
+    const auto verdict = helix::pa::verdict_from_heights(left_mm, front_mm);
+    const float apart = std::abs(left_mm - front_mm);
+    const auto c = proc.correction(verdict);
+    if (!c) {
+        if (verdict == helix::pa::SideVerdict::Same) {
+            return fmt::format(
+                fmt::runtime(lv_tr("Left and front agree: {:.1f} mm is the answer.")),
+                (left_mm + front_mm) / 2.0f);
+        }
+        return fmt::format(fmt::runtime(lv_tr("Still {:.1f} mm apart after {} towers: the "
+                                              "middle, {:.1f} mm, is taken.")),
+                           apart, proc.repeats() + 1, (left_mm + front_mm) / 2.0f);
+    }
+    // The two sides disagree: the other value of the pair is off by a little,
+    // and the pass prints again with it corrected (Kalico's guide, step 8).
+    const bool lower = verdict == helix::pa::SideVerdict::LeftLower;
+    return fmt::format(
+        fmt::runtime(lower ? lv_tr("Left side {:.1f} mm lower: {} {} to {}, then this pass "
+                                   "prints again.")
+                           : lv_tr("Left side {:.1f} mm higher: {} {} to {}, then this pass "
+                                   "prints again.")),
+        apart, param_label(c->param), format_value(c->from), format_value(c->to));
 }
 
 /// Where the procedure under way is saved, under the printer's settings.
@@ -608,7 +602,17 @@ void PaNonlinearOverlay::refresh() {
     } else if (two) {
         lv_subject_set_string(&verdict_, verdict_text(*proc_, height_mm_, front_mm_).c_str());
         const auto c = proc_->correction(helix::pa::verdict_from_heights(height_mm_, front_mm_));
-        lv_subject_set_string(&judge_primary_, c ? lv_tr("Print Again")
+        if (c) {
+            // Why it prints again, beside the picture of where to look.
+            lv_subject_set_string(
+                &look_,
+                fmt::format(fmt::runtime(lv_tr("The sides should come out clean at the same "
+                                               "height. Apart means the {} is a little off: it "
+                                               "moves 10% and this pass prints again.")),
+                            param_label(c->param))
+                    .c_str());
+        }
+        lv_subject_set_string(&judge_primary_, c ? lv_tr("Correct and Reprint")
                                                  : fmt::format(fmt::runtime(lv_tr("Use {:.1f} mm")),
                                                                (height_mm_ + front_mm_) / 2.0f)
                                                        .c_str());

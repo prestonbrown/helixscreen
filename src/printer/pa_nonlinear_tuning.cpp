@@ -146,11 +146,10 @@ void NonlinearProcedure::judge_two_sided(SideVerdict verdict, float height_mm,
         advance();
         return;
     }
-    const float factor = c->raise ? 1.0f + kConvergeStep : 1.0f - kConvergeStep;
     if (c->param == NlParam::Offset) {
-        values_.nonlinear_offset *= factor;
+        values_.nonlinear_offset = c->to;
     } else {
-        values_.linear_advance *= factor;
+        values_.linear_advance = c->to;
     }
     ++repeats_;
 }
@@ -164,10 +163,12 @@ std::optional<Correction> NonlinearProcedure::correction(SideVerdict verdict) co
     // than the front has too much offset. Bowden sweeps the offset and corrects
     // the advance, the other way round.
     const bool left_lower = verdict == SideVerdict::LeftLower;
-    if (current().sweep.param == NlParam::Advance) {
-        return Correction{NlParam::Offset, !left_lower};
-    }
-    return Correction{NlParam::Advance, left_lower};
+    Correction c = current().sweep.param == NlParam::Advance
+                       ? Correction{NlParam::Offset, !left_lower}
+                       : Correction{NlParam::Advance, left_lower};
+    c.from = c.param == NlParam::Offset ? values_.nonlinear_offset : values_.linear_advance;
+    c.to = c.from * (c.raise ? 1.0f + kConvergeStep : 1.0f - kConvergeStep);
+    return c;
 }
 
 TowerLayerProgress tower_layer_progress(float z_mm, float height_mm, float layer_mm) {

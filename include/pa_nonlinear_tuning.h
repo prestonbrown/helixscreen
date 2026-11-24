@@ -121,6 +121,8 @@ std::vector<TowerFace> judged_faces(TowerSide side);
 struct Correction {
     NlParam param = NlParam::Offset;
     bool raise = false; ///< about 10% up; otherwise about 10% down
+    float from = 0.0f;  ///< the value the next tower corrects
+    float to = 0.0f;    ///< what the next tower prints with
 };
 
 class NonlinearProcedure {

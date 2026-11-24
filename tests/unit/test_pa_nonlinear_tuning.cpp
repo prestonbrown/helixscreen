@@ -223,10 +223,14 @@ TEST_CASE("nonlinear procedure: the next tower's correction follows Kalico's rul
         CHECK(c->raise);
         CHECK_FALSE(p.correction(SideVerdict::Same).has_value());
 
-        // The procedure applies what correction() says.
+        // The correction names the value it moves and where it goes: 10% down.
         const float before = p.values().nonlinear_offset;
+        c = p.correction(SideVerdict::LeftLower);
+        CHECK(c->from == Catch::Approx(before));
+        CHECK(c->to == Catch::Approx(before * 0.9f));
+        // The procedure applies what correction() says.
         p.record_verdict(SideVerdict::LeftLower, 24.0f);
-        CHECK(p.values().nonlinear_offset < before);
+        CHECK(p.values().nonlinear_offset == Catch::Approx(before * 0.9f));
     }
     SECTION("Bowden: left below the front raises the advance") {
         NonlinearProcedure p(ExtruderKind::Bowden, ModelKind::Tanh);
