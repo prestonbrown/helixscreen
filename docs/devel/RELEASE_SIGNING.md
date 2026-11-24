@@ -108,6 +108,28 @@ recover-r2 for those tags. Instead:
 - **The tag predates signing entirely** (the 1.1 betas through v1.1.0-rc.2, and every 1.0.x):
   nothing can republish it signed. Cut a new tag from a branch that signs.
 
+## R2 credentials
+
+The write token for the release bucket (`helixscreen-releases`) lives only in the `release-signing`
+environment, as `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY`, scoped to Object Read and Write on
+that bucket. A job that writes the bucket runs in the same environment as `upload-r2`:
+`upload-r2` and `upload-symbols` on a publish run, `recover` in `recover-r2.yml`, and `cleanup` in
+`cleanup-r2.yml` (always `release-signing`, so a reviewer approves each prune).
+
+Dry runs have no environment. Their R2 steps use the repo-level `R2_SCRATCH_ACCESS_KEY_ID` and
+`R2_SCRATCH_SECRET_ACCESS_KEY`, scoped to the `helixscreen-ci-scratch` bucket (a one-day lifecycle;
+`vars.R2_SCRATCH_BUCKET_NAME` overrides the name). A dry run never names `helixscreen-releases`.
+`R2_ACCOUNT_ID` is repo-level, since it is an identifier rather than a credential. No repo-level
+`R2_ACCESS_KEY_ID` or `R2_SECRET_ACCESS_KEY` exists.
+
+```bash
+R=prestonbrown/helixscreen
+gh secret set R2_ACCESS_KEY_ID --env release-signing -R $R
+gh secret set R2_SECRET_ACCESS_KEY --env release-signing -R $R
+gh secret set R2_SCRATCH_ACCESS_KEY_ID -R $R
+gh secret set R2_SCRATCH_SECRET_ACCESS_KEY -R $R
+```
+
 ## Rollout order
 
 A client that requires a signature cannot update from a channel that serves none, so:

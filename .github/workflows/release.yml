@@ -1577,13 +1577,13 @@ jobs:
 
     - name: Upload artifacts and manifests to R2
       env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        AWS_ACCESS_KEY_ID: ${{ needs.plan.outputs.mode == 'publish' && secrets.R2_ACCESS_KEY_ID || secrets.R2_SCRATCH_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ needs.plan.outputs.mode == 'publish' && secrets.R2_SECRET_ACCESS_KEY || secrets.R2_SCRATCH_SECRET_ACCESS_KEY }}
         # R2 rejects AWS region names; runners without a default region pick us-west-2.
         AWS_DEFAULT_REGION: auto
         R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
         RELEASE_VERSION: ${{ steps.version.outputs.version }}
-        R2_BUCKET: ${{ vars.R2_BUCKET_NAME || 'helixscreen-releases' }}
+        R2_BUCKET: ${{ needs.plan.outputs.mode == 'publish' && (vars.R2_BUCKET_NAME || 'helixscreen-releases') || (vars.R2_SCRATCH_BUCKET_NAME || 'helixscreen-ci-scratch') }}
         R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
         UPLOAD_CHANNELS: ${{ steps.channels.outputs.channels }}
       run: |
@@ -1797,7 +1797,11 @@ jobs:
     name: Upload Symbols to R2
     runs-on: ubuntu-latest
     needs: [build-platforms, plan]
-    # Runs in both modes; every R2 key below starts with R2_PREFIX.
+    # Runs in both modes; every R2 key below starts with R2_PREFIX. A publish run writes
+    # helixscreen-releases, so it runs in upload-r2's signing environment, which alone holds
+    # that bucket's write token; a dry run has no environment and writes the scratch bucket
+    # with the repo-level scratch token. docs/devel/RELEASE_SIGNING.md.
+    environment: ${{ needs.plan.outputs.mode == 'publish' && 'release-signing' || '' }}
     env:
       R2_PREFIX: ${{ needs.plan.outputs.r2_prefix }}
       RELEASE_TAG: ${{ needs.plan.outputs.tag }}
@@ -1906,12 +1910,12 @@ jobs:
 
     - name: Upload symbols to R2
       env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        AWS_ACCESS_KEY_ID: ${{ needs.plan.outputs.mode == 'publish' && secrets.R2_ACCESS_KEY_ID || secrets.R2_SCRATCH_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ needs.plan.outputs.mode == 'publish' && secrets.R2_SECRET_ACCESS_KEY || secrets.R2_SCRATCH_SECRET_ACCESS_KEY }}
         # R2 rejects AWS region names; runners without a default region pick us-west-2.
         AWS_DEFAULT_REGION: auto
         R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
-        R2_BUCKET: ${{ vars.R2_BUCKET_NAME || 'helixscreen-releases' }}
+        R2_BUCKET: ${{ needs.plan.outputs.mode == 'publish' && (vars.R2_BUCKET_NAME || 'helixscreen-releases') || (vars.R2_SCRATCH_BUCKET_NAME || 'helixscreen-ci-scratch') }}
         RELEASE_VERSION: ${{ steps.version.outputs.version }}
       run: |
         [ "$RELEASE_MODE" = publish ] || [[ "$R2_PREFIX" == dry-run/?*/ ]] || {
@@ -2116,7 +2120,7 @@ jobs:
     needs: [plan, release, upload-r2, upload-symbols]
     if: always() && needs.plan.outputs.mode == 'dryrun'
     env:
-      R2_BUCKET: ${{ vars.R2_BUCKET_NAME || 'helixscreen-releases' }}
+      R2_BUCKET: ${{ vars.R2_SCRATCH_BUCKET_NAME || 'helixscreen-ci-scratch' }}
       R2_PREFIX: ${{ needs.plan.outputs.r2_prefix }}
 
     steps:
@@ -2136,8 +2140,8 @@ jobs:
 
     - name: Download the dry-run R2 prefix
       env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_SCRATCH_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SCRATCH_SECRET_ACCESS_KEY }}
         # R2 rejects AWS region names; runners without a default region pick us-west-2.
         AWS_DEFAULT_REGION: auto
         R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
@@ -2163,8 +2167,8 @@ jobs:
     - name: Delete the dry-run R2 prefix
       if: always()
       env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_SCRATCH_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SCRATCH_SECRET_ACCESS_KEY }}
         # R2 rejects AWS region names; runners without a default region pick us-west-2.
         AWS_DEFAULT_REGION: auto
         R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com

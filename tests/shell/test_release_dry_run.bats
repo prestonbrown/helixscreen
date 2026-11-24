@@ -291,3 +291,27 @@ plant_dual() {
     [ "$status" -ne 0 ]
     [[ "$output" == *"not one platform"* ]] || fail "$output"
 }
+
+@test "the release bucket's write token is read only inside a signing environment" {
+    run python3 - <<'PY'
+import glob, yaml
+bad = []
+for path in glob.glob(".github/workflows/*.yml"):
+    jobs = yaml.safe_load(open(path)).get("jobs") or {}
+    for jname, job in jobs.items():
+        text = yaml.safe_dump(job)
+        env = str(job.get("environment", ""))
+        if "secrets.R2_ACCESS_KEY_ID" in text and "release-signing" not in env:
+            bad.append(f"{path}:{jname}: reads the release R2 token outside a signing environment")
+        if jname == "dry-run-verify" and ("secrets.R2_ACCESS_KEY_ID" in text
+                                          or "helixscreen-releases" in text):
+            bad.append(f"{path}:{jname}: a dry run names the release bucket or its token")
+        if "secrets.R2_SCRATCH_ACCESS_KEY_ID" in text and "helixscreen-releases" in text \
+                and "publish" not in text:
+            bad.append(f"{path}:{jname}: scratch token beside the release bucket in no publish gate")
+print("\n".join(bad))
+raise SystemExit(1 if bad else 0)
+PY
+    [ "$status" -eq 0 ] || echo "$output"
+    [ "$status" -eq 0 ]
+}
