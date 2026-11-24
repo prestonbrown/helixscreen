@@ -83,8 +83,9 @@ std::string clock_meridiem_text(ClockMeridiem meridiem);
 /// "21:41", per the Time Format setting.
 std::string clock_minute_text(int32_t minute_of_day);
 
-/// Largest breakpoint text font no taller than `height` px, or the smallest when none fits.
-const lv_font_t* clock_font_fitting(int32_t height);
+/// Largest breakpoint text font no taller than `height` px and, when `text` is given, no wider
+/// than `width` px on one line; the smallest when none fits.
+const lv_font_t* clock_font_fitting(int32_t height, int32_t width = 0, const char* text = nullptr);
 
 /**
  * @brief One line of text a saver keeps on its canvas over pixels it redraws itself

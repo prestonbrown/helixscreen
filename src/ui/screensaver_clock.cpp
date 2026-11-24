@@ -161,7 +161,7 @@ std::string clock_meridiem_text(ClockMeridiem meridiem) {
     return buf;
 }
 
-const lv_font_t* clock_font_fitting(int32_t height) {
+const lv_font_t* clock_font_fitting(int32_t height, int32_t width, const char* text) {
     const lv_font_t* chosen = nullptr;
     for (const char* token : kClockFonts) {
         const lv_font_t* font = theme_manager_get_font(token);
@@ -169,9 +169,17 @@ const lv_font_t* clock_font_fitting(int32_t height) {
             continue;
         }
         chosen = font;
-        if (theme_manager_get_font_height(font) <= height) {
-            break;
+        if (theme_manager_get_font_height(font) > height) {
+            continue;
         }
+        if (text != nullptr && width > 0) {
+            lv_point_t size{};
+            lv_text_get_size(&size, text, font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+            if (size.x > width) {
+                continue;
+            }
+        }
+        break;
     }
     return chosen;
 }
@@ -197,7 +205,8 @@ bool SaverLabel::draw(SaverCanvas& canvas, const std::string& text, const DirtyR
         return false;
     }
 
-    const lv_font_t* font = clock_font_fitting(box.y2 - box.y1 + 1);
+    const lv_font_t* font =
+        clock_font_fitting(box.y2 - box.y1 + 1, box.x2 - box.x1 + 1, text_.c_str());
     if (font == nullptr) {
         return false;
     }
@@ -211,6 +220,8 @@ bool SaverLabel::draw(SaverCanvas& canvas, const std::string& text, const DirtyR
     label.align = align;
     label.text = text_.c_str();
     label.text_local = 1;
+    // A line too wide for the smallest font runs on rather than wrapping into the next line.
+    label.flag = LV_TEXT_FLAG_EXPAND;
     const int32_t font_h = theme_manager_get_font_height(font);
     const int32_t top = box.y1 + std::max(0, (box.y2 - box.y1 + 1 - font_h) / 2);
     const int32_t pad = std::max<int32_t>(0, halo_.radius);
