@@ -5,6 +5,7 @@
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_overlay_pa_nonlinear.h"
+#include "ui_overlay_pa_tuning.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/scoped_env.h"
@@ -717,4 +718,88 @@ TEST_CASE_METHOD(NonlinearFixture,
     overlay.tower_tap_for_test(0, 20.0f);
     CHECK(overlay.height_for_test() == Catch::Approx(20.0f));
     CHECK(overlay.front_height_for_test() == Catch::Approx(33.3f));
+}
+
+namespace {
+bool hidden(lv_obj_t* root, const char* name) {
+    lv_obj_t* w = lv_obj_find_by_name(root, name);
+    REQUIRE(w != nullptr);
+    return lv_obj_has_flag(w, LV_OBJ_FLAG_HIDDEN);
+}
+bool disabled(lv_obj_t* root, const char* name) {
+    lv_obj_t* w = lv_obj_find_by_name(root, name);
+    REQUIRE(w != nullptr);
+    return lv_obj_has_state(w, LV_STATE_DISABLED);
+}
+void set_int(const char* subject, int v) {
+    lv_subject_set_int(lv_xml_get_subject(nullptr, subject), v);
+}
+} // namespace
+
+TEST_CASE_METHOD(
+    NonlinearFixture,
+    "nonlinear tuner: Back shows only with a judgement to take back, and the stage picks "
+    "the header action and the height entry",
+    "[pa_nonlinear][pa_tuner][pa_nl_bindings]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    lv_obj_t* root =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "pa_nonlinear_overlay", nullptr));
+    REQUIRE(root != nullptr);
+
+    set_int("pa_nl_can_back", 0);
+    CHECK(hidden(root, "pa_nl_btn_back"));
+    set_int("pa_nl_can_back", 1);
+    CHECK_FALSE(hidden(root, "pa_nl_btn_back"));
+
+    // A tower on its way stops from the header; a pass waiting on the user discards.
+    set_int("pa_nl_stage", PaNonlinearOverlay::PRINTING);
+    CHECK_FALSE(hidden(root, "pa_nl_btn_stop"));
+    CHECK(hidden(root, "pa_nl_btn_discard"));
+    set_int("pa_nl_stage", PaNonlinearOverlay::READY);
+    CHECK(hidden(root, "pa_nl_btn_stop"));
+    CHECK_FALSE(hidden(root, "pa_nl_btn_discard"));
+
+    // One height for a one-sided pass, two for left against front.
+    set_int("pa_nl_stage", PaNonlinearOverlay::JUDGE);
+    set_int("pa_nl_two_sided", 0);
+    CHECK_FALSE(hidden(root, "pa_nl_one_height"));
+    CHECK(hidden(root, "pa_nl_two_heights"));
+    set_int("pa_nl_two_sided", 1);
+    CHECK(hidden(root, "pa_nl_one_height"));
+    CHECK_FALSE(hidden(root, "pa_nl_two_heights"));
+    lv_obj_delete(root);
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "linear tuner: the start and Save to Config follow what the tuner allows",
+                 "[pa_tune][pa_tuner][pa_tune_bindings]") {
+    helix::ui::PaTuningOverlay linear;
+    linear.init_subjects();
+    lv_obj_t* root =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "pa_tuning_overlay", nullptr));
+    REQUIRE(root != nullptr);
+
+    // A reachable printer that nothing else holds: only the tuner's own rule decides.
+    for (const char* gate : {"machine_motion_blocked", "nav_buttons_enabled"}) {
+        REQUIRE(lv_xml_get_subject(nullptr, gate) != nullptr);
+    }
+    set_int("machine_motion_blocked", 0);
+    set_int("nav_buttons_enabled", 1);
+    set_int("pa_tune_can_start", 0);
+    CHECK(disabled(root, "pa_btn_start"));
+    set_int("pa_tune_can_start", 1);
+    CHECK_FALSE(disabled(root, "pa_btn_start"));
+
+    set_int("pa_tune_can_save_config", 0);
+    CHECK(disabled(root, "pa_btn_save_config"));
+    set_int("pa_tune_can_save_config", 1);
+    CHECK_FALSE(disabled(root, "pa_btn_save_config"));
+
+    // Save to Spool shows only with a spool to save to.
+    set_int("pa_tune_can_save_spool", 0);
+    CHECK(hidden(root, "pa_btn_save_spool"));
+    set_int("pa_tune_can_save_spool", 1);
+    CHECK_FALSE(hidden(root, "pa_btn_save_spool"));
+    lv_obj_delete(root);
+    linear.deinit_subjects();
 }
