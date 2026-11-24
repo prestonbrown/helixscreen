@@ -5,7 +5,7 @@
      the judged face (a pa_tower its owner fills, found by `tower_name`), with
      the spots where the nozzle changes speed; at the right a caption, what to
      look for (`bind_look`), and three edge-on samples: Right, Too little and
-     Too much advance, whose image paths are the string subjects `bind_src0`
+     Too much advance, whose image paths are the pointer subjects `bind_src0`
      to `bind_src2` (assets/images/pa/). The owner hides the card at the
      smallest breakpoint, where it does not fit. -->
 <component>

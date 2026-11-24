@@ -213,10 +213,8 @@ void draw_banded(lv_obj_t* obj, lv_layer_t* layer, const PaTowerModel& m, const 
         const PaTowerBand& b = m.bands[i];
         const float frac = n > 1 ? static_cast<float>(i) / static_cast<float>(n - 1) : 0.0f;
         const lv_area_t a{l.body_x1, l.y_at(b.z_high, H) + 1, l.body_x2, l.y_at(b.z_low, H)};
-        const lv_area_t la{lx1, a.y1, l.box.x2, a.y2};
         const int32_t ly = (a.y1 + a.y2) / 2 - l.font_h / 2;
         const lv_area_t lab{lx1, ly, l.box.x2, ly + l.font_h};
-        (void)la;
         const lv_color_t col = band_color(frac);
         switch (m.fill) {
         case PaTowerFill::Preview:
@@ -284,7 +282,7 @@ void draw_banded(lv_obj_t* obj, lv_layer_t* layer, const PaTowerModel& m, const 
     }
 
     if (m.fill == PaTowerFill::Live) {
-        const int32_t y = l.y_at(m.printed_mm, H);
+        const int32_t y = l.y_at(std::clamp(m.printed_mm, 0.0f, H), H);
         line(layer, l.body_x1 - 3, y, l.body_x2 + 3, y, text, 3);
         if (l.ruler_w) {
             draw_text(obj, layer, fmt_mm(m.printed_mm),
@@ -331,7 +329,6 @@ void draw_face(lv_obj_t* obj, lv_layer_t* layer, const PaTowerModel& m, const La
     const lv_color_t amber = theme_manager_get_color("warning");
     const lv_color_t border = theme_manager_get_color("border");
     const lv_color_t text = theme_manager_get_color("text");
-    const lv_color_t muted = theme_manager_get_color("text_muted");
     const lv_color_t top_c = theme_manager_get_color("tertiary");
     const lv_color_t bot_c = theme_manager_get_color("secondary");
     const float H = std::max(1.0f, m.height_mm);
@@ -431,13 +428,15 @@ void draw_face(lv_obj_t* obj, lv_layer_t* layer, const PaTowerModel& m, const La
             continue;
         }
         const lv_color_t c = theme_manager_get_color(mk.accent ? "warning" : "primary");
-        const int32_t y = l.y_at(mk.z_mm, H);
+        const int32_t y = l.y_at(std::clamp(mk.z_mm, 0.0f, H), H);
         line(layer, face.x1, y, face.x2, y, c, 3);
         const int32_t r = std::max<int32_t>(6, lh * 2 / 3);
+        // The disc stays whole inside the face at 0 and at the top.
+        const int32_t cy = std::clamp(y, face.y1 + r, face.y2 - r);
         const int32_t cx =
             which == TowerFace::Front && m.faces.size() > 1 ? face.x2 - r - 1 : face.x1 + r + 1;
-        fill_rect(layer, {cx - r, y - r, cx + r, y + r}, c, LV_OPA_COVER, LV_RADIUS_CIRCLE);
-        draw_text(obj, layer, mk.tag, {cx - r, y - lh / 2, cx + r, y + lh / 2}, text, l.font,
+        fill_rect(layer, {cx - r, cy - r, cx + r, cy + r}, c, LV_OPA_COVER, LV_RADIUS_CIRCLE);
+        draw_text(obj, layer, mk.tag, {cx - r, cy - lh / 2, cx + r, cy + lh / 2}, text, l.font,
                   LV_TEXT_ALIGN_CENTER);
     }
 
@@ -471,7 +470,6 @@ void draw_face(lv_obj_t* obj, lv_layer_t* layer, const PaTowerModel& m, const La
             }
         }
     }
-    (void)muted;
 }
 
 void draw_continuous(lv_obj_t* obj, lv_layer_t* layer, const PaTowerModel& m, const Layout& l) {
@@ -517,7 +515,8 @@ void draw_continuous(lv_obj_t* obj, lv_layer_t* layer, const PaTowerModel& m, co
     }
 
     if (m.fill == PaTowerFill::Live) {
-        const int32_t y = l.y_at(m.printed_mm, H);
+        // Clamped like the fill: a lift past the top or a Z below the plate stays on the tower.
+        const int32_t y = l.y_at(std::clamp(m.printed_mm, 0.0f, H), H);
         line(layer, l.body_x1 - 3, y, l.body_x2 + 3, y, text, 3);
         if (!m.layer_tag.empty()) {
             draw_text(obj, layer, m.layer_tag, {l.body_x1, y - l.font_h - 4, l.body_x2 - 2, y - 4},

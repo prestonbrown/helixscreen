@@ -57,13 +57,14 @@
                   flex_flow="column" style_pad_gap="#space_xs" scrollable="false" hidden="true">
             <bind_flag_if_eq subject="pa_tune_nl_mode" flag="hidden" ref_value="0"/>
             <cal_intro_section_label width="100%"
-                                     text="Three towers, one value each" text_tag="Three towers, one value each"
+                                     text="Each tower tunes one value" text_tag="Each tower tunes one value"
                                      long_mode="wrap"/>
-            <repeat count="3">
+            <repeat count="4">
               <lv_obj width="100%"
                       height="0" flex_grow="1" style_bg_color="#screen_bg" style_bg_opa="255" style_border_width="1"
                       style_border_color="#border" style_radius="#border_radius" style_pad_all="#space_xs"
                       style_pad_gap="#space_sm" flex_flow="row" style_flex_cross_place="center" scrollable="false">
+                <bind_flag_if cond="pa_tune_nl_pass_count le ${i}" flag="hidden"/>
                 <lv_image width="#pa_nl_thumb_w" height="100%" bind_src="pa_tune_nl_thumb_${i}" inner_align="contain"/>
                 <lv_obj width="0"
                         height="content" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
@@ -142,9 +143,6 @@
           <lv_obj name="pa_sweep" flex_flow="column" style_pad_gap="#space_xs" scrollable="false">
             <style name="plain_row"/>
             <bind_flag_if cond="pa_tune_nl_mode eq 1 or pa_tune_lin_blocked eq 1" flag="hidden"/>
-            <cal_intro_section_label text="Sweep" text_tag="Sweep">
-              <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
-            </cal_intro_section_label>
             <lv_obj flex_flow="row" style_pad_gap="#space_xs" style_flex_cross_place="center" scrollable="false">
               <style name="plain_row"/>
               <ui_button name="pa_start_k_down"

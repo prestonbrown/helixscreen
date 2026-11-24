@@ -596,3 +596,16 @@ TEST_CASE_METHOD(TunerFixture, "a tap on the pick screen's tower picks the band 
     overlay.tower_tap_for_test(bands[1].z_high + 5.0f);
     CHECK(overlay.picked_for_test() == 0);
 }
+
+TEST_CASE_METHOD(TunerFixture,
+                 "the nonlinear setup shows a card per tower the extruder kind prints",
+                 "[pa_tune][pa_tuner][pa_tune_setup]") {
+    const auto cards = [] {
+        return lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_tune_nl_pass_count"));
+    };
+    overlay.set_kind_for_test(pa::ExtruderKind::DirectDrive);
+    CHECK(cards() == 3);
+    // Bowden checks the offset a second time: four towers, four cards, as the time line counts.
+    overlay.set_kind_for_test(pa::ExtruderKind::Bowden);
+    CHECK(cards() == 4);
+}

@@ -791,6 +791,11 @@ TEST_CASE_METHOD(NonlinearFixture,
     CHECK_FALSE(disabled(root, "pa_btn_start"));
     // Linear K on an extruder that runs a nonlinear model: the start refuses, so it can't be
     // pressed.
+    // Motion blocked (another job, an open E-stop): the start can't be pressed either.
+    set_int("machine_motion_blocked", 1);
+    CHECK(disabled(root, "pa_btn_start"));
+    set_int("machine_motion_blocked", 0);
+    CHECK_FALSE(disabled(root, "pa_btn_start"));
     set_int("pa_tune_lin_blocked", 1);
     CHECK(disabled(root, "pa_btn_start"));
     set_int("pa_tune_lin_blocked", 0);
@@ -825,4 +830,67 @@ TEST_CASE("nonlinear tuner: the firmware tower's footprint comes from [pa_test] 
     CHECK_FALSE(hw.pa_test_size_mm().has_value());
     hw.parse_pa_test_size(json::object());
     CHECK_FALSE(hw.pa_test_size_mm().has_value());
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: pass 2 can't be accepted until both faces have a height",
+                 "[pa_nonlinear][pa_tuner][pa_two_heights]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    print_tower();
+    client.cancel_print_internal();
+    helix::ui::UpdateQueue::instance().drain();
+    overlay.judge_primary_for_test(); // pass 1
+    helix::ui::UpdateQueue::instance().drain();
+    print_tower();
+    client.cancel_print_internal();
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::JUDGE);
+    const auto heights_set = [] {
+        return lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_nl_heights_set"));
+    };
+    CHECK(heights_set() == 0);
+
+    // The left alone: the judgement does nothing.
+    overlay.tower_tap_for_test(0, 24.6f);
+    CHECK(heights_set() == 0);
+    overlay.judge_primary_for_test();
+    CHECK(overlay.stage() == PaNonlinearOverlay::JUDGE);
+    CHECK(overlay.procedure_for_test()->pass_number() == 2);
+    CHECK(overlay.procedure_for_test()->repeats() == 0);
+
+    // The front too: now it takes.
+    overlay.adjust_front_height_for_test(5);
+    CHECK(heights_set() == 1);
+    overlay.judge_primary_for_test();
+    CHECK(overlay.stage() != PaNonlinearOverlay::JUDGE);
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: Back into pass 2 brings back both heights as entered",
+                 "[pa_nonlinear][pa_tuner][pa_two_heights][pa_nl_back]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    print_tower();
+    client.cancel_print_internal();
+    helix::ui::UpdateQueue::instance().drain();
+    overlay.judge_primary_for_test(); // pass 1
+    helix::ui::UpdateQueue::instance().drain();
+    print_tower();
+    client.cancel_print_internal();
+    helix::ui::UpdateQueue::instance().drain();
+    overlay.tower_tap_for_test(0, 18.0f);
+    overlay.tower_tap_for_test(1, 30.0f);
+    overlay.judge_primary_for_test(); // apart: the pass repeats
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.procedure_for_test()->repeats() == 1);
+
+    overlay.back_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(overlay.stage() == PaNonlinearOverlay::JUDGE);
+    CHECK(overlay.height_for_test() == Catch::Approx(18.0f));
+    CHECK(overlay.front_height_for_test() == Catch::Approx(30.0f));
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_nl_heights_set")) == 1);
+    // Still 12 mm apart: judging again repeats the pass, as before.
+    overlay.judge_primary_for_test();
+    CHECK(overlay.procedure_for_test()->repeats() == 1);
+    CHECK(overlay.procedure_for_test()->pass_number() == 2);
 }

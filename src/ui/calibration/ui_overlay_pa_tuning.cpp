@@ -162,15 +162,13 @@ void PaTuningOverlay::init_subjects() {
                                   subjects_);
         UI_MANAGED_SUBJECT_STRING(material_temps_, material_temps_buf_, "",
                                   "pa_tune_material_temps", subjects_);
+        UI_MANAGED_SUBJECT_INT(nl_pass_count_, 3, "pa_tune_nl_pass_count", subjects_);
         for (int i = 0; i < kNlPassCards; ++i) {
             UI_MANAGED_SUBJECT_STRING(nl_pass_[i], nl_pass_buf_[i], "",
                                       fmt::format("pa_tune_nl_pass_{}", i).c_str(), subjects_);
             UI_MANAGED_SUBJECT_STRING(nl_look_[i], nl_look_buf_[i], "",
                                       fmt::format("pa_tune_nl_look_{}", i).c_str(), subjects_);
-            static const char* const kThumbs[kNlPassCards] = {
-                "A:assets/images/pa/nl_pass_1_thumb.png", "A:assets/images/pa/nl_pass_2_thumb.png",
-                "A:assets/images/pa/nl_pass_3_thumb.png"};
-            UI_MANAGED_SUBJECT_POINTER(nl_thumb_[i], const_cast<char*>(kThumbs[i]),
+            UI_MANAGED_SUBJECT_POINTER(nl_thumb_[i], nullptr,
                                        fmt::format("pa_tune_nl_thumb_{}", i).c_str(), subjects_);
         }
         UI_MANAGED_SUBJECT_STRING(next_text_, next_text_buf_, "", "pa_tune_next_text", subjects_);
@@ -561,7 +559,14 @@ void PaTuningOverlay::refresh_setup() {
                                                             static_cast<float>(ramp_.bands - 1)
                                                       : 0.0f),
                   params.geometry.size_mm, helix::pa::layer_z(params.geometry, layers));
-    lv_subject_set_string(&summary_, text.c_str());
+    // Whether the tower runs the user's own start macro or homes and heats by itself.
+    const std::string starts =
+        params.macros.start.empty()
+            ? std::string(lv_tr("It homes and heats on its own (no start macro found)."))
+            : fmt::format(fmt::runtime(lv_tr("It starts with your {} macro.")),
+                          params.macros.start);
+    lv_subject_set_string(&summary_,
+                          nl_model ? text.c_str() : fmt::format("{} {}", text, starts).c_str());
 
     auto& state = get_printer_state();
     const bool busy = job_holds_machine(state.print_state().get_print_lifecycle());
@@ -570,10 +575,10 @@ void PaTuningOverlay::refresh_setup() {
 
     // The footer: how long it prints on its own, and what it needs from the user.
     helix::calibration::TimeEstimate est;
-    int towers = 1;
+    // The tower count comes from the procedure itself, as the cards do.
+    const helix::pa::NonlinearProcedure order(kind_, helix::pa::ModelKind::Tanh);
     if (nl) {
-        towers = kind_ == helix::pa::ExtruderKind::Bowden ? 4 : 3;
-        est = helix::calibration::nonlinear_pa_run_estimate(towers);
+        est = helix::calibration::nonlinear_pa_run_estimate(order.pass_count());
     } else {
         est =
             helix::calibration::linear_pa_tower_estimate(helix::pa::estimate_print_seconds(params));
@@ -599,20 +604,26 @@ void PaTuningOverlay::refresh_setup() {
                                       helix::units::to_display_temp_whole(bed_temp_))
                               .c_str());
 
-    // The nonlinear tuner's towers: what each sweeps and judges.
-    const helix::pa::NonlinearProcedure order(kind_, helix::pa::ModelKind::Tanh);
+    // The nonlinear tuner's towers: what each sweeps and judges, its picture by the side judged.
+    static const char* const kThumbLeft = "A:assets/images/pa/nl_pass_1_thumb.png";
+    static const char* const kThumbBoth = "A:assets/images/pa/nl_pass_2_thumb.png";
+    static const char* const kThumbFront = "A:assets/images/pa/nl_pass_3_thumb.png";
+    lv_subject_set_int(&nl_pass_count_, std::min(order.pass_count(), kNlPassCards));
     for (int i = 0; i < kNlPassCards; ++i) {
         std::string name;
         std::string look;
         if (i < order.pass_count()) {
             const auto& pass = order.pass_at(static_cast<size_t>(i));
             name = fmt::format("{}. {}", i + 1, nonlinear_param_label(pass.sweep.param));
+            const char* thumb = kThumbFront;
             switch (pass.judge) {
             case helix::pa::TowerSide::Left:
                 look = lv_tr("Left: the slow middle's edges");
+                thumb = kThumbLeft;
                 break;
             case helix::pa::TowerSide::LeftVsFront:
                 look = lv_tr("Left side against the front");
+                thumb = kThumbBoth;
                 break;
             case helix::pa::TowerSide::Front:
                 look = pass.sweep.param == helix::pa::NlParam::TimeOffset
@@ -620,11 +631,11 @@ void PaTuningOverlay::refresh_setup() {
                            : lv_tr("Front");
                 break;
             }
+            lv_subject_set_pointer(&nl_thumb_[i], const_cast<char*>(thumb));
         }
         lv_subject_set_string(&nl_pass_[i], name.c_str());
         lv_subject_set_string(&nl_look_[i], look.c_str());
     }
-    (void)towers;
     refresh_towers();
 }
 

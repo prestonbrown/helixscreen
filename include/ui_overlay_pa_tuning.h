@@ -213,6 +213,10 @@ class PaTuningOverlay : public OverlayBase {
     void refresh_setup_for_test() {
         refresh_setup();
     }
+    /// The Direct drive / Bowden chips.
+    void set_kind_for_test(helix::pa::ExtruderKind kind) {
+        set_kind(kind);
+    }
     /// The Linear K / Nonlinear chips.
     void choose_model_for_test(bool nonlinear) {
         nl_mode_choice_ = nonlinear;
@@ -391,7 +395,9 @@ class PaTuningOverlay : public OverlayBase {
     helix::Subject error_{};
     char error_buf_[192] = {};
 
-    static constexpr int kNlPassCards = 3;
+    /// Direct drive prints three towers, Bowden four.
+    static constexpr int kNlPassCards = 4;
+    helix::Subject nl_pass_count_{};
     /// 1 while Linear K is chosen on an extruder that runs a nonlinear model: the
     /// start refuses, so the button is disabled and the reason shows.
     helix::Subject lin_blocked_{};
