@@ -12,6 +12,8 @@
  * Written TDD-style - tests WILL FAIL if TelemetryManager is removed.
  */
 
+#include "ui_ams_device_operations_overlay.h"
+
 #include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
@@ -743,6 +745,16 @@ TEST_CASE_METHOD(TelemetryTestFixture,
         REQUIRE(events.size() == 3);
         CHECK(events[2]["outcome"] == "failed");
         CHECK(events[2]["error_class"] == "jam");
+
+        // The filament panel's Abort ends the running operation as aborted.
+        ams_state.set_action(helix::AmsAction::IDLE);
+        ams_state.set_action(helix::AmsAction::LOADING);
+        helix::ui::abort_ams_operation();
+        ams_state.set_action(helix::AmsAction::IDLE);
+        tm.flush_filament_ops(); // a repeat of the abort above is pooled
+        events = events_named(tm, "filament_op");
+        REQUIRE(events.size() == 4);
+        CHECK(events[3]["outcome"] == "aborted");
     }
     PrinterStateTestAccess::reset(state);
 }
