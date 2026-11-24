@@ -619,6 +619,13 @@ class UpdateChecker {
     static bool sentinel_installer_running();
 
     /**
+     * @brief on_connected()'s sentinel rule: keep it while an install runs or
+     *        while it is fresh (removed later by a one-shot timer), otherwise
+     *        remove it and ask Moonraker to refresh the update entry.
+     */
+    void settle_sentinel_after_connect(helix::IMoonrakerClient& client);
+
+    /**
      * @brief After install.sh: keep the sentinel written before it when the
      *        install succeeded (the restart follows) or install.sh may still be
      *        running, remove it otherwise. Exposed for unit testing.
@@ -1049,6 +1056,8 @@ class UpdateChecker {
     // Auto-check timer
     lv_timer_t* auto_check_timer_{nullptr};
     lv_timer_t* auto_install_timer_{nullptr};
+    /// Removes a sentinel on_connected() found too fresh to remove yet.
+    lv_timer_t* sentinel_cleanup_timer_{nullptr};
     /// Version the scheduler already started installing; never retried unprompted.
     std::string auto_install_attempted_version_;
     /// Replaces start_download() for auto_update_tick() in tests.

@@ -113,6 +113,9 @@ constexpr int kHttpTimeoutSeconds = 30;
 constexpr int kRestartMarshalTimeoutMs = 5000;
 /// Where the "Update Rolled Back" notice waits until it has been seen.
 constexpr const char* kRollbackNoticeKey = "/update/rollback_notice";
+/// A sentinel younger than this may still be answering helixscreen-update.path's
+/// check, ten seconds after the tree changed.
+constexpr int kFreshSentinelSeconds = 30;
 /// How long the notice must be on screen before it is forgotten.
 constexpr int kRollbackNoticeSeconds = 120;
 
@@ -3887,26 +3890,58 @@ void helix::request_update_manager_refresh(helix::IMoonrakerClient& client,
         0, /*silent=*/true);
 }
 
+void UpdateChecker::settle_sentinel_after_connect(helix::IMoonrakerClient& client) {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    const std::string sentinel =
+        app_constants::update::backup_fallback_dir() + "/self_restart_sentinel";
+    if (installing_.load() || sentinel_installer_running()) {
+        spdlog::info("[UpdateChecker] Keeping the self-restart sentinel: install.sh is running");
+        return;
+    }
+    // helixscreen-update.path checks for the sentinel ten seconds after the
+    // tree changes. A sentinel written moments ago (a rollback's restore) is
+    // still answering that check, so it is removed once that has passed.
+    const auto written = fs::last_write_time(sentinel, ec);
+    if (!ec) {
+        const auto age = fs::file_time_type::clock::now() - written;
+        const auto fresh = std::chrono::seconds(kFreshSentinelSeconds);
+        if (age < fresh) {
+            const auto wait =
+                std::chrono::duration_cast<std::chrono::milliseconds>(fresh - age).count() + 1000;
+            spdlog::info("[UpdateChecker] Keeping the fresh self-restart sentinel for {} ms", wait);
+            if (sentinel_cleanup_timer_ == nullptr && lv_is_initialized()) {
+                sentinel_cleanup_timer_ = lv_timer_create(
+                    [](lv_timer_t*) {
+                        auto& self = UpdateChecker::instance();
+                        self.sentinel_cleanup_timer_ = nullptr;
+                        if (auto* c = get_moonraker_client()) {
+                            self.settle_sentinel_after_connect(*c);
+                        }
+                    },
+                    static_cast<uint32_t>(wait), nullptr);
+                lv_timer_set_repeat_count(sentinel_cleanup_timer_, 1);
+            }
+            return;
+        }
+    }
+    if (fs::remove(sentinel, ec)) {
+        spdlog::info("[UpdateChecker] Cleaned up self-restart sentinel");
+        // Moonraker re-reads release_info.json only on a refresh, and its
+        // own schedule can be a week apart, so Mainsail keeps showing the
+        // version we just replaced. "helixscreen" is the update_manager
+        // section the installer writes.
+        helix::request_update_manager_refresh(client, "helixscreen");
+    }
+}
+
 void UpdateChecker::on_connected(helix::IMoonrakerClient& client) {
     {
-        namespace fs = std::filesystem;
-        std::error_code ec;
-        std::string sentinel =
-            app_constants::update::backup_fallback_dir() + "/self_restart_sentinel";
-        if (installing_.load() || sentinel_installer_running()) {
-            spdlog::info(
-                "[UpdateChecker] Keeping the self-restart sentinel: install.sh is running");
-        } else if (fs::remove(sentinel, ec)) {
-            spdlog::info("[UpdateChecker] Cleaned up self-restart sentinel");
-            // Moonraker re-reads release_info.json only on a refresh, and its
-            // own schedule can be a week apart, so Mainsail keeps showing the
-            // version we just replaced. "helixscreen" is the update_manager
-            // section the installer writes.
-            helix::request_update_manager_refresh(client, "helixscreen");
-        }
+        settle_sentinel_after_connect(client);
         // Legacy: best-effort under PrivateTmp (sees private /tmp,
         // not real /tmp — stale real sentinels cleaned on reboot)
-        fs::remove("/tmp/helixscreen_self_restart", ec);
+        std::error_code ec;
+        std::filesystem::remove("/tmp/helixscreen_self_restart", ec);
     }
 
     // Detect when Moonraker finishes updating HelixScreen (e.g. via Mainsail).
@@ -4070,6 +4105,10 @@ void UpdateChecker::cancel_auto_check_timer() {
         helix::ui::lv_timer_cancel_safe(auto_install_timer_);
     }
     auto_install_timer_ = nullptr;
+    if (sentinel_cleanup_timer_ && lv_is_initialized()) {
+        helix::ui::lv_timer_cancel_safe(sentinel_cleanup_timer_);
+    }
+    sentinel_cleanup_timer_ = nullptr;
 }
 
 UpdateChecker::AutoUpdateNow UpdateChecker::auto_update_now_from_system() {

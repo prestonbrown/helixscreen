@@ -19,6 +19,7 @@
 #include "system/update_checker.h"
 #include "timelapse_state.h"
 
+#include <chrono>
 #include <csignal>
 #include <filesystem>
 #include <fstream>
@@ -67,6 +68,11 @@ struct ScratchSentinelDir {
     }
     fs::path sentinel() const {
         return root / "self_restart_sentinel";
+    }
+    /// As if written a minute ago, past helixscreen-update.path's check.
+    void age_sentinel() const {
+        fs::last_write_time(sentinel(),
+                            fs::file_time_type::clock::now() - std::chrono::seconds(60));
     }
 };
 
@@ -145,8 +151,30 @@ TEST_CASE("a sentinel naming a running install.sh survives a reconnect",
 
     kill(installer, SIGKILL);
     waitpid(installer, nullptr, 0);
+    scratch.age_sentinel();
     UpdateChecker::instance().on_connected(client);
     CHECK_FALSE(fs::exists(scratch.sentinel()));
+}
+
+TEST_CASE("a sentinel written moments ago outlives the connect, then goes with the refresh",
+          "[discovery_attach][update_checker][sentinel]") {
+    ScratchSentinelDir scratch;
+    FakeMoonrakerClient client;
+    // A rollback's restore writes it just before the restored version starts;
+    // helixscreen-update.path checks for it ten seconds after the swap.
+    REQUIRE(UpdateChecker::write_self_restart_sentinel());
+
+    UpdateChecker::instance().on_connected(client);
+    CHECK(fs::exists(scratch.sentinel()));
+    CHECK(client.rpc_count("machine.update.refresh") == 0);
+
+    // What the one-shot timer runs once the sentinel has aged.
+    scratch.age_sentinel();
+    UpdateChecker::instance().settle_sentinel_after_connect(client);
+    CHECK_FALSE(fs::exists(scratch.sentinel()));
+    CHECK(client.rpc_count("machine.update.refresh") == 1);
+
+    UpdateChecker::instance().detach(client);
 }
 
 TEST_CASE("a surviving self-restart sentinel is cleared once and Moonraker is told to refresh",
@@ -155,6 +183,7 @@ TEST_CASE("a surviving self-restart sentinel is cleared once and Moonraker is to
     FakeMoonrakerClient client;
     REQUIRE(UpdateChecker::write_self_restart_sentinel());
     REQUIRE(fs::exists(scratch.sentinel()));
+    scratch.age_sentinel();
 
     UpdateChecker::instance().on_connected(client);
     CHECK_FALSE(fs::exists(scratch.sentinel()));
