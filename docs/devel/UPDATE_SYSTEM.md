@@ -401,7 +401,15 @@ it.
 
 ### Manifest Signatures
 
-Every manifest the checker reads, R2 or `dev_url`, must carry a prehashed minisign signature at `<manifest URL>.minisig` that verifies against the release key compiled into the app (`helix::release_signature::kReleasePublicKey`), or against `release_pubkey` in the root-owned update_urls.json for a test server with its own key. The signature's trusted comment must also be exactly `file:manifest.json channel:<the channel fetched>`, so a manifest signed for one channel is refused on another (`helix::release_signature::verify_channel_manifest()`). `UpdateChecker::fetch_verified_manifest()` refuses a missing, wrong-key, legacy, other-channel or failing signature before the manifest is parsed, and only a release parsed from a verified manifest (`ReleaseInfo::signature_verified`) with a SHA-256 is ever downloaded (`helix::release_is_verified()`). Setup, tests and rollout: [RELEASE_SIGNING.md](RELEASE_SIGNING.md).
+Every manifest the checker reads, R2 or `dev_url`, must carry a prehashed minisign signature at `<manifest URL>.minisig` that verifies against a key compiled into the app, or against `release_pubkey` in the root-owned update_urls.json for a test server with its own key (which then replaces both compiled-in keys). Which compiled-in key a channel accepts:
+
+| Channel | Release key (`kReleasePublicKey`) | Dev key (`kDevPublicKey`) |
+|---------|-----------------------------------|---------------------------|
+| stable | accepted | refused |
+| beta | accepted | refused |
+| dev, and `dev_url` | accepted | accepted |
+
+The signature's trusted comment must also be exactly `file:manifest.json channel:<the channel fetched>`, so a manifest signed for one channel is refused on another (`helix::release_signature::verify_channel_manifest()`). `UpdateChecker::fetch_verified_manifest()` refuses a missing, wrong-key, legacy, other-channel or failing signature before the manifest is parsed, and only a release parsed from a verified manifest (`ReleaseInfo::signature_verified`) with a SHA-256 is ever downloaded (`helix::release_is_verified()`). Setup, tests and rollout: [RELEASE_SIGNING.md](RELEASE_SIGNING.md).
 
 ### GitHub API Fallback
 
@@ -661,7 +669,7 @@ overrides live in the root-owned `/var/lib/helixscreen/update_urls.json` (see
 | `/update/dismissed_version` | settings.json | string | `""` | Version the user chose to ignore |
 | `r2_url` | update_urls.json | string | `""` | R2 base URL override (default: `https://releases.helixscreen.org`) |
 | `dev_url` | update_urls.json | string | `""` | Custom manifest URL for dev channel |
-| `release_pubkey` | update_urls.json | string | `""` | Minisign public key (the `RW...` line) that manifests are checked against instead of the release key; for a test server signing with its own key |
+| `release_pubkey` | update_urls.json | string | `""` | Minisign public key (the `RW...` line) that manifests on every channel are checked against instead of the compiled-in release and dev keys; for a test server signing with its own key |
 
 ---
 
@@ -710,7 +718,7 @@ scripts/generate-manifest.sh \
   --base-url "http://192.168.1.100:8080/dev" \
   --output ./manifest.json
 
-# Sign it with a test key, never the release key; the trusted comment must be exactly this
+# Sign it with a test key, never a release key; the trusted comment must be exactly this
 minisign -G -W -p test.pub -s test.key
 minisign -S -s test.key -m manifest.json -t "file:manifest.json channel:dev"
 
@@ -772,7 +780,7 @@ overrides) and kept between runs. `--configure-remote` writes that key's public 
 `release_pubkey` beside `dev_url` in update_urls.json, so the device accepts the local manifest
 and nothing signed by any other key. A device configured before the script signed needs
 `--configure-remote` once more; until then its check reports "manifest is not signed" or
-"the signature does not match". The script refuses a key directory holding the release key.
+"the signature does not match". The script refuses a key directory holding the release or dev key.
 
 #### The Two-Install Rule for `update_checker.cpp` Changes
 

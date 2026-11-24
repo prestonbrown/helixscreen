@@ -827,6 +827,10 @@ jobs:
       channel: ${{ steps.channel.outputs.channel }}
       channels: ${{ steps.channel.outputs.channels }}
       prerelease: ${{ steps.channel.outputs.prerelease }}
+      # main or dev: the key upload-r2 signs the manifests with, and so the environment it
+      # runs in. Resolved here with the channels, from the tagged commit, before any job
+      # that holds a key runs (scripts/release-channel.sh, docs/devel/RELEASE_SIGNING.md).
+      signing: ${{ steps.channel.outputs.signing }}
       make_latest: ${{ steps.latest.outputs.make_latest }}
 
     steps:
@@ -1380,9 +1384,13 @@ jobs:
     #
     # A release waits here for a reviewer to approve the release-signing environment,
     # which alone holds the release key's secrets (HELIX_RELEASE_MINISIGN_KEY and its
-    # password) and admits only v* tags. A dry run uses no environment, never reads the
-    # key and signs with one made for the run. docs/devel/RELEASE_SIGNING.md.
-    environment: ${{ needs.plan.outputs.mode == 'publish' && 'release-signing' || '' }}
+    # password) and admits only v* tags. A release publishing to dev alone, from an alpha
+    # tag, runs instead in release-signing-dev: no reviewer, only the dev key's secrets
+    # (HELIX_DEV_MINISIGN_KEY and its password), only v*-alpha.* tags, and a key clients
+    # trust on the dev channel only. The choice is the release job's `signing` output. A
+    # dry run uses no environment, never reads a key and signs with one made for the run.
+    # docs/devel/RELEASE_SIGNING.md.
+    environment: ${{ needs.plan.outputs.mode == 'publish' && (needs.release.outputs.signing == 'dev' && 'release-signing-dev' || 'release-signing') || '' }}
     env:
       R2_PREFIX: ${{ needs.plan.outputs.r2_prefix }}
       RELEASE_TAG: ${{ needs.plan.outputs.tag }}
@@ -1560,13 +1568,16 @@ jobs:
 
     # Each channel's manifest is generated, checked and signed here, before
     # anything is uploaded, so a bad entry or a signing failure stops the
-    # release with nothing published. The release key reaches only this step,
-    # and only in a release, from the release-signing environment's secrets: a
-    # dry run signs with a key generated for the run (scripts/sign-release-manifest.sh).
+    # release with nothing published. The signing key reaches only this step,
+    # and only in a release, from its environment's secrets: a dry run signs
+    # with a key generated for the run (scripts/sign-release-manifest.sh).
     - name: Generate and sign channel manifests
       env:
-        HELIX_RELEASE_MINISIGN_KEY: ${{ env.RELEASE_MODE == 'publish' && secrets.HELIX_RELEASE_MINISIGN_KEY || '' }}
-        HELIX_RELEASE_MINISIGN_PASSWORD: ${{ env.RELEASE_MODE == 'publish' && secrets.HELIX_RELEASE_MINISIGN_PASSWORD || '' }}
+        HELIX_RELEASE_MINISIGN_KEY: ${{ env.RELEASE_MODE == 'publish' && needs.release.outputs.signing == 'main' && secrets.HELIX_RELEASE_MINISIGN_KEY || '' }}
+        HELIX_RELEASE_MINISIGN_PASSWORD: ${{ env.RELEASE_MODE == 'publish' && needs.release.outputs.signing == 'main' && secrets.HELIX_RELEASE_MINISIGN_PASSWORD || '' }}
+        HELIX_DEV_MINISIGN_KEY: ${{ env.RELEASE_MODE == 'publish' && needs.release.outputs.signing == 'dev' && secrets.HELIX_DEV_MINISIGN_KEY || '' }}
+        HELIX_DEV_MINISIGN_PASSWORD: ${{ env.RELEASE_MODE == 'publish' && needs.release.outputs.signing == 'dev' && secrets.HELIX_DEV_MINISIGN_PASSWORD || '' }}
+        SIGNING_KEY: ${{ needs.release.outputs.signing }}
         RELEASE_NOTES: ${{ steps.notes.outputs.notes }}
         RELEASE_VERSION: ${{ steps.version.outputs.version }}
         RELEASE_TAG: ${{ steps.version.outputs.tag }}
@@ -1593,7 +1604,11 @@ jobs:
           scripts/check-esp32-manifest.sh "release-files/manifest-${CHANNEL}.json" release-files
           manifests+=("release-files/manifest-${CHANNEL}.json")
         done
-        scripts/sign-release-manifest.sh --mode "$RELEASE_MODE" "${manifests[@]}"
+        case "$SIGNING_KEY" in
+          main|dev) ;;
+          *) echo "::error::release job resolved no signing key ('$SIGNING_KEY')"; exit 1 ;;
+        esac
+        scripts/sign-release-manifest.sh --mode "$RELEASE_MODE" --key "$SIGNING_KEY" "${manifests[@]}"
 
     - name: Upload artifacts and manifests to R2
       env:

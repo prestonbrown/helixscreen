@@ -200,3 +200,65 @@ write_channel() {
     [ "$status" -eq 0 ]
     [[ "$output" == *"channel="* ]]
 }
+
+# ---------------------------------------------------------------------------
+# The signing key (docs/devel/RELEASE_SIGNING.md)
+# ---------------------------------------------------------------------------
+
+# dev_pub real|placeholder: a dev public key file, its path in $DEV_PUB.
+dev_pub() {
+    DEV_PUB="$TEST_DIR/dev.pub"
+    if [ "$1" = real ]; then
+        printf 'untrusted comment: minisign public key 0123456789ABCDEF\nRW%s\n' \
+            "$(printf 'A%.0s' $(seq 54))" > "$DEV_PUB"
+    else
+        printf 'untrusted comment: PLACEHOLDER\nPLACEHOLDER_DEV_PUBLIC_KEY\n' > "$DEV_PUB"
+    fi
+}
+
+# signing_for CHANNEL TAG: the signing field for that declaration and tag ("" for none).
+signing_for() {
+    write_channel "$1"
+    local args=(--file "$CHANNEL_FILE" --dev-pubkey "$DEV_PUB" --field signing)
+    [ -n "$2" ] && args+=(--tag "$2")
+    run "$SCRIPT" "${args[@]}"
+    [ "$status" -eq 0 ] || fail "$1 $2: $output"
+    echo "$output"
+}
+
+@test "only an alpha publishing to dev alone is signed with the dev key" {
+    dev_pub real
+    local rows=(
+        "dev|v1.3.0-alpha.1|dev"
+        "dev|v1.3.0-alpha.5.20261124|dev"
+        "dev||dev"
+        "dev|v1.3.0-beta.1|main"
+        "dev|v1.3.0-rc.1|main"
+        "beta|v1.2.0-beta.3|main"
+        "beta|v1.2.0-alpha.1|main"
+        "beta||main"
+        "stable|v1.2.0|main"
+        "stable||main"
+    )
+    local row channel tag want got
+    for row in "${rows[@]}"; do
+        IFS='|' read -r channel tag want <<< "$row"
+        got=$(signing_for "$channel" "$tag")
+        [ "$got" = "$want" ] || fail "$channel $tag: signing=$got, want $want"
+    done
+}
+
+@test "until the dev public key is committed every release signs with the release key" {
+    dev_pub placeholder
+    [ "$(signing_for dev v1.3.0-alpha.1)" = main ]
+    rm -f "$DEV_PUB"
+    [ "$(signing_for dev v1.3.0-alpha.1)" = main ]
+}
+
+@test "the KEY=value output carries the signing key" {
+    dev_pub real
+    write_channel "dev"
+    run "$SCRIPT" --file "$CHANNEL_FILE" --dev-pubkey "$DEV_PUB" --tag v1.3.0-alpha.1
+    [ "$status" -eq 0 ]
+    contains "signing=dev" "$output"
+}

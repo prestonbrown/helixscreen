@@ -309,8 +309,9 @@ if [[ ! -f "$LOCAL_SECKEY" || ! -f "$LOCAL_PUBFILE" ]]; then
     minisign -G -W -p "$LOCAL_PUBFILE" -s "$LOCAL_SECKEY" >/dev/null
 fi
 LOCAL_PUBKEY="$(sed -n 2p "$LOCAL_PUBFILE")"
-if [[ "$LOCAL_PUBKEY" == "$(sed -n 2p "$PROJECT_DIR/.github/release-minisign.pub")" ]]; then
-    echo "ERROR: $LOCAL_PUBFILE is the release key. Test manifests are never signed with it;"
+if [[ "$LOCAL_PUBKEY" == "$(sed -n 2p "$PROJECT_DIR/.github/release-minisign.pub")" ||
+      "$LOCAL_PUBKEY" == "$(sed -n 2p "$PROJECT_DIR/.github/release-minisign-dev.pub")" ]]; then
+    echo "ERROR: $LOCAL_PUBFILE is a release signing key. Test manifests are never signed with it;"
     echo "  point HELIX_LOCAL_UPDATE_KEY_DIR at a directory of its own."
     exit 1
 fi
