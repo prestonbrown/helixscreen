@@ -43,6 +43,43 @@ struct NonlinearPass {
 
 /// The firmware tower's height (Kalico's [pa_test] default).
 inline constexpr float kTowerHeightMm = 50.0f;
+/// The firmware tower's layer height (Kalico's [pa_test] default).
+inline constexpr float kTowerLayerMm = 0.2f;
+
+/// Where a printing tower is, from the nozzle height alone: every layer above
+/// the first is the same shape, so height is the tower's real progress.
+struct TowerLayerProgress {
+    int layer = 1;
+    int layers = 1;
+    float fraction = 0.0f; ///< 0..1 of the tower's height
+};
+TowerLayerProgress tower_layer_progress(float z_mm, float height_mm = kTowerHeightMm,
+                                        float layer_mm = kTowerLayerMm);
+
+/// Time left on a tower. The first layer carries the brim and runs slow, so
+/// the rate is measured from the second layer on; until the nozzle has climbed
+/// kTowerRateClimbMm past that, it is the expected print time less what has
+/// printed.
+class TowerTimeLeft {
+  public:
+    static constexpr float kTowerRateClimbMm = 1.0f;
+    explicit TowerTimeLeft(int expected_print_s, float height_mm = kTowerHeightMm,
+                           float layer_mm = kTowerLayerMm);
+    /// The nozzle at @p z_mm, @p t_s seconds into the print.
+    void sample(float z_mm, double t_s);
+    [[nodiscard]] int seconds_left() const;
+
+  private:
+    int expected_s_;
+    float height_mm_;
+    float layer_mm_;
+    float z_ = 0.0f;
+    double t_ = 0.0;
+    double first_t_ = -1.0;
+    float climb_z_ = -1.0f;
+    double climb_t_ = 0.0;
+};
+
 /// Left and front heights closer than this count as the same.
 inline constexpr float kSameHeightMm = 1.0f;
 

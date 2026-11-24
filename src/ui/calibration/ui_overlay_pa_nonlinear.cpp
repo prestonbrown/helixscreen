@@ -16,6 +16,7 @@
 #include "config.h"
 #include "core/observer_factory.h"
 #include "core/run_after.h"
+#include "format_utils.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
 #include "pa_tower_start.h"
@@ -256,6 +257,7 @@ PaNonlinearOverlay::PaNonlinearOverlay() = default;
 PaNonlinearOverlay::~PaNonlinearOverlay() {
     print_state_observer_.reset();
     z_observer_.reset();
+    duration_observer_.reset();
     pa_observer_.reset();
     if (!StaticPanelRegistry::is_destroyed()) {
         deinit_subjects();
@@ -274,6 +276,11 @@ void PaNonlinearOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_STRING(live_value_, live_value_buf_, "--", "pa_nl_live_value",
                                   subjects_);
         UI_MANAGED_SUBJECT_STRING(live_text_, live_text_buf_, "", "pa_nl_live_text", subjects_);
+        UI_MANAGED_SUBJECT_STRING(layer_text_, layer_text_buf_, "", "pa_nl_layer_text", subjects_);
+        UI_MANAGED_SUBJECT_INT(progress_, 0, "pa_nl_progress", subjects_);
+        UI_MANAGED_SUBJECT_STRING(progress_text_, progress_text_buf_, "0%", "pa_nl_progress_text",
+                                  subjects_);
+        UI_MANAGED_SUBJECT_STRING(time_left_, time_left_buf_, "", "pa_nl_time_left", subjects_);
         UI_MANAGED_SUBJECT_INT(two_sided_, 0, "pa_nl_two_sided", subjects_);
         UI_MANAGED_SUBJECT_INT(can_back_, 0, "pa_nl_can_back", subjects_);
         UI_MANAGED_SUBJECT_STRING(height_, height_buf_, "", "pa_nl_height", subjects_);
@@ -760,6 +767,7 @@ void PaNonlinearOverlay::print_pass() {
     script += helix::pa::print_tower_gcode(params_.nozzle_diameter_mm, params_.nozzle_temp, 0);
 
     saw_printing_ = false;
+    time_left_est_.reset();
     script_done_ = false;
     // The tower about to print is judged fresh: a two-sided pass with neither height set.
     left_set_ = front_set_ = proc_->current().judge != helix::pa::TowerSide::LeftVsFront;
@@ -793,6 +801,9 @@ void PaNonlinearOverlay::begin_observing() {
         [](PaNonlinearOverlay* self, int) { self->refresh_live(); }, lifetime);
     // The sweep sets each height's value after the move that reaches it, so
     // the readout follows the model as well as the height.
+    duration_observer_ = helix::ui::observe<int>(
+        state.print_state().get_print_duration_subject(), this,
+        [](PaNonlinearOverlay* self, int) { self->refresh_live(); }, lifetime);
     pa_observer_ = helix::ui::observe<int>(
         state.temperature_state().get_pa_model_revision_subject(), this,
         [](PaNonlinearOverlay* self, int) { self->refresh_live(); }, lifetime);
@@ -823,6 +834,23 @@ void PaNonlinearOverlay::refresh_live() {
     lv_subject_set_string(
         &live_text_,
         fmt::format(fmt::runtime(lv_tr("{} at {:.1f} mm")), param_label(param), z).c_str());
+
+    const auto progress = helix::pa::tower_layer_progress(z);
+    lv_subject_set_string(&layer_text_,
+                          fmt::format(fmt::runtime(lv_tr("Layer {} of {} · {:.1f} mm")),
+                                      progress.layer, progress.layers, z)
+                              .c_str());
+    const int percent = static_cast<int>(std::lround(progress.fraction * 100.0f));
+    lv_subject_set_int(&progress_, percent);
+    lv_subject_set_string(&progress_text_, fmt::format("{}%", percent).c_str());
+    if (!time_left_est_) {
+        const auto estimate = helix::calibration::firmware_pa_tower_estimate();
+        time_left_est_.emplace(
+            (estimate.walk_away_minutes - helix::calibration::kPaTowerHeatHomeMinutes) * 60);
+    }
+    time_left_est_->sample(z, lv_subject_get_int(state.print_state().get_print_duration_subject()));
+    lv_subject_set_string(&time_left_,
+                          helix::format::duration_padded(time_left_est_->seconds_left()).c_str());
     refresh_towers();
 }
 

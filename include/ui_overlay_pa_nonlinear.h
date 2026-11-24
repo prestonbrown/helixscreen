@@ -53,6 +53,7 @@
  * - pa_nl_pass_title / pa_nl_pass_hint (string)
  * - pa_nl_has_tower (int), pa_nl_busy (int: 1 readying a print, 2 writing the config)
  * - pa_nl_live_value / pa_nl_live_text (string)
+ * - pa_nl_layer_text / pa_nl_progress_text / pa_nl_time_left (string), pa_nl_progress (int 0-100)
  * - pa_nl_two_sided (int), pa_nl_height / pa_nl_height_value (string)
  * - pa_nl_can_back (int: a judgement can be taken back)
  * - pa_nl_error (string)
@@ -309,6 +310,16 @@ class PaNonlinearOverlay : public OverlayBase {
     char live_value_buf_[24] = {};
     helix::Subject live_text_{};
     char live_text_buf_[96] = {};
+    // The tower's own progress, from the nozzle height: the firmware tower
+    // reports no layers, and its file position runs slow over the brim.
+    helix::Subject layer_text_{};
+    char layer_text_buf_[64] = {};
+    helix::Subject progress_{};
+    helix::Subject progress_text_{};
+    char progress_text_buf_[16] = {};
+    helix::Subject time_left_{};
+    char time_left_buf_[32] = {};
+    std::optional<helix::pa::TowerTimeLeft> time_left_est_;
     helix::Subject two_sided_{};
     helix::Subject can_back_{};
     helix::Subject height_{};
@@ -370,6 +381,7 @@ class PaNonlinearOverlay : public OverlayBase {
 
     ObserverGuard print_state_observer_;
     ObserverGuard z_observer_;
+    ObserverGuard duration_observer_;
     ObserverGuard pa_observer_;
 };
 

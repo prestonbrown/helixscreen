@@ -268,3 +268,47 @@ TEST_CASE("nonlinear procedure: a two-sided judgement keeps both heights through
     CHECK(restored->pass_number() == 2);
     CHECK(restored->repeats() == 0);
 }
+
+TEST_CASE("tower layer progress reads the layer and fraction from the nozzle height",
+          "[pa_nonlinear]") {
+    auto p = tower_layer_progress(0.2f);
+    CHECK(p.layer == 1);
+    CHECK(p.layers == 250);
+    CHECK(p.fraction == Catch::Approx(0.004f));
+    CHECK(tower_layer_progress(1.0f).layer == 5);
+    CHECK(tower_layer_progress(0.0f).layer == 1);
+    CHECK(tower_layer_progress(50.0f).layer == 250);
+    auto over = tower_layer_progress(55.0f);
+    CHECK(over.layer == 250);
+    CHECK(over.fraction == Catch::Approx(1.0f));
+}
+
+TEST_CASE("tower time left: expected time until the climb shows a rate, then the rate",
+          "[pa_nonlinear]") {
+    TowerTimeLeft eta(1740);
+    CHECK(eta.seconds_left() == 1740);
+    eta.sample(0.2f, 0.0);
+    CHECK(eta.seconds_left() == 1740);
+    // The brim layer: still the expected time, less what has printed.
+    eta.sample(0.2f, 120.0);
+    CHECK(eta.seconds_left() == 1620);
+    // The second layer starts the rate; under 1 mm of climb is too little to use.
+    eta.sample(0.4f, 150.0);
+    eta.sample(1.0f, 200.0);
+    CHECK(eta.seconds_left() == 1540);
+    // 1 mm in 100 s, 48.6 mm to go.
+    eta.sample(1.4f, 250.0);
+    CHECK(eta.seconds_left() == 4860);
+    // A travel move lower down is no step back.
+    eta.sample(0.6f, 260.0);
+    CHECK(eta.seconds_left() == 5346);
+    eta.sample(50.0f, 5000.0);
+    CHECK(eta.seconds_left() == 0);
+}
+
+TEST_CASE("tower time left never goes below zero on a slow first layer", "[pa_nonlinear]") {
+    TowerTimeLeft eta(60);
+    eta.sample(0.2f, 0.0);
+    eta.sample(0.2f, 300.0);
+    CHECK(eta.seconds_left() == 0);
+}

@@ -126,7 +126,7 @@
                   style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
             <status_pill name="pa_nl_run_chip" bind_text="pa_nl_run_chip" variant="info"/>
             <text_small name="pa_nl_run_layer"
-                        width="0" flex_grow="1" bind_text="print_layer_text" style_text_align="right"
+                        width="0" flex_grow="1" bind_text="pa_nl_layer_text" style_text_align="right"
                         style_text_color="#text_muted" long_mode="dots">
               <bind_flag_if_eq subject="pa_nl_stage" flag="hidden" ref_value="1"/>
             </text_small>
@@ -146,7 +146,7 @@
               <heater_rows/>
             </lv_obj>
           </lv_obj>
-          <!-- PRINTING: the swept value at the nozzle, Print Status's progress. -->
+          <!-- PRINTING: the swept value at the nozzle, and progress by the tower's height. -->
           <lv_obj name="pa_nl_printing"
                   width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0"
                   flex_flow="column" style_pad_gap="#space_xs" style_flex_cross_place="center" scrollable="false"
@@ -158,9 +158,9 @@
             <lv_obj width="100%"
                     height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
                     style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false">
-              <text_body bind_text="print_progress_text" style_text_font="#font_body_bold"/>
+              <text_body bind_text="pa_nl_progress_text" style_text_font="#font_body_bold"/>
               <icon src="clock" size="xs" variant="secondary"/>
-              <text_small bind_text="print_remaining" style_text_color="#text_muted" flex_grow="1" long_mode="dots"/>
+              <text_small bind_text="pa_nl_time_left" style_text_color="#text_muted" flex_grow="1" long_mode="dots"/>
               <icon src="hourglass" size="xs" variant="secondary">
                 <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
               </icon>
@@ -168,7 +168,7 @@
                 <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
               </text_small>
             </lv_obj>
-            <progress_bar name="pa_nl_progress" bind_value="print_progress_display"/>
+            <progress_bar name="pa_nl_progress" bind_value="pa_nl_progress"/>
             <lv_obj width="100%"
                     height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
                     style_flex_cross_place="center" style_pad_gap="#space_lg" scrollable="false">

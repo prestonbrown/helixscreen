@@ -170,6 +170,45 @@ std::optional<Correction> NonlinearProcedure::correction(SideVerdict verdict) co
     return Correction{NlParam::Advance, left_lower};
 }
 
+TowerLayerProgress tower_layer_progress(float z_mm, float height_mm, float layer_mm) {
+    TowerLayerProgress p;
+    if (height_mm <= 0.0f || layer_mm <= 0.0f) {
+        return p;
+    }
+    p.layers = std::max(1, static_cast<int>(std::lround(height_mm / layer_mm)));
+    // A layer's nozzle height is its top, so 0.2 mm is layer 1 and 1.0 mm layer 5.
+    const int layer = static_cast<int>(std::lround(z_mm / layer_mm));
+    p.layer = std::clamp(layer, 1, p.layers);
+    p.fraction = std::clamp(z_mm / height_mm, 0.0f, 1.0f);
+    return p;
+}
+
+TowerTimeLeft::TowerTimeLeft(int expected_print_s, float height_mm, float layer_mm)
+    : expected_s_(std::max(0, expected_print_s)), height_mm_(height_mm), layer_mm_(layer_mm) {}
+
+void TowerTimeLeft::sample(float z_mm, double t_s) {
+    if (first_t_ < 0.0) {
+        first_t_ = t_s;
+    }
+    // The tower only climbs; a lower reading is a travel move, not progress.
+    z_ = std::max(z_, z_mm);
+    t_ = t_s;
+    if (climb_z_ < 0.0f && z_ >= 2.0f * layer_mm_ - layer_mm_ / 2.0f) {
+        climb_z_ = z_;
+        climb_t_ = t_s;
+    }
+}
+
+int TowerTimeLeft::seconds_left() const {
+    const float left_mm = std::max(0.0f, height_mm_ - z_);
+    if (climb_z_ >= 0.0f && z_ - climb_z_ >= kTowerRateClimbMm) {
+        const double per_mm = (t_ - climb_t_) / static_cast<double>(z_ - climb_z_);
+        return static_cast<int>(std::lround(per_mm * left_mm));
+    }
+    const double printed = first_t_ < 0.0 ? 0.0 : t_ - first_t_;
+    return std::max(0, static_cast<int>(std::lround(expected_s_ - printed)));
+}
+
 SideVerdict verdict_from_heights(float left_mm, float front_mm) {
     // A hair of slack so a typed 26.5 against 27.5 counts as within 1 mm.
     constexpr float kSlack = 1e-4f;
