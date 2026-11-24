@@ -46,6 +46,7 @@
 #include "rpc_error_correlation.h"
 #include "runtime_config.h"
 #include "safety_settings_manager.h"
+#include "screensaver_build_depth.h"
 #include "screensaver_canvas.h"
 #include "screensaver_registry.h"
 #include "sensor_manager.h"

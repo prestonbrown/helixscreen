@@ -17,6 +17,7 @@
 #include "platform_capabilities.h"
 #include "platform_info.h"
 #include "preset_materials.h"
+#include "screensaver_build_depth.h"
 #include "screensaver_registry.h"
 #include "screensaver_setting.h"
 #include "spdlog/spdlog.h"
