@@ -3040,7 +3040,7 @@ void on_print_state_changed_for_telemetry(lv_observer_t* observer, lv_subject_t*
         // will be empty — this is acceptable (benign race, telemetry best-effort).
         // A job with no file behind it (a calibration tower) has no metadata.
         const char* filename = lv_subject_get_string(ps.print_state().get_print_filename_subject());
-        if (filename && filename[0] != '\0' && helix::gcode::has_printable_extension(filename)) {
+        if (filename && helix::gcode::names_a_print_file(filename)) {
             std::string fname(filename);
             spdlog::debug("[Telemetry] Fetching metadata for filament info: {}", fname);
 
