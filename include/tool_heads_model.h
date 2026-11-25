@@ -50,7 +50,8 @@ struct HeadFilament {
  *  - `_label`/`_sub` and `_pick`/`_pick_sub`/`_pick_state`, which the Home
  *    widget and the picker fill for their own cells.
  * and `tool_switcher_heads`, the head count. `tool_row_cell_w`/`_h`,
- * `tool_row_band_h` and `tool_row_off` (constantly 0) size a row's cells.
+ * `tool_row_band_h` and `tool_row_off` (constantly 0) size a row's cells; the width is
+ * their minimum (what the widest badge needs), above which the row's flex shares its width.
  *
  * Main thread only.
  */
@@ -139,6 +140,8 @@ class ToolHeadsModel {
     void publish_states();
     void notify_heads();
     void fit_row_pool(size_t r);
+    /// The row cells' minimum width: what the widest badge needs. See the definition.
+    void publish_row_cell_floor(int heads);
     static void on_row_resized(lv_event_t* e);
 
     PrinterState* printer_state_ = nullptr;

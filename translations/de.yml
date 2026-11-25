@@ -808,6 +808,7 @@ translations:
   Calibration canceled.: Kalibrierung abgebrochen.
   Calibration complete: Kalibrierung abgeschlossen
   Calibration complete - save to keep the offsets: Kalibrierung abgeschlossen - speichern, um die Offsets zu behalten
+  Calibration complete - the printer saved the offsets: Kalibrierung abgeschlossen - der Drucker hat die Offsets gespeichert
   Calibration complete!: Kalibrierung abgeschlossen!
   Calibration complete! Press 'Next' to continue.: Kalibrierung abgeschlossen! Drücken Sie 'Weiter' um fortzufahren.
   Calibration ended: "Kalibrierung beendet"
@@ -2395,6 +2396,7 @@ translations:
   Home Selector: Selektor referenzieren
   Home the printer again so a toolhead is picked up, then retry.: 'Drucker erneut referenzieren, damit ein Werkzeugkopf aufgenommen wird, dann erneut versuchen.'
   Home the printer again so it detects the toolheads, then retry.: 'Drucker erneut referenzieren, damit er die Werkzeugköpfe erkennt, dann erneut versuchen.'
+  'Home the printer first: the calibration needs X, Y and Z homed': 'Zuerst den Drucker referenzieren: Die Kalibrierung braucht X, Y und Z referenziert'
   Home the printer so every toolhead is docked, then retry.: 'Drucker referenzieren, damit alle Werkzeugköpfe angedockt sind, dann erneut versuchen.'
   Home the printer, check that the head moves freely in its dock, then try again.: Drucker referenzieren, prüfen, ob sich der Kopf frei in seinem Dock bewegt, dann erneut versuchen.
   Homing: Referenzfahrt
@@ -5627,6 +5629,7 @@ translations:
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Die Spulendetails wurden noch nicht aus Spoolman geladen. Tippe erneut auf Speichern.'
   This system does not support bypass mode: 'Dieses System unterstützt den Bypass-Modus nicht'
   This theme: Dieses Thema
+  'This tool has no number with a T command: assign it one first': 'Dieses Werkzeug hat keine Nummer mit T-Befehl: Zuerst eine zuweisen'
   This tool probes each bed screw and tells you how much to adjust.: Dieses Werkzeug tastet jede Bettschraube ab und zeigt Ihnen, wie viel Sie einstellen müssen.
   'This update asks for new permissions:': 'Dieses Update fragt nach neuen Berechtigungen:'
   This update removes HelixScreen from the printer.: 'Dieses Update entfernt HelixScreen vom Drucker.'
@@ -5731,6 +5734,7 @@ translations:
   Tool offset calibration complete: 'Werkzeug-Offset-Kalibrierung abgeschlossen'
   Tool offsets: 'Werkzeug-Offsets'
   Tool offsets (mm): Werkzeug-Offsets (mm)
+  Tool offsets cannot be calibrated during a print: Werkzeug-Offsets können während des Drucks nicht kalibriert werden
   Tool offsets saved: Werkzeug-Offsets gespeichert
   Tool swap: Werkzeugwechsel
   Tool, runout backup: Werkzeug, Ersatz bei Filamentende

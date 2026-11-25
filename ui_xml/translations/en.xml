@@ -775,6 +775,7 @@
   <translation tag="Calibration canceled." en="Calibration canceled."/>
   <translation tag="Calibration complete" en="Calibration complete"/>
   <translation tag="Calibration complete - save to keep the offsets" en="Calibration complete - save to keep the offsets"/>
+  <translation tag="Calibration complete - the printer saved the offsets" en="Calibration complete - the printer saved the offsets"/>
   <translation tag="Calibration complete!" en="Calibration complete!"/>
   <translation tag="Calibration complete! Press &apos;Next&apos; to continue." en="Calibration complete! Press &apos;Next&apos; to continue."/>
   <translation tag="Calibration ended" en="Calibration ended"/>
@@ -2289,6 +2290,7 @@
   <translation tag="Home printer first?" en="Home printer first?"/>
   <translation tag="Home the printer again so a toolhead is picked up, then retry." en="Home the printer again so a toolhead is picked up, then retry."/>
   <translation tag="Home the printer again so it detects the toolheads, then retry." en="Home the printer again so it detects the toolheads, then retry."/>
+  <translation tag="Home the printer first: the calibration needs X, Y and Z homed" en="Home the printer first: the calibration needs X, Y and Z homed"/>
   <translation tag="Home the printer so every toolhead is docked, then retry." en="Home the printer so every toolhead is docked, then retry."/>
   <translation tag="Home the printer, check that the head moves freely in its dock, then try again." en="Home the printer, check that the head moves freely in its dock, then try again."/>
   <translation tag="Homing" en="Homing"/>
@@ -5395,6 +5397,7 @@
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." en="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again."/>
   <translation tag="This system does not support bypass mode" en="This system does not support bypass mode"/>
   <translation tag="This theme" en="This theme"/>
+  <translation tag="This tool has no number with a T command: assign it one first" en="This tool has no number with a T command: assign it one first"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." en="This tool probes each bed screw and tells you how much to adjust."/>
   <translation tag="This toolhead has no automatic feeder. Load the filament by hand." en="This toolhead has no automatic feeder. Load the filament by hand."/>
   <translation tag="This update asks for new permissions:" en="This update asks for new permissions:"/>
@@ -5495,6 +5498,7 @@
   <translation tag="Tool offset calibration complete" en="Tool offset calibration complete"/>
   <translation tag="Tool offsets" en="Tool offsets"/>
   <translation tag="Tool offsets (mm)" en="Tool offsets (mm)"/>
+  <translation tag="Tool offsets cannot be calibrated during a print" en="Tool offsets cannot be calibrated during a print"/>
   <translation tag="Tool offsets saved" en="Tool offsets saved"/>
   <translation tag="Tool swap" en="Tool swap"/>
   <translation tag="Tool, runout backup" en="Tool, runout backup"/>

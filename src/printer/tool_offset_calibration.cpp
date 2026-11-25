@@ -28,6 +28,11 @@ constexpr const char* kMeasureDescription =
 /// send - unlike a SET_GCODE_VARIABLE MACRO= mux key.
 constexpr const char* kPanelMacro = "CALIBRATE_TOOL_OFFSETS";
 
+/// VRTX's calibration (Slimohan/VRTX): a blocking macro like the one above that measures
+/// every tool on the Nudge probe, writes each result with SET_TOOL_PARAMETER and keeps
+/// it in save_variables itself, so the panel only has to run it.
+constexpr const char* kVrtxPanelMacro = "VRTX_CALIBRATE";
+
 /// Z-Mod's Creator 5 calibration (c5pro_display_off.cfg): opens "remove the build
 /// plate" in an action:prompt whose OK runs _T_CALIBRATE_EXTRUDERS.
 constexpr const char* kPromptMacro = "CALIBRATE_EXTRUDERS";
@@ -49,6 +54,8 @@ struct Row {
     /// The panel or prompt macro, or the guided flow id.
     const char* target;
     const char* entry_description;
+    bool needs_homed_idle = false;
+    bool persists_itself = false;
 };
 
 bool has_afc_toolchanger_unit(const PrinterDiscovery& hw) {
@@ -67,6 +74,10 @@ bool is_tool_changer(const PrinterDiscovery& hw) {
 
 bool panel_detect(const PrinterDiscovery& hw) {
     return hw.has_tool_changer() && hw.has_macro(kPanelMacro);
+}
+
+bool vrtx_panel_detect(const PrinterDiscovery& hw) {
+    return hw.has_tool_changer() && hw.has_macro(kVrtxPanelMacro);
 }
 
 bool prompt_detect(const PrinterDiscovery& hw) {
@@ -88,6 +99,8 @@ const Row kRows[] = {
     {"INDX seat by hand", indx::supports_seat_by_hand, ProcedureKind::GuidedFlow,
      indx::kSeatByHandFlowId, TR_NOOP("Seat a tool by hand for the first Z home")},
     {"klipper-toolchanger", panel_detect, ProcedureKind::Panel, kPanelMacro, kMeasureDescription},
+    {"VRTX", vrtx_panel_detect, ProcedureKind::Panel, kVrtxPanelMacro, kMeasureDescription,
+     /*needs_homed_idle=*/true, /*persists_itself=*/true},
     {"changer firmware offset wizard", wizard_prompt_detect, ProcedureKind::PrinterPrompt,
      kWizardPromptMacro, kMeasureDescription},
     {"changer firmware prompt", prompt_detect, ProcedureKind::PrinterPrompt, kPromptMacro,
@@ -121,13 +134,45 @@ constexpr std::chrono::minutes kRunIdleTimeout{15};
 
 } // namespace
 
+namespace {
+
+/// VRTX ends every refusal of VRTX_CALIBRATE with this sentence, in a warning echo
+/// ("VRTX WARNING: <why> Nothing was done.") that its rpc still answers as a success.
+constexpr const char* kVrtxWarningPrefix = "VRTX WARNING: ";
+constexpr std::string_view kVrtxRefusalEnd = "Nothing was done.";
+
+std::optional<std::string> vrtx_refusal_text(const std::string& line) {
+    const size_t at = line.find(kVrtxWarningPrefix);
+    if (at == std::string::npos) {
+        return std::nullopt;
+    }
+    std::string text = line.substr(at + std::string_view(kVrtxWarningPrefix).size());
+    while (!text.empty() && (text.back() == ' ' || text.back() == '\n' || text.back() == '\r')) {
+        text.pop_back();
+    }
+    if (text.size() < kVrtxRefusalEnd.size() ||
+        std::string_view(text).substr(text.size() - kVrtxRefusalEnd.size()) != kVrtxRefusalEnd) {
+        return std::nullopt;
+    }
+    return text;
+}
+
+} // namespace
+
 bool is_progress_line(const std::string& line) {
     return line.find("[CALIB] ") != std::string::npos ||
+           line.find(kVrtxWarningPrefix) != std::string::npos ||
            toolchanger_addon::parse_zmod_calibration_line(line).has_value();
 }
 
 std::optional<ProgressEvent> parse_progress_line(const std::string& line) {
     using Step = toolchanger_addon::ZmodCalibrationStep;
+    if (auto refusal = vrtx_refusal_text(line)) {
+        ProgressEvent event;
+        event.kind = ProgressEvent::Kind::Refused;
+        event.text = std::move(*refusal);
+        return event;
+    }
     const auto step = toolchanger_addon::parse_zmod_calibration_line(line);
     if (!step) {
         return std::nullopt;
@@ -164,6 +209,13 @@ bool report_progress_line(const std::string& line, std::chrono::steady_clock::ti
     if (!event) {
         return false;
     }
+    // A refusal answers a start, never joins a run in progress.
+    if (event->kind == ProgressEvent::Kind::Refused) {
+        if (progress_sink()) {
+            progress_sink()(*event);
+        }
+        return true;
+    }
     RunState& run = run_state();
     if (run.active && now - run.last_line > kRunIdleTimeout) {
         run.active = false;
@@ -196,6 +248,8 @@ Procedure resolve_procedure(const PrinterDiscovery& hw) {
         p.kind = row.kind;
         p.name = row.name;
         p.entry_description = row.entry_description;
+        p.needs_homed_idle = row.needs_homed_idle;
+        p.persists_itself = row.persists_itself;
         if (row.kind == ProcedureKind::GuidedFlow) {
             p.flow_id = row.target;
         } else {
@@ -204,6 +258,19 @@ Procedure resolve_procedure(const PrinterDiscovery& hw) {
         return p;
     }
     return {};
+}
+
+const char* start_refusal(const Procedure& procedure, bool homed, bool job_holds_machine) {
+    if (!procedure.needs_homed_idle) {
+        return nullptr;
+    }
+    if (job_holds_machine) {
+        return TR_NOOP("Tool offsets cannot be calibrated during a print");
+    }
+    if (!homed) {
+        return TR_NOOP("Home the printer first: the calibration needs X, Y and Z homed");
+    }
+    return nullptr;
 }
 
 bool supported(const PrinterDiscovery& hw) {

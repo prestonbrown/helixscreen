@@ -321,6 +321,9 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
      * table ASSIGN_TOOL writes). That is deliberate — a tap on lane 2 must mount the toolhead the
      * user tapped, not whichever physical tool the slicer's T2 was reassigned to.
      *
+     * A VRTX printer (toolchanger_addon::SwapMacro) sends its T<n> macro instead, with
+     * the number the listing currently gives the tapped tool, so the same tool mounts.
+     *
      * So on this backend a tool number and a slot index are NOT
      * interchangeable, and anything that has to cross between them goes through
      * the tool map (AmsSystemInfo::tool_to_slot_map / SlotInfo::mapped_tool),
@@ -546,6 +549,13 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
         tool_commands_ = std::move(commands);
     }
 
+    /// A macro package (VRTX) whose T<n> commands wrap SELECT_TOOL. Absent leaves a
+    /// mount as SELECT_TOOL.
+    void set_swap_macro(helix::toolchanger_addon::SwapMacro macro) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        swap_macro_ = std::move(macro);
+    }
+
     /// toolchanger_addon::clean_nozzle_gcode(): empty offers no Clean nozzle.
     void set_clean_nozzle_gcode(std::string gcode) {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -738,6 +748,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     void unregister_mount_feed_listener();
     /// The command that mounts @p slot_index, and the one that parks.
     [[nodiscard]] std::string mount_gcode(int slot_index) const;
+    /// Why a mount of @p slot_index cannot be sent (untranslated, pass through lv_tr()), or
+    /// nullptr. Under a macro package every mount goes through its T<n> command, so a tool
+    /// whose number has none is refused rather than mounted with a raw SELECT_TOOL.
+    /// Caller holds mutex_.
+    [[nodiscard]] const char* mount_refusal_locked(int slot_index) const;
     /// The TOOL= argument naming the [tool @p tool_name] object, for
     /// klipper-toolchanger's SELECT_TOOL and ASSIGN_TOOL.
     [[nodiscard]] static std::string tool_object_arg(const std::string& tool_name);
@@ -879,6 +894,8 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     helix::toolchanger_addon::ToolSensor tool_sensor_;
     /// Absent whenever klipper-toolchanger owns the swap.
     helix::toolchanger_addon::ToolCommands tool_commands_;
+    /// Guarded by mutex_. Absent unless a macro package wraps SELECT_TOOL.
+    helix::toolchanger_addon::SwapMacro swap_macro_;
     helix::toolchanger_addon::ToolFeed tool_feed_;
     /// Firmware material store this machine keeps; absent unless
     /// set_material_source() said otherwise.

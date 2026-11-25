@@ -21,6 +21,9 @@
 // that one question and never name the firmware. There is no per-tool entry
 // point: every procedure is all-or-nothing.
 //
+// VRTX (Slimohan/VRTX) has the same shape under the name VRTX_CALIBRATE: the panel runs
+// it, and VRTX keeps the results in save_variables itself.
+//
 // A PrinterPrompt procedure alone is followed off the console: the printer
 // narrates each step as a line, and parse_progress_line() turns it into a
 // ProgressEvent. For every other procedure nothing is parsed off the console;
@@ -66,7 +69,19 @@ struct Procedure {
     std::string flow_id;
     /// What the entry does, untranslated (pass it through lv_tr()).
     const char* entry_description = "";
+    /// The macro refuses on its own, with a console warning and a successful rpc,
+    /// when the printer is not homed or a job holds it. The caller checks first
+    /// (start_refusal()) so a refusal never reads as a finished run.
+    bool needs_homed_idle = false;
+    /// The firmware keeps the offsets itself (its own save file, reapplied at
+    /// startup), so a finished run leaves nothing for SAVE_CONFIG.
+    bool persists_itself = false;
 };
+
+/// Why this procedure cannot start now, untranslated (pass it through lv_tr()), or
+/// nullptr when it can. @p homed is x, y and z; @p job_holds_machine a print running
+/// or paused.
+const char* start_refusal(const Procedure& procedure, bool homed, bool job_holds_machine);
 
 /// One step of a PrinterPrompt procedure's run that a printer narrates on the
 /// console, in firmware-neutral terms. Positions are microns.
@@ -76,6 +91,7 @@ struct ProgressEvent {
         Skipped,  ///< The user left this head out of the run
         Measured, ///< The target's position was measured
         Complete, ///< Every offset is written
+        Refused,  ///< The macro declined to run ("Nothing was done"); `text` says why
     };
     Kind kind = Kind::Started;
     int tool = -1;        ///< The head, or -1 for the station and for Complete
@@ -83,6 +99,7 @@ struct ProgressEvent {
     std::optional<int> x_um;
     std::optional<int> y_um;
     std::optional<int> z_um;
+    std::string text; ///< Refused: the firmware's own sentence
 };
 
 /// Cheap check that a console line may be a progress line. Safe on any thread

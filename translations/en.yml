@@ -811,6 +811,7 @@ translations:
   Calibration canceled.: Calibration canceled.
   Calibration complete: Calibration complete
   Calibration complete - save to keep the offsets: Calibration complete - save to keep the offsets
+  Calibration complete - the printer saved the offsets: Calibration complete - the printer saved the offsets
   Calibration complete!: Calibration complete!
   Calibration complete! Press 'Next' to continue.: Calibration complete! Press 'Next' to continue.
   Calibration ended: Calibration ended
@@ -2383,6 +2384,7 @@ translations:
   Home Selector: Home Selector
   Home the printer again so a toolhead is picked up, then retry.: Home the printer again so a toolhead is picked up, then retry.
   Home the printer again so it detects the toolheads, then retry.: Home the printer again so it detects the toolheads, then retry.
+  'Home the printer first: the calibration needs X, Y and Z homed': 'Home the printer first: the calibration needs X, Y and Z homed'
   Home the printer so every toolhead is docked, then retry.: Home the printer so every toolhead is docked, then retry.
   Home the printer, check that the head moves freely in its dock, then try again.: Home the printer, check that the head moves freely in its dock, then try again.
   Homing: Homing
@@ -5587,6 +5589,7 @@ translations:
   This spool's details haven't loaded from Spoolman yet. Try Save again.: This spool's details haven't loaded from Spoolman yet. Try Save again.
   This system does not support bypass mode: This system does not support bypass mode
   This theme: This theme
+  'This tool has no number with a T command: assign it one first': 'This tool has no number with a T command: assign it one first'
   This tool probes each bed screw and tells you how much to adjust.: This tool probes each bed screw and tells you how much to adjust.
   'This update asks for new permissions:': 'This update asks for new permissions:'
   This update removes HelixScreen from the printer.: This update removes HelixScreen from the printer.
@@ -5691,6 +5694,7 @@ translations:
   Tool offset calibration complete: Tool offset calibration complete
   Tool offsets: Tool offsets
   Tool offsets (mm): Tool offsets (mm)
+  Tool offsets cannot be calibrated during a print: Tool offsets cannot be calibrated during a print
   Tool offsets saved: Tool offsets saved
   Tool swap: Tool swap
   Tool, runout backup: Tool, runout backup

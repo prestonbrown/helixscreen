@@ -817,6 +817,7 @@
   <translation tag="Calibration canceled." ru="Калибровка отменена."/>
   <translation tag="Calibration complete" ru="Калибровка завершена"/>
   <translation tag="Calibration complete - save to keep the offsets" ru="Калибровка завершена - сохраните, чтобы оставить смещения"/>
+  <translation tag="Calibration complete - the printer saved the offsets" ru="Калибровка завершена - принтер сохранил смещения"/>
   <translation tag="Calibration complete!" ru="Калибровка завершена!"/>
   <translation tag="Calibration complete! Press &apos;Next&apos; to continue." ru="Калибровка завершена! Нажмите «Далее» для продолжения."/>
   <translation tag="Calibration ended" ru="Калибровка завершена"/>
@@ -2337,6 +2338,7 @@
   <translation tag="Home printer first?" ru="Сначала запарковать принтер?"/>
   <translation tag="Home the printer again so a toolhead is picked up, then retry." ru="Снова запаркуйте принтер, чтобы печатающая головка была взята, затем повторите."/>
   <translation tag="Home the printer again so it detects the toolheads, then retry." ru="Снова запаркуйте принтер, чтобы он обнаружил печатающие головки, затем повторите."/>
+  <translation tag="Home the printer first: the calibration needs X, Y and Z homed" ru="Сначала выполните парковку принтера: для калибровки нужны припаркованные X, Y и Z"/>
   <translation tag="Home the printer so every toolhead is docked, then retry." ru="Запаркуйте принтер, чтобы все печатающие головки были в доках, затем повторите."/>
   <translation tag="Home the printer, check that the head moves freely in its dock, then try again." ru="Выполните парковку принтера, убедитесь, что головка свободно двигается в доке, затем попробуйте снова."/>
   <translation tag="Homing" ru="Парковка"/>
@@ -5461,6 +5463,7 @@
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." ru="Данные этой катушки ещё не загружены из Spoolman. Нажмите «Сохранить» ещё раз."/>
   <translation tag="This system does not support bypass mode" ru="Эта система не поддерживает режим обхода"/>
   <translation tag="This theme" ru="Эта тема"/>
+  <translation tag="This tool has no number with a T command: assign it one first" ru="У этого инструмента нет номера с командой T: сначала назначьте его"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." ru="Этот инструмент проверяет каждый винт стола и показывает, насколько его нужно отрегулировать."/>
   <translation tag="This toolhead has no automatic feeder. Load the filament by hand." ru="У этой печатающей головки нет автоматического фидера. Загрузите филамент вручную."/>
   <translation tag="This update asks for new permissions:" ru="Это обновление запрашивает новые разрешения:"/>
@@ -5561,6 +5564,7 @@
   <translation tag="Tool offset calibration complete" ru="Калибровка смещений инструментов завершена"/>
   <translation tag="Tool offsets" ru="Смещения инструментов"/>
   <translation tag="Tool offsets (mm)" ru="Смещения инструментов (мм)"/>
+  <translation tag="Tool offsets cannot be calibrated during a print" ru="Смещения инструментов нельзя калибровать во время печати"/>
   <translation tag="Tool offsets saved" ru="Смещения инструментов сохранены"/>
   <translation tag="Tool swap" ru="Смена инструмента"/>
   <translation tag="Tool, runout backup" ru="Инструмент, резерв при окончании филамента"/>

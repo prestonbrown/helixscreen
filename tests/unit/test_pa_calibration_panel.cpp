@@ -26,6 +26,8 @@
 #include "subject_initializer.h"
 #include "temperature_controller.h"
 
+#include <spdlog/fmt/fmt.h>
+
 #include <array>
 #include <memory>
 #include <string>
@@ -524,4 +526,17 @@ TEST_CASE_METHOD(PAHeaterFixture,
     panel().flush_owed_off_for_test();
 
     CHECK_FALSE(heater_off_sent());
+}
+
+TEST_CASE_METHOD(PACalPanelFixture, "PA calibration: every head of an 8-tool changer has a chip",
+                 "[pa_cal][vrtx]") {
+    // The tool row is a <repeat> over pa_cal_tool_count; a head without its subjects
+    // gets a chip that can never show a selection.
+    for (int head = 0; head < 8; ++head) {
+        INFO("head " << head);
+        CHECK(lv_xml_get_subject(nullptr, fmt::format("pa_cal_tool_selected_{}", head).c_str()) !=
+              nullptr);
+        CHECK(lv_xml_get_subject(nullptr, fmt::format("pa_cal_tool_sub_{}", head).c_str()) !=
+              nullptr);
+    }
 }

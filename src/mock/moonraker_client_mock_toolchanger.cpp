@@ -9,6 +9,8 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
+#include <cctype>
 #include <cstdio>
 #include <cstdlib>
 #include <exception>
@@ -22,9 +24,25 @@
 using namespace helix;
 using mock_internal::effective_mock_ams_env;
 
+bool MoonrakerClientMock::mock_vrtx_selected() {
+    const std::string ams_type = effective_mock_ams_env();
+    return ams_type == "vrtx" || ams_type == "a4tc" || ams_type == "a4t-c";
+}
+
 bool MoonrakerClientMock::mock_toolchanger_selected() {
     const std::string ams_type = effective_mock_ams_env();
-    return ams_type == "toolchanger" || ams_type == "tool_changer" || ams_type == "tc";
+    return ams_type == "toolchanger" || ams_type == "tool_changer" || ams_type == "tc" ||
+           mock_vrtx_selected();
+}
+
+int MoonrakerClientMock::toolchanger_tool_count() {
+    if (!mock_toolchanger_selected()) {
+        return 4;
+    }
+    const char* env = std::getenv("HELIX_MOCK_TOOLCHANGER_TOOLS");
+    const int requested = env ? helix::text_io::parse_leading<int>(env).value_or(0) : 0;
+    const int fallback = mock_vrtx_selected() ? kToolchangerMaxTools : 4;
+    return requested >= 1 && requested <= kToolchangerMaxTools ? requested : fallback;
 }
 
 bool MoonrakerClientMock::is_mock_toolchanger() const {
@@ -33,8 +51,10 @@ bool MoonrakerClientMock::is_mock_toolchanger() const {
 }
 
 bool MoonrakerClientMock::has_toolchanger_tool_fans() const {
-    return is_mock_toolchanger() && (helix::mock::descriptor(printer_type_).omit &
-                                     helix::mock::default_object::kToolchangerToolFans) == 0;
+    // VRTX's hotend swapper keeps the carriage's one [fan]: its tools have no fan: line.
+    return is_mock_toolchanger() && !mock_vrtx_selected() &&
+           (helix::mock::descriptor(printer_type_).omit &
+            helix::mock::default_object::kToolchangerToolFans) == 0;
 }
 
 void MoonrakerClientMock::seed_tool_lane_records() {
@@ -61,13 +81,19 @@ void MoonrakerClientMock::seed_tool_lane_records() {
         {15, "PLA", "Bambu Lab", "Red PLA", "#C12E1F", 1000.0},
     };
     static_assert(std::size(kMedusaLanes) == kMedusaMaxTools);
-    // Spools 1-4 in order, the lanes the mock AMS seeds on every other mode.
+    // Spools 1-4 in order, the lanes the mock AMS seeds on every other mode,
+    // then four more spools of the mock Spoolman inventory for tools 5-8.
     static constexpr Lane kToolChangerLanes[] = {
         {1, "PLA", "Polymaker", "Jet Black", "#1A1A2E", 850.0},
         {2, "Silk PLA", "eSUN", "Silk Blue", "#26DCD9", 750.0},
         {3, "ASA", "Elegoo", "Pop Blue", "#00AEFF", 500.0},
         {4, "ABS", "Flashforge", "Fire Engine Red", "#D20000", 100.0},
+        {5, "PETG", "Kingroon", "Signal Yellow", "#F4E111", 1000.0},
+        {6, "TPU", "Overture", "Clear", "#E8E8E8", 600.0},
+        {13, "PETG", "Bambu Lab", "Translucent Green PETG", "#29A261", 1000.0},
+        {15, "PLA", "Bambu Lab", "Red PLA", "#C12E1F", 1000.0},
     };
+    static_assert(std::size(kToolChangerLanes) == kToolchangerMaxTools);
 
     const Lane* lanes = nullptr;
     int count = 0;
@@ -76,7 +102,7 @@ void MoonrakerClientMock::seed_tool_lane_records() {
         count = medusa_tool_count();
     } else if (mock_toolchanger_selected()) {
         lanes = kToolChangerLanes;
-        count = static_cast<int>(std::size(kToolChangerLanes));
+        count = toolchanger_tool_count();
     }
     for (int i = 0; i < count; ++i) {
         const Lane& l = lanes[i];
@@ -98,9 +124,15 @@ void MoonrakerClientMock::seed_tool_lane_records() {
 MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_toolchanger(const std::string& gcode) {
     const std::string cmd = gcode.substr(0, gcode.find_first_of(" \t"));
     int tool = -1;
-    if (cmd == "SELECT_TOOL") {
+    // VRTX's T<n> macros wrap SELECT_TOOL T=<n>; the mock answers them with the same frames.
+    const bool vrtx_t = mock_vrtx_selected() && cmd.size() > 1 && cmd[0] == 'T' &&
+                        std::all_of(cmd.begin() + 1, cmd.end(),
+                                    [](unsigned char c) { return std::isdigit(c) != 0; });
+    if (vrtx_t || cmd == "SELECT_TOOL") {
         // TOOL="tool T<n>" names the tool object; T=<n> is a tool number.
-        if (const size_t named = gcode.find("TOOL=\"tool T"); named != std::string::npos) {
+        if (vrtx_t) {
+            tool = helix::text_io::parse_leading<int>(cmd.substr(1)).value_or(-1);
+        } else if (const size_t named = gcode.find("TOOL=\"tool T"); named != std::string::npos) {
             tool = helix::text_io::parse_leading<int>(gcode.substr(named + 12)).value_or(-1);
         } else if (const size_t t = gcode.find(" T="); t != std::string::npos) {
             tool = helix::text_io::parse_leading<int>(gcode.substr(t + 3)).value_or(-1);
@@ -145,7 +177,8 @@ void MoonrakerClientMock::dispatch_toolchanger_tool(int tool) {
     }
 }
 
-void MoonrakerClientMock::apply_calibrated_tool_offset(int tool, double x, double y, double z) {
+void MoonrakerClientMock::apply_calibrated_tool_offset(int tool, double x, double y, double z,
+                                                       bool stage) {
     const double values[] = {x, y, z};
     for (helix::Axis axis : helix::kAllAxes) {
         const double value = values[helix::axis_index(axis)];
@@ -154,6 +187,9 @@ void MoonrakerClientMock::apply_calibrated_tool_offset(int tool, double x, doubl
             tool_offsets_[tool][axis] = value;
         }
         dispatch_tool_update(tool, axis);
+        if (!stage) {
+            continue;
+        }
         char text[32];
         std::snprintf(text, sizeof(text), "%.6g", value);
         stage_config_change("tool T" + std::to_string(tool), tool_offset_param(axis), text);
@@ -171,7 +207,10 @@ bool MoonrakerClientMock::simulate_tool_offset_calibration(
     while (!cmd.empty() && (cmd.back() == '\n' || cmd.back() == '\r' || cmd.back() == ' ')) {
         cmd.pop_back();
     }
-    if (cmd.rfind("CALIBRATE_TOOL_OFFSETS", 0) != 0) {
+    // VRTX's macro runs the same blocking measure, writes live offsets and keeps them in
+    // save_variables, so nothing is staged for SAVE_CONFIG.
+    const bool vrtx = mock_vrtx_selected() && cmd.rfind("VRTX_CALIBRATE", 0) == 0;
+    if (!vrtx && cmd.rfind("CALIBRATE_TOOL_OFFSETS", 0) != 0) {
         return false;
     }
 
@@ -218,7 +257,21 @@ bool MoonrakerClientMock::simulate_tool_offset_calibration(
                                                 sensor_z + dz));
         }
     };
-    const auto measure = [this, probe, sensor_x, sensor_y, sensor_z](int tool) {
+    const auto measure = [this, probe, sensor_x, sensor_y, sensor_z, vrtx](int tool) {
+        if (vrtx) {
+            const double dx = 0.12 * tool, dy = -0.07 * tool, dz = -0.03 * tool;
+            if (tool == 0) {
+                dispatch_gcode_response(
+                    fmt::format("// VRTX: T0 (reference) located the Nudge probe at X {:.3f} Y "
+                                "{:.3f} Z {:.3f}.",
+                                sensor_x, sensor_y, sensor_z));
+            } else {
+                dispatch_gcode_response(fmt::format(
+                    "// VRTX: T{} offset saved: X {:.3f} Y {:.3f} Z {:.3f}", tool, dx, dy, dz));
+                apply_calibrated_tool_offset(tool, dx, dy, dz, /*stage=*/false);
+            }
+            return;
+        }
         probe(tool);
         if (tool == 0) {
             dispatch_gcode_response(fmt::format("Sensor location at {:.6f},{:.6f},{:.6f}", sensor_x,

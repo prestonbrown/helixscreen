@@ -808,6 +808,7 @@ translations:
   Calibration canceled.: 校准已取消。
   Calibration complete: 校准完成
   Calibration complete - save to keep the offsets: 校准完成 - 保存以保留偏移
+  Calibration complete - the printer saved the offsets: 校准完成 - 打印机已保存偏移
   Calibration complete!: 校准完成！
   Calibration complete! Press 'Next' to continue.: 校准完成！按“下一步”继续。
   Calibration ended: "校准已结束"
@@ -2395,6 +2396,7 @@ translations:
   Home Selector: 选择器归位
   Home the printer again so a toolhead is picked up, then retry.: '请重新归位打印机以装上一个工具头，然后重试。'
   Home the printer again so it detects the toolheads, then retry.: '请重新归位打印机以检测工具头，然后重试。'
+  'Home the printer first: the calibration needs X, Y and Z homed': 请先让打印机归位：校准需要 X、Y 和 Z 都已归位
   Home the printer so every toolhead is docked, then retry.: '请归位打印机使所有工具头停靠，然后重试。'
   Home the printer, check that the head moves freely in its dock, then try again.: 请将打印机归位，检查工具头在停靠位中移动顺畅，然后重试。
   Homing: 归零
@@ -5627,6 +5629,7 @@ translations:
   This spool's details haven't loaded from Spoolman yet. Try Save again.: '此料盘的详细信息尚未从 Spoolman 加载。请再次点击保存。'
   This system does not support bypass mode: '此系统不支持旁通模式'
   This theme: 此主题
+  'This tool has no number with a T command: assign it one first': 此工具没有带 T 命令的编号：请先分配一个
   This tool probes each bed screw and tells you how much to adjust.: 此工具探测每个热床螺丝并告诉您需要调整多少。
   'This update asks for new permissions:': '此更新请求新的权限：'
   This update removes HelixScreen from the printer.: '此更新会从打印机上移除 HelixScreen。'
@@ -5731,6 +5734,7 @@ translations:
   Tool offset calibration complete: '工具偏移校准完成'
   Tool offsets: '工具偏移'
   Tool offsets (mm): 工具偏移 (mm)
+  Tool offsets cannot be calibrated during a print: 打印时无法校准工具偏移
   Tool offsets saved: 工具偏移已保存
   Tool swap: 工具切换
   Tool, runout backup: 工具、断料备用

@@ -775,6 +775,7 @@
   <translation tag="Calibration canceled." zh="校准已取消。"/>
   <translation tag="Calibration complete" zh="校准完成"/>
   <translation tag="Calibration complete - save to keep the offsets" zh="校准完成 - 保存以保留偏移"/>
+  <translation tag="Calibration complete - the printer saved the offsets" zh="校准完成 - 打印机已保存偏移"/>
   <translation tag="Calibration complete!" zh="校准完成！"/>
   <translation tag="Calibration complete! Press &apos;Next&apos; to continue." zh="校准完成！按“下一步”继续。"/>
   <translation tag="Calibration ended" zh="校准已结束"/>
@@ -2289,6 +2290,7 @@
   <translation tag="Home printer first?" zh="先将打印机归位？"/>
   <translation tag="Home the printer again so a toolhead is picked up, then retry." zh="请重新归位打印机以装上一个工具头，然后重试。"/>
   <translation tag="Home the printer again so it detects the toolheads, then retry." zh="请重新归位打印机以检测工具头，然后重试。"/>
+  <translation tag="Home the printer first: the calibration needs X, Y and Z homed" zh="请先让打印机归位：校准需要 X、Y 和 Z 都已归位"/>
   <translation tag="Home the printer so every toolhead is docked, then retry." zh="请归位打印机使所有工具头停靠，然后重试。"/>
   <translation tag="Home the printer, check that the head moves freely in its dock, then try again." zh="请将打印机归位，检查工具头在停靠位中移动顺畅，然后重试。"/>
   <translation tag="Homing" zh="归零"/>
@@ -5395,6 +5397,7 @@
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." zh="此料盘的详细信息尚未从 Spoolman 加载。请再次点击保存。"/>
   <translation tag="This system does not support bypass mode" zh="此系统不支持旁通模式"/>
   <translation tag="This theme" zh="此主题"/>
+  <translation tag="This tool has no number with a T command: assign it one first" zh="此工具没有带 T 命令的编号：请先分配一个"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." zh="此工具探测每个热床螺丝并告诉您需要调整多少。"/>
   <translation tag="This toolhead has no automatic feeder. Load the filament by hand." zh="此工具头没有自动送料器。请手动装入耗材。"/>
   <translation tag="This update asks for new permissions:" zh="此更新请求新的权限："/>
@@ -5495,6 +5498,7 @@
   <translation tag="Tool offset calibration complete" zh="工具偏移校准完成"/>
   <translation tag="Tool offsets" zh="工具偏移"/>
   <translation tag="Tool offsets (mm)" zh="工具偏移 (mm)"/>
+  <translation tag="Tool offsets cannot be calibrated during a print" zh="打印时无法校准工具偏移"/>
   <translation tag="Tool offsets saved" zh="工具偏移已保存"/>
   <translation tag="Tool swap" zh="工具切换"/>
   <translation tag="Tool, runout backup" zh="工具、断料备用"/>

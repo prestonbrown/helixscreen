@@ -775,6 +775,7 @@
   <translation tag="Calibration canceled." de="Kalibrierung abgebrochen."/>
   <translation tag="Calibration complete" de="Kalibrierung abgeschlossen"/>
   <translation tag="Calibration complete - save to keep the offsets" de="Kalibrierung abgeschlossen - speichern, um die Offsets zu behalten"/>
+  <translation tag="Calibration complete - the printer saved the offsets" de="Kalibrierung abgeschlossen - der Drucker hat die Offsets gespeichert"/>
   <translation tag="Calibration complete!" de="Kalibrierung abgeschlossen!"/>
   <translation tag="Calibration complete! Press &apos;Next&apos; to continue." de="Kalibrierung abgeschlossen! Drücken Sie &apos;Weiter&apos; um fortzufahren."/>
   <translation tag="Calibration ended" de="Kalibrierung beendet"/>
@@ -2289,6 +2290,7 @@
   <translation tag="Home printer first?" de="Drucker zuerst referenzieren?"/>
   <translation tag="Home the printer again so a toolhead is picked up, then retry." de="Drucker erneut referenzieren, damit ein Werkzeugkopf aufgenommen wird, dann erneut versuchen."/>
   <translation tag="Home the printer again so it detects the toolheads, then retry." de="Drucker erneut referenzieren, damit er die Werkzeugköpfe erkennt, dann erneut versuchen."/>
+  <translation tag="Home the printer first: the calibration needs X, Y and Z homed" de="Zuerst den Drucker referenzieren: Die Kalibrierung braucht X, Y und Z referenziert"/>
   <translation tag="Home the printer so every toolhead is docked, then retry." de="Drucker referenzieren, damit alle Werkzeugköpfe angedockt sind, dann erneut versuchen."/>
   <translation tag="Home the printer, check that the head moves freely in its dock, then try again." de="Drucker referenzieren, prüfen, ob sich der Kopf frei in seinem Dock bewegt, dann erneut versuchen."/>
   <translation tag="Homing" de="Referenzfahrt"/>
@@ -5395,6 +5397,7 @@
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." de="Die Spulendetails wurden noch nicht aus Spoolman geladen. Tippe erneut auf Speichern."/>
   <translation tag="This system does not support bypass mode" de="Dieses System unterstützt den Bypass-Modus nicht"/>
   <translation tag="This theme" de="Dieses Thema"/>
+  <translation tag="This tool has no number with a T command: assign it one first" de="Dieses Werkzeug hat keine Nummer mit T-Befehl: Zuerst eine zuweisen"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." de="Dieses Werkzeug tastet jede Bettschraube ab und zeigt Ihnen, wie viel Sie einstellen müssen."/>
   <translation tag="This toolhead has no automatic feeder. Load the filament by hand." de="Dieser Werkzeugkopf hat keine automatische Zuführung. Lade das Filament von Hand."/>
   <translation tag="This update asks for new permissions:" de="Dieses Update fragt nach neuen Berechtigungen:"/>
@@ -5495,6 +5498,7 @@
   <translation tag="Tool offset calibration complete" de="Werkzeug-Offset-Kalibrierung abgeschlossen"/>
   <translation tag="Tool offsets" de="Werkzeug-Offsets"/>
   <translation tag="Tool offsets (mm)" de="Werkzeug-Offsets (mm)"/>
+  <translation tag="Tool offsets cannot be calibrated during a print" de="Werkzeug-Offsets können während des Drucks nicht kalibriert werden"/>
   <translation tag="Tool offsets saved" de="Werkzeug-Offsets gespeichert"/>
   <translation tag="Tool swap" de="Werkzeugwechsel"/>
   <translation tag="Tool, runout backup" de="Werkzeug, Ersatz bei Filamentende"/>

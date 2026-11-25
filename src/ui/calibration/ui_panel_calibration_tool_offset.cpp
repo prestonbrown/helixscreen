@@ -26,6 +26,7 @@
 #include "printer_state.h"
 #include "tool_offsets.h"
 #include "tool_state.h"
+#include "toolhead_homing.h"
 #include "z_offset_utils.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -40,6 +41,12 @@ namespace cal = helix::tool_offset_calibration;
 
 namespace {
 
+/// The panel whose run is in flight, so a console line reaches the run it belongs to.
+ToolOffsetCalibrationPanel*& running_panel() {
+    static ToolOffsetCalibrationPanel* panel = nullptr;
+    return panel;
+}
+
 /// The blocking macro the panel runs, or empty when this printer's entry runs
 /// some other procedure.
 std::string panel_macro() {
@@ -52,6 +59,9 @@ std::string panel_macro() {
 // LIFECYCLE
 
 ToolOffsetCalibrationPanel::~ToolOffsetCalibrationPanel() {
+    if (running_panel() == this) {
+        running_panel() = nullptr;
+    }
     idle_wait_observer_.reset();
     tools_observer_.reset();
     subjects_.deinit_all();
@@ -270,6 +280,15 @@ void ToolOffsetCalibrationPanel::start_calibration() {
         NOTIFY_ERROR("{}", lv_tr("This printer cannot calibrate tool offsets automatically"));
         return;
     }
+    // A macro that refuses with only a console warning would read as a finished run.
+    auto& ps = get_printer_state();
+    if (const char* reason = cal::start_refusal(
+            cal::resolve_procedure(ps.get_discovery()), helix::toolhead_is_homed(ps),
+            job_holds_machine(ps.print_state().get_print_lifecycle()))) {
+        NOTIFY_WARNING("{}", lv_tr(reason));
+        lv_subject_set_string(&status_, lv_tr(reason));
+        return;
+    }
     confirm_calibration();
 }
 
@@ -305,8 +324,10 @@ void ToolOffsetCalibrationPanel::begin_run() {
         NOTIFY_ERROR("{}", lv_tr("No tools to calibrate"));
         return;
     }
+    helix::ToolState::instance().snapshot_offsets_for_run();
     set_run_active(true);
     last_error_.clear();
+    run_refusal_.clear();
     lv_subject_set_string(&status_, lv_tr("Calibrating..."));
 
     spdlog::info("[ToolOffsetCal] Running {} over {} tools", gcode, tool_count);
@@ -402,9 +423,20 @@ void ToolOffsetCalibrationPanel::finish_idle_wait() {
 
 void ToolOffsetCalibrationPanel::set_run_active(bool active) {
     run_active_ = active;
+    if (active) {
+        running_panel() = this;
+    } else if (running_panel() == this) {
+        running_panel() = nullptr;
+    }
     lv_subject_set_int(&active_, active ? 1 : 0);
     // A run heats and probes every tool: the E-stop shows until it ends.
     holds_.apply(helix::calibration::StageNeeds{/*machine_busy=*/active, /*hands_on=*/false});
+}
+
+void ToolOffsetCalibrationPanel::on_run_refused(const std::string& text) {
+    if (run_active_) {
+        run_refusal_ = text;
+    }
 }
 
 void ToolOffsetCalibrationPanel::on_run_finished(bool ok, const std::string& error) {
@@ -414,11 +446,35 @@ void ToolOffsetCalibrationPanel::on_run_finished(bool ok, const std::string& err
     finish_idle_wait();
     set_run_active(false);
 
-    if (ok) {
-        spdlog::info("[ToolOffsetCal] Calibration finished");
-        lv_subject_set_string(&status_, lv_tr("Calibration complete - save to keep the offsets"));
+    if (ok && !run_refusal_.empty()) {
+        // Not `error`: a rpc that succeeded has none, the macro's own sentence is the reason.
+        std::string refusal = std::move(run_refusal_);
+        run_refusal_.clear();
+        on_run_failed(refusal);
         return;
     }
+    if (ok) {
+        spdlog::info("[ToolOffsetCal] Calibration finished");
+        const cal::Procedure procedure =
+            cal::resolve_procedure(get_printer_state().get_discovery());
+        if (procedure.persists_itself) {
+            // The firmware saved every result itself and reapplies it at startup: they are
+            // not unsaved edits, and a SAVE_CONFIG would only restart Klipper for nothing.
+            // Only after a fresh read: the last tool's offset can still be in flight.
+            helix::ToolState::instance().settle_run_offsets(get_moonraker_client(),
+                                                            get_printer_state().get_discovery());
+            lv_subject_set_string(&status_,
+                                  lv_tr("Calibration complete - the printer saved the offsets"));
+        } else {
+            lv_subject_set_string(&status_,
+                                  lv_tr("Calibration complete - save to keep the offsets"));
+        }
+        return;
+    }
+    on_run_failed(error);
+}
+
+void ToolOffsetCalibrationPanel::on_run_failed(const std::string& error) {
     last_error_ = error.empty() ? lv_tr("Calibration failed") : error;
     spdlog::error("[ToolOffsetCal] Calibration failed: {}", last_error_);
     lv_subject_set_string(&status_, last_error_.c_str());
@@ -594,6 +650,11 @@ void show_calibration_progress(const cal::ProgressEvent& event) {
         NOTIFY_SUCCESS("{}", lv_tr("Tool offset calibration complete"));
         break;
     case cal::ProgressEvent::Kind::Skipped:
+        break;
+    case cal::ProgressEvent::Kind::Refused:
+        if (ToolOffsetCalibrationPanel* run = running_panel()) {
+            run->on_run_refused(event.text);
+        }
         break;
     }
 }

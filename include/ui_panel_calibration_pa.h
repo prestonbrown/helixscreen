@@ -77,7 +77,7 @@ class PACalibrationPanel : public OverlayBase {
   public:
     /// Fixed subject slots. Chips beyond the printer's tool count are never
     /// built - <repeat> is driven by pa_cal_tool_count.
-    static constexpr int kMaxTools = 4;
+    static constexpr int kMaxTools = 8;
 
     /// Preset slots, mirroring helix::presets::kPresetCount.
     static constexpr int kPresetSlots = 4;

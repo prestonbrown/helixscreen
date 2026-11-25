@@ -489,6 +489,17 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      */
     static bool mock_toolchanger_selected();
 
+    /// HELIX_MOCK_AMS=vrtx (aliases `a4tc`, `a4t-c`): klipper-toolchanger plus the VRTX macro
+    /// package on a hotend swapper (heater-only extruders, one shared motor, one part fan).
+    /// Implies mock_toolchanger_selected().
+    static bool mock_vrtx_selected();
+
+    /// Tools the toolchanger mock publishes: HELIX_MOCK_TOOLCHANGER_TOOLS clamped to
+    /// 1..kToolchangerMaxTools, else 8 for the VRTX persona and 4 otherwise. 4 when the
+    /// toolchanger mock is not selected (Reforge's changer has four heads).
+    [[nodiscard]] static int toolchanger_tool_count();
+    static constexpr int kToolchangerMaxTools = 8;
+
     /**
      * @brief Start temperature simulation loop
      *
@@ -1698,8 +1709,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      *
      * Returns mock_toolchanger_selected(): true when the mode
      * helix::mock::effective_mock_ams() resolves (an explicit HELIX_MOCK_AMS,
-     * else the persona's default) is "toolchanger", "tool_changer" or "tc". Used to gate
-     * the multi-extruder toolchanger emulation (4 distinct extruder heaters,
+     * else the persona's default) is "toolchanger", "tool_changer", "tc" or a VRTX alias. Used to
+     * gate the multi-extruder toolchanger emulation (toolchanger_tool_count() extruder heaters,
      * toolchanger + tool objects) so single-extruder/AFC/MMU/mixed/IFS modes are
      * unaffected.
      */
@@ -1910,7 +1921,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
 
     /// What the macro's _SAVE_TOOL_OFFSET does for one tool: SET_TOOL_PARAMETER
     /// on each axis (live + republished) then SAVE_TOOL_PARAMETER (staged).
-    void apply_calibrated_tool_offset(int tool, double x, double y, double z);
+    void apply_calibrated_tool_offset(int tool, double x, double y, double z, bool stage = true);
 
     /// Republish `toolchanger`.tool_number, as a tool change does.
     void dispatch_toolchanger_tool(int tool);
@@ -2709,10 +2720,12 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     };
     /// Index 0 is the primary (extruder_temp_), unused here. Guarded by
     /// secondary_extruders_mutex_.
-    std::array<SecondaryExtruder, 6> secondary_extruders_{{{kRoomTemp, 0.0},
+    std::array<SecondaryExtruder, 8> secondary_extruders_{{{kRoomTemp, 0.0},
                                                            {150.0, 250.0},
                                                            {248.0, 250.0},
                                                            {200.0, 0.0},
+                                                           {kRoomTemp, 0.0},
+                                                           {kRoomTemp, 0.0},
                                                            {kRoomTemp, 0.0},
                                                            {kRoomTemp, 0.0}}};
     mutable std::mutex secondary_extruders_mutex_;

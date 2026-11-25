@@ -775,6 +775,7 @@
   <translation tag="Calibration canceled." it="Calibrazione annullata."/>
   <translation tag="Calibration complete" it="Calibrazione completata"/>
   <translation tag="Calibration complete - save to keep the offsets" it="Calibrazione completata - salva per conservare gli offset"/>
+  <translation tag="Calibration complete - the printer saved the offsets" it="Calibrazione completata - la stampante ha salvato gli offset"/>
   <translation tag="Calibration complete!" it="Calibrazione completata!"/>
   <translation tag="Calibration complete! Press &apos;Next&apos; to continue." it="Calibrazione completata! Premi &apos;Avanti&apos; per continuare."/>
   <translation tag="Calibration ended" it="Calibrazione terminata"/>
@@ -2289,6 +2290,7 @@
   <translation tag="Home printer first?" it="Eseguire prima l&apos;homing della stampante?"/>
   <translation tag="Home the printer again so a toolhead is picked up, then retry." it="Esegui di nuovo l&apos;homing della stampante in modo che venga prelevata una testina, poi riprova."/>
   <translation tag="Home the printer again so it detects the toolheads, then retry." it="Esegui di nuovo l&apos;homing della stampante in modo che rilevi le testine, poi riprova."/>
+  <translation tag="Home the printer first: the calibration needs X, Y and Z homed" it="Esegui prima l&apos;homing della stampante: la calibrazione richiede X, Y e Z in home"/>
   <translation tag="Home the printer so every toolhead is docked, then retry." it="Esegui l&apos;homing della stampante in modo che tutte le testine siano agganciate, poi riprova."/>
   <translation tag="Home the printer, check that the head moves freely in its dock, then try again." it="Esegui l&apos;homing della stampante, verifica che la testina si muova liberamente nel suo dock, poi riprova."/>
   <translation tag="Homing" it="Azzeramento"/>
@@ -5395,6 +5397,7 @@
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." it="I dettagli di questa bobina non sono ancora stati caricati da Spoolman. Premi di nuovo Salva."/>
   <translation tag="This system does not support bypass mode" it="Questo sistema non supporta la modalità bypass"/>
   <translation tag="This theme" it="Questo tema"/>
+  <translation tag="This tool has no number with a T command: assign it one first" it="Questo strumento non ha un numero con comando T: assegnagliene uno prima"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." it="Questo strumento sonda ogni vite del piano e indica quanto regolare."/>
   <translation tag="This toolhead has no automatic feeder. Load the filament by hand." it="Questa testina non ha un alimentatore automatico. Carica il filamento a mano."/>
   <translation tag="This update asks for new permissions:" it="Questo aggiornamento richiede nuovi permessi:"/>
@@ -5495,6 +5498,7 @@
   <translation tag="Tool offset calibration complete" it="Calibrazione offset utensile completata"/>
   <translation tag="Tool offsets" it="Offset strumenti"/>
   <translation tag="Tool offsets (mm)" it="Offset strumenti (mm)"/>
+  <translation tag="Tool offsets cannot be calibrated during a print" it="Gli offset degli strumenti non si possono calibrare durante una stampa"/>
   <translation tag="Tool offsets saved" it="Offset strumenti salvati"/>
   <translation tag="Tool swap" it="Cambio utensile"/>
   <translation tag="Tool, runout backup" it="Strumento, riserva a fine filamento"/>

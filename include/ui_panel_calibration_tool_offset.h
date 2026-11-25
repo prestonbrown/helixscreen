@@ -137,8 +137,15 @@ class ToolOffsetCalibrationPanel : public OverlayBase {
         return &hint_;
     }
 
+    /// The macro printed its own refusal during the run ("Nothing was done"): the rpc will
+    /// still answer as a success, so the run fails with @p text instead. No-op without a run.
+    void on_run_refused(const std::string& text);
+
   private:
     void on_run_finished(bool ok, const std::string& error);
+
+    /// Settle a run that did not succeed: the status line and a dismissible alert.
+    void on_run_failed(const std::string& error);
     /// The run flag, its subject and the E-stop hold, together.
     void set_run_active(bool active);
     /// Repaint every row from ToolState
@@ -163,6 +170,8 @@ class ToolOffsetCalibrationPanel : public OverlayBase {
     /// succeeded. on_activate() shows it, so a failure survives leaving the
     /// panel and coming back.
     std::string last_error_;
+    /// A refusal the macro printed during the current run, empty when none.
+    std::string run_refusal_;
     /// True between create() and on_ui_destroyed(): the row pools back a
     /// <repeat> that exists only while the widgets do.
     bool ui_alive_ = false;
