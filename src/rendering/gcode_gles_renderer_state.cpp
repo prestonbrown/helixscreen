@@ -3,6 +3,8 @@
 
 #include "gcode_gles_renderer_internal.h"
 
+#include <algorithm>
+
 #ifdef ENABLE_GLES_3D
 
 namespace helix {
@@ -145,6 +147,24 @@ void GCodeGLESRenderer::set_extrusion_color(lv_color_t color) {
     spdlog::debug("[GCode GLES] set_extrusion_color: R={} G={} B={} → ({:.2f},{:.2f},{:.2f})",
                   color.red, color.green, color.blue, filament_color_.r, filament_color_.g,
                   filament_color_.b);
+}
+
+bool GCodeGLESRenderer::draws_vertex_colors(const RibbonGeometry* geometry) const {
+    if (!geometry || geometry->color_palette.empty()) {
+        return false;
+    }
+    if (!palette_.has_override) {
+        return true;
+    }
+    // Tools the file gave no colors of their own all share the builder's
+    // fallback entry; only distinct entries are a per-tool answer.
+    const auto& map = geometry->tool_palette_map;
+    if (map.empty()) {
+        return false;
+    }
+    const uint8_t first = map.begin()->second;
+    return std::any_of(map.begin(), map.end(),
+                       [first](const auto& entry) { return entry.second != first; });
 }
 
 void GCodeGLESRenderer::set_tool_color_overrides(const std::vector<uint32_t>& ams_colors) {

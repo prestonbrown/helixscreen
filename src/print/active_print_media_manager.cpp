@@ -602,13 +602,23 @@ void ActivePrintMediaManager::load_thumbnail_for_file(const std::string& filenam
 
     // One staleness context per load. Creating it bumps thumbnail_load_generation_,
     // so every callback still in flight from an earlier load now reports stale.
-    // Created only after the early-return checks, so no generation is burned when
-    // no async op starts. The context also carries our lifetime token, which is
+    // Created after the no-API return, so no generation is burned when nothing
+    // could load. The context also carries our lifetime token, which is
     // what lets it be handed straight to the thumbnail cache below.
     //
     // NOTE: is_valid() consults that token, so it is NOT a thread guard — every
     // check below sits inside an already-marshalled tok.defer() body (L081 Mech C).
     ThumbnailLoadContext ctx = ThumbnailLoadContext::create(lifetime_, &thumbnail_load_generation_);
+
+    // A job with no file behind it (Kalico's PRINT_PA_TOWER prints as "PA
+    // tower") has no metadata or thumbnail for Moonraker to give, and every
+    // retry of the lookup would fail the same way. Checked after the context
+    // above, so a reply still out for the previous file arrives stale.
+    if (!helix::gcode::names_a_print_file(filename)) {
+        spdlog::debug("[ActivePrintMediaManager] '{}' names no file - no metadata to load",
+                      filename);
+        return;
+    }
 
     // Resolve to original filename if this is a modified temp file
     // (Moonraker only has metadata for original files, not modified copies)
@@ -1165,7 +1175,7 @@ void ActivePrintMediaManager::handle_filelist_changed(const std::string& action,
                                                       const std::string& item_path,
                                                       const std::string& source_path) {
     // Main thread (marshalled via token.defer).
-    if (thumbnail_origin_ == ThumbnailOrigin::Fetched || last_effective_filename_.empty()) {
+    if (last_effective_filename_.empty()) {
         return;
     }
 
@@ -1174,6 +1184,24 @@ void ActivePrintMediaManager::handle_filelist_changed(const std::string& action,
     // guaranteed-to-fail retry ladder.
     if (action != "create_file" && action != "modify_file" && action != "move_file" &&
         action != "root_update") {
+        return;
+    }
+
+    if (thumbnail_origin_ == ThumbnailOrigin::Fetched) {
+        // A new file written under the loaded name (a same-name re-upload)
+        // makes the loaded media another file's: the thumbnail cache drops the
+        // copy the published path points at when Moonraker rewrites the
+        // thumbnails, so the path would name a missing file.
+        const std::string metadata_filename = resolve_gcode_filename(last_effective_filename_);
+        if (action == "root_update" ||
+            (item_path != metadata_filename && item_path != last_effective_filename_)) {
+            return;
+        }
+        spdlog::info("[ActivePrintMediaManager] '{}' replaced ({}) - reloading its media",
+                     metadata_filename, action);
+        publish_thumbnail(last_effective_filename_, no_thumbnail_placeholder());
+        thumbnail_origin_ = ThumbnailOrigin::None;
+        restart_media_load();
         return;
     }
 

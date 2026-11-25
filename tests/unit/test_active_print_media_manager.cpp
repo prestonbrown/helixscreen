@@ -1425,6 +1425,128 @@ TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
 }
 
 TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
+                 "ActivePrintMediaManager: a job with no file behind it fetches no metadata",
+                 "[ActivePrintMediaManager][retry]") {
+    // Kalico's PRINT_PA_TOWER runs as a print named "PA tower": Moonraker has no
+    // file of that name, so every fetch fails and the retry ladder ran its ten
+    // attempts for nothing.
+    set_print_filename_no_drain("PA tower");
+    drain();
+    CHECK(files().pending_count() == 0);
+    CHECK_FALSE(TestAccess::has_pending_retry(manager()));
+    CHECK(get_thumbnail_path() == kNoThumb);
+
+    fire_notification("notify_klippy_ready", json{{"method", "notify_klippy_ready"}});
+    drain();
+    CHECK(files().pending_count() == 0);
+}
+
+TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
+                 "ActivePrintMediaManager: a job with no file drops the last file's media",
+                 "[ActivePrintMediaManager][retry][door]") {
+    set_print_filename_no_drain("abs_part.gcode");
+    drain();
+    FileMetadata abs = make_metadata(/*layer_count=*/10);
+    abs.filament_type = "ABS";
+    files().fire_last(abs);
+    drain();
+    REQUIRE(state().print_state().print_materials() == std::vector<std::string>{"ABS"});
+
+    // The next file's fetch is still out when the tower starts.
+    set_print_filename_no_drain("next_part.gcode");
+    drain();
+    REQUIRE(files().pending_count() == 2);
+
+    set_print_filename_no_drain("PA tower");
+    drain();
+    CHECK(state().print_state().print_materials().empty());
+
+    FileMetadata late = make_metadata_with_thumb(42, unique_thumb_path("late_reply"));
+    late.filament_type = "PETG";
+    files().fire_last(late);
+    drain();
+    CHECK(get_thumbnail_path() == kNoThumb);
+    CHECK(get_layer_total() != 42);
+    CHECK(state().print_state().print_materials().empty());
+}
+
+TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
+                 "ActivePrintMediaManager: a file named with spaces still fetches its metadata",
+                 "[ActivePrintMediaManager][retry]") {
+    set_print_filename_no_drain("PA tower test v2.gcode");
+    drain();
+    REQUIRE(files().pending_count() == 1);
+    CHECK(files().last_filename() == "PA tower test v2.gcode");
+}
+
+TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
+                 "ActivePrintMediaManager: a same-name re-upload of the loaded file reloads its "
+                 "media",
+                 "[ActivePrintMediaManager][retry]") {
+    // Moonraker rewrites the file's thumbnails on a re-upload and the thumbnail
+    // cache drops the copy the loaded path points at, so the published path is
+    // a file that no longer exists until the media is fetched again.
+    set_print_filename_no_drain("reupload.gcode");
+    drain();
+    files().fire_last(make_metadata_with_thumb(5, unique_thumb_path("reupload_old")));
+    drain();
+    REQUIRE(TestAccess::thumbnail_loaded(manager()));
+    const std::string old_path = get_thumbnail_path();
+    REQUIRE(files().pending_count() == 1);
+
+    SECTION("moved into place") {
+        json msg = {{"method", "notify_filelist_changed"},
+                    {"params", json::array({{{"action", "move_file"},
+                                             {"source_item", {{"path", ".helix_temp/x.partial"}}},
+                                             {"item", {{"path", "reupload.gcode"}}}}})}};
+        fire_notification("notify_filelist_changed", msg);
+    }
+    SECTION("written in place") {
+        json msg = {{"method", "notify_filelist_changed"},
+                    {"params", json::array({{{"action", "create_file"},
+                                             {"item", {{"path", "reupload.gcode"}}}}})}};
+        fire_notification("notify_filelist_changed", msg);
+    }
+    drain();
+
+    CHECK(get_thumbnail_path() == kNoThumb);
+    CHECK_FALSE(TestAccess::thumbnail_loaded(manager()));
+    REQUIRE(files().pending_count() == 2);
+    CHECK(files().last_filename() == "reupload.gcode");
+
+    files().fire_last(make_metadata_with_thumb(6, unique_thumb_path("reupload_new")));
+    drain();
+    CHECK(get_thumbnail_path() != kNoThumb);
+    CHECK(get_thumbnail_path() != old_path);
+    CHECK(get_layer_total() == 6);
+}
+
+TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
+                 "ActivePrintMediaManager: a loaded file's own delete or another file's upload "
+                 "keeps its media",
+                 "[ActivePrintMediaManager][retry]") {
+    set_print_filename_no_drain("kept.gcode");
+    drain();
+    files().fire_last(make_metadata_with_thumb(5, unique_thumb_path("kept")));
+    drain();
+    REQUIRE(TestAccess::thumbnail_loaded(manager()));
+    const std::string path = get_thumbnail_path();
+
+    for (const char* action : {"create_file", "delete_file"}) {
+        const std::string item =
+            std::string(action) == "create_file" ? "other.gcode" : "kept.gcode";
+        json msg = {{"method", "notify_filelist_changed"},
+                    {"params", json::array({{{"action", action}, {"item", {{"path", item}}}}})}};
+        fire_notification("notify_filelist_changed", msg);
+        drain();
+    }
+
+    CHECK(files().pending_count() == 1);
+    CHECK(get_thumbnail_path() == path);
+    CHECK(TestAccess::thumbnail_loaded(manager()));
+}
+
+TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
                  "ActivePrintMediaManager: a pre-set thumbnail still allows retry re-triggers",
                  "[ActivePrintMediaManager][thumbnail][retry]") {
     // PrintStartController pre-sets a USB / embedded-gcode thumbnail for the

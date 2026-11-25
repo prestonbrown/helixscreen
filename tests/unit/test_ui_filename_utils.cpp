@@ -59,6 +59,28 @@ TEST_CASE("has_printable_extension() rejects non-printable and malformed names",
     REQUIRE_FALSE(has_printable_extension(".g"));
 }
 
+// names_a_print_file() - could a print job by this name be a file Moonraker holds
+
+TEST_CASE("names_a_print_file() accepts every extension Moonraker prints",
+          "[filename_utils][printable]") {
+    using helix::gcode::names_a_print_file;
+    // Moonraker's VALID_GCODE_EXTS, plus the helix_print plugin's .3mf.
+    for (const char* name : {"part.gcode", "part.g", "part.gco", "part.ufp", "part.nc",
+                             "plate.gcode.3mf", "PA tower v2.GCODE", "MILL.NC"}) {
+        INFO(name);
+        CHECK(names_a_print_file(name));
+    }
+}
+
+TEST_CASE("names_a_print_file() rejects a job with no file behind it",
+          "[filename_utils][printable]") {
+    using helix::gcode::names_a_print_file;
+    CHECK_FALSE(names_a_print_file("PA tower")); // Kalico PRINT_PA_TOWER
+    CHECK_FALSE(names_a_print_file(""));
+    CHECK_FALSE(names_a_print_file(".nc"));
+    CHECK_FALSE(names_a_print_file("notes.txt"));
+}
+
 // firmware_3mf::is_plate_extract() - a firmware plate-numbered .3mf extract
 
 TEST_CASE("is_plate_extract() accepts valid shadow names", "[filename_utils][qidi]") {

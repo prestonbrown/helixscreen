@@ -12,6 +12,7 @@
 #include "audio_settings_manager.h"
 #include "board_identity.h"
 #include "config.h"
+#include "core/gcode_filename.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "display_backend.h"
@@ -3444,8 +3445,9 @@ void on_print_state_changed_for_telemetry(lv_observer_t* observer, lv_subject_t*
         // Fetch file metadata to populate filament info for this print.
         // Note: if print ends before the async callback arrives, filament data
         // will be empty — this is acceptable (benign race, telemetry best-effort).
+        // A job with no file behind it (a calibration tower) has no metadata.
         const char* filename = lv_subject_get_string(ps.print_state().get_print_filename_subject());
-        if (filename && filename[0] != '\0') {
+        if (filename && helix::gcode::names_a_print_file(filename)) {
             std::string fname(filename);
             spdlog::debug("[Telemetry] Fetching metadata for filament info: {}", fname);
 

@@ -186,6 +186,7 @@ void GCodeParser::reset() {
     global_bounds_ = AABB();
     lines_parsed_ = 0;
     out_of_range_width_count_ = 0;
+    declared_width_mm_ = 0.0f;
     // Running counter, so it must clear with layers_ above: finalize() re-sums
     // total_segments from the (now empty) layers, and a surviving drawable
     // count would exceed it on the next parse.
@@ -282,6 +283,7 @@ void GCodeParser::parse_line(std::string_view line) {
         parse_metadata_comment(comment);
         parse_wipe_tower_marker(comment);
         parse_type_marker(comment);
+        parse_width_marker(comment);
     }
 
     const std::string_view trimmed = trim_line(line);
@@ -960,6 +962,19 @@ void GCodeParser::parse_type_marker(const std::string& comment) {
     }
 }
 
+void GCodeParser::parse_width_marker(const std::string& comment) {
+    static constexpr std::string_view kKey = ";WIDTH:";
+    if (comment.compare(0, kKey.size(), kKey) != 0) {
+        return;
+    }
+    float width = 0.0f;
+    const char* begin = comment.data() + kKey.size();
+    const auto [ptr, ec] = parse_gcode_decimal(begin, comment.data() + comment.size(), width);
+    if (ec == std::errc{} && ptr != begin && width >= 0.1f && width <= 2.0f) {
+        declared_width_mm_ = width;
+    }
+}
+
 FeatureType GCodeParser::parse_feature_type_value(const std::string& value) {
     if (value.empty()) {
         return FeatureType::Unknown;
@@ -1069,8 +1084,13 @@ void GCodeParser::add_segment(const glm::vec3& start, const glm::vec3& end, bool
         }
     }
 
-    // Calculate actual extrusion width from E-delta and XY distance
-    if (is_extrusion && e_delta > 0.00001f) {
+    // The slicer's declared bead width when it states one; the volume a move
+    // extrudes understates it (flow ratio, line overlap), which leaves gaps
+    // between lines laid at the declared spacing.
+    if (is_extrusion && declared_width_mm_ > 0.0f) {
+        segment.width = declared_width_mm_;
+    } else if (is_extrusion && e_delta > 0.00001f) {
+        // Calculate actual extrusion width from E-delta and XY distance
         float dx = end.x - start.x;
         float dy = end.y - start.y;
         float xy_distance = std::sqrt(dx * dx + dy * dy);

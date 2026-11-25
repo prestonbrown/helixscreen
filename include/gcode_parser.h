@@ -723,6 +723,10 @@ class GCodeParser {
      */
     void parse_type_marker(const std::string& comment);
 
+    /// Parse a `;WIDTH:<mm>` comment (OrcaSlicer, PrusaSlicer): the bead
+    /// width the slicer laid the following moves at, until the next one.
+    void parse_width_marker(const std::string& comment);
+
     /**
      * @brief Extract parameter value from G-code line
      * @param line G-code line
@@ -808,7 +812,8 @@ class GCodeParser {
     std::set<int> tools_used_;                    ///< Tool indices seen via T-commands
     bool in_wipe_tower_{false};                   ///< True when inside wipe tower section
     FeatureType current_feature_type_{FeatureType::Unknown}; ///< Active ;TYPE: section
-    size_t drawable_segments_{0}; ///< Running count of non-auxiliary segments added
+    float declared_width_mm_{0.0f}; ///< Active ;WIDTH: value, 0 = none declared
+    size_t drawable_segments_{0};   ///< Running count of non-auxiliary segments added
 
     // Accumulated data
     std::vector<Layer> layers_;                  ///< All parsed layers

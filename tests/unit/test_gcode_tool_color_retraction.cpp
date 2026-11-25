@@ -28,6 +28,7 @@
 #ifdef ENABLE_GLES_3D
 #include "gcode_geometry_builder.h"
 #include "gcode_gles_renderer.h"
+#include "test_helpers/gcode_gles_renderer_test_access.h"
 #endif
 
 #include <cstdint>
@@ -171,6 +172,54 @@ TEST_CASE_METHOD(LVGLTestFixture,
     // it exists to fix, and silent.
     renderer.clear_tool_color_overrides();
     CHECK(baked->color_palette == second_palette);
+}
+
+// The loader hands the 3D renderer the file's single filament color for every
+// file, multi-tool ones included, where it is the color of tools the palette
+// does not name. It must not flatten a per-tool palette into one color.
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "the file's single filament color does not flatten a multi-tool 3D palette",
+                 "[gcode][gles][colors]") {
+    GCodeGLESRenderer renderer;
+    renderer.set_prebuilt_geometry(make_palette_geometry(kSlicerT0, kSlicerT1), "multi.gcode");
+
+    renderer.set_extrusion_color(lv_color_hex(kSlicerT0));
+
+    CHECK(GCodeGLESRendererTestAccess::draws_vertex_colors(renderer));
+
+    // Lanes loaded with exactly the slicer's colors change no palette entry,
+    // and the print must still draw per tool.
+    renderer.set_tool_color_overrides({kSlicerT0, kSlicerT1});
+    CHECK(GCodeGLESRendererTestAccess::draws_vertex_colors(renderer));
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a multi-tool 3D model with no per-tool colors takes the single filament color",
+                 "[gcode][gles][colors]") {
+    GCodeGLESRenderer renderer;
+    auto geom = std::make_unique<RibbonGeometry>();
+    geom->color_palette = {kFallback};
+    geom->tool_palette_map[0] = 0;
+    geom->tool_palette_map[1] = 0;
+    renderer.set_prebuilt_geometry(std::move(geom), "uncolored.gcode");
+
+    renderer.set_extrusion_color(lv_color_hex(kLaneT0));
+
+    CHECK_FALSE(GCodeGLESRendererTestAccess::draws_vertex_colors(renderer));
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a single-tool 3D model takes the single filament color",
+                 "[gcode][gles][colors]") {
+    GCodeGLESRenderer renderer;
+    auto geom = std::make_unique<RibbonGeometry>();
+    geom->color_palette = {kSlicerT0};
+    geom->tool_palette_map[0] = 0;
+    renderer.set_prebuilt_geometry(std::move(geom), "single.gcode");
+    REQUIRE(GCodeGLESRendererTestAccess::draws_vertex_colors(renderer));
+
+    renderer.set_extrusion_color(lv_color_hex(kLaneT0));
+
+    CHECK_FALSE(GCodeGLESRendererTestAccess::draws_vertex_colors(renderer));
 }
 
 #endif // ENABLE_GLES_3D

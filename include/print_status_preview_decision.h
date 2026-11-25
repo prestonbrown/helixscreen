@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/gcode_filename.h"
 #include "print_lifecycle_state.h"
 
 #include <cstdint>
@@ -148,7 +149,11 @@ inline PreviewAction decide_preview_action(const std::string& thumbnail_displaye
     // pipeline's switch, not a display choice — a Thumbnail Only install must
     // never download and re-read a multi-hundred-megabyte file it will not draw,
     // because that work competes with the print itself.
-    if (want_viewer && viewer_enabled && (gcode_mismatch || !gcode_has_content)) {
+    //
+    // A job with no file behind it (Kalico's PRINT_PA_TOWER prints as "PA
+    // tower") has no G-code to fetch.
+    if (want_viewer && viewer_enabled && (gcode_mismatch || !gcode_has_content) &&
+        helix::gcode::names_a_print_file(desired_file)) {
         action.load_gcode = true;
     }
 
