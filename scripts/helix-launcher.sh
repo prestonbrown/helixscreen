@@ -1113,13 +1113,28 @@ done
 # down with it, and under a deadline so a wedged driver cannot hold up boot.
 # A binary that carries no EGL presentation path, or a system missing a GPU
 # library, refuses at once, before touching the GPU.
+# The deadline is the shell's own: BusyBox builds without a `timeout` applet
+# (COSMOS on the CC1) would otherwise wait forever on a binary that hangs, and
+# this runs before the rollback guard can judge that binary.
+# HELIX_EGL_PROBE_SECS shortens the deadline, for tests.
 probe_egl() {
-    if command -v timeout >/dev/null 2>&1; then
-        _pe_out=$(timeout 10 "$1" --probe-egl 2>&1)
-    else
-        _pe_out=$("$1" --probe-egl 2>&1)
-    fi
-    _pe_rc=$?
+    _pe_file="${TMPDIR:-/tmp}/helix-probe-egl.$$"
+    "$1" --probe-egl >"$_pe_file" 2>&1 &
+    _pe_pid=$!
+    _pe_left="${HELIX_EGL_PROBE_SECS:-10}"
+    while kill -0 "$_pe_pid" 2>/dev/null; do
+        if [ "$_pe_left" -le 0 ]; then
+            log "EGL probe did not answer in ${HELIX_EGL_PROBE_SECS:-10}s; stopping it"
+            kill -9 "$_pe_pid" 2>/dev/null || true
+            break
+        fi
+        sleep 1
+        _pe_left=$((_pe_left - 1))
+    done
+    _pe_rc=0
+    wait "$_pe_pid" 2>/dev/null || _pe_rc=$?
+    _pe_out=$(cat "$_pe_file" 2>/dev/null)
+    rm -f "$_pe_file"
     if [ -n "$_pe_out" ]; then
         log "EGL probe: $_pe_out"
     fi

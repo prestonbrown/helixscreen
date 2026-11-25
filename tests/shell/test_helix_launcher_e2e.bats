@@ -206,6 +206,25 @@ run_launcher_once() {
     [ "$output" = "helix-screen drm" ]
 }
 
+@test "e2e: a probe that never answers is stopped and helix-screen starts with drm" {
+    with_dri_card
+    # A `timeout` that enforces nothing stands for BusyBox builds without one.
+    mock_command_script "timeout" 'shift; exec "$@"'
+    cat > "$MOCK_INSTALL/bin/helix-screen" << MOCKEOF
+#!/bin/sh
+[ "\$1" = "--probe-egl" ] && exec sleep 300
+echo "\$(basename "\$0") \${HELIX_DISPLAY_BACKEND-<unset>}" > "$MOCK_INSTALL/helix_screen_backend.txt"
+exit 0
+MOCKEOF
+    chmod +x "$MOCK_INSTALL/bin/helix-screen"
+    export HELIX_EGL_PROBE_SECS=2
+
+    cp "$LAUNCHER" "$MOCK_INSTALL/bin/helix-launcher.sh"
+    MOCK_INSTALL="$MOCK_INSTALL" /usr/bin/timeout 30 sh "$MOCK_INSTALL/bin/helix-launcher.sh" >/dev/null 2>&1 || true
+    run cat "$MOCK_INSTALL/helix_screen_backend.txt"
+    [ "$output" = "helix-screen drm" ]
+}
+
 @test "e2e: a DRM card without libdrm starts helix-screen with fbdev" {
     with_dri_card
     export MOCK_PROBE_RC=3
