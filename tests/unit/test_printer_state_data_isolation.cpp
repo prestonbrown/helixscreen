@@ -25,6 +25,8 @@
 #include "../test_helpers/printer_state_test_access.h"
 #include "app_globals.h"
 #include "hardware_validator.h"
+#include "print_stop_reason.h"
+#include "printer_event_journal.h"
 #include "printer_state.h"
 
 #include "../catch_amalgamated.hpp"
@@ -51,6 +53,10 @@ void dirty_printer_state() {
 
     // PrinterState's own printer_type_.
     ps.set_printer_type_sync("Voron 2.4");
+
+    // PrinterPrintState's last console error, stamped now so it reads as the
+    // cause of whatever print stops next.
+    ps.print_state().set_last_gcode_error("Slot loading failure", wall_now_s());
 }
 
 /// Assert none of it survived.
@@ -63,6 +69,7 @@ void require_clean_printer_state() {
     CHECK_FALSE(ps.excluded_objects_state().has_objects());
     CHECK_FALSE(ps.hardware_validation_state().get_hardware_validation_result().has_issues());
     CHECK(ps.profile_state().printer_type().empty());
+    CHECK(recent_gcode_error(ps.print_state(), wall_now_s()).empty());
 }
 
 } // namespace
@@ -87,6 +94,8 @@ TEST_CASE("PrinterState plain data does not survive a fixture boundary",
                     .get_hardware_validation_result()
                     .has_issues());
         REQUIRE(get_printer_state().profile_state().printer_type() == "Voron 2.4");
+        REQUIRE(recent_gcode_error(get_printer_state().print_state(), wall_now_s()) ==
+                "Slot loading failure");
     }
 
     {
