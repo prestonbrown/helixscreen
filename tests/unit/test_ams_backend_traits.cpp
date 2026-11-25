@@ -275,6 +275,19 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
     CHECK_FALSE(dryer_info(afc, 0).supported);
 }
 
+TEST_CASE("A backend with no dryer interface reports no dryer", "[ams][traits][dryer]") {
+    // No units either: the question is asked for a unit index that does not exist.
+    AmsBackendToolChanger tool_changer(nullptr, nullptr);
+    AmsBackendAd5xIfs ad5x(nullptr, nullptr);
+    const AmsBackend* const backends[] = {&tool_changer, &ad5x};
+    for (const AmsBackend* backend : backends) {
+        REQUIRE(backend->as<IDryer>() == nullptr);
+        const DryerInfo dryer = dryer_info(*backend, 3);
+        CHECK_FALSE(dryer.supported);
+        CHECK_FALSE(dryer.active);
+    }
+}
+
 TEST_CASE("Mock AFC load leaves only the new lane loaded", "[ams][mock][traits]") {
     AmsBackendMock mock(4);
     mock.set_afc_mode(true);

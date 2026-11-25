@@ -13,6 +13,7 @@
 #include "core/update_queue.h"
 #include "lane_status_parse.h"
 #include "printer_discovery.h"
+#include "test_helpers/mock_printer.h"
 #include "test_helpers/registered_backend.h"
 
 #include <string>
@@ -299,4 +300,14 @@ TEST_CASE_METHOD(HelixTestFixture, "a controller's listed commands are sent; not
         CHECK(b.apply_user_edit(2, b.get_slot_info(2)).result == AmsResult::NOT_SUPPORTED);
         CHECK_FALSE(b.clear_spool_refusal(2).empty());
     }
+}
+
+// The factory
+
+TEST_CASE("the factory builds the lane status backend for a printer that reports it",
+          "[ams][lane_status][factory]") {
+    MockPrinter printer;
+    auto backend = helix::AmsBackend::create(AmsType::LANE_STATUS, &printer.api, &printer.client);
+    REQUIRE(backend != nullptr);
+    CHECK(backend->get_type() == AmsType::LANE_STATUS);
 }

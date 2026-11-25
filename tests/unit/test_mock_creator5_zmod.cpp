@@ -249,6 +249,32 @@ TEST_CASE("A Happy Hare unit mode on a persona with no mmu draws that unit on th
     CHECK(info.units[0].topology == row.topology);
 }
 
+TEST_CASE("A Happy Hare unit mode builds the lanes the unit is sold with",
+          "[mock][creator5][ams]") {
+    struct Row {
+        const char* mode;
+        int gates;
+        int lanes;
+    };
+    for (const Row& row : {Row{"hh_night_owl", 6, 2}, Row{"hh_qidi", 2, 4}}) {
+        MockTopologyGuards guards;
+        helix::ScopedEnv zmod{"HELIX_MOCK_PRINTER", "creator5_zmod"};
+        ScopedRuntimeConfig scoped_config;
+        auto* config = get_runtime_config();
+        config->test_mode = true;
+        config->use_real_ams = false;
+        config->mock_ams_gate_count = row.gates;
+        REQUIRE(config->should_mock_ams());
+
+        helix::ScopedEnv env{"HELIX_MOCK_AMS", row.mode};
+        auto backend = helix::AmsBackend::create(helix::AmsType::NONE, nullptr, nullptr);
+        INFO(row.mode);
+        REQUIRE(backend != nullptr);
+        // HELIX_AMS_GATES cannot give a real product lanes it is not built with.
+        CHECK(backend->get_system_info().total_slots == row.lanes);
+    }
+}
+
 TEST_CASE("A mock-hardware persona declines the mock AMS backend", "[mock][creator5][zmod]") {
     MockTopologyGuards guards;
     helix::ScopedEnv zmod{"HELIX_MOCK_PRINTER", "creator5_zmod"};
