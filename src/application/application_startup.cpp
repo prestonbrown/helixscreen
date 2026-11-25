@@ -443,6 +443,10 @@ void Application::report_main_loop_stall(uint32_t stalled_ms) {
     helix::HangThreadState thread;
     thread.state = helix::read_main_thread_state().value_or("");
     thread.wchan = helix::read_main_thread_wchan().value_or("");
+    // Warn, not debug: a debug bundle carries it and shows what the event says about the wait.
+    spdlog::warn("[Application] main loop stalled {}ms: state={} wchan={}", stalled_ms,
+                 thread.state.empty() ? "unknown" : thread.state,
+                 thread.wchan.empty() ? "none" : thread.wchan);
     TelemetryManager::instance().record_main_loop_hang(stalled_ms, memory, thread);
     crash_handler::breadcrumb::note("main_loop", "hang");
 }
