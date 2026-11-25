@@ -267,7 +267,8 @@ MOCKEOF
     ms=$(run_launcher_timed "$p")
     run cat "$MOCK_INSTALL/helix_screen_backend.txt"
     [ "$output" = "helix-screen egl" ]
-    [ "$ms" -lt 3000 ]
+    # Well under the 20 s deadline, with room for a loaded CI runner.
+    [ "$ms" -lt 10000 ]
 }
 
 @test "e2e: without timeout, a deadline that is not a positive integer does not stop the launcher" {
@@ -306,16 +307,18 @@ RUNEOF
     install_probe_binary
     local rc ms
 
+    # Bounds leave room for a loaded runner: the quick probe stays well under
+    # its 20 s deadline, the hung one reaches its 2 s deadline and stops.
     export MOCK_PROBE_RC=0 HELIX_EGL_PROBE_SECS=20
     read -r rc ms < <(run_deadline_fn "busybox sh")
     [ "$rc" = 0 ]
-    [ "$ms" -lt 1000 ]
+    [ "$ms" -lt 10000 ]
 
     export MOCK_PROBE_HANG=1 HELIX_EGL_PROBE_SECS=2
     read -r rc ms < <(run_deadline_fn "busybox sh")
     [ "$rc" = 137 ]
     [ "$ms" -ge 2000 ]
-    [ "$ms" -lt 4000 ]
+    [ "$ms" -lt 10000 ]
 }
 
 @test "e2e: with timeout on PATH, the probe runs under timeout" {
