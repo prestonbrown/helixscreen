@@ -141,17 +141,20 @@ if ! echo "$VALID_PLATFORMS" | grep -qw "$PLATFORM"; then
 fi
 
 # ── Dependency checks ─────────────────────────────────────────────────────────
+# --print-asset only resolves a name, so it needs none of the serving tools.
 _missing=()
-command -v python3 >/dev/null || _missing+=(python3)
-if [[ $BUILD -eq 1 ]]; then
-    command -v docker >/dev/null || _missing+=(docker)
-else
-    command -v zip >/dev/null || _missing+=(zip)
-    command -v unzip >/dev/null || _missing+=(unzip)
-fi
-if [[ $CONFIGURE_REMOTE -eq 1 ]]; then
-    command -v ssh >/dev/null || _missing+=("ssh")
-    command -v scp >/dev/null || _missing+=("scp")
+if [[ $PRINT_ASSET -eq 0 ]]; then
+    command -v python3 >/dev/null || _missing+=(python3)
+    if [[ $BUILD -eq 1 ]]; then
+        command -v docker >/dev/null || _missing+=(docker)
+    else
+        command -v zip >/dev/null || _missing+=(zip)
+        command -v unzip >/dev/null || _missing+=(unzip)
+    fi
+    if [[ $CONFIGURE_REMOTE -eq 1 ]]; then
+        command -v ssh >/dev/null || _missing+=("ssh")
+        command -v scp >/dev/null || _missing+=("scp")
+    fi
 fi
 if [[ ${#_missing[@]} -gt 0 ]]; then
     echo "ERROR: Missing required dependencies: ${_missing[*]}"
