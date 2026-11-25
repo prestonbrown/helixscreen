@@ -13,12 +13,15 @@
 #include "ui_ams_environment_overlay.h"
 
 #include "../helix_test_fixture.h"
+#include "../lvgl_ui_test_fixture.h"
 #include "core/observer_factory.h"
 #include "filament_catalog.h"
 #include "filament_database.h"
+#include "helix-xml/src/xml/lv_xml.h"
 #include "material_settings_manager.h"
 #include "preheat_widget.h"
 #include "preset_materials.h"
+#include "settings_manager.h"
 #include "temperature_controller.h"
 
 #include <algorithm>
@@ -314,4 +317,52 @@ TEST_CASE_METHOD(HelixTestFixture, "Reassigning a preset slot notifies its name 
 
     CHECK(name_notes > names_before);
     CHECK(temp_notes > temps_before);
+}
+
+// ---------------------------------------------------------------------------
+// The preset button label promises only what the preset will send.
+// ---------------------------------------------------------------------------
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Preset temperature label shows the bed only while presets heat the bed",
+                 "[presets][settings]") {
+    PresetSlotGuard guard;
+    auto& sm = helix::SettingsManager::instance();
+    sm.init_subjects();
+    presets::init_subjects();
+    const bool saved = sm.get_material_presets_heat_bed_and_chamber();
+
+    auto pla = filament::find_material("PLA");
+    REQUIRE(pla.has_value());
+    const std::string nozzle = std::to_string(pla->nozzle_recommended());
+    const std::string bed = std::to_string(pla->bed_temp);
+    REQUIRE(nozzle.find(bed) == std::string::npos);
+    REQUIRE(bed.find(nozzle) == std::string::npos);
+
+    auto* subject = lv_xml_get_subject(nullptr, "preset_material_0_temps");
+    REQUIRE(subject != nullptr);
+    REQUIRE(presets::name(0) == "PLA");
+
+    SECTION("plain accessor follows the setting") {
+        sm.set_material_presets_heat_bed_and_chamber(true);
+        CHECK(presets::temp_label(0).find(bed) != std::string::npos);
+        sm.set_material_presets_heat_bed_and_chamber(false);
+        const std::string off = presets::temp_label(0);
+        CHECK(off.find(nozzle) != std::string::npos);
+        CHECK(off.find(bed) == std::string::npos);
+    }
+
+    SECTION("the bound subject updates when the setting is toggled") {
+        sm.set_material_presets_heat_bed_and_chamber(true);
+        REQUIRE(std::string(lv_subject_get_string(subject)).find(bed) != std::string::npos);
+
+        sm.set_material_presets_heat_bed_and_chamber(false);
+        const std::string off = lv_subject_get_string(subject);
+        CHECK(off.find(nozzle) != std::string::npos);
+        CHECK(off.find(bed) == std::string::npos);
+
+        sm.set_material_presets_heat_bed_and_chamber(true);
+        CHECK(std::string(lv_subject_get_string(subject)).find(bed) != std::string::npos);
+    }
+    sm.set_material_presets_heat_bed_and_chamber(saved);
 }
