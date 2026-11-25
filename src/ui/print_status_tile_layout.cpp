@@ -20,6 +20,11 @@ constexpr int32_t kCompactMinJobHeight = 170;
 constexpr int32_t kPrinterPct = 140;
 constexpr int32_t kReadoutsPct = 93;
 constexpr int32_t kActionsPct = 48;
+// Icon-only buttons: a column this wide holds an icon and the button's padding.
+// ui_xml/components/print_status_ultrawide_body.xml hides the labels while
+// ps_uw_actions_w is under its label threshold, which sits between this and the
+// narrowest labeled column (kActionsPct of the smallest ultrawide height).
+constexpr int32_t kActionsCompactWidth = 76;
 // The inline Tune column: flow stacked under speed and the Z-offset controls
 // on one row need about this much, and a taller screen would only spread the
 // same buttons wider. Its width comes from the readouts and the preview, down
@@ -99,12 +104,13 @@ PrintStatusTileLayout decide_print_status_tile_layout(int32_t content_w, int32_t
 }
 
 namespace {
-PrintStatusColumns fit_columns(int32_t content_w, int32_t h, int32_t gap, bool tune) {
+PrintStatusColumns fit_columns(int32_t content_w, int32_t h, int32_t gap, bool tune,
+                               bool compact_actions) {
     PrintStatusColumns c;
     c.preview_w = h;
     c.printer_w = h * kPrinterPct / 100;
     c.readouts_w = h * kReadoutsPct / 100;
-    c.actions_w = h * kActionsPct / 100;
+    c.actions_w = compact_actions ? kActionsCompactWidth : h * kActionsPct / 100;
     c.tune_w = tune ? std::min(h * kTunePct / 100, kTuneMaxWidth) : 0;
     const int32_t gaps = (tune ? 5 : 4) * gap;
     const auto rest = [&]() {
@@ -133,11 +139,20 @@ PrintStatusColumns fit_columns(int32_t content_w, int32_t h, int32_t gap, bool t
 PrintStatusColumns decide_print_status_columns(int32_t content_w, int32_t content_h, int32_t gap,
                                                bool tune) {
     const int32_t h = std::max<int32_t>(0, content_h);
-    const PrintStatusColumns with_tune = fit_columns(content_w, h, gap, true);
-    if (tune && with_tune.info_w >= h * kFloorWithTunePct / 100) {
-        return with_tune;
+    const auto pick = [&](bool compact_actions) {
+        const PrintStatusColumns with_tune = fit_columns(content_w, h, gap, true, compact_actions);
+        if (tune && with_tune.info_w >= h * kFloorWithTunePct / 100) {
+            return with_tune;
+        }
+        return fit_columns(content_w, h, gap, false, compact_actions);
+    };
+    // Labeled buttons first; when every other column is at its floor and the
+    // info column is still under its floor, the buttons give up their labels.
+    const PrintStatusColumns labeled = pick(false);
+    if (labeled.info_w >= h * kFloorWithTunePct / 100) {
+        return labeled;
     }
-    return fit_columns(content_w, h, gap, false);
+    return pick(true);
 }
 
 PrintStatusTileLayout decide_print_status_ultrawide_layout(int32_t content_w, int32_t content_h,
