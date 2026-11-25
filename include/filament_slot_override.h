@@ -104,6 +104,10 @@ struct FilamentSlotOverride {
     // This record is the bypass (external) spool's, not a slot's. Persistence:
     // `lane_name: "bypass"` in the record.
     bool external_mirror = false;
+    // The record's spool came from a link set outside this app (a tag reader
+    // or the firmware), not from a user edit, so a later outside relink
+    // replaces it. Persistence: `helix_spool_link: "adopted"`.
+    bool spool_link_adopted = false;
     // Whether a spool is in the lane, the record's `loaded` (RFC 0001 §5).
     // Unset is unknown and writes null.
     std::optional<bool> loaded;

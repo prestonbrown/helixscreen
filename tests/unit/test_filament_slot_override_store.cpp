@@ -1042,6 +1042,32 @@ TEST_CASE("a Spoolman fetch amends the linked lane's record and keeps its colour
         const json stored = mock_printer.client.mock_db_get("lane_data", "lane1");
         CHECK(stored["spool_id"] == 42);
         CHECK(stored["filament_id"] == "OFHmPYRy");
+        CHECK(stored["helix_spool_link"] == "adopted");
+
+        // The tag reader later links the lane to another spool.
+        Observation next(ObservationSource::Spoolman);
+        next.spoolman_id = 43;
+        next.material = "PETG";
+        next.spoolman_orca_filament_id = "OGFG99";
+        next.remaining_weight_g = 900.0f;
+        CHECK(persist_override_external_identity(&store, overrides, 0, next, "[test]"));
+        const FilamentSlotOverride& relinked = overrides.at(0);
+        CHECK(relinked.spoolman_id == 43);
+        CHECK(relinked.catalog_id.empty());
+        CHECK(relinked.remaining_weight_g == Catch::Approx(900.0f));
+        const json restored = mock_printer.client.mock_db_get("lane_data", "lane1");
+        CHECK(restored["spool_id"] == 43);
+        CHECK(restored["filament_id"] == "OGFG99");
+    }
+    SECTION("a user edit keeps an adopted spool adopted, and picking a spool makes it the user's") {
+        linked.spool_link_adopted = true;
+        helix::SlotInfo same;
+        same.spoolman_id = 42;
+        same.material = "PLA";
+        CHECK(helix::ams::user_override_from_slot_info(same, &linked).spool_link_adopted);
+        helix::SlotInfo picked = same;
+        picked.spoolman_id = 43;
+        CHECK_FALSE(helix::ams::user_override_from_slot_info(picked, &linked).spool_link_adopted);
     }
     SECTION("a record naming another spool, or no record, is left alone") {
         linked.spoolman_id = 7;
