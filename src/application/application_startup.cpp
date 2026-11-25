@@ -419,6 +419,13 @@ void Application::init_sound_services() {
 }
 
 void Application::report_main_loop_stall(uint32_t stalled_ms) {
+    // Android parks the SDL event pump, and with it the main loop, for as long
+    // as the activity is paused: that stall is the platform, not a hang.
+    if (app_backgrounded()) {
+        spdlog::debug("[Application] Main loop stalled {}ms in the background; not a hang",
+                      stalled_ms);
+        return;
+    }
     // Runs on the monitor thread. record_error() is documented as safe from
     // background threads, and deliberately so here: the UI thread is the thing
     // that is wedged, so anything routed through UpdateQueue would never be
