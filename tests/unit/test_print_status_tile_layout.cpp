@@ -119,10 +119,12 @@ TEST_CASE("tile layout leaves the Tune button where the section does not fit",
 // Ultrawide columns: preview square, info, printer, readouts, buttons.
 
 namespace {
-/// The Tune column, when shown, is one more column and one more gap.
+/// Preview, printer, info and actions, plus the Tune and readouts columns when
+/// shown, each with one gap.
 int32_t columns_total(const PrintStatusColumns& c, int32_t gap) {
     const int32_t columns = c.preview_w + c.info_w + c.printer_w + c.readouts_w + c.actions_w;
-    return c.tune_w > 0 ? columns + c.tune_w + 5 * gap : columns + 4 * gap;
+    const int32_t gaps = 3 + (c.tune_w > 0 ? 1 : 0) + (c.readouts_w > 0 ? 1 : 0);
+    return columns + c.tune_w + gaps * gap;
 }
 } // namespace
 
@@ -152,17 +154,32 @@ TEST_CASE("ultrawide columns at 1920x440 cap the Tune column's width",
     CHECK(columns_total(c, 8) == 1820);
 }
 
+TEST_CASE("ultrawide columns drop the readouts before the Tune column",
+          "[print_status_tile_layout][ultrawide][tune_inline]") {
+    // With readouts, Tune and the info column at its 70% floor (188 of 269):
+    // 1394 px. One pixel less and the readouts go, leaving the info column room.
+    const auto with_readouts = decide_print_status_columns(1394, 269, 6, true);
+    CHECK(with_readouts.tune_w == 295);
+    CHECK(with_readouts.readouts_w == 188);
+    CHECK(with_readouts.info_w == 188);
+    const auto no_readouts = decide_print_status_columns(1393, 269, 6, true);
+    CHECK(no_readouts.tune_w == 295);
+    CHECK(no_readouts.readouts_w == 0);
+    CHECK(no_readouts.info_w > 188);
+    CHECK(columns_total(no_readouts, 6) == 1393);
+}
+
 TEST_CASE("ultrawide columns show Tune only while the info column keeps its floor",
           "[print_status_tile_layout][ultrawide][tune_inline]") {
-    // Readouts and preview at their floors at 1394: the info column keeps
-    // 188, 70% of 269. One pixel less and the Tune button comes back instead.
-    const auto fits = decide_print_status_columns(1394, 269, 6, true);
+    // Without readouts the info column keeps 188 down to 1200 px; below that
+    // the Tune button comes back instead.
+    const auto fits = decide_print_status_columns(1200, 269, 6, true);
     CHECK(fits.tune_w == 295);
     CHECK(fits.info_w == 188);
-    const auto short_by_one = decide_print_status_columns(1393, 269, 6, true);
+    const auto short_by_one = decide_print_status_columns(1199, 269, 6, true);
     CHECK(short_by_one.tune_w == 0);
     CHECK(short_by_one.info_w > 188);
-    CHECK(columns_total(short_by_one, 6) == 1393);
+    CHECK(columns_total(short_by_one, 6) == 1199);
 }
 
 TEST_CASE("ultrawide columns never narrow the printer picture for Tune",
@@ -198,27 +215,37 @@ TEST_CASE("ultrawide columns keep their natural widths without a running print",
     CHECK(columns_total(c, 6) == 1410);
 }
 
-TEST_CASE("ultrawide columns narrow the printer first to keep the info column",
+TEST_CASE("ultrawide columns narrow the printer first, to its floor, for a wide info column",
           "[print_status_tile_layout][ultrawide]") {
     const auto c = decide_print_status_columns(1700, 372, 8);
     CHECK(c.tune_w == 0);
-    CHECK(c.info_w == 372);
-    CHECK(c.printer_w == 401);
-    CHECK(c.readouts_w == 345);
+    CHECK(c.printer_w == 372);
+    CHECK(c.readouts_w == 300);
     CHECK(c.preview_w == 372);
+    CHECK(c.info_w == 446);
     CHECK(columns_total(c, 8) == 1700);
 }
 
-TEST_CASE("ultrawide columns stop each column at its floor",
-          "[print_status_tile_layout][ultrawide]") {
+TEST_CASE(
+    "ultrawide columns drop the readouts when the info column cannot keep its floor beside them",
+    "[print_status_tile_layout][ultrawide]") {
     const auto c = decide_print_status_columns(1200, 340, 8);
     CHECK(c.tune_w == 0);
     CHECK(c.printer_w == 340);
-    CHECK(c.readouts_w == 255);
-    CHECK(c.preview_w == 255);
+    CHECK(c.readouts_w == 0);
+    // The preview gives up width toward its 60% floor (204).
+    CHECK(c.preview_w == 265);
     CHECK(c.actions_w == 163);
-    CHECK(c.info_w == 155);
+    CHECK(c.info_w >= 340 * 70 / 100);
     CHECK(columns_total(c, 8) == 1200);
+}
+
+TEST_CASE("ultrawide columns with a lane tray never show the readouts",
+          "[print_status_tile_layout][ultrawide]") {
+    const auto c = decide_print_status_columns(1880, 400, 12, false, true);
+    CHECK(c.readouts_w == 0);
+    CHECK(c.info_w >= 400);
+    CHECK(columns_total(c, 12) == 1880);
 }
 
 TEST_CASE("ultrawide tile layout sizes the job tile as the preview square",

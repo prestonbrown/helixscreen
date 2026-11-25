@@ -58,16 +58,22 @@ TEST_CASE_METHOD(LVGLUITestFixture, "TargetTool publishes the lane tray gate fro
     ui::UpdateQueue::instance().drain();
 }
 
-TEST_CASE("ultrawide puts the lane tray in the readouts' column only when gated",
+TEST_CASE("ultrawide puts the lane tray over the info card only when gated",
           "[print_status_tray][ultrawide]") {
     const auto plain = decide_print_status_ultrawide_layout(1880, 400, 12);
     const auto tray = decide_print_status_ultrawide_layout(1880, 400, 12, true);
     CHECK(plain.lane_tray == PrintStatusLaneTray::None);
+    CHECK(plain.lane_tray_h == 0);
+    CHECK(plain.columns.readouts_w > 0);
     CHECK(tray.lane_tray == PrintStatusLaneTray::Column);
-    CHECK(tray.lane_tray_h == 0);
-    // The tray takes the column as it stands: no other column moves.
-    CHECK(tray.columns.readouts_w == plain.columns.readouts_w);
-    CHECK(tray.columns.info_w == plain.columns.info_w);
+    // The tray takes a share of the info column's height, and the readouts
+    // column goes: its width joins the info column.
+    CHECK(tray.lane_tray_h > 0);
+    CHECK(tray.lane_tray_h < 400 / 2);
+    CHECK(tray.columns.readouts_w == 0);
+    CHECK(tray.columns.info_w > plain.columns.info_w);
+    // The printer picture keeps its width.
+    CHECK(tray.columns.printer_w >= plain.columns.printer_w);
 }
 
 namespace {
