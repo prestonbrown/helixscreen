@@ -41,13 +41,14 @@ struct RefreshTiming {
  * @brief How long the main loop sleeps before its next lv_timer_handler() call
  *
  * LVGL's hint for when the next timer is due, capped so the loop stays responsive (33 ms
- * awake, 200 ms while the display sleeps and only wake events matter) and floored so a
+ * awake, 1 s while the display sleeps and only wake events matter) and floored so a
  * timer that is already due cannot spin the loop. A refresh period longer than the awake
  * cap raises the cap to match, so the loop does not wake between refreshes for nothing.
  */
 /// The slowest the main loop and the timers that only feed the screen run while the display
-/// sleeps. Only wake events matter then, and those arrive through the input read timer.
-inline constexpr uint32_t kSleepingPeriodMs = 200;
+/// sleeps. Only wake events matter then, and those arrive through the input wait or the
+/// wake pipe; what the loop still polls for itself may wait this long.
+inline constexpr uint32_t kSleepingPeriodMs = 1000;
 
 constexpr uint32_t main_loop_sleep_ms(uint32_t time_till_next, bool display_sleeping,
                                       const RefreshTiming& timing) {

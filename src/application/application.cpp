@@ -1189,8 +1189,8 @@ int Application::main_loop() {
 
             // Sleep adaptively: use LVGL's hint for when next work is due,
             // capped to keep UI responsive. In benchmark mode, minimize delay.
-            // When display is sleeping, extend sleep to 200ms — no rendering
-            // needed, just need to stay responsive to wake events.
+            // When the display is sleeping the wait can run to a second: nothing
+            // renders, and wake events arrive through the input wait.
             if (!loop_config.benchmark_mode) {
                 helix::RefreshTiming timing = m_display->refresh_timing();
                 // A running screensaver's refresh-period hold lowers the floor to pace its frames.
