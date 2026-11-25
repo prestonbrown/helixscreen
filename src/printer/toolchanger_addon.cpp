@@ -441,6 +441,14 @@ std::optional<ToolReading> parse_zmod_marker(const std::string& line) {
     // to the swap macros. A change runs the dropping markers first (the parked
     // head's echoes) and the picking markers second, which is the order the
     // step bar wants.
+    //
+    // Z-Mod's COLOR dialog lists `_T_IN_ZCOLOR` as a prompt button's gcode
+    // ("// action:prompt_button Grab|_T_IN_ZCOLOR SLOT=1 ..."). A button is an
+    // offer, not a swap: no idle word follows it, so reading it as `picking`
+    // would leave the changer busy until the screen restarts.
+    if (line.find("action:prompt") != std::string::npos) {
+        return std::nullopt;
+    }
     ToolReading r;
     r.phase_names_direction = true;
     if (line.find("Grab attempt for T") != std::string::npos ||

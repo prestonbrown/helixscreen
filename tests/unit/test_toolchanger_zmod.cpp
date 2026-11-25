@@ -457,6 +457,30 @@ TEST_CASE("Z-Mod's swap narration classifies into phase words", "[toolchanger][z
     CHECK_FALSE(toolchanger_addon::parse_zmod_marker("// T0: home").has_value());
     CHECK_FALSE(toolchanger_addon::parse_zmod_marker("// Slot 1 Config (PLA):").has_value());
     CHECK_FALSE(toolchanger_addon::parse_zmod_marker("// Door: Close").has_value());
+
+    // The COLOR dialog's buttons name `_T_IN_ZCOLOR` as their gcode (verbatim
+    // from a Creator 5's console). Showing a button starts no swap.
+    CHECK_FALSE(toolchanger_addon::parse_zmod_marker(
+                    "// action:prompt_button Grab|_T_IN_ZCOLOR SLOT=1 NAPR=0 HIDE=1|primary")
+                    .has_value());
+    CHECK_FALSE(toolchanger_addon::parse_zmod_marker(
+                    "// action:prompt_button Load|_T_IN_ZCOLOR SLOT=2 NAPR=1 HIDE=1|primary")
+                    .has_value());
+}
+
+TEST_CASE("Z-Mod's COLOR dialog buttons leave the changer idle", "[toolchanger][zmod][steps]") {
+    ToolChangerHelper tc(4);
+    wire_zmod(tc);
+    tc.feed(json{{"zmod_color", {{"active_tool_id", -1}}}});
+    REQUIRE_FALSE(tc.get_system_info().is_busy());
+
+    ToolChangerTestAccess::feed_zmod_marker(
+        tc, "// action:prompt_button Grab|_T_IN_ZCOLOR SLOT=1 NAPR=0 HIDE=1|primary");
+    ToolChangerTestAccess::feed_zmod_marker(
+        tc, "// action:prompt_button Load|_T_IN_ZCOLOR SLOT=1 NAPR=1 HIDE=1|primary");
+
+    CHECK_FALSE(tc.get_system_info().is_busy());
+    CHECK(tc.get_system_info().action == AmsAction::IDLE);
 }
 
 TEST_CASE("Z-Mod's markers light the swap step bar", "[toolchanger][zmod][steps]") {
