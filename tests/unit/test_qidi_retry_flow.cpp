@@ -225,6 +225,19 @@ TEST_CASE_METHOD(QidiRetryFixture, "QIDI Retry never sits under a cause about an
     }
 }
 
+TEST_CASE_METHOD(QidiRetryFixture, "QIDI standing fault that offers Retry stays until answered",
+                 "[qidi][qidi_box][error-center]") {
+    // Slot 2 blocked with its step recorded, the print paused: the standing
+    // copy carries Retry. Graded with no print in view the same line is a
+    // warning, which a toast dismisses on its own; a fault with a Retry button
+    // on it cannot go before the user has answered.
+    status_push(
+        json{{"enable_box", 1}, {"box_count", 1}, {"slot1", -1}, {"retry_step", "QDE_004_001_2"}});
+    const auto ev = backend().current_error();
+    REQUIRE(offers_retry(ev));
+    CHECK(ev->sticky);
+}
+
 TEST_CASE_METHOD(QidiRetryFixture, "QIDI Retry shown by the router goes when the pause ends",
                  "[qidi][qidi_box][error-center]") {
     status_push(

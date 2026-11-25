@@ -8168,6 +8168,19 @@ TEST_CASE("AFC names the lane a load is headed for until the load ends",
     CHECK(h.get_system_info().pending_target_slot == -1);
 }
 
+TEST_CASE("AFC no-op load names no lane once the macro ack ends it", "[ams][afc][dispatch][1183]") {
+    AfcDispatchAckHelper h;
+    REQUIRE(h.load_filament(3).success());
+    REQUIRE(h.get_system_info().pending_target_slot == 3);
+
+    // AFC never reports a state for this load: the gcode ack is its whole end.
+    h.ack(0);
+
+    REQUIRE(h.action() == AmsAction::IDLE);
+    CHECK(h.get_system_info().pending_target_slot == -1);
+    CHECK(h.get_system_info().path_active_slot() == -1);
+}
+
 TEST_CASE("AFC lane change shows the incoming lane through the load half",
           "[ams][afc][dispatch][spool_spin][toolchange]") {
     AfcDispatchAckHelper h;

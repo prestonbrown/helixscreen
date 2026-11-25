@@ -768,6 +768,9 @@ TEST_CASE("Happy Hare in Spoolman pull mode refuses an edit whole and keeps no c
         edit.material = "PETG";
         edit.mapped_tool = 1;
     }
+    SECTION("a relink, with nothing else moved") {
+        edit.spoolman_id = 456;
+    }
     const AmsError err = helix::test::apply_edit(helper, 0, edit);
 
     // Happy Hare refuses local gate-map writes in pull mode and only logs it,
@@ -5049,6 +5052,27 @@ TEST_CASE_METHOD(HhHelperWithClient, "Happy Hare reports each unit's vendor as i
     REQUIRE(info.units.size() == 2);
     CHECK(info.units[0].model == "ERCF");
     CHECK(info.units[1].model == "BoxTurtle");
+}
+
+TEST_CASE_METHOD(HhHelperWithClient,
+                 "Happy Hare names a unit's model once mmu_machine describes the split it kept",
+                 "[ams][happy_hare][hh_multi_unit]") {
+    // gate_status arrives first and builds the lone unit as "MMU", with no
+    // model known. mmu_machine then repeats the same split under the same
+    // name: the re-split keeps every gate, and the model is all that is new.
+    auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_single_unit.json");
+    fx["mmu_machine"]["unit_0"]["display_name"] = "";
+    helper.test_parse_mmu_state(fx["mmu_status"]);
+    REQUIRE(helper.get_system_info().units.size() == 1);
+    REQUIRE(helper.get_system_info().units[0].name == "MMU");
+    REQUIRE(helper.get_system_info().units[0].model.empty());
+
+    connect_with_fixture(helper, client, fx);
+
+    const auto units = helper.get_system_info().units;
+    REQUIRE(units.size() == 1);
+    CHECK(units[0].name == "MMU");
+    CHECK(units[0].model == "QIDI");
 }
 
 TEST_CASE_METHOD(HhHelperWithClient, "Happy Hare single v4 unit is named by its display_name",

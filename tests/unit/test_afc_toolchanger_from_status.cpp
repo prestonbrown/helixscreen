@@ -341,6 +341,30 @@ TEST_CASE("Per-extruder actions follow the frame's extruder order, not name orde
     CHECK(led->extruder == "extruder_b");
 }
 
+TEST_CASE("Per-extruder bowden and toolhead sliders name the head they belong to",
+          "[ams][afc][toolchanger][status][head-identity]") {
+    // The screen labels a per-head slider by its `extruder`, so the bowden
+    // length and the three toolhead distances of each head must carry the
+    // Klipper name that head's status row gave.
+    AfcStatusDispatchHelper afc;
+    nlohmann::json frame = toolchanger_status();
+    frame["extruders"] = nlohmann::json::array({"extruder_b", "extruder_a"});
+    afc.feed_afc(frame);
+
+    const auto actions = afc.get_device_actions();
+    const auto extruder_of = [&actions](const char* id) {
+        const auto it = std::find_if(actions.begin(), actions.end(),
+                                     [id](const auto& a) { return a.id == id; });
+        REQUIRE(it != actions.end());
+        return it->extruder;
+    };
+    CHECK(extruder_of("bowden_T0") == "extruder_b");
+    CHECK(extruder_of("bowden_T1") == "extruder_a");
+    CHECK(extruder_of("tool_stn_T0") == "extruder_b");
+    CHECK(extruder_of("tool_stn_unload_T1") == "extruder_a");
+    CHECK(extruder_of("tool_sensor_after_extruder_T1") == "extruder_a");
+}
+
 TEST_CASE("Per-extruder device actions materialise from the status payload alone (#1200)",
           "[ams][afc][toolchanger][status][1200]") {
     AfcStatusDispatchHelper afc;

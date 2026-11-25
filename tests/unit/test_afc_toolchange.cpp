@@ -681,3 +681,19 @@ TEST_CASE("AFC toolchange hold never invents an operation", "[afc][toolchange][t
     afc.feed_afc_state({{"current_state", "Idle"}});
     CHECK(afc.info().action == AmsAction::IDLE);
 }
+
+TEST_CASE("AFC next_lane naming the lane in the toolhead lends a plain load no target",
+          "[afc][toolchange][spool_spin]") {
+    // Before AFC v1.2.0 a CHANGE_TOOL that found its lane already loaded left
+    // next_lane set. That is no change, so the load that follows is a plain
+    // one: its target stays what the dispatch named, never that stale lane.
+    AfcToolchangeTestHelper afc;
+    afc.initialize_test_lanes(4);
+
+    afc.feed_afc_state(
+        {{"current_state", "Loading"}, {"current_load", "lane1"}, {"next_lane", "lane1"}});
+    REQUIRE(afc.info().action == AmsAction::LOADING);
+    REQUIRE(afc.info().current_slot == 0);
+    REQUIRE(afc.info().next_slot == 0);
+    CHECK(afc.info().pending_target_slot == -1);
+}

@@ -15,6 +15,7 @@
 #include "ams_types.h"
 #include "filament_slot_override_store.h"
 #include "test_helpers/afc_lane_feed.h"
+#include "test_helpers/afc_test_access.h"
 #include "test_helpers/registered_backend.h"
 #include "test_helpers/seeded_override.h"
 
@@ -164,4 +165,63 @@ TEST_CASE("AFC status material null clears the lane's material", "[ams][afc][byp
 
     helix::test::feed_lane_status(afc, "lane0", json{{"material", nullptr}});
     CHECK(afc.get_slot_info(0).material.empty());
+}
+
+// AFC.units names the hardware, and it has not arrived when lane data is all
+// the backend has: the unit it bootstraps is AFC's own, never one model's.
+TEST_CASE("AFC lane_data bootstrap names the unit after AFC until AFC.units arrives",
+          "[ams][afc][lane-data-race]") {
+    AmsBackendAfc afc(nullptr, nullptr);
+
+    feed_lane_data(afc, json{{"lane1", lane_record(1)}});
+
+    REQUIRE(afc.get_system_info().units.size() == 1);
+    CHECK(afc.get_system_info().units[0].name == "AFC");
+}
+
+// A linked spool's brand and vendor are Spoolman's word alone: no edit
+// declares them and the record keeps them only while the link stands. The
+// unlink can arrive through lane_data, whose record states neither, so that
+// paint has to take them off rather than leave the unlinked spool's on show.
+TEST_CASE("AFC lane_data unlink takes the spool's own details off the lane",
+          "[ams][afc][1195][spoolman]") {
+    helix::test::RegisteredBackend<AmsBackendAfc> afc_reg(nullptr, nullptr);
+    AmsBackendAfc& afc = *afc_reg;
+    helix::test::init_afc_lanes(afc, {"lane1", "lane2"});
+
+    feed_lane_data(afc, both_lanes(lane_record(42)));
+    SpoolInfo spool;
+    spool.id = 42;
+    spool.vendor = "Polymaker";
+    spool.filament_name = "PolyLite PLA";
+    spool.filament_id = 7;
+    spool.vendor_id = 5;
+    helix::test::spool_states(afc, 0, spool);
+    // A status frame paints what Spoolman states about the linked spool.
+    helix::test::feed_lane_status(afc, "lane1", json{{"spool_id", 42}});
+    REQUIRE(afc.get_slot_info(0).spoolman_id == 42);
+    REQUIRE(afc.get_slot_info(0).brand == "Polymaker");
+    REQUIRE(afc.get_slot_info(0).spoolman_vendor_id == 5);
+
+    feed_lane_data(afc, both_lanes(lane_record(nullptr)));
+    CHECK(afc.get_slot_info(0).spoolman_id == 0);
+    CHECK(afc.get_slot_info(0).brand.empty());
+    CHECK(afc.get_slot_info(0).spoolman_vendor_id == 0);
+}
+
+// An engaged bypass is the external spool's path. Lane data that finds a lane
+// loaded must not seat that lane over it.
+TEST_CASE("AFC lane_data does not seat a loaded lane over an engaged bypass",
+          "[ams][afc][bypass]") {
+    helix::test::RegisteredBackend<AmsBackendAfc> afc_reg(nullptr, nullptr);
+    AmsBackendAfc& afc = *afc_reg;
+    helix::test::init_afc_lanes(afc, {"lane1", "lane2"});
+
+    json params;
+    params["AFC"] = json{{"bypass_state", true}};
+    AfcTestAccess::handle_status_update(afc, json{{"params", json::array({params, 0.0})}});
+    REQUIRE(afc.get_current_slot() == -2);
+
+    feed_lane_data(afc, both_lanes(json{{"tool_loaded", true}}));
+    CHECK(afc.get_current_slot() == -2);
 }
