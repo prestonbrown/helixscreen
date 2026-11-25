@@ -1533,6 +1533,61 @@ TEST_CASE("MedusaHC: a Cancel mid-swap waits for the swap, then stops without a 
     }
 }
 
+namespace {
+
+/// The per-printer Tool Numbers setting forced to the G-code names ("T0") for
+/// a scope, then back to Auto. The backend's own messages follow the setting
+/// the way the badges do.
+struct ScopedGcodeToolStyle {
+    ScopedGcodeToolStyle() {
+        auto& settings = helix::SettingsManager::instance();
+        settings.init_subjects();
+        settings.set_tool_number_style_setting(helix::ui::ToolNumberStyleSetting::Gcode);
+    }
+    ~ScopedGcodeToolStyle() {
+        helix::SettingsManager::instance().set_tool_number_style_setting(
+            helix::ui::ToolNumberStyleSetting::Auto);
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "MedusaHC's step rows name each tool as the screen numbers it",
+                 "[toolchanger][mount_feed][medusahc][batch][tool_style]") {
+    ScopedGcodeToolStyle gcode;
+    AckingChanger tc(4);
+    tc.feed_status("ready", 0);
+    REQUIRE(tc.load_filament_batch({1, 3}).success());
+    REQUIRE(tc.display_tool_number_style() == helix::ui::ToolNumberStyle::Gcode);
+
+    const auto model = tc.get_operation_step_model(StepOperationType::LOAD_FRESH);
+    REQUIRE(model.steps.size() == 8);
+    // Head 1 owns the first four rows and head 3 the last four. Each names its
+    // tool the way the screen numbers tools, beside its place in the run.
+    for (size_t row = 0; row < 4; ++row) {
+        CHECK(model.steps[row].label.rfind("T1 (1/2): ", 0) == 0);
+        CHECK(model.steps[row + 4].label.rfind("T3 (2/2): ", 0) == 0);
+    }
+}
+
+TEST_CASE_METHOD(
+    LVGLTestFixture,
+    "MedusaHC's toast for a swap that finished names the tool as the screen numbers it",
+    "[toolchanger][mount_feed][medusahc][tool_style]") {
+    ScopedGcodeToolStyle gcode;
+    AckingChanger tc(4);
+    start_load_to_mount(tc);
+    REQUIRE(tc.display_tool_number_style() == helix::ui::ToolNumberStyle::Gcode);
+    REQUIRE(tc.cancel().success());
+    tc.ack();
+    tc.feed(pin_watch_frame(1)); // the swap settled with tool 1 on the carriage
+
+    // Tool 0 is the one the run owed the carriage.
+    const auto toast = ToolChangerTestAccess::feed_last_toast(tc);
+    CHECK(toast.find("and T0 was not put back on the carriage.") != std::string::npos);
+    CHECK(toast.find("Tool 1") == std::string::npos);
+}
+
 TEST_CASE("MedusaHC: losing the connection mid-Mount sends no restore",
           "[toolchanger][mount_feed][medusahc]") {
     AckingChanger tc(4);
@@ -2024,6 +2079,57 @@ TEST_CASE_METHOD(BusyGuardFixture, "MedusaHC: a print starting under a run ends 
           "tool is mounted. Tool 3's nozzle is still heating.");
 }
 
+TEST_CASE_METHOD(BusyGuardFixture,
+                 "MedusaHC: a run stopped under a print still names the nozzle it left heating",
+                 "[toolchanger][mount_feed][medusahc]") {
+    // The cleanup cannot go out under a print, so nothing turns the run's
+    // heaters off. A run that had already stopped (here by Cancel) gets no
+    // "print started" accounting of its own; what is new is the heat.
+    LiveApiChanger tc(api.get(), &mock_client);
+    tc.feed(json{{"toolchanger", {{"status", "ready"}, {"tool_number", 0}}}});
+    const auto drain = []() { helix::ui::UpdateQueue::instance().drain(); };
+    const auto sent_text = [this]() {
+        std::string all;
+        for (const auto& script : mock_client.gcode_script_history()) {
+            all += script + "\n";
+        }
+        return all;
+    };
+
+    REQUIRE(tc.unload_filament_batch({1, 2}).success());
+    // Tool 2's preheat rides tool 1's Mount stage. Once that stage is answered
+    // the heater is the run's to turn off, and tool 1's own heat stage is in
+    // flight.
+    bool tool1_heating_sent = false;
+    for (int pass = 0; pass < 12 && !tool1_heating_sent; ++pass) {
+        drain();
+        tool1_heating_sent = sent_text().find("HEATER=extruder1 TARGET=") != std::string::npos;
+    }
+    REQUIRE(tool1_heating_sent);
+    REQUIRE(sent_text().find("HEATER=extruder2 TARGET=") != std::string::npos);
+    REQUIRE(sent_text().find("HEATER=extruder2 TARGET=0") == std::string::npos);
+    REQUIRE(tc.can_cancel_operation());
+
+    start_printing(*this);
+    const size_t sent = mock_client.gcode_script_history().size();
+    REQUIRE(tc.cancel().success());
+
+    // The Cancel's own accounting is replaced by the one thing that is new:
+    // extruder2 was left at its target, and nothing is going to turn it off.
+    const auto toast = ToolChangerTestAccess::feed_last_toast(tc);
+    CHECK(toast.find("Tool 3's nozzle is still heating") != std::string::npos);
+    CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) == helix::NoticeSeverity::WARNING);
+    // Nothing went out to turn the heater off or to put the carriage back.
+    CHECK(mock_client.gcode_script_history().size() == sent);
+    CHECK_FALSE(tc.can_cancel_operation());
+
+    // The stage in flight still answers; the run it belonged to is over, so
+    // its answer sends nothing.
+    drain();
+    drain();
+    CHECK(mock_client.gcode_script_history().size() == sent);
+}
+
 namespace {
 
 class ConnectionRecordingBackend : public AmsBackendMock {
@@ -2312,6 +2418,17 @@ TEST_CASE("toolchanger: tool numbers come from the listing for badges, remaps an
         CHECK(tc.sent_.back() == "ASSIGN_TOOL TOOL=\"tool T0\" N=3");
         CHECK_FALSE(tc.can_set_tool_mapping(7, 0).success());
     }
+    SECTION("a frame that carries no listing leaves a remap where the user put it") {
+        listing({0, 2, 3}, in_order);
+        REQUIRE(tc.set_tool_mapping(3, 0).success());
+        REQUIRE(tc.get_slot_info(0).mapped_tool == 3);
+
+        // A status delta: nothing in it about the tools' numbers.
+        tc.feed(json{{"toolchanger", {{"status", "ready"}}}});
+
+        CHECK(tc.get_slot_info(0).mapped_tool == 3);
+        CHECK(tc.get_slot_info(2).mapped_tool == -1);
+    }
     SECTION("a reset returns each tool to its own number, gaps included") {
         listing({0, 2, 3}, in_order);
         listing({0, 2, 3}, rotated);
@@ -2337,6 +2454,31 @@ TEST_CASE("toolchanger: tool numbers come from the listing for badges, remaps an
         listing({0, 1, 2}, in_order);
         REQUIRE(tc.reset_tool_mappings().success());
         CHECK(tc.sent_.empty());
+    }
+    SECTION("a lost connection forgets the old listing's home numbers") {
+        listing({0, 2, 3}, in_order);
+        REQUIRE(tc.can_set_tool_mapping(3, 0).success());
+
+        // The reconnect finds the tools numbered from scratch, without a
+        // restart in between for the listing to be cleared by.
+        tc.on_connection_lost();
+        CHECK_FALSE(tc.can_set_tool_mapping(3, 0).success());
+        listing({0, 1, 2}, in_order);
+        REQUIRE(tc.reset_tool_mappings().success());
+        CHECK(tc.sent_.empty());
+    }
+    SECTION("a reset leaves a tool the listing gives no number without a badge") {
+        // T2 is listed with no number; the other two swap theirs.
+        listing({2, -1, 0}, in_order);
+        listing({0, -1, 2}, in_order);
+        REQUIRE(tc.get_slot_info(1).mapped_tool == -1);
+
+        REQUIRE(tc.reset_tool_mappings().success());
+        CHECK(tc.sent_ == std::vector<std::string>{"ASSIGN_TOOL TOOL=\"tool T0\" N=2",
+                                                   "ASSIGN_TOOL TOOL=\"tool T3\" N=0"});
+        // Klipper's next listing is what badges the tools again: no number is
+        // invented for T2 in the meantime.
+        CHECK(tc.get_slot_info(1).mapped_tool == -1);
     }
     SECTION("a reset on a machine with no ASSIGN_TOOL fails and keeps the listed badges") {
         tc.set_tool_commands(toolchanger_addon::ToolCommands{true, "test", "T", "", false});
