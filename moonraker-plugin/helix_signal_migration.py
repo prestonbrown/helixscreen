@@ -62,12 +62,13 @@ FIRMWARE_MANAGED_MARKERS = (
 
 PAXX_LMD_HOOK = "etc/hooks/lmd.d/30-helixscreen.sh"
 PAXX_CONFIG = "oem/printer_data/config/extended/extended2.cfg"
+PAXX_PACKAGE_BIN = "oem/apps/helixscreen/latest/bin/helix-screen"
 
 
 def paxx_runs_helixscreen(root: str = "") -> bool:
     """Whether paxx's firmware runs its own HelixScreen package: its lmd hook
-    is present and `[components] gui` selects helixscreen, the condition the
-    hook binds the package on. paxx ships the hook whatever gui says, so the
+    is present, `[components] gui` selects helixscreen and the package binary
+    is executable, the condition the hook binds the package on. paxx ships the hook whatever gui says, so the
     hook alone proves nothing. The installer's guard
     (scripts/lib/installer/main.sh#_refuse_if_firmware_managed) and the app's
     helix::board::firmware_manages_updates() make the same call."""
@@ -79,7 +80,9 @@ def paxx_runs_helixscreen(root: str = "") -> bool:
         cfg.read(os.path.join(base, PAXX_CONFIG))
     except configparser.Error:
         return False
-    return cfg.get("components", "gui", fallback="").strip() == "helixscreen"
+    if cfg.get("components", "gui", fallback="").strip() != "helixscreen":
+        return False
+    return os.access(os.path.join(base, PAXX_PACKAGE_BIN), os.X_OK)
 
 
 def firmware_owner(root: str = "") -> Optional[str]:

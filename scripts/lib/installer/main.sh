@@ -902,9 +902,9 @@ _paxx_selected_gui() {
 # helixscreen. PAXX ships the hook whatever that setting says, so the hook file
 # alone proves nothing; with gui on the stock UI the firmware runs no HelixScreen
 # and an install of ours is ours to update. A package directory beside our
-# install is no reason to refuse either: it runs only through that hook. With gui
-# on helixscreen and no package yet, the guard still refuses: extended-pkg fetches
-# the package at the next boot and the hook then binds it.
+# install is no reason to refuse either: it runs only through that hook. The test
+# is the hook's own: gui on helixscreen AND an executable
+# /oem/apps/helixscreen/latest/bin/helix-screen to bind.
 #
 # The in-app updater makes the same call from the running binary in
 # helix::board::firmware_manages_updates() (src/system/board_identity.cpp), which
@@ -923,9 +923,11 @@ _refuse_if_firmware_managed() {
     _fw_root="${HELIX_FIRMWARE_MANAGED_MARKER:-}"
     _fw_hook="${_fw_root}/etc/hooks/lmd.d/30-helixscreen.sh"
     _fw_cfg="${_fw_root}/oem/printer_data/config/extended/extended2.cfg"
+    _fw_package_bin="${_fw_root}/oem/apps/helixscreen/latest/bin/helix-screen"
 
     [ -f "$_fw_hook" ] || return 0
     [ "$(_paxx_selected_gui "$_fw_cfg")" = "helixscreen" ] || return 0
+    [ -x "$_fw_package_bin" ] || return 0
 
     _fw_detected="$_fw_hook (${_fw_cfg}: [components] gui: helixscreen)"
     log_error "=========================================="

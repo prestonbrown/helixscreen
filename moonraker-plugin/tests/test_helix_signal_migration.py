@@ -167,11 +167,15 @@ class TestFirmwareManaged:
         assert FIRMWARE_MANAGED(str(tmp_path))
 
     @staticmethod
-    def _paxx(root, gui):
+    def _paxx(root, gui, package=True):
         hook = root / "etc/hooks/lmd.d/30-helixscreen.sh"
         hook.parent.mkdir(parents=True)
         hook.write_text("")
-        (root / "oem/apps/helixscreen/latest/bin").mkdir(parents=True)
+        if package:
+            binary = root / "oem/apps/helixscreen/latest/bin/helix-screen"
+            binary.parent.mkdir(parents=True)
+            binary.write_text("")
+            binary.chmod(0o755)
         if gui is not None:
             cfg = root / "oem/printer_data/config/extended/extended2.cfg"
             cfg.parent.mkdir(parents=True)
@@ -186,6 +190,10 @@ class TestFirmwareManaged:
         # paxx ships the lmd hook whatever gui selects, and the package runs
         # only through it.
         self._paxx(tmp_path, gui)
+        assert not FIRMWARE_MANAGED(str(tmp_path))
+
+    def test_paxx_with_no_package_to_bind_does_not_own_our_install(self, tmp_path):
+        self._paxx(tmp_path, "helixscreen", package=False)
         assert not FIRMWARE_MANAGED(str(tmp_path))
 
     def test_no_marker_is_not_firmware_managed(self, tmp_path):
