@@ -276,6 +276,37 @@ describe("classifyHang, a stall past the line beside low memory", () => {
   });
 });
 
+describe("classifyHangs", () => {
+  /** `rows` behind a Proxy that counts how many rows are read. */
+  const counted = <T>(rows: T[]): { rows: T[]; read: () => number } => {
+    let read = 0;
+    const proxy = new Proxy(rows, {
+      get(target, prop) {
+        if (typeof prop === "string" && /^\d+$/.test(prop)) read++;
+        return Reflect.get(target, prop);
+      },
+    });
+    return { rows: proxy, read: () => read };
+  };
+
+  it("reads each hang only its own device's rows, not every device's", () => {
+    const devices = ["a", "b", "c", "d"];
+    const perDevice = 25;
+    const ofDevice = (device: string, i: number) => ({ device, at: T0, uptimeSec: HANG_UPTIME - i - 1 });
+    const snaps = counted(devices.flatMap((d) => Array.from({ length: perDevice }, (_, i) => ({ ...ofDevice(d, i), availableMb: 5 }))));
+    const warns = counted(
+      devices.flatMap((d) =>
+        Array.from({ length: perDevice }, (_, i) => ({ ...ofDevice(d, i), level: "elevated", reason: "growth", rssKb: 1, totalMb: 1 })),
+      ),
+    );
+    const causes = classifyHangs(devices.map((device) => hang({ device })), snaps.rows, warns.rows).map((h) => h.cause);
+    expect(causes).toEqual(["host_memory", "host_memory", "host_memory", "host_memory"]);
+    // Four hangs read 25 rows of each kind each, not all 100.
+    expect(snaps.read()).toBeLessThanOrEqual(devices.length * perDevice);
+    expect(warns.read()).toBeLessThanOrEqual(devices.length * perDevice);
+  });
+});
+
 describe("splitOf", () => {
   it("sums sample weights per cause", () => {
     const hs = classifyHangs(

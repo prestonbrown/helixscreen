@@ -189,9 +189,25 @@ export interface ClassifiedHang extends HangRow {
   cause: HangCause;
 }
 
-/** classifyHang over many hangs, each against its own device's rows. */
+/** `rows` by device, in the order they came. */
+function byDevice<T extends { device: string }>(rows: readonly T[]): Map<string, T[]> {
+  const out = new Map<string, T[]>();
+  for (const r of rows) {
+    const own = out.get(r.device);
+    if (own) own.push(r);
+    else out.set(r.device, [r]);
+  }
+  return out;
+}
+
+/**
+ * classifyHang over many hangs. Each hang is given only its own device's snapshots and warnings,
+ * so the work grows with the rows of one device, not with every device's.
+ */
 export function classifyHangs(hangs: readonly HangRow[], snapshots: readonly MemSnapshot[] = [], warnings: readonly MemWarning[] = []): ClassifiedHang[] {
-  return hangs.map((h) => ({ ...h, cause: classifyHang(h, snapshots, warnings) }));
+  const snaps = byDevice(snapshots);
+  const warns = byDevice(warnings);
+  return hangs.map((h) => ({ ...h, cause: classifyHang(h, snaps.get(h.device) ?? [], warns.get(h.device) ?? []) }));
 }
 
 export function splitOf(hangs: readonly ClassifiedHang[]): HangSplit {
