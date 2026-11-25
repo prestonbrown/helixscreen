@@ -206,10 +206,30 @@ run_launcher_once() {
     [ "$output" = "helix-screen drm" ]
 }
 
-@test "e2e: a probe that never answers is stopped and helix-screen starts with drm" {
+# PATH as the test has it, minus `timeout`, the way BusyBox builds without the
+# applet leave it.
+path_without_timeout() {
+    local d="$BATS_TEST_TMPDIR/no-timeout"
+    mkdir -p "$d"
+    # First match wins, as on PATH; the duplicates ln refuses are later dirs.
+    ln -s /usr/local/bin/* /usr/bin/* /bin/* "$d"/ 2>/dev/null || true
+    rm -f "$d/timeout"
+    echo "$BATS_TEST_TMPDIR/bin:$d"
+}
+
+# Runs the real launcher under PATH $1, at most 30 s, and prints the seconds it took.
+run_launcher_timed() {
+    local t0 t1
+    cp "$LAUNCHER" "$MOCK_INSTALL/bin/helix-launcher.sh"
+    rm -f "$MOCK_INSTALL/helix_screen_backend.txt"
+    t0=$(date +%s)
+    MOCK_INSTALL="$MOCK_INSTALL" PATH="$1" /usr/bin/timeout 30 /bin/sh "$MOCK_INSTALL/bin/helix-launcher.sh" >/dev/null 2>&1 || true
+    t1=$(date +%s)
+    echo $((t1 - t0))
+}
+
+@test "e2e: without timeout, a probe that never answers is stopped at its deadline" {
     with_dri_card
-    # A `timeout` that enforces nothing stands for BusyBox builds without one.
-    mock_command_script "timeout" 'shift; exec "$@"'
     cat > "$MOCK_INSTALL/bin/helix-screen" << MOCKEOF
 #!/bin/sh
 [ "\$1" = "--probe-egl" ] && exec sleep 300
@@ -218,11 +238,27 @@ exit 0
 MOCKEOF
     chmod +x "$MOCK_INSTALL/bin/helix-screen"
     export HELIX_EGL_PROBE_SECS=2
+    local p secs
+    p=$(path_without_timeout)
+    ! PATH="$p" command -v timeout
 
-    cp "$LAUNCHER" "$MOCK_INSTALL/bin/helix-launcher.sh"
-    MOCK_INSTALL="$MOCK_INSTALL" /usr/bin/timeout 30 sh "$MOCK_INSTALL/bin/helix-launcher.sh" >/dev/null 2>&1 || true
+    secs=$(run_launcher_timed "$p")
     run cat "$MOCK_INSTALL/helix_screen_backend.txt"
     [ "$output" = "helix-screen drm" ]
+    [ "$secs" -le 12 ]
+}
+
+@test "e2e: without timeout, a probe that answers at once is not held to the deadline" {
+    with_dri_card
+    export MOCK_PROBE_RC=0
+    export HELIX_EGL_PROBE_SECS=20
+    local p secs
+    p=$(path_without_timeout)
+
+    secs=$(run_launcher_timed "$p")
+    run cat "$MOCK_INSTALL/helix_screen_backend.txt"
+    [ "$output" = "helix-screen egl" ]
+    [ "$secs" -le 5 ]
 }
 
 @test "e2e: a DRM card without libdrm starts helix-screen with fbdev" {
