@@ -87,22 +87,6 @@ _has_no_new_privs() {
 
 # _is_self_update() is defined in common.sh (sourced before this module)
 
-# Fix a known-broken PLATFORM_HOOKS path in an already-deployed init script.
-#
-# Init scripts shipped before 2026-04-20 sourced platform hooks from
-# ${DAEMON_DIR}/assets/config/platform/hooks.sh, but the installer (and the
-# deploy makefile) write hooks to ${DAEMON_DIR}/platform/hooks.sh.  Result:
-# platform_stop_competing_uis() silently stays a no-op there.
-#
-# Self-update deliberately skips copying the init script to preserve
-# platform customizations (#314), so a pure source-tree fix can't reach
-# already-installed users.  This surgical sed rewrites only that one
-# known-broken substring; anything else the platform may have customized
-# is left alone.
-# Point the init script's DAEMON_DIR at the install root.
-# On a mod host the script runs inside the chroot, where the install root may
-# have a different spelling than it does on the host (see
-# resolve_chroot_daemon_dir). Use the in-chroot one when we have it.
 # True when the init at INIT_SCRIPT_DEST is a hand-off to this install's own
 # config/helixscreen.init rather than a copy of it: it names that script and
 # carries no DAEMON_DIR line of its own. Z-Mod ships its S80helixscreen this way
@@ -114,6 +98,10 @@ _init_hands_off_to_install() {
     grep -qF "${HELIX_CHROOT_DAEMON_DIR:-$INSTALL_DIR}/config/helixscreen.init" "$INIT_SCRIPT_DEST" 2>/dev/null
 }
 
+# Point the init script's DAEMON_DIR at the install root.
+# On a mod host the script runs inside the chroot, where the install root may
+# have a different spelling than it does on the host (see
+# resolve_chroot_daemon_dir). Use the in-chroot one when we have it.
 _set_init_script_daemon_dir() {
     _daemon_dir="${HELIX_CHROOT_DAEMON_DIR:-$INSTALL_DIR}"
     _sed_inplace "s|DAEMON_DIR=.*|DAEMON_DIR=\"$(_init_assignment_value "$_daemon_dir")\"|" "$INIT_SCRIPT_DEST"
@@ -177,6 +165,18 @@ _init_script_has_stale_hooks_path() {
     grep -q 'assets/config/platform/hooks\.sh' "$1" 2>/dev/null
 }
 
+# Fix a known-broken PLATFORM_HOOKS path in an already-deployed init script.
+#
+# Init scripts shipped before 2026-04-20 sourced platform hooks from
+# ${DAEMON_DIR}/assets/config/platform/hooks.sh, but the installer (and the
+# deploy makefile) write hooks to ${DAEMON_DIR}/platform/hooks.sh.  Result:
+# platform_stop_competing_uis() silently stays a no-op there.
+#
+# Self-update deliberately skips copying the init script to preserve
+# platform customizations (#314), so a pure source-tree fix can't reach
+# already-installed users.  This surgical sed rewrites only that one
+# known-broken substring; anything else the platform may have customized
+# is left alone.
 _migrate_init_script_hooks_path() {
     local init_script="${INIT_SCRIPT_DEST:-}"
     [ -n "$init_script" ] && [ -f "$init_script" ] || return 0
