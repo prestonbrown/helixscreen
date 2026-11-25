@@ -49,6 +49,24 @@ int afc_toolchanger_extruders() {
     return 1;
 }
 
+/// The objects VRTX (Slimohan/VRTX) adds beside klipper-toolchanger on a hotend swapper:
+/// its T<n> macros over `_VRTX_T`, its settings macro, the shared extruder motor
+/// ([extruder_stepper]) and its calibration commands. VRTX defines no CALIBRATE_TOOL_OFFSETS.
+void push_vrtx_objects(json& objects, int tool_count) {
+    objects.push_back("save_variables");
+    objects.push_back("extruder_stepper shared_drive");
+    objects.push_back("gcode_macro _VRTX_TOOLS_SETTINGS");
+    objects.push_back("gcode_macro _VRTX_T");
+    for (int i = 0; i < tool_count; ++i) {
+        objects.push_back("gcode_macro T" + std::to_string(i));
+    }
+    for (const char* macro :
+         {"VRTX_CALIBRATE", "VRTX_CALIBRATE_XY", "VRTX_CALIBRATE_Z", "VRTX_SET_TEMP",
+          "VRTX_TOOLS_OFF", "VRTX_TOOLS_STATUS", "VRTX_SET_FILAMENT", "VRTX_RESUME"}) {
+        objects.push_back(std::string("gcode_macro ") + macro);
+    }
+}
+
 /// Registry consult: is this object a chamber HEATER (heater_generic /
 /// temperature_fan whose bare name a chamber-heater backend claims)?
 /// Replaces the old find("chamber") scans — backend-named heaters like
@@ -743,7 +761,8 @@ void MoonrakerClientMock::populate_capabilities() {
             // screen is reachable in --test. Stock Klipper has none.
             mock_objects.push_back("filament_parameters");
         }
-        for (int i = 0; i < 4; ++i) {
+        const int tool_count = reforge ? 4 : toolchanger_tool_count();
+        for (int i = 0; i < tool_count; ++i) {
             mock_objects.push_back("tool T" + std::to_string(i));
         }
         // klipper-toolchanger's example config: the nozzle-contact probe and
@@ -752,7 +771,11 @@ void MoonrakerClientMock::populate_capabilities() {
         if (!reforge) {
             mock_objects.push_back("tools_calibrate");
         }
-        mock_objects.push_back("gcode_macro CALIBRATE_TOOL_OFFSETS");
+        if (mock_vrtx_selected()) {
+            push_vrtx_objects(mock_objects, tool_count);
+        } else {
+            mock_objects.push_back("gcode_macro CALIBRATE_TOOL_OFFSETS");
+        }
     }
 
     // MedusaHC mock mode (HELIX_MOCK_AMS=medusahc[-ktc|-tn]): a hotend changer
@@ -1152,7 +1175,7 @@ void MoonrakerClientMock::populate_hardware() {
     // the controller-tn variant ships no [tool N] objects. A U1's SnapSwap is four
     // heads too.
     if (is_mock_toolchanger() || is_mock_medusahc() || is_mock_u1_snapswap()) {
-        const int tools = is_mock_medusahc() ? medusa_tool_count() : 4;
+        const int tools = is_mock_medusahc() ? medusa_tool_count() : toolchanger_tool_count();
         for (int t = 1; t < tools; ++t) {
             const std::string ext = "extruder" + std::to_string(t);
             // Klipper exposes secondary extruders as both a heater and a sensor
@@ -1178,14 +1201,14 @@ void MoonrakerClientMock::populate_hardware() {
                                       return f == "fan" || f == "heater_fan hotend_fan";
                                   }),
                    fans.end());
-        for (int t = 0; t < 4; ++t) {
+        for (int t = 0; t < toolchanger_tool_count(); ++t) {
             fans.push_back("fan_generic " + mock_internal::toolchanger_part_fan(t));
             fans.push_back("heater_fan " + mock_internal::toolchanger_hotend_fan(t));
         }
     }
     if (is_mock_toolchanger()) {
-        toolchanger_tool_.store(
-            helix::mock::toolchanger_start_tool(std::getenv("HELIX_MOCK_TOOLCHANGER_TOOL"), 4));
+        toolchanger_tool_.store(helix::mock::toolchanger_start_tool(
+            std::getenv("HELIX_MOCK_TOOLCHANGER_TOOL"), toolchanger_tool_count()));
     }
 
     // Initialize LED states (all off by default)

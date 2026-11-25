@@ -103,7 +103,7 @@ static json chamber_heater_configfile_sections(const MoonrakerClientMock* self) 
 // as the object list then has no such macro either.
 static json toolchanger_configfile_sections(const MoonrakerClientMock* self) {
     json sections = json::object();
-    if (self->hardware().has_tool_changer()) {
+    if (self->hardware().has_tool_changer() && !MoonrakerClientMock::mock_vrtx_selected()) {
         sections["gcode_macro CALIBRATE_TOOL_OFFSETS"] = {
             {"gcode", "_CALIBRATE_TOOL_OFFSETS_IMPL"},
             {"description",
@@ -112,7 +112,7 @@ static json toolchanger_configfile_sections(const MoonrakerClientMock* self) {
     sections.merge_patch(self->medusa_config_sections());
     if (self->has_toolchanger_tool_fans()) {
         // Klipper keys configfile.settings sections lowercased.
-        for (int t = 0; t < 4; ++t) {
+        for (int t = 0; t < MoonrakerClientMock::toolchanger_tool_count(); ++t) {
             sections[helix::text_io::to_lower("heater_fan " +
                                               mock_internal::toolchanger_hotend_fan(t))] = {
                 {"heater", t == 0 ? std::string("extruder") : "extruder" + std::to_string(t)},

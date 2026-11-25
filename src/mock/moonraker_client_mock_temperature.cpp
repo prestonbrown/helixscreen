@@ -186,7 +186,7 @@ json MoonrakerClientMock::toolchanger_fan_status(double part_speed) const {
         return out;
     }
     const int mounted = toolchanger_tool_.load();
-    for (int t = 0; t < 4; ++t) {
+    for (int t = 0; t < toolchanger_tool_count(); ++t) {
         const double temp = t == 0 ? extruder_temp_.load() : secondary_extruder_temp(t);
         out["fan_generic " + mock_internal::toolchanger_part_fan(t)] = {
             {"speed", t == mounted ? part_speed : 0.0}};
@@ -721,7 +721,7 @@ void MoonrakerClientMock::temperature_simulation_loop() {
         // Toolchanger mock mode: the extra extruders on the live subscription
         // stream, each following its own target (secondary_extruder_temp()).
         if (is_mock_toolchanger() || is_mock_medusahc() || is_mock_u1_snapswap()) {
-            const int count = is_mock_medusahc() ? medusa_tool_count() : 4;
+            const int count = is_mock_medusahc() ? medusa_tool_count() : toolchanger_tool_count();
             for (int t = 1; t < count; ++t) {
                 status_obj["extruder" + std::to_string(t)] = {
                     {"temperature", secondary_extruder_temp(t)},
