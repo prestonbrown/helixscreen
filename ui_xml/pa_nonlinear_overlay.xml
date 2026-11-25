@@ -287,7 +287,9 @@
               </lv_obj>
               <pa_value_row name="pa_nl_height_value_row" bind_label="pa_nl_param" bind_value="pa_nl_height_value"/>
             </lv_obj>
-            <!-- Two-sided: the left's height and the front's; the app compares them. -->
+            <!-- Two-sided: the left's height and the front's; the app compares them.
+                 At the smallest breakpoint the 5 mm steps go, so each height
+                 reads whole; a tap on the tower makes the long moves. -->
             <lv_obj name="pa_nl_two_heights"
                     width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0"
                     flex_flow="column" style_pad_gap="#space_xs" scrollable="false" hidden="true">
@@ -298,6 +300,7 @@
                 <text_small width="#pa_side_label_w" text="Left side" style_text_color="#primary" long_mode="wrap"/>
                 <ui_button name="pa_nl_l_minus_5"
                            width="#touch_target_min" height="#touch_target_min" text="-5" variant="secondary">
+                  <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
                   <event_cb trigger="clicked" callback="on_pa_nl_height" user_data="-50"/>
                 </ui_button>
                 <ui_button name="pa_nl_l_minus_half"
@@ -315,6 +318,7 @@
                 </ui_button>
                 <ui_button name="pa_nl_l_plus_5"
                            width="#touch_target_min" height="#touch_target_min" text="+5" variant="secondary">
+                  <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
                   <event_cb trigger="clicked" callback="on_pa_nl_height" user_data="50"/>
                 </ui_button>
               </lv_obj>
@@ -324,6 +328,7 @@
                 <text_small width="#pa_side_label_w" text="Front" style_text_color="#warning" long_mode="wrap"/>
                 <ui_button name="pa_nl_f_minus_5"
                            width="#touch_target_min" height="#touch_target_min" text="-5" variant="secondary">
+                  <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
                   <event_cb trigger="clicked" callback="on_pa_nl_height_front" user_data="-50"/>
                 </ui_button>
                 <ui_button name="pa_nl_f_minus_half"
@@ -341,6 +346,7 @@
                 </ui_button>
                 <ui_button name="pa_nl_f_plus_5"
                            width="#touch_target_min" height="#touch_target_min" text="+5" variant="secondary">
+                  <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
                   <event_cb trigger="clicked" callback="on_pa_nl_height_front" user_data="50"/>
                 </ui_button>
               </lv_obj>

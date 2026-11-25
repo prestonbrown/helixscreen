@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_button.h"
 #include "ui_component_keypad.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
@@ -10,6 +11,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/scoped_env.h"
+#include "../test_helpers/scoped_geometry.h"
 #include "app_globals.h"
 #include "config.h"
 #include "core/update_queue.h"
@@ -1138,6 +1140,53 @@ TEST_CASE_METHOD(NonlinearFixture,
     CHECK(look_box.y2 <= card_box.y2);
     CHECK(box("pa_nl_verdict").y2 <= box("pa_nl_judge_footer").y1);
     CHECK(lv_obj_get_height(lv_obj_find_by_name(root, "pa_nl_verdict")) > 0);
+    lv_obj_delete(root);
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: pass 2's heights read whole in their buttons at 480x272",
+                 "[pa_nonlinear][pa_tuner][pa_nl_fit]") {
+    helix::test::ScopedGeometry screen(480, 272);
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    lv_obj_t* root =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "pa_nonlinear_overlay", nullptr));
+    REQUIRE(root != nullptr);
+    // The overlay's width beside the navigation bar.
+    lv_obj_set_width(root, 435);
+    overlay.attach_root_for_test(root);
+    const auto finish_tower = [this] {
+        print_tower();
+        client.cancel_print_internal();
+        helix::ui::UpdateQueue::instance().drain();
+    };
+    finish_tower();
+    overlay.judge_primary_for_test(); // pass 1
+    helix::ui::UpdateQueue::instance().drain();
+    finish_tower();
+    REQUIRE(overlay.procedure_for_test()->current().judge == pa::TowerSide::LeftVsFront);
+    overlay.tower_tap_for_test(0, 20.0f);
+    overlay.tower_tap_for_test(1, 30.0f);
+    lv_obj_update_layout(root);
+
+    for (const char* name : {"pa_nl_height_left", "pa_nl_height_front"}) {
+        INFO(name);
+        lv_obj_t* btn = lv_obj_find_by_name(root, name);
+        REQUIRE(btn != nullptr);
+        lv_obj_t* label = ui_button_get_label(btn);
+        REQUIRE(label != nullptr);
+        REQUIRE(std::string(lv_label_get_text(label)) != "--");
+        lv_point_t text;
+        lv_text_get_size(&text, lv_label_get_text(label),
+                         lv_obj_get_style_text_font(label, LV_PART_MAIN), 0, 0, LV_COORD_MAX,
+                         LV_TEXT_FLAG_NONE);
+        lv_area_t label_box;
+        lv_area_t room;
+        lv_obj_get_coords(label, &label_box);
+        lv_obj_get_content_coords(btn, &room);
+        CHECK(lv_obj_get_width(label) >= text.x);
+        CHECK(label_box.x1 >= room.x1);
+        CHECK(label_box.x2 <= room.x2);
+    }
     lv_obj_delete(root);
 }
 
