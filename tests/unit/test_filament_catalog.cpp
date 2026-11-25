@@ -852,3 +852,30 @@ TEST_CASE_METHOD(HelixTestFixture, "saving through a symlinked overlay keeps the
     CHECK(std::filesystem::is_symlink(link));
     CHECK(read_small_file(real.string()).find("link-probe-pla") != std::string::npos);
 }
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "orca ids: a Generic product with a plus is found by its own name",
+                 "[filament_catalog][orca][user_save]") {
+    // "Generic PLA+" is the bundled product "generic-pla-plus". Given an Orca
+    // id of its own it stands ahead of the PLA family's Generic preset, which
+    // is what looking it up without the plus would answer instead.
+    ScratchDir dir;
+    {
+        ConfigDirGuard guard(dir.path.string());
+        const std::vector<nlohmann::json> overlay = {{{"id", "generic-pla-plus"},
+                                                      {"brand", "Generic"},
+                                                      {"name", "PLA+"},
+                                                      {"type", "PLA+"},
+                                                      {"orca_id", "PLUS0001"}}};
+        REQUIRE(FilamentCatalog::save_user_products(overlay));
+        REQUIRE(FilamentCatalog::orca_id_for("generic-pla-plus") == "PLUS0001");
+        const std::string pla = FilamentCatalog::orca_id_for("generic-pla");
+        REQUIRE_FALSE(pla.empty());
+        REQUIRE(pla != "PLUS0001");
+
+        CHECK(FilamentCatalog::generic_orca_id_for("PLA+", "PLA") == "PLUS0001");
+    }
+    // The index was built against the scratch overlay, which the guard just
+    // took away: a save anywhere retires it.
+    REQUIRE(FilamentCatalog::save_user_products_to({}, (dir.path / "retire.json").string()));
+}

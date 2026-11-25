@@ -267,6 +267,31 @@ TEST_CASE("a lane rig's file tools are judged on the heads their lanes feed",
     CHECK(mismatched == std::vector<int>{0, 11});
 }
 
+TEST_CASE("a lane rig's flow types are judged on the heads their lanes feed",
+          "[plugin_fitcheck][head-identity]") {
+    // Lane T0 feeds extruder1, a standard nozzle; lane T1 feeds extruder0, a
+    // High Flow one. The slicer lists the type each lane was sliced for.
+    FitMachine m;
+    m.nozzle_diameters = {0.4, 0.4};
+    m.nozzle_volume_types = {"high_flow", "standard"};
+    m.tool_extruder = {1, 0};
+    FitFile f;
+    f.tools = {0, 1};
+    f.nozzle_diameters = {0.4, 0.4};
+    f.nozzle_volume_types = {"high_flow", "standard"};
+
+    const auto findings = check_fit(m, f);
+    REQUIRE(findings.size() == 2);
+    CHECK(findings[0].kind == FitKind::NozzleFlowMismatch);
+    CHECK(findings[0].tool == 0);
+    CHECK(findings[0].file_volume_type == "high_flow");
+    CHECK(findings[0].printer_volume_type == "standard");
+    CHECK(findings[1].kind == FitKind::NozzleFlowMismatch);
+    CHECK(findings[1].tool == 1);
+    CHECK(findings[1].file_volume_type == "standard");
+    CHECK(findings[1].printer_volume_type == "high_flow");
+}
+
 TEST_CASE("the nozzles the extruders report replace the config's", "[plugin_fitcheck]") {
     FitMachine base;
     base.nozzle_diameters = {0.4, 0.4};
