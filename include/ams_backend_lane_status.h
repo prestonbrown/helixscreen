@@ -11,7 +11,7 @@
 
 namespace helix {
 
-/// Any producer of the Lane Status Surface (lane-status-spec RFC 0001): the
+/// Any producer of the Lane Status Surface (lane-status-spec): the
 /// `lane_status` Klipper object for live state, and the `lane_data` records
 /// its producer writes for identity, joined by lane name.
 ///

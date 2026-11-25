@@ -108,7 +108,7 @@ struct FilamentSlotOverride {
     // or the firmware), not from a user edit, so a later outside relink
     // replaces it. Persistence: `helix_spool_link: "adopted"`.
     bool spool_link_adopted = false;
-    // Whether a spool is in the lane, the record's `loaded` (RFC 0001 §5).
+    // Whether a spool is in the lane, the record's `loaded` (Lane Status Surface §5).
     // Unset is unknown and writes null.
     std::optional<bool> loaded;
 };

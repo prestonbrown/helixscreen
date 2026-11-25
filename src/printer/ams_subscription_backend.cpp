@@ -561,7 +561,7 @@ void AmsSubscriptionBackend::lane_emptied(int slot_index, bool keep_identity) {
     // A spool that left takes any edit still waiting for its echo with it.
     translucency_awaiting_echo_.erase(slot_index);
     if (!keep_identity) {
-        // RFC 0001: an empty lane keeps its record, with nothing known. The
+        // Lane Status Surface: an empty lane keeps its record, with nothing known. The
         // lane's sources and the painted slot let go of the spool at once, as
         // a clear does.
         helix::ams::FilamentSlotOverride emptied;

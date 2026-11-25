@@ -325,7 +325,7 @@ ProductIndex product_index_from(const std::string& builtin_path, const std::stri
             ++carriers[orca];
 
     // An id no Orca preset can match on the Moonraker path (a Bambu GF code, a
-    // display name) is no id at all: lane_data must not carry it (RFC 0001 §5).
+    // display name) is no id at all: lane_data must not carry it (Lane Status Surface §5).
     for (auto& [id, orca] : by_product)
         if (carriers[orca] == 1 && is_usable_orca_filament_id(orca))
             index.orca_ids.emplace(id, std::move(orca));

@@ -1,7 +1,7 @@
 // Copyright (C) 2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// The Lane Status Surface (lane-status-spec RFC 0001) as a consumer reads it:
+// The Lane Status Surface (lane-status-spec) as a consumer reads it:
 // the `lane_status` Klipper object, and the `lane_data` records its producer
 // writes, joined to the object's lanes by `lane_name`. Pure functions over
 // JSON, so every field's reading is testable without a backend.

@@ -286,7 +286,7 @@ class PrinterDiscovery {
     }
 
     /// A Lane Status Surface producer publishes a `lane_status` object
-    /// (lane-status-spec RFC 0001). Claims the printer only when no backend of
+    /// (lane-status-spec). Claims the printer only when no backend of
     /// its own does (register_detected_ams_systems()).
     [[nodiscard]] bool has_lane_status() const {
         return has_lane_status_;
