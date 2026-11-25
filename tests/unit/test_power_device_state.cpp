@@ -4,6 +4,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "app_globals.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
@@ -333,6 +334,45 @@ TEST_CASE_METHOD(RediscoveryFixture,
     notify("chamber_light", "off"); // an update for the dropped device is ignored
     notify("printer_psu", "on");
     CHECK(lv_subject_get_int(psu) == 1);
+}
+
+TEST_CASE_METHOD(
+    RediscoveryFixture,
+    "PowerDeviceState: a vanished device's subject lets go of its observers when dropped",
+    "[power_device_state][rediscovery][2044]") {
+    auto& state = PowerDeviceState::instance();
+    state.set_devices({{"chamber_light", "gpio", "on", false}});
+    SubjectLifetime light_lt;
+    lv_subject_t* light = state.get_status_subject("chamber_light", light_lt);
+    REQUIRE(light != nullptr);
+    SeenValues seen;
+    lv_observer_t* observer = lv_subject_add_observer(light, SeenValues::cb, &seen);
+    REQUIRE(seen.values == std::vector<int>{1});
+
+    state.set_devices({});
+
+    CHECK_FALSE(*light_lt);
+    // Before the update queue runs: an ObserverGuard reads a dead lifetime token
+    // as "my observer is already freed".
+    CHECK_FALSE(helix::subject_has_observer(light, observer));
+}
+
+TEST_CASE_METHOD(RediscoveryFixture,
+                 "PowerDeviceState: teardown lets go of each subject's observers at once",
+                 "[power_device_state][lifetime][2044]") {
+    auto& state = PowerDeviceState::instance();
+    state.set_devices({{"psu", "gpio", "on", false}});
+    SubjectLifetime psu_lt;
+    lv_subject_t* psu = state.get_status_subject("psu", psu_lt);
+    REQUIRE(psu != nullptr);
+    SeenValues seen;
+    lv_observer_t* observer = lv_subject_add_observer(psu, SeenValues::cb, &seen);
+
+    state.deinit_subjects();
+
+    CHECK(state.device_names().empty());
+    CHECK_FALSE(*psu_lt);
+    CHECK_FALSE(helix::subject_has_observer(psu, observer));
 }
 
 TEST_CASE_METHOD(RediscoveryFixture,
