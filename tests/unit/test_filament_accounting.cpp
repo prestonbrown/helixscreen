@@ -479,31 +479,39 @@ TEST_CASE_METHOD(OptInsFx,
 }
 
 TEST_CASE_METHOD(OptInsFx,
-                 "filament accounting: a job start reads the opt-ins, an idle printer does not",
+                 "filament accounting: a job start reads the opt-ins, a job's end does not",
                  "[plugin_filament]") {
+    auto& print_active = get_printer_state().print_state();
+    const auto job = [&](bool running) {
+        lv_subject_set_int(print_active.get_print_active_subject(), running ? 1 : 0);
+        drain();
+    };
+
     client.respond_to("server.database.get_item",
                       plugin_features_reply(json{{kFilamentAccountingFeature, true}}));
-    auto& print_active = get_printer_state().print_state();
-
-    lv_subject_set_int(print_active.get_print_active_subject(), 0);
-    drain();
-    INFO("no job running: the record stays unread");
-    CHECK(sender() == FilamentAccountingSender::None);
-
-    lv_subject_set_int(print_active.get_print_active_subject(), 1);
-    drain();
+    job(true);
     INFO("a job starts: the record is read");
+    CHECK(sender() == FilamentAccountingSender::App);
+
+    client.respond_to("server.database.get_item",
+                      plugin_features_reply(json{{kFilamentAccountingFeature, false}}));
+    job(false);
+    INFO("the job ends: nothing is read, and the last read stands");
     CHECK(sender() == FilamentAccountingSender::App);
 }
 
 TEST_CASE_METHOD(OptInsFx, "filament accounting: a disconnect forgets the opt-ins read",
                  "[plugin_filament]") {
+    auto& ps = get_printer_state();
+    const auto link = [&](ConnectionState state) {
+        ps.set_printer_connection_state(static_cast<int>(state), "");
+        drain();
+    };
+    link(ConnectionState::CONNECTED);
     read(json{{kFilamentAccountingFeature, true}});
     REQUIRE(sender() == FilamentAccountingSender::App);
 
-    get_printer_state().set_printer_connection_state(
-        static_cast<int>(ConnectionState::DISCONNECTED), "");
-    drain();
+    link(ConnectionState::DISCONNECTED);
     INFO("the next connection's print reads the record again before the fallback acts");
     CHECK(sender() == FilamentAccountingSender::None);
 }
@@ -568,7 +576,9 @@ struct ToolChangeFx : OptInsFx {
         client.respond_to("server.spoolman.status",
                           json{{"result", {{"spoolman_connected", true}, {"spool_id", 11}}}});
 
-        lv_subject_set_int(ps.plugin_status_state().get_helix_plugin_probe_seq_subject(), 1);
+        auto& status = ps.plugin_status_state();
+        lv_subject_set_int(status.get_helix_plugin_probe_seq_subject(),
+                           lv_subject_get_int(status.get_helix_plugin_probe_seq_subject()) + 1);
         lv_subject_set_int(ps.print_state().get_print_active_subject(), 1);
         drain();
         // What lets a tool change through to the switch: no plugin feature to
