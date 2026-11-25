@@ -291,6 +291,7 @@ TEST_CASE("Crumbs noted from several threads at once are each dumped whole",
     }
 
     std::atomic<bool> start{false};
+    std::atomic<bool> reader_running{false};
     std::atomic<bool> writers_done{false};
     std::atomic<int> torn_lines{0};
     std::atomic<long> dumps{0};
@@ -299,10 +300,12 @@ TEST_CASE("Crumbs noted from several threads at once are each dumped whole",
 
     std::vector<std::thread> writers;
     for (int w = 0; w < kWriters; ++w) {
-        writers.emplace_back([w, &start] {
+        writers.emplace_back([w, &start, &reader_running] {
             const std::string category = "t" + std::to_string(w);
             const std::string subject = "s" + std::to_string(w);
-            while (!start.load(std::memory_order_acquire)) {
+            // The reader is up before the first crumb, so it dumps while they write.
+            while (!start.load(std::memory_order_acquire) ||
+                   !reader_running.load(std::memory_order_acquire)) {
                 std::this_thread::yield();
             }
             for (int n = 0; n < kCrumbsPerWriter; ++n) {
@@ -311,7 +314,10 @@ TEST_CASE("Crumbs noted from several threads at once are each dumped whole",
         });
     }
     std::thread reader([&] {
-        while (!writers_done.load(std::memory_order_acquire)) {
+        reader_running.store(true, std::memory_order_release);
+        // At least one dump whatever the writers are up to, on a runner that
+        // gives this thread its first turn after they are done.
+        do {
             const std::string all = dump_ring();
             dumps.fetch_add(1);
             for (const std::string& line : split_lines(all)) {
@@ -325,7 +331,7 @@ TEST_CASE("Crumbs noted from several threads at once are each dumped whole",
                     first_bad = line;
                 }
             }
-        }
+        } while (!writers_done.load(std::memory_order_acquire));
     });
 
     start.store(true, std::memory_order_release);

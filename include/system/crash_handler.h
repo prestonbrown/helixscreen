@@ -287,9 +287,9 @@ uint32_t elapsed_ms(uint32_t start_ms, uint32_t now_ms) noexcept;
 /**
  * @brief Breadcrumb ring buffer for crash-time activity context
  *
- * Records short, structured events into a fixed-size ring. On crash, the last
- * ~64 entries are dumped to crash.txt as `crumb:<ms> <category> <subject>`
- * lines.
+ * Records short, structured events into a fixed-size ring. On crash, up to
+ * the last 256 entries are dumped to crash.txt as
+ * `crumb:<ms> <category> <subject>` lines.
  *
  * Storage is entirely static (no heap). note() may be called from any thread
  * and is lock-free; the reader, the crash handler, is given only whole crumbs

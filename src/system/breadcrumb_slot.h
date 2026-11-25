@@ -23,10 +23,10 @@ constexpr size_t kCrumbCategoryLen = 8;
 constexpr size_t kCrumbSubjectLen = 60;
 constexpr size_t kCrumbTextWords = (kCrumbCategoryLen + kCrumbSubjectLen) / sizeof(uint32_t);
 
-/// The bits of a crumb's index that a slot's mark carries. The mark is twice
-/// the index plus two or three, so it loses the index's top bit to say whether
-/// the crumb is whole.
-constexpr uint32_t kCrumbIndexBits = 0x7FFFFFFFu;
+/// A mask for the 31 bits of a crumb's index that a slot's mark carries. The
+/// mark is twice the index plus two or three, so it loses the index's top bit
+/// to say whether the crumb is whole.
+constexpr uint32_t kCrumbIndexMask = 0x7FFFFFFFu;
 
 /// A crumb's text: the category, then the subject, each null-terminated.
 /// Kept as words so it crosses a slot in atomic stores and loads.
@@ -45,6 +45,11 @@ inline const char* crumb_category(const CrumbText& text) noexcept {
 inline const char* crumb_subject(const CrumbText& text) noexcept {
     return reinterpret_cast<const char*>(text.words) + kCrumbCategoryLen;
 }
+
+// Every access to a slot is an atomic builtin, and the reader runs in a signal
+// handler, so the protocol holds only while these are lock-free.
+static_assert(__atomic_always_lock_free(sizeof(uint32_t), nullptr),
+              "a crumb slot needs lock-free 32-bit atomics");
 
 struct CrumbSlot {
     /// Twice the index of the crumb the slot holds, plus two, once that crumb
@@ -74,14 +79,20 @@ inline bool crumb_enter(CrumbSlot& slot, uint32_t index, uint32_t ring_size) noe
         // 31 bits of an index and the index wraps at 2^32, so the distance is
         // read on those bits: up to half the range the held crumb is behind,
         // past half it is ahead.
-        const uint32_t behind = (index - ring_size - held) & kCrumbIndexBits;
-        if (behind > kCrumbIndexBits / 2u) {
+        const uint32_t behind = (index - ring_size - held) & kCrumbIndexMask;
+        if (behind > kCrumbIndexMask / 2u) {
             return false;
         }
     }
     uint32_t free_mark = seq;
-    return __atomic_compare_exchange_n(&slot.seq, &free_mark, 2u * index + 3u, false,
-                                       __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
+    if (!__atomic_compare_exchange_n(&slot.seq, &free_mark, 2u * index + 3u, false,
+                                     __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
+        return false;
+    }
+    // The odd mark goes ahead of the crumb's text, so a reader that still
+    // sees the old mark has not read the new text.
+    __atomic_thread_fence(__ATOMIC_RELEASE);
+    return true;
 }
 
 /// Writes a crumb into a slot this caller took with crumb_enter(). The crumb
@@ -93,7 +104,9 @@ inline void crumb_store(CrumbSlot& slot, const CrumbText& text, uint32_t ts_ms) 
     }
 }
 
-/// Makes the crumb at @p index in @p slot whole.
+/// Makes the crumb at @p index in @p slot whole. The mark of index 0x7FFFFFFF
+/// wraps to zero, the mark of a slot that never held a crumb, so that one
+/// crumb reads as absent and its slot is free for the next.
 inline void crumb_seal(CrumbSlot& slot, uint32_t index) noexcept {
     __atomic_store_n(&slot.seq, 2u * index + 2u, __ATOMIC_RELEASE);
 }
@@ -112,6 +125,9 @@ inline bool crumb_read(const CrumbSlot& slot, CrumbText& text, uint32_t& ts_ms) 
     for (size_t w = 0; w < kCrumbTextWords; ++w) {
         text.words[w] = __atomic_load_n(&slot.text[w], __ATOMIC_RELAXED);
     }
+    // The text is read before the mark is read again, so a mark that did not
+    // change means the text is that crumb's and none of the next one's.
+    __atomic_thread_fence(__ATOMIC_ACQUIRE);
     return __atomic_load_n(&slot.seq, __ATOMIC_ACQUIRE) == seq;
 }
 

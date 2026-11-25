@@ -238,12 +238,10 @@ static char s_current_event_target_name[32] = {0};
 // Breadcrumb ring buffer (activity context for crash diagnosis).
 // The slot protocol, which lets any thread note a crumb, is in breadcrumb_slot.h.
 
-/// Ring size: 256 slots of 76 bytes. Doubled from 128 to absorb the per-step
-/// pstat_act / pstat_thm crumbs added for cluster:pstat-async-delete (#906)
-/// without displacing the async_d / sync_d crumbs from earlier in the same
-/// trace. Production bundles since 2026-04-29 captured ≤80 crumbs each, but
-/// the new instrumentation adds ~6 per Print Status reactivation, and tick
-/// crumbs are still cheap to absorb at this size.
+/// Ring size: 256 slots of 76 bytes. Wide enough to hold the per-step
+/// pstat_act / pstat_thm crumbs of cluster:pstat-async-delete (#906) without
+/// displacing the async_d / sync_d crumbs from earlier in the same trace, and
+/// tick crumbs stay cheap to absorb at this size.
 static constexpr size_t kBreadcrumbRingSize = 256;
 static helix::crumbs::CrumbSlot s_breadcrumb_ring[kBreadcrumbRingSize] = {};
 
@@ -251,6 +249,8 @@ static helix::crumbs::CrumbSlot s_breadcrumb_ring[kBreadcrumbRingSize] = {};
 /// is the slot the crumb is tried on first. Wraps at 2^32: at 100 crumbs/sec
 /// that is ~497 days, and the slot marks wrap with it.
 static std::atomic<uint32_t> s_breadcrumb_idx{0};
+static_assert(std::atomic<uint32_t>::is_always_lock_free,
+              "the crumb index is read in a signal handler");
 
 /// Copy a C string into a fixed-size buffer, always null-terminating.
 /// Returns number of bytes written (excluding terminator).
