@@ -217,12 +217,13 @@ TEST_CASE_METHOD(XMLTestFixture, "Chamber row is absent when the printer has no 
     reset_material_temps_singleton();
 }
 
-// The layout-variant files the app loads at 480x272 (micro) and 272x480
-// (micro_portrait) reflow the temperature inputs to two rows of two; a
-// four-across row cannot fit those screens. Pins the reflow's structure.
+// The layout-variant file the app loads at 272x480 (micro_portrait) reflows
+// the temperature inputs to two rows of two, since a four-across row cannot fit
+// that width. The 480x272 (micro) one keeps one row, which the form needs to
+// fit 272px of height. Pins each variant's structure.
 namespace {
 
-void check_two_by_two_reflow(const char* variant_path, XMLTestFixture& f) {
+void check_temp_rows(const char* variant_path, XMLTestFixture& f, bool two_by_two) {
     reset_material_temps_singleton();
     MaterialSettingsManager::instance().clear_override("ABS");
     set_capability("printer_has_chamber_heater", 1);
@@ -243,7 +244,7 @@ void check_two_by_two_reflow(const char* variant_path, XMLTestFixture& f) {
     lv_obj_t* chamber_row = lv_obj_get_parent(lv_obj_get_parent(chamber_input));
     REQUIRE(nozzle_row != nullptr);
     REQUIRE(chamber_row != nullptr);
-    CHECK(nozzle_row != chamber_row);
+    CHECK((nozzle_row != chamber_row) == two_by_two);
     CHECK_FALSE(hidden(lv_obj_get_parent(chamber_input)));
 
     MaterialSettingsManager::instance().clear_override("ABS");
@@ -255,15 +256,15 @@ void check_two_by_two_reflow(const char* variant_path, XMLTestFixture& f) {
 
 } // namespace
 
-TEST_CASE_METHOD(XMLTestFixture, "Micro variant reflows the temp inputs to two rows of two",
+TEST_CASE_METHOD(XMLTestFixture, "Micro variant keeps the temp inputs on one row",
                  "[material_temps][chamber]") {
-    check_two_by_two_reflow("A:ui_xml/micro/material_temps_overlay.xml", *this);
+    check_temp_rows("A:ui_xml/micro/material_temps_overlay.xml", *this, false);
 }
 
 TEST_CASE_METHOD(XMLTestFixture,
                  "Micro-portrait variant reflows the temp inputs to two rows of two",
                  "[material_temps][chamber]") {
-    check_two_by_two_reflow("A:ui_xml/micro_portrait/material_temps_overlay.xml", *this);
+    check_temp_rows("A:ui_xml/micro_portrait/material_temps_overlay.xml", *this, true);
 }
 
 // TINY (480x320) and TINY_PORTRAIT (320x480) have no ui_xml/tiny*/ override, so
