@@ -482,21 +482,35 @@ TEST_CASE_METHOD(MeteredTeardownFixture,
     CHECK(log == std::vector<std::string>{"stop unregistered"});
 }
 
-TEST_CASE_METHOD(AmsSlotSinkFixture, "AmsSlotSink: a flush with nothing metered writes nothing",
-                 "[consumption_sink][ams]") {
+namespace {
+// A backend that logs every weight persist, with slot 0 trackable at 500 g.
+struct SlotPersistFixture : AmsSlotSinkFixture {
     std::vector<std::string> log;
-    auto& ams = helix::AmsState::instance();
-    ams.clear_backends();
-    auto m = std::make_unique<TeardownOrderBackend>(4, log);
-    TeardownOrderBackend* backend = m.get();
-    REQUIRE(ams.add_backend(std::move(m)) == 0);
-    helix::SlotInfo seed = backend->get_slot_info(0);
-    seed.material = "PLA";
-    seed.remaining_weight_g = 500.0f;
-    seed.total_weight_g = 1000.0f;
-    seed.spoolman_id = 0;
-    helix::test::apply_edit(*backend, 0, seed);
+    TeardownOrderBackend* backend = nullptr;
 
+    SlotPersistFixture() {
+        auto& ams = helix::AmsState::instance();
+        ams.clear_backends();
+        auto m = std::make_unique<TeardownOrderBackend>(4, log);
+        backend = m.get();
+        REQUIRE(ams.add_backend(std::move(m)) == 0);
+        helix::SlotInfo seed = backend->get_slot_info(0);
+        seed.material = "PLA";
+        seed.remaining_weight_g = 500.0f;
+        seed.total_weight_g = 1000.0f;
+        seed.spoolman_id = 0;
+        helix::test::apply_edit(*backend, 0, seed);
+    }
+
+    // The backend logs its stop into `log`, which dies before the base fixture's teardown.
+    ~SlotPersistFixture() override {
+        helix::AmsState::instance().clear_backends();
+    }
+};
+} // namespace
+
+TEST_CASE_METHOD(SlotPersistFixture, "AmsSlotSink: a flush with nothing metered writes nothing",
+                 "[consumption_sink][ams]") {
     AmsSlotSink sink(0, 0);
     sink.snapshot(0.0f);
     REQUIRE(sink.is_trackable());
@@ -511,9 +525,49 @@ TEST_CASE_METHOD(AmsSlotSinkFixture, "AmsSlotSink: a flush with nothing metered 
     log.clear();
     sink.flush();
     CHECK(log.empty());
+}
 
-    // The backend logs its stop into `log`, which dies before the fixture's teardown.
-    ams.clear_backends();
+// A tick that persisted its metered weight left the printer holding it: the
+// flush at the job's end owes the printer nothing past that.
+TEST_CASE_METHOD(SlotPersistFixture,
+                 "AmsSlotSink: a flush after a tick persisted the weight writes nothing",
+                 "[consumption_sink][ams]") {
+    AmsSlotSink sink(0, 0);
+    sink.set_persist_interval_ms_override(1);
+    sink.snapshot(0.0f);
+    REQUIRE(sink.is_trackable());
+
+    lv_tick_inc(2);
+    sink.apply_delta(1000.0f);
+    REQUIRE(log == std::vector<std::string>{"flush slot 0 registered"});
+
+    sink.flush();
+    CHECK(log == std::vector<std::string>{"flush slot 0 registered"});
+}
+
+// The weight an edit left in the slot is already the printer's own: once the
+// meter rebaselines on it, a flush has nothing to write.
+TEST_CASE_METHOD(SlotPersistFixture,
+                 "AmsSlotSink: a flush after rebaselining on an external write writes nothing",
+                 "[consumption_sink][ams]") {
+    AmsSlotSink sink(0, 0);
+    sink.snapshot(0.0f);
+    REQUIRE(sink.is_trackable());
+
+    helix::SlotInfo edit = backend->get_slot_info(0);
+    edit.remaining_weight_g = 300.0f;
+    helix::test::apply_edit(*backend, 0, edit);
+    REQUIRE(backend->get_slot_info(0).remaining_weight_g == 300.0f);
+
+    sink.apply_delta(700.0f);
+    sink.flush();
+    CHECK(log.empty());
+
+    // The meter counts on from the edited weight.
+    sink.apply_delta(1700.0f);
+    const float remaining = backend->get_slot_info(0).remaining_weight_g;
+    CHECK(remaining < 300.0f);
+    CHECK(remaining > 296.0f);
 }
 
 // ---------------------------------------------------------------------------
