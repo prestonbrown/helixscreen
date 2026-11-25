@@ -406,3 +406,38 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(h.sent("SET_HEATER_TEMPERATURE HEATER=extruder"));
     helix::MaterialSettingsManager::instance().clear_override("PLA");
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Filament panel: the tool cells keep their width when Pick up flips to Park",
+                 "[filament][target_tool][layout]") {
+    TargetToolHarness h(*this);
+    lv_subject_t* action = lv_xml_get_subject(nullptr, "filament_target_tool_action");
+    REQUIRE(action != nullptr);
+    auto cell_width = [&] {
+        helix::ui::UpdateQueue::instance().drain();
+        h.fx.process_lvgl(30);
+        lv_obj_t* cell = lv_obj_find_by_name(h.root, "tool_target_cell_0");
+        REQUIRE(cell != nullptr);
+        lv_obj_update_layout(cell);
+        return lv_obj_get_width(cell);
+    };
+
+    // Another tool chosen: the button reads Pick up.
+    h.choose(2);
+    REQUIRE(h.action() == static_cast<int>(helix::ui::TargetToolAction::PickUp));
+    lv_obj_t* pickup = lv_obj_find_by_name(h.root, "btn_target_tool_pickup");
+    lv_obj_t* park = lv_obj_find_by_name(h.root, "btn_target_tool_park");
+    REQUIRE(pickup != nullptr);
+    REQUIRE(park != nullptr);
+    const int32_t with_pickup = cell_width();
+    REQUIRE_FALSE(lv_obj_is_hidden(pickup));
+    REQUIRE(with_pickup > 0);
+
+    // The mounted tool chosen on a printer that can park: the button reads Park.
+    lv_subject_set_int(action, static_cast<int>(helix::ui::TargetToolAction::Park));
+    const int32_t with_park = cell_width();
+    REQUIRE_FALSE(lv_obj_is_hidden(park));
+    REQUIRE(lv_obj_is_hidden(pickup));
+
+    CHECK(with_park == with_pickup);
+}
