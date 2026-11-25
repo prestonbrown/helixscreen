@@ -1304,8 +1304,8 @@ strip's (`safe_replace_file`). The report is stored in the `helix_print` namespa
 `nothing` run does not replace a stored `done`. A change of state sends
 `notify_helix_features_changed`.
 
-**Firmware-managed installs** (the same call as
-`scripts/lib/installer/main.sh#_refuse_if_firmware_managed`): report only. Whether the firmware's own config should
+**Firmware-managed installs** (the question
+`scripts/lib/installer/main.sh#_refuse_if_firmware_managed` asks; `paxx_runs_helixscreen` for paxx): report only. Whether the firmware's own config should
 be renamed there is open in #2006.
 
 **Endpoint.** `server.helix.signal_migration`: README § Signal Macro Migration has the shape.

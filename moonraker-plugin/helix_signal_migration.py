@@ -65,24 +65,46 @@ PAXX_CONFIG = "oem/printer_data/config/extended/extended2.cfg"
 PAXX_PACKAGE_BIN = "oem/apps/helixscreen/latest/bin/helix-screen"
 
 
+PAXX_DEFAULT_GUI = "snapmaker"
+
+
+def paxx_selected_gui(path: str) -> Optional[str]:
+    """`[components] gui` in paxx's extended2.cfg, read as paxx's
+    extended-config.py reads it (configparser, the hook's default when the
+    file or key is absent). None when the file exists but cannot be read or
+    parsed. Duplicate sections and keys are tolerated, the last value winning,
+    which is what the installer's _paxx_selected_gui does too."""
+    if not os.path.exists(path):
+        return PAXX_DEFAULT_GUI
+    cfg = configparser.RawConfigParser(strict=False)
+    try:
+        with open(path, encoding="utf-8") as f:
+            cfg.read_file(f)
+        return cfg.get("components", "gui", fallback=PAXX_DEFAULT_GUI)
+    except (configparser.Error, UnicodeError, OSError):
+        return None
+
+
 def paxx_runs_helixscreen(root: str = "") -> bool:
     """Whether paxx's firmware runs its own HelixScreen package: its lmd hook
-    is present, `[components] gui` selects helixscreen and the package binary
-    is executable, the condition the hook binds the package on. paxx ships the hook whatever gui says, so the
-    hook alone proves nothing. The installer's guard
-    (scripts/lib/installer/main.sh#_refuse_if_firmware_managed) and the app's
-    helix::board::firmware_manages_updates() make the same call."""
+    and an executable package binary are present and `[components] gui`
+    selects helixscreen, the condition the hook binds the package on. paxx
+    ships the hook whatever gui says, so the hook alone proves nothing. A
+    config that cannot be read counts as selecting the package (fail closed),
+    where the hook itself would bind nothing.
+
+    The installer's guard (scripts/lib/installer/main.sh#_refuse_if_firmware_managed)
+    asks the same question. The app's helix::board::firmware_manages_updates()
+    asks a narrower one, whether the running binary is the package's; the two
+    differ only where our install runs while paxx also binds its package (gui
+    switched to helixscreen afterwards), and there this side reports managed."""
     base = root or "/"
     if not os.path.isfile(os.path.join(base, PAXX_LMD_HOOK)):
         return False
-    cfg = configparser.ConfigParser()
-    try:
-        cfg.read(os.path.join(base, PAXX_CONFIG))
-    except configparser.Error:
+    if not os.access(os.path.join(base, PAXX_PACKAGE_BIN), os.X_OK):
         return False
-    if cfg.get("components", "gui", fallback="").strip() != "helixscreen":
-        return False
-    return os.access(os.path.join(base, PAXX_PACKAGE_BIN), os.X_OK)
+    gui = paxx_selected_gui(os.path.join(base, PAXX_CONFIG))
+    return gui is None or gui == "helixscreen"
 
 
 def firmware_owner(root: str = "") -> Optional[str]:
