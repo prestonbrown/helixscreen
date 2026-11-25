@@ -54,6 +54,7 @@ struct Row {
     /// The panel or prompt macro, or the guided flow id.
     const char* target;
     const char* entry_description;
+    bool needs_homed_idle = false;
 };
 
 bool has_afc_toolchanger_unit(const PrinterDiscovery& hw) {
@@ -97,7 +98,8 @@ const Row kRows[] = {
     {"INDX seat by hand", indx::supports_seat_by_hand, ProcedureKind::GuidedFlow,
      indx::kSeatByHandFlowId, TR_NOOP("Seat a tool by hand for the first Z home")},
     {"klipper-toolchanger", panel_detect, ProcedureKind::Panel, kPanelMacro, kMeasureDescription},
-    {"VRTX", vrtx_panel_detect, ProcedureKind::Panel, kVrtxPanelMacro, kMeasureDescription},
+    {"VRTX", vrtx_panel_detect, ProcedureKind::Panel, kVrtxPanelMacro, kMeasureDescription,
+     /*needs_homed_idle=*/true},
     {"changer firmware offset wizard", wizard_prompt_detect, ProcedureKind::PrinterPrompt,
      kWizardPromptMacro, kMeasureDescription},
     {"changer firmware prompt", prompt_detect, ProcedureKind::PrinterPrompt, kPromptMacro,
@@ -206,6 +208,7 @@ Procedure resolve_procedure(const PrinterDiscovery& hw) {
         p.kind = row.kind;
         p.name = row.name;
         p.entry_description = row.entry_description;
+        p.needs_homed_idle = row.needs_homed_idle;
         if (row.kind == ProcedureKind::GuidedFlow) {
             p.flow_id = row.target;
         } else {
@@ -214,6 +217,19 @@ Procedure resolve_procedure(const PrinterDiscovery& hw) {
         return p;
     }
     return {};
+}
+
+const char* start_refusal(const Procedure& procedure, bool homed, bool job_holds_machine) {
+    if (!procedure.needs_homed_idle) {
+        return nullptr;
+    }
+    if (job_holds_machine) {
+        return TR_NOOP("Tool offsets cannot be calibrated during a print");
+    }
+    if (!homed) {
+        return TR_NOOP("Home the printer first: the calibration needs X, Y and Z homed");
+    }
+    return nullptr;
 }
 
 bool supported(const PrinterDiscovery& hw) {

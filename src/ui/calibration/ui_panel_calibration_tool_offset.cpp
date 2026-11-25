@@ -26,6 +26,7 @@
 #include "printer_state.h"
 #include "tool_offsets.h"
 #include "tool_state.h"
+#include "toolhead_homing.h"
 #include "z_offset_utils.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -268,6 +269,15 @@ void ToolOffsetCalibrationPanel::start_calibration() {
     }
     if (!printer_supports_calibration()) {
         NOTIFY_ERROR("{}", lv_tr("This printer cannot calibrate tool offsets automatically"));
+        return;
+    }
+    // A macro that refuses with only a console warning would read as a finished run.
+    auto& ps = get_printer_state();
+    if (const char* reason = cal::start_refusal(
+            cal::resolve_procedure(ps.get_discovery()), helix::toolhead_is_homed(ps),
+            job_holds_machine(ps.print_state().get_print_lifecycle()))) {
+        NOTIFY_WARNING("{}", lv_tr(reason));
+        lv_subject_set_string(&status_, lv_tr(reason));
         return;
     }
     confirm_calibration();

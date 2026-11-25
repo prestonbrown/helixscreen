@@ -69,7 +69,16 @@ struct Procedure {
     std::string flow_id;
     /// What the entry does, untranslated (pass it through lv_tr()).
     const char* entry_description = "";
+    /// The macro refuses on its own, with a console warning and a successful rpc,
+    /// when the printer is not homed or a job holds it. The caller checks first
+    /// (start_refusal()) so a refusal never reads as a finished run.
+    bool needs_homed_idle = false;
 };
+
+/// Why this procedure cannot start now, untranslated (pass it through lv_tr()), or
+/// nullptr when it can. @p homed is x, y and z; @p job_holds_machine a print running
+/// or paused.
+const char* start_refusal(const Procedure& procedure, bool homed, bool job_holds_machine);
 
 /// One step of a PrinterPrompt procedure's run that a printer narrates on the
 /// console, in firmware-neutral terms. Positions are microns.

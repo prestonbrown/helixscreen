@@ -142,3 +142,21 @@ TEST_CASE("klipper-toolchanger's own macro wins when both exist", "[toolchanger]
     hw.parse_objects(objects);
     CHECK(cal::resolve_procedure(hw).gcode == "CALIBRATE_TOOL_OFFSETS");
 }
+
+TEST_CASE("VRTX_CALIBRATE is refused before it can report a finished run", "[toolchanger][vrtx]") {
+    namespace cal = helix::tool_offset_calibration;
+    const auto vrtx = cal::resolve_procedure(vrtx_discovery(8));
+    REQUIRE(vrtx.needs_homed_idle);
+
+    CHECK(cal::start_refusal(vrtx, /*homed=*/true, /*job_holds_machine=*/false) == nullptr);
+    CHECK(cal::start_refusal(vrtx, /*homed=*/false, /*job_holds_machine=*/false) != nullptr);
+    CHECK(cal::start_refusal(vrtx, /*homed=*/true, /*job_holds_machine=*/true) != nullptr);
+
+    // klipper-toolchanger's own macro is not gated here.
+    json objects =
+        json::array({"toolchanger", "tool T0", "tool T1", "gcode_macro CALIBRATE_TOOL_OFFSETS"});
+    PrinterDiscovery hw;
+    hw.parse_objects(objects);
+    const auto stock = cal::resolve_procedure(hw);
+    CHECK(cal::start_refusal(stock, false, true) == nullptr);
+}
