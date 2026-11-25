@@ -2067,6 +2067,9 @@
       "attributes": {
         "dirty": {
           "type": "string"
+        },
+        "shape": {
+          "type": "string"
         }
       },
       "inherits": "lv_obj"
@@ -3557,6 +3560,7 @@
     "belt_tune_hero_h_small",
     "belt_tune_hero_h_xlarge",
     "belt_tune_hero_h_xxlarge",
+    "block_w",
     "border",
     "border_opacity",
     "border_radius",
@@ -4482,6 +4486,7 @@
     "keypad_width_small",
     "keypad_width_tiny",
     "keypad_width_xlarge",
+    "label_col_w",
     "led_chip_gap",
     "led_chip_gap_half",
     "led_chip_gap_half_large",
@@ -4633,6 +4638,12 @@
     "meter_track_h_tiny",
     "meter_track_h_xlarge",
     "meter_track_h_xxlarge",
+    "mock_explain_w",
+    "mock_explain_w_large",
+    "mock_explain_w_medium",
+    "mock_explain_w_micro",
+    "mock_explain_w_small",
+    "mock_explain_w_tiny",
     "modal_backdrop_opacity",
     "modal_button_height",
     "modal_button_height_large",
@@ -4703,10 +4714,12 @@
     "nav_width_tiny",
     "nav_width_xlarge",
     "nav_width_xxlarge",
+    "neck_w",
     "notes_height",
     "notes_height_large",
     "notes_height_medium",
     "notes_height_small",
+    "nozzle_w",
     "object_color_1",
     "object_color_2",
     "object_color_3",
@@ -4863,6 +4876,8 @@
     "shadow_offset_y",
     "shadow_opa",
     "shadow_width",
+    "shape_col_w",
+    "sink_w",
     "size_lg",
     "size_lg_micro",
     "size_md",

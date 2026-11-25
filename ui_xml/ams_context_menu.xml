@@ -58,6 +58,18 @@
             <bind_state_if_eq subject="ams_slot_is_loaded" state="disabled" ref_value="0"/>
             <event_cb trigger="clicked" callback="ams_context_unload_cb"/>
           </ui_button>
+          <!-- PROTOTYPE (design mockup): Unload and Eject side by side, each saying where the strand ends up. -->
+          <text_small name="mock_unload_explain"
+                      width="#ams_context_plugin_col_w" long_mode="wrap" style_text_color="#text_muted"
+                      style_pad_left="#space_md" text="Back to staging. The ACE keeps its grip, ready to load."/>
+          <ui_button name="btn_mock_eject"
+                     height="#button_height_sm" icon="eject" text="Eject" variant="ghost" clickable="true"
+                     style_flex_main_place="start">
+            <event_cb trigger="clicked" callback="on_mock_eject"/>
+          </ui_button>
+          <text_small name="mock_eject_explain"
+                      width="#ams_context_plugin_col_w" long_mode="wrap" style_text_color="#text_muted"
+                      style_pad_left="#space_md" text="Out of the ACE. It backs past the gears; you pull it out."/>
           <!-- Why this head's Load (and Unload, when the reason is the same) is
                unavailable. Text and visibility come from decide_slot_actions(). -->
           <text_small name="load_blocked_hint"

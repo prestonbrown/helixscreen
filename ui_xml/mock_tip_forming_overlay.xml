@@ -1,0 +1,242 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- PROTOTYPE (design mockup): Calibration > Tip Forming, the PA tuner's shape.
+     Stages by mock_tip_stage: 0 SETUP (lane, material, hotend, the suggested
+     [AFC_form_tip] values beside the hotend drawing), 1 RUN (load, form tip,
+     unload, eject to inlet), 2 JUDGE (four reference tips), 3 RESULT (the
+     values to save). -->
+<component>
+  <styles>
+    <style name="stage" width="100%" height="0" flex_grow="1" pad_all="0" bg_opa="0" border_width="0"/>
+    <style name="plain_row" width="100%" height="content" pad_all="0" bg_opa="0" border_width="0"/>
+    <style name="side_column" width="0" height="100%" flex_grow="1" pad_all="0" bg_opa="0" border_width="0"/>
+    <style name="card"
+           bg_color="#screen_bg" bg_opa="255" border_width="1" border_color="#border" radius="#border_radius"
+           pad_all="#space_md"/>
+    <style name="tip_picked" outline_width="3" outline_color="#primary" outline_pad="0"/>
+  </styles>
+  <view name="mock_tip_forming_overlay" extends="overlay_panel" title="Tip Forming">
+    <overlay_panel-overlay_content style_pad_left="#space_lg"
+                                   style_pad_right="#space_lg" style_pad_bottom="0" style_pad_top="0" flex_flow="column"
+                                   style_pad_gap="#space_sm" scrollable="false">
+
+      <!-- ============================================================ -->
+      <!-- SETUP                                                        -->
+      <!-- ============================================================ -->
+      <calibration_intro name="tip_setup"
+                         layout="diagram" status="About 3 minutes, 150 mm of filament" primary_name="tip_btn_start"
+                         primary_text="Form a Tip" primary_callback="on_mock_tip_next">
+        <bind_flag_if_not_eq subject="mock_tip_stage" flag="hidden" ref_value="0"/>
+        <calibration_intro-diagram>
+          <mock_hotend_diagram/>
+        </calibration_intro-diagram>
+        <calibration_intro-settings>
+          <cal_intro_section_label text="Lane"/>
+          <lv_obj flex_flow="row" style_pad_gap="#space_xs" scrollable="false">
+            <style name="plain_row"/>
+            <cal_intro_chip label="lane0"
+                            no_detail="true" label_align="center" choice="mock_tip_lane" value="0" index="0"
+                            callback="on_mock_tip_lane"/>
+            <cal_intro_chip label="lane1"
+                            no_detail="true" label_align="center" choice="mock_tip_lane" value="1" index="1"
+                            callback="on_mock_tip_lane"/>
+            <cal_intro_chip label="lane2"
+                            no_detail="true" label_align="center" choice="mock_tip_lane" value="2" index="2"
+                            callback="on_mock_tip_lane"/>
+            <cal_intro_chip label="lane3"
+                            no_detail="true" label_align="center" choice="mock_tip_lane" value="3" index="3"
+                            callback="on_mock_tip_lane"/>
+          </lv_obj>
+          <cal_intro_section_label text="Material"/>
+          <lv_obj flex_flow="row" style_pad_gap="#space_xs" scrollable="false">
+            <style name="plain_row"/>
+            <cal_intro_chip label="PLA"
+                            no_detail="true" label_align="center" choice="mock_tip_material" value="0" index="0"
+                            callback="on_mock_tip_material"/>
+            <cal_intro_chip label="PETG"
+                            no_detail="true" label_align="center" choice="mock_tip_material" value="1" index="1"
+                            callback="on_mock_tip_material"/>
+            <cal_intro_chip label="ABS"
+                            no_detail="true" label_align="center" choice="mock_tip_material" value="2" index="2"
+                            callback="on_mock_tip_material"/>
+            <cal_intro_chip label="TPU"
+                            no_detail="true" label_align="center" choice="mock_tip_material" value="3" index="3"
+                            callback="on_mock_tip_material"/>
+          </lv_obj>
+          <cal_intro_section_label text="Hotend"/>
+          <lv_obj flex_flow="row" style_pad_gap="#space_xs" scrollable="false">
+            <style name="plain_row"/>
+            <!-- The sizes ride on the chip where there is width; 480x272 names the profile alone. -->
+            <cal_intro_chip label="TZ V6 2.0"
+                            detail="24.5 / 21 / 45.5 mm" grow="2" choice="mock_tip_hotend" value="0" index="0"
+                            callback="on_mock_tip_hotend">
+              <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+            </cal_intro_chip>
+            <cal_intro_chip label="TZ V6 2.0"
+                            no_detail="true" label_align="center" grow="2" choice="mock_tip_hotend" value="0" index="0"
+                            callback="on_mock_tip_hotend">
+              <bind_flag_if_not_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+            </cal_intro_chip>
+            <cal_intro_chip label="Measure"
+                            no_detail="true" label_align="center" choice="mock_tip_hotend" value="1" index="1"
+                            callback="on_mock_tip_hotend"/>
+          </lv_obj>
+          <!-- The values the run starts from; the smallest size keeps only the hotend choice. -->
+          <lv_obj name="tip_suggested" flex_flow="column" style_pad_gap="0" scrollable="false">
+            <style name="plain_row"/>
+            <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+            <pa_value_row label="cooling_tube position / length" bind_value="mock_tip_v_pos"/>
+            <pa_value_row label="toolchange_temp" bind_value="mock_tip_v_temp"/>
+          </lv_obj>
+        </calibration_intro-settings>
+      </calibration_intro>
+
+      <!-- ============================================================ -->
+      <!-- RUN                                                          -->
+      <!-- ============================================================ -->
+      <lv_obj name="tip_run" flex_flow="column" style_pad_gap="0" scrollable="false" hidden="true">
+        <style name="stage"/>
+        <bind_flag_if_not_eq subject="mock_tip_stage" flag="hidden" ref_value="1"/>
+        <lv_obj width="100%"
+                height="0" flex_grow="1" style_pad_all="0" style_pad_top="#space_sm" style_pad_bottom="#space_sm"
+                style_bg_opa="0" style_border_width="0" flex_flow="row" style_pad_gap="#space_lg" scrollable="false">
+          <lv_obj width="#cal_steps_w"
+                  height="100%" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="column"
+                  style_pad_gap="#space_xs" scrollable="false">
+            <calibration_run_step_row width="100%" step="tip_load" label="Load lane0 to the nozzle"/>
+            <calibration_run_step_row width="100%" step="tip_form" label="Form the tip"/>
+            <calibration_run_step_row width="100%" step="tip_unload" label="Unload to the hub"/>
+            <calibration_run_step_row width="100%" step="tip_eject" label="Eject to the inlet"/>
+          </lv_obj>
+          <lv_obj flex_flow="row" style_pad_gap="#space_md" style_flex_cross_place="center" scrollable="false">
+            <style name="side_column"/>
+            <style name="card"/>
+            <mock_hotend_diagram>
+              <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+            </mock_hotend_diagram>
+            <lv_obj width="0"
+                    height="content" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                    flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
+              <text_heading width="100%" text="Unloading to the hub" long_mode="wrap"/>
+              <text_small width="100%"
+                          long_mode="wrap" style_text_color="#text_muted"
+                          text="The tip is formed. The lane pulls it back past the hub; next it ejects to the inlet so you can look at it."/>
+              <progress_bar width="100%" bind_value="mock_tip_progress"/>
+            </lv_obj>
+          </lv_obj>
+        </lv_obj>
+        <wizard_frame_footer back_text="Stop"
+                             back_style="cal_footer_danger" back_callback="on_mock_tip_prev" status="Step 3 of 4"
+                             primary_text="Look at the Tip" primary_callback="on_mock_tip_next"
+                             primary_disabled_cond="1"/>
+      </lv_obj>
+
+      <!-- ============================================================ -->
+      <!-- JUDGE                                                        -->
+      <!-- ============================================================ -->
+      <lv_obj name="tip_judge" flex_flow="column" style_pad_gap="#space_sm" scrollable="false" hidden="true">
+        <style name="stage"/>
+        <bind_flag_if_not_eq subject="mock_tip_stage" flag="hidden" ref_value="2"/>
+        <text_heading width="100%"
+                      text="Pull lane0's strand out of the ACE and match its end" long_mode="dots"
+                      style_pad_top="#space_sm"/>
+        <lv_obj width="100%"
+                height="0" flex_grow="1" style_pad_all="#space_xxs" style_bg_opa="0" style_border_width="0"
+                flex_flow="row" style_pad_gap="#space_sm" scrollable="false">
+          <cold_pull_tip width="0"
+                         height="100%" flex_grow="1" shape="clean" caption="Clean taper" style_flex_main_place="center"
+                         clickable="true">
+            <bind_style_if_eq name="tip_picked" subject="mock_tip_choice" ref_value="0"/>
+            <event_cb trigger="clicked" callback="on_mock_tip_choice" user_data="0"/>
+          </cold_pull_tip>
+          <cold_pull_tip width="0"
+                         height="100%" flex_grow="1" shape="hair" caption="Long hair" style_flex_main_place="center"
+                         clickable="true">
+            <bind_style_if_eq name="tip_picked" subject="mock_tip_choice" ref_value="1"/>
+            <event_cb trigger="clicked" callback="on_mock_tip_choice" user_data="1"/>
+          </cold_pull_tip>
+          <cold_pull_tip width="0"
+                         height="100%" flex_grow="1" shape="ribbed" caption="Fat, ribbed" style_flex_main_place="center"
+                         clickable="true">
+            <bind_style_if_eq name="tip_picked" subject="mock_tip_choice" ref_value="2"/>
+            <event_cb trigger="clicked" callback="on_mock_tip_choice" user_data="2"/>
+          </cold_pull_tip>
+          <cold_pull_tip width="0"
+                         height="100%" flex_grow="1" shape="blob" caption="Blob" style_flex_main_place="center"
+                         clickable="true">
+            <bind_style_if_eq name="tip_picked" subject="mock_tip_choice" ref_value="3"/>
+            <event_cb trigger="clicked" callback="on_mock_tip_choice" user_data="3"/>
+          </cold_pull_tip>
+        </lv_obj>
+        <!-- What the pick changes for the next run -->
+        <lv_obj flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
+          <style name="plain_row"/>
+          <style name="card"/>
+          <text_body width="100%" text="Good tip. Nothing to change; save these values." long_mode="wrap">
+            <bind_flag_if_not_eq subject="mock_tip_choice" flag="hidden" ref_value="0"/>
+          </text_body>
+          <text_body width="100%"
+                     text="It strings as it leaves the melt zone. Next run: toolchange_temp 200 to 195 °C."
+                     long_mode="wrap">
+            <bind_flag_if_not_eq subject="mock_tip_choice" flag="hidden" ref_value="1"/>
+          </text_body>
+          <text_body width="100%"
+                     text="It cooled too slowly and swelled. Next run: cooling_tube_length 12 to 14 mm."
+                     long_mode="wrap">
+            <bind_flag_if_not_eq subject="mock_tip_choice" flag="hidden" ref_value="2"/>
+          </text_body>
+          <text_body width="100%"
+                     text="It left the hotend too hot. Next run: toolchange_temp 200 to 190 °C." long_mode="wrap">
+            <bind_flag_if_not_eq subject="mock_tip_choice" flag="hidden" ref_value="3"/>
+          </text_body>
+          <text_small width="100%"
+                      text="Placeholder drawings; the change per tip is a draft to check against AFC's tip forming guide."
+                      long_mode="wrap" style_text_color="#text_muted">
+            <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+          </text_small>
+        </lv_obj>
+        <wizard_frame_footer back_text="Run Again"
+                             back_callback="on_mock_tip_prev" primary_text="Next" primary_callback="on_mock_tip_next"
+                             primary_needs_printer="0"/>
+      </lv_obj>
+
+      <!-- ============================================================ -->
+      <!-- RESULT                                                       -->
+      <!-- ============================================================ -->
+      <lv_obj name="tip_result" flex_flow="column" style_pad_gap="0" scrollable="false" hidden="true">
+        <style name="stage"/>
+        <bind_flag_if_not_eq subject="mock_tip_stage" flag="hidden" ref_value="3"/>
+        <lv_obj width="100%"
+                height="0" flex_grow="1" style_pad_all="0" style_pad_top="#space_sm" style_pad_bottom="#space_sm"
+                style_bg_opa="0" style_border_width="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
+          <lv_obj flex_flow="column" style_pad_gap="#space_xxs" style_flex_main_place="space_evenly" scrollable="false">
+            <style name="side_column"/>
+            <style name="card"/>
+            <text_small text="[AFC_form_tip] for PLA" style_text_color="#text_muted"/>
+            <pa_value_row label="cooling_tube_position" bind_value="mock_tip_r_pos"/>
+            <pa_value_row label="cooling_tube_length" bind_value="mock_tip_r_len"/>
+            <pa_value_row label="toolchange_temp" bind_value="mock_tip_r_temp" hl_subject="mock_tip_hl" hl_value="1"/>
+          </lv_obj>
+          <lv_obj width="0"
+                  height="content" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                  flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
+            <text_body width="100%" text="Tip 2 of this session: Clean taper." long_mode="wrap"/>
+            <text_small width="100%"
+                        long_mode="wrap" style_text_color="#text_muted"
+                        text="Save writes these to [AFC_form_tip] in AFC.cfg and restarts Klipper. Try Again forms another tip with them first."/>
+          </lv_obj>
+        </lv_obj>
+        <lv_obj width="100%"
+                height="#cal_footer_h" style_pad_all="0" style_bg_opa="0" style_border_width="1" style_border_side="top"
+                style_border_color="#border" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm"
+                scrollable="false">
+          <ui_button height="#cal_button_h" variant="outline" icon="close" text="Discard"/>
+          <lv_obj width="0" height="1" flex_grow="1" style_bg_opa="0" style_border_width="0" scrollable="false"/>
+          <ui_button height="#cal_button_h" variant="secondary" text="Try Again"/>
+          <ui_button height="#cal_button_h" icon="check" text="Save"/>
+        </lv_obj>
+      </lv_obj>
+    </overlay_panel-overlay_content>
+  </view>
+</component>

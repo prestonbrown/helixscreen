@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- PROTOTYPE (design mockup): after Eject has backed lane0 past the ACE's
+     gears, the hand step. The lane sensor's pill turns clear once the strand
+     is out (mock_eject_stage 1), and Done enables. -->
+<component>
+  <styles>
+    <style name="plain_row" width="100%" height="content" pad_all="0" bg_opa="0" border_width="0"/>
+  </styles>
+  <view name="mock_eject_pull_modal" extends="dialog_frame" width="70%" title="Eject lane0" icon="eject">
+    <text_body width="100%" text="Pull lane0's filament out of the ACE now." long_mode="wrap">
+      <bind_flag_if_eq subject="mock_eject_stage" flag="hidden" ref_value="1"/>
+    </text_body>
+    <text_body width="100%" text="lane0 is out of the ACE." long_mode="wrap">
+      <bind_flag_if_eq subject="mock_eject_stage" flag="hidden" ref_value="0"/>
+    </text_body>
+    <text_small width="100%"
+                long_mode="wrap" style_text_color="#text_muted"
+                text="The ACE has backed it past its gears. Pull the strand straight out of the lane's inlet.">
+      <bind_flag_if_eq subject="mock_eject_stage" flag="hidden" ref_value="1"/>
+    </text_small>
+    <text_small width="100%"
+                long_mode="wrap" style_text_color="#text_muted" text="The lane is empty and ready for a new spool.">
+      <bind_flag_if_eq subject="mock_eject_stage" flag="hidden" ref_value="0"/>
+    </text_small>
+    <lv_obj flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
+      <style name="plain_row"/>
+      <color_swatch color="0xE53935" clickable="false" size="#space_xl" hit="0" reach="0"/>
+      <text_body width="0" flex_grow="1" text="lane0" long_mode="dots"/>
+      <status_pill text="Lane: filament" variant="warning">
+        <bind_flag_if_eq subject="mock_eject_stage" flag="hidden" ref_value="1"/>
+      </status_pill>
+      <status_pill text="Lane: empty" variant="success">
+        <bind_flag_if_eq subject="mock_eject_stage" flag="hidden" ref_value="0"/>
+      </status_pill>
+    </lv_obj>
+    <dialog_frame-footer>
+      <modal_button_row primary_text="Done" primary_enable_subject="mock_eject_stage" secondary_text="Load It Back"/>
+    </dialog_frame-footer>
+  </view>
+</component>

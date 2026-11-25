@@ -409,6 +409,10 @@ constexpr GuardedFile kGuardedFiles[] = {
 /// Control-bearing files that command nothing on the printer. A guard appearing
 /// in one of these is a stale classification, not a bonus.
 constexpr const char* kNoMachineControlFiles[] = {
+    // PROTOTYPE design mockups: their controls only flip mock subjects.
+    "ui_xml/mock_eject_pull_modal.xml",
+    "ui_xml/mock_lane_hub_recovery_modal.xml",
+    "ui_xml/mock_tip_forming_overlay.xml",
     "ui_xml/abort_progress_modal.xml",
     "ui_xml/about_settings_overlay.xml",
     "ui_xml/advanced_panel.xml",

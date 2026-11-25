@@ -35,6 +35,7 @@
 #include "camera_stream.h"
 #include "color_utils.h"
 #include "core/data_root_resolver.h"
+#include "demo_mockups.h"
 #include "demo_prompt_lines.h"
 #include "display_numbering.h"
 #include "filament_macro_profiles.h"
@@ -131,6 +132,10 @@ bool show_demo_overlay(const std::string& name, std::string* error) {
 #ifdef HELIX_ENABLE_MOCKS
     restore_speed_after_live_print();
 #endif
+
+    if (helix::show_mockup(name)) {
+        return true;
+    }
 
     if (name == "preflight-material") {
         // A seated slot with no material set while a calibration that needs

@@ -1,0 +1,80 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- PROTOTYPE (design mockup): a hotend's side view to scale, nozzle tip at the
+     bottom, with the band where AFC's tip forming makes its cooling moves.
+     Rows grow by millimeters x2 for a TZ V6 2.0: 45.5 mm overall, the heater
+     block top 21 mm above the tip, the heatsink from 26.5 mm up; the cooling
+     moves run 27-39 mm above the tip (cooling_tube_position 27, length 12). -->
+<component>
+  <consts>
+    <px name="shape_col_w" value="64"/>
+    <px name="sink_w" value="44"/>
+    <px name="neck_w" value="14"/>
+    <px name="block_w" value="58"/>
+    <px name="nozzle_w" value="22"/>
+    <px name="label_col_w" value="96"/>
+  </consts>
+  <styles>
+    <style name="col"
+           height="100%" pad_all="0" pad_row="0" bg_opa="0" border_width="0" layout="flex" flex_flow="column"
+           flex_cross_place="center"/>
+    <style name="part"
+           bg_color="#elevated_bg" bg_opa="255" border_width="1" border_color="#border" radius="2" pad_all="0"/>
+    <style name="zone" bg_color="#info" bg_opa="70" border_width="1" border_color="#info" radius="2" pad_all="0"/>
+    <style name="hot" bg_color="#danger" bg_opa="90" border_width="1" border_color="#danger" radius="2" pad_all="0"/>
+    <style name="label_cell"
+           width="100%" pad_all="0" pad_left="#space_sm" bg_opa="0" border_width="0" layout="flex" flex_flow="column"
+           flex_main_place="center"/>
+  </styles>
+  <view extends="lv_obj"
+        width="content" height="100%" style_pad_all="0" style_pad_gap="0" style_bg_opa="0" style_border_width="0"
+        flex_flow="row" scrollable="false" clickable="false">
+    <!-- The parts, to scale -->
+    <lv_obj width="#shape_col_w" scrollable="false">
+      <style name="col"/>
+      <lv_obj width="#sink_w" height="0" flex_grow="13" scrollable="false">
+        <style name="part"/>
+      </lv_obj>
+      <lv_obj width="#sink_w" height="0" flex_grow="25" scrollable="false">
+        <style name="zone"/>
+      </lv_obj>
+      <lv_obj width="#neck_w" height="0" flex_grow="11" scrollable="false">
+        <style name="part"/>
+      </lv_obj>
+      <lv_obj width="#block_w" height="0" flex_grow="23" scrollable="false">
+        <style name="hot"/>
+      </lv_obj>
+      <lv_obj width="#nozzle_w" height="0" flex_grow="19" scrollable="false">
+        <style name="part"/>
+      </lv_obj>
+    </lv_obj>
+    <!-- What each part is, on the same rows -->
+    <lv_obj width="#label_col_w" scrollable="false">
+      <style name="col"/>
+      <lv_obj height="0" flex_grow="13" scrollable="false">
+        <style name="label_cell"/>
+        <text_small text="Heatsink" style_text_color="#text_muted"/>
+      </lv_obj>
+      <lv_obj height="0"
+              flex_grow="25" style_border_width="2" style_border_side="left" style_border_color="#info"
+              scrollable="false">
+        <style name="label_cell"/>
+        <text_small text="Cooling" style_text_color="#info" style_text_font="#cal_font_name_bold"/>
+        <text_small text="27-39 mm" style_text_color="#info"/>
+      </lv_obj>
+      <lv_obj height="0" flex_grow="11" scrollable="false">
+        <style name="label_cell"/>
+        <text_small text="Neck" style_text_color="#text_muted"/>
+      </lv_obj>
+      <lv_obj height="0" flex_grow="23" scrollable="false">
+        <style name="label_cell"/>
+        <text_small text="Melt zone" style_text_color="#danger"/>
+      </lv_obj>
+      <lv_obj height="0" flex_grow="19" scrollable="false">
+        <style name="label_cell"/>
+        <text_small text="Tip, 0 mm" style_text_color="#text_muted"/>
+      </lv_obj>
+    </lv_obj>
+  </view>
+</component>

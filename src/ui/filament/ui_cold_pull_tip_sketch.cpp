@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdint>
 #include <cstring>
 
 namespace helix::ui {
@@ -82,10 +83,11 @@ void stroke(lv_layer_t* layer, lv_point_precise_t a, lv_point_precise_t b, lv_co
 
 /// Fills the profile from @p from_along on, scaled across its thickness by @p scale.
 void fill_band(lv_layer_t* layer, const Frame& f, float scale, float from_along, lv_color_t color,
-               lv_opa_t opa) {
-    for (size_t i = 1; i < kProfile.size(); ++i) {
-        const ProfilePoint& a = kProfile[i - 1];
-        const ProfilePoint& b = kProfile[i];
+               lv_opa_t opa, const ProfilePoint* prof = kProfile.data(),
+               size_t n = kProfile.size()) {
+    for (size_t i = 1; i < n; ++i) {
+        const ProfilePoint& a = prof[i - 1];
+        const ProfilePoint& b = prof[i];
         if (b.along <= from_along) {
             continue;
         }
@@ -118,10 +120,11 @@ void fill_band(lv_layer_t* layer, const Frame& f, float scale, float from_along,
 
 /// Strokes the profile's edge on one side, offset across the thickness by @p scale.
 void stroke_edge(lv_layer_t* layer, const Frame& f, float scale, lv_color_t color, int32_t width,
-                 lv_opa_t opa) {
-    for (size_t i = 1; i < kProfile.size(); ++i) {
-        const ProfilePoint& a = kProfile[i - 1];
-        const ProfilePoint& b = kProfile[i];
+                 lv_opa_t opa, const ProfilePoint* prof = kProfile.data(),
+                 size_t n = kProfile.size()) {
+    for (size_t i = 1; i < n; ++i) {
+        const ProfilePoint& a = prof[i - 1];
+        const ProfilePoint& b = prof[i];
         stroke(layer, pt(f.x(a.along), f.y(a.half * scale)), pt(f.x(b.along), f.y(b.half * scale)),
                color, width, opa);
     }
@@ -173,6 +176,78 @@ void draw_dirt(lv_layer_t* layer, const Frame& f, lv_color_t carbon, lv_color_t 
     }
 }
 
+/// PROTOTYPE: tip-forming reference shapes (shape="clean|hair|ribbed|blob").
+enum class TipShape : uintptr_t { Cold = 0, Clean, Hair, Ribbed, Blob };
+
+constexpr std::array<ProfilePoint, 3> kCleanTip = {
+    {{0.00f, 0.17f}, {0.66f, 0.17f}, {0.92f, 0.00f}}};
+constexpr std::array<ProfilePoint, 3> kHairTip = {{{0.00f, 0.17f}, {0.56f, 0.17f}, {0.74f, 0.00f}}};
+constexpr std::array<ProfilePoint, 11> kRibbedTip = {{{0.00f, 0.17f},
+                                                      {0.48f, 0.17f},
+                                                      {0.52f, 0.27f},
+                                                      {0.58f, 0.23f},
+                                                      {0.64f, 0.28f},
+                                                      {0.70f, 0.23f},
+                                                      {0.76f, 0.28f},
+                                                      {0.82f, 0.23f},
+                                                      {0.86f, 0.26f},
+                                                      {0.92f, 0.12f},
+                                                      {0.93f, 0.00f}}};
+constexpr std::array<ProfilePoint, 2> kBlobStrand = {{{0.00f, 0.17f}, {0.70f, 0.17f}}};
+
+void draw_profile(lv_layer_t* layer, const Frame& f, const ProfilePoint* prof, size_t n,
+                  lv_color_t body, lv_color_t shade, lv_color_t light) {
+    fill_band(layer, f, 1.0f, 0.0f, shade, LV_OPA_COVER, prof, n);
+    fill_band(layer, f, kInnerBand, 0.0f, body, LV_OPA_COVER, prof, n);
+    stroke_edge(layer, f, -0.42f, light, 2, LV_OPA_80, prof, n);
+}
+
+void draw_shape(lv_layer_t* layer, const Frame& f, TipShape shape, lv_color_t body,
+                lv_color_t shade, lv_color_t light) {
+    switch (shape) {
+    case TipShape::Clean:
+        draw_profile(layer, f, kCleanTip.data(), kCleanTip.size(), body, shade, light);
+        break;
+    case TipShape::Hair: {
+        draw_profile(layer, f, kHairTip.data(), kHairTip.size(), body, shade, light);
+        constexpr std::array<ProfilePoint, 6> kHair = {{{0.74f, 0.00f},
+                                                        {0.80f, 0.03f},
+                                                        {0.86f, -0.02f},
+                                                        {0.92f, 0.04f},
+                                                        {0.97f, 0.00f},
+                                                        {1.00f, 0.05f}}};
+        for (size_t i = 1; i < kHair.size(); ++i) {
+            stroke(layer, pt(f.x(kHair[i - 1].along), f.y(kHair[i - 1].half)),
+                   pt(f.x(kHair[i].along), f.y(kHair[i].half)), body, 1, LV_OPA_COVER);
+        }
+        break;
+    }
+    case TipShape::Ribbed:
+        draw_profile(layer, f, kRibbedTip.data(), kRibbedTip.size(), body, shade, light);
+        break;
+    case TipShape::Blob: {
+        draw_profile(layer, f, kBlobStrand.data(), kBlobStrand.size(), body, shade, light);
+        lv_draw_rect_dsc_t dot;
+        lv_draw_rect_dsc_init(&dot);
+        dot.bg_color = shade;
+        dot.bg_opa = LV_OPA_COVER;
+        dot.radius = LV_RADIUS_CIRCLE;
+        const auto cx = static_cast<int32_t>(f.x(0.78f));
+        const auto cy = static_cast<int32_t>(f.y(0.0f));
+        const auto r = static_cast<int32_t>(f.height * 0.36f);
+        lv_area_t area{cx - r, cy - r, cx + r, cy + r};
+        lv_draw_rect(layer, &dot, &area);
+        dot.bg_color = body;
+        const auto ri = static_cast<int32_t>(r * kInnerBand);
+        lv_area_t inner{cx - ri, cy - ri, cx + ri, cy + ri};
+        lv_draw_rect(layer, &dot, &inner);
+        break;
+    }
+    case TipShape::Cold:
+        break;
+    }
+}
+
 void on_draw(lv_event_t* e) {
     auto* obj = lv_event_get_current_target_obj(e);
     lv_layer_t* layer = lv_event_get_layer(e);
@@ -191,12 +266,18 @@ void on_draw(lv_event_t* e) {
     const lv_color_t shade = lv_color_darken(body, LV_OPA_40);
     const lv_color_t light = theme_manager_get_color("text");
 
+    const auto flags = reinterpret_cast<uintptr_t>(lv_obj_get_user_data(obj));
+    const auto shape = static_cast<TipShape>(flags >> 1);
+    if (shape != TipShape::Cold) {
+        draw_shape(layer, f, shape, body, shade, light);
+        return;
+    }
     fill_band(layer, f, 1.0f, 0.0f, shade, LV_OPA_COVER);
     fill_band(layer, f, kInnerBand, 0.0f, body, LV_OPA_COVER);
     stroke_edge(layer, f, -0.42f, light, 2, LV_OPA_80);
     stroke(layer, pt(f.x(kMeltStep), f.y(-0.25f)), pt(f.x(kMeltStep), f.y(0.25f)), shade, 2,
            LV_OPA_70);
-    if (lv_obj_get_user_data(obj) != nullptr) {
+    if (flags & 1u) {
         draw_dirt(layer, f, lv_color_darken(body, LV_OPA_90), theme_manager_get_color("primary"));
     }
     draw_wisp(layer, f, body);
@@ -215,12 +296,26 @@ void* tip_xml_create(lv_xml_parser_state_t* state, const char** /*attrs*/) {
 void tip_xml_apply(lv_xml_parser_state_t* state, const char** attrs) {
     auto* obj = static_cast<lv_obj_t*>(lv_xml_state_get_item(state));
     lv_xml_obj_apply(state, attrs);
+    // The user pointer packs the flags: bit 0 dirty, the rest the shape. No storage to free.
+    auto flags = reinterpret_cast<uintptr_t>(lv_obj_get_user_data(obj));
     for (int i = 0; attrs[i] != nullptr; i += 2) {
         if (std::strcmp(attrs[i], "dirty") == 0) {
-            // A non-null user pointer is the flag; no storage to free with the widget.
-            lv_obj_set_user_data(obj, std::strcmp(attrs[i + 1], "true") == 0 ? obj : nullptr);
+            flags = (flags & ~uintptr_t{1}) | (std::strcmp(attrs[i + 1], "true") == 0 ? 1u : 0u);
+        } else if (std::strcmp(attrs[i], "shape") == 0) {
+            const char* v = attrs[i + 1];
+            TipShape shape = TipShape::Cold;
+            if (std::strcmp(v, "clean") == 0)
+                shape = TipShape::Clean;
+            else if (std::strcmp(v, "hair") == 0)
+                shape = TipShape::Hair;
+            else if (std::strcmp(v, "ribbed") == 0)
+                shape = TipShape::Ribbed;
+            else if (std::strcmp(v, "blob") == 0)
+                shape = TipShape::Blob;
+            flags = (flags & 1u) | (static_cast<uintptr_t>(shape) << 1);
         }
     }
+    lv_obj_set_user_data(obj, reinterpret_cast<void*>(flags));
 }
 
 } // namespace
