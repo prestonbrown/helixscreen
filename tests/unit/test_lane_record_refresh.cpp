@@ -18,6 +18,8 @@
 #include "lane_apply.h"
 #include "lane_source_store.h"
 #include "printer_state.h"
+#include "test_helpers/armed_timers.h"
+#include "test_helpers/process_async_timers.h"
 #include "test_helpers/registered_backend.h"
 
 #include <string>
@@ -390,8 +392,13 @@ TEST_CASE_METHOD(LVGLTestFixture, "a started backend rereads the lane records on
     REQUIRE(reg->get_slot_info(1).material == "PETG");
 
     printer.client.mock_db_set("lane_data", "T1", record("ABS", "#FF0000"));
-    // No one asks for this read: the poll's own timer brings it.
-    CHECK(advance_until([&] { return reg->lane_record_reads() == 2; }, 20000));
+    // No one asks for this read. The test pump never runs a periodic timer, so
+    // this stands in for the main-loop tick the poll comes due on.
+    const auto polls = helix::test::armed_timers_for(&*reg);
+    REQUIRE(polls.size() == 1);
+    REQUIRE(helix::test::fire_timer_once(polls[0]));
+    settle();
+    CHECK(reg->lane_record_reads() == 2);
     CHECK(reg->get_slot_info(1).material == "ABS");
     CHECK(reg->get_slot_info(1).color_rgb == 0xFF0000u);
 }
@@ -404,13 +411,17 @@ TEST_CASE_METHOD(LVGLTestFixture, "a stopped backend stops reading the lane reco
     REQUIRE(reg->start().success());
     settle();
     REQUIRE(reg->lane_record_reads() == 1);
+    REQUIRE(helix::test::armed_timer_count(&*reg) == 1);
 
     reg->stop();
+    // The poll is disarmed with the subscription: a tick after the stop has
+    // nothing to answer it, so a record rewritten meanwhile stays unread.
     printer.client.mock_db_set("lane_data", "T1", record("ABS", "#FF0000"));
-    // Three polls' worth of time after the stop.
-    const bool reread = advance_until([&] { return reg->lane_record_reads() > 1; }, 30000);
+    for (lv_timer_t* poll : helix::test::armed_timers_for(&*reg)) {
+        CHECK(helix::test::fire_timer_once(poll));
+    }
     settle();
-    CHECK_FALSE(reread);
+    CHECK(reg->lane_record_reads() == 1);
     CHECK(reg->get_slot_info(1).material == "PETG");
 }
 
