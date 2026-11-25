@@ -8,6 +8,13 @@
   <view name="printer_image_tagger_overlay"
         extends="overlay_panel" width="100%" title="Tag Parts" bg_color="#card_bg"
         back_button_callback="on_printer_image_tagger_cancel">
+    <!-- Save commits the tags once every prompt is answered: the header's
+         primary, text-only so it keeps its label at every size. -->
+    <overlay_panel-actions>
+      <header_action name="btn_tagger_save" text="Save" role="primary" callback="on_printer_image_tagger_save">
+        <bind_flag_if_eq subject="printer_image_tagger_reviewing" flag="hidden" ref_value="0"/>
+      </header_action>
+    </overlay_panel-actions>
     <overlay_panel-overlay_content style_pad_all="#space_sm"
                                    flex_flow="column" style_pad_gap="#space_xs" scrollable="false" style_bg_opa="0"
                                    style_border_width="0">
@@ -81,11 +88,6 @@
                    height="#button_height_sm" flex_grow="1" variant="secondary" text="Skip" hidden="true">
           <bind_flag_if_eq subject="printer_image_tagger_can_skip" flag="hidden" ref_value="0"/>
           <event_cb trigger="clicked" callback="on_printer_image_tagger_skip"/>
-        </ui_button>
-        <ui_button name="btn_tagger_save"
-                   height="#button_height_sm" flex_grow="1" icon="check" text="Save" hidden="true">
-          <bind_flag_if_eq subject="printer_image_tagger_reviewing" flag="hidden" ref_value="0"/>
-          <event_cb trigger="clicked" callback="on_printer_image_tagger_save"/>
         </ui_button>
       </lv_obj>
     </overlay_panel-overlay_content>
