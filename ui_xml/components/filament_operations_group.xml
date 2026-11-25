@@ -10,6 +10,11 @@
        which does. Instantiated by both orientation branches of
        filament_panel.xml so the markup exists exactly once. The action rows
        are compact, one touch target tall. -->
+  <consts>
+    <!-- The width of the Pick up / Park button beside the tool cells. Both
+         labels hold it, so the cells keep their size when the button flips. -->
+    <px name="tool_action_btn_min_w" value="112"/>
+  </consts>
   <styles>
     <!-- Reactive extrude length button state (L040: no inline bg attrs) -->
     <style name="extrude_length_btn_selected" bg_color="#primary" bg_opa="255"/>
@@ -70,14 +75,16 @@
       <bind_flag_if_eq subject="target_tool_multi_head" flag="hidden" ref_value="0"/>
       <tool_target_row name="tool_target_cells" width="0" labels="_row" flex_grow="1"/>
       <ui_button name="btn_target_tool_pickup"
-                 width="content" height="#touch_target_min" style_pad_hor="#space_sm" icon="swap_horizontal"
-                 text="Pick up" style_text_font="#font_small" moves_machine="true" hidden="true">
+                 width="content" height="#touch_target_min" style_min_width="#tool_action_btn_min_w"
+                 style_pad_hor="#space_sm" icon="swap_horizontal" text="Pick up" style_text_font="#font_small"
+                 moves_machine="true" hidden="true">
         <bind_flag_if_not_eq subject="filament_target_tool_action" flag="hidden" ref_value="1"/>
         <event_cb trigger="clicked" callback="on_filament_target_tool_action"/>
       </ui_button>
       <ui_button name="btn_target_tool_park"
-                 width="content" height="#touch_target_min" style_pad_hor="#space_sm" icon="eject" text="Park"
-                 style_text_font="#font_small" moves_machine="true" hidden="true">
+                 width="content" height="#touch_target_min" style_min_width="#tool_action_btn_min_w"
+                 style_pad_hor="#space_sm" icon="eject" text="Park" style_text_font="#font_small" moves_machine="true"
+                 hidden="true">
         <bind_flag_if_not_eq subject="filament_target_tool_action" flag="hidden" ref_value="2"/>
         <event_cb trigger="clicked" callback="on_filament_target_tool_action"/>
       </ui_button>
