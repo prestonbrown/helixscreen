@@ -224,7 +224,7 @@ run_launcher_timed() {
     cp "$LAUNCHER" "$MOCK_INSTALL/bin/helix-launcher.sh"
     rm -f "$MOCK_INSTALL/helix_screen_backend.txt"
     t0=$(date +%s%3N)
-    MOCK_INSTALL="$MOCK_INSTALL" PATH="$1" /usr/bin/timeout 30 ${2:-/bin/sh} "$MOCK_INSTALL/bin/helix-launcher.sh" >/dev/null 2>&1 || true
+    MOCK_INSTALL="$MOCK_INSTALL" PATH="$1" /usr/bin/timeout 30 ${2:-/bin/sh} "$MOCK_INSTALL/bin/helix-launcher.sh" >"$BATS_TEST_TMPDIR/launcher.log" 2>&1 || true
     t1=$(date +%s%3N)
     echo $((t1 - t0))
 }
@@ -267,8 +267,12 @@ MOCKEOF
     ms=$(run_launcher_timed "$p")
     run cat "$MOCK_INSTALL/helix_screen_backend.txt"
     [ "$output" = "helix-screen egl" ]
-    # Well under the 20 s deadline, with room for a loaded CI runner.
-    [ "$ms" -lt 10000 ]
+    # The deadline never fired, and the launcher did not wait it out.
+    if grep -q "EGL probe did not answer" "$BATS_TEST_TMPDIR/launcher.log" || [ "$ms" -ge 15000 ]; then
+        echo "launcher took ${ms}ms; its log:"
+        cat "$BATS_TEST_TMPDIR/launcher.log"
+        return 1
+    fi
 }
 
 @test "e2e: without timeout, a deadline that is not a positive integer does not stop the launcher" {
