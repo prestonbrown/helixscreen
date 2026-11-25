@@ -122,7 +122,8 @@ namespace {
 /// The Tune column, when shown, is one more column and one more gap.
 int32_t columns_total(const PrintStatusColumns& c, int32_t gap) {
     const int32_t columns = c.preview_w + c.info_w + c.printer_w + c.readouts_w + c.actions_w;
-    return c.tune_w > 0 ? columns + c.tune_w + 5 * gap : columns + 4 * gap;
+    const int32_t gaps = (c.tune_w > 0 ? 5 : 4) - (c.actions_bottom ? 1 : 0);
+    return columns + c.tune_w + gaps * gap;
 }
 } // namespace
 
@@ -209,30 +210,44 @@ TEST_CASE("ultrawide columns narrow the printer first to keep the info column",
     CHECK(columns_total(c, 8) == 1700);
 }
 
-TEST_CASE("ultrawide columns stop each column at its floor, then the buttons lose their labels",
+TEST_CASE("ultrawide columns stop each column at its floor, then the buttons move to the bottom",
           "[print_status_tile_layout][ultrawide]") {
     const auto c = decide_print_status_columns(1200, 340, 8);
     CHECK(c.tune_w == 0);
     CHECK(c.printer_w == 340);
     CHECK(c.readouts_w == 255);
     CHECK(c.preview_w == 255);
-    // Icon-only buttons: the column gives its width to the info column.
-    CHECK(c.actions_w == 76);
-    CHECK(c.info_w == 242);
+    // The button column is gone: the info column keeps its floor (70% of 340).
+    CHECK(c.actions_bottom);
+    CHECK(c.actions_w == 0);
+    CHECK(c.info_w >= 340 * 70 / 100);
     CHECK(columns_total(c, 8) == 1200);
 }
 
-TEST_CASE("ultrawide buttons keep their labels while the info column keeps its floor",
+TEST_CASE("ultrawide buttons stay in a column while the info column keeps its floor",
           "[print_status_tile_layout][ultrawide]") {
-    // At 340 high the labeled layout leaves the info column 70% of the height
-    // (238) from 1283 px on; one pixel less and the buttons go icon-only.
-    const auto labeled = decide_print_status_columns(1283, 340, 8);
-    CHECK(labeled.actions_w == 163);
-    CHECK(labeled.info_w == 238);
-    const auto icons = decide_print_status_columns(1282, 340, 8);
-    CHECK(icons.actions_w == 76);
-    CHECK(icons.info_w > 238);
-    CHECK(columns_total(icons, 8) == 1282);
+    // At 340 high the stacked layout leaves the info column 70% of the height
+    // (238) from 1283 px on; one pixel less and the buttons move to the bottom.
+    const auto column = decide_print_status_columns(1283, 340, 8);
+    CHECK_FALSE(column.actions_bottom);
+    CHECK(column.actions_w == 163);
+    CHECK(column.info_w == 238);
+    const auto bottom = decide_print_status_columns(1282, 340, 8);
+    CHECK(bottom.actions_bottom);
+    CHECK(bottom.actions_w == 0);
+    CHECK(bottom.info_w >= 238);
+    CHECK(columns_total(bottom, 8) == 1282);
+}
+
+TEST_CASE("ultrawide bottom actions row takes its height from every column",
+          "[print_status_tile_layout][ultrawide]") {
+    const auto bottom = decide_print_status_ultrawide_layout(1200, 340, 8);
+    CHECK(bottom.columns.actions_bottom);
+    CHECK(bottom.job_h == 340 - kPrintStatusActionsRowHeight - 8);
+    CHECK(bottom.printer_h == bottom.job_h);
+    const auto column = decide_print_status_ultrawide_layout(1410, 269, 6);
+    CHECK_FALSE(column.columns.actions_bottom);
+    CHECK(column.job_h == 269);
 }
 
 TEST_CASE("ultrawide tile layout sizes the job tile as the preview square",
