@@ -78,7 +78,7 @@ Starts the mock Ethernet with no link. The mock Ethernet is connected by default
 
 | Property | Value |
 |----------|-------|
-| **Values** | on: no link; off: connected |
+| **Values** | on: no link; off or unset: connected |
 | **Default** | unset (connected) |
 | **File** | `src/network/ethernet_backend.cpp` |
 
