@@ -19,10 +19,12 @@ constexpr int32_t kCompactMinJobHeight = 170;
 // the readouts fit a label and a "220 / 220°C" value; the buttons a label.
 constexpr int32_t kPrinterPct = 140;
 constexpr int32_t kReadoutsPct = 93;
-constexpr int32_t kActionsPct = 48;
+constexpr int32_t kActionsPct = 38;
 // The info column should reach this share of the height before the other
 // columns stop giving: the lane tray over the info card needs the width.
 constexpr int32_t kInfoTargetPct = 120;
+// The readouts column stays only while the info column keeps this share of the height.
+constexpr int32_t kInfoWithReadoutsPct = 100;
 // The lane tray sits over the info card in the info column: this share of the
 // height, and the card takes the rest.
 constexpr int32_t kUltrawideTrayPct = 48;
@@ -33,6 +35,11 @@ constexpr int32_t kUltrawideTrayPct = 48;
 // kFloorWithTunePct too. With less room the Tune button opens the overlay.
 constexpr int32_t kTunePct = 110;
 constexpr int32_t kTuneMaxWidth = 300;
+// Screens 480 tall and up (content 400 and up) use the Medium type tier, whose
+// Z-offset step buttons and pressure-advance row clip below about 380 px
+// (measured at 1920x480: 300 clips the steps, 340 wraps the PA row).
+constexpr int32_t kTuneMediumMinH = 400;
+constexpr int32_t kTuneMediumMaxWidth = 380;
 constexpr int32_t kFloorWithTunePct = 70;
 // The floors the printer, readouts and preview give width down to, in that
 // order, before the info column narrows below the height.
@@ -112,7 +119,9 @@ PrintStatusColumns fit_columns(int32_t content_w, int32_t h, int32_t gap, bool t
     c.printer_w = h * kPrinterPct / 100;
     c.readouts_w = readouts ? h * kReadoutsPct / 100 : 0;
     c.actions_w = h * kActionsPct / 100;
-    c.tune_w = tune ? std::min(h * kTunePct / 100, kTuneMaxWidth) : 0;
+    c.tune_w = tune ? std::min(h * kTunePct / 100,
+                               h >= kTuneMediumMinH ? kTuneMediumMaxWidth : kTuneMaxWidth)
+                    : 0;
     // Preview, printer, info and actions, plus the Tune and readouts columns that show.
     const int32_t gaps = (3 + (tune ? 1 : 0) + (readouts ? 1 : 0)) * gap;
     const auto rest = [&]() {
@@ -142,10 +151,12 @@ PrintStatusColumns decide_print_status_columns(int32_t content_w, int32_t conten
                                                bool tune, bool lane_tray) {
     const int32_t h = std::max<int32_t>(0, content_h);
     // Candidates, richest first: the first whose info column keeps its floor
-    // wins. The readouts repeat the printer picture's callouts, so they go
-    // before the Tune column does; the lane tray stands in for them.
+    // wins. The readouts repeat the printer picture's callouts, so they only
+    // stay while the info column is still as wide as the height beside them,
+    // and they go before the Tune column does; the lane tray stands in for them.
     const auto keeps_floor = [&](const PrintStatusColumns& c) {
-        return c.info_w >= h * kFloorWithTunePct / 100;
+        const int32_t floor_pct = c.readouts_w > 0 ? kInfoWithReadoutsPct : kFloorWithTunePct;
+        return c.info_w >= h * floor_pct / 100;
     };
     for (const bool with_tune : {true, false}) {
         if (with_tune && !tune) {
