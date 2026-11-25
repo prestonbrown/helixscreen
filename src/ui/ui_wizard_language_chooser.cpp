@@ -43,10 +43,11 @@ static const char* kWelcomeTranslations[] = {
     "Добро пожаловать!", // ru
     "Bem-vindo!",        // pt
     "Benvenuto!",        // it
+    "Witamy!",           // pl
     "欢迎！",            // zh
     "ようこそ！",        // ja
 };
-static constexpr int kWelcomeCount = 9;
+static constexpr int kWelcomeCount = 10;
 
 // Language codes for saving to config (matches button order in XML)
 static const char* kLanguageCodes[] = {"en", "de", "fr", "es", "ru", "pt", "it", "zh", "ja"};

@@ -16,7 +16,7 @@ from pathlib import Path
 import yaml
 
 # Locales in column order (en is the key, so it is not a column).
-LOCALES = ["de", "es", "fr", "it", "ja", "pt", "ru", "zh"]
+LOCALES = ["de", "es", "fr", "it", "ja", "pl", "pt", "ru", "zh"]
 
 # Curated anchor terms grouped by theme. Each entry is an English key that
 # exists in the YAML; its committed translations define the canonical rendering.
