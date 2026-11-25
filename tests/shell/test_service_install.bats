@@ -227,6 +227,37 @@ INITEOF
     grep -q "DAEMON_DIR=\"$INSTALL_DIR\"" "$target"
 }
 
+@test "install_service_sysv: an init that hands off to the install's own script is left alone" {
+    # Z-Mod's S80helixscreen execs the install's config/helixscreen.init
+    # (ghzserg/zmod#824); the file is Z-Mod's, reached through its boot-time link.
+    create_init_template
+    local target="$BATS_TEST_TMPDIR/zmod/.shell/root/S80helixscreen"
+    mkdir -p "$(dirname "$target")"
+    printf '#!/bin/sh\nINIT=%s/config/helixscreen.init\n[ -f "$INIT" ] || exit 0\nexec sh "$INIT" "$@"\n' \
+        "$INSTALL_DIR" > "$target"
+    local before
+    before=$(cat "$target")
+    INIT_SCRIPT_DEST="$BATS_TEST_TMPDIR/etc/init.d/S80helixscreen"
+    mkdir -p "$(dirname "$INIT_SCRIPT_DEST")"
+    ln -s "$target" "$INIT_SCRIPT_DEST"
+
+    install_service_sysv
+
+    [ -L "$INIT_SCRIPT_DEST" ]
+    [ "$(cat "$target")" = "$before" ]
+}
+
+@test "install_service_sysv: a hand-off to another install's script is replaced" {
+    create_init_template
+    INIT_SCRIPT_DEST="$BATS_TEST_TMPDIR/etc/init.d/S80helixscreen"
+    mkdir -p "$(dirname "$INIT_SCRIPT_DEST")"
+    printf '#!/bin/sh\nexec sh /elsewhere/config/helixscreen.init "$@"\n' > "$INIT_SCRIPT_DEST"
+
+    install_service_sysv
+
+    grep -q "DAEMON_DIR=\"$INSTALL_DIR\"" "$INIT_SCRIPT_DEST"
+}
+
 @test "install_service_sysv: uses correct INIT_SCRIPT_DEST" {
     create_init_template
     INIT_SCRIPT_DEST="$BATS_TEST_TMPDIR/etc/init.d/S80helixscreen"

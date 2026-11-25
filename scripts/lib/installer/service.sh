@@ -103,6 +103,17 @@ _has_no_new_privs() {
 # On a mod host the script runs inside the chroot, where the install root may
 # have a different spelling than it does on the host (see
 # resolve_chroot_daemon_dir). Use the in-chroot one when we have it.
+# True when the init at INIT_SCRIPT_DEST is a hand-off to this install's own
+# config/helixscreen.init rather than a copy of it: it names that script and
+# carries no DAEMON_DIR line of its own. Z-Mod ships its S80helixscreen this way
+# (ghzserg/zmod#824) and re-links /etc/init.d/S80helixscreen to it at every boot,
+# so the file is Z-Mod's and the installer leaves it alone.
+_init_hands_off_to_install() {
+    [ -n "${INIT_SCRIPT_DEST:-}" ] && [ -f "$INIT_SCRIPT_DEST" ] || return 1
+    grep -q '^DAEMON_DIR=' "$INIT_SCRIPT_DEST" 2>/dev/null && return 1
+    grep -qF "${HELIX_CHROOT_DAEMON_DIR:-$INSTALL_DIR}/config/helixscreen.init" "$INIT_SCRIPT_DEST" 2>/dev/null
+}
+
 _set_init_script_daemon_dir() {
     _daemon_dir="${HELIX_CHROOT_DAEMON_DIR:-$INSTALL_DIR}"
     _sed_inplace "s|DAEMON_DIR=.*|DAEMON_DIR=\"$(_init_assignment_value "$_daemon_dir")\"|" "$INIT_SCRIPT_DEST"
@@ -695,7 +706,7 @@ install_service_sysv() {
         # By this point the payload at INSTALL_DIR is already complete, so the
         # boot path never names a directory without an install in it.
         if [ -n "${MIGRATE_FROM_DIR:-}" ] && [ -n "${INIT_SCRIPT_DEST:-}" ] \
-           && [ -f "$INIT_SCRIPT_DEST" ]; then
+           && [ -f "$INIT_SCRIPT_DEST" ] && ! _init_hands_off_to_install; then
             log_info "Repointing DAEMON_DIR at ${INSTALL_DIR}"
             _set_init_script_daemon_dir
         fi
@@ -712,6 +723,11 @@ install_service_sysv() {
         log_error "Recovery: re-run the installer to download a fresh copy:"
         log_error "  curl -fsSL https://releases.helixscreen.org/install.sh | sh -s -- --update"
         exit 1
+    fi
+
+    if _init_hands_off_to_install; then
+        log_info "Init script at $INIT_SCRIPT_DEST runs this install's own; leaving it"
+        return 0
     fi
 
     # Use the dynamically set INIT_SCRIPT_DEST (varies by firmware).
