@@ -25,6 +25,7 @@
 #include "print_start_inputs.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+#include "test_helpers/backend_user_edit.h"
 #include "test_helpers/openams_status_json.h"
 #include "test_helpers/openams_test_access.h"
 #include "test_helpers/registered_backend.h"
@@ -1393,6 +1394,39 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS has no progress for a dry it did not
         backend.feed(dryer_manager(-1, dryer_device(true, "heating", 55.0, 20 * 60)));
         CHECK(backend.get_dryer_info(0).get_progress_pct() == -1);
     }
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "OpenAMS measures a dry it starts from that dry's own readings",
+                 "[ams][openams][dryer]") {
+    OpenAmsHarness backend;
+    backend.feed(dryer_manager());
+    backend.feed(dryer_manager(-1, dryer_device(true, "heating", 55.0, 120 * 60)));
+    REQUIRE(backend.get_dryer_info(0).duration_min == 120);
+
+    // supported_actions and dryer.state are separate deltas: the unit can
+    // advertise dryer_start again while its state still reads the last cycle
+    // running, and a shorter dry is started in that window.
+    json advertises_start = dryer_device(true, "heating", 55.0, 120 * 60);
+    advertises_start["supported_actions"] = json{"load", "unload", "dryer_start", "dryer_stop"};
+    backend.feed(dryer_manager(-1, advertises_start));
+    REQUIRE(backend.start_drying(55.0f, 60, -1, 0).success());
+
+    backend.feed(dryer_manager(-1, dryer_device(true, "heating", 55.0, 60 * 60)));
+    CHECK(backend.get_dryer_info(0).duration_min == 60);
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "OpenAMS an edit shows on its lane before any frame echoes it",
+                 "[ams][openams][edit]") {
+    OpenAmsHarness backend;
+    backend.feed(manager());
+
+    SlotInfo info = backend.get_slot_info(1);
+    info.material = "PETG";
+    info.color_rgb = 0x00FF00u;
+    REQUIRE(helix::test::apply_edit(backend, 1, info).success());
+
+    CHECK(backend.get_slot_info(1).material == "PETG");
+    CHECK(backend.get_slot_info(1).color_rgb == 0x00FF00u);
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "OpenAMS refuses to dry a unit that must be unloaded first",
