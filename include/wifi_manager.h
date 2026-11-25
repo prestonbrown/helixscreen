@@ -697,6 +697,9 @@ class WiFiManager {
     // state observers, whose re-read finds the address. The watch ends when
     // the cached status has an address or no link, or after kAddressWatchMaxMs; the
     // next read that still finds none starts it again. LVGL thread only.
+    // A read that finds the address where the last one found the link waiting
+    // wakes the observers too, on whatever thread the read ran: an address that
+    // lands while no watch runs is otherwise shown only when a screen re-reads.
     static constexpr uint32_t kAddressWatchPeriodMs = 250;
     static constexpr uint32_t kAddressWatchMaxMs = 60000;
     std::unique_ptr<helix::net::LinkEvents> address_events_;

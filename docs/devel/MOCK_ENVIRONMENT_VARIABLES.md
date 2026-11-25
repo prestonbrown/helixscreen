@@ -72,6 +72,21 @@ Makes a Wi-Fi join on the mock radio complete without an address, so the link st
 HELIX_MOCK_WIFI_DHCP_PENDING=1 ./build/bin/helix-screen --test
 ```
 
+### `HELIX_MOCK_ETHERNET_DOWN`
+
+Starts the mock Ethernet with no link. The mock Ethernet is connected by default, and the Settings Connection row and the Home network tile prefer a wired connection, so without this variable they never show a Wi-Fi state under `--test`.
+
+| Property | Value |
+|----------|-------|
+| **Values** | on: no link; off or unset: connected |
+| **Default** | unset (connected) |
+| **File** | `src/network/ethernet_backend.cpp` |
+
+```bash
+# The Settings Connection row and the Home network tile on Wi-Fi alone
+HELIX_MOCK_ETHERNET_DOWN=1 HELIX_MOCK_WIFI_DHCP_PENDING=1 ./build/bin/helix-screen --test
+```
+
 ### `HELIX_MOCK_IPV4_APPLY_FAIL`
 
 Make every IPv4 apply on the mock Wi-Fi and Ethernet backends fail, so the IPv4 screen's failure path (Network Settings > IPv4 > Apply) can be driven under `--test`. The revert that follows fails too, which leaves the pending-revert record for the next start.

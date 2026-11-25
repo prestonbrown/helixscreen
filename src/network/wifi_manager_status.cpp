@@ -91,8 +91,16 @@ void WiFiManager::run_status_reads() {
             const bool answered_in_time = record_health_call(started);
             std::lock_guard<std::mutex> lock(status_waiters_mutex_);
             if (answered_in_time) {
+                // A read that sees the address arrive stands in for the watch,
+                // which gives up after kAddressWatchMaxMs until a read starts it again.
+                const bool address_arrived =
+                    cached_status_.awaiting_ipv4 && status.connected && !status.awaiting_ipv4;
                 cached_status_ = status;
                 watch_address_if_awaiting(status);
+                if (address_arrived) {
+                    async_lifetime_.token().defer("WiFiManager::address_arrived",
+                                                  [this]() { notify_state_observers(); });
+                }
             } else {
                 // A read that ran out the reply deadline parsed an empty reply,
                 // which says "disconnected" about a link nobody could ask about.

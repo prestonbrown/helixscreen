@@ -38,6 +38,10 @@ namespace {
 // Outlives any one backend, so a test can ask after the manager is gone.
 std::atomic<int> g_forget_calls{0};
 
+/// Longer than the address watch lasts, so this much virtual time leaves the
+/// watch given up.
+constexpr int kPastAddressWatchMs = 70 * 1000;
+
 /// Every control call parks while `stall()` is in force, standing in for a
 /// wpa_supplicant whose driver wedged: wpa_ctrl waits out its reply deadline.
 /// The park is bounded so a call made on the test's own thread fails the
@@ -810,4 +814,32 @@ TEST_CASE_METHOD(ControlLaneFixture,
     const int before = fires.load();
     backend->set_connected_state(true, "Home", "10.0.0.9", 70);
     REQUIRE(wait_until([&] { return fires.load() > before; }, 3000));
+}
+
+TEST_CASE_METHOD(
+    ControlLaneFixture,
+    "An address found by a plain read after the watch gave up wakes the state observers",
+    "[wifi][wifi_dhcp_pending][2101]") {
+    std::atomic<int> fires{0};
+    wm->add_state_observer(guard.token(), [&fires]() { fires.fetch_add(1); });
+
+    backend->set_connected_state(true, "Home", "", 70);
+    REQUIRE(read_status().awaiting_ipv4);
+    process_lvgl(kPastAddressWatchMs);
+
+    // Nothing polls the mock's events now: the address arrives unseen.
+    int before = fires.load();
+    backend->set_connected_state(true, "Home", "10.0.0.9", 70);
+    process_lvgl(1000);
+    REQUIRE(fires.load() == before);
+
+    const WifiBackend::ConnectionStatus status = read_status();
+    REQUIRE(status.ip_address == "10.0.0.9");
+    REQUIRE(wait_until([&] { return fires.load() > before; }, 3000));
+
+    // One announcement: a read that sees nothing new wakes nobody.
+    before = fires.load();
+    read_status();
+    process_lvgl(500);
+    CHECK(fires.load() == before);
 }
