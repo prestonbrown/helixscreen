@@ -519,9 +519,9 @@ class PrintStatusPanel : public OverlayBase {
     bool is_active_ = false;
     bool exclude_map_requested_ = false; ///< Open the exclude map on the next activation
 
-    // Control buttons (stored for enable/disable on state changes)
-    lv_obj_t* btn_tune_ = nullptr;
-    lv_obj_t* btn_cancel_ = nullptr;
+    /// The Cancel / Reprint button, looked up each time: the ultrawide body
+    /// rebuilds its actions when they move between a column and a bottom row.
+    [[nodiscard]] lv_obj_t* cancel_button() const;
 
     // Print completion celebration badge (animated on print complete)
     lv_obj_t* success_badge_ = nullptr;
