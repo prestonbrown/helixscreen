@@ -24,34 +24,64 @@
 using helix::ui::TargetTool;
 using helix::ui::ToolHeadsModel;
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Target row: eight heads in a narrow slot stay usable",
+namespace {
+
+/// A target row of @p heads heads in a slot @p slot_w wide, laid out.
+struct RowRig {
+    helix::ToolChangerRig rig;
+    lv_obj_t* row = nullptr;
+
+    RowRig(LVGLUITestFixture& fx, int heads, int slot_w) : rig(heads) {
+        std::vector<std::string> names = {"extruder"};
+        for (int i = 1; i < heads; ++i) {
+            names.push_back("extruder" + std::to_string(i));
+        }
+        fx.state().temperature_state().init_extruders(names);
+        TargetTool::instance().attach(fx.state());
+        ToolHeadsModel::instance().attach(fx.state());
+        helix::ui::UpdateQueue::instance().drain();
+
+        lv_obj_t* slot = lv_obj_create(fx.test_screen());
+        lv_obj_set_size(slot, slot_w, 48);
+        lv_obj_set_style_pad_all(slot, 0, 0);
+        const char* attrs[] = {"labels", "_row", nullptr};
+        row = static_cast<lv_obj_t*>(lv_xml_create(slot, "tool_target_row", attrs));
+        REQUIRE(row != nullptr);
+        lv_obj_set_width(row, lv_pct(100));
+        fx.process_lvgl(60);
+        lv_obj_update_layout(slot);
+    }
+
+    int cell_w(int i) const {
+        return lv_obj_get_width(lv_obj_get_child(row, i));
+    }
+};
+
+// The Filament panel's row at 480x272 is 106 px wide (measured with ctl geom).
+constexpr int kNarrowSlotPx = 106;
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Target row: four heads still share a narrow slot unscrolled",
                  "[target_tool][vrtx]") {
-    helix::ToolChangerRig rig{8};
-    std::vector<std::string> names = {"extruder"};
-    for (int i = 1; i < 8; ++i) {
-        names.push_back("extruder" + std::to_string(i));
-    }
-    state().temperature_state().init_extruders(names);
-    TargetTool::instance().attach(state());
-    ToolHeadsModel::instance().attach(state());
-    helix::ui::UpdateQueue::instance().drain();
-
-    lv_obj_t* slot = lv_obj_create(test_screen());
-    lv_obj_set_size(slot, 106, 48);
-    lv_obj_set_style_pad_all(slot, 0, 0);
-    const char* attrs[] = {"labels", "_row", nullptr};
-    auto* row = static_cast<lv_obj_t*>(lv_xml_create(slot, "tool_target_row", attrs));
-    REQUIRE(row != nullptr);
-    lv_obj_set_width(row, lv_pct(100));
-    process_lvgl(60);
-    lv_obj_update_layout(slot);
-
-    REQUIRE(lv_obj_get_child_count(row) == 8);
-    for (uint32_t i = 0; i < 8; ++i) {
+    RowRig r(*this, 4, kNarrowSlotPx);
+    REQUIRE(lv_obj_get_child_count(r.row) == 4);
+    CHECK(lv_obj_get_scroll_right(r.row) == 0);
+    for (int i = 0; i < 4; ++i) {
         INFO("cell " << i);
-        CHECK(lv_obj_get_width(lv_obj_get_child(row, static_cast<int32_t>(i))) >= 40);
+        CHECK(r.cell_w(i) >= 20); // a badge fits
     }
-    // The cells did not fit: the row scrolls instead.
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_SCROLLABLE));
-    CHECK(lv_obj_get_scroll_right(row) > 0);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Target row: eight heads in a narrow slot keep every badge legible and scroll",
+                 "[target_tool][vrtx]") {
+    RowRig r(*this, 8, kNarrowSlotPx);
+    REQUIRE(lv_obj_get_child_count(r.row) == 8);
+    for (int i = 0; i < 8; ++i) {
+        INFO("cell " << i);
+        CHECK(r.cell_w(i) >= 20);
+    }
+    CHECK(lv_obj_has_flag(r.row, LV_OBJ_FLAG_SCROLLABLE));
+    CHECK(lv_obj_get_scroll_right(r.row) > 0);
 }

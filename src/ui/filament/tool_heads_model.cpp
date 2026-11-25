@@ -81,10 +81,8 @@ const HeadFilament kNoFilament{};
 /// A compact row cell's height.
 constexpr int kCompactRowCellPx = 40;
 
-/// The narrowest a row cell gets. Cells share the row's width above this; a row of
-/// more heads than fit at this width scrolls sideways instead of squeezing the
-/// labels away.
-constexpr int kRowCellMinWidthPx = 40;
+/// Never narrower than this, whatever the badges measure.
+constexpr int kRowCellFloorPx = 16;
 
 /// Heads at or above this read hot (decidegrees).
 constexpr int kHotDeci = 1500;
@@ -146,15 +144,14 @@ void ToolHeadsModel::init_subjects() {
     UI_MANAGED_SUBJECT_INT(row_off_subject_, 0, "tool_row_off", subjects_);
     // A row cell's size: flex shares the row's width above the minimum width;
     // the height is one touch target.
-    UI_MANAGED_SUBJECT_INT(row_cell_w_subject_, kRowCellMinWidthPx, "tool_row_cell_w",
+    UI_MANAGED_SUBJECT_INT(row_cell_w_subject_, 0, "tool_row_cell_w",
                            subjects_); // SUBJECT_OK: bound as ${size}_w by tool_switcher_segment
     UI_MANAGED_SUBJECT_INT(row_cell_h_subject_, resolve_px_token("touch_target_min", 48),
                            "tool_row_cell_h",
                            subjects_); // SUBJECT_OK: bound as ${size}_h by tool_switcher_segment
     // The compact cell a short portrait column uses, a little under a touch
     // target, as the Filament panel's portrait rows are.
-    UI_MANAGED_SUBJECT_INT(row_compact_cell_w_subject_, kRowCellMinWidthPx,
-                           "tool_row_compact_cell_w",
+    UI_MANAGED_SUBJECT_INT(row_compact_cell_w_subject_, 0, "tool_row_compact_cell_w",
                            subjects_); // SUBJECT_OK: bound as ${size}_w by tool_switcher_segment
     UI_MANAGED_SUBJECT_INT(row_compact_cell_h_subject_, kCompactRowCellPx,
                            "tool_row_compact_cell_h",
@@ -328,6 +325,21 @@ void ToolHeadsModel::fit_row_labels(const std::string& key, int cell_w) {
     spdlog::warn("[ToolHeadsModel] No row label pool '{}'", key);
 }
 
+void ToolHeadsModel::publish_row_cell_floor(int heads) {
+    // The narrowest a cell can be and still show its badge unclipped: the widest badge
+    // plus the padding the label carries. Cells share the row's width above it, so a
+    // few heads fill the row as before, and only more heads than fit at this width
+    // overflow it and scroll.
+    const lv_font_t* body = theme_manager_get_font("font_body");
+    int widest = 0;
+    for (int i = 0; i < heads; ++i) {
+        widest = std::max(widest, text_width(row_label(i, false).c_str(), body));
+    }
+    const int floor_px = std::max(kRowCellFloorPx, widest + 2 * resolve_px_token("space_xs", 4));
+    set_int_if_changed(&row_cell_w_subject_, floor_px);
+    set_int_if_changed(&row_compact_cell_w_subject_, floor_px);
+}
+
 void ToolHeadsModel::fit_row_pool(size_t r) {
     if (!subjects_initialized_)
         return;
@@ -453,6 +465,7 @@ void ToolHeadsModel::publish() {
         copy_string_if_changed(s_seg_finish.at(i), f.finish.c_str());
         copy_string_if_changed(s_seg_material.at(i), f.material.c_str());
     }
+    publish_row_cell_floor(heads);
     for (size_t r = 0; r < std::size(s_row_pools); ++r) {
         fit_row_pool(r);
     }
