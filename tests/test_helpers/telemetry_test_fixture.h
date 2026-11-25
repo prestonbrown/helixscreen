@@ -211,12 +211,13 @@ inline std::map<std::string, nlohmann::json> record_one_of_every_event(Telemetry
     tm.record_calibration_outcome("input_shaper", helix::telemetry::CalibrationOutcome::Failed,
                                   helix::telemetry::FailureClass::Accelerometer, 400);
     collect();
-    // error_encountered's richest shape: a hang adds the screen and renderer.
+    // error_encountered's richest shape: a hang adds the screen, the renderer
+    // and what its main thread was waiting on.
     helix::HangMemoryContext hang_memory;
     hang_memory.mem_available_mb = 19;
     hang_memory.pressure = helix::MemoryPressureLevel::critical;
     hang_memory.major_faults = 81234;
-    tm.record_main_loop_hang(92000, hang_memory);
+    tm.record_main_loop_hang(92000, hang_memory, {"S", "futex_do_wait"});
     collect();
     fx.write_file(
         "crash.txt",

@@ -12,6 +12,8 @@
   "event": "error_encountered",
   "gl_renderer": "llvmpipe",
   "gl_software": true,
+  "main_state": "S",
+  "main_wchan": "futex_do_wait",
   "major_faults": 81234,
   "mem_available_mb": 19,
   "pressure_level": "critical",
