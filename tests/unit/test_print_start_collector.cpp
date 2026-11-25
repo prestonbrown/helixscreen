@@ -8774,6 +8774,25 @@ TEST_CASE_METHOD(PurgeShapeFixture, "Purge shape: a blob purge with no console s
     CHECK(get_current_message() == "Purging...");
 }
 
+TEST_CASE_METHOD(PurgeShapeFixture,
+                 "Purge shape: forward flow with no nozzle target set is not a purge",
+                 "[print][collector][voron][purge]") {
+    // A V0 PRINT_START waits for the bed at bed centre, Z15, before it sets the
+    // nozzle target: the nozzle is still warm from the last print but nothing is
+    // heating it, so no start step is purging there.
+    set_all_temps(550, 550, 1750, 0);
+    collector().start();
+    drain_async_updates();
+    client().dispatch_status_update({{"heater_bed", {{"temperature", 55.0}, {"target", 55.0}}},
+                                     {"extruder", {{"temperature", 175.0}, {"target", 0.0}}}});
+    drain_async_updates();
+    head(60.5, 57.5, 15.1);
+    extruder(2.0);
+    eta_tick();
+    eta_tick();
+    CHECK(get_current_phase() != PrintStartPhase::PURGING);
+}
+
 TEST_CASE_METHOD(PurgeShapeFixture, "Purge shape: continuous flow over a chute shows PURGING",
                  "[print][collector][voron][purge]") {
     double x = 150, y = 355, z = 10;

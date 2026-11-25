@@ -696,10 +696,13 @@ void PrintStartCollector::check_purge_shape() {
             static_cast<helix::AmsAction>(lv_subject_get_int(ams.get_ams_action_subject()));
         evidence.filament_loaded = lv_subject_get_int(ams.get_filament_loaded_subject()) != 0;
     }
-    evidence.heaters_at_target = at_target(frame_ext_temp_.load(std::memory_order_relaxed),
-                                           frame_ext_target_.load(std::memory_order_relaxed)) &&
-                                 at_target(frame_bed_temp_.load(std::memory_order_relaxed),
-                                           frame_bed_target_.load(std::memory_order_relaxed));
+    // A purge melts filament the print heated the nozzle for: a nozzle with no
+    // target is not purging, however warm the last print left it.
+    const int ext_target = frame_ext_target_.load(std::memory_order_relaxed);
+    evidence.heaters_at_target =
+        ext_target > 0 && at_target(frame_ext_temp_.load(std::memory_order_relaxed), ext_target) &&
+        at_target(frame_bed_temp_.load(std::memory_order_relaxed),
+                  frame_bed_target_.load(std::memory_order_relaxed));
 
     PrintStartPhase phase;
     {
