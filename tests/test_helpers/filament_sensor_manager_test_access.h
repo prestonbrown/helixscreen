@@ -78,6 +78,7 @@ class FilamentSensorManagerTestAccess {
         mgr.readings_.clear();
         mgr.lanes_.clear();
         mgr.known_.clear();
+        mgr.idle_runout_acknowledged_.clear();
     }
 
     /// Whether any sensor is currently held armed by bypass.

@@ -25,6 +25,7 @@
  */
 
 #include "../lvgl_test_fixture.h"
+#include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/filament_sensor_manager_test_access.h"
 #include "../test_helpers/post_unload_grace_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
@@ -39,6 +40,7 @@
 #include "moonraker_client_mock.h"
 #include "panel_widget_manager.h"
 #include "print_lifecycle_state.h"
+#include "printer_cache_registry.h"
 #include "printer_state.h"
 #include "runtime_config.h"
 #include "src/ui/panel_widgets/print_status_widget.h"
@@ -51,6 +53,29 @@
 using namespace helix;
 
 namespace {
+
+/// Only the names attach() looks up; the assertions read widget state, not
+/// these objects.
+lv_obj_t* create_print_card_tree(lv_obj_t* parent) {
+    lv_obj_t* container = lv_obj_create(parent);
+    auto add = [container](const char* name, bool as_image = false) {
+        lv_obj_t* obj = as_image ? lv_image_create(container) : lv_obj_create(container);
+        lv_obj_set_name(obj, name);
+    };
+    add("print_card_idle");
+    add("print_card_thumb", /*as_image=*/true);
+    add("print_card_idle_compact");
+    add("print_card_idle_detailed");
+    add("print_card_thumb_compact", /*as_image=*/true);
+    add("print_card_printing");
+    add("print_card_layout");
+    add("print_card_thumb_wrap");
+    add("print_card_active_thumb", /*as_image=*/true);
+    add("print_card_info");
+    add("print_card_preparing_info");
+    add("print_card_printing_detailed");
+    return container;
+}
 
 class IdleRunoutEdgeFixture : public LVGLTestFixture {
   public:
@@ -125,27 +150,24 @@ class IdleRunoutEdgeFixture : public LVGLTestFixture {
         REQUIRE(lv_subject_get_int(fsm.get_any_runout_subject()) == (detected ? 0 : 1));
     }
 
-    /// Only the names attach() looks up; the assertions read widget state, not
-    /// these objects.
     lv_obj_t* create_mock_tree() {
-        lv_obj_t* container = lv_obj_create(test_screen());
-        auto add = [container](const char* name, bool as_image = false) {
-            lv_obj_t* obj = as_image ? lv_image_create(container) : lv_obj_create(container);
-            lv_obj_set_name(obj, name);
-        };
-        add("print_card_idle");
-        add("print_card_thumb", /*as_image=*/true);
-        add("print_card_idle_compact");
-        add("print_card_idle_detailed");
-        add("print_card_thumb_compact", /*as_image=*/true);
-        add("print_card_printing");
-        add("print_card_layout");
-        add("print_card_thumb_wrap");
-        add("print_card_active_thumb", /*as_image=*/true);
-        add("print_card_info");
-        add("print_card_preparing_info");
-        add("print_card_printing_detailed");
-        return container;
+        return create_print_card_tree(test_screen());
+    }
+
+    /// What a printer switch does to the sensors: the per-printer caches are
+    /// dropped while the old printer's readings are still held.
+    static void switch_printer() {
+        auto& fsm = FilamentSensorManager::instance();
+        REQUIRE(PrinterCacheRegistry::instance().invalidate_one(fsm.name()));
+        settle();
+    }
+
+    /// The next printer's discovery lands with the same runout sensor.
+    static void rediscover() {
+        auto& fsm = FilamentSensorManager::instance();
+        discover_filament_sensors(fsm, {SENSOR});
+        fsm.set_role(SENSOR, static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
+        settle();
     }
 
     static constexpr const char* SENSOR = "filament_switch_sensor runout_sensor";
@@ -208,4 +230,139 @@ TEST_CASE_METHOD(IdleRunoutEdgeFixture, "Reloading and pulling again stays quiet
         CHECK_FALSE(PrintStatusWidgetTestAccess::runout_modal_shown(widget));
         set_filament(true);
     }
+}
+
+TEST_CASE_METHOD(IdleRunoutEdgeFixture,
+                 "The previous printer's empty runout sensor raises nothing after a switch",
+                 "[print_status_widget][runout][idle_runout_switch]") {
+    // The printer being left has an empty runout sensor; the next one has no
+    // runout sensor at all. Until the next printer's discovery lands, nothing
+    // the old printer reported may speak for it.
+    set_filament(false);
+
+    switch_printer();
+    auto& fsm = FilamentSensorManager::instance();
+    CHECK(lv_subject_get_int(fsm.get_any_runout_subject()) == 0);
+    CHECK_FALSE(fsm.has_real_runout());
+
+    PrintStatusWidget widget;
+    widget.attach(create_mock_tree(), test_screen());
+    settle();
+    CHECK_FALSE(PrintStatusWidgetTestAccess::runout_modal_shown(widget));
+}
+
+TEST_CASE_METHOD(IdleRunoutEdgeFixture,
+                 "A dismissed idle runout stays dismissed across switches until filament returns",
+                 "[print_status_widget][runout][idle_runout_switch]") {
+    set_filament(false);
+    {
+        PrintStatusWidget first;
+        first.attach(create_mock_tree(), test_screen());
+        settle();
+        REQUIRE(PrintStatusWidgetTestAccess::runout_modal_shown(first));
+    }
+
+    // Away and back: the widget is rebuilt and the sensor rediscovered, still
+    // empty. That is no new information.
+    switch_printer();
+    rediscover();
+    set_filament(false);
+    {
+        PrintStatusWidget second;
+        second.attach(create_mock_tree(), test_screen());
+        settle();
+        CHECK_FALSE(PrintStatusWidgetTestAccess::runout_modal_shown(second));
+
+        // Filament goes back in, then comes out while this widget watches:
+        // a hand-pull, quiet as ever.
+        set_filament(true);
+        set_filament(false);
+        CHECK_FALSE(PrintStatusWidgetTestAccess::runout_modal_shown(second));
+    }
+
+    // The filament reading re-armed it: the next arrival on an empty sensor asks.
+    switch_printer();
+    rediscover();
+    set_filament(false);
+    PrintStatusWidget third;
+    third.attach(create_mock_tree(), test_screen());
+    settle();
+    CHECK(PrintStatusWidgetTestAccess::runout_modal_shown(third));
+}
+
+TEST_CASE_METHOD(IdleRunoutEdgeFixture,
+                 "A widget built before the printer's first reading still offers Load",
+                 "[print_status_widget][runout][idle_runout_switch]") {
+    // A switch or a boot builds the home card before discovery, so the
+    // widget's first look at the subject is a zero that reports nothing.
+    switch_printer();
+    PrintStatusWidget widget;
+    widget.attach(create_mock_tree(), test_screen());
+    settle();
+
+    rediscover();
+    set_filament(false);
+    CHECK(PrintStatusWidgetTestAccess::runout_modal_shown(widget));
+}
+
+TEST_CASE_METHOD(IdleRunoutEdgeFixture,
+                 "A same-named sensor on the next printer starts without the old reading",
+                 "[print_status_widget][runout][idle_runout_switch]") {
+    // Two printers can both name a sensor runout_sensor. Before the next
+    // printer's first status frame, its sensor has said nothing.
+    set_filament(false);
+
+    switch_printer();
+    rediscover();
+    CHECK_FALSE(FilamentSensorManager::instance().has_real_runout());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "A dialog already open acknowledges no sensor it was not raised for",
+                 "[print_status_widget][runout][idle_runout_switch]") {
+    // Two heads with their own runout sensors, on a fixture whose XML makes
+    // the dialog real. The first head empties and raises it; the second
+    // empties while it is still up.
+    static constexpr const char* kFirst = "filament_switch_sensor runout_sensor";
+    static constexpr const char* kSecond = "filament_switch_sensor second_runout";
+    auto settle = [] { helix::ui::UpdateQueue::instance().drain_until_empty(); };
+    auto report = [&](const char* sensor, bool detected) {
+        auto& fsm = FilamentSensorManager::instance();
+        PostUnloadGraceTestAccess::clear_startup_grace(fsm);
+        fsm.update_from_status(
+            nlohmann::json{{sensor, {{"filament_detected", detected}, {"enabled", true}}}});
+        settle();
+    };
+
+    PanelWidgetManager::instance().init_widget_subjects();
+    PrintStatusWidget::init_static_subjects();
+    AmsState::instance().clear_backends();
+    auto& fsm = FilamentSensorManager::instance();
+    fsm.init_subjects();
+    PostUnloadGraceTestAccess::reset(fsm);
+    fsm.set_master_enabled(true);
+    discover_filament_sensors(fsm, {kFirst, kSecond});
+    PostUnloadGraceTestAccess::force_role(fsm, kFirst, FilamentSensorRole::RUNOUT);
+    PostUnloadGraceTestAccess::force_role(fsm, kSecond, FilamentSensorRole::RUNOUT);
+    helix::test::set_wire_state(state(), PrintJobState::STANDBY);
+    settle();
+    report(kSecond, true);
+    report(kFirst, false);
+
+    {
+        PrintStatusWidget widget;
+        widget.attach(create_print_card_tree(test_screen()), test_screen());
+        settle();
+        REQUIRE(PrintStatusWidgetTestAccess::runout_modal_visible(widget));
+
+        report(kSecond, false);
+        // The wizard's deferred check runs the chain again over the open
+        // dialog, which shows nothing new about the second head.
+        widget.trigger_idle_runout_check();
+        settle();
+
+        CHECK_FALSE(fsm.idle_runout_acknowledged());
+    }
+    AmsState::instance().clear_backends();
+    settle();
 }

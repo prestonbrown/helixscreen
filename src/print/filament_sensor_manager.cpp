@@ -6,6 +6,7 @@
 #include "ams_state.h"
 #include "app_constants.h"
 #include "app_globals.h"
+#include "config.h"
 #include "core/error_reporting.h"
 #include "core/text_io.h"
 #include "i_moonraker_api.h"
@@ -126,6 +127,12 @@ struct ToastSuppressionTerms {
     return nullptr;
 }
 
+/// Key of the printer whose sensors this manager holds now.
+[[nodiscard]] std::string active_printer_key() {
+    Config* config = Config::get_instance();
+    return config ? config->get_active_printer_id() : std::string();
+}
+
 } // namespace
 
 // ============================================================================
@@ -195,6 +202,16 @@ void FilamentSensorManager::on_entries_changed() {
         }
     }
     prune_vanished_locked(lanes_);
+}
+
+void FilamentSensorManager::on_printer_forgotten() {
+    // A reading kept for a later reconnect belongs to the printer left behind;
+    // the next printer may name a sensor the same and must not inherit it.
+    readings_.clear();
+    known_.clear();
+    pending_removal_toast_.clear();
+    observed_runouts_.clear();
+    initial_status_received_ = false;
 }
 
 void FilamentSensorManager::on_discovered(const PrinterDiscovery& /*hw*/) {
@@ -549,6 +566,58 @@ bool FilamentSensorManager::has_any_runout() const {
     }
 
     return false;
+}
+
+std::set<std::string> FilamentSensorManager::empty_runout_sensors_locked() const {
+    std::set<std::string> empty;
+    if (!master_enabled_) {
+        return empty;
+    }
+    for (const auto& sensor : entries_locked()) {
+        if (!monitors_runout(sensor)) {
+            continue;
+        }
+        auto* st = state(sensor.klipper_name);
+        if (st && st->available && !st->filament_detected) {
+            empty.insert(sensor.klipper_name);
+        }
+    }
+    return empty;
+}
+
+bool FilamentSensorManager::runout_sensor_reports_filament() const {
+    std::lock_guard<std::recursive_mutex> lock(mutex());
+    if (!master_enabled_) {
+        return false;
+    }
+    return std::any_of(entries_locked().begin(), entries_locked().end(),
+                       [this](const SensorEntry& sensor) {
+                           if (!monitors_runout(sensor)) {
+                               return false;
+                           }
+                           auto* st = state(sensor.klipper_name);
+                           return st && st->available && st->reported && st->filament_detected;
+                       });
+}
+
+void FilamentSensorManager::acknowledge_idle_runout() {
+    const std::string printer = active_printer_key();
+    std::lock_guard<std::recursive_mutex> lock(mutex());
+    auto empty = empty_runout_sensors_locked();
+    idle_runout_acknowledged_[printer].insert(empty.begin(), empty.end());
+}
+
+bool FilamentSensorManager::idle_runout_acknowledged() const {
+    const std::string printer = active_printer_key();
+    std::lock_guard<std::recursive_mutex> lock(mutex());
+    const auto acked = idle_runout_acknowledged_.find(printer);
+    if (acked == idle_runout_acknowledged_.end()) {
+        return false;
+    }
+    const auto empty = empty_runout_sensors_locked();
+    return !empty.empty() && std::all_of(empty.begin(), empty.end(), [&](const std::string& n) {
+        return acked->second.count(n) > 0;
+    });
 }
 
 bool FilamentSensorManager::has_real_runout() const {
@@ -1036,10 +1105,12 @@ void FilamentSensorManager::update_from_status(const json& status) {
     const auto sensor_announces = [this](const SensorEntry& s) {
         return master_enabled_ && s.enabled && filament_role(s) != FilamentSensorRole::NONE;
     };
+    const std::string printer = active_printer_key();
 
     // Phase 1: Update state under lock, collect notifications
     {
         std::lock_guard<std::recursive_mutex> lock(mutex());
+        auto acked = idle_runout_acknowledged_.find(printer);
 
         // Copy callback for use outside lock
         callback_copy = state_change_callback_;
@@ -1074,6 +1145,10 @@ void FilamentSensorManager::update_from_status(const json& status) {
             if (auto it = sensor_data.find("filament_detected");
                 it != sensor_data.end() && it->is_boolean()) {
                 state.filament_detected = it->get<bool>();
+                // Filament back on the sensor re-arms the idle dialog for it.
+                if (state.filament_detected && acked != idle_runout_acknowledged_.end()) {
+                    acked->second.erase(sensor.klipper_name);
+                }
             }
 
             // Firmware enabled flag: switch AND motion sensors both report it
