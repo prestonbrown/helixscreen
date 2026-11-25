@@ -7,13 +7,19 @@
 
 #include "../fake_moonraker_client.h"
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/backend_user_edit.h"
 #include "../test_helpers/filament_accounting_cases.h"
 #include "../ui_test_utils.h"
+#include "ams_backend_mock.h"
+#include "ams_state.h"
+#include "ams_types.h"
 #include "app_globals.h"
+#include "connection_state.h"
 #include "core/update_queue.h"
 #include "filament_accounting.h"
 #include "filament_accounting_controller.h"
 #include "helix_plugin_features.h"
+#include "json_utils.h"
 #include "moonraker_api.h"
 #include "printer_discovery.h"
 #include "printer_plugin_status_state.h"
@@ -21,6 +27,8 @@
 #include "tool_state.h"
 
 #include <algorithm>
+#include <ctime>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -358,6 +366,14 @@ TEST_CASE("filament accounting: who sets the spool for an explicit link of the l
 
 namespace {
 
+/// The get_item reply that holds @p record under the opt-ins key.
+json plugin_features_reply(const json& record) {
+    return json{{"result",
+                 {{"namespace", kPluginFeaturesNamespace},
+                  {"key", kPluginFeaturesKey},
+                  {"value", record}}}};
+}
+
 /// The controller against a fake Moonraker published as the app's.
 struct OptInsFx : LVGLUITestFixture {
     helix::test::FakeMoonrakerClient client;
@@ -383,10 +399,7 @@ struct OptInsFx : LVGLUITestFixture {
     }
 
     void read(const json& record) {
-        client.respond_to(
-            "server.database.get_item",
-            json{{"result",
-                  {{"namespace", "helix-screen"}, {"key", "plugin_features"}, {"value", record}}}});
+        client.respond_to("server.database.get_item", plugin_features_reply(record));
         controller->read_opt_ins();
         drain();
     }
@@ -439,4 +452,199 @@ TEST_CASE_METHOD(OptInsFx, "filament accounting: the fallback acts only on a rec
     drain();
     INFO("no record at all: on");
     CHECK(sender() == FilamentAccountingSender::App);
+}
+
+TEST_CASE_METHOD(OptInsFx,
+                 "filament accounting: each plugin probe reads the opt-ins as they are now",
+                 "[plugin_filament]") {
+    auto& status = get_printer_state().plugin_status_state();
+    const auto probe = [&status] {
+        lv_subject_set_int(status.get_helix_plugin_probe_seq_subject(),
+                           lv_subject_get_int(status.get_helix_plugin_probe_seq_subject()) + 1);
+    };
+
+    client.respond_to("server.database.get_item",
+                      plugin_features_reply(json{{kFilamentAccountingFeature, true}}));
+    probe();
+    drain();
+    INFO("a record switched on, read at the probe");
+    CHECK(sender() == FilamentAccountingSender::App);
+
+    client.respond_to("server.database.get_item",
+                      plugin_features_reply(json{{kFilamentAccountingFeature, false}}));
+    probe();
+    drain();
+    INFO("the user's false, set since the last probe");
+    CHECK(sender() == FilamentAccountingSender::None);
+}
+
+TEST_CASE_METHOD(OptInsFx,
+                 "filament accounting: a job start reads the opt-ins, an idle printer does not",
+                 "[plugin_filament]") {
+    client.respond_to("server.database.get_item",
+                      plugin_features_reply(json{{kFilamentAccountingFeature, true}}));
+    auto& print_active = get_printer_state().print_state();
+
+    lv_subject_set_int(print_active.get_print_active_subject(), 0);
+    drain();
+    INFO("no job running: the record stays unread");
+    CHECK(sender() == FilamentAccountingSender::None);
+
+    lv_subject_set_int(print_active.get_print_active_subject(), 1);
+    drain();
+    INFO("a job starts: the record is read");
+    CHECK(sender() == FilamentAccountingSender::App);
+}
+
+TEST_CASE_METHOD(OptInsFx, "filament accounting: a disconnect forgets the opt-ins read",
+                 "[plugin_filament]") {
+    read(json{{kFilamentAccountingFeature, true}});
+    REQUIRE(sender() == FilamentAccountingSender::App);
+
+    get_printer_state().set_printer_connection_state(
+        static_cast<int>(ConnectionState::DISCONNECTED), "");
+    drain();
+    INFO("the next connection's print reads the record again before the fallback acts");
+    CHECK(sender() == FilamentAccountingSender::None);
+}
+
+namespace {
+
+constexpr const char* kToolExtruders[] = {"extruder", "extruder1"};
+
+/// A printer with two tools, each on its own extruder, whose lanes hold the
+/// tools' spools: lane 0 maps to tool 0 with spool 11, lane 1 to tool 1 with
+/// spool 12. Spoolman's active spool is 11 and tool 0 is mounted. The
+/// controller is armed by a probe, which reads an opt-in record, and a job is
+/// running. @p remote makes this a screen off the printer's host, where a
+/// HelixScreen on the host announces itself.
+struct ToolChangeFx : OptInsFx {
+    helix::AmsBackendMock* backend = nullptr;
+
+    explicit ToolChangeFx(bool remote) {
+        auto& ps = get_printer_state();
+        ToolState& tools = ToolState::instance();
+        PrinterDiscovery hw;
+        hw.parse_objects(json::array({"extruder", "extruder1"}));
+        tools.init_tools(hw);
+        mount(0);
+
+        auto& ams = AmsState::instance();
+        ams.clear_backends();
+        auto m = std::make_unique<helix::AmsBackendMock>(4);
+        backend = m.get();
+        REQUIRE(ams.add_backend(std::move(m)) == 0);
+        for (int slot : {0, 1}) {
+            helix::SlotInfo lane = backend->get_slot_info(slot);
+            lane.material = "PLA";
+            lane.mapped_tool = slot;
+            lane.spoolman_id = 11 + slot;
+            helix::test::apply_edit(*backend, slot, lane);
+        }
+        // The tools print from their own extruders: the lanes only hold their spools.
+        REQUIRE(tools.tools().size() == 2);
+        REQUIRE(tools.tools()[1].backend_index == -1);
+        const auto lane = ams.lane_feeding_tool(1);
+        REQUIRE(lane.has_value());
+        REQUIRE(lane->slot == 1);
+        REQUIRE(lane->info.spoolman_id == 12);
+
+        ps.capabilities_state().set_spoolman_available(true);
+        ps.set_moonraker_is_remote(remote);
+        // The opt-ins are on, and a HelixScreen on the printer's host was seen just now.
+        client.respond_to("server.database.get_item", [](const json& params, const auto& ok,
+                                                         const auto&) {
+            const std::string key = json_util::safe_string(params, "key");
+            if (key == kPluginFeaturesKey) {
+                ok(plugin_features_reply(json{{kFilamentAccountingFeature, true}}));
+            } else if (key == kLocalScreenPresenceKey) {
+                ok(json{
+                    {"result",
+                     {{"namespace", kPluginFeaturesNamespace},
+                      {"key", kLocalScreenPresenceKey},
+                      {"value", json{{"seen_at", static_cast<int64_t>(std::time(nullptr))}}}}}});
+            }
+        });
+        client.respond_to("server.spoolman.status",
+                          json{{"result", {{"spoolman_connected", true}, {"spool_id", 11}}}});
+
+        lv_subject_set_int(ps.plugin_status_state().get_helix_plugin_probe_seq_subject(), 1);
+        lv_subject_set_int(ps.print_state().get_print_active_subject(), 1);
+        drain();
+        // What lets a tool change through to the switch: no plugin feature to
+        // do it, nobody else owning the switch, the opt-in read, this screen sending.
+        REQUIRE(ps.plugin_status_state().plugin_feature(kFilamentAccountingFeature,
+                                                        kFilamentAccountingMinVersion) ==
+                PluginFeatureState::Absent);
+        REQUIRE(
+            active_spool_owner_now(ps.is_spoolman_available(),
+                                   FilamentAccountingController::backends_manage_active_spool()) ==
+            ActiveSpoolOwner::Helix);
+        REQUIRE(sender() == FilamentAccountingSender::App);
+    }
+
+    ~ToolChangeFx() override {
+        controller.reset();
+        AmsState::instance().clear_backends();
+        drain();
+        // The tools this case mounted are process-wide: the next case's fixture brings its own up.
+        ToolState::instance().deinit_subjects();
+        auto& ps = get_printer_state();
+        ps.capabilities_state().set_spoolman_available(false);
+        ps.clear_moonraker_locality();
+    }
+
+    void mount(int tool) {
+        ToolState::instance().update_from_status(
+            {{"toolhead", {{"extruder", kToolExtruders[tool]}}}});
+        REQUIRE(ToolState::instance().active_tool_index() == tool);
+    }
+
+    /// Mount tool 1, and let the Spoolman replies and the deferred switch land.
+    void change_to_tool_1() {
+        mount(1);
+        drain();
+    }
+
+    /// How often this screen asked whether a HelixScreen is on the printer's host.
+    size_t presence_reads() const {
+        return static_cast<size_t>(std::count_if(
+            client.rpc_calls.begin(), client.rpc_calls.end(),
+            [](const helix::test::FakeMoonrakerClient::RpcCall& call) {
+                return call.method == "server.database.get_item" &&
+                       json_util::safe_string(call.params, "key") == kLocalScreenPresenceKey;
+            }));
+    }
+};
+
+struct SenderFx : ToolChangeFx {
+    SenderFx() : ToolChangeFx(/*remote=*/false) {}
+};
+
+struct StandbyFx : ToolChangeFx {
+    StandbyFx() : ToolChangeFx(/*remote=*/true) {}
+};
+
+} // namespace
+
+TEST_CASE_METHOD(SenderFx,
+                 "filament accounting: the fallback's sender switches to the new tool's spool",
+                 "[plugin_filament]") {
+    change_to_tool_1();
+
+    const auto* sent = client.last_rpc("server.spoolman.post_spool_id");
+    REQUIRE(sent != nullptr);
+    CHECK(json_util::safe_int(sent->params, "spool_id") == 12);
+}
+
+TEST_CASE_METHOD(
+    StandbyFx,
+    "filament accounting: a standby screen leaves the spool to the screen on the printer",
+    "[plugin_filament]") {
+    const size_t asked_before = presence_reads();
+    change_to_tool_1();
+    // The tool change got as far as asking who else is on the printer.
+    REQUIRE(presence_reads() > asked_before);
+
+    CHECK(client.rpc_count("server.spoolman.post_spool_id") == 0);
 }
