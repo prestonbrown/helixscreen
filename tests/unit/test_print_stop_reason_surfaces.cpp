@@ -20,6 +20,7 @@
 #include "core/update_queue.h"
 #include "display_wake_request.h"
 #include "moonraker_manager.h"
+#include "pa_tuning.h"
 #include "print_completion.h"
 #include "printer_state.h"
 
@@ -302,4 +303,45 @@ TEST_CASE_METHOD(StopReasonPanelFixture,
     lv_subject_set_int(cancelled, 0);
     settle();
     CHECK(lv_obj_is_hidden(corner) == hidden_before);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Completion modal: a PA tuner's tower ends on the tuner, not the modal",
+                 "[print_completion][pa_tuner]") {
+    auto& audio = AudioSettingsManager::instance();
+    const CompletionAlertMode saved_mode = audio.get_completion_alert_mode();
+    audio.set_completion_alert_mode(CompletionAlertMode::ALERT);
+    ObserverGuard completion = init_print_completion_observer();
+    const auto end_job = [this](const char* file, PrintJobState end) {
+        state().update_from_status({{"print_stats", {{"filename", file}}}});
+        test::set_wire_state(state(), PrintJobState::PRINTING);
+        UpdateQueue::instance().drain();
+        process_lvgl(400);
+        test::set_wire_state(state(), end);
+        UpdateQueue::instance().drain();
+        return ModalStack::instance().top_component_name();
+    };
+
+    // An ordinary print still gets its modal, so the cases below are not vacuous.
+    CHECK(end_job("benchy.gcode", PrintJobState::COMPLETE) == "print_completion_modal");
+    for (const char* file : {"PA tower", "helix_pa_tuning.gcode"}) {
+        for (const auto end : {PrintJobState::COMPLETE, PrintJobState::CANCELLED}) {
+            INFO(file << " " << static_cast<int>(end));
+            CHECK(end_job(file, end).empty());
+        }
+    }
+
+    completion.reset();
+    audio.set_completion_alert_mode(saved_mode);
+    test::set_wire_state(state(), PrintJobState::STANDBY);
+    UpdateQueue::instance().drain();
+}
+
+TEST_CASE("is_tuner_print names only the PA tuners' towers", "[pa_tuner]") {
+    CHECK(helix::pa::is_tuner_print("PA tower"));
+    CHECK(helix::pa::is_tuner_print("helix_pa_tuning.gcode"));
+    CHECK(helix::pa::is_tuner_print(".helix_temp/modified_helix_pa_tuning.gcode"));
+    CHECK_FALSE(helix::pa::is_tuner_print("benchy.gcode"));
+    CHECK_FALSE(helix::pa::is_tuner_print("PA tower calibration.gcode"));
+    CHECK_FALSE(helix::pa::is_tuner_print(""));
 }

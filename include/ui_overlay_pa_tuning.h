@@ -85,7 +85,7 @@ class PaTuningOverlay : public OverlayBase {
 
     /// Generated file name in the gcodes root. One fixed name: a re-run
     /// overwrites the last test instead of littering the file list.
-    static constexpr const char* TEST_FILENAME = "helix_pa_tuning.gcode";
+    static constexpr const char* TEST_FILENAME = helix::pa::kTunerTowerFile;
 
     enum Stage : int {
         SETUP = 0,

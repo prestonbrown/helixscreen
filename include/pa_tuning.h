@@ -37,6 +37,15 @@ float clamp_k(float k);
 /// K formatted the way tuning guides and slicers quote it: four decimals.
 std::string format_k(float k);
 
+/// The file the linear tuner uploads and prints its tower from.
+inline constexpr const char* kTunerTowerFile = "helix_pa_tuning.gcode";
+/// The print_stats filename the firmware's own tower (PRINT_PA_TOWER) prints under.
+inline constexpr const char* kFirmwareTowerPrintName = "PA tower";
+
+/// Whether @p filename is a tower one of the PA tuners prints. The tuner shows
+/// that print's end itself, so the ordinary completion alert stays out of it.
+bool is_tuner_print(std::string_view filename);
+
 /// The command that sets K on one extruder. smooth_time is left alone.
 std::string set_pa_gcode(const std::string& extruder, float k);
 

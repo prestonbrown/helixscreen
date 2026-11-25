@@ -82,7 +82,7 @@ const char* nonlinear_param_label(helix::pa::NlParam p);
 class PaNonlinearOverlay : public OverlayBase {
   public:
     /// The print_stats filename the firmware's tower prints under.
-    static constexpr const char* kTowerPrintName = "PA tower";
+    static constexpr const char* kTowerPrintName = helix::pa::kFirmwareTowerPrintName;
     /// How long after PRINT_PA_TOWER returns the tower must be printing.
     static constexpr uint32_t kTowerStartTimeoutMs = 30000;
     /// How long a start the printer never answered may still turn into a tower.
