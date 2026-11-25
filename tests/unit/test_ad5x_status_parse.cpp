@@ -3,6 +3,7 @@
 #include "ad5x_status_parse.h"
 
 #include <array>
+#include <csignal>
 #include <cstdio>
 #include <string>
 #include <sys/wait.h>
@@ -183,6 +184,7 @@ TEST_CASE("AD5X ifs module object ignores a loaded channel outside 1..kDefaultPo
         std::fflush(nullptr);
         const pid_t pid = fork();
         if (pid == 0) {
+            std::signal(SIGSEGV, SIG_DFL); // Catch2's handler would report instead of dying
             const auto obj = ad5x::parse_ifs_module_object(far_out);
             const bool nothing_marked =
                 obj.loaded_ports && *obj.loaded_ports == std::array<bool, ad5x::kDefaultPorts>{};
@@ -191,6 +193,7 @@ TEST_CASE("AD5X ifs module object ignores a loaded channel outside 1..kDefaultPo
         REQUIRE(pid > 0);
         int status = 0;
         REQUIRE(waitpid(pid, &status, 0) == pid);
+        INFO("the child ended by signal " << (WIFSIGNALED(status) ? WTERMSIG(status) : 0));
         REQUIRE(WIFEXITED(status));
         CHECK(WEXITSTATUS(status) == 0);
     }
