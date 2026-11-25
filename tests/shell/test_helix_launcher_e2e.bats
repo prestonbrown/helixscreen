@@ -240,7 +240,7 @@ MOCKEOF
     export HELIX_EGL_PROBE_SECS=2
     local p secs
     p=$(path_without_timeout)
-    ! PATH="$p" command -v timeout
+    [ ! -e "${p##*:}/timeout" ]
 
     secs=$(run_launcher_timed "$p")
     run cat "$MOCK_INSTALL/helix_screen_backend.txt"

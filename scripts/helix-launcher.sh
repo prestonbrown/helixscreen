@@ -1939,7 +1939,11 @@ while :; do
         RB_CHILD_PID=""
         RB_GUARDING=0
         if [ "${HELIX_SHUTTING_DOWN:-0}" = "1" ]; then
-            log "Stopped during the rollback window; the guard resumes on the next start"
+            if helix_rollback_marker_present; then
+                log "Stopped during the rollback window; the guard resumes on the next start"
+            else
+                log "Stopped after v${RB_TO} passed the rollback guard"
+            fi
             break
         fi
         if [ -f "$(helix_rollback_file handoff)" ]; then

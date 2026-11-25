@@ -212,6 +212,25 @@ sleep 4; rm -f '$HELIX_ROLLBACK_DIR/update_rollback.busy'; sleep 30"
     [ -d "$PREVIOUS" ]
     [ -e "$HELIX_ROLLBACK_DIR/update_rollback.armed" ]
     [ ! -e "$HELIX_ROLLBACK_DIR/update_rollback.result" ]
+    grep -q 'Stopped during the rollback window' "$BATS_TEST_TMPDIR/launcher.log"
+}
+
+@test "rollback: a stop after the guard passed says so, not that the window was interrupted" {
+    set_app "$INSTALL" "touch '$HELIX_ROLLBACK_DIR/update_rollback.healthy'; sleep 30"
+    arm
+    export HELIX_ROLLBACK_WINDOW=60
+    sh "$INSTALL/bin/helix-launcher.sh" >"$BATS_TEST_TMPDIR/launcher.log" 2>&1 &
+    local pid=$! i=0
+    until grep -q 'is healthy' "$BATS_TEST_TMPDIR/launcher.log" || [ "$i" -ge 100 ]; do
+        sleep 0.1
+        i=$((i + 1))
+    done
+    kill -TERM "$pid"
+    wait "$pid" || true
+    grep -q 'is healthy' "$BATS_TEST_TMPDIR/launcher.log"
+    run grep -c 'Stopped during the rollback window' "$BATS_TEST_TMPDIR/launcher.log"
+    [ "$output" = "0" ]
+    grep -q 'Stopped after v1.1.0 passed the rollback guard' "$BATS_TEST_TMPDIR/launcher.log"
 }
 
 @test "rollback: a broken launcher in the new tree is rolled back too" {

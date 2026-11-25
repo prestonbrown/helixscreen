@@ -52,6 +52,17 @@ setup() {
 
 # --- Cross-architecture mismatch tests ---
 
+@test "validate_binary_architecture: cc1 is validated as ARM 32-bit" {
+    local binary="$BATS_TEST_TMPDIR/helix-screen"
+    create_fake_arm32_elf "$binary"
+    run validate_binary_architecture "$binary" "cc1"
+    [ "$status" -eq 0 ]
+
+    create_fake_aarch64_elf "$binary"
+    run validate_binary_architecture "$binary" "cc1"
+    [ "$status" -eq 1 ]
+}
+
 @test "validate_binary_architecture: AARCH64 binary FAILS for ad5m" {
     local binary="$BATS_TEST_TMPDIR/helix-screen"
     create_fake_aarch64_elf "$binary"
