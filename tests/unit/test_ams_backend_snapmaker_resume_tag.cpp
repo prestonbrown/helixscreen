@@ -115,6 +115,29 @@ TEST_CASE("Snapmaker Resume trusts a hand push over a feeder that reports a fail
     CHECK(answer->success());
 }
 
+TEST_CASE("Snapmaker restart forgets which heads the last session saw fed by hand",
+          "[ams][snapmaker][resume][load_unconfirmed]") {
+    HelixTestFixture fixture;
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+
+    // The last session saw a hand push feed head 0 past its empty port. The
+    // filament then left the toolhead before the link came back.
+    backend.fire_status(feeder_over_empty_port("load_fail"));
+    backend.fire_status(kHead0SwitchOn);
+    REQUIRE(backend.head_filament_ops(0).load == FilamentOpSupport::Manual);
+    backend.fire_status(
+        json{{"filament_motion_sensor e0_filament", {{"filament_detected", false}}}});
+
+    backend.stop();
+    REQUIRE(backend.start().success());
+    helix::ui::UpdateQueue::instance().drain();
+
+    // This session's first frame finds the port and the toolhead both empty, so
+    // nothing says the head was fed by hand: its feeder answers for it again.
+    backend.fire_status(feeder_over_empty_port("wait_insert"));
+    CHECK(backend.head_filament_ops(0).load == FilamentOpSupport::Automatic);
+}
+
 TEST_CASE("Snapmaker reader naming no tag keeps tag-read values while the lane's edit is out",
           "[ams][snapmaker][rfid][filament_slot_override]") {
     HelixTestFixture fixture;
