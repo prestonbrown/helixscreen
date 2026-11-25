@@ -7,6 +7,8 @@ import { HANG_HOST_MEMORY_LOW_MB, HANG_SNAPSHOT_WINDOW_SEC, HANG_UPLOAD_BATCH_SE
 import { fetchHealth } from "../health_source";
 import { afterEach, vi } from "vitest";
 import { hangEventsSql, hangSnapshotsSql, windowClause, HEALTH_WINDOWS, SQL_FALSE } from "../queries";
+import { col } from "../schema";
+import { hangRowOf } from "../health";
 
 const HANG_UPTIME = 100_000;
 const T0 = Date.UTC(2026, 10, 21, 12, 0, 0);
@@ -17,6 +19,8 @@ const hang = (over: Partial<HangRow> = {}): HangRow => ({
   uptimeSec: HANG_UPTIME,
   memAvailableMb: null,
   pressure: "",
+  mainState: "",
+  mainWchan: "",
   weight: 1,
   ...over,
 });
@@ -286,5 +290,19 @@ describe("hang queries", () => {
   });
   it("leaves out snapshots written before the column existed", () => {
     expect(hangSnapshotsSql(["a1"], [0, 15])).toContain("double6 > 0");
+  });
+  it("reads each hang's main thread state and wait channel", () => {
+    const sql = hangEventsSql(HEALTH_WINDOWS.cur);
+    expect(sql).toContain(`${col("error_encountered", "main_state")} as state`);
+    expect(sql).toContain(`${col("error_encountered", "main_wchan")} as wchan`);
+  });
+});
+
+describe("hangRowOf", () => {
+  it("reads a hang's main thread state and wait channel, and an absent or empty one as empty", () => {
+    const row = { device: "d1", at: T0 / 1000, uptime: HANG_UPTIME, mem: 501, weight: 1 };
+    expect(hangRowOf({ ...row, state: "S", wchan: "futex" })).toMatchObject({ mainState: "S", mainWchan: "futex" });
+    expect(hangRowOf({ ...row, state: "", wchan: "" })).toMatchObject({ mainState: "", mainWchan: "" });
+    expect(hangRowOf(row)).toMatchObject({ mainState: "", mainWchan: "" });
   });
 });

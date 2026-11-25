@@ -159,6 +159,24 @@ const STATUS_ORDER = { new: 0, rising: 1, steady: 2 } as const;
 const ALL_REPORTED: NotApplicable<HealthBlock> = { crashes: null, errors: null, prints: null, updates: null };
 
 /**
+ * The HangRow of one row of the hang rows query (`queries.ts#hangEventsSql`). `mem` is stored
+ * + 1, so 0 is a hang that carried none; a column the report left empty reads as "" or 0.
+ */
+export function hangRowOf(x: RawRow): HangRow {
+  const mem = num(x.mem);
+  return {
+    device: str(x.device),
+    at: num(x.at) * 1000,
+    uptimeSec: num(x.uptime),
+    memAvailableMb: mem > 0 ? mem - 1 : null,
+    pressure: str(x.pressure),
+    mainState: str(x.state),
+    mainWchan: str(x.wchan),
+    weight: num(x.weight) || 1,
+  };
+}
+
+/**
  * Folds the health query rows into the payload. `today` is the UTC day
  * (YYYY-MM-DD) whose partial row the data-health block ignores;
  * `notApplicable` names, per block, a filter its kinds cannot carry.
@@ -193,25 +211,14 @@ export function buildHealth(
   }
   const risesBeyondOneDevice = (cur: number, devices: number, topDevice: number): boolean =>
     devices >= RISING_MIN_DEVICES && topDevice <= RISING_MAX_DEVICE_SHARE * cur;
-  const toHangRow = (x: RawRow): HangRow => {
-    const mem = num(x.mem);
-    return {
-      device: str(x.device),
-      at: num(x.at) * 1000,
-      uptimeSec: num(x.uptime),
-      memAvailableMb: mem > 0 ? mem - 1 : null,
-      pressure: str(x.pressure),
-      weight: num(x.weight) || 1,
-    };
-  };
   const snapshots: MemSnapshot[] = r("hang_snapshots").map((x) => ({
     device: str(x.device),
     at: num(x.at) * 1000,
     uptimeSec: num(x.uptime),
     availableMb: num(x.available) - 1,
   }));
-  const hangsCur = classifyHangs(r("hangs_cur").map(toHangRow), snapshots);
-  const hangsPrev = classifyHangs(r("hangs_prev").map(toHangRow), snapshots);
+  const hangsCur = classifyHangs(r("hangs_cur").map(hangRowOf), snapshots);
+  const hangsPrev = classifyHangs(r("hangs_prev").map(hangRowOf), snapshots);
   const appBlocked = (hs: ClassifiedHang[]) => hs.filter((h) => h.cause === "app_blocked");
   const errors = r("errors_cur")
     .filter((x) => num(x.count) > 0)

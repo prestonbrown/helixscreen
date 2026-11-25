@@ -123,6 +123,8 @@ describe("POINT_KINDS table", () => {
           "device_id": "blob1",
           "gl_renderer": "blob14",
           "gl_software": "blob15",
+          "main_state": "blob18",
+          "main_wchan": "blob19",
           "major_faults": "double11",
           "mem_available_mb": "double10",
           "pressure_level": "blob17",

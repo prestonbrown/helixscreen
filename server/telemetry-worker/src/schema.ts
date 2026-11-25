@@ -731,6 +731,10 @@ const KINDS: PointKind[] = [
     blob(15, "gl_software", triState(flat("gl_software"))),
     blob(16, "active_overlay"),
     blob(17, "pressure_level"),
+    // A main_loop_hang names the main thread's scheduler state (one letter) and wait channel;
+    // other errors, and builds that send neither, leave these empty.
+    blob(18, "main_state"),
+    blob(19, "main_wchan"),
     dbl(1, "uptime_sec"),
     // A main_loop_hang's doubles, each stored + 1 (0 = absent): panel 0 is
     // Home, and 0 MB available or 0 major faults are real readings.

@@ -16,6 +16,9 @@ export interface HangRow {
   memAvailableMb: number | null;
   /** The client's pressure level ("none", "elevated", "warning", "critical"), or "" when absent. */
   pressure: string;
+  /** The main thread's scheduler state (one letter) and wait channel at the stall; each is "" when the report does not carry it. */
+  mainState: string;
+  mainWchan: string;
   /** Rows the stored row stands for under sampling. */
   weight: number;
 }

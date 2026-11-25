@@ -745,12 +745,12 @@ those explicitly, so the stamped `app_version` never overwrites the update's tar
 | `screensaver_usage` | Screensaver delta for one window | boot_id, snapshot_seq, saver_shown_sec.*, saver_starts.*, saver_woke_by_touch.*, saver_stopped_other.*, saver_too_heavy.*, saver_settled_levels.* |
 | `connection_stability` | Connection delta for one window | boot_id, snapshot_seq, session_duration_sec, connect_count, disconnect_count, total_connected_sec, total_disconnected_sec, longest_disconnect_sec, klippy_error_count, klippy_shutdown_count |
 | `print_start_context` | Print metadata at start | source, has_thumbnail, file_size_bucket, slicer, ams_active |
-| `error_encountered` | Rate-limited error log | category, code, context, uptime_sec; `ui`/`main_loop_hang` adds active_panel, active_overlay, gl_renderer, gl_software, mem_available_mb, pressure_level, major_faults |
+| `error_encountered` | Rate-limited error log | category, code, context, uptime_sec; `ui`/`main_loop_hang` adds active_panel, active_overlay, gl_renderer, gl_software, mem_available_mb, pressure_level, major_faults, main_state, main_wchan |
 | `performance_snapshot` | Frame-time percentiles and dropped-frame counts for the window | frame_time_p50/p95/p99_ms, dropped_frame_count, total_frame_count, worst_panel, gl_renderer + gl_software (once a GL context has existed) |
 | `settings_changes` | Batched setting diffs | changes[]: setting, old_value, new_value |
 | `async_lifetime_skips` | Deferred async work skipped at shutdown | skips[], window stats |
 
-A `main_loop_hang`'s three doubles in Analytics Engine are stored as the value **plus one**, so that 0 means absent: the writer stores a missing double as 0, and Home is panel 0. `double9` is `active_panel + 1` (0 for every other error, and for a hang before any panel was shown, which the client sends as -1), `double10` is `mem_available_mb + 1`, `double11` is `major_faults + 1`. A query keeps the rows where the column is above 0 and subtracts one. R2 keeps the raw values.
+A `main_loop_hang`'s three doubles in Analytics Engine are stored as the value **plus one**, so that 0 means absent: the writer stores a missing double as 0, and Home is panel 0. `double9` is `active_panel + 1` (0 for every other error, and for a hang before any panel was shown, which the client sends as -1), `double10` is `mem_available_mb + 1`, `double11` is `major_faults + 1`. A query keeps the rows where the column is above 0 and subtracts one. R2 keeps the raw values. `main_state` and `main_wchan` (`blob18`, `blob19`) are the main thread's scheduler state and wait channel during the stall; a build that sends neither leaves both empty.
 
 ### Event Trigger Summary
 
