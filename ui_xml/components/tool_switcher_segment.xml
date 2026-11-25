@@ -58,6 +58,9 @@
         flex_flow="column" style_pad_all="0" style_pad_gap="0" style_radius="0" style_border_width="0" clickable="true"
         scrollable="false">
     <bind_style_prop prop="width" subject="${size}_w"/>
+    <!-- A flex-grown cell (width not a base size) keeps this much: a row with more cells
+         than fit overflows and scrolls instead of squeezing the labels away. -->
+    <bind_style_prop prop="min_width" subject="${size}_w"/>
     <bind_style_prop prop="height" subject="${size}_h"/>
     <style name="seg_idle"/>
     <style name="styles.press_wash" selector="pressed"/>

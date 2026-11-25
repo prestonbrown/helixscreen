@@ -81,6 +81,11 @@ const HeadFilament kNoFilament{};
 /// A compact row cell's height.
 constexpr int kCompactRowCellPx = 40;
 
+/// The narrowest a row cell gets. Cells share the row's width above this; a row of
+/// more heads than fit at this width scrolls sideways instead of squeezing the
+/// labels away.
+constexpr int kRowCellMinWidthPx = 40;
+
 /// Heads at or above this read hot (decidegrees).
 constexpr int kHotDeci = 1500;
 
@@ -139,16 +144,17 @@ void ToolHeadsModel::init_subjects() {
                            "tool_row_band_h", subjects_);
     // Always 0: a row cell holds one line and never disables.
     UI_MANAGED_SUBJECT_INT(row_off_subject_, 0, "tool_row_off", subjects_);
-    // A row cell's size: flex shares the row's width, so the width stays 0;
+    // A row cell's size: flex shares the row's width above the minimum width;
     // the height is one touch target.
-    UI_MANAGED_SUBJECT_INT(row_cell_w_subject_, 0, "tool_row_cell_w",
+    UI_MANAGED_SUBJECT_INT(row_cell_w_subject_, kRowCellMinWidthPx, "tool_row_cell_w",
                            subjects_); // SUBJECT_OK: bound as ${size}_w by tool_switcher_segment
     UI_MANAGED_SUBJECT_INT(row_cell_h_subject_, resolve_px_token("touch_target_min", 48),
                            "tool_row_cell_h",
                            subjects_); // SUBJECT_OK: bound as ${size}_h by tool_switcher_segment
     // The compact cell a short portrait column uses, a little under a touch
     // target, as the Filament panel's portrait rows are.
-    UI_MANAGED_SUBJECT_INT(row_compact_cell_w_subject_, 0, "tool_row_compact_cell_w",
+    UI_MANAGED_SUBJECT_INT(row_compact_cell_w_subject_, kRowCellMinWidthPx,
+                           "tool_row_compact_cell_w",
                            subjects_); // SUBJECT_OK: bound as ${size}_w by tool_switcher_segment
     UI_MANAGED_SUBJECT_INT(row_compact_cell_h_subject_, kCompactRowCellPx,
                            "tool_row_compact_cell_h",
