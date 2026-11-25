@@ -5,6 +5,7 @@
 #include "gcode_parser.h"
 #include "gcode_selection_style.h"
 
+#include <cmath>
 #include <glm/gtc/matrix_transform.hpp>
 #include <limits>
 #include <optional>
@@ -181,6 +182,49 @@ TEST_CASE("Geometry Builder: RibbonGeometry - construction and destruction",
     REQUIRE(geometry.strip_color_index.empty());
     REQUIRE(geometry.color_palette.empty());
     REQUIRE(geometry.color_cache != nullptr);
+}
+
+/// Inverse of PackedVertex::encode_normal (the vertex shader's oct_decode).
+glm::vec3 decode_normal(const int8_t enc[2]) {
+    glm::vec3 n(enc[0] / 127.0f, enc[1] / 127.0f, 0.0f);
+    n.z = 1.0f - std::abs(n.x) - std::abs(n.y);
+    if (n.z < 0.0f) {
+        const float sx = n.x >= 0.0f ? 1.0f : -1.0f;
+        const float sy = n.y >= 0.0f ? 1.0f : -1.0f;
+        const float x = (1.0f - std::abs(n.y)) * sx;
+        n.y = (1.0f - std::abs(n.x)) * sy;
+        n.x = x;
+    }
+    return glm::normalize(n);
+}
+
+// A bead is wide and flat (a 0.506 mm first-layer line is 0.2 mm tall). Lit
+// with normals pointing radially out from the tube's centre, the band of its top
+// surface either side of the crest tilts 70-80 degrees and draws the seam
+// between neighbouring lines black. The surface itself tilts far less there.
+TEST_CASE("Geometry Builder: a flat bead's normals follow its surface, not its centre",
+          "[gcode][geometry][ribbon]") {
+    GeometryBuilder builder;
+    builder.set_layer_height(0.2f);
+    builder.set_budget_tube_sides(16);
+    RibbonGeometry geometry = builder.build(
+        file_of({{0.2f, {extrusion({0, 0, 0.2f}, {10, 0, 0.2f}, FeatureType::Unknown, 0.506f)}}}),
+        merging(false));
+    REQUIRE_FALSE(geometry.vertices.empty());
+
+    // Along +X, the cross-section lies in the Y-Z plane; caps face along X.
+    int upper_side = 0;
+    for (const auto& v : geometry.vertices) {
+        const glm::vec3 n = decode_normal(v.normal);
+        if (std::abs(n.x) > 0.5f || n.z <= 0.05f) {
+            continue; // a cap, or the lower half or the bead's very side
+        }
+        ++upper_side;
+        const float tilt_deg = glm::degrees(std::acos(std::min(1.0f, n.z)));
+        INFO("normal " << n.x << "," << n.y << "," << n.z);
+        CHECK(tilt_deg < 50.0f);
+    }
+    CHECK(upper_side > 0);
 }
 
 TEST_CASE("Geometry Builder: RibbonVertex is 8 bytes", "[gcode][geometry][ribbon]") {
