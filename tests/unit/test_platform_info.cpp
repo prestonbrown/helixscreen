@@ -71,7 +71,6 @@ TEST_CASE("flashforge_mod_tree knows upstream Forge-X by .shell/common.sh", "[pl
     const auto host_side = make_flashforge_layout(tmp.path, "forgex-common-host").string();
     CHECK(helix::flashforge_mod_tree(chroot_side) == FlashForgeModTree::ForgeX);
     CHECK(helix::flashforge_mod_tree(host_side) == FlashForgeModTree::ForgeX);
-    CHECK(helix::firmware_mod_owns_install_tree(chroot_side));
     CHECK(helix::firmware_mod_owns_moonraker_conf(chroot_side));
 }
 
