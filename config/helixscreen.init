@@ -56,6 +56,31 @@ if [ ! -d "$RUN_DIR" ]; then
 fi
 PIDFILE="${RUN_DIR}/${NAME}.pid"
 SPLASH_PIDFILE="${RUN_DIR}/helix-splash.pid"
+
+# PIDs of the processes named $1, space-separated; exits 1 when there are none,
+# as pidof does. Mod chroots such as Z-Mod's ship no pidof, and a missing pidof
+# would read as "nothing running" to every check below, so stop would leave
+# the watchdog and app up. Without it, the process table is read directly by
+# /proc/<pid>/comm, an exact match with no fork per process: every name this
+# script looks up fits comm's 15 characters. HELIX_PROC_ROOT is the test seam.
+helix_pids() {
+    if command -v pidof >/dev/null 2>&1; then
+        pidof "$1"
+        _hp_rc=$?
+        [ "$_hp_rc" -ne 127 ] && return "$_hp_rc"
+    fi
+    _hp_found=""
+    for _hp_dir in "${HELIX_PROC_ROOT:-/proc}"/[0-9]*; do
+        _hp_pid=${_hp_dir##*/}
+        [ "$_hp_pid" = "$$" ] && continue
+        # A process that exits mid-scan takes its comm with it.
+        { IFS= read -r _hp_comm < "$_hp_dir/comm"; } 2>/dev/null || continue
+        [ "$_hp_comm" = "$1" ] || continue
+        _hp_found="${_hp_found:+$_hp_found }$_hp_pid"
+    done
+    [ -n "$_hp_found" ] || return 1
+    echo "$_hp_found"
+}
 # LOGFILE captures launcher shell echoes + crash stderr from inside the daemon
 # supervisor subshell. spdlog handles the structured app log via syslog.
 #
@@ -234,9 +259,9 @@ start() {
     # usually cleared the framebuffer already. Let a dying process finish
     # before believing it is healthy. Costs nothing when nothing is running,
     # which covers boot and any restart after a clean stop.
-    if pidof "$DAEMON_NAME" >/dev/null 2>&1; then
+    if helix_pids "$DAEMON_NAME" >/dev/null 2>&1; then
         _exit_waited=0
-        while pidof "$DAEMON_NAME" >/dev/null 2>&1; do
+        while helix_pids "$DAEMON_NAME" >/dev/null 2>&1; do
             [ "$_exit_waited" -ge 3 ] && break
             sleep 1
             _exit_waited=$((_exit_waited + 1))
@@ -254,15 +279,15 @@ start() {
 
     if [ -f "$PIDFILE" ]; then
         PID=$(cat "$PIDFILE")
-        if kill -0 "$PID" 2>/dev/null && pidof "$DAEMON_NAME" >/dev/null 2>&1; then
+        if kill -0 "$PID" 2>/dev/null && helix_pids "$DAEMON_NAME" >/dev/null 2>&1; then
             echo "$NAME is already running (PID $PID)"
             return 0
         fi
         rm -f "$PIDFILE"
     fi
     # Catch the no-PIDFILE-but-running case (e.g., started outside this script)
-    if pidof "$DAEMON_NAME" >/dev/null 2>&1; then
-        RUNNING_PID=$(pidof "$DAEMON_NAME" | awk '{print $1}')
+    if helix_pids "$DAEMON_NAME" >/dev/null 2>&1; then
+        RUNNING_PID=$(helix_pids "$DAEMON_NAME" | awk '{print $1}')
         echo "$NAME is already running (PID $RUNNING_PID, no PID file)"
         return 0
     fi
@@ -375,9 +400,9 @@ stop() {
     # unblocks the launcher, which then runs its own cleanup trap and leaves on
     # its own. That also turns this into a clean shutdown instead of a SIGKILL,
     # so buffered log output survives rather than being lost with the process.
-    _wd_pids=$(pidof "$WATCHDOG_NAME" 2>/dev/null || true)
+    _wd_pids=$(helix_pids "$WATCHDOG_NAME" 2>/dev/null || true)
     if [ -n "$_wd_pids" ]; then
-        # shellcheck disable=SC2086  # intentional word splitting: pidof may list several
+        # shellcheck disable=SC2086  # intentional word splitting: helix_pids may list several
         kill $_wd_pids 2>/dev/null || true
     fi
     unset _wd_pids
@@ -409,7 +434,7 @@ stop() {
     # promptly (splash handoff, blocked I/O). The *_NAME values were resolved
     # at the top of stop().
     for proc in "$WATCHDOG_NAME" "$DAEMON_NAME" "$SPLASH_NAME"; do
-        pids=$(pidof "$proc" 2>/dev/null || true)
+        pids=$(helix_pids "$proc" 2>/dev/null || true)
         [ -n "$pids" ] || continue
         # shellcheck disable=SC2086
         kill $pids 2>/dev/null || true
@@ -417,7 +442,7 @@ stop() {
     # Give caught-SIGTERM handlers a moment, then SIGKILL any survivors.
     sleep 1
     for proc in "$WATCHDOG_NAME" "$DAEMON_NAME" "$SPLASH_NAME"; do
-        pids=$(pidof "$proc" 2>/dev/null || true)
+        pids=$(helix_pids "$proc" 2>/dev/null || true)
         [ -n "$pids" ] || continue
         # shellcheck disable=SC2086
         kill -9 $pids 2>/dev/null || true
@@ -448,12 +473,10 @@ status() {
     fi
 
     # Check if running without PID file
-    if command -v pidof >/dev/null 2>&1; then
-        PID=$(pidof "$(basename "$DAEMON")" 2>/dev/null)
-        if [ -n "$PID" ]; then
-            echo "$NAME is running (PID $PID) [no PID file]"
-            return 0
-        fi
+    PID=$(helix_pids "$(basename "$DAEMON")" 2>/dev/null)
+    if [ -n "$PID" ]; then
+        echo "$NAME is running (PID $PID) [no PID file]"
+        return 0
     fi
 
     echo "$NAME is not running"

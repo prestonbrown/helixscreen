@@ -578,6 +578,15 @@ A platform class gets Install overnight only after this plan passes on one of it
 
 Afterwards the printer went back to the v1.1.0 tree it had, byte for byte (binary md5 matched), with its settings, Beta channel, env, telemetry and diagnostic uploads as before. `moonraker.conf` and `user.moonraker.conf` were unchanged. It rebooted to v1.1.0 under the chroot's init, and thelio's key logged in over ssh. The chroot has no `/etc/localtime`, so the app there logs in UTC.
 
+**AD5X under Forge-X and Creator 5 Pro under Z-Mod (2026-11-25).** Both are mod payloads on the shared `mips` key, so the plan's R1-R9 do not apply, and the check is that Install overnight stays off. Both had HelixScreen 1.1.0-rc.3. An origin/main 9e17c82fe8 `mips` tree, with `HELIX_LOG_LEVEL=debug`, ran from the chroot's init: on the AD5X (192.168.30.254) that was `S80helixscreen` in `/usr/data/.mod/.forge-x`, with the app at `/opt/config/mod_data/helixscreen`; on the Creator 5 Pro it was the tree's own `config/helixscreen.init` in `/usr/data/.mod/.zmod`, with the app at `/srv/helixscreen`. `HELIX_ROLLBACK_DIR` and `HELIX_SUPERVISED` were set on both:
+
+| Board | Diagnostics | `[UpdateRollback] Automatic-update rollback:` | Install overnight |
+|---|---|---|---|
+| AD5X | `mips / ad5x (Forge-X)` | `platform` | Hidden |
+| Creator 5 Pro | `mips / creator5-pro (ZMOD)` | `platform` | Hidden |
+
+The reason reads `platform` rather than `mod_payload` because `rollback_support()` consults the allow-list first, and neither board has a row. Both installs are mod payloads all the same, so adding a row would read `mod_payload` and stay off. Both printers went back to their rc.3 trees byte for byte, with config and Moonraker files unchanged, and were rebooted. The Creator 5 Pro came back from that reboot at 192.168.30.131.
+
 | Run | New version | Expected |
 |---|---|---|
 | R1 launch failure | A static ELF for the platform that exits 1 | The watchdog backs off (3, 6, 12, 24, 48 s) and exits 42 after about 95 s; restored, reason `exit_42` |

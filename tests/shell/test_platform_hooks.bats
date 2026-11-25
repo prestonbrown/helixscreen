@@ -680,3 +680,56 @@ _forgex_wait_in_chroot() {
     [ "$status" -eq 0 ]
     [ -z "$output" ] || fail "unexpected output: $output"
 }
+
+# Z-Mod's S80guppyscreen delegates start and stop to S80helixscreen when
+# HelixScreen is the display, so calling its stop from our start would stop the
+# running HelixScreen. The fixtures are one delegating init, one that only
+# names S80helixscreen in a comment, and one plain competing UI.
+_guppy_inits() { # dir
+    mkdir -p "$1/initd"
+    printf '#!/bin/sh\n[ $HELIX -eq 1 ] && /etc/init.d/S80helixscreen "$1"\necho "$1" >> "%s/delegating.log"\n' "$1" > "$1/initd/S80guppyscreen"
+    printf '#!/bin/sh\n# not S80helixscreen\necho "$1" >> "%s/mention.log"\n' "$1" > "$1/initd/S81guppyscreen"
+    printf '#!/bin/sh\necho "$1" >> "%s/plain.log"\n' "$1" > "$1/initd/S82GuppyScreen"
+    chmod +x "$1/initd/"S8*
+}
+
+@test "zmod hooks leave a Guppy init that delegates to S80helixscreen alone and end guppyscreen by process" {
+    local hook d
+    for hook in hooks-ad5x.sh hooks-ad5m-zmod.sh; do
+        d="$BATS_TEST_TMPDIR/$hook"
+        _guppy_inits "$d"
+        mock_command_script "killall" "echo \"\$*\" >> '$d/killall.log'"
+        mock_command_script "sleep" 'exit 0'
+
+        HELIX_INITD_DIR="$d/initd" run sh -c ". '$HOOKS_DIR/$hook'; platform_stop_competing_uis"
+
+        [ "$status" -eq 0 ] || fail "$hook: $output"
+        [ ! -e "$d/delegating.log" ] || fail "$hook stopped the init that delegates to S80helixscreen"
+        [ "$(cat "$d/mention.log" 2>/dev/null)" = stop ] || fail "$hook skipped an init that only mentions S80helixscreen"
+        [ "$(cat "$d/plain.log" 2>/dev/null)" = stop ] || fail "$hook did not stop a plain competing UI"
+        grep -qx guppyscreen "$d/killall.log" || fail "$hook never ended guppyscreen by process"
+    done
+}
+
+# A mod chroot without killall: the hook ends guppyscreen through the init
+# script's helix_pids. The copy names a killall that cannot exist, since the
+# suite's sandbox keeps a killall on PATH.
+@test "zmod hooks without killall end guppyscreen through helix_pids" {
+    local hook d
+    for hook in hooks-ad5x.sh hooks-ad5m-zmod.sh; do
+        d="$BATS_TEST_TMPDIR/$hook"
+        _guppy_inits "$d"
+        sed 's/command -v killall/command -v killall_absent_in_this_test/' \
+            "$HOOKS_DIR/$hook" > "$d/hook.sh"
+        mock_command_script "sleep" 'exit 0'
+
+        HELIX_INITD_DIR="$d/initd" run sh -c "
+            helix_pids() { echo \"\$1\" >> '$d/lookups.log'; [ \"\$1\" = guppyscreen ] && echo 999999; }
+            kill() { echo \"\$*\" >> '$d/kills.log'; }
+            . '$d/hook.sh'; platform_stop_competing_uis"
+
+        [ "$status" -eq 0 ] || fail "$hook: $output"
+        grep -qx guppyscreen "$d/lookups.log" || fail "$hook did not look guppyscreen up through helix_pids"
+        grep -qx 999999 "$d/kills.log" || fail "$hook did not signal the guppyscreen helix_pids found"
+    done
+}

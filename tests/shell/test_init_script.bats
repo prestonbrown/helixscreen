@@ -149,3 +149,85 @@ _run_init_start_k1() { # sandbox-root
     grep -q launcher-alive "$log" || fail "launcher output not in $log"
     [ ! -e "$S/usr/data/helixscreen/logs" ] || fail "install tree grew a logs dir"
 }
+
+# =============================================================================
+# Without pidof (Z-Mod's chroot ships none)
+# =============================================================================
+
+# The script with no pidof to call: the mock answers as the shell does for a
+# missing command. Processes are found through a fake /proc whose entries name
+# sleeps this test started, so nothing outside the test can match.
+# $2 "absent": the copy names a pidof that cannot exist, since the suite's
+# sandbox keeps a pidof on PATH; otherwise the mock answers 127, as the shell
+# does for a command it cannot find.
+_init_without_pidof() { # sandbox-root [absent]
+    local S="$1" T="$1/inst"
+    mkdir -p "$T/bin" "$T/config" "$S/run" "$S/proc"
+    printf '#!/bin/sh\nexit 0\n' > "$T/bin/helix-screen"
+    chmod +x "$T/bin/helix-screen"
+    sed -e "s|/var/run|$S/run|g" -e 's|/usr/sbin:/usr/bin:/sbin:/bin:||' \
+        "$INIT_SCRIPT" > "$T/config/helixscreen.init"
+    if [ "${2:-}" = absent ]; then
+        sed -i 's/command -v pidof/command -v pidof_absent_in_this_test/' "$T/config/helixscreen.init"
+        mock_command_script "pidof" 'echo pidof-called >&2; exit 1'
+    else
+        mock_command_script "pidof" 'exit 127'
+    fi
+}
+
+_fake_proc() { # sandbox-root pid name
+    mkdir -p "$1/proc/$2"
+    echo "$3" > "$1/proc/$2/comm"
+}
+
+# A signalled child of this shell stays a zombie until reaped, and kill -0
+# still succeeds on a zombie, so liveness is read from the process state.
+_running() { # pid
+    local state
+    state=$(awk '{print $3}' "/proc/$1/stat" 2>/dev/null) || return 1
+    [ -n "$state" ] && [ "$state" != Z ]
+}
+
+_stop_without_pidof() { # mode
+    local S="$BATS_TEST_TMPDIR/s" wd app decoy
+    _init_without_pidof "$S" "$1"
+    sleep 300 & wd=$!
+    sleep 300 & app=$!
+    sleep 300 & decoy=$!
+    _fake_proc "$S" "$wd" helix-watchdog
+    _fake_proc "$S" "$app" helix-screen
+    _fake_proc "$S" "$decoy" helix-screen-x
+
+    HOME="$S/home" HELIX_PROC_ROOT="$S/proc" run sh "$S/inst/config/helixscreen.init" stop
+    local wd_alive=0 app_alive=0 decoy_alive=0
+    _running "$wd" && wd_alive=1
+    _running "$app" && app_alive=1
+    _running "$decoy" && decoy_alive=1
+    kill "$wd" "$app" "$decoy" 2>/dev/null || true
+
+    [ "$status" -eq 0 ] || fail "stop failed: $output"
+    [ "$wd_alive" -eq 0 ] || fail "helix-watchdog still running after stop"
+    [ "$app_alive" -eq 0 ] || fail "helix-screen still running after stop"
+    [ "$decoy_alive" -eq 1 ] || fail "stop ended a process whose name only starts with helix-screen"
+    lacks "pidof-called" "$output"
+}
+
+@test "init stop without pidof ends the watchdog and app it finds in /proc" {
+    _stop_without_pidof
+}
+
+@test "init stop with no pidof on PATH at all ends the watchdog and app it finds in /proc" {
+    _stop_without_pidof absent
+}
+
+@test "init status without pidof reports an app it finds in /proc" {
+    local S="$BATS_TEST_TMPDIR/s" app
+    _init_without_pidof "$S"
+    sleep 300 & app=$!
+    _fake_proc "$S" "$app" helix-screen
+
+    HOME="$S/home" HELIX_PROC_ROOT="$S/proc" run sh "$S/inst/config/helixscreen.init" status
+    kill "$app" 2>/dev/null || true
+
+    [ "$status" -eq 0 ] || fail "status said not running: $output"
+}

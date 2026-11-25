@@ -26,15 +26,34 @@
 # a stale process from a previous mode switch would fight us for /dev/fb0.
 platform_stop_competing_uis() {
     for ui in guppyscreen GuppyScreen KlipperScreen klipperscreen; do
-        for initscript in /etc/init.d/S*"${ui}"*; do
+        for initscript in "${HELIX_INITD_DIR:-/etc/init.d}"/S*"${ui}"*; do
             if [ -x "$initscript" ] 2>/dev/null; then
+                # Z-Mod's S80guppyscreen hands its argument to S80helixscreen
+                # when HelixScreen is its display (helix = 1), so its stop would
+                # stop the HelixScreen this start is about to check for. Its
+                # guppyscreen, if any, is ended by process below either way.
+                # shellcheck disable=SC2016  # the literal "$1" of Z-Mod's line
+                if grep -qF '/etc/init.d/S80helixscreen "$1"' "$initscript" 2>/dev/null; then
+                    continue
+                fi
                 echo "Stopping competing UI: $initscript"
                 "$initscript" stop 2>/dev/null || true
             fi
         done
-        for pid in $(pidof "$ui" 2>/dev/null); do
-            kill "$pid" 2>/dev/null || true
-        done
+        if command -v killall >/dev/null 2>&1; then
+            killall "$ui" 2>/dev/null || true
+        else
+            # helix_pids is the init script's lookup, which works where a mod
+            # chroot ships no pidof; an older init that sources this has none.
+            if command -v helix_pids >/dev/null 2>&1; then
+                _ui_pids=$(helix_pids "$ui" 2>/dev/null)
+            else
+                _ui_pids=$(pidof "$ui" 2>/dev/null)
+            fi
+            for pid in $_ui_pids; do
+                kill "$pid" 2>/dev/null || true
+            done
+        fi
     done
     sleep 1
 }
