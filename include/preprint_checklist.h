@@ -40,7 +40,7 @@ inline constexpr size_t kPreprintChecklistMaxRows = 8;
 
 /// The rows, oldest first. IDLE, INITIALIZING and COMPLETE never appear.
 /// An expected step ahead of the current one in expected_order that never
-/// ran visibly is a done row with no time, in its expected place.
+/// showed is dropped.
 /// Upcoming rows come only from expected_order: with it empty, the list is the
 /// done rows and the current one. Past kPreprintChecklistMaxRows, the oldest
 /// done rows drop first; the current row never drops.

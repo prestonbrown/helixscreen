@@ -3,7 +3,6 @@
 #include "preprint_checklist.h"
 
 #include <algorithm>
-#include <iterator>
 
 namespace helix {
 
@@ -36,33 +35,21 @@ std::vector<PreprintStepRow> build_preprint_checklist(const PreprintChecklistInp
             {p, PreprintStepStatus::Done, std::max(0, lookup_seconds(in.actual_seconds, p))});
     }
 
-    // Expected steps ahead of the current one were run without a signal the
-    // collector could see: a G28 on a printer that is already homed never
-    // changes homed_axes. They are done, placed by the expected order.
-    const auto expected_index = [&in](PrintStartPhase p) {
-        const auto it = std::find(in.expected_order.begin(), in.expected_order.end(), p);
-        return it == in.expected_order.end()
-                   ? -1
-                   : static_cast<int>(std::distance(in.expected_order.begin(), it));
-    };
-    const int current_index = expected_index(in.current);
-    for (int i = 0; i < current_index; ++i) {
-        const PrintStartPhase p = in.expected_order[static_cast<size_t>(i)];
-        if (!is_listed_phase(p) || p == in.current || contains(rows, p))
-            continue;
-        const auto later = std::find_if(rows.begin(), rows.end(), [&](const PreprintStepRow& r) {
-            return expected_index(r.phase) > i;
-        });
-        rows.insert(later, {p, PreprintStepStatus::Done, -1});
-    }
-
     if (is_listed_phase(in.current) && !contains(rows, in.current)) {
         int predicted = lookup_seconds(in.predicted_seconds, in.current);
         int left = predicted < 0 ? -1 : std::max(0, predicted - in.current_elapsed_seconds);
         rows.push_back({in.current, PreprintStepStatus::Current, left});
     }
 
-    for (PrintStartPhase p : in.expected_order) {
+    // Expected steps ahead of the current one that never showed are dropped,
+    // not claimed: a G28 on a printer that is already homed never changes
+    // homed_axes, and a macro may skip a step it guards with a condition.
+    const auto current_it =
+        std::find(in.expected_order.begin(), in.expected_order.end(), in.current);
+    const auto upcoming_from =
+        current_it == in.expected_order.end() ? in.expected_order.begin() : current_it;
+    for (auto it = upcoming_from; it != in.expected_order.end(); ++it) {
+        const PrintStartPhase p = *it;
         if (!is_listed_phase(p) || contains(rows, p))
             continue;
         rows.push_back({p, PreprintStepStatus::Upcoming, lookup_seconds(in.predicted_seconds, p)});
