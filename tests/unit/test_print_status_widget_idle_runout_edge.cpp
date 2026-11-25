@@ -325,9 +325,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // empties while it is still up.
     static constexpr const char* kFirst = "filament_switch_sensor runout_sensor";
     static constexpr const char* kSecond = "filament_switch_sensor second_runout";
-    auto settle = [] {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
-    };
+    auto settle = [] { helix::ui::UpdateQueue::instance().drain_until_empty(); };
     auto report = [&](const char* sensor, bool detected) {
         auto& fsm = FilamentSensorManager::instance();
         PostUnloadGraceTestAccess::clear_startup_grace(fsm);

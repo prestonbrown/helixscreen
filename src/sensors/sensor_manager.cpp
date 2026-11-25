@@ -36,7 +36,7 @@ SensorManager::~SensorManager() {
         StaticSubjectRegistry::instance().unregister(options_.name);
     }
     if (cache_registered_ && !PrinterCacheRegistry::is_destroyed()) {
-        PrinterCacheRegistry::instance().unregister(options_.name);
+        PrinterCacheRegistry::instance().unregister(options_.name, this);
     }
 }
 
@@ -50,8 +50,8 @@ void SensorManager::init_subjects() {
     // Ahead of the early return: registration is idempotent by name, and a
     // registry cleared while the subjects stayed up gets the entry back here.
     if (options_.from_printer_discovery) {
-        PrinterCacheRegistry::instance().register_invalidator(options_.name,
-                                                              [this]() { forget_printer(); });
+        PrinterCacheRegistry::instance().register_invalidator(
+            options_.name, [this]() { forget_printer(); }, this);
         cache_registered_ = true;
     }
     if (subjects_initialized_) {
