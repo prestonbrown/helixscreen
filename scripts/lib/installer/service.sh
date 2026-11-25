@@ -12,9 +12,16 @@ _HELIX_SERVICE_SOURCED=1
 
 # SERVICE_NAME is defined in common.sh
 
-# Portable in-place sed: GNU sed uses -i, BSD/macOS sed requires -i ''
+# Portable in-place sed: GNU sed uses -i, BSD/macOS sed requires -i ''.
+# A symlinked file is edited at its target: `sed -i` writes a new file at the
+# name it is given, which would replace the link and leave the target as it
+# was. Z-Mod's /etc/init.d/S80helixscreen is such a link, and Z-Mod re-creates
+# it at every boot, so the boot path runs whatever the target holds.
 _sed_inplace() {
     local pattern=$1 file=$2
+    if [ -L "$file" ]; then
+        file=$(readlink -f "$file" 2>/dev/null || echo "$file")
+    fi
     $SUDO sed -i "$pattern" "$file" 2>/dev/null || \
     $SUDO sed -i '' "$pattern" "$file" 2>/dev/null || true
 }
