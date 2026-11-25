@@ -135,6 +135,16 @@ describe("classifyHang, an older hang beside a memory warning", () => {
     expect(classifyHang(hang(), [], [warn(HANG_WARNING_WINDOW_SEC + 1)])).toBe("unknown");
     expect(classifyHang(hang(), [], [warn(-5)])).toBe("unknown");
   });
+  it("counts a warning taken in the hang's own second, the window's upper edge", () => {
+    expect(classifyHang(hang(), [], [warn(0)])).toBe("host_memory");
+    expect(classifyHang(hang(), [snap(0, 5)], [])).toBe("host_memory");
+  });
+  it("ignores a row of uptime zero, which is also what a row without an uptime reads as", () => {
+    // Eight minutes into a boot, uptime zero lies inside the window before the hang.
+    const early = hang({ uptimeSec: 500 });
+    expect(classifyHang(early, [], [warn(0, { uptimeSec: 0 })])).toBe("unknown");
+    expect(classifyHang(early, [{ device: "d1", at: T0, uptimeSec: 0, availableMb: 5 }], [])).toBe("unknown");
+  });
   it("reads only warnings of the hang's device and upload", () => {
     expect(classifyHang(hang(), [], [warn(60, { at: T0 + HANG_UPLOAD_BATCH_SEC * 1000 })])).toBe("host_memory");
     expect(classifyHang(hang(), [], [warn(60, { at: T0 + (HANG_UPLOAD_BATCH_SEC + 1) * 1000 })])).toBe("unknown");
