@@ -1442,6 +1442,35 @@ TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
 }
 
 TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
+                 "ActivePrintMediaManager: a job with no file drops the last file's media",
+                 "[ActivePrintMediaManager][retry][door]") {
+    set_print_filename_no_drain("abs_part.gcode");
+    drain();
+    FileMetadata abs = make_metadata(/*layer_count=*/10);
+    abs.filament_type = "ABS";
+    files().fire_last(abs);
+    drain();
+    REQUIRE(state().print_state().print_materials() == std::vector<std::string>{"ABS"});
+
+    // The next file's fetch is still out when the tower starts.
+    set_print_filename_no_drain("next_part.gcode");
+    drain();
+    REQUIRE(files().pending_count() == 2);
+
+    set_print_filename_no_drain("PA tower");
+    drain();
+    CHECK(state().print_state().print_materials().empty());
+
+    FileMetadata late = make_metadata_with_thumb(42, unique_thumb_path("late_reply"));
+    late.filament_type = "PETG";
+    files().fire_last(late);
+    drain();
+    CHECK(get_thumbnail_path() == kNoThumb);
+    CHECK(get_layer_total() != 42);
+    CHECK(state().print_state().print_materials().empty());
+}
+
+TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
                  "ActivePrintMediaManager: a file named with spaces still fetches its metadata",
                  "[ActivePrintMediaManager][retry]") {
     set_print_filename_no_drain("PA tower test v2.gcode");
