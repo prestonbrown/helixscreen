@@ -68,7 +68,7 @@
 
   <DashSection title="Errors" :loading="loading" :error="error">
     <template v-if="data">
-      <ChartCaption :text="`${WINDOW}; click a row to find the code on the Stability tab; main_loop_hang counts only hangs not caused by a host low on memory, and reports of it under the count`" />
+      <ChartCaption :text="`${WINDOW}; click a row to find the code on the Stability tab; main_loop_hang counts only hangs that are neither a host low on memory nor an app the system suspended, with reports of it under the count`" />
       <NoData v-if="data.errors.length === 0" :not-applicable="data.not_applicable.errors" />
       <div v-else class="table-wrapper event-log">
         <table class="data-table">
@@ -93,11 +93,7 @@
               <td><span class="badge category">{{ e.category }}</span></td>
               <td class="mono">
                 {{ e.code }}
-                <div v-if="e.split" class="cause-split">
-                  {{ e.split.app_blocked.toLocaleString() }} app blocked,
-                  {{ e.split.host_memory.toLocaleString() }} host out of memory,
-                  {{ e.split.unknown.toLocaleString() }} unknown
-                </div>
+                <div v-if="e.split" class="cause-split">{{ hangCauseLine(e.split) }}</div>
               </td>
               <td class="mono">
                 {{ e.cur.toLocaleString() }}
@@ -180,7 +176,7 @@ import type { HealthData } from '@/services/api'
 import { useFiltersStore } from '@/stores/filters'
 import { errorAnchor } from '@/utils/anchors'
 import { activationHint, single } from '@/utils/drill'
-import { formatRate, formatRateOf, notReportedPer, ppChange, unreportedNote } from '@/utils/format'
+import { formatRate, formatRateOf, hangCauseLine, notReportedPer, ppChange, unreportedNote } from '@/utils/format'
 import type { DashFilterKey } from '@/utils/urlState'
 import type { Grouped } from '@/utils/versions'
 

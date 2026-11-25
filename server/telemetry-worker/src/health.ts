@@ -3,11 +3,20 @@
 // queries.ts. Imports only versions, prints and schema so the dashboard can import
 // these types without Worker runtime types.
 
-import { num, str, type NotApplicable, type RawRow } from "./schema";
+import { num, storedMemoryReason, str, type NotApplicable, type RawRow } from "./schema";
 import { printsByVersion } from "./prints";
 import { compareVersions } from "./versions";
 import { HANG_MIN_CLASSIFIED_SHARE } from "./loop/thresholds";
-import { classifyHangs, splitOf, type ClassifiedHang, type HangRow, type HangSplit, type MemSnapshot } from "./hang_cause";
+import {
+  classifyHangs,
+  splitOf,
+  splitTotal,
+  type ClassifiedHang,
+  type HangRow,
+  type HangSplit,
+  type MemSnapshot,
+  type MemWarning,
+} from "./hang_cause";
 
 /** The counts one release's rates are computed from, over one window. */
 export interface ReleaseCounts {
@@ -50,15 +59,23 @@ export interface HealthPayload {
   releases: { version: string; cur: ReleaseWindow; prev: ReleaseWindow }[];
   /**
    * `split` and `total` are set on main_loop_hang only. That row's cur, prev and devices
-   * count the app-blocked share, so a host out of memory never reads as a rising app bug;
-   * `total` is every hang report of the current week and `split` breaks it down, so a week
-   * whose reports could not be classified never reads as a clean zero.
+   * count the app-blocked share, so a host out of memory, or an app the system suspended,
+   * never reads as a rising app bug; `total` is every hang report of the current week and
+   * `split` breaks it down, so a week whose reports could not be classified never reads as a
+   * clean zero.
    */
   errors: { category: string; code: string; cur: number; prev: number; devices: number; status: "new" | "rising" | "steady"; split?: HangSplit; total?: number }[];
   crash_clusters: { signal: string; fault_code: string; version: string; board: string; cur: number; prev: number; devices: number }[];
   data_health: { kind: string; latest: number; median: number; low: boolean }[];
   not_applicable: NotApplicable<HealthBlock>;
 }
+
+/**
+ * The rows fetchHealth reads once the hang rows say which uploads hung, so they are not among
+ * the Health queries. buildHealth takes either as optional: without snapshots the hang row is
+ * the plain total, and without warnings an older hang is classified by its snapshot alone.
+ */
+export type HangEvidenceKey = "hang_snapshots" | "hang_warnings";
 
 /** The query keys buildHealth reads; the Worker's healthQueries returns one SQL string per key. */
 export type HealthRowKey =
@@ -68,7 +85,7 @@ export type HealthRowKey =
   | "prints_cur" | "prints_prev"
   | "print_sessions_cur" | "print_sessions_prev"
   | "errors_cur" | "errors_prev" | "errors_baseline" | "errors_by_device"
-  | "hangs_cur" | "hangs_prev" | "hang_snapshots"
+  | "hangs_cur" | "hangs_prev" | HangEvidenceKey
   | "crashes_cur" | "crashes_prev"
   | "cdn_latest" | "kind_days";
 
@@ -159,12 +176,33 @@ const STATUS_ORDER = { new: 0, rising: 1, steady: 2 } as const;
 const ALL_REPORTED: NotApplicable<HealthBlock> = { crashes: null, errors: null, prints: null, updates: null };
 
 /**
+ * The HangRow of one row of the hang rows query (`queries.ts#hangEventsSql`). `mem` is stored
+ * + 1, so 0 is a hang that carried none; a column the report left empty reads as "" or 0.
+ */
+export function hangRowOf(x: RawRow): HangRow {
+  const mem = num(x.mem);
+  return {
+    device: str(x.device),
+    at: num(x.at) * 1000,
+    uptimeSec: num(x.uptime),
+    memAvailableMb: mem > 0 ? mem - 1 : null,
+    pressure: str(x.pressure),
+    platform: str(x.platform),
+    appVersion: str(x.version),
+    context: str(x.context),
+    mainState: str(x.state),
+    mainWchan: str(x.wchan),
+    weight: num(x.weight) || 1,
+  };
+}
+
+/**
  * Folds the health query rows into the payload. `today` is the UTC day
  * (YYYY-MM-DD) whose partial row the data-health block ignores;
  * `notApplicable` names, per block, a filter its kinds cannot carry.
  */
 export function buildHealth(
-  rows: Record<Exclude<HealthRowKey, "hang_snapshots">, unknown[]> & { hang_snapshots?: unknown[] },
+  rows: Record<Exclude<HealthRowKey, HangEvidenceKey>, unknown[]> & Partial<Record<HangEvidenceKey, unknown[]>>,
   today: string,
   notApplicable: NotApplicable<HealthBlock> = ALL_REPORTED,
 ): HealthPayload {
@@ -193,25 +231,23 @@ export function buildHealth(
   }
   const risesBeyondOneDevice = (cur: number, devices: number, topDevice: number): boolean =>
     devices >= RISING_MIN_DEVICES && topDevice <= RISING_MAX_DEVICE_SHARE * cur;
-  const toHangRow = (x: RawRow): HangRow => {
-    const mem = num(x.mem);
-    return {
-      device: str(x.device),
-      at: num(x.at) * 1000,
-      uptimeSec: num(x.uptime),
-      memAvailableMb: mem > 0 ? mem - 1 : null,
-      pressure: str(x.pressure),
-      weight: num(x.weight) || 1,
-    };
-  };
   const snapshots: MemSnapshot[] = r("hang_snapshots").map((x) => ({
     device: str(x.device),
     at: num(x.at) * 1000,
     uptimeSec: num(x.uptime),
     availableMb: num(x.available) - 1,
   }));
-  const hangsCur = classifyHangs(r("hangs_cur").map(toHangRow), snapshots);
-  const hangsPrev = classifyHangs(r("hangs_prev").map(toHangRow), snapshots);
+  const warnings: MemWarning[] = r("hang_warnings").map((x) => ({
+    device: str(x.device),
+    at: num(x.at) * 1000,
+    uptimeSec: num(x.uptime),
+    level: str(x.level),
+    reason: storedMemoryReason(x.reason),
+    rssKb: num(x.rss),
+    totalMb: num(x.total),
+  }));
+  const hangsCur = classifyHangs(r("hangs_cur").map(hangRowOf), snapshots, warnings);
+  const hangsPrev = classifyHangs(r("hangs_prev").map(hangRowOf), snapshots, warnings);
   const appBlocked = (hs: ClassifiedHang[]) => hs.filter((h) => h.cause === "app_blocked");
   const errors = r("errors_cur")
     .filter((x) => num(x.count) > 0)
@@ -230,13 +266,13 @@ export function buildHealth(
         const perDevice = new Map<string, number>();
         for (const h of blocked) perDevice.set(h.device, (perDevice.get(h.device) ?? 0) + h.weight);
         split = splitOf(hangsCur);
-        total = split.host_memory + split.app_blocked + split.unknown;
+        total = splitTotal(split);
         cur = split.app_blocked;
         const prevSplit = splitOf(hangsPrev);
         prev = prevSplit.app_blocked;
-        // A week whose hangs mostly could not be classified says nothing about a rise from it.
-        const prevTotal = prevSplit.host_memory + prevSplit.app_blocked + prevSplit.unknown;
-        held = prevTotal > 0 && (prevSplit.host_memory + prevSplit.app_blocked) / prevTotal < HANG_MIN_CLASSIFIED_SHARE;
+        // A week whose hangs mostly could not be classified says nothing about a rise from it. A suspended app is classified.
+        const prevTotal = splitTotal(prevSplit);
+        held = prevTotal > 0 && (prevTotal - prevSplit.unknown) / prevTotal < HANG_MIN_CLASSIFIED_SHARE;
         devices = perDevice.size;
         topDevice = Math.max(0, ...perDevice.values());
       }

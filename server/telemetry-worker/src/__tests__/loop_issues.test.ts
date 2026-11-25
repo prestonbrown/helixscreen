@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { describe, it, expect } from 'vitest'
 import { issueBody, issueLabels, syncIssues } from '../loop/issues'
-import type { Finding } from '../loop/findings'
+import { findingsFromHealth, type Finding } from '../loop/findings'
+import type { HealthPayload } from '../health'
 import { fingerprintInBody, markerFor } from '../loop/fingerprint'
 import { NEW_ISSUES_PER_RUN } from '../loop/thresholds'
 import type { LoopState } from '../loop/state'
@@ -10,6 +11,15 @@ import { FakeTracker } from './loop_fakes'
 const URL = 'https://dash.test'
 const W1 = '2026-W42'
 const W2 = '2026-W43'
+
+const health: HealthPayload = {
+  fleet: { actives_cur: 0, actives_prev: 0, cdn_sources: null, cdn_date: null },
+  releases: [],
+  errors: [],
+  crash_clusters: [],
+  data_health: [],
+  not_applicable: { crashes: null, errors: null, prints: null, updates: null },
+}
 
 function finding(n: number, actions: Finding['actions'] = ['issue', 'report']): Finding {
   return {
@@ -65,6 +75,26 @@ describe('issueBody crash-report link', () => {
     const t = new FakeTracker()
     await syncIssues([crash], t, fresh(), W1, URL, false)
     expect(t.callsOf('create')[0].body).toContain(`https://github.com/${t.repo}/issues?q=`)
+  })
+})
+
+describe('issueBody hang causes', () => {
+  it('names every cause the Health split counts of a main_loop_hang', () => {
+    const hang: HealthPayload['errors'][number] = {
+      category: 'ui',
+      code: 'main_loop_hang',
+      cur: 2,
+      prev: 0,
+      devices: 2,
+      status: 'new',
+      split: { suspended: 1, host_memory: 3, app_blocked: 2, unknown: 1 },
+      total: 7,
+    }
+    const [f] = findingsFromHealth({ ...health, errors: [hang] }, [], W1)
+    const body = issueBody(f, URL, W1, 'acme/widgets')
+    for (const row of ['| hangs_app_blocked | 2 |', '| hangs_host_out_of_memory | 3 |', '| hangs_app_suspended | 1 |', '| hangs_cause_unknown | 1 |']) {
+      expect(body).toContain(row)
+    }
   })
 })
 

@@ -14,7 +14,8 @@ import {
   type NotApplicable,
 } from "./schema";
 import { isDeviceId } from "./devices";
-import { RISING_MAX_DEVICE_SHARE, RISING_MIN_COUNT, type HealthRowKey } from "./health";
+import { RISING_MAX_DEVICE_SHARE, RISING_MIN_COUNT, type HangEvidenceKey, type HealthRowKey } from "./health";
+import { HANG_UPLOAD_BATCH_SEC } from "./loop/thresholds";
 
 export interface QueryConfig {
   accountId: string;
@@ -1308,7 +1309,10 @@ export function deviceQueries(id: string): string[] {
 /** Health windows as [newerDaysAgo, olderDaysAgo]; baseline holds the 28 days before cur and contains prev. */
 export const HEALTH_WINDOWS = { cur: [0, 7], prev: [7, 14], baseline: [7, 35] } as const;
 
-export type HealthQueryKey = Exclude<HealthRowKey, "hang_snapshots">;
+/** How far back the hang evidence reads reach: one day past the oldest hang, so a row stored just before it is in range. */
+export const HEALTH_EVIDENCE_WINDOW = [0, HEALTH_WINDOWS.prev[1] + 1] as const;
+
+export type HealthQueryKey = Exclude<HealthRowKey, HangEvidenceKey>;
 
 /** The timestamp predicate for one [newerDaysAgo, olderDaysAgo] window. */
 export function windowClause(w: readonly [number, number]): string {
@@ -1367,9 +1371,11 @@ export const HANG_CODE = "main_loop_hang";
 
 /**
  * Every main_loop_hang in window `w`, one row per report, as rows
- * { device, at, uptime, mem, pressure, weight }: `at` is the epoch seconds the Worker stored it, `uptime` the device's, `mem` is the
- * available host MB the hang carried (0 = the hang carried none; the column
- * stores the value + 1), `pressure` is "" when absent.
+ * { device, at, uptime, mem, pressure, platform, version, context, state, wchan, weight }:
+ * `at` is the epoch seconds the Worker stored it, `uptime` the device's, and `mem` is the
+ * available host MB the hang carried (0 = the hang carried none; the column stores the value
+ * + 1). `pressure`, `platform`, `version`, `context`, `state` and `wchan` are "" when absent;
+ * `state` and `wchan` are the main thread's scheduler state and wait channel.
  */
 export function hangEventsSql(w: readonly [number, number], filters?: FilterParams): string {
   return `SELECT
@@ -1378,6 +1384,11 @@ export function hangEventsSql(w: readonly [number, number], filters?: FilterPara
       ${errorEnc("uptime_sec")} as uptime,
       ${errorEnc("mem_available_mb")} as mem,
       ${errorEnc("pressure_level")} as pressure,
+      ${errorEnc("app_platform")} as platform,
+      ${errorEnc("app_version")} as version,
+      ${errorEnc("context")} as context,
+      ${errorEnc("main_state")} as state,
+      ${errorEnc("main_wchan")} as wchan,
       ${SAMPLE_WEIGHT} as weight
     FROM ${DATASET}
     WHERE ${windowClause(w)} AND index1 = 'error_encountered'
@@ -1399,6 +1410,57 @@ export function hangSnapshotsSql(devices: string[], w: readonly [number, number]
     FROM ${DATASET}
     WHERE ${windowClause(w)} AND index1 = 'memory_snapshot' AND ${memSnap("system_available_mb")} > 0
       AND ${ids.length > 0 ? `${memSnap("device_id")} IN (${ids.map((d) => `'${d}'`).join(", ")})` : SQL_FALSE}`;
+}
+
+/** One upload that carried a hang report: the device that reported it, and the epoch seconds the Worker stored it. */
+export interface HangUpload {
+  device: string;
+  at: number;
+}
+
+/**
+ * `uploads` with each (device, stored time) once, and without one the SQL cannot name. Every
+ * hang of an upload names that upload, and one query reads its warnings for all of them.
+ */
+export function uniqueHangUploads(uploads: readonly HangUpload[]): HangUpload[] {
+  const seen = new Set<string>();
+  const out: HangUpload[] = [];
+  for (const u of uploads) {
+    const clean: HangUpload = { device: sanitizeFilterValue(u.device), at: u.at };
+    if (!clean.device || !Number.isFinite(clean.at)) continue;
+    const key = `${clean.device}\u0000${clean.at}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(clean);
+  }
+  return out;
+}
+
+/**
+ * The memory warnings of `uploads`, as rows { device, at, uptime, level, reason, rss, total }:
+ * `at` is the epoch seconds the Worker stored the warning, `uptime` the device's, `level` the
+ * pressure level the monitor reported, and `reason` the stored one: a code, or the client's
+ * text in rows written before the codes. `rss` is the app's resident set in KB and `total` the
+ * host's memory in MB, 0 when the row carries none. A warning counts only beside a hang of its
+ * own upload, so each upload is read within HANG_UPLOAD_BATCH_SEC of the time its hang was
+ * stored, and only for the device that reported it, and no further back than the hang windows
+ * reach.
+ */
+export function hangWarningsSql(uploads: readonly HangUpload[]): string {
+  const ofUpload = (u: HangUpload) =>
+    `(${memWarn("device_id")} = '${u.device}' AND toUnixTimestamp(timestamp) >= ${u.at - HANG_UPLOAD_BATCH_SEC}` +
+    ` AND toUnixTimestamp(timestamp) <= ${u.at + HANG_UPLOAD_BATCH_SEC})`;
+  const own = uniqueHangUploads(uploads);
+  return `SELECT
+      ${memWarn("device_id")} as device,
+      toUnixTimestamp(timestamp) as at,
+      ${memWarn("uptime_sec")} as uptime,
+      ${memWarn("level")} as level,
+      ${memWarn("reason")} as reason,
+      ${memWarn("rss_kb")} as rss,
+      ${memWarn("system_total_mb")} as total
+    FROM ${DATASET}
+    WHERE ${windowClause(HEALTH_EVIDENCE_WINDOW)} AND index1 = 'memory_warning' AND ${own.length > 0 ? own.map(ofUpload).join(" OR ") : SQL_FALSE}`;
 }
 
 /**

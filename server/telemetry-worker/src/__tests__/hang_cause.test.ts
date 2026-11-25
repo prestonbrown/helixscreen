@@ -1,12 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { describe, it, expect } from "vitest";
-import { classifyHang, classifyHangs, splitOf, type HangRow, type MemSnapshot } from "../hang_cause";
+import { classifyHang, classifyHangs, splitOf, type HangRow, type MemSnapshot, type MemWarning } from "../hang_cause";
 import { buildHealth, type HealthRowKey } from "../health";
 import { findingsFromHealth } from "../loop/findings";
-import { HANG_HOST_MEMORY_LOW_MB, HANG_SNAPSHOT_WINDOW_SEC, HANG_UPLOAD_BATCH_SEC } from "../loop/thresholds";
+import {
+  HANG_APP_RSS_SHARE,
+  HANG_HOST_MEMORY_LOW_MB,
+  HANG_SNAPSHOT_WINDOW_SEC,
+  HANG_SUSPENDED_STALL_SEC,
+  HANG_UPLOAD_BATCH_SEC,
+  HANG_WARNING_WINDOW_SEC,
+} from "../loop/thresholds";
 import { fetchHealth } from "../health_source";
 import { afterEach, vi } from "vitest";
-import { hangEventsSql, hangSnapshotsSql, windowClause, HEALTH_WINDOWS, SQL_FALSE } from "../queries";
+import { hangEventsSql, hangSnapshotsSql, hangWarningsSql, windowClause, HEALTH_WINDOWS, SQL_FALSE } from "../queries";
+import { col } from "../schema";
+import { hangRowOf } from "../health";
 
 const HANG_UPTIME = 100_000;
 const T0 = Date.UTC(2026, 10, 21, 12, 0, 0);
@@ -17,6 +26,11 @@ const hang = (over: Partial<HangRow> = {}): HangRow => ({
   uptimeSec: HANG_UPTIME,
   memAvailableMb: null,
   pressure: "",
+  platform: "",
+  appVersion: "",
+  context: "",
+  mainState: "",
+  mainWchan: "",
   weight: 1,
   ...over,
 });
@@ -26,6 +40,17 @@ const snap = (secondsBefore: number, availableMb: number, device = "d1", atOffse
   at: T0 + atOffsetMs,
   uptimeSec: HANG_UPTIME - secondsBefore,
   availableMb,
+});
+/** A memory warning of the hang's upload taken `secondsBefore` of uptime before the hang; the app holds 50 of the host's 972 MB. */
+const warn = (secondsBefore: number, over: Partial<MemWarning> = {}): MemWarning => ({
+  device: "d1",
+  at: T0,
+  uptimeSec: HANG_UPTIME - secondsBefore,
+  level: "warning",
+  reason: "available_warning",
+  rssKb: 50 * 1024,
+  totalMb: 972,
+  ...over,
 });
 
 describe("classifyHang, a hang that carries its own memory", () => {
@@ -94,13 +119,234 @@ describe("classifyHang, an older hang", () => {
   });
 });
 
+describe("classifyHang, an older hang beside a memory warning", () => {
+  it("is host memory when a warning says the host's available memory ran low", () => {
+    const causes: [MemWarning["reason"], MemWarning["level"]][] = [
+      ["available_warning", "warning"],
+      ["available_critical", "critical"],
+      ["sustained_low_available", "critical"],
+    ];
+    for (const [reason, level] of causes) {
+      expect(classifyHang(hang(), [], [warn(600, { reason, level })]), reason).toBe("host_memory");
+    }
+  });
+  it("reads a warning within the window of uptime before the hang, and none beyond it or after it", () => {
+    expect(classifyHang(hang(), [], [warn(HANG_WARNING_WINDOW_SEC)])).toBe("host_memory");
+    expect(classifyHang(hang(), [], [warn(HANG_WARNING_WINDOW_SEC + 1)])).toBe("unknown");
+    expect(classifyHang(hang(), [], [warn(-5)])).toBe("unknown");
+  });
+  it("counts a warning taken in the hang's own second, the window's upper edge", () => {
+    expect(classifyHang(hang(), [], [warn(0)])).toBe("host_memory");
+    expect(classifyHang(hang(), [snap(0, 5)], [])).toBe("host_memory");
+  });
+  it("ignores a row of uptime zero, which is also what a row without an uptime reads as", () => {
+    // Eight minutes into a boot, uptime zero lies inside the window before the hang.
+    const early = hang({ uptimeSec: 500 });
+    expect(classifyHang(early, [], [warn(0, { uptimeSec: 0 })])).toBe("unknown");
+    expect(classifyHang(early, [{ device: "d1", at: T0, uptimeSec: 0, availableMb: 5 }], [])).toBe("unknown");
+  });
+  it("reads only warnings of the hang's device and upload", () => {
+    expect(classifyHang(hang(), [], [warn(60, { at: T0 + HANG_UPLOAD_BATCH_SEC * 1000 })])).toBe("host_memory");
+    expect(classifyHang(hang(), [], [warn(60, { at: T0 + (HANG_UPLOAD_BATCH_SEC + 1) * 1000 })])).toBe("unknown");
+    expect(classifyHang(hang(), [], [warn(60, { device: "other" })])).toBe("unknown");
+  });
+  it("ignores a warning that is not at warning or critical, or that is about the app's own RSS", () => {
+    expect(classifyHang(hang(), [], [warn(60, { level: "elevated" })])).toBe("unknown");
+    expect(classifyHang(hang(), [], [warn(60, { level: "none" })])).toBe("unknown");
+    for (const reason of ["rss_warning", "rss_critical", "growth", "hysteresis", "none", ""]) {
+      expect(classifyHang(hang(), [], [warn(60, { reason })]), reason).toBe("unknown");
+    }
+  });
+  it("is unknown without an uptime to place the warning by", () => {
+    expect(classifyHang(hang({ uptimeSec: 0 }), [], [warn(60)])).toBe("unknown");
+  });
+  it("leans on the warning over a snapshot that reads earlier", () => {
+    // The snapshot an hour before read 500 MB; the warning ten minutes before says the host ran low.
+    expect(classifyHang(hang(), [snap(3000, 500)], [warn(600)])).toBe("host_memory");
+  });
+  it("falls back to the snapshot rule with no such warning", () => {
+    const growth = [warn(60, { level: "elevated", reason: "growth" })];
+    expect(classifyHang(hang(), [snap(3000, 5)], growth)).toBe("host_memory");
+    expect(classifyHang(hang(), [snap(3000, 500)], growth)).toBe("app_blocked");
+    expect(classifyHang(hang(), [], growth)).toBe("unknown");
+  });
+  it("leaves a hang that carries its own memory fields to them", () => {
+    expect(classifyHang(hang({ memAvailableMb: 900 }), [], [warn(60)])).toBe("app_blocked");
+  });
+  it("is still suspended for an Android app with a warning against it", () => {
+    expect(classifyHang(hang({ platform: "android" }), [], [warn(60)])).toBe("suspended");
+  });
+  it("reads only the hang's own device's warnings", () => {
+    expect(classifyHangs([hang()], [], [warn(5, { device: "other" })])[0].cause).toBe("unknown");
+  });
+});
+
+describe("classifyHang, the app's own share of the host's memory", () => {
+  /** A warning `secondsBefore` the hang with the app `mb` MB over the share of a 256 MB host; at the share when `mb` is 0. */
+  const atShare = (secondsBefore: number, mb: number, over: Partial<MemWarning> = {}): MemWarning =>
+    warn(secondsBefore, { rssKb: HANG_APP_RSS_SHARE * 256 * 1024 + mb * 1024, totalMb: 256, ...over });
+  const growth = { level: "elevated", reason: "growth" } as const;
+
+  it("is app blocked, not host memory, when the app held more of the host than the share", () => {
+    // By a warning, by a snapshot with the share read from a warning of any level, and by the hang's own memory fields.
+    expect(classifyHang(hang(), [], [atShare(600, 10)])).toBe("app_blocked");
+    expect(classifyHang(hang(), [snap(600, 5)], [atShare(600, 10, growth)])).toBe("app_blocked");
+    expect(classifyHang(hang({ memAvailableMb: 30, pressure: "critical" }), [], [atShare(600, 10)])).toBe("app_blocked");
+  });
+  it("is host memory when the app held no more than the share", () => {
+    expect(classifyHang(hang(), [], [atShare(600, 0)])).toBe("host_memory");
+    expect(classifyHang(hang(), [], [atShare(600, 0.5)])).toBe("app_blocked");
+    expect(classifyHang(hang(), [snap(600, 5)], [atShare(600, -10, growth)])).toBe("host_memory");
+  });
+  it("reads the share from the newest warning before the hang", () => {
+    expect(classifyHang(hang(), [], [atShare(600, 10), atShare(60, -10, { ...growth })])).toBe("host_memory");
+    expect(classifyHang(hang(), [], [atShare(600, -10), atShare(60, 10, { ...growth })])).toBe("app_blocked");
+  });
+  it("reads the share only from a warning in the window before the hang that carries the host's total", () => {
+    const before = { ...growth, uptimeSec: HANG_UPTIME - HANG_WARNING_WINDOW_SEC - 1 };
+    expect(classifyHang(hang(), [snap(600, 5)], [atShare(600, 10, before)])).toBe("host_memory");
+    expect(classifyHang(hang(), [], [atShare(600, 10, { totalMb: 0 })])).toBe("host_memory");
+    expect(classifyHang(hang(), [snap(600, 5)], [atShare(600, 10, { ...growth, totalMb: 0 })])).toBe("host_memory");
+  });
+  it("stays unknown without evidence of low memory, whatever the app's share", () => {
+    expect(classifyHang(hang(), [], [atShare(600, 10, growth)])).toBe("unknown");
+  });
+  it("keeps a suspended app suspended", () => {
+    expect(classifyHang(hang({ platform: "android" }), [], [atShare(600, 10)])).toBe("suspended");
+  });
+
+  // The three below keep the guard clear of an app at its normal size on the smallest board,
+  // and inside the app's growth on a host it nearly filled.
+  it("leaves a small board's app at the largest share any of them held to the host", () => {
+    // An AD5M host of 114 MB with the app at 32 MB.
+    expect(classifyHang(hang(), [], [warn(300, { rssKb: 32 * 1024, totalMb: 114 })])).toBe("host_memory");
+  });
+  it("takes the app for it at the share of the fleet's smallest real case, 221 of 487 MB", () => {
+    expect(classifyHang(hang(), [], [warn(300, { rssKb: 221 * 1024, totalMb: 487 })])).toBe("app_blocked");
+  });
+  it("does not take the monitor's own RSS flag for the app starving its host", () => {
+    // The host ran low ten minutes before; a minute before the hang the monitor flagged the app's
+    // RSS at a share that is its normal one on an AD5M.
+    const flagged = { rssKb: 18 * 1024, totalMb: 114 };
+    expect(classifyHang(hang(), [], [warn(600), warn(60, { ...flagged, level: "elevated", reason: "growth" })])).toBe("host_memory");
+    expect(classifyHang(hang(), [], [warn(600), warn(60, { ...flagged, level: "warning", reason: "rss_warning" })])).toBe("host_memory");
+    expect(classifyHang(hang(), [], [warn(600), warn(60, { ...flagged, level: "critical", reason: "rss_critical" })])).toBe("host_memory");
+  });
+});
+
+describe("classifyHang, an app the system suspended", () => {
+  /** Android on a build that reports a backgrounded stall, with memory to spare. */
+  const android = (over: Partial<HangRow> = {}): HangRow => hang({ platform: "android", appVersion: "1.2.0-alpha.1", ...over });
+
+  it("is suspended for an Android app of such a build, whatever its memory says", () => {
+    expect(classifyHang(android(), [])).toBe("suspended");
+    expect(classifyHang(android({ memAvailableMb: 5, pressure: "critical" }), [])).toBe("suspended");
+    expect(classifyHang(android(), [snap(5, 5)])).toBe("suspended");
+  });
+  it.each([
+    ["", "suspended"],
+    ["1.1.0-rc.4", "suspended"],
+    ["1.2.0-alpha.1", "suspended"],
+    ["1.2.0-alpha.2", "app_blocked"],
+    ["1.2.0-alpha.10", "app_blocked"],
+    ["1.2.0-beta.1", "app_blocked"],
+    ["1.3.0", "app_blocked"],
+  ])("reads an Android app with memory to spare on version %s as %s", (appVersion, cause) => {
+    expect(classifyHang(hang({ platform: "android", appVersion, memAvailableMb: 900 }), [])).toBe(cause);
+  });
+  it("classifies an Android app of a build that reports no backgrounded stall by its evidence, like any other platform", () => {
+    const foreground = { platform: "android", appVersion: "1.2.0-alpha.2" };
+    expect(classifyHang(hang(foreground), [])).toBe("unknown");
+    expect(classifyHang(hang(foreground), [snap(5, 5)])).toBe("host_memory");
+    expect(classifyHang(hang(foreground), [], [warn(60)])).toBe("host_memory");
+  });
+  it("is still suspended for an Android app of any version when the stall ran past the line", () => {
+    expect(classifyHang(hang({ platform: "android", appVersion: "1.2.0-alpha.2", context: "stalled_161s", memAvailableMb: 900 }), [])).toBe("suspended");
+  });
+  it("is suspended on any platform when the stall ran past the line, and not at it", () => {
+    const line = HANG_SUSPENDED_STALL_SEC;
+    expect(classifyHang(hang({ context: `stalled_${line + 1}s` }), [])).toBe("suspended");
+    expect(classifyHang(hang({ platform: "pi", context: "stalled_4071s" }), [])).toBe("suspended");
+    // At the line the monitor thread was still sampling, so the memory evidence decides.
+    expect(classifyHang(hang({ context: `stalled_${line}s` }), [])).toBe("unknown");
+    expect(classifyHang(hang({ context: `stalled_${line}s`, memAvailableMb: 5 }), [])).toBe("host_memory");
+  });
+  it("is not suspended by a context that names no stall length", () => {
+    for (const context of ["", "stalled_s", "161", "stalled_161s ", "resumed_161s"]) {
+      expect(classifyHang(hang({ context }), [snap(5, 5)]), JSON.stringify(context)).toBe("host_memory");
+    }
+  });
+});
+
+describe("classifyHang, a stall past the line beside low memory", () => {
+  const stalled = `stalled_${HANG_SUSPENDED_STALL_SEC + 10}s`;
+
+  it("is host memory when the hang's own fields say memory was low", () => {
+    // A host thrashing out of memory starves the monitor thread too, so a long stall is not a pause.
+    expect(classifyHang(hang({ context: stalled, memAvailableMb: 5 }), [])).toBe("host_memory");
+    expect(classifyHang(hang({ context: stalled, memAvailableMb: 900, pressure: "critical" }), [])).toBe("host_memory");
+  });
+  it("is host memory when a warning beside the hang says memory was low", () => {
+    expect(classifyHang(hang({ context: stalled }), [], [warn(300)])).toBe("host_memory");
+  });
+  it("lets the RSS guard turn it to the app's", () => {
+    expect(classifyHang(hang({ context: stalled }), [], [warn(300, { rssKb: 110 * 1024, totalMb: 114 })])).toBe("app_blocked");
+  });
+  it("is suspended when the hang's own fields say memory was not low", () => {
+    expect(classifyHang(hang({ context: stalled, memAvailableMb: 900 }), [])).toBe("suspended");
+  });
+  it("is suspended with no evidence but the stall", () => {
+    expect(classifyHang(hang({ context: stalled }), [])).toBe("suspended");
+    expect(classifyHang(hang({ context: stalled }), [], [warn(300, { level: "elevated", reason: "growth" })])).toBe("suspended");
+  });
+  it("is suspended over a low snapshot, which may be an hour old", () => {
+    expect(classifyHang(hang({ context: stalled }), [snap(3000, 5)])).toBe("suspended");
+  });
+});
+
+describe("classifyHangs", () => {
+  /** `rows` behind a Proxy that counts how many rows are read. */
+  const counted = <T>(rows: T[]): { rows: T[]; read: () => number } => {
+    let read = 0;
+    const proxy = new Proxy(rows, {
+      get(target, prop) {
+        if (typeof prop === "string" && /^\d+$/.test(prop)) read++;
+        return Reflect.get(target, prop);
+      },
+    });
+    return { rows: proxy, read: () => read };
+  };
+
+  it("reads each hang only its own device's rows, not every device's", () => {
+    const devices = ["a", "b", "c", "d"];
+    const perDevice = 25;
+    const ofDevice = (device: string, i: number) => ({ device, at: T0, uptimeSec: HANG_UPTIME - i - 1 });
+    const snaps = counted(devices.flatMap((d) => Array.from({ length: perDevice }, (_, i) => ({ ...ofDevice(d, i), availableMb: 5 }))));
+    const warns = counted(
+      devices.flatMap((d) =>
+        Array.from({ length: perDevice }, (_, i) => ({ ...ofDevice(d, i), level: "elevated", reason: "growth", rssKb: 1, totalMb: 1 })),
+      ),
+    );
+    const causes = classifyHangs(devices.map((device) => hang({ device })), snaps.rows, warns.rows).map((h) => h.cause);
+    expect(causes).toEqual(["host_memory", "host_memory", "host_memory", "host_memory"]);
+    // Four hangs read 25 rows of each kind each, not all 100.
+    expect(snaps.read()).toBeLessThanOrEqual(devices.length * perDevice);
+    expect(warns.read()).toBeLessThanOrEqual(devices.length * perDevice);
+  });
+});
+
 describe("splitOf", () => {
   it("sums sample weights per cause", () => {
     const hs = classifyHangs(
-      [hang({ memAvailableMb: 1, weight: 3 }), hang({ memAvailableMb: 500 }), hang({ device: "d2" })],
+      [
+        hang({ memAvailableMb: 1, weight: 3 }),
+        hang({ memAvailableMb: 500 }),
+        hang({ device: "d2" }),
+        hang({ platform: "android", weight: 2 }),
+      ],
       [],
     );
-    expect(splitOf(hs)).toEqual({ host_memory: 3, app_blocked: 1, unknown: 1 });
+    expect(splitOf(hs)).toEqual({ suspended: 2, host_memory: 3, app_blocked: 1, unknown: 1 });
   });
 });
 
@@ -108,7 +354,7 @@ const KEYS: HealthRowKey[] = [
   "actives_cur", "actives_prev", "top_versions", "release_cur", "release_prev",
   "release_devices_cur", "release_devices_prev", "prints_cur", "prints_prev",
   "print_sessions_cur", "print_sessions_prev", "errors_cur", "errors_prev", "errors_baseline",
-  "errors_by_device", "hangs_cur", "hangs_prev", "hang_snapshots", "crashes_cur", "crashes_prev",
+  "errors_by_device", "hangs_cur", "hangs_prev", "hang_snapshots", "hang_warnings", "crashes_cur", "crashes_prev",
   "cdn_latest", "kind_days",
 ];
 const rows = (over: Partial<Record<HealthRowKey, unknown[]>>) =>
@@ -145,7 +391,7 @@ describe("a main_loop_hang finding", () => {
 
   it("counts only the app-blocked share and carries the split", () => {
     const e = build(7).errors[0];
-    expect(e).toMatchObject({ cur: 3, prev: 1, devices: 3, total: 10, split: { host_memory: 7, app_blocked: 3, unknown: 0 } });
+    expect(e).toMatchObject({ cur: 3, prev: 1, devices: 3, total: 10, split: { suspended: 0, host_memory: 7, app_blocked: 3, unknown: 0 } });
   });
   it("does not rise when the host's memory explains the rise", () => {
     expect(build(7).errors[0].status).toBe("steady");
@@ -168,8 +414,41 @@ describe("a main_loop_hang finding", () => {
       cur: 0,
       prev: 0,
       total: 3,
-      split: { host_memory: 0, app_blocked: 0, unknown: 3 },
+      split: { suspended: 0, host_memory: 0, app_blocked: 0, unknown: 3 },
     });
+  });
+  it("counts a suspended hang in the split and the total, and in neither count", () => {
+    const h = buildHealth(
+      rows({
+        errors_cur: [{ ...hangCode, count: 5, devices: 5 }],
+        hangs_cur: [
+          hangRow("d0", 501, { platform: "android" }),
+          hangRow("d1", 11, { platform: "android" }),
+          hangRow("d2", 0, { context: "stalled_161s" }),
+          hangRow("d3", 11),
+          hangRow("d4", 501),
+        ],
+      }),
+      "2026-11-24",
+    );
+    expect(h.errors[0]).toMatchObject({
+      cur: 1,
+      prev: 0,
+      devices: 1,
+      total: 5,
+      status: "new",
+      split: { suspended: 3, host_memory: 1, app_blocked: 1, unknown: 0 },
+    });
+  });
+  it("is steady with a zero count when every hang was suspended", () => {
+    const h = buildHealth(
+      rows({
+        errors_cur: [{ ...hangCode, count: 2, devices: 2 }],
+        hangs_cur: [hangRow("d0", 0, { platform: "android" }), hangRow("d1", 0, { context: "stalled_4071s" })],
+      }),
+      "2026-11-24",
+    );
+    expect(h.errors[0]).toMatchObject({ cur: 0, devices: 0, total: 2, status: "steady", split: { suspended: 2, app_blocked: 0 } });
   });
   it("leaves every other error code to the aggregate", () => {
     const h = buildHealth(
@@ -192,7 +471,67 @@ describe("a main_loop_hang finding", () => {
       }),
       "2026-11-24",
     );
-    expect(h.errors[0].split).toEqual({ host_memory: 1, app_blocked: 1, unknown: 1 });
+    expect(h.errors[0].split).toEqual({ suspended: 0, host_memory: 1, app_blocked: 1, unknown: 1 });
+  });
+  it("classifies an older hang by a memory warning of its upload", () => {
+    const h = buildHealth(
+      rows({
+        errors_cur: [{ ...hangCode, count: 3, devices: 3 }],
+        hangs_cur: [hangRow("a", 0), hangRow("b", 0), hangRow("c", 0)],
+        // a's warning says the host ran low, b's only says the app grew, and c sent none.
+        hang_warnings: [
+          { device: "a", at: T0 / 1000, uptime: HANG_UPTIME - 600, level: "warning", reason: "available_warning", rss: 50 * 1024, total: 972 },
+          { device: "b", at: T0 / 1000, uptime: HANG_UPTIME - 600, level: "elevated", reason: "growth", rss: 50 * 1024, total: 972 },
+        ],
+      }),
+      "2026-11-24",
+    );
+    expect(h.errors[0].split).toEqual({ suspended: 0, host_memory: 1, app_blocked: 0, unknown: 2 });
+  });
+  it("reads a warning stored before reason codes by its text", () => {
+    const h = buildHealth(
+      rows({
+        errors_cur: [{ ...hangCode, count: 1, devices: 1 }],
+        hangs_cur: [hangRow("a", 0)],
+        hang_warnings: [
+          {
+            device: "a",
+            at: T0 / 1000,
+            uptime: HANG_UPTIME - 300,
+            level: "critical",
+            reason: "System available 19MB below critical threshold 32MB",
+            rss: 50 * 1024,
+            total: 485,
+          },
+        ],
+      }),
+      "2026-11-24",
+    );
+    expect(h.errors[0].split).toEqual({ suspended: 0, host_memory: 1, app_blocked: 0, unknown: 0 });
+  });
+  it("counts a hang in low memory as the app's, and so in the count, when the app held most of the host", () => {
+    const h = buildHealth(
+      rows({
+        errors_cur: [{ ...hangCode, count: 2, devices: 2 }],
+        hangs_cur: [hangRow("a", 0), hangRow("b", 0)],
+        // a's app holds 110 of the host's 256 MB; b's holds 50 of 972 MB.
+        hang_warnings: [
+          { device: "a", at: T0 / 1000, uptime: HANG_UPTIME - 600, level: "warning", reason: "available_warning", rss: 110 * 1024, total: 256 },
+          { device: "b", at: T0 / 1000, uptime: HANG_UPTIME - 600, level: "warning", reason: "available_warning", rss: 50 * 1024, total: 972 },
+        ],
+      }),
+      "2026-11-24",
+    );
+    expect(h.errors[0]).toMatchObject({ cur: 1, devices: 1, total: 2, split: { host_memory: 1, app_blocked: 1, unknown: 0 } });
+  });
+  it("classifies an older hang by its snapshot alone when no warning rows could be read", () => {
+    const r = rows({
+      errors_cur: [{ ...hangCode, count: 1, devices: 1 }],
+      hangs_cur: [hangRow("a", 0)],
+      hang_snapshots: [{ device: "a", at: T0 / 1000, uptime: HANG_UPTIME - 600, available: 12 }],
+    });
+    Reflect.deleteProperty(r, "hang_warnings");
+    expect(buildHealth(r, "2026-11-24").errors[0].split).toEqual({ suspended: 0, host_memory: 1, app_blocked: 0, unknown: 0 });
   });
   it("shows the split in the issue summary and files on the app-blocked count", () => {
     const f = findingsFromHealth(build(7), [], "2026-W47");
@@ -200,6 +539,7 @@ describe("a main_loop_hang finding", () => {
       count: 3,
       hangs_app_blocked: 3,
       hangs_host_out_of_memory: 7,
+      hangs_app_suspended: 0,
       hangs_cause_unknown: 0,
     });
     expect(f[0].actions).not.toContain("issue");
@@ -236,6 +576,10 @@ describe("the first weeks after the snapshot column deploys", () => {
   });
   it("rises when there were no hangs last week", () => {
     expect(mk([], cur).errors[0].status).toBe("rising");
+  });
+  it("rises over a previous week of suspended hangs, which are classified", () => {
+    const suspendedPrev = Array.from({ length: 8 }, (_, i) => hangRow(`p${i}`, 0, { platform: "android" }));
+    expect(mk(suspendedPrev, cur).errors[0]).toMatchObject({ cur: 8, prev: 0, status: "rising" });
   });
 });
 
@@ -284,7 +628,159 @@ describe("hang queries", () => {
     expect(sql).not.toContain("b';");
     expect(hangSnapshotsSql([], [0, 15])).toContain(SQL_FALSE);
   });
+  it("reads the warnings of the named uploads only, sanitized, each upload once", () => {
+    const sql = hangWarningsSql([{ device: "a1", at: 1000 }, { device: "a1", at: 1000 }, { device: "b'; DROP", at: 2000 }]);
+    expect(sql).toContain("index1 = 'memory_warning'");
+    expect(sql.match(/'a1'/g)).toHaveLength(1);
+    expect(sql).toContain(`${col("memory_warning", "device_id")} = 'b DROP'`);
+    expect(sql).not.toContain("';");
+    expect(sql).toContain(`toUnixTimestamp(timestamp) >= ${1000 - HANG_UPLOAD_BATCH_SEC}`);
+    expect(sql).toContain(`toUnixTimestamp(timestamp) <= ${2000 + HANG_UPLOAD_BATCH_SEC}`);
+    expect(hangWarningsSql([])).toContain(SQL_FALSE);
+  });
+  it("reads warnings only as far back as the hang windows reach", () => {
+    expect(hangWarningsSql([{ device: "a1", at: 1000 }])).toContain(windowClause([0, HEALTH_WINDOWS.prev[1] + 1]));
+  });
+  it("reads each warning's stored time, uptime, level, reason, the app's RSS and the host's total", () => {
+    const sql = hangWarningsSql([{ device: "a1", at: 1000 }]);
+    const columns: [string, string][] = [
+      ["device_id", "device"],
+      ["uptime_sec", "uptime"],
+      ["level", "level"],
+      ["reason", "reason"],
+      ["rss_kb", "rss"],
+      ["system_total_mb", "total"],
+    ];
+    for (const [field, alias] of columns) expect(sql).toContain(`${col("memory_warning", field)} as ${alias}`);
+    expect(sql).toContain("toUnixTimestamp(timestamp) as at");
+  });
   it("leaves out snapshots written before the column existed", () => {
     expect(hangSnapshotsSql(["a1"], [0, 15])).toContain("double6 > 0");
+  });
+  it("reads each hang's main thread state and wait channel", () => {
+    const sql = hangEventsSql(HEALTH_WINDOWS.cur);
+    expect(sql).toContain(`${col("error_encountered", "main_state")} as state`);
+    expect(sql).toContain(`${col("error_encountered", "main_wchan")} as wchan`);
+  });
+  it("reads each hang's platform, version and context", () => {
+    const sql = hangEventsSql(HEALTH_WINDOWS.cur);
+    expect(sql).toContain(`${col("error_encountered", "app_platform")} as platform`);
+    expect(sql).toContain(`${col("error_encountered", "app_version")} as version`);
+    expect(sql).toContain(`${col("error_encountered", "context")} as context`);
+  });
+});
+
+describe("hangRowOf", () => {
+  it("reads a hang's main thread state and wait channel, and an absent or empty one as empty", () => {
+    const row = { device: "d1", at: T0 / 1000, uptime: HANG_UPTIME, mem: 501, weight: 1 };
+    expect(hangRowOf({ ...row, state: "S", wchan: "futex" })).toMatchObject({ mainState: "S", mainWchan: "futex" });
+    expect(hangRowOf({ ...row, state: "", wchan: "" })).toMatchObject({ mainState: "", mainWchan: "" });
+    expect(hangRowOf(row)).toMatchObject({ mainState: "", mainWchan: "" });
+  });
+  it("reads a hang's platform, version and context, each empty when the report carries none", () => {
+    const row = { device: "d1", at: T0 / 1000, platform: "android", version: "1.1.0", context: "stalled_161s" };
+    expect(hangRowOf(row)).toMatchObject({ platform: "android", appVersion: "1.1.0", context: "stalled_161s" });
+    expect(hangRowOf({ device: "d1" })).toMatchObject({ platform: "", appVersion: "", context: "" });
+  });
+});
+
+describe("fetchHealth hang causes", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("splits an Android hang out as suspended from the hang rows alone", async () => {
+    vi.stubGlobal("fetch", async (_url: string, init: { body: string }) => {
+      const sql = init.body;
+      const data = sql.includes("'main_loop_hang'")
+        ? [
+            { device: "d0", at: 1, uptime: 5, mem: 0, pressure: "", platform: "android", weight: 1 },
+            { device: "d1", at: 1, uptime: 5, mem: 0, pressure: "", platform: "pi", weight: 1 },
+          ]
+        : sql.trimEnd().endsWith("GROUP BY category, code")
+          ? [{ category: "ui", code: "main_loop_hang", count: 2, devices: 2 }]
+          : [];
+      return new Response(JSON.stringify({ data }), { status: 200 });
+    });
+    const h = await fetchHealth({ accountId: "a", apiToken: "t" }, "2026-11-24");
+    expect(h.errors[0]).toMatchObject({ cur: 0, total: 2, split: { suspended: 1, unknown: 1 } });
+  });
+
+  it("counts an Android hang of a build that reports no backgrounded stall, once its version reaches the gate", async () => {
+    vi.stubGlobal("fetch", async (_url: string, init: { body: string }) => {
+      const sql = init.body;
+      const data = sql.includes("'main_loop_hang'")
+        ? [
+            { device: "d0", at: 1, uptime: 5, mem: 501, pressure: "none", platform: "android", version: "1.2.0-alpha.1", weight: 1 },
+            { device: "d1", at: 1, uptime: 5, mem: 501, pressure: "none", platform: "android", version: "1.2.0-alpha.2", weight: 1 },
+          ]
+        : sql.trimEnd().endsWith("GROUP BY category, code")
+          ? [{ category: "ui", code: "main_loop_hang", count: 2, devices: 2 }]
+          : [];
+      return new Response(JSON.stringify({ data }), { status: 200 });
+    });
+    const h = await fetchHealth({ accountId: "a", apiToken: "t" }, "2026-11-24");
+    expect(h.errors[0]).toMatchObject({ cur: 1, devices: 1, total: 2, split: { suspended: 1, app_blocked: 1 } });
+  });
+
+  const storedAt = 1_700_000_000;
+  const oneHang = { device: "d0", at: storedAt, uptime: HANG_UPTIME, mem: 0, pressure: "", platform: "pi", weight: 1 };
+  /** Answers the Health queries with `hangs`, their error row and `warnings` for the warning query; returns each SQL asked. */
+  const serve = (warnings: unknown[] | Response, hangs: object[] = [oneHang]): string[] => {
+    const asked: string[] = [];
+    vi.stubGlobal("fetch", async (_url: string, init: { body: string }) => {
+      const sql = init.body;
+      asked.push(sql);
+      const respond = (data: unknown) => new Response(JSON.stringify({ data }), { status: 200 });
+      if (sql.includes("'memory_warning'")) return warnings instanceof Response ? warnings : respond(warnings);
+      if (sql.includes("'main_loop_hang'")) return respond(hangs);
+      if (sql.trimEnd().endsWith("GROUP BY category, code")) {
+        return respond([{ category: "ui", code: "main_loop_hang", count: hangs.length, devices: hangs.length }]);
+      }
+      return respond([]);
+    });
+    return asked;
+  };
+  const warningQueries = (asked: string[]): string[] => asked.filter((sql) => sql.includes("'memory_warning'"));
+
+  it("reads the warnings of the upload that hung and classifies an older hang by them", async () => {
+    serve([
+      { device: "d0", at: storedAt, uptime: HANG_UPTIME - 600, level: "warning", reason: "available_warning", rss: 50 * 1024, total: 972 },
+    ]);
+    const h = await fetchHealth({ accountId: "a", apiToken: "t" }, "2026-11-24");
+    expect(h.errors[0]).toMatchObject({ cur: 0, total: 1, split: { host_memory: 1 } });
+  });
+  it("moves a hang in low memory to the app's when the warning beside it shows the app holding most of the host", async () => {
+    serve([
+      { device: "d0", at: storedAt, uptime: HANG_UPTIME - 600, level: "warning", reason: "available_warning", rss: 110 * 1024, total: 256 },
+    ]);
+    const h = await fetchHealth({ accountId: "a", apiToken: "t" }, "2026-11-24");
+    expect(h.errors[0]).toMatchObject({ cur: 1, total: 1, split: { host_memory: 0, app_blocked: 1 } });
+  });
+  it("asks for each hung upload's warnings around the time that upload was stored", async () => {
+    const asked = serve([]);
+    await fetchHealth({ accountId: "a", apiToken: "t" }, "2026-11-24");
+    const sql = asked.find((b) => b.includes("'memory_warning'"));
+    expect(sql).toBeDefined();
+    expect(sql).toContain(`${col("memory_warning", "device_id")} = 'd0'`);
+    expect(sql).toContain(`toUnixTimestamp(timestamp) >= ${storedAt - HANG_UPLOAD_BATCH_SEC}`);
+    expect(sql).toContain(`toUnixTimestamp(timestamp) <= ${storedAt + HANG_UPLOAD_BATCH_SEC}`);
+  });
+  it("asks for an upload's warnings once, however many hangs it carried", async () => {
+    const asked = serve([], Array.from({ length: 250 }, () => oneHang));
+    await fetchHealth({ accountId: "a", apiToken: "t" }, "2026-11-24");
+    expect(warningQueries(asked)).toHaveLength(1);
+  });
+  it("asks once per hundred distinct uploads, not once per hundred hangs", async () => {
+    const uploads = Array.from({ length: 150 }, (_, i) => ({ ...oneHang, device: `d${i % 50}`, at: storedAt + i }));
+    const asked = serve([], [...uploads, ...uploads, ...uploads.slice(0, 100)]);
+    await fetchHealth({ accountId: "a", apiToken: "t" }, "2026-11-24");
+    expect(warningQueries(asked)).toHaveLength(2);
+  });
+  it("classifies an older hang by its snapshot alone when the warning query fails, and logs", async () => {
+    serve(new Response("boom", { status: 500 }));
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const h = await fetchHealth({ accountId: "a", apiToken: "t" }, "2026-11-24");
+    expect(h.errors[0]).toMatchObject({ cur: 0, total: 1, split: { host_memory: 0, unknown: 1 } });
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("hang warnings failed"));
+    log.mockRestore();
   });
 });

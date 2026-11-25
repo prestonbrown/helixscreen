@@ -393,6 +393,16 @@ export function memoryReasonCode(reasonCode: unknown, reason: unknown): string {
     .slice(0, 64);
 }
 
+/**
+ * The reason code of a memory_warning row as Analytics Engine stored it. A row written before
+ * the codes were stored holds the client's text, which the same derivation reads; a stored
+ * code passes through.
+ */
+export function storedMemoryReason(stored: unknown): string {
+  const value = typeof stored === "string" ? stored : "";
+  return memoryReasonCode(value, value);
+}
+
 const memoryReason: Reader = reads(["reason_code", "reason"], (e) => memoryReasonCode(e.reason_code, e.reason));
 
 const device = blob(1, "device_id");
@@ -731,6 +741,10 @@ const KINDS: PointKind[] = [
     blob(15, "gl_software", triState(flat("gl_software"))),
     blob(16, "active_overlay"),
     blob(17, "pressure_level"),
+    // A main_loop_hang names the main thread's scheduler state (one letter) and wait channel;
+    // other errors, and builds that send neither, leave these empty.
+    blob(18, "main_state"),
+    blob(19, "main_wchan"),
     dbl(1, "uptime_sec"),
     // A main_loop_hang's doubles, each stored + 1 (0 = absent): panel 0 is
     // Home, and 0 MB available or 0 major faults are real readings.

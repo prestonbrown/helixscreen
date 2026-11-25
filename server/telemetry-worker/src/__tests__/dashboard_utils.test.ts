@@ -3,10 +3,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { groupVersionRates, groupVersions, olderLines, ungrouped, versionChips } from '../../../analytics-dashboard/src/utils/versions'
 import { planActivation, rowAction, rowHint, rowLabel, single } from '../../../analytics-dashboard/src/utils/drill'
 import { mergeOptions, rateAxis } from '../../../analytics-dashboard/src/utils/chart'
-import { emptyPlaceholder, formatRate, formatRateOf, notReportedPer, ppChange, rangeLabel, unreportedNote } from '../../../analytics-dashboard/src/utils/format'
+import { emptyPlaceholder, formatRate, formatRateOf, hangCauseLine, notReportedPer, ppChange, rangeLabel, unreportedNote } from '../../../analytics-dashboard/src/utils/format'
 import { canonicalModelKey, canonicalModels, isFilterable } from '../../../analytics-dashboard/src/utils/models'
 import { LOW_COUNT_PRINTS, groupMaterialSets, isLowCount, materialSet } from '../../../analytics-dashboard/src/utils/materials'
 import { filterValues } from '../queries'
+import type { HangSplit } from '../hang_cause'
 import { withNotApplicable } from '../../../analytics-dashboard/src/utils/notApplicable'
 import { isRenderError } from '../../../analytics-dashboard/src/utils/renderError'
 import { barChartHeight, dimmed, seriesColor, todayUtc, trimPartialDays } from '../../../analytics-dashboard/src/utils/series'
@@ -250,6 +251,24 @@ describe('unreportedNote', () => {
         ['p95 frame', 'board'],
       ])
     ).toBe('Crash-free, Crash rate: Not reported per printer model; p95 frame: Not reported per board')
+  })
+})
+
+describe('hangCauseLine', () => {
+  it('lists every cause of a hang split under its label', () => {
+    expect(hangCauseLine({ app_blocked: 3, host_memory: 7, suspended: 2, unknown: 1 })).toBe(
+      '3 app blocked, 7 host out of memory, 2 app suspended, 1 unknown'
+    )
+  })
+  it('reads a cause a stored weekly report predates as 0', () => {
+    const older = { app_blocked: 3, host_memory: 7, unknown: 0 } as HangSplit
+    expect(hangCauseLine(older)).toBe('3 app blocked, 7 host out of memory, 0 app suspended, 0 unknown')
+  })
+  it('lists a cause a newer worker sends and this dashboard has no label for, under its key', () => {
+    const newer = { app_blocked: 3, host_memory: 7, suspended: 2, unknown: 1, device_frozen: 5 } as HangSplit
+    expect(hangCauseLine(newer)).toBe(
+      '3 app blocked, 7 host out of memory, 2 app suspended, 1 unknown, 5 device_frozen'
+    )
   })
 })
 

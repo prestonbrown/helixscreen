@@ -1001,6 +1001,19 @@ describe("mapEventToDataPoints", () => {
     expect(early.doubles![8]).toBe(0);
   });
 
+  it("maps a main_loop_hang's main thread state and wait channel, empty until a build sends them", () => {
+    const slot = (f: string) => Number(col("error_encountered", f).slice(4));
+    const event = { event: "error_encountered", device_id: "dev-hang", category: "ui", code: "main_loop_hang", main_state: "S", main_wchan: "futex" };
+    const dp = mapEventToDataPoints(event)[0];
+    expect(slot("main_state")).toBe(18);
+    expect(slot("main_wchan")).toBe(19);
+    expect(dp.blobs!.slice(17, 19)).toEqual(["S", "futex"]);
+    const older = mapEventToDataPoints({ ...event, main_state: "", main_wchan: "" })[0];
+    expect(older.blobs!.slice(17, 19)).toEqual(["", ""]);
+    const silent = mapEventToDataPoints({ event: "error_encountered", device_id: "dev-err", category: "net", code: "timeout" })[0];
+    expect(silent.blobs!.slice(17, 19)).toEqual(["", ""]);
+  });
+
   it("maps a memory warning's largest processes", () => {
     const event = {
       event: "memory_warning",

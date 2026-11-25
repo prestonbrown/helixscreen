@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { describe, expect, it } from "vitest";
 import { mapEventToDataPoints } from "../analytics";
-import { memoryReasonCode } from "../schema";
+import { memoryReasonCode, storedMemoryReason } from "../schema";
 
 describe("memoryReasonCode", () => {
   it("prefers the code the client sends", () => {
@@ -46,5 +46,12 @@ describe("memoryReasonCode", () => {
       reason: "RSS 31MB exceeds warning threshold 30MB",
     });
     expect(point.blobs?.[4]).toBe("rss_warning");
+  });
+
+  it("reads a stored reason to its code, from the text of a row written before codes and from a code", () => {
+    expect(storedMemoryReason("System available 19MB below critical threshold 32MB")).toBe("available_critical");
+    expect(storedMemoryReason("available_critical")).toBe("available_critical");
+    expect(storedMemoryReason("RSS growth +35341KB over 5 minutes exceeds threshold 3072KB")).toBe("growth");
+    expect(storedMemoryReason(undefined)).toBe("");
   });
 });

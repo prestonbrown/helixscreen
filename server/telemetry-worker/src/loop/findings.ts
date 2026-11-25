@@ -112,7 +112,12 @@ function errorFindings(health: HealthPayload): Ranked[] {
         devices: e.devices,
         // A hang's count above is the app-blocked share; these are this week's whole.
         ...(e.split
-          ? { hangs_app_blocked: e.split.app_blocked, hangs_host_out_of_memory: e.split.host_memory, hangs_cause_unknown: e.split.unknown }
+          ? {
+              hangs_app_blocked: e.split.app_blocked,
+              hangs_host_out_of_memory: e.split.host_memory,
+              hangs_app_suspended: e.split.suspended,
+              hangs_cause_unknown: e.split.unknown,
+            }
           : {}),
       },
       dashboardPath: '/stability',

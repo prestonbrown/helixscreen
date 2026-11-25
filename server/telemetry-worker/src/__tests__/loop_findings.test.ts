@@ -115,6 +115,27 @@ describe('error codes', () => {
     const f = run(health({ errors: [err(T.ERROR_ISSUE_DEVICES * 10, 'steady')] }))
     expect(f.flatMap((x) => x.actions)).not.toContain('issue')
   })
+
+  it('carries every cause of a hang split in the summary, next to the app-blocked count', () => {
+    const hang: HealthPayload['errors'][number] = {
+      category: 'ui',
+      code: 'main_loop_hang',
+      cur: 2,
+      prev: 0,
+      devices: 2,
+      status: 'new',
+      split: { suspended: 1, host_memory: 3, app_blocked: 2, unknown: 1 },
+      total: 7,
+    }
+    const f = run(health({ errors: [hang] }))
+    expect(f[0].summary).toMatchObject({
+      count: 2,
+      hangs_app_blocked: 2,
+      hangs_host_out_of_memory: 3,
+      hangs_app_suspended: 1,
+      hangs_cause_unknown: 1,
+    })
+  })
 })
 
 describe('update failures', () => {
