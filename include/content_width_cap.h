@@ -51,14 +51,27 @@ constexpr int32_t side_band_min_width(int32_t ver_res) {
 }
 
 /**
- * @brief Narrowest a page's main column may be and still show a side band.
+ * @brief Narrowest a main column may be beside a side band.
  *
- * Controls and Filament are designed for an 800 px wide screen (the 800x480
- * Medium tier of include/ui_breakpoint.h): below that their cards and lane
- * rows crowd. A band is worth showing only while the column beside it keeps
- * that width.
+ * Controls' three top cards and Filament's two columns still hold their content
+ * at this width (screenshots at 1280x400, where the column is 684 beside a
+ * 520 px band). Below it the host takes the whole width and shows no band.
  */
-constexpr int32_t kMainColumnFloor = 800;
+constexpr int32_t kMainColumnFloor = 680;
+
+/**
+ * @brief The band's preferred width, as a ratio of screen height.
+ *
+ * Motion's speed buttons and the AMS lane labels need about one and a third
+ * screen heights; the bare minimum (kSideBandMinWidthNum / Den) only keeps the jog pad.
+ */
+constexpr int32_t kSideBandPrefWidthNum = 13;
+constexpr int32_t kSideBandPrefWidthDen = 10;
+
+/// The band's preferred width for a screen of @p ver_res pixels tall.
+constexpr int32_t side_band_pref_width(int32_t ver_res) {
+    return ver_res * kSideBandPrefWidthNum / kSideBandPrefWidthDen;
+}
 
 /**
  * @brief Widest a page with no side band stays capped, in pixels.
@@ -89,8 +102,9 @@ struct SideBandLayout {
  *
  * - The cap leaves side_band_min_width(): the column stops at the cap, the band
  *   takes the rest.
- * - Otherwise, if the column can give up width to a minimum band and still keep
- *   kMainColumnFloor, it shrinks to make room (1280x400: 804 + 400).
+ * - Otherwise the column gives up width to a band of up to
+ *   side_band_pref_width(), as long as it keeps kMainColumnFloor and the band
+ *   keeps side_band_min_width() (1280x400: 684 + 520).
  * - Otherwise the column takes the whole host and there is no band.
  */
 constexpr SideBandLayout side_band_layout(int32_t host_width, int32_t cap, int32_t ver_res) {
@@ -98,8 +112,12 @@ constexpr SideBandLayout side_band_layout(int32_t host_width, int32_t cap, int32
     if (host_width - cap >= band_min) {
         return {cap, true};
     }
-    if (host_width - band_min >= kMainColumnFloor) {
-        return {host_width - band_min, true};
+    int32_t main_width = host_width - side_band_pref_width(ver_res);
+    if (main_width < kMainColumnFloor) {
+        main_width = kMainColumnFloor;
+    }
+    if (host_width - main_width >= band_min) {
+        return {main_width, true};
     }
     return {host_width, false};
 }
