@@ -61,12 +61,13 @@ TEST_CASE("side band layout: the cap, a shrunk column, or the whole host", "[uw_
         {2560 - 76, 720, true, 1728},
         {1480 - 54, 320, true, 768},
         {1920 - 76, 440, true, 1056},
-        // The cap leaves a sliver, but the column can shrink and keep the floor.
-        {1280 - 76, 400, true, 1204 - 400},
-        {1920 - 76, 720, true, 1844 - 720},
-        // Too narrow for floor + band: the column takes the whole host.
+        // The cap leaves a sliver: the column shrinks to a preferred-width band.
+        {1280 - 76, 400, true, 1204 - 520},
+        {1920 - 76, 720, true, 1844 - 936},
+        // The preferred band would take the column below the floor: the band shrinks.
+        {1280 - 76, 480, true, 680},
+        // Too narrow for floor + minimum band: the column takes the whole host.
         {1100 - 76, 400, false, 1024},
-        {1280 - 76, 480, false, 1204},
         {800 - 76, 480, false, 724},
     }};
     for (const Size& s : sizes) {
@@ -78,10 +79,10 @@ TEST_CASE("side band layout: the cap, a shrunk column, or the whole host", "[uw_
     }
     // The boundaries: a cap that just leaves a band, a floor that is just kept.
     CHECK(helix::side_band_layout(1152 + 480, 1152, 480).main_width == 1152);
-    CHECK(helix::side_band_layout(1152 + 479, 1152, 480).main_width == 1152 + 479 - 480);
-    CHECK(helix::side_band_layout(800 + 400, 960, 400).room);
-    CHECK_FALSE(helix::side_band_layout(800 + 399, 960, 400).room);
-    // Whenever the band shows, the column keeps at least the floor.
+    CHECK(helix::side_band_layout(1152 + 479, 1152, 480).main_width == 1152 + 479 - 624);
+    CHECK(helix::side_band_layout(680 + 400, 960, 400).room);
+    CHECK_FALSE(helix::side_band_layout(680 + 399, 960, 400).room);
+    // Whenever the band shows, the column keeps at least the floor and the band its minimum.
     for (int32_t host = 400; host <= 2600; host += 7) {
         const auto layout = helix::side_band_layout(host, helix::content_max_width(400), 400);
         if (layout.room) {
@@ -551,9 +552,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "side band: Controls hosts the Motion panel'
 
 TEST_CASE_METHOD(LVGLUITestFixture, "side band: a host too narrow for column and band fills",
                  "[uw_side_band]") {
-    // The host has no nav bar here, so 1200x480 stands for a 1280x480 screen: it
-    // cannot hold an 800 column and a 480 band.
-    ScopedResolution resolution(lv_display_get_default(), 1200, 480);
+    // 1100 px cannot hold a 680 column and a 480 band.
+    ScopedResolution resolution(lv_display_get_default(), 1100, 480);
     theme_manager_refresh_layout_constants(lv_display_get_default());
     ScopedUltrawide ultrawide(0);
     ultrawide.set(1);
@@ -572,7 +572,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "side band: a host too narrow for column and
 
 TEST_CASE_METHOD(LVGLUITestFixture, "side band: a sliver beside the cap shrinks the column",
                  "[uw_side_band]") {
-    // 1920x720: the 1728 cap leaves 192 px, but 1920 holds an 800 column and a 720 band.
+    // 1920x720: the 1728 cap leaves 192 px, but 1920 holds a 680 column and a 720 band.
     ScopedResolution resolution(lv_display_get_default(), 1920, 720);
     theme_manager_refresh_layout_constants(lv_display_get_default());
     ScopedUltrawide ultrawide(0);
@@ -584,7 +584,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "side band: a sliver beside the cap shrinks 
     lv_obj_t* main = lv_obj_find_by_name(fx.host, "side_band_main");
     lv_obj_update_layout(fx.host);
     const int32_t host_w = lv_obj_get_content_width(fx.host);
-    CHECK(lv_obj_get_width(main) == host_w - helix::side_band_min_width(720));
+    CHECK(lv_obj_get_width(main) == host_w - helix::side_band_pref_width(720));
     CHECK(lv_obj_get_width(main) >= helix::kMainColumnFloor);
     lv_area_t a;
     lv_obj_get_coords(fx.band_obj(), &a);
@@ -614,9 +614,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "side band: a resize that closes the room em
     fx.band.on_host_activate();
     REQUIRE(fx.band.hosted() != nullptr);
 
-    // Narrower at the same height: 1200 px cannot hold an 800 column and a 480 band.
+    // Narrower at the same height: 1100 px cannot hold a 680 column and a 480 band.
     {
-        ScopedResolution narrow(lv_display_get_default(), 1200, 480);
+        ScopedResolution narrow(lv_display_get_default(), 1100, 480);
         lv_obj_update_layout(fx.host);
         helix::ui::UpdateQueue::instance().drain();
         CHECK_FALSE(fx.band.shows());
