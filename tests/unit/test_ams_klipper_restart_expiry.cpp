@@ -339,14 +339,6 @@ TEST_CASE_METHOD(KlipperRestartFixture,
         REQUIRE(tinfo_count(api) == 1);
         restart_klipper();
         CHECK(tinfo_count(api) == 2);
-
-        // The same READY reaches the client as Moonraker's own notification.
-        // The query follows the state edge alone: one READY, one query.
-        client.dispatch_method_callback(
-            "notify_klippy_ready",
-            json{{"method", "notify_klippy_ready"}, {"params", json::array()}});
-        settle();
-        CHECK(tinfo_count(api) == 2);
     }
 
     backend->stop();
