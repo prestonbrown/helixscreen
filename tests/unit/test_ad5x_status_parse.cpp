@@ -169,9 +169,10 @@ TEST_CASE("AD5X ifs module object ignores a loaded channel outside 1..kDefaultPo
           "[ad5x][status_parse][2044]") {
     // Each accepted channel sets one byte at index channel - 1, so the range
     // check is all that keeps a bad reading from writing outside the
-    // four-entry array. That write corrupts the stack rather than a value a
-    // case could compare, so a mutant that drops the check is caught by the
-    // sanitizer, not by these assertions.
+    // four-entry array. A dropped check fails no assertion here: the writes in
+    // the first two sections land beside the array on the stack, where only
+    // the sanitizer sees them, and the last section's write misses the stack
+    // and kills the process with SIGSEGV.
     const std::array<bool, ad5x::kDefaultPorts> none{};
     SECTION("0, a negative and a port past the last mark nothing") {
         const auto obj = ad5x::parse_ifs_module_object(json{{"loaded_channels", {0, 2, 5, -1}}});
