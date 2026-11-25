@@ -402,6 +402,8 @@ class TestHelixPrintInit:
         assert component.symlink_dir == ".helix_print"
         assert component.cleanup_delay == 86400  # 24 hours
         assert component.enabled is True
+        # A slicer's upload-and-print of a .gcode.3mf only works with this on.
+        assert component.start_3mf_on_upload is True
 
     def test_custom_config(self, mock_server):
         """Test custom configuration values."""

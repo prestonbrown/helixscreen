@@ -111,8 +111,8 @@ cleanup_delay: 86400
 convert_3mf: True
 
 # Start the converted print when the slicer's upload asked to print it
-# (OctoPrint-style `print=true`, as OrcaSlicer's Print button sends). Default: False.
-start_3mf_on_upload: False
+# (OctoPrint-style `print=true`, as OrcaSlicer's Print button sends). Default: True.
+start_3mf_on_upload: True
 ```
 
 Restart Moonraker after configuration:
@@ -141,7 +141,7 @@ Response:
     "active_prints": 0,
     "version": "1.4.2",
     "convert_3mf": true,
-    "start_3mf_on_upload": false,
+    "start_3mf_on_upload": true,
     "api": 2,
     "features": {
       "convert_3mf": {"version": 1, "available": true, "enabled": true, "reason": null},
@@ -989,7 +989,7 @@ beside it, so Moonraker's metadata, thumbnails and every client work.
   (`<temp_dir>/3mf-*.partial`) are removed at startup.
 - **Unreadable archives:** an encrypted plate, a compression method Python's
   zipfile lacks, or a damaged zip gives a `failed` entry naming the error.
-- **Auto-start** (`start_3mf_on_upload: True`): an upload carrying `print=true`
+- **Auto-start** (`start_3mf_on_upload`, on by default): an upload carrying `print=true`
   starts the converted print through Moonraker's own start/queue rules: when the
   printer is busy and `[file_manager] queue_gcode_uploads` is on, it is queued, and
   the upload response says `print_queued`. The upload's own conversion goes ahead

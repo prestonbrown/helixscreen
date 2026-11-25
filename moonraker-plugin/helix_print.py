@@ -34,7 +34,7 @@ Configuration (moonraker.conf):
     symlink_dir: .helix_print
     cleanup_delay: 86400
     convert_3mf: True
-    start_3mf_on_upload: False
+    start_3mf_on_upload: True
 
 The .3mf converter lives in helix_3mf.py and the capability probes in
 helix_capabilities.py, both beside this file (README.md, ".3mf Conversion").
@@ -493,7 +493,7 @@ class HelixPrint:
         self.cleanup_delay = config.getint("cleanup_delay", 86400)  # 24 hours
         self.enabled = config.getboolean("enabled", True)
         self.convert_3mf = config.getboolean("convert_3mf", True)
-        self.start_3mf_on_upload = config.getboolean("start_3mf_on_upload", False)
+        self.start_3mf_on_upload = config.getboolean("start_3mf_on_upload", True)
         self.converter: Optional[Any] = None
         self.plr: Optional[Any] = None
         self.analysis: Optional[Any] = None
