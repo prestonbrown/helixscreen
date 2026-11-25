@@ -216,13 +216,13 @@ describe("classifyHang, the app's own share of the host's memory", () => {
   });
 
   // The three below keep the guard clear of an app at its normal size on the smallest board,
-  // and inside an app's growth on a small host.
+  // and inside the app's growth on a host it nearly filled.
   it("leaves a small board's app at the largest share any of them held to the host", () => {
     // An AD5M host of 114 MB with the app at 32 MB.
     expect(classifyHang(hang(), [], [warn(300, { rssKb: 32 * 1024, totalMb: 114 })])).toBe("host_memory");
   });
-  it("takes the app for it when it grew to half of a host of 485 MB", () => {
-    expect(classifyHang(hang(), [], [warn(300, { rssKb: 240 * 1024, totalMb: 485 })])).toBe("app_blocked");
+  it("takes the app for it at the share of the fleet's smallest real case, 221 of 487 MB", () => {
+    expect(classifyHang(hang(), [], [warn(300, { rssKb: 221 * 1024, totalMb: 487 })])).toBe("app_blocked");
   });
   it("does not take the monitor's own RSS flag for the app starving its host", () => {
     // The host ran low ten minutes before; a minute before the hang the monitor flagged the app's
