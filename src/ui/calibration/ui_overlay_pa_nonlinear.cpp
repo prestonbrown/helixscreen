@@ -952,10 +952,8 @@ void PaNonlinearOverlay::on_print_state(PrintJobState state) {
     }
     // Complete, or stopped by the user: judge what printed, and only that, in
     // the tenths the height picker steps in.
-    judge_top_mm_ = state == PrintJobState::COMPLETE
-                        ? kTowerHeightMm
-                        : std::clamp(std::round(reached_mm_ * 10.0f) / 10.0f,
-                                     helix::pa::kTowerLayerMm, kTowerHeightMm);
+    open_judgement(state == PrintJobState::COMPLETE ? kTowerHeightMm
+                                                    : std::round(reached_mm_ * 10.0f) / 10.0f);
     // The tower on the bed outlives a restart of the screen; so does judging it.
     save_session(true);
     set_stage(JUDGE);
@@ -963,6 +961,15 @@ void PaNonlinearOverlay::on_print_state(PrintJobState state) {
     if (lv_obj_t* root = overlay_root_) {
         pa_tower_flourish(lv_obj_find_by_name(root, "pa_nl_judge_tower"));
     }
+}
+
+void PaNonlinearOverlay::open_judgement(float top_mm) {
+    judge_top_mm_ = std::clamp(top_mm, helix::pa::kTowerLayerMm, kTowerHeightMm);
+    // Both heights start in the middle of what printed: nothing above the top
+    // can be picked, so nothing above it can be recorded. A two-sided pass
+    // opens with neither judged; a one-sided one with that middle to step from.
+    height_mm_ = front_mm_ = judge_top_mm_ / 2.0f;
+    left_set_ = front_set_ = proc_->current().judge != helix::pa::TowerSide::LeftVsFront;
 }
 
 void PaNonlinearOverlay::on_script_failed(int pass_seq, const MoonrakerError& err) {
@@ -1465,10 +1472,7 @@ void PaNonlinearOverlay::resume(const nlohmann::json& saved) {
     // A tower printed before the restart and not judged yet: judge it now.
     if (const auto* top = json_util::find_member(saved, "judging_top_mm");
         top && top->is_number()) {
-        judge_top_mm_ =
-            std::clamp(json_util::as_float(*top), helix::pa::kTowerLayerMm, kTowerHeightMm);
-        height_mm_ = front_mm_ = judge_top_mm_ / 2.0f;
-        left_set_ = front_set_ = proc_->current().judge != helix::pa::TowerSide::LeftVsFront;
+        open_judgement(json_util::as_float(*top));
         set_stage(JUDGE);
     }
     refresh();

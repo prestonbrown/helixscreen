@@ -643,6 +643,28 @@ TEST_CASE_METHOD(NonlinearFixture, "nonlinear tuner: a tower that completes is j
 }
 
 TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: a tower stopped early is judged from inside what printed",
+                 "[pa_nonlinear][pa_tuner][pa_nl_session]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    const auto sweep = overlay.procedure_for_test()->current().sweep;
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    tower("printing");
+    for (double z = 0.2; z < 18.05; z += 0.2) {
+        status({{"gcode_move", {{"gcode_position", {100.0, 100.0, z, 0.0}}}}});
+    }
+    tower("cancelled");
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::JUDGE);
+    REQUIRE(overlay.judge_top_for_test() == Catch::Approx(18.0f));
+    // The height the screen opens on is plastic that printed.
+    CHECK(overlay.height_for_test() <= overlay.judge_top_for_test());
+    overlay.judge_primary_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(overlay.procedure_for_test()->values().nonlinear_offset <=
+          pa::value_at(sweep, 18.0f) + 1e-6f);
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
                  "nonlinear tuner: a tower printed and not yet judged survives a restart",
                  "[pa_nonlinear][pa_tuner][pa_nl_session]") {
     overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
