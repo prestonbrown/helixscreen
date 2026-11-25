@@ -144,9 +144,6 @@ class TestFirmwareManaged:
     installer detects it with; a printer with none of them is not managed."""
 
     @pytest.mark.parametrize("marker, is_dir", [
-        # Snapmaker U1 extended firmware (paxx)
-        ("oem/apps/helixscreen", True),
-        ("etc/hooks/lmd.d/30-helixscreen.sh", False),
         # Z-Mod: its marker file, and its chroot seen from the host
         ("ZMOD", False),
         ("usr/data/.mod/.zmod/usr/bin", True),
@@ -168,6 +165,28 @@ class TestFirmwareManaged:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text("")
         assert FIRMWARE_MANAGED(str(tmp_path))
+
+    @staticmethod
+    def _paxx(root, gui):
+        hook = root / "etc/hooks/lmd.d/30-helixscreen.sh"
+        hook.parent.mkdir(parents=True)
+        hook.write_text("")
+        (root / "oem/apps/helixscreen/latest/bin").mkdir(parents=True)
+        if gui is not None:
+            cfg = root / "oem/printer_data/config/extended/extended2.cfg"
+            cfg.parent.mkdir(parents=True)
+            cfg.write_text(f"[web]\nfrontend: fluidd\n\n[components]\ngui: {gui}\n")
+
+    def test_paxx_running_its_package_is_firmware_managed(self, tmp_path):
+        self._paxx(tmp_path, "helixscreen")
+        assert migration.firmware_owner(str(tmp_path)) == "paxx"
+
+    @pytest.mark.parametrize("gui", ["snapmaker", None])
+    def test_paxx_on_its_stock_ui_does_not_own_our_install(self, tmp_path, gui):
+        # paxx ships the lmd hook whatever gui selects, and the package runs
+        # only through it.
+        self._paxx(tmp_path, gui)
+        assert not FIRMWARE_MANAGED(str(tmp_path))
 
     def test_no_marker_is_not_firmware_managed(self, tmp_path):
         (tmp_path / "usr/data/config").mkdir(parents=True)
