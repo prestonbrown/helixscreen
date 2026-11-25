@@ -15,11 +15,14 @@
 #include "moonraker_spoolman_api.h"
 #include "spoolman_types.h"
 
+#include <chrono>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <string>
+#include <thread>
 #include <unordered_map>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -336,6 +339,26 @@ TEST_CASE("a legacy record and one of our own are ours to replace",
     CHECK(saved == 2);
 }
 
+TEST_CASE("a save or clear the store refuses names its slot to the owner",
+          "[filament_slot_override][writer_rule]") {
+    MockPrinter printer;
+    FilamentSlotOverrideStore store(&printer.api, "ifs");
+    std::vector<int> refused;
+    store.set_on_write_failed([&refused](int slot) { refused.push_back(slot); });
+    // Nothing has been read yet, so no write may go out.
+    store.require_read_before_write();
+
+    bool ok = true;
+    store.save_async(2, polymaker_pla(), [&](bool success, std::string) { ok = success; });
+    CHECK_FALSE(ok);
+    ok = true;
+    store.clear_async(3, [&](bool success, std::string) { ok = success; });
+    CHECK_FALSE(ok);
+
+    // The save's own callback ran first, then the owner heard which slot it was.
+    CHECK(refused == std::vector<int>{2, 3});
+}
+
 // Extras namespaces (AFC, Happy Hare)
 
 TEST_CASE("an extras namespace stores only what firmware cannot hold",
@@ -407,6 +430,15 @@ TEST_CASE_METHOD(HelixTestFixture, "a failed write withdraws the lane's pending 
     SECTION("a refused write") {
         printer.client.fail_next("server.database.post_item");
         helix::ams::save_override_async(&store, 0, polymaker_pla(), "[test]", "Override", lane);
+        CHECK_FALSE(helix::ams::lane_sources(lane).pending.has_value());
+    }
+    SECTION("a refused write of the slot's staged record") {
+        printer.client.fail_next("server.database.post_item");
+        std::mutex mutex;
+        std::unordered_map<int, FilamentSlotOverride> overrides;
+        overrides[0] = polymaker_pla();
+        helix::ams::persist_staged_override(&store, mutex, overrides, 0, "[test]", "Override",
+                                            lane);
         CHECK_FALSE(helix::ams::lane_sources(lane).pending.has_value());
     }
     SECTION("a write that lands leaves it for the echo") {
@@ -667,6 +699,33 @@ TEST_CASE("the seated slot saves, loads and clears beside the lane records",
     store.clear_seated_slot_async([&](bool success, std::string) { ok = success; });
     CHECK(ok);
     CHECK_FALSE(store.load_seated_slot_blocking().has_value());
+}
+
+TEST_CASE("the seated slot's blocking read waits for a reply that comes late",
+          "[filament_slot_override][seated]") {
+    MockPrinter printer;
+    printer.client.mock_db_set("helix-screen", "ifs_seated", json(2));
+    FilamentSlotOverrideStore store(&printer.api, "ifs");
+    printer.client.defer_next("server.database.get_item");
+
+    // The read is held: answer it from outside the thread that waits on it,
+    // late enough that the reader has had time to give up if it means to.
+    bool answered = false;
+    std::thread late([&] {
+        for (int waited_ms = 0;
+             waited_ms < 2000 && printer.client.call_count("server.database.get_item") == 0;
+             ++waited_ms) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        answered = printer.client.call_count("server.database.get_item") > 0;
+        std::this_thread::sleep_for(std::chrono::milliseconds(25));
+        printer.client.fire_deferred("server.database.get_item");
+    });
+    const std::optional<int> seated = store.load_seated_slot_blocking();
+    late.join();
+    REQUIRE(answered);
+
+    CHECK(seated == 2);
 }
 
 TEST_CASE("an older seated value moves to HelixScreen's key, and leaves only once that is saved",
