@@ -1193,14 +1193,25 @@ TEST_CASE("A Z-Mod calibration line is progress for the run, never a swap marker
     wire_zmod(tc);
     tc.feed(json{{"zmod_color", {{"active_tool_id", 1}}}});
     REQUIRE(tc.get_current_tool() == 1);
+    const std::string word_before = ToolChangerTestAccess::last_operation_word(tc);
+    const auto action_before = tc.get_current_action();
 
-    ToolChangerTestAccess::feed_zmod_marker(tc, "// [CALIB] T2: ...");
+    // One line that is both: a calibration step whose narration carries a
+    // swap token. Read as a marker, it opens a pick.
+    ToolChangerTestAccess::feed_zmod_marker(tc, "// [CALIB] T2: Grab attempt for T3 ...");
 
     REQUIRE(heard.size() == 1);
     CHECK(heard[0].kind == cal::ProgressEvent::Kind::Started);
     CHECK(heard[0].tool == 2);
     // The run is live from that line on, so its completion sentence is a step.
     CHECK(cal::report_progress_line("// Calibration complete."));
-    // The line says which tool is being measured, not which is on the carriage.
+    // The line says which tool is being measured, not which is on the carriage,
+    // and it opens no pick.
     CHECK(tc.get_current_tool() == 1);
+    CHECK(ToolChangerTestAccess::last_operation_word(tc) == word_before);
+    CHECK(tc.get_current_action() == action_before);
+
+    // The token alone does latch a pick, so the marker path is live here.
+    ToolChangerTestAccess::feed_zmod_marker(tc, "// Grab attempt for T3");
+    CHECK(ToolChangerTestAccess::last_operation_word(tc) == "picking");
 }
