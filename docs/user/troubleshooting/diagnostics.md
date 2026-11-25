@@ -104,7 +104,7 @@ free -h
 
 ### Collecting logs
 
-Where the app's log lives depends on the printer. The app log has everything HelixScreen logs; the launcher log has the startup banner and crash output. Send both when you report a problem, or send a debug bundle instead. A debug bundle carries both logs, and also the system's record of any program on the computer running HelixScreen, such as Klipper when it runs there too, that was stopped for running out of memory or that crashed.
+Where the app's log lives depends on the printer. The app log has everything HelixScreen logs; the launcher log has the startup banner and crash output. Send both when you report a problem, or send a debug bundle instead. Where `/var/log` is cleared at every restart, the launcher log sits beside the app log in the state folder; until that folder exists it is in `.helixscreen/logs/` beside the install folder. Versions before 1.1.1 kept it in `logs/` inside the install folder. A debug bundle carries both logs, and also the system's record of any program on the computer running HelixScreen, such as Klipper when it runs there too, that was stopped for running out of memory or that crashed.
 
 **Raspberry Pi and other systemd hosts:**
 ```bash
@@ -116,8 +116,8 @@ sudo journalctl -u helixscreen -f                    # follow live
 **Flashforge Adventurer 5M:**
 ```bash
 tail -200 /data/.helixscreen/logs/helix.log                      # app log
-tail -200 /opt/config/mod_data/helixscreen/logs/launcher.log     # Forge-X launcher log
-tail -200 /root/printer_software/helixscreen/logs/launcher.log   # Klipper Mod launcher log (/opt/helixscreen/logs/ on v00.06 and newer)
+ls -l /var/log/helixscreen/launcher.log /data/.helixscreen/logs/launcher.log \
+      /opt/config/mod_data/helixscreen-state/logs/launcher.log 2>/dev/null   # launcher log: tail the one listed
 ```
 
 **Flashforge Adventurer 5X (Z-Mod):**
@@ -136,14 +136,14 @@ tail -200 /opt/config/mod_data/log/helixscreen.log   # one file holds both
 **Creality K1, K1C and K1 Max:**
 ```bash
 tail -200 /usr/data/helixscreen-state/logs/helix.log
-tail -200 /usr/data/helixscreen/logs/launcher.log
+tail -200 /usr/data/helixscreen-state/logs/launcher.log
 logread | grep helix-screen | tail -200
 ```
 
 **Creality K2:**
 ```bash
 tail -200 /mnt/UDISK/helixscreen-state/logs/helix.log
-tail -200 /mnt/UDISK/helixscreen/logs/launcher.log      # or /var/log/helixscreen/launcher.log where /var/log survives a reboot
+tail -200 /mnt/UDISK/helixscreen-state/logs/launcher.log   # or /var/log/helixscreen/launcher.log where /var/log survives a reboot
 logread | grep helix-screen | tail -200
 ```
 
@@ -156,7 +156,7 @@ tail -200 /var/log/helixscreen/launcher.log
 **Elegoo Centauri Carbon:**
 ```bash
 tail -200 /user-resource/helixscreen-state/logs/helix.log
-tail -200 /user-resource/helixscreen/logs/launcher.log
+tail -200 /user-resource/helixscreen-state/logs/launcher.log
 logread | grep helix-screen | tail -200
 ```
 

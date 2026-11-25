@@ -69,7 +69,7 @@ Collect both logs when reporting a problem:
 
 ```bash
 tail -100 /mnt/UDISK/helixscreen-state/logs/helix.log     # the app's log
-tail -100 /mnt/UDISK/helixscreen/logs/launcher.log        # startup and crash output
+tail -100 /mnt/UDISK/helixscreen-state/logs/launcher.log  # startup and crash output
 logread | grep helix-screen | tail -100                   # anything in the system log
 ```
 

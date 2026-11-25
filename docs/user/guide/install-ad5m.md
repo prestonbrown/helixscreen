@@ -140,11 +140,12 @@ Two logs; collect both when reporting a problem:
 | Log | Where |
 |-----|-------|
 | The app's log | `/data/.helixscreen/logs/helix.log` (Forge-X and Klipper Mod) |
-| Startup and crash output | `logs/launcher.log` inside the HelixScreen folder: `/opt/config/mod_data/helixscreen/logs/launcher.log` on Forge-X |
+| Startup and crash output | `launcher.log`, kept outside the HelixScreen folder so an update does not delete it. The command below lists the places it can be; a debug bundle finds it wherever it is |
 
 ```bash
 tail -100 /data/.helixscreen/logs/helix.log
-tail -100 /opt/config/mod_data/helixscreen/logs/launcher.log    # Forge-X
+ls -l /var/log/helixscreen/launcher.log /data/.helixscreen/logs/launcher.log \
+      /opt/config/mod_data/helixscreen-state/logs/launcher.log 2>/dev/null   # then tail the one listed
 ```
 
 HelixScreen keeps its logs and caches in `/data/.helixscreen`. The dot keeps that folder out of the printer's file list. An update from an older version moves the old `/data/helixscreen` folder there on its own.

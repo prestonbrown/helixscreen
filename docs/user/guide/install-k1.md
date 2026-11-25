@@ -153,10 +153,10 @@ Logs, which you need when reporting a problem:
 
 ```bash
 tail -100 /usr/data/helixscreen-state/logs/helix.log   # the app's log
-tail -100 /usr/data/helixscreen/logs/launcher.log      # startup and crash output
+tail -100 /usr/data/helixscreen-state/logs/launcher.log  # startup and crash output
 ```
 
-The app's log is kept outside the HelixScreen folder, so an update does not delete it. The startup log stays inside the HelixScreen folder because the K1's `/var/log` is held in memory and cleared at every restart.
+Both logs are kept outside the HelixScreen folder, so an update does not delete them, and off `/var/log`, which the K1 holds in memory and clears at every restart. Until HelixScreen has created `/usr/data/helixscreen-state`, the startup log is in `/usr/data/.helixscreen/logs/`.
 
 ## Updating
 
