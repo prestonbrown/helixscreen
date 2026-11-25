@@ -26,15 +26,25 @@
 # a stale process from a previous mode switch would fight us for /dev/fb0.
 platform_stop_competing_uis() {
     for ui in guppyscreen GuppyScreen KlipperScreen klipperscreen; do
-        for initscript in /etc/init.d/S*"${ui}"*; do
+        for initscript in "${HELIX_INITD_DIR:-/etc/init.d}"/S*"${ui}"*; do
             if [ -x "$initscript" ] 2>/dev/null; then
+                # Z-Mod's S80guppyscreen hands start and stop to S80helixscreen
+                # when HelixScreen is its display (helix = 1), so its stop would
+                # stop the HelixScreen this start is about to check for.
+                if grep -q 'S80helixscreen' "$initscript" 2>/dev/null; then
+                    continue
+                fi
                 echo "Stopping competing UI: $initscript"
                 "$initscript" stop 2>/dev/null || true
             fi
         done
-        for pid in $(pidof "$ui" 2>/dev/null); do
-            kill "$pid" 2>/dev/null || true
-        done
+        if command -v killall >/dev/null 2>&1; then
+            killall "$ui" 2>/dev/null || true
+        else
+            for pid in $(pidof "$ui" 2>/dev/null); do
+                kill "$pid" 2>/dev/null || true
+            done
+        fi
     done
     sleep 1
 }

@@ -680,3 +680,25 @@ _forgex_wait_in_chroot() {
     [ "$status" -eq 0 ]
     [ -z "$output" ] || fail "unexpected output: $output"
 }
+
+# Z-Mod's S80guppyscreen delegates start and stop to S80helixscreen when
+# HelixScreen is the display, so calling its stop from our start would stop the
+# running HelixScreen. A guppy init that does not delegate is still stopped.
+@test "zmod hooks leave a Guppy init that delegates to S80helixscreen alone" {
+    local hook d
+    for hook in hooks-ad5x.sh hooks-ad5m-zmod.sh; do
+        d="$BATS_TEST_TMPDIR/$hook"
+        mkdir -p "$d/initd"
+        printf '#!/bin/sh\n[ "$1" = stop ] && /etc/init.d/S80helixscreen stop; echo "$1" >> "%s/delegating.log"\n' "$d" > "$d/initd/S80guppyscreen"
+        printf '#!/bin/sh\necho "$1" >> "%s/plain.log"\n' "$d" > "$d/initd/S81GuppyScreen"
+        chmod +x "$d/initd/S80guppyscreen" "$d/initd/S81GuppyScreen"
+        mock_command_script "killall" 'exit 0'
+        mock_command_script "sleep" 'exit 0'
+
+        HELIX_INITD_DIR="$d/initd" run sh -c ". '$HOOKS_DIR/$hook'; platform_stop_competing_uis"
+
+        [ "$status" -eq 0 ] || fail "$hook: $output"
+        [ ! -e "$d/delegating.log" ] || fail "$hook stopped the init that delegates to S80helixscreen"
+        [ "$(cat "$d/plain.log" 2>/dev/null)" = stop ] || fail "$hook did not stop a plain competing UI"
+    done
+}

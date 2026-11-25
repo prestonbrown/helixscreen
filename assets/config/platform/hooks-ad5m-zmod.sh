@@ -17,8 +17,14 @@
 platform_stop_competing_uis() {
     # Stop known competing UIs via init scripts and process kill
     for ui in guppyscreen GuppyScreen KlipperScreen klipperscreen featherscreen FeatherScreen; do
-        for initscript in /etc/init.d/S*"${ui}"*; do
+        for initscript in "${HELIX_INITD_DIR:-/etc/init.d}"/S*"${ui}"*; do
             if [ -x "$initscript" ] 2>/dev/null; then
+                # Z-Mod's S80guppyscreen hands start and stop to S80helixscreen
+                # when HelixScreen is its display (helix = 1), so its stop would
+                # stop the HelixScreen this start is about to check for.
+                if grep -q 'S80helixscreen' "$initscript" 2>/dev/null; then
+                    continue
+                fi
                 echo "Stopping competing UI: $initscript"
                 "$initscript" stop 2>/dev/null || true
             fi
