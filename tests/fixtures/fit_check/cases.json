@@ -1504,6 +1504,48 @@
       ]
     },
     {
+      "name": "only the point revision is dropped: a size named after it still tells printers apart",
+      "machine": {
+        "kinematics": "corexy",
+        "axis_min": [
+          null,
+          null,
+          null
+        ],
+        "axis_max": [
+          null,
+          null,
+          null
+        ],
+        "print_radius": null,
+        "max_extruder_temp": null,
+        "max_bed_temp": null,
+        "tool_count": null,
+        "tool_count_confirmed": true,
+        "nozzle_diameters": [],
+        "model": "Voron v2.4 300mm"
+      },
+      "file": {
+        "print": null,
+        "travel": null,
+        "max_hotend_temp": null,
+        "max_bed_temp": null,
+        "tools": [],
+        "nozzle_diameters": [],
+        "printer_model": "Voron v2.4 350mm"
+      },
+      "findings": [
+        {
+          "kind": "printer_model_mismatch",
+          "severity": "note",
+          "detail": {
+            "file": "Voron v2.4 350mm",
+            "printer": "Voron v2.4 300mm"
+          }
+        }
+      ]
+    },
+    {
       "name": "models match ignoring case, spaces, punctuation and a variant suffix",
       "machine": {
         "kinematics": "corexy",
