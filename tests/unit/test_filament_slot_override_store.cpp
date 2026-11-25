@@ -919,6 +919,20 @@ TEST_CASE("a user edit's record takes the nozzle midpoint and clears temps the s
         helix::ams::populate_temps_from_slot_info(o, info);
         CHECK(o.nozzle_temp == 215);
     }
+    SECTION("the catalog's recommendation inside the range wins over the midpoint") {
+        info.nozzle_temp_min = 200;
+        info.nozzle_temp_max = 240;
+        info.nozzle_temp_recommended = 205;
+        helix::ams::populate_temps_from_slot_info(o, info);
+        CHECK(o.nozzle_temp == 205);
+    }
+    SECTION("a recommendation outside the range falls back to the midpoint") {
+        info.nozzle_temp_min = 200;
+        info.nozzle_temp_max = 220;
+        info.nozzle_temp_recommended = 260;
+        helix::ams::populate_temps_from_slot_info(o, info);
+        CHECK(o.nozzle_temp == 210);
+    }
     SECTION("no temps clear stale ones so the material table can answer") {
         o.bed_temp = 99;
         o.nozzle_temp = 99;

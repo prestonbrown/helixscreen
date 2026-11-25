@@ -1354,3 +1354,98 @@ TEST_CASE_METHOD(NonlinearFixture,
     overlay.attach_root_for_test(nullptr);
     lv_obj_delete(root);
 }
+
+namespace {
+
+/// Climb the tower's z in 0.2 mm layers up to @p top_mm, as a running print reports it.
+void climb_to(NonlinearFixture& f, double top_mm) {
+    for (double z = 0.2; z < top_mm + 0.05; z += 0.2) {
+        f.status({{"gcode_move", {{"gcode_position", {100.0, 100.0, z, 0.0}}}}});
+    }
+}
+
+} // namespace
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: a stopped tower's limit does not carry to the next tower or a "
+                 "re-opened judgement",
+                 "[pa_nonlinear][pa_tuner][pa_nl_height]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    tower("printing");
+    climb_to(*this, 18.0);
+    tower("cancelled");
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::JUDGE);
+    REQUIRE(overlay.judge_top_for_test() == Catch::Approx(18.0f));
+    overlay.judge_primary_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::READY);
+
+    SECTION("a new tower starts judged to its full height") {
+        overlay.print_pass_for_test();
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(overlay.judge_top_for_test() == Catch::Approx(50.0f));
+    }
+    SECTION("a re-opened judgement is judged to the full height") {
+        overlay.back_for_test();
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(overlay.stage() == PaNonlinearOverlay::JUDGE);
+        CHECK(overlay.judge_top_for_test() == Catch::Approx(50.0f));
+    }
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: the judge tower shows only what a stopped tower printed",
+                 "[pa_nonlinear][pa_tuner][pa_nl_height]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    lv_obj_t* root =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "pa_nonlinear_overlay", nullptr));
+    REQUIRE(root != nullptr);
+    overlay.attach_root_for_test(root);
+    lv_obj_t* judge = lv_obj_find_by_name(root, "pa_nl_judge_tower");
+    REQUIRE(judge != nullptr);
+
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    tower("printing");
+    climb_to(*this, 18.0);
+    tower("cancelled");
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::JUDGE);
+    const auto* model = helix::ui::pa_tower_model(judge);
+    REQUIRE(model != nullptr);
+    CHECK(model->fill == helix::ui::PaTowerFill::Live);
+    CHECK(model->printed_mm == Catch::Approx(18.0f));
+
+    overlay.attach_root_for_test(nullptr);
+    lv_obj_delete(root);
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: the run screen reports progress and time left as the tower "
+                 "climbs and the clock runs",
+                 "[pa_nonlinear][pa_tuner][pa_nl_live]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    tower("printing");
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::PRINTING);
+    status({{"gcode_move", {{"gcode_position", {100.0, 100.0, 10.0, 0.0}}}}});
+
+    const auto text = [](const char* name) {
+        lv_subject_t* s = lv_xml_get_subject(nullptr, name);
+        REQUIRE(s != nullptr);
+        return std::string(lv_subject_get_string(s));
+    };
+    lv_subject_t* progress = lv_xml_get_subject(nullptr, "pa_nl_progress");
+    REQUIRE(progress != nullptr);
+    CHECK(lv_subject_get_int(progress) == 20);
+    CHECK(text("pa_nl_progress_text") == "20%");
+    CHECK_FALSE(text("pa_nl_layer_text").empty());
+
+    // The clock alone, with the nozzle where it was, moves the time left.
+    const std::string before = text("pa_nl_time_left");
+    REQUIRE_FALSE(before.empty());
+    status({{"print_stats", {{"print_duration", 300.0}}}});
+    CHECK(text("pa_nl_time_left") != before);
+}

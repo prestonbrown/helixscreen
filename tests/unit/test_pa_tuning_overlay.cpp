@@ -675,34 +675,49 @@ TEST_CASE_METHOD(TunerFixture,
     CHECK(note().find("10000") != std::string::npos);
 }
 
+namespace {
+
+/// Two heads on a changer: T0 holding PLA at 205, T1 holding PETG at 240, with
+/// @p active_tool selected. Hands back the mock backend's registration.
+struct TwoHeads {
+    helix::test::RegisteredBackend<AmsBackendMock> harness{2};
+
+    explicit TwoHeads(int active_tool) {
+        get_printer_state().temperature_state().init_extruders({"extruder", "extruder1"});
+        harness->set_tool_changer_mode(true);
+        const auto load = [this](int slot, const char* material, int temp) {
+            SlotInfo info = harness->get_slot_info(slot);
+            info.material = material;
+            info.catalog_id.clear();
+            info.nozzle_temp_recommended = 0;
+            info.nozzle_temp_min = info.nozzle_temp_max = temp;
+            REQUIRE(harness->apply_user_edit(slot, info).success());
+        };
+        load(0, "PLA", 205);
+        load(1, "PETG", 240);
+        auto& tools = ToolState::instance();
+        tools.deinit_subjects();
+        tools.init_subjects(false);
+        ToolTopology topo;
+        topo.tool_count = 2;
+        topo.active_tool = active_tool;
+        topo.tool_to_slot = {0, 1};
+        topo.tool_extruder = {"extruder", "extruder1"};
+        tools.set_ams_topology(topo);
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(tools.has_multiple_extruders());
+    }
+    ~TwoHeads() {
+        ToolState::instance().deinit_subjects();
+        get_printer_state().temperature_state().init_extruders({"extruder"});
+    }
+};
+
+} // namespace
+
 TEST_CASE_METHOD(TunerFixture, "the PA setup takes the tuned head's spool, not the active tool's",
                  "[pa_tune][pa_tuner]") {
-    // Two heads on a changer: T0 active with PLA at 205, T1 holding PETG at 240.
-    get_printer_state().temperature_state().init_extruders({"extruder", "extruder1"});
-    helix::test::RegisteredBackend<AmsBackendMock> harness(2);
-    harness->set_tool_changer_mode(true);
-    const auto load = [&harness](int slot, const char* material, int temp) {
-        SlotInfo info = harness->get_slot_info(slot);
-        info.material = material;
-        info.catalog_id.clear();
-        info.nozzle_temp_recommended = 0;
-        info.nozzle_temp_min = info.nozzle_temp_max = temp;
-        REQUIRE(harness->apply_user_edit(slot, info).success());
-    };
-    load(0, "PLA", 205);
-    load(1, "PETG", 240);
-    auto& tools = ToolState::instance();
-    tools.deinit_subjects();
-    tools.init_subjects(false);
-    ToolTopology topo;
-    topo.tool_count = 2;
-    topo.active_tool = 0;
-    topo.tool_to_slot = {0, 1};
-    topo.tool_extruder = {"extruder", "extruder1"};
-    tools.set_ams_topology(topo);
-    helix::ui::UpdateQueue::instance().drain();
-    REQUIRE(tools.has_multiple_extruders());
-
+    TwoHeads heads(0);
     const auto chip_name = [&] { return helix::presets::name(overlay.selected_preset_for_test()); };
     overlay.on_activate();
     CHECK(chip_name() == "PLA");
@@ -732,6 +747,45 @@ TEST_CASE_METHOD(TunerFixture, "the PA setup takes the tuned head's spool, not t
     }
 
     overlay.cleanup();
-    tools.deinit_subjects();
-    get_printer_state().temperature_state().init_extruders({"extruder"});
+}
+
+TEST_CASE_METHOD(TunerFixture, "opening the PA setup asks the printer for its max_accel",
+                 "[pa_tune][pa_tuner]") {
+    const auto note = [] {
+        return std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "pa_tune_nl_accel")));
+    };
+    REQUIRE(note().find("10000") == std::string::npos);
+    overlay.on_activate();
+    // The mock toolhead reports a max_accel of 10000 mm/s².
+    for (int i = 0; i < 50 && note().find("10000") == std::string::npos; ++i) {
+        helix::ui::UpdateQueue::instance().drain();
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    CHECK(note().find("10000") != std::string::npos);
+    overlay.cleanup();
+}
+
+TEST_CASE_METHOD(TunerFixture,
+                 "closing the tuner lets the tuned head's spool pick the material again",
+                 "[pa_tune][pa_tuner]") {
+    TwoHeads heads(0);
+    const auto chip_name = [&] { return helix::presets::name(overlay.selected_preset_for_test()); };
+    overlay.on_activate();
+    overlay.select_head_for_test(1);
+    REQUIRE(chip_name() == "PETG");
+    int other = -1;
+    for (int i = 0; i < helix::presets::kPresetCount && other < 0; ++i) {
+        if (helix::presets::name(i) != "PETG" && helix::presets::slot_temps(i)) {
+            other = i;
+        }
+    }
+    REQUIRE(other >= 0);
+    overlay.select_preset_for_test(other);
+    overlay.select_head_for_test(1);
+    REQUIRE(overlay.selected_preset_for_test() == other);
+
+    overlay.cleanup();
+    overlay.on_activate();
+    CHECK(chip_name() == "PETG");
+    overlay.cleanup();
 }
