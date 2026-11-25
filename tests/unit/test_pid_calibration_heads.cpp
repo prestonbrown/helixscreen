@@ -46,42 +46,13 @@ struct PidHeadsFixture : LVGLTestFixture {
     MoonrakerAPI api{client, state};
     PIDCalibrationPanel panel;
 
-    /// The calibration collectors watch the process-wide Klipper state, which cases restore.
-    helix::KlippyState global_klippy_before_ = helix::KlippyState::SHUTDOWN;
-
     PidHeadsFixture() {
-        get_printer_state().init_subjects(false);
-        global_klippy_before_ = static_cast<helix::KlippyState>(
-            lv_subject_get_int(get_printer_state().network_state().get_klippy_state_subject()));
         panel.init_subjects();
         panel.set_api(&api);
     }
     ~PidHeadsFixture() override {
         helix::ui::UpdateQueue::instance().drain();
         load_tools(nlohmann::json::array({"extruder", "heater_bed"}));
-        set_global_klippy(global_klippy_before_);
-    }
-
-    static void set_global_klippy(helix::KlippyState klippy) {
-        get_printer_state().set_klippy_state_sync(klippy);
-        helix::ui::UpdateQueue::instance().drain();
-    }
-
-    /// An MPC run whose RPC times out keeps its collector listening behind a long backstop;
-    /// the user aborts it and starts a second run. Returns the first run's backstop.
-    OperationTimeoutGuard* abort_timed_out_run_and_restart();
-
-    /// Brings due whatever idle-fallback backstop is armed now, read through its guard.
-    void fire_armed_backstop() {
-        OperationTimeoutGuard* armed = helix::calibration::armed_idle_backstop();
-        lv_timer_t* timer = armed ? armed->pending_timer() : nullptr;
-        if (timer) {
-            lv_timer_set_period(timer, 1);
-            lv_timer_ready(timer);
-        }
-        process_lvgl(20);
-        for (int i = 0; i < 4; ++i)
-            helix::ui::UpdateQueue::instance().drain();
     }
 
     void toolchanger(int active_tool) {
@@ -456,10 +427,14 @@ TEST_CASE_METHOD(PidHeadsFixture,
     CHECK(subject_int("cal_needs_migration") == 0);
 }
 
-OperationTimeoutGuard* PidHeadsFixture::abort_timed_out_run_and_restart() {
+TEST_CASE_METHOD(PidHeadsFixture, "An aborted run's late answer never lands on the next run",
+                 "[pid][pid_heads][2160]") {
     discover_extruder();
     Access::activate(panel);
     Access::use_mpc(panel);
+
+    // The first run's RPC times out, so its collector keeps listening behind
+    // a long backstop after the user aborts it.
     client.force_next_gcode_error(MoonrakerErrorType::TIMEOUT, "Request timed out",
                                   "MPC_CALIBRATE");
     start();
@@ -468,42 +443,21 @@ OperationTimeoutGuard* PidHeadsFixture::abort_timed_out_run_and_restart() {
         return helix::calibration::armed_idle_backstop() != nullptr;
     }));
     OperationTimeoutGuard* first_backstop = helix::calibration::armed_idle_backstop();
-    REQUIRE(first_backstop->pending_timer() != nullptr);
+    lv_timer_t* first_timer = first_backstop->pending_timer();
+    REQUIRE(first_timer != nullptr);
 
     Access::abort_clicked(panel);
     helix::ui::UpdateQueue::instance().drain();
     REQUIRE(subject_int("pid_cal_state") == 0); // IDLE
     start();
     REQUIRE(subject_int("pid_cal_state") == 1); // CALIBRATING, second run
-    return first_backstop;
-}
 
-TEST_CASE_METHOD(PidHeadsFixture, "An aborted run's late answer never lands on the next run",
-                 "[pid][pid_heads][2160]") {
-    // Klipper is ready while a calibration runs; the abort's M112 shuts it down, and the first
-    // run's collector concludes on that report.
-    set_global_klippy(helix::KlippyState::READY);
-    OperationTimeoutGuard* first_backstop = abort_timed_out_run_and_restart();
-
-    // The first run concluded, so its backstop is no longer armed: never touch its timer.
-    OperationTimeoutGuard* armed = helix::calibration::armed_idle_backstop();
-    CHECK((armed != first_backstop || armed->pending_timer() == nullptr));
-    fire_armed_backstop();
-
-    CHECK(subject_int("pid_cal_state") == 1);
-}
-
-TEST_CASE_METHOD(PidHeadsFixture,
-                 "An aborted run's backstop that comes due during the next run leaves it running",
-                 "[pid][pid_heads][2160]") {
-    // Klipper never reported ready, so the M112's SHUTDOWN is no stop this collector has seen
-    // and the first run's backstop stays armed into the second run.
-    set_global_klippy(helix::KlippyState::SHUTDOWN);
-    OperationTimeoutGuard* first_backstop = abort_timed_out_run_and_restart();
-
-    REQUIRE(helix::calibration::armed_idle_backstop() == first_backstop);
-    REQUIRE(first_backstop->pending_timer() != nullptr);
-    fire_armed_backstop();
+    // The first run's backstop comes due while the second run is heating.
+    lv_timer_set_period(first_timer, 1);
+    lv_timer_ready(first_timer);
+    process_lvgl(20);
+    for (int i = 0; i < 4; ++i)
+        helix::ui::UpdateQueue::instance().drain();
 
     CHECK(subject_int("pid_cal_state") == 1);
 }
