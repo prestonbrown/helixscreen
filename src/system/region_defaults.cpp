@@ -49,7 +49,7 @@ constexpr LanguageDefaults kLanguageDefaults[] = {
     {"en", DateFormat::MDY, false}, {"en-GB", DateFormat::DMY, true}, {"de", DateFormat::DMY, true},
     {"fr", DateFormat::DMY, true},  {"es", DateFormat::DMY, true},    {"it", DateFormat::DMY, true},
     {"pt", DateFormat::DMY, true},  {"ru", DateFormat::DMY, true},    {"zh", DateFormat::YMD, true},
-    {"ja", DateFormat::YMD, true},
+    {"ja", DateFormat::YMD, true},  {"pl", DateFormat::DMY, true},
 };
 
 const LanguageDefaults* find_language_defaults(std::string_view language) {

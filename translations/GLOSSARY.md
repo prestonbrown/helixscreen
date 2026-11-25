@@ -86,98 +86,98 @@ translation agents (the relevant column is injected into their prompts).
 
 ### Hardware / filament path
 
-| English | de | es | fr | it | ja | pt | ru | zh |
-|---|---|---|---|---|---|---|---|---|
-| Filament | Filament | Filamento | Filament | Filamento | フィラメント | Filamento | Филамент | 耗材 |
-| Nozzle | Düse | Boquilla | Buse | Ugello | ノズル | Bico | Сопло | 喷嘴 |
-| Bed | Heizbett | Cama | Plateau | Piano | ベッド | Mesa | Стол | 热床 |
-| Heater | Heizung | Calentador | Chauffage | Riscaldatore | ヒーター | Aquecedor | Нагреватель | 加热器 |
-| Chamber | Kammer | Cámara | Enceinte | Camera | チャンバー | Câmara | Камера | 腔体 |
-| Extruder | Extruder | Extrusor | Extrudeur | Estrusore | エクストルーダー | Extrusor | Экструдер | 挤出机 |
-| Fan | Lüfter | Ventilador | Ventilateur | Ventola | ファン | Ventoinha | Вентилятор | 风扇 |
-| Fans | Lüfter | Ventiladores | Ventilateurs | Ventole | ファン | Ventoinhas | Вентиляторы | 风扇 |
-| Spool | Spule | Bobina | Bobine | Bobina | スプール | Carretel | Катушка | 料盘 |
-| Printer | Drucker | Impresora | Imprimante | Stampante | プリンター | Impressora | Принтер | 打印机 |
-| Vendor | Hersteller | Fabricante | Fabricant | Produttore | ベンダー | Fabricante | Производитель | 供应商 |
-| Slot | Slot | Ranura | Slot | Slot | スロット | Slot | Слот | 槽位 |
-| Lane | Spur | Carril | Voie | Corsia | レーン | Lane | Канал | 耗材通道 |
-| Gate | Gate | Gate | Gate | Gate | ゲート | Gate | Шлюз | 通道 |
-| Feeder | Zuführung | Alimentador | Alimentateur | Alimentatore | フィーダー | Alimentador | Фидер | 送料器 |
-| Tool | Werkzeug | Herramienta | Outil | Strumento | ツール | Ferramenta | Инструмент | 工具 |
-| Toolhead | Werkzeugkopf | Cabezal | Tête d'outil | Testina | ツールヘッド | Cabeçote | Печатающая головка | 工具头 |
-| Slots | Slots | Ranuras | Slots | Slot | スロット | Slots | Слоты | 槽位 |
-| Lanes | Spuren | Carriles | Voies | Corsie | レーン | Lanes | Каналы | 耗材通道 |
-| Gates | Gates | Gates | Gates | Gate | ゲート | Gates | Шлюзы | 通道 |
-| Feeders | Zuführungen | Alimentadores | Alimentateurs | Alimentatori | フィーダー | Alimentadores | Фидеры | 送料器 |
-| Tools | Werkzeuge | Herramientas | Outils | Strumenti | ツール | Ferramentas | Инструменты | 工具 |
-| Toolheads | Werkzeugköpfe | Cabezales | Têtes d'outil | Testine | ツールヘッド | Cabeçotes | Печатающие головки | 工具头 |
+| English | de | es | fr | it | ja | pl | pt | ru | zh |
+|---|---|---|---|---|---|---|---|---|---|
+| Filament | Filament | Filamento | Filament | Filamento | フィラメント | Filament | Filamento | Филамент | 耗材 |
+| Nozzle | Düse | Boquilla | Buse | Ugello | ノズル | Dysza | Bico | Сопло | 喷嘴 |
+| Bed | Heizbett | Cama | Plateau | Piano | ベッド | Stół | Mesa | Стол | 热床 |
+| Heater | Heizung | Calentador | Chauffage | Riscaldatore | ヒーター | Grzałka | Aquecedor | Нагреватель | 加热器 |
+| Chamber | Kammer | Cámara | Enceinte | Camera | チャンバー | Komora | Câmara | Камера | 腔体 |
+| Extruder | Extruder | Extrusor | Extrudeur | Estrusore | エクストルーダー | Ekstruder | Extrusor | Экструдер | 挤出机 |
+| Fan | Lüfter | Ventilador | Ventilateur | Ventola | ファン | Wentylator | Ventoinha | Вентилятор | 风扇 |
+| Fans | Lüfter | Ventiladores | Ventilateurs | Ventole | ファン | Wentylatory | Ventoinhas | Вентиляторы | 风扇 |
+| Spool | Spule | Bobina | Bobine | Bobina | スプール | Szpula | Carretel | Катушка | 料盘 |
+| Printer | Drucker | Impresora | Imprimante | Stampante | プリンター | Drukarka | Impressora | Принтер | 打印机 |
+| Vendor | Hersteller | Fabricante | Fabricant | Produttore | ベンダー | Producent | Fabricante | Производитель | 供应商 |
+| Slot | Slot | Ranura | Slot | Slot | スロット | Slot | Slot | Слот | 槽位 |
+| Lane | Spur | Carril | Voie | Corsia | レーン | Tor | Lane | Канал | 耗材通道 |
+| Gate | Gate | Gate | Gate | Gate | ゲート | Gate | Gate | Шлюз | 通道 |
+| Feeder | Zuführung | Alimentador | Alimentateur | Alimentatore | フィーダー | Podajnik | Alimentador | Фидер | 送料器 |
+| Tool | Werkzeug | Herramienta | Outil | Strumento | ツール | Narzędzie | Ferramenta | Инструмент | 工具 |
+| Toolhead | Werkzeugkopf | Cabezal | Tête d'outil | Testina | ツールヘッド | Głowica | Cabeçote | Печатающая головка | 工具头 |
+| Slots | Slots | Ranuras | Slots | Slot | スロット | Sloty | Slots | Слоты | 槽位 |
+| Lanes | Spuren | Carriles | Voies | Corsie | レーン | Tory | Lanes | Каналы | 耗材通道 |
+| Gates | Gates | Gates | Gates | Gate | ゲート | Gate'y | Gates | Шлюзы | 通道 |
+| Feeders | Zuführungen | Alimentadores | Alimentateurs | Alimentatori | フィーダー | Podajniki | Alimentadores | Фидеры | 送料器 |
+| Tools | Werkzeuge | Herramientas | Outils | Strumenti | ツール | Narzędzia | Ferramentas | Инструменты | 工具 |
+| Toolheads | Werkzeugköpfe | Cabezales | Têtes d'outil | Testine | ツールヘッド | Głowice | Cabeçotes | Печатающие головки | 工具头 |
 
 ### Filament features
 
-| English | de | es | fr | it | ja | pt | ru | zh |
-|---|---|---|---|---|---|---|---|---|
-| Endless Spool | Endlosspule | Bobina infinita | Bobine infinie | Bobina infinita | エンドレススプール | Carretel infinito | Бесконечная катушка | 无限料盘 |
-| Filament Mapping | Filament-Zuordnung | Mapeo de Filamento | Mappage du filament | Mappatura filamento | フィラメントマッピング | Mapeamento de Filamento | Сопоставление филамента | 耗材映射 |
-| Assigned Tool | Zugewiesenes Werkzeug | Herramienta asignada | Outil attribué | Strumento assegnato | 割り当てツール | Ferramenta atribuída | Назначенный инструмент | 已分配工具 |
+| English | de | es | fr | it | ja | pl | pt | ru | zh |
+|---|---|---|---|---|---|---|---|---|---|
+| Endless Spool | Endlosspule | Bobina infinita | Bobine infinie | Bobina infinita | エンドレススプール | Nieskończona szpula | Carretel infinito | Бесконечная катушка | 无限料盘 |
+| Filament Mapping | Filament-Zuordnung | Mapeo de Filamento | Mappage du filament | Mappatura filamento | フィラメントマッピング | Mapowanie filamentu | Mapeamento de Filamento | Сопоставление филамента | 耗材映射 |
+| Assigned Tool | Zugewiesenes Werkzeug | Herramienta asignada | Outil attribué | Strumento assegnato | 割り当てツール | Przypisane narzędzie | Ferramenta atribuída | Назначенный инструмент | 已分配工具 |
 
 ### Filament buffer
 
-| English | de | es | fr | it | ja | pt | ru | zh |
-|---|---|---|---|---|---|---|---|---|
-| Buffer | Puffer | Búfer | Tampon | Buffer | バッファー | Buffer | Буфер | 缓冲器 |
-| Filament Buffer | Filamentpuffer | Búfer de filamento | Tampon de filament | Buffer filamento | フィラメントバッファー | Buffer de filamento | Буфер филамента | 耗材缓冲器 |
-| Compressed | Komprimiert | Comprimido | Comprimé | Compresso | 圧縮 | Comprimido | Сжат | 压缩 |
-| Expanded | Gedehnt | Estirado | Étiré | Esteso | 伸長 | Esticado | Растянут | 拉伸 |
-| buffer\|Neutral | Mittelstellung | Centrado | Centré | Centrato | 中央 | Centrado | Нейтрален | 中位 |
+| English | de | es | fr | it | ja | pl | pt | ru | zh |
+|---|---|---|---|---|---|---|---|---|---|
+| Buffer | Puffer | Búfer | Tampon | Buffer | バッファー | Bufor | Buffer | Буфер | 缓冲器 |
+| Filament Buffer | Filamentpuffer | Búfer de filamento | Tampon de filament | Buffer filamento | フィラメントバッファー | Bufor filamentu | Buffer de filamento | Буфер филамента | 耗材缓冲器 |
+| Compressed | Komprimiert | Comprimido | Comprimé | Compresso | 圧縮 | Ściśnięty | Comprimido | Сжат | 压缩 |
+| Expanded | Gedehnt | Estirado | Étiré | Esteso | 伸長 | Rozciągnięty | Esticado | Растянут | 拉伸 |
+| buffer\|Neutral | Mittelstellung | Centrado | Centré | Centrato | 中央 | Neutralny | Centrado | Нейтрален | 中位 |
 
 ### Actions
 
-| English | de | es | fr | it | ja | pt | ru | zh |
-|---|---|---|---|---|---|---|---|---|
-| Save | Speichern | Guardar | Enregistrer | Salva | 保存 | Salvar | Сохранить | 保存 |
-| Cancel | Abbrechen | Cancelar | Annuler | Annulla | キャンセル | Cancelar | Отмена | 取消 |
-| Close | Schließen | Cerrar | Fermer | Chiudi | 閉じる | Fechar | Закрыть | 关闭 |
-| Delete | Löschen | Eliminar | Supprimer | Elimina | 削除 | Excluir | Удалить | 删除 |
-| Edit | Bearbeiten | Editar | Modifier | Modifica | 編集 | Editar | Редактировать | 编辑 |
-| Retry | Wiederholen | Reintentar | Réessayer | Riprova | 再試行 | Tentar Novamente | Повторить | 重试 |
-| Install | Installieren | Instalar | Installer | Installa | インストール | Instalar | Установить | 安装 |
-| Uninstall | Deinstallieren | Desinstalar | Désinstaller | Disinstalla | アンインストール | Desinstalar | Удалить | 卸载 |
-| Update | Aktualisieren | Actualizar | Mettre à jour | Aggiorna | 更新 | Atualizar | Обновить | 更新 |
-| Print | Drucken | Imprimir | Imprimer | Stampa | 印刷 | Imprimir | Печать | 打印 |
-| Pause | Pause | Pausar | Pause | Pausa | 一時停止 | Pausar | Пауза | 暂停 |
-| Resume | Fortsetzen | Reanudar | Reprendre | Riprendi | 再開 | Retomar | Продолжить | 恢复 |
-| Configure | Konfigurieren | Configurar | Configurer | Configura | 設定 | Configurar | Настроить | 配置 |
-| Restart | Neustart | Reiniciar | Redémarrer | Riavvia | 再起動 | Reiniciar | Перезапуск | 重启 |
+| English | de | es | fr | it | ja | pl | pt | ru | zh |
+|---|---|---|---|---|---|---|---|---|---|
+| Save | Speichern | Guardar | Enregistrer | Salva | 保存 | Zapisz | Salvar | Сохранить | 保存 |
+| Cancel | Abbrechen | Cancelar | Annuler | Annulla | キャンセル | Anuluj | Cancelar | Отмена | 取消 |
+| Close | Schließen | Cerrar | Fermer | Chiudi | 閉じる | Zamknij | Fechar | Закрыть | 关闭 |
+| Delete | Löschen | Eliminar | Supprimer | Elimina | 削除 | Usuń | Excluir | Удалить | 删除 |
+| Edit | Bearbeiten | Editar | Modifier | Modifica | 編集 | Edytuj | Editar | Редактировать | 编辑 |
+| Retry | Wiederholen | Reintentar | Réessayer | Riprova | 再試行 | Ponów | Tentar Novamente | Повторить | 重试 |
+| Install | Installieren | Instalar | Installer | Installa | インストール | Zainstaluj | Instalar | Установить | 安装 |
+| Uninstall | Deinstallieren | Desinstalar | Désinstaller | Disinstalla | アンインストール | Odinstaluj | Desinstalar | Удалить | 卸载 |
+| Update | Aktualisieren | Actualizar | Mettre à jour | Aggiorna | 更新 | Aktualizuj | Atualizar | Обновить | 更新 |
+| Print | Drucken | Imprimir | Imprimer | Stampa | 印刷 | Drukuj | Imprimir | Печать | 打印 |
+| Pause | Pause | Pausar | Pause | Pausa | 一時停止 | Pauza | Pausar | Пауза | 暂停 |
+| Resume | Fortsetzen | Reanudar | Reprendre | Riprendi | 再開 | Wznów | Retomar | Продолжить | 恢复 |
+| Configure | Konfigurieren | Configurar | Configurer | Configura | 設定 | Konfiguruj | Configurar | Настроить | 配置 |
+| Restart | Neustart | Reiniciar | Redémarrer | Riavvia | 再起動 | Uruchom ponownie | Reiniciar | Перезапуск | 重启 |
 
 ### Status
 
-| English | de | es | fr | it | ja | pt | ru | zh |
-|---|---|---|---|---|---|---|---|---|
-| Connected | Verbunden | Conectado | Connecté | Connesso | 接続済み | Conectado | Подключен | 已连接 |
-| Disconnected | Getrennt | Desconectado | Déconnecté | Disconnesso | 切断 | Desconectado | Отключено | 已断开 |
-| Unknown | Unbekannt | Desconocido | Inconnu | Sconosciuto | 不明 | Desconhecido | Неизвестно | 未知 |
-| None | Keine | Ninguno | Aucun | Nessuno | なし | Nenhum | Нет | 无 |
-| Off | Aus | Apagado | Éteint | Off | オフ | Desligado | Выкл | 关 |
-| On | Ein | Encendido | Allumé | On | オン | Ligado | Вкл | 开 |
-| Available | Verfügbar | Disponible | Disponible | Disponibile | 利用可能 | Disponível | Доступен | 可用 |
-| Enabled | Aktiviert | Activado | Activé | Abilitato | 有効 | Habilitado | Включено | 已启用 |
-| Error | Fehler | Error | Erreur | Errore | エラー | Erro | Ошибка | 错误 |
-| Warning | Warnung | Advertencia | Avertissement | Avviso | 警告 | Aviso | Предупреждение | 警告 |
-| Settings | Einstellungen | Ajustes | Paramètres | Impostazioni | 設定 | Configurações | Настройки | 设置 |
+| English | de | es | fr | it | ja | pl | pt | ru | zh |
+|---|---|---|---|---|---|---|---|---|---|
+| Connected | Verbunden | Conectado | Connecté | Connesso | 接続済み | Połączono | Conectado | Подключен | 已连接 |
+| Disconnected | Getrennt | Desconectado | Déconnecté | Disconnesso | 切断 | Rozłączono | Desconectado | Отключено | 已断开 |
+| Unknown | Unbekannt | Desconocido | Inconnu | Sconosciuto | 不明 | Nieznane | Desconhecido | Неизвестно | 未知 |
+| None | Keine | Ninguno | Aucun | Nessuno | なし | Brak | Nenhum | Нет | 无 |
+| Off | Aus | Apagado | Éteint | Off | オフ | Wył. | Desligado | Выкл | 关 |
+| On | Ein | Encendido | Allumé | On | オン | Wł. | Ligado | Вкл | 开 |
+| Available | Verfügbar | Disponible | Disponible | Disponibile | 利用可能 | Dostępny | Disponível | Доступен | 可用 |
+| Enabled | Aktiviert | Activado | Activé | Abilitato | 有効 | Włączone | Habilitado | Включено | 已启用 |
+| Error | Fehler | Error | Erreur | Errore | エラー | Błąd | Erro | Ошибка | 错误 |
+| Warning | Warnung | Advertencia | Avertissement | Avviso | 警告 | Ostrzeżenie | Aviso | Предупреждение | 警告 |
+| Settings | Einstellungen | Ajustes | Paramètres | Impostazioni | 設定 | Ustawienia | Configurações | Настройки | 设置 |
 
 ### Progress
 
-| English | de | es | fr | it | ja | pt | ru | zh |
-|---|---|---|---|---|---|---|---|---|
-| Loading... | Lade... | Cargando... | Chargement... | Caricamento... | 読み込み中... | Carregando... | Загрузка... | 正在加载... |
-| Downloading... | Wird heruntergeladen... | Descargando... | Téléchargement... | Download in corso... | ダウンロード中... | Baixando... | Загрузка... | 下载中... |
-| Detecting... | Wird erkannt... | Detectando... | Détection... | Rilevamento in corso... | 検出中... | Detectando... | Обнаружение... | 正在检测... |
-| Checking... | Prüfe... | Comprobando... | Vérification... | Verifica in corso... | 確認中... | Verificando... | Проверка... | 检查中... |
+| English | de | es | fr | it | ja | pl | pt | ru | zh |
+|---|---|---|---|---|---|---|---|---|---|
+| Loading... | Lade... | Cargando... | Chargement... | Caricamento... | 読み込み中... | Wczytywanie... | Carregando... | Загрузка... | 正在加载... |
+| Downloading... | Wird heruntergeladen... | Descargando... | Téléchargement... | Download in corso... | ダウンロード中... | Pobieranie... | Baixando... | Загрузка... | 下载中... |
+| Detecting... | Wird erkannt... | Detectando... | Détection... | Rilevamento in corso... | 検出中... | Wykrywanie... | Detectando... | Обнаружение... | 正在检测... |
+| Checking... | Prüfe... | Comprobando... | Vérification... | Verifica in corso... | 確認中... | Sprawdzanie... | Verificando... | Проверка... | 检查中... |
 
 ### Connectivity
 
-| English | de | es | fr | it | ja | pt | ru | zh |
-|---|---|---|---|---|---|---|---|---|
-| Bluetooth not available | Bluetooth nicht verfügbar | Bluetooth no disponible | Bluetooth non disponible | Bluetooth non disponibile | Bluetooth が利用できません | Bluetooth não disponível | Bluetooth недоступен | 蓝牙不可用 |
+| English | de | es | fr | it | ja | pl | pt | ru | zh |
+|---|---|---|---|---|---|---|---|---|---|
+| Bluetooth not available | Bluetooth nicht verfügbar | Bluetooth no disponible | Bluetooth non disponible | Bluetooth non disponibile | Bluetooth が利用できません | Bluetooth niedostępny | Bluetooth não disponível | Bluetooth недоступен | 蓝牙不可用 |
 
 <!-- Terms not yet translated in every locale (skipped): Disabled -->

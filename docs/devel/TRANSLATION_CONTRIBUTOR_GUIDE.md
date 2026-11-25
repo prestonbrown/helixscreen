@@ -19,6 +19,7 @@ For the *implementation* of the translation system - how strings get from YAML t
 | `fr` | `translations/fr.yml` | French |
 | `it` | `translations/it.yml` | Italian |
 | `ja` | `translations/ja.yml` | Japanese |
+| `pl` | `translations/pl.yml` | Polish |
 | `pt` | `translations/pt.yml` | Portuguese |
 | `ru` | `translations/ru.yml` | Russian |
 | `zh` | `translations/zh.yml` | Chinese (Simplified) |
@@ -87,6 +88,7 @@ Two kinds of string stay outside Weblate and are edited on GitHub instead:
    | French | [translations/fr.yml](https://github.com/prestonbrown/helixscreen/blob/main/translations/fr.yml) |
    | Italian | [translations/it.yml](https://github.com/prestonbrown/helixscreen/blob/main/translations/it.yml) |
    | Japanese | [translations/ja.yml](https://github.com/prestonbrown/helixscreen/blob/main/translations/ja.yml) |
+   | Polish | [translations/pl.yml](https://github.com/prestonbrown/helixscreen/blob/main/translations/pl.yml) |
    | Portuguese | [translations/pt.yml](https://github.com/prestonbrown/helixscreen/blob/main/translations/pt.yml) |
    | Russian | [translations/ru.yml](https://github.com/prestonbrown/helixscreen/blob/main/translations/ru.yml) |
    | Chinese | [translations/zh.yml](https://github.com/prestonbrown/helixscreen/blob/main/translations/zh.yml) |

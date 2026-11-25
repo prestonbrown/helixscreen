@@ -35,6 +35,18 @@ PluralCategory plural_category(std::string_view lang, uint64_t n) {
         }
         return PluralCategory::Many;
     }
+    if (code == "pl") {
+        // CLDR for integers: `one` is exactly 1 (21 and 101 are `many`).
+        if (n == 1) {
+            return PluralCategory::One;
+        }
+        const uint64_t mod10 = n % 10;
+        const uint64_t mod100 = n % 100;
+        if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+            return PluralCategory::Few;
+        }
+        return PluralCategory::Many;
+    }
     if (code == "fr" || code == "pt") {
         if (n <= 1) {
             return PluralCategory::One;

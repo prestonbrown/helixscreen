@@ -10,7 +10,7 @@ On the Settings screen, the **Language & Time** row shows your choices, for exam
 
 ## Language
 
-The language for everything on screen. The list shows each language in its own name: English, English (UK), Deutsch, Français, Español, Русский, Português, Italiano, 中文 and 日本語. English (UK) is British English: British spellings, with day-month-year dates and a 24-hour clock until you pick otherwise. The screen switches as soon as you pick one. No restart needed.
+The language for everything on screen. The list shows each language in its own name: English, English (UK), Deutsch, Français, Español, Русский, Português, Italiano, Polski, 中文 and 日本語. English (UK) is British English: British spellings, with day-month-year dates and a 24-hour clock until you pick otherwise. The screen switches as soon as you pick one. No restart needed.
 
 ![The Language & Time page](../../../images/user/language-time-rows.png)
 

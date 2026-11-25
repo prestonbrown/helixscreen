@@ -29,9 +29,9 @@ static std::string s_current_lang = "en";
 
 // Language code → POSIX locale name
 static const std::unordered_map<std::string, const char*> k_locale_map = {
-    {"en", "en_US.UTF-8"}, {"de", "de_DE.UTF-8"}, {"fr", "fr_FR.UTF-8"},
-    {"es", "es_ES.UTF-8"}, {"ru", "ru_RU.UTF-8"}, {"pt", "pt_BR.UTF-8"},
-    {"it", "it_IT.UTF-8"}, {"zh", "zh_CN.UTF-8"}, {"ja", "ja_JP.UTF-8"},
+    {"en", "en_US.UTF-8"}, {"de", "de_DE.UTF-8"}, {"fr", "fr_FR.UTF-8"}, {"es", "es_ES.UTF-8"},
+    {"ru", "ru_RU.UTF-8"}, {"pt", "pt_BR.UTF-8"}, {"it", "it_IT.UTF-8"}, {"zh", "zh_CN.UTF-8"},
+    {"ja", "ja_JP.UTF-8"}, {"pl", "pl_PL.UTF-8"},
 };
 
 // Fallback translation tables
@@ -45,6 +45,7 @@ static const std::unordered_map<std::string, std::array<const char*, 7>> k_day_a
     {"ru", {{u8"вс", u8"пн", u8"вт", u8"ср", u8"чт", u8"пт", u8"сб"}}},
     {"pt", {{"dom.", "seg.", "ter.", "qua.", "qui.", "sex.", "sáb."}}},
     {"it", {{"dom.", "lun.", "mar.", "mer.", "gio.", "ven.", "sab."}}},
+    {"pl", {{"niedz.", "pon.", "wt.", u8"śr.", "czw.", u8"pt.", "sob."}}},
     {"zh", {{u8"日", u8"一", u8"二", u8"三", u8"四", u8"五", u8"六"}}},
     {"ja", {{u8"日", u8"月", u8"火", u8"水", u8"木", u8"金", u8"土"}}},
 };
@@ -70,6 +71,8 @@ static const std::unordered_map<std::string, std::array<const char*, 12>> k_mont
     {"it",
      {{"gen.", "feb.", "mar.", "apr.", "mag.", "giu.", "lug.", "ago.", "set.", "ott.", "nov.",
        "dic."}}},
+    {"pl",
+     {{"sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", u8"wrz", u8"paź", "lis", "gru"}}},
     {"zh",
      {{u8"1月", u8"2月", u8"3月", u8"4月", u8"5月", u8"6月", u8"7月", u8"8月", u8"9月", u8"10月",
        u8"11月", u8"12月"}}},
@@ -78,8 +81,8 @@ static const std::unordered_map<std::string, std::array<const char*, 12>> k_mont
        u8"11月", u8"12月"}}},
 };
 
-// Full month names indexed by tm_mon, in the form a long date uses (Russian takes the
-// genitive). Chinese and Japanese long dates are numeric and need none.
+// Full month names indexed by tm_mon, in the form a long date uses (Russian and Polish take
+// the genitive). Chinese and Japanese long dates are numeric and need none.
 static const std::unordered_map<std::string, std::array<const char*, 12>> k_month_full = {
     {"en",
      {{"January", "February", "March", "April", "May", "June", "July", "August", "September",
@@ -99,6 +102,9 @@ static const std::unordered_map<std::string, std::array<const char*, 12>> k_mont
     {"pt",
      {{"janeiro", "fevereiro", u8"março", "abril", "maio", "junho", "julho", "agosto", "setembro",
        "outubro", "novembro", "dezembro"}}},
+    {"pl",
+     {{u8"stycznia", u8"lutego", u8"marca", u8"kwietnia", u8"maja", u8"czerwca", u8"lipca",
+       u8"sierpnia", u8"września", u8"października", u8"listopada", u8"grudnia"}}},
     {"ru",
      {{u8"января", u8"февраля", u8"марта", u8"апреля", u8"мая", u8"июня", u8"июля", u8"августа",
        u8"сентября", u8"октября", u8"ноября", u8"декабря"}}},
@@ -118,6 +124,9 @@ static const std::unordered_map<std::string, std::array<const char*, 7>> k_day_f
     {"ru",
      {{u8"воскресенье", u8"понедельник", u8"вторник", u8"среда", u8"четверг", u8"пятница",
        u8"суббота"}}},
+    {"pl",
+     {{u8"niedziela", u8"poniedziałek", u8"wtorek", u8"środa", u8"czwartek", u8"piątek",
+       u8"sobota"}}},
     {"zh", {{u8"星期日", u8"星期一", u8"星期二", u8"星期三", u8"星期四", u8"星期五", u8"星期六"}}},
     {"ja", {{u8"日曜日", u8"月曜日", u8"火曜日", u8"水曜日", u8"木曜日", u8"金曜日", u8"土曜日"}}},
 };
