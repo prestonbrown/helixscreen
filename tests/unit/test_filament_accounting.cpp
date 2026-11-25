@@ -479,13 +479,19 @@ TEST_CASE_METHOD(OptInsFx,
 }
 
 TEST_CASE_METHOD(OptInsFx,
-                 "filament accounting: a job start reads the opt-ins, a job's end does not",
+                 "filament accounting: a job start reads the opt-ins and a job's end does not",
                  "[plugin_filament]") {
     auto& print_active = get_printer_state().print_state();
     const auto job = [&](bool running) {
         lv_subject_set_int(print_active.get_print_active_subject(), running ? 1 : 0);
         drain();
     };
+    const auto reads = [&] { return client.rpc_count("server.database.get_item"); };
+
+    // Attaching hands the controller the idle printer's state.
+    drain();
+    INFO("no job running: nothing is read");
+    CHECK(reads() == 0);
 
     client.respond_to("server.database.get_item",
                       plugin_features_reply(json{{kFilamentAccountingFeature, true}}));
@@ -498,6 +504,7 @@ TEST_CASE_METHOD(OptInsFx,
     job(false);
     INFO("the job ends: nothing is read, and the last read stands");
     CHECK(sender() == FilamentAccountingSender::App);
+    CHECK(reads() == 1);
 }
 
 TEST_CASE_METHOD(OptInsFx, "filament accounting: a disconnect forgets the opt-ins read",
