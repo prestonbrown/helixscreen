@@ -1823,7 +1823,9 @@ seed_legacy_install() {
     contains "Reboot" "$output"
     lacks "is running" "$output"
     contains "$INIT_SCRIPT_DEST" "$output"
-    contains "${INSTALL_DIR}/logs/launcher.log" "$output"
+    # An update replaces the install tree, so the summary never sends anyone there for the log.
+    contains "launcher.log" "$output"
+    lacks "${INSTALL_DIR}/logs/launcher.log" "$output"
 }
 
 @test "payload-mode summary coaches no host service manager" {

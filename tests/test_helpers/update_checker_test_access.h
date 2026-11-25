@@ -131,6 +131,11 @@ class UpdateCheckerTestAccess {
         c.machine_busy_hook_ = std::move(hook);
     }
 
+    /// The main-thread question machine_busy_from_worker() asks; call on the test thread.
+    static bool machine_busy_on_main() {
+        return UpdateChecker::machine_busy_on_main();
+    }
+
     /// Install into @p root instead of the running binary's install root.
     static void set_install_root(UpdateChecker& c, const std::string& root) {
         c.install_root_override_ = root;

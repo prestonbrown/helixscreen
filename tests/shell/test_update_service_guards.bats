@@ -15,6 +15,9 @@ setup() {
     PARENT="$BATS_TEST_TMPDIR/opt"
     IDIR="$PARENT/helixscreen"
     CALLS="$BATS_TEST_TMPDIR/calls"
+    # The legacy sentinel's real path is host-wide: a C++ test or a real update
+    # on this host would otherwise decide what these cases see.
+    LEGACY_SENTINEL="$BATS_TEST_TMPDIR/helixscreen_self_restart"
     mkdir -p "$IDIR/config" "$PARENT/.helixscreen"
     : > "$CALLS"
 
@@ -42,6 +45,7 @@ _unit_script() {
     script=${script%"'"}
     script=$(printf '%s' "$script" | sed -e 's/\$\$/$/g' \
         -e "s|@@INSTALL_PARENT@@|$PARENT|g" -e "s|@@INSTALL_DIR@@|$IDIR|g" \
+        -e "s|/tmp/helixscreen_self_restart|$LEGACY_SENTINEL|g" \
         -e 's#^/\(usr/\)\{0,1\}s\{0,1\}bin/systemctl#systemctl#' \
         -e 's#\([[:space:];&|(]\)/\(usr/\)\{0,1\}s\{0,1\}bin/systemctl#\1systemctl#g')
     printf '%s\n' "$script"
@@ -95,6 +99,19 @@ systemctl restart helixscreen-update.path" ]
     _run_unit
     [ "$status" -eq 0 ]
     contains "Skipping: self-update restart handled by watchdog" "$output"
+    [ "$(cat "$CALLS")" = "sleep 10" ]
+}
+
+@test "the harness never reads the host's legacy sentinel" {
+    grep -q '/tmp/helixscreen_self_restart' "$UNIT"
+    refute_grep '/tmp/helixscreen_self_restart' <(_unit_script)
+}
+
+@test "a legacy /tmp sentinel skips with exit 0 after the extraction wait" {
+    touch "$LEGACY_SENTINEL"
+    _run_unit
+    [ "$status" -eq 0 ]
+    contains "Skipping: self-update restart handled by watchdog ($LEGACY_SENTINEL)" "$output"
     [ "$(cat "$CALLS")" = "sleep 10" ]
 }
 

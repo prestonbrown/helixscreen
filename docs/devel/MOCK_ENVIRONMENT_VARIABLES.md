@@ -237,6 +237,16 @@ Add a local directory to the mock printer's gcodes root for the whole run, besid
 
 How a `--test` run gets a sliced `.gcode.3mf` onto the print-select screen without adding it to the shared test directory. What the run uploads (a staged copy of a print) is written there too, so it lists, sizes and downloads back as on a printer.
 
+### `HELIX_MOCK_SCRATCH_DIR`
+
+Where the mock printer writes the files a real Klipper host leaves in `/tmp`: resonance and shaper CSVs, the listening socket that stands in for klippy's, and uploads when no `HELIX_MOCK_GCODE_DIR` is planted. `helix-tests` sets it to its per-run sandbox under `/tmp/helix-test-sandboxes/<pid>/`, so a run leaves none of them in `/tmp`.
+
+| Property | Value |
+|----------|-------|
+| **Values** | path to an existing directory |
+| **Default** | unset (`/tmp`; uploads go to the system temp directory) |
+| **File** | `include/mock_planted_gcodes.h` |
+
 ### `HELIX_MOCK_HELIX_PLUGIN_LINK_DIR`
 
 The `symlink_dir` the mock's `server.helix.status` reports with `HELIX_MOCK_HELIX_PLUGIN=1`: where the plugin links a modified print. A visible name (`helix_print`) is how a plugin installed on a printer whose Klipper skips dot-directories answers, and the app then stages its copies visibly too.

@@ -26,6 +26,7 @@
 #include <fstream>
 #include <string>
 #include <unistd.h>
+#include <utility>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -81,16 +82,42 @@ struct RollbackDirFixture : public LVGLTestFixture {
 
 TEST_CASE("Rollback support: every fact must hold, and some platforms never can",
           "[auto_update][rollback]") {
+    using helix::board::Board;
     CHECK(rollback_support(supported_facts()) == RollbackSupport::Supported);
-    for (const char* key : {"pi", "pi32", "k1", "mips", "ad5m", "cc1", "snapmaker-u1", "x86"}) {
+    // Each platform the device plan proved, on the board its key resolves to.
+    for (const auto& [key, board] :
+         {std::pair{"pi", Board::Generic}, std::pair{"pi32", Board::Generic},
+          std::pair{"x86", Board::Generic}, std::pair{"mips", Board::K1},
+          std::pair{"k1", Board::K1}, std::pair{"ad5m", Board::Ad5m}}) {
         auto f = supported_facts();
         f.platform_key = key;
+        f.board = board;
+        INFO("platform " << key);
         CHECK(rollback_support(f) == RollbackSupport::Supported);
     }
-    for (const char* key : {"k2", "x86-desktop", "android", "esp32"}) {
+    // Everything else is off: known platforms no device run covered, and a key
+    // this rule has never heard of.
+    for (const auto& [key, board] :
+         {std::pair{"k2", Board::K2}, std::pair{"x86-desktop", Board::Generic},
+          std::pair{"android", Board::Generic}, std::pair{"esp32", Board::Generic},
+          std::pair{"snapmaker-u1", Board::SnapmakerU1}, std::pair{"cc1", Board::Cc1},
+          std::pair{"riscv-future", Board::Generic}}) {
         auto f = supported_facts();
         f.platform_key = key;
+        f.board = board;
+        INFO("platform " << key);
         CHECK(rollback_support(f) == RollbackSupport::Platform);
+    }
+    // The "mips" key is proven only on the K1: every other board, and one it
+    // could not identify, is off.
+    for (const auto board : {Board::Ad5x, Board::Creator5, Board::Creator5Pro, Board::Generic}) {
+        for (const char* key : {"mips", "k1"}) {
+            auto f = supported_facts();
+            f.platform_key = key;
+            f.board = board;
+            INFO("platform " << key << " board " << helix::board::info(board).key);
+            CHECK(rollback_support(f) == RollbackSupport::Platform);
+        }
     }
 
     auto f = supported_facts();
@@ -110,17 +137,8 @@ TEST_CASE("Rollback support: every fact must hold, and some platforms never can"
     CHECK(rollback_support(f) == RollbackSupport::ModPayload);
 }
 
-TEST_CASE("Rollback support: once device-proven, the capability follows the rule over this "
-          "process's facts",
+TEST_CASE("Rollback support: the capability follows the rule over this process's facts",
           "[auto_update][rollback]") {
-    struct ProvenSeam {
-        ProvenSeam() {
-            set_rollback_device_proven_for_test(true);
-        }
-        ~ProvenSeam() {
-            set_rollback_device_proven_for_test(std::nullopt);
-        }
-    } proven;
     {
         helix::ScopedEnv dir(kRollbackDirEnv, "/tmp/helix-rollback-guard");
         helix::ScopedEnv supervised("HELIX_SUPERVISED", "1");
@@ -140,8 +158,16 @@ TEST_CASE("Rollback support: once device-proven, the capability follows the rule
     CHECK_FALSE(auto_rollback_supported());
 }
 
-TEST_CASE("Rollback support: nothing is offered until the rollback path is device-proven",
+TEST_CASE("Rollback support: nothing is offered while the rollback path is not device-proven",
           "[auto_update][rollback]") {
+    struct UnprovenSeam {
+        UnprovenSeam() {
+            set_rollback_device_proven_for_test(false);
+        }
+        ~UnprovenSeam() {
+            set_rollback_device_proven_for_test(std::nullopt);
+        }
+    } unproven;
     helix::ScopedEnv dir(kRollbackDirEnv, "/tmp/helix-rollback-guard");
     helix::ScopedEnv supervised("HELIX_SUPERVISED", "1");
     CHECK_FALSE(auto_rollback_supported());

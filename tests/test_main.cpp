@@ -5,6 +5,7 @@
 #define CATCH_CONFIG_MAIN
 #include "helix_test_fixture.h"
 #include "test_helpers/stale_binary_check.h"
+#include "test_helpers/test_sandbox.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -29,6 +30,18 @@ namespace {
 /// initialization runs — the pinning below happens too early to rely on a
 /// std::string having been constructed.
 char g_cache_sandbox[256];
+
+/// The process that made g_cache_sandbox. A forked child that calls exit()
+/// runs the same exit handlers, and must leave its parent's sandbox alone.
+pid_t g_sandbox_owner = 0;
+
+/// Remove this run's sandbox on every exit() path: a normal end, a listing, an
+/// early error. A run killed by a signal skips this, and the next run's
+/// startup sweep removes what it left.
+void remove_sandbox_at_exit() {
+    if (g_cache_sandbox[0] != '\0' && getpid() == g_sandbox_owner)
+        helix::test::remove_sandbox_tree(g_cache_sandbox);
+}
 
 } // namespace
 
@@ -60,13 +73,24 @@ char g_cache_sandbox[256];
 /// POSIX only (mkdir/snprintf/setenv): this runs before the C++ runtime is
 /// fully warmed up, so it deliberately avoids anything that needs it.
 __attribute__((constructor(101))) static void helix_pin_test_cache_sandbox() {
+    const char* parent = helix::test::kTestSandboxParent;
+    // Shared by every user's runs, like /tmp itself.
+    if (mkdir(parent, 0777) == 0)
+        chmod(parent, 01777);
+    helix::test::sweep_dead_sandboxes(parent);
+    helix::test::sweep_dead_sandboxes(helix::test::config_sandbox_base(),
+                                      helix::test::kConfigSandboxPrefix);
+
     char root[sizeof(g_cache_sandbox)];
-    if (snprintf(root, sizeof(root), "/tmp/helix_test_sandbox_%ld", (long)getpid()) <= 0)
+    if (snprintf(root, sizeof(root), "%s/%ld", parent, (long)getpid()) <= 0)
         return;
 
     char sub[sizeof(g_cache_sandbox) + 16];
     if (mkdir(root, 0700) != 0 && access(root, W_OK) != 0)
         return;
+    g_sandbox_owner = getpid();
+    snprintf(g_cache_sandbox, sizeof(g_cache_sandbox), "%s", root);
+    atexit(remove_sandbox_at_exit);
     snprintf(sub, sizeof(sub), "%s/cache", root);
     mkdir(sub, 0700);
     const char* existing = getenv("HELIX_CACHE_DIR");
@@ -79,7 +103,13 @@ __attribute__((constructor(101))) static void helix_pin_test_cache_sandbox() {
     if (!xdg || xdg[0] == '\0')
         setenv("XDG_CACHE_HOME", sub, 1);
 
-    snprintf(g_cache_sandbox, sizeof(g_cache_sandbox), "%s", root);
+    // The files a mock Klipper host leaves in /tmp (resonance CSVs, the klippy
+    // socket stand-in, uploads) land in the sandbox too.
+    snprintf(sub, sizeof(sub), "%s/mock", root);
+    mkdir(sub, 0700);
+    const char* scratch = getenv("HELIX_MOCK_SCRATCH_DIR");
+    if (!scratch || scratch[0] == '\0')
+        setenv("HELIX_MOCK_SCRATCH_DIR", sub, 1);
 }
 
 /// Pin both diagnostic ingest endpoints to a refused loopback port, so no run
@@ -124,10 +154,7 @@ __attribute__((constructor(101))) static void helix_disable_test_bluetooth_plugi
 
 namespace {
 
-/// Remove the sandbox once the run is over. Only the teardown lives in a
-/// listener — by testRunEnded the ordering hazard above is long past.
-///
-/// A run also starts by warning when the binary predates the tree's sources:
+/// A run starts by warning when the binary predates the tree's sources:
 /// `./build/bin/helix-tests` after an edit without `make test` reports the
 /// previous build's results.
 ///
@@ -150,12 +177,6 @@ class CacheSandboxListener : public Catch::EventListenerBase {
 
     void testRunEnded(Catch::TestRunStats const&) override {
         HelixTestFixture::keep_logger_for_exit();
-
-        // Best-effort: a leftover sandbox is litter, never a test failure.
-        if (g_cache_sandbox[0] == '\0')
-            return;
-        std::error_code ec;
-        std::filesystem::remove_all(g_cache_sandbox, ec);
     }
 };
 

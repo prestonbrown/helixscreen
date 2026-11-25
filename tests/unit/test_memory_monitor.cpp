@@ -418,12 +418,13 @@ TEST_CASE("MemoryMonitor pressure responder registration", "[memory_monitor]") {
 
 TEST_CASE("a reported memory warning carries its cause's reason code", "[memory_monitor]") {
     auto& monitor = MemoryMonitor::instance();
+    const auto previous = MemoryMonitorTestAccess::warning_callback(monitor);
     std::string code;
     monitor.set_warning_callback(
         [&code](const MemoryWarningEvent& event) { code = event.reason_code; });
     MemoryMonitorTestAccess::fire_warning(monitor, MemoryPressureLevel::warning, "test pressure",
                                           MemoryStats{}, MemoryInfo{}, 0, "available_warning");
-    monitor.set_warning_callback(nullptr);
+    monitor.set_warning_callback(previous);
     CHECK(code == "available_warning");
 }
 

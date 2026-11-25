@@ -195,10 +195,16 @@ std::vector<std::string> launcher_log_paths(const std::string& install_root,
     };
 
     // config/helixscreen.init's LOGFILE: /var/log when it is persistent, else
-    // ${DAEMON_DIR}/logs. The running install's own root comes first.
+    // the board's state root, else .helixscreen/logs beside the install, and
+    // ${DAEMON_DIR}/logs only when nothing else is writable. The running
+    // install's own root comes first.
     add("/var/log/helixscreen/launcher.log");
-    if (!install_root.empty())
+    if (!install_root.empty()) {
         add(install_root + "/logs/launcher.log");
+        const auto slash = install_root.find_last_of('/');
+        if (slash != std::string::npos && slash > 0)
+            add(install_root.substr(0, slash) + "/.helixscreen/logs/launcher.log");
+    }
     for (const char* root : helix::kInstallRoots)
         add(std::string(root) + "/logs/launcher.log");
     for (const char* root : helix::kStateRoots)

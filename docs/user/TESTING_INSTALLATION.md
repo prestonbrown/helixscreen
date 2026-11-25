@@ -130,7 +130,7 @@ On a full Linux system, use `ps aux` instead of `ps`.
 HelixScreen writes two logs:
 
 - **The app log**, its normal messages. On a Raspberry Pi it goes to the system journal. On most printers it is a file, `helix.log`, kept outside the install folder so an update does not delete it.
-- **The launcher log** (`launcher.log`), which records starts, stops and crash output. It is in `/var/log/helixscreen/` when that folder survives a reboot, and otherwise in the `logs` folder inside the install folder.
+- **The launcher log** (`launcher.log`), which records starts, stops and crash output. It is in `/var/log/helixscreen/` when that folder survives a reboot. Otherwise it is in the `logs` folder of the printer's HelixScreen state folder (the one that holds `helix.log`), so an update does not delete it, or, before that folder exists, in `.helixscreen/logs` beside the install folder.
 
 The Creator 5 with Z-Mod is the exception: Z-Mod's own service script writes everything, app and launcher output together, to one file, `helixscreen.log`.
 
@@ -146,14 +146,15 @@ journalctl -u helixscreen -f                   # follow live
 
 ```bash
 tail -100 /data/.helixscreen/logs/helix.log
-tail -100 /opt/config/mod_data/helixscreen/logs/launcher.log
+ls -l /var/log/helixscreen/launcher.log /data/.helixscreen/logs/launcher.log \
+      /opt/config/mod_data/helixscreen-state/logs/launcher.log 2>/dev/null   # then tail the one listed
 ```
 
 **Creality K1 series:**
 
 ```bash
 tail -100 /usr/data/helixscreen-state/logs/helix.log
-tail -100 /usr/data/helixscreen/logs/launcher.log
+tail -100 /usr/data/helixscreen-state/logs/launcher.log
 ```
 
 **Creator 5 / Creator 5 Pro with Z-Mod** (one file; the same path works inside and outside Z-Mod's system folder):
@@ -173,10 +174,10 @@ tail -100 /var/log/helixscreen/launcher.log
 
 ```bash
 logread | grep helix-screen | tail -100
-tail -100 INSTALL/logs/launcher.log
+tail -100 STATE/logs/launcher.log
 ```
 
-If `INSTALL/logs/launcher.log` does not exist, look in `/var/log/helixscreen/launcher.log`.
+`STATE` is the folder that holds `helix.log`: `/mnt/UDISK/helixscreen-state` on a K2, `/user-resource/helixscreen-state` on a Centauri Carbon. If `STATE/logs/launcher.log` does not exist, look in `.helixscreen/logs/` beside the install folder, then in `/var/log/helixscreen/`.
 
 To send the logs to the HelixScreen team, use a debug bundle instead: **Settings > Help & About > Upload Debug Bundle** (see [Help & About](guide/settings/help-about.md)).
 

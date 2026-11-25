@@ -43,15 +43,44 @@ std::optional<bool>& device_proven_override() {
     return value;
 }
 
+// The platforms that passed the rollback device test plan, as helix::platform
+// key and the board that key must resolve to. Anything else, including a future
+// key or an unidentified board, gets no rollback until a device run adds a row.
+// This table is the rollback capability's whole platform rule; generic code asks
+// rollback_support().
+struct ProvenPlatform {
+    const char* platform_key;
+    helix::board::Board board;
+};
+
+// VENDOR_OK: one row per proven platform in the rollback capability's own table
+constexpr ProvenPlatform kRollbackProvenPlatforms[] = {
+    // systemd, proven on a Pi 3B.
+    {"pi", helix::board::Board::Generic},
+    {"pi32", helix::board::Board::Generic},
+    {"x86", helix::board::Board::Generic},
+    // SysV with the watchdog, proven on a K1C. The "mips" key also serves other
+    // boards, which stay off until their own device run.
+    {"mips", helix::board::Board::K1},
+    {"k1", helix::board::Board::K1},
+    // The K1's SysV launcher and init shape, on Klipper Mod (a Forge-X or Z-Mod
+    // tree reads as ModPayload).
+    {"ad5m", helix::board::Board::Ad5m}, // VENDOR_OK: a proven row of this table
+};
+
+bool platform_proven(const RollbackFacts& facts) {
+    for (const auto& row : kRollbackProvenPlatforms) {
+        if (facts.platform_key == row.platform_key && facts.board == row.board) {
+            return true;
+        }
+    }
+    return false;
+}
+
 } // namespace
 
 RollbackSupport rollback_support(const RollbackFacts& facts) {
-    // Install layouts that cannot hold two versions side by side. The K2's
-    // /opt overlay is too small for both, so its installer stages the old tree
-    // on another partition, which cannot be renamed back. Desktop and Android
-    // builds never run the in-app installer; ESP32 updates by OTA.
-    if (facts.platform_key == "k2" || facts.platform_key == "x86-desktop" ||
-        facts.platform_key == "android" || facts.platform_key == "esp32") {
+    if (!platform_proven(facts)) {
         return RollbackSupport::Platform;
     }
     if (facts.install_suppressed) {
@@ -91,6 +120,7 @@ const char* rollback_support_name(RollbackSupport support) {
 RollbackFacts current_rollback_facts() {
     RollbackFacts facts;
     facts.platform_key = helix::platform::current_key();
+    facts.board = helix::board::current();
     facts.guard_dir = env_set(kRollbackDirEnv);
     facts.supervised = env_set("HELIX_SUPERVISED");
     facts.install_suppressed = update_install_suppressed();

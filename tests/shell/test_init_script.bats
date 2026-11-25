@@ -96,3 +96,56 @@ _kill_started() {
     lacks "Failed to start" "$output"
     [ -s "$BATS_TEST_TMPDIR/tmp/helixscreen.pid" ] || fail "no pid file in TMPDIR"
 }
+
+# =============================================================================
+# Launcher log location
+# =============================================================================
+
+# Runs `start` with the install at $S/usr/data/helixscreen, /var/log absent
+# (the K1's tmpfs case) and /usr/data remapped under $S. The launcher stand-in
+# answers --print-env, then writes one line and stays up, like the supervisor.
+_run_init_start_k1() { # sandbox-root
+    local S="$1" T="$1/usr/data/helixscreen"
+    mkdir -p "$T/bin" "$T/config" "$S/run"
+    printf '#!/bin/sh\n[ "$1" = --print-env ] && exit 0\necho launcher-alive\nexec sleep 3\n' > "$T/bin/helix-launcher.sh"
+    printf '#!/bin/sh\nexec sleep 30\n' > "$T/bin/helix-screen"
+    chmod +x "$T/bin/helix-launcher.sh" "$T/bin/helix-screen"
+    sed -e "s|DAEMON_DIR=\"/opt/helixscreen\"|DAEMON_DIR=\"$T\"|" \
+        -e "s|/var/run|$S/run|g" -e "s|/var/log|$S/nolog|g" \
+        -e "s|/usr/data/|$S/usr/data/|g" \
+        -e 's|/usr/sbin:/usr/bin:/sbin:/bin:||' \
+        "$INIT_SCRIPT" > "$T/config/helixscreen.init"
+    mock_command_script "pidof" 'exit 1'
+    HOME="$S/home" TMPDIR="$S/tmp" run sh "$T/config/helixscreen.init" start
+    _kill_started "$S/run/helixscreen.pid"
+}
+
+@test "launcher log lives in the state root, so an update swapping the install tree keeps it" {
+    local S="$BATS_TEST_TMPDIR/k1"
+    mkdir -p "$S/usr/data/helixscreen-state"
+    _run_init_start_k1 "$S"
+    [ "$status" -eq 0 ] || fail "start failed: $output"
+
+    local log="$S/usr/data/helixscreen-state/logs/launcher.log"
+    local _
+    for _ in 1 2 3 4 5 6 7 8 9 10; do grep -q launcher-alive "$log" 2>/dev/null && break; sleep 0.2; done
+    grep -q launcher-alive "$log" || fail "launcher output not in $log"
+    [ ! -e "$S/usr/data/helixscreen/logs/launcher.log" ] || fail "log still written inside the install tree"
+
+    # The update swap: the tree moves to .old, which is then deleted.
+    mv "$S/usr/data/helixscreen" "$S/usr/data/helixscreen.old"
+    rm -rf "$S/usr/data/helixscreen.old"
+    grep -q launcher-alive "$log" || fail "log lost with the old tree"
+}
+
+@test "launcher log falls back to .helixscreen/logs beside the install when no state root exists" {
+    local S="$BATS_TEST_TMPDIR/k1b"
+    _run_init_start_k1 "$S"
+    [ "$status" -eq 0 ] || fail "start failed: $output"
+
+    local log="$S/usr/data/.helixscreen/logs/launcher.log"
+    local _
+    for _ in 1 2 3 4 5 6 7 8 9 10; do grep -q launcher-alive "$log" 2>/dev/null && break; sleep 0.2; done
+    grep -q launcher-alive "$log" || fail "launcher output not in $log"
+    [ ! -e "$S/usr/data/helixscreen/logs" ] || fail "install tree grew a logs dir"
+}
