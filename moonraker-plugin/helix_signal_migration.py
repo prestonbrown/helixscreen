@@ -22,6 +22,7 @@ on by default. On a printer whose firmware owns the HelixScreen install
 """
 
 import asyncio
+import configparser
 import logging
 import os
 import time
@@ -41,15 +42,12 @@ ENDPOINT = "/server/helix/signal_migration"
 
 # Firmwares that own the HelixScreen install, and with it the config this
 # migration would edit, by the markers the installer detects them with:
-# the Snapmaker U1's extended firmware (paxx) by its firmware-managed guard
-# (scripts/lib/installer/main.sh#_refuse_if_firmware_managed), Z-Mod and
-# Forge-X by detect_mod_flavor and host_profile_probe
+# Z-Mod and Forge-X by detect_mod_flavor and host_profile_probe
 # (scripts/lib/installer/platform.sh, scripts/lib/installer/host_profile.sh).
+# The Snapmaker U1's extended firmware (paxx) is paxx_runs_helixscreen below.
 # A chroot path matches only where Moonraker runs outside it; a Moonraker
 # inside one sees the mod tree Forge-X binds at /opt/config.
 FIRMWARE_MANAGED_MARKERS = (
-    ("paxx", "oem/apps/helixscreen", os.path.isdir),
-    ("paxx", "etc/hooks/lmd.d/30-helixscreen.sh", os.path.isfile),
     ("zmod", "ZMOD", os.path.isfile),
     ("zmod", "usr/data/.mod/.zmod/usr/bin", os.path.isdir),
     ("forge_x", "usr/data/config/mod/.shell/common.sh", os.path.isfile),
@@ -62,8 +60,32 @@ FIRMWARE_MANAGED_MARKERS = (
 )
 
 
+PAXX_LMD_HOOK = "etc/hooks/lmd.d/30-helixscreen.sh"
+PAXX_CONFIG = "oem/printer_data/config/extended/extended2.cfg"
+
+
+def paxx_runs_helixscreen(root: str = "") -> bool:
+    """Whether paxx's firmware runs its own HelixScreen package: its lmd hook
+    is present and `[components] gui` selects helixscreen, the condition the
+    hook binds the package on. paxx ships the hook whatever gui says, so the
+    hook alone proves nothing. The installer's guard
+    (scripts/lib/installer/main.sh#_refuse_if_firmware_managed) and the app's
+    helix::board::firmware_manages_updates() make the same call."""
+    base = root or "/"
+    if not os.path.isfile(os.path.join(base, PAXX_LMD_HOOK)):
+        return False
+    cfg = configparser.ConfigParser()
+    try:
+        cfg.read(os.path.join(base, PAXX_CONFIG))
+    except configparser.Error:
+        return False
+    return cfg.get("components", "gui", fallback="").strip() == "helixscreen"
+
+
 def firmware_owner(root: str = "") -> Optional[str]:
     """The firmware that owns the HelixScreen install, or None."""
+    if paxx_runs_helixscreen(root):
+        return "paxx"
     for owner, rel, check in FIRMWARE_MANAGED_MARKERS:
         if check(os.path.join(root or "/", rel)):
             return owner

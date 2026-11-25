@@ -114,6 +114,8 @@ toward "managed", because self-updating a firmware's package is the worse mistak
 3. Otherwise managed, unless the executable resolves inside `/userdata/helixscreen`. An
    executable that cannot be stat'd or resolved counts as the firmware's.
 
+install.sh makes the same call before it touches anything (`scripts/lib/installer/main.sh#_refuse_if_firmware_managed`), and the two must agree, or the app offers an update the installer then refuses. The installer has no running binary to compare, so it reads the condition PAXX's lmd hook binds on: the hook present and `[components] gui` in `/oem/printer_data/config/extended/extended2.cfg` set to `helixscreen`. That is exactly when the running binary is the package's. PAXX ships the hook whatever `gui` says, so the hook file alone proves nothing, and a package directory beside our install runs only through that hook.
+
 PAXX keeps `HELIX_CACHE_DIR` under `/userdata/helixscreen`, so that directory existing proves
 nothing; only where the executable lives does. A U1 on stock
 firmware runs our installer's `/userdata/helixscreen` and self-updates like any other
@@ -587,13 +589,29 @@ Afterwards the printer went back to the v1.1.0 tree it had, byte for byte (binar
 
 The reason reads `platform` rather than `mod_payload` because `rollback_support()` consults the allow-list first, and neither board has a row. Both installs are mod payloads all the same, so adding a row would read `mod_payload` and stay off. Both printers went back to their rc.3 trees byte for byte, with config and Moonraker files unchanged, and were rebooted. The Creator 5 Pro came back from that reboot at 192.168.30.131.
 
+**Snapmaker U1 (2026-11-25, 192.168.30.103): R1-R9 passed.** paxx Extended firmware 1.6.0 with HelixScreen v1.1.0 from our installer at `/userdata/helixscreen` (`[components] gui: snapmaker`, no `/oem/apps/helixscreen`, so the app is self-updating), BusyBox SysV: `S99screen` runs `config/helixscreen.init`, then the launcher, the watchdog and the app. `HELIX_ROLLBACK_DIR` is `/userdata/.helixscreen/rollback-helixscreen`, and the launcher log is `/var/log/helixscreen/launcher.log`, which is persistent on this overlay root. The watchdog logs to `/home/lava/printer_data/logs/syslog`. Test builds: 9e17c82fe8 with a scratch `{"snapmaker-u1", Board::SnapmakerU1}` row, `kAutoUpdateIdleSeconds = 60` and the ctl server, built in `toolchain-snapmaker-u1` and packaged by hand (it reports 1.2.0-alpha.1). With the row the app logs `Automatic-update rollback: supported`. 99.0.0 was served by `serve-local-update.sh --platform snapmaker-u1 --no-build`, and the window was reached through the timezone (Noronha, Sao Paulo, Halifax, New York). Times are UTC.
+
+| Run | Result | Evidence |
+|---|---|---|
+| R3 happy path | PASS | 05:48:30 tick; 05:50:58 install.sh exit 0, armed; 05:51:01 guarded start 1 from a child launcher of the unchanged outer one; 05:53:35 healthy; `.old` removed. `ls -la /userdata` and `config/` diffs show only the crash counter and telemetry files |
+| R1 launch failure | PASS, `exit_42` | 06:12:42 guarded start; backoff to failure 5, "Restart loop detected ... exiting watchdog with code 42" 06:14:16; restored 06:14:17 (94 s). The notice shows, and again on a restart within 120 s but not after. `dismissed_version` is 99.0.0, and with 99.0.0 still served the next check says "version 99.0.0 is dismissed" |
+| R2 hang | PASS, `timeout` | 06:24:10 guarded start; 06:34:11 timeout, watchdog stopped; restored 06:34:12 |
+| R7 broken new launcher | PASS, `exit_2` | 06:42:09 guarded start and restored the same second |
+| R5 crash loop | PASS, `crash_loop` | With the line above: three SIGABRTs from 07:19:50, Safe Mode start 07:22:49, restored 07:22:55, no `safe_mode.flag` left. With the earlier line the Safe Mode start aborted too, and the guard restored at 600 s with `timeout` |
+| R6 too many starts | PASS, `too_many_starts` | `starts` set to 3, reboot; restored at boot with no guarded start |
+| R8 stop during the window | PASS | `S99screen stop` 61 s in, and once a reboot: "Stopped during the rollback window", the trial files and `.old` kept; start 2 resumed and was healthy (07:34:00, and 07:44:55 after the reboot) |
+| R4 reboot during a hang | PASS, `timeout` | Reboot 63 s in; start 2 at boot (logged on the restored boot clock); restored 600 s after start 2 |
+| R9 shipping rule | PASS | Without the row: `Automatic-update rollback: platform`, `auto_update_overnight_available` 0, a stored Install overnight ran as Download and ask with no install in the window. Install from the notice: no `.old`, no `update_rollback.*`, no guard line, and the watchdog respawned in place under the same launcher |
+
+With the installer as it was, install.sh refused to run on this unit, the in-app updater's included: `_refuse_if_firmware_managed()` counted paxx's lmd hook (`<paxx-firmware>/etc/hooks/lmd.d/30-helixscreen.sh`) as proof by itself, and paxx ships that hook whatever `[components] gui` selects. A boot-started app's overnight install failed with `install.sh exit: code=1` ("HelixScreen is managed by your firmware") before touching anything. The runs started the service from a shell exporting `HELIX_IGNORE_FIRMWARE_MANAGED=1`, which stands in for stock firmware. The guard now refuses only where the hook binds the package (below). Afterwards the U1 went back to its v1.1.0 tree byte for byte (959 files), with its settings, env, init scripts and `moonraker.conf` unchanged. It rebooted to v1.1.0 under `S99screen`, and thelio's key logged in. Moonraker's database came back from a live `sqlite3 .backup`, so its `unsafe_shutdowns` counter is one higher.
+
 | Run | New version | Expected |
 |---|---|---|
 | R1 launch failure | A static ELF for the platform that exits 1 | The watchdog backs off (3, 6, 12, 24, 48 s) and exits 42 after about 95 s; restored, reason `exit_42` |
 | R2 hang | A static ELF that prints a version for `--version` and otherwise sleeps | Nothing reports healthy; restored after 600 s, reason `timeout` |
 | R3 happy path | The unmodified 99.0.0 build | Healthy at 150 s; only `<install>.old` and the `update_rollback.*` files are removed (on systemd after the restarted start is healthy too). `ls -la <install parent>` and a `config/` diff before and after show nothing else changed |
 | R4 reboot during a hang | R2's build, reboot about 60 s in | Start 2 after boot, restored at that start's timeout |
-| R5 crash loop | 99.0.0 with `if (!get_runtime_config()->crash_loop_safe_mode) std::abort();` after `helix::crash_loop_detected_and_record();` in `src/application/application.cpp` | The watchdog's crash dialog spaces the starts, so its Safe Mode start (not the app's 3-in-120 s detector) writes `.request`; restored, reason `crash_loop` |
+| R5 crash loop | 99.0.0 with `if (!s_safe_mode_active && !get_runtime_config()->crash_loop_safe_mode) std::abort();` right after `s_safe_mode_active = consume_safe_mode_marker();` in `src/application/application.cpp`. The line must spare the watchdog's Safe Mode start: that start comes 120 s after the third crash, outside the app's own detector window, so a line that spares only `crash_loop_safe_mode` aborts it too and the run ends in `timeout` | The watchdog's crash dialog spaces the starts, so its Safe Mode start (not the app's 3-in-120 s detector) writes `.request`; restored, reason `crash_loop` |
 | R6 too many starts | R2's build; `echo 3 > $D/update_rollback.starts`, reboot | Restored before 99.0.0 starts, reason `too_many_starts` |
 | R7 broken new launcher | R3's build with `<install>/bin/helix-launcher.sh` replaced by `#!/bin/sh` + `exit 2` | Restored at once, reason `exit_2` |
 | R8 stop during the window | R3's build; stop the service (and once, reboot) about 60 s in | "Stopped during the rollback window", no rollback, the trial files and `.old` kept; the next start resumes at start 2 and passes |

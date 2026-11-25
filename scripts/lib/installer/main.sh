@@ -876,11 +876,40 @@ _refuse_uninstall_from_install_dir() {
     esac
 }
 
-# Refuse to run on a device where HelixScreen is managed by the firmware
-# (e.g. PAXX's Snapmaker U1 firmware, which bind-mounts our binary over
-# /usr/bin/gui, supervises it via lmd, and owns updates through a pinned
-# helixscreen-pkg). Running the standalone installer there would trample the
-# firmware-managed setup. Detection: either marker present ⇒ firmware-managed.
+# The value of `gui` in the `[components]` section of PAXX's extended2.cfg, the
+# switch that selects which touchscreen UI the firmware runs. Read the way PAXX's
+# extended-config.py (configparser) reads it: `:` or `=` delimits, the key is
+# case-insensitive, the value is trimmed. Empty when the file or key is absent.
+_paxx_selected_gui() {
+    [ -r "$1" ] || return 0
+    awk '
+        /^[ \t]*\[/ {
+            s = $0; sub(/^[ \t]*\[[ \t]*/, "", s); sub(/[ \t]*\][ \t\r]*$/, "", s)
+            in_components = (s == "components"); next
+        }
+        in_components && /^[ \t]*[A-Za-z_]+[ \t]*[:=]/ {
+            key = $0; sub(/[ \t]*[:=].*/, "", key); gsub(/[ \t]/, "", key)
+            if (tolower(key) != "gui") next
+            val = $0; sub(/^[^:=]*[:=]/, "", val); gsub(/^[ \t]+|[ \t\r]+$/, "", val)
+            print val; exit
+        }
+    ' "$1"
+}
+
+# Refuse to run where the firmware runs HelixScreen itself: PAXX's Snapmaker U1
+# firmware, whose lmd hook bind-mounts the binary of its pinned package under
+# /oem/apps/helixscreen over /usr/bin/gui when `[components] gui` selects
+# helixscreen. PAXX ships the hook whatever that setting says, so the hook file
+# alone proves nothing; with gui on the stock UI the firmware runs no HelixScreen
+# and an install of ours is ours to update. A package directory beside our
+# install is no reason to refuse either: it runs only through that hook. With gui
+# on helixscreen and no package yet, the guard still refuses: extended-pkg fetches
+# the package at the next boot and the hook then binds it.
+#
+# The in-app updater makes the same call from the running binary in
+# helix::board::firmware_manages_updates() (src/system/board_identity.cpp), which
+# counts an install as the firmware's when the running binary is the package's.
+# The two must agree, or the app offers an update this guard then refuses.
 #
 # Advanced users can force past the guard with HELIX_IGNORE_FIRMWARE_MANAGED=1.
 # Tests set HELIX_FIRMWARE_MANAGED_MARKER to a temp root to exercise the guard
@@ -892,29 +921,26 @@ _refuse_if_firmware_managed() {
     fi
 
     _fw_root="${HELIX_FIRMWARE_MANAGED_MARKER:-}"
-    _fw_dir_marker="${_fw_root}/oem/apps/helixscreen"
-    _fw_hook_marker="${_fw_root}/etc/hooks/lmd.d/30-helixscreen.sh"
+    _fw_hook="${_fw_root}/etc/hooks/lmd.d/30-helixscreen.sh"
+    _fw_cfg="${_fw_root}/oem/printer_data/config/extended/extended2.cfg"
 
-    if [ -d "$_fw_dir_marker" ] || [ -f "$_fw_hook_marker" ]; then
-        if [ -d "$_fw_dir_marker" ]; then
-            _fw_detected="$_fw_dir_marker"
-        else
-            _fw_detected="$_fw_hook_marker"
-        fi
-        log_error "=========================================="
-        log_error "HelixScreen is managed by your firmware on this device."
-        log_error "Detected: $_fw_detected"
-        log_error "=========================================="
-        log_error ""
-        log_error "Use the firmware configuration to enable, disable, or update"
-        log_error "HelixScreen (Snapmaker Components > Touchscreen GUI)."
-        log_error "Do NOT run this installer — it would overwrite the"
-        log_error "firmware-managed setup."
-        log_error ""
-        log_error "To override this check anyway (advanced users), re-run with:"
-        log_error "  HELIX_IGNORE_FIRMWARE_MANAGED=1 sh install.sh"
-        exit 1
-    fi
+    [ -f "$_fw_hook" ] || return 0
+    [ "$(_paxx_selected_gui "$_fw_cfg")" = "helixscreen" ] || return 0
+
+    _fw_detected="$_fw_hook (${_fw_cfg}: [components] gui: helixscreen)"
+    log_error "=========================================="
+    log_error "HelixScreen is managed by your firmware on this device."
+    log_error "Detected: $_fw_detected"
+    log_error "=========================================="
+    log_error ""
+    log_error "Use the firmware configuration to enable, disable, or update"
+    log_error "HelixScreen (Snapmaker Components > Touchscreen GUI)."
+    log_error "Do NOT run this installer — it would overwrite the"
+    log_error "firmware-managed setup."
+    log_error ""
+    log_error "To override this check anyway (advanced users), re-run with:"
+    log_error "  HELIX_IGNORE_FIRMWARE_MANAGED=1 sh install.sh"
+    exit 1
 }
 
 # Main installation flow
