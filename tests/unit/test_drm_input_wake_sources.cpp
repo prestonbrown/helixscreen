@@ -3,6 +3,9 @@
 
 // The DRM backend's evdev devices are wake sources: while the display sleeps, the
 // main loop waits on their fds instead of polling them (prestonbrown/helixscreen#2037).
+//
+// Only a DRM build defines HELIX_DISPLAY_DRM, and no CI job builds the test binary
+// that way, so CI never runs this case: it runs in a DRM test build.
 
 #ifdef HELIX_DISPLAY_DRM
 
