@@ -1278,7 +1278,7 @@
   <translation tag="Copying from USB..." ru="Копирование с USB..."/>
   <translation tag="Corner roundness" ru="Скругление углов"/>
   <translation tag="Corners differ by {} mm" ru="Разница углов {} мм"/>
-  <translation tag="Correct and Reprint"/>
+  <translation tag="Correct and Reprint" ru="Исправить и перепечатать"/>
   <translation tag="Correct the value in the printer&apos;s configuration, then restart Klipper." ru="Исправьте значение в конфигурации принтера, затем перезапустите Klipper."/>
   <translation tag="Correction (Ki)" ru="Коррекция (Ki)"/>
   <translation tag="Could not add the timelapse plugin to Moonraker." ru="Не удалось добавить плагин таймлапса в Moonraker."/>
@@ -1584,7 +1584,7 @@
   <translation tag="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead." ru="У каждой печатающей головки на этом принтере своё Z-смещение. Используйте калибровку смещений инструментов."/>
   <translation tag="Each tap sets a new value from this layer up." ru="Каждое касание задаёт новое значение начиная с этого слоя."/>
   <translation tag="Each tower tunes one value" ru="Каждая башня настраивает одно значение"/>
-  <translation tag="Each tower tunes one value. Judge it side-lit."/>
+  <translation tag="Each tower tunes one value. Judge it side-lit." ru="Каждая башня настраивает одно значение. Оценивайте при боковом свете."/>
   <translation tag="Edit" ru="Редактировать"/>
   <translation tag="Edit Filament" ru="Редактировать филамент"/>
   <translation tag="Edit Slot" ru="Редактировать слот"/>
@@ -2125,16 +2125,16 @@
   <translation tag="Front Left" ru="Спереди слева"/>
   <translation tag="Front Right" ru="Спереди справа"/>
   <translation tag="Front best height" ru="Лучшая высота спереди"/>
-  <translation tag="Front transitions"/>
-  <translation tag="Front, lit from far left or right: the pause at the left and the slow spot at the right. Very subtle."/>
+  <translation tag="Front transitions" ru="Переходы спереди"/>
+  <translation tag="Front, lit from far left or right: the pause at the left and the slow spot at the right. Very subtle." ru="Спереди, свет с крайней левой или правой стороны: пауза слева и медленный участок справа. Очень слабо заметно."/>
   <translation tag="Front, lit from far left or right: the slow middle, the pause, the slow spot. Very subtle." ru="Спереди, свет сильно слева или справа: медленная середина, пауза, медленное место. Едва заметно."/>
   <translation tag="Front, lit from far left or right: where do the marked spots look cleanest?" ru="Спереди, свет сильно слева или справа: где отмеченные места выглядят чище всего?"/>
-  <translation tag="Front, lit from far left or right: where do the pause and the slow spot look best?"/>
+  <translation tag="Front, lit from far left or right: where do the pause and the slow spot look best?" ru="Спереди, свет с крайней левой или правой стороны: где пауза и медленный участок выглядят лучше всего?"/>
   <translation tag="Front, lit from the side" ru="Спереди, свет сбоку"/>
-  <translation tag="Front, side-lit: the speed transitions."/>
-  <translation tag="Front, side-lit: where do the speed transitions look best?"/>
-  <translation tag="Front, {:.0f}% kept"/>
-  <translation tag="Front: pause, slow spot"/>
+  <translation tag="Front, side-lit: the speed transitions." ru="Спереди, боковой свет: переходы скорости."/>
+  <translation tag="Front, side-lit: where do the speed transitions look best?" ru="Спереди, боковой свет: где переходы скорости выглядят лучше всего?"/>
+  <translation tag="Front, {:.0f}% kept" ru="Спереди, сохранено {:.0f} %"/>
+  <translation tag="Front: pause, slow spot" ru="Спереди: пауза, медленный участок"/>
   <translation tag="Front: the edges of the slow middle, the pause and the slow spot." ru="Спереди: края медленной середины, пауза и медленное место."/>
   <translation tag="Front: where do the marked spots look cleanest?" ru="Спереди: где отмеченные места выглядят чище всего?"/>
   <translation tag="Full" ru="Полный"/>
@@ -2157,7 +2157,7 @@
   <translation tag="Getting Started" ru="Начало работы"/>
   <translation tag="Getting address…" ru="Получение адреса…"/>
   <translation tag="Getting ready..." ru="Подготовка..."/>
-  <translation tag="Getting worse as it climbs? Stop Tower and judge it."/>
+  <translation tag="Getting worse as it climbs? Stop Tower and judge it." ru="Становится хуже по мере роста? Остановите башню и оцените."/>
   <translation tag="Give each feature its own pin and check its spelling against the board&apos;s sample configuration, then restart Klipper." ru="Назначьте каждой функции свой пин и сверьте написание с примером конфигурации платы, затем перезапустите Klipper."/>
   <translation tag="Glass Effects" ru="Эффекты стекла"/>
   <translation tag="Global" ru="Общий"/>
@@ -2682,7 +2682,7 @@
   <translation tag="Layer Pause" ru="Пауза на слое"/>
   <translation tag="Layer takes a frame at each layer change. Your slicer&apos;s layer change G-code must run:&#10;TIMELAPSE_TAKE_FRAME" ru="Послойный режим снимает кадр при каждой смене слоя. G-код смены слоя в слайсере должен выполнять:&#10;TIMELAPSE_TAKE_FRAME"/>
   <translation tag="Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.&#10;Add it to your slicer&apos;s layer change G-code:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." ru="Послойный режим снимает один кадр при каждой смене слоя, но только когда печать выполняет макрос ниже; без него видео останется почти пустым.&#10;Добавьте его в G-код смены слоя слайсера:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Гиперлапс снимает кадр по таймеру и не требует настройки слайсера, но в каждом кадре голова там, где окажется."/>
-  <translation tag="Layer {} of {} · {:.1f} mm"/>
+  <translation tag="Layer {} of {} · {:.1f} mm" ru="Слой {} из {} · {:.1f} мм"/>
   <translation tag="Layer {} of {} · {:.2f} mm" ru="Слой {} из {} · {:.2f} мм"/>
   <translation tag="Layer {} of {}." ru="Слой {} из {}."/>
   <translation tag="Layer {}, Z {:.2f} mm" ru="Слой {}, Z {:.2f} мм"/>
@@ -2703,16 +2703,16 @@
   <translation tag="Left side" ru="Левая сторона"/>
   <translation tag="Left side against the front" ru="Левая сторона и передняя"/>
   <translation tag="Left side and front, each at its slow edges. Each comes out clean at its own height; they should match." ru="Левая сторона и передняя, каждая на своих медленных краях. Каждая получается чистой на своей высоте; они должны совпадать."/>
-  <translation tag="Left side and front, side-lit: where each converges. The same height takes it; if not, this pass prints again."/>
-  <translation tag="Left side clean all the way up? It is best at 0."/>
-  <translation tag="Left side {:.1f} mm higher, so this pass prints again with&#10;{} {} to {}"/>
+  <translation tag="Left side and front, side-lit: where each converges. The same height takes it; if not, this pass prints again." ru="Левая сторона и перед, боковой свет: где каждая сходится. Одинаковая высота принимает значение; иначе этот проход печатается снова."/>
+  <translation tag="Left side clean all the way up? It is best at 0." ru="Левая сторона чистая до самого верха? Лучше всего 0."/>
+  <translation tag="Left side {:.1f} mm higher, so this pass prints again with&#10;{} {} to {}" ru="Левая сторона выше на {:.1f} мм, поэтому этот проход печатается снова с&#10;{} {} до {}"/>
   <translation tag="Left side {:.1f} mm higher: the next tower lowers the advance 10%." ru="Левая сторона на {:.1f} mm выше: следующая башня снижает Pressure Advance на 10%."/>
   <translation tag="Left side {:.1f} mm higher: the next tower raises the offset 10%." ru="Левая сторона на {:.1f} mm выше: следующая башня повышает смещение на 10%."/>
-  <translation tag="Left side {:.1f} mm lower, so this pass prints again with&#10;{} {} to {}"/>
+  <translation tag="Left side {:.1f} mm lower, so this pass prints again with&#10;{} {} to {}" ru="Левая сторона ниже на {:.1f} мм, поэтому этот проход печатается снова с&#10;{} {} до {}"/>
   <translation tag="Left side {:.1f} mm lower: the next tower lowers the offset 10%." ru="Левая сторона на {:.1f} mm ниже: следующая башня снижает смещение на 10%."/>
   <translation tag="Left side {:.1f} mm lower: the next tower raises the advance 10%." ru="Левая сторона на {:.1f} mm ниже: следующая башня повышает Pressure Advance на 10%."/>
-  <translation tag="Left side, side-lit: at what height do the slow middle&apos;s edges look best?"/>
-  <translation tag="Left side, side-lit: the two edges of the slow middle, 5 mm either side of center."/>
+  <translation tag="Left side, side-lit: at what height do the slow middle&apos;s edges look best?" ru="Левая сторона, боковой свет: на какой высоте края медленной середины выглядят лучше всего?"/>
+  <translation tag="Left side, side-lit: the two edges of the slow middle, 5 mm either side of center." ru="Левая сторона, боковой свет: два края медленной середины, по 5 мм в каждую сторону от центра."/>
   <translation tag="Left side: at what height do the edges of the slow middle look cleanest?" ru="Левая сторона: на какой высоте края медленной середины выглядят чище всего?"/>
   <translation tag="Left side: the two edges of the slow middle, 5 mm either side of center." ru="Левая сторона: два края медленной середины, по 5 mm в обе стороны от центра."/>
   <translation tag="Left: slow middle" ru="Слева: медленная середина"/>
@@ -3211,7 +3211,7 @@
   <translation tag="No multi-filament system detected" ru="Мультифиламентная система не обнаружена"/>
   <translation tag="No need to stay while it prints" ru="Во время печати можно не оставаться"/>
   <translation tag="No need to stay; this screen waits for you when the tower is done." ru="Оставаться не нужно; этот экран дождётся вас, когда башня будет готова."/>
-  <translation tag="No need to stay; this screen waits for you."/>
+  <translation tag="No need to stay; this screen waits for you." ru="Ждать не нужно; этот экран подождёт вас."/>
   <translation tag="No network. Scan QR code to report on your phone." ru="Нет сети. Отсканируйте QR-код, чтобы отправить отчёт с телефона."/>
   <translation tag="No networks found" ru="Сети не найдены"/>
   <translation tag="No new mesh was stored as &apos;{}&apos;" ru="Новая сетка не сохранена как &apos;{}&apos;"/>
@@ -3686,7 +3686,7 @@
   <translation tag="Pressure advance" ru="Pressure Advance"/>
   <translation tag="Pressure advance by material" ru="Pressure Advance по материалу"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." ru="Pressure Advance растёт вместе с башней. Следите за углами: нажмите - или + в любой момент, и рампа остановится, чтобы вы оценили своё значение."/>
-  <translation tag="Pressure advance keeps corners sharp and lines even."/>
+  <translation tag="Pressure advance keeps corners sharp and lines even." ru="Pressure Advance сохраняет углы чёткими, а линии ровными."/>
   <translation tag="Pressure advance tuning" ru="Настройка Pressure Advance"/>
   <translation tag="Pressure advance {} is written to the {} section." ru="Pressure advance {} записывается в раздел {}."/>
   <translation tag="Pressure on the bed" ru="Давление на стол"/>
@@ -4505,7 +4505,7 @@
   <translation tag="Set how bright the screen is and when it rests. You can change any of these later in Settings." ru="Настройте яркость экрана и когда он отдыхает. Всё это можно изменить позже в Настройках."/>
   <translation tag="Set local timezone for time display" ru="Установить часовой пояс для отображения времени"/>
   <translation tag="Set logging verbosity for troubleshooting" ru="Установить уровень детализации журнала для устранения неполадок"/>
-  <translation tag="Set max_accel to your highest."/>
+  <translation tag="Set max_accel to your highest." ru="Задайте max_accel по вашему максимуму."/>
   <translation tag="Set temperature between {} and {}" ru="Установите температуру от {} до {}"/>
   <translation tag="Set the X and Y belts with the motorized tensioners" ru="Натянуть ремни X и Y моторизованными натяжителями"/>
   <translation tag="Set the clock, theme and units. You can change any of these later in Settings." ru="Настройте часы, тему и единицы. Всё это можно изменить позже в Настройках."/>
@@ -4571,7 +4571,7 @@
   <translation tag="Shutting down printer..." ru="Выключение принтера..."/>
   <translation tag="Shutting down screen..." ru="Выключение экрана..."/>
   <translation tag="Shutting down..." ru="Выключение..."/>
-  <translation tag="Side-lit: the height where the left side converges, then the front."/>
+  <translation tag="Side-lit: the height where the left side converges, then the front." ru="Боковой свет: высота, на которой сходится левая сторона, затем перед."/>
   <translation tag="Signal" ru="Сигнал"/>
   <translation tag="Signal #" ru="Сигнал №"/>
   <translation tag="Signal macro renaming" ru="Переименование сигнальных макросов"/>
@@ -4805,7 +4805,7 @@
   <translation tag="Stopped drying %s" ru="Сушка остановлена: %s"/>
   <translation tag="Stopped. Restart Moonraker to start it again." ru="Остановлено. Перезапустите Moonraker, чтобы запустить снова."/>
   <translation tag="Stopping after the current test line." ru="Остановка после текущей тестовой линии."/>
-  <translation tag="Stopping once the printer finishes starting"/>
+  <translation tag="Stopping once the printer finishes starting" ru="Остановка после завершения запуска принтера"/>
   <translation tag="Stopping restarted the printer, so nothing can be saved" ru="Остановка перезапустила принтер, поэтому сохранить ничего нельзя"/>
   <translation tag="Stopping restarted the printer, which dropped the results of the steps that finished. Nothing can be saved." ru="Остановка перезапустила принтер, и результаты завершённых шагов потеряны. Сохранить нечего."/>
   <translation tag="Stops all motion. Requires firmware restart." ru="Останавливает всё движение. Требуется перезапуск прошивки."/>
@@ -5301,7 +5301,7 @@
   <translation tag="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service" ru="Не удаётся считать датчик этого блока CFS. Проверьте подключение, иначе блоку требуется обслуживание"/>
   <translation tag="The shell could not start: {}" ru="Не удалось запустить оболочку: {}"/>
   <translation tag="The shell exited. Tap the terminal to start a new one." ru="Оболочка завершилась. Коснитесь терминала, чтобы запустить новую."/>
-  <translation tag="The sides should converge at the same height. Apart means the {} is a little off."/>
+  <translation tag="The sides should converge at the same height. Apart means the {} is a little off." ru="Стороны должны сходиться на одной высоте. Расхождение значит, что {} немного не тот."/>
   <translation tag="The slot asked to eject still has its filament loaded in the toolhead." ru="В слоте, который нужно извлечь, филамент всё ещё загружен в печатающую головку."/>
   <translation tag="The slot chosen for this tool change has no filament at its inlet." ru="У слота, выбранного для этой смены инструмента, нет филамента на входе."/>
   <translation tag="The speed of one fan you choose" ru="Скорость выбранного вентилятора"/>
@@ -5601,8 +5601,8 @@
   <translation tag="Touch screen to wake from sleep" ru="Коснитесь экрана для выхода из сна"/>
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" ru="Коснитесь цели (точка %1$d из 3) — касание %2$d из %3$d"/>
   <translation tag="TouchCalibration" ru="Калибровка касания"/>
-  <translation tag="Towers print at max_accel, {:.0f} mm/s². Set it to the highest you print with."/>
-  <translation tag="Towers print at max_accel. Set it to the highest you print with."/>
+  <translation tag="Towers print at max_accel, {:.0f} mm/s². Set it to the highest you print with." ru="Башни печатаются с max_accel, {:.0f} мм/с². Задайте максимум, с которым вы печатаете."/>
+  <translation tag="Towers print at max_accel. Set it to the highest you print with." ru="Башни печатаются с max_accel. Задайте максимум, с которым вы печатаете."/>
   <translation tag="Trace" ru="Трассировка"/>
   <translation tag="Track this spool&apos;s weight there" ru="Отслеживать там вес этой катушки"/>
   <translation tag="Trailing" ru="Отставание"/>
@@ -5922,7 +5922,7 @@
   <translation tag="When this spool runs out, printing continues from {}." ru="Когда эта катушка закончится, печать продолжится с {}."/>
   <translation tag="When this spool runs out, the print pauses." ru="Когда эта катушка закончится, печать приостановится."/>
   <translation tag="Where UI sounds play" ru="Где воспроизводятся звуки интерфейса"/>
-  <translation tag="Where sides converge"/>
+  <translation tag="Where sides converge" ru="Где стороны сходятся"/>
   <translation tag="Where to look" ru="Куда смотреть"/>
   <translation tag="Whether filament is loaded" ru="Загружен ли филамент"/>
   <translation tag="Whether the Z arrows follow the bed or the Z value" ru="Следуют ли стрелки Z за столом или за значением Z"/>
@@ -6205,7 +6205,7 @@
   <translation tag="loud" ru="громко"/>
   <translation tag="matched" ru="совпадают"/>
   <translation tag="material differs" ru="другой материал"/>
-  <translation tag="max_accel {:.0f} mm/s²: set it to your highest."/>
+  <translation tag="max_accel {:.0f} mm/s²: set it to your highest." ru="max_accel {:.0f} мм/с²: задайте по вашему максимуму."/>
   <translation tag="measured {}" ru="измерено {}"/>
   <translation tag="medium" ru="средне"/>
   <translation tag="method: {}" ru="метод: {}"/>
@@ -6486,7 +6486,7 @@
   <translation tag="{} widgets" ru="Виджетов: {}"/>
   <translation tag="{} width sensor" ru="Датчик диаметра {}"/>
   <translation tag="{} will switch to a slot whose filament type AND color both match the active spool and whose own port sensor reads filament present." ru="{} переключится на слот, у которого тип филамента И цвет совпадают с активной катушкой, а собственный датчик порта видит филамент."/>
-  <translation tag="{} {:.0f}% of that value is kept."/>
+  <translation tag="{} {:.0f}% of that value is kept." ru="{} Сохраняется {:.0f} % этого значения."/>
   <translation tag="{} · pick what to run, then it runs on its own" ru="{} · выберите, что запустить, дальше всё идёт само"/>
   <translation tag="{} · {}" ru="{} · {}"/>
   <translation tag="{} · {} firmware" ru="{} · прошивка {}"/>

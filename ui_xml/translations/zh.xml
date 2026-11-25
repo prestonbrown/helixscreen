@@ -1233,7 +1233,7 @@
   <translation tag="Copying from USB..." zh="正在从 USB 复制..."/>
   <translation tag="Corner roundness" zh="圆角程度"/>
   <translation tag="Corners differ by {} mm" zh="四角相差 {} mm"/>
-  <translation tag="Correct and Reprint"/>
+  <translation tag="Correct and Reprint" zh="修正并重新打印"/>
   <translation tag="Correct the value in the printer&apos;s configuration, then restart Klipper." zh="请修正打印机配置中的该值，然后重启 Klipper。"/>
   <translation tag="Correction (Ki)" zh="校正 (Ki)"/>
   <translation tag="Could not add the timelapse plugin to Moonraker." zh="无法将延时摄影插件添加到 Moonraker。"/>
@@ -1539,7 +1539,7 @@
   <translation tag="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead." zh="此打印机的每个工具头都有自己的 Z 偏移。请改用工具偏移校准。"/>
   <translation tag="Each tap sets a new value from this layer up." zh="每次点按都会从这一层起设置新值。"/>
   <translation tag="Each tower tunes one value" zh="每座塔调整一个值"/>
-  <translation tag="Each tower tunes one value. Judge it side-lit."/>
+  <translation tag="Each tower tunes one value. Judge it side-lit." zh="每个测试塔调整一个值。请在侧光下判断。"/>
   <translation tag="Edit" zh="编辑"/>
   <translation tag="Edit Filament" zh="编辑耗材"/>
   <translation tag="Edit Slot" zh="编辑槽位"/>
@@ -2077,16 +2077,16 @@
   <translation tag="Front Left" zh="左前"/>
   <translation tag="Front Right" zh="右前"/>
   <translation tag="Front best height" zh="前面最佳高度"/>
-  <translation tag="Front transitions"/>
-  <translation tag="Front, lit from far left or right: the pause at the left and the slow spot at the right. Very subtle."/>
+  <translation tag="Front transitions" zh="前侧过渡"/>
+  <translation tag="Front, lit from far left or right: the pause at the left and the slow spot at the right. Very subtle." zh="前侧，从最左或最右打光：左边的停顿和右边的慢速点。非常细微。"/>
   <translation tag="Front, lit from far left or right: the slow middle, the pause, the slow spot. Very subtle." zh="前面，从最左侧或最右侧打光：慢速中段、暂停、慢速点。非常细微。"/>
   <translation tag="Front, lit from far left or right: where do the marked spots look cleanest?" zh="前面，从最左侧或最右侧打光：标记的点在哪里看起来最干净？"/>
-  <translation tag="Front, lit from far left or right: where do the pause and the slow spot look best?"/>
+  <translation tag="Front, lit from far left or right: where do the pause and the slow spot look best?" zh="前侧，从最左或最右打光：停顿和慢速点在哪里看起来最好？"/>
   <translation tag="Front, lit from the side" zh="前面，从侧面打光"/>
-  <translation tag="Front, side-lit: the speed transitions."/>
-  <translation tag="Front, side-lit: where do the speed transitions look best?"/>
-  <translation tag="Front, {:.0f}% kept"/>
-  <translation tag="Front: pause, slow spot"/>
+  <translation tag="Front, side-lit: the speed transitions." zh="前侧，侧光：速度过渡处。"/>
+  <translation tag="Front, side-lit: where do the speed transitions look best?" zh="前侧，侧光：速度过渡处在哪里看起来最好？"/>
+  <translation tag="Front, {:.0f}% kept" zh="前侧，保留 {:.0f}%"/>
+  <translation tag="Front: pause, slow spot" zh="前侧：停顿，慢速点"/>
   <translation tag="Front: the edges of the slow middle, the pause and the slow spot." zh="前面：慢速中段的边缘、暂停和慢速点。"/>
   <translation tag="Front: where do the marked spots look cleanest?" zh="前面：标记的点在哪里看起来最干净？"/>
   <translation tag="Full" zh="完整"/>
@@ -2109,7 +2109,7 @@
   <translation tag="Getting Started" zh="入门"/>
   <translation tag="Getting address…" zh="正在获取地址…"/>
   <translation tag="Getting ready..." zh="正在准备..."/>
-  <translation tag="Getting worse as it climbs? Stop Tower and judge it."/>
+  <translation tag="Getting worse as it climbs? Stop Tower and judge it." zh="越往上越差？停止测试塔并判断。"/>
   <translation tag="Give each feature its own pin and check its spelling against the board&apos;s sample configuration, then restart Klipper." zh="请为每个功能分配独立的引脚，并对照主板的示例配置检查拼写，然后重启 Klipper。"/>
   <translation tag="Glass Effects" zh="玻璃效果"/>
   <translation tag="Global" zh="全局"/>
@@ -2634,7 +2634,7 @@
   <translation tag="Layer Pause" zh="层暂停"/>
   <translation tag="Layer takes a frame at each layer change. Your slicer&apos;s layer change G-code must run:&#10;TIMELAPSE_TAKE_FRAME" zh="层模式在每次换层时拍摄一帧。切片软件的换层 G-code 必须执行：&#10;TIMELAPSE_TAKE_FRAME"/>
   <translation tag="Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.&#10;Add it to your slicer&apos;s layer change G-code:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." zh="层模式在每次换层时拍摄一帧，但只有打印执行下面的宏时才会拍摄；没有它，视频几乎是空的。&#10;请将它添加到切片软件的换层 G-code 中：&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;超延时按固定时间间隔拍摄，无需设置切片软件，但每一帧中工具头都在当时所在的位置。"/>
-  <translation tag="Layer {} of {} · {:.1f} mm"/>
+  <translation tag="Layer {} of {} · {:.1f} mm" zh="第 {} / {} 层 · {:.1f} mm"/>
   <translation tag="Layer {} of {} · {:.2f} mm" zh="第 {} / {} 层 · {:.2f} mm"/>
   <translation tag="Layer {} of {}." zh="第 {} 层，共 {} 层。"/>
   <translation tag="Layer {}, Z {:.2f} mm" zh="第 {} 层，Z {:.2f} mm"/>
@@ -2655,16 +2655,16 @@
   <translation tag="Left side" zh="左侧"/>
   <translation tag="Left side against the front" zh="左侧与前面对比"/>
   <translation tag="Left side and front, each at its slow edges. Each comes out clean at its own height; they should match." zh="左侧与前面，各自在慢速边缘处。各自在自己的高度最干净，两者应当一致。"/>
-  <translation tag="Left side and front, side-lit: where each converges. The same height takes it; if not, this pass prints again."/>
-  <translation tag="Left side clean all the way up? It is best at 0."/>
-  <translation tag="Left side {:.1f} mm higher, so this pass prints again with&#10;{} {} to {}"/>
+  <translation tag="Left side and front, side-lit: where each converges. The same height takes it; if not, this pass prints again." zh="左侧和前侧，侧光：各自在哪里交会。高度相同则采用该值；否则本轮重新打印。"/>
+  <translation tag="Left side clean all the way up? It is best at 0." zh="左侧一直到顶都很干净？最佳值是 0。"/>
+  <translation tag="Left side {:.1f} mm higher, so this pass prints again with&#10;{} {} to {}" zh="左侧高 {:.1f} mm，因此本轮将重新打印，使用&#10;{} {} 为 {}"/>
   <translation tag="Left side {:.1f} mm higher: the next tower lowers the advance 10%." zh="左侧高 {:.1f} mm：下一个测试塔将压力提前降低 10%。"/>
   <translation tag="Left side {:.1f} mm higher: the next tower raises the offset 10%." zh="左侧高 {:.1f} mm：下一个测试塔将偏移提高 10%。"/>
-  <translation tag="Left side {:.1f} mm lower, so this pass prints again with&#10;{} {} to {}"/>
+  <translation tag="Left side {:.1f} mm lower, so this pass prints again with&#10;{} {} to {}" zh="左侧低 {:.1f} mm，因此本轮将重新打印，使用&#10;{} {} 为 {}"/>
   <translation tag="Left side {:.1f} mm lower: the next tower lowers the offset 10%." zh="左侧低 {:.1f} mm：下一个测试塔将偏移降低 10%。"/>
   <translation tag="Left side {:.1f} mm lower: the next tower raises the advance 10%." zh="左侧低 {:.1f} mm：下一个测试塔将压力提前提高 10%。"/>
-  <translation tag="Left side, side-lit: at what height do the slow middle&apos;s edges look best?"/>
-  <translation tag="Left side, side-lit: the two edges of the slow middle, 5 mm either side of center."/>
+  <translation tag="Left side, side-lit: at what height do the slow middle&apos;s edges look best?" zh="左侧，侧光：慢速中段的边缘在什么高度看起来最好？"/>
+  <translation tag="Left side, side-lit: the two edges of the slow middle, 5 mm either side of center." zh="左侧，侧光：慢速中段的两条边缘，中心两侧各 5 mm。"/>
   <translation tag="Left side: at what height do the edges of the slow middle look cleanest?" zh="左侧：慢速中段的边缘在什么高度看起来最干净？"/>
   <translation tag="Left side: the two edges of the slow middle, 5 mm either side of center." zh="左侧：慢速中段的两条边缘，中心两侧各 5 mm。"/>
   <translation tag="Left: slow middle" zh="左：慢速中段"/>
@@ -3163,7 +3163,7 @@
   <translation tag="No multi-filament system detected" zh="未检测到多耗材系统"/>
   <translation tag="No need to stay while it prints" zh="打印期间无需守候"/>
   <translation tag="No need to stay; this screen waits for you when the tower is done." zh="无需守候；测试塔完成后，此界面会等你回来。"/>
-  <translation tag="No need to stay; this screen waits for you."/>
+  <translation tag="No need to stay; this screen waits for you." zh="无需留守；此屏幕会等你。"/>
   <translation tag="No network. Scan QR code to report on your phone." zh="无网络。扫描二维码在手机上报告。"/>
   <translation tag="No networks found" zh="未找到网络"/>
   <translation tag="No new mesh was stored as &apos;{}&apos;" zh="没有新的网格保存为 &apos;{}&apos;"/>
@@ -3632,7 +3632,7 @@
   <translation tag="Pressure advance" zh="压力提前"/>
   <translation tag="Pressure advance by material" zh="按材料压力提前"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." zh="压力提前随测试塔升高而增加。查看角落: 随时点击-或+,自动步进就会停止,方便你判断自己的数值。"/>
-  <translation tag="Pressure advance keeps corners sharp and lines even."/>
+  <translation tag="Pressure advance keeps corners sharp and lines even." zh="压力提前能让转角分明、线条均匀。"/>
   <translation tag="Pressure advance tuning" zh="压力提前调校"/>
   <translation tag="Pressure advance {} is written to the {} section." zh="Pressure advance {} 将写入 {} 部分。"/>
   <translation tag="Pressure on the bed" zh="热床受压"/>
@@ -4445,7 +4445,7 @@
   <translation tag="Set how bright the screen is and when it rests. You can change any of these later in Settings." zh="设置屏幕亮度以及何时休眠。以后可在“设置”中更改。"/>
   <translation tag="Set local timezone for time display" zh="设置本地时区以显示时间"/>
   <translation tag="Set logging verbosity for troubleshooting" zh="设置日志详细级别以便故障排除"/>
-  <translation tag="Set max_accel to your highest."/>
+  <translation tag="Set max_accel to your highest." zh="请将 max_accel 设为你的最高值。"/>
   <translation tag="Set temperature between {} and {}" zh="请设置 {} 到 {} 之间的温度"/>
   <translation tag="Set the X and Y belts with the motorized tensioners" zh="用电动张紧器调整X和Y皮带"/>
   <translation tag="Set the clock, theme and units. You can change any of these later in Settings." zh="设置时钟、主题和单位。之后可以随时在设置中更改。"/>
@@ -4511,7 +4511,7 @@
   <translation tag="Shutting down printer..." zh="正在关闭打印机..."/>
   <translation tag="Shutting down screen..." zh="正在关闭屏幕..."/>
   <translation tag="Shutting down..." zh="正在关机..."/>
-  <translation tag="Side-lit: the height where the left side converges, then the front."/>
+  <translation tag="Side-lit: the height where the left side converges, then the front." zh="侧光：左侧交会的高度，然后是前侧。"/>
   <translation tag="Signal" zh="信号"/>
   <translation tag="Signal #" zh="信号 #"/>
   <translation tag="Signal macro renaming" zh="信号宏重命名"/>
@@ -4739,7 +4739,7 @@
   <translation tag="Stopped drying %s" zh="已停止烘干：%s"/>
   <translation tag="Stopped. Restart Moonraker to start it again." zh="已停止。重启 Moonraker 以重新启动。"/>
   <translation tag="Stopping after the current test line." zh="将在当前测试线后停止。"/>
-  <translation tag="Stopping once the printer finishes starting"/>
+  <translation tag="Stopping once the printer finishes starting" zh="打印机启动完成后停止"/>
   <translation tag="Stopping restarted the printer, so nothing can be saved" zh="停止操作重启了打印机，因此无法保存任何内容"/>
   <translation tag="Stopping restarted the printer, which dropped the results of the steps that finished. Nothing can be saved." zh="停止操作重启了打印机，已完成步骤的结果已丢弃，没有可保存的内容。"/>
   <translation tag="Stops all motion. Requires firmware restart." zh="停止所有运动。需要固件重启。"/>
@@ -5235,7 +5235,7 @@
   <translation tag="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service" zh="无法读取此 CFS 单元的传感器。请检查其连接，否则该单元可能需要维修"/>
   <translation tag="The shell could not start: {}" zh="无法启动 Shell：{}"/>
   <translation tag="The shell exited. Tap the terminal to start a new one." zh="Shell 已退出。点击终端以启动新的 Shell。"/>
-  <translation tag="The sides should converge at the same height. Apart means the {} is a little off."/>
+  <translation tag="The sides should converge at the same height. Apart means the {} is a little off." zh="两侧应在同一高度交会。相距较远说明 {} 略有偏差。"/>
   <translation tag="The slot asked to eject still has its filament loaded in the toolhead." zh="要弹出的槽位的耗材仍加载在工具头中。"/>
   <translation tag="The slot chosen for this tool change has no filament at its inlet." zh="此次换料选择的槽位入口处没有耗材。"/>
   <translation tag="The speed of one fan you choose" zh="所选风扇的转速"/>
@@ -5535,8 +5535,8 @@
   <translation tag="Touch screen to wake from sleep" zh="触摸屏幕唤醒"/>
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" zh="触摸目标（第 %1$d 个点，共 3 个）— 触摸 %2$d / %3$d"/>
   <translation tag="TouchCalibration" zh="触摸校准"/>
-  <translation tag="Towers print at max_accel, {:.0f} mm/s². Set it to the highest you print with."/>
-  <translation tag="Towers print at max_accel. Set it to the highest you print with."/>
+  <translation tag="Towers print at max_accel, {:.0f} mm/s². Set it to the highest you print with." zh="测试塔以 max_accel 打印，{:.0f} mm/s²。请设为你打印时用的最高值。"/>
+  <translation tag="Towers print at max_accel. Set it to the highest you print with." zh="测试塔以 max_accel 打印。请设为你打印时用的最高值。"/>
   <translation tag="Trace" zh="跟踪"/>
   <translation tag="Track this spool&apos;s weight there" zh="在其中跟踪此料盘的重量"/>
   <translation tag="Trailing" zh="滞后"/>
@@ -5856,7 +5856,7 @@
   <translation tag="When this spool runs out, printing continues from {}." zh="此料盘用尽时，将从{}继续打印。"/>
   <translation tag="When this spool runs out, the print pauses." zh="此料盘用尽时，打印将暂停。"/>
   <translation tag="Where UI sounds play" zh="界面声音的播放位置"/>
-  <translation tag="Where sides converge"/>
+  <translation tag="Where sides converge" zh="两侧交会处"/>
   <translation tag="Where to look" zh="观察位置"/>
   <translation tag="Whether filament is loaded" zh="耗材是否已装载"/>
   <translation tag="Whether the Z arrows follow the bed or the Z value" zh="Z 按钮跟随热床还是 Z 值"/>
@@ -6136,7 +6136,7 @@
   <translation tag="loud" zh="噪音大"/>
   <translation tag="matched" zh="匹配"/>
   <translation tag="material differs" zh="材料不同"/>
-  <translation tag="max_accel {:.0f} mm/s²: set it to your highest."/>
+  <translation tag="max_accel {:.0f} mm/s²: set it to your highest." zh="max_accel {:.0f} mm/s²：请设为你的最高值。"/>
   <translation tag="measured {}" zh="测量于 {}"/>
   <translation tag="medium" zh="中速"/>
   <translation tag="method: {}" zh="方法：{}"/>
@@ -6399,7 +6399,7 @@
   <translation tag="{} widgets" zh="{} 个小组件"/>
   <translation tag="{} width sensor" zh="{} 宽度传感器"/>
   <translation tag="{} will switch to a slot whose filament type AND color both match the active spool and whose own port sensor reads filament present." zh="{} 将切换到耗材类型与颜色都与当前料盘一致、且其端口传感器检测到有耗材的槽位。"/>
-  <translation tag="{} {:.0f}% of that value is kept."/>
+  <translation tag="{} {:.0f}% of that value is kept." zh="{} 保留该值的 {:.0f}%。"/>
   <translation tag="{} · pick what to run, then it runs on its own" zh="{} · 选择要运行的项目，之后自动运行"/>
   <translation tag="{} · {}" zh="{} · {}"/>
   <translation tag="{} · {} firmware" zh="{} · {} 固件"/>

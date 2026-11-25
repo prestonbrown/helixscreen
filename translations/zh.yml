@@ -1284,7 +1284,7 @@ translations:
   Copying from USB...: '正在从 USB 复制...'
   Corner roundness: 圆角程度
   Corners differ by {} mm: "四角相差 {} mm"
-  Correct and Reprint: ''
+  Correct and Reprint: 修正并重新打印
   Correct the value in the printer's configuration, then restart Klipper.: 请修正打印机配置中的该值，然后重启 Klipper。
   Correction (Ki): 校正 (Ki)
   Could not add the timelapse plugin to Moonraker.: '无法将延时摄影插件添加到 Moonraker。'
@@ -1634,7 +1634,7 @@ translations:
   Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: '此打印机的每个工具头都有自己的 Z 偏移。请改用工具偏移校准。'
   Each tap sets a new value from this layer up.: "每次点按都会从这一层起设置新值。"
   Each tower tunes one value: "每座塔调整一个值"
-  Each tower tunes one value. Judge it side-lit.: ''
+  Each tower tunes one value. Judge it side-lit.: 每个测试塔调整一个值。请在侧光下判断。
   Edit: 编辑
   Edit Filament: 编辑耗材
   Edit Slot: 编辑槽位
@@ -2179,16 +2179,16 @@ translations:
   Front Left: '左前'
   Front Right: '右前'
   Front best height: "前面最佳高度"
-  Front transitions: ''
-  'Front, lit from far left or right: the pause at the left and the slow spot at the right. Very subtle.': ''
+  Front transitions: 前侧过渡
+  'Front, lit from far left or right: the pause at the left and the slow spot at the right. Very subtle.': 前侧，从最左或最右打光：左边的停顿和右边的慢速点。非常细微。
   'Front, lit from far left or right: the slow middle, the pause, the slow spot. Very subtle.': "前面，从最左侧或最右侧打光：慢速中段、暂停、慢速点。非常细微。"
   'Front, lit from far left or right: where do the marked spots look cleanest?': "前面，从最左侧或最右侧打光：标记的点在哪里看起来最干净？"
-  'Front, lit from far left or right: where do the pause and the slow spot look best?': ''
+  'Front, lit from far left or right: where do the pause and the slow spot look best?': 前侧，从最左或最右打光：停顿和慢速点在哪里看起来最好？
   Front, lit from the side: "前面，从侧面打光"
-  'Front, side-lit: the speed transitions.': ''
-  'Front, side-lit: where do the speed transitions look best?': ''
-  Front, {:.0f}% kept: ''
-  'Front: pause, slow spot': ''
+  'Front, side-lit: the speed transitions.': 前侧，侧光：速度过渡处。
+  'Front, side-lit: where do the speed transitions look best?': 前侧，侧光：速度过渡处在哪里看起来最好？
+  Front, {:.0f}% kept: 前侧，保留 {:.0f}%
+  'Front: pause, slow spot': 前侧：停顿，慢速点
   'Front: the edges of the slow middle, the pause and the slow spot.': "前面：慢速中段的边缘、暂停和慢速点。"
   'Front: where do the marked spots look cleanest?': "前面：标记的点在哪里看起来最干净？"
   Full: 完整
@@ -2211,7 +2211,7 @@ translations:
   Get help and share feedback: 获取帮助和反馈
   Getting address…: 正在获取地址…
   Getting ready...: '正在准备...'
-  Getting worse as it climbs? Stop Tower and judge it.: ''
+  Getting worse as it climbs? Stop Tower and judge it.: 越往上越差？停止测试塔并判断。
   Give each feature its own pin and check its spelling against the board's sample configuration, then restart Klipper.: 请为每个功能分配独立的引脚，并对照主板的示例配置检查拼写，然后重启 Klipper。
   Glass Effects: 玻璃效果
   Global: 全局
@@ -2765,7 +2765,7 @@ translations:
 
 
     超延时按固定时间间隔拍摄，无需设置切片软件，但每一帧中工具头都在当时所在的位置。'
-  Layer {} of {} · {:.1f} mm: ''
+  Layer {} of {} · {:.1f} mm: 第 {} / {} 层 · {:.1f} mm
   Layer {} of {} · {:.2f} mm: 第 {} / {} 层 · {:.2f} mm
   Layer {} of {}.: '第 {} 层，共 {} 层。'
   Layer {}, Z {:.2f} mm: 第 {} 层，Z {:.2f} mm
@@ -2785,18 +2785,18 @@ translations:
   Left side: "左侧"
   Left side against the front: "左侧与前面对比"
   Left side and front, each at its slow edges. Each comes out clean at its own height; they should match.: "左侧与前面，各自在慢速边缘处。各自在自己的高度最干净，两者应当一致。"
-  'Left side and front, side-lit: where each converges. The same height takes it; if not, this pass prints again.': ''
-  Left side clean all the way up? It is best at 0.: ''
+  'Left side and front, side-lit: where each converges. The same height takes it; if not, this pass prints again.': 左侧和前侧，侧光：各自在哪里交会。高度相同则采用该值；否则本轮重新打印。
+  Left side clean all the way up? It is best at 0.: 左侧一直到顶都很干净？最佳值是 0。
   ? "Left side {:.1f} mm higher, so this pass prints again with\n{} {} to {}"
-  : ''
+  : "左侧高 {:.1f} mm，因此本轮将重新打印，使用\n{} {} 为 {}"
   'Left side {:.1f} mm higher: the next tower lowers the advance 10%.': "左侧高 {:.1f} mm：下一个测试塔将压力提前降低 10%。"
   'Left side {:.1f} mm higher: the next tower raises the offset 10%.': "左侧高 {:.1f} mm：下一个测试塔将偏移提高 10%。"
   ? "Left side {:.1f} mm lower, so this pass prints again with\n{} {} to {}"
-  : ''
+  : "左侧低 {:.1f} mm，因此本轮将重新打印，使用\n{} {} 为 {}"
   'Left side {:.1f} mm lower: the next tower lowers the offset 10%.': "左侧低 {:.1f} mm：下一个测试塔将偏移降低 10%。"
   'Left side {:.1f} mm lower: the next tower raises the advance 10%.': "左侧低 {:.1f} mm：下一个测试塔将压力提前提高 10%。"
-  "Left side, side-lit: at what height do the slow middle's edges look best?": ''
-  'Left side, side-lit: the two edges of the slow middle, 5 mm either side of center.': ''
+  "Left side, side-lit: at what height do the slow middle's edges look best?": 左侧，侧光：慢速中段的边缘在什么高度看起来最好？
+  'Left side, side-lit: the two edges of the slow middle, 5 mm either side of center.': 左侧，侧光：慢速中段的两条边缘，中心两侧各 5 mm。
   'Left side: at what height do the edges of the slow middle look cleanest?': "左侧：慢速中段的边缘在什么高度看起来最干净？"
   'Left side: the two edges of the slow middle, 5 mm either side of center.': "左侧：慢速中段的两条边缘，中心两侧各 5 mm。"
   "Left: the slow middle's edges": "左：慢速中段的边缘"
@@ -3288,7 +3288,7 @@ translations:
   No multi-filament system detected: 未检测到多耗材系统
   No need to stay while it prints: "打印期间无需守候"
   No need to stay; this screen waits for you when the tower is done.: "无需守候；测试塔完成后，此界面会等你回来。"
-  No need to stay; this screen waits for you.: ''
+  No need to stay; this screen waits for you.: 无需留守；此屏幕会等你。
   No network. Scan QR code to report on your phone.: 无网络。扫描二维码在手机上报告。
   No networks found: 未找到网络
   No new mesh was stored as '{}': "没有新的网格保存为 '{}'"
@@ -3773,7 +3773,7 @@ translations:
   Pressure advance by material: '按材料压力提前'
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : '压力提前随测试塔升高而增加。查看角落: 随时点击-或+,自动步进就会停止,方便你判断自己的数值。'
-  Pressure advance keeps corners sharp and lines even.: ''
+  Pressure advance keeps corners sharp and lines even.: 压力提前能让转角分明、线条均匀。
   Pressure advance tuning: '压力提前调校'
   Pressure advance {} is written to the {} section.: "Pressure advance {} 将写入 {} 部分。"
   Pressure on the bed: 热床受压
@@ -4596,7 +4596,7 @@ translations:
   Set how bright the screen is and when it rests. You can change any of these later in Settings.: '设置屏幕亮度以及何时休眠。以后可在“设置”中更改。'
   Set local timezone for time display: 设置本地时区以显示时间
   Set logging verbosity for troubleshooting: 设置日志详细级别以便故障排除
-  Set max_accel to your highest.: ''
+  Set max_accel to your highest.: 请将 max_accel 设为你的最高值。
   Set temperature between {} and {}: 请设置 {} 到 {} 之间的温度
   Set the X and Y belts with the motorized tensioners: "用电动张紧器调整X和Y皮带"
   Set the clock, theme and units. You can change any of these later in Settings.: "设置时钟、主题和单位。之后可以随时在设置中更改。"
@@ -4663,7 +4663,7 @@ translations:
   Shutting down printer...: 正在关闭打印机...
   Shutting down screen...: 正在关闭屏幕...
   Shutting down...: 正在关机...
-  'Side-lit: the height where the left side converges, then the front.': ''
+  'Side-lit: the height where the left side converges, then the front.': 侧光：左侧交会的高度，然后是前侧。
   Signal: 信号
   'Signal #': '信号 #'
   Signal macro renaming: '信号宏重命名'
@@ -4898,7 +4898,7 @@ translations:
   Stopped between Spool and Lane: 停在料盘与耗材通道之间
   Stopped drying %s: '已停止烘干：%s'
   Stopping after the current test line.: '将在当前测试线后停止。'
-  Stopping once the printer finishes starting: ''
+  Stopping once the printer finishes starting: 打印机启动完成后停止
   Stopping restarted the printer, so nothing can be saved: 停止操作重启了打印机，因此无法保存任何内容
   Stopping restarted the printer, which dropped the results of the steps that finished. Nothing can be saved.: '停止操作重启了打印机，已完成步骤的结果已丢弃，没有可保存的内容。'
   Stops all motion. Requires firmware restart.: 停止所有运动。需要固件重启。
@@ -5424,7 +5424,7 @@ translations:
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: 无法读取此 CFS 单元的传感器。请检查其连接，否则该单元可能需要维修
   'The shell could not start: {}': '无法启动 Shell：{}'
   The shell exited. Tap the terminal to start a new one.: 'Shell 已退出。点击终端以启动新的 Shell。'
-  The sides should converge at the same height. Apart means the {} is a little off.: ''
+  The sides should converge at the same height. Apart means the {} is a little off.: 两侧应在同一高度交会。相距较远说明 {} 略有偏差。
   The slot asked to eject still has its filament loaded in the toolhead.: 要弹出的槽位的耗材仍加载在工具头中。
   The slot chosen for this tool change has no filament at its inlet.: 此次换料选择的槽位入口处没有耗材。
   The speed of one fan you choose: 所选风扇的转速
@@ -5771,8 +5771,8 @@ translations:
   Touch screen to wake from sleep: 触摸屏幕唤醒
   Touch the target (point %1$d of 3) — touch %2$d of %3$d: 触摸目标（第 %1$d 个点，共 3 个）— 触摸 %2$d / %3$d
   TouchCalibration: 触摸校准
-  Towers print at max_accel, {:.0f} mm/s². Set it to the highest you print with.: ''
-  Towers print at max_accel. Set it to the highest you print with.: ''
+  Towers print at max_accel, {:.0f} mm/s². Set it to the highest you print with.: 测试塔以 max_accel 打印，{:.0f} mm/s²。请设为你打印时用的最高值。
+  Towers print at max_accel. Set it to the highest you print with.: 测试塔以 max_accel 打印。请设为你打印时用的最高值。
   Trace: 跟踪
   Trigger: 触发器
   Track this spool's weight there: '在其中跟踪此料盘的重量'
@@ -6083,7 +6083,7 @@ translations:
   When this spool runs out, printing continues from {}.: '此料盘用尽时，将从{}继续打印。'
   When this spool runs out, the print pauses.: '此料盘用尽时，打印将暂停。'
   Where UI sounds play: 界面声音的播放位置
-  Where sides converge: ''
+  Where sides converge: 两侧交会处
   Where to look: "观察位置"
   Whether filament is loaded: 耗材是否已装载
   Which macro switches the ACE path back on: '重新开启ACE通路的宏'
@@ -6359,7 +6359,7 @@ translations:
   loud: '噪音大'
   matched: 匹配
   material differs: '材料不同'
-  'max_accel {:.0f} mm/s²: set it to your highest.': ''
+  'max_accel {:.0f} mm/s²: set it to your highest.': max_accel {:.0f} mm/s²：请设为你的最高值。
   measured {}: 测量于 {}
   medium: "中速"
   'method: {}': 方法：{}
@@ -6632,7 +6632,7 @@ translations:
   '{} width sensor': '{} 宽度传感器'
   ? '{} will switch to a slot whose filament type AND color both match the active spool and whose own port sensor reads filament present.'
   : '{} 将切换到耗材类型与颜色都与当前料盘一致、且其端口传感器检测到有耗材的槽位。'
-  '{} {:.0f}% of that value is kept.': ''
+  '{} {:.0f}% of that value is kept.': '{} 保留该值的 {:.0f}%。'
   '{} · pick what to run, then it runs on its own': '{} · 选择要运行的项目，之后自动运行'
   '{} · {}': '{} · {}'
   '{} · {} firmware': '{} · {} 固件'

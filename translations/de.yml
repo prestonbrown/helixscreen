@@ -1284,7 +1284,7 @@ translations:
   Copying from USB...: 'Kopieren von USB...'
   Corner roundness: Eckenrundung
   Corners differ by {} mm: "Ecken weichen um {} mm ab"
-  Correct and Reprint: ''
+  Correct and Reprint: Korrigieren und neu drucken
   Correct the value in the printer's configuration, then restart Klipper.: Wert in der Druckerkonfiguration korrigieren, dann Klipper neu starten.
   Correction (Ki): Korrektur (Ki)
   Could not add the timelapse plugin to Moonraker.: 'Das Zeitraffer-Plugin konnte nicht zu Moonraker hinzugefügt werden.'
@@ -1634,7 +1634,7 @@ translations:
   Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: 'Jeder Werkzeugkopf hat an diesem Drucker seinen eigenen Z-Offset. Verwende stattdessen die Werkzeug-Offset-Kalibrierung.'
   Each tap sets a new value from this layer up.: "Jeder Tipp setzt ab dieser Schicht einen neuen Wert."
   Each tower tunes one value: "Jeder Turm stimmt einen Wert ab"
-  Each tower tunes one value. Judge it side-lit.: ''
+  Each tower tunes one value. Judge it side-lit.: Jeder Turm stimmt einen Wert ab. Beurteile ihn seitlich beleuchtet.
   Edit: Bearbeiten
   Edit Filament: Filament bearbeiten
   Edit Slot: Slot bearbeiten
@@ -2179,16 +2179,16 @@ translations:
   Front Left: 'Vorne links'
   Front Right: 'Vorne rechts'
   Front best height: "Beste Höhe vorne"
-  Front transitions: ''
-  'Front, lit from far left or right: the pause at the left and the slow spot at the right. Very subtle.': ''
+  Front transitions: Front-Übergänge
+  'Front, lit from far left or right: the pause at the left and the slow spot at the right. Very subtle.': 'Front, von ganz links oder rechts beleuchtet: die Pause links und die langsame Stelle rechts. Sehr subtil.'
   'Front, lit from far left or right: the slow middle, the pause, the slow spot. Very subtle.': "Vorne, von weit links oder rechts beleuchtet: die langsame Mitte, die Pause, die langsame Stelle. Sehr dezent."
   'Front, lit from far left or right: where do the marked spots look cleanest?': "Vorne, von weit links oder rechts beleuchtet: wo sehen die markierten Stellen am saubersten aus?"
-  'Front, lit from far left or right: where do the pause and the slow spot look best?': ''
+  'Front, lit from far left or right: where do the pause and the slow spot look best?': 'Front, von ganz links oder rechts beleuchtet: wo sehen Pause und langsame Stelle am besten aus?'
   Front, lit from the side: "Vorne, seitlich beleuchtet"
-  'Front, side-lit: the speed transitions.': ''
-  'Front, side-lit: where do the speed transitions look best?': ''
-  Front, {:.0f}% kept: ''
-  'Front: pause, slow spot': ''
+  'Front, side-lit: the speed transitions.': 'Front, seitlich beleuchtet: die Geschwindigkeitsübergänge.'
+  'Front, side-lit: where do the speed transitions look best?': 'Front, seitlich beleuchtet: wo sehen die Geschwindigkeitsübergänge am besten aus?'
+  Front, {:.0f}% kept: Front, {:.0f} % behalten
+  'Front: pause, slow spot': 'Front: Pause, langsame Stelle'
   'Front: the edges of the slow middle, the pause and the slow spot.': "Vorne: die Ränder der langsamen Mitte, die Pause und die langsame Stelle."
   'Front: where do the marked spots look cleanest?': "Vorne: wo sehen die markierten Stellen am saubersten aus?"
   Full: Vollständig
@@ -2211,7 +2211,7 @@ translations:
   Get help and share feedback: Hilfe erhalten und Feedback teilen
   Getting address…: Adresse wird bezogen…
   Getting ready...: 'Wird vorbereitet...'
-  Getting worse as it climbs? Stop Tower and judge it.: ''
+  Getting worse as it climbs? Stop Tower and judge it.: Wird es nach oben schlechter? Turm stoppen und beurteilen.
   Give each feature its own pin and check its spelling against the board's sample configuration, then restart Klipper.: Jeder Funktion einen eigenen Pin geben und die Schreibweise mit der Beispielkonfiguration der Platine vergleichen, dann Klipper neu starten.
   Glass Effects: Glaseffekte
   Global: Global
@@ -2765,7 +2765,7 @@ translations:
 
 
     Hyperlapse nimmt Bilder in festen Zeitabständen auf und braucht keine Slicer-Einrichtung, aber jedes Bild zeigt den Kopf dort, wo er gerade ist.'
-  Layer {} of {} · {:.1f} mm: ''
+  Layer {} of {} · {:.1f} mm: Schicht {} von {} · {:.1f} mm
   Layer {} of {} · {:.2f} mm: Schicht {} von {} · {:.2f} mm
   Layer {} of {}.: 'Schicht {} von {}.'
   Layer {}, Z {:.2f} mm: Schicht {}, Z {:.2f} mm
@@ -2785,18 +2785,18 @@ translations:
   Left side: "Linke Seite"
   Left side against the front: "Linke Seite gegen Vorderseite"
   Left side and front, each at its slow edges. Each comes out clean at its own height; they should match.: "Linke Seite und Vorderseite, jeweils an den langsamen Rändern. Jede ist auf ihrer eigenen Höhe sauber; die Werte sollten übereinstimmen."
-  'Left side and front, side-lit: where each converges. The same height takes it; if not, this pass prints again.': ''
-  Left side clean all the way up? It is best at 0.: ''
+  'Left side and front, side-lit: where each converges. The same height takes it; if not, this pass prints again.': 'Linke Seite und Front, seitlich beleuchtet: wo jede zusammenläuft. Dieselbe Höhe übernimmt den Wert, sonst druckt dieser Durchlauf erneut.'
+  Left side clean all the way up? It is best at 0.: Linke Seite bis oben sauber? Dann ist 0 am besten.
   ? "Left side {:.1f} mm higher, so this pass prints again with\n{} {} to {}"
-  : ''
+  : "Linke Seite {:.1f} mm höher, daher druckt dieser Durchlauf erneut mit\n{} {} auf {}"
   'Left side {:.1f} mm higher: the next tower lowers the advance 10%.': "Linke Seite {:.1f} mm höher: der nächste Turm senkt den Pressure Advance um 10 %."
   'Left side {:.1f} mm higher: the next tower raises the offset 10%.': "Linke Seite {:.1f} mm höher: der nächste Turm erhöht den Offset um 10 %."
   ? "Left side {:.1f} mm lower, so this pass prints again with\n{} {} to {}"
-  : ''
+  : "Linke Seite {:.1f} mm niedriger, daher druckt dieser Durchlauf erneut mit\n{} {} auf {}"
   'Left side {:.1f} mm lower: the next tower lowers the offset 10%.': "Linke Seite {:.1f} mm tiefer: der nächste Turm senkt den Offset um 10 %."
   'Left side {:.1f} mm lower: the next tower raises the advance 10%.': "Linke Seite {:.1f} mm tiefer: der nächste Turm erhöht den Pressure Advance um 10 %."
-  "Left side, side-lit: at what height do the slow middle's edges look best?": ''
-  'Left side, side-lit: the two edges of the slow middle, 5 mm either side of center.': ''
+  "Left side, side-lit: at what height do the slow middle's edges look best?": 'Linke Seite, seitlich beleuchtet: bei welcher Höhe sehen die Ränder der langsamen Mitte am besten aus?'
+  'Left side, side-lit: the two edges of the slow middle, 5 mm either side of center.': 'Linke Seite, seitlich beleuchtet: die beiden Ränder der langsamen Mitte, je 5 mm links und rechts der Mitte.'
   'Left side: at what height do the edges of the slow middle look cleanest?': "Linke Seite: in welcher Höhe sehen die Ränder der langsamen Mitte am saubersten aus?"
   'Left side: the two edges of the slow middle, 5 mm either side of center.': "Linke Seite: die beiden Ränder der langsamen Mitte, 5 mm beidseits der Mitte."
   "Left: the slow middle's edges": "Links: Ränder der langsamen Mitte"
@@ -3288,7 +3288,7 @@ translations:
   No multi-filament system detected: Kein Multi-Filament-System erkannt
   No need to stay while it prints: "Du musst beim Drucken nicht dabeibleiben"
   No need to stay; this screen waits for you when the tower is done.: "Du musst nicht bleiben; dieser Bildschirm wartet auf dich, wenn der Turm fertig ist."
-  No need to stay; this screen waits for you.: ''
+  No need to stay; this screen waits for you.: Du musst nicht dabeibleiben; dieser Bildschirm wartet auf dich.
   No network. Scan QR code to report on your phone.: Kein Netzwerk. QR-Code scannen, um auf dem Handy zu melden.
   No networks found: Keine Netzwerke gefunden
   No new mesh was stored as '{}': "Kein neues Netz wurde als '{}' gespeichert"
@@ -3773,7 +3773,7 @@ translations:
   Pressure advance by material: 'Pressure Advance nach Material'
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'Pressure Advance steigt mit der Turmhöhe. Beobachte die Ecken: Tippe jederzeit - oder +, dann stoppt die Rampe und du kannst deinen eigenen Wert beurteilen.'
-  Pressure advance keeps corners sharp and lines even.: ''
+  Pressure advance keeps corners sharp and lines even.: Pressure Advance hält Ecken scharf und Linien gleichmäßig.
   Pressure advance tuning: 'Pressure-Advance-Tuning'
   Pressure advance {} is written to the {} section.: "Pressure Advance {} wird in den Abschnitt {} geschrieben."
   Pressure on the bed: Druck auf dem Bett
@@ -4596,7 +4596,7 @@ translations:
   Set how bright the screen is and when it rests. You can change any of these later in Settings.: 'Lege fest, wie hell der Bildschirm ist und wann er ruht. Du kannst alles später in den Einstellungen ändern.'
   Set local timezone for time display: Lokale Zeitzone für Zeitanzeige festlegen
   Set logging verbosity for troubleshooting: Protokollierungsdetailgrad für Fehlerbehebung festlegen
-  Set max_accel to your highest.: ''
+  Set max_accel to your highest.: Setze max_accel auf deinen höchsten Wert.
   Set temperature between {} and {}: Stellen Sie eine Temperatur zwischen {} und {} ein
   Set the X and Y belts with the motorized tensioners: "X- und Y-Riemen mit den motorisierten Spannern einstellen"
   Set the clock, theme and units. You can change any of these later in Settings.: "Uhr, Design und Einheiten festlegen. Du kannst alles später in den Einstellungen ändern."
@@ -4663,7 +4663,7 @@ translations:
   Shutting down printer...: Drucker wird heruntergefahren...
   Shutting down screen...: Bildschirm wird heruntergefahren...
   Shutting down...: Wird heruntergefahren...
-  'Side-lit: the height where the left side converges, then the front.': ''
+  'Side-lit: the height where the left side converges, then the front.': 'Seitlich beleuchtet: die Höhe, bei der die linke Seite zusammenläuft, dann die Front.'
   Signal: Signal
   'Signal #': Signal-Nr.
   Signal macro renaming: 'Umbenennung der Signalmakros'
@@ -4898,7 +4898,7 @@ translations:
   Stopped between Spool and Lane: Zwischen Spule und Spur gestoppt
   Stopped drying %s: 'Trocknen gestoppt: %s'
   Stopping after the current test line.: 'Stoppt nach der aktuellen Testlinie.'
-  Stopping once the printer finishes starting: ''
+  Stopping once the printer finishes starting: Stopp, sobald der Drucker fertig gestartet ist
   Stopping restarted the printer, so nothing can be saved: Das Stoppen hat den Drucker neu gestartet, daher kann nichts gespeichert werden
   Stopping restarted the printer, which dropped the results of the steps that finished. Nothing can be saved.: 'Das Stoppen hat den Drucker neu gestartet und dabei die Ergebnisse der abgeschlossenen Schritte verworfen. Es kann nichts gespeichert werden.'
   Stops all motion. Requires firmware restart.: Stoppt alle Bewegung. Erfordert Firmware-Neustart.
@@ -5424,7 +5424,7 @@ translations:
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: Der Sensor dieser CFS-Einheit lässt sich nicht auslesen. Anschluss prüfen, andernfalls muss die Einheit gewartet werden
   'The shell could not start: {}': 'Die Shell konnte nicht starten: {}'
   The shell exited. Tap the terminal to start a new one.: 'Die Shell wurde beendet. Tippe auf das Terminal, um eine neue zu starten.'
-  The sides should converge at the same height. Apart means the {} is a little off.: ''
+  The sides should converge at the same height. Apart means the {} is a little off.: 'Die Seiten sollten sich auf gleicher Höhe treffen. Auseinander heißt: {} ist etwas daneben.'
   The slot asked to eject still has its filament loaded in the toolhead.: Der Slot, der ausgeworfen werden soll, hat sein Filament noch im Werkzeugkopf geladen.
   The slot chosen for this tool change has no filament at its inlet.: Der für diesen Werkzeugwechsel gewählte Slot hat kein Filament am Einlass.
   The speed of one fan you choose: Drehzahl eines gewählten Lüfters
@@ -5771,8 +5771,8 @@ translations:
   Touch screen to wake from sleep: Touchscreen berühren zum Aufwecken
   Touch the target (point %1$d of 3) — touch %2$d of %3$d: Ziel berühren (Punkt %1$d von 3) — Berührung %2$d von %3$d
   TouchCalibration: Touch-Kalibrierung
-  Towers print at max_accel, {:.0f} mm/s². Set it to the highest you print with.: ''
-  Towers print at max_accel. Set it to the highest you print with.: ''
+  Towers print at max_accel, {:.0f} mm/s². Set it to the highest you print with.: Türme drucken mit max_accel, {:.0f} mm/s². Setze es auf den höchsten Wert, mit dem du druckst.
+  Towers print at max_accel. Set it to the highest you print with.: Türme drucken mit max_accel. Setze es auf den höchsten Wert, mit dem du druckst.
   Trace: Trace
   Trigger: Auslöser
   Track this spool's weight there: 'Gewicht dieser Spule dort verfolgen'
@@ -6083,7 +6083,7 @@ translations:
   When this spool runs out, printing continues from {}.: 'Wenn diese Spule ausläuft, wird mit {} weitergedruckt.'
   When this spool runs out, the print pauses.: 'Wenn diese Spule ausläuft, pausiert der Druck.'
   Where UI sounds play: Wo UI-Töne abgespielt werden
-  Where sides converge: ''
+  Where sides converge: Wo die Seiten zusammenlaufen
   Where to look: "Worauf du achten musst"
   Whether filament is loaded: Ob Filament geladen ist
   Which macro switches the ACE path back on: 'Welches Makro den ACE-Pfad wieder einschaltet'
@@ -6359,7 +6359,7 @@ translations:
   loud: 'laut'
   matched: abgestimmt
   material differs: 'Material abweichend'
-  'max_accel {:.0f} mm/s²: set it to your highest.': ''
+  'max_accel {:.0f} mm/s²: set it to your highest.': 'max_accel {:.0f} mm/s²: auf deinen höchsten Wert setzen.'
   measured {}: gemessen {}
   medium: "mittel"
   'method: {}': 'Verfahren: {}'
@@ -6632,7 +6632,7 @@ translations:
   '{} width sensor': 'Breitensensor {}'
   ? '{} will switch to a slot whose filament type AND color both match the active spool and whose own port sensor reads filament present.'
   : '{} wechselt zu einem Slot, dessen Filamenttyp UND Farbe beide zur aktiven Spule passen und dessen eigener Port-Sensor Filament erkennt.'
-  '{} {:.0f}% of that value is kept.': ''
+  '{} {:.0f}% of that value is kept.': '{} {:.0f} % dieses Werts werden behalten.'
   '{} · pick what to run, then it runs on its own': '{} · wähle, was laufen soll, dann läuft es von selbst'
   '{} · {}': '{} · {}'
   '{} · {} firmware': '{} · {}-Firmware'
