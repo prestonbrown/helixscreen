@@ -70,15 +70,13 @@ enum class FlashForgeModTree {
 
 /// Probes the mod tree: Forge-X when its mod git tree is reachable
 /// (/opt/config/mod in-chroot, /usr/data/config/mod host-side, proven by
-/// .shell/platform.sh), checked first because a Forge-X chroot can also carry
-/// /usr/prog; otherwise ZMOD (the /ZMOD marker file or FlashForge's /usr/prog
-/// dir). Same rule as the launcher's heap-diag gate
-/// (scripts/helix-launcher.sh); the two test suites pin both to one truth
-/// table. All probes resolve under `probe_root` (default "/") so tests can feed
-/// a fake layout without touching the real root filesystem. stat-only; never
-/// opens anything. One platform key can serve a K1 and both FlashForge firmware
-/// populations, so the tree is what tells three filesystem layouts apart in a
-/// diagnostic.
+/// .shell/platform.sh or upstream's .shell/common.sh), checked first because a Forge-X chroot can
+/// also carry /usr/prog; otherwise ZMOD (the /ZMOD marker file or FlashForge's /usr/prog dir). Same
+/// rule as the launcher's heap-diag gate (scripts/helix-launcher.sh); the two test suites pin both
+/// to one truth table. All probes resolve under `probe_root` (default "/") so tests can feed a fake
+/// layout without touching the real root filesystem. stat-only; never opens anything. One platform
+/// key can serve a K1 and both FlashForge firmware populations, so the tree is what tells three
+/// filesystem layouts apart in a diagnostic.
 FlashForgeModTree flashforge_mod_tree(const std::string& probe_root = "/");
 
 /// "none", "ZMOD" or "Forge-X".

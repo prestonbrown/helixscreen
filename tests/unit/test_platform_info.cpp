@@ -61,6 +61,20 @@ TEST_CASE("flashforge_mod_tree names each layout", "[platform_info]") {
     CHECK(std::string(helix::flashforge_mod_tree_name(FlashForgeModTree::ForgeX)) == "Forge-X");
 }
 
+TEST_CASE("flashforge_mod_tree knows upstream Forge-X by .shell/common.sh", "[platform_info]") {
+    // Upstream Forge-X 1.4.x (the AD5M) ships .shell/common.sh and no platform.sh.
+    // Its install tree belongs to the mod, so an automatic update gets no rollback there.
+    using helix::FlashForgeModTree;
+    using helix::test::make_flashforge_layout;
+    TempDirGuard tmp;
+    const auto chroot_side = make_flashforge_layout(tmp.path, "forgex-common").string();
+    const auto host_side = make_flashforge_layout(tmp.path, "forgex-common-host").string();
+    CHECK(helix::flashforge_mod_tree(chroot_side) == FlashForgeModTree::ForgeX);
+    CHECK(helix::flashforge_mod_tree(host_side) == FlashForgeModTree::ForgeX);
+    CHECK(helix::firmware_mod_owns_install_tree(chroot_side));
+    CHECK(helix::firmware_mod_owns_moonraker_conf(chroot_side));
+}
+
 TEST_CASE("flashforge_mod_tree reads Forge-X's own tree before /usr/prog", "[platform_info]") {
     // #2092: a Forge-X chroot can carry /usr/prog too (the AD5X rig's does), so the
     // generic FlashForge dir must not outrank the mod's own descriptor.
