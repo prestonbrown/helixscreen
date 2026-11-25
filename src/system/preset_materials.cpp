@@ -7,6 +7,7 @@
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
 #include "material_settings_manager.h"
+#include "observer_factory.h"
 #include "printer_temperature_state.h"
 #include "settings_manager.h"
 #include "static_subject_registry.h"
@@ -37,6 +38,8 @@ struct SubjectState {
     std::array<std::array<char, kTempBufSize>, kPresetCount> nozzle_bufs{};
     lv_subject_t count_subject{};
     SubjectManager subjects;
+    /// Re-renders the labels when "Material presets heat the bed and chamber" flips.
+    ObserverGuard heat_bed_observer;
     bool ready = false;
 };
 
@@ -54,6 +57,7 @@ void deinit_subjects() {
     if (!s.ready) {
         return;
     }
+    s.heat_bed_observer.reset();
     s.subjects.deinit_all();
     s.ready = false;
     spdlog::debug("[PresetMaterials] Subjects deinitialized");
@@ -132,8 +136,14 @@ std::string temp_label(int slot) {
     if (!temps) {
         return "---";
     }
+    // The bed half is what heater_targets() would send: a preset that leaves
+    // the bed alone does not advertise one.
+    const auto bed = heater_targets(temps->bed).bed;
+    if (!bed) {
+        return nozzle_temp_label(slot);
+    }
     char buf[kTempBufSize];
-    std::snprintf(buf, sizeof(buf), "%d°C / %d°C", temps->nozzle, temps->bed);
+    std::snprintf(buf, sizeof(buf), "%d°C / %d°C", temps->nozzle, *bed);
     return buf;
 }
 
@@ -199,6 +209,15 @@ void init_subjects() {
                                                       LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
 
     s.ready = true;
+
+    // The setting decides whether temp_label() shows the bed. Immediate: the
+    // handler only rewrites the label subjects, no observer or widget lifecycle.
+    auto& settings = SettingsManager::instance();
+    settings.init_subjects(); // idempotent; the observer needs the setting's subject
+    s.heat_bed_observer = ui::observe<int>(
+        settings.subject_material_presets_heat_bed_and_chamber(), &s,
+        [](SubjectState*, int) { refresh_subjects(); }, settings.get_subjects_lifetime(),
+        ui::Dispatch::Immediate);
 
     // Co-locate init + cleanup so the registration can't be forgotten (CLAUDE.md
     // subject shutdown safety rule).
