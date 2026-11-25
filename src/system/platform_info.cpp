@@ -120,17 +120,21 @@ const char* flashforge_mod_tree_name(FlashForgeModTree tree) {
 
 FlashForgeModTree flashforge_mod_tree(const std::string& probe_root) {
     // Forge-X's own descriptor decides first: its mod git tree stays reachable
-    // from the chroot (and host-side), and .shell/platform.sh in it is the same
-    // evidence the installer's host_profile probe keys on, ahead of /ZMOD. A
+    // from the chroot (and host-side), and its descriptor in it is the same
+    // evidence the installer's host_profile probe keys on, ahead of /ZMOD.
+    // Upstream Forge-X 1.4.x (AD5M) names it .shell/common.sh; the AD5X fork
+    // names it .shell/platform.sh. A
     // Forge-X chroot built from a Z-Mod rootfs carries FlashForge's /usr/prog
     // too, so /usr/prog alone only means Z-Mod once Forge-X's tree is absent.
     // scripts/helix-launcher.sh answers "any mod tree" from the same markers
     // for its heap-diag gate; keep the two (and their tests) in step.
     struct ::stat st {};
     for (const char* mod_tree : {"/opt/config/mod", "/usr/data/config/mod"}) {
-        const std::string probe = rooted(probe_root, mod_tree) + "/.shell/platform.sh";
-        if (::stat(probe.c_str(), &st) == 0 && S_ISREG(st.st_mode)) {
-            return FlashForgeModTree::ForgeX;
+        for (const char* descriptor : {"/.shell/platform.sh", "/.shell/common.sh"}) {
+            const std::string probe = rooted(probe_root, mod_tree) + descriptor;
+            if (::stat(probe.c_str(), &st) == 0 && S_ISREG(st.st_mode)) {
+                return FlashForgeModTree::ForgeX;
+            }
         }
     }
     if ((::stat(rooted(probe_root, "/ZMOD").c_str(), &st) == 0 && S_ISREG(st.st_mode)) ||
