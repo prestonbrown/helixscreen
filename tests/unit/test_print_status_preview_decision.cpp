@@ -419,4 +419,6 @@ TEST_CASE("Preview decision: a job with no file behind it loads no G-code",
 
     PreviewAction b = decide_preview_action("", "", "PA tower v2.gcode", false, false, true, true);
     CHECK(b.load_gcode);
+    PreviewAction c = decide_preview_action("", "", "router job.nc", false, false, true, true);
+    CHECK(c.load_gcode);
 }

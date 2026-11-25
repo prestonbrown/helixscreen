@@ -44,6 +44,19 @@ bool has_printable_extension(const std::string& filename) {
     return false;
 }
 
+bool names_a_print_file(const std::string& job_name) {
+    static const std::vector<std::string> moonraker_only = {".ufp", ".nc"};
+    if (has_printable_extension(job_name)) {
+        return true;
+    }
+    for (const auto& ext : moonraker_only) {
+        if (ends_with_ci(job_name, ext)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 std::string join_gcode_path(const std::string& dir, const std::string& filename) {
     return dir.empty() ? filename : dir + "/" + filename;
 }

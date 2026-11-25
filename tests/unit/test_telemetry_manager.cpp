@@ -436,6 +436,40 @@ TEST_CASE_METHOD(TelemetryTestFixture,
 }
 
 TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Print outcome observer asks for metadata only when the job names a file",
+                 "[telemetry][print_outcome]") {
+    lv_init_safe();
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    auto& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    helix::test::FakeMoonrakerClient client;
+    MoonrakerAPI api(client, state);
+    ScopedMoonrakerApi installed(&api);
+
+    auto* job = state.print_state().get_print_state_enum_subject();
+    auto start_job = [&](const char* name) {
+        lv_subject_set_int(job, static_cast<int>(PrintJobState::STANDBY));
+        lv_subject_set_string(state.print_state().get_print_filename_subject(), name);
+        lv_subject_set_int(job, static_cast<int>(PrintJobState::PRINTING));
+    };
+    {
+        auto guards = tm.init_print_outcome_observer();
+        lv_subject_set_int(job, static_cast<int>(PrintJobState::STANDBY));
+
+        // Kalico's PRINT_PA_TOWER: a job with no file behind it.
+        start_job("PA tower");
+        CHECK(client.rpc_count("server.files.metadata") == 0);
+
+        start_job("PA tower v2.gcode");
+        CHECK(client.rpc_count("server.files.metadata") == 1);
+    }
+    PrinterStateTestAccess::reset(state);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
                  "Print outcome observer says how far the job got, who canceled it and why "
                  "it failed",
                  "[telemetry][print_outcome]") {

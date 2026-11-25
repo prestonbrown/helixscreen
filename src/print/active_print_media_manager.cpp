@@ -614,7 +614,7 @@ void ActivePrintMediaManager::load_thumbnail_for_file(const std::string& filenam
     // tower") has no metadata or thumbnail for Moonraker to give, and every
     // retry of the lookup would fail the same way. Checked after the context
     // above, so a reply still out for the previous file arrives stale.
-    if (!helix::gcode::has_printable_extension(filename)) {
+    if (!helix::gcode::names_a_print_file(filename)) {
         spdlog::debug("[ActivePrintMediaManager] '{}' names no file - no metadata to load",
                       filename);
         return;
