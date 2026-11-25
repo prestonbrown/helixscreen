@@ -321,6 +321,9 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
      * table ASSIGN_TOOL writes). That is deliberate — a tap on lane 2 must mount the toolhead the
      * user tapped, not whichever physical tool the slicer's T2 was reassigned to.
      *
+     * A VRTX printer (toolchanger_addon::SwapMacro) sends its T<n> macro instead, with
+     * the number the listing currently gives the tapped tool, so the same tool mounts.
+     *
      * So on this backend a tool number and a slot index are NOT
      * interchangeable, and anything that has to cross between them goes through
      * the tool map (AmsSystemInfo::tool_to_slot_map / SlotInfo::mapped_tool),
@@ -544,6 +547,13 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     /// SELECT_TOOL/UNSELECT_TOOL in place.
     void set_tool_commands(helix::toolchanger_addon::ToolCommands commands) {
         tool_commands_ = std::move(commands);
+    }
+
+    /// A macro package (VRTX) whose T<n> commands wrap SELECT_TOOL. Absent leaves a
+    /// mount as SELECT_TOOL.
+    void set_swap_macro(helix::toolchanger_addon::SwapMacro macro) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        swap_macro_ = std::move(macro);
     }
 
     /// toolchanger_addon::clean_nozzle_gcode(): empty offers no Clean nozzle.
@@ -879,6 +889,8 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     helix::toolchanger_addon::ToolSensor tool_sensor_;
     /// Absent whenever klipper-toolchanger owns the swap.
     helix::toolchanger_addon::ToolCommands tool_commands_;
+    /// Guarded by mutex_. Absent unless a macro package wraps SELECT_TOOL.
+    helix::toolchanger_addon::SwapMacro swap_macro_;
     helix::toolchanger_addon::ToolFeed tool_feed_;
     /// Firmware material store this machine keeps; absent unless
     /// set_material_source() said otherwise.

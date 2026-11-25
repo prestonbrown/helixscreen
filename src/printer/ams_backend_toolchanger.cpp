@@ -103,6 +103,7 @@ void AmsBackendToolChanger::set_discovery(const helix::PrinterDiscovery& discove
                                      helix::SettingsManager::instance().get_feeder_close_macro()));
     set_tool_sensor(addon::resolve_tool_sensor(discovery));
     set_tool_commands(addon::resolve_tool_commands(discovery));
+    set_swap_macro(addon::resolve_swap_macro(discovery));
     set_tool_feed(addon::resolve_tool_feed(discovery));
     set_mounts_to_feed(addon::feeds_through_mount(discovery));
     tool_number_style_ = addon::tool_number_style(discovery);
@@ -2869,6 +2870,16 @@ AmsError AmsBackendToolChanger::do_change_tool(int tool_number) {
 std::string AmsBackendToolChanger::mount_gcode(int slot_index) const {
     if (tool_commands_.present) {
         return tool_commands_.select_prefix + std::to_string(slot_index);
+    }
+    // A macro package's T<n> takes the tool NUMBER, so the number to send is the one
+    // the listing gives this slot's tool right now (ASSIGN_TOOL moves them). Before
+    // the listing arrives, or for a number the package defines no command for, the
+    // physical-tool SELECT_TOOL below stands.
+    if (swap_macro_.present) {
+        const int number = listed_number_for_slot_locked(slot_index);
+        if (swap_macro_.has_command(number)) {
+            return swap_macro_.select_prefix + std::to_string(number);
+        }
     }
     // TOOL= names the [tool ...] object, a physical tool. T= is a tool NUMBER,
     // which ASSIGN_TOOL can point at any other hot end.

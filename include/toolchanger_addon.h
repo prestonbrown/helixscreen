@@ -340,6 +340,26 @@ bool resume_rule_in_force(const ResumeRule& rule);
 /// klipper-toolchanger is there and owns them.
 ToolCommands resolve_tool_commands(const PrinterDiscovery& hw);
 
+/// A macro package that wraps klipper-toolchanger's SELECT_TOOL in `<prefix><n>`
+/// commands (offsets, standby temperatures, a failed-change guard) and expects
+/// every tool change to go through them. klipper-toolchanger still runs
+/// underneath, so ASSIGN_TOOL, UNSELECT_TOOL and the tool listing are unchanged,
+/// unlike ToolCommands, which replaces klipper-toolchanger's swap. Default-
+/// constructed means a mount is klipper-toolchanger's own SELECT_TOOL.
+struct SwapMacro {
+    bool present = false;
+    std::string provider_name; ///< Package it came from, for logs
+    std::string select_prefix; ///< "T" sends T0, T1, ...
+    /// Tool numbers whose command the printer defines.
+    std::vector<int> numbers;
+
+    /// Whether `<select_prefix><number>` exists on this printer.
+    [[nodiscard]] bool has_command(int number) const;
+};
+
+/// The macro package wrapping this printer's tool change, or an absent capability.
+SwapMacro resolve_swap_macro(const PrinterDiscovery& hw);
+
 /// Machine name for logs and the AMS unit label ("MedusaHC"), or empty.
 std::string machine_name(const PrinterDiscovery& hw);
 

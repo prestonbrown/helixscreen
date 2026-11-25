@@ -731,6 +731,57 @@ ToolCommands resolve_tool_commands(const PrinterDiscovery& hw) {
     return c;
 }
 
+// --- Macro packages over klipper-toolchanger ---------------------------------
+//
+// VRTX (Slimohan/VRTX) defines T0..T9 over `_VRTX_T`, which wraps SELECT_TOOL in
+// the tool's offsets, standby handling and a guard that refuses the next change
+// after a failed one. It has no unmount command of its own: its dock engine runs
+// from the [toolchanger] pickup/dropoff gcode, so UNSELECT_TOOL stays.
+
+namespace {
+
+struct SwapMacroRow {
+    const char* name;
+    /// The package's marker macro.
+    const char* marker_macro;
+    const char* select_prefix;
+};
+
+constexpr SwapMacroRow kSwapMacroRows[] = {
+    {"VRTX", "_VRTX_T", "T"},
+};
+
+/// Sanity bound on tool numbers probed for a command.
+constexpr int kMaxSwapMacroNumber = 63;
+
+} // namespace
+
+bool SwapMacro::has_command(int number) const {
+    return present && std::find(numbers.begin(), numbers.end(), number) != numbers.end();
+}
+
+SwapMacro resolve_swap_macro(const PrinterDiscovery& hw) {
+    if (!hw.has_tool_changer()) {
+        return {};
+    }
+    for (const auto& row : kSwapMacroRows) {
+        if (!hw.has_macro(row.marker_macro)) {
+            continue;
+        }
+        SwapMacro rule;
+        rule.present = true;
+        rule.provider_name = row.name;
+        rule.select_prefix = row.select_prefix;
+        for (int n = 0; n <= kMaxSwapMacroNumber; ++n) {
+            if (hw.has_macro(rule.select_prefix + std::to_string(n))) {
+                rule.numbers.push_back(n);
+            }
+        }
+        return rule;
+    }
+    return {};
+}
+
 std::vector<std::string> feeder_macro_candidates(const PrinterDiscovery& hw);
 
 Feeder resolve_feeder(const PrinterDiscovery& hw, const std::string& open_override,
