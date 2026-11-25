@@ -182,9 +182,12 @@ TEST_CASE("the awake cap follows a refresh period longer than 33 ms",
     t.refr_period_ms = 16;
     CHECK(helix::main_loop_sleep_ms(100, false, t) == 33);
 
-    // Sleeping keeps its own cap.
+    // Sleeping keeps its own cap: a second at most, so what the loop still polls while
+    // asleep (a remote screen viewer) is noticed within about a second, and a longer wait
+    // never holds the loop past it.
     t.refr_period_ms = 100;
-    CHECK(helix::main_loop_sleep_ms(1000, true, t) == 200);
+    CHECK(helix::main_loop_sleep_ms(1000, true, t) == 1000);
+    CHECK(helix::main_loop_sleep_ms(5000, true, t) == 1000);
 }
 
 TEST_CASE("the update queue drains once a frame awake and slowly while the display sleeps",
