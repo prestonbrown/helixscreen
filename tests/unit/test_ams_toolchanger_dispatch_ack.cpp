@@ -33,10 +33,12 @@
  * exactly what AmsBackendAfc::finalize_dispatch_after_macro() concluded.
  */
 
+#include "../lvgl_test_fixture.h"
 #include "ams_backend_toolchanger.h"
 #include "ams_types.h"
 #include "core/update_queue.h"
 #include "printer_discovery.h"
+#include "test_helpers/scoped_language.h"
 #include "toolchanger_addon.h"
 
 #include <algorithm>
@@ -307,4 +309,30 @@ TEST_CASE("Plain klipper-toolchanger mounts by tool object name",
     REQUIRE(h.park_active_tool().success());
     CHECK(h.sent().back() == "UNSELECT_TOOL");
     CHECK(h.reset_available());
+}
+
+// The detail a dispatch sets is what the status line shows until the next
+// frame, which for a no-op swap never comes.
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "Toolchanger: a dispatched operation's detail is worded in the language showing",
+                 "[ams][toolchanger][dispatch][language]") {
+    // The catalog carries both words, so a translation made at dispatch is
+    // told apart from the catalog key.
+    helix::ScopedLanguage fr("fr");
+    REQUIRE(std::string(lv_tr("Tool swap")) != "Tool swap");
+    REQUIRE(std::string(lv_tr("Unloading")) != "Unloading");
+
+    SECTION("a swap") {
+        ToolChangerDispatchHelper h(4);
+        h.seat_tool(-1);
+        REQUIRE(h.change_tool(2).success());
+        CHECK(h.get_system_info().operation_detail == "Tool swap");
+    }
+    SECTION("an unmount") {
+        ToolChangerDispatchHelper h(4);
+        h.seat_tool(2);
+        REQUIRE(h.park_active_tool().success());
+        CHECK(h.get_system_info().operation_detail == "Unloading");
+    }
 }

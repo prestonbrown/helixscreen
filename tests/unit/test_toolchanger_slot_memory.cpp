@@ -271,6 +271,26 @@ TEST_CASE("A clear without a preceding commit still drops the record",
     CHECK(slot.remaining_weight_g == -1);
 }
 
+TEST_CASE("Clear Spool forgets how a tool's multi-color filament runs",
+          "[ams][toolchanger][slot_memory][1661]") {
+    helix::test::RegisteredBackend<SlotMemoryHelper> h_reg(4);
+    SlotMemoryHelper& h = *h_reg;
+    helix::SlotInfo picked = blue_petg();
+    picked.spoolman_id = 0;
+    picked.multi_color_hexes = "1E5AA8,FFFFFF";
+    picked.color_mode = "gradient";
+    helix::test::edit_slot_as_user(h, 1, picked);
+    REQUIRE_FALSE(h.get_slot_info(1).multi_color_hexes.empty());
+    REQUIRE(h.get_slot_info(1).color_mode == "gradient");
+
+    h.clear_slot_override(1);
+
+    // A mode without its colors would draw a one-color spool as a gradient.
+    auto slot = h.get_slot_info(1);
+    CHECK(slot.multi_color_hexes.empty());
+    CHECK(slot.color_mode.empty());
+}
+
 TEST_CASE("A status frame does not undo the user's edit", "[ams][toolchanger][slot_memory]") {
     helix::test::RegisteredBackend<SlotMemoryHelper> h_reg(4);
     SlotMemoryHelper& h = *h_reg;
