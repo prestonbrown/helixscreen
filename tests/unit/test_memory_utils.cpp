@@ -442,6 +442,51 @@ TEST_CASE("parse_proc_stat reads comm, major faults and resident pages", "[memor
         "812 no-parens S 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21", st));
 }
 
+TEST_CASE("parse_proc_stat reads the scheduler state right after the LAST ')'",
+          "[memory][proc_stat]") {
+    struct Row {
+        const char* comm;
+        const char* state;
+    };
+    // R is a loop busy on the CPU, S a wait that has a channel, D a wait on storage.
+    const Row rows[] = {
+        {"helix-screen", "R"},
+        {"my (odd) name", "S"},
+        {"(helix-screen)", "D"},
+    };
+    ProcStat st;
+    for (const Row& r : rows) {
+        INFO("comm: " << r.comm);
+        // "pid (comm) state", then fields 4 to 25.
+        REQUIRE(parse_proc_stat(std::string("812 (") + r.comm + ") " + r.state +
+                                    " 1 812 812 0 -1 4194560 2000 0 37 0 50 20 0 0 20 "
+                                    "0 3 0 1500 123456789 9000 18446744073709551615",
+                                st));
+        CHECK(st.state == r.state);
+    }
+}
+
+TEST_CASE("parse_proc_wchan keeps the kernel's wait channel name and calls '0' none",
+          "[memory][proc_stat]") {
+    CHECK(parse_proc_wchan("futex_do_wait") == std::optional<std::string>("futex_do_wait"));
+    CHECK(parse_proc_wchan("poll_schedule_timeout\n") ==
+          std::optional<std::string>("poll_schedule_timeout"));
+
+    // 31 characters is the cap: a shorter or equal name stays whole, a longer one is cut to it.
+    CHECK(parse_proc_wchan("do_syscall_64_and_then_wait_fo") ==
+          std::optional<std::string>("do_syscall_64_and_then_wait_fo"));
+    CHECK(parse_proc_wchan("do_syscall_64_and_then_wait_for") ==
+          std::optional<std::string>("do_syscall_64_and_then_wait_for"));
+    CHECK(parse_proc_wchan("do_syscall_64_and_then_wait_for_") ==
+          std::optional<std::string>("do_syscall_64_and_then_wait_for"));
+    CHECK(parse_proc_wchan("do_syscall_64_and_then_wait_for_the_disk_to_answer") ==
+          std::optional<std::string>("do_syscall_64_and_then_wait_for"));
+
+    // The kernel writes "0" for a thread that is not waiting anywhere.
+    CHECK_FALSE(parse_proc_wchan("0").has_value());
+    CHECK_FALSE(parse_proc_wchan("").has_value());
+}
+
 TEST_CASE("telemetry_process_name passes only known program names", "[memory][proc_stat]") {
     struct Row {
         const char* comm;
@@ -580,3 +625,28 @@ TEST_CASE("read_self_major_faults reads the stat file's majflt", "[memory][proc_
     CHECK(read_self_major_faults().has_value());
 #endif
 }
+
+#ifdef __linux__
+TEST_CASE("read_main_thread_state and read_main_thread_wchan read their proc files",
+          "[memory][proc_stat]") {
+    FakeProc proc;
+    proc.add("self", "helix-screen", 100);
+    const auto stat = (proc.root / "self" / "stat").string();
+    const auto wchan = (proc.root / "self" / "wchan").string();
+    std::ofstream(wchan) << "futex_do_wait";
+    CHECK(read_main_thread_state(stat.c_str()) == std::optional<std::string>("S"));
+    CHECK(read_main_thread_wchan(wchan.c_str()) == std::optional<std::string>("futex_do_wait"));
+    CHECK(read_main_thread_state().has_value());
+
+    // A running thread waits nowhere: the kernel's "0" is none, not a channel named "0".
+    std::ofstream(wchan, std::ios::trunc) << "0";
+    CHECK_FALSE(read_main_thread_wchan(wchan.c_str()).has_value());
+
+    // A stat line too short to hold rss is not a whole record: nothing is read from it.
+    std::ofstream(stat, std::ios::trunc) << "100 (helix-screen) S 1 100";
+    CHECK_FALSE(read_main_thread_state(stat.c_str()).has_value());
+
+    CHECK_FALSE(read_main_thread_state("/nonexistent-proc-root/self/stat").has_value());
+    CHECK_FALSE(read_main_thread_wchan("/nonexistent-proc-root/self/wchan").has_value());
+}
+#endif
