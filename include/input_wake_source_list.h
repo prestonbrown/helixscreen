@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include "display_backend.h"
 #include "indev_delete_watch.h"
 
 #include <spdlog/spdlog.h>
@@ -17,6 +16,12 @@
 #include <vector>
 
 namespace helix {
+
+/// An input device whose events arrive on a file descriptor the main loop can wait on.
+struct InputWakeSource {
+    lv_indev_t* indev = nullptr;
+    int fd = -1;
+};
 
 /**
  * @brief The input devices a backend opened, with their fds, while LVGL still has them
