@@ -1106,40 +1106,47 @@ for arg in "$@"; do
     esac
 done
 
-# The deadline where no `timeout` exists (BusyBox on COSMOS, the CC1): the
-# probe runs in the background with its output in a file, and is killed when it
-# has not answered in time. This runs before the rollback guard, so a new
-# binary that hangs at start would otherwise hold the launcher forever. Sets
-# _pe_out and a non-zero _pe_rc on the deadline, as timeout's 124 would.
+# The deadline where no `timeout` exists (BusyBox on COSMOS, the CC1). This
+# runs before the rollback guard, so a new binary that hangs at start would
+# otherwise hold the launcher forever. A background killer ends the probe at
+# the deadline; `wait` returns the moment the probe exits, so a probe that
+# answers costs nothing extra. The killer cleans up its own sleep when told
+# to stop. Sets _pe_out and _pe_rc (137 when the killer fired).
 # HELIX_EGL_PROBE_SECS shortens the deadline, for tests.
 probe_egl_with_deadline() {
+    _pe_secs="${HELIX_EGL_PROBE_SECS:-10}"
+    case "$_pe_secs" in
+        '' | *[!0-9]* | 0) _pe_secs=10 ;;
+    esac
     _pe_dir=$(dirname "${HELIX_LOG_FILE:-/nonexistent/x}")
     [ -d "$_pe_dir" ] && [ -w "$_pe_dir" ] || _pe_dir="${TMPDIR:-/tmp}"
-    _pe_file="${_pe_dir}/helix-probe-egl.$$"
+    _pe_file=$(mktemp "${_pe_dir}/helix-probe-egl.XXXXXX" 2>/dev/null) || {
+        _pe_out=""
+        _pe_rc=1
+        log "EGL probe skipped: no temporary file in ${_pe_dir}"
+        return
+    }
+    _pe_fired="${_pe_file}.fired"
     "$1" --probe-egl >"$_pe_file" 2>&1 &
     _pe_pid=$!
-    # Polled five times a second where sleep takes fractions, so a probe that
-    # answers at once costs boot no more than that; once a second otherwise.
-    if sleep 0.01 2>/dev/null; then
-        _pe_step=0.2
-        _pe_left=$((${HELIX_EGL_PROBE_SECS:-10} * 5))
-    else
-        _pe_step=1
-        _pe_left="${HELIX_EGL_PROBE_SECS:-10}"
-    fi
-    while kill -0 "$_pe_pid" 2>/dev/null; do
-        if [ "$_pe_left" -le 0 ]; then
-            log "EGL probe did not answer in ${HELIX_EGL_PROBE_SECS:-10}s; stopping it"
-            kill -9 "$_pe_pid" 2>/dev/null || true
-            break
-        fi
-        sleep "$_pe_step"
-        _pe_left=$((_pe_left - 1))
-    done
+    (
+        trap 'kill "$_pe_sleep" 2>/dev/null; exit 0' TERM
+        sleep "$_pe_secs" &
+        _pe_sleep=$!
+        wait "$_pe_sleep"
+        : >"$_pe_fired"
+        kill -9 "$_pe_pid" 2>/dev/null
+    ) 2>/dev/null &
+    _pe_killer=$!
     _pe_rc=0
     wait "$_pe_pid" 2>/dev/null || _pe_rc=$?
+    kill "$_pe_killer" 2>/dev/null || true
+    wait "$_pe_killer" 2>/dev/null || true
+    if [ -e "$_pe_fired" ]; then
+        log "EGL probe did not answer in ${_pe_secs}s; stopped it"
+    fi
     _pe_out=$(cat "$_pe_file" 2>/dev/null)
-    rm -f "$_pe_file"
+    rm -f "$_pe_file" "$_pe_fired"
 }
 
 # Ask a binary whether EGL comes up on a real GPU here. Exit 0 means yes, 2
