@@ -1257,7 +1257,8 @@ fi
 # its descriptor in it is the evidence (.shell/platform.sh on the AD5X fork,
 # .shell/common.sh upstream). K1 shares mips and carries none of the markers,
 # so the arch alone never arms this. Same rule as helix::flashforge_mod_tree()
-# (its Forge-X half is helix::forgex_mod_tree_present()) and host_profile.sh. Probes resolve under
+# (its Forge-X half is helix::forgex_mod_tree_present(), which install_provenance
+# also calls) and scripts/lib/installer/host_profile.sh's HOST_MOD_ROOT probe. Probes resolve under
 # HELIX_AD5X_PROBE_ROOT (default /) so the bats suite can point the predicate
 # at a sandbox root instead of touching the real filesystem.
 _ad5x_root="${HELIX_AD5X_PROBE_ROOT:-/}"

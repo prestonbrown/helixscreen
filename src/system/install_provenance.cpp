@@ -25,7 +25,9 @@ struct HostModRow {
 // scripts/lib/installer/platform.sh. Forge-X comes first because its tree can
 // coexist with the markers below it.
 constexpr HostModRow kHostMods[] = {
-    // Besides helix::forgex_mod_tree_present(), which detect_host_mod() asks first.
+    // Besides helix::forgex_mod_tree_present(), which detect_host_mod() asks first;
+    // its shell copies are host_profile.sh's HOST_MOD_ROOT probe and the
+    // launcher's heap-diag gate.
     {"forge_x",
      {"/opt/config/mod/.root", "/usr/data/.mod/.forge-x", "/data/.mod/.forge-x", nullptr}},
     {"zmod", {"/ZMOD", nullptr}},

@@ -89,7 +89,8 @@ host_profile_probe() {
         # (a flat AD5M file - S99root sources it), while the AD5X port fork
         # renamed/extended it into .shell/platform.sh (per-board blocks).
         # Either marks a live mod tree. Same rule as helix::forgex_mod_tree_present()
-        # (src/system/platform_info.cpp) and helix-launcher.sh's heap-diag gate.
+        # (src/system/platform_info.cpp, also called by install_provenance.cpp)
+        # and scripts/helix-launcher.sh's heap-diag gate.
         if [ -f "$cand/.shell/common.sh" ] || [ -f "$cand/.shell/platform.sh" ]; then
             HOST_MOD_ROOT="$cand"; break
         fi

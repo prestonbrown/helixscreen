@@ -119,8 +119,9 @@ const char* flashforge_mod_tree_name(FlashForgeModTree tree) {
 }
 
 bool forgex_mod_tree_present(const std::string& probe_root) {
-    // The shell copies of this rule: host_profile.sh (HOST_MOD_ROOT) and
-    // helix-launcher.sh's heap-diag gate.
+    // Copies of this rule that cannot call it: scripts/lib/installer/host_profile.sh
+    // (HOST_MOD_ROOT) and scripts/helix-launcher.sh's heap-diag gate.
+    // install_provenance.cpp's kHostMods calls it.
     struct ::stat st {};
     for (const char* mod_tree : {"/opt/config/mod", "/usr/data/config/mod"}) {
         for (const char* descriptor : {"/.shell/platform.sh", "/.shell/common.sh"}) {
