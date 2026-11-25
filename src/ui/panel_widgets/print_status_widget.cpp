@@ -322,7 +322,12 @@ void PrintStatusWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
                 self->check_and_show_idle_runout_modal();
             } else {
                 self->runout_modal_shown_ = false;
-                self->saw_filament_present_ = true;
+                // Zero also means no reading yet (a printer still being
+                // discovered, the startup grace); only a sensor that reported
+                // filament makes a later empty one an edge this widget watched.
+                if (helix::FilamentSensorManager::instance().runout_sensor_reports_filament()) {
+                    self->saw_filament_present_ = true;
+                }
             }
         },
         fsm.subjects_lifetime());
@@ -1305,6 +1310,14 @@ void PrintStatusWidget::check_and_show_idle_runout_modal() {
         return;
     }
 
+    // Raised once per printer for these empty sensors: a switch away and back,
+    // or a reconnect, rebuilds this widget but is no new information.
+    if (fsm.idle_runout_acknowledged()) {
+        spdlog::debug("[PrintStatusWidget] Idle runout already raised for this printer - "
+                      "waiting for filament to return");
+        return;
+    }
+
     // Only show if the machine is genuinely between jobs. Same three states as
     // before plus Preparing, which the wire could not express: a "load filament"
     // dialog on top of a start the user just committed to is an ambush, and the
@@ -1344,6 +1357,7 @@ void PrintStatusWidget::check_and_show_idle_runout_modal() {
     spdlog::info("[PrintStatusWidget] Showing idle runout modal");
     show_idle_runout_modal();
     runout_modal_shown_ = true;
+    fsm.acknowledge_idle_runout();
 }
 
 void PrintStatusWidget::trigger_idle_runout_check() {
