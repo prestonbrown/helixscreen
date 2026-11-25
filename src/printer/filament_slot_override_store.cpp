@@ -167,7 +167,7 @@ nlohmann::json to_lane_data_record(int slot_index, const FilamentSlotOverride& o
     j["spool_id"] = positive_or_null(o.spoolman_id);
     j["spoolman_filament_id"] = positive_or_null(o.spoolman_filament_id);
     // The linked spool's own Orca id first, because the tracker wins on
-    // identity (RFC 0001 §6); then an id the catalog records for this one
+    // identity (Lane Status Surface §6); then an id the catalog records for this one
     // product. Failing both, the family's Generic preset: the same
     // "Generic <family> @System" Orca's own map_filament_type_to_generic_id
     // targets, a material claim rather than a product one. Orca reads

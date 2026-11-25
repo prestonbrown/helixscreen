@@ -1,7 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// The lane record store: RFC 0001 §5 records in Moonraker's database, read
+// The lane record store: Lane Status Surface §5 records in Moonraker's database, read
 // whole and written through, with no local copy.
 #include "../helix_test_fixture.h"
 #include "../test_helpers/mock_printer.h"
@@ -63,9 +63,10 @@ std::unordered_map<int, helix::ams::LaneDataRecord> read_back(FilamentSlotOverri
 
 } // namespace
 
-// Record shape (RFC 0001 §5)
+// Record shape (Lane Status Surface §5)
 
-TEST_CASE("a record HelixScreen writes carries the RFC 0001 keys", "[filament_slot_override]") {
+TEST_CASE("a record HelixScreen writes carries the Lane Status Surface keys",
+          "[filament_slot_override]") {
     const json j = helix::ams::to_lane_data_record(2, polymaker_pla());
     CHECK(j["lss_version"] == "0.1");
     CHECK(j["writer"] == "helixscreen");
@@ -158,7 +159,7 @@ TEST_CASE("a record with no writer still reads, by its legacy spellings",
 }
 
 TEST_CASE("a numeric filament_id is Spoolman's filament id", "[filament_slot_override]") {
-    // Happy Hare writes Spoolman's filament id there (RFC 0001 §7).
+    // Happy Hare writes Spoolman's filament id there (Lane Status Surface §7).
     const auto parsed = helix::ams::from_lane_data_record(json{{"lane", "0"}, {"filament_id", 17}});
     REQUIRE(parsed.has_value());
     CHECK(parsed->second.spoolman_filament_id == 17);
@@ -294,7 +295,7 @@ TEST_CASE("a read the database refuses calls the failure path", "[filament_slot_
     CHECK(failed == 1);
 }
 
-// The writer rule (RFC 0001 S2)
+// The writer rule (Lane Status Surface S2)
 
 TEST_CASE("a record another producer writes is never overwritten",
           "[filament_slot_override][writer_rule]") {

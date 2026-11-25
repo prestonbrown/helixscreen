@@ -1,7 +1,7 @@
 // Copyright (C) 2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// The generic Lane Status Surface consumer (lane-status-spec RFC 0001): which
+// The generic Lane Status Surface consumer (lane-status-spec): which
 // printers it claims, how each spec field lands on the slots, and what it does
 // with absent, extra and foreign data. The payloads follow SPEC.md §2.1 and §5.
 

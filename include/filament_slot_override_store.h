@@ -42,7 +42,7 @@ inline LaneKeyStyle lane_key_style_for(AmsType t) {
 }
 
 /// The Lane Status Surface version and writer name HelixScreen's records carry
-/// (RFC 0001 §5).
+/// (Lane Status Surface §5).
 inline constexpr const char* kLaneDataLssVersion = "0.1";
 inline constexpr const char* kLaneDataWriter = "helixscreen";
 
@@ -50,7 +50,7 @@ inline constexpr const char* kLaneDataWriter = "helixscreen";
 /// HelixScreen's extras for a backend whose firmware owns lane_data.
 inline constexpr const char* kLaneDataNamespace = "lane_data";
 
-/// The RFC 0001 §5 record HelixScreen writes for @p slot_index. Every RFC key
+/// The Lane Status Surface §5 record HelixScreen writes for @p slot_index. Every spec key
 /// is present; an unknown value is null, never a placeholder. Keys only
 /// HelixScreen reads carry the helix_ prefix.
 [[nodiscard]] nlohmann::json to_lane_data_record(int slot_index, const FilamentSlotOverride& o,
@@ -80,7 +80,7 @@ struct ExtrasFields {
 [[nodiscard]] FilamentSlotOverride extras_only(const FilamentSlotOverride& o,
                                                ExtrasFields fields = {});
 
-/// True when @p wire names a writer other than HelixScreen (RFC 0001 S2). A
+/// True when @p wire names a writer other than HelixScreen (Lane Status Surface S2). A
 /// record with no writer is legacy and replaceable.
 [[nodiscard]] bool written_by_another_producer(const nlohmann::json& wire);
 
@@ -94,7 +94,7 @@ struct LaneDataRecord {
 };
 
 /// Parse a whole namespace document, one record per slot. Records are matched
-/// by their inner `lane` field, never the key (RFC 0001 S3); when two records
+/// by their inner `lane` field, never the key (Lane Status Surface S3); when two records
 /// name one slot, the one under our canonical key wins. Non-object siblings
 /// (`seated`) are skipped, and a record that does not parse costs its slot
 /// only.
@@ -176,7 +176,7 @@ class FilamentSlotOverrideStore {
     void save_async(int slot_index, const FilamentSlotOverride& override, SaveCallback cb);
 
     /// Whether the record last read for @p slot_index names another writer, so
-    /// a save would be refused (RFC 0001 S2).
+    /// a save would be refused (Lane Status Surface S2).
     [[nodiscard]] bool written_by_another(int slot_index) const {
         return !writer_refusal(slot_index).empty();
     }

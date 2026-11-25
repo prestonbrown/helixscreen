@@ -2,7 +2,7 @@
 
 // Lane Status Surface mock hardware (HELIX_MOCK_AMS=lane_status): a producer no
 // backend here knows, publishing the `lane_status` object and writing its
-// `lane_data` records the way lane-status-spec RFC 0001 describes, so real
+// `lane_data` records the way the Lane Status Surface draft describes, so real
 // discovery builds the generic AmsBackendLaneStatus under --test.
 //
 // HELIX_MOCK_LANE_STATUS_KIND=status_only makes it a status-only producer, which

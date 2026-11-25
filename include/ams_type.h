@@ -28,10 +28,9 @@ enum class AmsType {
     SNAPMAKER = 7,    ///< Snapmaker U1 SnapSwap toolchanger
     QIDI_BOX =
         8, ///< QIDI Box filament changer (PLUS4, Q2, MAX4 — hub AMS, 4 slots chainable to 16)
-    OPENAMS = 9, ///< klipper_openams through its own versioned oams_manager API
-    INDX = 10,   ///< Bondtech INDX: docked passive nozzles, one extruder and heater
-    LANE_STATUS =
-        11 ///< Any producer of the Lane Status Surface (lane-status-spec RFC 0001 `lane_status`)
+    OPENAMS = 9,     ///< klipper_openams through its own versioned oams_manager API
+    INDX = 10,       ///< Bondtech INDX: docked passive nozzles, one extruder and heater
+    LANE_STATUS = 11 ///< Any producer of the Lane Status Surface (lane-status-spec `lane_status`)
 };
 
 } // namespace helix

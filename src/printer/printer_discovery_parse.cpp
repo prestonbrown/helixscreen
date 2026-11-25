@@ -853,7 +853,7 @@ void PrinterDiscovery::register_detected_ams_systems() {
         // A producer no backend here knows: the generic lane_status reader.
         // After every native fallback, so a status-only producer that wraps a
         // system HelixScreen reads natively leaves it to that backend
-        // (lane-status-spec RFC 0001 §4).
+        // (Lane Status Surface §4).
         mmu_type_ = AmsType::LANE_STATUS;
         detected_ams_systems_.push_back({mmu_type_, ams_type_to_string(mmu_type_)});
     } else if (!tool_names_.empty() && (has_tool_changer_ || tool_names_.size() > 1)) {

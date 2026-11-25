@@ -1528,8 +1528,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// One U1 filament_feed side's channels object (the side owning extruder
     /// @p ext), both of its channels whole.
     [[nodiscard]] nlohmann::json u1_feed_side_json(int ext) const;
-    /// HELIX_MOCK_AMS=lane_status: a Lane Status Surface producer (lane-status-spec
-    /// RFC 0001), and the `lane_status` object it publishes (public: the
+    /// HELIX_MOCK_AMS=lane_status: a Lane Status Surface producer (lane-status-spec),
+    /// and the `lane_status` object it publishes (public: the
     /// printer.objects.query / subscribe handlers read it).
     bool is_mock_lane_status() const;
     [[nodiscard]] nlohmann::json lane_status_json() const;

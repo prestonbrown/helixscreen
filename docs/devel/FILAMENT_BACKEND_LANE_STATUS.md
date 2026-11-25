@@ -1,9 +1,9 @@
 # Lane Status Surface backend
 
 `AmsBackendLaneStatus` (`include/ams_backend_lane_status.h`) reads any filament
-system that publishes the Lane Status Surface RFC
-(draft 0.1, [prestonbrown/lane-status-spec](https://github.com/prestonbrown/lane-status-spec),
-branch `rfc-0001`). It needs no knowledge of the producer: a firmware mod that
+system that publishes the Lane Status Surface draft
+(0.1, [prestonbrown/lane-status-spec](https://github.com/prestonbrown/lane-status-spec)).
+It needs no knowledge of the producer: a firmware mod that
 adopts the spec gets a filament panel here with no backend of its own
 (prestonbrown/helixscreen#1908).
 
