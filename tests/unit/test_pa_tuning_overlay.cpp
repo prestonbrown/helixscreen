@@ -36,9 +36,13 @@ struct TunerFixture : LVGLTestFixture {
     MoonrakerAPI api;
     PaTuningOverlay overlay;
 
+    KlippyState klippy_before_ = KlippyState::SHUTDOWN;
+
     TunerFixture() : api(client, get_printer_state()) {
         auto& state = get_printer_state();
         state.init_subjects(false);
+        klippy_before_ = static_cast<KlippyState>(
+            lv_subject_get_int(state.network_state().get_klippy_state_subject()));
         state.set_klippy_state_sync(KlippyState::READY);
         state.temperature_state().init_extruders({"extruder"});
         client.connect("ws://mock/websocket", []() {}, []() {});
@@ -57,6 +61,7 @@ struct TunerFixture : LVGLTestFixture {
         status({{"print_stats", {{"state", "standby"}, {"filename", ""}}}});
         client.stop_temperature_simulation();
         client.disconnect();
+        get_printer_state().set_klippy_state_sync(klippy_before_);
     }
 
     void status(const json& s) {
