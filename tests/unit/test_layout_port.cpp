@@ -231,6 +231,28 @@ TEST_CASE("port_legacy_layout: a collision costs only the colliding widget",
     CHECK_FALSE(any_overlap(out));
 }
 
+TEST_CASE("port_legacy_layout: a disabled widget's stale spot never displaces an enabled one",
+          "[layout_port][grid]") {
+    // A Q2 home page: the 4-lane filament strip across the bottom row, and a
+    // disabled widget still carrying coordinates inside that row. The live grid
+    // ignores disabled widgets, so the strip was what the user saw; the port
+    // must keep its 4x1 width rather than drop it to auto-placement.
+    std::vector<LegacyPlacement> saved = {
+        {"print_status", 0, 0, 2, 3, true},
+        {"temp_stack", 2, 3, 1, 1, false},
+        {"ams", 0, 3, 4, 1, true},
+    };
+    auto out = port_legacy_layout(saved, 6, 4, 12, 8);
+
+    const auto ams = by_id(out, "ams");
+    REQUIRE(ams.seated);
+    CHECK(ams.col == 0);
+    CHECK(ams.row == 6);
+    CHECK(ams.colspan == 8);
+    CHECK(ams.rowspan == 2);
+    CHECK_FALSE(any_overlap(out));
+}
+
 TEST_CASE("port_legacy_layout: every seated widget lands inside the grid", "[layout_port][grid]") {
     std::vector<LegacyPlacement> saved = {
         {"printer_image", 0, 0, 3, 3},

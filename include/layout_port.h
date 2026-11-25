@@ -16,6 +16,9 @@ struct LegacyPlacement {
     int row = -1;
     int colspan = 1;
     int rowspan = 1;
+    /// A disabled widget keeps its saved coordinates but held no space on the
+    /// old grid, so it never takes a spot an enabled widget needs.
+    bool enabled = true;
 };
 
 /// The same placement mapped onto the square-cell TRACK grid.
