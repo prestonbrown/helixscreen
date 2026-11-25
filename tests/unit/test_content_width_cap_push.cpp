@@ -19,6 +19,7 @@
 #include "../lvgl_test_fixture.h"
 #include "app_globals.h"
 #include "connection_state.h"
+#include "content_width_cap.h"
 #include "lvgl/lvgl.h"
 #include "panel_lifecycle.h"
 #include "printer_state.h"
@@ -69,7 +70,8 @@ class FakePanel : public PanelBase {
     bool full_width_;
 };
 
-/// A 1480x320 screen with its layout constants, as the resize handler leaves it.
+/// A 2560x320 screen (wider than kUncappedWidth, so the cap binds) with its layout constants, as
+/// the resize handler leaves it.
 class UltrawideFixture : public LVGLTestFixture {
   public:
     UltrawideFixture() {
@@ -92,7 +94,7 @@ class UltrawideFixture : public LVGLTestFixture {
             lv_obj_set_width(p, lv_pct(100));
         }
         NavigationManager::instance().set_panels(root_panels_.data());
-        resize(1480, 320);
+        resize(2560, 320);
     }
 
     ~UltrawideFixture() override {
@@ -174,6 +176,11 @@ class UltrawideFixture : public LVGLTestFixture {
         get_printer_state().deinit_subjects();
     }
 
+    /// Where the cap holds a view of @p width, as the screen's constants have it.
+    static int32_t cap_for(int32_t width) {
+        return panel_content_width(width, read_const("content_max_width"));
+    }
+
     static int32_t read_const(const char* name) {
         const char* s = lv_xml_get_const(nullptr, name);
         REQUIRE(s != nullptr);
@@ -188,14 +195,14 @@ class UltrawideFixture : public LVGLTestFixture {
 
 TEST_CASE_METHOD(UltrawideFixture, "An overlay on an ultrawide screen stops at the cap",
                  "[content-cap][overlay]") {
-    const int32_t cap = read_const("content_max_width");
-    REQUIRE(cap == 768);
+    REQUIRE(read_const("content_max_width") == 768);
 
     FakeOverlay lifecycle(/*full_width=*/false);
     lv_obj_t* w = push(lifecycle);
 
     // The root keeps its full opaque width and occludes the backdrop as before.
     const int32_t width = read_const("overlay_width_transient");
+    const int32_t cap = cap_for(width);
     REQUIRE(width > cap);
     CHECK(lv_obj_get_width(w) == width);
 
@@ -222,8 +229,8 @@ TEST_CASE_METHOD(UltrawideFixture, "Chrome spans the view while the content betw
     lv_obj_t* nested = lv_obj_get_child(content, 0);
     lv_obj_t* footer = lv_obj_get_child(w, 2);
 
-    const int32_t cap = read_const("content_max_width");
     const int32_t width = lv_obj_get_width(w);
+    const int32_t cap = cap_for(width);
     REQUIRE(width > cap);
     CHECK(lv_obj_get_width(content) == cap - kBasePadRight);
     // Header and footer run from the leading edge to the root's own padding.
@@ -290,7 +297,7 @@ TEST_CASE_METHOD(UltrawideFixture, "Views that opt out keep the full width",
     helix::ui::UpdateQueue::instance().drain();
     REQUIRE_FALSE(lv_obj_has_flag(panel, LV_OBJ_FLAG_HIDDEN));
     lv_obj_update_layout(lv_screen_active());
-    CHECK(lv_obj_get_width(panel) == read_const("content_max_width"));
+    CHECK(lv_obj_get_width(panel) == cap_for(full));
 
     FakePanel opted_out(/*full_width=*/true);
     nav.register_panel_instance(shown, &opted_out);
@@ -337,7 +344,8 @@ TEST_CASE_METHOD(UltrawideFixture, "A panel widget swapped into a shown slot car
     // The panel rebuilds its widget into a fresh layout.
     constexpr int32_t kFreshPad = 10;
     lv_obj_t* fresh_container = make_panel_container(kFreshPad);
-    const int32_t overflow = lv_obj_get_width(fresh_container) - read_const("content_max_width");
+    const int32_t overflow =
+        lv_obj_get_width(fresh_container) - cap_for(lv_obj_get_width(fresh_container));
     REQUIRE(overflow > 0);
     registry.replace_widget(slot, make_panel_widget(fresh_container));
 
@@ -351,7 +359,7 @@ TEST_CASE_METHOD(UltrawideFixture, "A reset registry reads the container's paddi
     const int slot = static_cast<int>(PanelId::Controls);
     FakePanel panel(/*full_width=*/false);
     lv_obj_t* container = make_panel_container(kBasePadRight);
-    const int32_t overflow = lv_obj_get_width(container) - read_const("content_max_width");
+    const int32_t overflow = lv_obj_get_width(container) - cap_for(lv_obj_get_width(container));
     REQUIRE(overflow > 0);
 
     registry.set_instance(slot, &panel);

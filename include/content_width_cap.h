@@ -40,7 +40,7 @@ constexpr int32_t content_max_width(int32_t ver_res) {
  * pad still fits beside its Z column, and below that its step buttons and
  * readout run off the screen. An ultrawide screen only just past the layout's
  * 2.5:1 threshold (1280x480, 1920x720) leaves a sliver of under 120 px, so the
- * band shows only when the leftover reaches this width.
+ * band shows only when the host can spare this width (side_band_layout()).
  */
 constexpr int32_t kSideBandMinWidthNum = 1;
 constexpr int32_t kSideBandMinWidthDen = 1;
@@ -50,10 +50,58 @@ constexpr int32_t side_band_min_width(int32_t ver_res) {
     return ver_res * kSideBandMinWidthNum / kSideBandMinWidthDen;
 }
 
-/// Whether a host @p host_width wide, its main column capped at @p cap, leaves
-/// a side band at least side_band_min_width(@p ver_res) wide.
-constexpr bool side_band_has_room(int32_t host_width, int32_t cap, int32_t ver_res) {
-    return host_width - cap >= side_band_min_width(ver_res);
+/**
+ * @brief Narrowest a page's main column may be and still show a side band.
+ *
+ * Controls and Filament are designed for an 800 px wide screen (the 800x480
+ * Medium tier of include/ui_breakpoint.h): below that their cards and lane
+ * rows crowd. A band is worth showing only while the column beside it keeps
+ * that width.
+ */
+constexpr int32_t kMainColumnFloor = 800;
+
+/**
+ * @brief Widest a page with no side band stays capped, in pixels.
+ *
+ * The 2.4 x height cap keeps a settings list readable on a screen far wider
+ * than tall, but below this width it only leaves an empty strip (1280x400
+ * and 1920x480 are the shipped cases). The cap binds only on a host wider
+ * than this, where it limits the column to max(cap, kUncappedWidth).
+ */
+constexpr int32_t kUncappedWidth = 1920;
+
+/// The width of a page without a side band: the whole host, unless the host is
+/// wider than kUncappedWidth and the cap @p cap holds the column back.
+constexpr int32_t panel_content_width(int32_t host_width, int32_t cap) {
+    const int32_t limit = cap > kUncappedWidth ? cap : kUncappedWidth;
+    return host_width <= limit ? host_width : limit;
+}
+
+/// How a page with a side band divides its host.
+struct SideBandLayout {
+    int32_t main_width; ///< the main column's width
+    bool room;          ///< the band fits beside it
+};
+
+/**
+ * @brief The one rule for a page with a side band, for a host @p host_width
+ * wide on a screen @p ver_res tall whose content cap is @p cap.
+ *
+ * - The cap leaves side_band_min_width(): the column stops at the cap, the band
+ *   takes the rest.
+ * - Otherwise, if the column can give up width to a minimum band and still keep
+ *   kMainColumnFloor, it shrinks to make room (1280x400: 804 + 400).
+ * - Otherwise the column takes the whole host and there is no band.
+ */
+constexpr SideBandLayout side_band_layout(int32_t host_width, int32_t cap, int32_t ver_res) {
+    const int32_t band_min = side_band_min_width(ver_res);
+    if (host_width - cap >= band_min) {
+        return {cap, true};
+    }
+    if (host_width - band_min >= kMainColumnFloor) {
+        return {host_width - band_min, true};
+    }
+    return {host_width, false};
 }
 
 /**
