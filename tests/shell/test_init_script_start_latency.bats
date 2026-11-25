@@ -209,7 +209,7 @@ EOF
     local init="$WORKTREE_ROOT/config/helixscreen.init"
 
     local wd_line pidfile_line
-    wd_line=$(sed -n '/^stop() {/,/^}/p' "$init" | grep -n '_wd_pids=$(pidof' | head -n 1 | cut -d: -f1)
+    wd_line=$(sed -n '/^stop() {/,/^}/p' "$init" | grep -n '_wd_pids=$(helix_pids' | head -n 1 | cut -d: -f1)
     pidfile_line=$(sed -n '/^stop() {/,/^}/p' "$init" | grep -n 'if \[ -f "\$PIDFILE" \]' | head -n 1 | cut -d: -f1)
 
     [ -n "$wd_line" ]
