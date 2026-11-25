@@ -1584,6 +1584,32 @@ TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
 }
 
 TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
+                 "ActivePrintMediaManager: a job with no file behind it fetches no metadata",
+                 "[ActivePrintMediaManager][retry]") {
+    // Kalico's PRINT_PA_TOWER runs as a print named "PA tower": Moonraker has no
+    // file of that name, so every fetch fails and the retry ladder ran its ten
+    // attempts for nothing.
+    set_print_filename_no_drain("PA tower");
+    drain();
+    CHECK(files().pending_count() == 0);
+    CHECK_FALSE(TestAccess::has_pending_retry(manager()));
+    CHECK(get_thumbnail_path() == kNoThumb);
+
+    fire_notification("notify_klippy_ready", json{{"method", "notify_klippy_ready"}});
+    drain();
+    CHECK(files().pending_count() == 0);
+}
+
+TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
+                 "ActivePrintMediaManager: a file named with spaces still fetches its metadata",
+                 "[ActivePrintMediaManager][retry]") {
+    set_print_filename_no_drain("PA tower test v2.gcode");
+    drain();
+    REQUIRE(files().pending_count() == 1);
+    CHECK(files().last_filename() == "PA tower test v2.gcode");
+}
+
+TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
                  "ActivePrintMediaManager: a same-name re-upload of the loaded file reloads its "
                  "media",
                  "[ActivePrintMediaManager][retry]") {

@@ -539,6 +539,15 @@ void ActivePrintMediaManager::load_thumbnail_for_file(const std::string& filenam
     // for layer_count and estimated_time, so don't early-return. A path
     // published for some OTHER file is not ours to reuse, so it does not skip
     // anything.
+    // A job with no file behind it (Kalico's PRINT_PA_TOWER prints as "PA
+    // tower") has no metadata or thumbnail for Moonraker to give, and every
+    // retry of the lookup would fail the same way.
+    if (!helix::gcode::has_printable_extension(filename)) {
+        spdlog::debug("[ActivePrintMediaManager] '{}' names no file - no metadata to load",
+                      filename);
+        return;
+    }
+
     const bool skip_thumbnail = has_thumbnail_for(filename);
     if (skip_thumbnail) {
         spdlog::debug(

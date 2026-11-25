@@ -411,3 +411,14 @@ TEST_CASE("print_status_recreation_warns - a panel registry teardown logs at INF
         PrintState::Printing, /*destruction_recorded*/ true,
         helix::ui::PrintStatusTreeDestroyCause::PanelRegistryTeardown, PrintState::Printing));
 }
+
+TEST_CASE("Preview decision: a job with no file behind it loads no G-code",
+          "[print_status][preview]") {
+    // Kalico's PRINT_PA_TOWER prints as "PA tower": there is no file to download.
+    PreviewAction a = decide_preview_action("", "", "PA tower", false, false, true, true);
+    CHECK_FALSE(a.load_gcode);
+    CHECK(a.load_thumbnail);
+
+    PreviewAction b = decide_preview_action("", "", "PA tower v2.gcode", false, false, true, true);
+    CHECK(b.load_gcode);
+}
