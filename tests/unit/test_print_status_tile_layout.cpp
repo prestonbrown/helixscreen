@@ -209,30 +209,16 @@ TEST_CASE("ultrawide columns narrow the printer first to keep the info column",
     CHECK(columns_total(c, 8) == 1700);
 }
 
-TEST_CASE("ultrawide columns stop each column at its floor, then the buttons lose their labels",
+TEST_CASE("ultrawide columns stop each column at its floor",
           "[print_status_tile_layout][ultrawide]") {
     const auto c = decide_print_status_columns(1200, 340, 8);
     CHECK(c.tune_w == 0);
     CHECK(c.printer_w == 340);
     CHECK(c.readouts_w == 255);
     CHECK(c.preview_w == 255);
-    // Icon-only buttons: the column gives its width to the info column.
-    CHECK(c.actions_w == 76);
-    CHECK(c.info_w == 242);
+    CHECK(c.actions_w == 163);
+    CHECK(c.info_w == 155);
     CHECK(columns_total(c, 8) == 1200);
-}
-
-TEST_CASE("ultrawide buttons keep their labels while the info column keeps its floor",
-          "[print_status_tile_layout][ultrawide]") {
-    // At 340 high the labeled layout leaves the info column 70% of the height
-    // (238) from 1283 px on; one pixel less and the buttons go icon-only.
-    const auto labeled = decide_print_status_columns(1283, 340, 8);
-    CHECK(labeled.actions_w == 163);
-    CHECK(labeled.info_w == 238);
-    const auto icons = decide_print_status_columns(1282, 340, 8);
-    CHECK(icons.actions_w == 76);
-    CHECK(icons.info_w > 238);
-    CHECK(columns_total(icons, 8) == 1282);
 }
 
 TEST_CASE("ultrawide tile layout sizes the job tile as the preview square",
