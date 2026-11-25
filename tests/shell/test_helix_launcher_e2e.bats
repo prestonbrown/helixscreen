@@ -217,48 +217,105 @@ path_without_timeout() {
     echo "$BATS_TEST_TMPDIR/bin:$d"
 }
 
-# Runs the real launcher under PATH $1, at most 30 s, and prints the seconds it took.
+# Runs the real launcher under PATH $1 with shell $2 (default /bin/sh), at most
+# 30 s, and prints the milliseconds it took.
 run_launcher_timed() {
     local t0 t1
     cp "$LAUNCHER" "$MOCK_INSTALL/bin/helix-launcher.sh"
     rm -f "$MOCK_INSTALL/helix_screen_backend.txt"
-    t0=$(date +%s)
-    MOCK_INSTALL="$MOCK_INSTALL" PATH="$1" /usr/bin/timeout 30 /bin/sh "$MOCK_INSTALL/bin/helix-launcher.sh" >/dev/null 2>&1 || true
-    t1=$(date +%s)
+    t0=$(date +%s%3N)
+    MOCK_INSTALL="$MOCK_INSTALL" PATH="$1" /usr/bin/timeout 30 ${2:-/bin/sh} "$MOCK_INSTALL/bin/helix-launcher.sh" >/dev/null 2>&1 || true
+    t1=$(date +%s%3N)
     echo $((t1 - t0))
 }
 
-@test "e2e: without timeout, a probe that never answers is stopped at its deadline" {
-    with_dri_card
+# The probe answers with MOCK_PROBE_RC, or hangs when MOCK_PROBE_HANG=1.
+install_probe_binary() {
     cat > "$MOCK_INSTALL/bin/helix-screen" << MOCKEOF
 #!/bin/sh
-[ "\$1" = "--probe-egl" ] && exec sleep 300
+if [ "\$1" = "--probe-egl" ]; then
+    [ "\${MOCK_PROBE_HANG:-0}" = 1 ] && exec sleep 300
+    exit "\${MOCK_PROBE_RC:-1}"
+fi
 echo "\$(basename "\$0") \${HELIX_DISPLAY_BACKEND-<unset>}" > "$MOCK_INSTALL/helix_screen_backend.txt"
 exit 0
 MOCKEOF
     chmod +x "$MOCK_INSTALL/bin/helix-screen"
-    export HELIX_EGL_PROBE_SECS=2
-    local p secs
+}
+
+@test "e2e: without timeout, a probe that never answers is stopped at its deadline" {
+    with_dri_card
+    install_probe_binary
+    export MOCK_PROBE_HANG=1 HELIX_EGL_PROBE_SECS=2
+    local p ms
     p=$(path_without_timeout)
     [ ! -e "${p##*:}/timeout" ]
 
-    secs=$(run_launcher_timed "$p")
+    ms=$(run_launcher_timed "$p")
     run cat "$MOCK_INSTALL/helix_screen_backend.txt"
     [ "$output" = "helix-screen drm" ]
-    [ "$secs" -le 12 ]
+    [ "$ms" -lt 6000 ]
 }
 
 @test "e2e: without timeout, a probe that answers at once is not held to the deadline" {
     with_dri_card
-    export MOCK_PROBE_RC=0
-    export HELIX_EGL_PROBE_SECS=20
-    local p secs
+    install_probe_binary
+    export MOCK_PROBE_RC=0 HELIX_EGL_PROBE_SECS=20
+    local p ms
     p=$(path_without_timeout)
 
-    secs=$(run_launcher_timed "$p")
+    ms=$(run_launcher_timed "$p")
     run cat "$MOCK_INSTALL/helix_screen_backend.txt"
     [ "$output" = "helix-screen egl" ]
-    [ "$secs" -le 5 ]
+    [ "$ms" -lt 3000 ]
+}
+
+@test "e2e: without timeout, a deadline that is not a positive integer does not stop the launcher" {
+    with_dri_card
+    install_probe_binary
+    export MOCK_PROBE_RC=0 HELIX_EGL_PROBE_SECS=1x
+    local p
+    p=$(path_without_timeout)
+
+    run_launcher_timed "$p" >/dev/null
+    run cat "$MOCK_INSTALL/helix_screen_backend.txt"
+    [ "$output" = "helix-screen egl" ]
+}
+
+# Runs the launcher's own probe_egl_with_deadline under shell $1 against the
+# probe binary, and prints "<rc> <milliseconds>". BusyBox builds with a
+# `timeout` applet would take the timeout branch in the whole launcher, so the
+# deadline function is driven directly.
+run_deadline_fn() {
+    sed -n '/^probe_egl_with_deadline() {/,/^}/p' "$LAUNCHER" > "$BATS_TEST_TMPDIR/deadline_fn.sh"
+    cat > "$BATS_TEST_TMPDIR/deadline_run.sh" << RUNEOF
+log() { :; }
+. "$BATS_TEST_TMPDIR/deadline_fn.sh"
+probe_egl_with_deadline "$MOCK_INSTALL/bin/helix-screen"
+echo "\$_pe_rc"
+RUNEOF
+    local t0 t1 rc
+    t0=$(date +%s%3N)
+    rc=$(/usr/bin/timeout 30 $1 "$BATS_TEST_TMPDIR/deadline_run.sh")
+    t1=$(date +%s%3N)
+    echo "$rc $((t1 - t0))"
+}
+
+@test "e2e: under BusyBox ash the probe deadline returns at once for a quick probe and at the deadline for a hung one" {
+    command -v busybox >/dev/null || skip "no busybox on this host"
+    install_probe_binary
+    local rc ms
+
+    export MOCK_PROBE_RC=0 HELIX_EGL_PROBE_SECS=20
+    read -r rc ms < <(run_deadline_fn "busybox sh")
+    [ "$rc" = 0 ]
+    [ "$ms" -lt 1000 ]
+
+    export MOCK_PROBE_HANG=1 HELIX_EGL_PROBE_SECS=2
+    read -r rc ms < <(run_deadline_fn "busybox sh")
+    [ "$rc" = 137 ]
+    [ "$ms" -ge 2000 ]
+    [ "$ms" -lt 4000 ]
 }
 
 @test "e2e: with timeout on PATH, the probe runs under timeout" {
