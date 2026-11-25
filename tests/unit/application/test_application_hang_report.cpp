@@ -56,6 +56,7 @@ TEST_CASE_METHOD(TelemetryTestFixture,
     // for another thread's lock does. The reporter reports once the kernel says
     // the main thread is asleep, giving up after about a second.
     bool main_waiting = false;
+    bool kernel_names_wait_channels = false;
     std::thread reporter([&] {
         for (int i = 0; i < 500 && !main_waiting; ++i) {
             main_waiting = helix::read_main_thread_state() == std::optional<std::string>("S");
@@ -63,6 +64,8 @@ TEST_CASE_METHOD(TelemetryTestFixture,
                 std::this_thread::sleep_for(std::chrono::milliseconds(2));
             }
         }
+        // A kernel without symbol names, or a sandbox, names no channel even for a sleeping thread.
+        kernel_names_wait_channels = helix::read_main_thread_wchan().has_value();
         ApplicationTestAccess::report_main_loop_stall(60000);
     });
     reporter.join();
@@ -74,6 +77,9 @@ TEST_CASE_METHOD(TelemetryTestFixture,
     REQUIRE(e.at("code") == "main_loop_hang");
     REQUIRE(e.contains("main_state"));
     CHECK(e["main_state"] == "S");
+    if (!kernel_names_wait_channels) {
+        SKIP("this kernel names no wait channel");
+    }
     REQUIRE(e.contains("main_wchan"));
     CHECK(e["main_wchan"].get<std::string>().rfind("futex", 0) == 0);
 }
