@@ -397,6 +397,10 @@ extern "C" void helix_notify_app_foregrounded() {
     spdlog::info("[Application] App returning to foreground");
 }
 
+bool Application::app_backgrounded() {
+    return s_app_backgrounded.load();
+}
+
 const std::string& instance_lock_path() {
     static const std::string p = helix::writable_path(".helix-screen.lock");
     return p;

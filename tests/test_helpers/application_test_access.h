@@ -113,6 +113,16 @@ class ApplicationTestAccess {
         return app.m_backgrounded;
     }
 
+    /// The monitor thread's hang report, as init_monitoring_services installs
+    /// it, and the platform's background flag it reads.
+    static void report_main_loop_stall(uint32_t stalled_ms) {
+        Application::report_main_loop_stall(stalled_ms);
+    }
+
+    static bool app_backgrounded() {
+        return Application::app_backgrounded();
+    }
+
 #if HELIX_HAS_PLUGINS
     /// init_plugins() runs only from deep inside run()'s boot and the
     /// printer-switch path. Setting settings_plugins_available, which unhides

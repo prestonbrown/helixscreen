@@ -418,6 +418,22 @@ void Application::init_sound_services() {
     }
 }
 
+void Application::report_main_loop_stall(uint32_t stalled_ms) {
+    // Runs on the monitor thread. record_error() is documented as safe from
+    // background threads, and deliberately so here: the UI thread is the thing
+    // that is wedged, so anything routed through UpdateQueue would never be
+    // delivered.
+    helix::HangMemoryContext memory;
+    const auto sys = helix::get_system_memory_info();
+    if (sys.total_kb > 0) {
+        memory.mem_available_mb = static_cast<int64_t>(sys.available_mb());
+    }
+    memory.pressure = helix::MemoryMonitor::instance().pressure_level();
+    memory.major_faults = helix::read_self_major_faults();
+    TelemetryManager::instance().record_main_loop_hang(stalled_ms, memory);
+    crash_handler::breadcrumb::note("main_loop", "hang");
+}
+
 void Application::init_monitoring_services() {
     // Phase 14d: Built-in screen server, if the user shares the screen (#1825)
     helix::RemoteScreenService::instance().init(&m_display->remote_screen());
@@ -453,21 +469,8 @@ void Application::init_monitoring_services() {
         }
         helix::MemoryMonitor::instance().set_hang_threshold_ms(hang_ms);
     }
-    helix::MemoryMonitor::instance().set_hang_callback([](uint32_t stalled_ms) {
-        // Runs on the monitor thread. record_error() is documented as safe
-        // from background threads, and deliberately so here: the UI thread
-        // is the thing that is wedged, so anything routed through
-        // UpdateQueue would never be delivered.
-        helix::HangMemoryContext memory;
-        const auto sys = helix::get_system_memory_info();
-        if (sys.total_kb > 0) {
-            memory.mem_available_mb = static_cast<int64_t>(sys.available_mb());
-        }
-        memory.pressure = helix::MemoryMonitor::instance().pressure_level();
-        memory.major_faults = helix::read_self_major_faults();
-        TelemetryManager::instance().record_main_loop_hang(stalled_ms, memory);
-        crash_handler::breadcrumb::note("main_loop", "hang");
-    });
+    helix::MemoryMonitor::instance().set_hang_callback(
+        [](uint32_t stalled_ms) { Application::report_main_loop_stall(stalled_ms); });
 
     // Drop LVGL's decoded-image cache on critical pressure. Printer images,
     // thumbnails, and XML-loaded PNGs live here as full ARGB8888 pixel buffers

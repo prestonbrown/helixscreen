@@ -125,6 +125,14 @@ class Application {
     void init_sound_services();
     void init_monitoring_services();
 
+    /// True from the moment the platform says the app is entering the
+    /// background until it returns. Any thread: the monitor thread reads it.
+    static bool app_backgrounded();
+
+    /// What the memory monitor calls once the main loop has stopped ticking for
+    /// the hang threshold. Runs on the monitor thread.
+    static void report_main_loop_stall(uint32_t stalled_ms);
+
     // Owned managers (in initialization order)
     /// Expires the callbacks Application defers to the main thread — the
     /// hardware-role reapply, the two ActionPrompt modal hops off the WebSocket
