@@ -288,7 +288,7 @@ When the screen freezes (`ui` / `main_loop_hang`), the event also says what was 
 | `pressure_level` | HelixScreen's memory pressure level (`none`, `elevated`, `warning`, `critical`) | `"critical"` |
 | `major_faults` | How many times HelixScreen has had to read memory back from storage since it started; a fast climb means the system is short of memory rather than busy | `81234` |
 | `main_state` | What the UI thread was doing when it froze: `R` running, `S` waiting, `D` waiting on storage | `"S"` |
-| `main_wchan` | Where in the kernel the UI thread was waiting, under the kernel's own name for it (`futex` names are waits on another thread, `poll` names waits for input or the display); left out when the thread was running | `"futex_do_wait"` |
+| `main_wchan` | Where in the kernel the UI thread was waiting, under the kernel's own name for it (`futex` names are waits on another thread, `poll` names waits for input or the display); left out when the thread was running or the kernel gives the channel no name, since a kernel's numeric address is never sent | `"futex_do_wait"` |
 
 ---
 
