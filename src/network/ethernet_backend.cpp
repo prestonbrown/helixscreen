@@ -199,8 +199,11 @@ std::unique_ptr<EthernetBackend> EthernetBackend::create() {
     if (get_runtime_config()->should_mock_ethernet()) {
         spdlog::debug("[EthernetBackend] Test mode: using mock backend");
         // With no link, a --test run shows the Wi-Fi state of the screens that
-        // prefer a wired connection.
-        EthernetBackendMock::set_default_connected(!helix::env_flag("HELIX_MOCK_ETHERNET_DOWN"));
+        // prefer a wired connection. Unset, the default stays what a test
+        // fixture left it.
+        if (helix::env_flag("HELIX_MOCK_ETHERNET_DOWN")) {
+            EthernetBackendMock::set_default_connected(false);
+        }
         return std::make_unique<EthernetBackendMock>();
     }
 #endif
