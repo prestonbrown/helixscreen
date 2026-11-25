@@ -2,7 +2,7 @@
 
 **Settings > Connection** is about how HelixScreen reaches your network and your printers. Come here to join a Wi-Fi network, check your Ethernet connection, add or switch printers, point HelixScreen at a different Moonraker address, enter a Moonraker API key, or share the screen with Mainsail and Fluidd.
 
-On the Settings screen, the **Connection** row shows how the screen is connected right now: the Wi-Fi network name (for example *Wi-Fi HomeNet*), *Ethernet*, or *Not connected*. While the screen has joined a Wi-Fi network but your router has not given it an address yet, the row reads *Connected, getting address…*; a weak signal can hold it there, and if the address never arrives the row changes to *Not connected*.
+On the Settings screen, the **Connection** row shows how the screen is connected right now: the Wi-Fi network name (for example *Wi-Fi HomeNet*), *Ethernet*, or *Not connected*. While the screen has joined a Wi-Fi network but your router has not given it an address yet, the row reads *Connected, getting address…*, and a weak signal can hold it there. If the address never arrives, the row either stays there for as long as the Wi-Fi link holds, or changes to *Not connected* when the printer's own network service gives the join up.
 
 ![Connection settings](../../../images/user/settings-connection.png)
 
