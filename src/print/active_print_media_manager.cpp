@@ -1182,7 +1182,7 @@ void ActivePrintMediaManager::handle_filelist_changed(const std::string& action,
                                                       const std::string& item_path,
                                                       const std::string& source_path) {
     // Main thread (marshalled via token.defer).
-    if (thumbnail_origin_ == ThumbnailOrigin::Fetched || last_effective_filename_.empty()) {
+    if (last_effective_filename_.empty()) {
         return;
     }
 
@@ -1191,6 +1191,24 @@ void ActivePrintMediaManager::handle_filelist_changed(const std::string& action,
     // guaranteed-to-fail retry ladder.
     if (action != "create_file" && action != "modify_file" && action != "move_file" &&
         action != "root_update") {
+        return;
+    }
+
+    if (thumbnail_origin_ == ThumbnailOrigin::Fetched) {
+        // A new file written under the loaded name (a same-name re-upload)
+        // makes the loaded media another file's: the thumbnail cache drops the
+        // copy the published path points at when Moonraker rewrites the
+        // thumbnails, so the path would name a missing file.
+        const std::string metadata_filename = resolve_gcode_filename(last_effective_filename_);
+        if (action == "root_update" ||
+            (item_path != metadata_filename && item_path != last_effective_filename_)) {
+            return;
+        }
+        spdlog::info("[ActivePrintMediaManager] '{}' replaced ({}) - reloading its media",
+                     metadata_filename, action);
+        publish_thumbnail(last_effective_filename_, no_thumbnail_placeholder());
+        thumbnail_origin_ = ThumbnailOrigin::None;
+        restart_media_load();
         return;
     }
 

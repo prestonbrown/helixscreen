@@ -530,9 +530,11 @@ TEST_CASE_METHOD(ActivePrintThumbnailFixture,
     REQUIRE(ActivePrintMediaManagerTestAccess::thumbnail_loaded(media()));
     REQUIRE(api.transfers().partial_downloads() == 1);
 
-    // Upstream-gated routes (pin those guards too).
+    // Upstream-gated routes (pin those guards too). A change to the file
+    // itself is a re-upload and reloads by design, so the filelist route here
+    // is a root rescan.
     fire_notification("notify_filelist_changed",
-                      {{"params", json::array({{{"action", "modify_file"},
+                      {{"params", json::array({{{"action", "root_update"},
                                                 {"item", {{"path", "3DBenchy.gcode"}}}}})}});
     settle();
     fire_notification("notify_klippy_ready", {{"params", json::array({})}});
