@@ -141,31 +141,39 @@ const lowAvailable = (w: MemWarning): boolean => (w.level === "warning" || w.lev
 const appOverShareIn = (w: MemWarning): boolean => w.totalMb > 0 && w.rssKb > HANG_APP_RSS_SHARE * w.totalMb * 1024;
 
 /**
- * An Android app of a build that reports backgrounded stalls, or any app whose stall ran past
- * HANG_SUSPENDED_STALL_SEC, is `suspended` whatever its memory says. A hang that carries its own
- * memory fields is classified by them: the host ran out of memory when the pressure is critical or
- * less than HANG_HOST_MEMORY_LOW_MB was available. An older hang is the host running out of
- * memory when one of its device's memory warnings in the HANG_WARNING_WINDOW_SEC of uptime
- * before it, at warning or critical, says available memory ran low. With no such warning it is
- * classified by the device's snapshot taken last before it, by the same threshold: among the
- * snapshots of the hang's upload whose uptime is at most HANG_SNAPSHOT_WINDOW_SEC under the
- * hang's, the largest uptime wins. Without a qualifying snapshot the cause is unknown. Low free
- * memory does not say who used it: none of these makes the host the cause when the newest of
- * those warnings shows the app holding more than HANG_APP_RSS_SHARE of the host's memory, since
- * the app then starved its host itself. Every other hang is an app that blocked.
+ * An Android app of a build that reports backgrounded stalls is `suspended` whatever its memory
+ * says. Next comes memory that was low at the hang: the hang's own fields say the pressure is
+ * critical or less than HANG_HOST_MEMORY_LOW_MB was available, or, for an older hang, one of its
+ * device's memory warnings in the HANG_WARNING_WINDOW_SEC of uptime before it, at warning or
+ * critical, says available memory ran low. A host thrashing out of memory starves the monitor
+ * thread too, so that outranks a stall that ran past HANG_SUSPENDED_STALL_SEC. Without it, such
+ * a stall is `suspended`: the monitor thread did not run either, so the whole process was
+ * stopped. Low memory is the host's except when the newest of those warnings shows the app
+ * holding more than HANG_APP_RSS_SHARE of the host's memory, since the app then starved its host
+ * itself; the cause is then app_blocked. Every other hang that carries its own memory fields is
+ * an app that blocked. Every other older hang is classified by the device's snapshot taken last
+ * before it, by the same threshold: among the snapshots of the hang's upload whose uptime is at
+ * most HANG_SNAPSHOT_WINDOW_SEC under the hang's, the largest uptime wins, and without a
+ * qualifying snapshot the cause is unknown.
  */
 export function classifyHang(
   hang: HangRow,
   snapshots: readonly MemSnapshot[] = [],
   warnings: readonly MemWarning[] = [],
 ): HangCause {
-  if (backgrounded(hang) || longStall(hang)) return "suspended";
+  if (backgrounded(hang)) return "suspended";
+  const reportsMemory = hang.memAvailableMb !== null || hang.pressure !== "";
   const near = beforeHang(hang, warnings, HANG_WARNING_WINDOW_SEC);
+  const lowAtHang = reportsMemory
+    ? hang.pressure === "critical" || (hang.memAvailableMb !== null && lowMemory(hang.memAvailableMb))
+    : near.some(lowAvailable);
   let host: boolean;
-  if (hang.memAvailableMb !== null || hang.pressure !== "") {
-    host = hang.pressure === "critical" || (hang.memAvailableMb !== null && lowMemory(hang.memAvailableMb));
-  } else if (near.some(lowAvailable)) {
+  if (lowAtHang) {
     host = true;
+  } else if (longStall(hang)) {
+    return "suspended";
+  } else if (reportsMemory) {
+    host = false;
   } else {
     const latest = newest(beforeHang(hang, snapshots, HANG_SNAPSHOT_WINDOW_SEC));
     if (latest === null) return "unknown";

@@ -238,7 +238,7 @@ describe("classifyHang, an app the system suspended", () => {
   it("is suspended on any platform when the stall ran past the line, and not at it", () => {
     const line = HANG_SUSPENDED_STALL_SEC;
     expect(classifyHang(hang({ context: `stalled_${line + 1}s` }), [])).toBe("suspended");
-    expect(classifyHang(hang({ platform: "pi", context: "stalled_4071s", memAvailableMb: 5 }), [])).toBe("suspended");
+    expect(classifyHang(hang({ platform: "pi", context: "stalled_4071s" }), [])).toBe("suspended");
     // At the line the monitor thread was still sampling, so the memory evidence decides.
     expect(classifyHang(hang({ context: `stalled_${line}s` }), [])).toBe("unknown");
     expect(classifyHang(hang({ context: `stalled_${line}s`, memAvailableMb: 5 }), [])).toBe("host_memory");
@@ -247,6 +247,32 @@ describe("classifyHang, an app the system suspended", () => {
     for (const context of ["", "stalled_s", "161", "stalled_161s ", "resumed_161s"]) {
       expect(classifyHang(hang({ context }), [snap(5, 5)]), JSON.stringify(context)).toBe("host_memory");
     }
+  });
+});
+
+describe("classifyHang, a stall past the line beside low memory", () => {
+  const stalled = `stalled_${HANG_SUSPENDED_STALL_SEC + 10}s`;
+
+  it("is host memory when the hang's own fields say memory was low", () => {
+    // A host thrashing out of memory starves the monitor thread too, so a long stall is not a pause.
+    expect(classifyHang(hang({ context: stalled, memAvailableMb: 5 }), [])).toBe("host_memory");
+    expect(classifyHang(hang({ context: stalled, memAvailableMb: 900, pressure: "critical" }), [])).toBe("host_memory");
+  });
+  it("is host memory when a warning beside the hang says memory was low", () => {
+    expect(classifyHang(hang({ context: stalled }), [], [warn(300)])).toBe("host_memory");
+  });
+  it("lets the RSS guard turn it to the app's", () => {
+    expect(classifyHang(hang({ context: stalled }), [], [warn(300, { rssKb: 110 * 1024, totalMb: 114 })])).toBe("app_blocked");
+  });
+  it("is suspended when the hang's own fields say memory was not low", () => {
+    expect(classifyHang(hang({ context: stalled, memAvailableMb: 900 }), [])).toBe("suspended");
+  });
+  it("is suspended with no evidence but the stall", () => {
+    expect(classifyHang(hang({ context: stalled }), [])).toBe("suspended");
+    expect(classifyHang(hang({ context: stalled }), [], [warn(300, { level: "elevated", reason: "growth" })])).toBe("suspended");
+  });
+  it("is suspended over a low snapshot, which may be an hour old", () => {
+    expect(classifyHang(hang({ context: stalled }), [snap(3000, 5)])).toBe("suspended");
   });
 });
 
