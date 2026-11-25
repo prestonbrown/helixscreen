@@ -179,22 +179,33 @@ TEST_CASE("AFC lane_data bootstrap names the unit after AFC until AFC.units arri
     CHECK(afc.get_system_info().units[0].name == "AFC");
 }
 
-// The record a user's edit keeps has no field for a Spoolman link's vendor id:
-// it stands on the live slot alone, so a lane_data read takes it off once no
-// source states it.
-TEST_CASE("AFC lane_data drops a link detail nothing states any more", "[ams][afc][lane-data]") {
+// A linked spool's brand and vendor are Spoolman's word alone: no edit
+// declares them and the record keeps them only while the link stands. The
+// unlink can arrive through lane_data, whose record states neither, so that
+// paint has to take them off rather than leave the unlinked spool's on show.
+TEST_CASE("AFC lane_data unlink takes the spool's own details off the lane",
+          "[ams][afc][1195][spoolman]") {
     helix::test::RegisteredBackend<AmsBackendAfc> afc_reg(nullptr, nullptr);
     AmsBackendAfc& afc = *afc_reg;
     helix::test::init_afc_lanes(afc, {"lane1", "lane2"});
 
-    SlotInfo linked = afc.get_slot_info(0);
-    linked.material = "PLA";
-    linked.spoolman_id = 42;
-    linked.spoolman_vendor_id = 5;
-    helix::test::edit_slot_as_user(afc, 0, linked);
+    feed_lane_data(afc, both_lanes(lane_record(42)));
+    SpoolInfo spool;
+    spool.id = 42;
+    spool.vendor = "Polymaker";
+    spool.filament_name = "PolyLite PLA";
+    spool.filament_id = 7;
+    spool.vendor_id = 5;
+    helix::test::spool_states(afc, 0, spool);
+    // A status frame paints what Spoolman states about the linked spool.
+    helix::test::feed_lane_status(afc, "lane1", json{{"spool_id", 42}});
+    REQUIRE(afc.get_slot_info(0).spoolman_id == 42);
+    REQUIRE(afc.get_slot_info(0).brand == "Polymaker");
     REQUIRE(afc.get_slot_info(0).spoolman_vendor_id == 5);
 
-    feed_lane_data(afc, both_lanes(json{{"spool_id", 42}}));
+    feed_lane_data(afc, both_lanes(lane_record(nullptr)));
+    CHECK(afc.get_slot_info(0).spoolman_id == 0);
+    CHECK(afc.get_slot_info(0).brand.empty());
     CHECK(afc.get_slot_info(0).spoolman_vendor_id == 0);
 }
 
