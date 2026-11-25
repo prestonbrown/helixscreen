@@ -629,6 +629,56 @@ TEST_CASE_METHOD(NonlinearFixture, "nonlinear tuner: one press of Stop cancels t
 }
 
 TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: Stop during the start script waits for it, then cancels the "
+                 "tower before the end",
+                 "[pa_nonlinear][pa_tuner][pa_nl_stop]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    const uint32_t cancels = api.job().cancels_sent();
+    const auto stop = [&] {
+        const size_t before = client.gcode_script_history().size();
+        overlay.stop_for_test();
+        press_dialog("btn_primary");
+        // Anything sent now runs before the queued tower, which then prints
+        // cold and unhomed with no job to cancel yet.
+        CHECK(api.job().cancels_sent() == cancels);
+        CHECK(sent_since(before).find("TARGET=0") == std::string::npos);
+    };
+    const auto ends = [&] {
+        const size_t before = client.gcode_script_history().size();
+        tower("printing");
+        tower("cancelled");
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(sent_since(before).find("SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0") !=
+              std::string::npos);
+        // Nothing printed to judge: the pass waits to be printed again.
+        CHECK(overlay.stage() == PaNonlinearOverlay::READY);
+    };
+
+    SECTION("the script returns") {
+        client.defer_next("printer.gcode.script");
+        overlay.print_pass_for_test();
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(overlay.stage() == PaNonlinearOverlay::PREPARING);
+        stop();
+        client.fire_deferred("printer.gcode.script");
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(api.job().cancels_sent() == cancels + 1);
+        ends();
+    }
+    SECTION("the script outlasts its request") {
+        client.force_next_gcode_error(MoonrakerErrorType::TIMEOUT, "request timed out");
+        overlay.print_pass_for_test();
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(overlay.stage() == PaNonlinearOverlay::PREPARING);
+        stop();
+        // The tower's job is the first sign the script is through.
+        tower("printing");
+        CHECK(api.job().cancels_sent() == cancels + 1);
+        ends();
+    }
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
                  "nonlinear tuner: the E-stop stays up while the start script homes and heats",
                  "[pa_nonlinear][pa_tuner][pa_nl_busy]") {
     overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);

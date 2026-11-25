@@ -784,6 +784,8 @@ void PaNonlinearOverlay::print_pass() {
     reached_mm_ = 0.0f;
     judge_top_mm_ = kTowerHeightMm;
     script_done_ = false;
+    stop_pending_ = false;
+    stop_cancel_sent_ = false;
     // The tower about to print is judged fresh: a two-sided pass with neither height set.
     left_set_ = front_set_ = proc_->current().judge != helix::pa::TowerSide::LeftVsFront;
     const int pass_seq = ++pass_seq_;
@@ -878,6 +880,11 @@ void PaNonlinearOverlay::on_print_state(PrintJobState state) {
             return;
         }
         saw_printing_ = true;
+        if (stop_pending_) {
+            // The start script is through: the job it launched is the one to cancel.
+            send_pending_stop();
+            return;
+        }
         set_stage(PRINTING);
         refresh_live();
         if (raise_on_start_) {
@@ -900,6 +907,13 @@ void PaNonlinearOverlay::on_print_state(PrintJobState state) {
     }
     stop_observing();
     finish_tower(state);
+    if (stop_pending_) {
+        // Stopped before the tower printed: nothing to judge.
+        stop_pending_ = false;
+        set_stage(READY);
+        refresh();
+        return;
+    }
     if (state == PrintJobState::ERROR) {
         fail(lv_tr("The tower stopped with an error. Nothing was changed."));
         return;
@@ -952,6 +966,13 @@ void PaNonlinearOverlay::arm_start_watchdog(int pass_seq, uint32_t delay_ms,
                             return;
                         }
                         stop_observing();
+                        if (stop_pending_) {
+                            // Stopped, and no tower turned up to cancel.
+                            stop_pending_ = false;
+                            send_ending(true, helix::pa::JobEnd::Stopped);
+                            fail("");
+                            return;
+                        }
                         if (disarm_on_expiry) {
                             send_ending(false);
                         }
@@ -969,6 +990,9 @@ void PaNonlinearOverlay::on_script_done(int pass_seq) {
     // still be draining until the tower's job reports printing.
     // PRINT_PA_TOWER returned; the tower should be printing within moments.
     arm_start_watchdog(pass_seq, kTowerStartTimeoutMs, true);
+    if (stop_pending_) {
+        send_pending_stop();
+    }
 }
 
 void PaNonlinearOverlay::finish_tower(PrintJobState state) {
@@ -1011,6 +1035,19 @@ void PaNonlinearOverlay::stop_tower() {
             if (!api_) {
                 return;
             }
+            if (stage_ == PREPARING && !script_done_ && !saw_printing_) {
+                // The start script holds Klipper's queue: a cancel or an end
+                // sequence now runs first, and the tower it queued then prints
+                // anyway, cold and unhomed.
+                spdlog::info("[{}] Stop during the start script; cancelling once it returns",
+                             get_name());
+                stop_pending_ = true;
+                if (subjects_initialized_) {
+                    lv_subject_set_string(&live_text_,
+                                          lv_tr("Stopping once the printer finishes starting"));
+                }
+                return;
+            }
             api_->job().cancel_print([]() {},
                                      [](const MoonrakerError& err) {
                                          spdlog::warn("[PA Nonlinear] Cancel failed: {}",
@@ -1018,6 +1055,17 @@ void PaNonlinearOverlay::stop_tower() {
                                      });
         },
         owned_confirm());
+}
+
+void PaNonlinearOverlay::send_pending_stop() {
+    if (!api_ || stop_cancel_sent_) {
+        return;
+    }
+    stop_cancel_sent_ = true;
+    api_->job().cancel_print([]() {},
+                             [](const MoonrakerError& err) {
+                                 spdlog::warn("[PA Nonlinear] Cancel failed: {}", err.message);
+                             });
 }
 
 void PaNonlinearOverlay::raise(int attempts_left) {

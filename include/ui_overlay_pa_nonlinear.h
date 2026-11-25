@@ -244,6 +244,8 @@ class PaNonlinearOverlay : public OverlayBase {
     void restore_original();
 
     void stop_tower();
+    /// Cancel the tower's job for a Stop pressed during the start script.
+    void send_pending_stop();
     void raise(int attempts_left);
     static constexpr int kRaiseAttempts = 60;
 
@@ -302,6 +304,10 @@ class PaNonlinearOverlay : public OverlayBase {
     bool saw_printing_ = false;
     /// The current pass's script returned: PRINT_PA_TOWER was accepted.
     bool script_done_ = false;
+    /// Stop was pressed before the tower's job existed: the cancel goes out
+    /// once the start script is through, the end sequence once the job ends.
+    bool stop_pending_ = false;
+    bool stop_cancel_sent_ = false;
     /// Increments per pass, so a late callback from an earlier pass is ignored.
     int pass_seq_ = 0;
     bool tower_added_ = false;
