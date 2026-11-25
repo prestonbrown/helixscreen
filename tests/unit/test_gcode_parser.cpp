@@ -1332,6 +1332,29 @@ TEST_CASE("GCodeParser - a move with no declared width takes its width from E",
     CHECK(widths[0] == Approx(0.437f).margin(0.005f));
 }
 
+TEST_CASE("GCodeParser - reset() forgets the width the last file declared",
+          "[gcode][parser][width]") {
+    GCodeParser parser;
+    parser.parse_line("; layer_height = 0.2");
+    parser.parse_line("M83");
+    parser.parse_line("G1 X38.168 Y58.209 Z.2 F30000");
+    parser.parse_line(";WIDTH:0.9");
+    parser.parse_line("G1 X39.348 Y59.389 E.05478");
+    auto first = extrusion_widths(parser.finalize());
+    REQUIRE(first.size() == 1);
+    REQUIRE(first[0] == Approx(0.9f));
+
+    parser.reset();
+
+    parser.parse_line("; layer_height = 0.2");
+    parser.parse_line("M83");
+    parser.parse_line("G1 X38.168 Y58.209 Z.2 F30000");
+    parser.parse_line("G1 X39.348 Y59.389 E.05478");
+    auto second = extrusion_widths(parser.finalize());
+    REQUIRE(second.size() == 1);
+    CHECK(second[0] == Approx(0.437f).margin(0.005f));
+}
+
 TEST_CASE("GCodeParser - Extrusion width metadata parsing", "[gcode][parser][metadata][width]") {
     SECTION("Parse OrcaSlicer header width comments") {
         GCodeParser parser;
