@@ -19,6 +19,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 from translations.extractor import extract_strings_from_cpp_directory  # noqa: E402
+from shipped_locales import shipped_locale_codes  # noqa: E402
 from translations.locale_variants import effective_value, has_value  # noqa: E402
 from translations.yaml_manager import load_yaml_file_readonly  # noqa: E402
 
@@ -52,7 +53,10 @@ def test_every_cpp_string_translated_in_every_locale():
     found = _cpp_strings()
 
     locales = sorted((REPO_ROOT / "translations").glob("*.yml"))
-    assert len(locales) == 10, f"expected 10 locale files, found {[p.name for p in locales]}"
+    assert {p.stem for p in locales} == shipped_locale_codes(), (
+        "translations/*.yml must be exactly the languages the app lists: "
+        f"{[p.name for p in locales]}"
+    )
     catalogs = {p.stem: load_yaml_file_readonly(p)["translations"] for p in locales}
 
     # A regional variant (en-GB) carries every key, but an empty value inherits

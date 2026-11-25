@@ -45,8 +45,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "SystemSettingsManager default values after in
 TEST_CASE_METHOD(LVGLTestFixture, "SystemSettingsManager language index/code conversion",
                  "[system_settings]") {
     SECTION("language_index_to_code valid indices") {
-        const char* codes[] = {"en", "en-GB", "de", "fr", "es", "ru", "pt", "it", "zh", "ja"};
-        for (int i = 0; i < 10; ++i) {
+        const char* codes[] = {"en", "en-GB", "de", "fr", "es", "ru", "pt", "it", "pl", "zh", "ja"};
+        for (int i = 0; i < 11; ++i) {
             CAPTURE(i);
             REQUIRE(SystemSettingsManager::language_index_to_code(i) == codes[i]);
         }
@@ -61,7 +61,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "SystemSettingsManager language index/code con
         REQUIRE(SystemSettingsManager::language_code_to_index("en") == 0);
         REQUIRE(SystemSettingsManager::language_code_to_index("en-GB") == 1);
         REQUIRE(SystemSettingsManager::language_code_to_index("de") == 2);
-        REQUIRE(SystemSettingsManager::language_code_to_index("ja") == 9);
+        REQUIRE(SystemSettingsManager::language_code_to_index("pl") == 8);
+        REQUIRE(SystemSettingsManager::language_code_to_index("ja") == 10);
     }
 
     SECTION("language_code_to_index unknown code defaults to 0") {
@@ -159,6 +160,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "SystemSettingsManager language options string
     REQUIRE(names.at(SystemSettingsManager::language_code_to_index("en")) == "English");
     REQUIRE(names.at(SystemSettingsManager::language_code_to_index("en-GB")) == "English (UK)");
     REQUIRE(names.at(SystemSettingsManager::language_code_to_index("de")) == "Deutsch");
+    REQUIRE(names.at(SystemSettingsManager::language_code_to_index("pl")) == "Polski");
+    REQUIRE(names.at(SystemSettingsManager::language_code_to_index("ja")) == "日本語");
 }
 
 // ============================================================================

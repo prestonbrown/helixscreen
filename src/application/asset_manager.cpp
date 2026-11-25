@@ -278,6 +278,7 @@ void AssetManager::register_images() {
     reg_img("flag_ru", "assets/images/flags/flag_ru.bin");
     reg_img("flag_pt", "assets/images/flags/flag_pt.bin");
     reg_img("flag_it", "assets/images/flags/flag_it.bin");
+    reg_img("flag_pl", "assets/images/flags/flag_pl.bin");
     reg_img("flag_zh", "assets/images/flags/flag_zh.bin");
     reg_img("flag_ja", "assets/images/flags/flag_ja.bin");
 

@@ -41,10 +41,11 @@ static const char* kWelcomeTranslations[] = {
     "Добро пожаловать!", // ru
     "Bem-vindo!",        // pt
     "Benvenuto!",        // it
+    "Witamy!",           // pl
     "欢迎！",            // zh
     "ようこそ！",        // ja
 };
-static constexpr int kWelcomeCount = 9;
+static constexpr int kWelcomeCount = 10;
 
 // Timer period for cycling welcome text
 static constexpr uint32_t kWelcomeCycleMs = 2500;

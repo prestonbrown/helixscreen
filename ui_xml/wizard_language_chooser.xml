@@ -109,24 +109,34 @@
           <event_cb trigger="clicked" callback="on_language_selected" user_data="7"/>
         </lv_button>
 
-        <lv_button name="lang_item_zh"
+        <lv_button name="lang_item_pl"
                    width="100%" style_shadow_width="0" style_pad_ver="#space_sm" style_pad_hor="#space_md"
                    flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_lg">
           <style name="styles.picker_row_base"/>
           <bind_style_if_eq name="styles.picker_row_selected" subject="wizard_language_choice" ref_value="8"/>
+          <lv_image src="flag_pl"/>
+          <text_body text="Polski" flex_grow="1"/>
+          <event_cb trigger="clicked" callback="on_language_selected" user_data="8"/>
+        </lv_button>
+
+        <lv_button name="lang_item_zh"
+                   width="100%" style_shadow_width="0" style_pad_ver="#space_sm" style_pad_hor="#space_md"
+                   flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_lg">
+          <style name="styles.picker_row_base"/>
+          <bind_style_if_eq name="styles.picker_row_selected" subject="wizard_language_choice" ref_value="9"/>
           <lv_image src="flag_zh"/>
           <text_body text="中文" flex_grow="1"/>
-          <event_cb trigger="clicked" callback="on_language_selected" user_data="8"/>
+          <event_cb trigger="clicked" callback="on_language_selected" user_data="9"/>
         </lv_button>
 
         <lv_button name="lang_item_ja"
                    width="100%" style_shadow_width="0" style_pad_ver="#space_sm" style_pad_hor="#space_md"
                    flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_lg">
           <style name="styles.picker_row_base"/>
-          <bind_style_if_eq name="styles.picker_row_selected" subject="wizard_language_choice" ref_value="9"/>
+          <bind_style_if_eq name="styles.picker_row_selected" subject="wizard_language_choice" ref_value="10"/>
           <lv_image src="flag_ja"/>
           <text_body text="日本語" flex_grow="1"/>
-          <event_cb trigger="clicked" callback="on_language_selected" user_data="9"/>
+          <event_cb trigger="clicked" callback="on_language_selected" user_data="10"/>
         </lv_button>
 
       </lv_obj>

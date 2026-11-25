@@ -47,20 +47,21 @@ static int spdlog_level_to_index(spdlog::level::level_enum level) {
 }
 
 // Language options - codes and display names
-// Order: en, en-GB, de, fr, es, ru, pt, it, zh, ja (indices 0-9). A regional
+// Order: en, en-GB, de, fr, es, ru, pt, it, pl, zh, ja (indices 0-10). A regional
 // variant sits right after its base language and is named in it ("English (UK)").
 // The CJK pair comes last so a build without CJK fonts (HELIX_HAS_CJK=0, the
 // ESP32 firmware) drops it by shortening the list, and every other index keeps
 // its meaning. A saved zh/ja there reads as English. Settings store the code, so
 // an index is never persisted.
-static const char* kLanguageCodes[] = {"en", "en-GB", "de", "fr", "es",
-                                       "ru", "pt",    "it", "zh", "ja"};
-static const int kLanguageCount = HELIX_HAS_CJK ? 10 : 8;
+static const char* kLanguageCodes[] = {"en", "en-GB", "de", "fr", "es", "ru",
+                                       "pt", "it",    "pl", "zh", "ja"};
+static const int kLanguageCount = HELIX_HAS_CJK ? 11 : 9;
 static const char* kLanguageOptionsText =
     HELIX_HAS_CJK
         ? "English\nEnglish (UK)\nDeutsch\nFrançais\nEspañol\nРусский\nPortuguês\nItaliano"
-          "\n中文\n日本語"
-        : "English\nEnglish (UK)\nDeutsch\nFrançais\nEspañol\nРусский\nPortuguês\nItaliano";
+          "\nPolski\n中文\n日本語"
+        : "English\nEnglish (UK)\nDeutsch\nFrançais\nEspañol\nРусский\nPortuguês\nItaliano"
+          "\nPolski";
 
 using settings::Scope;
 // Row order is SystemSettingsManager::Key.
