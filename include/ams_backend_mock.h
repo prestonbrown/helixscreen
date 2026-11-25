@@ -182,8 +182,8 @@ class AmsBackendMock : public AmsBackend,
     AmsError select_slot(int slot_index) override;
     AmsError change_tool(int tool_number) override;
     /// Docks the mounted tool on the personas whose hardware can (tool
-    /// changer, Snapmaker U1): the unload simulation, ending with no tool.
-    /// Every persona publishes IToolPark; supports_tool_park() answers per persona.
+    /// changer, Snapmaker U1, AFC with a Toolchanger unit): the unload simulation, ending with no
+    /// tool. Every persona publishes IToolPark; supports_tool_park() answers per persona.
     AmsError park_active_tool() override;
     [[nodiscard]] bool supports_tool_park() const override;
 

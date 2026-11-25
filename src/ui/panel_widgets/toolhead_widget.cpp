@@ -10,6 +10,7 @@
 #include "ui_icon_codepoints.h"
 #include "ui_panel_motion.h"
 
+#include "ams_state.h"
 #include "app_globals.h"
 #include "bed_occupancy_state.h"
 #include "bed_plate_context.h"
@@ -24,6 +25,7 @@
 #include "moonraker_error.h"
 #include "observe_language.h"
 #include "panel_widget_registry.h"
+#include "print_lifecycle_state.h"
 #include "printer_capabilities_state.h"
 #include "printer_state.h"
 #include "src/ui/panel_widgets/content_chrome.h"
@@ -34,6 +36,7 @@
 #include "system/subject_registry.h"
 #include "text_measure.h"
 #include "theme_manager.h"
+#include "tool_change_request.h"
 #include "tool_state.h"
 #include "toolhead_homing.h"
 #include "toolhead_preset_config_modal.h"
@@ -676,7 +679,11 @@ void ToolheadWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     auto& tools = ToolState::instance();
     const auto tools_lifetime = tools.get_subjects_lifetime();
     const auto on_tool = [token](ToolheadWidget* self, int) {
-        if (token.expired() || !self->verdict_.show_status_row)
+        if (token.expired())
+            return;
+        // The AMS backend arrives after the tile: an unsaved layout's default slot follows it.
+        self->publish_presets();
+        if (!self->verdict_.show_status_row)
             return;
         self->schedule_refresh();
     };
@@ -684,6 +691,23 @@ void ToolheadWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         ui::observe<int>(tools.get_tools_version_subject(), this, on_tool, tools_lifetime);
     active_tool_observer_ =
         ui::observe<int>(tools.get_active_tool_subject(), this, on_tool, tools_lifetime);
+    // Whether a tool can be docked follows the AMS backend, which connects after the tile.
+    auto& ams = AmsState::instance();
+    backend_count_observer_ = ui::observe<int>(
+        ams.get_backend_count_subject(), this,
+        [token](ToolheadWidget* self, int) {
+            if (!token.expired())
+                self->publish_presets();
+        },
+        ams.get_subjects_lifetime());
+    // A backend's units arrive in its status frames, after it is registered.
+    ams_data_observer_ = ui::observe<int>(
+        ams.get_ams_data_revision_subject(), this,
+        [token](ToolheadWidget* self, int) {
+            if (!token.expired())
+                self->publish_presets();
+        },
+        ams.get_subjects_lifetime());
     // The rest of the plate's motion gate: plate_moves_allowed() reads these too.
     const auto on_gate = [token](ToolheadWidget* self, int) {
         if (token.expired())
@@ -747,6 +771,8 @@ void ToolheadWidget::detach() {
     build_volume_observer_.reset();
     tools_version_observer_.reset();
     active_tool_observer_.reset();
+    backend_count_observer_.reset();
+    ams_data_observer_.reset();
     if (ToolheadWidget* displaced = s_tile.release(this)) {
         displaced->relayout_for_granted_size();
         displaced->publish_state(displaced->read_live());
@@ -982,6 +1008,9 @@ void ToolheadWidget::publish_interaction() {
 void ToolheadWidget::publish_presets() {
     if (!s_tile.is_owner(this))
         return;
+    const bool can_dock_tool = toolhead_can_dock_tool();
+    if (!toolhead_preset_slots_saved(config_))
+        slots_ = default_toolhead_preset_slots(can_dock_tool);
     const bool moves_ok = plate_interactive();
     const bool api_ok = get_moonraker_api() != nullptr;
     for (std::size_t i = 0; i < slots_.size(); ++i) {
@@ -989,6 +1018,11 @@ void ToolheadWidget::publish_presets() {
         int state = kSlotEmpty;
         if (slot.kind == ToolheadPresetSlot::Kind::Macro)
             state = api_ok ? kSlotLive : kSlotInert;
+        else if (slot.kind == ToolheadPresetSlot::Kind::DockTool)
+            state = !can_dock_tool ? kSlotEmpty // no dock here: nothing to show
+                    : job_holds_machine(printer_state_.print_state().get_print_lifecycle())
+                        ? kSlotInert
+                        : kSlotLive;
         else if (toolhead_slot_moves_toolhead(slot))
             state = moves_ok ? kSlotLive : kSlotInert;
         if (state != kSlotEmpty) {
@@ -1014,7 +1048,7 @@ void ToolheadWidget::publish_lift_text() {
 
 void ToolheadWidget::set_config(const nlohmann::json& config) {
     config_ = config.is_object() ? config : nlohmann::json::object();
-    slots_ = toolhead_preset_slots_from_config(config_);
+    slots_ = toolhead_preset_slots_from_config(config_, toolhead_can_dock_tool());
     publish_presets();
 }
 
@@ -1045,6 +1079,14 @@ void ToolheadWidget::run_preset(std::size_t index) {
         run_home_macro(api, {slot.macro, true, parent_screen_, "ToolheadWidget"});
         return;
     }
+    if (slot.kind == ToolheadPresetSlot::Kind::DockTool) {
+        // The tool park path carries its own refusals (print, spools on the bed, nothing mounted).
+        if (!toolhead_can_dock_tool())
+            return;
+        record_interaction();
+        ui::request_tool_park(printer_state_);
+        return;
+    }
     if (!plate_interactive())
         return;
     record_interaction();
@@ -1072,6 +1114,7 @@ void ToolheadWidget::run_preset(std::size_t index) {
         step_z(-kToolheadZStepMm);
         return;
     case ToolheadPresetSlot::Kind::Empty:
+    case ToolheadPresetSlot::Kind::DockTool:
     case ToolheadPresetSlot::Kind::Macro:
         return;
     }

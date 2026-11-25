@@ -168,6 +168,8 @@ class ToolheadWidget : public PanelWidget {
     ObserverGuard build_volume_observer_;
     ObserverGuard tools_version_observer_;
     ObserverGuard active_tool_observer_;
+    ObserverGuard backend_count_observer_;
+    ObserverGuard ams_data_observer_;
     ObserverGuard nav_enabled_observer_;
     ObserverGuard motion_blocked_observer_;
     ObserverGuard occupancy_observer_;

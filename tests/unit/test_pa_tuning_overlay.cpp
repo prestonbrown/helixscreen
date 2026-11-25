@@ -13,6 +13,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_api_mock.h"
@@ -38,9 +39,13 @@ struct TunerFixture : LVGLTestFixture {
     MoonrakerAPI api;
     PaTuningOverlay overlay;
 
+    KlippyState klippy_before_ = KlippyState::SHUTDOWN;
+
     TunerFixture() : api(client, get_printer_state()) {
         auto& state = get_printer_state();
         state.init_subjects(false);
+        klippy_before_ = static_cast<KlippyState>(
+            lv_subject_get_int(state.network_state().get_klippy_state_subject()));
         state.set_klippy_state_sync(KlippyState::READY);
         state.temperature_state().init_extruders({"extruder"});
         client.connect("ws://mock/websocket", []() {}, []() {});
@@ -51,9 +56,15 @@ struct TunerFixture : LVGLTestFixture {
     }
     ~TunerFixture() override {
         overlay.cleanup();
+        // This tuner dies with the test, often mid-run, but the Tuner button it
+        // showed lives in the global Tune overlay: take it down with the tuner.
+        if (auto* tune = helix::lazy_global_if_exists<PrintTuneOverlay>()) {
+            tune->set_pa_session_active(false);
+        }
         status({{"print_stats", {{"state", "standby"}, {"filename", ""}}}});
         client.stop_temperature_simulation();
         client.disconnect();
+        get_printer_state().set_klippy_state_sync(klippy_before_);
     }
 
     void status(const json& s) {

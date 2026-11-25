@@ -2974,6 +2974,30 @@ AmsError AmsBackendAfc::update_drying(float temp_c, int duration_min, int fan_pc
     return start_drying(target_temp, target_duration, fan_pct, unit);
 }
 
+bool AmsBackendAfc::supports_tool_park() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return has_toolchanger_unit_locked();
+}
+
+AmsError AmsBackendAfc::do_park_active_tool() {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (!has_toolchanger_unit_locked()) {
+            return AmsErrorHelper::not_supported("Tool park");
+        }
+        if (system_info_.mount_state == MountState::CHANGING) {
+            return AmsErrorHelper::busy("tool change");
+        }
+        if (system_info_.mount_state != MountState::MOUNTED) {
+            return AmsErrorHelper::not_loaded();
+        }
+    }
+    // AFC's own command, never raw UNSELECT_TOOL: it also updates AFC's extruder status,
+    // lane LEDs and active spool.
+    spdlog::info("[AMS AFC] Parking the current tool: AFC_UNSELECT_TOOL");
+    return dispatch_operation("AFC_UNSELECT_TOOL", AmsAction::UNLOADING);
+}
+
 bool AmsBackendAfc::has_toolchanger_unit_locked() const {
     return std::any_of(unit_infos_.begin(), unit_infos_.end(),
                        [](const AfcUnitInfo& u) { return u.type == "Toolchanger"; });

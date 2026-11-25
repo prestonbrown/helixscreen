@@ -22,9 +22,12 @@
 #include "../test_helpers/holding_motion_api.h"
 #include "../test_helpers/modal_answer.h"
 #include "../test_helpers/panel_widget_size_harness.h"
+#include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/tile_boxes.h"
+#include "../test_helpers/tool_switcher_rig.h"
 #include "../test_helpers/tool_topologies.h"
+#include "ams_state.h"
 #include "app_globals.h"
 #include "bed_occupancy_state.h"
 #include "bed_plate_context.h"
@@ -71,12 +74,15 @@ struct ToolheadFixture : public LVGLUITestFixture {
         hw.parse_objects(json::array({"gcode_move"}));
         ToolState::instance().init_tools(hw);
 
+        AmsState::instance().deinit_subjects();
+        AmsState::instance().init_subjects(true);
         PanelWidgetManager::instance().init_widget_subjects();
         reset_state();
         sentinel();
     }
     ~ToolheadFixture() override {
         StaticPanelRegistry::instance().destroy_all();
+        AmsState::instance().deinit_subjects();
         reset_state();
         set_moonraker_api(previous_api);
         mock.stop_temperature_simulation();
@@ -1202,7 +1208,7 @@ TEST_CASE_METHOD(PresetFixture, "toolhead presets: the gear's picker changes a s
 
     modal->select_slot(2);
     // The choices run nine positions, Park, Z up, Z down, Macro, Empty.
-    const auto choices = ToolheadPresetConfigModal::choices();
+    const auto choices = ToolheadPresetConfigModal::choices(false);
     REQUIRE(choices.size() == 14);
     REQUIRE(choices[10].kind == ToolheadPresetSlot::Kind::ZUp);
     modal->pick_choice(10);
@@ -1261,4 +1267,235 @@ TEST_CASE_METHOD(PresetFixture, "toolhead plate: the Move-here chip fits the pla
     h.resize(2, 2, kFull.w, kFull.h);
     settle();
     CHECK(subject_int("toolhead_chip_icon_only") == 0);
+}
+
+// ---- Dock tool (#2179) ----
+
+namespace {
+
+/// A toolchanger persona backend, started and instant.
+std::unique_ptr<GateBackend> make_dock_backend() {
+    auto owned = std::make_unique<GateBackend>(3);
+    owned->set_tool_changer_mode(true);
+    owned->set_operation_delay(0);
+    REQUIRE(owned->start());
+    return owned;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(PresetFixture,
+                 "toolhead presets: the default third slot becomes Dock tool when the backend "
+                 "arrives after the widget",
+                 "[widget_size][toolhead][presets][dock]") {
+    ToolChangerRig rig(3);
+    rig.backend = nullptr;
+    AmsState::instance().clear_backends();
+    REQUIRE(AmsState::instance().get_backend() == nullptr);
+
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build_tall(h);
+    CHECK(subject_text("toolhead_preset_2_label") == "Park");
+    CHECK(h.widget().preset_slots()[2].kind == ToolheadPresetSlot::Kind::Park);
+
+    auto owned = make_dock_backend();
+    GateBackend* backend = owned.get();
+    AmsState::instance().set_backend(std::move(owned));
+    drain();
+    REQUIRE(AmsState::instance().get_backend() == backend);
+    CHECK(subject_text("toolhead_preset_2_label") == "Dock tool");
+    CHECK(subject_int("toolhead_preset_2_state") == 2);
+    CHECK(h.widget().preset_slots()[2].kind == ToolheadPresetSlot::Kind::DockTool);
+
+    // The backend leaving puts the default back.
+    AmsState::instance().clear_backends();
+    drain();
+    CHECK(subject_text("toolhead_preset_2_label") == "Park");
+}
+
+TEST_CASE_METHOD(PresetFixture, "toolhead presets: a saved Park stays Park on a docking machine",
+                 "[widget_size][toolhead][presets][dock]") {
+    ToolChangerRig rig(3);
+    PanelWidgetHarness<ToolheadWidget> h(
+        test_screen(),
+        HarnessConfig{slots_config({json{{"kind", "position"}, {"position", "front"}},
+                                    json{{"kind", "position"}, {"position", "center"}},
+                                    json{{"kind", "park"}}})},
+        state());
+    build_tall(h);
+    CHECK(h.widget().preset_slots()[2].kind == ToolheadPresetSlot::Kind::Park);
+    CHECK(subject_text("toolhead_preset_2_label") == "Park");
+}
+
+TEST_CASE_METHOD(PresetFixture, "toolhead presets: tapping Dock tool parks the mounted tool",
+                 "[widget_size][toolhead][presets][dock]") {
+    ToolChangerRig rig(3);
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build_tall(h);
+    REQUIRE(h.widget().preset_slots()[2].kind == ToolheadPresetSlot::Kind::DockTool);
+    REQUIRE(ToolState::instance().active_tool_index() == 0);
+
+    tap_slot(h, 2);
+    CHECK(rig.backend->park_calls == 1);
+    // Never raw gcode: the backend owns the command.
+    CHECK(all_scripts().empty());
+    CHECK(rig.warnings.empty());
+    CHECK(rig.errors.empty());
+}
+
+TEST_CASE_METHOD(PresetFixture, "toolhead presets: Dock tool is refused while printing",
+                 "[widget_size][toolhead][presets][dock]") {
+    ToolChangerRig rig(3);
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build_tall(h);
+    helix::test::set_wire_state(state(), PrintJobState::PRINTING);
+    drain();
+    REQUIRE(h.widget().preset_slots()[2].kind == ToolheadPresetSlot::Kind::DockTool);
+
+    tap_slot(h, 2);
+    CHECK(rig.backend->park_calls == 0);
+    CHECK(all_scripts().empty());
+    REQUIRE(rig.warnings.size() == 1);
+    CHECK(rig.warnings[0].find("Cannot park while a print is active") != std::string::npos);
+}
+
+TEST_CASE_METHOD(PresetFixture, "toolhead presets: Dock tool with nothing mounted says so",
+                 "[widget_size][toolhead][presets][dock]") {
+    ToolChangerRig rig(3);
+    std::vector<std::string> infos;
+    helix::ui::set_test_notification_info_hook(
+        [&infos](const std::string& msg) { infos.push_back(msg); });
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build_tall(h);
+    ToolChangerRig::unmount();
+    drain();
+    REQUIRE(ToolState::instance().active_tool_index() < 0);
+
+    tap_slot(h, 2);
+    helix::ui::set_test_notification_info_hook(nullptr);
+    CHECK(rig.backend->park_calls == 0);
+    CHECK(all_scripts().empty());
+    REQUIRE(infos.size() == 1);
+    CHECK(infos[0] == "No tool is mounted");
+}
+
+TEST_CASE_METHOD(PresetFixture,
+                 "toolhead presets: a saved Dock tool on a machine that cannot dock is inert",
+                 "[widget_size][toolhead][presets][dock]") {
+    ToolChangerRig rig(3);
+    rig.backend->can_park = false;
+    PanelWidgetHarness<ToolheadWidget> h(
+        test_screen(),
+        HarnessConfig{slots_config({json{{"kind", "position"}, {"position", "front"}},
+                                    json{{"kind", "position"}, {"position", "center"}},
+                                    json{{"kind", "tool_park"}}})},
+        state());
+    build_tall(h);
+    REQUIRE(h.widget().preset_slots()[2].kind == ToolheadPresetSlot::Kind::DockTool);
+    CHECK(subject_int("toolhead_preset_2_state") == 0);
+    CHECK_FALSE(shown(part(h, "toolhead_preset_2")));
+
+    tap_slot(h, 2);
+    CHECK(rig.backend->park_calls == 0);
+    CHECK(all_scripts().empty());
+}
+
+TEST_CASE_METHOD(PresetFixture, "toolhead presets: Dock tool reaches the mock toolchanger and U1",
+                 "[widget_size][toolhead][presets][dock]") {
+    const bool u1 = GENERATE(false, true);
+    INFO((u1 ? "snapmaker persona" : "toolchanger persona"));
+    ToolChangerRig rig(4);
+    rig.backend = nullptr;
+    AmsState::instance().clear_backends();
+    auto persona = std::make_unique<AmsBackendMock>(4);
+    if (u1)
+        persona->set_snapmaker_mode(true);
+    else
+        persona->set_tool_changer_mode(true);
+    persona->set_operation_delay(0);
+    REQUIRE(persona->start());
+    AmsBackendMock* mock_backend = persona.get();
+    AmsState::instance().set_backend(std::move(persona));
+    ToolState::instance().update_from_status({{"toolchanger", {{"tool_number", 0}}}});
+    drain();
+
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build_tall(h);
+    REQUIRE(h.widget().preset_slots()[2].kind == ToolheadPresetSlot::Kind::DockTool);
+    REQUIRE(ToolState::instance().active_tool_index() >= 0);
+    REQUIRE(mock_backend->get_current_slot() >= 0);
+
+    tap_slot(h, 2);
+    mock_backend->wait_for_operation_thread();
+    CHECK(mock_backend->get_current_slot() == -1);
+    CHECK(all_scripts().empty());
+    AmsState::instance().clear_backends();
+}
+
+TEST_CASE_METHOD(
+    PresetFixture,
+    "toolhead presets: Dock tool is the default on an AFC toolchanger, not on plain AFC",
+    "[widget_size][toolhead][presets][dock]") {
+    const bool toolchanger = GENERATE(true, false);
+    INFO((toolchanger ? "AFC with a Toolchanger unit" : "AFC Box Turtle"));
+    ToolChangerRig rig(4);
+    rig.backend = nullptr;
+    AmsState::instance().clear_backends();
+    auto persona = std::make_unique<AmsBackendMock>(4);
+    if (toolchanger)
+        persona->set_afc_direct_mode(true);
+    else
+        persona->set_afc_mode(true);
+    persona->set_operation_delay(0);
+    REQUIRE(persona->start());
+    AmsState::instance().set_backend(std::move(persona));
+    drain();
+
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build_tall(h);
+    CHECK(h.widget().preset_slots()[2].kind ==
+          (toolchanger ? ToolheadPresetSlot::Kind::DockTool : ToolheadPresetSlot::Kind::Park));
+    CHECK(subject_text("toolhead_preset_2_label") == (toolchanger ? "Dock tool" : "Park"));
+    AmsState::instance().clear_backends();
+}
+
+TEST_CASE_METHOD(PresetFixture,
+                 "toolhead presets: the default follows a backend that learns it can dock later",
+                 "[widget_size][toolhead][presets][dock]") {
+    ToolChangerRig rig(3);
+    rig.backend->can_park = false;
+    AmsState::instance().sync_from_backend();
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build_tall(h);
+    REQUIRE(subject_text("toolhead_preset_2_label") == "Park");
+
+    // The backend's units arrive in a status frame after it was registered: only the AMS data
+    // revision moves.
+    rig.backend->can_park = true;
+    AmsState::instance().bump_data_revision();
+    drain();
+    CHECK(subject_text("toolhead_preset_2_label") == "Dock tool");
+}
+
+TEST_CASE_METHOD(PresetFixture,
+                 "toolhead presets: Dock tool is disabled while a job holds the machine",
+                 "[widget_size][toolhead][presets][dock]") {
+    ToolChangerRig rig(3);
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build_tall(h);
+    REQUIRE(subject_int("toolhead_preset_2_state") == 2);
+
+    for (const PrintJobState job : {PrintJobState::PRINTING, PrintJobState::PAUSED}) {
+        helix::test::set_wire_state(state(), job);
+        drain();
+        settle();
+        INFO(static_cast<int>(job));
+        CHECK(subject_int("toolhead_preset_2_state") == 1);
+        CHECK(lv_obj_has_state(part(h, "toolhead_preset_2"), LV_STATE_DISABLED));
+        CHECK(shown(part(h, "toolhead_preset_2")));
+    }
+    helix::test::set_wire_state(state(), PrintJobState::STANDBY);
+    drain();
+    settle();
+    CHECK(subject_int("toolhead_preset_2_state") == 2);
 }

@@ -46,9 +46,9 @@ class ToolheadPresetConfigModal : public Modal {
         return showing_macros_;
     }
 
-    /// The choices the list offers, in order: the nine positions, Park, Z up, Z down,
-    /// Macro (its name left empty) and Empty.
-    [[nodiscard]] static std::vector<ToolheadPresetSlot> choices();
+    /// The choices the list offers, in order: the nine positions, Park, Dock tool (only
+    /// when @p can_dock_tool), Z up, Z down, Macro (its name left empty) and Empty.
+    [[nodiscard]] static std::vector<ToolheadPresetSlot> choices(bool can_dock_tool);
 
   protected:
     void on_show() override;
@@ -63,6 +63,8 @@ class ToolheadPresetConfigModal : public Modal {
     ChangeCallback on_change_;
     std::size_t selected_ = 0;
     bool showing_macros_ = false;
+    /// Whether the list offered Dock tool when last drawn; a pick indexes that list.
+    bool can_dock_tool_ = false;
     lv_obj_t* list_ = nullptr;
 };
 
