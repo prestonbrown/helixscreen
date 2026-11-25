@@ -2117,14 +2117,16 @@ TEST_CASE_METHOD(Ultrawide1480, "ultrawide shows the Tune column instead of the 
     CHECK(shown(root_, "ps_printer_tile"));
     CHECK(lv_obj_get_width(find("ps_printer_tile")) >= h);
 
-    // Outside a running print the column goes, and the preview and readouts
-    // take their room back, with no relayout asked for here.
+    // The readouts stand aside for the Tune column while it shows; outside a
+    // running print the column goes and they take their room back, with no
+    // relayout asked for here.
+    CHECK(cols.readouts_w == 0);
     lv_subject_set_int(lv_xml_get_subject(nullptr, "print_controls_enabled"), 0);
     UpdateQueue::instance().drain();
     lv_obj_update_layout(root_);
     const auto idle = helix::decide_print_status_columns(lv_obj_get_content_width(content), h,
                                                          theme_manager_get_spacing("space_md"));
-    REQUIRE(idle.preview_w > cols.preview_w);
+    REQUIRE(idle.readouts_w > 0);
     CHECK(subject_int("ps_uw_tune_w") == 0);
     CHECK(lv_obj_get_width(find("ps_job_tile")) == idle.preview_w);
     CHECK(lv_obj_get_width(find("ps_uw_readouts")) == idle.readouts_w);
