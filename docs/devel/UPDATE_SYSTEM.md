@@ -585,11 +585,11 @@ Afterwards the printer went back to the v1.1.0 tree it had, byte for byte (binar
 | R3 | Pass: healthy at 150 s, `.old` removed |
 | R1 | Pass: watchdog exit 42, restored with `exit_42` |
 | R2 | Pass: restored at 600 s with `timeout`; the notice shows again on a restart inside 120 s and not after; 99.0.0 dismissed |
-| R5 | The recipe's abort line cannot pass (the watchdog's Safe Mode start aborts too; restored with `timeout`). With the abort placed after `consume_safe_mode_marker()` and sparing `s_safe_mode_active`, the Safe Mode start wrote the request: pass, `crash_loop` |
-| R6 | Fail with the launcher as it was: after the reboot the launcher waited forever on `helix-screen --probe-egl` of the hung new binary, before the guard (the CC1 has `/dev/dri/card0`, and BusyBox there has no `timeout`). With `probe_egl`'s own 10 s deadline: pass, `too_many_starts`, boot 10 s later |
+| R5 | Passes, `crash_loop`, with the abort placed after `consume_safe_mode_marker()` and sparing `s_safe_mode_active`: the watchdog's Safe Mode start writes the request. The recipe's line, after `crash_loop_detected_and_record()`, aborts that Safe Mode start too, so it ends in `timeout` |
+| R6 | Passes, `too_many_starts`, with the EGL probe's own deadline where `timeout` is missing (`scripts/helix-launcher.sh#probe_egl_with_deadline`). The boot launcher probes the new binary before the guard runs, the CC1 has `/dev/dri/card0`, and its BusyBox has no `timeout`: without the deadline a binary that hangs holds the launcher forever, with no screen and no rollback. A hung binary costs boot 10 s |
 | R7 | Pass: `exit_2` at once |
 | R8 | Pass, both the service stop and a reboot: kept files and `.old`, resumed at start 2, healthy |
-| R4 | Pass with the probe deadline: start 2 after boot, restored at its 600 s with `timeout` |
+| R4 | Passes with the same probe deadline: start 2 after boot, restored at its 600 s with `timeout` |
 | R9 | Pass: `auto_update_overnight_available` 0 with a stored Install overnight; a manual install logs `Automatic-update rollback: platform`, keeps no `.old` and arms nothing |
 | GUI switcher | Pass: `gui-switcher stop` inside the window ends the guarded launch like a service stop (files and `.old` kept, nothing left running, screen blanked by the switcher); `start` resumes at start 2 and `restart` at start 3, one UI each time, then healthy. Each stop or restart inside the window spends a guarded start, so a fourth would restore a healthy version with `too_many_starts` |
 
