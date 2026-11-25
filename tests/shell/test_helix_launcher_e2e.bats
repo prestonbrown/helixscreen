@@ -302,6 +302,28 @@ RUNEOF
     echo "$rc $((t1 - t0))"
 }
 
+# A sleep that ignores TERM makes a killer that is stopped by signalling its
+# sleep wait out the whole deadline; dash runs sleep as a program, so the shim
+# is found on PATH there (BusyBox's sleep is a builtin).
+@test "e2e: under dash a quick probe returns at once even when the killer's sleep ignores TERM" {
+    command -v dash >/dev/null || skip "no dash on this host"
+    # The probe answers after a moment, so the killer's sleep is already
+    # running when the probe's answer stops the killer.
+    printf '#!/bin/sh\n/bin/sleep 0.3\nexit 0\n' > "$MOCK_INSTALL/bin/helix-screen"
+    chmod +x "$MOCK_INSTALL/bin/helix-screen"
+    local shim="$BATS_TEST_TMPDIR/term-proof-sleep" rc ms
+    mkdir -p "$shim"
+    printf '#!/bin/sh\ntrap "" TERM\nexec /bin/sleep "$@"\n' > "$shim/sleep"
+    chmod +x "$shim/sleep"
+    export HELIX_EGL_PROBE_SECS=3
+    local saved_path=$PATH
+    export PATH="$shim:$PATH"
+    read -r rc ms < <(run_deadline_fn dash)
+    export PATH=$saved_path
+    [ "$rc" = 0 ]
+    [ "$ms" -lt 2000 ]
+}
+
 @test "e2e: under BusyBox ash the probe deadline returns at once for a quick probe and at the deadline for a hung one" {
     command -v busybox >/dev/null || skip "no busybox on this host"
     install_probe_binary
