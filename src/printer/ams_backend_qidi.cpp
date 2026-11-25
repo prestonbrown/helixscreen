@@ -271,7 +271,7 @@ void AmsBackendQidi::on_lane_records_read_locked() {
     for (auto& entry : overrides_) {
         entry.second.fingerprint = normalize_legacy_fingerprint(entry.second.fingerprint);
     }
-    helix::ams::bind_fingerprint_persistence(rfid_tracker_, override_store_.get(), overrides_);
+    helix::ams::bind_fingerprint_persistence(rfid_tracker_, override_store_, overrides_);
 }
 
 void AmsBackendQidi::on_started() {
@@ -279,8 +279,6 @@ void AmsBackendQidi::on_started() {
         // A start is a new session: the tag readings described the last one.
         std::lock_guard<std::mutex> lock(mutex_);
         tag_readings_.clear();
-        // The sink names the store being replaced; the new one's first read rebinds it.
-        rfid_tracker_.set_baseline_sink(nullptr);
     }
     open_lane_record_store("qidi");
 

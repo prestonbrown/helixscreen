@@ -275,8 +275,6 @@ void AmsBackendCfs::on_started() {
         // A Klipper restart keeps the last answer until the new one lands; a
         // start has none.
         unit_registration_ = client_ ? UnitRegistration::Unknown : UnitRegistration::None;
-        // The sink names the store being replaced; the new one's first read rebinds it.
-        rfid_tracker_.set_baseline_sink(nullptr);
     }
     begin_unit_settle();
 
@@ -294,7 +292,7 @@ void AmsBackendCfs::on_lane_records_read_locked() {
     for (auto& entry : overrides_) {
         entry.second.fingerprint = normalize_legacy_flat_fingerprint(entry.second.fingerprint);
     }
-    helix::ams::bind_fingerprint_persistence(rfid_tracker_, override_store_.get(), overrides_);
+    helix::ams::bind_fingerprint_persistence(rfid_tracker_, override_store_, overrides_);
 }
 
 void AmsBackendCfs::query_box_state() {

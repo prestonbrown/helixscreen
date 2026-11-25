@@ -2708,8 +2708,8 @@ TEST_CASE("QIDI Box a restart compares against the fingerprint the record carrie
 
 // A start opens a new lane record store, which frees the one before it. The
 // tracker's baseline sink runs inline on every Baseline and Unchanged
-// observation, so from that start until the new store's first read it must
-// name no store: the one the last read bound it to is freed.
+// observation and outlives that start, so it must follow the backend's pointer
+// to its store rather than hold the store: the one the last read saw is freed.
 //
 // The edit leaves for Klipper before the restart and its answer lands after
 // it. An edit that began inside the window would be refused one layer up
@@ -2718,8 +2718,8 @@ TEST_CASE("QIDI Box a restart compares against the fingerprint the record carrie
 // then. Its own save waits for the new store's read, and the fingerprint a
 // poll confirms must not slip past that gate through the old store.
 //
-// Break: drop rfid_tracker_.set_baseline_sink(nullptr) from on_started(). The
-// sink the first read bound still names the store open_lane_record_store()
+// Break: bind the sink to override_store_.get() instead of override_store_.
+// The sink the first read bound then names the store open_lane_record_store()
 // freed, and the poll in the window writes through it: a heap-use-after-free
 // under ASAN, and the freed store had read, so its gate waves the write
 // through.
@@ -2739,7 +2739,7 @@ TEST_CASE("QIDI Box a restarted backend's fingerprint sink names no replaced sto
     };
     const json tag{{"filament_slot0", 1}, {"color_slot0", 18}, {"vendor_slot0", 1}};
 
-    // The first start reads its store, whose read binds the sink to it.
+    // The first start reads its store, and that read binds the sink.
     QidiBoxTestAccess::start_load(backend);
     poll(tag);
     REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|18");
@@ -2754,8 +2754,8 @@ TEST_CASE("QIDI Box a restarted backend's fingerprint sink names no replaced sto
     REQUIRE(backend.held_complete);
     backend.hold = false;
 
-    // A restart frees the store; the new one's first read is held, so nothing
-    // has bound the sink to it.
+    // A restart frees that store and opens another, whose first read is held.
+    // This window is where a sink holding the old store would write through it.
     mock_printer.client.defer_next("server.database.get_item");
     QidiBoxTestAccess::start_load(backend);
     REQUIRE_FALSE(backend.lane_records_ready());
@@ -2765,15 +2765,12 @@ TEST_CASE("QIDI Box a restarted backend's fingerprint sink names no replaced sto
     REQUIRE(QidiBoxTestAccess::get_override(backend, 0).has_value());
 
     // The Box still states the ids the baseline holds: the same spool again.
+    // The new store has not read, so the gate that refused the record's own
+    // save refuses this fingerprint too, and nothing reaches the database.
     poll(tag);
-
-    const auto staged = QidiBoxTestAccess::get_override(backend, 0);
-    REQUIRE(staged.has_value());
-    CHECK(staged->fingerprint.empty());
     CHECK(mock_printer.client.mock_db_get("lane_data", "lane1").is_null());
 
-    // The read lands. The same poll now persists, through the store that
-    // replaced the freed one.
+    // The read lands. The same poll now persists, through the new store.
     mock_printer.client.fire_deferred("server.database.get_item");
     helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(backend.lane_records_ready());
