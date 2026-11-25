@@ -1030,6 +1030,19 @@ TEST_CASE("a Spoolman fetch amends the linked lane's record and keeps its colour
         CHECK(persist_override_external_identity(nullptr, overrides, 0, spoolman, "[test]"));
         CHECK(overrides.at(0).color_rgb == 0xFF0000u);
     }
+    SECTION("a record naming no spool takes the lane's link and its Orca id to lane_data") {
+        MockPrinter mock_printer;
+        FilamentSlotOverrideStore store(&mock_printer.api, "ifs");
+        linked.spoolman_id = 0;
+        linked.spoolman_orca_filament_id.clear();
+        overrides[0] = linked;
+        spoolman.spoolman_orca_filament_id = "OFHmPYRy";
+        CHECK(persist_override_external_identity(&store, overrides, 0, spoolman, "[test]"));
+        CHECK(overrides.at(0).spoolman_id == 42);
+        const json stored = mock_printer.client.mock_db_get("lane_data", "lane1");
+        CHECK(stored["spool_id"] == 42);
+        CHECK(stored["filament_id"] == "OFHmPYRy");
+    }
     SECTION("a record naming another spool, or no record, is left alone") {
         linked.spoolman_id = 7;
         overrides[0] = linked;

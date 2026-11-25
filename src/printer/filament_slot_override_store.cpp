@@ -1035,12 +1035,19 @@ bool persist_override_external_identity(FilamentSlotOverrideStore* store,
     }
     FilamentSlotOverride& ovr = it->second;
     const int stated = spoolman.spoolman_id.value_or(0);
-    if (stated <= 0 || ovr.spoolman_id != stated) {
+    if (stated <= 0 || (ovr.spoolman_id > 0 && ovr.spoolman_id != stated)) {
         // A record naming another spool describes a different spool.
         return false;
     }
 
     bool changed = false;
+    // A record naming no spool (a firmware mirror) takes the link the lane
+    // reports, set outside this app by a tag reader or the firmware, so the
+    // lane_data it emits carries that spool and its Orca id.
+    if (ovr.spoolman_id <= 0) {
+        ovr.spoolman_id = stated;
+        changed = true;
+    }
     const auto take = [&changed](auto& field, const auto& state) {
         if (state.has_value() && field != *state) {
             field = *state;
