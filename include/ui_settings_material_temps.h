@@ -19,7 +19,8 @@ namespace helix::settings {
  *
  * Two-view overlay:
  * - List view: all materials grouped by category, showing current temps
- * - Edit view: four number inputs (nozzle min/max, bed, chamber) + save/reset
+ * - Edit view: four number inputs (nozzle min/max, bed, chamber) + preheat macro;
+ *   Save sits in the header, Reset at the end of the form
  *
  * Overrides are stored via MaterialSettingsManager and applied transparently
  * in filament::find_material().
@@ -47,6 +48,9 @@ class MaterialTempsOverlay : public OverlayBase {
     void handle_reset_defaults();
     void handle_back_clicked();
 
+    /// A field of the open material changed: Save enables, Back asks first.
+    void mark_dirty();
+
     /// Reject-toast buffer for the localized range messages (nozzle, bed,
     /// chamber). Must hold the longest locale at the widest bound (ru is the
     /// longest today); test_material_temps_chamber pins that it does.
@@ -60,6 +64,13 @@ class MaterialTempsOverlay : public OverlayBase {
     void populate_material_list();
     void show_edit_view(const std::string& material_name);
     void show_list_view();
+    /// Back to the list, refreshed, at the scroll position it had.
+    void return_to_list();
+    void set_dirty(bool dirty);
+    bool is_dirty();
+    /// Back with unsaved edits: Discard returns to the list, Cancel stays.
+    void show_discard_confirmation();
+    void on_ui_destroyed() override;
 
     // SubjectManager, declared ahead of the subjects it owns so it tears down
     // after them (names withdraw before storage dies).
@@ -83,8 +94,11 @@ class MaterialTempsOverlay : public OverlayBase {
     lv_obj_t* edit_view_ = nullptr;
 
     // Macro dropdown state
-    lv_subject_t has_macro_subject_{}; // 0=no macro, 1=has macro (controls toggle visibility)
-    lv_subject_t shipped_subject_{};   // 1=editing a shipped type (has a default to reset to)
+    lv_subject_t has_macro_subject_{};   // 0=no macro, 1=has macro (controls toggle visibility)
+    lv_subject_t shipped_subject_{};     // 1=editing a shipped type (has a default to reset to)
+    lv_subject_t dirty_subject_{};       // 1=the open material has unsaved edits
+    lv_subject_t save_hidden_subject_{}; // 1=no material open: the header's Save hides
+    lv_obj_t* discard_dialog_ = nullptr;
     lv_obj_t* macro_dropdown_ = nullptr;
     lv_obj_t* macro_heating_switch_ = nullptr;
     std::vector<std::string> macro_names_; // Parallel to dropdown options (index 0 = "None")
