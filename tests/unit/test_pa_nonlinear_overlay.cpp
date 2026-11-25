@@ -365,6 +365,7 @@ TEST_CASE_METHOD(NonlinearFixture,
         overlay.print_pass_for_test();
         helix::ui::UpdateQueue::instance().drain();
         tower("printing");
+        status({{"gcode_move", {{"gcode_position", {100.0, 100.0, 10.0, 0.0}}}}});
         const size_t before = client.gcode_script_history().size();
         tower("cancelled");
         helix::ui::UpdateQueue::instance().drain();
@@ -628,6 +629,24 @@ TEST_CASE_METHOD(NonlinearFixture,
     CHECK(overlay.height_for_test() == Catch::Approx(18.4f));
     overlay.tower_tap_for_test(0, 40.0f);
     CHECK(overlay.height_for_test() == Catch::Approx(18.4f));
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: a tower stopped on its first layer goes back to the pass",
+                 "[pa_nonlinear][pa_tuner][pa_nl_height]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    tower("printing");
+    status({{"gcode_move", {{"gcode_position", {100.0, 100.0, 0.2, 0.0}}}}});
+    const size_t before = client.gcode_script_history().size();
+    tower("cancelled");
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(overlay.stage() == PaNonlinearOverlay::READY);
+    CHECK(overlay.procedure_for_test()->pass_number() == 1);
+    // The machine is still released.
+    CHECK(sent_since(before).find("SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0") !=
+          std::string::npos);
 }
 
 TEST_CASE_METHOD(NonlinearFixture,

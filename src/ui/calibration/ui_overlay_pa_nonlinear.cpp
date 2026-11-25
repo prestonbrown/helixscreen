@@ -184,6 +184,10 @@ std::string verdict_text(const helix::pa::NonlinearProcedure& proc, float left_m
         apart, param_label(c->param), format_value(c->from), format_value(c->to));
 }
 
+/// The height a stopped tower must reach to be judged: two layers. Below it
+/// nothing has printed that shows the sweep.
+constexpr float kMinJudgedTowerMm = 2.0f * helix::pa::kTowerLayerMm;
+
 /// Where the procedure under way is saved, under the printer's settings.
 constexpr const char* kSessionKey = "pa_nonlinear_session";
 
@@ -949,6 +953,12 @@ void PaNonlinearOverlay::on_print_state(PrintJobState state) {
     }
     if (state == PrintJobState::ERROR) {
         fail(lv_tr("The tower stopped with an error. Nothing was changed."));
+        return;
+    }
+    if (state != PrintJobState::COMPLETE && reached_mm_ < kMinJudgedTowerMm) {
+        // Stopped before the tower had height to judge: the pass waits to be printed again.
+        set_stage(READY);
+        refresh();
         return;
     }
     // Complete, or stopped by the user: judge what printed, and only that, in
