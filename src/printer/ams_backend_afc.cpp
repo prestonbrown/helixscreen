@@ -380,8 +380,11 @@ nlohmann::json AmsBackendAfc::required_status_objects(const std::vector<std::str
     static const json hub_fields = json::array({"state", "afc_bowden_length"});
     static const json buffer_fields = json::array(
         {"state", "distance_to_fault", "error_sensitivity", "fault_detection_enabled", "lanes"});
+    // Every key parse_afc_extruder() reads. on_shuttle is the only signal for
+    // which head a toolchanger has mounted (#2191).
     static const json extruder_fields =
-        json::array({"lane_loaded", "tool_end_status", "tool_start_status"});
+        json::array({"extruder_name", "is_standalone", "lane_loaded", "next_pickup", "on_shuttle",
+                     "status", "tool_end_status", "tool_start_status"});
     // Unit-level objects (AFC_BoxTurtle, AFC_OpenAMS, AFC_ACE2, ...): topology arrays,
     // plus an ACE's dryer and climate and a CFS unit's lane tags.
     static const json unit_fields = afc::unit_object_fields();
