@@ -54,7 +54,9 @@ export const HANG_WARNING_WINDOW_SEC = 900
 /**
  * The share of the host's memory that the app's own resident set must exceed, in the memory
  * warning beside a hang, for a hang in low memory to be the app's doing rather than the host's:
- * low free memory does not say who used it.
+ * low free memory does not say who used it. The share is read rather than the monitor's own rss
+ * or growth reason, which a small board's monitor raises at the app's normal size, about a
+ * sixth of an AD5M's host.
  */
 export const HANG_APP_RSS_SHARE = 0.4
 /** The share of a week's hangs that must be classifiable before the week is compared to the next. */

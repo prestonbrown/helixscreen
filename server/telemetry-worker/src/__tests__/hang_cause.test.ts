@@ -204,6 +204,24 @@ describe("classifyHang, the app's own share of the host's memory", () => {
   it("keeps a suspended app suspended", () => {
     expect(classifyHang(hang({ platform: "android" }), [], [atShare(600, 10)])).toBe("suspended");
   });
+
+  // The three below keep the guard clear of an app at its normal size on the smallest board,
+  // and inside an app's growth on a small host.
+  it("leaves a small board's app at the largest share any of them held to the host", () => {
+    // An AD5M host of 114 MB with the app at 32 MB.
+    expect(classifyHang(hang(), [], [warn(300, { rssKb: 32 * 1024, totalMb: 114 })])).toBe("host_memory");
+  });
+  it("takes the app for it when it grew to half of a host of 485 MB", () => {
+    expect(classifyHang(hang(), [], [warn(300, { rssKb: 240 * 1024, totalMb: 485 })])).toBe("app_blocked");
+  });
+  it("does not take the monitor's own RSS flag for the app starving its host", () => {
+    // The host ran low ten minutes before; a minute before the hang the monitor flagged the app's
+    // RSS at a share that is its normal one on an AD5M.
+    const flagged = { rssKb: 18 * 1024, totalMb: 114 };
+    expect(classifyHang(hang(), [], [warn(600), warn(60, { ...flagged, level: "elevated", reason: "growth" })])).toBe("host_memory");
+    expect(classifyHang(hang(), [], [warn(600), warn(60, { ...flagged, level: "warning", reason: "rss_warning" })])).toBe("host_memory");
+    expect(classifyHang(hang(), [], [warn(600), warn(60, { ...flagged, level: "critical", reason: "rss_critical" })])).toBe("host_memory");
+  });
 });
 
 describe("classifyHang, an app the system suspended", () => {
