@@ -630,6 +630,20 @@ TEST_CASE_METHOD(NonlinearFixture,
     CHECK(overlay.height_for_test() == Catch::Approx(18.4f));
 }
 
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: a tower that ends observes the printer no more",
+                 "[pa_nonlinear][pa_tuner]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.observing_for_test());
+    tower("printing");
+    tower("complete");
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::JUDGE);
+    CHECK_FALSE(overlay.observing_for_test());
+}
+
 TEST_CASE_METHOD(NonlinearFixture, "nonlinear tuner: a tower that completes is judged to its top",
                  "[pa_nonlinear][pa_tuner][pa_nl_height]") {
     overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);

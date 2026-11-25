@@ -176,6 +176,10 @@ class PaNonlinearOverlay : public OverlayBase {
     bool holds_machine_busy_for_test() const {
         return start_busy_.held();
     }
+    /// Whether any of the tower's printer observers is still attached.
+    bool observing_for_test() const {
+        return print_state_observer_ || z_observer_ || duration_observer_ || pa_observer_;
+    }
     void judge_for_test(int verdict) {
         judge(verdict);
     }

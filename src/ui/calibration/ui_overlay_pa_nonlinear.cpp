@@ -866,6 +866,7 @@ void PaNonlinearOverlay::begin_observing() {
 void PaNonlinearOverlay::stop_observing() {
     print_state_observer_.reset();
     z_observer_.reset();
+    duration_observer_.reset();
     pa_observer_.reset();
 }
 
