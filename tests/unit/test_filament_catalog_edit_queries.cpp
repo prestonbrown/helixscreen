@@ -131,6 +131,22 @@ TEST_CASE_METHOD(HelixTestFixture, "variants_in_family unknown family yields Bas
     CHECK(vs[0].sample_type == "PPS");
 }
 
+TEST_CASE_METHOD(HelixTestFixture,
+                 "families_allowing keeps only the families an allowed type is in",
+                 "[catalog][edit-spool]") {
+    auto cat = load_edit_fixture();
+    REQUIRE(cat.all_families().size() == 4);
+
+    // PETG, PETG+HF and SnapSpeed hold no PLA product.
+    CHECK(cat.families_allowing({"PLA"}) == std::vector<std::string>{"PLA"});
+
+    INFO("any allowed variant keeps the family, whatever its case");
+    CHECK(cat.families_allowing({"pla-hs"}) == std::vector<std::string>{"PLA"});
+
+    INFO("an allowed type no variant carries is a family of its own, in its list spelling");
+    CHECK(cat.families_allowing({"pla-hs", "SILK"}) == std::vector<std::string>{"PLA", "SILK"});
+}
+
 TEST_CASE_METHOD(HelixTestFixture, "brands_in_family scopes to the material",
                  "[catalog][edit-spool]") {
     auto cat = load_edit_fixture();
