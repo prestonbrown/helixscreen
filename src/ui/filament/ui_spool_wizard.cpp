@@ -51,7 +51,7 @@ constexpr size_t kMaxVendorUrlLen = 2048;
 /// Spoolman stores one integer temperature per filament; an unknown one is
 /// left out.
 void set_spoolman_temp(nlohmann::json& data, const char* key, int min_val, int max_val) {
-    if (const int temp = helix::spoolman::temperature_for_range(min_val, max_val); temp > 0) {
+    if (const int temp = filament::temp_for_window(min_val, max_val); temp > 0) {
         data[key] = temp;
     }
 }

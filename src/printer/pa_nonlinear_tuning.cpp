@@ -21,8 +21,6 @@ constexpr float kOffsetFactor = 0.01f;
 constexpr float kOffsetFactorBowden = 0.02f;
 constexpr float kTimeOffsetFactor = 0.0001f;
 
-/// What a Bowden run keeps of its first advance: the offset adds a boost of
-/// its own at low speed.
 constexpr float kBowdenAdvanceKept = 0.8f;
 constexpr float kConvergeStep = 0.1f;
 
@@ -115,12 +113,14 @@ void NonlinearProcedure::record_height(float height_mm) {
     }
     remember(height_mm);
     const NonlinearPass& p = current();
-    float value = value_at(p.sweep, height_mm);
-    if (kind_ == ExtruderKind::Bowden && p.sweep.param == NlParam::Advance) {
-        value *= kBowdenAdvanceKept;
-    }
-    apply(p.sweep.param, value);
+    apply(p.sweep.param, value_at(p.sweep, height_mm) * kept_fraction(p));
     advance();
+}
+
+float NonlinearProcedure::kept_fraction(const NonlinearPass& pass) const {
+    return kind_ == ExtruderKind::Bowden && pass.sweep.param == NlParam::Advance
+               ? kBowdenAdvanceKept
+               : 1.0f;
 }
 
 void NonlinearProcedure::record_verdict(SideVerdict verdict, float height_mm) {
@@ -146,11 +146,10 @@ void NonlinearProcedure::judge_two_sided(SideVerdict verdict, float height_mm,
         advance();
         return;
     }
-    const float factor = c->raise ? 1.0f + kConvergeStep : 1.0f - kConvergeStep;
     if (c->param == NlParam::Offset) {
-        values_.nonlinear_offset *= factor;
+        values_.nonlinear_offset = c->to;
     } else {
-        values_.linear_advance *= factor;
+        values_.linear_advance = c->to;
     }
     ++repeats_;
 }
@@ -164,10 +163,57 @@ std::optional<Correction> NonlinearProcedure::correction(SideVerdict verdict) co
     // than the front has too much offset. Bowden sweeps the offset and corrects
     // the advance, the other way round.
     const bool left_lower = verdict == SideVerdict::LeftLower;
-    if (current().sweep.param == NlParam::Advance) {
-        return Correction{NlParam::Offset, !left_lower};
+    Correction c = current().sweep.param == NlParam::Advance
+                       ? Correction{NlParam::Offset, !left_lower}
+                       : Correction{NlParam::Advance, left_lower};
+    c.from = c.param == NlParam::Offset ? values_.nonlinear_offset : values_.linear_advance;
+    c.to = c.from * (c.raise ? 1.0f + kConvergeStep : 1.0f - kConvergeStep);
+    return c;
+}
+
+float tower_reached_mm(float reached_mm, float z_mm) {
+    // A layer change and a small z hop stay well inside this; an end-of-print
+    // lift does not.
+    constexpr float kMaxClimbMm = 1.0f;
+    return z_mm > reached_mm && z_mm <= reached_mm + kMaxClimbMm ? z_mm : reached_mm;
+}
+
+TowerLayerProgress tower_layer_progress(float z_mm, float height_mm, float layer_mm) {
+    TowerLayerProgress p;
+    if (height_mm <= 0.0f || layer_mm <= 0.0f) {
+        return p;
     }
-    return Correction{NlParam::Advance, left_lower};
+    p.layers = std::max(1, static_cast<int>(std::lround(height_mm / layer_mm)));
+    // A layer's nozzle height is its top, so 0.2 mm is layer 1 and 1.0 mm layer 5.
+    const int layer = static_cast<int>(std::lround(z_mm / layer_mm));
+    p.layer = std::clamp(layer, 1, p.layers);
+    p.fraction = std::clamp(z_mm / height_mm, 0.0f, 1.0f);
+    return p;
+}
+
+TowerTimeLeft::TowerTimeLeft(int expected_print_s, float height_mm, float layer_mm)
+    : expected_s_(std::max(0, expected_print_s)), height_mm_(height_mm), layer_mm_(layer_mm) {}
+
+void TowerTimeLeft::sample(float z_mm, double t_s) {
+    if (first_t_ < 0.0) {
+        first_t_ = t_s;
+    }
+    z_ = tower_reached_mm(z_, z_mm);
+    t_ = t_s;
+    if (climb_z_ < 0.0f && z_ >= 2.0f * layer_mm_ - layer_mm_ / 2.0f) {
+        climb_z_ = z_;
+        climb_t_ = t_s;
+    }
+}
+
+int TowerTimeLeft::seconds_left() const {
+    const float left_mm = std::max(0.0f, height_mm_ - z_);
+    if (climb_z_ >= 0.0f && z_ - climb_z_ >= kTowerRateClimbMm) {
+        const double per_mm = (t_ - climb_t_) / static_cast<double>(z_ - climb_z_);
+        return static_cast<int>(std::lround(per_mm * left_mm));
+    }
+    const double printed = first_t_ < 0.0 ? 0.0 : t_ - first_t_;
+    return std::max(0, static_cast<int>(std::lround(expected_s_ - printed)));
 }
 
 SideVerdict verdict_from_heights(float left_mm, float front_mm) {
@@ -232,6 +278,13 @@ std::vector<TowerFace> judged_faces(TowerSide side) {
         break;
     }
     return {TowerFace::Left, TowerFace::Front};
+}
+
+std::vector<SpotKind> judged_spots(const NonlinearPass& pass) {
+    if (pass.sweep.param == NlParam::TimeOffset) {
+        return {SpotKind::Pause, SpotKind::VerySlowSpot};
+    }
+    return {SpotKind::SlowDown, SpotKind::SpeedUp, SpotKind::Pause, SpotKind::VerySlowSpot};
 }
 
 nlohmann::json NonlinearProcedure::to_json() const {

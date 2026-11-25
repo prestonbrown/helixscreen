@@ -1284,6 +1284,7 @@ translations:
   Copying from USB...: 'USB からコピー中...'
   Corner roundness: 角の丸み
   Corners differ by {} mm: "四隅の差 {} mm"
+  Correct and Reprint: ''
   Correct the value in the printer's configuration, then restart Klipper.: プリンター設定の値を修正してから、Klipper を再起動してください。
   Correction (Ki): 補正 (Ki)
   Could not add the timelapse plugin to Moonraker.: 'タイムラプスプラグインをMoonrakerに追加できませんでした。'
@@ -1633,6 +1634,7 @@ translations:
   Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: 'このプリンターでは各ツールヘッドが自分の Z-offset を持ちます。代わりにツールオフセット校正を使ってください。'
   Each tap sets a new value from this layer up.: "タップするたびに、この層から上の値が新しくなります。"
   Each tower tunes one value: "各タワーで 1 つの値を調整"
+  Each tower tunes one value. Judge it side-lit.: ''
   Edit: 編集
   Edit Filament: フィラメントを編集
   Edit Slot: スロットを編集
@@ -2177,9 +2179,16 @@ translations:
   Front Left: '左手前'
   Front Right: '右手前'
   Front best height: "手前の最適な高さ"
+  Front transitions: ''
+  'Front, lit from far left or right: the pause at the left and the slow spot at the right. Very subtle.': ''
   'Front, lit from far left or right: the slow middle, the pause, the slow spot. Very subtle.': "手前、左右の端から照らして: 遅い中央部、一時停止、遅い箇所。とてもわずかです。"
   'Front, lit from far left or right: where do the marked spots look cleanest?': "手前、左右の端から照らして: 印のついた箇所が最もきれいに見えるのはどこですか？"
+  'Front, lit from far left or right: where do the pause and the slow spot look best?': ''
   Front, lit from the side: "手前、横から照らして"
+  'Front, side-lit: the speed transitions.': ''
+  'Front, side-lit: where do the speed transitions look best?': ''
+  Front, {:.0f}% kept: ''
+  'Front: pause, slow spot': ''
   'Front: the edges of the slow middle, the pause and the slow spot.': "手前: 遅い中央部の端、一時停止、遅い箇所。"
   'Front: where do the marked spots look cleanest?': "手前: 印のついた箇所が最もきれいに見えるのはどこですか？"
   Full: フル
@@ -2202,6 +2211,7 @@ translations:
   Get help and share feedback: ヘルプとフィードバック
   Getting address…: アドレス取得中…
   Getting ready...: '準備中...'
+  Getting worse as it climbs? Stop Tower and judge it.: ''
   Give each feature its own pin and check its spelling against the board's sample configuration, then restart Klipper.: 機能ごとに別のピンを割り当て、ボードのサンプル設定と綴りを照らし合わせてから、Klipper を再起動してください。
   Glass Effects: ガラス効果
   Global: グローバル
@@ -2755,6 +2765,7 @@ translations:
 
 
     ハイパーラプスは一定間隔でフレームを撮影し、スライサーの設定は不要ですが、各フレームにはヘッドがその時の位置に写ります。'
+  Layer {} of {} · {:.1f} mm: ''
   Layer {} of {} · {:.2f} mm: レイヤー {} / {} · {:.2f} mm
   Layer {} of {}.: 'レイヤー {} / {}。'
   Layer {}, Z {:.2f} mm: レイヤー {}、Z {:.2f} mm
@@ -2774,10 +2785,18 @@ translations:
   Left side: "左側"
   Left side against the front: "左側と手前の比較"
   Left side and front, each at its slow edges. Each comes out clean at its own height; they should match.: "左側と手前、それぞれの遅い端で。それぞれきれいに仕上がる高さが決まり、両者は一致するはずです。"
+  'Left side and front, side-lit: where each converges. The same height takes it; if not, this pass prints again.': ''
+  Left side clean all the way up? It is best at 0.: ''
+  ? "Left side {:.1f} mm higher, so this pass prints again with\n{} {} to {}"
+  : ''
   'Left side {:.1f} mm higher: the next tower lowers the advance 10%.': "左側が {:.1f} mm 高い: 次のタワーでは Pressure Advance を 10% 下げます。"
   'Left side {:.1f} mm higher: the next tower raises the offset 10%.': "左側が {:.1f} mm 高い: 次のタワーではオフセットを 10% 上げます。"
+  ? "Left side {:.1f} mm lower, so this pass prints again with\n{} {} to {}"
+  : ''
   'Left side {:.1f} mm lower: the next tower lowers the offset 10%.': "左側が {:.1f} mm 低い: 次のタワーではオフセットを 10% 下げます。"
   'Left side {:.1f} mm lower: the next tower raises the advance 10%.': "左側が {:.1f} mm 低い: 次のタワーでは Pressure Advance を 10% 上げます。"
+  "Left side, side-lit: at what height do the slow middle's edges look best?": ''
+  'Left side, side-lit: the two edges of the slow middle, 5 mm either side of center.': ''
   'Left side: at what height do the edges of the slow middle look cleanest?': "左側: 遅い中央部の端が最もきれいに見える高さはどこですか？"
   'Left side: the two edges of the slow middle, 5 mm either side of center.': "左側: 遅い中央部の両端、中心から左右 5 mm。"
   "Left: the slow middle's edges": "左: 遅い中央部の端"
@@ -3269,6 +3288,7 @@ translations:
   No multi-filament system detected: マルチフィラメントシステムが検出されません
   No need to stay while it prints: "印刷中はそばにいる必要はありません"
   No need to stay; this screen waits for you when the tower is done.: "そばにいる必要はありません。タワーが完成したら、この画面で待っています。"
+  No need to stay; this screen waits for you.: ''
   No network. Scan QR code to report on your phone.: ネットワークなし。QR コードをスキャンしてスマホから報告してください。
   No networks found: ネットワークが見つかりません
   No new mesh was stored as '{}': "新しいメッシュは '{}' として保存されませんでした"
@@ -3753,6 +3773,7 @@ translations:
   Pressure advance by material: '素材別 Pressure Advance'
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'タワーが高くなるにつれてPressure Advanceが上がります。角を見てください: いつでも-か+をタップするとランプが止まり、自分の値を判断できます。'
+  Pressure advance keeps corners sharp and lines even.: ''
   Pressure advance tuning: 'Pressure Advance調整'
   Pressure advance {} is written to the {} section.: "Pressure advance {}を{}セクションに書き込みます。"
   Pressure on the bed: ベッドに圧力がかかっています
@@ -4575,6 +4596,7 @@ translations:
   Set how bright the screen is and when it rests. You can change any of these later in Settings.: '画面の明るさと休止するタイミングを設定します。すべて後で「設定」から変更できます。'
   Set local timezone for time display: 時刻表示用のローカルタイムゾーンを設定
   Set logging verbosity for troubleshooting: トラブルシューティング用のログの詳細レベルを設定
+  Set max_accel to your highest.: ''
   Set temperature between {} and {}: 温度は {}〜{} にしてください
   Set the X and Y belts with the motorized tensioners: "電動テンショナーでXとYのベルトを調整します"
   Set the clock, theme and units. You can change any of these later in Settings.: "時計、テーマ、単位を設定します。あとから設定でいつでも変更できます。"
@@ -4641,6 +4663,7 @@ translations:
   Shutting down printer...: プリンターをシャットダウン中...
   Shutting down screen...: 画面をシャットダウン中...
   Shutting down...: シャットダウン中...
+  'Side-lit: the height where the left side converges, then the front.': ''
   Signal: 信号
   'Signal #': 信号番号
   Signal macro renaming: '信号マクロの名前変更'
@@ -4875,6 +4898,7 @@ translations:
   Stopped between Spool and Lane: スプールとレーンの間で停止
   Stopped drying %s: '乾燥を停止しました: %s'
   Stopping after the current test line.: '現在のテストラインの後で停止します。'
+  Stopping once the printer finishes starting: ''
   Stopping restarted the printer, so nothing can be saved: 停止でプリンターが再起動したため、何も保存できません
   Stopping restarted the printer, which dropped the results of the steps that finished. Nothing can be saved.: '停止によりプリンターが再起動し、完了したステップの結果は破棄されました。保存できるものはありません。'
   Stops all motion. Requires firmware restart.: すべての動作を停止します。ファームウェアの再起動が必要です。
@@ -5400,6 +5424,7 @@ translations:
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: この CFS ユニットのセンサーを読み取れません。接続を確認してください。改善しない場合は修理が必要です
   'The shell could not start: {}': 'シェルを起動できませんでした: {}'
   The shell exited. Tap the terminal to start a new one.: 'シェルが終了しました。ターミナルをタップすると新しいシェルを開始します。'
+  The sides should converge at the same height. Apart means the {} is a little off.: ''
   The slot asked to eject still has its filament loaded in the toolhead.: 取り出しを要求されたスロットのフィラメントが、まだツールヘッドに装填されています。
   The slot chosen for this tool change has no filament at its inlet.: このツール交換で選ばれたスロットの入口にフィラメントがありません。
   The speed of one fan you choose: 選んだファン1つの速度
@@ -5746,6 +5771,8 @@ translations:
   Touch screen to wake from sleep: 画面をタッチしてスリープ解除
   Touch the target (point %1$d of 3) — touch %2$d of %3$d: ターゲットをタッチ（ポイント %1$d / 3）— タッチ %2$d / %3$d
   TouchCalibration: タッチキャリブレーション
+  Towers print at max_accel, {:.0f} mm/s². Set it to the highest you print with.: ''
+  Towers print at max_accel. Set it to the highest you print with.: ''
   Trace: トレース
   Trigger: トリガー
   Track this spool's weight there: 'このスプールの重量をそこで管理'
@@ -6056,6 +6083,7 @@ translations:
   When this spool runs out, printing continues from {}.: 'このスプールが切れると、{}から印刷を続行します。'
   When this spool runs out, the print pauses.: 'このスプールが切れると、印刷を一時停止します。'
   Where UI sounds play: UIサウンドの再生先
+  Where sides converge: ''
   Where to look: "見る場所"
   Whether filament is loaded: フィラメントの装填状態
   Which macro switches the ACE path back on: 'ACE経路を再びオンにするマクロ'
@@ -6331,6 +6359,7 @@ translations:
   loud: '大きな音'
   matched: 一致
   material differs: '素材が異なる'
+  'max_accel {:.0f} mm/s²: set it to your highest.': ''
   measured {}: '{} に測定'
   medium: "中"
   'method: {}': '方式: {}'
@@ -6603,6 +6632,7 @@ translations:
   '{} width sensor': '{} 幅センサー'
   ? '{} will switch to a slot whose filament type AND color both match the active spool and whose own port sensor reads filament present.'
   : '{} は、フィラメントの種類と色の両方がアクティブなスプールと一致し、かつ自身のポートセンサーがフィラメントを検知しているスロットに切り替えます。'
+  '{} {:.0f}% of that value is kept.': ''
   '{} · pick what to run, then it runs on its own': '{} · 実行するものを選ぶと自動で進みます'
   '{} · {}': '{} · {}'
   '{} · {} firmware': '{} · {}ファームウェア'

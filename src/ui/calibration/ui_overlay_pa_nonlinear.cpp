@@ -16,6 +16,7 @@
 #include "config.h"
 #include "core/observer_factory.h"
 #include "core/run_after.h"
+#include "format_utils.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
 #include "material_z_offset_state.h"
@@ -81,68 +82,41 @@ const char* const* sample_set(const helix::pa::NonlinearPass& pass) {
     return pass.judge == helix::pa::TowerSide::Left ? kLeft : kBoth;
 }
 
-/// What a pass's user looks at: before the tower prints, and when judging it.
-const char* look_text(const helix::pa::NonlinearPass& pass, bool judging) {
-    const bool lit = pass.sweep.param == helix::pa::NlParam::TimeOffset;
+/// What a pass's user looks at, before the tower prints and when judging it,
+/// in the words of Kalico's guide: which side, where it looks best, and a light
+/// from the far left or right (side-lit) for every tower.
+std::string look_text(const helix::pa::NonlinearProcedure& proc,
+                      const helix::pa::NonlinearPass& pass, bool judging) {
     switch (pass.judge) {
     case helix::pa::TowerSide::Left:
-        return judging
-                   ? lv_tr(
-                         "Left side: at what height do the edges of the slow middle look cleanest?")
-                   : lv_tr("Left side: the two edges of the slow middle, 5 mm either side of "
-                           "center.");
+        return judging ? lv_tr("Left side, side-lit: at what height do the slow middle's edges "
+                               "look best?")
+                       : lv_tr("Left side, side-lit: the two edges of the slow middle, 5 mm "
+                               "either side of center.");
     case helix::pa::TowerSide::LeftVsFront:
-        return judging
-                   ? lv_tr("The height where the left side is cleanest, then where the front is.")
-                   : lv_tr(
-                         "Left side and front, each at its slow edges. Each comes out clean at its "
-                         "own height; they should match.");
+        return judging ? lv_tr("Side-lit: the height where the left side converges, then the "
+                               "front.")
+                       : lv_tr("Left side and front, side-lit: where each converges. The same "
+                               "height takes it; if not, this pass prints again.");
     case helix::pa::TowerSide::Front:
         break;
     }
-    if (lit) {
-        return judging
-                   ? lv_tr("Front, lit from far left or right: where do the marked spots look "
-                           "cleanest?")
-                   : lv_tr(
-                         "Front, lit from far left or right: the slow middle, the pause, the slow "
-                         "spot. Very subtle.");
+    if (pass.sweep.param == helix::pa::NlParam::TimeOffset) {
+        // The guide stresses the light for this tower: its marks are the faintest.
+        return judging ? lv_tr("Front, lit from far left or right: where do the pause and the "
+                               "slow spot look best?")
+                       : lv_tr("Front, lit from far left or right: the pause at the left and the "
+                               "slow spot at the right. Very subtle.");
     }
-    return judging ? lv_tr("Front: where do the marked spots look cleanest?")
-                   : lv_tr("Front: the edges of the slow middle, the pause and the slow spot.");
-}
-
-/// What pass 2's two heights decide, in words: the next tower's change, or
-/// the height taken.
-std::string verdict_text(const helix::pa::NonlinearProcedure& proc, float left_mm, float front_mm) {
-    using helix::pa::NlParam;
-    const auto verdict = helix::pa::verdict_from_heights(left_mm, front_mm);
-    const float apart = std::abs(left_mm - front_mm);
-    const auto c = proc.correction(verdict);
-    if (!c) {
-        if (verdict == helix::pa::SideVerdict::Same) {
-            return fmt::format(
-                fmt::runtime(lv_tr("Left and front agree: {:.1f} mm is the answer.")),
-                (left_mm + front_mm) / 2.0f);
-        }
-        return fmt::format(fmt::runtime(lv_tr("Still {:.1f} mm apart after {} towers: the "
-                                              "middle, {:.1f} mm, is taken.")),
-                           apart, proc.repeats() + 1, (left_mm + front_mm) / 2.0f);
+    const std::string look =
+        judging ? lv_tr("Front, side-lit: where do the speed transitions look best?")
+                : lv_tr("Front, side-lit: the speed transitions.");
+    const float kept = proc.kept_fraction(pass);
+    if (kept >= 1.0f) {
+        return look;
     }
-    const bool lower = verdict == helix::pa::SideVerdict::LeftLower;
-    if (c->param == NlParam::Offset) {
-        return fmt::format(
-            fmt::runtime(
-                c->raise
-                    ? lv_tr("Left side {:.1f} mm higher: the next tower raises the offset 10%.")
-                    : lv_tr("Left side {:.1f} mm lower: the next tower lowers the offset 10%.")),
-            apart);
-    }
-    return fmt::format(
-        fmt::runtime(
-            lower ? lv_tr("Left side {:.1f} mm lower: the next tower raises the advance 10%.")
-                  : lv_tr("Left side {:.1f} mm higher: the next tower lowers the advance 10%.")),
-        apart);
+    return fmt::format(fmt::runtime(lv_tr("{} {:.0f}% of that value is kept.")), look,
+                       kept * 100.0f);
 }
 
 /// What a failed save says. Klipper refusing an option no model reads is
@@ -180,6 +154,39 @@ std::optional<float> reported(const helix::pa::PaModel& m, helix::pa::NlParam p)
 std::string format_value(float v) {
     return fmt::format("{:.4f}", v);
 }
+
+/// What pass 2's two heights decide, in words: the next tower's change, or
+/// the height taken.
+std::string verdict_text(const helix::pa::NonlinearProcedure& proc, float left_mm, float front_mm) {
+    using helix::pa::NlParam;
+    const auto verdict = helix::pa::verdict_from_heights(left_mm, front_mm);
+    const float apart = std::abs(left_mm - front_mm);
+    const auto c = proc.correction(verdict);
+    if (!c) {
+        if (verdict == helix::pa::SideVerdict::Same) {
+            return fmt::format(
+                fmt::runtime(lv_tr("Left and front agree: {:.1f} mm is the answer.")),
+                (left_mm + front_mm) / 2.0f);
+        }
+        return fmt::format(fmt::runtime(lv_tr("Still {:.1f} mm apart after {} towers: the "
+                                              "middle, {:.1f} mm, is taken.")),
+                           apart, proc.repeats() + 1, (left_mm + front_mm) / 2.0f);
+    }
+    // The two sides disagree: the other value of the pair is off by a little,
+    // and the pass prints again with it corrected (Kalico's guide, step 8).
+    const bool lower = verdict == helix::pa::SideVerdict::LeftLower;
+    return fmt::format(
+        // The change on a line of its own: a wrap may not split its numbers.
+        fmt::runtime(lower ? lv_tr("Left side {:.1f} mm lower, so this pass prints again with\n"
+                                   "{} {} to {}")
+                           : lv_tr("Left side {:.1f} mm higher, so this pass prints again with\n"
+                                   "{} {} to {}")),
+        apart, param_label(c->param), format_value(c->from), format_value(c->to));
+}
+
+/// The height a stopped tower must reach to be judged: two layers. Below it
+/// nothing has printed that shows the sweep.
+constexpr float kMinJudgedTowerMm = 2.0f * helix::pa::kTowerLayerMm;
 
 /// Where the procedure under way is saved, under the printer's settings.
 constexpr const char* kSessionKey = "pa_nonlinear_session";
@@ -265,6 +272,7 @@ PaNonlinearOverlay::PaNonlinearOverlay() = default;
 PaNonlinearOverlay::~PaNonlinearOverlay() {
     print_state_observer_.reset();
     z_observer_.reset();
+    duration_observer_.reset();
     pa_observer_.reset();
     if (!StaticPanelRegistry::is_destroyed()) {
         deinit_subjects();
@@ -283,6 +291,11 @@ void PaNonlinearOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_STRING(live_value_, live_value_buf_, "--", "pa_nl_live_value",
                                   subjects_);
         UI_MANAGED_SUBJECT_STRING(live_text_, live_text_buf_, "", "pa_nl_live_text", subjects_);
+        UI_MANAGED_SUBJECT_STRING(layer_text_, layer_text_buf_, "", "pa_nl_layer_text", subjects_);
+        UI_MANAGED_SUBJECT_INT(progress_, 0, "pa_nl_progress", subjects_);
+        UI_MANAGED_SUBJECT_STRING(progress_text_, progress_text_buf_, "0%", "pa_nl_progress_text",
+                                  subjects_);
+        UI_MANAGED_SUBJECT_STRING(time_left_, time_left_buf_, "", "pa_nl_time_left", subjects_);
         UI_MANAGED_SUBJECT_INT(two_sided_, 0, "pa_nl_two_sided", subjects_);
         UI_MANAGED_SUBJECT_INT(can_back_, 0, "pa_nl_can_back", subjects_);
         UI_MANAGED_SUBJECT_STRING(height_, height_buf_, "", "pa_nl_height", subjects_);
@@ -317,12 +330,12 @@ void PaNonlinearOverlay::init_subjects() {
                                   subjects_);
         UI_MANAGED_SUBJECT_STRING(judge_primary_, judge_primary_buf_, "", "pa_nl_judge_primary",
                                   subjects_);
-        UI_MANAGED_SUBJECT_STRING(back_text_, back_text_buf_, "", "pa_nl_back_text", subjects_);
         UI_MANAGED_SUBJECT_STRING(param_, param_buf_, "", "pa_nl_param", subjects_);
         UI_MANAGED_SUBJECT_STRING(height_front_, height_front_buf_, "", "pa_nl_height_front",
                                   subjects_);
         UI_MANAGED_SUBJECT_STRING(verdict_, verdict_buf_, "", "pa_nl_verdict", subjects_);
         UI_MANAGED_SUBJECT_INT(heights_set_, 1, "pa_nl_heights_set", subjects_);
+        UI_MANAGED_SUBJECT_INT(correcting_, 0, "pa_nl_correcting", subjects_);
         UI_MANAGED_SUBJECT_STRING(result_live_, result_live_buf_, "", "pa_nl_result_live",
                                   subjects_);
         UI_MANAGED_SUBJECT_STRING(save_material_, save_material_buf_, "", "pa_nl_save_material",
@@ -518,8 +531,7 @@ void PaNonlinearOverlay::refresh() {
                                                              estimate.walk_away_minutes)
                               .c_str());
     lv_subject_set_string(&time_sub_, lv_tr("No need to stay while it prints"));
-    lv_subject_set_string(
-        &run_note_, lv_tr("No need to stay; this screen waits for you when the tower is done."));
+    lv_subject_set_string(&run_note_, lv_tr("No need to stay; this screen waits for you."));
     lv_subject_set_string(&save_material_,
                           fmt::format(fmt::runtime(lv_tr("Save for {}")), material_name()).c_str());
 
@@ -583,6 +595,7 @@ void PaNonlinearOverlay::refresh() {
                               lv_tr("Save writes these values to the extruder's config section "
                                     "and restarts Klipper. Keep runs them until the next "
                                     "restart."));
+        lv_subject_set_int(&correcting_, 0);
         refresh_towers();
         return;
     }
@@ -600,15 +613,11 @@ void PaNonlinearOverlay::refresh() {
                              helix::pa::NonlinearProcedure::kMaxRepeats + 1);
     }
     lv_subject_set_string(&pass_title_, title.c_str());
-    lv_subject_set_string(&pass_hint_, look_text(pass, false));
-    lv_subject_set_string(&look_, look_text(pass, stage_ == JUDGE));
+    lv_subject_set_string(&pass_hint_, look_text(*proc_, pass, false).c_str());
+    lv_subject_set_string(&look_, look_text(*proc_, pass, stage_ == JUDGE).c_str());
     lv_subject_set_string(&run_chip_, fmt::format(fmt::runtime(lv_tr("Pass {} of {}")),
                                                   proc_->pass_number(), proc_->pass_count())
                                           .c_str());
-    // Back re-opens the latest judgement: this pass's own after a repeat.
-    const int back_to = proc_->repeats() > 0 ? proc_->pass_number() : proc_->pass_number() - 1;
-    lv_subject_set_string(
-        &back_text_, fmt::format(fmt::runtime(lv_tr("Pass {}")), std::max(1, back_to)).c_str());
     const char* const* samples = sample_set(pass);
     for (int i = 0; i < 3; ++i) {
         // Each path is a string literal: the pointer changes with the set, so the image follows.
@@ -620,6 +629,7 @@ void PaNonlinearOverlay::refresh() {
     lv_subject_set_string(&param_, param_label(pass.sweep.param));
     const bool both = !two || (left_set_ && front_set_);
     lv_subject_set_int(&heights_set_, both ? 1 : 0);
+    bool correcting = false;
     lv_subject_set_string(&height_,
                           two && !left_set_ ? "--" : fmt::format("{:.1f} mm", height_mm_).c_str());
     lv_subject_set_string(&height_front_,
@@ -627,12 +637,25 @@ void PaNonlinearOverlay::refresh() {
     lv_subject_set_string(&height_value_,
                           format_value(helix::pa::value_at(pass.sweep, height_mm_)).c_str());
     if (two && !both) {
-        lv_subject_set_string(&verdict_, "");
+        // A left side that looks clean all the way up is best at the bottom
+        // (Kalico's guide, step 8): it converges below the front.
+        lv_subject_set_string(&verdict_, lv_tr("Left side clean all the way up? It is best at 0."));
         lv_subject_set_string(&judge_primary_, lv_tr("Set both heights"));
     } else if (two) {
         lv_subject_set_string(&verdict_, verdict_text(*proc_, height_mm_, front_mm_).c_str());
         const auto c = proc_->correction(helix::pa::verdict_from_heights(height_mm_, front_mm_));
-        lv_subject_set_string(&judge_primary_, c ? lv_tr("Print Again")
+        correcting = c.has_value();
+        if (c) {
+            // Why it prints again, beside the picture of where to look; the
+            // verdict under the heights says by how much.
+            lv_subject_set_string(
+                &look_,
+                fmt::format(fmt::runtime(lv_tr("The sides should converge at the same "
+                                               "height. Apart means the {} is a little off.")),
+                            param_label(c->param))
+                    .c_str());
+        }
+        lv_subject_set_string(&judge_primary_, c ? lv_tr("Correct and Reprint")
                                                  : fmt::format(fmt::runtime(lv_tr("Use {:.1f} mm")),
                                                                (height_mm_ + front_mm_) / 2.0f)
                                                        .c_str());
@@ -641,6 +664,7 @@ void PaNonlinearOverlay::refresh() {
         lv_subject_set_string(
             &judge_primary_, fmt::format(fmt::runtime(lv_tr("Use {:.1f} mm")), height_mm_).c_str());
     }
+    lv_subject_set_int(&correcting_, correcting ? 1 : 0);
     refresh_towers();
 }
 
@@ -661,6 +685,7 @@ void PaNonlinearOverlay::refresh_towers() {
         base.size_y_mm = size->second;
     }
     if (pass) {
+        base.judged_spots = helix::pa::judged_spots(*pass);
         for (int z = 0; z <= static_cast<int>(kTowerHeightMm); z += 10) {
             base.tick_labels.push_back(
                 format_tick(pass->sweep, helix::pa::value_at(pass->sweep, static_cast<float>(z))));
@@ -687,6 +712,11 @@ void PaNonlinearOverlay::refresh_towers() {
 
     PaTowerModel judge = base;
     judge.fill = PaTowerFill::Full;
+    if (judge_top_mm_ < kTowerHeightMm) {
+        // Stopped early: the tower shows what printed, up to where it stopped.
+        judge.fill = PaTowerFill::Live;
+        judge.printed_mm = judge_top_mm_;
+    }
     if (two) {
         if (left_set_) {
             judge.markers.push_back({0, height_mm_, false, "L"});
@@ -786,7 +816,12 @@ void PaNonlinearOverlay::print_pass() {
     script += helix::pa::print_tower_gcode(params_.nozzle_diameter_mm, params_.nozzle_temp, 0);
 
     saw_printing_ = false;
+    time_left_est_.reset();
+    reached_mm_ = 0.0f;
+    judge_top_mm_ = kTowerHeightMm;
     script_done_ = false;
+    stop_pending_ = false;
+    stop_cancel_sent_ = false;
     // The tower about to print is judged fresh: a two-sided pass with neither height set.
     left_set_ = front_set_ = proc_->current().judge != helix::pa::TowerSide::LeftVsFront;
     const int pass_seq = ++pass_seq_;
@@ -819,6 +854,9 @@ void PaNonlinearOverlay::begin_observing() {
         [](PaNonlinearOverlay* self, int) { self->refresh_live(); }, lifetime);
     // The sweep sets each height's value after the move that reaches it, so
     // the readout follows the model as well as the height.
+    duration_observer_ = helix::ui::observe<int>(
+        state.print_state().get_print_duration_subject(), this,
+        [](PaNonlinearOverlay* self, int) { self->refresh_live(); }, lifetime);
     pa_observer_ = helix::ui::observe<int>(
         state.temperature_state().get_pa_model_revision_subject(), this,
         [](PaNonlinearOverlay* self, int) { self->refresh_live(); }, lifetime);
@@ -832,6 +870,7 @@ void PaNonlinearOverlay::begin_observing() {
 void PaNonlinearOverlay::stop_observing() {
     print_state_observer_.reset();
     z_observer_.reset();
+    duration_observer_.reset();
     pa_observer_.reset();
 }
 
@@ -849,6 +888,24 @@ void PaNonlinearOverlay::refresh_live() {
     lv_subject_set_string(
         &live_text_,
         fmt::format(fmt::runtime(lv_tr("{} at {:.1f} mm")), param_label(param), z).c_str());
+
+    reached_mm_ = helix::pa::tower_reached_mm(reached_mm_, z);
+    const auto progress = helix::pa::tower_layer_progress(z);
+    lv_subject_set_string(&layer_text_,
+                          fmt::format(fmt::runtime(lv_tr("Layer {} of {} · {:.1f} mm")),
+                                      progress.layer, progress.layers, z)
+                              .c_str());
+    const int percent = static_cast<int>(std::lround(progress.fraction * 100.0f));
+    lv_subject_set_int(&progress_, percent);
+    lv_subject_set_string(&progress_text_, fmt::format("{}%", percent).c_str());
+    if (!time_left_est_) {
+        const auto estimate = helix::calibration::firmware_pa_tower_estimate();
+        time_left_est_.emplace(
+            (estimate.walk_away_minutes - helix::calibration::kPaTowerHeatHomeMinutes) * 60);
+    }
+    time_left_est_->sample(z, lv_subject_get_int(state.print_state().get_print_duration_subject()));
+    lv_subject_set_string(&time_left_,
+                          helix::format::duration_padded(time_left_est_->seconds_left()).c_str());
     refresh_towers();
 }
 
@@ -860,6 +917,11 @@ void PaNonlinearOverlay::on_print_state(PrintJobState state) {
             return;
         }
         saw_printing_ = true;
+        if (stop_pending_) {
+            // The start script is through: the job it launched is the one to cancel.
+            send_pending_stop();
+            return;
+        }
         set_stage(PRINTING);
         refresh_live();
         if (raise_on_start_) {
@@ -882,16 +944,43 @@ void PaNonlinearOverlay::on_print_state(PrintJobState state) {
     }
     stop_observing();
     finish_tower(state);
+    if (stop_pending_) {
+        // Stopped before the tower printed: nothing to judge.
+        stop_pending_ = false;
+        set_stage(READY);
+        refresh();
+        return;
+    }
     if (state == PrintJobState::ERROR) {
         fail(lv_tr("The tower stopped with an error. Nothing was changed."));
         return;
     }
-    // Complete, or stopped by the user: judge what printed.
+    if (state != PrintJobState::COMPLETE && reached_mm_ < kMinJudgedTowerMm) {
+        // Stopped before the tower had height to judge: the pass waits to be printed again.
+        set_stage(READY);
+        refresh();
+        return;
+    }
+    // Complete, or stopped by the user: judge what printed, and only that, in
+    // the tenths the height picker steps in.
+    open_judgement(state == PrintJobState::COMPLETE ? kTowerHeightMm
+                                                    : std::round(reached_mm_ * 10.0f) / 10.0f);
+    // The tower on the bed outlives a restart of the screen; so does judging it.
+    save_session(true);
     set_stage(JUDGE);
     refresh();
     if (lv_obj_t* root = overlay_root_) {
         pa_tower_flourish(lv_obj_find_by_name(root, "pa_nl_judge_tower"));
     }
+}
+
+void PaNonlinearOverlay::open_judgement(float top_mm) {
+    judge_top_mm_ = std::clamp(top_mm, helix::pa::kTowerLayerMm, kTowerHeightMm);
+    // Both heights start in the middle of what printed: nothing above the top
+    // can be picked, so nothing above it can be recorded. A two-sided pass
+    // opens with neither judged; a one-sided one with that middle to step from.
+    height_mm_ = front_mm_ = judge_top_mm_ / 2.0f;
+    left_set_ = front_set_ = proc_->current().judge != helix::pa::TowerSide::LeftVsFront;
 }
 
 void PaNonlinearOverlay::on_script_failed(int pass_seq, const MoonrakerError& err) {
@@ -927,6 +1016,13 @@ void PaNonlinearOverlay::arm_start_watchdog(int pass_seq, uint32_t delay_ms,
                             return;
                         }
                         stop_observing();
+                        if (stop_pending_) {
+                            // Stopped, and no tower turned up to cancel.
+                            stop_pending_ = false;
+                            send_ending(true, helix::pa::JobEnd::Stopped);
+                            fail("");
+                            return;
+                        }
                         if (disarm_on_expiry) {
                             send_ending(false);
                         }
@@ -944,6 +1040,9 @@ void PaNonlinearOverlay::on_script_done(int pass_seq) {
     // still be draining until the tower's job reports printing.
     // PRINT_PA_TOWER returned; the tower should be printing within moments.
     arm_start_watchdog(pass_seq, kTowerStartTimeoutMs, true);
+    if (stop_pending_) {
+        send_pending_stop();
+    }
 }
 
 void PaNonlinearOverlay::finish_tower(PrintJobState state) {
@@ -986,6 +1085,19 @@ void PaNonlinearOverlay::stop_tower() {
             if (!api_) {
                 return;
             }
+            if (stage_ == PREPARING && !script_done_ && !saw_printing_) {
+                // The start script holds Klipper's queue: a cancel or an end
+                // sequence now runs first, and the tower it queued then prints
+                // anyway, cold and unhomed.
+                spdlog::info("[{}] Stop during the start script; cancelling once it returns",
+                             get_name());
+                stop_pending_ = true;
+                if (subjects_initialized_) {
+                    lv_subject_set_string(&live_text_,
+                                          lv_tr("Stopping once the printer finishes starting"));
+                }
+                return;
+            }
             api_->job().cancel_print([]() {},
                                      [](const MoonrakerError& err) {
                                          spdlog::warn("[PA Nonlinear] Cancel failed: {}",
@@ -993,6 +1105,37 @@ void PaNonlinearOverlay::stop_tower() {
                                      });
         },
         owned_confirm());
+}
+
+void PaNonlinearOverlay::send_pending_stop() {
+    if (!api_ || stop_cancel_sent_) {
+        return;
+    }
+    stop_cancel_sent_ = true;
+    api_->job().cancel_print(
+        []() {}, object_lifetime_.bg_cb(
+                     "PaNonlinearOverlay::pending_stop_failed", [this](const MoonrakerError& err) {
+                         spdlog::warn("[{}] Cancel failed: {}", get_name(), err.message);
+                         on_pending_stop_failed();
+                     }));
+}
+
+void PaNonlinearOverlay::on_pending_stop_failed() {
+    if (!stop_pending_) {
+        return;
+    }
+    // The tower prints on: it is judged as any other, and Stop cancels it directly.
+    stop_pending_ = false;
+    stop_cancel_sent_ = false;
+    if (!subjects_initialized_) {
+        return;
+    }
+    if (saw_printing_) {
+        set_stage(PRINTING);
+        refresh_live();
+    } else {
+        lv_subject_set_string(&live_text_, lv_tr("Starting the tower"));
+    }
 }
 
 void PaNonlinearOverlay::raise(int attempts_left) {
@@ -1015,12 +1158,12 @@ void PaNonlinearOverlay::raise(int attempts_left) {
 
 /// A step on a height still showing "--" lands on the middle of the tower,
 /// where the user can see it; the next step moves from there.
-static float stepped_height(bool set, float current_mm, int step_tenths) {
-    return set ? current_mm + static_cast<float>(step_tenths) / 10.0f : kTowerHeightMm / 2.0f;
+static float stepped_height(bool set, float current_mm, int step_tenths, float top_mm) {
+    return set ? current_mm + static_cast<float>(step_tenths) / 10.0f : top_mm / 2.0f;
 }
 
 void PaNonlinearOverlay::adjust_height(int step_tenths) {
-    set_height(stepped_height(left_set_, height_mm_, step_tenths));
+    set_height(stepped_height(left_set_, height_mm_, step_tenths, judge_top_mm_));
 }
 
 void PaNonlinearOverlay::set_height(float height_mm) {
@@ -1028,7 +1171,7 @@ void PaNonlinearOverlay::set_height(float height_mm) {
         return;
     }
     // Tenths: the steps and the keypad both land on them, and float sums drift.
-    height_mm_ = std::clamp(std::round(height_mm * 10.0f) / 10.0f, 0.0f, kTowerHeightMm);
+    height_mm_ = std::clamp(std::round(height_mm * 10.0f) / 10.0f, 0.0f, judge_top_mm_);
     left_set_ = true;
     refresh();
 }
@@ -1040,7 +1183,7 @@ void PaNonlinearOverlay::edit_height() {
     ui_keypad_config_t config{};
     config.initial_value = height_mm_;
     config.min_value = 0.0f;
-    config.max_value = kTowerHeightMm;
+    config.max_value = judge_top_mm_;
     config.allow_decimal = true;
     config.allow_negative = false;
     config.max_fraction_digits = 1;
@@ -1067,7 +1210,9 @@ void PaNonlinearOverlay::go_back() {
     if (!job_holds_machine(get_printer_state().print_state().get_print_lifecycle())) {
         send_values();
     }
-    save_session();
+    // How far the re-opened tower printed is not recorded: all of it is judged.
+    judge_top_mm_ = kTowerHeightMm;
+    save_session(true);
     set_stage(JUDGE);
     // The judgement comes back as entered: both of a two-sided pass's heights.
     if (reopened->left_mm && reopened->front_mm) {
@@ -1115,14 +1260,14 @@ void PaNonlinearOverlay::judge_primary() {
 }
 
 void PaNonlinearOverlay::adjust_front_height(int step_tenths) {
-    set_front_height(stepped_height(front_set_, front_mm_, step_tenths));
+    set_front_height(stepped_height(front_set_, front_mm_, step_tenths, judge_top_mm_));
 }
 
 void PaNonlinearOverlay::set_front_height(float height_mm) {
     if (stage_ != JUDGE) {
         return;
     }
-    front_mm_ = std::clamp(std::round(height_mm * 10.0f) / 10.0f, 0.0f, kTowerHeightMm);
+    front_mm_ = std::clamp(std::round(height_mm * 10.0f) / 10.0f, 0.0f, judge_top_mm_);
     front_set_ = true;
     refresh();
 }
@@ -1134,7 +1279,7 @@ void PaNonlinearOverlay::edit_front_height() {
     ui_keypad_config_t config{};
     config.initial_value = front_mm_;
     config.min_value = 0.0f;
-    config.max_value = kTowerHeightMm;
+    config.max_value = judge_top_mm_;
     config.allow_decimal = true;
     config.allow_negative = false;
     config.max_fraction_digits = 1;
@@ -1289,15 +1434,19 @@ void PaNonlinearOverlay::close_procedure() {
 
 // SESSION
 
-void PaNonlinearOverlay::save_session() {
+void PaNonlinearOverlay::save_session(bool judging) {
     auto* cfg = Config::get_instance();
     if (!cfg || !proc_) {
         return;
     }
-    cfg->set<nlohmann::json>(cfg->df() + kSessionKey, {{"heater", params_.heater},
-                                                       {"material", params_.material},
-                                                       {"procedure", proc_->to_json()},
-                                                       {"original", model_json(original_)}});
+    nlohmann::json session = {{"heater", params_.heater},
+                              {"material", params_.material},
+                              {"procedure", proc_->to_json()},
+                              {"original", model_json(original_)}};
+    if (judging) {
+        session["judging_top_mm"] = judge_top_mm_;
+    }
+    cfg->set<nlohmann::json>(cfg->df() + kSessionKey, session);
     cfg->save();
 }
 
@@ -1350,6 +1499,12 @@ void PaNonlinearOverlay::resume(const nlohmann::json& saved) {
     // unless a job holds it.
     if (!job_holds_machine(get_printer_state().print_state().get_print_lifecycle())) {
         send_values();
+    }
+    // A tower printed before the restart and not judged yet: judge it now.
+    if (const auto* top = json_util::find_member(saved, "judging_top_mm");
+        top && top->is_number()) {
+        open_judgement(json_util::as_float(*top));
+        set_stage(JUDGE);
     }
     refresh();
 }

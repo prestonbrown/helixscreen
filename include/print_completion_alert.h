@@ -22,7 +22,8 @@ struct CompletionAlertPlan {
 /**
  * @brief Decides how a print's end is announced
  *
- * An error always gets the modal; the print status panel already shows the result, so it gets no
+ * An error always gets the modal; a screen already showing the result (print status, or the PA
+ * tuner its tower prints for: @p on_print_status) gets no
  * toast or modal, but unless `mode` is Off it still wakes the display, which would otherwise go on
  * showing the print as running; otherwise `mode` decides. A running screensaver is the announcement
  * itself: it shows the end, so nothing wakes the display, and the modal is still created to wait

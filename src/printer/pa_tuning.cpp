@@ -94,6 +94,12 @@ std::string format_k(float k) {
     return fmt::format("{:.4f}", k);
 }
 
+bool is_tuner_print(std::string_view filename) {
+    // The linear tower may print from a staged copy whose name wraps the file's.
+    return filename == kFirmwareTowerPrintName ||
+           filename.find(kTunerTowerFile) != std::string_view::npos;
+}
+
 std::string set_pa_gcode(const std::string& extruder, float k) {
     return fmt::format("SET_PRESSURE_ADVANCE EXTRUDER={} ADVANCE={}", extruder,
                        format_k(clamp_k(k)));

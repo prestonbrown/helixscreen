@@ -16,12 +16,14 @@
 #include "ui_print_tune_overlay.h"
 #include "ui_toast_manager.h"
 
+#include "active_material_provider.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "bed_plate_context.h"
 #include "calibration_catalog.h"
 #include "core/observer_factory.h"
 #include "core/temperature_units.h"
+#include "core/text_io.h"
 #include "display_numbering.h"
 #include "filament_database.h"
 #include "i_moonraker_api.h"
@@ -29,6 +31,7 @@
 #include "macro_param_cache.h"
 #include "material_z_offset_state.h"
 #include "pa_tower_start.h"
+#include "panel_widget_size.h"
 #include "preset_materials.h"
 #include "print_start_analyzer.h"
 #include "printer_state.h"
@@ -49,6 +52,54 @@
 namespace helix::ui {
 
 namespace {
+
+/// The material loaded for @p tool (-1: the printer's one head) and the nozzle
+/// and bed temperatures its lane or spool record gives it, when a spool is
+/// loaded and names a material.
+struct LoadedMaterial {
+    std::string material;
+    int nozzle = 0;
+    int bed = 0;
+};
+std::optional<LoadedMaterial> loaded_material(int tool) {
+    const auto active = helix::get_material_for_tool(tool);
+    if (!active || active->material_name.empty()) {
+        return std::nullopt;
+    }
+    const int nozzle = active->material_info.nozzle_recommended();
+    if (nozzle <= 0) {
+        return std::nullopt;
+    }
+    return LoadedMaterial{active->material_name, nozzle, active->material_info.bed_temp};
+}
+
+/// The material chip that names the loaded spool's material, or -1.
+int loaded_chip(const std::optional<LoadedMaterial>& loaded) {
+    if (!loaded) {
+        return -1;
+    }
+    for (int i = 0; i < helix::presets::kPresetCount; ++i) {
+        if (helix::text_io::equals_ignore_case(helix::presets::name(i), loaded->material)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/// A material chip's print temperatures: the loaded spool's when the chip names
+/// its material, since the spool's own record outranks a material default;
+/// otherwise the preset's.
+std::optional<helix::presets::SlotTemps> chip_temps(int slot,
+                                                    const std::optional<LoadedMaterial>& loaded) {
+    auto temps = helix::presets::slot_temps(slot);
+    if (temps && slot == loaded_chip(loaded)) {
+        temps->nozzle = loaded->nozzle;
+        if (loaded->bed > 0) {
+            temps->bed = loaded->bed;
+        }
+    }
+    return temps;
+}
 
 /// Ramp endpoint step on the setup screen, per extruder kind.
 float ramp_step(helix::pa::ExtruderKind kind) {
@@ -125,6 +176,7 @@ void PaTuningOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_STRING(start_k_, start_k_buf_, "0.0000", "pa_tune_start_k", subjects_);
         UI_MANAGED_SUBJECT_STRING(end_k_, end_k_buf_, "0.1000", "pa_tune_end_k", subjects_);
         UI_MANAGED_SUBJECT_STRING(summary_, summary_buf_, "", "pa_tune_summary", subjects_);
+        UI_MANAGED_SUBJECT_STRING(nl_accel_, nl_accel_buf_, "", "pa_tune_nl_accel", subjects_);
         UI_MANAGED_SUBJECT_INT(can_start_, 1, "pa_tune_can_start", subjects_);
         UI_MANAGED_SUBJECT_INT(nl_available_, 0, "pa_tune_nl_available", subjects_);
         UI_MANAGED_SUBJECT_INT(nl_mode_, 0, "pa_tune_nl_mode", subjects_);
@@ -208,28 +260,9 @@ void PaTuningOverlay::deinit_subjects() {
 void PaTuningOverlay::register_callbacks() {
     register_xml_callbacks({
         {"on_pa_tune_tool",
-         [](lv_event_t* e) {
-             auto& self = get_global_pa_tuning_overlay();
-             if (self.stage_ == SETUP) {
-                 self.heads_.select(user_int(e));
-                 self.refresh_model_choice();
-             }
-         }},
+         [](lv_event_t* e) { get_global_pa_tuning_overlay().select_head(user_int(e)); }},
         {"on_pa_tune_preset",
-         [](lv_event_t* e) {
-             auto& self = get_global_pa_tuning_overlay();
-             if (self.stage_ != SETUP) {
-                 return;
-             }
-             const int slot = user_int(e);
-             if (const auto temps = helix::presets::slot_temps(slot)) {
-                 self.selected_preset_ = slot;
-                 self.nozzle_temp_ = temps->nozzle;
-                 self.bed_temp_ = temps->bed;
-             }
-             self.refresh_presets();
-             self.refresh_setup();
-         }},
+         [](lv_event_t* e) { get_global_pa_tuning_overlay().select_preset(user_int(e)); }},
         {"on_pa_tune_kind",
          [](lv_event_t* e) {
              auto& self = get_global_pa_tuning_overlay();
@@ -296,14 +329,10 @@ void PaTuningOverlay::on_activate() {
             tools.get_active_tool_subject(), this,
             [](PaTuningOverlay* self, int) { self->heads_.refresh(); },
             tools.get_subjects_lifetime());
-        if (const auto temps = helix::presets::slot_temps(selected_preset_)) {
-            nozzle_temp_ = temps->nozzle;
-            bed_temp_ = temps->bed;
-        }
         heads_.refresh();
-        refresh_presets();
-        refresh_setup();
+        pick_loaded_material();
         analyze_start_macro();
+        query_max_accel();
     } else if (stage_ == RUNNING || stage_ == STARTING) {
         refresh_running();
     }
@@ -317,6 +346,7 @@ void PaTuningOverlay::on_deactivating(DeactivateReason reason) {
 }
 
 void PaTuningOverlay::cleanup() {
+    preset_picked_ = false;
     decision_awake_.reset();
     active_tool_observer_.reset();
     stop_observing();
@@ -374,9 +404,49 @@ PaTuningOverlay::ChosenHead PaTuningOverlay::chosen_head() const {
                        get_printer_state().temperature_state().active_extruder_name());
 }
 
+void PaTuningOverlay::select_head(int head) {
+    if (stage_ != SETUP) {
+        return;
+    }
+    heads_.select(head);
+    // Another head holds another spool: it picks the material again, and
+    // gives a tapped chip that head's temperatures.
+    pick_loaded_material();
+    refresh_model_choice();
+}
+
+void PaTuningOverlay::select_preset(int slot) {
+    if (stage_ != SETUP) {
+        return;
+    }
+    if (const auto temps = chip_temps(slot, loaded_material(chosen_head().tool))) {
+        selected_preset_ = slot;
+        preset_picked_ = true;
+        nozzle_temp_ = temps->nozzle;
+        bed_temp_ = temps->bed;
+    }
+    refresh_presets();
+    refresh_setup();
+}
+
+void PaTuningOverlay::pick_loaded_material() {
+    // The tuned head's spool picks the material until the user taps another chip.
+    const auto loaded = loaded_material(chosen_head().tool);
+    if (const int chip = loaded_chip(loaded); chip >= 0 && !preset_picked_) {
+        selected_preset_ = chip;
+    }
+    if (const auto temps = chip_temps(selected_preset_, loaded)) {
+        nozzle_temp_ = temps->nozzle;
+        bed_temp_ = temps->bed;
+    }
+    refresh_presets();
+    refresh_setup();
+}
+
 void PaTuningOverlay::refresh_presets() {
+    const auto loaded = loaded_material(chosen_head().tool);
     for (int i = 0; i < kPresetSlots; ++i) {
-        const auto temps = helix::presets::slot_temps(i);
+        const auto temps = chip_temps(i, loaded);
         lv_subject_set_string(
             &preset_temp_[i],
             // The nozzle's alone: it fits beside the name in the nonlinear setup's narrow chips;
@@ -515,6 +585,43 @@ void PaTuningOverlay::analyze_start_macro() {
         });
 }
 
+void PaTuningOverlay::query_max_accel() {
+    refresh_accel_note();
+    if (!api_) {
+        return;
+    }
+    api_->advanced().get_machine_limits(
+        object_lifetime_.bg_cb("PaTuningOverlay::max_accel",
+                               [this](const MachineLimits& limits) {
+                                   max_accel_ = limits.max_accel;
+                                   refresh_accel_note();
+                               }),
+        object_lifetime_.bg_cb(
+            "PaTuningOverlay::max_accel_failed", [this](const MoonrakerError& err) {
+                spdlog::debug("[{}] No toolhead limits: {}", get_name(), err.message);
+            }));
+}
+
+void PaTuningOverlay::refresh_accel_note() {
+    // Kalico's guide: the tower runs at the [printer] acceleration, which should
+    // be the highest the user prints with while extruding. The smallest screens
+    // have one line for it.
+    const auto bp = helix::widget_size::current_breakpoint();
+    const bool small = bp == UiBreakpoint::Micro || bp == UiBreakpoint::Tiny;
+    std::string note;
+    if (max_accel_ > 0.0) {
+        note = fmt::format(
+            fmt::runtime(small ? lv_tr("max_accel {:.0f} mm/s²: set it to your highest.")
+                               : lv_tr("Towers print at max_accel, {:.0f} mm/s². Set it to the "
+                                       "highest you print with.")),
+            max_accel_);
+    } else {
+        note = small ? lv_tr("Set max_accel to your highest.")
+                     : lv_tr("Towers print at max_accel. Set it to the highest you print with.");
+    }
+    lv_subject_set_string(&nl_accel_, note.c_str());
+}
+
 void PaTuningOverlay::refresh_model_choice() {
     const auto model =
         get_printer_state().temperature_state().extruder_pa_model(chosen_head().extruder);
@@ -592,16 +699,26 @@ void PaTuningOverlay::refresh_setup() {
         est =
             helix::calibration::linear_pa_tower_estimate(helix::pa::estimate_print_seconds(params));
     }
-    // The calibration screens' shared wording for time.
-    lv_subject_set_string(&time_line_,
-                          helix::calibration::time_away_line(helix::calibration::AwayKind::Prints,
-                                                             est.walk_away_minutes)
-                              .c_str());
-    lv_subject_set_string(&time_sub_,
-                          helix::calibration::time_you_line(std::max(1, est.hands_minutes),
-                                                            nl ? lv_tr("one look at each tower")
-                                                               : lv_tr("pick the band"))
-                              .c_str());
+    // The calibration screens' shared wording for time. With room for it,
+    // what pressure advance is for leads, over both times on one line.
+    const std::string away = helix::calibration::time_away_line(
+        helix::calibration::AwayKind::Prints, est.walk_away_minutes);
+    const auto bp = helix::widget_size::current_breakpoint();
+    if (bp == UiBreakpoint::Micro || bp == UiBreakpoint::Tiny) {
+        lv_subject_set_string(&time_line_, away.c_str());
+        lv_subject_set_string(&time_sub_,
+                              helix::calibration::time_you_line(std::max(1, est.hands_minutes),
+                                                                nl ? lv_tr("one look at each tower")
+                                                                   : lv_tr("pick the band"))
+                                  .c_str());
+    } else {
+        lv_subject_set_string(&time_line_,
+                              lv_tr("Pressure advance keeps corners sharp and lines even."));
+        lv_subject_set_string(&time_sub_, fmt::format("{}. {}.", away,
+                                                      helix::calibration::time_you_line(
+                                                          std::max(1, est.hands_minutes)))
+                                              .c_str());
+    }
     lv_subject_set_string(&primary_text_, nl ? lv_tr("Start Tuning") : lv_tr("Print Tower"));
     lv_subject_set_string(&save_material_, fmt::format(fmt::runtime(lv_tr("Save for {}")),
                                                        helix::presets::name(selected_preset_))
@@ -635,13 +752,17 @@ void PaTuningOverlay::refresh_setup() {
                 thumb = kThumbLeft;
                 break;
             case helix::pa::TowerSide::LeftVsFront:
-                look = lv_tr("Left side against the front");
+                look = lv_tr("Where sides converge");
                 thumb = kThumbBoth;
                 break;
             case helix::pa::TowerSide::Front:
-                look = pass.sweep.param == helix::pa::NlParam::TimeOffset
-                           ? lv_tr("Front, lit from the side")
-                           : lv_tr("Front");
+                if (pass.sweep.param == helix::pa::NlParam::TimeOffset) {
+                    look = lv_tr("Front: pause, slow spot");
+                } else if (const float kept = order.kept_fraction(pass); kept < 1.0f) {
+                    look = fmt::format(fmt::runtime(lv_tr("Front, {:.0f}% kept")), kept * 100.0f);
+                } else {
+                    look = lv_tr("Front transitions");
+                }
                 break;
             }
             lv_subject_set_pointer(&nl_thumb_[i], const_cast<char*>(thumb));

@@ -56,7 +56,7 @@
                   width="#pa_nl_cards_w" height="100%" style_pad_all="0" style_bg_opa="0" style_border_width="0"
                   flex_flow="column" style_pad_gap="#space_xs" scrollable="false" hidden="true">
             <bind_flag_if_eq subject="pa_tune_nl_mode" flag="hidden" ref_value="0"/>
-            <cal_intro_section_label width="100%" text="Each tower tunes one value" long_mode="wrap"/>
+            <cal_intro_section_label width="100%" text="Each tower tunes one value. Judge it side-lit." long_mode="wrap"/>
             <repeat count="4">
               <lv_obj width="100%"
                       height="0" flex_grow="1" style_bg_color="#screen_bg" style_bg_opa="255" style_border_width="1"
@@ -176,6 +176,12 @@
           <text_small name="pa_summary"
                       width="100%" bind_text="pa_tune_summary" long_mode="wrap" style_text_color="#text_muted">
             <bind_flag_if_eq subject="pa_tune_nl_mode" flag="hidden" ref_value="1"/>
+          </text_small>
+          <!-- Nonlinear: the towers print at the printer's own acceleration (Kalico's guide). -->
+          <text_small name="pa_nl_accel"
+                      width="100%" bind_text="pa_tune_nl_accel" long_mode="wrap" style_text_color="#text_muted"
+                      hidden="true">
+            <bind_flag_if_eq subject="pa_tune_nl_mode" flag="hidden" ref_value="0"/>
           </text_small>
           <text_small name="pa_error" width="100%" bind_text="pa_tune_error" long_mode="wrap" style_text_color="#danger"/>
         </calibration_intro-settings>

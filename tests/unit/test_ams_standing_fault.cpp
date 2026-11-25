@@ -44,7 +44,7 @@ const std::string kBangResponse =
     "with LANE_MOVE macro.";
 const std::string kLane3Fault =
     "lane3 filament failed to trigger pre extruder gear toolhead sensor, CHECK FILAMENT PATH";
-const std::string kStaleMessage = "Error getting data from moonraker, check AFC.log for more info";
+const std::string kStaleMessage = "Hub not clear when trying to load, CHECK FILAMENT PATH";
 
 /// A backend whose standing fault carries AFC.message's stale text.
 class StaleFaultBackend : public AmsBackendMock {

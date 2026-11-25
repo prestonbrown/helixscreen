@@ -53,6 +53,7 @@
  * - pa_nl_pass_title / pa_nl_pass_hint (string)
  * - pa_nl_has_tower (int), pa_nl_busy (int: 1 readying a print, 2 writing the config)
  * - pa_nl_live_value / pa_nl_live_text (string)
+ * - pa_nl_layer_text / pa_nl_progress_text / pa_nl_time_left (string), pa_nl_progress (int 0-100)
  * - pa_nl_two_sided (int), pa_nl_height / pa_nl_height_value (string)
  * - pa_nl_can_back (int: a judgement can be taken back)
  * - pa_nl_error (string)
@@ -61,9 +62,10 @@
  *   pa_nl_value_hl (int: the row the pass sweeps), pa_nl_result_N (string)
  * - pa_nl_look (string), pa_nl_ref_src_N (string): the "where to look" card
  * - pa_nl_time_line / pa_nl_time_sub / pa_nl_run_note / pa_nl_run_chip (string)
- * - pa_nl_ready_primary / pa_nl_judge_primary / pa_nl_back_text (string)
+ * - pa_nl_ready_primary / pa_nl_judge_primary (string)
  * - pa_nl_param / pa_nl_height_front / pa_nl_verdict (string): pass 2's two heights,
- *   pa_nl_heights_set (int: 0 while a two-sided pass has a height not yet judged)
+ *   pa_nl_heights_set (int: 0 while a two-sided pass has a height not yet judged),
+ *   pa_nl_correcting (int: 1 while the judged heights correct the pass and print it again)
  * - pa_nl_result_live / pa_nl_save_material (string)
  *
  * Every judgement is saved with the printer's settings, so a restart of the
@@ -81,7 +83,7 @@ const char* nonlinear_param_label(helix::pa::NlParam p);
 class PaNonlinearOverlay : public OverlayBase {
   public:
     /// The print_stats filename the firmware's tower prints under.
-    static constexpr const char* kTowerPrintName = "PA tower";
+    static constexpr const char* kTowerPrintName = helix::pa::kFirmwareTowerPrintName;
     /// How long after PRINT_PA_TOWER returns the tower must be printing.
     static constexpr uint32_t kTowerStartTimeoutMs = 30000;
     /// How long a start the printer never answered may still turn into a tower.
@@ -154,6 +156,9 @@ class PaNonlinearOverlay : public OverlayBase {
     void back_for_test() {
         go_back();
     }
+    float judge_top_for_test() const {
+        return judge_top_mm_;
+    }
     float height_for_test() const {
         return height_mm_;
     }
@@ -170,6 +175,10 @@ class PaNonlinearOverlay : public OverlayBase {
     }
     bool holds_machine_busy_for_test() const {
         return start_busy_.held();
+    }
+    /// Whether any of the tower's printer observers is still attached.
+    bool observing_for_test() const {
+        return print_state_observer_ || z_observer_ || duration_observer_ || pa_observer_;
     }
     void judge_for_test(int verdict) {
         judge(verdict);
@@ -195,6 +204,11 @@ class PaNonlinearOverlay : public OverlayBase {
     }
     const helix::pa::NonlinearProcedure* procedure_for_test() const {
         return proc_ ? &*proc_ : nullptr;
+    }
+    /// Draw the towers into @p root, a pa_nonlinear_overlay the test created.
+    void attach_root_for_test(lv_obj_t* root) {
+        overlay_root_ = root;
+        refresh_towers();
     }
     void set_raise_on_start_for_test(bool raise) {
         raise_on_start_ = raise;
@@ -235,6 +249,12 @@ class PaNonlinearOverlay : public OverlayBase {
     void restore_original();
 
     void stop_tower();
+    /// Cancel the tower's job for a Stop pressed during the start script.
+    void send_pending_stop();
+    /// That cancel failed: the tower carries on as if Stop was never pressed.
+    void on_pending_stop_failed();
+    /// Judge a tower printed up to @p top_mm: the heights start inside it.
+    void open_judgement(float top_mm);
     void raise(int attempts_left);
     static constexpr int kRaiseAttempts = 60;
 
@@ -272,7 +292,9 @@ class PaNonlinearOverlay : public OverlayBase {
     void close_procedure();
 
     /// Write the procedure, and the model to restore, to the printer's settings.
-    void save_session();
+    /// @p judging: the current pass's tower has printed and waits to be
+    /// judged, so a restart reopens it on the judge screen.
+    void save_session(bool judging = false);
     void clear_saved_session();
     /// Offer to continue the saved procedure @p saved in place of the fresh one.
     void offer_resume(const nlohmann::json& saved);
@@ -295,6 +317,10 @@ class PaNonlinearOverlay : public OverlayBase {
     bool saw_printing_ = false;
     /// The current pass's script returned: PRINT_PA_TOWER was accepted.
     bool script_done_ = false;
+    /// Stop was pressed before the tower's job existed: the cancel goes out
+    /// once the start script is through, the end sequence once the job ends.
+    bool stop_pending_ = false;
+    bool stop_cancel_sent_ = false;
     /// Increments per pass, so a late callback from an earlier pass is ignored.
     int pass_seq_ = 0;
     bool tower_added_ = false;
@@ -313,6 +339,20 @@ class PaNonlinearOverlay : public OverlayBase {
     char live_value_buf_[24] = {};
     helix::Subject live_text_{};
     char live_text_buf_[96] = {};
+    // The tower's own progress, from the nozzle height: the firmware tower
+    // reports no layers, and its file position runs slow over the brim.
+    helix::Subject layer_text_{};
+    char layer_text_buf_[64] = {};
+    helix::Subject progress_{};
+    helix::Subject progress_text_{};
+    char progress_text_buf_[16] = {};
+    helix::Subject time_left_{};
+    char time_left_buf_[32] = {};
+    std::optional<helix::pa::TowerTimeLeft> time_left_est_;
+    /// The highest the nozzle reached this pass, and the top of what is
+    /// judged: the whole tower, or what printed before a stop.
+    float reached_mm_ = 0.0f;
+    float judge_top_mm_ = helix::pa::kTowerHeightMm;
     helix::Subject two_sided_{};
     helix::Subject can_back_{};
     helix::Subject height_{};
@@ -351,13 +391,12 @@ class PaNonlinearOverlay : public OverlayBase {
     char ready_primary_buf_[48] = {};
     helix::Subject judge_primary_{};
     char judge_primary_buf_[48] = {};
-    helix::Subject back_text_{};
-    char back_text_buf_[32] = {};
     helix::Subject param_{};
     char param_buf_[48] = {};
     helix::Subject height_front_{};
     char height_front_buf_[24] = {};
     helix::Subject heights_set_{};
+    helix::Subject correcting_{};
     helix::Subject verdict_{};
     char verdict_buf_[160] = {};
     helix::Subject result_live_{};
@@ -374,6 +413,7 @@ class PaNonlinearOverlay : public OverlayBase {
 
     ObserverGuard print_state_observer_;
     ObserverGuard z_observer_;
+    ObserverGuard duration_observer_;
     ObserverGuard pa_observer_;
 };
 

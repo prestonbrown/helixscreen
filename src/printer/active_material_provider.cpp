@@ -3,9 +3,63 @@
 
 #include "ams_state.h"
 #include "app_constants.h"
+#include "filament_catalog.h"
 #include "filament_temperature_source.h"
+#include "tool_state.h"
 
 namespace helix {
+
+namespace {
+
+/// The limits a print temperature is held inside, per side: the user's
+/// Material Temps value where set, else the resolved range (the lane's, else
+/// the database's) when it is a range. A range that states one temperature
+/// (min == max, a lane's single firmware number) is a setpoint, not limits.
+struct TempLimits {
+    int min = 0;
+    int max = 0;
+};
+
+TempLimits print_temp_limits(const filament::MaterialInfo& range,
+                             const filament::MaterialOverride* user) {
+    const bool is_range = range.nozzle_min > 0 && range.nozzle_max > range.nozzle_min;
+    TempLimits limits;
+    limits.min = user && user->nozzle_min ? *user->nozzle_min : (is_range ? range.nozzle_min : 0);
+    limits.max = user && user->nozzle_max ? *user->nozzle_max : (is_range ? range.nozzle_max : 0);
+    return limits;
+}
+
+int clamp_to_limits(int temp, TempLimits limits) {
+    if (limits.min > 0 && temp < limits.min) {
+        temp = limits.min;
+    }
+    if (limits.max > 0 && temp > limits.max) {
+        temp = limits.max;
+    }
+    return temp;
+}
+
+/// The loaded spool's own print temperature, from the most specific source
+/// that states one: the catalog product picked for the slot, then the lane's
+/// own temperature (the middle of a range the lane states both ends of; one
+/// end alone is a limit, not a temperature), held inside @p limits. 0 when
+/// neither does, and the material range's midpoint stands in.
+int loaded_print_temp(const SlotInfo& slot, TempLimits limits) {
+    int product = printer::FilamentCatalog::product_nozzle_temp(slot.catalog_id, slot.material);
+    if (product <= 0) {
+        product = slot.nozzle_temp_recommended;
+    }
+    if (product > 0) {
+        return clamp_to_limits(product, limits);
+    }
+    if (slot.nozzle_temp_min > 0 && slot.nozzle_temp_max > 0) {
+        return clamp_to_limits(
+            filament::temp_for_window(slot.nozzle_temp_min, slot.nozzle_temp_max), limits);
+    }
+    return 0;
+}
+
+} // namespace
 
 ActiveMaterial build_active_material(const SlotInfo& slot) {
     ActiveMaterial result;
@@ -31,7 +85,7 @@ ActiveMaterial build_active_material(const SlotInfo& slot) {
     // by this.
     result.firmware_temps = filament_temps::lookup_filament_temperatures(slot);
 
-    // Resolve material_info via the three-tier precedence (#961):
+    // Resolve the material_info range via the three-tier precedence (#961):
     //   1. User override (Material Temps overlay) — highest
     //   2. Vendor preset (slot.nozzle_temp_*, written by backend from
     //      RFID/cfg/Klipper config)
@@ -79,6 +133,11 @@ ActiveMaterial build_active_material(const SlotInfo& slot) {
         };
     }
 
+    // The range is the limits; the temperature to print at comes from the
+    // loaded spool itself where anything states one.
+    result.material_info.print_temp =
+        loaded_print_temp(slot, print_temp_limits(result.material_info, user_ovr));
+
     return result;
 }
 
@@ -103,6 +162,21 @@ std::optional<ActiveMaterial> get_active_material() {
         return build_active_material(*ext_spool);
     }
 
+    return std::nullopt;
+}
+
+std::optional<ActiveMaterial> get_material_for_tool(int tool) {
+    if (tool < 0) {
+        return get_active_material();
+    }
+    if (const auto lane = AmsState::instance().lane_feeding_tool(tool);
+        lane && (!lane->info.material.empty() || lane->info.nozzle_temp_min > 0)) {
+        return build_active_material(lane->info);
+    }
+    // A head no lane feeds holds whatever is loaded only while it is the active one.
+    if (tool == ToolState::instance().active_tool_index()) {
+        return get_active_material();
+    }
     return std::nullopt;
 }
 

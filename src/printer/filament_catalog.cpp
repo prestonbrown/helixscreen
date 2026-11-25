@@ -279,20 +279,42 @@ FilamentCatalog FilamentCatalog::load_full() {
                              first_existing(user_paths()));
 }
 
-std::unordered_map<std::string, std::string>
-FilamentCatalog::orca_id_map_from(const std::string& builtin_path,
-                                  const std::string& overlay_path) {
-    // catalog id -> the Orca id that product carries, built-ins first, then the
-    // overlay. An overlay entry speaks for the whole product: it may have
-    // changed what the product is, so one with no orca_id of its own carries
-    // none, rather than inheriting the built-in's.
+namespace {
+
+/// The print temperature a catalog product states about itself.
+struct ProductTemps {
+    std::string type; ///< The product's material type ("PLA")
+    int nozzle = 0;   ///< Recommended print temperature; 0 = the product states none
+};
+
+/// What the resident per-product index keeps about each catalog product.
+struct ProductIndex {
+    std::unordered_map<std::string, std::string> orca_ids;
+    std::unordered_map<std::string, ProductTemps> temps;
+};
+
+ProductTemps stated_temps(const nlohmann::json& p) {
+    ProductTemps t;
+    t.type = helix::json_util::safe_string(p, "type");
+    t.nozzle = get_int(p, "nozzle", 0);
+    return t;
+}
+
+/// The overlay replaces a built-in of the same id whole: it may have changed
+/// what the product is, so a field it leaves out is one it does not state,
+/// rather than one inherited from the built-in.
+ProductIndex product_index_from(const std::string& builtin_path, const std::string& overlay_path) {
+    ProductIndex index;
     std::unordered_map<std::string, std::string> by_product;
-    for (const auto& jp : read_products({builtin_path}))
-        by_product[helix::json_util::safe_string(jp, "id")] =
-            helix::json_util::safe_string(jp, "orca_id");
-    for (const auto& jp : read_products({overlay_path}))
-        by_product[helix::json_util::safe_string(jp, "id")] =
-            helix::json_util::safe_string(jp, "orca_id");
+    for (const auto* path : {&builtin_path, &overlay_path}) {
+        for (const auto& jp : read_products({*path})) {
+            std::string id = helix::json_util::safe_string(jp, "id");
+            if (id.empty())
+                continue;
+            by_product[id] = helix::json_util::safe_string(jp, "orca_id");
+            index.temps[std::move(id)] = stated_temps(jp);
+        }
+    }
 
     // An Orca id carried by more than one product names none of them exactly:
     // child Orca profiles inherit their parent's id, so a shared id can belong
@@ -304,40 +326,58 @@ FilamentCatalog::orca_id_map_from(const std::string& builtin_path,
 
     // An id no Orca preset can match on the Moonraker path (a Bambu GF code, a
     // display name) is no id at all: lane_data must not carry it (RFC 0001 §5).
-    std::unordered_map<std::string, std::string> out;
     for (auto& [id, orca] : by_product)
-        if (!id.empty() && carriers[orca] == 1 && is_usable_orca_filament_id(orca))
-            out.emplace(id, std::move(orca));
-    return out;
+        if (carriers[orca] == 1 && is_usable_orca_filament_id(orca))
+            index.orca_ids.emplace(id, std::move(orca));
+    return index;
 }
 
-namespace {
-std::mutex g_orca_ids_mutex;
-uint64_t g_orca_ids_generation = 0;
-std::shared_ptr<const std::unordered_map<std::string, std::string>> g_orca_ids;
+std::mutex g_product_index_mutex;
+uint64_t g_product_index_generation = 0;
+std::shared_ptr<const ProductIndex> g_product_index;
+
+std::shared_ptr<const ProductIndex> product_index() {
+    const uint64_t gen = g_user_overlay_generation.load(std::memory_order_acquire);
+    {
+        std::lock_guard<std::mutex> lock(g_product_index_mutex);
+        if (g_product_index && g_product_index_generation == gen)
+            return g_product_index;
+    }
+    // Built outside the lock, as in load_codes_cached(): the parse is the
+    // whole bundled catalog, and a racing build is wasted once, never wrong.
+    auto index = std::make_shared<const ProductIndex>(product_index_from(
+        first_existing(FilamentCatalog::builtin_candidate_paths()), first_existing(user_paths())));
+    std::lock_guard<std::mutex> lock(g_product_index_mutex);
+    g_product_index = index;
+    g_product_index_generation = gen;
+    return index;
+}
+
 } // namespace
+
+std::unordered_map<std::string, std::string>
+FilamentCatalog::orca_id_map_from(const std::string& builtin_path,
+                                  const std::string& overlay_path) {
+    return product_index_from(builtin_path, overlay_path).orca_ids;
+}
 
 std::string FilamentCatalog::orca_id_for(const std::string& catalog_id) {
     if (catalog_id.empty())
         return {};
-    const uint64_t gen = g_user_overlay_generation.load(std::memory_order_acquire);
-    std::shared_ptr<const std::unordered_map<std::string, std::string>> ids;
-    {
-        std::lock_guard<std::mutex> lock(g_orca_ids_mutex);
-        if (g_orca_ids && g_orca_ids_generation == gen)
-            ids = g_orca_ids;
-    }
-    if (!ids) {
-        // Built outside the lock, as in load_codes_cached(): the parse is the
-        // whole bundled catalog, and a racing build is wasted once, never wrong.
-        ids = std::make_shared<const std::unordered_map<std::string, std::string>>(orca_id_map_from(
-            first_existing(builtin_candidate_paths()), first_existing(user_paths())));
-        std::lock_guard<std::mutex> lock(g_orca_ids_mutex);
-        g_orca_ids = ids;
-        g_orca_ids_generation = gen;
-    }
-    auto it = ids->find(catalog_id);
-    return it == ids->end() ? std::string{} : it->second;
+    const auto index = product_index();
+    auto it = index->orca_ids.find(catalog_id);
+    return it == index->orca_ids.end() ? std::string{} : it->second;
+}
+
+int FilamentCatalog::product_nozzle_temp(const std::string& catalog_id,
+                                         const std::string& material) {
+    if (catalog_id.empty() || material.empty())
+        return 0;
+    const auto index = product_index();
+    const auto it = index->temps.find(catalog_id);
+    if (it == index->temps.end() || !helix::text_io::equals_ignore_case(it->second.type, material))
+        return 0;
+    return it->second.nozzle;
 }
 
 namespace {

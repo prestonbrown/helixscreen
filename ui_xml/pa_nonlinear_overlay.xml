@@ -14,6 +14,8 @@
   <styles>
     <style name="stage" width="100%" height="0" flex_grow="1" pad_all="0" bg_opa="0" border_width="0"/>
     <style name="side_column" width="0" height="100%" flex_grow="1" pad_all="0" bg_opa="0" border_width="0"/>
+    <style name="judge_tower_one" width="#pa_tower_w"/>
+    <style name="judge_tower_two" width="#pa_tower_two_w"/>
     <!-- The pass labels: styles, so the bound ones outrank the plain one. -->
     <style name="label_todo" text_color="#text_subtle"/>
     <style name="label_done" text_color="#text_muted"/>
@@ -104,7 +106,7 @@
           </lv_obj>
         </lv_obj>
         <wizard_frame_footer name="pa_nl_ready_footer"
-                             back_callback="on_pa_nl_back" back_name="pa_nl_btn_back" back_subject="pa_nl_back_text"
+                             back_callback="on_pa_nl_back" back_name="pa_nl_btn_back"
                              back_hide_cond="pa_nl_can_back eq 0" status_subject="pa_nl_time_line"
                              status_sub_subject="pa_nl_time_sub" primary_name="pa_nl_btn_print"
                              primary_subject="pa_nl_ready_primary" primary_callback="on_pa_nl_ready_primary"
@@ -126,7 +128,7 @@
                   style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
             <status_pill name="pa_nl_run_chip" bind_text="pa_nl_run_chip" variant="info"/>
             <text_small name="pa_nl_run_layer"
-                        width="0" flex_grow="1" bind_text="print_layer_text" style_text_align="right"
+                        width="0" flex_grow="1" bind_text="pa_nl_layer_text" style_text_align="right"
                         style_text_color="#text_muted" long_mode="dots">
               <bind_flag_if_eq subject="pa_nl_stage" flag="hidden" ref_value="1"/>
             </text_small>
@@ -146,7 +148,7 @@
               <heater_rows/>
             </lv_obj>
           </lv_obj>
-          <!-- PRINTING: the swept value at the nozzle, Print Status's progress. -->
+          <!-- PRINTING: the swept value at the nozzle, and progress by the tower's height. -->
           <lv_obj name="pa_nl_printing"
                   width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0"
                   flex_flow="column" style_pad_gap="#space_xs" style_flex_cross_place="center" scrollable="false"
@@ -158,9 +160,9 @@
             <lv_obj width="100%"
                     height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
                     style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false">
-              <text_body bind_text="print_progress_text" style_text_font="#font_body_bold"/>
+              <text_body bind_text="pa_nl_progress_text" style_text_font="#font_body_bold"/>
               <icon src="clock" size="xs" variant="secondary"/>
-              <text_small bind_text="print_remaining" style_text_color="#text_muted" flex_grow="1" long_mode="dots"/>
+              <text_small bind_text="pa_nl_time_left" style_text_color="#text_muted" flex_grow="1" long_mode="dots"/>
               <icon src="hourglass" size="xs" variant="secondary">
                 <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
               </icon>
@@ -168,7 +170,7 @@
                 <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
               </text_small>
             </lv_obj>
-            <progress_bar name="pa_nl_progress" bind_value="print_progress_display"/>
+            <progress_bar name="pa_nl_progress" bind_value="pa_nl_progress"/>
             <lv_obj width="100%"
                     height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
                     style_flex_cross_place="center" style_pad_gap="#space_lg" scrollable="false">
@@ -205,6 +207,17 @@
                         width="0" flex_grow="1" bind_text="pa_nl_run_note" long_mode="wrap"
                         style_text_color="#text_muted"/>
           </lv_obj>
+          <!-- The sweep runs past good values on purpose: once the wall gets
+               worse as it climbs, the rest is wasted plastic and time. -->
+          <lv_obj width="100%"
+                  height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
+                  style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
+            <bind_flag_if_not_eq subject="pa_nl_stage" flag="hidden" ref_value="2"/>
+            <icon src="stop" size="xs" variant="secondary"/>
+            <text_small name="pa_nl_stop_hint"
+                        width="0" flex_grow="1" long_mode="wrap" style_text_color="#text_muted"
+                        text="Getting worse as it climbs? Stop Tower and judge it."/>
+          </lv_obj>
         </lv_obj>
       </lv_obj>
 
@@ -217,14 +230,20 @@
         <lv_obj width="100%"
                 height="0" flex_grow="1" style_pad_all="0" style_pad_bottom="#space_sm" style_bg_opa="0"
                 style_border_width="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
-          <!-- A tap sets the height under the finger, on the face it lands on. -->
-          <pa_tower name="pa_nl_judge_tower" width="#pa_tower_w" height="100%" clickable="true">
+          <!-- A tap or drag sets the height under the finger, on the face it
+               starts on; two faces judged at once get a wider tower. -->
+          <pa_tower name="pa_nl_judge_tower" height="100%" clickable="true">
+            <bind_style name="judge_tower_one" subject="pa_nl_two_sided" ref_value="0"/>
+            <bind_style name="judge_tower_two" subject="pa_nl_two_sided" ref_value="1"/>
             <event_cb trigger="value_changed" callback="on_pa_nl_tower_tap"/>
           </pa_tower>
           <lv_obj flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
             <style name="side_column"/>
+            <!-- The card takes what the heights and the verdict leave; a
+                 correction's reason takes the samples' room. -->
             <pa_reference name="pa_nl_judge_reference"
-                          tower_name="pa_nl_judge_ref_tower" bind_look="pa_nl_look" bind_src0="pa_nl_ref_src_0"
+                          height="0" flex_grow="1" tower_name="pa_nl_judge_ref_tower" ref_h="100%"
+                          samples_hidden_when="pa_nl_correcting eq 1" bind_look="pa_nl_look" bind_src0="pa_nl_ref_src_0"
                           bind_src1="pa_nl_ref_src_1" bind_src2="pa_nl_ref_src_2">
               <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
             </pa_reference>
@@ -268,7 +287,9 @@
               </lv_obj>
               <pa_value_row name="pa_nl_height_value_row" bind_label="pa_nl_param" bind_value="pa_nl_height_value"/>
             </lv_obj>
-            <!-- Two-sided: the left's height and the front's; the app compares them. -->
+            <!-- Two-sided: the left's height and the front's; the app compares them.
+                 At the smallest breakpoint the 5 mm steps go, so each height
+                 reads whole; a tap on the tower makes the long moves. -->
             <lv_obj name="pa_nl_two_heights"
                     width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0"
                     flex_flow="column" style_pad_gap="#space_xs" scrollable="false" hidden="true">
@@ -279,6 +300,7 @@
                 <text_small width="#pa_side_label_w" text="Left side" style_text_color="#primary" long_mode="wrap"/>
                 <ui_button name="pa_nl_l_minus_5"
                            width="#touch_target_min" height="#touch_target_min" text="-5" variant="secondary">
+                  <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
                   <event_cb trigger="clicked" callback="on_pa_nl_height" user_data="-50"/>
                 </ui_button>
                 <ui_button name="pa_nl_l_minus_half"
@@ -296,6 +318,7 @@
                 </ui_button>
                 <ui_button name="pa_nl_l_plus_5"
                            width="#touch_target_min" height="#touch_target_min" text="+5" variant="secondary">
+                  <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
                   <event_cb trigger="clicked" callback="on_pa_nl_height" user_data="50"/>
                 </ui_button>
               </lv_obj>
@@ -305,6 +328,7 @@
                 <text_small width="#pa_side_label_w" text="Front" style_text_color="#warning" long_mode="wrap"/>
                 <ui_button name="pa_nl_f_minus_5"
                            width="#touch_target_min" height="#touch_target_min" text="-5" variant="secondary">
+                  <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
                   <event_cb trigger="clicked" callback="on_pa_nl_height_front" user_data="-50"/>
                 </ui_button>
                 <ui_button name="pa_nl_f_minus_half"
@@ -322,6 +346,7 @@
                 </ui_button>
                 <ui_button name="pa_nl_f_plus_5"
                            width="#touch_target_min" height="#touch_target_min" text="+5" variant="secondary">
+                  <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
                   <event_cb trigger="clicked" callback="on_pa_nl_height_front" user_data="50"/>
                 </ui_button>
               </lv_obj>
@@ -334,10 +359,9 @@
         </lv_obj>
         <wizard_frame_footer name="pa_nl_judge_footer"
                              back_callback="on_pa_nl_back" back_name="pa_nl_btn_judge_back"
-                             back_subject="pa_nl_back_text" back_hide_cond="pa_nl_can_back eq 0"
-                             primary_name="pa_nl_btn_use" primary_subject="pa_nl_judge_primary"
-                             primary_callback="on_pa_nl_judge_primary" primary_icon="check"
-                             primary_disabled_cond="pa_nl_heights_set eq 0"/>
+                             back_hide_cond="pa_nl_can_back eq 0" primary_name="pa_nl_btn_use"
+                             primary_subject="pa_nl_judge_primary" primary_callback="on_pa_nl_judge_primary"
+                             primary_icon="check" primary_disabled_cond="pa_nl_heights_set eq 0"/>
       </lv_obj>
 
       <!-- ============================================================ -->

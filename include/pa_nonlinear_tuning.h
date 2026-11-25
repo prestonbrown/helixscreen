@@ -43,6 +43,48 @@ struct NonlinearPass {
 
 /// The firmware tower's height (Kalico's [pa_test] default).
 inline constexpr float kTowerHeightMm = 50.0f;
+/// The firmware tower's layer height (Kalico's [pa_test] default).
+inline constexpr float kTowerLayerMm = 0.2f;
+
+/// The height a tower has reached after the nozzle is seen at @p z_mm: it only
+/// climbs, a layer or so at a time, so a lower reading (a travel move) or a
+/// jump well above the top (the lift that ends a print) leaves it where it was.
+float tower_reached_mm(float reached_mm, float z_mm);
+
+/// Where a printing tower is, from the nozzle height alone: every layer above
+/// the first is the same shape, so height is the tower's real progress.
+struct TowerLayerProgress {
+    int layer = 1;
+    int layers = 1;
+    float fraction = 0.0f; ///< 0..1 of the tower's height
+};
+TowerLayerProgress tower_layer_progress(float z_mm, float height_mm = kTowerHeightMm,
+                                        float layer_mm = kTowerLayerMm);
+
+/// Time left on a tower. The first layer carries the brim and runs slow, so
+/// the rate is measured from the second layer on; until the nozzle has climbed
+/// kTowerRateClimbMm past that, it is the expected print time less what has
+/// printed.
+class TowerTimeLeft {
+  public:
+    static constexpr float kTowerRateClimbMm = 1.0f;
+    explicit TowerTimeLeft(int expected_print_s, float height_mm = kTowerHeightMm,
+                           float layer_mm = kTowerLayerMm);
+    /// The nozzle at @p z_mm, @p t_s seconds into the print.
+    void sample(float z_mm, double t_s);
+    [[nodiscard]] int seconds_left() const;
+
+  private:
+    int expected_s_;
+    float height_mm_;
+    float layer_mm_;
+    float z_ = 0.0f;
+    double t_ = 0.0;
+    double first_t_ = -1.0;
+    float climb_z_ = -1.0f;
+    double climb_t_ = 0.0;
+};
+
 /// Left and front heights closer than this count as the same.
 inline constexpr float kSameHeightMm = 1.0f;
 
@@ -80,10 +122,18 @@ FaceLayout tower_face_layout(TowerFace face, float size_x_mm = kTowerSizeXMm,
 /// The faces a pass's user looks at, left face first.
 std::vector<TowerFace> judged_faces(TowerSide side);
 
+/// The speed changes a pass's user judges on its faces. The time offset is
+/// judged at the front's leftmost and rightmost transitions, the pause and the
+/// very slow spot (Kalico's guide, its worked example); every other pass at
+/// every change on the faces it judges.
+std::vector<SpotKind> judged_spots(const NonlinearPass& pass);
+
 /// What a two-sided verdict changes before the pass prints again.
 struct Correction {
     NlParam param = NlParam::Offset;
     bool raise = false; ///< about 10% up; otherwise about 10% down
+    float from = 0.0f;  ///< the value the next tower corrects
+    float to = 0.0f;    ///< what the next tower prints with
 };
 
 class NonlinearProcedure {
@@ -158,6 +208,11 @@ class NonlinearProcedure {
     ExtruderKind kind() const {
         return kind_;
     }
+
+    /// The share of a one-sided pass's best value the procedure keeps: Bowden
+    /// keeps 80% of its first advance, since the offset adds a boost of its own
+    /// at low speed (Kalico's guide, Bowden step 6). 1 for every other pass.
+    float kept_fraction(const NonlinearPass& pass) const;
 
     /// Everything a restart would lose, for from_json().
     nlohmann::json to_json() const;

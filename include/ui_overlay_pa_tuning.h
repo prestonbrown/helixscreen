@@ -85,7 +85,7 @@ class PaTuningOverlay : public OverlayBase {
 
     /// Generated file name in the gcodes root. One fixed name: a re-run
     /// overwrites the last test instead of littering the file list.
-    static constexpr const char* TEST_FILENAME = "helix_pa_tuning.gcode";
+    static constexpr const char* TEST_FILENAME = helix::pa::kTunerTowerFile;
 
     enum Stage : int {
         SETUP = 0,
@@ -215,9 +215,27 @@ class PaTuningOverlay : public OverlayBase {
     void refresh_setup_for_test() {
         refresh_setup();
     }
+    /// Ask the printer for the acceleration the towers print at.
+    void query_max_accel_for_test() {
+        query_max_accel();
+    }
     /// The Direct drive / Bowden chips.
     void set_kind_for_test(helix::pa::ExtruderKind kind) {
         set_kind(kind);
+    }
+    /// A head chip on the setup screen.
+    void select_head_for_test(int head) {
+        select_head(head);
+    }
+    /// A material chip on the setup screen.
+    void select_preset_for_test(int slot) {
+        select_preset(slot);
+    }
+    int selected_preset_for_test() const {
+        return selected_preset_;
+    }
+    int nozzle_temp_for_test() const {
+        return nozzle_temp_;
     }
     /// The Linear K / Nonlinear chips.
     void choose_model_for_test(bool nonlinear) {
@@ -250,6 +268,10 @@ class PaTuningOverlay : public OverlayBase {
     /// Learn once whether the start macro draws its own purge line, so the tower
     /// does not add a second one.
     void analyze_start_macro();
+    /// The toolhead's max_accel, which the firmware tower prints at, into the
+    /// nonlinear setup's acceleration note.
+    void query_max_accel();
+    void refresh_accel_note();
     /// Confirm-dialog options whose callbacks die with this object.
     ConfirmOptions owned_confirm();
     void begin_upload();
@@ -267,6 +289,13 @@ class PaTuningOverlay : public OverlayBase {
     /// The extruder heater and the tool to select for the chosen head.
     using ChosenHead = HeadChoice;
     ChosenHead chosen_head() const;
+    /// Pick the material chip and temperatures from the chosen head's loaded
+    /// spool, unless the user has tapped a chip.
+    void pick_loaded_material();
+    /// The setup's head chip @p head: its own spool picks the material again.
+    void select_head(int head);
+    /// The setup's material chip @p slot: it stays picked across head changes.
+    void select_preset(int slot);
     /// The bed area the tower may use, from the printer's axes, plate and
     /// kinematics. nullopt when the axes are unknown.
     static std::optional<helix::pa::PrintArea> printable_area();
@@ -326,6 +355,9 @@ class PaTuningOverlay : public OverlayBase {
     /// Tool the run selected, -1 for none; its spool is the one saved to.
     int tuned_tool_ = -1;
     int selected_preset_ = 0;
+    /// The user tapped a material chip; until the tuner closes, the loaded
+    /// spool no longer picks one.
+    bool preset_picked_ = false;
     int nozzle_temp_ = 210;
     int bed_temp_ = 60;
     helix::pa::ExtruderKind kind_ = helix::pa::ExtruderKind::DirectDrive;
@@ -346,6 +378,8 @@ class PaTuningOverlay : public OverlayBase {
     std::function<lv_obj_t*()> print_status_page_source_;
     bool start_analysis_in_flight_ = false;
     bool start_macro_purges_ = false;
+    /// The toolhead's max_accel, mm/s²; 0 until the printer has said.
+    double max_accel_ = 0.0;
 
     SubjectManager subjects_;
 
@@ -360,6 +394,8 @@ class PaTuningOverlay : public OverlayBase {
     char end_k_buf_[16] = {};
     helix::Subject summary_{};
     char summary_buf_[640] = {};
+    helix::Subject nl_accel_{};
+    char nl_accel_buf_[192] = {};
     helix::Subject can_start_{};
     helix::Subject nl_available_{};
     helix::Subject nl_mode_{};

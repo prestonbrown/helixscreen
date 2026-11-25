@@ -12,6 +12,7 @@
 #include "moonraker_api.h"
 #include "moonraker_manager.h"
 #include "notice.h"
+#include "pa_tuning.h"
 #include "print_completion_alert.h"
 #include "printer_state.h"
 #include "screensaver.h"
@@ -186,7 +187,12 @@ static void on_print_state_changed_for_notification(lv_observer_t* observer,
             break;
         }
 
-        const bool on_print_status = s_print_status_shown && s_print_status_shown();
+        // A PA tuner's tower ends on the tuner, whose band picker or judge
+        // screen is the result; an error still gets the modal and its reason.
+        const bool on_print_status =
+            (s_print_status_shown && s_print_status_shown()) ||
+            helix::pa::is_tuner_print(
+                get_printer_state().print_state().get_effective_print_filename());
 
         auto mode = AudioSettingsManager::instance().get_completion_alert_mode();
 

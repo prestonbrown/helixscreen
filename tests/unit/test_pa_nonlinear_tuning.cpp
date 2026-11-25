@@ -3,6 +3,8 @@
 
 #include "pa_nonlinear_tuning.h"
 
+#include <algorithm>
+
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
 
@@ -198,6 +200,45 @@ TEST_CASE("nonlinear tower: the faces a pass judges", "[pa_nonlinear][pa_tower_l
           std::vector<TowerFace>{TowerFace::Left, TowerFace::Front});
 }
 
+TEST_CASE("nonlinear tower: the time offset is judged at the front's outermost transitions",
+          "[pa_nonlinear][pa_tower_layout]") {
+    const FaceLayout front = tower_face_layout(TowerFace::Front);
+    for (const ExtruderKind kind : {ExtruderKind::DirectDrive, ExtruderKind::Bowden}) {
+        const NonlinearProcedure p(kind, ModelKind::Tanh);
+        for (int i = 0; i < p.pass_count(); ++i) {
+            const NonlinearPass& pass = p.pass_at(static_cast<size_t>(i));
+            const auto spots = judged_spots(pass);
+            const auto has = [&spots](SpotKind k) {
+                return std::find(spots.begin(), spots.end(), k) != spots.end();
+            };
+            if (pass.sweep.param == NlParam::TimeOffset) {
+                // The leftmost and rightmost changes on the front, and nothing between.
+                CHECK(spots.size() == 2);
+                CHECK(has(front.spots.front().kind));
+                CHECK(has(front.spots.back().kind));
+                CHECK_FALSE(has(SpotKind::SlowDown));
+                CHECK_FALSE(has(SpotKind::SpeedUp));
+            } else {
+                CHECK(has(SpotKind::SlowDown));
+                CHECK(has(SpotKind::SpeedUp));
+            }
+        }
+    }
+}
+
+TEST_CASE("nonlinear procedure: only Bowden's first advance keeps a share of its best value",
+          "[pa_nonlinear]") {
+    const NonlinearProcedure bowden(ExtruderKind::Bowden, ModelKind::Tanh);
+    CHECK(bowden.kept_fraction(bowden.pass_at(0)) == Catch::Approx(0.8f));
+    for (int i = 1; i < bowden.pass_count(); ++i) {
+        CHECK(bowden.kept_fraction(bowden.pass_at(static_cast<size_t>(i))) == Catch::Approx(1.0f));
+    }
+    const NonlinearProcedure dd(ExtruderKind::DirectDrive, ModelKind::Tanh);
+    for (int i = 0; i < dd.pass_count(); ++i) {
+        CHECK(dd.kept_fraction(dd.pass_at(static_cast<size_t>(i))) == Catch::Approx(1.0f));
+    }
+}
+
 TEST_CASE("nonlinear procedure: two heights decide the verdict, same within a millimeter",
           "[pa_nonlinear][pa_two_heights]") {
     CHECK(verdict_from_heights(24.0f, 27.5f) == SideVerdict::LeftLower);
@@ -223,10 +264,14 @@ TEST_CASE("nonlinear procedure: the next tower's correction follows Kalico's rul
         CHECK(c->raise);
         CHECK_FALSE(p.correction(SideVerdict::Same).has_value());
 
-        // The procedure applies what correction() says.
+        // The correction names the value it moves and where it goes: 10% down.
         const float before = p.values().nonlinear_offset;
+        c = p.correction(SideVerdict::LeftLower);
+        CHECK(c->from == Catch::Approx(before));
+        CHECK(c->to == Catch::Approx(before * 0.9f));
+        // The procedure applies what correction() says.
         p.record_verdict(SideVerdict::LeftLower, 24.0f);
-        CHECK(p.values().nonlinear_offset < before);
+        CHECK(p.values().nonlinear_offset == Catch::Approx(before * 0.9f));
     }
     SECTION("Bowden: left below the front raises the advance") {
         NonlinearProcedure p(ExtruderKind::Bowden, ModelKind::Tanh);
@@ -267,4 +312,60 @@ TEST_CASE("nonlinear procedure: a two-sided judgement keeps both heights through
     CHECK(*j->front_mm == Catch::Approx(30.0f));
     CHECK(restored->pass_number() == 2);
     CHECK(restored->repeats() == 0);
+}
+
+TEST_CASE("tower layer progress reads the layer and fraction from the nozzle height",
+          "[pa_nonlinear]") {
+    auto p = tower_layer_progress(0.2f);
+    CHECK(p.layer == 1);
+    CHECK(p.layers == 250);
+    CHECK(p.fraction == Catch::Approx(0.004f));
+    CHECK(tower_layer_progress(1.0f).layer == 5);
+    CHECK(tower_layer_progress(0.0f).layer == 1);
+    CHECK(tower_layer_progress(50.0f).layer == 250);
+    auto over = tower_layer_progress(55.0f);
+    CHECK(over.layer == 250);
+    CHECK(over.fraction == Catch::Approx(1.0f));
+}
+
+TEST_CASE("tower time left: expected time until the climb shows a rate, then the rate",
+          "[pa_nonlinear]") {
+    TowerTimeLeft eta(1740);
+    CHECK(eta.seconds_left() == 1740);
+    eta.sample(0.2f, 0.0);
+    CHECK(eta.seconds_left() == 1740);
+    // The brim layer: still the expected time, less what has printed.
+    eta.sample(0.2f, 120.0);
+    CHECK(eta.seconds_left() == 1620);
+    // The second layer starts the rate; under 1 mm of climb is too little to use.
+    eta.sample(0.4f, 150.0);
+    eta.sample(1.0f, 200.0);
+    CHECK(eta.seconds_left() == 1540);
+    // 1 mm in 100 s, 48.6 mm to go.
+    eta.sample(1.4f, 250.0);
+    CHECK(eta.seconds_left() == 4860);
+    // A travel move lower down is no step back.
+    eta.sample(0.6f, 260.0);
+    CHECK(eta.seconds_left() == 5346);
+    for (float z = 1.6f; z < 50.05f; z += 0.2f) {
+        eta.sample(z, 5000.0);
+    }
+    CHECK(eta.seconds_left() == 0);
+}
+
+TEST_CASE("tower time left never goes below zero on a slow first layer", "[pa_nonlinear]") {
+    TowerTimeLeft eta(60);
+    eta.sample(0.2f, 0.0);
+    eta.sample(0.2f, 300.0);
+    CHECK(eta.seconds_left() == 0);
+}
+
+TEST_CASE("tower reached height climbs a layer at a time and ignores lifts and travel",
+          "[pa_nonlinear]") {
+    CHECK(tower_reached_mm(0.0f, 0.2f) == Catch::Approx(0.2f));
+    CHECK(tower_reached_mm(28.8f, 29.0f) == Catch::Approx(29.0f));
+    // The lift that ends a cancelled print.
+    CHECK(tower_reached_mm(29.0f, 58.9f) == Catch::Approx(29.0f));
+    // A travel move lower down.
+    CHECK(tower_reached_mm(29.0f, 3.0f) == Catch::Approx(29.0f));
 }

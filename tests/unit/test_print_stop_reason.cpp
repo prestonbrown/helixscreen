@@ -325,7 +325,7 @@ TEST_CASE_METHOD(TrackerFixture, "stop reason tracker: a pause shows the error t
 
     now_ = kEnd - 40 * 60;
     client_.fire_notification("notify_gcode_response",
-                              response({"!! Error getting data from moonraker"}));
+                              response({"!! Move out of range: 251.000 100.000 0.300 [12.400]"}));
     now_ = kEnd - 1;
     client_.fire_notification("notify_gcode_response", response({kAfcLoadFailure}));
     settle();

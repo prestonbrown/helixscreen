@@ -37,6 +37,8 @@ struct TowerState {
     PaTowerModel model;
     float tap_mm = 0.0f;
     int tap_face = 0;
+    /// A press is down: the face it started on holds for the whole drag.
+    bool dragging = false;
     /// The flourish's strength, 255 at its start, fading to 0.
     int32_t glow = 0;
 };
@@ -388,32 +390,54 @@ void draw_face(lv_obj_t* obj, lv_layer_t* layer, const PaTowerModel& m, const La
             slow_x2 = x_at(s.to);
         }
     }
-    fill_rect(layer, {slow_x1, face.y1, slow_x2, face.y2}, text, LV_OPA_10);
+    const auto judged = [&m](SpotKind k) {
+        return m.judged_spots.empty() ||
+               std::find(m.judged_spots.begin(), m.judged_spots.end(), k) != m.judged_spots.end();
+    };
+    // The slow middle is judged at its edges; with neither judged it fades back.
+    const bool middle_judged = judged(SpotKind::SlowDown) || judged(SpotKind::SpeedUp);
+    fill_rect(layer, {slow_x1, face.y1, slow_x2, face.y2}, text,
+              middle_judged ? LV_OPA_10 : static_cast<lv_opa_t>(LV_OPA_10 / 2));
     for (const auto& spot : fl.spots) {
         const int32_t x = x_at(spot.at);
+        if (!judged(spot.kind)) {
+            line(layer, x, face.y1, x, face.y2, text, 1, 2, 4, LV_OPA_20);
+            continue;
+        }
         switch (spot.kind) {
         case SpotKind::SlowDown:
         case SpotKind::SpeedUp:
             line(layer, x, face.y1, x, face.y2, amber, 2);
             break;
         case SpotKind::Pause:
-            line(layer, x, face.y1, x, face.y2, amber, 1, 4, 3);
+            line(layer, x, face.y1, x, face.y2, amber, middle_judged ? 1 : 2, 4, 3);
             break;
         case SpotKind::VerySlowSpot:
-            line(layer, x, face.y1, x, face.y2, amber, 1, 1, 3, LV_OPA_80);
+            if (middle_judged) {
+                line(layer, x, face.y1, x, face.y2, amber, 1, 1, 3, LV_OPA_80);
+            } else {
+                line(layer, x, face.y1, x, face.y2, amber, 2, 2, 2);
+            }
             break;
         }
     }
 
     // Words over the spots, on dark chips so they read over any fill.
     const int32_t lh = l.font_h;
-    draw_text(obj, layer, lv_tr("slow"),
-              {slow_x1 - lh * 2, face.y1 + 2, slow_x2 + lh * 2, face.y1 + 2 + lh}, amber, l.font,
-              LV_TEXT_ALIGN_CENTER, true);
+    if (middle_judged) {
+        draw_text(obj, layer, lv_tr("slow"),
+                  {slow_x1 - lh * 2, face.y1 + 2, slow_x2 + lh * 2, face.y1 + 2 + lh}, amber,
+                  l.font, LV_TEXT_ALIGN_CENTER, true);
+    }
     for (const auto& spot : fl.spots) {
-        if (spot.kind == SpotKind::Pause) {
-            const int32_t x = x_at(spot.at);
+        const int32_t x = x_at(spot.at);
+        if (spot.kind == SpotKind::Pause && judged(spot.kind)) {
             draw_text(obj, layer, lv_tr("pause"),
+                      {x - lh * 2, face.y1 + lh + 4, x + lh * 2, face.y1 + 2 * lh + 4}, amber,
+                      l.font, LV_TEXT_ALIGN_CENTER, true);
+        } else if (spot.kind == SpotKind::VerySlowSpot && !middle_judged && judged(spot.kind)) {
+            // Named only when the slow middle's word is not there to confuse it with.
+            draw_text(obj, layer, lv_tr("slow"),
                       {x - lh * 2, face.y1 + lh + 4, x + lh * 2, face.y1 + 2 * lh + 4}, amber,
                       l.font, LV_TEXT_ALIGN_CENTER, true);
         }
@@ -455,7 +479,9 @@ void draw_face(lv_obj_t* obj, lv_layer_t* layer, const PaTowerModel& m, const La
         }
         for (const auto& spot : fl.spots) {
             const int32_t x = x_at(spot.at);
-            if (spot.kind == SpotKind::SlowDown || spot.kind == SpotKind::SpeedUp) {
+            if (!judged(spot.kind)) {
+                line(layer, x, sy1 - 2, x, sy2 + 2, text, 1, 1, 1, LV_OPA_20);
+            } else if (spot.kind == SpotKind::SlowDown || spot.kind == SpotKind::SpeedUp) {
                 line(layer, x, sy1 - 2, x, sy2 + 2, amber, 2);
                 if (l.strip_words) {
                     const bool down = spot.kind == SpotKind::SlowDown;
@@ -583,17 +609,38 @@ int face_at(lv_obj_t* obj, const TowerState& st, int32_t x) {
     return static_cast<int>(m.faces.size() - 1);
 }
 
-void on_clicked(lv_event_t* e) {
+/// A press picks the height under the finger, and a drag keeps picking as it
+/// moves, on the face the press started on. A click with no press before it
+/// (remote control) picks once.
+void on_press(lv_event_t* e) {
     lv_obj_t* obj = lv_event_get_current_target_obj(e);
     lv_indev_t* indev = lv_indev_active();
     TowerState* st = state_of(obj);
     if (!indev || !st) {
         return;
     }
+    const lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_PRESS_LOST) {
+        st->dragging = false;
+        return;
+    }
+    // The click that ends a press lands where the finger lifted, maybe over
+    // the other face: the press already picked, so it only ends the drag.
+    if (code == LV_EVENT_CLICKED && st->dragging) {
+        st->dragging = false;
+        return;
+    }
     lv_point_t p;
     lv_indev_get_point(indev, &p);
-    st->tap_mm = pa_tower_height_at(obj, p.y);
-    st->tap_face = face_at(obj, *st, p.x);
+    if (code == LV_EVENT_PRESSED || code == LV_EVENT_CLICKED) {
+        st->tap_face = face_at(obj, *st, p.x);
+        st->dragging = code == LV_EVENT_PRESSED;
+    }
+    const float mm = pa_tower_height_at(obj, p.y);
+    if (code == LV_EVENT_PRESSING && std::abs(mm - st->tap_mm) < 0.05f) {
+        return;
+    }
+    st->tap_mm = mm;
     lv_obj_send_event(obj, LV_EVENT_VALUE_CHANGED, nullptr);
 }
 
@@ -611,7 +658,13 @@ void* tower_xml_create(lv_xml_parser_state_t* state, const char** /*attrs*/) {
     lv_obj_set_scrollable(obj, false);
     lv_obj_set_user_data(obj, new TowerState{});
     lv_obj_add_event_cb(obj, on_draw, LV_EVENT_DRAW_MAIN_END, nullptr);
-    lv_obj_add_event_cb(obj, on_clicked, LV_EVENT_CLICKED, nullptr);
+    // A drag on the tower picks a height; it never scrolls or swipes the page.
+    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLL_CHAIN);
+    lv_obj_remove_flag(obj, LV_OBJ_FLAG_GESTURE_BUBBLE);
+    for (lv_event_code_t code :
+         {LV_EVENT_PRESSED, LV_EVENT_PRESSING, LV_EVENT_PRESS_LOST, LV_EVENT_CLICKED}) {
+        lv_obj_add_event_cb(obj, on_press, code, nullptr);
+    }
     lv_obj_add_event_cb(obj, on_delete, LV_EVENT_DELETE, nullptr);
     return obj;
 }
@@ -645,6 +698,11 @@ void pa_tower_flourish(lv_obj_t* tower) {
     lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
     lv_anim_set_exec_cb(&a, glow_exec);
     lv_anim_start(&a);
+}
+
+const PaTowerModel* pa_tower_model(lv_obj_t* tower) {
+    const TowerState* st = state_of(tower);
+    return st ? &st->model : nullptr;
 }
 
 float pa_tower_tap_height(lv_obj_t* tower) {

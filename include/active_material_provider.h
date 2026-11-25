@@ -53,6 +53,15 @@ struct ActiveMaterial {
 std::optional<ActiveMaterial> get_active_material();
 
 /**
+ * @brief The material loaded for tool @p tool, which need not be the active one
+ *
+ * The lane feeding that tool (AmsState::lane_feeding_tool()) when it names a
+ * material; the active material for the active tool, or for -1 (a printer
+ * whose tools are not heads). nullopt when nothing says what that tool holds.
+ */
+std::optional<ActiveMaterial> get_material_for_tool(int tool);
+
+/**
  * @brief Build ActiveMaterial from a SlotInfo
  *
  * Exposed for testability and reuse by AMS preheat logic.

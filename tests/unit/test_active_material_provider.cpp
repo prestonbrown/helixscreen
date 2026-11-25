@@ -240,6 +240,146 @@ TEST_CASE_METHOD(OverrideFixture,
 }
 
 // ============================================================================
+// The print temperature comes from the loaded spool: the catalog product
+// picked for the slot (slot.catalog_id), else the lane's own temperature,
+// else the middle of the material range. A user range (Material Temps) is
+// limits: it clamps the temperature and never becomes one. The product is the
+// bundled SUNLU "PLA+ 2.0": type PLA, prints at 220. The lane holds 215.
+
+namespace {
+SlotInfo lane_with_sunlu_pick() {
+    SlotInfo slot;
+    slot.material = "PLA";
+    slot.brand = "SUNLU";
+    slot.catalog_id = "sunlu-pla-plus-2-0";
+    slot.nozzle_temp_min = 215;
+    slot.nozzle_temp_max = 215;
+    slot.bed_temp = 60;
+    return slot;
+}
+
+void set_user_range(const char* material, int min, int max) {
+    filament::MaterialOverride ovr;
+    ovr.nozzle_min = min;
+    ovr.nozzle_max = max;
+    MaterialSettingsManager::instance().set_override(material, ovr);
+}
+} // namespace
+
+TEST_CASE_METHOD(OverrideFixture, "build_active_material: a picked product sets the print temp",
+                 "[active_material][build][print_temp]") {
+    const auto result = build_active_material(lane_with_sunlu_pick());
+
+    CHECK(result.material_info.nozzle_recommended() == 220);
+    // The range is still the lane's.
+    CHECK(result.material_info.nozzle_min == 215);
+    CHECK(result.material_info.nozzle_max == 215);
+}
+
+TEST_CASE_METHOD(OverrideFixture, "build_active_material: a user range clamps the product temp",
+                 "[active_material][build][print_temp]") {
+    set_user_range("PLA", 200, 214);
+
+    const auto result = build_active_material(lane_with_sunlu_pick());
+
+    CHECK(result.material_info.nozzle_recommended() == 214);
+    CHECK(result.material_info.nozzle_min == 200);
+    CHECK(result.material_info.nozzle_max == 214);
+}
+
+TEST_CASE_METHOD(OverrideFixture,
+                 "build_active_material: a staged product temp stands in without a catalog id",
+                 "[active_material][build][print_temp]") {
+    SlotInfo slot = lane_with_sunlu_pick();
+    slot.catalog_id.clear();
+    slot.nozzle_temp_recommended = 225;
+
+    CHECK(build_active_material(slot).material_info.nozzle_recommended() == 225);
+}
+
+TEST_CASE_METHOD(OverrideFixture, "build_active_material: without a product the lane's temp prints",
+                 "[active_material][build][print_temp]") {
+    SlotInfo slot = lane_with_sunlu_pick();
+    slot.catalog_id.clear();
+
+    CHECK(build_active_material(slot).material_info.nozzle_recommended() == 215);
+
+    SECTION("inside a user range, not the range's middle") {
+        set_user_range("PLA", 200, 240);
+        CHECK(build_active_material(slot).material_info.nozzle_recommended() == 215);
+    }
+    SECTION("clamped into a user range") {
+        set_user_range("PLA", 200, 210);
+        CHECK(build_active_material(slot).material_info.nozzle_recommended() == 210);
+    }
+}
+
+TEST_CASE_METHOD(OverrideFixture,
+                 "build_active_material: a product naming another material is not the loaded one",
+                 "[active_material][build][print_temp]") {
+    // A stale pick: the lane now holds PETG from the firmware.
+    SlotInfo slot = lane_with_sunlu_pick();
+    slot.material = "PETG";
+    slot.nozzle_temp_min = 245;
+    slot.nozzle_temp_max = 245;
+
+    CHECK(build_active_material(slot).material_info.nozzle_recommended() == 245);
+}
+
+TEST_CASE_METHOD(OverrideFixture,
+                 "build_active_material: with nothing stated the material range's middle prints",
+                 "[active_material][build][print_temp]") {
+    SlotInfo slot;
+    slot.material = "PLA";
+    const auto db = filament::find_material("PLA");
+    REQUIRE(db.has_value());
+
+    CHECK(build_active_material(slot).material_info.nozzle_recommended() ==
+          (db->nozzle_min + db->nozzle_max) / 2);
+
+    SECTION("the user's range over the database's") {
+        set_user_range("PLA", 200, 230);
+        CHECK(build_active_material(slot).material_info.nozzle_recommended() == 215);
+    }
+}
+
+TEST_CASE_METHOD(OverrideFixture,
+                 "build_active_material: a lane's range holds the product temp inside it",
+                 "[active_material][build][print_temp]") {
+    // A lane stating a real range (RFID, the vendor) states what the material
+    // can take; a lane's single number (min == max) is a setpoint, not limits.
+    SlotInfo slot = lane_with_sunlu_pick(); // the product prints at 220
+    slot.nozzle_temp_min = 190;
+    slot.nozzle_temp_max = 215;
+    CHECK(build_active_material(slot).material_info.nozzle_recommended() == 215);
+
+    slot.catalog_id.clear();
+    slot.nozzle_temp_max = 220;
+    slot.nozzle_temp_recommended = 230;
+    CHECK(build_active_material(slot).material_info.nozzle_recommended() == 220);
+
+    SECTION("the database's range when the lane states none") {
+        slot.nozzle_temp_min = slot.nozzle_temp_max = 0;
+        const auto db = filament::find_material("PLA");
+        REQUIRE(db.has_value());
+        slot.nozzle_temp_recommended = db->nozzle_max + 20;
+        CHECK(build_active_material(slot).material_info.nozzle_recommended() == db->nozzle_max);
+    }
+}
+
+TEST_CASE("SlotInfo::nozzle_print_temp: a staged product temp inside the range wins",
+          "[active_material][build]") {
+    SlotInfo slot;
+    slot.nozzle_temp_min = 190;
+    slot.nozzle_temp_max = 240;
+    CHECK(slot.nozzle_print_temp() == 215);
+    slot.nozzle_temp_recommended = 220;
+    CHECK(slot.nozzle_print_temp() == 220);
+    slot.nozzle_temp_recommended = 250;
+    CHECK(slot.nozzle_print_temp() == 215);
+}
+
+// ============================================================================
 // Spool preset matching logic tests
 // ============================================================================
 

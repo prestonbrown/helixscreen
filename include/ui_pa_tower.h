@@ -79,6 +79,9 @@ struct PaTowerModel {
     /// Value labels up the right side, every 10 mm (index 1 = 10 mm).
     std::vector<std::string> tick_labels;
     std::vector<PaTowerMarker> markers;
+    /// The speed changes the user judges, drawn strong; the others faint.
+    /// Empty: every change is judged.
+    std::vector<helix::pa::SpotKind> judged_spots;
     bool light_right = false;
     bool speed_strip = true;
     /// The height ruler and the value labels; off for a small inset.
@@ -90,6 +93,8 @@ void pa_tower_set_model(lv_obj_t* tower, PaTowerModel model);
 /// A short flourish when a tower is done: a wash that fades over 0.9 s. Nothing
 /// when animations are off.
 void pa_tower_flourish(lv_obj_t* tower);
+/// The model @p tower draws; nullptr for an object that is no pa_tower.
+const PaTowerModel* pa_tower_model(lv_obj_t* tower);
 /// The height of the latest tap, in millimeters up from the plate.
 float pa_tower_tap_height(lv_obj_t* tower);
 /// The face (index into PaTowerModel::faces) the latest tap landed on; 0 for a banded tower.

@@ -1,14 +1,17 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_button.h"
 #include "ui_component_keypad.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_overlay_pa_nonlinear.h"
 #include "ui_overlay_pa_tuning.h"
+#include "ui_pa_tower.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/scoped_env.h"
+#include "../test_helpers/scoped_geometry.h"
 #include "app_globals.h"
 #include "config.h"
 #include "core/update_queue.h"
@@ -17,6 +20,7 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 
+#include <algorithm>
 #include <array>
 #include <initializer_list>
 
@@ -269,6 +273,7 @@ TEST_CASE_METHOD(NonlinearFixture,
     CHECK(sent_since(before).find("M84") == std::string::npos);
     tower("printing");
     CHECK(overlay.stage() == PaNonlinearOverlay::PRINTING);
+    status({{"gcode_move", {{"gcode_position", {100.0, 100.0, 1.0, 0.0}}}}});
     // A standby once it has printed (a restart mid-tower) still ends the pass.
     tower("standby");
     helix::ui::UpdateQueue::instance().drain();
@@ -361,6 +366,7 @@ TEST_CASE_METHOD(NonlinearFixture,
         overlay.print_pass_for_test();
         helix::ui::UpdateQueue::instance().drain();
         tower("printing");
+        status({{"gcode_move", {{"gcode_position", {100.0, 100.0, 1.0, 0.0}}}}});
         const size_t before = client.gcode_script_history().size();
         tower("cancelled");
         helix::ui::UpdateQueue::instance().drain();
@@ -601,6 +607,131 @@ TEST_CASE_METHOD(NonlinearFixture,
     CHECK(client.last_send_script().find("MODEL=linear ADVANCE=0.040000") != std::string::npos);
 }
 
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: a tower stopped early is judged only up to where it reached",
+                 "[pa_nonlinear][pa_tuner][pa_nl_height]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    tower("printing");
+    // The tower climbs a layer at a time.
+    for (double z = 0.2; z < 18.45; z += 0.2) {
+        status({{"gcode_move", {{"gcode_position", {100.0, 100.0, z, 0.0}}}}});
+    }
+    // A travel move lower down, and the lift a cancel ends with, leave the
+    // height reached where it was.
+    status({{"gcode_move", {{"gcode_position", {100.0, 100.0, 3.0, 0.0}}}}});
+    status({{"gcode_move", {{"gcode_position", {100.0, 100.0, 48.4, 0.0}}}}});
+    tower("cancelled");
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::JUDGE);
+    CHECK(overlay.judge_top_for_test() == Catch::Approx(18.4f));
+
+    overlay.adjust_height_for_test(1000);
+    CHECK(overlay.height_for_test() == Catch::Approx(18.4f));
+    overlay.tower_tap_for_test(0, 40.0f);
+    CHECK(overlay.height_for_test() == Catch::Approx(18.4f));
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: a tower stopped on its first layer goes back to the pass",
+                 "[pa_nonlinear][pa_tuner][pa_nl_height]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    tower("printing");
+    status({{"gcode_move", {{"gcode_position", {100.0, 100.0, 0.2, 0.0}}}}});
+    const size_t before = client.gcode_script_history().size();
+    tower("cancelled");
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(overlay.stage() == PaNonlinearOverlay::READY);
+    CHECK(overlay.procedure_for_test()->pass_number() == 1);
+    // The machine is still released.
+    CHECK(sent_since(before).find("SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0") !=
+          std::string::npos);
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: a tower that ends observes the printer no more",
+                 "[pa_nonlinear][pa_tuner]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.observing_for_test());
+    tower("printing");
+    tower("complete");
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::JUDGE);
+    CHECK_FALSE(overlay.observing_for_test());
+}
+
+TEST_CASE_METHOD(NonlinearFixture, "nonlinear tuner: a tower that completes is judged to its top",
+                 "[pa_nonlinear][pa_tuner][pa_nl_height]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    tower("printing");
+    status({{"gcode_move", {{"gcode_position", {100.0, 100.0, 18.4, 0.0}}}}});
+    tower("complete");
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::JUDGE);
+    CHECK(overlay.judge_top_for_test() == Catch::Approx(50.0f));
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: a tower stopped early is judged from inside what printed",
+                 "[pa_nonlinear][pa_tuner][pa_nl_session]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    const auto sweep = overlay.procedure_for_test()->current().sweep;
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    tower("printing");
+    for (double z = 0.2; z < 18.05; z += 0.2) {
+        status({{"gcode_move", {{"gcode_position", {100.0, 100.0, z, 0.0}}}}});
+    }
+    tower("cancelled");
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::JUDGE);
+    REQUIRE(overlay.judge_top_for_test() == Catch::Approx(18.0f));
+    // The height the screen opens on is plastic that printed.
+    CHECK(overlay.height_for_test() <= overlay.judge_top_for_test());
+    overlay.judge_primary_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(overlay.procedure_for_test()->values().nonlinear_offset <=
+          pa::value_at(sweep, 18.0f) + 1e-6f);
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: a tower printed and not yet judged survives a restart",
+                 "[pa_nonlinear][pa_tuner][pa_nl_session]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    tower("printing");
+    for (double z = 0.2; z < 22.05; z += 0.2) {
+        status({{"gcode_move", {{"gcode_position", {100.0, 100.0, z, 0.0}}}}});
+    }
+    tower("cancelled");
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::JUDGE);
+    REQUIRE(session_saved());
+
+    overlay.forget_for_test();
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    press_dialog("btn_primary");
+    REQUIRE(overlay.procedure_for_test() != nullptr);
+    CHECK(overlay.procedure_for_test()->pass_number() == 1);
+    CHECK(overlay.stage() == PaNonlinearOverlay::JUDGE);
+    CHECK(overlay.judge_top_for_test() == Catch::Approx(22.0f));
+    overlay.adjust_height_for_test(1000);
+    CHECK(overlay.height_for_test() == Catch::Approx(22.0f));
+
+    // Judged, it saves no tower to judge: the next restart opens on the pass.
+    overlay.judge_for_test(1);
+    helix::ui::UpdateQueue::instance().drain();
+    overlay.forget_for_test();
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    press_dialog("btn_primary");
+    CHECK(overlay.procedure_for_test()->pass_number() == 2);
+    CHECK(overlay.stage() == PaNonlinearOverlay::READY);
+}
+
 TEST_CASE_METHOD(NonlinearFixture, "nonlinear tuner: one press of Stop cancels the tower",
                  "[pa_nonlinear][pa_tuner][pa_nl_stop]") {
     overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
@@ -615,6 +746,112 @@ TEST_CASE_METHOD(NonlinearFixture, "nonlinear tuner: one press of Stop cancels t
     CHECK(api.job().cancels_sent() == before + 1);
     process_lvgl(1000);
     CHECK(helix::ui::modal_get_top() == nullptr);
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: Stop during the start script waits for it, then cancels the "
+                 "tower before the end",
+                 "[pa_nonlinear][pa_tuner][pa_nl_stop]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    const uint32_t cancels = api.job().cancels_sent();
+    const auto stop = [&] {
+        const size_t before = client.gcode_script_history().size();
+        overlay.stop_for_test();
+        press_dialog("btn_primary");
+        // Anything sent now runs before the queued tower, which then prints
+        // cold and unhomed with no job to cancel yet.
+        CHECK(api.job().cancels_sent() == cancels);
+        CHECK(sent_since(before).find("TARGET=0") == std::string::npos);
+    };
+    const auto ends = [&] {
+        const size_t before = client.gcode_script_history().size();
+        tower("printing");
+        tower("cancelled");
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(sent_since(before).find("SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0") !=
+              std::string::npos);
+        // Nothing printed to judge: the pass waits to be printed again.
+        CHECK(overlay.stage() == PaNonlinearOverlay::READY);
+    };
+
+    SECTION("the script returns") {
+        client.defer_next("printer.gcode.script");
+        overlay.print_pass_for_test();
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(overlay.stage() == PaNonlinearOverlay::PREPARING);
+        stop();
+        client.fire_deferred("printer.gcode.script");
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(api.job().cancels_sent() == cancels + 1);
+        ends();
+    }
+    SECTION("the script outlasts its request") {
+        client.force_next_gcode_error(MoonrakerErrorType::TIMEOUT, "request timed out");
+        overlay.print_pass_for_test();
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(overlay.stage() == PaNonlinearOverlay::PREPARING);
+        stop();
+        // The tower's job is the first sign the script is through.
+        tower("printing");
+        CHECK(api.job().cancels_sent() == cancels + 1);
+        ends();
+    }
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: a tower whose pending Stop fails to cancel is judged as it ends",
+                 "[pa_nonlinear][pa_tuner][pa_nl_stop]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    client.force_next_gcode_error(MoonrakerErrorType::TIMEOUT, "request timed out");
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::PREPARING);
+    overlay.stop_for_test();
+    press_dialog("btn_primary");
+
+    client.fail_next("printer.print.cancel");
+    const uint32_t cancels = api.job().cancels_sent();
+    tower("printing");
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(api.job().cancels_sent() == cancels + 1);
+    CHECK(overlay.stage() == PaNonlinearOverlay::PRINTING);
+    tower("complete");
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(overlay.stage() == PaNonlinearOverlay::JUDGE);
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: a Stop whose tower never shows ends the machine once, on the "
+                 "start watchdog",
+                 "[pa_nonlinear][pa_tuner][pa_nl_stop]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    client.defer_next("printer.gcode.script");
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::PREPARING);
+    overlay.stop_for_test();
+    press_dialog("btn_primary");
+    const size_t before = client.gcode_script_history().size();
+    client.fire_deferred("printer.gcode.script");
+    helix::ui::UpdateQueue::instance().drain();
+    const auto ends = [&] {
+        const std::string sent = sent_since(before);
+        const std::string end = "SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0";
+        size_t n = 0;
+        for (size_t at = sent.find(end); at != std::string::npos; at = sent.find(end, at + 1)) {
+            ++n;
+        }
+        return n;
+    };
+    // No tower job ever reports: the end waits for the watchdog, not the script.
+    REQUIRE(ends() == 0);
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::PREPARING);
+
+    process_lvgl(PaNonlinearOverlay::kTowerStartTimeoutMs + 1000);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(ends() == 1);
+    CHECK(overlay.stage() == PaNonlinearOverlay::READY);
+    CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "pa_nl_error"))).empty());
 }
 
 TEST_CASE_METHOD(NonlinearFixture,
@@ -968,4 +1205,152 @@ TEST_CASE_METHOD(NonlinearFixture,
     overlay.judge_primary_for_test();
     CHECK(overlay.procedure_for_test()->repeats() == 1);
     CHECK(overlay.procedure_for_test()->pass_number() == 2);
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: pass 2's correction fits its reason and its verdict at 800x480",
+                 "[pa_nonlinear][pa_tuner][pa_nl_fit]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    lv_obj_t* root =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "pa_nonlinear_overlay", nullptr));
+    REQUIRE(root != nullptr);
+    // The overlay's width beside the navigation bar.
+    lv_obj_set_width(root, 725);
+    overlay.attach_root_for_test(root);
+    const auto finish_tower = [this] {
+        print_tower();
+        client.cancel_print_internal();
+        helix::ui::UpdateQueue::instance().drain();
+    };
+    finish_tower();
+    overlay.judge_primary_for_test(); // pass 1
+    helix::ui::UpdateQueue::instance().drain();
+    finish_tower();
+    REQUIRE(overlay.procedure_for_test()->current().judge == pa::TowerSide::LeftVsFront);
+    // Ten millimeters apart: the pass is corrected and prints again.
+    overlay.tower_tap_for_test(0, 20.0f);
+    overlay.tower_tap_for_test(1, 30.0f);
+    REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_nl_correcting")) == 1);
+    lv_obj_update_layout(root);
+
+    const auto box = [root](const char* name) {
+        lv_obj_t* w = lv_obj_find_by_name(root, name);
+        REQUIRE(w != nullptr);
+        lv_area_t a;
+        lv_obj_get_coords(w, &a);
+        return a;
+    };
+    lv_obj_t* card = lv_obj_find_by_name(root, "pa_nl_judge_reference");
+    REQUIRE(card != nullptr);
+    lv_obj_t* look = lv_obj_find_by_name(card, "pa_reference_look");
+    REQUIRE(look != nullptr);
+    lv_area_t card_box;
+    lv_area_t look_box;
+    lv_obj_get_coords(card, &card_box);
+    lv_obj_get_coords(look, &look_box);
+    // The reason reads whole inside its card, and the verdict above the footer.
+    CHECK(look_box.y2 <= card_box.y2);
+    CHECK(box("pa_nl_verdict").y2 <= box("pa_nl_judge_footer").y1);
+    CHECK(lv_obj_get_height(lv_obj_find_by_name(root, "pa_nl_verdict")) > 0);
+    lv_obj_delete(root);
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: pass 2's heights read whole in their buttons at 480x272",
+                 "[pa_nonlinear][pa_tuner][pa_nl_fit]") {
+    helix::test::ScopedGeometry screen(480, 272);
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    lv_obj_t* root =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "pa_nonlinear_overlay", nullptr));
+    REQUIRE(root != nullptr);
+    // The overlay's width beside the navigation bar.
+    lv_obj_set_width(root, 435);
+    overlay.attach_root_for_test(root);
+    const auto finish_tower = [this] {
+        print_tower();
+        client.cancel_print_internal();
+        helix::ui::UpdateQueue::instance().drain();
+    };
+    finish_tower();
+    overlay.judge_primary_for_test(); // pass 1
+    helix::ui::UpdateQueue::instance().drain();
+    finish_tower();
+    REQUIRE(overlay.procedure_for_test()->current().judge == pa::TowerSide::LeftVsFront);
+    overlay.tower_tap_for_test(0, 20.0f);
+    overlay.tower_tap_for_test(1, 30.0f);
+    lv_obj_update_layout(root);
+
+    for (const char* name : {"pa_nl_height_left", "pa_nl_height_front"}) {
+        INFO(name);
+        lv_obj_t* btn = lv_obj_find_by_name(root, name);
+        REQUIRE(btn != nullptr);
+        lv_obj_t* label = ui_button_get_label(btn);
+        REQUIRE(label != nullptr);
+        REQUIRE(std::string(lv_label_get_text(label)) != "--");
+        lv_point_t text;
+        lv_text_get_size(&text, lv_label_get_text(label),
+                         lv_obj_get_style_text_font(label, LV_PART_MAIN), 0, 0, LV_COORD_MAX,
+                         LV_TEXT_FLAG_NONE);
+        lv_area_t label_box;
+        lv_area_t room;
+        lv_obj_get_coords(label, &label_box);
+        lv_obj_get_content_coords(btn, &room);
+        CHECK(lv_obj_get_width(label) >= text.x);
+        CHECK(label_box.x1 >= room.x1);
+        CHECK(label_box.x2 <= room.x2);
+    }
+    lv_obj_delete(root);
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: the time offset's towers mark only the front's outer two "
+                 "transitions",
+                 "[pa_nonlinear][pa_tuner][pa_tower_widget]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    lv_obj_t* root =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "pa_nonlinear_overlay", nullptr));
+    REQUIRE(root != nullptr);
+    const auto spots = [root](const char* name) {
+        const auto* m = helix::ui::pa_tower_model(lv_obj_find_by_name(root, name));
+        REQUIRE(m != nullptr);
+        return m->judged_spots;
+    };
+    const auto has = [](const std::vector<pa::SpotKind>& v, pa::SpotKind k) {
+        return v.empty() || std::find(v.begin(), v.end(), k) != v.end();
+    };
+
+    // Pass 1 judges the slow middle's edges on the left.
+    overlay.attach_root_for_test(root);
+    CHECK(has(spots("pa_nl_ready_ref_tower"), pa::SpotKind::SlowDown));
+    CHECK(has(spots("pa_nl_ready_ref_tower"), pa::SpotKind::SpeedUp));
+
+    const auto finish_tower = [this] {
+        print_tower();
+        client.cancel_print_internal();
+        helix::ui::UpdateQueue::instance().drain();
+    };
+    finish_tower();
+    overlay.judge_primary_for_test(); // pass 1
+    helix::ui::UpdateQueue::instance().drain();
+    finish_tower();
+    REQUIRE(overlay.procedure_for_test()->pass_number() == 2);
+    overlay.tower_tap_for_test(0, 20.0f);
+    overlay.tower_tap_for_test(1, 20.0f);
+    overlay.judge_primary_for_test(); // pass 2, the sides agree
+    helix::ui::UpdateQueue::instance().drain();
+    finish_tower();
+    REQUIRE(overlay.procedure_for_test()->current().sweep.param == pa::NlParam::TimeOffset);
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::JUDGE);
+    overlay.attach_root_for_test(root);
+
+    // The pause at the left and the very slow spot at the right; the slow middle is not judged.
+    for (const char* name : {"pa_nl_judge_ref_tower", "pa_nl_judge_tower"}) {
+        const auto s = spots(name);
+        CHECK(has(s, pa::SpotKind::Pause));
+        CHECK(has(s, pa::SpotKind::VerySlowSpot));
+        CHECK_FALSE(has(s, pa::SpotKind::SlowDown));
+        CHECK_FALSE(has(s, pa::SpotKind::SpeedUp));
+    }
+    overlay.attach_root_for_test(nullptr);
+    lv_obj_delete(root);
 }

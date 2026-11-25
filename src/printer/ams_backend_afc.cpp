@@ -14,6 +14,7 @@
 #include "core/error_reporting.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
+#include "error_wording.h"
 #include "fault_path_position.h"
 #include "filament_variants.h"
 #include "gcode_help.h"
@@ -1986,8 +1987,13 @@ void AmsBackendAfc::apply_afc_state(const afc::StateDelta& afc, std::string& def
             const bool surfaced_by_previous_session = (msg_text == dedup_seed_);
             dedup_seed_.clear();
 
+            // An error the wording table calls quiet is AFC's own bookkeeping:
+            // it stops nothing, so it raises no error event and goes to
+            // notification history only.
+            const bool quiet = msg_type == "error" && helix::error_wording::is_quiet(msg_text);
+
             // Defer error event for emission outside lock (avoids deadlock)
-            if (msg_type == "error" && msg_text != last_error_msg_ &&
+            if (msg_type == "error" && !quiet && msg_text != last_error_msg_ &&
                 !surfaced_by_previous_session) {
                 last_error_msg_ = msg_text;
                 deferred_error_event = msg_text;
@@ -2012,16 +2018,16 @@ void AmsBackendAfc::apply_afc_state(const afc::StateDelta& afc, std::string& def
             // message have run. Decide there.
             helix::ui::queue_update(
                 "AmsBackendAfc::dispatch_message",
-                [msg_text, msg_type, operation_active, surfaced_by_previous_session]() {
+                [msg_text, msg_type, quiet, operation_active, surfaced_by_previous_session]() {
                     // An AFC action:prompt on screen already tells the user.
                     const bool afc_prompt_active =
                         helix::ActionPromptManager::is_showing() &&
                         afc::is_afc_prompt_title(helix::ActionPromptManager::current_prompt_name());
 
-                    if (afc_prompt_active || operation_active) {
+                    if (afc_prompt_active || operation_active || quiet) {
                         // Notification history only (no toast)
-                        spdlog::debug("[AMS AFC] Toast suppressed (prompt={}, op={}): {}",
-                                      afc_prompt_active, operation_active, msg_text);
+                        spdlog::debug("[AMS AFC] Toast suppressed (prompt={}, op={}, quiet={}): {}",
+                                      afc_prompt_active, operation_active, quiet, msg_text);
                         publish_history_entry(NoticeSeverity::INFO, "AFC", msg_text, "afc_message");
                     } else if (msg_type == "error" && surfaced_by_previous_session) {
                         // A previous session already surfaced this text and AFC
@@ -5525,23 +5531,14 @@ std::string set_weight_command(const std::string& lane_name, float remaining_wei
     return fmt::format("SET_WEIGHT LANE={} WEIGHT={:.0f}", lane_name, remaining_weight_g);
 }
 
-/// The one nozzle temperature AFC holds for a lane: the middle of the slot's
-/// range, which is also what the UI preheats to. 0 when the slot states none.
-int lane_extruder_temp(const SlotInfo& slot) {
-    if (slot.nozzle_temp_min > 0 && slot.nozzle_temp_max > 0) {
-        return (slot.nozzle_temp_min + slot.nozzle_temp_max) / 2;
-    }
-    return std::max(slot.nozzle_temp_min, slot.nozzle_temp_max);
-}
-
 /// AFC_SET_SPOOL_TEMP for an edit that changed a stated temperature, or for any
 /// edit when @p resend (AFC has just wiped the lane's), naming only the
 /// temperatures the edit states; nullopt when there is nothing to send.
 std::optional<std::string> spool_temp_command(const std::string& lane_name, const SlotInfo& before,
                                               const SlotInfo& after, bool resend) {
-    const int extruder = lane_extruder_temp(after);
+    const int extruder = after.nozzle_print_temp();
     const int bed = std::max(after.bed_temp, 0);
-    const bool changed = resend || extruder != lane_extruder_temp(before) || bed != before.bed_temp;
+    const bool changed = resend || extruder != before.nozzle_print_temp() || bed != before.bed_temp;
     if (!changed || (extruder <= 0 && bed <= 0)) {
         return std::nullopt;
     }
