@@ -1233,7 +1233,7 @@
   <translation tag="Copying from USB..." ja="USB からコピー中..."/>
   <translation tag="Corner roundness" ja="角の丸み"/>
   <translation tag="Corners differ by {} mm" ja="四隅の差 {} mm"/>
-  <translation tag="Correct and Reprint"/>
+  <translation tag="Correct and Reprint" ja="修正して再印刷"/>
   <translation tag="Correct the value in the printer&apos;s configuration, then restart Klipper." ja="プリンター設定の値を修正してから、Klipper を再起動してください。"/>
   <translation tag="Correction (Ki)" ja="補正 (Ki)"/>
   <translation tag="Could not add the timelapse plugin to Moonraker." ja="タイムラプスプラグインをMoonrakerに追加できませんでした。"/>
@@ -1539,7 +1539,7 @@
   <translation tag="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead." ja="このプリンターでは各ツールヘッドが自分の Z-offset を持ちます。代わりにツールオフセット校正を使ってください。"/>
   <translation tag="Each tap sets a new value from this layer up." ja="タップするたびに、この層から上の値が新しくなります。"/>
   <translation tag="Each tower tunes one value" ja="各タワーで 1 つの値を調整"/>
-  <translation tag="Each tower tunes one value. Judge it side-lit."/>
+  <translation tag="Each tower tunes one value. Judge it side-lit." ja="各タワーで 1 つの値を調整します。側面照明で判断してください。"/>
   <translation tag="Edit" ja="編集"/>
   <translation tag="Edit Filament" ja="フィラメントを編集"/>
   <translation tag="Edit Slot" ja="スロットを編集"/>
@@ -2077,16 +2077,16 @@
   <translation tag="Front Left" ja="左手前"/>
   <translation tag="Front Right" ja="右手前"/>
   <translation tag="Front best height" ja="手前の最適な高さ"/>
-  <translation tag="Front transitions"/>
-  <translation tag="Front, lit from far left or right: the pause at the left and the slow spot at the right. Very subtle."/>
+  <translation tag="Front transitions" ja="手前の切り替わり"/>
+  <translation tag="Front, lit from far left or right: the pause at the left and the slow spot at the right. Very subtle." ja="手前、左端または右端から照明: 左の停止と右の低速部分。非常に微妙です。"/>
   <translation tag="Front, lit from far left or right: the slow middle, the pause, the slow spot. Very subtle." ja="手前、左右の端から照らして: 遅い中央部、一時停止、遅い箇所。とてもわずかです。"/>
   <translation tag="Front, lit from far left or right: where do the marked spots look cleanest?" ja="手前、左右の端から照らして: 印のついた箇所が最もきれいに見えるのはどこですか？"/>
-  <translation tag="Front, lit from far left or right: where do the pause and the slow spot look best?"/>
+  <translation tag="Front, lit from far left or right: where do the pause and the slow spot look best?" ja="手前、左端または右端から照明: 停止と低速部分が最もきれいに見えるのはどこですか？"/>
   <translation tag="Front, lit from the side" ja="手前、横から照らして"/>
-  <translation tag="Front, side-lit: the speed transitions."/>
-  <translation tag="Front, side-lit: where do the speed transitions look best?"/>
-  <translation tag="Front, {:.0f}% kept"/>
-  <translation tag="Front: pause, slow spot"/>
+  <translation tag="Front, side-lit: the speed transitions." ja="手前、側面照明: 速度の切り替わり。"/>
+  <translation tag="Front, side-lit: where do the speed transitions look best?" ja="手前、側面照明: 速度の切り替わりが最もきれいに見えるのはどこですか？"/>
+  <translation tag="Front, {:.0f}% kept" ja="手前、{:.0f}% 維持"/>
+  <translation tag="Front: pause, slow spot" ja="手前: 停止、低速部分"/>
   <translation tag="Front: the edges of the slow middle, the pause and the slow spot." ja="手前: 遅い中央部の端、一時停止、遅い箇所。"/>
   <translation tag="Front: where do the marked spots look cleanest?" ja="手前: 印のついた箇所が最もきれいに見えるのはどこですか？"/>
   <translation tag="Full" ja="フル"/>
@@ -2109,7 +2109,7 @@
   <translation tag="Getting Started" ja="はじめに"/>
   <translation tag="Getting address…" ja="アドレス取得中…"/>
   <translation tag="Getting ready..." ja="準備中..."/>
-  <translation tag="Getting worse as it climbs? Stop Tower and judge it."/>
+  <translation tag="Getting worse as it climbs? Stop Tower and judge it." ja="上に行くほど悪化しますか？ タワーを停止して判断してください。"/>
   <translation tag="Give each feature its own pin and check its spelling against the board&apos;s sample configuration, then restart Klipper." ja="機能ごとに別のピンを割り当て、ボードのサンプル設定と綴りを照らし合わせてから、Klipper を再起動してください。"/>
   <translation tag="Glass Effects" ja="ガラス効果"/>
   <translation tag="Global" ja="グローバル"/>
@@ -2634,7 +2634,7 @@
   <translation tag="Layer Pause" ja="レイヤー一時停止"/>
   <translation tag="Layer takes a frame at each layer change. Your slicer&apos;s layer change G-code must run:&#10;TIMELAPSE_TAKE_FRAME" ja="レイヤーはレイヤー変更ごとにフレームを撮影します。スライサーのレイヤー変更 G-code で次を実行する必要があります:&#10;TIMELAPSE_TAKE_FRAME"/>
   <translation tag="Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.&#10;Add it to your slicer&apos;s layer change G-code:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." ja="レイヤーはレイヤー変更ごとに 1 フレームを撮影しますが、印刷が下のマクロを実行したときだけです。ないと動画はほとんど空になります。&#10;スライサーのレイヤー変更 G-code に追加してください:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;ハイパーラプスは一定間隔でフレームを撮影し、スライサーの設定は不要ですが、各フレームにはヘッドがその時の位置に写ります。"/>
-  <translation tag="Layer {} of {} · {:.1f} mm"/>
+  <translation tag="Layer {} of {} · {:.1f} mm" ja="レイヤー {} / {} · {:.1f} mm"/>
   <translation tag="Layer {} of {} · {:.2f} mm" ja="レイヤー {} / {} · {:.2f} mm"/>
   <translation tag="Layer {} of {}." ja="レイヤー {} / {}。"/>
   <translation tag="Layer {}, Z {:.2f} mm" ja="レイヤー {}、Z {:.2f} mm"/>
@@ -2655,16 +2655,16 @@
   <translation tag="Left side" ja="左側"/>
   <translation tag="Left side against the front" ja="左側と手前の比較"/>
   <translation tag="Left side and front, each at its slow edges. Each comes out clean at its own height; they should match." ja="左側と手前、それぞれの遅い端で。それぞれきれいに仕上がる高さが決まり、両者は一致するはずです。"/>
-  <translation tag="Left side and front, side-lit: where each converges. The same height takes it; if not, this pass prints again."/>
-  <translation tag="Left side clean all the way up? It is best at 0."/>
-  <translation tag="Left side {:.1f} mm higher, so this pass prints again with&#10;{} {} to {}"/>
+  <translation tag="Left side and front, side-lit: where each converges. The same height takes it; if not, this pass prints again." ja="左側と手前、側面照明: それぞれが収束する位置。同じ高さならその値を採用し、違えばこのパスを再印刷します。"/>
+  <translation tag="Left side clean all the way up? It is best at 0." ja="左側は最上部までクリーンですか？ 最適値は 0 です。"/>
+  <translation tag="Left side {:.1f} mm higher, so this pass prints again with&#10;{} {} to {}" ja="左側が {:.1f} mm 高いため、このパスは次の設定で再印刷します&#10;{} {} を {} に"/>
   <translation tag="Left side {:.1f} mm higher: the next tower lowers the advance 10%." ja="左側が {:.1f} mm 高い: 次のタワーでは Pressure Advance を 10% 下げます。"/>
   <translation tag="Left side {:.1f} mm higher: the next tower raises the offset 10%." ja="左側が {:.1f} mm 高い: 次のタワーではオフセットを 10% 上げます。"/>
-  <translation tag="Left side {:.1f} mm lower, so this pass prints again with&#10;{} {} to {}"/>
+  <translation tag="Left side {:.1f} mm lower, so this pass prints again with&#10;{} {} to {}" ja="左側が {:.1f} mm 低いため、このパスは次の設定で再印刷します&#10;{} {} を {} に"/>
   <translation tag="Left side {:.1f} mm lower: the next tower lowers the offset 10%." ja="左側が {:.1f} mm 低い: 次のタワーではオフセットを 10% 下げます。"/>
   <translation tag="Left side {:.1f} mm lower: the next tower raises the advance 10%." ja="左側が {:.1f} mm 低い: 次のタワーでは Pressure Advance を 10% 上げます。"/>
-  <translation tag="Left side, side-lit: at what height do the slow middle&apos;s edges look best?"/>
-  <translation tag="Left side, side-lit: the two edges of the slow middle, 5 mm either side of center."/>
+  <translation tag="Left side, side-lit: at what height do the slow middle&apos;s edges look best?" ja="左側、側面照明: 低速の中央部の端が最もきれいに見える高さはどこですか？"/>
+  <translation tag="Left side, side-lit: the two edges of the slow middle, 5 mm either side of center." ja="左側、側面照明: 低速の中央部の両端、中心から左右 5 mm。"/>
   <translation tag="Left side: at what height do the edges of the slow middle look cleanest?" ja="左側: 遅い中央部の端が最もきれいに見える高さはどこですか？"/>
   <translation tag="Left side: the two edges of the slow middle, 5 mm either side of center." ja="左側: 遅い中央部の両端、中心から左右 5 mm。"/>
   <translation tag="Left: slow middle" ja="左: 遅い中央部"/>
@@ -3163,7 +3163,7 @@
   <translation tag="No multi-filament system detected" ja="マルチフィラメントシステムが検出されません"/>
   <translation tag="No need to stay while it prints" ja="印刷中はそばにいる必要はありません"/>
   <translation tag="No need to stay; this screen waits for you when the tower is done." ja="そばにいる必要はありません。タワーが完成したら、この画面で待っています。"/>
-  <translation tag="No need to stay; this screen waits for you."/>
+  <translation tag="No need to stay; this screen waits for you." ja="そばにいる必要はありません。この画面でお待ちしています。"/>
   <translation tag="No network. Scan QR code to report on your phone." ja="ネットワークなし。QR コードをスキャンしてスマホから報告してください。"/>
   <translation tag="No networks found" ja="ネットワークが見つかりません"/>
   <translation tag="No new mesh was stored as &apos;{}&apos;" ja="新しいメッシュは &apos;{}&apos; として保存されませんでした"/>
@@ -3632,7 +3632,7 @@
   <translation tag="Pressure advance" ja="Pressure Advance"/>
   <translation tag="Pressure advance by material" ja="素材別 Pressure Advance"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." ja="タワーが高くなるにつれてPressure Advanceが上がります。角を見てください: いつでも-か+をタップするとランプが止まり、自分の値を判断できます。"/>
-  <translation tag="Pressure advance keeps corners sharp and lines even."/>
+  <translation tag="Pressure advance keeps corners sharp and lines even." ja="Pressure Advance は角をシャープに、線を均一に保ちます。"/>
   <translation tag="Pressure advance tuning" ja="Pressure Advance調整"/>
   <translation tag="Pressure advance {} is written to the {} section." ja="Pressure advance {}を{}セクションに書き込みます。"/>
   <translation tag="Pressure on the bed" ja="ベッドに圧力がかかっています"/>
@@ -4445,7 +4445,7 @@
   <translation tag="Set how bright the screen is and when it rests. You can change any of these later in Settings." ja="画面の明るさと休止するタイミングを設定します。すべて後で「設定」から変更できます。"/>
   <translation tag="Set local timezone for time display" ja="時刻表示用のローカルタイムゾーンを設定"/>
   <translation tag="Set logging verbosity for troubleshooting" ja="トラブルシューティング用のログの詳細レベルを設定"/>
-  <translation tag="Set max_accel to your highest."/>
+  <translation tag="Set max_accel to your highest." ja="max_accel を最も高い値に設定してください。"/>
   <translation tag="Set temperature between {} and {}" ja="温度は {}〜{} にしてください"/>
   <translation tag="Set the X and Y belts with the motorized tensioners" ja="電動テンショナーでXとYのベルトを調整します"/>
   <translation tag="Set the clock, theme and units. You can change any of these later in Settings." ja="時計、テーマ、単位を設定します。あとから設定でいつでも変更できます。"/>
@@ -4511,7 +4511,7 @@
   <translation tag="Shutting down printer..." ja="プリンターをシャットダウン中..."/>
   <translation tag="Shutting down screen..." ja="画面をシャットダウン中..."/>
   <translation tag="Shutting down..." ja="シャットダウン中..."/>
-  <translation tag="Side-lit: the height where the left side converges, then the front."/>
+  <translation tag="Side-lit: the height where the left side converges, then the front." ja="側面照明: 左側が収束する高さ、次に手前。"/>
   <translation tag="Signal" ja="信号"/>
   <translation tag="Signal #" ja="信号番号"/>
   <translation tag="Signal macro renaming" ja="信号マクロの名前変更"/>
@@ -4739,7 +4739,7 @@
   <translation tag="Stopped drying %s" ja="乾燥を停止しました: %s"/>
   <translation tag="Stopped. Restart Moonraker to start it again." ja="停止しました。Moonrakerを再起動すると再開します。"/>
   <translation tag="Stopping after the current test line." ja="現在のテストラインの後で停止します。"/>
-  <translation tag="Stopping once the printer finishes starting"/>
+  <translation tag="Stopping once the printer finishes starting" ja="プリンターの起動完了後に停止します"/>
   <translation tag="Stopping restarted the printer, so nothing can be saved" ja="停止でプリンターが再起動したため、何も保存できません"/>
   <translation tag="Stopping restarted the printer, which dropped the results of the steps that finished. Nothing can be saved." ja="停止によりプリンターが再起動し、完了したステップの結果は破棄されました。保存できるものはありません。"/>
   <translation tag="Stops all motion. Requires firmware restart." ja="すべての動作を停止します。ファームウェアの再起動が必要です。"/>
@@ -5235,7 +5235,7 @@
   <translation tag="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service" ja="この CFS ユニットのセンサーを読み取れません。接続を確認してください。改善しない場合は修理が必要です"/>
   <translation tag="The shell could not start: {}" ja="シェルを起動できませんでした: {}"/>
   <translation tag="The shell exited. Tap the terminal to start a new one." ja="シェルが終了しました。ターミナルをタップすると新しいシェルを開始します。"/>
-  <translation tag="The sides should converge at the same height. Apart means the {} is a little off."/>
+  <translation tag="The sides should converge at the same height. Apart means the {} is a little off." ja="両側は同じ高さで収束するはずです。ずれている場合、{} が少しずれています。"/>
   <translation tag="The slot asked to eject still has its filament loaded in the toolhead." ja="取り出しを要求されたスロットのフィラメントが、まだツールヘッドに装填されています。"/>
   <translation tag="The slot chosen for this tool change has no filament at its inlet." ja="このツール交換で選ばれたスロットの入口にフィラメントがありません。"/>
   <translation tag="The speed of one fan you choose" ja="選んだファン1つの速度"/>
@@ -5535,8 +5535,8 @@
   <translation tag="Touch screen to wake from sleep" ja="画面をタッチしてスリープ解除"/>
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" ja="ターゲットをタッチ（ポイント %1$d / 3）— タッチ %2$d / %3$d"/>
   <translation tag="TouchCalibration" ja="タッチキャリブレーション"/>
-  <translation tag="Towers print at max_accel, {:.0f} mm/s². Set it to the highest you print with."/>
-  <translation tag="Towers print at max_accel. Set it to the highest you print with."/>
+  <translation tag="Towers print at max_accel, {:.0f} mm/s². Set it to the highest you print with." ja="タワーは max_accel、{:.0f} mm/s² で印刷されます。実際に使う最も高い値に設定してください。"/>
+  <translation tag="Towers print at max_accel. Set it to the highest you print with." ja="タワーは max_accel で印刷されます。実際に使う最も高い値に設定してください。"/>
   <translation tag="Trace" ja="トレース"/>
   <translation tag="Track this spool&apos;s weight there" ja="このスプールの重量をそこで管理"/>
   <translation tag="Trailing" ja="遅延"/>
@@ -5856,7 +5856,7 @@
   <translation tag="When this spool runs out, printing continues from {}." ja="このスプールが切れると、{}から印刷を続行します。"/>
   <translation tag="When this spool runs out, the print pauses." ja="このスプールが切れると、印刷を一時停止します。"/>
   <translation tag="Where UI sounds play" ja="UIサウンドの再生先"/>
-  <translation tag="Where sides converge"/>
+  <translation tag="Where sides converge" ja="両側が収束する位置"/>
   <translation tag="Where to look" ja="見る場所"/>
   <translation tag="Whether filament is loaded" ja="フィラメントの装填状態"/>
   <translation tag="Whether the Z arrows follow the bed or the Z value" ja="ZボタンがベッドとZ値のどちらに従うか"/>
@@ -6136,7 +6136,7 @@
   <translation tag="loud" ja="大きな音"/>
   <translation tag="matched" ja="一致"/>
   <translation tag="material differs" ja="素材が異なる"/>
-  <translation tag="max_accel {:.0f} mm/s²: set it to your highest."/>
+  <translation tag="max_accel {:.0f} mm/s²: set it to your highest." ja="max_accel {:.0f} mm/s²: 最も高い値に設定してください。"/>
   <translation tag="measured {}" ja="{} に測定"/>
   <translation tag="medium" ja="中"/>
   <translation tag="method: {}" ja="方式: {}"/>
@@ -6399,7 +6399,7 @@
   <translation tag="{} widgets" ja="ウィジェット {} 個"/>
   <translation tag="{} width sensor" ja="{} 幅センサー"/>
   <translation tag="{} will switch to a slot whose filament type AND color both match the active spool and whose own port sensor reads filament present." ja="{} は、フィラメントの種類と色の両方がアクティブなスプールと一致し、かつ自身のポートセンサーがフィラメントを検知しているスロットに切り替えます。"/>
-  <translation tag="{} {:.0f}% of that value is kept."/>
+  <translation tag="{} {:.0f}% of that value is kept." ja="{} その値の {:.0f}% が維持されます。"/>
   <translation tag="{} · pick what to run, then it runs on its own" ja="{} · 実行するものを選ぶと自動で進みます"/>
   <translation tag="{} · {}" ja="{} · {}"/>
   <translation tag="{} · {} firmware" ja="{} · {}ファームウェア"/>
