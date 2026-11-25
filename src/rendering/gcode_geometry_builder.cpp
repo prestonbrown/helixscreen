@@ -1256,15 +1256,20 @@ GeometryBuilder::generate_ribbon_vertices(const ToolpathSegment& segment, Ribbon
         }
     }
 
-    // Per-vertex normals derived from vertex offset direction (smooth shading)
+    // Smooth per-vertex normals: the gradient of the ellipse through the half
+    // axes, which is the surface normal there. A bead is far wider than tall,
+    // so the direction out from its centre would tilt the top surface near
+    // flat and shade the seams between lines black.
+    const float inv_w2 = 1.0f / (half_width * half_width);
+    const float inv_h2 = 1.0f / (half_height * half_height);
     std::vector<glm::vec3> vertex_normals(static_cast<size_t>(N));
     for (int i = 0; i < N; i++) {
-        float len = glm::length(vertex_offsets[static_cast<size_t>(i)]);
-        if (len > 1e-6f) {
-            vertex_normals[static_cast<size_t>(i)] = vertex_offsets[static_cast<size_t>(i)] / len;
-        } else {
-            vertex_normals[static_cast<size_t>(i)] = glm::vec3(0.0f, 0.0f, 1.0f);
-        }
+        const glm::vec3& offset = vertex_offsets[static_cast<size_t>(i)];
+        const glm::vec3 gradient =
+            glm::dot(offset, right) * inv_w2 * right + glm::dot(offset, perp_up) * inv_h2 * perp_up;
+        const float len = glm::length(gradient);
+        vertex_normals[static_cast<size_t>(i)] =
+            len > 1e-6f ? gradient / len : glm::vec3(0.0f, 0.0f, 1.0f);
     }
 
     // Octahedral-encode the per-vertex normals once per segment. RibbonVertex stores

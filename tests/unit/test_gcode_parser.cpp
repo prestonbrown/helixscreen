@@ -1538,6 +1538,58 @@ TEST_CASE("GCodeParser - Real 3DBenchy layer count", "[gcode][parser][layers][in
 // Extrusion width metadata parsing
 // ============================================================================
 
+namespace {
+std::vector<float> extrusion_widths(const ParsedGCodeFile& file) {
+    std::vector<float> widths;
+    for (const auto& layer : file.layers) {
+        for (const auto& seg : layer.segments) {
+            if (seg.is_extrusion) {
+                widths.push_back(seg.width);
+            }
+        }
+    }
+    return widths;
+}
+} // namespace
+
+// Moves from an OrcaSlicer file: its first-layer bottom surface declares a
+// 0.506 mm bead whose E works out to about 0.44 mm by volume, and the lines
+// sit 0.463 mm apart, so the volume width leaves the plate showing between them.
+TEST_CASE("GCodeParser - a move takes the width its ;WIDTH: comment declares",
+          "[gcode][parser][width]") {
+    GCodeParser parser;
+    parser.parse_line("; layer_height = 0.2");
+    parser.parse_line("M83");
+    parser.parse_line("G1 Z.2 F21000");
+    parser.parse_line("G1 X38.168 Y58.209 F30000");
+    parser.parse_line(";TYPE:Bottom surface");
+    parser.parse_line(";WIDTH:0.505937");
+    parser.parse_line("G1 X39.348 Y59.389 E.05478");
+    parser.parse_line(";LAYER_CHANGE");
+    parser.parse_line("G1 Z.4 F21000");
+    parser.parse_line(";TYPE:Top surface");
+    parser.parse_line(";WIDTH:0.400484");
+    parser.parse_line("G1 X38.168 Y58.209 E.05478");
+    auto widths = extrusion_widths(parser.finalize());
+
+    REQUIRE(widths.size() == 2);
+    CHECK(widths[0] == Approx(0.505937f));
+    CHECK(widths[1] == Approx(0.400484f));
+}
+
+TEST_CASE("GCodeParser - a move with no declared width takes its width from E",
+          "[gcode][parser][width]") {
+    GCodeParser parser;
+    parser.parse_line("; layer_height = 0.2");
+    parser.parse_line("M83");
+    parser.parse_line("G1 X38.168 Y58.209 Z.2 F30000");
+    parser.parse_line("G1 X39.348 Y59.389 E.05478");
+    auto widths = extrusion_widths(parser.finalize());
+
+    REQUIRE(widths.size() == 1);
+    CHECK(widths[0] == Approx(0.437f).margin(0.005f));
+}
+
 TEST_CASE("GCodeParser - Extrusion width metadata parsing", "[gcode][parser][metadata][width]") {
     SECTION("Parse OrcaSlicer header width comments") {
         GCodeParser parser;
