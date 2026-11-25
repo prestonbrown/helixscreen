@@ -102,19 +102,21 @@ Developer Reference below.
 ### Content width cap on ultrawide screens
 
 Panels and overlays fill the space beside the navigation bar, which on an ultrawide panel is
-three or four screen-heights across. A settings list or the jog pad stretched that far is
-hard to read and costs reach, so their content stops at **2.4 x the screen height**, kept
-against the navigation bar, while an overlay's header still spans the screen. The space to its
-right stays empty, except beside Controls and Filament, where [the side band](#the-side-band)
-fills it.
+three or four screen-heights across. A page with no side band takes all of it up to
+`kUncappedWidth` (1920 px, `helix::panel_content_width()`): below that the 2.4 x height cap
+(`content_max_width`) would only leave an empty strip. On a host wider than 1920 px the
+content stops at the larger of the cap and 1920, kept against the navigation bar, while an
+overlay's header still spans the screen. Beside Controls and Filament, [the side
+band](#the-side-band) takes the room instead.
 
-| Screen | Cap | Binds? |
-|--------|-----|--------|
-| 1480x320 | 768 | yes |
-| 1920x440 | 1056 | yes |
-| 1920x480 | 1152 | yes |
-| 800x480, 1024x600 | 1152, 1440 | never: wider than the screen |
-| Any portrait screen | above its width | never |
+| Screen | Cap | Page without a band |
+|--------|-----|---------------------|
+| 1280x400 | 960 | whole host |
+| 1480x320 | 768 | whole host |
+| 1920x440, 1920x480 | 1056, 1152 | whole host |
+| 2560x720 | 1728 | held at 1920 |
+| 800x480, 1024x600 | 1152, 1440 | whole host: the cap is wider than the screen |
+| Any portrait screen | above its width | whole host |
 
 The ratio lives in `include/content_width_cap.h`. `theme_manager_register_responsive_spacing()`
 registers the result as the `content_max_width` const next to `overlay_width_*`, and the
@@ -179,16 +181,18 @@ forwards its `setup()`, activation and deactivation to it.
 **When it shows.** `helix::ui::side_band_shows()`
 (`src/ui/ui_side_band.cpp#side_band_shows`) is the gate, and it is true only on the ultrawide
 layout (`ui_is_ultrawide`, from `is_ultrawide_aspect()`: `width * 2 > height * 5`, wider than
-2.5:1), and only when the cap leaves the band at least one screen height of width
-(`helix::side_band_has_room()`, `include/content_width_cap.h`). A screen just past 2.5:1 has
-only a sliver there: 1920x720 leaves 116 px beside its 1728 cap and 1280x480 leaves 52, too
-little for Motion's jog pad or the AMS tray, so their hosts keep the capped layout with their
-own Motion and Manage buttons. 1920x480 (692 px), 2560x720 (756) and 1480x320 (658) show it.
+2.5:1), and only when the host can hold a band of `side_band_pref_width()` (1.3 x the screen
+height) beside a main column of at least `kMainColumnFloor` (680 px), or the whole cap where
+the cap is smaller (`helix::side_band_layout()`, `include/content_width_cap.h`). The column
+stops at the cap and the band takes the rest, so 1920x480 gives 1152 + 692, 1480x320 gives
+768 + 658 and 1280x400 gives 684 + 520. A narrower screen shows no band: 1100x400 and
+1280x480 cannot spare the width, so their hosts take the whole width with their own Motion
+and Manage buttons. A wider screen never gets a narrower band (2560x720: 1548 + 936).
 Motion needs nothing more. The AMS view needs a lane tray, `helix::ui::has_lane_tray()`
 (`include/ui_ams_mini_status.h`): a filament system or several heads
 (`has_filament_system_or_multi_tool`, published by `TargetTool`) and at least one lane in a
 present unit to draw. Print Status's lane tray asks the same question, so the two never
-disagree. Without it the band stays empty and Filament keeps the capped layout. The band
+disagree. Without it the band stays empty and Filament's main column takes the whole host. The band
 re-reads the gate from observers on `ui_is_ultrawide`, the lane-tray inputs and the theme, so
 a resize, a `--layout` override, a unit appearing or a theme change moves it without a
 navigation. A resize between two ultrawide sizes reaches it through the host's size change.
@@ -197,8 +201,8 @@ navigation. A resize between two ultrawide sizes reaches it through the host's s
 then the `<side_band shown_subject="..."/>` component (`ui_xml/components/side_band.xml`),
 which shows while that subject is 1. On ultrawide the host keeps the full width
 (`uses_full_content_width()` answers `SideBand::uses_full_width()`) and the band sizes
-`side_band_main` to the content cap itself, so the host's content sits exactly where the cap
-would have put it and the band takes the rest.
+`side_band_main` itself: `side_band_layout()`'s width while the band shows, the whole host
+(`panel_content_width()`) while it does not.
 
 **Guests.** The band holds a `SideBandGuest` (`make_motion_side_band_guest()`,
 `make_ams_side_band_guest()`), the hosted view's tree and lifecycle behind one interface:

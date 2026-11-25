@@ -55,7 +55,7 @@
        where hidden objects affect flex-grow space calculation -->
   <!-- The root is a row: the panel's own content in side_band_main, and on
        ultrawide the Motion panel in the side band beside it (helix::ui::SideBand
-       sizes side_band_main to the content cap there). -->
+       sizes side_band_main there: side_band_layout() while the band shows). -->
   <view name="controls_panel"
         extends="lv_obj" width="100%" height="100%" style_pad_all="0" style_border_width="0" flex_flow="row"
         style_bg_color="#screen_bg" style_pad_gap="0" scrollable="false">

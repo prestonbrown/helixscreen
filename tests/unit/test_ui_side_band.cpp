@@ -56,9 +56,9 @@ TEST_CASE("side band layout: the cap, a shrunk column, or the whole host", "[uw_
         int32_t main_w;
     };
     const std::array<Size, 9> sizes{{
-        // The cap leaves a minimum band: today's layout.
+        // The cap leaves at least a preferred-width band: the column stops at the cap.
         {1920 - 76, 480, true, 1152},
-        {2560 - 76, 720, true, 1728},
+        {2560 - 76, 720, true, 2484 - 936},
         {1480 - 54, 320, true, 768},
         {1920 - 76, 440, true, 1056},
         // The cap leaves a sliver: the column shrinks to a preferred-width band.
@@ -77,17 +77,18 @@ TEST_CASE("side band layout: the cap, a shrunk column, or the whole host", "[uw_
         CHECK(layout.main_width == s.main_w);
     }
     // The boundaries: a cap that just leaves a band, a floor that is just kept.
-    CHECK(helix::side_band_layout(1152 + 480, 1152, 480).main_width == 1152);
-    CHECK(helix::side_band_layout(1152 + 479, 1152, 480).main_width == 1152 + 479 - 624);
+    CHECK(helix::side_band_layout(1152 + 624, 1152, 480).main_width == 1152);
+    CHECK(helix::side_band_layout(1152 + 623, 1152, 480).main_width == 1152 + 623 - 624);
     CHECK(helix::side_band_layout(680 + 520, 960, 400).room);
     CHECK_FALSE(helix::side_band_layout(680 + 519, 960, 400).room);
-    // Whenever the band shows, the column keeps at least the floor and the band its minimum.
+    // Whenever the band shows, the column keeps at least the floor and the band
+    // is never narrower than its preferred width, at any host width.
     for (int32_t host = 400; host <= 2600; host += 7) {
         const auto layout = helix::side_band_layout(host, helix::content_max_width(400), 400);
         if (layout.room) {
             CAPTURE(host);
             CHECK(layout.main_width >= helix::kMainColumnFloor);
-            CHECK(layout.main_width + helix::side_band_min_width(400) <= host);
+            CHECK(host - layout.main_width >= helix::side_band_pref_width(400));
         }
     }
 }
@@ -569,6 +570,31 @@ TEST_CASE_METHOD(LVGLUITestFixture, "side band: a host too narrow for column and
     CHECK(lv_obj_get_width(main) == lv_obj_get_content_width(fx.host));
 }
 
+TEST_CASE_METHOD(LVGLUITestFixture, "side band: a band that does not show leaves the whole host",
+                 "[uw_side_band]") {
+    // Filament without a filament system: the AMS band stays empty, so the
+    // main column is a band-less page and takes the host, not the band's share.
+    ScopedResolution resolution(lv_display_get_default(), 1920, 720);
+    theme_manager_refresh_layout_constants(lv_display_get_default());
+    ScopedUltrawide ultrawide(0);
+    ultrawide.set(1);
+    FakeGuestLog log;
+    FakeLifecycle view;
+    SideBand band{SideBandContent::Ams, std::make_unique<FakeGuest>(log, view), "test_ams_band",
+                  "test_in_ams_band"};
+    band.init_subjects();
+    lv_obj_t* host = helix::test::make_side_band_host(lv_screen_active());
+    band.bind(host);
+    band.on_host_activate();
+
+    CHECK_FALSE(band.shows());
+    CHECK(log.attaches == 0);
+    lv_obj_t* main = lv_obj_find_by_name(host, "side_band_main");
+    lv_obj_update_layout(host);
+    CHECK(lv_obj_get_width(main) == lv_obj_get_content_width(host));
+    band.deinit_subjects();
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture, "side band: a sliver beside the cap shrinks the column",
                  "[uw_side_band]") {
     // 1920x720: the 1728 cap leaves 192 px, but 1920 holds a 680 column and a 720 band.
@@ -600,7 +626,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "side band: with room, the band is wide and 
     lv_obj_update_layout(fx.host);
     lv_obj_t* band = fx.band_obj();
     CHECK(lv_obj_get_width(band) >=
-          helix::side_band_min_width(480) - lv_obj_get_style_pad_column(fx.host, LV_PART_MAIN));
+          helix::side_band_pref_width(480) - lv_obj_get_style_pad_column(fx.host, LV_PART_MAIN));
     lv_area_t a;
     lv_obj_get_coords(fx.log.root, &a);
     CHECK(a.x2 < helix::test::kUltrawideTestWidth);

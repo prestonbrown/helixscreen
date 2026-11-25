@@ -32,25 +32,6 @@ constexpr int32_t content_max_width(int32_t ver_res) {
 }
 
 /**
- * @brief Narrowest the ultrawide side band may be, as a ratio of screen height.
- *
- * The side band (include/ui_side_band.h) hosts Motion or the AMS view in the
- * width the cap leaves beside a host panel. Those views are laid out for a box
- * about one and a half screen heights wide; at one screen height Motion's jog
- * pad still fits beside its Z column, and below that its step buttons and
- * readout run off the screen. An ultrawide screen only just past the layout's
- * 2.5:1 threshold (1280x480, 1920x720) leaves a sliver of under 120 px, so the
- * band shows only when the host can spare this width (side_band_layout()).
- */
-constexpr int32_t kSideBandMinWidthNum = 1;
-constexpr int32_t kSideBandMinWidthDen = 1;
-
-/// The narrowest side band for a screen of @p ver_res pixels tall.
-constexpr int32_t side_band_min_width(int32_t ver_res) {
-    return ver_res * kSideBandMinWidthNum / kSideBandMinWidthDen;
-}
-
-/**
  * @brief Narrowest a main column may be beside a side band.
  *
  * Controls' three top cards and Filament's two columns still hold their content
@@ -60,10 +41,12 @@ constexpr int32_t side_band_min_width(int32_t ver_res) {
 constexpr int32_t kMainColumnFloor = 680;
 
 /**
- * @brief The band's preferred width, as a ratio of screen height.
+ * @brief The side band's width, as a ratio of screen height.
  *
- * Motion's speed buttons and the AMS lane labels need about one and a third
- * screen heights; the bare minimum (kSideBandMinWidthNum / Den) only keeps the jog pad.
+ * The side band (include/ui_side_band.h) hosts Motion or the AMS view beside a
+ * host panel. Motion's speed buttons and the AMS lane labels need about one and
+ * a third screen heights; a narrower band clips them, so the band is never
+ * shown narrower than this.
  */
 constexpr int32_t kSideBandPrefWidthNum = 13;
 constexpr int32_t kSideBandPrefWidthDen = 10;
@@ -100,20 +83,19 @@ struct SideBandLayout {
  * @brief The one rule for a page with a side band, for a host @p host_width
  * wide on a screen @p ver_res tall whose content cap is @p cap.
  *
- * - The cap leaves side_band_min_width(): the column stops at the cap, the band
- *   takes the rest.
- * - Otherwise the column gives up width to a band of side_band_pref_width(),
- *   as long as it keeps kMainColumnFloor (1280x400: 684 + 520). A narrower band
- *   would clip Motion's controls, so there is no smaller one.
- * - Otherwise the column takes the whole host and there is no band.
+ * The band is always side_band_pref_width() wide and the main column takes the
+ * rest, up to the cap (1280x400: 684 + 520; 1920x480: 1152 + 692). The band
+ * shows only while the column keeps kMainColumnFloor (or the whole cap when the
+ * cap is smaller); otherwise the column takes the whole host and there is no
+ * band. A wider screen never gets a narrower band than a narrower one.
  */
 constexpr SideBandLayout side_band_layout(int32_t host_width, int32_t cap, int32_t ver_res) {
-    const int32_t band_min = side_band_min_width(ver_res);
-    if (host_width - cap >= band_min) {
-        return {cap, true};
+    int32_t main_width = host_width - side_band_pref_width(ver_res);
+    if (main_width > cap) {
+        main_width = cap;
     }
-    const int32_t main_width = host_width - side_band_pref_width(ver_res);
-    if (main_width >= kMainColumnFloor) {
+    const int32_t floor = cap < kMainColumnFloor ? cap : kMainColumnFloor;
+    if (main_width >= floor) {
         return {main_width, true};
     }
     return {host_width, false};

@@ -364,11 +364,18 @@ bool SideBand::has_room() const {
 
 void SideBand::fit_main_column() {
     lv_obj_t* main = main_.get();
-    if (!main || !host_root_.get()) {
+    lv_obj_t* root = host_root_.get();
+    if (!main || !root) {
         return;
     }
-    // DECLARATIVE_OK: the column width is a live per-screen number (side_band_layout).
-    const int32_t width = ultrawide_now() ? layout().main_width : lv_pct(100);
+    // DECLARATIVE_OK: the column width is a live per-screen number. A host whose
+    // band is not showing is a band-less page: it takes panel_content_width().
+    int32_t width = lv_pct(100);
+    if (ultrawide_now()) {
+        width = shows_ ? layout().main_width
+                       : panel_content_width(lv_obj_get_content_width(root),
+                                             live_content_max_width(root));
+    }
     if (lv_obj_get_style_width(main, LV_PART_MAIN) != width) {
         lv_obj_set_width(main, width);
     }

@@ -250,11 +250,14 @@ TEST_CASE("ultrawide columns keep the readouts only while the info column is as 
     CHECK(columns_total(without, 8) == 1299);
 }
 
-TEST_CASE("ultrawide Tune column is wider on the Medium tier, where its rows clip below 380",
-          "[print_status_tile_layout][ultrawide][tune_inline]") {
-    // 480 tall screens (content 402) use larger type than 440 tall (content 372).
-    CHECK(decide_print_status_columns(1850, 402, 12, true, true).tune_w == 380);
+TEST_CASE(
+    "ultrawide Tune column scales with the height on the Medium tier and up, where its rows clip",
+    "[print_status_tile_layout][ultrawide][tune_inline]") {
+    // 480 tall screens (content 402) use larger type than 440 tall (content 372),
+    // and its rows clip below 95% of the height.
+    CHECK(decide_print_status_columns(1850, 402, 12, true, true).tune_w == 381);
     CHECK(decide_print_status_columns(1850, 372, 12, true, true).tune_w == 300);
+    CHECK(decide_print_status_columns(3200, 624, 12, true, true).tune_w == 592);
 }
 
 TEST_CASE("ultrawide columns with a lane tray never show the readouts",

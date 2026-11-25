@@ -35,11 +35,12 @@ constexpr int32_t kUltrawideTrayPct = 48;
 // kFloorWithTunePct too. With less room the Tune button opens the overlay.
 constexpr int32_t kTunePct = 110;
 constexpr int32_t kTuneMaxWidth = 300;
-// Screens 480 tall and up (content 400 and up) use the Medium type tier, whose
-// Z-offset step buttons and pressure-advance row clip below about 380 px
-// (measured at 1920x480: 300 clips the steps, 340 wraps the PA row).
+// Screens 480 tall and up (content 400 and up) use the Medium type tier and
+// above, whose type grows with the height: the Z-offset step buttons and the
+// pressure-advance row clip below 95% of the content height there (measured at
+// 1920x480, content 402: 300 px clips the steps, 340 wraps the PA row, 380 fits).
 constexpr int32_t kTuneMediumMinH = 400;
-constexpr int32_t kTuneMediumMaxWidth = 380;
+constexpr int32_t kTuneMediumPct = 95;
 constexpr int32_t kFloorWithTunePct = 70;
 // The floors the printer, readouts and preview give width down to, in that
 // order, before the info column narrows below the height.
@@ -120,7 +121,7 @@ PrintStatusColumns fit_columns(int32_t content_w, int32_t h, int32_t gap, bool t
     c.readouts_w = readouts ? h * kReadoutsPct / 100 : 0;
     c.actions_w = h * kActionsPct / 100;
     c.tune_w = tune ? std::min(h * kTunePct / 100,
-                               h >= kTuneMediumMinH ? kTuneMediumMaxWidth : kTuneMaxWidth)
+                               h >= kTuneMediumMinH ? h * kTuneMediumPct / 100 : kTuneMaxWidth)
                     : 0;
     // Preview, printer, info and actions, plus the Tune and readouts columns that show.
     const int32_t gaps = (3 + (tune ? 1 : 0) + (readouts ? 1 : 0)) * gap;
@@ -181,7 +182,7 @@ PrintStatusTileLayout decide_print_status_ultrawide_layout(int32_t content_w, in
     out.lane_tray = lane_tray ? PrintStatusLaneTray::Column : PrintStatusLaneTray::None;
     out.columns = decide_print_status_columns(content_w, content_h, gap, tune, lane_tray);
     // The tray sits over the info card in the info column.
-    out.lane_tray_h = lane_tray ? content_h * kUltrawideTrayPct / 100 : 0;
+    out.lane_tray_h = lane_tray ? std::max<int32_t>(0, content_h) * kUltrawideTrayPct / 100 : 0;
     out.job_w = out.columns.preview_w;
     out.job_h = content_h;
     out.printer_w = out.columns.printer_w;
