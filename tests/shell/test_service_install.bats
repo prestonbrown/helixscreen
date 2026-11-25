@@ -212,6 +212,21 @@ INITEOF
     [ -x "$target" ]
 }
 
+@test "install_service_sysv: a relative init link keeps its link and its target names INSTALL_DIR" {
+    create_init_template
+    local target="$BATS_TEST_TMPDIR/zmod/.shell/root/S80helixscreen"
+    mkdir -p "$(dirname "$target")"
+    printf '#!/bin/sh\nDAEMON_DIR="/srv/helixscreen"\n' > "$target"
+    INIT_SCRIPT_DEST="$BATS_TEST_TMPDIR/etc/init.d/S80helixscreen"
+    ln -s ../../zmod/.shell/root/S80helixscreen "$INIT_SCRIPT_DEST"
+
+    install_service_sysv
+
+    [ -L "$INIT_SCRIPT_DEST" ]
+    [ "$(readlink "$INIT_SCRIPT_DEST")" = ../../zmod/.shell/root/S80helixscreen ]
+    grep -q "DAEMON_DIR=\"$INSTALL_DIR\"" "$target"
+}
+
 @test "install_service_sysv: uses correct INIT_SCRIPT_DEST" {
     create_init_template
     INIT_SCRIPT_DEST="$BATS_TEST_TMPDIR/etc/init.d/S80helixscreen"
