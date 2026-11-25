@@ -80,6 +80,10 @@ class PrintStatusWidgetTestAccess {
         return widget.runout_modal_shown_;
     }
 
+    static bool runout_modal_visible(const PrintStatusWidget& widget) {
+        return widget.runout_modal_.is_visible();
+    }
+
     // "The guidance dialog is already up." Production gets there by actually
     // showing the modal, which needs a registered XML component tree.
     static void set_runout_modal_shown(PrintStatusWidget& widget, bool shown) {

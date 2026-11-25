@@ -25,6 +25,7 @@
  */
 
 #include "../lvgl_test_fixture.h"
+#include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/filament_sensor_manager_test_access.h"
 #include "../test_helpers/post_unload_grace_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
@@ -52,6 +53,29 @@
 using namespace helix;
 
 namespace {
+
+/// Only the names attach() looks up; the assertions read widget state, not
+/// these objects.
+lv_obj_t* create_print_card_tree(lv_obj_t* parent) {
+    lv_obj_t* container = lv_obj_create(parent);
+    auto add = [container](const char* name, bool as_image = false) {
+        lv_obj_t* obj = as_image ? lv_image_create(container) : lv_obj_create(container);
+        lv_obj_set_name(obj, name);
+    };
+    add("print_card_idle");
+    add("print_card_thumb", /*as_image=*/true);
+    add("print_card_idle_compact");
+    add("print_card_idle_detailed");
+    add("print_card_thumb_compact", /*as_image=*/true);
+    add("print_card_printing");
+    add("print_card_layout");
+    add("print_card_thumb_wrap");
+    add("print_card_active_thumb", /*as_image=*/true);
+    add("print_card_info");
+    add("print_card_preparing_info");
+    add("print_card_printing_detailed");
+    return container;
+}
 
 class IdleRunoutEdgeFixture : public LVGLTestFixture {
   public:
@@ -126,27 +150,8 @@ class IdleRunoutEdgeFixture : public LVGLTestFixture {
         REQUIRE(lv_subject_get_int(fsm.get_any_runout_subject()) == (detected ? 0 : 1));
     }
 
-    /// Only the names attach() looks up; the assertions read widget state, not
-    /// these objects.
     lv_obj_t* create_mock_tree() {
-        lv_obj_t* container = lv_obj_create(test_screen());
-        auto add = [container](const char* name, bool as_image = false) {
-            lv_obj_t* obj = as_image ? lv_image_create(container) : lv_obj_create(container);
-            lv_obj_set_name(obj, name);
-        };
-        add("print_card_idle");
-        add("print_card_thumb", /*as_image=*/true);
-        add("print_card_idle_compact");
-        add("print_card_idle_detailed");
-        add("print_card_thumb_compact", /*as_image=*/true);
-        add("print_card_printing");
-        add("print_card_layout");
-        add("print_card_thumb_wrap");
-        add("print_card_active_thumb", /*as_image=*/true);
-        add("print_card_info");
-        add("print_card_preparing_info");
-        add("print_card_printing_detailed");
-        return container;
+        return create_print_card_tree(test_screen());
     }
 
     /// What a printer switch does to the sensors: the per-printer caches are
@@ -310,4 +315,56 @@ TEST_CASE_METHOD(IdleRunoutEdgeFixture,
     switch_printer();
     rediscover();
     CHECK_FALSE(FilamentSensorManager::instance().has_real_runout());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "A dialog already open acknowledges no sensor it was not raised for",
+                 "[print_status_widget][runout][idle_runout_switch]") {
+    // Two heads with their own runout sensors, on a fixture whose XML makes
+    // the dialog real. The first head empties and raises it; the second
+    // empties while it is still up.
+    static constexpr const char* kFirst = "filament_switch_sensor runout_sensor";
+    static constexpr const char* kSecond = "filament_switch_sensor second_runout";
+    auto settle = [] {
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    };
+    auto report = [&](const char* sensor, bool detected) {
+        auto& fsm = FilamentSensorManager::instance();
+        PostUnloadGraceTestAccess::clear_startup_grace(fsm);
+        fsm.update_from_status(
+            nlohmann::json{{sensor, {{"filament_detected", detected}, {"enabled", true}}}});
+        settle();
+    };
+
+    PanelWidgetManager::instance().init_widget_subjects();
+    PrintStatusWidget::init_static_subjects();
+    AmsState::instance().clear_backends();
+    auto& fsm = FilamentSensorManager::instance();
+    fsm.init_subjects();
+    PostUnloadGraceTestAccess::reset(fsm);
+    fsm.set_master_enabled(true);
+    discover_filament_sensors(fsm, {kFirst, kSecond});
+    PostUnloadGraceTestAccess::force_role(fsm, kFirst, FilamentSensorRole::RUNOUT);
+    PostUnloadGraceTestAccess::force_role(fsm, kSecond, FilamentSensorRole::RUNOUT);
+    helix::test::set_wire_state(state(), PrintJobState::STANDBY);
+    settle();
+    report(kSecond, true);
+    report(kFirst, false);
+
+    {
+        PrintStatusWidget widget;
+        widget.attach(create_print_card_tree(test_screen()), test_screen());
+        settle();
+        REQUIRE(PrintStatusWidgetTestAccess::runout_modal_visible(widget));
+
+        report(kSecond, false);
+        // The wizard's deferred check runs the chain again over the open
+        // dialog, which shows nothing new about the second head.
+        widget.trigger_idle_runout_check();
+        settle();
+
+        CHECK_FALSE(fsm.idle_runout_acknowledged());
+    }
+    AmsState::instance().clear_backends();
+    settle();
 }

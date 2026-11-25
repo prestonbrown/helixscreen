@@ -1350,10 +1350,15 @@ void PrintStatusWidget::check_and_show_idle_runout_modal() {
         return;
     }
 
+    // A dialog already up stays as it was raised: the sensors that emptied
+    // since have not been shown to anyone, so they stay unacknowledged.
+    const bool already_open = runout_modal_.is_visible();
     spdlog::info("[PrintStatusWidget] Showing idle runout modal");
     show_idle_runout_modal();
     runout_modal_shown_ = true;
-    fsm.acknowledge_idle_runout();
+    if (!already_open) {
+        fsm.acknowledge_idle_runout();
+    }
 }
 
 void PrintStatusWidget::trigger_idle_runout_check() {
