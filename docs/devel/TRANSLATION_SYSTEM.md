@@ -12,6 +12,7 @@ HelixScreen's translation system is built on LVGL's native XML translations. Sou
 | fr   | French     |
 | it   | Italian    |
 | ja   | Japanese   |
+| pl   | Polish     |
 | pt   | Portuguese |
 | ru   | Russian    |
 | zh   | Chinese    |
@@ -132,7 +133,7 @@ LVGL's native XML translation format. Each `<translation>` element maps a tag to
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<translations languages="de en es fr it ja pt ru zh">
+<translations languages="de en es fr it ja pl pt ru zh">
   <translation tag="Cancel" de="Abbrechen" en="Cancel" es="Cancelar" fr="Annuler" .../>
   <translation tag="Save" de="Speichern" en="Save" es="Guardar" fr="Enregistrer" .../>
   <translation tag="Temperature" de="Temperatur" en="Temperature" es="Temperatura" .../>
@@ -342,7 +343,7 @@ generation. Locales with flat strings get no variant tags and keep their one/oth
 The category comes from `helix::ui::plural_category(lang, n)`, CLDR's integer rules for
 every shipped language: `ja`/`zh` are always `other`; `en`/`de` are `one` for 1; `es`/`it`
 are `one` for 1 and `many` for exact millions; `fr`/`pt` are `one` for 0 and 1 and `many` for
-exact millions; `ru` is `one` for 1, 21, 101..., `few` for 2-4, 22-24..., `many` otherwise. A
+exact millions; `ru` is `one` for 1, 21, 101..., `few` for 2-4, 22-24..., `many` otherwise; `pl` is `one` for exactly 1, `few` for 2-4, 22-24... (not 12-14), `many` otherwise. A
 new language needs its rule there.
 
 Both keys must be string literals: `make translation-sync` extracts them from the

@@ -71,6 +71,27 @@ TEST_CASE("plural_category follows CLDR integer rules for Russian", "[i18n][plur
                });
 }
 
+TEST_CASE("plural_category follows CLDR integer rules for Polish", "[i18n][plural]") {
+    using C = PluralCategory;
+    // Unlike Russian, 21 and 101 are `many`: `one` is exactly 1.
+    check_rows("pl", {
+                         {0, C::Many},
+                         {1, C::One},
+                         {2, C::Few},
+                         {4, C::Few},
+                         {5, C::Many},
+                         {12, C::Many},
+                         {14, C::Many},
+                         {21, C::Many},
+                         {22, C::Few},
+                         {24, C::Few},
+                         {25, C::Many},
+                         {101, C::Many},
+                         {112, C::Many},
+                         {122, C::Few},
+                     });
+}
+
 TEST_CASE("plural_category for the one/other languages", "[i18n][plural]") {
     using C = PluralCategory;
     for (const char* lang : {"en", "de"}) {

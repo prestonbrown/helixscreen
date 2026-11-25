@@ -43,13 +43,11 @@ static const char* kWelcomeTranslations[] = {
     "Добро пожаловать!", // ru
     "Bem-vindo!",        // pt
     "Benvenuto!",        // it
+    "Witamy!",           // pl
     "欢迎！",            // zh
     "ようこそ！",        // ja
 };
-static constexpr int kWelcomeCount = 9;
-
-// Language codes for saving to config (matches button order in XML)
-static const char* kLanguageCodes[] = {"en", "de", "fr", "es", "ru", "pt", "it", "zh", "ja"};
+static constexpr int kWelcomeCount = 10;
 
 // Timer period for cycling welcome text
 static constexpr uint32_t kWelcomeCycleMs = 2500;
@@ -210,13 +208,16 @@ static void on_language_selected(lv_event_t* e) {
         return;
     }
 
+    // The buttons' user_data is the Settings dropdown index, so both pickers share
+    // SystemSettingsManager's one code list.
     int index = std::atoi(user_data_str);
-    if (index < 0 || index >= 9) { // 9 languages total
+    const std::string code = SystemSettingsManager::language_index_to_code(index);
+    if (SystemSettingsManager::language_code_to_index(code) != index) {
         spdlog::warn("[Wizard Language Chooser] Invalid language index: {}", index);
         return;
     }
 
-    spdlog::info("[Wizard Language Chooser] Language selected: {} ({})", kLanguageCodes[index],
+    spdlog::info("[Wizard Language Chooser] Language selected: {} ({})", code,
                  kWelcomeTranslations[index % kWelcomeCount]);
 
     // Update visual selection
@@ -225,7 +226,7 @@ static void on_language_selected(lv_event_t* e) {
 
     // Apply language immediately via SystemSettingsManager (hot-reload)
     // This updates the subject, calls lv_translation_set_language(), and persists to config
-    SystemSettingsManager::instance().set_language(kLanguageCodes[index]);
+    SystemSettingsManager::instance().set_language(code);
 
     // Refresh the wizard header with new translations
     ui_wizard_refresh_header_translations();

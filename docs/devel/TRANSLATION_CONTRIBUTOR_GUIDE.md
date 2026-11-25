@@ -1,6 +1,6 @@
 # Translation Contributor Guide
 
-HelixScreen currently ships in nine languages — English, German, Spanish, French, Italian, Japanese, Portuguese, Russian, and Chinese. Every one of them exists because someone sat down with a YAML file and a coffee and did the work.
+HelixScreen currently ships in ten languages — English, German, Spanish, French, Italian, Japanese, Polish, Portuguese, Russian, and Chinese. Every one of them exists because someone sat down with a YAML file and a coffee and did the work.
 
 This doc is for people who want to improve an existing translation, fix a bad one, or add a language that isn't there yet. You don't need to write any code. You do need to know the language you're translating into well enough to make judgment calls — especially around domain terminology (3D printing is vocabulary-heavy).
 
@@ -18,6 +18,7 @@ For the *implementation* of the translation system — how strings get from YAML
 | `fr` | `translations/fr.yml` | French |
 | `it` | `translations/it.yml` | Italian |
 | `ja` | `translations/ja.yml` | Japanese |
+| `pl` | `translations/pl.yml` | Polish |
 | `pt` | `translations/pt.yml` | Portuguese |
 | `ru` | `translations/ru.yml` | Russian |
 | `zh` | `translations/zh.yml` | Chinese (Simplified) |
@@ -76,6 +77,7 @@ If a string is translated awkwardly, plainly wrong, or inconsistent with how tha
    | French | [translations/fr.yml](https://github.com/prestonbrown/helixscreen/blob/main/translations/fr.yml) |
    | Italian | [translations/it.yml](https://github.com/prestonbrown/helixscreen/blob/main/translations/it.yml) |
    | Japanese | [translations/ja.yml](https://github.com/prestonbrown/helixscreen/blob/main/translations/ja.yml) |
+   | Polish | [translations/pl.yml](https://github.com/prestonbrown/helixscreen/blob/main/translations/pl.yml) |
    | Portuguese | [translations/pt.yml](https://github.com/prestonbrown/helixscreen/blob/main/translations/pt.yml) |
    | Russian | [translations/ru.yml](https://github.com/prestonbrown/helixscreen/blob/main/translations/ru.yml) |
    | Chinese | [translations/zh.yml](https://github.com/prestonbrown/helixscreen/blob/main/translations/zh.yml) |

@@ -47,8 +47,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "SystemSettingsManager language index/code con
         REQUIRE(SystemSettingsManager::language_index_to_code(4) == "ru");
         REQUIRE(SystemSettingsManager::language_index_to_code(5) == "pt");
         REQUIRE(SystemSettingsManager::language_index_to_code(6) == "it");
-        REQUIRE(SystemSettingsManager::language_index_to_code(7) == "zh");
-        REQUIRE(SystemSettingsManager::language_index_to_code(8) == "ja");
+        REQUIRE(SystemSettingsManager::language_index_to_code(7) == "pl");
+        REQUIRE(SystemSettingsManager::language_index_to_code(8) == "zh");
+        REQUIRE(SystemSettingsManager::language_index_to_code(9) == "ja");
     }
 
     SECTION("language_index_to_code out-of-range defaults to en") {
@@ -60,7 +61,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "SystemSettingsManager language index/code con
         REQUIRE(SystemSettingsManager::language_code_to_index("en") == 0);
         REQUIRE(SystemSettingsManager::language_code_to_index("de") == 1);
         REQUIRE(SystemSettingsManager::language_code_to_index("fr") == 2);
-        REQUIRE(SystemSettingsManager::language_code_to_index("ja") == 8);
+        REQUIRE(SystemSettingsManager::language_code_to_index("pl") == 7);
+        REQUIRE(SystemSettingsManager::language_code_to_index("ja") == 9);
     }
 
     SECTION("language_code_to_index unknown code defaults to 0") {
