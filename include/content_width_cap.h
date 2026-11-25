@@ -143,9 +143,9 @@ struct SideBandLayout {
  *
  * - The cap leaves side_band_min_width(): the column stops at the cap, the band
  *   takes the rest.
- * - Otherwise the column gives up width to a band of up to
- *   side_band_pref_width(), as long as it keeps kMainColumnFloor and the band
- *   keeps side_band_min_width() (1280x400: 684 + 520).
+ * - Otherwise the column gives up width to a band of side_band_pref_width(),
+ *   as long as it keeps kMainColumnFloor (1280x400: 684 + 520). A narrower band
+ *   would clip Motion's controls, so there is no smaller one.
  * - Otherwise the column takes the whole host and there is no band.
  */
 constexpr SideBandLayout side_band_layout(int32_t host_width, int32_t cap, int32_t ver_res) {
@@ -153,11 +153,8 @@ constexpr SideBandLayout side_band_layout(int32_t host_width, int32_t cap, int32
     if (host_width - cap >= band_min) {
         return {cap, true};
     }
-    int32_t main_width = host_width - side_band_pref_width(ver_res);
-    if (main_width < kMainColumnFloor) {
-        main_width = kMainColumnFloor;
-    }
-    if (host_width - main_width >= band_min) {
+    const int32_t main_width = host_width - side_band_pref_width(ver_res);
+    if (main_width >= kMainColumnFloor) {
         return {main_width, true};
     }
     return {host_width, false};
