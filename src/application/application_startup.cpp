@@ -422,8 +422,10 @@ void Application::report_main_loop_stall(uint32_t stalled_ms) {
     // Android parks the SDL event pump, and with it the main loop, for as long
     // as the activity is paused: that stall is the platform, not a hang.
     if (app_backgrounded()) {
-        spdlog::debug("[Application] Main loop stalled {}ms in the background; not a hang",
-                      stalled_ms);
+        // Info, not debug: this lands right under the monitor's "has not ticked"
+        // error in a debug bundle and says that line is not a hang.
+        spdlog::info("[Application] Main loop stalled {}ms in the background; not a hang",
+                     stalled_ms);
         return;
     }
     // Runs on the monitor thread. record_error() is documented as safe from
