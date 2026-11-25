@@ -400,7 +400,7 @@ TEST_CASE_METHOD(KlipperRestartFixture,
     client.dispatch_gcode_response("// [CALIB] T2: ...");
     settle();
 
-    CHECK(heard.size() == 1);
+    REQUIRE(heard.size() == 1);
     CHECK(heard[0].kind == cal::ProgressEvent::Kind::Started);
     CHECK(heard[0].tool == 2);
 }
