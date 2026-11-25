@@ -4337,6 +4337,7 @@ translations:
   Tool Offsets: 工具偏移
   Tool Switcher: '工具切换器'
   'Tool change failed: {}': '工具切换失败: {}'
+  'Tool change ignored: the filament system is busy': '已忽略工具切换: 耗材系统正忙'
   Tool change speed: 换工具速度
   Tool change to T{}: '切换工具到 T{}'
   'Tool change to {} failed: {}': '切换到{}失败: {}'

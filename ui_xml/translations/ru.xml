@@ -4229,6 +4229,7 @@
   <translation tag="Tool Offsets" ru="Смещения инструментов"/>
   <translation tag="Tool Switcher" ru="Переключатель инструментов"/>
   <translation tag="Tool change failed: {}" ru="Ошибка смены инструмента: {}"/>
+  <translation tag="Tool change ignored: the filament system is busy" ru="Смена инструмента пропущена: система подачи филамента занята"/>
   <translation tag="Tool change speed" ru="Скорость смены инструмента"/>
   <translation tag="Tool change to T{}" ru="Смена инструмента на T{}"/>
   <translation tag="Tool change to {} failed: {}" ru="Ошибка смены инструмента на {}: {}"/>

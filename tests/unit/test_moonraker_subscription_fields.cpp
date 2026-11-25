@@ -370,6 +370,12 @@ TEST_CASE("Subscription: AFC objects narrow per type", "[moonraker][subscription
         REQUIRE(has_field(subs, "AFC_extruder extruder", "lane_loaded"));
         REQUIRE(has_field(subs, "AFC_extruder extruder", "tool_end_status"));
         REQUIRE(has_field(subs, "AFC_extruder extruder", "tool_start_status"));
+        // The mounted head on a toolchanger (#2191), and its swap state.
+        REQUIRE(has_field(subs, "AFC_extruder extruder", "on_shuttle"));
+        REQUIRE(has_field(subs, "AFC_extruder extruder", "status"));
+        REQUIRE(has_field(subs, "AFC_extruder extruder", "next_pickup"));
+        REQUIRE(has_field(subs, "AFC_extruder extruder", "is_standalone"));
+        REQUIRE(has_field(subs, "AFC_extruder extruder", "extruder_name"));
     }
 
     SECTION("Unit-level (AFC_BoxTurtle): parse_afc_unit_object fields") {
@@ -466,7 +472,8 @@ TEST_CASE("Subscription: AFC field lists are exactly the parsers' inputs",
           json::array({"state", "distance_to_fault", "error_sensitivity", "fault_detection_enabled",
                        "lanes"}));
     CHECK(subs["AFC_extruder extruder"] ==
-          json::array({"lane_loaded", "tool_end_status", "tool_start_status"}));
+          json::array({"extruder_name", "is_standalone", "lane_loaded", "next_pickup", "on_shuttle",
+                       "status", "tool_end_status", "tool_start_status"}));
     // A unit object also carries an ACE's dryer and climate and a CFS unit's lane tags.
     CHECK(subs["AFC_BoxTurtle turtle1"] ==
           json::array({"lanes", "extruders", "hubs", "buffers", "cfs", "ace_dryer",

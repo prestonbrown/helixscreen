@@ -1115,9 +1115,15 @@ void ToolState::request_tool_change(int tool_index, IMoonrakerAPI* api,
     auto* backend = AmsState::instance().get_backend();
     if (backend) {
         AmsSystemInfo info = backend->get_system_info();
+        // Where the backend's topology built tools_, a tool is the backend's
+        // when that topology routed it to a slot: the same map that put the
+        // tool on its head. The system info map holds one tool per lane, so it
+        // misses the extra T numbers of an AFC multi-tool lane (#2191).
+        const std::vector<int>& tool_to_slot =
+            ams_topology_active_ ? ams_topology_tool_to_slot_ : info.tool_to_slot_map;
         bool backend_manages_tool = info.total_slots > 0 &&
-                                    tool_index < static_cast<int>(info.tool_to_slot_map.size()) &&
-                                    info.tool_to_slot_map[tool_index] >= 0;
+                                    tool_index < static_cast<int>(tool_to_slot.size()) &&
+                                    tool_to_slot[static_cast<size_t>(tool_index)] >= 0;
 
         if (backend_manages_tool) {
             spdlog::info("[ToolState] Requesting tool change to T{} via AMS backend", tool_index);
