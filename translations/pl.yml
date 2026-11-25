@@ -1,6 +1,7 @@
 locale: pl
 translations:
   '%d-%d': '%d-%d'
+  '%d-%d°C': '%d-%d°C'
   ' (timed out)': ' (przekroczono czas)'
   ' frames': ' klatek'
   ' left': ' pozostało'
@@ -154,6 +155,7 @@ translations:
   12-hour: 12-godzinny
   120 seconds: 120 sekund
   15 seconds: 15 sekund
+  170-300 °C: 170-300 °C
   180°: 180°
   180° Upside Down: 180° do góry nogami
   2 min: 2 min
@@ -373,6 +375,7 @@ translations:
   Animated light effects configured on the printer. Turn them on and off from the LED controls.: Animowane efekty świetlne skonfigurowane na drukarce. Włączasz je i wyłączasz w sterowaniu LED.
   Animations: Animacje
   Anonymous data to help improve HelixScreen: Anonimowe dane pomagające ulepszać HelixScreen
+  Anonymous stats — no personal data, ever.: Anonimowe statystyki - żadnych danych osobowych, nigdy.
   Anonymous usage statistics: Anonimowe statystyki użycia
   Any notes...: Notatki...
   App Background: Tło aplikacji
@@ -403,6 +406,7 @@ translations:
   Assisting: Wspomaganie
   At least {} lines in helixscreen.env were ignored: Pominięto co najmniej {} linii w helixscreen.env
   At target: Osiągnięto cel
+  At {}°C, about {} minutes.: Przy {}°C, ok. {} min.
   Authentication failed: Uwierzytelnianie nieudane
   Auto: Auto
   Auto Bed Mesh: Automatyczna siatka stołu
@@ -467,6 +471,7 @@ translations:
   Beacon auto-calibrate sent: Wysłano autokalibrację Beacon
   Beacon calibrate sent: Wysłano kalibrację Beacon
   Bed: Stół
+  Bed (°C): Stół (°C)
   Bed Clear Check: Sprawdzanie pustego stołu
   Bed Drying: Suszenie na stole
   Bed Heater: Grzałka stołu
@@ -488,12 +493,17 @@ translations:
   Bed clear · Start next: Stół pusty · Start następnego
   'Bed cooling, spools still on the bed:': 'Stół stygnie, szpule nadal na stole:'
   Bed is Level!: Stół wypoziomowany!
+  Bed is at {:.0f}°C, the print needs {:.0f}°C.: Stół ma {:.0f}°C, a druk wymaga {:.0f}°C.
   Bed mesh: Siatka stołu
   'Bed mesh calibration failed: {}': 'Kalibracja siatki stołu nieudana: {}'
   Bed mesh operation timed out: Przekroczono czas operacji siatki stołu
   Bed mesh...: Siatka stołu...
   Bed size unknown: Nieznany rozmiar stołu
+  Bed target set to {}°C: Ustawiono temperaturę stołu na {}°C
+  Bed temp must be 0-%d°C: Temperatura stołu musi mieścić się w zakresie 0-%d°C
   Bed warming timed out: Przekroczono czas nagrzewania stołu
+  Bed {:.0f} / {:.0f}°C: Stół {:.0f} / {:.0f}°C
+  Bed {:.0f}°C: Stół {:.0f}°C
   Before starting: Przed startem
   Below target: Poniżej celu
   Belt Tension: Napięcie pasków
@@ -698,6 +708,7 @@ translations:
   Center QR code in frame: Umieść kod QR na środku kadru
   'Chamb:': 'Kom.:'
   Chamber: Komora
+  Chamber (°C): Komora (°C)
   Chamber Cooling Fan: Wentylator chłodzący komory
   Chamber Dryer: Suszarka komory
   Chamber Fan: Wentylator komory
@@ -707,9 +718,13 @@ translations:
   Chamber Temperature: Temperatura komory
   Chamber air: Powietrze w komorze
   Chamber and dryer humidity monitoring: Monitorowanie wilgotności komory i suszarki
+  Chamber at %d°C: 'Komora: %d°C'
   Chamber heater didn't start: Grzałka komory nie wystartowała
   Chamber heater didn't start. {}: Grzałka komory nie wystartowała. {}
+  Chamber heating to %d°C...: Grzanie komory do %d°C...
   Chamber light fitted: Zamontowane oświetlenie komory
+  Chamber target set to {}°C: Ustawiono temperaturę komory na {}°C
+  Chamber temp must be 0-%d°C: Temperatura komory musi mieścić się w zakresie 0-%d°C
   Chamber too hot: Komora zbyt gorąca
   Change: Zmień
   Change Address: Zmień adres
@@ -1037,6 +1052,7 @@ translations:
   Could not resolve printer RFCOMM channel: Nie udało się ustalić kanału RFCOMM drukarki
   Could not restart the printer; the stock screen was not restored: Nie udało się zrestartować drukarki; fabryczny ekran nie został przywrócony
   Could not restore the stock screen: Nie udało się przywrócić fabrycznego ekranu
+  Restart the printer to finish restoring the stock screen: Zrestartuj drukarkę, aby dokończyć przywracanie fabrycznego ekranu
   Could not save filament: Nie udało się zapisać filamentu
   Could not save the drying state: Nie udało się zapisać stanu suszenia
   'Could not save the drying state: nothing was heated': 'Nie udało się zapisać stanu suszenia: nic nie było grzane'
@@ -1082,6 +1098,7 @@ translations:
   Current Z Position: Bieżąca pozycja Z
   'Current name:': 'Obecna nazwa:'
   'Current:': 'Obecnie:'
+  'Current: %d°C | Target: %d°C': 'Bieżąca: %d°C | Cel: %d°C'
   Currently Loaded: Obecnie załadowany
   Currently printing: Teraz drukuje
   Curves differ in shape. Check the mechanics before chasing a perfect match.: Krzywe różnią się kształtem. Sprawdź mechanikę, zanim zaczniesz gonić idealne dopasowanie.
@@ -1123,6 +1140,8 @@ translations:
   Default: Domyślny
   Default Parameters: Parametry domyślne
   Default border thickness: Domyślna grubość obramowania
+  'Default: %s nozzle, %d°C bed': 'Domyślnie: dysza %s, stół %d°C'
+  'Default: %s nozzle, %d°C bed, %d°C chamber': 'Domyślnie: dysza %s, stół %d°C, komora %d°C'
   Defaults restored: Przywrócono ustawienia domyślne
   Define macros in your printer.cfg: Zdefiniuj makra w printer.cfg
   Delete: Usuń
@@ -1570,6 +1589,7 @@ translations:
   Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload: Przepchnij filament ręcznie za czujnik, potem naciśnij Wznów — albo anuluj druk, aby użyć Ładuj/Rozładuj
   Feeder: Podajnik
   Feeders: Podajniki
+  Feeding filament forward: Podawanie filamentu do przodu
   Filament: Filament
   Filament Buffer: Bufor filamentu
   Filament Control: Sterowanie filamentem
@@ -1793,7 +1813,13 @@ translations:
   Heat bed before calibrating for accurate offset with thermal expansion.: Nagrzej stół przed kalibracją, aby offset uwzględniał rozszerzalność cieplną.
   Heat nozzle: Nagrzej dyszę
   Heat soak: Wygrzewanie
+  ? Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen does not run it.
+  : Wygrzewanie pozwala obudowie nagrzać się przed drukiem. Jest na liście, bo drukarka ma makro wygrzewania albo włączono je w ustawieniach; HelixScreen go nie uruchamia.
+  Heat the bed to {}°C: Nagrzej stół do {}°C
   Heat the chamber too: Grzej też komorę
+  Heat the extruder to at least {}°C before loading filament: Nagrzej ekstruder do co najmniej {}°C przed ładowaniem filamentu
+  Heat to at least %d°C for filament operations: Nagrzej do co najmniej %d°C, aby wykonywać operacje na filamencie
+  Heat {} above {}°C before resuming: Nagrzej {} powyżej {}°C przed wznowieniem
   Heatbed Temperature: Temperatura stołu
   Heated Bed: Podgrzewany stół
   Heated Bed MPC Calibration: Kalibracja MPC stołu
@@ -1809,6 +1835,7 @@ translations:
   HeaterSelect: HeaterSelect
   Heaters off: Grzałki wyłączone
   Heating: Grzanie
+  Heating (%d°C below minimum): Grzanie (%d°C poniżej minimum)
   Heating Bed...: Grzanie stołu...
   Heating Chamber...: Grzanie komory...
   Heating Nozzle...: Grzanie dyszy...
@@ -1826,8 +1853,15 @@ translations:
   Heating the bed and nozzle so the print re-grips and the nozzle lets go of it: Grzanie stołu i dyszy, aby wydruk znów przylgnął, a dysza go puściła
   Heating the nozzle: Grzanie dyszy
   Heating the nozzle. Have the filament ready to push in.: Grzanie dyszy. Przygotuj filament do wsunięcia.
+  Heating to %d°C... %.0f°C: Grzanie do %d°C... %.0f°C
+  Heating to {}°C before {}...: 'Grzanie do {}°C przed: {}...'
+  Heating to {}°C for {}...: Grzanie do {}°C dla {}...
+  Heating to {}°C...: Grzanie do {}°C...
   Heating {}...: Grzanie {}...
   Heating...: Grzanie...
+  'Heating: %d / %d°C': 'Grzanie: %d / %d°C'
+  Heats the bed to {:g}°C, above this printer's {:g}°C limit.: Nagrzewa stół do {:g}°C, powyżej limitu {:g}°C tej drukarki.
+  Heats the nozzle to {:g}°C, above this printer's {:g}°C limit.: Nagrzewa dyszę do {:g}°C, powyżej limitu {:g}°C tej drukarki.
   Heightmap and flatness of the active bed mesh: Mapa wysokości i płaskość aktywnej siatki stołu
   HelixPrint Plugin: Wtyczka HelixPrint
   HelixPrint plugin updated.: Zaktualizowano wtyczkę HelixPrint.
@@ -1862,6 +1896,7 @@ translations:
   Hold anywhere to cancel: Przytrzymaj gdziekolwiek, aby anulować
   Hold slicer prints that do not fit: Wstrzymuj wydruki ze slicera, które się nie mieszczą
   Hold {} fully on the head. The latch locks onto it and it becomes the mounted tool.: Przytrzymaj {} dociśnięte do głowicy. Zatrzask je zablokuje i stanie się zamontowanym narzędziem.
+  Holding nozzle at {}°C to purge previous filament.: Utrzymywanie dyszy w {}°C, aby wypłukać poprzedni filament.
   Home: Start
   Home & Continue: Bazuj i kontynuuj
   Home All: Bazuj wszystko
@@ -1923,6 +1958,7 @@ translations:
   Humidity inside the enclosure: Wilgotność w obudowie
   Humidity Sensors: Czujniki wilgotności
   Hyperlapse: Hyperlapse
+  Hyperlapse captures frames at fixed time intervals. Good for very long prints.: Hyperlapse robi klatki w stałych odstępach czasu. Dobry do bardzo długich wydruków.
   Hyperspace: Nadprzestrzeń
   I understand: Rozumiem
   ID (optional): ID (opcjonalnie)
@@ -2137,7 +2173,9 @@ translations:
   Layer: Warstwa
   Layer 2: Warstwa 2
   Layer Height: Wysokość warstwy
+  Layer Macro captures one frame per layer change. Best for most prints.: Makro warstwy robi jedną klatkę przy każdej zmianie warstwy. Najlepsze do większości wydruków.
   Layer Pause: Pauza na warstwie
+  Layer mode captures one frame per layer change. Best for most prints.: Tryb warstwy robi jedną klatkę przy każdej zmianie warstwy. Najlepszy do większości wydruków.
   Layer {} of {} · {:.2f} mm: Warstwa {} z {} · {:.2f} mm
   Layer {} of {}.: Warstwa {} z {}.
   Layer {}, Z {:.2f} mm: Warstwa {}, Z {:.2f} mm
@@ -2262,6 +2300,7 @@ translations:
   MMU command failed: Polecenie MMU nieudane
   MOTION & LEVELING: RUCH I POZIOMOWANIE
   MPC: MPC
+  MPC thermal model calibrated for {} at {}°C.: Model termiczny MPC skalibrowany dla {} przy {}°C.
   Machine Limits: Limity maszyny
   Macro: Makro
   Macro Browser: Przeglądarka makr
@@ -2635,6 +2674,7 @@ translations:
   No vendors found: Nie znaleziono producentów
   No verified bypass command for this CFS firmware: Brak sprawdzonego polecenia obejścia dla tego firmware CFS
   No video player installed - showing the timelapse library: Brak zainstalowanego odtwarzacza wideo - pokazuję bibliotekę timelapse
+  No video player on this printer: Brak odtwarzacza wideo na tej drukarce
   ? 'No webcam detected.
 
     A webcam is required for timelapse.'
@@ -2706,6 +2746,8 @@ translations:
   Nozzle: Dysza
   Nozzle / Bed: Dysza / stół
   Nozzle Clean: Czyszczenie dyszy
+  Nozzle Max (°C): Maks. dyszy (°C)
+  Nozzle Min (°C): Min. dyszy (°C)
   Nozzle Moves: Ruchy dyszy
   Nozzle Temp: Temp. dyszy
   Nozzle Temperature: Temperatura dyszy
@@ -2714,12 +2756,15 @@ translations:
   Nozzle clean complete: Czyszczenie dyszy zakończone
   Nozzle clog detected: Wykryto zatkanie dyszy
   Nozzle diameter: Średnica dyszy
+  Nozzle did not reach {}°C — {} canceled: Dysza nie osiągnęła {}°C - {} anulowano
   Nozzle flow: Przepływ dyszy
   Nozzle interval: Interwał dyszy
   Nozzle min cannot exceed max: Minimum dyszy nie może przekraczać maksimum
   'Nozzle not changed: the printer did not confirm it': 'Dysza niezmieniona: drukarka tego nie potwierdziła'
   'Nozzle not changed: {}': 'Dysza niezmieniona: {}'
   Nozzle size and flow type per head: Rozmiar i typ przepływu dyszy dla każdej głowicy
+  Nozzle target set to {}°C: Ustawiono temperaturę dyszy na {}°C
+  Nozzle temp must be 100-%d°C: Temperatura dyszy musi mieścić się w zakresie 100-%d°C
   Nozzle, bed, and chamber in one widget: Dysza, stół i komora w jednym widżecie
   'Nozzle:': 'Dysza:'
   'Nozzles still heating: {}': 'Dysze nadal się grzeją: {}'
@@ -3153,6 +3198,7 @@ translations:
   Provide a {}: Podaj {}
   Provide an on/off value: Podaj wartość wł./wył.
   Provide {}: Podaj {}
+  Pulling filament back: Wycofywanie filamentu
   Purge: Płukanie
   Purge & Wipe: Płukanie i wycieranie
   Purge Chute Calibration: Kalibracja zsypu
@@ -3582,6 +3628,7 @@ translations:
   Seat: Osadź
   Seat a tool by hand: Osadź narzędzie ręcznie
   Seat a tool by hand for the first Z home: Osadź narzędzie ręcznie przed pierwszym bazowaniem Z
+  Seat the hot ends, heat {} above {}°C, then tap Resume.: Osadź hotendy, nagrzej {} powyżej {}°C, a potem stuknij Wznów.
   Seat which tool by hand?: Które narzędzie osadzić ręcznie?
   Seating {}...: Osadzanie {}...
   Secondary: Drugorzędny
@@ -3663,6 +3710,7 @@ translations:
   Set duration between 1 and {} minutes: Ustaw czas od 1 do {} minut
   Set local timezone for time display: Ustaw lokalną strefę czasową wyświetlania czasu
   Set logging verbosity for troubleshooting: Ustaw szczegółowość logów do diagnozowania
+  Set temperature between {}°C and {}°C: Ustaw temperaturę między {}°C a {}°C
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : Ustaw ręcznie typ i kolor filamentu dla tego slotu. Jeśli tag powinien być czytelny, gdy Box jest bezczynny, włóż szpulę ponownie etykietą w stronę czytnika
   Set up: Skonfiguruj
@@ -3681,6 +3729,7 @@ translations:
   Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together.: Potrząsa głowicą wzdłuż każdej przekątnej i nakłada obie odpowiedzi. Równo napięte pasy mają wspólny szczyt.
   Share Screen: Udostępnij ekran
   Share Usage Data: Udostępniaj dane użycia
+  Share anonymous usage statistics to help us make HelixScreen better. No personal data is ever collected.: Udostępniaj anonimowe statystyki użycia, aby pomóc nam ulepszać HelixScreen. Żadne dane osobowe nie są zbierane.
   'Share this code in Discord or support:': 'Podaj ten kod na Discordzie lub pomocy technicznej:'
   Sheet Label Print: Druk arkusza etykiet
   Shelf A: Półka A
@@ -3987,11 +4036,13 @@ translations:
   Telemetry queue cleared: Wyczyszczono kolejkę telemetrii
   Temp: Temp.
   Temp Compensation: Kompensacja temp.
+  Temp °C: Temp. °C
   Temperature: Temperatura
   Temperature Graph: Wykres temperatury
   Temperature Graph Config: Konfiguracja wykresu temperatury
   Temperature Sensors: Czujniki temperatury
   Temperature and humidity sensor not responding: Czujnik temperatury i wilgotności nie odpowiada
+  Temperature control optimized for {} at {}°C.: Regulacja temperatury zoptymalizowana dla {} przy {}°C.
   Temperatures: Temperatury
   Temperatures plotted over time: Temperatury w czasie
   Temperatures saved: Zapisano temperatury
@@ -4014,9 +4065,11 @@ translations:
   Test Tracker: Testuj śledzenie
   Test Both: Testuj oba
   Test label printed: Wydrukowano etykietę testową
+  'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}°C.': 'Wieża testowa {:.0f} mm szeroka i {:.0f} mm wysoka, ok. {} min plus nagrzewanie: {} pasm po {:.0f} mm przy {}°C.'
   'Testing rotation: %d° (%d/%d) - %ds remaining': 'Test obrotu: %d° (%d/%d) - pozostało %ds'
   Testing, servo, and motor operations: Testy, serwo i operacje silników
   Thanks! Anonymous usage data helps improve HelixScreen.: Dziękujemy! Anonimowe dane użycia pomagają ulepszać HelixScreen.
+  Thanks! TOTALLY anonymous usage data helps improve HelixScreen.: Dziękujemy! W pełni anonimowe dane o użyciu pomagają ulepszać HelixScreen.
   That print is no longer paused: Ten wydruk nie jest już wstrzymany
   That reading jumped too far to trust. Re-measure without turning.: Ten odczyt skoczył za mocno, by mu ufać. Zmierz ponownie bez kręcenia.
   That setting cannot be changed while a print is running: Tego ustawienia nie można zmienić podczas druku
@@ -4097,8 +4150,12 @@ translations:
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : Załadowana szpula to {}, a plik pokrojono dla {}. Filament z wypełniaczem drukuje się z mniejszym przepływem i wymaga utwardzonej dyszy.
   The message your printer's macros show (M117): Komunikat wyświetlany przez makra drukarki (M117)
+  ? The mounted nozzle heats to 200°C and cools again while the heater's safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes.
+  : Zamontowana dysza nagrzewa się do 200°C i stygnie, gdy dopasowywany jest model bezpieczeństwa grzałki. Wyłącz wentylator modelu i trzymaj łatwopalne materiały z dala od głowicy. To trwa kilka minut.
   The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself.: Dysza wykonuje kilka krótkich ruchów testowych w rogu, z dala od obszaru druku, i powtarza je, aż wyniki będą zgodne.
   The nozzle hasn't moved since the power went out. Check that it sits just above the top of the print, then resume.: Dysza nie ruszyła się od zaniku zasilania. Sprawdź, czy jest tuż nad górą wydruku, potem wznów.
+  ? The nozzle heats to 200°C while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes.
+  : Dysza nagrzewa się do 200°C, a wentylator modelu przechodzi przez swoje prędkości. Aby dopasowanie było dokładne, zamontuj kanał tak, jak drukujesz. To trwa kilka minut.
   The nozzle is clear of the print: Dysza jest z dala od wydruku
   ? The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next.
   : Dysza jest gorąca. Oczyść ją drucianą szczotką dołączoną do drukarki i utrzymuj miejsce dokowania w czystości, potem dotknij Dalej.
@@ -4118,6 +4175,7 @@ translations:
   ? The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes.
   : Wydruk jest wstrzymany. Zmiana narzędzia teraz przesunie głowicę i wymieni filament w dyszy. Wznów wydruk po zakończeniu zmiany.
   The print is still stuck to the bed: Wydruk jest nadal przyklejony do stołu
+  The print is waiting for the chamber to reach {}°C, but the heater is not heating.: Druk czeka, aż komora osiągnie {}°C, ale grzałka nie grzeje.
   The print is waiting for the chamber, but the heater is not heating.: Wydruk czeka na komorę, ale grzałka nie grzeje.
   The printable size in millimeters (X × Y × Z), from the axis limits in the printer's Klipper config.: Obszar roboczy w milimetrach (X × Y × Z), z limitów osi w konfiguracji Klippera drukarki.
   The printer applied this value and keeps it for this tool.: Drukarka zastosowała tę wartość i zachowuje ją dla tego narzędzia.
@@ -4195,6 +4253,7 @@ translations:
   The unit's onboard storage has failed. The CFS mainboard needs replacing: Pamięć wewnętrzna jednostki uległa awarii. Płyta główna CFS wymaga wymiany
   'The unload did not start: unload by hand, then start again': 'Rozładowanie się nie rozpoczęło: rozładuj ręcznie, potem zacznij ponownie'
   The unload finishes on its own, but the plate will not move.: Rozładowanie zakończy się samo, ale płyta się nie ruszy.
+  The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: Odtwarzacz wideo nie mógł się uruchomić na tej drukarce ({}). Zeskanuj kod telefonem, aby obejrzeć timelapse.
   Theme: Motyw
   Theme Colors: Kolory motywu
   Theme Preset: Ustawienie motywu
@@ -4274,6 +4333,7 @@ translations:
   This printer has no IFS.: Ta drukarka nie ma IFS.
   This printer has no INDX LOAD_FILAMENT macro: Ta drukarka nie ma makra INDX LOAD_FILAMENT
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: Ta drukarka nie ma automatycznego rozładowania. Utnij filament przy głowicy i wyciągnij go ręcznie.
+  This printer has no video player. Scan the code with your phone to watch the timelapse.: Ta drukarka nie ma odtwarzacza wideo. Zeskanuj kod telefonem, aby obejrzeć timelapse.
   This printer has no {} command, so the Z-offset cannot be saved.: Ta drukarka nie ma polecenia {}, więc nie można zapisać offsetu Z.
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Ta drukarka wygląda na {} (pewność {}%), ale jest skonfigurowana jako {}. Zły typ stosuje nieprawidłowe opcje przed drukiem i ustawienia.
@@ -4599,6 +4659,8 @@ translations:
   Vibration: Drgania
   Vibration compensation active: Kompensacja drgań aktywna
   Video playback speed: Prędkość odtwarzania filmu
+  Video player failed to start: Nie udało się uruchomić odtwarzacza wideo
+  Video player failed to start ({}): Nie udało się uruchomić odtwarzacza wideo ({})
   View: Widok
   View Changelog: Pokaż listę zmian
   View Full History: Pokaż pełną historię
@@ -4632,6 +4694,8 @@ translations:
   Waiting for another box to finish.: Oczekiwanie na zakończenie innego Boxa.
   Waiting for bed temperature...: Oczekiwanie na temperaturę stołu...
   Waiting for bed to reach temperature for accurate calibration.: Oczekiwanie, aż stół osiągnie temperaturę, dla dokładnej kalibracji.
+  Waiting for chamber {} / {}°C: Oczekiwanie na komorę {} / {}°C
+  Waiting for chamber {}°C: Oczekiwanie na komorę {}°C
   Waiting for the chamber to heat: Oczekiwanie na nagrzanie komory
   Waiting for the filament system to report its state: Oczekiwanie na stan systemu filamentu
   Waiting for the printer: Oczekiwanie na drukarkę
