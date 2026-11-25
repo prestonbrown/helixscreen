@@ -348,32 +348,24 @@ std::vector<ProcessRss> top_processes_by_rss(size_t count) {
 #endif
 }
 
-#ifdef __linux__
-namespace {
-
-/// The record in the stat file at @p stat_path, nullopt when it cannot be read
-/// or is cut short.
 std::optional<ProcStat> read_proc_stat(const char* stat_path) {
+#ifdef __linux__
     const auto line = tio::read_file(stat_path);
     ProcStat st;
     if (line && parse_proc_stat(*line, st)) {
         return st;
     }
+#else
+    (void)stat_path;
+#endif
     return std::nullopt;
 }
 
-} // namespace
-#endif
-
 std::optional<uint64_t> read_self_major_faults(const char* stat_path) {
-#ifdef __linux__
     const auto st = read_proc_stat(stat_path);
     if (st) {
         return st->major_faults;
     }
-#else
-    (void)stat_path;
-#endif
     return std::nullopt;
 }
 
@@ -408,14 +400,10 @@ std::optional<std::string> parse_proc_wchan(const std::string& text) {
 }
 
 std::optional<std::string> read_main_thread_state(const char* stat_path) {
-#ifdef __linux__
     const auto st = read_proc_stat(stat_path);
     if (st) {
         return st->state;
     }
-#else
-    (void)stat_path;
-#endif
     return std::nullopt;
 }
 

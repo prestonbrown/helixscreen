@@ -45,6 +45,12 @@ TEST_CASE_METHOD(TelemetryTestFixture,
     CHECK(snapshot[0].at("event") == "error_encountered");
     CHECK(snapshot[0].at("code") == "main_loop_hang");
 #ifdef __linux__
+    // The report reads /proc/self/stat once: the fault count and the state letter both
+    // come from that one record.
+    REQUIRE(snapshot[0].contains("main_state"));
+    CHECK(snapshot[0]["main_state"] == "R");
+    REQUIRE(snapshot[0].contains("major_faults"));
+    CHECK(snapshot[0]["major_faults"].is_number_unsigned());
     // This case runs on the process's main thread, which is running: it waits in no channel,
     // and the log line for a debug bundle says so rather than printing an empty field.
     CHECK(capture.has_line_with({"[Application] main loop stalled 60000ms: state=R wchan=none"}));

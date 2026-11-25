@@ -665,3 +665,22 @@ TEST_CASE("read_main_thread_state and read_main_thread_wchan read their proc fil
     CHECK_FALSE(read_main_thread_wchan("/nonexistent-proc-root/self/wchan").has_value());
 }
 #endif
+
+#ifdef __linux__
+TEST_CASE("read_proc_stat reads one stat file into its record", "[memory][proc_stat]") {
+    FakeProc proc;
+    proc.add("self", "helix-screen", 100, 4242);
+    const auto stat = (proc.root / "self" / "stat").string();
+    const auto record = read_proc_stat(stat.c_str());
+    REQUIRE(record.has_value());
+    CHECK(record->comm == "helix-screen");
+    CHECK(record->state == "S");
+    CHECK(record->major_faults == 4242);
+    CHECK(record->rss_pages == 100);
+
+    // A stat line too short to hold rss is not a whole record.
+    std::ofstream(stat, std::ios::trunc) << "100 (helix-screen) S 1 100";
+    CHECK_FALSE(read_proc_stat(stat.c_str()).has_value());
+    CHECK_FALSE(read_proc_stat("/nonexistent-proc-root/self/stat").has_value());
+}
+#endif
