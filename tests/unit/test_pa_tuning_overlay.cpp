@@ -13,6 +13,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_api_mock.h"
@@ -55,6 +56,11 @@ struct TunerFixture : LVGLTestFixture {
     }
     ~TunerFixture() override {
         overlay.cleanup();
+        // This tuner dies with the test, often mid-run, but the Tuner button it
+        // showed lives in the global Tune overlay: take it down with the tuner.
+        if (auto* tune = helix::lazy_global_if_exists<PrintTuneOverlay>()) {
+            tune->set_pa_session_active(false);
+        }
         status({{"print_stats", {{"state", "standby"}, {"filename", ""}}}});
         client.stop_temperature_simulation();
         client.disconnect();
