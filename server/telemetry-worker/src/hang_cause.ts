@@ -4,6 +4,7 @@
 // only the thresholds so the dashboard can import it.
 
 import {
+  HANG_APP_RSS_SHARE,
   HANG_HOST_MEMORY_LOW_MB,
   HANG_SNAPSHOT_WINDOW_SEC,
   HANG_SUSPENDED_STALL_SEC,
@@ -46,7 +47,10 @@ export interface MemSnapshot {
   availableMb: number;
 }
 
-/** One memory warning: the pressure the device's monitor reported at that moment. */
+/**
+ * One memory warning: the pressure the device's monitor reported, with the app's and the
+ * host's memory at that moment.
+ */
 export interface MemWarning {
   device: string;
   /** Epoch milliseconds the Worker stored the warning. */
@@ -57,6 +61,10 @@ export interface MemWarning {
   level: string;
   /** The reason as a code ("available_warning", "rss_critical", "growth", ...), "" when absent. */
   reason: string;
+  /** The app's resident set, KB; 0 when the row carries none. */
+  rssKb: number;
+  /** The host's total memory, MB; 0 when the row carries none. */
+  totalMb: number;
 }
 
 export interface HangSplit {
@@ -122,6 +130,9 @@ const LOW_AVAILABLE_REASONS: ReadonlySet<string> = new Set(["available_warning",
 
 const lowAvailable = (w: MemWarning): boolean => (w.level === "warning" || w.level === "critical") && LOW_AVAILABLE_REASONS.has(w.reason);
 
+/** True when the app's resident set in `w` is over HANG_APP_RSS_SHARE of its host's memory, which the row must carry. */
+const appOverShareIn = (w: MemWarning): boolean => w.totalMb > 0 && w.rssKb > HANG_APP_RSS_SHARE * w.totalMb * 1024;
+
 /**
  * A suspended app is `suspended` whatever its memory says. A hang that carries its own memory
  * fields is classified by them: the host ran out of memory when the pressure is critical or
@@ -130,8 +141,10 @@ const lowAvailable = (w: MemWarning): boolean => (w.level === "warning" || w.lev
  * before it, at warning or critical, says available memory ran low. With no such warning it is
  * classified by the device's snapshot taken last before it, by the same threshold: among the
  * snapshots of the hang's upload whose uptime is at most HANG_SNAPSHOT_WINDOW_SEC under the
- * hang's, the largest uptime wins. Without a qualifying snapshot the cause is unknown. A hang
- * that is neither suspended nor the host is an app that blocked.
+ * hang's, the largest uptime wins. Without a qualifying snapshot the cause is unknown. Low free
+ * memory does not say who used it: none of these makes the host the cause when the newest of
+ * those warnings shows the app holding more than HANG_APP_RSS_SHARE of the host's memory, since
+ * the app then starved its host itself. Every other hang is an app that blocked.
  */
 export function classifyHang(
   hang: HangRow,
@@ -139,17 +152,20 @@ export function classifyHang(
   warnings: readonly MemWarning[] = [],
 ): HangCause {
   if (suspended(hang)) return "suspended";
+  const near = beforeHang(hang, warnings, HANG_WARNING_WINDOW_SEC);
   let host: boolean;
   if (hang.memAvailableMb !== null || hang.pressure !== "") {
     host = hang.pressure === "critical" || (hang.memAvailableMb !== null && lowMemory(hang.memAvailableMb));
-  } else if (beforeHang(hang, warnings, HANG_WARNING_WINDOW_SEC).some(lowAvailable)) {
+  } else if (near.some(lowAvailable)) {
     host = true;
   } else {
     const latest = newest(beforeHang(hang, snapshots, HANG_SNAPSHOT_WINDOW_SEC));
     if (latest === null) return "unknown";
     host = lowMemory(latest.availableMb);
   }
-  return host ? "host_memory" : "app_blocked";
+  const latestWarning = newest(near);
+  const appOverShare = latestWarning !== null && appOverShareIn(latestWarning);
+  return host && !appOverShare ? "host_memory" : "app_blocked";
 }
 
 /** A classified hang. */

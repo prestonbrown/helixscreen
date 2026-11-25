@@ -4,6 +4,7 @@ import { classifyHang, classifyHangs, splitOf, type HangRow, type MemSnapshot, t
 import { buildHealth, type HealthRowKey } from "../health";
 import { findingsFromHealth } from "../loop/findings";
 import {
+  HANG_APP_RSS_SHARE,
   HANG_HOST_MEMORY_LOW_MB,
   HANG_SNAPSHOT_WINDOW_SEC,
   HANG_SUSPENDED_STALL_SEC,
@@ -40,13 +41,15 @@ const snap = (secondsBefore: number, availableMb: number, device = "d1", atOffse
   uptimeSec: HANG_UPTIME - secondsBefore,
   availableMb,
 });
-/** A memory warning of the hang's upload taken `secondsBefore` of uptime before the hang. */
+/** A memory warning of the hang's upload taken `secondsBefore` of uptime before the hang; the app holds 50 of the host's 972 MB. */
 const warn = (secondsBefore: number, over: Partial<MemWarning> = {}): MemWarning => ({
   device: "d1",
   at: T0,
   uptimeSec: HANG_UPTIME - secondsBefore,
   level: "warning",
   reason: "available_warning",
+  rssKb: 50 * 1024,
+  totalMb: 972,
   ...over,
 });
 
@@ -165,6 +168,41 @@ describe("classifyHang, an older hang beside a memory warning", () => {
   });
   it("reads only the hang's own device's warnings", () => {
     expect(classifyHangs([hang()], [], [warn(5, { device: "other" })])[0].cause).toBe("unknown");
+  });
+});
+
+describe("classifyHang, the app's own share of the host's memory", () => {
+  /** A warning `secondsBefore` the hang with the app `mb` MB over the share of a 256 MB host; at the share when `mb` is 0. */
+  const atShare = (secondsBefore: number, mb: number, over: Partial<MemWarning> = {}): MemWarning =>
+    warn(secondsBefore, { rssKb: HANG_APP_RSS_SHARE * 256 * 1024 + mb * 1024, totalMb: 256, ...over });
+  const growth = { level: "elevated", reason: "growth" } as const;
+
+  it("is app blocked, not host memory, when the app held more of the host than the share", () => {
+    // By a warning, by a snapshot with the share read from a warning of any level, and by the hang's own memory fields.
+    expect(classifyHang(hang(), [], [atShare(600, 10)])).toBe("app_blocked");
+    expect(classifyHang(hang(), [snap(600, 5)], [atShare(600, 10, growth)])).toBe("app_blocked");
+    expect(classifyHang(hang({ memAvailableMb: 30, pressure: "critical" }), [], [atShare(600, 10)])).toBe("app_blocked");
+  });
+  it("is host memory when the app held no more than the share", () => {
+    expect(classifyHang(hang(), [], [atShare(600, 0)])).toBe("host_memory");
+    expect(classifyHang(hang(), [], [atShare(600, 0.5)])).toBe("app_blocked");
+    expect(classifyHang(hang(), [snap(600, 5)], [atShare(600, -10, growth)])).toBe("host_memory");
+  });
+  it("reads the share from the newest warning before the hang", () => {
+    expect(classifyHang(hang(), [], [atShare(600, 10), atShare(60, -10, { ...growth })])).toBe("host_memory");
+    expect(classifyHang(hang(), [], [atShare(600, -10), atShare(60, 10, { ...growth })])).toBe("app_blocked");
+  });
+  it("reads the share only from a warning in the window before the hang that carries the host's total", () => {
+    const before = { ...growth, uptimeSec: HANG_UPTIME - HANG_WARNING_WINDOW_SEC - 1 };
+    expect(classifyHang(hang(), [snap(600, 5)], [atShare(600, 10, before)])).toBe("host_memory");
+    expect(classifyHang(hang(), [], [atShare(600, 10, { totalMb: 0 })])).toBe("host_memory");
+    expect(classifyHang(hang(), [snap(600, 5)], [atShare(600, 10, { ...growth, totalMb: 0 })])).toBe("host_memory");
+  });
+  it("stays unknown without evidence of low memory, whatever the app's share", () => {
+    expect(classifyHang(hang(), [], [atShare(600, 10, growth)])).toBe("unknown");
+  });
+  it("keeps a suspended app suspended", () => {
+    expect(classifyHang(hang({ platform: "android" }), [], [atShare(600, 10)])).toBe("suspended");
   });
 });
 
@@ -363,6 +401,21 @@ describe("a main_loop_hang finding", () => {
     );
     expect(h.errors[0].split).toEqual({ suspended: 0, host_memory: 1, app_blocked: 0, unknown: 0 });
   });
+  it("counts a hang in low memory as the app's, and so in the count, when the app held most of the host", () => {
+    const h = buildHealth(
+      rows({
+        errors_cur: [{ ...hangCode, count: 2, devices: 2 }],
+        hangs_cur: [hangRow("a", 0), hangRow("b", 0)],
+        // a's app holds 110 of the host's 256 MB; b's holds 50 of 972 MB.
+        hang_warnings: [
+          { device: "a", at: T0 / 1000, uptime: HANG_UPTIME - 600, level: "warning", reason: "available_warning", rss: 110 * 1024, total: 256 },
+          { device: "b", at: T0 / 1000, uptime: HANG_UPTIME - 600, level: "warning", reason: "available_warning", rss: 50 * 1024, total: 972 },
+        ],
+      }),
+      "2026-11-24",
+    );
+    expect(h.errors[0]).toMatchObject({ cur: 1, devices: 1, total: 2, split: { host_memory: 1, app_blocked: 1, unknown: 0 } });
+  });
   it("classifies an older hang by its snapshot alone when no warning rows could be read", () => {
     const r = rows({
       errors_cur: [{ ...hangCode, count: 1, devices: 1 }],
@@ -477,13 +530,15 @@ describe("hang queries", () => {
     expect(sql).toContain(`toUnixTimestamp(timestamp) <= ${2000 + HANG_UPLOAD_BATCH_SEC}`);
     expect(hangWarningsSql([])).toContain(SQL_FALSE);
   });
-  it("reads each warning's stored time, uptime, level and reason", () => {
+  it("reads each warning's stored time, uptime, level, reason, the app's RSS and the host's total", () => {
     const sql = hangWarningsSql([{ device: "a1", at: 1000 }]);
     const columns: [string, string][] = [
       ["device_id", "device"],
       ["uptime_sec", "uptime"],
       ["level", "level"],
       ["reason", "reason"],
+      ["rss_kb", "rss"],
+      ["system_total_mb", "total"],
     ];
     for (const [field, alias] of columns) expect(sql).toContain(`${col("memory_warning", field)} as ${alias}`);
     expect(sql).toContain("toUnixTimestamp(timestamp) as at");
@@ -564,6 +619,13 @@ describe("fetchHealth hang causes", () => {
     ]);
     const h = await fetchHealth({ accountId: "a", apiToken: "t" }, "2026-11-24");
     expect(h.errors[0]).toMatchObject({ cur: 0, total: 1, split: { host_memory: 1 } });
+  });
+  it("moves a hang in low memory to the app's when the warning beside it shows the app holding most of the host", async () => {
+    serve([
+      { device: "d0", at: storedAt, uptime: HANG_UPTIME - 600, level: "warning", reason: "available_warning", rss: 110 * 1024, total: 256 },
+    ]);
+    const h = await fetchHealth({ accountId: "a", apiToken: "t" }, "2026-11-24");
+    expect(h.errors[0]).toMatchObject({ cur: 1, total: 1, split: { host_memory: 0, app_blocked: 1 } });
   });
   it("asks for each hung upload's warnings around the time that upload was stored", async () => {
     const asked = serve([]);

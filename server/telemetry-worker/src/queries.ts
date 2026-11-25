@@ -1416,12 +1416,13 @@ export interface HangUpload {
 }
 
 /**
- * The memory warnings of `uploads`, as rows { device, at, uptime, level, reason }: `at` is
- * the epoch seconds the Worker stored the warning, `uptime` the device's, `level` the pressure
- * level the monitor reported, and `reason` the stored one: a code, or the client's text in rows
- * written before the codes. A warning counts only beside a hang of its own upload, so each
- * upload is read within HANG_UPLOAD_BATCH_SEC of the time its hang was stored, and only for
- * the device that reported it.
+ * The memory warnings of `uploads`, as rows { device, at, uptime, level, reason, rss, total }:
+ * `at` is the epoch seconds the Worker stored the warning, `uptime` the device's, `level` the
+ * pressure level the monitor reported, and `reason` the stored one: a code, or the client's
+ * text in rows written before the codes. `rss` is the app's resident set in KB and `total` the
+ * host's memory in MB, 0 when the row carries none. A warning counts only beside a hang of its
+ * own upload, so each upload is read within HANG_UPLOAD_BATCH_SEC of the time its hang was
+ * stored, and only for the device that reported it.
  */
 export function hangWarningsSql(uploads: readonly HangUpload[]): string {
   const seen = new Set<string>();
@@ -1442,7 +1443,9 @@ export function hangWarningsSql(uploads: readonly HangUpload[]): string {
       toUnixTimestamp(timestamp) as at,
       ${memWarn("uptime_sec")} as uptime,
       ${memWarn("level")} as level,
-      ${memWarn("reason")} as reason
+      ${memWarn("reason")} as reason,
+      ${memWarn("rss_kb")} as rss,
+      ${memWarn("system_total_mb")} as total
     FROM ${DATASET}
     WHERE index1 = 'memory_warning' AND ${own.length > 0 ? own.map(ofUpload).join(" OR ") : SQL_FALSE}`;
 }

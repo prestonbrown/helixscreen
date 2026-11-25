@@ -243,6 +243,8 @@ export function buildHealth(
     uptimeSec: num(x.uptime),
     level: str(x.level),
     reason: storedMemoryReason(x.reason),
+    rssKb: num(x.rss),
+    totalMb: num(x.total),
   }));
   const hangsCur = classifyHangs(r("hangs_cur").map(hangRowOf), snapshots, warnings);
   const hangsPrev = classifyHangs(r("hangs_prev").map(hangRowOf), snapshots, warnings);
