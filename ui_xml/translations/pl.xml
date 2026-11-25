@@ -56,6 +56,7 @@
   <translation tag="%d tools_one" pl="%d narzędzie"/>
   <translation tag="%d units" pl="%d jednostki"/>
   <translation tag="%d-%d" pl="%d-%d"/>
+  <translation tag="%d-%d°C" pl="%d-%d°C"/>
   <translation tag="%d:%02d left" pl="Pozostało %d:%02d"/>
   <translation tag="%dd %dh" pl="%dd %dh"/>
   <translation tag="%dh" pl="%dh"/>
@@ -142,6 +143,7 @@
   <translation tag="12-hour" pl="12-godzinny"/>
   <translation tag="120 seconds" pl="120 sekund"/>
   <translation tag="15 seconds" pl="15 sekund"/>
+  <translation tag="170-300 °C" pl="170-300 °C"/>
   <translation tag="180°" pl="180°"/>
   <translation tag="180° Upside Down" pl="180° do góry nogami"/>
   <translation tag="2 min" pl="2 min"/>
@@ -357,6 +359,7 @@
   <translation tag="Animated light effects configured on the printer. Turn them on and off from the LED controls." pl="Animowane efekty świetlne skonfigurowane na drukarce. Włączasz je i wyłączasz w sterowaniu LED."/>
   <translation tag="Animations" pl="Animacje"/>
   <translation tag="Anonymous data to help improve HelixScreen" pl="Anonimowe dane pomagające ulepszać HelixScreen"/>
+  <translation tag="Anonymous stats — no personal data, ever." pl="Anonimowe statystyki - żadnych danych osobowych, nigdy."/>
   <translation tag="Anonymous usage statistics" pl="Anonimowe statystyki użycia"/>
   <translation tag="Any notes..." pl="Notatki..."/>
   <translation tag="App Background" pl="Tło aplikacji"/>
@@ -386,6 +389,7 @@
   <translation tag="Assisting" pl="Wspomaganie"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" pl="Pominięto co najmniej {} linii w helixscreen.env"/>
   <translation tag="At target" pl="Osiągnięto cel"/>
+  <translation tag="At {}°C, about {} minutes." pl="Przy {}°C, ok. {} min."/>
   <translation tag="Authentication failed" pl="Uwierzytelnianie nieudane"/>
   <translation tag="Auto" pl="Auto"/>
   <translation tag="Auto Bed Mesh" pl="Automatyczna siatka stołu"/>
@@ -450,6 +454,7 @@
   <translation tag="Beacon auto-calibrate sent" pl="Wysłano autokalibrację Beacon"/>
   <translation tag="Beacon calibrate sent" pl="Wysłano kalibrację Beacon"/>
   <translation tag="Bed" pl="Stół"/>
+  <translation tag="Bed (°C)" pl="Stół (°C)"/>
   <translation tag="Bed Clear Check" pl="Sprawdzanie pustego stołu"/>
   <translation tag="Bed Drying" pl="Suszenie na stole"/>
   <translation tag="Bed Heater" pl="Grzałka stołu"/>
@@ -471,12 +476,17 @@
   <translation tag="Bed clear · Start next" pl="Stół pusty · Start następnego"/>
   <translation tag="Bed cooling, spools still on the bed:" pl="Stół stygnie, szpule nadal na stole:"/>
   <translation tag="Bed is Level!" pl="Stół wypoziomowany!"/>
+  <translation tag="Bed is at {:.0f}°C, the print needs {:.0f}°C." pl="Stół ma {:.0f}°C, a druk wymaga {:.0f}°C."/>
   <translation tag="Bed mesh" pl="Siatka stołu"/>
   <translation tag="Bed mesh calibration failed: {}" pl="Kalibracja siatki stołu nieudana: {}"/>
   <translation tag="Bed mesh operation timed out" pl="Przekroczono czas operacji siatki stołu"/>
   <translation tag="Bed mesh..." pl="Siatka stołu..."/>
   <translation tag="Bed size unknown" pl="Nieznany rozmiar stołu"/>
+  <translation tag="Bed target set to {}°C" pl="Ustawiono temperaturę stołu na {}°C"/>
+  <translation tag="Bed temp must be 0-%d°C" pl="Temperatura stołu musi mieścić się w zakresie 0-%d°C"/>
   <translation tag="Bed warming timed out" pl="Przekroczono czas nagrzewania stołu"/>
+  <translation tag="Bed {:.0f} / {:.0f}°C" pl="Stół {:.0f} / {:.0f}°C"/>
+  <translation tag="Bed {:.0f}°C" pl="Stół {:.0f}°C"/>
   <translation tag="Before starting" pl="Przed startem"/>
   <translation tag="Below target" pl="Poniżej celu"/>
   <translation tag="Belt Tension" pl="Napięcie pasków"/>
@@ -678,6 +688,7 @@
   <translation tag="Center QR code in frame" pl="Umieść kod QR na środku kadru"/>
   <translation tag="Chamb:" pl="Kom.:"/>
   <translation tag="Chamber" pl="Komora"/>
+  <translation tag="Chamber (°C)" pl="Komora (°C)"/>
   <translation tag="Chamber Cooling Fan" pl="Wentylator chłodzący komory"/>
   <translation tag="Chamber Dryer" pl="Suszarka komory"/>
   <translation tag="Chamber Fan" pl="Wentylator komory"/>
@@ -687,9 +698,13 @@
   <translation tag="Chamber Temperature" pl="Temperatura komory"/>
   <translation tag="Chamber air" pl="Powietrze w komorze"/>
   <translation tag="Chamber and dryer humidity monitoring" pl="Monitorowanie wilgotności komory i suszarki"/>
+  <translation tag="Chamber at %d°C" pl="Komora: %d°C"/>
   <translation tag="Chamber heater didn&apos;t start" pl="Grzałka komory nie wystartowała"/>
   <translation tag="Chamber heater didn&apos;t start. {}" pl="Grzałka komory nie wystartowała. {}"/>
+  <translation tag="Chamber heating to %d°C..." pl="Grzanie komory do %d°C..."/>
   <translation tag="Chamber light fitted" pl="Zamontowane oświetlenie komory"/>
+  <translation tag="Chamber target set to {}°C" pl="Ustawiono temperaturę komory na {}°C"/>
+  <translation tag="Chamber temp must be 0-%d°C" pl="Temperatura komory musi mieścić się w zakresie 0-%d°C"/>
   <translation tag="Chamber too hot" pl="Komora zbyt gorąca"/>
   <translation tag="Change" pl="Zmień"/>
   <translation tag="Change Address" pl="Zmień adres"/>
@@ -1023,6 +1038,7 @@
   <translation tag="Current Z Position" pl="Bieżąca pozycja Z"/>
   <translation tag="Current name:" pl="Obecna nazwa:"/>
   <translation tag="Current:" pl="Obecnie:"/>
+  <translation tag="Current: %d°C | Target: %d°C" pl="Bieżąca: %d°C | Cel: %d°C"/>
   <translation tag="Currently Loaded" pl="Obecnie załadowany"/>
   <translation tag="Currently printing" pl="Teraz drukuje"/>
   <translation tag="Curves differ in shape. Check the mechanics before chasing a perfect match." pl="Krzywe różnią się kształtem. Sprawdź mechanikę, zanim zaczniesz gonić idealne dopasowanie."/>
@@ -1064,6 +1080,8 @@
   <translation tag="Default" pl="Domyślny"/>
   <translation tag="Default Parameters" pl="Parametry domyślne"/>
   <translation tag="Default border thickness" pl="Domyślna grubość obramowania"/>
+  <translation tag="Default: %s nozzle, %d°C bed" pl="Domyślnie: dysza %s, stół %d°C"/>
+  <translation tag="Default: %s nozzle, %d°C bed, %d°C chamber" pl="Domyślnie: dysza %s, stół %d°C, komora %d°C"/>
   <translation tag="Defaults restored" pl="Przywrócono ustawienia domyślne"/>
   <translation tag="Define macros in your printer.cfg" pl="Zdefiniuj makra w printer.cfg"/>
   <translation tag="Delete" pl="Usuń"/>
@@ -1493,6 +1511,7 @@
   <translation tag="Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload" pl="Przepchnij filament ręcznie za czujnik, potem naciśnij Wznów — albo anuluj druk, aby użyć Ładuj/Rozładuj"/>
   <translation tag="Feeder" pl="Podajnik"/>
   <translation tag="Feeders" pl="Podajniki"/>
+  <translation tag="Feeding filament forward" pl="Podawanie filamentu do przodu"/>
   <translation tag="Filament" pl="Filament"/>
   <translation tag="Filament Buffer" pl="Bufor filamentu"/>
   <translation tag="Filament Control" pl="Sterowanie filamentem"/>
@@ -1704,7 +1723,12 @@
   <translation tag="Heat bed before calibrating for accurate offset with thermal expansion." pl="Nagrzej stół przed kalibracją, aby offset uwzględniał rozszerzalność cieplną."/>
   <translation tag="Heat nozzle" pl="Nagrzej dyszę"/>
   <translation tag="Heat soak" pl="Wygrzewanie"/>
+  <translation tag="Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen does not run it." pl="Wygrzewanie pozwala obudowie nagrzać się przed drukiem. Jest na liście, bo drukarka ma makro wygrzewania albo włączono je w ustawieniach; HelixScreen go nie uruchamia."/>
+  <translation tag="Heat the bed to {}°C" pl="Nagrzej stół do {}°C"/>
   <translation tag="Heat the chamber too" pl="Grzej też komorę"/>
+  <translation tag="Heat the extruder to at least {}°C before loading filament" pl="Nagrzej ekstruder do co najmniej {}°C przed ładowaniem filamentu"/>
+  <translation tag="Heat to at least %d°C for filament operations" pl="Nagrzej do co najmniej %d°C, aby wykonywać operacje na filamencie"/>
+  <translation tag="Heat {} above {}°C before resuming" pl="Nagrzej {} powyżej {}°C przed wznowieniem"/>
   <translation tag="Heatbed Temperature" pl="Temperatura stołu"/>
   <translation tag="Heated Bed" pl="Podgrzewany stół"/>
   <translation tag="Heated Bed MPC Calibration" pl="Kalibracja MPC stołu"/>
@@ -1720,6 +1744,7 @@
   <translation tag="HeaterSelect" pl="HeaterSelect"/>
   <translation tag="Heaters off" pl="Grzałki wyłączone"/>
   <translation tag="Heating" pl="Grzanie"/>
+  <translation tag="Heating (%d°C below minimum)" pl="Grzanie (%d°C poniżej minimum)"/>
   <translation tag="Heating Bed..." pl="Grzanie stołu..."/>
   <translation tag="Heating Chamber..." pl="Grzanie komory..."/>
   <translation tag="Heating Nozzle..." pl="Grzanie dyszy..."/>
@@ -1737,8 +1762,15 @@
   <translation tag="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it" pl="Grzanie stołu i dyszy, aby wydruk znów przylgnął, a dysza go puściła"/>
   <translation tag="Heating the nozzle" pl="Grzanie dyszy"/>
   <translation tag="Heating the nozzle. Have the filament ready to push in." pl="Grzanie dyszy. Przygotuj filament do wsunięcia."/>
+  <translation tag="Heating to %d°C... %.0f°C" pl="Grzanie do %d°C... %.0f°C"/>
+  <translation tag="Heating to {}°C before {}..." pl="Grzanie do {}°C przed: {}..."/>
+  <translation tag="Heating to {}°C for {}..." pl="Grzanie do {}°C dla {}..."/>
+  <translation tag="Heating to {}°C..." pl="Grzanie do {}°C..."/>
   <translation tag="Heating {}..." pl="Grzanie {}..."/>
   <translation tag="Heating..." pl="Grzanie..."/>
+  <translation tag="Heating: %d / %d°C" pl="Grzanie: %d / %d°C"/>
+  <translation tag="Heats the bed to {:g}°C, above this printer&apos;s {:g}°C limit." pl="Nagrzewa stół do {:g}°C, powyżej limitu {:g}°C tej drukarki."/>
+  <translation tag="Heats the nozzle to {:g}°C, above this printer&apos;s {:g}°C limit." pl="Nagrzewa dyszę do {:g}°C, powyżej limitu {:g}°C tej drukarki."/>
   <translation tag="Heightmap and flatness of the active bed mesh" pl="Mapa wysokości i płaskość aktywnej siatki stołu"/>
   <translation tag="HelixPrint Plugin" pl="Wtyczka HelixPrint"/>
   <translation tag="HelixPrint plugin updated." pl="Zaktualizowano wtyczkę HelixPrint."/>
@@ -1772,6 +1804,7 @@
   <translation tag="Hold anywhere to cancel" pl="Przytrzymaj gdziekolwiek, aby anulować"/>
   <translation tag="Hold slicer prints that do not fit" pl="Wstrzymuj wydruki ze slicera, które się nie mieszczą"/>
   <translation tag="Hold {} fully on the head. The latch locks onto it and it becomes the mounted tool." pl="Przytrzymaj {} dociśnięte do głowicy. Zatrzask je zablokuje i stanie się zamontowanym narzędziem."/>
+  <translation tag="Holding nozzle at {}°C to purge previous filament." pl="Utrzymywanie dyszy w {}°C, aby wypłukać poprzedni filament."/>
   <translation tag="Home" pl="Start"/>
   <translation tag="Home &amp; Continue" pl="Bazuj i kontynuuj"/>
   <translation tag="Home All" pl="Bazuj wszystko"/>
@@ -1831,6 +1864,7 @@
   <translation tag="Humidity Sensors" pl="Czujniki wilgotności"/>
   <translation tag="Humidity inside the enclosure" pl="Wilgotność w obudowie"/>
   <translation tag="Hyperlapse" pl="Hyperlapse"/>
+  <translation tag="Hyperlapse captures frames at fixed time intervals. Good for very long prints." pl="Hyperlapse robi klatki w stałych odstępach czasu. Dobry do bardzo długich wydruków."/>
   <translation tag="Hyperspace" pl="Nadprzestrzeń"/>
   <translation tag="I understand" pl="Rozumiem"/>
   <translation tag="ID (optional)" pl="ID (opcjonalnie)"/>
@@ -2039,7 +2073,9 @@
   <translation tag="Layer" pl="Warstwa"/>
   <translation tag="Layer 2" pl="Warstwa 2"/>
   <translation tag="Layer Height" pl="Wysokość warstwy"/>
+  <translation tag="Layer Macro captures one frame per layer change. Best for most prints." pl="Makro warstwy robi jedną klatkę przy każdej zmianie warstwy. Najlepsze do większości wydruków."/>
   <translation tag="Layer Pause" pl="Pauza na warstwie"/>
+  <translation tag="Layer mode captures one frame per layer change. Best for most prints." pl="Tryb warstwy robi jedną klatkę przy każdej zmianie warstwy. Najlepszy do większości wydruków."/>
   <translation tag="Layer {} of {} · {:.2f} mm" pl="Warstwa {} z {} · {:.2f} mm"/>
   <translation tag="Layer {} of {}." pl="Warstwa {} z {}."/>
   <translation tag="Layer {}, Z {:.2f} mm" pl="Warstwa {}, Z {:.2f} mm"/>
@@ -2170,6 +2206,7 @@
   <translation tag="MMU command failed" pl="Polecenie MMU nieudane"/>
   <translation tag="MOTION &amp; LEVELING" pl="RUCH I POZIOMOWANIE"/>
   <translation tag="MPC" pl="MPC"/>
+  <translation tag="MPC thermal model calibrated for {} at {}°C." pl="Model termiczny MPC skalibrowany dla {} przy {}°C."/>
   <translation tag="Machine Limits" pl="Limity maszyny"/>
   <translation tag="Macro" pl="Makro"/>
   <translation tag="Macro Browser" pl="Przeglądarka makr"/>
@@ -2503,6 +2540,7 @@
   <translation tag="No vendors found" pl="Nie znaleziono producentów"/>
   <translation tag="No verified bypass command for this CFS firmware" pl="Brak sprawdzonego polecenia obejścia dla tego firmware CFS"/>
   <translation tag="No video player installed - showing the timelapse library" pl="Brak zainstalowanego odtwarzacza wideo - pokazuję bibliotekę timelapse"/>
+  <translation tag="No video player on this printer" pl="Brak odtwarzacza wideo na tej drukarce"/>
   <translation tag="No webcam detected.&#10;A webcam is required for timelapse." pl="Nie wykryto kamery.&#10;Timelapse wymaga kamery."/>
   <translation tag="No widgets found" pl="Nie znaleziono widżetów"/>
   <translation tag="No width sensor detected" pl="Nie wykryto czujnika szerokości"/>
@@ -2566,6 +2604,8 @@
   <translation tag="Nozzle" pl="Dysza"/>
   <translation tag="Nozzle / Bed" pl="Dysza / stół"/>
   <translation tag="Nozzle Clean" pl="Czyszczenie dyszy"/>
+  <translation tag="Nozzle Max (°C)" pl="Maks. dyszy (°C)"/>
+  <translation tag="Nozzle Min (°C)" pl="Min. dyszy (°C)"/>
   <translation tag="Nozzle Moves" pl="Ruchy dyszy"/>
   <translation tag="Nozzle Temp" pl="Temp. dyszy"/>
   <translation tag="Nozzle Temperature" pl="Temperatura dyszy"/>
@@ -2574,12 +2614,15 @@
   <translation tag="Nozzle clean complete" pl="Czyszczenie dyszy zakończone"/>
   <translation tag="Nozzle clog detected" pl="Wykryto zatkanie dyszy"/>
   <translation tag="Nozzle diameter" pl="Średnica dyszy"/>
+  <translation tag="Nozzle did not reach {}°C — {} canceled" pl="Dysza nie osiągnęła {}°C - {} anulowano"/>
   <translation tag="Nozzle flow" pl="Przepływ dyszy"/>
   <translation tag="Nozzle interval" pl="Interwał dyszy"/>
   <translation tag="Nozzle min cannot exceed max" pl="Minimum dyszy nie może przekraczać maksimum"/>
   <translation tag="Nozzle not changed: the printer did not confirm it" pl="Dysza niezmieniona: drukarka tego nie potwierdziła"/>
   <translation tag="Nozzle not changed: {}" pl="Dysza niezmieniona: {}"/>
   <translation tag="Nozzle size and flow type per head" pl="Rozmiar i typ przepływu dyszy dla każdej głowicy"/>
+  <translation tag="Nozzle target set to {}°C" pl="Ustawiono temperaturę dyszy na {}°C"/>
+  <translation tag="Nozzle temp must be 100-%d°C" pl="Temperatura dyszy musi mieścić się w zakresie 100-%d°C"/>
   <translation tag="Nozzle, bed, and chamber in one widget" pl="Dysza, stół i komora w jednym widżecie"/>
   <translation tag="Nozzle:" pl="Dysza:"/>
   <translation tag="Nozzles still heating: {}" pl="Dysze nadal się grzeją: {}"/>
@@ -3002,6 +3045,7 @@
   <translation tag="Provide a {}" pl="Podaj {}"/>
   <translation tag="Provide an on/off value" pl="Podaj wartość wł./wył."/>
   <translation tag="Provide {}" pl="Podaj {}"/>
+  <translation tag="Pulling filament back" pl="Wycofywanie filamentu"/>
   <translation tag="Purge" pl="Płukanie"/>
   <translation tag="Purge &amp; Wipe" pl="Płukanie i wycieranie"/>
   <translation tag="Purge Chute Calibration" pl="Kalibracja zsypu"/>
@@ -3226,6 +3270,7 @@
   <translation tag="Restart print" pl="Zacznij druk od nowa"/>
   <translation tag="Restart the display application" pl="Uruchom ponownie aplikację ekranu"/>
   <translation tag="Restart the printer or screen" pl="Uruchom ponownie drukarkę lub ekran"/>
+  <translation tag="Restart the printer to finish restoring the stock screen" pl="Zrestartuj drukarkę, aby dokończyć przywracanie fabrycznego ekranu"/>
   <translation tag="Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide" pl="Uruchom ponownie drukarkę. Jeśli SSH nadal odmawia, zobacz poradnik instalacji Snapmaker U1"/>
   <translation tag="Restarting HelixScreen..." pl="Restart HelixScreen..."/>
   <translation tag="Restarting Klipper..." pl="Restart Klippera..."/>
@@ -3422,6 +3467,7 @@
   <translation tag="Seat" pl="Osadź"/>
   <translation tag="Seat a tool by hand" pl="Osadź narzędzie ręcznie"/>
   <translation tag="Seat a tool by hand for the first Z home" pl="Osadź narzędzie ręcznie przed pierwszym bazowaniem Z"/>
+  <translation tag="Seat the hot ends, heat {} above {}°C, then tap Resume." pl="Osadź hotendy, nagrzej {} powyżej {}°C, a potem stuknij Wznów."/>
   <translation tag="Seat which tool by hand?" pl="Które narzędzie osadzić ręcznie?"/>
   <translation tag="Seating {}..." pl="Osadzanie {}..."/>
   <translation tag="Secondary" pl="Drugorzędny"/>
@@ -3502,6 +3548,7 @@
   <translation tag="Set duration between 1 and {} minutes" pl="Ustaw czas od 1 do {} minut"/>
   <translation tag="Set local timezone for time display" pl="Ustaw lokalną strefę czasową wyświetlania czasu"/>
   <translation tag="Set logging verbosity for troubleshooting" pl="Ustaw szczegółowość logów do diagnozowania"/>
+  <translation tag="Set temperature between {}°C and {}°C" pl="Ustaw temperaturę między {}°C a {}°C"/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" pl="Ustaw ręcznie typ i kolor filamentu dla tego slotu. Jeśli tag powinien być czytelny, gdy Box jest bezczynny, włóż szpulę ponownie etykietą w stronę czytnika"/>
   <translation tag="Set up" pl="Skonfiguruj"/>
   <translation tag="Set up your label printer in Settings" pl="Skonfiguruj drukarkę etykiet w Ustawieniach"/>
@@ -3520,6 +3567,7 @@
   <translation tag="Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together." pl="Potrząsa głowicą wzdłuż każdej przekątnej i nakłada obie odpowiedzi. Równo napięte pasy mają wspólny szczyt."/>
   <translation tag="Share Screen" pl="Udostępnij ekran"/>
   <translation tag="Share Usage Data" pl="Udostępniaj dane użycia"/>
+  <translation tag="Share anonymous usage statistics to help us make HelixScreen better. No personal data is ever collected." pl="Udostępniaj anonimowe statystyki użycia, aby pomóc nam ulepszać HelixScreen. Żadne dane osobowe nie są zbierane."/>
   <translation tag="Share this code in Discord or support:" pl="Podaj ten kod na Discordzie lub pomocy technicznej:"/>
   <translation tag="Sheet Label Print" pl="Druk arkusza etykiet"/>
   <translation tag="Shelf A" pl="Półka A"/>
@@ -3817,11 +3865,13 @@
   <translation tag="Telemetry queue cleared" pl="Wyczyszczono kolejkę telemetrii"/>
   <translation tag="Temp" pl="Temp."/>
   <translation tag="Temp Compensation" pl="Kompensacja temp."/>
+  <translation tag="Temp °C" pl="Temp. °C"/>
   <translation tag="Temperature" pl="Temperatura"/>
   <translation tag="Temperature Graph" pl="Wykres temperatury"/>
   <translation tag="Temperature Graph Config" pl="Konfiguracja wykresu temperatury"/>
   <translation tag="Temperature Sensors" pl="Czujniki temperatury"/>
   <translation tag="Temperature and humidity sensor not responding" pl="Czujnik temperatury i wilgotności nie odpowiada"/>
+  <translation tag="Temperature control optimized for {} at {}°C." pl="Regulacja temperatury zoptymalizowana dla {} przy {}°C."/>
   <translation tag="Temperatures" pl="Temperatury"/>
   <translation tag="Temperatures plotted over time" pl="Temperatury w czasie"/>
   <translation tag="Temperatures saved" pl="Zapisano temperatury"/>
@@ -3844,9 +3894,11 @@
   <translation tag="Test Screensaver" pl="Testuj wygaszacz"/>
   <translation tag="Test Tracker" pl="Testuj śledzenie"/>
   <translation tag="Test label printed" pl="Wydrukowano etykietę testową"/>
+  <translation tag="Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}°C." pl="Wieża testowa {:.0f} mm szeroka i {:.0f} mm wysoka, ok. {} min plus nagrzewanie: {} pasm po {:.0f} mm przy {}°C."/>
   <translation tag="Testing rotation: %d° (%d/%d) - %ds remaining" pl="Test obrotu: %d° (%d/%d) - pozostało %ds"/>
   <translation tag="Testing, servo, and motor operations" pl="Testy, serwo i operacje silników"/>
   <translation tag="Thanks! Anonymous usage data helps improve HelixScreen." pl="Dziękujemy! Anonimowe dane użycia pomagają ulepszać HelixScreen."/>
+  <translation tag="Thanks! TOTALLY anonymous usage data helps improve HelixScreen." pl="Dziękujemy! W pełni anonimowe dane o użyciu pomagają ulepszać HelixScreen."/>
   <translation tag="That print is no longer paused" pl="Ten wydruk nie jest już wstrzymany"/>
   <translation tag="That reading jumped too far to trust. Re-measure without turning." pl="Ten odczyt skoczył za mocno, by mu ufać. Zmierz ponownie bez kręcenia."/>
   <translation tag="That setting cannot be changed while a print is running" pl="Tego ustawienia nie można zmienić podczas druku"/>
@@ -3921,8 +3973,10 @@
   <translation tag="The loaded slot is not known yet" pl="Załadowany slot nie jest jeszcze znany"/>
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." pl="Załadowana szpula to {}, a plik pokrojono dla {}. Filament z wypełniaczem drukuje się z mniejszym przepływem i wymaga utwardzonej dyszy."/>
   <translation tag="The message your printer&apos;s macros show (M117)" pl="Komunikat wyświetlany przez makra drukarki (M117)"/>
+  <translation tag="The mounted nozzle heats to 200°C and cools again while the heater&apos;s safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes." pl="Zamontowana dysza nagrzewa się do 200°C i stygnie, gdy dopasowywany jest model bezpieczeństwa grzałki. Wyłącz wentylator modelu i trzymaj łatwopalne materiały z dala od głowicy. To trwa kilka minut."/>
   <translation tag="The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself." pl="Dysza wykonuje kilka krótkich ruchów testowych w rogu, z dala od obszaru druku, i powtarza je, aż wyniki będą zgodne."/>
   <translation tag="The nozzle hasn&apos;t moved since the power went out. Check that it sits just above the top of the print, then resume." pl="Dysza nie ruszyła się od zaniku zasilania. Sprawdź, czy jest tuż nad górą wydruku, potem wznów."/>
+  <translation tag="The nozzle heats to 200°C while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes." pl="Dysza nagrzewa się do 200°C, a wentylator modelu przechodzi przez swoje prędkości. Aby dopasowanie było dokładne, zamontuj kanał tak, jak drukujesz. To trwa kilka minut."/>
   <translation tag="The nozzle is clear of the print" pl="Dysza jest z dala od wydruku"/>
   <translation tag="The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next." pl="Dysza jest gorąca. Oczyść ją drucianą szczotką dołączoną do drukarki i utrzymuj miejsce dokowania w czystości, potem dotknij Dalej."/>
   <translation tag="The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at." pl="Dysza jest uniesiona nad wydrukiem, a X i Y są zbazowane. Wznowienie opuści ją do wysokości, na której się zatrzymała."/>
@@ -3941,6 +3995,7 @@
   <translation tag="The print is on its last layer." pl="Wydruk jest na ostatniej warstwie."/>
   <translation tag="The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes." pl="Wydruk jest wstrzymany. Zmiana narzędzia teraz przesunie głowicę i wymieni filament w dyszy. Wznów wydruk po zakończeniu zmiany."/>
   <translation tag="The print is still stuck to the bed" pl="Wydruk jest nadal przyklejony do stołu"/>
+  <translation tag="The print is waiting for the chamber to reach {}°C, but the heater is not heating." pl="Druk czeka, aż komora osiągnie {}°C, ale grzałka nie grzeje."/>
   <translation tag="The print is waiting for the chamber, but the heater is not heating." pl="Wydruk czeka na komorę, ale grzałka nie grzeje."/>
   <translation tag="The printable size in millimeters (X × Y × Z), from the axis limits in the printer&apos;s Klipper config." pl="Obszar roboczy w milimetrach (X × Y × Z), z limitów osi w konfiguracji Klippera drukarki."/>
   <translation tag="The printer applied this value and keeps it for this tool." pl="Drukarka zastosowała tę wartość i zachowuje ją dla tego narzędzia."/>
@@ -4013,6 +4068,7 @@
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" pl="Pamięć wewnętrzna jednostki uległa awarii. Płyta główna CFS wymaga wymiany"/>
   <translation tag="The unload did not start: unload by hand, then start again" pl="Rozładowanie się nie rozpoczęło: rozładuj ręcznie, potem zacznij ponownie"/>
   <translation tag="The unload finishes on its own, but the plate will not move." pl="Rozładowanie zakończy się samo, ale płyta się nie ruszy."/>
+  <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." pl="Odtwarzacz wideo nie mógł się uruchomić na tej drukarce ({}). Zeskanuj kod telefonem, aby obejrzeć timelapse."/>
   <translation tag="Theme" pl="Motyw"/>
   <translation tag="Theme Colors" pl="Kolory motywu"/>
   <translation tag="Theme Preset" pl="Ustawienie motywu"/>
@@ -4072,6 +4128,7 @@
   <translation tag="This printer has no IFS." pl="Ta drukarka nie ma IFS."/>
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" pl="Ta drukarka nie ma makra INDX LOAD_FILAMENT"/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." pl="Ta drukarka nie ma automatycznego rozładowania. Utnij filament przy głowicy i wyciągnij go ręcznie."/>
+  <translation tag="This printer has no video player. Scan the code with your phone to watch the timelapse." pl="Ta drukarka nie ma odtwarzacza wideo. Zeskanuj kod telefonem, aby obejrzeć timelapse."/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." pl="Ta drukarka nie ma polecenia {}, więc nie można zapisać offsetu Z."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." pl="Ta drukarka wygląda na {} (pewność {}%), ale jest skonfigurowana jako {}. Zły typ stosuje nieprawidłowe opcje przed drukiem i ustawienia."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" pl="Brakuje makr INDX tej drukarki: {}"/>
@@ -4384,6 +4441,8 @@
   <translation tag="Vibration" pl="Drgania"/>
   <translation tag="Vibration compensation active" pl="Kompensacja drgań aktywna"/>
   <translation tag="Video playback speed" pl="Prędkość odtwarzania filmu"/>
+  <translation tag="Video player failed to start" pl="Nie udało się uruchomić odtwarzacza wideo"/>
+  <translation tag="Video player failed to start ({})" pl="Nie udało się uruchomić odtwarzacza wideo ({})"/>
   <translation tag="View" pl="Widok"/>
   <translation tag="View Changelog" pl="Pokaż listę zmian"/>
   <translation tag="View Full History" pl="Pokaż pełną historię"/>
@@ -4417,6 +4476,8 @@
   <translation tag="Waiting for another box to finish." pl="Oczekiwanie na zakończenie innego Boxa."/>
   <translation tag="Waiting for bed temperature..." pl="Oczekiwanie na temperaturę stołu..."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." pl="Oczekiwanie, aż stół osiągnie temperaturę, dla dokładnej kalibracji."/>
+  <translation tag="Waiting for chamber {} / {}°C" pl="Oczekiwanie na komorę {} / {}°C"/>
+  <translation tag="Waiting for chamber {}°C" pl="Oczekiwanie na komorę {}°C"/>
   <translation tag="Waiting for the chamber to heat" pl="Oczekiwanie na nagrzanie komory"/>
   <translation tag="Waiting for the filament system to report its state" pl="Oczekiwanie na stan systemu filamentu"/>
   <translation tag="Waiting for the printer" pl="Oczekiwanie na drukarkę"/>
