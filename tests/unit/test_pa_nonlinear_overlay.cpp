@@ -743,6 +743,40 @@ TEST_CASE_METHOD(NonlinearFixture,
 }
 
 TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: a Stop whose tower never shows ends the machine once, on the "
+                 "start watchdog",
+                 "[pa_nonlinear][pa_tuner][pa_nl_stop]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    client.defer_next("printer.gcode.script");
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::PREPARING);
+    overlay.stop_for_test();
+    press_dialog("btn_primary");
+    const size_t before = client.gcode_script_history().size();
+    client.fire_deferred("printer.gcode.script");
+    helix::ui::UpdateQueue::instance().drain();
+    const auto ends = [&] {
+        const std::string sent = sent_since(before);
+        const std::string end = "SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0";
+        size_t n = 0;
+        for (size_t at = sent.find(end); at != std::string::npos; at = sent.find(end, at + 1)) {
+            ++n;
+        }
+        return n;
+    };
+    // No tower job ever reports: the end waits for the watchdog, not the script.
+    REQUIRE(ends() == 0);
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::PREPARING);
+
+    process_lvgl(PaNonlinearOverlay::kTowerStartTimeoutMs + 1000);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(ends() == 1);
+    CHECK(overlay.stage() == PaNonlinearOverlay::READY);
+    CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "pa_nl_error"))).empty());
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
                  "nonlinear tuner: the E-stop stays up while the start script homes and heats",
                  "[pa_nonlinear][pa_tuner][pa_nl_busy]") {
     overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
