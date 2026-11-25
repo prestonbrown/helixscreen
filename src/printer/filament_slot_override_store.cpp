@@ -37,6 +37,8 @@ constexpr const char* kFilamentIdSourceSpoolman = "spoolman";
 /// ...and on one whose `filament_id` is the material family's Generic preset,
 /// standing in for a product no catalog entry or tracker names.
 constexpr const char* kFilamentIdSourceGeneric = "generic";
+/// helix_spool_link's value on a record whose spool an outside link set.
+constexpr const char* kSpoolLinkAdopted = "adopted";
 
 // Outer Moonraker DB key for a slot. NOTE the two styles have DIFFERENT bases:
 //   Lane -> "lane<i+1>"  (1-based, AFC's convention; Happy Hare's own lane_data keys are 0-based)
@@ -203,6 +205,8 @@ nlohmann::json to_lane_data_record(int slot_index, const FilamentSlotOverride& o
         j["helix_spoolman_vendor_id"] = o.spoolman_vendor_id;
     if (!o.fingerprint.empty())
         j["helix_fingerprint"] = o.fingerprint;
+    if (o.spool_link_adopted && o.spoolman_id > 0)
+        j["helix_spool_link"] = kSpoolLinkAdopted;
     return j;
 }
 
@@ -305,6 +309,8 @@ std::optional<std::pair<int, FilamentSlotOverride>> from_lane_data_record(const 
     o.product_name = helix::json_util::safe_string(j, "helix_product_name");
     o.fingerprint = helix::json_util::safe_string(j, "helix_fingerprint");
     o.external_mirror = is_bypass_record(j);
+    o.spool_link_adopted = o.spoolman_id > 0 && helix::json_util::safe_string(
+                                                    j, "helix_spool_link") == kSpoolLinkAdopted;
     if (const auto loaded = helix::json_util::read_field<bool>(j, "loaded"))
         o.loaded = *loaded;
     return std::make_pair(slot_index, o);
@@ -428,6 +434,10 @@ FilamentSlotOverride user_override_from_slot_info(const SlotInfo& edited,
     populate_temps_from_slot_info(ovr, edited);
     // Bookkeeping, not an editable value, so a rebuilt record inherits it.
     ovr.fingerprint = prior != nullptr ? prior->fingerprint : std::string{};
+    // An edit that keeps an adopted spool keeps it adopted; picking a spool
+    // makes it the user's.
+    ovr.spool_link_adopted =
+        prior != nullptr && prior->spool_link_adopted && prior->spoolman_id == edited.spoolman_id;
     return ovr;
 }
 
@@ -1035,12 +1045,29 @@ bool persist_override_external_identity(FilamentSlotOverrideStore* store,
     }
     FilamentSlotOverride& ovr = it->second;
     const int stated = spoolman.spoolman_id.value_or(0);
-    if (stated <= 0 || ovr.spoolman_id != stated) {
-        // A record naming another spool describes a different spool.
+    if (stated <= 0) {
+        return false;
+    }
+    // A record naming no spool (a firmware mirror), or one whose spool an
+    // earlier outside link set, takes the link the lane reports now, so the
+    // lane_data it emits carries that spool and its Orca id. A spool the user
+    // picked describes that spool, and an outside link does not replace it.
+    const bool relink = ovr.spoolman_id != stated;
+    if (relink && ovr.spoolman_id > 0 && !ovr.spool_link_adopted) {
         return false;
     }
 
     bool changed = false;
+    if (relink) {
+        ovr.spoolman_id = stated;
+        ovr.spool_link_adopted = true;
+        // The previous spool's pick and weights describe that spool.
+        ovr.catalog_id.clear();
+        ovr.product_name.clear();
+        ovr.remaining_weight_g = spoolman.remaining_weight_g.value_or(-1.0f);
+        ovr.total_weight_g = spoolman.total_weight_g.value_or(-1.0f);
+        changed = true;
+    }
     const auto take = [&changed](auto& field, const auto& state) {
         if (state.has_value() && field != *state) {
             field = *state;
