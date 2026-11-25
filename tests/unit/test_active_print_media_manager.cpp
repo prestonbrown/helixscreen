@@ -1425,6 +1425,73 @@ TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
 }
 
 TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
+                 "ActivePrintMediaManager: a same-name re-upload of the loaded file reloads its "
+                 "media",
+                 "[ActivePrintMediaManager][retry]") {
+    // Moonraker rewrites the file's thumbnails on a re-upload and the thumbnail
+    // cache drops the copy the loaded path points at, so the published path is
+    // a file that no longer exists until the media is fetched again.
+    set_print_filename_no_drain("reupload.gcode");
+    drain();
+    files().fire_last(make_metadata_with_thumb(5, unique_thumb_path("reupload_old")));
+    drain();
+    REQUIRE(TestAccess::thumbnail_loaded(manager()));
+    const std::string old_path = get_thumbnail_path();
+    REQUIRE(files().pending_count() == 1);
+
+    SECTION("moved into place") {
+        json msg = {{"method", "notify_filelist_changed"},
+                    {"params", json::array({{{"action", "move_file"},
+                                             {"source_item", {{"path", ".helix_temp/x.partial"}}},
+                                             {"item", {{"path", "reupload.gcode"}}}}})}};
+        fire_notification("notify_filelist_changed", msg);
+    }
+    SECTION("written in place") {
+        json msg = {{"method", "notify_filelist_changed"},
+                    {"params", json::array({{{"action", "create_file"},
+                                             {"item", {{"path", "reupload.gcode"}}}}})}};
+        fire_notification("notify_filelist_changed", msg);
+    }
+    drain();
+
+    CHECK(get_thumbnail_path() == kNoThumb);
+    CHECK_FALSE(TestAccess::thumbnail_loaded(manager()));
+    REQUIRE(files().pending_count() == 2);
+    CHECK(files().last_filename() == "reupload.gcode");
+
+    files().fire_last(make_metadata_with_thumb(6, unique_thumb_path("reupload_new")));
+    drain();
+    CHECK(get_thumbnail_path() != kNoThumb);
+    CHECK(get_thumbnail_path() != old_path);
+    CHECK(get_layer_total() == 6);
+}
+
+TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
+                 "ActivePrintMediaManager: a loaded file's own delete or another file's upload "
+                 "keeps its media",
+                 "[ActivePrintMediaManager][retry]") {
+    set_print_filename_no_drain("kept.gcode");
+    drain();
+    files().fire_last(make_metadata_with_thumb(5, unique_thumb_path("kept")));
+    drain();
+    REQUIRE(TestAccess::thumbnail_loaded(manager()));
+    const std::string path = get_thumbnail_path();
+
+    for (const char* action : {"create_file", "delete_file"}) {
+        const std::string item =
+            std::string(action) == "create_file" ? "other.gcode" : "kept.gcode";
+        json msg = {{"method", "notify_filelist_changed"},
+                    {"params", json::array({{{"action", action}, {"item", {{"path", item}}}}})}};
+        fire_notification("notify_filelist_changed", msg);
+        drain();
+    }
+
+    CHECK(files().pending_count() == 1);
+    CHECK(get_thumbnail_path() == path);
+    CHECK(TestAccess::thumbnail_loaded(manager()));
+}
+
+TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
                  "ActivePrintMediaManager: a pre-set thumbnail still allows retry re-triggers",
                  "[ActivePrintMediaManager][thumbnail][retry]") {
     // PrintStartController pre-sets a USB / embedded-gcode thumbnail for the
