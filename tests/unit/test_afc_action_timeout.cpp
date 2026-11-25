@@ -365,3 +365,50 @@ TEST_CASE("AFC get_system_info runs the check before the uninitialized-slots ear
     h.age_action(seconds(200));
     REQUIRE(h.get_system_info().action == AmsAction::ERROR);
 }
+
+TEST_CASE("AFC stuck lane change names no incoming lane while the timeout latch holds",
+          "[ams][afc][timeout][spool_spin]") {
+    // Every frame names next_lane as the load's target again, ahead of the
+    // latch; the latch has to take the target back with the action, or the
+    // failed change keeps drawing its path to the lane it never reached.
+    AfcActionTimeoutHelper h;
+
+    h.feed_afc({{"current_state", "Unloading"}, {"next_lane", "lane2"}});
+    REQUIRE(h.get_system_info().pending_target_slot == 1);
+
+    h.age_action(seconds(200));
+    h.feed_state("Unloading");
+    REQUIRE(h.action() == AmsAction::ERROR);
+    REQUIRE(h.latched());
+
+    h.feed_state("Unloading");
+    REQUIRE(h.action() == AmsAction::ERROR);
+    CHECK(h.get_system_info().pending_target_slot == -1);
+    CHECK(h.get_system_info().path_active_slot() == -1);
+}
+
+TEST_CASE("AFC fault that follows a released timeout keeps no trace of the timeout",
+          "[ams][afc][timeout][i18n]") {
+    lv_init_safe();
+    AfcActionTimeoutHelper h;
+
+    h.feed_state("Loading");
+    h.age_action(seconds(200));
+    h.feed_state("Loading");
+    REQUIRE(h.action() == AmsAction::ERROR);
+    REQUIRE(h.latched());
+
+    // AFC's own fault replaces the stuck load, and an empty message leaves
+    // that fault with no text of its own.
+    h.feed_state("Error");
+    REQUIRE_FALSE(h.latched());
+    REQUIRE(h.action() == AmsAction::ERROR);
+    h.feed_afc({{"message", {{"message", ""}, {"type", ""}}}});
+    REQUIRE(h.detail().empty());
+
+    // The latch's release forgot the timed-out load: a language switch has
+    // nothing to re-word, and must not compose the old load into this fault.
+    ScopedLanguage fr("fr");
+    h.refresh_translated_texts();
+    CHECK(h.detail().empty());
+}

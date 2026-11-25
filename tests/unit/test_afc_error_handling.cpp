@@ -68,6 +68,12 @@ class AfcErrorHandlingHelper : public AmsBackendAfc {
         feed_afc_payload("", "", nullptr);
     }
 
+    // Feed a message that lands while AFC is moving filament
+    void feed_afc_message_during_operation(const std::string& message_text,
+                                           const std::string& message_type) {
+        feed_afc_payload(message_text, message_type, nullptr, "Loading");
+    }
+
     // Feed a message plus the error_state a pausing fault would carry in the
     // same frame (upstream sets it only from pause paths).
     void feed_afc_message_with_error_state(const std::string& message_text,
@@ -87,12 +93,15 @@ class AfcErrorHandlingHelper : public AmsBackendAfc {
 
   private:
     void feed_afc_payload(const std::string& message_text, const std::string& message_type,
-                          const bool* error_state) {
+                          const bool* error_state, const char* current_state = nullptr) {
         nlohmann::json afc_data;
         afc_data["message"]["message"] = message_text;
         afc_data["message"]["type"] = message_type;
         if (error_state != nullptr) {
             afc_data["error_state"] = *error_state;
+        }
+        if (current_state != nullptr) {
+            afc_data["current_state"] = current_state;
         }
 
         nlohmann::json params;
@@ -805,4 +814,22 @@ TEST_CASE_METHOD(LVGLTestFixture,
         CHECK(notices.count(helix::NoticeDelivery::HistoryOnly, failure) == 0);
         CHECK(std::count(events.begin(), events.end(), AmsBackend::kEventError) == 1);
     }
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "AFC Error Handling: an error during a filament operation is history only",
+                 "[afc][error_handling][suppression]") {
+    // A toast's buttons land on whatever is under them, and mid-load that is
+    // the lane the operator is watching: the message is filed where it can be
+    // read once the load ends instead of interrupting it.
+    DedupSeedDir seed("");
+    ActionPromptManager::set_instance(nullptr);
+    AfcErrorHandlingHelper afc;
+    CapturedAfcNotices notices;
+
+    afc.feed_afc_message_during_operation("Lane 1 load failed", "error");
+    REQUIRE(afc.get_system_info().action == AmsAction::LOADING);
+
+    CHECK(notices.count(helix::NoticeDelivery::HistoryOnly, "Lane 1 load failed") == 1);
+    CHECK(notices.count(helix::NoticeDelivery::Notification, "Lane 1 load failed") == 0);
 }

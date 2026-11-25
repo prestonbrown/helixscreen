@@ -15,6 +15,7 @@
 #include "ams_types.h"
 #include "filament_slot_override_store.h"
 #include "test_helpers/afc_lane_feed.h"
+#include "test_helpers/afc_test_access.h"
 #include "test_helpers/registered_backend.h"
 #include "test_helpers/seeded_override.h"
 
@@ -164,4 +165,52 @@ TEST_CASE("AFC status material null clears the lane's material", "[ams][afc][byp
 
     helix::test::feed_lane_status(afc, "lane0", json{{"material", nullptr}});
     CHECK(afc.get_slot_info(0).material.empty());
+}
+
+// AFC.units names the hardware, and it has not arrived when lane data is all
+// the backend has: the unit it bootstraps is AFC's own, never one model's.
+TEST_CASE("AFC lane_data bootstrap names the unit after AFC until AFC.units arrives",
+          "[ams][afc][lane-data-race]") {
+    AmsBackendAfc afc(nullptr, nullptr);
+
+    feed_lane_data(afc, json{{"lane1", lane_record(1)}});
+
+    REQUIRE(afc.get_system_info().units.size() == 1);
+    CHECK(afc.get_system_info().units[0].name == "AFC");
+}
+
+// The record a user's edit keeps has no field for a Spoolman link's vendor id:
+// it stands on the live slot alone, so a lane_data read takes it off once no
+// source states it.
+TEST_CASE("AFC lane_data drops a link detail nothing states any more", "[ams][afc][lane-data]") {
+    helix::test::RegisteredBackend<AmsBackendAfc> afc_reg(nullptr, nullptr);
+    AmsBackendAfc& afc = *afc_reg;
+    helix::test::init_afc_lanes(afc, {"lane1", "lane2"});
+
+    SlotInfo linked = afc.get_slot_info(0);
+    linked.material = "PLA";
+    linked.spoolman_id = 42;
+    linked.spoolman_vendor_id = 5;
+    helix::test::edit_slot_as_user(afc, 0, linked);
+    REQUIRE(afc.get_slot_info(0).spoolman_vendor_id == 5);
+
+    feed_lane_data(afc, both_lanes(json{{"spool_id", 42}}));
+    CHECK(afc.get_slot_info(0).spoolman_vendor_id == 0);
+}
+
+// An engaged bypass is the external spool's path. Lane data that finds a lane
+// loaded must not seat that lane over it.
+TEST_CASE("AFC lane_data does not seat a loaded lane over an engaged bypass",
+          "[ams][afc][bypass]") {
+    helix::test::RegisteredBackend<AmsBackendAfc> afc_reg(nullptr, nullptr);
+    AmsBackendAfc& afc = *afc_reg;
+    helix::test::init_afc_lanes(afc, {"lane1", "lane2"});
+
+    json params;
+    params["AFC"] = json{{"bypass_state", true}};
+    AfcTestAccess::handle_status_update(afc, json{{"params", json::array({params, 0.0})}});
+    REQUIRE(afc.get_current_slot() == -2);
+
+    feed_lane_data(afc, both_lanes(json{{"tool_loaded", true}}));
+    CHECK(afc.get_current_slot() == -2);
 }
