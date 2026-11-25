@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Splits main_loop_hang reports into their causes: an app the system suspended, a host that ran
 // out of memory, an app that blocked, or a report that no evidence classifies. Pure; imports
-// only the thresholds so the dashboard can import it.
+// only the thresholds and the version order so the dashboard can import it.
 
 import {
+  HANG_ANDROID_SUSPENDED_BELOW_VERSION,
   HANG_APP_RSS_SHARE,
   HANG_HOST_MEMORY_LOW_MB,
   HANG_SNAPSHOT_WINDOW_SEC,
@@ -11,6 +12,7 @@ import {
   HANG_UPLOAD_BATCH_SEC,
   HANG_WARNING_WINDOW_SEC,
 } from "./loop/thresholds";
+import { compareVersions } from "./versions";
 
 export type HangCause = "suspended" | "host_memory" | "app_blocked" | "unknown";
 
@@ -89,13 +91,18 @@ export function stalledSeconds(context: string): number {
 }
 
 /**
- * An app the system paused, so that its main loop stopping says nothing about the app. Android
- * parks the event loop while the activity is in the background. Anywhere, a stall reported past
- * HANG_SUSPENDED_STALL_SEC means the monitor thread, which samples every 5 s and reports as a
- * stall crosses 60 s, did not run either: the whole process was stopped.
+ * An Android app of a build that reports the parked event loop of a backgrounded app as a hang.
+ * A build of HANG_ANDROID_SUSPENDED_BELOW_VERSION or later does not report that stall, so its
+ * Android reports are foreground hangs.
  */
-const suspended = (hang: HangRow): boolean =>
-  hang.platform === "android" || stalledSeconds(hang.context) > HANG_SUSPENDED_STALL_SEC;
+const backgrounded = (hang: HangRow): boolean =>
+  hang.platform === "android" && compareVersions(hang.appVersion, HANG_ANDROID_SUSPENDED_BELOW_VERSION) < 0;
+
+/**
+ * A stall reported past HANG_SUSPENDED_STALL_SEC: the monitor thread, which samples every 5 s
+ * and reports as a stall crosses 60 s, did not run either, so the whole process was stopped.
+ */
+const longStall = (hang: HangRow): boolean => stalledSeconds(hang.context) > HANG_SUSPENDED_STALL_SEC;
 
 /** A device's row that carries its uptime: the stored time says which upload it came from. */
 interface UptimeRow {
@@ -134,8 +141,9 @@ const lowAvailable = (w: MemWarning): boolean => (w.level === "warning" || w.lev
 const appOverShareIn = (w: MemWarning): boolean => w.totalMb > 0 && w.rssKb > HANG_APP_RSS_SHARE * w.totalMb * 1024;
 
 /**
- * A suspended app is `suspended` whatever its memory says. A hang that carries its own memory
- * fields is classified by them: the host ran out of memory when the pressure is critical or
+ * An Android app of a build that reports backgrounded stalls, or any app whose stall ran past
+ * HANG_SUSPENDED_STALL_SEC, is `suspended` whatever its memory says. A hang that carries its own
+ * memory fields is classified by them: the host ran out of memory when the pressure is critical or
  * less than HANG_HOST_MEMORY_LOW_MB was available. An older hang is the host running out of
  * memory when one of its device's memory warnings in the HANG_WARNING_WINDOW_SEC of uptime
  * before it, at warning or critical, says available memory ran low. With no such warning it is
@@ -151,7 +159,7 @@ export function classifyHang(
   snapshots: readonly MemSnapshot[] = [],
   warnings: readonly MemWarning[] = [],
 ): HangCause {
-  if (suspended(hang)) return "suspended";
+  if (backgrounded(hang) || longStall(hang)) return "suspended";
   const near = beforeHang(hang, warnings, HANG_WARNING_WINDOW_SEC);
   let host: boolean;
   if (hang.memAvailableMb !== null || hang.pressure !== "") {

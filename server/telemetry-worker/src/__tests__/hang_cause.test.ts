@@ -207,10 +207,33 @@ describe("classifyHang, the app's own share of the host's memory", () => {
 });
 
 describe("classifyHang, an app the system suspended", () => {
-  it("is suspended for an Android app, whatever its memory says", () => {
-    expect(classifyHang(hang({ platform: "android" }), [])).toBe("suspended");
-    expect(classifyHang(hang({ platform: "android", memAvailableMb: 5, pressure: "critical" }), [])).toBe("suspended");
-    expect(classifyHang(hang({ platform: "android" }), [snap(5, 5)])).toBe("suspended");
+  /** Android on a build that reports a backgrounded stall, with memory to spare. */
+  const android = (over: Partial<HangRow> = {}): HangRow => hang({ platform: "android", appVersion: "1.2.0-alpha.1", ...over });
+
+  it("is suspended for an Android app of such a build, whatever its memory says", () => {
+    expect(classifyHang(android(), [])).toBe("suspended");
+    expect(classifyHang(android({ memAvailableMb: 5, pressure: "critical" }), [])).toBe("suspended");
+    expect(classifyHang(android(), [snap(5, 5)])).toBe("suspended");
+  });
+  it.each([
+    ["", "suspended"],
+    ["1.1.0-rc.4", "suspended"],
+    ["1.2.0-alpha.1", "suspended"],
+    ["1.2.0-alpha.2", "app_blocked"],
+    ["1.2.0-alpha.10", "app_blocked"],
+    ["1.2.0-beta.1", "app_blocked"],
+    ["1.3.0", "app_blocked"],
+  ])("reads an Android app with memory to spare on version %s as %s", (appVersion, cause) => {
+    expect(classifyHang(hang({ platform: "android", appVersion, memAvailableMb: 900 }), [])).toBe(cause);
+  });
+  it("classifies an Android app of a build that reports no backgrounded stall by its evidence, like any other platform", () => {
+    const foreground = { platform: "android", appVersion: "1.2.0-alpha.2" };
+    expect(classifyHang(hang(foreground), [])).toBe("unknown");
+    expect(classifyHang(hang(foreground), [snap(5, 5)])).toBe("host_memory");
+    expect(classifyHang(hang(foreground), [], [warn(60)])).toBe("host_memory");
+  });
+  it("is still suspended for an Android app of any version when the stall ran past the line", () => {
+    expect(classifyHang(hang({ platform: "android", appVersion: "1.2.0-alpha.2", context: "stalled_161s", memAvailableMb: 900 }), [])).toBe("suspended");
   });
   it("is suspended on any platform when the stall ran past the line, and not at it", () => {
     const line = HANG_SUSPENDED_STALL_SEC;
@@ -591,6 +614,23 @@ describe("fetchHealth hang causes", () => {
     });
     const h = await fetchHealth({ accountId: "a", apiToken: "t" }, "2026-11-24");
     expect(h.errors[0]).toMatchObject({ cur: 0, total: 2, split: { suspended: 1, unknown: 1 } });
+  });
+
+  it("counts an Android hang of a build that reports no backgrounded stall, once its version reaches the gate", async () => {
+    vi.stubGlobal("fetch", async (_url: string, init: { body: string }) => {
+      const sql = init.body;
+      const data = sql.includes("'main_loop_hang'")
+        ? [
+            { device: "d0", at: 1, uptime: 5, mem: 501, pressure: "none", platform: "android", version: "1.2.0-alpha.1", weight: 1 },
+            { device: "d1", at: 1, uptime: 5, mem: 501, pressure: "none", platform: "android", version: "1.2.0-alpha.2", weight: 1 },
+          ]
+        : sql.trimEnd().endsWith("GROUP BY category, code")
+          ? [{ category: "ui", code: "main_loop_hang", count: 2, devices: 2 }]
+          : [];
+      return new Response(JSON.stringify({ data }), { status: 200 });
+    });
+    const h = await fetchHealth({ accountId: "a", apiToken: "t" }, "2026-11-24");
+    expect(h.errors[0]).toMatchObject({ cur: 1, devices: 1, total: 2, split: { suspended: 1, app_blocked: 1 } });
   });
 
   const storedAt = 1_700_000_000;

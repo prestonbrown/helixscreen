@@ -28,6 +28,13 @@ export const HANG_HOST_MEMORY_LOW_MB = 64
  */
 export const HANG_SUSPENDED_STALL_SEC = 70
 /**
+ * The first release whose Android build does not report a stall while the app is in the
+ * background. Android parks the event loop of a backgrounded app, so a hang report of an
+ * earlier build is that parked loop; from this release on, an Android report is a foreground
+ * hang like any other platform's.
+ */
+export const HANG_ANDROID_SUSPENDED_BELOW_VERSION = '1.2.0-alpha.2'
+/**
  * Seconds of device uptime before a hang that a memory snapshot may sit and still describe
  * the host at the hang; snapshots are taken hourly.
  */
