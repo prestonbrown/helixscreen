@@ -701,9 +701,9 @@ void PrintStartCollector::check_purge_shape() {
     // the active tool's, which on a multi-head printer need not be T0's
     // "extruder" object that the status frames carry.
     auto& temps = state_.temperature_state();
-    const int ext_target = helix::temperature_rules::deci_to_degrees(
+    const int ext_target = helix::ui::temperature::deci_to_degrees(
         lv_subject_get_int(temps.get_active_extruder_target_subject()));
-    const int ext_temp = helix::temperature_rules::deci_to_degrees(
+    const int ext_temp = helix::ui::temperature::deci_to_degrees(
         lv_subject_get_int(temps.get_active_extruder_temp_subject()));
     evidence.heaters_at_target = ext_target > 0 && at_target(ext_temp, ext_target) &&
                                  at_target(frame_bed_temp_.load(std::memory_order_relaxed),
