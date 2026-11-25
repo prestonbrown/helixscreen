@@ -1110,8 +1110,8 @@ done
 # runs before the rollback guard, so a new binary that hangs at start would
 # otherwise hold the launcher forever. A background killer ends the probe at
 # the deadline; `wait` returns the moment the probe exits, so a probe that
-# answers costs nothing extra. The killer cleans up its own sleep when told
-# to stop. Sets _pe_out and _pe_rc (137 when the killer fired).
+# answers costs nothing extra. Sets _pe_out and _pe_rc (137 when the killer
+# fired).
 # HELIX_EGL_PROBE_SECS shortens the deadline, for tests.
 probe_egl_with_deadline() {
     _pe_secs="${HELIX_EGL_PROBE_SECS:-10}"
@@ -1129,18 +1129,20 @@ probe_egl_with_deadline() {
     _pe_fired="${_pe_file}.fired"
     "$1" --probe-egl >"$_pe_file" 2>&1 &
     _pe_pid=$!
+    # The killer holds no descriptor of ours, so the sleep it leaves behind
+    # when it is stopped keeps no caller's pipe or log open; that sleep just
+    # runs out.
     (
-        trap 'kill "$_pe_sleep" 2>/dev/null; exit 0' TERM
-        sleep "$_pe_secs" &
-        _pe_sleep=$!
-        wait "$_pe_sleep"
+        sleep "$_pe_secs"
         : >"$_pe_fired"
         kill -9 "$_pe_pid" 2>/dev/null
-    ) 2>/dev/null &
+    ) </dev/null >/dev/null 2>&1 &
     _pe_killer=$!
     _pe_rc=0
     wait "$_pe_pid" 2>/dev/null || _pe_rc=$?
-    kill "$_pe_killer" 2>/dev/null || true
+    # SIGKILL, not a trapped TERM: a shell may hold a trapped signal until its
+    # foreground sleep ends, which would keep this wait for the whole deadline.
+    kill -9 "$_pe_killer" 2>/dev/null || true
     wait "$_pe_killer" 2>/dev/null || true
     if [ -e "$_pe_fired" ]; then
         log "EGL probe did not answer in ${_pe_secs}s; stopped it"
