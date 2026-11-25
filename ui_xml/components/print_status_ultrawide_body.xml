@@ -3,11 +3,12 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Print status panel content on ultrawide screens: one row of columns, each
      at a shape that suits it. Left to right: the preview as a square at the
-     full height, the info column, the printer picture with its callouts, the
-     readouts, the inline Tune section where there is room for it (its Tune
-     button then hidden) and the button stack. With a filament system or
-     several heads (ps_lane_tray 1) the readouts' column shows the lane tray
-     instead: the printer picture's callouts already carry the readings.
+     full height, the printer picture with its callouts, the readouts where
+     there is room for them, the info column, the inline Tune section where
+     there is room for it (its Tune button then hidden) and the button stack.
+     With a filament system or several heads (ps_lane_tray 1) the info column
+     carries the lane tray over the info card and the readouts are gone: the
+     printer picture's callouts already carry the readings.
      PrintStatusLayoutFitter measures
      overlay_content and publishes each column's width
      (decide_print_status_columns()); the info column takes the rest. The job
@@ -27,18 +28,26 @@
           <bind_flag_if_eq subject="preparing_visible" flag="hidden" ref_value="0"/>
         </print_status_job_checklist>
       </lv_obj>
-      <print_status_ultrawide_info name="ps_uw_info" height="100%" flex_grow="1"/>
       <print_status_printer_tile name="ps_printer_tile" height="100%">
         <bind_style_prop prop="width" subject="ps_uw_printer_w"/>
       </print_status_printer_tile>
+      <!-- The readouts show while there is room for them beside the info
+           column (the fitter gives them a width) and no lane tray stands in
+           for them. -->
       <print_status_readouts name="ps_uw_readouts" height="100%">
         <bind_style_prop prop="width" subject="ps_uw_readouts_w"/>
-        <bind_flag_if_eq subject="ps_lane_tray" flag="hidden" ref_value="1"/>
+        <bind_flag_if cond="ps_lane_tray eq 1 or ps_uw_readouts_w eq 0" flag="hidden"/>
       </print_status_readouts>
-      <print_status_lane_tray name="ps_uw_lane_tray" height="100%" hidden="true">
-        <bind_style_prop prop="width" subject="ps_uw_readouts_w"/>
-        <bind_flag_if_not_eq subject="ps_lane_tray" flag="hidden" ref_value="1"/>
-      </print_status_lane_tray>
+      <!-- The info column: the lane tray over the info card, or the card alone. -->
+      <lv_obj name="ps_uw_info_col"
+              height="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="column"
+              style_pad_gap="#space_md" style_min_width="0" scrollable="false">
+        <print_status_lane_tray name="ps_uw_lane_tray" width="100%" hidden="true">
+          <bind_style_prop prop="height" subject="ps_lane_tray_h"/>
+          <bind_flag_if_not_eq subject="ps_lane_tray" flag="hidden" ref_value="1"/>
+        </print_status_lane_tray>
+        <print_status_ultrawide_info name="ps_uw_info" width="100%" height="0" flex_grow="1"/>
+      </lv_obj>
       <!-- The Tune column, sized by the fitter (0 outside a print or without
            room). The section is built only while it can show (ps_tune_build):
            its own container, since a rebuilt <if> body lands last. Inside, the

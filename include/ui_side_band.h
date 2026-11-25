@@ -6,9 +6,10 @@
  * @file ui_side_band.h
  * @brief The ultrawide side band: a main panel hosts an overlay's content beside its own
  *
- * On an ultrawide screen a capped panel's content stops at content_max_width
- * (include/content_width_cap.h), leaving a band to its right. Controls fills it
- * with the Motion panel and Filament with the AMS panel. Each of those views is a
+ * On an ultrawide screen the host's main column leaves a band of
+ * side_band_pref_width() to its right (side_band_layout(),
+ * include/content_width_cap.h). Controls fills it with the Motion panel and
+ * Filament with the AMS panel. Each of those views is a
  * singleton with one widget tree, so the band and the overlay path share it:
  *
  * - The band builds (or moves) the tree into itself when its host activates and
@@ -19,9 +20,10 @@
  *   first (take_open_request()), so the overlay builds its own and there is
  *   never a second tree. The band rebuilds it on the host's next activation,
  *   or sooner once the overlay's tree is freed (notify_released()).
- * - The band also stays empty when the cap leaves it less than
- *   side_band_min_width() (include/content_width_cap.h): an ultrawide screen
- *   just past the 2.5:1 threshold has only a sliver beside the cap.
+ * - The band also stays empty when the host cannot spare side_band_pref_width()
+ *   and still keep kMainColumnFloor (include/content_width_cap.h): the main
+ *   column then takes the whole host, as it does whenever the band is not
+ *   showing (no filament system for Filament's AMS band).
  * - The gate going false, a host rebuild and the host tree's deletion all hand
  *   the tree back. A theme or mode change, and a guest that reports itself
  *   stale(), make the band rebuild the tree, as the overlay path rebuilds a
@@ -29,8 +31,8 @@
  *
  * The host's XML wraps its content in a `side_band_main` column beside a
  * `<side_band>` component; on ultrawide the host keeps the full width
- * (uses_full_width()) and the band sizes the main column to the cap, so the
- * main content sits exactly where the panel cap would have put it.
+ * (uses_full_width()) and the band sizes the main column: side_band_layout()
+ * while the band shows, panel_content_width() otherwise.
  *
  * A build without the band (HELIX_HAS_SIDE_BAND=0, the ESP32 firmware) leaves
  * ui_side_band.cpp out and links the no-op definitions in the firmware's
@@ -43,6 +45,7 @@
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
+#include "content_width_cap.h"
 #include "core/observer_guard.h"
 #include "core/subject.h"
 #include "lvgl/lvgl.h"
@@ -162,8 +165,10 @@ class SideBand {
     void activate_guest();
     void deactivate_guest(DeactivateReason reason);
     void fit_main_column();
-    /// The host leaves the band at least side_band_min_width()
-    /// (include/content_width_cap.h) beside its capped main column.
+    /// How the host divides between main column and band
+    /// (side_band_layout(), include/content_width_cap.h).
+    [[nodiscard]] helix::SideBandLayout layout() const;
+    /// The band fits beside the main column.
     [[nodiscard]] bool has_room() const;
     void publish();
     void observe_inputs();

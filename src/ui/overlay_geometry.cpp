@@ -213,7 +213,10 @@ void apply_content_cap(lv_obj_t* root, int32_t base_pad_right, bool capped) {
         return;
     }
     const int32_t width = full_width(root);
-    const int32_t overflow = capped ? content_cap_overflow(width, live_content_max_width(root)) : 0;
+    const int32_t overflow =
+        capped
+            ? content_cap_overflow(width, panel_content_width(width, live_content_max_width(root)))
+            : 0;
 
     if (const lv_style_t* chrome = cap_chrome_style()) {
         const int32_t full_content_width = width - lv_obj_get_style_pad_left(root, LV_PART_MAIN) -
