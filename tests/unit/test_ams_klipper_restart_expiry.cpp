@@ -27,6 +27,7 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "test_helpers/backend_harness.h"
+#include "tool_offset_calibration.h"
 
 #include <algorithm>
 #include <memory>
@@ -338,9 +339,68 @@ TEST_CASE_METHOD(KlipperRestartFixture,
         REQUIRE(tinfo_count(api) == 1);
         restart_klipper();
         CHECK(tinfo_count(api) == 2);
+
+        // The same READY reaches the client as Moonraker's own notification.
+        // The query follows the state edge alone: one READY, one query.
+        client.dispatch_method_callback(
+            "notify_klippy_ready",
+            json{{"method", "notify_klippy_ready"}, {"params", json::array()}});
+        settle();
+        CHECK(tinfo_count(api) == 2);
     }
 
     backend->stop();
     AmsState::instance().set_backend(nullptr);
     settle();
+}
+
+TEST_CASE_METHOD(KlipperRestartFixture,
+                 "Z-Mod's calibration lines pass the console watcher's pre-filter",
+                 "[ams][toolchanger][zmod][calibration]") {
+    // A Z-Mod offset run is narrated on the console, not in status. The
+    // watcher queues only the lines its background-side pre-filter lets
+    // through, so a calibration line dropped there never reaches the progress
+    // sink however the main-thread half handles it.
+    namespace cal = helix::tool_offset_calibration;
+    cal::set_progress_sink(nullptr);
+    cal::end_progress_run();
+    struct QuietAfter {
+        ~QuietAfter() {
+            cal::set_progress_sink(nullptr);
+            cal::end_progress_run();
+        }
+    } quiet_after;
+
+    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
+    helix::PrinterState api_state;
+    api_state.init_subjects(false);
+    helix::test::GcodeRecordingApi api{client, api_state};
+
+    const auto hw = zmod_c5_tinfo_discovery();
+    auto owned = std::make_unique<helix::AmsBackendToolChanger>(&api, &client);
+    auto* backend = owned.get();
+    backend->set_discovery(hw);
+    backend->set_discovered_tools({"T0", "T1", "T2", "T3"});
+    AmsState::instance().set_backend(std::move(owned));
+    struct StopBackend {
+        helix::AmsBackendToolChanger* backend;
+        ~StopBackend() {
+            backend->stop();
+            AmsState::instance().set_backend(nullptr);
+            helix::ui::UpdateQueue::instance().drain_until_empty();
+        }
+    } stop_backend{backend};
+
+    REQUIRE(backend->start().success());
+    settle();
+
+    std::vector<cal::ProgressEvent> heard;
+    cal::set_progress_sink([&heard](const cal::ProgressEvent& e) { heard.push_back(e); });
+    // The frame as the WebSocket delivers it: params is the line itself.
+    client.dispatch_gcode_response("// [CALIB] T2: ...");
+    settle();
+
+    CHECK(heard.size() == 1);
+    CHECK(heard[0].kind == cal::ProgressEvent::Kind::Started);
+    CHECK(heard[0].tool == 2);
 }
