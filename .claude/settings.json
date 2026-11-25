@@ -32,7 +32,6 @@
       "Bash(./.worktrees/:*)",
       "Bash(./scripts/*)",
       "Bash(HELIX_*)",
-      "Bash(LV_LOG_LEVEL=*)",
       "Bash(MOONRAKER_DEBUG_TREE=*)",
       "Bash(SCREWS_AUTO_START=*)",
       "Bash(TARGET_SIZES=*)",
