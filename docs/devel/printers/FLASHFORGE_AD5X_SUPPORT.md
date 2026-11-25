@@ -59,7 +59,7 @@ The AD5X uses a FlashForge-specific layout, distinct from the Creality K1:
 | `/usr/data/config/mod_data/` | ZMOD data, logs, database |
 | `/opt/config/` | Symlink or bind-mount to `/usr/data/config/` |
 
-At run time the unified binary tells the boards apart in `helix::board::current()` (`src/system/board_identity.cpp#resolve`): the `MACHINE=` line of /usr/prog/app_startup.sh names an AD5X or a Creator 5, and a FlashForge mod tree (`/ZMOD`, or a mod's .shell/platform.sh under `/opt/config/mod` or `/usr/data/config/mod`) with no machine id still means an AD5X. A MIPS host with neither is a K1 (`src/system/platform_info.cpp`).
+At run time the unified binary tells the boards apart in `helix::board::current()` (`src/system/board_identity.cpp#resolve`): the `MACHINE=` line of /usr/prog/app_startup.sh names an AD5X or a Creator 5, and a FlashForge mod tree (`/ZMOD`, or a Forge-X descriptor under `/opt/config/mod` or `/usr/data/config/mod`: `<mod>/.shell/platform.sh` from the AD5X fork of Forge-X, `<mod>/.shell/common.sh` from upstream Forge-X on the AD5M; Z-Mod ships neither) with no machine id still means an AD5X. A MIPS host with neither is a K1 (`src/system/platform_info.cpp`).
 
 ## Build Target
 

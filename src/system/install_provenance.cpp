@@ -2,6 +2,8 @@
 
 #include "install_provenance.h"
 
+#include "platform_info.h"
+
 #include <fstream>
 #include <string_view>
 #include <sys/stat.h>
@@ -23,10 +25,11 @@ struct HostModRow {
 // scripts/lib/installer/platform.sh. Forge-X comes first because its tree can
 // coexist with the markers below it.
 constexpr HostModRow kHostMods[] = {
+    // Besides helix::forgex_mod_tree_present(), which detect_host_mod() asks first;
+    // its shell copies are host_profile.sh's HOST_MOD_ROOT probe and the
+    // launcher's heap-diag gate.
     {"forge_x",
-     {"/usr/data/config/mod/.shell/common.sh", "/usr/data/config/mod/.shell/platform.sh",
-      "/opt/config/mod/.shell/common.sh", "/opt/config/mod/.shell/platform.sh",
-      "/opt/config/mod/.root", "/usr/data/.mod/.forge-x", "/data/.mod/.forge-x", nullptr}},
+     {"/opt/config/mod/.root", "/usr/data/.mod/.forge-x", "/data/.mod/.forge-x", nullptr}},
     {"zmod", {"/ZMOD", nullptr}},
     {"klipper_mod", {"/root/printer_software", "/mnt/data/.klipper_mod", nullptr}},
     {"cosmos", {"/usr/bin/update-cosmos", nullptr}},
@@ -59,6 +62,10 @@ const char* read_install_source(const std::string& config_dir) {
 
 const char* detect_host_mod(const std::string& root) {
     for (const auto& mod : kHostMods) {
+        if (std::string_view(mod.id) == "forge_x" &&
+            helix::forgex_mod_tree_present(root.empty() ? "/" : root)) {
+            return mod.id;
+        }
         for (const char* const* marker = mod.markers; *marker != nullptr; ++marker) {
             if (path_exists(root + *marker)) {
                 return mod.id;

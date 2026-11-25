@@ -88,8 +88,9 @@ host_profile_probe() {
         # Two descriptor spellings exist: upstream 1.4.2 ships .shell/common.sh
         # (a flat AD5M file - S99root sources it), while the AD5X port fork
         # renamed/extended it into .shell/platform.sh (per-board blocks).
-        # Either marks a live mod tree; keying on one fork's spelling made the
-        # probe blind to every upstream AD5M install.
+        # Either marks a live mod tree. Same rule as helix::forgex_mod_tree_present()
+        # (src/system/platform_info.cpp, also called by install_provenance.cpp)
+        # and scripts/helix-launcher.sh's heap-diag gate.
         if [ -f "$cand/.shell/common.sh" ] || [ -f "$cand/.shell/platform.sh" ]; then
             HOST_MOD_ROOT="$cand"; break
         fi

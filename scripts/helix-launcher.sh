@@ -1254,9 +1254,11 @@ fi
 # ZMOD hosts carry the /ZMOD marker or FlashForge's own /usr/prog dir; a
 # Forge-X chroot has neither — and no /usr/data either, since the chroot binds
 # /usr/data at /opt — but the mod's git tree stays reachable and
-# .shell/platform.sh in it is the evidence. K1 shares mips and carries none of
-# the four markers, so the arch alone never arms this. Same rule as
-# helix::flashforge_mod_tree(). Probes resolve under
+# its descriptor in it is the evidence (.shell/platform.sh on the AD5X fork,
+# .shell/common.sh upstream). K1 shares mips and carries none of the markers,
+# so the arch alone never arms this. Same rule as helix::flashforge_mod_tree()
+# (its Forge-X half is helix::forgex_mod_tree_present(), which install_provenance
+# also calls) and scripts/lib/installer/host_profile.sh's HOST_MOD_ROOT probe. Probes resolve under
 # HELIX_AD5X_PROBE_ROOT (default /) so the bats suite can point the predicate
 # at a sandbox root instead of touching the real filesystem.
 _ad5x_root="${HELIX_AD5X_PROBE_ROOT:-/}"
@@ -1265,7 +1267,9 @@ if [ "$_arch" = "mips" ] && {
      [ -f "${_ad5x_root}/ZMOD" ] ||
      [ -d "${_ad5x_root}/usr/prog" ] ||
      [ -f "${_ad5x_root}/opt/config/mod/.shell/platform.sh" ] ||
-     [ -f "${_ad5x_root}/usr/data/config/mod/.shell/platform.sh" ]
+     [ -f "${_ad5x_root}/opt/config/mod/.shell/common.sh" ] ||
+     [ -f "${_ad5x_root}/usr/data/config/mod/.shell/platform.sh" ] ||
+     [ -f "${_ad5x_root}/usr/data/config/mod/.shell/common.sh" ]
    }; then
     _enable_heap_diag=1
 fi

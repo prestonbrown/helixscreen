@@ -547,7 +547,7 @@ The platform rule:
 | Pi, Pi 32-bit, x86 (systemd) | Yes, with the watchdog | Same-filesystem swap under `INSTALL_PARENT`, which the unit lists in `ReadWritePaths` |
 | K1 series (`mips` or `k1` on the K1 board) | Yes, with the watchdog | SysV launcher loop; the watchdog hands the update restart back to it |
 | AD5M on Klipper Mod (`ad5m`) | Yes, with the watchdog | Same SysV shape as the K1. Klipper Mod leaves no Forge-X or Z-Mod marker (`/opt/config/mod`, `/ZMOD`, `/usr/prog`), so it is not a mod payload |
-| AD5M under Forge-X or ZMOD | No | The mod owns the install tree and updates it in place |
+| AD5M under Forge-X or ZMOD | No | The mod owns the install tree and updates it in place. Forge-X is recognized by its descriptor in the mod tree: `<mod>/.shell/common.sh` upstream (the AD5M), `<mod>/.shell/platform.sh` on the AD5X fork |
 | AD5X, Creator 5, Creator 5 Pro (any firmware) | No | Share the `mips` key, but only the K1 board is proven: untested, add after a device run |
 | CC1 | No | Until a CC1 device run passes: its OpenWrt procd init and the COSMOS GUI switcher, which signals the watchdog's pidfile, are a second actor no run covered |
 | Snapmaker U1 | No | Not yet run through the device test plan (its release ships the watchdog) |
@@ -568,6 +568,15 @@ Known limits:
 #### Rollback device test plan
 
 A platform class gets Install overnight only after this plan passes on one of its devices. Passed, both on 2026-11-24 from 1.1.0-rc.4: **systemd** on a Raspberry Pi 3B (MainsailOS, Debian 13; covers Pi, Pi 32-bit and the x86 kiosk), and **SysV with the watchdog** on a Creality K1C (Simple AF, BusyBox init; covers the K1 series and the AD5M on Klipper Mod). Results are on #1304. Passing adds a row to `kRollbackProvenPlatforms`; everything without one stays off.
+
+**AD5M under Forge-X (2026-11-24, 192.168.1.67).** Forge-X 1.4.1, HelixScreen v1.1.0 at `/opt/config/mod_data/helixscreen`, run by `S90helixscreen` inside the `/data/.mod/.forge-x` chroot. A mod payload, so the plan's R1-R9 do not apply. The check is that Install overnight stays off. Shipping `ad5m` builds (`HELIX_PACKAGING=1`) with `HELIX_LOG_LEVEL=debug`, started from the chroot's init with `HELIX_ROLLBACK_DIR` and `HELIX_SUPERVISED` set:
+
+| Build | `[UpdateRollback] Automatic-update rollback:` | Install overnight |
+|---|---|---|
+| origin/main 5583751260 | `supported` | Offered: the probe knew Forge-X only by `<mod>/.shell/platform.sh`, and 1.4.1 ships `<mod>/.shell/common.sh` |
+| With the descriptor fix | `mod_payload` | Hidden |
+
+Afterwards the printer went back to the v1.1.0 tree it had, byte for byte (binary md5 matched), with its settings, Beta channel, env, telemetry and diagnostic uploads as before. `moonraker.conf` and `user.moonraker.conf` were unchanged. It rebooted to v1.1.0 under the chroot's init, and thelio's key logged in over ssh. The chroot has no `/etc/localtime`, so the app there logs in UTC.
 
 | Run | New version | Expected |
 |---|---|---|

@@ -30,6 +30,10 @@ namespace fs = std::filesystem;
 //                 AD5X, modded or not; K1 has neither this nor the marker)
 //   forgex      : /opt/config/mod/.shell/platform.sh and nothing else — a
 //                 Forge-X chroot has no /ZMOD, no /usr/prog, no /usr/data
+//   forgex-common : /opt/config/mod/.shell/common.sh and nothing else, the
+//                 descriptor upstream Forge-X 1.4.x ships (AD5M); platform.sh
+//                 is the AD5X fork's spelling of the same file
+//   forgex-common-host : /usr/data/config/mod/.shell/common.sh
 //   forgex-host : /usr/data/config/mod/.shell/platform.sh — the same mod tree
 //                 seen from outside the chroot (the rig binds /usr/data at
 //                 /opt, so exactly one spelling is reachable per side)
@@ -51,6 +55,12 @@ inline fs::path make_flashforge_layout(const fs::path& base, const std::string& 
     } else if (layout == "forgex") {
         fs::create_directories(root / "opt/config/mod/.shell");
         std::ofstream(root / "opt/config/mod/.shell/platform.sh") << "#!/bin/sh\n";
+    } else if (layout == "forgex-common") {
+        fs::create_directories(root / "opt/config/mod/.shell");
+        std::ofstream(root / "opt/config/mod/.shell/common.sh") << "#!/bin/sh\n";
+    } else if (layout == "forgex-common-host") {
+        fs::create_directories(root / "usr/data/config/mod/.shell");
+        std::ofstream(root / "usr/data/config/mod/.shell/common.sh") << "#!/bin/sh\n";
     } else if (layout == "forgex-prog") {
         fs::create_directories(root / "opt/config/mod/.shell");
         fs::create_directories(root / "usr/prog");

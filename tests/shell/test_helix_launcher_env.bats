@@ -1527,6 +1527,24 @@ assert_heap_extracted() {
     [ "$result" = "3" ]
 }
 
+@test "heap diag: upstream Forge-X descriptor (.shell/common.sh) enables on mips" {
+    local root="$BATS_TEST_TMPDIR/forgex-common"
+    mkdir -p "$root/opt/config/mod/.shell"
+    touch "$root/opt/config/mod/.shell/common.sh"
+    result=$(run_heap_block mips "$root")
+    assert_heap_extracted
+    [ "$result" = "3" ]
+}
+
+@test "heap diag: upstream Forge-X descriptor, host-side spelling, enables on mips" {
+    local root="$BATS_TEST_TMPDIR/forgex-common-host"
+    mkdir -p "$root/usr/data/config/mod/.shell"
+    touch "$root/usr/data/config/mod/.shell/common.sh"
+    result=$(run_heap_block mips "$root")
+    assert_heap_extracted
+    [ "$result" = "3" ]
+}
+
 @test "heap diag: plain layout leaves MALLOC_CHECK_ unset on mips" {
     # K1 shares mips and carries none of the markers — the arch alone must
     # never arm the diagnostics.
