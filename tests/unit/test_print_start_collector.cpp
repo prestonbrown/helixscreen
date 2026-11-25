@@ -8793,6 +8793,20 @@ TEST_CASE_METHOD(PurgeShapeFixture,
     CHECK(get_current_phase() != PrintStartPhase::PURGING);
 }
 
+TEST_CASE_METHOD(PurgeShapeFixture,
+                 "Purge shape: a purge on T1 shows PURGING while T0 has no target",
+                 "[print][collector][purge]") {
+    // A tool changer or IDEX purging its active T1: the active extruder is hot
+    // and at target, while the "extruder" object (T0) reports target 0.
+    start_hot();
+    client().dispatch_status_update({{"extruder", {{"temperature", 30.0}, {"target", 0.0}}}});
+    drain_async_updates();
+    head(150, 355, 10);
+    extruder(4.0);
+    eta_tick();
+    CHECK(get_current_phase() == PrintStartPhase::PURGING);
+}
+
 TEST_CASE_METHOD(PurgeShapeFixture, "Purge shape: continuous flow over a chute shows PURGING",
                  "[print][collector][voron][purge]") {
     double x = 150, y = 355, z = 10;
