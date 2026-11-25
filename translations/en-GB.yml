@@ -5686,6 +5686,7 @@ translations:
   Tool Offsets: ''
   Tool Switcher: ''
   'Tool change failed: {}': ''
+  'Tool change ignored: the filament system is busy': ''
   Tool change speed: ''
   Tool change to T{}: ''
   'Tool change to {} failed: {}': ''

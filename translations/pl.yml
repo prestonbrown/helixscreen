@@ -866,6 +866,7 @@ translations:
   Calibration canceled.: Kalibracja anulowana.
   Calibration complete: Kalibracja zakończona
   Calibration complete - save to keep the offsets: Kalibracja zakończona - zapisz, aby zachować offsety
+  Calibration complete - the printer saved the offsets: Kalibracja zakończona - drukarka zapisała offsety
   Calibration complete!: Kalibracja zakończona!
   Calibration complete! Press 'Next' to continue.: Kalibracja zakończona! Naciśnij „Dalej”, aby kontynuować.
   Calibration ended: Kalibracja zakończyła się
@@ -2474,6 +2475,7 @@ translations:
   Home Selector: Bazuj selektor
   Home the printer again so a toolhead is picked up, then retry.: Zbazuj drukarkę ponownie, aby głowica została pobrana, potem ponów.
   Home the printer again so it detects the toolheads, then retry.: Zbazuj drukarkę ponownie, aby wykryła głowice, potem ponów.
+  'Home the printer first: the calibration needs X, Y and Z homed': 'Najpierw wykonaj bazowanie drukarki: kalibracja wymaga bazowania osi X, Y i Z'
   Home the printer so every toolhead is docked, then retry.: Zbazuj drukarkę, aby każda głowica była w doku, potem ponów.
   Home the printer, check that the head moves freely in its dock, then try again.: Zbazuj drukarkę, sprawdź, czy głowica swobodnie porusza się w doku, potem spróbuj ponownie.
   Homing: Bazowanie
@@ -3094,8 +3096,6 @@ translations:
   ? Make the slicer's extrusion mode match the start G-code (relative, M83, is usual). Raise max_extrude_cross_section only for a deliberately thick purge line.
   : Dopasuj tryb ekstruzji w slicerze do początkowego G-code (zwykle względny, M83). Zwiększaj max_extrude_cross_section tylko dla celowo grubej linii płukania.
   MakeID (Bluetooth): MakeID (Bluetooth)
-  ? Makes Spoolman charge each tool's or lane's own spool, for printers that do not switch it themselves, and records per print what each spool used.
-  : Sprawia, że Spoolman nalicza zużycie szpuli każdego narzędzia lub toru, na drukarkach, które same tego nie przełączają, i zapisuje dla każdego wydruku zużycie każdej szpuli.
   Manage: Zarządzaj
   Manage Printers: Zarządzaj drukarkami
   Manage configured printers: Zarządzaj skonfigurowanymi drukarkami
@@ -5102,7 +5102,6 @@ translations:
   Switch and calibrate: Przełącz i skalibruj
   Switch back to the Snapmaker screen: Wróć do ekranu Snapmakera
   Switch between light and dark themes: Przełączaj między jasnym a ciemnym motywem
-  Switch spools at each tool change: Zmieniaj szpule przy każdej zmianie narzędzia
   Switch the active tool or extruder: Zmień aktywne narzędzie lub ekstruder
   Switch the nozzle to MPC?: Przełączyć dyszę na MPC?
   Switch to a backup slot on runout: Przełącz na zapasowy slot po skończeniu filamentu
@@ -5810,6 +5809,7 @@ translations:
   This spool's details haven't loaded from Spoolman yet. Try Save again.: Dane tej szpuli nie wczytały się jeszcze ze Spoolman. Spróbuj Zapisz ponownie.
   This system does not support bypass mode: Ten system nie obsługuje trybu obejścia
   This theme: Ten motyw
+  'This tool has no number with a T command: assign it one first': 'To narzędzie nie ma numeru z poleceniem T: najpierw go przypisz'
   This tool probes each bed screw and tells you how much to adjust.: To narzędzie mierzy każdą śrubę stołu i podaje, o ile ją wyregulować.
   'This update asks for new permissions:': 'Ta aktualizacja wymaga nowych uprawnień:'
   This update removes HelixScreen from the printer.: Ta aktualizacja usuwa HelixScreen z drukarki.
@@ -5909,6 +5909,7 @@ translations:
   Tool Offsets: Offsety narzędzi
   Tool Switcher: Przełącznik narzędzi
   'Tool change failed: {}': 'Zmiana narzędzia nieudana: {}'
+  'Tool change ignored: the filament system is busy': 'Zmiana narzędzia zignorowana: system filamentu jest zajęty'
   Tool change speed: Prędkość zmiany narzędzia
   Tool change to T{}: Zmiana narzędzia na T{}
   'Tool change to {} failed: {}': 'Zmiana narzędzia na {} nieudana: {}'
@@ -5920,6 +5921,7 @@ translations:
   Tool offset calibration complete: Kalibracja offsetów narzędzi zakończona
   Tool offsets: Offsety narzędzi
   Tool offsets (mm): Offsety narzędzi (mm)
+  Tool offsets cannot be calibrated during a print: Offsetów narzędzi nie można kalibrować podczas wydruku
   Tool offsets saved: Zapisano offsety narzędzi
   Tool swap: Zamiana narzędzia
   Tool, runout backup: Narzędzie, zapas po końcu filamentu

@@ -817,6 +817,7 @@
   <translation tag="Calibration canceled." pl="Kalibracja anulowana."/>
   <translation tag="Calibration complete" pl="Kalibracja zakończona"/>
   <translation tag="Calibration complete - save to keep the offsets" pl="Kalibracja zakończona - zapisz, aby zachować offsety"/>
+  <translation tag="Calibration complete - the printer saved the offsets" pl="Kalibracja zakończona - drukarka zapisała offsety"/>
   <translation tag="Calibration complete!" pl="Kalibracja zakończona!"/>
   <translation tag="Calibration complete! Press &apos;Next&apos; to continue." pl="Kalibracja zakończona! Naciśnij „Dalej”, aby kontynuować."/>
   <translation tag="Calibration ended" pl="Kalibracja zakończyła się"/>
@@ -2337,6 +2338,7 @@
   <translation tag="Home printer first?" pl="Najpierw zbazować drukarkę?"/>
   <translation tag="Home the printer again so a toolhead is picked up, then retry." pl="Zbazuj drukarkę ponownie, aby głowica została pobrana, potem ponów."/>
   <translation tag="Home the printer again so it detects the toolheads, then retry." pl="Zbazuj drukarkę ponownie, aby wykryła głowice, potem ponów."/>
+  <translation tag="Home the printer first: the calibration needs X, Y and Z homed" pl="Najpierw wykonaj bazowanie drukarki: kalibracja wymaga bazowania osi X, Y i Z"/>
   <translation tag="Home the printer so every toolhead is docked, then retry." pl="Zbazuj drukarkę, aby każda głowica była w doku, potem ponów."/>
   <translation tag="Home the printer, check that the head moves freely in its dock, then try again." pl="Zbazuj drukarkę, sprawdź, czy głowica swobodnie porusza się w doku, potem spróbuj ponownie."/>
   <translation tag="Homing" pl="Bazowanie"/>
@@ -2917,7 +2919,6 @@
   <translation tag="Make sure the printer is safe, then restart the firmware." pl="Upewnij się, że drukarka jest bezpieczna, potem uruchom ponownie firmware."/>
   <translation tag="Make the slicer&apos;s extrusion mode match the start G-code (relative, M83, is usual). Raise max_extrude_cross_section only for a deliberately thick purge line." pl="Dopasuj tryb ekstruzji w slicerze do początkowego G-code (zwykle względny, M83). Zwiększaj max_extrude_cross_section tylko dla celowo grubej linii płukania."/>
   <translation tag="MakeID (Bluetooth)" pl="MakeID (Bluetooth)"/>
-  <translation tag="Makes Spoolman charge each tool&apos;s or lane&apos;s own spool, for printers that do not switch it themselves, and records per print what each spool used." pl="Sprawia, że Spoolman nalicza zużycie szpuli każdego narzędzia lub toru, na drukarkach, które same tego nie przełączają, i zapisuje dla każdego wydruku zużycie każdej szpuli."/>
   <translation tag="Manage" pl="Zarządzaj"/>
   <translation tag="Manage Printers" pl="Zarządzaj drukarkami"/>
   <translation tag="Manage configured printers" pl="Zarządzaj skonfigurowanymi drukarkami"/>
@@ -4833,7 +4834,6 @@
   <translation tag="Switch and calibrate" pl="Przełącz i skalibruj"/>
   <translation tag="Switch back to the Snapmaker screen" pl="Wróć do ekranu Snapmakera"/>
   <translation tag="Switch between light and dark themes" pl="Przełączaj między jasnym a ciemnym motywem"/>
-  <translation tag="Switch spools at each tool change" pl="Zmieniaj szpule przy każdej zmianie narzędzia"/>
   <translation tag="Switch the active tool or extruder" pl="Zmień aktywne narzędzie lub ekstruder"/>
   <translation tag="Switch the nozzle to MPC?" pl="Przełączyć dyszę na MPC?"/>
   <translation tag="Switch to a backup slot on runout" pl="Przełącz na zapasowy slot po skończeniu filamentu"/>
@@ -5463,6 +5463,7 @@
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." pl="Dane tej szpuli nie wczytały się jeszcze ze Spoolman. Spróbuj Zapisz ponownie."/>
   <translation tag="This system does not support bypass mode" pl="Ten system nie obsługuje trybu obejścia"/>
   <translation tag="This theme" pl="Ten motyw"/>
+  <translation tag="This tool has no number with a T command: assign it one first" pl="To narzędzie nie ma numeru z poleceniem T: najpierw go przypisz"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." pl="To narzędzie mierzy każdą śrubę stołu i podaje, o ile ją wyregulować."/>
   <translation tag="This toolhead has no automatic feeder. Load the filament by hand." pl="Ta głowica nie ma automatycznego podajnika. Załaduj filament ręcznie."/>
   <translation tag="This update asks for new permissions:" pl="Ta aktualizacja wymaga nowych uprawnień:"/>
@@ -5552,6 +5553,7 @@
   <translation tag="Tool Offsets" pl="Offsety narzędzi"/>
   <translation tag="Tool Switcher" pl="Przełącznik narzędzi"/>
   <translation tag="Tool change failed: {}" pl="Zmiana narzędzia nieudana: {}"/>
+  <translation tag="Tool change ignored: the filament system is busy" pl="Zmiana narzędzia zignorowana: system filamentu jest zajęty"/>
   <translation tag="Tool change speed" pl="Prędkość zmiany narzędzia"/>
   <translation tag="Tool change to T{}" pl="Zmiana narzędzia na T{}"/>
   <translation tag="Tool change to {} failed: {}" pl="Zmiana narzędzia na {} nieudana: {}"/>
@@ -5563,6 +5565,7 @@
   <translation tag="Tool offset calibration complete" pl="Kalibracja offsetów narzędzi zakończona"/>
   <translation tag="Tool offsets" pl="Offsety narzędzi"/>
   <translation tag="Tool offsets (mm)" pl="Offsety narzędzi (mm)"/>
+  <translation tag="Tool offsets cannot be calibrated during a print" pl="Offsetów narzędzi nie można kalibrować podczas wydruku"/>
   <translation tag="Tool offsets saved" pl="Zapisano offsety narzędzi"/>
   <translation tag="Tool swap" pl="Zamiana narzędzia"/>
   <translation tag="Tool, runout backup" pl="Narzędzie, zapas po końcu filamentu"/>
