@@ -1233,6 +1233,7 @@
   <translation tag="Copying from USB..." it="Copia da USB..."/>
   <translation tag="Corner roundness" it="Arrotondamento angoli"/>
   <translation tag="Corners differ by {} mm" it="Gli angoli differiscono di {} mm"/>
+  <translation tag="Correct and Reprint"/>
   <translation tag="Correct the value in the printer&apos;s configuration, then restart Klipper." it="Correggi il valore nella configurazione della stampante, poi riavvia Klipper."/>
   <translation tag="Correction (Ki)" it="Correzione (Ki)"/>
   <translation tag="Could not add the timelapse plugin to Moonraker." it="Impossibile aggiungere il plugin timelapse a Moonraker."/>
@@ -1538,6 +1539,7 @@
   <translation tag="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead." it="Ogni testina ha il proprio Z-offset su questa stampante. Usa invece la calibrazione dell&apos;offset utensile."/>
   <translation tag="Each tap sets a new value from this layer up." it="Ogni tocco imposta un nuovo valore da questo strato in su."/>
   <translation tag="Each tower tunes one value" it="Ogni torre regola un valore"/>
+  <translation tag="Each tower tunes one value. Judge it side-lit."/>
   <translation tag="Edit" it="Modifica"/>
   <translation tag="Edit Filament" it="Modifica filamento"/>
   <translation tag="Edit Slot" it="Modifica Slot"/>
@@ -2075,9 +2077,16 @@
   <translation tag="Front Left" it="Davanti sinistra"/>
   <translation tag="Front Right" it="Davanti destra"/>
   <translation tag="Front best height" it="Altezza migliore davanti"/>
+  <translation tag="Front transitions"/>
+  <translation tag="Front, lit from far left or right: the pause at the left and the slow spot at the right. Very subtle."/>
   <translation tag="Front, lit from far left or right: the slow middle, the pause, the slow spot. Very subtle." it="Davanti, illuminato da molto a sinistra o a destra: il centro lento, la pausa, il punto lento. Molto sottile."/>
   <translation tag="Front, lit from far left or right: where do the marked spots look cleanest?" it="Davanti, illuminato da molto a sinistra o a destra: dove i punti segnati risultano più puliti?"/>
+  <translation tag="Front, lit from far left or right: where do the pause and the slow spot look best?"/>
   <translation tag="Front, lit from the side" it="Davanti, illuminato di lato"/>
+  <translation tag="Front, side-lit: the speed transitions."/>
+  <translation tag="Front, side-lit: where do the speed transitions look best?"/>
+  <translation tag="Front, {:.0f}% kept"/>
+  <translation tag="Front: pause, slow spot"/>
   <translation tag="Front: the edges of the slow middle, the pause and the slow spot." it="Davanti: i bordi del centro lento, la pausa e il punto lento."/>
   <translation tag="Front: where do the marked spots look cleanest?" it="Davanti: dove i punti segnati risultano più puliti?"/>
   <translation tag="Full" it="Completo"/>
@@ -2100,6 +2109,7 @@
   <translation tag="Getting Started" it="Primi passi"/>
   <translation tag="Getting address…" it="Ottenimento indirizzo…"/>
   <translation tag="Getting ready..." it="Preparazione..."/>
+  <translation tag="Getting worse as it climbs? Stop Tower and judge it."/>
   <translation tag="Give each feature its own pin and check its spelling against the board&apos;s sample configuration, then restart Klipper." it="Assegna a ogni funzione il proprio pin e controllane l&apos;ortografia rispetto alla configurazione di esempio della scheda, poi riavvia Klipper."/>
   <translation tag="Glass Effects" it="Effetti vetro"/>
   <translation tag="Global" it="Globale"/>
@@ -2624,6 +2634,7 @@
   <translation tag="Layer Pause" it="Pausa al layer"/>
   <translation tag="Layer takes a frame at each layer change. Your slicer&apos;s layer change G-code must run:&#10;TIMELAPSE_TAKE_FRAME" it="Strato scatta un fotogramma a ogni cambio di strato. Il G-code di cambio strato dello slicer deve eseguire:&#10;TIMELAPSE_TAKE_FRAME"/>
   <translation tag="Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.&#10;Add it to your slicer&apos;s layer change G-code:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." it="Strato scatta un fotogramma a ogni cambio di strato, ma solo quando la stampa esegue la macro qui sotto; senza, il video resta quasi vuoto.&#10;Aggiungila al G-code di cambio strato dello slicer:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse scatta un fotogramma a intervalli regolari e non richiede configurazione dello slicer, ma ogni fotogramma riprende la testina ovunque si trovi."/>
+  <translation tag="Layer {} of {} · {:.1f} mm"/>
   <translation tag="Layer {} of {} · {:.2f} mm" it="Strato {} di {} · {:.2f} mm"/>
   <translation tag="Layer {} of {}." it="Strato {} di {}."/>
   <translation tag="Layer {}, Z {:.2f} mm" it="Strato {}, Z {:.2f} mm"/>
@@ -2644,10 +2655,16 @@
   <translation tag="Left side" it="Lato sinistro"/>
   <translation tag="Left side against the front" it="Lato sinistro contro davanti"/>
   <translation tag="Left side and front, each at its slow edges. Each comes out clean at its own height; they should match." it="Lato sinistro e davanti, ciascuno ai suoi bordi lenti. Ognuno risulta pulito alla propria altezza; dovrebbero coincidere."/>
+  <translation tag="Left side and front, side-lit: where each converges. The same height takes it; if not, this pass prints again."/>
+  <translation tag="Left side clean all the way up? It is best at 0."/>
+  <translation tag="Left side {:.1f} mm higher, so this pass prints again with&#10;{} {} to {}"/>
   <translation tag="Left side {:.1f} mm higher: the next tower lowers the advance 10%." it="Lato sinistro {:.1f} mm più in alto: la prossima torre riduce il Pressure Advance del 10%."/>
   <translation tag="Left side {:.1f} mm higher: the next tower raises the offset 10%." it="Lato sinistro {:.1f} mm più in alto: la prossima torre aumenta l&apos;offset del 10%."/>
+  <translation tag="Left side {:.1f} mm lower, so this pass prints again with&#10;{} {} to {}"/>
   <translation tag="Left side {:.1f} mm lower: the next tower lowers the offset 10%." it="Lato sinistro {:.1f} mm più in basso: la prossima torre riduce l&apos;offset del 10%."/>
   <translation tag="Left side {:.1f} mm lower: the next tower raises the advance 10%." it="Lato sinistro {:.1f} mm più in basso: la prossima torre aumenta il Pressure Advance del 10%."/>
+  <translation tag="Left side, side-lit: at what height do the slow middle&apos;s edges look best?"/>
+  <translation tag="Left side, side-lit: the two edges of the slow middle, 5 mm either side of center."/>
   <translation tag="Left side: at what height do the edges of the slow middle look cleanest?" it="Lato sinistro: a che altezza i bordi del centro lento risultano più puliti?"/>
   <translation tag="Left side: the two edges of the slow middle, 5 mm either side of center." it="Lato sinistro: i due bordi del centro lento, 5 mm per lato rispetto al centro."/>
   <translation tag="Left: slow middle" it="Sinistra: centro lento"/>
@@ -3146,6 +3163,7 @@
   <translation tag="No multi-filament system detected" it="Nessun sistema multi-filamento rilevato"/>
   <translation tag="No need to stay while it prints" it="Non serve restare durante la stampa"/>
   <translation tag="No need to stay; this screen waits for you when the tower is done." it="Non serve restare; questa schermata ti aspetta quando la torre è pronta."/>
+  <translation tag="No need to stay; this screen waits for you."/>
   <translation tag="No network. Scan QR code to report on your phone." it="Nessuna rete. Scansiona il QR code per segnalare dal telefono."/>
   <translation tag="No networks found" it="Nessuna rete trovata"/>
   <translation tag="No new mesh was stored as &apos;{}&apos;" it="Nessuna nuova mesh è stata salvata come &apos;{}&apos;"/>
@@ -3614,6 +3632,7 @@
   <translation tag="Pressure advance" it="Pressure Advance"/>
   <translation tag="Pressure advance by material" it="Pressure Advance per materiale"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." it="Il Pressure Advance sale man mano che la torre cresce. Osserva gli angoli: tocca - o + quando vuoi e la rampa si ferma così puoi valutare il tuo valore."/>
+  <translation tag="Pressure advance keeps corners sharp and lines even."/>
   <translation tag="Pressure advance tuning" it="Taratura Pressure Advance"/>
   <translation tag="Pressure advance {} is written to the {} section." it="Pressure advance {} viene scritto nella sezione {}."/>
   <translation tag="Pressure on the bed" it="Pressione sul piano"/>
@@ -4426,6 +4445,7 @@
   <translation tag="Set how bright the screen is and when it rests. You can change any of these later in Settings." it="Scegli la luminosità dello schermo e quando va a riposo. Puoi cambiare tutto più tardi in Impostazioni."/>
   <translation tag="Set local timezone for time display" it="Imposta fuso orario locale per l&apos;ora"/>
   <translation tag="Set logging verbosity for troubleshooting" it="Imposta il livello di dettaglio del log per la risoluzione dei problemi"/>
+  <translation tag="Set max_accel to your highest."/>
   <translation tag="Set temperature between {} and {}" it="Imposta una temperatura tra {} e {}"/>
   <translation tag="Set the X and Y belts with the motorized tensioners" it="Regola le cinghie X e Y con i tenditori motorizzati"/>
   <translation tag="Set the clock, theme and units. You can change any of these later in Settings." it="Imposta orologio, tema e unità. Puoi cambiarli in seguito nelle Impostazioni."/>
@@ -4491,6 +4511,7 @@
   <translation tag="Shutting down printer..." it="Spegnimento stampante..."/>
   <translation tag="Shutting down screen..." it="Spegnimento schermo..."/>
   <translation tag="Shutting down..." it="Spegnimento in corso..."/>
+  <translation tag="Side-lit: the height where the left side converges, then the front."/>
   <translation tag="Signal" it="Segnale"/>
   <translation tag="Signal #" it="Segnale #"/>
   <translation tag="Signal macro renaming" it="Rinomina delle macro di segnale"/>
@@ -4718,6 +4739,7 @@
   <translation tag="Stopped drying %s" it="Essiccazione interrotta: %s"/>
   <translation tag="Stopped. Restart Moonraker to start it again." it="Arrestato. Riavvia Moonraker per avviarlo di nuovo."/>
   <translation tag="Stopping after the current test line." it="Arresto dopo la linea di prova corrente."/>
+  <translation tag="Stopping once the printer finishes starting"/>
   <translation tag="Stopping restarted the printer, so nothing can be saved" it="L&apos;interruzione ha riavviato la stampante, quindi non si può salvare nulla"/>
   <translation tag="Stopping restarted the printer, which dropped the results of the steps that finished. Nothing can be saved." it="L&apos;arresto ha riavviato la stampante, perdendo i risultati dei passaggi completati. Non si può salvare nulla."/>
   <translation tag="Stops all motion. Requires firmware restart." it="Ferma tutto il movimento. Richiede riavvio firmware."/>
@@ -5213,6 +5235,7 @@
   <translation tag="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service" it="Il sensore di questa unità CFS non può essere letto. Controllare il collegamento, altrimenti l&apos;unità richiede assistenza"/>
   <translation tag="The shell could not start: {}" it="Impossibile avviare la shell: {}"/>
   <translation tag="The shell exited. Tap the terminal to start a new one." it="La shell è terminata. Tocca il terminale per avviarne una nuova."/>
+  <translation tag="The sides should converge at the same height. Apart means the {} is a little off."/>
   <translation tag="The slot asked to eject still has its filament loaded in the toolhead." it="Lo slot da espellere ha ancora il suo filamento caricato nella testina."/>
   <translation tag="The slot chosen for this tool change has no filament at its inlet." it="Lo slot scelto per questo cambio utensile non ha filamento all&apos;ingresso."/>
   <translation tag="The speed of one fan you choose" it="La velocità di una ventola a scelta"/>
@@ -5512,6 +5535,8 @@
   <translation tag="Touch screen to wake from sleep" it="Tocca lo schermo per riattivare"/>
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" it="Tocca il bersaglio (punto %1$d di 3) — tocco %2$d di %3$d"/>
   <translation tag="TouchCalibration" it="Calibrazione touch"/>
+  <translation tag="Towers print at max_accel, {:.0f} mm/s². Set it to the highest you print with."/>
+  <translation tag="Towers print at max_accel. Set it to the highest you print with."/>
   <translation tag="Trace" it="Traccia"/>
   <translation tag="Track this spool&apos;s weight there" it="Traccia lì il peso di questa bobina"/>
   <translation tag="Trailing" it="In ritardo"/>
@@ -5831,6 +5856,7 @@
   <translation tag="When this spool runs out, printing continues from {}." it="Quando questa bobina si esaurisce, la stampa continua da {}."/>
   <translation tag="When this spool runs out, the print pauses." it="Quando questa bobina si esaurisce, la stampa va in pausa."/>
   <translation tag="Where UI sounds play" it="Dove vengono riprodotti i suoni dell&apos;interfaccia"/>
+  <translation tag="Where sides converge"/>
   <translation tag="Where to look" it="Dove guardare"/>
   <translation tag="Whether filament is loaded" it="Se il filamento è caricato"/>
   <translation tag="Whether the Z arrows follow the bed or the Z value" it="Se le frecce Z seguono il piano o il valore Z"/>
@@ -6110,6 +6136,7 @@
   <translation tag="loud" it="rumoroso"/>
   <translation tag="matched" it="bilanciate"/>
   <translation tag="material differs" it="materiale diverso"/>
+  <translation tag="max_accel {:.0f} mm/s²: set it to your highest."/>
   <translation tag="measured {}" it="misurato {}"/>
   <translation tag="medium" it="medio"/>
   <translation tag="method: {}" it="metodo: {}"/>
@@ -6372,6 +6399,7 @@
   <translation tag="{} widgets" it="{} widget"/>
   <translation tag="{} width sensor" it="Sensore di larghezza {}"/>
   <translation tag="{} will switch to a slot whose filament type AND color both match the active spool and whose own port sensor reads filament present." it="{} passerà a uno slot il cui tipo di filamento E colore corrispondono entrambi alla bobina attiva e il cui sensore di porta rileva filamento presente."/>
+  <translation tag="{} {:.0f}% of that value is kept."/>
   <translation tag="{} · pick what to run, then it runs on its own" it="{} · scegli cosa eseguire, poi procede da solo"/>
   <translation tag="{} · {}" it="{} · {}"/>
   <translation tag="{} · {} firmware" it="{} · firmware {}"/>

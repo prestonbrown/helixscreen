@@ -1344,6 +1344,7 @@ translations:
   Copying from USB...: 'Копирование с USB...'
   Corner roundness: Скругление углов
   Corners differ by {} mm: "Разница углов {} мм"
+  Correct and Reprint: ''
   Correct the value in the printer's configuration, then restart Klipper.: Исправьте значение в конфигурации принтера, затем перезапустите Klipper.
   Correction (Ki): Коррекция (Ki)
   Could not add the timelapse plugin to Moonraker.: 'Не удалось добавить плагин таймлапса в Moonraker.'
@@ -1693,6 +1694,7 @@ translations:
   Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: 'У каждой печатающей головки на этом принтере своё Z-смещение. Используйте калибровку смещений инструментов.'
   Each tap sets a new value from this layer up.: "Каждое касание задаёт новое значение начиная с этого слоя."
   Each tower tunes one value: "Каждая башня настраивает одно значение"
+  Each tower tunes one value. Judge it side-lit.: ''
   Edit: Редактировать
   Edit Filament: Редактировать филамент
   Edit Slot: Редактировать слот
@@ -2241,9 +2243,16 @@ translations:
   Front Left: 'Спереди слева'
   Front Right: 'Спереди справа'
   Front best height: "Лучшая высота спереди"
+  Front transitions: ''
+  'Front, lit from far left or right: the pause at the left and the slow spot at the right. Very subtle.': ''
   'Front, lit from far left or right: the slow middle, the pause, the slow spot. Very subtle.': "Спереди, свет сильно слева или справа: медленная середина, пауза, медленное место. Едва заметно."
   'Front, lit from far left or right: where do the marked spots look cleanest?': "Спереди, свет сильно слева или справа: где отмеченные места выглядят чище всего?"
+  'Front, lit from far left or right: where do the pause and the slow spot look best?': ''
   Front, lit from the side: "Спереди, свет сбоку"
+  'Front, side-lit: the speed transitions.': ''
+  'Front, side-lit: where do the speed transitions look best?': ''
+  Front, {:.0f}% kept: ''
+  'Front: pause, slow spot': ''
   'Front: the edges of the slow middle, the pause and the slow spot.': "Спереди: края медленной середины, пауза и медленное место."
   'Front: where do the marked spots look cleanest?': "Спереди: где отмеченные места выглядят чище всего?"
   Full: Полный
@@ -2266,6 +2275,7 @@ translations:
   Get help and share feedback: Получить помощь и поделиться отзывом
   Getting address…: Получение адреса…
   Getting ready...: 'Подготовка...'
+  Getting worse as it climbs? Stop Tower and judge it.: ''
   Give each feature its own pin and check its spelling against the board's sample configuration, then restart Klipper.: Назначьте каждой функции свой пин и сверьте написание с примером конфигурации платы, затем перезапустите Klipper.
   Glass Effects: Эффекты стекла
   Global: Общий
@@ -2819,6 +2829,7 @@ translations:
 
 
     Гиперлапс снимает кадр по таймеру и не требует настройки слайсера, но в каждом кадре голова там, где окажется.'
+  Layer {} of {} · {:.1f} mm: ''
   Layer {} of {} · {:.2f} mm: Слой {} из {} · {:.2f} мм
   Layer {} of {}.: 'Слой {} из {}.'
   Layer {}, Z {:.2f} mm: Слой {}, Z {:.2f} мм
@@ -2838,10 +2849,18 @@ translations:
   Left side: "Левая сторона"
   Left side against the front: "Левая сторона и передняя"
   Left side and front, each at its slow edges. Each comes out clean at its own height; they should match.: "Левая сторона и передняя, каждая на своих медленных краях. Каждая получается чистой на своей высоте; они должны совпадать."
+  'Left side and front, side-lit: where each converges. The same height takes it; if not, this pass prints again.': ''
+  Left side clean all the way up? It is best at 0.: ''
+  ? "Left side {:.1f} mm higher, so this pass prints again with\n{} {} to {}"
+  : ''
   'Left side {:.1f} mm higher: the next tower lowers the advance 10%.': "Левая сторона на {:.1f} mm выше: следующая башня снижает Pressure Advance на 10%."
   'Left side {:.1f} mm higher: the next tower raises the offset 10%.': "Левая сторона на {:.1f} mm выше: следующая башня повышает смещение на 10%."
+  ? "Left side {:.1f} mm lower, so this pass prints again with\n{} {} to {}"
+  : ''
   'Left side {:.1f} mm lower: the next tower lowers the offset 10%.': "Левая сторона на {:.1f} mm ниже: следующая башня снижает смещение на 10%."
   'Left side {:.1f} mm lower: the next tower raises the advance 10%.': "Левая сторона на {:.1f} mm ниже: следующая башня повышает Pressure Advance на 10%."
+  "Left side, side-lit: at what height do the slow middle's edges look best?": ''
+  'Left side, side-lit: the two edges of the slow middle, 5 mm either side of center.': ''
   'Left side: at what height do the edges of the slow middle look cleanest?': "Левая сторона: на какой высоте края медленной середины выглядят чище всего?"
   'Left side: the two edges of the slow middle, 5 mm either side of center.': "Левая сторона: два края медленной середины, по 5 mm в обе стороны от центра."
   "Left: the slow middle's edges": "Слева: края медленной середины"
@@ -3333,6 +3352,7 @@ translations:
   No multi-filament system detected: Мультифиламентная система не обнаружена
   No need to stay while it prints: "Во время печати можно не оставаться"
   No need to stay; this screen waits for you when the tower is done.: "Оставаться не нужно; этот экран дождётся вас, когда башня будет готова."
+  No need to stay; this screen waits for you.: ''
   No network. Scan QR code to report on your phone.: Нет сети. Отсканируйте QR-код, чтобы отправить отчёт с телефона.
   No networks found: Сети не найдены
   No new mesh was stored as '{}': "Новая сетка не сохранена как '{}'"
@@ -3825,6 +3845,7 @@ translations:
   Pressure advance by material: 'Pressure Advance по материалу'
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'Pressure Advance растёт вместе с башней. Следите за углами: нажмите - или + в любой момент, и рампа остановится, чтобы вы оценили своё значение.'
+  Pressure advance keeps corners sharp and lines even.: ''
   Pressure advance tuning: 'Настройка Pressure Advance'
   Pressure advance {} is written to the {} section.: "Pressure advance {} записывается в раздел {}."
   Pressure on the bed: Давление на стол
@@ -4655,6 +4676,7 @@ translations:
   Set how bright the screen is and when it rests. You can change any of these later in Settings.: 'Настройте яркость экрана и когда он отдыхает. Всё это можно изменить позже в Настройках.'
   Set local timezone for time display: Установить часовой пояс для отображения времени
   Set logging verbosity for troubleshooting: Установить уровень детализации журнала для устранения неполадок
+  Set max_accel to your highest.: ''
   Set temperature between {} and {}: Установите температуру от {} до {}
   Set the X and Y belts with the motorized tensioners: "Натянуть ремни X и Y моторизованными натяжителями"
   Set the clock, theme and units. You can change any of these later in Settings.: "Настройте часы, тему и единицы. Всё это можно изменить позже в Настройках."
@@ -4721,6 +4743,7 @@ translations:
   Shutting down printer...: Выключение принтера...
   Shutting down screen...: Выключение экрана...
   Shutting down...: Выключение...
+  'Side-lit: the height where the left side converges, then the front.': ''
   Signal: Сигнал
   'Signal #': Сигнал №
   Signal macro renaming: 'Переименование сигнальных макросов'
@@ -4963,6 +4986,7 @@ translations:
   Stopped between Spool and Lane: Остановка между катушкой и каналом
   Stopped drying %s: 'Сушка остановлена: %s'
   Stopping after the current test line.: 'Остановка после текущей тестовой линии.'
+  Stopping once the printer finishes starting: ''
   Stopping restarted the printer, so nothing can be saved: Остановка перезапустила принтер, поэтому сохранить ничего нельзя
   Stopping restarted the printer, which dropped the results of the steps that finished. Nothing can be saved.: 'Остановка перезапустила принтер, и результаты завершённых шагов потеряны. Сохранить нечего.'
   Stops all motion. Requires firmware restart.: Останавливает всё движение. Требуется перезапуск прошивки.
@@ -5488,6 +5512,7 @@ translations:
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: Не удаётся считать датчик этого блока CFS. Проверьте подключение, иначе блоку требуется обслуживание
   'The shell could not start: {}': 'Не удалось запустить оболочку: {}'
   The shell exited. Tap the terminal to start a new one.: 'Оболочка завершилась. Коснитесь терминала, чтобы запустить новую.'
+  The sides should converge at the same height. Apart means the {} is a little off.: ''
   The slot asked to eject still has its filament loaded in the toolhead.: В слоте, который нужно извлечь, филамент всё ещё загружен в печатающую головку.
   The slot chosen for this tool change has no filament at its inlet.: У слота, выбранного для этой смены инструмента, нет филамента на входе.
   The speed of one fan you choose: Скорость выбранного вентилятора
@@ -5834,6 +5859,8 @@ translations:
   Touch screen to wake from sleep: Коснитесь экрана для выхода из сна
   Touch the target (point %1$d of 3) — touch %2$d of %3$d: Коснитесь цели (точка %1$d из 3) — касание %2$d из %3$d
   TouchCalibration: Калибровка касания
+  Towers print at max_accel, {:.0f} mm/s². Set it to the highest you print with.: ''
+  Towers print at max_accel. Set it to the highest you print with.: ''
   Trace: Трассировка
   Trigger: Триггер
   Track this spool's weight there: 'Отслеживать там вес этой катушки'
@@ -6144,6 +6171,7 @@ translations:
   When this spool runs out, printing continues from {}.: 'Когда эта катушка закончится, печать продолжится с {}.'
   When this spool runs out, the print pauses.: 'Когда эта катушка закончится, печать приостановится.'
   Where UI sounds play: Где воспроизводятся звуки интерфейса
+  Where sides converge: ''
   Where to look: "Куда смотреть"
   Whether filament is loaded: Загружен ли филамент
   Which macro switches the ACE path back on: 'Какой макрос снова включает тракт ACE'
@@ -6423,6 +6451,7 @@ translations:
   loud: 'громко'
   matched: совпадают
   material differs: 'другой материал'
+  'max_accel {:.0f} mm/s²: set it to your highest.': ''
   measured {}: измерено {}
   medium: "средне"
   'method: {}': 'метод: {}'
@@ -6719,6 +6748,7 @@ translations:
   '{} width sensor': 'Датчик диаметра {}'
   ? '{} will switch to a slot whose filament type AND color both match the active spool and whose own port sensor reads filament present.'
   : '{} переключится на слот, у которого тип филамента И цвет совпадают с активной катушкой, а собственный датчик порта видит филамент.'
+  '{} {:.0f}% of that value is kept.': ''
   '{} · pick what to run, then it runs on its own': '{} · выберите, что запустить, дальше всё идёт само'
   '{} · {}': '{} · {}'
   '{} · {} firmware': '{} · прошивка {}'

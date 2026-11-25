@@ -1233,6 +1233,7 @@
   <translation tag="Copying from USB..." en="Copying from USB..."/>
   <translation tag="Corner roundness" en="Corner roundness"/>
   <translation tag="Corners differ by {} mm" en="Corners differ by {} mm"/>
+  <translation tag="Correct and Reprint" en="Correct and Reprint"/>
   <translation tag="Correct the value in the printer&apos;s configuration, then restart Klipper." en="Correct the value in the printer&apos;s configuration, then restart Klipper."/>
   <translation tag="Correction (Ki)" en="Correction (Ki)"/>
   <translation tag="Could not add the timelapse plugin to Moonraker." en="Could not add the timelapse plugin to Moonraker."/>
@@ -1538,6 +1539,7 @@
   <translation tag="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead." en="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead."/>
   <translation tag="Each tap sets a new value from this layer up." en="Each tap sets a new value from this layer up."/>
   <translation tag="Each tower tunes one value" en="Each tower tunes one value"/>
+  <translation tag="Each tower tunes one value. Judge it side-lit." en="Each tower tunes one value. Judge it side-lit."/>
   <translation tag="Edit" en="Edit"/>
   <translation tag="Edit Filament" en="Edit Filament"/>
   <translation tag="Edit Slot" en="Edit Slot"/>
@@ -2075,9 +2077,16 @@
   <translation tag="Front Left" en="Front Left"/>
   <translation tag="Front Right" en="Front Right"/>
   <translation tag="Front best height" en="Front best height"/>
+  <translation tag="Front transitions" en="Front transitions"/>
+  <translation tag="Front, lit from far left or right: the pause at the left and the slow spot at the right. Very subtle." en="Front, lit from far left or right: the pause at the left and the slow spot at the right. Very subtle."/>
   <translation tag="Front, lit from far left or right: the slow middle, the pause, the slow spot. Very subtle." en="Front, lit from far left or right: the slow middle, the pause, the slow spot. Very subtle."/>
   <translation tag="Front, lit from far left or right: where do the marked spots look cleanest?" en="Front, lit from far left or right: where do the marked spots look cleanest?"/>
+  <translation tag="Front, lit from far left or right: where do the pause and the slow spot look best?" en="Front, lit from far left or right: where do the pause and the slow spot look best?"/>
   <translation tag="Front, lit from the side" en="Front, lit from the side"/>
+  <translation tag="Front, side-lit: the speed transitions." en="Front, side-lit: the speed transitions."/>
+  <translation tag="Front, side-lit: where do the speed transitions look best?" en="Front, side-lit: where do the speed transitions look best?"/>
+  <translation tag="Front, {:.0f}% kept" en="Front, {:.0f}% kept"/>
+  <translation tag="Front: pause, slow spot" en="Front: pause, slow spot"/>
   <translation tag="Front: the edges of the slow middle, the pause and the slow spot." en="Front: the edges of the slow middle, the pause and the slow spot."/>
   <translation tag="Front: where do the marked spots look cleanest?" en="Front: where do the marked spots look cleanest?"/>
   <translation tag="Full" en="Full"/>
@@ -2100,6 +2109,7 @@
   <translation tag="Getting Started" en="Getting Started"/>
   <translation tag="Getting address…" en="Getting address…"/>
   <translation tag="Getting ready..." en="Getting ready..."/>
+  <translation tag="Getting worse as it climbs? Stop Tower and judge it." en="Getting worse as it climbs? Stop Tower and judge it."/>
   <translation tag="Give each feature its own pin and check its spelling against the board&apos;s sample configuration, then restart Klipper." en="Give each feature its own pin and check its spelling against the board&apos;s sample configuration, then restart Klipper."/>
   <translation tag="Glass Effects" en="Glass Effects"/>
   <translation tag="Global" en="Global"/>
@@ -2624,6 +2634,7 @@
   <translation tag="Layer Pause" en="Layer Pause"/>
   <translation tag="Layer takes a frame at each layer change. Your slicer&apos;s layer change G-code must run:&#10;TIMELAPSE_TAKE_FRAME" en="Layer takes a frame at each layer change. Your slicer&apos;s layer change G-code must run:&#10;TIMELAPSE_TAKE_FRAME"/>
   <translation tag="Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.&#10;Add it to your slicer&apos;s layer change G-code:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." en="Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.&#10;Add it to your slicer&apos;s layer change G-code:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."/>
+  <translation tag="Layer {} of {} · {:.1f} mm" en="Layer {} of {} · {:.1f} mm"/>
   <translation tag="Layer {} of {} · {:.2f} mm" en="Layer {} of {} · {:.2f} mm"/>
   <translation tag="Layer {} of {}." en="Layer {} of {}."/>
   <translation tag="Layer {}, Z {:.2f} mm" en="Layer {}, Z {:.2f} mm"/>
@@ -2644,10 +2655,16 @@
   <translation tag="Left side" en="Left side"/>
   <translation tag="Left side against the front" en="Left side against the front"/>
   <translation tag="Left side and front, each at its slow edges. Each comes out clean at its own height; they should match." en="Left side and front, each at its slow edges. Each comes out clean at its own height; they should match."/>
+  <translation tag="Left side and front, side-lit: where each converges. The same height takes it; if not, this pass prints again." en="Left side and front, side-lit: where each converges. The same height takes it; if not, this pass prints again."/>
+  <translation tag="Left side clean all the way up? It is best at 0." en="Left side clean all the way up? It is best at 0."/>
+  <translation tag="Left side {:.1f} mm higher, so this pass prints again with&#10;{} {} to {}" en="Left side {:.1f} mm higher, so this pass prints again with&#10;{} {} to {}"/>
   <translation tag="Left side {:.1f} mm higher: the next tower lowers the advance 10%." en="Left side {:.1f} mm higher: the next tower lowers the advance 10%."/>
   <translation tag="Left side {:.1f} mm higher: the next tower raises the offset 10%." en="Left side {:.1f} mm higher: the next tower raises the offset 10%."/>
+  <translation tag="Left side {:.1f} mm lower, so this pass prints again with&#10;{} {} to {}" en="Left side {:.1f} mm lower, so this pass prints again with&#10;{} {} to {}"/>
   <translation tag="Left side {:.1f} mm lower: the next tower lowers the offset 10%." en="Left side {:.1f} mm lower: the next tower lowers the offset 10%."/>
   <translation tag="Left side {:.1f} mm lower: the next tower raises the advance 10%." en="Left side {:.1f} mm lower: the next tower raises the advance 10%."/>
+  <translation tag="Left side, side-lit: at what height do the slow middle&apos;s edges look best?" en="Left side, side-lit: at what height do the slow middle&apos;s edges look best?"/>
+  <translation tag="Left side, side-lit: the two edges of the slow middle, 5 mm either side of center." en="Left side, side-lit: the two edges of the slow middle, 5 mm either side of center."/>
   <translation tag="Left side: at what height do the edges of the slow middle look cleanest?" en="Left side: at what height do the edges of the slow middle look cleanest?"/>
   <translation tag="Left side: the two edges of the slow middle, 5 mm either side of center." en="Left side: the two edges of the slow middle, 5 mm either side of center."/>
   <translation tag="Left: slow middle" en="Left: slow middle"/>
@@ -3146,6 +3163,7 @@
   <translation tag="No multi-filament system detected" en="No multi-filament system detected"/>
   <translation tag="No need to stay while it prints" en="No need to stay while it prints"/>
   <translation tag="No need to stay; this screen waits for you when the tower is done." en="No need to stay; this screen waits for you when the tower is done."/>
+  <translation tag="No need to stay; this screen waits for you." en="No need to stay; this screen waits for you."/>
   <translation tag="No network. Scan QR code to report on your phone." en="No network. Scan QR code to report on your phone."/>
   <translation tag="No networks found" en="No networks found"/>
   <translation tag="No new mesh was stored as &apos;{}&apos;" en="No new mesh was stored as &apos;{}&apos;"/>
@@ -3614,6 +3632,7 @@
   <translation tag="Pressure advance" en="Pressure advance"/>
   <translation tag="Pressure advance by material" en="Pressure advance by material"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." en="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value."/>
+  <translation tag="Pressure advance keeps corners sharp and lines even." en="Pressure advance keeps corners sharp and lines even."/>
   <translation tag="Pressure advance tuning" en="Pressure advance tuning"/>
   <translation tag="Pressure advance {} is written to the {} section." en="Pressure advance {} is written to the {} section."/>
   <translation tag="Pressure on the bed" en="Pressure on the bed"/>
@@ -4426,6 +4445,7 @@
   <translation tag="Set how bright the screen is and when it rests. You can change any of these later in Settings." en="Set how bright the screen is and when it rests. You can change any of these later in Settings."/>
   <translation tag="Set local timezone for time display" en="Set local timezone for time display"/>
   <translation tag="Set logging verbosity for troubleshooting" en="Set logging verbosity for troubleshooting"/>
+  <translation tag="Set max_accel to your highest." en="Set max_accel to your highest."/>
   <translation tag="Set temperature between {} and {}" en="Set temperature between {} and {}"/>
   <translation tag="Set the X and Y belts with the motorized tensioners" en="Set the X and Y belts with the motorized tensioners"/>
   <translation tag="Set the clock, theme and units. You can change any of these later in Settings." en="Set the clock, theme and units. You can change any of these later in Settings."/>
@@ -4491,6 +4511,7 @@
   <translation tag="Shutting down printer..." en="Shutting down printer..."/>
   <translation tag="Shutting down screen..." en="Shutting down screen..."/>
   <translation tag="Shutting down..." en="Shutting down..."/>
+  <translation tag="Side-lit: the height where the left side converges, then the front." en="Side-lit: the height where the left side converges, then the front."/>
   <translation tag="Signal" en="Signal"/>
   <translation tag="Signal #" en="Signal #"/>
   <translation tag="Signal macro renaming" en="Signal macro renaming"/>
@@ -4718,6 +4739,7 @@
   <translation tag="Stopped drying %s" en="Stopped drying %s"/>
   <translation tag="Stopped. Restart Moonraker to start it again." en="Stopped. Restart Moonraker to start it again."/>
   <translation tag="Stopping after the current test line." en="Stopping after the current test line."/>
+  <translation tag="Stopping once the printer finishes starting" en="Stopping once the printer finishes starting"/>
   <translation tag="Stopping restarted the printer, so nothing can be saved" en="Stopping restarted the printer, so nothing can be saved"/>
   <translation tag="Stopping restarted the printer, which dropped the results of the steps that finished. Nothing can be saved." en="Stopping restarted the printer, which dropped the results of the steps that finished. Nothing can be saved."/>
   <translation tag="Stops all motion. Requires firmware restart." en="Stops all motion. Requires firmware restart."/>
@@ -5213,6 +5235,7 @@
   <translation tag="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service" en="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service"/>
   <translation tag="The shell could not start: {}" en="The shell could not start: {}"/>
   <translation tag="The shell exited. Tap the terminal to start a new one." en="The shell exited. Tap the terminal to start a new one."/>
+  <translation tag="The sides should converge at the same height. Apart means the {} is a little off." en="The sides should converge at the same height. Apart means the {} is a little off."/>
   <translation tag="The slot asked to eject still has its filament loaded in the toolhead." en="The slot asked to eject still has its filament loaded in the toolhead."/>
   <translation tag="The slot chosen for this tool change has no filament at its inlet." en="The slot chosen for this tool change has no filament at its inlet."/>
   <translation tag="The speed of one fan you choose" en="The speed of one fan you choose"/>
@@ -5512,6 +5535,8 @@
   <translation tag="Touch screen to wake from sleep" en="Touch screen to wake from sleep"/>
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" en="Touch the target (point %1$d of 3) — touch %2$d of %3$d"/>
   <translation tag="TouchCalibration" en="TouchCalibration"/>
+  <translation tag="Towers print at max_accel, {:.0f} mm/s². Set it to the highest you print with." en="Towers print at max_accel, {:.0f} mm/s². Set it to the highest you print with."/>
+  <translation tag="Towers print at max_accel. Set it to the highest you print with." en="Towers print at max_accel. Set it to the highest you print with."/>
   <translation tag="Trace" en="Trace"/>
   <translation tag="Track this spool&apos;s weight there" en="Track this spool&apos;s weight there"/>
   <translation tag="Trailing" en="Trailing"/>
@@ -5831,6 +5856,7 @@
   <translation tag="When this spool runs out, printing continues from {}." en="When this spool runs out, printing continues from {}."/>
   <translation tag="When this spool runs out, the print pauses." en="When this spool runs out, the print pauses."/>
   <translation tag="Where UI sounds play" en="Where UI sounds play"/>
+  <translation tag="Where sides converge" en="Where sides converge"/>
   <translation tag="Where to look" en="Where to look"/>
   <translation tag="Whether filament is loaded" en="Whether filament is loaded"/>
   <translation tag="Whether the Z arrows follow the bed or the Z value" en="Whether the Z arrows follow the bed or the Z value"/>
@@ -6110,6 +6136,7 @@
   <translation tag="loud" en="loud"/>
   <translation tag="matched" en="matched"/>
   <translation tag="material differs" en="material differs"/>
+  <translation tag="max_accel {:.0f} mm/s²: set it to your highest." en="max_accel {:.0f} mm/s²: set it to your highest."/>
   <translation tag="measured {}" en="measured {}"/>
   <translation tag="medium" en="medium"/>
   <translation tag="method: {}" en="method: {}"/>
@@ -6372,6 +6399,7 @@
   <translation tag="{} widgets" en="{} widgets"/>
   <translation tag="{} width sensor" en="{} width sensor"/>
   <translation tag="{} will switch to a slot whose filament type AND color both match the active spool and whose own port sensor reads filament present." en="{} will switch to a slot whose filament type AND color both match the active spool and whose own port sensor reads filament present."/>
+  <translation tag="{} {:.0f}% of that value is kept." en="{} {:.0f}% of that value is kept."/>
   <translation tag="{} · pick what to run, then it runs on its own" en="{} · pick what to run, then it runs on its own"/>
   <translation tag="{} · {}" en="{} · {}"/>
   <translation tag="{} · {} firmware" en="{} · {} firmware"/>
