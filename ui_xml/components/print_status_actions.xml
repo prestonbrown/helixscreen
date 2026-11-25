@@ -11,6 +11,8 @@
     <prop name="flow" type="string" default="row"/>
     <prop name="btn_w" type="string" default="content"/>
     <prop name="btn_h" type="string" default="100%"/>
+    <!-- Condition under which the buttons drop their labels (empty: never). -->
+    <prop name="label_hidden_cond" type="string" default=""/>
   </api>
   <styles>
     <style name="button_square" max_width="#ps_strip_button"/>
@@ -20,15 +22,15 @@
         style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
     <ui_button name="btn_pause"
                width="$btn_w" height="$btn_h" flex_grow="1" style_pad_hor="#space_xxs" style_pad_ver="#space_xxs"
-               icon="pause" bind_icon="print_control_primary_icon" text="Pause" bind_text="print_control_primary_label"
-               icon_position="top">
+               label_hidden_cond="$label_hidden_cond" icon="pause" bind_icon="print_control_primary_icon" text="Pause"
+               bind_text="print_control_primary_label" icon_position="top">
       <bind_style_if name="button_square" cond="ps_strip_stacked eq 0 and ui_is_ultrawide eq 0"/>
       <event_cb trigger="clicked" callback="on_print_control_primary"/>
       <bind_state_if_eq subject="print_control_primary_enabled" state="disabled" ref_value="0"/>
     </ui_button>
     <ui_button name="btn_tune"
                width="$btn_w" height="$btn_h" flex_grow="1" style_pad_hor="#space_xxs" style_pad_ver="#space_xxs"
-               icon="tune" text="Tune" icon_position="top">
+               label_hidden_cond="$label_hidden_cond" icon="tune" text="Tune" icon_position="top">
       <bind_style_if name="button_square" cond="ps_strip_stacked eq 0 and ui_is_ultrawide eq 0"/>
       <!-- Hidden where the layout found room for the Tune section inline: the
            ultrawide Tune column (ps_uw_tune_w) or the stacked section
@@ -42,8 +44,8 @@
          below. -->
     <ui_button name="btn_more"
                width="$btn_w" height="$btn_h" flex_grow="1" style_pad_hor="#space_xxs" style_pad_ver="#space_xxs"
-               variant="ghost" style_bg_color="#elevated_bg" style_bg_opa="255" icon="dots_vertical" text="More"
-               icon_position="top">
+               label_hidden_cond="$label_hidden_cond" variant="ghost" style_bg_color="#elevated_bg" style_bg_opa="255"
+               icon="dots_vertical" text="More" icon_position="top">
       <bind_style_if name="button_square" cond="ps_strip_stacked eq 0 and ui_is_ultrawide eq 0"/>
       <bind_flag_if cond="(print_status_camera_available ne 0) + (timelapse_owner eq 1) + (led_controllable ne 0) lt 2"
                     flag="hidden"/>
@@ -51,8 +53,8 @@
     </ui_button>
     <ui_button name="btn_camera"
                width="$btn_w" height="$btn_h" flex_grow="1" style_pad_hor="#space_xxs" style_pad_ver="#space_xxs"
-               variant="ghost" style_bg_color="#elevated_bg" style_bg_opa="255" icon="webcam" text="Camera"
-               icon_position="top">
+               label_hidden_cond="$label_hidden_cond" variant="ghost" style_bg_color="#elevated_bg" style_bg_opa="255"
+               icon="webcam" text="Camera" icon_position="top">
       <bind_style_if name="button_square" cond="ps_strip_stacked eq 0 and ui_is_ultrawide eq 0"/>
       <bind_flag_if cond="print_status_camera_available ne 0 and timelapse_owner ne 1 and led_controllable eq 0"
                     flag="hidden" invert="true"/>
@@ -60,8 +62,8 @@
     </ui_button>
     <ui_button name="btn_timelapse"
                width="$btn_w" height="$btn_h" flex_grow="1" style_pad_hor="#space_xxs" style_pad_ver="#space_xxs"
-               variant="ghost" style_bg_color="#elevated_bg" style_bg_opa="255" bind_icon="timelapse_button_icon"
-               text="Timelapse" icon_position="top">
+               label_hidden_cond="$label_hidden_cond" variant="ghost" style_bg_color="#elevated_bg" style_bg_opa="255"
+               bind_icon="timelapse_button_icon" text="Timelapse" icon_position="top">
       <bind_style_if name="button_square" cond="ps_strip_stacked eq 0 and ui_is_ultrawide eq 0"/>
       <bind_flag_if cond="timelapse_owner eq 1 and print_status_camera_available eq 0 and led_controllable eq 0"
                     flag="hidden" invert="true"/>
@@ -69,8 +71,8 @@
     </ui_button>
     <ui_button name="btn_light"
                width="$btn_w" height="$btn_h" flex_grow="1" style_pad_hor="#space_xxs" style_pad_ver="#space_xxs"
-               variant="ghost" style_bg_color="#elevated_bg" style_bg_opa="255" bind_icon="light_button_icon"
-               text="Light" icon_position="top">
+               label_hidden_cond="$label_hidden_cond" variant="ghost" style_bg_color="#elevated_bg" style_bg_opa="255"
+               bind_icon="light_button_icon" text="Light" icon_position="top">
       <bind_style_if name="button_square" cond="ps_strip_stacked eq 0 and ui_is_ultrawide eq 0"/>
       <bind_flag_if cond="led_controllable ne 0 and print_status_camera_available eq 0 and timelapse_owner ne 1"
                     flag="hidden" invert="true"/>
@@ -80,7 +82,7 @@
     <!-- Cancel while a print runs (outcome NONE), Reprint once it has an outcome. -->
     <ui_button name="btn_cancel"
                width="$btn_w" height="$btn_h" flex_grow="1" style_pad_hor="#space_xxs" style_pad_ver="#space_xxs"
-               variant="danger" icon="stop" text="Cancel" icon_position="top">
+               label_hidden_cond="$label_hidden_cond" variant="danger" icon="stop" text="Cancel" icon_position="top">
       <bind_style_if name="button_square" cond="ps_strip_stacked eq 0 and ui_is_ultrawide eq 0"/>
       <bind_flag_if_not_eq subject="print_outcome" flag="hidden" ref_value="0"/>
       <bind_state_if_eq subject="print_control_stop_enabled" state="disabled" ref_value="0"/>
@@ -88,7 +90,7 @@
     </ui_button>
     <ui_button name="btn_reprint"
                width="$btn_w" height="$btn_h" flex_grow="1" style_pad_hor="#space_xxs" style_pad_ver="#space_xxs"
-               icon="refresh" text="Reprint" icon_position="top" hidden="true">
+               label_hidden_cond="$label_hidden_cond" icon="refresh" text="Reprint" icon_position="top" hidden="true">
       <bind_style_if name="button_square" cond="ps_strip_stacked eq 0 and ui_is_ultrawide eq 0"/>
       <bind_flag_if_eq subject="print_outcome" flag="hidden" ref_value="0"/>
       <event_cb trigger="clicked" callback="on_print_status_reprint"/>

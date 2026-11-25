@@ -575,10 +575,6 @@ PrintStatusPanel::~PrintStatusPanel() {
 // PANELBASE IMPLEMENTATION
 // ============================================================================
 
-lv_obj_t* PrintStatusPanel::cancel_button() const {
-    return overlay_root_ ? lv_obj_find_by_name(overlay_root_, "btn_cancel") : nullptr;
-}
-
 void PrintStatusPanel::init_subjects() {
     if (subjects_initialized_) {
         spdlog::warn("[{}] init_subjects() called twice - ignoring", get_name());
@@ -1154,6 +1150,10 @@ lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
     }
     resize_registered_ = true;
 
+    // Store button references for potential state queries (not event wiring - that's in XML)
+    btn_tune_ = helix::ui::find_required(overlay_content, "btn_tune", get_name());
+    btn_cancel_ = helix::ui::find_required(overlay_content, "btn_cancel", get_name());
+
     // Print complete celebration badge (for animation)
     success_badge_ = helix::ui::find_required(overlay_content, "success_badge", get_name());
     if (success_badge_) {
@@ -1498,6 +1498,8 @@ void PrintStatusPanel::forget_cached_widgets() {
     print_thumbnail_ = nullptr;
     gradient_background_ = nullptr;
     preview_camera_image_ = nullptr;
+    btn_tune_ = nullptr;
+    btn_cancel_ = nullptr;
     success_badge_ = nullptr;
     cancel_badge_ = nullptr;
     error_badge_ = nullptr;
@@ -1936,7 +1938,7 @@ void PrintStatusPanel::handle_reprint_button() {
     }
 
     // Disable button immediately to prevent double-press
-    ui_set_button_enabled(cancel_button(), false);
+    ui_set_button_enabled(btn_cancel_, false);
 
     reprint_through(print_start_controller_for(printer_state_, api_), target);
 }
@@ -1960,7 +1962,7 @@ void PrintStatusPanel::reprint_through(helix::ui::PrintStartController& controll
             // can be popped mid-flight). The controller already emits the error toast.
             [this, tok]() mutable {
                 tok.defer("PrintStatusPanel::reprint_reenable",
-                          [this]() { ui_set_button_enabled(cancel_button(), true); });
+                          [this]() { ui_set_button_enabled(btn_cancel_, true); });
             },
             target.archive_plate);
     }
