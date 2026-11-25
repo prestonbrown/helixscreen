@@ -30,6 +30,7 @@
 #include "printer_discovery.h"
 #include "printer_plugin_status_state.h"
 #include "printer_state.h"
+#include "tool_state.h"
 
 #include <algorithm>
 #include <fstream>
@@ -331,6 +332,39 @@ TEST_CASE_METHOD(LVGLTestFixture, "the screen's limits take the nozzles the extr
           "Sliced for a standard nozzle on T1; the printer has High Flow.");
 
     temperatures.init_extruders({});
+    state.set_hardware(PrinterDiscovery{});
+}
+
+TEST_CASE_METHOD(
+    LVGLTestFixture,
+    "where tool numbers name lanes the screen's limits route each file tool to its head",
+    "[plugin_fitcheck][2044]") {
+    PrinterState& state = get_printer_state();
+    state.init_subjects(false);
+    PrinterDiscovery hw;
+    hw.parse_fit_limits(json{{"extruder", {{"max_temp", 300.0}, {"nozzle_diameter", 0.4}}},
+                             {"extruder1", {{"max_temp", 300.0}, {"nozzle_diameter", 0.6}}},
+                             {"extruder2", {{"max_temp", 300.0}, {"nozzle_diameter", 0.4}}}});
+    state.set_hardware(hw);
+    // Lane T0 prints through extruder2, T1 through extruder and T2 through extruder1.
+    ToolTopology lanes;
+    lanes.tool_count = 3;
+    lanes.tool_to_slot = {0, 1, 2};
+    lanes.tool_extruder = {"extruder2", "extruder", "extruder1"};
+    lanes.tools_are_lanes = true;
+    ToolState::instance().set_ams_topology(lanes);
+    struct TopologyScope {
+        ~TopologyScope() {
+            ToolState::instance().clear_ams_topology();
+        }
+    } topology;
+
+    const auto machine = current_fit_machine();
+    REQUIRE(machine.has_value());
+
+    const std::vector<int> heads = {2, 0, 1};
+    CHECK(machine->tool_extruder == heads);
+
     state.set_hardware(PrinterDiscovery{});
 }
 

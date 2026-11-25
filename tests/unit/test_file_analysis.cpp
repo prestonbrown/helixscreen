@@ -21,6 +21,7 @@
 #include "file_analysis.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
+#include "motor_ripple_store.h"
 #include "print_start_inputs.h"
 #include "printer_state.h"
 
@@ -332,6 +333,52 @@ TEST_CASE_METHOD(AnalysisLoaderFixture, "without the feature the plugin is never
     REQUIRE(answer.has_value());
     CHECK(client.call_count(helix::kFileAnalysisRpc) == 0);
     CHECK(answer->tools_used == std::set<int>{1});
+}
+
+TEST_CASE_METHOD(AnalysisLoaderFixture,
+                 "saved motor ripple bands send the loader back to the footer for the wall speed",
+                 "[plugin_file_analysis][print_start_inputs][loader][2044]") {
+    // The plugin's record answers every other question the footer could.
+    constexpr const char* kWallSpeedFooter = "; filament_type = ABS;ABS;ABS\n"
+                                             "; filament_colour = #111111;#222222;#333333\n"
+                                             "G28\n"
+                                             "T1\n"
+                                             "; filament used [g] = 0.00, 9.00, 0.00\n"
+                                             "; outer_wall_speed = 86\n";
+    using helix::calibration::ripple::MotorId;
+    using helix::calibration::ripple::RippleBand;
+    using helix::calibration::ripple::RippleResultCache;
+    using helix::calibration::ripple::SweepResult;
+    RippleResultCache::instance().clear();
+    struct ClearBands {
+        ~ClearBands() {
+            RippleResultCache::instance().clear();
+        }
+    } clear_bands;
+
+    helix::PlantedGcode file("analysis_wall_speed.gcode", "", kWallSpeedFooter);
+    plugin(true, feature_map(1, true, true));
+    json rec = record_json();
+    rec["filename"] = file.name();
+    client.set_mock_file_analysis(file.name(), ready(rec));
+
+    SECTION("no sweep saved: the record settles the file and the footer is not read") {
+        const auto answer = load(file.name());
+        REQUIRE(answer.has_value());
+        CHECK_FALSE(answer->outer_wall_speed_mm_s.has_value());
+    }
+    SECTION("a sweep saved: the footer is read for its outer wall speed") {
+        SweepResult saved;
+        saved.bands.push_back(
+            RippleBand{MotorId::StepperY, 41.6f, 44.9f, 4, 43.2f, 905.0f, 216.0f});
+        RippleResultCache::instance().save(*api, saved);
+        REQUIRE_FALSE(RippleResultCache::instance().bands().empty());
+
+        const auto answer = load(file.name());
+        REQUIRE(answer.has_value());
+        REQUIRE(answer->outer_wall_speed_mm_s.has_value());
+        CHECK(*answer->outer_wall_speed_mm_s == 86.0f);
+    }
 }
 
 // ============================================================================
