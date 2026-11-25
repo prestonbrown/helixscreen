@@ -28,6 +28,7 @@ class PostUnloadGraceTestAccess {
         mgr.lanes_.clear();
         mgr.known_.clear();
         mgr.bypass_armed_.clear();
+        mgr.idle_runout_acknowledged_.clear();
         mgr.master_enabled_ = true;
         mgr.initial_status_received_ = false;
         mgr.pending_removal_toast_.clear();

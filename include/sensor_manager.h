@@ -103,6 +103,12 @@ class SensorManager {
     /// Whether discover() runs again on the configfile pass (Options::rediscover_on_config).
     [[nodiscard]] bool rediscovers_on_config() const;
 
+    /// The active printer changed: drop every entry and the state kept beside
+    /// them, so nothing the previous printer reported speaks for the next one
+    /// before its own discovery lands. No-op when the manager is not fed by
+    /// PrinterDiscovery. Fired through PrinterCacheRegistry on every switch.
+    void forget_printer();
+
     /// Default: lock, parse_status(), unlock, publish() if it changed anything.
     virtual void update_from_status(const nlohmann::json& status);
 
@@ -182,6 +188,9 @@ class SensorManager {
     /// Mutex held, lifetime already invalidated: tear down subjects kept outside
     /// the SubjectManager (a DynamicSubjectMap's clear()).
     virtual void on_deinit_subjects() {}
+    /// Mutex held, entries already cleared: drop per-printer state kept
+    /// outside them (readings keyed by klipper_name, edge trackers).
+    virtual void on_printer_forgotten() {}
 
     /// Sync mode: refresh now. Otherwise defer refresh_subjects() through the
     /// lifetime token; dropped once deinit_subjects() has run.
@@ -238,6 +247,7 @@ class SensorManager {
     bool subjects_initialized_ = false;
     bool sync_mode_ = false;
     bool deinit_registered_ = false;
+    bool cache_registered_ = false;
     helix::AsyncLifetimeGuard lifetime_;
 };
 
