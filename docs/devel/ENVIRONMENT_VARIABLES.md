@@ -162,7 +162,7 @@ The `drm` backend uses DRM (Direct Rendering Manager) dumb buffers with a vsynce
 
 Left unset on a board with a `/dev/dri/card*`, the launcher runs `helix-screen --probe-egl` and exports `egl` only when that exits 0, which requires a hardware renderer — a context that resolves to llvmpipe is refused, since it would spend CPU to save CPU. A board whose probe declines steps down to `drm`, never straight to `fbdev`; a crash steps down one rung the same way (`egl` to `drm`, `drm` to `fbdev`). A build with no rungs answers the probe with 2 and auto-detects. See `docs/devel/GPU_ACCELERATION.md` for what the rung is worth per board.
 
-The Pi and x86 builds are one binary with no load-time dependency on libdrm, libinput, libEGL, libGLESv2 or libgbm: they load at runtime (`mk/implib.mk`, `include/gpu_libs.h`). On a system missing any of them, `drm` and `egl` report unavailable and the app falls back to `fbdev` in-process. `HELIX_DRI_DIR` replaces `/dev/dri` for the launcher's card check, for tests.
+The Pi and x86 builds are one binary with no load-time dependency on libdrm, libinput, libEGL, libGLESv2 or libgbm: they load at runtime (`mk/implib.mk`, `include/gpu_libs.h`). On a system missing any of them, `drm` and `egl` report unavailable and the app falls back to `fbdev` in-process. `HELIX_DRI_DIR` replaces `/dev/dri` for the launcher's card check, for tests. The launcher stops an EGL probe that has not answered in 10 s, with `timeout` where it exists and its own deadline where BusyBox lacks it; `HELIX_EGL_PROBE_SECS` shortens that deadline, for tests.
 
 ```bash
 # Force SDL backend (useful for debugging on embedded systems)

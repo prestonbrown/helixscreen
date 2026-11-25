@@ -1127,6 +1127,42 @@ for arg in "$@"; do
     esac
 done
 
+# The deadline where no `timeout` exists (BusyBox on COSMOS, the CC1): the
+# probe runs in the background with its output in a file, and is killed when it
+# has not answered in time. This runs before the rollback guard, so a new
+# binary that hangs at start would otherwise hold the launcher forever. Sets
+# _pe_out and a non-zero _pe_rc on the deadline, as timeout's 124 would.
+# HELIX_EGL_PROBE_SECS shortens the deadline, for tests.
+probe_egl_with_deadline() {
+    _pe_dir=$(dirname "${HELIX_LOG_FILE:-/nonexistent/x}")
+    [ -d "$_pe_dir" ] && [ -w "$_pe_dir" ] || _pe_dir="${TMPDIR:-/tmp}"
+    _pe_file="${_pe_dir}/helix-probe-egl.$$"
+    "$1" --probe-egl >"$_pe_file" 2>&1 &
+    _pe_pid=$!
+    # Polled five times a second where sleep takes fractions, so a probe that
+    # answers at once costs boot no more than that; once a second otherwise.
+    if sleep 0.01 2>/dev/null; then
+        _pe_step=0.2
+        _pe_left=$((${HELIX_EGL_PROBE_SECS:-10} * 5))
+    else
+        _pe_step=1
+        _pe_left="${HELIX_EGL_PROBE_SECS:-10}"
+    fi
+    while kill -0 "$_pe_pid" 2>/dev/null; do
+        if [ "$_pe_left" -le 0 ]; then
+            log "EGL probe did not answer in ${HELIX_EGL_PROBE_SECS:-10}s; stopping it"
+            kill -9 "$_pe_pid" 2>/dev/null || true
+            break
+        fi
+        sleep "$_pe_step"
+        _pe_left=$((_pe_left - 1))
+    done
+    _pe_rc=0
+    wait "$_pe_pid" 2>/dev/null || _pe_rc=$?
+    _pe_out=$(cat "$_pe_file" 2>/dev/null)
+    rm -f "$_pe_file"
+}
+
 # Ask a binary whether EGL comes up on a real GPU here. Exit 0 means yes, 2
 # that the binary has no display rungs to choose between, 3 that libdrm does
 # not load so only fbdev can run, anything else no.
@@ -1137,10 +1173,10 @@ done
 probe_egl() {
     if command -v timeout >/dev/null 2>&1; then
         _pe_out=$(timeout 10 "$1" --probe-egl 2>&1)
+        _pe_rc=$?
     else
-        _pe_out=$("$1" --probe-egl 2>&1)
+        probe_egl_with_deadline "$1"
     fi
-    _pe_rc=$?
     if [ -n "$_pe_out" ]; then
         log "EGL probe: $_pe_out"
     fi

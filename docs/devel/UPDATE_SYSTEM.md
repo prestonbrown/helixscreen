@@ -605,6 +605,23 @@ The reason reads `platform` rather than `mod_payload` because `rollback_support(
 
 With the installer as it was, install.sh refused to run on this unit, the in-app updater's included: `_refuse_if_firmware_managed()` counted paxx's lmd hook (`<paxx-firmware>/etc/hooks/lmd.d/30-helixscreen.sh`) as proof by itself, and paxx ships that hook whatever `[components] gui` selects. A boot-started app's overnight install failed with `install.sh exit: code=1` ("HelixScreen is managed by your firmware") before touching anything. The runs started the service from a shell exporting `HELIX_IGNORE_FIRMWARE_MANAGED=1`, which stands in for stock firmware. The guard now refuses only where the hook binds the package (below). Afterwards the U1 went back to its v1.1.0 tree byte for byte (959 files), with its settings, env, init scripts and `moonraker.conf` unchanged. It rebooted to v1.1.0 under `S99screen`, and thelio's key logged in. Moonraker's database came back from a live `sqlite3 .backup`, so its `unsafe_shutdowns` counter is one higher.
 
+**CC1 (2026-11-25, 192.168.1.52).** OpenCentauri COSMOS 26.10.1, HelixScreen v1.1.0-rc.5 at `/user-resource/helixscreen` with the watchdog, started by SysV rc: `S96gui-switcher` runs `config-manager ui screen_ui` (grumpyscreen), whose `HELIXSCREEN_WRAPPER` shim execs `/etc/init.d/helixscreen`; the watchdog writes `/var/run/gui.pid`, which the switcher's stop signals. Builds of origin/main 9e17c82fe8 with the ctl server, `kAutoUpdateIdleSeconds = 60` and a scratch `{"cc1", Board::Cc1}` row; R9 used main's rule as it is.
+
+| Run | Result |
+|---|---|
+| R3 | Pass: healthy at 150 s, `.old` removed |
+| R1 | Pass: watchdog exit 42, restored with `exit_42` |
+| R2 | Pass: restored at 600 s with `timeout`; the notice shows again on a restart inside 120 s and not after; 99.0.0 dismissed |
+| R5 | The recipe's abort line cannot pass (the watchdog's Safe Mode start aborts too; restored with `timeout`). With the abort placed after `consume_safe_mode_marker()` and sparing `s_safe_mode_active`, the Safe Mode start wrote the request: pass, `crash_loop` |
+| R6 | Fail with the launcher as it was: after the reboot the launcher waited forever on `helix-screen --probe-egl` of the hung new binary, before the guard (the CC1 has `/dev/dri/card0`, and BusyBox there has no `timeout`). With `probe_egl`'s own 10 s deadline: pass, `too_many_starts`, boot 10 s later |
+| R7 | Pass: `exit_2` at once |
+| R8 | Pass, both the service stop and a reboot: kept files and `.old`, resumed at start 2, healthy |
+| R4 | Pass with the probe deadline: start 2 after boot, restored at its 600 s with `timeout` |
+| R9 | Pass: `auto_update_overnight_available` 0 with a stored Install overnight; a manual install logs `Automatic-update rollback: platform`, keeps no `.old` and arms nothing |
+| GUI switcher | Pass: `gui-switcher stop` inside the window ends the guarded launch like a service stop (files and `.old` kept, nothing left running, screen blanked by the switcher); `start` resumes at start 2 and `restart` at start 3, one UI each time, then healthy. Each stop or restart inside the window spends a guarded start, so a fourth would restore a healthy version with `too_many_starts` |
+
+Afterwards the printer went back to the rc.5 tree it had (all 940 file md5s matched), its settings, env, `/etc/init.d/helixscreen`, `moonraker.conf` and `helixscreen.conf`; it rebooted to rc.5 on the screen under the same switcher chain, and thelio's key logged in over ssh. `/var/lib` there is a tmpfs overlay, so `/var/lib/helixscreen/update_urls.json` is gone after each reboot and a test setup writes it again.
+
 | Run | New version | Expected |
 |---|---|---|
 | R1 launch failure | A static ELF for the platform that exits 1 | The watchdog backs off (3, 6, 12, 24, 48 s) and exits 42 after about 95 s; restored, reason `exit_42` |
