@@ -2,6 +2,13 @@
 
 #include "ad5x_status_parse.h"
 
+#include <array>
+#include <cstdio>
+#include <string>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <vector>
+
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
 
@@ -159,6 +166,34 @@ TEST_CASE("AD5X ifs module object discards loaded_channels with a non-integer en
     CHECK_FALSE(obj.error);
 
     CHECK_FALSE(ad5x::parse_ifs_module_object(json{{"loaded_channels", {1, "2"}}}).loaded_ports);
+}
+
+TEST_CASE("AD5X ifs module object ignores a loaded channel outside 1..kDefaultPorts",
+          "[ad5x][status_parse][subprocess][2044]") {
+    SECTION("0, a negative and a port past the last mark nothing") {
+        const auto obj = ad5x::parse_ifs_module_object(json{{"loaded_channels", {0, 2, 5, -1}}});
+        REQUIRE(obj.loaded_ports);
+        CHECK(*obj.loaded_ports == std::array<bool, 4>{false, true, false, false});
+    }
+    SECTION("a reading far past the array does not take the process down") {
+        // Each accepted channel writes one byte at index channel - 1, so the
+        // range check is all that keeps a garbage reading off the RS-485 bus
+        // inside the four-entry array.
+        const json far_out = json{{"loaded_channels", {100000000}}};
+        std::fflush(nullptr);
+        const pid_t pid = fork();
+        if (pid == 0) {
+            const auto obj = ad5x::parse_ifs_module_object(far_out);
+            const bool nothing_marked =
+                obj.loaded_ports && *obj.loaded_ports == std::array<bool, ad5x::kDefaultPorts>{};
+            _exit(nothing_marked ? 0 : 1);
+        }
+        REQUIRE(pid > 0);
+        int status = 0;
+        REQUIRE(waitpid(pid, &status, 0) == pid);
+        REQUIRE(WIFEXITED(status));
+        CHECK(WEXITSTATUS(status) == 0);
+    }
 }
 
 TEST_CASE("AD5X sensor frame prefers the namespace that carries a reading",
