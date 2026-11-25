@@ -333,7 +333,7 @@ void ToolHeadsModel::publish_row_cell_floor(int heads) {
     const lv_font_t* body = theme_manager_get_font("font_body");
     int widest = 0;
     for (int i = 0; i < heads; ++i) {
-        widest = std::max(widest, text_width(row_label(i, false).c_str(), body));
+        widest = std::max(widest, static_cast<int>(text_width(row_label(i, false).c_str(), body)));
     }
     const int floor_px = std::max(kRowCellFloorPx, widest + 2 * resolve_px_token("space_xs", 4));
     set_int_if_changed(&row_cell_w_subject_, floor_px);
