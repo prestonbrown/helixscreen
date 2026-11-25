@@ -1134,9 +1134,11 @@ probe_egl_with_deadline() {
     # runs out.
     (
         sleep "$_pe_secs"
-        : >"$_pe_fired"
+        # A flag that cannot be written still ends the probe: under set -e a
+        # failed redirect here would leave a hung probe running.
+        : >"$_pe_fired" 2>/dev/null || :
         kill -9 "$_pe_pid" 2>/dev/null
-    ) </dev/null >/dev/null 2>&1 &
+    ) </dev/null >/dev/null 2>&1 3>&- &
     _pe_killer=$!
     _pe_rc=0
     wait "$_pe_pid" 2>/dev/null || _pe_rc=$?
