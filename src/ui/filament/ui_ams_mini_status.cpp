@@ -1731,6 +1731,8 @@ static void rebuild(AmsMiniStatusData* data) {
         if (!data->rebuild_pending)
             return;
     }
+    spdlog::debug("[AmsMiniStatus] Dropped a rebuild after {} passes: the size kept changing",
+                  kMaxPasses);
     data->rebuild_pending = false;
 }
 
