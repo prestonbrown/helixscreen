@@ -164,6 +164,17 @@ struct HangMemoryContext {
     std::optional<uint64_t> major_faults; ///< this process's majflt since start
 };
 
+/// What the main thread was waiting on when the main loop stalled, gathered on
+/// the monitor thread from /proc/self/stat and /proc/self/wchan. A CPU-bound
+/// loop is R with no wait channel, a wait on another thread's lock S in a
+/// futex, a display wait S in poll, storage I/O D. Either member is "" when it
+/// could not be read; wchan is also "" when the thread was running, since the
+/// kernel names no wait channel for a running thread.
+struct HangThreadState {
+    std::string state; ///< scheduler state letter: R, S, D, ...
+    std::string wchan; ///< name of the kernel routine the thread sleeps in
+};
+
 /// Why an update failed, for an update_failed event. Every field here is
 /// already safe to send: fixed tokens, a known release host or "other", and
 /// text that went through helix::redact::telemetry_text().
@@ -543,15 +554,20 @@ class TelemetryManager {
      * context "stalled_<N>s") carrying what was on screen, the GL renderer and
      * the memory state: active_panel, active_overlay (when one is open),
      * gl_renderer and gl_software (once a GL context has been created),
-     * mem_available_mb, pressure_level and major_faults. Rate-limited with the
+     * mem_available_mb, pressure_level and major_faults. main_state and
+     * main_wchan are added only when the caller read them, and main_wchan not
+     * when the main thread was running. Rate-limited with the
      * "ui" category. Thread-safe; it is called from the memory monitor thread
      * while the main thread is wedged, so it reads only telemetry_context and
      * what the caller passes.
      *
      * @param stalled_ms How long the main loop has not advanced
      * @param memory     Memory state the caller read at the stall
+     * @param thread     Scheduler state and wait channel of the main thread at
+     *                   the stall; empty when the caller read neither
      */
-    void record_main_loop_hang(uint32_t stalled_ms, const helix::HangMemoryContext& memory);
+    void record_main_loop_hang(uint32_t stalled_ms, const helix::HangMemoryContext& memory,
+                               const helix::HangThreadState& thread = {});
 
     /**
      * @brief Enqueue a connection_stability delta and start a new window

@@ -162,6 +162,7 @@ bool parse_proc_stat(const std::string& line, ProcStat& out) {
         return false;
     }
     // Fields after comm, from field 3 (state) on: majflt is field 12, rss field 24.
+    constexpr size_t kStateIndex = 3 - 3;
     constexpr size_t kMajfltIndex = 12 - 3;
     constexpr size_t kRssIndex = 24 - 3;
     std::vector<std::string> fields;
@@ -182,6 +183,7 @@ bool parse_proc_stat(const std::string& line, ProcStat& out) {
         return false;
     }
     out.comm = line.substr(open + 1, close - open - 1);
+    out.state = fields[kStateIndex];
     out.major_faults = *majflt;
     out.rss_pages = *rss;
     return true;
@@ -346,15 +348,65 @@ std::vector<ProcessRss> top_processes_by_rss(size_t count) {
 #endif
 }
 
-std::optional<uint64_t> read_self_major_faults(const char* stat_path) {
 #ifdef __linux__
+namespace {
+
+/// The record in the stat file at @p stat_path, nullopt when it cannot be read
+/// or is cut short.
+std::optional<ProcStat> read_proc_stat(const char* stat_path) {
     const auto line = tio::read_file(stat_path);
     ProcStat st;
     if (line && parse_proc_stat(*line, st)) {
-        return st.major_faults;
+        return st;
+    }
+    return std::nullopt;
+}
+
+} // namespace
+#endif
+
+std::optional<uint64_t> read_self_major_faults(const char* stat_path) {
+#ifdef __linux__
+    const auto st = read_proc_stat(stat_path);
+    if (st) {
+        return st->major_faults;
     }
 #else
     (void)stat_path;
+#endif
+    return std::nullopt;
+}
+
+std::optional<std::string> parse_proc_wchan(const std::string& text) {
+    constexpr size_t kMaxLen = 31;
+    const auto token = tio::trim(text);
+    // The kernel writes "0" for a thread that is not waiting anywhere.
+    if (token.empty() || token == "0") {
+        return std::nullopt;
+    }
+    return std::string(token.substr(0, kMaxLen));
+}
+
+std::optional<std::string> read_main_thread_state(const char* stat_path) {
+#ifdef __linux__
+    const auto st = read_proc_stat(stat_path);
+    if (st) {
+        return st->state;
+    }
+#else
+    (void)stat_path;
+#endif
+    return std::nullopt;
+}
+
+std::optional<std::string> read_main_thread_wchan(const char* wchan_path) {
+#ifdef __linux__
+    const auto text = tio::read_file(wchan_path);
+    if (text) {
+        return parse_proc_wchan(*text);
+    }
+#else
+    (void)wchan_path;
 #endif
     return std::nullopt;
 }

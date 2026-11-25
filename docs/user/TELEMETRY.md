@@ -276,7 +276,7 @@ Recorded when a non-fatal error occurs (rate-limited to avoid excessive data). H
 | `code` | Error code | `"timeout"` |
 | `context` | What was being attempted | `"get_printer_objects"` |
 
-When the screen freezes (`ui` / `main_loop_hang`), the event also says what was on screen and which graphics renderer was drawing:
+When the screen freezes (`ui` / `main_loop_hang`), the event also says what was on screen, which graphics renderer was drawing, and what the UI thread was doing:
 
 | Field | Description | Example |
 |-------|-------------|---------|
@@ -287,6 +287,8 @@ When the screen freezes (`ui` / `main_loop_hang`), the event also says what was 
 | `mem_available_mb` | Memory the system had free (MB) | `19` |
 | `pressure_level` | HelixScreen's memory pressure level (`none`, `elevated`, `warning`, `critical`) | `"critical"` |
 | `major_faults` | How many times HelixScreen has had to read memory back from storage since it started; a fast climb means the system is short of memory rather than busy | `81234` |
+| `main_state` | What the UI thread was doing when it froze: `R` running, `S` waiting, `D` waiting on storage | `"S"` |
+| `main_wchan` | Where in the kernel the UI thread was waiting, under the kernel's own name for it (`futex` names are waits on another thread, `poll` names waits for input or the display); left out when the thread was running | `"futex_do_wait"` |
 
 ---
 

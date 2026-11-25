@@ -99,7 +99,8 @@ bool read_smaps_rollup(SmapsRollup& rollup);
 
 /// The fields of a /proc/<pid>/stat line telemetry reads.
 struct ProcStat {
-    std::string comm;          ///< executable name the kernel keeps, up to 15 chars
+    std::string comm;  ///< executable name the kernel keeps, up to 15 chars
+    std::string state; ///< scheduler state, one letter: R running, S sleeping, D in disk sleep
     uint64_t major_faults = 0; ///< majflt: faults that read a page from storage
     int64_t rss_pages = 0;     ///< resident set, in pages
 };
@@ -137,6 +138,21 @@ std::vector<ProcessRss> top_processes_by_rss(size_t count);
 /// This process's major page-fault count, nullopt when @p stat_path cannot be
 /// read or parsed. A main loop stalled on page-ins climbs it; a CPU hang does not.
 std::optional<uint64_t> read_self_major_faults(const char* stat_path = "/proc/self/stat");
+
+/// The wait channel as one /proc/<pid>/wchan file holds it: the name of the
+/// kernel routine the thread sleeps in ("futex_do_wait", "poll_schedule_timeout"),
+/// cut to 31 characters. nullopt when the kernel names none, which it writes as
+/// "0" for a thread that is running, and for an empty file.
+std::optional<std::string> parse_proc_wchan(const std::string& text);
+
+/// The scheduler state letter (parse_proc_stat() of @p stat_path) and the wait
+/// channel (parse_proc_wchan() of @p wchan_path) of this process's main thread,
+/// for a report written while the main thread is stalled. /proc/self is the
+/// thread group's directory, which is the main thread's, so whichever thread
+/// reads it is told about the main thread and never about itself. Either is
+/// nullopt when its file cannot be read or parsed, and always off Linux.
+std::optional<std::string> read_main_thread_state(const char* stat_path = "/proc/self/stat");
+std::optional<std::string> read_main_thread_wchan(const char* wchan_path = "/proc/self/wchan");
 
 // ============================================================================
 // System memory info (for resource management decisions)

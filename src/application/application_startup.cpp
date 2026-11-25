@@ -439,7 +439,11 @@ void Application::report_main_loop_stall(uint32_t stalled_ms) {
     }
     memory.pressure = helix::MemoryMonitor::instance().pressure_level();
     memory.major_faults = helix::read_self_major_faults();
-    TelemetryManager::instance().record_main_loop_hang(stalled_ms, memory);
+    // /proc/self is the main thread's, so these two read the stalled thread, not this one.
+    helix::HangThreadState thread;
+    thread.state = helix::read_main_thread_state().value_or("");
+    thread.wchan = helix::read_main_thread_wchan().value_or("");
+    TelemetryManager::instance().record_main_loop_hang(stalled_ms, memory, thread);
     crash_handler::breadcrumb::note("main_loop", "hang");
 }
 
