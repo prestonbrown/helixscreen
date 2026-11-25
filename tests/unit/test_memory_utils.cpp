@@ -466,7 +466,7 @@ TEST_CASE("parse_proc_stat reads the scheduler state right after the LAST ')'",
     }
 }
 
-TEST_CASE("parse_proc_wchan keeps the kernel's wait channel name and calls '0' none",
+TEST_CASE("parse_proc_wchan keeps a kernel symbol name and calls an address or '0' none",
           "[memory][proc_stat]") {
     struct Row {
         const char* text;
@@ -476,6 +476,8 @@ TEST_CASE("parse_proc_wchan keeps the kernel's wait channel name and calls '0' n
     const Row named[] = {
         {"futex_do_wait", "futex_do_wait"},
         {"poll_schedule_timeout\n", "poll_schedule_timeout"},
+        {"__schedule", "__schedule"},
+        {"bpf_prog_0123456789abcdef_xdp", "bpf_prog_0123456789abcdef_xdp"},
         {"do_syscall_64_and_then_wait_fo", "do_syscall_64_and_then_wait_fo"},
         {"do_syscall_64_and_then_wait_for", "do_syscall_64_and_then_wait_for"},
         {"do_syscall_64_and_then_wait_for_", "do_syscall_64_and_then_wait_for"},
@@ -488,8 +490,9 @@ TEST_CASE("parse_proc_wchan keeps the kernel's wait channel name and calls '0' n
         CHECK(*wchan == r.want);
     }
 
-    // The kernel writes "0" for a thread that is not waiting anywhere.
-    for (const char* none : {"0", ""}) {
+    // The kernel writes "0" for a thread that is not waiting anywhere. A kernel with no
+    // symbol names writes the channel's address, and only a bare name names a channel.
+    for (const char* none : {"0", "", "3223061844", "futex_do_wait+0x8c"}) {
         INFO("text: " << none);
         CHECK_FALSE(parse_proc_wchan(none).has_value());
     }

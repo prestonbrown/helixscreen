@@ -141,8 +141,9 @@ std::optional<uint64_t> read_self_major_faults(const char* stat_path = "/proc/se
 
 /// The wait channel as one /proc/<pid>/wchan file holds it: the name of the
 /// kernel routine the thread sleeps in ("futex_do_wait", "poll_schedule_timeout"),
-/// cut to 31 characters. nullopt when the kernel names none, which it writes as
-/// "0" for a thread that is running, and for an empty file.
+/// cut to 31 characters. nullopt when the kernel names none: it writes "0" for
+/// a thread that is running, and a kernel with no symbol names writes the
+/// channel's address, which is not a name. Also nullopt for an empty file.
 std::optional<std::string> parse_proc_wchan(const std::string& text);
 
 /// The scheduler state letter (parse_proc_stat() of @p stat_path) and the wait

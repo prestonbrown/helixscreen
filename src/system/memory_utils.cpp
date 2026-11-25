@@ -377,11 +377,31 @@ std::optional<uint64_t> read_self_major_faults(const char* stat_path) {
     return std::nullopt;
 }
 
+namespace {
+
+/// A kernel symbol name as kallsyms spells it: a letter or '_' first, then
+/// letters, digits, '_' and '.'.
+bool is_kernel_symbol(std::string_view name) {
+    const auto letter = [](char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); };
+    if (name.empty() || !(letter(name.front()) || name.front() == '_')) {
+        return false;
+    }
+    return std::all_of(name.begin() + 1, name.end(), [&](char c) {
+        return letter(c) || (c >= '0' && c <= '9') || c == '_' || c == '.';
+    });
+}
+
+} // namespace
+
 std::optional<std::string> parse_proc_wchan(const std::string& text) {
     constexpr size_t kMaxLen = 31;
     const auto token = tio::trim(text);
     // The kernel writes "0" for a thread that is not waiting anywhere.
     if (token.empty() || token == "0") {
+        return std::nullopt;
+    }
+    // A kernel with no symbol names prints the channel's address instead.
+    if (!is_kernel_symbol(token)) {
         return std::nullopt;
     }
     return std::string(token.substr(0, kMaxLen));
