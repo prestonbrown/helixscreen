@@ -723,7 +723,7 @@ class GCodeParser {
      */
     void parse_type_marker(const std::string& comment);
 
-    /// Parse a `;WIDTH:<mm>` comment (OrcaSlicer, PrusaSlicer, Bambu): the bead
+    /// Parse a `;WIDTH:<mm>` comment (OrcaSlicer, PrusaSlicer): the bead
     /// width the slicer laid the following moves at, until the next one.
     void parse_width_marker(const std::string& comment);
 

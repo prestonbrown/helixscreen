@@ -185,7 +185,7 @@ TEST_CASE("Geometry Builder: RibbonGeometry - construction and destruction",
 }
 
 /// Inverse of PackedVertex::encode_normal (the vertex shader's oct_decode).
-glm::vec3 decode_normal(const int8_t enc[2]) {
+static glm::vec3 decode_normal(const int8_t enc[2]) {
     glm::vec3 n(enc[0] / 127.0f, enc[1] / 127.0f, 0.0f);
     n.z = 1.0f - std::abs(n.x) - std::abs(n.y);
     if (n.z < 0.0f) {
