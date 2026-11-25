@@ -74,6 +74,13 @@ enum class FlashForgeModTree {
     ForgeX, ///< a reachable Forge-X mod git tree, whatever else the chroot carries
 };
 
+/// True when a Forge-X mod git tree is reachable: /opt/config/mod (in-chroot) or
+/// /usr/data/config/mod (host-side) holding its descriptor, .shell/common.sh
+/// (upstream, the AD5M) or .shell/platform.sh (the AD5X fork). The one C++
+/// definition of the rule; scripts/lib/installer/host_profile.sh and
+/// scripts/helix-launcher.sh carry the shell copies. Resolves under `probe_root`.
+bool forgex_mod_tree_present(const std::string& probe_root = "/");
+
 /// Probes the mod tree: Forge-X when its mod git tree is reachable
 /// (/opt/config/mod in-chroot, /usr/data/config/mod host-side, proven by
 /// .shell/platform.sh or upstream's .shell/common.sh), checked first because a Forge-X chroot can
