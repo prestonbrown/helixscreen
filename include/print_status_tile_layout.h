@@ -15,17 +15,10 @@ enum class PrintStatusArrangement { SideBySide = 0, Stacked = 1 };
 /// stacked tiles' strip. The int values are what `ps_lane_tray` publishes.
 enum class PrintStatusLaneTray { None = 0, Column = 1, Strip = 2 };
 
-/// Height of the ultrawide actions row when the buttons sit along the bottom
-/// (PrintStatusColumns::actions_bottom). ui_xml/components/print_status_ultrawide_body.xml
-/// declares the same height.
-constexpr int32_t kPrintStatusActionsRowHeight = 56;
-
 /// Column widths of the ultrawide arrangement, left to right: the square
 /// preview, the info column, the printer picture, the readouts, the inline
 /// Tune section and the button stack. The info column takes what the others
 /// leave. `tune_w` 0 means no Tune column: the Tune button shows instead.
-/// With `actions_bottom` the buttons leave the columns (`actions_w` 0) for a
-/// row of kPrintStatusActionsRowHeight along the bottom, under every column.
 struct PrintStatusColumns {
     int32_t preview_w = 0;
     int32_t info_w = 0;
@@ -33,7 +26,6 @@ struct PrintStatusColumns {
     int32_t readouts_w = 0;
     int32_t actions_w = 0;
     int32_t tune_w = 0;
-    bool actions_bottom = false;
 };
 
 struct PrintStatusTileLayout {
