@@ -179,7 +179,7 @@ const PrintStatusTileLayout& PrintStatusLayoutFitter::recompute() {
     if (lv_obj_t* tray = lv_obj_find_by_name(root, "ps_lane_tray_status");
         tray && ui_ams_mini_status_is_valid(tray)) {
         const int32_t tray_w =
-            last_.lane_tray == PrintStatusLaneTray::Column ? last_.columns.readouts_w : w;
+            last_.lane_tray == PrintStatusLaneTray::Column ? last_.columns.info_w : w;
         ui_ams_mini_status_set_width(tray, tray_w - 2 * theme_manager_get_spacing("space_sm"));
     }
     spdlog::debug("[{}] Content {}x{}: {} strip {} ({}px), job {}x{}, printer {}x{}, checklist {}, "

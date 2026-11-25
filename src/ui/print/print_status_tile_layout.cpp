@@ -20,6 +20,12 @@ constexpr int32_t kCompactMinJobHeight = 170;
 constexpr int32_t kPrinterPct = 140;
 constexpr int32_t kReadoutsPct = 93;
 constexpr int32_t kActionsPct = 48;
+// The info column should reach this share of the height before the other
+// columns stop giving: the lane tray over the info card needs the width.
+constexpr int32_t kInfoTargetPct = 120;
+// The lane tray sits over the info card in the info column: this share of the
+// height, and the card takes the rest.
+constexpr int32_t kUltrawideTrayPct = 48;
 // The inline Tune column: flow stacked under speed and the Z-offset controls
 // on one row need about this much, and a taller screen would only spread the
 // same buttons wider. Its width comes from the readouts and the preview, down
@@ -32,7 +38,7 @@ constexpr int32_t kFloorWithTunePct = 70;
 // order, before the info column narrows below the height.
 constexpr int32_t kPrinterFloorPct = 100;
 constexpr int32_t kReadoutsFloorPct = 75;
-constexpr int32_t kPreviewFloorPct = 75;
+constexpr int32_t kPreviewFloorPct = 60;
 
 // The stacked lane tray strip: its natural height, and the smallest that
 // still reads as lanes.
@@ -99,18 +105,20 @@ PrintStatusTileLayout decide_print_status_tile_layout(int32_t content_w, int32_t
 }
 
 namespace {
-PrintStatusColumns fit_columns(int32_t content_w, int32_t h, int32_t gap, bool tune) {
+PrintStatusColumns fit_columns(int32_t content_w, int32_t h, int32_t gap, bool tune,
+                               bool readouts) {
     PrintStatusColumns c;
     c.preview_w = h;
     c.printer_w = h * kPrinterPct / 100;
-    c.readouts_w = h * kReadoutsPct / 100;
+    c.readouts_w = readouts ? h * kReadoutsPct / 100 : 0;
     c.actions_w = h * kActionsPct / 100;
     c.tune_w = tune ? std::min(h * kTunePct / 100, kTuneMaxWidth) : 0;
-    const int32_t gaps = (tune ? 5 : 4) * gap;
+    // Preview, printer, info and actions, plus the Tune and readouts columns that show.
+    const int32_t gaps = (3 + (tune ? 1 : 0) + (readouts ? 1 : 0)) * gap;
     const auto rest = [&]() {
         return content_w - gaps - c.preview_w - c.printer_w - c.readouts_w - c.actions_w - c.tune_w;
     };
-    int32_t deficit = h - rest();
+    int32_t deficit = h * kInfoTargetPct / 100 - rest();
     const auto give = [&](int32_t& col, int32_t floor_pct) {
         const int32_t spare = std::max<int32_t>(0, col - h * floor_pct / 100);
         const int32_t taken = std::clamp<int32_t>(deficit, 0, spare);
@@ -131,20 +139,38 @@ PrintStatusColumns fit_columns(int32_t content_w, int32_t h, int32_t gap, bool t
 } // namespace
 
 PrintStatusColumns decide_print_status_columns(int32_t content_w, int32_t content_h, int32_t gap,
-                                               bool tune) {
+                                               bool tune, bool lane_tray) {
     const int32_t h = std::max<int32_t>(0, content_h);
-    const PrintStatusColumns with_tune = fit_columns(content_w, h, gap, true);
-    if (tune && with_tune.info_w >= h * kFloorWithTunePct / 100) {
-        return with_tune;
+    // Candidates, richest first: the first whose info column keeps its floor
+    // wins. The readouts repeat the printer picture's callouts, so they go
+    // before the Tune column does; the lane tray stands in for them.
+    const auto keeps_floor = [&](const PrintStatusColumns& c) {
+        return c.info_w >= h * kFloorWithTunePct / 100;
+    };
+    for (const bool with_tune : {true, false}) {
+        if (with_tune && !tune) {
+            continue;
+        }
+        for (const bool with_readouts : {true, false}) {
+            if (with_readouts && lane_tray) {
+                continue;
+            }
+            const PrintStatusColumns c = fit_columns(content_w, h, gap, with_tune, with_readouts);
+            if (keeps_floor(c)) {
+                return c;
+            }
+        }
     }
-    return fit_columns(content_w, h, gap, false);
+    return fit_columns(content_w, h, gap, false, false);
 }
 
 PrintStatusTileLayout decide_print_status_ultrawide_layout(int32_t content_w, int32_t content_h,
                                                            int32_t gap, bool lane_tray, bool tune) {
     PrintStatusTileLayout out;
     out.lane_tray = lane_tray ? PrintStatusLaneTray::Column : PrintStatusLaneTray::None;
-    out.columns = decide_print_status_columns(content_w, content_h, gap, tune);
+    out.columns = decide_print_status_columns(content_w, content_h, gap, tune, lane_tray);
+    // The tray sits over the info card in the info column.
+    out.lane_tray_h = lane_tray ? content_h * kUltrawideTrayPct / 100 : 0;
     out.job_w = out.columns.preview_w;
     out.job_h = content_h;
     out.printer_w = out.columns.printer_w;
