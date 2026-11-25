@@ -136,13 +136,9 @@ bool GCodeGLESRenderer::setup_frame(const GCodeCamera& camera, float scale, bool
     glUniform1f(u_rim_strength_, kOuterWallRimStrength);
     glUniform1f(u_rim_power_, kOuterWallRimPower);
 
-    // Per-vertex color mode: use vertex colors when geometry has a color palette.
-    // With per-tool AMS overrides, the palette is updated in-place so vertex colors
-    // always reflect the correct AMS slot colors. Only fall back to uniform color
-    // when palette has a single-tool override (legacy path).
-    bool has_palette = active_geometry_ && !active_geometry_->color_palette.empty();
-    bool has_vertex_colors = has_palette && !palette_.has_override;
-    glUniform1f(u_use_vertex_color_, has_vertex_colors ? 1.0f : 0.0f);
+    // Per-tool AMS overrides are written into the palette in place, so vertex
+    // colors always carry the lane colors.
+    glUniform1f(u_use_vertex_color_, draws_vertex_colors(active_geometry_) ? 1.0f : 0.0f);
     return true;
 }
 
