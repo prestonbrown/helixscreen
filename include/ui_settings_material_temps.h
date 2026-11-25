@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "core/static_panel_registry.h"
 #include "core/subject.h"
 #include "overlay_base.h"
@@ -20,7 +22,8 @@ namespace helix::settings {
  *
  * Two-view overlay:
  * - List view: all materials grouped by category, showing current temps
- * - Edit view: four number inputs (nozzle min/max, bed, chamber) + save/reset
+ * - Edit view: four number inputs (nozzle min/max, bed, chamber) + preheat macro;
+ *   Save sits in the header, Reset at the end of the form
  *
  * Overrides are stored via MaterialSettingsManager and applied transparently
  * in filament::find_material().
@@ -52,6 +55,9 @@ class MaterialTempsOverlay : public OverlayBase {
     void handle_reset_defaults();
     void handle_back_clicked();
 
+    /// A field of the open material changed: Save enables, Back asks first.
+    void mark_dirty();
+
     /// Reject-toast buffer for the localized range messages (nozzle, bed,
     /// chamber). Must hold the longest locale at the widest bound (ru is the
     /// longest today); test_material_temps_chamber pins that it does.
@@ -65,6 +71,12 @@ class MaterialTempsOverlay : public OverlayBase {
     void populate_material_list();
     void show_edit_view(const std::string& material_name);
     void show_list_view();
+    /// Back to the list, refreshed, at the scroll position it had.
+    void return_to_list();
+    void set_dirty(bool dirty);
+    bool is_dirty() const;
+    /// Back with unsaved edits: Discard returns to the list, Cancel stays.
+    void show_discard_confirmation();
 
     // SubjectManager, declared ahead of the subjects it owns so it tears down
     // after them (names withdraw before storage dies).
@@ -90,15 +102,12 @@ class MaterialTempsOverlay : public OverlayBase {
     // Macro dropdown state
     helix::Subject has_macro_subject_{}; // 0=no macro, 1=has macro (controls toggle visibility)
     helix::Subject shipped_subject_{};   // 1=editing a shipped type (has a default to reset to)
+    helix::Subject dirty_subject_{};     // 1=the open material has unsaved edits
+    helix::ui::WidgetRef discard_dialog_;
     lv_obj_t* macro_dropdown_ = nullptr;
     lv_obj_t* macro_heating_switch_ = nullptr;
 
-    void on_ui_destroyed() override {
-        list_view_ = nullptr;
-        edit_view_ = nullptr;
-        macro_dropdown_ = nullptr;
-        macro_heating_switch_ = nullptr;
-    }
+    void on_ui_destroyed() override;
     std::vector<std::string> macro_names_; // Parallel to dropdown options (index 0 = "None")
 
     void populate_macro_dropdown();
