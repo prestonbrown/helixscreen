@@ -480,10 +480,14 @@ OperationTimeoutGuard* PidHeadsFixture::abort_timed_out_run_and_restart() {
 
 TEST_CASE_METHOD(PidHeadsFixture, "An aborted run's late answer never lands on the next run",
                  "[pid][pid_heads][2160]") {
-    // Klipper is ready while a calibration runs. Whatever backstop is armed afterwards is read
-    // through its guard, never through a timer saved earlier.
+    // Klipper is ready while a calibration runs; the abort's M112 shuts it down, and the first
+    // run's collector concludes on that report.
     set_global_klippy(helix::KlippyState::READY);
-    abort_timed_out_run_and_restart();
+    OperationTimeoutGuard* first_backstop = abort_timed_out_run_and_restart();
+
+    // The first run concluded, so its backstop is no longer armed: never touch its timer.
+    OperationTimeoutGuard* armed = helix::calibration::armed_idle_backstop();
+    CHECK((armed != first_backstop || armed->pending_timer() == nullptr));
     fire_armed_backstop();
 
     CHECK(subject_int("pid_cal_state") == 1);
