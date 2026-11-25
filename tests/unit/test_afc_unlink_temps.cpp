@@ -93,6 +93,15 @@ TEST_CASE_METHOD(LVGLTestFixture, "AFC unlink: the lane's temperatures go back a
         REQUIRE(unlink < sent);
         CHECK((temps > unlink && temps < sent));
     }
+    SECTION("a picked product's print temperature goes back, not its range's middle") {
+        REQUIRE(afc.help_lists({"AFC_SET_SPOOL_TEMP"}));
+        unlinked.nozzle_temp_min = 190;
+        unlinked.nozzle_temp_max = 240;
+        unlinked.nozzle_temp_recommended = 220;
+        REQUIRE(afc.apply_user_edit(0, unlinked).success());
+        CHECK(afc.sent_at("AFC_SET_SPOOL_TEMP LANE=lane1 EXTRUDER_TEMP=220 BED_TEMP=70") <
+              static_cast<long>(afc.gcodes.size()));
+    }
     SECTION("an AFC without the command is not sent it") {
         REQUIRE(afc.help_lists({"AFC_TOOLHEAD_CALIBRATION"}));
         REQUIRE(afc.apply_user_edit(0, unlinked).success());

@@ -1204,7 +1204,7 @@ struct SlotInfo {
     int nozzle_temp_max = 0; ///< Maximum nozzle temp (°C)
     int bed_temp = 0;        ///< Recommended bed temp (°C)
     /// The catalog product's recommended nozzle temp (°C), staged by the spool
-    /// editor's pick for the Spoolman filament it may create; 0 = none.
+    /// editor's pick; 0 = none. Read through nozzle_print_temp().
     int nozzle_temp_recommended = 0;
     /// The printer refuses to print from this slot until a material is set for
     /// it: the firmware's own record names none, and it stops the job rather
@@ -1291,6 +1291,18 @@ struct SlotInfo {
      */
     [[nodiscard]] bool has_filament_info() const {
         return !material.empty() || color_rgb != kAmsDefaultSlotColor;
+    }
+
+    /**
+     * @brief The one nozzle temperature this slot states, for a firmware or
+     *        Spoolman record that holds a single value
+     *
+     * The staged product recommendation when it lies in the slot's range,
+     * else the midpoint of the range (filament::temp_for_window()); 0 when the
+     * slot states none.
+     */
+    [[nodiscard]] int nozzle_print_temp() const {
+        return filament::temp_for_window(nozzle_temp_min, nozzle_temp_max, nozzle_temp_recommended);
     }
 
     /**

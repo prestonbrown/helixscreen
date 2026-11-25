@@ -52,6 +52,27 @@ struct MaterialOverride {
 };
 
 /**
+ * @brief The one nozzle temperature a range states: @p recommended when it is
+ *        set and inside [@p min_temp, @p max_temp], else the midpoint of the
+ *        range, else the one end that is set; 0 when nothing is.
+ *
+ * An unset end (0) does not bound @p recommended. A recommendation outside the
+ * range is not trusted over the range itself: the range is what the material
+ * can take.
+ */
+// NAMESPACE_OK: extends filament::, the material table's existing namespace
+[[nodiscard]] constexpr int temp_for_window(int min_temp, int max_temp, int recommended = 0) {
+    if (recommended > 0 && (min_temp <= 0 || recommended >= min_temp) &&
+        (max_temp <= 0 || recommended <= max_temp)) {
+        return recommended;
+    }
+    if (min_temp > 0 && max_temp > 0) {
+        return (min_temp + max_temp) / 2;
+    }
+    return std::max({min_temp, max_temp, 0});
+}
+
+/**
  * @brief Material information with temperature recommendations
  */
 struct MaterialInfo {
@@ -74,11 +95,17 @@ struct MaterialInfo {
 
     bool user_defined = false; ///< Defined by the user overlay, no shipped row
 
+    /// The loaded spool's own print temperature (the picked product's, else
+    /// its lane's), resolved by build_active_material(); 0 = none, and the
+    /// material's rows never carry one. The range above stays the limits.
+    int print_temp = 0;
+
     /**
-     * @brief Get recommended nozzle temperature (midpoint of range)
+     * @brief Recommended nozzle temperature: print_temp when one is known,
+     *        else the midpoint of the range
      */
     [[nodiscard]] constexpr int nozzle_recommended() const {
-        return (nozzle_min + nozzle_max) / 2;
+        return print_temp > 0 ? print_temp : temp_for_window(nozzle_min, nozzle_max);
     }
 
     /**

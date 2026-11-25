@@ -168,6 +168,17 @@ TEST_CASE("Load preheat uses the recommended temp, not the bottom of the window"
         CHECK(resolved->temp_c != db_min("PETG"));
     }
 
+    SECTION("a picked catalog product heats to its own temp over the lane's") {
+        // SUNLU PLA+ 2.0 in the bundled catalog: 190-240, prints at 220.
+        SlotInfo picked = lane("PLA");
+        picked.catalog_id = "sunlu-pla-plus-2-0";
+        picked.nozzle_temp_min = 215;
+        picked.nozzle_temp_max = 215;
+        auto resolved = resolve_load_preheat_material(0, &picked, nullptr);
+        REQUIRE(resolved.has_value());
+        CHECK(resolved->temp_c == 220);
+    }
+
     SECTION("an unknown material is unaffected — build_active_material makes max == min") {
         SlotInfo unknown = lane("Unobtainium-9000");
         unknown.nozzle_temp_min = 235;

@@ -6322,12 +6322,10 @@ AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info) {
 
             // The unlink above runs AFC's clear_values(), which also wipes the
             // lane's temperatures (unless it remembers its spool), so the ones the
-            // edit keeps go back. AFC holds one nozzle temperature: the middle of
-            // the slot's range, which is what the UI preheats to.
+            // edit keeps go back. AFC holds one nozzle temperature: the slot's
+            // print temperature (SlotInfo::nozzle_print_temp()).
             if (info.spoolman_id == 0 && old_spoolman_id > 0 && has_spool_temp_command_) {
-                const int extruder = info.nozzle_temp_min > 0 && info.nozzle_temp_max > 0
-                                         ? (info.nozzle_temp_min + info.nozzle_temp_max) / 2
-                                         : std::max(info.nozzle_temp_min, info.nozzle_temp_max);
+                const int extruder = info.nozzle_print_temp();
                 std::string temps;
                 if (extruder > 0) {
                     temps += " EXTRUDER_TEMP=" + std::to_string(extruder);

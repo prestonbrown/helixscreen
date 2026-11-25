@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "json_fwd.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <map>
@@ -93,6 +95,18 @@ class FilamentCatalog {
     /// entry for a built-in id replaces its Orca id, with none when it carries none.
     static std::unordered_map<std::string, std::string>
     orca_id_map_from(const std::string& builtin_path, const std::string& overlay_path);
+
+    /**
+     * @brief The print temperature picked product @p catalog_id states for a
+     *        lane holding @p material, or 0
+     *
+     * 0 also when the product's type is not @p material: such a pick
+     * describes some earlier filament, not the one loaded. Served from the
+     * same resident per-product index as orca_id_for(), rebuilt after a
+     * user-overlay write. An overlay entry speaks for the whole product.
+     * Thread-safe.
+     */
+    static int product_nozzle_temp(const std::string& catalog_id, const std::string& material);
 
     /// Bumped by every successful user-overlay write; the cache keys off it.
     /// Exposed so tests can assert invalidation rather than infer it.
