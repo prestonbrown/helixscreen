@@ -14,7 +14,8 @@ import {
   type NotApplicable,
 } from "./schema";
 import { isDeviceId } from "./devices";
-import { RISING_MAX_DEVICE_SHARE, RISING_MIN_COUNT, type HealthRowKey } from "./health";
+import { HangEvidenceKey, RISING_MAX_DEVICE_SHARE, RISING_MIN_COUNT, type HealthRowKey } from "./health";
+import { HANG_UPLOAD_BATCH_SEC } from "./loop/thresholds";
 
 export interface QueryConfig {
   accountId: string;
@@ -1308,7 +1309,7 @@ export function deviceQueries(id: string): string[] {
 /** Health windows as [newerDaysAgo, olderDaysAgo]; baseline holds the 28 days before cur and contains prev. */
 export const HEALTH_WINDOWS = { cur: [0, 7], prev: [7, 14], baseline: [7, 35] } as const;
 
-export type HealthQueryKey = Exclude<HealthRowKey, "hang_snapshots">;
+export type HealthQueryKey = Exclude<HealthRowKey, HangEvidenceKey>;
 
 /** The timestamp predicate for one [newerDaysAgo, olderDaysAgo] window. */
 export function windowClause(w: readonly [number, number]): string {
@@ -1406,6 +1407,44 @@ export function hangSnapshotsSql(devices: string[], w: readonly [number, number]
     FROM ${DATASET}
     WHERE ${windowClause(w)} AND index1 = 'memory_snapshot' AND ${memSnap("system_available_mb")} > 0
       AND ${ids.length > 0 ? `${memSnap("device_id")} IN (${ids.map((d) => `'${d}'`).join(", ")})` : SQL_FALSE}`;
+}
+
+/** One upload that carried a hang report: the device that reported it, and the epoch seconds the Worker stored it. */
+export interface HangUpload {
+  device: string;
+  at: number;
+}
+
+/**
+ * The memory warnings of `uploads`, as rows { device, at, uptime, level, reason }: `at` is
+ * the epoch seconds the Worker stored the warning, `uptime` the device's, `level` the pressure
+ * level the monitor reported, and `reason` the stored one: a code, or the client's text in rows
+ * written before the codes. A warning counts only beside a hang of its own upload, so each
+ * upload is read within HANG_UPLOAD_BATCH_SEC of the time its hang was stored, and only for
+ * the device that reported it.
+ */
+export function hangWarningsSql(uploads: readonly HangUpload[]): string {
+  const seen = new Set<string>();
+  const own = uploads
+    .map((u) => ({ device: sanitizeFilterValue(u.device), at: u.at }))
+    .filter((u) => {
+      if (!u.device || !Number.isFinite(u.at)) return false;
+      const key = `${u.device}\u0000${u.at}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  const ofUpload = (u: { device: string; at: number }) =>
+    `(${memWarn("device_id")} = '${u.device}' AND toUnixTimestamp(timestamp) >= ${u.at - HANG_UPLOAD_BATCH_SEC}` +
+    ` AND toUnixTimestamp(timestamp) <= ${u.at + HANG_UPLOAD_BATCH_SEC})`;
+  return `SELECT
+      ${memWarn("device_id")} as device,
+      toUnixTimestamp(timestamp) as at,
+      ${memWarn("uptime_sec")} as uptime,
+      ${memWarn("level")} as level,
+      ${memWarn("reason")} as reason
+    FROM ${DATASET}
+    WHERE index1 = 'memory_warning' AND ${own.length > 0 ? own.map(ofUpload).join(" OR ") : SQL_FALSE}`;
 }
 
 /**

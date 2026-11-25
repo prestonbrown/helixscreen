@@ -3,11 +3,20 @@
 // queries.ts. Imports only versions, prints and schema so the dashboard can import
 // these types without Worker runtime types.
 
-import { num, str, type NotApplicable, type RawRow } from "./schema";
+import { num, storedMemoryReason, str, type NotApplicable, type RawRow } from "./schema";
 import { printsByVersion } from "./prints";
 import { compareVersions } from "./versions";
 import { HANG_MIN_CLASSIFIED_SHARE } from "./loop/thresholds";
-import { classifyHangs, splitOf, splitTotal, type ClassifiedHang, type HangRow, type HangSplit, type MemSnapshot } from "./hang_cause";
+import {
+  classifyHangs,
+  splitOf,
+  splitTotal,
+  type ClassifiedHang,
+  type HangRow,
+  type HangSplit,
+  type MemSnapshot,
+  type MemWarning,
+} from "./hang_cause";
 
 /** The counts one release's rates are computed from, over one window. */
 export interface ReleaseCounts {
@@ -61,6 +70,13 @@ export interface HealthPayload {
   not_applicable: NotApplicable<HealthBlock>;
 }
 
+/**
+ * The rows fetchHealth reads once the hang rows say which uploads hung, so they are not among
+ * the Health queries. buildHealth takes either as optional: without snapshots the hang row is
+ * the plain total, and without warnings an older hang is classified by its snapshot alone.
+ */
+export type HangEvidenceKey = "hang_snapshots" | "hang_warnings";
+
 /** The query keys buildHealth reads; the Worker's healthQueries returns one SQL string per key. */
 export type HealthRowKey =
   | "actives_cur" | "actives_prev" | "top_versions"
@@ -69,7 +85,7 @@ export type HealthRowKey =
   | "prints_cur" | "prints_prev"
   | "print_sessions_cur" | "print_sessions_prev"
   | "errors_cur" | "errors_prev" | "errors_baseline" | "errors_by_device"
-  | "hangs_cur" | "hangs_prev" | "hang_snapshots"
+  | "hangs_cur" | "hangs_prev" | HangEvidenceKey
   | "crashes_cur" | "crashes_prev"
   | "cdn_latest" | "kind_days";
 
@@ -186,7 +202,7 @@ export function hangRowOf(x: RawRow): HangRow {
  * `notApplicable` names, per block, a filter its kinds cannot carry.
  */
 export function buildHealth(
-  rows: Record<Exclude<HealthRowKey, "hang_snapshots">, unknown[]> & { hang_snapshots?: unknown[] },
+  rows: Record<Exclude<HealthRowKey, HangEvidenceKey>, unknown[]> & Partial<Record<HangEvidenceKey, unknown[]>>,
   today: string,
   notApplicable: NotApplicable<HealthBlock> = ALL_REPORTED,
 ): HealthPayload {
@@ -221,8 +237,15 @@ export function buildHealth(
     uptimeSec: num(x.uptime),
     availableMb: num(x.available) - 1,
   }));
-  const hangsCur = classifyHangs(r("hangs_cur").map(hangRowOf), snapshots);
-  const hangsPrev = classifyHangs(r("hangs_prev").map(hangRowOf), snapshots);
+  const warnings: MemWarning[] = r("hang_warnings").map((x) => ({
+    device: str(x.device),
+    at: num(x.at) * 1000,
+    uptimeSec: num(x.uptime),
+    level: str(x.level),
+    reason: storedMemoryReason(x.reason),
+  }));
+  const hangsCur = classifyHangs(r("hangs_cur").map(hangRowOf), snapshots, warnings);
+  const hangsPrev = classifyHangs(r("hangs_prev").map(hangRowOf), snapshots, warnings);
   const appBlocked = (hs: ClassifiedHang[]) => hs.filter((h) => h.cause === "app_blocked");
   const errors = r("errors_cur")
     .filter((x) => num(x.count) > 0)

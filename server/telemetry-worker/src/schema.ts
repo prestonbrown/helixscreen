@@ -393,6 +393,16 @@ export function memoryReasonCode(reasonCode: unknown, reason: unknown): string {
     .slice(0, 64);
 }
 
+/**
+ * The reason code of a memory_warning row as Analytics Engine stored it. A row written before
+ * the codes were stored holds the client's text, which the same derivation reads; a stored
+ * code passes through.
+ */
+export function storedMemoryReason(stored: unknown): string {
+  const value = typeof stored === "string" ? stored : "";
+  return memoryReasonCode(value, value);
+}
+
 const memoryReason: Reader = reads(["reason_code", "reason"], (e) => memoryReasonCode(e.reason_code, e.reason));
 
 const device = blob(1, "device_id");

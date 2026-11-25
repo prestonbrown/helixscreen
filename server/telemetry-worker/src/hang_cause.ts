@@ -3,7 +3,13 @@
 // out of memory, an app that blocked, or a report that no evidence classifies. Pure; imports
 // only the thresholds so the dashboard can import it.
 
-import { HANG_HOST_MEMORY_LOW_MB, HANG_SNAPSHOT_WINDOW_SEC, HANG_SUSPENDED_STALL_SEC, HANG_UPLOAD_BATCH_SEC } from "./loop/thresholds";
+import {
+  HANG_HOST_MEMORY_LOW_MB,
+  HANG_SNAPSHOT_WINDOW_SEC,
+  HANG_SUSPENDED_STALL_SEC,
+  HANG_UPLOAD_BATCH_SEC,
+  HANG_WARNING_WINDOW_SEC,
+} from "./loop/thresholds";
 
 export type HangCause = "suspended" | "host_memory" | "app_blocked" | "unknown";
 
@@ -40,6 +46,19 @@ export interface MemSnapshot {
   availableMb: number;
 }
 
+/** One memory warning: the pressure the device's monitor reported at that moment. */
+export interface MemWarning {
+  device: string;
+  /** Epoch milliseconds the Worker stored the warning. */
+  at: number;
+  /** The device's uptime when it reported, 0 when absent. */
+  uptimeSec: number;
+  /** The level the monitor reported ("elevated", "warning", "critical"), "" when absent. */
+  level: string;
+  /** The reason as a code ("available_warning", "rss_critical", "growth", ...), "" when absent. */
+  reason: string;
+}
+
 export interface HangSplit {
   suspended: number;
   host_memory: number;
@@ -70,31 +89,67 @@ export function stalledSeconds(context: string): number {
 const suspended = (hang: HangRow): boolean =>
   hang.platform === "android" || stalledSeconds(hang.context) > HANG_SUSPENDED_STALL_SEC;
 
+/** A device's row that carries its uptime: the stored time says which upload it came from. */
+interface UptimeRow {
+  device: string;
+  at: number;
+  uptimeSec: number;
+}
+
+/**
+ * `rows` of the hang's device and upload whose uptime lies in the `windowSec` of uptime before
+ * the hang's. The stored times say only which upload an event came from, so a row of the hang's
+ * upload is one stored within HANG_UPLOAD_BATCH_SEC of it. A reboot restarts uptime, so a row of
+ * an earlier boot qualifies only when its uptime also lies in that range.
+ */
+function beforeHang<T extends UptimeRow>(hang: HangRow, rows: readonly T[], windowSec: number): T[] {
+  return rows.filter(
+    (r) =>
+      r.device === hang.device &&
+      Math.abs(r.at - hang.at) <= HANG_UPLOAD_BATCH_SEC * 1000 &&
+      r.uptimeSec > 0 &&
+      r.uptimeSec <= hang.uptimeSec &&
+      r.uptimeSec >= hang.uptimeSec - windowSec,
+  );
+}
+
+/** The row of the largest uptime, or null when there is none. */
+const newest = <T extends UptimeRow>(rows: readonly T[]): T | null =>
+  rows.reduce<T | null>((latest, r) => (latest === null || r.uptimeSec > latest.uptimeSec ? r : latest), null);
+
+/** The reasons of a warning at warning or critical that say the host's available memory ran low. */
+const LOW_AVAILABLE_REASONS: ReadonlySet<string> = new Set(["available_warning", "available_critical", "sustained_low_available"]);
+
+const lowAvailable = (w: MemWarning): boolean => (w.level === "warning" || w.level === "critical") && LOW_AVAILABLE_REASONS.has(w.reason);
+
 /**
  * A suspended app is `suspended` whatever its memory says. A hang that carries its own memory
- * fields is classified by them. An older hang is classified by the device's snapshot taken
- * last before it, by the same threshold. The stored times say only which upload an event came
- * from, so a snapshot counts when it came from the hang's upload and its uptime is at or below
- * the hang's and at most HANG_SNAPSHOT_WINDOW_SEC under it; the largest such uptime wins. A
- * reboot restarts uptime, so a snapshot of an earlier boot qualifies only when its uptime also
- * lies in that range. Without a qualifying snapshot the cause is unknown. `snapshots` holds the
- * hang's device's snapshots.
+ * fields is classified by them: the host ran out of memory when the pressure is critical or
+ * less than HANG_HOST_MEMORY_LOW_MB was available. An older hang is the host running out of
+ * memory when one of its device's memory warnings in the HANG_WARNING_WINDOW_SEC of uptime
+ * before it, at warning or critical, says available memory ran low. With no such warning it is
+ * classified by the device's snapshot taken last before it, by the same threshold: among the
+ * snapshots of the hang's upload whose uptime is at most HANG_SNAPSHOT_WINDOW_SEC under the
+ * hang's, the largest uptime wins. Without a qualifying snapshot the cause is unknown. A hang
+ * that is neither suspended nor the host is an app that blocked.
  */
-export function classifyHang(hang: HangRow, snapshots: readonly MemSnapshot[]): HangCause {
+export function classifyHang(
+  hang: HangRow,
+  snapshots: readonly MemSnapshot[] = [],
+  warnings: readonly MemWarning[] = [],
+): HangCause {
   if (suspended(hang)) return "suspended";
+  let host: boolean;
   if (hang.memAvailableMb !== null || hang.pressure !== "") {
-    return hang.pressure === "critical" || (hang.memAvailableMb !== null && lowMemory(hang.memAvailableMb))
-      ? "host_memory"
-      : "app_blocked";
+    host = hang.pressure === "critical" || (hang.memAvailableMb !== null && lowMemory(hang.memAvailableMb));
+  } else if (beforeHang(hang, warnings, HANG_WARNING_WINDOW_SEC).some(lowAvailable)) {
+    host = true;
+  } else {
+    const latest = newest(beforeHang(hang, snapshots, HANG_SNAPSHOT_WINDOW_SEC));
+    if (latest === null) return "unknown";
+    host = lowMemory(latest.availableMb);
   }
-  const oldest = hang.uptimeSec - HANG_SNAPSHOT_WINDOW_SEC;
-  let latest: MemSnapshot | null = null;
-  for (const s of snapshots) {
-    const sameUpload = Math.abs(s.at - hang.at) <= HANG_UPLOAD_BATCH_SEC * 1000;
-    if (!sameUpload || s.uptimeSec <= 0 || s.uptimeSec > hang.uptimeSec || s.uptimeSec < oldest) continue;
-    if (latest === null || s.uptimeSec > latest.uptimeSec) latest = s;
-  }
-  return latest === null ? "unknown" : lowMemory(latest.availableMb) ? "host_memory" : "app_blocked";
+  return host ? "host_memory" : "app_blocked";
 }
 
 /** A classified hang. */
@@ -102,10 +157,9 @@ export interface ClassifiedHang extends HangRow {
   cause: HangCause;
 }
 
-export function classifyHangs(hangs: readonly HangRow[], snapshots: readonly MemSnapshot[]): ClassifiedHang[] {
-  const byDevice = new Map<string, MemSnapshot[]>();
-  for (const s of snapshots) byDevice.set(s.device, [...(byDevice.get(s.device) ?? []), s]);
-  return hangs.map((h) => ({ ...h, cause: classifyHang(h, byDevice.get(h.device) ?? []) }));
+/** classifyHang over many hangs, each against its own device's rows. */
+export function classifyHangs(hangs: readonly HangRow[], snapshots: readonly MemSnapshot[] = [], warnings: readonly MemWarning[] = []): ClassifiedHang[] {
+  return hangs.map((h) => ({ ...h, cause: classifyHang(h, snapshots, warnings) }));
 }
 
 export function splitOf(hangs: readonly ClassifiedHang[]): HangSplit {

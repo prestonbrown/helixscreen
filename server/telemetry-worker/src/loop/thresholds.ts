@@ -38,5 +38,11 @@ export const HANG_SNAPSHOT_WINDOW_SEC = 3600
  * only the uptime each carries says which snapshot came first.
  */
 export const HANG_UPLOAD_BATCH_SEC = 10
+/**
+ * Seconds of device uptime before a hang within which a memory warning describes the host at
+ * the hang. A client reports pressure as its level rises or its RSS grows, not on a timer, so
+ * a warning older than this may describe a state the host has left.
+ */
+export const HANG_WARNING_WINDOW_SEC = 900
 /** The share of a week's hangs that must be classifiable before the week is compared to the next. */
 export const HANG_MIN_CLASSIFIED_SHARE = 0.5
