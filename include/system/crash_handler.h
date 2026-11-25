@@ -289,11 +289,11 @@ uint32_t elapsed_ms(uint32_t start_ms, uint32_t now_ms) noexcept;
  *
  * Records short, structured events into a fixed-size ring. On crash, the last
  * ~64 entries are dumped to crash.txt as `crumb:<ms> <category> <subject>`
- * lines. Producers can be called from any thread and from signal handlers
- * (though not intended to be the latter).
+ * lines.
  *
- * Storage is entirely static (no heap). Writers are lock-free; readers
- * tolerate torn writes by requiring a complete timestamp.
+ * Storage is entirely static (no heap). note() may be called from any thread
+ * and is lock-free; the reader, the crash handler, is given only whole crumbs
+ * (src/system/breadcrumb_slot.h). Do not note from a signal handler.
  *
  * Use for high-signal transitions: panel navigation, modal show/hide, XML
  * component instantiation, style add/remove. Avoid for hot-path events.
@@ -310,20 +310,20 @@ namespace breadcrumb {
  * Both pointers may be nullptr (treated as empty). Lock-free, no heap, no
  * syscalls.
  *
- * THREADING CONTRACT: single-producer (LVGL/UI thread only). Do NOT call
- * from signal handlers or from background threads. Two concurrent producers
- * that hash to the same slot (possible on ring wrap) would interleave
- * byte-level writes into `category`/`subject`; readers would see a
- * consistent `ts_ms` but garbled text. All real producers today run on
- * the LVGL thread (navigation, modals, frame tick, boot).
+ * THREADING: any thread. The LVGL thread, the main-loop hang monitor and the
+ * WebSocket thread note at the same time. A writer takes its slot before
+ * writing it and a reader takes a slot only when its crumb is whole, so
+ * writers never share a slot and the crash dump never shows a crumb half
+ * written. Not from a signal handler: it may interrupt a thread inside
+ * note() and find the ring mid-write.
  */
 void note(const char* category, const char* subject) noexcept;
 
 /**
  * @brief Record an activity breadcrumb with a numeric detail
  *
- * Appends " <detail>" to the subject. Same single-producer / LVGL-thread
- * contract as the two-arg overload.
+ * Appends " <detail>" to the subject. Same threading contract as the
+ * two-arg overload.
  */
 void note(const char* category, const char* subject, long detail) noexcept;
 
@@ -331,7 +331,8 @@ void note(const char* category, const char* subject, long detail) noexcept;
  * @brief Dump the ring buffer to a file descriptor as crumb: lines
  *
  * Writes the oldest-to-newest breadcrumbs as `crumb:<ms> <cat> <subj>\n`
- * lines using only async-signal-safe primitives. Used by the crash signal
+ * lines using only async-signal-safe primitives. A crumb still being written
+ * when the dump runs is left out. Used by the crash signal
  * handler; exposed here so tests can verify ring state by dumping to a
  * pipe and parsing the output.
  */
