@@ -564,3 +564,81 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: cells follow a row tha
     lv_obj_delete(parent);
     theme_manager_refresh_layout_constants(disp);
 }
+
+namespace {
+
+/// True when @p obj and every ancestor up to @p root are unhidden and it has a size.
+bool shown_within(lv_obj_t* obj, lv_obj_t* root) {
+    if (lv_obj_get_width(obj) <= 0 || lv_obj_get_height(obj) <= 0)
+        return false;
+    for (lv_obj_t* o = obj; o; o = lv_obj_get_parent(o)) {
+        if (lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN))
+            return false;
+        if (o == root)
+            return true;
+    }
+    return false;
+}
+
+/// Lanes the strip draws in whichever view it is in: bars or spool cells.
+int drawn_lanes(lv_obj_t* w, int slot_count) {
+    int n = 0;
+    if (lv_obj_t* bars = UITest::find_by_name(w, "ams_bars_container")) {
+        const uint32_t kids = lv_obj_get_child_count(bars);
+        for (uint32_t i = 0; i < kids; ++i)
+            n += shown_within(lv_obj_get_child(bars, static_cast<int32_t>(i)), w) ? 1 : 0;
+    }
+    for (int i = 0; i < slot_count; ++i) {
+        const std::string name = "spool_cell_" + std::to_string(i);
+        if (lv_obj_t* cell = UITest::find_by_name(w, name.c_str()))
+            n += shown_within(cell, w) ? 1 : 0;
+    }
+    return n;
+}
+
+} // namespace
+
+/**
+ * A home tile resized in Edit Mode announces its new width before the grid
+ * lays the tile out at it, so the strip first rebuilds against its old box.
+ * Laying out the new box then resizes the strip in the middle of that rebuild.
+ * At 480x272 a 4x1 tile is wide enough for the spool view but too short for a
+ * usable spool, and the strip has to land on the bars, not on neither view.
+ */
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "ams_mini: a tile widened from 1x1 to 4x1 at 480x272 draws its lanes",
+                 "[ui][ams_mini][widget_size]") {
+    lv_display_t* disp = lv_display_get_default();
+    REQUIRE(disp != nullptr);
+    ScopedResolution micro(disp, 480, 272);
+    theme_manager_refresh_layout_constants(disp);
+    ui_ams_mini_status_init();
+
+    lv_obj_t* parent = lv_obj_create(test_screen());
+    lv_obj_remove_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_pad_all(parent, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_width(parent, 0, LV_PART_MAIN);
+    lv_obj_set_size(parent, 70, 57);
+
+    lv_obj_t* w = ui_ams_mini_status_create(parent, 57);
+    lv_obj_set_size(w, lv_pct(100), lv_pct(100));
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_update_layout(parent);
+    fill_slots(w, 4);
+    ui_ams_mini_status_set_width(w, 70);
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_update_layout(parent);
+    REQUIRE(drawn_lanes(w, 4) == 4);
+
+    // The manager's order: the width first, then the grid's layout pass.
+    lv_obj_set_width(parent, 284);
+    ui_ams_mini_status_set_width(w, 286);
+    lv_obj_update_layout(parent);
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_update_layout(parent);
+    CHECK(drawn_lanes(w, 4) == 4);
+
+    lv_obj_delete(w);
+    lv_obj_delete(parent);
+    theme_manager_refresh_layout_constants(disp);
+}
