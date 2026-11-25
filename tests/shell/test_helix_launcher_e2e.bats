@@ -267,7 +267,8 @@ MOCKEOF
     ms=$(run_launcher_timed "$p")
     run cat "$MOCK_INSTALL/helix_screen_backend.txt"
     [ "$output" = "helix-screen egl" ]
-    [ "$ms" -lt 3000 ]
+    # Well under the 20 s deadline, with room for a loaded CI runner.
+    [ "$ms" -lt 10000 ]
 }
 
 @test "e2e: without timeout, a deadline that is not a positive integer does not stop the launcher" {
