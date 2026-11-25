@@ -23,7 +23,7 @@
   <view extends="lv_obj"
         width="100%" height="content" flex_flow="row" style_pad_all="0" style_pad_gap="2" style_radius="#border_radius"
         style_clip_corner="true" style_bg_opa="0" style_border_width="0" scrollable="true" scroll_dir="hor"
-        scrollbar_mode="off" clickable="false">
+        scrollbar_mode="auto" clickable="false">
     <event_cb trigger="size_changed" callback="tool_target_row_resized" user_data="$labels"/>
     <repeat count="tool_switcher_heads">
       <tool_switcher_segment name="tool_target_cell_${i}"
