@@ -6,8 +6,14 @@
 #include "display_backend.h"
 #include "indev_delete_watch.h"
 
+#include <spdlog/spdlog.h>
+
 #include <algorithm>
+#include <cerrno>
+#include <cstring>
+#include <fcntl.h>
 #include <lvgl.h>
+#include <unistd.h>
 #include <vector>
 
 namespace helix {
@@ -32,6 +38,35 @@ class InputWakeSourceList {
         sources_.push_back({indev, fd});
         deletes_.watch(indev, nullptr, &on_deleted, this);
     }
+
+    /// Opens @p path and makes its input device from the fd through @p make_device,
+    /// tracking it here. Opened here rather than by LVGL's path-taking creators so the
+    /// fd is known: the main loop waits on it while the display sleeps. nullptr when
+    /// the node cannot be opened, or when @p make_device returns nullptr; nothing is
+    /// tracked then.
+    ///
+    /// @p make_device takes ownership of the fd, and must close it itself when it
+    /// returns nullptr. LVGL closes the fd when it deletes the device it made.
+    template <class MakeDevice> lv_indev_t* open_device(const char* path, MakeDevice make_device) {
+        const int fd = ::open(path, O_RDONLY | O_NOCTTY | O_CLOEXEC);
+        if (fd < 0) {
+            spdlog::warn("[Input] Cannot open input device {}: {}", path, strerror(errno));
+            return nullptr;
+        }
+        lv_indev_t* indev = make_device(fd);
+        if (indev) {
+            add(indev, fd);
+        }
+        return indev;
+    }
+
+#if LV_USE_EVDEV
+    /// open_device() with LVGL's evdev driver, which closes the fd when it makes no
+    /// device of it.
+    lv_indev_t* open_evdev(lv_indev_type_t type, const char* path) {
+        return open_device(path, [type](int fd) { return lv_evdev_create_fd(type, fd); });
+    }
+#endif
 
     [[nodiscard]] const std::vector<InputWakeSource>& sources() const {
         return sources_;

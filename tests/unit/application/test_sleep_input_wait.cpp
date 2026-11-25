@@ -166,6 +166,56 @@ TEST_CASE_METHOD(LVGLTestFixture, "a backend's wake sources forget a device LVGL
 }
 
 namespace {
+
+/// Closes the fd a device was made from, as LVGL's evdev driver does on delete.
+void close_fd_on_delete(lv_event_t* event) {
+    close(static_cast<int>(reinterpret_cast<intptr_t>(lv_event_get_user_data(event))));
+}
+
+/// An input device over an fd it owns from then on.
+lv_indev_t* indev_from_fd(int fd) {
+    lv_indev_t* indev = lv_indev_create();
+    lv_indev_add_event_cb(indev, close_fd_on_delete, LV_EVENT_DELETE,
+                          reinterpret_cast<void*>(static_cast<intptr_t>(fd)));
+    return indev;
+}
+
+/// Takes the fd, as the contract says, and makes no device of it.
+lv_indev_t* refuse_fd(int fd) {
+    close(fd);
+    return nullptr;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a device a backend opens for its fd is a wake source until LVGL deletes it",
+                 "[sleep][sleep_input_wait]") {
+    helix::InputWakeSourceList list;
+    lv_indev_t* indev = list.open_device("/dev/null", indev_from_fd);
+    REQUIRE(indev != nullptr);
+    REQUIRE(list.sources().size() == 1);
+    CHECK(list.sources()[0].indev == indev);
+    const int fd = list.sources()[0].fd;
+    CHECK(fd >= 0);
+    // Opened for this process alone: nothing it starts inherits the device.
+    CHECK((fcntl(fd, F_GETFD) & FD_CLOEXEC) != 0);
+
+    // A node that cannot be opened tracks nothing.
+    CHECK(list.open_device("/no-such-input-node", indev_from_fd) == nullptr);
+    CHECK(list.sources().size() == 1);
+
+    // A maker that refuses the fd leaves the list as it was.
+    CHECK(list.open_device("/dev/null", refuse_fd) == nullptr);
+    CHECK(list.sources().size() == 1);
+
+    // The maker owned the fd: it closes it with the device, and the entry goes too.
+    lv_indev_delete(indev);
+    CHECK(list.sources().empty());
+    CHECK(fcntl(fd, F_GETFD) == -1);
+}
+
+namespace {
 std::atomic<int> g_enqueue_hook_calls{0};
 void count_enqueue() {
     ++g_enqueue_hook_calls;
