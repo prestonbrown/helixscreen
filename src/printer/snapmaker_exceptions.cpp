@@ -5,6 +5,7 @@
 
 #include "core/text_io.h"
 #include "display_numbering.h"
+#include "json_utils.h"
 #include "lvgl.h"
 #include "translation_loader.h"
 
@@ -756,8 +757,7 @@ bool four_digits(const std::string& s, size_t at) {
 /// any other type reads as 0: the shape of a printer's payload is data, not a
 /// contract violation to throw on, so a string field is never parsed.
 int field_int(const nlohmann::json& entry, const char* key) {
-    auto it = entry.find(key);
-    return it != entry.end() && it->is_number_integer() ? it->get<int>() : 0;
+    return helix::json_util::read_integer_field(entry, key).value_or(0);
 }
 
 /// Read the persistence flag. Both spellings are live: a Python bool
@@ -859,8 +859,8 @@ bool status_carries_exceptions(const nlohmann::json& status) {
     if (!status.is_object()) {
         return false;
     }
-    auto manager = status.find("exception_manager");
-    if (manager == status.end() || !manager->is_object()) {
+    auto* manager = helix::json_util::find_object(status, "exception_manager");
+    if (manager == nullptr) {
         return false;
     }
     auto exceptions = manager->find("exceptions");
@@ -876,9 +876,8 @@ std::optional<ActiveException> read_exception_entry(const nlohmann::json& entry)
     active.code.id = field_int(entry, "id");
     active.code.index = field_int(entry, "index");
     active.code.code = field_int(entry, "code");
-    auto firmware_text = entry.find("message");
-    if (firmware_text != entry.end() && firmware_text->is_string()) {
-        active.message = firmware_text->get<std::string>();
+    if (const auto firmware_text = helix::json_util::read_field<std::string>(entry, "message")) {
+        active.message = *firmware_text;
     }
     active.persistent = field_persistent(entry, "is_persistent");
     return active;

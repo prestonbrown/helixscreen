@@ -1793,16 +1793,16 @@ void PrintSelectPanel::set_api(IMoonrakerAPI* api) {
                 std::string source_path;
                 if (const json* p = helix::json_util::notification_payload(msg)) {
                     action = helix::json_util::safe_string(*p, "action", "?");
-                    const auto item_it = p->find("item");
-                    if (item_it != p->end() && item_it->is_object()) {
+                    auto* item_it = helix::json_util::find_object(*p, "item");
+                    if (item_it != nullptr) {
                         root = helix::json_util::safe_string(*item_it, "root");
                         path = root + ":" + helix::json_util::safe_string(*item_it, "path");
                     }
                     // `item` is the operation's destination; a move out of
                     // gcodes reports a foreign item root with the gcodes
                     // origin here.
-                    const auto source_it = p->find("source_item");
-                    if (source_it != p->end() && source_it->is_object()) {
+                    auto* source_it = helix::json_util::find_object(*p, "source_item");
+                    if (source_it != nullptr) {
                         source_root = helix::json_util::safe_string(*source_it, "root");
                         source_path =
                             source_root + ":" + helix::json_util::safe_string(*source_it, "path");

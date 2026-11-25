@@ -196,6 +196,14 @@ inline std::string& state_dir_ref() {
     static std::string dir = kStateDirDefault;
     return dir;
 }
+
+/// Legacy self-restart sentinel the update unit still checks. Mutable so tests
+/// write it under their own sandbox: the real path is host-wide, and a copy
+/// left there makes every update unit on the host skip its restart.
+inline std::string& legacy_self_restart_sentinel_ref() {
+    static std::string path = "/tmp/helixscreen_self_restart";
+    return path;
+}
 } // namespace detail
 
 inline std::string backup_fallback_dir() {
@@ -204,6 +212,10 @@ inline std::string backup_fallback_dir() {
 
 inline std::string state_dir() {
     return detail::state_dir_ref();
+}
+
+inline std::string legacy_self_restart_sentinel() {
+    return detail::legacy_self_restart_sentinel_ref();
 }
 
 inline std::string config_backup_primary() {

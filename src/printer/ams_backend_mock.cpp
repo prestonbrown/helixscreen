@@ -874,7 +874,12 @@ AmsError AmsBackendMock::unload_filament(int slot_index) {
 
 bool AmsBackendMock::supports_tool_park() const {
     std::lock_guard<std::mutex> lock(mutex_);
-    return system_info_.type == AmsType::TOOL_CHANGER || system_info_.type == AmsType::SNAPMAKER;
+    if (system_info_.type == AmsType::TOOL_CHANGER || system_info_.type == AmsType::SNAPMAKER)
+        return true;
+    // An AFC persona parks as the real backend does: only with a Toolchanger unit.
+    return system_info_.type == AmsType::AFC &&
+           std::any_of(system_info_.units.begin(), system_info_.units.end(),
+                       [](const AmsUnit& u) { return u.name.rfind("Toolchanger", 0) == 0; });
 }
 
 AmsError AmsBackendMock::park_active_tool() {

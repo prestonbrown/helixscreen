@@ -3,6 +3,7 @@
 #include "signal_macro_names.h"
 
 #include "core/text_io.h"
+#include "json_utils.h"
 
 #include <algorithm>
 #include <cctype>
@@ -55,11 +56,11 @@ Definer classify(const nlohmann::json& section, size_t index) {
     if (!section.is_object()) {
         return Definer::User;
     }
-    auto desc = section.find("description");
-    if (desc == section.end() || !desc->is_string()) {
+    const auto desc = helix::json_util::read_field<std::string>(section, "description");
+    if (!desc) {
         return Definer::User;
     }
-    const std::string& text = desc->get_ref<const std::string&>();
+    const std::string& text = *desc;
     if (text == std::string(kAliasDescriptionPrefix) + hidden_name(kVisibleNames[index])) {
         return Definer::Alias;
     }

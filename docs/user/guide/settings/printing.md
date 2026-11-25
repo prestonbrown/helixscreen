@@ -215,6 +215,8 @@ The screen shows one of three things:
 - **Update the helper macros**, when they are installed but Klipper has no `[save_variables]` to keep the values in.
 - **The list**, with the **Z offset by material** switch, **Any other material** (the default) and PLA, PETG, ABS, ASA, TPU, PA and PC. Tap a value to type a new one. A grid mark means the material has a stored bed mesh.
 
+With helper macros 2.4.0 or later, the list also has a **Pressure advance by material** switch: on, each print starts with the pressure advance saved for its material from the tuner, or the config's for a material with none. Saving a tuner result for a material turns it on; see [Saving pressure advance for a material](../calibration.md#saving-pressure-advance-for-a-material).
+
 The setting is kept for each printer. It isn't offered on printers whose firmware stores the Z offset itself. Setup for each kind of printer, how saving works and the full list of gotchas: [Z Offset by Material](../z-offset-by-material.md).
 
 ## Allow cold load/unload

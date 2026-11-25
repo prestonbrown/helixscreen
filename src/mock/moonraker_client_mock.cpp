@@ -37,7 +37,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <dirent.h>
 #include <fstream>
 #include <iomanip>
 #include <limits>
@@ -2946,14 +2945,14 @@ json MoonrakerClientMock::set_nozzle_properties(const json& params) {
         return json{{"state", "error"}, {"message", std::move(message)}};
     };
 
-    const auto ext = params.find("extruder");
-    if (ext == params.end() || !ext->is_number_integer()) {
+    const auto ext = helix::json_util::read_integer_field(params, "extruder");
+    if (!ext) {
         return refuse("extruder must be specified!");
     }
     if (const auto d = params.find("diameter"); d == params.end() || d->is_null()) {
         return refuse("float() argument must be a string or a real number, not 'NoneType'");
     }
-    const int head = ext->get<int>();
+    const int head = *ext;
     if (head < 0 || head >= static_cast<int>(nozzle_props_.size())) {
         return refuse("extruder not found!");
     }
@@ -3468,8 +3467,8 @@ std::string MoonrakerClientMock::shaper_csv_path(char axis_lower) {
     // getpid(), not a random suffix: the path has to be stable for the whole
     // process so a fixture's std::remove() between cases still finds the file
     // its own mock wrote, while staying disjoint from every concurrent shard.
-    return "/tmp/calibration_data_" + std::string(1, axis_lower) + "_mock_" +
-           std::to_string(static_cast<long>(::getpid())) + ".csv";
+    return helix::mock::scratch_dir() + "/calibration_data_" + std::string(1, axis_lower) +
+           "_mock_" + std::to_string(static_cast<long>(::getpid())) + ".csv";
 }
 
 void MoonrakerClientMock::remove_shaper_csvs() {
@@ -3539,25 +3538,40 @@ std::string MoonrakerClientMock::belt_csv_path(const std::string& axis_name,
                                                const std::string& name) {
     // PID-scoped for the same reason as shaper_csv_path(): sharded test
     // processes sharing /tmp must not read or delete each other's fixtures.
-    return "/tmp/resonances_" + axis_name + "_" + name + "_mock_" +
+    return helix::mock::scratch_dir() + "/resonances_" + axis_name + "_" + name + "_mock_" +
            std::to_string(static_cast<long>(::getpid())) + ".csv";
 }
 
+namespace {
+
+/// Every belt CSV path this process' mocks wrote and have not yet removed.
+/// remove_belt_csvs() deletes exactly these: scanning /tmp for them costs a
+/// readdir of every entry there, seconds per call on a host whose /tmp holds
+/// hundreds of thousands of files.
+std::mutex& belt_csvs_mutex() {
+    static std::mutex m;
+    return m;
+}
+std::set<std::string>& belt_csvs_written() {
+    static std::set<std::string> paths;
+    return paths;
+}
+
+void note_belt_csv(const std::string& path) {
+    std::lock_guard<std::mutex> lock(belt_csvs_mutex());
+    belt_csvs_written().insert(path);
+}
+
+} // namespace
+
 void MoonrakerClientMock::remove_belt_csvs() {
-    // The axis/name parts come from the G-code, so match the fixed prefix and
-    // this process' PID suffix rather than enumerating paths.
-    const std::string prefix = "resonances_";
-    const std::string suffix = "_mock_" + std::to_string(static_cast<long>(::getpid())) + ".csv";
-    if (DIR* dir = opendir("/tmp")) {
-        while (struct dirent* entry = readdir(dir)) {
-            const std::string file(entry->d_name);
-            if (file.size() > prefix.size() + suffix.size() &&
-                file.compare(0, prefix.size(), prefix) == 0 &&
-                file.compare(file.size() - suffix.size(), suffix.size(), suffix) == 0) {
-                std::remove(("/tmp/" + file).c_str());
-            }
-        }
-        closedir(dir);
+    std::set<std::string> paths;
+    {
+        std::lock_guard<std::mutex> lock(belt_csvs_mutex());
+        paths.swap(belt_csvs_written());
+    }
+    for (const auto& path : paths) {
+        std::remove(path.c_str());
     }
 }
 
@@ -3866,6 +3880,7 @@ void MoonrakerClientMock::dispatch_test_resonances_response(const std::string& g
          max_freq = resonance_max_freq_, write, mode = belt_failure_] {
             if (!final_line.empty()) {
                 if (write) {
+                    note_belt_csv(csv_path);
                     // HELIX_MOCK_BELT_CSV_A/_B replay a real capture for that
                     // path instead of the synthetic curve.
                     const char* replay = std::getenv(path_letter == 'A' ? "HELIX_MOCK_BELT_CSV_A"

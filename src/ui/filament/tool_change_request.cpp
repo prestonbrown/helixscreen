@@ -279,6 +279,7 @@ bool request_tool_park(const PrinterState& printer_state) {
     const int active = ToolState::instance().active_tool_index();
     if (active < 0) {
         spdlog::debug("[ToolPark] Ignored: no tool mounted");
+        NOTIFY_INFO(lv_tr("No tool is mounted"));
         return false;
     }
     spdlog::info("[ToolPark] Parking T{}", active);

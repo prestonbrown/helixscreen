@@ -6,6 +6,7 @@
 #include "core/text_io.h"
 #include "device_display_name.h"
 #include "humidity_sensor_types.h"
+#include "json_utils.h"
 #include "notice.h"
 #include "printer_discovery.h"
 #include "sort_small.h"
@@ -70,11 +71,11 @@ uint8_t role_for_sensor_type(const nlohmann::json* body) {
     if (body == nullptr || !body->is_object()) {
         return 0;
     }
-    const auto it = body->find("sensor_type");
-    if (it == body->end() || !it->is_string()) {
+    const auto it = helix::json_util::read_field<std::string>(*body, "sensor_type");
+    if (!it) {
         return 0;
     }
-    const std::string type = helix::text_io::to_lower(it->get<std::string>());
+    const std::string type = helix::text_io::to_lower(*it);
     if (type == "temperature_mcu") {
         return kMcu;
     }
@@ -280,15 +281,15 @@ bool TemperatureSensorManager::parse_status(const nlohmann::json& status) {
         const TemperatureSensorState before = state;
 
         // Field-restricted subscriptions send null for fields the object lacks.
-        if (auto it = sensor->find("temperature"); it != sensor->end() && it->is_number()) {
-            state.temperature = it->get<float>();
+        if (const auto it = helix::json_util::read_field<float>(*sensor, "temperature")) {
+            state.temperature = *it;
         }
         // target is temperature_fan / heater_generic only; speed is temperature_fan only.
-        if (auto it = sensor->find("target"); it != sensor->end() && it->is_number()) {
-            state.target = it->get<float>();
+        if (const auto it = helix::json_util::read_field<float>(*sensor, "target")) {
+            state.target = *it;
         }
-        if (auto it = sensor->find("speed"); it != sensor->end() && it->is_number()) {
-            state.speed = it->get<float>();
+        if (const auto it = helix::json_util::read_field<float>(*sensor, "speed")) {
+            state.speed = *it;
         }
 
         if (state.temperature != before.temperature || state.target != before.target ||
@@ -302,8 +303,8 @@ bool TemperatureSensorManager::parse_status(const nlohmann::json& status) {
     // A frame without drv_status leaves the level alone; a null one (motors off,
     // the driver unpolled) clears it.
     for (const auto& name : driver_objects_) {
-        const auto driver = status.find(name);
-        if (driver == status.end() || !driver->is_object()) {
+        auto* driver = helix::json_util::find_object(status, name);
+        if (driver == nullptr) {
             continue;
         }
         const auto flags = driver->find("drv_status");

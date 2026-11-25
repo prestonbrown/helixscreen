@@ -38,6 +38,8 @@
 #include <fstream>
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -176,6 +178,41 @@ TEST_CASE_METHOD(RetargetFixture, "Connect: every connection gets a print-start 
     // The new collector listens from connect on, for console lines that announce a
     // printer-side start; the old one's tap is gone, or there would be two.
     CHECK(collector_taps() == 1);
+}
+
+TEST_CASE_METHOD(RetargetFixture,
+                 "Connect: a replaced print-start wiring stops observing the printer's subjects",
+                 "[multi-printer][retarget][print_start]") {
+    // Each connect builds a fresh wiring whose guards observe these subjects for the new
+    // collector. A guard the switch fails to drop keeps its wiring alive, and with it a
+    // second arming decision on every print-state edge for a collector that is gone.
+    auto& ps = get_printer_state();
+    auto& print = ps.print_state();
+    const std::vector<std::pair<const char*, lv_subject_t*>> wired = {
+        {"print_state_enum", print.get_print_state_enum_subject()},
+        {"preparing_epoch", print.get_preparing_epoch_subject()},
+        {"print_start_phase", print.get_print_start_phase_subject()},
+        {"layer_current", print.get_print_layer_current_subject()},
+        {"print_duration", print.get_print_duration_subject()},
+        {"klippy_state", ps.network_state().get_klippy_state_subject()},
+    };
+    const auto observers = [](lv_subject_t* subject) { return lv_ll_get_len(&subject->subs_ll); };
+
+    REQUIRE(helix::connect_active_printer());
+    std::vector<uint32_t> after_connect;
+    for (const auto& [name, subject] : wired) {
+        INFO(name);
+        REQUIRE(observers(subject) > 0);
+        after_connect.push_back(observers(subject));
+    }
+
+    REQUIRE(helix::retarget_printer_connection());
+    REQUIRE(helix::retarget_printer_connection());
+
+    for (size_t i = 0; i < wired.size(); ++i) {
+        INFO(wired[i].first);
+        CHECK(observers(wired[i].second) == after_connect[i]);
+    }
 }
 
 TEST_CASE_METHOD(RetargetFixture, "Connect: every connection tracks why its prints stop",

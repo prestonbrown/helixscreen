@@ -129,26 +129,55 @@ inline bool to_u64(const nlohmann::json& v, std::uint64_t& out) {
     return false;
 }
 
+/// An object key given as a literal or a std::string, so find_* callers need no
+/// `.c_str()`. Only valid for the duration of the call it is passed to.
+struct KeyRef {
+    const char* c_str;
+    KeyRef(const char* key) : c_str(key) {}
+    KeyRef(const std::string& key) : c_str(key.c_str()) {}
+};
+
 } // namespace detail
 
 /// The value under @p key, or nullptr when @p j is not an object or lacks it.
-inline const nlohmann::json* find_member(const nlohmann::json& j, const char* key) {
+inline const nlohmann::json* find_member(const nlohmann::json& j, detail::KeyRef key) {
     if (!j.is_object()) {
         return nullptr;
     }
-    const auto it = j.find(key);
+    const auto it = j.find(key.c_str);
     return it == j.end() ? nullptr : &*it;
 }
 
 /// The value under @p key when it is a JSON object, else nullptr.
-inline const nlohmann::json* find_object(const nlohmann::json& j, const char* key) {
+inline const nlohmann::json* find_object(const nlohmann::json& j, detail::KeyRef key) {
     const auto* v = find_member(j, key);
     return v && v->is_object() ? v : nullptr;
 }
 
 /// The value under @p key when it is a JSON array, else nullptr.
-inline const nlohmann::json* find_array(const nlohmann::json& j, const char* key) {
+inline const nlohmann::json* find_array(const nlohmann::json& j, detail::KeyRef key) {
     const auto* v = find_member(j, key);
+    return v && v->is_array() ? v : nullptr;
+}
+
+/// Mutable forms of find_member / find_object / find_array, for code that edits
+/// the value it finds (config migrations). Same guards: nullptr when @p j is
+/// not an object, lacks the key, or holds another type.
+inline nlohmann::json* find_member(nlohmann::json& j, detail::KeyRef key) {
+    if (!j.is_object()) {
+        return nullptr;
+    }
+    const auto it = j.find(key.c_str);
+    return it == j.end() ? nullptr : &*it;
+}
+
+inline nlohmann::json* find_object(nlohmann::json& j, detail::KeyRef key) {
+    auto* v = find_member(j, key);
+    return v && v->is_object() ? v : nullptr;
+}
+
+inline nlohmann::json* find_array(nlohmann::json& j, detail::KeyRef key) {
+    auto* v = find_member(j, key);
     return v && v->is_array() ? v : nullptr;
 }
 
@@ -378,14 +407,14 @@ template <typename T> [[nodiscard]] std::optional<T> read_scalar(const nlohmann:
 /// lacks the key, or holds a null or another type there. A delta frame omits
 /// what did not change, so absent is "no change" and never a default.
 template <typename T>
-[[nodiscard]] std::optional<T> read_field(const nlohmann::json& obj, const char* key) {
+[[nodiscard]] std::optional<T> read_field(const nlohmann::json& obj, detail::KeyRef key) {
     const auto* v = find_member(obj, key);
     return v ? read_scalar<T>(*v) : std::nullopt;
 }
 
 /// The member @p key of @p obj as an integer (floats refused), or nullopt.
 [[nodiscard]] inline std::optional<int> read_integer_field(const nlohmann::json& obj,
-                                                           const char* key) {
+                                                           detail::KeyRef key) {
     const auto* v = find_member(obj, key);
     return v ? read_integer(*v) : std::nullopt;
 }

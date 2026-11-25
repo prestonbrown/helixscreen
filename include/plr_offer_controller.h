@@ -152,6 +152,9 @@ class PlrOfferController {
     /// The plugin's answer this connection; nullopt until it answers.
     std::optional<helix::PlrPluginStatus> plugin_status_;
     bool plugin_status_inflight_ = false;
+    /// The status request failed this connection: a firmware backend the plugin
+    /// would displace stops waiting for an answer that is not coming.
+    bool plugin_status_failed_ = false;
     int last_plr_feature_state_ = 0;
     /// The plugin probe of this connection has answered, so the printer type
     /// discovery resolved for this connection is in place.

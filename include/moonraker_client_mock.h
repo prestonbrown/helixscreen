@@ -846,7 +846,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     [[nodiscard]] static std::string belt_csv_path(const std::string& axis_name,
                                                    const std::string& name);
 
-    /// Delete every belt CSV this process wrote.
+    /// Delete every belt CSV this process wrote, without scanning /tmp.
     static void remove_belt_csvs();
 
     /** @} */

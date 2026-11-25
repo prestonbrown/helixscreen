@@ -27,8 +27,8 @@ using json_util::read_scalar;
 template <typename T, typename Reader = std::optional<T> (*)(const nlohmann::json&)>
 [[nodiscard]] std::optional<std::vector<std::optional<T>>>
 read_array(const nlohmann::json& obj, const char* key, Reader reader = read_scalar<T>) {
-    const auto it = obj.find(key);
-    if (it == obj.end() || !it->is_array()) {
+    auto* it = helix::json_util::find_array(obj, key);
+    if (it == nullptr) {
         return std::nullopt;
     }
     std::vector<std::optional<T>> out;
@@ -47,8 +47,8 @@ template <typename T, std::size_t N, typename Reader = std::optional<T> (*)(cons
 [[nodiscard]] std::array<std::optional<T>, N>
 read_indexed(const nlohmann::json& obj, const char* key, Reader reader = read_scalar<T>) {
     std::array<std::optional<T>, N> out;
-    const auto it = obj.find(key);
-    if (it == obj.end() || !it->is_array()) {
+    auto* it = helix::json_util::find_array(obj, key);
+    if (it == nullptr) {
         return out;
     }
     for (std::size_t i = 0; i < N && i < it->size(); ++i) {

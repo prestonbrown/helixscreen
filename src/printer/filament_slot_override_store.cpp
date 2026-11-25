@@ -39,7 +39,7 @@ constexpr const char* kFilamentIdSourceSpoolman = "spoolman";
 constexpr const char* kFilamentIdSourceGeneric = "generic";
 
 // Outer Moonraker DB key for a slot. NOTE the two styles have DIFFERENT bases:
-//   Lane -> "lane<i+1>"  (1-based, AFC/Happy Hare convention)
+//   Lane -> "lane<i+1>"  (1-based, AFC's convention; Happy Hare's own lane_data keys are 0-based)
 //   Tool -> "T<i>"       (0-based, Orca/Mainsail tool convention)
 // Both carry the SAME 0-based inner "lane" field (to_lane_data_record).
 std::string format_lane_key(int slot_index, LaneKeyStyle style) {

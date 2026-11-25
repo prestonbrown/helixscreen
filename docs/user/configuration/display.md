@@ -37,8 +37,9 @@ You only need these if your screen misbehaves at sleep or at low brightness. Eac
 
 | Key | Default | Values | What it does |
 |-----|---------|--------|--------------|
-| `screensaver_type` | `"flipclock"` | `"off"`, `"toasters"`, `"starfield"`, `"pipes"`, `"bounce"`, `"fireworks"`, `"logo"`, `"maze"`, `"hyperspace"`, `"flipclock"`, `"fireflies"`, `"aqua"`, `"highfly"`, `"nixie"`, `"random"` | Which screensaver plays while the screen is idle. Set it at **Settings > Display > Screensaver**. |
-| `screensaver_print_progress` | `true` | `true` or `false` | Whether screensavers without a print display of their own (all but the Flip Clock, Aqua Surface and High Fly) show a small progress card during a print. **Settings > Display > Show Print Progress**. A paused or finished print shows the card either way. |
+| `screensaver_type` | `"flipclock"` | `"off"`, `"toasters"`, `"starfield"`, `"pipes"`, `"bounce"`, `"fireworks"`, `"logo"`, `"maze"`, `"hyperspace"`, `"flipclock"`, `"fireflies"`, `"aqua"`, `"highfly"`, `"nixie"`, `"analog"`, `"random"` | Which screensaver plays while the screen is idle. Set it at **Settings > Display > Screensaver**. |
+| `screensaver_print_progress` | `true` | `true` or `false` | Whether screensavers without a print display of their own (all but the clocks, Aqua Surface and High Fly) show a small progress card during a print. **Settings > Display > Show Print Progress**. A paused or finished print shows the card either way. |
+| `screensaver_clock_face` | `0` | `0` Chronograph, `1` Station Clock, `2` Neon, `3` Bauhaus, `4` Orrery, `5` Shuffle | Which face the Analog Clock screensaver shows; Shuffle picks a different one each time. **Settings > Display > Clock Face**. |
 | `screensaver_levels` | absent | written by HelixScreen | Do not edit. |
 
 The names correspond to the menu entries Flying Toasters, Starfield, 3D Pipes, Bouncing Printer, Fireworks, Bouncing Logo, 3D Maze, Hyperspace, Flip Clock, Fireflies, Aqua Surface and High Fly. `"random"` plays a different one each time. The names are not case-sensitive. A value that names no screensaver reads as the default, and an old numeric value is still read as the screensaver it stood for and is rewritten as a name on the next update. Not every screensaver is available on every build, and the default is the Flip Clock wherever it is available.

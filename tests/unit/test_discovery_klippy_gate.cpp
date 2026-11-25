@@ -368,6 +368,12 @@ TEST_CASE("A discovery step acts on its reply only while its pass is current",
     const json server_reply = {{"result", {{"moonraker_version", "v0.9.3"}}}};
     const json printer_reply = {{"result", {{"hostname", "held"}}}};
     const HeldStep step = GENERATE_COPY(values<HeldStep>({
+        {"identify reply", "server.connection.identify", 0, false, false, false,
+         json{{"result", {{"connection_id", 7}}}}},
+        {"identify failure", "server.connection.identify", 0, false, false, true, json()},
+        {"klippy gate reply", "server.info", 0, false, false, false,
+         json{{"result", {{"klippy_state", "ready"}}}}},
+        {"klippy gate failure", "server.info", 0, false, false, true, json()},
         {"objects.list reply", "printer.objects.list", 0, false, false, false, objects_reply},
         {"objects.list failure", "printer.objects.list", 0, false, false, true, json()},
         {"claim reply", "printer.objects.query", 0, false, true, false,

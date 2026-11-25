@@ -2,6 +2,7 @@
 
 #include "enclosure_top.h"
 
+#include "json_utils.h"
 #include "printer_discovery.h"
 
 #include <algorithm>
@@ -76,11 +77,11 @@ std::optional<bool> fitted_from_status(const PrinterDiscovery& hw, const nlohman
     if (obj == status.end() || !obj->is_object()) {
         return std::nullopt;
     }
-    auto field = obj->find(p->fitted_field);
-    if (field == obj->end() || !field->is_boolean()) {
+    const auto field = helix::json_util::read_field<bool>(*obj, p->fitted_field);
+    if (!field) {
         return std::nullopt;
     }
-    return field->get<bool>();
+    return *field;
 }
 
 } // namespace helix::enclosure_top

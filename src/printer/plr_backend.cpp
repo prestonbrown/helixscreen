@@ -105,6 +105,8 @@ const std::array<PlrProvider, 5>& providers() {
         // clears only last_file, so an empty last_file withdraws the offer and a
         // set one names the recovery file. Elsewhere virtual_sdcard.file_path
         // names it. The filename is display-only: resume takes no parameters.
+        // The row above displaces it once the plugin answers, so it offers
+        // nothing until then: a prompt shown first would keep the legacy resume.
         {PlrBackendType::QIDI, "qidi",
          [](const PrinterDiscovery& hw) {
              return plr_resume_macro_present(hw)
@@ -116,7 +118,7 @@ const std::array<PlrProvider, 5>& providers() {
              return caps.resume_macro && caps.interrupted_flag;
          },
          [](const PlrCapabilitySignals& caps, const PlrProbeSession&) {
-             return !saved_file_cleared(caps);
+             return !caps.plugin_answer_pending && !saved_file_cleared(caps);
          },
          [](const PlrCapabilitySignals& caps, const PlrProbeSession& probe) {
              if (caps.saved_file_gates_offer && caps.saved_recovery_file &&
@@ -274,42 +276,41 @@ const std::string* plr_parse_recovery_file(const nlohmann::json& status) {
 }
 
 int plr_parse_interrupted_flag(const nlohmann::json& status) {
-    auto sv_it = status.find("save_variables");
-    if (sv_it == status.end() || !sv_it->is_object()) {
+    auto* sv_it = helix::json_util::find_object(status, "save_variables");
+    if (sv_it == nullptr) {
         return -1;
     }
-    auto vars_it = sv_it->find("variables");
-    if (vars_it == sv_it->end() || !vars_it->is_object()) {
+    auto* vars_it = helix::json_util::find_object(*sv_it, "variables");
+    if (vars_it == nullptr) {
         return -1;
     }
-    auto wi_it = vars_it->find("was_interrupted");
-    if (wi_it == vars_it->end() || !wi_it->is_boolean()) {
+    const auto wi_it = helix::json_util::read_field<bool>(*vars_it, "was_interrupted");
+    if (!wi_it) {
         return -1;
     }
-    return wi_it->get<bool>() ? 1 : 0;
+    return *wi_it ? 1 : 0;
 }
 
 bool plr_parse_saved_file(const nlohmann::json& status, std::optional<std::string>& out) {
-    auto sv_it = status.find("save_variables");
-    if (sv_it == status.end() || !sv_it->is_object()) {
+    auto* sv_it = helix::json_util::find_object(status, "save_variables");
+    if (sv_it == nullptr) {
         return false;
     }
-    auto vars_it = sv_it->find("variables");
-    if (vars_it == sv_it->end() || !vars_it->is_object()) {
+    auto* vars_it = helix::json_util::find_object(*sv_it, "variables");
+    if (vars_it == nullptr) {
         return false;
     }
     out.reset();
-    auto file_it = vars_it->find("last_file");
-    if (file_it != vars_it->end() && file_it->is_string()) {
-        const auto& name = file_it->get_ref<const std::string&>();
+    if (const auto file_it = helix::json_util::read_field<std::string>(*vars_it, "last_file")) {
+        const auto& name = *file_it;
         out = (name == "''" || name == "\"\"") ? std::string() : name;
     }
     return true;
 }
 
 bool plr_parse_power_loss_signal(const nlohmann::json& status) {
-    auto stats_it = status.find("print_stats");
-    if (stats_it == status.end() || !stats_it->is_object()) {
+    auto* stats_it = helix::json_util::find_object(status, "print_stats");
+    if (stats_it == nullptr) {
         return false;
     }
     auto pl_it = stats_it->find("power_loss");
@@ -324,8 +325,8 @@ bool plr_probe_recovery_available(const PlrDetectResult& r) {
 }
 
 bool plr_parse_check_continue_response(const nlohmann::json& response, PlrDetectResult& out) {
-    auto result_it = response.find("result");
-    if (result_it == response.end() || !result_it->is_object()) {
+    auto* result_it = helix::json_util::find_object(response, "result");
+    if (result_it == nullptr) {
         return false;
     }
     auto file_it = result_it->find("file_state");
@@ -443,11 +444,11 @@ std::string plr_parse_creality_sidecar(const std::string& json_text) {
         spdlog::debug("[PLR] Creality sidecar is not parseable JSON");
         return {};
     }
-    auto it = doc.find("file_path");
-    if (it == doc.end() || !it->is_string()) {
+    const auto it = helix::json_util::read_field<std::string>(doc, "file_path");
+    if (!it) {
         return {};
     }
-    return it->get<std::string>();
+    return *it;
 }
 
 std::string plr_read_probe_recovery_filename() {

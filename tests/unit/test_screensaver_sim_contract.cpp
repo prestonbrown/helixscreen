@@ -4,6 +4,7 @@
 #if HELIX_ENABLE_SCREENSAVER
 
 #include "../test_helpers/screensaver_sim_kit.h"
+#include "screensaver_analog_clock_sim.h"
 #include "screensaver_aqua_sim.h"
 #include "screensaver_fireflies_sim.h"
 #include "screensaver_fireworks_sim.h"
@@ -37,6 +38,7 @@ using helix::test::hms;
 using helix::test::kUnevenFrameMs;
 using helix::test::print_reading_for;
 using helix::test::SimRun;
+using helix::ui::AnalogClockSim;
 using helix::ui::AquaSim;
 using helix::ui::ClockMode;
 using helix::ui::ClockReading;
@@ -130,6 +132,13 @@ template <> void ContractRun<NixieClockSim>::init(size_t level) {
 }
 template <> void ContractRun<NixieClockSim>::step_with_inputs(uint32_t dt_ms) {
     run.step(dt_ms, helix::ui::clock_face(seconds_of_day(), true));
+}
+
+template <> void ContractRun<AnalogClockSim>::init(size_t level) {
+    run.init(level, helix::ui::AnalogFace{helix::ui::AnalogStyle::CHRONOGRAPH, reading()});
+}
+template <> void ContractRun<AnalogClockSim>::step_with_inputs(uint32_t dt_ms) {
+    run.step(dt_ms, helix::ui::AnalogFace{helix::ui::AnalogStyle::CHRONOGRAPH, reading()});
 }
 
 template <typename Sim> constexpr size_t level_count() {
@@ -226,11 +235,12 @@ template <typename Sim> void check_heap_contract(ClockMode mode) {
 
 #define HELIX_EVERY_SIM                                                                            \
     StarfieldSim, PipesSim, FireworksSim, MazeSim, HyperspaceSim, FlipClockSim, FirefliesSim,      \
-        AquaSim, HighFlySim, NixieClockSim
+        AquaSim, HighFlySim, NixieClockSim, AnalogClockSim
 
 /// The sims whose init() and step() take a ClockReading, run again on a print counting down.
 #define HELIX_EVERY_PRINT_SIM                                                                      \
-    PipesSim, FireworksSim, AquaSim, HighFlySim, StarfieldSim, HyperspaceSim, FirefliesSim
+    PipesSim, FireworksSim, AquaSim, HighFlySim, StarfieldSim, HyperspaceSim, FirefliesSim,        \
+        AnalogClockSim
 
 TEMPLATE_TEST_CASE("a sim's dirty boxes cover what it changes, inside its rows and opaque, at "
                    "every level in both formats",

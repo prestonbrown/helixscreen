@@ -175,6 +175,7 @@
   <translation tag="20 minutes" ru="20 минут"/>
   <translation tag="24 Hour" ru="24 часа"/>
   <translation tag="24-hour" ru="24-часовой"/>
+  <translation tag="24H" ru="24 Ч"/>
   <translation tag="270°" ru="270°"/>
   <translation tag="270° Clockwise" ru="270° по часовой стрелке"/>
   <translation tag="2D Heatmap" ru="2D тепловая карта"/>
@@ -467,6 +468,7 @@
   <translation tag="An unknown error occurred." ru="Произошла неизвестная ошибка."/>
   <translation tag="An unload was asked for, but the Box&apos;s buffer sensor sees no filament in the path." ru="Запрошена выгрузка, но датчик буфера Бокса не видит филамент в тракте."/>
   <translation tag="An update is available" ru="Доступно обновление"/>
+  <translation tag="Analog Clock" ru="Аналоговые часы"/>
   <translation tag="Analyzing data..." ru="Анализ данных..."/>
   <translation tag="Analyzing data... {}s" ru="Анализ данных... {} с"/>
   <translation tag="Analyzing the {} axis" ru="Анализ оси {}"/>
@@ -598,6 +600,7 @@
   <translation tag="Basic" ru="Базовый"/>
   <translation tag="Batch load failed" ru="Ошибка пакетной загрузки"/>
   <translation tag="Batch unload failed" ru="Ошибка пакетной выгрузки"/>
+  <translation tag="Bauhaus" ru="Баухаус"/>
   <translation tag="Beacon auto-calibrate sent" ru="Beacon автокалибровка отправлена"/>
   <translation tag="Beacon calibrate sent" ru="Beacon калибровка отправлена"/>
   <translation tag="Bed" ru="Стол"/>
@@ -1034,6 +1037,7 @@
   <translation tag="Choose what to power off or restart." ru="Выберите, что выключить или перезагрузить."/>
   <translation tag="Choose which lane is in the toolhead to unload it" ru="Выберите, какая дорожка в печатающей головке, чтобы выгрузить её"/>
   <translation tag="Choose which releases to get, and whether to share anonymous statistics." ru="Выберите, какие выпуски получать и делиться ли анонимной статистикой."/>
+  <translation tag="Chronograph" ru="Хронограф"/>
   <translation tag="Chute position: X {:.1f}, Y {:.1f}" ru="Позиция лотка прочистки: X {:.1f}, Y {:.1f}"/>
   <translation tag="Clean" ru="Очистить"/>
   <translation tag="Clean Brush" ru="Очистить щётку"/>
@@ -1091,6 +1095,7 @@
   <translation tag="Cleared from settings — system unpair failed, may need OS Bluetooth" ru="Удалено из настроек; не удалось отменить сопряжение в системе, возможно нужен Bluetooth ОС"/>
   <translation tag="Clipboard" ru="Буфер обмена"/>
   <translation tag="Clipboard unavailable - use SSH" ru="Буфер обмена недоступен - используйте SSH"/>
+  <translation tag="Clock Face" ru="Циферблат"/>
   <translation tag="Clog" ru="Засор"/>
   <translation tag="Clog Auto" ru="Засор: авто"/>
   <translation tag="Clog Detection" ru="Обнаружение засора"/>
@@ -1570,6 +1575,7 @@
   <translation tag="ELECTRONICS &amp; ACCESSORIES" ru="ЭЛЕКТРОНИКА И АКСЕССУАРЫ"/>
   <translation tag="EMERGENCY STOP" ru="АВАРИЙНАЯ ОСТАНОВКА"/>
   <translation tag="EMPTY" ru="ПУСТО"/>
+  <translation tag="ENDS" ru="КОНЕЦ"/>
   <translation tag="ETA {}" ru="Окончание {}"/>
   <translation tag="EXTRAS" ru="ДОПОЛНИТЕЛЬНО"/>
   <translation tag="Each correction increased the difference between the probe points: the Z motors are mapped to the wrong corners, or the probe is not repeatable." ru="Каждая коррекция увеличивала разницу между точками зондирования: моторы Z назначены не тем углам или зонд неточен."/>
@@ -2627,6 +2633,7 @@
   <translation tag="LED strip available for lighting control" ru="Светодиодная лента доступна для управления освещением"/>
   <translation tag="LED strip available. Add to config for lighting control?" ru="Доступна LED-лента. Добавить в конфигурацию для управления подсветкой?"/>
   <translation tag="LEDs" ru="LED"/>
+  <translation tag="LEFT" ru="ОСТАЛОСЬ"/>
   <translation tag="LOAD CELLS" ru="ТЕНЗОДАТЧИКИ"/>
   <translation tag="LOADED" ru="ЗАГРУЖЕН"/>
   <translation tag="LOCKED" ru="ЗАБЛОКИРОВАНО"/>
@@ -3074,6 +3081,7 @@
   <translation tag="Needs you, about {}" ru="Нужны вы, около {}"/>
   <translation tag="Needs you, about {}: {}" ru="Нужны вы, около {}: {}"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" ru="Требуется {}x{} свободного места: сначала удалите или уменьшите виджет"/>
+  <translation tag="Neon" ru="Неон"/>
   <translation tag="Net Weight (g)" ru="Вес нетто (г)"/>
   <translation tag="Network" ru="Сеть"/>
   <translation tag="Network Address" ru="Сетевой адрес"/>
@@ -3427,6 +3435,7 @@
   <translation tag="Or instead of turning the others" ru="Или вместо вращения остальных винтов"/>
   <translation tag="Original" ru="Оригинал"/>
   <translation tag="Original file location unknown" ru="Расположение исходного файла неизвестно"/>
+  <translation tag="Orrery" ru="Планетарий"/>
   <translation tag="Oscillating... cycle %d/%d" ru="Осцилляция... цикл %d/%d"/>
   <translation tag="Other" ru="Другое"/>
   <translation tag="Other…" ru="Другое…"/>
@@ -3456,6 +3465,7 @@
   <translation tag="PLA" ru="PLA"/>
   <translation tag="PLA - Black" ru="PLA - Чёрный"/>
   <translation tag="POWER" ru="ПИТАНИЕ"/>
+  <translation tag="PRINT" ru="ПЕЧАТЬ"/>
   <translation tag="PRINT OPTIONS" ru="ПАРАМЕТРЫ ПЕЧАТИ"/>
   <translation tag="PRINTER" ru="ПРИНТЕР"/>
   <translation tag="PRINTER FIRMWARE" ru="ПРОШИВКА ПРИНТЕРА"/>
@@ -3656,6 +3666,7 @@
   <translation tag="Pressure Advance Calibration" ru="Калибровка Pressure Advance"/>
   <translation tag="Pressure Advance Tuning" ru="Настройка Pressure Advance"/>
   <translation tag="Pressure advance" ru="Pressure Advance"/>
+  <translation tag="Pressure advance by material" ru="Pressure Advance по материалу"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." ru="Pressure Advance растёт вместе с башней. Следите за углами: нажмите - или + в любой момент, и рампа остановится, чтобы вы оценили своё значение."/>
   <translation tag="Pressure advance tuning" ru="Настройка Pressure Advance"/>
   <translation tag="Pressure advance {} is written to the {} section." ru="Pressure advance {} записывается в раздел {}."/>
@@ -4302,6 +4313,7 @@
   <translation tag="Save {} mm for {}? Other materials keep their own offsets." ru="Сохранить {} мм для {}? Другие материалы сохранят свои смещения."/>
   <translation tag="Saved Z-Offset" ru="Сохранённый Z-Offset"/>
   <translation tag="Saved for the mounted head; other heads keep their own" ru="Сохранено для установленной печатающей головки; остальные головки сохраняют своё"/>
+  <translation tag="Saved for {}. Every {} print starts with it." ru="Сохранено для {}. Каждая печать {} начинается с этим значением."/>
   <translation tag="Saved offset" ru="Сохранённое смещение"/>
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." ru="Сохранено в Spoolman, но цена, расположение, партия и заметки катушки не сохранились."/>
   <translation tag="Saved to crash_report.txt (QR not available)" ru="Сохранено в crash_report.txt (QR недоступен)"/>
@@ -4528,6 +4540,7 @@
   <translation tag="Show whatever curves you last had visible on the full graph." ru="Показывать те кривые, что были видны на полном графике в последний раз."/>
   <translation tag="Showing the 50 newest files. See more in the printer&apos;s web UI." ru="Показаны 50 последних файлов. Остальные - в веб-интерфейсе принтера."/>
   <translation tag="Shows the new K next to the old one. You choose to save it" ru="Показывает новый K рядом со старым. Сохранять или нет, решаете вы"/>
+  <translation tag="Shuffle" ru="По очереди"/>
   <translation tag="Shut down or restart the host" ru="Выключение или перезагрузка хоста"/>
   <translation tag="Shutdown" ru="Выключение"/>
   <translation tag="Shutdown / Reboot" ru="Выключение / Перезагрузка"/>
@@ -4721,6 +4734,7 @@
   <translation tag="State" ru="Состояние"/>
   <translation tag="Static" ru="Статический"/>
   <translation tag="Station" ru="Станция"/>
+  <translation tag="Station Clock" ru="Вокзальные часы"/>
   <translation tag="Status" ru="Статус"/>
   <translation tag="Status icons" ru="Иконки статуса"/>
   <translation tag="Stay at the printer." ru="Оставайтесь у принтера."/>
@@ -5161,6 +5175,7 @@
   <translation tag="The print may have failed" ru="Возможно, печать не удалась"/>
   <translation tag="The print moved to {} but did not resume. Check {}, then press Resume." ru="Печать перешла на {}, но не продолжилась. Проверьте {}, затем нажмите «Продолжить»."/>
   <translation tag="The print settings sent with the file could not be applied." ru="Не удалось применить настройки печати, отправленные с файлом."/>
+  <translation tag="The print-start macro applies each material&apos;s saved tuner result, else the config&apos;s" ru="Стартовый макрос применяет сохранённый результат для каждого материала, иначе значение из конфигурации"/>
   <translation tag="The printable size in millimeters (X × Y × Z), from the axis limits in the printer&apos;s Klipper config." ru="Размер области печати в миллиметрах (X × Y × Z) по пределам осей в конфигурации Klipper принтера."/>
   <translation tag="The printer applied this value and keeps it for this tool." ru="Принтер применил это значение и сохранил его для этого инструмента."/>
   <translation tag="The printer can draw a priming line before a print. HelixScreen offers it in the pre-print options." ru="Принтер может нарисовать линию прочистки перед печатью. HelixScreen предлагает ее в параметрах подготовки к печати."/>
@@ -5720,6 +5735,7 @@
   <translation tag="Update printer software and firmware" ru="Обновление программ и прошивки принтера"/>
   <translation tag="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls." ru="Обновите плагин HelixPrint до 1.5.0, чтобы скрыть старые вызовы в PRINT_START."/>
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." ru="Обновить и модель нагревателя INDX? В {} теперь {}: плотность {:.2f}, теплоёмкость {:.2f}."/>
+  <translation tag="Update the helper macros to save per material." ru="Обновите вспомогательные макросы, чтобы сохранять по материалу."/>
   <translation tag="Update your security PIN" ru="Обновите ваш PIN-код"/>
   <translation tag="Update {} from {} to {}?" ru="Обновить {} с {} до {}?"/>
   <translation tag="Update {} system packages?" ru="Обновить системные пакеты ({})?"/>
@@ -5884,6 +5900,7 @@
   <translation tag="Where to look" ru="Куда смотреть"/>
   <translation tag="Whether filament is loaded" ru="Загружен ли филамент"/>
   <translation tag="Whether the Z arrows follow the bed or the Z value" ru="Следуют ли стрелки Z за столом или за значением Z"/>
+  <translation tag="Which analog clock to show" ru="Какие аналоговые часы показывать"/>
   <translation tag="Which belt is each path?" ru="Какой ремень у каждого пути?"/>
   <translation tag="Which belt is which?" ru="Где какой ремень?"/>
   <translation tag="Which computer the Advanced power rows act on" ru="На какой компьютер действуют пункты питания в разделе Дополнительно"/>

@@ -3920,6 +3920,7 @@ void AmsEditOverlay::handle_save() {
         if (!spool_patch.empty()) {
             const int spool_id = detail_working_.id;
             save_in_flight_ = true;
+            set_save_state(kSaveWaiting);
             update_sync_button_state();
             // Owed to Spoolman and the slot, not to the screen: the rest of the
             // save runs from what this Save captured, editor open or not.
@@ -3930,6 +3931,7 @@ void AmsEditOverlay::handle_save() {
                 token.defer("AmsEditOverlay::logistics_saved", [this, cap]() {
                     if (cap.session == session_) {
                         save_in_flight_ = false;
+                        set_save_state(kSaveIdle);
                         detail_original_ = detail_working_;
                         update_sync_button_state();
                     }
@@ -3945,6 +3947,7 @@ void AmsEditOverlay::handle_save() {
                 token.defer("AmsEditOverlay::logistics_error", [this, cap]() {
                     if (cap.session == session_) {
                         save_in_flight_ = false;
+                        set_save_state(kSaveIdle);
                     }
                     report_save_problem(save_is_live(cap), lv_tr("Failed to save spool"));
                     if (cap.session == session_) {
@@ -4358,6 +4361,7 @@ void AmsEditOverlay::run_spoolman_save(const SaveCapture& cap,
     // One save at a time: the editor stays open while this runs.
     if (cap.session == session_) {
         save_in_flight_ = true;
+        set_save_state(kSaveWaiting);
         update_sync_button_state();
     }
     begin_slot_save(cap.slot_index);
@@ -4373,6 +4377,7 @@ void AmsEditOverlay::run_spoolman_save(const SaveCapture& cap,
                 const bool report_live = live && !cap.keep_editor;
                 if (cap.session == session_) {
                     save_in_flight_ = false;
+                    set_save_state(kSaveIdle);
                 }
                 if (result.missing.any()) {
                     spdlog::info("[AmsEditOverlay] Spoolman save stopped: the filament is "

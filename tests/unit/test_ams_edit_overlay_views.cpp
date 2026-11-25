@@ -1668,6 +1668,102 @@ TEST_CASE_METHOD(EditorFixture, "a failed Spoolman write keeps the editor open o
     close_editor_overlay();
 }
 
+namespace {
+
+// A tracked slot linked to Spoolman spool 7, with the Spoolman mock holding it.
+struct SpoolmanSaveRig {
+    PrinterState state;
+    MoonrakerClientMock client;
+    MoonrakerAPIMock api{client, state};
+
+    SpoolmanSaveRig() {
+        SpoolInfo linked;
+        linked.id = 7;
+        linked.filament_id = 3;
+        linked.vendor = "Bambu Lab";
+        linked.material = "ASA";
+        linked.color_hex = "8A949E";
+        client.spoolman_mock().get_mock_spools().push_back(linked);
+        auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
+        REQUIRE(spoolman_subj != nullptr);
+        lv_subject_set_int(spoolman_subj, 1);
+        get_printer_state().capabilities_state().set_spoolman_available(true);
+        UpdateQueue::instance().drain();
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(EditorFixture, "a slow Spoolman write shows the save spinner until it answers",
+                 "[ams_edit_overlay][spoolman][save_spinner]") {
+    SpoolmanSaveRig rig;
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, tracked_slot(), &rig.api, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    SlotInfo weighed = access.working_info();
+    weighed.remaining_weight_g = 500;
+    access.set_working_info(weighed);
+    rig.client.defer_next("server.spoolman.proxy");
+    access.call_handle_save();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    // The write is out and unanswered: Save is held and shows its spinner.
+    CHECK(access.save_disabled() == 1);
+    CHECK(access.save_state() == AmsEditOverlayViewTestAccess::kSaveWaiting);
+    CHECK(access.save_op() == 1);
+
+    rig.client.fire_deferred_error("server.spoolman.proxy",
+                                   MoonrakerError::unknown("spoolman unreachable"));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    UpdateQueue::instance().drain();
+    CHECK(access.save_state() == AmsEditOverlayViewTestAccess::kSaveFailed);
+    CHECK(access.save_op() == 0);
+    CHECK(access.save_disabled() == 0);
+
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(EditorFixture, "a slow Spoolman notes PATCH shows the save spinner too",
+                 "[ams_edit_overlay][spoolman][save_spinner]") {
+    SpoolmanSaveRig rig;
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, tracked_slot(), &rig.api, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.click("summary_card");
+    access.click("more_row");
+    process_lvgl(10);
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.set_detail_field("detail_field_comment", "keep dry");
+    UpdateQueue::instance().drain();
+    REQUIRE(access.is_dirty());
+
+    rig.client.defer_next("server.spoolman.proxy");
+    access.call_handle_save();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    CHECK(access.save_state() == AmsEditOverlayViewTestAccess::kSaveWaiting);
+    CHECK(access.save_op() == 1);
+
+    rig.client.fire_deferred_error("server.spoolman.proxy",
+                                   MoonrakerError::unknown("spoolman unreachable"));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    UpdateQueue::instance().drain();
+    CHECK(access.save_op() == 0);
+    CHECK(access.save_state() != AmsEditOverlayViewTestAccess::kSaveWaiting);
+
+    close_editor_overlay();
+}
+
 TEST_CASE_METHOD(EditorFixture,
                  "an incomplete new spool keeps the editor open and names what is missing",
                  "[ams_edit_overlay][spool_edit]") {

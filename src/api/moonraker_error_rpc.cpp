@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "json_utils.h"
 #include "moonraker_error.h"
 
 #include "hv/json.hpp"
@@ -16,14 +17,12 @@ MoonrakerError MoonrakerError::from_json_rpc(const json& error_obj,
     // WebSocket thread inside the request tracker's dispatch path. A throw
     // there strands the caller's callback. Treat a wrong-typed field as
     // absent instead.
-    const auto code_it = error_obj.find("code");
-    if (code_it != error_obj.end() && code_it->is_number()) {
-        err.code = code_it->get<int>();
+    if (const auto code_it = helix::json_util::read_field<int>(error_obj, "code")) {
+        err.code = *code_it;
     }
 
-    const auto msg_it = error_obj.find("message");
-    if (msg_it != error_obj.end() && msg_it->is_string()) {
-        err.message = extract_friendly_message(msg_it->get<std::string>());
+    if (const auto msg_it = helix::json_util::read_field<std::string>(error_obj, "message")) {
+        err.message = extract_friendly_message(*msg_it);
     }
 
     if (err.code == -32601) { // Method not found

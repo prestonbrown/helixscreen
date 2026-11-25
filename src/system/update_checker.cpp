@@ -1455,8 +1455,8 @@ UpdateChecker::repair_release_info(const std::string& install_root) {
     }
 
     std::string current;
-    if (auto it = existing.find("asset_name"); it != existing.end() && it->is_string()) {
-        current = it->get<std::string>();
+    if (const auto it = helix::json_util::read_field<std::string>(existing, "asset_name")) {
+        current = *it;
     }
     if (current == want) {
         // Already correct — do not touch the file. No boot-time disk churn, and
@@ -2658,10 +2658,11 @@ void UpdateChecker::do_install(const std::string& tarball_path, InstallOrigin or
     // Write to ~/.helixscreen/ (survives PrivateTmp, accessible from update.service).
     // Also write legacy /tmp sentinel for backward compat with old service files.
     write_self_restart_sentinel();
-    installing_ = false;
+    // installing_ stays set: the process exits right after the status hold, and a
+    // reconnect during the hold must keep this pid-less sentinel.
     {
         // Legacy location (may not work with PrivateTmp=true)
-        std::ofstream ofs_legacy("/tmp/helixscreen_self_restart");
+        std::ofstream ofs_legacy(app_constants::update::legacy_self_restart_sentinel());
     }
 
     finish_install_and_restart(install_root, version);
@@ -2844,7 +2845,7 @@ void UpdateChecker::handle_external_update_complete() {
     // Write sentinel so helixscreen-update.service (systemd path watcher) skips
     // its restart — we're handling it here.  Same sentinel as self-update path.
     write_self_restart_sentinel();
-    { std::ofstream ofs_legacy("/tmp/helixscreen_self_restart"); }
+    { std::ofstream ofs_legacy(app_constants::update::legacy_self_restart_sentinel()); }
 
     // Write restart marker so watchdog knows this exit is expected
     {
@@ -3879,17 +3880,23 @@ void UpdateChecker::arm_rollback_guard(const std::string& guard_dir,
     helix::update::discard_kept_previous(marker.install_dir, marker.previous_dir);
 }
 
+bool UpdateChecker::machine_busy_on_main() {
+    auto& print_state = get_printer_state().print_state();
+    const bool klippy_ready =
+        lv_subject_get_int(get_printer_state().network_state().get_klippy_state_subject()) ==
+        static_cast<int>(KlippyState::READY);
+    return job_holds_machine(print_state.get_print_lifecycle()) ||
+           print_state.is_plr_snapshot_valid() || !klippy_ready;
+}
+
 bool UpdateChecker::machine_busy_from_worker() {
     if (machine_busy_hook_) {
         return machine_busy_hook_();
     }
     auto answer = std::make_shared<std::promise<bool>>();
     std::future<bool> result = answer->get_future();
-    helix::ui::queue_update("UpdateChecker::machine_busy", [answer]() {
-        auto& print_state = get_printer_state().print_state();
-        answer->set_value(job_holds_machine(print_state.get_print_lifecycle()) ||
-                          print_state.is_plr_snapshot_valid());
-    });
+    helix::ui::queue_update("UpdateChecker::machine_busy",
+                            [answer]() { answer->set_value(machine_busy_on_main()); });
     // No answer from the main thread is not a clear "idle".
     if (result.wait_for(std::chrono::seconds(10)) != std::future_status::ready) {
         return true;
@@ -3990,7 +3997,7 @@ void UpdateChecker::on_connected(helix::IMoonrakerClient& client) {
         // Legacy: best-effort under PrivateTmp (sees private /tmp,
         // not real /tmp — stale real sentinels cleaned on reboot)
         std::error_code ec;
-        std::filesystem::remove("/tmp/helixscreen_self_restart", ec);
+        std::filesystem::remove(app_constants::update::legacy_self_restart_sentinel(), ec);
     }
 
     // Detect when Moonraker finishes updating HelixScreen (e.g. via Mainsail).
@@ -4192,6 +4199,9 @@ helix::update::AutoUpdateDecision UpdateChecker::auto_update_tick(const AutoUpda
     auto& print_state = get_printer_state().print_state();
     in.lifecycle = print_state.get_print_lifecycle();
     in.plr_pending = print_state.is_plr_snapshot_valid();
+    in.klippy_ready =
+        lv_subject_get_int(get_printer_state().network_state().get_klippy_state_subject()) ==
+        static_cast<int>(KlippyState::READY);
 
     std::string version;
     {

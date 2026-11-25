@@ -7,11 +7,12 @@
 # init — NOT Debian/systemd. Its stock touchscreen UI is /usr/bin/gui.
 # HelixScreen uses the DRM backend for double-buffered page flipping.
 #
-# The build ships NO helix-watchdog, and busybox SysV init does not respawn S99
-# children — so a boot-time SIGTERM to helix-screen would be permanent without a
-# supervisor. We opt into the launcher's boot-time respawn self-heal below, and
-# decouple WiFi bring-up from helix-screen's lifetime so a momentary UI death
-# never strands the device off-network.
+# Busybox SysV init does not respawn S99 children, and helix-screen answers the
+# single SIGTERM some boots send it with exit 0, which reads as a deliberate quit.
+# The release zip ships helix-watchdog for crash recovery; on top of it we opt
+# into the launcher's boot-time respawn self-heal below, and decouple WiFi
+# bring-up from helix-screen's lifetime so a momentary UI death never strands
+# the device off-network.
 #
 # DRM CRTC keepalive: The U1's display is driven by a Rockchip DRM/KMS
 # pipeline (rockchipdrmfb). When the stock UI process exits, the kernel's

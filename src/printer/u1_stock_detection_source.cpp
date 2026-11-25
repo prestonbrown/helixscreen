@@ -7,6 +7,7 @@
 #include "app_globals.h"
 #include "core/observer_factory.h"
 #include "i_moonraker_client.h"
+#include "json_utils.h"
 #include "printer_state.h"
 
 #include <spdlog/spdlog.h>
@@ -57,8 +58,8 @@ void U1StockSource::query_module(const char* what,
         "printer.objects.query", params,
         [on_module](const json& resp) {
             const json* module = nullptr;
-            if (auto r = resp.find("result"); r != resp.end() && r->is_object()) {
-                if (auto st = r->find("status"); st != r->end() && st->is_object()) {
+            if (auto* r = helix::json_util::find_object(resp, "result")) {
+                if (auto* st = helix::json_util::find_object(*r, "status")) {
                     if (auto dd = st->find("defect_detection");
                         dd != st->end() && dd->is_object()) {
                         module = &*dd;
@@ -80,15 +81,15 @@ std::optional<bool> feature_enable(const json* module, const char* feature) {
     if (!module) {
         return std::nullopt;
     }
-    auto block = module->find(feature);
-    if (block == module->end() || !block->is_object()) {
+    auto* block = helix::json_util::find_object(*module, feature);
+    if (block == nullptr) {
         return std::nullopt;
     }
-    auto en = block->find("enable");
-    if (en == block->end() || !en->is_boolean()) {
+    const auto en = helix::json_util::read_field<bool>(*block, "enable");
+    if (!en) {
         return std::nullopt;
     }
-    return en->get<bool>();
+    return *en;
 }
 
 } // namespace
@@ -107,8 +108,8 @@ void U1StockSource::read_bed_check(BedCheckReadCallback done) {
         }
         BedCheckState state;
         state.enabled = *enable;
-        if (auto main = module->find("main_enable"); main != module->end() && main->is_boolean()) {
-            state.module_enabled = main->get<bool>();
+        if (const auto main = helix::json_util::read_field<bool>(*module, "main_enable")) {
+            state.module_enabled = *main;
         }
         done(state);
     });

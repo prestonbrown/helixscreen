@@ -101,6 +101,11 @@ class UpdateCheckerTestAccess {
         c.restart_action_ = std::move(action);
     }
 
+    /// Mark an install as running (or not) without running install.sh.
+    static void set_installing(UpdateChecker& c, bool installing) {
+        c.installing_ = installing;
+    }
+
     /// True while a recheck of a fresh self-restart sentinel is scheduled.
     static bool sentinel_cleanup_pending(const UpdateChecker& c) {
         return c.sentinel_cleanup_timer_ != nullptr;
@@ -124,6 +129,11 @@ class UpdateCheckerTestAccess {
     /// Answer machine_busy_from_worker() without the main thread; nullptr restores it.
     static void set_machine_busy_hook(UpdateChecker& c, std::function<bool()> hook) {
         c.machine_busy_hook_ = std::move(hook);
+    }
+
+    /// The main-thread question machine_busy_from_worker() asks; call on the test thread.
+    static bool machine_busy_on_main() {
+        return UpdateChecker::machine_busy_on_main();
     }
 
     /// Install into @p root instead of the running binary's install root.

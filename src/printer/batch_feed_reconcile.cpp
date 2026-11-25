@@ -4,6 +4,7 @@
 #include "batch_feed_reconcile.h"
 
 #include "i_moonraker_client.h"
+#include "json_utils.h"
 #include "snapmaker_channel_state.h"
 #include "spdlog/spdlog.h"
 
@@ -26,12 +27,12 @@ bool feed_channels_at_rest(const nlohmann::json& status) {
             if (!channel.is_object()) {
                 continue;
             }
-            const auto state = channel.find("channel_state");
-            if (state == channel.end() || !state->is_string()) {
+            const auto state = helix::json_util::read_field<std::string>(channel, "channel_state");
+            if (!state) {
                 continue;
             }
             saw_channel = true;
-            if (snapmaker::channel_state_in_progress(state->get_ref<const std::string&>())) {
+            if (snapmaker::channel_state_in_progress(*state)) {
                 return false;
             }
         }
@@ -43,8 +44,8 @@ bool feed_channels_at_rest(const nlohmann::json& status) {
 
 void reconcile_on_connect(IMoonrakerClient& client, const nlohmann::json& status,
                           const std::string& macro_object, bool local_batch_active) {
-    const auto macro = status.find(macro_object);
-    if (macro == status.end() || !macro->is_object()) {
+    auto* macro = helix::json_util::find_object(status, macro_object);
+    if (macro == nullptr) {
         return;
     }
     // `doing` is a save-variable whose JSON type is only as strict as the
@@ -74,8 +75,8 @@ void reconcile_on_connect(IMoonrakerClient& client, const nlohmann::json& status
     // Klipper publishes an object as null until its first get_status, so an
     // unreadable print_stats means "cannot confirm", not "idle" - leaving an
     // interlock set is recoverable, ending a live batch is not.
-    const auto print_stats = status.find("print_stats");
-    if (print_stats == status.end() || !print_stats->is_object()) {
+    auto* print_stats = helix::json_util::find_object(status, "print_stats");
+    if (print_stats == nullptr) {
         return;
     }
     const auto state = print_stats->find("state");
@@ -89,8 +90,8 @@ void reconcile_on_connect(IMoonrakerClient& client, const nlohmann::json& status
     }
     // virtual_sdcard is a second veto rather than a precondition: print_stats
     // is the authoritative state, and this object is absent on some setups.
-    const auto sdcard = status.find("virtual_sdcard");
-    if (sdcard != status.end() && sdcard->is_object()) {
+    auto* sdcard = helix::json_util::find_object(status, "virtual_sdcard");
+    if (sdcard != nullptr) {
         const auto active = sdcard->find("is_active");
         if (active != sdcard->end() && active->is_boolean() && active->get<bool>()) {
             spdlog::info(

@@ -425,15 +425,11 @@
           <ui_button name="pa_nl_btn_keep" height="#cal_button_h" variant="secondary" text="Keep for Now">
             <event_cb trigger="clicked" callback="on_pa_nl_keep"/>
           </ui_button>
-          <!-- Saving per material is #2174; drawn now, built then. -->
-          <!-- Its release tag sits in the button, right of the label. -->
+          <!-- Offered where the print-start macro applies pressure advance per material. -->
           <ui_button name="pa_nl_btn_save_material"
-                     height="#cal_button_h" variant="outline" bind_text="pa_nl_save_material" disabled="true"
-                     layout="row" style_pad_column="#space_xs">
-            <status_pill text="1.2" variant="info" clickable="false">
-              <!-- The smallest footer has no room for it beside four buttons. -->
-              <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
-            </status_pill>
+                     height="#cal_button_h" variant="outline" bind_text="pa_nl_save_material">
+            <bind_state_if_eq subject="material_pa_ready" state="disabled" ref_value="0"/>
+            <event_cb trigger="clicked" callback="on_pa_nl_save_material"/>
           </ui_button>
           <ui_button name="pa_nl_btn_save" height="#cal_button_h" icon="check" text="Save to Config">
             <event_cb trigger="clicked" callback="on_pa_nl_save"/>

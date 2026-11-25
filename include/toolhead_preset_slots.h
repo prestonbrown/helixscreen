@@ -20,7 +20,7 @@ inline constexpr std::size_t kToolheadPresetSlotCount = 3;
 inline constexpr double kToolheadZStepMm = 10.0;
 
 struct ToolheadPresetSlot {
-    enum class Kind { Empty, Position, Park, ZUp, ZDown, Macro };
+    enum class Kind { Empty, Position, Park, DockTool, ZUp, ZDown, Macro };
     Kind kind = Kind::Empty;
     MotionPreset position = MotionPreset::Center; ///< Kind::Position only
     std::string macro;                            ///< Kind::Macro only
@@ -28,17 +28,29 @@ struct ToolheadPresetSlot {
 
 using ToolheadPresetSlots = std::array<ToolheadPresetSlot, kToolheadPresetSlotCount>;
 
-/// Front, Center, Park.
-[[nodiscard]] ToolheadPresetSlots default_toolhead_preset_slots();
+/// Front, Center, then Park, or Dock tool where @p can_dock_tool (the machine can put its
+/// mounted tool back in its dock).
+[[nodiscard]] ToolheadPresetSlots default_toolhead_preset_slots(bool can_dock_tool = false);
 
 /// The widget config's "presets" array: [{"kind":"position","position":"front"},
-/// {"kind":"park"}, {"kind":"z_up"}, {"kind":"z_down"}, {"kind":"macro","macro":"NAME"},
+/// {"kind":"park"}, {"kind":"tool_park"}, {"kind":"z_up"}, {"kind":"z_down"},
+/// {"kind":"macro","macro":"NAME"},
 /// {"kind":"empty"}], positions named by motion_preset_token(). A missing or malformed array yields
-/// the defaults; a malformed entry yields Empty in its place.
-[[nodiscard]] ToolheadPresetSlots toolhead_preset_slots_from_config(const nlohmann::json& config);
+/// the defaults for @p can_dock_tool; a malformed entry yields Empty in its place. A saved
+/// array is returned as saved, whatever @p can_dock_tool says.
+[[nodiscard]] ToolheadPresetSlots toolhead_preset_slots_from_config(const nlohmann::json& config,
+                                                                    bool can_dock_tool = false);
+/// Whether @p config holds a saved "presets" array, so its slots are the user's and no default
+/// applies.
+[[nodiscard]] bool toolhead_preset_slots_saved(const nlohmann::json& config);
 void toolhead_preset_slots_to_config(const ToolheadPresetSlots& slots, nlohmann::json& config);
 
+/// Whether the connected machine can put its mounted tool back in its dock now
+/// (usable_tool_park() on the AMS backend).
+[[nodiscard]] bool toolhead_can_dock_tool();
+
 /// Whether the slot needs every axis homed and the lift rule: Position, Park, ZUp, ZDown.
+/// DockTool is not one: the tool park path applies its own refusals.
 [[nodiscard]] bool toolhead_slot_moves_toolhead(const ToolheadPresetSlot& slot);
 
 /// The slot's button text in the current language: the position or action, or the macro's

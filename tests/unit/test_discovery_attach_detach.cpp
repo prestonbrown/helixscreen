@@ -173,6 +173,24 @@ TEST_CASE("a sentinel naming a running install.sh survives a reconnect",
     CHECK_FALSE(fs::exists(scratch.sentinel()));
 }
 
+TEST_CASE("a pid-less sentinel survives a reconnect while an install is running",
+          "[discovery_attach][update_checker][sentinel]") {
+    ScratchSentinelDir scratch;
+    FakeMoonrakerClient client;
+    auto& checker = UpdateChecker::instance();
+    REQUIRE(UpdateChecker::write_self_restart_sentinel());
+    scratch.age_sentinel();
+
+    UpdateCheckerTestAccess::set_installing(checker, true);
+    checker.on_connected(client);
+    CHECK(fs::exists(scratch.sentinel()));
+    CHECK(client.rpc_count("machine.update.refresh") == 0);
+
+    UpdateCheckerTestAccess::set_installing(checker, false);
+    checker.on_connected(client);
+    CHECK_FALSE(fs::exists(scratch.sentinel()));
+}
+
 TEST_CASE("a sentinel written moments ago outlives the connect, then goes with the refresh",
           "[discovery_attach][update_checker][sentinel]") {
     ScratchSentinelDir scratch;

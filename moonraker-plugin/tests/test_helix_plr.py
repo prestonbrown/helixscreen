@@ -1306,6 +1306,53 @@ def test_component_follows_on_the_interval_too(plr, helix, monkeypatch):
     assert 0 < plr.follower.offset <= 700
 
 
+def printing_from(path, position, layer=1):
+    s = printing_status(position, layer=layer)
+    s["virtual_sdcard"]["file_path"] = str(path)
+    return s
+
+
+def test_follower_moves_to_the_file_klipper_reads_after_a_stale_path(plr, helix, monkeypatch):
+    """A .3mf start can report the previous job's file for its first frames
+    while the firmware unpacks the plate; the follower moves to the new file."""
+    monkeypatch.setattr(helix_plr, "FOLLOW_MIN_BYTES", 1000)
+    old = helix.gc_path.parent / "previous.gcode"
+    new = helix.gc_path.parent / "plate_1.gcode"
+    old.write_bytes(layered_gcode())
+    new.write_bytes(layered_gcode())
+    plr._follow_executor = SyncExecutor()
+    added(plr)
+    tick(plr, **printing_from(old, 2000))
+    assert plr.follower.path == old.resolve()
+    old.unlink()
+    tick(plr, 0.1, **printing_from(new, 4000, layer=2))
+    assert plr.job["print_path"] == str(new)
+    tick(plr, 0.1, **printing_from(new, 6000, layer=3))
+    assert plr.follower.path == new.resolve() and plr.follower.offset > 0
+
+
+def test_a_follower_whose_file_is_gone_retries_after_a_pause(plr, helix, monkeypatch):
+    monkeypatch.setattr(helix_plr, "FOLLOW_MIN_BYTES", 1000)
+    path = helix.gc_path.parent / "copy.gcode"
+    path.write_bytes(layered_gcode())
+    steps = []
+    executor = SyncExecutor()
+    submit = executor.submit
+    executor.submit = lambda fn, *a: (steps.append(fn) if getattr(fn, "__name__", "") == "step"
+                                      else None, submit(fn, *a))[1]
+    plr._follow_executor = executor
+    added(plr)
+    tick(plr, **printing_from(path, 2000))
+    path.unlink()
+    for layer, position in enumerate(range(4000, 40000, 2000), start=2):
+        tick(plr, 0.5, **printing_from(path, position, layer))
+    assert len(steps) == 2      # the first step, then the one that failed
+    tick(plr, helix_plr.FOLLOW_INTERVAL_S, **printing_from(path, 42000, 30))
+    assert len(steps) == 3
+    # Rebuilt from the current target: the job's own file, the copy being gone.
+    assert plr.follower.path == (helix.gc_path / "sub" / "part.gcode").resolve()
+
+
 def test_a_cancelled_print_leaves_the_index_open(plr, helix):
     path = helix.gc_path / "sub" / "part.gcode"
     path.write_bytes(layered_gcode())

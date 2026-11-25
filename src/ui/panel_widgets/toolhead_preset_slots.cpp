@@ -3,6 +3,8 @@
 
 #include "toolhead_preset_slots.h"
 
+#include "ams_state.h"
+#include "ams_tool_park.h"
 #include "device_display_name.h"
 #include "lvgl.h"
 
@@ -22,9 +24,10 @@ struct KindToken {
 };
 
 constexpr KindToken kKindTokens[] = {
-    {ToolheadPresetSlot::Kind::Empty, "empty"},  {ToolheadPresetSlot::Kind::Position, "position"},
-    {ToolheadPresetSlot::Kind::Park, "park"},    {ToolheadPresetSlot::Kind::ZUp, "z_up"},
-    {ToolheadPresetSlot::Kind::ZDown, "z_down"}, {ToolheadPresetSlot::Kind::Macro, "macro"},
+    {ToolheadPresetSlot::Kind::Empty, "empty"}, {ToolheadPresetSlot::Kind::Position, "position"},
+    {ToolheadPresetSlot::Kind::Park, "park"},   {ToolheadPresetSlot::Kind::DockTool, "tool_park"},
+    {ToolheadPresetSlot::Kind::ZUp, "z_up"},    {ToolheadPresetSlot::Kind::ZDown, "z_down"},
+    {ToolheadPresetSlot::Kind::Macro, "macro"},
 };
 
 const char* kind_token(ToolheadPresetSlot::Kind kind) {
@@ -74,22 +77,29 @@ ToolheadPresetSlot slot_from_entry(const nlohmann::json& entry) {
 
 } // namespace
 
-ToolheadPresetSlots default_toolhead_preset_slots() {
+ToolheadPresetSlots default_toolhead_preset_slots(bool can_dock_tool) {
     ToolheadPresetSlots slots;
     slots[0].kind = ToolheadPresetSlot::Kind::Position;
     slots[0].position = MotionPreset::Front;
     slots[1].kind = ToolheadPresetSlot::Kind::Position;
     slots[1].position = MotionPreset::Center;
-    slots[2].kind = ToolheadPresetSlot::Kind::Park;
+    slots[2].kind =
+        can_dock_tool ? ToolheadPresetSlot::Kind::DockTool : ToolheadPresetSlot::Kind::Park;
     return slots;
 }
 
-ToolheadPresetSlots toolhead_preset_slots_from_config(const nlohmann::json& config) {
+bool toolhead_preset_slots_saved(const nlohmann::json& config) {
     if (!config.is_object())
-        return default_toolhead_preset_slots();
+        return false;
     const auto it = config.find(kPresetsKey);
-    if (it == config.end() || !it->is_array())
-        return default_toolhead_preset_slots();
+    return it != config.end() && it->is_array();
+}
+
+ToolheadPresetSlots toolhead_preset_slots_from_config(const nlohmann::json& config,
+                                                      bool can_dock_tool) {
+    if (!toolhead_preset_slots_saved(config))
+        return default_toolhead_preset_slots(can_dock_tool);
+    const auto it = config.find(kPresetsKey);
     ToolheadPresetSlots slots;
     for (std::size_t i = 0; i < slots.size() && i < it->size(); ++i)
         slots[i] = slot_from_entry((*it)[i]);
@@ -111,6 +121,10 @@ void toolhead_preset_slots_to_config(const ToolheadPresetSlots& slots, nlohmann:
     config[kPresetsKey] = std::move(array);
 }
 
+bool toolhead_can_dock_tool() {
+    return usable_tool_park(AmsState::instance().get_backend()) != nullptr;
+}
+
 bool toolhead_slot_moves_toolhead(const ToolheadPresetSlot& slot) {
     switch (slot.kind) {
     case ToolheadPresetSlot::Kind::Position:
@@ -119,6 +133,7 @@ bool toolhead_slot_moves_toolhead(const ToolheadPresetSlot& slot) {
     case ToolheadPresetSlot::Kind::ZDown:
         return true;
     case ToolheadPresetSlot::Kind::Empty:
+    case ToolheadPresetSlot::Kind::DockTool:
     case ToolheadPresetSlot::Kind::Macro:
         return false;
     }
@@ -131,6 +146,8 @@ std::string toolhead_preset_slot_label(const ToolheadPresetSlot& slot) {
         return {};
     case ToolheadPresetSlot::Kind::Park:
         return lv_tr("Park");
+    case ToolheadPresetSlot::Kind::DockTool:
+        return lv_tr("Dock tool");
     case ToolheadPresetSlot::Kind::ZUp:
         return fmt::format("Z +{:g}", kToolheadZStepMm);
     case ToolheadPresetSlot::Kind::ZDown:
@@ -170,6 +187,8 @@ const char* toolhead_preset_slot_icon(const ToolheadPresetSlot& slot) {
         return "";
     case ToolheadPresetSlot::Kind::Park:
         return "home_import";
+    case ToolheadPresetSlot::Kind::DockTool:
+        return "eject";
     case ToolheadPresetSlot::Kind::ZUp:
         return "z_farther";
     case ToolheadPresetSlot::Kind::ZDown:

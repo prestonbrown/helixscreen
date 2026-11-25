@@ -279,6 +279,8 @@ A heated bed expands with temperature, so the first-layer offset that is right f
 
 **Meshes.** After a bed mesh calibration on a heated bed, the Bed Mesh panel offers to keep the mesh as the material whose usual bed temperature is closest. Mesh profiles live in `printer.cfg`, so that save ends in the panel's usual SAVE_CONFIG prompt.
 
+**Pressure advance.** With the helper macros v2.4.0 and later, the same line also hands the material key to `_HELIX_MATERIAL_PA`, which sets the active extruder's pressure advance from `helix_pa_<material>_*` (the model and its parameters, written by a tuner's **Save for <material>**), else from the extruder's config section. It sends nothing while `helix_material_pa_enabled` is 0, and that switch is independent of the Z offset one. Turn pressure advance off in the slicer's filament profile: the slicer's `SET_PRESSURE_ADVANCE` runs after `PRINT_START` and wins. How it works: [PRESSURE_ADVANCE_TUNING.md](PRESSURE_ADVANCE_TUNING.md#per-material).
+
 ## Controllable Pre-Print Operations
 
 HelixScreen can analyze your `PRINT_START` macro to detect which operations can be toggled from the print details panel. This allows you to skip bed mesh, QGL, etc. on a per-print basis.

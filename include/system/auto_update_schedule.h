@@ -40,6 +40,7 @@ struct AutoUpdateInputs {
     NightlyWindow window{};
     PrintState lifecycle = PrintState::Idle;
     bool plr_pending = false;        ///< A power-loss resume is waiting to be offered
+    bool klippy_ready = true;        ///< Klipper reports ready (not startup, shutdown or error)
     int64_t seconds_since_touch = 0; ///< Time since the last touch on the screen
 };
 

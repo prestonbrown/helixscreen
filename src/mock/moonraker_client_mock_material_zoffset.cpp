@@ -101,6 +101,7 @@ void MoonrakerClientMock::append_material_zoffset_objects(json& objects) const {
     case MaterialZOffsetMock::HelixMacro:
         add("gcode_macro HELIX_MATERIAL_OFFSET");
         add(kHelixObject);
+        add("gcode_macro _HELIX_MATERIAL_PA");
         add("save_variables");
         break;
     case MaterialZOffsetMock::None:
@@ -209,8 +210,15 @@ MoonrakerClientMock::gcode_material_zoffset(const std::string& gcode) {
     }
     if (cmd == "SAVE_VARIABLE" && mode == MaterialZOffsetMock::HelixMacro) {
         const std::string variable = helix::text_io::to_lower(param(gcode, "VARIABLE"));
+        if (variable.rfind("helix_pa_", 0) == 0) {
+            // Pressure advance entries mean nothing to the mock's prints.
+            spdlog::info("[MoonrakerClientMock] SAVE_VARIABLE {} = {}", variable,
+                         param(gcode, "VALUE"));
+            return 0;
+        }
         if (variable.rfind("helix_zoffset_", 0) != 0 &&
-            variable != "helix_material_offset_enabled") {
+            variable != "helix_material_offset_enabled" &&
+            variable != "helix_material_pa_enabled") {
             return std::nullopt;
         }
         {

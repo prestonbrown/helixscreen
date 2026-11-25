@@ -327,8 +327,8 @@ void MoonrakerTimelapseAPI::post_webcam(const json& item, WebcamCallback on_succ
             if (!on_success)
                 return;
             const json* stored = nullptr;
-            const auto result = response.find("result");
-            if (result != response.end() && result->is_object()) {
+            auto* result = helix::json_util::find_object(response, "result");
+            if (result != nullptr) {
                 const auto entry = result->find("webcam");
                 if (entry != result->end())
                     stored = &*entry;

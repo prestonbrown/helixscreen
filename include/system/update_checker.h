@@ -1057,9 +1057,13 @@ class UpdateChecker {
     static void arm_rollback_guard(const std::string& guard_dir, const std::string& install_root,
                                    const std::string& version, const char* previous_note);
 
-    /// Does a job (or a pending power-loss resume) hold the machine? Asked on
-    /// the main thread from the download worker; false only on a clear answer.
+    /// Does a job (or a pending power-loss resume) hold the machine, or is Klipper not ready? Asked
+    /// on the main thread from the download worker; false only on a clear answer.
     bool machine_busy_from_worker();
+
+    /// The main-thread answer behind machine_busy_from_worker(): a job or pending
+    /// power-loss resume holds the machine, or Klipper is not ready.
+    static bool machine_busy_on_main();
 
     // Auto-check timer
     lv_timer_t* auto_check_timer_{nullptr};

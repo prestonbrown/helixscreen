@@ -18,8 +18,7 @@ using json = nlohmann::json;
 constexpr const char* kCauseField = "exception";
 
 int int_member(const json& obj, const char* key) {
-    const json* v = json_util::find_member(obj, key);
-    return v != nullptr && v->is_number_integer() ? v->get<int>() : -1;
+    return json_util::read_integer_field(obj, key).value_or(-1);
 }
 
 /// One firmware that publishes a structured pause cause.

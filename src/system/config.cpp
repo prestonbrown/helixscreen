@@ -614,8 +614,8 @@ static bool is_installer_seed_document(const json& config) {
     if (helix::json_util::find_object(config, "printer")) {
         return false;
     }
-    const auto printers = config.find("printers");
-    if (printers != config.end() && printers->is_object()) {
+    auto* printers = helix::json_util::find_object(config, "printers");
+    if (printers != nullptr) {
         for (const auto& [key, value] : printers->items()) {
             if (value.is_object()) {
                 return false;
@@ -1038,7 +1038,7 @@ void Config::init(const std::string& config_path) {
     const bool from_newer_build =
         helix::json_util::safe_int(data, "config_version", 0) > kCurrentConfigVersion;
     if (!from_newer_build) {
-        if (!data.contains("printers") || !data["printers"].is_object()) {
+        if (!helix::json_util::find_object(data, "printers")) {
             data["printers"] = json::object();
         }
         if (get_printer_ids().empty()) {
@@ -1104,20 +1104,17 @@ void Config::init(const std::string& config_path) {
     // log_level intentionally NOT migrated - absence allows test_mode fallback
 
     // Ensure display section exists with defaults
-    if (!data.contains("display") || !data["display"].is_object()) {
+    if (json* display = helix::json_util::find_object(data, "display")) {
+        // Ensure all display subsections exist with defaults
+        config_modified |= fill_missing_keys(*display, get_default_display_config());
+    } else {
         data["display"] = get_default_display_config();
         config_modified = true;
-    } else {
-        // Ensure all display subsections exist with defaults
-        config_modified |= fill_missing_keys(data["display"], get_default_display_config());
     }
 
     // Ensure input section exists with defaults (scroll settings + touch calibration)
-    if (!data.contains("input") || !data["input"].is_object()) {
-        data["input"] = get_new_input_section();
-        config_modified = true;
-    } else {
-        auto& input = data["input"];
+    if (json* input_obj = helix::json_util::find_object(data, "input")) {
+        auto& input = *input_obj;
         const json defaults = get_default_input_config();
         config_modified |= fill_missing_keys(input, defaults);
         if (!input["calibration"].is_object()) {
@@ -1126,6 +1123,9 @@ void Config::init(const std::string& config_path) {
         } else {
             config_modified |= fill_missing_keys(input["calibration"], defaults["calibration"]);
         }
+    } else {
+        data["input"] = get_new_input_section();
+        config_modified = true;
     }
 
     // Save updated config with any new defaults or migrations.
@@ -1182,8 +1182,7 @@ bool Config::refresh_active_printer_id() {
         // it stands rather than persisting a value df() cannot route to.
         return false;
     }
-    if (data.contains("active_printer_id") && data["active_printer_id"].is_string() &&
-        data["active_printer_id"].get<std::string>() == resolved) {
+    if (helix::json_util::read_field<std::string>(data, "active_printer_id") == resolved) {
         return false;
     }
 
@@ -1193,8 +1192,9 @@ bool Config::refresh_active_printer_id() {
 }
 
 bool Config::set_active_printer(const std::string& printer_id) {
-    if (!data.contains("printers") || !data["printers"].contains(printer_id) ||
-        !data["printers"][printer_id].is_object()) {
+    const json* printers = helix::json_util::find_object(data, "printers");
+    if (printers == nullptr ||
+        helix::json_util::find_object(*printers, printer_id.c_str()) == nullptr) {
         spdlog::error("[Config] Cannot switch to unknown printer '{}'", printer_id);
         return false;
     }
@@ -1268,8 +1268,9 @@ void Config::remove_printer(const std::string& printer_id) {
     // is_object(), not just contains(): the printers map also holds plain
     // settings keys (show_printer_switcher, _show_printer_switcher_comment),
     // and erasing one of those on a mistyped id would silently drop a setting.
-    if (!data.contains("printers") || !data["printers"].is_object() ||
-        !data["printers"].contains(printer_id) || !data["printers"][printer_id].is_object()) {
+    const json* printers = helix::json_util::find_object(data, "printers");
+    if (printers == nullptr ||
+        helix::json_util::find_object(*printers, printer_id.c_str()) == nullptr) {
         spdlog::warn("[Config] Cannot remove non-existent printer '{}'", printer_id);
         return;
     }
@@ -1313,8 +1314,9 @@ void Config::remove_printer(const std::string& printer_id) {
 }
 
 void Config::archive_printer(const std::string& printer_id) {
-    if (!data.contains("printers") || !data["printers"].is_object() ||
-        !data["printers"].contains(printer_id) || !data["printers"][printer_id].is_object()) {
+    const json* printers = helix::json_util::find_object(data, "printers");
+    if (printers == nullptr ||
+        helix::json_util::find_object(*printers, printer_id.c_str()) == nullptr) {
         spdlog::warn("[Config] Cannot archive non-existent printer '{}'", printer_id);
         return;
     }
@@ -1331,7 +1333,7 @@ void Config::archive_printer(const std::string& printer_id) {
     snapshot[kArchivedAtKey] = next_archive_stamp();
     // The printer is already gone from /printers, so a malformed archive is
     // replaced rather than losing the snapshot too.
-    if (!data.contains("removed_printers") || !data["removed_printers"].is_object()) {
+    if (!helix::json_util::find_object(data, "removed_printers")) {
         data["removed_printers"] = json::object();
     }
     data["removed_printers"][printer_id] = std::move(snapshot);
@@ -1360,7 +1362,7 @@ int64_t Config::next_archive_stamp() const {
 }
 
 void Config::prune_archived_printers() {
-    if (!data.contains("removed_printers") || !data["removed_printers"].is_object()) {
+    if (!helix::json_util::find_object(data, "removed_printers")) {
         return;
     }
     json& archive = data["removed_printers"];
@@ -1595,10 +1597,9 @@ void Config::set_preset(const std::string& preset_name) {
 void Config::clear_preset() {
     bool cleared = false;
     const std::string id = active_printer_id_.empty() ? "default" : active_printer_id_;
-    if (data.contains("printers") && data["printers"].is_object()) {
-        const auto printer = data["printers"].find(id);
-        if (printer != data["printers"].end() && printer->is_object() &&
-            printer->erase("preset") > 0) {
+    if (json* printers = helix::json_util::find_object(data, "printers")) {
+        json* printer = helix::json_util::find_object(*printers, id.c_str());
+        if (printer != nullptr && printer->erase("preset") > 0) {
             cleared = true;
         }
     }
@@ -1782,10 +1783,8 @@ bool Config::apply_preset_file(const std::string& preset_name) {
                 auto& user_macros = data.at(macros_ptr);
                 const auto& preset_macros = *preset_macros_ptr;
                 for (const auto& [macro_key, stale_text] : stale_it->second) {
-                    if (!user_macros.contains(macro_key) || !user_macros[macro_key].is_string()) {
-                        continue;
-                    }
-                    if (user_macros[macro_key].get<std::string>() != stale_text) {
+                    if (helix::json_util::read_field<std::string>(user_macros, macro_key) !=
+                        stale_text) {
                         continue;
                     }
                     auto preset_text =
@@ -1941,7 +1940,7 @@ bool Config::apply_preset_file(const std::string& preset_name) {
     const json* preset_display =
         on_this_device ? helix::json_util::find_object(preset_json, "display") : nullptr;
     if (preset_display) {
-        if (!data.contains("display") || !data["display"].is_object()) {
+        if (!helix::json_util::find_object(data, "display")) {
             data["display"] = json::object();
         }
         data["display"].merge_patch(*preset_display);
@@ -1955,7 +1954,7 @@ bool Config::apply_preset_file(const std::string& preset_name) {
     const json* preset_input =
         on_this_device ? helix::json_util::find_object(preset_json, "input") : nullptr;
     if (preset_input) {
-        if (!data.contains("input") || !data["input"].is_object()) {
+        if (!helix::json_util::find_object(data, "input")) {
             data["input"] = json::object();
         }
         data["input"].merge_patch(*preset_input);

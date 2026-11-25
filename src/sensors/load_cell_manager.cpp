@@ -5,6 +5,7 @@
 
 #include "ams_state.h"
 #include "device_display_name.h"
+#include "json_utils.h"
 #include "lane_source_store.h"
 #include "spdlog/spdlog.h"
 
@@ -90,12 +91,12 @@ bool LoadCellManager::parse_status(const nlohmann::json& status) {
             continue;
         }
         // Field-restricted subscriptions send null for fields the object lacks.
-        const auto force = sensor->find("force_g");
-        if (force == sensor->end() || !force->is_number()) {
+        const auto force = helix::json_util::read_field<float>(*sensor, "force_g");
+        if (!force) {
             continue;
         }
         LoadCellState& state = readings_[entry.klipper_name];
-        const float value = force->get<float>();
+        const float value = *force;
         if (state.force_g != value) {
             state.force_g = value;
             changed = true;

@@ -23,8 +23,8 @@ std::vector<Conversion> parse_conversions(const nlohmann::json& result) {
     if (!result.is_object()) {
         return out;
     }
-    const auto it = result.find("conversions");
-    if (it == result.end() || !it->is_array()) {
+    auto* it = helix::json_util::find_array(result, "conversions");
+    if (it == nullptr) {
         return out;
     }
     for (const auto& e : *it) {

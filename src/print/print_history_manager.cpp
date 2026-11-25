@@ -762,8 +762,8 @@ void PrintHistoryManager::subscribe_to_notifications() {
             nlohmann::json job_json;
             if (const auto* payload = helix::json_util::notification_payload(data)) {
                 action = helix::json_util::safe_string(*payload, "action");
-                const auto job_it = payload->find("job");
-                if (job_it != payload->end() && job_it->is_object()) {
+                auto* job_it = helix::json_util::find_object(*payload, "job");
+                if (job_it != nullptr) {
                     job_json = *job_it;
                 }
             }
@@ -808,12 +808,12 @@ void PrintHistoryManager::subscribe_to_notifications() {
             std::string source_root;
             if (const auto* payload = helix::json_util::notification_payload(data)) {
                 action = helix::json_util::safe_string(*payload, "action");
-                const auto item_it = payload->find("item");
-                if (item_it != payload->end() && item_it->is_object()) {
+                auto* item_it = helix::json_util::find_object(*payload, "item");
+                if (item_it != nullptr) {
                     item_root = helix::json_util::safe_string(*item_it, "root");
                 }
-                const auto source_it = payload->find("source_item");
-                if (source_it != payload->end() && source_it->is_object()) {
+                auto* source_it = helix::json_util::find_object(*payload, "source_item");
+                if (source_it != nullptr) {
                     source_root = helix::json_util::safe_string(*source_it, "root");
                 }
             }

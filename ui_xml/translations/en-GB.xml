@@ -6,6 +6,7 @@
   <translation tag="ASA" en-GB="ASA"/>
   <translation tag="Afterwards, Vertical Artifact Check in this menu shows how much it helped." en-GB="Afterwards, Vertical Artefact Check in this menu shows how much it helped."/>
   <translation tag="All colors" en-GB="All colours"/>
+  <translation tag="Analog Clock" en-GB="Analogue Clock"/>
   <translation tag="Analyzing data..." en-GB="Analysing data..."/>
   <translation tag="Analyzing data... {}s" en-GB="Analysing data... {}s"/>
   <translation tag="Any other material" en-GB="Any other material"/>
@@ -142,6 +143,7 @@
   <translation tag="Use Another Toolhead" en-GB="Use Another Toolhead"/>
   <translation tag="Vertical Artifact Check" en-GB="Vertical Artefact Check"/>
   <translation tag="Vertical Artifact Compensation" en-GB="Vertical Artefact Compensation"/>
+  <translation tag="Which analog clock to show" en-GB="Which analogue clock to show"/>
   <translation tag="WiFi initialization failed: {}" en-GB="WiFi initialisation failed: {}"/>
   <translation tag="Your file asks for outer walls at {0:.0f} mm/s. This printer shook hardest at {1:.0f}-{2:.0f} mm/s in its last Vertical Artifact Check, which can print fine vertical lines on walls along X or Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters)." en-GB="Your file asks for outer walls at {0:.0f} mm/s. This printer shook hardest at {1:.0f}-{2:.0f} mm/s in its last Vertical Artefact Check, which can print fine vertical lines on walls along X or Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters)."/>
   <translation tag="Z probes for bed leveling and mesh generation" en-GB="Z probes for bed levelling and mesh generation"/>

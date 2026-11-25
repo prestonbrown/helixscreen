@@ -3,6 +3,7 @@
 
 #include "humidity_sensor_manager.h"
 
+#include "json_utils.h"
 #include "spdlog/spdlog.h"
 
 #include <algorithm>
@@ -70,11 +71,11 @@ bool HumiditySensorManager::parse_status(const nlohmann::json& status) {
             continue;
         }
         // Field-restricted subscriptions send null for absent fields.
-        const auto it = sensor->find("humidity");
-        if (it == sensor->end() || !it->is_number()) {
+        const auto it = helix::json_util::read_field<float>(*sensor, "humidity");
+        if (!it) {
             continue;
         }
-        const float value = it->get<float>();
+        const float value = *it;
         const auto [slot, inserted] = humidity_.try_emplace(entry.klipper_name, value);
         if (inserted || slot->second != value) {
             slot->second = value;

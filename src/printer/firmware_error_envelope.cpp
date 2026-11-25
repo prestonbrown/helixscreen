@@ -2,6 +2,8 @@
 
 #include "firmware_error_envelope.h"
 
+#include "json_utils.h"
+
 #include <array>
 
 #include "hv/json.hpp"
@@ -70,11 +72,11 @@ size_t object_end(std::string_view text, size_t open) {
 
 /// The string member `key` of `obj`, or nullopt when absent or not a string.
 std::optional<std::string> string_member(const nlohmann::json& obj, const char* key) {
-    const auto it = obj.find(key);
-    if (it == obj.end() || !it->is_string()) {
+    const auto it = helix::json_util::read_field<std::string>(obj, key);
+    if (!it) {
         return std::nullopt;
     }
-    return it->get<std::string>();
+    return *it;
 }
 
 std::string trimmed_prefix(std::string_view before) {

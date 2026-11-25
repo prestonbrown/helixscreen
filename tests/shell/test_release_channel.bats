@@ -262,3 +262,18 @@ signing_for() {
     [ "$status" -eq 0 ]
     contains "signing=dev" "$output"
 }
+
+@test "release.yml checks the tag against RELEASE_CHANNEL in the plan job, before any build" {
+    run python3 - "$BATS_TEST_DIRNAME/../../.github/workflows/release.yml" <<'PY'
+import sys, yaml
+jobs = yaml.safe_load(open(sys.argv[1]))["jobs"]
+steps = jobs["plan"]["steps"]
+guard = [i for i, s in enumerate(steps)
+         if "release-channel.sh --tag" in s.get("run", "")]
+assert guard, "plan has no release-channel.sh --tag step"
+assert any("checkout" in s.get("uses", "") for s in steps[:guard[0]]), \
+    "plan checks the tag without checking out release-channel.sh"
+assert "publish" in str(steps[guard[0]].get("if", "")), "guard is not publish-gated"
+PY
+    [ "$status" -eq 0 ]
+}

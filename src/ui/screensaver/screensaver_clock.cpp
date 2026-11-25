@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <ctime>
+#include <iterator>
 #include <utility>
 
 namespace helix::ui {
@@ -25,6 +26,9 @@ namespace {
 
 /// Breakpoint fonts a clock line may use, largest first.
 constexpr const char* kClockFonts[] = {"font_heading", "font_body", "font_small", "font_xs"};
+/// The same, led by the bold display face clock digits use.
+constexpr const char* kClockDisplayFonts[] = {"font_xl", "font_heading", "font_body", "font_small",
+                                              "font_xs"};
 
 /// A local struct tm at `minute_of_day` today, for the app's time formatters.
 struct tm tm_at_minute(int32_t minute_of_day) {
@@ -189,9 +193,12 @@ std::string clock_meridiem_text(ClockMeridiem meridiem) {
     return buf;
 }
 
-const lv_font_t* clock_font_fitting(int32_t height, int32_t width, const char* text) {
+const lv_font_t* clock_font_fitting(int32_t height, int32_t width, const char* text, bool display) {
     const lv_font_t* chosen = nullptr;
-    for (const char* token : kClockFonts) {
+    const auto fonts = display ? std::begin(kClockDisplayFonts) : std::begin(kClockFonts);
+    const auto end = display ? std::end(kClockDisplayFonts) : std::end(kClockFonts);
+    for (auto it = fonts; it != end; ++it) {
+        const char* token = *it;
         const lv_font_t* font = theme_manager_get_font(token);
         if (font == nullptr) {
             continue;
@@ -255,6 +262,13 @@ bool SaverLabel::draw(SaverCanvas& canvas, const std::string& text, const DirtyR
     const int32_t pad = std::max<int32_t>(0, halo_.radius);
     const DirtyRect painted{box.x1 - pad, box.y1 - pad, box.x2 + pad, box.y2 + pad};
     canvas.mark_dirty(painted.x1, painted.y1, painted.x2, painted.y2);
+    // The repaint reaches only `painted`, so a line that runs on past the box is cut there
+    // rather than left behind where the next repaint cannot clear it.
+    const lv_area_t clip{
+        std::max(layer._clip_area.x1, painted.x1), std::max(layer._clip_area.y1, painted.y1),
+        std::min(layer._clip_area.x2, painted.x2), std::min(layer._clip_area.y2, painted.y2)};
+    layer._clip_area = clip;
+    layer.phy_clip_area = clip;
     if (pad > 0 && halo_.opa > 0) {
         // The text smeared round a ring and a half ring at low opacity reads as a soft shadow.
         lv_draw_label_dsc_t shade = label;

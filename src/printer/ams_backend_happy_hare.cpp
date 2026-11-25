@@ -1866,21 +1866,21 @@ bool AmsBackendHappyHare::apply_filament_heater_status(const nlohmann::json& par
         // MMU_heater"), which is exactly the Moonraker status key. Use it verbatim so
         // any heater object type HH permits resolves — not only heater_generic.
         const std::string& status_key = hname;
-        auto h_it = params.find(status_key);
-        if (h_it == params.end() || !h_it->is_object()) {
+        auto* h_it = helix::json_util::find_object(params, status_key);
+        if (h_it == nullptr) {
             continue;
         }
         std::lock_guard<std::mutex> lock(mutex_);
-        if (auto t = h_it->find("temperature"); t != h_it->end() && t->is_number()) {
-            const float temp = t->get<float>();
+        if (const auto t = helix::json_util::read_field<float>(*h_it, "temperature")) {
+            const float temp = *t;
             heater_temp_[hname] = temp;
             if (hname == primary)
                 dryer_info_.current_temp_c = temp;
             any = true;
         }
-        if (auto tg = h_it->find("target"); tg != h_it->end() && tg->is_number()) {
+        if (const auto tg = helix::json_util::read_field<float>(*h_it, "target")) {
             if (hname == primary)
-                dryer_info_.target_temp_c = tg->get<float>();
+                dryer_info_.target_temp_c = *tg;
         }
     }
     return any;
@@ -1925,22 +1925,22 @@ bool AmsBackendHappyHare::apply_environment_sensor_status(const nlohmann::json& 
         float temp_val = 0.0f;
         float hum_val = 0.0f;
         for (const auto& key : candidates) {
-            auto it = params.find(key);
-            if (it == params.end() || !it->is_object()) {
+            auto* it = helix::json_util::find_object(params, key);
+            if (it == nullptr) {
                 continue;
             }
             // Ambient temperature is what HH surfaces for the enclosure when no
             // heater is fitted; capture it so humidity-only enclosures still show a
             // temperature and so the readout never gates humidity on a heater.
             if (!have_temp) {
-                if (auto t = it->find("temperature"); t != it->end() && t->is_number()) {
-                    temp_val = t->get<float>();
+                if (const auto t = helix::json_util::read_field<float>(*it, "temperature")) {
+                    temp_val = *t;
                     have_temp = true;
                 }
             }
             if (!have_hum) {
-                if (auto h = it->find("humidity"); h != it->end() && h->is_number()) {
-                    hum_val = h->get<float>();
+                if (const auto h = helix::json_util::read_field<float>(*it, "humidity")) {
+                    hum_val = *h;
                     have_hum = true;
                 }
             }
@@ -2233,8 +2233,8 @@ void AmsBackendHappyHare::adopt_hh_tuning(nlohmann::json doc, bool writable) {
         if (!doc.contains(name) && key == "selector_move_speed") {
             name = "selector_speed";
         }
-        const auto entry = doc.find(name);
-        if (entry == doc.end() || !entry->is_object()) {
+        auto* entry = helix::json_util::find_object(doc, name);
+        if (entry == nullptr) {
             return;
         }
         const T saved_default =

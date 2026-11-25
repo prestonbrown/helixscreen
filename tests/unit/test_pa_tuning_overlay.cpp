@@ -13,6 +13,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_api_mock.h"
@@ -41,9 +42,13 @@ struct TunerFixture : LVGLTestFixture {
     MoonrakerAPI api;
     PaTuningOverlay overlay;
 
+    KlippyState klippy_before_ = KlippyState::SHUTDOWN;
+
     TunerFixture() : api(client, get_printer_state()) {
         auto& state = get_printer_state();
         state.init_subjects(false);
+        klippy_before_ = static_cast<KlippyState>(
+            lv_subject_get_int(state.network_state().get_klippy_state_subject()));
         state.set_klippy_state_sync(KlippyState::READY);
         state.temperature_state().init_extruders({"extruder"});
         client.connect("ws://mock/websocket", []() {}, []() {});
@@ -54,9 +59,15 @@ struct TunerFixture : LVGLTestFixture {
     }
     ~TunerFixture() override {
         overlay.cleanup();
+        // This tuner dies with the test, often mid-run, but the Tuner button it
+        // showed lives in the global Tune overlay: take it down with the tuner.
+        if (auto* tune = helix::lazy_global_if_exists<PrintTuneOverlay>()) {
+            tune->set_pa_session_active(false);
+        }
         status({{"print_stats", {{"state", "standby"}, {"filename", ""}}}});
         client.stop_temperature_simulation();
         client.disconnect();
+        get_printer_state().set_klippy_state_sync(klippy_before_);
     }
 
     void status(const json& s) {
@@ -120,8 +131,9 @@ TEST_CASE_METHOD(TunerFixture, "the tuner ramps K on its own print and takes a n
     CHECK(overlay.stage() == PaTuningOverlay::RESULT);
     CHECK(client.last_send_script() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0000");
     CHECK(shown("pa_tune_result_k") == "0.0000");
-    // A classic K can be written to the extruder's config section.
+    // A classic K can be written to the extruder's config section, and saved per material.
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_tune_can_save_config")) == 1);
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_tune_can_save_material")) == 1);
 }
 
 TEST_CASE_METHOD(TunerFixture, "a finished state from an earlier print does not end the run",
@@ -249,6 +261,8 @@ TEST_CASE_METHOD(TunerFixture,
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_tune_can_save_spool")) == 0);
     // pressure_advance is not a key a nonlinear model reads.
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_tune_can_save_config")) == 0);
+    // Stored per material it would print as MODEL=linear and drop the tuned offset.
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_tune_can_save_material")) == 0);
     CHECK(client.mock_db_get(pa::kMoonrakerNamespace, pa::kMoonrakerKey).is_null());
 }
 

@@ -107,6 +107,9 @@ class PrinterPrintState {
         print_exception_code_ = -1;
         print_exception_message_.clear();
         print_exception_runout_lane_ = -1;
+        // A console error is evidence about this printer's next stop only.
+        last_gcode_error_.clear();
+        last_gcode_error_time_ = 0.0;
         // The job being prepared outlives reset_for_new_print() by design: it
         // covers the window before the printer reports the job.
         preparing_job_ = {};

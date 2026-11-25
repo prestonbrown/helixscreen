@@ -246,6 +246,9 @@ static constexpr settings::PersistedSetting kDisplaySettings[] = {
     {"settings_temp_unit", "/display/temp_unit", Scope::Global, false, 0, 0, 1, "temp_unit"},
     // 0=DMY, 1=MDY, 2=YMD; while unsaved the subject holds the language's order
     {"settings_date_format", "/display/date_format", Scope::Global, false, 1, 0, 2, "date_format"},
+    // The analog clock saver's face: 0-4 the faces in AnalogStyle order, 5 Shuffle
+    {"settings_screensaver_clock_face", "/display/screensaver_clock_face", Scope::Global, false, 0,
+     0, 5, "screensaver_clock_face"},
 };
 
 DisplaySettingsManager& DisplaySettingsManager::instance() {

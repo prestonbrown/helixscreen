@@ -4,6 +4,7 @@
 
 #include "bed_mesh_presence.h"
 #include "core/text_io.h"
+#include "json_utils.h"
 
 namespace helix::skip_wrappers {
 
@@ -91,11 +92,7 @@ std::vector<std::string> normalized_lines(const std::string& text) {
 }
 
 const nlohmann::json* section(const nlohmann::json& settings, const std::string& name) {
-    if (!settings.is_object()) {
-        return nullptr;
-    }
-    auto it = settings.find(helix::text_io::to_lower(name));
-    return it != settings.end() && it->is_object() ? &*it : nullptr;
+    return helix::json_util::find_object(settings, helix::text_io::to_lower(name));
 }
 
 const nlohmann::json* macro_section(const nlohmann::json& settings, const char* command) {
@@ -107,14 +104,13 @@ bool wrapper_intact(const nlohmann::json& settings, Op op, const Wrapper& w) {
     if (s == nullptr) {
         return false;
     }
-    auto rename = s->find("rename_existing");
-    auto gcode = s->find("gcode");
-    if (rename == s->end() || !rename->is_string() || gcode == s->end() || !gcode->is_string()) {
+    const auto rename = helix::json_util::read_field<std::string>(*s, "rename_existing");
+    const auto gcode = helix::json_util::read_field<std::string>(*s, "gcode");
+    if (!rename || !gcode) {
         return false;
     }
-    return helix::text_io::to_upper(rename->get<std::string>()) ==
-               std::string(kBasePrefix) + w.command &&
-           normalized_lines(gcode->get<std::string>()) == wrapper_body(op, w);
+    return helix::text_io::to_upper(*rename) == std::string(kBasePrefix) + w.command &&
+           normalized_lines(*gcode) == wrapper_body(op, w);
 }
 
 bool has_builtin(const nlohmann::json& settings, Op op) {
@@ -189,12 +185,12 @@ bool fold_bool(bool& slot, bool value) {
 
 /// `<object>.applied` from a frame, when the frame carries it.
 const nlohmann::json* applied_field(const nlohmann::json& status, const char* object) {
-    auto obj = status.find(object);
-    if (obj == status.end() || !obj->is_object()) {
+    auto* obj = helix::json_util::find_object(status, object);
+    if (obj == nullptr) {
         return nullptr;
     }
-    auto it = obj->find("applied");
-    return it != obj->end() && it->is_boolean() ? &*it : nullptr;
+    const auto* applied = helix::json_util::find_member(*obj, "applied");
+    return applied != nullptr && applied->is_boolean() ? applied : nullptr;
 }
 
 const char* option_id(Op op) {
@@ -216,7 +212,7 @@ bool update_gates(Gates& gates, const nlohmann::json& status) {
         return false;
     }
     bool changed = false;
-    if (auto mesh = status.find("bed_mesh"); mesh != status.end() && mesh->is_object()) {
+    if (auto* mesh = helix::json_util::find_object(status, "bed_mesh")) {
         if (auto m = mesh->find("probed_matrix"); m != mesh->end()) {
             changed |= fold_bool(gates.mesh_loaded, probed_matrix_has_mesh(*m));
         }
@@ -232,10 +228,8 @@ bool update_gates(Gates& gates, const nlohmann::json& status) {
     auto prep = status.find(std::string("gcode_macro ") + kPrepMacro);
     if (prep != status.end() && prep->is_object()) {
         for (Op op : kAllOps) {
-            auto v = prep->find(flag_for(op));
-            if (v != prep->end() && v->is_number()) {
-                changed |=
-                    fold_bool(gates.skip_pending[static_cast<size_t>(op)], v->get<int>() == 0);
+            if (const auto v = helix::json_util::read_field<int>(*prep, flag_for(op))) {
+                changed |= fold_bool(gates.skip_pending[static_cast<size_t>(op)], *v == 0);
             }
         }
     }

@@ -13,6 +13,9 @@ pandas>=2.0
 # natively supported", which is how CI went red on a suite that was green locally.
 pytest>=8.0
 pytest-asyncio>=0.23
+# tests/python/test_material_pa_macro.py renders the shipped Klipper macros with the
+# template engine Klipper itself uses.
+Jinja2>=3.1
 # Pinned EXACTLY so clang-format output is byte-identical on every machine + CI.
 # The pip wheel is the single source of truth — the hook prefers .venv/bin/clang-format
 # (see scripts/quality-checks.sh) so a machine's system clang-format (Homebrew's newer
