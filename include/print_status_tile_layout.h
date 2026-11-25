@@ -10,14 +10,14 @@ namespace helix {
 
 enum class PrintStatusArrangement { SideBySide = 0, Stacked = 1 };
 
-/// Where the panel shows the filament system's lane tray, if anywhere: in
-/// the ultrawide readouts' column in their place, or as a strip under the
+/// Where the panel shows the filament system's lane tray, if anywhere: over
+/// the ultrawide info card in the info column, or as a strip under the
 /// stacked tiles' strip. The int values are what `ps_lane_tray` publishes.
 enum class PrintStatusLaneTray { None = 0, Column = 1, Strip = 2 };
 
 /// Column widths of the ultrawide arrangement, left to right: the square
-/// preview, the info column, the printer picture, the readouts, the inline
-/// Tune section and the button stack. The info column takes what the others
+/// preview, the printer picture, the readouts (when shown), the info column,
+/// the inline Tune section and the button stack. The info column takes what the others
 /// leave. `tune_w` 0 means no Tune column: the Tune button shows instead.
 struct PrintStatusColumns {
     int32_t preview_w = 0;
@@ -61,22 +61,27 @@ struct PrintStatusTileLayout {
     bool lane_tray = false, int32_t job_content_h = 0, int32_t tune_natural_h = 0);
 
 /// The ultrawide arrangement of a `content_w` x `content_h` box whose columns sit
-/// `gap` apart: the preview square at the full height, the printer picture at
-/// 1.4 x the height, the readouts, Tune and buttons proportional to it. When the
-/// info column would fall below the height, the printer, then the readouts, then
-/// the preview give up width toward their floors. The Tune column shows only
-/// where the readouts, the preview and the info column can make room for it
-/// and still keep most of the height's width; the printer picture keeps its
-/// full width beside it. Without `tune` (no print running) there is no Tune
-/// column to make room for.
+/// `gap` apart, left to right: the preview square at the full height, the
+/// printer picture at 1.4 x the height, the readouts (without a lane tray, and
+/// only while the info column keeps 70% of the height beside them), the info
+/// column (the lane tray over the info card, or the card alone), the Tune
+/// column and the buttons. The info column takes what the others leave; when it
+/// would fall below the height, the printer, then the readouts, then the
+/// preview give up width toward their floors. The Tune column shows only where
+/// the readouts, the preview and the info column can make room for it and still
+/// keep most of the height's width; the printer picture keeps its full width
+/// beside it. The readouts go before the Tune column does. Without `tune` (no
+/// print running) there is no Tune column to make room for.
 [[nodiscard]] PrintStatusColumns decide_print_status_columns(int32_t content_w, int32_t content_h,
-                                                             int32_t gap, bool tune = false);
+                                                             int32_t gap, bool tune = false,
+                                                             bool lane_tray = false);
 
 /// The ultrawide tile layout: the columns, with the job tile the preview
 /// square and the printer tile its column, both at the full height. With
-/// `lane_tray` the readouts' column shows the lane tray instead, since the
-/// printer picture's callouts already carry the readings. `tune` as for
-/// decide_print_status_columns().
+/// `lane_tray` the info column carries the tray over the info card
+/// (`lane_tray_h` is the tray's height, a share of the content height), and the
+/// readouts' column is gone, since the printer picture's callouts already carry
+/// the readings. `tune` as for decide_print_status_columns().
 [[nodiscard]] PrintStatusTileLayout
 decide_print_status_ultrawide_layout(int32_t content_w, int32_t content_h, int32_t gap,
                                      bool lane_tray = false, bool tune = false);

@@ -344,10 +344,10 @@ void SideBand::publish() {
     }
 }
 
-bool SideBand::has_room() const {
+helix::SideBandLayout SideBand::layout() const {
     lv_obj_t* root = host_root_.get();
     if (!root) {
-        return false;
+        return {0, false};
     }
     if (lv_obj_get_width(root) == 0) {
         // Bound before its first layout pass: measure it now.
@@ -355,8 +355,11 @@ bool SideBand::has_room() const {
     }
     lv_obj_t* screen = lv_obj_get_screen(root);
     const int32_t ver_res = screen ? lv_obj_get_height(screen) : 0;
-    return side_band_has_room(lv_obj_get_content_width(root), live_content_max_width(root),
-                              ver_res);
+    return side_band_layout(lv_obj_get_content_width(root), live_content_max_width(root), ver_res);
+}
+
+bool SideBand::has_room() const {
+    return layout().room;
 }
 
 void SideBand::fit_main_column() {
@@ -365,10 +368,14 @@ void SideBand::fit_main_column() {
     if (!main || !root) {
         return;
     }
-    // Measured layout: the main column stops where the panel cap would have
-    // stopped the whole panel, and the band takes the rest.
-    // DECLARATIVE_OK: the cap is a live per-screen number (live_content_max_width).
-    const int32_t width = ultrawide_now() ? live_content_max_width(root) : lv_pct(100);
+    // DECLARATIVE_OK: the column width is a live per-screen number. A host whose
+    // band is not showing is a band-less page: it takes panel_content_width().
+    int32_t width = lv_pct(100);
+    if (ultrawide_now()) {
+        width = shows_ ? layout().main_width
+                       : panel_content_width(lv_obj_get_content_width(root),
+                                             live_content_max_width(root));
+    }
     if (lv_obj_get_style_width(main, LV_PART_MAIN) != width) {
         lv_obj_set_width(main, width);
     }

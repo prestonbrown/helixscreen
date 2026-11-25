@@ -1444,31 +1444,39 @@ struct UltrawideTray : Ultrawide1480 {
 
 } // namespace
 
-TEST_CASE_METHOD(UltrawideTray, "ultrawide shows the lane tray in the readouts' column when gated",
+TEST_CASE_METHOD(UltrawideTray, "ultrawide shows the lane tray over the info card when gated",
                  "[print_status_tray][ultrawide]") {
     ScopedLaneTrayGate gate(0);
     lv_obj_update_layout(root_);
     lv_obj_t* readouts = find("ps_uw_readouts");
     lv_obj_t* tray = find("ps_uw_lane_tray");
-    REQUIRE((readouts && tray));
+    lv_obj_t* info = find("ps_uw_info");
+    lv_obj_t* info_col = find("ps_uw_info_col");
+    REQUIRE((readouts && tray && info && info_col));
     CHECK(shown(readouts));
     CHECK_FALSE(shown(tray));
-    const int32_t readouts_w = lv_obj_get_width(readouts);
     const int32_t printer_w = lv_obj_get_width(find("ps_printer_tile"));
+    // Without a tray the info card takes the whole column.
+    CHECK(lv_obj_get_height(info) == lv_obj_get_height(info_col));
 
     gate.set(1);
     lv_obj_update_layout(root_);
     CHECK_FALSE(shown(readouts));
     CHECK(shown(tray));
-    // The tray takes the readouts' width; the printer picture keeps its own.
-    CHECK(lv_obj_get_width(tray) == readouts_w);
+    // The printer picture keeps its width.
     CHECK(lv_obj_get_width(find("ps_printer_tile")) == printer_w);
     lv_obj_t* content = find("overlay_content");
-    const auto cols = helix::decide_print_status_columns(lv_obj_get_content_width(content),
-                                                         lv_obj_get_content_height(content),
-                                                         theme_manager_get_spacing("space_md"));
-    CHECK(lv_obj_get_width(tray) == cols.readouts_w);
-    CHECK(lv_obj_get_height(tray) == lv_obj_get_content_height(content));
+    const int32_t gap = theme_manager_get_spacing("space_md");
+    const int32_t w = lv_obj_get_content_width(content);
+    const int32_t h = lv_obj_get_content_height(content);
+    const auto layout = helix::decide_print_status_ultrawide_layout(w, h, gap, true);
+    // The tray and the card share the info column, the tray on top.
+    CHECK(lv_obj_get_width(tray) == layout.columns.info_w);
+    CHECK(lv_obj_get_width(info) == layout.columns.info_w);
+    CHECK(lv_obj_get_height(tray) == layout.lane_tray_h);
+    CHECK(lv_obj_get_y(info) >= lv_obj_get_y(tray) + lv_obj_get_height(tray));
+    CHECK(lv_obj_get_y(info) + lv_obj_get_height(info) <=
+          lv_obj_get_y(info_col) + lv_obj_get_height(info_col));
     // The tray widget itself, which opens the filament system's panel on a tap.
     lv_obj_t* status = lv_obj_find_by_name(tray, "ps_lane_tray_status");
     REQUIRE(status != nullptr);
@@ -1675,14 +1683,16 @@ TEST_CASE_METHOD(Ultrawide1480, "ultrawide shows the Tune column instead of the 
     CHECK(shown(root_, "ps_printer_tile"));
     CHECK(lv_obj_get_width(find("ps_printer_tile")) >= h);
 
-    // Outside a running print the column goes, and the preview and readouts
-    // take their room back, with no relayout asked for here.
+    // The readouts stand aside for the Tune column while it shows; outside a
+    // running print the column goes and they take their room back, with no
+    // relayout asked for here.
+    CHECK(cols.readouts_w == 0);
     lv_subject_set_int(lv_xml_get_subject(nullptr, "print_controls_enabled"), 0);
     UpdateQueue::instance().drain();
     lv_obj_update_layout(root_);
     const auto idle = helix::decide_print_status_columns(lv_obj_get_content_width(content), h,
                                                          theme_manager_get_spacing("space_md"));
-    REQUIRE(idle.preview_w > cols.preview_w);
+    REQUIRE(idle.readouts_w > 0);
     CHECK(subject_int("ps_uw_tune_w") == 0);
     CHECK(lv_obj_get_width(find("ps_job_tile")) == idle.preview_w);
     CHECK(lv_obj_get_width(find("ps_uw_readouts")) == idle.readouts_w);

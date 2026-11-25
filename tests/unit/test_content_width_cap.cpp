@@ -49,3 +49,21 @@ TEST_CASE("A view that fits the cap has no overflow", "[content-cap]") {
     // No cap registered: nothing is taken from the view.
     CHECK(content_cap_overflow(1426, 0) == 0);
 }
+
+TEST_CASE("A page without a band stretches until the host is wider than kUncappedWidth",
+          "[content-cap]") {
+    using helix::panel_content_width;
+    struct Size {
+        int32_t host_w, ver_res, want;
+    };
+    for (const Size s : {Size{1280 - 76, 400, 1204},  // cap 960: no empty strip
+                         Size{1920 - 76, 480, 1844},  // cap 1152: no empty strip
+                         Size{1920 - 76, 1080, 1844}, // cap 2592 never binds
+                         Size{800 - 76, 480, 724},    // unchanged
+                         Size{480 - 54, 272, 426},    // unchanged
+                         Size{2560 - 76, 720, 1920},  // genuinely huge: held back
+                         Size{3840 - 76, 1080, 2592}}) {
+        CAPTURE(s.host_w, s.ver_res);
+        CHECK(panel_content_width(s.host_w, content_max_width(s.ver_res)) == s.want);
+    }
+}
