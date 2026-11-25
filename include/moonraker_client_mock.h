@@ -1921,7 +1921,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
 
     /// What the macro's _SAVE_TOOL_OFFSET does for one tool: SET_TOOL_PARAMETER
     /// on each axis (live + republished) then SAVE_TOOL_PARAMETER (staged).
-    void apply_calibrated_tool_offset(int tool, double x, double y, double z);
+    void apply_calibrated_tool_offset(int tool, double x, double y, double z, bool stage = true);
 
     /// Republish `toolchanger`.tool_number, as a tool change does.
     void dispatch_toolchanger_tool(int tool);

@@ -11,6 +11,7 @@
 
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "printer_discovery.h"
+#include "tool_offset_calibration.h"
 #include "toolchanger_addon.h"
 
 #include <string>
@@ -117,4 +118,27 @@ TEST_CASE("VRTX parks with klipper-toolchanger's UNSELECT_TOOL", "[toolchanger][
 
     REQUIRE(tc.park_active_tool().success());
     CHECK(tc.sent().back() == "UNSELECT_TOOL");
+}
+
+TEST_CASE("VRTX_CALIBRATE offers the Tool Offsets panel", "[toolchanger][vrtx]") {
+    namespace cal = helix::tool_offset_calibration;
+    const auto procedure = cal::resolve_procedure(vrtx_discovery(8));
+    CHECK(procedure.kind == cal::ProcedureKind::Panel);
+    CHECK(procedure.gcode == "VRTX_CALIBRATE");
+    CHECK(cal::supported(vrtx_discovery(8)));
+}
+
+TEST_CASE("without VRTX_CALIBRATE or CALIBRATE_TOOL_OFFSETS there is no offsets entry",
+          "[toolchanger][vrtx]") {
+    namespace cal = helix::tool_offset_calibration;
+    CHECK_FALSE(cal::supported(vrtx_discovery(8, false)));
+}
+
+TEST_CASE("klipper-toolchanger's own macro wins when both exist", "[toolchanger][vrtx]") {
+    namespace cal = helix::tool_offset_calibration;
+    json objects = json::array({"toolchanger", "tool T0", "tool T1", "gcode_macro VRTX_CALIBRATE",
+                                "gcode_macro CALIBRATE_TOOL_OFFSETS"});
+    PrinterDiscovery hw;
+    hw.parse_objects(objects);
+    CHECK(cal::resolve_procedure(hw).gcode == "CALIBRATE_TOOL_OFFSETS");
 }

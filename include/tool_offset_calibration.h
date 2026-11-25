@@ -21,6 +21,9 @@
 // that one question and never name the firmware. There is no per-tool entry
 // point: every procedure is all-or-nothing.
 //
+// VRTX (Slimohan/VRTX) has the same shape under the name VRTX_CALIBRATE: the panel runs
+// it, and VRTX keeps the results in save_variables itself.
+//
 // A PrinterPrompt procedure alone is followed off the console: the printer
 // narrates each step as a line, and parse_progress_line() turns it into a
 // ProgressEvent. For every other procedure nothing is parsed off the console;

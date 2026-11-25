@@ -177,7 +177,8 @@ void MoonrakerClientMock::dispatch_toolchanger_tool(int tool) {
     }
 }
 
-void MoonrakerClientMock::apply_calibrated_tool_offset(int tool, double x, double y, double z) {
+void MoonrakerClientMock::apply_calibrated_tool_offset(int tool, double x, double y, double z,
+                                                       bool stage) {
     const double values[] = {x, y, z};
     for (helix::Axis axis : helix::kAllAxes) {
         const double value = values[helix::axis_index(axis)];
@@ -186,6 +187,9 @@ void MoonrakerClientMock::apply_calibrated_tool_offset(int tool, double x, doubl
             tool_offsets_[tool][axis] = value;
         }
         dispatch_tool_update(tool, axis);
+        if (!stage) {
+            continue;
+        }
         char text[32];
         std::snprintf(text, sizeof(text), "%.6g", value);
         stage_config_change("tool T" + std::to_string(tool), tool_offset_param(axis), text);
@@ -203,7 +207,10 @@ bool MoonrakerClientMock::simulate_tool_offset_calibration(
     while (!cmd.empty() && (cmd.back() == '\n' || cmd.back() == '\r' || cmd.back() == ' ')) {
         cmd.pop_back();
     }
-    if (cmd.rfind("CALIBRATE_TOOL_OFFSETS", 0) != 0) {
+    // VRTX's macro runs the same blocking measure, writes live offsets and keeps them in
+    // save_variables, so nothing is staged for SAVE_CONFIG.
+    const bool vrtx = mock_vrtx_selected() && cmd.rfind("VRTX_CALIBRATE", 0) == 0;
+    if (!vrtx && cmd.rfind("CALIBRATE_TOOL_OFFSETS", 0) != 0) {
         return false;
     }
 
@@ -250,7 +257,21 @@ bool MoonrakerClientMock::simulate_tool_offset_calibration(
                                                 sensor_z + dz));
         }
     };
-    const auto measure = [this, probe, sensor_x, sensor_y, sensor_z](int tool) {
+    const auto measure = [this, probe, sensor_x, sensor_y, sensor_z, vrtx](int tool) {
+        if (vrtx) {
+            const double dx = 0.12 * tool, dy = -0.07 * tool, dz = -0.03 * tool;
+            if (tool == 0) {
+                dispatch_gcode_response(
+                    fmt::format("// VRTX: T0 (reference) located the Nudge probe at X {:.3f} Y "
+                                "{:.3f} Z {:.3f}.",
+                                sensor_x, sensor_y, sensor_z));
+            } else {
+                dispatch_gcode_response(fmt::format(
+                    "// VRTX: T{} offset saved: X {:.3f} Y {:.3f} Z {:.3f}", tool, dx, dy, dz));
+                apply_calibrated_tool_offset(tool, dx, dy, dz, /*stage=*/false);
+            }
+            return;
+        }
         probe(tool);
         if (tool == 0) {
             dispatch_gcode_response(fmt::format("Sensor location at {:.6f},{:.6f},{:.6f}", sensor_x,

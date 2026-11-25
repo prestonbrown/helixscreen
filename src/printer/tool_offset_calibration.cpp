@@ -28,6 +28,11 @@ constexpr const char* kMeasureDescription =
 /// send - unlike a SET_GCODE_VARIABLE MACRO= mux key.
 constexpr const char* kPanelMacro = "CALIBRATE_TOOL_OFFSETS";
 
+/// VRTX's calibration (Slimohan/VRTX): a blocking macro like the one above that measures
+/// every tool on the Nudge probe, writes each result with SET_TOOL_PARAMETER and keeps
+/// it in save_variables itself, so the panel only has to run it.
+constexpr const char* kVrtxPanelMacro = "VRTX_CALIBRATE";
+
 /// Z-Mod's Creator 5 calibration (c5pro_display_off.cfg): opens "remove the build
 /// plate" in an action:prompt whose OK runs _T_CALIBRATE_EXTRUDERS.
 constexpr const char* kPromptMacro = "CALIBRATE_EXTRUDERS";
@@ -69,6 +74,10 @@ bool panel_detect(const PrinterDiscovery& hw) {
     return hw.has_tool_changer() && hw.has_macro(kPanelMacro);
 }
 
+bool vrtx_panel_detect(const PrinterDiscovery& hw) {
+    return hw.has_tool_changer() && hw.has_macro(kVrtxPanelMacro);
+}
+
 bool prompt_detect(const PrinterDiscovery& hw) {
     return is_tool_changer(hw) && hw.has_macro(kPromptMacro);
 }
@@ -88,6 +97,7 @@ const Row kRows[] = {
     {"INDX seat by hand", indx::supports_seat_by_hand, ProcedureKind::GuidedFlow,
      indx::kSeatByHandFlowId, TR_NOOP("Seat a tool by hand for the first Z home")},
     {"klipper-toolchanger", panel_detect, ProcedureKind::Panel, kPanelMacro, kMeasureDescription},
+    {"VRTX", vrtx_panel_detect, ProcedureKind::Panel, kVrtxPanelMacro, kMeasureDescription},
     {"changer firmware offset wizard", wizard_prompt_detect, ProcedureKind::PrinterPrompt,
      kWizardPromptMacro, kMeasureDescription},
     {"changer firmware prompt", prompt_detect, ProcedureKind::PrinterPrompt, kPromptMacro,

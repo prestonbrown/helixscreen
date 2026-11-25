@@ -109,3 +109,18 @@ TEST_CASE_METHOD(VrtxMockFixture, "mock vrtx: T<n> mounts the tool and the count
     process_lvgl(2000);
     CHECK(client->toolchanger_tool() == 5);
 }
+
+TEST_CASE_METHOD(VrtxMockFixture, "mock vrtx: VRTX_CALIBRATE measures live and stages nothing",
+                 "[mock][toolchanger][vrtx]") {
+    start("vrtx", "3");
+    bool acked = false;
+    client->send_jsonrpc(
+        "printer.gcode.script", json{{"script", "VRTX_CALIBRATE"}},
+        [&acked](const json&) { acked = true; }, nullptr);
+    process_lvgl(600 * 10);
+    REQUIRE(acked);
+
+    CHECK(client->tool_offset(2, helix::Axis::X) == Catch::Approx(0.24));
+    // VRTX keeps the result in save_variables, never in a SAVE_CONFIG.
+    CHECK_FALSE(client->save_config_pending());
+}
