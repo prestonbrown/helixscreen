@@ -1446,6 +1446,23 @@ TEST_CASE("QIDI Box an edit that keeps the material leaves the Box's filament ro
                     "SAVE_VARIABLE VARIABLE=vendor_slot0 VALUE=2") != backend.sent.end());
 }
 
+TEST_CASE("QIDI Box an edit that names another row writes that row",
+          "[ams][qidi_box][write_path]") {
+    helix::test::RegisteredWired<RecordingQidiBackend> harness;
+    auto& backend = *harness;
+    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
+    fire_vars(backend, json{{"filament_slot0", 1}, {"color_slot0", 18}, {"vendor_slot0", 1}});
+    REQUIRE(backend.get_slot_info(0).material == "PLA");
+
+    // The Box holds row 1 (PLA Rapido); ABS names row 11, another product, so
+    // keeping the held row would leave the Box on PLA for an ABS lane.
+    SlotInfo info = backend.get_slot_info(0);
+    info.material = "ABS";
+    REQUIRE(backend.commit_user_edit(0, backend.get_slot_info(0), info).success());
+    CHECK(std::find(backend.sent.begin(), backend.sent.end(),
+                    "SAVE_VARIABLE VARIABLE=filament_slot0 VALUE=11") != backend.sent.end());
+}
+
 TEST_CASE("QIDI Box a SAVE_VARIABLE Klipper rejects saves nothing", "[ams][qidi_box]") {
     helix::test::RegisteredWired<RecordingQidiBackend> harness;
     auto& backend = *harness;
