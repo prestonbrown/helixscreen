@@ -261,6 +261,17 @@ MOCKEOF
     [ "$secs" -le 5 ]
 }
 
+@test "e2e: with timeout on PATH, the probe runs under timeout" {
+    with_dri_card
+    export MOCK_PROBE_RC=0
+    mock_command_script "timeout" "echo \"\$*\" >> \"$MOCK_INSTALL/timeout_calls.txt\"; shift; exec \"\$@\""
+
+    run launcher_backend
+    [ "$output" = "helix-screen egl" ]
+    run cat "$MOCK_INSTALL/timeout_calls.txt"
+    [ "$output" = "10 $MOCK_INSTALL/bin/helix-screen --probe-egl" ]
+}
+
 @test "e2e: a DRM card without libdrm starts helix-screen with fbdev" {
     with_dri_card
     export MOCK_PROBE_RC=3
