@@ -264,6 +264,12 @@ describe('hangCauseLine', () => {
     const older = { app_blocked: 3, host_memory: 7, unknown: 0 } as HangSplit
     expect(hangCauseLine(older)).toBe('3 app blocked, 7 host out of memory, 0 app suspended, 0 unknown')
   })
+  it('lists a cause a newer worker sends and this dashboard has no label for, under its key', () => {
+    const newer = { app_blocked: 3, host_memory: 7, suspended: 2, unknown: 1, device_frozen: 5 } as HangSplit
+    expect(hangCauseLine(newer)).toBe(
+      '3 app blocked, 7 host out of memory, 2 app suspended, 1 unknown, 5 device_frozen'
+    )
+  })
 })
 
 describe('mergeOptions', () => {

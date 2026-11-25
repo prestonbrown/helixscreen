@@ -137,10 +137,14 @@ const HANG_CAUSE_LABEL: Record<keyof HangSplit, string> = {
 /**
  * One line counting every cause of a hang split under its label, e.g. "3 app blocked,
  * 7 host out of memory, 0 app suspended, 0 unknown". A stored weekly report may predate
- * a cause, so one it lacks reads as 0.
+ * a cause, so one it lacks reads as 0. A worker newer than this dashboard may send a
+ * cause it has no label for: that is listed last, under its key.
  */
 export function hangCauseLine(split: HangSplit): string {
-  return (Object.keys(HANG_CAUSE_LABEL) as (keyof HangSplit)[])
-    .map((cause) => `${(split[cause] ?? 0).toLocaleString()} ${HANG_CAUSE_LABEL[cause]}`)
+  const counts: Record<string, number | undefined> = { ...split }
+  const labelled = Object.keys(HANG_CAUSE_LABEL)
+  const unlabelled = Object.keys(counts).filter((cause) => !labelled.includes(cause))
+  return [...labelled, ...unlabelled]
+    .map((cause) => `${(counts[cause] ?? 0).toLocaleString()} ${HANG_CAUSE_LABEL[cause as keyof HangSplit] ?? cause}`)
     .join(', ')
 }
