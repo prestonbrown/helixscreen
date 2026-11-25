@@ -1,10 +1,10 @@
 #!/usr/bin/env bats
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# The standalone installer must refuse to run on a device where HelixScreen is
-# managed by the firmware (e.g. PAXX's Snapmaker U1 firmware). Detection markers:
-#   - <root>/oem/apps/helixscreen  (directory), OR
-#   - <root>/etc/hooks/lmd.d/30-helixscreen.sh  (file)
+# The standalone installer must refuse to run where the firmware runs HelixScreen
+# itself: PAXX's Snapmaker U1 firmware, when its lmd hook
+# (<root>/etc/hooks/lmd.d/30-helixscreen.sh) is present AND extended2.cfg's
+# `[components] gui` selects helixscreen. PAXX ships the hook whatever gui says.
 # HELIX_FIRMWARE_MANAGED_MARKER overrides the marker root for testing.
 # HELIX_IGNORE_FIRMWARE_MANAGED=1 forces past the guard.
 
@@ -27,32 +27,69 @@ setup() {
     [ "$status" -eq 0 ]
 }
 
-@test "oem/apps/helixscreen dir present: guard aborts non-zero" {
-    mkdir -p "$HELIX_FIRMWARE_MANAGED_MARKER/oem/apps/helixscreen"
+paxx_hook() {
+    mkdir -p "$HELIX_FIRMWARE_MANAGED_MARKER/etc/hooks/lmd.d"
+    : > "$HELIX_FIRMWARE_MANAGED_MARKER/etc/hooks/lmd.d/30-helixscreen.sh"
+}
+
+paxx_gui() {
+    local dir="$HELIX_FIRMWARE_MANAGED_MARKER/oem/printer_data/config/extended"
+    mkdir -p "$dir"
+    printf '[web]\nfrontend: fluidd\n\n[components]\nrfid: external\ngui: %s\n' "$1" > "$dir/extended2.cfg"
+}
+
+@test "lmd hook with gui: helixscreen: guard aborts non-zero" {
+    paxx_hook
+    paxx_gui helixscreen
     run _refuse_if_firmware_managed
     [ "$status" -ne 0 ]
     contains "managed by your firmware" "$output"
     [[ "$output" == *"HELIX_IGNORE_FIRMWARE_MANAGED=1"* ]]
 }
 
-@test "lmd hook file present: guard aborts non-zero" {
-    mkdir -p "$HELIX_FIRMWARE_MANAGED_MARKER/etc/hooks/lmd.d"
-    : > "$HELIX_FIRMWARE_MANAGED_MARKER/etc/hooks/lmd.d/30-helixscreen.sh"
+@test "lmd hook with gui: snapmaker: guard passes" {
+    paxx_hook
+    paxx_gui snapmaker
     run _refuse_if_firmware_managed
-    [ "$status" -ne 0 ]
-    [[ "$output" == *"managed by your firmware"* ]]
+    [ "$status" -eq 0 ]
+}
+
+@test "lmd hook without extended2.cfg: guard passes, as the hook binds nothing" {
+    paxx_hook
+    run _refuse_if_firmware_managed
+    [ "$status" -eq 0 ]
+}
+
+@test "PAXX package beside our install with gui: snapmaker: guard passes" {
+    paxx_hook
+    paxx_gui snapmaker
+    mkdir -p "$HELIX_FIRMWARE_MANAGED_MARKER/oem/apps/helixscreen/latest/bin"
+    run _refuse_if_firmware_managed
+    [ "$status" -eq 0 ]
+}
+
+@test "gui is read the way configparser reads it" {
+    local cfg="$BATS_TEST_TMPDIR/x.cfg"
+    printf '[components]\n  GUI = helixscreen  \r\n[other]\ngui: snapmaker\n' > "$cfg"
+    run _paxx_selected_gui "$cfg"
+    [ "$output" = "helixscreen" ]
+    printf '[other]\ngui: helixscreen\n' > "$cfg"
+    run _paxx_selected_gui "$cfg"
+    [ -z "$output" ]
 }
 
 @test "HELIX_IGNORE_FIRMWARE_MANAGED=1 bypasses the guard" {
-    mkdir -p "$HELIX_FIRMWARE_MANAGED_MARKER/oem/apps/helixscreen"
+    paxx_hook
+    paxx_gui helixscreen
     export HELIX_IGNORE_FIRMWARE_MANAGED=1
     run _refuse_if_firmware_managed
     [ "$status" -eq 0 ]
 }
 
-@test "detected marker path is reported in the abort message" {
-    mkdir -p "$HELIX_FIRMWARE_MANAGED_MARKER/oem/apps/helixscreen"
+@test "detected hook path is reported in the abort message" {
+    paxx_hook
+    paxx_gui helixscreen
     run _refuse_if_firmware_managed
     [ "$status" -ne 0 ]
-    [[ "$output" == *"$HELIX_FIRMWARE_MANAGED_MARKER/oem/apps/helixscreen"* ]]
+    [[ "$output" == *"$HELIX_FIRMWARE_MANAGED_MARKER/etc/hooks/lmd.d/30-helixscreen.sh"* ]]
 }

@@ -133,6 +133,11 @@ std::optional<std::string> firmware_package_root(Board board, const std::string&
     return real_dir;
 }
 
+// install.sh makes the same call before it touches anything, in
+// scripts/lib/installer/main.sh#_refuse_if_firmware_managed: it refuses only where
+// the firmware's lmd hook binds the package (the hook present and PAXX's
+// `[components] gui` set to helixscreen), which is when the running binary is the
+// package's. The two must agree, or the app offers an update the installer refuses.
 bool firmware_manages_updates(Board board, const std::string& running_exe,
                               const std::string& probe_root) {
     const Info& row = info(board);
