@@ -468,23 +468,31 @@ TEST_CASE("parse_proc_stat reads the scheduler state right after the LAST ')'",
 
 TEST_CASE("parse_proc_wchan keeps the kernel's wait channel name and calls '0' none",
           "[memory][proc_stat]") {
-    CHECK(parse_proc_wchan("futex_do_wait") == std::optional<std::string>("futex_do_wait"));
-    CHECK(parse_proc_wchan("poll_schedule_timeout\n") ==
-          std::optional<std::string>("poll_schedule_timeout"));
-
+    struct Row {
+        const char* text;
+        const char* want;
+    };
     // 31 characters is the cap: a shorter or equal name stays whole, a longer one is cut to it.
-    CHECK(parse_proc_wchan("do_syscall_64_and_then_wait_fo") ==
-          std::optional<std::string>("do_syscall_64_and_then_wait_fo"));
-    CHECK(parse_proc_wchan("do_syscall_64_and_then_wait_for") ==
-          std::optional<std::string>("do_syscall_64_and_then_wait_for"));
-    CHECK(parse_proc_wchan("do_syscall_64_and_then_wait_for_") ==
-          std::optional<std::string>("do_syscall_64_and_then_wait_for"));
-    CHECK(parse_proc_wchan("do_syscall_64_and_then_wait_for_the_disk_to_answer") ==
-          std::optional<std::string>("do_syscall_64_and_then_wait_for"));
+    const Row named[] = {
+        {"futex_do_wait", "futex_do_wait"},
+        {"poll_schedule_timeout\n", "poll_schedule_timeout"},
+        {"do_syscall_64_and_then_wait_fo", "do_syscall_64_and_then_wait_fo"},
+        {"do_syscall_64_and_then_wait_for", "do_syscall_64_and_then_wait_for"},
+        {"do_syscall_64_and_then_wait_for_", "do_syscall_64_and_then_wait_for"},
+        {"do_syscall_64_and_then_wait_for_the_disk_to_answer", "do_syscall_64_and_then_wait_for"},
+    };
+    for (const Row& r : named) {
+        INFO("text: " << r.text);
+        const auto wchan = parse_proc_wchan(r.text);
+        REQUIRE(wchan.has_value());
+        CHECK(*wchan == r.want);
+    }
 
     // The kernel writes "0" for a thread that is not waiting anywhere.
-    CHECK_FALSE(parse_proc_wchan("0").has_value());
-    CHECK_FALSE(parse_proc_wchan("").has_value());
+    for (const char* none : {"0", ""}) {
+        INFO("text: " << none);
+        CHECK_FALSE(parse_proc_wchan(none).has_value());
+    }
 }
 
 TEST_CASE("telemetry_process_name passes only known program names", "[memory][proc_stat]") {
@@ -634,8 +642,12 @@ TEST_CASE("read_main_thread_state and read_main_thread_wchan read their proc fil
     const auto stat = (proc.root / "self" / "stat").string();
     const auto wchan = (proc.root / "self" / "wchan").string();
     std::ofstream(wchan) << "futex_do_wait";
-    CHECK(read_main_thread_state(stat.c_str()) == std::optional<std::string>("S"));
-    CHECK(read_main_thread_wchan(wchan.c_str()) == std::optional<std::string>("futex_do_wait"));
+    const auto state = read_main_thread_state(stat.c_str());
+    REQUIRE(state.has_value());
+    CHECK(*state == "S");
+    const auto channel = read_main_thread_wchan(wchan.c_str());
+    REQUIRE(channel.has_value());
+    CHECK(*channel == "futex_do_wait");
     CHECK(read_main_thread_state().has_value());
 
     // A running thread waits nowhere: the kernel's "0" is none, not a channel named "0".
