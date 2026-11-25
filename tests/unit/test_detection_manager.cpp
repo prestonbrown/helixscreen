@@ -602,6 +602,59 @@ TEST_CASE_METHOD(HelixTestFixture, "DetectionManager bed check switch waits for 
     m.reset_for_test();
 }
 
+// ---------------------------------------------------------------------------
+// The two switches on the settings screen reach the manager
+// ---------------------------------------------------------------------------
+
+namespace {
+/// A source whose firmware detects by itself, so it follows the switch.
+struct FirmwareSwitchSource : StubSource {
+    std::vector<bool> applied; ///< every apply_detection_enabled() call, in order
+    void apply_detection_enabled(bool enabled) override {
+        applied.push_back(enabled);
+    }
+};
+} // namespace
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "The Spaghetti Detection switch stores the setting and tells the printer",
+                 "[detection][manager][2044]") {
+    DetectionSettingsGuard guard;
+    auto& m = DetectionManager::instance();
+    m.reset_for_test();
+    auto stub = std::make_unique<FirmwareSwitchSource>();
+    auto* raw = stub.get();
+    m.register_source(std::move(stub));
+    auto& sm = SettingsManager::instance();
+    REQUIRE(sm.get_detection_enabled());
+
+    apply_detection_switch(false);
+
+    CHECK_FALSE(sm.get_detection_enabled());
+    const std::vector<bool> sent = {false};
+    CHECK(raw->applied == sent);
+    m.reset_for_test();
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "The Bed Check switch asks the printer through the manager",
+                 "[detection][manager][bed_check][2044]") {
+    auto& m = DetectionManager::instance();
+    m.reset_for_test();
+    auto stub = std::make_unique<StubSource>();
+    auto* raw = stub.get();
+    raw->bed = true;
+    m.register_source(std::move(stub));
+    lv_subject_t* enabled = m.subject_bed_check_enabled();
+    REQUIRE(lv_subject_get_int(enabled) == 1);
+
+    apply_bed_check_switch(false);
+
+    // The row follows at once; the source holds the switch until the printer answers.
+    CHECK(lv_subject_get_int(enabled) == 0);
+    CHECK(raw->pending_set);
+    m.reset_for_test();
+}
+
 TEST_CASE_METHOD(HelixTestFixture, "Built-in source table registers each source with its policy",
                  "[detection][manager]") {
     auto& m = DetectionManager::instance();
