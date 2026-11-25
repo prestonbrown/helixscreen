@@ -30,6 +30,7 @@ from translations.extractor import (  # noqa: E402
     iter_elements,
     should_skip_text,
 )
+from shipped_locales import shipped_locale_codes  # noqa: E402
 from translations.yaml_manager import load_yaml_file_readonly  # noqa: E402
 
 # Floor per attribute, only to guard the scan against silently matching
@@ -122,7 +123,10 @@ def test_every_explicit_tag_translated_in_every_locale():
     assert not thin, "scan found too few literals:\n  " + "\n  ".join(thin)
 
     locales = sorted((REPO_ROOT / "translations").glob("*.yml"))
-    assert len(locales) == 9, f"expected 9 locale files, found {[p.name for p in locales]}"
+    assert {p.stem for p in locales} == shipped_locale_codes(), (
+        "translations/*.yml must be exactly the languages the app lists: "
+        f"{[p.name for p in locales]}"
+    )
 
     missing = []
     translated_after_all = set()
