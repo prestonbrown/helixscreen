@@ -305,7 +305,7 @@ TEST_CASE_METHOD(HelixTestFixture, "a controller's listed commands are sent; not
 // The factory
 
 TEST_CASE("the factory builds the lane status backend for a printer that reports it",
-          "[ams][lane_status][factory]") {
+          "[ams][lane_status][factory][2044]") {
     MockPrinter printer;
     auto backend = helix::AmsBackend::create(AmsType::LANE_STATUS, &printer.api, &printer.client);
     REQUIRE(backend != nullptr);

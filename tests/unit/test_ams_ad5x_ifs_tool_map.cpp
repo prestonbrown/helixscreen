@@ -35,7 +35,7 @@ json identity_plugin_rows() {
 } // namespace
 
 TEST_CASE("A plugin-backed remap moves each lane's tool badge at once",
-          "[ams][ad5x_ifs][tool_map]") {
+          "[ams][ad5x_ifs][tool_map][2044]") {
     helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
     Ad5xIfsTestAccess::set_ifs_macro_confirmed_missing(backend, false);
     backend.fire_status(identity_plugin_rows());
@@ -52,7 +52,7 @@ TEST_CASE("A plugin-backed remap moves each lane's tool badge at once",
 }
 
 TEST_CASE("The module's first frame gives every lane its tool before any tool_map arrives",
-          "[ams][ad5x_ifs][ifs_module][tool_map]") {
+          "[ams][ad5x_ifs][ifs_module][tool_map][2044]") {
     helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
 
     // A module predating the tool_map field: it says which lanes hold filament

@@ -380,7 +380,7 @@ class PollingChanger : public helix::AmsBackendToolChanger {
 } // namespace
 
 TEST_CASE_METHOD(LVGLTestFixture, "a started backend rereads the lane records on its poll",
-                 "[lane][refresh][toolchanger][poll]") {
+                 "[lane][refresh][toolchanger][poll][2044]") {
     MockPrinter printer;
     printer.client.mock_db_set("lane_data", "T1", record("PETG", "#1E5AA8"));
     helix::test::RegisteredBackend<PollingChanger> reg(&printer.api, &printer.client);
@@ -397,7 +397,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a started backend rereads the lane records on
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "a stopped backend stops reading the lane records",
-                 "[lane][refresh][toolchanger][poll]") {
+                 "[lane][refresh][toolchanger][poll][2044]") {
     MockPrinter printer;
     printer.client.mock_db_set("lane_data", "T1", record("PETG", "#1E5AA8"));
     helix::test::RegisteredBackend<PollingChanger> reg(&printer.api, &printer.client);

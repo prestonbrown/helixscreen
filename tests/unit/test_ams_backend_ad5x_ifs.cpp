@@ -8950,7 +8950,7 @@ TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS runout: clears on refill, resume a
 // An idle backend shows no status line: the runout's text goes with the fault,
 // or the panel keeps describing a runout that is over.
 TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS runout: the status line goes with the cleared fault",
-                 "[ams][ad5x_ifs][runout][1250]") {
+                 "[ams][ad5x_ifs][runout][1250][2044]") {
     auto raise = [this](auto& b) {
         set_print_state(helix::PrintJobState::PAUSED);
         seat_then_drop_head(b);

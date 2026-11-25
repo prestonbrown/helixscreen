@@ -1182,7 +1182,7 @@ TEST_CASE("AD5X IFS apply_user_edit writes through IFS_SET_MATERIAL on the modul
 }
 
 TEST_CASE("AD5X IFS an edit writes its lane record once",
-          "[ams][ad5x_ifs][ifs_module][lane_truth]") {
+          "[ams][ad5x_ifs][ifs_module][lane_truth][2044]") {
     helix::test::StartedBackend<TestableModuleBackend> backend;
     backend.fire_status(module_ifs_frame(0, {1, 2, 3, 4}));
 

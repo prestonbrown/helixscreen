@@ -282,7 +282,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "a bypass edit the holder has no lane records for is withdrawn",
-                 "[bypass][lane][pending]") {
+                 "[bypass][lane][pending][2044]") {
     MockPrinter printer;
     // Registered as the holder but never started, so its lane records are not
     // open and there is nowhere to write the bypass record.

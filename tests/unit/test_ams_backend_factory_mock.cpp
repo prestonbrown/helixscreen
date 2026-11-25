@@ -12,7 +12,7 @@
 
 #include "../catch_amalgamated.hpp"
 
-TEST_CASE("HELIX_MOCK_AMS=afc_direct builds the direct-tool mock", "[ams][mock][factory]") {
+TEST_CASE("HELIX_MOCK_AMS=afc_direct builds the direct-tool mock", "[ams][mock][factory][2044]") {
     // No persona and no mode left over from another case in this shard.
     helix::ScopedEnv printer{"HELIX_MOCK_PRINTER", nullptr};
     ScopedRuntimeConfig scoped_config;

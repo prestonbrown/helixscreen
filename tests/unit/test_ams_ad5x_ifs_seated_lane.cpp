@@ -41,7 +41,7 @@ constexpr const char* kTwoLanes =
 } // namespace
 
 TEST_CASE("The path shows no lane while the active tool's own lane holds no filament",
-          "[ams][ad5x_ifs][path]") {
+          "[ams][ad5x_ifs][path][2044]") {
     helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
     Ad5xIfsTestAccess::set_ifs_macro_confirmed_missing(backend, false);
     backend.fire_status(save_variables(
@@ -61,7 +61,7 @@ TEST_CASE("The path shows no lane while the active tool's own lane holds no fila
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "The loaded mark moves to the lane the file names as seated",
-                 "[ams][ad5x_ifs][lane_truth]") {
+                 "[ams][ad5x_ifs][lane_truth][2044]") {
     helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg{nullptr, nullptr};
     auto& backend = *backend_reg;
     Ad5xIfsTestAccess::set_head_filament(backend, true);
@@ -84,7 +84,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "The loaded mark moves to the lane the file na
 TEST_CASE_METHOD(
     LVGLTestFixture,
     "A remembered lane the frame's Ports do not reach is not restored after a power cycle",
-    "[ams][ad5x_ifs][lane_truth][ifs_jacker]") {
+    "[ams][ad5x_ifs][lane_truth][ifs_jacker][2044]") {
     helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg{nullptr, nullptr};
     auto& backend = *backend_reg;
     Ad5xIfsTestAccess::set_head_filament(backend, true);

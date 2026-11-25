@@ -19,7 +19,7 @@ using helix::AmsBackendMock;
 using helix::AmsBackendToolChanger;
 
 TEST_CASE("An editable endless-spool lane answers -1 with no backup set and its backup once set",
-          "[ams][endless_spool][runout_backup]") {
+          "[ams][endless_spool][runout_backup][2044]") {
     AmsBackendMock mock(4);
     REQUIRE(mock.get_endless_spool_capabilities().editable());
     REQUIRE(mock.get_system_info().total_slots == 4);
@@ -45,7 +45,7 @@ TEST_CASE("An editable endless-spool lane answers -1 with no backup set and its 
 }
 
 TEST_CASE("A backend that neither edits nor publishes an endless-spool relation answers nothing",
-          "[ams][endless_spool][runout_backup]") {
+          "[ams][endless_spool][runout_backup][2044]") {
     AmsBackendToolChanger tool_changer(nullptr, nullptr);
     REQUIRE_FALSE(tool_changer.get_endless_spool_capabilities().editable());
     REQUIRE(tool_changer.get_endless_spool_config().groups.empty());

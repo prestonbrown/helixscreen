@@ -250,7 +250,7 @@ TEST_CASE("A Happy Hare unit mode on a persona with no mmu draws that unit on th
 }
 
 TEST_CASE("A Happy Hare unit mode builds the lanes the unit is sold with",
-          "[mock][creator5][ams]") {
+          "[mock][creator5][ams][2044]") {
     struct Row {
         const char* mode;
         int gates;

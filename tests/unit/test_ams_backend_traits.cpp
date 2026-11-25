@@ -275,7 +275,7 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
     CHECK_FALSE(dryer_info(afc, 0).supported);
 }
 
-TEST_CASE("A backend with no dryer interface reports no dryer", "[ams][traits][dryer]") {
+TEST_CASE("A backend with no dryer interface reports no dryer", "[ams][traits][dryer][2044]") {
     // No units either: the question is asked for a unit index that does not exist.
     AmsBackendToolChanger tool_changer(nullptr, nullptr);
     AmsBackendAd5xIfs ad5x(nullptr, nullptr);
