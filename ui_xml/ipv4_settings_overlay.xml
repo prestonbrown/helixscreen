@@ -7,6 +7,15 @@
 <component>
   <view name="ipv4_settings_overlay"
         extends="overlay_panel" title="IPv4" title_subject="ipv4_title" title_transform="none" bg_color="#screen_bg">
+    <!-- Apply commits the static address: the header's text-only primary. Use
+         DHCP, the other way out, stays in the content as a secondary. A print
+         greys both (see ipv4_buttons). -->
+    <overlay_panel-actions>
+      <header_action name="ipv4_apply_btn" text="Apply" role="primary" callback="on_ipv4_apply">
+        <bind_state_if_eq subject="ipv4_busy" state="disabled" ref_value="1"/>
+        <bind_state_if_eq subject="ipv4_job_held" state="disabled" ref_value="1"/>
+      </header_action>
+    </overlay_panel-actions>
     <overlay_panel-overlay_content style_pad_all="#space_md"
                                    style_pad_top="0" flex_flow="column" style_pad_gap="#space_sm" scrollable="true"
                                    scroll_dir="ver">
@@ -58,22 +67,18 @@
       </lv_obj>
       <text_small name="ipv4_error_label"
                   width="100%" bind_text="ipv4_error" long_mode="wrap" style_text_color="#danger"/>
-      <!-- A print greys both, since a network change can drop the connection a
-           remote screen, client or camera is using mid-print. ipv4_job_held, not
-           moves_machine: a lost printer connection releases it once stale, so a
-           remote screen can still fix its own network. -->
+      <!-- A print greys Use DHCP and the header's Apply, since a network change
+           can drop the connection a remote screen, client or camera is using
+           mid-print. ipv4_job_held, not moves_machine: a lost printer connection
+           releases it once stale, so a remote screen can still fix its own
+           network. -->
       <lv_obj name="ipv4_buttons"
               width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md"
               scrollable="false">
-        <ui_button name="ipv4_dhcp_btn" width="0" flex_grow="1" variant="secondary" text="Use DHCP">
+        <ui_button name="ipv4_dhcp_btn" width="content" variant="secondary" text="Use DHCP">
           <bind_state_if_eq subject="ipv4_busy" state="disabled" ref_value="1"/>
           <bind_state_if_eq subject="ipv4_job_held" state="disabled" ref_value="1"/>
           <event_cb trigger="clicked" callback="on_ipv4_use_dhcp"/>
-        </ui_button>
-        <ui_button name="ipv4_apply_btn" width="0" flex_grow="1" text="Apply">
-          <bind_state_if_eq subject="ipv4_busy" state="disabled" ref_value="1"/>
-          <bind_state_if_eq subject="ipv4_job_held" state="disabled" ref_value="1"/>
-          <event_cb trigger="clicked" callback="on_ipv4_apply"/>
         </ui_button>
       </lv_obj>
     </overlay_panel-overlay_content>

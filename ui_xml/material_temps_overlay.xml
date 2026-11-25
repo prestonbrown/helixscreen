@@ -2,17 +2,39 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Material Temperature Settings Overlay -->
-<!-- Two-view overlay: scrollable material list → edit form for a selected material -->
+<!-- Two-view overlay: scrollable material list → edit form for a selected material.
+     The edit form fits its view at every size and never scrolls. -->
 <component>
+  <subjects>
+    <!-- Micro portrait (272x480) is too narrow for four temperature columns. -->
+    <subject_expr name="material_temps_cols_wrap" expr="ui_breakpoint eq 0 and ui_is_portrait eq 1"/>
+    <!-- Where the form has no room for its help lines: 272px tall, or micro portrait. -->
+    <subject_expr name="material_temps_no_help" expr="ui_breakpoint eq 0 or ui_breakpoint_v eq 0"/>
+  </subjects>
   <styles>
-    <!-- At micro (480x272 and 272x480) the four temperature columns wrap two
-         to a row: a column at least 45% wide cannot share a row with three
+    <!-- Where material_temps_cols_wrap is set the four temperature columns wrap
+         two to a row: a column at least 45% wide cannot share a row with three
          siblings, so the row_wrap container breaks after the second. -->
     <style name="temp_col_micro" min_width="45%"/>
+    <!-- The macro section's arrangement lives in styles only: an inline
+         attribute would outrank the portrait style bound over it. -->
+    <style name="macro_section" layout="flex" flex_flow="row"/>
+    <style name="macro_section_stacked" layout="flex" flex_flow="column" pad_row="#space_xs"/>
+    <style name="macro_col" width="0" flex_grow="1"/>
+    <style name="macro_col_stacked" width="100%" flex_grow="0"/>
   </styles>
   <view name="material_temps_overlay"
         extends="overlay_panel" title="Material Temperatures" bg_color="#screen_bg"
         back_button_callback="on_material_back_clicked">
+    <!-- Save is the edit view's one commit, shown only while a material is open
+         and greyed until something in it changes. Text-only, so it keeps its
+         label at every size. -->
+    <overlay_panel-actions>
+      <header_action name="btn_save_material" text="Save" role="primary" callback="on_material_save">
+        <bind_flag_if_eq subject="material_editing" flag="hidden" ref_value="0"/>
+        <bind_state_if_eq subject="material_edit_dirty" state="disabled" ref_value="0"/>
+      </header_action>
+    </overlay_panel-actions>
     <!-- Content Area -->
     <overlay_panel-overlay_content style_pad_top="0"
                                    style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_bottom="#space_lg"
@@ -44,58 +66,66 @@
       <!-- EDIT VIEW (shown when editing a material) -->
       <!-- ================================================================== -->
       <lv_obj name="material_edit_view"
-              width="100%" flex_grow="1" scrollable="true" flex_flow="column" style_pad_all="0">
+              width="100%" flex_grow="1" scrollable="false" flex_flow="column" style_pad_all="0"
+              style_pad_row="#space_sm">
         <bind_flag_if_eq subject="material_editing" flag="hidden" ref_value="0"/>
         <!-- Material name + defaults hint row -->
+        <!-- The hint wraps under the name where the two cannot share a line. -->
         <lv_obj width="100%"
-                flex_flow="row" style_pad_all="0" style_pad_bottom="#space_lg" scrollable="false"
-                style_flex_cross_place="center">
-          <text_heading name="edit_material_name" bind_text="material_edit_name" flex_grow="1"/>
+                flex_flow="row_wrap" style_pad_all="0" style_pad_bottom="#space_lg" scrollable="false"
+                style_flex_main_place="space_between" style_flex_cross_place="center" style_pad_row="#space_xxs">
+          <text_heading name="edit_material_name" bind_text="material_edit_name"/>
           <text_small name="edit_defaults_hint" bind_text="material_edit_defaults" style_text_color="#text_muted"/>
         </lv_obj>
         <!-- Nozzle Min / Nozzle Max / Bed Temp / Chamber Temp (four-column row).
              Each input fills its own column (flex_grow="1") up to a 120px cap,
              so the row shrinks on a narrow screen but never grows past its
-             standard size on a wide one. The two micro tiers are too narrow to
-             hold one row at all: there the temp_col_micro floor wraps the
-             columns two-by-two. -->
+             standard size on a wide one. Micro portrait is too narrow to hold
+             one row at all: there the temp_col_micro floor wraps the columns
+             two-by-two. -->
         <lv_obj width="100%" flex_flow="row_wrap" style_pad_all="0" style_pad_gap="#space_sm" scrollable="false">
           <!-- Nozzle Min column -->
           <lv_obj flex_grow="1" flex_flow="column" style_pad_all="0" scrollable="false">
-            <bind_style_if_eq name="temp_col_micro" subject="ui_breakpoint" ref_value="0"/>
+            <bind_style_if_eq name="temp_col_micro" subject="material_temps_cols_wrap" ref_value="1"/>
             <lv_obj width="100%"
                     height="content" style_pad_all="0" style_pad_bottom="#space_xs" flex_flow="row"
                     style_pad_column="#space_xxs" scrollable="false">
               <text_body text="Nozzle Min"/>
               <text_body bind_text="settings_temp_unit_symbol" bind_text-fmt="(%s)"/>
             </lv_obj>
-            <text_input name="edit_nozzle_min" width="100%" style_max_width="120" keyboard_hint="numeric" max_length="4"/>
+            <text_input name="edit_nozzle_min" width="100%" style_max_width="120" keyboard_hint="numeric" max_length="4">
+              <event_cb trigger="value_changed" callback="on_material_field_changed"/>
+            </text_input>
           </lv_obj>
           <!-- Nozzle Max column -->
           <lv_obj flex_grow="1" flex_flow="column" style_pad_all="0" scrollable="false">
-            <bind_style_if_eq name="temp_col_micro" subject="ui_breakpoint" ref_value="0"/>
+            <bind_style_if_eq name="temp_col_micro" subject="material_temps_cols_wrap" ref_value="1"/>
             <lv_obj width="100%"
                     height="content" style_pad_all="0" style_pad_bottom="#space_xs" flex_flow="row"
                     style_pad_column="#space_xxs" scrollable="false">
               <text_body text="Nozzle Max"/>
               <text_body bind_text="settings_temp_unit_symbol" bind_text-fmt="(%s)"/>
             </lv_obj>
-            <text_input name="edit_nozzle_max" width="100%" style_max_width="120" keyboard_hint="numeric" max_length="4"/>
+            <text_input name="edit_nozzle_max" width="100%" style_max_width="120" keyboard_hint="numeric" max_length="4">
+              <event_cb trigger="value_changed" callback="on_material_field_changed"/>
+            </text_input>
           </lv_obj>
           <!-- Bed Temp column -->
           <lv_obj flex_grow="1" flex_flow="column" style_pad_all="0" scrollable="false">
-            <bind_style_if_eq name="temp_col_micro" subject="ui_breakpoint" ref_value="0"/>
+            <bind_style_if_eq name="temp_col_micro" subject="material_temps_cols_wrap" ref_value="1"/>
             <lv_obj width="100%"
                     height="content" style_pad_all="0" style_pad_bottom="#space_xs" flex_flow="row"
                     style_pad_column="#space_xxs" scrollable="false">
               <text_body text="Bed"/>
               <text_body bind_text="settings_temp_unit_symbol" bind_text-fmt="(%s)"/>
             </lv_obj>
-            <text_input name="edit_bed_temp" width="100%" style_max_width="120" keyboard_hint="numeric" max_length="4"/>
+            <text_input name="edit_bed_temp" width="100%" style_max_width="120" keyboard_hint="numeric" max_length="4">
+              <event_cb trigger="value_changed" callback="on_material_field_changed"/>
+            </text_input>
           </lv_obj>
           <!-- Chamber Temp column (only when the printer has a chamber heater) -->
           <lv_obj flex_grow="1" flex_flow="column" style_pad_all="0" scrollable="false">
-            <bind_style_if_eq name="temp_col_micro" subject="ui_breakpoint" ref_value="0"/>
+            <bind_style_if_eq name="temp_col_micro" subject="material_temps_cols_wrap" ref_value="1"/>
             <bind_flag_if_eq subject="printer_has_chamber_heater" flag="hidden" ref_value="0"/>
             <lv_obj width="100%"
                     height="content" style_pad_all="0" style_pad_bottom="#space_xs" flex_flow="row"
@@ -104,42 +134,59 @@
               <text_body bind_text="settings_temp_unit_symbol" bind_text-fmt="(%s)"/>
             </lv_obj>
             <text_input name="edit_chamber_temp"
-                        width="100%" style_max_width="120" keyboard_hint="numeric" max_length="4"/>
+                        width="100%" style_max_width="120" keyboard_hint="numeric" max_length="4">
+              <event_cb trigger="value_changed" callback="on_material_field_changed"/>
+            </text_input>
           </lv_obj>
         </lv_obj>
-        <!-- Preheat Macro section -->
-        <lv_obj width="100%" flex_flow="column" style_pad_all="0" style_pad_top="#space_lg" scrollable="false">
-          <text_body style_pad_bottom="#space_xs" text="Preheat Macro"/>
-          <lv_dropdown name="macro_dropdown" width="100%" options="None">
-            <event_cb trigger="value_changed" callback="on_macro_dropdown_changed"/>
-          </lv_dropdown>
-          <text_small style_text_color="#text_muted"
-                      style_pad_top="#space_xs" text="Run a Klipper macro when preheating this material"/>
-        </lv_obj>
-        <!-- Macro handles heating toggle (hidden when no macro assigned) -->
-        <lv_obj name="macro_heating_row"
-                width="100%" flex_flow="column" style_pad_all="0" style_pad_top="#space_md" scrollable="false">
-          <bind_flag_if_eq subject="material_has_macro" flag="hidden" ref_value="0"/>
-          <lv_obj width="100%" flex_flow="row" style_pad_all="0" scrollable="false" style_flex_cross_place="center">
-            <lv_switch name="macro_heating_switch" style_pad_right="#space_md"/>
-            <text_body text="Macro handles heating" flex_grow="1"/>
+        <!-- Preheat macro and its heating switch: side by side in landscape, so
+             the form fits a 272px-tall screen; stacked in portrait, where a
+             half-width switch label would not read. -->
+        <lv_obj name="macro_section"
+                width="100%" style_pad_all="0" style_pad_top="#space_md" style_pad_column="#space_lg" scrollable="false">
+          <style name="macro_section"/>
+          <bind_style_if_eq name="macro_section_stacked" subject="ui_is_portrait" ref_value="1"/>
+          <lv_obj flex_flow="column" style_pad_all="0" scrollable="false">
+            <style name="macro_col"/>
+            <bind_style_if_eq name="macro_col_stacked" subject="ui_is_portrait" ref_value="1"/>
+            <text_body style_pad_bottom="#space_xs" text="Preheat Macro"/>
+            <lv_dropdown name="macro_dropdown" width="100%" options="None">
+              <event_cb trigger="value_changed" callback="on_macro_dropdown_changed"/>
+            </lv_dropdown>
+            <!-- The help lines give way where the form has no room for them. -->
+            <text_small width="100%"
+                        style_text_color="#text_muted" style_pad_top="#space_xs"
+                        text="Run a Klipper macro when preheating this material">
+              <bind_flag_if_eq subject="material_temps_no_help" flag="hidden" ref_value="1"/>
+            </text_small>
           </lv_obj>
-          <text_small style_text_color="#text_muted"
-                      style_pad_top="#space_xs"
-                      text="When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs."/>
+          <!-- Macro handles heating toggle (hidden when no macro assigned) -->
+          <lv_obj name="macro_heating_row" flex_flow="column" style_pad_all="0" scrollable="false">
+            <style name="macro_col"/>
+            <bind_style_if_eq name="macro_col_stacked" subject="ui_is_portrait" ref_value="1"/>
+            <bind_flag_if_eq subject="material_has_macro" flag="hidden" ref_value="0"/>
+            <lv_obj width="100%" flex_flow="row" style_pad_all="0" scrollable="false" style_flex_cross_place="center">
+              <lv_switch name="macro_heating_switch" style_pad_right="#space_md">
+                <event_cb trigger="value_changed" callback="on_material_field_changed"/>
+              </lv_switch>
+              <text_body text="Macro handles heating" flex_grow="1"/>
+            </lv_obj>
+            <text_small width="100%"
+                        style_text_color="#text_muted" style_pad_top="#space_xs"
+                        text="When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs.">
+              <bind_flag_if_eq subject="material_temps_no_help" flag="hidden" ref_value="1"/>
+            </text_small>
+          </lv_obj>
         </lv_obj>
-        <!-- Flex spacer pushes buttons to bottom -->
-        <lv_obj width="1" flex_grow="1" scrollable="false" style_pad_all="0"/>
-        <!-- Button row -->
-        <lv_obj width="100%" flex_flow="row" style_pad_all="0" style_pad_gap="#space_md" scrollable="false">
-          <ui_button name="btn_reset_defaults" variant="secondary" text="Reset to Default" flex_grow="1">
-            <bind_flag_if_eq subject="material_edit_is_shipped" flag="hidden" ref_value="0"/>
-            <event_cb trigger="clicked" callback="on_material_reset_defaults"/>
-          </ui_button>
-          <ui_button name="btn_save_material" variant="primary" text="Save" flex_grow="1">
-            <event_cb trigger="clicked" callback="on_material_save"/>
-          </ui_button>
-        </lv_obj>
+        <!-- Reset drops the saved override and returns to the list: a quiet
+             outline button at the end of the form, away from the header's Save.
+             Shipped materials only (a user-defined type has no default to go
+             back to). -->
+        <ui_button name="btn_reset_defaults"
+                   width="content" height="#button_height_sm" variant="outline" icon="refresh" text="Reset to Default">
+          <bind_flag_if_eq subject="material_edit_is_shipped" flag="hidden" ref_value="0"/>
+          <event_cb trigger="clicked" callback="on_material_reset_defaults"/>
+        </ui_button>
       </lv_obj>
     </overlay_panel-overlay_content>
   </view>

@@ -203,10 +203,9 @@ TEST_CASE_METHOD(XMLTestFixture, "Chamber row is absent when the printer has no 
     reset_material_temps_singleton();
 }
 
-// At 480x272 (MICRO) and 272x480 (MICRO_PORTRAIT) the one material_temps file
-// wraps its temperature inputs two-by-two: the columns carry a 45% min-width
-// bound on ui_breakpoint 0, and four of those cannot share a row. Pins that
-// the wrap happens there, and only there (the tiny cases below keep one row).
+// At 272x480 (micro portrait) the temperature inputs wrap two-by-two: the
+// columns carry a 45% min-width bound there, and four of those cannot share a
+// row. 480x272 keeps one row, which the form needs to fit 272px of height.
 namespace {
 
 int32_t input_top(lv_obj_t* obj) {
@@ -215,7 +214,7 @@ int32_t input_top(lv_obj_t* obj) {
     return area.y1;
 }
 
-void check_two_by_two_reflow(XMLTestFixture& f, int32_t screen_w, int32_t screen_h) {
+void check_temp_rows(XMLTestFixture& f, int32_t screen_w, int32_t screen_h, bool two_by_two) {
     lv_display_t* disp = lv_display_get_default();
     REQUIRE(disp != nullptr);
 
@@ -247,7 +246,11 @@ void check_two_by_two_reflow(XMLTestFixture& f, int32_t screen_w, int32_t screen
         CHECK_FALSE(hidden(lv_obj_get_parent(chamber)));
 
         CHECK(input_top(nozzle_max) == input_top(nozzle_min));
-        CHECK(input_top(bed) > input_top(nozzle_min));
+        if (two_by_two) {
+            CHECK(input_top(bed) > input_top(nozzle_min));
+        } else {
+            CHECK(input_top(bed) == input_top(nozzle_min));
+        }
         CHECK(input_top(chamber) == input_top(bed));
 
         MaterialSettingsManager::instance().clear_override("ABS");
@@ -258,9 +261,9 @@ void check_two_by_two_reflow(XMLTestFixture& f, int32_t screen_w, int32_t screen
 
 } // namespace
 
-TEST_CASE_METHOD(XMLTestFixture, "Micro wraps the temp inputs to two rows of two",
+TEST_CASE_METHOD(XMLTestFixture, "Micro landscape keeps the temp inputs on one row",
                  "[material_temps][chamber]") {
-    check_two_by_two_reflow(*this, 480, 272);
+    check_temp_rows(*this, 480, 272, false);
 }
 
 // The header's back button carries ui_breakpoint style observers that
@@ -283,7 +286,7 @@ TEST_CASE_METHOD(XMLTestFixture, "Destroying the overlay releases its ui_breakpo
 
 TEST_CASE_METHOD(XMLTestFixture, "Micro-portrait wraps the temp inputs to two rows of two",
                  "[material_temps][chamber]") {
-    check_two_by_two_reflow(*this, 272, 480);
+    check_temp_rows(*this, 272, 480, true);
 }
 
 // TINY (480x320) and TINY_PORTRAIT (320x480) keep this file's four-across

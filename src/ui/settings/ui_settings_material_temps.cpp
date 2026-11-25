@@ -5,6 +5,7 @@
 
 #include "ui_callback_helpers.h"
 #include "ui_event_safety.h"
+#include "ui_modal.h"
 #include "ui_nav.h"
 #include "ui_panel_common.h"
 #include "ui_row_text.h"
@@ -61,6 +62,10 @@ void MaterialTempsOverlay::init_subjects() {
     UI_MANAGED_SUBJECT_INT(has_macro_subject_, 0, "material_has_macro", subjects_);
 
     UI_MANAGED_SUBJECT_INT(shipped_subject_, 1, "material_edit_is_shipped", subjects_);
+
+    // 1 once a field differs from what the edit view opened with: enables Save
+    // and makes Back ask before dropping the edits.
+    UI_MANAGED_SUBJECT_INT(dirty_subject_, 0, "material_edit_dirty", subjects_);
 }
 
 void MaterialTempsOverlay::register_callbacks() {
@@ -70,6 +75,8 @@ void MaterialTempsOverlay::register_callbacks() {
          [](lv_event_t*) { get_material_temps_overlay().handle_reset_defaults(); }},
         {"on_macro_dropdown_changed",
          [](lv_event_t*) { get_material_temps_overlay().handle_macro_dropdown_changed(); }},
+        {"on_material_field_changed",
+         [](lv_event_t*) { get_material_temps_overlay().mark_dirty(); }},
         // The header's back button, so a tap in the edit view returns to the list.
         {"on_material_back_clicked", on_back_clicked},
     });
@@ -271,6 +278,10 @@ void MaterialTempsOverlay::show_edit_view(const std::string& material_name) {
         }
     }
 
+    // Filling the inputs fired their change events; what the view opened with
+    // is the clean state.
+    set_dirty(false);
+
     // Switch to edit view
     lv_subject_set_int(&editing_subject_, 1);
     spdlog::debug("[{}] Editing material: {}", get_name(), material_name);
@@ -278,7 +289,31 @@ void MaterialTempsOverlay::show_edit_view(const std::string& material_name) {
 
 void MaterialTempsOverlay::show_list_view() {
     editing_material_.clear();
+    set_dirty(false);
     lv_subject_set_int(&editing_subject_, 0);
+}
+
+void MaterialTempsOverlay::return_to_list() {
+    int scroll_y = list_view_ ? lv_obj_get_scroll_y(list_view_) : 0;
+    show_list_view();
+    populate_material_list();
+    if (list_view_ && scroll_y > 0) {
+        lv_obj_scroll_to_y(list_view_, scroll_y, LV_ANIM_OFF);
+    }
+}
+
+void MaterialTempsOverlay::mark_dirty() {
+    if (!editing_material_.empty()) {
+        set_dirty(true);
+    }
+}
+
+void MaterialTempsOverlay::set_dirty(bool dirty) {
+    lv_subject_set_int(&dirty_subject_, dirty ? 1 : 0);
+}
+
+bool MaterialTempsOverlay::is_dirty() const {
+    return lv_subject_get_int(dirty_subject_.get()) != 0;
 }
 
 // EVENT HANDLERS
@@ -391,24 +426,15 @@ void MaterialTempsOverlay::handle_save() {
 
     spdlog::info("[{}] Saved overrides for {}", get_name(), editing_material_);
     ToastManager::instance().show(ToastSeverity::SUCCESS, lv_tr("Temperatures saved"), 2000);
-
-    // Return to list view and refresh, preserving scroll position
-    int scroll_y = list_view_ ? lv_obj_get_scroll_y(list_view_) : 0;
-    show_list_view();
-    populate_material_list();
-    if (list_view_ && scroll_y > 0) {
-        lv_obj_scroll_to_y(list_view_, scroll_y, LV_ANIM_OFF);
-    }
+    return_to_list();
 }
 
 void MaterialTempsOverlay::handle_back_clicked() {
     if (lv_subject_get_int(&editing_subject_) != 0) {
-        // In edit view — go back to list, preserving scroll position
-        int scroll_y = list_view_ ? lv_obj_get_scroll_y(list_view_) : 0;
-        show_list_view();
-        populate_material_list();
-        if (list_view_ && scroll_y > 0) {
-            lv_obj_scroll_to_y(list_view_, scroll_y, LV_ANIM_OFF);
+        if (is_dirty()) {
+            show_discard_confirmation();
+        } else {
+            return_to_list();
         }
     } else {
         // In list view — close overlay
@@ -423,14 +449,40 @@ void MaterialTempsOverlay::handle_reset_defaults() {
 
     MaterialSettingsManager::instance().clear_override(editing_material_);
     spdlog::info("[{}] Reset {} to defaults", get_name(), editing_material_);
+    return_to_list();
+}
 
-    // Return to list view and refresh, preserving scroll position
-    int scroll_y = list_view_ ? lv_obj_get_scroll_y(list_view_) : 0;
-    show_list_view();
-    populate_material_list();
-    if (list_view_ && scroll_y > 0) {
-        lv_obj_scroll_to_y(list_view_, scroll_y, LV_ANIM_OFF);
+void MaterialTempsOverlay::show_discard_confirmation() {
+    if (discard_dialog_) {
+        return;
     }
+    // Every way the dialog closes clears the handle; only Discard leaves the edits.
+    helix::ui::ConfirmOptions opts;
+    opts.on_cancel = [] { get_material_temps_overlay().discard_dialog_ = nullptr; };
+    opts.on_dismiss = [] { get_material_temps_overlay().discard_dialog_ = nullptr; };
+    discard_dialog_ = helix::ui::modal_confirm(
+        lv_tr("Discard Changes?"), lv_tr("You have unsaved changes. Discard them?"),
+        ModalSeverity::Warning, lv_tr("Discard"),
+        [] {
+            auto& overlay = get_material_temps_overlay();
+            overlay.discard_dialog_ = nullptr;
+            overlay.return_to_list();
+        },
+        opts);
+    if (!discard_dialog_) {
+        spdlog::error("[{}] Failed to show discard confirmation dialog", get_name());
+    }
+}
+
+void MaterialTempsOverlay::on_ui_destroyed() {
+    if (discard_dialog_) {
+        Modal::hide(discard_dialog_);
+        discard_dialog_ = nullptr;
+    }
+    list_view_ = nullptr;
+    edit_view_ = nullptr;
+    macro_dropdown_ = nullptr;
+    macro_heating_switch_ = nullptr;
 }
 
 // MACRO DROPDOWN
@@ -469,6 +521,7 @@ void MaterialTempsOverlay::handle_macro_dropdown_changed() {
     uint32_t sel = lv_dropdown_get_selected(macro_dropdown_);
     bool has_macro = sel < macro_names_.size() && !macro_names_[sel].empty();
     lv_subject_set_int(&has_macro_subject_, has_macro ? 1 : 0);
+    mark_dirty();
 
     spdlog::debug("[{}] Macro dropdown changed: index={} name='{}'", get_name(), sel,
                   (sel < macro_names_.size()) ? macro_names_[sel] : "(invalid)");
