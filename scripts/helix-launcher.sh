@@ -1118,14 +1118,22 @@ probe_egl_with_deadline() {
     _pe_file="${_pe_dir}/helix-probe-egl.$$"
     "$1" --probe-egl >"$_pe_file" 2>&1 &
     _pe_pid=$!
-    _pe_left="${HELIX_EGL_PROBE_SECS:-10}"
+    # Polled five times a second where sleep takes fractions, so a probe that
+    # answers at once costs boot no more than that; once a second otherwise.
+    if sleep 0.01 2>/dev/null; then
+        _pe_step=0.2
+        _pe_left=$((${HELIX_EGL_PROBE_SECS:-10} * 5))
+    else
+        _pe_step=1
+        _pe_left="${HELIX_EGL_PROBE_SECS:-10}"
+    fi
     while kill -0 "$_pe_pid" 2>/dev/null; do
         if [ "$_pe_left" -le 0 ]; then
             log "EGL probe did not answer in ${HELIX_EGL_PROBE_SECS:-10}s; stopping it"
             kill -9 "$_pe_pid" 2>/dev/null || true
             break
         fi
-        sleep 1
+        sleep "$_pe_step"
         _pe_left=$((_pe_left - 1))
     done
     _pe_rc=0
