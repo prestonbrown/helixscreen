@@ -15,6 +15,8 @@
 #include "core/temp_unit_subject.h"
 #include "core/update_queue.h"
 #include "display_numbering.h"
+#include "helix/xml/indexed_subject_pool.h"
+#include "helix_psram_attr.h"
 #include "lvgl.h"
 #include "nozzle_layout.h"
 #include "observe_language.h"
@@ -22,6 +24,7 @@
 #include "printer_state.h"
 #include "settings_manager.h"
 #include "subject_managed_panel.h"
+#include "system/subject_registry.h"
 #include "text_measure.h"
 #include "theme_manager.h"
 #include "tool_state.h"
@@ -34,6 +37,7 @@
 #include <cmath>
 #include <set>
 #include <string>
+#include <utility>
 
 namespace {
 
@@ -45,26 +49,57 @@ namespace {
 // XML that binds them is parsed. Values mirror decide_nozzle_layout()'s
 // output: label_mode is NozzleLabelMode's int (0=none 1=number 2=short
 // 3=long), columns is 1 or 2, compact is 0 or 1.
-helix::Subject s_label_mode_subject{};
-helix::Subject s_columns_subject{};
-helix::Subject s_compact_font_subject{};
+HELIX_PSRAM_BSS helix::Subject s_label_mode_subject{};
+HELIX_PSRAM_BSS helix::Subject s_columns_subject{};
+HELIX_PSRAM_BSS helix::Subject s_compact_font_subject{};
 helix::WidgetSubjects s_subjects{"NozzleTempsWidgetSubjects"};
 
+// The value each row shows, published for the row XML to bind: its current
+// and target halves as text, and the heat state that colors the current one
+// (HeatState's own value: 0 off, 1 heating, 2 at temperature, 3 cooling).
+// The bed row reads nozzle_bed_*; extruder row i reads the i-th slot of each
+// pool, nozzle_row_<i>_temp_text and so on. Registered here, with the layout
+// subjects, so they exist before any row that binds them is parsed.
+constexpr size_t kRowTextBytes = 32;
+HELIX_PSRAM_BSS helix::Subject s_bed_temp_text_subject{};
+HELIX_PSRAM_BSS char s_bed_temp_text_buf[kRowTextBytes];
+HELIX_PSRAM_BSS helix::Subject s_bed_target_text_subject{};
+HELIX_PSRAM_BSS char s_bed_target_text_buf[kRowTextBytes];
+HELIX_PSRAM_BSS helix::Subject s_bed_heat_subject{};
+helix::xml::IndexedSubjectPool s_row_temp_text{
+    "nozzle_row", helix::xml::IndexedSubjectPool::Type::String, kRowTextBytes, "_temp_text"};
+helix::xml::IndexedSubjectPool s_row_target_text{
+    "nozzle_row", helix::xml::IndexedSubjectPool::Type::String, kRowTextBytes, "_target_text"};
+helix::xml::IndexedSubjectPool s_row_heat{"nozzle_row", helix::xml::IndexedSubjectPool::Type::Int,
+                                          0, "_heat"};
+
 void nozzle_temps_widget_init_subjects() {
-    s_subjects.ensure_init([] {
-        s_label_mode_subject.init_int(
-            static_cast<int>(helix::NozzleLabelMode::Long)); // the degenerate default
-        s_subjects.publish("nozzle_row_label_mode", &s_label_mode_subject);
-        s_columns_subject.init_int(1);
-        s_subjects.publish("nozzle_row_columns", &s_columns_subject);
-        s_compact_font_subject.init_int(0);
-        s_subjects.publish("nozzle_row_compact", &s_compact_font_subject);
-    });
+    s_subjects.ensure_init(
+        [] {
+            s_label_mode_subject.init_int(
+                static_cast<int>(helix::NozzleLabelMode::Long)); // the degenerate default
+            s_subjects.publish("nozzle_row_label_mode", &s_label_mode_subject);
+            s_columns_subject.init_int(1);
+            s_subjects.publish("nozzle_row_columns", &s_columns_subject);
+            s_compact_font_subject.init_int(0);
+            s_subjects.publish("nozzle_row_compact", &s_compact_font_subject);
+            s_bed_temp_text_subject.init_string(s_bed_temp_text_buf, "");
+            s_subjects.publish("nozzle_bed_temp_text", &s_bed_temp_text_subject);
+            s_bed_target_text_subject.init_string(s_bed_target_text_buf, "");
+            s_subjects.publish("nozzle_bed_target_text", &s_bed_target_text_subject);
+            s_bed_heat_subject.init_int(static_cast<int>(helix::ui::temperature::HeatState::Off));
+            s_subjects.publish("nozzle_bed_heat", &s_bed_heat_subject);
+        },
+        [] {
+            s_row_temp_text.reclaim();
+            s_row_target_text.reclaim();
+            s_row_heat.reclaim();
+        });
 }
 
 /// The two strings a row's value shows: the current temperature and, when a
 /// target is set, the target half; "off" otherwise. Composed once, shared by
-/// the code that renders it (update_row_display) and the code that measures
+/// the code that renders it (publish_row) and the code that measures
 /// it (on_size_changed) — if the two ever drift, the ladder decides on widths
 /// the row does not draw.
 std::pair<std::string, std::string> value_halves(int temp_deci, int target_deci) {
@@ -77,6 +112,18 @@ std::pair<std::string, std::string> value_halves(int temp_deci, int target_deci)
     helix::temperature_rules::format_temp_number(
         helix::temperature_rules::deci_to_degrees_f(target_deci), num_buf, sizeof(num_buf));
     return {current, "/ " + std::string(num_buf) + "\xC2\xB0"};
+}
+
+/// A reading's heat state, as the row XML numbers the tone it binds: HeatState's
+/// own value (0 off, 1 heating, 2 at temperature, 3 cooling), from the one
+/// classifier every heater color comes from.
+int heat_state_of(int temp_deci, int target_deci) {
+    return static_cast<int>(helix::ui::temperature::heater_display(temp_deci, target_deci).state);
+}
+
+/// A live subject's int reading; 0 for a subject that is absent or not up.
+int reading_or_zero(lv_subject_t* subject) {
+    return helix::subject_is_live(subject) ? lv_subject_get_int(subject) : 0;
 }
 
 } // namespace
@@ -187,15 +234,111 @@ void NozzleTempsWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
 }
 
 void NozzleTempsWidget::reformat_values() {
-    if (!widget_obj_)
+    if (!widget_obj_ || !s_subjects.initialized())
         return;
-    for (auto& row : extruder_rows_) {
-        update_row_display(row.temp_label, row.target_label, row.cached_temp, row.cached_target,
-                           false);
-    }
-    update_row_display(bed_temp_label_, bed_target_label_, cached_bed_temp_, cached_bed_target_,
-                       true);
+    for (size_t i = 0; i < extruder_rows_.size(); ++i)
+        publish_row(extruder_rows_[i], i);
+    publish_bed(cached_bed_temp_, cached_bed_target_);
     relayout_for_granted_size();
+}
+
+void NozzleTempsWidget::publish_row(const ExtruderRow& row, size_t index) {
+    // The pools are reclaimed when the widget's subjects are torn down, which
+    // can precede the rebuild that drops the rows still listed.
+    if (index >= s_row_temp_text.size())
+        return;
+    const auto [current, target] = value_halves(row.cached_temp, row.cached_target);
+    // A pool subject keeps no previous value, so an unchanged text is filtered
+    // here; its bound label would otherwise be rewritten on every reading.
+    helix::ui::copy_string_if_changed(s_row_temp_text.at(index), current.c_str());
+    helix::ui::copy_string_if_changed(s_row_target_text.at(index), target.c_str());
+    s_row_heat.set_int(index, heat_state_of(row.cached_temp, row.cached_target));
+}
+
+void NozzleTempsWidget::publish_bed(int temp_deci, int target_deci) {
+    if (!s_subjects.initialized())
+        return;
+    const auto [current, target] = value_halves(temp_deci, target_deci);
+    helix::ui::copy_string_if_changed(&s_bed_temp_text_subject, current.c_str());
+    helix::ui::copy_string_if_changed(&s_bed_target_text_subject, target.c_str());
+    helix::ui::set_int_if_changed(&s_bed_heat_subject, heat_state_of(temp_deci, target_deci));
+}
+
+void NozzleTempsWidget::observe_reading(lv_subject_t* subject, lv_observer_cb_t cb, lv_obj_t* row) {
+    // LVGL refuses an observer on a subject that is not live.
+    if (helix::subject_is_live(subject))
+        lv_subject_add_observer_obj(subject, cb, row, this);
+}
+
+void NozzleTempsWidget::observe_row_sources(ExtruderRow& row) {
+    if (!row.row_obj)
+        return;
+    auto& temps = printer_state_.temperature_state();
+    // Each observer's target is the row object. That makes it a widget
+    // observer, which lv_subject_hold_obj_observers() skips while the display
+    // sleeps and releases onto the latest reading, and LVGL deletes it with
+    // the row or with a subject that is reset. It notifies at once, from the
+    // subject's current value.
+    observe_reading(temps.get_extruder_temp_subject(row.name), current_reading_cb, row.row_obj);
+    observe_reading(temps.get_extruder_target_subject(row.name), target_reading_cb, row.row_obj);
+}
+
+void NozzleTempsWidget::observe_bed_sources() {
+    if (!bed_row_)
+        return;
+    auto& temps = printer_state_.temperature_state();
+    observe_reading(temps.get_bed_temp_subject(), current_reading_cb, bed_row_);
+    observe_reading(temps.get_bed_target_subject(), target_reading_cb, bed_row_);
+}
+
+void NozzleTempsWidget::current_reading_cb(lv_observer_t* observer, lv_subject_t* subject) {
+    auto* self = static_cast<NozzleTempsWidget*>(lv_observer_get_user_data(observer));
+    self->on_reading(static_cast<lv_obj_t*>(lv_observer_get_target(observer)), false,
+                     lv_subject_get_int(subject));
+}
+
+void NozzleTempsWidget::target_reading_cb(lv_observer_t* observer, lv_subject_t* subject) {
+    auto* self = static_cast<NozzleTempsWidget*>(lv_observer_get_user_data(observer));
+    self->on_reading(static_cast<lv_obj_t*>(lv_observer_get_target(observer)), true,
+                     lv_subject_get_int(subject));
+}
+
+void NozzleTempsWidget::on_reading(lv_obj_t* owner, bool is_target, int value) {
+    // The bed row and the extruder rows are told apart by the object the
+    // observer was registered on.
+    ExtruderRow* row = nullptr;
+    size_t index = 0;
+    if (owner != bed_row_) {
+        for (size_t i = 0; i < extruder_rows_.size(); ++i) {
+            if (extruder_rows_[i].row_obj == owner) {
+                row = &extruder_rows_[i];
+                index = i;
+                break;
+            }
+        }
+        if (!row)
+            return; // a row this widget no longer lists
+    }
+    int& temp = row ? row->cached_temp : cached_bed_temp_;
+    int& target = row ? row->cached_target : cached_bed_target_;
+
+    const bool had_target = target > 0;
+    (is_target ? target : temp) = value;
+    if (row)
+        publish_row(*row, index);
+    else
+        publish_bed(cached_bed_temp_, cached_bed_target_);
+
+    // The ladder budgets the value's two shapes, target set and target off,
+    // and a tile sized under one shape must re-decide under the other: setting
+    // a target widens every row past the rung chosen while idle. The
+    // transition is the only moment the value's WIDTH CLASS changes, so it is
+    // the only re-decide. It waits for the update queue: readings held while
+    // the display slept are released one observer at a time, and the ladder
+    // must measure both halves of the value as they stand once all of them ran.
+    if (is_target && had_target != (value > 0)) {
+        lifetime_.defer("NozzleTempsWidget::relayout", [this] { relayout_for_granted_size(); });
+    }
 }
 
 void NozzleTempsWidget::detach() {
@@ -213,11 +356,11 @@ void NozzleTempsWidget::detach() {
 }
 
 void NozzleTempsWidget::on_hooked_root_deleted() {
-    // Runs inside LVGL's delete event: expire the pending deferred observer
-    // callbacks and drop the cached pointers only. The observers themselves
-    // stay registered on their (still live) subjects until detach() or the
-    // destructor resets them — every callback checks its token first, so a
-    // drained apply no-ops instead of writing to the freed row labels.
+    // Runs inside LVGL's delete event, before LVGL deletes the children:
+    // expire the pending deferred callbacks and drop the cached pointers only.
+    // The reading observers are registered on the row objects, so they go with
+    // the rows a moment later; every other observer checks its token first, so
+    // a drained callback no-ops instead of touching the dead tree.
     lifetime_.invalidate();
     forget_row_widgets();
     widget_obj_ = nullptr;
@@ -250,25 +393,19 @@ void NozzleTempsWidget::clear_rows() {
 
     ++rebuild_gen_;
 
-    // Release lifetime tokens BEFORE destroying observers. The ObserverGuard
-    // holds a weak_ptr to the SubjectLifetime shared_ptr. If the dynamic subject
-    // was already destroyed (reconnection), the source's shared_ptr is gone —
-    // but our row's copy keeps the weak_ptr alive. Resetting our copy first
-    // lets the weak_ptr expire, so ObserverGuard::reset() safely skips
-    // lv_observer_delete() on the freed observer. (#673, #698)
-    for (auto& row : extruder_rows_) {
-        row.temp_lifetime.reset();
-        row.target_lifetime.reset();
-        row.temp_observer.reset();
-        row.target_observer.reset();
+    // Drop each row's reading observers while its object is still alive: the
+    // rows are cleaned asynchronously, and an observer that outlived a
+    // detached widget would call back into it. A row whose tree was already
+    // deleted raw carries none: they went with it.
+    if (lv_is_initialized()) {
+        for (auto& row : extruder_rows_) {
+            if (row.row_obj)
+                lv_obj_remove_from_subject(row.row_obj, nullptr);
+        }
+        if (bed_row_)
+            lv_obj_remove_from_subject(bed_row_, nullptr);
     }
     extruder_rows_.clear();
-    // Bed subjects are also destroyed during deinit_subjects() — need lifetime
-    // tokens to prevent lv_observer_delete() on freed subjects (#734)
-    bed_temp_lifetime_.reset();
-    bed_target_lifetime_.reset();
-    bed_temp_observer_.reset();
-    bed_target_observer_.reset();
 
     auto* container =
         widget_obj_ ? lv_obj_find_by_name(widget_obj_, "nozzle_temps_container") : nullptr;
@@ -297,122 +434,47 @@ void NozzleTempsWidget::rebuild_rows() {
         return;
     }
 
-    auto token = lifetime_.token();
+    auto& temps = printer_state_.temperature_state();
 
     // One row per PHYSICAL extruder. Multiplexing backends (AFC BoxTurtle, Happy
     // Hare, ERCF) expose one logical tool per spool lane (T0..Tn) that all feed a
     // single extruder; without the collapse a 4-lane unit shows its one nozzle
     // temp four times. A true toolchanger maps each tool to a distinct extruder,
     // so every nozzle still gets its own row.
-    for (const auto& extruder_name : distinct_extruder_names(
-             ToolState::instance().tools(), ToolState::instance().tools_are_lanes())) {
+    const std::vector<std::string> extruder_names = distinct_extruder_names(
+        ToolState::instance().tools(), ToolState::instance().tools_are_lanes());
+
+    // A binding to a name that does not resolve while its row is parsed is
+    // dropped, so every subject a row binds exists, and already holds the
+    // row's value, before the row does.
+    s_row_temp_text.ensure_size(extruder_names.size());
+    s_row_target_text.ensure_size(extruder_names.size());
+    s_row_heat.ensure_size(extruder_names.size());
+    extruder_rows_.reserve(extruder_names.size());
+
+    for (const auto& extruder_name : extruder_names) {
+        // The number rung counts the rows built so far, so the row is named
+        // before it joins them.
         ExtruderRow row;
         row.name = extruder_name;
-        create_extruder_row(container, row);
-
-        // Observe per-extruder temp subject with lifetime token
-        lv_subject_t* temp_subj = printer_state_.temperature_state().get_extruder_temp_subject(
-            row.name, row.temp_lifetime);
-        lv_subject_t* target_subj = printer_state_.temperature_state().get_extruder_target_subject(
-            row.name, row.target_lifetime);
-
-        if (temp_subj) {
-            row.cached_temp = lv_subject_get_int(temp_subj);
-            auto* temp_lbl = row.temp_label;
-            auto* target_lbl = row.target_label;
-            row.temp_observer = helix::ui::observe<int>(
-                temp_subj, this,
-                [token, idx = extruder_rows_.size(), temp_lbl, target_lbl](NozzleTempsWidget* self,
-                                                                           int temp) {
-                    if (token.expired())
-                        return;
-                    if (idx < self->extruder_rows_.size()) {
-                        self->extruder_rows_[idx].cached_temp = temp;
-                        self->update_row_display(temp_lbl, target_lbl, temp,
-                                                 self->extruder_rows_[idx].cached_target, false);
-                    }
-                },
-                row.temp_lifetime);
-        }
-
-        if (target_subj) {
-            row.cached_target = lv_subject_get_int(target_subj);
-            auto* temp_lbl = row.temp_label;
-            auto* target_lbl = row.target_label;
-            row.target_observer = helix::ui::observe<int>(
-                target_subj, this,
-                [token, idx = extruder_rows_.size(), temp_lbl, target_lbl](NozzleTempsWidget* self,
-                                                                           int target) {
-                    if (token.expired())
-                        return;
-                    if (idx < self->extruder_rows_.size()) {
-                        const bool had_target = self->extruder_rows_[idx].cached_target > 0;
-                        self->extruder_rows_[idx].cached_target = target;
-                        self->update_row_display(temp_lbl, target_lbl,
-                                                 self->extruder_rows_[idx].cached_temp, target,
-                                                 false);
-                        // The ladder budgets the value's two shapes — target
-                        // set and target off — and a tile sized under one
-                        // shape must re-decide under the other: setting a
-                        // target widens every row past the rung chosen while
-                        // idle. The transition is the only moment the value's
-                        // WIDTH CLASS changes, so it is the only re-decide.
-                        if (had_target != (target > 0))
-                            self->relayout_for_granted_size();
-                    }
-                },
-                row.target_lifetime);
-        }
-
-        // Initial display update
-        update_row_display(row.temp_label, row.target_label, row.cached_temp, row.cached_target,
-                           false);
+        name_row(row);
+        row.cached_temp = reading_or_zero(temps.get_extruder_temp_subject(extruder_name));
+        row.cached_target = reading_or_zero(temps.get_extruder_target_subject(extruder_name));
 
         extruder_rows_.push_back(std::move(row));
+        ExtruderRow& built = extruder_rows_.back();
+        const size_t index = extruder_rows_.size() - 1;
+        publish_row(built, index);
+        create_extruder_row(container, built, index);
+        observe_row_sources(built);
     }
 
     // Bed row at the end
+    cached_bed_temp_ = reading_or_zero(temps.get_bed_temp_subject());
+    cached_bed_target_ = reading_or_zero(temps.get_bed_target_subject());
+    publish_bed(cached_bed_temp_, cached_bed_target_);
     create_bed_row(container);
-
-    // Bed subjects are destroyed during deinit_subjects() — use lifetime tokens (#734)
-    lv_subject_t* bed_temp_subj =
-        printer_state_.temperature_state().get_bed_temp_subject(bed_temp_lifetime_);
-    lv_subject_t* bed_target_subj =
-        printer_state_.temperature_state().get_bed_target_subject(bed_target_lifetime_);
-
-    if (bed_temp_subj) {
-        cached_bed_temp_ = lv_subject_get_int(bed_temp_subj);
-        bed_temp_observer_ = helix::ui::observe<int>(
-            bed_temp_subj, this,
-            [token](NozzleTempsWidget* self, int temp) {
-                if (token.expired())
-                    return;
-                self->cached_bed_temp_ = temp;
-                self->update_row_display(self->bed_temp_label_, self->bed_target_label_, temp,
-                                         self->cached_bed_target_, true);
-            },
-            bed_temp_lifetime_);
-    }
-
-    if (bed_target_subj) {
-        cached_bed_target_ = lv_subject_get_int(bed_target_subj);
-        bed_target_observer_ = helix::ui::observe<int>(
-            bed_target_subj, this,
-            [token](NozzleTempsWidget* self, int target) {
-                if (token.expired())
-                    return;
-                const bool had_target = self->cached_bed_target_ > 0;
-                self->cached_bed_target_ = target;
-                self->update_row_display(self->bed_temp_label_, self->bed_target_label_,
-                                         self->cached_bed_temp_, target, true);
-                if (had_target != (target > 0))
-                    self->relayout_for_granted_size();
-            },
-            bed_target_lifetime_);
-    }
-
-    update_row_display(bed_temp_label_, bed_target_label_, cached_bed_temp_, cached_bed_target_,
-                       true);
+    observe_bed_sources();
 
     rebuilding_ = false;
     spdlog::debug("[NozzleTempsWidget] Rebuilt with {} extruder rows + bed", extruder_rows_.size());
@@ -497,7 +559,7 @@ void NozzleTempsWidget::on_size_changed(int colspan, int rowspan, int width_px, 
         widest_short_px = std::max({widest_short_px, bed_label_px, label_floor});
 
         // The value measured as the strings the rows actually show, via the
-        // same composer update_row_display renders from — measurement and
+        // same composer publish_row() renders from — measurement and
         // rendering cannot drift apart. The floor is the off state.
         const int value_group_pad = theme_manager_get_spacing("space_xxs");
         auto halves_px = [&](int temp_deci, int target_deci) {
@@ -576,7 +638,7 @@ void NozzleTempsWidget::on_size_changed(int colspan, int rowspan, int width_px, 
                   stack.row_normal_px, stack.row_compact_px);
 }
 
-void NozzleTempsWidget::create_extruder_row(lv_obj_t* container, ExtruderRow& row) {
+void NozzleTempsWidget::name_row(ExtruderRow& row) const {
     auto& tool_state = ToolState::instance();
 
     // Short label: the tool's physical position (e.g. "Tool 1"); falls back to
@@ -616,15 +678,18 @@ void NozzleTempsWidget::create_extruder_row(lv_obj_t* container, ExtruderRow& ro
                                           tool_state.head_identity_for_extruder(row.name))
             : helix::ui::tool_number_text(helix::ui::active_tool_number_style(), gcode_name,
                                           static_cast<int>(extruder_rows_.size()));
+}
 
+void NozzleTempsWidget::create_extruder_row(lv_obj_t* container, ExtruderRow& row, size_t index) {
     // Create row from XML template. All three spellings are written once as
-    // data; which one shows, the row width and the font are bound off the
-    // layout subjects, so the row reads the CURRENT verdict the moment it is
+    // data, and publish_row() filled the value's subjects before this parse;
+    // which one shows, the row width and the font are bound off the layout
+    // subjects, so the row reads the CURRENT verdict the moment it is
     // created — a late rebuild cannot disagree with its siblings.
-    const std::string index = std::to_string(extruder_rows_.size());
+    const std::string index_text = std::to_string(index);
     const char* attrs[] = {
         "tool_name",   row.long_name.c_str(),   "tool_short", row.short_name.c_str(),
-        "tool_number", row.number_name.c_str(), "index",      index.c_str(),
+        "tool_number", row.number_name.c_str(), "index",      index_text.c_str(),
         nullptr};
     lv_obj_t* row_obj = static_cast<lv_obj_t*>(lv_xml_create(container, "nozzle_temp_row", attrs));
     if (!row_obj) {
@@ -639,15 +704,6 @@ void NozzleTempsWidget::create_extruder_row(lv_obj_t* container, ExtruderRow& ro
     row.label_number = helix::ui::find_required(row_obj, "tool_label_number", "NozzleTempsWidget");
     row.temp_label = helix::ui::find_required(row_obj, "temp_label", "NozzleTempsWidget");
     row.target_label = helix::ui::find_required(row_obj, "target_label", "NozzleTempsWidget");
-
-    // Belt-and-suspenders: clip (never wrap) the value labels so even a
-    // pathologically narrow tile keeps "220° / 230°" on one line. The XML
-    // value_group (content width, no flex_grow) already prevents the wrap;
-    // this guards against a degenerate measurement.
-    if (row.temp_label)
-        lv_label_set_long_mode(row.temp_label, LV_LABEL_LONG_MODE_CLIP);
-    if (row.target_label)
-        lv_label_set_long_mode(row.target_label, LV_LABEL_LONG_MODE_CLIP);
 }
 
 void NozzleTempsWidget::extruder_row_clicked_cb(lv_event_t* e) {
@@ -691,34 +747,4 @@ void NozzleTempsWidget::create_bed_row(lv_obj_t* container) {
     bed_icon_ = helix::ui::find_required(row_obj, "bed_icon", "NozzleTempsWidget");
     bed_temp_label_ = helix::ui::find_required(row_obj, "bed_temp_label", "NozzleTempsWidget");
     bed_target_label_ = helix::ui::find_required(row_obj, "bed_target_label", "NozzleTempsWidget");
-
-    // Clip rather than wrap the bed value labels (see create_extruder_row).
-    if (bed_temp_label_)
-        lv_label_set_long_mode(bed_temp_label_, LV_LABEL_LONG_MODE_CLIP);
-    if (bed_target_label_)
-        lv_label_set_long_mode(bed_target_label_, LV_LABEL_LONG_MODE_CLIP);
-}
-
-void NozzleTempsWidget::update_row_display(lv_obj_t* temp_label, lv_obj_t* target_label,
-                                           int temp_deci, int target_deci, bool is_bed) {
-    if (!temp_label || !target_label)
-        return;
-
-    auto result = helix::ui::temperature::heater_display(temp_deci, target_deci);
-
-    // Current temp with color coding (green=at-temp, red=heating, blue=cooling, gray=off)
-    const auto [current_text, target_text] = value_halves(temp_deci, target_deci);
-    lv_label_set_text(temp_label, current_text.c_str());
-    lv_obj_set_style_text_color(temp_label, result.color, LV_PART_MAIN);
-
-    // Keep the bed icon tint in lockstep with the temp-label color (same
-    // thresholds, same inputs) so they can never disagree.
-    if (is_bed && bed_icon_) {
-        const char* variant = helix::ui::temperature::get_heating_state_variant(
-            helix::temperature_rules::deci_to_degrees(temp_deci),
-            helix::temperature_rules::deci_to_degrees(target_deci));
-        helix::ui::icon::set_variant(bed_icon_, variant);
-    }
-
-    lv_label_set_text(target_label, target_text.c_str());
 }

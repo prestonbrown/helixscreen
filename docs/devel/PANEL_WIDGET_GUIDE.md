@@ -70,11 +70,11 @@ model both explicitly rather than folding one into constants.
 
 **2. Measurement in the widget, one composer for render and measure.**
 `on_size_changed()` measures text in the fonts the rows actually render, and
-the strings it measures come from the same composer that `update_row_display`
-renders - measurement and rendering cannot drift apart, or the ladder decides
-on widths the row does not draw. Measure the values the rows are ACTUALLY
-showing, not worst-case glyphs: an "888°" budget excludes normal-font rungs
-from tiles where every real value fits.
+the strings it measures come from the same composer that `publish_row()`
+publishes onto the row's subjects - measurement and rendering cannot drift
+apart, or the ladder decides on widths the row does not draw. Measure the
+values the rows are ACTUALLY showing, not worst-case glyphs: an "888°" budget
+excludes normal-font rungs from tiles where every real value fits.
 
 **3. Publish the verdict as subjects.** One int subject per axis
 (`nozzle_row_label_mode`, `nozzle_row_columns`, `nozzle_row_compact`),
@@ -82,14 +82,19 @@ registered via `register_widget_subjects("<id>", fn)` so they exist before
 any XML that binds them is parsed - the parser permanently skips a binding
 whose subject does not exist at parse time. `on_size_changed()` becomes
 measure-and-publish with zero widget calls. Enum values ARE the subject ints
-(`NozzleLabelMode`), so XML `ref_value`s cannot drift from C++.
+(`NozzleLabelMode`), so XML `ref_value`s cannot drift from C++. The row's
+value is published the same way: `publish_row()` writes each row's two text
+subjects and its heat state, and the row's labels bind them, so a reading
+never writes a label from C++.
 
 **4. Bind every appearance in XML.** Row widths, container flow, label
-visibility, fonts - all `bind_flag_if_*` / `bind_style_if_*` off the
-subjects. A row created by a late rebuild reads the current values at
-creation and agrees with its siblings with no seeding pass. Prefer one
-threshold bind (`bind_flag_if_lt subject=... ref_value="2"`) over enumerated
-equality pairs; it reads as the predicate it is. A style the binds apply lives in
+visibility, fonts, the reading's color - all `bind_flag_if_*` /
+`bind_style_if_*` off the subjects. A row created by a late rebuild reads the
+current values at creation and agrees with its siblings with no seeding
+pass. Prefer one threshold bind (`bind_flag_if_lt subject=... ref_value="2"`)
+over enumerated equality pairs; it reads as the predicate it is; a value
+that is one of several states, not a threshold, takes one equality bind per
+state. A style the binds apply lives in
 the widget's own `<styles>` block when one file uses it; when several widgets bind
 the same look, it lives once in `ui_xml/styles.xml` and every file binds it by
 dotted name (`bind_style_if_eq name="styles.<name>" ...`).

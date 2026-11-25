@@ -29,6 +29,12 @@
  * The mock `--test` printer backend only ever exposes one extruder, so the
  * 2-row path below is unreachable by driving the real app; these tests
  * populate `ToolState` and `PrinterState` directly to reach it.
+ *
+ * The last cases cover the value the same way. A row's text and color are
+ * bindings off subjects the widget publishes, so they pin the text of each
+ * heat state, the tone it draws in, the bed radiator following the bed
+ * reading, and the display-sleep hold (lv_subject_hold_obj_observers())
+ * skipping all of it and releasing it onto the latest reading.
  */
 
 #include "ui_nav_manager.h"
@@ -38,6 +44,8 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "ams_state.h"
+#include "core/temp_unit_subject.h"
+#include "core/temperature_units.h"
 #include "core/update_queue.h"
 #include "panel_widget_manager.h"
 #include "printer_discovery.h"
@@ -167,6 +175,100 @@ void check_one_label_visible(lv_obj_t* container, int index, NozzleLabelMode mod
     const bool text_mode = mode == NozzleLabelMode::Long || mode == NozzleLabelMode::Short;
     CHECK(lv_obj_is_hidden(target_lbl) != text_mode);
 }
+
+/// The bed row, the container's last child.
+lv_obj_t* bed_row_of(lv_obj_t* container) {
+    lv_obj_t* bed_row = lv_obj_get_child(container, lv_obj_get_child_count(container) - 1);
+    REQUIRE(bed_row != nullptr);
+    return bed_row;
+}
+
+lv_obj_t* bed_part(lv_obj_t* container, const char* name) {
+    lv_obj_t* part = lv_obj_find_by_name(bed_row_of(container), name);
+    REQUIRE(part != nullptr);
+    return part;
+}
+
+std::string text_of(lv_obj_t* label) {
+    return lv_label_get_text(label);
+}
+
+lv_color_t text_color_of(lv_obj_t* label) {
+    return lv_obj_get_style_text_color(label, LV_PART_MAIN);
+}
+
+lv_color_t theme_tone(const char* token) {
+    return theme_manager_get_color(token);
+}
+
+/// One status frame: @p heater at @p temp with @p target (Celsius), applied and
+/// settled before the caller reads a label.
+void report(PrinterState& state, const char* heater, double temp, double target) {
+    state.update_from_status(nlohmann::json{{heater, {{"temperature", temp}, {"target", target}}}});
+    helix::ui::UpdateQueue::instance().drain();
+}
+
+/// A heater reading and what its row shows for it: the current half, the target
+/// half, and the theme token the current half is colored in.
+struct ValueLook {
+    double temp;
+    double target;
+    const char* current;
+    const char* target_text;
+    const char* tone;
+};
+
+/// Feed @p look to @p heater and check both halves of its row's value.
+void check_value(PrinterState& state, const char* heater, lv_obj_t* temp_label,
+                 lv_obj_t* target_label, const ValueLook& look) {
+    INFO("reading " << look.temp << " target " << look.target);
+    report(state, heater, look.temp, look.target);
+    CHECK(text_of(temp_label) == look.current);
+    CHECK(text_of(target_label) == look.target_text);
+    CHECK(lv_color_eq(text_color_of(temp_label), theme_tone(look.tone)));
+}
+
+// A heater in every heat state. The color follows the number on screen, not the
+// raw reading: 219.6 prints "220" and is at temperature, 222.9 prints "223" and
+// is cooling, and the band's edges are 217.4 (still heating) and 218.0.
+constexpr ValueLook kHeaterLooks[] = {
+    {23.5, 0.0, "23.5°", "off", "text_muted"},   // off: no target
+    {45.3, 220.0, "45.3°", "/ 220°", "danger"},  // heating
+    {217.4, 220.0, "217°", "/ 220°", "danger"},  // heating: a tenth under the band
+    {218.0, 220.0, "218°", "/ 220°", "success"}, // at temperature: the band's low edge
+    {219.6, 220.0, "220°", "/ 220°", "success"}, // at temperature: the reading as printed
+    {222.0, 220.0, "222°", "/ 220°", "success"}, // at temperature: the band's high edge
+    {222.9, 220.0, "223°", "/ 220°", "info"},    // cooling
+    {60.0, 60.0, "60.0°", "/ 60.0°", "success"}, // at temperature: a tenth of a degree below 100
+    {230.0, 0.0, "230°", "off", "text_muted"},   // off again: the target cleared
+};
+
+/// Ends a hold a failing test left on, so the next test starts released. Same
+/// shape as test_subject_obj_observer_hold.cpp.
+struct HoldScope {
+    HoldScope() {
+        lv_subject_hold_obj_observers(true);
+    }
+    ~HoldScope() {
+        lv_subject_hold_obj_observers(false);
+    }
+    HoldScope(const HoldScope&) = delete;
+    HoldScope& operator=(const HoldScope&) = delete;
+};
+
+/// Puts the display unit back to Celsius, and publishes it, when a test that
+/// switched it ends.
+struct CelsiusUnit {
+    CelsiusUnit() {
+        helix::units::set_display_temp_unit(helix::units::TempUnit::Celsius);
+    }
+    ~CelsiusUnit() {
+        helix::units::set_display_temp_unit(helix::units::TempUnit::Celsius);
+        helix::units::publish_temp_unit();
+    }
+    CelsiusUnit(const CelsiusUnit&) = delete;
+    CelsiusUnit& operator=(const CelsiusUnit&) = delete;
+};
 
 } // namespace
 
@@ -435,4 +537,153 @@ TEST_CASE_METHOD(NozzleTempsFixture,
     helix::ui::UpdateQueue::instance().drain();
     NavigationManager::instance().shutdown();
     helix::ui::destroy_static_panels();
+}
+
+// --- The value itself: what a row shows for a reading, and in which color. A row's
+// labels bind subjects NozzleTempsWidget publishes (nozzle_row_<i>_*, and
+// nozzle_bed_* for the bed); no C++ writes a label.
+
+TEST_CASE_METHOD(
+    NozzleTempsFixture,
+    "nozzle_temps: a row shows the reading and the target, or off, in the heater's color",
+    "[nozzle_temps][heater_value]") {
+    CelsiusUnit celsius;
+    configure_one_extruder(state());
+
+    PanelWidgetHarness<NozzleTempsWidget> h(test_screen(), state());
+    lv_obj_t* container = h.child("nozzle_temps_container");
+    REQUIRE(container != nullptr);
+
+    lv_obj_t* temp_label = nth_row_label(container, 0, "temp_label");
+    lv_obj_t* target_label = nth_row_label(container, 0, "target_label");
+    for (const ValueLook& look : kHeaterLooks)
+        check_value(state(), "extruder", temp_label, target_label, look);
+}
+
+TEST_CASE_METHOD(
+    NozzleTempsFixture,
+    "nozzle_temps: the bed row shows its value, and its radiator takes the reading's color",
+    "[nozzle_temps][heater_value]") {
+    CelsiusUnit celsius;
+    configure_one_extruder(state());
+
+    PanelWidgetHarness<NozzleTempsWidget> h(test_screen(), state());
+    lv_obj_t* container = h.child("nozzle_temps_container");
+    REQUIRE(container != nullptr);
+
+    lv_obj_t* bed_temp = bed_part(container, "bed_temp_label");
+    lv_obj_t* bed_target = bed_part(container, "bed_target_label");
+    lv_obj_t* bed_icon = bed_part(container, "bed_icon");
+    for (const ValueLook& look : kHeaterLooks) {
+        check_value(state(), "heater_bed", bed_temp, bed_target, look);
+        // One subject colors the radiator and the reading beside it.
+        CHECK(lv_color_eq(text_color_of(bed_icon), text_color_of(bed_temp)));
+    }
+}
+
+TEST_CASE_METHOD(NozzleTempsFixture,
+                 "nozzle_temps: a new temperature unit re-formats every row from its last readings",
+                 "[nozzle_temps][heater_value]") {
+    CelsiusUnit celsius;
+    configure_one_extruder(state());
+
+    PanelWidgetHarness<NozzleTempsWidget> h(test_screen(), state());
+    lv_obj_t* container = h.child("nozzle_temps_container");
+    REQUIRE(container != nullptr);
+    report(state(), "extruder", 100.0, 220.0);
+    report(state(), "heater_bed", 60.0, 0.0);
+    lv_obj_t* temp_label = nth_row_label(container, 0, "temp_label");
+    lv_obj_t* target_label = nth_row_label(container, 0, "target_label");
+    lv_obj_t* bed_temp = bed_part(container, "bed_temp_label");
+    REQUIRE(text_of(temp_label) == "100°");
+    REQUIRE(text_of(target_label) == "/ 220°");
+    REQUIRE(text_of(bed_temp) == "60.0°");
+
+    // The readings did not move; only the unit they print in did.
+    helix::units::set_display_temp_unit(helix::units::TempUnit::Fahrenheit);
+    helix::units::publish_temp_unit();
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(text_of(temp_label) == "212°");
+    CHECK(text_of(target_label) == "/ 428°");
+    CHECK(text_of(bed_temp) == "140°");
+}
+
+// --- The display-sleep hold (prestonbrown/helixscreen#2037). A row's reading
+// observers are widget observers, so lv_subject_hold_obj_observers() skips them
+// with its XML bindings and the release brings them onto the latest reading.
+
+TEST_CASE_METHOD(
+    NozzleTempsFixture,
+    "nozzle_temps: while the display sleeps a row's bindings wait, then release onto the "
+    "latest reading",
+    "[nozzle_temps][observer_hold][sleep]") {
+    CelsiusUnit celsius;
+    configure_one_extruder(state());
+
+    PanelWidgetHarness<NozzleTempsWidget> h(test_screen(), state());
+    lv_obj_t* container = h.child("nozzle_temps_container");
+    REQUIRE(container != nullptr);
+
+    lv_obj_t* temp_label = nth_row_label(container, 0, "temp_label");
+    lv_obj_t* target_label = nth_row_label(container, 0, "target_label");
+    lv_obj_t* bed_temp = bed_part(container, "bed_temp_label");
+    lv_obj_t* bed_icon = bed_part(container, "bed_icon");
+    report(state(), "extruder", 45.3, 220.0);
+    const std::string bed_text_before = text_of(bed_temp);
+    REQUIRE(text_of(temp_label) == "45.3°");
+    REQUIRE(text_of(target_label) == "/ 220°");
+
+    {
+        HoldScope hold;
+        for (double reading : {100.0, 150.0, 222.9})
+            report(state(), "extruder", reading, 220.0);
+        report(state(), "extruder", 230.0, 0.0);
+        report(state(), "heater_bed", 60.0, 60.0);
+
+        // Neither the text nor the color moved: no label was written while held.
+        CHECK(text_of(temp_label) == "45.3°");
+        CHECK(text_of(target_label) == "/ 220°");
+        CHECK(lv_color_eq(text_color_of(temp_label), theme_tone("danger")));
+        CHECK(text_of(bed_temp) == bed_text_before);
+        CHECK(lv_color_eq(text_color_of(bed_icon), theme_tone("text_muted")));
+    }
+
+    // Released: every binding catches up, onto the latest reading.
+    CHECK(text_of(temp_label) == "230°");
+    CHECK(text_of(target_label) == "off");
+    CHECK(lv_color_eq(text_color_of(temp_label), theme_tone("text_muted")));
+    CHECK(text_of(bed_temp) == "60.0°");
+    CHECK(text_of(bed_part(container, "bed_target_label")) == "/ 60.0°");
+    CHECK(lv_color_eq(text_color_of(bed_icon), theme_tone("success")));
+
+    // And the row is live again.
+    report(state(), "extruder", 45.3, 220.0);
+    CHECK(text_of(temp_label) == "45.3°");
+    CHECK(lv_color_eq(text_color_of(temp_label), theme_tone("danger")));
+}
+
+TEST_CASE_METHOD(
+    NozzleTempsFixture,
+    "nozzle_temps: a target set while the display sleeps re-decides the ladder on release",
+    "[nozzle_temps][observer_hold][sleep]") {
+    configure_one_extruder(state());
+
+    PanelWidgetHarness<NozzleTempsWidget> h(test_screen(), state());
+    REQUIRE(h.child("nozzle_temps_container") != nullptr);
+
+    // Sized while idle: the nozzle-name spelling fits the column.
+    h.resize(1, 1, 147, 300);
+    REQUIRE(label_mode_subject_value() == static_cast<int>(NozzleLabelMode::Long));
+
+    {
+        HoldScope hold;
+        report(state(), "extruder", 210.0, 210.0);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(label_mode_subject_value() == static_cast<int>(NozzleLabelMode::Long));
+    }
+
+    // The value grew by its target half, and the released reading re-decides.
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(label_mode_subject_value() == static_cast<int>(NozzleLabelMode::Number));
 }

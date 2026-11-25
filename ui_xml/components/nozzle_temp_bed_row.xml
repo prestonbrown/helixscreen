@@ -21,7 +21,15 @@
       <pass_through name="bed_left_group"
                     width="content" height="content" flex_flow="row" style_flex_cross_place="center"
                     style_pad_column="#space_xs">
-        <icon name="bed_icon" src="radiator" size="xs" variant="muted"/>
+        <!-- The radiator takes the bed's heat color off the same subject as the
+             reading beside it (nozzle_bed_heat, HeatState's value: 0 off,
+             1 heating, 2 at temperature, 3 cooling), so the two cannot disagree. -->
+        <icon name="bed_icon" src="radiator" size="xs">
+          <bind_style_if_eq name="styles.text_tone_muted" subject="nozzle_bed_heat" ref_value="0"/>
+          <bind_style_if_eq name="styles.text_tone_danger" subject="nozzle_bed_heat" ref_value="1"/>
+          <bind_style_if_eq name="styles.text_tone_success" subject="nozzle_bed_heat" ref_value="2"/>
+          <bind_style_if_eq name="styles.text_tone_info" subject="nozzle_bed_heat" ref_value="3"/>
+        </icon>
         <!-- The bed has no tool number, and its radiator glyph already
              identifies it, so the label shows for the text rungs only and the
              icon carries the row below them. -->
@@ -33,10 +41,18 @@
       <pass_through name="value_group"
                     width="content" height="content" flex_flow="row" style_flex_cross_place="center"
                     style_pad_column="#space_xs">
-        <text_small name="bed_temp_label" text="0°" style_text_align="right">
+        <!-- The value is two subjects the widget formats: the current reading,
+             and the target ("/ 60°") or "off". The reading's color follows the
+             heat subject, the one the radiator above binds. -->
+        <text_small name="bed_temp_label" bind_text="nozzle_bed_temp_text" style_text_align="right" long_mode="clip">
           <bind_style_if_eq name="nozzle_compact_font" subject="nozzle_row_compact" ref_value="1"/>
+          <bind_style_if_eq name="styles.text_tone_muted" subject="nozzle_bed_heat" ref_value="0"/>
+          <bind_style_if_eq name="styles.text_tone_danger" subject="nozzle_bed_heat" ref_value="1"/>
+          <bind_style_if_eq name="styles.text_tone_success" subject="nozzle_bed_heat" ref_value="2"/>
+          <bind_style_if_eq name="styles.text_tone_info" subject="nozzle_bed_heat" ref_value="3"/>
         </text_small>
-        <text_small name="bed_target_label" text="off" style_text_color="#text_muted">
+        <text_small name="bed_target_label"
+                    bind_text="nozzle_bed_target_text" style_text_color="#text_muted" long_mode="clip">
           <bind_style_if_eq name="nozzle_compact_font" subject="nozzle_row_compact" ref_value="1"/>
           <bind_flag_if_lt subject="nozzle_row_label_mode" flag="hidden" ref_value="2"/>
         </text_small>
