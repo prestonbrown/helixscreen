@@ -260,6 +260,9 @@ struct AmsMiniStatusData {
     // in one UpdateQueue batch. Without this, the second rebuild_bars would try
     // to reparent rows the first call already moved to its condemned_parent.
     bool rebuilding = false;
+    // A rebuild asked for while one runs (its layout pass resizes the widget):
+    // rebuild() runs it once the current one has finished.
+    bool rebuild_pending = false;
     bool synced = false; // the widget shows what the last sync_from_ams_state() read
 };
 
@@ -274,6 +277,7 @@ static AmsMiniStatusData* get_data(lv_obj_t* obj) {
 static void rebuild_bars(AmsMiniStatusData* data);
 static bool rebuild_spools(AmsMiniStatusData* data);
 static void rebuild(AmsMiniStatusData* data);
+static void rebuild_once(AmsMiniStatusData* data);
 static void sync_from_ams_state(AmsMiniStatusData* data);
 
 // Internal helpers
@@ -1712,6 +1716,27 @@ static bool rebuild_spools(AmsMiniStatusData* data) {
 static void rebuild(AmsMiniStatusData* data) {
     if (!data)
         return;
+    // A rebuild's own layout pass can resize the widget, and its SIZE_CHANGED
+    // lands here mid-rebuild. Switching views now would hide the bars while
+    // the running rebuild has the spool view refuse to draw: neither shows.
+    // Run it after, against the new size.
+    if (data->rebuilding) {
+        data->rebuild_pending = true;
+        return;
+    }
+    constexpr int kMaxPasses = 3; // a size that keeps changing cannot spin
+    for (int pass = 0; pass < kMaxPasses; ++pass) {
+        data->rebuild_pending = false;
+        rebuild_once(data);
+        if (!data->rebuild_pending)
+            return;
+    }
+    spdlog::debug("[AmsMiniStatus] Dropped a rebuild after {} passes: the size kept changing",
+                  kMaxPasses);
+    data->rebuild_pending = false;
+}
+
+static void rebuild_once(AmsMiniStatusData* data) {
     data->mode =
         (data->width_px >= helix::widget_size::w_normal()) ? AmsMiniMode::SPOOL : AmsMiniMode::BAR;
     if (data->mode == AmsMiniMode::SPOOL) {
