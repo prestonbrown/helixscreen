@@ -552,7 +552,7 @@ The platform rule:
 | AD5M under Forge-X or ZMOD | No | The mod owns the install tree and updates it in place. Forge-X is recognized by its descriptor in the mod tree: `<mod>/.shell/common.sh` upstream (the AD5M), `<mod>/.shell/platform.sh` on the AD5X fork |
 | AD5X, Creator 5, Creator 5 Pro (any firmware) | No | Share the `mips` key, but only the K1 board is proven: untested, add after a device run |
 | CC1 | No | Until a CC1 device run passes: its OpenWrt procd init and the COSMOS GUI switcher, which signals the watchdog's pidfile, are a second actor no run covered |
-| Snapmaker U1 | No | Not yet run through the device test plan (its release ships the watchdog) |
+| Snapmaker U1 (`snapmaker-u1` on the U1 board) | Yes, with the watchdog | Same SysV launcher loop as the K1, proven on a paxx U1 running its own UI. Where paxx runs HelixScreen (its lmd hook binds the package), updates are the firmware's and the install is suppressed |
 | K2 | No | `/opt` cannot hold both versions; the old tree is staged off-partition |
 | x86 desktop, Android, ESP32 | No | They never run the in-app installer |
 | Any other platform key or board | No | The rule allows only what a device run proved |

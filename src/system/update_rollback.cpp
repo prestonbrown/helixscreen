@@ -66,6 +66,10 @@ constexpr ProvenPlatform kRollbackProvenPlatforms[] = {
     // The K1's SysV launcher and init shape, on Klipper Mod (a Forge-X or Z-Mod
     // tree reads as ModPayload).
     {"ad5m", helix::board::Board::Ad5m}, // VENDOR_OK: a proven row of this table
+    // SysV with the watchdog, proven on a U1 whose paxx firmware runs its own UI;
+    // where paxx runs HelixScreen, updates are external and it reads as
+    // InstallSuppressed.
+    {"snapmaker-u1", helix::board::Board::SnapmakerU1}, // VENDOR_OK: a proven row of this table
 };
 
 bool platform_proven(const RollbackFacts& facts) {

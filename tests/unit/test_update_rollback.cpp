@@ -88,7 +88,8 @@ TEST_CASE("Rollback support: every fact must hold, and some platforms never can"
     for (const auto& [key, board] :
          {std::pair{"pi", Board::Generic}, std::pair{"pi32", Board::Generic},
           std::pair{"x86", Board::Generic}, std::pair{"mips", Board::K1},
-          std::pair{"k1", Board::K1}, std::pair{"ad5m", Board::Ad5m}}) {
+          std::pair{"k1", Board::K1}, std::pair{"ad5m", Board::Ad5m},
+          std::pair{"snapmaker-u1", Board::SnapmakerU1}}) {
         auto f = supported_facts();
         f.platform_key = key;
         f.board = board;
@@ -100,8 +101,7 @@ TEST_CASE("Rollback support: every fact must hold, and some platforms never can"
     for (const auto& [key, board] :
          {std::pair{"k2", Board::K2}, std::pair{"x86-desktop", Board::Generic},
           std::pair{"android", Board::Generic}, std::pair{"esp32", Board::Generic},
-          std::pair{"snapmaker-u1", Board::SnapmakerU1}, std::pair{"cc1", Board::Cc1},
-          std::pair{"riscv-future", Board::Generic}}) {
+          std::pair{"cc1", Board::Cc1}, std::pair{"riscv-future", Board::Generic}}) {
         auto f = supported_facts();
         f.platform_key = key;
         f.board = board;
