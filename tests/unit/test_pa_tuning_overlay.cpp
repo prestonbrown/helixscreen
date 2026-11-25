@@ -18,6 +18,7 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "spoolman_types.h"
+#include "static_panel_registry.h"
 #include "tool_state.h"
 #include "tune_controller.h"
 
@@ -48,6 +49,11 @@ struct TunerFixture : LVGLTestFixture {
     }
     ~TunerFixture() override {
         overlay.cleanup();
+        // This tuner dies with the test, often mid-run, but the Tuner button it
+        // showed lives in the global Tune overlay: take it down with the tuner.
+        if (auto* tune = helix::lazy_global_if_exists<PrintTuneOverlay>()) {
+            tune->set_pa_session_active(false);
+        }
         status({{"print_stats", {{"state", "standby"}, {"filename", ""}}}});
         client.stop_temperature_simulation();
         client.disconnect();
