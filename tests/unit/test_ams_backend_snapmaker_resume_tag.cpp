@@ -66,6 +66,29 @@ const json kNoTagAnywhere{
      {{"info", json::array({json{{"MAIN_TYPE", "NONE"}}, json{{"MAIN_TYPE", "NONE"}},
                             json{{"MAIN_TYPE", "NONE"}}, json{{"MAIN_TYPE", "NONE"}}})}}}};
 
+/// Head 0 showing a tag's two colors with the mode a person's edit named, once the lane has let
+/// go of that edit: nothing states the mode any more, while the slot still shows it beside the
+/// list the tag laid down.
+void leave_an_unstated_mode_on_head0(
+    helix::test::RegisteredWired<AmsBackendSnapmaker>& backend_reg) {
+    auto& backend = *backend_reg;
+    backend.fire_status(json{{"print_stats", {{"state", "standby"}}}});
+    backend.fire_status(tag_on_head0(/*colors=*/2));
+    REQUIRE(backend.get_slot_info(0).multi_color_hexes == "#FF0000,#0000FF");
+
+    // A person keeps the tag's two colors and says only how they run.
+    SlotInfo edit = backend.get_slot_info(0);
+    edit.color_mode = "gradient";
+    REQUIRE(backend.commit_user_edit(0, backend.get_slot_info(0), edit).success());
+    REQUIRE(backend.get_slot_info(0).color_mode == "gradient");
+
+    backend.clear_slot_override(0);
+    const auto lane = backend.lane_id(0);
+    REQUIRE_FALSE(helix::ams::lane_sources(lane).pending.has_value());
+    REQUIRE_FALSE(helix::ams::lane_sources(lane).record.has_value());
+    REQUIRE(backend.get_slot_info(0).color_mode == "gradient");
+}
+
 } // namespace
 
 TEST_CASE("Snapmaker Resume trusts a hand push over a feeder that reports a failed load",
@@ -121,38 +144,30 @@ TEST_CASE("Snapmaker reader naming no tag keeps tag-read values while the lane's
     CHECK(info.total_weight_g == 1000.0f);
 }
 
-TEST_CASE("Snapmaker drops the mode an edit gave the tag's colors once both have gone",
+// The list on the slot was the tag's, so the mode that described it goes when the list does.
+TEST_CASE("Snapmaker drops the mode an edit gave the tag's colors once the tag names one color",
           "[ams][snapmaker][rfid][filament_slot_override]") {
     HelixTestFixture fixture;
     helix::test::RegisteredWired<AmsBackendSnapmaker> backend_reg;
     auto& backend = *backend_reg;
+    leave_an_unstated_mode_on_head0(backend_reg);
 
-    backend.fire_status(json{{"print_stats", {{"state", "standby"}}}});
-    backend.fire_status(tag_on_head0(/*colors=*/2));
-    REQUIRE(backend.get_slot_info(0).multi_color_hexes == "#FF0000,#0000FF");
+    backend.fire_status(tag_on_head0());
 
-    // A person keeps the tag's two colors and says only how they run.
-    SlotInfo edit = backend.get_slot_info(0);
-    edit.color_mode = "gradient";
-    REQUIRE(backend.commit_user_edit(0, backend.get_slot_info(0), edit).success());
-    REQUIRE(backend.get_slot_info(0).color_mode == "gradient");
+    const auto info = backend.get_slot_info(0);
+    CHECK(info.multi_color_hexes.empty());
+    CHECK(info.color_mode.empty());
+}
 
-    // The lane lets go of the edit. Nothing states the mode any more, while the
-    // slot still shows it beside the list the tag laid down.
-    backend.clear_slot_override(0);
-    const auto lane = backend.lane_id(0);
-    REQUIRE_FALSE(helix::ams::lane_sources(lane).pending.has_value());
-    REQUIRE_FALSE(helix::ams::lane_sources(lane).record.has_value());
-    REQUIRE(backend.get_slot_info(0).color_mode == "gradient");
+TEST_CASE("Snapmaker drops the mode an edit gave the tag's colors once the reader names no tag",
+          "[ams][snapmaker][rfid][filament_slot_override]") {
+    HelixTestFixture fixture;
+    helix::test::RegisteredWired<AmsBackendSnapmaker> backend_reg;
+    auto& backend = *backend_reg;
+    leave_an_unstated_mode_on_head0(backend_reg);
 
-    SECTION("the reader then names one color") {
-        backend.fire_status(tag_on_head0());
-    }
-    SECTION("the reader then names no tag") {
-        backend.fire_status(kNoTagAnywhere);
-    }
+    backend.fire_status(kNoTagAnywhere);
 
-    // The list was the tag's, so the mode that described it goes with it.
     const auto info = backend.get_slot_info(0);
     CHECK(info.multi_color_hexes.empty());
     CHECK(info.color_mode.empty());
