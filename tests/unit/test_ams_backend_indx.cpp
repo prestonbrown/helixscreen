@@ -1007,6 +1007,30 @@ TEST_CASE_METHOD(IndxFixture, "INDX recovery: a half-seated tool holds the ERROR
     CHECK(b.get_current_action() == AmsAction::IDLE);
 }
 
+TEST_CASE_METHOD(IndxFixture,
+                 "INDX recovery: a language switch composes no seat text outside ERROR",
+                 "[ams][indx][recovery]") {
+    // A tool change is under way when the seat fault lands, and Klipper then
+    // rejects the change. Abandoning it puts the action back to IDLE; the
+    // re-wording a language switch asks for belongs to the fault's ERROR, and
+    // must not compose the seat text over any other status.
+    IndxHelper b;
+    b.set_discovery(discover(indx_objects()));
+    b.feed(active(0));
+    REQUIRE(b.change_tool(1).success());
+    REQUIRE(b.get_current_action() == AmsAction::SELECTING);
+
+    b.feed(json{{"save_variables", {{"variables", {{"seat_suspect", 2}}}}}});
+    REQUIRE(b.get_current_action() == AmsAction::ERROR);
+    b.reject_last_send(MoonrakerErrorType::JSON_RPC_ERROR, "swap failed");
+    REQUIRE(b.get_current_action() == AmsAction::IDLE);
+    REQUIRE(b.get_system_info().operation_detail.empty());
+
+    ScopedLanguage fr("fr");
+    b.refresh_translated_texts();
+    CHECK(b.get_system_info().operation_detail.empty());
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture, "INDX recovery: the error bridge presents the seat fault",
                  "[ams][indx][recovery]") {
     IndxFixture cache_reset;
