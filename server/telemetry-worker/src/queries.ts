@@ -1367,10 +1367,11 @@ export const HANG_CODE = "main_loop_hang";
 
 /**
  * Every main_loop_hang in window `w`, one row per report, as rows
- * { device, at, uptime, mem, pressure, state, wchan, weight }: `at` is the epoch seconds the Worker stored it, `uptime` the device's, `mem` is the
- * available host MB the hang carried (0 = the hang carried none; the column
- * stores the value + 1), `pressure` is "" when absent, and `state` and `wchan`
- * are the main thread's scheduler state and wait channel, "" when absent.
+ * { device, at, uptime, mem, pressure, platform, version, context, state, wchan, weight }:
+ * `at` is the epoch seconds the Worker stored it, `uptime` the device's, and `mem` is the
+ * available host MB the hang carried (0 = the hang carried none; the column stores the value
+ * + 1). `pressure`, `platform`, `version`, `context`, `state` and `wchan` are "" when absent;
+ * `state` and `wchan` are the main thread's scheduler state and wait channel.
  */
 export function hangEventsSql(w: readonly [number, number], filters?: FilterParams): string {
   return `SELECT
@@ -1379,6 +1380,9 @@ export function hangEventsSql(w: readonly [number, number], filters?: FilterPara
       ${errorEnc("uptime_sec")} as uptime,
       ${errorEnc("mem_available_mb")} as mem,
       ${errorEnc("pressure_level")} as pressure,
+      ${errorEnc("app_platform")} as platform,
+      ${errorEnc("app_version")} as version,
+      ${errorEnc("context")} as context,
       ${errorEnc("main_state")} as state,
       ${errorEnc("main_wchan")} as wchan,
       ${SAMPLE_WEIGHT} as weight

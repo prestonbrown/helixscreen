@@ -7,7 +7,7 @@ import { num, str, type NotApplicable, type RawRow } from "./schema";
 import { printsByVersion } from "./prints";
 import { compareVersions } from "./versions";
 import { HANG_MIN_CLASSIFIED_SHARE } from "./loop/thresholds";
-import { classifyHangs, splitOf, type ClassifiedHang, type HangRow, type HangSplit, type MemSnapshot } from "./hang_cause";
+import { classifyHangs, splitOf, splitTotal, type ClassifiedHang, type HangRow, type HangSplit, type MemSnapshot } from "./hang_cause";
 
 /** The counts one release's rates are computed from, over one window. */
 export interface ReleaseCounts {
@@ -50,9 +50,10 @@ export interface HealthPayload {
   releases: { version: string; cur: ReleaseWindow; prev: ReleaseWindow }[];
   /**
    * `split` and `total` are set on main_loop_hang only. That row's cur, prev and devices
-   * count the app-blocked share, so a host out of memory never reads as a rising app bug;
-   * `total` is every hang report of the current week and `split` breaks it down, so a week
-   * whose reports could not be classified never reads as a clean zero.
+   * count the app-blocked share, so a host out of memory, or an app the system suspended,
+   * never reads as a rising app bug; `total` is every hang report of the current week and
+   * `split` breaks it down, so a week whose reports could not be classified never reads as a
+   * clean zero.
    */
   errors: { category: string; code: string; cur: number; prev: number; devices: number; status: "new" | "rising" | "steady"; split?: HangSplit; total?: number }[];
   crash_clusters: { signal: string; fault_code: string; version: string; board: string; cur: number; prev: number; devices: number }[];
@@ -170,6 +171,9 @@ export function hangRowOf(x: RawRow): HangRow {
     uptimeSec: num(x.uptime),
     memAvailableMb: mem > 0 ? mem - 1 : null,
     pressure: str(x.pressure),
+    platform: str(x.platform),
+    appVersion: str(x.version),
+    context: str(x.context),
     mainState: str(x.state),
     mainWchan: str(x.wchan),
     weight: num(x.weight) || 1,
@@ -237,13 +241,13 @@ export function buildHealth(
         const perDevice = new Map<string, number>();
         for (const h of blocked) perDevice.set(h.device, (perDevice.get(h.device) ?? 0) + h.weight);
         split = splitOf(hangsCur);
-        total = split.host_memory + split.app_blocked + split.unknown;
+        total = splitTotal(split);
         cur = split.app_blocked;
         const prevSplit = splitOf(hangsPrev);
         prev = prevSplit.app_blocked;
-        // A week whose hangs mostly could not be classified says nothing about a rise from it.
-        const prevTotal = prevSplit.host_memory + prevSplit.app_blocked + prevSplit.unknown;
-        held = prevTotal > 0 && (prevSplit.host_memory + prevSplit.app_blocked) / prevTotal < HANG_MIN_CLASSIFIED_SHARE;
+        // A week whose hangs mostly could not be classified says nothing about a rise from it. A suspended app is classified.
+        const prevTotal = splitTotal(prevSplit);
+        held = prevTotal > 0 && (prevTotal - prevSplit.unknown) / prevTotal < HANG_MIN_CLASSIFIED_SHARE;
         devices = perDevice.size;
         topDevice = Math.max(0, ...perDevice.values());
       }

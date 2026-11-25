@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import { classifyHang, classifyHangs, splitOf, type HangRow, type MemSnapshot } from "../hang_cause";
 import { buildHealth, type HealthRowKey } from "../health";
 import { findingsFromHealth } from "../loop/findings";
-import { HANG_HOST_MEMORY_LOW_MB, HANG_SNAPSHOT_WINDOW_SEC, HANG_UPLOAD_BATCH_SEC } from "../loop/thresholds";
+import { HANG_HOST_MEMORY_LOW_MB, HANG_SNAPSHOT_WINDOW_SEC, HANG_SUSPENDED_STALL_SEC, HANG_UPLOAD_BATCH_SEC } from "../loop/thresholds";
 import { fetchHealth } from "../health_source";
 import { afterEach, vi } from "vitest";
 import { hangEventsSql, hangSnapshotsSql, windowClause, HEALTH_WINDOWS, SQL_FALSE } from "../queries";
@@ -19,6 +19,9 @@ const hang = (over: Partial<HangRow> = {}): HangRow => ({
   uptimeSec: HANG_UPTIME,
   memAvailableMb: null,
   pressure: "",
+  platform: "",
+  appVersion: "",
+  context: "",
   mainState: "",
   mainWchan: "",
   weight: 1,
@@ -98,13 +101,39 @@ describe("classifyHang, an older hang", () => {
   });
 });
 
+describe("classifyHang, an app the system suspended", () => {
+  it("is suspended for an Android app, whatever its memory says", () => {
+    expect(classifyHang(hang({ platform: "android" }), [])).toBe("suspended");
+    expect(classifyHang(hang({ platform: "android", memAvailableMb: 5, pressure: "critical" }), [])).toBe("suspended");
+    expect(classifyHang(hang({ platform: "android" }), [snap(5, 5)])).toBe("suspended");
+  });
+  it("is suspended on any platform when the stall ran past the line, and not at it", () => {
+    const line = HANG_SUSPENDED_STALL_SEC;
+    expect(classifyHang(hang({ context: `stalled_${line + 1}s` }), [])).toBe("suspended");
+    expect(classifyHang(hang({ platform: "pi", context: "stalled_4071s", memAvailableMb: 5 }), [])).toBe("suspended");
+    // At the line the monitor thread was still sampling, so the memory evidence decides.
+    expect(classifyHang(hang({ context: `stalled_${line}s` }), [])).toBe("unknown");
+    expect(classifyHang(hang({ context: `stalled_${line}s`, memAvailableMb: 5 }), [])).toBe("host_memory");
+  });
+  it("is not suspended by a context that names no stall length", () => {
+    for (const context of ["", "stalled_s", "161", "stalled_161s ", "resumed_161s"]) {
+      expect(classifyHang(hang({ context }), [snap(5, 5)]), JSON.stringify(context)).toBe("host_memory");
+    }
+  });
+});
+
 describe("splitOf", () => {
   it("sums sample weights per cause", () => {
     const hs = classifyHangs(
-      [hang({ memAvailableMb: 1, weight: 3 }), hang({ memAvailableMb: 500 }), hang({ device: "d2" })],
+      [
+        hang({ memAvailableMb: 1, weight: 3 }),
+        hang({ memAvailableMb: 500 }),
+        hang({ device: "d2" }),
+        hang({ platform: "android", weight: 2 }),
+      ],
       [],
     );
-    expect(splitOf(hs)).toEqual({ host_memory: 3, app_blocked: 1, unknown: 1 });
+    expect(splitOf(hs)).toEqual({ suspended: 2, host_memory: 3, app_blocked: 1, unknown: 1 });
   });
 });
 
@@ -149,7 +178,7 @@ describe("a main_loop_hang finding", () => {
 
   it("counts only the app-blocked share and carries the split", () => {
     const e = build(7).errors[0];
-    expect(e).toMatchObject({ cur: 3, prev: 1, devices: 3, total: 10, split: { host_memory: 7, app_blocked: 3, unknown: 0 } });
+    expect(e).toMatchObject({ cur: 3, prev: 1, devices: 3, total: 10, split: { suspended: 0, host_memory: 7, app_blocked: 3, unknown: 0 } });
   });
   it("does not rise when the host's memory explains the rise", () => {
     expect(build(7).errors[0].status).toBe("steady");
@@ -172,8 +201,41 @@ describe("a main_loop_hang finding", () => {
       cur: 0,
       prev: 0,
       total: 3,
-      split: { host_memory: 0, app_blocked: 0, unknown: 3 },
+      split: { suspended: 0, host_memory: 0, app_blocked: 0, unknown: 3 },
     });
+  });
+  it("counts a suspended hang in the split and the total, and in neither count", () => {
+    const h = buildHealth(
+      rows({
+        errors_cur: [{ ...hangCode, count: 5, devices: 5 }],
+        hangs_cur: [
+          hangRow("d0", 501, { platform: "android" }),
+          hangRow("d1", 11, { platform: "android" }),
+          hangRow("d2", 0, { context: "stalled_161s" }),
+          hangRow("d3", 11),
+          hangRow("d4", 501),
+        ],
+      }),
+      "2026-11-24",
+    );
+    expect(h.errors[0]).toMatchObject({
+      cur: 1,
+      prev: 0,
+      devices: 1,
+      total: 5,
+      status: "new",
+      split: { suspended: 3, host_memory: 1, app_blocked: 1, unknown: 0 },
+    });
+  });
+  it("is steady with a zero count when every hang was suspended", () => {
+    const h = buildHealth(
+      rows({
+        errors_cur: [{ ...hangCode, count: 2, devices: 2 }],
+        hangs_cur: [hangRow("d0", 0, { platform: "android" }), hangRow("d1", 0, { context: "stalled_4071s" })],
+      }),
+      "2026-11-24",
+    );
+    expect(h.errors[0]).toMatchObject({ cur: 0, devices: 0, total: 2, status: "steady", split: { suspended: 2, app_blocked: 0 } });
   });
   it("leaves every other error code to the aggregate", () => {
     const h = buildHealth(
@@ -196,7 +258,7 @@ describe("a main_loop_hang finding", () => {
       }),
       "2026-11-24",
     );
-    expect(h.errors[0].split).toEqual({ host_memory: 1, app_blocked: 1, unknown: 1 });
+    expect(h.errors[0].split).toEqual({ suspended: 0, host_memory: 1, app_blocked: 1, unknown: 1 });
   });
   it("shows the split in the issue summary and files on the app-blocked count", () => {
     const f = findingsFromHealth(build(7), [], "2026-W47");
@@ -204,6 +266,7 @@ describe("a main_loop_hang finding", () => {
       count: 3,
       hangs_app_blocked: 3,
       hangs_host_out_of_memory: 7,
+      hangs_app_suspended: 0,
       hangs_cause_unknown: 0,
     });
     expect(f[0].actions).not.toContain("issue");
@@ -240,6 +303,10 @@ describe("the first weeks after the snapshot column deploys", () => {
   });
   it("rises when there were no hangs last week", () => {
     expect(mk([], cur).errors[0].status).toBe("rising");
+  });
+  it("rises over a previous week of suspended hangs, which are classified", () => {
+    const suspendedPrev = Array.from({ length: 8 }, (_, i) => hangRow(`p${i}`, 0, { platform: "android" }));
+    expect(mk(suspendedPrev, cur).errors[0]).toMatchObject({ cur: 8, prev: 0, status: "rising" });
   });
 });
 
@@ -296,6 +363,12 @@ describe("hang queries", () => {
     expect(sql).toContain(`${col("error_encountered", "main_state")} as state`);
     expect(sql).toContain(`${col("error_encountered", "main_wchan")} as wchan`);
   });
+  it("reads each hang's platform, version and context", () => {
+    const sql = hangEventsSql(HEALTH_WINDOWS.cur);
+    expect(sql).toContain(`${col("error_encountered", "app_platform")} as platform`);
+    expect(sql).toContain(`${col("error_encountered", "app_version")} as version`);
+    expect(sql).toContain(`${col("error_encountered", "context")} as context`);
+  });
 });
 
 describe("hangRowOf", () => {
@@ -304,5 +377,31 @@ describe("hangRowOf", () => {
     expect(hangRowOf({ ...row, state: "S", wchan: "futex" })).toMatchObject({ mainState: "S", mainWchan: "futex" });
     expect(hangRowOf({ ...row, state: "", wchan: "" })).toMatchObject({ mainState: "", mainWchan: "" });
     expect(hangRowOf(row)).toMatchObject({ mainState: "", mainWchan: "" });
+  });
+  it("reads a hang's platform, version and context, each empty when the report carries none", () => {
+    const row = { device: "d1", at: T0 / 1000, platform: "android", version: "1.1.0", context: "stalled_161s" };
+    expect(hangRowOf(row)).toMatchObject({ platform: "android", appVersion: "1.1.0", context: "stalled_161s" });
+    expect(hangRowOf({ device: "d1" })).toMatchObject({ platform: "", appVersion: "", context: "" });
+  });
+});
+
+describe("fetchHealth hang causes", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("splits an Android hang out as suspended from the hang rows alone", async () => {
+    vi.stubGlobal("fetch", async (_url: string, init: { body: string }) => {
+      const sql = init.body;
+      const data = sql.includes("'main_loop_hang'")
+        ? [
+            { device: "d0", at: 1, uptime: 5, mem: 0, pressure: "", platform: "android", weight: 1 },
+            { device: "d1", at: 1, uptime: 5, mem: 0, pressure: "", platform: "pi", weight: 1 },
+          ]
+        : sql.trimEnd().endsWith("GROUP BY category, code")
+          ? [{ category: "ui", code: "main_loop_hang", count: 2, devices: 2 }]
+          : [];
+      return new Response(JSON.stringify({ data }), { status: 200 });
+    });
+    const h = await fetchHealth({ accountId: "a", apiToken: "t" }, "2026-11-24");
+    expect(h.errors[0]).toMatchObject({ cur: 0, total: 2, split: { suspended: 1, unknown: 1 } });
   });
 });

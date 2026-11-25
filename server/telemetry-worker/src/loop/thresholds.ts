@@ -22,6 +22,12 @@ export const ALERT_REPEAT_DAYS = 30
 /** A main_loop_hang with less host memory than this (MB available) is the host running out, not the app blocking. */
 export const HANG_HOST_MEMORY_LOW_MB = 64
 /**
+ * Seconds of stall past which the whole app was paused, not its main loop. The detector samples
+ * every 5 s and reports as a stall crosses 60 s, so a report of a longer stall than this means
+ * the monitor thread itself stopped running.
+ */
+export const HANG_SUSPENDED_STALL_SEC = 70
+/**
  * Seconds of device uptime before a hang that a memory snapshot may sit and still describe
  * the host at the hang; snapshots are taken hourly.
  */

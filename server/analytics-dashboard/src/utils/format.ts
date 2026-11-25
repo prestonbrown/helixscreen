@@ -1,4 +1,5 @@
 import type { DashFilterKey } from './urlState'
+import type { HangSplit } from '../../../telemetry-worker/src/hang_cause'
 
 /** The DeltaEra fields these formatters read; services/api's DeltaEra satisfies it. */
 interface EraFields {
@@ -123,4 +124,23 @@ export function emptyPlaceholder(era: EraFields | null, activeFilters: DashFilte
 
 export function formatMB(kb: number): string {
   return `${(kb / 1024).toFixed(1)} MB`
+}
+
+/** What each cause of a main_loop_hang reads as under the code, in the order the Health tab lists them. */
+const HANG_CAUSE_LABEL: Record<keyof HangSplit, string> = {
+  app_blocked: 'app blocked',
+  host_memory: 'host out of memory',
+  suspended: 'app suspended',
+  unknown: 'unknown'
+}
+
+/**
+ * One line counting every cause of a hang split under its label, e.g. "3 app blocked,
+ * 7 host out of memory, 0 app suspended, 0 unknown". A stored weekly report may predate
+ * a cause, so one it lacks reads as 0.
+ */
+export function hangCauseLine(split: HangSplit): string {
+  return (Object.keys(HANG_CAUSE_LABEL) as (keyof HangSplit)[])
+    .map((cause) => `${(split[cause] ?? 0).toLocaleString()} ${HANG_CAUSE_LABEL[cause]}`)
+    .join(', ')
 }
