@@ -234,21 +234,6 @@ lv_display_t* DisplayBackendFbdev::create_display(int width, int height) {
     return display_;
 }
 
-lv_indev_t* DisplayBackendFbdev::open_evdev(lv_indev_type_t type, const char* path) {
-    // Opened here rather than by lv_evdev_create() so the fd is known: the main loop
-    // waits on it while the display sleeps.
-    const int fd = open(path, O_RDONLY | O_NOCTTY | O_CLOEXEC);
-    if (fd < 0) {
-        spdlog::warn("[Fbdev Backend] Cannot open input device {}: {}", path, strerror(errno));
-        return nullptr;
-    }
-    lv_indev_t* indev = lv_evdev_create_fd(type, fd); // closes fd on failure
-    if (indev) {
-        input_wake_sources_.add(indev, fd);
-    }
-    return indev;
-}
-
 lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
     // Determine touch device path
     std::string touch_path = touch_device_;
@@ -291,7 +276,7 @@ bool DisplayBackendFbdev::open_touch_device(const std::string& touch_path, bool 
                 "[Fbdev Backend] Creating evdev touch input on {}", touch_path);
 
     // LVGL's evdev driver for touch input
-    touch_ = open_evdev(LV_INDEV_TYPE_POINTER, touch_path.c_str());
+    touch_ = input_wake_sources_.open_evdev(LV_INDEV_TYPE_POINTER, touch_path.c_str());
 
     if (touch_ == nullptr) {
         spdlog::log(reopening ? spdlog::level::debug : spdlog::level::err,
@@ -657,7 +642,7 @@ void DisplayBackendFbdev::open_mouse_device() {
     // Detect USB HID mouse (in addition to touchscreen)
     const char* mouse_env = std::getenv("HELIX_MOUSE_DEVICE");
     if (mouse_env && mouse_env[0] != '\0') {
-        mouse_ = open_evdev(LV_INDEV_TYPE_POINTER, mouse_env);
+        mouse_ = input_wake_sources_.open_evdev(LV_INDEV_TYPE_POINTER, mouse_env);
         if (mouse_) {
             mouse_path_ = mouse_env;
             spdlog::info("[Fbdev Backend] Mouse created on {} (env override)", mouse_env);
@@ -667,7 +652,7 @@ void DisplayBackendFbdev::open_mouse_device() {
     if (!mouse_) {
         auto mouse_dev = helix::input::find_mouse_device();
         if (mouse_dev) {
-            mouse_ = open_evdev(LV_INDEV_TYPE_POINTER, mouse_dev->path.c_str());
+            mouse_ = input_wake_sources_.open_evdev(LV_INDEV_TYPE_POINTER, mouse_dev->path.c_str());
             if (mouse_) {
                 mouse_path_ = mouse_dev->path;
                 spdlog::info("[Fbdev Backend] Mouse created on {} ({})", mouse_dev->path,
@@ -714,7 +699,7 @@ lv_indev_t* DisplayBackendFbdev::create_input_keyboard() {
     // Priority 1: Environment variable override
     const char* env_device = std::getenv("HELIX_KEYBOARD_DEVICE");
     if (env_device && env_device[0] != '\0') {
-        keyboard_ = open_evdev(LV_INDEV_TYPE_KEYPAD, env_device);
+        keyboard_ = input_wake_sources_.open_evdev(LV_INDEV_TYPE_KEYPAD, env_device);
         if (keyboard_) {
             spdlog::info("[Fbdev Backend] Keyboard created on {} (env override)", env_device);
             return keyboard_;
@@ -725,7 +710,7 @@ lv_indev_t* DisplayBackendFbdev::create_input_keyboard() {
     // Priority 2: Auto-detect via sysfs scanning
     auto kb_dev = helix::input::find_keyboard_device();
     if (kb_dev) {
-        keyboard_ = open_evdev(LV_INDEV_TYPE_KEYPAD, kb_dev->path.c_str());
+        keyboard_ = input_wake_sources_.open_evdev(LV_INDEV_TYPE_KEYPAD, kb_dev->path.c_str());
         if (keyboard_) {
             spdlog::info("[Fbdev Backend] Keyboard created on {} ({})", kb_dev->path, kb_dev->name);
             return keyboard_;

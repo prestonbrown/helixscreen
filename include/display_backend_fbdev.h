@@ -208,8 +208,6 @@ class DisplayBackendFbdev : public DisplayBackend {
     /// Every evdev device this backend opened that LVGL has not deleted, with its fd
     helix::InputWakeSourceList input_wake_sources_;
 
-    lv_indev_t* open_evdev(lv_indev_type_t type, const char* path);
-
     /// Affine touch calibration coefficients
     helix::TouchCalibration calibration_;
 
