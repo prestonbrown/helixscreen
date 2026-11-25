@@ -273,6 +273,7 @@ TEST_CASE_METHOD(NonlinearFixture,
     CHECK(sent_since(before).find("M84") == std::string::npos);
     tower("printing");
     CHECK(overlay.stage() == PaNonlinearOverlay::PRINTING);
+    status({{"gcode_move", {{"gcode_position", {100.0, 100.0, 1.0, 0.0}}}}});
     // A standby once it has printed (a restart mid-tower) still ends the pass.
     tower("standby");
     helix::ui::UpdateQueue::instance().drain();
@@ -365,7 +366,7 @@ TEST_CASE_METHOD(NonlinearFixture,
         overlay.print_pass_for_test();
         helix::ui::UpdateQueue::instance().drain();
         tower("printing");
-        status({{"gcode_move", {{"gcode_position", {100.0, 100.0, 10.0, 0.0}}}}});
+        status({{"gcode_move", {{"gcode_position", {100.0, 100.0, 1.0, 0.0}}}}});
         const size_t before = client.gcode_script_history().size();
         tower("cancelled");
         helix::ui::UpdateQueue::instance().drain();
