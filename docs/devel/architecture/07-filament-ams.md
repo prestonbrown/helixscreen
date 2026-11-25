@@ -69,7 +69,7 @@ flowchart TB
 | [`include/lane_resolver.h`](../../../include/lane_resolver.h) / [`src/printer/lane_resolver.cpp`](../../../src/printer/lane_resolver.cpp) | `ResolvedLane` and `resolve()`: the precedence table as code |
 | [`include/lane_source_store.h`](../../../include/lane_source_store.h) | `LaneId` and the lane address space; `ingest()` and `file_pending()`, the two funnels into the store; the Pending timeout and echo rule |
 | [`include/lane_translation.h`](../../../include/lane_translation.h) / [`src/printer/lane_translation.cpp`](../../../src/printer/lane_translation.cpp) | Turning a human edit or a `lane_data` record into an `Observation`; the field roster and the spool-owned identity rule |
-| [`include/filament_slot_override_store.h`](../../../include/filament_slot_override_store.h) | The lane record store: RFC 0001 record shape, the writer rule, the AFC / Happy Hare extras narrowing, the shared persist helpers |
+| [`include/filament_slot_override_store.h`](../../../include/filament_slot_override_store.h) | The lane record store: Lane Status Surface RFC record shape, the writer rule, the AFC / Happy Hare extras narrowing, the shared persist helpers |
 | [`include/ui_ams_edit_overlay.h`](../../../include/ui_ams_edit_overlay.h) | `AmsEditOverlay`, the lane spool editor: one overlay whose pages ride the `ams_edit_page` subject |
 | [`include/spool_assign.h`](../../../include/spool_assign.h) | The editor's pure decisions: which page a lane opens on, spool sizes and weight steps, the archive threshold, list ranking, Undo |
 | [`include/spool_remaining_format.h`](../../../include/spool_remaining_format.h) | The one rule every screen uses to state what is left on a spool |
@@ -95,7 +95,7 @@ No real backend implements the interface directly: each derives from `AmsSubscri
 | `AmsBackendToolChanger` | [`include/ams_backend_toolchanger.h`](../../../include/ams_backend_toolchanger.h) | viesturz/klipper-toolchanger, and multi-hotend printers with no filament system |
 | `AmsBackendIndx` | [`include/ams_backend_indx.h`](../../../include/ams_backend_indx.h) | Bondtech INDX docked nozzles (extends the tool changer backend) |
 | `AmsBackendMultiAce` | [`include/ams_backend_multiace.h`](../../../include/ams_backend_multiace.h) | Several ACE units on a Snapmaker U1 (extends the Snapmaker backend) |
-| `AmsBackendLaneStatus` | [`include/ams_backend_lane_status.h`](../../../include/ams_backend_lane_status.h) | Any lane-status-spec RFC 0001 `lane_status` producer no native backend reads |
+| `AmsBackendLaneStatus` | [`include/ams_backend_lane_status.h`](../../../include/ams_backend_lane_status.h) | Any Lane Status Surface RFC `lane_status` producer no native backend reads |
 
 Each has a leaf doc (`FILAMENT_BACKEND_*.md`). The Snapmaker, Happy Hare and CFS backends parse each status frame into a struct of optionals before taking their lock, then apply it in named steps; [`../FILAMENT_MANAGEMENT.md`](../FILAMENT_MANAGEMENT.md) § "Status Frame Shape" has the pattern.
 
@@ -251,7 +251,7 @@ OpenAMS reports no identity in its manager status and files nothing from its par
 
 ### Who writes a lane
 
-HelixScreen keeps no lane state of its own: an edit goes where the lane's identity lives, and the lane shows it back from there. The rule per backend ([`../../specs/filament_slots.md`](../../specs/filament_slots.md) §1, RFC 0001's "one writer per machine"):
+HelixScreen keeps no lane state of its own: an edit goes where the lane's identity lives, and the lane shows it back from there. The rule per backend ([`../../specs/filament_slots.md`](../../specs/filament_slots.md) §1, the Lane Status Surface RFC's "one writer per machine"):
 
 | Backend | Firmware fields written with | `lane_data` | HelixScreen's own namespace |
 |---------|------------------------------|-------------|-----------------------------|
@@ -260,7 +260,7 @@ HelixScreen keeps no lane state of its own: an edit goes where the lane's identi
 | OpenAMS with `[openams_spoolman]` | `server.openams_spoolman.edit` | the component's, protected by Moonraker (read only, and not per bay) | none |
 | CFS, AD5X IFS, QIDI, Snapmaker U1, ACE, MultiACE, tool changers, OpenAMS alone | each printer's own commands for what its firmware holds | HelixScreen's, written through `FilamentSlotOverrideStore` | none |
 
-The store ([`include/filament_slot_override_store.h`](../../../include/filament_slot_override_store.h)) writes RFC 0001 §5 records (`to_lane_data_record()`), never overwrites a record whose `writer` names another producer (`writer_refusal()`, so the edit is withdrawn and the editor says why), and narrows a record to the extras fields on the AFC and Happy Hare namespaces (`extras_only()`, on write and on read). The shared persist path (`AmsSubscriptionBackend::persist_user_record_locked()`, `persist_slot_weight()`, `persist_external_identity_impl()`) is the one implementation every backend calls; a failed write withdraws the lane's `Pending` and repaints it through the store's `set_on_write_failed()` hook. A backend whose spool link another program owns answers `clear_spool_refusal()` (OpenAMS with the component), which greys Clear Spool in the slot menu with that reason.
+The store ([`include/filament_slot_override_store.h`](../../../include/filament_slot_override_store.h)) writes the Lane Status Surface RFC's §5 records (`to_lane_data_record()`), never overwrites a record whose `writer` names another producer (`writer_refusal()`, so the edit is withdrawn and the editor says why), and narrows a record to the extras fields on the AFC and Happy Hare namespaces (`extras_only()`, on write and on read). The shared persist path (`AmsSubscriptionBackend::persist_user_record_locked()`, `persist_slot_weight()`, `persist_external_identity_impl()`) is the one implementation every backend calls; a failed write withdraws the lane's `Pending` and repaints it through the store's `set_on_write_failed()` hook. A backend whose spool link another program owns answers `clear_spool_refusal()` (OpenAMS with the component), which greys Clear Spool in the slot menu with that reason.
 
 ### Spoolman without AMS
 

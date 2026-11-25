@@ -648,7 +648,7 @@ temperatures on a glass-filled ASA, while the color came through untouched.
   still shows `ASA-GF` even though the same lane synced to Orca as `ASA`.
 
 Nothing rewrites an older record in place: it reads through the legacy
-spellings, and the next edit writes the RFC 0001 shape. The Orca tables are
+spellings, and the next edit writes the Lane Status Surface RFC's shape. The Orca tables are
 pre-warmed on the main thread at startup (`filament::warm_orca_tables()`, called
 from `SubjectInitializer`) so the first match never parses the asset on a
 WebSocket background thread.
@@ -2832,7 +2832,7 @@ Each backend has its own leaf doc covering the protocol, data sources, G-code co
 | QIDI Box | QIDI PLUS4 / Q2 / MAX4 RFID hub, chainable to 4 boxes | [FILAMENT_BACKEND_QIDI_BOX.md](FILAMENT_BACKEND_QIDI_BOX.md) |
 | Snapmaker U1 | SnapSwap 4-toolhead parallel toolchanger with per-channel RFID | [FILAMENT_BACKEND_SNAPMAKER_U1.md](FILAMENT_BACKEND_SNAPMAKER_U1.md) |
 | multiACE | Snapmaker U1 with 1-4 ACE Pro units upstream of its heads; the U1 backend plus ACE units, chosen in the factory from the discovered hardware | [FILAMENT_BACKEND_MULTIACE.md](FILAMENT_BACKEND_MULTIACE.md) |
-| Lane Status | Any producer of the Lane Status Surface (lane-status-spec RFC 0001) that no backend above reads: the `lane_status` object plus its `lane_data` records | [FILAMENT_BACKEND_LANE_STATUS.md](FILAMENT_BACKEND_LANE_STATUS.md) |
+| Lane Status | Any producer of the Lane Status Surface (the Lane Status Surface RFC) that no backend above reads: the `lane_status` object plus its `lane_data` records | [FILAMENT_BACKEND_LANE_STATUS.md](FILAMENT_BACKEND_LANE_STATUS.md) |
 
 ### AmsType Enum
 
@@ -2851,7 +2851,7 @@ enum class AmsType {
     QIDI_BOX = 8,     // QIDI Box (PLUS4 / Q2 / MAX4, hub-style, 4 slots chainable to 16)
     OPENAMS = 9,      // klipper_openams through its versioned oams_manager API
     INDX = 10,        // Bondtech INDX: docked passive nozzles, one extruder and heater
-    LANE_STATUS = 11  // Any Lane Status Surface producer (lane-status-spec RFC 0001)
+    LANE_STATUS = 11  // Any Lane Status Surface producer (the Lane Status Surface RFC)
 };
 ```
 

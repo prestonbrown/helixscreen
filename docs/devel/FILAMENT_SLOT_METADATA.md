@@ -17,15 +17,16 @@ Moonraker's database, files them on the lane model as `Record` observations, and
 writes a user's edit back as a whole record. What the last read returned is all
 the app knows about a lane's record.
 
-Records follow RFC 0001 §5 (the Lane Status Surface): every RFC key is present,
+Records follow §5 of the Lane Status Surface RFC: every RFC key is present,
 an unknown value is `null` rather than a placeholder, and keys only HelixScreen
-reads carry the `helix_` prefix. OrcaSlicer 2.3.2+ reads the same namespace for
+reads carry the `helix_` prefix. OrcaSlicer 2.3.2 and later read the same namespace for
 "Sync filaments from Printer", so a slot edit reaches the slicer with no extra
 configuration. The flow is one-directional: OrcaSlicer never writes `lane_data`.
 
 **Two-string material identity.** OrcaSlicer matches a lane to a preset by the
-`material` string alone, and an unmatched string resolves to a Generic PLA preset
-(wrong temperatures), not a near miss. So `to_lane_data_record()`
+`material` string alone when a record has no `filament_id`, and a string outside
+every material family resolves to the first compatible Generic preset, whatever
+its material (wrong temperatures), not a near miss. So `to_lane_data_record()`
 (`src/printer/filament_slot_override_store.cpp#to_lane_data_record`) emits
 `material` as a slicer-matchable string from `filament::orca_match_type()`
 (`src/printer/filament_variants.cpp#orca_match_type`): explicit
@@ -44,7 +45,7 @@ full resolution order.
 
 **What OrcaSlicer reads.** Orca's `MoonrakerPrinterAgent` (2.3.2 through
 2.5.2) reads `lane` (a string, 0-based tool index), `color`, `material`,
-`bed_temp` and `nozzle_temp` per record; 2.5.2 also reads a string
+`bed_temp` and `nozzle_temp` per record; 2.5.0 and later also read a string
 `filament_id` (the lane loop of `fetch_moonraker_filament_data` in
 [MoonrakerPrinterAgent.cpp](https://github.com/SoftFever/OrcaSlicer/blob/v2.5.2/src/slic3r/Utils/MoonrakerPrinterAgent.cpp)). It never reads `vendor_name`. With a
 `filament_id` it syncs the tray to that preset. Without one it takes the first
@@ -66,7 +67,7 @@ types every supported Orca release carries.
 
 ## 2. The record
 
-`to_lane_data_record(slot, override, style)` writes one RFC 0001 §5 record:
+`to_lane_data_record(slot, override, style)` writes one record in the shape of the RFC's §5:
 
 | Key | Value |
 |-----|-------|
@@ -108,7 +109,7 @@ between two shapes with different bases, and the store's style comes from
 
 The inner `lane` field is 0-based in both, so the offset between the outer key
 and the inner field is deliberate for `laneN` and absent for `T<n>`. Records are
-matched to slots by the inner `lane` field, never the key (RFC 0001 §3):
+matched to slots by the inner `lane` field, never the key (the RFC's Part B S3):
 `parse_namespace_document()` (`src/printer/filament_slot_override_store.cpp#parse_namespace_document`)
 parses a whole namespace, and when two records name one slot the one under the
 store's canonical key wins. Non-object siblings (an AD5X `seated` scalar an older build wrote) are
@@ -136,7 +137,7 @@ reads and writes one backend's records:
 | `save_key_async` / `clear_key_async` / `load_key_async` | HelixScreen's own plain values, in the `helix-screen` namespace rather than among the lane records (whose every value OrcaSlicer reads as a record): the CFS bypass declaration (`cfs_bypass_declared`) |
 | `save_seated_slot_async` / `clear_seated_slot_async` / `load_seated_slot_blocking` | AD5X IFS's seated lane (`<backend>_seated` through the key calls above): the 0-based lane loaded to the toolhead; a `seated` scalar left in `lane_data` moves there on load |
 
-**The writer rule** (RFC 0001 §2). A record whose `writer` names another producer
+**The writer rule** (the RFC's Part B S2). A record whose `writer` names another producer
 is never overwritten or deleted: `writer_refusal()` checks the writer the last
 read saw for that slot, and `save_async` / `clear_async` answer an error instead
 of sending. A record with no `writer` is legacy and replaceable.
