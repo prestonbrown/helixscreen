@@ -798,6 +798,28 @@ TEST_CASE_METHOD(NonlinearFixture,
 }
 
 TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: a tower whose pending Stop fails to cancel is judged as it ends",
+                 "[pa_nonlinear][pa_tuner][pa_nl_stop]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    client.force_next_gcode_error(MoonrakerErrorType::TIMEOUT, "request timed out");
+    overlay.print_pass_for_test();
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::PREPARING);
+    overlay.stop_for_test();
+    press_dialog("btn_primary");
+
+    client.fail_next("printer.print.cancel");
+    const uint32_t cancels = api.job().cancels_sent();
+    tower("printing");
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(api.job().cancels_sent() == cancels + 1);
+    CHECK(overlay.stage() == PaNonlinearOverlay::PRINTING);
+    tower("complete");
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(overlay.stage() == PaNonlinearOverlay::JUDGE);
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
                  "nonlinear tuner: a Stop whose tower never shows ends the machine once, on the "
                  "start watchdog",
                  "[pa_nonlinear][pa_tuner][pa_nl_stop]") {

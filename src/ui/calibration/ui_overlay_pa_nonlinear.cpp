@@ -1112,10 +1112,30 @@ void PaNonlinearOverlay::send_pending_stop() {
         return;
     }
     stop_cancel_sent_ = true;
-    api_->job().cancel_print([]() {},
-                             [](const MoonrakerError& err) {
-                                 spdlog::warn("[PA Nonlinear] Cancel failed: {}", err.message);
-                             });
+    api_->job().cancel_print(
+        []() {}, object_lifetime_.bg_cb(
+                     "PaNonlinearOverlay::pending_stop_failed", [this](const MoonrakerError& err) {
+                         spdlog::warn("[{}] Cancel failed: {}", get_name(), err.message);
+                         on_pending_stop_failed();
+                     }));
+}
+
+void PaNonlinearOverlay::on_pending_stop_failed() {
+    if (!stop_pending_) {
+        return;
+    }
+    // The tower prints on: it is judged as any other, and Stop cancels it directly.
+    stop_pending_ = false;
+    stop_cancel_sent_ = false;
+    if (!subjects_initialized_) {
+        return;
+    }
+    if (saw_printing_) {
+        set_stage(PRINTING);
+        refresh_live();
+    } else {
+        lv_subject_set_string(&live_text_, lv_tr("Starting the tower"));
+    }
 }
 
 void PaNonlinearOverlay::raise(int attempts_left) {

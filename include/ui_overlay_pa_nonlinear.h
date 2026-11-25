@@ -251,6 +251,8 @@ class PaNonlinearOverlay : public OverlayBase {
     void stop_tower();
     /// Cancel the tower's job for a Stop pressed during the start script.
     void send_pending_stop();
+    /// That cancel failed: the tower carries on as if Stop was never pressed.
+    void on_pending_stop_failed();
     /// Judge a tower printed up to @p top_mm: the heights start inside it.
     void open_judgement(float top_mm);
     void raise(int attempts_left);
