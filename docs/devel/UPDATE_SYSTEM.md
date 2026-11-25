@@ -551,7 +551,7 @@ The platform rule:
 | AD5M on Klipper Mod (`ad5m`) | Yes, with the watchdog | Same SysV shape as the K1. Klipper Mod leaves no Forge-X or Z-Mod marker (`/opt/config/mod`, `/ZMOD`, `/usr/prog`), so it is not a mod payload |
 | AD5M under Forge-X or ZMOD | No | The mod owns the install tree and updates it in place. Forge-X is recognized by its descriptor in the mod tree: `<mod>/.shell/common.sh` upstream (the AD5M), `<mod>/.shell/platform.sh` on the AD5X fork |
 | AD5X, Creator 5, Creator 5 Pro (any firmware) | No | Share the `mips` key, but only the K1 board is proven: untested, add after a device run |
-| CC1 | No | Until a CC1 device run passes: its OpenWrt procd init and the COSMOS GUI switcher, which signals the watchdog's pidfile, are a second actor no run covered |
+| CC1 (`cc1` on the CC1 board) | Yes, with the watchdog | SysV rc under COSMOS, proven with its GUI switcher: a switch inside the window ends the guarded launch like a service stop and spends one guarded start. The board has a DRM card and no `timeout`, so the launcher's EGL probe carries its own 10 s deadline (`scripts/helix-launcher.sh#probe_egl_with_deadline`) |
 | Snapmaker U1 (`snapmaker-u1` on the U1 board) | Yes, with the watchdog | Same SysV launcher loop as the K1, proven on a paxx U1 running its own UI. Where paxx runs HelixScreen (its lmd hook binds the package), updates are the firmware's and the install is suppressed |
 | K2 | No | `/opt` cannot hold both versions; the old tree is staged off-partition |
 | x86 desktop, Android, ESP32 | No | They never run the in-app installer |
@@ -569,7 +569,7 @@ Known limits:
 
 #### Rollback device test plan
 
-A platform class gets Install overnight only after this plan passes on one of its devices. Passed, both on 2026-11-24 from 1.1.0-rc.4: **systemd** on a Raspberry Pi 3B (MainsailOS, Debian 13; covers Pi, Pi 32-bit and the x86 kiosk), and **SysV with the watchdog** on a Creality K1C (Simple AF, BusyBox init; covers the K1 series and the AD5M on Klipper Mod). Results are on #1304. Passing adds a row to `kRollbackProvenPlatforms`; everything without one stays off.
+A platform class gets Install overnight only after this plan passes on one of its devices. Passed, both on 2026-11-24 from 1.1.0-rc.4: **systemd** on a Raspberry Pi 3B (MainsailOS, Debian 13; covers Pi, Pi 32-bit and the x86 kiosk), and **SysV with the watchdog** on a Creality K1C (Simple AF, BusyBox init; covers the K1 series and the AD5M on Klipper Mod). On 2026-11-25 the same SysV class passed on a Snapmaker U1 (paxx on its own UI) and on a CC1 (COSMOS), each from a main build; the AD5X and Creator 5 Pro read as mod payloads and stay off. Results are on #1304. Passing adds a row to `kRollbackProvenPlatforms`; everything without one stays off.
 
 **AD5M under Forge-X (2026-11-24, 192.168.1.67).** Forge-X 1.4.1, HelixScreen v1.1.0 at `/opt/config/mod_data/helixscreen`, run by `S90helixscreen` inside the `/data/.mod/.forge-x` chroot. A mod payload, so the plan's R1-R9 do not apply. The check is that Install overnight stays off. Shipping `ad5m` builds (`HELIX_PACKAGING=1`) with `HELIX_LOG_LEVEL=debug`, started from the chroot's init with `HELIX_ROLLBACK_DIR` and `HELIX_SUPERVISED` set:
 

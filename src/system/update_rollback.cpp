@@ -70,6 +70,9 @@ constexpr ProvenPlatform kRollbackProvenPlatforms[] = {
     // where paxx runs HelixScreen, updates are external and it reads as
     // InstallSuppressed.
     {"snapmaker-u1", helix::board::Board::SnapmakerU1}, // VENDOR_OK: a proven row of this table
+    // SysV with the watchdog, proven on a CC1 under COSMOS, its GUI switcher
+    // included. The launcher's EGL probe needs its own deadline there.
+    {"cc1", helix::board::Board::Cc1}, // VENDOR_OK: a proven row of this table
 };
 
 bool platform_proven(const RollbackFacts& facts) {
