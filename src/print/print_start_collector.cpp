@@ -706,12 +706,17 @@ void PrintStartCollector::check_purge_shape() {
         evidence.filament_loaded = lv_subject_get_int(ams.get_filament_loaded_subject()) != 0;
     }
     // A purge melts filament the print heated the nozzle for: a nozzle with no
-    // target is not purging, however warm the last print left it.
-    const int ext_target = frame_ext_target_.load(std::memory_order_relaxed);
-    evidence.heaters_at_target =
-        ext_target > 0 && at_target(frame_ext_temp_.load(std::memory_order_relaxed), ext_target) &&
-        at_target(frame_bed_temp_.load(std::memory_order_relaxed),
-                  frame_bed_target_.load(std::memory_order_relaxed));
+    // target is not purging, however warm the last print left it. The nozzle is
+    // the active tool's, which on a multi-head printer need not be T0's
+    // "extruder" object that the status frames carry.
+    auto& temps = state_.temperature_state();
+    const int ext_target = helix::temperature_rules::deci_to_degrees(
+        lv_subject_get_int(temps.get_active_extruder_target_subject()));
+    const int ext_temp = helix::temperature_rules::deci_to_degrees(
+        lv_subject_get_int(temps.get_active_extruder_temp_subject()));
+    evidence.heaters_at_target = ext_target > 0 && at_target(ext_temp, ext_target) &&
+                                 at_target(frame_bed_temp_.load(std::memory_order_relaxed),
+                                           frame_bed_target_.load(std::memory_order_relaxed));
 
     PrintStartPhase phase;
     {
