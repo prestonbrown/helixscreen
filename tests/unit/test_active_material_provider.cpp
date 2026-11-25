@@ -343,6 +343,30 @@ TEST_CASE_METHOD(OverrideFixture,
     }
 }
 
+TEST_CASE_METHOD(OverrideFixture,
+                 "build_active_material: a lane's range holds the product temp inside it",
+                 "[active_material][build][print_temp]") {
+    // A lane stating a real range (RFID, the vendor) states what the material
+    // can take; a lane's single number (min == max) is a setpoint, not limits.
+    SlotInfo slot = lane_with_sunlu_pick(); // the product prints at 220
+    slot.nozzle_temp_min = 190;
+    slot.nozzle_temp_max = 215;
+    CHECK(build_active_material(slot).material_info.nozzle_recommended() == 215);
+
+    slot.catalog_id.clear();
+    slot.nozzle_temp_max = 220;
+    slot.nozzle_temp_recommended = 230;
+    CHECK(build_active_material(slot).material_info.nozzle_recommended() == 220);
+
+    SECTION("the database's range when the lane states none") {
+        slot.nozzle_temp_min = slot.nozzle_temp_max = 0;
+        const auto db = filament::find_material("PLA");
+        REQUIRE(db.has_value());
+        slot.nozzle_temp_recommended = db->nozzle_max + 20;
+        CHECK(build_active_material(slot).material_info.nozzle_recommended() == db->nozzle_max);
+    }
+}
+
 TEST_CASE("SlotInfo::nozzle_print_temp: a staged product temp inside the range wins",
           "[active_material][build]") {
     SlotInfo slot;
