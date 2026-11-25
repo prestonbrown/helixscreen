@@ -3,6 +3,7 @@
 
 #include "system/crash_handler.h"
 
+#include "breadcrumb_slot.h"
 #include "helix_thread.h"
 #include "helix_version.h"
 #include "system/crash_record.h"
@@ -234,31 +235,21 @@ static volatile unsigned int s_current_event_code = 0;
 static volatile const char* s_current_event_target_class = nullptr;
 static char s_current_event_target_name[32] = {0};
 
-// =============================================================================
-// Breadcrumb ring buffer (activity context for crash diagnosis)
-// =============================================================================
+// Breadcrumb ring buffer (activity context for crash diagnosis).
+// The slot protocol, which lets any thread note a crumb, is in breadcrumb_slot.h.
 
-/// Single breadcrumb slot. Size = 72 bytes.
-struct BreadcrumbSlot {
-    /// Low 32 bits of ms-since-boot (CLOCK_MONOTONIC). 0 = empty/uninitialized.
-    /// Stored last with release semantics so readers see a complete slot.
-    uint32_t ts_ms;
-    char category[8]; // null-terminated, truncated
-    char subject[60]; // null-terminated, truncated
-};
-
-/// Ring size: 256 slots × 72 bytes = 18432 bytes static.
-/// Doubled from 128 to absorb the per-step pstat_act / pstat_thm crumbs
-/// added for cluster:pstat-async-delete (#906) without displacing the
-/// async_d / sync_d crumbs from earlier in the same trace. Production
-/// bundles since 2026-04-29 captured ≤80 crumbs each, but the new
-/// instrumentation adds ~6 per Print Status reactivation, and tick
+/// Ring size: 256 slots of 76 bytes. Doubled from 128 to absorb the per-step
+/// pstat_act / pstat_thm crumbs added for cluster:pstat-async-delete (#906)
+/// without displacing the async_d / sync_d crumbs from earlier in the same
+/// trace. Production bundles since 2026-04-29 captured ≤80 crumbs each, but
+/// the new instrumentation adds ~6 per Print Status reactivation, and tick
 /// crumbs are still cheap to absorb at this size.
 static constexpr size_t kBreadcrumbRingSize = 256;
-static BreadcrumbSlot s_breadcrumb_ring[kBreadcrumbRingSize] = {};
+static helix::crumbs::CrumbSlot s_breadcrumb_ring[kBreadcrumbRingSize] = {};
 
-/// Monotonically-incrementing write index. Modulo ring size gives slot.
-/// Wraps at 2^32 — at 100 crumbs/sec that's ~500 days, acceptable.
+/// Monotonically-incrementing crumb index. Its remainder modulo the ring size
+/// is the slot the crumb is tried on first. Wraps at 2^32: at 100 crumbs/sec
+/// that is ~497 days, and the slot marks wrap with it.
 static std::atomic<uint32_t> s_breadcrumb_idx{0};
 
 /// Copy a C string into a fixed-size buffer, always null-terminating.
@@ -1131,10 +1122,10 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* ucontext) {
         }
     }
 
-    // Dump breadcrumb ring (oldest → newest). Torn writes are tolerated:
-    // slot.ts_ms is stored last with release semantics, so a zero ts means the
-    // slot is either empty or mid-write. In both cases we skip. Shared with
-    // test code via the public dump_to_fd() entry point.
+    // Dump breadcrumb ring (oldest to newest). A crumb still being written,
+    // on this thread when the signal came or on another, is left out; the
+    // slot protocol is in breadcrumb_slot.h. Shared with test code via the
+    // public dump_to_fd() entry point.
     crash_handler::breadcrumb::dump_to_fd(fd);
 
     // Inject ucontext PC and LR as the first backtrace entries.
@@ -1589,94 +1580,112 @@ void crash_handler::refresh_heap_snapshot() noexcept {
     __atomic_store_n(&s_heap_snapshot.ts_ms, publish_ts, __ATOMIC_RELEASE);
 }
 
-// -----------------------------------------------------------------------------
-// Breadcrumb producers (single-producer: LVGL/UI thread only)
+// Breadcrumb producers.
 //
-// note() is lock-free and signal-reader-safe (the signal handler dumping the
-// ring observes consistent per-slot state via the ts_ms release-store), but
-// it is NOT multi-producer safe: two concurrent writers that hash to the
-// same slot (possible on ring wrap) would interleave byte-level writes into
-// category/subject. All real producers today run on the LVGL thread —
-// navigation, modals, the per-frame tick, and boot initialization — so the
-// single-producer contract holds. Do not call from background threads or
-// signal handlers.
-// -----------------------------------------------------------------------------
+// note() may be called from any thread: the LVGL thread, the main-loop hang
+// monitor, the WebSocket thread. A writer takes its slot before writing it,
+// and the reader, the crash handler in a signal handler, takes a slot only
+// when its crumb is whole. So two writers never share a slot and a read never
+// returns a crumb half written; the protocol is in breadcrumb_slot.h. A signal
+// handler must not write: it can interrupt a thread inside note().
 
 namespace {
 
 /// Breadcrumb timestamp: low 32 bits of ms-since-boot (CLOCK_MONOTONIC), never
-/// zero because zero is reserved for "empty slot". These are absolute stamps on
-/// the same clock as s_start_mono_ms — NOT offsets from process start — so
-/// crumb times are comparable to `/proc/uptime` on the reporter's device but
-/// are not directly comparable to the `uptime:` field. Wraps every ~49 days;
-/// deltas within a single crash bundle stay meaningful either way.
+/// zero. These are absolute stamps on the same clock as s_start_mono_ms, not
+/// offsets from process start, so crumb times are comparable to `/proc/uptime`
+/// on the reporter's device but are not directly comparable to the `uptime:`
+/// field. Wraps every ~49 days; deltas within a single crash bundle stay
+/// meaningful either way.
 static uint32_t breadcrumb_now_ms() noexcept {
     uint32_t v = monotonic_ms_now();
     return v == 0 ? 1 : v;
 }
 
+namespace slot_protocol = helix::crumbs;
+
+/// How many slots a crumb tries before it is dropped. A slot is taken already
+/// only while the writer of its last crumb is still inside it, which a
+/// preemption explains, and the next index clears it.
+constexpr int kCrumbSlotTries = 4;
+
+/// Writes one crumb. A slot whose writer has not finished is left alone and
+/// the crumb takes the next index; after kCrumbSlotTries it is dropped, which
+/// costs one line of a crash dump.
+static void write_crumb(const char* category, const char* subject, const long* number) noexcept {
+    for (int tries = 1;; ++tries) {
+        const uint32_t index = s_breadcrumb_idx.fetch_add(1, std::memory_order_relaxed);
+        slot_protocol::CrumbSlot& slot = s_breadcrumb_ring[index % kBreadcrumbRingSize];
+        if (!slot_protocol::crumb_enter(slot, index, kBreadcrumbRingSize)) {
+            if (tries < kCrumbSlotTries) {
+                continue;
+            }
+            return;
+        }
+
+        // Zeroed, so each half ends in a NUL whatever is copied into it.
+        slot_protocol::CrumbText text{};
+        char* const chars = slot_protocol::crumb_chars(text);
+        char* const subject_chars = chars + slot_protocol::kCrumbCategoryLen;
+        copy_truncated(chars, slot_protocol::kCrumbCategoryLen, category);
+        size_t n = copy_truncated(subject_chars, slot_protocol::kCrumbSubjectLen, subject);
+
+        // Append " <detail>" if there's room. int_to_str writes right-aligned
+        // into a small scratch buffer and returns a pointer into it.
+        if (number && n + 2 < slot_protocol::kCrumbSubjectLen) {
+            subject_chars[n++] = ' ';
+            char numbuf[24];
+            char* num = int_to_str(numbuf, sizeof(numbuf), *number);
+            while (*num && n + 1 < slot_protocol::kCrumbSubjectLen) {
+                subject_chars[n++] = *num++;
+            }
+            subject_chars[n] = '\0';
+        }
+
+        slot_protocol::crumb_store(slot, text, breadcrumb_now_ms());
+        slot_protocol::crumb_seal(slot, index);
+        return;
+    }
+}
+
 } // namespace
 
 void crash_handler::breadcrumb::note(const char* category, const char* subject) noexcept {
-    uint32_t i = s_breadcrumb_idx.fetch_add(1, std::memory_order_relaxed);
-    BreadcrumbSlot& slot = s_breadcrumb_ring[i % kBreadcrumbRingSize];
-
-    // Invalidate the slot while we overwrite it, so a concurrent reader sees
-    // "empty" rather than a mix of old and new strings.
-    __atomic_store_n(&slot.ts_ms, 0u, __ATOMIC_RELAXED);
-
-    copy_truncated(slot.category, sizeof(slot.category), category);
-    copy_truncated(slot.subject, sizeof(slot.subject), subject);
-
-    // Publish with release so readers (signal handler) see a complete slot.
-    __atomic_store_n(&slot.ts_ms, breadcrumb_now_ms(), __ATOMIC_RELEASE);
-}
-
-void crash_handler::breadcrumb::dump_to_fd(int fd) noexcept {
-    char num_buf[32];
-    uint32_t end = s_breadcrumb_idx.load(std::memory_order_acquire);
-    uint32_t start = (end > kBreadcrumbRingSize) ? end - kBreadcrumbRingSize : 0;
-    for (uint32_t i = start; i < end; ++i) {
-        const BreadcrumbSlot& slot = s_breadcrumb_ring[i % kBreadcrumbRingSize];
-        uint32_t ts = __atomic_load_n(&slot.ts_ms, __ATOMIC_ACQUIRE);
-        if (ts == 0)
-            continue;
-        safe_write(fd, "crumb:");
-        safe_write(fd, int_to_str(num_buf, sizeof(num_buf), static_cast<long>(ts)));
-        safe_write(fd, " ");
-        // category and subject are always null-terminated by copy_truncated.
-        // An empty category is still written as an empty field between spaces
-        // so the parser can split on whitespace deterministically.
-        safe_write(fd, slot.category[0] ? slot.category : "-");
-        safe_write(fd, " ");
-        safe_write(fd, slot.subject[0] ? slot.subject : "-");
-        safe_write(fd, "\n");
-    }
+    write_crumb(category, subject, nullptr);
 }
 
 void crash_handler::breadcrumb::note(const char* category, const char* subject,
                                      long detail) noexcept {
-    uint32_t i = s_breadcrumb_idx.fetch_add(1, std::memory_order_relaxed);
-    BreadcrumbSlot& slot = s_breadcrumb_ring[i % kBreadcrumbRingSize];
+    write_crumb(category, subject, &detail);
+}
 
-    __atomic_store_n(&slot.ts_ms, 0u, __ATOMIC_RELAXED);
-
-    copy_truncated(slot.category, sizeof(slot.category), category);
-    size_t n = copy_truncated(slot.subject, sizeof(slot.subject), subject);
-
-    // Append " <detail>" if there's room. int_to_str writes right-aligned into
-    // a small scratch buffer and returns a pointer into it.
-    if (n + 2 < sizeof(slot.subject)) {
-        slot.subject[n++] = ' ';
-        char numbuf[24];
-        char* num = int_to_str(numbuf, sizeof(numbuf), detail);
-        while (*num && n + 1 < sizeof(slot.subject)) {
-            slot.subject[n++] = *num++;
+void crash_handler::breadcrumb::dump_to_fd(int fd) noexcept {
+    char num_buf[32];
+    slot_protocol::CrumbText text;
+    // The crumb index names the slot the next crumb takes, so the slots from
+    // there on hold the ring's crumbs oldest first. Writers that go on noting
+    // during the dump only replace a slot with a newer whole crumb, which is
+    // then what the slot gives.
+    const uint32_t next = s_breadcrumb_idx.load(std::memory_order_acquire);
+    for (size_t k = 0; k < kBreadcrumbRingSize; ++k) {
+        uint32_t ts = 0;
+        const slot_protocol::CrumbSlot& slot =
+            s_breadcrumb_ring[(next + static_cast<uint32_t>(k)) % kBreadcrumbRingSize];
+        if (!slot_protocol::crumb_read(slot, text, ts)) {
+            continue;
         }
-        slot.subject[n] = '\0';
+        const char* category = slot_protocol::crumb_category(text);
+        const char* subject = slot_protocol::crumb_subject(text);
+        safe_write(fd, "crumb:");
+        safe_write(fd, int_to_str(num_buf, sizeof(num_buf), static_cast<long>(ts)));
+        safe_write(fd, " ");
+        // An empty category is still written as an empty field between spaces
+        // so the parser can split on whitespace deterministically.
+        safe_write(fd, category[0] ? category : "-");
+        safe_write(fd, " ");
+        safe_write(fd, subject[0] ? subject : "-");
+        safe_write(fd, "\n");
     }
-
-    __atomic_store_n(&slot.ts_ms, breadcrumb_now_ms(), __ATOMIC_RELEASE);
 }
 
 void crash_handler::install(const std::string& crash_file_path) {
