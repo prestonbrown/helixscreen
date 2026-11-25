@@ -2,6 +2,10 @@
 
 #include "ad5x_status_parse.h"
 
+#include <array>
+#include <string>
+#include <vector>
+
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
 
@@ -159,6 +163,35 @@ TEST_CASE("AD5X ifs module object discards loaded_channels with a non-integer en
     CHECK_FALSE(obj.error);
 
     CHECK_FALSE(ad5x::parse_ifs_module_object(json{{"loaded_channels", {1, "2"}}}).loaded_ports);
+}
+
+TEST_CASE("AD5X ifs module object ignores a loaded channel outside 1..kDefaultPorts",
+          "[ad5x][status_parse][2044]") {
+    // Each accepted channel sets one byte at index channel - 1, so the range
+    // check is all that keeps a bad reading from writing outside the
+    // four-entry array. A dropped check fails no assertion here: the writes in
+    // the first two sections land beside the array on the stack, where only
+    // the sanitizer sees them, and the last section's write misses the stack
+    // and kills the process with SIGSEGV.
+    const std::array<bool, ad5x::kDefaultPorts> none{};
+    SECTION("0, a negative and a port past the last mark nothing") {
+        const auto obj = ad5x::parse_ifs_module_object(json{{"loaded_channels", {0, 2, 5, -1}}});
+        REQUIRE(obj.loaded_ports);
+        CHECK(*obj.loaded_ports == std::array<bool, 4>{false, true, false, false});
+    }
+    SECTION("each out-of-range reading alone leaves the ports as they were") {
+        for (int channel : {0, 5, -1}) {
+            INFO("channel " << channel);
+            const auto obj = ad5x::parse_ifs_module_object(json{{"loaded_channels", {channel}}});
+            REQUIRE(obj.loaded_ports);
+            CHECK(*obj.loaded_ports == none);
+        }
+    }
+    SECTION("a reading far past the array marks nothing") {
+        const auto obj = ad5x::parse_ifs_module_object(json{{"loaded_channels", {100000000}}});
+        REQUIRE(obj.loaded_ports);
+        CHECK(*obj.loaded_ports == none);
+    }
 }
 
 TEST_CASE("AD5X sensor frame prefers the namespace that carries a reading",

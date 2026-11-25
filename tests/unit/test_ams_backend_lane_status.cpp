@@ -269,6 +269,20 @@ TEST_CASE("lane_data records join by lane_name under the writer rule", "[ams][la
     CHECK(joined[2]->identity.material == "TPU");
 }
 
+TEST_CASE("lane_status parse keeps current_lane only while it names a listed lane",
+          "[ams][lane_status][2044]") {
+    json object = {{"spec_version", "0.1"}, {"lanes", {"E1", "E2"}}, {"current_lane", "E2"}};
+    CHECK(helix::lane_status::parse_status(object).current_lane == "E2");
+
+    // A producer that drops the lane from its list, or names one it never
+    // listed, leaves no lane to feed the active extruder.
+    object["lanes"] = {"E1"};
+    CHECK(helix::lane_status::parse_status(object).current_lane.empty());
+    object["lanes"] = {"E1", "E2"};
+    object["current_lane"] = "E9";
+    CHECK(helix::lane_status::parse_status(object).current_lane.empty());
+}
+
 // Commands
 
 TEST_CASE_METHOD(HelixTestFixture, "a controller's listed commands are sent; nothing else is",
