@@ -4,6 +4,7 @@
 // The lane record store: Lane Status Surface §5 records in Moonraker's database, read
 // whole and written through, with no local copy.
 #include "../helix_test_fixture.h"
+#include "../test_helpers/filament_slot_override_store_test_access.h"
 #include "../test_helpers/mock_printer.h"
 #include "ams_types.h"
 #include "filament_slot_override.h"
@@ -702,6 +703,25 @@ TEST_CASE("the seated slot saves, loads and clears beside the lane records",
     CHECK_FALSE(store.load_seated_slot_blocking().has_value());
 }
 
+TEST_CASE("the seated slot's blocking read holds out its whole timeout when no reply comes",
+          "[filament_slot_override][seated]") {
+    MockPrinter printer;
+    printer.client.mock_db_set("helix-screen", "ifs_seated", json(2));
+    FilamentSlotOverrideStore store(&printer.api, "ifs");
+    constexpr std::chrono::milliseconds kTimeout(40);
+    FilamentSlotOverrideStoreTestAccess::set_load_timeout(store, kTimeout);
+    printer.client.defer_next("server.database.get_item");
+
+    const auto started = std::chrono::steady_clock::now();
+    const std::optional<int> seated = store.load_seated_slot_blocking();
+    const auto held = std::chrono::steady_clock::now() - started;
+
+    CHECK_FALSE(seated.has_value());
+    // Load can only make the read run longer, never shorter, so a read that
+    // gave up before its timeout fails on any machine.
+    CHECK(std::chrono::duration<double, std::milli>(held).count() >= kTimeout.count());
+}
+
 TEST_CASE("the seated slot's blocking read waits for a reply that comes late",
           "[filament_slot_override][seated]") {
     MockPrinter printer;
@@ -709,18 +729,22 @@ TEST_CASE("the seated slot's blocking read waits for a reply that comes late",
     FilamentSlotOverrideStore store(&printer.api, "ifs");
     printer.client.defer_next("server.database.get_item");
 
-    // The read is held: answer it from outside the thread that waits on it,
-    // late enough that the reader has had time to give up if it means to.
+    // The reply comes from another thread once the read has asked for it.
+    // Nothing a test can reach says when the reader has started to wait, so
+    // this case asks only that a reply delivered during the read is taken;
+    // that the read waits at all is the case above, which needs no timing.
+    constexpr int kRequestSpins = 10000000;
     bool answered = false;
     std::thread late([&] {
-        for (int waited_ms = 0;
-             waited_ms < 2000 && printer.client.call_count("server.database.get_item") == 0;
-             ++waited_ms) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        for (int spins = 0;
+             spins < kRequestSpins && printer.client.call_count("server.database.get_item") == 0;
+             ++spins) {
+            std::this_thread::yield();
         }
         answered = printer.client.call_count("server.database.get_item") > 0;
-        std::this_thread::sleep_for(std::chrono::milliseconds(25));
-        printer.client.fire_deferred("server.database.get_item");
+        if (answered) {
+            printer.client.fire_deferred("server.database.get_item");
+        }
     });
     const std::optional<int> seated = store.load_seated_slot_blocking();
     late.join();
