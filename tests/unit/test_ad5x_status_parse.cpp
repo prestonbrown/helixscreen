@@ -3,11 +3,7 @@
 #include "ad5x_status_parse.h"
 
 #include <array>
-#include <csignal>
-#include <cstdio>
 #include <string>
-#include <sys/wait.h>
-#include <unistd.h>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -170,32 +166,30 @@ TEST_CASE("AD5X ifs module object discards loaded_channels with a non-integer en
 }
 
 TEST_CASE("AD5X ifs module object ignores a loaded channel outside 1..kDefaultPorts",
-          "[ad5x][status_parse][subprocess][2044]") {
+          "[ad5x][status_parse][2044]") {
+    // Each accepted channel sets one byte at index channel - 1, so the range
+    // check is all that keeps a bad reading from writing outside the
+    // four-entry array. That write corrupts the stack rather than a value a
+    // case could compare, so a mutant that drops the check is caught by the
+    // sanitizer, not by these assertions.
+    const std::array<bool, ad5x::kDefaultPorts> none{};
     SECTION("0, a negative and a port past the last mark nothing") {
         const auto obj = ad5x::parse_ifs_module_object(json{{"loaded_channels", {0, 2, 5, -1}}});
         REQUIRE(obj.loaded_ports);
         CHECK(*obj.loaded_ports == std::array<bool, 4>{false, true, false, false});
     }
-    SECTION("a reading far past the array does not take the process down") {
-        // Each accepted channel writes one byte at index channel - 1, so the
-        // range check is all that keeps a garbage reading off the RS-485 bus
-        // inside the four-entry array.
-        const json far_out = json{{"loaded_channels", {100000000}}};
-        std::fflush(nullptr);
-        const pid_t pid = fork();
-        if (pid == 0) {
-            std::signal(SIGSEGV, SIG_DFL); // Catch2's handler would report instead of dying
-            const auto obj = ad5x::parse_ifs_module_object(far_out);
-            const bool nothing_marked =
-                obj.loaded_ports && *obj.loaded_ports == std::array<bool, ad5x::kDefaultPorts>{};
-            _exit(nothing_marked ? 0 : 1);
+    SECTION("each out-of-range reading alone leaves the ports as they were") {
+        for (int channel : {0, 5, -1}) {
+            INFO("channel " << channel);
+            const auto obj = ad5x::parse_ifs_module_object(json{{"loaded_channels", {channel}}});
+            REQUIRE(obj.loaded_ports);
+            CHECK(*obj.loaded_ports == none);
         }
-        REQUIRE(pid > 0);
-        int status = 0;
-        REQUIRE(waitpid(pid, &status, 0) == pid);
-        INFO("the child ended by signal " << (WIFSIGNALED(status) ? WTERMSIG(status) : 0));
-        REQUIRE(WIFEXITED(status));
-        CHECK(WEXITSTATUS(status) == 0);
+    }
+    SECTION("a reading far past the array marks nothing") {
+        const auto obj = ad5x::parse_ifs_module_object(json{{"loaded_channels", {100000000}}});
+        REQUIRE(obj.loaded_ports);
+        CHECK(*obj.loaded_ports == none);
     }
 }
 
