@@ -108,6 +108,15 @@ TEST_CASE("legacy_grid_rows: unpositioned entries do not count", "[layout_port][
     CHECK(legacy_grid_rows(saved) == 2);
 }
 
+TEST_CASE("legacy_grid_rows: a disabled widget's stale row does not count", "[layout_port][grid]") {
+    std::vector<LegacyPlacement> saved = {
+        {"printer_image", 0, 0, 2, 2, true},
+        {"print_status", 0, 2, 2, 2, true}, // bottom edge at row 4
+        {"temp_stack", 2, 5, 1, 1, false},  // stale, below the real grid
+    };
+    CHECK(legacy_grid_rows(saved) == 4);
+}
+
 // ---------------------------------------------------------------------------
 // port_legacy_layout
 // ---------------------------------------------------------------------------
@@ -250,6 +259,28 @@ TEST_CASE("port_legacy_layout: a disabled widget's stale spot never displaces an
     CHECK(ams.row == 6);
     CHECK(ams.colspan == 8);
     CHECK(ams.rowspan == 2);
+    CHECK_FALSE(any_overlap(out));
+}
+
+TEST_CASE("port_legacy_layout: a disabled widget's edges never move an enabled one's",
+          "[layout_port][grid]") {
+    // 6 columns onto 10 tracks is not a whole multiple: old columns 3 and 4
+    // both round to track 6 for a whole-cell widget. Were the disabled widget's
+    // edge at column 3 in the boundary map, the strip's edge at 4 would be
+    // pushed on to track 8 to keep the edges increasing.
+    ScopedWholeCellDef whole_cell("ams");
+    const LegacyPlacement strip{"ams", 0, 0, 4, 1, true};
+    const LegacyPlacement stale{"temp_stack", 3, 1, 1, 1, false};
+
+    const auto alone = by_id(port_legacy_layout({strip}, 6, 4, 10, 8), "ams");
+    const auto out = port_legacy_layout({strip, stale}, 6, 4, 10, 8);
+    const auto ams = by_id(out, "ams");
+
+    REQUIRE(alone.seated);
+    REQUIRE(ams.seated);
+    CHECK(ams.col == alone.col);
+    CHECK(ams.colspan == alone.colspan);
+    CHECK(ams.colspan == 6);
     CHECK_FALSE(any_overlap(out));
 }
 

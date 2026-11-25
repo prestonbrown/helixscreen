@@ -146,7 +146,9 @@ int legacy_grid_cols(int panel_w, int panel_h) {
 int legacy_grid_rows(const std::vector<LegacyPlacement>& saved, int cached_rows) {
     int used = 0;
     for (const auto& p : saved) {
-        if (p.col < 0 || p.row < 0) {
+        // A disabled widget held no rows on the old grid: a stale row below the
+        // last enabled one would stretch the grid and squash the real layout.
+        if (p.col < 0 || p.row < 0 || !p.enabled) {
             continue;
         }
         used = std::max(used, p.row + p.rowspan);
