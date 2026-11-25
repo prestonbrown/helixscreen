@@ -356,6 +356,64 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(reg->get_slot_info(1).material == "ABS");
 }
 
+namespace {
+
+/// A tool changer with a client, started through start() the way the app
+/// starts one: only that arms the poll.
+class PollingChanger : public helix::AmsBackendToolChanger {
+  public:
+    PollingChanger(helix::IMoonrakerAPI* api, helix::IMoonrakerClient* client)
+        : helix::AmsBackendToolChanger(api, client) {
+        set_discovered_tools({"T0", "T1"});
+    }
+    ~PollingChanger() override {
+        helix::ui::UpdateQueue::instance().drain();
+    }
+    helix::AmsError execute_gcode(const std::string&) override {
+        return helix::AmsErrorHelper::success();
+    }
+    helix::AmsError execute_gcode(const std::string&, helix::SharedCallback<void()>) override {
+        return helix::AmsErrorHelper::success();
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "a started backend rereads the lane records on its poll",
+                 "[lane][refresh][toolchanger][poll]") {
+    MockPrinter printer;
+    printer.client.mock_db_set("lane_data", "T1", record("PETG", "#1E5AA8"));
+    helix::test::RegisteredBackend<PollingChanger> reg(&printer.api, &printer.client);
+    REQUIRE(reg->start().success());
+    settle();
+    REQUIRE(reg->lane_record_reads() == 1);
+    REQUIRE(reg->get_slot_info(1).material == "PETG");
+
+    printer.client.mock_db_set("lane_data", "T1", record("ABS", "#FF0000"));
+    // No one asks for this read: the poll's own timer brings it.
+    CHECK(advance_until([&] { return reg->lane_record_reads() == 2; }, 20000));
+    CHECK(reg->get_slot_info(1).material == "ABS");
+    CHECK(reg->get_slot_info(1).color_rgb == 0xFF0000u);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a stopped backend stops reading the lane records",
+                 "[lane][refresh][toolchanger][poll]") {
+    MockPrinter printer;
+    printer.client.mock_db_set("lane_data", "T1", record("PETG", "#1E5AA8"));
+    helix::test::RegisteredBackend<PollingChanger> reg(&printer.api, &printer.client);
+    REQUIRE(reg->start().success());
+    settle();
+    REQUIRE(reg->lane_record_reads() == 1);
+
+    reg->stop();
+    printer.client.mock_db_set("lane_data", "T1", record("ABS", "#FF0000"));
+    // Three polls' worth of time after the stop.
+    const bool reread = advance_until([&] { return reg->lane_record_reads() > 1; }, 30000);
+    settle();
+    CHECK_FALSE(reread);
+    CHECK(reg->get_slot_info(1).material == "PETG");
+}
+
 // ============================================================================
 // Review findings: writes before the first read, stale reads, refused clears,
 // a reopened store, reconnecting
