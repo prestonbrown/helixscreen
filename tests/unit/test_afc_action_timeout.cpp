@@ -410,5 +410,5 @@ TEST_CASE("AFC fault that follows a released timeout keeps no trace of the timeo
     // nothing to re-word, and must not compose the old load into this fault.
     ScopedLanguage fr("fr");
     h.refresh_translated_texts();
-    CHECK(h.detail().empty());
+    CHECK(h.detail() == std::string());
 }
