@@ -175,10 +175,11 @@ std::string verdict_text(const helix::pa::NonlinearProcedure& proc, float left_m
     // and the pass prints again with it corrected (Kalico's guide, step 8).
     const bool lower = verdict == helix::pa::SideVerdict::LeftLower;
     return fmt::format(
-        fmt::runtime(lower ? lv_tr("Left side {:.1f} mm lower: {} {} to {}, then this pass "
-                                   "prints again.")
-                           : lv_tr("Left side {:.1f} mm higher: {} {} to {}, then this pass "
-                                   "prints again.")),
+        // The change on a line of its own: a wrap may not split its numbers.
+        fmt::runtime(lower ? lv_tr("Left side {:.1f} mm lower, so this pass prints again with\n"
+                                   "{} {} to {}")
+                           : lv_tr("Left side {:.1f} mm higher, so this pass prints again with\n"
+                                   "{} {} to {}")),
         apart, param_label(c->param), format_value(c->from), format_value(c->to));
 }
 
@@ -321,6 +322,7 @@ void PaNonlinearOverlay::init_subjects() {
                                   subjects_);
         UI_MANAGED_SUBJECT_STRING(verdict_, verdict_buf_, "", "pa_nl_verdict", subjects_);
         UI_MANAGED_SUBJECT_INT(heights_set_, 1, "pa_nl_heights_set", subjects_);
+        UI_MANAGED_SUBJECT_INT(correcting_, 0, "pa_nl_correcting", subjects_);
         UI_MANAGED_SUBJECT_STRING(result_live_, result_live_buf_, "", "pa_nl_result_live",
                                   subjects_);
         UI_MANAGED_SUBJECT_STRING(save_material_, save_material_buf_, "", "pa_nl_save_material",
@@ -563,6 +565,7 @@ void PaNonlinearOverlay::refresh() {
                               lv_tr("Save writes these values to the extruder's config section "
                                     "and restarts Klipper. Keep runs them until the next "
                                     "restart."));
+        lv_subject_set_int(&correcting_, 0);
         refresh_towers();
         return;
     }
@@ -596,6 +599,7 @@ void PaNonlinearOverlay::refresh() {
     lv_subject_set_string(&param_, param_label(pass.sweep.param));
     const bool both = !two || (left_set_ && front_set_);
     lv_subject_set_int(&heights_set_, both ? 1 : 0);
+    bool correcting = false;
     lv_subject_set_string(&height_,
                           two && !left_set_ ? "--" : fmt::format("{:.1f} mm", height_mm_).c_str());
     lv_subject_set_string(&height_front_,
@@ -610,13 +614,14 @@ void PaNonlinearOverlay::refresh() {
     } else if (two) {
         lv_subject_set_string(&verdict_, verdict_text(*proc_, height_mm_, front_mm_).c_str());
         const auto c = proc_->correction(helix::pa::verdict_from_heights(height_mm_, front_mm_));
+        correcting = c.has_value();
         if (c) {
-            // Why it prints again, beside the picture of where to look.
+            // Why it prints again, beside the picture of where to look; the
+            // verdict under the heights says by how much.
             lv_subject_set_string(
                 &look_,
-                fmt::format(fmt::runtime(lv_tr("The sides should converge at the same height. "
-                                               "Apart means the {} is a little off: it moves 10% "
-                                               "and this pass prints again.")),
+                fmt::format(fmt::runtime(lv_tr("The sides should converge at the same "
+                                               "height. Apart means the {} is a little off.")),
                             param_label(c->param))
                     .c_str());
         }
@@ -629,6 +634,7 @@ void PaNonlinearOverlay::refresh() {
         lv_subject_set_string(
             &judge_primary_, fmt::format(fmt::runtime(lv_tr("Use {:.1f} mm")), height_mm_).c_str());
     }
+    lv_subject_set_int(&correcting_, correcting ? 1 : 0);
     refresh_towers();
 }
 

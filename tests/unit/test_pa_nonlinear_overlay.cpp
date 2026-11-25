@@ -1032,6 +1032,54 @@ TEST_CASE_METHOD(NonlinearFixture,
 }
 
 TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: pass 2's correction fits its reason and its verdict at 800x480",
+                 "[pa_nonlinear][pa_tuner][pa_nl_fit]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    lv_obj_t* root =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "pa_nonlinear_overlay", nullptr));
+    REQUIRE(root != nullptr);
+    // The overlay's width beside the navigation bar.
+    lv_obj_set_width(root, 725);
+    overlay.attach_root_for_test(root);
+    const auto finish_tower = [this] {
+        print_tower();
+        client.cancel_print_internal();
+        helix::ui::UpdateQueue::instance().drain();
+    };
+    finish_tower();
+    overlay.judge_primary_for_test(); // pass 1
+    helix::ui::UpdateQueue::instance().drain();
+    finish_tower();
+    REQUIRE(overlay.procedure_for_test()->current().judge == pa::TowerSide::LeftVsFront);
+    // Ten millimeters apart: the pass is corrected and prints again.
+    overlay.tower_tap_for_test(0, 20.0f);
+    overlay.tower_tap_for_test(1, 30.0f);
+    REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "pa_nl_correcting")) == 1);
+    lv_obj_update_layout(root);
+
+    const auto box = [root](const char* name) {
+        lv_obj_t* w = lv_obj_find_by_name(root, name);
+        REQUIRE(w != nullptr);
+        lv_area_t a;
+        lv_obj_get_coords(w, &a);
+        return a;
+    };
+    lv_obj_t* card = lv_obj_find_by_name(root, "pa_nl_judge_reference");
+    REQUIRE(card != nullptr);
+    lv_obj_t* look = lv_obj_find_by_name(card, "pa_reference_look");
+    REQUIRE(look != nullptr);
+    lv_area_t card_box;
+    lv_area_t look_box;
+    lv_obj_get_coords(card, &card_box);
+    lv_obj_get_coords(look, &look_box);
+    // The reason reads whole inside its card, and the verdict above the footer.
+    CHECK(look_box.y2 <= card_box.y2);
+    CHECK(box("pa_nl_verdict").y2 <= box("pa_nl_judge_footer").y1);
+    CHECK(lv_obj_get_height(lv_obj_find_by_name(root, "pa_nl_verdict")) > 0);
+    lv_obj_delete(root);
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
                  "nonlinear tuner: the time offset's towers mark only the front's outer two "
                  "transitions",
                  "[pa_nonlinear][pa_tuner][pa_tower_widget]") {

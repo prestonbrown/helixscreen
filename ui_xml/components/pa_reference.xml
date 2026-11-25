@@ -7,7 +7,9 @@
      look for (`bind_look`), and three edge-on samples: Right, Too little and
      Too much advance, whose image paths are the pointer subjects `bind_src0`
      to `bind_src2` (assets/images/pa/). The owner hides the card at the
-     smallest breakpoint, where it does not fit. -->
+     smallest breakpoint, where it does not fit. A card that takes the height
+     its owner leaves sets `ref_h` to 100% and grows itself; `samples_hidden_when`
+     is a cond that gives the samples' room to the text. -->
 <component>
   <api>
     <prop name="tower_name" type="string" default="pa_reference_tower"/>
@@ -18,15 +20,17 @@
     <prop name="bind_src1" type="string" default=""/>
     <prop name="bind_src2" type="string" default=""/>
     <prop name="inset_w" type="string" default="#pa_ref_inset_w"/>
+    <prop name="ref_h" type="string" default="#pa_ref_h"/>
+    <prop name="samples_hidden_when" type="string" default=""/>
   </api>
   <view extends="lv_obj"
         width="100%" height="content" style_bg_color="#screen_bg" style_bg_opa="255" style_border_width="1"
         style_border_color="#border" style_radius="#border_radius" style_pad_all="#space_sm" style_pad_gap="#space_md"
         flex_flow="row" scrollable="false" clickable="false">
-    <pa_tower name="$tower_name" width="$inset_w" height="#pa_ref_h" clickable="false"/>
+    <pa_tower name="$tower_name" width="$inset_w" height="$ref_h" clickable="false"/>
     <lv_obj width="0"
-            height="#pa_ref_h" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
-            flex_flow="column" style_pad_gap="#space_xs" scrollable="false" clickable="false">
+            height="$ref_h" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="column"
+            style_pad_gap="#space_xs" scrollable="false" clickable="false">
       <cal_intro_section_label text="$caption" text_tag="$caption_tag"/>
       <text_body name="pa_reference_look"
                  width="100%" bind_text="$bind_look" long_mode="wrap" style_text_font="#font_small"
@@ -34,6 +38,7 @@
       <lv_obj width="100%"
               height="0" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
               style_pad_gap="#space_xs" scrollable="false" clickable="false">
+        <bind_flag_if cond="$samples_hidden_when" flag="hidden"/>
         <lv_obj width="0"
                 height="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="column"
                 style_pad_gap="#space_xxs" style_flex_cross_place="center" scrollable="false">

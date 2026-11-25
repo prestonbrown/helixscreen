@@ -64,7 +64,8 @@
  * - pa_nl_time_line / pa_nl_time_sub / pa_nl_run_note / pa_nl_run_chip (string)
  * - pa_nl_ready_primary / pa_nl_judge_primary (string)
  * - pa_nl_param / pa_nl_height_front / pa_nl_verdict (string): pass 2's two heights,
- *   pa_nl_heights_set (int: 0 while a two-sided pass has a height not yet judged)
+ *   pa_nl_heights_set (int: 0 while a two-sided pass has a height not yet judged),
+ *   pa_nl_correcting (int: 1 while the judged heights correct the pass and print it again)
  * - pa_nl_result_live / pa_nl_save_material (string)
  *
  * Every judgement is saved with the printer's settings, so a restart of the
@@ -383,6 +384,7 @@ class PaNonlinearOverlay : public OverlayBase {
     helix::Subject height_front_{};
     char height_front_buf_[24] = {};
     helix::Subject heights_set_{};
+    helix::Subject correcting_{};
     helix::Subject verdict_{};
     char verdict_buf_[160] = {};
     helix::Subject result_live_{};
