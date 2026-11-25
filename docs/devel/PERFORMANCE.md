@@ -360,14 +360,17 @@ to the current values, then the update queue is drained, so that frame shows cur
 
 ## Open costs
 
-- **About 1.15% of a core asleep on the K1C, 0.96% on the AD5M** (the table above).
-  The loop still wakes about 10 times a second: about 5 for status frames and the work
-  other threads queue, about 4 for the 200 ms cap on its wait (`main_loop_sleep_ms`) and
-  about 1 for the display refresh when a label changes on the hidden screen. Awake, the
+- **About 1.15% of a core asleep on the K1C, 0.96% on the AD5M** (the table above, measured
+  with a 200 ms cap). On that build the loop still woke about 10 times a second: about 5 for
+  status frames and the work other threads queue, about 4 for the cap on its wait
+  (`main_loop_sleep_ms`) and about 1 for the display refresh when a label changes on the
+  hidden screen. The cap is 1 s now, which should remove most of those 4 wakes; that has not
+  been measured on a board yet. Awake, the
   plugin-install prompt still looks once a second while it waits for a free screen. Status processing and the widget
   updates behind it are most of the remaining CPU: dropping every frame read 1.18 and 1.06
-  on the build before the input wait. Raising the cap would delay what the loop still
-  polls (Moonraker request timeouts, a remote screen viewer's arrival). Boards whose input
+  on the build before the input wait. What the 1 s cap delays is what the loop still polls
+  for itself, a remote screen viewer's arrival; Moonraker request timeouts are checked every
+  2 s by `Application::check_timeouts` whatever the cap. Boards whose input
   is not fbdev evdev (DRM with libinput, SDL) still poll input every 33 ms asleep. The
   Creator 5 Pro read 3.0% before this work and has not been measured since.
 - **About 10% of one core while printing on the C5, 40-51% for the first 10-30 s** as the

@@ -153,7 +153,7 @@ TEST_CASE("main loop sleep keeps today's caps and floor by default",
     CHECK(helix::main_loop_sleep_ms(100, false, defaults) == 33);
     CHECK(helix::main_loop_sleep_ms(20, false, defaults) == 20);
     CHECK(helix::main_loop_sleep_ms(0, false, defaults) == 5);
-    CHECK(helix::main_loop_sleep_ms(1000, true, defaults) == 200);
+    CHECK(helix::main_loop_sleep_ms(1000, true, defaults) == 1000);
     CHECK(helix::main_loop_sleep_ms(150, true, defaults) == 150);
     CHECK(helix::main_loop_sleep_ms(0, true, defaults) == 5);
 }
@@ -182,9 +182,12 @@ TEST_CASE("the awake cap follows a refresh period longer than 33 ms",
     t.refr_period_ms = 16;
     CHECK(helix::main_loop_sleep_ms(100, false, t) == 33);
 
-    // Sleeping keeps its own cap.
+    // Sleeping keeps its own cap: a second at most, so what the loop still polls while
+    // asleep (a remote screen viewer) is noticed within about a second, and a longer wait
+    // never holds the loop past it.
     t.refr_period_ms = 100;
-    CHECK(helix::main_loop_sleep_ms(1000, true, t) == 200);
+    CHECK(helix::main_loop_sleep_ms(1000, true, t) == 1000);
+    CHECK(helix::main_loop_sleep_ms(5000, true, t) == 1000);
 }
 
 TEST_CASE("the update queue drains once a frame awake and slowly while the display sleeps",
@@ -202,9 +205,10 @@ TEST_CASE("the update queue drains once a frame awake and slowly while the displ
     CHECK(helix::update_queue_period_ms(false, t, 33) == 50);
     CHECK(helix::update_queue_period_ms(true, t, 33) == helix::kSleepingPeriodMs);
 
-    // Sleep never speeds the queue up.
+    // Sleep never speeds the queue up: an awake period slower than the sleeping one stays.
     t.scope_all = false;
-    CHECK(helix::update_queue_period_ms(true, t, 300) == 300);
+    const uint32_t slow = helix::kSleepingPeriodMs + 100;
+    CHECK(helix::update_queue_period_ms(true, t, slow) == slow);
 }
 
 TEST_CASE("the debug-touch timer polls slowly while the setting is off",
