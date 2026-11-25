@@ -316,3 +316,26 @@ TEST_CASE_METHOD(MaterialEditFixture, "Material edit Back asks before dropping u
         CHECK(ModalStack::instance().top_dialog() != nullptr);
     }
 }
+
+TEST_CASE_METHOD(MaterialEditFixture,
+                 "Material edit Back asks again after code closes the discard prompt",
+                 "[material_temps][save_header]") {
+    open_abs();
+    lv_textarea_set_text(find_widget("edit_bed_temp"), "105");
+    REQUIRE(UITest::click(find_widget("back_button")));
+    process_lvgl(100);
+    lv_obj_t* dialog = ModalStack::instance().top_dialog();
+    REQUIRE(dialog != nullptr);
+
+    // Closed by code, not by a button or the backdrop: no callback of the
+    // prompt's runs, and the overlay must not keep the freed dialog.
+    Modal::hide(dialog);
+    process_lvgl(600);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(ModalStack::instance().top_dialog() == nullptr);
+    CHECK(editing());
+
+    REQUIRE(UITest::click(find_widget("back_button")));
+    process_lvgl(100);
+    CHECK(ModalStack::instance().top_dialog() != nullptr);
+}

@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "overlay_base.h"
 #include "static_panel_registry.h"
 #include "subject_managed_panel.h"
@@ -98,7 +100,8 @@ class MaterialTempsOverlay : public OverlayBase {
     lv_subject_t shipped_subject_{};     // 1=editing a shipped type (has a default to reset to)
     lv_subject_t dirty_subject_{};       // 1=the open material has unsaved edits
     lv_subject_t save_hidden_subject_{}; // 1=no material open: the header's Save hides
-    lv_obj_t* discard_dialog_ = nullptr;
+    // Nulls itself when the dialog is deleted, however it closes.
+    helix::ui::WidgetRef discard_dialog_;
     lv_obj_t* macro_dropdown_ = nullptr;
     lv_obj_t* macro_heating_switch_ = nullptr;
     std::vector<std::string> macro_names_; // Parallel to dropdown options (index 0 = "None")
