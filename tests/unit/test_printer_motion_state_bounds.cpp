@@ -268,6 +268,22 @@ TEST_CASE_METHOD(BoundsFixture, "a service-zone guard caps Y for whole-bed motio
     CHECK(state.get_axis_bounds().y_max == Catch::Approx(380.0f));
 }
 
+TEST_CASE_METHOD(BoundsFixture, "a service-zone cap does not outlive deinit_subjects",
+                 "[motion][bounds][2044]") {
+    state.init_subjects(false);
+    state.update_from_status(k2_service_zone_frame());
+    REQUIRE(state.get_axis_bounds().y_max == Catch::Approx(352.0f));
+
+    // The next printer's toolhead envelope arrives without a zone guard's
+    // object: nothing of the previous printer's may cap it.
+    state.deinit_subjects();
+    state.init_subjects(false);
+    state.update_from_status(
+        {{"toolhead",
+          {{"axis_minimum", {0.0, 0.0, 0.0, 0.0}}, {"axis_maximum", {300.0, 380.0, 300.0, 0.0}}}}});
+    CHECK(state.get_axis_bounds().y_max == Catch::Approx(380.0f));
+}
+
 TEST_CASE_METHOD(BoundsFixture, "without a service-zone guard the Y envelope is Klipper's",
                  "[motion][bounds]") {
     state.init_subjects(false);
