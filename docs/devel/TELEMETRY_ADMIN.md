@@ -745,7 +745,7 @@ those explicitly, so the stamped `app_version` never overwrites the update's tar
 | `screensaver_usage` | Screensaver delta for one window | boot_id, snapshot_seq, saver_shown_sec.*, saver_starts.*, saver_woke_by_touch.*, saver_stopped_other.*, saver_too_heavy.*, saver_settled_levels.* |
 | `connection_stability` | Connection delta for one window | boot_id, snapshot_seq, session_duration_sec, connect_count, disconnect_count, total_connected_sec, total_disconnected_sec, longest_disconnect_sec, klippy_error_count, klippy_shutdown_count |
 | `print_start_context` | Print metadata at start | source, has_thumbnail, file_size_bucket, slicer, ams_active |
-| `error_encountered` | Rate-limited error log | category, code, context, uptime_sec; `ui`/`main_loop_hang` adds active_panel, active_overlay, gl_renderer, gl_software, mem_available_mb, pressure_level, major_faults, main_state, main_wchan |
+| `error_encountered` | Rate-limited error log | category, code, context, uptime_sec; `ui`/`main_loop_hang` adds active_panel, active_overlay, gl_renderer, gl_software, mem_available_mb, pressure_level, major_faults, main_state, main_wchan (the UI thread's scheduler letter and kernel wait channel, each sent only when the client could read it) |
 | `performance_snapshot` | Frame-time percentiles and dropped-frame counts for the window | frame_time_p50/p95/p99_ms, dropped_frame_count, total_frame_count, worst_panel, gl_renderer + gl_software (once a GL context has existed) |
 | `settings_changes` | Batched setting diffs | changes[]: setting, old_value, new_value |
 | `async_lifetime_skips` | Deferred async work skipped at shutdown | skips[], window stats |

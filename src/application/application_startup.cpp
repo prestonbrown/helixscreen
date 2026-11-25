@@ -438,8 +438,20 @@ void Application::report_main_loop_stall(uint32_t stalled_ms) {
         memory.mem_available_mb = static_cast<int64_t>(sys.available_mb());
     }
     memory.pressure = helix::MemoryMonitor::instance().pressure_level();
-    memory.major_faults = helix::read_self_major_faults();
-    TelemetryManager::instance().record_main_loop_hang(stalled_ms, memory);
+    // /proc/self is the main thread's, so its stat line and wchan describe the stalled
+    // thread, not this one. The stat line is read once: fault count and state both
+    // come from that record.
+    helix::HangThreadState thread;
+    if (const auto stat = helix::read_proc_stat()) {
+        memory.major_faults = stat->major_faults;
+        thread.state = stat->state;
+    }
+    thread.wchan = helix::read_main_thread_wchan().value_or("");
+    // Warn, not debug: a debug bundle carries it and shows what the event says about the wait.
+    spdlog::warn("[Application] main loop stalled {}ms: state={} wchan={}", stalled_ms,
+                 thread.state.empty() ? "unknown" : thread.state,
+                 thread.wchan.empty() ? "none" : thread.wchan);
+    TelemetryManager::instance().record_main_loop_hang(stalled_ms, memory, thread);
     crash_handler::breadcrumb::note("main_loop", "hang");
 }
 

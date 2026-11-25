@@ -182,6 +182,46 @@ TEST_CASE_METHOD(TelemetryTestFixture, "A main loop hang names the screen and th
     CHECK(e["major_faults"] == 81234);
 }
 
+TEST_CASE_METHOD(TelemetryTestFixture, "A main loop hang names what its main thread was waiting on",
+                 "[telemetry][error][2163]") {
+    ScopedTelemetryScreenContext context;
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+
+    helix::HangThreadState thread;
+    thread.state = "S";
+    thread.wchan = "futex_do_wait";
+    tm.record_main_loop_hang(45000, {}, thread);
+
+    auto snapshot = tm.get_queue_snapshot();
+    REQUIRE(snapshot.size() == 1);
+    const auto& e = snapshot[0];
+    REQUIRE(e.at("event") == "error_encountered");
+    REQUIRE(e.contains("main_state"));
+    CHECK(e["main_state"] == "S");
+    REQUIRE(e.contains("main_wchan"));
+    CHECK(e["main_wchan"] == "futex_do_wait");
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "A main loop hang on a running main thread carries its state and no wait channel",
+                 "[telemetry][error][2163]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+
+    helix::HangThreadState thread;
+    thread.state = "R";
+    tm.record_main_loop_hang(60000, {}, thread);
+
+    auto snapshot = tm.get_queue_snapshot();
+    REQUIRE(snapshot.size() == 1);
+    const auto& e = snapshot[0];
+    REQUIRE(e.at("event") == "error_encountered");
+    REQUIRE(e.contains("main_state"));
+    CHECK(e["main_state"] == "R");
+    CHECK_FALSE(e.contains("main_wchan"));
+}
+
 TEST_CASE_METHOD(TelemetryTestFixture,
                  "A main loop hang before any overlay or GL context omits them",
                  "[telemetry][gl_renderer][error]") {
@@ -205,6 +245,8 @@ TEST_CASE_METHOD(TelemetryTestFixture,
     CHECK_FALSE(e.contains("mem_available_mb"));
     CHECK_FALSE(e.contains("major_faults"));
     CHECK(e["pressure_level"] == "none");
+    CHECK_FALSE(e.contains("main_state"));
+    CHECK_FALSE(e.contains("main_wchan"));
 }
 
 TEST_CASE_METHOD(TelemetryTestFixture,

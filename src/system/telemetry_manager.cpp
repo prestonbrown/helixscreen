@@ -2413,7 +2413,8 @@ void TelemetryManager::record_error(const std::string& category, const std::stri
 }
 
 void TelemetryManager::record_main_loop_hang(uint32_t stalled_ms,
-                                             const helix::HangMemoryContext& memory) {
+                                             const helix::HangMemoryContext& memory,
+                                             const helix::HangThreadState& thread) {
     if (!admit_error("ui")) {
         return;
     }
@@ -2432,6 +2433,12 @@ void TelemetryManager::record_main_loop_hang(uint32_t stalled_ms,
     event["pressure_level"] = helix::pressure_level_to_string(memory.pressure);
     if (memory.major_faults) {
         event["major_faults"] = *memory.major_faults;
+    }
+    if (!thread.state.empty()) {
+        event["main_state"] = thread.state;
+    }
+    if (!thread.wchan.empty()) {
+        event["main_wchan"] = thread.wchan;
     }
     spdlog::debug("[TelemetryManager] Recording main loop hang: {}", event["context"].dump());
     enqueue_event(std::move(event));
