@@ -539,15 +539,6 @@ void ActivePrintMediaManager::load_thumbnail_for_file(const std::string& filenam
     // for layer_count and estimated_time, so don't early-return. A path
     // published for some OTHER file is not ours to reuse, so it does not skip
     // anything.
-    // A job with no file behind it (Kalico's PRINT_PA_TOWER prints as "PA
-    // tower") has no metadata or thumbnail for Moonraker to give, and every
-    // retry of the lookup would fail the same way.
-    if (!helix::gcode::has_printable_extension(filename)) {
-        spdlog::debug("[ActivePrintMediaManager] '{}' names no file - no metadata to load",
-                      filename);
-        return;
-    }
-
     const bool skip_thumbnail = has_thumbnail_for(filename);
     if (skip_thumbnail) {
         spdlog::debug(
@@ -579,13 +570,23 @@ void ActivePrintMediaManager::load_thumbnail_for_file(const std::string& filenam
 
     // One staleness context per load. Creating it bumps thumbnail_load_generation_,
     // so every callback still in flight from an earlier load now reports stale.
-    // Created only after the early-return checks, so no generation is burned when
-    // no async op starts. The context also carries our lifetime token, which is
+    // Created after the no-API return, so no generation is burned when nothing
+    // could load. The context also carries our lifetime token, which is
     // what lets it be handed straight to the thumbnail cache below.
     //
     // NOTE: is_valid() consults that token, so it is NOT a thread guard — every
     // check below sits inside an already-marshalled tok.defer() body (L081 Mech C).
     ThumbnailLoadContext ctx = ThumbnailLoadContext::create(lifetime_, &thumbnail_load_generation_);
+
+    // A job with no file behind it (Kalico's PRINT_PA_TOWER prints as "PA
+    // tower") has no metadata or thumbnail for Moonraker to give, and every
+    // retry of the lookup would fail the same way. Checked after the context
+    // above, so a reply still out for the previous file arrives stale.
+    if (!helix::gcode::has_printable_extension(filename)) {
+        spdlog::debug("[ActivePrintMediaManager] '{}' names no file - no metadata to load",
+                      filename);
+        return;
+    }
 
     // Resolve to original filename if this is a modified temp file
     // (Moonraker only has metadata for original files, not modified copies)
