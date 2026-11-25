@@ -215,6 +215,10 @@ class PaTuningOverlay : public OverlayBase {
     void refresh_setup_for_test() {
         refresh_setup();
     }
+    /// Ask the printer for the acceleration the towers print at.
+    void query_max_accel_for_test() {
+        query_max_accel();
+    }
     /// The Direct drive / Bowden chips.
     void set_kind_for_test(helix::pa::ExtruderKind kind) {
         set_kind(kind);
@@ -250,6 +254,10 @@ class PaTuningOverlay : public OverlayBase {
     /// Learn once whether the start macro draws its own purge line, so the tower
     /// does not add a second one.
     void analyze_start_macro();
+    /// The toolhead's max_accel, which the firmware tower prints at, into the
+    /// nonlinear setup's acceleration note.
+    void query_max_accel();
+    void refresh_accel_note();
     /// Confirm-dialog options whose callbacks die with this object.
     ConfirmOptions owned_confirm();
     void begin_upload();
@@ -347,6 +355,8 @@ class PaTuningOverlay : public OverlayBase {
     std::function<lv_obj_t*()> print_status_page_source_;
     bool start_analysis_in_flight_ = false;
     bool start_macro_purges_ = false;
+    /// The toolhead's max_accel, mm/s²; 0 until the printer has said.
+    double max_accel_ = 0.0;
 
     SubjectManager subjects_;
 
@@ -361,6 +371,8 @@ class PaTuningOverlay : public OverlayBase {
     char end_k_buf_[16] = {};
     helix::Subject summary_{};
     char summary_buf_[640] = {};
+    helix::Subject nl_accel_{};
+    char nl_accel_buf_[192] = {};
     helix::Subject can_start_{};
     helix::Subject nl_available_{};
     helix::Subject nl_mode_{};

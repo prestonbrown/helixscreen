@@ -3,6 +3,8 @@
 
 #include "pa_nonlinear_tuning.h"
 
+#include <algorithm>
+
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
 
@@ -196,6 +198,45 @@ TEST_CASE("nonlinear tower: the faces a pass judges", "[pa_nonlinear][pa_tower_l
     CHECK(judged_faces(TowerSide::Front) == std::vector<TowerFace>{TowerFace::Front});
     CHECK(judged_faces(TowerSide::LeftVsFront) ==
           std::vector<TowerFace>{TowerFace::Left, TowerFace::Front});
+}
+
+TEST_CASE("nonlinear tower: the time offset is judged at the front's outermost transitions",
+          "[pa_nonlinear][pa_tower_layout]") {
+    const FaceLayout front = tower_face_layout(TowerFace::Front);
+    for (const ExtruderKind kind : {ExtruderKind::DirectDrive, ExtruderKind::Bowden}) {
+        const NonlinearProcedure p(kind, ModelKind::Tanh);
+        for (int i = 0; i < p.pass_count(); ++i) {
+            const NonlinearPass& pass = p.pass_at(static_cast<size_t>(i));
+            const auto spots = judged_spots(pass);
+            const auto has = [&spots](SpotKind k) {
+                return std::find(spots.begin(), spots.end(), k) != spots.end();
+            };
+            if (pass.sweep.param == NlParam::TimeOffset) {
+                // The leftmost and rightmost changes on the front, and nothing between.
+                CHECK(spots.size() == 2);
+                CHECK(has(front.spots.front().kind));
+                CHECK(has(front.spots.back().kind));
+                CHECK_FALSE(has(SpotKind::SlowDown));
+                CHECK_FALSE(has(SpotKind::SpeedUp));
+            } else {
+                CHECK(has(SpotKind::SlowDown));
+                CHECK(has(SpotKind::SpeedUp));
+            }
+        }
+    }
+}
+
+TEST_CASE("nonlinear procedure: only Bowden's first advance keeps a share of its best value",
+          "[pa_nonlinear]") {
+    const NonlinearProcedure bowden(ExtruderKind::Bowden, ModelKind::Tanh);
+    CHECK(bowden.kept_fraction(bowden.pass_at(0)) == Catch::Approx(0.8f));
+    for (int i = 1; i < bowden.pass_count(); ++i) {
+        CHECK(bowden.kept_fraction(bowden.pass_at(static_cast<size_t>(i))) == Catch::Approx(1.0f));
+    }
+    const NonlinearProcedure dd(ExtruderKind::DirectDrive, ModelKind::Tanh);
+    for (int i = 0; i < dd.pass_count(); ++i) {
+        CHECK(dd.kept_fraction(dd.pass_at(static_cast<size_t>(i))) == Catch::Approx(1.0f));
+    }
 }
 
 TEST_CASE("nonlinear procedure: two heights decide the verdict, same within a millimeter",

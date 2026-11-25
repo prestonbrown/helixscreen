@@ -21,8 +21,6 @@ constexpr float kOffsetFactor = 0.01f;
 constexpr float kOffsetFactorBowden = 0.02f;
 constexpr float kTimeOffsetFactor = 0.0001f;
 
-/// What a Bowden run keeps of its first advance: the offset adds a boost of
-/// its own at low speed.
 constexpr float kBowdenAdvanceKept = 0.8f;
 constexpr float kConvergeStep = 0.1f;
 
@@ -115,12 +113,14 @@ void NonlinearProcedure::record_height(float height_mm) {
     }
     remember(height_mm);
     const NonlinearPass& p = current();
-    float value = value_at(p.sweep, height_mm);
-    if (kind_ == ExtruderKind::Bowden && p.sweep.param == NlParam::Advance) {
-        value *= kBowdenAdvanceKept;
-    }
-    apply(p.sweep.param, value);
+    apply(p.sweep.param, value_at(p.sweep, height_mm) * kept_fraction(p));
     advance();
+}
+
+float NonlinearProcedure::kept_fraction(const NonlinearPass& pass) const {
+    return kind_ == ExtruderKind::Bowden && pass.sweep.param == NlParam::Advance
+               ? kBowdenAdvanceKept
+               : 1.0f;
 }
 
 void NonlinearProcedure::record_verdict(SideVerdict verdict, float height_mm) {
@@ -278,6 +278,13 @@ std::vector<TowerFace> judged_faces(TowerSide side) {
         break;
     }
     return {TowerFace::Left, TowerFace::Front};
+}
+
+std::vector<SpotKind> judged_spots(const NonlinearPass& pass) {
+    if (pass.sweep.param == NlParam::TimeOffset) {
+        return {SpotKind::Pause, SpotKind::VerySlowSpot};
+    }
+    return {SpotKind::SlowDown, SpotKind::SpeedUp, SpotKind::Pause, SpotKind::VerySlowSpot};
 }
 
 nlohmann::json NonlinearProcedure::to_json() const {

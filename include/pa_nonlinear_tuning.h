@@ -122,6 +122,12 @@ FaceLayout tower_face_layout(TowerFace face, float size_x_mm = kTowerSizeXMm,
 /// The faces a pass's user looks at, left face first.
 std::vector<TowerFace> judged_faces(TowerSide side);
 
+/// The speed changes a pass's user judges on its faces. The time offset is
+/// judged at the front's leftmost and rightmost transitions, the pause and the
+/// very slow spot (Kalico's guide, its worked example); every other pass at
+/// every change on the faces it judges.
+std::vector<SpotKind> judged_spots(const NonlinearPass& pass);
+
 /// What a two-sided verdict changes before the pass prints again.
 struct Correction {
     NlParam param = NlParam::Offset;
@@ -202,6 +208,11 @@ class NonlinearProcedure {
     ExtruderKind kind() const {
         return kind_;
     }
+
+    /// The share of a one-sided pass's best value the procedure keeps: Bowden
+    /// keeps 80% of its first advance, since the offset adds a boost of its own
+    /// at low speed (Kalico's guide, Bowden step 6). 1 for every other pass.
+    float kept_fraction(const NonlinearPass& pass) const;
 
     /// Everything a restart would lose, for from_json().
     nlohmann::json to_json() const;

@@ -390,32 +390,54 @@ void draw_face(lv_obj_t* obj, lv_layer_t* layer, const PaTowerModel& m, const La
             slow_x2 = x_at(s.to);
         }
     }
-    fill_rect(layer, {slow_x1, face.y1, slow_x2, face.y2}, text, LV_OPA_10);
+    const auto judged = [&m](SpotKind k) {
+        return m.judged_spots.empty() ||
+               std::find(m.judged_spots.begin(), m.judged_spots.end(), k) != m.judged_spots.end();
+    };
+    // The slow middle is judged at its edges; with neither judged it fades back.
+    const bool middle_judged = judged(SpotKind::SlowDown) || judged(SpotKind::SpeedUp);
+    fill_rect(layer, {slow_x1, face.y1, slow_x2, face.y2}, text,
+              middle_judged ? LV_OPA_10 : static_cast<lv_opa_t>(LV_OPA_10 / 2));
     for (const auto& spot : fl.spots) {
         const int32_t x = x_at(spot.at);
+        if (!judged(spot.kind)) {
+            line(layer, x, face.y1, x, face.y2, text, 1, 2, 4, LV_OPA_20);
+            continue;
+        }
         switch (spot.kind) {
         case SpotKind::SlowDown:
         case SpotKind::SpeedUp:
             line(layer, x, face.y1, x, face.y2, amber, 2);
             break;
         case SpotKind::Pause:
-            line(layer, x, face.y1, x, face.y2, amber, 1, 4, 3);
+            line(layer, x, face.y1, x, face.y2, amber, middle_judged ? 1 : 2, 4, 3);
             break;
         case SpotKind::VerySlowSpot:
-            line(layer, x, face.y1, x, face.y2, amber, 1, 1, 3, LV_OPA_80);
+            if (middle_judged) {
+                line(layer, x, face.y1, x, face.y2, amber, 1, 1, 3, LV_OPA_80);
+            } else {
+                line(layer, x, face.y1, x, face.y2, amber, 2, 2, 2);
+            }
             break;
         }
     }
 
     // Words over the spots, on dark chips so they read over any fill.
     const int32_t lh = l.font_h;
-    draw_text(obj, layer, lv_tr("slow"),
-              {slow_x1 - lh * 2, face.y1 + 2, slow_x2 + lh * 2, face.y1 + 2 + lh}, amber, l.font,
-              LV_TEXT_ALIGN_CENTER, true);
+    if (middle_judged) {
+        draw_text(obj, layer, lv_tr("slow"),
+                  {slow_x1 - lh * 2, face.y1 + 2, slow_x2 + lh * 2, face.y1 + 2 + lh}, amber,
+                  l.font, LV_TEXT_ALIGN_CENTER, true);
+    }
     for (const auto& spot : fl.spots) {
-        if (spot.kind == SpotKind::Pause) {
-            const int32_t x = x_at(spot.at);
+        const int32_t x = x_at(spot.at);
+        if (spot.kind == SpotKind::Pause && judged(spot.kind)) {
             draw_text(obj, layer, lv_tr("pause"),
+                      {x - lh * 2, face.y1 + lh + 4, x + lh * 2, face.y1 + 2 * lh + 4}, amber,
+                      l.font, LV_TEXT_ALIGN_CENTER, true);
+        } else if (spot.kind == SpotKind::VerySlowSpot && !middle_judged && judged(spot.kind)) {
+            // Named only when the slow middle's word is not there to confuse it with.
+            draw_text(obj, layer, lv_tr("slow"),
                       {x - lh * 2, face.y1 + lh + 4, x + lh * 2, face.y1 + 2 * lh + 4}, amber,
                       l.font, LV_TEXT_ALIGN_CENTER, true);
         }
@@ -457,7 +479,9 @@ void draw_face(lv_obj_t* obj, lv_layer_t* layer, const PaTowerModel& m, const La
         }
         for (const auto& spot : fl.spots) {
             const int32_t x = x_at(spot.at);
-            if (spot.kind == SpotKind::SlowDown || spot.kind == SpotKind::SpeedUp) {
+            if (!judged(spot.kind)) {
+                line(layer, x, sy1 - 2, x, sy2 + 2, text, 1, 1, 1, LV_OPA_20);
+            } else if (spot.kind == SpotKind::SlowDown || spot.kind == SpotKind::SpeedUp) {
                 line(layer, x, sy1 - 2, x, sy2 + 2, amber, 2);
                 if (l.strip_words) {
                     const bool down = spot.kind == SpotKind::SlowDown;
@@ -674,6 +698,11 @@ void pa_tower_flourish(lv_obj_t* tower) {
     lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
     lv_anim_set_exec_cb(&a, glow_exec);
     lv_anim_start(&a);
+}
+
+const PaTowerModel* pa_tower_model(lv_obj_t* tower) {
+    const TowerState* st = state_of(tower);
+    return st ? &st->model : nullptr;
 }
 
 float pa_tower_tap_height(lv_obj_t* tower) {

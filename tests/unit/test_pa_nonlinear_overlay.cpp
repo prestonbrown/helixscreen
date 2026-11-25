@@ -6,6 +6,7 @@
 #include "ui_nav_manager.h"
 #include "ui_overlay_pa_nonlinear.h"
 #include "ui_overlay_pa_tuning.h"
+#include "ui_pa_tower.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/scoped_env.h"
@@ -17,6 +18,7 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 
+#include <algorithm>
 #include <array>
 #include <initializer_list>
 
@@ -977,4 +979,57 @@ TEST_CASE_METHOD(NonlinearFixture,
     overlay.judge_primary_for_test();
     CHECK(overlay.procedure_for_test()->repeats() == 1);
     CHECK(overlay.procedure_for_test()->pass_number() == 2);
+}
+
+TEST_CASE_METHOD(NonlinearFixture,
+                 "nonlinear tuner: the time offset's towers mark only the front's outer two "
+                 "transitions",
+                 "[pa_nonlinear][pa_tuner][pa_tower_widget]") {
+    overlay.start_for_test(params(), pa::ExtruderKind::DirectDrive);
+    lv_obj_t* root =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "pa_nonlinear_overlay", nullptr));
+    REQUIRE(root != nullptr);
+    const auto spots = [root](const char* name) {
+        const auto* m = helix::ui::pa_tower_model(lv_obj_find_by_name(root, name));
+        REQUIRE(m != nullptr);
+        return m->judged_spots;
+    };
+    const auto has = [](const std::vector<pa::SpotKind>& v, pa::SpotKind k) {
+        return v.empty() || std::find(v.begin(), v.end(), k) != v.end();
+    };
+
+    // Pass 1 judges the slow middle's edges on the left.
+    overlay.attach_root_for_test(root);
+    CHECK(has(spots("pa_nl_ready_ref_tower"), pa::SpotKind::SlowDown));
+    CHECK(has(spots("pa_nl_ready_ref_tower"), pa::SpotKind::SpeedUp));
+
+    const auto finish_tower = [this] {
+        print_tower();
+        client.cancel_print_internal();
+        helix::ui::UpdateQueue::instance().drain();
+    };
+    finish_tower();
+    overlay.judge_primary_for_test(); // pass 1
+    helix::ui::UpdateQueue::instance().drain();
+    finish_tower();
+    REQUIRE(overlay.procedure_for_test()->pass_number() == 2);
+    overlay.tower_tap_for_test(0, 20.0f);
+    overlay.tower_tap_for_test(1, 20.0f);
+    overlay.judge_primary_for_test(); // pass 2, the sides agree
+    helix::ui::UpdateQueue::instance().drain();
+    finish_tower();
+    REQUIRE(overlay.procedure_for_test()->current().sweep.param == pa::NlParam::TimeOffset);
+    REQUIRE(overlay.stage() == PaNonlinearOverlay::JUDGE);
+    overlay.attach_root_for_test(root);
+
+    // The pause at the left and the very slow spot at the right; the slow middle is not judged.
+    for (const char* name : {"pa_nl_judge_ref_tower", "pa_nl_judge_tower"}) {
+        const auto s = spots(name);
+        CHECK(has(s, pa::SpotKind::Pause));
+        CHECK(has(s, pa::SpotKind::VerySlowSpot));
+        CHECK_FALSE(has(s, pa::SpotKind::SlowDown));
+        CHECK_FALSE(has(s, pa::SpotKind::SpeedUp));
+    }
+    overlay.attach_root_for_test(nullptr);
+    lv_obj_delete(root);
 }

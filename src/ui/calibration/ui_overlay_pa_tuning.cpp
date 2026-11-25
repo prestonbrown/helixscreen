@@ -174,6 +174,7 @@ void PaTuningOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_STRING(start_k_, start_k_buf_, "0.0000", "pa_tune_start_k", subjects_);
         UI_MANAGED_SUBJECT_STRING(end_k_, end_k_buf_, "0.1000", "pa_tune_end_k", subjects_);
         UI_MANAGED_SUBJECT_STRING(summary_, summary_buf_, "", "pa_tune_summary", subjects_);
+        UI_MANAGED_SUBJECT_STRING(nl_accel_, nl_accel_buf_, "", "pa_tune_nl_accel", subjects_);
         UI_MANAGED_SUBJECT_INT(can_start_, 1, "pa_tune_can_start", subjects_);
         UI_MANAGED_SUBJECT_INT(nl_available_, 0, "pa_tune_nl_available", subjects_);
         UI_MANAGED_SUBJECT_INT(nl_mode_, 0, "pa_tune_nl_mode", subjects_);
@@ -356,6 +357,7 @@ void PaTuningOverlay::on_activate() {
         refresh_presets();
         refresh_setup();
         analyze_start_macro();
+        query_max_accel();
     } else if (stage_ == RUNNING || stage_ == STARTING) {
         refresh_running();
     }
@@ -569,6 +571,43 @@ void PaTuningOverlay::analyze_start_macro() {
         });
 }
 
+void PaTuningOverlay::query_max_accel() {
+    refresh_accel_note();
+    if (!api_) {
+        return;
+    }
+    api_->advanced().get_machine_limits(
+        object_lifetime_.bg_cb("PaTuningOverlay::max_accel",
+                               [this](const MachineLimits& limits) {
+                                   max_accel_ = limits.max_accel;
+                                   refresh_accel_note();
+                               }),
+        object_lifetime_.bg_cb(
+            "PaTuningOverlay::max_accel_failed", [this](const MoonrakerError& err) {
+                spdlog::debug("[{}] No toolhead limits: {}", get_name(), err.message);
+            }));
+}
+
+void PaTuningOverlay::refresh_accel_note() {
+    // Kalico's guide: the tower runs at the [printer] acceleration, which should
+    // be the highest the user prints with while extruding. The smallest screens
+    // have one line for it.
+    const auto bp = helix::widget_size::current_breakpoint();
+    const bool small = bp == UiBreakpoint::Micro || bp == UiBreakpoint::Tiny;
+    std::string note;
+    if (max_accel_ > 0.0) {
+        note = fmt::format(
+            fmt::runtime(small ? lv_tr("max_accel {:.0f} mm/s²: set it to your highest.")
+                               : lv_tr("Towers print at max_accel, {:.0f} mm/s². Set it to the "
+                                       "highest you print with.")),
+            max_accel_);
+    } else {
+        note = small ? lv_tr("Set max_accel to your highest.")
+                     : lv_tr("Towers print at max_accel. Set it to the highest you print with.");
+    }
+    lv_subject_set_string(&nl_accel_, note.c_str());
+}
+
 void PaTuningOverlay::refresh_model_choice() {
     const auto model =
         get_printer_state().temperature_state().extruder_pa_model(chosen_head().extruder);
@@ -699,13 +738,17 @@ void PaTuningOverlay::refresh_setup() {
                 thumb = kThumbLeft;
                 break;
             case helix::pa::TowerSide::LeftVsFront:
-                look = lv_tr("Left side against the front");
+                look = lv_tr("Where sides converge");
                 thumb = kThumbBoth;
                 break;
             case helix::pa::TowerSide::Front:
-                look = pass.sweep.param == helix::pa::NlParam::TimeOffset
-                           ? lv_tr("Front, lit from the side")
-                           : lv_tr("Front");
+                if (pass.sweep.param == helix::pa::NlParam::TimeOffset) {
+                    look = lv_tr("Front: pause, slow spot");
+                } else if (const float kept = order.kept_fraction(pass); kept < 1.0f) {
+                    look = fmt::format(fmt::runtime(lv_tr("Front, {:.0f}% kept")), kept * 100.0f);
+                } else {
+                    look = lv_tr("Front transitions");
+                }
                 break;
             }
             lv_subject_set_pointer(&nl_thumb_[i], const_cast<char*>(thumb));

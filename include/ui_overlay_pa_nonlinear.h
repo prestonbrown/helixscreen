@@ -200,6 +200,11 @@ class PaNonlinearOverlay : public OverlayBase {
     const helix::pa::NonlinearProcedure* procedure_for_test() const {
         return proc_ ? &*proc_ : nullptr;
     }
+    /// Draw the towers into @p root, a pa_nonlinear_overlay the test created.
+    void attach_root_for_test(lv_obj_t* root) {
+        overlay_root_ = root;
+        refresh_towers();
+    }
     void set_raise_on_start_for_test(bool raise) {
         raise_on_start_ = raise;
     }

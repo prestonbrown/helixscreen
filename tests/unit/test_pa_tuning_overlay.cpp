@@ -24,6 +24,9 @@
 #include "tool_state.h"
 #include "tune_controller.h"
 
+#include <chrono>
+#include <thread>
+
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
 
@@ -639,4 +642,19 @@ TEST_CASE_METHOD(TunerFixture,
     REQUIRE(text("pa_tune_nl_pass_2").find("Time offset") != std::string::npos);
     CHECK(thumb(0) != thumb(2));
     CHECK(thumb(0).find("front") != std::string::npos);
+}
+
+TEST_CASE_METHOD(TunerFixture,
+                 "the nonlinear setup says the towers print at the printer's max_accel",
+                 "[pa_tune][pa_tuner][pa_tune_setup]") {
+    const auto note = [] {
+        return std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "pa_tune_nl_accel")));
+    };
+    // The mock toolhead reports a max_accel of 10000 mm/s².
+    overlay.query_max_accel_for_test();
+    for (int i = 0; i < 50 && note().find("10000") == std::string::npos; ++i) {
+        helix::ui::UpdateQueue::instance().drain();
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    CHECK(note().find("10000") != std::string::npos);
 }

@@ -81,34 +81,41 @@ const char* const* sample_set(const helix::pa::NonlinearPass& pass) {
     return pass.judge == helix::pa::TowerSide::Left ? kLeft : kBoth;
 }
 
-/// What a pass's user looks at: before the tower prints, and when judging it.
-const char* look_text(const helix::pa::NonlinearPass& pass, bool judging) {
-    const bool lit = pass.sweep.param == helix::pa::NlParam::TimeOffset;
+/// What a pass's user looks at, before the tower prints and when judging it,
+/// in the words of Kalico's guide: which side, where it looks best, and a light
+/// from the far left or right (side-lit) for every tower.
+std::string look_text(const helix::pa::NonlinearProcedure& proc,
+                      const helix::pa::NonlinearPass& pass, bool judging) {
     switch (pass.judge) {
     case helix::pa::TowerSide::Left:
-        return judging
-                   ? lv_tr(
-                         "Left side: at what height do the edges of the slow middle look cleanest?")
-                   : lv_tr("Left side: the two edges of the slow middle, 5 mm either side of "
-                           "center.");
+        return judging ? lv_tr("Left side, side-lit: at what height do the slow middle's edges "
+                               "look best?")
+                       : lv_tr("Left side, side-lit: the two edges of the slow middle, 5 mm "
+                               "either side of center.");
     case helix::pa::TowerSide::LeftVsFront:
-        return judging
-                   ? lv_tr("The height where the left side is cleanest, then where the front is.")
-                   : lv_tr("Left side and front, each at its slow edges. They should come out "
-                           "clean at the same height; if not, this pass prints again.");
+        return judging ? lv_tr("Side-lit: the height where the left side converges, then the "
+                               "front.")
+                       : lv_tr("Left side and front, side-lit: where each converges. The same "
+                               "height takes it; if not, this pass prints again.");
     case helix::pa::TowerSide::Front:
         break;
     }
-    if (lit) {
-        return judging
-                   ? lv_tr("Front, lit from far left or right: where do the marked spots look "
-                           "cleanest?")
-                   : lv_tr(
-                         "Front, lit from far left or right: the slow middle, the pause, the slow "
-                         "spot. Very subtle.");
+    if (pass.sweep.param == helix::pa::NlParam::TimeOffset) {
+        // The guide stresses the light for this tower: its marks are the faintest.
+        return judging ? lv_tr("Front, lit from far left or right: where do the pause and the "
+                               "slow spot look best?")
+                       : lv_tr("Front, lit from far left or right: the pause at the left and the "
+                               "slow spot at the right. Very subtle.");
     }
-    return judging ? lv_tr("Front: where do the marked spots look cleanest?")
-                   : lv_tr("Front: the edges of the slow middle, the pause and the slow spot.");
+    const std::string look =
+        judging ? lv_tr("Front, side-lit: where do the speed transitions look best?")
+                : lv_tr("Front, side-lit: the speed transitions.");
+    const float kept = proc.kept_fraction(pass);
+    if (kept >= 1.0f) {
+        return look;
+    }
+    return fmt::format(fmt::runtime(lv_tr("{} {:.0f}% of that value is kept.")), look,
+                       kept * 100.0f);
 }
 
 /// What a failed save says. Klipper refusing an option no model reads is
@@ -573,8 +580,8 @@ void PaNonlinearOverlay::refresh() {
                              helix::pa::NonlinearProcedure::kMaxRepeats + 1);
     }
     lv_subject_set_string(&pass_title_, title.c_str());
-    lv_subject_set_string(&pass_hint_, look_text(pass, false));
-    lv_subject_set_string(&look_, look_text(pass, stage_ == JUDGE));
+    lv_subject_set_string(&pass_hint_, look_text(*proc_, pass, false).c_str());
+    lv_subject_set_string(&look_, look_text(*proc_, pass, stage_ == JUDGE).c_str());
     lv_subject_set_string(&run_chip_, fmt::format(fmt::runtime(lv_tr("Pass {} of {}")),
                                                   proc_->pass_number(), proc_->pass_count())
                                           .c_str());
@@ -607,9 +614,9 @@ void PaNonlinearOverlay::refresh() {
             // Why it prints again, beside the picture of where to look.
             lv_subject_set_string(
                 &look_,
-                fmt::format(fmt::runtime(lv_tr("The sides should come out clean at the same "
-                                               "height. Apart means the {} is a little off: it "
-                                               "moves 10% and this pass prints again.")),
+                fmt::format(fmt::runtime(lv_tr("The sides should converge at the same height. "
+                                               "Apart means the {} is a little off: it moves 10% "
+                                               "and this pass prints again.")),
                             param_label(c->param))
                     .c_str());
         }
@@ -642,6 +649,7 @@ void PaNonlinearOverlay::refresh_towers() {
         base.size_y_mm = size->second;
     }
     if (pass) {
+        base.judged_spots = helix::pa::judged_spots(*pass);
         for (int z = 0; z <= static_cast<int>(kTowerHeightMm); z += 10) {
             base.tick_labels.push_back(
                 format_tick(pass->sweep, helix::pa::value_at(pass->sweep, static_cast<float>(z))));
