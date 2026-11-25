@@ -60,9 +60,9 @@ SPLASH_PIDFILE="${RUN_DIR}/helix-splash.pid"
 # PIDs of the processes named $1, space-separated; exits 1 when there are none,
 # as pidof does. Mod chroots such as Z-Mod's ship no pidof, and a missing pidof
 # would read as "nothing running" to every check below, so stop would leave
-# the watchdog and app up. Without it, the process table is read directly:
-# /proc/<pid>/comm, or the basename of /proc/<pid>/exe for a name longer than
-# comm's 15 characters. HELIX_PROC_ROOT is the test seam.
+# the watchdog and app up. Without it, the process table is read directly by
+# /proc/<pid>/comm, an exact match with no fork per process: every name this
+# script looks up fits comm's 15 characters. HELIX_PROC_ROOT is the test seam.
 helix_pids() {
     if command -v pidof >/dev/null 2>&1; then
         pidof "$1"
@@ -73,12 +73,9 @@ helix_pids() {
     for _hp_dir in "${HELIX_PROC_ROOT:-/proc}"/[0-9]*; do
         _hp_pid=${_hp_dir##*/}
         [ "$_hp_pid" = "$$" ] && continue
-        _hp_name=""
-        [ -r "$_hp_dir/comm" ] && read -r _hp_name < "$_hp_dir/comm"
-        if [ "$_hp_name" != "$1" ]; then
-            _hp_exe=$(readlink "$_hp_dir/exe" 2>/dev/null) || continue
-            [ "${_hp_exe##*/}" = "$1" ] || continue
-        fi
+        # A process that exits mid-scan takes its comm with it.
+        { IFS= read -r _hp_comm < "$_hp_dir/comm"; } 2>/dev/null || continue
+        [ "$_hp_comm" = "$1" ] || continue
         _hp_found="${_hp_found:+$_hp_found }$_hp_pid"
     done
     [ -n "$_hp_found" ] || return 1
