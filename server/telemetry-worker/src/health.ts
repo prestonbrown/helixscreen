@@ -49,11 +49,12 @@ export interface HealthPayload {
   fleet: { actives_cur: number; actives_prev: number; cdn_sources: number | null; cdn_date: string | null };
   releases: { version: string; cur: ReleaseWindow; prev: ReleaseWindow }[];
   /**
-   * `split` is set on main_loop_hang only. That row's cur, prev and devices count the
-   * app-blocked share, so a host out of memory never reads as a rising app bug; `split`
-   * has the full breakdown for the current week.
+   * `split` and `total` are set on main_loop_hang only. That row's cur, prev and devices
+   * count the app-blocked share, so a host out of memory never reads as a rising app bug;
+   * `total` is every hang report of the current week and `split` breaks it down, so a week
+   * whose reports could not be classified never reads as a clean zero.
    */
-  errors: { category: string; code: string; cur: number; prev: number; devices: number; status: "new" | "rising" | "steady"; split?: HangSplit }[];
+  errors: { category: string; code: string; cur: number; prev: number; devices: number; status: "new" | "rising" | "steady"; split?: HangSplit; total?: number }[];
   crash_clusters: { signal: string; fault_code: string; version: string; board: string; cur: number; prev: number; devices: number }[];
   data_health: { kind: string; latest: number; median: number; low: boolean }[];
   not_applicable: NotApplicable<HealthBlock>;
@@ -221,6 +222,7 @@ export function buildHealth(
       let devices = num(x.devices);
       let topDevice = errTopDevice.get(key) ?? 0;
       let split: HangSplit | undefined;
+      let total: number | undefined;
       let held = false;
       // Without hang rows, or without the snapshots to classify them, the aggregate stands as it is.
       if (key === HANG_KEY && hangsCur.length > 0 && rows.hang_snapshots !== undefined) {
@@ -228,6 +230,7 @@ export function buildHealth(
         const perDevice = new Map<string, number>();
         for (const h of blocked) perDevice.set(h.device, (perDevice.get(h.device) ?? 0) + h.weight);
         split = splitOf(hangsCur);
+        total = split.host_memory + split.app_blocked + split.unknown;
         cur = split.app_blocked;
         const prevSplit = splitOf(hangsPrev);
         prev = prevSplit.app_blocked;
@@ -249,7 +252,7 @@ export function buildHealth(
         prev,
         devices,
         status: split && (cur === 0 || (held && status === "rising")) ? ("steady" as const) : status,
-        ...(split ? { split } : {}),
+        ...(split && total !== undefined ? { split, total } : {}),
       };
     })
     .sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || b.cur - a.cur);

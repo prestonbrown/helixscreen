@@ -68,7 +68,7 @@
 
   <DashSection title="Errors" :loading="loading" :error="error">
     <template v-if="data">
-      <ChartCaption :text="`${WINDOW}; click a row to find the code on the Stability tab; main_loop_hang counts only hangs not caused by a host low on memory`" />
+      <ChartCaption :text="`${WINDOW}; click a row to find the code on the Stability tab; main_loop_hang counts only hangs not caused by a host low on memory, and reports of it under the count`" />
       <NoData v-if="data.errors.length === 0" :not-applicable="data.not_applicable.errors" />
       <div v-else class="table-wrapper event-log">
         <table class="data-table">
@@ -99,7 +99,13 @@
                   {{ e.split.unknown.toLocaleString() }} unknown
                 </div>
               </td>
-              <td class="mono">{{ e.cur.toLocaleString() }}</td>
+              <td class="mono">
+                {{ e.cur.toLocaleString() }}
+                <div v-if="e.split && e.split.unknown > 0" class="cause-split">
+                  {{ (e.total ?? e.split.unknown).toLocaleString() }} reported,
+                  {{ e.split.unknown.toLocaleString() }} unclassified
+                </div>
+              </td>
               <td class="mono">{{ e.prev.toLocaleString() }}</td>
               <td class="mono">{{ e.devices.toLocaleString() }}</td>
               <td><span v-if="e.status !== 'steady'" class="badge" :class="`status-${e.status}`">{{ e.status }}</span></td>

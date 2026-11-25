@@ -145,7 +145,7 @@ describe("a main_loop_hang finding", () => {
 
   it("counts only the app-blocked share and carries the split", () => {
     const e = build(7).errors[0];
-    expect(e).toMatchObject({ cur: 3, prev: 1, devices: 3, split: { host_memory: 7, app_blocked: 3, unknown: 0 } });
+    expect(e).toMatchObject({ cur: 3, prev: 1, devices: 3, total: 10, split: { host_memory: 7, app_blocked: 3, unknown: 0 } });
   });
   it("does not rise when the host's memory explains the rise", () => {
     expect(build(7).errors[0].status).toBe("steady");
@@ -155,6 +155,21 @@ describe("a main_loop_hang finding", () => {
   });
   it("is steady with a zero count when every hang was the host", () => {
     expect(build(10).errors[0]).toMatchObject({ cur: 0, status: "steady" });
+  });
+  it("carries the plain total, so a week that could not be classified does not read as a clean zero", () => {
+    const h = buildHealth(
+      rows({
+        errors_cur: [{ ...hangCode, count: 3, devices: 3 }],
+        hangs_cur: [hangRow("d0", 0), hangRow("d1", 0), hangRow("d2", 0)],
+      }),
+      "2026-11-24",
+    );
+    expect(h.errors[0]).toMatchObject({
+      cur: 0,
+      prev: 0,
+      total: 3,
+      split: { host_memory: 0, app_blocked: 0, unknown: 3 },
+    });
   });
   it("leaves every other error code to the aggregate", () => {
     const h = buildHealth(
