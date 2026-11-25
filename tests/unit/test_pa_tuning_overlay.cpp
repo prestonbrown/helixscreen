@@ -10,6 +10,7 @@
 #include "../test_helpers/registered_backend.h"
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "ams_backend_indx.h"
+#include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
@@ -18,6 +19,7 @@
 #include "moonraker_api.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
+#include "preset_materials.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "spoolman_types.h"
@@ -671,4 +673,65 @@ TEST_CASE_METHOD(TunerFixture,
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
     CHECK(note().find("10000") != std::string::npos);
+}
+
+TEST_CASE_METHOD(TunerFixture, "the PA setup takes the tuned head's spool, not the active tool's",
+                 "[pa_tune][pa_tuner]") {
+    // Two heads on a changer: T0 active with PLA at 205, T1 holding PETG at 240.
+    get_printer_state().temperature_state().init_extruders({"extruder", "extruder1"});
+    helix::test::RegisteredBackend<AmsBackendMock> harness(2);
+    harness->set_tool_changer_mode(true);
+    const auto load = [&harness](int slot, const char* material, int temp) {
+        SlotInfo info = harness->get_slot_info(slot);
+        info.material = material;
+        info.catalog_id.clear();
+        info.nozzle_temp_recommended = 0;
+        info.nozzle_temp_min = info.nozzle_temp_max = temp;
+        REQUIRE(harness->apply_user_edit(slot, info).success());
+    };
+    load(0, "PLA", 205);
+    load(1, "PETG", 240);
+    auto& tools = ToolState::instance();
+    tools.deinit_subjects();
+    tools.init_subjects(false);
+    ToolTopology topo;
+    topo.tool_count = 2;
+    topo.active_tool = 0;
+    topo.tool_to_slot = {0, 1};
+    topo.tool_extruder = {"extruder", "extruder1"};
+    tools.set_ams_topology(topo);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(tools.has_multiple_extruders());
+
+    const auto chip_name = [&] { return helix::presets::name(overlay.selected_preset_for_test()); };
+    overlay.on_activate();
+    CHECK(chip_name() == "PLA");
+    CHECK(overlay.nozzle_temp_for_test() == 205);
+
+    SECTION("each head's own spool picks the chip and its temperature") {
+        overlay.select_head_for_test(1);
+        CHECK(chip_name() == "PETG");
+        CHECK(overlay.nozzle_temp_for_test() == 240);
+        overlay.select_head_for_test(0);
+        CHECK(chip_name() == "PLA");
+        CHECK(overlay.nozzle_temp_for_test() == 205);
+    }
+    SECTION("a tapped chip stays picked when the head changes") {
+        int other = -1;
+        for (int i = 0; i < helix::presets::kPresetCount && other < 0; ++i) {
+            if (helix::presets::name(i) != "PLA" && helix::presets::name(i) != "PETG" &&
+                helix::presets::slot_temps(i)) {
+                other = i;
+            }
+        }
+        REQUIRE(other >= 0);
+        overlay.select_preset_for_test(other);
+        overlay.select_head_for_test(1);
+        CHECK(overlay.selected_preset_for_test() == other);
+        CHECK(overlay.nozzle_temp_for_test() == helix::presets::slot_temps(other)->nozzle);
+    }
+
+    overlay.cleanup();
+    tools.deinit_subjects();
+    get_printer_state().temperature_state().init_extruders({"extruder"});
 }

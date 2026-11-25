@@ -5,6 +5,7 @@
 #include "app_constants.h"
 #include "filament_catalog.h"
 #include "filament_temperature_source.h"
+#include "tool_state.h"
 
 namespace helix {
 
@@ -161,6 +162,21 @@ std::optional<ActiveMaterial> get_active_material() {
         return build_active_material(*ext_spool);
     }
 
+    return std::nullopt;
+}
+
+std::optional<ActiveMaterial> get_material_for_tool(int tool) {
+    if (tool < 0) {
+        return get_active_material();
+    }
+    if (const auto lane = AmsState::instance().lane_feeding_tool(tool);
+        lane && (!lane->info.material.empty() || lane->info.nozzle_temp_min > 0)) {
+        return build_active_material(lane->info);
+    }
+    // A head no lane feeds holds whatever is loaded only while it is the active one.
+    if (tool == ToolState::instance().active_tool_index()) {
+        return get_active_material();
+    }
     return std::nullopt;
 }
 

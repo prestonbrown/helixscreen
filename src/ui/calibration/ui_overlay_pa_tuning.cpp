@@ -53,15 +53,16 @@ namespace helix::ui {
 
 namespace {
 
-/// The loaded spool's material and the nozzle and bed temperatures its lane or
-/// spool record gives it, when a spool is loaded and names a material.
+/// The material loaded for @p tool (-1: the printer's one head) and the nozzle
+/// and bed temperatures its lane or spool record gives it, when a spool is
+/// loaded and names a material.
 struct LoadedMaterial {
     std::string material;
     int nozzle = 0;
     int bed = 0;
 };
-std::optional<LoadedMaterial> loaded_material() {
-    const auto active = helix::get_active_material();
+std::optional<LoadedMaterial> loaded_material(int tool) {
+    const auto active = helix::get_material_for_tool(tool);
     if (!active || active->material_name.empty()) {
         return std::nullopt;
     }
@@ -259,29 +260,9 @@ void PaTuningOverlay::deinit_subjects() {
 void PaTuningOverlay::register_callbacks() {
     register_xml_callbacks({
         {"on_pa_tune_tool",
-         [](lv_event_t* e) {
-             auto& self = get_global_pa_tuning_overlay();
-             if (self.stage_ == SETUP) {
-                 self.heads_.select(user_int(e));
-                 self.refresh_model_choice();
-             }
-         }},
+         [](lv_event_t* e) { get_global_pa_tuning_overlay().select_head(user_int(e)); }},
         {"on_pa_tune_preset",
-         [](lv_event_t* e) {
-             auto& self = get_global_pa_tuning_overlay();
-             if (self.stage_ != SETUP) {
-                 return;
-             }
-             const int slot = user_int(e);
-             if (const auto temps = chip_temps(slot, loaded_material())) {
-                 self.selected_preset_ = slot;
-                 self.preset_picked_ = true;
-                 self.nozzle_temp_ = temps->nozzle;
-                 self.bed_temp_ = temps->bed;
-             }
-             self.refresh_presets();
-             self.refresh_setup();
-         }},
+         [](lv_event_t* e) { get_global_pa_tuning_overlay().select_preset(user_int(e)); }},
         {"on_pa_tune_kind",
          [](lv_event_t* e) {
              auto& self = get_global_pa_tuning_overlay();
@@ -348,18 +329,8 @@ void PaTuningOverlay::on_activate() {
             tools.get_active_tool_subject(), this,
             [](PaTuningOverlay* self, int) { self->heads_.refresh(); },
             tools.get_subjects_lifetime());
-        // The loaded spool picks the material until the user taps another chip.
-        const auto loaded = loaded_material();
-        if (const int chip = loaded_chip(loaded); chip >= 0 && !preset_picked_) {
-            selected_preset_ = chip;
-        }
-        if (const auto temps = chip_temps(selected_preset_, loaded)) {
-            nozzle_temp_ = temps->nozzle;
-            bed_temp_ = temps->bed;
-        }
         heads_.refresh();
-        refresh_presets();
-        refresh_setup();
+        pick_loaded_material();
         analyze_start_macro();
         query_max_accel();
     } else if (stage_ == RUNNING || stage_ == STARTING) {
@@ -433,8 +404,47 @@ PaTuningOverlay::ChosenHead PaTuningOverlay::chosen_head() const {
                        get_printer_state().temperature_state().active_extruder_name());
 }
 
+void PaTuningOverlay::select_head(int head) {
+    if (stage_ != SETUP) {
+        return;
+    }
+    heads_.select(head);
+    // Another head holds another spool: it picks the material again, and
+    // gives a tapped chip that head's temperatures.
+    pick_loaded_material();
+    refresh_model_choice();
+}
+
+void PaTuningOverlay::select_preset(int slot) {
+    if (stage_ != SETUP) {
+        return;
+    }
+    if (const auto temps = chip_temps(slot, loaded_material(chosen_head().tool))) {
+        selected_preset_ = slot;
+        preset_picked_ = true;
+        nozzle_temp_ = temps->nozzle;
+        bed_temp_ = temps->bed;
+    }
+    refresh_presets();
+    refresh_setup();
+}
+
+void PaTuningOverlay::pick_loaded_material() {
+    // The tuned head's spool picks the material until the user taps another chip.
+    const auto loaded = loaded_material(chosen_head().tool);
+    if (const int chip = loaded_chip(loaded); chip >= 0 && !preset_picked_) {
+        selected_preset_ = chip;
+    }
+    if (const auto temps = chip_temps(selected_preset_, loaded)) {
+        nozzle_temp_ = temps->nozzle;
+        bed_temp_ = temps->bed;
+    }
+    refresh_presets();
+    refresh_setup();
+}
+
 void PaTuningOverlay::refresh_presets() {
-    const auto loaded = loaded_material();
+    const auto loaded = loaded_material(chosen_head().tool);
     for (int i = 0; i < kPresetSlots; ++i) {
         const auto temps = chip_temps(i, loaded);
         lv_subject_set_string(

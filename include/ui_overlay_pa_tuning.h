@@ -223,6 +223,20 @@ class PaTuningOverlay : public OverlayBase {
     void set_kind_for_test(helix::pa::ExtruderKind kind) {
         set_kind(kind);
     }
+    /// A head chip on the setup screen.
+    void select_head_for_test(int head) {
+        select_head(head);
+    }
+    /// A material chip on the setup screen.
+    void select_preset_for_test(int slot) {
+        select_preset(slot);
+    }
+    int selected_preset_for_test() const {
+        return selected_preset_;
+    }
+    int nozzle_temp_for_test() const {
+        return nozzle_temp_;
+    }
     /// The Linear K / Nonlinear chips.
     void choose_model_for_test(bool nonlinear) {
         nl_mode_choice_ = nonlinear;
@@ -275,6 +289,13 @@ class PaTuningOverlay : public OverlayBase {
     /// The extruder heater and the tool to select for the chosen head.
     using ChosenHead = HeadChoice;
     ChosenHead chosen_head() const;
+    /// Pick the material chip and temperatures from the chosen head's loaded
+    /// spool, unless the user has tapped a chip.
+    void pick_loaded_material();
+    /// The setup's head chip @p head: its own spool picks the material again.
+    void select_head(int head);
+    /// The setup's material chip @p slot: it stays picked across head changes.
+    void select_preset(int slot);
     /// The bed area the tower may use, from the printer's axes, plate and
     /// kinematics. nullopt when the axes are unknown.
     static std::optional<helix::pa::PrintArea> printable_area();
