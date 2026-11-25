@@ -11,6 +11,7 @@
 #ifdef HELIX_DISPLAY_DRM
 
 #include "display_backend.h"
+#include "input_wake_source_list.h"
 #include "pointer_frame_hook.h"
 #include "touch_calibration_wrapper.h"
 
@@ -83,6 +84,11 @@ class DisplayBackendDRM : public DisplayBackend {
     lv_indev_t* create_input_keyboard() override;
     bool has_hardware_keyboard() const override {
         return keyboard_ != nullptr;
+    }
+    /// The evdev devices this backend opened, with their fds. A device libinput
+    /// opened keeps its read timer: its fd is libinput's own.
+    std::vector<helix::InputWakeSource> input_wake_sources() const override {
+        return input_wake_sources_.sources();
     }
 
     // Display rotation via DRM plane property
@@ -189,7 +195,7 @@ class DisplayBackendDRM : public DisplayBackend {
     /// calibration updates never re-probe the indev's user_data (which can be
     /// stale/corrupted — bundle LG9X482B) to decide whether to install.
     bool calibration_wrapper_installed_ = false;
-    /// pointer_ was created by lv_evdev_create, so the lv_evdev_* setters may be
+    /// pointer_ was opened by LVGL's evdev driver, so the lv_evdev_* setters may be
     /// called on it. Auto-discovery falls back to libinput when evdev cannot open
     /// the device, and lv_evdev_set_calibration() on a libinput indev would
     /// reinterpret that driver's private data as an lv_evdev_t and write through
@@ -213,6 +219,9 @@ class DisplayBackendDRM : public DisplayBackend {
     /// The paths pointer_ and mouse_ were opened on, which decide their kind.
     std::string pointer_path_;
     std::string mouse_path_;
+
+    /// Every evdev device this backend opened, for input_wake_sources().
+    helix::InputWakeSourceList input_wake_sources_;
 
     /// Opens the touch pointer and the mouse on whichever path finds them. Only
     /// create_input_pointer() calls it, so every device it opens gets the hook.

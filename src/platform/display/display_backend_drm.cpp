@@ -667,7 +667,7 @@ bool DisplayBackendDRM::open_touch_device(bool reopening) {
         }
 #endif
         // Try evdev as fallback for the specified device
-        pointer_ = lv_evdev_create(LV_INDEV_TYPE_POINTER, device_override.c_str());
+        pointer_ = input_wake_sources_.open_evdev(LV_INDEV_TYPE_POINTER, device_override.c_str());
         if (pointer_ != nullptr) {
             pointer_is_evdev_ = true;
             pointer_path_ = device_override;
@@ -694,7 +694,7 @@ bool DisplayBackendDRM::open_touch_device(bool reopening) {
         touch_path = found;
         if (found) {
             spdlog::info("[DRM Backend] Found touch device: {}", found);
-            pointer_ = lv_evdev_create(LV_INDEV_TYPE_POINTER, found);
+            pointer_ = input_wake_sources_.open_evdev(LV_INDEV_TYPE_POINTER, found);
             if (pointer_ != nullptr) {
                 pointer_is_evdev_ = true;
                 spdlog::info("[DRM Backend] Evdev touch device created on {} (multi-touch enabled)",
@@ -717,7 +717,7 @@ bool DisplayBackendDRM::open_touch_device(bool reopening) {
             touch_path = scanned_touch->path.c_str();
             spdlog::info("[DRM Backend] Found touch device via evdev scan: {} ({})",
                          scanned_touch->path, scanned_touch->name);
-            pointer_ = lv_evdev_create(LV_INDEV_TYPE_POINTER, touch_path);
+            pointer_ = input_wake_sources_.open_evdev(LV_INDEV_TYPE_POINTER, touch_path);
             if (pointer_ != nullptr) {
                 pointer_is_evdev_ = true;
                 spdlog::info("[DRM Backend] Evdev touch device created on {}", scanned_touch->path);
@@ -1130,7 +1130,7 @@ void DisplayBackendDRM::open_mouse_device() {
     }
 
     if (!mouse_override.empty()) {
-        mouse_ = lv_evdev_create(LV_INDEV_TYPE_POINTER, mouse_override.c_str());
+        mouse_ = input_wake_sources_.open_evdev(LV_INDEV_TYPE_POINTER, mouse_override.c_str());
         if (mouse_) {
             mouse_path_ = mouse_override;
             spdlog::info("[DRM Backend] Mouse created on {} (env override)", mouse_override);
@@ -1146,7 +1146,7 @@ void DisplayBackendDRM::open_mouse_device() {
         // excludes touchscreens (ABS_X+ABS_Y).
         auto mouse_dev = helix::input::find_mouse_device();
         if (mouse_dev) {
-            mouse_ = lv_evdev_create(LV_INDEV_TYPE_POINTER, mouse_dev->path.c_str());
+            mouse_ = input_wake_sources_.open_evdev(LV_INDEV_TYPE_POINTER, mouse_dev->path.c_str());
             if (mouse_) {
                 mouse_path_ = mouse_dev->path;
                 spdlog::info("[DRM Backend] Mouse created on {} via evdev ({})", mouse_dev->path,
@@ -1186,7 +1186,7 @@ lv_indev_t* DisplayBackendDRM::create_input_keyboard() {
         }
 #endif
         // Try evdev fallback
-        keyboard_ = lv_evdev_create(LV_INDEV_TYPE_KEYPAD, env_device);
+        keyboard_ = input_wake_sources_.open_evdev(LV_INDEV_TYPE_KEYPAD, env_device);
         if (keyboard_) {
             spdlog::info("[DRM Backend] Evdev keyboard created on {} (env override)", env_device);
             return keyboard_;
@@ -1198,7 +1198,7 @@ lv_indev_t* DisplayBackendDRM::create_input_keyboard() {
     // corruption bugs in _reset_scanned_devices — see issue #648)
     auto kb_dev = helix::input::find_keyboard_device();
     if (kb_dev) {
-        keyboard_ = lv_evdev_create(LV_INDEV_TYPE_KEYPAD, kb_dev->path.c_str());
+        keyboard_ = input_wake_sources_.open_evdev(LV_INDEV_TYPE_KEYPAD, kb_dev->path.c_str());
         if (keyboard_) {
             spdlog::info("[DRM Backend] Keyboard created on {} via evdev ({})", kb_dev->path,
                          kb_dev->name);
