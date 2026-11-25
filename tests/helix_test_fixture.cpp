@@ -449,6 +449,13 @@ void HelixTestFixture::reset_all(bool case_start) {
     // The rest of the owners the app brings up before any panel exists
     // (SubjectInitializer, PrinterSession::init_core_subjects()), here because they
     // read the config reset above. LedController's API arrives with discovery.
+    //
+    // App globals (wizard_active, home_edit_mode, the platform gates) are the first
+    // of them at startup, and the ones an LVGLUITestFixture's teardown leaves
+    // deinitialized: without this, every case after a UI case in the process that
+    // binds one has the observer refused by LVGL. show_beta_features is seeded from
+    // the config, so they wait for the reset above.
+    app_globals_init_subjects();
     helix::SettingsManager::instance().init_subjects();
     helix::PrinterImageManager::instance().init_subjects();
     StandardMacros::instance().init_subjects();
