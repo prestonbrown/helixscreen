@@ -42,6 +42,12 @@ AmsError needs_attention_refusal() {
                     lv_tr("Resolve it on the filament system screen, then try again"));
 }
 
+AmsError busy_refusal() {
+    return AmsError(AmsResult::BUSY, "Tool change ignored: filament system busy",
+                    lv_tr("Tool change ignored: the filament system is busy"),
+                    lv_tr("Wait for the current operation to complete"));
+}
+
 ToolChangeDecision decide_tool_change(const ToolChangeInputs& in) {
     if (in.already_active) {
         return {ToolChangeVerdict::AlreadyActive};
@@ -57,7 +63,7 @@ ToolChangeDecision decide_tool_change(const ToolChangeInputs& in) {
         return {ToolChangeVerdict::RefuseNeedsAttention, needs_attention_refusal()};
     }
     if (ams_action_holds_system(in.backend_action)) {
-        return {ToolChangeVerdict::Busy};
+        return {ToolChangeVerdict::Busy, busy_refusal()};
     }
     // Reaching here while PAUSED means the backend permits filament ops on a
     // paused job: pause-then-swap is the runout and colour-change recovery
@@ -102,8 +108,8 @@ void dispatch(int tool_index, const ToolChangeHooks& hooks) {
         });
 }
 
-/// Log and toast a verdict that dispatches nothing: refusals raise a warning,
-/// Busy and AlreadyActive raise nothing.
+/// Log and toast a verdict that dispatches nothing: refusals and Busy raise a
+/// warning, AlreadyActive raises nothing.
 void report_withheld(const ToolChangeDecision& decision, int tool_index) {
     switch (decision.verdict) {
     case ToolChangeVerdict::AlreadyActive:
@@ -111,6 +117,7 @@ void report_withheld(const ToolChangeDecision& decision, int tool_index) {
         break;
     case ToolChangeVerdict::Busy:
         spdlog::info("[ToolChange] T{} ignored: filament system busy", tool_index);
+        notify_ams_warning(decision.refusal);
         break;
     case ToolChangeVerdict::RefuseNeedsAttention:
     case ToolChangeVerdict::RefuseSpoolsOnBed:

@@ -4166,6 +4166,7 @@
   <translation tag="Tool Offsets" it="Offset strumenti"/>
   <translation tag="Tool Switcher" it="Selettore utensile"/>
   <translation tag="Tool change failed: {}" it="Cambio utensile fallito: {}"/>
+  <translation tag="Tool change ignored: the filament system is busy" it="Cambio utensile ignorato: il sistema filamento è occupato"/>
   <translation tag="Tool change speed" it="Velocità cambio strumento"/>
   <translation tag="Tool change to T{}" it="Cambio utensile su T{}"/>
   <translation tag="Tool change to {} failed: {}" it="Cambio utensile a {} fallito: {}"/>
