@@ -44,6 +44,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "ams_state.h"
+#include "core/static_subject_registry.h"
 #include "core/temp_unit_subject.h"
 #include "core/temperature_units.h"
 #include "core/update_queue.h"
@@ -686,4 +687,53 @@ TEST_CASE_METHOD(
     // The value grew by its target half, and the released reading re-decides.
     helix::ui::UpdateQueue::instance().drain();
     CHECK(label_mode_subject_value() == static_cast<int>(NozzleLabelMode::Number));
+}
+
+// A reading that arrives while awake reaches its row synchronously, as it does
+// inside the queue callback that applies a status frame.
+
+TEST_CASE_METHOD(NozzleTempsFixture,
+                 "nozzle_temps: a target set while awake re-decides the ladder in the same step",
+                 "[widget_size][nozzle_temps]") {
+    configure_one_extruder(state());
+
+    PanelWidgetHarness<NozzleTempsWidget> h(test_screen(), state());
+    REQUIRE(h.child("nozzle_temps_container") != nullptr);
+
+    // Sized while idle: the nozzle-name spelling fits the column.
+    h.resize(1, 1, 147, 300);
+    REQUIRE(label_mode_subject_value() == static_cast<int>(NozzleLabelMode::Long));
+
+    // The re-decide rides the step the reading lands in. One queued for a later
+    // pass lets a frame draw the wide value in the rung chosen for the narrow.
+    lv_subject_t* target = state().temperature_state().get_extruder_target_subject("extruder");
+    REQUIRE(target != nullptr);
+    lv_subject_set_int(target, 2100);
+    CHECK(label_mode_subject_value() == static_cast<int>(NozzleLabelMode::Number));
+}
+
+TEST_CASE_METHOD(
+    NozzleTempsFixture,
+    "nozzle_temps: a rebuild while the widget's subjects are torn down refills nothing",
+    "[nozzle_temps][lifetime]") {
+    configure_one_extruder(state());
+    {
+        PanelWidgetHarness<NozzleTempsWidget> h(test_screen(), state());
+        REQUIRE(h.child("nozzle_temps_container") != nullptr);
+        REQUIRE(lv_xml_get_subject(nullptr, "nozzle_row_0_temp_text") != nullptr);
+
+        // A printer switch tears the widget's subjects down, and the next init
+        // brings them back. A rebuild that lands in between must not refill the
+        // row pools: with no teardown left to reclaim them, they would outlive
+        // LVGL if the process ended first.
+        REQUIRE(StaticSubjectRegistry::instance().deinit_one("NozzleTempsWidgetSubjects"));
+        REQUIRE(lv_xml_get_subject(nullptr, "nozzle_row_0_temp_text") == nullptr);
+
+        add_second_extruder(state());
+
+        CHECK(lv_xml_get_subject(nullptr, "nozzle_row_0_temp_text") == nullptr);
+    }
+    // The next init pass, as the app runs it after a printer switch.
+    PanelWidgetManager::instance().init_widget_subjects();
+    REQUIRE(lv_xml_get_subject(nullptr, "nozzle_row_label_mode") != nullptr);
 }

@@ -333,11 +333,19 @@ void NozzleTempsWidget::on_reading(lv_obj_t* owner, bool is_target, int value) {
     // and a tile sized under one shape must re-decide under the other: setting
     // a target widens every row past the rung chosen while idle. The
     // transition is the only moment the value's WIDTH CLASS changes, so it is
-    // the only re-decide. It waits for the update queue: readings held while
-    // the display slept are released one observer at a time, and the ladder
-    // must measure both halves of the value as they stand once all of them ran.
+    // the only re-decide. It runs at once, in the step the reading lands in:
+    // queued for a later pass, it lets a frame draw the wide value in the
+    // narrow rung. A release from the display-sleep hold is the exception. It
+    // delivers the held readings one observer at a time, and the ladder must
+    // measure both halves of the value once all of them ran, so the re-decide
+    // waits while any held observer is still to come; the last one finds none
+    // and re-decides at once.
     if (is_target && had_target != (value > 0)) {
-        lifetime_.defer("NozzleTempsWidget::relayout", [this] { relayout_for_granted_size(); });
+        if (lv_subject_obj_observers_held_count() > 0) {
+            lifetime_.defer("NozzleTempsWidget::relayout", [this] { relayout_for_granted_size(); });
+        } else {
+            relayout_for_granted_size();
+        }
     }
 }
 
@@ -430,6 +438,15 @@ void NozzleTempsWidget::rebuild_rows() {
         widget_obj_ ? lv_obj_find_by_name(widget_obj_, "nozzle_temps_container") : nullptr;
     if (!container) {
         spdlog::warn("[NozzleTempsWidget] Container not found in XML");
+        rebuilding_ = false;
+        return;
+    }
+
+    // The rows bind subjects that exist only while the widget's own are up. A
+    // rebuild that lands between their teardown and the next init, as after a
+    // printer switch, would refill the row pools with no teardown left to
+    // reclaim them.
+    if (!s_subjects.initialized()) {
         rebuilding_ = false;
         return;
     }
