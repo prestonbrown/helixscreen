@@ -18,6 +18,11 @@ using helix::AmsBackend;
 using helix::AmsBackendMock;
 using helix::AmsBackendToolChanger;
 
+namespace {
+/// Stands where runout_backup_for() answered nullopt, which is not a slot.
+constexpr int kNoAnswer = -99;
+} // namespace
+
 TEST_CASE("An editable endless-spool lane answers -1 with no backup set and its backup once set",
           "[ams][endless_spool][runout_backup][2044]") {
     AmsBackendMock mock(4);
@@ -31,17 +36,17 @@ TEST_CASE("An editable endless-spool lane answers -1 with no backup set and its 
     // -1, not nullopt: the relation is the UI's to edit, so the lane's page
     // offers the other lanes to pick from. Nullopt would mean the firmware
     // picks a spool at runout and says nothing in advance.
-    CHECK(mock.runout_backup_for(1) == std::optional<int>(-1));
-    CHECK(mock.runout_backup_for(3) == std::optional<int>(-1));
+    CHECK(mock.runout_backup_for(1).value_or(kNoAnswer) == -1);
+    CHECK(mock.runout_backup_for(3).value_or(kNoAnswer) == -1);
 
     REQUIRE(mock.set_endless_spool_backup(1, 2).success());
-    CHECK(mock.runout_backup_for(1) == std::optional<int>(2));
-    CHECK(mock.runout_backup_for(0) == std::optional<int>(-1));
+    CHECK(mock.runout_backup_for(1).value_or(kNoAnswer) == 2);
+    CHECK(mock.runout_backup_for(0).value_or(kNoAnswer) == -1);
 
     // Firmware-managed once it is published: still answered, only not editable.
     mock.set_endless_spool_editable(false);
     REQUIRE_FALSE(mock.get_endless_spool_capabilities().editable());
-    CHECK(mock.runout_backup_for(1) == std::optional<int>(2));
+    CHECK(mock.runout_backup_for(1).value_or(kNoAnswer) == 2);
 }
 
 TEST_CASE("A backend that neither edits nor publishes an endless-spool relation answers nothing",
@@ -49,5 +54,5 @@ TEST_CASE("A backend that neither edits nor publishes an endless-spool relation 
     AmsBackendToolChanger tool_changer(nullptr, nullptr);
     REQUIRE_FALSE(tool_changer.get_endless_spool_capabilities().editable());
     REQUIRE(tool_changer.get_endless_spool_config().groups.empty());
-    CHECK(tool_changer.runout_backup_for(0) == std::nullopt);
+    CHECK_FALSE(tool_changer.runout_backup_for(0).has_value());
 }
