@@ -10,6 +10,7 @@
 #include "input_sensor_manager.h"
 #include "json_utils.h"
 #include "load_cell_manager.h"
+#include "printer_cache_registry.h"
 #include "printer_discovery.h"
 #include "probe_sensor_manager.h"
 #include "sensor_state.h"
@@ -34,6 +35,9 @@ SensorManager::~SensorManager() {
     if (deinit_registered_ && !StaticSubjectRegistry::is_destroyed()) {
         StaticSubjectRegistry::instance().unregister(options_.name);
     }
+    if (cache_registered_ && !PrinterCacheRegistry::is_destroyed()) {
+        PrinterCacheRegistry::instance().unregister(options_.name);
+    }
 }
 
 const char* SensorManager::name() const {
@@ -43,6 +47,13 @@ const char* SensorManager::name() const {
 // Lifecycle
 
 void SensorManager::init_subjects() {
+    // Ahead of the early return: registration is idempotent by name, and a
+    // registry cleared while the subjects stayed up gets the entry back here.
+    if (options_.from_printer_discovery) {
+        PrinterCacheRegistry::instance().register_invalidator(options_.name,
+                                                              [this]() { forget_printer(); });
+        cache_registered_ = true;
+    }
     if (subjects_initialized_) {
         return;
     }
@@ -138,6 +149,24 @@ void SensorManager::discover(const PrinterDiscovery& hw) {
     // A printer with none of this manager's sensors, discovered over a manager that
     // already tracked none, leaves every subject at the value it already holds.
     if (had_entries || count > 0) {
+        publish();
+    }
+}
+
+void SensorManager::forget_printer() {
+    if (!options_.from_printer_discovery) {
+        return;
+    }
+    bool had_entries = false;
+    {
+        std::lock_guard<std::recursive_mutex> lock(mutex_);
+        had_entries = !entries_.empty();
+        entries_.clear();
+        on_entries_changed();
+        on_printer_forgotten();
+    }
+    if (had_entries) {
+        spdlog::debug("[{}] Forgot the previous printer's sensors", options_.name);
         publish();
     }
 }

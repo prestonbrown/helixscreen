@@ -244,6 +244,27 @@ class FilamentSensorManager : public sensors::SensorManager {
     [[nodiscard]] bool has_real_runout() const;
 
     /**
+     * @brief Whether a runout sensor has reported filament since its discovery
+     *
+     * A reading, not a default: before the first status frame every sensor
+     * holds filament_detected=true, which says nothing about the spool.
+     */
+    [[nodiscard]] bool runout_sensor_reports_filament() const;
+
+    /**
+     * @brief Record that the idle runout dialog was raised for the active printer
+     *
+     * Covers every runout sensor reading empty now. They stay acknowledged
+     * across printer switches and soft restarts until each reads filament
+     * again, so dismissing the dialog once is not undone by coming back.
+     */
+    void acknowledge_idle_runout();
+
+    /// Whether every runout sensor reading empty now was acknowledged on the
+    /// active printer (false when none reads empty).
+    [[nodiscard]] bool idle_runout_acknowledged() const;
+
+    /**
      * @brief The lane of the runout has_real_runout() finds, or nullopt for none.
      *
      * -1 when the runout is real but its sensor maps to no lane (a plain
@@ -426,6 +447,7 @@ class FilamentSensorManager : public sensors::SensorManager {
     bool parse_status(const nlohmann::json& status) override;
     void on_discovered(const PrinterDiscovery& hw) override;
     void on_entries_changed() override;
+    void on_printer_forgotten() override;
     void read_entry_extra(sensors::SensorEntry& entry, const nlohmann::json& saved) override;
     void write_entry_extra(const sensors::SensorEntry& entry, nlohmann::json& out) const override;
     void read_extra_settings(const nlohmann::json& saved) override;
@@ -559,6 +581,15 @@ class FilamentSensorManager : public sensors::SensorManager {
     /// set_runout_explained()'s lane; nullopt while no dialog explains one.
     std::optional<int> runout_explained_lane_;
 
+    /// Runout sensors the idle dialog was raised for while they read empty,
+    /// by printer id. Outlives on_printer_forgotten(): a switch away and back
+    /// must not raise it again. A sensor leaves its set when it reads filament.
+    std::map<std::string, std::set<std::string>> idle_runout_acknowledged_;
+
+    /// Mutex held: the runout sensors reading empty now, by klipper_name.
+    [[nodiscard]] std::set<std::string> empty_runout_sensors_locked() const;
+
+    // State change callback
     StateChangeCallback state_change_callback_;
 
     // Tracks whether we've received the first status update from Moonraker.

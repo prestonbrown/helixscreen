@@ -39,6 +39,7 @@
 #include "moonraker_client_mock.h"
 #include "panel_widget_manager.h"
 #include "print_lifecycle_state.h"
+#include "printer_cache_registry.h"
 #include "printer_state.h"
 #include "runtime_config.h"
 #include "src/ui/panel_widgets/print_status_widget.h"
@@ -148,6 +149,22 @@ class IdleRunoutEdgeFixture : public LVGLTestFixture {
         return container;
     }
 
+    /// What a printer switch does to the sensors: the per-printer caches are
+    /// dropped while the old printer's readings are still held.
+    static void switch_printer() {
+        auto& fsm = FilamentSensorManager::instance();
+        REQUIRE(PrinterCacheRegistry::instance().invalidate_one(fsm.name()));
+        settle();
+    }
+
+    /// The next printer's discovery lands with the same runout sensor.
+    static void rediscover() {
+        auto& fsm = FilamentSensorManager::instance();
+        discover_filament_sensors(fsm, {SENSOR});
+        fsm.set_role(SENSOR, static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
+        settle();
+    }
+
     static constexpr const char* SENSOR = "filament_switch_sensor runout_sensor";
 
     MoonrakerClientMock mock_client;
@@ -208,4 +225,89 @@ TEST_CASE_METHOD(IdleRunoutEdgeFixture, "Reloading and pulling again stays quiet
         CHECK_FALSE(PrintStatusWidgetTestAccess::runout_modal_shown(widget));
         set_filament(true);
     }
+}
+
+TEST_CASE_METHOD(IdleRunoutEdgeFixture,
+                 "The previous printer's empty runout sensor raises nothing after a switch",
+                 "[print_status_widget][runout][idle_runout_switch]") {
+    // The printer being left has an empty runout sensor; the next one has no
+    // runout sensor at all. Until the next printer's discovery lands, nothing
+    // the old printer reported may speak for it.
+    set_filament(false);
+
+    switch_printer();
+    auto& fsm = FilamentSensorManager::instance();
+    CHECK(lv_subject_get_int(fsm.get_any_runout_subject()) == 0);
+    CHECK_FALSE(fsm.has_real_runout());
+
+    PrintStatusWidget widget;
+    widget.attach(create_mock_tree(), test_screen());
+    settle();
+    CHECK_FALSE(PrintStatusWidgetTestAccess::runout_modal_shown(widget));
+}
+
+TEST_CASE_METHOD(IdleRunoutEdgeFixture,
+                 "A dismissed idle runout stays dismissed across switches until filament returns",
+                 "[print_status_widget][runout][idle_runout_switch]") {
+    set_filament(false);
+    {
+        PrintStatusWidget first;
+        first.attach(create_mock_tree(), test_screen());
+        settle();
+        REQUIRE(PrintStatusWidgetTestAccess::runout_modal_shown(first));
+    }
+
+    // Away and back: the widget is rebuilt and the sensor rediscovered, still
+    // empty. That is no new information.
+    switch_printer();
+    rediscover();
+    set_filament(false);
+    {
+        PrintStatusWidget second;
+        second.attach(create_mock_tree(), test_screen());
+        settle();
+        CHECK_FALSE(PrintStatusWidgetTestAccess::runout_modal_shown(second));
+
+        // Filament goes back in, then comes out while this widget watches:
+        // a hand-pull, quiet as ever.
+        set_filament(true);
+        set_filament(false);
+        CHECK_FALSE(PrintStatusWidgetTestAccess::runout_modal_shown(second));
+    }
+
+    // The filament reading re-armed it: the next arrival on an empty sensor asks.
+    switch_printer();
+    rediscover();
+    set_filament(false);
+    PrintStatusWidget third;
+    third.attach(create_mock_tree(), test_screen());
+    settle();
+    CHECK(PrintStatusWidgetTestAccess::runout_modal_shown(third));
+}
+
+TEST_CASE_METHOD(IdleRunoutEdgeFixture,
+                 "A widget built before the printer's first reading still offers Load",
+                 "[print_status_widget][runout][idle_runout_switch]") {
+    // A switch or a boot builds the home card before discovery, so the
+    // widget's first look at the subject is a zero that reports nothing.
+    switch_printer();
+    PrintStatusWidget widget;
+    widget.attach(create_mock_tree(), test_screen());
+    settle();
+
+    rediscover();
+    set_filament(false);
+    CHECK(PrintStatusWidgetTestAccess::runout_modal_shown(widget));
+}
+
+TEST_CASE_METHOD(IdleRunoutEdgeFixture,
+                 "A same-named sensor on the next printer starts without the old reading",
+                 "[print_status_widget][runout][idle_runout_switch]") {
+    // Two printers can both name a sensor runout_sensor. Before the next
+    // printer's first status frame, its sensor has said nothing.
+    set_filament(false);
+
+    switch_printer();
+    rediscover();
+    CHECK_FALSE(FilamentSensorManager::instance().has_real_runout());
 }
