@@ -266,6 +266,8 @@ def component(mock_server, temp_gcodes_dir):
     return load_component(MockConfigHelper(mock_server, {
         "temp_dir": ".helix_temp", "symlink_dir": ".helix_print",
         "cleanup_delay": 3600, "enabled": True,
+        # These cases pin the .gcode upload path; a .3mf upload goes to the converter's hook.
+        "start_3mf_on_upload": False,
     }))
 
 
