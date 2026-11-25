@@ -5,8 +5,8 @@
  * @brief Every row of the first-run language chooser saves its own language.
  *
  * The rows carry the Settings dropdown index as user_data, so a row's code must be
- * SystemSettingsManager's code for that index. Needs ui_xml/ on disk, hence
- * [.ui_integration]: run it from the repo root.
+ * SystemSettingsManager's code for that index. Reads ui_xml/ from disk, so run it
+ * from the repo root.
  */
 
 #include "ui_wizard.h"
@@ -31,11 +31,9 @@ std::string code_of_row(const char* row_name) {
 } // namespace
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Each language chooser row saves its own code",
-                 "[wizard][i18n][ui][.ui_integration]") {
+                 "[wizard][i18n][ui][ui_integration]") {
     lv_obj_t* wizard = ui_wizard_create(test_screen());
-    if (!wizard) {
-        SKIP("XML infrastructure not available (ui_integration test)");
-    }
+    REQUIRE(wizard != nullptr);
     force_language_chooser_step(true);
     ui_wizard_navigate_to_step(helix::wizard::StepId::Language);
     get_wizard_language_chooser_step()->stop_cycle_timer();
