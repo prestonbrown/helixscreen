@@ -73,6 +73,9 @@ struct Procedure {
     /// when the printer is not homed or a job holds it. The caller checks first
     /// (start_refusal()) so a refusal never reads as a finished run.
     bool needs_homed_idle = false;
+    /// The firmware keeps the offsets itself (its own save file, reapplied at
+    /// startup), so a finished run leaves nothing for SAVE_CONFIG.
+    bool persists_itself = false;
 };
 
 /// Why this procedure cannot start now, untranslated (pass it through lv_tr()), or
@@ -88,6 +91,7 @@ struct ProgressEvent {
         Skipped,  ///< The user left this head out of the run
         Measured, ///< The target's position was measured
         Complete, ///< Every offset is written
+        Refused,  ///< The macro declined to run ("Nothing was done"); `text` says why
     };
     Kind kind = Kind::Started;
     int tool = -1;        ///< The head, or -1 for the station and for Complete
@@ -95,6 +99,7 @@ struct ProgressEvent {
     std::optional<int> x_um;
     std::optional<int> y_um;
     std::optional<int> z_um;
+    std::string text; ///< Refused: the firmware's own sentence
 };
 
 /// Cheap check that a console line may be a progress line. Safe on any thread

@@ -160,3 +160,46 @@ TEST_CASE("VRTX_CALIBRATE is refused before it can report a finished run", "[too
     const auto stock = cal::resolve_procedure(hw);
     CHECK(cal::start_refusal(stock, false, true) == nullptr);
 }
+
+TEST_CASE("a VRTX mount before the tool listing arrives is refused, never a raw SELECT_TOOL",
+          "[toolchanger][vrtx]") {
+    ToolChangerHelper tc(4);
+    tc.set_swap_macro(toolchanger_addon::resolve_swap_macro(vrtx_discovery(4)));
+
+    const auto result = tc.change_tool(2);
+    CHECK_FALSE(result.success());
+    CHECK_FALSE(result.user_msg.empty());
+    CHECK(tc.sent().empty());
+}
+
+TEST_CASE("a VRTX tool numbered past its T commands is refused", "[toolchanger][vrtx]") {
+    ToolChangerHelper tc(4);
+    wire(tc, vrtx_discovery(4), 4);
+    // ASSIGN_TOOL gave tool T3 the number 12; VRTX defines T0..T9 only (here T0..T3).
+    tc.feed(json{{"toolchanger",
+                  {{"tool_numbers", {0, 1, 2, 12}},
+                   {"tool_names", {"tool T0", "tool T1", "tool T2", "tool T3"}}}}});
+
+    const auto result = tc.change_tool(3);
+    CHECK_FALSE(result.success());
+    CHECK(tc.sent().empty());
+    // The other tools still mount through their macros.
+    REQUIRE(tc.change_tool(1).success());
+    CHECK(tc.sent().back() == "T1");
+}
+
+TEST_CASE("VRTX's refusal of VRTX_CALIBRATE reads as a refusal with its own text",
+          "[toolchanger][vrtx]") {
+    namespace cal = helix::tool_offset_calibration;
+    const auto refused =
+        cal::parse_progress_line("// VRTX WARNING: Home all axes first. Nothing was done.");
+    REQUIRE(refused.has_value());
+    CHECK(refused->kind == cal::ProgressEvent::Kind::Refused);
+    CHECK(refused->text == "Home all axes first. Nothing was done.");
+
+    // A VRTX warning that is not a refusal of the run is not one.
+    CHECK_FALSE(
+        cal::parse_progress_line("// VRTX WARNING: T2: the runs differ by more than 0.050 mm.")
+            .has_value());
+    CHECK(cal::is_progress_line("// VRTX WARNING: anything"));
+}

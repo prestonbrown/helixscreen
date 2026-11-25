@@ -775,6 +775,7 @@
   <translation tag="Calibration canceled." ja="キャリブレーションをキャンセルしました。"/>
   <translation tag="Calibration complete" ja="キャリブレーション完了"/>
   <translation tag="Calibration complete - save to keep the offsets" ja="キャリブレーション完了 - 保存してオフセットを保持してください"/>
+  <translation tag="Calibration complete - the printer saved the offsets" ja="キャリブレーション完了 - プリンターがオフセットを保存しました"/>
   <translation tag="Calibration complete!" ja="キャリブレーション完了！"/>
   <translation tag="Calibration complete! Press &apos;Next&apos; to continue." ja="&quot;キャリブレーション完了！「次へ」を押して続行してください。&quot;"/>
   <translation tag="Calibration ended" ja="キャリブレーション終了"/>
@@ -2279,6 +2280,7 @@
   <translation tag="Home printer first?" ja="先にプリンターをホーミングしますか？"/>
   <translation tag="Home the printer again so a toolhead is picked up, then retry." ja="ツールヘッドが装着されるよう再度ホーミングしてから、再試行してください。"/>
   <translation tag="Home the printer again so it detects the toolheads, then retry." ja="ツールヘッドを検出できるよう再度ホーミングしてから、再試行してください。"/>
+  <translation tag="Home the printer first: the calibration needs X, Y and Z homed" ja="先にプリンターをホーミングしてください: キャリブレーションには X、Y、Z のホーミングが必要です"/>
   <translation tag="Home the printer so every toolhead is docked, then retry." ja="すべてのツールヘッドがドックに戻るようホーミングしてから、再試行してください。"/>
   <translation tag="Home the printer, check that the head moves freely in its dock, then try again." ja="プリンターをホーミングし、ヘッドがドック内でスムーズに動くことを確認してから、もう一度お試しください。"/>
   <translation tag="Homing" ja="ホーミング"/>
@@ -5372,6 +5374,7 @@
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." ja="このスプールの詳細はまだSpoolmanから読み込まれていません。もう一度保存してください。"/>
   <translation tag="This system does not support bypass mode" ja="このシステムはバイパスモードに対応していません"/>
   <translation tag="This theme" ja="このテーマ"/>
+  <translation tag="This tool has no number with a T command: assign it one first" ja="このツールには T コマンドの番号がありません: 先に番号を割り当ててください"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." ja="このツールは各ベッドネジをプローブし、どのくらい調整が必要かを教えます。"/>
   <translation tag="This toolhead has no automatic feeder. Load the filament by hand." ja="このツールヘッドには自動フィーダーがありません。フィラメントを手動で装填してください。"/>
   <translation tag="This update asks for new permissions:" ja="この更新は新しい権限を要求します："/>
@@ -5472,6 +5475,7 @@
   <translation tag="Tool offset calibration complete" ja="ツールオフセットの校正が完了しました"/>
   <translation tag="Tool offsets" ja="ツールオフセット"/>
   <translation tag="Tool offsets (mm)" ja="ツールオフセット (mm)"/>
+  <translation tag="Tool offsets cannot be calibrated during a print" ja="印刷中はツールオフセットをキャリブレートできません"/>
   <translation tag="Tool offsets saved" ja="ツールオフセットを保存しました"/>
   <translation tag="Tool swap" ja="ツール交換"/>
   <translation tag="Tool, runout backup" ja="ツール、フィラメント切れ時の予備"/>

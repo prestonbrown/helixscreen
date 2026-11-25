@@ -808,6 +808,7 @@ translations:
   Calibration canceled.: Calibração cancelada.
   Calibration complete: Calibração concluída
   Calibration complete - save to keep the offsets: Calibração concluída - salve para manter os offsets
+  Calibration complete - the printer saved the offsets: Calibração concluída - a impressora salvou os offsets
   Calibration complete!: Calibração concluída!
   Calibration complete! Press 'Next' to continue.: Calibração concluída! Pressione 'Próximo' para continuar.
   Calibration ended: "Calibração encerrada"
@@ -2385,6 +2386,7 @@ translations:
   Home Selector: Fazer home do seletor
   Home the printer again so a toolhead is picked up, then retry.: 'Faça home da impressora novamente para que um cabeçote seja pego e tente outra vez.'
   Home the printer again so it detects the toolheads, then retry.: 'Faça home da impressora novamente para que ela detecte os cabeçotes e tente outra vez.'
+  'Home the printer first: the calibration needs X, Y and Z homed': 'Posicione a impressora primeiro: a calibração precisa de X, Y e Z posicionados'
   Home the printer so every toolhead is docked, then retry.: 'Faça home da impressora para que todos os cabeçotes fiquem na doca e tente outra vez.'
   Home the printer, check that the head moves freely in its dock, then try again.: Faça home da impressora, verifique se o cabeçote se move livremente na doca e tente novamente.
   Homing: Posicionando
@@ -5602,6 +5604,7 @@ translations:
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Os detalhes deste carretel ainda não foram carregados do Spoolman. Toque em Salvar novamente.'
   This system does not support bypass mode: 'Este sistema não oferece suporte ao modo bypass'
   This theme: Este tema
+  'This tool has no number with a T command: assign it one first': 'Esta ferramenta não tem um número com comando T: atribua um primeiro'
   This tool probes each bed screw and tells you how much to adjust.: Esta ferramenta sonda cada parafuso da mesa e informa quanto ajustar.
   'This update asks for new permissions:': 'Esta atualização pede novas permissões:'
   This update removes HelixScreen from the printer.: 'Esta atualização remove o HelixScreen da impressora.'
@@ -5706,6 +5709,7 @@ translations:
   Tool offset calibration complete: 'Calibração de offset de ferramenta concluída'
   Tool offsets: 'Offsets de ferramenta'
   Tool offsets (mm): Offsets de ferramenta (mm)
+  Tool offsets cannot be calibrated during a print: Os offsets de ferramenta não podem ser calibrados durante uma impressão
   Tool offsets saved: Offsets de ferramenta salvos
   Tool swap: Troca de ferramenta
   Tool, runout backup: Ferramenta, reserva no fim do filamento

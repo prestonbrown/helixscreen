@@ -864,6 +864,7 @@ translations:
   Calibration canceled.: Калибровка отменена.
   Calibration complete: Калибровка завершена
   Calibration complete - save to keep the offsets: Калибровка завершена - сохраните, чтобы оставить смещения
+  Calibration complete - the printer saved the offsets: Калибровка завершена - принтер сохранил смещения
   Calibration complete!: Калибровка завершена!
   Calibration complete! Press 'Next' to continue.: Калибровка завершена! Нажмите «Далее» для продолжения.
   Calibration ended: "Калибровка завершена"
@@ -2449,6 +2450,7 @@ translations:
   Home Selector: Парковать селектор
   Home the printer again so a toolhead is picked up, then retry.: 'Снова запаркуйте принтер, чтобы печатающая головка была взята, затем повторите.'
   Home the printer again so it detects the toolheads, then retry.: 'Снова запаркуйте принтер, чтобы он обнаружил печатающие головки, затем повторите.'
+  'Home the printer first: the calibration needs X, Y and Z homed': 'Сначала выполните парковку принтера: для калибровки нужны припаркованные X, Y и Z'
   Home the printer so every toolhead is docked, then retry.: 'Запаркуйте принтер, чтобы все печатающие головки были в доках, затем повторите.'
   Home the printer, check that the head moves freely in its dock, then try again.: Выполните парковку принтера, убедитесь, что головка свободно двигается в доке, затем попробуйте снова.
   Homing: Парковка
@@ -5690,6 +5692,7 @@ translations:
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Данные этой катушки ещё не загружены из Spoolman. Нажмите «Сохранить» ещё раз.'
   This system does not support bypass mode: 'Эта система не поддерживает режим обхода'
   This theme: Эта тема
+  'This tool has no number with a T command: assign it one first': 'У этого инструмента нет номера с командой T: сначала назначьте его'
   This tool probes each bed screw and tells you how much to adjust.: Этот инструмент проверяет каждый винт стола и показывает, насколько его нужно отрегулировать.
   'This update asks for new permissions:': 'Это обновление запрашивает новые разрешения:'
   This update removes HelixScreen from the printer.: 'Это обновление удаляет HelixScreen с принтера.'
@@ -5794,6 +5797,7 @@ translations:
   Tool offset calibration complete: 'Калибровка смещений инструментов завершена'
   Tool offsets: 'Смещения инструментов'
   Tool offsets (mm): Смещения инструментов (мм)
+  Tool offsets cannot be calibrated during a print: Смещения инструментов нельзя калибровать во время печати
   Tool offsets saved: Смещения инструментов сохранены
   Tool swap: Смена инструмента
   Tool, runout backup: Инструмент, резерв при окончании филамента

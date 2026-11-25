@@ -808,6 +808,7 @@ translations:
   Calibration canceled.: キャリブレーションをキャンセルしました。
   Calibration complete: キャリブレーション完了
   Calibration complete - save to keep the offsets: キャリブレーション完了 - 保存してオフセットを保持してください
+  Calibration complete - the printer saved the offsets: キャリブレーション完了 - プリンターがオフセットを保存しました
   Calibration complete!: キャリブレーション完了！
   Calibration complete! Press 'Next' to continue.: '"キャリブレーション完了！「次へ」を押して続行してください。"'
   Calibration ended: "キャリブレーション終了"
@@ -2385,6 +2386,7 @@ translations:
   Home Selector: セレクターをホーミング
   Home the printer again so a toolhead is picked up, then retry.: 'ツールヘッドが装着されるよう再度ホーミングしてから、再試行してください。'
   Home the printer again so it detects the toolheads, then retry.: 'ツールヘッドを検出できるよう再度ホーミングしてから、再試行してください。'
+  'Home the printer first: the calibration needs X, Y and Z homed': '先にプリンターをホーミングしてください: キャリブレーションには X、Y、Z のホーミングが必要です'
   Home the printer so every toolhead is docked, then retry.: 'すべてのツールヘッドがドックに戻るようホーミングしてから、再試行してください。'
   Home the printer, check that the head moves freely in its dock, then try again.: プリンターをホーミングし、ヘッドがドック内でスムーズに動くことを確認してから、もう一度お試しください。
   Homing: ホーミング
@@ -5602,6 +5604,7 @@ translations:
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'このスプールの詳細はまだSpoolmanから読み込まれていません。もう一度保存してください。'
   This system does not support bypass mode: 'このシステムはバイパスモードに対応していません'
   This theme: このテーマ
+  'This tool has no number with a T command: assign it one first': 'このツールには T コマンドの番号がありません: 先に番号を割り当ててください'
   This tool probes each bed screw and tells you how much to adjust.: このツールは各ベッドネジをプローブし、どのくらい調整が必要かを教えます。
   'This update asks for new permissions:': 'この更新は新しい権限を要求します：'
   This update removes HelixScreen from the printer.: 'この更新はプリンターから HelixScreen を削除します。'
@@ -5706,6 +5709,7 @@ translations:
   Tool offset calibration complete: 'ツールオフセットの校正が完了しました'
   Tool offsets: 'ツールオフセット'
   Tool offsets (mm): ツールオフセット (mm)
+  Tool offsets cannot be calibrated during a print: 印刷中はツールオフセットをキャリブレートできません
   Tool offsets saved: ツールオフセットを保存しました
   Tool swap: ツール交換
   Tool, runout backup: ツール、フィラメント切れ時の予備

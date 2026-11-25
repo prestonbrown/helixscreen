@@ -251,7 +251,13 @@ void AmsBackendToolChanger::before_disconnect() {
 }
 
 void AmsBackendToolChanger::register_zmod_marker_listener() {
-    if (!client_ || !zmod_c5_row_active()) {
+    bool watches_console = zmod_c5_row_active();
+    {
+        // VRTX's calibration refusals arrive as console warnings.
+        std::lock_guard<std::mutex> lock(mutex_);
+        watches_console = watches_console || swap_macro_.present;
+    }
+    if (!client_ || !watches_console) {
         return;
     }
 
@@ -2805,6 +2811,10 @@ AmsError AmsBackendToolChanger::do_filament_batch(const std::vector<int>& slots,
             if (!slot_valid) {
                 return slot_valid;
             }
+            if (const char* reason = mount_refusal_locked(slot)) {
+                return AmsError(AmsResult::WRONG_STATE, "Tool change refused: no T command",
+                                lv_tr(reason), "");
+            }
         }
     }
     return start_mount_feed(slots, load);
@@ -2850,6 +2860,10 @@ AmsError AmsBackendToolChanger::do_change_tool(int tool_number) {
         if (sensor_error_) {
             return sensor_fault_refusal("Tool change");
         }
+        if (const char* reason = mount_refusal_locked(tool_number)) {
+            return AmsError(AmsResult::WRONG_STATE, "Tool change refused: no T command",
+                            lv_tr(reason), "");
+        }
         cmd = mount_gcode(tool_number);
     }
 
@@ -2872,14 +2886,14 @@ std::string AmsBackendToolChanger::mount_gcode(int slot_index) const {
         return tool_commands_.select_prefix + std::to_string(slot_index);
     }
     // A macro package's T<n> takes the tool NUMBER, so the number to send is the one
-    // the listing gives this slot's tool right now (ASSIGN_TOOL moves them). Before
-    // the listing arrives, or for a number the package defines no command for, the
-    // physical-tool SELECT_TOOL below stands.
+    // the listing gives this slot's tool right now (ASSIGN_TOOL moves them). A tool
+    // with no such command is refused before this is reached (mount_refusal_locked):
+    // the package's guards (a failed change blocks the next) live in its T<n>, and a
+    // raw SELECT_TOOL would skip them.
     if (swap_macro_.present) {
         const int number = listed_number_for_slot_locked(slot_index);
-        if (swap_macro_.has_command(number)) {
-            return swap_macro_.select_prefix + std::to_string(number);
-        }
+        return swap_macro_.has_command(number) ? swap_macro_.select_prefix + std::to_string(number)
+                                               : std::string();
     }
     // TOOL= names the [tool ...] object, a physical tool. T= is a tool NUMBER,
     // which ASSIGN_TOOL can point at any other hot end.
@@ -2889,6 +2903,14 @@ std::string AmsBackendToolChanger::mount_gcode(int slot_index) const {
     }
     // HEAD_LABEL_OK: a toolchanger's tools are its heads; this is the mount command itself
     return "SELECT_TOOL T=" + std::to_string(slot_index);
+}
+
+const char* AmsBackendToolChanger::mount_refusal_locked(int slot_index) const {
+    if (!swap_macro_.present ||
+        swap_macro_.has_command(listed_number_for_slot_locked(slot_index))) {
+        return nullptr;
+    }
+    return TR_NOOP("This tool has no number with a T command: assign it one first");
 }
 
 std::string AmsBackendToolChanger::tool_object_arg(const std::string& tool_name) {

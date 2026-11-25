@@ -55,6 +55,7 @@ struct Row {
     const char* target;
     const char* entry_description;
     bool needs_homed_idle = false;
+    bool persists_itself = false;
 };
 
 bool has_afc_toolchanger_unit(const PrinterDiscovery& hw) {
@@ -99,7 +100,7 @@ const Row kRows[] = {
      indx::kSeatByHandFlowId, TR_NOOP("Seat a tool by hand for the first Z home")},
     {"klipper-toolchanger", panel_detect, ProcedureKind::Panel, kPanelMacro, kMeasureDescription},
     {"VRTX", vrtx_panel_detect, ProcedureKind::Panel, kVrtxPanelMacro, kMeasureDescription,
-     /*needs_homed_idle=*/true},
+     /*needs_homed_idle=*/true, /*persists_itself=*/true},
     {"changer firmware offset wizard", wizard_prompt_detect, ProcedureKind::PrinterPrompt,
      kWizardPromptMacro, kMeasureDescription},
     {"changer firmware prompt", prompt_detect, ProcedureKind::PrinterPrompt, kPromptMacro,
@@ -133,13 +134,45 @@ constexpr std::chrono::minutes kRunIdleTimeout{15};
 
 } // namespace
 
+namespace {
+
+/// VRTX ends every refusal of VRTX_CALIBRATE with this sentence, in a warning echo
+/// ("VRTX WARNING: <why> Nothing was done.") that its rpc still answers as a success.
+constexpr const char* kVrtxWarningPrefix = "VRTX WARNING: ";
+constexpr std::string_view kVrtxRefusalEnd = "Nothing was done.";
+
+std::optional<std::string> vrtx_refusal_text(const std::string& line) {
+    const size_t at = line.find(kVrtxWarningPrefix);
+    if (at == std::string::npos) {
+        return std::nullopt;
+    }
+    std::string text = line.substr(at + std::string_view(kVrtxWarningPrefix).size());
+    while (!text.empty() && (text.back() == ' ' || text.back() == '\n' || text.back() == '\r')) {
+        text.pop_back();
+    }
+    if (text.size() < kVrtxRefusalEnd.size() ||
+        std::string_view(text).substr(text.size() - kVrtxRefusalEnd.size()) != kVrtxRefusalEnd) {
+        return std::nullopt;
+    }
+    return text;
+}
+
+} // namespace
+
 bool is_progress_line(const std::string& line) {
     return line.find("[CALIB] ") != std::string::npos ||
+           line.find(kVrtxWarningPrefix) != std::string::npos ||
            toolchanger_addon::parse_zmod_calibration_line(line).has_value();
 }
 
 std::optional<ProgressEvent> parse_progress_line(const std::string& line) {
     using Step = toolchanger_addon::ZmodCalibrationStep;
+    if (auto refusal = vrtx_refusal_text(line)) {
+        ProgressEvent event;
+        event.kind = ProgressEvent::Kind::Refused;
+        event.text = std::move(*refusal);
+        return event;
+    }
     const auto step = toolchanger_addon::parse_zmod_calibration_line(line);
     if (!step) {
         return std::nullopt;
@@ -176,6 +209,13 @@ bool report_progress_line(const std::string& line, std::chrono::steady_clock::ti
     if (!event) {
         return false;
     }
+    // A refusal answers a start, never joins a run in progress.
+    if (event->kind == ProgressEvent::Kind::Refused) {
+        if (progress_sink()) {
+            progress_sink()(*event);
+        }
+        return true;
+    }
     RunState& run = run_state();
     if (run.active && now - run.last_line > kRunIdleTimeout) {
         run.active = false;
@@ -209,6 +249,7 @@ Procedure resolve_procedure(const PrinterDiscovery& hw) {
         p.name = row.name;
         p.entry_description = row.entry_description;
         p.needs_homed_idle = row.needs_homed_idle;
+        p.persists_itself = row.persists_itself;
         if (row.kind == ProcedureKind::GuidedFlow) {
             p.flow_id = row.target;
         } else {

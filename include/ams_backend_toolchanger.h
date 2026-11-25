@@ -748,6 +748,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     void unregister_mount_feed_listener();
     /// The command that mounts @p slot_index, and the one that parks.
     [[nodiscard]] std::string mount_gcode(int slot_index) const;
+    /// Why a mount of @p slot_index cannot be sent (untranslated, pass through lv_tr()), or
+    /// nullptr. Under a macro package every mount goes through its T<n> command, so a tool
+    /// whose number has none is refused rather than mounted with a raw SELECT_TOOL.
+    /// Caller holds mutex_.
+    [[nodiscard]] const char* mount_refusal_locked(int slot_index) const;
     /// The TOOL= argument naming the [tool @p tool_name] object, for
     /// klipper-toolchanger's SELECT_TOOL and ASSIGN_TOOL.
     [[nodiscard]] static std::string tool_object_arg(const std::string& tool_name);

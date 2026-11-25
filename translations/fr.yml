@@ -820,6 +820,7 @@ translations:
   Calibration canceled.: Calibration annulée.
   Calibration complete: Calibration terminée
   Calibration complete - save to keep the offsets: Calibration terminée - enregistrez pour conserver les offsets
+  Calibration complete - the printer saved the offsets: Calibration terminée - l'imprimante a enregistré les offsets
   Calibration complete!: Calibration terminée !
   Calibration complete! Press 'Next' to continue.: Calibration terminée ! Appuyez sur 'Suivant' pour continuer.
   Calibration ended: "Calibration terminée"
@@ -2397,6 +2398,7 @@ translations:
   Home Selector: Origine du sélecteur
   Home the printer again so a toolhead is picked up, then retry.: 'Refaites la prise d''origine pour qu''une tête d''outil soit prise, puis réessayez.'
   Home the printer again so it detects the toolheads, then retry.: 'Refaites la prise d''origine pour que l''imprimante détecte les têtes d''outil, puis réessayez.'
+  'Home the printer first: the calibration needs X, Y and Z homed': 'Référencez d''abord l''imprimante : la calibration exige X, Y et Z référencés'
   Home the printer so every toolhead is docked, then retry.: 'Faites la prise d''origine pour que toutes les têtes d''outil soient rangées, puis réessayez.'
   Home the printer, check that the head moves freely in its dock, then try again.: Faites la prise d'origine de l'imprimante, vérifiez que la tête bouge librement dans son dock, puis réessayez.
   Homing: Mise à l'origine
@@ -5614,6 +5616,7 @@ translations:
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Les détails de cette bobine ne sont pas encore chargés depuis Spoolman. Appuyez à nouveau sur Enregistrer.'
   This system does not support bypass mode: 'Ce système ne prend pas en charge le mode bypass'
   This theme: Ce thème
+  'This tool has no number with a T command: assign it one first': 'Cet outil n''a pas de numéro avec une commande T : attribuez-lui-en un d''abord'
   This tool probes each bed screw and tells you how much to adjust.: Cet outil palpe chaque vis du plateau et vous indique combien ajuster.
   'This update asks for new permissions:': 'Cette mise à jour demande de nouvelles autorisations :'
   This update removes HelixScreen from the printer.: 'Cette mise à jour supprime HelixScreen de l''imprimante.'
@@ -5718,6 +5721,7 @@ translations:
   Tool offset calibration complete: 'Calibration des décalages d''outil terminée'
   Tool offsets: 'Offsets d''outil'
   Tool offsets (mm): Offsets d'outil (mm)
+  Tool offsets cannot be calibrated during a print: Les offsets d'outil ne peuvent pas être calibrés pendant une impression
   Tool offsets saved: Offsets d'outil enregistrés
   Tool swap: Changement d'outil
   Tool, runout backup: Outil, secours en fin de filament
