@@ -6,6 +6,7 @@
 
 #include "helix_test_fixture.h"
 #include "lane_apply.h"
+#include "lane_binding.h"
 #include "lane_resolver.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
@@ -420,4 +421,31 @@ TEST_CASE_METHOD(LaneFixture, "trimming a lane's edits keeps a waiter waiting",
     REQUIRE(pending().has_value());
     CHECK(pending()->color_rgb == 0x00FF00u);
     CHECK_FALSE(pending()->material.has_value());
+}
+
+TEST_CASE_METHOD(LaneFixture,
+                 "a binding change drops the previous spool's pending edit and Spoolman details",
+                 "[lane][pending][2044]") {
+    Observation firmware(ObservationSource::Firmware);
+    firmware.material = "PLA";
+    helix::ams::ingest(lane, firmware);
+    Observation record(ObservationSource::Record);
+    record.material = "PLA";
+    helix::ams::ingest(lane, record);
+    Observation spoolman(ObservationSource::Spoolman);
+    spoolman.brand = "Polymaker";
+    helix::ams::ingest(lane, spoolman);
+    edit(pending_material("PETG"));
+    REQUIRE(pending().has_value());
+    REQUIRE(helix::ams::lane_sources(lane).spoolman.has_value());
+
+    helix::ams::drop_previous_spool_declarations(lane);
+
+    // The previous spool's edit and its Spoolman details are gone; what
+    // Moonraker holds stays.
+    const helix::ams::LaneSources sources = helix::ams::lane_sources(lane);
+    CHECK_FALSE(sources.pending.has_value());
+    CHECK_FALSE(sources.spoolman.has_value());
+    CHECK(sources.firmware.has_value());
+    CHECK(sources.record.has_value());
 }
