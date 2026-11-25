@@ -5,7 +5,8 @@
 # itself: PAXX's Snapmaker U1 firmware, when its lmd hook
 # (<root>/etc/hooks/lmd.d/30-helixscreen.sh) binds its package: extended2.cfg's
 # `[components] gui` selects helixscreen AND oem/apps/helixscreen/latest/bin/helix-screen
-# is executable. PAXX ships the hook whatever gui says.
+# is executable. PAXX ships the hook whatever gui says. With the hook and the
+# package present, a config that cannot be read or parsed is refused.
 # HELIX_FIRMWARE_MANAGED_MARKER overrides the marker root for testing.
 # HELIX_IGNORE_FIRMWARE_MANAGED=1 forces past the guard.
 
@@ -17,7 +18,12 @@ setup() {
     unset _HELIX_MAIN_SOURCED
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh" 2>/dev/null || true
     . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh" 2>/dev/null || true
+    # main.sh installs the installer's ERR and EXIT handlers over bats's own,
+    # which would end the run on a failing assertion instead of reporting it.
+    local bats_traps
+    bats_traps=$(trap -p ERR EXIT)
     . "$WORKTREE_ROOT/scripts/lib/installer/main.sh"
+    eval "$bats_traps"
     export HELIX_FIRMWARE_MANAGED_MARKER="$BATS_TEST_TMPDIR/root"
     mkdir -p "$HELIX_FIRMWARE_MANAGED_MARKER"
     unset HELIX_IGNORE_FIRMWARE_MANAGED
@@ -84,14 +90,73 @@ paxx_gui() {
     [ "$status" -eq 0 ]
 }
 
-@test "gui is read the way configparser reads it" {
-    local cfg="$BATS_TEST_TMPDIR/x.cfg"
-    printf '[components]\n  GUI = helixscreen  \r\n[other]\ngui: snapmaker\n' > "$cfg"
-    run _paxx_selected_gui "$cfg"
-    [ "$output" = "helixscreen" ]
-    printf '[other]\ngui: helixscreen\n' > "$cfg"
-    run _paxx_selected_gui "$cfg"
-    [ -z "$output" ]
+@test "hook and package with no extended2.cfg: guard passes, gui defaults to snapmaker" {
+    paxx_hook
+    paxx_package
+    run _refuse_if_firmware_managed
+    [ "$status" -eq 0 ]
+}
+
+@test "a config only under /home/lava/printer_data is not the one the hook reads" {
+    paxx_hook
+    paxx_package
+    local dir="$HELIX_FIRMWARE_MANAGED_MARKER/home/lava/printer_data/config/extended"
+    mkdir -p "$dir"
+    printf '[components]\ngui: helixscreen\n' > "$dir/extended2.cfg"
+    run _refuse_if_firmware_managed
+    [ "$status" -eq 0 ]
+}
+
+@test "hook and package with an unparsable config: guard aborts (fails closed)" {
+    paxx_hook
+    paxx_package
+    local dir="$HELIX_FIRMWARE_MANAGED_MARKER/oem/printer_data/config/extended"
+    mkdir -p "$dir"
+    printf 'gui: snapmaker\n' > "$dir/extended2.cfg"
+    run _refuse_if_firmware_managed
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"gui: unreadable"* ]]
+}
+
+@test "hook and package with an unreadable config: guard aborts (fails closed)" {
+    [ "$(id -u)" -ne 0 ] || skip "root reads a mode-000 file"
+    paxx_hook
+    paxx_package
+    paxx_gui snapmaker
+    chmod 000 "$HELIX_FIRMWARE_MANAGED_MARKER/oem/printer_data/config/extended/extended2.cfg"
+    run _refuse_if_firmware_managed
+    [ "$status" -ne 0 ]
+}
+
+# The gui reader follows PAXX's extended-config.py (Python configparser) on the
+# shapes it reads differently from a naive line match: each fixture names whether
+# the hook would bind (gui is exactly helixscreen), would not, or the file does
+# not parse.
+@test "the gui reader reads extended2.cfg the way configparser does" {
+    local dir="$BATS_TEST_TMPDIR/fixtures"
+    mkdir -p "$dir"
+    printf '[components]\nrfid: external\n  gui: helixscreen\n' > "$dir/indented-key-after-key=no"
+    printf '[components]\ngui: snapmaker\n[web]\nx: 1\n[components]\ngui: helixscreen\n' > "$dir/duplicate-section=yes"
+    printf '[components]\ngui: helixscreen\ngui: snapmaker\n' > "$dir/duplicate-key=no"
+    printf '[components] # the UIs\n# gui: helixscreen\n; also a comment\ngui: snapmaker\n' > "$dir/comments=no"
+    printf '[components]\r\ngui: helixscreen\r\n' > "$dir/crlf=yes"
+    printf 'gui: helixscreen\n[components]\n' > "$dir/no-section-header=unreadable"
+    printf '[components]\ngui: helixscreen\n  extra\n' > "$dir/continued-value=no"
+    printf '[components]\nGUI = helixscreen\n' > "$dir/upper-key-equals=yes"
+    printf '[DEFAULT]\ngui: helixscreen\n[components]\nrfid: x\n' > "$dir/default-section=yes"
+    printf '[components]\nnot an option\ngui: helixscreen\n' > "$dir/no-delimiter=unreadable"
+    printf '[web]\nfrontend: fluidd\n' > "$dir/no-components=no"
+    local f want got
+    for f in "$dir"/*; do
+        want=${f##*=}
+        run _paxx_selected_gui "$f"
+        case "$status" in
+            0) [ "$output" = helixscreen ] && got=yes || got=no ;;
+            1) got=no ;;
+            *) got=unreadable ;;
+        esac
+        [ "$got" = "$want" ] || { echo "$(basename "$f"): got $got"; return 1; }
+    done
 }
 
 @test "HELIX_IGNORE_FIRMWARE_MANAGED=1 bypasses the guard" {
