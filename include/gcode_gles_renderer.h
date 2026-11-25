@@ -688,6 +688,12 @@ class GCodeGLESRenderer {
     /// still path, so the moving path compares epochs instead.
     uint64_t scene_epoch_ = 0;
     void mark_frame_dirty();
+
+    /// Per-vertex palette colors (true) or one filament color for the whole
+    /// model (false). Tools drawn from different palette entries always win:
+    /// the single color is then only the color of tools the file named none
+    /// for, and the builder baked a fallback for those into the palette.
+    bool draws_vertex_colors(const RibbonGeometry* geometry) const;
     /// Bumped (under state_mutex_) whenever the geometry is set or released or
     /// the cached frame is cleared: a frame stamped with an older value
     /// describes a scene that is gone and is never shown.

@@ -41,7 +41,15 @@ std::vector<PreprintStepRow> build_preprint_checklist(const PreprintChecklistInp
         rows.push_back({in.current, PreprintStepStatus::Current, left});
     }
 
-    for (PrintStartPhase p : in.expected_order) {
+    // Expected steps ahead of the current one that never showed are dropped,
+    // not claimed: a G28 on a printer that is already homed never changes
+    // homed_axes, and a macro may skip a step it guards with a condition.
+    const auto current_it =
+        std::find(in.expected_order.begin(), in.expected_order.end(), in.current);
+    const auto upcoming_from =
+        current_it == in.expected_order.end() ? in.expected_order.begin() : current_it;
+    for (auto it = upcoming_from; it != in.expected_order.end(); ++it) {
+        const PrintStartPhase p = *it;
         if (!is_listed_phase(p) || contains(rows, p))
             continue;
         rows.push_back({p, PreprintStepStatus::Upcoming, lookup_seconds(in.predicted_seconds, p)});

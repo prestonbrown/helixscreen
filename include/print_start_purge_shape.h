@@ -76,7 +76,7 @@ struct PurgeEvidence {
     bool ams_present = false;           ///< a filament system backend is active
     AmsAction action = AmsAction::IDLE; ///< its current action (ignored without one)
     bool filament_loaded = false;       ///< its filament-loaded state
-    bool heaters_at_target = false;     ///< nozzle and bed both reached their targets
+    bool heaters_at_target = false;     ///< nozzle (with a target set) and bed at target
     bool stationary_flow = false;       ///< PurgeFlowTracker reports a sustained stretch
 };
 

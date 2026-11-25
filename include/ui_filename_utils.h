@@ -64,6 +64,17 @@ std::string join_gcode_path(const std::string& dir, const std::string& filename)
 bool has_printable_extension(const std::string& filename);
 
 /**
+ * @brief Could a print job of this name be a file Moonraker holds?
+ *
+ * Moonraker prints only names ending in one of its VALID_GCODE_EXTS (.gcode,
+ * .g, .gco, .ufp, .nc), and the helix_print plugin adds .3mf. A job named
+ * otherwise (Kalico's PRINT_PA_TOWER runs as "PA tower") has no file, so no
+ * metadata, thumbnail or G-code to fetch. Wider than has_printable_extension(),
+ * which decides what the file list offers.
+ */
+bool names_a_print_file(const std::string& job_name);
+
+/**
  * @brief Strip G-code file extensions for display
  *
  * Removes common G-code extensions (.gcode, .g, .gco, .3mf, case-insensitive)

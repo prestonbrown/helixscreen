@@ -14,6 +14,7 @@
 
 #include "ui_update_queue.h"
 
+#include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/config_test_access.h"
@@ -595,6 +596,40 @@ TEST_CASE_METHOD(TelemetryTestFixture,
         auto second = last_print_outcome(tm);
         CHECK(second["nozzle_temp"] == 200);
         CHECK(second["bed_temp"] == 50);
+    }
+    PrinterStateTestAccess::reset(state);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Print outcome observer asks for metadata only when the job names a file",
+                 "[telemetry][print_outcome]") {
+    lv_init_safe();
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    auto& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    helix::test::FakeMoonrakerClient client;
+    MoonrakerAPI api(client, state);
+    ScopedMoonrakerApi installed(&api);
+
+    auto* job = state.print_state().get_print_state_enum_subject();
+    auto start_job = [&](const char* name) {
+        lv_subject_set_int(job, static_cast<int>(PrintJobState::STANDBY));
+        lv_subject_copy_string(state.print_state().get_print_filename_subject(), name);
+        lv_subject_set_int(job, static_cast<int>(PrintJobState::PRINTING));
+    };
+    {
+        auto guards = tm.init_print_outcome_observer();
+        lv_subject_set_int(job, static_cast<int>(PrintJobState::STANDBY));
+
+        // Kalico's PRINT_PA_TOWER: a job with no file behind it.
+        start_job("PA tower");
+        CHECK(client.rpc_count("server.files.metadata") == 0);
+
+        start_job("PA tower v2.gcode");
+        CHECK(client.rpc_count("server.files.metadata") == 1);
     }
     PrinterStateTestAccess::reset(state);
 }

@@ -21,6 +21,12 @@ class GCodeGLESRendererTestAccess {
         return renderer.geometry_uploaded_;
     }
 
+    /// Whether the next frame colors the model from its per-vertex palette
+    /// rather than one filament color.
+    static bool draws_vertex_colors(const GCodeGLESRenderer& renderer) {
+        return renderer.draws_vertex_colors(renderer.geometry_.get());
+    }
+
     static const SelectionState& selection(const GCodeGLESRenderer& renderer) {
         return renderer.selection_;
     }
