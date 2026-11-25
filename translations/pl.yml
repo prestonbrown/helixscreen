@@ -375,7 +375,7 @@ translations:
   Animated light effects configured on the printer. Turn them on and off from the LED controls.: Animowane efekty świetlne skonfigurowane na drukarce. Włączasz je i wyłączasz w sterowaniu LED.
   Animations: Animacje
   Anonymous data to help improve HelixScreen: Anonimowe dane pomagające ulepszać HelixScreen
-  Anonymous stats — no personal data, ever.: Anonimowe statystyki - żadnych danych osobowych, nigdy.
+  Anonymous stats — no personal data, ever.: Anonimowe statystyki — nigdy żadnych danych osobowych.
   Anonymous usage statistics: Anonimowe statystyki użycia
   Any notes...: Notatki...
   App Background: Tło aplikacji
@@ -1815,11 +1815,11 @@ translations:
   Heat soak: Wygrzewanie
   ? Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen does not run it.
   : Wygrzewanie pozwala obudowie nagrzać się przed drukiem. Jest na liście, bo drukarka ma makro wygrzewania albo włączono je w ustawieniach; HelixScreen go nie uruchamia.
-  Heat the bed to {}°C: Nagrzej stół do {}°C
+  Heat the bed to {}°C: Podgrzej stół do {}°C
   Heat the chamber too: Grzej też komorę
-  Heat the extruder to at least {}°C before loading filament: Nagrzej ekstruder do co najmniej {}°C przed ładowaniem filamentu
-  Heat to at least %d°C for filament operations: Nagrzej do co najmniej %d°C, aby wykonywać operacje na filamencie
-  Heat {} above {}°C before resuming: Nagrzej {} powyżej {}°C przed wznowieniem
+  Heat the extruder to at least {}°C before loading filament: Przed ładowaniem filamentu podgrzej ekstruder do co najmniej {}°C
+  Heat to at least %d°C for filament operations: Podgrzej do co najmniej %d°C, aby wykonywać operacje na filamencie
+  Heat {} above {}°C before resuming: Przed wznowieniem podgrzej {} powyżej {}°C
   Heatbed Temperature: Temperatura stołu
   Heated Bed: Podgrzewany stół
   Heated Bed MPC Calibration: Kalibracja MPC stołu
@@ -1896,7 +1896,7 @@ translations:
   Hold anywhere to cancel: Przytrzymaj gdziekolwiek, aby anulować
   Hold slicer prints that do not fit: Wstrzymuj wydruki ze slicera, które się nie mieszczą
   Hold {} fully on the head. The latch locks onto it and it becomes the mounted tool.: Przytrzymaj {} dociśnięte do głowicy. Zatrzask je zablokuje i stanie się zamontowanym narzędziem.
-  Holding nozzle at {}°C to purge previous filament.: Utrzymywanie dyszy w {}°C, aby wypłukać poprzedni filament.
+  Holding nozzle at {}°C to purge previous filament.: Dysza utrzymywana w {}°C, aby wypłukać poprzedni filament.
   Home: Start
   Home & Continue: Bazuj i kontynuuj
   Home All: Bazuj wszystko
@@ -2756,7 +2756,7 @@ translations:
   Nozzle clean complete: Czyszczenie dyszy zakończone
   Nozzle clog detected: Wykryto zatkanie dyszy
   Nozzle diameter: Średnica dyszy
-  Nozzle did not reach {}°C — {} canceled: Dysza nie osiągnęła {}°C - {} anulowano
+  Nozzle did not reach {}°C — {} canceled: Dysza nie osiągnęła {}°C — anulowano {}
   Nozzle flow: Przepływ dyszy
   Nozzle interval: Interwał dyszy
   Nozzle min cannot exceed max: Minimum dyszy nie może przekraczać maksimum
@@ -3628,7 +3628,7 @@ translations:
   Seat: Osadź
   Seat a tool by hand: Osadź narzędzie ręcznie
   Seat a tool by hand for the first Z home: Osadź narzędzie ręcznie przed pierwszym bazowaniem Z
-  Seat the hot ends, heat {} above {}°C, then tap Resume.: Osadź hotendy, nagrzej {} powyżej {}°C, a potem stuknij Wznów.
+  Seat the hot ends, heat {} above {}°C, then tap Resume.: Osadź hotendy, podgrzej {} powyżej {}°C, potem dotknij Wznów.
   Seat which tool by hand?: Które narzędzie osadzić ręcznie?
   Seating {}...: Osadzanie {}...
   Secondary: Drugorzędny
@@ -4065,11 +4065,11 @@ translations:
   Test Tracker: Testuj śledzenie
   Test Both: Testuj oba
   Test label printed: Wydrukowano etykietę testową
-  'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}°C.': 'Wieża testowa {:.0f} mm szeroka i {:.0f} mm wysoka, ok. {} min plus nagrzewanie: {} pasm po {:.0f} mm przy {}°C.'
+  'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}°C.': 'Wieża testowa o szerokości {:.0f} mm i wysokości {:.0f} mm, ok. {} min plus grzanie: {} pasm po {:.0f} mm przy {}°C.'
   'Testing rotation: %d° (%d/%d) - %ds remaining': 'Test obrotu: %d° (%d/%d) - pozostało %ds'
   Testing, servo, and motor operations: Testy, serwo i operacje silników
   Thanks! Anonymous usage data helps improve HelixScreen.: Dziękujemy! Anonimowe dane użycia pomagają ulepszać HelixScreen.
-  Thanks! TOTALLY anonymous usage data helps improve HelixScreen.: Dziękujemy! W pełni anonimowe dane o użyciu pomagają ulepszać HelixScreen.
+  Thanks! TOTALLY anonymous usage data helps improve HelixScreen.: Dziękujemy! CAŁKOWICIE anonimowe dane użycia pomagają ulepszać HelixScreen.
   That print is no longer paused: Ten wydruk nie jest już wstrzymany
   That reading jumped too far to trust. Re-measure without turning.: Ten odczyt skoczył za mocno, by mu ufać. Zmierz ponownie bez kręcenia.
   That setting cannot be changed while a print is running: Tego ustawienia nie można zmienić podczas druku
@@ -4151,11 +4151,11 @@ translations:
   : Załadowana szpula to {}, a plik pokrojono dla {}. Filament z wypełniaczem drukuje się z mniejszym przepływem i wymaga utwardzonej dyszy.
   The message your printer's macros show (M117): Komunikat wyświetlany przez makra drukarki (M117)
   ? The mounted nozzle heats to 200°C and cools again while the heater's safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes.
-  : Zamontowana dysza nagrzewa się do 200°C i stygnie, gdy dopasowywany jest model bezpieczeństwa grzałki. Wyłącz wentylator modelu i trzymaj łatwopalne materiały z dala od głowicy. To trwa kilka minut.
+  : Zamontowana dysza nagrzeje się do 200°C i ostygnie, podczas gdy dopasowywany jest model bezpieczeństwa grzałki. Wentylator chłodzenia wydruku ma być wyłączony, a materiały łatwopalne z dala od głowicy. Trwa to kilka minut.
   The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself.: Dysza wykonuje kilka krótkich ruchów testowych w rogu, z dala od obszaru druku, i powtarza je, aż wyniki będą zgodne.
   The nozzle hasn't moved since the power went out. Check that it sits just above the top of the print, then resume.: Dysza nie ruszyła się od zaniku zasilania. Sprawdź, czy jest tuż nad górą wydruku, potem wznów.
   ? The nozzle heats to 200°C while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes.
-  : Dysza nagrzewa się do 200°C, a wentylator modelu przechodzi przez swoje prędkości. Aby dopasowanie było dokładne, zamontuj kanał tak, jak drukujesz. To trwa kilka minut.
+  : Dysza nagrzewa się do 200°C, a wentylator chłodzenia wydruku przechodzi przez kolejne prędkości. Dla dokładnego dopasowania załóż dyszę wentylatora, której używasz przy druku. Trwa to kilka minut.
   The nozzle is clear of the print: Dysza jest z dala od wydruku
   ? The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next.
   : Dysza jest gorąca. Oczyść ją drucianą szczotką dołączoną do drukarki i utrzymuj miejsce dokowania w czystości, potem dotknij Dalej.
