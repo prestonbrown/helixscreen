@@ -1555,13 +1555,9 @@ bool GCodeGLESRenderer::setup_frame(const GCodeCamera& camera, float scale, bool
     glUniform1f(u_rim_strength_, kOuterWallRimStrength);
     glUniform1f(u_rim_power_, kOuterWallRimPower);
 
-    // Per-vertex color mode: use vertex colors when geometry has a color palette.
-    // With per-tool AMS overrides, the palette is updated in-place so vertex colors
-    // always reflect the correct AMS slot colors. Only fall back to uniform color
-    // when palette has a single-tool override (legacy path).
-    bool has_palette = active_geometry_ && !active_geometry_->color_palette.empty();
-    bool has_vertex_colors = has_palette && !palette_.has_override;
-    glUniform1f(u_use_vertex_color_, has_vertex_colors ? 1.0f : 0.0f);
+    // Per-tool AMS overrides are written into the palette in place, so vertex
+    // colors always carry the lane colors.
+    glUniform1f(u_use_vertex_color_, draws_vertex_colors(active_geometry_) ? 1.0f : 0.0f);
     return true;
 }
 
@@ -2129,6 +2125,24 @@ void GCodeGLESRenderer::set_extrusion_color(lv_color_t color) {
     spdlog::debug("[GCode GLES] set_extrusion_color: R={} G={} B={} → ({:.2f},{:.2f},{:.2f})",
                   color.red, color.green, color.blue, filament_color_.r, filament_color_.g,
                   filament_color_.b);
+}
+
+bool GCodeGLESRenderer::draws_vertex_colors(const RibbonGeometry* geometry) const {
+    if (!geometry || geometry->color_palette.empty()) {
+        return false;
+    }
+    if (!palette_.has_override) {
+        return true;
+    }
+    // Tools the file gave no colors of their own all share the builder's
+    // fallback entry; only distinct entries are a per-tool answer.
+    const auto& map = geometry->tool_palette_map;
+    if (map.empty()) {
+        return false;
+    }
+    const uint8_t first = map.begin()->second;
+    return std::any_of(map.begin(), map.end(),
+                       [first](const auto& entry) { return entry.second != first; });
 }
 
 void GCodeGLESRenderer::set_tool_color_overrides(const std::vector<uint32_t>& ams_colors) {
