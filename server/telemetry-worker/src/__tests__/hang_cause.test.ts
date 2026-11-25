@@ -610,6 +610,9 @@ describe("hang queries", () => {
     expect(sql).toContain(`toUnixTimestamp(timestamp) <= ${2000 + HANG_UPLOAD_BATCH_SEC}`);
     expect(hangWarningsSql([])).toContain(SQL_FALSE);
   });
+  it("reads warnings only as far back as the hang windows reach", () => {
+    expect(hangWarningsSql([{ device: "a1", at: 1000 }])).toContain(windowClause([0, HEALTH_WINDOWS.prev[1] + 1]));
+  });
   it("reads each warning's stored time, uptime, level, reason, the app's RSS and the host's total", () => {
     const sql = hangWarningsSql([{ device: "a1", at: 1000 }]);
     const columns: [string, string][] = [
@@ -691,24 +694,24 @@ describe("fetchHealth hang causes", () => {
   });
 
   const storedAt = 1_700_000_000;
-  /** Answers the Health queries with one older hang, its error row and `warnings` for the warning query; returns each SQL asked. */
-  const serve = (warnings: unknown[] | Response): string[] => {
+  const oneHang = { device: "d0", at: storedAt, uptime: HANG_UPTIME, mem: 0, pressure: "", platform: "pi", weight: 1 };
+  /** Answers the Health queries with `hangs`, their error row and `warnings` for the warning query; returns each SQL asked. */
+  const serve = (warnings: unknown[] | Response, hangs: object[] = [oneHang]): string[] => {
     const asked: string[] = [];
     vi.stubGlobal("fetch", async (_url: string, init: { body: string }) => {
       const sql = init.body;
       asked.push(sql);
       const respond = (data: unknown) => new Response(JSON.stringify({ data }), { status: 200 });
       if (sql.includes("'memory_warning'")) return warnings instanceof Response ? warnings : respond(warnings);
-      if (sql.includes("'main_loop_hang'")) {
-        return respond([{ device: "d0", at: storedAt, uptime: HANG_UPTIME, mem: 0, pressure: "", platform: "pi", weight: 1 }]);
-      }
+      if (sql.includes("'main_loop_hang'")) return respond(hangs);
       if (sql.trimEnd().endsWith("GROUP BY category, code")) {
-        return respond([{ category: "ui", code: "main_loop_hang", count: 1, devices: 1 }]);
+        return respond([{ category: "ui", code: "main_loop_hang", count: hangs.length, devices: hangs.length }]);
       }
       return respond([]);
     });
     return asked;
   };
+  const warningQueries = (asked: string[]): string[] => asked.filter((sql) => sql.includes("'memory_warning'"));
 
   it("reads the warnings of the upload that hung and classifies an older hang by them", async () => {
     serve([
@@ -732,6 +735,17 @@ describe("fetchHealth hang causes", () => {
     expect(sql).toContain(`${col("memory_warning", "device_id")} = 'd0'`);
     expect(sql).toContain(`toUnixTimestamp(timestamp) >= ${storedAt - HANG_UPLOAD_BATCH_SEC}`);
     expect(sql).toContain(`toUnixTimestamp(timestamp) <= ${storedAt + HANG_UPLOAD_BATCH_SEC}`);
+  });
+  it("asks for an upload's warnings once, however many hangs it carried", async () => {
+    const asked = serve([], Array.from({ length: 250 }, () => oneHang));
+    await fetchHealth({ accountId: "a", apiToken: "t" }, "2026-11-24");
+    expect(warningQueries(asked)).toHaveLength(1);
+  });
+  it("asks once per hundred distinct uploads, not once per hundred hangs", async () => {
+    const uploads = Array.from({ length: 150 }, (_, i) => ({ ...oneHang, device: `d${i % 50}`, at: storedAt + i }));
+    const asked = serve([], [...uploads, ...uploads, ...uploads.slice(0, 100)]);
+    await fetchHealth({ accountId: "a", apiToken: "t" }, "2026-11-24");
+    expect(warningQueries(asked)).toHaveLength(2);
   });
   it("classifies an older hang by its snapshot alone when the warning query fails, and logs", async () => {
     serve(new Response("boom", { status: 500 }));

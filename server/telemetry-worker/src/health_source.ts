@@ -6,9 +6,10 @@ import {
   hangSnapshotsSql,
   hangWarningsSql,
   healthQueries,
-  HEALTH_WINDOWS,
+  HEALTH_EVIDENCE_WINDOW,
   notApplicableFor,
   executeQuery,
+  uniqueHangUploads,
   type FilterParams,
   type HangUpload,
   type HealthQueryKey,
@@ -35,8 +36,9 @@ export async function fetchHealth(config: QueryConfig, today: string, filters?: 
     rows[k] = (results[i] as { data?: unknown[] } | null)?.data ?? [];
   });
   // The uploads that hung: their devices' snapshots and their own warnings are the evidence
-  // that classifies a hang, so those queries read no other series.
-  const uploads = [...rows.hangs_cur, ...rows.hangs_prev].map(hangUploadOf);
+  // that classifies a hang, so those queries read no other series. One query serves every hang
+  // of an upload, however many reported.
+  const uploads = uniqueHangUploads([...rows.hangs_cur, ...rows.hangs_prev].map(hangUploadOf));
   const hangDevices = [...new Set(uploads.map((u) => u.device))];
   const [snapshots, warnings] = await Promise.all([
     readEvidence("hang snapshots", () => hangSnapshots(config, hangDevices)),
@@ -80,9 +82,7 @@ async function rowsPerChunk<T>(config: QueryConfig, items: readonly T[], sql: (c
 }
 
 async function hangSnapshots(config: QueryConfig, devices: string[]): Promise<unknown[]> {
-  // The window reaches one day past the oldest hang so its latest earlier snapshot is in range.
-  const window = [0, HEALTH_WINDOWS.prev[1] + 1] as const;
-  return rowsPerChunk(config, devices, (chunk) => hangSnapshotsSql(chunk, window));
+  return rowsPerChunk(config, devices, (chunk) => hangSnapshotsSql(chunk, HEALTH_EVIDENCE_WINDOW));
 }
 
 async function hangWarnings(config: QueryConfig, uploads: HangUpload[]): Promise<unknown[]> {
