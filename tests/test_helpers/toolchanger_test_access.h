@@ -133,6 +133,13 @@ class ToolChangerTestAccess {
         b.on_zmod_marker_line(line);
     }
 
+    /// Attach @p client and register the console listener the way on_started() does, so a
+    /// notify_gcode_response fired on the client reaches the marker handler.
+    static void watch_console(AmsBackendToolChanger& b, helix::IMoonrakerClient* client) {
+        b.client_ = client;
+        b.register_zmod_marker_listener();
+    }
+
     /// The controller's latched phase word.
     static std::string last_operation_word(const AmsBackendToolChanger& b) {
         std::lock_guard<std::mutex> lock(b.mutex_);

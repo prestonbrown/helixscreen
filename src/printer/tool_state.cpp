@@ -743,7 +743,8 @@ bool ToolState::follows_any_axis() const {
 }
 
 void ToolState::query_tool_offsets(IMoonrakerClient* client,
-                                   const helix::PrinterDiscovery& hardware) {
+                                   const helix::PrinterDiscovery& hardware,
+                                   std::function<void()> on_applied) {
     if (!client || object_tools().empty() || !follows_any_axis()) {
         return;
     }
@@ -765,7 +766,8 @@ void ToolState::query_tool_offsets(IMoonrakerClient* client,
     // (CLAUDE.md § Threading invariant 1). bg_cb also drops the body if the
     // subjects were torn down while the request was in flight.
     auto cb = async_lifetime_.bg_cb(
-        "ToolState::query_tool_offsets", [this](const nlohmann::json& response) {
+        "ToolState::query_tool_offsets",
+        [this, on_applied = std::move(on_applied)](const nlohmann::json& response) {
             const auto* status = json_util::find_path(response, "result", "status");
             if (!status) {
                 spdlog::debug("[ToolState] Tool offset query returned no status");
@@ -780,6 +782,9 @@ void ToolState::query_tool_offsets(IMoonrakerClient* client,
                     tool.gcode_offset(Axis::X).known ? "" : "?", tool.gcode_offset(Axis::Y).mm,
                     tool.gcode_offset(Axis::Y).known ? "" : "?", tool.gcode_offset(Axis::Z).mm,
                     tool.gcode_offset(Axis::Z).known ? "" : "?");
+            }
+            if (on_applied) {
+                on_applied();
             }
         });
     client->send_jsonrpc("printer.objects.query", nlohmann::json{{"objects", objects}},
@@ -879,6 +884,45 @@ void ToolState::mark_tool_offsets_saved(int tool_index) {
         offset.saved_mm = offset.mm;
     }
     refresh_any_tool_dirty();
+}
+
+void ToolState::snapshot_offsets_for_run() {
+    run_offset_baseline_.clear();
+    for (const ToolInfo& tool : object_tools()) {
+        // An axis not read yet has no value to compare against: its first reading seeds
+        // its saved baseline itself (update_from_status), so it is skipped.
+        std::array<float, 3> mm{};
+        for (Axis axis : kAllAxes) {
+            const ToolAxisOffset& offset = tool.gcode_offset(axis);
+            mm[static_cast<size_t>(axis_index(axis))] =
+                offset.known ? offset.mm : std::numeric_limits<float>::quiet_NaN();
+        }
+        run_offset_baseline_.push_back(mm);
+    }
+}
+
+void ToolState::mark_changed_since_snapshot_saved() {
+    const auto& tools = object_tools();
+    for (size_t i = 0; i < tools.size() && i < run_offset_baseline_.size(); ++i) {
+        for (Axis axis : kAllAxes) {
+            const auto a = static_cast<size_t>(axis_index(axis));
+            const float before = run_offset_baseline_[i][a];
+            if (!std::isnan(before) && tools[i].gcode_offset(axis).mm != before) {
+                mark_tool_offsets_saved(static_cast<int>(i));
+                break;
+            }
+        }
+    }
+    run_offset_baseline_.clear();
+}
+
+void ToolState::settle_run_offsets(IMoonrakerClient* client,
+                                   const helix::PrinterDiscovery& hardware) {
+    if (!client || object_tools().empty() || !follows_any_axis()) {
+        mark_changed_since_snapshot_saved();
+        return;
+    }
+    query_tool_offsets(client, hardware, [this]() { mark_changed_since_snapshot_saved(); });
 }
 
 void ToolState::refresh_any_tool_dirty() {

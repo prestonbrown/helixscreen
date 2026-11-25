@@ -410,7 +410,8 @@ class ToolState {
     /// update_from_status() drops it), and thereafter republishes only what
     /// CHANGED. Without this the selector would sit at "no value reported"
     /// until someone happened to move an offset.
-    void query_tool_offsets(IMoonrakerClient* client, const helix::PrinterDiscovery& hardware);
+    void query_tool_offsets(IMoonrakerClient* client, const helix::PrinterDiscovery& hardware,
+                            std::function<void()> on_applied = {});
 
     /// The tool whose offsets @p tool_index prints with: itself where every
     /// tool is a head, else the printer's own tool on the head its lane feeds
@@ -458,6 +459,19 @@ class ToolState {
     /// save that failed.
     void mark_tool_offsets_saved(int tool_index);
 
+    /// Remembers every tool's offsets as they are now, for settle_run_offsets().
+    void snapshot_offsets_for_run();
+
+    /**
+     * @brief Marks saved the offsets a self-saving firmware run changed.
+     *
+     * A run's last offset can still be on its way in a status frame when the run's
+     * rpc answers, so this re-reads every tool's offsets first and marks saved, once
+     * they have landed, exactly the tools that differ from snapshot_offsets_for_run().
+     * An unsaved hand edit on another tool stays dirty.
+     */
+    void settle_run_offsets(IMoonrakerClient* client, const helix::PrinterDiscovery& hardware);
+
   private:
     /// The X, Y or Z member of a subject trio.
     static lv_subject_t* axis_member(Axis axis, helix::Subject& x, helix::Subject& y,
@@ -475,6 +489,12 @@ class ToolState {
     /// edit control HelixScreen cannot send.
     [[nodiscard]] bool follows_axis(Axis axis) const;
     [[nodiscard]] bool follows_any_axis() const;
+
+    /// mark_tool_offsets_saved() for each tool whose offsets differ from the snapshot.
+    void mark_changed_since_snapshot_saved();
+
+    /// Offsets at snapshot_offsets_for_run(), indexed like object_tools().
+    std::vector<std::array<float, 3>> run_offset_baseline_;
 
     /// Recompute any_tool_offset_dirty from tools_.
     void refresh_any_tool_dirty();

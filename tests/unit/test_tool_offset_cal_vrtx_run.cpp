@@ -71,13 +71,13 @@ TEST_CASE_METHOD(VrtxRunFixture, "VRTX run: a printed refusal fails the run with
     panel.cleanup();
 }
 
-TEST_CASE_METHOD(VrtxRunFixture, "VRTX run: a finished run leaves nothing to save",
+TEST_CASE_METHOD(VrtxRunFixture, "VRTX run: a finished run leaves nothing it measured to save",
                  "[ui_integration][toolchanger][tool_offset_cal][vrtx]") {
     auto& tools = helix::ToolState::instance();
     tools.set_tool_offset_local(1, helix::Axis::X, -120);
     REQUIRE_FALSE(tools.dirty_tool_indices().empty());
 
-    SECTION("VRTX keeps its own offsets") {
+    SECTION("VRTX keeps its own offsets, and a hand edit it never touched stays unsaved") {
         PinnedVrtx pin;
         helix::ui::ToolOffsetCalibrationPanel panel;
         panel.init_subjects();
@@ -85,8 +85,8 @@ TEST_CASE_METHOD(VrtxRunFixture, "VRTX run: a finished run leaves nothing to sav
         panel.begin_run();
         REQUIRE(pump_until([&] { return !panel.is_calibration_active(); }));
 
-        CHECK(tools.dirty_tool_indices().empty());
-        CHECK(lv_subject_get_int(tools.get_any_tool_offset_dirty_subject()) == 0);
+        CHECK(tools.tool_offset_dirty(1, helix::Axis::X));
+        CHECK(lv_subject_get_int(tools.get_any_tool_offset_dirty_subject()) == 1);
         panel.on_deactivate(DeactivateReason::NavigateAway);
         panel.cleanup();
     }
@@ -101,4 +101,44 @@ TEST_CASE_METHOD(VrtxRunFixture, "VRTX run: a finished run leaves nothing to sav
         panel.on_deactivate(DeactivateReason::NavigateAway);
         panel.cleanup();
     }
+}
+
+TEST_CASE_METHOD(VrtxRunFixture,
+                 "VRTX run: an offset that lands after the rpc answers is still saved, a hand edit "
+                 "elsewhere is not",
+                 "[ui_integration][toolchanger][tool_offset_cal][vrtx]") {
+    auto& tools = helix::ToolState::instance();
+    PinnedVrtx pin;
+    helix::IMoonrakerClient* const previous_client = get_moonraker_client();
+    set_moonraker_client(&*client);
+
+    // An unsaved hand edit on T1, which the printer also holds.
+    tools.set_tool_offset_local(1, helix::Axis::X, -120);
+    client->gcode_script("SET_TOOL_PARAMETER T=1 PARAMETER=gcode_x_offset VALUE=-0.12");
+    REQUIRE_FALSE(tools.dirty_tool_indices().empty());
+
+    helix::ui::ToolOffsetCalibrationPanel panel;
+    panel.init_subjects();
+    panel.on_activate();
+    panel.begin_run();
+
+    // The run measures T2 after the rpc's snapshot would have been taken: ToolState has
+    // not seen the value yet, only the printer holds it.
+    client->gcode_script("SET_TOOL_PARAMETER T=2 PARAMETER=gcode_x_offset VALUE=0.31");
+    REQUIRE(tools.tool_offset_mm(2, helix::Axis::X) < 0.3f);
+    REQUIRE(pump_until([&] { return !panel.is_calibration_active(); }));
+    REQUIRE(pump_until([&] { return tools.tool_offset_mm(2, helix::Axis::X) > 0.3f; }));
+
+    // T2's new value is saved; T1's hand edit is not.
+    CHECK_FALSE(tools.tool_offset_dirty(2, helix::Axis::X));
+    CHECK(tools.tool_offset_dirty(1, helix::Axis::X));
+    CHECK(lv_subject_get_int(tools.get_any_tool_offset_dirty_subject()) == 1);
+
+    // With the hand edit saved by hand, nothing is left: T2's value did not relight Save.
+    tools.mark_tool_offsets_saved(1);
+    CHECK(lv_subject_get_int(tools.get_any_tool_offset_dirty_subject()) == 0);
+
+    panel.on_deactivate(DeactivateReason::NavigateAway);
+    panel.cleanup();
+    set_moonraker_client(previous_client);
 }

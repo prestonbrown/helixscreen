@@ -9,7 +9,10 @@
  * runs underneath, so ASSIGN_TOOL, UNSELECT_TOOL and the tool listing stay as they are.
  */
 
+#include "../fake_moonraker_client.h"
+#include "../test_helpers/toolchanger_test_access.h"
 #include "../test_helpers/toolchanger_test_helper.h"
+#include "core/update_queue.h"
 #include "printer_discovery.h"
 #include "tool_offset_calibration.h"
 #include "toolchanger_addon.h"
@@ -202,4 +205,27 @@ TEST_CASE("VRTX's refusal of VRTX_CALIBRATE reads as a refusal with its own text
         cal::parse_progress_line("// VRTX WARNING: T2: the runs differ by more than 0.050 mm.")
             .has_value());
     CHECK(cal::is_progress_line("// VRTX WARNING: anything"));
+}
+
+TEST_CASE("VRTX's console refusal reaches the progress sink through the gcode-response listener",
+          "[toolchanger][vrtx]") {
+    namespace cal = helix::tool_offset_calibration;
+    helix::test::FakeMoonrakerClient client;
+    ToolChangerHelper tc(4);
+    wire(tc, vrtx_discovery(4), 4);
+    ToolChangerTestAccess::watch_console(tc, &client);
+
+    std::vector<cal::ProgressEvent> heard;
+    cal::set_progress_sink([&heard](const cal::ProgressEvent& e) { heard.push_back(e); });
+
+    CHECK(client.fire_notification(
+        "notify_gcode_response",
+        json{
+            {"params", json::array({"// VRTX WARNING: Home all axes first. Nothing was done."})}}));
+    helix::ui::UpdateQueue::instance().drain();
+    cal::set_progress_sink(nullptr);
+
+    REQUIRE(heard.size() == 1);
+    CHECK(heard[0].kind == cal::ProgressEvent::Kind::Refused);
+    CHECK(heard[0].text == "Home all axes first. Nothing was done.");
 }

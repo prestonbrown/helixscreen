@@ -324,6 +324,7 @@ void ToolOffsetCalibrationPanel::begin_run() {
         NOTIFY_ERROR("{}", lv_tr("No tools to calibrate"));
         return;
     }
+    helix::ToolState::instance().snapshot_offsets_for_run();
     set_run_active(true);
     last_error_.clear();
     run_refusal_.clear();
@@ -459,10 +460,9 @@ void ToolOffsetCalibrationPanel::on_run_finished(bool ok, const std::string& err
         if (procedure.persists_itself) {
             // The firmware saved every result itself and reapplies it at startup: they are
             // not unsaved edits, and a SAVE_CONFIG would only restart Klipper for nothing.
-            auto& tools = helix::ToolState::instance();
-            for (int i = 0; i < static_cast<int>(tools.tools().size()); ++i) {
-                tools.mark_tool_offsets_saved(i);
-            }
+            // Only after a fresh read: the last tool's offset can still be in flight.
+            helix::ToolState::instance().settle_run_offsets(get_moonraker_client(),
+                                                            get_printer_state().get_discovery());
             lv_subject_set_string(&status_,
                                   lv_tr("Calibration complete - the printer saved the offsets"));
         } else {
