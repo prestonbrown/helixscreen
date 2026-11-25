@@ -30,6 +30,9 @@ setup() {
     export LAUNCHES="$BATS_TEST_TMPDIR/launches"
     export HELIX_ROLLBACK_WINDOW=3
     export HELIX_ROLLBACK_POLL=1
+    # The launch reads the real /proc, where launchers of test files running
+    # beside this one would read as predecessors still exiting.
+    export HELIX_LAUNCHER_PREDECESSOR_WAIT=0
     mkdir -p "$HELIX_ROLLBACK_DIR"
 
     make_tree "$INSTALL" new
