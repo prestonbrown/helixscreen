@@ -876,40 +876,88 @@ _refuse_uninstall_from_install_dir() {
     esac
 }
 
-# The value of `gui` in the `[components]` section of PAXX's extended2.cfg, the
-# switch that selects which touchscreen UI the firmware runs. Read the way PAXX's
-# extended-config.py (configparser) reads it: `:` or `=` delimits, the key is
-# case-insensitive, the value is trimmed. Empty when the file or key is absent.
+# `gui` in the `[components]` section of PAXX's extended2.cfg, the switch that
+# selects which touchscreen UI the firmware runs, read the way PAXX's
+# extended-config.py reads it (Python configparser): `#` and `;` start a comment
+# line, `:` or `=` ends the key, keys are case-insensitive, a line indented deeper
+# than its key continues the value, duplicate sections merge and the last value
+# wins. Prints the value and returns 0; returns 1 when the file or the key is
+# absent (the hook then takes its default, snapmaker); returns 2 when the file
+# cannot be read or does not parse. The HelixPrint plugin reads the same file in
+# moonraker-plugin/helix_signal_migration.py#paxx_selected_gui, and
+# tests/shell/test_firmware_managed_guard.bats holds the two to the same answers.
 _paxx_selected_gui() {
-    [ -r "$1" ] || return 0
+    [ -e "$1" ] || return 1
+    [ -r "$1" ] || return 2
     awk '
-        /^[ \t]*\[/ {
-            s = $0; sub(/^[ \t]*\[[ \t]*/, "", s); sub(/[ \t]*\][ \t\r]*$/, "", s)
-            in_components = (s == "components"); next
+        function ltrim(s) { sub(/^[ \t\f\v]+/, "", s); return s }
+        function rtrim(s) { sub(/[ \t\f\v]+$/, "", s); return s }
+        function put(v) { if (target == "c") { cval = v; cset = 1 } else if (target == "d") { dval = v; dset = 1 } }
+        function get() { return target == "c" ? cval : dval }
+        {
+            line = $0
+            sub(/\r$/, "", line)
+            text = rtrim(ltrim(line))
+            c = substr(text, 1, 1)
+            if (c == "#" || c == ";") next
+            if (text == "") { pending = pending "\n"; next }
+            match(line, /[^ \t\f\v]/)
+            indent = RSTART - 1
+            if (in_section && opt != "" && indent > indent_level) {
+                if (target != "") put(get() pending "\n" text)
+                pending = ""
+                next
+            }
+            pending = ""
+            indent_level = indent
+            close_at = 0
+            for (i = length(text); i > 2; i--) if (substr(text, i, 1) == "]") { close_at = i; break }
+            if (c == "[" && close_at > 2) {
+                section = substr(text, 2, close_at - 2)
+                in_section = 1; opt = ""; target = ""
+                if (section == "components") has_components = 1
+                next
+            }
+            if (!in_section) { bad = 1; exit }
+            colon = index(text, ":"); equals = index(text, "=")
+            delim = colon
+            if (equals && (!delim || equals < delim)) delim = equals
+            opt = ""; target = ""
+            if (!delim) { bad = 1; next }
+            opt = tolower(rtrim(substr(text, 1, delim - 1)))
+            if (opt == "") { bad = 1; next }
+            if (opt == "gui" && section == "components") target = "c"
+            if (opt == "gui" && section == "DEFAULT") target = "d"
+            if (target != "") put(ltrim(substr(text, delim + 1)))
         }
-        in_components && /^[ \t]*[A-Za-z_]+[ \t]*[:=]/ {
-            key = $0; sub(/[ \t]*[:=].*/, "", key); gsub(/[ \t]/, "", key)
-            if (tolower(key) != "gui") next
-            val = $0; sub(/^[^:=]*[:=]/, "", val); gsub(/^[ \t]+|[ \t\r]+$/, "", val)
-            print val; exit
+        END {
+            if (bad) exit 2
+            if (cset) { print cval; exit 0 }
+            if (has_components && dset) { print dval; exit 0 }
+            exit 1
         }
     ' "$1"
 }
 
 # Refuse to run where the firmware runs HelixScreen itself: PAXX's Snapmaker U1
-# firmware, whose lmd hook bind-mounts the binary of its pinned package under
-# /oem/apps/helixscreen over /usr/bin/gui when `[components] gui` selects
-# helixscreen. PAXX ships the hook whatever that setting says, so the hook file
-# alone proves nothing; with gui on the stock UI the firmware runs no HelixScreen
-# and an install of ours is ours to update. A package directory beside our
-# install is no reason to refuse either: it runs only through that hook. The test
-# is the hook's own: gui on helixscreen AND an executable
-# /oem/apps/helixscreen/latest/bin/helix-screen to bind.
+# firmware, whose lmd hook (etc/hooks/lmd.d/30-helixscreen.sh) bind-mounts the
+# binary of its pinned package over /usr/bin/gui when /oem/apps/helixscreen/latest/
+# bin/helix-screen is executable and `[components] gui` in
+# /oem/printer_data/config/extended/extended2.cfg selects helixscreen. That file is
+# the only one the hook reads, and it defaults gui to snapmaker. PAXX ships the hook
+# whatever gui says, so the hook file alone proves nothing, and a package directory
+# beside our install runs only through the hook. Where the hook and the package are
+# present but the config cannot be read or parsed, the guard refuses: the hook would
+# bind nothing there, but which UI the user chose is unknown.
 #
-# The in-app updater makes the same call from the running binary in
-# helix::board::firmware_manages_updates() (src/system/board_identity.cpp), which
-# counts an install as the firmware's when the running binary is the package's.
-# The two must agree, or the app offers an update this guard then refuses.
+# The HelixPrint plugin asks the same question in
+# moonraker-plugin/helix_signal_migration.py#paxx_runs_helixscreen. The in-app
+# updater asks a narrower one in helix::board::firmware_manages_updates()
+# (src/system/board_identity.cpp): whether the running binary is the package's.
+# They differ only where our install runs while PAXX also binds its package (gui
+# switched to helixscreen after our install): the app offers the update and this
+# guard refuses it, every night, without touching anything. The refusal is the
+# safe side.
 #
 # Advanced users can force past the guard with HELIX_IGNORE_FIRMWARE_MANAGED=1.
 # Tests set HELIX_FIRMWARE_MANAGED_MARKER to a temp root to exercise the guard
@@ -926,10 +974,15 @@ _refuse_if_firmware_managed() {
     _fw_package_bin="${_fw_root}/oem/apps/helixscreen/latest/bin/helix-screen"
 
     [ -f "$_fw_hook" ] || return 0
-    [ "$(_paxx_selected_gui "$_fw_cfg")" = "helixscreen" ] || return 0
     [ -x "$_fw_package_bin" ] || return 0
+    _fw_gui=$(_paxx_selected_gui "$_fw_cfg")
+    case $? in
+        0) [ "$_fw_gui" = "helixscreen" ] || return 0 ;;
+        1) return 0 ;;
+        *) _fw_gui="unreadable" ;;
+    esac
 
-    _fw_detected="$_fw_hook (${_fw_cfg}: [components] gui: helixscreen)"
+    _fw_detected="$_fw_hook and $_fw_package_bin (${_fw_cfg}: [components] gui: ${_fw_gui})"
     log_error "=========================================="
     log_error "HelixScreen is managed by your firmware on this device."
     log_error "Detected: $_fw_detected"

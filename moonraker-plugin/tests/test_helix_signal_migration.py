@@ -196,6 +196,21 @@ class TestFirmwareManaged:
         self._paxx(tmp_path, "helixscreen", package=False)
         assert not FIRMWARE_MANAGED(str(tmp_path))
 
+    def test_paxx_config_that_does_not_parse_fails_closed(self, tmp_path):
+        self._paxx(tmp_path, None)
+        cfg = tmp_path / "oem/printer_data/config/extended/extended2.cfg"
+        cfg.parent.mkdir(parents=True)
+        cfg.write_text("gui: snapmaker\n")
+        assert migration.firmware_owner(str(tmp_path)) == "paxx"
+
+    def test_paxx_config_only_under_home_lava_is_not_read(self, tmp_path):
+        # The lmd hook reads only the /oem path.
+        self._paxx(tmp_path, None)
+        cfg = tmp_path / "home/lava/printer_data/config/extended/extended2.cfg"
+        cfg.parent.mkdir(parents=True)
+        cfg.write_text("[components]\ngui: helixscreen\n")
+        assert not FIRMWARE_MANAGED(str(tmp_path))
+
     def test_no_marker_is_not_firmware_managed(self, tmp_path):
         (tmp_path / "usr/data/config").mkdir(parents=True)
         (tmp_path / "opt/config/mod").mkdir(parents=True)

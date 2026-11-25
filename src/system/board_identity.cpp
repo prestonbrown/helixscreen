@@ -148,13 +148,13 @@ std::string resolve_install_root(const std::string& running_exe, const std::stri
     return {};
 }
 
-// install.sh makes the same call before it touches anything, in
-// scripts/lib/installer/main.sh#_refuse_if_firmware_managed: it refuses only where
-// the firmware's lmd hook binds the package (the hook present, PAXX's
-// `[components] gui` set to helixscreen and the package binary executable), which
-// is when the running binary is the package's. The HelixPrint plugin's
-// paxx_runs_helixscreen() asks the same. They must agree, or the app offers an update
-// the installer refuses.
+// install.sh and the HelixPrint plugin ask a wider question before they act
+// (scripts/lib/installer/main.sh#_refuse_if_firmware_managed,
+// moonraker-plugin/helix_signal_migration.py#paxx_runs_helixscreen): whether the
+// firmware's lmd hook binds its package at all. They differ from this rule only
+// where our install runs while the firmware also binds its package (gui switched to
+// helixscreen after our install): this offers the update and install.sh refuses it,
+// which changes nothing.
 bool firmware_manages_updates(Board board, const std::string& running_exe,
                               const std::string& probe_root) {
     const Info& row = info(board);
