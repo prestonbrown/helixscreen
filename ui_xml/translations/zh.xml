@@ -5487,6 +5487,7 @@
   <translation tag="Tool Offsets" zh="工具偏移"/>
   <translation tag="Tool Switcher" zh="工具切换器"/>
   <translation tag="Tool change failed: {}" zh="工具切换失败: {}"/>
+  <translation tag="Tool change ignored: the filament system is busy" zh="已忽略工具切换: 耗材系统正忙"/>
   <translation tag="Tool change speed" zh="换工具速度"/>
   <translation tag="Tool change to T{}" zh="切换工具到 T{}"/>
   <translation tag="Tool change to {} failed: {}" zh="切换到{}失败: {}"/>

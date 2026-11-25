@@ -50,7 +50,7 @@ struct ToolChangeInputs {
 
 struct ToolChangeDecision {
     ToolChangeVerdict verdict = ToolChangeVerdict::Immediate;
-    /// The copy to show for a Refuse* verdict; success otherwise.
+    /// The copy to show for a Refuse* or Busy verdict; success otherwise.
     AmsError refusal = AmsErrorHelper::success();
 
     [[nodiscard]] bool dispatches() const {
@@ -70,6 +70,9 @@ struct ToolChangeDecision {
 
 /// The refusal every move gets while spools lie on the bed.
 [[nodiscard]] AmsError spools_on_bed_refusal();
+
+/// What a tool change ignored while the filament system is mid-operation shows.
+[[nodiscard]] AmsError busy_refusal();
 
 /// The refusal a tool change gets while the filament system waits on the user.
 [[nodiscard]] AmsError needs_attention_refusal();
@@ -101,7 +104,7 @@ struct ToolChangeHooks {
 /**
  * @brief Decide a change to @p tool_index and carry it out.
  *
- * Refusals raise a warning toast; Busy and AlreadyActive raise nothing. A
+ * Refusals and Busy raise a warning toast; AlreadyActive raises nothing. A
  * confirmation verdict shows a modal_confirm whose primary button decides again
  * from live state and changes tool only if that verdict still dispatches,
  * otherwise reporting it as a tap would; a print paused since the dialog
