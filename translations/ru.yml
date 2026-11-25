@@ -5811,6 +5811,7 @@ translations:
   Tool Offsets: Смещения инструментов
   Tool Switcher: 'Переключатель инструментов'
   'Tool change failed: {}': 'Ошибка смены инструмента: {}'
+  'Tool change ignored: the filament system is busy': 'Смена инструмента пропущена: система подачи филамента занята'
   Tool change speed: Скорость смены инструмента
   Tool change to T{}: 'Смена инструмента на T{}'
   'Tool change to {} failed: {}': 'Ошибка смены инструмента на {}: {}'

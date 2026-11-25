@@ -132,7 +132,8 @@ TEST_CASE("decide_tool_change: a busy filament system ignores the request",
             const auto d = decide_tool_change(in);
             CHECK(d.verdict == ToolChangeVerdict::Busy);
             CHECK_FALSE(d.dispatches());
-            CHECK(d.refusal.success());
+            CHECK_FALSE(d.refusal.success());
+            CHECK_FALSE(d.refusal.user_msg.empty());
         }
     }
 }
@@ -354,8 +355,8 @@ TEST_CASE_METHOD(OfferFixture,
 }
 
 TEST_CASE_METHOD(OfferFixture,
-                 "offer_tool_change: a filament system gone busy while the dialog is open is "
-                 "silently declined",
+                 "offer_tool_change: a filament system gone busy while the dialog is open "
+                 "declines with a toast",
                  "[tool_change][offer][recheck]") {
     set_confirm(true);
     REQUIRE(offer(1) == ToolChangeVerdict::ConfirmSetting);
@@ -364,7 +365,21 @@ TEST_CASE_METHOD(OfferFixture,
     rig.backend->report_action = AmsAction::IDLE;
     CHECK(rig.backend->change_tool_calls == 0);
     CHECK(declines == 1);
-    CHECK(rig.warnings.empty());
+    REQUIRE(rig.warnings.size() == 1);
+    CHECK(rig.warnings[0].find(ui::busy_refusal().user_msg) != std::string::npos);
+}
+
+TEST_CASE_METHOD(OfferFixture,
+                 "offer_tool_change: a busy filament system toasts instead of ignoring the tap",
+                 "[tool_change][offer][2191]") {
+    set_confirm(false);
+    rig.backend->report_action = AmsAction::SELECTING;
+    CHECK(offer(1) == ToolChangeVerdict::Busy);
+    rig.backend->report_action = AmsAction::IDLE;
+    CHECK(rig.backend->change_tool_calls == 0);
+    CHECK(declines == 1);
+    REQUIRE(rig.warnings.size() == 1);
+    CHECK(rig.warnings[0].find(ui::busy_refusal().user_msg) != std::string::npos);
 }
 
 TEST_CASE_METHOD(OfferFixture,

@@ -5723,6 +5723,7 @@ translations:
   Tool Offsets: ツールオフセット
   Tool Switcher: 'ツール切り替え'
   'Tool change failed: {}': 'ツール変更に失敗しました: {}'
+  'Tool change ignored: the filament system is busy': 'ツール変更を無視しました: フィラメントシステムがビジー状態です'
   Tool change speed: ツール交換速度
   Tool change to T{}: 'ツールを T{} に変更しています'
   'Tool change to {} failed: {}': '{}へのツール変更に失敗しました: {}'

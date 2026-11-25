@@ -5723,6 +5723,7 @@ translations:
   Tool Offsets: Offsets de herramienta
   Tool Switcher: 'Selector de herramientas'
   'Tool change failed: {}': 'Error al cambiar herramienta: {}'
+  'Tool change ignored: the filament system is busy': 'Cambio de herramienta ignorado: el sistema de filamento está ocupado'
   Tool change speed: Velocidad de cambio de herramienta
   Tool change to T{}: 'Cambio de herramienta a T{}'
   'Tool change to {} failed: {}': 'Error al cambiar a la herramienta {}: {}'

@@ -17,6 +17,7 @@
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/tool_switcher_rig.h"
 #include "safety_settings_manager.h"
+#include "tool_change_request.h"
 #include "tool_state.h"
 
 #include "../catch_amalgamated.hpp"
@@ -191,7 +192,8 @@ TEST_CASE_METHOD(ToolheadTapFixture, "the mounted head's tap opens the slot menu
     CHECK(AmsPanelTestAccess::context_menu_open(*panel));
 }
 
-TEST_CASE_METHOD(ToolheadTapFixture, "a head tap while the filament system is busy is ignored",
+TEST_CASE_METHOD(ToolheadTapFixture,
+                 "a head tap while the filament system is busy is ignored, with a toast",
                  "[ams][path][toolhead_tap]") {
     set_confirm(false);
     rig.backend->report_action = GENERATE(AmsAction::LOADING, AmsAction::CHECKING);
@@ -199,7 +201,8 @@ TEST_CASE_METHOD(ToolheadTapFixture, "a head tap while the filament system is bu
     CHECK(rig.backend->change_tool_calls == 0);
     CHECK(ModalStack::instance().stack_empty());
     CHECK_FALSE(AmsPanelTestAccess::context_menu_open(*panel));
-    CHECK(rig.warnings.empty());
+    REQUIRE(rig.warnings.size() == 1);
+    CHECK(rig.warnings[0].find(ui::busy_refusal().user_msg) != std::string::npos);
 }
 
 TEST_CASE_METHOD(ToolheadTapFixture, "a head tap while printing is refused with a reason",
