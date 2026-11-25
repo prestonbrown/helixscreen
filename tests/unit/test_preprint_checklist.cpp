@@ -111,3 +111,36 @@ TEST_CASE("step position counts rows", "[preprint_checklist]") {
     CHECK(none.index == 0);
     CHECK(none.count == 0);
 }
+
+// A G28 on a printer that is already homed leaves homed_axes at "xyz", so the
+// collector never sees the homing step the start macro runs first.
+TEST_CASE("an expected step the sequence passed unseen is done, in its expected place",
+          "[preprint_checklist]") {
+    PreprintChecklistInput in;
+    in.done_in_order = {P::HEATING_BED};
+    in.actual_seconds = {{K(P::HEATING_BED), 23}};
+    in.current = P::HEATING_NOZZLE;
+    in.expected_order = {P::HOMING, P::HEATING_BED, P::HEATING_NOZZLE, P::PURGING};
+    auto rows = build_preprint_checklist(in);
+    REQUIRE(rows.size() == 4);
+    CHECK(rows[0].phase == P::HOMING);
+    CHECK(rows[0].status == PreprintStepStatus::Done);
+    CHECK(rows[0].seconds == -1);
+    CHECK(rows[1].phase == P::HEATING_BED);
+    CHECK(rows[1].seconds == 23);
+    CHECK(rows[2].status == PreprintStepStatus::Current);
+    CHECK(rows[3].phase == P::PURGING);
+    CHECK(rows[3].status == PreprintStepStatus::Upcoming);
+}
+
+TEST_CASE("an unseen expected step after every done one is still upcoming",
+          "[preprint_checklist]") {
+    PreprintChecklistInput in;
+    in.done_in_order = {P::HOMING};
+    in.current = P::HEATING_BED;
+    in.expected_order = {P::HOMING, P::HEATING_BED, P::QGL, P::HEATING_NOZZLE};
+    auto rows = build_preprint_checklist(in);
+    REQUIRE(rows.size() == 4);
+    CHECK(rows[2].phase == P::QGL);
+    CHECK(rows[2].status == PreprintStepStatus::Upcoming);
+}
