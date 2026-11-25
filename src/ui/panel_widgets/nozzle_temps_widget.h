@@ -5,7 +5,7 @@
 #include "core/observer_guard.h"
 #include "panel_widget.h"
 
-#include <memory>
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -29,6 +29,12 @@ struct ToolInfo;
 /// Gated on show_tool_badge (multi-tool printers only). Displays each
 /// extruder's current/target temperature, plus a bed temperature row
 /// at the bottom.
+///
+/// Each row's value and color are bound in XML to subjects this widget
+/// publishes; the widget itself never writes a label. The reading observers
+/// that feed them are registered on the row object, which makes them widget
+/// observers: the display-sleep hold (lv_subject_hold_obj_observers()) skips
+/// them like every XML binding, and LVGL deletes them with the row.
 class NozzleTempsWidget : public PanelWidget {
   public:
     explicit NozzleTempsWidget(PrinterState& printer_state);
@@ -65,15 +71,9 @@ class NozzleTempsWidget : public PanelWidget {
         lv_obj_t* label_number = nullptr;
         lv_obj_t* temp_label = nullptr;
         lv_obj_t* target_label = nullptr;
-        // Lifetimes MUST be declared before observers: C++ destroys members in
-        // reverse order, so observers are destroyed first (calling lv_observer_delete
-        // while the lifetime shared_ptr is still alive and the subject is valid).
-        // If the subject was already freed (reconnect), clear_rows() explicitly
-        // resets lifetimes before observers to let the weak_ptr expire. (#673)
-        SubjectLifetime temp_lifetime;
-        SubjectLifetime target_lifetime;
-        ObserverGuard temp_observer;
-        ObserverGuard target_observer;
+        // The last readings. The ladder measures the value it will render from
+        // them, and a reading arrives through its own observer, so both halves
+        // of the value are published from these rather than from one subject.
         int cached_temp = 0;
         int cached_target = 0;
     };
@@ -84,11 +84,6 @@ class NozzleTempsWidget : public PanelWidget {
     lv_obj_t* bed_icon_ = nullptr;
     lv_obj_t* bed_temp_label_ = nullptr;
     lv_obj_t* bed_target_label_ = nullptr;
-    // Lifetimes MUST be declared before observers (same pattern as ExtruderRow)
-    SubjectLifetime bed_temp_lifetime_;
-    SubjectLifetime bed_target_lifetime_;
-    ObserverGuard bed_temp_observer_;
-    ObserverGuard bed_target_observer_;
     int cached_bed_temp_ = 0;
     int cached_bed_target_ = 0;
 
@@ -124,15 +119,34 @@ class NozzleTempsWidget : public PanelWidget {
 
     void on_hooked_root_deleted() override;
 
-    void create_extruder_row(lv_obj_t* container, ExtruderRow& row);
+    /// Fill a row's three spellings from its extruder's name. Runs before the
+    /// row joins extruder_rows_: the number rung counts the rows built so far.
+    void name_row(ExtruderRow& row) const;
+    /// Build the row's XML for @p row, the @p index-th of extruder_rows_.
+    void create_extruder_row(lv_obj_t* container, ExtruderRow& row, size_t index);
     /// Open the nozzle graph, on extruder row @p index's tool when there are several.
     void handle_extruder_row_clicked(int index);
     void create_bed_row(lv_obj_t* container);
 
+    /// Observe the extruder's two readings on the row's object. No-op without a
+    /// row object: an observer needs one to be deleted with, and to be held.
+    void observe_row_sources(ExtruderRow& row);
+    /// Observe the bed's two readings on the bed row's object.
+    void observe_bed_sources();
+    /// Register @p cb on @p subject with the row object @p row as its target.
+    void observe_reading(lv_subject_t* subject, lv_observer_cb_t cb, lv_obj_t* row);
+    /// One observed reading changed on the row object @p owner.
+    void on_reading(lv_obj_t* owner, bool is_target, int value);
+    static void current_reading_cb(lv_observer_t* observer, lv_subject_t* subject);
+    static void target_reading_cb(lv_observer_t* observer, lv_subject_t* subject);
+
+    /// Publish a row's value and heat state onto nozzle_row_<index>_*, and the
+    /// bed's onto nozzle_bed_*: the subjects the row XML binds.
+    static void publish_row(const ExtruderRow& row, size_t index);
+    static void publish_bed(int temp_deci, int target_deci);
+
     /// Re-format every row from its cached readings (language or unit switch).
     void reformat_values();
-    void update_row_display(lv_obj_t* temp_label, lv_obj_t* target_label, int temp_deci,
-                            int target_deci, bool is_bed);
 };
 
 void register_nozzle_temps_widget();
