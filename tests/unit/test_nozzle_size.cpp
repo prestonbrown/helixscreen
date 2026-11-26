@@ -95,7 +95,8 @@ TEST_CASE("nozzle size: every head offers the flow types, kept by HelixScreen of
     for (PrinterInputs in : {mainline({0.4}), k2_like_inputs()}) {
         const auto head = nozzle_capability(in).heads[0];
         CHECK(head.flow_variants == std::vector<std::string>{"Standard", "High Flow"});
-        CHECK(head.flow_current == "Standard");
+        // Nobody has said: the head reads as unknown, not as Standard.
+        CHECK(head.flow_current.empty());
         CHECK(head.flow_changeable);
     }
     PrinterInputs high = mainline({0.4});
@@ -114,8 +115,9 @@ TEST_CASE("nozzle size: a flow type the firmware reports wins over the stored on
     CHECK(head_volume_type(in, 0) == "standard");
     CHECK(head_volume_type(in, 1) == "high_flow");
     CHECK(head_volume_type(in, 2).empty());
-    CHECK(head_volume_type(mainline({0.4}), 0) == "standard");
-    CHECK(resolve_volume_type("", "") == "standard");
+    CHECK(head_volume_type(mainline({0.4}), 0).empty());
+    CHECK(resolve_volume_type("", "").empty());
+    CHECK(resolve_volume_type("", "standard") == "standard");
 }
 
 TEST_CASE("nozzle size: lane tools on one extruder are one head", "[nozzle_size]") {

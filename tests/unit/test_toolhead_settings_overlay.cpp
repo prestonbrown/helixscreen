@@ -115,17 +115,27 @@ TEST_CASE_METHOD(ToolheadFixture,
     lv_obj_t* row = lv_obj_find_by_name(card, "flow_row");
     lv_obj_t* dd = row ? lv_obj_find_by_name(row, "dropdown") : nullptr;
     REQUIRE(dd != nullptr);
-    REQUIRE(lv_dropdown_get_selected(dd) == 0); // Standard
+    // Nobody has said: the first entry is "Not set", which goes once a type is picked.
+    REQUIRE(lv_dropdown_get_option_count(dd) == 3);
+    REQUIRE(lv_dropdown_get_selected(dd) == 0);
 
     SettingsManager& settings = SettingsManager::instance();
-    REQUIRE_FALSE(settings.get_nozzle_high_flow(0));
-    lv_dropdown_set_selected(dd, 1);
+    settings.clear_nozzle_flow(0);
+    REQUIRE_FALSE(settings.get_nozzle_flow_set(0));
+    lv_dropdown_set_selected(dd, 2); // High Flow
     lv_obj_send_event(dd, LV_EVENT_VALUE_CHANGED, nullptr);
     helix::ui::UpdateQueue::instance().drain();
 
     CHECK(ModalStack::instance().top_dialog() == nullptr);
     CHECK(settings.get_nozzle_high_flow(0));
-    settings.set_nozzle_high_flow(0, false);
+
+    // Rebuilt after the pick: the "Not set" entry is gone and High Flow is selected.
+    lv_obj_t* after =
+        lv_obj_find_by_name(lv_obj_find_by_name(lv_screen_active(), "flow_row"), "dropdown");
+    REQUIRE(after != nullptr);
+    CHECK(lv_dropdown_get_option_count(after) == 2);
+    CHECK(lv_dropdown_get_selected(after) == 1);
+    settings.clear_nozzle_flow(0);
 }
 
 TEST_CASE_METHOD(ToolheadFixture, "toolhead settings: every head's card is titled in one style",

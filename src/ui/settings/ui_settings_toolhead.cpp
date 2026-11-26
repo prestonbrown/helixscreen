@@ -66,6 +66,12 @@ std::string head_title(int extruder_index, size_t head_count) {
     return helix::ui::active_head_name_label(id);
 }
 
+/// A head whose flow type nobody has said lists a "Not set" entry first; it goes away
+/// once a type is picked. The entries after it shift by this much.
+int flow_offset(const nozzle_size::HeadCapability& h) {
+    return h.flow_current.empty() ? 1 : 0;
+}
+
 std::string join_lines(const std::vector<std::string>& items) {
     std::string out;
     for (size_t i = 0; i < items.size(); ++i) {
@@ -213,7 +219,11 @@ void ToolheadSettingsOverlay::populate() {
                        : std::string(lv_tr(nozzle_size::plan_change(inputs, h.extruder_index,
                                                                     nozzle_size::kDefaultNozzleMm)
                                                .reason.c_str()));
-        const std::string flow_options = join_lines(h.flow_variants);
+        std::vector<std::string> flow_entries = h.flow_variants;
+        if (flow_offset(h) != 0) {
+            flow_entries.insert(flow_entries.begin(), lv_tr("Not set"));
+        }
+        const std::string flow_options = join_lines(flow_entries);
         const bool flow_editable = h.flow_changeable;
         const std::string flow_note = h.flow_note.empty() ? "" : lv_tr(h.flow_note.c_str());
 
@@ -253,7 +263,7 @@ void ToolheadSettingsOverlay::populate() {
                 std::find(h.flow_variants.begin(), h.flow_variants.end(), h.flow_current);
             select_option(card, "flow_row",
                           it == h.flow_variants.end()
-                              ? -1
+                              ? 0 // "Not set"
                               : static_cast<int>(std::distance(h.flow_variants.begin(), it)),
                           h.flow_current);
         }
@@ -277,11 +287,13 @@ void ToolheadSettingsOverlay::on_flow_picked(int extruder_index, int option) {
     const auto inputs = nozzle_size::inputs_from_state(get_printer_state());
     const auto cap = nozzle_size::nozzle_capability(inputs);
     const auto* head = find_head(cap, extruder_index);
-    if (!head || option < 0 || static_cast<size_t>(option) >= head->flow_variants.size()) {
+    const int index = head ? option - flow_offset(*head) : -1;
+    // The "Not set" entry is not a choice: picking it changes nothing.
+    if (!head || index < 0 || static_cast<size_t>(index) >= head->flow_variants.size()) {
         return;
     }
     apply(nozzle_size::plan_flow_change(inputs, extruder_index,
-                                        head->flow_variants[static_cast<size_t>(option)]),
+                                        head->flow_variants[static_cast<size_t>(index)]),
           0.0, cap.heads.size() > 1 ? head_title(extruder_index, cap.heads.size()) : std::string());
 }
 
