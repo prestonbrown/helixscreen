@@ -636,10 +636,9 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
 
     /// One DeviceAction per reported preference: toggles, a sensitivity
     /// dropdown, one end-unload toggle per reported toolhead, and an Auto
-    /// loading toggle per head whose feeder reports its mode. Then, per
-    /// head, a nozzle diameter and a nozzle flow dropdown for each field the
-    /// head reports, unavailable while a print is printing or paused (the
-    /// firmware refuses the change then).
+    /// loading toggle per head whose feeder reports its mode. Nozzle size and flow
+    /// type are not here: the toolhead settings overlay drives them through
+    /// change_nozzle().
     [[nodiscard]] std::vector<helix::printer::DeviceAction> get_device_actions() const override;
 
     /// The device section the print preferences and Auto loading rows sit in.
@@ -647,34 +646,14 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     /// Each head's Auto loading row id: this prefix, then the head number.
     static constexpr std::string_view kAutoLoadActionPrefix = "snapmaker_auto_load_t";
 
-    /// Sends the line build_preference_gcode() maps the action id to, or the nozzle change
-    /// build_nozzle_change() makes of it. Unknown ids are reported as not supported.
+    /// Sends the line build_preference_gcode() maps the action id to. Unknown ids
+    /// are reported as not supported.
     AmsError do_execute_device_action(const std::string& action_id, const std::any& value) override;
 
-    /// A nozzle change reports through @p on_done once the firmware has answered;
-    /// every other action as the base class does.
-    AmsError do_run_device_action(const std::string& action_id, const std::any& value,
-                                  DeviceActionDone on_done) override;
-
-    /// Each head's nozzle as the firmware last reported it.
-    [[nodiscard]] std::array<snapmaker::nozzle::Nozzle, snapmaker::kToolCount>
-    reported_nozzles() const;
-
-    /// What a pick on a nozzle row sends.
-    struct NozzleChange {
-        /// The id names a nozzle row of a head that reports the field, and the
-        /// value is one of its options.
-        bool valid = false;
-        /// The params of the firmware's nozzle_properties call, carrying only
-        /// the field that differs from the report; unset when the pick is what
-        /// the head already reports, so nothing is sent.
-        std::optional<nlohmann::json> params;
-    };
-
-    /// The change a nozzle row's pick makes. Separated from
-    /// execute_device_action so the mapping is testable without a client.
-    [[nodiscard]] NozzleChange build_nozzle_change(const std::string& action_id,
-                                                   const std::any& value) const;
+    /// The firmware's per-head nozzle call (nozzle_size::ChangePlan::VendorRpc):
+    /// sends @p params and reports through @p on_done once the firmware has
+    /// answered, a refusal in its own words.
+    AmsError change_nozzle(const nlohmann::json& params, DeviceActionDone on_done) override;
 
     /// The saved unload-at-end list (SettingsManager's end-of-print unload
     /// tools) as one SET_PRINT_PREFERENCES line, sized to the toolheads the
@@ -1473,7 +1452,7 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     /// so can lag the reply, and the next pick is built from this.
     void finish_nozzle_change(int head, const nlohmann::json* accepted);
 
-    /// Sends a nozzle change (@p params from build_nozzle_change()) and reads
+    /// Sends a nozzle change (@p params from nozzle_size::plan_change()) and reads
     /// the firmware's reply, which @p on_done (may be empty) receives. A refusal,
     /// an unexpected reply or a failed send goes to nozzle_change_failed().
     AmsError send_nozzle_change(nlohmann::json params, DeviceActionDone on_done);

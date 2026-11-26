@@ -2530,6 +2530,19 @@ class AmsBackend : public AmsCapabilityHost {
         return result;
     }
 
+    /**
+     * @brief The firmware's own per-head nozzle call
+     *
+     * Executes a nozzle_size::ChangePlan of kind VendorRpc: @p params as the plan
+     * made them. @p on_done reports the firmware's answer on the main thread.
+     * Backends without such a record refuse.
+     */
+    virtual AmsError change_nozzle(const nlohmann::json& params, DeviceActionDone on_done) {
+        (void)params;
+        (void)on_done;
+        return AmsErrorHelper::not_supported("Nozzle size");
+    }
+
     /// A run_device_action() has been sent and has not reported its end. While
     /// it holds, filament ops and other machine-moving actions are refused.
     [[nodiscard]] virtual bool device_action_running() const {
