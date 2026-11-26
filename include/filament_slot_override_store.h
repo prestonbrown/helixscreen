@@ -459,11 +459,16 @@ class SlotFingerprintTracker {
 /// record already carries the observed value, so steady-state polls save
 /// nothing.
 ///
-/// `overrides` must outlive the binding (the sink holds a reference to it);
-/// a backend passes its own member, so that is its lifetime. Call with the
-/// same lock discipline the backend uses around observe(): the seeding is
-/// synchronous here, the sink later runs inline under that lock.
-void bind_fingerprint_persistence(SlotFingerprintTracker& tracker, FilamentSlotOverrideStore* store,
+/// `store` is the owner's own pointer to its lane record store, read on every
+/// call rather than captured: a restart replaces the store while the tracker
+/// lives on, and a sink holding the store itself would write through one
+/// already freed. `store` and `overrides` must outlive the binding (the sink
+/// holds references to both); a backend passes its own members, so that is
+/// their lifetime. Call with the same lock discipline the backend uses around
+/// observe(): the seeding is synchronous here, the sink later runs inline
+/// under that lock, which is the one that guards the store pointer.
+void bind_fingerprint_persistence(SlotFingerprintTracker& tracker,
+                                  std::unique_ptr<FilamentSlotOverrideStore>& store,
                                   std::unordered_map<int, FilamentSlotOverride>& overrides);
 
 } // namespace helix::ams

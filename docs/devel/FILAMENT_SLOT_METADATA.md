@@ -542,6 +542,10 @@ of those backends' `on_lane_records_read_locked()`:
 - **Recording.** The baseline sink writes the current fingerprint onto the record
   on `Baseline` and `Unchanged`, never `Changed` (the caller may be about to erase
   the record), and only for a slot that has a record.
+- **The store.** The sink is handed the backend's own pointer to its lane record
+  store and reads that pointer on every call, so a start that replaces the store
+  leaves no freed one for it to write through. Until the new store has read, its
+  write gate refuses the save.
 - Records without the key seed nothing: first observation is `Baseline`, no clear.
 
 ---

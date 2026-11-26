@@ -128,9 +128,9 @@ class QidiBoxTestAccess {
     static void inject_override_store(AmsBackendQidi& b,
                                       std::unique_ptr<helix::ams::FilamentSlotOverrideStore> s) {
         b.override_store_ = std::move(s);
-        // A start bound the tracker's baseline writes to the store this replaces.
-        helix::ams::bind_fingerprint_persistence(b.rfid_tracker_, b.override_store_.get(),
-                                                 b.overrides_);
+        // A backend that never started has bound no sink for the tracker's
+        // baseline writes; one that did already follows this pointer.
+        helix::ams::bind_fingerprint_persistence(b.rfid_tracker_, b.override_store_, b.overrides_);
     }
     // Runs only the startup store load: a null client makes on_started return
     // immediately after it, skipping the subscription machinery.

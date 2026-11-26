@@ -2723,6 +2723,83 @@ TEST_CASE("QIDI Box a restart compares against the fingerprint the record carrie
     }
 }
 
+// A start opens a new lane record store, which frees the one before it. The
+// tracker's baseline sink runs inline on every Baseline and Unchanged
+// observation and outlives that start, so it must follow the backend's pointer
+// to its store rather than hold the store: the one the last read saw is freed.
+//
+// The edit leaves for Klipper before the restart and its answer lands after
+// it. An edit that began inside the window would be refused one layer up
+// (AmsState refuses an edit while the lane records are unread); one already
+// sent has its record staged when its answer arrives, whichever store is open
+// then. Its own save waits for the new store's read, and the fingerprint a
+// poll confirms must not slip past that gate through the old store.
+//
+// Break: bind the sink to override_store_.get() instead of override_store_.
+// The sink the first read bound then names the store open_lane_record_store()
+// freed, and the poll in the window writes through it: a heap-use-after-free
+// under ASAN, and the freed store had read, so its gate waves the write
+// through.
+TEST_CASE("QIDI Box a restarted backend's fingerprint sink names no replaced store",
+          "[qidi][qidi_box][store_restart]") {
+    MockPrinter mock_printer;
+    auto& api = mock_printer.api;
+
+    // No client, so a start ends at the store and its read is the mock's to hold.
+    helix::test::RegisteredBackend<RecordingQidiBackend> harness(&api, nullptr);
+    auto& backend = *harness;
+    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
+    // The Box's ids for the slot, as on_started()'s bootstrap query brings them.
+    const auto poll = [&backend](const json& variables) {
+        const json status = helix::save_variables_frame(variables);
+        QidiBoxTestAccess::apply_query(backend, json{{"result", {{"status", status}}}});
+    };
+    const json tag{{"filament_slot0", 1}, {"color_slot0", 18}, {"vendor_slot0", 1}};
+
+    // The first start reads its store, and that read binds the sink.
+    QidiBoxTestAccess::start_load(backend);
+    poll(tag);
+    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|18");
+
+    // The user's edit is on its way to Klipper, its answer not back yet.
+    SlotInfo edited = backend.get_slot_info(0);
+    edited.material = "ABS";
+    edited.brand = "eSUN";
+    edited.color_rgb = 0x060606u;
+    backend.hold = true;
+    REQUIRE(backend.commit_user_edit(0, backend.get_slot_info(0), edited).success());
+    REQUIRE(backend.held_complete);
+    backend.hold = false;
+
+    // A restart frees that store and opens another, whose first read is held.
+    // This window is where a sink holding the old store would write through it.
+    mock_printer.client.defer_next("server.database.get_item");
+    QidiBoxTestAccess::start_load(backend);
+    REQUIRE_FALSE(backend.lane_records_ready());
+
+    // Klipper's answer lands in that window and stages the edit's record.
+    backend.held_complete();
+    REQUIRE(QidiBoxTestAccess::get_override(backend, 0).has_value());
+
+    // The Box still states the ids the baseline holds: the same spool again.
+    // The new store has not read, so the gate that refused the record's own
+    // save refuses this fingerprint too, and nothing reaches the database.
+    poll(tag);
+    CHECK(mock_printer.client.mock_db_get("lane_data", "lane1").is_null());
+
+    // The read lands. The same poll now persists, through the new store.
+    mock_printer.client.fire_deferred("server.database.get_item");
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    REQUIRE(backend.lane_records_ready());
+    REQUIRE(backend.commit_user_edit(0, backend.get_slot_info(0), edited).success());
+    CHECK_FALSE(
+        mock_printer.client.mock_db_get("lane_data", "lane1").contains("helix_fingerprint"));
+    poll(tag);
+    const auto stored = mock_printer.client.mock_db_get("lane_data", "lane1");
+    REQUIRE(stored.contains("helix_fingerprint"));
+    CHECK(stored.at("helix_fingerprint") == "1|18");
+}
+
 TEST_CASE("clearing a QIDI Box slot takes the linked spool's brand off it",
           "[ams][qidi_box][lane]") {
     MockPrinter mock_printer;

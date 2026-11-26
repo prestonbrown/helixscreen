@@ -2355,6 +2355,63 @@ TEST_CASE_METHOD(SnapmakerFixture,
     }
 }
 
+// A start opens a new lane record store, which frees the one before it. The
+// tracker's baseline sink runs inline on every Baseline and Unchanged
+// observation and outlives that start, so it must follow the backend's pointer
+// to its store rather than hold the store: the one the last read saw is freed.
+//
+// The record in the window is a meter's: update_slot_weight with persist, the
+// call the consumption tracker makes, stages one whenever it lands. The store
+// the start opened has not read, so the gate refuses that record's own save,
+// and the fingerprint a poll confirms must not slip past the gate through the
+// old store.
+//
+// Break: bind the sink to override_store_.get() instead of override_store_.
+// The sink the first read bound then names the store open_lane_record_store()
+// freed, and the poll in the window writes through it: a heap-use-after-free
+// under ASAN.
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker a restart never leaves the fingerprint sink on the replaced store",
+                 "[ams][snapmaker][store_restart]") {
+    MockPrinter mock_printer;
+    auto& api = mock_printer.api;
+
+    helix::test::RegisteredWired<AmsBackendSnapmaker> harness(&api);
+    auto& backend = *harness;
+    const json uid = json::array({1, 2, 3, 4});
+    const auto poll = [&backend, uid]() {
+        backend.fire_status(make_filament_detect_status(0, "PLA", 0xFFFF5500u, "Polymaker", uid));
+    };
+
+    // The first start reads its store, and that read binds the sink.
+    poll();
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    REQUIRE(SnapmakerTestAccess::last_rfid_uid(backend, 0) == "1,2,3,4");
+
+    // A restart frees that store and opens another, whose first read is held.
+    mock_printer.client.defer_next("server.database.get_item");
+    SnapmakerTestAccess::call_on_started(backend);
+    REQUIRE_FALSE(backend.lane_records_ready());
+
+    // A meter's flush lands in that window and stages the lane's record.
+    backend.update_slot_weight(0, 300.0f, 1000.0f, /*persist=*/true);
+    REQUIRE(SnapmakerTestAccess::get_override(backend, 0).has_value());
+
+    // The reader states the same tag again.
+    poll();
+    CHECK_FALSE(mock_printer.client.mock_db_get("lane_data", "T0").contains("helix_fingerprint"));
+
+    // The read lands. The same poll now persists, through the new store.
+    mock_printer.client.fire_deferred("server.database.get_item");
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    REQUIRE(backend.lane_records_ready());
+    backend.update_slot_weight(0, 300.0f, 1000.0f, /*persist=*/true);
+    poll();
+    const auto stored = mock_printer.client.mock_db_get("lane_data", "T0");
+    REQUIRE(stored.contains("helix_fingerprint"));
+    CHECK(stored.at("helix_fingerprint") == "1,2,3,4");
+}
+
 TEST_CASE_METHOD(SnapmakerFixture,
                  "Snapmaker an unreadable UID keeps the record through the glitch",
                  "[ams][snapmaker][filament_slot_override]") {

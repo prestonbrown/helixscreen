@@ -989,30 +989,35 @@ void SlotFingerprintTracker::clear() {
     baseline_.clear();
 }
 
-void bind_fingerprint_persistence(SlotFingerprintTracker& tracker, FilamentSlotOverrideStore* store,
+void bind_fingerprint_persistence(SlotFingerprintTracker& tracker,
+                                  std::unique_ptr<FilamentSlotOverrideStore>& store,
                                   std::unordered_map<int, FilamentSlotOverride>& overrides) {
     for (const auto& [slot, ovr] : overrides) {
         if (!ovr.fingerprint.empty())
             tracker.seed_baseline(slot, ovr.fingerprint);
     }
-    if (!store)
-        return;
-    tracker.set_baseline_sink([&overrides, store](int slot, const std::string& fingerprint) {
-        auto it = overrides.find(slot);
-        // No record means nothing for a swap to clear, so a fingerprint under
-        // it has no job; an equal one means the record is already current.
-        if (it == overrides.end() || it->second.fingerprint == fingerprint)
-            return;
-        it->second.fingerprint = fingerprint;
-        const FilamentSlotOverride snapshot = it->second;
-        store->save_async(slot, snapshot, [slot](bool success, const std::string& err) {
-            if (!success) {
-                spdlog::warn("[FilamentSlotOverrideStore] fingerprint persist for slot {} "
-                             "failed: {}",
-                             slot, err);
-            }
+    // The sink keeps where the owner holds its store, not the store: a restart
+    // frees the store this call saw and opens another under the same pointer.
+    tracker.set_baseline_sink(
+        [&overrides, holder = &store](int slot, const std::string& fingerprint) {
+            FilamentSlotOverrideStore* store = holder->get();
+            if (!store)
+                return;
+            auto it = overrides.find(slot);
+            // No record means nothing for a swap to clear, so a fingerprint under
+            // it has no job; an equal one means the record is already current.
+            if (it == overrides.end() || it->second.fingerprint == fingerprint)
+                return;
+            it->second.fingerprint = fingerprint;
+            const FilamentSlotOverride snapshot = it->second;
+            store->save_async(slot, snapshot, [slot](bool success, const std::string& err) {
+                if (!success) {
+                    spdlog::warn("[FilamentSlotOverrideStore] fingerprint persist for slot {} "
+                                 "failed: {}",
+                                 slot, err);
+                }
+            });
         });
-    });
 }
 
 bool clear_persisted_override(FilamentSlotOverrideStore* store,

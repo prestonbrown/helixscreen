@@ -420,14 +420,12 @@ void AmsBackendSnapmaker::on_started() {
         feed_presence_seen_.fill(false);
         hand_fed_head_.fill(false);
         switch_was_raised_.fill(false);
-        // The sink names the store being replaced; the new one's first read rebinds it.
-        rfid_tracker_.set_baseline_sink(nullptr);
     }
     open_lane_record_store("snapmaker");
 }
 
 void AmsBackendSnapmaker::on_lane_records_read_locked() {
-    helix::ams::bind_fingerprint_persistence(rfid_tracker_, override_store_.get(), overrides_);
+    helix::ams::bind_fingerprint_persistence(rfid_tracker_, override_store_, overrides_);
 }
 
 // ============================================================================

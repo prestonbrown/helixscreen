@@ -1031,7 +1031,7 @@ TEST_CASE("a user edit's record takes the nozzle midpoint and clears temps the s
 TEST_CASE("fingerprint persistence seeds from records and saves a baseline into the record",
           "[filament_slot_override][fingerprint]") {
     MockPrinter mock_printer;
-    FilamentSlotOverrideStore store(&mock_printer.api, "ifs");
+    auto store = std::make_unique<FilamentSlotOverrideStore>(&mock_printer.api, "ifs");
     std::unordered_map<int, FilamentSlotOverride> overrides;
     FilamentSlotOverride with_fp = polymaker_pla();
     with_fp.fingerprint = "PLA|Polymaker|PolyLite Orange|FF5500";
@@ -1041,7 +1041,7 @@ TEST_CASE("fingerprint persistence seeds from records and saves a baseline into 
     overrides[1] = without_fp;
 
     helix::ams::SlotFingerprintTracker tracker;
-    helix::ams::bind_fingerprint_persistence(tracker, &store, overrides);
+    helix::ams::bind_fingerprint_persistence(tracker, store, overrides);
     REQUIRE(tracker.baseline(0) == "PLA|Polymaker|PolyLite Orange|FF5500");
     CHECK_FALSE(tracker.baseline(1).has_value());
 
@@ -1051,7 +1051,7 @@ TEST_CASE("fingerprint persistence seeds from records and saves a baseline into 
     REQUIRE(lane2.is_object());
     CHECK(lane2["helix_fingerprint"] == "1,2,3,4");
     // And it reads back onto the record.
-    CHECK(read_back(store).at(1).record.fingerprint == "1,2,3,4");
+    CHECK(read_back(*store).at(1).record.fingerprint == "1,2,3,4");
 
     // A change does not persist: the clear that follows it deletes the record.
     CHECK(tracker.observe(0, "PETG|Bambu|Basic Green|00FF00") ==
