@@ -11,6 +11,7 @@
 #include "src/ui/panel_widgets/clock_face.h"
 
 #include <algorithm>
+#include <optional>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -220,6 +221,36 @@ TEST_CASE("held-still cards never relayout between minutes", "[clock_face]") {
             nixie_wrote = nixie_wrote || !dirty.empty();
         }
         CHECK(nixie_wrote == drift);
+    }
+}
+
+TEST_CASE("flip cards take their gray from the card they are seen on, never from a key",
+          "[clock_face]") {
+    using helix::ui::FlipClockSim;
+    const helix::ui::FlipFace face = helix::ui::clock_face(hms(10, 0, 0), true);
+    struct Case {
+        helix::ui::Rgb backdrop;
+        std::optional<helix::ui::Rgb> seen_on;
+        helix::ui::Rgb card_top;
+    };
+    const Case cases[] = {
+        // A black card keyed one blue step off black: still black's cards.
+        {{0, 0, 1}, helix::ui::Rgb{0, 0, 0}, FlipClockSim::kCardTop},
+        // A dark gray card, keyed: the lighter cards.
+        {{40, 40, 43}, helix::ui::Rgb{40, 40, 42}, FlipClockSim::kCardTopOnDark},
+        // The saver's black backdrop: the original cards.
+        {FlipClockSim::kBackground, std::nullopt, FlipClockSim::kCardTop},
+    };
+    for (const Case& c : cases) {
+        TestFrame frame(220, 100, PixelFormat::XRGB8888);
+        FlipClockSim sim;
+        sim.set_drift(false);
+        sim.set_backdrop(c.backdrop, c.seen_on);
+        sim.init(frame.target, 2, face);
+        const DirtyRect card = sim.layout().cards[0];
+        // Inside the card's top half, clear of its corner and above the glyph.
+        const helix::ui::Rgb px = frame.at(card.x1 + sim.layout().corner + 1, card.y1 + 1);
+        CHECK(px == c.card_top);
     }
 }
 

@@ -88,7 +88,8 @@ bool ClockFaceView::show(lv_obj_t* parent, ClockFace face, int32_t w, int32_t h,
         if (face == ClockFace::FLIP) {
             flip_ = std::make_unique<ui::FlipClockSim>();
             flip_->set_drift(false);
-            flip_->set_backdrop(surround);
+            // The cards' gray follows the card they are seen on, never the key.
+            flip_->set_backdrop(surround, backdrop);
             flip_->init(frame, tempo.level, cards_.face());
             markers_.draw_flip(canvas_, *flip_, cards_.face(), under_, dirty);
         } else {

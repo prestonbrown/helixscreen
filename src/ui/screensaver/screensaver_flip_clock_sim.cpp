@@ -710,11 +710,12 @@ uint8_t FlipClockSim::corner_coverage(size_t i, int32_t x, int32_t y) const {
     return static_cast<uint8_t>(std::lround(cov * 255.0f));
 }
 
-void FlipClockSim::set_backdrop(Rgb backdrop) {
+void FlipClockSim::set_backdrop(Rgb backdrop, std::optional<Rgb> seen_on) {
     backdrop_ = backdrop;
+    const Rgb seen = seen_on.value_or(backdrop);
     // Rec. 601 luma: a backdrop as dark as the cards hides their edges.
-    const int luma = (299 * backdrop.r + 587 * backdrop.g + 114 * backdrop.b) / 1000;
-    const bool dark_gray = !(backdrop == kBackground) && luma < 96;
+    const int luma = (299 * seen.r + 587 * seen.g + 114 * seen.b) / 1000;
+    const bool dark_gray = !(seen == kBackground) && luma < 96;
     card_top_ = dark_gray ? kCardTopOnDark : kCardTop;
     card_bottom_ = dark_gray ? kCardBottomOnDark : kCardBottom;
 }

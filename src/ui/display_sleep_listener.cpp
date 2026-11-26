@@ -10,9 +10,11 @@ namespace helix {
 
 namespace {
 
+/// Leaked on purpose: a listener destroyed on an exit path after static destruction still
+/// finds the list alive.
 std::vector<DisplaySleepListener*>& live_listeners() {
-    static std::vector<DisplaySleepListener*> s_listeners;
-    return s_listeners;
+    static auto* s_listeners = new std::vector<DisplaySleepListener*>();
+    return *s_listeners;
 }
 
 bool s_sleeping = false;

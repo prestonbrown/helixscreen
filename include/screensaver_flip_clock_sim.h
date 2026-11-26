@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
+#include <optional>
 #include <vector>
 
 /**
@@ -321,10 +322,12 @@ class FlipClockSim {
     }
 
     /// What shows round the cards: black for the saver, the card's color in a home tile, so
-    /// the cards sit on it. On a dark backdrop other than black the cards take a lighter gray
-    /// (kCardTopOnDark, kCardBottomOnDark) so their edges still show; the split and digits are
-    /// the same either way. Kept across clear().
-    void set_backdrop(Rgb backdrop);
+    /// the cards sit on it. `seen_on` is the color the cards are seen against when that
+    /// differs from `backdrop` (a key cleared to transparent over the card): on a dark gray
+    /// other than black the cards take a lighter gray (kCardTopOnDark, kCardBottomOnDark) so
+    /// their edges still show. The split and digits are the same either way. Kept across
+    /// clear().
+    void set_backdrop(Rgb backdrop, std::optional<Rgb> seen_on = std::nullopt);
 
     /// Frees the glyph cache.
     void clear();

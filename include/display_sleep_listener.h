@@ -26,6 +26,13 @@ class DisplaySleepListener {
     void listen(std::function<void(bool sleeping)> on_change);
 
     /// True while the display sleeps, as the last notify() said; false before any.
+    ///
+    /// Deliberately the last notify(), not the display's own flag: DisplaySleepController
+    /// flips its state and runs the panel lifecycle (an on_activate() on wake) before it runs
+    /// the sleep callbacks, so during that window this still reads the old edge. Every listener
+    /// gets notify() right after, so an object that reads this from on_activate() and also
+    /// listens settles on the new state within the same wake. Reading the controller directly
+    /// would make the UI layer depend on the app's.
     static bool display_sleeping();
 
     /// The display went to sleep (true) or woke (false): every live listener hears it.
