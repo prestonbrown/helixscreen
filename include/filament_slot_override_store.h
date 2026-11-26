@@ -56,6 +56,20 @@ inline constexpr const char* kLaneDataNamespace = "lane_data";
 [[nodiscard]] nlohmann::json to_lane_data_record(int slot_index, const FilamentSlotOverride& o,
                                                  LaneKeyStyle style = LaneKeyStyle::Lane);
 
+/// The OrcaSlicer filament preset id a record for @p o names, and the
+/// helix_filament_id_source marker beside it (nullptr for a catalog pick's own
+/// id). The linked spool's own Orca id first, because the tracker wins on
+/// identity (Lane Status Surface §6); then an id the catalog records for this
+/// one product; failing both, the family's Generic preset, a material claim
+/// rather than a product one. Empty when none applies.
+struct OrcaFilamentId {
+    std::string id;
+    const char* source = nullptr;
+    /// The id is the family's Generic preset, a material claim only.
+    bool generic = false;
+};
+[[nodiscard]] OrcaFilamentId orca_filament_id_for(const FilamentSlotOverride& o);
+
 /// Parse a lane record, ours or another writer's, back into its slot index and
 /// fields. Reads the RFC spellings first and the legacy ones (`vendor`,
 /// `spool_name`, `helix_material`) after. nullopt for a record with no valid

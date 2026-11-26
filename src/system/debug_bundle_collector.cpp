@@ -2,6 +2,7 @@
 
 #include "system/debug_bundle_collector.h"
 
+#include "ams_backend.h"
 #include "app_globals.h"
 #include "core/data_root_resolver.h"
 #include "core/http_executor.h"
@@ -1773,11 +1774,13 @@ json DebugBundleCollector::collect_filament_system_info(const json& object_list)
 }
 
 std::vector<std::string> DebugBundleCollector::filament_override_namespaces() {
-    // "lane_data" is the shared, cooperative namespace (AD5X IFS, ACE, CFS,
-    // Snapmaker, plus AFC and Happy Hare's bypass-lane publishes). AFC and
-    // Happy Hare keep their own records privately because their Klipper
-    // plugins own lane_data and AFC rewrites it wholesale on every boot.
-    return {"lane_data", "helix-screen-afc-overrides", "helix-screen-hh-overrides"};
+    // "lane_data" is the shared, cooperative namespace. A backend whose
+    // firmware writes lane_data keeps its own records privately.
+    std::vector<std::string> out{"lane_data"};
+    for (auto& ns : helix::AmsBackend::private_lane_record_namespaces()) {
+        out.push_back(std::move(ns));
+    }
+    return out;
 }
 
 // Platform-specific diagnostic files
