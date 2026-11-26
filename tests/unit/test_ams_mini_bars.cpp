@@ -188,6 +188,22 @@ TEST_CASE("ams_mini bars: one unit too wide for a micro tile shows what fits and
     CHECK(extent(p, {12}, m).w <= 57 - m.overflow_w);
 }
 
+TEST_CASE("ams_mini bars: a cut unit keeps its active lane in view", "[ams_mini][ams_mini_bars]") {
+    const auto m = metrics(8);
+    // The same 12-gate ERCF, loaded on lane 10, which lies past the lanes that fit.
+    const AmsMiniBarPlan p = plan_ams_mini_bars({12}, 0, 57, 40, m, 10);
+
+    REQUIRE(p.cut_unit == 0);
+    REQUIRE(p.cut_lanes < 10);
+    CHECK(p.cut_first <= 10);
+    CHECK(p.cut_first + p.cut_lanes > 10);
+    CHECK(p.cut_first + p.cut_lanes <= 12);
+    CHECK(p.hidden_lanes == 12 - p.cut_lanes);
+
+    // An active lane among the first lanes keeps the window at the start.
+    CHECK(plan_ams_mini_bars({12}, 0, 57, 40, m, 2).cut_first == 0);
+}
+
 TEST_CASE("ams_mini bars: an absent unit is neither placed nor counted",
           "[ams_mini][ams_mini_bars]") {
     const auto m = metrics();

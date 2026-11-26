@@ -44,6 +44,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 // Layout constants
@@ -423,8 +424,9 @@ static std::vector<BarUnit> bar_units(const AmsMiniStatusData* data) {
     return units;
 }
 
-/** The unit holding the active lane, or -1. */
-static int active_bar_unit(const AmsMiniStatusData* data, const std::vector<BarUnit>& units) {
+/** The unit holding the active lane and the lane's position in it, or {-1, -1}. */
+static std::pair<int, int> active_bar_lane(const AmsMiniStatusData* data,
+                                           const std::vector<BarUnit>& units) {
     for (size_t i = 0; i < data->spool_cells.size(); ++i) {
         const SpoolCellData& cd = data->spool_cells[i];
         if (!cd.active)
@@ -432,9 +434,9 @@ static int active_bar_unit(const AmsMiniStatusData* data, const std::vector<BarU
         const int slot = cd.slot >= 0 ? cd.slot : static_cast<int>(i);
         for (size_t u = 0; u < units.size(); ++u)
             if (slot >= units[u].first_slot && slot < units[u].first_slot + units[u].lanes)
-                return static_cast<int>(u);
+                return {static_cast<int>(u), slot - units[u].first_slot};
     }
-    return -1;
+    return {-1, -1};
 }
 
 static BarBoxKind box_kind_for(helix::ui::AmsMiniBarBoxes boxes) {
@@ -583,9 +585,9 @@ static void rebuild_bars(AmsMiniStatusData* data) {
     unit_lanes.reserve(units.size());
     for (const BarUnit& u : units)
         unit_lanes.push_back(std::max(0, u.lanes));
-    const int active = units.size() >= 2 ? active_bar_unit(data, units) : -1;
-    const helix::ui::AmsMiniBarPlan plan =
-        helix::ui::plan_ams_mini_bars(unit_lanes, active, avail_w, effective_height, m);
+    const auto [active, active_lane] = active_bar_lane(data, units);
+    const helix::ui::AmsMiniBarPlan plan = helix::ui::plan_ams_mini_bars(
+        unit_lanes, active, avail_w, effective_height, m, active_lane);
 
     // Boxes and lines removed this pass are batch-deleted at the end through one
     // temporary parent: cascading lv_obj_delete_async() calls corrupt LVGL's
@@ -682,14 +684,16 @@ static void rebuild_bars(AmsMiniStatusData* data) {
                 lv_obj_move_to_index(box, static_cast<int32_t>(k));
             // DECLARATIVE_OK: the active unit is a runtime fact, shown by the
             // box's checked style.
-            lv_obj_set_state(box, LV_STATE_CHECKED, u == active);
+            lv_obj_set_state(box, LV_STATE_CHECKED, units.size() >= 2 && u == active);
             lv_obj_t* lanes = lv_obj_find_by_name(box, "unit_group_lanes");
             if (!lanes)
                 continue;
-            const int shown_lanes = u == plan.cut_unit ? plan.cut_lanes : bu.lanes;
+            const bool cut = u == plan.cut_unit;
+            const int first_lane = cut ? plan.cut_first : 0;
+            const int shown_lanes = cut ? plan.cut_lanes : bu.lanes;
             lv_obj_set_width(lanes, shown_lanes * plan.bar_w + (shown_lanes - 1) * m.gap);
             for (int s = 0; s < shown_lanes; ++s) {
-                const int slot = bu.first_slot + s;
+                const int slot = bu.first_slot + first_lane + s;
                 if (slot < 0 || slot >= static_cast<int>(data->lane_bars.size()))
                     continue;
                 lv_obj_t*& bar = data->lane_bars[static_cast<size_t>(slot)];
@@ -1215,7 +1219,8 @@ AmsMiniBarPlan fit_bar_units(const std::vector<int>& lanes, const std::vector<in
 
 helix::ui::AmsMiniBarPlan helix::ui::plan_ams_mini_bars(const std::vector<int>& unit_lanes,
                                                         int active_unit, int avail_w, int avail_h,
-                                                        const AmsMiniBarMetrics& m) {
+                                                        const AmsMiniBarMetrics& m,
+                                                        int active_lane) {
     std::vector<int> present;
     int total = 0;
     for (size_t i = 0; i < unit_lanes.size(); ++i) {
@@ -1267,6 +1272,11 @@ helix::ui::AmsMiniBarPlan helix::ui::plan_ams_mini_bars(const std::vector<int>& 
             plan.cut_lanes = 1;
         }
         plan.cut_unit = u;
+        // A window of the lanes that fit, ending on the active lane when it lies
+        // past the first of them; "+N" counts the lanes on both sides.
+        if (u == active_unit && active_lane >= plan.cut_lanes)
+            plan.cut_first =
+                std::min(active_lane, unit_lanes[static_cast<size_t>(u)] - 1) - plan.cut_lanes + 1;
     }
     int placed = 0;
     for (const auto& line : plan.lines)

@@ -565,6 +565,46 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: the active unit's box follows the
     ams.deinit_subjects();
 }
 
+// A unit too wide for its tile shows only the lanes that fit; the active lane
+// is always among them.
+TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: a cut unit shows its active lane",
+                 "[ui][ams_mini]") {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+    auto mock = std::make_unique<UnitSplitMock>(12);
+    auto* raw = mock.get();
+    raw->unit_sizes = {12};
+    raw->current = 10;
+    ams.set_backend(std::move(mock));
+    ams.sync_from_backend();
+
+    // A micro tile's cell: 64px across.
+    lv_obj_t* cell = lv_obj_create(test_screen());
+    lv_obj_set_size(cell, 64, 60);
+    lv_obj_set_style_pad_all(cell, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_width(cell, 0, LV_PART_MAIN);
+    ui_ams_mini_status_init();
+    lv_obj_t* w = ui_ams_mini_status_create(cell, 60);
+    ui_ams_mini_status_set_width(w, 64);
+    lv_obj_update_layout(test_screen());
+    ui_ams_mini_status_refresh(w);
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_update_layout(test_screen());
+
+    lv_obj_t* active = ams_mini_test::lane_bar_for_slot(w, 10);
+    REQUIRE(active != nullptr);
+    CHECK(ams_mini_test::shown_within(active, w));
+    lv_obj_t* first = ams_mini_test::lane_bar_for_slot(w, 0);
+    CHECK((first == nullptr || !ams_mini_test::shown_within(first, w)));
+    lv_obj_t* overflow = UITest::find_by_name(w, "ams_overflow_label");
+    REQUIRE(overflow != nullptr);
+    CHECK_FALSE(lv_obj_is_hidden(overflow));
+
+    lv_obj_delete(cell);
+    ams.clear_backends();
+    ams.deinit_subjects();
+}
+
 // The widget syncs when it is created, so the frame that first shows it draws
 // its lanes instead of the next frame repainting them in.
 TEST_CASE_METHOD(LVGLUITestFixture,

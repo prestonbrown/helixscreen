@@ -1134,7 +1134,9 @@ bar is one size, its width capped at an eighth of the tile and its height at fou
 - **Too tight for every box**: only the active unit keeps its box, hugging its bars.
 - **Too tight for readable bars** (narrower than 4 px or shorter than 8 px): whole units drop
   from the end, never the active one, and "+N" counts their lanes. A lone unit too wide even
-  alone (a 12-gate ERCF on a micro tile) shows the lanes that fit and counts the rest.
+  alone (a 12-gate ERCF on a micro tile) shows the lanes that fit and counts the rest: its first
+  lanes, or a window ending on the active lane when that lane lies past them, with one "+N" on
+  the right for the lanes on either side.
 
 Units past the eighth (`kMaxUnitRows`) are not drawn in either view.
 

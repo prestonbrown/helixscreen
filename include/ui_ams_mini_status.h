@@ -242,7 +242,9 @@ struct AmsMiniBarMetrics {
 /// A bar layout: every shown lane bar_w x bar_h (body), the units in @p lines
 /// (indices into the planner's unit_lanes, in order). hidden_lanes > 0 when
 /// lanes did not fit and a "+N" counts them: whole units, or, when even the one
-/// kept unit does not fit, its lanes past the first cut_lanes (cut_unit >= 0).
+/// kept unit does not fit, its lanes outside the cut_lanes it shows from
+/// cut_first (cut_unit >= 0): its first lanes, or a window ending on the
+/// active lane when that lane lies past them.
 struct AmsMiniBarPlan {
     std::vector<std::vector<int>> lines;
     int bar_w = 0;
@@ -250,6 +252,7 @@ struct AmsMiniBarPlan {
     AmsMiniBarBoxes boxes = AmsMiniBarBoxes::None;
     int hidden_lanes = 0;
     int cut_unit = -1;
+    int cut_first = 0;
     int cut_lanes = 0;
 };
 
@@ -261,14 +264,16 @@ struct AmsMiniBarPlan {
  * units every unit is boxed, else (too tight) only @p active_unit is. When no
  * layout keeps the bars at least min_bar_w x min_bar_h, whole units drop from
  * the end, never @p active_unit, and hidden_lanes counts their lanes; a lone
- * unit too wide even alone shows the lanes that fit (cut_unit, cut_lanes). Units
- * with no lanes (absent) are neither placed nor counted.
+ * unit too wide even alone shows the lanes that fit (cut_unit, cut_first,
+ * cut_lanes), always including @p active_lane. Units with no lanes (absent) are
+ * neither placed nor counted.
  *
  * @param unit_lanes Each unit's lane count, in order
  * @param active_unit Index of the unit holding the active lane, or -1
+ * @param active_lane The active lane's position within @p active_unit, or -1
  */
 AmsMiniBarPlan plan_ams_mini_bars(const std::vector<int>& unit_lanes, int active_unit, int avail_w,
-                                  int avail_h, const AmsMiniBarMetrics& m);
+                                  int avail_h, const AmsMiniBarMetrics& m, int active_lane = -1);
 
 /**
  * @brief Whether the tray draws anything: some lanes, and at least one of
