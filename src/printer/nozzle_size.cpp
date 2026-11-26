@@ -2,6 +2,12 @@
 
 #include "nozzle_size.h"
 
+#include "app_globals.h"
+#include "klipper_extruder_naming.h"
+#include "platform_info.h"
+#include "printer_state.h"
+#include "snapmaker_nozzle_properties.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -12,7 +18,7 @@ bool usable(const std::optional<double>& d) {
     return d && std::isfinite(*d) && *d > 0.0;
 }
 
-std::optional<double> at(const std::vector<std::optional<double>>& v, int tool) {
+std::optional<double> entry_at(const std::vector<std::optional<double>>& v, int tool) {
     if (tool < 0 || static_cast<size_t>(tool) >= v.size()) {
         return std::nullopt;
     }
@@ -40,7 +46,7 @@ std::optional<double> resolve(std::optional<double> live, std::optional<double> 
 }
 
 std::optional<double> head_nozzle(const PrinterInputs& inputs, int tool) {
-    return resolve(at(inputs.live_diameters, tool), at(inputs.config_diameters, tool));
+    return resolve(entry_at(inputs.live_diameters, tool), entry_at(inputs.config_diameters, tool));
 }
 
 Capability capability(const PrinterInputs& in) {
@@ -71,6 +77,40 @@ Capability capability(const PrinterInputs& in) {
         cap.heads.push_back(std::move(h));
     }
     return cap;
+}
+
+PrinterInputs inputs_from_state(PrinterState& state) {
+    PrinterInputs in;
+
+    if (const auto& machine = state.get_discovery().fit_machine()) {
+        for (double d : machine->nozzle_diameters) {
+            in.config_diameters.emplace_back(d);
+        }
+    }
+
+    for (const auto& [name, info] : state.temperature_state().extruders()) {
+        const std::optional<int> n = tool_number_for_extruder(name);
+        if (!n) {
+            continue;
+        }
+        const auto slot = static_cast<size_t>(*n);
+        if (in.live_diameters.size() <= slot) {
+            in.live_diameters.resize(slot + 1);
+        }
+        if (info.nozzle_diameter > 0.0) {
+            in.live_diameters[slot] = info.nozzle_diameter;
+        }
+        if (!info.nozzle_volume_type.empty() && state.get_discovery().has_snapmaker()) {
+            in.vendor_records_present = true;
+        }
+    }
+    if (in.vendor_records_present) {
+        in.vendor_choices.assign(snapmaker::nozzle::kDiameters.begin(),
+                                 snapmaker::nozzle::kDiameters.end());
+    }
+
+    in.config_supervised = firmware_supervised();
+    return in;
 }
 
 } // namespace helix::nozzle_size
