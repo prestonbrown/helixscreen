@@ -36,7 +36,14 @@
       <pass_through name="tool_left_group"
                     width="content" height="content" flex_flow="row" style_flex_cross_place="center"
                     style_pad_column="#space_xs">
-        <icon name="tool_icon" src="heater" size="xs" variant="muted" clickable="false" event_bubble="true"/>
+        <!-- Takes its tone from the same heat subject as the reading beside it,
+             as the bed row's radiator does, so the two cannot disagree. -->
+        <icon name="tool_icon" src="heater" size="xs" clickable="false" event_bubble="true">
+          <bind_style_if_eq name="styles.text_tone_muted" subject="nozzle_row_${index}_heat" ref_value="0"/>
+          <bind_style_if_eq name="styles.text_tone_danger" subject="nozzle_row_${index}_heat" ref_value="1"/>
+          <bind_style_if_eq name="styles.text_tone_success" subject="nozzle_row_${index}_heat" ref_value="2"/>
+          <bind_style_if_eq name="styles.text_tone_info" subject="nozzle_row_${index}_heat" ref_value="3"/>
+        </icon>
         <!-- The number label carries no style_min_width: the floor is exactly
              what would make this rung as wide as a spelling and defeat it. -->
         <text_small name="tool_label_long"
