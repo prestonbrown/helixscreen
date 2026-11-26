@@ -77,6 +77,9 @@ struct HeadCapability {
     /// Flow types the head can be set to ("Standard", "High Flow"); empty where
     /// the printer has no such choice.
     std::vector<std::string> flow_variants;
+    std::string flow_current;     ///< the variant the head is on, "" while unknown
+    bool flow_changeable = false; ///< the flow type can be changed now
+    std::string flow_note;        ///< why not, untranslated; "" when it can
 };
 
 struct Capability {
@@ -125,10 +128,10 @@ struct ChangePlan {
 /// How to give extruder @p extruder_index a nozzle of @p mm. Pure.
 [[nodiscard]] ChangePlan plan_change(const PrinterInputs& inputs, int extruder_index, double mm);
 
-/// How to put extruder @p extruder_index on flow type @p volume_type (the
-/// firmware's spelling). Only a head whose capability lists flow variants.
+/// How to put extruder @p extruder_index on the flow variant named @p variant (one
+/// of HeadCapability::flow_variants). Only a head whose capability lists some.
 [[nodiscard]] ChangePlan plan_flow_change(const PrinterInputs& inputs, int extruder_index,
-                                          const std::string& volume_type);
+                                          const std::string& variant);
 
 /// Whether a printer.gcode.help reply (the whole JSON-RPC envelope) lists the
 /// command that changes the nozzle size; nullopt when the reply carries no list.
@@ -143,6 +146,15 @@ void probe_size_command(IMoonrakerClient& client);
 
 /// Records a probe's answer; the probe calls it, and tests set it directly.
 void set_size_command_registered(bool registered);
+
+/// What to ask the user before executing @p plan to @p mm; nullopt where the
+/// change needs no confirmation. Untranslated (wrap in lv_tr). For a ConfigEdit
+/// it is the sentence the shared config-rewrite dialog (confirm_config_rewrite)
+/// puts before its "Klipper restarts" tail.
+[[nodiscard]] std::optional<std::string> confirm_message(const ChangePlan& plan, double mm);
+
+/// "0.4 mm": a size as it is shown.
+[[nodiscard]] std::string size_text_mm(double mm);
 
 /// PrinterInputs as the running app knows the printer.
 [[nodiscard]] PrinterInputs inputs_from_state(PrinterState& state);

@@ -20,6 +20,7 @@
 #include "ui_settings_material_z_offset.h"
 #include "ui_settings_motion.h"
 #include "ui_settings_print_cost.h"
+#include "ui_settings_toolhead.h"
 #include "ui_spoolman_overlay.h"
 #include "ui_toast_manager.h"
 
@@ -109,7 +110,14 @@ void apply_plr_mesh_include(bool add) {
 } // namespace
 
 void PrintingSettingsOverlay::register_callbacks() {
+    // The Toolhead row's description binds this overlay's summary subject, which has
+    // to exist before the page's XML does.
+    get_toolhead_settings_overlay().ensure_subjects();
     register_xml_callbacks({
+        {"on_toolhead_settings_clicked",
+         [](lv_event_t*) {
+             get_toolhead_settings_overlay().show(get_printing_settings_overlay().parent_screen_);
+         }},
         {"on_enclosure_style_changed",
          [](lv_event_t* e) {
              SettingsManager::instance().set_enclosure_style(
@@ -232,6 +240,7 @@ void PrintingSettingsOverlay::register_callbacks() {
 
 void PrintingSettingsOverlay::on_activate() {
     OverlayBase::on_activate();
+    get_toolhead_settings_overlay().refresh_summary();
     query_plr_mesh_include();
 }
 

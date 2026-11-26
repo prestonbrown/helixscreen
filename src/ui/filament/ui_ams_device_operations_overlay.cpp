@@ -14,6 +14,7 @@
 #include "ui_callback_helpers.h"
 #include "ui_error_reporting.h"
 #include "ui_modal.h"
+#include "ui_settings_toolhead.h"
 #include "ui_unit_art.h"
 #include "ui_utils.h"
 
@@ -128,7 +129,15 @@ void AmsDeviceOperationsOverlay::init_subjects() {
 }
 
 void AmsDeviceOperationsOverlay::register_callbacks() {
+    // The Toolhead settings row binds the summary subject, which has to exist before
+    // this page's XML does.
+    helix::settings::get_toolhead_settings_overlay().ensure_subjects();
     register_xml_callbacks({
+        {"on_ams_device_ops_toolhead_settings",
+         [](lv_event_t*) {
+             helix::settings::get_toolhead_settings_overlay().show(
+                 get_ams_device_operations_overlay().parent_screen_);
+         }},
         {"on_ams_device_ops_home",
          [](lv_event_t*) {
              AmsBackend* backend = AmsState::instance().get_backend();
@@ -578,6 +587,7 @@ void AmsDeviceOperationsOverlay::refresh() {
 
     spdlog::debug("[{}] Refreshing from backend", get_name());
     update_from_backend();
+    helix::settings::get_toolhead_settings_overlay().refresh_summary();
 }
 
 // ============================================================================

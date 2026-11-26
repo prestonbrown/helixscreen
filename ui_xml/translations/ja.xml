@@ -886,6 +886,7 @@
   <translation tag="Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer&apos;s config folder." ja="Moonrakerを通じてプリンターの設定を変更します。プリンターの設定フォルダー内のファイルのアップロード、書き換え、削除を含みます。"/>
   <translation tag="Change the name or the linked spool in Spoolman." ja="名前やリンクされたスプールは Spoolman で変更してください。"/>
   <translation tag="Change tool" ja="ツールを交換"/>
+  <translation tag="Change {} nozzle?"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." ja="変更は即座に適用されます。印刷中に調整して最適化できます。"/>
   <translation tag="Changes are temporary and reset on printer reboot" ja="変更は一時的で、プリンター再起動時にリセットされます"/>
   <translation tag="Changes printer.cfg and restarts Klipper first" ja="先に printer.cfg を変更し Klipper を再起動します"/>
@@ -2038,6 +2039,7 @@
   <translation tag="Flow calibration is not allowed for this filament with a 0.2 mm nozzle." ja="0.2 mm ノズルではこのフィラメントのフローキャリブレーションはできません。"/>
   <translation tag="Flow calibration is on for a filament and nozzle pair that does not allow it." ja="対応していないフィラメントとノズルの組み合わせでフローキャリブレーションがオンになっています。"/>
   <translation tag="Flow calibration not allowed for {}" ja="{} はフローキャリブレーションできません"/>
+  <translation tag="Flow type"/>
   <translation tag="Flowguard" ja="フローガード"/>
   <translation tag="Flushing Filament..." ja="フィラメントをフラッシュ中..."/>
   <translation tag="Flying Toasters" ja="フライングトースター"/>
@@ -3139,6 +3141,7 @@
   <translation tag="No filament loaded" ja="フィラメントが装填されていません"/>
   <translation tag="No filament loaded to unload" ja="取出すフィラメントが装填されていません"/>
   <translation tag="No filament sensor detected" ja="フィラメントセンサーが検出されません"/>
+  <translation tag="No filament system to send this to"/>
   <translation tag="No filament type is set for a toolhead this print uses." ja="この印刷で使うツールヘッドにフィラメントの種類が設定されていません。"/>
   <translation tag="No filament was inserted in time" ja="時間内にフィラメントが挿入されませんでした"/>
   <translation tag="No filament. Load filament and retry." ja="フィラメントがありません。フィラメントを装填して再試行してください。"/>
@@ -3210,6 +3213,7 @@
   <translation tag="No tool is mounted" ja="ツールが装着されていません"/>
   <translation tag="No tool mounted" ja="ツール未装着"/>
   <translation tag="No tool on the head" ja="ツールヘッドにツールがありません"/>
+  <translation tag="No toolhead detected"/>
   <translation tag="No toolhead on the carriage" ja="キャリッジにツールヘッドがありません"/>
   <translation tag="No tools to calibrate" ja="キャリブレートするツールがありません"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" ja="回していません: 差は{:.1f} Hz動きました"/>
@@ -3310,6 +3314,7 @@
   <translation tag="Nozzle Temperature" ja="ノズル温度"/>
   <translation tag="Nozzle Temperatures" ja="ノズル温度"/>
   <translation tag="Nozzle Temps" ja="ノズル温度"/>
+  <translation tag="Nozzle changed"/>
   <translation tag="Nozzle clean complete" ja="ノズル清掃完了"/>
   <translation tag="Nozzle clog detected" ja="ノズルの詰まりを検出しました"/>
   <translation tag="Nozzle diameter" ja="ノズル径"/>
@@ -3321,6 +3326,7 @@
   <translation tag="Nozzle not changed: the printer did not confirm it" ja="ノズルは変更されていません: プリンターが確認しませんでした"/>
   <translation tag="Nozzle not changed: {}" ja="ノズルは変更されていません: {}"/>
   <translation tag="Nozzle not reported" ja="ノズルが報告されていません"/>
+  <translation tag="Nozzle size"/>
   <translation tag="Nozzle size and flow type per head" ja="ツールヘッドごとのノズルサイズとフロータイプ"/>
   <translation tag="Nozzle target set to {}" ja="ノズル目標温度を {} に設定しました"/>
   <translation tag="Nozzle temp must be %d-%s" ja="ノズル温度は %d〜%s にしてください"/>
@@ -4897,6 +4903,7 @@
   <translation tag="That print is no longer paused" ja="その印刷はもう一時停止中ではありません"/>
   <translation tag="That reading jumped too far to trust. Re-measure without turning." ja="この測定値は大きく跳びすぎて信頼できません。回さずに再測定してください。"/>
   <translation tag="That setting cannot be changed while a print is running" ja="印刷中はこの設定を変更できません"/>
+  <translation tag="That size is already set"/>
   <translation tag="That slot cannot stand in for this one" ja="そのスロットはこのスロットの代わりになりません"/>
   <translation tag="That tool is already loaded" ja="そのツールはすでに装填されています"/>
   <translation tag="That toolhead can no longer take over the print" ja="そのツールヘッドは印刷を引き継げなくなりました"/>
@@ -5045,6 +5052,7 @@
   <translation tag="The gateway is not a valid address." ja="ゲートウェイが有効なアドレスではありません。"/>
   <translation tag="The gateway is not on the same subnet as the IP address." ja="ゲートウェイがIPアドレスと同じサブネットにありません。"/>
   <translation tag="The head did not go back into its dock." ja="ヘッドがドックに戻りませんでした。"/>
+  <translation tag="The head is already set that way"/>
   <translation tag="The head on the carriage does not read as properly picked up, so it was not parked." ja="キャリッジのヘッドが正しく装着されていると検出されないため、ドックに戻しませんでした。"/>
   <translation tag="The head to pick up does not read as docked." ja="装着するヘッドがドック中として検出されません。"/>
   <translation tag="The head&apos;s extruder never gripped the filament: after several tries, with the nozzle cleaned between them, no movement registered at the nozzle." ja="ヘッドのエクストルーダーがフィラメントをつかみませんでした: ノズルを清掃しながら数回試しましたが、ノズルで動きが検出されませんでした。"/>
@@ -5312,6 +5320,7 @@
   <translation tag="This AFC system does not support bypass mode" ja="この AFC システムはバイパスモードに対応していません"/>
   <translation tag="This CFS firmware exposes no external spool slot" ja="この CFS ファームウェアには外部スプール用スロットがありません"/>
   <translation tag="This Happy Hare system does not support bypass mode" ja="この Happy Hare システムはバイパスモードに対応していません"/>
+  <translation tag="This applies now. Klipper&apos;s extrusion limit follows at its next restart."/>
   <translation tag="This button controls" ja="このボタンの制御対象"/>
   <translation tag="This calibration uses the paper friction method to set your Z-offset." ja="このキャリブレーションは紙の摩擦方式を使用して Z-offset を設定します。"/>
   <translation tag="This cannot be undone." ja="この操作は元に戻せません。"/>
@@ -5348,6 +5357,7 @@
   <translation tag="This light chip controls" ja="このライトチップの制御対象"/>
   <translation tag="This looks like a {}, but it is set up as a {}" ja="このプリンターは{}のようですが、{}として設定されています"/>
   <translation tag="This may take up to 30 seconds" ja="最大30秒かかる場合があります"/>
+  <translation tag="This nozzle size can&apos;t be changed here"/>
   <translation tag="This plugin asks for no special permissions." ja="このプラグインは特別な権限を要求しません。"/>
   <translation tag="This plugin lets HelixScreen control print start options like bed mesh and QGL." ja="このプラグインにより、HelixScreen がベッドメッシュや QGL などの印刷開始オプションを制御できます。"/>
   <translation tag="This print called {}, which the printer no longer has." ja="この印刷は {} を使用しましたが、プリンターにはもうありません。"/>
@@ -5358,6 +5368,7 @@
   <translation tag="This print never reports layer {}." ja="この印刷はレイヤー {} を報告しません。"/>
   <translation tag="This printer cannot calibrate tool offsets automatically" ja="このプリンターはツールオフセットを自動でキャリブレートできません"/>
   <translation tag="This printer cannot stream the sweep to the screen" ja="このプリンターはスイープを画面に表示できません"/>
+  <translation tag="This printer doesn&apos;t accept that nozzle size"/>
   <translation tag="This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman." ja="このプリンターのゲートは Spoolman から設定されます。HelixScreen 側のコピーはクリアしました。Spoolman でスプールを削除してください。"/>
   <translation tag="This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman." ja="このプリンターのゲートは Spoolman から設定されます。色・素材・スプールの変更は Spoolman で行ってください。"/>
   <translation tag="This printer has motor compensation, so the check runs twice: with it off, then on." ja="このプリンターにはモーター補正があるため、チェックは補正オフ、続いてオンの 2 回実行されます。"/>
@@ -5365,6 +5376,7 @@
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" ja="このプリンターにはINDXのLOAD_FILAMENTマクロがありません"/>
   <translation tag="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper." ja="このプリンターにはまだ [save_variables] ストアがありません。ヘルパーマクロを更新して追加し、Klipper を再起動してください。"/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." ja="このプリンターには自動アンロード機能がありません。ヘッド部分でフィラメントを切り、手で引き抜いてください。"/>
+  <translation tag="This printer has no such toolhead"/>
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." ja="このプリンターにはタイムゾーンがないため、時計は UTC を表示しています。お住まいの地域を選んでください。"/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." ja="このプリンターには {} コマンドがないため、Zオフセットを保存できません。"/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." ja="このプリンターは {} のようです（信頼度 {}%）が、{} として設定されています。誤ったタイプでは不正確な印刷前オプションとプリセットが適用されます。"/>
@@ -5392,6 +5404,7 @@
   <translation tag="This screen" ja="この画面"/>
   <translation tag="This screen can&apos;t play videos" ja="この画面では動画を再生できません"/>
   <translation tag="This screen can&apos;t play videos. Scan the code with your phone to watch the timelapse." ja="この画面では動画を再生できません。スマートフォンでコードを読み取ってタイムラプスをご覧ください。"/>
+  <translation tag="This sets the nozzle size in the printer config."/>
   <translation tag="This slot feeds no tool" ja="このスロットはどのツールにも供給しません"/>
   <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." ja="このスプールは使い切られたため、CFS は残ったフィラメントを引き戻せません。"/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." ja="このスプールの詳細はまだSpoolmanから読み込まれていません。もう一度保存してください。"/>
@@ -5400,6 +5413,8 @@
   <translation tag="This tool has no number with a T command: assign it one first" ja="このツールには T コマンドの番号がありません: 先に番号を割り当ててください"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." ja="このツールは各ベッドネジをプローブし、どのくらい調整が必要かを教えます。"/>
   <translation tag="This toolhead has no automatic feeder. Load the filament by hand." ja="このツールヘッドには自動フィーダーがありません。フィラメントを手動で装填してください。"/>
+  <translation tag="This toolhead has no flow type to change"/>
+  <translation tag="This toolhead has no such flow type"/>
   <translation tag="This update asks for new permissions:" ja="この更新は新しい権限を要求します："/>
   <translation tag="This update removes HelixScreen from the printer." ja="この更新はプリンターから HelixScreen を削除します。"/>
   <translation tag="This upgrades the printer&apos;s operating system packages." ja="プリンターのOSパッケージを更新します。"/>
@@ -5523,6 +5538,7 @@
   <translation tag="Toolhead position and homing, with a plate view and Home All" ja="ツールヘッドの位置とホーミング。プレート表示と全軸ホーミング付き"/>
   <translation tag="Toolhead position unknown" ja="ツールヘッドの位置が不明です"/>
   <translation tag="Toolhead sensors disagree" ja="ツールヘッドのセンサーの値が一致しません"/>
+  <translation tag="Toolhead settings"/>
   <translation tag="Toolhead unloaded" ja="ツールヘッドからフィラメントを抜いた"/>
   <translation tag="Toolheads" ja="ツールヘッド"/>
   <translation tag="Tools" ja="ツール"/>
@@ -6368,6 +6384,7 @@
   <translation tag="{} new" ja="新規 {} 件"/>
   <translation tag="{} new hardware available" ja="{} 個の新しいハードウェアが利用可能です"/>
   <translation tag="{} new plugins available. Enable them in Settings &gt; Plugins." ja="{} 個の新しいプラグインが利用可能です。設定 &gt; プラグインで有効化してください。"/>
+  <translation tag="{} nozzle"/>
   <translation tag="{} nozzle sensor fault" ja="{} のノズルセンサー異常"/>
   <translation tag="{} of {} points" ja="{} / {} 点"/>
   <translation tag="{} of {} steps didn&apos;t finish" ja="{}/{}ステップが未完了"/>

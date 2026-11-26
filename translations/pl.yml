@@ -978,6 +978,7 @@ translations:
   : Zmieniaj ustawienia drukarki przez Moonraker, w tym wysyłanie, nadpisywanie i usuwanie plików w folderze konfiguracji.
   Change the name or the linked spool in Spoolman.: Zmień nazwę lub powiązaną szpulę w Spoolman.
   Change tool: Zmień narzędzie
+  Change {} nozzle?: ''
   Changes apply immediately. Adjust during print for tuning.: Zmiany działają od razu. Dostrajaj w trakcie druku.
   Changes are temporary and reset on printer reboot: Zmiany są tymczasowe i znikają po restarcie drukarki
   Changes printer.cfg and restarts Klipper first: Najpierw zmienia printer.cfg i restartuje Klippera
@@ -1376,6 +1377,7 @@ translations:
   : Przytrzymaj dowolny kafelek, aby wejść w tryb edycji. Nowa siatka pozwala przestawiać, zmieniać rozmiar, usuwać lub dodawać widżety i przeciągać je między stronami.
   Moonraker answered at {}.: Moonraker odpowiedział pod {}.
   New in 1.1: Nowości w 1.1
+  No filament system to send this to: ''
   No filament type is set for a toolhead this print uses.: Dla głowicy używanej przez ten wydruk nie ustawiono typu filamentu.
   No filament was inserted in time: Filament nie został włożony na czas
   Paste: Wklej
@@ -2208,6 +2210,7 @@ translations:
   Flow calibration is not allowed for this filament with a 0.2 mm nozzle.: Kalibracja przepływu nie jest dozwolona dla tego filamentu z dyszą 0,2 mm.
   Flow calibration is on for a filament and nozzle pair that does not allow it.: Kalibracja przepływu jest włączona dla pary filament–dysza, która na to nie pozwala.
   Flow calibration not allowed for {}: Kalibracja przepływu niedozwolona dla {}
+  Flow type: ''
   Flowguard: Flowguard
   Flushing Filament...: Płukanie filamentu...
   Flying Toasters: Latające tostery
@@ -3476,6 +3479,7 @@ translations:
   No tool is mounted: Żadne narzędzie nie jest zamontowane
   No tool mounted: Brak zamontowanego narzędzia
   No tool on the head: Brak narzędzia na głowicy
+  No toolhead detected: ''
   No toolhead on the carriage: Brak głowicy na karetce
   No tools to calibrate: Brak narzędzi do kalibracji
   'No turn: the gap moved {:.1f} Hz': 'Brak obrotu: przerwa przesunęła się o {:.1f} Hz'
@@ -3587,6 +3591,7 @@ translations:
   Nozzle Temperature: Temperatura dyszy
   Nozzle Temperatures: Temperatury dyszy
   Nozzle Temps: Temp. dysz
+  Nozzle changed: ''
   Nozzle clean complete: Czyszczenie dyszy zakończone
   Nozzle clog detected: Wykryto zatkanie dyszy
   Nozzle diameter: Średnica dyszy
@@ -3598,6 +3603,7 @@ translations:
   'Nozzle not changed: the printer did not confirm it': 'Dysza niezmieniona: drukarka tego nie potwierdziła'
   'Nozzle not changed: {}': 'Dysza niezmieniona: {}'
   Nozzle not reported: Drukarka nie zgłosiła dyszy
+  Nozzle size: ''
   Nozzle size and flow type per head: Rozmiar i typ przepływu dyszy dla każdej głowicy
   Nozzle target set to {}: Cel dyszy ustawiony na {}
   Nozzle temp must be %d-%s: Temp. dyszy musi wynosić %d-%s
@@ -5231,6 +5237,7 @@ translations:
   That print is no longer paused: Ten wydruk nie jest już wstrzymany
   That reading jumped too far to trust. Re-measure without turning.: Ten odczyt skoczył za mocno, by mu ufać. Zmierz ponownie bez kręcenia.
   That setting cannot be changed while a print is running: Tego ustawienia nie można zmienić podczas druku
+  That size is already set: ''
   That slot cannot stand in for this one: Ten slot nie może zastąpić tego
   That tool is already loaded: To narzędzie jest już załadowane
   That toolhead can no longer take over the print: Ta głowica nie może już przejąć wydruku
@@ -5396,6 +5403,7 @@ translations:
   The gateway is not a valid address.: Brama sieciowa nie jest prawidłowym adresem.
   The gateway is not on the same subnet as the IP address.: Brama sieciowa nie jest w tej samej podsieci co adres IP.
   The head did not go back into its dock.: Głowica nie wróciła do doku.
+  The head is already set that way: ''
   The head on the carriage does not read as properly picked up, so it was not parked.: Głowica na wózku nie jest odczytywana jako poprawnie pobrana, więc nie została odstawiona.
   The head to pick up does not read as docked.: Głowica do pobrania nie jest odczytywana jako zadokowana.
   ? 'The head''s extruder never gripped the filament: after several tries, with the nozzle cleaned between them, no movement registered at the nozzle.'
@@ -5692,6 +5700,7 @@ translations:
   This CFS firmware exposes no external spool slot: To firmware CFS nie udostępnia slotu szpuli zewnętrznej
   This Happy Hare system does not support bypass mode: Ten system Happy Hare nie obsługuje trybu obejścia
   Needs a newer Moonraker to hold uploads.: Wymaga nowszego Moonrakera do przechowywania przesłanych plików.
+  This applies now. Klipper's extrusion limit follows at its next restart.: ''
   This button controls: Ten przycisk steruje
   This calibration uses the paper friction method to set your Z-offset.: Ta kalibracja ustawia offset Z metodą tarcia kartki.
   This cannot be undone.: Tego nie można cofnąć.
@@ -5755,6 +5764,7 @@ translations:
   This looks like a {}, but it is set up as a {}: Wygląda to na {}, ale jest skonfigurowane jako {}
   This may take up to 30 seconds: To może potrwać do 30 sekund
   Needs file analysis, which isn't running.: Wymaga analizy plików, która nie działa.
+  This nozzle size can't be changed here: ''
   This plugin asks for no special permissions.: Ta wtyczka nie wymaga specjalnych uprawnień.
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: Ta wtyczka pozwala HelixScreen sterować opcjami startu druku, jak siatka stołu i QGL.
   This print called {}, which the printer no longer has.: Ten wydruk wywołał {}, którego drukarka już nie ma.
@@ -5765,6 +5775,7 @@ translations:
   This print never reports layer {}.: Ten wydruk nigdy nie zgłasza warstwy {}.
   This printer cannot calibrate tool offsets automatically: Ta drukarka nie może automatycznie kalibrować offsetów narzędzi
   This printer cannot stream the sweep to the screen: Ta drukarka nie może przesyłać przemiatania na ekran
+  This printer doesn't accept that nozzle size: ''
   This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman.: Ta drukarka wypełnia gate'y ze Spoolman. HelixScreen usunął swoją kopię; usuń szpulę w Spoolman.
   This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman.: Ta drukarka wypełnia gate'y ze Spoolman. Zmiany koloru, materiału i szpuli rób w Spoolman.
   'This printer has motor compensation, so the check runs twice: with it off, then on.': 'Ta drukarka ma kompensację silników, więc sprawdzenie wykona się dwa razy: z wyłączoną, potem z włączoną.'
@@ -5772,6 +5783,7 @@ translations:
   This printer has no INDX LOAD_FILAMENT macro: Ta drukarka nie ma makra INDX LOAD_FILAMENT
   This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: Ta drukarka nie ma jeszcze magazynu [save_variables]. Zaktualizuj makra pomocnicze, aby go dodać, potem zrestartuj Klippera.
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: Ta drukarka nie ma automatycznego rozładowania. Utnij filament przy głowicy i wyciągnij go ręcznie.
+  This printer has no such toolhead: ''
   This printer has no timezone, so its clock reads UTC. Pick yours.: Ta drukarka nie ma ustawionej strefy czasowej, więc jej zegar pokazuje UTC. Wybierz swoją.
   This printer has no {} command, so the Z-offset cannot be saved.: Ta drukarka nie ma polecenia {}, więc nie można zapisać offsetu Z.
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
@@ -5804,6 +5816,7 @@ translations:
   This screen: Ten ekran
   This screen can't play videos: Ten ekran nie odtwarza filmów
   This screen can't play videos. Scan the code with your phone to watch the timelapse.: Ten ekran nie odtwarza filmów. Zeskanuj kod telefonem, aby obejrzeć timelapse.
+  This sets the nozzle size in the printer config.: ''
   This slot feeds no tool: Ten slot nie zasila żadnego narzędzia
   This spool ran out, so the CFS cannot pull the leftover filament back.: Ta szpula się skończyła, więc CFS nie może cofnąć pozostałego filamentu.
   This spool's details haven't loaded from Spoolman yet. Try Save again.: Dane tej szpuli nie wczytały się jeszcze ze Spoolman. Spróbuj Zapisz ponownie.
@@ -5811,6 +5824,8 @@ translations:
   This theme: Ten motyw
   'This tool has no number with a T command: assign it one first': 'To narzędzie nie ma numeru z poleceniem T: najpierw go przypisz'
   This tool probes each bed screw and tells you how much to adjust.: To narzędzie mierzy każdą śrubę stołu i podaje, o ile ją wyregulować.
+  This toolhead has no flow type to change: ''
+  This toolhead has no such flow type: ''
   'This update asks for new permissions:': 'Ta aktualizacja wymaga nowych uprawnień:'
   This update removes HelixScreen from the printer.: Ta aktualizacja usuwa HelixScreen z drukarki.
   This upgrades the printer's operating system packages.: To aktualizuje pakiety systemu operacyjnego drukarki.
@@ -5945,6 +5960,7 @@ translations:
   Toolhead position and homing, with a plate view and Home All: Pozycja i bazowanie głowicy, z widokiem płyty i Bazuj wszystko
   Toolhead position unknown: Nieznana pozycja głowicy
   Toolhead sensors disagree: Czujniki głowicy się nie zgadzają
+  Toolhead settings: ''
   Toolhead unloaded: Głowica rozładowana
   Toolheads: Głowice
   Tools: Narzędzia
@@ -6810,6 +6826,7 @@ translations:
   '{} new': 'Nowe: {}'
   '{} new hardware available': 'Nowy sprzęt dostępny: {}'
   '{} new plugins available. Enable them in Settings > Plugins.': 'Nowe wtyczki dostępne: {}. Włącz je w Ustawienia > Wtyczki.'
+  '{} nozzle': ''
   '{} nozzle sensor fault': Usterka czujnika dyszy {}
   '{} of {} points': '{} z {} punktów'
   '{} of {} steps didn''t finish': '{} z {} kroków się nie zakończyło'

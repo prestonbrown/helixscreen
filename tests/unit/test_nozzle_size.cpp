@@ -197,13 +197,41 @@ TEST_CASE("nozzle size plan: a vendor head gets the firmware's call", "[nozzle_s
 }
 
 TEST_CASE("nozzle size plan: a vendor flow change names the head's own diameter", "[nozzle_size]") {
-    const ChangePlan plan = plan_flow_change(u1_like(), 1, "high_flow");
+    const ChangePlan plan = plan_flow_change(u1_like(), 1, "High Flow");
     REQUIRE(plan.kind == ChangePlan::Kind::VendorRpc);
     CHECK(plan.params["extruder"] == 1);
     CHECK(plan.params["diameter"] == 0.4);
     CHECK(plan.params["volume_type"] == "high_flow");
     // No flow choice on a head without flow variants.
-    CHECK(plan_flow_change(mainline({0.4}), 0, "high_flow").kind == ChangePlan::Kind::Refused);
+    CHECK(plan_flow_change(mainline({0.4}), 0, "High Flow").kind == ChangePlan::Kind::Refused);
+    CHECK(plan_flow_change(u1_like(), 1, "Turbo").kind == ChangePlan::Kind::Refused);
+}
+
+TEST_CASE("nozzle size: a vendor head reports its flow variant and when it can change",
+          "[nozzle_size]") {
+    PrinterInputs in = u1_like();
+    in.live_volume_types[2] = "high_flow";
+    in.live_diameters[3] = 0.6;
+    const Capability cap = nozzle_capability(in);
+    CHECK(cap.heads[0].flow_current == "Standard");
+    CHECK(cap.heads[0].flow_changeable);
+    CHECK(cap.heads[2].flow_current == "High Flow");
+    CHECK(cap.heads[2].flow_changeable);
+    // 0.6 mm has no High Flow parameters: the head is on standard and cannot switch.
+    CHECK_FALSE(cap.heads[3].flow_changeable);
+    CHECK_FALSE(cap.heads[3].flow_note.empty());
+}
+
+TEST_CASE("nozzle size: only a config change asks about a restart, and a small vendor nozzle "
+          "asks about filament",
+          "[nozzle_size]") {
+    CHECK(confirm_message(plan_change(mainline({0.4}), 0, 0.6), 0.6).has_value());
+    CHECK(confirm_message(plan_change(k2_like(), 0, 0.6), 0.6).has_value());
+    const auto small = confirm_message(plan_change(u1_like(), 0, 0.2), 0.2);
+    REQUIRE(small.has_value());
+    CHECK(small->find("0.2 mm") != std::string::npos);
+    CHECK_FALSE(confirm_message(plan_change(u1_like(), 0, 0.6), 0.6).has_value());
+    CHECK_FALSE(confirm_message(plan_change(mainline({0.4}), 0, 0.4), 0.4).has_value());
 }
 
 TEST_CASE("nozzle size plan: refusals", "[nozzle_size]") {

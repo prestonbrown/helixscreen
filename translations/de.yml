@@ -920,6 +920,7 @@ translations:
   : 'Ändert Druckereinstellungen über Moonraker, einschließlich Hochladen, Überschreiben und Löschen von Dateien im Konfigurationsordner des Druckers.'
   Change the name or the linked spool in Spoolman.: "Name oder verknüpfte Spule in Spoolman ändern."
   Change tool: Werkzeug wechseln
+  Change {} nozzle?: ''
   Changes apply immediately. Adjust during print for tuning.: Änderungen werden sofort angewendet. Während des Drucks zur Feinabstimmung anpassen.
   Changes are temporary and reset on printer reboot: Änderungen sind temporär und werden beim Neustart des Druckers zurückgesetzt
   Changes printer.cfg and restarts Klipper first: Ändert zuerst printer.cfg und startet Klipper neu
@@ -1316,6 +1317,7 @@ translations:
   : "Lange auf eine Kachel drücken, um in den Bearbeitungsmodus zu wechseln. Im neuen Raster können Sie Widgets anordnen, skalieren, entfernen, hinzufügen und zwischen Seiten ziehen."
   'Moonraker answered at {}.': "Moonraker hat unter {} geantwortet."
   "New in 1.1": "Neu in 1.1"
+  No filament system to send this to: ''
   No filament type is set for a toolhead this print uses.: 'Für einen Werkzeugkopf, den dieser Druck nutzt, ist kein Filamenttyp gesetzt.'
   No filament was inserted in time: 'Kein Filament wurde rechtzeitig eingeführt'
   Paste: "Einfügen"
@@ -2140,6 +2142,7 @@ translations:
   Flow calibration is not allowed for this filament with a 0.2 mm nozzle.: 'Flusskalibrierung ist für dieses Filament mit einer 0,2-mm-Düse nicht erlaubt.'
   Flow calibration is on for a filament and nozzle pair that does not allow it.: 'Flusskalibrierung ist für eine Kombination aus Filament und Düse aktiv, die sie nicht erlaubt.'
   Flow calibration not allowed for {}: 'Flusskalibrierung für {} nicht erlaubt'
+  Flow type: ''
   Flowguard: Flowguard
   Flushing Filament...: Filament spülen...
   Flying Toasters: Flying Toasters
@@ -3336,6 +3339,7 @@ translations:
   No tool is mounted: 'Kein Werkzeug montiert'
   No tool mounted: 'Kein Werkzeug montiert'
   No tool on the head: "Kein Werkzeug am Werkzeugkopf"
+  No toolhead detected: ''
   No toolhead on the carriage: 'Kein Werkzeugkopf auf dem Schlitten'
   No tools to calibrate: Keine Werkzeuge zum Kalibrieren
   'No turn: the gap moved {:.1f} Hz': "Keine Drehung: der Abstand bewegte sich um {:.1f} Hz"
@@ -3444,6 +3448,7 @@ translations:
   Nozzle Temperature: Düsentemperatur
   Nozzle Temperatures: 'Düsentemperaturen'
   Nozzle Temps: Düsentemperaturen
+  Nozzle changed: ''
   Nozzle clean complete: Düsenreinigung abgeschlossen
   Nozzle clog detected: Verstopfte Düse erkannt
   Nozzle diameter: "Düsendurchmesser"
@@ -3455,6 +3460,7 @@ translations:
   'Nozzle not changed: the printer did not confirm it': "Düse nicht geändert: der Drucker hat es nicht bestätigt"
   'Nozzle not changed: {}': "Düse nicht geändert: {}"
   Nozzle not reported: 'Düse nicht gemeldet'
+  Nozzle size: ''
   Nozzle size and flow type per head: "Düsengröße und Durchflusstyp je Werkzeugkopf"
   Nozzle target set to {}: Düsen-Zieltemperatur auf {} gesetzt
   Nozzle temp must be %d-%s: Düsentemperatur muss %d-%s betragen
@@ -5057,6 +5063,7 @@ translations:
   That print is no longer paused: 'Dieser Druck ist nicht mehr pausiert'
   That reading jumped too far to trust. Re-measure without turning.: "Dieser Messwert ist zu weit gesprungen, um ihm zu trauen. Ohne Drehen erneut messen."
   'That setting cannot be changed while a print is running': 'Diese Einstellung kann während eines laufenden Drucks nicht geändert werden'
+  That size is already set: ''
   That slot cannot stand in for this one: Dieser Slot kann nicht für diesen einspringen
   That tool is already loaded: Dieses Werkzeug ist bereits geladen
   That toolhead can no longer take over the print: 'Dieser Werkzeugkopf kann den Druck nicht mehr übernehmen'
@@ -5224,6 +5231,7 @@ translations:
   The gateway is not a valid address.: 'Das Gateway ist keine gültige Adresse.'
   The gateway is not on the same subnet as the IP address.: 'Das Gateway liegt nicht im selben Subnetz wie die IP-Adresse.'
   The head did not go back into its dock.: 'Der Kopf ist nicht in sein Dock zurückgekehrt.'
+  The head is already set that way: ''
   The head on the carriage does not read as properly picked up, so it was not parked.: 'Der Kopf auf dem Schlitten gilt nicht als richtig aufgenommen und wurde daher nicht geparkt.'
   The head to pick up does not read as docked.: 'Der aufzunehmende Kopf gilt nicht als angedockt.'
   ? "The head's extruder never gripped the filament: after several tries, with the nozzle cleaned between them, no movement registered at the nozzle."
@@ -5523,6 +5531,7 @@ translations:
   This CFS firmware exposes no external spool slot: 'Diese CFS-Firmware bietet keinen externen Spulen-Slot'
   This Happy Hare system does not support bypass mode: 'Dieses Happy-Hare-System unterstützt den Bypass-Modus nicht'
   Needs a newer Moonraker to hold uploads.: "Benötigt ein neueres Moonraker, um Uploads anzuhalten."
+  This applies now. Klipper's extrusion limit follows at its next restart.: ''
   This button controls: Diese Taste steuert
   This calibration uses the paper friction method to set your Z-offset.: Diese Kalibrierung verwendet die Papierreibungsmethode zur Einstellung Ihres Z-Offsets.
   This cannot be undone.: Dies kann nicht rückgängig gemacht werden.
@@ -5575,6 +5584,7 @@ translations:
   This looks like a {}, but it is set up as a {}: Dieser Drucker wirkt wie ein {}, ist aber als {} eingerichtet
   This may take up to 30 seconds: Dies kann bis zu 30 Sekunden dauern
   Needs file analysis, which isn't running.: "Benötigt die Dateianalyse, die nicht läuft."
+  This nozzle size can't be changed here: ''
   This plugin asks for no special permissions.: 'Dieses Plugin fragt nach keinen besonderen Berechtigungen.'
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: 'Dieses Plugin ermöglicht HelixScreen die Steuerung von Druckstartoptionen wie Bettnetz und QGL.'
   This print called {}, which the printer no longer has.: 'Dieser Druck hat {} aufgerufen, das der Drucker nicht mehr hat.'
@@ -5585,6 +5595,7 @@ translations:
   This print never reports layer {}.: 'Dieser Druck meldet Schicht {} nie.'
   This printer cannot calibrate tool offsets automatically: Dieser Drucker kann Werkzeug-Offsets nicht automatisch kalibrieren
   This printer cannot stream the sweep to the screen: 'Dieser Drucker kann den Durchlauf nicht live anzeigen'
+  This printer doesn't accept that nozzle size: ''
   This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman.: Dieser Drucker füllt seine Gates aus Spoolman. HelixScreen hat seine eigene Kopie gelöscht; entferne die Spule in Spoolman.
   This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman.: Dieser Drucker füllt seine Gates aus Spoolman. Ändere Farbe, Material und Spule in Spoolman.
   'This printer has motor compensation, so the check runs twice: with it off, then on.': 'Dieser Drucker hat eine Motorkompensation, daher läuft die Prüfung zweimal: erst ohne, dann mit.'
@@ -5592,6 +5603,7 @@ translations:
   This printer has no INDX LOAD_FILAMENT macro: "Dieser Drucker hat kein INDX-Makro LOAD_FILAMENT"
   This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: "Dieser Drucker hat noch keinen [save_variables]-Speicher. Aktualisiere die Hilfsmakros, um einen hinzuzufügen, und starte dann Klipper neu."
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: Dieser Drucker hat kein automatisches Entladen. Schneiden Sie das Filament am Werkzeugkopf ab und ziehen Sie es von Hand heraus.
+  This printer has no such toolhead: ''
   This printer has no timezone, so its clock reads UTC. Pick yours.: "Dieser Drucker hat keine Zeitzone, daher zeigt seine Uhr UTC. Wähle deine."
   'This printer has no {} command, so the Z-offset cannot be saved.': 'Dieser Drucker hat keinen Befehl {}, daher kann der Z-Offset nicht gespeichert werden.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
@@ -5624,6 +5636,7 @@ translations:
   This screen: 'Dieser Bildschirm'
   This screen can't play videos: 'Dieser Bildschirm kann keine Videos abspielen'
   This screen can't play videos. Scan the code with your phone to watch the timelapse.: 'Dieser Bildschirm kann keine Videos abspielen. Scannen Sie den Code mit Ihrem Telefon, um den Zeitraffer anzusehen.'
+  This sets the nozzle size in the printer config.: ''
   This slot feeds no tool: 'Dieser Slot versorgt kein Werkzeug'
   This spool ran out, so the CFS cannot pull the leftover filament back.: 'Diese Spule ist leer, daher kann das CFS das restliche Filament nicht zurückziehen.'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Die Spulendetails wurden noch nicht aus Spoolman geladen. Tippe erneut auf Speichern.'
@@ -5631,6 +5644,8 @@ translations:
   This theme: Dieses Thema
   'This tool has no number with a T command: assign it one first': 'Dieses Werkzeug hat keine Nummer mit T-Befehl: Zuerst eine zuweisen'
   This tool probes each bed screw and tells you how much to adjust.: Dieses Werkzeug tastet jede Bettschraube ab und zeigt Ihnen, wie viel Sie einstellen müssen.
+  This toolhead has no flow type to change: ''
+  This toolhead has no such flow type: ''
   'This update asks for new permissions:': 'Dieses Update fragt nach neuen Berechtigungen:'
   This update removes HelixScreen from the printer.: 'Dieses Update entfernt HelixScreen vom Drucker.'
   This upgrades the printer's operating system packages.: 'Dies aktualisiert die Betriebssystempakete des Druckers.'
@@ -5759,6 +5774,7 @@ translations:
   Toolhead position and homing, with a plate view and Home All: "Position und Referenzfahrt des Werkzeugkopfs, mit Plattenansicht und Alle referenzieren"
   Toolhead position unknown: Werkzeugkopfposition unbekannt
   Toolhead sensors disagree: Werkzeugkopfsensoren widersprechen sich
+  Toolhead settings: ''
   Toolhead unloaded: Druckkopf entladen
   Toolheads: Werkzeugköpfe
   Tools: Werkzeuge
@@ -6599,6 +6615,7 @@ translations:
   '{} new': '{} neu'
   '{} new hardware available': '{} neue Hardware verfügbar'
   '{} new plugins available. Enable them in Settings > Plugins.': '{} neue Plugins verfügbar. Aktivieren Sie sie unter Einstellungen > Plugins.'
+  '{} nozzle': ''
   '{} nozzle sensor fault': '{}: Düsensensorfehler'
   '{} of {} points': '{} von {} Punkten'
   "{} of {} steps didn't finish": "{} von {} Schritten nicht abgeschlossen"
