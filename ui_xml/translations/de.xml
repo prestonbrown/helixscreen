@@ -609,7 +609,7 @@
   <translation tag="Can&apos;t move filament while the print is paused" de="Filament kann bei pausiertem Druck nicht bewegt werden"/>
   <translation tag="Can&apos;t reach this printer. Save anyway?" de="Drucker nicht erreichbar. Trotzdem speichern?"/>
   <translation tag="Can&apos;t read filament RFID tag" de="RFID-Tag des Filaments nicht lesbar"/>
-  <translation tag="Cancel" de="Abbrechen"/>
+  <translation tag="Cancel" de="Abbruch"/>
   <translation tag="Cancel Escalation" de="Eskalation abbrechen"/>
   <translation tag="Cancel Print" de="Druck abbrechen"/>
   <translation tag="Cancel Scheduled Pause" de="Geplante Pause abbrechen"/>
@@ -4218,7 +4218,7 @@
   <translation tag="Try adjusting your search or filters" de="Versuchen Sie Suche oder Filter anzupassen"/>
   <translation tag="Try the operation again. If it persists, check for mechanical issues." de="Versuchen Sie den Vorgang erneut. Wenn das Problem bestehen bleibt, prüfen Sie auf mechanische Probleme."/>
   <translation tag="Trying again..." de="Erneuter Versuch..."/>
-  <translation tag="Tune" de="Abstimmen"/>
+  <translation tag="Tune" de="Anpassen"/>
   <translation tag="Tune Belts" de="Einstellen"/>
   <translation tag="Tune the motors to remove fine vertical lines" de="Motoren abstimmen, um feine vertikale Linien zu entfernen"/>
   <translation tag="Tuner" de="Tuner"/>

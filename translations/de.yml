@@ -669,7 +669,7 @@ translations:
   Can't move filament while the print is paused: Filament kann bei pausiertem Druck nicht bewegt werden
   Can't read filament RFID tag: RFID-Tag des Filaments nicht lesbar
   Can't reach this printer. Save anyway?: Drucker nicht erreichbar. Trotzdem speichern?
-  Cancel: Abbrechen
+  Cancel: Abbruch
   Cancel Escalation: Eskalation abbrechen
   Cancel Print: Druck abbrechen
   Cancel Scheduled Pause: 'Geplante Pause abbrechen'
@@ -4645,7 +4645,7 @@ translations:
   Try Again: 'Erneut versuchen'
   Try the operation again. If it persists, check for mechanical issues.: Versuchen Sie den Vorgang erneut. Wenn das Problem bestehen bleibt, prüfen Sie auf mechanische Probleme.
   Trying again...: 'Erneuter Versuch...'
-  Tune: Abstimmen
+  Tune: Anpassen
   Tune Belts: "Einstellen"
   Tune the motors to remove fine vertical lines: 'Motoren abstimmen, um feine vertikale Linien zu entfernen'
   Tuner: Tuner
