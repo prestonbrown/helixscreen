@@ -1078,6 +1078,7 @@ translations:
   Checking the printer...: "Проверка принтера..."
   Checking timelapse plugin...: Проверка плагина таймлапса...
   Checking webcam: Проверка веб-камеры
+  Checking what this printer supports...: "Проверка возможностей принтера..."
   Checking...: Проверка...
   Checking…: Проверка…
   Choose a Different Spool: 'Выбрать другую катушку'
@@ -5430,6 +5431,7 @@ translations:
   The printer can measure each tool's offset automatically. Run it on the tool offset calibration screen.: 'Принтер может автоматически измерить смещение каждого инструмента. Запустите это на экране калибровки смещений инструментов.'
   The printer can measure pressure advance on its own. Run it on the PA calibration screen.: 'Принтер может сам измерить pressure advance. Запускается на экране «Калибровка PA».'
   The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview.: 'Принтер может встать на паузу на выбранном слое, для смены филамента или вставки детали. Слой задается в предпросмотре печати.'
+  The printer config has no section for this toolhead: "В конфигурации принтера нет секции для этой головки"
   The printer could not connect to one of its boards at startup.: 'При запуске принтер не смог подключиться к одной из своих плат.'
   'The printer could not get the head ready: homing, picking up the head or heating the nozzle failed.': 'Принтер не смог подготовить головку: не удалась парковка, захват головки или нагрев сопла.'
   The printer could not start: 'Принтер не смог запуститься'
@@ -5494,6 +5496,7 @@ translations:
   The printer rejected the filament configuration. The print was not started.: Принтер отклонил конфигурацию филамента. Печать не была запущена.
   The printer reports measured fan speeds. HelixScreen shows them on the Fans screen.: 'Принтер сообщает измеренные скорости вентиляторов. HelixScreen показывает их на экране «Вентиляторы».'
   The printer reports no lane record, so only clearing the extruder can unload it.: 'Принтер не сообщает запись канала, поэтому выгрузить можно только очисткой экструдера.'
+  The printer reports this flow type: "Принтер сам сообщает этот тип потока"
   'The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}': 'Принтер требует зашифрованного соединения, но отклонил зашифрованное задание: HTTP {} {}'
   The printer requires an encrypted connection, but the encrypted connection to {}:{} failed: 'Принтер требует зашифрованного соединения, но зашифрованное подключение к {}:{} не удалось'
   The printer shut down: 'Принтер отключился'
@@ -5609,6 +5612,7 @@ translations:
   ? 'The probe read as triggered before it started moving: it did not retract, the nozzle is touching the bed, or its signal is inverted.'
   : 'Зонд показал срабатывание ещё до начала движения: он не втянулся, сопло касается стола или его сигнал инвертирован.'
   The probe was already triggered before the move started.: 'Зонд уже сработал до начала перемещения.'
+  The printer's firmware sets this nozzle size: "Размер этого сопла задаёт прошивка принтера"
   The printer's state could no longer be read, so the remaining steps did not run.: "Состояние принтера больше не удавалось прочитать, поэтому остальные шаги не выполнялись."
   The printer's status isn't known yet, so a print may be running.: 'Состояние принтера ещё неизвестно, возможно, идёт печать.'
   The probe was used before the printer was homed.: Зонд использован до парковки принтера.

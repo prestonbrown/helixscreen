@@ -34,6 +34,13 @@ inline constexpr double kDefaultNozzleMm = 0.4;
 inline constexpr std::array<double, 9> kCommonSizes = {0.2, 0.25, 0.3, 0.4, 0.5,
                                                        0.6, 0.8,  1.0, 1.2};
 
+/// What the printer's command list said about the nozzle-size command.
+enum class CommandProbe {
+    Unknown, ///< not asked yet, or the answer did not arrive
+    Absent,  ///< the printer does not register it
+    Present, ///< the printer registers it
+};
+
 /// How a head's size is changed.
 enum class Mechanism {
     None,           ///< read-only
@@ -57,9 +64,12 @@ struct PrinterInputs {
     std::vector<std::string> stored_volume_types;
     /// A print is running or paused.
     bool printing = false;
-    /// Whether the printer registers SET_NOZZLE_DIAMETER. Discovery fills this
-    /// in once it asks the printer for its commands; until then it is false.
-    bool set_nozzle_diameter_registered = false;
+    /// Whether the printer registers SET_NOZZLE_DIAMETER, as discovery's query found.
+    /// Unknown holds every head read-only: the config is not edited on a guess.
+    CommandProbe size_command = CommandProbe::Unknown;
+    /// The printer is of a kind that keeps a nozzle record per head, but none has
+    /// reported yet: the heads stay read-only until one does.
+    bool vendor_records_pending = false;
     /// Whether the firmware keeps a nozzle record per head (diameter plus flow type).
     bool vendor_records_present = false;
     /// The diameters that firmware accepts, in mm.
@@ -80,6 +90,7 @@ struct HeadCapability {
     /// Flow types the head can be set to ("Standard", "High Flow"); empty where
     /// the printer has no such choice.
     std::vector<std::string> flow_variants;
+    std::string read_only_reason; ///< why the size cannot change; "" when it can; untranslated
     std::string flow_current;     ///< the variant the head is on, "" while unknown
     bool flow_changeable = false; ///< the flow type can be changed now
     std::string flow_note;        ///< why not, untranslated; "" when it can
@@ -152,14 +163,14 @@ struct ChangePlan {
 [[nodiscard]] std::optional<bool> help_lists_size_command(const nlohmann::json& response);
 
 /// Asks the printer which commands it registers and records whether it has the
-/// nozzle-size command (size_command_registered()). Called once per discovery.
+/// nozzle-size command (size_command_state()). Called once per discovery.
 void probe_size_command(IMoonrakerClient& client);
 
-/// Whether the last probe found the nozzle-size command. Safe from any thread.
-[[nodiscard]] bool size_command_registered();
+/// What the last probe found. Safe from any thread.
+[[nodiscard]] CommandProbe size_command_state();
 
 /// Records a probe's answer; the probe calls it, and tests set it directly.
-void set_size_command_registered(bool registered);
+void set_size_command_state(CommandProbe state);
 
 /// What to ask the user before executing @p plan to @p mm; nullopt where the
 /// change needs no confirmation. Untranslated (wrap in lv_tr). For a ConfigEdit

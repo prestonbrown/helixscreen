@@ -1022,6 +1022,7 @@ translations:
   Checking the printer...: "Comprobando la impresora..."
   Checking timelapse plugin...: Verificando plugin de timelapse...
   Checking webcam: Comprobando webcam
+  Checking what this printer supports...: "Comprobando qué admite esta impresora..."
   Checking...: Comprobando...
   Checking…: Comprobando…
   Choose a Different Spool: 'Elegir otra bobina'
@@ -5342,6 +5343,7 @@ translations:
   The printer can measure each tool's offset automatically. Run it on the tool offset calibration screen.: 'La impresora puede medir el desfase de cada herramienta automáticamente. Ejecútalo en la pantalla de calibración de desfases.'
   The printer can measure pressure advance on its own. Run it on the PA calibration screen.: 'La impresora puede medir el pressure advance por sí sola. Ejecútalo en la pantalla Calibración PA.'
   The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview.: 'La impresora puede pausar en una capa elegida, para cambiar de filamento o colocar un inserto. Define la capa desde la vista previa de impresión.'
+  The printer config has no section for this toolhead: "La configuración de la impresora no tiene sección para este cabezal"
   The printer could not connect to one of its boards at startup.: 'La impresora no pudo conectar con una de sus placas al arrancar.'
   'The printer could not get the head ready: homing, picking up the head or heating the nozzle failed.': 'La impresora no pudo preparar el cabezal: falló el referenciado, la toma del cabezal o el calentamiento de la boquilla.'
   The printer could not start: 'La impresora no pudo arrancar'
@@ -5406,6 +5408,7 @@ translations:
   The printer rejected the filament configuration. The print was not started.: La impresora rechazó la configuración de filamento. La impresión no se inició.
   The printer reports measured fan speeds. HelixScreen shows them on the Fans screen.: 'La impresora informa de las velocidades medidas de los ventiladores. HelixScreen las muestra en la pantalla Ventiladores.'
   The printer reports no lane record, so only clearing the extruder can unload it.: 'La impresora no informa ningún registro de carril, así que solo vaciar el extrusor puede descargar.'
+  The printer reports this flow type: "La impresora informa este tipo de flujo"
   'The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}': 'La impresora requiere una conexión cifrada, pero rechazó el trabajo cifrado: HTTP {} {}'
   The printer requires an encrypted connection, but the encrypted connection to {}:{} failed: 'La impresora requiere una conexión cifrada, pero falló la conexión cifrada a {}:{}'
   The printer shut down: 'La impresora se apagó'
@@ -5521,6 +5524,7 @@ translations:
   ? 'The probe read as triggered before it started moving: it did not retract, the nozzle is touching the bed, or its signal is inverted.'
   : 'La sonda leía activada antes de empezar a moverse: no se retrajo, la boquilla toca la cama o su señal está invertida.'
   The probe was already triggered before the move started.: 'La sonda ya estaba activada antes de que empezara el movimiento.'
+  The printer's firmware sets this nozzle size: "El firmware de la impresora define este tamaño de boquilla"
   The printer's state could no longer be read, so the remaining steps did not run.: "Ya no se pudo leer el estado de la impresora, así que los pasos restantes no se ejecutaron."
   The printer's status isn't known yet, so a print may be running.: 'El estado de la impresora aún no se conoce, así que puede haber una impresión en curso.'
   The probe was used before the printer was homed.: Se usó la sonda antes de referenciar la impresora.

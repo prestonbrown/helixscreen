@@ -110,7 +110,11 @@ Capability nozzle_capability(const PrinterInputs& in) {
         h.current = head_nozzle(in, tool);
         h.choices.assign(kCommonSizes.begin(), kCommonSizes.end());
 
-        // One row per mechanism, most specific first.
+        // One row per mechanism, most specific first. A head the firmware owns, or whose
+        // mechanism is not known yet, is read-only: the config is never edited on a guess.
+        const bool has_config_section = static_cast<size_t>(tool) < in.config_diameters.size() &&
+                                        in.config_diameters[static_cast<size_t>(tool)].has_value();
+        const bool reports_live = usable(entry_at(in.live_diameters, tool));
         if (in.vendor_records_present) {
             h.mechanism = Mechanism::VendorRpc;
             h.idle_only = true;
@@ -124,14 +128,23 @@ Capability nozzle_capability(const PrinterInputs& in) {
             if (!h.flow_changeable) {
                 h.flow_note = TR_NOOP("High Flow needs a 0.4 mm nozzle");
             }
-        } else if (in.set_nozzle_diameter_registered && tool == 0) {
+        } else if (in.vendor_records_pending || in.size_command == CommandProbe::Unknown) {
+            h.read_only_reason = TR_NOOP("Checking what this printer supports...");
+        } else if (in.size_command == CommandProbe::Present && tool == 0) {
             h.mechanism = Mechanism::KlipperCommand;
             h.idle_only = true;
-        } else if (!in.config_supervised) {
+        } else if (reports_live) {
+            h.read_only_reason = TR_NOOP("The printer's firmware sets this nozzle size");
+        } else if (in.config_supervised) {
+            h.read_only_reason = kFirmwareSupervisedConfigRefusal;
+        } else if (!has_config_section) {
+            h.read_only_reason = TR_NOOP("The printer config has no section for this toolhead");
+        } else {
             h.mechanism = Mechanism::ConfigEdit;
             h.restart_required = true;
             h.idle_only = true;
-        } else {
+        }
+        if (h.mechanism == Mechanism::None) {
             h.choices.clear();
         }
         h.settable = h.mechanism != Mechanism::None;
@@ -140,7 +153,13 @@ Capability nozzle_capability(const PrinterInputs& in) {
             // HelixScreen, whether or not the config can be edited.
             h.flow_variants = snapmaker::nozzle::flow_options();
             h.flow_current = snapmaker::nozzle::flow_option(head_volume_type(in, h.extruder_index));
-            h.flow_changeable = true;
+            // A type the printer reports is not the user's to override.
+            const bool reported_flow = static_cast<size_t>(tool) < in.live_volume_types.size() &&
+                                       !in.live_volume_types[static_cast<size_t>(tool)].empty();
+            h.flow_changeable = !reported_flow;
+            if (reported_flow) {
+                h.flow_note = TR_NOOP("The printer reports this flow type");
+            }
         }
         cap.heads.push_back(std::move(h));
     }
@@ -189,8 +208,10 @@ PrinterInputs inputs_from_state(PrinterState& state) {
                                              : snapmaker::nozzle::kStandard);
     }
     in.config_supervised = firmware_supervised();
-    in.printing = state.print_state().is_print_in_progress();
-    in.set_nozzle_diameter_registered = size_command_registered();
+    in.vendor_records_pending = state.get_discovery().has_snapmaker() && !in.vendor_records_present;
+    in.printing = printer_has_job(state.print_state().get_print_job_state()) ||
+                  state.print_state().is_print_in_progress();
+    in.size_command = size_command_state();
     return in;
 }
 
@@ -214,9 +235,9 @@ const HeadCapability* settable_head(const Capability& cap, const PrinterInputs& 
             continue;
         }
         if (!h.settable) {
-            refusal =
-                refuse(in.config_supervised ? kFirmwareSupervisedConfigRefusal
-                                            : TR_NOOP("This nozzle size can't be changed here"));
+            refusal = refuse(h.read_only_reason.empty()
+                                 ? TR_NOOP("This nozzle size can't be changed here")
+                                 : h.read_only_reason.c_str());
             return nullptr;
         }
         if (h.idle_only && in.printing) {
@@ -256,11 +277,13 @@ ChangePlan plan_change(const PrinterInputs& in, int extruder_index, double mm) {
     if (h == nullptr) {
         return refusal;
     }
-    const bool offered = std::any_of(h->choices.begin(), h->choices.end(),
-                                     [mm](double c) { return same_size(c, mm); });
-    if (!offered) {
+    const auto matched = std::find_if(h->choices.begin(), h->choices.end(),
+                                      [mm](double c) { return same_size(c, mm); });
+    if (matched == h->choices.end()) {
         return refuse(TR_NOOP("This printer doesn't accept that nozzle size"));
     }
+    // What goes out is the listed size, never the requested number.
+    mm = *matched;
     if (h->mechanism != Mechanism::VendorRpc && h->current && same_size(*h->current, mm)) {
         return refuse(TR_NOOP("That size is already set"));
     }
@@ -302,6 +325,9 @@ ChangePlan plan_flow_change(const PrinterInputs& in, int extruder_index,
     }
     if (h->flow_variants.empty()) {
         return refuse(TR_NOOP("This toolhead has no flow type to change"));
+    }
+    if (h->mechanism != Mechanism::VendorRpc && !h->flow_changeable) {
+        return refuse(h->flow_note.c_str());
     }
     snapmaker::nozzle::Nozzle wanted;
     wanted.volume_type = snapmaker::nozzle::volume_type_from_option(variant);
@@ -362,29 +388,33 @@ std::optional<bool> help_lists_size_command(const nlohmann::json& response) {
 }
 
 namespace {
-std::atomic<bool> g_size_command_registered{false};
+std::atomic<int> g_size_command{static_cast<int>(CommandProbe::Unknown)};
 } // namespace
 
-bool size_command_registered() {
-    return g_size_command_registered.load();
+CommandProbe size_command_state() {
+    return static_cast<CommandProbe>(g_size_command.load());
 }
 
-void set_size_command_registered(bool registered) {
-    g_size_command_registered.store(registered);
+void set_size_command_state(CommandProbe state) {
+    g_size_command.store(static_cast<int>(state));
 }
 
 void probe_size_command(IMoonrakerClient& client) {
-    set_size_command_registered(false);
+    set_size_command_state(CommandProbe::Unknown);
     client.send_jsonrpc(
         "printer.gcode.help", nlohmann::json::object(),
         [](const nlohmann::json& response) {
-            set_size_command_registered(help_lists_size_command(response).value_or(false));
+            // A reply with no command list says nothing: the size stays unknown.
+            const auto listed = help_lists_size_command(response);
+            set_size_command_state(!listed   ? CommandProbe::Unknown
+                                   : *listed ? CommandProbe::Present
+                                             : CommandProbe::Absent);
         },
         [](const MoonrakerError& err) {
             spdlog::debug("[NozzleSize] Could not list gcode commands: {}", err.message);
         },
         0,   // default timeout
-        true // silent: a probe; the size stays editable through the config
+        true // silent: a probe; until it answers, no size can be changed
     );
 }
 

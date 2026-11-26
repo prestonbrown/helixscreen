@@ -1020,6 +1020,7 @@
   <translation tag="Checking the printer..." pl="Sprawdzanie drukarki..."/>
   <translation tag="Checking timelapse plugin..." pl="Sprawdzanie wtyczki timelapse..."/>
   <translation tag="Checking webcam" pl="Sprawdzanie kamery"/>
+  <translation tag="Checking what this printer supports..." pl="Sprawdzanie, co obsługuje ta drukarka..."/>
   <translation tag="Checking..." pl="Sprawdzanie..."/>
   <translation tag="Checking…" pl="Sprawdzanie…"/>
   <translation tag="Choose 12-hour or 24-hour time display" pl="Wybierz zegar 12- lub 24-godzinny"/>
@@ -5217,6 +5218,7 @@
   <translation tag="The printer can measure each tool&apos;s offset automatically. Run it on the tool offset calibration screen." pl="Drukarka może automatycznie zmierzyć offset każdego narzędzia. Uruchom to na ekranie kalibracji offsetów narzędzi."/>
   <translation tag="The printer can measure pressure advance on its own. Run it on the PA calibration screen." pl="Drukarka może sama zmierzyć pressure advance. Uruchom to na ekranie kalibracji PA."/>
   <translation tag="The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview." pl="Drukarka może zatrzymać się na wybranej warstwie, aby wymienić filament lub włożyć wkładkę. Ustaw warstwę w podglądzie wydruku."/>
+  <translation tag="The printer config has no section for this toolhead" pl="Konfiguracja drukarki nie ma sekcji dla tej głowicy"/>
   <translation tag="The printer could not connect to one of its boards at startup." pl="Drukarka nie połączyła się z jedną z płyt przy starcie."/>
   <translation tag="The printer could not get the head ready: homing, picking up the head or heating the nozzle failed." pl="Drukarka nie przygotowała głowicy: bazowanie, pobranie głowicy lub grzanie dyszy nie powiodło się."/>
   <translation tag="The printer could not start" pl="Drukarka nie mogła wystartować"/>
@@ -5277,6 +5279,7 @@
   <translation tag="The printer rejected the filament configuration. The print was not started." pl="Drukarka odrzuciła konfigurację filamentu. Wydruku nie rozpoczęto."/>
   <translation tag="The printer reports measured fan speeds. HelixScreen shows them on the Fans screen." pl="Drukarka zgłasza zmierzone prędkości wentylatorów. HelixScreen pokazuje je na ekranie Wentylatory."/>
   <translation tag="The printer reports no lane record, so only clearing the extruder can unload it." pl="Drukarka nie zgłasza zapisu torów, więc rozładować można tylko czyszcząc ekstruder."/>
+  <translation tag="The printer reports this flow type" pl="Drukarka sama zgłasza ten typ przepływu"/>
   <translation tag="The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}" pl="Drukarka wymaga szyfrowanego połączenia, ale odrzuciła zaszyfrowane zadanie: HTTP {} {}"/>
   <translation tag="The printer requires an encrypted connection, but the encrypted connection to {}:{} failed" pl="Drukarka wymaga szyfrowanego połączenia, ale szyfrowane połączenie z {}:{} nie powiodło się"/>
   <translation tag="The printer restarts when the update finishes." pl="Drukarka uruchomi się ponownie po zakończeniu aktualizacji."/>
@@ -5291,6 +5294,7 @@
   <translation tag="The printer was stopped" pl="Drukarka została zatrzymana"/>
   <translation tag="The printer&apos;s computer fell behind" pl="Komputer drukarki nie nadążył"/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" pl="Firmware drukarki wybiera, na co przełączyć po skończeniu filamentu"/>
+  <translation tag="The printer&apos;s firmware sets this nozzle size" pl="Rozmiar tej dyszy ustawia oprogramowanie drukarki"/>
   <translation tag="The printer&apos;s state could no longer be read, so the remaining steps did not run." pl="Nie można już odczytać stanu drukarki, więc pozostałe kroki się nie wykonały."/>
   <translation tag="The printer&apos;s status isn&apos;t known yet, so a print may be running." pl="Stan drukarki nie jest jeszcze znany, więc może trwać wydruk."/>
   <translation tag="The probe before the print disagrees with the saved bed mesh: a different plate, a different temperature, or debris on the bed." pl="Pomiar przed drukiem nie zgadza się z zapisaną siatką stołu: inna płyta, inna temperatura albo zanieczyszczenia na stole."/>

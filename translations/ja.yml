@@ -1022,6 +1022,7 @@ translations:
   Checking the printer...: "プリンターを確認中..."
   Checking timelapse plugin...: タイムラプスプラグインを確認中...
   Checking webcam: ウェブカメラを確認中
+  Checking what this printer supports...: "このプリンターの対応機能を確認しています..."
   Checking...: 確認中...
   Checking…: 確認中…
   Choose a Different Spool: '別のスプールを選択'
@@ -5342,6 +5343,7 @@ translations:
   The printer can measure each tool's offset automatically. Run it on the tool offset calibration screen.: 'プリンターは各ツールのオフセットを自動で測定できます。ツールオフセット校正画面で実行します。'
   The printer can measure pressure advance on its own. Run it on the PA calibration screen.: 'プリンターはプレッシャーアドバンスを自分で測定できます。PAキャリブレーション画面で実行できます。'
   The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview.: 'プリンターは、フィラメント交換やインサート挿入のために、選んだレイヤーで一時停止できます。レイヤーは印刷プレビューで設定します。'
+  The printer config has no section for this toolhead: "プリンターの設定にこのツールヘッドのセクションがありません"
   The printer could not connect to one of its boards at startup.: '起動時にプリンターがボードの1つに接続できませんでした。'
   'The printer could not get the head ready: homing, picking up the head or heating the nozzle failed.': 'ヘッドを準備できませんでした: ホーミング、ヘッドの装着、ノズルの加熱のいずれかに失敗しました。'
   The printer could not start: 'プリンターを起動できませんでした'
@@ -5406,6 +5408,7 @@ translations:
   The printer rejected the filament configuration. The print was not started.: プリンターがフィラメント設定を拒否しました。印刷は開始されませんでした。
   The printer reports measured fan speeds. HelixScreen shows them on the Fans screen.: 'プリンターはファンの実測回転数を報告します。HelixScreenはファン画面に表示します。'
   The printer reports no lane record, so only clearing the extruder can unload it.: 'プリンターにレーン記録がないため、取り出すにはエクストルーダーを空にするしかありません。'
+  The printer reports this flow type: "このフロータイプはプリンターが報告しています"
   'The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}': 'プリンターは暗号化接続を必要としますが、暗号化されたジョブを拒否しました: HTTP {} {}'
   The printer requires an encrypted connection, but the encrypted connection to {}:{} failed: 'プリンターは暗号化接続を必要としますが、{}:{} への暗号化接続に失敗しました'
   The printer shut down: 'プリンターが停止しました'
@@ -5521,6 +5524,7 @@ translations:
   ? 'The probe read as triggered before it started moving: it did not retract, the nozzle is touching the bed, or its signal is inverted.'
   : 'プローブが移動を始める前から反応していました: 格納されていない、ノズルがベッドに接触している、または信号が反転しています。'
   The probe was already triggered before the move started.: '移動開始前からプローブが反応していました。'
+  The printer's firmware sets this nozzle size: "このノズルサイズはプリンターのファームウェアが設定します"
   The printer's state could no longer be read, so the remaining steps did not run.: "プリンターの状態を読み取れなくなったため、残りのステップは実行されませんでした。"
   The printer's status isn't known yet, so a print may be running.: 'プリンターの状態がまだわかりません。印刷中の可能性があります。'
   The probe was used before the printer was homed.: プリンターのホーミング前にプローブが使用されました。

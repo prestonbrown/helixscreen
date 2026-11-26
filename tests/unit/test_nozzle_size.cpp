@@ -22,12 +22,13 @@ namespace {
 PrinterInputs mainline(std::vector<std::optional<double>> config) {
     PrinterInputs in;
     in.config_diameters = std::move(config);
+    in.size_command = CommandProbe::Absent;
     return in;
 }
 
 PrinterInputs k2_like_inputs() {
     PrinterInputs in = mainline({0.4});
-    in.set_nozzle_diameter_registered = true;
+    in.size_command = CommandProbe::Present;
     return in;
 }
 
@@ -58,7 +59,7 @@ TEST_CASE("nozzle size: a two-extruder config gives each head its own entry", "[
 
 TEST_CASE("nozzle size: a registered SET_NOZZLE_DIAMETER covers extruder only", "[nozzle_size]") {
     PrinterInputs in = mainline({0.4, 0.6});
-    in.set_nozzle_diameter_registered = true;
+    in.size_command = CommandProbe::Present;
     const Capability cap = nozzle_capability(in);
     REQUIRE(cap.heads.size() == 2);
     CHECK(cap.heads[0].mechanism == Mechanism::KlipperCommand);
@@ -183,7 +184,7 @@ namespace {
 
 PrinterInputs k2_like() {
     PrinterInputs in = mainline({0.4});
-    in.set_nozzle_diameter_registered = true;
+    in.size_command = CommandProbe::Present;
     return in;
 }
 
@@ -324,14 +325,69 @@ TEST_CASE("nozzle size: discovery finds the command on the K2 persona only", "[n
     {
         MoonrakerClientMock plain;
         probe_size_command(plain);
-        CHECK_FALSE(size_command_registered());
+        CHECK(size_command_state() == CommandProbe::Absent);
     }
     {
         MoonrakerClientMock k2(MoonrakerClientMock::PrinterType::CREALITY_K2_PLUS);
         probe_size_command(k2);
-        CHECK(size_command_registered());
+        CHECK(size_command_state() == CommandProbe::Present);
         k2.gcode_script("SET_NOZZLE_DIAMETER VALUE=0.6");
         CHECK(k2.nozzle_properties(0).first == Catch::Approx(0.6));
     }
-    set_size_command_registered(false);
+    set_size_command_state(CommandProbe::Unknown);
+}
+
+TEST_CASE("nozzle size: a head the firmware owns or whose mechanism is unknown is read-only",
+          "[nozzle_size]") {
+    SECTION("a live diameter with no command and no vendor record") {
+        PrinterInputs in = mainline({0.4});
+        in.live_diameters = {0.4};
+        const HeadCapability head = nozzle_capability(in).heads[0];
+        CHECK(head.mechanism == Mechanism::None);
+        CHECK_FALSE(head.settable);
+        CHECK_FALSE(head.read_only_reason.empty());
+        CHECK(plan_change(in, 0, 0.6).kind == ChangePlan::Kind::Refused);
+        // The command, where there is one, still serves the head.
+        in.size_command = CommandProbe::Present;
+        CHECK(nozzle_capability(in).heads[0].mechanism == Mechanism::KlipperCommand);
+    }
+    SECTION("the command probe has not answered") {
+        PrinterInputs in = mainline({0.4});
+        in.size_command = CommandProbe::Unknown;
+        const HeadCapability head = nozzle_capability(in).heads[0];
+        CHECK_FALSE(head.settable);
+        CHECK(head.read_only_reason.find("Checking") != std::string::npos);
+        CHECK(plan_change(in, 0, 0.6).kind == ChangePlan::Kind::Refused);
+        // A flow type is HelixScreen's own and does not wait for the probe.
+        CHECK(head.flow_changeable);
+    }
+    SECTION("a printer with nozzle records that have not reported yet") {
+        PrinterInputs in = mainline({0.4});
+        in.vendor_records_pending = true;
+        CHECK(nozzle_capability(in).heads[0].mechanism == Mechanism::None);
+        CHECK(plan_change(in, 0, 0.6).kind == ChangePlan::Kind::Refused);
+    }
+    SECTION("a head with no section in the config") {
+        PrinterInputs in = mainline({0.4, std::nullopt});
+        in.live_diameters = {std::nullopt, std::nullopt};
+        CHECK(nozzle_capability(in).heads[0].mechanism == Mechanism::ConfigEdit);
+        CHECK(nozzle_capability(in).heads[1].mechanism == Mechanism::None);
+        CHECK(plan_change(in, 1, 0.6).kind == ChangePlan::Kind::Refused);
+    }
+}
+
+TEST_CASE("nozzle size: a flow type the printer reports is not overridden", "[nozzle_size]") {
+    PrinterInputs in = mainline({0.4});
+    in.live_volume_types = {"high_flow"};
+    const HeadCapability head = nozzle_capability(in).heads[0];
+    CHECK(head.flow_current == "High Flow");
+    CHECK_FALSE(head.flow_changeable);
+    CHECK_FALSE(head.flow_note.empty());
+    CHECK(plan_flow_change(in, 0, "Standard").kind == ChangePlan::Kind::Refused);
+}
+
+TEST_CASE("nozzle size plan: the listed size goes out, not the requested number", "[nozzle_size]") {
+    const ChangePlan plan = plan_change(mainline({0.4}), 0, 0.6 + 1e-9);
+    REQUIRE(plan.kind == ChangePlan::Kind::ConfigEdit);
+    CHECK(plan.value == "0.6");
 }

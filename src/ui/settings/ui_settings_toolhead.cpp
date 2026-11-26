@@ -215,10 +215,7 @@ void ToolheadSettingsOverlay::populate() {
             h.current ? nozzle_size::size_text_mm(*h.current) : std::string("?");
         // Why a head cannot change is the plan's own refusal.
         const std::string size_note =
-            h.settable ? std::string()
-                       : std::string(lv_tr(nozzle_size::plan_change(inputs, h.extruder_index,
-                                                                    nozzle_size::kDefaultNozzleMm)
-                                               .reason.c_str()));
+            h.settable ? std::string() : std::string(lv_tr(h.read_only_reason.c_str()));
         std::vector<std::string> flow_entries = h.flow_variants;
         if (flow_offset(h) != 0) {
             flow_entries.insert(flow_entries.begin(), lv_tr("Not set"));
@@ -271,6 +268,13 @@ void ToolheadSettingsOverlay::populate() {
     refresh_summary();
 }
 
+nozzle_size::ChangePlan ToolheadSettingsOverlay::plan_for(const Request& request) {
+    const auto inputs = nozzle_size::inputs_from_state(get_printer_state());
+    return request.flow
+               ? nozzle_size::plan_flow_change(inputs, request.extruder_index, request.variant)
+               : nozzle_size::plan_change(inputs, request.extruder_index, request.mm);
+}
+
 void ToolheadSettingsOverlay::on_size_picked(int extruder_index, int option) {
     const auto inputs = nozzle_size::inputs_from_state(get_printer_state());
     const auto cap = nozzle_size::nozzle_capability(inputs);
@@ -278,8 +282,10 @@ void ToolheadSettingsOverlay::on_size_picked(int extruder_index, int option) {
     if (!head || option < 0 || static_cast<size_t>(option) >= head->choices.size()) {
         return;
     }
-    const double mm = head->choices[static_cast<size_t>(option)];
-    apply(nozzle_size::plan_change(inputs, extruder_index, mm), mm,
+    Request request;
+    request.extruder_index = extruder_index;
+    request.mm = head->choices[static_cast<size_t>(option)];
+    apply(request,
           cap.heads.size() > 1 ? head_title(extruder_index, cap.heads.size()) : std::string());
 }
 
@@ -292,22 +298,25 @@ void ToolheadSettingsOverlay::on_flow_picked(int extruder_index, int option) {
     if (!head || index < 0 || static_cast<size_t>(index) >= head->flow_variants.size()) {
         return;
     }
-    apply(nozzle_size::plan_flow_change(inputs, extruder_index,
-                                        head->flow_variants[static_cast<size_t>(index)]),
-          0.0, cap.heads.size() > 1 ? head_title(extruder_index, cap.heads.size()) : std::string());
+    Request request;
+    request.extruder_index = extruder_index;
+    request.flow = true;
+    request.variant = head->flow_variants[static_cast<size_t>(index)];
+    apply(request,
+          cap.heads.size() > 1 ? head_title(extruder_index, cap.heads.size()) : std::string());
 }
 
-void ToolheadSettingsOverlay::apply(const nozzle_size::ChangePlan& plan, double mm,
-                                    const std::string& head_label) {
+void ToolheadSettingsOverlay::apply(const Request& request, const std::string& head_label) {
     using Kind = nozzle_size::ChangePlan::Kind;
+    const nozzle_size::ChangePlan plan = plan_for(request);
     if (plan.kind == Kind::Refused) {
         ToastManager::instance().show(ToastSeverity::WARNING, lv_tr(plan.reason.c_str()), 4000);
         populate(); // put the dropdown back on what the printer has
         return;
     }
-    const auto question = nozzle_size::confirm_message(plan, mm);
+    const auto question = nozzle_size::confirm_message(plan, request.mm);
     if (!question) {
-        run(plan);
+        confirmed(request);
         return;
     }
     const std::string title =
@@ -322,12 +331,24 @@ void ToolheadSettingsOverlay::apply(const nozzle_size::ChangePlan& plan, double 
     options.on_dismiss = [this]() { populate(); };
     if (plan.kind == Kind::ConfigEdit) {
         helix::ui::confirm_config_rewrite(
-            title.c_str(), what, lv_tr("Change"), [this, plan]() { run(plan); }, options);
+            title.c_str(), what, lv_tr("Change"), [this, request]() { confirmed(request); },
+            options);
     } else {
         helix::ui::modal_confirm(
             title.c_str(), what.c_str(), ModalSeverity::Warning, lv_tr("Change"),
-            [this, plan]() { run(plan); }, options);
+            [this, request]() { confirmed(request); }, options);
     }
+}
+
+void ToolheadSettingsOverlay::confirmed(const Request& request) {
+    // The dialog may have stood open while a print started: decide again from now.
+    const nozzle_size::ChangePlan plan = plan_for(request);
+    if (plan.kind == nozzle_size::ChangePlan::Kind::Refused) {
+        ToastManager::instance().show(ToastSeverity::WARNING, lv_tr(plan.reason.c_str()), 4000);
+        populate();
+        return;
+    }
+    run(plan);
 }
 
 void ToolheadSettingsOverlay::run(const nozzle_size::ChangePlan& plan) {
@@ -371,9 +392,13 @@ void ToolheadSettingsOverlay::run(const nozzle_size::ChangePlan& plan) {
             finish(lv_tr("No filament system to send this to"));
             return;
         }
-        const AmsError sent = backend->change_nozzle(plan.params, [this](const AmsError& result) {
-            finish(result.success() ? std::string() : result.user_msg);
-        });
+        const AmsError sent =
+            backend->change_nozzle(plan.params, [token, this](const AmsError& result) {
+                token.defer("Toolhead::vendor_done",
+                            [this, error = result.success() ? std::string() : result.user_msg]() {
+                                finish(error);
+                            });
+            });
         if (!sent.success()) {
             finish(sent.user_msg);
         }
