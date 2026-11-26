@@ -95,6 +95,7 @@ FanStackWidget::FanStackWidget(const std::string& instance_id, PrinterState& pri
     const std::string has_aux = instance_id_ + "_has_aux";
     subjects_.publish(has_aux.c_str(), &has_aux_subject_);
     attr_storage_.insert(attr_storage_.end(), {"has_aux_subject", has_aux});
+    shape_.publish(subjects_, instance_id_ + "_shape", attr_storage_);
     for (const auto& a : attr_storage_) {
         attrs_.push_back(a.c_str());
     }
@@ -426,20 +427,14 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
                                             : (bigger ? NameForm::Resolved : NameForm::Letter)));
     }
 
-    // DECLARATIVE_OK: measured layout. Which way a row flows depends on the
-    // resolved font line heights and the pixel box the grid handed us, neither
-    // of which XML can express - the same exception decide_nozzle_layout()
-    // runs under. The row-flow values restore what panel_widget_fan_stack.xml
-    // authors.
-    // The widget itself flows across when the fans sit side by side, and each
-    // column then takes an equal share of the width.
-    lv_obj_set_flex_flow(widget_obj_, columns ? LV_FLEX_FLOW_ROW : LV_FLEX_FLOW_COLUMN);
+    // The component binds the widget's and each row's flow, and the equal
+    // column share, to these.
+    shape_.apply(layout);
+    // DECLARATIVE_OK: the gap follows the measured tier (a resolved spacing token).
     for (const char* rn : row_names) {
         lv_obj_t* row = lv_obj_find_by_name(widget_obj_, rn);
         if (row) {
-            lv_obj_set_flex_flow(row, icon_above ? LV_FLEX_FLOW_COLUMN : LV_FLEX_FLOW_ROW);
             lv_obj_set_style_pad_gap(row, icon_above ? icon_gap_px : row_gap_px, 0);
-            lv_obj_set_flex_grow(row, columns ? 1 : 0);
         }
     }
 
@@ -450,7 +445,7 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
         for (const char* rn : row_names) {
             lv_obj_t* row = lv_obj_find_by_name(widget_obj_, rn);
             if (row) {
-                lv_obj_set_width(row, columns ? 0 : LV_PCT(100));
+                lv_obj_set_width(row, LV_PCT(100));
                 lv_obj_set_style_flex_main_place(row, LV_FLEX_ALIGN_START, 0);
             }
         }

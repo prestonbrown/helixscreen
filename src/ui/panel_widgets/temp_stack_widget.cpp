@@ -28,6 +28,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cstdio>
 
 namespace helix {
 void register_temp_stack_widget() {
@@ -78,7 +79,17 @@ using namespace helix;
 using helix::ui::measure_text_px;
 
 TempStackWidget::TempStackWidget(PrinterState& printer_state, TemperatureService* temp_panel)
-    : printer_state_(printer_state), temp_control_panel_(temp_panel) {}
+    : printer_state_(printer_state), temp_control_panel_(temp_panel) {
+    // Published before the manager parses the component, which drops a
+    // binding whose subject is missing at parse time.
+    char prefix[40];
+    snprintf(prefix, sizeof(prefix), "temp_stack_%p", static_cast<void*>(this));
+    shape_.publish(subjects_, prefix, attr_storage_);
+    for (const auto& a : attr_storage_) {
+        attrs_.push_back(a.c_str());
+    }
+    attrs_.push_back(nullptr);
+}
 
 TempStackWidget::~TempStackWidget() {
     detach();
@@ -275,27 +286,17 @@ void TempStackWidget::on_size_changed(int colspan, int rowspan, int width_px, in
     // with a caption, not a temperature with a label.
     const lv_font_t* icon_font = (icon_above || tall_pixels) ? &mdi_icons_24 : &mdi_icons_16;
 
-    // DECLARATIVE_OK: measured layout. Whether the heaters flow down or across
-    // depends on the pixel box the grid handed us and on resolved font metrics,
-    // which XML cannot express. The column values restore panel_widget_temp_stack.xml.
-    lv_obj_set_flex_flow(widget_obj_, columns ? LV_FLEX_FLOW_ROW : LV_FLEX_FLOW_COLUMN);
+    // The component binds the flow, column sharing and captions to these.
+    shape_.apply(layout);
 
     for (int r = 0; r < row_count; r++) {
         lv_obj_t* row = rows[r];
 
-        // DECLARATIVE_OK: measured layout. Which way a row flows depends on
-        // the resolved font line heights and the pixel height the grid handed
-        // us, neither of which XML can express - the same exception
-        // decide_nozzle_layout() runs under. The row-mode values here restore
-        // exactly what panel_widget_temp_stack.xml authors.
-        lv_obj_set_flex_flow(row, icon_above ? LV_FLEX_FLOW_COLUMN : LV_FLEX_FLOW_ROW);
+        // DECLARATIVE_OK: the gap follows the measured tier, which is a
+        // resolved spacing token chosen with the fonts below.
         lv_obj_set_style_pad_gap(row, icon_above ? icon_gap_px : row_gap_px, 0);
-        // Columns share the width equally; stacked rows take all of it.
-        lv_obj_set_flex_grow(row, columns ? 1 : 0);
-        lv_obj_set_width(row, columns ? 0 : LV_PCT(100));
 
         if (lv_obj_t* caption = labels[r]) {
-            lv_obj_set_flag(caption, LV_OBJ_FLAG_HIDDEN, !(columns && layout.captions));
             if (caption_font)
                 lv_obj_set_style_text_font(caption, caption_font, 0);
         }

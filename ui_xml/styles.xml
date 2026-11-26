@@ -172,6 +172,13 @@
            layout="flex" flex_flow="row" flex_main_place="center" flex_cross_place="center" flex_track_place="center"/>
     <style name="jog_flow_column"
            layout="flex" flex_flow="column" flex_main_place="center" flex_cross_place="center" flex_track_place="center"/>
+    <!-- Stacked home widgets (temp_stack, fan_stack): the flow a row or the whole
+         widget takes, bound to the arrangement the widget's size decided. -->
+    <style name="stack_flow_row"
+           layout="flex" flex_flow="row" flex_main_place="center" flex_cross_place="center" flex_track_place="center"/>
+    <style name="stack_flow_column"
+           layout="flex" flex_flow="column" flex_main_place="center" flex_cross_place="center" flex_track_place="center"/>
+    <style name="stack_share_width" flex_grow="1"/>
     <style name="jog_grow_1" flex_grow="1"/>
     <style name="jog_grow_2" flex_grow="2"/>
     <style name="jog_grow_3" flex_grow="3"/>
