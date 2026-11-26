@@ -466,6 +466,8 @@ void FilamentPanel::init_subjects() {
                                   "filament_spool_preset_temps", subjects_);
         UI_MANAGED_SUBJECT_STRING(spool_preset_nozzle_temp_subject_, spool_preset_nozzle_temp_buf_,
                                   "", "filament_spool_preset_nozzle_temp", subjects_);
+        UI_MANAGED_SUBJECT_INT(spool_preset_has_macro_subject_, 0,
+                               "filament_spool_preset_has_macro", subjects_);
 
         // Card title subject (dynamic: "Multi-Filament" or "External Spool")
         std::strncpy(card_title_buf_, lv_tr("Multi-Filament"), sizeof(card_title_buf_) - 1);
@@ -1025,6 +1027,12 @@ void FilamentPanel::drop_pending_pickup(const char* why) {
 void FilamentPanel::on_activate() {
     PanelBase::on_activate();
     side_band_.on_host_activate();
+    if (subjects_initialized_) {
+        // A material's macro may have been set or cleared on another screen:
+        // the mark follows it back here.
+        helix::presets::refresh_subjects();
+        publish_spool_preset_has_macro();
+    }
 }
 
 void FilamentPanel::on_deactivating(DeactivateReason reason) {
@@ -2267,6 +2275,17 @@ void FilamentPanel::publish_spool_preset_temps() {
                           helix::units::format_display_temp(info.nozzle_recommended()).c_str());
 }
 
+void FilamentPanel::publish_spool_preset_has_macro() {
+    // The same lookup a tap on the spool preset makes for its macro.
+    const auto* override =
+        cached_active_material_
+            ? helix::MaterialSettingsManager::instance().find_override_for_material(
+                  cached_active_material_->material_name)
+            : nullptr;
+    lv_subject_set_int(&spool_preset_has_macro_subject_,
+                       override && override->names_a_macro() ? 1 : 0);
+}
+
 void FilamentPanel::update_spool_preset() {
     cached_active_material_ = helix::get_active_material();
 
@@ -2292,6 +2311,7 @@ void FilamentPanel::update_spool_preset() {
     // Novel material — show spool preset button.
     lv_subject_set_string(&spool_preset_name_subject_, active.material_name.c_str());
     publish_spool_preset_temps();
+    publish_spool_preset_has_macro();
     lv_subject_set_int(&spool_preset_shown_subject_, 1);
 
     // Deselect spool button initially (user must tap)

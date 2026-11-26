@@ -95,12 +95,16 @@ std::string temp_label(int slot);
 /// The nozzle half of temp_label(): "220°C", or "---" if the material is unknown.
 std::string nozzle_temp_label(int slot);
 
+/// Whether a tap on slot @p slot's preset would run a macro: its material
+/// names one, whether or not this printer defines it. The preset's mark.
+[[nodiscard]] bool has_macro(int slot);
+
 /**
  * @brief Create the globally-scoped preset subjects. Idempotent.
  *
- * Registers "preset_material_0_name" … "preset_material_3_name" and
- * "preset_material_0_temps" … "preset_material_3_temps" in the global XML scope,
- * plus "preset_material_count". Self-registers its own deinit with
+ * Registers "preset_material_0_name" … "preset_material_3_name", the matching
+ * "_temps", "_nozzle_temp" and "_has_macro" subjects, and "preset_material_count", in the
+ * global XML scope. Self-registers its own deinit with
  * StaticSubjectRegistry so cleanup runs before lv_deinit().
  *
  * Must be called after LVGL init and after MaterialSettingsManager::init().
@@ -111,8 +115,9 @@ void init_subjects();
  * @brief Re-read MaterialSettingsManager and push into the subjects.
  *
  * Call after any set_preset_material() / set_preset_filament() /
- * reset_preset_materials(). No-op if init_subjects() has not run (unit tests
- * that only use the plain accessors).
+ * reset_preset_materials(), and whenever a screen that shows the presets comes
+ * back: a material's macro may have been set or cleared meanwhile. No-op if
+ * init_subjects() has not run (unit tests that only use the plain accessors).
  */
 void refresh_subjects();
 

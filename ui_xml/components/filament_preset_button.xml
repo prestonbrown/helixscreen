@@ -17,7 +17,18 @@
     <event_cb trigger="clicked" callback="$callback"/>
     <event_cb trigger="long_pressed" callback="$hold_callback"/>
     <event_cb trigger="size_changed" callback="filament_preset_fit_temps"/>
-    <text_body bind_text="preset_material_${slot}_name" long_mode="dots" style_max_width="100%"/>
+    <!-- The name, with the mark before it while the slot's material names a
+         macro. The row takes no press: a tap or a hold on the name reaches
+         the button. -->
+    <lv_obj width="100%"
+            height="content" flex_flow="row" style_pad_all="0" scrollable="false" clickable="false"
+            style_flex_main_place="center" style_flex_cross_place="center" style_pad_column="#space_xxs">
+      <icon name="preset_macro_mark" src="script_text" size="xs" clickable="false" hidden="true">
+        <bind_flag_if_eq subject="preset_material_${slot}_has_macro" flag="hidden" ref_value="0"/>
+      </icon>
+      <text_body name="preset_material_name"
+                 bind_text="preset_material_${slot}_name" long_mode="dots" style_max_width="100%"/>
+    </lv_obj>
     <!-- Nozzle and bed when both fit the button's width, the nozzle alone when
          they do not (filament_preset_fit_temps), never an ellipsis. -->
     <text_small name="preset_temps"

@@ -9,6 +9,7 @@
 #include "../test_helpers/filament_panel_macro_harness.h"
 #include "../test_helpers/filament_panel_test_access.h"
 #include "../test_helpers/fresh_printer_state.h"
+#include "../test_helpers/material_settings_scope.h"
 #include "../test_helpers/notice_capture.h"
 #include "../test_helpers/preheat_widget_test_access.h"
 #include "../test_helpers/scoped_shared_resource.h"
@@ -46,27 +47,7 @@ using PanelAccess = helix::ui::FilamentPanelTestAccess;
 using WidgetAccess = helix::PreheatWidgetTestAccess;
 using Scripts = std::vector<std::string>;
 using Harness = helix::test::FilamentPanelMacroHarness;
-
-// Material settings are process-wide; Config writes are sandboxed by the base
-// fixture. Establish and clean the baseline even when a REQUIRE unwinds a case.
-struct MaterialSettingsScope {
-    MaterialSettingsScope() {
-        helix::MaterialSettingsManager::instance().init();
-        reset();
-    }
-    ~MaterialSettingsScope() {
-        reset();
-    }
-    static void reset() {
-        auto& manager = helix::MaterialSettingsManager::instance();
-        const auto overrides = manager.get_all_overrides();
-        for (const auto& [name, unused] : overrides) {
-            (void)unused;
-            manager.clear_override(name);
-        }
-        manager.reset_preset_materials();
-    }
-};
+using helix::test::MaterialSettingsScope;
 
 enum class PreheatAction { FILAMENT_PRESET, SPOOL_PRESET, HOME_WIDGET };
 
