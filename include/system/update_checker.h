@@ -1070,7 +1070,8 @@ class UpdateChecker {
     lv_timer_t* auto_install_timer_{nullptr};
     /// Removes a sentinel on_connected() found too fresh to remove yet.
     lv_timer_t* sentinel_cleanup_timer_{nullptr};
-    /// Version the scheduler already started installing; never retried unprompted.
+    /// Version the scheduler already started installing in this run; never retried unprompted.
+    /// The config key kAutoInstalledVersionKey carries it across the install's restart.
     std::string auto_install_attempted_version_;
     /// Replaces start_download() for auto_update_tick() in tests.
     std::function<void()> auto_install_hook_;

@@ -227,6 +227,35 @@ TEST_CASE_METHOD(AutoUpdateTickFixture, "Auto-update tick: installs once in the 
     CHECK(installs == 1);
 }
 
+// The installed build can report a version other than the release it was installed from (a
+// dev build, a mismatched package), so the release stays "available" after the restart.
+TEST_CASE_METHOD(AutoUpdateTickFixture,
+                 "Auto-update tick: a release installed before a restart is not installed again",
+                 "[auto_update]") {
+    REQUIRE(checker.auto_update_tick(at(kThreeAm + 5)) == AutoUpdateDecision::InstallNow);
+    REQUIRE(installs == 1);
+
+    // The restart forgets the in-memory attempt; the same release is still on offer.
+    UpdateCheckerTestAccess::reset_auto_schedule(checker);
+    UpdateCheckerTestAccess::seed_available_update(checker);
+
+    CHECK(checker.auto_update_tick(at(kThreeAm + 5)) == AutoUpdateDecision::Wait);
+    CHECK(installs == 1);
+}
+
+TEST_CASE_METHOD(AutoUpdateTickFixture,
+                 "Auto-update tick: a newer release after a restart still installs",
+                 "[auto_update]") {
+    REQUIRE(checker.auto_update_tick(at(kThreeAm + 5)) == AutoUpdateDecision::InstallNow);
+    REQUIRE(installs == 1);
+
+    UpdateCheckerTestAccess::reset_auto_schedule(checker);
+    UpdateCheckerTestAccess::seed_available_update(checker, "99.1.0");
+
+    CHECK(checker.auto_update_tick(at(kThreeAm + 5)) == AutoUpdateDecision::InstallNow);
+    CHECK(installs == 2);
+}
+
 TEST_CASE_METHOD(AutoUpdateTickFixture, "Auto-update tick: no install while Klipper is not ready",
                  "[auto_update]") {
     for (KlippyState bad : {KlippyState::ERROR, KlippyState::SHUTDOWN, KlippyState::STARTUP}) {

@@ -113,6 +113,9 @@ constexpr int kHttpTimeoutSeconds = 30;
 constexpr int kRestartMarshalTimeoutMs = 5000;
 /// Where the "Update Rolled Back" notice waits until it has been seen.
 constexpr const char* kRollbackNoticeKey = "/update/rollback_notice";
+// The release the scheduler last started installing. It survives the restart the install
+// causes, so a build that reports a version other than its release's is not reinstalled.
+constexpr const char* kAutoInstalledVersionKey = "/update/auto_installed_version";
 /// A sentinel younger than this may still be answering helixscreen-update.path's
 /// check, ten seconds after the tree changed.
 constexpr int kFreshSentinelSeconds = 30;
@@ -2367,6 +2370,10 @@ void UpdateChecker::do_install(const std::string& tarball_path, InstallOrigin or
         report_download_status(DownloadStatus::Idle, 0, "");
         helix::ui::queue_update("UpdateChecker::auto_install_retry", [] {
             UpdateChecker::instance().auto_install_attempted_version_.clear();
+            if (auto* config = Config::get_instance()) {
+                config->set<std::string>(kAutoInstalledVersionKey, "");
+                config->save();
+            }
         });
         return;
     }
@@ -4212,9 +4219,17 @@ helix::update::AutoUpdateDecision UpdateChecker::auto_update_tick(const AutoUpda
         }
     }
     // A version still on trial under the launcher's rollback guard settles first.
+    const bool installed_before_restart =
+        !version.empty() &&
+        Config::get_instance()->get<std::string>(kAutoInstalledVersionKey, "") == version;
+    if (installed_before_restart) {
+        spdlog::debug("[UpdateChecker] Auto-update: v{} was already installed and the running "
+                      "build still differs from it; not installing it again",
+                      version);
+    }
     in.update_available = !version.empty() && !is_version_dismissed(version) &&
-                          version != auto_install_attempted_version_ && !download_in_flight() &&
-                          !helix::update::rollback_guard_armed();
+                          version != auto_install_attempted_version_ && !installed_before_restart &&
+                          !download_in_flight() && !helix::update::rollback_guard_armed();
 
     if (now.local_day == auto_skip_day_) {
         return AutoUpdateDecision::Wait;
@@ -4228,6 +4243,9 @@ helix::update::AutoUpdateDecision UpdateChecker::auto_update_tick(const AutoUpda
     } else if (decision == AutoUpdateDecision::InstallNow) {
         spdlog::info("[UpdateChecker] Auto-update: installing v{} overnight", version);
         auto_install_attempted_version_ = version;
+        auto* config = Config::get_instance();
+        config->set<std::string>(kAutoInstalledVersionKey, version);
+        config->save();
         if (auto_install_hook_) {
             auto_install_hook_();
         } else {
