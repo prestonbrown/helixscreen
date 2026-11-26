@@ -44,12 +44,13 @@ class ClockFaceView {
     /**
      * @brief Shows `face` on a `w` x `h` canvas created in `parent`, painted for `in`
      *
-     * Replaces whatever showed. With `run_timer` false the face repaints only through step(),
-     * for a still preview. False, showing nothing, for Text or when the canvas cannot be
-     * allocated.
+     * Replaces whatever showed. `backdrop` is the colour the face sits on (the card behind
+     * it), painted round the dial or cards so no square shows. With `run_timer` false the face
+     * repaints only through step() or resume(): a still preview, or a tile not on screen.
+     * False, showing nothing, for Text or when the canvas cannot be allocated.
      */
     bool show(lv_obj_t* parent, ClockFace face, int32_t w, int32_t h, const ClockFaceTempo& tempo,
-              const ui::ClockInput& in, bool run_timer = true);
+              const ui::ClockInput& in, ui::Rgb backdrop, bool run_timer = true);
 
     /// Moves the face on by `dt_ms` to `in` and repaints what changed. True while something
     /// still moves and wants the next frame at the tempo's period.
@@ -57,6 +58,18 @@ class ClockFaceView {
 
     /// Stops the timer and frees the canvas, its objects and the sim's buffers.
     void hide();
+
+    /// Stops the timer and keeps the canvas and the sim, so resume() needs no rebuild. Nothing
+    /// is painted while paused.
+    void pause();
+
+    /// Brings a paused face up to `in`, repaints what changed and starts the timer again.
+    void resume(const ui::ClockInput& in);
+
+    /// Showing with no timer running: paused, or a still preview.
+    bool paused() const {
+        return showing() && !timer_;
+    }
 
     bool showing() const {
         return face_ != ClockFace::TEXT;
@@ -66,6 +79,10 @@ class ClockFaceView {
     }
     const ClockFaceTempo& tempo() const {
         return tempo_;
+    }
+    /// The colour show() painted round the face.
+    ui::Rgb backdrop() const {
+        return backdrop_;
     }
     int32_t width() const {
         return canvas_.width();
@@ -92,6 +109,7 @@ class ClockFaceView {
 
     ClockFace face_ = ClockFace::TEXT;
     ClockFaceTempo tempo_;
+    ui::Rgb backdrop_{};
     ui::SaverCanvas canvas_;
     helix::ui::WidgetRef canvas_ref_;
     /// A hidden canvas over the analog dial, so LVGL can write the dial's text into it.

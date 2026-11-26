@@ -9,6 +9,7 @@
 
 #include "screensaver_analog_clock.h"
 #include "screensaver_clock.h"
+#include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
 
@@ -47,7 +48,8 @@ ui::AnalogFace ClockFaceView::analog_face() const {
 }
 
 bool ClockFaceView::show(lv_obj_t* parent, ClockFace face, int32_t w, int32_t h,
-                         const ClockFaceTempo& tempo, const ui::ClockInput& in, bool run_timer) {
+                         const ClockFaceTempo& tempo, const ui::ClockInput& in, ui::Rgb backdrop,
+                         bool run_timer) {
     hide();
     if (face == ClockFace::TEXT || parent == nullptr || w <= 0 || h <= 0) {
         return false;
@@ -64,6 +66,7 @@ bool ClockFaceView::show(lv_obj_t* parent, ClockFace face, int32_t w, int32_t h,
     lv_obj_center(canvas_.obj());
     face_ = face;
     tempo_ = tempo;
+    backdrop_ = backdrop;
 
     const ui::ClockInput input = plain(in);
     ui::FrameTarget frame = canvas_.frame();
@@ -76,11 +79,13 @@ bool ClockFaceView::show(lv_obj_t* parent, ClockFace face, int32_t w, int32_t h,
         if (face == ClockFace::FLIP) {
             flip_ = std::make_unique<ui::FlipClockSim>();
             flip_->set_drift(false);
+            flip_->set_backdrop(backdrop);
             flip_->init(frame, tempo.level, cards_.face());
             markers_.draw_flip(canvas_, *flip_, cards_.face(), under_, dirty);
         } else {
             nixie_ = std::make_unique<ui::NixieClockSim>();
             nixie_->set_drift(false);
+            nixie_->set_backdrop(backdrop);
             nixie_->init(frame, tempo.level, cards_.face());
             markers_.draw_nixie(canvas_, *nixie_, cards_.face(), under_, dirty);
         }
@@ -88,7 +93,14 @@ bool ClockFaceView::show(lv_obj_t* parent, ClockFace face, int32_t w, int32_t h,
         clock_.reset();
         clock_.step(0, input);
         analog_ = std::make_unique<ui::AnalogClockSim>();
-        analog_->set_options({false, tempo.seconds, false});
+        ui::AnalogClockOptions options;
+        options.drift = false;
+        options.seconds = tempo.seconds;
+        options.side_column = false;
+        options.backdrop = backdrop;
+        // A text box no font can fill legibly is left out, frame and all.
+        options.min_text_px = theme_manager_get_font_height(ui::clock_font_fitting(1));
+        analog_->set_options(options);
         analog_->init(frame, tempo.level, analog_face());
         text_canvas_.reset(lv_canvas_create(parent));
         // DECLARATIVE_OK: an offscreen canvas over the sim's dial, which LVGL draws text into.
@@ -99,14 +111,13 @@ bool ClockFaceView::show(lv_obj_t* parent, ClockFace face, int32_t w, int32_t h,
     }
     lv_obj_invalidate(canvas_.obj());
 
+    last_tick_ = lv_tick_get();
     if (run_timer) {
         timer_.reset(lv_timer_create(timer_cb, tempo.period_ms, this));
-        last_tick_ = lv_tick_get();
         schedule(tempo_.seconds);
     }
-    spdlog::debug("[ClockFaceView] {} at {}x{}, rung {}, seconds {}, animate {}, {} KB",
-                  clock_face_id(face), w, h, tempo.level, tempo.seconds, tempo.animate,
-                  heap_bytes() / 1024);
+    spdlog::debug("[ClockFaceView] {} at {}x{}, rung {}, seconds {}, {} KB", clock_face_id(face), w,
+                  h, tempo.level, tempo.seconds, heap_bytes() / 1024);
     return true;
 }
 
@@ -173,6 +184,21 @@ void ClockFaceView::timer_cb(lv_timer_t* timer) {
     self->last_tick_ = lv_tick_get();
     const bool moving = self->step(dt, ui::saver_clock_now());
     self->schedule(moving);
+}
+
+void ClockFaceView::pause() {
+    timer_.reset();
+}
+
+void ClockFaceView::resume(const ui::ClockInput& in) {
+    if (!showing() || timer_) {
+        return;
+    }
+    const uint32_t dt = lv_tick_elaps(last_tick_);
+    last_tick_ = lv_tick_get();
+    const bool moving = step(dt, in);
+    timer_.reset(lv_timer_create(timer_cb, tempo_.period_ms, this));
+    schedule(moving || tempo_.seconds);
 }
 
 void ClockFaceView::hide() {

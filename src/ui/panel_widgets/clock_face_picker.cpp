@@ -12,6 +12,7 @@
 #include "helix/xml/indexed_subject_pool.h"
 #include "screensaver_clock.h"
 #include "subject_managed_panel.h"
+#include "theme_manager.h"
 #include "widget_subjects.h"
 
 #include <spdlog/spdlog.h>
@@ -82,6 +83,11 @@ void ClockFacePicker::on_created(lv_obj_t* menu_obj) {
     lv_obj_update_layout(menu_obj);
 
     const ui::ClockInput now = ui::saver_clock_now();
+    // Each preview sits on the menu's card.
+    const lv_obj_t* menu_card = card();
+    const lv_color_t surround = menu_card != nullptr
+                                    ? lv_obj_get_style_bg_color(menu_card, LV_PART_MAIN)
+                                    : theme_manager_get_color("card_bg");
     int32_t box_w = 0;
     for (size_t i = 0; i < kPaintedFaces; ++i) {
         const std::string name = "clock_face_preview_" + std::to_string(i);
@@ -98,7 +104,9 @@ void ClockFacePicker::on_created(lv_obj_t* menu_obj) {
         // DECLARATIVE_OK: the preview box takes the size of the widest face painted into it.
         lv_obj_set_width(box, box_w);
         ClockFaceTempo still;
-        previews_[i].show(box, face, w, h, still, now, /*run_timer=*/false);
+        previews_[i].show(box, face, w, h, still, now,
+                          ui::Rgb{surround.red, surround.green, surround.blue},
+                          /*run_timer=*/false);
     }
     // The Text row's preview box lines its name up with the painted rows' names.
     if (lv_obj_t* text_box = lv_obj_find_by_name(menu_obj, "clock_face_preview_text")) {
@@ -121,19 +129,8 @@ void ClockFacePicker::free_previews() {
     }
 }
 
-void ClockFacePicker::close() {
+void ClockFacePicker::on_hide() {
     free_previews();
-    hide();
-}
-
-void ClockFacePicker::on_backdrop_clicked() {
-    free_previews();
-    ContextMenu::on_backdrop_clicked();
-}
-
-void ClockFacePicker::on_close_clicked() {
-    free_previews();
-    ContextMenu::on_close_clicked();
 }
 
 void ClockFacePicker::row_cb(lv_event_t* e) {
@@ -147,9 +144,9 @@ void ClockFacePicker::row_cb(lv_event_t* e) {
     const ClockFace face = index > 0 && static_cast<size_t>(index) < kClockFaceCount
                                ? static_cast<ClockFace>(index)
                                : ClockFace::TEXT;
-    // close() may run the owner's teardown; the callback is taken out first.
+    // hide() may run the owner's teardown; the callback is taken out first.
     OnPick on_pick = std::move(picker->on_pick_);
-    picker->close();
+    picker->hide();
     if (on_pick) {
         on_pick(face);
     }

@@ -8,6 +8,7 @@
 #include <string_view>
 
 #if HELIX_ENABLE_SCREENSAVER
+#include "platform_capabilities.h"
 #include "screensaver_level_store.h"
 #include "screensaver_registry.h"
 
@@ -58,6 +59,22 @@ int32_t clock_face_min_px(ClockFace face);
 /// `chosen` where it fits a `w` x `h` canvas, else Text.
 ClockFace clock_face_shown(ClockFace chosen, int32_t w, int32_t h);
 
+/// Most canvas pixels one face may hold on a board of `tier`, 0 for no limit. A dial holds two
+/// buffers of that size (the canvas and its cached dial), cards one plus their glyph art:
+/// EMBEDDED (under 512 MB or one core) 128x128 px, about 128 KB for a dial at 32 bpp; BASIC
+/// (under 768 MB or under four cores) 192x192 px, about 288 KB; STANDARD no limit.
+int64_t clock_face_area_budget_px(PlatformTier tier);
+
+/// A face's canvas, in px.
+struct ClockCanvasSize {
+    int32_t w = 0;
+    int32_t h = 0;
+};
+
+/// The canvas `face` paints on a `w` x `h` content box: a square for a dial, the whole box for
+/// cards, scaled down (keeping its shape) to `budget_px` pixels when that is above 0.
+ClockCanvasSize clock_face_canvas(ClockFace face, int32_t w, int32_t h, int64_t budget_px);
+
 /// The saver whose painter and measurement the face shares; OFF for Text.
 ScreensaverType clock_face_saver(ClockFace face);
 
@@ -68,7 +85,6 @@ inline constexpr size_t kClockTileFastestLevel = 1;
 struct ClockFaceTempo {
     size_t level = 0;       ///< the rung of the face's saver ladder it paints at
     bool seconds = false;   ///< analog: the seconds hand shows; otherwise a change a minute
-    bool animate = false;   ///< flip and nixie: a change flips or fades rather than swaps
     uint32_t period_ms = 0; ///< the rung's frame period, while anything moves
 };
 

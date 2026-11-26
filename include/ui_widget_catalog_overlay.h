@@ -15,6 +15,10 @@ namespace helix {
 
 class PanelWidgetConfig;
 
+/// Placed instances per multi_instance base ID, for the catalog's "(N Placed)": `fan:2` counts
+/// under `fan`, and a bare `fan` counts too. Entries not holding a grid cell are not counted.
+std::unordered_map<std::string, int> count_multi_placed(const PanelWidgetConfig& config);
+
 /// Callback invoked when the user selects a widget from the catalog.
 /// Receives the widget definition ID (e.g. "temperature", "network").
 using WidgetSelectedCallback = std::function<void(const std::string& widget_id)>;

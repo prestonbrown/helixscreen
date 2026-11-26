@@ -9,6 +9,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 /**
@@ -149,6 +150,14 @@ struct AnalogClockOptions {
     bool drift = true;       ///< move the face every kClockDriftStepMs against burn-in
     bool seconds = true;     ///< draw the seconds hand; without it the face changes once a minute
     bool side_column = true; ///< Bauhaus's date and print column
+    /// What shows round the dial: unset, the face's own background (analog_background()); set,
+    /// that colour (a home tile's card), so no square shows. A face with no dial disc of its
+    /// own (Neon, Orrery) then sits on a disc of its background colour, so its light inks stay
+    /// legible on a light card.
+    std::optional<Rgb> backdrop;
+    /// Text boxes shorter than this many px are left out, with any frame drawn for them (the
+    /// chronograph's date window); 0 keeps every one.
+    int32_t min_text_px = 0;
 };
 
 /// The box everything `style` draws on `g` stays inside.

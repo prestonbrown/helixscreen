@@ -11,6 +11,7 @@
 #include "subject_managed_panel.h"
 
 #if HELIX_ENABLE_SCREENSAVER
+#include "display_sleep_listener.h"
 #include "src/ui/panel_widgets/clock_face_picker.h"
 #include "src/ui/panel_widgets/clock_face_view.h"
 #endif
@@ -60,6 +61,8 @@ class ClockWidget : public PanelWidget {
     }
     /// Sets the face, stores it in this instance's config and shows it.
     void select_face(ClockFace face);
+    /// The display went to sleep (true) or woke (false): a face paints nothing while asleep.
+    void on_display_sleep(bool sleeping);
     /// The XML names of this instance's size-mode and face-shown subjects.
     const std::string& size_subject_name() const {
         return size_subject_name_;
@@ -71,6 +74,10 @@ class ClockWidget : public PanelWidget {
     /// The painted face on the tile, for tests.
     const ClockFaceView& face_view() const {
         return face_view_;
+    }
+    /// The Face picker the gear opens, for tests.
+    const ClockFacePicker& face_picker() const {
+        return picker_;
     }
 #endif
 
@@ -98,6 +105,8 @@ class ClockWidget : public PanelWidget {
 #if HELIX_ENABLE_SCREENSAVER
     ClockFaceView face_view_;
     ClockFacePicker picker_;
+    DisplaySleepListener sleep_listener_;
+    bool display_asleep_ = false;
 #endif
 
     // Update all clock subjects with current time/date/uptime

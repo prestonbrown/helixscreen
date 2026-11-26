@@ -105,11 +105,43 @@ TEST_CASE("a face reuses its saver's measurement: seconds where the board afford
     SECTION("cards animate where their rung animates, and never show seconds") {
         const ClockFaceTempo flip = helix::clock_face_tempo(ClockFace::FLIP, entry(0, false), 4);
         CHECK(flip.level == 1);
-        CHECK(flip.animate);
+        CHECK(helix::ui::kFlipClockLevels[flip.level].animate);
         CHECK_FALSE(flip.seconds);
-        CHECK_FALSE(helix::clock_face_tempo(ClockFace::NIXIE, std::nullopt, 4).animate);
-        CHECK_FALSE(helix::clock_face_tempo(ClockFace::NIXIE, entry(1, true), 4).animate);
+        const size_t unmeasured = helix::clock_face_tempo(ClockFace::NIXIE, std::nullopt, 4).level;
+        CHECK_FALSE(helix::ui::kNixieClockLevels[unmeasured].fade);
+        const size_t heavy = helix::clock_face_tempo(ClockFace::NIXIE, entry(1, true), 4).level;
+        CHECK_FALSE(helix::ui::kNixieClockLevels[heavy].fade);
     }
+}
+
+TEST_CASE("a low-RAM board caps a face's canvas, and a capped face too small shows Text",
+          "[clock_face]") {
+    using helix::PlatformTier;
+    CHECK(helix::clock_face_area_budget_px(PlatformTier::STANDARD) == 0);
+    const int64_t embedded = helix::clock_face_area_budget_px(PlatformTier::EMBEDDED);
+    const int64_t basic = helix::clock_face_area_budget_px(PlatformTier::BASIC);
+    REQUIRE(embedded > 0);
+    REQUIRE(basic > embedded);
+
+    // No limit: a dial is the box's square, cards take the whole box.
+    const auto dial = helix::clock_face_canvas(ClockFace::NEON, 300, 200, 0);
+    CHECK(dial.w == 200);
+    CHECK(dial.h == 200);
+    const auto cards = helix::clock_face_canvas(ClockFace::FLIP, 300, 200, 0);
+    CHECK(cards.w == 300);
+    CHECK(cards.h == 200);
+
+    // Under a budget the canvas shrinks to fit it, keeping its shape.
+    for (const ClockFace face : kPainted) {
+        CAPTURE(helix::clock_face_id(face));
+        const auto capped = helix::clock_face_canvas(face, 400, 300, embedded);
+        CHECK(static_cast<int64_t>(capped.w) * capped.h <= embedded);
+        const auto free = helix::clock_face_canvas(face, 400, 300, 0);
+        CHECK(capped.w * free.h == Catch::Approx(capped.h * free.w).epsilon(0.05));
+    }
+    // A small box under the budget is left as it is.
+    const auto small = helix::clock_face_canvas(ClockFace::STATION, 100, 98, embedded);
+    CHECK(small.w == 98);
 }
 
 TEST_CASE("the wait to the next whole minute", "[clock_face]") {

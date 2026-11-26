@@ -146,6 +146,13 @@ void ClockWidget::detach() {
 
 void ClockWidget::on_activate() {
     active_ = true;
+#if HELIX_ENABLE_SCREENSAVER
+    // A face paints nothing while the display sleeps. Under a screensaver the active panel is
+    // suspended, which deactivates this widget, so the saver's own measurement never counts
+    // a tile's repaint.
+    display_asleep_ = DisplaySleepListener::display_sleeping();
+    sleep_listener_.listen([this](bool sleeping) { on_display_sleep(sleeping); });
+#endif
     update_clock();
     apply_face();
 
@@ -157,7 +164,7 @@ void ClockWidget::on_activate() {
 
 void ClockWidget::on_deactivate() {
     active_ = false;
-    // Off screen a face holds no canvas and runs no timer.
+    // Off screen a face paints nothing; it keeps its canvas for the way back.
     apply_face();
     if (clock_timer_) {
         lv_timer_delete(clock_timer_);
@@ -293,40 +300,57 @@ void ClockWidget::select_face(ClockFace face) {
     spdlog::info("[ClockWidget] {} face now {}", instance_id_, clock_face_id(face));
 }
 
+void ClockWidget::on_display_sleep(bool sleeping) {
+#if HELIX_ENABLE_SCREENSAVER
+    display_asleep_ = sleeping;
+    apply_face();
+#else
+    (void)sleeping;
+#endif
+}
+
 void ClockWidget::apply_face() {
 #if HELIX_ENABLE_SCREENSAVER
     lv_obj_t* root = widget_obj_.get();
+    if (!active_ || display_asleep_) {
+        // Hidden, a face keeps its canvas and paints nothing; one never built waits until seen.
+        face_view_.pause();
+        return;
+    }
     ClockFace shown = ClockFace::TEXT;
-    int32_t w = 0;
-    int32_t h = 0;
-    if (root != nullptr && active_ && has_granted_size()) {
-        // The face fills the tile inside its padding.
-        w = granted_width_px() -
-            static_cast<int32_t>(lv_obj_get_style_pad_left(root, LV_PART_MAIN) +
-                                 lv_obj_get_style_pad_right(root, LV_PART_MAIN));
-        h = granted_height_px() -
-            static_cast<int32_t>(lv_obj_get_style_pad_top(root, LV_PART_MAIN) +
-                                 lv_obj_get_style_pad_bottom(root, LV_PART_MAIN));
-        shown = clock_face_shown(face_, w, h);
+    ClockCanvasSize canvas{};
+    if (root != nullptr && has_granted_size()) {
+        // The face fills the tile inside its padding, within the board's memory budget.
+        const int32_t w = granted_width_px() -
+                          static_cast<int32_t>(lv_obj_get_style_pad_left(root, LV_PART_MAIN) +
+                                               lv_obj_get_style_pad_right(root, LV_PART_MAIN));
+        const int32_t h = granted_height_px() -
+                          static_cast<int32_t>(lv_obj_get_style_pad_top(root, LV_PART_MAIN) +
+                                               lv_obj_get_style_pad_bottom(root, LV_PART_MAIN));
+        canvas = clock_face_canvas(face_, w, h,
+                                   clock_face_area_budget_px(PlatformCapabilities::cached().tier));
+        shown = clock_face_shown(face_, canvas.w, canvas.h);
     }
     if (shown == ClockFace::TEXT) {
         face_view_.hide();
         lv_subject_set_int(&face_subject_, 0);
         return;
     }
-    // A dial is square; cards and tubes take the whole box.
-    if (shown != ClockFace::FLIP && shown != ClockFace::NIXIE) {
-        w = h = std::min(w, h);
-    }
-    lv_obj_t* canvas = face_view_.canvas_obj();
-    if (face_view_.face() == shown && canvas != nullptr && lv_obj_get_parent(canvas) == root &&
-        face_view_.width() == w && face_view_.height() == h) {
+    // The face sits on the home card: its surround is the card's colour, in either theme.
+    const lv_color_t card = theme_manager_get_color("card_bg");
+    const ui::Rgb backdrop{card.red, card.green, card.blue};
+    lv_obj_t* built = face_view_.canvas_obj();
+    if (face_view_.face() == shown && built != nullptr && lv_obj_get_parent(built) == root &&
+        face_view_.width() == canvas.w && face_view_.height() == canvas.h &&
+        face_view_.backdrop() == backdrop) {
+        face_view_.resume(ui::saver_clock_now());
         return;
     }
     const ClockFaceTempo tempo = clock_face_tempo(
         shown, ScreensaverManager::instance().standing_here(clock_face_saver(shown)),
-        PlatformCapabilities::detect().cpu_cores);
-    const bool shows = face_view_.show(root, shown, w, h, tempo, ui::saver_clock_now());
+        PlatformCapabilities::cached().cpu_cores);
+    const bool shows =
+        face_view_.show(root, shown, canvas.w, canvas.h, tempo, ui::saver_clock_now(), backdrop);
     lv_subject_set_int(&face_subject_, shows ? 1 : 0);
 #endif
 }

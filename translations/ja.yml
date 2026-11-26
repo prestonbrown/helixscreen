@@ -5052,7 +5052,7 @@ translations:
   'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}.': 'テストタワー 幅{:.0f} mm・高さ{:.0f} mm、約{}分+加熱: {}区間(各{:.0f} mm)、{}。'
   'Testing rotation: %d° (%d/%d) - %ds remaining': '回転テスト: %d° (%d/%d) - %ds残り'
   Testing, servo, and motor operations: 'テスト・サーボ・モーター操作'
-  Text: テキスト
+  Text Clock: テキスト時計
   Thanks! Anonymous usage data helps improve HelixScreen.: ご協力ありがとうございます！匿名の使用データが HelixScreen の改善に役立ちます。
   That file command cannot run here.: 'そのファイルコマンドはここでは実行できません。'
   That print is no longer paused: 'その印刷はもう一時停止中ではありません'

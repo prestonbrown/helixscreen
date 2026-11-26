@@ -25,8 +25,8 @@
                   scrollable="false">
             <text_body bind_text="clock_time_text" clickable="false" event_bubble="true"/>
           </lv_obj>
-          <text_body text="Text"
-                     translation_tag="Text" flex_grow="1" long_mode="dots" clickable="false" event_bubble="true"/>
+          <text_body text="Text Clock"
+                     translation_tag="Text Clock" flex_grow="1" long_mode="dots" clickable="false" event_bubble="true"/>
           <event_cb trigger="clicked" callback="clock_face_row_cb" user_data="0"/>
         </lv_obj>
         <repeat count="clock_face_count">

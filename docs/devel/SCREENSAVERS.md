@@ -532,9 +532,18 @@ face is drawn by one copy of its code. The tile asks the sims for what a saver d
 - **Held still.** `AnalogClockOptions::drift`, `FlipClockSim::set_drift` and
   `NixieClockSim::set_drift` are off; the face never moves against burn-in.
 - **A plain clock.** No print reaches the face: its input's print is always none.
+- **On the card.** No square: the sims paint round the dial or cards in the home card's
+  `card_bg` colour (`AnalogClockOptions::backdrop`, `FlipClockSim::set_backdrop`,
+  `NixieClockSim::set_backdrop`, which also builds the tube art over it), in dark and light
+  themes alike. The faces keep their own inks: the chronograph, station clock and Bauhaus have a
+  dial disc of their own, the flip cards and nixie glass are dark, and Neon and Orrery, whose
+  light inks assume a dark sky, sit on a disc of their own background colour. A theme change
+  rebuilds the face on the next activation.
 - **No Bauhaus column** (`AnalogClockOptions::side_column`): the dial is centred like the others.
 - **No text that cannot fit.** A dial text or AM/PM marker the smallest font overflows is left
-  out (`analog_write_dial_texts(..., drop_unfit)`, `CardClockMarkers::set_drop_unfit`).
+  out (`analog_write_dial_texts(..., drop_unfit)`, `CardClockMarkers::set_drop_unfit`), and a
+  box shorter than the smallest font is not drawn at all, frame included
+  (`AnalogClockOptions::min_text_px`: the chronograph's date window).
 
 **Size.** Each face has a minimum in pixels of the tile's content box (`clock_face_min_px`): a
 dial diameter of 72 px (110 px for the chronograph's subdials), a flip card 18 px wide or a nixie
@@ -556,9 +565,17 @@ Without seconds the analog sim holds the minute hand for the whole minute
 the rung's period while something moves (a seconds hand, a flip, a fade) and otherwise sleeps
 to the next whole minute (`clock_ms_to_next_minute`).
 
-**Memory and lifetime.** The canvas and the sim's caches exist only while the face shows on an
-active home panel: `detach()`, `on_deactivate()` and a fall back to Text free them and stop the
-timer, and a recycled widget puts its face back from `attach()`. A dial holds two square buffers
+**Visibility.** A face paints nothing unless it is on screen: `on_deactivate()` (another panel,
+an overlay, or a screensaver, which suspends the active panel before it starts) and display
+sleep (`DisplaySleepListener`, the signal the camera tile stops on) pause its timer, so a tile
+never adds to a saver's measured CPU. Paused, it keeps its canvas; back on screen at the same
+size, face and card colour it repaints to the time and runs on with no rebuild.
+
+**Memory and lifetime.** `detach()` and a fall back to Text free the canvas and the sim's caches
+and stop the timer, and a recycled widget puts its face back from `attach()`. A low-RAM board
+caps each face's canvas (`clock_face_area_budget_px`, by `PlatformCapabilities` tier): EMBEDDED
+128x128 px, BASIC 192x192 px, STANDARD no cap; a capped canvas below the face's minimum shows
+Text. The picker's previews are freed on every path that hides it (`ContextMenu::on_hide`). A dial holds two square buffers
 (the canvas and the sim's dial): about 365 KB for a 216 px dial on a 32 bpp build, 75 KB at
 98 px. Flip and nixie hold the canvas and their glyph or tube art: 39 to 223 KB from a one-cell
 to a 2x2 tile at 800x480.

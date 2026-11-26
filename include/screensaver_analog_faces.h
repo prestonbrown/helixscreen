@@ -39,8 +39,10 @@ std::array<AnalogPartSpec, 3> analog_part_specs(AnalogStyle style, const AnalogG
 DirtyRect analog_part_box(const AnalogPartSpec& spec, const AnalogGeom& g, float deg);
 
 /// Draws `style`'s dial for `reading` (everything but the hands), and places its texts.
+/// `options` sets the backdrop round the dial and the smallest text box kept.
 void analog_draw_dial(APainter& p, AnalogStyle style, const AnalogGeom& g,
-                      const ClockReading& reading, std::vector<AnalogText>& texts);
+                      const ClockReading& reading, std::vector<AnalogText>& texts,
+                      const AnalogClockOptions& options = {});
 
 /// Draws `style`'s hands at `hands`; `mode` colours a print's state and `smooth` adds trails
 /// and glows. Without `seconds` the seconds hand (and its trail) is left out.

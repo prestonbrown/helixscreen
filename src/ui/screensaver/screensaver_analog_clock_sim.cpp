@@ -204,7 +204,7 @@ AnalogClockSim::DialKey AnalogClockSim::key_for(const AnalogFace& face) const {
 void AnalogClockSim::draw_dial(const AnalogFace& face) {
     APainter p(dial_,
                DirtyRect::whole(static_cast<int32_t>(dial_.w), static_cast<int32_t>(dial_.h)));
-    analog_draw_dial(p, style_, geom_, face.reading, texts_);
+    analog_draw_dial(p, style_, geom_, face.reading, texts_, options_);
 }
 
 AnalogHands AnalogClockSim::hands_for(const AnalogFace& face) const {

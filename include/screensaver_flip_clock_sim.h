@@ -320,6 +320,12 @@ class FlipClockSim {
         drift_on_ = on;
     }
 
+    /// What shows round the cards: black for the saver, the card's colour in a home tile, so
+    /// the cards sit on it. On a dark backdrop other than black the cards take a lighter grey
+    /// (kCardTopOnDark, kCardBottomOnDark) so their edges still show; the split and digits are
+    /// the same either way. Kept across clear().
+    void set_backdrop(Rgb backdrop);
+
     /// Frees the glyph cache.
     void clear();
     /// Bytes the glyph cache holds.
@@ -329,6 +335,9 @@ class FlipClockSim {
     static constexpr Rgb kBackground{0, 0, 0};
     static constexpr Rgb kCardTop{30, 30, 32};
     static constexpr Rgb kCardBottom{24, 24, 26};
+    /// The cards on a dark grey backdrop, where the black-backdrop greys would vanish.
+    static constexpr Rgb kCardTopOnDark{62, 62, 66};
+    static constexpr Rgb kCardBottomOnDark{52, 52, 56};
     static constexpr Rgb kDigit{222, 222, 222};
     static constexpr Rgb kColon{130, 130, 130};
     /// The folding flap's edge band and its outermost row.
@@ -366,6 +375,9 @@ class FlipClockSim {
     int32_t frame_w_ = 0;
     int32_t frame_h_ = 0;
     bool drift_on_ = true;
+    Rgb backdrop_ = kBackground;
+    Rgb card_top_ = kCardTop;
+    Rgb card_bottom_ = kCardBottom;
     ClockDrift drift_;
     /// The shape drift_'s range was set for.
     FlipShape drift_shape_;

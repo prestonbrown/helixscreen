@@ -5052,7 +5052,7 @@ translations:
   'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}.': 'Testturm {:.0f} mm breit und {:.0f} mm hoch, etwa {} min plus Aufheizen: {} Bereiche zu {:.0f} mm bei {}.'
   'Testing rotation: %d° (%d/%d) - %ds remaining': 'Drehung testen: %d° (%d/%d) - %ds verbleibend'
   Testing, servo, and motor operations: 'Test-, Servo- und Motorfunktionen'
-  Text: Text
+  Text Clock: Textuhr
   Thanks! Anonymous usage data helps improve HelixScreen.: Danke! Anonyme Nutzungsdaten helfen, HelixScreen zu verbessern.
   That file command cannot run here.: 'Dieser Dateibefehl kann hier nicht ausgeführt werden.'
   That print is no longer paused: 'Dieser Druck ist nicht mehr pausiert'

@@ -65,8 +65,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "a clock face frees its canvas and timer on detach and off screen, and comes back "
-                 "on the next tree",
+                 "a hidden clock face paints nothing and keeps its canvas, and comes back without "
+                 "a rebuild",
                  "[clock_widget][clock_face]") {
     PanelWidgetHarness<ClockWidget> h(test_screen(), face_config("station"),
                                       std::string("clock:8"));
@@ -74,11 +74,43 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     w.on_activate();
     h.resize(4, 4, 240, 240);
     REQUIRE(w.face_view().showing());
+    REQUIRE(w.face_view().timer() != nullptr);
+    lv_obj_t* canvas = w.face_view().canvas_obj();
+    const size_t bytes = w.face_view().heap_bytes();
 
-    w.on_deactivate();
-    CHECK_FALSE(w.face_view().showing());
-    CHECK(w.face_view().heap_bytes() == 0);
+    SECTION("off the active panel, as under a screensaver") {
+        w.on_deactivate();
+        CHECK(w.face_view().timer() == nullptr);
+        CHECK(w.face_view().paused());
+        CHECK(w.face_view().heap_bytes() == bytes);
+        w.on_activate();
+    }
+    SECTION("while the display sleeps") {
+        w.on_display_sleep(true);
+        CHECK(w.face_view().timer() == nullptr);
+        CHECK(w.face_view().paused());
+        // A sleeping display stays dark when the panel is activated under it.
+        w.on_deactivate();
+        w.on_activate();
+        w.on_display_sleep(true);
+        CHECK(w.face_view().timer() == nullptr);
+        w.on_display_sleep(false);
+    }
+    // Back on screen at the same size: the same canvas, running again.
+    CHECK(w.face_view().timer() != nullptr);
+    CHECK(w.face_view().canvas_obj() == canvas);
+    CHECK(w.face_view().heap_bytes() == bytes);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "a clock face frees its canvas and timer on detach, and comes back on the next "
+                 "tree",
+                 "[clock_widget][clock_face]") {
+    PanelWidgetHarness<ClockWidget> h(test_screen(), face_config("station"),
+                                      std::string("clock:10"));
+    ClockWidget& w = h.widget();
     w.on_activate();
+    h.resize(4, 4, 240, 240);
     REQUIRE(w.face_view().showing());
 
     w.detach_tile();
@@ -140,6 +172,45 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     w.select_face(picked);
     CHECK(w.face() == ClockFace::FLIP);
     CHECK(w.face_view().face() == ClockFace::FLIP);
+    process_lvgl(20);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "the face picker's previews are freed on every path that closes it",
+                 "[clock_widget][clock_face]") {
+    PanelWidgetHarness<ClockWidget> h(test_screen(), face_config("text"), std::string("clock:11"));
+    ClockWidget& w = h.widget();
+    w.on_activate();
+    h.resize(4, 4, 240, 240);
+
+    const auto all_freed = [](const ClockFacePicker& picker) {
+        for (size_t i = 1; i < kClockFaceCount; ++i) {
+            const ClockFaceView* view = picker.preview(static_cast<ClockFace>(i));
+            if (view == nullptr || view->showing() || view->heap_bytes() != 0) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    SECTION("the backdrop") {
+        ClockFacePicker picker;
+        picker.show_for(test_screen(), h.root(), ClockFace::TEXT, [](ClockFace) {});
+        REQUIRE_FALSE(all_freed(picker));
+        lv_obj_t* backdrop = lv_obj_find_by_name(test_screen(), "clock_face_picker");
+        REQUIRE(backdrop != nullptr);
+        lv_obj_send_event(backdrop, LV_EVENT_CLICKED, nullptr);
+        CHECK_FALSE(picker.is_visible());
+        CHECK(all_freed(picker));
+    }
+    SECTION("the widget's teardown") {
+        w.on_edit_configure();
+        REQUIRE(w.face_picker().is_visible());
+        REQUIRE_FALSE(all_freed(w.face_picker()));
+        w.detach_tile();
+        CHECK_FALSE(w.face_picker().is_visible());
+        CHECK(all_freed(w.face_picker()));
+    }
     process_lvgl(20);
 }
 

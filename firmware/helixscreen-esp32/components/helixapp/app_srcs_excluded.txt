@@ -473,3 +473,4 @@ src/ui/settings/ui_settings_firmware_update.cpp  # firmware updates run on the p
 src/system/firmware_update_check.cpp  # firmware updates run on the printer's host; the K-Touch has no flasher to drive
 src/ui/panel_widgets/clock_face_view.cpp  # hosts the screensaver painters, which the firmware builds none of
 src/ui/panel_widgets/clock_face_picker.cpp  # picks among the screensaver painters, which the firmware builds none of
+src/application/display_sleep_listener.cpp  # not in the v1 Core+AMS cut

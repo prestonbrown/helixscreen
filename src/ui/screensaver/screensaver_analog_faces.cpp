@@ -180,7 +180,7 @@ void chrono_subdial(APainter& p, APt s, float r, float hand_deg, Rgb hand, float
     p.disc(s, 4.0f * k, hand);
 }
 
-void chrono_dial(APainter& p, const AnalogGeom& g, const ClockReading& rd,
+void chrono_dial(APainter& p, const AnalogGeom& g, const ClockReading& rd, int32_t min_text_px,
                  std::vector<AnalogText>& texts) {
     const float k = scale_of(AnalogStyle::CHRONOGRAPH, g);
     const APt c{g.cx, g.cy};
@@ -287,14 +287,17 @@ void chrono_dial(APainter& p, const AnalogGeom& g, const ClockReading& rd,
         }
     }
 
-    // Date window under 12, maker's mark above 6.
+    // Date window under 12, maker's mark above 6. A window too small for legible text is left
+    // out, frame and all.
     const float dw = 52.0f * k;
     const float dh = 24.0f * k;
     const float dy = c.y - 106.0f * k;
-    p.round_rect(c.x - dw * 0.5f, dy - dh * 0.5f, c.x + dw * 0.5f, dy + dh * 0.5f, 3.0f * k,
-                 chrono::kDateWindow);
-    add_text(texts, AnalogTextRole::DATE_WINDOW, c.x, dy, dw - 4.0f * k, dh - 2.0f * k,
-             chrono::kDateText);
+    if (dh - 2.0f * k >= static_cast<float>(min_text_px)) {
+        p.round_rect(c.x - dw * 0.5f, dy - dh * 0.5f, c.x + dw * 0.5f, dy + dh * 0.5f, 3.0f * k,
+                     chrono::kDateWindow);
+        add_text(texts, AnalogTextRole::DATE_WINDOW, c.x, dy, dw - 4.0f * k, dh - 2.0f * k,
+                 chrono::kDateText);
+    }
     add_text(texts, AnalogTextRole::MAKER, c.x, c.y + 134.0f * k, 120.0f * k, 15.0f * k,
              chrono::kMaker);
 }
@@ -665,12 +668,16 @@ DirtyRect analog_part_box(const AnalogPartSpec& spec, const AnalogGeom& g, float
 }
 
 void analog_draw_dial(APainter& p, AnalogStyle style, const AnalogGeom& g,
-                      const ClockReading& reading, std::vector<AnalogText>& texts) {
+                      const ClockReading& reading, std::vector<AnalogText>& texts,
+                      const AnalogClockOptions& options) {
     texts.clear();
-    p.fill(analog_background(style));
+    p.fill(options.backdrop.value_or(analog_background(style)));
+    if (options.backdrop && (style == AnalogStyle::NEON || style == AnalogStyle::ORRERY)) {
+        p.disc(APt{g.cx, g.cy}, g.r, analog_background(style));
+    }
     switch (style) {
     case AnalogStyle::CHRONOGRAPH:
-        chrono_dial(p, g, reading, texts);
+        chrono_dial(p, g, reading, options.min_text_px, texts);
         break;
     case AnalogStyle::STATION:
         station_dial(p, g, reading);

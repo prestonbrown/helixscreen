@@ -264,7 +264,7 @@ float honeycomb_edge(float x, float y, float cell) {
 /// A dark metal socket over rows [`top`, `h`) between `x1` and `x2`, its top edge lit and its
 /// bottom corners rounded by `corner` px.
 void paint_socket(std::vector<Rgb>& base, int32_t w, int32_t h, int32_t x1, int32_t x2, int32_t top,
-                  int32_t corner) {
+                  int32_t corner, Rgb backdrop) {
     const auto height = static_cast<float>(std::max<int32_t>(1, h - top));
     for (int32_t y = top; y < h; y++) {
         const Rgb shade =
@@ -279,7 +279,7 @@ void paint_socket(std::vector<Rgb>& base, int32_t w, int32_t h, int32_t x1, int3
                     static_cast<float>(corner) -
                     std::hypot(static_cast<float>(x - ccx), static_cast<float>(y - ccy)));
             }
-            base[static_cast<size_t>(y) * w + x] = mix_rgb(Rgb{}, shade, cov);
+            base[static_cast<size_t>(y) * w + x] = mix_rgb(backdrop, shade, cov);
         }
     }
 }
@@ -295,7 +295,9 @@ NixieFadeAmounts nixie_fade_amounts(float p) {
 
 // ---------- NixieTubeArt ----------
 
-void NixieTubeArt::build(const FlipRowMetrics& row, int32_t card_w, int32_t card_h) {
+void NixieTubeArt::build(const FlipRowMetrics& row, int32_t card_w, int32_t card_h,
+                         Rgb backdrop_in) {
+    backdrop = backdrop_in;
     clear();
     const CardGeometry& g = kNixieTubeGeometry;
     unit = std::max<int32_t>(1, row.unit);
@@ -312,7 +314,7 @@ void NixieTubeArt::build(const FlipRowMetrics& row, int32_t card_w, int32_t card
     inset = std::max<int32_t>(1, px(kInset, unit));
     socket_y = std::min(h - 2, row.pad_y + gh + px(kGlassBelow, unit));
 
-    base.assign(static_cast<size_t>(w) * h, Rgb{});
+    base.assign(static_cast<size_t>(w) * h, backdrop);
     const float half_stroke = g.stroke / 2.0f;
     const auto pad_x = static_cast<float>(row.pad_x);
     const auto pad_y = static_cast<float>(row.pad_y);
@@ -360,7 +362,7 @@ void NixieTubeArt::build(const FlipRowMetrics& row, int32_t card_w, int32_t card
             if (nub_in > body) {
                 c = glass_highlights(tip_highlights(c, nub, fx, fy), glass, fx, fy,
                                      static_cast<float>(socket_y));
-                base[at] = mix_rgb(Rgb{}, c, cov);
+                base[at] = mix_rgb(backdrop, c, cov);
                 continue;
             }
             const float dx = fx - cx;
@@ -409,11 +411,11 @@ void NixieTubeArt::build(const FlipRowMetrics& row, int32_t card_w, int32_t card
                 c = mix_rgb(c, kWire, edge_coverage((half_stroke - nearest) * u));
             }
             c = glass_highlights(c, glass, fx, fy, static_cast<float>(socket_y));
-            base[at] = mix_rgb(Rgb{}, c, cov);
+            base[at] = mix_rgb(backdrop, c, cov);
         }
     }
     paint_socket(base, w, h, inset, w - inset, socket_y,
-                 std::max<int32_t>(1, px(kSocketCorner, unit)));
+                 std::max<int32_t>(1, px(kSocketCorner, unit)), backdrop);
 
     for (char d = '0'; d <= '9'; d++) {
         ensure(d);
@@ -471,14 +473,15 @@ void NixieTubeArt::clear() {
 
 // ---------- NixieColonArt ----------
 
-void NixieColonArt::build(const FlipRowMetrics& row, int32_t gap_w, int32_t gap_h,
-                          int32_t socket_y) {
+void NixieColonArt::build(const FlipRowMetrics& row, int32_t gap_w, int32_t gap_h, int32_t socket_y,
+                          Rgb backdrop_in) {
     clear();
+    backdrop = backdrop_in;
     unit = std::max<int32_t>(1, row.unit);
     w = gap_w;
     h = gap_h;
     const auto u = static_cast<float>(unit);
-    base.assign(static_cast<size_t>(w) * h, Rgb{});
+    base.assign(static_cast<size_t>(w) * h, backdrop);
     glow.assign(static_cast<size_t>(w) * h, 0);
     const float cx = static_cast<float>(w) / 2.0f;
     const float half = std::min(cx - 1.0f, kColonGlassW * u / 2.0f);
@@ -522,7 +525,7 @@ void NixieColonArt::build(const FlipRowMetrics& row, int32_t gap_w, int32_t gap_
             if (nub_in > body) {
                 c = glass_highlights(tip_highlights(c, nub, fx, fy), glass, fx, fy,
                                      static_cast<float>(socket_y));
-                base[at] = mix_rgb(Rgb{}, c, cov);
+                base[at] = mix_rgb(backdrop, c, cov);
                 continue;
             }
             // Two leads from the lower bulb down to the socket.
@@ -532,13 +535,13 @@ void NixieColonArt::build(const FlipRowMetrics& row, int32_t gap_w, int32_t gap_
                 c = mix_rgb(c, kLead, edge_coverage(lead - dl));
             }
             c = glass_highlights(c, glass, fx, fy, static_cast<float>(socket_y));
-            base[at] = mix_rgb(Rgb{}, c, cov);
+            base[at] = mix_rgb(backdrop, c, cov);
         }
     }
     const auto socket_x1 = static_cast<int32_t>(std::floor(cx - half - 1.0f));
     const auto socket_x2 = static_cast<int32_t>(std::ceil(cx + half + 1.0f));
     paint_socket(base, w, h, std::max(0, socket_x1), std::min(w, socket_x2), socket_y,
-                 std::max<int32_t>(1, px(kSocketCorner * 0.6f, unit)));
+                 std::max<int32_t>(1, px(kSocketCorner * 0.6f, unit)), backdrop);
 }
 
 size_t NixieColonArt::heap_bytes() const {
@@ -568,7 +571,7 @@ void NixieClockSim::init(FrameTarget& frame, size_t level, const FlipFace& face)
                      frame_w_, frame_h_);
     since_cycle_ms_ = 0;
     cycle_ms_ = kNixieCycleMs;
-    PixelWriter(frame).fill(kBackground);
+    PixelWriter(frame).fill(backdrop_);
     ink_ = print_state_color(face.mode, kNeon);
     build_ramp();
     layout_ = layout_flip_cards(frame_w_, frame_h_, face.shape, face.sub_shape, 0, 0,
@@ -603,15 +606,17 @@ void NixieClockSim::build_art(const FlipFace& face) {
     const DirtyRect& tube = layout_.cards[0];
     const int32_t tw = tube.x2 - tube.x1 + 1;
     const int32_t th = tube.y2 - tube.y1 + 1;
-    if (art_.unit != layout_.main.unit || art_.w != tw || art_.h != th) {
-        art_.build(layout_.main, tw, th);
+    if (art_.unit != layout_.main.unit || art_.w != tw || art_.h != th ||
+        !(art_.backdrop == backdrop_)) {
+        art_.build(layout_.main, tw, th, backdrop_);
     }
     if (layout_.sub_count > 0) {
         const DirtyRect& small = layout_.cards[layout_.card_count];
         const int32_t sw = small.x2 - small.x1 + 1;
         const int32_t sh = small.y2 - small.y1 + 1;
-        if (sub_art_.unit != layout_.small.unit || sub_art_.w != sw || sub_art_.h != sh) {
-            sub_art_.build(layout_.small, sw, sh);
+        if (sub_art_.unit != layout_.small.unit || sub_art_.w != sw || sub_art_.h != sh ||
+            !(sub_art_.backdrop == backdrop_)) {
+            sub_art_.build(layout_.small, sw, sh, backdrop_);
         }
     }
     for (size_t c = 0; c < layout_.colon_count; c++) {
@@ -622,8 +627,8 @@ void NixieClockSim::build_art(const FlipFace& face) {
         NixieColonArt& colon = main ? colon_art_ : sub_colon_art_;
         const NixieTubeArt& beside = main ? art_ : sub_art_;
         if (colon.unit != (main ? layout_.main : layout_.small).unit || colon.w != gw ||
-            colon.h != gh) {
-            colon.build(main ? layout_.main : layout_.small, gw, gh, beside.socket_y);
+            colon.h != gh || !(colon.backdrop == backdrop_)) {
+            colon.build(main ? layout_.main : layout_.small, gw, gh, beside.socket_y, backdrop_);
         }
     }
     for (size_t i = 0; i < layout_.card_count; i++) {
@@ -806,7 +811,7 @@ void NixieClockSim::step(uint32_t dt_ms, FrameTarget& frame, const FlipFace& fac
 void NixieClockSim::relayout(FrameTarget& frame, const FlipFace& face,
                              std::vector<DirtyRect>& dirty) {
     DirtyRect area = layout_.bounds();
-    PixelWriter(frame).fill_rect(area, kBackground);
+    PixelWriter(frame).fill_rect(area, backdrop_);
     layout_ = layout_flip_cards(frame_w_, frame_h_, face.shape, face.sub_shape, drift_.dx,
                                 drift_.dy, face.sub_colons, face.sub_meridiem, kNixieTubeGeometry);
     build_art(face);

@@ -13,6 +13,7 @@
 #include "screensaver_nixie_clock_sim.h"
 
 #include <algorithm>
+#include <cmath>
 #include <iterator>
 #endif
 
@@ -27,7 +28,7 @@ struct FaceRow {
 };
 
 constexpr std::array<FaceRow, kClockFaceCount> kFaces{{
-    {ClockFace::TEXT, "text", TR_NOOP("Text")},
+    {ClockFace::TEXT, "text", TR_NOOP("Text Clock")},
     {ClockFace::CHRONOGRAPH, "chronograph", TR_NOOP("Chronograph")},
     {ClockFace::STATION, "station", TR_NOOP("Station Clock")},
     {ClockFace::NEON, "neon", TR_NOOP("Neon")},
@@ -82,24 +83,9 @@ ui::FlipShape hours_minutes_shape() {
     return shape;
 }
 
-/// The rungs of `face`'s saver ladder: frame periods, and whether each moves smoothly.
-struct Rung {
-    uint32_t period_ms;
-    bool moves;
-};
-
-Rung moves_of(const ui::AnalogClockLevel& l) {
-    return {l.period_ms, l.smooth};
-}
-Rung moves_of(const ui::FlipClockLevel& l) {
-    return {l.period_ms, l.animate};
-}
-Rung moves_of(const ui::NixieClockLevel& l) {
-    return {l.period_ms, l.fade};
-}
-
-template <typename Levels> Rung rung_of(const Levels& levels, size_t level) {
-    return moves_of(levels[std::min(level, std::size(levels) - 1)]);
+/// The frame period of rung `level` (clamped) of `face`'s saver ladder.
+template <typename Levels> uint32_t period_of(const Levels& levels, size_t level) {
+    return levels[std::min(level, std::size(levels) - 1)].period_ms;
 }
 
 size_t ladder_size(ClockFace face) {
@@ -113,14 +99,14 @@ size_t ladder_size(ClockFace face) {
     }
 }
 
-Rung face_rung(ClockFace face, size_t level) {
+uint32_t face_period(ClockFace face, size_t level) {
     switch (face) {
     case ClockFace::FLIP:
-        return rung_of(ui::kFlipClockLevels, level);
+        return period_of(ui::kFlipClockLevels, level);
     case ClockFace::NIXIE:
-        return rung_of(ui::kNixieClockLevels, level);
+        return period_of(ui::kNixieClockLevels, level);
     default:
-        return rung_of(ui::kAnalogClockLevels, level);
+        return period_of(ui::kAnalogClockLevels, level);
     }
 }
 
@@ -167,6 +153,32 @@ ClockFace clock_face_shown(ClockFace chosen, int32_t w, int32_t h) {
                                                                             : ClockFace::TEXT;
 }
 
+int64_t clock_face_area_budget_px(PlatformTier tier) {
+    switch (tier) {
+    case PlatformTier::EMBEDDED:
+        return 128 * 128;
+    case PlatformTier::BASIC:
+        return 192 * 192;
+    case PlatformTier::STANDARD:
+        break;
+    }
+    return 0;
+}
+
+ClockCanvasSize clock_face_canvas(ClockFace face, int32_t w, int32_t h, int64_t budget_px) {
+    ClockCanvasSize size{std::max(0, w), std::max(0, h)};
+    if (is_analog(face)) {
+        size.w = size.h = std::min(size.w, size.h);
+    }
+    const int64_t area = static_cast<int64_t>(size.w) * size.h;
+    if (budget_px > 0 && area > budget_px) {
+        const double scale = std::sqrt(static_cast<double>(budget_px) / static_cast<double>(area));
+        size.w = static_cast<int32_t>(std::floor(size.w * scale));
+        size.h = static_cast<int32_t>(std::floor(size.h * scale));
+    }
+    return size;
+}
+
 ScreensaverType clock_face_saver(ClockFace face) {
     switch (face) {
     case ClockFace::TEXT:
@@ -194,12 +206,9 @@ ClockFaceTempo clock_face_tempo(ClockFace face, const std::optional<ui::SaverLev
         t.level = bottom;
         t.seconds = cpu_cores >= 2;
     }
-    const Rung r = face_rung(face, t.level);
-    t.period_ms = r.period_ms;
-    if (!is_analog(face)) {
-        t.animate = t.seconds && r.moves;
-        t.seconds = false;
-    }
+    t.period_ms = face_period(face, t.level);
+    // Cards show no seconds; they animate where their rung does.
+    t.seconds = t.seconds && is_analog(face);
     return t;
 }
 
