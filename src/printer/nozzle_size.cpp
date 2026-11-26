@@ -3,6 +3,7 @@
 #include "nozzle_size.h"
 
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "gcode_help.h"
 #include "i_moonraker_client.h"
 #include "klipper_extruder_naming.h"
@@ -18,6 +19,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <mutex>
 
 namespace helix::nozzle_size {
 namespace {
@@ -130,10 +132,13 @@ Capability nozzle_capability(const PrinterInputs& in) {
             }
         } else if (in.vendor_records_pending || in.size_command == CommandProbe::Unknown) {
             h.read_only_reason = TR_NOOP("Checking what this printer supports...");
-        } else if (in.size_command == CommandProbe::Present && tool == 0) {
+        } else if (in.size_command == CommandProbe::Present && !in.size_command_runtime_only &&
+                   tool == 0) {
             h.mechanism = Mechanism::KlipperCommand;
             h.idle_only = true;
-        } else if (reports_live) {
+        } else if (reports_live && in.size_command == CommandProbe::Absent) {
+            // No command: the firmware keeps the value (a firmware that registers the command
+            // for another head reports one too, and its heads fall through to the config).
             h.read_only_reason = TR_NOOP("The printer's firmware sets this nozzle size");
         } else if (in.config_supervised) {
             h.read_only_reason = kFirmwareSupervisedConfigRefusal;
@@ -212,6 +217,7 @@ PrinterInputs inputs_from_state(PrinterState& state) {
     in.printing = printer_has_job(state.print_state().get_print_job_state()) ||
                   state.print_state().is_print_in_progress();
     in.size_command = size_command_state();
+    in.size_command_runtime_only = state.get_discovery().is_kalico();
     return in;
 }
 
@@ -399,8 +405,20 @@ void set_size_command_state(CommandProbe state) {
     g_size_command.store(static_cast<int>(state));
 }
 
+namespace {
+std::atomic<bool> g_probe_in_flight{false};
+std::mutex g_listener_mutex;
+std::function<void()> g_listener;
+} // namespace
+
+void set_size_command_listener(std::function<void()> listener) {
+    std::lock_guard<std::mutex> lock(g_listener_mutex);
+    g_listener = std::move(listener);
+}
+
 void probe_size_command(IMoonrakerClient& client) {
     set_size_command_state(CommandProbe::Unknown);
+    g_probe_in_flight.store(true);
     client.send_jsonrpc(
         "printer.gcode.help", nlohmann::json::object(),
         [](const nlohmann::json& response) {
@@ -409,13 +427,33 @@ void probe_size_command(IMoonrakerClient& client) {
             set_size_command_state(!listed   ? CommandProbe::Unknown
                                    : *listed ? CommandProbe::Present
                                              : CommandProbe::Absent);
+            g_probe_in_flight.store(false);
+            if (listed) {
+                ui::queue_update("NozzleSize::probe_settled", []() {
+                    std::function<void()> listener;
+                    {
+                        std::lock_guard<std::mutex> lock(g_listener_mutex);
+                        listener = g_listener;
+                    }
+                    if (listener) {
+                        listener();
+                    }
+                });
+            }
         },
         [](const MoonrakerError& err) {
             spdlog::debug("[NozzleSize] Could not list gcode commands: {}", err.message);
+            g_probe_in_flight.store(false);
         },
         0,   // default timeout
         true // silent: a probe; until it answers, no size can be changed
     );
+}
+
+void reprobe_size_command_if_unknown(IMoonrakerClient& client) {
+    if (size_command_state() == CommandProbe::Unknown && !g_probe_in_flight.load()) {
+        probe_size_command(client);
+    }
 }
 
 } // namespace helix::nozzle_size

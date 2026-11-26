@@ -5152,6 +5152,7 @@
   <translation tag="The printer can measure each tool&apos;s offset automatically. Run it on the tool offset calibration screen." ja="プリンターは各ツールのオフセットを自動で測定できます。ツールオフセット校正画面で実行します。"/>
   <translation tag="The printer can measure pressure advance on its own. Run it on the PA calibration screen." ja="プリンターはプレッシャーアドバンスを自分で測定できます。PAキャリブレーション画面で実行できます。"/>
   <translation tag="The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview." ja="プリンターは、フィラメント交換やインサート挿入のために、選んだレイヤーで一時停止できます。レイヤーは印刷プレビューで設定します。"/>
+  <translation tag="The printer changed while you were deciding. Try again." ja="確認中にプリンターの状態が変わりました。もう一度お試しください。"/>
   <translation tag="The printer config has no section for this toolhead" ja="プリンターの設定にこのツールヘッドのセクションがありません"/>
   <translation tag="The printer could not connect to one of its boards at startup." ja="起動時にプリンターがボードの1つに接続できませんでした。"/>
   <translation tag="The printer could not get the head ready: homing, picking up the head or heating the nozzle failed." ja="ヘッドを準備できませんでした: ホーミング、ヘッドの装着、ノズルの加熱のいずれかに失敗しました。"/>

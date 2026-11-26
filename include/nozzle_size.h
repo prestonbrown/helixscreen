@@ -14,6 +14,7 @@
 // one branch to head_mechanism() in nozzle_size.cpp.
 
 #include <array>
+#include <functional>
 #include <optional>
 #include <string>
 #include <vector>
@@ -67,6 +68,9 @@ struct PrinterInputs {
     /// Whether the printer registers SET_NOZZLE_DIAMETER, as discovery's query found.
     /// Unknown holds every head read-only: the config is not edited on a guess.
     CommandProbe size_command = CommandProbe::Unknown;
+    /// The command changes the value only until the next restart (Kalico's does:
+    /// `DIAMETER=`, nothing saved), so it is not a way to set the nozzle: the config is.
+    bool size_command_runtime_only = false;
     /// The printer is of a kind that keeps a nozzle record per head, but none has
     /// reported yet: the heads stay read-only until one does.
     bool vendor_records_pending = false;
@@ -168,6 +172,14 @@ void probe_size_command(IMoonrakerClient& client);
 
 /// What the last probe found. Safe from any thread.
 [[nodiscard]] CommandProbe size_command_state();
+
+/// Asks again when the last probe left the answer unknown and none is in flight, so a
+/// printer whose first answer was lost is not read-only for the rest of the session.
+void reprobe_size_command_if_unknown(IMoonrakerClient& client);
+
+/// Called, on the main thread, each time a probe settles Absent or Present. One listener;
+/// an empty function clears it.
+void set_size_command_listener(std::function<void()> listener);
 
 /// Records a probe's answer; the probe calls it, and tests set it directly.
 void set_size_command_state(CommandProbe state);

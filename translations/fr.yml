@@ -5355,6 +5355,7 @@ translations:
   The printer can measure each tool's offset automatically. Run it on the tool offset calibration screen.: 'L''imprimante peut mesurer automatiquement le décalage de chaque outil. Lancez-le dans l''écran de calibration des décalages d''outils.'
   The printer can measure pressure advance on its own. Run it on the PA calibration screen.: 'L''imprimante peut mesurer le pressure advance toute seule. Lancez-le sur l''écran Calibration PA.'
   The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview.: 'L''imprimante peut se mettre en pause à une couche choisie, pour changer de filament ou insérer une pièce. Choisissez la couche depuis l''aperçu d''impression.'
+  The printer changed while you were deciding. Try again.: "L'imprimante a changé pendant votre choix. Réessayez."
   The printer config has no section for this toolhead: "La configuration de l'imprimante n'a pas de section pour cette tête d'outil"
   The printer could not connect to one of its boards at startup.: 'L''imprimante n''a pas pu se connecter à l''une de ses cartes au démarrage.'
   'The printer could not get the head ready: homing, picking up the head or heating the nozzle failed.': 'L''imprimante n''a pas pu préparer la tête : la prise d''origine, la prise de la tête ou la chauffe de la buse a échoué.'

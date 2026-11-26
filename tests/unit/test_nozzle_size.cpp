@@ -6,6 +6,7 @@
  *        head's size can change, and the one resolver every consumer reads.
  */
 
+#include "core/update_queue.h"
 #include "moonraker_client_mock.h"
 #include "nozzle_size.h"
 #include "snapmaker_nozzle_properties.h"
@@ -326,11 +327,13 @@ TEST_CASE("nozzle size: discovery finds the command on the K2 persona only", "[n
         MoonrakerClientMock plain;
         probe_size_command(plain);
         CHECK(size_command_state() == CommandProbe::Absent);
+        helix::ui::UpdateQueue::instance().drain();
     }
     {
         MoonrakerClientMock k2(MoonrakerClientMock::PrinterType::CREALITY_K2_PLUS);
         probe_size_command(k2);
         CHECK(size_command_state() == CommandProbe::Present);
+        helix::ui::UpdateQueue::instance().drain();
         k2.gcode_script("SET_NOZZLE_DIAMETER VALUE=0.6");
         CHECK(k2.nozzle_properties(0).first == Catch::Approx(0.6));
     }
@@ -390,4 +393,47 @@ TEST_CASE("nozzle size plan: the listed size goes out, not the requested number"
     const ChangePlan plan = plan_change(mainline({0.4}), 0, 0.6 + 1e-9);
     REQUIRE(plan.kind == ChangePlan::Kind::ConfigEdit);
     CHECK(plan.value == "0.6");
+}
+
+TEST_CASE("nozzle size: a runtime-only size command leaves every head on the config",
+          "[nozzle_size]") {
+    // The command is registered for every extruder and each reports its diameter, but it
+    // changes the value only until the next restart.
+    PrinterInputs kalico_like = mainline({0.4, 0.4});
+    kalico_like.size_command = CommandProbe::Present;
+    kalico_like.size_command_runtime_only = true;
+    kalico_like.live_diameters = {0.4, 0.4};
+    for (const HeadCapability& head : nozzle_capability(kalico_like).heads) {
+        CHECK(head.mechanism == Mechanism::ConfigEdit);
+        CHECK(head.settable);
+    }
+    // A command that saves what it sets serves its own head; another head with a live
+    // diameter falls through to the config.
+    PrinterInputs saving = kalico_like;
+    saving.size_command_runtime_only = false;
+    const Capability cap = nozzle_capability(saving);
+    CHECK(cap.heads[0].mechanism == Mechanism::KlipperCommand);
+    CHECK(cap.heads[1].mechanism == Mechanism::ConfigEdit);
+}
+
+TEST_CASE("nozzle size: a lost probe answer is asked for again", "[nozzle_size]") {
+    MoonrakerClientMock client;
+    client.fail_next("printer.gcode.help", MoonrakerError::unknown("link dropped"));
+    probe_size_command(client);
+    CHECK(size_command_state() == CommandProbe::Unknown);
+
+    int settled = 0;
+    set_size_command_listener([&settled]() { ++settled; });
+    reprobe_size_command_if_unknown(client);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(size_command_state() == CommandProbe::Absent);
+    CHECK(settled == 1);
+
+    // A known answer is not asked for again.
+    client.fail_next("printer.gcode.help", MoonrakerError::unknown("again"));
+    reprobe_size_command_if_unknown(client);
+    CHECK(size_command_state() == CommandProbe::Absent);
+
+    set_size_command_listener({});
+    set_size_command_state(CommandProbe::Unknown);
 }

@@ -5152,6 +5152,7 @@
   <translation tag="The printer can measure each tool&apos;s offset automatically. Run it on the tool offset calibration screen." de="Der Drucker kann den Versatz jedes Werkzeugs automatisch messen. Starten Sie dies im Bildschirm Werkzeugversatz-Kalibrierung."/>
   <translation tag="The printer can measure pressure advance on its own. Run it on the PA calibration screen." de="Der Drucker kann Pressure Advance selbst messen. Starte es im PA-Kalibrierung-Bildschirm."/>
   <translation tag="The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview." de="Der Drucker kann bei einer gewählten Schicht pausieren, etwa für einen Filamentwechsel oder ein Einlegeteil. Lege die Schicht in der Druckvorschau fest."/>
+  <translation tag="The printer changed while you were deciding. Try again." de="Der Drucker hat sich währenddessen geändert. Bitte erneut versuchen."/>
   <translation tag="The printer config has no section for this toolhead" de="Die Druckerkonfiguration hat keinen Abschnitt für diesen Werkzeugkopf"/>
   <translation tag="The printer could not connect to one of its boards at startup." de="Der Drucker konnte beim Start keine Verbindung zu einer seiner Platinen herstellen."/>
   <translation tag="The printer could not get the head ready: homing, picking up the head or heating the nozzle failed." de="Der Drucker konnte den Kopf nicht vorbereiten: Referenzieren, Aufnehmen des Kopfs oder Aufheizen der Düse ist fehlgeschlagen."/>

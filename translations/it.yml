@@ -5343,6 +5343,7 @@ translations:
   The printer can measure each tool's offset automatically. Run it on the tool offset calibration screen.: 'La stampante può misurare automaticamente l''offset di ogni utensile. Avvialo nella schermata di calibrazione offset utensili.'
   The printer can measure pressure advance on its own. Run it on the PA calibration screen.: 'La stampante può misurare il pressure advance da sola. Eseguilo nella schermata Calibrazione PA.'
   The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview.: 'La stampante può mettersi in pausa a un layer scelto, per cambiare filamento o inserire un componente. Imposta il layer dall''anteprima di stampa.'
+  The printer changed while you were deciding. Try again.: "La stampante è cambiata mentre decidevi. Riprova."
   The printer config has no section for this toolhead: "La configurazione della stampante non ha una sezione per questa testina"
   The printer could not connect to one of its boards at startup.: 'All''avvio la stampante non è riuscita a connettersi a una delle sue schede.'
   'The printer could not get the head ready: homing, picking up the head or heating the nozzle failed.': 'La stampante non è riuscita a preparare la testina: l''homing, il prelievo della testina o il riscaldamento dell''ugello non sono riusciti.'
