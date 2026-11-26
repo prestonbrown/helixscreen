@@ -669,7 +669,7 @@ translations:
   Can't move filament while the print is paused: Filament kann bei pausiertem Druck nicht bewegt werden
   Can't read filament RFID tag: RFID-Tag des Filaments nicht lesbar
   Can't reach this printer. Save anyway?: Drucker nicht erreichbar. Trotzdem speichern?
-  Cancel: Abbruch
+  Cancel: Abbrechen
   Cancel Escalation: Eskalation abbrechen
   Cancel Print: Druck abbrechen
   Cancel Scheduled Pause: 'Geplante Pause abbrechen'

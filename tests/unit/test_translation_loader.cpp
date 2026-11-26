@@ -89,7 +89,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Non-English locales still load their pack",
     // matched every locale rather than just "en" would leave this returning
     // the tag itself.
     REQUIRE(translated != tag);
-    REQUIRE(std::string(translated) != "Cancel");
+    REQUIRE(std::string(translated) == "Abbrechen");
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "Missing-language warning is logged once per language",
