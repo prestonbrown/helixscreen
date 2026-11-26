@@ -416,18 +416,6 @@ TEST_CASE("MemoryMonitor pressure responder registration", "[memory_monitor]") {
 // pressure_level_to_string
 // =============================================================================
 
-TEST_CASE("a reported memory warning carries its cause's reason code", "[memory_monitor]") {
-    auto& monitor = MemoryMonitor::instance();
-    const auto previous = MemoryMonitorTestAccess::warning_callback(monitor);
-    std::string code;
-    monitor.set_warning_callback(
-        [&code](const MemoryWarningEvent& event) { code = event.reason_code; });
-    MemoryMonitorTestAccess::fire_warning(monitor, MemoryPressureLevel::warning, "test pressure",
-                                          MemoryStats{}, MemoryInfo{}, 0, "available_warning");
-    monitor.set_warning_callback(previous);
-    CHECK(code == "available_warning");
-}
-
 TEST_CASE("pressure_level_to_string", "[memory_monitor]") {
     REQUIRE(std::string(pressure_level_to_string(MemoryPressureLevel::none)) == "none");
     REQUIRE(std::string(pressure_level_to_string(MemoryPressureLevel::elevated)) == "elevated");
@@ -718,6 +706,23 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(deleted_at < lines.size());  // the deferred delete actually ran
     REQUIRE(complete_at < lines.size()); // ...and the completion sampled
     REQUIRE(deleted_at < complete_at);   // the sample lands after the delete
+}
+#endif
+
+#ifdef __linux__
+TEST_CASE_METHOD(LVGLTestFixture, "a reported memory warning carries its cause's reason code",
+                 "[memory_monitor]") {
+    auto& monitor = MemoryMonitor::instance();
+    const auto previous = MemoryMonitorTestAccess::warning_callback(monitor);
+    std::string code;
+    monitor.set_warning_callback(
+        [&code](const MemoryWarningEvent& event) { code = event.reason_code; });
+    MemoryMonitorTestAccess::fire_warning(monitor, MemoryPressureLevel::warning, "test pressure",
+                                          MemoryStats{}, MemoryInfo{}, 0, "available_warning");
+    // The warning also queues its pressure response; it runs before the callback is restored.
+    helix::ui::UpdateQueue::instance().drain();
+    monitor.set_warning_callback(previous);
+    CHECK(code == "available_warning");
 }
 #endif
 

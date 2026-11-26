@@ -364,5 +364,17 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         sm.set_material_presets_heat_bed_and_chamber(true);
         CHECK(std::string(lv_subject_get_string(subject)).find(bed) != std::string::npos);
     }
+
+    SECTION("the bound subject still follows the setting once its subjects are rebuilt") {
+        sm.set_material_presets_heat_bed_and_chamber(true);
+        sm.deinit_subjects();
+        sm.init_subjects();
+        presets::init_subjects();
+
+        sm.set_material_presets_heat_bed_and_chamber(false);
+        CHECK(std::string(lv_subject_get_string(subject)).find(bed) == std::string::npos);
+        sm.set_material_presets_heat_bed_and_chamber(true);
+        CHECK(std::string(lv_subject_get_string(subject)).find(bed) != std::string::npos);
+    }
     sm.set_material_presets_heat_bed_and_chamber(saved);
 }
