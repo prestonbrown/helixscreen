@@ -109,8 +109,18 @@ struct NozzleFixture : public LVGLTestFixture {
         helix::ui::UpdateQueue::instance().drain();
     }
 
-    helix::AmsError pick(const std::string& id, const char* option) {
-        auto err = backend->execute_device_action(id, std::any(std::string(option)));
+    /// A change to head @p head's diameter and/or flow type, built the way the
+    /// toolhead settings overlay builds it, from the head's current report.
+    helix::AmsError change(int head, std::optional<double> mm,
+                           std::optional<std::string> volume_type = std::nullopt,
+                           helix::AmsBackend::DeviceActionDone on_done = nullptr) {
+        const auto [diameter, type] = client.nozzle_properties(head);
+        nozzle::Nozzle wanted;
+        wanted.diameter = mm;
+        wanted.volume_type = volume_type;
+        const auto params = nozzle::change_params(head, {diameter, type}, wanted);
+        REQUIRE(params.has_value());
+        auto err = backend->change_nozzle(*params, std::move(on_done));
         drain();
         return err;
     }
@@ -212,7 +222,7 @@ TEST_CASE("mock: other printers have no nozzle_properties endpoint", "[mock][noz
 
 TEST_CASE_METHOD(NozzleFixture, "a flow pick names the head's diameter and the head follows",
                  "[mock][snapmaker][nozzle]") {
-    REQUIRE(pick("snapmaker_nozzle_flow_t2", "High Flow").success());
+    REQUIRE(change(2, std::nullopt, "high_flow").success());
     REQUIRE(client.sent.size() == 1);
     CHECK(client.sent[0] == json{{"extruder", 2}, {"diameter", 0.4}, {"volume_type", "high_flow"}});
     CHECK(client.nozzle_properties(2) == std::make_pair(0.4, std::string("high_flow")));
@@ -221,7 +231,7 @@ TEST_CASE_METHOD(NozzleFixture, "a flow pick names the head's diameter and the h
     CHECK(client.last_send_silent());
 }
 
-TEST_CASE_METHOD(NozzleFixture, "a tracked pick ends when the firmware has answered",
+TEST_CASE_METHOD(NozzleFixture, "a tracked change ends when the firmware has answered",
                  "[mock][snapmaker][nozzle]") {
     int done = 0;
     helix::AmsError result;
@@ -229,12 +239,17 @@ TEST_CASE_METHOD(NozzleFixture, "a tracked pick ends when the firmware has answe
         ++done;
         result = r;
     };
-    const auto run = [&](const char* id, const char* option) {
-        return backend->run_device_action(id, std::any(std::string(option)), on_done);
+    const auto run = [&](int head, double mm) {
+        const auto [diameter, type] = client.nozzle_properties(head);
+        nozzle::Nozzle wanted;
+        wanted.diameter = mm;
+        const auto params = nozzle::change_params(head, {diameter, type}, wanted);
+        REQUIRE(params.has_value());
+        return backend->change_nozzle(*params, on_done);
     };
 
     SECTION("accepted") {
-        REQUIRE(run("snapmaker_nozzle_diameter_t1", "0.6 mm").success());
+        REQUIRE(run(1, 0.6).success());
         CHECK(done == 0);
         drain();
         CHECK(done == 1);
@@ -243,7 +258,7 @@ TEST_CASE_METHOD(NozzleFixture, "a tracked pick ends when the firmware has answe
     SECTION("refused: the caller gets the firmware's words and shows them") {
         MoonrakerClientMockTestAccess::set_print_state(client, 1);
         const int before = state_changes;
-        REQUIRE(run("snapmaker_nozzle_diameter_t1", "0.6 mm").success());
+        REQUIRE(run(1, 0.6).success());
         CHECK(done == 0);
         drain();
         CHECK(done == 1);
@@ -259,52 +274,32 @@ TEST_CASE_METHOD(NozzleFixture, "a tracked pick ends when the firmware has answe
     SECTION("no answer is reported as a timeout, not as a refusal") {
         client.fail_next(nozzle::kMethod,
                          MoonrakerError::timeout(nozzle::kMethod, nozzle::kTimeoutMs));
-        REQUIRE(run("snapmaker_nozzle_diameter_t1", "0.6 mm").success());
+        REQUIRE(run(1, 0.6).success());
         drain();
         CHECK(done == 1);
         CHECK(result.result == helix::AmsResult::TIMEOUT);
     }
-    SECTION("the reported value ends at once, with nothing sent") {
-        REQUIRE(run("snapmaker_nozzle_diameter_t1", "0.4 mm").success());
-        CHECK(done == 1);
-        CHECK(result.success());
-        CHECK(client.sent.empty());
-    }
-    SECTION("a refused send never reports") {
-        CHECK_FALSE(run("snapmaker_nozzle_diameter_t1", "0.5 mm").success());
+    SECTION("a head the firmware does not have is refused without a send") {
+        CHECK_FALSE(
+            backend->change_nozzle(json{{"extruder", 9}, {"diameter", 0.6}}, on_done).success());
         drain();
         CHECK(done == 0);
+        CHECK(client.sent.empty());
     }
 }
 
 TEST_CASE_METHOD(NozzleFixture, "a head takes one nozzle change at a time",
                  "[mock][snapmaker][nozzle]") {
-    const auto row_enabled = [this](const char* id) {
-        const auto actions = backend->get_device_actions();
-        const auto it = std::find_if(actions.begin(), actions.end(),
-                                     [id](const auto& a) { return a.id == id; });
-        REQUIRE(it != actions.end());
-        return it->enabled;
-    };
     client.defer_next(nozzle::kMethod);
-    REQUIRE(
-        backend
-            ->execute_device_action("snapmaker_nozzle_flow_t2", std::any(std::string("High Flow")))
-            .success());
+    REQUIRE(change(2, std::nullopt, "high_flow").success());
     REQUIRE(client.sent.size() == 1);
 
-    // Until the firmware answers, the head's rows take nothing and another's do.
-    CHECK_FALSE(row_enabled("snapmaker_nozzle_diameter_t2"));
-    CHECK_FALSE(row_enabled("snapmaker_nozzle_flow_t2"));
-    CHECK(row_enabled("snapmaker_nozzle_diameter_t1"));
-    CHECK_FALSE(
-        backend
-            ->execute_device_action("snapmaker_nozzle_diameter_t2", std::any(std::string("0.6 mm")))
-            .success());
+    // Until the firmware answers, the head takes nothing and another head does.
+    const json again{{"extruder", 2}, {"diameter", 0.6}};
+    CHECK_FALSE(backend->change_nozzle(again, nullptr).success());
     CHECK(client.sent.size() == 1);
 
-    SECTION("accepted: the next pick starts from what the head was just given") {
-        // The reply lands with no status frame behind it.
+    SECTION("accepted: the head takes the next change") {
         MoonrakerClientMockTestAccess::set_method_handler(
             client, nozzle::kMethod,
             [](MoonrakerClientMock*, const json&, helix::SharedCallback<void(const json&)> ok,
@@ -316,26 +311,19 @@ TEST_CASE_METHOD(NozzleFixture, "a head takes one nozzle change at a time",
             });
         client.fire_deferred(nozzle::kMethod);
         drain();
-        CHECK(row_enabled("snapmaker_nozzle_diameter_t2"));
-        REQUIRE(pick("snapmaker_nozzle_diameter_t2", "0.6 mm").success());
+        CHECK(backend->change_nozzle(again, nullptr).success());
         REQUIRE(client.sent.size() == 2);
-        // Built from High Flow, not the standard the last status frame said.
-        CHECK(client.sent[1] ==
-              json{{"extruder", 2}, {"diameter", 0.6}, {"volume_type", "standard"}});
     }
-    SECTION("refused: the rows come back and the report stands") {
+    SECTION("refused: the head takes the next change, and the report stands") {
         client.fire_deferred_error(nozzle::kMethod, MoonrakerError::unknown("no"));
         drain();
-        CHECK(row_enabled("snapmaker_nozzle_flow_t2"));
-        const auto nozzles = backend->reported_nozzles();
-        CHECK(nozzles[2].volume_type == std::string("standard"));
+        CHECK(client.nozzle_properties(2).second == "standard");
+        CHECK(backend->change_nozzle(again, nullptr).success());
     }
 }
 
-TEST_CASE_METHOD(NozzleFixture,
-                 "a change the head did not take tells the user and snaps the row back",
+TEST_CASE_METHOD(NozzleFixture, "a change the head did not take tells the user",
                  "[mock][snapmaker][nozzle]") {
-    const char* id = "snapmaker_nozzle_diameter_t1";
     const char* why = nullptr;
     SECTION("a refusal inside a successful reply") {
         // The backend has not seen the print start; the firmware has.
@@ -359,15 +347,9 @@ TEST_CASE_METHOD(NozzleFixture,
         why = "link dropped";
     }
     const int before = state_changes;
-    REQUIRE(pick(id, "0.6 mm").success());
+    REQUIRE(change(1, 0.6).success());
     CHECK(client.nozzle_properties(1).first == 0.4);
     CHECK(user_errors() == 1);
     CHECK(logs.count_containing(why) >= 1);
     CHECK(state_changes > before);
-    // The row still reads what the head reports.
-    const auto actions = backend->get_device_actions();
-    auto it =
-        std::find_if(actions.begin(), actions.end(), [id](const auto& a) { return a.id == id; });
-    REQUIRE(it != actions.end());
-    CHECK(std::any_cast<std::string>(it->current_value) == "0.4 mm");
 }
