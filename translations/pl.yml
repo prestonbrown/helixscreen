@@ -203,7 +203,7 @@ translations:
   20 minutes: 20 minut
   24 Hour: 24-godzinny
   24-hour: 24-godzinny
-  24H: 24 godz.
+  24H: 24h
   270°: 270°
   270° Clockwise: 270° zgodnie z zegarem
   2D Heatmap: Mapa cieplna 2D
@@ -537,7 +537,7 @@ translations:
   ? 'Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer''s filament profile, or save it to the spool.'
   : 'Zastosowano do {}. Klipper zapomina to po restarcie: wpisz {} jako Pressure advance w profilu filamentu w slicerze albo zapisz w szpuli.'
   ? "Applied to {}. Klipper forgets it on restart: save {} to the config, or enter it as Pressure advance in your slicer's filament profile, or save it to the spool."
-  : 'Zastosowano do {}. Klipper zapomina to po restarcie: zapisz {} w konfiguracji albo wpisz jako Pressure advance w profilu filamentu w slicerze, albo zapisz w szpuli.'
+  : 'Zastosowano do {}. Klipper zapomni to po restarcie: zapisz {} w konfiguracji, wpisz jako Pressure advance w profilu filamentu w slicerze albo zapisz w danych szpuli.'
   Applies to: Dotyczy
   Apply: Zastosuj
   Apply a thin film of the lubricant your manual names.: Nałóż cienką warstwę smaru wskazanego w instrukcji.
@@ -670,7 +670,7 @@ translations:
   Bed check turned off: Sprawdzanie stołu wyłączone
   Bed clear · Start next: Stół pusty · Start następnego
   'Bed cooling, spools still on the bed:': 'Stół stygnie, szpule nadal na stole:'
-  Bed heater tuned: Grzałka stołu nastrojona
+  Bed heater tuned: Grzałka stołu dostrojona
   Bed is Level!: Stół wypoziomowany!
   Bed is at {}, the print needs {}.: Stół ma {}, wydruk potrzebuje {}.
   Bed is clear: Stół jest pusty
@@ -1693,7 +1693,7 @@ translations:
   : 'Każda korekta zwiększała różnicę między punktami pomiaru: silniki Z są przypisane do złych narożników albo sonda nie jest powtarzalna.'
   Each fan can only be selected once: Każdy wentylator można wybrać tylko raz
   Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: Na tej drukarce każda głowica ma własny offset Z. Użyj zamiast tego kalibracji offsetu jej narzędzia.
-  Each tap sets a new value from this layer up.: Każde stuknięcie ustawia nową wartość od tej warstwy w górę.
+  Each tap sets a new value from this layer up.: Każde dotknięcie ustawia nową wartość od tej warstwy w górę.
   Each tower tunes one value: Każda wieża stroi jedną wartość
   Each tower tunes one value. Judge it side-lit.: Każda wieża stroi jedną wartość. Oceniaj przy świetle z boku.
   Edit: Edytuj
@@ -2480,7 +2480,7 @@ translations:
   Home Selector: Bazuj selektor
   Home the printer again so a toolhead is picked up, then retry.: Zbazuj drukarkę ponownie, aby głowica została pobrana, potem ponów.
   Home the printer again so it detects the toolheads, then retry.: Zbazuj drukarkę ponownie, aby wykryła głowice, potem ponów.
-  'Home the printer first: the calibration needs X, Y and Z homed': 'Najpierw wykonaj bazowanie drukarki: kalibracja wymaga bazowania osi X, Y i Z'
+  'Home the printer first: the calibration needs X, Y and Z homed': 'Najpierw zbazuj drukarkę: kalibracja wymaga zbazowanych osi X, Y i Z'
   Home the printer so every toolhead is docked, then retry.: Zbazuj drukarkę, aby każda głowica była w doku, potem ponów.
   Home the printer, check that the head moves freely in its dock, then try again.: Zbazuj drukarkę, sprawdź, czy głowica swobodnie porusza się w doku, potem spróbuj ponownie.
   Homing: Bazowanie
@@ -2880,14 +2880,14 @@ translations:
   Left side: Lewa strona
   Left side against the front: Lewa strona na tle przodu
   Left side and front, each at its slow edges. Each comes out clean at its own height; they should match.: Lewa strona i przód, każda przy swoich wolnych krawędziach. Każda wychodzi czysto na własnej wysokości; powinny się zgadzać.
-  'Left side and front, side-lit: where each converges. The same height takes it; if not, this pass prints again.': 'Lewa strona i przód, światło z boku: gdzie każda się zbiega. Ta sama wysokość załatwia sprawę; jeśli nie, ten przebieg drukuje się ponownie.'
+  'Left side and front, side-lit: where each converges. The same height takes it; if not, this pass prints again.': 'Lewa strona i przód, światło z boku: gdzie każda się zbiega. Powinna to być ta sama wysokość; jeśli nie, ten przebieg zostanie wydrukowany ponownie.'
   Left side clean all the way up? It is best at 0.: Lewa strona czysta aż do góry? Najlepsza jest przy 0.
   ? "Left side {:.1f} mm higher, so this pass prints again with\n{} {} to {}"
-  : "Lewa strona wyżej o {:.1f} mm, więc ten przebieg drukuje się ponownie z\n{} {} do {}"
+  : "Lewa strona wyżej o {:.1f} mm, więc ten przebieg zostanie wydrukowany ponownie z\n{} {} do {}"
   'Left side {:.1f} mm higher: the next tower lowers the advance 10%.': 'Lewa strona wyżej o {:.1f} mm: następna wieża obniży advance o 10%.'
   'Left side {:.1f} mm higher: the next tower raises the offset 10%.': 'Lewa strona wyżej o {:.1f} mm: następna wieża podniesie offset o 10%.'
   ? "Left side {:.1f} mm lower, so this pass prints again with\n{} {} to {}"
-  : "Lewa strona niżej o {:.1f} mm, więc ten przebieg drukuje się ponownie z\n{} {} do {}"
+  : "Lewa strona niżej o {:.1f} mm, więc ten przebieg zostanie wydrukowany ponownie z\n{} {} do {}"
   'Left side {:.1f} mm lower: the next tower lowers the offset 10%.': 'Lewa strona niżej o {:.1f} mm: następna wieża obniży offset o 10%.'
   'Left side {:.1f} mm lower: the next tower raises the advance 10%.': 'Lewa strona niżej o {:.1f} mm: następna wieża podniesie advance o 10%.'
   "Left side, side-lit: at what height do the slow middle's edges look best?": 'Lewa strona, światło z boku: na jakiej wysokości krawędzie wolnego środka wyglądają najlepiej?'
@@ -3323,8 +3323,8 @@ translations:
   Needs attention: Wymaga uwagi
   Needs repair from a web interface: Wymaga naprawy z interfejsu WWW
   Needs the {} package to switch spools: Do zmiany szpul potrzebny jest pakiet {}
-  Needs you, about {}: Potrzebna Twoja obecność, ok. {}
-  'Needs you, about {}: {}': 'Potrzebna Twoja obecność, ok. {}: {}'
+  Needs you, about {}: Wymaga twojej obecności, ok. {}
+  'Needs you, about {}: {}': 'Wymaga twojej obecności, ok. {}: {}'
   'Needs {}x{} free: remove or shrink a widget first': 'Potrzeba {}x{} wolnego miejsca: najpierw usuń lub zmniejsz widżet'
   Neon: Neon
   Net Weight (g): Waga netto (g)
@@ -3435,8 +3435,8 @@ translations:
   No message: Brak wiadomości
   No multi-filament system detected: Nie wykryto systemu wielofilamentowego
   No need to stay while it prints: Nie musisz zostawać podczas druku
-  No need to stay; this screen waits for you when the tower is done.: Nie musisz zostawać; ten ekran poczeka na Ciebie, gdy wieża będzie gotowa.
-  No need to stay; this screen waits for you.: Nie musisz zostawać; ten ekran na Ciebie poczeka.
+  No need to stay; this screen waits for you when the tower is done.: Nie musisz zostawać; ten ekran poczeka na ciebie, gdy wieża będzie gotowa.
+  No need to stay; this screen waits for you.: Nie musisz zostawać; ten ekran na ciebie poczeka.
   No network. Scan QR code to report on your phone.: Brak sieci. Zeskanuj kod QR, aby zgłosić z telefonu.
   No networks found: Nie znaleziono sieci
   No new mesh was stored as '{}': Nie zapisano nowej siatki jako „{}”
@@ -3599,7 +3599,7 @@ translations:
   Nozzle diameter: Średnica dyszy
   Nozzle did not reach {} — {} canceled: Dysza nie osiągnęła {} — {} anulowano
   Nozzle flow: Przepływ dyszy
-  Nozzle heater tuned: Grzałka dyszy nastrojona
+  Nozzle heater tuned: Grzałka dyszy dostrojona
   Nozzle interval: Interwał dyszy
   Nozzle min cannot exceed max: Minimum dyszy nie może przekraczać maksimum
   'Nozzle not changed: the printer did not confirm it': 'Dysza niezmieniona: drukarka tego nie potwierdziła'
@@ -3697,7 +3697,7 @@ translations:
   Orifice diameter of the nozzle fitted to this head: "Średnica otworu dyszy zamontowanej w tej głowicy"
   Original: Oryginalny
   Original file location unknown: Nieznane położenie oryginalnego pliku
-  Orrery: Orrery
+  Orrery: Planetarium
   Oscillating... cycle %d/%d: Oscylacja... cykl %d/%d
   Other: Inny
   Other…: Inne…
@@ -4587,8 +4587,8 @@ translations:
   Save to Config: Zapisz do konfiguracji
   Save to Config writes it to the extruder section; Klipper keeps it after a restart.: Zapisz w konfiguracji zapisuje to w sekcji extruder; Klipper zachowuje to po restarcie.
   Save to Config writes them to the extruder section and restarts Klipper.: Zapisz w konfiguracji zapisuje je w sekcji extruder i restartuje Klippera.
-  Save to Config and Discard both restart Klipper.: Zapisz w konfiguracji i Odrzuć oba restartują Klippera.
-  Save to Config keeps Klipper running. Discard restarts it.: Zapisz w konfiguracji nie zatrzymuje Klippera. Odrzuć go restartuje.
+  Save to Config and Discard both restart Klipper.: Zarówno Zapisz w konfiguracji, jak i Odrzuć restartują Klippera.
+  Save to Config keeps Klipper running. Discard restarts it.: Zapisz w konfiguracji nie restartuje Klippera. Odrzuć go restartuje.
   Save to Spool: Zapisz do szpuli
   Save to Spoolman: Zapisz do Spoolman
   Save to the printer config?: Zapisać w konfiguracji drukarki?
@@ -5017,7 +5017,7 @@ translations:
   Starting nozzle clean...: Rozpoczynanie czyszczenia dyszy...
   Starting print...: Rozpoczynanie druku...
   Starting the print: Rozpoczynanie druku
-  Starting the tower: Start wieży
+  Starting the tower: Uruchamianie wieży
   Starting the update: Rozpoczynanie aktualizacji
   Starting {}…: Uruchamianie {}…
   Starting...: Uruchamianie...
@@ -5163,7 +5163,7 @@ translations:
   Tangle prevention boosted: Zapobieganie splątaniu wzmocnione
   Tangle sensitivity: Czułość splątania
   Tap + to add: Dotknij +, aby dodać
-  Tap - or + to hold your own value; the ramp stops.: Stuknij - lub +, aby zachować własną wartość; rampa się zatrzyma.
+  Tap - or + to hold your own value; the ramp stops.: Dotknij - lub +, aby ustawić własną wartość; rampa się zatrzyma.
   Tap Extrude more until clean filament comes out of the nozzle, then tap Done.: Dotykaj Wytłocz więcej, aż z dyszy wyjdzie czysty filament, potem dotknij Gotowe.
   Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge: Dotknij Restart firmware, aby odzyskać — na K2 restartuje to też mostek MCU rpi
   Tap Resume to try the load again from {}.: Dotknij Wznów, aby ponowić ładowanie z {}.
@@ -5173,7 +5173,7 @@ translations:
   Tap anywhere if this text is right-side up: Dotknij gdziekolwiek, jeśli ten tekst nie jest do góry nogami
   Tap anywhere to begin: Dotknij gdziekolwiek, aby zacząć
   Tap anywhere to begin calibration: Dotknij gdziekolwiek, aby zacząć kalibrację
-  Tap the band that looks best: Stuknij pasmo, które wygląda najlepiej
+  Tap the band that looks best: Dotknij pasma, które wygląda najlepiej
   Tap the bed's back-left corner: Dotknij tylnego lewego narożnika stołu
   Tap the bed's back-right corner: Dotknij tylnego prawego narożnika stołu
   Tap the bed's front-left corner: Dotknij przedniego lewego narożnika stołu
@@ -5539,7 +5539,7 @@ translations:
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
   : Drukarka grzeje dyszę, wykonuje kilka krótkich ruchów testowych w rogu płyty i sama je mierzy. Powtarza, aż odczyty będą zgodne, potem podaje jedną liczbę.
   ? The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer. Clear the bed first.
-  : Drukarka zbazuje X i Y, przesunie głowicę na środek stołu i ustawi każdy pasek jego napinaczem. Po zakończeniu silniki są zwalniane, więc przed ruchem drukarki wykonaj bazowanie. Najpierw opróżnij stół.
+  : Drukarka zbazuje X i Y, przesunie głowicę na środek stołu i ustawi każdy pas jego napinaczem. Po zakończeniu silniki zostaną zwolnione, więc przed kolejnym ruchem zbazuj drukarkę. Najpierw opróżnij stół.
   The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear.: Drukarka bazuje i przemiata obcinak (około 1 minuty). Utrzymuj ścieżkę filamentu drożną.
   The printer homes if needed, then finds the cutter's position. Keep the filament path clear.: Drukarka bazuje w razie potrzeby, potem ustala pozycję obcinaka. Utrzymuj ścieżkę filamentu drożną.
   ? The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked.
@@ -5612,7 +5612,7 @@ translations:
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: Nie można odczytać czujnika w tej jednostce CFS. Sprawdź jego połączenie; jednostka może wymagać serwisu
   'The shell could not start: {}': 'Nie udało się uruchomić powłoki: {}'
   The shell exited. Tap the terminal to start a new one.: Powłoka zakończyła działanie. Dotknij terminala, aby uruchomić nową.
-  The sides should converge at the same height. Apart means the {} is a little off.: Strony powinny zbiegać się na tej samej wysokości. Rozbieżność oznacza, że {} jest lekko przesunięty.
+  The sides should converge at the same height. Apart means the {} is a little off.: Strony powinny zbiegać się na tej samej wysokości. Rozbieżność oznacza, że {} jest trochę niedokładny.
   The slot asked to eject still has its filament loaded in the toolhead.: Slot, który ma zostać wysunięty, wciąż ma filament załadowany w głowicy.
   The slot chosen for this tool change has no filament at its inlet.: Slot wybrany do tej zmiany narzędzia nie ma filamentu na wejściu.
   The speed of one fan you choose: Prędkość wybranego wentylatora
@@ -6009,7 +6009,7 @@ translations:
   Tune: Strojenie
   Tune Belts: Strojenie pasów
   Tune the motors to remove fine vertical lines: Dostrój silniki, aby usunąć drobne pionowe linie
-  Tuned: Nastrojono
+  Tuned: Dostrojono
   Tuner: Stroik
   Tuning tower enabled - start a print to test: Wieża strojenia włączona — rozpocznij wydruk, aby przetestować
   Turbo: Turbo
@@ -6732,7 +6732,7 @@ translations:
   '{} available': 'Dostępne: {}'
   '{} axes homed': 'Zbazowane osie: {}'
   '{} axis homed': Zbazowana oś {}
-  '{} bands, {} apart. Prints a {:.0f} mm square, {:.0f} mm tall.': '{} pasm, odstęp {}. Drukuje kwadrat {:.0f} mm, wysoki na {:.0f} mm.'
+  '{} bands, {} apart. Prints a {:.0f} mm square, {:.0f} mm tall.': '{} pasm co {}. Drukuje kwadrat {:.0f} mm o wysokości {:.0f} mm.'
   '{} can''t refill automatically': '{} nie może uzupełniać automatycznie'
   '{} cannot be skipped: its name has characters the printer cannot be sent': 'Nie można pominąć {}: nazwa zawiera znaki, których nie można wysłać do drukarki'
   '{} cannot be stored on this printer.': Nie można zapisać {} na tej drukarce.
@@ -6784,7 +6784,7 @@ translations:
   '{} free of {}': Wolne {} z {}
   '{} h': '{} h'
   '{} h of {} h': '{} h z {} h'
-  '{} h {} min': '{} godz. {} min'
+  '{} h {} min': '{} h {} min'
   '{} hand feed did not finish': '{}: ręczne podawanie się nie zakończyło'
   '{} has no filament': '{} nie ma filamentu'
   '{} has no filament type set': '{} nie ma ustawionego typu filamentu'

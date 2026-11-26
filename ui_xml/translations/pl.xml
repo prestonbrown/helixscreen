@@ -175,7 +175,7 @@
   <translation tag="20 minutes" pl="20 minut"/>
   <translation tag="24 Hour" pl="24-godzinny"/>
   <translation tag="24-hour" pl="24-godzinny"/>
-  <translation tag="24H" pl="24 godz."/>
+  <translation tag="24H" pl="24h"/>
   <translation tag="270°" pl="270°"/>
   <translation tag="270° Clockwise" pl="270° zgodnie z zegarem"/>
   <translation tag="2D Heatmap" pl="Mapa cieplna 2D"/>
@@ -491,7 +491,7 @@
   <translation tag="Applied for this session only: {}" pl="Zastosowano tylko na tę sesję: {}"/>
   <translation tag="Applied to {} as linear_advance, the nonlinear model&apos;s high-speed slope. Klipper forgets it on restart: enter {} as linear_advance in the extruder&apos;s config section." pl="Zastosowano do {} jako linear_advance, czyli nachylenie modelu nieliniowego przy dużej prędkości. Klipper zapomina to po restarcie: wpisz {} jako linear_advance w sekcji ekstrudera w konfiguracji."/>
   <translation tag="Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." pl="Zastosowano do {}. Klipper zapomina to po restarcie: wpisz {} jako Pressure advance w profilu filamentu w slicerze albo zapisz w szpuli."/>
-  <translation tag="Applied to {}. Klipper forgets it on restart: save {} to the config, or enter it as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." pl="Zastosowano do {}. Klipper zapomina to po restarcie: zapisz {} w konfiguracji albo wpisz jako Pressure advance w profilu filamentu w slicerze, albo zapisz w szpuli."/>
+  <translation tag="Applied to {}. Klipper forgets it on restart: save {} to the config, or enter it as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." pl="Zastosowano do {}. Klipper zapomni to po restarcie: zapisz {} w konfiguracji, wpisz jako Pressure advance w profilu filamentu w slicerze albo zapisz w danych szpuli."/>
   <translation tag="Applies to" pl="Dotyczy"/>
   <translation tag="Apply" pl="Zastosuj"/>
   <translation tag="Apply a thin film of the lubricant your manual names." pl="Nałóż cienką warstwę smaru wskazanego w instrukcji."/>
@@ -624,7 +624,7 @@
   <translation tag="Bed check turned off" pl="Sprawdzanie stołu wyłączone"/>
   <translation tag="Bed clear · Start next" pl="Stół pusty · Start następnego"/>
   <translation tag="Bed cooling, spools still on the bed:" pl="Stół stygnie, szpule nadal na stole:"/>
-  <translation tag="Bed heater tuned" pl="Grzałka stołu nastrojona"/>
+  <translation tag="Bed heater tuned" pl="Grzałka stołu dostrojona"/>
   <translation tag="Bed is Level!" pl="Stół wypoziomowany!"/>
   <translation tag="Bed is at {}, the print needs {}." pl="Stół ma {}, wydruk potrzebuje {}."/>
   <translation tag="Bed is clear" pl="Stół jest pusty"/>
@@ -1586,7 +1586,7 @@
   <translation tag="Each correction increased the difference between the probe points: the Z motors are mapped to the wrong corners, or the probe is not repeatable." pl="Każda korekta zwiększała różnicę między punktami pomiaru: silniki Z są przypisane do złych narożników albo sonda nie jest powtarzalna."/>
   <translation tag="Each fan can only be selected once" pl="Każdy wentylator można wybrać tylko raz"/>
   <translation tag="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead." pl="Na tej drukarce każda głowica ma własny offset Z. Użyj zamiast tego kalibracji offsetu jej narzędzia."/>
-  <translation tag="Each tap sets a new value from this layer up." pl="Każde stuknięcie ustawia nową wartość od tej warstwy w górę."/>
+  <translation tag="Each tap sets a new value from this layer up." pl="Każde dotknięcie ustawia nową wartość od tej warstwy w górę."/>
   <translation tag="Each tower tunes one value" pl="Każda wieża stroi jedną wartość"/>
   <translation tag="Each tower tunes one value. Judge it side-lit." pl="Każda wieża stroi jedną wartość. Oceniaj przy świetle z boku."/>
   <translation tag="Edit" pl="Edytuj"/>
@@ -2342,7 +2342,7 @@
   <translation tag="Home printer first?" pl="Najpierw zbazować drukarkę?"/>
   <translation tag="Home the printer again so a toolhead is picked up, then retry." pl="Zbazuj drukarkę ponownie, aby głowica została pobrana, potem ponów."/>
   <translation tag="Home the printer again so it detects the toolheads, then retry." pl="Zbazuj drukarkę ponownie, aby wykryła głowice, potem ponów."/>
-  <translation tag="Home the printer first: the calibration needs X, Y and Z homed" pl="Najpierw wykonaj bazowanie drukarki: kalibracja wymaga bazowania osi X, Y i Z"/>
+  <translation tag="Home the printer first: the calibration needs X, Y and Z homed" pl="Najpierw zbazuj drukarkę: kalibracja wymaga zbazowanych osi X, Y i Z"/>
   <translation tag="Home the printer so every toolhead is docked, then retry." pl="Zbazuj drukarkę, aby każda głowica była w doku, potem ponów."/>
   <translation tag="Home the printer, check that the head moves freely in its dock, then try again." pl="Zbazuj drukarkę, sprawdź, czy głowica swobodnie porusza się w doku, potem spróbuj ponownie."/>
   <translation tag="Homing" pl="Bazowanie"/>
@@ -2709,12 +2709,12 @@
   <translation tag="Left side" pl="Lewa strona"/>
   <translation tag="Left side against the front" pl="Lewa strona na tle przodu"/>
   <translation tag="Left side and front, each at its slow edges. Each comes out clean at its own height; they should match." pl="Lewa strona i przód, każda przy swoich wolnych krawędziach. Każda wychodzi czysto na własnej wysokości; powinny się zgadzać."/>
-  <translation tag="Left side and front, side-lit: where each converges. The same height takes it; if not, this pass prints again." pl="Lewa strona i przód, światło z boku: gdzie każda się zbiega. Ta sama wysokość załatwia sprawę; jeśli nie, ten przebieg drukuje się ponownie."/>
+  <translation tag="Left side and front, side-lit: where each converges. The same height takes it; if not, this pass prints again." pl="Lewa strona i przód, światło z boku: gdzie każda się zbiega. Powinna to być ta sama wysokość; jeśli nie, ten przebieg zostanie wydrukowany ponownie."/>
   <translation tag="Left side clean all the way up? It is best at 0." pl="Lewa strona czysta aż do góry? Najlepsza jest przy 0."/>
-  <translation tag="Left side {:.1f} mm higher, so this pass prints again with&#10;{} {} to {}" pl="Lewa strona wyżej o {:.1f} mm, więc ten przebieg drukuje się ponownie z&#10;{} {} do {}"/>
+  <translation tag="Left side {:.1f} mm higher, so this pass prints again with&#10;{} {} to {}" pl="Lewa strona wyżej o {:.1f} mm, więc ten przebieg zostanie wydrukowany ponownie z&#10;{} {} do {}"/>
   <translation tag="Left side {:.1f} mm higher: the next tower lowers the advance 10%." pl="Lewa strona wyżej o {:.1f} mm: następna wieża obniży advance o 10%."/>
   <translation tag="Left side {:.1f} mm higher: the next tower raises the offset 10%." pl="Lewa strona wyżej o {:.1f} mm: następna wieża podniesie offset o 10%."/>
-  <translation tag="Left side {:.1f} mm lower, so this pass prints again with&#10;{} {} to {}" pl="Lewa strona niżej o {:.1f} mm, więc ten przebieg drukuje się ponownie z&#10;{} {} do {}"/>
+  <translation tag="Left side {:.1f} mm lower, so this pass prints again with&#10;{} {} to {}" pl="Lewa strona niżej o {:.1f} mm, więc ten przebieg zostanie wydrukowany ponownie z&#10;{} {} do {}"/>
   <translation tag="Left side {:.1f} mm lower: the next tower lowers the offset 10%." pl="Lewa strona niżej o {:.1f} mm: następna wieża obniży offset o 10%."/>
   <translation tag="Left side {:.1f} mm lower: the next tower raises the advance 10%." pl="Lewa strona niżej o {:.1f} mm: następna wieża podniesie advance o 10%."/>
   <translation tag="Left side, side-lit: at what height do the slow middle&apos;s edges look best?" pl="Lewa strona, światło z boku: na jakiej wysokości krawędzie wolnego środka wyglądają najlepiej?"/>
@@ -3101,8 +3101,8 @@
   <translation tag="Needs file analysis, which isn&apos;t running." pl="Wymaga analizy plików, która nie działa."/>
   <translation tag="Needs repair from a web interface" pl="Wymaga naprawy z interfejsu WWW"/>
   <translation tag="Needs the {} package to switch spools" pl="Do zmiany szpul potrzebny jest pakiet {}"/>
-  <translation tag="Needs you, about {}" pl="Potrzebna Twoja obecność, ok. {}"/>
-  <translation tag="Needs you, about {}: {}" pl="Potrzebna Twoja obecność, ok. {}: {}"/>
+  <translation tag="Needs you, about {}" pl="Wymaga twojej obecności, ok. {}"/>
+  <translation tag="Needs you, about {}: {}" pl="Wymaga twojej obecności, ok. {}: {}"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" pl="Potrzeba {}x{} wolnego miejsca: najpierw usuń lub zmniejsz widżet"/>
   <translation tag="Neon" pl="Neon"/>
   <translation tag="Net Weight (g)" pl="Waga netto (g)"/>
@@ -3217,8 +3217,8 @@
   <translation tag="No message" pl="Brak wiadomości"/>
   <translation tag="No multi-filament system detected" pl="Nie wykryto systemu wielofilamentowego"/>
   <translation tag="No need to stay while it prints" pl="Nie musisz zostawać podczas druku"/>
-  <translation tag="No need to stay; this screen waits for you when the tower is done." pl="Nie musisz zostawać; ten ekran poczeka na Ciebie, gdy wieża będzie gotowa."/>
-  <translation tag="No need to stay; this screen waits for you." pl="Nie musisz zostawać; ten ekran na Ciebie poczeka."/>
+  <translation tag="No need to stay; this screen waits for you when the tower is done." pl="Nie musisz zostawać; ten ekran poczeka na ciebie, gdy wieża będzie gotowa."/>
+  <translation tag="No need to stay; this screen waits for you." pl="Nie musisz zostawać; ten ekran na ciebie poczeka."/>
   <translation tag="No network. Scan QR code to report on your phone." pl="Brak sieci. Zeskanuj kod QR, aby zgłosić z telefonu."/>
   <translation tag="No networks found" pl="Nie znaleziono sieci"/>
   <translation tag="No new mesh was stored as &apos;{}&apos;" pl="Nie zapisano nowej siatki jako „{}”"/>
@@ -3370,7 +3370,7 @@
   <translation tag="Nozzle diameter" pl="Średnica dyszy"/>
   <translation tag="Nozzle did not reach {} — {} canceled" pl="Dysza nie osiągnęła {} — {} anulowano"/>
   <translation tag="Nozzle flow" pl="Przepływ dyszy"/>
-  <translation tag="Nozzle heater tuned" pl="Grzałka dyszy nastrojona"/>
+  <translation tag="Nozzle heater tuned" pl="Grzałka dyszy dostrojona"/>
   <translation tag="Nozzle interval" pl="Interwał dyszy"/>
   <translation tag="Nozzle min cannot exceed max" pl="Minimum dyszy nie może przekraczać maksimum"/>
   <translation tag="Nozzle not changed: the printer did not confirm it" pl="Dysza niezmieniona: drukarka tego nie potwierdziła"/>
@@ -3464,7 +3464,7 @@
   <translation tag="Orifice diameter of the nozzle fitted to this head" pl="Średnica otworu dyszy zamontowanej w tej głowicy"/>
   <translation tag="Original" pl="Oryginalny"/>
   <translation tag="Original file location unknown" pl="Nieznane położenie oryginalnego pliku"/>
-  <translation tag="Orrery" pl="Orrery"/>
+  <translation tag="Orrery" pl="Planetarium"/>
   <translation tag="Oscillating... cycle %d/%d" pl="Oscylacja... cykl %d/%d"/>
   <translation tag="Other" pl="Inny"/>
   <translation tag="Other…" pl="Inne…"/>
@@ -4331,8 +4331,8 @@
   <translation tag="Save the new heater values to printer.cfg?" pl="Zapisać nowe wartości grzałki do printer.cfg?"/>
   <translation tag="Save the new heater values to printer.cfg? Klipper restarts." pl="Zapisać nowe wartości grzałki do printer.cfg? Klipper się zrestartuje."/>
   <translation tag="Save to Config" pl="Zapisz do konfiguracji"/>
-  <translation tag="Save to Config and Discard both restart Klipper." pl="Zapisz w konfiguracji i Odrzuć oba restartują Klippera."/>
-  <translation tag="Save to Config keeps Klipper running. Discard restarts it." pl="Zapisz w konfiguracji nie zatrzymuje Klippera. Odrzuć go restartuje."/>
+  <translation tag="Save to Config and Discard both restart Klipper." pl="Zarówno Zapisz w konfiguracji, jak i Odrzuć restartują Klippera."/>
+  <translation tag="Save to Config keeps Klipper running. Discard restarts it." pl="Zapisz w konfiguracji nie restartuje Klippera. Odrzuć go restartuje."/>
   <translation tag="Save to Config writes it to the extruder section; Klipper keeps it after a restart." pl="Zapisz w konfiguracji zapisuje to w sekcji extruder; Klipper zachowuje to po restarcie."/>
   <translation tag="Save to Config writes them to the extruder section and restarts Klipper." pl="Zapisz w konfiguracji zapisuje je w sekcji extruder i restartuje Klippera."/>
   <translation tag="Save to Spool" pl="Zapisz do szpuli"/>
@@ -4756,7 +4756,7 @@
   <translation tag="Starting nozzle clean..." pl="Rozpoczynanie czyszczenia dyszy..."/>
   <translation tag="Starting print..." pl="Rozpoczynanie druku..."/>
   <translation tag="Starting the print" pl="Rozpoczynanie druku"/>
-  <translation tag="Starting the tower" pl="Start wieży"/>
+  <translation tag="Starting the tower" pl="Uruchamianie wieży"/>
   <translation tag="Starting the update" pl="Rozpoczynanie aktualizacji"/>
   <translation tag="Starting {}…" pl="Uruchamianie {}…"/>
   <translation tag="Starting..." pl="Uruchamianie..."/>
@@ -4894,7 +4894,7 @@
   <translation tag="Tangle prevention boosted" pl="Zapobieganie splątaniu wzmocnione"/>
   <translation tag="Tangle sensitivity" pl="Czułość splątania"/>
   <translation tag="Tap + to add" pl="Dotknij +, aby dodać"/>
-  <translation tag="Tap - or + to hold your own value; the ramp stops." pl="Stuknij - lub +, aby zachować własną wartość; rampa się zatrzyma."/>
+  <translation tag="Tap - or + to hold your own value; the ramp stops." pl="Dotknij - lub +, aby ustawić własną wartość; rampa się zatrzyma."/>
   <translation tag="Tap Extrude more until clean filament comes out of the nozzle, then tap Done." pl="Dotykaj Wytłocz więcej, aż z dyszy wyjdzie czysty filament, potem dotknij Gotowe."/>
   <translation tag="Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge" pl="Dotknij Restart firmware, aby odzyskać — na K2 restartuje to też mostek MCU rpi"/>
   <translation tag="Tap Resume to try the load again from {}." pl="Dotknij Wznów, aby ponowić ładowanie z {}."/>
@@ -4905,7 +4905,7 @@
   <translation tag="Tap anywhere if this text is right-side up" pl="Dotknij gdziekolwiek, jeśli ten tekst nie jest do góry nogami"/>
   <translation tag="Tap anywhere to begin" pl="Dotknij gdziekolwiek, aby zacząć"/>
   <translation tag="Tap anywhere to begin calibration" pl="Dotknij gdziekolwiek, aby zacząć kalibrację"/>
-  <translation tag="Tap the band that looks best" pl="Stuknij pasmo, które wygląda najlepiej"/>
+  <translation tag="Tap the band that looks best" pl="Dotknij pasma, które wygląda najlepiej"/>
   <translation tag="Tap the bed&apos;s back-left corner" pl="Dotknij tylnego lewego narożnika stołu"/>
   <translation tag="Tap the bed&apos;s back-right corner" pl="Dotknij tylnego prawego narożnika stołu"/>
   <translation tag="Tap the bed&apos;s front-left corner" pl="Dotknij przedniego lewego narożnika stołu"/>
@@ -5245,7 +5245,7 @@
   <translation tag="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament and clear the bed first." pl="Drukarka w razie potrzeby zbazuje X i Y, po czym wjedzie głowicą w obcinak, aby znaleźć jego położenie. Najpierw rozładuj filament i opróżnij stół."/>
   <translation tag="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first." pl="Drukarka w razie potrzeby bazuje X i Y, a potem wjeżdża głowicą w obcinak, aby znaleźć jego pozycję. Najpierw rozładuj filament."/>
   <translation tag="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer." pl="Drukarka bazuje X i Y, przesuwa głowicę na środek stołu i ustawia każdy pasek jego napinaczem. Na koniec silniki są zwalniane, więc przed ruchem drukarki wykonaj bazowanie."/>
-  <translation tag="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer. Clear the bed first." pl="Drukarka zbazuje X i Y, przesunie głowicę na środek stołu i ustawi każdy pasek jego napinaczem. Po zakończeniu silniki są zwalniane, więc przed ruchem drukarki wykonaj bazowanie. Najpierw opróżnij stół."/>
+  <translation tag="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer. Clear the bed first." pl="Drukarka zbazuje X i Y, przesunie głowicę na środek stołu i ustawi każdy pas jego napinaczem. Po zakończeniu silniki zostaną zwolnione, więc przed kolejnym ruchem zbazuj drukarkę. Najpierw opróżnij stół."/>
   <translation tag="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear." pl="Drukarka bazuje i przemiata obcinak (około 1 minuty). Utrzymuj ścieżkę filamentu drożną."/>
   <translation tag="The printer homes if needed, then finds the cutter&apos;s position. Keep the filament path clear." pl="Drukarka bazuje w razie potrzeby, potem ustala pozycję obcinaka. Utrzymuj ścieżkę filamentu drożną."/>
   <translation tag="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked." pl="Drukarka bazuje, potem odsuwa płytę maksymalnie od dyszy. Niektóre szpule nie są wystarczająco odporne na ciepło i mogą się odkształcić. Z tego ekranu nic się nie poruszy, dopóki nie potwierdzisz, że szpule są zdjęte ze stołu; Mainsail, makra i wydruki wysłane ze slicera nie są blokowane."/>
@@ -5321,7 +5321,7 @@
   <translation tag="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service" pl="Nie można odczytać czujnika w tej jednostce CFS. Sprawdź jego połączenie; jednostka może wymagać serwisu"/>
   <translation tag="The shell could not start: {}" pl="Nie udało się uruchomić powłoki: {}"/>
   <translation tag="The shell exited. Tap the terminal to start a new one." pl="Powłoka zakończyła działanie. Dotknij terminala, aby uruchomić nową."/>
-  <translation tag="The sides should converge at the same height. Apart means the {} is a little off." pl="Strony powinny zbiegać się na tej samej wysokości. Rozbieżność oznacza, że {} jest lekko przesunięty."/>
+  <translation tag="The sides should converge at the same height. Apart means the {} is a little off." pl="Strony powinny zbiegać się na tej samej wysokości. Rozbieżność oznacza, że {} jest trochę niedokładny."/>
   <translation tag="The slot asked to eject still has its filament loaded in the toolhead." pl="Slot, który ma zostać wysunięty, wciąż ma filament załadowany w głowicy."/>
   <translation tag="The slot chosen for this tool change has no filament at its inlet." pl="Slot wybrany do tej zmiany narzędzia nie ma filamentu na wejściu."/>
   <translation tag="The speed of one fan you choose" pl="Prędkość wybranego wentylatora"/>
@@ -5653,7 +5653,7 @@
   <translation tag="Tune" pl="Strojenie"/>
   <translation tag="Tune Belts" pl="Strojenie pasów"/>
   <translation tag="Tune the motors to remove fine vertical lines" pl="Dostrój silniki, aby usunąć drobne pionowe linie"/>
-  <translation tag="Tuned" pl="Nastrojono"/>
+  <translation tag="Tuned" pl="Dostrojono"/>
   <translation tag="Tuner" pl="Stroik"/>
   <translation tag="Tuning tower enabled - start a print to test" pl="Wieża strojenia włączona — rozpocznij wydruk, aby przetestować"/>
   <translation tag="Turbo" pl="Turbo"/>
@@ -6370,7 +6370,7 @@
   <translation tag="{} available" pl="Dostępne: {}"/>
   <translation tag="{} axes homed" pl="Zbazowane osie: {}"/>
   <translation tag="{} axis homed" pl="Zbazowana oś {}"/>
-  <translation tag="{} bands, {} apart. Prints a {:.0f} mm square, {:.0f} mm tall." pl="{} pasm, odstęp {}. Drukuje kwadrat {:.0f} mm, wysoki na {:.0f} mm."/>
+  <translation tag="{} bands, {} apart. Prints a {:.0f} mm square, {:.0f} mm tall." pl="{} pasm co {}. Drukuje kwadrat {:.0f} mm o wysokości {:.0f} mm."/>
   <translation tag="{} can&apos;t refill automatically" pl="{} nie może uzupełniać automatycznie"/>
   <translation tag="{} cannot be skipped: its name has characters the printer cannot be sent" pl="Nie można pominąć {}: nazwa zawiera znaki, których nie można wysłać do drukarki"/>
   <translation tag="{} cannot be stored on this printer." pl="Nie można zapisać {} na tej drukarce."/>
@@ -6421,7 +6421,7 @@
   <translation tag="{} free of {}" pl="Wolne {} z {}"/>
   <translation tag="{} h" pl="{} h"/>
   <translation tag="{} h of {} h" pl="{} h z {} h"/>
-  <translation tag="{} h {} min" pl="{} godz. {} min"/>
+  <translation tag="{} h {} min" pl="{} h {} min"/>
   <translation tag="{} hand feed did not finish" pl="{}: ręczne podawanie się nie zakończyło"/>
   <translation tag="{} has no filament" pl="{} nie ma filamentu"/>
   <translation tag="{} has no filament type set" pl="{} nie ma ustawionego typu filamentu"/>
