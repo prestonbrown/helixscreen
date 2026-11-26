@@ -53,7 +53,7 @@ struct PrinterInputs {
     /// The flow type each extruder reports ("" while it reports none).
     std::vector<std::string> live_volume_types;
     /// The flow type the user stated for each extruder ("standard" or "high_flow";
-    /// "" is standard). Klipper has no such setting, so HelixScreen keeps it.
+    /// "" while they have not). Klipper has no such setting, so HelixScreen keeps it.
     std::vector<std::string> stored_volume_types;
     /// A print is running or paused.
     bool printing = false;
@@ -95,11 +95,12 @@ struct Capability {
                                             std::optional<double> config);
 
 /// The one live-over-stored rule for a flow type: a type the firmware reports
-/// ("" when it reports none) wins, else the user's stored one, else "standard".
+/// ("" when it reports none) wins, else the user's stored one. "" means nobody has
+/// said: neither the firmware nor the user.
 [[nodiscard]] std::string resolve_volume_type(const std::string& live, const std::string& stored);
 
 /// The flow type of extruder @p extruder_index ("standard" or "high_flow") by that
-/// rule; "" for a head the printer does not have.
+/// rule; "" while it is unknown, and for a head the printer does not have.
 [[nodiscard]] std::string head_volume_type(const PrinterInputs& inputs, int extruder_index);
 
 /// Which heads the printer has and how each is changed. Pure.

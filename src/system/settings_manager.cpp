@@ -135,6 +135,9 @@ static constexpr settings::PersistedSetting SETTINGS[] = {
     // Bit N = extruder N has a High Flow nozzle (Klipper keeps no such setting).
     {"nozzle_high_flow_heads", "nozzle/high_flow_heads", Scope::PerPrinter, false, 0, 0, 255,
      "nozzle_high_flow_heads"},
+    // Bit N = the user has said what extruder N's flow type is (unset until then).
+    {"nozzle_flow_set_heads", "nozzle/flow_set_heads", Scope::PerPrinter, false, 0, 0, 255,
+     "nozzle_flow_set_heads"},
     // #1229
     {"ams_always_show_bypass_spool", "ams/always_show_bypass_spool", Scope::PerPrinter, true, 0, 0,
      1, "ams_always_show_bypass_spool"},

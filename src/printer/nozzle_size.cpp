@@ -73,10 +73,7 @@ std::optional<double> head_nozzle_for_tool(const PrinterInputs& inputs,
 }
 
 std::string resolve_volume_type(const std::string& live, const std::string& stored) {
-    if (!live.empty()) {
-        return live;
-    }
-    return stored.empty() ? snapmaker::nozzle::kStandard : stored;
+    return live.empty() ? stored : live;
 }
 
 std::string head_volume_type(const PrinterInputs& in, int extruder_index) {
@@ -186,7 +183,8 @@ PrinterInputs inputs_from_state(PrinterState& state) {
 
     const SettingsManager& settings = SettingsManager::instance();
     for (int i = 0; i < SettingsManager::kNozzleFlowMaxHeads; ++i) {
-        in.stored_volume_types.push_back(settings.get_nozzle_high_flow(i)
+        in.stored_volume_types.push_back(!settings.get_nozzle_flow_set(i) ? ""
+                                         : settings.get_nozzle_high_flow(i)
                                              ? snapmaker::nozzle::kHighFlow
                                              : snapmaker::nozzle::kStandard);
     }

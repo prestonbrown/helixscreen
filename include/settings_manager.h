@@ -657,36 +657,60 @@ class SettingsManager {
     static constexpr int kEndOfPrintUnloadMaxTools = 8;
 
     /**
-     * @brief Which heads carry a High Flow nozzle, bit N = extruder N.
+     * @brief What the user said each head's nozzle flow type is, bit N = extruder N.
      *
-     * Klipper has no such setting, so it is the user's statement about the nozzle,
-     * kept here per printer. Default 0 (every head Standard). A firmware that
-     * reports a flow type itself overrides it (nozzle_size::head_volume_type()).
+     * Klipper has no such setting, so it is the user's statement about the nozzle, kept
+     * per printer. A head is unset until the user picks a type: the "set" mask says
+     * whether they did, the "high flow" mask which type. A firmware that reports a flow
+     * type itself overrides both (nozzle_size::head_volume_type()).
      */
-    /** @brief High Flow mask subject (integer bitmask) */
     lv_subject_t* subject_nozzle_high_flow_heads() {
         return settings_.subject(Key::NozzleHighFlowHeads);
+    }
+    lv_subject_t* subject_nozzle_flow_set_heads() {
+        return settings_.subject(Key::NozzleFlowSetHeads);
     }
     int get_nozzle_high_flow_heads() const {
         return settings_.get(Key::NozzleHighFlowHeads);
     }
+    int get_nozzle_flow_set_heads() const {
+        return settings_.get(Key::NozzleFlowSetHeads);
+    }
     void set_nozzle_high_flow_heads(int mask) {
         settings_.set(Key::NozzleHighFlowHeads, mask);
     }
-    bool get_nozzle_high_flow(int extruder) const {
+    void set_nozzle_flow_set_heads(int mask) {
+        settings_.set(Key::NozzleFlowSetHeads, mask);
+    }
+    /** @brief Whether the user has said what @p extruder's flow type is */
+    bool get_nozzle_flow_set(int extruder) const {
         return extruder >= 0 && extruder < kNozzleFlowMaxHeads &&
+               (get_nozzle_flow_set_heads() & (1 << extruder)) != 0;
+    }
+    /** @brief Whether @p extruder was set to High Flow; false while unset */
+    bool get_nozzle_high_flow(int extruder) const {
+        return get_nozzle_flow_set(extruder) &&
                (get_nozzle_high_flow_heads() & (1 << extruder)) != 0;
     }
-    /** @brief Set one head's bit; ignores a head out of range */
+    /** @brief Record the user's statement for one head; ignores a head out of range */
     void set_nozzle_high_flow(int extruder, bool high_flow) {
         if (extruder < 0 || extruder >= kNozzleFlowMaxHeads) {
             return;
         }
         const int mask = get_nozzle_high_flow_heads();
-        settings_.set(Key::NozzleHighFlowHeads,
-                      high_flow ? (mask | (1 << extruder)) : (mask & ~(1 << extruder)));
+        set_nozzle_high_flow_heads(high_flow ? (mask | (1 << extruder))
+                                             : (mask & ~(1 << extruder)));
+        set_nozzle_flow_set_heads(get_nozzle_flow_set_heads() | (1 << extruder));
     }
-    /// Heads the High Flow mask can name (its maximum is 255).
+    /** @brief Back to unset */
+    void clear_nozzle_flow(int extruder) {
+        if (extruder < 0 || extruder >= kNozzleFlowMaxHeads) {
+            return;
+        }
+        set_nozzle_high_flow_heads(get_nozzle_high_flow_heads() & ~(1 << extruder));
+        set_nozzle_flow_set_heads(get_nozzle_flow_set_heads() & ~(1 << extruder));
+    }
+    /// Heads the flow masks can name (their maximum is 255).
     static constexpr int kNozzleFlowMaxHeads = 8;
 
     /**
@@ -1211,6 +1235,7 @@ class SettingsManager {
         UnloadAfterPrint,
         EndOfPrintUnloadTools,
         NozzleHighFlowHeads,
+        NozzleFlowSetHeads,
         AmsAlwaysShowBypassSpool,
         AmsKeepSpoolInfoOnEject,
         AmsTagLinksSpoolman,
