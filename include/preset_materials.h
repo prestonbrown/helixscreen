@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "lvgl/lvgl.h"
 #include "material_settings_manager.h"
 
 #include <array>
@@ -98,6 +99,13 @@ std::string nozzle_temp_label(int slot);
 /// Whether a tap on slot @p slot's preset would run a macro: its material
 /// names one, whether or not this printer defines it. The preset's mark.
 [[nodiscard]] bool has_macro(int slot);
+
+/// The subjects a preset button binds its macro mark to: "preset_material_<slot>_has_macro",
+/// 1 while the material names a macro, and "preset_material_<slot>_mark_beside_name", 1 while
+/// the name fits beside the mark in the button as laid out. The Filament panel measures
+/// the second. Nullptr before init_subjects(), or for a slot out of range.
+lv_subject_t* has_macro_subject(int slot);
+lv_subject_t* mark_beside_name_subject(int slot);
 
 /**
  * @brief Create the globally-scoped preset subjects. Idempotent.

@@ -30,6 +30,10 @@ int32_t text_width(const char* txt, const lv_font_t* font, int32_t letter_space 
 int32_t text_width_n(const char* txt, uint32_t len, const lv_font_t* font,
                      int32_t letter_space = 0);
 
+/// text_width() of what @p label shows, in its own font and letter space: the
+/// same whether the label is shown or hidden.
+int32_t label_width(lv_obj_t* label);
+
 /**
  * @brief Widen a closed dropdown so its button text and arrow both fit.
  *
@@ -45,7 +49,8 @@ void fit_dropdown_to_text(lv_obj_t* dropdown);
  * For a label with a shorter form ("220°C / 60°C" or "220°C") where an
  * ellipsis would cut the part that matters. Measures @p full's text whether or
  * not it is shown, so call it again whenever the parent resizes or the text changes.
+ * @p reserved is the width of anything else on the line, which the text cannot use.
  */
-void show_label_that_fits(lv_obj_t* full, lv_obj_t* fallback);
+void show_label_that_fits(lv_obj_t* full, lv_obj_t* fallback, int32_t reserved = 0);
 
 } // namespace helix::ui

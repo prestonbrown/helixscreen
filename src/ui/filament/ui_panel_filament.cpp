@@ -69,6 +69,8 @@
 
 #include <algorithm>
 #include <cstring>
+#include <initializer_list>
+#include <iterator>
 #include <memory>
 
 using namespace helix;
@@ -111,14 +113,85 @@ using helix::ui::filament_load_fallback_gcode;
 using helix::ui::filament_purge_fallback_gcode;
 using helix::ui::filament_unload_fallback_gcode;
 
-// A preset button or its temperature line resized: show the nozzle-and-bed line
-// only when it fits the button.
+/// The four fixed preset buttons, by slot.
+static constexpr const char* kPresetButtonNames[] = {"preset_pla", "preset_petg", "preset_abs",
+                                                     "preset_tpu"};
+static_assert(std::size(kPresetButtonNames) == kPresetCount);
+
+/// The first widget under @p parent that carries one of @p names, or nullptr.
+static lv_obj_t* first_named(lv_obj_t* parent, std::initializer_list<const char*> names) {
+    for (const char* name : names) {
+        if (lv_obj_t* found = lv_obj_find_by_name(parent, name)) {
+            return found;
+        }
+    }
+    return nullptr;
+}
+
+/// The preset button @p widget sits in: the one with the name's row for a direct child.
+static lv_obj_t* preset_button_of(lv_obj_t* widget) {
+    for (lv_obj_t* candidate = widget; candidate != nullptr;
+         candidate = lv_obj_get_parent(candidate)) {
+        const uint32_t count = lv_obj_get_child_count(candidate);
+        for (uint32_t i = 0; i < count; ++i) {
+            const char* child_name =
+                lv_obj_get_name(lv_obj_get_child(candidate, static_cast<int32_t>(i)));
+            if (child_name && std::strcmp(child_name, "preset_name_row") == 0) {
+                return candidate;
+            }
+        }
+    }
+    return nullptr;
+}
+
+/// A preset button, or its name, its mark or a temperature line in it, resized.
+/// The macro mark goes before the name while the name fits beside it, and
+/// before the temperature line in a button too narrow for both; the answer is
+/// published for the markup. The nozzle-and-bed line shows only when it fits
+/// what the mark leaves of the button.
 static void preset_fit_temps(lv_event_t* e) {
     auto* target = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-    lv_obj_t* button =
-        lv_obj_find_by_name(target, "preset_temps") ? target : lv_obj_get_parent(target);
+    lv_obj_t* button = preset_button_of(target);
+    if (!button) {
+        return;
+    }
+    lv_obj_t* name_row = lv_obj_find_by_name(button, "preset_name_row");
+    lv_obj_t* name = first_named(button, {"preset_material_name", "spool_preset_label"});
+    lv_obj_t* mark = first_named(button, {"preset_macro_mark", "spool_preset_macro_mark"});
+    // DECLARATIVE_OK: measured layout; where the mark sits depends on drawn widths.
+    bool beside = true;
+    if (name_row && name && mark) {
+        const int32_t room = lv_obj_get_content_width(name_row);
+        beside = room > 0 && helix::ui::label_width(name) + helix::ui::label_width(mark) +
+                                     lv_obj_get_style_pad_column(name_row, LV_PART_MAIN) <=
+                                 room;
+    }
+    lv_subject_t* has_macro = nullptr;
+    lv_subject_t* beside_subject = nullptr;
+    const char* button_name = lv_obj_get_name(button);
+    for (int slot = 0; slot < kPresetCount; ++slot) {
+        if (std::strcmp(button_name, kPresetButtonNames[slot]) == 0) {
+            has_macro = helix::presets::has_macro_subject(slot);
+            beside_subject = helix::presets::mark_beside_name_subject(slot);
+        }
+    }
+    if (std::strcmp(button_name, "preset_spool") == 0) {
+        has_macro = lv_xml_get_subject(nullptr, "filament_spool_preset_has_macro");
+        beside_subject = lv_xml_get_subject(nullptr, "filament_spool_preset_mark_beside_name");
+    }
+    if (!beside_subject) {
+        return;
+    }
+    lv_subject_set_int(beside_subject, beside ? 1 : 0);
+
+    const bool mark_before_temps = !beside && has_macro && lv_subject_get_int(has_macro) == 1;
+    lv_obj_t* temps_row = lv_obj_find_by_name(button, "preset_temps_row");
+    const int32_t reserved =
+        mark_before_temps && temps_row
+            ? helix::ui::label_width(mark) + lv_obj_get_style_pad_column(temps_row, LV_PART_MAIN)
+            : 0;
     helix::ui::show_label_that_fits(lv_obj_find_by_name(button, "preset_temps"),
-                                    lv_obj_find_by_name(button, "preset_nozzle_temp"));
+                                    lv_obj_find_by_name(button, "preset_nozzle_temp"), reserved);
 }
 
 /// A hold on preset @p slot opens its material picker. The hold is still the active
@@ -469,6 +542,8 @@ void FilamentPanel::init_subjects() {
                                   "", "filament_spool_preset_nozzle_temp", subjects_);
         UI_MANAGED_SUBJECT_INT(spool_preset_has_macro_subject_, 0,
                                "filament_spool_preset_has_macro", subjects_);
+        UI_MANAGED_SUBJECT_INT(spool_preset_mark_beside_name_subject_, 1,
+                               "filament_spool_preset_mark_beside_name", subjects_);
 
         // Card title subject (dynamic: "Multi-Filament" or "External Spool")
         std::strncpy(card_title_buf_, lv_tr("Multi-Filament"), sizeof(card_title_buf_) - 1);
@@ -637,9 +712,8 @@ void FilamentPanel::bind_widgets() {
     if (!panel_)
         return;
 
-    const char* preset_names[] = {"preset_pla", "preset_petg", "preset_abs", "preset_tpu"};
-    for (int i = 0; i < 4; i++) {
-        preset_buttons_[i] = lv_obj_find_by_name(panel_, preset_names[i]);
+    for (int i = 0; i < kPresetCount; i++) {
+        preset_buttons_[i] = lv_obj_find_by_name(panel_, kPresetButtonNames[i]);
     }
 
     // Action buttons (btn_load, btn_unload, btn_purge) - disabled state managed by XML bindings

@@ -12,6 +12,7 @@
 #include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/filament_panel_test_access.h"
 #include "../test_helpers/material_settings_scope.h"
+#include "../test_helpers/scoped_geometry.h"
 #include "../test_helpers/scoped_moonraker_api.h"
 #include "../test_helpers/scoped_pointer_indev.h"
 #include "ams_state.h"
@@ -20,6 +21,7 @@
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "helix/ui/text_metrics.h"
 #include "material_settings_manager.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
@@ -146,6 +148,24 @@ struct MarkHarness {
         return found;
     }
 
+    /// Where @p preset's macro mark shows: before its name, before its
+    /// temperature line, in both places or nowhere. The mark's widgets are
+    /// <stem>_macro_mark and <stem>_macro_mark_temps.
+    static std::string_view mark_place(lv_obj_t* preset, std::string_view stem) {
+        const std::string by_name = std::string(stem) + "_macro_mark";
+        const std::string by_temps = std::string(stem) + "_macro_mark_temps";
+        lv_obj_t* name = lv_obj_find_by_name(preset, by_name.c_str());
+        lv_obj_t* temps = lv_obj_find_by_name(preset, by_temps.c_str());
+        REQUIRE(name != nullptr);
+        REQUIRE(temps != nullptr);
+        const bool before_name = !lv_obj_is_hidden(name);
+        const bool before_temps = !lv_obj_is_hidden(temps);
+        if (before_name && before_temps) {
+            return "both";
+        }
+        return before_name ? "name" : before_temps ? "temps" : "none";
+    }
+
     lv_area_t area(lv_obj_t* widget) {
         lv_obj_update_layout(root);
         lv_area_t bounds{};
@@ -194,9 +214,10 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     m.settle();
 
     REQUIRE(helix::presets::name(2) == "ABS");
-    CHECK(lv_obj_is_hidden(m.under(m.shown("preset_abs"), "preset_macro_mark")) == (state != 2));
+    CHECK(MarkHarness::mark_place(m.shown("preset_abs"), "preset") ==
+          (state == 2 ? "name" : "none"));
     for (const char* name : kUnmarked) {
-        CHECK(lv_obj_is_hidden(m.under(m.shown(name), "preset_macro_mark")));
+        CHECK(MarkHarness::mark_place(m.shown(name), "preset") == "none");
     }
 }
 
@@ -221,11 +242,11 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE_FALSE(lv_obj_is_hidden(button));
     CHECK(std::string(lv_subject_get_string(
               lv_xml_get_subject(nullptr, "filament_spool_preset_name"))) == "ABS");
-    CHECK(lv_obj_is_hidden(m.under(button, "spool_preset_macro_mark")) == !with_macro);
+    CHECK(MarkHarness::mark_place(button, "spool_preset") == (with_macro ? "name" : "none"));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "The macro mark keeps each name over its temperature line, and fits beside it",
+                 "The macro mark keeps each name over its temperature line and fits beside it",
                  "[filament_preset_mark][2183]") {
     MaterialSettingsScope settings;
     MarkHarness m(*this);
@@ -237,7 +258,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // line, the glyph before the name, both inside the button.
     lv_obj_t* abs = m.shown("preset_abs");
     lv_obj_t* mark = m.under(abs, "preset_macro_mark");
-    REQUIRE_FALSE(lv_obj_is_hidden(mark));
+    REQUIRE(MarkHarness::mark_place(abs, "preset") == "name");
     const lv_area_t button = m.area(abs);
     const lv_area_t glyph = m.area(mark);
     const lv_area_t name = m.area(m.under(abs, "preset_material_name"));
@@ -254,7 +275,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // Unmarked: each name still sits over its own temperature line.
     for (const char* button_name : kUnmarked) {
         lv_obj_t* preset = m.shown(button_name);
-        CHECK(lv_obj_is_hidden(m.under(preset, "preset_macro_mark")));
+        CHECK(MarkHarness::mark_place(preset, "preset") == "none");
         const lv_area_t label = m.area(m.under(preset, "preset_material_name"));
         const lv_area_t line = m.area(m.under(preset, "preset_temps"));
         CHECK(std::abs(MarkHarness::center_x(label) - MarkHarness::center_x(line)) <= 1);
@@ -272,7 +293,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A tap and a hold on a marked preset's name 
     m.client.clear_gcode_script_history();
 
     lv_obj_t* abs = m.shown("preset_abs");
-    REQUIRE_FALSE(lv_obj_is_hidden(m.under(abs, "preset_macro_mark")));
+    REQUIRE(MarkHarness::mark_place(abs, "preset") == "name");
     const lv_area_t name = m.area(m.under(abs, "preset_material_name"));
     const int x = MarkHarness::center_x(name);
     const int y = (name.y1 + name.y2) / 2;
@@ -332,4 +353,93 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(ModalStack::instance().top_dialog() == nullptr);
     CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "material_edit_name"))) ==
           "ABS");
+}
+
+TEST_CASE_METHOD(
+    LVGLUITestFixture,
+    "A preset too narrow for the mark beside its name puts the mark before its temperatures",
+    "[filament_preset_mark][2183]") {
+    const int height = GENERATE(320, 272);
+    CAPTURE(height);
+    MaterialSettingsScope settings;
+    // Declared before the panel, so the panel is laid out at this size.
+    helix::test::ScopedGeometry screen(480, height);
+    MarkHarness m(*this);
+    MaterialSettingsManager::instance().set_override("ABS", abs_override("HEAT_ABS"));
+    helix::presets::refresh_subjects();
+    m.settle();
+
+    lv_obj_t* abs = m.shown("preset_abs");
+    lv_obj_t* name = m.under(abs, "preset_material_name");
+    lv_obj_t* glyph = m.under(abs, "preset_macro_mark_temps");
+    const lv_area_t button = m.area(abs);
+    const lv_area_t label = m.area(name);
+    const lv_area_t mark = m.area(glyph);
+    INFO("button " << button.x1 << "-" << button.x2 << " name " << label.x1 << "-" << label.x2
+                   << " glyph " << mark.x1 << "-" << mark.x2);
+    CHECK(MarkHarness::mark_place(abs, "preset") == "temps");
+    // The name is drawn whole, inside the button, and the glyph stays inside it too.
+    const int32_t whole =
+        helix::ui::text_width("ABS/ASA", lv_obj_get_style_text_font(name, LV_PART_MAIN),
+                              lv_obj_get_style_text_letter_space(name, LV_PART_MAIN));
+    INFO("name box " << label.x2 - label.x1 + 1 << " px, the whole name draws " << whole << " px");
+    CHECK(label.x2 - label.x1 + 1 >= whole - 1);
+    CHECK(label.x1 > button.x1);
+    CHECK(label.x2 < button.x2);
+    CHECK(mark.x1 >= button.x1);
+    // The temperature line shown ends inside the button, clear of the glyph.
+    for (const char* line : {"preset_temps", "preset_nozzle_temp"}) {
+        lv_obj_t* temps = m.under(abs, line);
+        if (lv_obj_is_hidden(temps)) {
+            continue;
+        }
+        const lv_area_t shown = m.area(temps);
+        INFO(shown.x1 << "-" << shown.x2);
+        CHECK(shown.x1 > mark.x2);
+        CHECK(shown.x2 < button.x2);
+    }
+    for (const char* button_name : kUnmarked) {
+        CHECK(MarkHarness::mark_place(m.shown(button_name), "preset") == "none");
+    }
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "A marked preset gives its mark room on its temperature line and only then",
+                 "[filament_preset_mark][2183]") {
+    const bool with_macro = GENERATE(true, false);
+    CAPTURE(with_macro);
+    MaterialSettingsScope settings;
+    // Declared before the panel, so the panel is laid out at this size.
+    helix::test::ScopedGeometry screen(480, 400);
+    MarkHarness m(*this);
+    // ABS/ASA is too long for the mark beside it here, while its temperatures
+    // are short enough for the nozzle-and-bed line to fit the button alone.
+    filament::MaterialOverride override =
+        abs_override(with_macro ? std::optional<std::string>{"HEAT_ABS"} : std::nullopt);
+    override.nozzle_min = 200;
+    override.nozzle_max = 220;
+    override.bed_temp = 50;
+    MaterialSettingsManager::instance().set_override("ABS", override);
+    helix::presets::refresh_subjects();
+    m.settle();
+
+    lv_obj_t* abs = m.shown("preset_abs");
+    lv_obj_t* full = m.under(abs, "preset_temps");
+    lv_obj_t* nozzle = m.under(abs, "preset_nozzle_temp");
+    const lv_area_t button = m.area(abs);
+    INFO("button " << button.x1 << "-" << button.x2 << " full line " << m.area(full).x1 << "-"
+                   << m.area(full).x2 << " '" << lv_label_get_text(full) << "'");
+    if (with_macro) {
+        CHECK(MarkHarness::mark_place(abs, "preset") == "temps");
+        // The full line does not fit beside the mark, so the nozzle alone shows.
+        CHECK(lv_obj_is_hidden(full));
+        const lv_area_t shown = m.area(nozzle);
+        CHECK(shown.x1 > m.area(m.under(abs, "preset_macro_mark_temps")).x2);
+        CHECK(shown.x2 < button.x2);
+    } else {
+        CHECK(MarkHarness::mark_place(abs, "preset") == "none");
+        // With no mark on it, the button still shows the nozzle-and-bed line.
+        CHECK_FALSE(lv_obj_is_hidden(full));
+        CHECK(lv_obj_is_hidden(nozzle));
+    }
 }

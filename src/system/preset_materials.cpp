@@ -40,6 +40,7 @@ struct SubjectState {
     std::array<helix::Subject, kPresetCount> nozzle_subjects{};
     std::array<std::array<char, kTempBufSize>, kPresetCount> nozzle_bufs{};
     std::array<helix::Subject, kPresetCount> has_macro_subjects{};
+    std::array<helix::Subject, kPresetCount> mark_beside_subjects{};
     helix::Subject count_subject{};
     SubjectManager subjects;
     /// Re-renders the labels when "Material presets heat the bed and chamber" flips.
@@ -172,6 +173,18 @@ bool has_macro(int slot) {
     return override && override->names_a_macro();
 }
 
+lv_subject_t* has_macro_subject(int slot) {
+    return slot_valid(slot) && state().ready
+               ? &state().has_macro_subjects[static_cast<size_t>(slot)]
+               : nullptr;
+}
+
+lv_subject_t* mark_beside_name_subject(int slot) {
+    return slot_valid(slot) && state().ready
+               ? &state().mark_beside_subjects[static_cast<size_t>(slot)]
+               : nullptr;
+}
+
 namespace {
 
 // The setting decides whether temp_label() shows the bed. Immediate: the
@@ -217,6 +230,9 @@ void init_subjects() {
     static constexpr const char* kHasMacroSubjects[kPresetCount] = {
         "preset_material_0_has_macro", "preset_material_1_has_macro", "preset_material_2_has_macro",
         "preset_material_3_has_macro"};
+    static constexpr const char* kMarkBesideSubjects[kPresetCount] = {
+        "preset_material_0_mark_beside_name", "preset_material_1_mark_beside_name",
+        "preset_material_2_mark_beside_name", "preset_material_3_mark_beside_name"};
 
     for (int i = 0; i < kPresetCount; ++i) {
         s.name_bufs[i][0] = '\0';
@@ -242,6 +258,12 @@ void init_subjects() {
         s.has_macro_subjects[i].init_int(0);
         s.subjects.publish(kHasMacroSubjects[i], &s.has_macro_subjects[i]);
         HELIX_SUBJECT_DEBUG_REGISTER(&s.has_macro_subjects[i], kHasMacroSubjects[i],
+                                     LV_SUBJECT_TYPE_INT);
+
+        // Wide enough for the mark beside the name until the panel measures.
+        s.mark_beside_subjects[i].init_int(1);
+        s.subjects.publish(kMarkBesideSubjects[i], &s.mark_beside_subjects[i]);
+        HELIX_SUBJECT_DEBUG_REGISTER(&s.mark_beside_subjects[i], kMarkBesideSubjects[i],
                                      LV_SUBJECT_TYPE_INT);
     }
 

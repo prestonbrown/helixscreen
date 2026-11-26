@@ -10,27 +10,42 @@
     <bind_flag_if_eq subject="filament_spool_preset_shown" flag="hidden" ref_value="0"/>
     <bind_style name="styles.heat_blocked" subject="ams_nozzle_heat_blocked" ref_value="1"/>
     <event_cb trigger="clicked" callback="on_filament_preset_spool"/>
-    <!-- The name, with the mark before it while the spool's material names a
-         macro. The row takes no press, as in filament_preset_button.xml. -->
-    <lv_obj width="100%"
-            height="content" flex_flow="row" style_pad_all="0" scrollable="false" clickable="false"
+    <event_cb trigger="size_changed" callback="filament_preset_fit_temps"/>
+    <!-- The mark: this preset's material names a macro. It sits before the name
+         while the name fits beside it, and before the temperature line in a
+         button too narrow for both (filament_spool_preset_mark_beside_name, measured by
+         filament_preset_fit_temps). Both rows take no press: a tap or a hold on
+         the name reaches the button. -->
+    <lv_obj name="preset_name_row"
+            width="100%" height="content" flex_flow="row" style_pad_all="0" scrollable="false" clickable="false"
             style_flex_main_place="center" style_flex_cross_place="center" style_pad_column="#space_xxs">
       <icon name="spool_preset_macro_mark" src="script_text" size="xs" clickable="false" hidden="true">
-        <bind_flag_if_eq subject="filament_spool_preset_has_macro" flag="hidden" ref_value="0"/>
+        <bind_flag_if cond="filament_spool_preset_has_macro eq 0 or filament_spool_preset_mark_beside_name eq 0"
+                      flag="hidden"/>
       </icon>
       <text_body name="spool_preset_label"
                  bind_text="filament_spool_preset_name" style_text_align="center" long_mode="dots"
-                 style_max_width="100%"/>
+                 style_max_width="100%">
+        <event_cb trigger="size_changed" callback="filament_preset_fit_temps"/>
+      </text_body>
     </lv_obj>
-    <event_cb trigger="size_changed" callback="filament_preset_fit_temps"/>
-    <!-- Same pair as filament_preset_button.xml: nozzle and bed when they fit, the nozzle alone when not. -->
-    <text_small name="preset_temps"
-                bind_text="filament_spool_preset_temps" style_text_align="center" style_text_color="#text_muted"
-                long_mode="clip" style_max_width="100%">
-      <event_cb trigger="size_changed" callback="filament_preset_fit_temps"/>
-    </text_small>
-    <text_small name="preset_nozzle_temp"
-                bind_text="filament_spool_preset_nozzle_temp" style_text_align="center" style_text_color="#text_muted"
-                long_mode="clip" style_max_width="100%" hidden="true"/>
+    <!-- Nozzle and bed when both fit the button's width, the nozzle alone when
+         they do not (filament_preset_fit_temps), never an ellipsis. -->
+    <lv_obj name="preset_temps_row"
+            width="100%" height="content" flex_flow="row" style_pad_all="0" scrollable="false" clickable="false"
+            style_flex_main_place="center" style_flex_cross_place="center" style_pad_column="#space_xxs">
+      <icon name="spool_preset_macro_mark_temps" src="script_text" size="xs" clickable="false" hidden="true">
+        <bind_flag_if cond="filament_spool_preset_has_macro eq 0 or filament_spool_preset_mark_beside_name eq 1"
+                      flag="hidden"/>
+      </icon>
+      <text_small name="preset_temps"
+                  bind_text="filament_spool_preset_temps" style_text_align="center" style_text_color="#text_muted"
+                  long_mode="clip" style_max_width="100%">
+        <event_cb trigger="size_changed" callback="filament_preset_fit_temps"/>
+      </text_small>
+      <text_small name="preset_nozzle_temp"
+                  bind_text="filament_spool_preset_nozzle_temp" style_text_align="center" style_text_color="#text_muted"
+                  long_mode="clip" style_max_width="100%" hidden="true"/>
+    </lv_obj>
   </view>
 </component>

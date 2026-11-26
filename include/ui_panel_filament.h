@@ -608,6 +608,8 @@ class FilamentPanel : public PanelBase {
     char spool_preset_nozzle_temp_buf_[16] = {};
     // 1 while the spool's material names a macro: the mark on its preset.
     helix::Subject spool_preset_has_macro_subject_{};
+    // 1 while the spool preset's name fits beside its macro mark, as the button is laid out.
+    helix::Subject spool_preset_mark_beside_name_subject_{};
     // Warning dialogs for filament sensor integration
     helix::ui::WidgetRef load_warning_dialog_;
     helix::ui::WidgetRef unload_warning_dialog_;
