@@ -3,12 +3,19 @@
 #include "nozzle_size.h"
 
 #include "app_globals.h"
+#include "gcode_help.h"
+#include "i_moonraker_client.h"
 #include "klipper_extruder_naming.h"
 #include "platform_info.h"
 #include "printer_state.h"
 #include "snapmaker_nozzle_properties.h"
+#include "translation_loader.h"
+
+#include <spdlog/fmt/fmt.h>
+#include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 
 namespace helix::nozzle_size {
@@ -64,7 +71,7 @@ std::optional<double> head_nozzle_for_tool(const PrinterInputs& inputs,
     return extruder ? head_nozzle(inputs, *extruder) : std::nullopt;
 }
 
-Capability capability(const PrinterInputs& in) {
+Capability nozzle_capability(const PrinterInputs& in) {
     Capability cap;
     for (size_t i = 0; i < head_count(in); ++i) {
         const int tool = static_cast<int>(i);
@@ -116,6 +123,10 @@ PrinterInputs inputs_from_state(PrinterState& state) {
         if (info.nozzle_diameter > 0.0) {
             in.live_diameters[slot] = info.nozzle_diameter;
         }
+        if (in.live_volume_types.size() <= slot) {
+            in.live_volume_types.resize(slot + 1);
+        }
+        in.live_volume_types[slot] = info.nozzle_volume_type;
         if (!info.nozzle_volume_type.empty() && state.get_discovery().has_snapmaker()) {
             in.vendor_records_present = true;
         }
@@ -126,7 +137,160 @@ PrinterInputs inputs_from_state(PrinterState& state) {
     }
 
     in.config_supervised = firmware_supervised();
+    in.printing = state.print_state().is_print_in_progress();
+    in.set_nozzle_diameter_registered = size_command_registered();
     return in;
+}
+
+namespace {
+
+ChangePlan refuse(const char* reason) {
+    ChangePlan plan;
+    plan.reason = reason;
+    return plan;
+}
+
+bool same_size(double a, double b) {
+    return std::fabs(a - b) < 1e-6;
+}
+
+/// The head's row, or nullptr; refusal reasons for a head that cannot change.
+const HeadCapability* settable_head(const Capability& cap, const PrinterInputs& in,
+                                    int extruder_index, ChangePlan& refusal) {
+    for (const auto& h : cap.heads) {
+        if (h.extruder_index != extruder_index) {
+            continue;
+        }
+        if (!h.settable) {
+            refusal =
+                refuse(in.config_supervised ? kFirmwareSupervisedConfigRefusal
+                                            : TR_NOOP("This nozzle size can't be changed here"));
+            return nullptr;
+        }
+        if (h.idle_only && in.printing) {
+            refusal = refuse(TR_NOOP("Finish or cancel the print first"));
+            return nullptr;
+        }
+        return &h;
+    }
+    refusal = refuse(TR_NOOP("This printer has no such toolhead"));
+    return nullptr;
+}
+
+std::string size_text(double mm) {
+    return fmt::format("{}", mm);
+}
+
+snapmaker::nozzle::Nozzle reported_nozzle(const PrinterInputs& in, int index) {
+    snapmaker::nozzle::Nozzle n;
+    n.diameter = entry_at(in.live_diameters, index);
+    if (index >= 0 && static_cast<size_t>(index) < in.live_volume_types.size() &&
+        !in.live_volume_types[static_cast<size_t>(index)].empty()) {
+        n.volume_type = in.live_volume_types[static_cast<size_t>(index)];
+    }
+    return n;
+}
+
+ChangePlan vendor_plan(const PrinterInputs& in, const HeadCapability& h,
+                       const snapmaker::nozzle::Nozzle& wanted) {
+    const auto params = snapmaker::nozzle::change_params(
+        h.extruder_index, reported_nozzle(in, h.extruder_index), wanted);
+    if (!params) {
+        return refuse(TR_NOOP("The head is already set that way"));
+    }
+    ChangePlan plan;
+    plan.kind = ChangePlan::Kind::VendorRpc;
+    plan.method = snapmaker::nozzle::kMethod;
+    plan.params = *params;
+    return plan;
+}
+
+} // namespace
+
+ChangePlan plan_change(const PrinterInputs& in, int extruder_index, double mm) {
+    ChangePlan refusal;
+    const Capability cap = nozzle_capability(in);
+    const HeadCapability* h = settable_head(cap, in, extruder_index, refusal);
+    if (h == nullptr) {
+        return refusal;
+    }
+    const bool offered = std::any_of(h->choices.begin(), h->choices.end(),
+                                     [mm](double c) { return same_size(c, mm); });
+    if (!offered) {
+        return refuse(TR_NOOP("This printer doesn't accept that nozzle size"));
+    }
+    if (h->mechanism != Mechanism::VendorRpc && h->current && same_size(*h->current, mm)) {
+        return refuse(TR_NOOP("That size is already set"));
+    }
+    ChangePlan plan;
+    switch (h->mechanism) {
+    case Mechanism::KlipperCommand:
+        plan.kind = ChangePlan::Kind::KlipperCommand;
+        plan.gcode = "SET_NOZZLE_DIAMETER VALUE=" + size_text(mm);
+        return plan;
+    case Mechanism::VendorRpc: {
+        snapmaker::nozzle::Nozzle wanted;
+        wanted.diameter = mm;
+        return vendor_plan(in, *h, wanted);
+    }
+    case Mechanism::ConfigEdit:
+        plan.kind = ChangePlan::Kind::ConfigEdit;
+        plan.section = h->extruder;
+        plan.key = "nozzle_diameter";
+        plan.value = size_text(mm);
+        plan.restart_required = true;
+        return plan;
+    case Mechanism::None:
+        break;
+    }
+    return refuse(TR_NOOP("This nozzle size can't be changed here"));
+}
+
+ChangePlan plan_flow_change(const PrinterInputs& in, int extruder_index,
+                            const std::string& volume_type) {
+    ChangePlan refusal;
+    const Capability cap = nozzle_capability(in);
+    const HeadCapability* h = settable_head(cap, in, extruder_index, refusal);
+    if (h == nullptr) {
+        return refusal;
+    }
+    if (h->flow_variants.empty() || h->mechanism != Mechanism::VendorRpc) {
+        return refuse(TR_NOOP("This toolhead has no flow type to change"));
+    }
+    snapmaker::nozzle::Nozzle wanted;
+    wanted.volume_type = volume_type;
+    return vendor_plan(in, *h, wanted);
+}
+
+std::optional<bool> help_lists_size_command(const nlohmann::json& response) {
+    return gcode_help_lists(response, "SET_NOZZLE_DIAMETER");
+}
+
+namespace {
+std::atomic<bool> g_size_command_registered{false};
+} // namespace
+
+bool size_command_registered() {
+    return g_size_command_registered.load();
+}
+
+void set_size_command_registered(bool registered) {
+    g_size_command_registered.store(registered);
+}
+
+void probe_size_command(IMoonrakerClient& client) {
+    set_size_command_registered(false);
+    client.send_jsonrpc(
+        "printer.gcode.help", nlohmann::json::object(),
+        [](const nlohmann::json& response) {
+            set_size_command_registered(help_lists_size_command(response).value_or(false));
+        },
+        [](const MoonrakerError& err) {
+            spdlog::debug("[NozzleSize] Could not list gcode commands: {}", err.message);
+        },
+        0,   // default timeout
+        true // silent: a probe; the size stays editable through the config
+    );
 }
 
 } // namespace helix::nozzle_size

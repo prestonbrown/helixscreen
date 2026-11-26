@@ -143,6 +143,7 @@ TEST_CASE("the tail discovery steps run in this order", "[discovery_steps]") {
     const std::vector<std::string> expected = {
         "update_checker_connected",
         "about_print_hours",
+        "nozzle_command_probe",
         "timelapse_events",
         "power_sensor_subscribe",
         "acknowledge_deferred_hardware",

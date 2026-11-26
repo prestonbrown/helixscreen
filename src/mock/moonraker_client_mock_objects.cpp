@@ -335,6 +335,9 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 commands[name] = desc;
             }
         }
+        if (self->get_printer_type() == MoonrakerClientMock::PrinterType::CREALITY_K2_PLUS) {
+            commands["SET_NOZZLE_DIAMETER"] = "Set the nozzle diameter";
+        }
         if (self->is_mock_afc_boxturtle()) {
             // The AFC DEV lane commands the AFC mock answers.
             commands["AFC_SET_SPOOL_TEMP"] = "Set spool temperatures for a lane";
@@ -759,6 +762,11 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 }
             }
 
+            if (self->get_printer_type() == MoonrakerClientMock::PrinterType::CREALITY_K2_PLUS &&
+                objects.contains("extruder")) {
+                status_obj["extruder"]["nozzle_diameter"] = self->nozzle_properties(0).first;
+            }
+
             // The U1 reports each head's calibrated offset and its fitted nozzle
             // (kept outside the config; printer.control.nozzle_properties changes
             // it) on its extruder, and the offset calibration state on
@@ -905,6 +913,11 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 }
             }
 
+            // The K2 reports its nozzle on `extruder` (SET_NOZZLE_DIAMETER changes it).
+            if (self->get_printer_type() == MoonrakerClientMock::PrinterType::CREALITY_K2_PLUS &&
+                objects.contains("extruder")) {
+                status_obj["extruder"]["nozzle_diameter"] = self->nozzle_properties(0).first;
+            }
             // The U1 reports each head's fitted nozzle on its extruder, here as
             // in the objects query: the app reads it from this snapshot.
             if (self->get_printer_type() == MoonrakerClientMock::PrinterType::SNAPMAKER_U1) {
