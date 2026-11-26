@@ -435,9 +435,18 @@ class UnitSplitMock : public AmsBackendMock {
   public:
     explicit UnitSplitMock(int slot_count) : AmsBackendMock(slot_count) {}
     std::vector<int> unit_sizes;
+    int current = -1; ///< the lane loaded into the toolhead; -1 none
 
+    [[nodiscard]] bool is_filament_loaded() const override {
+        return current >= 0;
+    }
+    [[nodiscard]] int get_current_slot() const override {
+        return current;
+    }
     [[nodiscard]] AmsSystemInfo get_system_info() const override {
         AmsSystemInfo info = AmsBackendMock::get_system_info();
+        info.current_slot = current;
+        info.filament_loaded = current >= 0;
         std::vector<SlotInfo> all;
         for (const auto& unit : info.units)
             all.insert(all.end(), unit.slots.begin(), unit.slots.end());
@@ -511,6 +520,45 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: a condemned unit row keeps its po
     bar7 = bar_for_slot(7);
     REQUIRE(bar7 != nullptr);
     CHECK_FALSE(lv_obj_is_hidden(bar7));
+
+    lv_obj_delete(w);
+    ams.clear_backends();
+    ams.deinit_subjects();
+}
+
+// The bar view boxes each unit and checks the box of the unit feeding the
+// toolhead; the check moves with the active lane.
+TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: the active unit's box follows the active lane",
+                 "[ui][ams_mini]") {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+    auto mock = std::make_unique<UnitSplitMock>(8);
+    auto* raw = mock.get();
+    raw->unit_sizes = {4, 4};
+    raw->current = 1;
+    ams.set_backend(std::move(mock));
+    ams.sync_from_backend();
+
+    ui_ams_mini_status_init();
+    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 100);
+    ui_ams_mini_status_set_width(w, 130);
+    helix::ui::UpdateQueue::instance().drain();
+
+    auto box_of = [&](int slot) {
+        lv_obj_t* bar = ams_mini_test::lane_bar_for_slot(w, slot);
+        REQUIRE(bar != nullptr);
+        return lv_obj_get_parent(lv_obj_get_parent(bar)); // lanes -> unit box
+    };
+    REQUIRE(box_of(0) != box_of(4));
+    CHECK(lv_obj_has_state(box_of(0), LV_STATE_CHECKED));
+    CHECK_FALSE(lv_obj_has_state(box_of(4), LV_STATE_CHECKED));
+
+    raw->current = 6;
+    ams.sync_from_backend();
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(50);
+    CHECK_FALSE(lv_obj_has_state(box_of(0), LV_STATE_CHECKED));
+    CHECK(lv_obj_has_state(box_of(4), LV_STATE_CHECKED));
 
     lv_obj_delete(w);
     ams.clear_backends();

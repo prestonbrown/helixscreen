@@ -350,13 +350,10 @@ static int32_t bypass_width_overhead(const AmsMiniStatusData* data) {
  * @brief Bar mode's bypass: a divider and one unbound lane bar in a column
  * beside bars_container, standing as tall as every unit row together.
  *
- * @param bar_width The lanes' bar width (the narrowest row's, stacked)
+ * @param bar_width The lanes' bar width
  * @param bar_height The bar body's height, status line excluded
- * @param stretch The body also takes the status line's room while that line is
- *        hidden, as a stacked row's lanes do
  */
-static void layout_bypass_bar(AmsMiniStatusData* data, int32_t bar_width, int32_t bar_height,
-                              bool stretch) {
+static void layout_bypass_bar(AmsMiniStatusData* data, int32_t bar_width, int32_t bar_height) {
     if (!data->bypass.shown || data->slot_count <= 0) {
         if (data->bypass_column)
             lv_obj_set_hidden(data->bypass_column, true);
@@ -384,14 +381,13 @@ static void layout_bypass_bar(AmsMiniStatusData* data, int32_t bar_width, int32_
     const int32_t line_room = ams_draw::kStatusLineHeightPx + ams_draw::kStatusLineGapPx;
     if (lv_obj_t* div = lv_obj_find_by_name(col, "bypass_divider")) {
         // Inset a tenth top and bottom of the bar body.
-        const int32_t body = stretch ? bar_height + line_room : bar_height;
-        lv_obj_set_height(div, std::max<int32_t>(1, body * 8 / 10));
-        lv_obj_set_style_margin_bottom(div, (stretch ? 0 : line_room) + body / 10, LV_PART_MAIN);
+        lv_obj_set_height(div, std::max<int32_t>(1, bar_height * 8 / 10));
+        lv_obj_set_style_margin_bottom(div, line_room + bar_height / 10, LV_PART_MAIN);
     }
     if (data->bypass_bar) {
         helix::ui::ams_lane_bar_resize(data->bypass_bar, bar_width, bar_height);
         if (lv_obj_t* bg = lv_obj_find_by_name(data->bypass_bar, "bar_bg"))
-            lv_obj_set_style_flex_grow(bg, stretch ? 1 : 0, LV_PART_MAIN);
+            lv_obj_set_style_flex_grow(bg, 0, LV_PART_MAIN);
         const auto& spool = data->bypass.spool;
         helix::ui::ams_lane_bar_paint_unbound(data->bypass_bar, spool.has_value(),
                                               spool ? spool->color_rgb : 0, data->bypass.active);
@@ -406,8 +402,13 @@ struct BarUnit {
     int lanes = 0;
 };
 
-/// How a unit's box draws: bare, hugging its bars with a border, or a full box.
+/// How a unit's box draws: bare, hugging its bars with a border the active
+/// unit shows, or a full box.
 enum class BarBoxKind { Bare = 0, Hug = 1, Full = 2 };
+
+/// A bar-view unit box's border (px), each side: the planner's box_border and
+/// the box_border the box is created with.
+constexpr int kBarBoxBorderPx = 1;
 } // namespace
 
 /** The units the bar view lays out: each unit's span, or the whole strip as one. */
@@ -436,12 +437,12 @@ static int active_bar_unit(const AmsMiniStatusData* data, const std::vector<BarU
     return -1;
 }
 
-static BarBoxKind box_kind_for(helix::ui::AmsMiniBarBoxes boxes, bool active) {
+static BarBoxKind box_kind_for(helix::ui::AmsMiniBarBoxes boxes) {
     switch (boxes) {
     case helix::ui::AmsMiniBarBoxes::Every:
         return BarBoxKind::Full;
     case helix::ui::AmsMiniBarBoxes::ActiveOnly:
-        return active ? BarBoxKind::Hug : BarBoxKind::Bare;
+        return BarBoxKind::Hug;
     case helix::ui::AmsMiniBarBoxes::None:
         return BarBoxKind::Bare;
     }
@@ -463,9 +464,10 @@ static lv_obj_t* ensure_unit_box(AmsMiniStatusData* data, int unit, BarBoxKind k
         condemn(row.bar_box);
         row.bar_box = nullptr;
     }
-    const char* full[] = {"untitled", "true", "box_border", "1", nullptr};
-    const char* hug[] = {"untitled", "true",       "box_opa", "0",    "box_pad",
-                         "0",        "box_border", "1",       nullptr};
+    const std::string border = std::to_string(kBarBoxBorderPx);
+    const char* full[] = {"untitled", "true", "box_border", border.c_str(), nullptr};
+    const char* hug[] = {"untitled", "true",       "box_opa",      "0",    "box_pad",
+                         "0",        "box_border", border.c_str(), nullptr};
     const char* bare[] = {"untitled", "true", "box_opa", "0", "box_pad", "0", nullptr};
     const char** attrs = kind == BarBoxKind::Full ? full : kind == BarBoxKind::Hug ? hug : bare;
     row.bar_box =
@@ -484,7 +486,7 @@ static helix::ui::AmsMiniBarMetrics bar_metrics(int32_t max_bar_w, int32_t max_b
     m.unit_gap = theme_manager_get_spacing("space_xs");
     m.line_gap = theme_manager_get_spacing("space_xxs");
     m.box_pad = theme_manager_get_spacing("space_xxs");
-    m.box_border = 1; // ams_mini_unit_group's box_border in the bar view
+    m.box_border = kBarBoxBorderPx;
     m.status_h = ams_draw::kStatusLineHeightPx + ams_draw::kStatusLineGapPx;
     m.min_bar_w = kMinReadableBarWidthPx;
     m.max_bar_w = std::max<int32_t>(max_bar_w, kMinReadableBarWidthPx);
@@ -493,6 +495,23 @@ static helix::ui::AmsMiniBarMetrics bar_metrics(int32_t max_bar_w, int32_t max_b
     m.overflow_w = theme_manager_get_spacing("space_lg");
     m.side_bars = side_bars;
     return m;
+}
+
+/**
+ * @brief The bypass bar's body (px): from the first line's bar tops to the last
+ * line's bar bottoms, status line excluded, so the bypass column, centered like
+ * the lines, stands level with them. Every line is one height.
+ */
+static int32_t bypass_body_height(const helix::ui::AmsMiniBarPlan& plan,
+                                  const helix::ui::AmsMiniBarMetrics& m) {
+    const int lines = std::max<int>(1, static_cast<int>(plan.lines.size()));
+    int box = 0;
+    if (plan.boxes == helix::ui::AmsMiniBarBoxes::Every)
+        box = 2 * (m.box_pad + m.box_border);
+    else if (plan.boxes == helix::ui::AmsMiniBarBoxes::ActiveOnly)
+        box = 2 * m.box_border;
+    const int line_h = plan.bar_h + m.status_h + box;
+    return lines * line_h + (lines - 1) * m.line_gap - box - m.status_h;
 }
 
 /**
@@ -572,20 +591,28 @@ static void rebuild_bars(AmsMiniStatusData* data) {
     // temporary parent: cascading lv_obj_delete_async() calls corrupt LVGL's
     // event list during rapid rebuild cycles.
     lv_obj_t* condemned_parent = nullptr;
+    auto inside = [](lv_obj_t* o, lv_obj_t* ancestor) {
+        for (lv_obj_t* p = o; p; p = lv_obj_get_parent(p))
+            if (p == ancestor)
+                return true;
+        return false;
+    };
     auto condemn = [&](lv_obj_t* obj) {
         if (!obj)
             return;
         // The pool outlives boxes and lines: a bar left inside one is freed with
-        // it while lane_bars[] still points at it.
+        // it while lane_bars[] still points at it, and a box inside a condemned
+        // line goes with the line.
         for (lv_obj_t* bar : data->lane_bars) {
-            if (bar && lv_obj_get_parent(bar) != data->bars_container) {
-                for (lv_obj_t* p = lv_obj_get_parent(bar); p; p = lv_obj_get_parent(p)) {
-                    if (p == obj) {
-                        lv_obj_set_parent(bar, data->bars_container);
-                        lv_obj_set_hidden(bar, true);
-                        break;
-                    }
-                }
+            if (bar && lv_obj_get_parent(bar) != data->bars_container && inside(bar, obj)) {
+                lv_obj_set_parent(bar, data->bars_container);
+                lv_obj_set_hidden(bar, true);
+            }
+        }
+        for (UnitRowInfo& row : data->unit_rows) {
+            if (row.bar_box && inside(row.bar_box, obj)) {
+                row.bar_box = nullptr;
+                row.bar_box_kind = -1;
             }
         }
         if (!condemned_parent) {
@@ -646,8 +673,7 @@ static void rebuild_bars(AmsMiniStatusData* data) {
         for (size_t k = 0; k < plan.lines[li].size(); ++k) {
             const int u = plan.lines[li][k];
             const BarUnit& bu = units[static_cast<size_t>(u)];
-            lv_obj_t* box =
-                ensure_unit_box(data, u, box_kind_for(plan.boxes, u == active), condemn);
+            lv_obj_t* box = ensure_unit_box(data, u, box_kind_for(plan.boxes), condemn);
             if (!box)
                 continue;
             if (lv_obj_get_parent(box) != line)
@@ -660,8 +686,9 @@ static void rebuild_bars(AmsMiniStatusData* data) {
             lv_obj_t* lanes = lv_obj_find_by_name(box, "unit_group_lanes");
             if (!lanes)
                 continue;
-            lv_obj_set_width(lanes, bu.lanes * plan.bar_w + (bu.lanes - 1) * m.gap);
-            for (int s = 0; s < bu.lanes; ++s) {
+            const int shown_lanes = u == plan.cut_unit ? plan.cut_lanes : bu.lanes;
+            lv_obj_set_width(lanes, shown_lanes * plan.bar_w + (shown_lanes - 1) * m.gap);
+            for (int s = 0; s < shown_lanes; ++s) {
                 const int slot = bu.first_slot + s;
                 if (slot < 0 || slot >= static_cast<int>(data->lane_bars.size()))
                     continue;
@@ -698,12 +725,7 @@ static void rebuild_bars(AmsMiniStatusData* data) {
                   avail_w, effective_height, units.size(), plan.lines.size(), plan.bar_w,
                   plan.bar_h, static_cast<int>(plan.boxes), plan.hidden_lanes);
 
-    // The bypass stands beside the lines, as tall as all of them.
-    const int lines = static_cast<int>(plan.lines.size());
-    int32_t bypass_h = plan.bar_h;
-    if (lines > 1)
-        bypass_h = lines * (plan.bar_h + line_room) + (lines - 1) * m.line_gap - line_room;
-    layout_bypass_bar(data, plan.bar_w, bypass_h, false);
+    layout_bypass_bar(data, plan.bar_w, bypass_body_height(plan, m));
 
     if (condemned_parent)
         helix::ui::safe_delete_deferred(condemned_parent);
@@ -1105,20 +1127,9 @@ using helix::ui::AmsMiniBarMetrics;
 using helix::ui::AmsMiniBarPlan;
 
 /// What a unit's box adds across: both sides of its padding and border.
-int bar_box_w(AmsMiniBarBoxes boxes, const AmsMiniBarMetrics& m, bool active) {
-    switch (boxes) {
-    case AmsMiniBarBoxes::Every:
-        return 2 * (m.box_pad + m.box_border);
-    case AmsMiniBarBoxes::ActiveOnly:
-        return active ? 2 * m.box_border : 0;
-    case AmsMiniBarBoxes::None:
-        return 0;
-    }
-    return 0;
-}
-
-/// What every line's boxes add down, kept level so every bar is one size.
-int bar_box_h(AmsMiniBarBoxes boxes, const AmsMiniBarMetrics& m) {
+/// What a unit's box adds on each axis, both sides: every unit alike, so the
+/// lines stay level and every bar is one size.
+int bar_box_extent(AmsMiniBarBoxes boxes, const AmsMiniBarMetrics& m) {
     switch (boxes) {
     case AmsMiniBarBoxes::Every:
         return 2 * (m.box_pad + m.box_border);
@@ -1137,8 +1148,7 @@ int bar_box_h(AmsMiniBarBoxes boxes, const AmsMiniBarMetrics& m) {
  * bars at the readable minimum.
  */
 AmsMiniBarPlan fit_bar_lines(const std::vector<int>& lanes, const std::vector<int>& units,
-                             int active, AmsMiniBarBoxes boxes, int w, int h,
-                             const AmsMiniBarMetrics& m) {
+                             AmsMiniBarBoxes boxes, int w, int h, const AmsMiniBarMetrics& m) {
     AmsMiniBarPlan best;
     long best_score = -1;
     const size_t n = units.size();
@@ -1153,7 +1163,7 @@ AmsMiniBarPlan fit_bar_lines(const std::vector<int>& lanes, const std::vector<in
             lines.back().push_back(units[i]);
         }
         const int count = static_cast<int>(lines.size());
-        int bar_h = (h - (count - 1) * m.line_gap) / count - bar_box_h(boxes, m) - m.status_h;
+        int bar_h = (h - (count - 1) * m.line_gap) / count - bar_box_extent(boxes, m) - m.status_h;
         bar_h = std::min(bar_h, m.max_bar_h);
         int bar_w = m.max_bar_w;
         for (const auto& line : lines) {
@@ -1162,7 +1172,7 @@ AmsMiniBarPlan fit_bar_lines(const std::vector<int>& lanes, const std::vector<in
             for (int u : line) {
                 const int k = lanes[static_cast<size_t>(u)];
                 line_lanes += k;
-                overhead += (k - 1) * m.gap + bar_box_w(boxes, m, u == active);
+                overhead += (k - 1) * m.gap + bar_box_extent(boxes, m);
             }
             bar_w = std::min(bar_w, (w - overhead) / std::max(1, line_lanes));
         }
@@ -1195,7 +1205,7 @@ AmsMiniBarPlan fit_bar_units(const std::vector<int>& lanes, const std::vector<in
     const bool has_active =
         active >= 0 && std::find(units.begin(), units.end(), active) != units.end();
     for (AmsMiniBarBoxes boxes : bar_box_modes(units.size(), has_active)) {
-        AmsMiniBarPlan p = fit_bar_lines(lanes, units, active, boxes, w, h, m);
+        AmsMiniBarPlan p = fit_bar_lines(lanes, units, boxes, w, h, m);
         if (!p.lines.empty())
             return p;
     }
@@ -1239,16 +1249,29 @@ helix::ui::AmsMiniBarPlan helix::ui::plan_ams_mini_bars(const std::vector<int>& 
     }
     plan = fit_bar_units(unit_lanes, keep, active_unit, avail_w - m.overflow_w, avail_h, m);
     if (plan.lines.empty()) {
-        // Not even one unit reads: it shows at the minimum and spills.
-        plan.lines = {keep};
-        plan.bar_w = m.min_bar_w;
-        plan.bar_h = m.min_bar_h;
-        plan.boxes = AmsMiniBarBoxes::None;
+        // Only a lone unit gets here, too wide even alone: it shows the lanes
+        // that fit and "+N" counts the rest.
+        const int u = keep.front();
+        std::vector<int> cut = unit_lanes;
+        for (int k = unit_lanes[static_cast<size_t>(u)] - 1; k >= 1 && plan.lines.empty(); --k) {
+            cut[static_cast<size_t>(u)] = k;
+            plan = fit_bar_units(cut, keep, active_unit, avail_w - m.overflow_w, avail_h, m);
+            plan.cut_lanes = k;
+        }
+        if (plan.lines.empty()) {
+            // Not even one bar fits: one shows at the minimum.
+            plan.lines = {keep};
+            plan.bar_w = m.min_bar_w;
+            plan.bar_h = m.min_bar_h;
+            plan.boxes = AmsMiniBarBoxes::None;
+            plan.cut_lanes = 1;
+        }
+        plan.cut_unit = u;
     }
     int placed = 0;
     for (const auto& line : plan.lines)
         for (int u : line)
-            placed += unit_lanes[static_cast<size_t>(u)];
+            placed += u == plan.cut_unit ? plan.cut_lanes : unit_lanes[static_cast<size_t>(u)];
     plan.hidden_lanes = total - placed;
     return plan;
 }

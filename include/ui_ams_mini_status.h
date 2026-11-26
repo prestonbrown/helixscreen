@@ -212,16 +212,17 @@ bool ams_mini_grid_prefers_flat(int grouped_spool, int flat_spool, int min_spool
 /// instead.
 inline constexpr int kAmsMiniUsableSpoolPx = 36;
 
-/// Which units of a bar layout sit in a box: none (a single unit), only the
-/// active one (a tile too tight for every box), or every unit.
+/// How a bar layout boxes its units: not at all (a single unit), a border
+/// hugging each unit's bars that only the active unit draws (a tile too tight
+/// for full boxes), or a full box round every unit.
 enum class AmsMiniBarBoxes { None, ActiveOnly, Every };
 
 /**
  * @brief The fixed sizes the bar view is laid out with (px).
  *
- * A boxed unit adds box_pad + box_border on every side of its bars; under
- * ActiveOnly the active unit's box hugs its bars (border only), and the line
- * heights stay level so every bar is one size.
+ * Under Every a unit adds box_pad + box_border on every side of its bars;
+ * under ActiveOnly every unit adds box_border (drawn on the active one only),
+ * so the lines stay level and every bar is one size.
  */
 struct AmsMiniBarMetrics {
     int gap = 0;        ///< between bars inside a unit
@@ -240,13 +241,16 @@ struct AmsMiniBarMetrics {
 
 /// A bar layout: every shown lane bar_w x bar_h (body), the units in @p lines
 /// (indices into the planner's unit_lanes, in order). hidden_lanes > 0 when
-/// whole units did not fit and a "+N" counts their lanes.
+/// lanes did not fit and a "+N" counts them: whole units, or, when even the one
+/// kept unit does not fit, its lanes past the first cut_lanes (cut_unit >= 0).
 struct AmsMiniBarPlan {
     std::vector<std::vector<int>> lines;
     int bar_w = 0;
     int bar_h = 0;
     AmsMiniBarBoxes boxes = AmsMiniBarBoxes::None;
     int hidden_lanes = 0;
+    int cut_unit = -1;
+    int cut_lanes = 0;
 };
 
 /**
@@ -256,8 +260,9 @@ struct AmsMiniBarPlan {
  * lines as gives the largest bars, one size for every bar. With two or more
  * units every unit is boxed, else (too tight) only @p active_unit is. When no
  * layout keeps the bars at least min_bar_w x min_bar_h, whole units drop from
- * the end, never @p active_unit, and hidden_lanes counts their lanes. Units with
- * no lanes (absent) are neither placed nor counted.
+ * the end, never @p active_unit, and hidden_lanes counts their lanes; a lone
+ * unit too wide even alone shows the lanes that fit (cut_unit, cut_lanes). Units
+ * with no lanes (absent) are neither placed nor counted.
  *
  * @param unit_lanes Each unit's lane count, in order
  * @param active_unit Index of the unit holding the active lane, or -1

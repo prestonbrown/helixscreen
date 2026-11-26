@@ -34,8 +34,10 @@ inline lv_obj_t* lane_bar_for_slot(lv_obj_t* root, int slot) {
     return nullptr;
 }
 
-/// Whether @p obj and every ancestor up to @p root are shown.
+/// Whether @p obj has a size and it and every ancestor up to @p root are shown.
 inline bool shown_within(lv_obj_t* obj, lv_obj_t* root) {
+    if (lv_obj_get_width(obj) <= 0 || lv_obj_get_height(obj) <= 0)
+        return false;
     for (lv_obj_t* o = obj; o; o = lv_obj_get_parent(o)) {
         if (lv_obj_is_hidden(o))
             return false;

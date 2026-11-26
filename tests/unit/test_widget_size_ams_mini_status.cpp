@@ -561,28 +561,15 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: cells follow a row tha
 
 namespace {
 
-/// True when @p obj and every ancestor up to @p root are unhidden and it has a size.
-bool shown_within(lv_obj_t* obj, lv_obj_t* root) {
-    if (lv_obj_get_width(obj) <= 0 || lv_obj_get_height(obj) <= 0)
-        return false;
-    for (lv_obj_t* o = obj; o; o = lv_obj_get_parent(o)) {
-        if (lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN))
-            return false;
-        if (o == root)
-            return true;
-    }
-    return false;
-}
-
 /// Lanes the strip draws in whichever view it is in: bars or spool cells.
 int drawn_lanes(lv_obj_t* w, int slot_count) {
     int n = 0;
     for (int i = 0; i < slot_count; ++i) {
         if (lv_obj_t* bar = ams_mini_test::lane_bar_for_slot(w, i))
-            n += shown_within(bar, w) ? 1 : 0;
+            n += ams_mini_test::shown_within(bar, w) ? 1 : 0;
         const std::string name = "spool_cell_" + std::to_string(i);
         if (lv_obj_t* cell = UITest::find_by_name(w, name.c_str()))
-            n += shown_within(cell, w) ? 1 : 0;
+            n += ams_mini_test::shown_within(cell, w) ? 1 : 0;
     }
     return n;
 }

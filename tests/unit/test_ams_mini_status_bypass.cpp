@@ -225,7 +225,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     install_mock(std::move(mock));
     REQUIRE(AmsState::instance().system_info()->units.size() >= 2);
 
-    lv_obj_t* w = make_strip(test_screen(), 130, 100);
+    lv_obj_t* w = make_strip(test_screen(), 80, 180);
     lv_obj_t* col = bypass_column(w);
     REQUIRE(shown(col));
     // Not in any unit's line: a sibling of the lines' container.
@@ -238,6 +238,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_get_coords(bar_bg(lane_bar(w, 0)), &first_bar);
     lv_obj_get_coords(bar_bg(lane_bar(w, last_lane)), &last_bar);
     REQUIRE(last_bar.y1 > first_bar.y2);
+    // The units sit in boxes, whose padding and border each line adds.
+    lv_obj_t* box = lv_obj_get_parent(lv_obj_get_parent(lane_bar(w, 0)));
+    REQUIRE(lv_obj_get_style_border_width(box, LV_PART_MAIN) > 0);
     lv_obj_get_coords(bar_bg(lv_obj_find_by_name(col, "bypass_bar")), &bypass);
     CHECK(bypass.y1 == first_bar.y1);
     CHECK(bypass.y2 == last_bar.y2);

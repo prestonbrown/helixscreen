@@ -49,19 +49,8 @@ struct Extent {
     int h = 0;
 };
 
-int box_w(const AmsMiniBarPlan& p, const AmsMiniBarMetrics& m, int unit, int active) {
-    switch (p.boxes) {
-    case AmsMiniBarBoxes::Every:
-        return 2 * (m.box_pad + m.box_border);
-    case AmsMiniBarBoxes::ActiveOnly:
-        return unit == active ? 2 * m.box_border : 0;
-    case AmsMiniBarBoxes::None:
-        return 0;
-    }
-    return 0;
-}
-
-int box_h(const AmsMiniBarPlan& p, const AmsMiniBarMetrics& m) {
+/// What each unit's box adds on each axis, both sides.
+int box_extent(const AmsMiniBarPlan& p, const AmsMiniBarMetrics& m) {
     switch (p.boxes) {
     case AmsMiniBarBoxes::Every:
         return 2 * (m.box_pad + m.box_border);
@@ -73,22 +62,26 @@ int box_h(const AmsMiniBarPlan& p, const AmsMiniBarMetrics& m) {
     return 0;
 }
 
+/// Lanes the plan shows of @p unit.
+int shown_of(const AmsMiniBarPlan& p, const std::vector<int>& lanes, int unit) {
+    return unit == p.cut_unit ? p.cut_lanes : lanes[static_cast<size_t>(unit)];
+}
+
 /// What the plan takes, laid out the way the widget lays it out.
-Extent extent(const AmsMiniBarPlan& p, const std::vector<int>& lanes, int active,
-              const AmsMiniBarMetrics& m) {
+Extent extent(const AmsMiniBarPlan& p, const std::vector<int>& lanes, const AmsMiniBarMetrics& m) {
     Extent e;
     for (const auto& line : p.lines) {
         int w = 0;
         for (size_t i = 0; i < line.size(); ++i) {
-            const int n = lanes[static_cast<size_t>(line[i])];
-            w += n * p.bar_w + (n - 1) * m.gap + box_w(p, m, line[i], active);
+            const int n = shown_of(p, lanes, line[i]);
+            w += n * p.bar_w + (n - 1) * m.gap + box_extent(p, m);
             if (i > 0)
                 w += m.unit_gap;
         }
         e.w = std::max(e.w, w);
     }
     const int lines = static_cast<int>(p.lines.size());
-    e.h = lines * (p.bar_h + m.status_h + box_h(p, m)) + std::max(0, lines - 1) * m.line_gap;
+    e.h = lines * (p.bar_h + m.status_h + box_extent(p, m)) + std::max(0, lines - 1) * m.line_gap;
     return e;
 }
 
@@ -102,7 +95,7 @@ std::vector<int> placed_units(const AmsMiniBarPlan& p) {
 int placed_lanes(const AmsMiniBarPlan& p, const std::vector<int>& lanes) {
     int n = 0;
     for (int u : placed_units(p))
-        n += lanes[static_cast<size_t>(u)];
+        n += shown_of(p, lanes, u);
     return n;
 }
 
@@ -117,7 +110,7 @@ TEST_CASE("ams_mini bars: a five-unit rig shows every lane where a 3x2 tile has 
     CHECK(placed_lanes(p, kTorture) == 16);
     CHECK(p.boxes == AmsMiniBarBoxes::Every);
     CHECK(p.bar_h >= m.min_bar_h);
-    const Extent e = extent(p, kTorture, 2, m);
+    const Extent e = extent(p, kTorture, m);
     CHECK(e.w <= 168);
     CHECK(e.h <= 79);
 }
@@ -148,7 +141,7 @@ TEST_CASE("ams_mini bars: eight lanes of one unit all show in a 90px tile",
 
     CHECK(p.hidden_lanes == 0);
     CHECK(placed_lanes(p, {8}) == 8);
-    CHECK(extent(p, {8}, -1, m).w <= 81);
+    CHECK(extent(p, {8}, m).w <= 81);
 }
 
 TEST_CASE("ams_mini bars: a tight tile keeps only the active unit's box",
@@ -161,7 +154,7 @@ TEST_CASE("ams_mini bars: a tight tile keeps only the active unit's box",
     CHECK(p.boxes == AmsMiniBarBoxes::ActiveOnly);
     CHECK(p.hidden_lanes == 0);
     CHECK(p.bar_h >= m.min_bar_h);
-    const Extent e = extent(p, kTorture, 2, m);
+    const Extent e = extent(p, kTorture, m);
     CHECK(e.w <= 97);
     CHECK(e.h <= 32);
 }
@@ -180,7 +173,19 @@ TEST_CASE("ams_mini bars: units drop whole, never the active one, and +N counts 
     CHECK(std::is_sorted(units.begin(), units.end()));
     CHECK(p.bar_h >= m.min_bar_h);
     CHECK(p.bar_w >= m.min_bar_w);
-    CHECK(extent(p, big, active, m).w <= 80 - m.overflow_w);
+    CHECK(extent(p, big, m).w <= 80 - m.overflow_w);
+}
+
+TEST_CASE("ams_mini bars: one unit too wide for a micro tile shows what fits and +N the rest",
+          "[ams_mini][ams_mini_bars]") {
+    const auto m = metrics(8);
+    // A 12-gate ERCF on a 64px micro tile: 57px for the bars.
+    const AmsMiniBarPlan p = plan_ams_mini_bars({12}, -1, 57, 40, m);
+
+    REQUIRE(p.hidden_lanes > 0);
+    CHECK(placed_lanes(p, {12}) + p.hidden_lanes == 12);
+    CHECK(p.bar_w >= m.min_bar_w);
+    CHECK(extent(p, {12}, m).w <= 57 - m.overflow_w);
 }
 
 TEST_CASE("ams_mini bars: an absent unit is neither placed nor counted",
@@ -237,14 +242,10 @@ TEST_CASE("ams_mini bars: no plan leaves its box", "[ams_mini][ams_mini_bars]") 
         CHECK(p.bar_w <= m.max_bar_w);
         CHECK(p.bar_h <= m.max_bar_h);
 
-        // Only a box too small for even its one kept unit may spill.
-        const bool lone_unit_too_big = units.size() == 1 && p.hidden_lanes > 0;
-        if (!lone_unit_too_big) {
-            const Extent e = extent(p, lanes, active, m);
-            CHECK(e.w <= w - (p.hidden_lanes > 0 ? m.overflow_w : 0));
-            CHECK(e.h <= h);
-            CHECK(p.bar_w >= m.min_bar_w);
-            CHECK(p.bar_h >= m.min_bar_h);
-        }
+        const Extent e = extent(p, lanes, m);
+        CHECK(e.w <= w - (p.hidden_lanes > 0 ? m.overflow_w : 0));
+        CHECK(e.h <= h);
+        CHECK(p.bar_w >= m.min_bar_w);
+        CHECK(p.bar_h >= m.min_bar_h);
     }
 }
