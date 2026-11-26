@@ -176,6 +176,12 @@
          to whether the row runs across (beside) or down (stacked). -->
     <style name="stack_gap_beside" pad_gap="#space_xs"/>
     <style name="stack_gap_stacked" pad_gap="#space_xxs"/>
+    <style name="flow_row_reverse"
+           layout="flex" flex_flow="row_reverse" flex_main_place="center" flex_cross_place="center"
+           flex_track_place="center"/>
+    <!-- A row that starts at the left edge, so a stack of them lines its first items up. -->
+    <style name="flow_row_start"
+           layout="flex" flex_flow="row" flex_main_place="start" flex_cross_place="center" flex_track_place="center"/>
     <style name="grow_1" flex_grow="1"/>
     <style name="grow_2" flex_grow="2"/>
     <style name="grow_3" flex_grow="3"/>

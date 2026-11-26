@@ -16,8 +16,9 @@
 namespace helix {
 
 struct StackShapeSubjects {
-    helix::Subject columns{};  ///< 1: the rows sit side by side (the widget flows across)
-    helix::Subject stacked{};  ///< 1: each row is icon over value (IconAbove or Columns)
+    helix::Subject columns{}; ///< 1: the rows sit side by side (the widget flows across)
+    helix::Subject
+        stacked{}; ///< row flow: 0 across, 1 down (icon over value), 2 across from the left
     helix::Subject captions{}; ///< 1: the caption under each value shows
 
     /// Publish under `prefix` and append the matching XML prop pairs. `captions`
@@ -38,9 +39,12 @@ struct StackShapeSubjects {
 
     void apply(const StackLayout& layout) {
         lv_subject_set_int(&columns, layout.shape == StackShape::Columns ? 1 : 0);
-        lv_subject_set_int(
-            &stacked,
-            layout.shape == StackShape::IconAbove || layout.shape == StackShape::Columns ? 1 : 0);
+        int row_flow = 0; // across, centred
+        if (layout.shape == StackShape::IconAbove || layout.shape == StackShape::Columns)
+            row_flow = 1; // down: icon over value
+        else if (layout.shape == StackShape::Rows)
+            row_flow = 2; // across from the left edge, so glyphs line up
+        lv_subject_set_int(&stacked, row_flow);
         lv_subject_set_int(
             &captions, (layout.shape == StackShape::Columns || layout.shape == StackShape::Rows) &&
                                layout.captions

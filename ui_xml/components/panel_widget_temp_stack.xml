@@ -23,7 +23,9 @@
             width="100%" height="content" style_pad_all="0" scrollable="false" clickable="true" event_bubble="false">
       <bind_style_if_eq name="styles.flow_row" subject="$stacked_subject" ref_value="0"/>
       <bind_style_if_eq name="styles.flow_column" subject="$stacked_subject" ref_value="1"/>
+      <bind_style_if_eq name="styles.flow_row_start" subject="$stacked_subject" ref_value="2"/>
       <bind_style_if_eq name="styles.stack_gap_beside" subject="$stacked_subject" ref_value="0"/>
+      <bind_style_if_eq name="styles.stack_gap_beside" subject="$stacked_subject" ref_value="2"/>
       <bind_style_if_eq name="styles.stack_gap_stacked" subject="$stacked_subject" ref_value="1"/>
       <bind_style_if_eq name="styles.grow_1" subject="$columns_subject" ref_value="1"/>
       <style name="styles.press_dim" selector="pressed"/>
@@ -43,7 +45,9 @@
             width="100%" height="content" style_pad_all="0" scrollable="false" clickable="true" event_bubble="false">
       <bind_style_if_eq name="styles.flow_row" subject="$stacked_subject" ref_value="0"/>
       <bind_style_if_eq name="styles.flow_column" subject="$stacked_subject" ref_value="1"/>
+      <bind_style_if_eq name="styles.flow_row_start" subject="$stacked_subject" ref_value="2"/>
       <bind_style_if_eq name="styles.stack_gap_beside" subject="$stacked_subject" ref_value="0"/>
+      <bind_style_if_eq name="styles.stack_gap_beside" subject="$stacked_subject" ref_value="2"/>
       <bind_style_if_eq name="styles.stack_gap_stacked" subject="$stacked_subject" ref_value="1"/>
       <bind_style_if_eq name="styles.grow_1" subject="$columns_subject" ref_value="1"/>
       <style name="styles.press_dim" selector="pressed"/>
@@ -63,7 +67,9 @@
             width="100%" height="content" style_pad_all="0" scrollable="false" clickable="true" event_bubble="false">
       <bind_style_if_eq name="styles.flow_row" subject="$stacked_subject" ref_value="0"/>
       <bind_style_if_eq name="styles.flow_column" subject="$stacked_subject" ref_value="1"/>
+      <bind_style_if_eq name="styles.flow_row_start" subject="$stacked_subject" ref_value="2"/>
       <bind_style_if_eq name="styles.stack_gap_beside" subject="$stacked_subject" ref_value="0"/>
+      <bind_style_if_eq name="styles.stack_gap_beside" subject="$stacked_subject" ref_value="2"/>
       <bind_style_if_eq name="styles.stack_gap_stacked" subject="$stacked_subject" ref_value="1"/>
       <bind_style_if_eq name="styles.grow_1" subject="$columns_subject" ref_value="1"/>
       <style name="styles.press_dim" selector="pressed"/>

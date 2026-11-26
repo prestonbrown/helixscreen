@@ -396,6 +396,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack at 2x2 draws big rows, glyph lef
     CHECK(lv_obj_get_x(nozzle_glyph) + lv_obj_get_width(nozzle_glyph) <= lv_obj_get_x(nozzle_temp));
     CHECK(lv_obj_get_style_text_font(nozzle_glyph, LV_PART_MAIN)->line_height >
           mdi_icons_24.line_height);
+    // Rows start at the left edge, so the glyphs line up in one column.
+    CHECK(lv_obj_get_x(lv_obj_get_child(nozzle_row, 0)) ==
+          lv_obj_get_x(lv_obj_get_child(bed_row, 0)));
+    CHECK(lv_obj_get_style_flex_main_place(nozzle_row, LV_PART_MAIN) == LV_FLEX_ALIGN_START);
     // Every row fits the box.
     CHECK(lv_obj_get_y(h.child("temp_stack_bed_row")) + lv_obj_get_height(bed_row) <=
           lv_obj_get_height(h.root()));

@@ -57,8 +57,10 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "core/update_queue.h"
+#include "display_settings_manager.h"
 #include "panel_widget_size.h"
 #include "src/ui/panel_widgets/fan_stack_widget.h"
+#include "ui/fan_spin_animation.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -658,8 +660,13 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack at 2x1 lays the fans side by side
     CHECK(lv_obj_get_x(hotend_row) + lv_obj_get_width(hotend_row) <= lv_obj_get_x(aux_row));
     CHECK(lv_obj_get_x(aux_row) + lv_obj_get_width(aux_row) <= lv_obj_get_width(h.root()));
 
-    // Glyph above its name+speed pair, and each pair inside its own column.
+    // Glyph over a large speed over a small name, each pair inside its own column.
+    lv_obj_t* part_speed = h.child("fan_stack_part_speed");
+    lv_obj_t* part_name = h.child("fan_stack_part_name");
     CHECK(lv_obj_get_y(part_icon) + lv_obj_get_height(part_icon) <= lv_obj_get_y(part_value));
+    CHECK(lv_obj_get_y(part_speed) + lv_obj_get_height(part_speed) <= lv_obj_get_y(part_name));
+    CHECK(lv_obj_get_style_text_font(part_speed, LV_PART_MAIN)->line_height >
+          lv_obj_get_style_text_font(part_name, LV_PART_MAIN)->line_height);
     for (lv_obj_t* value : {part_value, hotend_value, aux_value}) {
         lv_obj_t* col = lv_obj_get_parent(value);
         CHECK(lv_obj_get_x(value) >= 0);
@@ -671,4 +678,44 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack at 2x1 lays the fans side by side
     process_lvgl(30);
     CHECK(lv_obj_get_style_flex_flow(h.root(), LV_PART_MAIN) == LV_FLEX_FLOW_COLUMN);
     CHECK(lv_obj_get_y(part_row) < lv_obj_get_y(hotend_row));
+}
+
+// The columns draw the fan glyph larger; it must still turn about its own
+// centre, in proportion to the speed, when animations are on.
+TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack columns spin a bigger glyph about its centre",
+                 "[widget_size][fan_stack][wide]") {
+    require_font_tokens_distinct();
+    auto& display = helix::DisplaySettingsManager::instance();
+    const bool prev_animations = display.get_animations_enabled();
+    display.set_animations_enabled(true);
+
+    state().fan_state().init_fans(
+        {"fan", "heater_fan hotend_fan", "fan_generic chamber_circulation"});
+    state().fan_state().update_fan_speed("fan", 0.35);
+    helix::ui::UpdateQueue::instance().drain();
+
+    {
+        PanelWidgetHarness<FanStackWidget> h(test_screen(), "fan_stack", state());
+        lv_obj_t* icon = h.child("fan_stack_part_icon");
+        lv_obj_t* row = h.child("fan_stack_part_row");
+        REQUIRE(icon != nullptr);
+
+        h.resize(4, 2, 2 * w_normal() + 40, 4 * h_tall() / 3);
+        process_lvgl(30);
+        lv_obj_update_layout(h.root());
+        REQUIRE(lv_obj_get_style_flex_flow(h.root(), LV_PART_MAIN) == LV_FLEX_FLOW_ROW);
+
+        // Larger than the 24px glyph the stacked rows use.
+        CHECK(lv_obj_get_style_text_font(icon, LV_PART_MAIN)->line_height >
+              mdi_icons_24.line_height);
+
+        // Spinning, about the glyph's own centre rather than a corner, and the
+        // glyph sits centred in its column so the spin stays in the column.
+        CHECK(lv_anim_get(icon, helix::ui::fan_spin_anim_cb) != nullptr);
+        CHECK(lv_obj_get_style_transform_pivot_x(icon, LV_PART_MAIN) == LV_PCT(50));
+        CHECK(lv_obj_get_style_transform_pivot_y(icon, LV_PART_MAIN) == LV_PCT(50));
+        const int icon_mid = lv_obj_get_x(icon) + lv_obj_get_width(icon) / 2;
+        CHECK(std::abs(icon_mid - lv_obj_get_width(row) / 2) <= 2);
+    }
+    display.set_animations_enabled(prev_animations);
 }
