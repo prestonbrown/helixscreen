@@ -16,6 +16,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
+#include "ams_mini_test_helpers.h"
 #include "ams_state.h"
 #include "core/update_queue.h"
 #include "settings_manager.h"
@@ -101,10 +102,9 @@ lv_obj_t* bar_bg(lv_obj_t* bar) {
 }
 
 lv_obj_t* lane_bar(lv_obj_t* w, int lane) {
-    lv_obj_t* bars = UITest::find_by_name(w, "ams_bars_container");
-    REQUIRE(bars != nullptr);
-    REQUIRE(static_cast<int>(lv_obj_get_child_count(bars)) > lane);
-    return lv_obj_get_child(bars, lane);
+    lv_obj_t* bar = ams_mini_test::lane_bar_for_slot(w, lane);
+    REQUIRE(bar != nullptr);
+    return bar;
 }
 
 /// The lane bar family's loaded outline is 2px.
@@ -225,21 +225,25 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     install_mock(std::move(mock));
     REQUIRE(AmsState::instance().system_info()->units.size() >= 2);
 
-    lv_obj_t* w = make_strip(test_screen(), 130, 100);
+    lv_obj_t* w = make_strip(test_screen(), 80, 180);
     lv_obj_t* col = bypass_column(w);
     REQUIRE(shown(col));
-    // Not in any unit's row: a sibling of the rows' container.
+    // Not in any unit's line: a sibling of the lines' container.
     CHECK(lv_obj_get_parent(col) == w);
 
-    // As tall as the rows together: from the top row's top to the bottom row's bottom.
-    lv_obj_t* bars = UITest::find_by_name(w, "ams_bars_container");
-    REQUIRE(lv_obj_get_child_count(bars) >= 2);
-    lv_area_t first_row, last_row, bypass;
-    lv_obj_get_coords(lv_obj_get_child(bars, 0), &first_row);
-    lv_obj_get_coords(lv_obj_get_child(bars, lv_obj_get_child_count(bars) - 1), &last_row);
+    // As tall as the lines together: from the first lane's bar top to the last
+    // lane's bar bottom, on a strip whose units take two lines.
+    const int last_lane = AmsState::instance().system_info()->total_slots - 1;
+    lv_area_t first_bar, last_bar, bypass;
+    lv_obj_get_coords(bar_bg(lane_bar(w, 0)), &first_bar);
+    lv_obj_get_coords(bar_bg(lane_bar(w, last_lane)), &last_bar);
+    REQUIRE(last_bar.y1 > first_bar.y2);
+    // The units sit in boxes, whose padding and border each line adds.
+    lv_obj_t* box = lv_obj_get_parent(lv_obj_get_parent(lane_bar(w, 0)));
+    REQUIRE(lv_obj_get_style_border_width(box, LV_PART_MAIN) > 0);
     lv_obj_get_coords(bar_bg(lv_obj_find_by_name(col, "bypass_bar")), &bypass);
-    CHECK(bypass.y1 == first_row.y1);
-    CHECK(bypass.y2 == last_row.y2);
+    CHECK(bypass.y1 == first_bar.y1);
+    CHECK(bypass.y2 == last_bar.y2);
 
     lv_area_t cell;
     lv_obj_get_coords(lv_obj_get_parent(w), &cell);

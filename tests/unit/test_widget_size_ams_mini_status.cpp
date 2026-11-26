@@ -17,6 +17,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../ui_test_utils.h"
+#include "ams_mini_test_helpers.h"
 #include "core/subject.h"
 #include "core/update_queue.h"
 #include "panel_widget_size.h"
@@ -51,7 +52,8 @@ void fill_slots_material(lv_obj_t* w, int count, const char* material) {
 
 } // namespace
 
-TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini bar mode: width bands pick bar width + visible cap",
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "ams_mini bar mode: width bands pick bar width, every lane shows",
                  "[ui][ams_mini][widget_size]") {
     ui_ams_mini_status_init();
     lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 100);
@@ -63,7 +65,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini bar mode: width bands pick bar wid
     lv_obj_update_layout(w);
     fill_slots(w, 8);
 
-    // width_px < 100: bar cap is width_px / 8 (11px), at most 6 of the 8 slots shown.
+    // width_px 90: bar cap is width_px / 8 (11px), and all 8 lanes fit under it.
     ui_ams_mini_status_set_width(w, 90);
     helix::ui::UpdateQueue::instance().drain();
     lv_obj_update_layout(w);
@@ -71,29 +73,20 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini bar mode: width bands pick bar wid
     lv_obj_t* bars = UITest::find_by_name(w, "ams_bars_container");
     REQUIRE(bars != nullptr);
     REQUIRE_FALSE(lv_obj_is_hidden(bars));
-    REQUIRE(lv_obj_get_width(lv_obj_get_child(bars, 0)) == 11);
+    CHECK(ams_mini_test::shown_lane_bars(w, 8).size() == 8);
+    REQUIRE(lv_obj_get_width(ams_mini_test::lane_bar_for_slot(w, 0)) == 11);
 
-    // 8 slots, max 6 visible -> "+2" overflow badge, visible and non-empty.
-    // overflow_label isn't named, so find it by type among the container's children.
-    lv_obj_t* label = nullptr;
-    for (uint32_t i = 0; i < lv_obj_get_child_count(w); ++i) {
-        lv_obj_t* child = lv_obj_get_child(w, i);
-        if (lv_obj_check_type(child, &lv_label_class)) {
-            label = child;
-            break;
-        }
-    }
+    lv_obj_t* label = UITest::find_by_name(w, "ams_overflow_label");
     REQUIRE(label != nullptr);
-    REQUIRE_FALSE(lv_obj_is_hidden(label));
-    REQUIRE(std::string(lv_label_get_text(label)) == "+2");
+    CHECK(lv_obj_is_hidden(label)); // no overflow: every lane fits
 
-    // 100 <= width_px < w_normal(): 13px bar cap, all 8 slots shown.
+    // width_px 110: 13px bar cap.
     ui_ams_mini_status_set_width(w, 110);
     helix::ui::UpdateQueue::instance().drain();
     lv_obj_update_layout(w);
 
-    REQUIRE(lv_obj_get_width(lv_obj_get_child(bars, 0)) == 13);
-    REQUIRE(lv_obj_is_hidden(label)); // no overflow: all 8 fit
+    REQUIRE(lv_obj_get_width(ams_mini_test::lane_bar_for_slot(w, 0)) == 13);
+    CHECK(lv_obj_is_hidden(label));
 
     lv_obj_delete(w);
 }
@@ -339,9 +332,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: every shipping panel gets the bar
         REQUIRE(bars != nullptr);
         CHECK_FALSE(lv_obj_is_hidden(bars));
 
-        // All four slots fit at every shipping width — the <100px visible cap
-        // is 6, so it never bites on a 4-slot system.
-        CHECK(lv_obj_get_child_count(bars) >= 4);
+        // All four slots fit at every shipping width.
+        CHECK(ams_mini_test::shown_lane_bars(w, 4).size() == 4);
 
         lv_obj_delete(w);
     }
@@ -394,10 +386,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: bar width band per shipping panel
         lv_obj_t* bars = UITest::find_by_name(w, "ams_bars_container");
         REQUIRE(bars != nullptr);
         REQUIRE_FALSE(lv_obj_is_hidden(bars));
-        REQUIRE(lv_obj_get_child_count(bars) >= 1);
+        lv_obj_t* bar0 = ams_mini_test::lane_bar_for_slot(w, 0);
+        REQUIRE(bar0 != nullptr);
 
         INFO(c.name << " width " << c.width_px << "px expects " << c.bar_w << "px bars");
-        CHECK(lv_obj_get_width(lv_obj_get_child(bars, 0)) == c.bar_w);
+        CHECK(lv_obj_get_width(bar0) == c.bar_w);
 
         lv_obj_delete(w);
         lv_obj_delete(parent);
@@ -568,31 +561,15 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: cells follow a row tha
 
 namespace {
 
-/// True when @p obj and every ancestor up to @p root are unhidden and it has a size.
-bool shown_within(lv_obj_t* obj, lv_obj_t* root) {
-    if (lv_obj_get_width(obj) <= 0 || lv_obj_get_height(obj) <= 0)
-        return false;
-    for (lv_obj_t* o = obj; o; o = lv_obj_get_parent(o)) {
-        if (lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN))
-            return false;
-        if (o == root)
-            return true;
-    }
-    return false;
-}
-
 /// Lanes the strip draws in whichever view it is in: bars or spool cells.
 int drawn_lanes(lv_obj_t* w, int slot_count) {
     int n = 0;
-    if (lv_obj_t* bars = UITest::find_by_name(w, "ams_bars_container")) {
-        const uint32_t kids = lv_obj_get_child_count(bars);
-        for (uint32_t i = 0; i < kids; ++i)
-            n += shown_within(lv_obj_get_child(bars, static_cast<int32_t>(i)), w) ? 1 : 0;
-    }
     for (int i = 0; i < slot_count; ++i) {
+        if (lv_obj_t* bar = ams_mini_test::lane_bar_for_slot(w, i))
+            n += ams_mini_test::shown_within(bar, w) ? 1 : 0;
         const std::string name = "spool_cell_" + std::to_string(i);
         if (lv_obj_t* cell = UITest::find_by_name(w, name.c_str()))
-            n += shown_within(cell, w) ? 1 : 0;
+            n += ams_mini_test::shown_within(cell, w) ? 1 : 0;
     }
     return n;
 }
