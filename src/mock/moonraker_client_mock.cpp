@@ -4180,7 +4180,10 @@ void MoonrakerClientMock::trigger_restart(bool is_firmware) {
                       : (klippy_error_message_.empty() ? "Config error" : klippy_error_message_);
             json ready_status = {
                 {"webhooks", {{"state", ready ? "ready" : "error"}, {"state_message", message}}}};
-            dispatch_status_update(ready_status);
+            // Named, not virtual: a test subclass's destructor runs before this
+            // class's joins the thread, and a virtual call here would read the
+            // vtable it is rewriting.
+            MoonrakerClientMock::dispatch_status_update(ready_status);
 
             spdlog::info("[MoonrakerClientMock] {} complete - klippy_state='{}'",
                          is_firmware ? "FIRMWARE_RESTART" : "RESTART", ready ? "ready" : "error");

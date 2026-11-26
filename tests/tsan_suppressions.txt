@@ -78,3 +78,15 @@ race:HttpHandler::~HttpHandler
 # request_scan() starts through the mock; WiFiManagers tests own are destroyed and
 # joined normally.
 thread:helix::WiFiManager::request_scan
+
+# lv_tick_get() without a tick callback.
+#
+# With no lv_tick_set_cb(), lv_tick_get() writes sys_irq_flag on every read: a
+# retry loop meant for an interrupt that calls lv_tick_inc(). The test binary
+# has no display driver and feeds the clock through lv_tick_inc(), so it takes
+# that path, and a background thread that reads the clock (the recovery
+# suppression deadline, set from KlipperConfigEditor's restart worker) races
+# the main thread's own reads on that flag. Every display driver the app ships
+# (fbdev, DRM, SDL, Wayland) installs a tick callback, so in production
+# lv_tick_get() is a plain call to it and writes nothing.
+race:lv_tick_get
