@@ -217,7 +217,13 @@ TEST_CASE_METHOD(XMLTestFixture,
     CAPTURE(with_macro, heats);
     FilamentCatalogPickerModal modal;
     int opened = 0;
-    modal.set_macro_callback([&] { ++opened; }, with_macro ? "HEAT_ABS" : "", heats);
+    lv_obj_t* opened_on = nullptr;
+    modal.set_macro_callback(
+        [&](lv_obj_t* screen) {
+            ++opened;
+            opened_on = screen;
+        },
+        with_macro ? "HEAT_ABS" : "", heats);
     modal.show(lv_screen_active(), std::string("ABS"), [](const EffectiveFilament&) {});
     helix::ui::UpdateQueue::instance().drain();
 
@@ -231,6 +237,8 @@ TEST_CASE_METHOD(XMLTestFixture,
     FilamentPickerTestAccess::press_macro(modal);
     helix::ui::UpdateQueue::instance().drain();
     CHECK(opened == 1);
+    // The row's callback gets the screen the picker was on.
+    CHECK(opened_on == lv_screen_active());
     CHECK(ModalStack::instance().top_dialog() == nullptr);
 }
 
@@ -241,7 +249,7 @@ TEST_CASE_METHOD(XMLTestFixture,
         INFO(size.what);
         helix::test::ScopedGeometry screen(size.w, size.h);
         FilamentCatalogPickerModal modal;
-        modal.set_macro_callback([] {}, "HEAT_ABS", true);
+        modal.set_macro_callback([](lv_obj_t*) {}, "HEAT_ABS", true);
         modal.show(lv_screen_active(), std::string("ABS"), [](const EffectiveFilament&) {});
         helix::ui::UpdateQueue::instance().drain();
         lv_obj_update_layout(lv_screen_active());

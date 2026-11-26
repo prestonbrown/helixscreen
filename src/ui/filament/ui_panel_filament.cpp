@@ -1315,7 +1315,7 @@ bool FilamentPanel::handle_preset_longpress(int slot) {
     const auto* macro = helix::MaterialSettingsManager::instance().find_override_for_material(
         helix::presets::name(slot));
     catalog_picker_.set_macro_callback(
-        [screen, slot]() { get_global_filament_panel().open_preset_macro(screen, slot); },
+        [slot](lv_obj_t* screen) { get_global_filament_panel().open_preset_macro(screen, slot); },
         macro && macro->names_a_macro() ? *macro->preheat_macro : std::string{},
         !macro || macro->macro_heats());
     // Fires synchronously on the main thread from the modal's Select button click —

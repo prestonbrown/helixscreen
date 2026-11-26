@@ -65,10 +65,11 @@ void FilamentCatalogPickerModal::register_callbacks() {
         if (!self)
             return;
         // Copied: hiding the dialog can be the last thing this modal hears.
-        const std::function<void()> open = self->macro_callback_;
+        const MacroOpenCallback open = self->macro_callback_;
+        lv_obj_t* screen = lv_obj_get_screen(self->dialog());
         self->hide();
         if (open)
-            open();
+            open(screen);
     });
     callbacks_registered_ = true;
 }
@@ -77,8 +78,8 @@ void FilamentCatalogPickerModal::set_reset_callback(std::function<void()> cb) {
     reset_callback_ = std::move(cb);
 }
 
-void FilamentCatalogPickerModal::set_macro_callback(std::function<void()> cb,
-                                                    std::string macro_name, bool macro_heats) {
+void FilamentCatalogPickerModal::set_macro_callback(MacroOpenCallback cb, std::string macro_name,
+                                                    bool macro_heats) {
     macro_callback_ = std::move(cb);
     macro_name_ = std::move(macro_name);
     macro_heats_ = macro_heats;
