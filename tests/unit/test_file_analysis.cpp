@@ -21,6 +21,7 @@
 #include "file_analysis.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
+#include "motor_ripple_store.h"
 #include "print_start_inputs.h"
 #include "printer_state.h"
 
@@ -303,6 +304,38 @@ TEST_CASE_METHOD(AnalysisLoaderFixture, "what the record leaves open the footer 
     // Tools from the record; grams from the footer, which the record lacked.
     CHECK(answer->tools_used == std::set<int>{1});
     CHECK(answer->tool_grams == std::vector<double>{0.0, 9.0, 0.0});
+}
+
+TEST_CASE_METHOD(AnalysisLoaderFixture,
+                 "a footer read for the wall speed alone is answered by its speed line",
+                 "[plugin_file_analysis][print_start_inputs][loader]") {
+    // The record answers tools, palette and grams; only a saved ripple sweep
+    // sends the loader to the footer, and this footer carries nothing else.
+    using helix::calibration::ripple::MotorId;
+    using helix::calibration::ripple::RippleBand;
+    using helix::calibration::ripple::RippleResultCache;
+    using helix::calibration::ripple::SweepResult;
+    RippleResultCache::instance().clear();
+    struct ClearBands {
+        ~ClearBands() {
+            RippleResultCache::instance().clear();
+        }
+    } clear_bands;
+    SweepResult saved;
+    saved.bands.push_back(RippleBand{MotorId::StepperY, 41.6f, 44.9f, 4, 43.2f, 905.0f, 216.0f});
+    RippleResultCache::instance().save(*api, saved);
+    REQUIRE_FALSE(RippleResultCache::instance().bands().empty());
+
+    helix::PlantedGcode file("analysis_speed_only.gcode", "", "G28\n; outer_wall_speed = 86\n");
+    plugin(true, feature_map(1, true, true));
+    json rec = record_json();
+    rec["filename"] = file.name();
+    client.set_mock_file_analysis(file.name(), ready(rec));
+
+    const auto answer = load(file.name());
+    REQUIRE(answer.has_value());
+    REQUIRE(answer->outer_wall_speed_mm_s.has_value());
+    CHECK(*answer->outer_wall_speed_mm_s == 86.0f);
 }
 
 TEST_CASE_METHOD(AnalysisLoaderFixture, "a pending record falls back to the file read",
