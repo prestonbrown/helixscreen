@@ -156,6 +156,21 @@ struct MarkHarness {
     static int center_x(const lv_area_t& bounds) {
         return (bounds.x1 + bounds.x2) / 2;
     }
+
+    /// A finger held on @p preset's name until the hold fires, then lifted.
+    /// The picker's dialog when one opened.
+    lv_obj_t* hold(lv_obj_t* preset) {
+        const lv_area_t name = area(under(preset, "preset_material_name"));
+        const int x = center_x(name);
+        const int y = (name.y1 + name.y2) / 2;
+        pointer.press(x, y);
+        pointer.hold(pointer.long_press_hold_ms());
+        settle();
+        lv_obj_t* dialog = ModalStack::instance().top_dialog();
+        pointer.release(x, y);
+        settle();
+        return dialog;
+    }
 };
 
 constexpr const char* kUnmarked[] = {"preset_pla", "preset_petg", "preset_tpu"};
@@ -275,13 +290,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A tap and a hold on a marked preset's name 
     CHECK(m.client.gcode_script_history() == Scripts{"HEAT_ABS"});
 
     m.client.clear_gcode_script_history();
-    m.pointer.press(x, y);
-    m.pointer.hold(m.pointer.long_press_hold_ms());
-    m.settle();
-    lv_obj_t* dialog = ModalStack::instance().top_dialog();
+    lv_obj_t* dialog = m.hold(abs);
     REQUIRE(dialog != nullptr);
-    m.pointer.release(x, y);
-    m.settle();
     // The hold opened the picker and ended its press: the lift ran no tap.
     CHECK(m.client.gcode_script_history().empty());
 
@@ -296,6 +306,30 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A tap and a hold on a marked preset's name 
     m.settle();
     CHECK(ModalStack::instance().top_dialog() == nullptr);
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "material_editing")) == 1);
+    CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "material_edit_name"))) ==
+          "ABS");
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "The hold's row reads Macro for a material that names no macro yet",
+                 "[filament_preset_mark][2183]") {
+    MaterialSettingsScope settings;
+    MarkHarness m(*this);
+    m.settle();
+
+    lv_obj_t* dialog = m.hold(m.shown("preset_abs"));
+    REQUIRE(dialog != nullptr);
+    // The field opens with the switch on, so the row already reads Macro, and None.
+    CHECK_FALSE(lv_obj_is_hidden(m.under(dialog, "preheat_macro_label_heats")));
+    CHECK(lv_obj_is_hidden(m.under(dialog, "preheat_macro_label")));
+    CHECK_FALSE(lv_obj_is_hidden(m.under(dialog, "preheat_macro_none")));
+    lv_obj_t* value = m.under(dialog, "preheat_macro_value");
+    CHECK(lv_obj_is_hidden(value));
+    CHECK(std::string(lv_label_get_text(value)) == "");
+
+    lv_obj_send_event(lv_obj_find_by_name(dialog, "preheat_macro_row"), LV_EVENT_CLICKED, nullptr);
+    m.settle();
+    CHECK(ModalStack::instance().top_dialog() == nullptr);
     CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "material_edit_name"))) ==
           "ABS");
 }

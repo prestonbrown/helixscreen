@@ -308,7 +308,7 @@ TEST_CASE_METHOD(MaterialEditFixture, "Material edit Back asks before dropping u
 
 TEST_CASE_METHOD(
     MaterialEditFixture,
-    "The macro field reads Macro while the macro handles heating, and follows the switch",
+    "The macro field reads Macro while the macro handles heating and follows the switch",
     "[material_temps][2183]") {
     open_abs();
     // A macro chosen for the material shows the switch beside the field.

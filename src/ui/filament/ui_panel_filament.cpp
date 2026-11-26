@@ -1236,12 +1236,14 @@ bool FilamentPanel::handle_preset_longpress(int slot) {
     catalog_picker_.set_reset_callback(
         []() { get_global_filament_panel().reset_presets_to_defaults(); });
     // The row shows what a tap on the preset runs, the way the planner reads it.
+    // With no macro stored the field opens with its switch on, so the row
+    // reads Macro then too.
     const auto* macro = helix::MaterialSettingsManager::instance().find_override_for_material(
         helix::presets::name(slot));
     catalog_picker_.set_macro_callback(
         [screen, slot]() { get_global_filament_panel().open_preset_macro(screen, slot); },
-        macro && macro->preheat_macro ? *macro->preheat_macro : std::string{},
-        macro && macro->macro_heats());
+        macro && macro->names_a_macro() ? *macro->preheat_macro : std::string{},
+        !macro || macro->macro_heats());
     // Fires synchronously on the main thread from the modal's Select button click —
     // so call straight through get_global_filament_panel() (singleton, lives for
     // process lifetime) with no defer/lifetime-token needed.
