@@ -99,19 +99,6 @@ class TestableNMBackend : public WifiBackendNetworkManager {
     }
 };
 
-/// A link event source the test fires by hand.
-class ManualLinkEvents : public helix::net::LinkEvents {
-  public:
-    explicit ManualLinkEvents(std::shared_ptr<std::atomic<bool>> pending)
-        : pending_(std::move(pending)) {}
-    bool poll() override {
-        return pending_->exchange(false);
-    }
-
-  private:
-    std::shared_ptr<std::atomic<bool>> pending_;
-};
-
 // nmcli Field Splitting Tests
 
 TEST_CASE("NM backend: split_nmcli_fields", "[network][nm][parsing]") {
@@ -1001,23 +988,23 @@ TEST_CASE("NM backend: polls while DHCP is pending", "[network][nm][status][wifi
 }
 
 TEST_CASE("NM backend: a link leaving the activated state clears the address at once",
-          "[network][nm][status][wifi_dhcp_pending]") {
+          "[network][nm][status][link_events]") {
     FakeNmcliDir fake;
     ScopedPathPrepend path_prepend(fake.dir);
     fake.set_device("100 (connected)", "10.0.0.9");
     std::atomic<int> disconnects{0};
-    auto link_event = std::make_shared<std::atomic<bool>>(false);
+    auto link_generation = std::make_shared<std::atomic<unsigned>>(0);
     TestableNMBackend backend;
     backend.force_running("wlan0");
     backend.register_event_callback("DISCONNECTED", [&](const std::string&) { disconnects++; });
-    backend.run_status_thread(std::make_unique<ManualLinkEvents>(link_event));
+    backend.run_status_thread(std::make_unique<helix::net::CounterLinkEvents>(link_generation));
     REQUIRE(helix_test::wait_until([&] { return backend.get_status().ip_address == "10.0.0.9"; },
                                    8000));
 
     // NetworkManager removes the address as it deactivates the link; the
     // kernel announces that, well inside the 5 s between timed polls.
     fake.set_device("110 (deactivating)", "");
-    link_event->store(true);
+    link_generation->fetch_add(1);
     CHECK(helix_test::wait_until([&] { return disconnects.load() == 1; }, 2000));
     const WifiBackend::ConnectionStatus st = backend.get_status();
     CHECK_FALSE(st.connected);
