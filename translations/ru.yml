@@ -5431,6 +5431,7 @@ translations:
   The printer can measure each tool's offset automatically. Run it on the tool offset calibration screen.: 'Принтер может автоматически измерить смещение каждого инструмента. Запустите это на экране калибровки смещений инструментов.'
   The printer can measure pressure advance on its own. Run it on the PA calibration screen.: 'Принтер может сам измерить pressure advance. Запускается на экране «Калибровка PA».'
   The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview.: 'Принтер может встать на паузу на выбранном слое, для смены филамента или вставки детали. Слой задается в предпросмотре печати.'
+  The printer changed while you were deciding. Try again.: "Состояние принтера изменилось, пока вы решали. Повторите попытку."
   The printer config has no section for this toolhead: "В конфигурации принтера нет секции для этой головки"
   The printer could not connect to one of its boards at startup.: 'При запуске принтер не смог подключиться к одной из своих плат.'
   'The printer could not get the head ready: homing, picking up the head or heating the nozzle failed.': 'Принтер не смог подготовить головку: не удалась парковка, захват головки или нагрев сопла.'

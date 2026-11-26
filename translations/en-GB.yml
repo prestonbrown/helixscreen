@@ -5311,6 +5311,7 @@ translations:
   The printer can measure each tool's offset automatically. Run it on the tool offset calibration screen.: ''
   The printer can measure pressure advance on its own. Run it on the PA calibration screen.: ''
   The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview.: ''
+  The printer changed while you were deciding. Try again.: ''
   The printer config has no section for this toolhead: ''
   The printer could not connect to one of its boards at startup.: ''
   'The printer could not get the head ready: homing, picking up the head or heating the nozzle failed.': ''

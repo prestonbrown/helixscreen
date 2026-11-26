@@ -5152,6 +5152,7 @@
   <translation tag="The printer can measure each tool&apos;s offset automatically. Run it on the tool offset calibration screen." it="La stampante può misurare automaticamente l&apos;offset di ogni utensile. Avvialo nella schermata di calibrazione offset utensili."/>
   <translation tag="The printer can measure pressure advance on its own. Run it on the PA calibration screen." it="La stampante può misurare il pressure advance da sola. Eseguilo nella schermata Calibrazione PA."/>
   <translation tag="The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview." it="La stampante può mettersi in pausa a un layer scelto, per cambiare filamento o inserire un componente. Imposta il layer dall&apos;anteprima di stampa."/>
+  <translation tag="The printer changed while you were deciding. Try again." it="La stampante è cambiata mentre decidevi. Riprova."/>
   <translation tag="The printer config has no section for this toolhead" it="La configurazione della stampante non ha una sezione per questa testina"/>
   <translation tag="The printer could not connect to one of its boards at startup." it="All&apos;avvio la stampante non è riuscita a connettersi a una delle sue schede."/>
   <translation tag="The printer could not get the head ready: homing, picking up the head or heating the nozzle failed." it="La stampante non è riuscita a preparare la testina: l&apos;homing, il prelievo della testina o il riscaldamento dell&apos;ugello non sono riusciti."/>

@@ -49,6 +49,7 @@ class ToolheadSettingsOverlay : public OverlayBase {
 
     lv_obj_t* create(lv_obj_t* parent) override;
     void on_activate() override;
+    void on_deactivating(DeactivateReason reason) override;
 
     /// Rewrites the Printing settings row's description ("0.4 mm nozzle", or each
     /// head's size). Needs the subjects, not the screen.
@@ -69,6 +70,8 @@ class ToolheadSettingsOverlay : public OverlayBase {
         bool flow = false;
         double mm = 0.0;
         std::string variant;
+        /// The kind of plan the user was asked about; unset until asked.
+        nozzle_size::ChangePlan::Kind kind = nozzle_size::ChangePlan::Kind::Refused;
     };
     /// The plan for @p request from the printer's state now.
     [[nodiscard]] static nozzle_size::ChangePlan plan_for(const Request& request);

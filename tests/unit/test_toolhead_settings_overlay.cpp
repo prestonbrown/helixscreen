@@ -335,3 +335,43 @@ TEST_CASE_METHOD(ToolheadFixture,
         state.set_klippy_state_sync(klippy_before);
     }
 }
+
+TEST_CASE_METHOD(
+    ToolheadFixture,
+    "toolhead settings: a dialog for the printer's command never becomes a config rewrite",
+    "[toolhead_settings][nozzle_size]") {
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::CREALITY_K2_PLUS);
+    auto& state = get_printer_state();
+    state.init_subjects(false);
+    const auto klippy_before = static_cast<KlippyState>(
+        lv_subject_get_int(state.network_state().get_klippy_state_subject()));
+    state.set_klippy_state_sync(KlippyState::READY);
+    MoonrakerAPIMock api(client, state);
+    api.set_config_files(
+        {{"printer.cfg", "[printer]\nkinematics: corexy\n[extruder]\nnozzle_diameter: 0.4\n"}});
+    helix::MoonrakerClientTestAccess::force_connection_state(client,
+                                                             helix::ConnectionState::CONNECTED);
+    helix::http::HttpExecutor::fast().start();
+    client.connect("ws://mock/websocket", []() {}, []() {});
+    helix::nozzle_size::probe_size_command(client);
+    set_moonraker_api(&api);
+
+    open({"extruder"}, {{"extruder", {{"nozzle_diameter", 0.4}}}});
+    ask_06();
+    // The printer stops offering the command while the dialog is open.
+    helix::nozzle_size::set_size_command_state(helix::nozzle_size::CommandProbe::Absent);
+    answer_change();
+
+    const auto written = [&api]() {
+        const auto cfg = api.get_uploaded_config("printer.cfg");
+        return cfg && cfg->find("nozzle_diameter: 0.6") != std::string::npos;
+    };
+    CHECK_FALSE(wait_until(written, 600));
+    CHECK(client.nozzle_properties(0).first == Catch::Approx(0.4));
+
+    set_moonraker_api(nullptr);
+    client.disconnect();
+    state.set_klippy_state_sync(klippy_before);
+    StaticPanelRegistry::instance().destroy_all();
+    helix::ui::UpdateQueue::instance().drain();
+}

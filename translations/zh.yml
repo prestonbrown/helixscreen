@@ -5343,6 +5343,7 @@ translations:
   The printer can measure each tool's offset automatically. Run it on the tool offset calibration screen.: '打印机可自动测量每个工具的偏移。可在工具偏移校准页面运行。'
   The printer can measure pressure advance on its own. Run it on the PA calibration screen.: '打印机可以自行测量压力提前量(pressure advance)。在 PA 校准界面运行。'
   The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview.: '打印机可在选定的层暂停,用于换料或嵌入零件。在打印预览中设置层。'
+  The printer changed while you were deciding. Try again.: "您决定期间打印机状态已变化，请重试。"
   The printer config has no section for this toolhead: "打印机配置中没有此工具头的配置段"
   The printer could not connect to one of its boards at startup.: '打印机启动时无法连接其中一块主板。'
   'The printer could not get the head ready: homing, picking up the head or heating the nozzle failed.': '打印机无法让工具头就绪：归位、装上工具头或加热喷嘴失败。'

@@ -164,7 +164,16 @@ lv_obj_t* ToolheadSettingsOverlay::create(lv_obj_t* parent) {
 
 void ToolheadSettingsOverlay::on_activate() {
     OverlayBase::on_activate();
+    // A probe that settles while the page is open redraws it.
+    auto token = object_lifetime_.token();
+    nozzle_size::set_size_command_listener(
+        [this, token]() { token.defer("Toolhead::probe_settled", [this]() { populate(); }); });
     populate();
+}
+
+void ToolheadSettingsOverlay::on_deactivating(DeactivateReason reason) {
+    nozzle_size::set_size_command_listener({});
+    OverlayBase::on_deactivating(reason);
 }
 
 void ToolheadSettingsOverlay::refresh_summary() {
@@ -197,6 +206,12 @@ void ToolheadSettingsOverlay::populate() {
         return;
     }
     helix::ui::safe_clean_children(list);
+
+    // A printer whose command probe has not answered asks again: its heads are read-only
+    // until it does.
+    if (IMoonrakerAPI* api = get_moonraker_api()) {
+        nozzle_size::reprobe_size_command_if_unknown(api->get_client());
+    }
 
     const auto inputs = nozzle_size::inputs_from_state(get_printer_state());
     const auto cap = nozzle_size::nozzle_capability(inputs);
@@ -314,9 +329,12 @@ void ToolheadSettingsOverlay::apply(const Request& request, const std::string& h
         populate(); // put the dropdown back on what the printer has
         return;
     }
+    // The answer must be to this kind of change: a printer-side command is not a config rewrite.
+    Request asked = request;
+    asked.kind = plan.kind;
     const auto question = nozzle_size::confirm_message(plan, request.mm);
     if (!question) {
-        confirmed(request);
+        confirmed(asked);
         return;
     }
     const std::string title =
@@ -331,12 +349,11 @@ void ToolheadSettingsOverlay::apply(const Request& request, const std::string& h
     options.on_dismiss = [this]() { populate(); };
     if (plan.kind == Kind::ConfigEdit) {
         helix::ui::confirm_config_rewrite(
-            title.c_str(), what, lv_tr("Change"), [this, request]() { confirmed(request); },
-            options);
+            title.c_str(), what, lv_tr("Change"), [this, asked]() { confirmed(asked); }, options);
     } else {
         helix::ui::modal_confirm(
             title.c_str(), what.c_str(), ModalSeverity::Warning, lv_tr("Change"),
-            [this, request]() { confirmed(request); }, options);
+            [this, asked]() { confirmed(asked); }, options);
     }
 }
 
@@ -345,6 +362,15 @@ void ToolheadSettingsOverlay::confirmed(const Request& request) {
     const nozzle_size::ChangePlan plan = plan_for(request);
     if (plan.kind == nozzle_size::ChangePlan::Kind::Refused) {
         ToastManager::instance().show(ToastSeverity::WARNING, lv_tr(plan.reason.c_str()), 4000);
+        populate();
+        return;
+    }
+    if (plan.kind != request.kind) {
+        // What the printer can do changed under the dialog: ask again rather than do the
+        // other thing.
+        ToastManager::instance().show(
+            ToastSeverity::WARNING,
+            lv_tr("The printer changed while you were deciding. Try again."), 4000);
         populate();
         return;
     }
