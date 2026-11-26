@@ -505,7 +505,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Material preheat without a printer API send
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "A material's macro is given the pre-start limit, not five minutes",
+                 "A material's macro is given the pre-start limit of twenty minutes",
                  "[material_preheat][preheat][filament][2183]") {
     MaterialSettingsScope settings;
     Harness h;
