@@ -318,17 +318,21 @@ update_manager_editable_stanza_files() {
 
 # Print each file holding [update_manager helixscreen] that the firmware mod
 # declared itself: among the files the mod's conf reaches, any that is neither
-# the user conf @1 (the file this installer writes) nor in the mod's own tree
+# the user conf @1 (the file this installer writes) nor one that conf includes,
+# nor in the mod's own tree
 # (that git-tracked conf is warn_mod_conf_stanza's case). Z-Mod's plugin
 # manager keeps its entries in such a file. Nothing when @1 is no mod's user
 # conf. The mod owns these files: they are never edited.
 mod_declared_stanza_files() {
-    local mod_conf user_real
+    local mod_conf user_real user_reach
     mod_conf=$(mod_conf_including_user_conf "$1")
     [ -n "$mod_conf" ] || return 0
     user_real=$(host_canonical_path "$1")
+    # What the user conf itself includes is the user's, not the mod's.
+    user_reach=$(update_manager_stanza_files "$1")
     update_manager_stanza_files "$mod_conf" | while IFS= read -r _mdsf_file; do
         [ -n "$_mdsf_file" ] || continue
+        printf '%s\n' "$user_reach" | grep -qxF "$_mdsf_file" && continue
         [ "$(host_canonical_path "$_mdsf_file")" = "$user_real" ] && continue
         host_path_is_mod_owned "$_mdsf_file" && continue
         printf '%s\n' "$_mdsf_file"
@@ -340,7 +344,7 @@ update_manager_stanza_path() {
     awk '
         /^\[update_manager helixscreen\]/ { found=1; next }
         found && /^\[/ { exit }
-        found && /^path:/ { sub(/^path:[[:space:]]*/, ""); sub(/[[:space:]\r]+$/, ""); print; exit }
+        found && /^path[ \t]*[:=]/ { sub(/^path[ \t]*[:=][ \t]*/, ""); sub(/[ \t\r]+$/, ""); print; exit }
     ' "$1" 2>/dev/null
 }
 
