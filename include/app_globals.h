@@ -216,6 +216,16 @@ helix::Subject& get_wizard_active_subject();
 void app_globals_init_subjects();
 
 /**
+ * @brief Return the mutable global subjects to their startup values
+ *
+ * Initializes them first when they are down. Unlike a deinit/init cycle it keeps
+ * every bound observer, so a binding made while the subjects were up stays valid.
+ */
+namespace helix {
+void reset_app_globals_subject_values_for_test();
+} // namespace helix
+
+/**
  * @brief Deinitialize global subjects
  *
  * Disconnects observers before shutdown. Called by StaticPanelRegistry.
