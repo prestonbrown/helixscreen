@@ -51,6 +51,14 @@
 /** Minimum bar width in pixels (prevents bars from becoming invisible) */
 static constexpr int32_t kMinBarWidthPx = 3;
 
+/** The narrowest and shortest bar body the bar view lays a lane out at before
+ *  it drops whole units to "+N": below these a bar's fill stops reading. */
+static constexpr int kMinReadableBarWidthPx = 4;
+static constexpr int kMinReadableBarHeightPx = 8;
+
+/** Units the strip lays out; later units are not drawn in either view. */
+static constexpr int kMaxUnitRows = 8;
+
 /** Maximum bar width in pixels (prevents bars from becoming too wide) */
 static constexpr int32_t kMaxBarWidthPx = 24;
 
@@ -127,8 +135,9 @@ struct SpoolCellData {
 struct UnitRowInfo {
     int first_slot = 0; // Index into slots[] array
     int slot_count = 0;
-    std::string title;                 // the unit's display name (grid view group title)
-    lv_obj_t* row_container = nullptr; // Row container for this unit's bars
+    std::string title;           // the unit's display name (grid view group title)
+    lv_obj_t* bar_box = nullptr; // bar view: the unit's box, holding its bars
+    int bar_box_kind = -1;       // the BarBoxKind bar_box was created as
 };
 
 namespace {
@@ -177,14 +186,13 @@ struct AmsMiniStatusData {
     uint32_t magic = kAmsMiniStatusMagic;
     int32_t height = 32;
     int slot_count = 0;
-    int max_visible = AMS_MINI_STATUS_MAX_VISIBLE;
 
     // Available pixel width for responsive sizing
     int width_px = 0; // 0 = unknown/default, set by set_width()
 
     // Multi-unit support
-    int unit_count = 0;       // Number of AMS units (0 or 1 = single row, 2+ = stacked rows)
-    UnitRowInfo unit_rows[8]; // Max 8 units
+    int unit_count = 0; // Number of AMS units (0 or 1 = single row, 2+ = stacked rows)
+    UnitRowInfo unit_rows[kMaxUnitRows];
 
     // Render mode selection (BAR for narrow, SPOOL for width_px >= w_normal())
     AmsMiniMode mode = AmsMiniMode::BAR;
@@ -213,10 +221,12 @@ struct AmsMiniStatusData {
     lv_obj_t* spools_container = nullptr; // The lanes' horizontal scroller, in spools_row
     lv_obj_t* overflow_label = nullptr;   // "+N" overflow indicator
 
-    // Bar-mode lane pool: one ams_lane_bar widget per visible slot, created
-    // lazily, reparented between unit rows and resized as the measured layout
-    // moves. Rendering inside each bar comes from the AmsState per-slot subjects.
-    lv_obj_t* lane_bars[AMS_MINI_STATUS_MAX_VISIBLE] = {};
+    // Bar-mode lane pool: one ams_lane_bar widget per slot, created lazily,
+    // reparented between unit boxes and resized as the measured layout moves.
+    // Rendering inside each bar comes from the AmsState per-slot subjects.
+    std::vector<lv_obj_t*> lane_bars;
+    // Bar-mode lines of unit boxes (ams_mini_unit_row), pooled.
+    std::vector<lv_obj_t*> bar_lines;
 
     // Per-lane data for the spool render mode (sized to slot_count; uncapped for multi-unit)
     std::vector<SpoolCellData> spool_cells;
@@ -288,22 +298,6 @@ static const char* bars_align_name(lv_flex_align_t align) {
 }
 
 /**
- * @brief Create or get a unit row container for multi-unit stacked layout
- */
-static lv_obj_t* ensure_unit_row(AmsMiniStatusData* data, int unit_index) {
-    UnitRowInfo* row = &data->unit_rows[unit_index];
-    if (!row->row_container) {
-        const char* attrs[] = {"main_place", bars_align_name(data->bars_align), nullptr};
-        row->row_container =
-            static_cast<lv_obj_t*>(lv_xml_create(data->bars_container, "ams_mini_unit_row", attrs));
-        if (!row->row_container)
-            spdlog::error("[AmsMiniStatus] ams_mini_unit_row creation failed for unit {}",
-                          unit_index);
-    }
-    return row->row_container;
-}
-
-/**
  * @brief Compute effective max bar width based on available width
  *
  * Proportional to the cell, so the same lane count fills the same fraction of
@@ -316,27 +310,6 @@ static int32_t effective_max_bar_width(const AmsMiniStatusData* data) {
     if (data->width_px <= 0)
         return kDefaultMaxBarWidthPx;
     return std::clamp(data->width_px / kBarWidthDivisor, kMinBarWidthPx, kMaxBarWidthPx);
-}
-
-/**
- * @brief Compute effective max visible slots based on available width
- *
- * In narrow cells, reduce visible slots to avoid overflow/clipping.
- */
-static int effective_max_visible(const AmsMiniStatusData* data) {
-    // width_px <= 0 is the struct's default before set_width() has ever run
-    // (see effective_max_bar_width) — falls through to the unclamped default,
-    // same as width_px >= 100.
-    if (data->width_px <= 0)
-        return data->max_visible;
-    if (data->width_px < 100) {
-        // Tight: show max 6 bars, the bypass's among them
-        return std::min(data->max_visible, data->bypass.shown ? 5 : 6);
-    }
-    // width_px >= 100 shows every configured slot: max_visible is already
-    // clamped to <= AMS_MINI_STATUS_MAX_VISIBLE (8) by the setter, so a
-    // second min(max_visible, 8) here was always a no-op.
-    return data->max_visible;
 }
 
 /** Create one pooled lane bar bound to its slot's subjects. */
@@ -426,7 +399,107 @@ static void layout_bypass_bar(AmsMiniStatusData* data, int32_t bar_width, int32_
     lv_obj_set_hidden(col, false);
 }
 
-/** Rebuild the bars based on slot_count, max_visible, and unit_count */
+namespace {
+/** A unit's span of global slots in the bar view. */
+struct BarUnit {
+    int first_slot = 0;
+    int lanes = 0;
+};
+
+/// How a unit's box draws: bare, hugging its bars with a border, or a full box.
+enum class BarBoxKind { Bare = 0, Hug = 1, Full = 2 };
+} // namespace
+
+/** The units the bar view lays out: each unit's span, or the whole strip as one. */
+static std::vector<BarUnit> bar_units(const AmsMiniStatusData* data) {
+    std::vector<BarUnit> units;
+    if (data->unit_count <= 1) {
+        units.push_back({0, data->slot_count});
+        return units;
+    }
+    for (int u = 0; u < data->unit_count && u < kMaxUnitRows; ++u)
+        units.push_back({data->unit_rows[u].first_slot, data->unit_rows[u].slot_count});
+    return units;
+}
+
+/** The unit holding the active lane, or -1. */
+static int active_bar_unit(const AmsMiniStatusData* data, const std::vector<BarUnit>& units) {
+    for (size_t i = 0; i < data->spool_cells.size(); ++i) {
+        const SpoolCellData& cd = data->spool_cells[i];
+        if (!cd.active)
+            continue;
+        const int slot = cd.slot >= 0 ? cd.slot : static_cast<int>(i);
+        for (size_t u = 0; u < units.size(); ++u)
+            if (slot >= units[u].first_slot && slot < units[u].first_slot + units[u].lanes)
+                return static_cast<int>(u);
+    }
+    return -1;
+}
+
+static BarBoxKind box_kind_for(helix::ui::AmsMiniBarBoxes boxes, bool active) {
+    switch (boxes) {
+    case helix::ui::AmsMiniBarBoxes::Every:
+        return BarBoxKind::Full;
+    case helix::ui::AmsMiniBarBoxes::ActiveOnly:
+        return active ? BarBoxKind::Hug : BarBoxKind::Bare;
+    case helix::ui::AmsMiniBarBoxes::None:
+        return BarBoxKind::Bare;
+    }
+    return BarBoxKind::Bare;
+}
+
+/**
+ * @brief The unit's box (an untitled ams_mini_unit_group), rebuilt when its kind
+ * changes since the kind is fixed at creation. A replaced box hands its bars
+ * back to bars_container before @p condemn takes it.
+ */
+template <typename Condemn>
+static lv_obj_t* ensure_unit_box(AmsMiniStatusData* data, int unit, BarBoxKind kind,
+                                 Condemn&& condemn) {
+    UnitRowInfo& row = data->unit_rows[unit];
+    if (row.bar_box && row.bar_box_kind == static_cast<int>(kind))
+        return row.bar_box;
+    if (row.bar_box) {
+        condemn(row.bar_box);
+        row.bar_box = nullptr;
+    }
+    const char* full[] = {"untitled", "true", "box_border", "1", nullptr};
+    const char* hug[] = {"untitled", "true",       "box_opa", "0",    "box_pad",
+                         "0",        "box_border", "1",       nullptr};
+    const char* bare[] = {"untitled", "true", "box_opa", "0", "box_pad", "0", nullptr};
+    const char** attrs = kind == BarBoxKind::Full ? full : kind == BarBoxKind::Hug ? hug : bare;
+    row.bar_box =
+        static_cast<lv_obj_t*>(lv_xml_create(data->bars_container, "ams_mini_unit_group", attrs));
+    row.bar_box_kind = static_cast<int>(kind);
+    if (!row.bar_box)
+        spdlog::error("[AmsMiniStatus] ams_mini_unit_group creation failed for unit {}", unit);
+    return row.bar_box;
+}
+
+/** The bar view's sizes in this theme, for a box @p max_bar_w caps. */
+static helix::ui::AmsMiniBarMetrics bar_metrics(int32_t max_bar_w, int32_t max_body_h,
+                                                int side_bars) {
+    helix::ui::AmsMiniBarMetrics m;
+    m.gap = theme_manager_get_spacing("space_xxs");
+    m.unit_gap = theme_manager_get_spacing("space_xs");
+    m.line_gap = theme_manager_get_spacing("space_xxs");
+    m.box_pad = theme_manager_get_spacing("space_xxs");
+    m.box_border = 1; // ams_mini_unit_group's box_border in the bar view
+    m.status_h = ams_draw::kStatusLineHeightPx + ams_draw::kStatusLineGapPx;
+    m.min_bar_w = kMinReadableBarWidthPx;
+    m.max_bar_w = std::max<int32_t>(max_bar_w, kMinReadableBarWidthPx);
+    m.min_bar_h = kMinReadableBarHeightPx;
+    m.max_bar_h = std::max<int32_t>(max_body_h, kMinReadableBarHeightPx);
+    m.overflow_w = theme_manager_get_spacing("space_lg");
+    m.side_bars = side_bars;
+    return m;
+}
+
+/**
+ * @brief Rebuild the bar view: every lane in as many lines as gives the
+ * largest bars (plan_ams_mini_bars()), each unit in its box, the active unit's
+ * highlighted, and "+N" for the lanes of units that did not fit.
+ */
 static void rebuild_bars(AmsMiniStatusData* data) {
     if (!data || !data->bars_container)
         return;
@@ -435,8 +508,8 @@ static void rebuild_bars(AmsMiniStatusData* data) {
     // During lv_deinit, the default display is unset BEFORE screens are deleted
     // (lv_init.c: lv_display_set_default(NULL) precedes lv_cleanup_devices), yet
     // the destruct cascade still delivers LV_EVENT_SIZE_CHANGED here via flex
-    // re-layout. With no active screen, condemn_row's lv_obj_create() returns
-    // NULL and lv_obj_add_flag(NULL) crashes. Nothing to rebuild at teardown.
+    // re-layout. With no active screen, condemn's lv_obj_create() returns NULL
+    // and lv_obj_add_flag(NULL) crashes. Nothing to rebuild at teardown.
     if (!lv_screen_active())
         return;
     data->rebuilding = true;
@@ -460,244 +533,184 @@ static void rebuild_bars(AmsMiniStatusData* data) {
         }
     }
 
-    int max_vis = effective_max_visible(data);
-    int visible_count = std::min(data->slot_count, max_vis);
-    int overflow_count = 0;
-    for (int i = visible_count; i < data->slot_count; ++i) {
-        if (std::find(data->absent_slots.begin(), data->absent_slots.end(), i) ==
-            data->absent_slots.end()) {
-            ++overflow_count;
-        }
-    }
-
-    // Calculate dimensions from container
-    // Don't force layout — read current dimensions. If they're not resolved
+    // Don't force layout: read current dimensions. If they're not resolved
     // yet, LV_EVENT_SIZE_CHANGED will trigger a rebuild when they are.
     int32_t container_width = lv_obj_get_content_width(data->container);
     int32_t container_height = lv_obj_get_content_height(data->container);
     spdlog::trace("[AmsMiniStatus] rebuild_bars: container={}x{}, slots={}, width_px={}",
                   container_width, container_height, data->slot_count, data->width_px);
-
-    // Skip if dimensions aren't resolved yet — size_changed will call us back.
-    if (container_width < 20 && data->width_px == 0) {
+    if (container_width < 20 && data->width_px == 0)
         return;
-    }
+    if (container_width < 20)
+        container_width = data->width_px;
 
-    int32_t gap = theme_manager_get_spacing("space_xxs");
-
-    // Calculate bar height - use container height if data->height is 0 (XML-based responsive)
     int32_t effective_height = data->height > 0 ? data->height : container_height;
-    if (effective_height < 20) {
+    if (effective_height < 20)
         effective_height = 32; // Minimum fallback height
-    }
-    // Cap bars at 80% of container height so they don't fill the entire widget
+    // Bars take 80% of the height, so they never fill the whole widget.
     effective_height = effective_height * 80 / 100;
 
-    // Cap bar height by aspect ratio — bars taller than 4× their width look awkward.
-    // Compute max bar width first to get the aspect limit.
-    int32_t max_bw = effective_max_bar_width(data);
-    int32_t max_bar_height = max_bw * 4;
-    if (effective_height > max_bar_height) {
-        effective_height = max_bar_height;
-    }
+    // Bars taller than 4x the widest bar look awkward.
+    const int32_t max_bw = effective_max_bar_width(data);
+    const int32_t line_room = ams_draw::kStatusLineHeightPx + ams_draw::kStatusLineGapPx;
+    const int side_bars = data->bypass.shown ? 1 : 0;
+    const helix::ui::AmsMiniBarMetrics m = bar_metrics(max_bw, max_bw * 4 - line_room, side_bars);
 
-    bool is_multi_unit = (data->unit_count >= 2);
-    int32_t bypass_bar_width = max_bw;
-    int32_t bypass_bar_height = 0;
+    // 90% of the width, leaving a margin for centering; the bypass column's
+    // divider and its gaps come off first.
+    const int avail_w = (container_width - bypass_width_overhead(data)) * 90 / 100;
+    const std::vector<BarUnit> units = bar_units(data);
+    std::vector<int> unit_lanes;
+    unit_lanes.reserve(units.size());
+    for (const BarUnit& u : units)
+        unit_lanes.push_back(std::max(0, u.lanes));
+    const int active = units.size() >= 2 ? active_bar_unit(data, units) : -1;
+    const helix::ui::AmsMiniBarPlan plan =
+        helix::ui::plan_ams_mini_bars(unit_lanes, active, avail_w, effective_height, m);
 
-    // Collect condemned row containers here; batch-delete at end via a single
-    // temporary parent to avoid cascading lv_obj_delete_async() calls that
-    // corrupt LVGL's event linked list during rapid rebuild cycles.
+    // Boxes and lines removed this pass are batch-deleted at the end through one
+    // temporary parent: cascading lv_obj_delete_async() calls corrupt LVGL's
+    // event list during rapid rebuild cycles.
     lv_obj_t* condemned_parent = nullptr;
-    auto condemn_row = [&](lv_obj_t* row) {
-        if (!row)
+    auto condemn = [&](lv_obj_t* obj) {
+        if (!obj)
             return;
-        // The pool outlives rows: a bar left inside a condemned row is freed
-        // with it while lane_bars[] still points at it.
+        // The pool outlives boxes and lines: a bar left inside one is freed with
+        // it while lane_bars[] still points at it.
         for (lv_obj_t* bar : data->lane_bars) {
-            if (bar && lv_obj_get_parent(bar) == row) {
-                lv_obj_set_parent(bar, data->bars_container);
-                lv_obj_set_hidden(bar, true);
+            if (bar && lv_obj_get_parent(bar) != data->bars_container) {
+                for (lv_obj_t* p = lv_obj_get_parent(bar); p; p = lv_obj_get_parent(p)) {
+                    if (p == obj) {
+                        lv_obj_set_parent(bar, data->bars_container);
+                        lv_obj_set_hidden(bar, true);
+                        break;
+                    }
+                }
             }
         }
         if (!condemned_parent) {
             condemned_parent = lv_obj_create(lv_screen_active());
             if (!condemned_parent)
-                return; // teardown: no active screen to host the condemned rows
+                return; // teardown: no active screen to host the condemned objects
             lv_obj_set_hidden(condemned_parent, true);
             lv_obj_set_scrollable(condemned_parent, false);
             lv_obj_set_size(condemned_parent, 0, 0);
         }
-        lv_obj_set_parent(row, condemned_parent);
+        lv_obj_set_parent(obj, condemned_parent);
     };
 
-    if (is_multi_unit) {
-        // === Multi-unit stacked layout ===
-        // bars_container becomes a column, each unit gets its own row
+    // DECLARATIVE_OK: bars_align is a runtime attribute; the lines stack down
+    // the container and sit along it where the strip's alignment puts them.
+    lv_obj_set_flex_flow(data->bars_container, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(data->bars_container, LV_FLEX_ALIGN_CENTER, data->bars_align,
+                          LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_row(data->bars_container, m.line_gap, LV_PART_MAIN);
+    lv_obj_set_style_pad_column(data->bars_container, 0, LV_PART_MAIN);
 
-        lv_obj_set_flex_flow(data->bars_container, LV_FLEX_FLOW_COLUMN);
-        lv_obj_set_flex_align(data->bars_container, LV_FLEX_ALIGN_CENTER, data->bars_align,
-                              LV_FLEX_ALIGN_CENTER);
-        lv_obj_set_style_pad_row(data->bars_container, gap, LV_PART_MAIN);
-        // Reset column padding (not used in column flow)
-        lv_obj_set_style_pad_column(data->bars_container, 0, LV_PART_MAIN);
-
-        // Count visible rows (units with bars within max visible)
-        int visible_rows = 0;
-        for (int u = 0; u < data->unit_count && u < 8; ++u) {
-            int row_slots =
-                std::min(data->unit_rows[u].slot_count, max_vis - data->unit_rows[u].first_slot);
-            if (row_slots > 0)
-                ++visible_rows;
+    // Every unit not in the plan loses its box; its bars hide.
+    std::vector<bool> placed(units.size(), false);
+    for (const auto& line : plan.lines)
+        for (int u : line)
+            placed[static_cast<size_t>(u)] = true;
+    for (int u = 0; u < kMaxUnitRows; ++u) {
+        const bool keep = u < static_cast<int>(units.size()) && placed[static_cast<size_t>(u)];
+        if (!keep && data->unit_rows[u].bar_box) {
+            condemn(data->unit_rows[u].bar_box);
+            data->unit_rows[u].bar_box = nullptr;
+            data->unit_rows[u].bar_box_kind = -1;
         }
-        if (visible_rows < 1)
-            visible_rows = 1;
+    }
 
-        // Reduce bar height per row to fit stacked rows
-        int32_t row_gap_total = (visible_rows - 1) * gap;
-        int32_t available_height = effective_height - row_gap_total;
-        int32_t per_row_height = available_height / visible_rows;
-        if (per_row_height < 12)
-            per_row_height = 12; // Minimum per-row height
-
-        int32_t bar_height =
-            per_row_height - ams_draw::kStatusLineHeightPx - ams_draw::kStatusLineGapPx;
-        if (bar_height < 6)
-            bar_height = 6;
-        // The bypass belongs to no unit: it stands as tall as the rows together,
-        // which grow to fill the container, from the top row's bar to the bottom
-        // row's status line.
-        const int32_t rows_height = container_height >= 20 ? container_height : effective_height;
-        bypass_bar_height = std::max<int32_t>(6, rows_height - ams_draw::kStatusLineHeightPx -
-                                                     ams_draw::kStatusLineGapPx);
-
-        // Condemn any row containers beyond current unit_count
-        for (int u = data->unit_count; u < 8; ++u) {
-            if (data->unit_rows[u].row_container) {
-                condemn_row(data->unit_rows[u].row_container);
-                data->unit_rows[u].row_container = nullptr;
-            }
+    // Lines: one ams_mini_unit_row per plan line, pooled.
+    while (data->bar_lines.size() > plan.lines.size()) {
+        condemn(data->bar_lines.back());
+        data->bar_lines.pop_back();
+    }
+    while (data->bar_lines.size() < plan.lines.size()) {
+        const char* attrs[] = {"main_place", bars_align_name(data->bars_align), nullptr};
+        lv_obj_t* line =
+            static_cast<lv_obj_t*>(lv_xml_create(data->bars_container, "ams_mini_unit_row", attrs));
+        if (!line) {
+            spdlog::error("[AmsMiniStatus] ams_mini_unit_row creation failed");
+            break;
         }
+        data->bar_lines.push_back(line);
+    }
 
-        // Process each unit row
-        for (int u = 0; u < data->unit_count && u < 8; ++u) {
-            UnitRowInfo* row_info = &data->unit_rows[u];
-            lv_obj_t* row = ensure_unit_row(data, u);
+    if (static_cast<int>(data->lane_bars.size()) < data->slot_count)
+        data->lane_bars.resize(static_cast<size_t>(data->slot_count), nullptr);
 
-            // Calculate bar width for this row based on its slot count
-            int row_slots = std::min(row_info->slot_count, max_vis - row_info->first_slot);
-            if (row_slots < 0)
-                row_slots = 0;
-
-            int32_t max_bw = effective_max_bar_width(data);
-            const int bypass_bars = data->bypass.shown ? 1 : 0;
-            int32_t bar_width =
-                ams_draw::calc_bar_width(container_width - bypass_width_overhead(data),
-                                         row_slots + bypass_bars, gap, kMinBarWidthPx, max_bw, 90);
-            if (row_slots > 0)
-                bypass_bar_width = std::min(bypass_bar_width, bar_width);
-
-            // Create/update slots in this unit row
-            for (int s = 0; s < row_info->slot_count; ++s) {
-                int global_idx = row_info->first_slot + s;
-                if (global_idx >= AMS_MINI_STATUS_MAX_VISIBLE)
-                    break;
-
-                lv_obj_t* bar = data->lane_bars[global_idx];
-
-                if (global_idx < visible_count) {
-                    if (!bar) {
-                        bar = create_lane_bar(row, global_idx, bar_width, bar_height);
-                        data->lane_bars[global_idx] = bar;
-                    } else {
-                        if (lv_obj_get_parent(bar) != row) {
-                            // Reparent the pooled bar into its unit row
-                            lv_obj_set_parent(bar, row);
-                        }
-                        helix::ui::ams_lane_bar_resize(bar, bar_width, bar_height);
-                    }
-
-                    // Override to fill row height (multi-unit responsive mode)
-                    lv_obj_set_height(bar, LV_PCT(100));
-                    lv_obj_set_style_flex_grow(lv_obj_find_by_name(bar, "bar_bg"), 1, LV_PART_MAIN);
-
-                    lv_obj_set_hidden(bar, false);
-                } else if (bar) {
-                    lv_obj_set_hidden(bar, true);
-                }
-            }
-
-            // Condemn row if no visible bars (hidden rows still consume flex gap)
-            if (row_slots <= 0) {
-                condemn_row(row);
-                data->unit_rows[u].row_container = nullptr;
-            }
-        }
-
-        spdlog::debug("[AmsMiniStatus] Multi-unit layout: {} units, {} total slots",
-                      data->unit_count, visible_count);
-
-    } else {
-        // === Single-unit layout (original behavior) ===
-
-        // Clean up any leftover unit row containers from a previous multi-unit state
-        for (int u = 0; u < 8; ++u) {
-            if (data->unit_rows[u].row_container) {
-                condemn_row(data->unit_rows[u].row_container);
-                data->unit_rows[u].row_container = nullptr;
-            }
-        }
-
-        // Restore bars_container to row flex flow
-        lv_obj_set_flex_flow(data->bars_container, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(data->bars_container, data->bars_align, LV_FLEX_ALIGN_END,
-                              LV_FLEX_ALIGN_CENTER);
-        lv_obj_set_style_pad_column(data->bars_container, gap, LV_PART_MAIN);
-        lv_obj_set_style_pad_row(data->bars_container, 0, LV_PART_MAIN);
-
-        int32_t bar_height =
-            effective_height - ams_draw::kStatusLineHeightPx - ams_draw::kStatusLineGapPx;
-
-        // Use 90% of container width for bars (leave 10% margin for centering);
-        // the bypass is one more bar of the same width, past its divider.
-        int32_t max_bw = effective_max_bar_width(data);
-        const int bypass_bars = data->bypass.shown ? 1 : 0;
-        int32_t bar_width =
-            ams_draw::calc_bar_width(container_width - bypass_width_overhead(data),
-                                     visible_count + bypass_bars, gap, kMinBarWidthPx, max_bw, 90);
-        bypass_bar_width = bar_width;
-        bypass_bar_height = bar_height;
-
-        // Create/update bars
-        for (int i = 0; i < AMS_MINI_STATUS_MAX_VISIBLE; i++) {
-            lv_obj_t* bar = data->lane_bars[i];
-
-            if (i < visible_count) {
+    std::vector<bool> shown(data->lane_bars.size(), false);
+    for (size_t li = 0; li < plan.lines.size() && li < data->bar_lines.size(); ++li) {
+        lv_obj_t* line = data->bar_lines[li];
+        for (size_t k = 0; k < plan.lines[li].size(); ++k) {
+            const int u = plan.lines[li][k];
+            const BarUnit& bu = units[static_cast<size_t>(u)];
+            lv_obj_t* box =
+                ensure_unit_box(data, u, box_kind_for(plan.boxes, u == active), condemn);
+            if (!box)
+                continue;
+            if (lv_obj_get_parent(box) != line)
+                lv_obj_set_parent(box, line);
+            if (lv_obj_get_index(box) != static_cast<int32_t>(k))
+                lv_obj_move_to_index(box, static_cast<int32_t>(k));
+            // DECLARATIVE_OK: the active unit is a runtime fact, shown by the
+            // box's checked style.
+            lv_obj_set_state(box, LV_STATE_CHECKED, u == active);
+            lv_obj_t* lanes = lv_obj_find_by_name(box, "unit_group_lanes");
+            if (!lanes)
+                continue;
+            lv_obj_set_width(lanes, bu.lanes * plan.bar_w + (bu.lanes - 1) * m.gap);
+            for (int s = 0; s < bu.lanes; ++s) {
+                const int slot = bu.first_slot + s;
+                if (slot < 0 || slot >= static_cast<int>(data->lane_bars.size()))
+                    continue;
+                lv_obj_t*& bar = data->lane_bars[static_cast<size_t>(slot)];
                 if (!bar) {
-                    bar = create_lane_bar(data->bars_container, i, bar_width, bar_height);
-                    data->lane_bars[i] = bar;
+                    bar = create_lane_bar(lanes, slot, plan.bar_w, plan.bar_h);
+                    if (!bar)
+                        continue;
                 } else {
-                    // Update existing bar dimensions (size may have changed)
-                    helix::ui::ams_lane_bar_resize(bar, bar_width, bar_height);
+                    if (lv_obj_get_parent(bar) != lanes)
+                        lv_obj_set_parent(bar, lanes);
+                    helix::ui::ams_lane_bar_resize(bar, plan.bar_w, plan.bar_h);
                 }
-
+                if (lv_obj_get_index(bar) != static_cast<int32_t>(s))
+                    lv_obj_move_to_index(bar, s);
+                if (lv_obj_t* bg = lv_obj_find_by_name(bar, "bar_bg"))
+                    lv_obj_set_style_flex_grow(bg, 0, LV_PART_MAIN);
                 lv_obj_set_hidden(bar, false);
-            } else if (bar) {
-                lv_obj_set_hidden(bar, true);
+                shown[static_cast<size_t>(slot)] = true;
             }
         }
     }
-
-    layout_bypass_bar(data, bypass_bar_width, bypass_bar_height, is_multi_unit);
-
-    // Batch-delete all condemned rows via a single deferred deletion
-    if (condemned_parent) {
-        helix::ui::safe_delete_deferred(condemned_parent);
+    for (size_t i = 0; i < data->lane_bars.size(); ++i) {
+        lv_obj_t* bar = data->lane_bars[i];
+        if (bar && !shown[i]) {
+            if (lv_obj_get_parent(bar) != data->bars_container)
+                lv_obj_set_parent(bar, data->bars_container);
+            lv_obj_set_hidden(bar, true);
+        }
     }
+
+    spdlog::debug("[AmsMiniStatus] Bar layout {}x{}: {} units, {} lines, bars {}x{}, boxes {}, "
+                  "+{} hidden",
+                  avail_w, effective_height, units.size(), plan.lines.size(), plan.bar_w,
+                  plan.bar_h, static_cast<int>(plan.boxes), plan.hidden_lanes);
+
+    // The bypass stands beside the lines, as tall as all of them.
+    const int lines = static_cast<int>(plan.lines.size());
+    int32_t bypass_h = plan.bar_h;
+    if (lines > 1)
+        bypass_h = lines * (plan.bar_h + line_room) + (lines - 1) * m.line_gap - line_room;
+    layout_bypass_bar(data, plan.bar_w, bypass_h, false);
+
+    if (condemned_parent)
+        helix::ui::safe_delete_deferred(condemned_parent);
 
     if (data->overflow_label) {
-        if (overflow_count > 0) {
-            lv_label_set_text_fmt(data->overflow_label, "+%d", overflow_count);
+        if (plan.hidden_lanes > 0) {
+            lv_label_set_text_fmt(data->overflow_label, "+%d", plan.hidden_lanes);
             lv_obj_set_hidden(data->overflow_label, false);
         } else {
             lv_obj_set_hidden(data->overflow_label, true);
@@ -707,13 +720,9 @@ static void rebuild_bars(AmsMiniStatusData* data) {
     // Force layout recalculation for flex centering
     lv_obj_update_layout(data->container);
 
-    // Hide entire widget if no slots
-    if (!helix::ui::ams_mini_status_shows_lanes(data->slot_count,
-                                                static_cast<int>(data->spool_cells.size()))) {
-        lv_obj_set_hidden(data->container, true);
-    } else {
-        lv_obj_set_hidden(data->container, false);
-    }
+    lv_obj_set_hidden(data->container,
+                      !helix::ui::ams_mini_status_shows_lanes(
+                          data->slot_count, static_cast<int>(data->spool_cells.size())));
 }
 
 /**
@@ -984,7 +993,7 @@ struct GridChoice {
 
 /** The unit a slot belongs to, or -1 when no unit row holds it. */
 static int unit_of_slot(const AmsMiniStatusData* data, int slot) {
-    for (int u = 0; u < data->unit_count && u < 8; ++u) {
+    for (int u = 0; u < data->unit_count && u < kMaxUnitRows; ++u) {
         const UnitRowInfo& r = data->unit_rows[u];
         if (slot >= r.first_slot && slot < r.first_slot + r.slot_count)
             return u;
@@ -1088,6 +1097,160 @@ static void place_cells_in_groups(AmsMiniStatusData* data, lv_obj_t* sc,
                 lv_obj_move_to_index(cell, c);
         }
     }
+}
+
+namespace {
+using helix::ui::AmsMiniBarBoxes;
+using helix::ui::AmsMiniBarMetrics;
+using helix::ui::AmsMiniBarPlan;
+
+/// What a unit's box adds across: both sides of its padding and border.
+int bar_box_w(AmsMiniBarBoxes boxes, const AmsMiniBarMetrics& m, bool active) {
+    switch (boxes) {
+    case AmsMiniBarBoxes::Every:
+        return 2 * (m.box_pad + m.box_border);
+    case AmsMiniBarBoxes::ActiveOnly:
+        return active ? 2 * m.box_border : 0;
+    case AmsMiniBarBoxes::None:
+        return 0;
+    }
+    return 0;
+}
+
+/// What every line's boxes add down, kept level so every bar is one size.
+int bar_box_h(AmsMiniBarBoxes boxes, const AmsMiniBarMetrics& m) {
+    switch (boxes) {
+    case AmsMiniBarBoxes::Every:
+        return 2 * (m.box_pad + m.box_border);
+    case AmsMiniBarBoxes::ActiveOnly:
+        return 2 * m.box_border;
+    case AmsMiniBarBoxes::None:
+        return 0;
+    }
+    return 0;
+}
+
+/**
+ * The largest-bar layout of @p units (indices into @p lanes, in order) with
+ * @p boxes in a @p w x @p h box: every way of breaking the run into lines,
+ * scored by bar area, fewer lines on a tie. lines is empty when none keeps the
+ * bars at the readable minimum.
+ */
+AmsMiniBarPlan fit_bar_lines(const std::vector<int>& lanes, const std::vector<int>& units,
+                             int active, AmsMiniBarBoxes boxes, int w, int h,
+                             const AmsMiniBarMetrics& m) {
+    AmsMiniBarPlan best;
+    long best_score = -1;
+    const size_t n = units.size();
+    if (n == 0 || n > 20)
+        return best;
+    const uint32_t masks = 1u << (n - 1);
+    for (uint32_t mask = 0; mask < masks; ++mask) {
+        std::vector<std::vector<int>> lines{{units[0]}};
+        for (size_t i = 1; i < n; ++i) {
+            if (mask & (1u << (i - 1)))
+                lines.emplace_back();
+            lines.back().push_back(units[i]);
+        }
+        const int count = static_cast<int>(lines.size());
+        int bar_h = (h - (count - 1) * m.line_gap) / count - bar_box_h(boxes, m) - m.status_h;
+        bar_h = std::min(bar_h, m.max_bar_h);
+        int bar_w = m.max_bar_w;
+        for (const auto& line : lines) {
+            int line_lanes = m.side_bars;
+            int overhead = static_cast<int>(line.size() - 1) * m.unit_gap + m.side_bars * m.gap;
+            for (int u : line) {
+                const int k = lanes[static_cast<size_t>(u)];
+                line_lanes += k;
+                overhead += (k - 1) * m.gap + bar_box_w(boxes, m, u == active);
+            }
+            bar_w = std::min(bar_w, (w - overhead) / std::max(1, line_lanes));
+        }
+        if (bar_w < m.min_bar_w || bar_h < m.min_bar_h)
+            continue;
+        const long score = static_cast<long>(bar_w) * bar_h;
+        if (score > best_score ||
+            (score == best_score && count < static_cast<int>(best.lines.size()))) {
+            best_score = score;
+            best.lines = std::move(lines);
+            best.bar_w = bar_w;
+            best.bar_h = bar_h;
+            best.boxes = boxes;
+        }
+    }
+    return best;
+}
+
+/// The box modes worth trying for @p units, most boxed first.
+std::vector<AmsMiniBarBoxes> bar_box_modes(size_t units, bool has_active) {
+    if (units < 2)
+        return {AmsMiniBarBoxes::None};
+    if (has_active)
+        return {AmsMiniBarBoxes::Every, AmsMiniBarBoxes::ActiveOnly};
+    return {AmsMiniBarBoxes::Every, AmsMiniBarBoxes::None};
+}
+
+AmsMiniBarPlan fit_bar_units(const std::vector<int>& lanes, const std::vector<int>& units,
+                             int active, int w, int h, const AmsMiniBarMetrics& m) {
+    const bool has_active =
+        active >= 0 && std::find(units.begin(), units.end(), active) != units.end();
+    for (AmsMiniBarBoxes boxes : bar_box_modes(units.size(), has_active)) {
+        AmsMiniBarPlan p = fit_bar_lines(lanes, units, active, boxes, w, h, m);
+        if (!p.lines.empty())
+            return p;
+    }
+    return {};
+}
+} // namespace
+
+helix::ui::AmsMiniBarPlan helix::ui::plan_ams_mini_bars(const std::vector<int>& unit_lanes,
+                                                        int active_unit, int avail_w, int avail_h,
+                                                        const AmsMiniBarMetrics& m) {
+    std::vector<int> present;
+    int total = 0;
+    for (size_t i = 0; i < unit_lanes.size(); ++i) {
+        if (unit_lanes[i] > 0) {
+            present.push_back(static_cast<int>(i));
+            total += unit_lanes[i];
+        }
+    }
+    if (present.empty())
+        return {};
+    if (std::find(present.begin(), present.end(), active_unit) == present.end())
+        active_unit = -1;
+
+    AmsMiniBarPlan plan = fit_bar_units(unit_lanes, present, active_unit, avail_w, avail_h, m);
+    if (!plan.lines.empty())
+        return plan;
+
+    // Too many for readable bars: whole units drop from the end, the active one
+    // kept, and "+N" takes its room.
+    const int first = active_unit >= 0 ? active_unit : present.front();
+    std::vector<int> keep{first};
+    for (int u : present) {
+        if (u == first)
+            continue;
+        std::vector<int> trial = keep;
+        trial.insert(std::upper_bound(trial.begin(), trial.end(), u), u);
+        if (fit_bar_units(unit_lanes, trial, active_unit, avail_w - m.overflow_w, avail_h, m)
+                .lines.empty())
+            break;
+        keep = std::move(trial);
+    }
+    plan = fit_bar_units(unit_lanes, keep, active_unit, avail_w - m.overflow_w, avail_h, m);
+    if (plan.lines.empty()) {
+        // Not even one unit reads: it shows at the minimum and spills.
+        plan.lines = {keep};
+        plan.bar_w = m.min_bar_w;
+        plan.bar_h = m.min_bar_h;
+        plan.boxes = AmsMiniBarBoxes::None;
+    }
+    int placed = 0;
+    for (const auto& line : plan.lines)
+        for (int u : line)
+            placed += unit_lanes[static_cast<size_t>(u)];
+    plan.hidden_lanes = total - placed;
+    return plan;
 }
 
 helix::ui::AmsMiniGridPlan helix::ui::plan_ams_mini_grid(const std::vector<int>& unit_lanes,
@@ -1935,19 +2098,6 @@ void ui_ams_mini_status_set_slot_count(lv_obj_t* obj, int slot_count) {
     spdlog::debug("[AmsMiniStatus] slot_count={}", slot_count);
 }
 
-void ui_ams_mini_status_set_max_visible(lv_obj_t* obj, int max_visible) {
-    auto* data = get_data(obj);
-    if (!data)
-        return;
-
-    max_visible = std::max(1, std::min(AMS_MINI_STATUS_MAX_VISIBLE, max_visible));
-    if (data->max_visible == max_visible)
-        return;
-
-    data->max_visible = max_visible;
-    rebuild(data);
-}
-
 void ui_ams_mini_status_set_slot_label(lv_obj_t* obj, int slot_index, const char* material,
                                        int remaining_pct) {
     auto* data = get_data(obj);
@@ -2090,9 +2240,9 @@ static void sync_from_ams_state(AmsMiniStatusData* data) {
     // layout styles and flags, and each one repaints the widget.
     const int prev_slot_count = data->slot_count;
     const int prev_unit_count = data->unit_count;
-    std::array<std::pair<int, int>, 8> prev_rows;
-    std::array<std::string, 8> prev_titles;
-    for (int u = 0; u < 8; ++u) {
+    std::array<std::pair<int, int>, kMaxUnitRows> prev_rows;
+    std::array<std::string, kMaxUnitRows> prev_titles;
+    for (int u = 0; u < kMaxUnitRows; ++u) {
         prev_rows[u] = {data->unit_rows[u].first_slot, data->unit_rows[u].slot_count};
         prev_titles[u] = data->unit_rows[u].title;
     }
@@ -2107,7 +2257,7 @@ static void sync_from_ams_state(AmsMiniStatusData* data) {
     const helix::AmsSystemInfo& info = *snapshot;
     data->unit_count = static_cast<int>(info.units.size());
     data->absent_slots.clear();
-    for (int u = 0; u < data->unit_count && u < 8; ++u) {
+    for (int u = 0; u < data->unit_count && u < kMaxUnitRows; ++u) {
         data->unit_rows[u].first_slot = info.units[u].first_slot_global_index;
         // An absent unit's bays are not drawn: the row is condemned for having
         // no bars, like the card above it that says Not connected.
@@ -2119,7 +2269,7 @@ static void sync_from_ams_state(AmsMiniStatusData* data) {
             data->absent_slots.push_back(i);
         }
     }
-    for (int u = data->unit_count; u < 8; ++u) {
+    for (int u = data->unit_count; u < kMaxUnitRows; ++u) {
         data->unit_rows[u].first_slot = 0;
         data->unit_rows[u].slot_count = 0;
         data->unit_rows[u].title.clear();
@@ -2176,7 +2326,7 @@ static void sync_from_ams_state(AmsMiniStatusData* data) {
     bool unchanged = data->synced && prev_slot_count == slot_count &&
                      prev_unit_count == data->unit_count && prev_cells == data->spool_cells &&
                      prev_bypass == data->bypass;
-    for (int u = 0; unchanged && u < 8; ++u)
+    for (int u = 0; unchanged && u < kMaxUnitRows; ++u)
         unchanged = prev_rows[u] == std::make_pair(data->unit_rows[u].first_slot,
                                                    data->unit_rows[u].slot_count) &&
                     prev_titles[u] == data->unit_rows[u].title;

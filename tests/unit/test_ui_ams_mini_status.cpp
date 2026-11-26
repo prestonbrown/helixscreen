@@ -15,6 +15,7 @@
 #include "../test_helpers/zero_lane_numbering.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
+#include "ams_mini_test_helpers.h"
 #include "ams_state.h"
 #include "config.h"
 #include "core/update_queue.h"
@@ -107,9 +108,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: set_width applies its width argum
     REQUIRE(lv_obj_is_hidden(spools));
 
     // Bar mode renders ams_lane_bar widgets, each bound to its slot.
-    lv_obj_t* bars = UITest::find_by_name(w, "ams_bars_container");
-    REQUIRE(bars != nullptr);
-    lv_obj_t* bar0 = lv_obj_get_child(bars, 0);
+    REQUIRE(UITest::find_by_name(w, "ams_bars_container") != nullptr);
+    lv_obj_t* bar0 = ams_mini_test::lane_bar_for_slot(w, 0);
     REQUIRE(bar0 != nullptr);
     REQUIRE(helix::ui::ams_lane_bar_slot_index(bar0) == 0);
 

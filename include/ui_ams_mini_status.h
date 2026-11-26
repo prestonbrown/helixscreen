@@ -21,8 +21,9 @@ extern "C" {
  * 3. **Fill level**: Bar fills from bottom based on remaining filament %
  *
  * Layout:
- * - Up to 8 vertical bars representing slots/lanes
- * - "+N" overflow indicator when more than max_visible slots exist
+ * - One vertical bar per lane, each unit's lanes in a box, laid out in as
+ *   many lines as gives the largest bars (plan_ams_mini_bars())
+ * - "+N" counting the lanes of whole units that do not fit at a readable size
  * - Auto-hides when slot_count == 0
  *
  * The spool view never draws a lane below kAmsMiniUsableSpoolPx: lanes that
@@ -44,9 +45,6 @@ extern "C" {
  * @endcode
  */
 
-/** Maximum number of visible slots (bars) in the compact view */
-#define AMS_MINI_STATUS_MAX_VISIBLE 8
-
 /**
  * @brief Create an AMS mini status indicator programmatically
  *
@@ -59,21 +57,12 @@ lv_obj_t* ui_ams_mini_status_create(lv_obj_t* parent, int32_t height);
 /**
  * @brief Set the total number of slots
  *
- * If slot_count > max_visible, a "+N" overflow indicator is shown.
  * If slot_count == 0, the widget is hidden.
  *
  * @param obj The ams_mini_status widget
  * @param slot_count Total number of slots in the AMS system
  */
 void ui_ams_mini_status_set_slot_count(lv_obj_t* obj, int slot_count);
-
-/**
- * @brief Set the maximum number of visible slots
- *
- * @param obj The ams_mini_status widget
- * @param max_visible Maximum slots to show (1-8, default 8)
- */
-void ui_ams_mini_status_set_max_visible(lv_obj_t* obj, int max_visible);
 
 /**
  * @brief Update one lane's spool-mode label data (material, percent)
@@ -222,6 +211,59 @@ bool ams_mini_grid_prefers_flat(int grouped_spool, int flat_spool, int min_spool
 /// the spool, its number and its material stop reading, so the lanes scroll
 /// instead.
 inline constexpr int kAmsMiniUsableSpoolPx = 36;
+
+/// Which units of a bar layout sit in a box: none (a single unit), only the
+/// active one (a tile too tight for every box), or every unit.
+enum class AmsMiniBarBoxes { None, ActiveOnly, Every };
+
+/**
+ * @brief The fixed sizes the bar view is laid out with (px).
+ *
+ * A boxed unit adds box_pad + box_border on every side of its bars; under
+ * ActiveOnly the active unit's box hugs its bars (border only), and the line
+ * heights stay level so every bar is one size.
+ */
+struct AmsMiniBarMetrics {
+    int gap = 0;        ///< between bars inside a unit
+    int unit_gap = 0;   ///< between units on one line
+    int line_gap = 0;   ///< between lines
+    int box_pad = 0;    ///< inside a unit's box, each side
+    int box_border = 0; ///< a unit box's border, each side
+    int status_h = 0;   ///< the status line and its gap under each bar body
+    int min_bar_w = 0;
+    int max_bar_w = 0;
+    int min_bar_h = 0;  ///< shortest bar body whose fill still reads
+    int max_bar_h = 0;  ///< tallest bar body
+    int overflow_w = 0; ///< room the "+N" label takes when units drop
+    int side_bars = 0;  ///< bars in a column beside every line (the bypass), each one gap off
+};
+
+/// A bar layout: every shown lane bar_w x bar_h (body), the units in @p lines
+/// (indices into the planner's unit_lanes, in order). hidden_lanes > 0 when
+/// whole units did not fit and a "+N" counts their lanes.
+struct AmsMiniBarPlan {
+    std::vector<std::vector<int>> lines;
+    int bar_w = 0;
+    int bar_h = 0;
+    AmsMiniBarBoxes boxes = AmsMiniBarBoxes::None;
+    int hidden_lanes = 0;
+};
+
+/**
+ * @brief Lay the bar view's lanes out in an @p avail_w x @p avail_h box.
+ *
+ * Each unit's lanes stay together and in order; units are packed into as many
+ * lines as gives the largest bars, one size for every bar. With two or more
+ * units every unit is boxed, else (too tight) only @p active_unit is. When no
+ * layout keeps the bars at least min_bar_w x min_bar_h, whole units drop from
+ * the end, never @p active_unit, and hidden_lanes counts their lanes. Units with
+ * no lanes (absent) are neither placed nor counted.
+ *
+ * @param unit_lanes Each unit's lane count, in order
+ * @param active_unit Index of the unit holding the active lane, or -1
+ */
+AmsMiniBarPlan plan_ams_mini_bars(const std::vector<int>& unit_lanes, int active_unit, int avail_w,
+                                  int avail_h, const AmsMiniBarMetrics& m);
 
 /**
  * @brief Whether the tray draws anything: some lanes, and at least one of

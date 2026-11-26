@@ -2,22 +2,27 @@
 <!-- Copyright (C) 2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
-  <!-- One unit's block in the AMS mini strip's spool view: the strip moves that
-       unit's pooled spool cells into unit_group_lanes, which wraps them into
-       the rows the strip measured. A titled group (a rig with several units)
-       sits on its own box under the unit's name; an untitled one (a single
-       block of lanes) is a bare wrap: the strip passes untitled="true" with no
-       box (box_opa 0, box_pad 0). The strip sets the lanes' width; the group is
-       as wide as they are. Taps bubble to the strip root. -->
+  <!-- One unit's block in the AMS mini strip: the strip moves that unit's
+       pooled spool cells (spool view) or lane bars (bar view) into
+       unit_group_lanes, which wraps them into the rows the strip measured. A
+       titled group (a rig with several units) sits on its own box under the
+       unit's name; an untitled one (a single block of lanes) is a bare wrap:
+       the strip passes untitled="true" with no box (box_opa 0, box_pad 0). The bar view boxes every unit with a 1px
+       box_border, and the unit holding the active lane is checked, drawn in
+       the shared active-chip highlight. The strip sets the lanes' width; the
+       group is as wide as they are. Taps bubble to the strip root. -->
   <api>
     <prop name="untitled" type="boolean" default="false"/>
     <prop name="box_opa" type="string" default="255"/>
     <prop name="box_pad" type="string" default="#space_xxs"/>
+    <prop name="box_border" type="string" default="0"/>
   </api>
   <view extends="lv_obj"
-        width="content" height="content" style_bg_color="#elevated_bg" style_bg_opa="$box_opa" style_border_width="0"
-        style_radius="#border_radius_sm" style_pad_all="$box_pad" style_pad_row="#space_xxs" scrollable="false"
-        event_bubble="true" flex_flow="column" style_flex_cross_place="start">
+        width="content" height="content" style_bg_color="#elevated_bg" style_bg_opa="$box_opa"
+        style_border_width="$box_border" style_border_color="#elevated_bg" style_radius="#border_radius_sm"
+        style_pad_all="$box_pad" style_pad_row="#space_xxs" scrollable="false" event_bubble="true" flex_flow="column"
+        style_flex_cross_place="start">
+    <style name="styles.chip_active" selector="checked"/>
     <text_xs name="unit_group_title"
              width="100%" text="" style_text_color="#text_muted" long_mode="dots" event_bubble="true" hidden="$untitled"/>
     <lv_obj name="unit_group_lanes"
