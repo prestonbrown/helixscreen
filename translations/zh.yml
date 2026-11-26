@@ -916,11 +916,12 @@ translations:
   Change Tool While Paused: 暂停时切换工具
   Change heater control?: 更改加热器控制？
   Change it before starting the print.: '请在开始打印前更改。'
+  Change nozzle size on {}?: ''
+  Change nozzle size?: ''
   ? Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer's config folder.
   : '通过Moonraker更改打印机设置，包括上传、改写和删除打印机配置文件夹中的文件。'
   Change the name or the linked spool in Spoolman.: "请在 Spoolman 中更改名称或关联的料盘。"
   Change tool: 切换工具
-  Change {} nozzle?: ''
   Changes apply immediately. Adjust during print for tuning.: 更改立即生效。可在打印时调整进行调优。
   Changes are temporary and reset on printer reboot: 更改是临时的，打印机重启后会重置
   Changes printer.cfg and restarts Klipper first: 先修改 printer.cfg 并重启 Klipper
@@ -3550,6 +3551,7 @@ translations:
   Options: 选项
   Or Enter Manually: 或手动输入
   Or instead of turning the others: 或者，无需转动其他螺丝
+  Orifice diameter of the nozzle fitted to this head: ''
   Original: '原始'
   Original file location unknown: 原始文件位置未知
   Orrery: '太阳系仪'
@@ -4811,6 +4813,7 @@ translations:
   Stall detection setup failed for the Z motor — power-cycle to retry: Z 电机堵转检测设置失败。请重新上电后重试
   Stall detection setup failed for the extruder — power-cycle to retry: 挤出机堵转检测设置失败。请重新上电后重试
   Standard: 标准
+  Standard or High Flow, as fitted to this head: ''
   Standby: 待机
   Starfield: 星空
   Start: 开始

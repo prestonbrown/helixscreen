@@ -919,11 +919,12 @@ translations:
   Change Tool While Paused: Change Tool While Paused
   Change heater control?: Change heater control?
   Change it before starting the print.: Change it before starting the print.
+  Change nozzle size on {}?: Change nozzle size on {}?
+  Change nozzle size?: Change nozzle size?
   ? Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer's config folder.
   : Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer's config folder.
   Change the name or the linked spool in Spoolman.: Change the name or the linked spool in Spoolman.
   Change tool: Change tool
-  Change {} nozzle?: Change {} nozzle?
   Changes apply immediately. Adjust during print for tuning.: Changes apply immediately. Adjust during print for tuning.
   Changes are temporary and reset on printer reboot: Changes are temporary and reset on printer reboot
   Changes printer.cfg and restarts Klipper first: Changes printer.cfg and restarts Klipper first
@@ -3524,6 +3525,7 @@ translations:
   Options: Options
   Or Enter Manually: Or Enter Manually
   Or instead of turning the others: Or instead of turning the others
+  Orifice diameter of the nozzle fitted to this head: Orifice diameter of the nozzle fitted to this head
   Original: Original
   Original file location unknown: Original file location unknown
   Orrery: Orrery
@@ -4781,6 +4783,7 @@ translations:
   Stall detection setup failed for the Z motor — power-cycle to retry: Stall detection setup failed for the Z motor — power-cycle to retry
   Stall detection setup failed for the extruder — power-cycle to retry: Stall detection setup failed for the extruder — power-cycle to retry
   Standard: Standard
+  Standard or High Flow, as fitted to this head: Standard or High Flow, as fitted to this head
   Standby: Standby
   Starfield: Starfield
   Start: Start

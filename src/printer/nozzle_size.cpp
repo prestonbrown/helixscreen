@@ -109,6 +109,7 @@ Capability nozzle_capability(const PrinterInputs& in) {
             }
         } else if (in.set_nozzle_diameter_registered && tool == 0) {
             h.mechanism = Mechanism::KlipperCommand;
+            h.idle_only = true;
         } else if (!in.config_supervised) {
             h.mechanism = Mechanism::ConfigEdit;
             h.restart_required = true;

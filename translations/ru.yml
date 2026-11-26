@@ -972,11 +972,12 @@ translations:
   Change Tool While Paused: Смена инструмента при паузе
   Change heater control?: Изменить управление нагревателем?
   Change it before starting the print.: 'Измените это перед началом печати.'
+  Change nozzle size on {}?: ''
+  Change nozzle size?: ''
   ? Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer's config folder.
   : 'Изменяет настройки принтера через Moonraker, включая загрузку, перезапись и удаление файлов в папке конфигурации принтера.'
   Change the name or the linked spool in Spoolman.: "Меняйте название или привязанную катушку в Spoolman."
   Change tool: Сменить инструмент
-  Change {} nozzle?: ''
   Changes apply immediately. Adjust during print for tuning.: Изменения применяются немедленно. Корректируйте во время печати.
   Changes are temporary and reset on printer reboot: Изменения временные и сбрасываются при перезагрузке принтера
   Changes printer.cfg and restarts Klipper first: Сначала изменяет printer.cfg и перезапускает Klipper
@@ -3614,6 +3615,7 @@ translations:
   Options: Параметры
   Or Enter Manually: Или введите вручную
   Or instead of turning the others: Или вместо вращения остальных винтов
+  Orifice diameter of the nozzle fitted to this head: ''
   Original: 'Оригинал'
   Original file location unknown: Расположение исходного файла неизвестно
   Orrery: 'Планетарий'
@@ -4899,6 +4901,7 @@ translations:
   Stall detection setup failed for the Z motor — power-cycle to retry: Не удалась настройка детектирования заклинивания двигателя Z. Выключите и включите питание
   Stall detection setup failed for the extruder — power-cycle to retry: Не удалась настройка детектирования заклинивания экструдера. Выключите и включите питание
   Standard: Стандартный
+  Standard or High Flow, as fitted to this head: ''
   Standby: Режим ожидания
   Starfield: Звёздное небо
   Start: Старт

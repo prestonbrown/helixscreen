@@ -2,13 +2,13 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
-  <!-- A head's flow type, on printers that have flow variants. -->
+  <!-- A head's flow type, on printers that have flow variants. Dims while a print runs. -->
   <api>
     <prop name="options" type="string" default=""/>
     <prop name="options_tag" type="string" default=""/>
-    <prop name="disabled" type="string" default=""/>
   </api>
   <view name="toolhead_flow_row"
-        extends="setting_dropdown_row" label="Flow type" icon="heater" options="$options" options_tag="$options_tag"
-        disabled="$disabled" callback="on_toolhead_flow_changed" hide_description="true"/>
+        extends="setting_dropdown_row" label="Flow type" icon="heater"
+        description="Standard or High Flow, as fitted to this head" options="$options" options_tag="$options_tag"
+        disabled="print_in_progress" callback="on_toolhead_flow_changed"/>
 </component>

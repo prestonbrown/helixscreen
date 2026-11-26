@@ -889,10 +889,11 @@
   <translation tag="Change Tool While Paused" fr="Changer d&apos;outil en pause"/>
   <translation tag="Change heater control?" fr="Changer le contrôle du chauffage ?"/>
   <translation tag="Change it before starting the print." fr="Modifiez-le avant de lancer l&apos;impression."/>
+  <translation tag="Change nozzle size on {}?"/>
+  <translation tag="Change nozzle size?"/>
   <translation tag="Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer&apos;s config folder." fr="Modifie les paramètres de l&apos;imprimante via Moonraker, y compris le téléversement, la réécriture et la suppression de fichiers dans le dossier de configuration de l&apos;imprimante."/>
   <translation tag="Change the name or the linked spool in Spoolman." fr="Modifiez le nom ou la bobine liée dans Spoolman."/>
   <translation tag="Change tool" fr="Changer d&apos;outil"/>
-  <translation tag="Change {} nozzle?"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." fr="Les modifications s&apos;appliquent immédiatement. Ajustez pendant l&apos;impression pour le réglage."/>
   <translation tag="Changes are temporary and reset on printer reboot" fr="Les modifications sont temporaires et réinitialisées au redémarrage de l&apos;imprimante"/>
   <translation tag="Changes printer.cfg and restarts Klipper first" fr="Modifie d’abord printer.cfg et redémarre Klipper"/>
@@ -3417,6 +3418,7 @@
   <translation tag="Options" fr="Options"/>
   <translation tag="Or Enter Manually" fr="Ou entrer manuellement"/>
   <translation tag="Or instead of turning the others" fr="Ou, au lieu de tourner les autres"/>
+  <translation tag="Orifice diameter of the nozzle fitted to this head"/>
   <translation tag="Original" fr="Original"/>
   <translation tag="Original file location unknown" fr="Emplacement du fichier original inconnu"/>
   <translation tag="Orrery" fr="Planétaire"/>
@@ -4661,6 +4663,7 @@
   <translation tag="Stall detection setup failed for the Z motor — power-cycle to retry" fr="Échec de la configuration de la détection de blocage du moteur Z. Éteignez et rallumez pour réessayer"/>
   <translation tag="Stall detection setup failed for the extruder — power-cycle to retry" fr="Échec de la configuration de la détection de blocage de l&apos;extrudeur. Éteignez et rallumez pour réessayer"/>
   <translation tag="Standard" fr="Standard"/>
+  <translation tag="Standard or High Flow, as fitted to this head"/>
   <translation tag="Standby" fr="Veille"/>
   <translation tag="Starfield" fr="Starfield"/>
   <translation tag="Start" fr="Démarrer"/>

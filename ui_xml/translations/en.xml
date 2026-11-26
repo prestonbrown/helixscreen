@@ -883,10 +883,11 @@
   <translation tag="Change Tool While Paused" en="Change Tool While Paused"/>
   <translation tag="Change heater control?" en="Change heater control?"/>
   <translation tag="Change it before starting the print." en="Change it before starting the print."/>
+  <translation tag="Change nozzle size on {}?" en="Change nozzle size on {}?"/>
+  <translation tag="Change nozzle size?" en="Change nozzle size?"/>
   <translation tag="Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer&apos;s config folder." en="Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer&apos;s config folder."/>
   <translation tag="Change the name or the linked spool in Spoolman." en="Change the name or the linked spool in Spoolman."/>
   <translation tag="Change tool" en="Change tool"/>
-  <translation tag="Change {} nozzle?" en="Change {} nozzle?"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." en="Changes apply immediately. Adjust during print for tuning."/>
   <translation tag="Changes are temporary and reset on printer reboot" en="Changes are temporary and reset on printer reboot"/>
   <translation tag="Changes printer.cfg and restarts Klipper first" en="Changes printer.cfg and restarts Klipper first"/>
@@ -3411,6 +3412,7 @@
   <translation tag="Options" en="Options"/>
   <translation tag="Or Enter Manually" en="Or Enter Manually"/>
   <translation tag="Or instead of turning the others" en="Or instead of turning the others"/>
+  <translation tag="Orifice diameter of the nozzle fitted to this head" en="Orifice diameter of the nozzle fitted to this head"/>
   <translation tag="Original" en="Original"/>
   <translation tag="Original file location unknown" en="Original file location unknown"/>
   <translation tag="Orrery" en="Orrery"/>
@@ -4655,6 +4657,7 @@
   <translation tag="Stall detection setup failed for the Z motor — power-cycle to retry" en="Stall detection setup failed for the Z motor — power-cycle to retry"/>
   <translation tag="Stall detection setup failed for the extruder — power-cycle to retry" en="Stall detection setup failed for the extruder — power-cycle to retry"/>
   <translation tag="Standard" en="Standard"/>
+  <translation tag="Standard or High Flow, as fitted to this head" en="Standard or High Flow, as fitted to this head"/>
   <translation tag="Standby" en="Standby"/>
   <translation tag="Starfield" en="Starfield"/>
   <translation tag="Start" en="Start"/>

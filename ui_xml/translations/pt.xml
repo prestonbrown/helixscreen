@@ -883,10 +883,11 @@
   <translation tag="Change Tool While Paused" pt="Trocar Ferramenta com Impressão Pausada"/>
   <translation tag="Change heater control?" pt="Alterar o controle do aquecedor?"/>
   <translation tag="Change it before starting the print." pt="Altere antes de iniciar a impressão."/>
+  <translation tag="Change nozzle size on {}?"/>
+  <translation tag="Change nozzle size?"/>
   <translation tag="Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer&apos;s config folder." pt="Altera configurações da impressora através do Moonraker, incluindo enviar, reescrever e excluir arquivos na pasta de configuração da impressora."/>
   <translation tag="Change the name or the linked spool in Spoolman." pt="Altere o nome ou o carretel vinculado no Spoolman."/>
   <translation tag="Change tool" pt="Trocar ferramenta"/>
-  <translation tag="Change {} nozzle?"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." pt="Alterações aplicadas imediatamente. Ajuste durante a impressão para calibrar."/>
   <translation tag="Changes are temporary and reset on printer reboot" pt="Alterações são temporárias e resetam ao reiniciar a impressora"/>
   <translation tag="Changes printer.cfg and restarts Klipper first" pt="Primeiro altera o printer.cfg e reinicia o Klipper"/>
@@ -3411,6 +3412,7 @@
   <translation tag="Options" pt="Opções"/>
   <translation tag="Or Enter Manually" pt="Ou Digite Manualmente"/>
   <translation tag="Or instead of turning the others" pt="Ou, em vez de girar os outros"/>
+  <translation tag="Orifice diameter of the nozzle fitted to this head"/>
   <translation tag="Original" pt="Original"/>
   <translation tag="Original file location unknown" pt="Local do arquivo original desconhecido"/>
   <translation tag="Orrery" pt="Planetário"/>
@@ -4655,6 +4657,7 @@
   <translation tag="Stall detection setup failed for the Z motor — power-cycle to retry" pt="Falha na configuração da detecção de travamento do motor Z. Desligue e ligue para tentar novamente"/>
   <translation tag="Stall detection setup failed for the extruder — power-cycle to retry" pt="Falha na configuração da detecção de travamento do extrusor. Desligue e ligue para tentar novamente"/>
   <translation tag="Standard" pt="Padrão"/>
+  <translation tag="Standard or High Flow, as fitted to this head"/>
   <translation tag="Standby" pt="Em Espera"/>
   <translation tag="Starfield" pt="Campo Estelar"/>
   <translation tag="Start" pt="Iniciar"/>

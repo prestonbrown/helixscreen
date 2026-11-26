@@ -925,10 +925,11 @@
   <translation tag="Change Tool While Paused" ru="Смена инструмента при паузе"/>
   <translation tag="Change heater control?" ru="Изменить управление нагревателем?"/>
   <translation tag="Change it before starting the print." ru="Измените это перед началом печати."/>
+  <translation tag="Change nozzle size on {}?"/>
+  <translation tag="Change nozzle size?"/>
   <translation tag="Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer&apos;s config folder." ru="Изменяет настройки принтера через Moonraker, включая загрузку, перезапись и удаление файлов в папке конфигурации принтера."/>
   <translation tag="Change the name or the linked spool in Spoolman." ru="Меняйте название или привязанную катушку в Spoolman."/>
   <translation tag="Change tool" ru="Сменить инструмент"/>
-  <translation tag="Change {} nozzle?"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." ru="Изменения применяются немедленно. Корректируйте во время печати."/>
   <translation tag="Changes are temporary and reset on printer reboot" ru="Изменения временные и сбрасываются при перезагрузке принтера"/>
   <translation tag="Changes printer.cfg and restarts Klipper first" ru="Сначала изменяет printer.cfg и перезапускает Klipper"/>
@@ -3459,6 +3460,7 @@
   <translation tag="Options" ru="Параметры"/>
   <translation tag="Or Enter Manually" ru="Или введите вручную"/>
   <translation tag="Or instead of turning the others" ru="Или вместо вращения остальных винтов"/>
+  <translation tag="Orifice diameter of the nozzle fitted to this head"/>
   <translation tag="Original" ru="Оригинал"/>
   <translation tag="Original file location unknown" ru="Расположение исходного файла неизвестно"/>
   <translation tag="Orrery" ru="Планетарий"/>
@@ -4721,6 +4723,7 @@
   <translation tag="Stall detection setup failed for the Z motor — power-cycle to retry" ru="Не удалась настройка детектирования заклинивания двигателя Z. Выключите и включите питание"/>
   <translation tag="Stall detection setup failed for the extruder — power-cycle to retry" ru="Не удалась настройка детектирования заклинивания экструдера. Выключите и включите питание"/>
   <translation tag="Standard" ru="Стандартный"/>
+  <translation tag="Standard or High Flow, as fitted to this head"/>
   <translation tag="Standby" ru="Режим ожидания"/>
   <translation tag="Starfield" ru="Звёздное небо"/>
   <translation tag="Start" ru="Старт"/>

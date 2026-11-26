@@ -90,3 +90,22 @@ TEST_CASE_METHOD(ToolheadFixture, "toolhead settings: a size pick asks about the
     helix::test::answer_top_modal("btn_secondary");
     helix::ui::UpdateQueue::instance().drain();
 }
+
+TEST_CASE_METHOD(ToolheadFixture,
+                 "toolhead settings: a pick on the second head asks about that head",
+                 "[toolhead_settings][nozzle_size]") {
+    open({"extruder", "extruder1"},
+         {{"extruder", {{"nozzle_diameter", 0.4}}}, {"extruder1", {{"nozzle_diameter", 0.4}}}});
+    lv_obj_t* dd = size_dropdown("head_1");
+    REQUIRE(dd != nullptr);
+    lv_dropdown_set_selected(dd, 5); // 0.6 mm
+    lv_obj_send_event(dd, LV_EVENT_VALUE_CHANGED, nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+
+    REQUIRE(ModalStack::instance().top_dialog() != nullptr);
+    const std::string text = helix::test::top_modal_text();
+    CHECK(text.find("E1") != std::string::npos);
+    CHECK(text.find("E0") == std::string::npos);
+    helix::test::answer_top_modal("btn_secondary");
+    helix::ui::UpdateQueue::instance().drain();
+}

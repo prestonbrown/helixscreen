@@ -925,10 +925,11 @@
   <translation tag="Change Tool While Paused" pl="Zmień narzędzie podczas pauzy"/>
   <translation tag="Change heater control?" pl="Zmienić sterowanie grzałką?"/>
   <translation tag="Change it before starting the print." pl="Zmień to przed rozpoczęciem druku."/>
+  <translation tag="Change nozzle size on {}?"/>
+  <translation tag="Change nozzle size?"/>
   <translation tag="Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer&apos;s config folder." pl="Zmieniaj ustawienia drukarki przez Moonraker, w tym wysyłanie, nadpisywanie i usuwanie plików w folderze konfiguracji."/>
   <translation tag="Change the name or the linked spool in Spoolman." pl="Zmień nazwę lub powiązaną szpulę w Spoolman."/>
   <translation tag="Change tool" pl="Zmień narzędzie"/>
-  <translation tag="Change {} nozzle?"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." pl="Zmiany działają od razu. Dostrajaj w trakcie druku."/>
   <translation tag="Changes are temporary and reset on printer reboot" pl="Zmiany są tymczasowe i znikają po restarcie drukarki"/>
   <translation tag="Changes printer.cfg and restarts Klipper first" pl="Najpierw zmienia printer.cfg i restartuje Klippera"/>
@@ -3459,6 +3460,7 @@
   <translation tag="Options" pl="Opcje"/>
   <translation tag="Or Enter Manually" pl="Lub wpisz ręcznie"/>
   <translation tag="Or instead of turning the others" pl="Albo zamiast obracania pozostałych"/>
+  <translation tag="Orifice diameter of the nozzle fitted to this head"/>
   <translation tag="Original" pl="Oryginalny"/>
   <translation tag="Original file location unknown" pl="Nieznane położenie oryginalnego pliku"/>
   <translation tag="Orrery" pl="Orrery"/>
@@ -4721,6 +4723,7 @@
   <translation tag="Stall detection setup failed for the Z motor — power-cycle to retry" pl="Konfiguracja wykrywania utyku silnika Z nieudana — wyłącz i włącz zasilanie, aby ponowić"/>
   <translation tag="Stall detection setup failed for the extruder — power-cycle to retry" pl="Konfiguracja wykrywania utyku ekstrudera nieudana — wyłącz i włącz zasilanie, aby ponowić"/>
   <translation tag="Standard" pl="Standardowy"/>
+  <translation tag="Standard or High Flow, as fitted to this head"/>
   <translation tag="Standby" pl="Czuwanie"/>
   <translation tag="Starfield" pl="Gwiezdne pole"/>
   <translation tag="Start" pl="Start"/>
