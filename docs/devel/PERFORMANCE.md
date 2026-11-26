@@ -188,8 +188,15 @@ The K1C sleeps with the software overlay, the AD5M with hardware blank.
 The widget-binding hold (`lv_subject_hold_obj_observers()`) was measured on the earlier
 build with the input read still polled: it took the K1C from 1.51 to 1.35 and the AD5M from
 1.35 to 1.21, with no widget written and no refresh pass asleep, and the first frame after a
-wake settling in 0.3-2.5 ms. It is not in the table above and has not been measured on the
-current build; that needs a device check.
+wake settling in 0.3-2.5 ms.
+
+**With the hold, 2026-11-26** (main b7a2483fbd, same procedure: a side tree of the build
+beside the installed one, its own config copy, three 60 s windows after a 110 s settle,
+each window within 0.02 of the others):
+
+| Build | K1C | AD5M |
+|---|---:|---:|
+| Main with every change above plus the binding hold | 0.87 (6.6) | 0.84 (5.7) |
 
 Status arrives at about 4 frames a second on both boards (`toolhead.estimated_print_time`
 changes in every one), and each MCU reports `last_stats` once a second, which released the
