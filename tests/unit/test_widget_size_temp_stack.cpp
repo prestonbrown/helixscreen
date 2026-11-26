@@ -34,10 +34,14 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
+#include "../test_helpers/scoped_breakpoint.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/src/misc/lv_event_private.h"
 #include "panel_widget_size.h"
 #include "src/ui/panel_widgets/temp_stack_widget.h"
+
+#include <utility>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -51,7 +55,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack text and icon fonts follow heigh
     // agree regardless of which branch ran.
     REQUIRE(theme_manager_get_font("font_xs") != theme_manager_get_font("font_small"));
 
-    PanelWidgetHarness<TempStackWidget> h(test_screen(), state(), nullptr);
+    PanelWidgetHarness<TempStackWidget> h(test_screen(), "temp_stack", state(), nullptr);
 
     lv_obj_t* nozzle_row = h.child("temp_stack_nozzle_row");
     lv_obj_t* bed_row = h.child("temp_stack_bed_row");
@@ -123,7 +127,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack text and icon fonts follow heigh
  */
 TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack stacks icons above temps only when it fits",
                  "[widget_size][temp_stack][panel_widget]") {
-    PanelWidgetHarness<TempStackWidget> h(test_screen(), state(), nullptr);
+    PanelWidgetHarness<TempStackWidget> h(test_screen(), "temp_stack", state(), nullptr);
 
     lv_obj_t* nozzle_row = h.child("temp_stack_nozzle_row");
     lv_obj_t* bed_row = h.child("temp_stack_bed_row");
@@ -188,8 +192,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack stacks icons above temps only wh
 
 TEST_CASE_METHOD(LVGLUITestFixture, "TempStackWidget: a row belongs to the tile that holds it",
                  "[temp_stack][panel_widget][from_event]") {
-    PanelWidgetHarness<TempStackWidget> a(test_screen(), state(), nullptr);
-    PanelWidgetHarness<TempStackWidget> b(test_screen(), state(), nullptr);
+    PanelWidgetHarness<TempStackWidget> a(test_screen(), "temp_stack_a", state(), nullptr);
+    PanelWidgetHarness<TempStackWidget> b(test_screen(), "temp_stack_b", state(), nullptr);
     auto owner_of = [](lv_obj_t* row) {
         lv_event_t e{};
         e.current_target = row;
@@ -208,8 +212,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "TempStackWidget: a row belongs to the tile 
 // a temp_display whose children pass taps through to the page.
 TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack carousel pages open their own heater",
                  "[temp_stack][panel_widget][carousel]") {
-    PanelWidgetHarness<TempStackWidget> h(
-        test_screen(), HarnessConfig{{{"display_mode", "carousel"}}}, state(), nullptr);
+    PanelWidgetHarness<TempStackWidget> h(test_screen(),
+                                          HarnessConfig{{{"display_mode", "carousel"}}},
+                                          "temp_stack", state(), nullptr);
 
     lv_obj_t* nozzle = h.child("nozzle");
     lv_obj_t* bed = h.child("bed");
@@ -238,8 +243,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack carousel shows a chamber page on
     REQUIRE(has_chamber != nullptr);
     const bool chamber = GENERATE(false, true);
     lv_subject_set_int(has_chamber, chamber ? 1 : 0);
-    PanelWidgetHarness<TempStackWidget> h(
-        test_screen(), HarnessConfig{{{"display_mode", "carousel"}}}, state(), nullptr);
+    PanelWidgetHarness<TempStackWidget> h(test_screen(),
+                                          HarnessConfig{{{"display_mode", "carousel"}}},
+                                          "temp_stack", state(), nullptr);
 
     lv_obj_t* carousel = h.child("temp_carousel");
     CarouselState* cs = ui_carousel_get_state(carousel);
@@ -257,4 +263,227 @@ TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack carousel shows a chamber page on
         CHECK(lv_obj_find_by_name(page, "chamber_icon_glyph") != nullptr);
     }
     lv_subject_set_int(has_chamber, 0);
+}
+
+// A box wider than a cell lays the heaters across it, one column each, instead
+// of leaving the width empty (prestonbrown/helixscreen#2198).
+TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack at 2x1 lays the readouts side by side",
+                 "[widget_size][temp_stack][panel_widget][wide]") {
+    PanelWidgetHarness<TempStackWidget> h(test_screen(), "temp_stack", state(), nullptr);
+
+    lv_obj_t* nozzle_row = h.child("temp_stack_nozzle_row");
+    lv_obj_t* bed_row = h.child("temp_stack_bed_row");
+    lv_obj_t* nozzle_label = h.child("temp_stack_nozzle_label");
+    lv_obj_t* bed_label = h.child("temp_stack_bed_label");
+    REQUIRE(nozzle_row != nullptr);
+    REQUIRE(bed_row != nullptr);
+    REQUIRE(nozzle_label != nullptr);
+    REQUIRE(bed_label != nullptr);
+    lv_obj_t* nozzle_temp = lv_obj_get_child(nozzle_row, 1);
+    lv_obj_t* bed_temp = lv_obj_get_child(bed_row, 1);
+    REQUIRE(ui_temp_display_is_valid(nozzle_temp));
+
+    const int box_w = 2 * w_normal();
+    const int box_h = 4 * h_tall() / 3;
+
+    // 2x1 cells = 4x2 tracks.
+    h.resize(4, 2, box_w, box_h);
+    lv_obj_update_layout(h.root());
+
+    // One row of columns: same top, left to right, each inside the box.
+    CHECK(lv_obj_get_style_flex_flow(h.root(), LV_PART_MAIN) == LV_FLEX_FLOW_ROW);
+    CHECK(lv_obj_get_x(nozzle_row) + lv_obj_get_width(nozzle_row) <= lv_obj_get_x(bed_row));
+    CHECK(lv_obj_get_y(nozzle_row) == lv_obj_get_y(bed_row));
+    CHECK(lv_obj_get_x(bed_row) + lv_obj_get_width(bed_row) <= lv_obj_get_width(h.root()));
+
+    // Every value is shown whole: its label box sits inside its column, and the
+    // column inside the widget's height.
+    for (lv_obj_t* temp : {nozzle_temp, bed_temp}) {
+        lv_obj_t* col = lv_obj_get_parent(temp);
+        CHECK_FALSE(lv_obj_is_hidden(temp));
+        CHECK(lv_obj_get_x(temp) >= 0);
+        CHECK(lv_obj_get_x(temp) + lv_obj_get_width(temp) <= lv_obj_get_width(col));
+        CHECK(lv_obj_get_y(col) + lv_obj_get_height(col) <= lv_obj_get_height(h.root()));
+    }
+
+    // With room, each value carries its caption underneath.
+    CHECK_FALSE(lv_obj_is_hidden(nozzle_label));
+    CHECK_FALSE(lv_obj_is_hidden(bed_label));
+    CHECK(lv_obj_get_y(nozzle_label) >= lv_obj_get_y(nozzle_temp) + lv_obj_get_height(nozzle_temp));
+
+    // Back to one cell: the rows stack again and the captions go.
+    h.resize(2, 2, w_normal() - 1, h_tall() - 1);
+    lv_obj_update_layout(h.root());
+    CHECK(lv_obj_get_style_flex_flow(h.root(), LV_PART_MAIN) == LV_FLEX_FLOW_COLUMN);
+    CHECK(lv_obj_is_hidden(nozzle_label));
+    CHECK(lv_obj_get_y(nozzle_row) < lv_obj_get_y(bed_row));
+}
+
+// Home recycles widget instances: the tile is rebuilt and the same instance
+// attached again, so the arrangement must follow the size it is granted next,
+// not the one the previous tile ended on (prestonbrown/helixscreen#2198).
+TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack re-attached at another size gets that size's shape",
+                 "[widget_size][temp_stack][panel_widget][wide]") {
+    PanelWidgetHarness<TempStackWidget> h(test_screen(), "temp_stack", state(), nullptr);
+
+    h.resize(4, 2, 2 * w_normal(), 4 * h_tall() / 3);
+    REQUIRE(lv_obj_get_style_flex_flow(h.root(), LV_PART_MAIN) == LV_FLEX_FLOW_ROW);
+
+    // Rebuild the tile and attach the same instance, then grant a one-cell box.
+    lv_obj_t* old_tile = h.root();
+    h.widget().detach_tile();
+    lv_obj_delete(old_tile);
+    h.create_tile(test_screen());
+    h.resize(2, 2, w_normal() - 1, h_tall() - 1);
+    lv_obj_update_layout(h.root());
+
+    CHECK(lv_obj_get_style_flex_flow(h.root(), LV_PART_MAIN) == LV_FLEX_FLOW_COLUMN);
+    CHECK(lv_obj_is_hidden(h.child("temp_stack_nozzle_label")));
+    CHECK(lv_obj_get_y(h.child("temp_stack_nozzle_row")) <
+          lv_obj_get_y(h.child("temp_stack_bed_row")));
+
+    // And the other way: a stacked tile re-attached, then widened.
+    old_tile = h.root();
+    h.widget().detach_tile();
+    lv_obj_delete(old_tile);
+    h.create_tile(test_screen());
+    h.resize(4, 2, 2 * w_normal(), 4 * h_tall() / 3);
+    lv_obj_update_layout(h.root());
+    CHECK(lv_obj_get_style_flex_flow(h.root(), LV_PART_MAIN) == LV_FLEX_FLOW_ROW);
+    CHECK_FALSE(lv_obj_is_hidden(h.child("temp_stack_nozzle_label")));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack: two tiles keep their own shape",
+                 "[widget_size][temp_stack][panel_widget][wide]") {
+    // Both instances exist before either tile is parsed, the order
+    // PanelWidgetManager builds a page in, so a shared subject name would bind
+    // both tiles to whichever was published last.
+    const HarnessConfig deferred{nlohmann::json::object(), true};
+    PanelWidgetHarness<TempStackWidget> wide(test_screen(), deferred, "temp_stack_wide", state(),
+                                             nullptr);
+    PanelWidgetHarness<TempStackWidget> narrow(test_screen(), deferred, "temp_stack_narrow",
+                                               state(), nullptr);
+    wide.create_tile(test_screen());
+    narrow.create_tile(test_screen());
+
+    wide.resize(4, 2, 2 * w_normal(), 4 * h_tall() / 3);
+    narrow.resize(2, 2, w_normal() - 1, h_tall() - 1);
+    // Sizing the second must not have re-shaped the first.
+    lv_obj_update_layout(wide.root());
+    lv_obj_update_layout(narrow.root());
+
+    CHECK(lv_obj_get_style_flex_flow(wide.root(), LV_PART_MAIN) == LV_FLEX_FLOW_ROW);
+    CHECK_FALSE(lv_obj_is_hidden(wide.child("temp_stack_nozzle_label")));
+    CHECK(lv_obj_get_style_flex_flow(narrow.root(), LV_PART_MAIN) == LV_FLEX_FLOW_COLUMN);
+    CHECK(lv_obj_is_hidden(narrow.child("temp_stack_nozzle_label")));
+}
+
+// 2x2: one row per heater down the box, each a big glyph with its value to the
+// right, sized up to the box (prestonbrown/helixscreen#2198).
+TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack at 2x2 draws big rows, glyph left of value",
+                 "[widget_size][temp_stack][panel_widget][wide]") {
+    PanelWidgetHarness<TempStackWidget> h(test_screen(), "temp_stack", state(), nullptr);
+    lv_obj_t* nozzle_row = h.child("temp_stack_nozzle_row");
+    lv_obj_t* bed_row = h.child("temp_stack_bed_row");
+    lv_obj_t* nozzle_glyph = h.child("nozzle_icon_glyph");
+    lv_obj_t* nozzle_temp = h.child("temp_stack_nozzle_temp");
+
+    // 2x2 cells = 4x4 tracks.
+    h.resize(4, 4, 2 * w_normal(), 2 * h_tall());
+    lv_obj_update_layout(h.root());
+
+    CHECK(lv_obj_get_style_flex_flow(h.root(), LV_PART_MAIN) == LV_FLEX_FLOW_COLUMN);
+    CHECK(lv_obj_get_style_flex_flow(nozzle_row, LV_PART_MAIN) == LV_FLEX_FLOW_ROW);
+    CHECK(lv_obj_get_y(nozzle_row) + lv_obj_get_height(nozzle_row) <= lv_obj_get_y(bed_row));
+    // Glyph left of its value, level with it, and larger than the 24px glyph a
+    // one-cell box uses.
+    CHECK(lv_obj_get_x(nozzle_glyph) + lv_obj_get_width(nozzle_glyph) <= lv_obj_get_x(nozzle_temp));
+    CHECK(lv_obj_get_style_text_font(nozzle_glyph, LV_PART_MAIN)->line_height >
+          mdi_icons_24.line_height);
+    // Rows start at the left edge, so the glyphs line up in one column.
+    CHECK(lv_obj_get_x(lv_obj_get_child(nozzle_row, 0)) ==
+          lv_obj_get_x(lv_obj_get_child(bed_row, 0)));
+    CHECK(lv_obj_get_style_flex_main_place(nozzle_row, LV_PART_MAIN) == LV_FLEX_ALIGN_START);
+    // Every row fits the box.
+    CHECK(lv_obj_get_y(h.child("temp_stack_bed_row")) + lv_obj_get_height(bed_row) <=
+          lv_obj_get_height(h.root()));
+
+    // A one-cell-wide tall box keeps the icon-over-value stack.
+    h.resize(2, 4, w_normal() - 1, 2 * h_tall());
+    lv_obj_update_layout(h.root());
+    CHECK(lv_obj_get_style_flex_flow(nozzle_row, LV_PART_MAIN) == LV_FLEX_FLOW_COLUMN);
+}
+
+// Columns take the largest text tier whose three columns fit, so a wider box
+// reads bigger than a narrower one (prestonbrown/helixscreen#2198).
+TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack columns use bigger text in a wider box",
+                 "[widget_size][temp_stack][panel_widget][wide]") {
+    PanelWidgetHarness<TempStackWidget> h(test_screen(), "temp_stack", state(), nullptr);
+    lv_obj_t* temp = lv_obj_get_child(h.child("temp_stack_nozzle_row"), 1);
+    auto text_px = [&] {
+        return lv_obj_get_style_text_font(lv_obj_get_child(temp, 0), LV_PART_MAIN)->line_height;
+    };
+
+    // Sweep the width across the columns range: the text never shrinks as the
+    // box widens, and the widest box reads bigger than the narrowest.
+    const int box_h = 2 * h_tall();
+    int first_px = 0;
+    int last_px = 0;
+    int widths_in_columns = 0;
+    for (int w = w_normal(); w <= 6 * w_normal(); w += 4) {
+        h.resize(6, 2, w, box_h);
+        if (lv_obj_get_style_flex_flow(h.root(), LV_PART_MAIN) != LV_FLEX_FLOW_ROW)
+            continue;
+        const int px = text_px();
+        INFO("width " << w);
+        CHECK(px >= last_px);
+        if (widths_in_columns++ == 0)
+            first_px = px;
+        last_px = px;
+    }
+    REQUIRE(widths_in_columns > 0);
+    CHECK(last_px > first_px);
+}
+
+// Big rows leave the box's padding above the first row and below the last: a
+// glyph that fits to the pixel reads as clipped against the edge. Swept across
+// heights so every text tier's hand-off is covered.
+TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack big rows sit inside the padded box",
+                 "[widget_size][temp_stack][panel_widget][wide]") {
+    // The 2x2 grants of the 800x480 and 480x320 panels as they arrive at
+    // runtime, under every tier whose text ladder they may meet, plus every
+    // height around the first big-rows size (a square-ish box, so the 3:2
+    // columns rule stays out of it). This also pins the widget passing a
+    // nonzero margin to the classifier: with none, the tightest heights put the
+    // rows against the box edge.
+    std::vector<std::pair<int, int>> grants = {{233, 230}, {166, 155}};
+    for (int width = 120; width <= 233; width += 7)
+        for (int height = 90; height <= 260; height += 2)
+            grants.emplace_back(width, height);
+
+    int rows_seen = 0;
+    for (UiBreakpoint bp :
+         {UiBreakpoint::Tiny, UiBreakpoint::Small, UiBreakpoint::Medium, UiBreakpoint::Large}) {
+        helix::test::ScopedBreakpoint tier(bp);
+        PanelWidgetHarness<TempStackWidget> h(test_screen(), "temp_stack", state(), nullptr);
+        const int pad = static_cast<int>(theme_manager_get_spacing("space_sm"));
+        for (auto [width, height] : grants) {
+            h.resize(4, 4, width, height);
+            lv_obj_update_layout(h.root());
+            lv_obj_t* first = h.child("temp_stack_nozzle_row");
+            if (lv_obj_get_style_flex_flow(first, LV_PART_MAIN) != LV_FLEX_FLOW_ROW ||
+                lv_obj_get_style_flex_main_place(first, LV_PART_MAIN) != LV_FLEX_ALIGN_START)
+                continue; // not the big-rows layout in this box
+            rows_seen++;
+            INFO("tier " << to_int(bp) << " box " << width << "x" << height);
+            lv_obj_t* last = h.child("temp_stack_chamber_row");
+            if (lv_obj_is_hidden(last))
+                last = h.child("temp_stack_bed_row");
+            // The rows themselves, not their glyphs: the classifier budgets the
+            // row heights, and a row is as tall as its largest part.
+            CHECK(lv_obj_get_y(first) >= pad);
+            CHECK(lv_obj_get_y(last) + lv_obj_get_height(last) <= height - pad);
+        }
+    }
+    REQUIRE(rows_seen > 0);
 }

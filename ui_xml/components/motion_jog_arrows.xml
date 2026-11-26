@@ -18,8 +18,8 @@
     <lv_obj name="arrows_body"
             width="content" height="content" style_pad_all="0" style_border_opa="0" style_bg_opa="0" scrollable="false"
             style_pad_gap="#space_xs">
-      <bind_style_if_eq name="styles.jog_flow_row" subject="ui_is_portrait" ref_value="0"/>
-      <bind_style_if_eq name="styles.jog_flow_column" subject="ui_is_portrait" ref_value="1"/>
+      <bind_style_if_eq name="styles.flow_row" subject="ui_is_portrait" ref_value="0"/>
+      <bind_style_if_eq name="styles.flow_column" subject="ui_is_portrait" ref_value="1"/>
       <lv_obj name="arrows_pad"
               width="content" height="content" style_pad_all="0" style_border_opa="0" style_bg_opa="0"
               scrollable="false" flex_flow="row" style_pad_gap="#space_xs">
@@ -91,16 +91,16 @@
       <lv_obj name="arrows_home"
               width="content" height="content" style_pad_all="0" style_border_opa="0" style_bg_opa="0"
               scrollable="false" style_pad_gap="#space_xs">
-        <bind_style_if_eq name="styles.jog_flow_column" subject="ui_is_portrait" ref_value="0"/>
-        <bind_style_if_eq name="styles.jog_flow_row" subject="ui_is_portrait" ref_value="1"/>
+        <bind_style_if_eq name="styles.flow_column" subject="ui_is_portrait" ref_value="0"/>
+        <bind_style_if_eq name="styles.flow_row" subject="ui_is_portrait" ref_value="1"/>
         <motion_home_button name="arrows_home_all"
                             width="100%" height="100%" flex_grow="1" text="All" axis="all"
                             needs_home="motion_x_homed eq 0 or motion_y_homed eq 0 or motion_z_homed eq 0"/>
         <lv_obj width="100%"
                 height="100%" style_pad_all="0" style_border_opa="0" style_bg_opa="0" scrollable="false" flex_flow="row"
                 style_pad_gap="#space_xs">
-          <bind_style_if_eq name="styles.jog_grow_1" subject="ui_is_portrait" ref_value="0"/>
-          <bind_style_if_eq name="styles.jog_grow_3" subject="ui_is_portrait" ref_value="1"/>
+          <bind_style_if_eq name="styles.grow_1" subject="ui_is_portrait" ref_value="0"/>
+          <bind_style_if_eq name="styles.grow_3" subject="ui_is_portrait" ref_value="1"/>
           <motion_home_button name="arrows_home_x"
                               width="0" height="100%" flex_grow="1" text="X" icon="" axis="X"
                               needs_home="motion_x_homed eq 0"/>

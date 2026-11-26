@@ -10,6 +10,7 @@
 #include "core/observer_guard.h"
 #include "core/subject.h"
 #include "panel_widget.h"
+#include "stack_shape_subjects.h"
 #include "subject_managed_panel.h"
 
 #include <functional>
@@ -100,6 +101,8 @@ class FanStackWidget : public PanelWidget {
     RowText aux_text_;
     /// 1 while an aux fan is bound, which shows its row.
     helix::Subject has_aux_subject_{};
+    /// The arrangement the size decided, bound by the stack component.
+    helix::StackShapeSubjects shape_;
     SubjectManager subjects_;
     std::vector<std::string> attr_storage_;
     std::vector<const char*> attrs_;

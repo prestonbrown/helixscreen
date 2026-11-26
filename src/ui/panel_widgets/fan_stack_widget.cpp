@@ -72,6 +72,10 @@ namespace {
 // measured at. One name so the measurement and the applied font cannot drift.
 constexpr const char* kFontStacked = "font_body";
 
+// Side-by-side fan columns: the name under the speed, and the speed fonts tried, largest first.
+constexpr const char* kFontColumnName = "font_small";
+constexpr const char* kFontColumnSpeed[] = {"font_heading", "font_body"};
+
 // Widest speed the label ever shows. Measured instead of the live value so the
 // name beside it does not reflow when a fan spins up from 0% to 100%.
 constexpr const char* kWidestSpeedText = "100%";
@@ -95,6 +99,7 @@ FanStackWidget::FanStackWidget(const std::string& instance_id, PrinterState& pri
     const std::string has_aux = instance_id_ + "_has_aux";
     subjects_.publish(has_aux.c_str(), &has_aux_subject_);
     attr_storage_.insert(attr_storage_.end(), {"has_aux_subject", has_aux});
+    shape_.publish(subjects_, instance_id_ + "_shape", attr_storage_, false);
     for (const auto& a : attr_storage_) {
         attrs_.push_back(a.c_str());
     }
@@ -179,7 +184,7 @@ void FanStackWidget::attach_stack(lv_obj_t* /*widget_obj*/) {
         update_speed(*row, 0);
     }
 
-    // Set rotation pivots on icons (center of 16px icon)
+    // Rotation pivots at the icon's center, as a percentage so it holds at any glyph size
     for (lv_obj_t* icon : {part_icon_.get(), hotend_icon_.get(), aux_icon_.get()})
         set_icon_pivot(icon);
 
@@ -252,6 +257,8 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
 
     static_assert(kIconAboveMinRowspan == GridLayout::TRACKS_PER_CELL + 1,
                   "The stacked layout starts one track above a whole authored cell");
+    static_assert(kColumnsMinColspan == GridLayout::TRACKS_PER_CELL + 1,
+                  "The side-by-side layout starts one track above a whole authored cell");
 
     const char* row_names[] = {"fan_stack_part_row", "fan_stack_hotend_row", "fan_stack_aux_row"};
 
@@ -274,10 +281,14 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
     // per fan, the glyph moves above its name+speed pair. Same rule and same
     // arithmetic as temp_stack — see stacked_row_layout.h.
     int visible_rows = 0;
-    for (const char* rn : row_names) {
-        lv_obj_t* row = lv_obj_find_by_name(widget_obj_, rn);
-        if (row && !lv_obj_is_hidden(row))
-            visible_rows++;
+    const FanRole row_roles[] = {FanRole::Part, FanRole::Hotend, FanRole::Aux};
+    const char* visible_words[std::size(row_names)] = {};
+    for (size_t n = 0; n < std::size(row_names); n++) {
+        lv_obj_t* row = lv_obj_find_by_name(widget_obj_, row_names[n]);
+        if (row && !lv_obj_is_hidden(row)) {
+            visible_words[visible_rows++] =
+                lv_tr(fan_role_label(row_roles[n], FanLabelLength::Word));
+        }
     }
 
     const int icon_gap_px = static_cast<int>(theme_manager_get_spacing("space_xxs"));
@@ -290,19 +301,71 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
         static_cast<int>(mdi_icons_24.line_height),
         stacked_font ? static_cast<int>(stacked_font->line_height) : 0, icon_gap_px};
 
-    const bool icon_above =
-        wants_icon_above(rowspan, height_px, visible_rows, stacked_row, row_gap_px);
+    // The vertical answer (or Beside) is the fallback. Side by side, each fan
+    // is a column: its glyph over a large percentage over its one-word name.
+    // The percentage takes the largest font and the glyph the largest size
+    // whose columns fit the width and height; a box with no room for the
+    // words keeps its rows, where the resolved names read better than a
+    // column of single letters.
+    const int pad_px = 2 * static_cast<int>(theme_manager_get_spacing("space_xs"));
+    const int box_px = width_px - pad_px;
+    StackLayout layout = classify_stack_layout(colspan, rowspan, box_px, height_px, visible_rows,
+                                               stacked_row, row_gap_px, ColumnWidths{});
+
+    const lv_font_t* name_font = theme_manager_get_font(kFontColumnName);
+    const lv_font_t* column_speed_font = nullptr;
+    const lv_font_t* column_icon = &mdi_icons_24;
+    if (layout.shape != StackShape::Columns && name_font) {
+        for (const char* token : kFontColumnSpeed) {
+            const lv_font_t* speed_font = theme_manager_get_font(token);
+            if (!speed_font)
+                continue;
+            for (lv_font_t* icon : {&mdi_icons_32, &mdi_icons_24}) {
+                // A glyph more than twice the percentage's height reads as a
+                // pictogram, not a fan with a speed.
+                if (icon->line_height > 2 * speed_font->line_height && icon != &mdi_icons_24)
+                    continue;
+                const StackedRowMetrics row{static_cast<int>(icon->line_height),
+                                            static_cast<int>(speed_font->line_height), icon_gap_px,
+                                            static_cast<int>(name_font->line_height)};
+                // The widest of the glyph, the speed at its widest and the
+                // longest name. There is no nameless column to offer
+                // (plain_px stays 0).
+                int widest = std::max(static_cast<int>(icon->line_height),
+                                      measure_text_px(kWidestSpeedText, speed_font));
+                for (int i = 0; i < visible_rows; i++)
+                    widest = std::max(widest, measure_text_px(visible_words[i], name_font));
+                ColumnWidths cols;
+                cols.captioned_px = widest;
+                cols.min_box_px = widget_size::w_normal() - pad_px;
+                cols.margin_px = 2 * static_cast<int>(theme_manager_get_spacing("space_sm"));
+                const StackLayout candidate = classify_stack_layout(
+                    colspan, rowspan, box_px, height_px, visible_rows, row, row_gap_px, cols);
+                if (candidate.shape == StackShape::Columns) {
+                    layout = candidate;
+                    column_speed_font = speed_font;
+                    column_icon = icon;
+                    break;
+                }
+            }
+            if (column_speed_font)
+                break;
+        }
+    }
+    const bool columns = layout.shape == StackShape::Columns;
+    const bool icon_above = layout.shape != StackShape::Beside;
 
     const char* font_token = icon_above ? kFontStacked : (bigger ? "font_small" : "font_xs");
-    const lv_font_t* text_font = theme_manager_get_font(font_token);
+    const lv_font_t* text_font = columns ? column_speed_font : theme_manager_get_font(font_token);
     if (!text_font)
         return;
 
-    // Icon font: xs=16px, sm/md=24px. The glyph does not follow the text a
-    // third rung up - a 32px fan over a body-size percentage reads as an icon
-    // with a caption. The spin pivot is LV_PCT(50) (set_icon_pivot), so it
-    // stays centred at either glyph size.
-    const lv_font_t* icon_font = (bigger || icon_above) ? &mdi_icons_24 : &mdi_icons_16;
+    // Icon font: 16px beside the text of a one-cell box, 24px for the stacked
+    // rows, and in columns the largest glyph (32px or 24px) that suits the
+    // speed font. The spin pivot is LV_PCT(50) (set_icon_pivot), so it stays
+    // centered at any glyph size.
+    const lv_font_t* icon_font =
+        columns ? column_icon : ((bigger || icon_above) ? &mdi_icons_24 : &mdi_icons_16);
 
     // Apply text font to all speed labels
     for (lv_obj_t* label : {part_label_.get(), hotend_label_.get(), aux_label_.get()}) {
@@ -364,14 +427,21 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
         int content_w = lv_obj_get_content_width(widget_obj_);
         if (content_w <= 0)
             content_w = width_px;
-        const int avail_px = content_w - measure_text_px(kWidestSpeedText, text_font) - row_gap_px;
+        // Side by side, each fan has its share of the width to itself, and its
+        // name its own line under the speed.
+        const int column_w =
+            (content_w - (visible_rows - 1) * row_gap_px) / std::max(visible_rows, 1);
+        const lv_font_t* measure_font = columns ? name_font : text_font;
+        const int avail_px =
+            columns ? column_w
+                    : content_w - measure_text_px(kWidestSpeedText, text_font) - row_gap_px;
 
         auto fits_every_row = [&](NameForm f) {
             for (const auto& m : name_map) {
                 lv_obj_t* row = lv_obj_find_by_name(widget_obj_, m.row_name);
                 if (!row || lv_obj_is_hidden(row))
                     continue;
-                if (measure_text_px(name_text(m, f), text_font) > avail_px)
+                if (measure_text_px(name_text(m, f), measure_font) > avail_px)
                     return false;
             }
             return true;
@@ -388,25 +458,16 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
         lv_obj_t* lbl = lv_obj_find_by_name(widget_obj_, m.obj_name);
         if (!lbl)
             continue;
-        lv_obj_set_style_text_font(lbl, text_font, 0);
+        lv_obj_set_style_text_font(lbl, columns ? name_font : text_font, 0);
 
         lv_subject_set_string(
             m.text, name_text(m, icon_above ? stacked_form
                                             : (bigger ? NameForm::Resolved : NameForm::Letter)));
     }
 
-    // DECLARATIVE_OK: measured layout. Which way a row flows depends on the
-    // resolved font line heights and the pixel box the grid handed us, neither
-    // of which XML can express - the same exception decide_nozzle_layout()
-    // runs under. The row-flow values restore what panel_widget_fan_stack.xml
-    // authors.
-    for (const char* rn : row_names) {
-        lv_obj_t* row = lv_obj_find_by_name(widget_obj_, rn);
-        if (row) {
-            lv_obj_set_flex_flow(row, icon_above ? LV_FLEX_FLOW_COLUMN : LV_FLEX_FLOW_ROW);
-            lv_obj_set_style_pad_gap(row, icon_above ? icon_gap_px : row_gap_px, 0);
-        }
-    }
+    // The component binds the widget's and each row's flow, and the equal
+    // column share, to these.
+    shape_.apply(layout);
 
     if (icon_above) {
         // Stacked: the glyph and the name+speed pair are both centred under
@@ -417,6 +478,16 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
             if (row) {
                 lv_obj_set_width(row, LV_PCT(100));
                 lv_obj_set_style_flex_main_place(row, LV_FLEX_ALIGN_START, 0);
+            }
+        }
+        // The beside layout reserves a box per label so its columns line up;
+        // stacked, each label is its own width, centered under the glyph.
+        for (const char* ln :
+             {"fan_stack_part_speed", "fan_stack_hotend_speed", "fan_stack_aux_speed",
+              "fan_stack_part_name", "fan_stack_hotend_name", "fan_stack_aux_name"}) {
+            if (lv_obj_t* lbl = lv_obj_find_by_name(widget_obj_, ln)) {
+                lv_obj_set_style_min_width(lbl, 0, 0);
+                lv_obj_set_style_text_align(lbl, LV_TEXT_ALIGN_CENTER, 0);
             }
         }
     } else {
@@ -467,8 +538,10 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
             name_w = std::max(name_w, sz.x);
         }
         for (lv_obj_t* lbl : name_labels) {
-            if (lbl)
+            if (lbl) {
                 lv_obj_set_style_min_width(lbl, name_w, 0);
+                lv_obj_set_style_text_align(lbl, LV_TEXT_ALIGN_AUTO, 0);
+            }
         }
 
         // First pass: set rows to content width and measure the widest
@@ -502,7 +575,7 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
     spdlog::debug("[FanStackWidget] on_size_changed {}x{} {}x{}px visible_rows={} -> font {} "
                   "layout {}",
                   colspan, rowspan, width_px, height_px, visible_rows, font_token,
-                  icon_above ? "icon-above" : "icon-beside");
+                  columns ? "columns" : (icon_above ? "icon-above" : "icon-beside"));
 }
 
 void FanStackWidget::bind_fans() {

@@ -13,6 +13,9 @@
     <prop name="aux_name_subject" type="string" default=""/>
     <prop name="aux_speed_subject" type="string" default=""/>
     <prop name="has_aux_subject" type="string" default=""/>
+    <!-- The arrangement the widget's size decided (StackShapeSubjects). -->
+    <prop name="columns_subject" type="string" default=""/>
+    <prop name="stacked_subject" type="string" default=""/>
   </api>
   <!--
     Each fan row is [icon][name speed]. The name and speed live in their own
@@ -22,63 +25,87 @@
   -->
   <view name="panel_widget_fan_stack"
         extends="lv_obj" height="100%" flex_grow="1" style_pad_all="0" style_pad_left="#space_xs"
-        style_pad_right="#space_xs" style_min_width="80" scrollable="false" flex_flow="column" style_pad_gap="#space_xs"
+        style_pad_right="#space_xs" style_min_width="80" scrollable="false" style_pad_gap="#space_xs"
         style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center" clickable="true">
+    <bind_style_if_eq name="styles.flow_column" subject="$columns_subject" ref_value="0"/>
+    <bind_style_if_eq name="styles.flow_row" subject="$columns_subject" ref_value="1"/>
     <bind_state_if_not_eq subject="printer_connection_state" state="disabled" ref_value="2"/>
     <event_cb trigger="clicked" callback="on_fan_stack_clicked"/>
 
     <!-- Part fan row -->
     <lv_obj name="fan_stack_part_row"
-            width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
-            style_flex_main_place="start" style_flex_cross_place="center" style_flex_track_place="center"
-            style_pad_gap="#space_xs" clickable="false" event_bubble="true">
+            width="100%" height="content" style_pad_all="0" scrollable="false" style_flex_main_place="start"
+            style_flex_cross_place="center" style_flex_track_place="center" clickable="false" event_bubble="true">
+      <bind_style_if_eq name="styles.flow_row" subject="$stacked_subject" ref_value="0"/>
+      <bind_style_if_eq name="styles.flow_column" subject="$stacked_subject" ref_value="1"/>
+      <bind_style_if_eq name="styles.stack_gap_beside" subject="$stacked_subject" ref_value="0"/>
+      <bind_style_if_eq name="styles.stack_gap_stacked" subject="$stacked_subject" ref_value="1"/>
+      <bind_style_if_eq name="styles.grow_1" subject="$columns_subject" ref_value="1"/>
       <icon name="fan_stack_part_icon" src="fan" size="xs" variant="secondary" clickable="false" event_bubble="true"/>
       <lv_obj name="fan_stack_part_value"
-              width="content" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
-              style_flex_main_place="start" style_flex_cross_place="center" style_flex_track_place="center"
-              style_pad_gap="#space_xs" clickable="false" event_bubble="true">
-        <text_muted name="fan_stack_part_name"
-                    bind_text="$part_name_subject" style_text_font="#font_xs" clickable="false" event_bubble="true"/>
+              width="content" height="content" style_pad_all="0" scrollable="false" style_flex_main_place="start"
+              style_flex_cross_place="center" style_flex_track_place="center" clickable="false" event_bubble="true">
+        <bind_style_if_eq name="styles.flow_row_reverse" subject="$columns_subject" ref_value="0"/>
+        <bind_style_if_eq name="styles.flow_column" subject="$columns_subject" ref_value="1"/>
+        <bind_style_if_eq name="styles.stack_gap_beside" subject="$columns_subject" ref_value="0"/>
+        <bind_style_if_eq name="styles.stack_gap_stacked" subject="$columns_subject" ref_value="1"/>
         <text_small name="fan_stack_part_speed"
                     bind_text="$part_speed_subject" style_text_color="#text" style_text_font="#font_xs"
                     clickable="false" event_bubble="true"/>
+        <text_muted name="fan_stack_part_name"
+                    bind_text="$part_name_subject" style_text_font="#font_xs" clickable="false" event_bubble="true"/>
       </lv_obj>
     </lv_obj>
 
     <!-- Hotend fan row -->
     <lv_obj name="fan_stack_hotend_row"
-            width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
-            style_flex_main_place="start" style_flex_cross_place="center" style_flex_track_place="center"
-            style_pad_gap="#space_xs" clickable="false" event_bubble="true">
+            width="100%" height="content" style_pad_all="0" scrollable="false" style_flex_main_place="start"
+            style_flex_cross_place="center" style_flex_track_place="center" clickable="false" event_bubble="true">
+      <bind_style_if_eq name="styles.flow_row" subject="$stacked_subject" ref_value="0"/>
+      <bind_style_if_eq name="styles.flow_column" subject="$stacked_subject" ref_value="1"/>
+      <bind_style_if_eq name="styles.stack_gap_beside" subject="$stacked_subject" ref_value="0"/>
+      <bind_style_if_eq name="styles.stack_gap_stacked" subject="$stacked_subject" ref_value="1"/>
+      <bind_style_if_eq name="styles.grow_1" subject="$columns_subject" ref_value="1"/>
       <icon name="fan_stack_hotend_icon" src="fan" size="xs" variant="secondary" clickable="false" event_bubble="true"/>
       <lv_obj name="fan_stack_hotend_value"
-              width="content" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
-              style_flex_main_place="start" style_flex_cross_place="center" style_flex_track_place="center"
-              style_pad_gap="#space_xs" clickable="false" event_bubble="true">
-        <text_muted name="fan_stack_hotend_name"
-                    bind_text="$hotend_name_subject" style_text_font="#font_xs" clickable="false" event_bubble="true"/>
+              width="content" height="content" style_pad_all="0" scrollable="false" style_flex_main_place="start"
+              style_flex_cross_place="center" style_flex_track_place="center" clickable="false" event_bubble="true">
+        <bind_style_if_eq name="styles.flow_row_reverse" subject="$columns_subject" ref_value="0"/>
+        <bind_style_if_eq name="styles.flow_column" subject="$columns_subject" ref_value="1"/>
+        <bind_style_if_eq name="styles.stack_gap_beside" subject="$columns_subject" ref_value="0"/>
+        <bind_style_if_eq name="styles.stack_gap_stacked" subject="$columns_subject" ref_value="1"/>
         <text_small name="fan_stack_hotend_speed"
                     bind_text="$hotend_speed_subject" style_text_color="#text" style_text_font="#font_xs"
                     clickable="false" event_bubble="true"/>
+        <text_muted name="fan_stack_hotend_name"
+                    bind_text="$hotend_name_subject" style_text_font="#font_xs" clickable="false" event_bubble="true"/>
       </lv_obj>
     </lv_obj>
 
     <!-- Aux fan row (hidden when no aux fan detected) -->
     <lv_obj name="fan_stack_aux_row"
-            width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
-            style_flex_main_place="start" style_flex_cross_place="center" style_flex_track_place="center"
-            style_pad_gap="#space_xs" clickable="false" event_bubble="true" hidden="true">
+            width="100%" height="content" style_pad_all="0" scrollable="false" style_flex_main_place="start"
+            style_flex_cross_place="center" style_flex_track_place="center" clickable="false" event_bubble="true"
+            hidden="true">
+      <bind_style_if_eq name="styles.flow_row" subject="$stacked_subject" ref_value="0"/>
+      <bind_style_if_eq name="styles.flow_column" subject="$stacked_subject" ref_value="1"/>
+      <bind_style_if_eq name="styles.stack_gap_beside" subject="$stacked_subject" ref_value="0"/>
+      <bind_style_if_eq name="styles.stack_gap_stacked" subject="$stacked_subject" ref_value="1"/>
+      <bind_style_if_eq name="styles.grow_1" subject="$columns_subject" ref_value="1"/>
       <bind_flag_if_eq subject="$has_aux_subject" flag="hidden" ref_value="0"/>
       <icon name="fan_stack_aux_icon" src="fan" size="xs" variant="secondary" clickable="false" event_bubble="true"/>
       <lv_obj name="fan_stack_aux_value"
-              width="content" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
-              style_flex_main_place="start" style_flex_cross_place="center" style_flex_track_place="center"
-              style_pad_gap="#space_xs" clickable="false" event_bubble="true">
-        <text_muted name="fan_stack_aux_name"
-                    bind_text="$aux_name_subject" style_text_font="#font_xs" clickable="false" event_bubble="true"/>
+              width="content" height="content" style_pad_all="0" scrollable="false" style_flex_main_place="start"
+              style_flex_cross_place="center" style_flex_track_place="center" clickable="false" event_bubble="true">
+        <bind_style_if_eq name="styles.flow_row_reverse" subject="$columns_subject" ref_value="0"/>
+        <bind_style_if_eq name="styles.flow_column" subject="$columns_subject" ref_value="1"/>
+        <bind_style_if_eq name="styles.stack_gap_beside" subject="$columns_subject" ref_value="0"/>
+        <bind_style_if_eq name="styles.stack_gap_stacked" subject="$columns_subject" ref_value="1"/>
         <text_small name="fan_stack_aux_speed"
                     bind_text="$aux_speed_subject" style_text_color="#text" style_text_font="#font_xs" clickable="false"
                     event_bubble="true"/>
+        <text_muted name="fan_stack_aux_name"
+                    bind_text="$aux_name_subject" style_text_font="#font_xs" clickable="false" event_bubble="true"/>
       </lv_obj>
     </lv_obj>
   </view>
