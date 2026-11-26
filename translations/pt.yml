@@ -4871,6 +4871,7 @@ translations:
   Stepper driver {} is overheating: 'O driver do motor de passo {} está superaquecendo'
   Stepper driver {} overheated and shut down: 'O driver do motor de passo {} superaqueceu e desligou'
   Still reading the printer's lane record. Try again in a moment.: 'Ainda lendo o registro de lanes da impressora. Tente novamente em instantes.'
+  Still reading the printer's lane records: 'Ainda lendo os registros de lane da impressora'
   Still running; no reply after {} min: 'Ainda em execução; sem resposta após {} min'
   Still saving this spool…: 'Ainda salvando este carretel…'
   Still working... taking longer than usual: Ainda processando... está demorando mais que o normal
@@ -5053,6 +5054,7 @@ translations:
   'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}.': 'Torre de teste com {:.0f} mm de largura e {:.0f} mm de altura, cerca de {} min mais o aquecimento: {} faixas de {:.0f} mm a {}.'
   'Testing rotation: %d° (%d/%d) - %ds remaining': 'Testando rotação: %d° (%d/%d) - %ds restantes'
   Testing, servo, and motor operations: 'Operações de teste, servo e motor'
+  Text Clock: Relógio de texto
   Thanks! Anonymous usage data helps improve HelixScreen.: Obrigado! Dados de uso anônimos ajudam a melhorar o HelixScreen.
   That file command cannot run here.: 'Esse comando de arquivo não pode ser executado aqui.'
   That print is no longer paused: 'Essa impressão não está mais pausada'
@@ -5788,6 +5790,7 @@ translations:
   'Troubleshooting:': 'Solução de Problemas:'
   Try adjusting your search or filters: Tente ajustar sua busca ou filtros
   Try Again: 'Tentar novamente'
+  Try again in a moment.: 'Tente novamente em instantes.'
   Try again. If it keeps happening, reseat the accelerometer cable.: Tente novamente. Se continuar acontecendo, reassente o cabo do acelerômetro.
   Try the operation again. If it persists, check for mechanical issues.: Tente a operação novamente. Se persistir, verifique problemas mecânicos.
   Try the setting again, and restart the printer if it keeps failing.: 'Tente a configuração novamente e reinicie a impressora se continuar falhando.'

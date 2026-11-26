@@ -4959,6 +4959,7 @@ translations:
   Stepper driver {} is overheating: 'Драйвер шагового двигателя {} перегревается'
   Stepper driver {} overheated and shut down: 'Драйвер шагового двигателя {} перегрелся и отключился'
   Still reading the printer's lane record. Try again in a moment.: 'Запись каналов принтера ещё читается. Повторите попытку через мгновение.'
+  Still reading the printer's lane records: 'Данные каналов принтера ещё считываются'
   Still running; no reply after {} min: 'Ещё выполняется; нет ответа уже {} мин'
   Still saving this spool…: 'Эта катушка ещё сохраняется…'
   Still working... taking longer than usual: Всё ещё выполняется... дольше обычного
@@ -5141,6 +5142,7 @@ translations:
   'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}.': 'Тестовая башня шириной {:.0f} мм и высотой {:.0f} мм, около {} мин плюс нагрев: {} полос по {:.0f} мм при {}.'
   'Testing rotation: %d° (%d/%d) - %ds remaining': 'Тест поворота: %d° (%d/%d) - осталось %ds'
   Testing, servo, and motor operations: 'Тестирование, сервопривод и работа моторов'
+  Text Clock: Текстовые часы
   Thanks! Anonymous usage data helps improve HelixScreen.: Спасибо! Анонимные данные использования помогают улучшить HelixScreen.
   That file command cannot run here.: 'Эту файловую команду здесь выполнить нельзя.'
   That print is no longer paused: 'Эта печать больше не приостановлена'
@@ -5876,6 +5878,7 @@ translations:
   'Troubleshooting:': 'Устранение неполадок:'
   Try adjusting your search or filters: Попробуйте изменить поиск или фильтры
   Try Again: 'Повторить'
+  Try again in a moment.: 'Повторите попытку через минуту.'
   Try again. If it keeps happening, reseat the accelerometer cable.: Попробуйте снова. Если ошибка повторяется, переподключите кабель акселерометра.
   Try the operation again. If it persists, check for mechanical issues.: Повторите операцию. Если проблема не исчезает, проверьте механические неисправности.
   Try the setting again, and restart the printer if it keeps failing.: 'Попробуйте применить настройку снова и перезапустите принтер, если ошибка повторяется.'

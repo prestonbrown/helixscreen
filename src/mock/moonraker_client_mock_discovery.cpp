@@ -876,6 +876,9 @@ void MoonrakerClientMock::populate_capabilities() {
             mock_objects.push_back("filament_switch_sensor lane" + std::to_string(i));
         }
         mock_objects.push_back("filament_switch_sensor toolhead");
+        if (!ifs_module_plugin_api().empty()) {
+            mock_objects.push_back("ad5x_plugins");
+        }
         spdlog::info("[MoonrakerClientMock] Standalone IFS module mock: ifs + ifs_materials + "
                      "4 lane sensors + toolhead");
     }

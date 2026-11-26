@@ -90,7 +90,7 @@ AnalogHands analog_hands(const ClockTime& time, uint32_t sub_ms, AnalogMotion mo
     return h;
 }
 
-AnalogGeom analog_layout(AnalogStyle style, int32_t w, int32_t h) {
+AnalogGeom analog_layout(AnalogStyle style, int32_t w, int32_t h, bool side_column) {
     AnalogGeom g;
     g.w = w;
     g.h = h;
@@ -98,7 +98,7 @@ AnalogGeom analog_layout(AnalogStyle style, int32_t w, int32_t h) {
     g.compact = std::min(w, h) <= kCompactSide;
     const float fw = static_cast<float>(w);
     const float fh = static_cast<float>(h);
-    if (style != AnalogStyle::BAUHAUS) {
+    if (style != AnalogStyle::BAUHAUS || !side_column) {
         // A margin either side is the room the face drifts in.
         g.cx = fw * 0.5f;
         g.cy = fh * 0.5f;
@@ -127,7 +127,7 @@ AnalogGeom analog_layout(AnalogStyle style, int32_t w, int32_t h) {
 
 DirtyRect analog_face_box(AnalogStyle style, const AnalogGeom& g) {
     DirtyRect box = apaint_box(g.cx, g.cy, g.cx, g.cy, g.r + 1.0f);
-    if (style == AnalogStyle::BAUHAUS) {
+    if (style == AnalogStyle::BAUHAUS && g.col_w > 0.0f) {
         // The column's text and bar run about 190 px of the column's scale below its top.
         box.add(
             apaint_box(g.col_x, g.col_y, g.col_x + g.col_w, g.col_y + 190.0f * g.col_scale, 1.0f));
@@ -165,7 +165,8 @@ void AnalogClockSim::step(uint32_t dt_ms, FrameTarget& frame, const AnalogFace& 
 
 void AnalogClockSim::relayout(const FrameTarget& frame, AnalogStyle style) {
     style_ = style;
-    base_ = analog_layout(style, static_cast<int32_t>(frame.w), static_cast<int32_t>(frame.h));
+    base_ = analog_layout(style, static_cast<int32_t>(frame.w), static_cast<int32_t>(frame.h),
+                          options_.side_column);
     drift_.set_range(analog_face_box(style, base_), base_.w, base_.h);
     geom_ = base_;
     geom_.cx += static_cast<float>(drift_.dx);
@@ -203,10 +204,16 @@ AnalogClockSim::DialKey AnalogClockSim::key_for(const AnalogFace& face) const {
 void AnalogClockSim::draw_dial(const AnalogFace& face) {
     APainter p(dial_,
                DirtyRect::whole(static_cast<int32_t>(dial_.w), static_cast<int32_t>(dial_.h)));
-    analog_draw_dial(p, style_, geom_, face.reading, texts_);
+    analog_draw_dial(p, style_, geom_, face.reading, texts_, options_);
 }
 
 AnalogHands AnalogClockSim::hands_for(const AnalogFace& face) const {
+    if (!options_.seconds) {
+        // The minute hand holds for the whole minute, so nothing moves between minutes.
+        ClockTime minute = face.reading.time;
+        minute.second = 0;
+        return analog_hands(minute, 0, AnalogMotion::TICK);
+    }
     return analog_hands(face.reading.time, sub_ms_,
                         analog_motion(face.style, kLevels[level_].smooth));
 }
@@ -216,12 +223,12 @@ std::array<DirtyRect, 3> AnalogClockSim::boxes_for(const AnalogHands& hands) con
         analog_part_specs(style_, geom_, kLevels[level_].smooth);
     return {analog_part_box(specs[0], geom_, hands.hour),
             analog_part_box(specs[1], geom_, hands.minute),
-            analog_part_box(specs[2], geom_, hands.second)};
+            options_.seconds ? analog_part_box(specs[2], geom_, hands.second) : DirtyRect{}};
 }
 
 void AnalogClockSim::draw_hands(FrameTarget& frame, const DirtyRect& clip) const {
     APainter p(frame, clip);
-    analog_draw_hands(p, style_, geom_, hands_, mode_, kLevels[level_].smooth);
+    analog_draw_hands(p, style_, geom_, hands_, mode_, kLevels[level_].smooth, options_.seconds);
 }
 
 bool AnalogClockSim::prepare(uint32_t dt_ms, const FrameTarget& frame, const AnalogFace& face) {
@@ -241,7 +248,7 @@ bool AnalogClockSim::prepare(uint32_t dt_ms, const FrameTarget& frame, const Ana
     }
     // A drift step waits for the next dial redraw, at most a minute away, rather than
     // repainting the whole frame on its own.
-    drift_pending_ = drift_.step(dt_ms) || drift_pending_;
+    drift_pending_ = (options_.drift && drift_.step(dt_ms)) || drift_pending_;
     mode_ = face.reading.mode;
 
     AnalogHands next = hands_for(face);

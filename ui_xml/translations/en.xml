@@ -4714,6 +4714,7 @@
   <translation tag="Stepper driver {} is overheating" en="Stepper driver {} is overheating"/>
   <translation tag="Stepper driver {} overheated and shut down" en="Stepper driver {} overheated and shut down"/>
   <translation tag="Still reading the printer&apos;s lane record. Try again in a moment." en="Still reading the printer&apos;s lane record. Try again in a moment."/>
+  <translation tag="Still reading the printer&apos;s lane records" en="Still reading the printer&apos;s lane records"/>
   <translation tag="Still running; no reply after {} min" en="Still running; no reply after {} min"/>
   <translation tag="Still saving this spool…" en="Still saving this spool…"/>
   <translation tag="Still working... taking longer than usual" en="Still working... taking longer than usual"/>
@@ -4893,6 +4894,7 @@
   <translation tag="Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}." en="Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}."/>
   <translation tag="Testing rotation: %d° (%d/%d) - %ds remaining" en="Testing rotation: %d° (%d/%d) - %ds remaining"/>
   <translation tag="Testing, servo, and motor operations" en="Testing, servo, and motor operations"/>
+  <translation tag="Text Clock" en="Text Clock"/>
   <translation tag="Thanks! Anonymous usage data helps improve HelixScreen." en="Thanks! Anonymous usage data helps improve HelixScreen."/>
   <translation tag="That file command cannot run here." en="That file command cannot run here."/>
   <translation tag="That print is no longer paused" en="That print is no longer paused"/>
@@ -5552,6 +5554,7 @@
   <translation tag="Troubleshooting:" en="Troubleshooting:"/>
   <translation tag="Try Again" en="Try Again"/>
   <translation tag="Try adjusting your search or filters" en="Try adjusting your search or filters"/>
+  <translation tag="Try again in a moment." en="Try again in a moment."/>
   <translation tag="Try again. If it keeps happening, reseat the accelerometer cable." en="Try again. If it keeps happening, reseat the accelerometer cable."/>
   <translation tag="Try the operation again. If it persists, check for mechanical issues." en="Try the operation again. If it persists, check for mechanical issues."/>
   <translation tag="Try the setting again, and restart the printer if it keeps failing." en="Try the setting again, and restart the printer if it keeps failing."/>

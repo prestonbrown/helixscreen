@@ -320,6 +320,26 @@ void app_globals_init_subjects() {
     spdlog::trace("[App Globals] Global subjects initialized");
 }
 
+void helix::reset_app_globals_subject_values_for_test() {
+    if (!g_subjects_initialized) {
+        app_globals_init_subjects();
+        return;
+    }
+    // Startup values of the subjects a session mutates; the platform gates are
+    // constants of the build and never move.
+    // The wizard callbacks capture their owners; one left set would call into a
+    // dead object from a later case's cancel or completion.
+    g_wizard_completion_cb = nullptr;
+    g_wizard_cancel_cb = nullptr;
+    g_wizard_active = false;
+    lv_subject_set_int(&g_wizard_active_subject, 0);
+    lv_subject_set_int(&g_home_edit_mode_subject, 0);
+    lv_subject_set_int(&g_home_edit_page_deletable_subject, 0);
+    lv_subject_set_int(&g_show_beta_features_subject,
+                       Config::get_instance()->is_beta_features_enabled() ? 1 : 0);
+    lv_subject_set_pointer(&g_notification_subject, nullptr);
+}
+
 void app_globals_deinit_subjects() {
     if (!g_subjects_initialized) {
         return;

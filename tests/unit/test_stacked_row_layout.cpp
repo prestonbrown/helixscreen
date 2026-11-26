@@ -85,3 +85,149 @@ TEST_CASE("temp_stack tall layout falls back to rows when it cannot measure",
     CHECK_FALSE(wants_icon_above(4, roomy, 3, StackedRowMetrics{0, 12, 2}, kRowGap));
     CHECK_FALSE(wants_icon_above(4, roomy, 3, StackedRowMetrics{24, 0, 2}, kRowGap));
 }
+
+namespace {
+// Small-tier row with a 10px caption under the value, and columns 40px wide
+// bare / 60px with the caption.
+constexpr StackedRowMetrics kCaptionRow{24, 12, 2, 10};
+constexpr ColumnWidths kCols{40, 60, 100};
+constexpr int kColGap = 4;
+constexpr int kBareHeight = 24 + 2 + 12;
+constexpr int kCaptionHeight = kBareHeight + 2 + 10;
+constexpr int widthFor(int rows, int column_px) {
+    return rows * column_px + (rows - 1) * kColGap;
+}
+} // namespace
+
+TEST_CASE("stack layout lays rows side by side only from 1.5 cells wide",
+          "[widget_size][stack_layout][layout]") {
+    const int w = widthFor(3, kCols.captioned_px);
+
+    // One whole cell wide never goes to columns, however many pixels it has.
+    CHECK(classify_stack_layout(2, 2, w * 4, 400, 3, kCaptionRow, kColGap, kCols).shape !=
+          StackShape::Columns);
+    CHECK(classify_stack_layout(kColumnsMinColspan, 2, w, 400, 3, kCaptionRow, kColGap, kCols)
+              .shape == StackShape::Columns);
+    CHECK(classify_stack_layout(4, 2, w, 400, 3, kCaptionRow, kColGap, kCols).shape ==
+          StackShape::Columns);
+    STATIC_REQUIRE(kColumnsMinColspan == 3);
+}
+
+TEST_CASE("stack layout drops the caption before it drops the columns",
+          "[widget_size][stack_layout][layout]") {
+    const int w = widthFor(3, kCols.captioned_px);
+
+    auto at = [&](int width, int height) {
+        return classify_stack_layout(4, 2, width, height, 3, kCaptionRow, kColGap, kCols);
+    };
+    auto full = at(w, kCaptionHeight);
+    CHECK(full.shape == StackShape::Columns);
+    CHECK(full.captions);
+
+    // One pixel short of the caption's height: columns stay, caption goes.
+    auto short_box = at(w, kCaptionHeight - 1);
+    CHECK(short_box.shape == StackShape::Columns);
+    CHECK_FALSE(short_box.captions);
+
+    // One pixel short of the caption's width: same.
+    auto narrow = at(w - 1, kCaptionHeight);
+    CHECK(narrow.shape == StackShape::Columns);
+    CHECK_FALSE(narrow.captions);
+
+    // Too narrow for even bare columns, or too short for icon and value: the
+    // vertical rule decides, exactly as without a width.
+    CHECK(at(widthFor(3, kCols.plain_px) - 1, 400).shape != StackShape::Columns);
+    CHECK(at(w, kBareHeight - 1).shape != StackShape::Columns);
+}
+
+TEST_CASE("stack layout columns need the physical width band as well as the span",
+          "[widget_size][stack_layout][layout]") {
+    // Plenty for the columns themselves, but under the band: pixels win.
+    const int w = widthFor(3, kCols.captioned_px);
+    REQUIRE(w >= kCols.min_box_px);
+    CHECK(classify_stack_layout(4, 2, kCols.min_box_px - 1, 400, 2, kCaptionRow, kColGap, kCols)
+              .shape != StackShape::Columns);
+    CHECK(
+        classify_stack_layout(4, 2, kCols.min_box_px, 400, 2, kCaptionRow, kColGap, kCols).shape ==
+        StackShape::Columns);
+}
+
+TEST_CASE("stack layout keeps the vertical stack in a box that is tall as well as wide",
+          "[widget_size][stack_layout][layout]") {
+    const int w = widthFor(3, kCols.captioned_px);
+    const int tall = exact_fit(3) * 4;
+    REQUIRE(wants_icon_above(4, tall, 3, kCaptionRow, kColGap));
+
+    // Roughly square and tall enough to stack: the vertical stack stays.
+    CHECK(classify_stack_layout(4, 4, w, w, 3, kCaptionRow, kColGap, kCols).shape ==
+          StackShape::IconAbove);
+    // Clearly wider than tall (3:2 and up): columns, even where stacking fits.
+    CHECK(classify_stack_layout(4, 4, w, w * 2 / 3, 3, kCaptionRow, kColGap, kCols).shape ==
+          StackShape::Columns);
+}
+
+TEST_CASE("stack layout columns decline when it cannot measure",
+          "[widget_size][stack_layout][layout]") {
+    const int w = widthFor(3, kCols.captioned_px);
+    CHECK(classify_stack_layout(4, 2, 0, 400, 3, kCaptionRow, kColGap, kCols).shape !=
+          StackShape::Columns);
+    CHECK(classify_stack_layout(4, 2, w, 400, 1, kCaptionRow, kColGap, kCols).shape !=
+          StackShape::Columns);
+    CHECK(classify_stack_layout(4, 2, w, 400, 3, kCaptionRow, kColGap, ColumnWidths{}).shape !=
+          StackShape::Columns);
+}
+
+TEST_CASE("stack layout gives a square, tall box big rows, and a narrow one the icon stack",
+          "[widget_size][stack_layout][layout]") {
+    // Per-row width: 24px icon, then a 40px value, then a 50px caption, 4px apart.
+    ColumnWidths cols{40, 60, 100, 24 + 4 + 40, 24 + 4 + 40 + 4 + 50};
+    const int rows_h = 3 * 24 + 2 * kColGap; // the icon is the taller of icon and text
+    const int h = exact_fit(3) * 4;
+    REQUIRE(h >= rows_h);
+
+    // Square: not wide enough for the 3:2 columns rule, so big rows.
+    auto big = classify_stack_layout(4, 4, 200, 200, 3, kCaptionRow, kColGap, cols);
+    CHECK(big.shape == StackShape::Rows);
+    CHECK(big.captions);
+
+    // The caption goes before the rows do.
+    auto no_caption = classify_stack_layout(4, 4, cols.beside_captioned_px - 1, 200, 3, kCaptionRow,
+                                            kColGap, cols);
+    CHECK(no_caption.shape == StackShape::Rows);
+    CHECK_FALSE(no_caption.captions);
+
+    // Narrower than a row needs, or a one-cell-wide box: the vertical icon stack.
+    CHECK(classify_stack_layout(4, 4, cols.beside_plain_px - 1, 200, 3, kCaptionRow, kColGap, cols)
+              .shape == StackShape::IconAbove);
+    CHECK(classify_stack_layout(2, 4, 300, 200, 3, kCaptionRow, kColGap, cols).shape ==
+          StackShape::IconAbove);
+
+    // One authored cell tall never goes to big rows, and a widget that measured
+    // no beside width never offers them.
+    CHECK(classify_stack_layout(4, 2, 300, 200, 3, kCaptionRow, kColGap, cols).shape !=
+          StackShape::Rows);
+    CHECK(classify_stack_layout(4, 4, 200, 200, 3, kCaptionRow, kColGap, kCols).shape !=
+          StackShape::Rows);
+}
+
+TEST_CASE("stack layout keeps its margin above the first row and below the last",
+          "[widget_size][stack_layout][layout]") {
+    ColumnWidths cols{40, 60, 100, 24 + 4 + 40, 24 + 4 + 40 + 4 + 50};
+    cols.margin_px = 7;
+    const int rows_h = 3 * 24 + 2 * kColGap;
+
+    // Exactly the rows plus a margin each side: big rows. One pixel less: not.
+    CHECK(classify_stack_layout(4, 4, 120, rows_h + 14, 3, kCaptionRow, kColGap, cols).shape ==
+          StackShape::Rows);
+    CHECK(classify_stack_layout(4, 4, 120, rows_h + 13, 3, kCaptionRow, kColGap, cols).shape !=
+          StackShape::Rows);
+
+    // Columns too: the icon, value and caption plus a margin each side.
+    const int caption_h = kCaptionHeight + 14;
+    const int w = widthFor(3, cols.captioned_px);
+    auto columns = classify_stack_layout(4, 2, w, caption_h, 3, kCaptionRow, kColGap, cols);
+    CHECK(columns.shape == StackShape::Columns);
+    CHECK(columns.captions);
+    CHECK_FALSE(
+        classify_stack_layout(4, 2, w, caption_h - 1, 3, kCaptionRow, kColGap, cols).captions);
+}

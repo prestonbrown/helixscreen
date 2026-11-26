@@ -4871,6 +4871,7 @@ translations:
   Stepper driver {} is overheating: '步进电机驱动器 {} 过热'
   Stepper driver {} overheated and shut down: '步进电机驱动器 {} 过热并已关闭'
   Still reading the printer's lane record. Try again in a moment.: '仍在读取打印机的耗材通道记录，请稍后再试。'
+  Still reading the printer's lane records: '仍在读取打印机的耗材通道记录'
   Still running; no reply after {} min: '仍在运行；{} 分钟无响应'
   Still saving this spool…: '此料盘仍在保存中…'
   Still working... taking longer than usual: 仍在处理……耗时比平常更长
@@ -5053,6 +5054,7 @@ translations:
   'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}.': '测试塔宽{:.0f} mm、高{:.0f} mm,约{}分钟加加热时间: 共{}段,每段{:.0f} mm,温度{}。'
   'Testing rotation: %d° (%d/%d) - %ds remaining': '测试旋转: %d° (%d/%d) - 剩余%ds'
   Testing, servo, and motor operations: '测试、舵机与电机操作'
+  Text Clock: 文字时钟
   Thanks! Anonymous usage data helps improve HelixScreen.: 感谢！匿名使用数据有助于改进 HelixScreen。
   That file command cannot run here.: '该文件命令无法在此运行。'
   That print is no longer paused: '该打印已不再暂停'
@@ -5788,6 +5790,7 @@ translations:
   'Troubleshooting:': 故障排除：
   Try adjusting your search or filters: 尝试调整搜索或筛选条件
   Try Again: '重试'
+  Try again in a moment.: '请稍后再试。'
   Try again. If it keeps happening, reseat the accelerometer cable.: 请重试。如果反复出现，请重新插好加速度计线缆。
   Try the operation again. If it persists, check for mechanical issues.: 请重试该操作。如果问题持续存在，请检查是否有机械故障。
   Try the setting again, and restart the printer if it keeps failing.: '请重新应用设置，如持续失败请重启打印机。'

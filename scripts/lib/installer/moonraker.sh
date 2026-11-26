@@ -327,6 +327,61 @@ update_manager_editable_stanza_files() {
     done
 }
 
+# Print each file holding [update_manager helixscreen] that the firmware mod
+# declared itself: among the files the mod's conf reaches, any that is neither
+# the user conf @1 (the file this installer writes) nor one that conf includes,
+# nor in the mod's own tree
+# (that git-tracked conf is warn_mod_conf_stanza's case). Z-Mod's plugin
+# manager keeps its entries in such a file. Nothing when @1 is no mod's user
+# conf. The mod owns these files: they are never edited.
+mod_declared_stanza_files() {
+    local mod_conf user_real user_reach
+    mod_conf=$(mod_conf_including_user_conf "$1")
+    [ -n "$mod_conf" ] || return 0
+    user_real=$(host_canonical_path "$1")
+    # What the user conf itself includes is the user's, not the mod's.
+    user_reach=$(update_manager_stanza_files "$1")
+    update_manager_stanza_files "$mod_conf" | while IFS= read -r _mdsf_file; do
+        [ -n "$_mdsf_file" ] || continue
+        printf '%s\n' "$user_reach" | grep -qxF "$_mdsf_file" && continue
+        [ "$(host_canonical_path "$_mdsf_file")" = "$user_real" ] && continue
+        host_path_is_mod_owned "$_mdsf_file" && continue
+        printf '%s\n' "$_mdsf_file"
+    done
+}
+
+# The value of `path:` in the [update_manager helixscreen] section of conf @1.
+update_manager_stanza_path() {
+    awk '
+        /^\[update_manager helixscreen\]/ { found=1; next }
+        found && /^\[/ { exit }
+        found && /^path[ \t]*[:=]/ { sub(/^path[ \t]*[:=][ \t]*/, ""); sub(/[ \t\r]+$/, ""); print; exit }
+    ' "$1" 2>/dev/null
+}
+
+# The mod_declared_stanza_files of user conf @1 whose `path:` is this install
+# (update_manager_path): one such entry already lists HelixScreen to Moonraker
+# in the place it expects, so this installer adds none of its own. A mod
+# entry for another directory does not cover this install.
+mod_declared_stanza_covering_install() {
+    local want_real got
+    want_real=$(host_canonical_path "$(update_manager_path)")
+    mod_declared_stanza_files "$1" | while IFS= read -r _mdsc_file; do
+        [ -n "$_mdsc_file" ] || continue
+        got=$(update_manager_stanza_path "$_mdsc_file")
+        [ -n "$got" ] && [ "$(host_canonical_path "$got")" = "$want_real" ] && printf '%s\n' "$_mdsc_file"
+    done
+    return 0
+}
+
+# List @1 (one file per line) without the files of list @2.
+drop_listed_files() {
+    printf '%s\n' "$1" | while IFS= read -r _dlf_file; do
+        [ -n "$_dlf_file" ] || continue
+        printf '%s\n' "$2" | grep -qxF "$_dlf_file" || printf '%s\n' "$_dlf_file"
+    done
+}
+
 # The channel the stanza names: always stable. Moonraker's beta lane reads the
 # newest release of every line (releases?per_page=1) and offers whatever
 # differs from the installed version, downgrades included, so a stanza is
@@ -1220,6 +1275,7 @@ detect_moonraker_integration() {
     local support adds="update-manager" none_yet=yes
     support=$(moonraker_asset_name_support)
     [ -z "$(update_manager_stanza_files "$conf")" ] || none_yet=""
+    [ -z "$(mod_declared_stanza_covering_install "$conf")" ] || none_yet=""
     if ! update_manager_listed; then
         adds="update-manager-off"
         [ -z "$(update_manager_off_stanza_files "$conf")" ] \
@@ -1352,6 +1408,12 @@ configure_moonraker_updates() {
     mod_conf=$(mod_conf_including_user_conf "$conf")
     stanza_files=$(update_manager_stanza_files "${mod_conf:-$conf}")
     editable_files=$(update_manager_editable_stanza_files "${mod_conf:-$conf}")
+    # A stanza the mod's plugin manager declared is the mod's, whatever its path.
+    local declared_files
+    declared_files=$(mod_declared_stanza_files "$conf")
+    if [ -n "$declared_files" ]; then
+        editable_files=$(drop_listed_files "$editable_files" "$declared_files")
+    fi
     stanza_conf=$(printf '%s\n' "$editable_files" | sed -n 1p)
     # The upgrade case: an earlier install appended the stanza to the mod's
     # conf. The user conf still takes one when no editable file holds it, so
@@ -1414,6 +1476,31 @@ STALE_FILES
         ensure_moonraker_asvc "$conf"
 
         if [ "$removed_stale" -eq 1 ] || [ "$_MOONRAKER_ASVC_CHANGED" = "yes" ]; then
+            restart_moonraker
+        fi
+        return 0
+    fi
+
+    # The mod's plugin manager already lists this install: a second entry here
+    # would merge into it (Moonraker reads the later file's options over the
+    # earlier one's), and the mod's own switch for it would not reach our copy.
+    # An entry of ours from an earlier install, in either form, goes.
+    local covering
+    covering=$(mod_declared_stanza_covering_install "$conf")
+    if [ -n "$covering" ]; then
+        log_info "The firmware mod already lists HelixScreen in $(printf '%s\n' "$covering" | sed -n 1p); adding no entry of our own."
+        local own_files own_file own_removed=0
+        own_files=$( { printf '%s\n' "$editable_files"
+                       update_manager_off_stanza_files "${mod_conf:-$conf}"; } | awk 'NF && !seen[$0]++')
+        while IFS= read -r own_file; do
+            [ -n "$own_file" ] || continue
+            _remove_update_manager_section_from "$own_file" && own_removed=1
+        done <<OWN_FILES
+$own_files
+OWN_FILES
+        disable_system_updates_on_buildroot "$conf"
+        ensure_moonraker_asvc "$conf"
+        if [ "$own_removed" -eq 1 ] || [ "$_MOONRAKER_ASVC_CHANGED" = "yes" ]; then
             restart_moonraker
         fi
         return 0

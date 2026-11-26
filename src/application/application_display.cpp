@@ -20,6 +20,7 @@
 #include "display_backend.h"
 #include "display_manager.h"
 #include "display_metrics.h"
+#include "display_sleep_listener.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "input_settings_manager.h"
 #include "layout_manager.h"
@@ -217,6 +218,9 @@ bool Application::init_display() {
     // Turning spools in the unit art stop while the panel is dark and resume on wake.
     m_display->register_sleep_callback(
         [](bool sleeping) { helix::ui::unit_art_set_display_asleep(sleeping); });
+    // The UI's own sleep listeners (camera streams, clock faces) hear the same edges.
+    m_display->register_sleep_callback(
+        [](bool sleeping) { helix::DisplaySleepListener::notify(sleeping); });
 
     // Register LVGL log handler AFTER lv_init() (called inside display->init())
     // Must be after lv_init() because it resets global state and clears callbacks

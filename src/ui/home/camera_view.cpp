@@ -5,7 +5,6 @@
 #if HELIX_HAS_CAMERA
 
 #include "core/http_executor.h"
-#include "display_manager.h"
 
 #include <spdlog/spdlog.h>
 
@@ -188,23 +187,7 @@ void CameraView::apply_transform(const nlohmann::json& transform_config) {
 }
 
 void CameraView::on_display_sleep(std::function<void(bool sleeping)> on_change) {
-    if (sleep_handler_) {
-        *sleep_handler_ = std::move(on_change);
-        return;
-    }
-    auto* dm = DisplayManager::instance();
-    if (!dm) {
-        return;
-    }
-    sleep_handler_ = std::make_shared<std::function<void(bool)>>(std::move(on_change));
-    // DisplayManager keeps every callback for the life of the process, so the
-    // registration holds a weak handle that dies with the view, never the view.
-    std::weak_ptr<std::function<void(bool)>> handler = sleep_handler_;
-    dm->register_sleep_callback([handler](bool sleeping) {
-        if (auto fn = handler.lock(); fn && *fn) {
-            (*fn)(sleeping);
-        }
-    });
+    sleep_listener_.listen(std::move(on_change));
 }
 
 } // namespace helix

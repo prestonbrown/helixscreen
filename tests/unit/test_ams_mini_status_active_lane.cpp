@@ -21,6 +21,7 @@
 #include "../ui_test_utils.h"
 #include "ams_backend_cfs.h"
 #include "ams_backend_mock.h"
+#include "ams_mini_test_helpers.h"
 #include "ams_state.h"
 #include "core/update_queue.h"
 #include "test_helpers/backend_harness.h"
@@ -158,12 +159,9 @@ bool badge_is_active(lv_obj_t* widget, int lane) {
                        theme_manager_get_color("success"));
 }
 
-/** bars_container -> slot column `lane` -> bar_bg (the outlined element). */
+/** The lane's bar -> bar_bg (the outlined element). */
 lv_obj_t* bar_bg_for(lv_obj_t* widget, int lane) {
-    lv_obj_t* bars = UITest::find_by_name(widget, "ams_bars_container");
-    REQUIRE(bars != nullptr);
-    REQUIRE(static_cast<int>(lv_obj_get_child_count(bars)) > lane);
-    lv_obj_t* column = lv_obj_get_child(bars, lane);
+    lv_obj_t* column = ams_mini_test::lane_bar_for_slot(widget, lane);
     REQUIRE(column != nullptr);
     REQUIRE(lv_obj_get_child_count(column) > 0);
     return lv_obj_get_child(column, 0);

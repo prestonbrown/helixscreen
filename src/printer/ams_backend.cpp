@@ -77,9 +77,9 @@ nlohmann::json ifs_required_status_objects(const PrinterDiscovery& hw) {
     }
     return objects;
 }
-constexpr BackendClassOps kIfsOps{construct_backend<AmsBackendAd5xIfs>,
-                                  AmsBackendAd5xIfs::owns_filament_sensor,
-                                  ifs_required_status_objects};
+constexpr BackendClassOps kIfsOps{
+    construct_backend<AmsBackendAd5xIfs>, AmsBackendAd5xIfs::owns_filament_sensor,
+    ifs_required_status_objects, AmsBackendAd5xIfs::kOverrideNamespace};
 } // namespace
 } // namespace helix
 #else

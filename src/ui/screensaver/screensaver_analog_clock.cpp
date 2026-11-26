@@ -101,26 +101,27 @@ void AnalogClockScreensaver::on_stop() {
     dial_canvas_.reset();
 }
 
-void AnalogClockScreensaver::write_texts() {
-    lv_obj_t* canvas_obj = dial_canvas_.get();
-    if (canvas_obj == nullptr || sim_.texts().empty()) {
+void analog_write_dial_texts(lv_obj_t* text_canvas, lv_draw_buf_t& buf, const AnalogClockSim& sim,
+                             const ClockReading& reading, bool drop_unfit) {
+    lv_obj_t* canvas_obj = text_canvas;
+    if (canvas_obj == nullptr || sim.texts().empty()) {
         return;
     }
-    const FrameTarget dial = sim_.dial();
+    const FrameTarget dial = sim.dial();
     if (dial.data == nullptr) {
         return;
     }
-    lv_draw_buf_init(&dial_buf_, dial.w, dial.h, kLvDrawCanvasFormat, dial.stride, dial.data,
+    lv_draw_buf_init(&buf, dial.w, dial.h, kLvDrawCanvasFormat, dial.stride, dial.data,
                      dial.stride * dial.h);
-    lv_canvas_set_draw_buf(canvas_obj, &dial_buf_);
+    lv_canvas_set_draw_buf(canvas_obj, &buf);
 
     // The strings outlive the layer: LVGL draws them when the layer finishes.
     std::vector<std::string> words;
-    words.reserve(sim_.texts().size());
+    words.reserve(sim.texts().size());
     lv_layer_t layer;
     lv_canvas_init_layer(canvas_obj, &layer);
-    for (const AnalogText& t : sim_.texts()) {
-        words.push_back(text_for(t));
+    for (const AnalogText& t : sim.texts()) {
+        words.push_back(analog_text_for(t, reading));
         const std::string& word = words.back();
         if (word.empty() || t.box.empty()) {
             continue;
@@ -129,6 +130,9 @@ void AnalogClockScreensaver::write_texts() {
         const int32_t bh = t.box.y2 - t.box.y1 + 1;
         const lv_font_t* font = clock_font_fitting(bh, bw, word.c_str(), t.display);
         if (font == nullptr) {
+            continue;
+        }
+        if (drop_unfit && !clock_text_fits(font, word.c_str(), bw, bh)) {
             continue;
         }
         lv_draw_label_dsc_t label;
@@ -147,9 +151,9 @@ void AnalogClockScreensaver::write_texts() {
     lv_canvas_finish_layer(canvas_obj, &layer);
 }
 
-std::string AnalogClockScreensaver::text_for(const AnalogText& text) const {
+std::string analog_text_for(const AnalogText& text, const ClockReading& reading) {
     // Time left in whole minutes, rounded up, as the sim keys its redraws on.
-    ClockReading r = clock_.reading();
+    ClockReading r = reading;
     r.countdown_s = analog_countdown_minutes(r.countdown_s) * 60;
     switch (text.role) {
     case AnalogTextRole::DATE_WINDOW: {
@@ -197,6 +201,10 @@ std::string AnalogClockScreensaver::text_for(const AnalogText& text) const {
     }
     }
     return {};
+}
+
+void AnalogClockScreensaver::write_texts() {
+    analog_write_dial_texts(dial_canvas_.get(), dial_buf_, sim_, clock_.reading());
 }
 
 } // namespace helix::ui

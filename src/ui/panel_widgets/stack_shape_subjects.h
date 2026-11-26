@@ -1,0 +1,56 @@
+// Copyright (C) 2025-2026 356C LLC
+// SPDX-License-Identifier: GPL-3.0-or-later
+#pragma once
+
+// The three per-instance subjects a stacked home widget (temp_stack, fan_stack)
+// publishes so its XML can bind the arrangement chosen by
+// classify_stack_layout(): C++ decides, XML draws.
+
+#include "core/subject.h"
+#include "stacked_row_layout.h"
+#include "subject_managed_panel.h"
+
+#include <string>
+#include <vector>
+
+namespace helix {
+
+struct StackShapeSubjects {
+    helix::Subject columns{}; ///< 1: the rows sit side by side (the widget flows across)
+    helix::Subject
+        stacked{}; ///< row flow: 0 across, 1 down (icon over value), 2 across from the left
+    helix::Subject captions{}; ///< 1: the caption under each value shows
+
+    /// Publish under `prefix` and append the matching XML prop pairs. `captions`
+    /// is published only for a component that has captions to show.
+    void publish(SubjectManager& mgr, const std::string& prefix,
+                 std::vector<std::string>& attr_storage, bool with_captions) {
+        auto one = [&](helix::Subject& subject, const char* role) {
+            subject.init_int(0);
+            const std::string name = prefix + "_" + role;
+            mgr.publish(name.c_str(), &subject);
+            attr_storage.insert(attr_storage.end(), {std::string(role) + "_subject", name});
+        };
+        one(columns, "columns");
+        one(stacked, "stacked");
+        if (with_captions)
+            one(captions, "captions");
+    }
+
+    void apply(const StackLayout& layout) {
+        lv_subject_set_int(&columns, layout.shape == StackShape::Columns ? 1 : 0);
+        int row_flow = 0; // across, centered
+        if (layout.shape == StackShape::IconAbove || layout.shape == StackShape::Columns)
+            row_flow = 1; // down: icon over value
+        else if (layout.shape == StackShape::Rows)
+            row_flow = 2; // across from the left edge, so glyphs line up
+        lv_subject_set_int(&stacked, row_flow);
+        lv_subject_set_int(
+            &captions, (layout.shape == StackShape::Columns || layout.shape == StackShape::Rows) &&
+                               layout.captions
+                           ? 1
+                           : 0);
+    }
+};
+
+} // namespace helix

@@ -501,3 +501,26 @@ TEST_CASE_METHOD(XMLTestFixture, "Grid edit: crash-loop safe mode refuses to ent
     CHECK(toasts == std::vector<ToastSeverity>{ToastSeverity::WARNING});
     CHECK(config.page_entries(0) == before);
 }
+
+TEST_CASE("the placed count of a multi-instance widget includes its bare base id",
+          "[widget_catalog][panel_widget]") {
+    const std::string panel_id = "test_widget_catalog_bare_base";
+    auto* cfg = Config::get_instance();
+    nlohmann::json layout = make_layout();
+    // A bare base id placed before the widget allowed instances, beside a numbered one.
+    layout["pages"][0]["widgets"].push_back({{"id", kMultiId},
+                                             {"enabled", true},
+                                             {"col", 2},
+                                             {"row", 0},
+                                             {"colspan", 1},
+                                             {"rowspan", 1}});
+    cfg->set<nlohmann::json>(cfg->df() + "panel_widgets/" + panel_id, layout);
+    PanelWidgetConfig config(panel_id, *cfg);
+    config.load();
+
+    const auto placed = count_multi_placed(config);
+    const auto it = placed.find(kMultiId);
+    REQUIRE(it != placed.end());
+    // favorite_macro and favorite_macro:1 hold cells; favorite_macro:2 does not.
+    CHECK(it->second == 2);
+}

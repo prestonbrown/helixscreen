@@ -4871,6 +4871,7 @@ translations:
   Stepper driver {} is overheating: 'Schrittmotortreiber {} überhitzt'
   Stepper driver {} overheated and shut down: 'Schrittmotortreiber {} hat sich wegen Überhitzung abgeschaltet'
   Still reading the printer's lane record. Try again in a moment.: 'Die Spuraufzeichnung des Druckers wird noch gelesen. Versuche es gleich noch einmal.'
+  Still reading the printer's lane records: 'Die Spurdaten des Druckers werden noch gelesen'
   Still running; no reply after {} min: 'Läuft noch; keine Antwort nach {} Min.'
   Still saving this spool…: 'Diese Spule wird noch gespeichert…'
   Still working... taking longer than usual: Arbeitet noch... dauert länger als gewöhnlich
@@ -5053,6 +5054,7 @@ translations:
   'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}.': 'Testturm {:.0f} mm breit und {:.0f} mm hoch, etwa {} min plus Aufheizen: {} Bereiche zu {:.0f} mm bei {}.'
   'Testing rotation: %d° (%d/%d) - %ds remaining': 'Drehung testen: %d° (%d/%d) - %ds verbleibend'
   Testing, servo, and motor operations: 'Test-, Servo- und Motorfunktionen'
+  Text Clock: Textuhr
   Thanks! Anonymous usage data helps improve HelixScreen.: Danke! Anonyme Nutzungsdaten helfen, HelixScreen zu verbessern.
   That file command cannot run here.: 'Dieser Dateibefehl kann hier nicht ausgeführt werden.'
   That print is no longer paused: 'Dieser Druck ist nicht mehr pausiert'
@@ -5788,6 +5790,7 @@ translations:
   'Troubleshooting:': 'Fehlerbehebung:'
   Try adjusting your search or filters: Versuchen Sie Suche oder Filter anzupassen
   Try Again: 'Erneut versuchen'
+  Try again in a moment.: 'Bitte gleich erneut versuchen.'
   Try again. If it keeps happening, reseat the accelerometer cable.: Erneut versuchen. Wenn es weiterhin passiert, das Kabel des Beschleunigungssensors neu einstecken.
   Try the operation again. If it persists, check for mechanical issues.: Versuchen Sie den Vorgang erneut. Wenn das Problem bestehen bleibt, prüfen Sie auf mechanische Probleme.
   Try the setting again, and restart the printer if it keeps failing.: 'Einstellung erneut versuchen und den Drucker neu starten, wenn es weiter fehlschlägt.'

@@ -138,14 +138,6 @@ ObservedMaterialCodes collect_observed_material_codes(const nlohmann::json& box_
 
 } // namespace
 
-std::optional<std::pair<const char*, const char*>>
-CfsErrorDecoder::lookup_message(const std::string& key_code) {
-    const KlipperErrorEntry* entry = klipper_error_lookup(key_code);
-    if (!entry)
-        return std::nullopt;
-    return std::make_pair(entry->message, entry->hint);
-}
-
 std::optional<std::pair<std::string, std::string>> CfsErrorDecoder::lookup_message_with_values(
     const std::string& key_code, const nlohmann::json& values, const std::string& fw_msg) {
     const KlipperErrorEntry* found = klipper_error_lookup(key_code);

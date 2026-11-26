@@ -3086,6 +3086,12 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// Apply one IFS-module gcode command token. @return true when the token
     /// was one of ours (the caller then stops walking the generic chain).
     bool apply_ifs_module_gcode(const std::string& cmd, const std::string& gcode);
+    /// HELIX_MOCK_IFS_PLUGIN_API: the plugin API version the firmware reports
+    /// in `ad5x_plugins`, or empty for a module without that object.
+    [[nodiscard]] std::string ifs_module_plugin_api() const;
+    /// The firmware's own lane_data record for @p slot after an
+    /// IFS_SET_MATERIAL, on a plugin API whose firmware writes lane_data.
+    void write_ifs_module_lane_record(int slot, const std::string& gcode);
 
     // Native Z-Mod's IFS on an AD5X. HELIX_MOCK_AMS=ifs (also `ad5x`, `ad5x_ifs`,
     // and the ad5x persona's default) is the stock four-port IFS; ifs-jacker runs

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include <algorithm>
+
 // Pure layout-decision logic shared by the home widgets that stack labelled
 // rows: Temperatures (temp_stack) and Fan Speeds (fan_stack).
 //
@@ -18,6 +20,7 @@ struct StackedRowMetrics {
     int icon_px = 0;     ///< icon glyph line height
     int text_px = 0;     ///< value text line height
     int icon_gap_px = 0; ///< gap between the icon and its own value
+    int label_px = 0;    ///< caption line height under the value; 0 = the row has no caption
 };
 
 /// Smallest authored rowspan, in half-cell grid tracks, that may stack.
@@ -59,6 +62,95 @@ inline constexpr int kIconAboveMinRowspan = 3;
     const int per_row = row.icon_px + row.icon_gap_px + row.text_px;
     const int needed = row_count * per_row + (row_count - 1) * row_gap_px;
     return avail_px >= needed;
+}
+
+/// Smallest authored colspan, in half-cell tracks, that may lay the rows out
+/// side by side. Mirrors kIconAboveMinRowspan on the other axis: above one
+/// whole cell, so a 1.5-cell and wider box qualifies and a one-cell box never
+/// does however many pixels a cell is worth on a big panel.
+inline constexpr int kColumnsMinColspan = 3;
+
+/// How the visible rows of a stacked widget are arranged in its box.
+enum class StackShape {
+    Beside,    ///< rows stacked vertically, each [icon | value]
+    IconAbove, ///< rows stacked vertically, each icon over its value
+    Columns,   ///< rows side by side, each icon over its value (and caption)
+    Rows,      ///< rows stacked vertically, each a large icon with its value beside it
+};
+
+struct StackLayout {
+    StackShape shape = StackShape::Beside;
+    bool captions = false; ///< Columns only: the caption line under each value fits
+};
+
+/// Measured width one column needs, with and without its caption.
+struct ColumnWidths {
+    int plain_px = 0;        ///< widest column content with no caption
+    int captioned_px = 0;    ///< widest column content with its caption
+    int min_box_px = 0;      ///< narrowest box the layout may take at all (widget_size::w_normal)
+    int beside_plain_px = 0; ///< Rows: one row's icon and value, side by side (0 = not offered)
+    int beside_captioned_px = 0; ///< Rows: the same with the caption after the value
+    int margin_px = 0; ///< space kept above the first and below the last row, in Columns and Rows
+};
+
+/// Pick the arrangement for a stacked widget: one decision for Temperatures
+/// and Fan Speeds, which then draw it their own way.
+///
+/// Columns needs the authored width (kColumnsMinColspan), the physical width
+/// band (ColumnWidths::min_box_px: where pixels and span disagree the compact
+/// layout wins, as in wants_icon_above), measured pixels for
+/// every visible row's column across the width, and the height for the icon,
+/// value and (when it fits) the caption. The caption is dropped before the
+/// layout is, so a short box keeps its columns. When Columns does not fit the
+/// answer is the vertical rule, wants_icon_above(), unchanged.
+[[nodiscard]] inline StackLayout classify_stack_layout(int colspan, int rowspan, int width_px,
+                                                       int height_px, int row_count,
+                                                       const StackedRowMetrics& row, int row_gap_px,
+                                                       const ColumnWidths& cols) {
+    StackLayout out;
+    out.shape = wants_icon_above(rowspan, height_px, row_count, row, row_gap_px)
+                    ? StackShape::IconAbove
+                    : StackShape::Beside;
+
+    if (colspan < kColumnsMinColspan || row_count < 2)
+        return out;
+    if (width_px <= 0 || height_px <= 0 || row.icon_px <= 0 || row.text_px <= 0)
+        return out;
+    if (width_px < cols.min_box_px)
+        return out;
+    // A box that is tall as well as wide already uses its height well stacked
+    // vertically; columns take over once it is clearly wider than it is tall.
+    const bool wide_enough_for_columns =
+        out.shape != StackShape::IconAbove || width_px * 2 >= height_px * 3;
+
+    auto width_fits = [&](int column_px) {
+        return column_px > 0 && width_px >= row_count * column_px + (row_count - 1) * row_gap_px;
+    };
+    const int plain_h = row.icon_px + row.icon_gap_px + row.text_px;
+
+    if (wide_enough_for_columns) {
+        if (row.label_px > 0 && width_fits(cols.captioned_px) &&
+            height_px >= plain_h + row.icon_gap_px + row.label_px + 2 * cols.margin_px) {
+            return {StackShape::Columns, true};
+        }
+        if (width_fits(cols.plain_px) && height_px >= plain_h + 2 * cols.margin_px)
+            return {StackShape::Columns, false};
+    }
+
+    // A box taller than a cell and wide enough: one row per heater down the
+    // box, each a big glyph with its value (and caption) to the right. Only a
+    // widget that measured a beside width for it offers this.
+    if (rowspan >= kIconAboveMinRowspan && cols.beside_plain_px > 0) {
+        const int rows_h =
+            row_count * std::max(row.icon_px, row.text_px) + (row_count - 1) * row_gap_px;
+        if (height_px >= rows_h + 2 * cols.margin_px) {
+            if (row.label_px > 0 && width_px >= cols.beside_captioned_px)
+                return {StackShape::Rows, true};
+            if (width_px >= cols.beside_plain_px)
+                return {StackShape::Rows, false};
+        }
+    }
+    return out;
 }
 
 } // namespace helix

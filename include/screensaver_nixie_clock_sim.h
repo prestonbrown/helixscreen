@@ -109,9 +109,12 @@ struct NixieTubeArt {
     /// first use.
     std::array<std::vector<uint8_t>, kStrokeGlyphCount> glow{};
 
-    /// Builds the tube for cards of `w` x `h` px in a row of `row`'s metrics, and the ten
-    /// digits' glow.
-    void build(const FlipRowMetrics& row, int32_t w, int32_t h);
+    /// What the art was built over: what shows round the glass and socket.
+    Rgb backdrop{};
+
+    /// Builds the tube for cards of `w` x `h` px in a row of `row`'s metrics over `backdrop`,
+    /// and the ten digits' glow.
+    void build(const FlipRowMetrics& row, int32_t w, int32_t h, Rgb backdrop = {});
     /// Builds `c`'s glow once; a character with no glyph, or NUL, is ignored.
     void ensure(char c);
     /// `c`'s glow map, or nullptr when it is not built.
@@ -135,9 +138,13 @@ struct NixieColonArt {
     std::vector<Rgb> base;
     std::vector<uint8_t> glow;
 
+    /// What the art was built over.
+    Rgb backdrop{};
+
     /// Builds the colon for a gap of `w` x `h` px beside tubes of `row`'s metrics whose socket
-    /// starts at `socket_y`.
-    void build(const FlipRowMetrics& row, int32_t w, int32_t h, int32_t socket_y);
+    /// starts at `socket_y`, over `backdrop`.
+    void build(const FlipRowMetrics& row, int32_t w, int32_t h, int32_t socket_y,
+               Rgb backdrop = {});
     size_t heap_bytes() const;
     void clear();
 };
@@ -195,6 +202,19 @@ class NixieClockSim {
     /// The character tube `i` glows with now (the newer one mid-fade).
     char lit(size_t i) const;
 
+    /// Whether the clock drifts every kClockDriftStepMs against burn-in: on for the saver, off
+    /// for a home tile, which holds still. Kept across clear().
+    void set_drift(bool on) {
+        drift_on_ = on;
+    }
+
+    /// What shows round the tubes: black for the saver, the card's color in a home tile, so
+    /// the tubes sit on it. The glass, sockets and glow are the same either way. Kept across
+    /// clear(); set before init().
+    void set_backdrop(Rgb backdrop) {
+        backdrop_ = backdrop;
+    }
+
     /// Frees the cached art.
     void clear();
     /// Bytes the cached art holds.
@@ -229,6 +249,8 @@ class NixieClockSim {
     size_t level_ = 0;
     int32_t frame_w_ = 0;
     int32_t frame_h_ = 0;
+    bool drift_on_ = true;
+    Rgb backdrop_ = kBackground;
     ClockDrift drift_;
     FlipShape drift_shape_;
     FlipShape drift_sub_shape_;
