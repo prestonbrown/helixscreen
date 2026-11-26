@@ -778,11 +778,6 @@ class PrinterDiscovery {
                                                            : stepper_y_geometry_;
     }
 
-    /// Nozzle diameter in mm, [extruder] nozzle_diameter.
-    [[nodiscard]] float nozzle_diameter_mm() const {
-        return nozzle_diameter_mm_;
-    }
-
     /// Read the limits the file-fits-printer check compares a file with.
     /// @param settings JSON object from a configfile.settings response
     void parse_fit_limits(const nlohmann::json& settings) {
@@ -1326,9 +1321,7 @@ class PrinterDiscovery {
                                              ///< the K2 M141 macro parks the setpoint on this fan's
                                              ///< target, not the heater's.
     float filament_diameter_mm_ = filament::kDefaultDiameterMm; ///< [extruder] filament_diameter
-    static constexpr float kDefaultNozzleDiameterMm = 0.4f;
-    float nozzle_diameter_mm_ = kDefaultNozzleDiameterMm;    ///< [extruder] nozzle_diameter
-    std::optional<std::pair<float, float>> pa_test_size_mm_; ///< [pa_test] size_x, size_y
+    std::optional<std::pair<float, float>> pa_test_size_mm_;    ///< [pa_test] size_x, size_y
     std::optional<calibration::ripple::MotorGeometry> stepper_x_geometry_;
     std::optional<calibration::ripple::MotorGeometry> stepper_y_geometry_;
     std::optional<FitMachine> fit_machine_;                 ///< configfile limits for the fit check

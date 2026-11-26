@@ -198,6 +198,9 @@ class PaTuningOverlay : public OverlayBase {
     /// otherwise. The Tune overlay's PA row goes through here during a run.
     bool nudge_by(float delta);
 
+    helix::pa::TestPrintParams build_params_for_test() const {
+        return build_params();
+    }
     void set_extruder_for_test(const std::string& extruder) {
         extruder_ = extruder;
     }
