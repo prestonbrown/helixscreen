@@ -16,6 +16,7 @@
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
 #include "motor_ripple_store.h"
+#include "nozzle_size.h"
 #include "printer_detector.h"
 #include "printer_state.h"
 #include "tool_state.h"
@@ -173,6 +174,20 @@ std::vector<FitLiveNozzle> live_nozzles(const PrinterTemperatureState& temperatu
     return live;
 }
 
+/// @p live with each head's flow type by the one live-over-stored rule, so a printer that
+/// reports none still has the type the user gave its head.
+std::vector<FitLiveNozzle> nozzles_with_flow(std::vector<FitLiveNozzle> live, PrinterState& state) {
+    const auto inputs = nozzle_size::inputs_from_state(state);
+    const size_t heads = nozzle_size::nozzle_capability(inputs).heads.size();
+    if (live.size() < heads) {
+        live.resize(heads);
+    }
+    for (size_t i = 0; i < heads; ++i) {
+        live[i].volume_type = nozzle_size::head_volume_type(inputs, static_cast<int>(i));
+    }
+    return live;
+}
+
 } // namespace
 
 std::optional<FitMachine> current_fit_machine() {
@@ -185,7 +200,7 @@ std::optional<FitMachine> current_fit_machine() {
     FitMachine machine = fit_machine_with_live_nozzles(
         fit_machine_for_screen(*base, known_printer_model(state.profile_state().printer_type()),
                                ams.is_available(), ams.printable_y_shrink_mm()),
-        live_nozzles(state.temperature_state()));
+        nozzles_with_flow(live_nozzles(state.temperature_state()), state));
     // Where tool numbers name lanes, a file's T<n> prints on the head its lane feeds.
     const ToolState& tools = ToolState::instance();
     if (tools.tools_are_lanes()) {

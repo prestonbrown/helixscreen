@@ -657,6 +657,39 @@ class SettingsManager {
     static constexpr int kEndOfPrintUnloadMaxTools = 8;
 
     /**
+     * @brief Which heads carry a High Flow nozzle, bit N = extruder N.
+     *
+     * Klipper has no such setting, so it is the user's statement about the nozzle,
+     * kept here per printer. Default 0 (every head Standard). A firmware that
+     * reports a flow type itself overrides it (nozzle_size::head_volume_type()).
+     */
+    /** @brief High Flow mask subject (integer bitmask) */
+    lv_subject_t* subject_nozzle_high_flow_heads() {
+        return settings_.subject(Key::NozzleHighFlowHeads);
+    }
+    int get_nozzle_high_flow_heads() const {
+        return settings_.get(Key::NozzleHighFlowHeads);
+    }
+    void set_nozzle_high_flow_heads(int mask) {
+        settings_.set(Key::NozzleHighFlowHeads, mask);
+    }
+    bool get_nozzle_high_flow(int extruder) const {
+        return extruder >= 0 && extruder < kNozzleFlowMaxHeads &&
+               (get_nozzle_high_flow_heads() & (1 << extruder)) != 0;
+    }
+    /** @brief Set one head's bit; ignores a head out of range */
+    void set_nozzle_high_flow(int extruder, bool high_flow) {
+        if (extruder < 0 || extruder >= kNozzleFlowMaxHeads) {
+            return;
+        }
+        const int mask = get_nozzle_high_flow_heads();
+        settings_.set(Key::NozzleHighFlowHeads,
+                      high_flow ? (mask | (1 << extruder)) : (mask & ~(1 << extruder)));
+    }
+    /// Heads the High Flow mask can name (its maximum is 255).
+    static constexpr int kNozzleFlowMaxHeads = 8;
+
+    /**
      * @brief Whether to show the bypass spool even when bypass is disengaged.
      *
      * AFC publishes a virtual bypass whether or not the user has one wired, so
@@ -1177,6 +1210,7 @@ class SettingsManager {
         AutoColorMap,
         UnloadAfterPrint,
         EndOfPrintUnloadTools,
+        NozzleHighFlowHeads,
         AmsAlwaysShowBypassSpool,
         AmsKeepSpoolInfoOnEject,
         AmsTagLinksSpoolman,

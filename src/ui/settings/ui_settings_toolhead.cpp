@@ -201,7 +201,7 @@ void ToolheadSettingsOverlay::populate() {
                                                                     nozzle_size::kDefaultNozzleMm)
                                                .reason.c_str()));
         const std::string flow_options = join_lines(h.flow_variants);
-        const bool flow_editable = h.settable && h.flow_changeable;
+        const bool flow_editable = h.flow_changeable;
         const std::string flow_note = h.flow_note.empty() ? "" : lv_tr(h.flow_note.c_str());
 
         const char* attrs[] = {
@@ -307,6 +307,12 @@ void ToolheadSettingsOverlay::apply(const nozzle_size::ChangePlan& plan, double 
 
 void ToolheadSettingsOverlay::run(const nozzle_size::ChangePlan& plan) {
     using Kind = nozzle_size::ChangePlan::Kind;
+    if (plan.kind == Kind::StoredFlow) {
+        // Kept by HelixScreen alone: no printer to reach, so nothing to wait for.
+        nozzle_size::apply_stored_flow(plan);
+        finish({});
+        return;
+    }
     IMoonrakerAPI* api = get_moonraker_api();
     if (!api) {
         finish(lv_tr("Not connected to the printer"));
@@ -348,6 +354,7 @@ void ToolheadSettingsOverlay::run(const nozzle_size::ChangePlan& plan) {
         }
         return;
     }
+    case Kind::StoredFlow:
     case Kind::Refused:
         break;
     }
