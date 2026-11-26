@@ -27,9 +27,11 @@
 #include "display_numbering.h"
 #include "filament_database.h"
 #include "i_moonraker_api.h"
+#include "klipper_extruder_naming.h"
 #include "lvgl.h"
 #include "macro_param_cache.h"
 #include "material_z_offset_state.h"
+#include "nozzle_size.h"
 #include "pa_tower_start.h"
 #include "panel_widget_size.h"
 #include "preset_materials.h"
@@ -486,7 +488,6 @@ helix::pa::TestPrintParams PaTuningOverlay::build_params() const {
     }
     auto& state = get_printer_state();
     p.filament_diameter_mm = state.get_discovery().filament_diameter_mm();
-    p.nozzle_diameter_mm = state.get_discovery().nozzle_diameter_mm();
     p.macros = machine_macros();
     p.skip_prime = start_macro_purges_;
     if (const auto area = printable_area()) {
@@ -498,6 +499,10 @@ helix::pa::TestPrintParams PaTuningOverlay::build_params() const {
         p.bed_x_min = p.bed_x_max = p.bed_y_min = p.bed_y_max = 0.0f;
     }
     const ChosenHead head = chosen_head();
+    p.nozzle_diameter_mm = static_cast<float>(
+        helix::nozzle_size::head_nozzle(helix::nozzle_size::inputs_from_state(state),
+                                        helix::tool_number_for_extruder(head.extruder).value_or(0))
+            .value_or(helix::nozzle_size::kDefaultNozzleMm));
     p.tool = head.tool;
     if (head.tool >= 0) {
         // Mount the head without a filament change: on a rig whose T<n> loads a

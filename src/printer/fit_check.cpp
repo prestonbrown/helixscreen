@@ -6,6 +6,7 @@
 #include "gcode_wait_line.h"
 #include "json_utils.h"
 #include "lvgl.h"
+#include "nozzle_size.h"
 
 #include <spdlog/fmt/fmt.h>
 
@@ -255,10 +256,10 @@ FitMachine fit_machine_for_screen(FitMachine base, std::string model, bool filam
 
 FitMachine fit_machine_with_live_nozzles(FitMachine base, const std::vector<FitLiveNozzle>& live) {
     for (size_t i = 0; i < live.size(); ++i) {
-        const auto& diameter = live[i].diameter;
-        if (diameter && std::isfinite(*diameter) && *diameter > 0.0 &&
-            i < base.nozzle_diameters.size()) {
-            base.nozzle_diameters[i] = *diameter;
+        if (i < base.nozzle_diameters.size()) {
+            if (const auto d = nozzle_size::resolve(live[i].diameter, base.nozzle_diameters[i])) {
+                base.nozzle_diameters[i] = *d;
+            }
         }
         std::string type = fit_nozzle_volume_type(live[i].volume_type);
         if (!type.empty()) {

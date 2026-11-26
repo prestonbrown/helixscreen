@@ -1160,7 +1160,6 @@ void PrinterDiscovery::clear() {
     chamber_cooling_fan_name_.clear();
     chamber_fan_resting_deci_ = 0;
     filament_diameter_mm_ = filament::kDefaultDiameterMm;
-    nozzle_diameter_mm_ = kDefaultNozzleDiameterMm;
     stepper_x_geometry_.reset();
     stepper_y_geometry_.reset();
     fit_machine_.reset();
@@ -1255,7 +1254,6 @@ void PrinterDiscovery::parse_extruder_dimensions(const nlohmann::json& settings)
         }
     };
     read_positive("filament_diameter", filament_diameter_mm_);
-    read_positive("nozzle_diameter", nozzle_diameter_mm_);
 }
 
 void PrinterDiscovery::parse_pa_test_size(const nlohmann::json& settings) {
