@@ -38,17 +38,30 @@ namespace {
 
 constexpr const char* kHeadPrefix = "head_";
 
-/// A head's card title. A printer with one head calls it the nozzle; with several,
-/// each is labeled as the rest of the UI labels that head, never by a T number built here.
+std::string extruder_name_of(int extruder_index) {
+    return extruder_index == 0 ? "extruder" : "extruder" + std::to_string(extruder_index);
+}
+
+/// A head's card title. A printer with one head calls it the nozzle; with several, each is
+/// labeled as the rest of the UI labels that head (head_identity + the head_*_label family).
+/// When the tool table does not name every head, all of them go by their extruder, so the
+/// cards never mix two spellings.
 std::string head_title(int extruder_index, size_t head_count) {
     if (head_count <= 1) {
         return lv_tr("Nozzle");
     }
-    const std::string extruder =
-        extruder_index == 0 ? "extruder" : "extruder" + std::to_string(extruder_index);
-    const HeadIdentity id = ToolState::instance().head_identity_for_extruder(extruder);
-    if (id.index < 0) {
-        return helix::ui::extruder_label(extruder_index);
+    const ToolState& tools = ToolState::instance();
+    bool all_named = true;
+    for (size_t i = 0; i < head_count; ++i) {
+        all_named =
+            all_named &&
+            tools.head_identity_for_extruder(extruder_name_of(static_cast<int>(i))).index >= 0;
+    }
+    HeadIdentity id;
+    if (all_named) {
+        id = tools.head_identity_for_extruder(extruder_name_of(extruder_index));
+    } else {
+        id.index = extruder_index;
     }
     return helix::ui::active_head_name_label(id);
 }
@@ -333,8 +346,8 @@ void ToolheadSettingsOverlay::run(const nozzle_size::ChangePlan& plan) {
         return;
     case Kind::ConfigEdit:
         spdlog::info("[{}] [{}] {} = {}", get_name(), plan.section, plan.key, plan.value);
-        config_editor_.safe_edit_value(
-            *api, plan.section, plan.key, plan.value,
+        config_editor_.safe_multi_edit(
+            *api, plan.section, {{helix::system::ConfigEdit::Type::ADD_KEY, plan.key, plan.value}},
             [token, this]() { token.defer("Toolhead::saved", [this]() { finish({}); }); },
             [token, this](const std::string& err) {
                 token.defer("Toolhead::save_failed", [this, err]() { finish(err); });

@@ -12,14 +12,22 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/modal_answer.h"
+#include "../test_helpers/moonraker_client_test_access.h"
 #include "app_globals.h"
+#include "core/http_executor.h"
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
+#include "moonraker_api.h"
+#include "moonraker_api_mock.h"
+#include "moonraker_client_mock.h"
 #include "nozzle_size.h"
 #include "printer_state.h"
 #include "settings_manager.h"
+#include "tool_state.h"
 
+#include <algorithm>
 #include <array>
+#include <cctype>
 #include <lvgl.h>
 #include <string>
 
@@ -118,4 +126,107 @@ TEST_CASE_METHOD(ToolheadFixture,
     CHECK(ModalStack::instance().top_dialog() == nullptr);
     CHECK(settings.get_nozzle_high_flow(0));
     settings.set_nozzle_high_flow(0, false);
+}
+
+TEST_CASE_METHOD(ToolheadFixture, "toolhead settings: every head's card is titled in one style",
+                 "[toolhead_settings][nozzle_size]") {
+    // The tool table names only head 0, as a two-extruder printer without a tool for
+    // each extruder does: the cards must not mix a named head with a bare extruder.
+    auto& tools = ToolState::instance();
+    tools.deinit_subjects();
+    tools.init_subjects(false);
+    ToolTopology topo;
+    topo.tool_count = 1;
+    topo.active_tool = 0;
+    topo.tool_to_slot = {0};
+    topo.tool_extruder = {"extruder"};
+    tools.set_ams_topology(topo);
+    helix::ui::UpdateQueue::instance().drain();
+
+    open({"extruder", "extruder1"},
+         {{"extruder", {{"nozzle_diameter", 0.4}}}, {"extruder1", {{"nozzle_diameter", 0.4}}}});
+    const auto title = [](const char* head) {
+        lv_obj_t* card = lv_obj_find_by_name(lv_screen_active(), head);
+        lv_obj_t* header = card ? lv_obj_find_by_name(card, "setting_group_header") : nullptr;
+        std::string text = header ? helix::test::subtree_text(header) : std::string();
+        text.erase(std::remove_if(text.begin(), text.end(),
+                                  [](unsigned char c) { return std::isdigit(c) != 0; }),
+                   text.end());
+        return text;
+    };
+    const std::string first = title("head_0");
+    REQUIRE_FALSE(first.empty());
+    CHECK(first == title("head_1"));
+    tools.deinit_subjects();
+}
+
+namespace {
+
+/// Picks 0.6 mm in head_0's size dropdown and answers its confirmation with Change.
+void pick_and_confirm_06() {
+    lv_obj_t* card = lv_obj_find_by_name(lv_screen_active(), "head_0");
+    lv_obj_t* row = card ? lv_obj_find_by_name(card, "size_row") : nullptr;
+    lv_obj_t* dd = row ? lv_obj_find_by_name(row, "dropdown") : nullptr;
+    REQUIRE(dd != nullptr);
+    lv_dropdown_set_selected(dd, 5); // 0.6 mm
+    lv_obj_send_event(dd, LV_EVENT_VALUE_CHANGED, nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(ModalStack::instance().top_dialog() != nullptr);
+    helix::test::answer_top_modal("btn_primary");
+    helix::ui::UpdateQueue::instance().drain();
+}
+
+} // namespace
+
+TEST_CASE_METHOD(ToolheadFixture,
+                 "toolhead settings: a confirmed config change is written to printer.cfg",
+                 "[toolhead_settings][nozzle_size]") {
+    MoonrakerClientMock client;
+    MoonrakerAPIMock api(client, get_printer_state());
+    api.set_config_files(
+        {{"printer.cfg", "[printer]\nkinematics: corexy\n[extruder]\nnozzle_diameter: 0.4\n"}});
+    helix::MoonrakerClientTestAccess::force_connection_state(client,
+                                                             helix::ConnectionState::CONNECTED);
+    helix::http::HttpExecutor::fast().start();
+    set_moonraker_api(&api);
+
+    open({"extruder"}, {{"extruder", {{"nozzle_diameter", 0.4}}}});
+    pick_and_confirm_06();
+
+    const auto written = [&api]() {
+        const auto cfg = api.get_uploaded_config("printer.cfg");
+        return cfg && cfg->find("nozzle_diameter: 0.6") != std::string::npos;
+    };
+    CHECK(wait_until(written, 5000));
+
+    set_moonraker_api(nullptr);
+    StaticPanelRegistry::instance().destroy_all();
+    helix::ui::UpdateQueue::instance().drain();
+}
+
+TEST_CASE_METHOD(ToolheadFixture,
+                 "toolhead settings: a confirmed change on a printer with the command sends it",
+                 "[toolhead_settings][nozzle_size]") {
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::CREALITY_K2_PLUS);
+    auto& state = get_printer_state();
+    state.init_subjects(false);
+    const auto klippy_before = static_cast<KlippyState>(
+        lv_subject_get_int(state.network_state().get_klippy_state_subject()));
+    state.set_klippy_state_sync(KlippyState::READY);
+    MoonrakerAPI api(client, state);
+    client.connect("ws://mock/websocket", []() {}, []() {});
+    helix::nozzle_size::probe_size_command(client);
+    REQUIRE(helix::nozzle_size::size_command_registered());
+    set_moonraker_api(&api);
+    REQUIRE(client.nozzle_properties(0).first == Catch::Approx(0.4));
+
+    open({"extruder"}, {{"extruder", {{"nozzle_diameter", 0.4}}}});
+    pick_and_confirm_06();
+
+    CHECK(wait_until([&client]() { return client.nozzle_properties(0).first == 0.6; }, 5000));
+
+    set_moonraker_api(nullptr);
+    helix::nozzle_size::set_size_command_registered(false);
+    client.disconnect();
+    state.set_klippy_state_sync(klippy_before);
 }
