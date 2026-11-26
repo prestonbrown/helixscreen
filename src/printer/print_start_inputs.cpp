@@ -439,10 +439,12 @@ void FileStartFactsLoader::start_tail_read(uint32_t generation, ScanRequest req,
         // usable() gates the TOOLS answer specifically (a usage line naming at
         // least one nonzero tool). A read issued only for the palette must not
         // be judged by it: a footer with a colour line and no usage line
-        // answers this read completely.
-        const bool answered = need.tools
-                                  ? summary.usable()
-                                  : (!summary.colours.empty() || !summary.grams_per_tool.empty());
+        // answers this read completely, and one issued for the wall speed is
+        // answered by that line alone.
+        const bool answered =
+            need.tools ? summary.usable()
+                       : (!summary.colours.empty() || !summary.grams_per_tool.empty() ||
+                          (need.wall_speed && summary.outer_wall_speed_mm_s.has_value()));
         if (!answered) {
             fall_back(summary.has_usage_line ? "usage vector is all zero"
                                              : "no per-tool usage line");
