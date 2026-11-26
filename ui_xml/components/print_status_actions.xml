@@ -4,8 +4,9 @@
 <!-- Print status actions: Pause, Tune, More, Cancel / Reprint. One definition
      for the strip, where they run in a row (flow="row"), and the ultrawide
      body, where they stack (flow="column", btn_w="100%"). Each button grows
-     along the row or column. Beside the strip's progress block a button is at
-     most #ps_strip_button wide. -->
+     along the row or column. Beside the strip's progress block a button grows to #ps_strip_button wide
+     at most; a label too long for that widens its own button
+     (style_min_width="content"). -->
 <component>
   <api>
     <prop name="flow" type="string" default="row"/>
