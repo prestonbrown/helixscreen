@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Toolhead Settings Overlay: one card per physical head -->
+<!-- C++ creates each head's card (a setting_group of setting rows) from what nozzle_size reports -->
+<component>
+  <view name="toolhead_settings_overlay" extends="overlay_panel" title="Toolhead" bg_color="#screen_bg">
+    <overlay_panel-overlay_content style_pad_top="0"
+                                   style_pad_left="0" style_pad_right="0" style_pad_bottom="#space_md" scrollable="true"
+                                   scroll_elastic="false" flex_flow="column" style_pad_gap="#space_sm">
+      <lv_obj name="toolhead_cards"
+              width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="column"
+              style_pad_gap="#space_sm"/>
+      <empty_state name="no_toolhead_placeholder"
+                   flex_grow="1" icon="nozzle" icon_size="xl" text="No toolhead detected"
+                   shown_subject="toolhead_settings_head_count"/>
+    </overlay_panel-overlay_content>
+  </view>
+</component>

@@ -11,6 +11,12 @@
                                    scrollable="true" flex_flow="column" style_pad_gap="#space_md">
       <!-- System info line (e.g. "System: AFC · v1.2.3") -->
       <text_muted name="system_info_label" width="100%" bind_text="ams_device_ops_system_info"/>
+      <!-- The nozzle size of each head lives with the machine's other toolhead settings -->
+      <setting_group name="toolhead_settings_group">
+        <setting_action_row name="row_toolhead_settings"
+                            label="Toolhead settings" icon="nozzle" bind_description="toolhead_settings_summary"
+                            description_min_bp="0" callback="on_ams_device_ops_toolhead_settings"/>
+      </setting_group>
       <!-- ================================================================== -->
       <!-- Card 1: Quick Actions & Behavior                                    -->
       <!-- ================================================================== -->

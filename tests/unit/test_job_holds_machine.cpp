@@ -427,6 +427,9 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/ams_unit_card.xml",
     "ui_xml/ams_unit_tile.xml",
     "ui_xml/barcode_scanner_settings.xml",
+    // A nozzle size moves nothing; the change plan refuses it while a job runs.
+    "ui_xml/toolhead_flow_row.xml",
+    "ui_xml/toolhead_size_row.xml",
     "ui_xml/bed_mesh_calibrate_modal.xml",
     "ui_xml/bed_mesh_panel.xml",
     "ui_xml/components/bed_mesh_intro_settings.xml",

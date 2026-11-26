@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- A head's nozzle size. ToolheadSettingsOverlay passes the options and selects the
+       current one; the card it sits in names the head. -->
+  <api>
+    <prop name="options" type="string" default=""/>
+    <prop name="options_tag" type="string" default=""/>
+    <prop name="disabled" type="string" default=""/>
+  </api>
+  <view name="toolhead_size_row"
+        extends="setting_dropdown_row" label="Nozzle size" icon="nozzle" options="$options" options_tag="$options_tag"
+        disabled="$disabled" callback="on_toolhead_size_changed" hide_description="true"/>
+</component>

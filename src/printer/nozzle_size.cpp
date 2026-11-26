@@ -71,6 +71,18 @@ std::optional<double> head_nozzle_for_tool(const PrinterInputs& inputs,
     return extruder ? head_nozzle(inputs, *extruder) : std::nullopt;
 }
 
+namespace {
+snapmaker::nozzle::Nozzle reported_nozzle_of(const PrinterInputs& in, int index) {
+    snapmaker::nozzle::Nozzle n;
+    n.diameter = entry_at(in.live_diameters, index);
+    if (index >= 0 && static_cast<size_t>(index) < in.live_volume_types.size() &&
+        !in.live_volume_types[static_cast<size_t>(index)].empty()) {
+        n.volume_type = in.live_volume_types[static_cast<size_t>(index)];
+    }
+    return n;
+}
+} // namespace
+
 Capability nozzle_capability(const PrinterInputs& in) {
     Capability cap;
     for (size_t i = 0; i < head_count(in); ++i) {
@@ -87,6 +99,14 @@ Capability nozzle_capability(const PrinterInputs& in) {
             h.idle_only = true;
             h.choices = in.vendor_choices;
             h.flow_variants = snapmaker::nozzle::flow_options();
+            const snapmaker::nozzle::Nozzle reported = reported_nozzle_of(in, tool);
+            if (reported.volume_type) {
+                h.flow_current = snapmaker::nozzle::flow_option(*reported.volume_type);
+            }
+            h.flow_changeable = snapmaker::nozzle::flow_selectable(reported);
+            if (!h.flow_changeable) {
+                h.flow_note = TR_NOOP("High Flow needs a 0.4 mm nozzle");
+            }
         } else if (in.set_nozzle_diameter_registered && tool == 0) {
             h.mechanism = Mechanism::KlipperCommand;
         } else if (!in.config_supervised) {
@@ -181,20 +201,10 @@ std::string size_text(double mm) {
     return fmt::format("{}", mm);
 }
 
-snapmaker::nozzle::Nozzle reported_nozzle(const PrinterInputs& in, int index) {
-    snapmaker::nozzle::Nozzle n;
-    n.diameter = entry_at(in.live_diameters, index);
-    if (index >= 0 && static_cast<size_t>(index) < in.live_volume_types.size() &&
-        !in.live_volume_types[static_cast<size_t>(index)].empty()) {
-        n.volume_type = in.live_volume_types[static_cast<size_t>(index)];
-    }
-    return n;
-}
-
 ChangePlan vendor_plan(const PrinterInputs& in, const HeadCapability& h,
                        const snapmaker::nozzle::Nozzle& wanted) {
     const auto params = snapmaker::nozzle::change_params(
-        h.extruder_index, reported_nozzle(in, h.extruder_index), wanted);
+        h.extruder_index, reported_nozzle_of(in, h.extruder_index), wanted);
     if (!params) {
         return refuse(TR_NOOP("The head is already set that way"));
     }
@@ -247,7 +257,7 @@ ChangePlan plan_change(const PrinterInputs& in, int extruder_index, double mm) {
 }
 
 ChangePlan plan_flow_change(const PrinterInputs& in, int extruder_index,
-                            const std::string& volume_type) {
+                            const std::string& variant) {
     ChangePlan refusal;
     const Capability cap = nozzle_capability(in);
     const HeadCapability* h = settable_head(cap, in, extruder_index, refusal);
@@ -258,8 +268,35 @@ ChangePlan plan_flow_change(const PrinterInputs& in, int extruder_index,
         return refuse(TR_NOOP("This toolhead has no flow type to change"));
     }
     snapmaker::nozzle::Nozzle wanted;
-    wanted.volume_type = volume_type;
+    wanted.volume_type = snapmaker::nozzle::volume_type_from_option(variant);
+    if (!wanted.volume_type) {
+        return refuse(TR_NOOP("This toolhead has no such flow type"));
+    }
     return vendor_plan(in, *h, wanted);
+}
+
+std::string size_text_mm(double mm) {
+    return fmt::format("{} mm", mm);
+}
+
+std::optional<std::string> confirm_message(const ChangePlan& plan, double mm) {
+    switch (plan.kind) {
+    case ChangePlan::Kind::ConfigEdit:
+        return TR_NOOP("This sets the nozzle size in the printer config.");
+    case ChangePlan::Kind::KlipperCommand:
+        return TR_NOOP("This applies now. Klipper's extrusion limit follows at its next restart.");
+    case ChangePlan::Kind::VendorRpc:
+        if (same_size(mm, 0.2)) {
+            return TR_NOOP("A 0.2 mm nozzle can't print every filament, including PA, PC, TPU "
+                           "and carbon- or glass-filled types. If this head has one of them "
+                           "loaded, the printer clears its filament info and you'll need to set "
+                           "it again.");
+        }
+        return std::nullopt;
+    case ChangePlan::Kind::Refused:
+        break;
+    }
+    return std::nullopt;
 }
 
 std::optional<bool> help_lists_size_command(const nlohmann::json& response) {

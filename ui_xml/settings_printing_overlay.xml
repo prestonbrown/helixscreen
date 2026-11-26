@@ -22,6 +22,9 @@
         <setting_action_row name="row_motion"
                             label="Motion" icon="axis_arrow" description="Jog layout, speeds and step distances"
                             callback="on_motion_settings_clicked"/>
+        <setting_action_row name="row_toolhead"
+                            label="Toolhead" icon="nozzle" bind_description="toolhead_settings_summary"
+                            description_min_bp="0" callback="on_toolhead_settings_clicked"/>
         <!-- RETRACTION SETTINGS (conditional) -->
         <lv_obj name="container_firmware_retraction" width="100%" style_pad_all="0" scrollable="false">
           <bind_flag_if_eq subject="printer_has_firmware_retraction" flag="hidden" ref_value="0"/>

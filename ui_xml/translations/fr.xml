@@ -892,6 +892,7 @@
   <translation tag="Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer&apos;s config folder." fr="Modifie les paramètres de l&apos;imprimante via Moonraker, y compris le téléversement, la réécriture et la suppression de fichiers dans le dossier de configuration de l&apos;imprimante."/>
   <translation tag="Change the name or the linked spool in Spoolman." fr="Modifiez le nom ou la bobine liée dans Spoolman."/>
   <translation tag="Change tool" fr="Changer d&apos;outil"/>
+  <translation tag="Change {} nozzle?"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." fr="Les modifications s&apos;appliquent immédiatement. Ajustez pendant l&apos;impression pour le réglage."/>
   <translation tag="Changes are temporary and reset on printer reboot" fr="Les modifications sont temporaires et réinitialisées au redémarrage de l&apos;imprimante"/>
   <translation tag="Changes printer.cfg and restarts Klipper first" fr="Modifie d’abord printer.cfg et redémarre Klipper"/>
@@ -2044,6 +2045,7 @@
   <translation tag="Flow calibration is not allowed for this filament with a 0.2 mm nozzle." fr="La calibration du débit n&apos;est pas autorisée pour ce filament avec une buse de 0,2 mm."/>
   <translation tag="Flow calibration is on for a filament and nozzle pair that does not allow it." fr="La calibration du débit est activée pour une combinaison filament et buse qui ne l&apos;autorise pas."/>
   <translation tag="Flow calibration not allowed for {}" fr="Calibration du débit non autorisée pour {}"/>
+  <translation tag="Flow type"/>
   <translation tag="Flowguard" fr="Flowguard"/>
   <translation tag="Flushing Filament..." fr="Purge du filament..."/>
   <translation tag="Flying Toasters" fr="Flying Toasters"/>
@@ -3145,6 +3147,7 @@
   <translation tag="No filament loaded" fr="Aucun filament chargé"/>
   <translation tag="No filament loaded to unload" fr="Aucun filament chargé à décharger"/>
   <translation tag="No filament sensor detected" fr="Aucun capteur de filament détecté"/>
+  <translation tag="No filament system to send this to"/>
   <translation tag="No filament type is set for a toolhead this print uses." fr="Aucun type de filament n&apos;est défini pour une tête d&apos;outil utilisée par cette impression."/>
   <translation tag="No filament was inserted in time" fr="Aucun filament n&apos;a été inséré à temps"/>
   <translation tag="No filament. Load filament and retry." fr="Pas de filament. Chargez du filament et réessayez."/>
@@ -3216,6 +3219,7 @@
   <translation tag="No tool is mounted" fr="Aucun outil n&apos;est monté"/>
   <translation tag="No tool mounted" fr="Aucun outil monté"/>
   <translation tag="No tool on the head" fr="Aucun outil sur la tête d&apos;outil"/>
+  <translation tag="No toolhead detected"/>
   <translation tag="No toolhead on the carriage" fr="Aucune tête d&apos;outil sur le chariot"/>
   <translation tag="No tools to calibrate" fr="Aucun outil à calibrer"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" fr="Sans rotation : l&apos;écart a bougé de {:.1f} Hz"/>
@@ -3316,6 +3320,7 @@
   <translation tag="Nozzle Temperature" fr="Température de la buse"/>
   <translation tag="Nozzle Temperatures" fr="Températures des buses"/>
   <translation tag="Nozzle Temps" fr="Temp. des buses"/>
+  <translation tag="Nozzle changed"/>
   <translation tag="Nozzle clean complete" fr="Nettoyage de la buse terminé"/>
   <translation tag="Nozzle clog detected" fr="Buse bouchée détectée"/>
   <translation tag="Nozzle diameter" fr="Diamètre de buse"/>
@@ -3327,6 +3332,7 @@
   <translation tag="Nozzle not changed: the printer did not confirm it" fr="Buse non modifiée : l&apos;imprimante ne l&apos;a pas confirmé"/>
   <translation tag="Nozzle not changed: {}" fr="Buse non modifiée : {}"/>
   <translation tag="Nozzle not reported" fr="Buse non signalée"/>
+  <translation tag="Nozzle size"/>
   <translation tag="Nozzle size and flow type per head" fr="Taille et type de débit de buse par tête d&apos;outil"/>
   <translation tag="Nozzle target set to {}" fr="Cible buse réglée à {}"/>
   <translation tag="Nozzle temp must be %d-%s" fr="La température de la buse doit être entre %d et %s"/>
@@ -4903,6 +4909,7 @@
   <translation tag="That print is no longer paused" fr="Cette impression n&apos;est plus en pause"/>
   <translation tag="That reading jumped too far to trust. Re-measure without turning." fr="Cette mesure a trop sauté pour être fiable. Remesurez sans tourner."/>
   <translation tag="That setting cannot be changed while a print is running" fr="Ce réglage ne peut pas être modifié pendant une impression"/>
+  <translation tag="That size is already set"/>
   <translation tag="That slot cannot stand in for this one" fr="Cet emplacement ne peut pas remplacer celui-ci"/>
   <translation tag="That tool is already loaded" fr="Cet outil est déjà chargé"/>
   <translation tag="That toolhead can no longer take over the print" fr="Cette tête d&apos;outil ne peut plus reprendre l&apos;impression"/>
@@ -5051,6 +5058,7 @@
   <translation tag="The gateway is not a valid address." fr="La passerelle n&apos;est pas une adresse valide."/>
   <translation tag="The gateway is not on the same subnet as the IP address." fr="La passerelle n&apos;est pas dans le même sous-réseau que l&apos;adresse IP."/>
   <translation tag="The head did not go back into its dock." fr="La tête n&apos;est pas retournée dans son dock."/>
+  <translation tag="The head is already set that way"/>
   <translation tag="The head on the carriage does not read as properly picked up, so it was not parked." fr="La tête sur le chariot n&apos;est pas détectée comme correctement prise, elle n&apos;a donc pas été rangée."/>
   <translation tag="The head to pick up does not read as docked." fr="La tête à prendre n&apos;est pas détectée dans son dock."/>
   <translation tag="The head&apos;s extruder never gripped the filament: after several tries, with the nozzle cleaned between them, no movement registered at the nozzle." fr="L&apos;extrudeur de la tête n&apos;a jamais saisi le filament : après plusieurs essais, buse nettoyée entre chacun, aucun mouvement n&apos;a été détecté à la buse."/>
@@ -5318,6 +5326,7 @@
   <translation tag="This AFC system does not support bypass mode" fr="Ce système AFC ne prend pas en charge le mode bypass"/>
   <translation tag="This CFS firmware exposes no external spool slot" fr="Ce firmware CFS n&apos;expose pas de slot pour bobine externe"/>
   <translation tag="This Happy Hare system does not support bypass mode" fr="Ce système Happy Hare ne prend pas en charge le mode bypass"/>
+  <translation tag="This applies now. Klipper&apos;s extrusion limit follows at its next restart."/>
   <translation tag="This button controls" fr="Ce bouton contrôle"/>
   <translation tag="This calibration uses the paper friction method to set your Z-offset." fr="Cette calibration utilise la méthode de friction du papier pour définir votre Z-offset."/>
   <translation tag="This cannot be undone." fr="Cette action est irréversible."/>
@@ -5354,6 +5363,7 @@
   <translation tag="This light chip controls" fr="Cette puce lumineuse contrôle"/>
   <translation tag="This looks like a {}, but it is set up as a {}" fr="Cette imprimante ressemble à une {}, mais elle est configurée comme {}"/>
   <translation tag="This may take up to 30 seconds" fr="Cela peut prendre jusqu&apos;à 30 secondes"/>
+  <translation tag="This nozzle size can&apos;t be changed here"/>
   <translation tag="This plugin asks for no special permissions." fr="Ce plugin ne demande aucune autorisation particulière."/>
   <translation tag="This plugin lets HelixScreen control print start options like bed mesh and QGL." fr="Ce plugin permet à HelixScreen de contrôler les options de démarrage d&apos;impression comme le maillage du plateau et QGL."/>
   <translation tag="This print called {}, which the printer no longer has." fr="Cette impression a appelé {}, que l&apos;imprimante n&apos;a plus."/>
@@ -5364,6 +5374,7 @@
   <translation tag="This print never reports layer {}." fr="Cette impression ne signale jamais la couche {}."/>
   <translation tag="This printer cannot calibrate tool offsets automatically" fr="Cette imprimante ne peut pas calibrer les offsets d&apos;outil automatiquement"/>
   <translation tag="This printer cannot stream the sweep to the screen" fr="Cette imprimante ne peut pas afficher le balayage en direct"/>
+  <translation tag="This printer doesn&apos;t accept that nozzle size"/>
   <translation tag="This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman." fr="Cette imprimante remplit ses gates depuis Spoolman. HelixScreen a effacé sa propre copie ; retirez la bobine dans Spoolman."/>
   <translation tag="This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman." fr="Cette imprimante remplit ses gates depuis Spoolman. Effectuez les changements de couleur, matériau et bobine dans Spoolman."/>
   <translation tag="This printer has motor compensation, so the check runs twice: with it off, then on." fr="Cette imprimante dispose d&apos;une compensation moteur, la vérification s&apos;exécute donc deux fois : désactivée, puis activée."/>
@@ -5371,6 +5382,7 @@
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" fr="Cette imprimante n&apos;a pas de macro INDX LOAD_FILAMENT"/>
   <translation tag="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper." fr="Cette imprimante n&apos;a pas encore de stockage [save_variables]. Mettez à jour les macros d&apos;aide pour en ajouter un, puis redémarrez Klipper."/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." fr="Cette imprimante n&apos;a pas de déchargement automatique. Coupez le filament au niveau de la tête et retirez-le à la main."/>
+  <translation tag="This printer has no such toolhead"/>
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." fr="Cette imprimante n&apos;a pas de fuseau horaire, son horloge est donc en UTC. Choisissez le vôtre."/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." fr="Cette imprimante n&apos;a pas de commande {}, le décalage Z ne peut donc pas être enregistré."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." fr="Cette imprimante ressemble à un {} ({} % de confiance), mais elle est configurée en {}. Un type erroné applique des options et des préréglages de pré-impression incorrects."/>
@@ -5398,6 +5410,7 @@
   <translation tag="This screen" fr="Cet écran"/>
   <translation tag="This screen can&apos;t play videos" fr="Cet écran ne peut pas lire de vidéos"/>
   <translation tag="This screen can&apos;t play videos. Scan the code with your phone to watch the timelapse." fr="Cet écran ne peut pas lire de vidéos. Scannez le code avec votre téléphone pour regarder le timelapse."/>
+  <translation tag="This sets the nozzle size in the printer config."/>
   <translation tag="This slot feeds no tool" fr="Ce slot n&apos;alimente aucun outil"/>
   <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." fr="Cette bobine est épuisée, le CFS ne peut donc pas retirer le filament restant."/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." fr="Les détails de cette bobine ne sont pas encore chargés depuis Spoolman. Appuyez à nouveau sur Enregistrer."/>
@@ -5406,6 +5419,8 @@
   <translation tag="This tool has no number with a T command: assign it one first" fr="Cet outil n&apos;a pas de numéro avec une commande T : attribuez-lui-en un d&apos;abord"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." fr="Cet outil palpe chaque vis du plateau et vous indique combien ajuster."/>
   <translation tag="This toolhead has no automatic feeder. Load the filament by hand." fr="Cette tête d&apos;outil n&apos;a pas d&apos;alimentateur automatique. Chargez le filament à la main."/>
+  <translation tag="This toolhead has no flow type to change"/>
+  <translation tag="This toolhead has no such flow type"/>
   <translation tag="This update asks for new permissions:" fr="Cette mise à jour demande de nouvelles autorisations :"/>
   <translation tag="This update removes HelixScreen from the printer." fr="Cette mise à jour supprime HelixScreen de l&apos;imprimante."/>
   <translation tag="This upgrades the printer&apos;s operating system packages." fr="Cette opération met à jour les paquets du système d&apos;exploitation de l&apos;imprimante."/>
@@ -5529,6 +5544,7 @@
   <translation tag="Toolhead position and homing, with a plate view and Home All" fr="Position et référence de la tête d&apos;outil, avec vue du plateau et Tout référencer"/>
   <translation tag="Toolhead position unknown" fr="Position de la tête d&apos;outil inconnue"/>
   <translation tag="Toolhead sensors disagree" fr="Les capteurs de la tête d&apos;outil ne concordent pas"/>
+  <translation tag="Toolhead settings"/>
   <translation tag="Toolhead unloaded" fr="Tête déchargée"/>
   <translation tag="Toolheads" fr="Têtes d&apos;outil"/>
   <translation tag="Tools" fr="Outils"/>
@@ -6374,6 +6390,7 @@
   <translation tag="{} new" fr="{} nouveau(x)"/>
   <translation tag="{} new hardware available" fr="{} nouveau matériel disponible"/>
   <translation tag="{} new plugins available. Enable them in Settings &gt; Plugins." fr="{} nouveaux plugins disponibles. Activez-les dans Paramètres &gt; Plugins."/>
+  <translation tag="{} nozzle"/>
   <translation tag="{} nozzle sensor fault" fr="{} : défaut du capteur de buse"/>
   <translation tag="{} of {} points" fr="{} points sur {}"/>
   <translation tag="{} of {} steps didn&apos;t finish" fr="{} étapes sur {} n&apos;ont pas abouti"/>

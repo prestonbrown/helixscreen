@@ -923,6 +923,7 @@ translations:
   : Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer's config folder.
   Change the name or the linked spool in Spoolman.: Change the name or the linked spool in Spoolman.
   Change tool: Change tool
+  Change {} nozzle?: Change {} nozzle?
   Changes apply immediately. Adjust during print for tuning.: Changes apply immediately. Adjust during print for tuning.
   Changes are temporary and reset on printer reboot: Changes are temporary and reset on printer reboot
   Changes printer.cfg and restarts Klipper first: Changes printer.cfg and restarts Klipper first
@@ -1317,6 +1318,7 @@ translations:
   : "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages."
   'Moonraker answered at {}.': 'Moonraker answered at {}.'
   "New in 1.1": "New in 1.1"
+  No filament system to send this to: No filament system to send this to
   No filament type is set for a toolhead this print uses.: No filament type is set for a toolhead this print uses.
   No filament was inserted in time: No filament was inserted in time
   Paste: Paste
@@ -2129,6 +2131,7 @@ translations:
   Flow calibration is not allowed for this filament with a 0.2 mm nozzle.: Flow calibration is not allowed for this filament with a 0.2 mm nozzle.
   Flow calibration is on for a filament and nozzle pair that does not allow it.: Flow calibration is on for a filament and nozzle pair that does not allow it.
   Flow calibration not allowed for {}: Flow calibration not allowed for {}
+  Flow type: Flow type
   Flowguard: Flowguard
   'Flushing Filament...': 'Flushing Filament...'
   Flying Toasters: Flying Toasters
@@ -3312,6 +3315,7 @@ translations:
   No tool is mounted: No tool is mounted
   No tool mounted: No tool mounted
   No tool on the head: No tool on the head
+  No toolhead detected: No toolhead detected
   No toolhead on the carriage: No toolhead on the carriage
   No tools to calibrate: No tools to calibrate
   'No turn: the gap moved {:.1f} Hz': 'No turn: the gap moved {:.1f} Hz'
@@ -3419,6 +3423,7 @@ translations:
   Nozzle Temperature: Nozzle Temperature
   Nozzle Temperatures: Nozzle Temperatures
   Nozzle Temps: Nozzle Temps
+  Nozzle changed: Nozzle changed
   'Nozzle clean complete': 'Nozzle clean complete'
   Nozzle clog detected: Nozzle clog detected
   Nozzle diameter: Nozzle diameter
@@ -3430,6 +3435,7 @@ translations:
   'Nozzle not changed: the printer did not confirm it': 'Nozzle not changed: the printer did not confirm it'
   'Nozzle not changed: {}': 'Nozzle not changed: {}'
   Nozzle not reported: Nozzle not reported
+  Nozzle size: Nozzle size
   Nozzle size and flow type per head: Nozzle size and flow type per head
   Nozzle target set to {}: Nozzle target set to {}
   Nozzle temp must be %d-%s: Nozzle temp must be %d-%s
@@ -5025,6 +5031,7 @@ translations:
   That print is no longer paused: That print is no longer paused
   That reading jumped too far to trust. Re-measure without turning.: That reading jumped too far to trust. Re-measure without turning.
   'That setting cannot be changed while a print is running': 'That setting cannot be changed while a print is running'
+  That size is already set: That size is already set
   That slot cannot stand in for this one: That slot cannot stand in for this one
   That tool is already loaded: That tool is already loaded
   That toolhead can no longer take over the print: That toolhead can no longer take over the print
@@ -5190,6 +5197,7 @@ translations:
   The gateway is not a valid address.: The gateway is not a valid address.
   The gateway is not on the same subnet as the IP address.: The gateway is not on the same subnet as the IP address.
   The head did not go back into its dock.: The head did not go back into its dock.
+  The head is already set that way: The head is already set that way
   The head on the carriage does not read as properly picked up, so it was not parked.: The head on the carriage does not read as properly picked up, so it was not parked.
   The head to pick up does not read as docked.: The head to pick up does not read as docked.
   ? "The head's extruder never gripped the filament: after several tries, with the nozzle cleaned between them, no movement registered at the nozzle."
@@ -5486,6 +5494,7 @@ translations:
   This CFS firmware exposes no external spool slot: This CFS firmware exposes no external spool slot
   This Happy Hare system does not support bypass mode: This Happy Hare system does not support bypass mode
   Needs a newer Moonraker to hold uploads.: "Needs a newer Moonraker to hold uploads."
+  This applies now. Klipper's extrusion limit follows at its next restart.: This applies now. Klipper's extrusion limit follows at its next restart.
   This button controls: This button controls
   This calibration uses the paper friction method to set your Z-offset.: This calibration uses the paper friction method to set your Z-offset.
   This cannot be undone.: This cannot be undone.
@@ -5535,6 +5544,7 @@ translations:
   This looks like a {}, but it is set up as a {}: This looks like a {}, but it is set up as a {}
   This may take up to 30 seconds: This may take up to 30 seconds
   Needs file analysis, which isn't running.: "Needs file analysis, which isn't running."
+  This nozzle size can't be changed here: This nozzle size can't be changed here
   This plugin asks for no special permissions.: This plugin asks for no special permissions.
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: This plugin lets HelixScreen control print start options like bed mesh and QGL.
   This print called {}, which the printer no longer has.: This print called {}, which the printer no longer has.
@@ -5545,6 +5555,7 @@ translations:
   This print never reports layer {}.: This print never reports layer {}.
   This printer cannot calibrate tool offsets automatically: This printer cannot calibrate tool offsets automatically
   This printer cannot stream the sweep to the screen: This printer cannot stream the sweep to the screen
+  This printer doesn't accept that nozzle size: This printer doesn't accept that nozzle size
   This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman.: This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman.
   This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman.: This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman.
   'This printer has motor compensation, so the check runs twice: with it off, then on.': 'This printer has motor compensation, so the check runs twice: with it off, then on.'
@@ -5552,6 +5563,7 @@ translations:
   This printer has no INDX LOAD_FILAMENT macro: This printer has no INDX LOAD_FILAMENT macro
   This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: This printer has no automatic unload. Cut the filament at the head and pull it out by hand.
+  This printer has no such toolhead: This printer has no such toolhead
   This printer has no timezone, so its clock reads UTC. Pick yours.: This printer has no timezone, so its clock reads UTC. Pick yours.
   'This printer has no {} command, so the Z-offset cannot be saved.': 'This printer has no {} command, so the Z-offset cannot be saved.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
@@ -5584,6 +5596,7 @@ translations:
   This screen: This screen
   This screen can't play videos: This screen can't play videos
   This screen can't play videos. Scan the code with your phone to watch the timelapse.: This screen can't play videos. Scan the code with your phone to watch the timelapse.
+  This sets the nozzle size in the printer config.: This sets the nozzle size in the printer config.
   This slot feeds no tool: This slot feeds no tool
   This spool ran out, so the CFS cannot pull the leftover filament back.: This spool ran out, so the CFS cannot pull the leftover filament back.
   This spool's details haven't loaded from Spoolman yet. Try Save again.: This spool's details haven't loaded from Spoolman yet. Try Save again.
@@ -5591,6 +5604,8 @@ translations:
   This theme: This theme
   'This tool has no number with a T command: assign it one first': 'This tool has no number with a T command: assign it one first'
   This tool probes each bed screw and tells you how much to adjust.: This tool probes each bed screw and tells you how much to adjust.
+  This toolhead has no flow type to change: This toolhead has no flow type to change
+  This toolhead has no such flow type: This toolhead has no such flow type
   'This update asks for new permissions:': 'This update asks for new permissions:'
   This update removes HelixScreen from the printer.: This update removes HelixScreen from the printer.
   This upgrades the printer's operating system packages.: This upgrades the printer's operating system packages.
@@ -5719,6 +5734,7 @@ translations:
   Toolhead position and homing, with a plate view and Home All: Toolhead position and homing, with a plate view and Home All
   Toolhead position unknown: Toolhead position unknown
   Toolhead sensors disagree: Toolhead sensors disagree
+  Toolhead settings: Toolhead settings
   Toolhead unloaded: Toolhead unloaded
   Toolheads: Toolheads
   Tools: Tools
@@ -6560,6 +6576,7 @@ translations:
   '{} new': '{} new'
   '{} new hardware available': '{} new hardware available'
   '{} new plugins available. Enable them in Settings > Plugins.': '{} new plugins available. Enable them in Settings > Plugins.'
+  '{} nozzle': '{} nozzle'
   '{} nozzle sensor fault': '{} nozzle sensor fault'
   '{} of {} points': '{} of {} points'
   "{} of {} steps didn't finish": "{} of {} steps didn't finish"
