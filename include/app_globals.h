@@ -221,7 +221,9 @@ void app_globals_init_subjects();
  * Initializes them first when they are down. Unlike a deinit/init cycle it keeps
  * every bound observer, so a binding made while the subjects were up stays valid.
  */
-void app_globals_reset_subject_values();
+namespace helix {
+void reset_app_globals_subject_values();
+} // namespace helix
 
 /**
  * @brief Deinitialize global subjects

@@ -320,7 +320,7 @@ void app_globals_init_subjects() {
     spdlog::trace("[App Globals] Global subjects initialized");
 }
 
-void app_globals_reset_subject_values() {
+void helix::reset_app_globals_subject_values() {
     if (!g_subjects_initialized) {
         app_globals_init_subjects();
         return;
