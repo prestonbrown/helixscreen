@@ -182,7 +182,9 @@ void init_subjects() {
     if (s.ready) {
         // Settings torn down and brought back leave the observer on the old
         // subject: bind it to the live one so the labels keep following it.
-        if (s.heat_bed_lifetime.expired()) {
+        // The token's value, not its refcount, says the subjects are live.
+        const SubjectLifetime watched = s.heat_bed_lifetime.lock();
+        if (!watched || !*watched) {
             bind_heat_bed_observer(s);
             refresh_subjects();
         }

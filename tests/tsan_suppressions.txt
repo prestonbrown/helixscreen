@@ -86,7 +86,8 @@ thread:helix::WiFiManager::request_scan
 # has no display driver and feeds the clock through lv_tick_inc(), so it takes
 # that path, and a background thread that reads the clock (the recovery
 # suppression deadline, set from KlipperConfigEditor's restart worker) races
-# the main thread's own reads on that flag. Every display driver the app ships
-# (fbdev, DRM, SDL, Wayland) installs a tick callback, so in production
-# lv_tick_get() is a plain call to it and writes nothing.
+# the main thread's own reads on that flag. The app's TSAN build loads this file
+# too; there, as in every shipped build, the display driver (fbdev, DRM, SDL,
+# Wayland) installs a tick callback, lv_tick_get() is a plain call to it and
+# writes nothing, so this entry matches nothing the app does.
 race:lv_tick_get
