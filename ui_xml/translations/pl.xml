@@ -359,7 +359,7 @@
   <translation tag="Animated light effects configured on the printer. Turn them on and off from the LED controls." pl="Animowane efekty świetlne skonfigurowane na drukarce. Włączasz je i wyłączasz w sterowaniu LED."/>
   <translation tag="Animations" pl="Animacje"/>
   <translation tag="Anonymous data to help improve HelixScreen" pl="Anonimowe dane pomagające ulepszać HelixScreen"/>
-  <translation tag="Anonymous stats — no personal data, ever." pl="Anonimowe statystyki - żadnych danych osobowych, nigdy."/>
+  <translation tag="Anonymous stats — no personal data, ever." pl="Anonimowe statystyki — nigdy żadnych danych osobowych."/>
   <translation tag="Anonymous usage statistics" pl="Anonimowe statystyki użycia"/>
   <translation tag="Any notes..." pl="Notatki..."/>
   <translation tag="App Background" pl="Tło aplikacji"/>
@@ -1724,11 +1724,11 @@
   <translation tag="Heat nozzle" pl="Nagrzej dyszę"/>
   <translation tag="Heat soak" pl="Wygrzewanie"/>
   <translation tag="Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen does not run it." pl="Wygrzewanie pozwala obudowie nagrzać się przed drukiem. Jest na liście, bo drukarka ma makro wygrzewania albo włączono je w ustawieniach; HelixScreen go nie uruchamia."/>
-  <translation tag="Heat the bed to {}°C" pl="Nagrzej stół do {}°C"/>
+  <translation tag="Heat the bed to {}°C" pl="Podgrzej stół do {}°C"/>
   <translation tag="Heat the chamber too" pl="Grzej też komorę"/>
-  <translation tag="Heat the extruder to at least {}°C before loading filament" pl="Nagrzej ekstruder do co najmniej {}°C przed ładowaniem filamentu"/>
-  <translation tag="Heat to at least %d°C for filament operations" pl="Nagrzej do co najmniej %d°C, aby wykonywać operacje na filamencie"/>
-  <translation tag="Heat {} above {}°C before resuming" pl="Nagrzej {} powyżej {}°C przed wznowieniem"/>
+  <translation tag="Heat the extruder to at least {}°C before loading filament" pl="Przed ładowaniem filamentu podgrzej ekstruder do co najmniej {}°C"/>
+  <translation tag="Heat to at least %d°C for filament operations" pl="Podgrzej do co najmniej %d°C, aby wykonywać operacje na filamencie"/>
+  <translation tag="Heat {} above {}°C before resuming" pl="Przed wznowieniem podgrzej {} powyżej {}°C"/>
   <translation tag="Heatbed Temperature" pl="Temperatura stołu"/>
   <translation tag="Heated Bed" pl="Podgrzewany stół"/>
   <translation tag="Heated Bed MPC Calibration" pl="Kalibracja MPC stołu"/>
@@ -1804,7 +1804,7 @@
   <translation tag="Hold anywhere to cancel" pl="Przytrzymaj gdziekolwiek, aby anulować"/>
   <translation tag="Hold slicer prints that do not fit" pl="Wstrzymuj wydruki ze slicera, które się nie mieszczą"/>
   <translation tag="Hold {} fully on the head. The latch locks onto it and it becomes the mounted tool." pl="Przytrzymaj {} dociśnięte do głowicy. Zatrzask je zablokuje i stanie się zamontowanym narzędziem."/>
-  <translation tag="Holding nozzle at {}°C to purge previous filament." pl="Utrzymywanie dyszy w {}°C, aby wypłukać poprzedni filament."/>
+  <translation tag="Holding nozzle at {}°C to purge previous filament." pl="Dysza utrzymywana w {}°C, aby wypłukać poprzedni filament."/>
   <translation tag="Home" pl="Start"/>
   <translation tag="Home &amp; Continue" pl="Bazuj i kontynuuj"/>
   <translation tag="Home All" pl="Bazuj wszystko"/>
@@ -2614,7 +2614,7 @@
   <translation tag="Nozzle clean complete" pl="Czyszczenie dyszy zakończone"/>
   <translation tag="Nozzle clog detected" pl="Wykryto zatkanie dyszy"/>
   <translation tag="Nozzle diameter" pl="Średnica dyszy"/>
-  <translation tag="Nozzle did not reach {}°C — {} canceled" pl="Dysza nie osiągnęła {}°C - {} anulowano"/>
+  <translation tag="Nozzle did not reach {}°C — {} canceled" pl="Dysza nie osiągnęła {}°C — anulowano {}"/>
   <translation tag="Nozzle flow" pl="Przepływ dyszy"/>
   <translation tag="Nozzle interval" pl="Interwał dyszy"/>
   <translation tag="Nozzle min cannot exceed max" pl="Minimum dyszy nie może przekraczać maksimum"/>
@@ -3467,7 +3467,7 @@
   <translation tag="Seat" pl="Osadź"/>
   <translation tag="Seat a tool by hand" pl="Osadź narzędzie ręcznie"/>
   <translation tag="Seat a tool by hand for the first Z home" pl="Osadź narzędzie ręcznie przed pierwszym bazowaniem Z"/>
-  <translation tag="Seat the hot ends, heat {} above {}°C, then tap Resume." pl="Osadź hotendy, nagrzej {} powyżej {}°C, a potem stuknij Wznów."/>
+  <translation tag="Seat the hot ends, heat {} above {}°C, then tap Resume." pl="Osadź hotendy, podgrzej {} powyżej {}°C, potem dotknij Wznów."/>
   <translation tag="Seat which tool by hand?" pl="Które narzędzie osadzić ręcznie?"/>
   <translation tag="Seating {}..." pl="Osadzanie {}..."/>
   <translation tag="Secondary" pl="Drugorzędny"/>
@@ -3894,11 +3894,11 @@
   <translation tag="Test Screensaver" pl="Testuj wygaszacz"/>
   <translation tag="Test Tracker" pl="Testuj śledzenie"/>
   <translation tag="Test label printed" pl="Wydrukowano etykietę testową"/>
-  <translation tag="Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}°C." pl="Wieża testowa {:.0f} mm szeroka i {:.0f} mm wysoka, ok. {} min plus nagrzewanie: {} pasm po {:.0f} mm przy {}°C."/>
+  <translation tag="Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}°C." pl="Wieża testowa o szerokości {:.0f} mm i wysokości {:.0f} mm, ok. {} min plus grzanie: {} pasm po {:.0f} mm przy {}°C."/>
   <translation tag="Testing rotation: %d° (%d/%d) - %ds remaining" pl="Test obrotu: %d° (%d/%d) - pozostało %ds"/>
   <translation tag="Testing, servo, and motor operations" pl="Testy, serwo i operacje silników"/>
   <translation tag="Thanks! Anonymous usage data helps improve HelixScreen." pl="Dziękujemy! Anonimowe dane użycia pomagają ulepszać HelixScreen."/>
-  <translation tag="Thanks! TOTALLY anonymous usage data helps improve HelixScreen." pl="Dziękujemy! W pełni anonimowe dane o użyciu pomagają ulepszać HelixScreen."/>
+  <translation tag="Thanks! TOTALLY anonymous usage data helps improve HelixScreen." pl="Dziękujemy! CAŁKOWICIE anonimowe dane użycia pomagają ulepszać HelixScreen."/>
   <translation tag="That print is no longer paused" pl="Ten wydruk nie jest już wstrzymany"/>
   <translation tag="That reading jumped too far to trust. Re-measure without turning." pl="Ten odczyt skoczył za mocno, by mu ufać. Zmierz ponownie bez kręcenia."/>
   <translation tag="That setting cannot be changed while a print is running" pl="Tego ustawienia nie można zmienić podczas druku"/>
@@ -3973,10 +3973,10 @@
   <translation tag="The loaded slot is not known yet" pl="Załadowany slot nie jest jeszcze znany"/>
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." pl="Załadowana szpula to {}, a plik pokrojono dla {}. Filament z wypełniaczem drukuje się z mniejszym przepływem i wymaga utwardzonej dyszy."/>
   <translation tag="The message your printer&apos;s macros show (M117)" pl="Komunikat wyświetlany przez makra drukarki (M117)"/>
-  <translation tag="The mounted nozzle heats to 200°C and cools again while the heater&apos;s safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes." pl="Zamontowana dysza nagrzewa się do 200°C i stygnie, gdy dopasowywany jest model bezpieczeństwa grzałki. Wyłącz wentylator modelu i trzymaj łatwopalne materiały z dala od głowicy. To trwa kilka minut."/>
+  <translation tag="The mounted nozzle heats to 200°C and cools again while the heater&apos;s safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes." pl="Zamontowana dysza nagrzeje się do 200°C i ostygnie, podczas gdy dopasowywany jest model bezpieczeństwa grzałki. Wentylator chłodzenia wydruku ma być wyłączony, a materiały łatwopalne z dala od głowicy. Trwa to kilka minut."/>
   <translation tag="The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself." pl="Dysza wykonuje kilka krótkich ruchów testowych w rogu, z dala od obszaru druku, i powtarza je, aż wyniki będą zgodne."/>
   <translation tag="The nozzle hasn&apos;t moved since the power went out. Check that it sits just above the top of the print, then resume." pl="Dysza nie ruszyła się od zaniku zasilania. Sprawdź, czy jest tuż nad górą wydruku, potem wznów."/>
-  <translation tag="The nozzle heats to 200°C while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes." pl="Dysza nagrzewa się do 200°C, a wentylator modelu przechodzi przez swoje prędkości. Aby dopasowanie było dokładne, zamontuj kanał tak, jak drukujesz. To trwa kilka minut."/>
+  <translation tag="The nozzle heats to 200°C while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes." pl="Dysza nagrzewa się do 200°C, a wentylator chłodzenia wydruku przechodzi przez kolejne prędkości. Dla dokładnego dopasowania załóż dyszę wentylatora, której używasz przy druku. Trwa to kilka minut."/>
   <translation tag="The nozzle is clear of the print" pl="Dysza jest z dala od wydruku"/>
   <translation tag="The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next." pl="Dysza jest gorąca. Oczyść ją drucianą szczotką dołączoną do drukarki i utrzymuj miejsce dokowania w czystości, potem dotknij Dalej."/>
   <translation tag="The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at." pl="Dysza jest uniesiona nad wydrukiem, a X i Y są zbazowane. Wznowienie opuści ją do wysokości, na której się zatrzymała."/>
