@@ -5,9 +5,9 @@
 // backend runs under --test. The bare "ifs" value is AmsBackendMock's simulation.
 
 #include "core/text_io.h"
-#include "firmware_lane_writer.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_client_mock_internal.h"
+#include "version.h"
 
 #include <spdlog/spdlog.h>
 
@@ -129,9 +129,9 @@ int int_or_zero(const std::optional<std::string>& v) {
 } // namespace
 
 void MoonrakerClientMock::write_ifs_module_lane_record(int slot, const std::string& gcode) {
+    // Kiln's kiln_lanes keeps the identity fields from plugin API 1.12 on.
     const std::string api = ifs_module_plugin_api();
-    const json frame{{"ad5x_plugins", {{"api_version", api}}}};
-    if (api.empty() || helix::lane_writer::firmware_writes_lane_records(frame) != true) {
+    if (api.empty() || !helix::version::check_version_constraint(">=1.12", api)) {
         return;
     }
     std::pair<std::string, std::string> tm;
