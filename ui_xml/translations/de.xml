@@ -5557,7 +5557,7 @@
   <translation tag="Try {0} mm/s" de="Versuche {0} mm/s"/>
   <translation tag="Try {0} or {1} mm/s" de="Versuche {0} oder {1} mm/s"/>
   <translation tag="Trying again..." de="Erneuter Versuch..."/>
-  <translation tag="Tune" de="Abstimmen"/>
+  <translation tag="Tune" de="Anpassen"/>
   <translation tag="Tune Belts" de="Einstellen"/>
   <translation tag="Tune the motors to remove fine vertical lines" de="Motoren abstimmen, um feine vertikale Linien zu entfernen"/>
   <translation tag="Tuned" de="Abgestimmt"/>

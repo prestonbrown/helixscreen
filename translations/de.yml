@@ -5793,7 +5793,7 @@ translations:
   Try {0} mm/s: 'Versuche {0} mm/s'
   Try {0} or {1} mm/s: 'Versuche {0} oder {1} mm/s'
   Trying again...: 'Erneuter Versuch...'
-  Tune: Abstimmen
+  Tune: Anpassen
   Tune Belts: "Einstellen"
   Tune the motors to remove fine vertical lines: 'Motoren abstimmen, um feine vertikale Linien zu entfernen'
   Tuned: "Abgestimmt"
