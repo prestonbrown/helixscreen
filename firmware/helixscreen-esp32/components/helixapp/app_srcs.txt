@@ -181,6 +181,7 @@ src/printer/ams_backend_multiace.cpp
 src/printer/ams_backend_openams.cpp
 src/printer/ams_bypass_policy.cpp
 src/printer/ams_backend_qidi.cpp
+src/printer/nozzle_size.cpp
 src/printer/qidi_fault_codes.cpp
 src/printer/qidi_status_parse.cpp
 src/printer/ams_backend_snapmaker.cpp
@@ -804,6 +805,7 @@ src/ui/settings/ui_settings_safety.cpp
 src/ui/settings/ui_settings_security.cpp
 src/ui/settings/ui_settings_sensors.cpp
 src/ui/settings/ui_settings_sound.cpp
+src/ui/settings/ui_settings_toolhead.cpp
 src/ui/settings/ui_settings_touch.cpp
 src/ui/settings/ui_settings_system.cpp
 src/ui/settings/ui_settings_storage.cpp
