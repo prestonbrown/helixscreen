@@ -367,12 +367,11 @@ to the current values, then the update queue is drained, so that frame shows cur
 
 ## Open costs
 
-- **About 1.15% of a core asleep on the K1C, 0.96% on the AD5M** (the table above, measured
-  with a 200 ms cap). On that build the loop still woke about 10 times a second: about 5 for
-  status frames and the work other threads queue, about 4 for the cap on its wait
-  (`main_loop_sleep_ms`) and about 1 for the display refresh when a label changes on the
-  hidden screen. The cap is 1 s now, which should remove most of those 4 wakes; that has not
-  been measured on a board yet. Awake, the
+- **About 0.87% of a core asleep on the K1C, 0.84% on the AD5M** (the table above, measured
+  2026-11-26 on main, with the 1 s cap): 6.6 and 5.7 wakes a second. On the 200 ms cap build
+  the loop woke about 10 times a second: about 5 for status frames and the work other threads
+  queue, about 4 for the cap on its wait (`main_loop_sleep_ms`) and about 1 for the display
+  refresh when a label changes on the hidden screen. Awake, the
   plugin-install prompt still looks once a second while it waits for a free screen. Status processing and the widget
   updates behind it are most of the remaining CPU: dropping every frame read 1.18 and 1.06
   on the build before the input wait. What the 1 s cap delays is what the loop still polls
