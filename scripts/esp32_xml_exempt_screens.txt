@@ -17,6 +17,7 @@ calibration_pid_panel.xml
 calibration_run_overlay.xml
 calibration_tool_offset_panel.xml
 calibration_zoffset_panel.xml
+clock_face_picker.xml
 components/action_prompt_button.xml
 components/action_prompt_swatch.xml
 components/action_prompt_text_line.xml

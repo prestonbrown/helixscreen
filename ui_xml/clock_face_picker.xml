@@ -7,7 +7,7 @@
        of it (src/ui/panel_widgets/clock_face_picker.h paints the previews into
        each row's preview box). A row's user_data is its face's index (ClockFace), Text 0. -->
   <view name="clock_face_picker" extends="context_menu_backdrop">
-    <context_menu_card title="Clock Face" title_tag="Clock Face" pad_gap="#space_xs">
+    <context_menu_card title="Clock Face" pad_gap="#space_xs">
       <!-- max_height set by C++ to a share of the screen -->
       <lv_obj name="clock_face_list"
               width="100%" height="content" flex_flow="column" style_pad_all="#space_xs" style_pad_gap="0"
@@ -25,8 +25,7 @@
                   scrollable="false">
             <text_body bind_text="clock_time_text" clickable="false" event_bubble="true"/>
           </lv_obj>
-          <text_body text="Text Clock"
-                     translation_tag="Text Clock" flex_grow="1" long_mode="dots" clickable="false" event_bubble="true"/>
+          <text_body text="Text Clock" flex_grow="1" long_mode="dots" clickable="false" event_bubble="true"/>
           <event_cb trigger="clicked" callback="clock_face_row_cb" user_data="0"/>
         </lv_obj>
         <repeat count="clock_face_count">
