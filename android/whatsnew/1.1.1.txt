@@ -1,0 +1,1 @@
+HelixScreen 1.1.1 fixes problems reported after 1.1: more reliable installs and updates on modded firmware, the tool selector on AFC toolchangers, Load and Unload getting stuck on a Creator 5, loaded spool temperatures, the runout dialog after switching printers, and ultrawide layouts. HelixScreen is also now available in Polish.

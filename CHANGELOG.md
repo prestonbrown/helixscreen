@@ -5,6 +5,59 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-11-26
+
+HelixScreen 1.1.1 is the first fix release for 1.1. Most of it makes installs and updates
+dependable on modded firmware (Z-Mod, Forge-X, PAXX on the U1) and fixes things 1.1 users
+reported in its first days: tool changes on AFC toolchangers, filament temperatures, the
+runout dialog and the ultrawide layouts. It also adds Polish.
+
+### Added
+
+- **Polish** - HelixScreen is now available in Polish, chosen in the language picker and the setup wizard.
+- **Ultrawide Print Status shows your filament lanes** - on 1920x480 and similar screens, the info column carries the lane tray above the print details.
+
+### Fixed
+
+**Installing and updating**
+
+- **Updates on modded firmware** (#1304) - an update no longer stalls or leaves a half-installed tree on Z-Mod, Forge-X, PAXX on the U1 or the K1. The installer now waits for the install to settle before restarting, keeps its log, and stops a hung display check on systems without `timeout`.
+- **Z-Mod boots HelixScreen again** - the installer edits Z-Mod's init script where it really lives, starting and stopping HelixScreen works inside Z-Mod's chroot, and Z-Mod's own Guppy hooks no longer stop HelixScreen (ghzserg/zmod#824).
+- **Z-Mod's plugin manager entry left alone** - on Z-Mod, the installer no longer rewrites the plugin manager's HelixScreen update entry or adds a second one beside it.
+- **AD5M on Forge-X 1.4** - an AD5M running upstream Forge-X 1.4.x is recognized, so install and update take the right path.
+- **K-Touch (ESP32)** (#1752) - the screen no longer freezes on its last frame when the board restarts.
+
+**Tool changers and filament systems**
+
+- **Tool selector on AFC toolchangers** (#2191) - picking a tool reached through an AFC lane sends the right command, the widget shows the mounted tool instead of "None", and a tool change ignored because the filament system is busy now says so.
+- **Creator 5 on Z-Mod: Load and Unload stuck greyed out** (#2197) - the COLOR dialog that opens when filament goes in no longer leaves the tool changer marked busy until a restart. Thanks to DIEHARDave.
+- **Bypass on systems that can't bypass** - the bypass override is offered only where the filament system has one.
+- **AFC add-on on Z-Mod** - a full AFC install on Z-Mod keeps its AFC controls.
+- **Loaded spool temperatures** - the loaded spool's print temperature follows a picked catalog product and stays inside the lane's or database's range, and the pressure advance tuner prints at that temperature instead of the material default.
+- **Preset labels and tool buttons** (#2189, #2190) - preset labels follow the bed temperature setting, and Pick up and Park are the same width.
+- **External lane caption** (#2146) - the mini lane strip's External label changes with the language.
+
+**Printing**
+
+- **Pre-print checklist** - a step that passed unseen is marked done in place, a step that never ran drops off, and loading or clearing a stored mesh is no longer counted as a bed mesh step (a user's own `BED_MESH_*` macro still is).
+- **Purge and print start on multi-tool printers** - the purge check reads the active tool's nozzle instead of T0's, and forward flow with no nozzle target is no longer taken for a purge.
+- **Prints with no file behind them** - a job started without a file fetches no metadata and drops the previous file's picture.
+- **Thumbnails and 3D previews** - re-uploading a file with the same name refreshes the active print's picture, multi-tool files keep their colors in 3D, and lines follow the slicer's widths without black seams.
+- **Upload and print of .gcode.3mf** - a slicer's upload-and-print starts the converted plate.
+- **Pressure advance tower** - the linear tuner sends no K value before the first layer, a canceled tower restores your K, and the tower passes its material to a start macro that asks for one.
+- **Power-loss resume** - resume follows the file Klipper actually reads, and on QIDI printers the legacy resume offer waits for the plugin's answer (HelixPrint 1.4.2).
+
+**Screens**
+
+- **Runout dialog after switching printers** - an idle runout dialog no longer pops up for the previous printer's sensors, and one already open does not repeat for another sensor.
+- **Material Temperatures at 480x272** - the form fits without scrolling, with Save in the header.
+- **Ultrawide layouts** - pages use the width they were leaving empty, the side band keeps a usable width or hides, and the Tune column fits its rows.
+- **German** (#2196) - Tune reads "Anpassen", which fits its button.
+- **Home screen** - converting a 1.0 layout ignores disabled widgets' old positions, and the spool strip keeps its bars when the screen resizes mid-update.
+- **Repeated printer-fault dialogs** - identical faults no longer stack up, even when their numbers differ.
+- **Probe configuration** - saving it tells you the firmware will restart.
+- **Crash reports** - breadcrumbs from every thread make it into a crash report.
+
 ## [1.1.0] - 2026-11-23
 
 HelixScreen 1.1 is the first feature release since 1.0, and it is a big one. Printing gets a
@@ -10737,6 +10790,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[1.1.1]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-rc.6...v1.1.0
 [1.1.0-rc.6]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-rc.5...v1.1.0-rc.6
 [1.1.0-rc.5]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-rc.4...v1.1.0-rc.5
