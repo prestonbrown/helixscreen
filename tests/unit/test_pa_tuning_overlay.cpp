@@ -792,28 +792,26 @@ TEST_CASE_METHOD(TunerFixture,
 
 TEST_CASE_METHOD(TunerFixture, "the tower's line width follows the nozzle on the head being tuned",
                  "[pa_tune][pa_tuner][nozzle_size]") {
-    auto& temps = get_printer_state().temperature_state();
-    temps.init_extruders({"extruder", "extruder1"});
-    // Only extruder1 reports a diameter: a read of T0's would give the 0.4 default.
+    TwoHeads heads(0);
+    // The head's size is its own: T0 and T1 report different diameters.
     status({{"extruder", {{"nozzle_diameter", 0.4}}}, {"extruder1", {{"nozzle_diameter", 0.6}}}});
 
-    SECTION("a non-T0 head's live size reaches the print") {
-        temps.set_active_extruder("extruder1");
-        REQUIRE(temps.active_extruder_name() == "extruder1");
+    SECTION("the head being tuned reaches the print, live") {
+        overlay.select_head_for_test(1);
         CHECK(overlay.build_params_for_test().nozzle_diameter_mm == Catch::Approx(0.6f));
-    }
-    SECTION("T0 keeps its own size") {
-        temps.set_active_extruder("extruder");
+        overlay.select_head_for_test(0);
         CHECK(overlay.build_params_for_test().nozzle_diameter_mm == Catch::Approx(0.4f));
     }
     SECTION("a head with only a configured size uses it") {
+        status({{"extruder1", {{"nozzle_diameter", 0.0}}}});
         helix::PrinterDiscovery hw;
         hw.parse_fit_limits(json{{"extruder", {{"nozzle_diameter", 0.4}}},
                                  {"extruder1", {{"nozzle_diameter", 0.8}}}});
         get_printer_state().set_hardware(hw);
-        status({{"extruder1", {{"nozzle_diameter", 0.0}}}});
-        temps.init_extruders({"extruder", "extruder1"});
-        temps.set_active_extruder("extruder1");
+        overlay.select_head_for_test(1);
+        // A live 0 means "not reported": the 0.6 above was kept, so clear it.
+        get_printer_state().temperature_state().init_extruders({});
+        get_printer_state().temperature_state().init_extruders({"extruder", "extruder1"});
         CHECK(overlay.build_params_for_test().nozzle_diameter_mm == Catch::Approx(0.8f));
         get_printer_state().set_hardware(helix::PrinterDiscovery{});
     }
