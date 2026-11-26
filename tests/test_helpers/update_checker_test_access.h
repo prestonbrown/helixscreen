@@ -178,6 +178,11 @@ class UpdateCheckerTestAccess {
         return c.machine_busy_from_worker();
     }
 
+    /// What do_install() records once an automatic install has succeeded.
+    static void remember_auto_installed(UpdateChecker& c, const std::string& version) {
+        c.remember_auto_installed(version);
+    }
+
     /// Forget a night the scheduler skipped and a version it already tried.
     static void reset_auto_schedule(UpdateChecker& c) {
         c.auto_skip_day_ = -1;

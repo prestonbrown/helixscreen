@@ -446,12 +446,13 @@ static std::vector<DefRowIdentity> def_row_snapshot() {
 ///
 /// "Placed" means holding a grid cell, not merely enabled — an instance at
 /// (-1,-1) is on no dashboard and counting it overstates what the user sees.
-static std::unordered_map<std::string, int> count_multi_placed(const PanelWidgetConfig& config) {
+/// The bare base ID (`clock`, a widget placed before it allowed instances) is an
+/// instance too, so it counts under itself.
+std::unordered_map<std::string, int> count_multi_placed(const PanelWidgetConfig& config) {
     std::unordered_map<std::string, int> multi_placed;
     for (const auto& entry : config.entries()) {
-        auto colon_pos = entry.id.find(':');
-        if (colon_pos != std::string::npos && entry.is_placed()) {
-            multi_placed[entry.id.substr(0, colon_pos)]++;
+        if (entry.is_placed()) {
+            multi_placed[entry.id.substr(0, entry.id.find(':'))]++;
         }
     }
     return multi_placed;

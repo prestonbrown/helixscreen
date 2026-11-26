@@ -250,6 +250,11 @@ PlatformCapabilities PlatformCapabilities::detect() {
 #endif
 }
 
+const PlatformCapabilities& PlatformCapabilities::cached() {
+    static const PlatformCapabilities s_caps = detect();
+    return s_caps;
+}
+
 PlatformCapabilities PlatformCapabilities::detect_from(const std::string& meminfo,
                                                        const std::string& cpuinfo) {
     const CpuInfo cpu_info = parse_cpuinfo(cpuinfo);

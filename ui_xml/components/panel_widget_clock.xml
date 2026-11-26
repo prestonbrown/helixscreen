@@ -2,19 +2,33 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
+  <api>
+    <!-- Per-instance subject names, supplied by the widget at creation. They
+         must exist before this component is parsed: a binding whose subject is
+         missing at parse time is dropped permanently and silently. -->
+    <!-- Size mode: 0 compact (time only), 1 normal, 2 expanded, 3 large. -->
+    <prop name="size_subject" type="string" default=""/>
+    <!-- 1 while a painted clock face shows instead of the text; the widget
+         adds the face's canvas to this view. -->
+    <prop name="face_subject" type="string" default=""/>
+  </api>
   <view extends="lv_obj"
         width="100%" height="100%" style_pad_all="#space_sm" style_pad_gap="0" style_bg_opa="0%" scrollable="false"
         flex_flow="column" style_flex_main_place="center" style_flex_cross_place="center">
-    <!-- Time (always visible) -->
-    <text_heading name="clock_time" width="100%" bind_text="clock_time_text" style_text_align="center"/>
+    <!-- Time (shown unless a face does) -->
+    <text_heading name="clock_time" width="100%" bind_text="clock_time_text" style_text_align="center">
+      <bind_flag_if_eq subject="$face_subject" flag="hidden" ref_value="1"/>
+    </text_heading>
     <!-- Date (hidden in compact 1x1 mode) -->
     <text_body name="clock_date" width="100%" bind_text="clock_date_text" style_text_align="center">
-      <bind_flag_if_eq subject="clock_size_mode" flag="hidden" ref_value="0"/>
+      <bind_flag_if_eq subject="$size_subject" flag="hidden" ref_value="0"/>
+      <bind_flag_if_eq subject="$face_subject" flag="hidden" ref_value="1"/>
     </text_body>
     <!-- Uptime (shown in the expanded and large modes, 2 and 3) -->
     <text_small name="clock_uptime"
                 width="100%" bind_text="clock_uptime_text" style_text_color="#text_muted" style_text_align="center">
-      <bind_flag_if_lt subject="clock_size_mode" flag="hidden" ref_value="2"/>
+      <bind_flag_if_lt subject="$size_subject" flag="hidden" ref_value="2"/>
+      <bind_flag_if_eq subject="$face_subject" flag="hidden" ref_value="1"/>
     </text_small>
   </view>
 </component>

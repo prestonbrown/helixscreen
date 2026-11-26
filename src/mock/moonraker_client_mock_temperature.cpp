@@ -757,6 +757,9 @@ void MoonrakerClientMock::temperature_simulation_loop() {
             status_obj["ifs"] = ifs_module_status_json();
             status_obj["ifs_materials"] = ifs_module_materials_json();
             status_obj["save_variables"] = ifs_module_vars_json();
+            if (const std::string api = ifs_module_plugin_api(); !api.empty()) {
+                status_obj["ad5x_plugins"] = {{"api_version", api}, {"enabled", json::array()}};
+            }
             const uint8_t presence = ifs_module_presence_.load();
             for (int i = 0; i < 4; ++i) {
                 status_obj["filament_switch_sensor lane" + std::to_string(i + 1)] = {

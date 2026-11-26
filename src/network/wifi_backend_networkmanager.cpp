@@ -95,6 +95,8 @@ WiFiError WifiBackendNetworkManager::start() {
         spdlog::debug("[WifiBackend] NM: WiFi radio is {}", *radio ? "on" : "off");
     }
 
+    link_events_ = helix::net::open_kernel_link_events();
+
     // Start background status polling thread. Wrap — EAGAIN throws ([L083]).
     status_running_ = true;
     try {
@@ -203,6 +205,7 @@ void WifiBackendNetworkManager::stop() {
     if (status_thread_.joinable()) {
         status_thread_.join();
     }
+    link_events_.reset();
 
     // Join threads (MUST join, not detach - prevents use-after-free)
     if (scan_thread_.joinable()) {
@@ -1103,6 +1106,9 @@ void WifiBackendNetworkManager::status_thread_func() {
     constexpr auto kPollInterval = std::chrono::seconds(5);
     // While DHCP is pending the address is the news the UI is waiting for.
     constexpr auto kAwaitingIpv4PollInterval = std::chrono::seconds(1);
+    // How often a wait drains the kernel's link events. It also spaces out
+    // polls when events keep coming, since each check follows a full poll.
+    constexpr auto kLinkEventCheckInterval = std::chrono::milliseconds(200);
 
     while (status_running_) {
         // Poll nmcli for current status. nullopt = the poll itself failed
@@ -1141,11 +1147,29 @@ void WifiBackendNetworkManager::status_thread_func() {
             std::lock_guard<std::mutex> status_lock(status_mutex_);
             awaiting_ipv4 = cached_status_.awaiting_ipv4;
         }
+        // A kernel link or address event also ends the wait: a link leaving
+        // the activated state must clear the screens now, not at the next poll.
+        const auto deadline = std::chrono::steady_clock::now() +
+                              (awaiting_ipv4 ? kAwaitingIpv4PollInterval : kPollInterval);
         {
             std::unique_lock<std::mutex> lock(status_cv_mutex_);
-            status_cv_.wait_for(
-                lock, awaiting_ipv4 ? kAwaitingIpv4PollInterval : kPollInterval,
-                [this] { return !status_running_.load() || status_refresh_requested_.load(); });
+            for (;;) {
+                const auto now = std::chrono::steady_clock::now();
+                if (now >= deadline) {
+                    break;
+                }
+                const auto slice = std::min<std::chrono::steady_clock::duration>(
+                    deadline - now, kLinkEventCheckInterval);
+                if (status_cv_.wait_for(lock, slice, [this] {
+                        return !status_running_.load() || status_refresh_requested_.load();
+                    })) {
+                    break;
+                }
+                if (link_events_ && link_events_->poll()) {
+                    spdlog::debug("[WifiBackend] NM: Kernel link/address event; polling now");
+                    break;
+                }
+            }
             status_refresh_requested_ = false;
         }
     }

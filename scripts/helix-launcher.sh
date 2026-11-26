@@ -1666,13 +1666,22 @@ _is_crash_exit() {
 # watcher waits for the new version to report itself healthy (.healthy) or
 # to ask for a rollback (.request, the app's crash-loop detector), and gives
 # up after the window. Anything but a healthy report or a stop (.stopping,
-# written by the watchdog) puts the previous tree back and starts it, leaving
-# .result for the restored app. Under helixscreen.service a healthy report
-# first ends the launch so the service restarts with the new units, and the
-# previous tree is kept until that start is healthy too (.phase = units).
+# written by the watchdog, or a signal to this launcher) puts the previous
+# tree back and starts it, leaving .result for the restored app. Every guarded
+# start counts toward HELIX_ROLLBACK_MAX_STARTS before it runs, so a power
+# loss, a reset or a reboot loop runs out; a recorded stop gives its start
+# back, up to HELIX_ROLLBACK_MAX_STOPS times (.stops), after which stops
+# count too, so a loop of stops runs out as well. Under helixscreen.service a
+# healthy report first ends the launch so the service restarts with the new
+# units, and the previous tree is kept until that start is healthy too
+# (.phase = units).
 HELIX_ROLLBACK_WINDOW="${HELIX_ROLLBACK_WINDOW:-600}"
 HELIX_ROLLBACK_POLL="${HELIX_ROLLBACK_POLL:-5}"
 HELIX_ROLLBACK_MAX_STARTS="${HELIX_ROLLBACK_MAX_STARTS:-3}"
+HELIX_ROLLBACK_MAX_STOPS="${HELIX_ROLLBACK_MAX_STOPS:-10}"
+# A garbled cap would make every comparison against it false: no limit at all.
+case "${HELIX_ROLLBACK_MAX_STARTS}" in '' | *[!0-9]*) HELIX_ROLLBACK_MAX_STARTS=3 ;; esac
+case "${HELIX_ROLLBACK_MAX_STOPS}" in '' | *[!0-9]*) HELIX_ROLLBACK_MAX_STOPS=10 ;; esac
 
 helix_rollback_file() {
     printf '%s/update_rollback.%s' "${HELIX_ROLLBACK_DIR}" "$1"
@@ -1690,7 +1699,7 @@ helix_rollback_marker_present() {
 }
 
 helix_rollback_disarm() {
-    for _hrd_f in armed starts healthy request stopping busy phase handoff guard; do
+    for _hrd_f in armed starts stops healthy request stopping busy phase handoff guard; do
         rm -f "$(helix_rollback_file "$_hrd_f")" 2>/dev/null || true
     done
 }
@@ -1741,6 +1750,37 @@ helix_rollback_armed() {
     fi
     helix_rollback_disarm
     return 1
+}
+
+# helix_rollback_count NAME: the counter file's value, 0 when absent or garbled.
+helix_rollback_count() {
+    _hrc_v=$(cat "$(helix_rollback_file "$1")" 2>/dev/null || echo 0)
+    case "$_hrc_v" in "" | *[!0-9]*) _hrc_v=0 ;; esac
+    echo "$_hrc_v"
+}
+
+# helix_rollback_set_count NAME VALUE: replace the counter file whole. A power
+# loss mid-write leaves the old value, never an empty file that reads as 0.
+helix_rollback_set_count() {
+    _hsc_f=$(helix_rollback_file "$1")
+    { echo "$2" > "${_hsc_f}.tmp" && mv "${_hsc_f}.tmp" "${_hsc_f}"; } 2>/dev/null
+}
+
+# A guarded launch ended by a recorded stop gives back the start it spent,
+# while the stop budget lasts. The stop is recorded before the start is
+# returned: a power loss between the two writes spends both, and a start is
+# never refunded without its stop on record.
+helix_rollback_refund_start() {
+    [ ! -f "$(helix_rollback_file request)" ] || return 0
+    _hrf_stops=$(helix_rollback_count stops)
+    if [ "$_hrf_stops" -ge "${HELIX_ROLLBACK_MAX_STOPS}" ]; then
+        log "Stop ${_hrf_stops} of the rollback window exceeds HELIX_ROLLBACK_MAX_STOPS; it counts as a start"
+        return 0
+    fi
+    helix_rollback_set_count stops $((_hrf_stops + 1)) || return 0
+    _hrf_starts=$(helix_rollback_count starts)
+    [ "$_hrf_starts" -gt 0 ] || return 0
+    helix_rollback_set_count starts $((_hrf_starts - 1)) || true
 }
 
 # The new version passed: the previous tree is no longer needed.
@@ -1839,7 +1879,8 @@ helix_rollback_watch() {
             fi
             if [ ! -f "$(helix_rollback_file busy)" ]; then
                 { echo units > "$(helix_rollback_file phase)" &&
-                    echo 0 > "$(helix_rollback_file starts)" &&
+                    helix_rollback_set_count starts 0 &&
+                    rm -f "$(helix_rollback_file stops)" &&
                     touch "$(helix_rollback_file handoff)"; } 2>/dev/null || true
                 rm -f "$(helix_rollback_file healthy)" 2>/dev/null || true
                 helix_rollback_stop_child "$2"
@@ -1911,11 +1952,8 @@ while :; do
             helix_rollback_finish_healthy
         else
             rm -f "$(helix_rollback_file healthy)" "$(helix_rollback_file stopping)"                 "$(helix_rollback_file handoff)" 2>/dev/null || true
-            _rb_starts_f=$(helix_rollback_file starts)
-            _rb_starts=$(cat "$_rb_starts_f" 2>/dev/null || echo 0)
-            case "$_rb_starts" in "" | *[!0-9]*) _rb_starts=0 ;; esac
-            _rb_starts=$((_rb_starts + 1))
-            echo "$_rb_starts" > "$_rb_starts_f" 2>/dev/null || true
+            _rb_starts=$(($(helix_rollback_count starts) + 1))
+            helix_rollback_set_count starts "$_rb_starts" || true
             if [ "$_rb_starts" -gt "${HELIX_ROLLBACK_MAX_STARTS}" ]; then
                 if helix_rollback_restore too_many_starts; then
                     cd "${INSTALL_DIR}" 2>/dev/null || true
@@ -1929,7 +1967,7 @@ while :; do
     fi
 
     if [ "${RB_GUARDING}" = "1" ]; then
-        log "Starting v${RB_TO} under the rollback guard (start ${_rb_starts}, window ${HELIX_ROLLBACK_WINDOW}s)"
+        log "Starting v${RB_TO} under the rollback guard (start ${_rb_starts}, $(helix_rollback_count stops) stops, window ${HELIX_ROLLBACK_WINDOW}s)"
         # Present while this guard runs; a healthy finish or a restore drops it
         # with the rest of the trial's files.
         echo "$$" > "$(helix_rollback_file guard)" 2>/dev/null || true
@@ -1951,6 +1989,7 @@ while :; do
         RB_GUARDING=0
         if [ "${HELIX_SHUTTING_DOWN:-0}" = "1" ]; then
             if helix_rollback_marker_present; then
+                helix_rollback_refund_start
                 log "Stopped during the rollback window; the guard resumes on the next start"
             else
                 log "Stopped after v${RB_TO} passed the rollback guard"
@@ -1974,6 +2013,7 @@ while :; do
         fi
         if [ ! -f "$(helix_rollback_file request)" ] && [ -f "$(helix_rollback_file stopping)" ]; then
             rm -f "$(helix_rollback_file stopping)" 2>/dev/null || true
+            helix_rollback_refund_start
             log "v${RB_TO} was stopped during the rollback window; the guard resumes on the next start"
             break
         fi

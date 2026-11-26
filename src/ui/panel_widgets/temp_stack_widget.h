@@ -9,8 +9,12 @@
 #include "async_lifetime_guard.h"
 #include "heater_type.h"
 #include "panel_widget.h"
+#include "stack_shape_subjects.h"
+#include "subject_managed_panel.h"
 
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "hv/json.hpp" // JSON_HPP_OK: config_ held by value
 
@@ -21,7 +25,8 @@ class PrinterState;
 
 class TempStackWidget : public PanelWidget {
   public:
-    TempStackWidget(PrinterState& printer_state, TemperatureService* temp_panel);
+    TempStackWidget(const std::string& instance_id, PrinterState& printer_state,
+                    TemperatureService* temp_panel);
     ~TempStackWidget() override;
 
     void set_config(const nlohmann::json& config) override;
@@ -36,11 +41,23 @@ class TempStackWidget : public PanelWidget {
         return "temp_stack";
     }
     void on_size_changed(int colspan, int rowspan, int width_px, int height_px) override;
+    /// The stack component's per-instance arrangement subjects; the carousel binds none.
+    const char** xml_attrs() const override {
+        return is_carousel_mode() ? nullptr : const_cast<const char**>(attrs_.data());
+    }
 
   private:
+    std::string instance_id_;
     PrinterState& printer_state_;
     TemperatureService* temp_control_panel_;
     nlohmann::json config_;
+
+    // The arrangement the size decided, bound by the stack component. Named
+    // after this instance because two temperature stacks can share the grid.
+    helix::StackShapeSubjects shape_;
+    SubjectManager subjects_;
+    std::vector<std::string> attr_storage_;
+    std::vector<const char*> attrs_;
 
     helix::ui::WidgetRef widget_obj_;
     helix::ui::WidgetRef parent_screen_;

@@ -27,6 +27,17 @@ inline constexpr int kAnalogFaceShuffle = static_cast<int>(kAnalogStyleCount);
 /// picked for the Random screensaver (`random_saver`), never repeats the last one.
 AnalogStyle analog_style_for_run(int setting, bool random_saver, int last, uint32_t draw);
 
+/// The words `text` says at `reading`, in the user's language.
+std::string analog_text_for(const AnalogText& text, const ClockReading& reading);
+
+/// Writes `sim`'s texts at `reading` into the sim's dial, through `text_canvas` (a hidden canvas
+/// that `buf` is pointed at the dial for), so the hands pass over the text. Every host of an
+/// analog face calls this after the sim draws its dial again. With `drop_unfit`, a text even the
+/// smallest font cannot fit in its box is left out rather than drawn past it: a small dial in a
+/// home tile.
+void analog_write_dial_texts(lv_obj_t* text_canvas, lv_draw_buf_t& buf, const AnalogClockSim& sim,
+                             const ClockReading& reading, bool drop_unfit = false);
+
 /**
  * @brief An analog clock with five faces that shows a running print its own way
  *
@@ -60,8 +71,6 @@ class AnalogClockScreensaver : public SimSaver<AnalogClockSim> {
     }
     /// Writes the sim's texts into its dial.
     void write_texts();
-    /// The words for `text` at the current reading.
-    std::string text_for(const AnalogText& text) const;
 
     ClockState clock_;
     AnalogStyle style_ = AnalogStyle::CHRONOGRAPH;

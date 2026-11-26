@@ -16,6 +16,7 @@
 #include "ams_backend_ad5x_ifs.h"
 #include "ams_state.h"
 #include "ams_types.h"
+#include "json_utils.h"
 #include "printer_discovery.h"
 #include "test_helpers/ad5x_ifs_test_access.h"
 #include "test_helpers/backend_harness.h"
@@ -109,8 +110,13 @@ class TestableModuleBackend : public AmsBackendAd5xIfs {
 
     helix::AmsError execute_gcode(const std::string& gcode) override {
         captured_gcodes.push_back(gcode);
+        if (fail_gcode) {
+            return helix::AmsErrorHelper::command_failed(gcode, "refused");
+        }
         return helix::AmsErrorHelper::success();
     }
+    /// The next commands fail, as a printer refusing them would.
+    bool fail_gcode = false;
     helix::AmsError execute_gcode(const std::string& gcode,
                                   helix::SharedCallback<void()>) override {
         captured_gcodes.push_back(gcode);
@@ -1248,4 +1254,425 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     ams.clear_backends();
     ams.deinit_subjects();
+}
+
+// ============================================================================
+// A firmware that writes lane_data itself (helix::lane_writer)
+// ============================================================================
+
+namespace {
+
+json plugins_frame(const char* api_version) {
+    return json{{"ad5x_plugins", {{"api_version", api_version}, {"enabled", json::array()}}}};
+}
+
+helix::PrinterDiscovery module_discovery(bool with_plugins) {
+    helix::PrinterDiscovery hw;
+    std::vector<std::string> objects{"toolhead", "extruder", "save_variables", "ifs",
+                                     "ifs_materials"};
+    if (with_plugins) {
+        objects.emplace_back("ad5x_plugins");
+    }
+    hw.set_printer_objects(objects);
+    return hw;
+}
+
+/// A module backend wired, registered (so its lanes file), told what the
+/// objects list holds, and started.
+struct LaneWriterRig {
+    explicit LaneWriterRig(bool with_plugins) : backend(*registered) {
+        backend.set_discovery(module_discovery(with_plugins));
+        REQUIRE(backend.start().success());
+        helix::ui::UpdateQueue::instance().drain();
+    }
+    /// The namespaces every database write so far went to.
+    std::vector<std::string> written_namespaces() {
+        std::vector<std::string> out;
+        for (const auto& call : backend.wire().fake_client().rpc_calls) {
+            if (call.method == "server.database.post_item") {
+                out.push_back(helix::json_util::safe_string(call.params, "namespace"));
+            }
+        }
+        return out;
+    }
+    bool wrote_to(const std::string& ns) {
+        const auto all = written_namespaces();
+        return std::find(all.begin(), all.end(), ns) != all.end();
+    }
+    helix::test::RegisteredBackend<helix::test::WiredBackend<TestableModuleBackend>> registered;
+    helix::test::WiredBackend<TestableModuleBackend>& backend;
+};
+
+/// The writes so far to @p ns, as {key, value}.
+std::vector<std::pair<std::string, json>> writes_to(LaneWriterRig& rig, const std::string& ns) {
+    std::vector<std::pair<std::string, json>> out;
+    for (const auto& call : rig.backend.wire().fake_client().rpc_calls) {
+        if (call.method == "server.database.post_item" &&
+            helix::json_util::safe_string(call.params, "namespace") == ns) {
+            out.emplace_back(helix::json_util::safe_string(call.params, "key"),
+                             call.params.contains("value") ? call.params["value"] : json());
+        }
+    }
+    return out;
+}
+
+/// The queries for who writes lane_data: the ones naming ad5x_plugins.
+std::vector<const helix::test::FakeMoonrakerClient::RpcCall*>
+lane_writer_queries(LaneWriterRig& rig) {
+    std::vector<const helix::test::FakeMoonrakerClient::RpcCall*> out;
+    for (const auto& call : rig.backend.wire().fake_client().rpc_calls) {
+        if (call.method == "printer.objects.query" && call.params.contains("objects") &&
+            call.params["objects"].contains("ad5x_plugins")) {
+            out.push_back(&call);
+        }
+    }
+    return out;
+}
+
+helix::SlotInfo linked_spool_edit() {
+    helix::SlotInfo info;
+    info.color_rgb = 0x7EC8E3;
+    info.material = "PLA";
+    info.brand = "Polymaker";
+    info.spool_name = "Matte PLA";
+    info.spoolman_id = 42;
+    return info;
+}
+
+} // namespace
+
+TEST_CASE("AD5X IFS on a firmware that writes lane_data sends the whole slot identity",
+          "[ams][ad5x_ifs][ifs_module][lane_writer]") {
+    LaneWriterRig rig(/*with_plugins=*/true);
+    rig.backend.fire_status(plugins_frame("1.12"));
+    rig.backend.fire_status(module_ifs_frame(0, {1, 2, 3, 4}));
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(rig.backend.firmware_writes_lane_records() == true);
+
+    SECTION("a Generic preset and an unset bed temperature are left to the firmware") {
+        REQUIRE(helix::test::apply_edit(rig.backend, 1, linked_spool_edit()).success());
+        CHECK(rig.backend.captured_gcodes ==
+              std::vector<std::string>{"IFS_SET_MATERIAL SLOT=2 TYPE=PLA COLOR=7EC8E3 SPOOL_ID=42 "
+                                       "VENDOR=\"Polymaker\" NAME=\"Matte PLA\" FILAMENT_ID= "
+                                       "BED_TEMP="});
+    }
+    SECTION("a product's Orca id and a set bed temperature go out") {
+        helix::SlotInfo info = linked_spool_edit();
+        info.spoolman_orca_filament_id = "GFL99";
+        info.bed_temp = 65;
+        REQUIRE(helix::test::apply_edit(rig.backend, 1, info).success());
+        CHECK(rig.backend.captured_gcodes ==
+              std::vector<std::string>{"IFS_SET_MATERIAL SLOT=2 TYPE=PLA COLOR=7EC8E3 SPOOL_ID=42 "
+                                       "VENDOR=\"Polymaker\" NAME=\"Matte PLA\" "
+                                       "FILAMENT_ID=\"GFL99\" BED_TEMP=65"});
+    }
+
+    // Our own notes go to the private namespace; lane_data is the firmware's.
+    CHECK(rig.wrote_to(AmsBackendAd5xIfs::kOverrideNamespace));
+    CHECK_FALSE(rig.wrote_to("lane_data"));
+}
+
+TEST_CASE("AD5X IFS refuses an edit until the firmware says who writes lane_data",
+          "[ams][ad5x_ifs][ifs_module][lane_writer]") {
+    LaneWriterRig rig(/*with_plugins=*/true);
+    rig.backend.fire_status(module_ifs_frame(0, {1, 2, 3, 4}));
+    rig.backend.fire_status(module_materials_frame());
+    const helix::AmsError refused = helix::test::apply_edit(rig.backend, 1, linked_spool_edit());
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(refused.result == helix::AmsResult::BUSY);
+    CHECK_FALSE(rig.backend.firmware_writes_lane_records().has_value());
+    CHECK(rig.written_namespaces().empty());
+    CHECK(rig.backend.captured_gcodes.empty());
+
+    // Once it has said, the same edit goes out as it now must.
+    rig.backend.fire_status(plugins_frame("1.12"));
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    REQUIRE(helix::test::apply_edit(rig.backend, 1, linked_spool_edit()).success());
+    REQUIRE(rig.backend.captured_gcodes.size() == 1);
+    CHECK(rig.backend.captured_gcodes.front().rfind(
+              "IFS_SET_MATERIAL SLOT=2 TYPE=PLA COLOR=7EC8E3 SPOOL_ID=42 ", 0) == 0);
+    CHECK_FALSE(rig.wrote_to("lane_data"));
+}
+
+TEST_CASE("AD5X IFS asks again from the start once stopped and started",
+          "[ams][ad5x_ifs][ifs_module][lane_writer]") {
+    LaneWriterRig rig(/*with_plugins=*/true);
+    rig.backend.fire_status(plugins_frame("1.12"));
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    REQUIRE(rig.backend.firmware_writes_lane_records() == true);
+
+    rig.backend.stop();
+    CHECK_FALSE(rig.backend.firmware_writes_lane_records().has_value());
+    REQUIRE(rig.backend.start().success());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK_FALSE(rig.backend.firmware_writes_lane_records().has_value());
+    rig.backend.fire_status(plugins_frame("1.11"));
+    CHECK(rig.backend.firmware_writes_lane_records() == false);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "AD5X IFS asks again when the lane_data writer query fails",
+                 "[ams][ad5x_ifs][ifs_module][lane_writer]") {
+    LaneWriterRig rig(/*with_plugins=*/true);
+    REQUIRE(lane_writer_queries(rig).size() == 1);
+    // Each ask carries its own short timeout.
+    CHECK(lane_writer_queries(rig).back()->timeout_ms ==
+          AmsBackendAd5xIfs::kLaneWriterQueryTimeoutMs);
+    const auto fail_last = [&rig](const MoonrakerError& err) {
+        lane_writer_queries(rig).back()->error_cb(err);
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+    };
+    const auto wait_ms = [this](int ms) {
+        process_lvgl(ms);
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+    };
+    const MoonrakerError timed_out = MoonrakerError::timeout("printer.objects.query", 5000);
+
+    SECTION("a failed ask waits before it asks again, and an answer opens the store") {
+        fail_last(timed_out);
+        CHECK(lane_writer_queries(rig).size() == 1);
+        wait_ms(AmsBackendAd5xIfs::kLaneWriterRetryDelaysMs[0] + 100);
+        const auto queries = lane_writer_queries(rig);
+        REQUIRE(queries.size() == 2);
+        CHECK_FALSE(rig.backend.firmware_writes_lane_records().has_value());
+        queries.back()->success_cb(json{{"result", {{"status", plugins_frame("1.12")}}}});
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        CHECK(rig.backend.firmware_writes_lane_records() == true);
+    }
+    SECTION("asks that keep failing leave HelixScreen the writer once the waits run out") {
+        for (const uint32_t delay : AmsBackendAd5xIfs::kLaneWriterRetryDelaysMs) {
+            fail_last(timed_out);
+            CHECK_FALSE(rig.backend.firmware_writes_lane_records().has_value());
+            wait_ms(static_cast<int>(delay) + 100);
+        }
+        CHECK(lane_writer_queries(rig).size() ==
+              AmsBackendAd5xIfs::kLaneWriterRetryDelaysMs.size() + 1);
+        fail_last(timed_out);
+        CHECK(rig.backend.firmware_writes_lane_records() == false);
+    }
+    SECTION("Klipper not ready is no answer: the ask waits for it") {
+        for (int i = 0; i < 6; ++i) {
+            fail_last(
+                MoonrakerError::not_ready("printer.objects.query", "Klippy host not connected"));
+            wait_ms(20000);
+        }
+        CHECK(lane_writer_queries(rig).size() == 1);
+        CHECK_FALSE(rig.backend.firmware_writes_lane_records().has_value());
+        REQUIRE(rig.backend.wire().fake_client().fire_notification("notify_klippy_ready",
+                                                                   json::object()));
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        CHECK(lane_writer_queries(rig).size() == 2);
+    }
+    SECTION("a reply without the version leaves HelixScreen the writer") {
+        lane_writer_queries(rig).back()->success_cb(
+            json{{"result", {{"status", {{"ad5x_plugins", json::object()}}}}}});
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        CHECK(rig.backend.firmware_writes_lane_records() == false);
+        rig.backend.fire_status(module_ifs_frame(0, {1, 2, 3, 4}));
+        REQUIRE(helix::test::apply_edit(rig.backend, 1, linked_spool_edit()).success());
+        CHECK(rig.wrote_to("lane_data"));
+    }
+}
+
+TEST_CASE("AD5X IFS stays the lane_data writer below the firmware version that writes it",
+          "[ams][ad5x_ifs][ifs_module][lane_writer]") {
+    const bool with_plugins = GENERATE(true, false);
+    CAPTURE(with_plugins);
+    LaneWriterRig rig(with_plugins);
+    if (with_plugins) {
+        rig.backend.fire_status(plugins_frame("1.11"));
+    } else {
+        // No such firmware: the store opens at start, as it always has.
+        CHECK_FALSE(rig.backend.firmware_writes_lane_records().value_or(true));
+    }
+    rig.backend.fire_status(module_ifs_frame(0, {1, 2, 3, 4}));
+    helix::ui::UpdateQueue::instance().drain();
+
+    REQUIRE(helix::test::apply_edit(rig.backend, 1, linked_spool_edit()).success());
+
+    CHECK(rig.backend.captured_gcodes ==
+          std::vector<std::string>{"IFS_SET_MATERIAL SLOT=2 TYPE=PLA COLOR=7EC8E3"});
+    CHECK(rig.wrote_to("lane_data"));
+    CHECK_FALSE(rig.wrote_to(AmsBackendAd5xIfs::kOverrideNamespace));
+}
+
+TEST_CASE("AD5X IFS keeps the firmware the lane_data writer for the session",
+          "[ams][ad5x_ifs][ifs_module][lane_writer]") {
+    LaneWriterRig rig(/*with_plugins=*/true);
+    rig.backend.fire_status(plugins_frame("1.12"));
+    rig.backend.fire_status(plugins_frame("1.11"));
+    rig.backend.fire_status(module_ifs_frame(0, {1, 2, 3, 4}));
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(rig.backend.firmware_writes_lane_records() == true);
+
+    REQUIRE(helix::test::apply_edit(rig.backend, 1, linked_spool_edit()).success());
+    CHECK_FALSE(rig.wrote_to("lane_data"));
+}
+
+TEST_CASE("AD5X IFS reads the spool link from the firmware's own lane_data records",
+          "[ams][ad5x_ifs][ifs_module][lane_writer]") {
+    LaneWriterRig rig(/*with_plugins=*/true);
+    rig.backend.wire().respond_to_namespace("lane_data", {{"lane1",
+                                                           {{"lane", "0"},
+                                                            {"material", "PLA"},
+                                                            {"color", "#A03CF7"},
+                                                            {"spool_id", 7},
+                                                            {"vendor_name", "Polymaker"},
+                                                            {"name", "Galaxy"},
+                                                            {"filament_id", "GFL99"}}}});
+    rig.backend.fire_status(plugins_frame("1.12"));
+    rig.backend.fire_status(module_ifs_frame(0, {1, 2, 3, 4}));
+    rig.backend.fire_status(module_materials_frame());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+
+    // The private store is empty, so all three are the firmware's.
+    const helix::SlotInfo slot = rig.backend.get_slot_info(0);
+    CHECK(slot.spoolman_id == 7);
+    CHECK(slot.brand == "Polymaker");
+    CHECK(slot.spool_name == "Galaxy");
+    CHECK(slot.material == "PLA");
+}
+
+TEST_CASE("AD5X IFS keeps an edit's spool link until the firmware's record catches up",
+          "[ams][ad5x_ifs][ifs_module][lane_writer]") {
+    LaneWriterRig rig(/*with_plugins=*/true);
+    // Our private write lands, so the reads after it are filed.
+    rig.backend.wire().respond_to("server.database.post_item", json::object());
+    // The firmware's record still names the spool the edit replaces.
+    rig.backend.wire().respond_to_namespace(
+        "lane_data",
+        {{"lane2",
+          {{"lane", "1"}, {"material", "PETG"}, {"spool_id", 7}, {"vendor_name", "Old"}}}});
+    rig.backend.fire_status(plugins_frame("1.12"));
+    rig.backend.fire_status(module_ifs_frame(0, {1, 2, 3, 4}));
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    REQUIRE(rig.backend.get_slot_info(1).spoolman_id == 7);
+
+    REQUIRE(helix::test::apply_edit(rig.backend, 1, linked_spool_edit()).success());
+    // The command's echo, and the read of our own private record, which
+    // repaints every slot, while the firmware's record still lags behind.
+    rig.backend.fire_status(
+        json{{"ifs_materials", {{"slots", {{"2", {{"type", "PLA"}, {"color", "#7EC8E3"}}}}}}}});
+    rig.backend.wire().respond_to_namespace(
+        AmsBackendAd5xIfs::kOverrideNamespace,
+        {{"lane2", {{"lane", "1"}, {"helix_color_name", "Ice Blue"}}}});
+    rig.backend.request_resync();
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(rig.backend.get_slot_info(1).spoolman_id == 42);
+    CHECK(rig.backend.get_slot_info(1).brand == "Polymaker");
+
+    // Once the record names the edit's spool, it is the reading again.
+    rig.backend.wire().respond_to_namespace("lane_data", {{"lane2",
+                                                           {{"lane", "1"},
+                                                            {"material", "PLA"},
+                                                            {"spool_id", 42},
+                                                            {"vendor_name", "Polymaker"},
+                                                            {"name", "Matte PLA"}}}});
+    rig.backend.request_resync();
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(rig.backend.get_slot_info(1).spoolman_id == 42);
+}
+
+TEST_CASE("AD5X IFS shows no spool link from an edit the printer refused",
+          "[ams][ad5x_ifs][ifs_module][lane_writer]") {
+    LaneWriterRig rig(/*with_plugins=*/true);
+    rig.backend.wire().respond_to_namespace(
+        "lane_data",
+        {{"lane2",
+          {{"lane", "1"}, {"material", "PETG"}, {"spool_id", 7}, {"vendor_name", "Old"}}}});
+    rig.backend.fire_status(plugins_frame("1.12"));
+    rig.backend.fire_status(module_ifs_frame(0, {1, 2, 3, 4}));
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+
+    rig.backend.fail_gcode = true;
+    REQUIRE_FALSE(helix::test::apply_edit(rig.backend, 1, linked_spool_edit()).success());
+    // The next frame repaints the slot from what the firmware states.
+    rig.backend.fire_status(module_materials_frame());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(rig.backend.get_slot_info(1).spoolman_id == 7);
+}
+
+TEST_CASE("AD5X IFS carries its own lane_data notes into an empty private store",
+          "[ams][ad5x_ifs][ifs_module][lane_writer]") {
+    LaneWriterRig rig(/*with_plugins=*/true);
+    const json ours{{"lane", "0"},
+                    {"writer", "helixscreen"},
+                    {"material", "PLA"},
+                    {"color", "#A03CF7"},
+                    {"spool_id", 7},
+                    {"total_weight_g", 1000.0},
+                    {"helix_color_name", "Sunset Violet"}};
+    // Kiln may have signed one of ours before it was read: our keys still say whose.
+    const json resigned{
+        {"lane", "2"}, {"writer", "kiln"}, {"material", "ABS"}, {"helix_catalog_id", "pick-3"}};
+    const json kilns{{"lane", "1"}, {"writer", "kiln"}, {"material", "PETG"}};
+    rig.backend.wire().respond_to_namespace(
+        "lane_data", {{"lane1", ours}, {"lane2", kilns}, {"lane3", resigned}});
+
+    SECTION("an empty private store takes them once") {
+        rig.backend.wire().respond_to_namespace(AmsBackendAd5xIfs::kOverrideNamespace,
+                                                json::object());
+        rig.backend.fire_status(plugins_frame("1.12"));
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+
+        auto carried = writes_to(rig, AmsBackendAd5xIfs::kOverrideNamespace);
+        std::sort(carried.begin(), carried.end(),
+                  [](const auto& a, const auto& b) { return a.first < b.first; });
+        REQUIRE(carried.size() == 2);
+        CHECK(carried[0].first == "lane1");
+        CHECK(carried[0].second["helix_color_name"] == "Sunset Violet");
+        CHECK(carried[0].second["total_weight_g"] == 1000.0);
+        // A private record keeps no spool id: the firmware's is the lane's.
+        CHECK(carried[0].second["spool_id"].is_null());
+        CHECK(carried[1].first == "lane3");
+        CHECK(carried[1].second["helix_catalog_id"] == "pick-3");
+        CHECK(writes_to(rig, "lane_data").empty());
+
+        // A later read finds the private store holding them: nothing again.
+        rig.backend.request_resync();
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        CHECK(writes_to(rig, AmsBackendAd5xIfs::kOverrideNamespace).size() == 2);
+    }
+    SECTION("an edit made before lane_data is read keeps its record") {
+        rig.backend.wire().respond_to_namespace(AmsBackendAd5xIfs::kOverrideNamespace,
+                                                json::object());
+        rig.backend.wire().hold_namespace("lane_data");
+        rig.backend.fire_status(plugins_frame("1.12"));
+        rig.backend.fire_status(module_ifs_frame(0, {1, 2, 3, 4}));
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+
+        helix::SlotInfo edit = linked_spool_edit();
+        edit.color_name = "Ice Blue";
+        REQUIRE(helix::test::apply_edit(rig.backend, 0, edit).success());
+
+        // Now the lane_data read lands, ours for lane 1 among it.
+        const helix::test::FakeMoonrakerClient::RpcCall* read = nullptr;
+        for (const auto& call : rig.backend.wire().fake_client().rpc_calls) {
+            if (call.method == "server.database.get_item" &&
+                helix::json_util::safe_string(call.params, "namespace") == "lane_data") {
+                read = &call;
+            }
+        }
+        REQUIRE(read != nullptr);
+        read->success_cb(json{{"result", {{"value", {{"lane1", ours}, {"lane3", resigned}}}}}});
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+
+        // Lane 1 holds the edit's record only; lane 3 is carried.
+        std::vector<std::string> lane1_names;
+        for (const auto& [key, value] : writes_to(rig, AmsBackendAd5xIfs::kOverrideNamespace)) {
+            if (key == "lane1") {
+                lane1_names.push_back(helix::json_util::safe_string(value, "helix_color_name"));
+            }
+        }
+        CHECK(lane1_names == std::vector<std::string>{"Ice Blue"});
+        CHECK(writes_to(rig, AmsBackendAd5xIfs::kOverrideNamespace).size() == 2);
+    }
+    SECTION("a private store already holding records takes nothing") {
+        rig.backend.wire().respond_to_namespace(
+            AmsBackendAd5xIfs::kOverrideNamespace,
+            {{"lane3", {{"lane", "2"}, {"helix_color_name", "Kept"}}}});
+        rig.backend.fire_status(plugins_frame("1.12"));
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        CHECK(writes_to(rig, AmsBackendAd5xIfs::kOverrideNamespace).empty());
+    }
 }

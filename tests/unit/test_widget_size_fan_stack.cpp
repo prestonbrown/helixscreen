@@ -57,8 +57,10 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "core/update_queue.h"
+#include "display_settings_manager.h"
 #include "panel_widget_size.h"
 #include "src/ui/panel_widgets/fan_stack_widget.h"
+#include "ui/fan_spin_animation.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -624,4 +626,125 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack carousel pages show the fan's arc
     CHECK(lv_color_eq(lv_obj_get_style_text_color(name, LV_PART_MAIN),
                       theme_manager_get_color("text_muted")));
     CHECK(lv_obj_get_style_pad_bottom(page, LV_PART_MAIN) == theme_manager_get_spacing("space_lg"));
+}
+
+// A box wider than a cell puts one fan per column, glyph over name and speed,
+// instead of leaving the width empty (prestonbrown/helixscreen#2198).
+TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack at 2x1 lays the fans side by side",
+                 "[widget_size][fan_stack][wide]") {
+    require_font_tokens_distinct();
+    state().fan_state().init_fans(
+        {"fan", "heater_fan hotend_fan", "fan_generic chamber_circulation"});
+    helix::ui::UpdateQueue::instance().drain();
+
+    PanelWidgetHarness<FanStackWidget> h(test_screen(), "fan_stack", state());
+    lv_obj_t* part_row = h.child("fan_stack_part_row");
+    lv_obj_t* hotend_row = h.child("fan_stack_hotend_row");
+    lv_obj_t* aux_row = h.child("fan_stack_aux_row");
+    lv_obj_t* part_icon = h.child("fan_stack_part_icon");
+    lv_obj_t* part_value = h.child("fan_stack_part_value");
+    lv_obj_t* hotend_value = h.child("fan_stack_hotend_value");
+    lv_obj_t* aux_value = h.child("fan_stack_aux_value");
+    REQUIRE(part_row != nullptr);
+    REQUIRE(!lv_obj_is_hidden(aux_row));
+
+    // 2x1 cells = 4x2 tracks.
+    h.resize(4, 2, 2 * w_normal() + 40, 4 * h_tall() / 3);
+    process_lvgl(30);
+    lv_obj_update_layout(h.root());
+
+    CHECK(lv_obj_get_style_flex_flow(h.root(), LV_PART_MAIN) == LV_FLEX_FLOW_ROW);
+    CHECK(lv_obj_get_y(part_row) == lv_obj_get_y(hotend_row));
+    CHECK(lv_obj_get_y(hotend_row) == lv_obj_get_y(aux_row));
+    CHECK(lv_obj_get_x(part_row) + lv_obj_get_width(part_row) <= lv_obj_get_x(hotend_row));
+    CHECK(lv_obj_get_x(hotend_row) + lv_obj_get_width(hotend_row) <= lv_obj_get_x(aux_row));
+    CHECK(lv_obj_get_x(aux_row) + lv_obj_get_width(aux_row) <= lv_obj_get_width(h.root()));
+
+    // Glyph over a large speed over a small name, each pair inside its own column.
+    lv_obj_t* part_speed = h.child("fan_stack_part_speed");
+    lv_obj_t* part_name = h.child("fan_stack_part_name");
+    CHECK(lv_obj_get_y(part_icon) + lv_obj_get_height(part_icon) <= lv_obj_get_y(part_value));
+    CHECK(lv_obj_get_y(part_speed) + lv_obj_get_height(part_speed) <= lv_obj_get_y(part_name));
+    CHECK(lv_obj_get_style_text_font(part_speed, LV_PART_MAIN)->line_height >
+          lv_obj_get_style_text_font(part_name, LV_PART_MAIN)->line_height);
+    for (lv_obj_t* value : {part_value, hotend_value, aux_value}) {
+        lv_obj_t* col = lv_obj_get_parent(value);
+        CHECK(lv_obj_get_x(value) >= 0);
+        CHECK(lv_obj_get_x(value) + lv_obj_get_width(value) <= lv_obj_get_width(col));
+    }
+
+    // One cell again: rows stack in a column.
+    h.resize(2, 2, w_normal() - 1, h_tall() - 1);
+    process_lvgl(30);
+    CHECK(lv_obj_get_style_flex_flow(h.root(), LV_PART_MAIN) == LV_FLEX_FLOW_COLUMN);
+    CHECK(lv_obj_get_y(part_row) < lv_obj_get_y(hotend_row));
+}
+
+// The columns draw the fan glyph larger; it must still turn about its own
+// center, in proportion to the speed, when animations are on.
+TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack columns spin a bigger glyph about its center",
+                 "[widget_size][fan_stack][wide]") {
+    require_font_tokens_distinct();
+    auto& display = helix::DisplaySettingsManager::instance();
+    // Restores the setting on every exit, including a failed REQUIRE.
+    struct AnimationsGuard {
+        helix::DisplaySettingsManager& display;
+        bool previous;
+        ~AnimationsGuard() {
+            display.set_animations_enabled(previous);
+        }
+    } animations_guard{display, display.get_animations_enabled()};
+    display.set_animations_enabled(true);
+
+    state().fan_state().init_fans(
+        {"fan", "heater_fan hotend_fan", "fan_generic chamber_circulation"});
+    state().fan_state().update_fan_speed("fan", 0.35);
+    helix::ui::UpdateQueue::instance().drain();
+
+    {
+        PanelWidgetHarness<FanStackWidget> h(test_screen(), "fan_stack", state());
+        lv_obj_t* icon = h.child("fan_stack_part_icon");
+        lv_obj_t* row = h.child("fan_stack_part_row");
+        REQUIRE(icon != nullptr);
+
+        h.resize(4, 2, 2 * w_normal() + 40, 4 * h_tall() / 3);
+        process_lvgl(30);
+        lv_obj_update_layout(h.root());
+        REQUIRE(lv_obj_get_style_flex_flow(h.root(), LV_PART_MAIN) == LV_FLEX_FLOW_ROW);
+
+        // Larger than the 24px glyph the stacked rows use.
+        CHECK(lv_obj_get_style_text_font(icon, LV_PART_MAIN)->line_height >
+              mdi_icons_24.line_height);
+
+        // Spinning, about the glyph's own center rather than a corner, and the
+        // glyph sits centered in its column so the spin stays in the column.
+        CHECK(lv_anim_get(icon, helix::ui::fan_spin_anim_cb) != nullptr);
+        CHECK(lv_obj_get_style_transform_pivot_x(icon, LV_PART_MAIN) == LV_PCT(50));
+        CHECK(lv_obj_get_style_transform_pivot_y(icon, LV_PART_MAIN) == LV_PCT(50));
+        const int icon_mid = lv_obj_get_x(icon) + lv_obj_get_width(icon) / 2;
+        CHECK(std::abs(icon_mid - lv_obj_get_width(row) / 2) <= 2);
+    }
+}
+
+// The 800x480 2x1 grant (233x112) is tall enough for the heading-size speed;
+// a larger margin than the columns need would step it down a tier (prestonbrown/helixscreen#2198).
+TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack 2x1 columns take the heading speed font",
+                 "[widget_size][fan_stack][wide]") {
+    require_font_tokens_distinct();
+    state().fan_state().init_fans(
+        {"fan", "heater_fan hotend_fan", "fan_generic chamber_circulation"});
+    helix::ui::UpdateQueue::instance().drain();
+
+    PanelWidgetHarness<FanStackWidget> h(test_screen(), "fan_stack", state());
+    h.resize(4, 2, 233, 112);
+    process_lvgl(30);
+
+    REQUIRE(lv_obj_get_style_flex_flow(h.root(), LV_PART_MAIN) == LV_FLEX_FLOW_ROW);
+    CHECK(lv_obj_get_style_text_font(h.child("fan_stack_part_speed"), LV_PART_MAIN) ==
+          theme_manager_get_font("font_heading"));
+    // The glyph is the largest that suits the heading speed (at most twice its
+    // line height), never the 16px of a one-cell box.
+    const lv_font_t* glyph =
+        lv_obj_get_style_text_font(h.child("fan_stack_part_icon"), LV_PART_MAIN);
+    CHECK(glyph->line_height >= mdi_icons_24.line_height);
 }

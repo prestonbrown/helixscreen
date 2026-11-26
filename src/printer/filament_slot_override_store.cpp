@@ -120,6 +120,23 @@ bool is_bypass_record(const nlohmann::json& record) {
            helix::json_util::safe_bool(record, "helix_external", false);
 }
 
+OrcaFilamentId orca_filament_id_for(const FilamentSlotOverride& o) {
+    if (o.spoolman_id > 0 && !o.spoolman_orca_filament_id.empty())
+        return {o.spoolman_orca_filament_id, kFilamentIdSourceSpoolman};
+    if (std::string orca = helix::printer::FilamentCatalog::orca_id_for(o.catalog_id);
+        !orca.empty())
+        return {std::move(orca), nullptr};
+    // The same "Generic <family> @System" Orca's own
+    // map_filament_type_to_generic_id targets.
+    const std::string match =
+        o.material.empty() ? std::string{} : filament::orca_match_type(o.material);
+    if (std::string generic =
+            helix::printer::FilamentCatalog::generic_orca_id_for(o.material, match);
+        !generic.empty())
+        return {std::move(generic), kFilamentIdSourceGeneric, /*generic=*/true};
+    return {};
+}
+
 nlohmann::json to_lane_data_record(int slot_index, const FilamentSlotOverride& o,
                                    LaneKeyStyle style) {
     nlohmann::json j;
@@ -166,26 +183,13 @@ nlohmann::json to_lane_data_record(int slot_index, const FilamentSlotOverride& o
     j["name"] = text_or_null(o.spool_name);
     j["spool_id"] = positive_or_null(o.spoolman_id);
     j["spoolman_filament_id"] = positive_or_null(o.spoolman_filament_id);
-    // The linked spool's own Orca id first, because the tracker wins on
-    // identity (Lane Status Surface §6); then an id the catalog records for this one
-    // product. Failing both, the family's Generic preset: the same
-    // "Generic <family> @System" Orca's own map_filament_type_to_generic_id
-    // targets, a material claim rather than a product one. Orca reads
-    // filament_id and never vendor_name, and on a null id it picks the first
-    // visible preset of the type, of any brand and any bed temperature.
-    j["filament_id"] = nullptr;
-    if (o.spoolman_id > 0 && !o.spoolman_orca_filament_id.empty()) {
-        j["filament_id"] = o.spoolman_orca_filament_id;
-        j["helix_filament_id_source"] = kFilamentIdSourceSpoolman;
-    } else if (std::string orca = helix::printer::FilamentCatalog::orca_id_for(o.catalog_id);
-               !orca.empty()) {
-        j["filament_id"] = std::move(orca);
-    } else if (std::string generic =
-                   helix::printer::FilamentCatalog::generic_orca_id_for(o.material, match);
-               !generic.empty()) {
-        j["filament_id"] = std::move(generic);
-        j["helix_filament_id_source"] = kFilamentIdSourceGeneric;
-    }
+    // Orca reads filament_id and never vendor_name, and on a null id it picks
+    // the first visible preset of the type, of any brand and any bed
+    // temperature (orca_filament_id_for() says which id).
+    OrcaFilamentId orca = orca_filament_id_for(o);
+    j["filament_id"] = orca.id.empty() ? nlohmann::json(nullptr) : nlohmann::json(orca.id);
+    if (orca.source != nullptr)
+        j["helix_filament_id_source"] = orca.source;
     // Resolved at emit time, so a material change picks up fresh defaults.
     const ResolvedTemps temps = resolved_temps(o);
     j["bed_temp"] = positive_or_null(temps.bed_temp);

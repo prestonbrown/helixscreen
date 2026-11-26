@@ -89,6 +89,14 @@ class TestableNMBackend : public WifiBackendNetworkManager {
         running_ = true;
         wifi_interface_ = iface;
     }
+
+    /// Run production's status thread, reading link events from @p events in
+    /// place of the kernel socket start() opens. stop() joins it.
+    void run_status_thread(std::unique_ptr<helix::net::LinkEvents> events) {
+        link_events_ = std::move(events);
+        status_running_ = true;
+        status_thread_ = std::thread(&WifiBackendNetworkManager::status_thread_func, this);
+    }
 };
 
 // nmcli Field Splitting Tests
@@ -184,6 +192,10 @@ if [ "$n" -eq 1 ] && [ "$NMCLI_FAIL_FIRST" = "1" ]; then
   echo "Error: 802-11-wireless-security.key-mgmt: property is missing." >&2
   exit 1
 fi
+if [ -n "$NMCLI_DEVICE_DIR" ] && [ "$4" = "device" ] && [ "$5" = "show" ]; then
+  cat "$NMCLI_DEVICE_DIR/$3" 2>/dev/null
+  exit 0
+fi
 while [ -n "$NMCLI_HOLD" ] && [ -e "$NMCLI_HOLD" ]; do sleep 0.05; done
 printf '%s\n' "$@" > "$NMCLI_ARGV"
 exit 0
@@ -195,8 +207,8 @@ exit 0
         ::setenv("NMCLI_COUNT", count_file.c_str(), 1);
     }
     ~FakeNmcliDir() {
-        for (const char* var :
-             {"NMCLI_ARGV", "NMCLI_COUNT", "NMCLI_FAIL_FIRST", "NMCLI_FAIL_ALL", "NMCLI_HOLD"}) {
+        for (const char* var : {"NMCLI_ARGV", "NMCLI_COUNT", "NMCLI_FAIL_FIRST", "NMCLI_FAIL_ALL",
+                                "NMCLI_HOLD", "NMCLI_DEVICE_DIR"}) {
             ::unsetenv(var);
         }
         std::error_code ec;
@@ -221,6 +233,19 @@ exit 0
     /// Every invocation fails with `stderr_line` on stderr and nothing on stdout.
     void fail_all(const char* stderr_line) {
         ::setenv("NMCLI_FAIL_ALL", stderr_line, 1);
+    }
+
+    /// `nmcli -t -f GENERAL|IP4.ADDRESS device show <iface>` answer with this
+    /// device state and address (empty: none), as NetworkManager would.
+    void set_device(const char* general_state, const char* ip4) {
+        ::setenv("NMCLI_DEVICE_DIR", dir.c_str(), 1);
+        write_atomically("GENERAL", std::string("GENERAL.STATE:") + general_state + "\n");
+        write_atomically("IP4.ADDRESS",
+                         *ip4 ? std::string("IP4.ADDRESS[1]:") + ip4 + "/24\n" : std::string());
+    }
+    void write_atomically(const std::string& name, const std::string& body) {
+        std::ofstream(dir + "/" + name + ".tmp") << body;
+        std::filesystem::rename(dir + "/" + name + ".tmp", dir + "/" + name);
     }
 
     /// How many times the fake nmcli was exec'd.
@@ -960,6 +985,31 @@ TEST_CASE("NM backend: polls while DHCP is pending", "[network][nm][status][wifi
         CHECK(backend.feed_status(st).empty());
         CHECK(changes == 1);
     }
+}
+
+TEST_CASE("NM backend: a link leaving the activated state clears the address at once",
+          "[network][nm][status][link_events]") {
+    FakeNmcliDir fake;
+    ScopedPathPrepend path_prepend(fake.dir);
+    fake.set_device("100 (connected)", "10.0.0.9");
+    std::atomic<int> disconnects{0};
+    auto link_generation = std::make_shared<std::atomic<unsigned>>(0);
+    TestableNMBackend backend;
+    backend.force_running("wlan0");
+    backend.register_event_callback("DISCONNECTED", [&](const std::string&) { disconnects++; });
+    backend.run_status_thread(std::make_unique<helix::net::CounterLinkEvents>(link_generation));
+    REQUIRE(helix_test::wait_until([&] { return backend.get_status().ip_address == "10.0.0.9"; },
+                                   8000));
+
+    // NetworkManager removes the address as it deactivates the link; the
+    // kernel announces that, well inside the 5 s between timed polls.
+    fake.set_device("110 (deactivating)", "");
+    link_generation->fetch_add(1);
+    CHECK(helix_test::wait_until([&] { return disconnects.load() == 1; }, 2000));
+    const WifiBackend::ConnectionStatus st = backend.get_status();
+    CHECK_FALSE(st.connected);
+    CHECK(st.ip_address.empty());
+    backend.stop();
 }
 
 #else

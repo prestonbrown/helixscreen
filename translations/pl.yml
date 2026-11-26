@@ -5050,6 +5050,7 @@ translations:
   Stepper driver {} is overheating: Sterownik silnika {} się przegrzewa
   Stepper driver {} overheated and shut down: Sterownik silnika {} się przegrzał i wyłączył
   Still reading the printer's lane record. Try again in a moment.: Nadal wczytuję zapis torów drukarki. Spróbuj za chwilę.
+  Still reading the printer's lane records: 'Trwa odczyt danych torów drukarki'
   Still running; no reply after {} min: Nadal działa; brak odpowiedzi od {} min
   Still saving this spool…: Nadal zapisuję tę szpulę…
   Still working... taking longer than usual: Nadal pracuję... trwa dłużej niż zwykle
@@ -5236,6 +5237,7 @@ translations:
   'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}.': 'Wieża testowa {:.0f} mm szerokości i {:.0f} mm wysokości, około {} min plus grzanie: {} pasm po {:.0f} mm przy {}.'
   'Testing rotation: %d° (%d/%d) - %ds remaining': 'Test obrotu: %d° (%d/%d) - pozostało %ds'
   Testing, servo, and motor operations: Testy, serwo i operacje silników
+  Text Clock: Zegar tekstowy
   Thanks! Anonymous usage data helps improve HelixScreen.: Dziękujemy! Anonimowe dane użycia pomagają ulepszać HelixScreen.
   That file command cannot run here.: Tego polecenia pliku nie można tu wykonać.
   That print is no longer paused: Ten wydruk nie jest już wstrzymany
@@ -5997,6 +5999,7 @@ translations:
   'Troubleshooting:': 'Rozwiązywanie problemów:'
   Try adjusting your search or filters: Spróbuj zmienić wyszukiwanie lub filtry
   Try Again: Spróbuj ponownie
+  Try again in a moment.: 'Spróbuj za chwilę.'
   Try again. If it keeps happening, reseat the accelerometer cable.: Spróbuj ponownie. Jeśli się powtarza, osadź ponownie kabel akcelerometru.
   Try the operation again. If it persists, check for mechanical issues.: Spróbuj ponownie. Jeśli problem się utrzymuje, sprawdź mechanikę.
   Try the setting again, and restart the printer if it keeps failing.: Spróbuj ustawić ponownie, a jeśli nadal się nie udaje, uruchom ponownie drukarkę.

@@ -53,14 +53,10 @@ class CfsErrorDecoder {
     static std::optional<AmsAlert> decode(const std::string& key_code, int unit_index,
                                           int slot_index);
 
-    /// Look up just the message+hint for a code, without slot/unit context.
-    /// Used by the global gcode-error toast handler to translate raw Klipper
-    /// `!! {"code":"key***","msg":"..."}` lines into friendly text.
-    /// Returns {message, hint} or nullopt for unknown codes.
-    static std::optional<std::pair<const char*, const char*>>
-    lookup_message(const std::string& key_code);
-
-    /// Variant that splices the `values` array (e.g. `[1,"B"]` from
+    /// Look up the message+hint for a code, without slot/unit context. Used by the
+    /// global gcode-error toast handler to translate raw Klipper
+    /// `!! {"code":"key***","msg":"..."}` lines into friendly text. Splices the
+    /// `values` array (e.g. `[1,"B"]` from
     /// `!! {"code":"key849","values":[1,"B"]}`) into the user-facing
     /// message when the code's value-format is known. Returns full
     /// `std::string` so the caller doesn't have to mix const-char + string

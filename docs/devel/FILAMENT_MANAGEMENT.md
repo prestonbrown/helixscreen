@@ -609,7 +609,7 @@ Mainsail, is in
 - **OrcaSlicer reads only `lane` / `material` / `color` / `bed_temp` /
   `nozzle_temp`**, and matches a lane to a filament preset **by the `material`
   type string alone** (`filament_id_by_type`, falling back to generic
-  OrcaFilamentLibrary ids like `OGFL99`). It ignores `vendor_name` and
+  OrcaFilamentLibrary ids like `OFDSrzZ8`, Generic PLA). It ignores `vendor_name` and
   `filament_id` today, and never writes `lane_data` back. So brand has no
   effect on the slicer's preset pick: "Generic PLA" and "Elegoo PLA+" both
   resolve to a generic PLA preset. Emit canonical material strings (`PLA`,
@@ -1121,6 +1121,25 @@ multi-unit rig in a box titled with `unit_display_name()`, unless the boxes cost
 than a third when every lane fits (`ams_mini_grid_prefers_flat()`) or half the rows when they
 scroll.
 
+### The mini status strip's bar layout
+
+The bar view (tiles narrower than `w_normal()`, and the spool view's fallback) draws one
+`ams_lane_bar` per lane, sized by the room it has rather than capped at a lane count.
+`helix::ui::plan_ams_mini_bars()` is the rule: each unit's lanes stay together and in order,
+the units break into as many lines (`ams_mini_unit_row`) as gives the largest bars, and every
+bar is one size, its width capped at an eighth of the tile and its height at four times that.
+
+- **Two or more units**: each unit sits in an untitled `ams_mini_unit_group` box, and the unit
+  holding the active lane is checked, drawn in the shared `chip_active` highlight.
+- **Too tight for every box**: only the active unit keeps its box, hugging its bars.
+- **Too tight for readable bars** (narrower than 4 px or shorter than 8 px): whole units drop
+  from the end, never the active one, and "+N" counts their lanes. A lone unit too wide even
+  alone (a 12-gate ERCF on a micro tile) shows the lanes that fit and counts the rest: its first
+  lanes, or a window ending on the active lane when that lane lies past them, with one "+N" on
+  the right for the lanes on either side.
+
+Units past the eighth (`kMaxUnitRows`) are not drawn in either view.
+
 ### The bypass on the mini status strip
 
 `ui_ams_mini_status` (the Home panel's Multi-Filament System Status widget and the
@@ -1132,9 +1151,9 @@ every unit's lanes, past a thin vertical divider, and reads the external spool
 the node feeding the toolhead).
 
 - **Bar mode** (1x tiles): one lane-width `ams_lane_bar` past the divider, in its own
-  column (`ui_xml/components/ams_mini_bypass_column.xml`); on a strip whose lanes stack in rows the
-  divider spans every row. The bypass counts against the tight-width bar cap (5 lanes
-  plus the bypass instead of 6 lanes).
+  column (`ui_xml/components/ams_mini_bypass_column.xml`); on a strip whose units take several
+  lines the bar spans every line. The bar layout counts it as one more bar beside every line
+  (`AmsMiniBarMetrics::side_bars`).
 - **Spool mode** (2x and wider): one more spool cell labelled with the external spool's
   material, or "External" when none is recorded. It is pinned at the right, outside the
   lanes' horizontal scroller, so it stays visible however far the lanes scroll; when the

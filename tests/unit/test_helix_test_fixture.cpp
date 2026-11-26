@@ -6,6 +6,7 @@
 #include "../helix_test_fixture.h"
 #include "../test_helpers/discovery_of_objects.h"
 #include "../test_helpers/emergency_stop_test_access.h"
+#include "app_globals.h"
 #include "system_settings_manager.h"
 #include "temperature_sensor_manager.h"
 #include "thermal_rate_model.h"
@@ -86,4 +87,34 @@ TEST_CASE_METHOD(HelixTestFixture, "HelixTestFixture::reset_all forgets the heat
 
     HelixTestFixture::reset_all();
     REQUIRE(rates.estimate_heating_seconds("heater_bed", 0.0f, 100.0f) == fresh);
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "HelixTestFixture::reset_all returns the app-global subjects to startup values",
+                 "[test-fixture][isolation]") {
+    REQUIRE(lv_subject_get_int(&get_wizard_active_subject()) == 0);
+
+    set_wizard_active(true);
+    bool completion_fired = false;
+    set_wizard_completion_callback([&completion_fired] { completion_fired = true; });
+    set_wizard_cancel_callback([] {});
+    lv_subject_t* beta = lv_xml_get_subject(nullptr, "show_beta_features");
+    REQUIRE(beta != nullptr);
+    const int beta_at_start = lv_subject_get_int(beta);
+    lv_subject_set_int(beta, beta_at_start ? 0 : 1);
+    lv_subject_set_int(&get_home_edit_mode_subject(), 1);
+    lv_subject_set_int(&get_home_edit_page_deletable_subject(), 1);
+
+    HelixTestFixture::reset_all();
+
+    CHECK(lv_subject_get_int(&get_wizard_active_subject()) == 0);
+    CHECK_FALSE(is_wizard_active());
+    CHECK_FALSE(get_wizard_cancel_callback());
+    CHECK(lv_subject_get_int(beta) == beta_at_start);
+    // The completion callback has no getter: a cleared one stays silent on completion.
+    set_wizard_active(true);
+    set_wizard_active(false);
+    CHECK_FALSE(completion_fired);
+    CHECK(lv_subject_get_int(&get_home_edit_mode_subject()) == 0);
+    CHECK(lv_subject_get_int(&get_home_edit_page_deletable_subject()) == 0);
 }

@@ -4880,6 +4880,7 @@ translations:
   Stepper driver {} is overheating: 'Il driver del motore passo-passo {} si sta surriscaldando'
   Stepper driver {} overheated and shut down: 'Il driver del motore passo-passo {} si è surriscaldato e si è spento'
   Still reading the printer's lane record. Try again in a moment.: 'Lettura del registro delle corsie della stampante in corso. Riprova tra un momento.'
+  Still reading the printer's lane records: 'Lettura dei dati delle corsie della stampante in corso'
   Still running; no reply after {} min: 'Ancora in corso; nessuna risposta dopo {} min'
   Still saving this spool…: 'Salvataggio di questa bobina in corso…'
   Still working... taking longer than usual: Ancora in corso... ci vuole più tempo del solito
@@ -5062,6 +5063,7 @@ translations:
   'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}.': 'Torre di prova larga {:.0f} mm e alta {:.0f} mm, circa {} min più il riscaldamento: {} fasce da {:.0f} mm a {}.'
   'Testing rotation: %d° (%d/%d) - %ds remaining': 'Test rotazione: %d° (%d/%d) - %ds rimanenti'
   Testing, servo, and motor operations: 'Operazioni di test, servo e motore'
+  Text Clock: Orologio testuale
   Thanks! Anonymous usage data helps improve HelixScreen.: Grazie! I dati anonimi di utilizzo aiutano a migliorare HelixScreen.
   That file command cannot run here.: 'Quel comando file non può essere eseguito qui.'
   That print is no longer paused: 'Quella stampa non è più in pausa'
@@ -5811,6 +5813,7 @@ translations:
   'Troubleshooting:': 'Risoluzione problemi:'
   Try adjusting your search or filters: Prova a modificare la ricerca o i filtri
   Try Again: 'Riprova'
+  Try again in a moment.: 'Riprova tra un momento.'
   Try again. If it keeps happening, reseat the accelerometer cable.: Riprova. Se continua a succedere, reinserisci il cavo dell'accelerometro.
   Try the operation again. If it persists, check for mechanical issues.: Riprova l'operazione. Se il problema persiste, controlla eventuali problemi meccanici.
   Try the setting again, and restart the printer if it keeps failing.: 'Riprova l''impostazione e riavvia la stampante se continua a fallire.'

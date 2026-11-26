@@ -4880,6 +4880,7 @@ translations:
   Stepper driver {} is overheating: 'ステッピングモータードライバー {} が過熱しています'
   Stepper driver {} overheated and shut down: 'ステッピングモータードライバー {} が過熱して停止しました'
   Still reading the printer's lane record. Try again in a moment.: 'プリンターのレーン記録をまだ読み込んでいます。少し待ってからもう一度お試しください。'
+  Still reading the printer's lane records: 'プリンターのレーン情報を読み込み中です'
   Still running; no reply after {} min: 'まだ実行中です。{}分経っても応答がありません'
   Still saving this spool…: 'このスプールはまだ保存中です…'
   Still working... taking longer than usual: まだ処理中です... 通常より時間がかかっています
@@ -5062,6 +5063,7 @@ translations:
   'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}.': 'テストタワー 幅{:.0f} mm・高さ{:.0f} mm、約{}分+加熱: {}区間(各{:.0f} mm)、{}。'
   'Testing rotation: %d° (%d/%d) - %ds remaining': '回転テスト: %d° (%d/%d) - %ds残り'
   Testing, servo, and motor operations: 'テスト・サーボ・モーター操作'
+  Text Clock: テキスト時計
   Thanks! Anonymous usage data helps improve HelixScreen.: ご協力ありがとうございます！匿名の使用データが HelixScreen の改善に役立ちます。
   That file command cannot run here.: 'そのファイルコマンドはここでは実行できません。'
   That print is no longer paused: 'その印刷はもう一時停止中ではありません'
@@ -5811,6 +5813,7 @@ translations:
   'Troubleshooting:': 'トラブルシューティング:'
   Try adjusting your search or filters: 検索やフィルターを調整してみてください
   Try Again: '再試行'
+  Try again in a moment.: 'しばらくしてから再試行してください。'
   Try again. If it keeps happening, reseat the accelerometer cable.: もう一度お試しください。繰り返し起きる場合は、加速度センサーのケーブルを差し直してください。
   Try the operation again. If it persists, check for mechanical issues.: もう一度お試しください。解決しない場合は機械的な問題がないか確認してください。
   Try the setting again, and restart the printer if it keeps failing.: 'もう一度設定し、失敗が続く場合はプリンターを再起動してください。'

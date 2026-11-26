@@ -131,6 +131,14 @@ class WifiBackendNetworkManager : public WifiBackend {
     std::atomic<bool> status_refresh_requested_{false};
     ConnectionStatus cached_status_{};        // Protected by status_mutex_
     std::atomic<bool> prev_connected_{false}; // Track transitions for event firing
+    /// The kernel's link and address notifications. NetworkManager removes the
+    /// address and the radio drops carrier the moment a link deactivates, and
+    /// adds the address when DHCP answers, so each one wakes the status poll
+    /// instead of leaving the screens on the last poll's answer for up to
+    /// kPollInterval. Null when the socket cannot be opened (the timed poll
+    /// still runs). Opened in start() before the status thread, then read only
+    /// by that thread until stop() has joined it.
+    std::unique_ptr<helix::net::LinkEvents> link_events_;
 
     // 5GHz support — computed once at start(), never changes
     std::atomic<bool> supports_5ghz_cached_{false};

@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
+#include <optional>
 #include <vector>
 
 /**
@@ -246,6 +247,12 @@ FlipLayout layout_flip_cards(int32_t w, int32_t h, const FlipShape& shape,
                              ClockMeridiem sub_meridiem = ClockMeridiem::NONE,
                              const CardGeometry& geometry = kFlipCardGeometry);
 
+/// Width in px of one of `shape`'s cards with every group in one row on a `w` x `h` frame and no
+/// small row, whichever arrangement layout_flip_cards() would pick: how wide a digit is with four
+/// of them across.
+int32_t flip_row_card_px(int32_t w, int32_t h, const FlipShape& shape,
+                         const CardGeometry& geometry = kFlipCardGeometry);
+
 /// Box round the layout of `shape` centred on a `w` x `h` screen, undrifted: what the clock's
 /// drift range is measured from (ClockDrift::set_range()).
 DirtyRect flip_centred_bounds(int32_t w, int32_t h, const FlipShape& shape,
@@ -308,6 +315,20 @@ class FlipClockSim {
     /// Share of the flip done for card `i`, 1 when it is still.
     float flip_progress(size_t i) const;
 
+    /// Whether the clock drifts every kClockDriftStepMs against burn-in: on for the saver, off
+    /// for a home tile, which holds still. Kept across clear().
+    void set_drift(bool on) {
+        drift_on_ = on;
+    }
+
+    /// What shows round the cards: black for the saver, the card's color in a home tile, so
+    /// the cards sit on it. `seen_on` is the color the cards are seen against when that
+    /// differs from `backdrop` (a key cleared to transparent over the card): on a dark gray
+    /// other than black the cards take a lighter gray (kCardTopOnDark, kCardBottomOnDark) so
+    /// their edges still show. The split and digits are the same either way. Kept across
+    /// clear().
+    void set_backdrop(Rgb backdrop, std::optional<Rgb> seen_on = std::nullopt);
+
     /// Frees the glyph cache.
     void clear();
     /// Bytes the glyph cache holds.
@@ -317,6 +338,9 @@ class FlipClockSim {
     static constexpr Rgb kBackground{0, 0, 0};
     static constexpr Rgb kCardTop{30, 30, 32};
     static constexpr Rgb kCardBottom{24, 24, 26};
+    /// The cards on a dark gray backdrop, where the black-backdrop grays would vanish.
+    static constexpr Rgb kCardTopOnDark{62, 62, 66};
+    static constexpr Rgb kCardBottomOnDark{52, 52, 56};
     static constexpr Rgb kDigit{222, 222, 222};
     static constexpr Rgb kColon{130, 130, 130};
     /// The folding flap's edge band and its outermost row.
@@ -353,6 +377,10 @@ class FlipClockSim {
     size_t level_ = 0;
     int32_t frame_w_ = 0;
     int32_t frame_h_ = 0;
+    bool drift_on_ = true;
+    Rgb backdrop_ = kBackground;
+    Rgb card_top_ = kCardTop;
+    Rgb card_bottom_ = kCardBottom;
     ClockDrift drift_;
     /// The shape drift_'s range was set for.
     FlipShape drift_shape_;

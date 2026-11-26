@@ -2365,6 +2365,105 @@ TEST_CASE("An automatic install that fails after its swap arms the guard from th
     remove_dir(tmp);
 }
 
+TEST_CASE("An automatic install that succeeds records its version for the scheduler",
+          "[update_checker][installer][do_install][auto_update]") {
+    auto tmp = make_temp_dir("helix_install_recorded");
+    REQUIRE(!tmp.empty());
+    std::string inner = tmp + "/helixscreen";
+    mkdir(inner.c_str(), 0755);
+    create_file(inner + "/install.sh", "#!/bin/sh\nexit 0\n", true);
+    const std::string tarball = tmp + "/release.tar.gz";
+    std::string cmd =
+        "cd " + tmp + " && COPYFILE_DISABLE=1 tar czf release.tar.gz helixscreen/install.sh";
+    REQUIRE(std::system(cmd.c_str()) == 0);
+
+    const pid_t pid = fork();
+    if (pid == 0) {
+        ScopedRuntimeConfig scoped_config;
+        get_runtime_config()->test_mode = false;
+        helix::app_constants::update::detail::backup_fallback_dir_ref() = tmp + "/.helixscreen";
+        helix::app_constants::update::detail::legacy_self_restart_sentinel_ref() =
+            tmp + "/helixscreen_self_restart";
+        auto& checker = UpdateChecker::instance();
+        UpdateCheckerTestAccess::seed_available_update(checker, "9.9.9");
+        UpdateCheckerTestAccess::clear_download_cancelled(checker);
+        UpdateCheckerTestAccess::set_install_log(checker, tmp + "/install.log");
+        UpdateCheckerTestAccess::set_machine_busy_hook(checker, [] { return false; });
+        UpdateCheckerTestAccess::set_stop_after_arm(checker, true);
+        UpdateCheckerTestAccess::set_install_root(checker, tmp + "/helixscreen-app");
+        UpdateCheckerTestAccess::set_restart_action(checker, [] {});
+        UpdateCheckerTestAccess::set_status_hold_ms(checker, 0, 0);
+        UpdateCheckerTestAccess::do_install_automatic(checker, tarball);
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        _exit(Config::get_instance()->get<std::string>("/update/auto_installed_version", "") ==
+                      "9.9.9"
+                  ? 0
+                  : 1);
+    }
+    REQUIRE(pid > 0);
+    int wstatus = 0;
+    for (int i = 0; i < 3000 && waitpid(pid, &wstatus, WNOHANG) == 0; ++i)
+        usleep(10 * 1000);
+    if (waitpid(pid, &wstatus, WNOHANG) == 0) {
+        kill(pid, SIGKILL);
+        waitpid(pid, &wstatus, 0);
+        FAIL("do_install did not return within 30s");
+    }
+    INFO("child exit " << WEXITSTATUS(wstatus) << " (1: the version was not recorded)");
+    CHECK((WIFEXITED(wstatus) && WEXITSTATUS(wstatus) == 0));
+
+    remove_dir(tmp);
+}
+
+TEST_CASE("An automatic install that fails records nothing for the scheduler",
+          "[update_checker][installer][do_install][auto_update]") {
+    auto tmp = make_temp_dir("helix_install_unrecorded");
+    REQUIRE(!tmp.empty());
+    std::string inner = tmp + "/helixscreen";
+    mkdir(inner.c_str(), 0755);
+    create_file(inner + "/install.sh", "#!/bin/sh\nexit 1\n", true);
+    const std::string tarball = tmp + "/release.tar.gz";
+    std::string cmd =
+        "cd " + tmp + " && COPYFILE_DISABLE=1 tar czf release.tar.gz helixscreen/install.sh";
+    REQUIRE(std::system(cmd.c_str()) == 0);
+
+    const pid_t pid = fork();
+    if (pid == 0) {
+        ScopedRuntimeConfig scoped_config;
+        get_runtime_config()->test_mode = false;
+        helix::app_constants::update::detail::backup_fallback_dir_ref() = tmp + "/.helixscreen";
+        helix::app_constants::update::detail::legacy_self_restart_sentinel_ref() =
+            tmp + "/helixscreen_self_restart";
+        auto& checker = UpdateChecker::instance();
+        UpdateCheckerTestAccess::seed_available_update(checker, "9.9.9");
+        UpdateCheckerTestAccess::clear_download_cancelled(checker);
+        UpdateCheckerTestAccess::set_install_log(checker, tmp + "/install.log");
+        UpdateCheckerTestAccess::set_machine_busy_hook(checker, [] { return false; });
+        UpdateCheckerTestAccess::set_stop_after_arm(checker, true);
+        UpdateCheckerTestAccess::set_install_root(checker, tmp + "/helixscreen-app");
+        UpdateCheckerTestAccess::set_restart_action(checker, [] {});
+        UpdateCheckerTestAccess::set_status_hold_ms(checker, 0, 0);
+        UpdateCheckerTestAccess::do_install_automatic(checker, tarball);
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        _exit(Config::get_instance()->get<std::string>("/update/auto_installed_version", "").empty()
+                  ? 0
+                  : 1);
+    }
+    REQUIRE(pid > 0);
+    int wstatus = 0;
+    for (int i = 0; i < 3000 && waitpid(pid, &wstatus, WNOHANG) == 0; ++i)
+        usleep(10 * 1000);
+    if (waitpid(pid, &wstatus, WNOHANG) == 0) {
+        kill(pid, SIGKILL);
+        waitpid(pid, &wstatus, 0);
+        FAIL("do_install did not return within 30s");
+    }
+    INFO("child exit " << WEXITSTATUS(wstatus) << " (1: a failed install was recorded)");
+    CHECK((WIFEXITED(wstatus) && WEXITSTATUS(wstatus) == 0));
+
+    remove_dir(tmp);
+}
+
 TEST_CASE("extract_installer_from_tarball: tarball with install.sh",
           "[update_checker][installer][do_install]") {
     auto tmp = make_temp_dir("helix_extract_test");

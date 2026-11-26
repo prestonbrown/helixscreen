@@ -670,6 +670,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/led_macro_edit_form.xml",
     "ui_xml/led_macro_preset_row.xml",
     "ui_xml/led_picker.xml",
+    "ui_xml/clock_face_picker.xml",
     "ui_xml/led_settings_overlay.xml",
     "ui_xml/led_white_tone.xml",
     "ui_xml/machine_limits_overlay.xml",

@@ -191,6 +191,20 @@ Arrangement arrange(int32_t w, int32_t h, const FlipShape& shape, const FlipShap
     return a;
 }
 
+} // namespace
+
+int32_t flip_row_card_px(int32_t w, int32_t h, const FlipShape& shape, const CardGeometry& g) {
+    const float card_w = 1.0f + g.stroke + 2 * g.pad_x;
+    const float card_h = kStrokeDigitPathH + g.stroke + g.pad_top + g.pad_bottom;
+    const float row_w = row_width(shape, card_w, g.card_gap, g.group_gap);
+    const float row =
+        std::min(FILL * static_cast<float>(w) / row_w, FILL * static_cast<float>(h) / card_h);
+    const int32_t unit = std::max(1, static_cast<int32_t>(std::floor(row)));
+    return metrics_for(unit, g).card_w;
+}
+
+namespace {
+
 /// The split line and corner of a row of cards at `unit`.
 FlipRowMetrics row_metrics(int32_t unit, const CardGeometry& g) {
     const Metrics m = metrics_for(unit, g);
@@ -497,7 +511,7 @@ void FlipClockSim::init(FrameTarget& frame, size_t level, const FlipFace& face) 
     drift_.set_range(flip_centred_bounds(frame_w_, frame_h_, drift_shape_, drift_sub_shape_,
                                          face.sub_colons, face.sub_meridiem),
                      frame_w_, frame_h_);
-    PixelWriter(frame).fill(kBackground);
+    PixelWriter(frame).fill(backdrop_);
     ink_ = print_state_color(face.mode, kDigit);
     layout_ = layout_flip_cards(frame_w_, frame_h_, face.shape, face.sub_shape, 0, 0,
                                 face.sub_colons, face.sub_meridiem);
@@ -566,7 +580,7 @@ void FlipClockSim::step(uint32_t dt_ms, FrameTarget& frame, const FlipFace& face
                                              face.sub_colons, face.sub_meridiem),
                          frame_w_, frame_h_);
     }
-    const bool moved = drift_.step(dt_ms);
+    const bool moved = drift_on_ && drift_.step(dt_ms);
     const Rgb ink = print_state_color(face.mode, kDigit);
 
     if (shape_differs(face, layout_) || moved || !(ink == ink_)) {
@@ -648,7 +662,7 @@ void FlipClockSim::spin_up(FrameTarget& frame, std::vector<DirtyRect>& dirty) {
 void FlipClockSim::relayout(FrameTarget& frame, const FlipFace& face,
                             std::vector<DirtyRect>& dirty) {
     DirtyRect area = layout_.bounds();
-    PixelWriter(frame).fill_rect(area, kBackground);
+    PixelWriter(frame).fill_rect(area, backdrop_);
     layout_ = layout_flip_cards(frame_w_, frame_h_, face.shape, face.sub_shape, drift_.dx,
                                 drift_.dy, face.sub_colons, face.sub_meridiem);
     build_glyphs(face);
@@ -696,12 +710,22 @@ uint8_t FlipClockSim::corner_coverage(size_t i, int32_t x, int32_t y) const {
     return static_cast<uint8_t>(std::lround(cov * 255.0f));
 }
 
+void FlipClockSim::set_backdrop(Rgb backdrop, std::optional<Rgb> seen_on) {
+    backdrop_ = backdrop;
+    const Rgb seen = seen_on.value_or(backdrop);
+    // Rec. 601 luma: a backdrop as dark as the cards hides their edges.
+    const int luma = (299 * seen.r + 587 * seen.g + 114 * seen.b) / 1000;
+    const bool dark_gray = !(seen == kBackground) && luma < 96;
+    card_top_ = dark_gray ? kCardTopOnDark : kCardTop;
+    card_bottom_ = dark_gray ? kCardBottomOnDark : kCardBottom;
+}
+
 Rgb FlipClockSim::face_pixel(size_t i, const FlipCard& card, int32_t x, int32_t y) const {
     const FlipRowMetrics& row = layout_.row(i);
     if (y >= row.split_top && y < row.split_bottom) {
         return kBackground;
     }
-    const Rgb base = y < row.split_top ? kCardTop : kCardBottom;
+    const Rgb base = y < row.split_top ? card_top_ : card_bottom_;
     if (card.digit == '\0') {
         return base;
     }
@@ -731,7 +755,7 @@ void FlipClockSim::draw_colons(FrameTarget& frame) const {
                     const float cov = edge_coverage(r - dist);
                     if (cov > 0.0f && writer.contains(x, y)) {
                         writer.put(x, y,
-                                   blend_cov(kBackground, kColon,
+                                   blend_cov(backdrop_, kColon,
                                              static_cast<uint32_t>(std::lround(cov * 255.0f))));
                     }
                 }
@@ -819,7 +843,7 @@ void FlipClockSim::draw_card(FrameTarget& frame, size_t i) const {
             if (shadow < 255) {
                 face = scale_rgb(face, shadow);
             }
-            Rgb c = blend_cov(kBackground, face, corner_coverage(i, x, y));
+            Rgb c = blend_cov(backdrop_, face, corner_coverage(i, x, y));
             if (in_edge) {
                 c = blend_cov(c, edge_color, corner_coverage(i, x, edge_corner_row));
             } else if (in_flap) {

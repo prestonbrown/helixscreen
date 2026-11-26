@@ -583,9 +583,11 @@ bool AmsSubscriptionBackend::mirror_firmware_identity_locked(int slot_index, uin
                                                              const std::string& material,
                                                              std::optional<bool> translucent) {
     // Another writer's record is not ours to copy into: the save would be
-    // refused, and refused again at every frame or poll.
+    // refused, and refused again at every frame or poll. A private store keeps
+    // no colour or material to copy, the firmware's own lane_data carrying them.
     if (lane_records_unread_ ||
-        (override_store_ && override_store_->written_by_another(slot_index))) {
+        (override_store_ && (override_store_->written_by_another(slot_index) ||
+                             override_store_->holds_extras_only()))) {
         return false;
     }
     // The first colour change after an edit that moved the colour is that

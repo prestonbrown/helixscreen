@@ -129,6 +129,10 @@ struct PlatformCapabilities {
      */
     static PlatformCapabilities detect();
 
+    /// detect() once per process, for callers that ask often: the hardware does not change
+    /// while the app runs.
+    static const PlatformCapabilities& cached();
+
     /**
      * @brief Capabilities from the contents of /proc/meminfo and /proc/cpuinfo
      *

@@ -4789,6 +4789,7 @@
   <translation tag="Stepper driver {} is overheating" ru="Драйвер шагового двигателя {} перегревается"/>
   <translation tag="Stepper driver {} overheated and shut down" ru="Драйвер шагового двигателя {} перегрелся и отключился"/>
   <translation tag="Still reading the printer&apos;s lane record. Try again in a moment." ru="Запись каналов принтера ещё читается. Повторите попытку через мгновение."/>
+  <translation tag="Still reading the printer&apos;s lane records" ru="Данные каналов принтера ещё считываются"/>
   <translation tag="Still running; no reply after {} min" ru="Ещё выполняется; нет ответа уже {} мин"/>
   <translation tag="Still saving this spool…" ru="Эта катушка ещё сохраняется…"/>
   <translation tag="Still working... taking longer than usual" ru="Всё ещё выполняется... дольше обычного"/>
@@ -4968,6 +4969,7 @@
   <translation tag="Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}." ru="Тестовая башня шириной {:.0f} мм и высотой {:.0f} мм, около {} мин плюс нагрев: {} полос по {:.0f} мм при {}."/>
   <translation tag="Testing rotation: %d° (%d/%d) - %ds remaining" ru="Тест поворота: %d° (%d/%d) - осталось %ds"/>
   <translation tag="Testing, servo, and motor operations" ru="Тестирование, сервопривод и работа моторов"/>
+  <translation tag="Text Clock" ru="Текстовые часы"/>
   <translation tag="Thanks! Anonymous usage data helps improve HelixScreen." ru="Спасибо! Анонимные данные использования помогают улучшить HelixScreen."/>
   <translation tag="That file command cannot run here." ru="Эту файловую команду здесь выполнить нельзя."/>
   <translation tag="That print is no longer paused" ru="Эта печать больше не приостановлена"/>
@@ -5641,6 +5643,7 @@
   <translation tag="Troubleshooting:" ru="Устранение неполадок:"/>
   <translation tag="Try Again" ru="Повторить"/>
   <translation tag="Try adjusting your search or filters" ru="Попробуйте изменить поиск или фильтры"/>
+  <translation tag="Try again in a moment." ru="Повторите попытку через минуту."/>
   <translation tag="Try again. If it keeps happening, reseat the accelerometer cable." ru="Попробуйте снова. Если ошибка повторяется, переподключите кабель акселерометра."/>
   <translation tag="Try the operation again. If it persists, check for mechanical issues." ru="Повторите операцию. Если проблема не исчезает, проверьте механические неисправности."/>
   <translation tag="Try the setting again, and restart the printer if it keeps failing." ru="Попробуйте применить настройку снова и перезапустите принтер, если ошибка повторяется."/>

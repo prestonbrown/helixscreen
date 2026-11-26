@@ -4892,6 +4892,7 @@ translations:
   Stepper driver {} is overheating: 'Le pilote du moteur pas à pas {} surchauffe'
   Stepper driver {} overheated and shut down: 'Le pilote du moteur pas à pas {} a surchauffé et s''est arrêté'
   Still reading the printer's lane record. Try again in a moment.: 'Lecture de l''enregistrement des voies de l''imprimante en cours. Réessayez dans un instant.'
+  Still reading the printer's lane records: 'Lecture des données de voie de l''imprimante en cours'
   Still running; no reply after {} min: 'Toujours en cours ; aucune réponse après {} min'
   Still saving this spool…: 'Enregistrement de cette bobine en cours…'
   Still working... taking longer than usual: Toujours en cours... cela prend plus de temps que d'habitude
@@ -5074,6 +5075,7 @@ translations:
   'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}.': 'Tour de test de {:.0f} mm de large et {:.0f} mm de haut, environ {} min plus la chauffe : {} bandes de {:.0f} mm à {}.'
   'Testing rotation: %d° (%d/%d) - %ds remaining': 'Test de rotation : %d° (%d/%d) - %ds restantes'
   Testing, servo, and motor operations: 'Opérations de test, servo et moteur'
+  Text Clock: Horloge texte
   Thanks! Anonymous usage data helps improve HelixScreen.: Merci ! Les données d'utilisation anonymes aident à améliorer HelixScreen.
   That file command cannot run here.: 'Cette commande de fichier ne peut pas s''exécuter ici.'
   That print is no longer paused: 'Cette impression n''est plus en pause'
@@ -5823,6 +5825,7 @@ translations:
   'Troubleshooting:': 'Dépannage :'
   Try adjusting your search or filters: Essayez d'ajuster votre recherche ou vos filtres
   Try Again: 'Réessayer'
+  Try again in a moment.: 'Réessayez dans un instant.'
   Try again. If it keeps happening, reseat the accelerometer cable.: Réessayez. Si cela se reproduit, rebranchez le câble de l'accéléromètre.
   Try the operation again. If it persists, check for mechanical issues.: Réessayez l'opération. Si le problème persiste, vérifiez s'il y a des problèmes mécaniques.
   Try the setting again, and restart the printer if it keeps failing.: 'Réessayez le réglage, et redémarrez l''imprimante s''il échoue encore.'

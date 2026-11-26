@@ -4723,6 +4723,7 @@
   <translation tag="Stepper driver {} is overheating" pt="O driver do motor de passo {} está superaquecendo"/>
   <translation tag="Stepper driver {} overheated and shut down" pt="O driver do motor de passo {} superaqueceu e desligou"/>
   <translation tag="Still reading the printer&apos;s lane record. Try again in a moment." pt="Ainda lendo o registro de lanes da impressora. Tente novamente em instantes."/>
+  <translation tag="Still reading the printer&apos;s lane records" pt="Ainda lendo os registros de lane da impressora"/>
   <translation tag="Still running; no reply after {} min" pt="Ainda em execução; sem resposta após {} min"/>
   <translation tag="Still saving this spool…" pt="Ainda salvando este carretel…"/>
   <translation tag="Still working... taking longer than usual" pt="Ainda processando... está demorando mais que o normal"/>
@@ -4902,6 +4903,7 @@
   <translation tag="Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}." pt="Torre de teste com {:.0f} mm de largura e {:.0f} mm de altura, cerca de {} min mais o aquecimento: {} faixas de {:.0f} mm a {}."/>
   <translation tag="Testing rotation: %d° (%d/%d) - %ds remaining" pt="Testando rotação: %d° (%d/%d) - %ds restantes"/>
   <translation tag="Testing, servo, and motor operations" pt="Operações de teste, servo e motor"/>
+  <translation tag="Text Clock" pt="Relógio de texto"/>
   <translation tag="Thanks! Anonymous usage data helps improve HelixScreen." pt="Obrigado! Dados de uso anônimos ajudam a melhorar o HelixScreen."/>
   <translation tag="That file command cannot run here." pt="Esse comando de arquivo não pode ser executado aqui."/>
   <translation tag="That print is no longer paused" pt="Essa impressão não está mais pausada"/>
@@ -5575,6 +5577,7 @@
   <translation tag="Troubleshooting:" pt="Solução de Problemas:"/>
   <translation tag="Try Again" pt="Tentar novamente"/>
   <translation tag="Try adjusting your search or filters" pt="Tente ajustar sua busca ou filtros"/>
+  <translation tag="Try again in a moment." pt="Tente novamente em instantes."/>
   <translation tag="Try again. If it keeps happening, reseat the accelerometer cable." pt="Tente novamente. Se continuar acontecendo, reassente o cabo do acelerômetro."/>
   <translation tag="Try the operation again. If it persists, check for mechanical issues." pt="Tente a operação novamente. Se persistir, verifique problemas mecânicos."/>
   <translation tag="Try the setting again, and restart the printer if it keeps failing." pt="Tente a configuração novamente e reinicie a impressora se continuar falhando."/>

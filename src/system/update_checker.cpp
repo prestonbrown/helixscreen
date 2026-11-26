@@ -113,6 +113,9 @@ constexpr int kHttpTimeoutSeconds = 30;
 constexpr int kRestartMarshalTimeoutMs = 5000;
 /// Where the "Update Rolled Back" notice waits until it has been seen.
 constexpr const char* kRollbackNoticeKey = "/update/rollback_notice";
+// The release the scheduler last installed successfully. It survives the restart the install
+// causes, so a build that reports a version other than its release's is not reinstalled.
+constexpr const char* kAutoInstalledVersionKey = "/update/auto_installed_version";
 /// A sentinel younger than this may still be answering helixscreen-update.path's
 /// check, ten seconds after the tree changed.
 constexpr int kFreshSentinelSeconds = 30;
@@ -2610,10 +2613,6 @@ void UpdateChecker::do_install(const std::string& tarball_path, InstallOrigin or
                            swapped_then_failed ? helix::update::kRollbackSwappedFile
                                                : helix::update::kRollbackPreviousFile);
     }
-    if (stop_after_arm_for_test_) {
-        return;
-    }
-
     // Restore CWD after install.sh moved/deleted the old install directory.
     // The init script does `cd $DAEMON_DIR` before launching, so our CWD was
     // inside the install dir.  install.sh does:
@@ -2630,6 +2629,17 @@ void UpdateChecker::do_install(const std::string& tarball_path, InstallOrigin or
         } else {
             spdlog::warn("[UpdateChecker] chdir({}) failed: {}", install_root, strerror(errno));
         }
+    }
+
+    // After the chdir: a relative config path must resolve in the new install.
+    if (origin == InstallOrigin::Automatic) {
+        helix::ui::queue_update("UpdateChecker::remember_auto_installed", [version] {
+            UpdateChecker::instance().remember_auto_installed(version);
+        });
+    }
+
+    if (stop_after_arm_for_test_) {
+        return;
     }
 
     // Write update success flag for telemetry (picked up on next boot)
@@ -2666,6 +2676,12 @@ void UpdateChecker::do_install(const std::string& tarball_path, InstallOrigin or
     }
 
     finish_install_and_restart(install_root, version);
+}
+
+void UpdateChecker::remember_auto_installed(const std::string& version) {
+    auto* config = Config::get_instance();
+    config->set<std::string>(kAutoInstalledVersionKey, version);
+    config->save();
 }
 
 void UpdateChecker::finish_install_and_restart(const std::string& install_root,
@@ -4211,10 +4227,18 @@ helix::update::AutoUpdateDecision UpdateChecker::auto_update_tick(const AutoUpda
             version = cached_info_->version;
         }
     }
+    const bool installed_before_restart =
+        !version.empty() &&
+        Config::get_instance()->get<std::string>(kAutoInstalledVersionKey, "") == version;
+    if (installed_before_restart) {
+        spdlog::debug("[UpdateChecker] Auto-update: v{} was already installed and the running "
+                      "build still differs from it; not installing it again",
+                      version);
+    }
     // A version still on trial under the launcher's rollback guard settles first.
     in.update_available = !version.empty() && !is_version_dismissed(version) &&
-                          version != auto_install_attempted_version_ && !download_in_flight() &&
-                          !helix::update::rollback_guard_armed();
+                          version != auto_install_attempted_version_ && !installed_before_restart &&
+                          !download_in_flight() && !helix::update::rollback_guard_armed();
 
     if (now.local_day == auto_skip_day_) {
         return AutoUpdateDecision::Wait;

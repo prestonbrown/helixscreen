@@ -167,6 +167,7 @@ src/printer/ams_backend.cpp
 src/printer/ams_backend_registry.cpp
 src/printer/ams_backend_ace.cpp
 src/printer/ams_backend_ad5x_ifs.cpp
+src/printer/firmware_lane_writer.cpp
 src/printer/ad5x_status_parse.cpp
 src/printer/ams_backend_afc.cpp
 src/printer/afc_status_parse.cpp
@@ -502,6 +503,7 @@ src/ui/panel_widgets/active_spool_widget.cpp
 src/ui/panel_widgets/bed_mesh_tile_widget.cpp
 src/ui/panel_widgets/bypass_widget.cpp
 src/ui/panel_widgets/camera_widget.cpp
+src/ui/panel_widgets/clock_face.cpp
 src/ui/panel_widgets/clock_widget.cpp
 src/ui/panel_widgets/clog_detection_widget.cpp
 src/ui/panel_widgets/control_buttons_widget.cpp

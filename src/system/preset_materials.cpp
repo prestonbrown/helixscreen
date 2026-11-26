@@ -21,6 +21,7 @@
 
 #include <array>
 #include <cstdio>
+#include <memory>
 
 namespace helix::presets {
 
@@ -42,6 +43,8 @@ struct SubjectState {
     SubjectManager subjects;
     /// Re-renders the labels when "Material presets heat the bed and chamber" flips.
     ObserverGuard heat_bed_observer;
+    /// The settings subjects the observer is bound to; expired once they are torn down.
+    std::weak_ptr<bool> heat_bed_lifetime;
     bool ready = false;
 };
 
@@ -158,10 +161,34 @@ std::string nozzle_temp_label(int slot) {
     return temps ? units::format_display_temp(temps->nozzle) : "---";
 }
 
+namespace {
+
+// The setting decides whether temp_label() shows the bed. Immediate: the
+// handler only rewrites the label subjects, no observer or widget lifecycle.
+void bind_heat_bed_observer(SubjectState& s) {
+    auto& settings = SettingsManager::instance();
+    settings.init_subjects(); // idempotent; the observer needs the setting's subject
+    const SubjectLifetime lifetime = settings.get_subjects_lifetime();
+    s.heat_bed_lifetime = lifetime;
+    s.heat_bed_observer = ui::observe<int>(
+        settings.subject_material_presets_heat_bed_and_chamber(), &s,
+        [](SubjectState*, int) { refresh_subjects(); }, lifetime, ui::Dispatch::Immediate);
+}
+
+} // namespace
+
 void init_subjects() {
     auto& s = state();
     if (s.ready) {
-        return; // idempotent
+        // Settings torn down and brought back leave the observer on the old
+        // subject: bind it to the live one so the labels keep following it.
+        // The token's value, not its refcount, says the subjects are live.
+        const SubjectLifetime watched = s.heat_bed_lifetime.lock();
+        if (!watched || !*watched) {
+            bind_heat_bed_observer(s);
+            refresh_subjects();
+        }
+        return;
     }
 
     // Slot-indexed names on purpose. A material-named subject
@@ -204,15 +231,7 @@ void init_subjects() {
     HELIX_SUBJECT_DEBUG_REGISTER(&s.count_subject, "preset_material_count", LV_SUBJECT_TYPE_INT);
 
     s.ready = true;
-
-    // The setting decides whether temp_label() shows the bed. Immediate: the
-    // handler only rewrites the label subjects, no observer or widget lifecycle.
-    auto& settings = SettingsManager::instance();
-    settings.init_subjects(); // idempotent; the observer needs the setting's subject
-    s.heat_bed_observer = ui::observe<int>(
-        settings.subject_material_presets_heat_bed_and_chamber(), &s,
-        [](SubjectState*, int) { refresh_subjects(); }, settings.get_subjects_lifetime(),
-        ui::Dispatch::Immediate);
+    bind_heat_bed_observer(s);
 
     // Co-locate init + cleanup so the registration can't be forgotten (CLAUDE.md
     // subject shutdown safety rule).

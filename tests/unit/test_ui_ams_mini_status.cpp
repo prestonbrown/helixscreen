@@ -15,6 +15,7 @@
 #include "../test_helpers/zero_lane_numbering.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
+#include "ams_mini_test_helpers.h"
 #include "ams_state.h"
 #include "config.h"
 #include "core/update_queue.h"
@@ -107,9 +108,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: set_width applies its width argum
     REQUIRE(lv_obj_is_hidden(spools));
 
     // Bar mode renders ams_lane_bar widgets, each bound to its slot.
-    lv_obj_t* bars = UITest::find_by_name(w, "ams_bars_container");
-    REQUIRE(bars != nullptr);
-    lv_obj_t* bar0 = lv_obj_get_child(bars, 0);
+    REQUIRE(UITest::find_by_name(w, "ams_bars_container") != nullptr);
+    lv_obj_t* bar0 = ams_mini_test::lane_bar_for_slot(w, 0);
     REQUIRE(bar0 != nullptr);
     REQUIRE(helix::ui::ams_lane_bar_slot_index(bar0) == 0);
 
@@ -435,9 +435,18 @@ class UnitSplitMock : public AmsBackendMock {
   public:
     explicit UnitSplitMock(int slot_count) : AmsBackendMock(slot_count) {}
     std::vector<int> unit_sizes;
+    int current = -1; ///< the lane loaded into the toolhead; -1 none
 
+    [[nodiscard]] bool is_filament_loaded() const override {
+        return current >= 0;
+    }
+    [[nodiscard]] int get_current_slot() const override {
+        return current;
+    }
     [[nodiscard]] AmsSystemInfo get_system_info() const override {
         AmsSystemInfo info = AmsBackendMock::get_system_info();
+        info.current_slot = current;
+        info.filament_loaded = current >= 0;
         std::vector<SlotInfo> all;
         for (const auto& unit : info.units)
             all.insert(all.end(), unit.slots.begin(), unit.slots.end());
@@ -513,6 +522,88 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: a condemned unit row keeps its po
     CHECK_FALSE(lv_obj_is_hidden(bar7));
 
     lv_obj_delete(w);
+    ams.clear_backends();
+    ams.deinit_subjects();
+}
+
+// The bar view boxes each unit and checks the box of the unit feeding the
+// toolhead; the check moves with the active lane.
+TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: the active unit's box follows the active lane",
+                 "[ui][ams_mini]") {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+    auto mock = std::make_unique<UnitSplitMock>(8);
+    auto* raw = mock.get();
+    raw->unit_sizes = {4, 4};
+    raw->current = 1;
+    ams.set_backend(std::move(mock));
+    ams.sync_from_backend();
+
+    ui_ams_mini_status_init();
+    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 100);
+    ui_ams_mini_status_set_width(w, 130);
+    helix::ui::UpdateQueue::instance().drain();
+
+    auto box_of = [&](int slot) {
+        lv_obj_t* bar = ams_mini_test::lane_bar_for_slot(w, slot);
+        REQUIRE(bar != nullptr);
+        return lv_obj_get_parent(lv_obj_get_parent(bar)); // lanes -> unit box
+    };
+    REQUIRE(box_of(0) != box_of(4));
+    CHECK(lv_obj_has_state(box_of(0), LV_STATE_CHECKED));
+    CHECK_FALSE(lv_obj_has_state(box_of(4), LV_STATE_CHECKED));
+
+    raw->current = 6;
+    ams.sync_from_backend();
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(50);
+    CHECK_FALSE(lv_obj_has_state(box_of(0), LV_STATE_CHECKED));
+    CHECK(lv_obj_has_state(box_of(4), LV_STATE_CHECKED));
+
+    lv_obj_delete(w);
+    ams.clear_backends();
+    ams.deinit_subjects();
+}
+
+// A unit too wide for its tile shows only the lanes that fit; the active lane
+// is always among them.
+TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: a cut unit shows its active lane",
+                 "[ui][ams_mini]") {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+    auto mock = std::make_unique<UnitSplitMock>(12);
+    auto* raw = mock.get();
+    raw->unit_sizes = {12};
+    raw->current = 10;
+    ams.set_backend(std::move(mock));
+    ams.sync_from_backend();
+
+    // A micro tile's cell: 64px across.
+    lv_obj_t* cell = lv_obj_create(test_screen());
+    lv_obj_set_size(cell, 64, 60);
+    lv_obj_set_style_pad_all(cell, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_width(cell, 0, LV_PART_MAIN);
+    ui_ams_mini_status_init();
+    lv_obj_t* w = ui_ams_mini_status_create(cell, 60);
+    ui_ams_mini_status_set_width(w, 64);
+    lv_obj_update_layout(test_screen());
+    ui_ams_mini_status_refresh(w);
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_update_layout(test_screen());
+
+    lv_obj_t* active = ams_mini_test::lane_bar_for_slot(w, 10);
+    REQUIRE(active != nullptr);
+    CHECK(ams_mini_test::shown_within(active, w));
+    lv_obj_t* first = ams_mini_test::lane_bar_for_slot(w, 0);
+    CHECK((first == nullptr || !ams_mini_test::shown_within(first, w)));
+    lv_obj_t* overflow = UITest::find_by_name(w, "ams_overflow_label");
+    REQUIRE(overflow != nullptr);
+    CHECK_FALSE(lv_obj_is_hidden(overflow));
+    const size_t shown = ams_mini_test::shown_lane_bars(w, 12).size();
+    REQUIRE(shown > 0);
+    CHECK(std::string(lv_label_get_text(overflow)) == "+" + std::to_string(12 - shown));
+
+    lv_obj_delete(cell);
     ams.clear_backends();
     ams.deinit_subjects();
 }
