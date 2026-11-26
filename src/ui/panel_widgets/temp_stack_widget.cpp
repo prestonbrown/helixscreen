@@ -28,14 +28,13 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
-#include <cstdio>
 
 namespace helix {
 void register_temp_stack_widget() {
-    register_widget_factory("temp_stack", [](const std::string&) {
+    register_widget_factory("temp_stack", [](const std::string& instance_id) {
         auto& ps = get_printer_state();
         auto* tcp = PanelWidgetManager::instance().shared_resource<TemperatureService>();
-        return std::make_unique<TempStackWidget>(ps, tcp);
+        return std::make_unique<TempStackWidget>(instance_id, ps, tcp);
     });
 
     // Register XML event callbacks at startup (before any XML is parsed)
@@ -78,13 +77,12 @@ void make_children_passthrough(lv_obj_t* parent) {
 using namespace helix;
 using helix::ui::measure_text_px;
 
-TempStackWidget::TempStackWidget(PrinterState& printer_state, TemperatureService* temp_panel)
-    : printer_state_(printer_state), temp_control_panel_(temp_panel) {
+TempStackWidget::TempStackWidget(const std::string& instance_id, PrinterState& printer_state,
+                                 TemperatureService* temp_panel)
+    : instance_id_(instance_id), printer_state_(printer_state), temp_control_panel_(temp_panel) {
     // Published before the manager parses the component, which drops a
     // binding whose subject is missing at parse time.
-    char prefix[40];
-    snprintf(prefix, sizeof(prefix), "temp_stack_%p", static_cast<void*>(this));
-    shape_.publish(subjects_, prefix, attr_storage_);
+    shape_.publish(subjects_, instance_id_ + "_shape", attr_storage_, true);
     for (const auto& a : attr_storage_) {
         attrs_.push_back(a.c_str());
     }
@@ -291,15 +289,6 @@ void TempStackWidget::on_size_changed(int colspan, int rowspan, int width_px, in
 
     for (int r = 0; r < row_count; r++) {
         lv_obj_t* row = rows[r];
-
-        // DECLARATIVE_OK: the gap follows the measured tier, which is a
-        // resolved spacing token chosen with the fonts below.
-        lv_obj_set_style_pad_gap(row, icon_above ? icon_gap_px : row_gap_px, 0);
-
-        if (lv_obj_t* caption = labels[r]) {
-            if (caption_font)
-                lv_obj_set_style_text_font(caption, caption_font, 0);
-        }
 
         // Update temp_display fonts and icon fonts in this row
         for (uint32_t i = 0; i < lv_obj_get_child_count(row); i++) {

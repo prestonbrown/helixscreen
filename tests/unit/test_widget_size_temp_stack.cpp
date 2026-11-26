@@ -51,7 +51,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack text and icon fonts follow heigh
     // agree regardless of which branch ran.
     REQUIRE(theme_manager_get_font("font_xs") != theme_manager_get_font("font_small"));
 
-    PanelWidgetHarness<TempStackWidget> h(test_screen(), state(), nullptr);
+    PanelWidgetHarness<TempStackWidget> h(test_screen(), "temp_stack", state(), nullptr);
 
     lv_obj_t* nozzle_row = h.child("temp_stack_nozzle_row");
     lv_obj_t* bed_row = h.child("temp_stack_bed_row");
@@ -123,7 +123,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack text and icon fonts follow heigh
  */
 TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack stacks icons above temps only when it fits",
                  "[widget_size][temp_stack][panel_widget]") {
-    PanelWidgetHarness<TempStackWidget> h(test_screen(), state(), nullptr);
+    PanelWidgetHarness<TempStackWidget> h(test_screen(), "temp_stack", state(), nullptr);
 
     lv_obj_t* nozzle_row = h.child("temp_stack_nozzle_row");
     lv_obj_t* bed_row = h.child("temp_stack_bed_row");
@@ -188,8 +188,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack stacks icons above temps only wh
 
 TEST_CASE_METHOD(LVGLUITestFixture, "TempStackWidget: a row belongs to the tile that holds it",
                  "[temp_stack][panel_widget][from_event]") {
-    PanelWidgetHarness<TempStackWidget> a(test_screen(), state(), nullptr);
-    PanelWidgetHarness<TempStackWidget> b(test_screen(), state(), nullptr);
+    PanelWidgetHarness<TempStackWidget> a(test_screen(), "temp_stack_a", state(), nullptr);
+    PanelWidgetHarness<TempStackWidget> b(test_screen(), "temp_stack_b", state(), nullptr);
     auto owner_of = [](lv_obj_t* row) {
         lv_event_t e{};
         e.current_target = row;
@@ -208,8 +208,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "TempStackWidget: a row belongs to the tile 
 // a temp_display whose children pass taps through to the page.
 TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack carousel pages open their own heater",
                  "[temp_stack][panel_widget][carousel]") {
-    PanelWidgetHarness<TempStackWidget> h(
-        test_screen(), HarnessConfig{{{"display_mode", "carousel"}}}, state(), nullptr);
+    PanelWidgetHarness<TempStackWidget> h(test_screen(),
+                                          HarnessConfig{{{"display_mode", "carousel"}}},
+                                          "temp_stack", state(), nullptr);
 
     lv_obj_t* nozzle = h.child("nozzle");
     lv_obj_t* bed = h.child("bed");
@@ -238,8 +239,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack carousel shows a chamber page on
     REQUIRE(has_chamber != nullptr);
     const bool chamber = GENERATE(false, true);
     lv_subject_set_int(has_chamber, chamber ? 1 : 0);
-    PanelWidgetHarness<TempStackWidget> h(
-        test_screen(), HarnessConfig{{{"display_mode", "carousel"}}}, state(), nullptr);
+    PanelWidgetHarness<TempStackWidget> h(test_screen(),
+                                          HarnessConfig{{{"display_mode", "carousel"}}},
+                                          "temp_stack", state(), nullptr);
 
     lv_obj_t* carousel = h.child("temp_carousel");
     CarouselState* cs = ui_carousel_get_state(carousel);
@@ -263,7 +265,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack carousel shows a chamber page on
 // of leaving the width empty (prestonbrown/helixscreen#2198).
 TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack at 2x1 lays the readouts side by side",
                  "[widget_size][temp_stack][panel_widget][wide]") {
-    PanelWidgetHarness<TempStackWidget> h(test_screen(), state(), nullptr);
+    PanelWidgetHarness<TempStackWidget> h(test_screen(), "temp_stack", state(), nullptr);
 
     lv_obj_t* nozzle_row = h.child("temp_stack_nozzle_row");
     lv_obj_t* bed_row = h.child("temp_stack_bed_row");
@@ -311,4 +313,63 @@ TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack at 2x1 lays the readouts side by
     CHECK(lv_obj_get_style_flex_flow(h.root(), LV_PART_MAIN) == LV_FLEX_FLOW_COLUMN);
     CHECK(lv_obj_is_hidden(nozzle_label));
     CHECK(lv_obj_get_y(nozzle_row) < lv_obj_get_y(bed_row));
+}
+
+// Home recycles widget instances: the tile is rebuilt and the same instance
+// attached again, so the arrangement must follow the size it is granted next,
+// not the one the previous tile ended on (prestonbrown/helixscreen#2198).
+TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack re-attached at another size gets that size's shape",
+                 "[widget_size][temp_stack][panel_widget][wide]") {
+    PanelWidgetHarness<TempStackWidget> h(test_screen(), "temp_stack", state(), nullptr);
+
+    h.resize(4, 2, 2 * w_normal(), 4 * h_tall() / 3);
+    REQUIRE(lv_obj_get_style_flex_flow(h.root(), LV_PART_MAIN) == LV_FLEX_FLOW_ROW);
+
+    // Rebuild the tile and attach the same instance, then grant a one-cell box.
+    lv_obj_t* old_tile = h.root();
+    h.widget().detach_tile();
+    lv_obj_delete(old_tile);
+    h.create_tile(test_screen());
+    h.resize(2, 2, w_normal() - 1, h_tall() - 1);
+    lv_obj_update_layout(h.root());
+
+    CHECK(lv_obj_get_style_flex_flow(h.root(), LV_PART_MAIN) == LV_FLEX_FLOW_COLUMN);
+    CHECK(lv_obj_is_hidden(h.child("temp_stack_nozzle_label")));
+    CHECK(lv_obj_get_y(h.child("temp_stack_nozzle_row")) <
+          lv_obj_get_y(h.child("temp_stack_bed_row")));
+
+    // And the other way: a stacked tile re-attached, then widened.
+    old_tile = h.root();
+    h.widget().detach_tile();
+    lv_obj_delete(old_tile);
+    h.create_tile(test_screen());
+    h.resize(4, 2, 2 * w_normal(), 4 * h_tall() / 3);
+    lv_obj_update_layout(h.root());
+    CHECK(lv_obj_get_style_flex_flow(h.root(), LV_PART_MAIN) == LV_FLEX_FLOW_ROW);
+    CHECK_FALSE(lv_obj_is_hidden(h.child("temp_stack_nozzle_label")));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack: two tiles keep their own shape",
+                 "[widget_size][temp_stack][panel_widget][wide]") {
+    // Both instances exist before either tile is parsed, the order
+    // PanelWidgetManager builds a page in, so a shared subject name would bind
+    // both tiles to whichever was published last.
+    const HarnessConfig deferred{nlohmann::json::object(), true};
+    PanelWidgetHarness<TempStackWidget> wide(test_screen(), deferred, "temp_stack_wide", state(),
+                                             nullptr);
+    PanelWidgetHarness<TempStackWidget> narrow(test_screen(), deferred, "temp_stack_narrow",
+                                               state(), nullptr);
+    wide.create_tile(test_screen());
+    narrow.create_tile(test_screen());
+
+    wide.resize(4, 2, 2 * w_normal(), 4 * h_tall() / 3);
+    narrow.resize(2, 2, w_normal() - 1, h_tall() - 1);
+    // Sizing the second must not have re-shaped the first.
+    lv_obj_update_layout(wide.root());
+    lv_obj_update_layout(narrow.root());
+
+    CHECK(lv_obj_get_style_flex_flow(wide.root(), LV_PART_MAIN) == LV_FLEX_FLOW_ROW);
+    CHECK_FALSE(lv_obj_is_hidden(wide.child("temp_stack_nozzle_label")));
+    CHECK(lv_obj_get_style_flex_flow(narrow.root(), LV_PART_MAIN) == LV_FLEX_FLOW_COLUMN);
+    CHECK(lv_obj_is_hidden(narrow.child("temp_stack_nozzle_label")));
 }

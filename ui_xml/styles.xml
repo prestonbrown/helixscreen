@@ -164,24 +164,21 @@
          border, so it draws inside the swatch and no container can clip it. -->
     <style name="led_ring_holder" radius="9999" bg_opa="0" border_width="0" pad_all="#led_ring_reach"/>
     <style name="led_swatch_ring" border_width="#led_ring_width" border_color="#text" border_opa="255"/>
-    <!-- Motion jog layouts: a key block that runs across in landscape and
-         down in portrait (or the reverse), its keys centred, and the weight a
-         run of several keys takes beside single ones (bind one per
-         orientation: an inline flex_grow would outrank the bound style). -->
-    <style name="jog_flow_row"
+    <!-- Centred flex flows that run across or down, and the weight a flex child
+         takes beside its siblings: motion jog key blocks (across in landscape,
+         down in portrait) and the stacked home widgets. Bind one per state: an
+         inline flex_flow or flex_grow would outrank the bound style. -->
+    <style name="flow_row"
            layout="flex" flex_flow="row" flex_main_place="center" flex_cross_place="center" flex_track_place="center"/>
-    <style name="jog_flow_column"
+    <style name="flow_column"
            layout="flex" flex_flow="column" flex_main_place="center" flex_cross_place="center" flex_track_place="center"/>
-    <!-- Stacked home widgets (temp_stack, fan_stack): the flow a row or the whole
-         widget takes, bound to the arrangement the widget's size decided. -->
-    <style name="stack_flow_row"
-           layout="flex" flex_flow="row" flex_main_place="center" flex_cross_place="center" flex_track_place="center"/>
-    <style name="stack_flow_column"
-           layout="flex" flex_flow="column" flex_main_place="center" flex_cross_place="center" flex_track_place="center"/>
-    <style name="stack_share_width" flex_grow="1"/>
-    <style name="jog_grow_1" flex_grow="1"/>
-    <style name="jog_grow_2" flex_grow="2"/>
-    <style name="jog_grow_3" flex_grow="3"/>
+    <!-- Stacked home widgets (temp_stack, fan_stack): the gap inside a row, bound
+         to whether the row runs across (beside) or down (stacked). -->
+    <style name="stack_gap_beside" pad_gap="#space_xs"/>
+    <style name="stack_gap_stacked" pad_gap="#space_xxs"/>
+    <style name="grow_1" flex_grow="1"/>
+    <style name="grow_2" flex_grow="2"/>
+    <style name="grow_3" flex_grow="3"/>
     <!-- The looks of a choice_button, one idle/selected pair per look. The
          idle style sits on every button of the row and the selected one
          applies in the checked state, so it outranks the idle style and any

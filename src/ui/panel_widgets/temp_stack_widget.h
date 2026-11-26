@@ -25,7 +25,8 @@ class PrinterState;
 
 class TempStackWidget : public PanelWidget {
   public:
-    TempStackWidget(PrinterState& printer_state, TemperatureService* temp_panel);
+    TempStackWidget(const std::string& instance_id, PrinterState& printer_state,
+                    TemperatureService* temp_panel);
     ~TempStackWidget() override;
 
     void set_config(const nlohmann::json& config) override;
@@ -46,6 +47,7 @@ class TempStackWidget : public PanelWidget {
     }
 
   private:
+    std::string instance_id_;
     PrinterState& printer_state_;
     TemperatureService* temp_control_panel_;
     nlohmann::json config_;

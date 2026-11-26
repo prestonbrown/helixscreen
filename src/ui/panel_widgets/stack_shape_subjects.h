@@ -20,9 +20,10 @@ struct StackShapeSubjects {
     helix::Subject stacked{};  ///< 1: each row is icon over value (IconAbove or Columns)
     helix::Subject captions{}; ///< 1: the caption under each value shows
 
-    /// Publish under `prefix` and append the matching XML prop pairs.
+    /// Publish under `prefix` and append the matching XML prop pairs. `captions`
+    /// is published only for a component that has captions to show.
     void publish(SubjectManager& mgr, const std::string& prefix,
-                 std::vector<std::string>& attr_storage) {
+                 std::vector<std::string>& attr_storage, bool with_captions) {
         auto one = [&](helix::Subject& subject, const char* role) {
             subject.init_int(0);
             const std::string name = prefix + "_" + role;
@@ -31,7 +32,8 @@ struct StackShapeSubjects {
         };
         one(columns, "columns");
         one(stacked, "stacked");
-        one(captions, "captions");
+        if (with_captions)
+            one(captions, "captions");
     }
 
     void apply(const StackLayout& layout) {

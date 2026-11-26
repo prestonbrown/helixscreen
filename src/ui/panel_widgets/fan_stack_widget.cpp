@@ -95,7 +95,7 @@ FanStackWidget::FanStackWidget(const std::string& instance_id, PrinterState& pri
     const std::string has_aux = instance_id_ + "_has_aux";
     subjects_.publish(has_aux.c_str(), &has_aux_subject_);
     attr_storage_.insert(attr_storage_.end(), {"has_aux_subject", has_aux});
-    shape_.publish(subjects_, instance_id_ + "_shape", attr_storage_);
+    shape_.publish(subjects_, instance_id_ + "_shape", attr_storage_, false);
     for (const auto& a : attr_storage_) {
         attrs_.push_back(a.c_str());
     }
@@ -430,11 +430,9 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
     // The component binds the widget's and each row's flow, and the equal
     // column share, to these.
     shape_.apply(layout);
-    // DECLARATIVE_OK: the gap follows the measured tier (a resolved spacing token).
     for (const char* rn : row_names) {
         lv_obj_t* row = lv_obj_find_by_name(widget_obj_, rn);
         if (row) {
-            lv_obj_set_style_pad_gap(row, icon_above ? icon_gap_px : row_gap_px, 0);
         }
     }
 
