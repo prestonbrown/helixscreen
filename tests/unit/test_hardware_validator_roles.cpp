@@ -201,3 +201,29 @@ TEST_CASE_METHOD(helix::RoleValidatorFixture,
         REQUIRE_FALSE(is_stale_heater);
     }
 }
+
+// ---------------------------------------------------------------------------
+// load_seen_hardware: a config that predates the seen-fans record
+// ---------------------------------------------------------------------------
+
+TEST_CASE_METHOD(helix::RoleValidatorFixture,
+                 "load_seen_hardware reads the last snapshot of a config with no seen record",
+                 "[hwvalidate][roles][2044]") {
+    // Saved by a build before hardware/seen_fans and seen_heaters existed: the
+    // snapshot is the only record of what this printer reported.
+    setup_minimal();
+    config.set<json>(config.df() + "hardware/last_snapshot",
+                     {{"timestamp", "2026-01-01T00:00:00Z"},
+                      {"heaters", {"extruder", "heater_bed"}},
+                      {"sensors", json::array()},
+                      {"fans", {"fan", "fan_generic chamber"}},
+                      {"leds", json::array()},
+                      {"filament_sensors", json::array()}});
+
+    const helix::SeenHardware seen = HardwareValidator::load_seen_hardware(&config);
+
+    const std::vector<std::string> fans = {"fan", "fan_generic chamber"};
+    const std::vector<std::string> heaters = {"extruder", "heater_bed"};
+    CHECK(seen.fans == fans);
+    CHECK(seen.heaters == heaters);
+}

@@ -207,3 +207,77 @@ TEST_CASE_METHOD(MacroFailureFixture, "A refused or unhomeable calibration says 
         log.expect_one(ToastSeverity::ERROR, "Plain failed", 4000);
     }
 }
+
+// MachineGcode::on_finished: runs once, on the main thread, however the send ends.
+
+TEST_CASE_METHOD(MacroFailureFixture,
+                 "A machine gcode with no API to send through still reports that it finished",
+                 "[macro][machine_gcode][2044]") {
+    helix::MachineGcode cmd;
+    cmd.gcode = cmd.log_name = "PLAIN_WRAPPER";
+    cmd.display_name = "Plain";
+    bool finished = false;
+    cmd.on_finished = [&finished] { finished = true; };
+
+    helix::execute_machine_gcode(nullptr, cmd, "[MacroToastTest]");
+
+    CHECK(finished);
+}
+
+TEST_CASE_METHOD(MacroFailureFixture,
+                 "A machine gcode reports that it finished once the printer has answered",
+                 "[macro][machine_gcode][2044]") {
+    helix::test::ToastLog log;
+    helix::MachineGcode cmd;
+    cmd.gcode = cmd.log_name = "PLAIN_WRAPPER";
+    cmd.display_name = "Plain";
+    int finished = 0;
+    cmd.on_finished = [&finished] { ++finished; };
+
+    SECTION("answered") {
+        helix::execute_machine_gcode(&api, cmd, "[MacroToastTest]");
+        settle();
+        CHECK(finished == 1);
+    }
+    SECTION("failed") {
+        drop_next_rpc_for(cmd.gcode.c_str());
+        helix::execute_machine_gcode(&api, cmd, "[MacroToastTest]");
+        settle();
+        CHECK(finished == 1);
+    }
+}
+
+TEST_CASE_METHOD(MacroFailureFixture,
+                 "A calibration with no API to send through still reports that it finished",
+                 "[macro][machine_gcode][2044]") {
+    get_printer_state().init_subjects(false);
+    helix::MachineGcode cmd;
+    cmd.gcode = cmd.log_name = "PLAIN_WRAPPER";
+    cmd.display_name = "Plain";
+    bool finished = false;
+    cmd.on_finished = [&finished] { finished = true; };
+
+    helix::start_calibration_gcode(nullptr, cmd, /*needs_home=*/true, "[MacroToastTest]");
+
+    CHECK(finished);
+}
+
+TEST_CASE_METHOD(MacroFailureFixture, "A calibration that cannot home reports that it finished",
+                 "[macro][machine_gcode][2044]") {
+    helix::test::ToastLog log;
+    get_printer_state().init_subjects(false);
+    helix::MachineGcode cmd;
+    cmd.gcode = cmd.log_name = "PLAIN_WRAPPER";
+    cmd.display_name = "Plain";
+    int finished = 0;
+    cmd.on_finished = [&finished] { ++finished; };
+
+    client.force_next_gcode_error(MoonrakerErrorType::CONNECTION_LOST, "Klippy Disconnected",
+                                  "G28");
+    helix::start_calibration_gcode(&api, cmd, /*needs_home=*/true, "[MacroToastTest]");
+    settle();
+
+    // The homing failure toasts, so the refusal path ran to its callback.
+    REQUIRE(log.shown.size() == 1);
+    CHECK(finished == 1);
+}

@@ -6,12 +6,17 @@
  */
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/moonraker_client_mock_test_access.h"
 #include "../test_helpers/scoped_env.h"
+#include "app_globals.h"
 #include "config.h"
 #include "core/update_queue.h"
 #include "helix_plugin_features.h"
+#include "i_moonraker_api.h"
 #include "macro_manager.h"
+#include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
+#include "plugin_status_refresh.h"
 #include "printer_discovery.h"
 #include "printer_plugin_status_state.h"
 #include "signal_macro_names.h"
@@ -929,4 +934,109 @@ TEST_CASE("the macro status sees a retired name through the settings", "[signal_
     CHECK(helix::MacroManager::evaluate_status(hw) == helix::MacroInstallStatus::OUTDATED);
     CHECK(helix::MacroManager::macro_content_for(hw).find("[gcode_macro HELIX_ENDED]") ==
           std::string::npos);
+}
+
+// ---------------------------------------------------------------------------
+// PluginStatusRefresh: the plugin's signal migration report reaching the row
+// ---------------------------------------------------------------------------
+
+namespace {
+
+void drain_all() {
+    for (int i = 0; i < 8; ++i) {
+        helix::ui::UpdateQueue::instance().drain();
+    }
+}
+
+/// The mock Moonraker with the HelixPrint plugin answering, published as the
+/// app's, on a printer whose PRINT_START still carries the visible calls. The
+/// plugin's report says it renamed those calls.
+struct MigrationReportFx : LVGLTestFixture {
+    helix::ScopedEnv plugin{"HELIX_MOCK_HELIX_PLUGIN", "1"};
+    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
+    std::unique_ptr<MoonrakerAPIMock> api;
+    helix::IMoonrakerAPI* previous_api = nullptr;
+    std::unique_ptr<helix::PluginStatusRefresh> refresh;
+
+    MigrationReportFx() {
+        client.connect("ws://mock/websocket", []() {}, []() {});
+        api = std::make_unique<MoonrakerAPIMock>(client, get_printer_state());
+        previous_api = get_moonraker_api();
+        set_moonraker_api(api.get());
+        get_printer_state().plugin_status_state().set_signal_macro_scan(
+            scan_of(instrumented_print_start()));
+        helix::MoonrakerClientMockTestAccess::set_method_handler(
+            client, "server.helix.signal_migration",
+            [](MoonrakerClientMock*, const json&, helix::SharedCallback<void(const json&)> success,
+               helix::SharedCallback<void(const MoonrakerError&)>) -> bool {
+                success(json{{"result", {{"state", "done"}}}});
+                return true;
+            });
+        drain_all();
+    }
+    ~MigrationReportFx() override {
+        refresh.reset();
+        drain_all();
+        set_moonraker_api(previous_api);
+        auto& ps = get_printer_state();
+        ps.plugin_status_state().set_signal_macro_scan(std::nullopt);
+        ps.set_helix_plugin_features({});
+        ps.set_helix_plugin_installed(false);
+        ps.set_signal_migration_report(sm::SignalMigrationReport::Unknown);
+        drain_all();
+        client.stop_temperature_simulation();
+        client.disconnect();
+    }
+
+    static sm::SignalNamesLine line() {
+        return static_cast<sm::SignalNamesLine>(lv_subject_get_int(
+            get_printer_state().plugin_status_state().get_helix_macros_signal_names_subject()));
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(
+    MigrationReportFx,
+    "the plugin's signal migration report reaches the macros row on a probe and on a refresh",
+    "[signal_macros][plugin_status][2044]") {
+    auto& ps = get_printer_state();
+    auto& status = ps.plugin_status_state();
+    ps.set_helix_plugin_installed(true);
+    drain_all();
+    refresh = std::make_unique<helix::PluginStatusRefresh>();
+    refresh->refresh();
+    drain_all();
+
+    // The plugin's status arrived with the feature its report is served under.
+    REQUIRE(status.plugin_feature_reported("signal_macro_migration", 1));
+    // A report read earlier has gone stale since.
+    ps.set_signal_migration_report(sm::SignalMigrationReport::NothingFound);
+    drain_all();
+    REQUIRE(line() == sm::SignalNamesLine::AliasesKept);
+
+    SECTION("a probe") {
+        // Discovery hands over the plugin's status, and the refresh follows.
+        ps.set_helix_plugin_features(status.features());
+        drain_all();
+        CHECK(line() == sm::SignalNamesLine::PluginWillRename);
+    }
+    SECTION("a refresh") {
+        refresh->refresh();
+        drain_all();
+        CHECK(line() == sm::SignalNamesLine::PluginWillRename);
+    }
+    SECTION("a probe of a plugin without the feature asks it for no report") {
+        // The installed plugin predates the feature, so it serves no report.
+        helix::PluginFeatureMap older = status.features();
+        older.erase("signal_macro_migration");
+        ps.set_helix_plugin_features(older);
+        drain_all();
+        const int asked = client.call_count("server.helix.signal_migration");
+
+        ps.set_helix_plugin_features(status.features());
+        drain_all();
+
+        CHECK(client.call_count("server.helix.signal_migration") == asked);
+    }
 }
