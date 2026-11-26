@@ -953,6 +953,81 @@ append_stanza_to_zmod_conf() {
     grep -qF "git -C $(host_canonical_path "$ZMOD_TREE") checkout -- moonraker.conf" "$BATS_TEST_TMPDIR/out.log"
 }
 
+# Z-Mod's plugin manager keeps its Moonraker entries in
+# mod_data/extra_plugins.moonraker.conf, which the mod's conf includes ahead of
+# the user conf. Args: $1 = the helixscreen stanza's path:, empty for none.
+# Sets ZMOD_PLUGINS_CONF.
+add_zmod_plugin_conf() {
+    ZMOD_PLUGINS_CONF="$(dirname "$ZMOD_USER_CONF")/extra_plugins.moonraker.conf"
+    printf '[server]\nport: 7125\n\n[include mod_data/extra_plugins.moonraker.conf]\n\n[include mod_data/user.moonraker.conf]\n' \
+        > "$ZMOD_TREE/moonraker.conf"
+    printf '[update_manager other_plugin]\ntype: web\nchannel: stable\nrepo: someone/other\npath: /srv/other\n' \
+        > "$ZMOD_PLUGINS_CONF"
+    [ -z "$1" ] || printf '\n[update_manager helixscreen]\ntype: web\nchannel: stable\nrepo: prestonbrown/helixscreen\npath: %s\npersistent_files:\n    config/settings.json\n    config/helixscreen.env\n' \
+        "$1" >> "$ZMOD_PLUGINS_CONF"
+}
+
+@test "configure_moonraker_updates: Z-Mod plugin manager entry for this install gets no second stanza" {
+    create_zmod_layout
+    add_zmod_plugin_conf "$INSTALL_DIR"
+    local before
+    before=$(cat "$ZMOD_PLUGINS_CONF")
+
+    configure_moonraker_updates "ad5x" 2>/dev/null
+
+    # The mod's entry is untouched: path and persistent_files stay as it wrote them.
+    [ "$(cat "$ZMOD_PLUGINS_CONF")" = "$before" ]
+    [ ! -e "$ZMOD_PLUGINS_CONF.bak.helixscreen" ]
+    [ "$(grep -c '^\[update_manager helixscreen\]' "$ZMOD_USER_CONF")" -eq 0 ]
+}
+
+@test "configure_moonraker_updates: Z-Mod plugin manager entry replaces our earlier stanza" {
+    create_zmod_layout
+    add_zmod_plugin_conf "$INSTALL_DIR"
+    local before restarted="$BATS_TEST_TMPDIR/restarted"
+    before=$(cat "$ZMOD_PLUGINS_CONF")
+    printf '\n[update_manager helixscreen]\ntype: web\nchannel: stable\nrepo: prestonbrown/helixscreen\npath: %s\n' \
+        "$INSTALL_DIR" >> "$ZMOD_USER_CONF"
+    restart_moonraker() { : > "$restarted"; }
+
+    configure_moonraker_updates "ad5x" 2>/dev/null
+
+    [ "$(grep -c '^\[update_manager helixscreen\]' "$ZMOD_USER_CONF")" -eq 0 ]
+    [ "$(cat "$ZMOD_PLUGINS_CONF")" = "$before" ]
+    [ -e "$restarted" ]
+}
+
+@test "configure_moonraker_updates: Z-Mod plugin manager entry for another path leaves ours in place" {
+    create_zmod_layout
+    add_zmod_plugin_conf "/srv/elsewhere"
+    local before
+    before=$(cat "$ZMOD_PLUGINS_CONF")
+
+    configure_moonraker_updates "ad5x" 2>/dev/null
+
+    [ "$(cat "$ZMOD_PLUGINS_CONF")" = "$before" ]
+    [ "$(grep -c '^\[update_manager helixscreen\]' "$ZMOD_USER_CONF")" -eq 1 ]
+    grep -qF "path: $INSTALL_DIR" "$ZMOD_USER_CONF"
+}
+
+@test "detect_moonraker_integration plans no stanza when the Z-Mod plugin manager lists this install" {
+    create_zmod_layout
+    add_zmod_plugin_conf "$INSTALL_DIR"
+
+    detect_moonraker_integration ad5x
+
+    [ "${MOONRAKER_ADDS#*update-manager}" = "$MOONRAKER_ADDS" ]
+}
+
+@test "configure_moonraker_updates: Z-Mod plugin conf without a helixscreen entry still gets ours" {
+    create_zmod_layout
+    add_zmod_plugin_conf ""
+
+    configure_moonraker_updates "ad5x" 2>/dev/null
+
+    [ "$(grep -c '^\[update_manager helixscreen\]' "$ZMOD_USER_CONF")" -eq 1 ]
+}
+
 @test "remove_update_manager_section removes an included stanza and leaves the mod's" {
     local conf conf_dir before
     conf=$(setup_moonraker_home)
