@@ -222,7 +222,7 @@ void app_globals_init_subjects();
  * every bound observer, so a binding made while the subjects were up stays valid.
  */
 namespace helix {
-void reset_app_globals_subject_values();
+void reset_app_globals_subject_values_for_test();
 } // namespace helix
 
 /**

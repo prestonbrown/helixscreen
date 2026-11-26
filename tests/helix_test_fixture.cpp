@@ -455,7 +455,7 @@ void HelixTestFixture::reset_all(bool case_start) {
     // deinitialized: without this, every case after a UI case in the process that
     // binds one has the observer refused by LVGL. show_beta_features is seeded from
     // the config, so they wait for the reset above.
-    helix::reset_app_globals_subject_values();
+    helix::reset_app_globals_subject_values_for_test();
     helix::SettingsManager::instance().init_subjects();
     helix::PrinterImageManager::instance().init_subjects();
     StandardMacros::instance().init_subjects();
