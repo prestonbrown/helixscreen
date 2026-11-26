@@ -65,6 +65,8 @@ inline constexpr const char* kLaneDataNamespace = "lane_data";
 struct OrcaFilamentId {
     std::string id;
     const char* source = nullptr;
+    /// The id is the family's Generic preset, a material claim only.
+    bool generic = false;
 };
 [[nodiscard]] OrcaFilamentId orca_filament_id_for(const FilamentSlotOverride& o);
 

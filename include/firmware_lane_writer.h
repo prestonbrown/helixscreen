@@ -57,7 +57,13 @@ struct SlotIdentity {
 /// The edit command's parameters for @p identity, each preceded by a space,
 /// for a firmware where firmware_writes_lane_records() is true. Every field
 /// goes out, set or cleared, because the caller holds the slot's whole state.
-/// Text Klipper's parser would cut or split goes out empty and is logged.
+/// Text goes out as sendable_text(), logged when that dropped anything.
 std::string slot_identity_params(const SlotIdentity& identity);
+
+/// @p text as the edit command can carry it inside quotes: without the
+/// characters Klipper's parser cuts the line at or that end the quoting
+/// (`"`, `\`, `#`, `;`, `*`), control or non-ASCII bytes, and trimmed. What the
+/// firmware then stores, so a caller compares the firmware's record with it.
+std::string sendable_text(const std::string& text);
 
 } // namespace helix::lane_writer

@@ -62,15 +62,22 @@ class BackendHarness {
         client_.responses[method] = std::move(result);
     }
 
+    /// Answer every later read of the whole namespace @p ns with @p doc, ahead
+    /// of respond_to()'s answer for server.database.get_item.
+    void respond_to_namespace(const std::string& ns, nlohmann::json doc) {
+        client_.namespaces[ns] = std::move(doc);
+    }
+
   private:
     struct AnsweringClient : FakeMoonrakerClient {
         std::map<std::string, nlohmann::json> responses;
+        std::map<std::string, nlohmann::json> namespaces;
 
         using FakeMoonrakerClient::send_jsonrpc;
         RequestId send_jsonrpc(const std::string& method, const nlohmann::json& params,
                                SharedCallback<void(const nlohmann::json&)> cb) override {
             const RequestId id = FakeMoonrakerClient::send_jsonrpc(method, params, cb);
-            answer(method, cb);
+            answer(method, params, cb);
             return id;
         }
         RequestId send_jsonrpc(const std::string& method, const nlohmann::json& params,
@@ -80,13 +87,24 @@ class BackendHarness {
                                std::optional<rpc_error_policy::CallerIntent> intent) override {
             const RequestId id = FakeMoonrakerClient::send_jsonrpc(
                 method, params, success_cb, std::move(error_cb), timeout_ms, silent, intent);
-            answer(method, success_cb);
+            answer(method, params, success_cb);
             return id;
         }
 
       private:
-        void answer(const std::string& method,
+        void answer(const std::string& method, const nlohmann::json& params,
                     const SharedCallback<void(const nlohmann::json&)>& cb) {
+            if (method == "server.database.get_item" && cb && params.is_object() &&
+                !params.contains("key")) {
+                const auto ns = params.find("namespace");
+                if (ns != params.end() && ns->is_string()) {
+                    const auto doc = namespaces.find(ns->get<std::string>());
+                    if (doc != namespaces.end()) {
+                        cb(nlohmann::json{{"result", {{"value", doc->second}}}});
+                        return;
+                    }
+                }
+            }
             auto it = responses.find(method);
             if (it != responses.end() && cb) {
                 cb(nlohmann::json{{"result", it->second}});

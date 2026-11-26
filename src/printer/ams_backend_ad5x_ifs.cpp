@@ -455,9 +455,8 @@ void AmsBackendAd5xIfs::on_started() {
                        // Klippy state — GET_ZCOLOR SILENT=1 only works once zmod is
                        // initialised, so we gate the initial query on webhooks.state == "ready".
                        {"webhooks", nullptr}};
-    // The answer to who writes lane_data, where the firmware may.
-    for (const auto& name : lane_writer_objects_) {
-        query_objects[name] = nullptr;
+    if (lane_writer_awaited_) {
+        query_lane_writer(1);
     }
     client_->send_jsonrpc(
         "printer.objects.query", json{{"objects", std::move(query_objects)}},
@@ -517,13 +516,6 @@ void AmsBackendAd5xIfs::on_started() {
 
                                 handle_status(status_copy);
                             }
-                            // A query that did not say who writes lane_data
-                            // leaves HelixScreen the writer, as on a firmware
-                            // that never does; a later frame can still say.
-                            if (lane_writer_awaited_ && !firmware_writes_lane_records_) {
-                                open_ifs_lane_records(false);
-                            }
-
                             // Log initial state after processing query response
                             {
                                 std::lock_guard<std::mutex> lock(mutex_);
@@ -1356,14 +1348,36 @@ void AmsBackendAd5xIfs::update_slot_from_state(int slot_index) {
         // A firmware that writes lane_data holds the spool link, and the vendor
         // and name it was sent; a vendor or name it could not take stays in our
         // own record, so only a stated one is a reading.
-        if (const auto rec = firmware_lane_records_.find(slot_index);
-            rec != firmware_lane_records_.end()) {
-            cache.spoolman_id = std::max(rec->second.spoolman_id, 0);
-            if (!rec->second.brand.empty()) {
-                cache.brand = rec->second.brand;
+        const auto rec = firmware_lane_records_.find(slot_index);
+        const helix::ams::FilamentSlotOverride* stated =
+            rec != firmware_lane_records_.end() ? &rec->second : nullptr;
+        int spool_id = stated ? std::max(stated->spoolman_id, 0) : 0;
+        std::string brand = stated ? stated->brand : std::string();
+        std::string spool_name = stated ? stated->spool_name : std::string();
+        // An edit of ours the firmware's record has not caught up with yet
+        // stands in for it: the record lands after the command's echo.
+        bool awaiting = false;
+        if (const auto awaited = awaited_identity_.find(slot_index);
+            awaited != awaited_identity_.end()) {
+            const AwaitedIdentity& a = awaited->second;
+            const bool caught_up = stated != nullptr && spool_id == a.spool_id &&
+                                   brand == a.brand && spool_name == a.spool_name;
+            if (caught_up || std::chrono::steady_clock::now() >= a.deadline) {
+                awaited_identity_.erase(awaited);
+            } else {
+                awaiting = true;
+                spool_id = a.spool_id;
+                brand = a.brand;
+                spool_name = a.spool_name;
             }
-            if (!rec->second.spool_name.empty()) {
-                cache.spool_name = rec->second.spool_name;
+        }
+        if (stated != nullptr || awaiting) {
+            cache.spoolman_id = spool_id;
+            if (!brand.empty()) {
+                cache.brand = brand;
+            }
+            if (!spool_name.empty()) {
+                cache.spool_name = spool_name;
             }
         }
         helix::ams::ingest(lane_id(slot_index), cache);
@@ -1570,6 +1584,14 @@ bool AmsBackendAd5xIfs::sync_override_to_firmware_locked(int slot_index, uint32_
 }
 
 void AmsBackendAd5xIfs::on_lane_records_read_locked() {
+    if (override_store_ && override_store_->holds_extras_only() && !private_store_empty_) {
+        private_store_empty_ = overrides_.empty();
+        carry_over_lane_extras_locked();
+    }
+    if (!held_edits_.empty()) {
+        lifetime_.token().defer("Ad5xIfsBackend::apply_held_edits",
+                                [this]() { apply_held_edits(); });
+    }
     for (const int slot_index : std::exchange(record_copy_owed_, {})) {
         const auto color = last_firmware_color_.find(slot_index);
         const auto material = last_firmware_material_.find(slot_index);
@@ -1584,9 +1606,62 @@ void AmsBackendAd5xIfs::on_lane_records_read_locked() {
 
 // --- Lane record writer ---
 
+void AmsBackendAd5xIfs::query_lane_writer(int attempt) {
+    if (!client_) {
+        return;
+    }
+    json objects = json::object();
+    for (const auto& name : lane_writer_objects_) {
+        objects[name] = nullptr;
+    }
+    auto token = lifetime_.token();
+    client_->send_jsonrpc(
+        "printer.objects.query", json{{"objects", std::move(objects)}},
+        [this, token](const json& response) {
+            json status = json::object();
+            if (const json* found = json_util::find_path(response, "result", "status")) {
+                status = *found;
+            }
+            token.defer("Ad5xIfsBackend::lane_writer_answer", [this, status]() {
+                apply_lane_writer_status(status);
+                // A reply that does not say leaves HelixScreen the writer, as on
+                // a firmware that never is one.
+                if (!firmware_writes_lane_records_) {
+                    open_ifs_lane_records(false);
+                }
+            });
+        },
+        [this, token, attempt](const MoonrakerError& err) {
+            token.defer("Ad5xIfsBackend::lane_writer_unanswered", [this, attempt, err]() {
+                if (firmware_writes_lane_records_) {
+                    return;
+                }
+                if (attempt < kLaneWriterQueryAttempts) {
+                    spdlog::info("{} lane_data writer query failed ({}); asking again",
+                                 backend_log_tag(), err.message);
+                    query_lane_writer(attempt + 1);
+                    return;
+                }
+                spdlog::warn("{} lane_data writer never answered ({}); HelixScreen writes "
+                             "lane_data",
+                             backend_log_tag(), err.message);
+                open_ifs_lane_records(false);
+            });
+        },
+        0, /*silent=*/true);
+}
+
 void AmsBackendAd5xIfs::apply_lane_writer_status(const json& status) {
     const std::optional<bool> writes = helix::lane_writer::firmware_writes_lane_records(status);
     if (!writes || writes == firmware_writes_lane_records_ || !api_) {
+        return;
+    }
+    // Once the firmware has taken lane_data, a lower version later in the same
+    // session would hand its records back to a whole-record writer of ours.
+    if (firmware_writes_lane_records_ == true) {
+        spdlog::warn("{} the firmware no longer reports writing lane_data; keeping it the "
+                     "writer until reconnect",
+                     backend_log_tag());
         return;
     }
     open_ifs_lane_records(*writes);
@@ -1597,6 +1672,10 @@ void AmsBackendAd5xIfs::open_ifs_lane_records(bool firmware_writes) {
     {
         std::lock_guard<std::mutex> lock(mutex_);
         firmware_lane_records_.clear();
+        awaited_identity_.clear();
+        own_lane_extras_.reset();
+        private_store_empty_.reset();
+        lane_extras_carried_ = false;
     }
     spdlog::info("{} lane records: {}", backend_log_tag(),
                  firmware_writes ? "the firmware writes lane_data; ours are kept privately"
@@ -1608,15 +1687,19 @@ void AmsBackendAd5xIfs::open_ifs_lane_records(bool firmware_writes) {
     }
 }
 
+helix::ams::ExtrasFields AmsBackendAd5xIfs::private_extras_fields() {
+    helix::ams::ExtrasFields fields;
+    fields.remaining_weight = true;
+    fields.total_weight = true;
+    return fields;
+}
+
 void AmsBackendAd5xIfs::configure_lane_record_store_locked(
     helix::ams::FilamentSlotOverrideStore& store) {
     // The firmware holds type, color, spool link, vendor and name. Vendor and
     // name stay here as well, for the text its command cannot carry; weights
     // it has no field for.
-    helix::ams::ExtrasFields fields;
-    fields.remaining_weight = true;
-    fields.total_weight = true;
-    store.set_extras_fields(fields);
+    store.set_extras_fields(private_extras_fields());
 }
 
 void AmsBackendAd5xIfs::refresh_backend_keys(helix::ams::FilamentSlotOverrideStore& store) {
@@ -1644,14 +1727,25 @@ void AmsBackendAd5xIfs::adopt_firmware_lane_records(const json& namespace_doc) {
         return;
     }
     std::unordered_map<int, helix::ams::FilamentSlotOverride> records;
+    std::unordered_map<int, helix::ams::FilamentSlotOverride> own_extras;
     for (auto& [slot, entry] : helix::ams::parse_namespace_document(
              namespace_doc, helix::ams::LaneKeyStyle::Lane, backend_log_tag())) {
-        if (!entry.record.external_mirror) {
-            records.emplace(slot, std::move(entry.record));
+        if (entry.record.external_mirror) {
+            continue;
         }
+        // Records HelixScreen wrote while it was the writer hold its notes.
+        if (helix::json_util::safe_string(entry.wire, "writer") == helix::ams::kLaneDataWriter) {
+            own_extras.emplace(slot,
+                               helix::ams::extras_only(entry.record, private_extras_fields()));
+        }
+        records.emplace(slot, std::move(entry.record));
     }
     {
         std::lock_guard<std::mutex> lock(mutex_);
+        if (!own_lane_extras_) {
+            own_lane_extras_ = std::move(own_extras);
+            carry_over_lane_extras_locked();
+        }
         const auto same = [](const helix::ams::FilamentSlotOverride& a,
                              const helix::ams::FilamentSlotOverride& b) {
             return a.spoolman_id == b.spoolman_id && a.brand == b.brand &&
@@ -1673,6 +1767,43 @@ void AmsBackendAd5xIfs::adopt_firmware_lane_records(const json& namespace_doc) {
     emit_event(EVENT_STATE_CHANGED);
 }
 
+void AmsBackendAd5xIfs::carry_over_lane_extras_locked() {
+    if (lane_extras_carried_ || !own_lane_extras_ || !private_store_empty_ || !override_store_) {
+        return;
+    }
+    lane_extras_carried_ = true;
+    if (!*private_store_empty_) {
+        return;
+    }
+    // The private store starts empty when the firmware takes lane_data: the
+    // notes HelixScreen kept in its own lane_data records move there once.
+    // lane_data itself is the firmware's and is left as it is.
+    for (const auto& [slot, extras] : *own_lane_extras_) {
+        overrides_[slot] = extras;
+        helix::ams::save_override_async(override_store_.get(), slot, extras, backend_log_tag(),
+                                        "Carried-over record", lane_id(slot));
+    }
+    if (!own_lane_extras_->empty()) {
+        spdlog::info("{} carried {} lane record(s) of ours into {}", backend_log_tag(),
+                     own_lane_extras_->size(), kOverrideNamespace);
+    }
+}
+
+void AmsBackendAd5xIfs::apply_held_edits() {
+    std::map<int, SlotInfo> held;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        held.swap(held_edits_);
+    }
+    for (const auto& [slot, info] : held) {
+        const AmsError err = apply_user_edit(slot, info);
+        if (!err.success()) {
+            spdlog::warn("{} held edit of slot {} failed: {}", backend_log_tag(), slot,
+                         err.technical_msg);
+        }
+    }
+}
+
 std::string AmsBackendAd5xIfs::firmware_identity_params_locked(int slot_index,
                                                                const std::string& material) const {
     if (firmware_writes_lane_records_ != true) {
@@ -1691,8 +1822,12 @@ std::string AmsBackendAd5xIfs::firmware_identity_params_locked(int slot_index,
     identity.spool_id = o.spoolman_id;
     identity.vendor = o.brand;
     identity.name = o.spool_name;
-    identity.filament_id = helix::ams::orca_filament_id_for(o).id;
-    identity.bed_temp = helix::ams::resolved_temps(o).bed_temp;
+    // A Generic preset is only a material claim: sent empty, the firmware
+    // names its own profile for the type. Likewise a bed temperature nobody
+    // set is left to it.
+    const helix::ams::OrcaFilamentId orca = helix::ams::orca_filament_id_for(o);
+    identity.filament_id = orca.generic ? std::string() : orca.id;
+    identity.bed_temp = o.bed_temp;
     return helix::lane_writer::slot_identity_params(identity);
 }
 
@@ -3149,6 +3284,14 @@ AmsError AmsBackendAd5xIfs::apply_user_edit(int slot_index, const SlotInfo& info
         if (!entry) {
             return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, port_count() - 1);
         }
+        // The store waits for the firmware to say who writes lane_data, and so
+        // does the edit: which command and which record it takes depend on it.
+        if (lane_writer_awaited_ && override_store_ == nullptr) {
+            held_edits_[slot_index] = info;
+            spdlog::info("{} slot {} edit held until the lane records open", backend_log_tag(),
+                         slot_index);
+            return AmsErrorHelper::success();
+        }
         normalized_material = write_port_locked(slot_index, entry->info, info);
 
         // Brand, spool, weights, colour name and temperatures go in the
@@ -3157,6 +3300,12 @@ AmsError AmsBackendAd5xIfs::apply_user_edit(int slot_index, const SlotInfo& info
         // colour the firmware refused.
         persist_record_beside_firmware_locked(slot_index, info);
         identity_params = firmware_identity_params_locked(slot_index, normalized_material);
+        if (!identity_params.empty()) {
+            awaited_identity_[slot_index] = AwaitedIdentity{
+                std::max(info.spoolman_id, 0), helix::lane_writer::sendable_text(info.brand),
+                helix::lane_writer::sendable_text(info.spool_name),
+                std::chrono::steady_clock::now() + helix::ams::kPendingWriteTimeout};
+        }
 
         settle_port_locked(slot_index);
     }

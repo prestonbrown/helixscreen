@@ -53,21 +53,33 @@ const Provider* listed_provider(const PrinterDiscovery& hw) {
     return nullptr;
 }
 
-/// A text field as one quoted parameter value, or empty when Klipper's parser
-/// would cut or split it (or there is nothing to send).
+/// A text field as one quoted parameter value, empty when nothing is left to send.
 std::string text_value(const Provider& p, const char* param, const std::string& text) {
-    if (text.empty()) {
-        return {};
+    const std::string sent = sendable_text(text);
+    if (sent != text) {
+        spdlog::warn("[LaneWriter] {} {}= sent as '{}': '{}' holds characters the command cannot "
+                     "carry",
+                     p.name, param, sent, text);
     }
-    if (!IMoonrakerAPI::is_safe_text_param(text)) {
-        spdlog::warn("[LaneWriter] {} {}= not sent: '{}' holds characters the command cannot carry",
-                     p.name, param, text);
-        return {};
-    }
-    return IMoonrakerAPI::quoted_gcode_param_value(text);
+    return sent.empty() ? std::string() : IMoonrakerAPI::quoted_gcode_param_value(sent);
 }
 
 } // namespace
+
+std::string sendable_text(const std::string& text) {
+    std::string out;
+    out.reserve(text.size());
+    for (const char c : text) {
+        if (IMoonrakerAPI::is_safe_text_param(std::string(1, c))) {
+            out += c;
+        }
+    }
+    const size_t first = out.find_first_not_of(' ');
+    if (first == std::string::npos) {
+        return {};
+    }
+    return out.substr(first, out.find_last_not_of(' ') - first + 1);
+}
 
 std::vector<std::string> required_status_objects(const PrinterDiscovery& hw) {
     if (const Provider* p = listed_provider(hw)) {

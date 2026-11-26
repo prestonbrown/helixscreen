@@ -537,23 +537,34 @@ writes the records, and from plugin API 1.12 (`printer.ad5x_plugins.api_version`
 beside `TYPE=` and `COLOR=` (djvalic/kiln-os#101).
 
 - **Waiting for the answer.** When the objects list names such a firmware
-  (`firmware_may_write_lane_records()`), the start opens no lane record store. The start
-  query and the subscription carry the version, and the first frame that states it
-  opens the store (`apply_lane_writer_status`, at the top of `handle_status`). A query
-  that comes back without it opens `lane_data` as on any module firmware; a later frame
-  that changes the answer opens the store again on the other namespace.
+  (`firmware_may_write_lane_records()`), the start opens no lane record store. It asks
+  for the version (`query_lane_writer`), up to `kLaneWriterQueryAttempts` times when the
+  query fails; the subscription carries it too, and the first frame that states it opens
+  the store (`apply_lane_writer_status`, at the top of `handle_status`). A reply without
+  the version, or a query that never answers, opens `lane_data` as on any module
+  firmware. An edit made before then is held (`held_edits_`) and applied once the
+  store's first read lands. A later frame stating 1.12 or later opens the private store;
+  once the firmware writes `lane_data`, a lower version later in the session changes
+  nothing until the next connection.
 - **API 1.12 or later.** The store is private, `helix-screen-ifs-overrides`
   (`AmsBackendAd5xIfs::kOverrideNamespace`, extras only): colour name, catalog pick,
-  product name, fingerprint, weights, and vendor and name as a fallback for text the
-  command cannot carry. Every edit goes out as one
+  product name, fingerprint, weights, and vendor and name as a fallback. Every edit goes
+  out as one
   `IFS_SET_MATERIAL SLOT= TYPE= COLOR= SPOOL_ID= VENDOR="…" NAME="…" FILAMENT_ID="…" BED_TEMP=`,
-  every field set or cleared. `FILAMENT_ID` is the Orca id a record of ours would name
-  (`orca_filament_id_for()`), `BED_TEMP` the record's resolved bed temperature. Text with
-  `"`, `\`, `#`, `;` or `*` goes out empty (Klipper cuts or splits it) and stays in the
-  private record. Nothing of ours reaches `lane_data`, and the firmware-to-record mirror
-  stands down on a private store. Each refresh and poll also reads `lane_data`
-  (`refresh_backend_keys`): a record's spool id, vendor and name join that slot's
-  `Firmware` reading, beside the colour and type `ifs_materials` states.
+  every field set or cleared. `FILAMENT_ID` is a product's Orca id
+  (`orca_filament_id_for()`: the linked spool's, or the catalog pick's); a Generic preset
+  goes out empty, so the firmware names its own profile for the type. `BED_TEMP` is a bed
+  temperature someone set, else empty. Text loses `"`, `\`, `#`, `;`, `*`, control and
+  non-ASCII bytes (`lane_writer::sendable_text()`), which Klipper would cut or unquote.
+  Nothing of ours reaches `lane_data`, and the firmware-to-record mirror stands down on a
+  private store. Each refresh and poll also reads `lane_data` (`refresh_backend_keys`): a
+  record's spool id, vendor and name join that slot's `Firmware` reading, beside the
+  colour and type `ifs_materials` states. The firmware writes its record after the
+  command's echo, so an edit's spool id, vendor and name stand as that reading
+  (`awaited_identity_`) until the record states them or the pending-write timeout passes.
+- **Carry-over.** The first time the private store reads empty, the extras of the
+  `lane_data` records HelixScreen wrote (`writer: helixscreen`) are written into it once
+  (`carry_over_lane_extras_locked`); `lane_data` is left as it is.
 - **Below 1.12, or no such object** (Forge-X, Kiln before 1.12, Z-Mod with `helix = 1`):
   HelixScreen is the `lane_data` writer, as above.
 

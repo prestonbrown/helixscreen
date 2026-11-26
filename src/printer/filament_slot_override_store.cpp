@@ -133,7 +133,7 @@ OrcaFilamentId orca_filament_id_for(const FilamentSlotOverride& o) {
     if (std::string generic =
             helix::printer::FilamentCatalog::generic_orca_id_for(o.material, match);
         !generic.empty())
-        return {std::move(generic), kFilamentIdSourceGeneric};
+        return {std::move(generic), kFilamentIdSourceGeneric, /*generic=*/true};
     return {};
 }
 

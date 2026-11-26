@@ -60,8 +60,10 @@ TEST_CASE("lane_writer sends every identity field, quoting text", "[lane_writer]
         CHECK(lane_writer::slot_identity_params({}) ==
               " SPOOL_ID= VENDOR= NAME= FILAMENT_ID= BED_TEMP=");
     }
-    SECTION("text Klipper would cut at goes out empty") {
-        id.name = "Blue #2";
-        CHECK(lane_writer::slot_identity_params(id).find(" NAME= ") != std::string::npos);
+    SECTION("characters Klipper would cut at or unquote are dropped, the rest goes out") {
+        id.name = "Blue #2; \"Deep\"";
+        CHECK(lane_writer::slot_identity_params(id).find(" NAME=\"Blue 2 Deep\" ") !=
+              std::string::npos);
+        CHECK(lane_writer::sendable_text("  ###  ").empty());
     }
 }
