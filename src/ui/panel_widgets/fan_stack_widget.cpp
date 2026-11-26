@@ -338,9 +338,9 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
                 ColumnWidths cols;
                 cols.captioned_px = widest;
                 cols.min_box_px = widget_size::w_normal() - pad_px;
-                // Smaller than the temp stack's: a fan column carries one text line under the
-                // glyph.
-                cols.margin_px = 2 * static_cast<int>(theme_manager_get_spacing("space_xs"));
+                // Smaller than the temp stack's: a fan column carries one text line under
+                // the glyph. margin_px counts on both sides, so this is 2*space_xs in all.
+                cols.margin_px = static_cast<int>(theme_manager_get_spacing("space_xs"));
                 const StackLayout candidate = classify_stack_layout(
                     colspan, rowspan, box_px, height_px, visible_rows, row, row_gap_px, cols);
                 if (candidate.shape == StackShape::Columns) {
