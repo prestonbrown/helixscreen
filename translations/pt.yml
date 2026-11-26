@@ -4870,6 +4870,7 @@ translations:
   Stepper driver {} is overheating: 'O driver do motor de passo {} está superaquecendo'
   Stepper driver {} overheated and shut down: 'O driver do motor de passo {} superaqueceu e desligou'
   Still reading the printer's lane record. Try again in a moment.: 'Ainda lendo o registro de lanes da impressora. Tente novamente em instantes.'
+  Still reading the printer's lane records: 'Ainda lendo os registros de lane da impressora'
   Still running; no reply after {} min: 'Ainda em execução; sem resposta após {} min'
   Still saving this spool…: 'Ainda salvando este carretel…'
   Still working... taking longer than usual: Ainda processando... está demorando mais que o normal
@@ -5787,6 +5788,7 @@ translations:
   'Troubleshooting:': 'Solução de Problemas:'
   Try adjusting your search or filters: Tente ajustar sua busca ou filtros
   Try Again: 'Tentar novamente'
+  Try again in a moment.: 'Tente novamente em instantes.'
   Try again. If it keeps happening, reseat the accelerometer cable.: Tente novamente. Se continuar acontecendo, reassente o cabo do acelerômetro.
   Try the operation again. If it persists, check for mechanical issues.: Tente a operação novamente. Se persistir, verifique problemas mecânicos.
   Try the setting again, and restart the printer if it keeps failing.: 'Tente a configuração novamente e reinicie a impressora se continuar falhando.'

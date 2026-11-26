@@ -4870,6 +4870,7 @@ translations:
   Stepper driver {} is overheating: '步进电机驱动器 {} 过热'
   Stepper driver {} overheated and shut down: '步进电机驱动器 {} 过热并已关闭'
   Still reading the printer's lane record. Try again in a moment.: '仍在读取打印机的耗材通道记录，请稍后再试。'
+  Still reading the printer's lane records: '仍在读取打印机的耗材通道记录'
   Still running; no reply after {} min: '仍在运行；{} 分钟无响应'
   Still saving this spool…: '此料盘仍在保存中…'
   Still working... taking longer than usual: 仍在处理……耗时比平常更长
@@ -5787,6 +5788,7 @@ translations:
   'Troubleshooting:': 故障排除：
   Try adjusting your search or filters: 尝试调整搜索或筛选条件
   Try Again: '重试'
+  Try again in a moment.: '请稍后再试。'
   Try again. If it keeps happening, reseat the accelerometer cable.: 请重试。如果反复出现，请重新插好加速度计线缆。
   Try the operation again. If it persists, check for mechanical issues.: 请重试该操作。如果问题持续存在，请检查是否有机械故障。
   Try the setting again, and restart the printer if it keeps failing.: '请重新应用设置，如持续失败请重启打印机。'

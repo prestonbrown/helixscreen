@@ -4882,6 +4882,7 @@ translations:
   Stepper driver {} is overheating: 'Le pilote du moteur pas à pas {} surchauffe'
   Stepper driver {} overheated and shut down: 'Le pilote du moteur pas à pas {} a surchauffé et s''est arrêté'
   Still reading the printer's lane record. Try again in a moment.: 'Lecture de l''enregistrement des voies de l''imprimante en cours. Réessayez dans un instant.'
+  Still reading the printer's lane records: 'Lecture des données de voie de l''imprimante en cours'
   Still running; no reply after {} min: 'Toujours en cours ; aucune réponse après {} min'
   Still saving this spool…: 'Enregistrement de cette bobine en cours…'
   Still working... taking longer than usual: Toujours en cours... cela prend plus de temps que d'habitude
@@ -5799,6 +5800,7 @@ translations:
   'Troubleshooting:': 'Dépannage :'
   Try adjusting your search or filters: Essayez d'ajuster votre recherche ou vos filtres
   Try Again: 'Réessayer'
+  Try again in a moment.: 'Réessayez dans un instant.'
   Try again. If it keeps happening, reseat the accelerometer cable.: Réessayez. Si cela se reproduit, rebranchez le câble de l'accéléromètre.
   Try the operation again. If it persists, check for mechanical issues.: Réessayez l'opération. Si le problème persiste, vérifiez s'il y a des problèmes mécaniques.
   Try the setting again, and restart the printer if it keeps failing.: 'Réessayez le réglage, et redémarrez l''imprimante s''il échoue encore.'

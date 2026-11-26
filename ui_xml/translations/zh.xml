@@ -4713,6 +4713,7 @@
   <translation tag="Stepper driver {} is overheating" zh="步进电机驱动器 {} 过热"/>
   <translation tag="Stepper driver {} overheated and shut down" zh="步进电机驱动器 {} 过热并已关闭"/>
   <translation tag="Still reading the printer&apos;s lane record. Try again in a moment." zh="仍在读取打印机的耗材通道记录，请稍后再试。"/>
+  <translation tag="Still reading the printer&apos;s lane records" zh="仍在读取打印机的耗材通道记录"/>
   <translation tag="Still running; no reply after {} min" zh="仍在运行；{} 分钟无响应"/>
   <translation tag="Still saving this spool…" zh="此料盘仍在保存中…"/>
   <translation tag="Still working... taking longer than usual" zh="仍在处理……耗时比平常更长"/>
@@ -5551,6 +5552,7 @@
   <translation tag="Troubleshooting:" zh="故障排除："/>
   <translation tag="Try Again" zh="重试"/>
   <translation tag="Try adjusting your search or filters" zh="尝试调整搜索或筛选条件"/>
+  <translation tag="Try again in a moment." zh="请稍后再试。"/>
   <translation tag="Try again. If it keeps happening, reseat the accelerometer cable." zh="请重试。如果反复出现，请重新插好加速度计线缆。"/>
   <translation tag="Try the operation again. If it persists, check for mechanical issues." zh="请重试该操作。如果问题持续存在，请检查是否有机械故障。"/>
   <translation tag="Try the setting again, and restart the printer if it keeps failing." zh="请重新应用设置，如持续失败请重启打印机。"/>

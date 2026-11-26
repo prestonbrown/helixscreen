@@ -4779,6 +4779,7 @@
   <translation tag="Stepper driver {} is overheating" pl="Sterownik silnika {} się przegrzewa"/>
   <translation tag="Stepper driver {} overheated and shut down" pl="Sterownik silnika {} się przegrzał i wyłączył"/>
   <translation tag="Still reading the printer&apos;s lane record. Try again in a moment." pl="Nadal wczytuję zapis torów drukarki. Spróbuj za chwilę."/>
+  <translation tag="Still reading the printer&apos;s lane records" pl="Trwa odczyt danych torów drukarki"/>
   <translation tag="Still running; no reply after {} min" pl="Nadal działa; brak odpowiedzi od {} min"/>
   <translation tag="Still saving this spool…" pl="Nadal zapisuję tę szpulę…"/>
   <translation tag="Still working... taking longer than usual" pl="Nadal pracuję... trwa dłużej niż zwykle"/>
@@ -5617,6 +5618,7 @@
   <translation tag="Troubleshooting:" pl="Rozwiązywanie problemów:"/>
   <translation tag="Try Again" pl="Spróbuj ponownie"/>
   <translation tag="Try adjusting your search or filters" pl="Spróbuj zmienić wyszukiwanie lub filtry"/>
+  <translation tag="Try again in a moment." pl="Spróbuj za chwilę."/>
   <translation tag="Try again. If it keeps happening, reseat the accelerometer cable." pl="Spróbuj ponownie. Jeśli się powtarza, osadź ponownie kabel akcelerometru."/>
   <translation tag="Try the operation again. If it persists, check for mechanical issues." pl="Spróbuj ponownie. Jeśli problem się utrzymuje, sprawdź mechanikę."/>
   <translation tag="Try the setting again, and restart the printer if it keeps failing." pl="Spróbuj ustawić ponownie, a jeśli nadal się nie udaje, uruchom ponownie drukarkę."/>

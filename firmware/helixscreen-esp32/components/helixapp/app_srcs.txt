@@ -167,6 +167,7 @@ src/printer/ams_backend.cpp
 src/printer/ams_backend_registry.cpp
 src/printer/ams_backend_ace.cpp
 src/printer/ams_backend_ad5x_ifs.cpp
+src/printer/firmware_lane_writer.cpp
 src/printer/ad5x_status_parse.cpp
 src/printer/ams_backend_afc.cpp
 src/printer/afc_status_parse.cpp
