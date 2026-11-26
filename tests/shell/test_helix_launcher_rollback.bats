@@ -283,6 +283,25 @@ kill_launch_unclean() {
     [ "$(cat "$HELIX_ROLLBACK_DIR/update_rollback.starts")" = "0" ]
 }
 
+@test "rollback: a stop while a rollback request is pending keeps its guarded start spent" {
+    set_app "$INSTALL" 'sleep 30'
+    arm
+    printf 'reason=crash_loop\n' > "$HELIX_ROLLBACK_DIR/update_rollback.request"
+    # The watcher must not act on the request before the stop arrives.
+    export HELIX_ROLLBACK_WINDOW=60 HELIX_ROLLBACK_POLL=30
+    sh "$INSTALL/bin/helix-launcher.sh" >"$BATS_TEST_TMPDIR/launcher.log" 2>&1 &
+    local pid=$! i=0
+    until [ -s "$LAUNCHES" ] || [ "$i" -ge 100 ]; do
+        sleep 0.1
+        i=$((i + 1))
+    done
+    kill -TERM "$pid"
+    wait "$pid" || true
+    grep -q 'Stopped during the rollback window' "$BATS_TEST_TMPDIR/launcher.log"
+    [ "$(cat "$HELIX_ROLLBACK_DIR/update_rollback.starts")" = "1" ]
+    [ ! -e "$HELIX_ROLLBACK_DIR/update_rollback.stops" ]
+}
+
 @test "rollback: a stop after the guard passed says so, not that the window was interrupted" {
     set_app "$INSTALL" "touch '$HELIX_ROLLBACK_DIR/update_rollback.healthy'; sleep 30"
     arm
@@ -442,6 +461,25 @@ exit 0"
     assert_rolled_back
     [ "$(reason)" = "too_many_starts" ]
     [ "$(cat "$LAUNCHES")" = "old" ]
+}
+
+@test "rollback: a garbled stop cap falls back to its default instead of refunding without limit" {
+    set_app "$INSTALL" "touch '$HELIX_ROLLBACK_DIR/update_rollback.stopping'; exit 0"
+    arm
+    echo 10 > "$HELIX_ROLLBACK_DIR/update_rollback.stops"
+    export HELIX_ROLLBACK_MAX_STOPS=ten
+    launch
+    [ "$(cat "$HELIX_ROLLBACK_DIR/update_rollback.starts")" = "1" ]
+}
+
+@test "rollback: a garbled start cap falls back to its default" {
+    set_app "$INSTALL" 'sleep 30'
+    arm
+    echo 3 > "$HELIX_ROLLBACK_DIR/update_rollback.starts"
+    export HELIX_ROLLBACK_MAX_STARTS=three
+    launch
+    assert_rolled_back
+    [ "$(reason)" = "too_many_starts" ]
 }
 
 @test "rollback: a marker naming a tree that is not the kept sibling is dropped untouched" {

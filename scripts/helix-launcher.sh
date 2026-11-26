@@ -1671,13 +1671,17 @@ _is_crash_exit() {
 # start counts toward HELIX_ROLLBACK_MAX_STARTS before it runs, so a power
 # loss, a reset or a reboot loop runs out; a recorded stop gives its start
 # back, up to HELIX_ROLLBACK_MAX_STOPS times (.stops), after which stops
-# count too, so a loop of stops runs out as well. Under helixscreen.service a healthy report
-# first ends the launch so the service restarts with the new units, and the
-# previous tree is kept until that start is healthy too (.phase = units).
+# count too, so a loop of stops runs out as well. Under helixscreen.service a
+# healthy report first ends the launch so the service restarts with the new
+# units, and the previous tree is kept until that start is healthy too
+# (.phase = units).
 HELIX_ROLLBACK_WINDOW="${HELIX_ROLLBACK_WINDOW:-600}"
 HELIX_ROLLBACK_POLL="${HELIX_ROLLBACK_POLL:-5}"
 HELIX_ROLLBACK_MAX_STARTS="${HELIX_ROLLBACK_MAX_STARTS:-3}"
 HELIX_ROLLBACK_MAX_STOPS="${HELIX_ROLLBACK_MAX_STOPS:-10}"
+# A garbled cap would make every comparison against it false: no limit at all.
+case "${HELIX_ROLLBACK_MAX_STARTS}" in '' | *[!0-9]*) HELIX_ROLLBACK_MAX_STARTS=3 ;; esac
+case "${HELIX_ROLLBACK_MAX_STOPS}" in '' | *[!0-9]*) HELIX_ROLLBACK_MAX_STOPS=10 ;; esac
 
 helix_rollback_file() {
     printf '%s/update_rollback.%s' "${HELIX_ROLLBACK_DIR}" "$1"
@@ -1755,9 +1759,17 @@ helix_rollback_count() {
     echo "$_hrc_v"
 }
 
+# helix_rollback_set_count NAME VALUE: replace the counter file whole. A power
+# loss mid-write leaves the old value, never an empty file that reads as 0.
+helix_rollback_set_count() {
+    _hsc_f=$(helix_rollback_file "$1")
+    { echo "$2" > "${_hsc_f}.tmp" && mv "${_hsc_f}.tmp" "${_hsc_f}"; } 2>/dev/null
+}
+
 # A guarded launch ended by a recorded stop gives back the start it spent,
 # while the stop budget lasts. The stop is recorded before the start is
-# returned, so a power loss between the two writes costs a start, never a stop.
+# returned: a power loss between the two writes spends both, and a start is
+# never refunded without its stop on record.
 helix_rollback_refund_start() {
     [ ! -f "$(helix_rollback_file request)" ] || return 0
     _hrf_stops=$(helix_rollback_count stops)
@@ -1765,10 +1777,10 @@ helix_rollback_refund_start() {
         log "Stop ${_hrf_stops} of the rollback window exceeds HELIX_ROLLBACK_MAX_STOPS; it counts as a start"
         return 0
     fi
-    echo $((_hrf_stops + 1)) > "$(helix_rollback_file stops)" 2>/dev/null || return 0
+    helix_rollback_set_count stops $((_hrf_stops + 1)) || return 0
     _hrf_starts=$(helix_rollback_count starts)
     [ "$_hrf_starts" -gt 0 ] || return 0
-    echo $((_hrf_starts - 1)) > "$(helix_rollback_file starts)" 2>/dev/null || true
+    helix_rollback_set_count starts $((_hrf_starts - 1)) || true
 }
 
 # The new version passed: the previous tree is no longer needed.
@@ -1867,7 +1879,7 @@ helix_rollback_watch() {
             fi
             if [ ! -f "$(helix_rollback_file busy)" ]; then
                 { echo units > "$(helix_rollback_file phase)" &&
-                    echo 0 > "$(helix_rollback_file starts)" &&
+                    helix_rollback_set_count starts 0 &&
                     rm -f "$(helix_rollback_file stops)" &&
                     touch "$(helix_rollback_file handoff)"; } 2>/dev/null || true
                 rm -f "$(helix_rollback_file healthy)" 2>/dev/null || true
@@ -1941,7 +1953,7 @@ while :; do
         else
             rm -f "$(helix_rollback_file healthy)" "$(helix_rollback_file stopping)"                 "$(helix_rollback_file handoff)" 2>/dev/null || true
             _rb_starts=$(($(helix_rollback_count starts) + 1))
-            echo "$_rb_starts" > "$(helix_rollback_file starts)" 2>/dev/null || true
+            helix_rollback_set_count starts "$_rb_starts" || true
             if [ "$_rb_starts" -gt "${HELIX_ROLLBACK_MAX_STARTS}" ]; then
                 if helix_rollback_restore too_many_starts; then
                     cd "${INSTALL_DIR}" 2>/dev/null || true
