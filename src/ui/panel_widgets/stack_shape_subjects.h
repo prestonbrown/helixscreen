@@ -39,7 +39,7 @@ struct StackShapeSubjects {
 
     void apply(const StackLayout& layout) {
         lv_subject_set_int(&columns, layout.shape == StackShape::Columns ? 1 : 0);
-        int row_flow = 0; // across, centred
+        int row_flow = 0; // across, centered
         if (layout.shape == StackShape::IconAbove || layout.shape == StackShape::Columns)
             row_flow = 1; // down: icon over value
         else if (layout.shape == StackShape::Rows)

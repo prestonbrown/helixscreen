@@ -386,7 +386,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack at 2x2 draws big rows, glyph lef
     lv_obj_t* nozzle_row = h.child("temp_stack_nozzle_row");
     lv_obj_t* bed_row = h.child("temp_stack_bed_row");
     lv_obj_t* nozzle_glyph = h.child("nozzle_icon_glyph");
-    lv_obj_t* nozzle_temp = lv_obj_get_child(nozzle_row, 1);
+    lv_obj_t* nozzle_temp = h.child("temp_stack_nozzle_temp");
 
     // 2x2 cells = 4x4 tracks.
     h.resize(4, 4, 2 * w_normal(), 2 * h_tall());
@@ -453,10 +453,13 @@ TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack big rows sit inside the padded b
     // The 2x2 grants of the 800x480 and 480x320 panels as they arrive at
     // runtime, under every tier whose text ladder they may meet, plus every
     // height around the first big-rows size (a square-ish box, so the 3:2
-    // columns rule stays out of it).
+    // columns rule stays out of it). This also pins the widget passing a
+    // nonzero margin to the classifier: with none, the tightest heights put the
+    // rows against the box edge.
     std::vector<std::pair<int, int>> grants = {{233, 230}, {166, 155}};
-    for (int height = 90; height <= 260; height += 1)
-        grants.emplace_back(233, height);
+    for (int width = 120; width <= 233; width += 7)
+        for (int height = 90; height <= 260; height += 2)
+            grants.emplace_back(width, height);
 
     int rows_seen = 0;
     for (UiBreakpoint bp :
@@ -476,13 +479,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack big rows sit inside the padded b
             lv_obj_t* last = h.child("temp_stack_chamber_row");
             if (lv_obj_is_hidden(last))
                 last = h.child("temp_stack_bed_row");
-            for (lv_obj_t* row : {first, last}) {
-                lv_obj_t* glyph_box = lv_obj_get_child(row, 0);
-                const int top = lv_obj_get_y(row) + lv_obj_get_y(glyph_box);
-                const int bottom = top + lv_obj_get_height(glyph_box);
-                CHECK(top >= pad);
-                CHECK(bottom <= height - pad);
-            }
+            // The rows themselves, not their glyphs: the classifier budgets the
+            // row heights, and a row is as tall as its largest part.
+            CHECK(lv_obj_get_y(first) >= pad);
+            CHECK(lv_obj_get_y(last) + lv_obj_get_height(last) <= height - pad);
         }
     }
     REQUIRE(rows_seen > 0);

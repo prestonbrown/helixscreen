@@ -184,7 +184,7 @@ void FanStackWidget::attach_stack(lv_obj_t* /*widget_obj*/) {
         update_speed(*row, 0);
     }
 
-    // Rotation pivots at the icon's centre, as a percentage so it holds at any glyph size
+    // Rotation pivots at the icon's center, as a percentage so it holds at any glyph size
     for (lv_obj_t* icon : {part_icon_.get(), hotend_icon_.get(), aux_icon_.get()})
         set_icon_pivot(icon);
 
@@ -338,10 +338,9 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
                 ColumnWidths cols;
                 cols.captioned_px = widest;
                 cols.min_box_px = widget_size::w_normal() - pad_px;
-                // Keep a margin above and below, as wide as the sides.
-                const StackLayout candidate =
-                    classify_stack_layout(colspan, rowspan, box_px, height_px - pad_px,
-                                          visible_rows, row, row_gap_px, cols);
+                cols.margin_px = 2 * static_cast<int>(theme_manager_get_spacing("space_sm"));
+                const StackLayout candidate = classify_stack_layout(
+                    colspan, rowspan, box_px, height_px, visible_rows, row, row_gap_px, cols);
                 if (candidate.shape == StackShape::Columns) {
                     layout = candidate;
                     column_speed_font = speed_font;
@@ -361,10 +360,10 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
     if (!text_font)
         return;
 
-    // Icon font: xs=16px, sm/md=24px. The glyph does not follow the text a
-    // third rung up - a 32px fan over a body-size percentage reads as an icon
-    // with a caption. The spin pivot is LV_PCT(50) (set_icon_pivot), so it
-    // stays centred at either glyph size.
+    // Icon font: 16px beside the text of a one-cell box, 24px for the stacked
+    // rows, and in columns the largest glyph (32px or 24px) that suits the
+    // speed font. The spin pivot is LV_PCT(50) (set_icon_pivot), so it stays
+    // centered at any glyph size.
     const lv_font_t* icon_font =
         columns ? column_icon : ((bigger || icon_above) ? &mdi_icons_24 : &mdi_icons_16);
 
@@ -482,7 +481,7 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
             }
         }
         // The beside layout reserves a box per label so its columns line up;
-        // stacked, each label is its own width, centred under the glyph.
+        // stacked, each label is its own width, centered under the glyph.
         for (const char* ln :
              {"fan_stack_part_speed", "fan_stack_hotend_speed", "fan_stack_aux_speed",
               "fan_stack_part_name", "fan_stack_hotend_name", "fan_stack_aux_name"}) {

@@ -317,9 +317,9 @@ void TempStackWidget::on_size_changed(int colspan, int rowspan, int width_px, in
     if (!text_font)
         return;
 
-    // Icon font: xs=16px, sm/md=24px. The glyph does not follow the text a
-    // third rung up - a 32px icon over a body-size number reads as an icon
-    // with a caption, not a temperature with a label.
+    // Icon font: 16px beside the text of a one-cell box, 24px for the stacked
+    // rows, and in columns or big rows the largest glyph (48, 32 or 24px) that
+    // is at most twice the text's height and fits the box.
     const lv_font_t* icon_font =
         (columns || rows_big) ? big_icon
                               : ((icon_above || tall_pixels) ? &mdi_icons_24 : &mdi_icons_16);

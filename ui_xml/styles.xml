@@ -164,7 +164,7 @@
          border, so it draws inside the swatch and no container can clip it. -->
     <style name="led_ring_holder" radius="9999" bg_opa="0" border_width="0" pad_all="#led_ring_reach"/>
     <style name="led_swatch_ring" border_width="#led_ring_width" border_color="#text" border_opa="255"/>
-    <!-- Centred flex flows that run across or down, and the weight a flex child
+    <!-- Centered flex flows that run across or down, and the weight a flex child
          takes beside its siblings: motion jog key blocks (across in landscape,
          down in portrait) and the stacked home widgets. Bind one per state: an
          inline flex_flow or flex_grow would outrank the bound style. -->

@@ -681,12 +681,19 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack at 2x1 lays the fans side by side
 }
 
 // The columns draw the fan glyph larger; it must still turn about its own
-// centre, in proportion to the speed, when animations are on.
-TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack columns spin a bigger glyph about its centre",
+// center, in proportion to the speed, when animations are on.
+TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack columns spin a bigger glyph about its center",
                  "[widget_size][fan_stack][wide]") {
     require_font_tokens_distinct();
     auto& display = helix::DisplaySettingsManager::instance();
-    const bool prev_animations = display.get_animations_enabled();
+    // Restores the setting on every exit, including a failed REQUIRE.
+    struct AnimationsGuard {
+        helix::DisplaySettingsManager& display;
+        bool previous;
+        ~AnimationsGuard() {
+            display.set_animations_enabled(previous);
+        }
+    } animations_guard{display, display.get_animations_enabled()};
     display.set_animations_enabled(true);
 
     state().fan_state().init_fans(
@@ -709,13 +716,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack columns spin a bigger glyph about
         CHECK(lv_obj_get_style_text_font(icon, LV_PART_MAIN)->line_height >
               mdi_icons_24.line_height);
 
-        // Spinning, about the glyph's own centre rather than a corner, and the
-        // glyph sits centred in its column so the spin stays in the column.
+        // Spinning, about the glyph's own center rather than a corner, and the
+        // glyph sits centered in its column so the spin stays in the column.
         CHECK(lv_anim_get(icon, helix::ui::fan_spin_anim_cb) != nullptr);
         CHECK(lv_obj_get_style_transform_pivot_x(icon, LV_PART_MAIN) == LV_PCT(50));
         CHECK(lv_obj_get_style_transform_pivot_y(icon, LV_PART_MAIN) == LV_PCT(50));
         const int icon_mid = lv_obj_get_x(icon) + lv_obj_get_width(icon) / 2;
         CHECK(std::abs(icon_mid - lv_obj_get_width(row) / 2) <= 2);
     }
-    display.set_animations_enabled(prev_animations);
 }
