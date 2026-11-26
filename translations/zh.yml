@@ -1022,6 +1022,7 @@ translations:
   Checking the printer...: "正在检查打印机..."
   Checking timelapse plugin...: 正在检查延时摄影插件...
   Checking webcam: 正在检查摄像头
+  Checking what this printer supports...: "正在检查此打印机支持的功能..."
   Checking...: 检查中...
   Checking…: 检查中…
   Choose a Different Spool: '选择其他料盘'
@@ -5342,6 +5343,7 @@ translations:
   The printer can measure each tool's offset automatically. Run it on the tool offset calibration screen.: '打印机可自动测量每个工具的偏移。可在工具偏移校准页面运行。'
   The printer can measure pressure advance on its own. Run it on the PA calibration screen.: '打印机可以自行测量压力提前量(pressure advance)。在 PA 校准界面运行。'
   The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview.: '打印机可在选定的层暂停,用于换料或嵌入零件。在打印预览中设置层。'
+  The printer config has no section for this toolhead: "打印机配置中没有此工具头的配置段"
   The printer could not connect to one of its boards at startup.: '打印机启动时无法连接其中一块主板。'
   'The printer could not get the head ready: homing, picking up the head or heating the nozzle failed.': '打印机无法让工具头就绪：归位、装上工具头或加热喷嘴失败。'
   The printer could not start: '打印机无法启动'
@@ -5406,6 +5408,7 @@ translations:
   The printer rejected the filament configuration. The print was not started.: 打印机拒绝了该耗材配置。打印未启动。
   The printer reports measured fan speeds. HelixScreen shows them on the Fans screen.: '打印机会报告测得的风扇转速。HelixScreen 在风扇界面显示。'
   The printer reports no lane record, so only clearing the extruder can unload it.: '打印机没有耗材通道记录，所以只能通过清空挤出机来卸载。'
+  The printer reports this flow type: "此流量类型由打印机自行报告"
   'The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}': '打印机要求加密连接，但拒绝了加密的任务：HTTP {} {}'
   The printer requires an encrypted connection, but the encrypted connection to {}:{} failed: '打印机要求加密连接，但与 {}:{} 的加密连接失败'
   The printer shut down: '打印机已关闭'
@@ -5521,6 +5524,7 @@ translations:
   ? 'The probe read as triggered before it started moving: it did not retract, the nozzle is touching the bed, or its signal is inverted.'
   : 探针在开始移动前就已显示为触发：未收回、喷嘴接触热床，或信号反相。
   The probe was already triggered before the move started.: '移动开始前探针已处于触发状态。'
+  The printer's firmware sets this nozzle size: "此喷嘴尺寸由打印机固件设定"
   The printer's state could no longer be read, so the remaining steps did not run.: "无法再读取打印机状态，因此其余步骤没有运行。"
   The printer's status isn't known yet, so a print may be running.: '打印机状态尚未确定，可能正在打印。'
   The probe was used before the printer was homed.: 在打印机归位前使用了探针。

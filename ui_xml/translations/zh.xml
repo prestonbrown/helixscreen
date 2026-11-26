@@ -978,6 +978,7 @@
   <translation tag="Checking the printer..." zh="正在检查打印机..."/>
   <translation tag="Checking timelapse plugin..." zh="正在检查延时摄影插件..."/>
   <translation tag="Checking webcam" zh="正在检查摄像头"/>
+  <translation tag="Checking what this printer supports..." zh="正在检查此打印机支持的功能..."/>
   <translation tag="Checking..." zh="检查中..."/>
   <translation tag="Checking…" zh="检查中…"/>
   <translation tag="Choose 12-hour or 24-hour time display" zh="选择 12 小时制或 24 小时制"/>
@@ -5151,6 +5152,7 @@
   <translation tag="The printer can measure each tool&apos;s offset automatically. Run it on the tool offset calibration screen." zh="打印机可自动测量每个工具的偏移。可在工具偏移校准页面运行。"/>
   <translation tag="The printer can measure pressure advance on its own. Run it on the PA calibration screen." zh="打印机可以自行测量压力提前量(pressure advance)。在 PA 校准界面运行。"/>
   <translation tag="The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview." zh="打印机可在选定的层暂停,用于换料或嵌入零件。在打印预览中设置层。"/>
+  <translation tag="The printer config has no section for this toolhead" zh="打印机配置中没有此工具头的配置段"/>
   <translation tag="The printer could not connect to one of its boards at startup." zh="打印机启动时无法连接其中一块主板。"/>
   <translation tag="The printer could not get the head ready: homing, picking up the head or heating the nozzle failed." zh="打印机无法让工具头就绪：归位、装上工具头或加热喷嘴失败。"/>
   <translation tag="The printer could not start" zh="打印机无法启动"/>
@@ -5211,6 +5213,7 @@
   <translation tag="The printer rejected the filament configuration. The print was not started." zh="打印机拒绝了该耗材配置。打印未启动。"/>
   <translation tag="The printer reports measured fan speeds. HelixScreen shows them on the Fans screen." zh="打印机会报告测得的风扇转速。HelixScreen 在风扇界面显示。"/>
   <translation tag="The printer reports no lane record, so only clearing the extruder can unload it." zh="打印机没有耗材通道记录，所以只能通过清空挤出机来卸载。"/>
+  <translation tag="The printer reports this flow type" zh="此流量类型由打印机自行报告"/>
   <translation tag="The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}" zh="打印机要求加密连接，但拒绝了加密的任务：HTTP {} {}"/>
   <translation tag="The printer requires an encrypted connection, but the encrypted connection to {}:{} failed" zh="打印机要求加密连接，但与 {}:{} 的加密连接失败"/>
   <translation tag="The printer restarts when the update finishes." zh="更新完成后打印机将重启。"/>
@@ -5225,6 +5228,7 @@
   <translation tag="The printer was stopped" zh="打印机已停止"/>
   <translation tag="The printer&apos;s computer fell behind" zh="打印机的主机处理滞后"/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" zh="耗材用尽时切换到哪里由打印机固件自行选择"/>
+  <translation tag="The printer&apos;s firmware sets this nozzle size" zh="此喷嘴尺寸由打印机固件设定"/>
   <translation tag="The printer&apos;s state could no longer be read, so the remaining steps did not run." zh="无法再读取打印机状态，因此其余步骤没有运行。"/>
   <translation tag="The printer&apos;s status isn&apos;t known yet, so a print may be running." zh="打印机状态尚未确定，可能正在打印。"/>
   <translation tag="The probe before the print disagrees with the saved bed mesh: a different plate, a different temperature, or debris on the bed." zh="打印前的探测结果与保存的热床网格不符：更换了打印板、温度不同，或热床上有杂物。"/>

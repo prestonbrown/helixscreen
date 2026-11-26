@@ -1081,6 +1081,7 @@ translations:
   Checking the printer...: Sprawdzanie drukarki...
   Checking timelapse plugin...: Sprawdzanie wtyczki timelapse...
   Checking webcam: Sprawdzanie kamery
+  Checking what this printer supports...: "Sprawdzanie, co obsługuje ta drukarka..."
   Checking...: Sprawdzanie...
   Checking…: Sprawdzanie…
   Choose a Different Spool: Wybierz inną szpulę
@@ -5513,6 +5514,7 @@ translations:
   The printer can measure each tool's offset automatically. Run it on the tool offset calibration screen.: Drukarka może automatycznie zmierzyć offset każdego narzędzia. Uruchom to na ekranie kalibracji offsetów narzędzi.
   The printer can measure pressure advance on its own. Run it on the PA calibration screen.: Drukarka może sama zmierzyć pressure advance. Uruchom to na ekranie kalibracji PA.
   The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview.: Drukarka może zatrzymać się na wybranej warstwie, aby wymienić filament lub włożyć wkładkę. Ustaw warstwę w podglądzie wydruku.
+  The printer config has no section for this toolhead: "Konfiguracja drukarki nie ma sekcji dla tej głowicy"
   The printer could not connect to one of its boards at startup.: Drukarka nie połączyła się z jedną z płyt przy starcie.
   'The printer could not get the head ready: homing, picking up the head or heating the nozzle failed.': 'Drukarka nie przygotowała głowicy: bazowanie, pobranie głowicy lub grzanie dyszy nie powiodło się.'
   The printer could not start: Drukarka nie mogła wystartować
@@ -5575,6 +5577,7 @@ translations:
   The printer rejected the filament configuration. The print was not started.: Drukarka odrzuciła konfigurację filamentu. Wydruku nie rozpoczęto.
   The printer reports measured fan speeds. HelixScreen shows them on the Fans screen.: Drukarka zgłasza zmierzone prędkości wentylatorów. HelixScreen pokazuje je na ekranie Wentylatory.
   The printer reports no lane record, so only clearing the extruder can unload it.: Drukarka nie zgłasza zapisu torów, więc rozładować można tylko czyszcząc ekstruder.
+  The printer reports this flow type: "Drukarka sama zgłasza ten typ przepływu"
   'The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}': 'Drukarka wymaga szyfrowanego połączenia, ale odrzuciła zaszyfrowane zadanie: HTTP {} {}'
   The printer requires an encrypted connection, but the encrypted connection to {}:{} failed: Drukarka wymaga szyfrowanego połączenia, ale szyfrowane połączenie z {}:{} nie powiodło się
   The printer shut down: Drukarka się wyłączyła
@@ -5690,6 +5693,7 @@ translations:
   ? 'The probe read as triggered before it started moving: it did not retract, the nozzle is touching the bed, or its signal is inverted.'
   : 'Sonda była wyzwolona, zanim zaczęła się ruszać: nie schowała się, dysza dotyka stołu albo jej sygnał jest odwrócony.'
   The probe was already triggered before the move started.: Sonda była już wyzwolona przed rozpoczęciem ruchu.
+  The printer's firmware sets this nozzle size: "Rozmiar tej dyszy ustawia oprogramowanie drukarki"
   The printer's state could no longer be read, so the remaining steps did not run.: Nie można już odczytać stanu drukarki, więc pozostałe kroki się nie wykonały.
   The printer's status isn't known yet, so a print may be running.: Stan drukarki nie jest jeszcze znany, więc może trwać wydruk.
   The probe was used before the printer was homed.: Sondy użyto przed zbazowaniem drukarki.

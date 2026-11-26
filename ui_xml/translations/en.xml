@@ -978,6 +978,7 @@
   <translation tag="Checking the printer..." en="Checking the printer..."/>
   <translation tag="Checking timelapse plugin..." en="Checking timelapse plugin..."/>
   <translation tag="Checking webcam" en="Checking webcam"/>
+  <translation tag="Checking what this printer supports..." en="Checking what this printer supports..."/>
   <translation tag="Checking..." en="Checking..."/>
   <translation tag="Checking…" en="Checking…"/>
   <translation tag="Choose 12-hour or 24-hour time display" en="Choose 12-hour or 24-hour time display"/>
@@ -5151,6 +5152,7 @@
   <translation tag="The printer can measure each tool&apos;s offset automatically. Run it on the tool offset calibration screen." en="The printer can measure each tool&apos;s offset automatically. Run it on the tool offset calibration screen."/>
   <translation tag="The printer can measure pressure advance on its own. Run it on the PA calibration screen." en="The printer can measure pressure advance on its own. Run it on the PA calibration screen."/>
   <translation tag="The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview." en="The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview."/>
+  <translation tag="The printer config has no section for this toolhead" en="The printer config has no section for this toolhead"/>
   <translation tag="The printer could not connect to one of its boards at startup." en="The printer could not connect to one of its boards at startup."/>
   <translation tag="The printer could not get the head ready: homing, picking up the head or heating the nozzle failed." en="The printer could not get the head ready: homing, picking up the head or heating the nozzle failed."/>
   <translation tag="The printer could not start" en="The printer could not start"/>
@@ -5211,6 +5213,7 @@
   <translation tag="The printer rejected the filament configuration. The print was not started." en="The printer rejected the filament configuration. The print was not started."/>
   <translation tag="The printer reports measured fan speeds. HelixScreen shows them on the Fans screen." en="The printer reports measured fan speeds. HelixScreen shows them on the Fans screen."/>
   <translation tag="The printer reports no lane record, so only clearing the extruder can unload it." en="The printer reports no lane record, so only clearing the extruder can unload it."/>
+  <translation tag="The printer reports this flow type" en="The printer reports this flow type"/>
   <translation tag="The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}" en="The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}"/>
   <translation tag="The printer requires an encrypted connection, but the encrypted connection to {}:{} failed" en="The printer requires an encrypted connection, but the encrypted connection to {}:{} failed"/>
   <translation tag="The printer restarts when the update finishes." en="The printer restarts when the update finishes."/>
@@ -5225,6 +5228,7 @@
   <translation tag="The printer was stopped" en="The printer was stopped"/>
   <translation tag="The printer&apos;s computer fell behind" en="The printer&apos;s computer fell behind"/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" en="The printer&apos;s firmware chooses where to switch on runout"/>
+  <translation tag="The printer&apos;s firmware sets this nozzle size" en="The printer&apos;s firmware sets this nozzle size"/>
   <translation tag="The printer&apos;s state could no longer be read, so the remaining steps did not run." en="The printer&apos;s state could no longer be read, so the remaining steps did not run."/>
   <translation tag="The printer&apos;s status isn&apos;t known yet, so a print may be running." en="The printer&apos;s status isn&apos;t known yet, so a print may be running."/>
   <translation tag="The probe before the print disagrees with the saved bed mesh: a different plate, a different temperature, or debris on the bed." en="The probe before the print disagrees with the saved bed mesh: a different plate, a different temperature, or debris on the bed."/>

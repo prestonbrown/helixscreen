@@ -978,6 +978,7 @@
   <translation tag="Checking the printer..." es="Comprobando la impresora..."/>
   <translation tag="Checking timelapse plugin..." es="Verificando plugin de timelapse..."/>
   <translation tag="Checking webcam" es="Comprobando webcam"/>
+  <translation tag="Checking what this printer supports..." es="Comprobando qué admite esta impresora..."/>
   <translation tag="Checking..." es="Comprobando..."/>
   <translation tag="Checking…" es="Comprobando…"/>
   <translation tag="Choose 12-hour or 24-hour time display" es="Elija visualización de hora de 12 o 24 horas"/>
@@ -5151,6 +5152,7 @@
   <translation tag="The printer can measure each tool&apos;s offset automatically. Run it on the tool offset calibration screen." es="La impresora puede medir el desfase de cada herramienta automáticamente. Ejecútalo en la pantalla de calibración de desfases."/>
   <translation tag="The printer can measure pressure advance on its own. Run it on the PA calibration screen." es="La impresora puede medir el pressure advance por sí sola. Ejecútalo en la pantalla Calibración PA."/>
   <translation tag="The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview." es="La impresora puede pausar en una capa elegida, para cambiar de filamento o colocar un inserto. Define la capa desde la vista previa de impresión."/>
+  <translation tag="The printer config has no section for this toolhead" es="La configuración de la impresora no tiene sección para este cabezal"/>
   <translation tag="The printer could not connect to one of its boards at startup." es="La impresora no pudo conectar con una de sus placas al arrancar."/>
   <translation tag="The printer could not get the head ready: homing, picking up the head or heating the nozzle failed." es="La impresora no pudo preparar el cabezal: falló el referenciado, la toma del cabezal o el calentamiento de la boquilla."/>
   <translation tag="The printer could not start" es="La impresora no pudo arrancar"/>
@@ -5211,6 +5213,7 @@
   <translation tag="The printer rejected the filament configuration. The print was not started." es="La impresora rechazó la configuración de filamento. La impresión no se inició."/>
   <translation tag="The printer reports measured fan speeds. HelixScreen shows them on the Fans screen." es="La impresora informa de las velocidades medidas de los ventiladores. HelixScreen las muestra en la pantalla Ventiladores."/>
   <translation tag="The printer reports no lane record, so only clearing the extruder can unload it." es="La impresora no informa ningún registro de carril, así que solo vaciar el extrusor puede descargar."/>
+  <translation tag="The printer reports this flow type" es="La impresora informa este tipo de flujo"/>
   <translation tag="The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}" es="La impresora requiere una conexión cifrada, pero rechazó el trabajo cifrado: HTTP {} {}"/>
   <translation tag="The printer requires an encrypted connection, but the encrypted connection to {}:{} failed" es="La impresora requiere una conexión cifrada, pero falló la conexión cifrada a {}:{}"/>
   <translation tag="The printer restarts when the update finishes." es="La impresora se reinicia cuando termina la actualización."/>
@@ -5225,6 +5228,7 @@
   <translation tag="The printer was stopped" es="La impresora se detuvo"/>
   <translation tag="The printer&apos;s computer fell behind" es="El ordenador de la impresora se retrasó"/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" es="El firmware de la impresora elige a dónde cambiar al agotarse"/>
+  <translation tag="The printer&apos;s firmware sets this nozzle size" es="El firmware de la impresora define este tamaño de boquilla"/>
   <translation tag="The printer&apos;s state could no longer be read, so the remaining steps did not run." es="Ya no se pudo leer el estado de la impresora, así que los pasos restantes no se ejecutaron."/>
   <translation tag="The printer&apos;s status isn&apos;t known yet, so a print may be running." es="El estado de la impresora aún no se conoce, así que puede haber una impresión en curso."/>
   <translation tag="The probe before the print disagrees with the saved bed mesh: a different plate, a different temperature, or debris on the bed." es="El sondeo previo a la impresión no coincide con la malla de cama guardada: otra placa, otra temperatura o suciedad en la cama."/>

@@ -63,7 +63,20 @@ class ToolheadSettingsOverlay : public OverlayBase {
     void populate();
 
     /// Executes @p plan, after the confirmation it calls for.
-    void apply(const nozzle_size::ChangePlan& plan, double mm, const std::string& head_label);
+    /// What a pick asks for: a size in mm, or a flow variant, on one head.
+    struct Request {
+        int extruder_index = 0;
+        bool flow = false;
+        double mm = 0.0;
+        std::string variant;
+    };
+    /// The plan for @p request from the printer's state now.
+    [[nodiscard]] static nozzle_size::ChangePlan plan_for(const Request& request);
+    /// Plans @p request, asks where the plan calls for it, then plans it again from the
+    /// state at the answer (a print may have started meanwhile) and executes that.
+    void apply(const Request& request, const std::string& head_label);
+    /// Plans @p request afresh and executes it, or reports why it cannot be.
+    void confirmed(const Request& request);
     void run(const nozzle_size::ChangePlan& plan);
     void finish(const std::string& error);
 
