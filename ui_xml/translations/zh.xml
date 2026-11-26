@@ -883,8 +883,8 @@
   <translation tag="Change Tool While Paused" zh="暂停时切换工具"/>
   <translation tag="Change heater control?" zh="更改加热器控制？"/>
   <translation tag="Change it before starting the print." zh="请在开始打印前更改。"/>
-  <translation tag="Change nozzle size on {}?"/>
-  <translation tag="Change nozzle size?"/>
+  <translation tag="Change nozzle size on {}?" zh="更改 {} 的喷嘴尺寸？"/>
+  <translation tag="Change nozzle size?" zh="更改喷嘴尺寸？"/>
   <translation tag="Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer&apos;s config folder." zh="通过Moonraker更改打印机设置，包括上传、改写和删除打印机配置文件夹中的文件。"/>
   <translation tag="Change the name or the linked spool in Spoolman." zh="请在 Spoolman 中更改名称或关联的料盘。"/>
   <translation tag="Change tool" zh="切换工具"/>
@@ -2040,7 +2040,7 @@
   <translation tag="Flow calibration is not allowed for this filament with a 0.2 mm nozzle." zh="此耗材在 0.2 mm 喷嘴上不允许流量校准。"/>
   <translation tag="Flow calibration is on for a filament and nozzle pair that does not allow it." zh="已为不允许流量校准的耗材与喷嘴组合开启了流量校准。"/>
   <translation tag="Flow calibration not allowed for {}" zh="{} 不允许流量校准"/>
-  <translation tag="Flow type"/>
+  <translation tag="Flow type" zh="流量类型"/>
   <translation tag="Flowguard" zh="流量保护"/>
   <translation tag="Flushing Filament..." zh="正在冲洗耗材..."/>
   <translation tag="Flying Toasters" zh="飞行烤面包机"/>
@@ -3142,7 +3142,7 @@
   <translation tag="No filament loaded" zh="未加载耗材"/>
   <translation tag="No filament loaded to unload" zh="没有已加载的耗材可卸载"/>
   <translation tag="No filament sensor detected" zh="未检测到耗材传感器"/>
-  <translation tag="No filament system to send this to"/>
+  <translation tag="No filament system to send this to" zh="没有可发送的耗材系统"/>
   <translation tag="No filament type is set for a toolhead this print uses." zh="本次打印使用的某个工具头未设置耗材类型。"/>
   <translation tag="No filament was inserted in time" zh="未及时插入耗材"/>
   <translation tag="No filament. Load filament and retry." zh="无耗材。请装载耗材后重试。"/>
@@ -3214,7 +3214,7 @@
   <translation tag="No tool is mounted" zh="未安装工具"/>
   <translation tag="No tool mounted" zh="未装上工具"/>
   <translation tag="No tool on the head" zh="工具头上没有工具"/>
-  <translation tag="No toolhead detected"/>
+  <translation tag="No toolhead detected" zh="未检测到工具头"/>
   <translation tag="No toolhead on the carriage" zh="滑架上没有工具头"/>
   <translation tag="No tools to calibrate" zh="没有可校准的工具"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" zh="未转动:差距移动了 {:.1f} Hz"/>
@@ -3315,7 +3315,7 @@
   <translation tag="Nozzle Temperature" zh="喷嘴温度"/>
   <translation tag="Nozzle Temperatures" zh="喷嘴温度"/>
   <translation tag="Nozzle Temps" zh="喷嘴温度"/>
-  <translation tag="Nozzle changed"/>
+  <translation tag="Nozzle changed" zh="喷嘴已更改"/>
   <translation tag="Nozzle clean complete" zh="喷嘴清洁完成"/>
   <translation tag="Nozzle clog detected" zh="检测到喷嘴堵塞"/>
   <translation tag="Nozzle diameter" zh="喷嘴直径"/>
@@ -3327,7 +3327,7 @@
   <translation tag="Nozzle not changed: the printer did not confirm it" zh="喷嘴未更改：打印机未确认"/>
   <translation tag="Nozzle not changed: {}" zh="喷嘴未更改：{}"/>
   <translation tag="Nozzle not reported" zh="未报告喷嘴"/>
-  <translation tag="Nozzle size"/>
+  <translation tag="Nozzle size" zh="喷嘴尺寸"/>
   <translation tag="Nozzle size and flow type per head" zh="每个工具头的喷嘴尺寸和流量类型"/>
   <translation tag="Nozzle target set to {}" zh="喷嘴目标已设为 {}"/>
   <translation tag="Nozzle temp must be %d-%s" zh="喷嘴温度必须为 %d-%s"/>
@@ -3412,7 +3412,7 @@
   <translation tag="Options" zh="选项"/>
   <translation tag="Or Enter Manually" zh="或手动输入"/>
   <translation tag="Or instead of turning the others" zh="或者，无需转动其他螺丝"/>
-  <translation tag="Orifice diameter of the nozzle fitted to this head"/>
+  <translation tag="Orifice diameter of the nozzle fitted to this head" zh="此工具头所装喷嘴的直径"/>
   <translation tag="Original" zh="原始"/>
   <translation tag="Original file location unknown" zh="原始文件位置未知"/>
   <translation tag="Orrery" zh="太阳系仪"/>
@@ -4657,7 +4657,7 @@
   <translation tag="Stall detection setup failed for the Z motor — power-cycle to retry" zh="Z 电机堵转检测设置失败。请重新上电后重试"/>
   <translation tag="Stall detection setup failed for the extruder — power-cycle to retry" zh="挤出机堵转检测设置失败。请重新上电后重试"/>
   <translation tag="Standard" zh="标准"/>
-  <translation tag="Standard or High Flow, as fitted to this head"/>
+  <translation tag="Standard or High Flow, as fitted to this head" zh="标准或高流量，与此工具头所装喷嘴一致"/>
   <translation tag="Standby" zh="待机"/>
   <translation tag="Starfield" zh="星空"/>
   <translation tag="Start" zh="开始"/>
@@ -4906,7 +4906,7 @@
   <translation tag="That print is no longer paused" zh="该打印已不再暂停"/>
   <translation tag="That reading jumped too far to trust. Re-measure without turning." zh="这次读数跳动过大,不可信。请不转动再测量一次。"/>
   <translation tag="That setting cannot be changed while a print is running" zh="打印进行中无法更改该设置"/>
-  <translation tag="That size is already set"/>
+  <translation tag="That size is already set" zh="该尺寸已设置"/>
   <translation tag="That slot cannot stand in for this one" zh="该槽位无法替代当前槽位"/>
   <translation tag="That tool is already loaded" zh="该工具已加载耗材"/>
   <translation tag="That toolhead can no longer take over the print" zh="该工具头已无法接替此次打印"/>
@@ -5055,7 +5055,7 @@
   <translation tag="The gateway is not a valid address." zh="网关不是有效地址。"/>
   <translation tag="The gateway is not on the same subnet as the IP address." zh="网关与 IP 地址不在同一子网。"/>
   <translation tag="The head did not go back into its dock." zh="工具头未回到停靠位。"/>
-  <translation tag="The head is already set that way"/>
+  <translation tag="The head is already set that way" zh="该工具头已是此设置"/>
   <translation tag="The head on the carriage does not read as properly picked up, so it was not parked." zh="滑架上的工具头未显示为正确装上，因此未停放。"/>
   <translation tag="The head to pick up does not read as docked." zh="要装上的工具头未显示为已停靠。"/>
   <translation tag="The head&apos;s extruder never gripped the filament: after several tries, with the nozzle cleaned between them, no movement registered at the nozzle." zh="工具头的挤出机始终未咬住耗材：多次尝试并在其间清洁喷嘴后，喷嘴处仍未检测到移动。"/>
@@ -5323,7 +5323,7 @@
   <translation tag="This AFC system does not support bypass mode" zh="此 AFC 系统不支持旁通模式"/>
   <translation tag="This CFS firmware exposes no external spool slot" zh="此 CFS 固件没有外部料盘槽位"/>
   <translation tag="This Happy Hare system does not support bypass mode" zh="此 Happy Hare 系统不支持旁通模式"/>
-  <translation tag="This applies now. Klipper&apos;s extrusion limit follows at its next restart."/>
+  <translation tag="This applies now. Klipper&apos;s extrusion limit follows at its next restart." zh="立即生效。Klipper 的挤出限制将在下次重启时更新。"/>
   <translation tag="This button controls" zh="此按钮控制"/>
   <translation tag="This calibration uses the paper friction method to set your Z-offset." zh="此校准使用纸张摩擦法设置 Z 偏移。"/>
   <translation tag="This cannot be undone." zh="此操作无法撤销。"/>
@@ -5360,7 +5360,7 @@
   <translation tag="This light chip controls" zh="此灯光标签控制"/>
   <translation tag="This looks like a {}, but it is set up as a {}" zh="这台打印机看起来是 {}，但被设置为 {}"/>
   <translation tag="This may take up to 30 seconds" zh="这可能需要 30 秒"/>
-  <translation tag="This nozzle size can&apos;t be changed here"/>
+  <translation tag="This nozzle size can&apos;t be changed here" zh="此处无法更改该喷嘴尺寸"/>
   <translation tag="This plugin asks for no special permissions." zh="此插件不请求任何特殊权限。"/>
   <translation tag="This plugin lets HelixScreen control print start options like bed mesh and QGL." zh="此插件让 HelixScreen 控制打印启动选项，如热床网格和 QGL。"/>
   <translation tag="This print called {}, which the printer no longer has." zh="此打印调用了 {}，但打印机已不再有这些宏。"/>
@@ -5371,7 +5371,7 @@
   <translation tag="This print never reports layer {}." zh="此打印从不报告第 {} 层。"/>
   <translation tag="This printer cannot calibrate tool offsets automatically" zh="此打印机无法自动校准工具偏移"/>
   <translation tag="This printer cannot stream the sweep to the screen" zh="此打印机无法在屏幕上实时显示扫描"/>
-  <translation tag="This printer doesn&apos;t accept that nozzle size"/>
+  <translation tag="This printer doesn&apos;t accept that nozzle size" zh="此打印机不支持该喷嘴尺寸"/>
   <translation tag="This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman." zh="此打印机的通道信息来自 Spoolman。HelixScreen 已清除本地副本；请在 Spoolman 中移除该线轴。"/>
   <translation tag="This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman." zh="此打印机的通道信息来自 Spoolman。请在 Spoolman 中更改颜色、材料和线轴。"/>
   <translation tag="This printer has motor compensation, so the check runs twice: with it off, then on." zh="此打印机具有电机补偿，因此检查会运行两次：先关闭补偿，再开启补偿。"/>
@@ -5379,7 +5379,7 @@
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" zh="此打印机没有 INDX LOAD_FILAMENT 宏"/>
   <translation tag="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper." zh="这台打印机还没有 [save_variables] 存储。请更新帮助宏以添加，然后重启 Klipper。"/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." zh="此打印机没有自动退料功能。请在工具头处剪断耗材，然后用手拉出。"/>
-  <translation tag="This printer has no such toolhead"/>
+  <translation tag="This printer has no such toolhead" zh="此打印机没有该工具头"/>
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." zh="此打印机未设置时区，时钟显示的是 UTC。请选择您的时区。"/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." zh="此打印机没有 {} 命令，因此无法保存 Z 偏移。"/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." zh="此打印机看起来是 {}（置信度 {}%），但当前设置为 {}。错误的类型会应用不正确的打印前选项和预设。"/>
@@ -5407,7 +5407,7 @@
   <translation tag="This screen" zh="此屏幕"/>
   <translation tag="This screen can&apos;t play videos" zh="此屏幕无法播放视频"/>
   <translation tag="This screen can&apos;t play videos. Scan the code with your phone to watch the timelapse." zh="此屏幕无法播放视频。用手机扫描二维码观看延时摄影。"/>
-  <translation tag="This sets the nozzle size in the printer config."/>
+  <translation tag="This sets the nozzle size in the printer config." zh="这会在打印机配置中设置喷嘴尺寸。"/>
   <translation tag="This slot feeds no tool" zh="此槽位不向任何工具供料"/>
   <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." zh="此料盘已用完，CFS 无法将剩余耗材抽回。"/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." zh="此料盘的详细信息尚未从 Spoolman 加载。请再次点击保存。"/>
@@ -5416,8 +5416,8 @@
   <translation tag="This tool has no number with a T command: assign it one first" zh="此工具没有带 T 命令的编号：请先分配一个"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." zh="此工具探测每个热床螺丝并告诉您需要调整多少。"/>
   <translation tag="This toolhead has no automatic feeder. Load the filament by hand." zh="此工具头没有自动送料器。请手动装入耗材。"/>
-  <translation tag="This toolhead has no flow type to change"/>
-  <translation tag="This toolhead has no such flow type"/>
+  <translation tag="This toolhead has no flow type to change" zh="此工具头没有可更改的流量类型"/>
+  <translation tag="This toolhead has no such flow type" zh="此工具头没有该流量类型"/>
   <translation tag="This update asks for new permissions:" zh="此更新请求新的权限："/>
   <translation tag="This update removes HelixScreen from the printer." zh="此更新会从打印机上移除 HelixScreen。"/>
   <translation tag="This upgrades the printer&apos;s operating system packages." zh="这将升级打印机的操作系统软件包。"/>
@@ -5541,7 +5541,7 @@
   <translation tag="Toolhead position and homing, with a plate view and Home All" zh="工具头位置与归位，含热床视图和全部归位"/>
   <translation tag="Toolhead position unknown" zh="工具头位置未知"/>
   <translation tag="Toolhead sensors disagree" zh="工具头传感器读数不一致"/>
-  <translation tag="Toolhead settings"/>
+  <translation tag="Toolhead settings" zh="工具头设置"/>
   <translation tag="Toolhead unloaded" zh="打印头已退料"/>
   <translation tag="Toolheads" zh="工具头"/>
   <translation tag="Tools" zh="工具"/>
@@ -6387,7 +6387,7 @@
   <translation tag="{} new" zh="{} 个新增"/>
   <translation tag="{} new hardware available" zh="{} 个新硬件可用"/>
   <translation tag="{} new plugins available. Enable them in Settings &gt; Plugins." zh="{} 个新插件可用。请在设置 &gt; 插件中启用。"/>
-  <translation tag="{} nozzle"/>
+  <translation tag="{} nozzle" zh="{} 喷嘴"/>
   <translation tag="{} nozzle sensor fault" zh="{} 喷嘴传感器故障"/>
   <translation tag="{} of {} points" zh="{} / {} 个点"/>
   <translation tag="{} of {} steps didn&apos;t finish" zh="{}/{} 个步骤未完成"/>

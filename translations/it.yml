@@ -916,8 +916,8 @@ translations:
   Change Tool While Paused: Cambia utensile in pausa
   Change heater control?: Cambiare il controllo del riscaldatore?
   Change it before starting the print.: 'Modificalo prima di avviare la stampa.'
-  Change nozzle size on {}?: ''
-  Change nozzle size?: ''
+  Change nozzle size on {}?: "Cambiare la dimensione dell'ugello su {}?"
+  Change nozzle size?: "Cambiare la dimensione dell'ugello?"
   ? Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer's config folder.
   : 'Modifica le impostazioni della stampante tramite Moonraker, incluso caricare, riscrivere ed eliminare file nella cartella di configurazione della stampante.'
   Change the name or the linked spool in Spoolman.: "Modifica il nome o la bobina collegata in Spoolman."
@@ -1318,7 +1318,7 @@ translations:
   : "Tieni premuto un riquadro per entrare in modalità modifica. La nuova griglia ti permette di riordinare, ridimensionare, rimuovere o aggiungere widget e trascinarli tra le pagine."
   'Moonraker answered at {}.': "Moonraker ha risposto su {}."
   "New in 1.1": "Novità della 1.1"
-  No filament system to send this to: ''
+  No filament system to send this to: "Nessun sistema filamento a cui inviarlo"
   No filament type is set for a toolhead this print uses.: 'Nessun tipo di filamento impostato per una testina usata da questa stampa.'
   No filament was inserted in time: 'Nessun filamento inserito in tempo'
   Paste: "Incolla"
@@ -2143,7 +2143,7 @@ translations:
   Flow calibration is not allowed for this filament with a 0.2 mm nozzle.: 'La calibrazione del flusso non è consentita per questo filamento con un ugello da 0,2 mm.'
   Flow calibration is on for a filament and nozzle pair that does not allow it.: 'La calibrazione del flusso è attiva per una coppia filamento-ugello che non la consente.'
   Flow calibration not allowed for {}: 'Calibrazione del flusso non consentita per {}'
-  Flow type: ''
+  Flow type: "Tipo di flusso"
   Flowguard: Flowguard
   Flushing Filament...: Spurgo filamento...
   Flying Toasters: Tostapane volanti
@@ -3340,7 +3340,7 @@ translations:
   No tool is mounted: 'Nessun utensile montato'
   No tool mounted: 'Nessuno strumento montato'
   No tool on the head: "Nessuno strumento sulla testina"
-  No toolhead detected: ''
+  No toolhead detected: "Nessuna testina rilevata"
   No toolhead on the carriage: 'Nessuna testina sul carrello'
   No tools to calibrate: Nessuno strumento da calibrare
   'No turn: the gap moved {:.1f} Hz': "Nessuna rotazione: la differenza si è spostata di {:.1f} Hz"
@@ -3449,7 +3449,7 @@ translations:
   Nozzle Temperature: Temperatura ugello
   Nozzle Temperatures: 'Temperature degli ugelli'
   Nozzle Temps: Temp. ugelli
-  Nozzle changed: ''
+  Nozzle changed: "Ugello cambiato"
   Nozzle clean complete: Pulizia ugello completata
   Nozzle clog detected: Rilevata ostruzione dell'ugello
   Nozzle diameter: "Diametro ugello"
@@ -3461,7 +3461,7 @@ translations:
   'Nozzle not changed: the printer did not confirm it': "Ugello non cambiato: la stampante non l'ha confermato"
   'Nozzle not changed: {}': "Ugello non cambiato: {}"
   Nozzle not reported: 'Ugello non segnalato'
-  Nozzle size: ''
+  Nozzle size: "Dimensione ugello"
   Nozzle size and flow type per head: "Dimensione e tipo di flusso dell'ugello per testina"
   Nozzle target set to {}: Obiettivo ugello impostato a {}
   Nozzle temp must be %d-%s: La temperatura dell’ugello deve essere %d-%s
@@ -3551,7 +3551,7 @@ translations:
   Options: Opzioni
   Or Enter Manually: Oppure inserisci manualmente
   Or instead of turning the others: Oppure, invece di ruotare le altre
-  Orifice diameter of the nozzle fitted to this head: ''
+  Orifice diameter of the nozzle fitted to this head: "Diametro del foro dell'ugello montato su questa testina"
   Original: 'Originale'
   Original file location unknown: Posizione del file originale sconosciuta
   Orrery: 'Planetario'
@@ -4813,7 +4813,7 @@ translations:
   Stall detection setup failed for the Z motor — power-cycle to retry: Impostazione del rilevamento di stallo per il motore Z non riuscita. Spegnere e riaccendere per riprovare
   Stall detection setup failed for the extruder — power-cycle to retry: Impostazione del rilevamento di stallo per l'estrusore non riuscita. Spegnere e riaccendere per riprovare
   Standard: Standard
-  Standard or High Flow, as fitted to this head: ''
+  Standard or High Flow, as fitted to this head: "Standard o High Flow, come montato su questa testina"
   Standby: Standby
   Starfield: Campo stellare
   Start: Avvia
@@ -5066,7 +5066,7 @@ translations:
   That print is no longer paused: 'Quella stampa non è più in pausa'
   That reading jumped too far to trust. Re-measure without turning.: "Questa lettura è saltata troppo per fidarsi. Misura di nuovo senza girare."
   'That setting cannot be changed while a print is running': 'Quell''impostazione non può essere modificata durante una stampa in corso'
-  That size is already set: ''
+  That size is already set: "Questa dimensione è già impostata"
   That slot cannot stand in for this one: Quello slot non può sostituire questo
   That tool is already loaded: Quell'utensile è già caricato
   That toolhead can no longer take over the print: 'Quella testina non può più continuare la stampa'
@@ -5234,7 +5234,7 @@ translations:
   The gateway is not a valid address.: 'Il gateway non è un indirizzo valido.'
   The gateway is not on the same subnet as the IP address.: 'Il gateway non è nella stessa sottorete dell''indirizzo IP.'
   The head did not go back into its dock.: 'La testina non è tornata nel suo dock.'
-  The head is already set that way: ''
+  The head is already set that way: "La testina è già impostata così"
   The head on the carriage does not read as properly picked up, so it was not parked.: 'La testina sul carrello non risulta prelevata correttamente, quindi non è stata parcheggiata.'
   The head to pick up does not read as docked.: 'La testina da prelevare non risulta agganciata.'
   ? "The head's extruder never gripped the filament: after several tries, with the nozzle cleaned between them, no movement registered at the nozzle."
@@ -5534,7 +5534,7 @@ translations:
   This CFS firmware exposes no external spool slot: 'Questo firmware CFS non offre uno slot per bobine esterne'
   This Happy Hare system does not support bypass mode: 'Questo sistema Happy Hare non supporta la modalità bypass'
   Needs a newer Moonraker to hold uploads.: "Richiede un Moonraker più recente per trattenere i caricamenti."
-  This applies now. Klipper's extrusion limit follows at its next restart.: ''
+  This applies now. Klipper's extrusion limit follows at its next restart.: "Si applica subito. Il limite di estrusione di Klipper segue al prossimo riavvio."
   This button controls: Questo pulsante controlla
   This calibration uses the paper friction method to set your Z-offset.: Questa calibrazione utilizza il metodo della frizione della carta per impostare lo Z-offset.
   This cannot be undone.: Questa azione non può essere annullata.
@@ -5587,7 +5587,7 @@ translations:
   This looks like a {}, but it is set up as a {}: Questa stampante sembra una {}, ma è configurata come {}
   This may take up to 30 seconds: Questo potrebbe richiedere fino a 30 secondi
   Needs file analysis, which isn't running.: "Richiede l'analisi dei file, che non è attiva."
-  This nozzle size can't be changed here: ''
+  This nozzle size can't be changed here: "La dimensione di questo ugello non può essere cambiata qui"
   This plugin asks for no special permissions.: 'Questo plugin non richiede permessi speciali.'
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: 'Questo plugin permette a HelixScreen di controllare opzioni avvio stampa come mesh piano e QGL.'
   This print called {}, which the printer no longer has.: 'Questa stampa ha richiamato {}, che la stampante non ha più.'
@@ -5598,7 +5598,7 @@ translations:
   This print never reports layer {}.: 'Questa stampa non riporta mai lo strato {}.'
   This printer cannot calibrate tool offsets automatically: Questa stampante non può calibrare automaticamente gli offset degli strumenti
   This printer cannot stream the sweep to the screen: 'Questa stampante non può mostrare la scansione sullo schermo'
-  This printer doesn't accept that nozzle size: ''
+  This printer doesn't accept that nozzle size: "Questa stampante non accetta questa dimensione dell'ugello"
   This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman.: Questa stampante riempie i suoi gate da Spoolman. HelixScreen ha svuotato la propria copia; rimuovi la bobina in Spoolman.
   This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman.: Questa stampante riempie i suoi gate da Spoolman. Modifica colore, materiale e bobina in Spoolman.
   'This printer has motor compensation, so the check runs twice: with it off, then on.': 'Questa stampante ha la compensazione del motore, quindi la verifica viene eseguita due volte: prima disattivata, poi attivata.'
@@ -5606,7 +5606,7 @@ translations:
   This printer has no INDX LOAD_FILAMENT macro: "Questa stampante non ha la macro INDX LOAD_FILAMENT"
   This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: "Questa stampante non ha ancora un archivio [save_variables]. Aggiorna le macro di ausilio per aggiungerlo, poi riavvia Klipper."
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: Questa stampante non ha lo scarico automatico. Taglia il filamento sulla testina ed estrailo a mano.
-  This printer has no such toolhead: ''
+  This printer has no such toolhead: "Questa stampante non ha una testina di questo tipo"
   This printer has no timezone, so its clock reads UTC. Pick yours.: "Questa stampante non ha un fuso orario, quindi l'orologio segna UTC. Scegli il tuo."
   'This printer has no {} command, so the Z-offset cannot be saved.': 'Questa stampante non ha il comando {}, quindi l''offset Z non può essere salvato.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
@@ -5639,7 +5639,7 @@ translations:
   This screen: 'Questo schermo'
   This screen can't play videos: 'Questo schermo non può riprodurre video'
   This screen can't play videos. Scan the code with your phone to watch the timelapse.: 'Questo schermo non può riprodurre video. Scansiona il codice con il telefono per guardare il timelapse.'
-  This sets the nozzle size in the printer config.: ''
+  This sets the nozzle size in the printer config.: "Imposta la dimensione dell'ugello nella configurazione della stampante."
   This slot feeds no tool: 'Questo slot non alimenta alcuno strumento'
   This spool ran out, so the CFS cannot pull the leftover filament back.: 'Questa bobina è finita, quindi il CFS non può ritirare il filamento rimasto.'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'I dettagli di questa bobina non sono ancora stati caricati da Spoolman. Premi di nuovo Salva.'
@@ -5647,8 +5647,8 @@ translations:
   This theme: Questo tema
   'This tool has no number with a T command: assign it one first': 'Questo strumento non ha un numero con comando T: assegnagliene uno prima'
   This tool probes each bed screw and tells you how much to adjust.: Questo strumento sonda ogni vite del piano e indica quanto regolare.
-  This toolhead has no flow type to change: ''
-  This toolhead has no such flow type: ''
+  This toolhead has no flow type to change: "Questa testina non ha un tipo di flusso da cambiare"
+  This toolhead has no such flow type: "Questa testina non ha questo tipo di flusso"
   'This update asks for new permissions:': 'Questo aggiornamento richiede nuovi permessi:'
   This update removes HelixScreen from the printer.: 'Questo aggiornamento rimuove HelixScreen dalla stampante.'
   This upgrades the printer's operating system packages.: 'Questo aggiorna i pacchetti del sistema operativo della stampante.'
@@ -5777,7 +5777,7 @@ translations:
   Toolhead position and homing, with a plate view and Home All: "Posizione e homing della testina, con vista del piatto e Homing tutto"
   Toolhead position unknown: Posizione della testina sconosciuta
   Toolhead sensors disagree: I sensori della testina non concordano
-  Toolhead settings: ''
+  Toolhead settings: "Impostazioni testina"
   Toolhead unloaded: Testina scarica
   Toolheads: Testine
   Tools: Strumenti
@@ -6618,7 +6618,7 @@ translations:
   '{} new': '{} nuovi'
   '{} new hardware available': '{} nuovo hardware disponibile'
   '{} new plugins available. Enable them in Settings > Plugins.': '{} nuovi plugin disponibili. Abilitali in Impostazioni > Plugin.'
-  '{} nozzle': ''
+  '{} nozzle': "Ugello {}"
   '{} nozzle sensor fault': '{} guasto del sensore dell''ugello'
   '{} of {} points': '{} di {} punti'
   "{} of {} steps didn't finish": "{} passaggi su {} non completati"

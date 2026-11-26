@@ -883,8 +883,8 @@
   <translation tag="Change Tool While Paused" pt="Trocar Ferramenta com Impressão Pausada"/>
   <translation tag="Change heater control?" pt="Alterar o controle do aquecedor?"/>
   <translation tag="Change it before starting the print." pt="Altere antes de iniciar a impressão."/>
-  <translation tag="Change nozzle size on {}?"/>
-  <translation tag="Change nozzle size?"/>
+  <translation tag="Change nozzle size on {}?" pt="Alterar o tamanho do bico em {}?"/>
+  <translation tag="Change nozzle size?" pt="Alterar o tamanho do bico?"/>
   <translation tag="Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer&apos;s config folder." pt="Altera configurações da impressora através do Moonraker, incluindo enviar, reescrever e excluir arquivos na pasta de configuração da impressora."/>
   <translation tag="Change the name or the linked spool in Spoolman." pt="Altere o nome ou o carretel vinculado no Spoolman."/>
   <translation tag="Change tool" pt="Trocar ferramenta"/>
@@ -2040,7 +2040,7 @@
   <translation tag="Flow calibration is not allowed for this filament with a 0.2 mm nozzle." pt="A calibração de fluxo não é permitida para este filamento com bico de 0.2 mm."/>
   <translation tag="Flow calibration is on for a filament and nozzle pair that does not allow it." pt="A calibração de fluxo está ligada para um par de filamento e bico que não a permite."/>
   <translation tag="Flow calibration not allowed for {}" pt="Calibração de fluxo não permitida para {}"/>
-  <translation tag="Flow type"/>
+  <translation tag="Flow type" pt="Tipo de fluxo"/>
   <translation tag="Flowguard" pt="Proteção de Fluxo"/>
   <translation tag="Flushing Filament..." pt="Purgando filamento..."/>
   <translation tag="Flying Toasters" pt="Torradeiras Voadoras"/>
@@ -3142,7 +3142,7 @@
   <translation tag="No filament loaded" pt="Nenhum filamento carregado"/>
   <translation tag="No filament loaded to unload" pt="Nenhum filamento carregado para descarregar"/>
   <translation tag="No filament sensor detected" pt="Nenhum sensor de filamento detectado"/>
-  <translation tag="No filament system to send this to"/>
+  <translation tag="No filament system to send this to" pt="Não há sistema de filamento para enviar isto"/>
   <translation tag="No filament type is set for a toolhead this print uses." pt="Nenhum tipo de filamento definido para um cabeçote usado nesta impressão."/>
   <translation tag="No filament was inserted in time" pt="Nenhum filamento foi inserido a tempo"/>
   <translation tag="No filament. Load filament and retry." pt="Sem filamento. Carregue filamento e tente novamente."/>
@@ -3214,7 +3214,7 @@
   <translation tag="No tool is mounted" pt="Nenhuma ferramenta montada"/>
   <translation tag="No tool mounted" pt="Nenhuma ferramenta montada"/>
   <translation tag="No tool on the head" pt="Nenhuma ferramenta no cabeçote"/>
-  <translation tag="No toolhead detected"/>
+  <translation tag="No toolhead detected" pt="Nenhum cabeçote detectado"/>
   <translation tag="No toolhead on the carriage" pt="Nenhum cabeçote no carro"/>
   <translation tag="No tools to calibrate" pt="Nenhuma ferramenta para calibrar"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" pt="Sem volta: a diferença moveu {:.1f} Hz"/>
@@ -3315,7 +3315,7 @@
   <translation tag="Nozzle Temperature" pt="Temperatura do Bico"/>
   <translation tag="Nozzle Temperatures" pt="Temperaturas dos bicos"/>
   <translation tag="Nozzle Temps" pt="Temps do bico"/>
-  <translation tag="Nozzle changed"/>
+  <translation tag="Nozzle changed" pt="Bico alterado"/>
   <translation tag="Nozzle clean complete" pt="Limpeza do bico concluída"/>
   <translation tag="Nozzle clog detected" pt="Entupimento do bico detectado"/>
   <translation tag="Nozzle diameter" pt="Diâmetro do bico"/>
@@ -3327,7 +3327,7 @@
   <translation tag="Nozzle not changed: the printer did not confirm it" pt="Bico não alterado: a impressora não confirmou"/>
   <translation tag="Nozzle not changed: {}" pt="Bico não alterado: {}"/>
   <translation tag="Nozzle not reported" pt="Bico não informado"/>
-  <translation tag="Nozzle size"/>
+  <translation tag="Nozzle size" pt="Tamanho do bico"/>
   <translation tag="Nozzle size and flow type per head" pt="Tamanho e tipo de fluxo do bico por cabeçote"/>
   <translation tag="Nozzle target set to {}" pt="Bico configurado para {}"/>
   <translation tag="Nozzle temp must be %d-%s" pt="A temperatura do bico deve ser %d-%s"/>
@@ -3412,7 +3412,7 @@
   <translation tag="Options" pt="Opções"/>
   <translation tag="Or Enter Manually" pt="Ou Digite Manualmente"/>
   <translation tag="Or instead of turning the others" pt="Ou, em vez de girar os outros"/>
-  <translation tag="Orifice diameter of the nozzle fitted to this head"/>
+  <translation tag="Orifice diameter of the nozzle fitted to this head" pt="Diâmetro do orifício do bico instalado neste cabeçote"/>
   <translation tag="Original" pt="Original"/>
   <translation tag="Original file location unknown" pt="Local do arquivo original desconhecido"/>
   <translation tag="Orrery" pt="Planetário"/>
@@ -4657,7 +4657,7 @@
   <translation tag="Stall detection setup failed for the Z motor — power-cycle to retry" pt="Falha na configuração da detecção de travamento do motor Z. Desligue e ligue para tentar novamente"/>
   <translation tag="Stall detection setup failed for the extruder — power-cycle to retry" pt="Falha na configuração da detecção de travamento do extrusor. Desligue e ligue para tentar novamente"/>
   <translation tag="Standard" pt="Padrão"/>
-  <translation tag="Standard or High Flow, as fitted to this head"/>
+  <translation tag="Standard or High Flow, as fitted to this head" pt="Standard ou High Flow, conforme o bico instalado neste cabeçote"/>
   <translation tag="Standby" pt="Em Espera"/>
   <translation tag="Starfield" pt="Campo Estelar"/>
   <translation tag="Start" pt="Iniciar"/>
@@ -4906,7 +4906,7 @@
   <translation tag="That print is no longer paused" pt="Essa impressão não está mais pausada"/>
   <translation tag="That reading jumped too far to trust. Re-measure without turning." pt="Essa leitura saltou demais para ser confiável. Meça novamente sem girar."/>
   <translation tag="That setting cannot be changed while a print is running" pt="Essa configuração não pode ser alterada durante uma impressão"/>
-  <translation tag="That size is already set"/>
+  <translation tag="That size is already set" pt="Esse tamanho já está definido"/>
   <translation tag="That slot cannot stand in for this one" pt="Esse slot não pode substituir este"/>
   <translation tag="That tool is already loaded" pt="Essa ferramenta já está carregada"/>
   <translation tag="That toolhead can no longer take over the print" pt="Esse cabeçote não pode mais continuar a impressão"/>
@@ -5055,7 +5055,7 @@
   <translation tag="The gateway is not a valid address." pt="O gateway não é um endereço válido."/>
   <translation tag="The gateway is not on the same subnet as the IP address." pt="O gateway não está na mesma sub-rede que o endereço IP."/>
   <translation tag="The head did not go back into its dock." pt="O cabeçote não voltou para a doca."/>
-  <translation tag="The head is already set that way"/>
+  <translation tag="The head is already set that way" pt="O cabeçote já está definido assim"/>
   <translation tag="The head on the carriage does not read as properly picked up, so it was not parked." pt="O cabeçote no carro não aparece como pego corretamente, por isso não foi estacionado."/>
   <translation tag="The head to pick up does not read as docked." pt="O cabeçote a ser pego não aparece na doca."/>
   <translation tag="The head&apos;s extruder never gripped the filament: after several tries, with the nozzle cleaned between them, no movement registered at the nozzle." pt="O extrusor do cabeçote nunca prendeu o filamento: após várias tentativas, com o bico limpo entre elas, nenhum movimento foi registrado no bico."/>
@@ -5323,7 +5323,7 @@
   <translation tag="This AFC system does not support bypass mode" pt="Este sistema AFC não oferece suporte ao modo bypass"/>
   <translation tag="This CFS firmware exposes no external spool slot" pt="Este firmware do CFS não expõe um slot para carretel externo"/>
   <translation tag="This Happy Hare system does not support bypass mode" pt="Este sistema Happy Hare não oferece suporte ao modo bypass"/>
-  <translation tag="This applies now. Klipper&apos;s extrusion limit follows at its next restart."/>
+  <translation tag="This applies now. Klipper&apos;s extrusion limit follows at its next restart." pt="Aplica-se agora. O limite de extrusão do Klipper muda no próximo reinício."/>
   <translation tag="This button controls" pt="Este botão controla"/>
   <translation tag="This calibration uses the paper friction method to set your Z-offset." pt="Esta calibração usa o método de fricção de papel para definir seu Z-offset."/>
   <translation tag="This cannot be undone." pt="Isso não pode ser desfeito."/>
@@ -5360,7 +5360,7 @@
   <translation tag="This light chip controls" pt="Este chip de luz controla"/>
   <translation tag="This looks like a {}, but it is set up as a {}" pt="Esta impressora parece uma {}, mas está configurada como {}"/>
   <translation tag="This may take up to 30 seconds" pt="Isso pode levar até 30 segundos"/>
-  <translation tag="This nozzle size can&apos;t be changed here"/>
+  <translation tag="This nozzle size can&apos;t be changed here" pt="O tamanho deste bico não pode ser alterado aqui"/>
   <translation tag="This plugin asks for no special permissions." pt="Este plugin não pede permissões especiais."/>
   <translation tag="This plugin lets HelixScreen control print start options like bed mesh and QGL." pt="Este plugin permite que o HelixScreen controle opções de início de impressão como malha da mesa e QGL."/>
   <translation tag="This print called {}, which the printer no longer has." pt="Esta impressão chamou {}, que a impressora já não tem."/>
@@ -5371,7 +5371,7 @@
   <translation tag="This print never reports layer {}." pt="Esta impressão nunca informa a camada {}."/>
   <translation tag="This printer cannot calibrate tool offsets automatically" pt="Esta impressora não consegue calibrar os offsets de ferramenta automaticamente"/>
   <translation tag="This printer cannot stream the sweep to the screen" pt="Esta impressora não consegue mostrar a varredura na tela"/>
-  <translation tag="This printer doesn&apos;t accept that nozzle size"/>
+  <translation tag="This printer doesn&apos;t accept that nozzle size" pt="Esta impressora não aceita esse tamanho de bico"/>
   <translation tag="This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman." pt="Esta impressora preenche seus gates a partir do Spoolman. O HelixScreen limpou a própria cópia; remova a bobina no Spoolman."/>
   <translation tag="This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman." pt="Esta impressora preenche seus gates a partir do Spoolman. Faça alterações de cor, material e bobina no Spoolman."/>
   <translation tag="This printer has motor compensation, so the check runs twice: with it off, then on." pt="Esta impressora tem compensação do motor, então a verificação é executada duas vezes: com ela desligada e depois ligada."/>
@@ -5379,7 +5379,7 @@
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" pt="Esta impressora não tem a macro LOAD_FILAMENT do INDX"/>
   <translation tag="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper." pt="Esta impressora ainda não tem um armazenamento [save_variables]. Atualize as macros de ajuda para adicioná-lo e reinicie o Klipper."/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." pt="Esta impressora não tem descarga automática. Corte o filamento no cabeçote e retire-o à mão."/>
-  <translation tag="This printer has no such toolhead"/>
+  <translation tag="This printer has no such toolhead" pt="Esta impressora não tem esse cabeçote"/>
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." pt="Esta impressora não tem fuso horário, então o relógio mostra UTC. Escolha o seu."/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." pt="Esta impressora não tem o comando {}, então o Z-offset não pode ser salvo."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." pt="Esta impressora parece ser uma {} ({}% de confiança), mas está configurada como {}. Um tipo errado aplica opções de pré-impressão e predefinições incorretas."/>
@@ -5407,7 +5407,7 @@
   <translation tag="This screen" pt="Esta tela"/>
   <translation tag="This screen can&apos;t play videos" pt="Esta tela não pode reproduzir vídeos"/>
   <translation tag="This screen can&apos;t play videos. Scan the code with your phone to watch the timelapse." pt="Esta tela não pode reproduzir vídeos. Escaneie o código com seu celular para assistir ao timelapse."/>
-  <translation tag="This sets the nozzle size in the printer config."/>
+  <translation tag="This sets the nozzle size in the printer config." pt="Isto define o tamanho do bico na configuração da impressora."/>
   <translation tag="This slot feeds no tool" pt="Este slot não alimenta nenhuma ferramenta"/>
   <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." pt="Este carretel acabou, então o CFS não consegue recolher o filamento restante."/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." pt="Os detalhes deste carretel ainda não foram carregados do Spoolman. Toque em Salvar novamente."/>
@@ -5416,8 +5416,8 @@
   <translation tag="This tool has no number with a T command: assign it one first" pt="Esta ferramenta não tem um número com comando T: atribua um primeiro"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." pt="Esta ferramenta sonda cada parafuso da mesa e informa quanto ajustar."/>
   <translation tag="This toolhead has no automatic feeder. Load the filament by hand." pt="Este cabeçote não tem alimentador automático. Carregue o filamento manualmente."/>
-  <translation tag="This toolhead has no flow type to change"/>
-  <translation tag="This toolhead has no such flow type"/>
+  <translation tag="This toolhead has no flow type to change" pt="Este cabeçote não tem tipo de fluxo para alterar"/>
+  <translation tag="This toolhead has no such flow type" pt="Este cabeçote não tem esse tipo de fluxo"/>
   <translation tag="This update asks for new permissions:" pt="Esta atualização pede novas permissões:"/>
   <translation tag="This update removes HelixScreen from the printer." pt="Esta atualização remove o HelixScreen da impressora."/>
   <translation tag="This upgrades the printer&apos;s operating system packages." pt="Isto atualiza os pacotes do sistema operacional da impressora."/>
@@ -5541,7 +5541,7 @@
   <translation tag="Toolhead position and homing, with a plate view and Home All" pt="Posição e posicionamento do cabeçote, com vista da mesa e Posicionar tudo"/>
   <translation tag="Toolhead position unknown" pt="Posição do cabeçote desconhecida"/>
   <translation tag="Toolhead sensors disagree" pt="Os sensores do cabeçote discordam"/>
-  <translation tag="Toolhead settings"/>
+  <translation tag="Toolhead settings" pt="Configurações do cabeçote"/>
   <translation tag="Toolhead unloaded" pt="Cabeçote descarregado"/>
   <translation tag="Toolheads" pt="Cabeçotes"/>
   <translation tag="Tools" pt="Ferramentas"/>
@@ -6387,7 +6387,7 @@
   <translation tag="{} new" pt="{} novo(s)"/>
   <translation tag="{} new hardware available" pt="{} novo hardware disponível"/>
   <translation tag="{} new plugins available. Enable them in Settings &gt; Plugins." pt="{} novos plugins disponíveis. Ative-os em Configurações &gt; Plugins."/>
-  <translation tag="{} nozzle"/>
+  <translation tag="{} nozzle" pt="Bico {}"/>
   <translation tag="{} nozzle sensor fault" pt="Falha no sensor do bico de {}"/>
   <translation tag="{} of {} points" pt="{} de {} pontos"/>
   <translation tag="{} of {} steps didn&apos;t finish" pt="{} de {} etapas não terminaram"/>

@@ -972,8 +972,8 @@ translations:
   Change Tool While Paused: Смена инструмента при паузе
   Change heater control?: Изменить управление нагревателем?
   Change it before starting the print.: 'Измените это перед началом печати.'
-  Change nozzle size on {}?: ''
-  Change nozzle size?: ''
+  Change nozzle size on {}?: "Изменить размер сопла на {}?"
+  Change nozzle size?: "Изменить размер сопла?"
   ? Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer's config folder.
   : 'Изменяет настройки принтера через Moonraker, включая загрузку, перезапись и удаление файлов в папке конфигурации принтера.'
   Change the name or the linked spool in Spoolman.: "Меняйте название или привязанную катушку в Spoolman."
@@ -1378,7 +1378,7 @@ translations:
   : "Удерживайте плитку, чтобы войти в режим редактирования. Новая сетка позволяет переставлять, менять размер, удалять и добавлять виджеты, а также перетаскивать их между страницами."
   'Moonraker answered at {}.': "Moonraker ответил по адресу {}."
   "New in 1.1": "Новое в 1.1"
-  No filament system to send this to: ''
+  No filament system to send this to: "Нет системы филамента, куда это отправить"
   No filament type is set for a toolhead this print uses.: 'Для печатающей головки, используемой в этой печати, не задан тип филамента.'
   No filament was inserted in time: 'Филамент не был вставлен вовремя'
   Paste: "Вставить"
@@ -2203,7 +2203,7 @@ translations:
   Flow calibration is not allowed for this filament with a 0.2 mm nozzle.: 'Калибровка потока недоступна для этого филамента с соплом 0,2 мм.'
   Flow calibration is on for a filament and nozzle pair that does not allow it.: 'Калибровка потока включена для пары филамента и сопла, где она недоступна.'
   Flow calibration not allowed for {}: 'Калибровка потока недоступна: {}'
-  Flow type: ''
+  Flow type: "Тип потока"
   Flowguard: Flowguard
   Flushing Filament...: Прочистка филамента...
   Flying Toasters: Летающие тостеры
@@ -3404,7 +3404,7 @@ translations:
   No tool is mounted: 'Инструмент не установлен'
   No tool mounted: 'Инструмент не установлен'
   No tool on the head: "На печатающей головке нет инструмента"
-  No toolhead detected: ''
+  No toolhead detected: "Печатающая головка не обнаружена"
   No toolhead on the carriage: 'На каретке нет печатающей головки'
   No tools to calibrate: Нет инструментов для калибровки
   'No turn: the gap moved {:.1f} Hz': "Без поворота: разница сдвинулась на {:.1f} Гц"
@@ -3513,7 +3513,7 @@ translations:
   Nozzle Temperature: Температура сопла
   Nozzle Temperatures: 'Температуры сопел'
   Nozzle Temps: Темп. сопел
-  Nozzle changed: ''
+  Nozzle changed: "Сопло изменено"
   Nozzle clean complete: Очистка сопла завершена
   Nozzle clog detected: Обнаружено засорение сопла
   Nozzle diameter: "Диаметр сопла"
@@ -3525,7 +3525,7 @@ translations:
   'Nozzle not changed: the printer did not confirm it': "Сопло не изменено: принтер не подтвердил"
   'Nozzle not changed: {}': "Сопло не изменено: {}"
   Nozzle not reported: 'Сопло не сообщено'
-  Nozzle size: ''
+  Nozzle size: "Размер сопла"
   Nozzle size and flow type per head: "Размер сопла и тип потока для каждой печатающей головки"
   Nozzle target set to {}: Целевая температура сопла {}
   Nozzle temp must be %d-%s: Температура сопла должна быть %d-%s
@@ -3615,7 +3615,7 @@ translations:
   Options: Параметры
   Or Enter Manually: Или введите вручную
   Or instead of turning the others: Или вместо вращения остальных винтов
-  Orifice diameter of the nozzle fitted to this head: ''
+  Orifice diameter of the nozzle fitted to this head: "Диаметр отверстия сопла, установленного на этой головке"
   Original: 'Оригинал'
   Original file location unknown: Расположение исходного файла неизвестно
   Orrery: 'Планетарий'
@@ -4901,7 +4901,7 @@ translations:
   Stall detection setup failed for the Z motor — power-cycle to retry: Не удалась настройка детектирования заклинивания двигателя Z. Выключите и включите питание
   Stall detection setup failed for the extruder — power-cycle to retry: Не удалась настройка детектирования заклинивания экструдера. Выключите и включите питание
   Standard: Стандартный
-  Standard or High Flow, as fitted to this head: ''
+  Standard or High Flow, as fitted to this head: "Стандартный или High Flow, как установлено на этой головке"
   Standby: Режим ожидания
   Starfield: Звёздное небо
   Start: Старт
@@ -5154,7 +5154,7 @@ translations:
   That print is no longer paused: 'Эта печать больше не приостановлена'
   That reading jumped too far to trust. Re-measure without turning.: "Это показание скакнуло слишком сильно, чтобы ему доверять. Измерьте снова, не вращая."
   'That setting cannot be changed while a print is running': 'Этот параметр нельзя изменить во время печати'
-  That size is already set: ''
+  That size is already set: "Этот размер уже задан"
   That slot cannot stand in for this one: Этот слот не может заменить текущий
   That tool is already loaded: Этот инструмент уже загружен
   That toolhead can no longer take over the print: 'Эта печатающая головка больше не может продолжить печать'
@@ -5322,7 +5322,7 @@ translations:
   The gateway is not a valid address.: 'Шлюз не является допустимым адресом.'
   The gateway is not on the same subnet as the IP address.: 'Шлюз находится не в той же подсети, что и IP-адрес.'
   The head did not go back into its dock.: 'Головка не вернулась в док.'
-  The head is already set that way: ''
+  The head is already set that way: "Головка уже настроена так"
   The head on the carriage does not read as properly picked up, so it was not parked.: 'Головка на каретке не числится правильно взятой, поэтому её не поставили в док.'
   The head to pick up does not read as docked.: 'Головка, которую нужно взять, не числится в доке.'
   ? "The head's extruder never gripped the filament: after several tries, with the nozzle cleaned between them, no movement registered at the nozzle."
@@ -5622,7 +5622,7 @@ translations:
   This CFS firmware exposes no external spool slot: 'Эта прошивка CFS не предоставляет слот для внешней катушки'
   This Happy Hare system does not support bypass mode: 'Эта система Happy Hare не поддерживает режим обхода'
   Needs a newer Moonraker to hold uploads.: "Нужен более новый Moonraker, чтобы задерживать загрузки."
-  This applies now. Klipper's extrusion limit follows at its next restart.: ''
+  This applies now. Klipper's extrusion limit follows at its next restart.: "Применяется сразу. Предел экструзии Klipper изменится при следующем перезапуске."
   This button controls: Эта кнопка управляет
   This calibration uses the paper friction method to set your Z-offset.: Эта калибровка использует метод трения бумаги об сопло для установки Z-смещения.
   This cannot be undone.: Это действие нельзя отменить.
@@ -5675,7 +5675,7 @@ translations:
   This looks like a {}, but it is set up as a {}: Похоже, это {}, но принтер настроен как {}
   This may take up to 30 seconds: Это может занять до 30 секунд
   Needs file analysis, which isn't running.: "Нужен анализ файлов, который не запущен."
-  This nozzle size can't be changed here: ''
+  This nozzle size can't be changed here: "Размер этого сопла здесь изменить нельзя"
   This plugin asks for no special permissions.: 'Этот плагин не запрашивает специальных разрешений.'
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: 'Этот плагин позволяет HelixScreen управлять опциями начала печати, такими как сетка стола и QGL.'
   This print called {}, which the printer no longer has.: 'Эта печать вызвала {}, которых больше нет на принтере.'
@@ -5686,7 +5686,7 @@ translations:
   This print never reports layer {}.: 'Эта печать никогда не сообщает слой {}.'
   This printer cannot calibrate tool offsets automatically: Этот принтер не может калибровать смещения инструментов автоматически
   This printer cannot stream the sweep to the screen: 'Этот принтер не может показывать развёртку на экране'
-  This printer doesn't accept that nozzle size: ''
+  This printer doesn't accept that nozzle size: "Этот принтер не принимает такой размер сопла"
   This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman.: Этот принтер берёт данные шлюзов из Spoolman. HelixScreen очистил свою копию; удалите катушку в Spoolman.
   This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman.: Этот принтер берёт данные шлюзов из Spoolman. Меняйте цвет, материал и катушку в Spoolman.
   'This printer has motor compensation, so the check runs twice: with it off, then on.': 'У этого принтера есть компенсация моторов, поэтому проверка выполняется дважды: сначала с выключенной, затем с включённой.'
@@ -5694,7 +5694,7 @@ translations:
   This printer has no INDX LOAD_FILAMENT macro: "На этом принтере нет макроса INDX LOAD_FILAMENT"
   This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: "На этом принтере ещё нет хранилища [save_variables]. Обновите вспомогательные макросы, чтобы добавить его, затем перезапустите Klipper."
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: У этого принтера нет автоматической выгрузки. Отрежьте филамент у головки и вытащите его вручную.
-  This printer has no such toolhead: ''
+  This printer has no such toolhead: "У этого принтера нет такой головки"
   This printer has no timezone, so its clock reads UTC. Pick yours.: "У этого принтера не задан часовой пояс, поэтому часы показывают UTC. Выберите свой."
   'This printer has no {} command, so the Z-offset cannot be saved.': 'У этого принтера нет команды {}, поэтому Z-смещение нельзя сохранить.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
@@ -5727,7 +5727,7 @@ translations:
   This screen: 'Этот экран'
   This screen can't play videos: 'Этот экран не может воспроизводить видео'
   This screen can't play videos. Scan the code with your phone to watch the timelapse.: 'Этот экран не может воспроизводить видео. Отсканируйте код телефоном, чтобы посмотреть таймлапс.'
-  This sets the nozzle size in the printer config.: ''
+  This sets the nozzle size in the printer config.: "Задаёт размер сопла в конфигурации принтера."
   This slot feeds no tool: 'Этот слот не подаёт филамент ни в один инструмент'
   This spool ran out, so the CFS cannot pull the leftover filament back.: 'Эта катушка закончилась, поэтому CFS не может втянуть оставшийся филамент.'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Данные этой катушки ещё не загружены из Spoolman. Нажмите «Сохранить» ещё раз.'
@@ -5735,8 +5735,8 @@ translations:
   This theme: Эта тема
   'This tool has no number with a T command: assign it one first': 'У этого инструмента нет номера с командой T: сначала назначьте его'
   This tool probes each bed screw and tells you how much to adjust.: Этот инструмент проверяет каждый винт стола и показывает, насколько его нужно отрегулировать.
-  This toolhead has no flow type to change: ''
-  This toolhead has no such flow type: ''
+  This toolhead has no flow type to change: "У этой головки нет типа потока для изменения"
+  This toolhead has no such flow type: "У этой головки нет такого типа потока"
   'This update asks for new permissions:': 'Это обновление запрашивает новые разрешения:'
   This update removes HelixScreen from the printer.: 'Это обновление удаляет HelixScreen с принтера.'
   This upgrades the printer's operating system packages.: 'Будут обновлены пакеты операционной системы принтера.'
@@ -5865,7 +5865,7 @@ translations:
   Toolhead position and homing, with a plate view and Home All: "Положение и парковка печатающей головки, с видом стола и кнопкой «Парковка всех осей»"
   Toolhead position unknown: Положение печатающей головки неизвестно
   Toolhead sensors disagree: Датчики печатающей головки не согласуются
-  Toolhead settings: ''
+  Toolhead settings: "Настройки печатающей головки"
   Toolhead unloaded: Печатающая головка разгружена
   Toolheads: Печатающие головки
   Tools: Инструменты
@@ -6722,7 +6722,7 @@ translations:
   '{} new': 'новых: {}'
   '{} new hardware available': 'Доступно нового оборудования: {}'
   '{} new plugins available. Enable them in Settings > Plugins.': 'Доступно новых плагинов: {}. Включите их в разделе Настройки > Плагины.'
-  '{} nozzle': ''
+  '{} nozzle': "Сопло {}"
   '{} nozzle sensor fault': '{}: неисправность датчика сопла'
   '{} of {} points': '{} из {} точек'
   "{} of {} steps didn't finish": "{} из {} шагов не завершены"
