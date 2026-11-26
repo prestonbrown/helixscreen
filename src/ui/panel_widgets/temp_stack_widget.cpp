@@ -54,6 +54,9 @@ namespace {
 // never drift apart.
 constexpr const char* kSizeStacked = "md";
 
+// Text tiers side-by-side columns try, largest first.
+constexpr const char* kColumnTiers[] = {"xl", "lg", "md", "sm"};
+
 // Widest value a heater column ever shows, measured instead of the live number
 // so the columns do not reflow as a temperature climbs.
 constexpr const char* kWidestValueText = "88.8\u00B0C";
@@ -223,16 +226,15 @@ void TempStackWidget::on_size_changed(int colspan, int rowspan, int width_px, in
     // that then overflow the moment the type grows with them.
     const lv_font_t* caption_font =
         theme_manager_get_font(theme_manager_size_to_font_token("xs", "xs"));
-    const int icon_line_px = static_cast<int>(mdi_icons_24.line_height);
     const int caption_px = caption_font ? static_cast<int>(caption_font->line_height) : 0;
 
-    // Side-by-side columns step down a text tier before giving the layout up,
-    // so a box that cannot hold the larger numbers still uses its width.
-    // `columns_size` is the tier that fit, or null when none did.
-    auto decide = [&](const char* tier) {
+    // One candidate arrangement: the text tier and the glyph font it is
+    // measured with.
+    auto decide = [&](const char* tier, const lv_font_t* icon) {
         const lv_font_t* font =
             theme_manager_get_font(theme_manager_size_to_font_token(tier, "xs"));
-        const StackedRowMetrics row{icon_line_px, font ? static_cast<int>(font->line_height) : 0,
+        const int icon_px = static_cast<int>(icon->line_height);
+        const StackedRowMetrics row{icon_px, font ? static_cast<int>(font->line_height) : 0,
                                     icon_gap_px, caption_px};
         // Width one column needs: the widest of the glyph, the value at its
         // widest, and (captioned) the caption.
@@ -241,7 +243,7 @@ void TempStackWidget::on_size_changed(int colspan, int rowspan, int width_px, in
         const int pad_px = 2 * static_cast<int>(theme_manager_get_spacing("space_xs"));
         cols.min_box_px = widget_size::w_normal() - pad_px;
         if (font && caption_font) {
-            cols.plain_px = std::max(icon_line_px, measure_text_px(kWidestValueText, font));
+            cols.plain_px = std::max(icon_px, measure_text_px(kWidestValueText, font));
             int widest_caption = 0;
             for (int r = 0; r < row_count; r++) {
                 const char* text = labels[r] ? lv_label_get_text(labels[r]) : nullptr;
@@ -249,29 +251,62 @@ void TempStackWidget::on_size_changed(int colspan, int rowspan, int width_px, in
                     widest_caption = std::max(widest_caption, measure_text_px(text, caption_font));
             }
             cols.captioned_px = std::max(cols.plain_px, widest_caption);
+            // Rows: the glyph, then the value, then the caption, along one line.
+            cols.beside_plain_px = icon_px + row_gap_px + measure_text_px(kWidestValueText, font);
+            cols.beside_captioned_px = cols.beside_plain_px + row_gap_px + widest_caption;
         }
         return classify_stack_layout(colspan, rowspan, width_px - pad_px, height_px, visible_rows,
                                      row, row_gap_px, cols);
     };
 
-    const char* columns_size = kSizeStacked;
-    StackLayout layout = decide(kSizeStacked);
-    if (layout.shape != StackShape::Columns) {
-        const StackLayout smaller = decide("sm");
-        if (smaller.shape == StackShape::Columns) {
-            layout = smaller;
-            columns_size = "sm";
+    // The vertical answer (or Beside) is the fallback, measured at the stacked
+    // tier. Side by side, then big rows, each take the largest text tier whose
+    // arrangement fits the width and height, with the largest glyph that suits
+    // that text, so a wider or taller box reads bigger.
+    const char* big_size = kSizeStacked;
+    const lv_font_t* big_icon = &mdi_icons_24;
+    StackLayout layout = decide(kSizeStacked, &mdi_icons_24);
+    // The stacked tier says which side-by-side shape the box takes, if any; the
+    // search below then only decides how big it can be drawn.
+    const bool big_shape = layout.shape == StackShape::Columns || layout.shape == StackShape::Rows;
+    if (big_shape) {
+        const StackShape want = layout.shape;
+        bool found = false;
+        for (const char* tier : kColumnTiers) {
+            const lv_font_t* font =
+                theme_manager_get_font(theme_manager_size_to_font_token(tier, "xs"));
+            if (!font)
+                continue;
+            for (lv_font_t* icon : {&mdi_icons_48, &mdi_icons_32, &mdi_icons_24}) {
+                // A glyph more than twice the text's height reads as a pictogram
+                // with a caption, not a temperature with a label.
+                if (icon->line_height > 2 * font->line_height && icon != &mdi_icons_24)
+                    continue;
+                const StackLayout candidate = decide(tier, icon);
+                if (candidate.shape == want) {
+                    layout = candidate;
+                    big_size = tier;
+                    big_icon = icon;
+                    found = true;
+                    break;
+                }
+            }
+            if (found)
+                break;
         }
     }
+    const bool rows_big = layout.shape == StackShape::Rows;
     const bool columns = layout.shape == StackShape::Columns;
-    const bool icon_above = layout.shape != StackShape::Beside;
+    const bool icon_above =
+        layout.shape == StackShape::IconAbove || layout.shape == StackShape::Columns;
 
     // Text tier. Stacking goes a rung further than the two-cell height band
     // does on its own - the point of putting the icon on its own line is the
     // room it frees for the number underneath it.
     const bool tall_pixels = height_px >= widget_size::h_tall();
-    const char* size =
-        columns ? columns_size : (icon_above ? kSizeStacked : (tall_pixels ? "sm" : "xs"));
+    const char* size = (columns || rows_big)
+                           ? big_size
+                           : (icon_above ? kSizeStacked : (tall_pixels ? "sm" : "xs"));
 
     // Get text font for this size tier
     const char* font_token = theme_manager_size_to_font_token(size, "xs");
@@ -282,7 +317,9 @@ void TempStackWidget::on_size_changed(int colspan, int rowspan, int width_px, in
     // Icon font: xs=16px, sm/md=24px. The glyph does not follow the text a
     // third rung up - a 32px icon over a body-size number reads as an icon
     // with a caption, not a temperature with a label.
-    const lv_font_t* icon_font = (icon_above || tall_pixels) ? &mdi_icons_24 : &mdi_icons_16;
+    const lv_font_t* icon_font =
+        (columns || rows_big) ? big_icon
+                              : ((icon_above || tall_pixels) ? &mdi_icons_24 : &mdi_icons_16);
 
     // The component binds the flow, column sharing and captions to these.
     shape_.apply(layout);
@@ -313,8 +350,9 @@ void TempStackWidget::on_size_changed(int colspan, int rowspan, int width_px, in
     spdlog::debug("[TempStackWidget] on_size_changed {}x{} tracks {}x{}px visible_rows={} "
                   "-> size {} layout {}{}",
                   colspan, rowspan, width_px, height_px, visible_rows, size,
-                  columns ? "columns" : (icon_above ? "icon-above" : "icon-beside"),
-                  columns && layout.captions ? " +captions" : "");
+                  columns ? "columns"
+                          : (rows_big ? "big-rows" : (icon_above ? "icon-above" : "icon-beside")),
+                  (columns || rows_big) && layout.captions ? " +captions" : "");
 }
 
 void TempStackWidget::detach() {

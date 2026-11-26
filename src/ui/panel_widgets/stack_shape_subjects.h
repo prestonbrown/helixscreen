@@ -38,9 +38,14 @@ struct StackShapeSubjects {
 
     void apply(const StackLayout& layout) {
         lv_subject_set_int(&columns, layout.shape == StackShape::Columns ? 1 : 0);
-        lv_subject_set_int(&stacked, layout.shape != StackShape::Beside ? 1 : 0);
-        lv_subject_set_int(&captions,
-                           layout.shape == StackShape::Columns && layout.captions ? 1 : 0);
+        lv_subject_set_int(
+            &stacked,
+            layout.shape == StackShape::IconAbove || layout.shape == StackShape::Columns ? 1 : 0);
+        lv_subject_set_int(
+            &captions, (layout.shape == StackShape::Columns || layout.shape == StackShape::Rows) &&
+                               layout.captions
+                           ? 1
+                           : 0);
     }
 };
 

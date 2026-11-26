@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include <algorithm>
+
 // Pure layout-decision logic shared by the home widgets that stack labelled
 // rows: Temperatures (temp_stack) and Fan Speeds (fan_stack).
 //
@@ -73,6 +75,7 @@ enum class StackShape {
     Beside,    ///< rows stacked vertically, each [icon | value]
     IconAbove, ///< rows stacked vertically, each icon over its value
     Columns,   ///< rows side by side, each icon over its value (and caption)
+    Rows,      ///< rows stacked vertically, each a large icon with its value beside it
 };
 
 struct StackLayout {
@@ -82,9 +85,11 @@ struct StackLayout {
 
 /// Measured width one column needs, with and without its caption.
 struct ColumnWidths {
-    int plain_px = 0;     ///< widest column content with no caption
-    int captioned_px = 0; ///< widest column content with its caption
-    int min_box_px = 0;   ///< narrowest box the layout may take at all (widget_size::w_normal)
+    int plain_px = 0;        ///< widest column content with no caption
+    int captioned_px = 0;    ///< widest column content with its caption
+    int min_box_px = 0;      ///< narrowest box the layout may take at all (widget_size::w_normal)
+    int beside_plain_px = 0; ///< Rows: one row's icon and value, side by side (0 = not offered)
+    int beside_captioned_px = 0; ///< Rows: the same with the caption after the value
 };
 
 /// Pick the arrangement for a stacked widget: one decision for Temperatures
@@ -114,20 +119,36 @@ struct ColumnWidths {
         return out;
     // A box that is tall as well as wide already uses its height well stacked
     // vertically; columns take over once it is clearly wider than it is tall.
-    if (out.shape == StackShape::IconAbove && width_px * 2 < height_px * 3)
-        return out;
+    const bool wide_enough_for_columns =
+        out.shape != StackShape::IconAbove || width_px * 2 >= height_px * 3;
 
     auto width_fits = [&](int column_px) {
         return column_px > 0 && width_px >= row_count * column_px + (row_count - 1) * row_gap_px;
     };
     const int plain_h = row.icon_px + row.icon_gap_px + row.text_px;
 
-    if (row.label_px > 0 && width_fits(cols.captioned_px) &&
-        height_px >= plain_h + row.icon_gap_px + row.label_px) {
-        return {StackShape::Columns, true};
+    if (wide_enough_for_columns) {
+        if (row.label_px > 0 && width_fits(cols.captioned_px) &&
+            height_px >= plain_h + row.icon_gap_px + row.label_px) {
+            return {StackShape::Columns, true};
+        }
+        if (width_fits(cols.plain_px) && height_px >= plain_h)
+            return {StackShape::Columns, false};
     }
-    if (width_fits(cols.plain_px) && height_px >= plain_h)
-        return {StackShape::Columns, false};
+
+    // A box taller than a cell and wide enough: one row per heater down the
+    // box, each a big glyph with its value (and caption) to the right. Only a
+    // widget that measured a beside width for it offers this.
+    if (rowspan >= kIconAboveMinRowspan && cols.beside_plain_px > 0) {
+        const int rows_h =
+            row_count * std::max(row.icon_px, row.text_px) + (row_count - 1) * row_gap_px;
+        if (height_px >= rows_h) {
+            if (row.label_px > 0 && width_px >= cols.beside_captioned_px)
+                return {StackShape::Rows, true};
+            if (width_px >= cols.beside_plain_px)
+                return {StackShape::Rows, false};
+        }
+    }
     return out;
 }
 

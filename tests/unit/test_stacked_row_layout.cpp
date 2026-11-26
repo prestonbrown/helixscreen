@@ -176,3 +176,36 @@ TEST_CASE("stack layout columns decline when it cannot measure",
     CHECK(classify_stack_layout(4, 2, w, 400, 3, kCaptionRow, kColGap, ColumnWidths{}).shape !=
           StackShape::Columns);
 }
+
+TEST_CASE("stack layout gives a square, tall box big rows, and a narrow one the icon stack",
+          "[widget_size][stack_layout][layout]") {
+    // Per-row width: 24px icon, then a 40px value, then a 50px caption, 4px apart.
+    ColumnWidths cols{40, 60, 100, 24 + 4 + 40, 24 + 4 + 40 + 4 + 50};
+    const int rows_h = 3 * 24 + 2 * kColGap; // the icon is the taller of icon and text
+    const int h = exact_fit(3) * 4;
+    REQUIRE(h >= rows_h);
+
+    // Square: not wide enough for the 3:2 columns rule, so big rows.
+    auto big = classify_stack_layout(4, 4, 200, 200, 3, kCaptionRow, kColGap, cols);
+    CHECK(big.shape == StackShape::Rows);
+    CHECK(big.captions);
+
+    // The caption goes before the rows do.
+    auto no_caption = classify_stack_layout(4, 4, cols.beside_captioned_px - 1, 200, 3, kCaptionRow,
+                                            kColGap, cols);
+    CHECK(no_caption.shape == StackShape::Rows);
+    CHECK_FALSE(no_caption.captions);
+
+    // Narrower than a row needs, or a one-cell-wide box: the vertical icon stack.
+    CHECK(classify_stack_layout(4, 4, cols.beside_plain_px - 1, 200, 3, kCaptionRow, kColGap, cols)
+              .shape == StackShape::IconAbove);
+    CHECK(classify_stack_layout(2, 4, 300, 200, 3, kCaptionRow, kColGap, cols).shape ==
+          StackShape::IconAbove);
+
+    // One authored cell tall never goes to big rows, and a widget that measured
+    // no beside width never offers them.
+    CHECK(classify_stack_layout(4, 2, 300, 200, 3, kCaptionRow, kColGap, cols).shape !=
+          StackShape::Rows);
+    CHECK(classify_stack_layout(4, 4, 200, 200, 3, kCaptionRow, kColGap, kCols).shape !=
+          StackShape::Rows);
+}

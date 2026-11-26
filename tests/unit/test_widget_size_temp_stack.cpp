@@ -373,3 +373,66 @@ TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack: two tiles keep their own shape"
     CHECK(lv_obj_get_style_flex_flow(narrow.root(), LV_PART_MAIN) == LV_FLEX_FLOW_COLUMN);
     CHECK(lv_obj_is_hidden(narrow.child("temp_stack_nozzle_label")));
 }
+
+// 2x2: one row per heater down the box, each a big glyph with its value to the
+// right, sized up to the box (prestonbrown/helixscreen#2198).
+TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack at 2x2 draws big rows, glyph left of value",
+                 "[widget_size][temp_stack][panel_widget][wide]") {
+    PanelWidgetHarness<TempStackWidget> h(test_screen(), "temp_stack", state(), nullptr);
+    lv_obj_t* nozzle_row = h.child("temp_stack_nozzle_row");
+    lv_obj_t* bed_row = h.child("temp_stack_bed_row");
+    lv_obj_t* nozzle_glyph = h.child("nozzle_icon_glyph");
+    lv_obj_t* nozzle_temp = lv_obj_get_child(nozzle_row, 1);
+
+    // 2x2 cells = 4x4 tracks.
+    h.resize(4, 4, 2 * w_normal(), 2 * h_tall());
+    lv_obj_update_layout(h.root());
+
+    CHECK(lv_obj_get_style_flex_flow(h.root(), LV_PART_MAIN) == LV_FLEX_FLOW_COLUMN);
+    CHECK(lv_obj_get_style_flex_flow(nozzle_row, LV_PART_MAIN) == LV_FLEX_FLOW_ROW);
+    CHECK(lv_obj_get_y(nozzle_row) + lv_obj_get_height(nozzle_row) <= lv_obj_get_y(bed_row));
+    // Glyph left of its value, level with it, and larger than the 24px glyph a
+    // one-cell box uses.
+    CHECK(lv_obj_get_x(nozzle_glyph) + lv_obj_get_width(nozzle_glyph) <= lv_obj_get_x(nozzle_temp));
+    CHECK(lv_obj_get_style_text_font(nozzle_glyph, LV_PART_MAIN)->line_height >
+          mdi_icons_24.line_height);
+    // Every row fits the box.
+    CHECK(lv_obj_get_y(h.child("temp_stack_bed_row")) + lv_obj_get_height(bed_row) <=
+          lv_obj_get_height(h.root()));
+
+    // A one-cell-wide tall box keeps the icon-over-value stack.
+    h.resize(2, 4, w_normal() - 1, 2 * h_tall());
+    lv_obj_update_layout(h.root());
+    CHECK(lv_obj_get_style_flex_flow(nozzle_row, LV_PART_MAIN) == LV_FLEX_FLOW_COLUMN);
+}
+
+// Columns take the largest text tier whose three columns fit, so a wider box
+// reads bigger than a narrower one (prestonbrown/helixscreen#2198).
+TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack columns use bigger text in a wider box",
+                 "[widget_size][temp_stack][panel_widget][wide]") {
+    PanelWidgetHarness<TempStackWidget> h(test_screen(), "temp_stack", state(), nullptr);
+    lv_obj_t* temp = lv_obj_get_child(h.child("temp_stack_nozzle_row"), 1);
+    auto text_px = [&] {
+        return lv_obj_get_style_text_font(lv_obj_get_child(temp, 0), LV_PART_MAIN)->line_height;
+    };
+
+    // Sweep the width across the columns range: the text never shrinks as the
+    // box widens, and the widest box reads bigger than the narrowest.
+    const int box_h = 2 * h_tall();
+    int first_px = 0;
+    int last_px = 0;
+    int widths_in_columns = 0;
+    for (int w = w_normal(); w <= 6 * w_normal(); w += 4) {
+        h.resize(6, 2, w, box_h);
+        if (lv_obj_get_style_flex_flow(h.root(), LV_PART_MAIN) != LV_FLEX_FLOW_ROW)
+            continue;
+        const int px = text_px();
+        INFO("width " << w);
+        CHECK(px >= last_px);
+        if (widths_in_columns++ == 0)
+            first_px = px;
+        last_px = px;
+    }
+    REQUIRE(widths_in_columns > 0);
+    CHECK(last_px > first_px);
+}
