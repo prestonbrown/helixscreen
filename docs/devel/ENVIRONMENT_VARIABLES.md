@@ -2686,9 +2686,9 @@ Where `helix-launcher.sh`'s automatic-update rollback guard and the app exchange
 | **Default** | `<install parent>/.helixscreen/rollback-<install dir name>`, set by the launcher, so installs side by side never share markers |
 | **Files** | `scripts/helix-launcher.sh`, `src/system/update_rollback.cpp`, `src/helix_watchdog.cpp` |
 
-### `HELIX_ROLLBACK_WINDOW`, `HELIX_ROLLBACK_POLL`, `HELIX_ROLLBACK_MAX_STARTS`
+### `HELIX_ROLLBACK_WINDOW`, `HELIX_ROLLBACK_POLL`, `HELIX_ROLLBACK_MAX_STARTS`, `HELIX_ROLLBACK_MAX_STOPS`
 
-The launcher's rollback guard: seconds a newly installed version has to report healthy (default 600), seconds between checks (default 5), and guarded starts before it restores the previous version without trying again (default 3). Read from the launcher's environment only; `helixscreen.env` cannot set them.
+The launcher's rollback guard: seconds a newly installed version has to report healthy (default 600), seconds between checks (default 5), guarded starts before it restores the previous version without trying again (default 3), and recorded stops that give their guarded start back (default 10; later stops count as starts). Read from the launcher's environment only; `helixscreen.env` cannot set them.
 
 ### `HELIX_UPDATE_KEEP_PREVIOUS`, `HELIX_UPDATE_PREVIOUS_FILE`, `HELIX_UPDATE_SWAPPED_FILE`
 
