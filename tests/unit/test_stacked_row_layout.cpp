@@ -209,3 +209,25 @@ TEST_CASE("stack layout gives a square, tall box big rows, and a narrow one the 
     CHECK(classify_stack_layout(4, 4, 200, 200, 3, kCaptionRow, kColGap, kCols).shape !=
           StackShape::Rows);
 }
+
+TEST_CASE("stack layout keeps its margin above the first row and below the last",
+          "[widget_size][stack_layout][layout]") {
+    ColumnWidths cols{40, 60, 100, 24 + 4 + 40, 24 + 4 + 40 + 4 + 50};
+    cols.margin_px = 7;
+    const int rows_h = 3 * 24 + 2 * kColGap;
+
+    // Exactly the rows plus a margin each side: big rows. One pixel less: not.
+    CHECK(classify_stack_layout(4, 4, 120, rows_h + 14, 3, kCaptionRow, kColGap, cols).shape ==
+          StackShape::Rows);
+    CHECK(classify_stack_layout(4, 4, 120, rows_h + 13, 3, kCaptionRow, kColGap, cols).shape !=
+          StackShape::Rows);
+
+    // Columns too: the icon, value and caption plus a margin each side.
+    const int caption_h = kCaptionHeight + 14;
+    const int w = widthFor(3, cols.captioned_px);
+    auto columns = classify_stack_layout(4, 2, w, caption_h, 3, kCaptionRow, kColGap, cols);
+    CHECK(columns.shape == StackShape::Columns);
+    CHECK(columns.captions);
+    CHECK_FALSE(
+        classify_stack_layout(4, 2, w, caption_h - 1, 3, kCaptionRow, kColGap, cols).captions);
+}

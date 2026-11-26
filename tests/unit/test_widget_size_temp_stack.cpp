@@ -34,10 +34,14 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
+#include "../test_helpers/scoped_breakpoint.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/src/misc/lv_event_private.h"
 #include "panel_widget_size.h"
 #include "src/ui/panel_widgets/temp_stack_widget.h"
+
+#include <utility>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -439,4 +443,47 @@ TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack columns use bigger text in a wid
     }
     REQUIRE(widths_in_columns > 0);
     CHECK(last_px > first_px);
+}
+
+// Big rows leave the box's padding above the first row and below the last: a
+// glyph that fits to the pixel reads as clipped against the edge. Swept across
+// heights so every text tier's hand-off is covered.
+TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack big rows sit inside the padded box",
+                 "[widget_size][temp_stack][panel_widget][wide]") {
+    // The 2x2 grants of the 800x480 and 480x320 panels as they arrive at
+    // runtime, under every tier whose text ladder they may meet, plus every
+    // height around the first big-rows size (a square-ish box, so the 3:2
+    // columns rule stays out of it).
+    std::vector<std::pair<int, int>> grants = {{233, 230}, {166, 155}};
+    for (int height = 90; height <= 260; height += 1)
+        grants.emplace_back(233, height);
+
+    int rows_seen = 0;
+    for (UiBreakpoint bp :
+         {UiBreakpoint::Tiny, UiBreakpoint::Small, UiBreakpoint::Medium, UiBreakpoint::Large}) {
+        helix::test::ScopedBreakpoint tier(bp);
+        PanelWidgetHarness<TempStackWidget> h(test_screen(), "temp_stack", state(), nullptr);
+        const int pad = static_cast<int>(theme_manager_get_spacing("space_sm"));
+        for (auto [width, height] : grants) {
+            h.resize(4, 4, width, height);
+            lv_obj_update_layout(h.root());
+            lv_obj_t* first = h.child("temp_stack_nozzle_row");
+            if (lv_obj_get_style_flex_flow(first, LV_PART_MAIN) != LV_FLEX_FLOW_ROW ||
+                lv_obj_get_style_flex_main_place(first, LV_PART_MAIN) != LV_FLEX_ALIGN_START)
+                continue; // not the big-rows layout in this box
+            rows_seen++;
+            INFO("tier " << to_int(bp) << " box " << width << "x" << height);
+            lv_obj_t* last = h.child("temp_stack_chamber_row");
+            if (lv_obj_is_hidden(last))
+                last = h.child("temp_stack_bed_row");
+            for (lv_obj_t* row : {first, last}) {
+                lv_obj_t* glyph_box = lv_obj_get_child(row, 0);
+                const int top = lv_obj_get_y(row) + lv_obj_get_y(glyph_box);
+                const int bottom = top + lv_obj_get_height(glyph_box);
+                CHECK(top >= pad);
+                CHECK(bottom <= height - pad);
+            }
+        }
+    }
+    REQUIRE(rows_seen > 0);
 }

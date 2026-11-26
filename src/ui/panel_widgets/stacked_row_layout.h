@@ -90,6 +90,7 @@ struct ColumnWidths {
     int min_box_px = 0;      ///< narrowest box the layout may take at all (widget_size::w_normal)
     int beside_plain_px = 0; ///< Rows: one row's icon and value, side by side (0 = not offered)
     int beside_captioned_px = 0; ///< Rows: the same with the caption after the value
+    int margin_px = 0; ///< space kept above the first and below the last row, in Columns and Rows
 };
 
 /// Pick the arrangement for a stacked widget: one decision for Temperatures
@@ -129,10 +130,10 @@ struct ColumnWidths {
 
     if (wide_enough_for_columns) {
         if (row.label_px > 0 && width_fits(cols.captioned_px) &&
-            height_px >= plain_h + row.icon_gap_px + row.label_px) {
+            height_px >= plain_h + row.icon_gap_px + row.label_px + 2 * cols.margin_px) {
             return {StackShape::Columns, true};
         }
-        if (width_fits(cols.plain_px) && height_px >= plain_h)
+        if (width_fits(cols.plain_px) && height_px >= plain_h + 2 * cols.margin_px)
             return {StackShape::Columns, false};
     }
 
@@ -142,7 +143,7 @@ struct ColumnWidths {
     if (rowspan >= kIconAboveMinRowspan && cols.beside_plain_px > 0) {
         const int rows_h =
             row_count * std::max(row.icon_px, row.text_px) + (row_count - 1) * row_gap_px;
-        if (height_px >= rows_h) {
+        if (height_px >= rows_h + 2 * cols.margin_px) {
             if (row.label_px > 0 && width_px >= cols.beside_captioned_px)
                 return {StackShape::Rows, true};
             if (width_px >= cols.beside_plain_px)
