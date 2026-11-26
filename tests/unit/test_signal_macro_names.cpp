@@ -1026,4 +1026,17 @@ TEST_CASE_METHOD(
         drain_all();
         CHECK(line() == sm::SignalNamesLine::PluginWillRename);
     }
+    SECTION("a probe of a plugin without the feature asks it for no report") {
+        // The installed plugin predates the feature, so it serves no report.
+        helix::PluginFeatureMap older = status.features();
+        older.erase("signal_macro_migration");
+        ps.set_helix_plugin_features(older);
+        drain_all();
+        const int asked = client.call_count("server.helix.signal_migration");
+
+        ps.set_helix_plugin_features(status.features());
+        drain_all();
+
+        CHECK(client.call_count("server.helix.signal_migration") == asked);
+    }
 }
