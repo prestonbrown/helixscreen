@@ -1624,6 +1624,19 @@ int MoonrakerClientMock::gcode_script(const std::string& raw_gcode) {
     if (has_token(g, "SET_LED")) {
         gcode_set_led(g);
     }
+    if (is_command(g, "SET_NOZZLE_DIAMETER") && printer_type_ == PrinterType::CREALITY_K2_PLUS) {
+        // The K2's live nozzle size: changed at once, nothing staged for a restart.
+        const auto at = g.find("VALUE=");
+        const double mm = at == std::string::npos ? 0.0 : std::atof(g.c_str() + at + 6);
+        if (mm > 0.0) {
+            {
+                std::lock_guard<std::mutex> lock(nozzle_cal_mutex_);
+                nozzle_props_[0].first = mm;
+            }
+            dispatch_status_update({{"extruder", {{"nozzle_diameter", mm}}}});
+            spdlog::info("[MoonrakerClientMock] SET_NOZZLE_DIAMETER: {}", mm);
+        }
+    }
 
     if (has_token(g, "FIRMWARE_RESTART")) {
         trigger_restart(/*is_firmware=*/true);

@@ -17,6 +17,7 @@
 #include "core/update_queue.h"
 #include "filament_temperature_source.h"
 #include "hardware_setup_prompter.h"
+#include "nozzle_size.h"
 #include "power_device_state.h"
 #include "printer_state.h"
 #include "remote_screen_service.h"
@@ -45,6 +46,11 @@ void update_checker_connected_step(DiscoveryContext& ctx) {
 // Fetch print hours now that connection is live, and refresh on job changes.
 void about_print_hours_step(DiscoveryContext& ctx) {
     settings::get_about_settings_overlay().attach_print_hours(ctx.client);
+}
+
+// Which commands the printer registers decides how a nozzle size is changed.
+void nozzle_command_probe_step(DiscoveryContext& ctx) {
+    nozzle_size::probe_size_command(ctx.client);
 }
 
 void timelapse_events_step(DiscoveryContext& ctx) {
@@ -176,6 +182,7 @@ void remote_screen_webcam_step(DiscoveryContext&) {
 constexpr DiscoveryStep kTailSteps[] = {
     {"update_checker_connected", false, update_checker_connected_step, nullptr},
     {"about_print_hours", false, about_print_hours_step, nullptr},
+    {"nozzle_command_probe", false, nozzle_command_probe_step, nullptr},
     {"timelapse_events", false, timelapse_events_step, nullptr},
     {"power_sensor_subscribe", false, power_sensor_subscribe_step, "post_subscribe"},
     {"acknowledge_deferred_hardware", false, acknowledge_deferred_hardware_step, nullptr},

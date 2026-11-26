@@ -6,7 +6,7 @@
 // Mainline Klipper reads `nozzle_diameter` from [extruderN] once at startup and
 // has no command to change it. Some firmwares report a live diameter, accept a
 // command that changes it, or keep their own per-head record. This module is
-// the ONLY place that knows those mechanisms. Generic code asks capability()
+// the ONLY place that knows those mechanisms. Generic code asks nozzle_capability()
 // and head_nozzle() and never names a firmware.
 //
 // Detection is by capability: a mechanism matches because its command or record
@@ -18,7 +18,10 @@
 #include <string>
 #include <vector>
 
+#include "hv/json.hpp" // JSON_HPP_OK: ChangePlan carries the vendor call's params
+
 namespace helix {
+class IMoonrakerClient;
 class PrinterState;
 } // namespace helix
 
@@ -47,6 +50,10 @@ struct PrinterInputs {
     /// `nozzle_diameter` each extruder object reports at runtime. One entry per
     /// extruder the printer has, nullopt while it reports nothing.
     std::vector<std::optional<double>> live_diameters;
+    /// The flow type each extruder reports ("" while it reports none).
+    std::vector<std::string> live_volume_types;
+    /// A print is running or paused.
+    bool printing = false;
     /// Whether the printer registers SET_NOZZLE_DIAMETER. Discovery fills this
     /// in once it asks the printer for its commands; until then it is false.
     bool set_nozzle_diameter_registered = false;
@@ -82,7 +89,7 @@ struct Capability {
                                             std::optional<double> config);
 
 /// Which heads the printer has and how each is changed. Pure.
-[[nodiscard]] Capability capability(const PrinterInputs& inputs);
+[[nodiscard]] Capability nozzle_capability(const PrinterInputs& inputs);
 
 /// The nozzle on extruder @p extruder_index: the single answer every consumer
 /// reads. nullopt for a head the printer does not have or that reports nothing.
@@ -95,6 +102,47 @@ struct Capability {
 [[nodiscard]] std::optional<double>
 head_nozzle_for_tool(const PrinterInputs& inputs, const std::vector<std::string>& tool_extruders,
                      int tool);
+
+/// What to do to change a head's nozzle. The caller executes it.
+struct ChangePlan {
+    enum class Kind {
+        KlipperCommand, ///< send @c gcode
+        VendorRpc,      ///< call @c method with @c params through the filament backend
+        ConfigEdit,     ///< edit @c section / @c key to @c value, then restart Klipper
+        Refused,        ///< do nothing; @c reason says why, untranslated (wrap in lv_tr)
+    };
+    Kind kind = Kind::Refused;
+    std::string gcode;
+    std::string method;
+    nlohmann::json params;
+    std::string section;
+    std::string key;
+    std::string value;
+    std::string reason;
+    bool restart_required = false; ///< mirrors the head's capability
+};
+
+/// How to give extruder @p extruder_index a nozzle of @p mm. Pure.
+[[nodiscard]] ChangePlan plan_change(const PrinterInputs& inputs, int extruder_index, double mm);
+
+/// How to put extruder @p extruder_index on flow type @p volume_type (the
+/// firmware's spelling). Only a head whose capability lists flow variants.
+[[nodiscard]] ChangePlan plan_flow_change(const PrinterInputs& inputs, int extruder_index,
+                                          const std::string& volume_type);
+
+/// Whether a printer.gcode.help reply (the whole JSON-RPC envelope) lists the
+/// command that changes the nozzle size; nullopt when the reply carries no list.
+[[nodiscard]] std::optional<bool> help_lists_size_command(const nlohmann::json& response);
+
+/// Asks the printer which commands it registers and records whether it has the
+/// nozzle-size command (size_command_registered()). Called once per discovery.
+void probe_size_command(IMoonrakerClient& client);
+
+/// Whether the last probe found the nozzle-size command. Safe from any thread.
+[[nodiscard]] bool size_command_registered();
+
+/// Records a probe's answer; the probe calls it, and tests set it directly.
+void set_size_command_registered(bool registered);
 
 /// PrinterInputs as the running app knows the printer.
 [[nodiscard]] PrinterInputs inputs_from_state(PrinterState& state);
