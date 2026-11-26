@@ -255,8 +255,10 @@ void TempStackWidget::on_size_changed(int colspan, int rowspan, int width_px, in
             cols.beside_plain_px = icon_px + row_gap_px + measure_text_px(kWidestValueText, font);
             cols.beside_captioned_px = cols.beside_plain_px + row_gap_px + widest_caption;
         }
-        return classify_stack_layout(colspan, rowspan, width_px - pad_px, height_px, visible_rows,
-                                     row, row_gap_px, cols);
+        // Keep a margin top and bottom as wide as the sides: big glyphs that fit
+        // to the pixel read as clipped against the box.
+        return classify_stack_layout(colspan, rowspan, width_px - pad_px, height_px - pad_px,
+                                     visible_rows, row, row_gap_px, cols);
     };
 
     // The vertical answer (or Beside) is the fallback, measured at the stacked
