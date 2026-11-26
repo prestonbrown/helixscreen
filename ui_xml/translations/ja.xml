@@ -4713,6 +4713,7 @@
   <translation tag="Stepper driver {} is overheating" ja="ステッピングモータードライバー {} が過熱しています"/>
   <translation tag="Stepper driver {} overheated and shut down" ja="ステッピングモータードライバー {} が過熱して停止しました"/>
   <translation tag="Still reading the printer&apos;s lane record. Try again in a moment." ja="プリンターのレーン記録をまだ読み込んでいます。少し待ってからもう一度お試しください。"/>
+  <translation tag="Still reading the printer&apos;s lane records" ja="プリンターのレーン情報を読み込み中です"/>
   <translation tag="Still running; no reply after {} min" ja="まだ実行中です。{}分経っても応答がありません"/>
   <translation tag="Still saving this spool…" ja="このスプールはまだ保存中です…"/>
   <translation tag="Still working... taking longer than usual" ja="まだ処理中です... 通常より時間がかかっています"/>
@@ -5551,6 +5552,7 @@
   <translation tag="Troubleshooting:" ja="トラブルシューティング:"/>
   <translation tag="Try Again" ja="再試行"/>
   <translation tag="Try adjusting your search or filters" ja="検索やフィルターを調整してみてください"/>
+  <translation tag="Try again in a moment." ja="しばらくしてから再試行してください。"/>
   <translation tag="Try again. If it keeps happening, reseat the accelerometer cable." ja="もう一度お試しください。繰り返し起きる場合は、加速度センサーのケーブルを差し直してください。"/>
   <translation tag="Try the operation again. If it persists, check for mechanical issues." ja="もう一度お試しください。解決しない場合は機械的な問題がないか確認してください。"/>
   <translation tag="Try the setting again, and restart the printer if it keeps failing." ja="もう一度設定し、失敗が続く場合はプリンターを再起動してください。"/>

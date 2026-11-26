@@ -5040,6 +5040,7 @@ translations:
   Stepper driver {} is overheating: Sterownik silnika {} się przegrzewa
   Stepper driver {} overheated and shut down: Sterownik silnika {} się przegrzał i wyłączył
   Still reading the printer's lane record. Try again in a moment.: Nadal wczytuję zapis torów drukarki. Spróbuj za chwilę.
+  Still reading the printer's lane records: 'Trwa odczyt danych torów drukarki'
   Still running; no reply after {} min: Nadal działa; brak odpowiedzi od {} min
   Still saving this spool…: Nadal zapisuję tę szpulę…
   Still working... taking longer than usual: Nadal pracuję... trwa dłużej niż zwykle
@@ -5973,6 +5974,7 @@ translations:
   'Troubleshooting:': 'Rozwiązywanie problemów:'
   Try adjusting your search or filters: Spróbuj zmienić wyszukiwanie lub filtry
   Try Again: Spróbuj ponownie
+  Try again in a moment.: 'Spróbuj za chwilę.'
   Try again. If it keeps happening, reseat the accelerometer cable.: Spróbuj ponownie. Jeśli się powtarza, osadź ponownie kabel akcelerometru.
   Try the operation again. If it persists, check for mechanical issues.: Spróbuj ponownie. Jeśli problem się utrzymuje, sprawdź mechanikę.
   Try the setting again, and restart the printer if it keeps failing.: Spróbuj ustawić ponownie, a jeśli nadal się nie udaje, uruchom ponownie drukarkę.

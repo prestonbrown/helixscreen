@@ -4713,6 +4713,7 @@
   <translation tag="Stepper driver {} is overheating" es="El controlador del motor paso a paso {} se está sobrecalentando"/>
   <translation tag="Stepper driver {} overheated and shut down" es="El controlador del motor paso a paso {} se sobrecalentó y se apagó"/>
   <translation tag="Still reading the printer&apos;s lane record. Try again in a moment." es="Todavía se está leyendo el registro de carriles de la impresora. Inténtalo de nuevo en un momento."/>
+  <translation tag="Still reading the printer&apos;s lane records" es="Todavía se están leyendo los registros de carril de la impresora"/>
   <translation tag="Still running; no reply after {} min" es="Sigue en curso; sin respuesta tras {} min"/>
   <translation tag="Still saving this spool…" es="Todavía se está guardando esta bobina…"/>
   <translation tag="Still working... taking longer than usual" es="Aún trabajando... tardando más de lo habitual"/>
@@ -5551,6 +5552,7 @@
   <translation tag="Troubleshooting:" es="Solución de problemas:"/>
   <translation tag="Try Again" es="Reintentar"/>
   <translation tag="Try adjusting your search or filters" es="Intente ajustar su búsqueda o filtros"/>
+  <translation tag="Try again in a moment." es="Inténtalo de nuevo en un momento."/>
   <translation tag="Try again. If it keeps happening, reseat the accelerometer cable." es="Inténtalo de nuevo. Si sigue ocurriendo, vuelve a conectar el cable del acelerómetro."/>
   <translation tag="Try the operation again. If it persists, check for mechanical issues." es="Intente la operación de nuevo. Si persiste, compruebe si hay problemas mecánicos."/>
   <translation tag="Try the setting again, and restart the printer if it keeps failing." es="Vuelve a probar el ajuste y reinicia la impresora si sigue fallando."/>
