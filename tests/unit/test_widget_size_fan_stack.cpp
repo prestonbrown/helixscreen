@@ -625,3 +625,50 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack carousel pages show the fan's arc
                       theme_manager_get_color("text_muted")));
     CHECK(lv_obj_get_style_pad_bottom(page, LV_PART_MAIN) == theme_manager_get_spacing("space_lg"));
 }
+
+// A box wider than a cell puts one fan per column, glyph over name and speed,
+// instead of leaving the width empty (prestonbrown/helixscreen#2198).
+TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack at 2x1 lays the fans side by side",
+                 "[widget_size][fan_stack][wide]") {
+    require_font_tokens_distinct();
+    state().fan_state().init_fans(
+        {"fan", "heater_fan hotend_fan", "fan_generic chamber_circulation"});
+    helix::ui::UpdateQueue::instance().drain();
+
+    PanelWidgetHarness<FanStackWidget> h(test_screen(), "fan_stack", state());
+    lv_obj_t* part_row = h.child("fan_stack_part_row");
+    lv_obj_t* hotend_row = h.child("fan_stack_hotend_row");
+    lv_obj_t* aux_row = h.child("fan_stack_aux_row");
+    lv_obj_t* part_icon = h.child("fan_stack_part_icon");
+    lv_obj_t* part_value = h.child("fan_stack_part_value");
+    lv_obj_t* hotend_value = h.child("fan_stack_hotend_value");
+    lv_obj_t* aux_value = h.child("fan_stack_aux_value");
+    REQUIRE(part_row != nullptr);
+    REQUIRE(!lv_obj_is_hidden(aux_row));
+
+    // 2x1 cells = 4x2 tracks.
+    h.resize(4, 2, 2 * w_normal() + 40, 4 * h_tall() / 3);
+    process_lvgl(30);
+    lv_obj_update_layout(h.root());
+
+    CHECK(lv_obj_get_style_flex_flow(h.root(), LV_PART_MAIN) == LV_FLEX_FLOW_ROW);
+    CHECK(lv_obj_get_y(part_row) == lv_obj_get_y(hotend_row));
+    CHECK(lv_obj_get_y(hotend_row) == lv_obj_get_y(aux_row));
+    CHECK(lv_obj_get_x(part_row) + lv_obj_get_width(part_row) <= lv_obj_get_x(hotend_row));
+    CHECK(lv_obj_get_x(hotend_row) + lv_obj_get_width(hotend_row) <= lv_obj_get_x(aux_row));
+    CHECK(lv_obj_get_x(aux_row) + lv_obj_get_width(aux_row) <= lv_obj_get_width(h.root()));
+
+    // Glyph above its name+speed pair, and each pair inside its own column.
+    CHECK(lv_obj_get_y(part_icon) + lv_obj_get_height(part_icon) <= lv_obj_get_y(part_value));
+    for (lv_obj_t* value : {part_value, hotend_value, aux_value}) {
+        lv_obj_t* col = lv_obj_get_parent(value);
+        CHECK(lv_obj_get_x(value) >= 0);
+        CHECK(lv_obj_get_x(value) + lv_obj_get_width(value) <= lv_obj_get_width(col));
+    }
+
+    // One cell again: rows stack in a column.
+    h.resize(2, 2, w_normal() - 1, h_tall() - 1);
+    process_lvgl(30);
+    CHECK(lv_obj_get_style_flex_flow(h.root(), LV_PART_MAIN) == LV_FLEX_FLOW_COLUMN);
+    CHECK(lv_obj_get_y(part_row) < lv_obj_get_y(hotend_row));
+}

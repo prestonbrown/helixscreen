@@ -258,3 +258,57 @@ TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack carousel shows a chamber page on
     }
     lv_subject_set_int(has_chamber, 0);
 }
+
+// A box wider than a cell lays the heaters across it, one column each, instead
+// of leaving the width empty (prestonbrown/helixscreen#2198).
+TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack at 2x1 lays the readouts side by side",
+                 "[widget_size][temp_stack][panel_widget][wide]") {
+    PanelWidgetHarness<TempStackWidget> h(test_screen(), state(), nullptr);
+
+    lv_obj_t* nozzle_row = h.child("temp_stack_nozzle_row");
+    lv_obj_t* bed_row = h.child("temp_stack_bed_row");
+    lv_obj_t* nozzle_label = h.child("temp_stack_nozzle_label");
+    lv_obj_t* bed_label = h.child("temp_stack_bed_label");
+    REQUIRE(nozzle_row != nullptr);
+    REQUIRE(bed_row != nullptr);
+    REQUIRE(nozzle_label != nullptr);
+    REQUIRE(bed_label != nullptr);
+    lv_obj_t* nozzle_temp = lv_obj_get_child(nozzle_row, 1);
+    lv_obj_t* bed_temp = lv_obj_get_child(bed_row, 1);
+    REQUIRE(ui_temp_display_is_valid(nozzle_temp));
+
+    const int box_w = 2 * w_normal();
+    const int box_h = 4 * h_tall() / 3;
+
+    // 2x1 cells = 4x2 tracks.
+    h.resize(4, 2, box_w, box_h);
+    lv_obj_update_layout(h.root());
+
+    // One row of columns: same top, left to right, each inside the box.
+    CHECK(lv_obj_get_style_flex_flow(h.root(), LV_PART_MAIN) == LV_FLEX_FLOW_ROW);
+    CHECK(lv_obj_get_x(nozzle_row) + lv_obj_get_width(nozzle_row) <= lv_obj_get_x(bed_row));
+    CHECK(lv_obj_get_y(nozzle_row) == lv_obj_get_y(bed_row));
+    CHECK(lv_obj_get_x(bed_row) + lv_obj_get_width(bed_row) <= lv_obj_get_width(h.root()));
+
+    // Every value is shown whole: its label box sits inside its column, and the
+    // column inside the widget's height.
+    for (lv_obj_t* temp : {nozzle_temp, bed_temp}) {
+        lv_obj_t* col = lv_obj_get_parent(temp);
+        CHECK_FALSE(lv_obj_is_hidden(temp));
+        CHECK(lv_obj_get_x(temp) >= 0);
+        CHECK(lv_obj_get_x(temp) + lv_obj_get_width(temp) <= lv_obj_get_width(col));
+        CHECK(lv_obj_get_y(col) + lv_obj_get_height(col) <= lv_obj_get_height(h.root()));
+    }
+
+    // With room, each value carries its caption underneath.
+    CHECK_FALSE(lv_obj_is_hidden(nozzle_label));
+    CHECK_FALSE(lv_obj_is_hidden(bed_label));
+    CHECK(lv_obj_get_y(nozzle_label) >= lv_obj_get_y(nozzle_temp) + lv_obj_get_height(nozzle_temp));
+
+    // Back to one cell: the rows stack again and the captions go.
+    h.resize(2, 2, w_normal() - 1, h_tall() - 1);
+    lv_obj_update_layout(h.root());
+    CHECK(lv_obj_get_style_flex_flow(h.root(), LV_PART_MAIN) == LV_FLEX_FLOW_COLUMN);
+    CHECK(lv_obj_is_hidden(nozzle_label));
+    CHECK(lv_obj_get_y(nozzle_row) < lv_obj_get_y(bed_row));
+}

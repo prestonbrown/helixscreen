@@ -2,6 +2,8 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
+  <!-- The captions under each value show only when the widget lays its heaters out
+       side by side (TempStackWidget::on_size_changed). -->
   <view name="panel_widget_temp_stack"
         extends="lv_obj" height="100%" flex_grow="1" style_pad_all="0" style_pad_left="#space_xs"
         style_pad_right="#space_xs" scrollable="false" flex_flow="column" style_pad_gap="#space_xs"
@@ -19,6 +21,7 @@
       <temp_display name="temp_stack_nozzle_temp"
                     size="xs" show_target="false" bind_current="extruder_temp" bind_target="extruder_target"
                     clickable="false" event_bubble="true"/>
+      <text_muted name="temp_stack_nozzle_label" text="Nozzle" hidden="true" clickable="false" event_bubble="true"/>
     </lv_obj>
 
     <!-- Bed row -->
@@ -32,6 +35,7 @@
       <temp_display name="temp_stack_bed_temp"
                     size="xs" show_target="false" bind_current="bed_temp" bind_target="bed_target" clickable="false"
                     event_bubble="true"/>
+      <text_muted name="temp_stack_bed_label" text="Bed" hidden="true" clickable="false" event_bubble="true"/>
     </lv_obj>
 
     <!-- Chamber row (hidden when no sensor) -->
@@ -46,6 +50,7 @@
       <temp_display name="temp_stack_chamber_temp"
                     size="xs" show_target="false" bind_current="chamber_temp" bind_target="chamber_effective_target"
                     bind_mode="chamber_mode" clickable="false" event_bubble="true"/>
+      <text_muted name="temp_stack_chamber_label" text="Chamber" hidden="true" clickable="false" event_bubble="true"/>
     </lv_obj>
   </view>
 </component>
