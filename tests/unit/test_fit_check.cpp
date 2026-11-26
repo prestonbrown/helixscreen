@@ -268,6 +268,29 @@ TEST_CASE("a lane rig's file tools are judged on the heads their lanes feed",
     CHECK(mismatched == std::vector<int>{0, 11});
 }
 
+TEST_CASE("four lanes into one extruder are judged on its live nozzle",
+          "[plugin_fitcheck][head-identity]") {
+    FitMachine m;
+    m.nozzle_diameters = {0.4};
+    m.tool_extruder = {0, 0, 0, 0};
+    FitLiveNozzle live;
+    live.diameter = 0.6;
+    m = fit_machine_with_live_nozzles(m, {live});
+    REQUIRE(m.nozzle_diameters == std::vector<double>{0.6});
+
+    FitFile f;
+    f.tools = {0, 1, 2, 3};
+    f.nozzle_diameters.assign(4, 0.4);
+    std::vector<int> mismatched;
+    for (const FitFinding& finding : check_fit(m, f)) {
+        if (finding.kind == FitKind::NozzleMismatch) {
+            mismatched.push_back(finding.tool);
+            CHECK(finding.limit == 0.6);
+        }
+    }
+    CHECK(mismatched == std::vector<int>{0, 1, 2, 3});
+}
+
 TEST_CASE("a lane rig's flow types are judged on the heads their lanes feed",
           "[plugin_fitcheck][head-identity]") {
     // Lane T0 feeds extruder1, a standard nozzle; lane T1 feeds extruder0, a
