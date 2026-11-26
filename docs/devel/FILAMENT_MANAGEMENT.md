@@ -1133,7 +1133,8 @@ bar is one size, its width capped at an eighth of the tile and its height at fou
   holding the active lane is checked, drawn in the shared `chip_active` highlight.
 - **Too tight for every box**: only the active unit keeps its box, hugging its bars.
 - **Too tight for readable bars** (narrower than 4 px or shorter than 8 px): whole units drop
-  from the end, never the active one, and "+N" counts their lanes.
+  from the end, never the active one, and "+N" counts their lanes. A lone unit too wide even
+  alone (a 12-gate ERCF on a micro tile) shows the lanes that fit and counts the rest.
 
 Units past the eighth (`kMaxUnitRows`) are not drawn in either view.
 
