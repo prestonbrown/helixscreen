@@ -55,6 +55,12 @@ struct MaterialOverride {
     [[nodiscard]] bool names_a_macro() const {
         return preheat_macro && !preheat_macro->empty();
     }
+
+    /// Whether the named macro handles the material's heating by itself: the
+    /// stored choice, yes when nothing is stored.
+    [[nodiscard]] bool macro_heats() const {
+        return macro_handles_heating.value_or(true);
+    }
 };
 
 /**

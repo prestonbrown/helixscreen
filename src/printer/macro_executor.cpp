@@ -284,9 +284,8 @@ MaterialPreheatPlan plan_material_preheat(const filament::MaterialOverride* over
     if (job_holds_machine(lifecycle)) {
         return {MaterialPreheatMode::MACRO_HELD_BY_JOB, macro};
     }
-    return {override->macro_handles_heating.value_or(true)
-                ? MaterialPreheatMode::MACRO_ONLY
-                : MaterialPreheatMode::TEMPERATURES_THEN_MACRO,
+    return {override->macro_heats() ? MaterialPreheatMode::MACRO_ONLY
+                                    : MaterialPreheatMode::TEMPERATURES_THEN_MACRO,
             macro};
 }
 

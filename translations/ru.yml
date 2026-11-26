@@ -3030,6 +3030,7 @@ translations:
   Macro for physical bed leveling (QGL/Z-Tilt): Макрос для механического выравнивания стола (QGL/Z-Tilt)
   Macro handles heating: Макрос управляет нагревом
   Macro may still be running — response timed out: Макрос может ещё выполняться — время ожидания истекло
+  Macro skipped while printing: ''
   "Macro stopped: printer has no '{}' command": 'Макрос остановлен: у принтера нет команды «{}»'
   Macro to cancel an active print: Макрос для отмены текущей печати
   Macro to clean/wipe the nozzle: Макрос для очистки/протирки сопла

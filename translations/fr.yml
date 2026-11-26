@@ -2978,6 +2978,7 @@ translations:
   Macro for physical bed leveling (QGL/Z-Tilt): Macro pour la mise à niveau physique du plateau (QGL/Z-Tilt)
   Macro handles heating: La macro gère le chauffage
   Macro may still be running — response timed out: La macro est peut-être encore en cours — délai dépassé
+  Macro skipped while printing: ''
   "Macro stopped: printer has no '{}' command": "Macro arrêtée : l'imprimante n'a pas la commande '{}'"
   Macro to cancel an active print: Macro pour annuler une impression active
   Macro to clean/wipe the nozzle: Macro pour nettoyer/essuyer la buse

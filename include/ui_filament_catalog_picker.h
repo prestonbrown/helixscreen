@@ -33,6 +33,12 @@ class FilamentCatalogPickerModal : public Modal {
     /// context only).
     void set_reset_callback(std::function<void()> cb);
 
+    /// Set before calling show() to offer the row that opens the preset material's
+    /// macro setting (preset-editing context only). @p macro_name is the macro the
+    /// material runs, empty for none; @p macro_heats says whether the macro handles
+    /// the heating, which picks the row's label.
+    void set_macro_callback(std::function<void()> cb, std::string macro_name, bool macro_heats);
+
     /// Set before calling show() to open on this vendor (case-insensitive), or
     /// on the Favorites view with FilamentCatalogSelector::favorites_vendor();
     /// nullopt opens on Generic.
@@ -63,6 +69,9 @@ class FilamentCatalogPickerModal : public Modal {
     std::optional<std::vector<std::string>> allowed_types_;
     SelectCallback on_select_;
     std::function<void()> reset_callback_; // set -> show "Reset to defaults" row
+    std::function<void()> macro_callback_; // set -> show the preset material's macro row
+    std::string macro_name_;
+    bool macro_heats_ = true;
     std::optional<std::string> seed_vendor_;
 };
 

@@ -379,6 +379,10 @@ class FilamentPanel : public PanelBase {
      */
     bool handle_preset_longpress(int slot);
 
+    /// Opens the preset slot's material in Material Temperatures, on @p screen,
+    /// from the macro row the hold's picker offers.
+    void open_preset_macro(lv_obj_t* screen, int slot);
+
     /// Opens the keypad that sets length button @p index's length.
     /// @return true when the keypad opened, so the hold ends its press
     bool handle_extrude_length_longpress(int index);

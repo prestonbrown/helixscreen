@@ -285,7 +285,17 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A tap and a hold on a marked preset's name 
     // The hold opened the picker and ended its press: the lift ran no tap.
     CHECK(m.client.gcode_script_history().empty());
 
-    lv_obj_send_event(lv_obj_find_by_name(dialog, "btn_secondary"), LV_EVENT_CLICKED, nullptr);
+    // The picker's row names what the preset runs, and opens that material's setting.
+    lv_obj_t* row = lv_obj_find_by_name(dialog, "preheat_macro_row");
+    REQUIRE(row != nullptr);
+    REQUIRE_FALSE(lv_obj_is_hidden(row));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(dialog, "preheat_macro_label_heats")));
+    CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(dialog, "preheat_macro_value"))) ==
+          "HEAT_ABS");
+    lv_obj_send_event(row, LV_EVENT_CLICKED, nullptr);
     m.settle();
     CHECK(ModalStack::instance().top_dialog() == nullptr);
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "material_editing")) == 1);
+    CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "material_edit_name"))) ==
+          "ABS");
 }

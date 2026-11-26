@@ -15,6 +15,7 @@
 #include "ui_overlay_temp_graph.h"
 #include "ui_panel_ams.h"
 #include "ui_panel_ams_overview.h"
+#include "ui_settings_material_temps.h"
 #include "ui_spool_canvas.h"
 #include "ui_temperature_utils.h"
 #include "ui_unload_lane_choice.h"
@@ -1234,6 +1235,13 @@ bool FilamentPanel::handle_preset_longpress(int slot) {
     // instance keeps the row hidden.
     catalog_picker_.set_reset_callback(
         []() { get_global_filament_panel().reset_presets_to_defaults(); });
+    // The row shows what a tap on the preset runs, the way the planner reads it.
+    const auto* macro = helix::MaterialSettingsManager::instance().find_override_for_material(
+        helix::presets::name(slot));
+    catalog_picker_.set_macro_callback(
+        [screen, slot]() { get_global_filament_panel().open_preset_macro(screen, slot); },
+        macro && macro->preheat_macro ? *macro->preheat_macro : std::string{},
+        macro && macro->macro_heats());
     // Fires synchronously on the main thread from the modal's Select button click —
     // so call straight through get_global_filament_panel() (singleton, lives for
     // process lifetime) with no defer/lifetime-token needed.
@@ -1242,6 +1250,10 @@ bool FilamentPanel::handle_preset_longpress(int slot) {
                              get_global_filament_panel().apply_preset_pick(slot, ef);
                          });
     return true;
+}
+
+void FilamentPanel::open_preset_macro(lv_obj_t* screen, int slot) {
+    helix::settings::get_material_temps_overlay().show_material(screen, helix::presets::name(slot));
 }
 
 void FilamentPanel::apply_preset_pick(int slot, const helix::printer::EffectiveFilament& ef) {

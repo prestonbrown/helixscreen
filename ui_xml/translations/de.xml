@@ -2842,6 +2842,7 @@
   <translation tag="Macro for physical bed leveling (QGL/Z-Tilt)" de="Makro für physische Bettnivellierung (QGL/Z-Tilt)"/>
   <translation tag="Macro handles heating" de="Makro übernimmt Heizen"/>
   <translation tag="Macro may still be running — response timed out" de="Makro läuft möglicherweise noch — Zeitüberschreitung"/>
+  <translation tag="Macro skipped while printing"/>
   <translation tag="Macro stopped: printer has no &apos;{}&apos; command" de="Makro gestoppt: Drucker kennt den Befehl &apos;{}&apos; nicht"/>
   <translation tag="Macro to cancel an active print" de="Makro zum Abbrechen eines aktiven Drucks"/>
   <translation tag="Macro to clean/wipe the nozzle" de="Makro zum Reinigen/Wischen der Düse"/>

@@ -54,6 +54,12 @@ class MaterialTempsOverlay : public OverlayBase {
     void handle_save();
     void handle_reset_defaults();
     void handle_back_clicked();
+    /// The switch beside the macro field changed: the field's name and Save follow.
+    void handle_macro_heating_changed(lv_event_t* e);
+
+    /// Open on @p material_name's edit view instead of the list, for a caller
+    /// that was asked for that material's setting.
+    void show_material(lv_obj_t* parent_screen, const std::string& material_name);
 
     /// A field of the open material changed: Save enables, Back asks first.
     void mark_dirty();
@@ -64,7 +70,7 @@ class MaterialTempsOverlay : public OverlayBase {
     static constexpr size_t kToastBufBytes = 128;
 
   protected:
-    /// Every open starts on the list view.
+    /// Every open starts on the list view, or on the material show_material() named.
     void before_show() override;
 
   private:
@@ -94,6 +100,8 @@ class MaterialTempsOverlay : public OverlayBase {
 
     // Currently edited material name
     std::string editing_material_;
+    // The material the next show() opens on; empty for the list.
+    std::string opening_material_;
 
     // Widget refs
     lv_obj_t* list_view_ = nullptr;
@@ -101,11 +109,13 @@ class MaterialTempsOverlay : public OverlayBase {
 
     // Macro dropdown state
     helix::Subject has_macro_subject_{}; // 0=no macro, 1=has macro (controls toggle visibility)
-    helix::Subject shipped_subject_{};   // 1=editing a shipped type (has a default to reset to)
-    helix::Subject dirty_subject_{};     // 1=the open material has unsaved edits
+    // 1 while the open material's macro handles its heating: the switch beside
+    // the macro field and the field's name both bind to it.
+    helix::Subject macro_heats_subject_{};
+    helix::Subject shipped_subject_{}; // 1=editing a shipped type (has a default to reset to)
+    helix::Subject dirty_subject_{};   // 1=the open material has unsaved edits
     helix::ui::WidgetRef discard_dialog_;
     lv_obj_t* macro_dropdown_ = nullptr;
-    lv_obj_t* macro_heating_switch_ = nullptr;
 
     void on_ui_destroyed() override;
     std::vector<std::string> macro_names_; // Parallel to dropdown options (index 0 = "None")

@@ -13,7 +13,39 @@
          fragment's own product_list is the sole scroll region (dropdowns stay
          put). -->
     <dialog_frame-body flex_grow="1" style_max_height="100%" scrollable="false">
-      <filament_catalog_selector name="catalog_selector"/>
+      <!-- Preset-editing only: the preset material's macro and the way to its
+           setting. The product list gives the row its height, so the list
+           still ends above the buttons. -->
+      <lv_obj name="preheat_macro_row"
+              width="100%" height="content" flex_flow="row" style_pad_left="0" style_pad_right="0" style_pad_top="0"
+              style_pad_bottom="#space_md" style_pad_gap="#space_sm" style_flex_cross_place="center" scrollable="false"
+              clickable="true" hidden="true">
+        <bind_flag_if_eq subject="catalog_picker_macro_shown" flag="hidden" ref_value="0"/>
+        <icon src="script_text" size="sm" clickable="false"/>
+        <!-- The row's label is the macro field's: "Macro" while the macro handles
+             the heating, "Preheat Macro" while it adds to it. -->
+        <text_body name="preheat_macro_label" text="Preheat Macro" flex_grow="1" clickable="false">
+          <bind_flag_if_eq subject="catalog_picker_macro_heats" flag="hidden" ref_value="1"/>
+        </text_body>
+        <text_body name="preheat_macro_label_heats" text="Macro" flex_grow="1" clickable="false" hidden="true">
+          <bind_flag_if_eq subject="catalog_picker_macro_heats" flag="hidden" ref_value="0"/>
+        </text_body>
+        <text_small name="preheat_macro_value"
+                    bind_text="catalog_picker_macro_name" style_text_color="#text_muted" clickable="false">
+          <bind_flag_if_eq subject="catalog_picker_macro_set" flag="hidden" ref_value="0"/>
+        </text_small>
+        <text_small name="preheat_macro_none" text="None" style_text_color="#text_muted" clickable="false" hidden="true">
+          <bind_flag_if_eq subject="catalog_picker_macro_set" flag="hidden" ref_value="1"/>
+        </text_small>
+        <icon src="chevron_right" size="sm" variant="secondary" clickable="false"/>
+        <event_cb trigger="clicked" callback="catalog_picker_macro_cb"/>
+      </lv_obj>
+      <!-- The selector fills what the body has left beside the row. -->
+      <lv_obj name="catalog_selector_host"
+              width="100%" height="0" flex_grow="1" style_pad_all="0" scrollable="false" style_bg_opa="0"
+              style_border_width="0">
+        <filament_catalog_selector name="catalog_selector"/>
+      </lv_obj>
     </dialog_frame-body>
     <!-- Reset-to-defaults is the leading (tertiary) action in the button row. It is only
          meaningful in the preset-editing context (a reset callback set before show()), so

@@ -2966,6 +2966,7 @@ translations:
   Macro for physical bed leveling (QGL/Z-Tilt): 物理的ベッドレベリング用マクロ (QGL/Z-Tilt)
   Macro handles heating: マクロが加熱を制御
   Macro may still be running — response timed out: マクロがまだ実行中の可能性があります — 応答タイムアウト
+  Macro skipped while printing: ''
   "Macro stopped: printer has no '{}' command": "マクロを停止しました: プリンターに '{}' コマンドがありません"
   Macro to cancel an active print: アクティブな印刷をキャンセルするマクロ
   Macro to clean/wipe the nozzle: ノズルを清掃/ワイプするマクロ
