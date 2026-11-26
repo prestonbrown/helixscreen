@@ -155,8 +155,12 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     /// lane_data itself (helix::lane_writer). Listed in
     /// private_lane_record_namespaces().
     static constexpr const char* kOverrideNamespace = "helix-screen-ifs-overrides";
-    /// Times the start asks who writes lane_data before HelixScreen takes it.
-    static constexpr int kLaneWriterQueryAttempts = 3;
+    /// Waits before each re-ask of who writes lane_data after a failed query;
+    /// once they run out, HelixScreen writes it. A Klipper that is not ready
+    /// costs no attempt: the ask waits for notify_klippy_ready.
+    static constexpr std::array<uint32_t, 3> kLaneWriterRetryDelaysMs{2000, 5000, 10000};
+    /// Each ask's own timeout, short beside the default request timeout.
+    static constexpr uint32_t kLaneWriterQueryTimeoutMs = 5000;
 
     /// Whether the firmware writes lane_data, as the last status frame that
     /// said so stated; nullopt before one did. Main thread.
@@ -992,15 +996,20 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     // Main thread, without mutex_.
     void apply_lane_writer_status(const nlohmann::json& status);
     // Ask the objects that answer who writes lane_data (attempt is 1-based).
-    // A reply without the answer, or kLaneWriterQueryAttempts failures, opens
-    // lane_data. Main thread.
+    // A reply without the answer, or a failure once kLaneWriterRetryDelaysMs
+    // has run out, opens lane_data. Main thread.
     void query_lane_writer(int attempt);
+    // query_lane_writer(@p attempt) after @p delay_ms, for this session only.
+    void schedule_lane_writer_query(int attempt, uint32_t delay_ms);
+    // Re-ask once Klipper is ready, when an ask found it was not.
+    void register_lane_writer_ready_listener();
+    static constexpr const char* kLaneWriterReadyHandler = "ifs_lane_writer_ready_watcher";
+    // Whether @p wire is a lane record HelixScreen wrote: signed by it, or
+    // carrying its helix_ keys.
+    [[nodiscard]] static bool written_by_helixscreen(const nlohmann::json& wire);
     // Copy HelixScreen's own lane_data extras into an empty private store, once,
     // when both reads are in. Caller holds mutex_.
     void carry_over_lane_extras_locked();
-    // Apply the edits held while the store was not open. Main thread, without
-    // mutex_.
-    void apply_held_edits();
     // Open the store on lane_data, or on kOverrideNamespace when the firmware
     // writes lane_data. Main thread, without mutex_.
     void open_ifs_lane_records(bool firmware_writes);
@@ -1779,9 +1788,12 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     };
     /// Guarded by mutex_.
     std::unordered_map<int, AwaitedIdentity> awaited_identity_;
-    /// Edits made before the store opened, applied once its first read lands.
-    /// Guarded by mutex_.
-    std::map<int, SlotInfo> held_edits_;
+    /// Bumped at every start and stop of the ask for who writes lane_data, so
+    /// a reply or retry of an earlier session does nothing. Main thread.
+    uint64_t lane_writer_session_ = 0;
+    /// An ask found Klipper not ready; notify_klippy_ready asks again. Main
+    /// thread.
+    bool lane_writer_waits_for_klippy_ = false;
     /// The carry-over into the private store: the extras of the lane_data
     /// records HelixScreen wrote (nullopt until lane_data is read), and whether
     /// the private store's first read came back empty (nullopt until it lands).

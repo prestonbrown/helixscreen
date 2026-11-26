@@ -9,6 +9,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "core/http_executor.h"
+#include "core/run_after.h"
 #include "core/static_subject_registry.h"
 #include "core/temperature_units.h"
 #include "core/text_io.h"
@@ -456,6 +457,8 @@ void AmsBackendAd5xIfs::on_started() {
                        // initialised, so we gate the initial query on webhooks.state == "ready".
                        {"webhooks", nullptr}};
     if (lane_writer_awaited_) {
+        ++lane_writer_session_;
+        register_lane_writer_ready_listener();
         query_lane_writer(1);
     }
     client_->send_jsonrpc(
@@ -595,6 +598,17 @@ void AmsBackendAd5xIfs::on_started() {
 void AmsBackendAd5xIfs::on_stopping() {
     unregister_moonraker_listeners();
     vendor_push_.reset();
+    // Who writes lane_data is asked again at the next start; nothing a query,
+    // retry or read of this session left behind may act on the next one.
+    // stop() holds mutex_ here.
+    ++lane_writer_session_;
+    lane_writer_waits_for_klippy_ = false;
+    firmware_writes_lane_records_.reset();
+    firmware_lane_records_.clear();
+    awaited_identity_.clear();
+    own_lane_extras_.reset();
+    private_store_empty_.reset();
+    lane_extras_carried_ = false;
 }
 
 void AmsBackendAd5xIfs::request_resync() {
@@ -1588,10 +1602,6 @@ void AmsBackendAd5xIfs::on_lane_records_read_locked() {
         private_store_empty_ = overrides_.empty();
         carry_over_lane_extras_locked();
     }
-    if (!held_edits_.empty()) {
-        lifetime_.token().defer("Ad5xIfsBackend::apply_held_edits",
-                                [this]() { apply_held_edits(); });
-    }
     for (const int slot_index : std::exchange(record_copy_owed_, {})) {
         const auto color = last_firmware_color_.find(slot_index);
         const auto material = last_firmware_material_.find(slot_index);
@@ -1606,23 +1616,38 @@ void AmsBackendAd5xIfs::on_lane_records_read_locked() {
 
 // --- Lane record writer ---
 
+namespace {
+/// Whether @p err says Klipper is not there to answer (restarting, or Moonraker
+/// not connected to it), as opposed to a printer that answered or timed out.
+bool klippy_unavailable(const MoonrakerError& err) {
+    return err.type == MoonrakerErrorType::NOT_READY ||
+           err.type == MoonrakerErrorType::CONNECTION_LOST ||
+           err.message.find("Klippy") != std::string::npos;
+}
+} // namespace
+
 void AmsBackendAd5xIfs::query_lane_writer(int attempt) {
-    if (!client_) {
+    if (!client_ || firmware_writes_lane_records_) {
         return;
     }
+    lane_writer_waits_for_klippy_ = false;
     json objects = json::object();
     for (const auto& name : lane_writer_objects_) {
         objects[name] = nullptr;
     }
     auto token = lifetime_.token();
+    const uint64_t session = lane_writer_session_;
     client_->send_jsonrpc(
         "printer.objects.query", json{{"objects", std::move(objects)}},
-        [this, token](const json& response) {
+        [this, token, session](const json& response) {
             json status = json::object();
             if (const json* found = json_util::find_path(response, "result", "status")) {
                 status = *found;
             }
-            token.defer("Ad5xIfsBackend::lane_writer_answer", [this, status]() {
+            token.defer("Ad5xIfsBackend::lane_writer_answer", [this, status, session]() {
+                if (session != lane_writer_session_) {
+                    return;
+                }
                 apply_lane_writer_status(status);
                 // A reply that does not say leaves HelixScreen the writer, as on
                 // a firmware that never is one.
@@ -1631,24 +1656,66 @@ void AmsBackendAd5xIfs::query_lane_writer(int attempt) {
                 }
             });
         },
-        [this, token, attempt](const MoonrakerError& err) {
-            token.defer("Ad5xIfsBackend::lane_writer_unanswered", [this, attempt, err]() {
-                if (firmware_writes_lane_records_) {
+        [this, token, attempt, session](const MoonrakerError& err) {
+            token.defer("Ad5xIfsBackend::lane_writer_unanswered", [this, attempt, err, session]() {
+                if (session != lane_writer_session_ || firmware_writes_lane_records_) {
                     return;
                 }
-                if (attempt < kLaneWriterQueryAttempts) {
-                    spdlog::info("{} lane_data writer query failed ({}); asking again",
+                // Klipper not there yet says nothing about who writes lane_data:
+                // ask again once it is ready (register_lane_writer_ready_listener()).
+                if (klippy_unavailable(err)) {
+                    spdlog::info("{} lane_data writer query: Klipper not ready ({}); asking "
+                                 "once it is",
                                  backend_log_tag(), err.message);
-                    query_lane_writer(attempt + 1);
+                    lane_writer_waits_for_klippy_ = true;
                     return;
                 }
-                spdlog::warn("{} lane_data writer never answered ({}); HelixScreen writes "
-                             "lane_data",
-                             backend_log_tag(), err.message);
-                open_ifs_lane_records(false);
+                if (attempt > static_cast<int>(kLaneWriterRetryDelaysMs.size())) {
+                    spdlog::warn("{} lane_data writer never answered ({}); HelixScreen writes "
+                                 "lane_data",
+                                 backend_log_tag(), err.message);
+                    open_ifs_lane_records(false);
+                    return;
+                }
+                const uint32_t delay = kLaneWriterRetryDelaysMs[static_cast<size_t>(attempt - 1)];
+                spdlog::info("{} lane_data writer query failed ({}); asking again in {} ms",
+                             backend_log_tag(), err.message, delay);
+                schedule_lane_writer_query(attempt + 1, delay);
             });
         },
-        0, /*silent=*/true);
+        kLaneWriterQueryTimeoutMs, /*silent=*/true);
+}
+
+void AmsBackendAd5xIfs::schedule_lane_writer_query(int attempt, uint32_t delay_ms) {
+    auto token = lifetime_.token();
+    const uint64_t session = lane_writer_session_;
+    auto ask = [this, token, attempt, session]() {
+        token.defer("Ad5xIfsBackend::lane_writer_retry", [this, attempt, session]() {
+            if (session == lane_writer_session_) {
+                query_lane_writer(attempt);
+            }
+        });
+    };
+    if (lv_is_initialized()) {
+        helix::run_after_ms(delay_ms, std::move(ask));
+    } else {
+        ask();
+    }
+}
+
+void AmsBackendAd5xIfs::register_lane_writer_ready_listener() {
+    if (!client_) {
+        return;
+    }
+    auto token = lifetime_.token();
+    client_->register_method_callback(
+        "notify_klippy_ready", kLaneWriterReadyHandler, [this, token](const json& /*msg*/) {
+            token.defer("Ad5xIfsBackend::lane_writer_klippy_ready", [this]() {
+                if (lane_writer_waits_for_klippy_ && !firmware_writes_lane_records_) {
+                    query_lane_writer(1);
+                }
+            });
+        });
 }
 
 void AmsBackendAd5xIfs::apply_lane_writer_status(const json& status) {
@@ -1722,6 +1789,21 @@ void AmsBackendAd5xIfs::refresh_backend_keys(helix::ams::FilamentSlotOverrideSto
         });
 }
 
+bool AmsBackendAd5xIfs::written_by_helixscreen(const json& wire) {
+    if (helix::json_util::safe_string(wire, "writer") == helix::ams::kLaneDataWriter) {
+        return true;
+    }
+    if (!wire.is_object()) {
+        return false;
+    }
+    for (auto it = wire.begin(); it != wire.end(); ++it) {
+        if (it.key().rfind("helix_", 0) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void AmsBackendAd5xIfs::adopt_firmware_lane_records(const json& namespace_doc) {
     if (firmware_writes_lane_records_ != true) {
         return;
@@ -1733,8 +1815,9 @@ void AmsBackendAd5xIfs::adopt_firmware_lane_records(const json& namespace_doc) {
         if (entry.record.external_mirror) {
             continue;
         }
-        // Records HelixScreen wrote while it was the writer hold its notes.
-        if (helix::json_util::safe_string(entry.wire, "writer") == helix::ams::kLaneDataWriter) {
+        // Records HelixScreen wrote while it was the writer hold its notes, signed
+        // by it or carrying its keys under another writer's signature.
+        if (written_by_helixscreen(entry.wire)) {
             own_extras.emplace(slot,
                                helix::ams::extras_only(entry.record, private_extras_fields()));
         }
@@ -1778,29 +1861,21 @@ void AmsBackendAd5xIfs::carry_over_lane_extras_locked() {
     // The private store starts empty when the firmware takes lane_data: the
     // notes HelixScreen kept in its own lane_data records move there once.
     // lane_data itself is the firmware's and is left as it is.
+    // A slot that already holds a record of ours (an edit made since the read)
+    // keeps it.
+    int carried = 0;
     for (const auto& [slot, extras] : *own_lane_extras_) {
+        if (overrides_.count(slot) > 0) {
+            continue;
+        }
         overrides_[slot] = extras;
         helix::ams::save_override_async(override_store_.get(), slot, extras, backend_log_tag(),
                                         "Carried-over record", lane_id(slot));
+        ++carried;
     }
-    if (!own_lane_extras_->empty()) {
-        spdlog::info("{} carried {} lane record(s) of ours into {}", backend_log_tag(),
-                     own_lane_extras_->size(), kOverrideNamespace);
-    }
-}
-
-void AmsBackendAd5xIfs::apply_held_edits() {
-    std::map<int, SlotInfo> held;
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        held.swap(held_edits_);
-    }
-    for (const auto& [slot, info] : held) {
-        const AmsError err = apply_user_edit(slot, info);
-        if (!err.success()) {
-            spdlog::warn("{} held edit of slot {} failed: {}", backend_log_tag(), slot,
-                         err.technical_msg);
-        }
+    if (carried > 0) {
+        spdlog::info("{} carried {} lane record(s) of ours into {}", backend_log_tag(), carried,
+                     kOverrideNamespace);
     }
 }
 
@@ -3284,13 +3359,14 @@ AmsError AmsBackendAd5xIfs::apply_user_edit(int slot_index, const SlotInfo& info
         if (!entry) {
             return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, port_count() - 1);
         }
-        // The store waits for the firmware to say who writes lane_data, and so
-        // does the edit: which command and which record it takes depend on it.
-        if (lane_writer_awaited_ && override_store_ == nullptr) {
-            held_edits_[slot_index] = info;
-            spdlog::info("{} slot {} edit held until the lane records open", backend_log_tag(),
-                         slot_index);
-            return AmsErrorHelper::success();
+        // Which command and which record an edit takes depend on who writes
+        // lane_data, so it waits, refused, until the firmware has said.
+        if (lane_writer_awaited_ && !firmware_writes_lane_records_) {
+            spdlog::info("{} slot {} edit refused: the lane records are not open yet",
+                         backend_log_tag(), slot_index);
+            return AmsError(AmsResult::BUSY, "apply_user_edit: lane_data writer not known yet",
+                            lv_tr("Still reading the printer's lane records"),
+                            lv_tr("Try again in a moment."));
         }
         normalized_material = write_port_locked(slot_index, entry->info, info);
 
@@ -3300,12 +3376,6 @@ AmsError AmsBackendAd5xIfs::apply_user_edit(int slot_index, const SlotInfo& info
         // colour the firmware refused.
         persist_record_beside_firmware_locked(slot_index, info);
         identity_params = firmware_identity_params_locked(slot_index, normalized_material);
-        if (!identity_params.empty()) {
-            awaited_identity_[slot_index] = AwaitedIdentity{
-                std::max(info.spoolman_id, 0), helix::lane_writer::sendable_text(info.brand),
-                helix::lane_writer::sendable_text(info.spool_name),
-                std::chrono::steady_clock::now() + helix::ams::kPendingWriteTimeout};
-        }
 
         settle_port_locked(slot_index);
     }
@@ -3335,6 +3405,15 @@ AmsError AmsBackendAd5xIfs::apply_user_edit(int slot_index, const SlotInfo& info
             " TYPE=" + normalized_material + " COLOR=" + color_hex + identity_params);
         if (!err.success()) {
             return err;
+        }
+        // The command is out: its spool link, vendor and name are the slot's
+        // firmware reading until the firmware's record states them.
+        if (!identity_params.empty()) {
+            std::lock_guard<std::mutex> lock(mutex_);
+            awaited_identity_[slot_index] = AwaitedIdentity{
+                std::max(info.spoolman_id, 0), helix::lane_writer::sendable_text(info.brand),
+                helix::lane_writer::sendable_text(info.spool_name),
+                std::chrono::steady_clock::now() + helix::ams::kPendingWriteTimeout};
         }
     } else {
         // Write directly to Adventurer5M.json — zmod's authoritative store.
@@ -4705,6 +4784,7 @@ void AmsBackendAd5xIfs::unregister_moonraker_listeners() {
         return;
     client_->unregister_method_callback("notify_gcode_response", "ifs_zcolor_watcher");
     client_->unregister_method_callback("notify_klippy_ready", "ifs_klippy_ready_watcher");
+    client_->unregister_method_callback("notify_klippy_ready", kLaneWriterReadyHandler);
     helix::unsubscribe_vendor_state(*client_, "ifs_vendor_state");
 }
 

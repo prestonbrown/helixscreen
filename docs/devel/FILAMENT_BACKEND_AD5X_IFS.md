@@ -538,14 +538,15 @@ beside `TYPE=` and `COLOR=` (djvalic/kiln-os#101).
 
 - **Waiting for the answer.** When the objects list names such a firmware
   (`firmware_may_write_lane_records()`), the start opens no lane record store. It asks
-  for the version (`query_lane_writer`), up to `kLaneWriterQueryAttempts` times when the
-  query fails; the subscription carries it too, and the first frame that states it opens
-  the store (`apply_lane_writer_status`, at the top of `handle_status`). A reply without
-  the version, or a query that never answers, opens `lane_data` as on any module
-  firmware. An edit made before then is held (`held_edits_`) and applied once the
-  store's first read lands. A later frame stating 1.12 or later opens the private store;
-  once the firmware writes `lane_data`, a lower version later in the session changes
-  nothing until the next connection.
+  for the version (`query_lane_writer`, a 5 s request timeout). A failed ask is retried
+  after 2, 5 and 10 s (`kLaneWriterRetryDelaysMs`); a Klipper that is not ready costs no
+  attempt, and the ask waits for `notify_klippy_ready`. The subscription carries the
+  version too, and the first frame that states it opens the store
+  (`apply_lane_writer_status`, at the top of `handle_status`). A reply without the
+  version, or failures once the retries have run out, open `lane_data` as on any module
+  firmware. Until then an edit is refused as busy ("Still reading the printer's lane
+  records"). Once the firmware writes `lane_data`, a lower version later in the session
+  changes nothing; a stop forgets the answer, and the next start asks again.
 - **API 1.12 or later.** The store is private, `helix-screen-ifs-overrides`
   (`AmsBackendAd5xIfs::kOverrideNamespace`, extras only): colour name, catalog pick,
   product name, fingerprint, weights, and vendor and name as a fallback. Every edit goes
@@ -560,11 +561,14 @@ beside `TYPE=` and `COLOR=` (djvalic/kiln-os#101).
   private store. Each refresh and poll also reads `lane_data` (`refresh_backend_keys`): a
   record's spool id, vendor and name join that slot's `Firmware` reading, beside the
   colour and type `ifs_materials` states. The firmware writes its record after the
-  command's echo, so an edit's spool id, vendor and name stand as that reading
-  (`awaited_identity_`) until the record states them or the pending-write timeout passes.
+  command's echo, so once the command is sent, an edit's spool id, vendor and name stand
+  as that reading (`awaited_identity_`) until the record states them or the
+  pending-write timeout passes; a refused command sets nothing.
 - **Carry-over.** The first time the private store reads empty, the extras of the
-  `lane_data` records HelixScreen wrote (`writer: helixscreen`) are written into it once
-  (`carry_over_lane_extras_locked`); `lane_data` is left as it is.
+  `lane_data` records HelixScreen wrote (signed `writer: helixscreen`, or carrying
+  `helix_*` keys under another writer's signature) are written into it once
+  (`carry_over_lane_extras_locked`). A slot that already holds a private record, an
+  edit made since, keeps it; `lane_data` is left as it is.
 - **Below 1.12, or no such object** (Forge-X, Kiln before 1.12, Z-Mod with `helix = 1`):
   HelixScreen is the `lane_data` writer, as above.
 

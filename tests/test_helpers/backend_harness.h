@@ -13,6 +13,7 @@
 
 #include <map>
 #include <optional>
+#include <set>
 #include <string>
 #include <utility>
 
@@ -68,10 +69,17 @@ class BackendHarness {
         client_.namespaces[ns] = std::move(doc);
     }
 
+    /// Leave every later read of the whole namespace @p ns unanswered, for a
+    /// test that answers it itself (its RpcCall's success_cb), in its own order.
+    void hold_namespace(const std::string& ns) {
+        client_.held_namespaces.insert(ns);
+    }
+
   private:
     struct AnsweringClient : FakeMoonrakerClient {
         std::map<std::string, nlohmann::json> responses;
         std::map<std::string, nlohmann::json> namespaces;
+        std::set<std::string> held_namespaces;
 
         using FakeMoonrakerClient::send_jsonrpc;
         RequestId send_jsonrpc(const std::string& method, const nlohmann::json& params,
@@ -98,6 +106,9 @@ class BackendHarness {
                 !params.contains("key")) {
                 const auto ns = params.find("namespace");
                 if (ns != params.end() && ns->is_string()) {
+                    if (held_namespaces.count(ns->get<std::string>()) > 0) {
+                        return;
+                    }
                     const auto doc = namespaces.find(ns->get<std::string>());
                     if (doc != namespaces.end()) {
                         cb(nlohmann::json{{"result", {{"value", doc->second}}}});
