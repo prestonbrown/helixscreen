@@ -755,7 +755,7 @@ void NixieClockSim::step(uint32_t dt_ms, FrameTarget& frame, const FlipFace& fac
                                              kNixieTubeGeometry),
                          frame_w_, frame_h_);
     }
-    const bool moved = drift_.step(dt_ms);
+    const bool moved = drift_on_ && drift_.step(dt_ms);
     const Rgb ink = print_state_color(face.mode, kNeon);
 
     if (shape_differs(face, layout_) || moved || !(ink == ink_)) {

@@ -65,6 +65,12 @@ class SaverCanvas {
     /// Hides the canvas, then frees its buffer. The canvas object is deleted with its parent.
     void release();
 
+    /// Forgets the canvas object without touching it, for a host whose canvas was deleted with
+    /// its parent; release() then frees only the buffer.
+    void forget_obj() {
+        canvas_ = nullptr;
+    }
+
     lv_obj_t* obj() const {
         return canvas_;
     }

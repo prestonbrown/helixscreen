@@ -246,6 +246,12 @@ FlipLayout layout_flip_cards(int32_t w, int32_t h, const FlipShape& shape,
                              ClockMeridiem sub_meridiem = ClockMeridiem::NONE,
                              const CardGeometry& geometry = kFlipCardGeometry);
 
+/// Width in px of one of `shape`'s cards with every group in one row on a `w` x `h` frame and no
+/// small row, whichever arrangement layout_flip_cards() would pick: how wide a digit is with four
+/// of them across.
+int32_t flip_row_card_px(int32_t w, int32_t h, const FlipShape& shape,
+                         const CardGeometry& geometry = kFlipCardGeometry);
+
 /// Box round the layout of `shape` centred on a `w` x `h` screen, undrifted: what the clock's
 /// drift range is measured from (ClockDrift::set_range()).
 DirtyRect flip_centred_bounds(int32_t w, int32_t h, const FlipShape& shape,
@@ -308,6 +314,12 @@ class FlipClockSim {
     /// Share of the flip done for card `i`, 1 when it is still.
     float flip_progress(size_t i) const;
 
+    /// Whether the clock drifts every kClockDriftStepMs against burn-in: on for the saver, off
+    /// for a home tile, which holds still. Kept across clear().
+    void set_drift(bool on) {
+        drift_on_ = on;
+    }
+
     /// Frees the glyph cache.
     void clear();
     /// Bytes the glyph cache holds.
@@ -353,6 +365,7 @@ class FlipClockSim {
     size_t level_ = 0;
     int32_t frame_w_ = 0;
     int32_t frame_h_ = 0;
+    bool drift_on_ = true;
     ClockDrift drift_;
     /// The shape drift_'s range was set for.
     FlipShape drift_shape_;

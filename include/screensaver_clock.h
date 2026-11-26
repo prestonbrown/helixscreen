@@ -103,6 +103,10 @@ std::string clock_minute_text(int32_t minute_of_day);
 const lv_font_t* clock_font_fitting(int32_t height, int32_t width = 0, const char* text = nullptr,
                                     bool display = false);
 
+/// True when `font` shows `text` on one line inside `width` x `height` px. A host too small for
+/// a clock's text (a home tile) leaves out a line clock_font_fitting() could only overflow.
+bool clock_text_fits(const lv_font_t* font, const char* text, int32_t width, int32_t height);
+
 /**
  * @brief One line of text a saver keeps on its canvas over pixels it redraws itself
  *

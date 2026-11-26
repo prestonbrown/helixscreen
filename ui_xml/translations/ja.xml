@@ -4892,6 +4892,7 @@
   <translation tag="Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}." ja="テストタワー 幅{:.0f} mm・高さ{:.0f} mm、約{}分+加熱: {}区間(各{:.0f} mm)、{}。"/>
   <translation tag="Testing rotation: %d° (%d/%d) - %ds remaining" ja="回転テスト: %d° (%d/%d) - %ds残り"/>
   <translation tag="Testing, servo, and motor operations" ja="テスト・サーボ・モーター操作"/>
+  <translation tag="Text" ja="テキスト"/>
   <translation tag="Thanks! Anonymous usage data helps improve HelixScreen." ja="ご協力ありがとうございます！匿名の使用データが HelixScreen の改善に役立ちます。"/>
   <translation tag="That file command cannot run here." ja="そのファイルコマンドはここでは実行できません。"/>
   <translation tag="That print is no longer paused" ja="その印刷はもう一時停止中ではありません"/>

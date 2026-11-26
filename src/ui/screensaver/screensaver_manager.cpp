@@ -222,6 +222,25 @@ bool ScreensaverManager::too_heavy_here(ScreensaverType type) {
     return too_heavy_for_identity(type);
 }
 
+std::optional<SaverLevelEntry> ScreensaverManager::standing_here(ScreensaverType type) {
+    const helix::ui::ScreensaverInfo* info = helix::ui::find_screensaver(type);
+    const helix::ui::SaverBase* saver = find(type);
+    if (info == nullptr || saver == nullptr) {
+        return std::nullopt;
+    }
+    refresh_identity();
+    const helix::ui::SaverEnvOverrides env = helix::ui::saver_env_overrides();
+    if (env.level && *env.level < saver->level_count()) {
+        return SaverLevelEntry{*env.level, false, version_, board_};
+    }
+    const std::optional<SaverLevelEntry> stored =
+        helix::ui::load_level_entry(*helix::Config::get_instance(), info->name);
+    if (!stored || stored->version != version_ || stored->board != board_) {
+        return std::nullopt;
+    }
+    return helix::ui::start_entry(stored, version_, board_, saver->level_count());
+}
+
 std::vector<ScreensaverType> ScreensaverManager::choices(ScreensaverType configured) {
     refresh_identity();
     return helix::ui::screensaver_choices(

@@ -5023,6 +5023,7 @@ translations:
   'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}.': ''
   'Testing rotation: %d° (%d/%d) - %ds remaining': ''
   Testing, servo, and motor operations: ''
+  Text: ''
   Thanks! Anonymous usage data helps improve HelixScreen.: ''
   That file command cannot run here.: ''
   That print is no longer paused: ''

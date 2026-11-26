@@ -48,6 +48,7 @@ constexpr const char* kMenus[] = {
     "belt_retest_menu",
     "ams_context_menu",
     "text_edit_menu",
+    "clock_face_picker",
 };
 
 } // namespace

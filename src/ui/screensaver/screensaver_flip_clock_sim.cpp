@@ -191,6 +191,20 @@ Arrangement arrange(int32_t w, int32_t h, const FlipShape& shape, const FlipShap
     return a;
 }
 
+} // namespace
+
+int32_t flip_row_card_px(int32_t w, int32_t h, const FlipShape& shape, const CardGeometry& g) {
+    const float card_w = 1.0f + g.stroke + 2 * g.pad_x;
+    const float card_h = kStrokeDigitPathH + g.stroke + g.pad_top + g.pad_bottom;
+    const float row_w = row_width(shape, card_w, g.card_gap, g.group_gap);
+    const float row =
+        std::min(FILL * static_cast<float>(w) / row_w, FILL * static_cast<float>(h) / card_h);
+    const int32_t unit = std::max(1, static_cast<int32_t>(std::floor(row)));
+    return metrics_for(unit, g).card_w;
+}
+
+namespace {
+
 /// The split line and corner of a row of cards at `unit`.
 FlipRowMetrics row_metrics(int32_t unit, const CardGeometry& g) {
     const Metrics m = metrics_for(unit, g);
@@ -566,7 +580,7 @@ void FlipClockSim::step(uint32_t dt_ms, FrameTarget& frame, const FlipFace& face
                                              face.sub_colons, face.sub_meridiem),
                          frame_w_, frame_h_);
     }
-    const bool moved = drift_.step(dt_ms);
+    const bool moved = drift_on_ && drift_.step(dt_ms);
     const Rgb ink = print_state_color(face.mode, kDigit);
 
     if (shape_differs(face, layout_) || moved || !(ink == ink_)) {

@@ -43,9 +43,9 @@ void analog_draw_dial(APainter& p, AnalogStyle style, const AnalogGeom& g,
                       const ClockReading& reading, std::vector<AnalogText>& texts);
 
 /// Draws `style`'s hands at `hands`; `mode` colours a print's state and `smooth` adds trails
-/// and glows.
+/// and glows. Without `seconds` the seconds hand (and its trail) is left out.
 void analog_draw_hands(APainter& p, AnalogStyle style, const AnalogGeom& g,
-                       const AnalogHands& hands, ClockMode mode, bool smooth);
+                       const AnalogHands& hands, ClockMode mode, bool smooth, bool seconds = true);
 
 /// The colour `style` fills the frame with round its face.
 Rgb analog_background(AnalogStyle style);

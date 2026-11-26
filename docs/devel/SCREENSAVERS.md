@@ -43,6 +43,8 @@ This doc is the map: which file owns what, how the gate decides, and how to add 
 | `include/screensaver_fast_math.h` | Table sine and e^-s, built at compile time into .rodata |
 | `include/screensaver_aqua_sim.h`, `include/screensaver_aqua.h` | Aqua Surface: the water (`AquaWater`), droplets (`AquaSplashes`), the ring clock and the scene (`AquaSim`) |
 | `include/screensaver_highfly_sim.h`, `include/screensaver_highfly.h` | High Fly: the cloud field, textures, the thin clock and the scene (`HighFlySim`) |
+| `include/screensaver_card_markers.h` | `CardClockMarkers`: the AM/PM text the flip and nixie clocks keep over their cards, shared by the savers and the home clock's faces |
+| `src/ui/panel_widgets/clock_face.h`, `src/ui/panel_widgets/clock_face_view.h`, `src/ui/panel_widgets/clock_face_picker.h` | The home clock's faces: which face fits a tile and how often it moves (`clock_face_shown`, `clock_face_tempo`), the canvas that hosts a clock sim in a tile (`ClockFaceView`), and the Face picker |
 | `scripts/screensaver-perf/` | Measuring a saver on a real board |
 
 ## The foundation
@@ -517,6 +519,49 @@ print takes `print_state_color` wherever the face shows the print.
 - **Smallest screens.** At a short side of 390 px or less the chronograph leaves out its subdial
   captions and keeps the numbers.
 - **Memory.** One frame-sized dial buffer: 1.5 MB at 800x480 on a 32 bpp build, 750 KB at 16 bpp.
+
+## The home clock's faces
+
+The home clock widget (`src/ui/panel_widgets/clock_widget.cpp`) shows the time as text or as one
+of the clock savers' faces: the five analog faces, the flip clock and the nixie clock. Each
+instance (`clock`, `clock:N`) keeps its own choice at its config's `"face"`, picked from the
+gear in home edit mode (`ClockFacePicker`, a still preview of each face). The faces are the
+savers' own sims on a canvas the size of the tile (`ClockFaceView`), never a saver object, so a
+face is drawn by one copy of its code. The tile asks the sims for what a saver does not want:
+
+- **Held still.** `AnalogClockOptions::drift`, `FlipClockSim::set_drift` and
+  `NixieClockSim::set_drift` are off; the face never moves against burn-in.
+- **A plain clock.** No print reaches the face: its input's print is always none.
+- **No Bauhaus column** (`AnalogClockOptions::side_column`): the dial is centred like the others.
+- **No text that cannot fit.** A dial text or AM/PM marker the smallest font overflows is left
+  out (`analog_write_dial_texts(..., drop_unfit)`, `CardClockMarkers::set_drop_unfit`).
+
+**Size.** Each face has a minimum in pixels of the tile's content box (`clock_face_min_px`): a
+dial diameter of 72 px (110 px for the chronograph's subdials), a flip card 18 px wide or a nixie
+tube 16 px wide with HH:MM in one row (`flip_row_card_px`). Below it the tile shows Text, so a
+one-cell tile shows a dial at 800x480 and Text at 480x320. A dial's canvas is square, centred in
+the tile; cards and tubes take the whole box.
+
+**Seconds.** A face reuses what its saver measured on this board and app version
+(`ScreensaverManager::standing_here`), through `clock_face_tempo`:
+
+| The saver here | The face |
+|---|---|
+| Too heavy | Its bottom rung: no seconds hand, cards swap without animating; it repaints once a minute |
+| Settled at a rung | That rung, never faster than 33 ms (`kClockTileFastestLevel`): the seconds hand moves as the rung moves it; cards flip or fade where the rung animates |
+| Never measured | The bottom rung: a seconds hand ticking once a second on 2 or more cores, none on 1; cards swap |
+
+Without seconds the analog sim holds the minute hand for the whole minute
+(`AnalogClockOptions::seconds`), so nothing changes between minutes. The tile's timer runs at
+the rung's period while something moves (a seconds hand, a flip, a fade) and otherwise sleeps
+to the next whole minute (`clock_ms_to_next_minute`).
+
+**Memory and lifetime.** The canvas and the sim's caches exist only while the face shows on an
+active home panel: `detach()`, `on_deactivate()` and a fall back to Text free them and stop the
+timer, and a recycled widget puts its face back from `attach()`. A dial holds two square buffers
+(the canvas and the sim's dial): about 365 KB for a 216 px dial on a 32 bpp build, 75 KB at
+98 px. Flip and nixie hold the canvas and their glyph or tube art: 39 to 223 KB from a one-cell
+to a 2x2 tile at 800x480.
 
 ## Long runs
 

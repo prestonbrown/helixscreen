@@ -8,7 +8,7 @@
  *
  * `on_size_changed` (clock_widget.cpp) writes/restyles four things, all
  * asserted here:
- *   - `clock_size_mode` subject (0-3) — written before the `!widget_obj_`
+ *   - the instance's size-mode subject (0-3) — written before the `!widget_obj_`
  *     guard, so it is readable even if the widget lookups below it fail.
  *   - `clock_time`: font_body (mode 0), font_heading (modes 1-2), font_xl
  *     (mode 3)
@@ -35,11 +35,11 @@ using namespace helix;
 using namespace helix::widget_size;
 
 namespace {
-/// Reads clock's size-mode subject directly — it is written before the
-/// widget's `!widget_obj_` guard, so it is observable independent of
+/// Reads the clock instance's size-mode subject directly — it is written before
+/// the widget's `!widget_obj_` guard, so it is observable independent of
 /// whether the object lookups below it succeed.
-int clock_size_mode() {
-    auto* subject = lv_xml_get_subject(nullptr, "clock_size_mode");
+int clock_size_mode(const ClockWidget& widget) {
+    auto* subject = lv_xml_get_subject(nullptr, widget.size_subject_name().c_str());
     REQUIRE(subject != nullptr);
     return lv_subject_get_int(subject);
 }
@@ -61,7 +61,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "clock mode follows pixels on both axes, not
     // Mode 0 (compact, time only): a short box too narrow for the date.
     // Contradicting span: 4x4 (old predicate: colspan>=3 && rowspan>=2 -> mode 3).
     h.resize(4, 4, 40, h_tall() - 1);
-    CHECK(clock_size_mode() == 0);
+    CHECK(clock_size_mode(h.widget()) == 0);
     CHECK(lv_obj_get_style_text_font(time_label, LV_PART_MAIN) ==
           theme_manager_get_font("font_body"));
     CHECK(lv_obj_get_style_text_font(date_label, LV_PART_MAIN) ==
@@ -71,7 +71,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "clock mode follows pixels on both axes, not
     // Mode 1 below the normal width band: the date shows wherever it fits,
     // not only from w_normal() up.
     h.resize(3, 2, w_normal() - 1, h_tall() - 1);
-    CHECK(clock_size_mode() == 1);
+    CHECK(clock_size_mode(h.widget()) == 1);
     CHECK_FALSE(lv_obj_is_hidden(date_label));
 
     // Mode 1 (normal, time+date): height below threshold, width AT/OVER
@@ -80,7 +80,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "clock mode follows pixels on both axes, not
     // Contradicting span: 1x1 (old predicate: colspan<=1 && rowspan<=1 ->
     // mode 0).
     h.resize(1, 1, w_wide(), h_tall() - 1);
-    CHECK(clock_size_mode() == 1);
+    CHECK(clock_size_mode(h.widget()) == 1);
     CHECK(lv_obj_get_style_text_font(time_label, LV_PART_MAIN) ==
           theme_manager_get_font("font_heading"));
     CHECK(lv_obj_get_style_text_font(date_label, LV_PART_MAIN) ==
@@ -90,7 +90,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "clock mode follows pixels on both axes, not
     // Mode 2 (expanded): height at/over threshold, width below w_wide().
     // Contradicting span: 1x1 (old predicate -> mode 0).
     h.resize(1, 1, w_normal(), h_tall());
-    CHECK(clock_size_mode() == 2);
+    CHECK(clock_size_mode(h.widget()) == 2);
     CHECK(lv_obj_get_style_text_font(time_label, LV_PART_MAIN) ==
           theme_manager_get_font("font_heading"));
     CHECK(lv_obj_get_style_text_font(date_label, LV_PART_MAIN) ==
@@ -100,7 +100,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "clock mode follows pixels on both axes, not
     // Mode 3 (large): both axes at/over threshold. Contradicting span: 1x1
     // (old predicate -> mode 0).
     h.resize(1, 1, w_wide(), h_tall());
-    CHECK(clock_size_mode() == 3);
+    CHECK(clock_size_mode(h.widget()) == 3);
     CHECK(lv_obj_get_style_text_font(time_label, LV_PART_MAIN) ==
           theme_manager_get_font("font_xl"));
     CHECK(lv_obj_get_style_text_font(date_label, LV_PART_MAIN) ==

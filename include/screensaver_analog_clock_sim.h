@@ -139,8 +139,17 @@ struct AnalogGeom {
     float col_scale = 1.0f;
 };
 
-/// Lays `style` out undrifted on a `w` x `h` frame.
-AnalogGeom analog_layout(AnalogStyle style, int32_t w, int32_t h);
+/// Lays `style` out undrifted on a `w` x `h` frame. Without `side_column`, Bauhaus is laid out
+/// like the other faces, with no column (col_w 0).
+AnalogGeom analog_layout(AnalogStyle style, int32_t w, int32_t h, bool side_column = true);
+
+/// How a host shows the clock. The saver keeps every default; a home tile holds still, shows the
+/// seconds hand only where the board affords it, and has no room for Bauhaus's column.
+struct AnalogClockOptions {
+    bool drift = true;       ///< move the face every kClockDriftStepMs against burn-in
+    bool seconds = true;     ///< draw the seconds hand; without it the face changes once a minute
+    bool side_column = true; ///< Bauhaus's date and print column
+};
 
 /// The box everything `style` draws on `g` stays inside.
 DirtyRect analog_face_box(AnalogStyle style, const AnalogGeom& g);
@@ -179,6 +188,14 @@ class AnalogClockSim {
 
     /// Runs at `level` (clamped) from now on.
     void request_level(size_t level);
+
+    /// How the clock is shown from the next init() on; kept across clear().
+    void set_options(const AnalogClockOptions& options) {
+        options_ = options;
+    }
+    const AnalogClockOptions& options() const {
+        return options_;
+    }
 
     size_t level() const {
         return level_;
@@ -231,6 +248,7 @@ class AnalogClockSim {
     void draw_hands(FrameTarget& frame, const DirtyRect& clip) const;
 
     size_t level_ = 0;
+    AnalogClockOptions options_;
     AnalogStyle style_ = AnalogStyle::CHRONOGRAPH;
     ClockMode mode_ = ClockMode::CLOCK;
     AnalogGeom base_;

@@ -195,6 +195,12 @@ class NixieClockSim {
     /// The character tube `i` glows with now (the newer one mid-fade).
     char lit(size_t i) const;
 
+    /// Whether the clock drifts every kClockDriftStepMs against burn-in: on for the saver, off
+    /// for a home tile, which holds still. Kept across clear().
+    void set_drift(bool on) {
+        drift_on_ = on;
+    }
+
     /// Frees the cached art.
     void clear();
     /// Bytes the cached art holds.
@@ -229,6 +235,7 @@ class NixieClockSim {
     size_t level_ = 0;
     int32_t frame_w_ = 0;
     int32_t frame_h_ = 0;
+    bool drift_on_ = true;
     ClockDrift drift_;
     FlipShape drift_shape_;
     FlipShape drift_sub_shape_;

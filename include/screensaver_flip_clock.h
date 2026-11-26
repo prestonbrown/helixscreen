@@ -5,6 +5,7 @@
 #if HELIX_ENABLE_SCREENSAVER
 
 #include "screensaver.h"
+#include "screensaver_card_markers.h"
 #include "screensaver_clock.h"
 #include "screensaver_clock_saver.h"
 #include "screensaver_flip_clock_sim.h"
@@ -42,8 +43,7 @@ class FlipClockScreensaver : public ClockSaver<FlipClockSim, FlipClockState> {
     void reset_clock_text() override;
 
   private:
-    SaverLabel meridiem_;
-    SaverLabel sub_meridiem_; ///< after the small row's time
+    CardClockMarkers markers_;
 };
 
 } // namespace helix::ui

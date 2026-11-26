@@ -5140,6 +5140,7 @@ translations:
   'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}.': 'Тестовая башня шириной {:.0f} мм и высотой {:.0f} мм, около {} мин плюс нагрев: {} полос по {:.0f} мм при {}.'
   'Testing rotation: %d° (%d/%d) - %ds remaining': 'Тест поворота: %d° (%d/%d) - осталось %ds'
   Testing, servo, and motor operations: 'Тестирование, сервопривод и работа моторов'
+  Text: Текст
   Thanks! Anonymous usage data helps improve HelixScreen.: Спасибо! Анонимные данные использования помогают улучшить HelixScreen.
   That file command cannot run here.: 'Эту файловую команду здесь выполнить нельзя.'
   That print is no longer paused: 'Эта печать больше не приостановлена'

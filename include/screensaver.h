@@ -9,6 +9,7 @@
 #include "screensaver_clock_reading.h"
 #include "screensaver_cpu_clock.h"
 #include "screensaver_gate.h"
+#include "screensaver_level_store.h"
 #include "screensaver_overlay.h"
 #include "screensaver_print_latch.h"
 #include "screensaver_usage.h"
@@ -174,6 +175,16 @@ class ScreensaverManager {
      * not know, and for a saver HELIX_SCREENSAVER_LEVEL runs at a forced level with the gate off.
      */
     bool too_heavy_here(ScreensaverType type);
+
+    /**
+     * @brief Where `type` stands on this board and app version, as start() would read it
+     *
+     * The stored level (clamped to the saver's ladder) and too-heavy mark when the entry was
+     * written on this board by this version; the level HELIX_SCREENSAVER_LEVEL forces; nullopt
+     * when `type` was never measured here or the build has no instance of it. Callers that reuse
+     * a saver's painting (the home clock's faces) read what the board can afford here.
+     */
+    std::optional<helix::ui::SaverLevelEntry> standing_here(ScreensaverType type);
 
     /// The settings dropdown's options on this board with `configured` stored
     /// (helix::ui::screensaver_choices).
