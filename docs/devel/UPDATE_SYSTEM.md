@@ -618,7 +618,9 @@ The v1.1.0 installer on this unit counts paxx's lmd hook (`<paxx-firmware>/etc/h
 | R8 | Pass, both the service stop and a reboot: kept files and `.old`, resumed at start 2, healthy |
 | R4 | Passes with the same probe deadline: start 2 after boot, restored at its 600 s with `timeout` |
 | R9 | Pass: `auto_update_overnight_available` 0 with a stored Install overnight; a manual install logs `Automatic-update rollback: platform`, keeps no `.old` and arms nothing |
-| GUI switcher | Pass: `gui-switcher stop` inside the window ends the guarded launch like a service stop (files and `.old` kept, nothing left running, screen blanked by the switcher); `start` resumes at start 2 and `restart` at start 3, one UI each time, then healthy. That run spent a guarded start per stop; a recorded stop now gives its start back (step 6 of the rollback list), so a fourth switch no longer restores a healthy version |
+| GUI switcher | Pass: `gui-switcher stop` inside the window ends the guarded launch like a service stop (files and `.old` kept, nothing left running, screen blanked by the switcher); `start` resumes at start 2 and `restart` at start 3, one UI each time, then healthy. Each stop or restart inside the window spends a guarded start, so a fourth would restore a healthy version with `too_many_starts` |
+
+That run predates the stop refund in step 6, which gives a recorded stop its guarded start back; a CC1 re-check of four or more switches inside the window is owed.
 
 Afterwards the printer went back to the rc.5 tree it had (all 940 file md5s matched), its settings, env, `/etc/init.d/helixscreen`, `moonraker.conf` and `helixscreen.conf`; it rebooted to rc.5 on the screen under the same switcher chain, and thelio's key logged in over ssh. `/var/lib` there is a tmpfs overlay, so `/var/lib/helixscreen/update_urls.json` is gone after each reboot and a test setup writes it again.
 
