@@ -202,6 +202,70 @@ sleep 4; rm -f '$HELIX_ROLLBACK_DIR/update_rollback.busy'; sleep 30"
     [ ! -e "$HELIX_ROLLBACK_DIR/update_rollback.armed" ]
 }
 
+@test "rollback: clean stop and start cycles inside the window do not spend guarded starts" {
+    # A CC1 GUI-switcher switch: the watchdog is stopped, then started again.
+    set_app "$INSTALL" "touch '$HELIX_ROLLBACK_DIR/update_rollback.stopping'; exit 0"
+    arm
+    local i
+    for i in 1 2 3 4; do
+        launch
+    done
+    [ "$(cat "$INSTALL/TREE")" = "new" ]
+    [ -d "$PREVIOUS" ]
+    [ -e "$HELIX_ROLLBACK_DIR/update_rollback.armed" ]
+    [ ! -e "$HELIX_ROLLBACK_DIR/update_rollback.result" ]
+    [ "$(cat "$LAUNCHES")" = "$(printf 'new\nnew\nnew\nnew')" ]
+
+    set_app "$INSTALL" "touch '$HELIX_ROLLBACK_DIR/update_rollback.healthy'; sleep 2; exit 0"
+    launch
+    [ "$(cat "$INSTALL/TREE")" = "new" ]
+    [ ! -e "$PREVIOUS" ]
+    [ ! -e "$HELIX_ROLLBACK_DIR/update_rollback.armed" ]
+}
+
+@test "rollback: clean stops past their own budget spend guarded starts again" {
+    set_app "$INSTALL" "touch '$HELIX_ROLLBACK_DIR/update_rollback.stopping'; exit 0"
+    arm
+    export HELIX_ROLLBACK_MAX_STOPS=1
+    local i
+    for i in 1 2 3 4 5; do
+        launch
+    done
+    assert_rolled_back
+    [ "$(reason)" = "too_many_starts" ]
+    [ "$(cat "$LAUNCHES")" = "$(printf 'new\nnew\nnew\nnew\nold')" ]
+}
+
+# kill_launch_unclean: start a guarded launch, then SIGKILL its whole process
+# group once the new version is running, as a power loss or a hard reset would.
+kill_launch_unclean() {
+    local before pid i=0
+    before=$(cat "$LAUNCHES" 2>/dev/null | wc -l)
+    setsid sh "$INSTALL/bin/helix-launcher.sh" >"$BATS_TEST_TMPDIR/launcher.log" 2>&1 &
+    pid=$!
+    until [ "$(cat "$LAUNCHES" 2>/dev/null | wc -l)" -gt "$before" ] || [ "$i" -ge 100 ]; do
+        sleep 0.1
+        i=$((i + 1))
+    done
+    kill -KILL -- "-$pid" 2>/dev/null || kill -KILL "$pid"
+    { wait "$pid"; } 2>/dev/null || true
+}
+
+@test "rollback: unclean ends of the guarded launch still spend guarded starts" {
+    set_app "$INSTALL" 'sleep 30'
+    arm
+    export HELIX_ROLLBACK_WINDOW=60
+    local i
+    for i in 1 2 3; do
+        kill_launch_unclean
+    done
+    [ "$(cat "$INSTALL/TREE")" = "new" ]
+    launch
+    assert_rolled_back
+    [ "$(reason)" = "too_many_starts" ]
+    [ "$(cat "$LAUNCHES")" = "$(printf 'new\nnew\nnew\nold')" ]
+}
+
 @test "rollback: a shutdown signal to the launcher during the window restores nothing" {
     set_app "$INSTALL" 'sleep 30'
     arm
@@ -216,6 +280,7 @@ sleep 4; rm -f '$HELIX_ROLLBACK_DIR/update_rollback.busy'; sleep 30"
     [ -e "$HELIX_ROLLBACK_DIR/update_rollback.armed" ]
     [ ! -e "$HELIX_ROLLBACK_DIR/update_rollback.result" ]
     grep -q 'Stopped during the rollback window' "$BATS_TEST_TMPDIR/launcher.log"
+    [ "$(cat "$HELIX_ROLLBACK_DIR/update_rollback.starts")" = "0" ]
 }
 
 @test "rollback: a stop after the guard passed says so, not that the window was interrupted" {
