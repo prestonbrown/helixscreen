@@ -725,3 +725,26 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack columns spin a bigger glyph about
         CHECK(std::abs(icon_mid - lv_obj_get_width(row) / 2) <= 2);
     }
 }
+
+// The 800x480 2x1 grant (233x112) is tall enough for the heading-size speed;
+// a larger margin than the columns need would step it down a tier (prestonbrown/helixscreen#2198).
+TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack 2x1 columns take the heading speed font",
+                 "[widget_size][fan_stack][wide]") {
+    require_font_tokens_distinct();
+    state().fan_state().init_fans(
+        {"fan", "heater_fan hotend_fan", "fan_generic chamber_circulation"});
+    helix::ui::UpdateQueue::instance().drain();
+
+    PanelWidgetHarness<FanStackWidget> h(test_screen(), "fan_stack", state());
+    h.resize(4, 2, 233, 112);
+    process_lvgl(30);
+
+    REQUIRE(lv_obj_get_style_flex_flow(h.root(), LV_PART_MAIN) == LV_FLEX_FLOW_ROW);
+    CHECK(lv_obj_get_style_text_font(h.child("fan_stack_part_speed"), LV_PART_MAIN) ==
+          theme_manager_get_font("font_heading"));
+    // The glyph is the largest that suits the heading speed (at most twice its
+    // line height), never the 16px of a one-cell box.
+    const lv_font_t* glyph =
+        lv_obj_get_style_text_font(h.child("fan_stack_part_icon"), LV_PART_MAIN);
+    CHECK(glyph->line_height >= mdi_icons_24.line_height);
+}
