@@ -67,6 +67,8 @@ configured, also when this printer lacks it and the preset falls back to tempera
 `clickable="false"`. With a clickable wrapper under the pointer, the hold stopped opening the dialog in the
 mock, because the wrapper took the press; made non-clickable, a hold opens it and a tap still heats.
 
+The rule for the glyph is `filament::MaterialOverride::names_a_macro`, the one the planner asks.
+
 `filament_spool_preset_button.xml` takes the same row, bound to its own subject.
 
 The panel calls `presets::refresh_subjects()` from `on_activate()`, so a macro set or cleared under
@@ -99,8 +101,8 @@ shows per screen. The other breakpoints get the same measurement in the build.
 
 ### While a job holds the machine
 
-`plan_material_preheat` takes the answer of `job_holds_machine(print_state().get_print_lifecycle())` and
-returns a fifth mode, held by the job: temperatures only, and a notice that the macro was skipped. The
+`plan_material_preheat` takes the print lifecycle, asks `job_holds_machine` of it, and returns a fifth
+mode, held by the job: temperatures only, and a notice that the macro was skipped. The
 Filament panel's two preset taps and the Home preheat widget pass it. In "Macro handles heating" mode the
 notice is the only thing that says why nothing ran yet, so the temperatures are still sent.
 

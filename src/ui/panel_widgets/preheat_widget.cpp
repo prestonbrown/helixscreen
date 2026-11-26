@@ -328,7 +328,8 @@ void PreheatWidget::handle_apply() {
     execute_material_preheat(
         api,
         plan_material_preheat(
-            MaterialSettingsManager::instance().find_override_for_material(material_name), hw),
+            MaterialSettingsManager::instance().find_override_for_material(material_name), hw,
+            printer_state_.print_state().get_print_lifecycle()),
         [this, &material_name]() {
             // Use the same targets as the label, including material overrides.
             const PreheatTargets t = targets_for_slot(selected_material_);

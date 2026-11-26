@@ -129,6 +129,23 @@ std::string build_macro_gcode(const std::string& macro_name, const MacroParamRes
     return gcode;
 }
 
+namespace {
+
+/// One gcode send that runs @p macro_name, with the reporting every macro send shares.
+MachineGcode macro_gcode_command(const std::string& macro_name, const MacroParamResult& result,
+                                 const PrinterDiscovery& hw) {
+    MachineGcode cmd;
+    cmd.gcode = build_macro_gcode(macro_name, result);
+    cmd.log_name = macro_name;
+    cmd.display_name = helix::get_display_name(macro_name, helix::DeviceType::MACRO);
+    // Resolved before the send, not inside the callback: the callback runs on
+    // the WebSocket thread, and PrinterDiscovery is not ours to read from there.
+    cmd.host_effect = macro_host_effect(macro_name, hw);
+    return cmd;
+}
+
+} // namespace
+
 void execute_machine_gcode(IMoonrakerAPI* api, const MachineGcode& cmd, const char* caller_tag) {
     if (!api) {
         spdlog::warn("{} No API available — cannot execute {}", caller_tag, cmd.log_name);
@@ -159,7 +176,7 @@ void execute_machine_gcode(IMoonrakerAPI* api, const MachineGcode& cmd, const ch
             });
             finished();
         },
-        [api, tag_copy, macro_copy, display_name, host_effect,
+        [api, tag_copy, macro_copy, display_name, host_effect, long_running = cmd.long_running,
          finished](const MoonrakerError& err) {
             finished();
             const MacroFailureReport report = classify_macro_rpc_failure(host_effect, err);
@@ -190,11 +207,25 @@ void execute_machine_gcode(IMoonrakerAPI* api, const MachineGcode& cmd, const ch
                 publish_ui_request({UiRequestKind::ExpectKlippyRestart, -1, api});
                 return;
             }
-            spdlog::error("{} {} failed: {}", tag_copy, macro_copy, err.message);
+            // A long macro's limit expiring with the printer still busy is the
+            // macro still running. The busy flag is a subject, so it is read
+            // on the main thread, where the notice would be published.
+            const bool timed_out = long_running && err.type == MoonrakerErrorType::TIMEOUT;
+            spdlog::log(timed_out ? spdlog::level::warn : spdlog::level::err, "{} {} {}: {}",
+                        tag_copy, macro_copy, timed_out ? "reached its time limit" : "failed",
+                        err.message);
             std::string msg = display_name + " failed";
-            helix::ui::queue_update("macro_executor::execute_macro_gcode", [msg]() {
-                publish_notice({NoticeSeverity::ERROR, msg, 4000});
-            });
+            helix::ui::queue_update(
+                "macro_executor::execute_macro_gcode", [msg, tag_copy, macro_copy, timed_out]() {
+                    if (timed_out &&
+                        lv_subject_get_int(get_printer_state()
+                                               .calibration_state()
+                                               .get_idle_timeout_printing_subject()) == 1) {
+                        spdlog::info("{} {} is still running past its limit", tag_copy, macro_copy);
+                        return;
+                    }
+                    publish_notice({NoticeSeverity::ERROR, msg, 4000});
+                });
         },
         cmd.timeout_ms ? cmd.timeout_ms : IMoonrakerAPI::kMacroTimeoutMs);
 }
@@ -202,14 +233,7 @@ void execute_machine_gcode(IMoonrakerAPI* api, const MachineGcode& cmd, const ch
 void execute_macro_gcode(IMoonrakerAPI* api, const std::string& macro_name,
                          const MacroParamResult& result, const char* caller_tag,
                          const PrinterDiscovery& hw) {
-    MachineGcode cmd;
-    cmd.gcode = build_macro_gcode(macro_name, result);
-    cmd.log_name = macro_name;
-    cmd.display_name = helix::get_display_name(macro_name, helix::DeviceType::MACRO);
-    // Resolved before the send, not inside the callback: the callback runs on
-    // the WebSocket thread, and PrinterDiscovery is not ours to read from there.
-    cmd.host_effect = macro_host_effect(macro_name, hw);
-    execute_machine_gcode(api, cmd, caller_tag);
+    execute_machine_gcode(api, macro_gcode_command(macro_name, result, hw), caller_tag);
 }
 
 void start_calibration_gcode(IMoonrakerAPI* api, const MachineGcode& cmd, bool needs_home,
@@ -249,13 +273,16 @@ void start_calibration_gcode(IMoonrakerAPI* api, const MachineGcode& cmd, bool n
 }
 
 MaterialPreheatPlan plan_material_preheat(const filament::MaterialOverride* override,
-                                          const PrinterDiscovery& hw) {
-    const std::string macro = override ? override->preheat_macro.value_or("") : "";
-    if (macro.empty()) {
+                                          const PrinterDiscovery& hw, PrintState lifecycle) {
+    if (!override || !override->names_a_macro()) {
         return {MaterialPreheatMode::TEMPERATURES, ""};
     }
+    const std::string& macro = *override->preheat_macro;
     if (!hw.has_macro(macro)) {
         return {MaterialPreheatMode::MACRO_MISSING, macro};
+    }
+    if (job_holds_machine(lifecycle)) {
+        return {MaterialPreheatMode::MACRO_HELD_BY_JOB, macro};
     }
     return {override->macro_handles_heating.value_or(true)
                 ? MaterialPreheatMode::MACRO_ONLY
@@ -281,13 +308,22 @@ void execute_material_preheat(IMoonrakerAPI* api, const MaterialPreheatPlan& pla
                      caller_tag, plan.macro);
         set_temperatures();
         return;
+    case MaterialPreheatMode::MACRO_HELD_BY_JOB:
+        spdlog::info("{} Preheat macro '{}' not sent: a job holds the machine", caller_tag,
+                     plan.macro);
+        set_temperatures();
+        publish_notice({NoticeSeverity::INFO, lv_tr("Macro skipped while printing"), 3000});
+        return;
     case MaterialPreheatMode::TEMPERATURES_THEN_MACRO:
         set_temperatures();
         break;
     case MaterialPreheatMode::MACRO_ONLY:
         break;
     }
-    execute_macro_gcode(api, plan.macro, {}, caller_tag, hw);
+    MachineGcode cmd = macro_gcode_command(plan.macro, MacroParamResult{}, hw);
+    cmd.timeout_ms = IMoonrakerAPI::kPreStartMacroTimeoutMs;
+    cmd.long_running = true;
+    execute_machine_gcode(api, cmd, caller_tag);
     spdlog::info("{} Preheat via macro '{}' (handles_heating={})", caller_tag, plan.macro,
                  plan.mode == MaterialPreheatMode::MACRO_ONLY);
 }

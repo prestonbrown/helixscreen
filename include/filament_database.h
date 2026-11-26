@@ -49,6 +49,12 @@ struct MaterialOverride {
     std::optional<int> chamber_temp; ///< 0 = deliberate "no chamber heat" for this material
     std::optional<std::string> preheat_macro;  ///< Klipper macro name (uppercase canonical form)
     std::optional<bool> macro_handles_heating; ///< true = macro replaces SET_HEATER_TEMPERATURE
+
+    /// Whether a preheat macro is named. The plan for a tap on a preset and the
+    /// mark on that preset both ask this.
+    [[nodiscard]] bool names_a_macro() const {
+        return preheat_macro && !preheat_macro->empty();
+    }
 };
 
 /**

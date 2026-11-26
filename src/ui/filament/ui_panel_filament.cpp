@@ -1158,7 +1158,7 @@ void FilamentPanel::handle_preset_button(int material_id) {
             plan_material_preheat(
                 helix::MaterialSettingsManager::instance().find_override_for_material(
                     helix::presets::name(material_id)),
-                hw),
+                hw, printer_state_.print_state().get_print_lifecycle()),
             [this]() { send_preset_targets(); }, "[FilamentPanel]", hw);
     }
 }
@@ -2237,7 +2237,7 @@ void FilamentPanel::handle_spool_preset_button() {
         api_,
         plan_material_preheat(helix::MaterialSettingsManager::instance().find_override_for_material(
                                   cached_active_material_->material_name),
-                              hw),
+                              hw, printer_state_.print_state().get_print_lifecycle()),
         [this]() {
             send_nozzle_target();
             const auto bed = helix::presets::heater_targets(bed_target_).bed;
