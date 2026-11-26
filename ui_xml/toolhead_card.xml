@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- One head's card in the Toolhead settings overlay. size_mode and flow_mode are
+       "dropdown" (the row lists options), "readonly" (the row shows a value and why
+       it cannot change here) or "none" (no row). ToolheadSettingsOverlay selects the
+       current option in each dropdown. -->
+  <api>
+    <prop name="title" type="string" default=""/>
+    <prop name="size_mode" type="string" default="dropdown"/>
+    <prop name="size_options" type="string" default=""/>
+    <prop name="size_value" type="string" default=""/>
+    <prop name="size_note" type="string" default=""/>
+    <prop name="flow_mode" type="string" default="none"/>
+    <prop name="flow_options" type="string" default=""/>
+    <prop name="flow_value" type="string" default=""/>
+    <prop name="flow_note" type="string" default=""/>
+  </api>
+  <view name="toolhead_card" extends="setting_group">
+    <setting_group_header title="$title"/>
+    <toolhead_size_row name="size_row"
+                       options="$size_options" options_tag="$size_options" hidden_if_prop_not_eq="$size_mode|dropdown"/>
+    <setting_action_row name="size_readonly_row"
+                        label="Nozzle size" icon="nozzle" value="$size_value" description="$size_note" chevron="false"
+                        clickable="false" description_min_bp="0" hidden_if_prop_not_eq="$size_mode|readonly"/>
+    <toolhead_flow_row name="flow_row"
+                       options="$flow_options" options_tag="$flow_options" hidden_if_prop_not_eq="$flow_mode|dropdown"/>
+    <setting_action_row name="flow_readonly_row"
+                        label="Flow type" icon="heater" value="$flow_value" description="$flow_note" chevron="false"
+                        clickable="false" description_min_bp="0" hidden_if_prop_not_eq="$flow_mode|readonly"/>
+  </view>
+</component>

@@ -883,10 +883,11 @@
   <translation tag="Change Tool While Paused" zh="暂停时切换工具"/>
   <translation tag="Change heater control?" zh="更改加热器控制？"/>
   <translation tag="Change it before starting the print." zh="请在开始打印前更改。"/>
+  <translation tag="Change nozzle size on {}?"/>
+  <translation tag="Change nozzle size?"/>
   <translation tag="Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer&apos;s config folder." zh="通过Moonraker更改打印机设置，包括上传、改写和删除打印机配置文件夹中的文件。"/>
   <translation tag="Change the name or the linked spool in Spoolman." zh="请在 Spoolman 中更改名称或关联的料盘。"/>
   <translation tag="Change tool" zh="切换工具"/>
-  <translation tag="Change {} nozzle?"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." zh="更改立即生效。可在打印时调整进行调优。"/>
   <translation tag="Changes are temporary and reset on printer reboot" zh="更改是临时的，打印机重启后会重置"/>
   <translation tag="Changes printer.cfg and restarts Klipper first" zh="先修改 printer.cfg 并重启 Klipper"/>
@@ -3411,6 +3412,7 @@
   <translation tag="Options" zh="选项"/>
   <translation tag="Or Enter Manually" zh="或手动输入"/>
   <translation tag="Or instead of turning the others" zh="或者，无需转动其他螺丝"/>
+  <translation tag="Orifice diameter of the nozzle fitted to this head"/>
   <translation tag="Original" zh="原始"/>
   <translation tag="Original file location unknown" zh="原始文件位置未知"/>
   <translation tag="Orrery" zh="太阳系仪"/>
@@ -4655,6 +4657,7 @@
   <translation tag="Stall detection setup failed for the Z motor — power-cycle to retry" zh="Z 电机堵转检测设置失败。请重新上电后重试"/>
   <translation tag="Stall detection setup failed for the extruder — power-cycle to retry" zh="挤出机堵转检测设置失败。请重新上电后重试"/>
   <translation tag="Standard" zh="标准"/>
+  <translation tag="Standard or High Flow, as fitted to this head"/>
   <translation tag="Standby" zh="待机"/>
   <translation tag="Starfield" zh="星空"/>
   <translation tag="Start" zh="开始"/>

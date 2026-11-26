@@ -242,8 +242,7 @@ TEST_CASE("nozzle size plan: refusals", "[nozzle_size]") {
         }
         PrinterInputs k2 = k2_like();
         k2.printing = true;
-        // The command applies at once and has no idle rule of its own.
-        CHECK(plan_change(k2, 0, 0.6).kind == ChangePlan::Kind::KlipperCommand);
+        CHECK(plan_change(k2, 0, 0.6).kind == ChangePlan::Kind::Refused);
     }
     SECTION("a supervised config") {
         PrinterInputs in = mainline({0.4});

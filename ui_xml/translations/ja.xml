@@ -883,10 +883,11 @@
   <translation tag="Change Tool While Paused" ja="一時停止中のツール交換"/>
   <translation tag="Change heater control?" ja="ヒーターの制御を変更しますか？"/>
   <translation tag="Change it before starting the print." ja="印刷を始める前に変更してください。"/>
+  <translation tag="Change nozzle size on {}?"/>
+  <translation tag="Change nozzle size?"/>
   <translation tag="Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer&apos;s config folder." ja="Moonrakerを通じてプリンターの設定を変更します。プリンターの設定フォルダー内のファイルのアップロード、書き換え、削除を含みます。"/>
   <translation tag="Change the name or the linked spool in Spoolman." ja="名前やリンクされたスプールは Spoolman で変更してください。"/>
   <translation tag="Change tool" ja="ツールを交換"/>
-  <translation tag="Change {} nozzle?"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." ja="変更は即座に適用されます。印刷中に調整して最適化できます。"/>
   <translation tag="Changes are temporary and reset on printer reboot" ja="変更は一時的で、プリンター再起動時にリセットされます"/>
   <translation tag="Changes printer.cfg and restarts Klipper first" ja="先に printer.cfg を変更し Klipper を再起動します"/>
@@ -3411,6 +3412,7 @@
   <translation tag="Options" ja="オプション"/>
   <translation tag="Or Enter Manually" ja="または手動で入力"/>
   <translation tag="Or instead of turning the others" ja="他のネジを回す代わりに"/>
+  <translation tag="Orifice diameter of the nozzle fitted to this head"/>
   <translation tag="Original" ja="オリジナル"/>
   <translation tag="Original file location unknown" ja="元のファイルの場所が不明です"/>
   <translation tag="Orrery" ja="太陽系儀"/>
@@ -4655,6 +4657,7 @@
   <translation tag="Stall detection setup failed for the Z motor — power-cycle to retry" ja="Z モーターのストール検出の設定に失敗しました。電源を入れ直して再試行してください"/>
   <translation tag="Stall detection setup failed for the extruder — power-cycle to retry" ja="エクストルーダーのストール検出の設定に失敗しました。電源を入れ直して再試行してください"/>
   <translation tag="Standard" ja="スタンダード"/>
+  <translation tag="Standard or High Flow, as fitted to this head"/>
   <translation tag="Standby" ja="スタンバイ"/>
   <translation tag="Starfield" ja="星空"/>
   <translation tag="Start" ja="開始"/>

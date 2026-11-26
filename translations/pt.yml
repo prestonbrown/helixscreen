@@ -916,11 +916,12 @@ translations:
   Change Tool While Paused: Trocar Ferramenta com Impressão Pausada
   Change heater control?: Alterar o controle do aquecedor?
   Change it before starting the print.: 'Altere antes de iniciar a impressão.'
+  Change nozzle size on {}?: ''
+  Change nozzle size?: ''
   ? Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer's config folder.
   : 'Altera configurações da impressora através do Moonraker, incluindo enviar, reescrever e excluir arquivos na pasta de configuração da impressora.'
   Change the name or the linked spool in Spoolman.: "Altere o nome ou o carretel vinculado no Spoolman."
   Change tool: Trocar ferramenta
-  Change {} nozzle?: ''
   Changes apply immediately. Adjust during print for tuning.: Alterações aplicadas imediatamente. Ajuste durante a impressão para calibrar.
   Changes are temporary and reset on printer reboot: Alterações são temporárias e resetam ao reiniciar a impressora
   Changes printer.cfg and restarts Klipper first: Primeiro altera o printer.cfg e reinicia o Klipper
@@ -3550,6 +3551,7 @@ translations:
   Options: Opções
   Or Enter Manually: Ou Digite Manualmente
   Or instead of turning the others: Ou, em vez de girar os outros
+  Orifice diameter of the nozzle fitted to this head: ''
   Original: 'Original'
   Original file location unknown: Local do arquivo original desconhecido
   Orrery: 'Planetário'
@@ -4811,6 +4813,7 @@ translations:
   Stall detection setup failed for the Z motor — power-cycle to retry: Falha na configuração da detecção de travamento do motor Z. Desligue e ligue para tentar novamente
   Stall detection setup failed for the extruder — power-cycle to retry: Falha na configuração da detecção de travamento do extrusor. Desligue e ligue para tentar novamente
   Standard: Padrão
+  Standard or High Flow, as fitted to this head: ''
   Standby: Em Espera
   Starfield: Campo Estelar
   Start: Iniciar

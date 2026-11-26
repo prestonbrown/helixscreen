@@ -81,6 +81,21 @@ const nozzle_size::HeadCapability* find_head(const nozzle_size::Capability& cap,
     return nullptr;
 }
 
+/// Puts the dropdown of @p row (under @p card) on option @p selected; a current value the
+/// list does not name (set by hand in the config) shows as @p shown.
+void select_option(lv_obj_t* card, const char* row, int selected, const std::string& shown) {
+    lv_obj_t* r = lv_obj_find_by_name(card, row);
+    lv_obj_t* dd = r ? lv_obj_find_by_name(r, "dropdown") : nullptr;
+    if (!dd) {
+        return;
+    }
+    if (selected >= 0) {
+        lv_dropdown_set_selected(dd, static_cast<uint32_t>(selected));
+    } else if (!shown.empty()) {
+        lv_dropdown_set_text(dd, shown.c_str());
+    }
+}
+
 int selected_in(const std::vector<double>& choices, const std::optional<double>& current) {
     if (!current) {
         return -1;
@@ -169,102 +184,65 @@ void ToolheadSettingsOverlay::populate() {
     lv_subject_set_int(head_count_.get(), static_cast<int>(cap.heads.size()));
 
     for (const auto& h : cap.heads) {
-        const std::string group_name = kHeadPrefix + std::to_string(h.extruder_index);
-        const char* group_attrs[] = {"name", group_name.c_str(), nullptr};
-        auto* group = static_cast<lv_obj_t*>(lv_xml_create(list, "setting_group", group_attrs));
-        if (!group) {
+        const std::string card_name = kHeadPrefix + std::to_string(h.extruder_index);
+        const std::string title = head_title(h.extruder_index, cap.heads.size());
+
+        std::vector<std::string> labels;
+        for (double mm : h.choices) {
+            labels.push_back(nozzle_size::size_text_mm(mm));
+        }
+        const std::string size_options = join_lines(labels);
+        const std::string size_value =
+            h.current ? nozzle_size::size_text_mm(*h.current) : std::string("?");
+        // Why a head cannot change is the plan's own refusal.
+        const std::string size_note =
+            h.settable ? std::string()
+                       : std::string(lv_tr(nozzle_size::plan_change(inputs, h.extruder_index,
+                                                                    nozzle_size::kDefaultNozzleMm)
+                                               .reason.c_str()));
+        const std::string flow_options = join_lines(h.flow_variants);
+        const bool flow_editable = h.settable && h.flow_changeable;
+        const std::string flow_note = h.flow_note.empty() ? "" : lv_tr(h.flow_note.c_str());
+
+        const char* attrs[] = {
+            "name",
+            card_name.c_str(),
+            "title",
+            title.c_str(),
+            "size_mode",
+            h.settable ? "dropdown" : "readonly",
+            "size_options",
+            size_options.c_str(),
+            "size_value",
+            size_value.c_str(),
+            "size_note",
+            size_note.c_str(),
+            "flow_mode",
+            h.flow_variants.empty() ? "none" : (flow_editable ? "dropdown" : "readonly"),
+            "flow_options",
+            flow_options.c_str(),
+            "flow_value",
+            h.flow_current.c_str(),
+            "flow_note",
+            flow_note.c_str(),
+            nullptr};
+        auto* card = static_cast<lv_obj_t*>(lv_xml_create(list, "toolhead_card", attrs));
+        if (!card) {
             spdlog::warn("[{}] Could not create the card for {}", get_name(), h.extruder);
             continue;
         }
-        const std::string title = head_title(h.extruder_index, cap.heads.size());
-        const char* header_attrs[] = {"title", title.c_str(), nullptr};
-        lv_xml_create(group, "setting_group_header", header_attrs);
-
-        const std::string size_label = lv_tr("Nozzle size");
-        if (!h.settable) {
-            // Read-only: the size, and why it cannot change here.
-            const std::string value =
-                h.current ? nozzle_size::size_text_mm(*h.current) : std::string("?");
-            const std::string why = lv_tr(
-                nozzle_size::plan_change(inputs, h.extruder_index, nozzle_size::kDefaultNozzleMm)
-                    .reason.c_str());
-            const char* attrs[] = {"label",
-                                   size_label.c_str(),
-                                   "icon",
-                                   "nozzle",
-                                   "value",
-                                   value.c_str(),
-                                   "description",
-                                   why.c_str(),
-                                   "chevron",
-                                   "false",
-                                   "clickable",
-                                   "false",
-                                   "description_min_bp",
-                                   "0",
-                                   nullptr};
-            lv_xml_create(group, "setting_action_row", attrs);
-        } else {
-            std::vector<std::string> labels;
-            for (double mm : h.choices) {
-                labels.push_back(nozzle_size::size_text_mm(mm));
-            }
-            const std::string options = join_lines(labels);
-            const char* attrs[] = {"options",     options.c_str(),
-                                   "options_tag", options.c_str(),
-                                   "disabled",    h.idle_only ? "print_in_progress" : "",
-                                   nullptr};
-            auto* row = static_cast<lv_obj_t*>(lv_xml_create(group, "toolhead_size_row", attrs));
-            lv_obj_t* dd = row ? lv_obj_find_by_name(row, "dropdown") : nullptr;
-            if (dd) {
-                const int sel = selected_in(h.choices, h.current);
-                if (sel >= 0) {
-                    lv_dropdown_set_selected(dd, static_cast<uint32_t>(sel));
-                } else if (h.current) {
-                    // A size the list does not name (set by hand in the config) shows as is.
-                    lv_dropdown_set_text(dd, nozzle_size::size_text_mm(*h.current).c_str());
-                }
-            }
+        if (h.settable) {
+            select_option(card, "size_row", selected_in(h.choices, h.current),
+                          h.current ? nozzle_size::size_text_mm(*h.current) : std::string());
         }
-
-        if (h.flow_variants.empty()) {
-            continue;
-        }
-        const std::string flow_label = lv_tr("Flow type");
-        if (!h.flow_changeable || !h.settable) {
-            const std::string note = h.flow_note.empty() ? "" : lv_tr(h.flow_note.c_str());
-            const char* attrs[] = {"label",
-                                   flow_label.c_str(),
-                                   "icon",
-                                   "heater",
-                                   "value",
-                                   h.flow_current.c_str(),
-                                   "description",
-                                   note.c_str(),
-                                   "chevron",
-                                   "false",
-                                   "clickable",
-                                   "false",
-                                   "description_min_bp",
-                                   "0",
-                                   nullptr};
-            lv_xml_create(group, "setting_action_row", attrs);
-            continue;
-        }
-        const std::string options = join_lines(h.flow_variants);
-        const char* attrs[] = {"options",     options.c_str(),
-                               "options_tag", options.c_str(),
-                               "disabled",    h.idle_only ? "print_in_progress" : "",
-                               nullptr};
-        auto* row = static_cast<lv_obj_t*>(lv_xml_create(group, "toolhead_flow_row", attrs));
-        lv_obj_t* dd = row ? lv_obj_find_by_name(row, "dropdown") : nullptr;
-        if (dd) {
+        if (flow_editable) {
             const auto it =
                 std::find(h.flow_variants.begin(), h.flow_variants.end(), h.flow_current);
-            if (it != h.flow_variants.end()) {
-                lv_dropdown_set_selected(
-                    dd, static_cast<uint32_t>(std::distance(h.flow_variants.begin(), it)));
-            }
+            select_option(card, "flow_row",
+                          it == h.flow_variants.end()
+                              ? -1
+                              : static_cast<int>(std::distance(h.flow_variants.begin(), it)),
+                          h.flow_current);
         }
     }
     refresh_summary();
@@ -279,7 +257,7 @@ void ToolheadSettingsOverlay::on_size_picked(int extruder_index, int option) {
     }
     const double mm = head->choices[static_cast<size_t>(option)];
     apply(nozzle_size::plan_change(inputs, extruder_index, mm), mm,
-          head_title(extruder_index, cap.heads.size()));
+          cap.heads.size() > 1 ? head_title(extruder_index, cap.heads.size()) : std::string());
 }
 
 void ToolheadSettingsOverlay::on_flow_picked(int extruder_index, int option) {
@@ -291,7 +269,7 @@ void ToolheadSettingsOverlay::on_flow_picked(int extruder_index, int option) {
     }
     apply(nozzle_size::plan_flow_change(inputs, extruder_index,
                                         head->flow_variants[static_cast<size_t>(option)]),
-          0.0, head_title(extruder_index, cap.heads.size()));
+          0.0, cap.heads.size() > 1 ? head_title(extruder_index, cap.heads.size()) : std::string());
 }
 
 void ToolheadSettingsOverlay::apply(const nozzle_size::ChangePlan& plan, double mm,
@@ -307,7 +285,10 @@ void ToolheadSettingsOverlay::apply(const nozzle_size::ChangePlan& plan, double 
         run(plan);
         return;
     }
-    const std::string title = fmt::format(fmt::runtime(lv_tr("Change {} nozzle?")), head_label);
+    const std::string title =
+        head_label.empty()
+            ? std::string(lv_tr("Change nozzle size?"))
+            : fmt::format(fmt::runtime(lv_tr("Change nozzle size on {}?")), head_label);
     const std::string what = lv_tr(question->c_str());
     helix::ui::ConfirmOptions options;
     auto token = object_lifetime_.token();

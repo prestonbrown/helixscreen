@@ -916,11 +916,12 @@ translations:
   Change Tool While Paused: 一時停止中のツール交換
   Change heater control?: ヒーターの制御を変更しますか？
   Change it before starting the print.: '印刷を始める前に変更してください。'
+  Change nozzle size on {}?: ''
+  Change nozzle size?: ''
   ? Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer's config folder.
   : 'Moonrakerを通じてプリンターの設定を変更します。プリンターの設定フォルダー内のファイルのアップロード、書き換え、削除を含みます。'
   Change the name or the linked spool in Spoolman.: "名前やリンクされたスプールは Spoolman で変更してください。"
   Change tool: ツールを交換
-  Change {} nozzle?: ''
   Changes apply immediately. Adjust during print for tuning.: 変更は即座に適用されます。印刷中に調整して最適化できます。
   Changes are temporary and reset on printer reboot: 変更は一時的で、プリンター再起動時にリセットされます
   Changes printer.cfg and restarts Klipper first: 先に printer.cfg を変更し Klipper を再起動します
@@ -3550,6 +3551,7 @@ translations:
   Options: オプション
   Or Enter Manually: または手動で入力
   Or instead of turning the others: 他のネジを回す代わりに
+  Orifice diameter of the nozzle fitted to this head: ''
   Original: 'オリジナル'
   Original file location unknown: 元のファイルの場所が不明です
   Orrery: '太陽系儀'
@@ -4811,6 +4813,7 @@ translations:
   Stall detection setup failed for the Z motor — power-cycle to retry: Z モーターのストール検出の設定に失敗しました。電源を入れ直して再試行してください
   Stall detection setup failed for the extruder — power-cycle to retry: エクストルーダーのストール検出の設定に失敗しました。電源を入れ直して再試行してください
   Standard: スタンダード
+  Standard or High Flow, as fitted to this head: ''
   Standby: スタンバイ
   Starfield: 星空
   Start: 開始
