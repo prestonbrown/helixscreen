@@ -25,6 +25,12 @@ PrinterInputs mainline(std::vector<std::optional<double>> config) {
     return in;
 }
 
+PrinterInputs k2_like_inputs() {
+    PrinterInputs in = mainline({0.4});
+    in.set_nozzle_diameter_registered = true;
+    return in;
+}
+
 } // namespace
 
 TEST_CASE("nozzle size: a single-extruder mainline printer edits its config", "[nozzle_size]") {
@@ -84,11 +90,32 @@ TEST_CASE("nozzle size: vendor nozzle records make every head a vendor call with
     }
 }
 
-TEST_CASE("nozzle size: only a vendor head offers flow variants", "[nozzle_size]") {
-    PrinterInputs in = mainline({0.4});
-    in.set_nozzle_diameter_registered = true;
-    CHECK(nozzle_capability(in).heads[0].flow_variants.empty());
-    CHECK(nozzle_capability(mainline({0.4})).heads[0].flow_variants.empty());
+TEST_CASE("nozzle size: every head offers the flow types, kept by HelixScreen off a vendor head",
+          "[nozzle_size]") {
+    for (PrinterInputs in : {mainline({0.4}), k2_like_inputs()}) {
+        const auto head = nozzle_capability(in).heads[0];
+        CHECK(head.flow_variants == std::vector<std::string>{"Standard", "High Flow"});
+        CHECK(head.flow_current == "Standard");
+        CHECK(head.flow_changeable);
+    }
+    PrinterInputs high = mainline({0.4});
+    high.stored_volume_types = {"high_flow"};
+    CHECK(nozzle_capability(high).heads[0].flow_current == "High Flow");
+    // A supervised config cannot be edited, but the flow type is not in it.
+    high.config_supervised = true;
+    CHECK(nozzle_capability(high).heads[0].flow_changeable);
+}
+
+TEST_CASE("nozzle size: a flow type the firmware reports wins over the stored one",
+          "[nozzle_size]") {
+    PrinterInputs in = mainline({0.4, 0.4});
+    in.stored_volume_types = {"high_flow", "high_flow"};
+    in.live_volume_types = {"standard", ""};
+    CHECK(head_volume_type(in, 0) == "standard");
+    CHECK(head_volume_type(in, 1) == "high_flow");
+    CHECK(head_volume_type(in, 2).empty());
+    CHECK(head_volume_type(mainline({0.4}), 0) == "standard");
+    CHECK(resolve_volume_type("", "") == "standard");
 }
 
 TEST_CASE("nozzle size: lane tools on one extruder are one head", "[nozzle_size]") {
@@ -202,8 +229,6 @@ TEST_CASE("nozzle size plan: a vendor flow change names the head's own diameter"
     CHECK(plan.params["extruder"] == 1);
     CHECK(plan.params["diameter"] == 0.4);
     CHECK(plan.params["volume_type"] == "high_flow");
-    // No flow choice on a head without flow variants.
-    CHECK(plan_flow_change(mainline({0.4}), 0, "High Flow").kind == ChangePlan::Kind::Refused);
     CHECK(plan_flow_change(u1_like(), 1, "Turbo").kind == ChangePlan::Kind::Refused);
 }
 
@@ -232,6 +257,27 @@ TEST_CASE("nozzle size: only a config change asks about a restart, and a small v
     CHECK(small->find("0.2 mm") != std::string::npos);
     CHECK_FALSE(confirm_message(plan_change(u1_like(), 0, 0.6), 0.6).has_value());
     CHECK_FALSE(confirm_message(plan_change(mainline({0.4}), 0, 0.4), 0.4).has_value());
+}
+
+TEST_CASE("nozzle size plan: a flow type off a vendor head is stored and applies at once",
+          "[nozzle_size]") {
+    PrinterInputs printing = mainline({0.4});
+    printing.printing = true;
+    PrinterInputs supervised = mainline({0.4});
+    supervised.config_supervised = true;
+    for (const PrinterInputs& in : {mainline({0.4}), k2_like(), printing, supervised}) {
+        const ChangePlan plan = plan_flow_change(in, 0, "High Flow");
+        REQUIRE(plan.kind == ChangePlan::Kind::StoredFlow);
+        CHECK(plan.extruder_index == 0);
+        CHECK(plan.value == "high_flow");
+        CHECK_FALSE(confirm_message(plan, 0.0).has_value());
+    }
+    PrinterInputs high = mainline({0.4});
+    high.stored_volume_types = {"high_flow"};
+    CHECK(plan_flow_change(high, 0, "High Flow").kind == ChangePlan::Kind::Refused);
+    CHECK(plan_flow_change(high, 0, "Standard").kind == ChangePlan::Kind::StoredFlow);
+    CHECK(plan_flow_change(mainline({0.4}), 0, "Turbo").kind == ChangePlan::Kind::Refused);
+    CHECK(plan_flow_change(mainline({0.4}), 3, "High Flow").kind == ChangePlan::Kind::Refused);
 }
 
 TEST_CASE("nozzle size plan: refusals", "[nozzle_size]") {

@@ -44,7 +44,7 @@ struct HeadCapability {
     bool restart_required;          // ConfigEdit: FIRMWARE_RESTART
     bool idle_only;                 // refused while printing/paused
     std::vector<double> choices;    // U1: firmware's list; others: kCommonSizes
-    std::vector<std::string> flow_variants;  // U1: standard/high_flow; empty elsewhere
+    std::vector<std::string> flow_variants;  // every head: Standard / High Flow
 };
 struct Capability { std::vector<HeadCapability> heads; };
 
@@ -66,6 +66,7 @@ ChangePlan plan_change(const PrinterInputs&, int extruder_index, double mm);  //
   - `Refused{reason}` (printing, supervised, a size not in the firmware's list, an unknown head).
   K2 config writes go through its command, never printer.cfg, because `user_nozzle_diameter` overrides any `nozzle_diameter` edit.
 - **One resolver:** the fit check, PA tuning, the PA tower and anything else needing "this head's nozzle" call `head_nozzle()`. `PrinterDiscovery::nozzle_diameter_mm()` either goes or delegates to it (caller grep decides).
+- **Flow type on every head.** Every row offers `flow_variants`. On the U1 the type is firmware-written through its webhook (High Flow only at 0.4 mm). Everywhere else, including a supervised config, it is the user's statement about the nozzle, kept per printer in `SettingsManager` (a bitmask by extruder index, `nozzle/high_flow_heads`, default Standard) and applied at once with no confirmation, since Klipper has no such setting. `head_volume_type()` is the one rule for it: a type the extruder reports wins, else the stored one, else standard. The fit check's `nozzle_volume_types` takes that value, so a file sliced for High Flow on a Standard head (or the reverse) raises `NozzleFlowMismatch` on any printer. The plan is `ChangePlan::Kind::StoredFlow`.
 - **Choices:** `kCommonSizes` = 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.8, 1.0, 1.2 for ConfigEdit and the K2; the firmware's own list for the U1.
 
 ## UI (decided 2026-11-26)
@@ -89,7 +90,7 @@ Inside: one card per head (one on a single-extruder printer, one per extruder ot
 Each head shows what its capability row offers:
 
 - **Nozzle size:** a dropdown of `choices`, a **fixed list** (no free entry). It's read-only with the reason when `settable` is false, and disabled while printing (`idle_only`).
-- **Flow type**, only where the capability row has flow variants (the U1: Standard / High Flow, at 0.4 mm only). It's modeled as `HeadCapability::flow_variants`, so the overlay never names a vendor. The U1's two diameter/flow device-action rows go; the backend's webhook plumbing stays and is driven through the module.
+- **Flow type** on every head (Standard / High Flow): firmware-written on the U1, where High Flow exists at 0.4 mm only; kept by HelixScreen elsewhere and applied at once. It's modeled as `HeadCapability::flow_variants`, so the overlay never names a vendor. The U1's two diameter/flow device-action rows go; the backend's webhook plumbing stays and is driven through the module.
 
 Confirmations, in the confirm dialog:
 - a ConfigEdit change says Klipper restarts to apply it;

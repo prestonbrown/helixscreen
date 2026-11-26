@@ -52,6 +52,9 @@ struct PrinterInputs {
     std::vector<std::optional<double>> live_diameters;
     /// The flow type each extruder reports ("" while it reports none).
     std::vector<std::string> live_volume_types;
+    /// The flow type the user stated for each extruder ("standard" or "high_flow";
+    /// "" is standard). Klipper has no such setting, so HelixScreen keeps it.
+    std::vector<std::string> stored_volume_types;
     /// A print is running or paused.
     bool printing = false;
     /// Whether the printer registers SET_NOZZLE_DIAMETER. Discovery fills this
@@ -91,6 +94,14 @@ struct Capability {
 [[nodiscard]] std::optional<double> resolve(std::optional<double> live,
                                             std::optional<double> config);
 
+/// The one live-over-stored rule for a flow type: a type the firmware reports
+/// ("" when it reports none) wins, else the user's stored one, else "standard".
+[[nodiscard]] std::string resolve_volume_type(const std::string& live, const std::string& stored);
+
+/// The flow type of extruder @p extruder_index ("standard" or "high_flow") by that
+/// rule; "" for a head the printer does not have.
+[[nodiscard]] std::string head_volume_type(const PrinterInputs& inputs, int extruder_index);
+
 /// Which heads the printer has and how each is changed. Pure.
 [[nodiscard]] Capability nozzle_capability(const PrinterInputs& inputs);
 
@@ -112,6 +123,7 @@ struct ChangePlan {
         KlipperCommand, ///< send @c gcode
         VendorRpc,      ///< call @c method with @c params through the filament backend
         ConfigEdit,     ///< edit @c section / @c key to @c value, then restart Klipper
+        StoredFlow,     ///< keep @c value (a volume type) for @c extruder_index in settings
         Refused,        ///< do nothing; @c reason says why, untranslated (wrap in lv_tr)
     };
     Kind kind = Kind::Refused;
@@ -122,6 +134,7 @@ struct ChangePlan {
     std::string key;
     std::string value;
     std::string reason;
+    int extruder_index = -1;
     bool restart_required = false; ///< mirrors the head's capability
 };
 
@@ -155,6 +168,9 @@ void set_size_command_registered(bool registered);
 
 /// "0.4 mm": a size as it is shown.
 [[nodiscard]] std::string size_text_mm(double mm);
+
+/// Keeps the flow type of a StoredFlow @p plan in the settings.
+void apply_stored_flow(const ChangePlan& plan);
 
 /// PrinterInputs as the running app knows the printer.
 [[nodiscard]] PrinterInputs inputs_from_state(PrinterState& state);

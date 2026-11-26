@@ -132,6 +132,9 @@ static constexpr settings::PersistedSetting SETTINGS[] = {
     // Bit N = tool N unloads when a print ends.
     {"end_of_print_unload_tools", "ams/end_of_print_unload_tools", Scope::PerPrinter, false, 0, 0,
      255, "end_of_print_unload_tools"},
+    // Bit N = extruder N has a High Flow nozzle (Klipper keeps no such setting).
+    {"nozzle_high_flow_heads", "nozzle/high_flow_heads", Scope::PerPrinter, false, 0, 0, 255,
+     "nozzle_high_flow_heads"},
     // #1229
     {"ams_always_show_bypass_spool", "ams/always_show_bypass_spool", Scope::PerPrinter, true, 0, 0,
      1, "ams_always_show_bypass_spool"},

@@ -17,6 +17,7 @@
 #include "core/update_queue.h"
 #include "nozzle_size.h"
 #include "printer_state.h"
+#include "settings_manager.h"
 
 #include <array>
 #include <lvgl.h>
@@ -95,4 +96,26 @@ TEST_CASE_METHOD(ToolheadFixture, "toolhead settings: a pick asks about the head
     const std::string second = asked_about("head_1");
     // The question names the head: two heads, two different questions.
     CHECK(first != second);
+}
+
+TEST_CASE_METHOD(ToolheadFixture,
+                 "toolhead settings: a flow type on a plain printer applies at once",
+                 "[toolhead_settings][nozzle_size]") {
+    open({"extruder"}, {{"extruder", {{"nozzle_diameter", 0.4}}}});
+    lv_obj_t* card = lv_obj_find_by_name(lv_screen_active(), "head_0");
+    REQUIRE(card != nullptr);
+    lv_obj_t* row = lv_obj_find_by_name(card, "flow_row");
+    lv_obj_t* dd = row ? lv_obj_find_by_name(row, "dropdown") : nullptr;
+    REQUIRE(dd != nullptr);
+    REQUIRE(lv_dropdown_get_selected(dd) == 0); // Standard
+
+    SettingsManager& settings = SettingsManager::instance();
+    REQUIRE_FALSE(settings.get_nozzle_high_flow(0));
+    lv_dropdown_set_selected(dd, 1);
+    lv_obj_send_event(dd, LV_EVENT_VALUE_CHANGED, nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(ModalStack::instance().top_dialog() == nullptr);
+    CHECK(settings.get_nozzle_high_flow(0));
+    settings.set_nozzle_high_flow(0, false);
 }

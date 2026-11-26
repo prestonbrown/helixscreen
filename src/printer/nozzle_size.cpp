@@ -8,6 +8,7 @@
 #include "klipper_extruder_naming.h"
 #include "platform_info.h"
 #include "printer_state.h"
+#include "settings_manager.h"
 #include "snapmaker_nozzle_properties.h"
 #include "translation_loader.h"
 
@@ -71,6 +72,25 @@ std::optional<double> head_nozzle_for_tool(const PrinterInputs& inputs,
     return extruder ? head_nozzle(inputs, *extruder) : std::nullopt;
 }
 
+std::string resolve_volume_type(const std::string& live, const std::string& stored) {
+    if (!live.empty()) {
+        return live;
+    }
+    return stored.empty() ? snapmaker::nozzle::kStandard : stored;
+}
+
+std::string head_volume_type(const PrinterInputs& in, int extruder_index) {
+    if (extruder_index < 0 || static_cast<size_t>(extruder_index) >= head_count(in)) {
+        return {};
+    }
+    const auto at_index = [extruder_index](const std::vector<std::string>& v) {
+        return static_cast<size_t>(extruder_index) < v.size()
+                   ? v[static_cast<size_t>(extruder_index)]
+                   : std::string();
+    };
+    return resolve_volume_type(at_index(in.live_volume_types), at_index(in.stored_volume_types));
+}
+
 namespace {
 snapmaker::nozzle::Nozzle reported_nozzle_of(const PrinterInputs& in, int index) {
     snapmaker::nozzle::Nozzle n;
@@ -118,6 +138,13 @@ Capability nozzle_capability(const PrinterInputs& in) {
             h.choices.clear();
         }
         h.settable = h.mechanism != Mechanism::None;
+        if (h.mechanism != Mechanism::VendorRpc) {
+            // The flow type is the user's statement here, applied at once and kept by
+            // HelixScreen, whether or not the config can be edited.
+            h.flow_variants = snapmaker::nozzle::flow_options();
+            h.flow_current = snapmaker::nozzle::flow_option(head_volume_type(in, h.extruder_index));
+            h.flow_changeable = true;
+        }
         cap.heads.push_back(std::move(h));
     }
     return cap;
@@ -157,6 +184,12 @@ PrinterInputs inputs_from_state(PrinterState& state) {
                                  snapmaker::nozzle::kDiameters.end());
     }
 
+    const SettingsManager& settings = SettingsManager::instance();
+    for (int i = 0; i < SettingsManager::kNozzleFlowMaxHeads; ++i) {
+        in.stored_volume_types.push_back(settings.get_nozzle_high_flow(i)
+                                             ? snapmaker::nozzle::kHighFlow
+                                             : snapmaker::nozzle::kStandard);
+    }
     in.config_supervised = firmware_supervised();
     in.printing = state.print_state().is_print_in_progress();
     in.set_nozzle_diameter_registered = size_command_registered();
@@ -259,13 +292,17 @@ ChangePlan plan_change(const PrinterInputs& in, int extruder_index, double mm) {
 
 ChangePlan plan_flow_change(const PrinterInputs& in, int extruder_index,
                             const std::string& variant) {
-    ChangePlan refusal;
     const Capability cap = nozzle_capability(in);
-    const HeadCapability* h = settable_head(cap, in, extruder_index, refusal);
-    if (h == nullptr) {
-        return refusal;
+    const HeadCapability* h = nullptr;
+    for (const auto& head : cap.heads) {
+        if (head.extruder_index == extruder_index) {
+            h = &head;
+        }
     }
-    if (h->flow_variants.empty() || h->mechanism != Mechanism::VendorRpc) {
+    if (h == nullptr) {
+        return refuse(TR_NOOP("This printer has no such toolhead"));
+    }
+    if (h->flow_variants.empty()) {
         return refuse(TR_NOOP("This toolhead has no flow type to change"));
     }
     snapmaker::nozzle::Nozzle wanted;
@@ -273,7 +310,28 @@ ChangePlan plan_flow_change(const PrinterInputs& in, int extruder_index,
     if (!wanted.volume_type) {
         return refuse(TR_NOOP("This toolhead has no such flow type"));
     }
-    return vendor_plan(in, *h, wanted);
+    if (h->mechanism == Mechanism::VendorRpc) {
+        ChangePlan refusal;
+        if (settable_head(cap, in, extruder_index, refusal) == nullptr) {
+            return refusal;
+        }
+        return vendor_plan(in, *h, wanted);
+    }
+    if (*wanted.volume_type == head_volume_type(in, extruder_index)) {
+        return refuse(TR_NOOP("The head is already set that way"));
+    }
+    ChangePlan plan;
+    plan.kind = ChangePlan::Kind::StoredFlow;
+    plan.extruder_index = extruder_index;
+    plan.value = *wanted.volume_type;
+    return plan;
+}
+
+void apply_stored_flow(const ChangePlan& plan) {
+    if (plan.kind == ChangePlan::Kind::StoredFlow) {
+        SettingsManager::instance().set_nozzle_high_flow(
+            plan.extruder_index, plan.value == snapmaker::nozzle::kHighFlow);
+    }
 }
 
 std::string size_text_mm(double mm) {
@@ -294,6 +352,7 @@ std::optional<std::string> confirm_message(const ChangePlan& plan, double mm) {
                            "it again.");
         }
         return std::nullopt;
+    case ChangePlan::Kind::StoredFlow:
     case ChangePlan::Kind::Refused:
         break;
     }

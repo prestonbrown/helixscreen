@@ -30,6 +30,7 @@
 #include "printer_discovery.h"
 #include "printer_plugin_status_state.h"
 #include "printer_state.h"
+#include "settings_manager.h"
 #include "tool_state.h"
 
 #include <algorithm>
@@ -343,6 +344,45 @@ TEST_CASE("the nozzles the extruders report replace the config's", "[plugin_fitc
     }
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "a flow type the user gave a head reaches the screen's limits",
+                 "[plugin_fitcheck][nozzle_size]") {
+    PrinterState& state = get_printer_state();
+    state.init_subjects(false);
+    PrinterDiscovery hw;
+    hw.parse_fit_limits(json{{"extruder", {{"max_temp", 300.0}, {"nozzle_diameter", 0.4}}}});
+    state.set_hardware(hw);
+    auto& temperatures = state.temperature_state();
+    temperatures.init_extruders({"extruder"});
+    SettingsManager& settings = SettingsManager::instance();
+    settings.set_nozzle_high_flow(0, true);
+
+    // A plain printer reports no flow type, so the stored one is the head's.
+    auto machine = current_fit_machine();
+    REQUIRE(machine.has_value());
+    CHECK(machine->nozzle_volume_types == std::vector<std::string>{"high_flow"});
+
+    FitFile standard_file;
+    standard_file.tools = {0};
+    standard_file.nozzle_diameters = {0.4};
+    standard_file.nozzle_volume_types = {"standard"};
+    const auto findings = check_fit(*machine, standard_file);
+    REQUIRE(findings.size() == 1);
+    CHECK(findings[0].kind == FitKind::NozzleFlowMismatch);
+
+    FitFile high_file = standard_file;
+    high_file.nozzle_volume_types = {"high_flow"};
+    CHECK(check_fit(*machine, high_file).empty());
+
+    // A flow type the extruder reports wins over the stored one.
+    temperatures.update_from_status({{"extruder", {{"nozzle_volume_type", "standard"}}}});
+    machine = current_fit_machine();
+    REQUIRE(machine.has_value());
+    CHECK(machine->nozzle_volume_types == std::vector<std::string>{"standard"});
+
+    settings.set_nozzle_high_flow(0, false);
+    temperatures.init_extruders({});
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "the screen's limits take the nozzles the extruders report",
                  "[plugin_fitcheck]") {
     PrinterState& state = get_printer_state();
@@ -357,7 +397,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "the screen's limits take the nozzles the extr
     auto machine = current_fit_machine();
     REQUIRE(machine.has_value());
     CHECK(machine->nozzle_diameters == std::vector<double>{0.4, 0.4});
-    CHECK(machine->nozzle_volume_types.empty());
+    // No extruder reports a flow type: each head is the Standard the user never changed.
+    CHECK(machine->nozzle_volume_types == std::vector<std::string>{"standard", "standard"});
 
     // Stock Klipper answers a field its extruder lacks with null.
     temperatures.update_from_status(
@@ -366,7 +407,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "the screen's limits take the nozzles the extr
     machine = current_fit_machine();
     REQUIRE(machine.has_value());
     CHECK(machine->nozzle_diameters == std::vector<double>{0.4, 0.6});
-    CHECK(machine->nozzle_volume_types == std::vector<std::string>{"", "high_flow"});
+    CHECK(machine->nozzle_volume_types == std::vector<std::string>{"standard", "high_flow"});
 
     FitFile file;
     file.tools = {1};
