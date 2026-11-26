@@ -18,6 +18,8 @@
 #include "lane_apply.h"
 #include "lane_source_store.h"
 #include "printer_state.h"
+#include "test_helpers/armed_timers.h"
+#include "test_helpers/process_async_timers.h"
 #include "test_helpers/registered_backend.h"
 
 #include <string>
@@ -354,6 +356,73 @@ TEST_CASE_METHOD(LVGLTestFixture,
     helix::ToolChangerTestAccess::poll_lane_records(*reg);
     settle();
     CHECK(reg->get_slot_info(1).material == "ABS");
+}
+
+namespace {
+
+/// A tool changer with a client, started through start() the way the app
+/// starts one: only that arms the poll.
+class PollingChanger : public helix::AmsBackendToolChanger {
+  public:
+    PollingChanger(helix::IMoonrakerAPI* api, helix::IMoonrakerClient* client)
+        : helix::AmsBackendToolChanger(api, client) {
+        set_discovered_tools({"T0", "T1"});
+    }
+    ~PollingChanger() override {
+        helix::ui::UpdateQueue::instance().drain();
+    }
+    helix::AmsError execute_gcode(const std::string&) override {
+        return helix::AmsErrorHelper::success();
+    }
+    helix::AmsError execute_gcode(const std::string&, helix::SharedCallback<void()>) override {
+        return helix::AmsErrorHelper::success();
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "a started backend rereads the lane records on its poll",
+                 "[lane][refresh][toolchanger][poll][2044]") {
+    MockPrinter printer;
+    printer.client.mock_db_set("lane_data", "T1", record("PETG", "#1E5AA8"));
+    helix::test::RegisteredBackend<PollingChanger> reg(&printer.api, &printer.client);
+    REQUIRE(reg->start().success());
+    settle();
+    REQUIRE(reg->lane_record_reads() == 1);
+    REQUIRE(reg->get_slot_info(1).material == "PETG");
+
+    printer.client.mock_db_set("lane_data", "T1", record("ABS", "#FF0000"));
+    // No one asks for this read. The test pump never runs a periodic timer, so
+    // this stands in for the main-loop tick the poll comes due on.
+    const auto polls = helix::test::armed_timers_for(&*reg);
+    REQUIRE(polls.size() == 1);
+    REQUIRE(helix::test::fire_timer_once(polls[0]));
+    settle();
+    CHECK(reg->lane_record_reads() == 2);
+    CHECK(reg->get_slot_info(1).material == "ABS");
+    CHECK(reg->get_slot_info(1).color_rgb == 0xFF0000u);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a stopped backend stops reading the lane records",
+                 "[lane][refresh][toolchanger][poll][2044]") {
+    MockPrinter printer;
+    printer.client.mock_db_set("lane_data", "T1", record("PETG", "#1E5AA8"));
+    helix::test::RegisteredBackend<PollingChanger> reg(&printer.api, &printer.client);
+    REQUIRE(reg->start().success());
+    settle();
+    REQUIRE(reg->lane_record_reads() == 1);
+    REQUIRE(helix::test::armed_timer_count(&*reg) == 1);
+
+    reg->stop();
+    // The poll is disarmed with the subscription: a tick after the stop has
+    // nothing to answer it, so a record rewritten meanwhile stays unread.
+    printer.client.mock_db_set("lane_data", "T1", record("ABS", "#FF0000"));
+    for (lv_timer_t* poll : helix::test::armed_timers_for(&*reg)) {
+        CHECK(helix::test::fire_timer_once(poll));
+    }
+    settle();
+    CHECK(reg->lane_record_reads() == 1);
+    CHECK(reg->get_slot_info(1).material == "PETG");
 }
 
 // ============================================================================

@@ -8947,6 +8947,38 @@ TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS runout: clears on refill, resume a
     }
 }
 
+// An idle backend shows no status line: the runout's text goes with the fault,
+// or the panel keeps describing a runout that is over.
+TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS runout: the status line goes with the cleared fault",
+                 "[ams][ad5x_ifs][runout][1250][2044]") {
+    auto raise = [this](auto& b) {
+        set_print_state(helix::PrintJobState::PAUSED);
+        seat_then_drop_head(b);
+        REQUIRE(runs_out_after_dwell(b));
+        REQUIRE(b.get_current_action() == AmsAction::ERROR);
+        REQUIRE_FALSE(b.get_system_info().operation_detail.empty());
+    };
+
+    SECTION("filament back at the toolhead") {
+        helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
+        Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
+        raise(backend);
+        backend.fire_status(make_head_sensor(true));
+        CHECK(backend.get_current_action() == AmsAction::IDLE);
+        CHECK(backend.get_system_info().operation_detail.empty());
+    }
+
+    SECTION("the print resumes") {
+        helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
+        Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
+        raise(backend);
+        set_print_state(helix::PrintJobState::PRINTING);
+        REQUIRE(Ad5xIfsTestAccess::evaluate_runout(backend));
+        CHECK(backend.get_current_action() == AmsAction::IDLE);
+        CHECK(backend.get_system_info().operation_detail.empty());
+    }
+}
+
 TEST_CASE_METHOD(Ad5xRunoutFixture,
                  "AD5X IFS runout: current_error distinguishes runout from an op timeout",
                  "[ams][ad5x_ifs][runout][error-center][1250]") {

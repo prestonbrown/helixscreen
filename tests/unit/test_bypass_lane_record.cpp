@@ -281,6 +281,21 @@ TEST_CASE_METHOD(LVGLTestFixture,
     }
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "a bypass edit the holder has no lane records for is withdrawn",
+                 "[bypass][lane][pending][2044]") {
+    MockPrinter printer;
+    // Registered as the holder but never started, so its lane records are not
+    // open and there is nowhere to write the bypass record.
+    test::RegisteredBackend<RecordBackedChanger> reg(&printer.api);
+    REQUIRE(reg->holds_bypass_record());
+    REQUIRE_FALSE(AmsState::instance().get_external_spool_info().has_value());
+
+    AmsState::instance().set_external_spool_info(petg_spool());
+    // A write that cannot be made leaves no edit waiting to be echoed.
+    CHECK_FALSE(helix::ams::lane_sources(helix::ams::kBypassLaneId).pending.has_value());
+    CHECK_FALSE(AmsState::instance().get_external_spool_info().has_value());
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "on AFC the bypass record goes in the extras, never lane_data",
                  "[bypass][lane][refresh][extras][writer_rule][afc]") {
     MockPrinter printer;

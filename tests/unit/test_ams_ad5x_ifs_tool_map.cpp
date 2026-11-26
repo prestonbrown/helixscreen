@@ -1,0 +1,51 @@
+// Copyright (C) 2026 356C LLC
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// AmsBackendAd5xIfs's tool table as the lanes show it: each lane's tool badge
+// (SlotInfo::mapped_tool) follows the table the moment a remap moves it.
+
+#include "ams_backend_ad5x_ifs.h"
+#include "ams_types.h"
+#include "test_helpers/ad5x_ifs_test_access.h"
+#include "test_helpers/backend_harness.h"
+
+#include <vector>
+
+#include "../catch_amalgamated.hpp"
+
+using helix::Ad5xIfsTestAccess;
+using helix::AmsBackendAd5xIfs;
+using json = nlohmann::json;
+
+namespace {
+
+json save_variables(const json& variables) {
+    return json{{"save_variables", {{"variables", variables}}}};
+}
+
+/// The lessWaste rows of a rig whose table is the identity: T<n> feeds lane
+/// n+1, and T0 is active.
+json identity_plugin_rows() {
+    return save_variables(
+        json{{"less_waste_tools", json::array({1, 2, 3, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5})},
+             {"less_waste_current_tool", 0}});
+}
+
+} // namespace
+
+TEST_CASE("A plugin-backed remap moves each lane's tool badge at once",
+          "[ams][ad5x_ifs][tool_map][2044]") {
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
+    Ad5xIfsTestAccess::set_ifs_macro_confirmed_missing(backend, false);
+    backend.fire_status(identity_plugin_rows());
+    REQUIRE(Ad5xIfsTestAccess::has_ifs_vars(backend));
+    REQUIRE(backend.get_tool_mapping() == std::vector<int>{0, 1, 2, 3});
+    REQUIRE(backend.get_slot_info(0).mapped_tool == 0);
+    REQUIRE(backend.get_slot_info(1).mapped_tool == 1);
+
+    // T0 onto lane 2: lane 2 now carries T0, and lane 1 carries no tool.
+    (void)backend.set_tool_mapping(0, 1);
+    REQUIRE(backend.get_tool_mapping() == std::vector<int>{1, 1, 2, 3});
+    CHECK(backend.get_slot_info(1).mapped_tool == 0);
+    CHECK(backend.get_slot_info(0).mapped_tool == -1);
+}

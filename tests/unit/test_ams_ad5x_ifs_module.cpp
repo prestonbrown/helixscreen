@@ -1181,6 +1181,21 @@ TEST_CASE("AD5X IFS apply_user_edit writes through IFS_SET_MATERIAL on the modul
     // also have run: nothing answers its read, which would fail the call above.
 }
 
+TEST_CASE("AD5X IFS an edit writes its lane record once",
+          "[ams][ad5x_ifs][ifs_module][lane_truth][2044]") {
+    helix::test::StartedBackend<TestableModuleBackend> backend;
+    backend.fire_status(module_ifs_frame(0, {1, 2, 3, 4}));
+
+    // What the firmware cannot carry (the brand) is what the record is for.
+    helix::SlotInfo info = backend.get_slot_info(1);
+    info.brand = "Polymaker";
+    const size_t posts = backend.wire().fake_client().rpc_count("server.database.post_item");
+    REQUIRE(helix::test::apply_edit(backend, 1, info).success());
+
+    // One record, one write to the printer's database.
+    CHECK(backend.wire().fake_client().rpc_count("server.database.post_item") == posts + 1);
+}
+
 TEST_CASE("AD5X IFS module poll stand-down", "[ams][ad5x_ifs][ifs_module]") {
     helix::test::StartedBackend<TestableModuleBackend> backend;
     // Seat lane 2 so an unload takes the toolhead route, whose dispatch calls
