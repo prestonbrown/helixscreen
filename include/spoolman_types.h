@@ -34,7 +34,7 @@ namespace helix {
 inline constexpr const char* kSpoolmanPaExtraKey = "pressure_advance";
 
 /// Spoolman filament extra field that names the OrcaSlicer preset the filament
-/// is (its `filament_id`, e.g. "OGFL99"). The convention spoolman-lane-sync
+/// is (its `filament_id`, e.g. "OFDSrzZ8"). The convention spoolman-lane-sync
 /// and AFC read, and the one the Lane Status Surface draft names (§6).
 inline constexpr const char* kSpoolmanOrcaIdExtraKey = "orca_filament_id";
 

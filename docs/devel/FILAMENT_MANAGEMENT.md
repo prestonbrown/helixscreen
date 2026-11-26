@@ -609,7 +609,7 @@ Mainsail, is in
 - **OrcaSlicer reads only `lane` / `material` / `color` / `bed_temp` /
   `nozzle_temp`**, and matches a lane to a filament preset **by the `material`
   type string alone** (`filament_id_by_type`, falling back to generic
-  OrcaFilamentLibrary ids like `OGFL99`). It ignores `vendor_name` and
+  OrcaFilamentLibrary ids like `OFDSrzZ8`, Generic PLA). It ignores `vendor_name` and
   `filament_id` today, and never writes `lane_data` back. So brand has no
   effect on the slicer's preset pick: "Generic PLA" and "Elegoo PLA+" both
   resolve to a generic PLA preset. Emit canonical material strings (`PLA`,
