@@ -916,8 +916,8 @@ translations:
   Change Tool While Paused: 暂停时切换工具
   Change heater control?: 更改加热器控制？
   Change it before starting the print.: '请在开始打印前更改。'
-  Change nozzle size on {}?: ''
-  Change nozzle size?: ''
+  Change nozzle size on {}?: "更改 {} 的喷嘴尺寸？"
+  Change nozzle size?: "更改喷嘴尺寸？"
   ? Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer's config folder.
   : '通过Moonraker更改打印机设置，包括上传、改写和删除打印机配置文件夹中的文件。'
   Change the name or the linked spool in Spoolman.: "请在 Spoolman 中更改名称或关联的料盘。"
@@ -1318,7 +1318,7 @@ translations:
   : "长按任意磁贴进入编辑模式。全新的网格可让您重新排列、调整大小、移除或添加小部件，并在页面之间拖动。"
   'Moonraker answered at {}.': "Moonraker 在 {} 响应。"
   "New in 1.1": "1.1 新功能"
-  No filament system to send this to: ''
+  No filament system to send this to: "没有可发送的耗材系统"
   No filament type is set for a toolhead this print uses.: '本次打印使用的某个工具头未设置耗材类型。'
   No filament was inserted in time: '未及时插入耗材'
   Paste: "粘贴"
@@ -2143,7 +2143,7 @@ translations:
   Flow calibration is not allowed for this filament with a 0.2 mm nozzle.: '此耗材在 0.2 mm 喷嘴上不允许流量校准。'
   Flow calibration is on for a filament and nozzle pair that does not allow it.: '已为不允许流量校准的耗材与喷嘴组合开启了流量校准。'
   Flow calibration not allowed for {}: '{} 不允许流量校准'
-  Flow type: ''
+  Flow type: "流量类型"
   Flowguard: 流量保护
   Flushing Filament...: 正在冲洗耗材...
   Flying Toasters: 飞行烤面包机
@@ -3340,7 +3340,7 @@ translations:
   No tool is mounted: '未安装工具'
   No tool mounted: '未装上工具'
   No tool on the head: "工具头上没有工具"
-  No toolhead detected: ''
+  No toolhead detected: "未检测到工具头"
   No toolhead on the carriage: '滑架上没有工具头'
   No tools to calibrate: 没有可校准的工具
   'No turn: the gap moved {:.1f} Hz': "未转动:差距移动了 {:.1f} Hz"
@@ -3449,7 +3449,7 @@ translations:
   Nozzle Temperature: 喷嘴温度
   Nozzle Temperatures: '喷嘴温度'
   Nozzle Temps: 喷嘴温度
-  Nozzle changed: ''
+  Nozzle changed: "喷嘴已更改"
   Nozzle clean complete: 喷嘴清洁完成
   Nozzle clog detected: 检测到喷嘴堵塞
   Nozzle diameter: "喷嘴直径"
@@ -3461,7 +3461,7 @@ translations:
   'Nozzle not changed: the printer did not confirm it': "喷嘴未更改：打印机未确认"
   'Nozzle not changed: {}': "喷嘴未更改：{}"
   Nozzle not reported: '未报告喷嘴'
-  Nozzle size: ''
+  Nozzle size: "喷嘴尺寸"
   Nozzle size and flow type per head: "每个工具头的喷嘴尺寸和流量类型"
   Nozzle target set to {}: 喷嘴目标已设为 {}
   Nozzle temp must be %d-%s: 喷嘴温度必须为 %d-%s
@@ -3551,7 +3551,7 @@ translations:
   Options: 选项
   Or Enter Manually: 或手动输入
   Or instead of turning the others: 或者，无需转动其他螺丝
-  Orifice diameter of the nozzle fitted to this head: ''
+  Orifice diameter of the nozzle fitted to this head: "此工具头所装喷嘴的直径"
   Original: '原始'
   Original file location unknown: 原始文件位置未知
   Orrery: '太阳系仪'
@@ -4813,7 +4813,7 @@ translations:
   Stall detection setup failed for the Z motor — power-cycle to retry: Z 电机堵转检测设置失败。请重新上电后重试
   Stall detection setup failed for the extruder — power-cycle to retry: 挤出机堵转检测设置失败。请重新上电后重试
   Standard: 标准
-  Standard or High Flow, as fitted to this head: ''
+  Standard or High Flow, as fitted to this head: "标准或高流量，与此工具头所装喷嘴一致"
   Standby: 待机
   Starfield: 星空
   Start: 开始
@@ -5066,7 +5066,7 @@ translations:
   That print is no longer paused: '该打印已不再暂停'
   That reading jumped too far to trust. Re-measure without turning.: "这次读数跳动过大,不可信。请不转动再测量一次。"
   'That setting cannot be changed while a print is running': '打印进行中无法更改该设置'
-  That size is already set: ''
+  That size is already set: "该尺寸已设置"
   That slot cannot stand in for this one: 该槽位无法替代当前槽位
   That tool is already loaded: 该工具已加载耗材
   That toolhead can no longer take over the print: '该工具头已无法接替此次打印'
@@ -5234,7 +5234,7 @@ translations:
   The gateway is not a valid address.: '网关不是有效地址。'
   The gateway is not on the same subnet as the IP address.: '网关与 IP 地址不在同一子网。'
   The head did not go back into its dock.: '工具头未回到停靠位。'
-  The head is already set that way: ''
+  The head is already set that way: "该工具头已是此设置"
   The head on the carriage does not read as properly picked up, so it was not parked.: '滑架上的工具头未显示为正确装上，因此未停放。'
   The head to pick up does not read as docked.: '要装上的工具头未显示为已停靠。'
   ? "The head's extruder never gripped the filament: after several tries, with the nozzle cleaned between them, no movement registered at the nozzle."
@@ -5534,7 +5534,7 @@ translations:
   This CFS firmware exposes no external spool slot: '此 CFS 固件没有外部料盘槽位'
   This Happy Hare system does not support bypass mode: '此 Happy Hare 系统不支持旁通模式'
   Needs a newer Moonraker to hold uploads.: "需要更新的 Moonraker 才能暂缓上传。"
-  This applies now. Klipper's extrusion limit follows at its next restart.: ''
+  This applies now. Klipper's extrusion limit follows at its next restart.: "立即生效。Klipper 的挤出限制将在下次重启时更新。"
   This button controls: 此按钮控制
   This calibration uses the paper friction method to set your Z-offset.: 此校准使用纸张摩擦法设置 Z 偏移。
   This cannot be undone.: 此操作无法撤销。
@@ -5587,7 +5587,7 @@ translations:
   This looks like a {}, but it is set up as a {}: 这台打印机看起来是 {}，但被设置为 {}
   This may take up to 30 seconds: 这可能需要 30 秒
   Needs file analysis, which isn't running.: "需要文件分析，但它未在运行。"
-  This nozzle size can't be changed here: ''
+  This nozzle size can't be changed here: "此处无法更改该喷嘴尺寸"
   This plugin asks for no special permissions.: '此插件不请求任何特殊权限。'
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: '此插件让 HelixScreen 控制打印启动选项，如热床网格和 QGL。'
   This print called {}, which the printer no longer has.: '此打印调用了 {}，但打印机已不再有这些宏。'
@@ -5598,7 +5598,7 @@ translations:
   This print never reports layer {}.: '此打印从不报告第 {} 层。'
   This printer cannot calibrate tool offsets automatically: 此打印机无法自动校准工具偏移
   This printer cannot stream the sweep to the screen: '此打印机无法在屏幕上实时显示扫描'
-  This printer doesn't accept that nozzle size: ''
+  This printer doesn't accept that nozzle size: "此打印机不支持该喷嘴尺寸"
   This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman.: 此打印机的通道信息来自 Spoolman。HelixScreen 已清除本地副本；请在 Spoolman 中移除该线轴。
   This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman.: 此打印机的通道信息来自 Spoolman。请在 Spoolman 中更改颜色、材料和线轴。
   'This printer has motor compensation, so the check runs twice: with it off, then on.': '此打印机具有电机补偿，因此检查会运行两次：先关闭补偿，再开启补偿。'
@@ -5606,7 +5606,7 @@ translations:
   This printer has no INDX LOAD_FILAMENT macro: "此打印机没有 INDX LOAD_FILAMENT 宏"
   This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: "这台打印机还没有 [save_variables] 存储。请更新帮助宏以添加，然后重启 Klipper。"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: 此打印机没有自动退料功能。请在工具头处剪断耗材，然后用手拉出。
-  This printer has no such toolhead: ''
+  This printer has no such toolhead: "此打印机没有该工具头"
   This printer has no timezone, so its clock reads UTC. Pick yours.: "此打印机未设置时区，时钟显示的是 UTC。请选择您的时区。"
   'This printer has no {} command, so the Z-offset cannot be saved.': '此打印机没有 {} 命令，因此无法保存 Z 偏移。'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
@@ -5639,7 +5639,7 @@ translations:
   This screen: '此屏幕'
   This screen can't play videos: '此屏幕无法播放视频'
   This screen can't play videos. Scan the code with your phone to watch the timelapse.: '此屏幕无法播放视频。用手机扫描二维码观看延时摄影。'
-  This sets the nozzle size in the printer config.: ''
+  This sets the nozzle size in the printer config.: "这会在打印机配置中设置喷嘴尺寸。"
   This slot feeds no tool: '此槽位不向任何工具供料'
   This spool ran out, so the CFS cannot pull the leftover filament back.: '此料盘已用完，CFS 无法将剩余耗材抽回。'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: '此料盘的详细信息尚未从 Spoolman 加载。请再次点击保存。'
@@ -5647,8 +5647,8 @@ translations:
   This theme: 此主题
   'This tool has no number with a T command: assign it one first': 此工具没有带 T 命令的编号：请先分配一个
   This tool probes each bed screw and tells you how much to adjust.: 此工具探测每个热床螺丝并告诉您需要调整多少。
-  This toolhead has no flow type to change: ''
-  This toolhead has no such flow type: ''
+  This toolhead has no flow type to change: "此工具头没有可更改的流量类型"
+  This toolhead has no such flow type: "此工具头没有该流量类型"
   'This update asks for new permissions:': '此更新请求新的权限：'
   This update removes HelixScreen from the printer.: '此更新会从打印机上移除 HelixScreen。'
   This upgrades the printer's operating system packages.: '这将升级打印机的操作系统软件包。'
@@ -5777,7 +5777,7 @@ translations:
   Toolhead position and homing, with a plate view and Home All: "工具头位置与归位，含热床视图和全部归位"
   Toolhead position unknown: 工具头位置未知
   Toolhead sensors disagree: 工具头传感器读数不一致
-  Toolhead settings: ''
+  Toolhead settings: "工具头设置"
   Toolhead unloaded: 打印头已退料
   Toolheads: 工具头
   Tools: 工具
@@ -6618,7 +6618,7 @@ translations:
   '{} new': '{} 个新增'
   '{} new hardware available': '{} 个新硬件可用'
   '{} new plugins available. Enable them in Settings > Plugins.': '{} 个新插件可用。请在设置 > 插件中启用。'
-  '{} nozzle': ''
+  '{} nozzle': "{} 喷嘴"
   '{} nozzle sensor fault': '{} 喷嘴传感器故障'
   '{} of {} points': '{} / {} 个点'
   "{} of {} steps didn't finish": "{}/{} 个步骤未完成"

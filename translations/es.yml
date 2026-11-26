@@ -916,8 +916,8 @@ translations:
   Change Tool While Paused: Cambiar Herramienta en Pausa
   Change heater control?: '¿Cambiar el control del calentador?'
   Change it before starting the print.: 'Cámbialo antes de iniciar la impresión.'
-  Change nozzle size on {}?: ''
-  Change nozzle size?: ''
+  Change nozzle size on {}?: "¿Cambiar el tamaño de la boquilla en {}?"
+  Change nozzle size?: "¿Cambiar el tamaño de la boquilla?"
   ? Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer's config folder.
   : 'Cambia ajustes de la impresora a través de Moonraker, incluida la subida, reescritura y borrado de archivos en la carpeta de configuración de la impresora.'
   Change the name or the linked spool in Spoolman.: "Cambia el nombre o la bobina vinculada en Spoolman."
@@ -1318,7 +1318,7 @@ translations:
   : "Mantén pulsado cualquier mosaico para entrar en el modo de edición. La nueva cuadrícula te permite reorganizar, redimensionar, quitar o añadir widgets y arrastrarlos entre páginas."
   'Moonraker answered at {}.': "Moonraker respondió en {}."
   "New in 1.1": "Novedades en 1.1"
-  No filament system to send this to: ''
+  No filament system to send this to: "No hay un sistema de filamento al que enviar esto"
   No filament type is set for a toolhead this print uses.: 'No hay tipo de filamento asignado a un cabezal que usa esta impresión.'
   No filament was inserted in time: 'No se introdujo filamento a tiempo'
   Paste: "Pegar"
@@ -2143,7 +2143,7 @@ translations:
   Flow calibration is not allowed for this filament with a 0.2 mm nozzle.: 'La calibración de flujo no está permitida para este filamento con una boquilla de 0,2 mm.'
   Flow calibration is on for a filament and nozzle pair that does not allow it.: 'La calibración de flujo está activada para una combinación de filamento y boquilla que no la permite.'
   Flow calibration not allowed for {}: 'Calibración de flujo no permitida para {}'
-  Flow type: ''
+  Flow type: "Tipo de flujo"
   Flowguard: Flowguard
   Flushing Filament...: Purgando Filamento...
   Flying Toasters: Flying Toasters
@@ -3340,7 +3340,7 @@ translations:
   No tool is mounted: 'No hay ninguna herramienta montada'
   No tool mounted: 'Ninguna herramienta montada'
   No tool on the head: "No hay herramienta en el cabezal"
-  No toolhead detected: ''
+  No toolhead detected: "No se detectó ningún cabezal"
   No toolhead on the carriage: 'No hay cabezal en el carro'
   No tools to calibrate: No hay herramientas para calibrar
   'No turn: the gap moved {:.1f} Hz': "Sin giro: la diferencia se movió {:.1f} Hz"
@@ -3449,7 +3449,7 @@ translations:
   Nozzle Temperature: Temperatura de Boquilla
   Nozzle Temperatures: 'Temperaturas de boquilla'
   Nozzle Temps: Temps de boquilla
-  Nozzle changed: ''
+  Nozzle changed: "Boquilla cambiada"
   Nozzle clean complete: Limpieza de boquilla completa
   Nozzle clog detected: Se detectó una obstrucción en la boquilla
   Nozzle diameter: "Diámetro de boquilla"
@@ -3461,7 +3461,7 @@ translations:
   'Nozzle not changed: the printer did not confirm it': "Boquilla no cambiada: la impresora no lo confirmó"
   'Nozzle not changed: {}': "Boquilla no cambiada: {}"
   Nozzle not reported: 'Boquilla no informada'
-  Nozzle size: ''
+  Nozzle size: "Tamaño de boquilla"
   Nozzle size and flow type per head: "Tamaño y tipo de flujo de boquilla por cabezal"
   Nozzle target set to {}: Boquilla configurada a {}
   Nozzle temp must be %d-%s: La temperatura de la boquilla debe ser %d-%s
@@ -3551,7 +3551,7 @@ translations:
   Options: Opciones
   Or Enter Manually: O Ingrese Manualmente
   Or instead of turning the others: O en lugar de girar los demás
-  Orifice diameter of the nozzle fitted to this head: ''
+  Orifice diameter of the nozzle fitted to this head: "Diámetro del orificio de la boquilla montada en este cabezal"
   Original: 'Original'
   Original file location unknown: Ubicación del archivo original desconocida
   Orrery: 'Planetario'
@@ -4813,7 +4813,7 @@ translations:
   Stall detection setup failed for the Z motor — power-cycle to retry: Falló la configuración de la detección de bloqueo del motor Z. Apague y encienda para reintentar
   Stall detection setup failed for the extruder — power-cycle to retry: Falló la configuración de la detección de bloqueo del extrusor. Apague y encienda para reintentar
   Standard: Estándar
-  Standard or High Flow, as fitted to this head: ''
+  Standard or High Flow, as fitted to this head: "Estándar o High Flow, según la boquilla montada en este cabezal"
   Standby: En espera
   Starfield: Starfield
   Start: Iniciar
@@ -5066,7 +5066,7 @@ translations:
   That print is no longer paused: 'Esa impresión ya no está en pausa'
   That reading jumped too far to trust. Re-measure without turning.: "Esa lectura saltó demasiado para fiarse. Vuelve a medir sin girar."
   'That setting cannot be changed while a print is running': 'Ese ajuste no se puede cambiar mientras hay una impresión en curso'
-  That size is already set: ''
+  That size is already set: "Ese tamaño ya está configurado"
   That slot cannot stand in for this one: Esa ranura no puede sustituir a esta
   That tool is already loaded: Esa herramienta ya está cargada
   That toolhead can no longer take over the print: 'Ese cabezal ya no puede continuar la impresión'
@@ -5234,7 +5234,7 @@ translations:
   The gateway is not a valid address.: 'La puerta de enlace no es una dirección válida.'
   The gateway is not on the same subnet as the IP address.: 'La puerta de enlace no está en la misma subred que la dirección IP.'
   The head did not go back into its dock.: 'El cabezal no volvió a su base.'
-  The head is already set that way: ''
+  The head is already set that way: "El cabezal ya está configurado así"
   The head on the carriage does not read as properly picked up, so it was not parked.: 'El cabezal del carro no figura como bien tomado, así que no se aparcó.'
   The head to pick up does not read as docked.: 'El cabezal que hay que tomar no figura en su base.'
   ? "The head's extruder never gripped the filament: after several tries, with the nozzle cleaned between them, no movement registered at the nozzle."
@@ -5534,7 +5534,7 @@ translations:
   This CFS firmware exposes no external spool slot: 'Este firmware del CFS no ofrece una ranura para bobina externa'
   This Happy Hare system does not support bypass mode: 'Este sistema Happy Hare no es compatible con el modo bypass'
   Needs a newer Moonraker to hold uploads.: "Necesita un Moonraker más reciente para retener las subidas."
-  This applies now. Klipper's extrusion limit follows at its next restart.: ''
+  This applies now. Klipper's extrusion limit follows at its next restart.: "Se aplica ahora. El límite de extrusión de Klipper cambia en el próximo reinicio."
   This button controls: Este botón controla
   This calibration uses the paper friction method to set your Z-offset.: Esta calibración usa el método de fricción de papel para establecer su Z-offset.
   This cannot be undone.: Esta acción no se puede deshacer.
@@ -5587,7 +5587,7 @@ translations:
   This looks like a {}, but it is set up as a {}: Esta impresora parece una {}, pero está configurada como {}
   This may take up to 30 seconds: Esto puede tardar hasta 30 segundos
   Needs file analysis, which isn't running.: "Necesita el análisis de archivos, que no está en marcha."
-  This nozzle size can't be changed here: ''
+  This nozzle size can't be changed here: "Aquí no se puede cambiar el tamaño de esta boquilla"
   This plugin asks for no special permissions.: 'Este plugin no pide permisos especiales.'
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: 'Este plugin permite que HelixScreen controle opciones de inicio de impresión como malla de cama y QGL.'
   This print called {}, which the printer no longer has.: 'Esta impresión llamó a {}, que la impresora ya no tiene.'
@@ -5598,7 +5598,7 @@ translations:
   This print never reports layer {}.: 'Esta impresión nunca informa la capa {}.'
   This printer cannot calibrate tool offsets automatically: Esta impresora no puede calibrar los offsets de herramienta automáticamente
   This printer cannot stream the sweep to the screen: 'Esta impresora no puede mostrar el barrido en pantalla'
-  This printer doesn't accept that nozzle size: ''
+  This printer doesn't accept that nozzle size: "Esta impresora no acepta ese tamaño de boquilla"
   This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman.: Esta impresora llena sus gates desde Spoolman. HelixScreen borró su propia copia; quita la bobina en Spoolman.
   This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman.: Esta impresora llena sus gates desde Spoolman. Haz los cambios de color, material y bobina en Spoolman.
   'This printer has motor compensation, so the check runs twice: with it off, then on.': 'Esta impresora tiene compensación de motor, así que la comprobación se ejecuta dos veces: primero desactivada, luego activada.'
@@ -5606,7 +5606,7 @@ translations:
   This printer has no INDX LOAD_FILAMENT macro: "Esta impresora no tiene la macro LOAD_FILAMENT de INDX"
   This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: "Esta impresora aún no tiene un almacén [save_variables]. Actualiza las macros de ayuda para añadirlo y reinicia Klipper."
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: Esta impresora no tiene descarga automática. Corte el filamento en el cabezal y sáquelo a mano.
-  This printer has no such toolhead: ''
+  This printer has no such toolhead: "Esta impresora no tiene ese cabezal"
   This printer has no timezone, so its clock reads UTC. Pick yours.: "Esta impresora no tiene zona horaria, así que su reloj marca UTC. Elige la tuya."
   'This printer has no {} command, so the Z-offset cannot be saved.': 'Esta impresora no tiene el comando {}, así que no se puede guardar el Z-offset.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
@@ -5639,7 +5639,7 @@ translations:
   This screen: 'Esta pantalla'
   This screen can't play videos: 'Esta pantalla no puede reproducir vídeos'
   This screen can't play videos. Scan the code with your phone to watch the timelapse.: 'Esta pantalla no puede reproducir vídeos. Escanea el código con tu teléfono para ver el timelapse.'
-  This sets the nozzle size in the printer config.: ''
+  This sets the nozzle size in the printer config.: "Esto establece el tamaño de la boquilla en la configuración de la impresora."
   This slot feeds no tool: 'Esta ranura no alimenta ninguna herramienta'
   This spool ran out, so the CFS cannot pull the leftover filament back.: 'Esta bobina se agotó, así que el CFS no puede retraer el filamento sobrante.'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Los detalles de esta bobina aún no se han cargado desde Spoolman. Vuelve a pulsar Guardar.'
@@ -5647,8 +5647,8 @@ translations:
   This theme: Este tema
   'This tool has no number with a T command: assign it one first': 'Esta herramienta no tiene un número con comando T: asígnale uno primero'
   This tool probes each bed screw and tells you how much to adjust.: Esta herramienta sondea cada tornillo de cama y le indica cuánto ajustar.
-  This toolhead has no flow type to change: ''
-  This toolhead has no such flow type: ''
+  This toolhead has no flow type to change: "Este cabezal no tiene un tipo de flujo que cambiar"
+  This toolhead has no such flow type: "Este cabezal no tiene ese tipo de flujo"
   'This update asks for new permissions:': 'Esta actualización pide nuevos permisos:'
   This update removes HelixScreen from the printer.: 'Esta actualización elimina HelixScreen de la impresora.'
   This upgrades the printer's operating system packages.: 'Esto actualiza los paquetes del sistema operativo de la impresora.'
@@ -5777,7 +5777,7 @@ translations:
   Toolhead position and homing, with a plate view and Home All: "Posición y posicionamiento del cabezal, con vista de la placa y Posicionar todo"
   Toolhead position unknown: Posición del cabezal desconocida
   Toolhead sensors disagree: Los sensores del cabezal no coinciden
-  Toolhead settings: ''
+  Toolhead settings: "Ajustes del cabezal"
   Toolhead unloaded: Cabezal descargado
   Toolheads: Cabezales
   Tools: Herramientas
@@ -6618,7 +6618,7 @@ translations:
   '{} new': '{} nuevo(s)'
   '{} new hardware available': '{} nuevo hardware disponible'
   '{} new plugins available. Enable them in Settings > Plugins.': '{} nuevos plugins disponibles. Actívalos en Ajustes > Plugins.'
-  '{} nozzle': ''
+  '{} nozzle': "Boquilla de {}"
   '{} nozzle sensor fault': '{}: fallo del sensor de boquilla'
   '{} of {} points': '{} de {} puntos'
   "{} of {} steps didn't finish": "{} de {} pasos no terminaron"

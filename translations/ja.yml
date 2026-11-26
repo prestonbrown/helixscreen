@@ -916,8 +916,8 @@ translations:
   Change Tool While Paused: 一時停止中のツール交換
   Change heater control?: ヒーターの制御を変更しますか？
   Change it before starting the print.: '印刷を始める前に変更してください。'
-  Change nozzle size on {}?: ''
-  Change nozzle size?: ''
+  Change nozzle size on {}?: "{} のノズルサイズを変更しますか？"
+  Change nozzle size?: "ノズルサイズを変更しますか？"
   ? Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer's config folder.
   : 'Moonrakerを通じてプリンターの設定を変更します。プリンターの設定フォルダー内のファイルのアップロード、書き換え、削除を含みます。'
   Change the name or the linked spool in Spoolman.: "名前やリンクされたスプールは Spoolman で変更してください。"
@@ -1318,7 +1318,7 @@ translations:
   : "タイルを長押しすると編集モードになります。新しいグリッドでは、ウィジェットの並べ替え、サイズ変更、削除、追加、ページ間のドラッグができます。"
   'Moonraker answered at {}.': "{} でMoonrakerが応答しました。"
   "New in 1.1": "1.1 の新機能"
-  No filament system to send this to: ''
+  No filament system to send this to: "送信先のフィラメントシステムがありません"
   No filament type is set for a toolhead this print uses.: 'この印刷で使うツールヘッドにフィラメントの種類が設定されていません。'
   No filament was inserted in time: '時間内にフィラメントが挿入されませんでした'
   Paste: "貼り付け"
@@ -2143,7 +2143,7 @@ translations:
   Flow calibration is not allowed for this filament with a 0.2 mm nozzle.: '0.2 mm ノズルではこのフィラメントのフローキャリブレーションはできません。'
   Flow calibration is on for a filament and nozzle pair that does not allow it.: '対応していないフィラメントとノズルの組み合わせでフローキャリブレーションがオンになっています。'
   Flow calibration not allowed for {}: '{} はフローキャリブレーションできません'
-  Flow type: ''
+  Flow type: "フロータイプ"
   Flowguard: フローガード
   Flushing Filament...: フィラメントをフラッシュ中...
   Flying Toasters: フライングトースター
@@ -3340,7 +3340,7 @@ translations:
   No tool is mounted: 'ツールが装着されていません'
   No tool mounted: 'ツール未装着'
   No tool on the head: "ツールヘッドにツールがありません"
-  No toolhead detected: ''
+  No toolhead detected: "ツールヘッドが検出されません"
   No toolhead on the carriage: 'キャリッジにツールヘッドがありません'
   No tools to calibrate: キャリブレートするツールがありません
   'No turn: the gap moved {:.1f} Hz': "回していません: 差は{:.1f} Hz動きました"
@@ -3449,7 +3449,7 @@ translations:
   Nozzle Temperature: ノズル温度
   Nozzle Temperatures: 'ノズル温度'
   Nozzle Temps: ノズル温度
-  Nozzle changed: ''
+  Nozzle changed: "ノズルを変更しました"
   Nozzle clean complete: ノズル清掃完了
   Nozzle clog detected: ノズルの詰まりを検出しました
   Nozzle diameter: "ノズル径"
@@ -3461,7 +3461,7 @@ translations:
   'Nozzle not changed: the printer did not confirm it': "ノズルは変更されていません: プリンターが確認しませんでした"
   'Nozzle not changed: {}': "ノズルは変更されていません: {}"
   Nozzle not reported: 'ノズルが報告されていません'
-  Nozzle size: ''
+  Nozzle size: "ノズルサイズ"
   Nozzle size and flow type per head: "ツールヘッドごとのノズルサイズとフロータイプ"
   Nozzle target set to {}: ノズル目標温度を {} に設定しました
   Nozzle temp must be %d-%s: ノズル温度は %d〜%s にしてください
@@ -3551,7 +3551,7 @@ translations:
   Options: オプション
   Or Enter Manually: または手動で入力
   Or instead of turning the others: 他のネジを回す代わりに
-  Orifice diameter of the nozzle fitted to this head: ''
+  Orifice diameter of the nozzle fitted to this head: "このヘッドに取り付けられたノズルの口径"
   Original: 'オリジナル'
   Original file location unknown: 元のファイルの場所が不明です
   Orrery: '太陽系儀'
@@ -4813,7 +4813,7 @@ translations:
   Stall detection setup failed for the Z motor — power-cycle to retry: Z モーターのストール検出の設定に失敗しました。電源を入れ直して再試行してください
   Stall detection setup failed for the extruder — power-cycle to retry: エクストルーダーのストール検出の設定に失敗しました。電源を入れ直して再試行してください
   Standard: スタンダード
-  Standard or High Flow, as fitted to this head: ''
+  Standard or High Flow, as fitted to this head: "このヘッドに取り付けられたスタンダードまたはハイフロー"
   Standby: スタンバイ
   Starfield: 星空
   Start: 開始
@@ -5066,7 +5066,7 @@ translations:
   That print is no longer paused: 'その印刷はもう一時停止中ではありません'
   That reading jumped too far to trust. Re-measure without turning.: "この測定値は大きく跳びすぎて信頼できません。回さずに再測定してください。"
   'That setting cannot be changed while a print is running': '印刷中はこの設定を変更できません'
-  That size is already set: ''
+  That size is already set: "このサイズはすでに設定されています"
   That slot cannot stand in for this one: そのスロットはこのスロットの代わりになりません
   That tool is already loaded: そのツールはすでに装填されています
   That toolhead can no longer take over the print: 'そのツールヘッドは印刷を引き継げなくなりました'
@@ -5234,7 +5234,7 @@ translations:
   The gateway is not a valid address.: 'ゲートウェイが有効なアドレスではありません。'
   The gateway is not on the same subnet as the IP address.: 'ゲートウェイがIPアドレスと同じサブネットにありません。'
   The head did not go back into its dock.: 'ヘッドがドックに戻りませんでした。'
-  The head is already set that way: ''
+  The head is already set that way: "ヘッドはすでにその設定です"
   The head on the carriage does not read as properly picked up, so it was not parked.: 'キャリッジのヘッドが正しく装着されていると検出されないため、ドックに戻しませんでした。'
   The head to pick up does not read as docked.: '装着するヘッドがドック中として検出されません。'
   ? "The head's extruder never gripped the filament: after several tries, with the nozzle cleaned between them, no movement registered at the nozzle."
@@ -5534,7 +5534,7 @@ translations:
   This CFS firmware exposes no external spool slot: 'この CFS ファームウェアには外部スプール用スロットがありません'
   This Happy Hare system does not support bypass mode: 'この Happy Hare システムはバイパスモードに対応していません'
   Needs a newer Moonraker to hold uploads.: "アップロードを保留するには新しいMoonrakerが必要です。"
-  This applies now. Klipper's extrusion limit follows at its next restart.: ''
+  This applies now. Klipper's extrusion limit follows at its next restart.: "すぐに適用されます。Klipper の押出し上限は次回の再起動で反映されます。"
   This button controls: このボタンの制御対象
   This calibration uses the paper friction method to set your Z-offset.: このキャリブレーションは紙の摩擦方式を使用して Z-offset を設定します。
   This cannot be undone.: この操作は元に戻せません。
@@ -5587,7 +5587,7 @@ translations:
   This looks like a {}, but it is set up as a {}: このプリンターは{}のようですが、{}として設定されています
   This may take up to 30 seconds: 最大30秒かかる場合があります
   Needs file analysis, which isn't running.: "ファイル解析が必要ですが、実行されていません。"
-  This nozzle size can't be changed here: ''
+  This nozzle size can't be changed here: "このノズルサイズはここでは変更できません"
   This plugin asks for no special permissions.: 'このプラグインは特別な権限を要求しません。'
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: 'このプラグインにより、HelixScreen がベッドメッシュや QGL などの印刷開始オプションを制御できます。'
   This print called {}, which the printer no longer has.: 'この印刷は {} を使用しましたが、プリンターにはもうありません。'
@@ -5598,7 +5598,7 @@ translations:
   This print never reports layer {}.: 'この印刷はレイヤー {} を報告しません。'
   This printer cannot calibrate tool offsets automatically: このプリンターはツールオフセットを自動でキャリブレートできません
   This printer cannot stream the sweep to the screen: 'このプリンターはスイープを画面に表示できません'
-  This printer doesn't accept that nozzle size: ''
+  This printer doesn't accept that nozzle size: "このプリンターはそのノズルサイズに対応していません"
   This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman.: このプリンターのゲートは Spoolman から設定されます。HelixScreen 側のコピーはクリアしました。Spoolman でスプールを削除してください。
   This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman.: このプリンターのゲートは Spoolman から設定されます。色・素材・スプールの変更は Spoolman で行ってください。
   'This printer has motor compensation, so the check runs twice: with it off, then on.': 'このプリンターにはモーター補正があるため、チェックは補正オフ、続いてオンの 2 回実行されます。'
@@ -5606,7 +5606,7 @@ translations:
   This printer has no INDX LOAD_FILAMENT macro: "このプリンターにはINDXのLOAD_FILAMENTマクロがありません"
   This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: "このプリンターにはまだ [save_variables] ストアがありません。ヘルパーマクロを更新して追加し、Klipper を再起動してください。"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: このプリンターには自動アンロード機能がありません。ヘッド部分でフィラメントを切り、手で引き抜いてください。
-  This printer has no such toolhead: ''
+  This printer has no such toolhead: "このプリンターにそのツールヘッドはありません"
   This printer has no timezone, so its clock reads UTC. Pick yours.: "このプリンターにはタイムゾーンがないため、時計は UTC を表示しています。お住まいの地域を選んでください。"
   'This printer has no {} command, so the Z-offset cannot be saved.': 'このプリンターには {} コマンドがないため、Zオフセットを保存できません。'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
@@ -5639,7 +5639,7 @@ translations:
   This screen: 'この画面'
   This screen can't play videos: 'この画面では動画を再生できません'
   This screen can't play videos. Scan the code with your phone to watch the timelapse.: 'この画面では動画を再生できません。スマートフォンでコードを読み取ってタイムラプスをご覧ください。'
-  This sets the nozzle size in the printer config.: ''
+  This sets the nozzle size in the printer config.: "プリンターの設定でノズルサイズを設定します。"
   This slot feeds no tool: 'このスロットはどのツールにも供給しません'
   This spool ran out, so the CFS cannot pull the leftover filament back.: 'このスプールは使い切られたため、CFS は残ったフィラメントを引き戻せません。'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'このスプールの詳細はまだSpoolmanから読み込まれていません。もう一度保存してください。'
@@ -5647,8 +5647,8 @@ translations:
   This theme: このテーマ
   'This tool has no number with a T command: assign it one first': 'このツールには T コマンドの番号がありません: 先に番号を割り当ててください'
   This tool probes each bed screw and tells you how much to adjust.: このツールは各ベッドネジをプローブし、どのくらい調整が必要かを教えます。
-  This toolhead has no flow type to change: ''
-  This toolhead has no such flow type: ''
+  This toolhead has no flow type to change: "このツールヘッドには変更できるフロータイプがありません"
+  This toolhead has no such flow type: "このツールヘッドにそのフロータイプはありません"
   'This update asks for new permissions:': 'この更新は新しい権限を要求します：'
   This update removes HelixScreen from the printer.: 'この更新はプリンターから HelixScreen を削除します。'
   This upgrades the printer's operating system packages.: 'プリンターのOSパッケージを更新します。'
@@ -5777,7 +5777,7 @@ translations:
   Toolhead position and homing, with a plate view and Home All: "ツールヘッドの位置とホーミング。プレート表示と全軸ホーミング付き"
   Toolhead position unknown: ツールヘッドの位置が不明です
   Toolhead sensors disagree: ツールヘッドのセンサーの値が一致しません
-  Toolhead settings: ''
+  Toolhead settings: "ツールヘッド設定"
   Toolhead unloaded: ツールヘッドからフィラメントを抜いた
   Toolheads: ツールヘッド
   Tools: ツール
@@ -6618,7 +6618,7 @@ translations:
   '{} new': '新規 {} 件'
   '{} new hardware available': '{} 個の新しいハードウェアが利用可能です'
   '{} new plugins available. Enable them in Settings > Plugins.': '{} 個の新しいプラグインが利用可能です。設定 > プラグインで有効化してください。'
-  '{} nozzle': ''
+  '{} nozzle': "{} ノズル"
   '{} nozzle sensor fault': '{} のノズルセンサー異常'
   '{} of {} points': '{} / {} 点'
   "{} of {} steps didn't finish": "{}/{}ステップが未完了"

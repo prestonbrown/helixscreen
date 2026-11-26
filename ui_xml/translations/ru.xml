@@ -925,8 +925,8 @@
   <translation tag="Change Tool While Paused" ru="Смена инструмента при паузе"/>
   <translation tag="Change heater control?" ru="Изменить управление нагревателем?"/>
   <translation tag="Change it before starting the print." ru="Измените это перед началом печати."/>
-  <translation tag="Change nozzle size on {}?"/>
-  <translation tag="Change nozzle size?"/>
+  <translation tag="Change nozzle size on {}?" ru="Изменить размер сопла на {}?"/>
+  <translation tag="Change nozzle size?" ru="Изменить размер сопла?"/>
   <translation tag="Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer&apos;s config folder." ru="Изменяет настройки принтера через Moonraker, включая загрузку, перезапись и удаление файлов в папке конфигурации принтера."/>
   <translation tag="Change the name or the linked spool in Spoolman." ru="Меняйте название или привязанную катушку в Spoolman."/>
   <translation tag="Change tool" ru="Сменить инструмент"/>
@@ -2085,7 +2085,7 @@
   <translation tag="Flow calibration is not allowed for this filament with a 0.2 mm nozzle." ru="Калибровка потока недоступна для этого филамента с соплом 0,2 мм."/>
   <translation tag="Flow calibration is on for a filament and nozzle pair that does not allow it." ru="Калибровка потока включена для пары филамента и сопла, где она недоступна."/>
   <translation tag="Flow calibration not allowed for {}" ru="Калибровка потока недоступна: {}"/>
-  <translation tag="Flow type"/>
+  <translation tag="Flow type" ru="Тип потока"/>
   <translation tag="Flowguard" ru="Flowguard"/>
   <translation tag="Flushing Filament..." ru="Прочистка филамента..."/>
   <translation tag="Flying Toasters" ru="Летающие тостеры"/>
@@ -3190,7 +3190,7 @@
   <translation tag="No filament loaded" ru="Филамент не загружен"/>
   <translation tag="No filament loaded to unload" ru="Нет загруженного филамента для выгрузки"/>
   <translation tag="No filament sensor detected" ru="Датчик филамента не обнаружен"/>
-  <translation tag="No filament system to send this to"/>
+  <translation tag="No filament system to send this to" ru="Нет системы филамента, куда это отправить"/>
   <translation tag="No filament type is set for a toolhead this print uses." ru="Для печатающей головки, используемой в этой печати, не задан тип филамента."/>
   <translation tag="No filament was inserted in time" ru="Филамент не был вставлен вовремя"/>
   <translation tag="No filament. Load filament and retry." ru="Нет филамента. Загрузите филамент и повторите попытку."/>
@@ -3262,7 +3262,7 @@
   <translation tag="No tool is mounted" ru="Инструмент не установлен"/>
   <translation tag="No tool mounted" ru="Инструмент не установлен"/>
   <translation tag="No tool on the head" ru="На печатающей головке нет инструмента"/>
-  <translation tag="No toolhead detected"/>
+  <translation tag="No toolhead detected" ru="Печатающая головка не обнаружена"/>
   <translation tag="No toolhead on the carriage" ru="На каретке нет печатающей головки"/>
   <translation tag="No tools to calibrate" ru="Нет инструментов для калибровки"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" ru="Без поворота: разница сдвинулась на {:.1f} Гц"/>
@@ -3363,7 +3363,7 @@
   <translation tag="Nozzle Temperature" ru="Температура сопла"/>
   <translation tag="Nozzle Temperatures" ru="Температуры сопел"/>
   <translation tag="Nozzle Temps" ru="Темп. сопел"/>
-  <translation tag="Nozzle changed"/>
+  <translation tag="Nozzle changed" ru="Сопло изменено"/>
   <translation tag="Nozzle clean complete" ru="Очистка сопла завершена"/>
   <translation tag="Nozzle clog detected" ru="Обнаружено засорение сопла"/>
   <translation tag="Nozzle diameter" ru="Диаметр сопла"/>
@@ -3375,7 +3375,7 @@
   <translation tag="Nozzle not changed: the printer did not confirm it" ru="Сопло не изменено: принтер не подтвердил"/>
   <translation tag="Nozzle not changed: {}" ru="Сопло не изменено: {}"/>
   <translation tag="Nozzle not reported" ru="Сопло не сообщено"/>
-  <translation tag="Nozzle size"/>
+  <translation tag="Nozzle size" ru="Размер сопла"/>
   <translation tag="Nozzle size and flow type per head" ru="Размер сопла и тип потока для каждой печатающей головки"/>
   <translation tag="Nozzle target set to {}" ru="Целевая температура сопла {}"/>
   <translation tag="Nozzle temp must be %d-%s" ru="Температура сопла должна быть %d-%s"/>
@@ -3460,7 +3460,7 @@
   <translation tag="Options" ru="Параметры"/>
   <translation tag="Or Enter Manually" ru="Или введите вручную"/>
   <translation tag="Or instead of turning the others" ru="Или вместо вращения остальных винтов"/>
-  <translation tag="Orifice diameter of the nozzle fitted to this head"/>
+  <translation tag="Orifice diameter of the nozzle fitted to this head" ru="Диаметр отверстия сопла, установленного на этой головке"/>
   <translation tag="Original" ru="Оригинал"/>
   <translation tag="Original file location unknown" ru="Расположение исходного файла неизвестно"/>
   <translation tag="Orrery" ru="Планетарий"/>
@@ -4723,7 +4723,7 @@
   <translation tag="Stall detection setup failed for the Z motor — power-cycle to retry" ru="Не удалась настройка детектирования заклинивания двигателя Z. Выключите и включите питание"/>
   <translation tag="Stall detection setup failed for the extruder — power-cycle to retry" ru="Не удалась настройка детектирования заклинивания экструдера. Выключите и включите питание"/>
   <translation tag="Standard" ru="Стандартный"/>
-  <translation tag="Standard or High Flow, as fitted to this head"/>
+  <translation tag="Standard or High Flow, as fitted to this head" ru="Стандартный или High Flow, как установлено на этой головке"/>
   <translation tag="Standby" ru="Режим ожидания"/>
   <translation tag="Starfield" ru="Звёздное небо"/>
   <translation tag="Start" ru="Старт"/>
@@ -4972,7 +4972,7 @@
   <translation tag="That print is no longer paused" ru="Эта печать больше не приостановлена"/>
   <translation tag="That reading jumped too far to trust. Re-measure without turning." ru="Это показание скакнуло слишком сильно, чтобы ему доверять. Измерьте снова, не вращая."/>
   <translation tag="That setting cannot be changed while a print is running" ru="Этот параметр нельзя изменить во время печати"/>
-  <translation tag="That size is already set"/>
+  <translation tag="That size is already set" ru="Этот размер уже задан"/>
   <translation tag="That slot cannot stand in for this one" ru="Этот слот не может заменить текущий"/>
   <translation tag="That tool is already loaded" ru="Этот инструмент уже загружен"/>
   <translation tag="That toolhead can no longer take over the print" ru="Эта печатающая головка больше не может продолжить печать"/>
@@ -5121,7 +5121,7 @@
   <translation tag="The gateway is not a valid address." ru="Шлюз не является допустимым адресом."/>
   <translation tag="The gateway is not on the same subnet as the IP address." ru="Шлюз находится не в той же подсети, что и IP-адрес."/>
   <translation tag="The head did not go back into its dock." ru="Головка не вернулась в док."/>
-  <translation tag="The head is already set that way"/>
+  <translation tag="The head is already set that way" ru="Головка уже настроена так"/>
   <translation tag="The head on the carriage does not read as properly picked up, so it was not parked." ru="Головка на каретке не числится правильно взятой, поэтому её не поставили в док."/>
   <translation tag="The head to pick up does not read as docked." ru="Головка, которую нужно взять, не числится в доке."/>
   <translation tag="The head&apos;s extruder never gripped the filament: after several tries, with the nozzle cleaned between them, no movement registered at the nozzle." ru="Экструдер головки так и не захватил филамент: после нескольких попыток с очисткой сопла между ними движение у сопла не зафиксировано."/>
@@ -5389,7 +5389,7 @@
   <translation tag="This AFC system does not support bypass mode" ru="Эта система AFC не поддерживает режим обхода"/>
   <translation tag="This CFS firmware exposes no external spool slot" ru="Эта прошивка CFS не предоставляет слот для внешней катушки"/>
   <translation tag="This Happy Hare system does not support bypass mode" ru="Эта система Happy Hare не поддерживает режим обхода"/>
-  <translation tag="This applies now. Klipper&apos;s extrusion limit follows at its next restart."/>
+  <translation tag="This applies now. Klipper&apos;s extrusion limit follows at its next restart." ru="Применяется сразу. Предел экструзии Klipper изменится при следующем перезапуске."/>
   <translation tag="This button controls" ru="Эта кнопка управляет"/>
   <translation tag="This calibration uses the paper friction method to set your Z-offset." ru="Эта калибровка использует метод трения бумаги об сопло для установки Z-смещения."/>
   <translation tag="This cannot be undone." ru="Это действие нельзя отменить."/>
@@ -5426,7 +5426,7 @@
   <translation tag="This light chip controls" ru="Этот значок света управляет"/>
   <translation tag="This looks like a {}, but it is set up as a {}" ru="Похоже, это {}, но принтер настроен как {}"/>
   <translation tag="This may take up to 30 seconds" ru="Это может занять до 30 секунд"/>
-  <translation tag="This nozzle size can&apos;t be changed here"/>
+  <translation tag="This nozzle size can&apos;t be changed here" ru="Размер этого сопла здесь изменить нельзя"/>
   <translation tag="This plugin asks for no special permissions." ru="Этот плагин не запрашивает специальных разрешений."/>
   <translation tag="This plugin lets HelixScreen control print start options like bed mesh and QGL." ru="Этот плагин позволяет HelixScreen управлять опциями начала печати, такими как сетка стола и QGL."/>
   <translation tag="This print called {}, which the printer no longer has." ru="Эта печать вызвала {}, которых больше нет на принтере."/>
@@ -5437,7 +5437,7 @@
   <translation tag="This print never reports layer {}." ru="Эта печать никогда не сообщает слой {}."/>
   <translation tag="This printer cannot calibrate tool offsets automatically" ru="Этот принтер не может калибровать смещения инструментов автоматически"/>
   <translation tag="This printer cannot stream the sweep to the screen" ru="Этот принтер не может показывать развёртку на экране"/>
-  <translation tag="This printer doesn&apos;t accept that nozzle size"/>
+  <translation tag="This printer doesn&apos;t accept that nozzle size" ru="Этот принтер не принимает такой размер сопла"/>
   <translation tag="This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman." ru="Этот принтер берёт данные шлюзов из Spoolman. HelixScreen очистил свою копию; удалите катушку в Spoolman."/>
   <translation tag="This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman." ru="Этот принтер берёт данные шлюзов из Spoolman. Меняйте цвет, материал и катушку в Spoolman."/>
   <translation tag="This printer has motor compensation, so the check runs twice: with it off, then on." ru="У этого принтера есть компенсация моторов, поэтому проверка выполняется дважды: сначала с выключенной, затем с включённой."/>
@@ -5445,7 +5445,7 @@
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" ru="На этом принтере нет макроса INDX LOAD_FILAMENT"/>
   <translation tag="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper." ru="На этом принтере ещё нет хранилища [save_variables]. Обновите вспомогательные макросы, чтобы добавить его, затем перезапустите Klipper."/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." ru="У этого принтера нет автоматической выгрузки. Отрежьте филамент у головки и вытащите его вручную."/>
-  <translation tag="This printer has no such toolhead"/>
+  <translation tag="This printer has no such toolhead" ru="У этого принтера нет такой головки"/>
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." ru="У этого принтера не задан часовой пояс, поэтому часы показывают UTC. Выберите свой."/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." ru="У этого принтера нет команды {}, поэтому Z-смещение нельзя сохранить."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." ru="Этот принтер похож на {} (уверенность {}%), но настроен как {}. Неверный тип применяет неправильные параметры перед печатью и пресеты."/>
@@ -5473,7 +5473,7 @@
   <translation tag="This screen" ru="Этот экран"/>
   <translation tag="This screen can&apos;t play videos" ru="Этот экран не может воспроизводить видео"/>
   <translation tag="This screen can&apos;t play videos. Scan the code with your phone to watch the timelapse." ru="Этот экран не может воспроизводить видео. Отсканируйте код телефоном, чтобы посмотреть таймлапс."/>
-  <translation tag="This sets the nozzle size in the printer config."/>
+  <translation tag="This sets the nozzle size in the printer config." ru="Задаёт размер сопла в конфигурации принтера."/>
   <translation tag="This slot feeds no tool" ru="Этот слот не подаёт филамент ни в один инструмент"/>
   <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." ru="Эта катушка закончилась, поэтому CFS не может втянуть оставшийся филамент."/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." ru="Данные этой катушки ещё не загружены из Spoolman. Нажмите «Сохранить» ещё раз."/>
@@ -5482,8 +5482,8 @@
   <translation tag="This tool has no number with a T command: assign it one first" ru="У этого инструмента нет номера с командой T: сначала назначьте его"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." ru="Этот инструмент проверяет каждый винт стола и показывает, насколько его нужно отрегулировать."/>
   <translation tag="This toolhead has no automatic feeder. Load the filament by hand." ru="У этой печатающей головки нет автоматического фидера. Загрузите филамент вручную."/>
-  <translation tag="This toolhead has no flow type to change"/>
-  <translation tag="This toolhead has no such flow type"/>
+  <translation tag="This toolhead has no flow type to change" ru="У этой головки нет типа потока для изменения"/>
+  <translation tag="This toolhead has no such flow type" ru="У этой головки нет такого типа потока"/>
   <translation tag="This update asks for new permissions:" ru="Это обновление запрашивает новые разрешения:"/>
   <translation tag="This update removes HelixScreen from the printer." ru="Это обновление удаляет HelixScreen с принтера."/>
   <translation tag="This upgrades the printer&apos;s operating system packages." ru="Будут обновлены пакеты операционной системы принтера."/>
@@ -5607,7 +5607,7 @@
   <translation tag="Toolhead position and homing, with a plate view and Home All" ru="Положение и парковка печатающей головки, с видом стола и кнопкой «Парковка всех осей»"/>
   <translation tag="Toolhead position unknown" ru="Положение печатающей головки неизвестно"/>
   <translation tag="Toolhead sensors disagree" ru="Датчики печатающей головки не согласуются"/>
-  <translation tag="Toolhead settings"/>
+  <translation tag="Toolhead settings" ru="Настройки печатающей головки"/>
   <translation tag="Toolhead unloaded" ru="Печатающая головка разгружена"/>
   <translation tag="Toolheads" ru="Печатающие головки"/>
   <translation tag="Tools" ru="Инструменты"/>
@@ -6465,7 +6465,7 @@
   <translation tag="{} new" ru="новых: {}"/>
   <translation tag="{} new hardware available" ru="Доступно нового оборудования: {}"/>
   <translation tag="{} new plugins available. Enable them in Settings &gt; Plugins." ru="Доступно новых плагинов: {}. Включите их в разделе Настройки &gt; Плагины."/>
-  <translation tag="{} nozzle"/>
+  <translation tag="{} nozzle" ru="Сопло {}"/>
   <translation tag="{} nozzle sensor fault" ru="{}: неисправность датчика сопла"/>
   <translation tag="{} of {} points" ru="{} из {} точек"/>
   <translation tag="{} of {} steps didn&apos;t finish" ru="{} из {} шагов не завершены"/>
