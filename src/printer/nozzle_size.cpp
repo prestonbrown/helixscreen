@@ -214,7 +214,7 @@ PrinterInputs inputs_from_state(PrinterState& state) {
     }
     in.config_supervised = firmware_supervised();
     in.vendor_records_pending = state.get_discovery().has_snapmaker() && !in.vendor_records_present;
-    in.printing = printer_has_job(state.print_state().get_print_job_state()) ||
+    in.printing = job_holds_machine(state.print_state().get_print_lifecycle()) ||
                   state.print_state().is_print_in_progress();
     in.size_command = size_command_state();
     in.size_command_runtime_only = state.get_discovery().is_kalico();
