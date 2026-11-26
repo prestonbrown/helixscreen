@@ -29,7 +29,7 @@ TEST_CASE("nozzle size: a single-extruder mainline printer edits its config", "[
     const Capability cap = capability(mainline({0.4}));
     REQUIRE(cap.heads.size() == 1);
     const HeadCapability& h = cap.heads[0];
-    CHECK(h.tool == 0);
+    CHECK(h.extruder_index == 0);
     CHECK(h.extruder == "extruder");
     CHECK(h.current == std::optional<double>(0.4));
     CHECK(h.settable);
@@ -42,7 +42,7 @@ TEST_CASE("nozzle size: a single-extruder mainline printer edits its config", "[
 TEST_CASE("nozzle size: a two-extruder config gives each head its own entry", "[nozzle_size]") {
     const Capability cap = capability(mainline({0.4, 0.6}));
     REQUIRE(cap.heads.size() == 2);
-    CHECK(cap.heads[1].tool == 1);
+    CHECK(cap.heads[1].extruder_index == 1);
     CHECK(cap.heads[1].extruder == "extruder1");
     CHECK(cap.heads[1].current == std::optional<double>(0.6));
     CHECK(cap.heads[1].mechanism == Mechanism::ConfigEdit);
@@ -77,6 +77,34 @@ TEST_CASE("nozzle size: vendor nozzle records make every head a vendor call with
         CHECK(h.choices == std::vector<double>{0.2, 0.4, 0.6, 0.8});
     }
     CHECK(cap.heads[2].current == std::optional<double>(0.6));
+    for (const auto& h : cap.heads) {
+        CHECK(h.flow_variants == std::vector<std::string>{"Standard", "High Flow"});
+    }
+}
+
+TEST_CASE("nozzle size: only a vendor head offers flow variants", "[nozzle_size]") {
+    PrinterInputs in = mainline({0.4});
+    in.set_nozzle_diameter_registered = true;
+    CHECK(capability(in).heads[0].flow_variants.empty());
+    CHECK(capability(mainline({0.4})).heads[0].flow_variants.empty());
+}
+
+TEST_CASE("nozzle size: lane tools on one extruder are one head", "[nozzle_size]") {
+    PrinterInputs in = mainline({0.6});
+    const std::vector<std::string> lanes = {"extruder", "extruder", "extruder", "extruder"};
+    REQUIRE(capability(in).heads.size() == 1);
+    for (int tool = 0; tool < 4; ++tool) {
+        CHECK(head_nozzle_for_tool(in, lanes, tool) == std::optional<double>(0.6));
+    }
+    CHECK_FALSE(head_nozzle_for_tool(in, lanes, 4).has_value());
+}
+
+TEST_CASE("nozzle size: each tool of a changer resolves to its own extruder", "[nozzle_size]") {
+    PrinterInputs in = mainline({0.4, 0.6});
+    const std::vector<std::string> heads = {"extruder", "extruder1"};
+    CHECK(head_nozzle_for_tool(in, heads, 1) == std::optional<double>(0.6));
+    CHECK(head_nozzle_for_tool(in, {}, 1) == std::optional<double>(0.6));
+    CHECK_FALSE(head_nozzle_for_tool(in, {"", "extruder1"}, 0).has_value());
 }
 
 TEST_CASE("nozzle size: a firmware-supervised config is read-only", "[nozzle_size]") {

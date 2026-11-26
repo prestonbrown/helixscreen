@@ -59,7 +59,7 @@ struct PrinterInputs {
 };
 
 struct HeadCapability {
-    int tool = 0;                  ///< T-number
+    int extruder_index = 0;        ///< the N of "extruderN": a head is a physical extruder
     std::string extruder;          ///< "extruder", "extruder1"
     std::optional<double> current; ///< live field if reported, else config
     bool settable = false;
@@ -67,6 +67,9 @@ struct HeadCapability {
     bool restart_required = false; ///< the change applies after a Klipper restart
     bool idle_only = false;        ///< refused while printing or paused
     std::vector<double> choices;   ///< sizes the user may pick
+    /// Flow types the head can be set to ("Standard", "High Flow"); empty where
+    /// the printer has no such choice.
+    std::vector<std::string> flow_variants;
 };
 
 struct Capability {
@@ -81,9 +84,17 @@ struct Capability {
 /// Which heads the printer has and how each is changed. Pure.
 [[nodiscard]] Capability capability(const PrinterInputs& inputs);
 
-/// The nozzle on @p tool: the single answer every consumer reads. nullopt for a
-/// head the printer does not have or that reports nothing.
-[[nodiscard]] std::optional<double> head_nozzle(const PrinterInputs& inputs, int tool);
+/// The nozzle on extruder @p extruder_index: the single answer every consumer
+/// reads. nullopt for a head the printer does not have or that reports nothing.
+[[nodiscard]] std::optional<double> head_nozzle(const PrinterInputs& inputs, int extruder_index);
+
+/// The nozzle behind tool @p tool. @p tool_extruders names the extruder each tool
+/// heats (ToolState::extruder_name_for_tool; "" for none). Where tools are lanes
+/// into one nozzle every tool resolves to that head. An empty list means a tool
+/// is its own head.
+[[nodiscard]] std::optional<double>
+head_nozzle_for_tool(const PrinterInputs& inputs, const std::vector<std::string>& tool_extruders,
+                     int tool);
 
 /// PrinterInputs as the running app knows the printer.
 [[nodiscard]] PrinterInputs inputs_from_state(PrinterState& state);
