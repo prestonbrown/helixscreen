@@ -113,12 +113,14 @@ TEST_CASE("Bundled DB namespaces stay an allowlist of filament overrides",
           "[debug-bundle][security]") {
     const auto namespaces = helix::DebugBundleCollector::filament_override_namespaces();
 
-    SECTION("it carries the three override stores and nothing else") {
-        REQUIRE(namespaces.size() == 3);
+    SECTION("it carries the four override stores and nothing else") {
+        REQUIRE(namespaces.size() == 4);
         CHECK(std::find(namespaces.begin(), namespaces.end(), "lane_data") != namespaces.end());
         CHECK(std::find(namespaces.begin(), namespaces.end(), "helix-screen-afc-overrides") !=
               namespaces.end());
         CHECK(std::find(namespaces.begin(), namespaces.end(), "helix-screen-hh-overrides") !=
+              namespaces.end());
+        CHECK(std::find(namespaces.begin(), namespaces.end(), "helix-screen-ifs-overrides") !=
               namespaces.end());
     }
 

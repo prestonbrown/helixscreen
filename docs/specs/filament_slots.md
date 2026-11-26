@@ -52,9 +52,10 @@ saved.
 | AFC | AFC's plugin | Reads only. Edits go to AFC as G-code (`SET_SPOOL_ID`, `SET_COLOR`, `SET_MATERIAL`, `SET_WEIGHT`, `SET_MAP`), and AFC republishes its records. Fields AFC cannot hold (brand, name, colour name, catalog pick, total weight) live in HelixScreen's own namespace, `helix-screen-afc-overrides`. The external spool's lane (§4) is HelixScreen's |
 | Happy Hare | Happy Hare's Moonraker component | Reads only. Edits go to the gate map with `MMU_GATE_MAP`. Fields the gate map cannot hold live in `helix-screen-hh-overrides` |
 | OpenAMS with `[openams_spoolman]` | The component (a namespace Moonraker protects from clients) | Reads only. Edits go through the component's `server.openams_spoolman.edit` endpoint, and each bay's spool comes from the component's own status, since its records are one per tool, not per bay |
-| CFS, AD5X IFS, QIDI Box, Snapmaker U1, ACE, tool changers, OpenAMS without the component | HelixScreen | Writes the record, after writing what the firmware holds (colour, material and the like) with the printer's own commands |
+| AD5X IFS on Kiln OS, plugin API 1.12 or later | Kiln's `kiln_lanes` component | Reads only. Every edit goes through `IFS_SET_MATERIAL` with type, colour, spool id, vendor, name, Orca filament id and bed temperature, and Kiln rewrites the record. Fields Kiln cannot hold live in `helix-screen-ifs-overrides` |
+| CFS, AD5X IFS (other firmware, Kiln before 1.12), QIDI Box, Snapmaker U1, ACE, tool changers, OpenAMS without the component | HelixScreen | Writes the record, after writing what the firmware holds (colour, material and the like) with the printer's own commands |
 
-The two HelixScreen namespaces for AFC and Happy Hare hold records of the same
+The HelixScreen namespaces for AFC, Happy Hare and Kiln hold records of the same
 shape (§3), narrowed to the fields their firmware cannot hold; a spool id,
 material or colour found there is ignored, because the firmware's value wins.
 
@@ -66,7 +67,7 @@ interactive clients, where a user edits a lane. HelixScreen is an interactive
 client on every printer:
 
 - **Where the filament system has a producer** (AFC, Happy Hare, OpenAMS with
-  the component), HelixScreen sends edits through that producer's own commands
+  the component, Kiln OS from plugin API 1.12), HelixScreen sends edits through that producer's own commands
   and writes no lane records, as the table above says.
 - **Where the firmware publishes no lane surface** (the table's last row),
   HelixScreen acts as the producer to fill the gap, for `lane_data` only. It

@@ -14,6 +14,7 @@
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "error_wording.h"
+#include "firmware_lane_writer.h"
 #include "gcode_response_lines.h"
 #include "hardware_object_table.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -318,6 +319,9 @@ AmsBackendAd5xIfs::required_status_objects(const helix::PrinterDiscovery& hw) {
             objects.emplace_back(name);
         }
     }
+    for (auto& name : helix::lane_writer::required_status_objects(hw)) {
+        objects.emplace_back(std::move(name));
+    }
     return objects;
 }
 
@@ -353,6 +357,8 @@ void AmsBackendAd5xIfs::set_discovery(const helix::PrinterDiscovery& discovery) 
     bin_purge_macros_ = bin_purge_macros(discovery);
     print_start_takes_tool_slots_ = helix::print_start::takes_tool_slots(discovery);
     keeps_afc_lane_map_ = discovery.has_zmod_afc();
+    lane_writer_awaited_ = helix::lane_writer::firmware_may_write_lane_records(discovery);
+    lane_writer_objects_ = helix::lane_writer::required_status_objects(discovery);
     spdlog::debug("{} Purge bin route: _G28={} _GOTO_TRASH={} PURGE_FILAMENT={}", backend_log_tag(),
                   bin_purge_macros_.home_if_needed, bin_purge_macros_.goto_bin,
                   bin_purge_macros_.stock_purge);
@@ -367,7 +373,12 @@ std::string AmsBackendAd5xIfs::purge_preamble_gcode(bool job_holds_machine) cons
 void AmsBackendAd5xIfs::on_started() {
     vendor_push_.reset();
     if (api_) {
-        open_lane_record_store("ifs");
+        // Where the firmware may write lane_data itself, the store opens once
+        // a status frame says whether it does (apply_lane_writer_status()):
+        // until then nothing of ours may reach lane_data.
+        if (!lane_writer_awaited_) {
+            open_ifs_lane_records(false);
+        }
 
         // Restore the last-known seated lane (#1065 power-cycle floor). The
         // firmware forgets the seated channel across a reboot, so this is the only
@@ -376,7 +387,10 @@ void AmsBackendAd5xIfs::on_started() {
         // firmware could drive is discarded; the port count itself arrives by
         // subscription after this, so remembered_unload_lane_locked() checks
         // the lane against it at use.
-        std::optional<int> seated = override_store_->load_seated_slot_blocking();
+        std::optional<int> seated =
+            override_store_
+                ? override_store_->load_seated_slot_blocking()
+                : helix::ams::FilamentSlotOverrideStore(api_, "ifs").load_seated_slot_blocking();
         if (seated.has_value() && (*seated < 0 || *seated >= kMaxPorts)) {
             seated.reset();
         }
@@ -399,51 +413,54 @@ void AmsBackendAd5xIfs::on_started() {
         return;
 
     auto token = lifetime_.token();
+    json query_objects{{"save_variables", nullptr},
+                       // Verify _IFS_VARS macro actually exists (not just save_variables data)
+                       {"gcode_macro _ifs_vars", nullptr},
+                       // lessWaste plugin: per-port filament switch sensors
+                       {"filament_switch_sensor _ifs_port_sensor_1", nullptr},
+                       {"filament_switch_sensor _ifs_port_sensor_2", nullptr},
+                       {"filament_switch_sensor _ifs_port_sensor_3", nullptr},
+                       {"filament_switch_sensor _ifs_port_sensor_4", nullptr},
+                       // Shared: head switch sensor (both lessWaste and native ZMOD)
+                       {"filament_switch_sensor head_switch_sensor", nullptr},
+                       // Native ZMOD IFS: single motion sensor (replaces per-port sensors)
+                       {"filament_motion_sensor ifs_motion_sensor", nullptr},
+                       // Native Z-Mod custom-module namespaces — the live AD5X pushes
+                       // its head switch + motion sensor under zmod_ifs_* sections
+                       // (no stock filament_*_sensor section exists), so query both.
+                       {"zmod_ifs_switch_sensor head_switch_sensor", nullptr},
+                       {"zmod_ifs_motion_sensor ifs_motion_sensor", nullptr},
+                       // Extruder temp/target — primary signal for the load/unload
+                       // phase tracker (HEATING completion). Without this the IFS
+                       // unload silently heats for ~2.5 min with no feedback.
+                       {"extruder", json::array({"target", "temperature"})},
+                       // Native ZMOD's own IFS objects, on firmware that publishes
+                       // them (ghzserg/z_ad5x#12). Moonraker drops objects this
+                       // printer does not have, which is how every other
+                       // mutually-exclusive pair in this list already works.
+                       {"zmod_ifs", nullptr},
+                       {"zmod_color", nullptr},
+                       // Standalone IFS module's objects - same drop-if-absent
+                       // rule, so one query serves either firmware. `ifs` doubles
+                       // as the remap capability gate: its tool_map key arms
+                       // set_tool_mapping(), and a frame without it leaves the
+                       // gate closed, same as a printer without the module.
+                       {"ifs", nullptr},
+                       {"ifs_materials", nullptr},
+                       {kZmodChangeMacro, nullptr},
+                       // The module's toolhead sensor registers under this stock
+                       // name ([ifs_toolhead_sensor toolhead]); its frames are the
+                       // head-presence authority on that firmware.
+                       {"filament_switch_sensor toolhead", nullptr},
+                       // Klippy state — GET_ZCOLOR SILENT=1 only works once zmod is
+                       // initialised, so we gate the initial query on webhooks.state == "ready".
+                       {"webhooks", nullptr}};
+    // The answer to who writes lane_data, where the firmware may.
+    for (const auto& name : lane_writer_objects_) {
+        query_objects[name] = nullptr;
+    }
     client_->send_jsonrpc(
-        "printer.objects.query",
-        json{{"objects",
-              json{{"save_variables", nullptr},
-                   // Verify _IFS_VARS macro actually exists (not just save_variables data)
-                   {"gcode_macro _ifs_vars", nullptr},
-                   // lessWaste plugin: per-port filament switch sensors
-                   {"filament_switch_sensor _ifs_port_sensor_1", nullptr},
-                   {"filament_switch_sensor _ifs_port_sensor_2", nullptr},
-                   {"filament_switch_sensor _ifs_port_sensor_3", nullptr},
-                   {"filament_switch_sensor _ifs_port_sensor_4", nullptr},
-                   // Shared: head switch sensor (both lessWaste and native ZMOD)
-                   {"filament_switch_sensor head_switch_sensor", nullptr},
-                   // Native ZMOD IFS: single motion sensor (replaces per-port sensors)
-                   {"filament_motion_sensor ifs_motion_sensor", nullptr},
-                   // Native Z-Mod custom-module namespaces — the live AD5X pushes
-                   // its head switch + motion sensor under zmod_ifs_* sections
-                   // (no stock filament_*_sensor section exists), so query both.
-                   {"zmod_ifs_switch_sensor head_switch_sensor", nullptr},
-                   {"zmod_ifs_motion_sensor ifs_motion_sensor", nullptr},
-                   // Extruder temp/target — primary signal for the load/unload
-                   // phase tracker (HEATING completion). Without this the IFS
-                   // unload silently heats for ~2.5 min with no feedback.
-                   {"extruder", json::array({"target", "temperature"})},
-                   // Native ZMOD's own IFS objects, on firmware that publishes
-                   // them (ghzserg/z_ad5x#12). Moonraker drops objects this
-                   // printer does not have, which is how every other
-                   // mutually-exclusive pair in this list already works.
-                   {"zmod_ifs", nullptr},
-                   {"zmod_color", nullptr},
-                   // Standalone IFS module's objects - same drop-if-absent
-                   // rule, so one query serves either firmware. `ifs` doubles
-                   // as the remap capability gate: its tool_map key arms
-                   // set_tool_mapping(), and a frame without it leaves the
-                   // gate closed, same as a printer without the module.
-                   {"ifs", nullptr},
-                   {"ifs_materials", nullptr},
-                   {kZmodChangeMacro, nullptr},
-                   // The module's toolhead sensor registers under this stock
-                   // name ([ifs_toolhead_sensor toolhead]); its frames are the
-                   // head-presence authority on that firmware.
-                   {"filament_switch_sensor toolhead", nullptr},
-                   // Klippy state — GET_ZCOLOR SILENT=1 only works once zmod is
-                   // initialised, so we gate the initial query on webhooks.state == "ready".
-                   {"webhooks", nullptr}}}},
+        "printer.objects.query", json{{"objects", std::move(query_objects)}},
         [this, token](const json& response) {
             // BG THREAD: extract local copies of what we need; no `this` access.
             // save_variables may contain lessWaste/bambufy data from a partially
@@ -499,6 +516,12 @@ void AmsBackendAd5xIfs::on_started() {
                                 }
 
                                 handle_status(status_copy);
+                            }
+                            // A query that did not say who writes lane_data
+                            // leaves HelixScreen the writer, as on a firmware
+                            // that never does; a later frame can still say.
+                            if (lane_writer_awaited_ && !firmware_writes_lane_records_) {
+                                open_ifs_lane_records(false);
                             }
 
                             // Log initial state after processing query response
@@ -603,6 +626,9 @@ void AmsBackendAd5xIfs::request_resync() {
 // --- Status parsing ---
 
 void AmsBackendAd5xIfs::handle_status(const json& status) {
+    // First, so the frame's slot readings meet the store this answer opens.
+    apply_lane_writer_status(status);
+
     // The parse reads the frame's plugin rows under the prefix already known.
     std::string known_prefix;
     {
@@ -1327,6 +1353,19 @@ void AmsBackendAd5xIfs::update_slot_from_state(int slot_index) {
         if (!materials_[idx].empty()) {
             cache.material = materials_[idx];
         }
+        // A firmware that writes lane_data holds the spool link, and the vendor
+        // and name it was sent; a vendor or name it could not take stays in our
+        // own record, so only a stated one is a reading.
+        if (const auto rec = firmware_lane_records_.find(slot_index);
+            rec != firmware_lane_records_.end()) {
+            cache.spoolman_id = std::max(rec->second.spoolman_id, 0);
+            if (!rec->second.brand.empty()) {
+                cache.brand = rec->second.brand;
+            }
+            if (!rec->second.spool_name.empty()) {
+                cache.spool_name = rec->second.spool_name;
+            }
+        }
         helix::ams::ingest(lane_id(slot_index), cache);
     }
 
@@ -1541,6 +1580,120 @@ void AmsBackendAd5xIfs::on_lane_records_read_locked() {
             ifs_vars_push_owed_ = true;
         }
     }
+}
+
+// --- Lane record writer ---
+
+void AmsBackendAd5xIfs::apply_lane_writer_status(const json& status) {
+    const std::optional<bool> writes = helix::lane_writer::firmware_writes_lane_records(status);
+    if (!writes || writes == firmware_writes_lane_records_ || !api_) {
+        return;
+    }
+    open_ifs_lane_records(*writes);
+}
+
+void AmsBackendAd5xIfs::open_ifs_lane_records(bool firmware_writes) {
+    firmware_writes_lane_records_ = firmware_writes;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        firmware_lane_records_.clear();
+    }
+    spdlog::info("{} lane records: {}", backend_log_tag(),
+                 firmware_writes ? "the firmware writes lane_data; ours are kept privately"
+                                 : "HelixScreen writes lane_data");
+    if (firmware_writes) {
+        open_lane_record_store("ifs", kOverrideNamespace);
+    } else {
+        open_lane_record_store("ifs");
+    }
+}
+
+void AmsBackendAd5xIfs::configure_lane_record_store_locked(
+    helix::ams::FilamentSlotOverrideStore& store) {
+    // The firmware holds type, color, spool link, vendor and name. Vendor and
+    // name stay here as well, for the text its command cannot carry; weights
+    // it has no field for.
+    helix::ams::ExtrasFields fields;
+    fields.remaining_weight = true;
+    fields.total_weight = true;
+    store.set_extras_fields(fields);
+}
+
+void AmsBackendAd5xIfs::refresh_backend_keys(helix::ams::FilamentSlotOverrideStore& store) {
+    if (!api_ || !store.holds_extras_only()) {
+        return;
+    }
+    auto token = lifetime_.token();
+    api_->database_get_namespace(
+        helix::ams::kLaneDataNamespace,
+        [this, token](const json& doc) {
+            token.defer("Ad5xIfsBackend::adopt_firmware_lane_records",
+                        [this, doc]() { adopt_firmware_lane_records(doc); });
+        },
+        [this, token](const MoonrakerError& err) {
+            // Nothing written yet is an empty namespace, not an unreachable one.
+            if (err.is_not_found()) {
+                token.defer("Ad5xIfsBackend::no_firmware_lane_records",
+                            [this]() { adopt_firmware_lane_records(json::object()); });
+            }
+        });
+}
+
+void AmsBackendAd5xIfs::adopt_firmware_lane_records(const json& namespace_doc) {
+    if (firmware_writes_lane_records_ != true) {
+        return;
+    }
+    std::unordered_map<int, helix::ams::FilamentSlotOverride> records;
+    for (auto& [slot, entry] : helix::ams::parse_namespace_document(
+             namespace_doc, helix::ams::LaneKeyStyle::Lane, backend_log_tag())) {
+        if (!entry.record.external_mirror) {
+            records.emplace(slot, std::move(entry.record));
+        }
+    }
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        const auto same = [](const helix::ams::FilamentSlotOverride& a,
+                             const helix::ams::FilamentSlotOverride& b) {
+            return a.spoolman_id == b.spoolman_id && a.brand == b.brand &&
+                   a.spool_name == b.spool_name;
+        };
+        bool changed = records.size() != firmware_lane_records_.size();
+        for (const auto& [slot, rec] : records) {
+            const auto it = firmware_lane_records_.find(slot);
+            changed = changed || it == firmware_lane_records_.end() || !same(it->second, rec);
+        }
+        if (!changed) {
+            return;
+        }
+        firmware_lane_records_ = std::move(records);
+        for (int slot = 0; slot < port_count(); ++slot) {
+            update_slot_from_state(slot);
+        }
+    }
+    emit_event(EVENT_STATE_CHANGED);
+}
+
+std::string AmsBackendAd5xIfs::firmware_identity_params_locked(int slot_index,
+                                                               const std::string& material) const {
+    if (firmware_writes_lane_records_ != true) {
+        return {};
+    }
+    const auto staged = overrides_.find(slot_index);
+    if (staged == overrides_.end()) {
+        return {};
+    }
+    // The record's identity as the edit leaves it, with the type the firmware
+    // will store: the Orca id and temperatures are the ones a lane_data record
+    // of ours would carry.
+    helix::ams::FilamentSlotOverride o = staged->second;
+    o.material = material;
+    helix::lane_writer::SlotIdentity identity;
+    identity.spool_id = o.spoolman_id;
+    identity.vendor = o.brand;
+    identity.name = o.spool_name;
+    identity.filament_id = helix::ams::orca_filament_id_for(o).id;
+    identity.bed_temp = helix::ams::resolved_temps(o).bed_temp;
+    return helix::lane_writer::slot_identity_params(identity);
 }
 
 // --- State queries ---
@@ -2985,6 +3138,9 @@ AmsError AmsBackendAd5xIfs::apply_user_edit(int slot_index, const SlotInfo& info
     // (outside the lock, further down) carry the same normalized value
     // write_port_locked() returned.
     std::string normalized_material;
+    // What the firmware edit command takes beyond type and color, where the
+    // firmware writes lane_data.
+    std::string identity_params;
 
     {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -3000,6 +3156,7 @@ AmsError AmsBackendAd5xIfs::apply_user_edit(int slot_index, const SlotInfo& info
         // record takes them from the firmware's echo, so it never names a
         // colour the firmware refused.
         persist_record_beside_firmware_locked(slot_index, info);
+        identity_params = firmware_identity_params_locked(slot_index, normalized_material);
 
         settle_port_locked(slot_index);
     }
@@ -3026,7 +3183,7 @@ AmsError AmsBackendAd5xIfs::apply_user_edit(int slot_index, const SlotInfo& info
         auto err = execute_gcode(
             "IFS_SET_MATERIAL SLOT=" +
             std::to_string(slot_index + 1) + // DISPLAY_NUMBERING_OK: gcode wire, not a label
-            " TYPE=" + normalized_material + " COLOR=" + color_hex);
+            " TYPE=" + normalized_material + " COLOR=" + color_hex + identity_params);
         if (!err.success()) {
             return err;
         }

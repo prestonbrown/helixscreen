@@ -624,7 +624,7 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// HelixScreen) on a backend where HelixScreen writes lane_data. Nothing
     /// is copied before the first record read lands (a save then would replace
     /// the stored record with a bare one), nor into a record another writer
-    /// owns. @p translucent is the firmware's alpha, for a firmware that
+    /// owns, nor into a private store. @p translucent is the firmware's alpha, for a firmware that
     /// states one beside the color. True when the record changed. Caller holds mutex_.
     bool mirror_firmware_identity_locked(int slot_index, uint32_t color,
                                          const std::string& material,

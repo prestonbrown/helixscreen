@@ -16,6 +16,7 @@
 #include "ams_backend_ad5x_ifs.h"
 #include "ams_state.h"
 #include "ams_types.h"
+#include "json_utils.h"
 #include "printer_discovery.h"
 #include "test_helpers/ad5x_ifs_test_access.h"
 #include "test_helpers/backend_harness.h"
@@ -1248,4 +1249,149 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     ams.clear_backends();
     ams.deinit_subjects();
+}
+
+// ============================================================================
+// A firmware that writes lane_data itself (helix::lane_writer)
+// ============================================================================
+
+namespace {
+
+json plugins_frame(const char* api_version) {
+    return json{{"ad5x_plugins", {{"api_version", api_version}, {"enabled", json::array()}}}};
+}
+
+helix::PrinterDiscovery module_discovery(bool with_plugins) {
+    helix::PrinterDiscovery hw;
+    std::vector<std::string> objects{"toolhead", "extruder", "save_variables", "ifs",
+                                     "ifs_materials"};
+    if (with_plugins) {
+        objects.emplace_back("ad5x_plugins");
+    }
+    hw.set_printer_objects(objects);
+    return hw;
+}
+
+/// A module backend wired, registered (so its lanes file), told what the
+/// objects list holds, and started.
+struct LaneWriterRig {
+    explicit LaneWriterRig(bool with_plugins) : backend(*registered) {
+        backend.set_discovery(module_discovery(with_plugins));
+        REQUIRE(backend.start().success());
+        helix::ui::UpdateQueue::instance().drain();
+    }
+    /// The namespaces every database write so far went to.
+    std::vector<std::string> written_namespaces() {
+        std::vector<std::string> out;
+        for (const auto& call : backend.wire().fake_client().rpc_calls) {
+            if (call.method == "server.database.post_item") {
+                out.push_back(helix::json_util::safe_string(call.params, "namespace"));
+            }
+        }
+        return out;
+    }
+    bool wrote_to(const std::string& ns) {
+        const auto all = written_namespaces();
+        return std::find(all.begin(), all.end(), ns) != all.end();
+    }
+    helix::test::RegisteredBackend<helix::test::WiredBackend<TestableModuleBackend>> registered;
+    helix::test::WiredBackend<TestableModuleBackend>& backend;
+};
+
+helix::SlotInfo linked_spool_edit() {
+    helix::SlotInfo info;
+    info.color_rgb = 0x7EC8E3;
+    info.material = "PLA";
+    info.brand = "Polymaker";
+    info.spool_name = "Matte PLA";
+    info.spoolman_id = 42;
+    return info;
+}
+
+} // namespace
+
+TEST_CASE("AD5X IFS on a firmware that writes lane_data sends the whole slot identity",
+          "[ams][ad5x_ifs][ifs_module][lane_writer]") {
+    LaneWriterRig rig(/*with_plugins=*/true);
+    rig.backend.fire_status(plugins_frame("1.12"));
+    rig.backend.fire_status(module_ifs_frame(0, {1, 2, 3, 4}));
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(rig.backend.firmware_writes_lane_records() == true);
+
+    REQUIRE(helix::test::apply_edit(rig.backend, 1, linked_spool_edit()).success());
+
+    // FILAMENT_ID is the Generic PLA preset a lane_data record of ours would
+    // name; BED_TEMP is PLA's default.
+    REQUIRE(rig.backend.captured_gcodes.size() == 1);
+    const std::string& sent = rig.backend.captured_gcodes.front();
+    CHECK(sent.rfind("IFS_SET_MATERIAL SLOT=2 TYPE=PLA COLOR=7EC8E3 SPOOL_ID=42 "
+                     "VENDOR=\"Polymaker\" NAME=\"Matte PLA\" FILAMENT_ID=",
+                     0) == 0);
+    CHECK(sent.find("FILAMENT_ID= ") == std::string::npos);
+    CHECK(sent.find("BED_TEMP=") != std::string::npos);
+    CHECK(sent.find("BED_TEMP= ") == std::string::npos);
+
+    // Our own notes go to the private namespace; lane_data is the firmware's.
+    CHECK(rig.wrote_to(AmsBackendAd5xIfs::kOverrideNamespace));
+    CHECK_FALSE(rig.wrote_to("lane_data"));
+}
+
+TEST_CASE("AD5X IFS writes nothing to lane_data before the firmware says who writes it",
+          "[ams][ad5x_ifs][ifs_module][lane_writer]") {
+    LaneWriterRig rig(/*with_plugins=*/true);
+    // Slot frames, an edit and their echoes, all before the version arrives.
+    rig.backend.fire_status(module_ifs_frame(0, {1, 2, 3, 4}));
+    rig.backend.fire_status(module_materials_frame());
+    REQUIRE(helix::test::apply_edit(rig.backend, 1, linked_spool_edit()).success());
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK_FALSE(rig.backend.firmware_writes_lane_records().has_value());
+    CHECK(rig.written_namespaces().empty());
+}
+
+TEST_CASE("AD5X IFS stays the lane_data writer below the firmware version that writes it",
+          "[ams][ad5x_ifs][ifs_module][lane_writer]") {
+    const bool with_plugins = GENERATE(true, false);
+    CAPTURE(with_plugins);
+    LaneWriterRig rig(with_plugins);
+    if (with_plugins) {
+        rig.backend.fire_status(plugins_frame("1.11"));
+    } else {
+        // No such firmware: the store opens at start, as it always has.
+        CHECK_FALSE(rig.backend.firmware_writes_lane_records().value_or(true));
+    }
+    rig.backend.fire_status(module_ifs_frame(0, {1, 2, 3, 4}));
+    helix::ui::UpdateQueue::instance().drain();
+
+    REQUIRE(helix::test::apply_edit(rig.backend, 1, linked_spool_edit()).success());
+
+    CHECK(rig.backend.captured_gcodes ==
+          std::vector<std::string>{"IFS_SET_MATERIAL SLOT=2 TYPE=PLA COLOR=7EC8E3"});
+    CHECK(rig.wrote_to("lane_data"));
+    CHECK_FALSE(rig.wrote_to(AmsBackendAd5xIfs::kOverrideNamespace));
+}
+
+TEST_CASE("AD5X IFS reads the spool link from the firmware's own lane_data records",
+          "[ams][ad5x_ifs][ifs_module][lane_writer]") {
+    LaneWriterRig rig(/*with_plugins=*/true);
+    // Every namespace read answers with the firmware's record for lane 1.
+    rig.backend.wire().respond_to("server.database.get_item",
+                                  json{{"value",
+                                        {{"lane1",
+                                          {{"lane", "0"},
+                                           {"material", "PLA"},
+                                           {"color", "#A03CF7"},
+                                           {"spool_id", 7},
+                                           {"vendor_name", "Polymaker"},
+                                           {"filament_id", "GFL99"}}}}}});
+    rig.backend.fire_status(plugins_frame("1.12"));
+    rig.backend.fire_status(module_ifs_frame(0, {1, 2, 3, 4}));
+    rig.backend.fire_status(module_materials_frame());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+
+    // The private store keeps no spool id, so the link is the firmware's.
+    const helix::SlotInfo slot = rig.backend.get_slot_info(0);
+    CHECK(slot.spoolman_id == 7);
+    CHECK(slot.brand == "Polymaker");
+    CHECK(slot.material == "PLA");
 }

@@ -4,6 +4,8 @@
 // status, materials and variables plus the gcode that changes them, so the real
 // backend runs under --test. The bare "ifs" value is AmsBackendMock's simulation.
 
+#include "core/text_io.h"
+#include "firmware_lane_writer.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_client_mock_internal.h"
 
@@ -93,6 +95,69 @@ nlohmann::json MoonrakerClientMock::ifs_module_vars_json() const {
                                    {"ifs_at_hub", ifs_module_at_hub_.load()}}}};
 }
 
+std::string MoonrakerClientMock::ifs_module_plugin_api() const {
+    const char* api = std::getenv("HELIX_MOCK_IFS_PLUGIN_API");
+    return api != nullptr ? std::string(api) : std::string();
+}
+
+namespace {
+
+/// One KEY=value parameter of an extended command, a double-quoted value
+/// unquoted as Klipper's shlex pass does. nullopt when the key is absent.
+std::optional<std::string> extended_param(const std::string& gcode, const std::string& key) {
+    const std::string pattern = " " + key + "=";
+    const size_t p = gcode.find(pattern);
+    if (p == std::string::npos) {
+        return std::nullopt;
+    }
+    size_t i = p + pattern.size();
+    if (i < gcode.size() && gcode[i] == '"') {
+        const size_t close = gcode.find('"', i + 1);
+        return gcode.substr(i + 1, close == std::string::npos ? std::string::npos : close - i - 1);
+    }
+    const size_t end = gcode.find_first_of(" \t", i);
+    return gcode.substr(i, end == std::string::npos ? std::string::npos : end - i);
+}
+
+int int_or_zero(const std::optional<std::string>& v) {
+    if (!v || v->empty()) {
+        return 0;
+    }
+    return helix::text_io::parse_leading<int>(*v).value_or(0);
+}
+
+} // namespace
+
+void MoonrakerClientMock::write_ifs_module_lane_record(int slot, const std::string& gcode) {
+    const std::string api = ifs_module_plugin_api();
+    const json frame{{"ad5x_plugins", {{"api_version", api}}}};
+    if (api.empty() || helix::lane_writer::firmware_writes_lane_records(frame) != true) {
+        return;
+    }
+    std::pair<std::string, std::string> tm;
+    {
+        std::lock_guard<std::mutex> lock(ifs_module_materials_mutex_);
+        tm = ifs_module_materials_[slot];
+    }
+    // What the firmware's lane_data writer keeps per slot: the identity the
+    // edit command took, beside type and color.
+    const int spool_id = int_or_zero(extended_param(gcode, "SPOOL_ID"));
+    const int bed_temp = int_or_zero(extended_param(gcode, "BED_TEMP"));
+    const auto text = [&gcode](const char* key) {
+        const auto v = extended_param(gcode, key);
+        return v && !v->empty() ? json(*v) : json(nullptr);
+    };
+    mock_db_set("lane_data", "lane" + std::to_string(slot),
+                json{{"lane", std::to_string(slot - 1)},
+                     {"material", tm.first},
+                     {"color", tm.second.empty() ? std::string() : "#" + tm.second},
+                     {"spool_id", spool_id > 0 ? json(spool_id) : json(nullptr)},
+                     {"vendor_name", text("VENDOR")},
+                     {"name", text("NAME")},
+                     {"filament_id", text("FILAMENT_ID")},
+                     {"bed_temp", bed_temp}});
+}
+
 bool MoonrakerClientMock::apply_ifs_module_gcode(const std::string& cmd, const std::string& gcode) {
     auto slot_param = [&]() -> int {
         const size_t s = gcode.find("SLOT=");
@@ -131,6 +196,9 @@ bool MoonrakerClientMock::apply_ifs_module_gcode(const std::string& cmd, const s
             }
             spdlog::info("[MoonrakerClientMock] IFS module: slot {} -> {} #{}", slot, tm.first,
                          tm.second);
+        }
+        if (slot >= 1 && slot <= 4) {
+            write_ifs_module_lane_record(slot, gcode);
         }
         return true;
     }

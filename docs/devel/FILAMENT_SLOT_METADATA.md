@@ -147,7 +147,7 @@ Each backend owns one store, keyed by its `backend_id`:
 
 | Backend | `backend_id` | Namespace |
 |---------|--------------|-----------|
-| `AmsBackendAd5xIfs` | `ifs` | `lane_data` |
+| `AmsBackendAd5xIfs` | `ifs` | `lane_data`; `helix-screen-ifs-overrides` (extras) where the firmware writes `lane_data` (`helix::lane_writer`) |
 | `AmsBackendSnapmaker` (and `AmsBackendMultiAce`) | `snapmaker` | `lane_data` |
 | `AmsBackendAce` | `ace` | `lane_data` |
 | `AmsBackendCfs` | `cfs` | `lane_data` |
@@ -170,6 +170,12 @@ pick and total weight, plus HelixScreen's bookkeeping. A spool id, material or
 colour in an extras record is ignored on read and never written, because the
 firmware's value is the lane's: AFC and Happy Hare state those through their own
 status, filed as `Firmware`.
+
+AD5X IFS takes the same model on a firmware that writes `lane_data` itself (Kiln OS
+from plugin API 1.12; `include/firmware_lane_writer.h`): its private store keeps
+brand and name too, as a fallback for text the edit command cannot carry, and the
+firmware's own `lane_data` records, read each poll, give the spool id, brand and
+name as `Firmware` (`FILAMENT_BACKEND_AD5X_IFS.md`).
 
 ---
 

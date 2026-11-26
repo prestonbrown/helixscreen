@@ -151,6 +151,17 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     static constexpr int kToolMapSize = helix::ad5x::kToolMapSize;
     static constexpr int kUnmappedPort = helix::ad5x::kUnmappedPort;
 
+    /// HelixScreen's own lane records (extras_only()) on a firmware that writes
+    /// lane_data itself (helix::lane_writer). Listed in
+    /// private_lane_record_namespaces().
+    static constexpr const char* kOverrideNamespace = "helix-screen-ifs-overrides";
+
+    /// Whether the firmware writes lane_data, as the last status frame that
+    /// said so stated; nullopt before one did. Main thread.
+    [[nodiscard]] std::optional<bool> firmware_writes_lane_records() const {
+        return firmware_writes_lane_records_;
+    }
+
     /// Ports the firmware drives: kDefaultPorts until a zmod_ifs / zmod_color
     /// frame reports a larger `color_limit`.
     [[nodiscard]] int port_count() const {
@@ -967,6 +978,25 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
                                           const std::string& firmware_material);
     // Copy the firmware changes owed since before the first record read.
     void on_lane_records_read_locked() override;
+    // On a private store, the fields the firmware holds stay out of it.
+    void configure_lane_record_store_locked(helix::ams::FilamentSlotOverrideStore& store) override;
+    // On a firmware that writes lane_data, read its records beside ours.
+    void refresh_backend_keys(helix::ams::FilamentSlotOverrideStore& store) override;
+    // Take @p status's answer to who writes lane_data (helix::lane_writer):
+    // the first answer opens the lane record store, and a changed one opens it
+    // again on the other namespace. A frame that says nothing changes nothing.
+    // Main thread, without mutex_.
+    void apply_lane_writer_status(const nlohmann::json& status);
+    // Open the store on lane_data, or on kOverrideNamespace when the firmware
+    // writes lane_data. Main thread, without mutex_.
+    void open_ifs_lane_records(bool firmware_writes);
+    // File a read of the firmware's lane_data records: their spool link,
+    // vendor and name join each slot's firmware reading. Main thread.
+    void adopt_firmware_lane_records(const nlohmann::json& namespace_doc);
+    // The firmware edit command's identity parameters for @p info, on a
+    // firmware that writes lane_data; empty elsewhere. Caller holds mutex_.
+    [[nodiscard]] std::string firmware_identity_params_locked(int slot_index,
+                                                              const std::string& material) const;
     void parse_adventurer_json(const std::string& content);
     void read_adventurer_json();
     void register_zcolor_listener();
@@ -1711,6 +1741,19 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     /// Z-Mod's built-in AFC is on, so a pick also updates its lane map with
     /// SET_MAP (only that emulation defines the command). Set by set_discovery().
     bool keeps_afc_lane_map_ = false;
+    /// The objects list names a firmware that may write lane_data itself, so
+    /// the lane record store waits for its answer before it opens
+    /// (helix::lane_writer). Set by set_discovery() before start().
+    bool lane_writer_awaited_ = false;
+    /// Status objects carrying that answer, asked for by on_started()'s query.
+    /// Set by set_discovery() before start().
+    std::vector<std::string> lane_writer_objects_;
+    /// The firmware's answer the store was opened for. Main thread.
+    std::optional<bool> firmware_writes_lane_records_;
+    /// Per slot, the firmware's own lane_data record, read on a firmware that
+    /// writes lane_data; its spool link, vendor and name are firmware
+    /// readings. Guarded by mutex_.
+    std::unordered_map<int, helix::ams::FilamentSlotOverride> firmware_lane_records_;
     /// Last `active_channel` an `ifs` frame actually carried (1-based; 0 =
     /// none), re-supplied into Ports-only diff frames for the same reason
     /// zmod_last_chan_ exists. Guarded by mutex_.
