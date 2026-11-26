@@ -193,6 +193,7 @@ bool ContextMenu::show_impl(lv_obj_t* parent, int item_index, lv_obj_t* anchor, 
 void ContextMenu::hide() {
     if (!menu_)
         return;
+    on_hide();
 
     if (s_active_ == this) {
         s_active_ = nullptr;

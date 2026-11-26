@@ -5053,6 +5053,7 @@ translations:
   'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}.': '测试塔宽{:.0f} mm、高{:.0f} mm,约{}分钟加加热时间: 共{}段,每段{:.0f} mm,温度{}。'
   'Testing rotation: %d° (%d/%d) - %ds remaining': '测试旋转: %d° (%d/%d) - 剩余%ds'
   Testing, servo, and motor operations: '测试、舵机与电机操作'
+  Text Clock: 文字时钟
   Thanks! Anonymous usage data helps improve HelixScreen.: 感谢！匿名使用数据有助于改进 HelixScreen。
   That file command cannot run here.: '该文件命令无法在此运行。'
   That print is no longer paused: '该打印已不再暂停'

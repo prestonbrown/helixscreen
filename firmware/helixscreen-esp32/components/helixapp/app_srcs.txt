@@ -502,6 +502,7 @@ src/ui/panel_widgets/active_spool_widget.cpp
 src/ui/panel_widgets/bed_mesh_tile_widget.cpp
 src/ui/panel_widgets/bypass_widget.cpp
 src/ui/panel_widgets/camera_widget.cpp
+src/ui/panel_widgets/clock_face.cpp
 src/ui/panel_widgets/clock_widget.cpp
 src/ui/panel_widgets/clog_detection_widget.cpp
 src/ui/panel_widgets/control_buttons_widget.cpp

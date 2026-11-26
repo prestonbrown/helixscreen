@@ -278,6 +278,17 @@ class ContextMenu {
     }
 
     /**
+     * @brief Called by hide() while the menu is still up, on every path that hides it
+     *
+     * A row pick, the backdrop, the close button and an owner's teardown go through hide(). A
+     * menu that holds resources beside its widgets (preview canvases) frees them here. Two
+     * paths do not reach a subclass's override: ~ContextMenu() calls hide() after the subclass
+     * is gone, so a subclass frees its own in its destructor; and a screen swap deletes the
+     * menu without hide(), which only an LV_EVENT_DELETE handler on the menu sees.
+     */
+    virtual void on_hide() {}
+
+    /**
      * @brief Card width policy, applied before the card's children resolve
      * Default: leave the width the XML declared.
      */

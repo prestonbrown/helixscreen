@@ -7,6 +7,7 @@
 #include "display_format.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
+#include "helix/ui/text_metrics.h"
 #include "locale_formats.h"
 #include "lvgl.h"
 #include "printer_state.h"
@@ -226,6 +227,11 @@ bool SaverLabel::needs_draw(const std::string& text, const DirtyRect& box,
     const bool covered = std::any_of(under.begin(), under.end(),
                                      [&outer](const DirtyRect& r) { return r.intersects(outer); });
     return text != text_ || !(box == box_) || covered;
+}
+
+bool clock_text_fits(const lv_font_t* font, const char* text, int32_t width, int32_t height) {
+    return font != nullptr && text != nullptr && theme_manager_get_font_height(font) <= height &&
+           helix::ui::text_width(text, font) <= width;
 }
 
 bool SaverLabel::draw(SaverCanvas& canvas, const std::string& text, const DirtyRect& box, Rgb color,

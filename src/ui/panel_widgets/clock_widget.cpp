@@ -7,6 +7,7 @@
 #include "core/text_io.h"
 #include "display_format.h"
 #include "helix/ui/text_metrics.h"
+#include "json_utils.h"
 #include "locale_formats.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
@@ -14,6 +15,12 @@
 #include "subject_managed_panel.h"
 #include "theme_manager.h"
 #include "widget_subjects.h"
+
+#if HELIX_ENABLE_SCREENSAVER
+#include "platform_capabilities.h"
+#include "screensaver.h"
+#include "screensaver_clock.h"
+#endif
 
 #include <spdlog/spdlog.h>
 
@@ -35,8 +42,6 @@ static char s_date_buffer[32];
 
 static helix::Subject s_uptime_subject;
 static char s_uptime_buffer[64];
-
-static helix::Subject s_size_mode_subject;
 
 static helix::WidgetSubjects s_subjects{"ClockWidgetSubjects"};
 
@@ -67,26 +72,41 @@ static void clock_widget_init_subjects() {
         HELIX_SUBJECT_DEBUG_REGISTER(&s_uptime_subject, "clock_uptime_text",
                                      LV_SUBJECT_TYPE_STRING);
 
-        // Size mode (0=compact/1x1, 1=normal/2x1, 2=expanded/2x2+)
-        s_size_mode_subject.init_int(1);
-        s_subjects.publish("clock_size_mode", &s_size_mode_subject);
-        HELIX_SUBJECT_DEBUG_REGISTER(&s_size_mode_subject, "clock_size_mode", LV_SUBJECT_TYPE_INT);
-
         spdlog::debug("[ClockWidget] Subjects initialized");
     });
 }
 
 namespace helix {
 void register_clock_widget() {
-    register_widget_factory("clock",
-                            [](const std::string&) { return std::make_unique<ClockWidget>(); });
+    register_widget_factory(
+        "clock", [](const std::string& id) { return std::make_unique<ClockWidget>(id); });
     register_widget_subjects("clock", clock_widget_init_subjects);
+#if HELIX_ENABLE_SCREENSAVER
+    register_clock_face_picker();
+#endif
 }
 } // namespace helix
 
 using namespace helix;
 
-ClockWidget::ClockWidget() = default;
+ClockWidget::ClockWidget(const std::string& instance_id)
+    : instance_id_(instance_id), size_subject_name_(instance_id + "_clock_size"),
+      face_subject_name_(instance_id + "_clock_face") {
+    // Size mode: 0 compact (time only), 1 normal (time and date), 2 expanded, 3 large.
+    UI_MANAGED_SUBJECT_INT(size_subject_, 1, size_subject_name_.c_str(), subjects_);
+    // 1 while a painted face shows instead of the text.
+    UI_MANAGED_SUBJECT_INT(face_subject_, 0, face_subject_name_.c_str(), subjects_);
+    attr_storage_ = {"size_subject", size_subject_name_, "face_subject", face_subject_name_};
+    for (const auto& a : attr_storage_) {
+        attrs_.push_back(a.c_str());
+    }
+    attrs_.push_back(nullptr);
+}
+
+void ClockWidget::set_config(const nlohmann::json& config) {
+    config_ = config.is_object() ? config : nlohmann::json::object();
+    face_ = parse_clock_face(json_util::safe_string(config_, "face"));
+}
 
 ClockWidget::~ClockWidget() {
     detach();
@@ -98,11 +118,17 @@ void ClockWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
 
     // Populate clock values immediately for initial display
     update_clock();
+    // A recycled instance gets a new tree: its face goes back on at the size it last had.
+    apply_face();
 
     spdlog::debug("[ClockWidget] Attached");
 }
 
 void ClockWidget::detach() {
+#if HELIX_ENABLE_SCREENSAVER
+    picker_.hide();
+    face_view_.hide();
+#endif
     if (lv_is_initialized()) {
         if (clock_timer_) {
             lv_timer_delete(clock_timer_);
@@ -119,7 +145,16 @@ void ClockWidget::detach() {
 }
 
 void ClockWidget::on_activate() {
+    active_ = true;
+#if HELIX_ENABLE_SCREENSAVER
+    // A face paints nothing while the display sleeps. Under a screensaver the active panel is
+    // suspended, which deactivates this widget, so the saver's own measurement never counts
+    // a tile's repaint.
+    display_asleep_ = DisplaySleepListener::display_sleeping();
+    sleep_listener_.listen([this](bool sleeping) { on_display_sleep(sleeping); });
+#endif
     update_clock();
+    apply_face();
 
     if (!clock_timer_) {
         clock_timer_ = lv_timer_create(clock_timer_cb, kClockUpdateIntervalMs, this);
@@ -128,6 +163,9 @@ void ClockWidget::on_activate() {
 }
 
 void ClockWidget::on_deactivate() {
+    active_ = false;
+    // Off screen a face paints nothing; it keeps its canvas for the way back.
+    apply_face();
     if (clock_timer_) {
         lv_timer_delete(clock_timer_);
         clock_timer_ = nullptr;
@@ -204,7 +242,7 @@ void ClockWidget::on_size_changed(int colspan, int rowspan, int width_px, int he
         mode = 2; // expanded: time + date + uptime
     }
 
-    lv_subject_set_int(&s_size_mode_subject, mode);
+    lv_subject_set_int(&size_subject_, mode);
 
     // Apply fonts scaled to widget size
     if (!widget_obj_)
@@ -236,6 +274,85 @@ void ClockWidget::on_size_changed(int colspan, int rowspan, int width_px, int he
     }
 
     spdlog::trace("[ClockWidget] Size changed: {}x{} -> mode {}", colspan, rowspan, mode);
+    apply_face();
+}
+
+bool ClockWidget::has_edit_configure() const {
+#if HELIX_ENABLE_SCREENSAVER
+    return true;
+#else
+    return false;
+#endif
+}
+
+bool ClockWidget::on_edit_configure() {
+#if HELIX_ENABLE_SCREENSAVER
+    picker_.show_for(parent_screen_, widget_obj_, face_, [this](ClockFace f) { select_face(f); });
+#endif
+    return false; // no rebuild: the face is applied in place
+}
+
+void ClockWidget::select_face(ClockFace face) {
+    face_ = face;
+    config_["face"] = clock_face_id(face);
+    save_widget_config(config_);
+    apply_face();
+    spdlog::info("[ClockWidget] {} face now {}", instance_id_, clock_face_id(face));
+}
+
+void ClockWidget::on_display_sleep(bool sleeping) {
+#if HELIX_ENABLE_SCREENSAVER
+    display_asleep_ = sleeping;
+    apply_face();
+#else
+    (void)sleeping;
+#endif
+}
+
+void ClockWidget::apply_face() {
+#if HELIX_ENABLE_SCREENSAVER
+    lv_obj_t* root = widget_obj_.get();
+    if (!active_ || display_asleep_) {
+        // Hidden, a face keeps its canvas and paints nothing; one never built waits until seen.
+        face_view_.pause();
+        return;
+    }
+    ClockFace shown = ClockFace::TEXT;
+    ClockCanvasSize canvas{};
+    if (root != nullptr && has_granted_size()) {
+        // The face fills the tile inside its padding, within the board's memory budget.
+        const int32_t w = granted_width_px() -
+                          static_cast<int32_t>(lv_obj_get_style_pad_left(root, LV_PART_MAIN) +
+                                               lv_obj_get_style_pad_right(root, LV_PART_MAIN));
+        const int32_t h = granted_height_px() -
+                          static_cast<int32_t>(lv_obj_get_style_pad_top(root, LV_PART_MAIN) +
+                                               lv_obj_get_style_pad_bottom(root, LV_PART_MAIN));
+        canvas = clock_face_canvas(face_, w, h,
+                                   clock_face_area_budget_px(PlatformCapabilities::cached().tier));
+        shown = clock_face_shown(face_, canvas.w, canvas.h);
+    }
+    if (shown == ClockFace::TEXT) {
+        face_view_.hide();
+        lv_subject_set_int(&face_subject_, 0);
+        return;
+    }
+    // The face sits on the home card: its surround is the card's color, in either theme.
+    const lv_color_t card = theme_manager_get_color("card_bg");
+    const ui::Rgb backdrop{card.red, card.green, card.blue};
+    lv_obj_t* built = face_view_.canvas_obj();
+    if (face_view_.face() == shown && built != nullptr && lv_obj_get_parent(built) == root &&
+        face_view_.width() == canvas.w && face_view_.height() == canvas.h &&
+        face_view_.backdrop() == backdrop) {
+        face_view_.resume(ui::saver_clock_now());
+        return;
+    }
+    const ClockFaceTempo tempo = clock_face_tempo(
+        shown, ScreensaverManager::instance().standing_here(clock_face_saver(shown)),
+        PlatformCapabilities::cached().cpu_cores);
+    const bool shows =
+        face_view_.show(root, shown, canvas.w, canvas.h, tempo, ui::saver_clock_now(), backdrop);
+    lv_subject_set_int(&face_subject_, shows ? 1 : 0);
+#endif
 }
 
 void ClockWidget::update_clock() {

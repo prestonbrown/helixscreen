@@ -7,6 +7,7 @@
 
 #include "async_lifetime_guard.h"
 #include "camera_stream.h"
+#include "display_sleep_listener.h"
 #include "json_fwd.h"
 #include "moonraker_types.h"
 
@@ -125,7 +126,7 @@ class CameraView {
 
     /// Guards the frame and status deferrals of one stream; stop() bumps it.
     AsyncLifetimeGuard stream_lifetime_;
-    std::shared_ptr<std::function<void(bool)>> sleep_handler_;
+    DisplaySleepListener sleep_listener_;
     std::function<void()> on_preempted_;
 };
 

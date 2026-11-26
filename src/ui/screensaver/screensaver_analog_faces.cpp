@@ -180,7 +180,7 @@ void chrono_subdial(APainter& p, APt s, float r, float hand_deg, Rgb hand, float
     p.disc(s, 4.0f * k, hand);
 }
 
-void chrono_dial(APainter& p, const AnalogGeom& g, const ClockReading& rd,
+void chrono_dial(APainter& p, const AnalogGeom& g, const ClockReading& rd, int32_t min_text_px,
                  std::vector<AnalogText>& texts) {
     const float k = scale_of(AnalogStyle::CHRONOGRAPH, g);
     const APt c{g.cx, g.cy};
@@ -287,14 +287,17 @@ void chrono_dial(APainter& p, const AnalogGeom& g, const ClockReading& rd,
         }
     }
 
-    // Date window under 12, maker's mark above 6.
+    // Date window under 12, maker's mark above 6. A window too small for legible text is left
+    // out, frame and all.
     const float dw = 52.0f * k;
     const float dh = 24.0f * k;
     const float dy = c.y - 106.0f * k;
-    p.round_rect(c.x - dw * 0.5f, dy - dh * 0.5f, c.x + dw * 0.5f, dy + dh * 0.5f, 3.0f * k,
-                 chrono::kDateWindow);
-    add_text(texts, AnalogTextRole::DATE_WINDOW, c.x, dy, dw - 4.0f * k, dh - 2.0f * k,
-             chrono::kDateText);
+    if (dh - 2.0f * k >= static_cast<float>(min_text_px)) {
+        p.round_rect(c.x - dw * 0.5f, dy - dh * 0.5f, c.x + dw * 0.5f, dy + dh * 0.5f, 3.0f * k,
+                     chrono::kDateWindow);
+        add_text(texts, AnalogTextRole::DATE_WINDOW, c.x, dy, dw - 4.0f * k, dh - 2.0f * k,
+                 chrono::kDateText);
+    }
     add_text(texts, AnalogTextRole::MAKER, c.x, c.y + 134.0f * k, 120.0f * k, 15.0f * k,
              chrono::kMaker);
 }
@@ -314,7 +317,7 @@ void chrono_hand(APainter& p, APt c, float deg, float len, float w, float k, boo
 }
 
 void chrono_hands(APainter& p, const AnalogGeom& g, const AnalogHands& h, ClockMode mode,
-                  bool smooth) {
+                  bool smooth, bool seconds) {
     const float k = scale_of(AnalogStyle::CHRONOGRAPH, g);
     const APt c{g.cx, g.cy};
     const float R = 225.0f * k;
@@ -322,8 +325,10 @@ void chrono_hands(APainter& p, const AnalogGeom& g, const AnalogHands& h, ClockM
     chrono_hand(p, c, h.minute, 180.0f * k, 12.0f * k, k, smooth);
     p.disc(c, 9.0f * k, chrono::kSteelEdge);
     const Rgb accent = print_state_color(mode, chrono::kAccent);
-    p.segment(polar(c.x, c.y, -40.0f * k, h.second), polar(c.x, c.y, R - 34.0f * k, h.second),
-              2.0f * k, accent, false);
+    if (seconds) {
+        p.segment(polar(c.x, c.y, -40.0f * k, h.second), polar(c.x, c.y, R - 34.0f * k, h.second),
+                  2.0f * k, accent, false);
+    }
     p.disc(c, 4.0f * k, accent);
 }
 
@@ -360,7 +365,7 @@ void station_dial(APainter& p, const AnalogGeom& g, const ClockReading& rd) {
     }
 }
 
-void station_hands(APainter& p, const AnalogGeom& g, const AnalogHands& h) {
+void station_hands(APainter& p, const AnalogGeom& g, const AnalogHands& h, bool seconds) {
     const float k = scale_of(AnalogStyle::STATION, g);
     const APt c{g.cx, g.cy};
     const APt sc{c.x + 3.0f * k, c.y + 5.0f * k};
@@ -371,13 +376,15 @@ void station_hands(APainter& p, const AnalogGeom& g, const AnalogHands& h) {
                 shadow_edge(k));
         p.taper(polar(c.x, c.y, -40.0f * k, deg), polar(c.x, c.y, len, deg), w0, w1, station::kInk);
     }
-    const APt tip = polar(c.x, c.y, 130.0f * k, h.second);
-    const APt stip = polar(sc.x, sc.y, 130.0f * k, h.second);
-    p.segment(polar(sc.x, sc.y, -50.0f * k, h.second), stip, 4.0f * k, kBlack, false,
-              shadow_edge(k));
-    p.disc(stip, 17.0f * k, kBlack, shadow_edge(k));
-    p.segment(polar(c.x, c.y, -50.0f * k, h.second), tip, 4.0f * k, station::kRed, false);
-    p.disc(tip, 17.0f * k, station::kRed);
+    if (seconds) {
+        const APt tip = polar(c.x, c.y, 130.0f * k, h.second);
+        const APt stip = polar(sc.x, sc.y, 130.0f * k, h.second);
+        p.segment(polar(sc.x, sc.y, -50.0f * k, h.second), stip, 4.0f * k, kBlack, false,
+                  shadow_edge(k));
+        p.disc(stip, 17.0f * k, kBlack, shadow_edge(k));
+        p.segment(polar(c.x, c.y, -50.0f * k, h.second), tip, 4.0f * k, station::kRed, false);
+        p.disc(tip, 17.0f * k, station::kRed);
+    }
     p.disc(c, 5.0f * k, station::kRed);
 }
 
@@ -421,16 +428,18 @@ void neon_dial(APainter& p, const AnalogGeom& g, const ClockReading& rd,
     }
 }
 
-void neon_hands(APainter& p, const AnalogGeom& g, const AnalogHands& h, bool smooth) {
+void neon_hands(APainter& p, const AnalogGeom& g, const AnalogHands& h, bool smooth, bool seconds) {
     const float k = scale_of(AnalogStyle::NEON, g);
     const APt c{g.cx, g.cy};
     neon_line(p, c, polar(c.x, c.y, 125.0f * k, h.hour), 7.0f * k, neon::kCyan, k, smooth);
     neon_line(p, c, polar(c.x, c.y, 185.0f * k, h.minute), 4.0f * k, neon::kCyan, k, smooth);
-    if (smooth) {
-        p.trail(c, 20.0f * k, 195.0f * k, h.second, 17.0f, neon::kMagenta, 0.6f);
+    if (seconds) {
+        if (smooth) {
+            p.trail(c, 20.0f * k, 195.0f * k, h.second, 17.0f, neon::kMagenta, 0.6f);
+        }
+        neon_line(p, polar(c.x, c.y, 20.0f * k, h.second), polar(c.x, c.y, 195.0f * k, h.second),
+                  2.0f * k, neon::kWhite, k, smooth);
     }
-    neon_line(p, polar(c.x, c.y, 20.0f * k, h.second), polar(c.x, c.y, 195.0f * k, h.second),
-              2.0f * k, neon::kWhite, k, smooth);
     p.ring(c, 5.0f * k, 7.0f * k, neon::kWhite);
 }
 
@@ -454,7 +463,10 @@ void bauhaus_dial(APainter& p, const AnalogGeom& g, const ClockReading& rd,
         p.wedge(c, R - 44.0f * k, from, eta_angle_after(rd, from), col, AEdge{0.18f});
     }
 
-    // The column: weekday, date, a rule, then the print.
+    // The column: weekday, date, a rule, then the print. A face laid out without it has none.
+    if (g.col_w <= 0.0f) {
+        return;
+    }
     const float f = g.col_scale;
     const float x0 = g.col_x;
     const float cw = g.col_w;
@@ -483,13 +495,15 @@ void bauhaus_dial(APainter& p, const AnalogGeom& g, const ClockReading& rd,
     }
 }
 
-void bauhaus_hands(APainter& p, const AnalogGeom& g, const AnalogHands& h) {
+void bauhaus_hands(APainter& p, const AnalogGeom& g, const AnalogHands& h, bool seconds) {
     const float k = scale_of(AnalogStyle::BAUHAUS, g);
     const APt c{g.cx, g.cy};
     p.segment(c, polar(c.x, c.y, 110.0f * k, h.hour), 14.0f * k, bauhaus::kCream, true);
     p.segment(c, polar(c.x, c.y, 160.0f * k, h.minute), 8.0f * k, bauhaus::kCream, true);
-    p.segment(polar(c.x, c.y, -30.0f * k, h.second), polar(c.x, c.y, 170.0f * k, h.second),
-              3.0f * k, bauhaus::kOrange, false);
+    if (seconds) {
+        p.segment(polar(c.x, c.y, -30.0f * k, h.second), polar(c.x, c.y, 170.0f * k, h.second),
+                  3.0f * k, bauhaus::kOrange, false);
+    }
     p.disc(c, 8.0f * k, bauhaus::kOrange);
 }
 
@@ -554,12 +568,15 @@ void orrery_planet(APainter& p, APt c, float orbit, float deg, float radius, Rgb
     p.disc(polar(c.x, c.y, orbit, deg), radius, color);
 }
 
-void orrery_hands(APainter& p, const AnalogGeom& g, const AnalogHands& h, bool smooth) {
+void orrery_hands(APainter& p, const AnalogGeom& g, const AnalogHands& h, bool smooth,
+                  bool seconds) {
     const float k = scale_of(AnalogStyle::ORRERY, g);
     const APt c{g.cx, g.cy};
     orrery_planet(p, c, kOrbitHour * k, h.hour, 15.0f * k, orrery::kHour, k, smooth);
     orrery_planet(p, c, kOrbitMinute * k, h.minute, 10.0f * k, orrery::kMinute, k, smooth);
-    orrery_planet(p, c, kOrbitSecond * k, h.second, 6.0f * k, orrery::kSecond, k, smooth);
+    if (seconds) {
+        orrery_planet(p, c, kOrbitSecond * k, h.second, 6.0f * k, orrery::kSecond, k, smooth);
+    }
 }
 
 } // namespace
@@ -651,12 +668,16 @@ DirtyRect analog_part_box(const AnalogPartSpec& spec, const AnalogGeom& g, float
 }
 
 void analog_draw_dial(APainter& p, AnalogStyle style, const AnalogGeom& g,
-                      const ClockReading& reading, std::vector<AnalogText>& texts) {
+                      const ClockReading& reading, std::vector<AnalogText>& texts,
+                      const AnalogClockOptions& options) {
     texts.clear();
-    p.fill(analog_background(style));
+    p.fill(options.backdrop.value_or(analog_background(style)));
+    if (options.backdrop && (style == AnalogStyle::NEON || style == AnalogStyle::ORRERY)) {
+        p.disc(APt{g.cx, g.cy}, g.r, analog_background(style));
+    }
     switch (style) {
     case AnalogStyle::CHRONOGRAPH:
-        chrono_dial(p, g, reading, texts);
+        chrono_dial(p, g, reading, options.min_text_px, texts);
         break;
     case AnalogStyle::STATION:
         station_dial(p, g, reading);
@@ -674,22 +695,22 @@ void analog_draw_dial(APainter& p, AnalogStyle style, const AnalogGeom& g,
 }
 
 void analog_draw_hands(APainter& p, AnalogStyle style, const AnalogGeom& g,
-                       const AnalogHands& hands, ClockMode mode, bool smooth) {
+                       const AnalogHands& hands, ClockMode mode, bool smooth, bool seconds) {
     switch (style) {
     case AnalogStyle::CHRONOGRAPH:
-        chrono_hands(p, g, hands, mode, smooth);
+        chrono_hands(p, g, hands, mode, smooth, seconds);
         break;
     case AnalogStyle::STATION:
-        station_hands(p, g, hands);
+        station_hands(p, g, hands, seconds);
         break;
     case AnalogStyle::NEON:
-        neon_hands(p, g, hands, smooth);
+        neon_hands(p, g, hands, smooth, seconds);
         break;
     case AnalogStyle::BAUHAUS:
-        bauhaus_hands(p, g, hands);
+        bauhaus_hands(p, g, hands, seconds);
         break;
     case AnalogStyle::ORRERY:
-        orrery_hands(p, g, hands, smooth);
+        orrery_hands(p, g, hands, smooth, seconds);
         break;
     }
 }

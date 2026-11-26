@@ -4893,6 +4893,7 @@
   <translation tag="Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}." it="Torre di prova larga {:.0f} mm e alta {:.0f} mm, circa {} min più il riscaldamento: {} fasce da {:.0f} mm a {}."/>
   <translation tag="Testing rotation: %d° (%d/%d) - %ds remaining" it="Test rotazione: %d° (%d/%d) - %ds rimanenti"/>
   <translation tag="Testing, servo, and motor operations" it="Operazioni di test, servo e motore"/>
+  <translation tag="Text Clock" it="Orologio testuale"/>
   <translation tag="Thanks! Anonymous usage data helps improve HelixScreen." it="Grazie! I dati anonimi di utilizzo aiutano a migliorare HelixScreen."/>
   <translation tag="That file command cannot run here." it="Quel comando file non può essere eseguito qui."/>
   <translation tag="That print is no longer paused" it="Quella stampa non è più in pausa"/>
