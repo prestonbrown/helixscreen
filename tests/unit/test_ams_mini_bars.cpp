@@ -200,8 +200,13 @@ TEST_CASE("ams_mini bars: a cut unit keeps its active lane in view", "[ams_mini]
     CHECK(p.cut_first + p.cut_lanes <= 12);
     CHECK(p.hidden_lanes == 12 - p.cut_lanes);
 
-    // An active lane among the first lanes keeps the window at the start.
+    // An active lane among the first lanes, or none, keeps the window at the start.
     CHECK(plan_ams_mini_bars({12}, 0, 57, 40, m, 2).cut_first == 0);
+    CHECK(plan_ams_mini_bars({12}, -1, 57, 40, m, -1).cut_first == 0);
+
+    // The last lane active: the window ends at the unit's end.
+    const AmsMiniBarPlan last = plan_ams_mini_bars({12}, 0, 57, 40, m, 11);
+    CHECK(last.cut_first + last.cut_lanes == 12);
 }
 
 TEST_CASE("ams_mini bars: an absent unit is neither placed nor counted",

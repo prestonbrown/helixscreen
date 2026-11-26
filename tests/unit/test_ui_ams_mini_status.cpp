@@ -599,6 +599,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: a cut unit shows its active lane"
     lv_obj_t* overflow = UITest::find_by_name(w, "ams_overflow_label");
     REQUIRE(overflow != nullptr);
     CHECK_FALSE(lv_obj_is_hidden(overflow));
+    const size_t shown = ams_mini_test::shown_lane_bars(w, 12).size();
+    REQUIRE(shown > 0);
+    CHECK(std::string(lv_label_get_text(overflow)) == "+" + std::to_string(12 - shown));
 
     lv_obj_delete(cell);
     ams.clear_backends();
