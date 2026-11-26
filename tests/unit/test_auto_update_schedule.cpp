@@ -234,6 +234,7 @@ TEST_CASE_METHOD(AutoUpdateTickFixture,
                  "[auto_update]") {
     REQUIRE(checker.auto_update_tick(at(kThreeAm + 5)) == AutoUpdateDecision::InstallNow);
     REQUIRE(installs == 1);
+    UpdateCheckerTestAccess::remember_auto_installed(checker, "9.9.9");
 
     // The restart forgets the in-memory attempt; the same release is still on offer.
     UpdateCheckerTestAccess::reset_auto_schedule(checker);
@@ -244,10 +245,25 @@ TEST_CASE_METHOD(AutoUpdateTickFixture,
 }
 
 TEST_CASE_METHOD(AutoUpdateTickFixture,
+                 "Auto-update tick: an install that failed is retried after a restart",
+                 "[auto_update]") {
+    REQUIRE(checker.auto_update_tick(at(kThreeAm + 5)) == AutoUpdateDecision::InstallNow);
+    REQUIRE(installs == 1);
+
+    // No success was recorded: the download or install.sh failed.
+    UpdateCheckerTestAccess::reset_auto_schedule(checker);
+    UpdateCheckerTestAccess::seed_available_update(checker);
+
+    CHECK(checker.auto_update_tick(at(kThreeAm + 5)) == AutoUpdateDecision::InstallNow);
+    CHECK(installs == 2);
+}
+
+TEST_CASE_METHOD(AutoUpdateTickFixture,
                  "Auto-update tick: a newer release after a restart still installs",
                  "[auto_update]") {
     REQUIRE(checker.auto_update_tick(at(kThreeAm + 5)) == AutoUpdateDecision::InstallNow);
     REQUIRE(installs == 1);
+    UpdateCheckerTestAccess::remember_auto_installed(checker, "9.9.9");
 
     UpdateCheckerTestAccess::reset_auto_schedule(checker);
     UpdateCheckerTestAccess::seed_available_update(checker, "99.1.0");

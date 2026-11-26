@@ -2370,10 +2370,6 @@ void UpdateChecker::do_install(const std::string& tarball_path, InstallOrigin or
         report_download_status(DownloadStatus::Idle, 0, "");
         helix::ui::queue_update("UpdateChecker::auto_install_retry", [] {
             UpdateChecker::instance().auto_install_attempted_version_.clear();
-            if (auto* config = Config::get_instance()) {
-                config->set<std::string>(kAutoInstalledVersionKey, "");
-                config->save();
-            }
         });
         return;
     }
@@ -2617,6 +2613,11 @@ void UpdateChecker::do_install(const std::string& tarball_path, InstallOrigin or
                            swapped_then_failed ? helix::update::kRollbackSwappedFile
                                                : helix::update::kRollbackPreviousFile);
     }
+    if (origin == InstallOrigin::Automatic) {
+        helix::ui::queue_update("UpdateChecker::remember_auto_installed", [version] {
+            UpdateChecker::instance().remember_auto_installed(version);
+        });
+    }
     if (stop_after_arm_for_test_) {
         return;
     }
@@ -2673,6 +2674,12 @@ void UpdateChecker::do_install(const std::string& tarball_path, InstallOrigin or
     }
 
     finish_install_and_restart(install_root, version);
+}
+
+void UpdateChecker::remember_auto_installed(const std::string& version) {
+    auto* config = Config::get_instance();
+    config->set<std::string>(kAutoInstalledVersionKey, version);
+    config->save();
 }
 
 void UpdateChecker::finish_install_and_restart(const std::string& install_root,
@@ -4218,7 +4225,6 @@ helix::update::AutoUpdateDecision UpdateChecker::auto_update_tick(const AutoUpda
             version = cached_info_->version;
         }
     }
-    // A version still on trial under the launcher's rollback guard settles first.
     const bool installed_before_restart =
         !version.empty() &&
         Config::get_instance()->get<std::string>(kAutoInstalledVersionKey, "") == version;
@@ -4227,6 +4233,7 @@ helix::update::AutoUpdateDecision UpdateChecker::auto_update_tick(const AutoUpda
                       "build still differs from it; not installing it again",
                       version);
     }
+    // A version still on trial under the launcher's rollback guard settles first.
     in.update_available = !version.empty() && !is_version_dismissed(version) &&
                           version != auto_install_attempted_version_ && !installed_before_restart &&
                           !download_in_flight() && !helix::update::rollback_guard_armed();
@@ -4243,9 +4250,6 @@ helix::update::AutoUpdateDecision UpdateChecker::auto_update_tick(const AutoUpda
     } else if (decision == AutoUpdateDecision::InstallNow) {
         spdlog::info("[UpdateChecker] Auto-update: installing v{} overnight", version);
         auto_install_attempted_version_ = version;
-        auto* config = Config::get_instance();
-        config->set<std::string>(kAutoInstalledVersionKey, version);
-        config->save();
         if (auto_install_hook_) {
             auto_install_hook_();
         } else {
