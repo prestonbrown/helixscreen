@@ -50,11 +50,14 @@ class ClockFacePicker : public helix::ui::ContextMenu {
         return {40, 220, 340};
     }
     void on_created(lv_obj_t* menu) override;
-    /// Every path that hides the menu frees the previews.
+    /// hide() frees the previews, on a row pick, the backdrop, the close button or the owner's
+    /// teardown.
     void on_hide() override;
 
   private:
     void free_previews();
+    /// The menu deleted without hide() (its screen torn down) frees the previews too.
+    static void on_menu_deleted(lv_event_t* e);
 
     std::array<ClockFaceView, kClockFaceCount - 1> previews_;
     OnPick on_pick_;

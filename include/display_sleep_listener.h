@@ -4,28 +4,36 @@
 #pragma once
 
 #include <functional>
-#include <memory>
 
 namespace helix {
 
 /**
  * @brief A display sleep and wake handler that lives as long as its owner
  *
- * DisplayManager keeps every sleep callback for the life of the process, so the registration
- * holds a weak handle that dies with this listener, never the owner. listen() registers once; a
- * later call replaces the handler. Without a DisplayManager (tests, a build with none) nothing
- * is registered. Main thread only.
+ * The app reports every sleep and wake edge through notify() (wired once beside the display
+ * in application_display.cpp), so a UI object follows the display without reaching up into
+ * DisplayManager. A listener is called from listen() until it is destroyed; a later listen()
+ * replaces the handler. Main thread only.
  */
 class DisplaySleepListener {
   public:
+    DisplaySleepListener() = default;
+    ~DisplaySleepListener();
+    DisplaySleepListener(const DisplaySleepListener&) = delete;
+    DisplaySleepListener& operator=(const DisplaySleepListener&) = delete;
+
     /// Calls `on_change` with true when the display goes to sleep and false when it wakes.
     void listen(std::function<void(bool sleeping)> on_change);
 
-    /// True while the display sleeps; false without a DisplayManager.
+    /// True while the display sleeps, as the last notify() said; false before any.
     static bool display_sleeping();
 
+    /// The display went to sleep (true) or woke (false): every live listener hears it.
+    static void notify(bool sleeping);
+
   private:
-    std::shared_ptr<std::function<void(bool)>> handler_;
+    std::function<void(bool)> on_change_;
+    bool registered_ = false;
 };
 
 } // namespace helix

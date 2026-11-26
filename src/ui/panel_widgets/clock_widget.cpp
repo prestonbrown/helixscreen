@@ -336,7 +336,7 @@ void ClockWidget::apply_face() {
         lv_subject_set_int(&face_subject_, 0);
         return;
     }
-    // The face sits on the home card: its surround is the card's colour, in either theme.
+    // The face sits on the home card: its surround is the card's color, in either theme.
     const lv_color_t card = theme_manager_get_color("card_bg");
     const ui::Rgb backdrop{card.red, card.green, card.blue};
     lv_obj_t* built = face_view_.canvas_obj();

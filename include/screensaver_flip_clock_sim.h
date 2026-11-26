@@ -320,8 +320,8 @@ class FlipClockSim {
         drift_on_ = on;
     }
 
-    /// What shows round the cards: black for the saver, the card's colour in a home tile, so
-    /// the cards sit on it. On a dark backdrop other than black the cards take a lighter grey
+    /// What shows round the cards: black for the saver, the card's color in a home tile, so
+    /// the cards sit on it. On a dark backdrop other than black the cards take a lighter gray
     /// (kCardTopOnDark, kCardBottomOnDark) so their edges still show; the split and digits are
     /// the same either way. Kept across clear().
     void set_backdrop(Rgb backdrop);
@@ -335,7 +335,7 @@ class FlipClockSim {
     static constexpr Rgb kBackground{0, 0, 0};
     static constexpr Rgb kCardTop{30, 30, 32};
     static constexpr Rgb kCardBottom{24, 24, 26};
-    /// The cards on a dark grey backdrop, where the black-backdrop greys would vanish.
+    /// The cards on a dark gray backdrop, where the black-backdrop grays would vanish.
     static constexpr Rgb kCardTopOnDark{62, 62, 66};
     static constexpr Rgb kCardBottomOnDark{52, 52, 56};
     static constexpr Rgb kDigit{222, 222, 222};

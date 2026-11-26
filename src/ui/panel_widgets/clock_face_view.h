@@ -44,7 +44,7 @@ class ClockFaceView {
     /**
      * @brief Shows `face` on a `w` x `h` canvas created in `parent`, painted for `in`
      *
-     * Replaces whatever showed. `backdrop` is the colour the face sits on (the card behind
+     * Replaces whatever showed. `backdrop` is the color the face sits on (the card behind
      * it), painted round the dial or cards so no square shows. With `run_timer` false the face
      * repaints only through step() or resume(): a still preview, or a tile not on screen.
      * False, showing nothing, for Text or when the canvas cannot be allocated.
@@ -58,6 +58,11 @@ class ClockFaceView {
 
     /// Stops the timer and frees the canvas, its objects and the sim's buffers.
     void hide();
+
+    /// hide() for a view whose canvas is being deleted with its parent right now (inside the
+    /// parent's LV_EVENT_DELETE): frees the buffers and the sim and leaves the objects to the
+    /// deletion already under way.
+    void release_dying();
 
     /// Stops the timer and keeps the canvas and the sim, so resume() needs no rebuild. Nothing
     /// is painted while paused.
@@ -80,7 +85,7 @@ class ClockFaceView {
     const ClockFaceTempo& tempo() const {
         return tempo_;
     }
-    /// The colour show() painted round the face.
+    /// The color show() painted round the face.
     ui::Rgb backdrop() const {
         return backdrop_;
     }
@@ -105,11 +110,16 @@ class ClockFaceView {
     /// whole minute.
     void schedule(bool moving);
     void write_analog_texts();
+    /// Makes the surround inside `areas` transparent on a canvas with alpha (keyed_).
+    void clear_surround(const std::vector<ui::DirtyRect>& areas);
     ui::AnalogFace analog_face() const;
 
     ClockFace face_ = ClockFace::TEXT;
     ClockFaceTempo tempo_;
     ui::Rgb backdrop_{};
+    /// The surround's key on a canvas with alpha; false on RGB565.
+    bool keyed_ = false;
+    ui::Rgb key_{};
     ui::SaverCanvas canvas_;
     helix::ui::WidgetRef canvas_ref_;
     /// A hidden canvas over the analog dial, so LVGL can write the dial's text into it.

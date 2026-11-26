@@ -66,7 +66,7 @@ class CardClockMarkers {
     }
 
     /// The nixie clock's markers: a pale engraving on the dark socket, dimmer than the glow; the
-    /// main one centred on the first tube's socket.
+    /// main one centered on the first tube's socket.
     void draw_nixie(SaverCanvas& canvas, const NixieClockSim& sim, const FlipFace& face,
                     const std::vector<DirtyRect>& under, std::vector<DirtyRect>& dirty) {
         draw(

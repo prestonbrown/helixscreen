@@ -208,7 +208,7 @@ class NixieClockSim {
         drift_on_ = on;
     }
 
-    /// What shows round the tubes: black for the saver, the card's colour in a home tile, so
+    /// What shows round the tubes: black for the saver, the card's color in a home tile, so
     /// the tubes sit on it. The glass, sockets and glow are the same either way. Kept across
     /// clear(); set before init().
     void set_backdrop(Rgb backdrop) {

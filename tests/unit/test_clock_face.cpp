@@ -223,7 +223,7 @@ TEST_CASE("held-still cards never relayout between minutes", "[clock_face]") {
     }
 }
 
-TEST_CASE("Bauhaus without its column centres the dial and places no column text", "[clock_face]") {
+TEST_CASE("Bauhaus without its column centers the dial and places no column text", "[clock_face]") {
     const helix::ui::AnalogGeom g = helix::ui::analog_layout(AnalogStyle::BAUHAUS, 300, 200, false);
     CHECK(g.cx == Catch::Approx(150.0f));
     CHECK(g.col_w == 0.0f);

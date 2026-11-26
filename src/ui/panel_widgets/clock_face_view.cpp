@@ -61,12 +61,21 @@ bool ClockFaceView::show(lv_obj_t* parent, ClockFace face, int32_t w, int32_t h,
     // DECLARATIVE_OK: a canvas the face paints pixel by pixel, sized to the tile at runtime.
     lv_obj_set_clickable(canvas_.obj(), false);
     lv_obj_set_event_bubble(canvas_.obj(), true);
-    // Centred in the host's content box, outside its layout: a dial is narrower than a wide tile.
+    // Centered in the host's content box, outside its layout: a dial is narrower than a wide tile.
     lv_obj_set_ignore_layout(canvas_.obj(), true);
     lv_obj_center(canvas_.obj());
     face_ = face;
     tempo_ = tempo;
     backdrop_ = backdrop;
+    // A canvas with alpha paints the surround in a key and then clears it to transparent, so
+    // the card shows through, Glass's gradient included. The key is the card's color with its
+    // lowest blue bit flipped: antialiased edges blend toward the card's own color, so no dark
+    // fringe, and no face pixel is taken for the surround. RGB565 has no alpha and keeps the
+    // card's color as an opaque surround.
+    keyed_ = lv_color_format_has_alpha(canvas_.format());
+    key_ = backdrop;
+    key_.b ^= 1u;
+    const ui::Rgb surround = keyed_ ? key_ : backdrop;
 
     const ui::ClockInput input = plain(in);
     ui::FrameTarget frame = canvas_.frame();
@@ -79,13 +88,13 @@ bool ClockFaceView::show(lv_obj_t* parent, ClockFace face, int32_t w, int32_t h,
         if (face == ClockFace::FLIP) {
             flip_ = std::make_unique<ui::FlipClockSim>();
             flip_->set_drift(false);
-            flip_->set_backdrop(backdrop);
+            flip_->set_backdrop(surround);
             flip_->init(frame, tempo.level, cards_.face());
             markers_.draw_flip(canvas_, *flip_, cards_.face(), under_, dirty);
         } else {
             nixie_ = std::make_unique<ui::NixieClockSim>();
             nixie_->set_drift(false);
-            nixie_->set_backdrop(backdrop);
+            nixie_->set_backdrop(surround);
             nixie_->init(frame, tempo.level, cards_.face());
             markers_.draw_nixie(canvas_, *nixie_, cards_.face(), under_, dirty);
         }
@@ -97,7 +106,7 @@ bool ClockFaceView::show(lv_obj_t* parent, ClockFace face, int32_t w, int32_t h,
         options.drift = false;
         options.seconds = tempo.seconds;
         options.side_column = false;
-        options.backdrop = backdrop;
+        options.backdrop = surround;
         // A text box no font can fill legibly is left out, frame and all.
         options.min_text_px = theme_manager_get_font_height(ui::clock_font_fitting(1));
         analog_->set_options(options);
@@ -109,6 +118,7 @@ bool ClockFaceView::show(lv_obj_t* parent, ClockFace face, int32_t w, int32_t h,
         analog_->repaint();
         analog_->compose(frame, dirty);
     }
+    clear_surround({ui::DirtyRect::whole(w, h)});
     lv_obj_invalidate(canvas_.obj());
 
     last_tick_ = lv_tick_get();
@@ -157,8 +167,31 @@ bool ClockFaceView::step(uint32_t dt_ms, const ui::ClockInput& in) {
         analog_->compose(frame, dirty_);
         moving = tempo_.seconds;
     }
+    clear_surround(dirty_);
     canvas_.invalidate(dirty_);
     return moving;
+}
+
+void ClockFaceView::clear_surround(const std::vector<ui::DirtyRect>& areas) {
+    if (!keyed_ || canvas_.data() == nullptr) {
+        return;
+    }
+    // ARGB8888 is B, G, R, A in memory; the surround's color stays for the next blend over it.
+    for (const ui::DirtyRect& area : areas) {
+        const ui::DirtyRect in = area.clipped(canvas_.width(), canvas_.height());
+        if (in.empty()) {
+            continue;
+        }
+        for (int32_t y = in.y1; y <= in.y2; ++y) {
+            uint8_t* px = canvas_.data() + static_cast<size_t>(y) * canvas_.stride() +
+                          static_cast<size_t>(in.x1) * 4;
+            for (int32_t x = in.x1; x <= in.x2; ++x, px += 4) {
+                if (px[0] == key_.b && px[1] == key_.g && px[2] == key_.r) {
+                    px[3] = 0;
+                }
+            }
+        }
+    }
 }
 
 void ClockFaceView::schedule(bool moving) {
@@ -229,6 +262,13 @@ void ClockFaceView::hide() {
     dirty_.clear();
     under_.clear();
     face_ = ClockFace::TEXT;
+}
+
+void ClockFaceView::release_dying() {
+    canvas_.forget_obj();
+    canvas_ref_.reset();
+    text_canvas_.reset();
+    hide();
 }
 
 size_t ClockFaceView::heap_bytes() const {

@@ -5,6 +5,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
+#include "display_sleep_listener.h"
 #include "screensaver_clock.h"
 #include "src/ui/panel_widgets/clock_face_picker.h"
 #include "src/ui/panel_widgets/clock_face_view.h"
@@ -77,6 +78,12 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(w.face_view().timer() != nullptr);
     lv_obj_t* canvas = w.face_view().canvas_obj();
     const size_t bytes = w.face_view().heap_bytes();
+#if LV_COLOR_DEPTH == 32
+    // The card shows through round the dial; the dial itself is opaque.
+    CHECK(lv_canvas_get_px(canvas, 0, 0).alpha == LV_OPA_TRANSP);
+    const int32_t mid = w.face_view().width() / 2;
+    CHECK(lv_canvas_get_px(canvas, mid, mid / 3).alpha == LV_OPA_COVER);
+#endif
 
     SECTION("off the active panel, as under a screensaver") {
         w.on_deactivate();
@@ -86,15 +93,15 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         w.on_activate();
     }
     SECTION("while the display sleeps") {
-        w.on_display_sleep(true);
+        DisplaySleepListener::notify(true);
         CHECK(w.face_view().timer() == nullptr);
         CHECK(w.face_view().paused());
         // A sleeping display stays dark when the panel is activated under it.
         w.on_deactivate();
         w.on_activate();
-        w.on_display_sleep(true);
+        DisplaySleepListener::notify(true);
         CHECK(w.face_view().timer() == nullptr);
-        w.on_display_sleep(false);
+        DisplaySleepListener::notify(false);
     }
     // Back on screen at the same size: the same canvas, running again.
     CHECK(w.face_view().timer() != nullptr);
@@ -201,6 +208,18 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         REQUIRE(backdrop != nullptr);
         lv_obj_send_event(backdrop, LV_EVENT_CLICKED, nullptr);
         CHECK_FALSE(picker.is_visible());
+        CHECK(all_freed(picker));
+    }
+    SECTION("a screen swap deleting the menu without hide()") {
+        ClockFacePicker picker;
+        picker.show_for(test_screen(), h.root(), ClockFace::TEXT, [](ClockFace) {});
+        REQUIRE_FALSE(all_freed(picker));
+        lv_obj_t* menu = lv_obj_find_by_name(test_screen(), "clock_face_list");
+        REQUIRE(menu != nullptr);
+        while (lv_obj_get_parent(menu) != test_screen()) {
+            menu = lv_obj_get_parent(menu);
+        }
+        lv_obj_delete(menu);
         CHECK(all_freed(picker));
     }
     SECTION("the widget's teardown") {

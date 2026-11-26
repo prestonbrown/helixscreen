@@ -151,8 +151,8 @@ struct AnalogClockOptions {
     bool seconds = true;     ///< draw the seconds hand; without it the face changes once a minute
     bool side_column = true; ///< Bauhaus's date and print column
     /// What shows round the dial: unset, the face's own background (analog_background()); set,
-    /// that colour (a home tile's card), so no square shows. A face with no dial disc of its
-    /// own (Neon, Orrery) then sits on a disc of its background colour, so its light inks stay
+    /// that color (a home tile's card), so no square shows. A face with no dial disc of its
+    /// own (Neon, Orrery) then sits on a disc of its background color, so its light inks stay
     /// legible on a light card.
     std::optional<Rgb> backdrop;
     /// Text boxes shorter than this many px are left out, with any frame drawn for them (the

@@ -714,9 +714,9 @@ void FlipClockSim::set_backdrop(Rgb backdrop) {
     backdrop_ = backdrop;
     // Rec. 601 luma: a backdrop as dark as the cards hides their edges.
     const int luma = (299 * backdrop.r + 587 * backdrop.g + 114 * backdrop.b) / 1000;
-    const bool dark_grey = !(backdrop == kBackground) && luma < 96;
-    card_top_ = dark_grey ? kCardTopOnDark : kCardTop;
-    card_bottom_ = dark_grey ? kCardBottomOnDark : kCardBottom;
+    const bool dark_gray = !(backdrop == kBackground) && luma < 96;
+    card_top_ = dark_gray ? kCardTopOnDark : kCardTop;
+    card_bottom_ = dark_gray ? kCardBottomOnDark : kCardBottom;
 }
 
 Rgb FlipClockSim::face_pixel(size_t i, const FlipCard& card, int32_t x, int32_t y) const {

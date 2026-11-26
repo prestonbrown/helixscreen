@@ -55,7 +55,21 @@ void register_clock_face_picker() {
 }
 
 ClockFacePicker::~ClockFacePicker() {
+    if (lv_obj_t* m = menu(); m != nullptr && lv_is_initialized()) {
+        lv_obj_remove_event_cb_with_user_data(m, on_menu_deleted, this);
+    }
     free_previews();
+}
+
+void ClockFacePicker::on_menu_deleted(lv_event_t* e) {
+    auto* self = static_cast<ClockFacePicker*>(lv_event_get_user_data(e));
+    if (self == nullptr) {
+        return;
+    }
+    // The canvases go with the menu; only their buffers are freed here.
+    for (ClockFaceView& view : self->previews_) {
+        view.release_dying();
+    }
 }
 
 void ClockFacePicker::show_for(lv_obj_t* parent, lv_obj_t* anchor, ClockFace current,
@@ -75,6 +89,9 @@ void ClockFacePicker::show_for(lv_obj_t* parent, lv_obj_t* anchor, ClockFace cur
 }
 
 void ClockFacePicker::on_created(lv_obj_t* menu_obj) {
+    // DECLARATIVE_OK: LV_EVENT_DELETE cleanup. A screen swap deletes the menu without hide(),
+    // and the previews' buffers must go with it.
+    lv_obj_add_event_cb(menu_obj, on_menu_deleted, LV_EVENT_DELETE, this);
     // DECLARATIVE_OK: measured cap. A share of the screen, so the eight rows scroll on a short
     // panel instead of growing the card past it.
     if (lv_obj_t* list = lv_obj_find_by_name(menu_obj, "clock_face_list")) {
@@ -130,6 +147,10 @@ void ClockFacePicker::free_previews() {
 }
 
 void ClockFacePicker::on_hide() {
+    // The menu is deleted later, maybe after this picker: its delete handler goes now.
+    if (lv_obj_t* m = menu(); m != nullptr) {
+        lv_obj_remove_event_cb_with_user_data(m, on_menu_deleted, this);
+    }
     free_previews();
 }
 
