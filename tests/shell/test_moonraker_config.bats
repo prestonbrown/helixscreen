@@ -1011,6 +1011,29 @@ add_zmod_plugin_conf() {
     grep -qF "path: $INSTALL_DIR" "$ZMOD_USER_CONF"
 }
 
+@test "configure_moonraker_updates: a file the user conf includes keeps its stanza synced, not the mod's" {
+    create_zmod_layout
+    add_zmod_plugin_conf ""
+    local user_inc="$(dirname "$ZMOD_USER_CONF")/helix.conf"
+    printf '[update_manager helixscreen]\ntype: web\nchannel: stable\nrepo: prestonbrown/helixscreen\npath: /old/place\n' > "$user_inc"
+    printf '[authorization]\n\n[include helix.conf]\n' > "$ZMOD_USER_CONF"
+
+    configure_moonraker_updates "ad5x" 2>/dev/null
+
+    grep -qF "path: $INSTALL_DIR" "$user_inc"
+    [ "$(grep -c '^\[update_manager helixscreen\]' "$user_inc" "$ZMOD_USER_CONF" | awk -F: '{n+=$2} END{print n}')" -eq 1 ]
+}
+
+@test "configure_moonraker_updates: Z-Mod plugin entry spelled path = is read" {
+    create_zmod_layout
+    add_zmod_plugin_conf ""
+    printf '\n[update_manager helixscreen]\ntype: web\nrepo: prestonbrown/helixscreen\npath = %s\n' "$INSTALL_DIR" >> "$ZMOD_PLUGINS_CONF"
+
+    configure_moonraker_updates "ad5x" 2>/dev/null
+
+    [ "$(grep -c '^\[update_manager helixscreen\]' "$ZMOD_USER_CONF")" -eq 0 ]
+}
+
 @test "detect_moonraker_integration plans no stanza when the Z-Mod plugin manager lists this install" {
     create_zmod_layout
     add_zmod_plugin_conf "$INSTALL_DIR"
