@@ -73,10 +73,10 @@ channel:
 
 | Branch | Versions | Channel |
 |--------|----------|---------|
-| `release/1.0` | `1.0.0`, `1.0.1`, `1.0.2` ... | stable |
-| `release/1.1` | `1.1.0`, `1.1.1` ... | stable |
+| `release/1.0` | `1.0.0`, `1.0.1`, `1.0.2` ... | stable + beta |
+| `release/1.1` | `1.1.0`, `1.1.1` ... | stable + beta |
 | `main` | `1.2.0-alpha.1`, `1.2.0-alpha.2` ... | dev |
-| `release/1.2`, once cut | `1.2.0-beta.N`, `1.2.0-rc.N`, then `1.2.0` | beta + dev, then stable |
+| `release/1.2`, once cut | `1.2.0-beta.N`, `1.2.0-rc.N`, then `1.2.0` | beta + dev, then stable + beta |
 
 The trunk names the release it is heading for, so an alpha install says which
 minor it belongs to. Precedence runs `1.2.0-alpha.N < 1.2.0-beta.N < 1.2.0-rc.N <
@@ -85,8 +85,8 @@ hotfix on the stable line never looks like an upgrade to an alpha. See
 `BRANCHING.md`.
 
 --------|----------|---------|
-| `release/1.0` | `1.0.0`, `1.0.1`, `1.0.2` ... | stable |
-| `release/1.1` | `1.1.0-beta.N`, `1.1.0-rc.N`, then `1.1.0`, `1.1.1` ... | beta + dev, then stable |
+| `release/1.0` | `1.0.0`, `1.0.1`, `1.0.2` ... | stable + beta |
+| `release/1.1` | `1.1.0-beta.N`, `1.1.0-rc.N`, then `1.1.0`, `1.1.1` ... | beta + dev, then stable + beta |
 | `main` | `1.2.0-beta.1` ... (untagged until `1.1.0` ships) | dev, then beta + dev |
 
 The trunk names the release it is heading for, so a beta install says which minor
@@ -95,8 +95,9 @@ is offered `1.1.0` the moment it publishes, and a `1.0.2` hotfix on the stable l
 never looks like an upgrade to it.
 
 While a release branch is still shipping betas, the trunk says `dev` and is not
-tagged: the downgrade guard would refuse the next `1.1.0-beta.N` on dev once dev
-served a `1.2.0-beta.N`. See `BRANCHING.md`.
+tagged: once dev served a `1.2.0-beta.N`, the downgrade guard would leave every later
+`1.1.0-beta.N` off dev, and the dev fleet would stop testing the release in flight.
+See `BRANCHING.md`.
 
 ---
 
@@ -361,7 +362,12 @@ git push origin release/1.1 v1.1.0
 ```
 
 Dropping the suffix is itself the promotion: `1.1.0` outranks every
-`1.1.0-beta.N`, so the beta fleet is offered it as an ordinary forward step.
+`1.1.0-beta.N`, so the beta fleet is offered it as an ordinary forward step. Every
+stable release of the line reaches the beta fleet the same way, and Beta never trails
+Stable: a stable release also publishes to the beta manifest whenever that moves beta
+forward, and the app on Beta reads the stable manifest too and offers the newer
+(`docs/devel/UPDATE_SYSTEM.md` § "Beta reads Stable too"). A stable `1.1.2` cut after
+`1.2.0-beta.1` leaves the beta manifest on the beta.
 `main` stays on `dev` and keeps tagging `-alpha.N` builds of the next minor.
 
 ---

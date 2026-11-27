@@ -1652,78 +1652,21 @@ jobs:
         echo "Upload channels: $CHANNELS"
 
     - name: Guard against channel downgrade
+      id: guard
       env:
         RELEASE_VERSION: ${{ steps.version.outputs.version }}
         R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+        CHANNEL: ${{ needs.release.outputs.channel }}
         UPLOAD_CHANNELS: ${{ steps.channels.outputs.channels }}
         ALLOW_DOWNGRADE: ${{ vars.ALLOW_CHANNEL_DOWNGRADE }}
       run: |
-        # A channel manifest must only ever move forward. The in-app updater
-        # offers an update when manifest_version > installed_version, so
-        # republishing an OLDER version to a channel does not roll anyone back --
-        # it strands the channel silently: everyone already on the newer build
-        # sees "Already up to date" forever, and the workflow reports success.
-        #
-        # This is reachable whenever two release lines share a channel (a 1.0.x
-        # hotfix landing on a channel that already serves 1.1.x), and by
-        # re-tagging an old commit. Republishing the SAME version is allowed --
-        # that is how a partially-failed upload is retried.
-        #
-        # Precedence comes from scripts/version-compare.sh, which implements
-        # Semantic Versioning 2.0.0 section 11. A shell version sort cannot
-        # answer it: `sort -V` ranks 1.1.0 BELOW 1.1.0-beta.1, so on a channel
-        # that has served a prerelease its verdict is inverted.
-        FAILED=0
-        for CHANNEL in $UPLOAD_CHANNELS; do
-          MANIFEST_URL="${R2_PUBLIC_URL}/${R2_PREFIX}${CHANNEL}/manifest.json"
-          SERVED=$(curl -fsS --max-time 30 "$MANIFEST_URL" 2>/dev/null | jq -r '.version // empty' || true)
-
-          if [ -z "$SERVED" ]; then
-            echo "${CHANNEL}: no manifest served yet -- nothing to downgrade"
-            continue
-          fi
-
-          if [ "$SERVED" = "$RELEASE_VERSION" ]; then
-            echo "${CHANNEL}: currently serves ${SERVED} (republishing the same version)"
-            continue
-          fi
-
-          # A pair the comparator cannot rank is a failure, not a pass: it exits
-          # non-zero rather than printing an order, so an unparseable manifest
-          # version can never read as "forward".
-          if ! ORDER=$(scripts/version-compare.sh "$RELEASE_VERSION" "$SERVED"); then
-            echo "::error::${CHANNEL}: cannot order ${RELEASE_VERSION} against the served ${SERVED}."
-            FAILED=1
-            continue
-          fi
-
-          case "$ORDER" in
-            -1)
-              echo "::error::${CHANNEL} currently serves ${SERVED}; publishing ${RELEASE_VERSION} would move it BACKWARD."
-              echo "::error::Clients on ${SERVED} would never be offered another ${CHANNEL} update."
-              FAILED=1
-              ;;
-            0)
-              echo "${CHANNEL}: ${SERVED} and ${RELEASE_VERSION} rank equal (build metadata only) -- allowed"
-              ;;
-            1)
-              echo "${CHANNEL}: ${SERVED} -> ${RELEASE_VERSION} (forward)"
-              ;;
-            *)
-              echo "::error::${CHANNEL}: version-compare.sh printed '${ORDER}', which is not -1, 0 or 1."
-              FAILED=1
-              ;;
-          esac
-        done
-
-        if [ "$FAILED" -eq 1 ]; then
-          if [ "$ALLOW_DOWNGRADE" = "true" ]; then
-            echo "::warning::ALLOW_CHANNEL_DOWNGRADE=true -- proceeding with a backward channel move"
-          else
-            echo "::error::Set the ALLOW_CHANNEL_DOWNGRADE repository variable to 'true' to override."
-            exit 1
-          fi
-        fi
+        # A channel manifest only ever moves forward: a backward move on the
+        # declared channel fails the run, and a channel that only follows it
+        # (beta, for a stable release) is left off when it is already ahead.
+        # The steps below publish to the channels this step outputs.
+        scripts/channel-upload-guard.sh --version "$RELEASE_VERSION" \
+          --declared "$CHANNEL" --channels "$UPLOAD_CHANNELS" \
+          --base-url "${R2_PUBLIC_URL}/${R2_PREFIX}"
 
     - name: Prepare apt
       uses: ./.github/actions/apt-prepare
@@ -1750,7 +1693,7 @@ jobs:
         RELEASE_VERSION: ${{ steps.version.outputs.version }}
         RELEASE_TAG: ${{ steps.version.outputs.tag }}
         R2_PUBLIC_URL: ${{ needs.plan.outputs.mode == 'publish' && vars.R2_PUBLIC_URL || 'https://scratch.invalid' }}
-        UPLOAD_CHANNELS: ${{ steps.channels.outputs.channels }}
+        UPLOAD_CHANNELS: ${{ steps.guard.outputs.channels }}
       run: |
         chmod +x scripts/generate-manifest.sh
         manifests=()
@@ -1792,7 +1735,7 @@ jobs:
         RELEASE_VERSION: ${{ steps.version.outputs.version }}
         R2_BUCKET: ${{ needs.plan.outputs.mode == 'publish' && (vars.R2_BUCKET_NAME || 'helixscreen-releases') || (vars.R2_SCRATCH_BUCKET_NAME || 'helixscreen-ci-scratch') }}
         R2_PUBLIC_URL: ${{ needs.plan.outputs.mode == 'publish' && vars.R2_PUBLIC_URL || 'https://scratch.invalid' }}
-        UPLOAD_CHANNELS: ${{ steps.channels.outputs.channels }}
+        UPLOAD_CHANNELS: ${{ steps.guard.outputs.channels }}
       run: |
         [ "$RELEASE_MODE" = publish ] || [[ "$R2_PREFIX" == dry-run/?*/ ]] || {
           echo "::error::dry run with R2_PREFIX='${R2_PREFIX}'; refusing to write live R2 paths"

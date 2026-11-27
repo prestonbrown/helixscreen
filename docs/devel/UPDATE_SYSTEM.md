@@ -184,8 +184,30 @@ Three channels are available. The channel is stored in config at `/update/channe
 | Channel | Enum | Config Value | Source | Description |
 |---------|------|-------------|--------|-------------|
 | **Stable** | `UpdateChannel::Stable` | `0` | R2 stable/manifest.json, fallback: GitHub `/releases/latest` | Production releases only. Default for all users. |
-| **Beta** | `UpdateChannel::Beta` | `1` | R2 beta/manifest.json, fallback: GitHub `/releases` array (first prerelease) | Includes pre-release tags (`v1.0.0-beta.1`, `v1.0.0-rc.1`). Falls back to latest stable if no prereleases exist. |
+| **Beta** | `UpdateChannel::Beta` | `1` | R2 beta/manifest.json and R2 stable/manifest.json, each with its GitHub fallback (`/releases` array, first prerelease; `/releases/latest`) | Pre-release tags (`v1.0.0-beta.1`, `v1.0.0-rc.1`) and every stable release: the newer of the two sources is offered, so Beta never trails Stable (see [Beta reads Stable too](#beta-reads-stable-too)). |
 | **Dev** | `UpdateChannel::Dev` | `2` | R2 dev/manifest.json, or explicit `dev_url` (update_urls.json) | Cutting-edge builds. Supports custom manifest URLs for local development servers. |
+
+### Beta reads Stable too
+
+A stable release outranks every prerelease of its line (`1.1.0` > `1.1.0-beta.N`), and
+the beta fleet must be offered it as an ordinary forward step. Two mechanisms hold this,
+and either alone is enough:
+
+- **The client.** `UpdateChecker::fetch_beta_release()` reads the beta source
+  (`fetch_beta_line_release()`) and the stable source (`fetch_stable_release()`), and
+  `helix::pick_channel_release()` offers the newer by `helix::version::Version`; a tie
+  goes to the beta manifest. When one source fails, the other's release is offered only
+  if it moves the install forward. A partial answer that reads as up to date or as a
+  downgrade may be wrong about what the failed source serves, so the check reports the
+  failed source's error instead. Both failing reports the beta source's error. The
+  downgrade rule below applies to whatever is picked: when both answers are behind the
+  install, the newer is offered as a downgrade and never auto-notified.
+- **Publishing.** A stable release also publishes to the beta manifest whenever that is a
+  forward step for beta ([How CI Determines Upload Channels](#how-ci-determines-upload-channels)).
+
+Dev reads only its own manifest (or `dev_url`). Its alphas of the next minor outrank every
+stable and beta release of the current one, and a `dev_url` test server must answer for
+itself.
 
 ### Channel Selection in UI
 
@@ -275,9 +297,13 @@ consumes its output; nothing is inferred from the tag string.
 
 | `RELEASE_CHANNEL` | R2 channels | GitHub release | Docs deploy |
 |-------------------|-------------|----------------|-------------|
-| `stable` | `stable` | full release | yes |
-| `beta` | `beta` + `dev` | prerelease | no |
+| `stable` | `stable`, then `beta` | full release | yes |
+| `beta` | `beta`, then `dev` | prerelease | no |
 | `dev` | `dev` | prerelease | no |
+
+The first channel is the declared one; the rest follow it. A following channel takes the
+release only while that moves it forward: a stable `1.1.2` goes to a beta manifest at
+`1.1.1`, and skips one already at `1.2.0-beta.1` while stable still publishes.
 
 Each maintenance line carries its own value, so cutting a release is just tagging
 the right branch (`release/1.0` holds `stable`, `main` holds `dev`).
@@ -293,11 +319,15 @@ the right branch. The version string is then free to say only what it means:
 `1.1.0-beta.3` is the third beta of 1.1, and `helix::version::Version` orders it
 below `1.1.0` on precedence. See `RELEASE_PROCESS.md` § "The trunk's alpha line".
 
-**Stable does not publish to `dev`.** The `dev` channel follows the devel line
-alone so its manifest only ever moves forward; a `1.0.x` hotfix publishing to `dev`
-would strand everyone already on `1.1.x`. The workflow enforces this with a
-pre-upload guard that refuses to move any channel manifest backward (override with
-the `ALLOW_CHANNEL_DOWNGRADE` repository variable).
+**Stable does not publish to `dev`.** The `dev` channel follows the devel line, whose
+alphas of the next minor outrank every stable release of the current one.
+
+**No channel manifest moves backward.** Before anything uploads,
+`scripts/channel-upload-guard.sh` reads each channel's served version and judges it on its
+own: a backward move on the declared channel fails the run (override with the
+`ALLOW_CHANNEL_DOWNGRADE` repository variable), and a following channel already ahead is
+left off the upload, whatever the override says. The release workflow and
+`recover-r2.yml` both publish only to the channels the guard keeps.
 
 ---
 
