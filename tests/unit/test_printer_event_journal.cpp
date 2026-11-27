@@ -442,6 +442,31 @@ TEST_CASE("each journal kind describes itself", "[plugin_event_journal]") {
     CHECK(ordered.front().kind == journal_kind::kDisconnect);
 }
 
+TEST_CASE("a firmware's envelope reads as its message in the events list",
+          "[plugin_event_journal][2206]") {
+    // A printer's Klipper wraps what it reports in a JSON object. The row shows
+    // the message; the entry keeps what the printer said, for the bundle and the logs.
+    const std::string envelope =
+        "{\"code\":\"key207\",\"msg\":\"Shutdown due to webhooks request\",\"values\":[]}";
+    const std::string message = "Shutdown due to webhooks request";
+    const std::string footer = "\nOnce the underlying issue is corrected, use the\n"
+                               "FIRMWARE_RESTART command to restart the firmware.";
+    for (const auto& kind :
+         {journal_kind::kShutdown, journal_kind::kGcodeError, journal_kind::kMcuDisconnect}) {
+        JournalEntry e = entry(kind, kT0, envelope);
+        CHECK(describe_journal_entry(e).message == message);
+        CHECK(e.text == envelope);
+
+        // Klipper's restart advice after the object stays, as it does for any printer.
+        e.text = envelope + footer;
+        CHECK(describe_journal_entry(e).message == message + footer);
+
+        // A line with no envelope in it is shown as it is.
+        e.text = "MCU 'extruder' shutdown: Timer too close";
+        CHECK(describe_journal_entry(e).message == e.text);
+    }
+}
+
 TEST_CASE("pause cause from the screen's recent entries", "[plugin_event_journal]") {
     const double now = kT0 + 100;
     CHECK(journal_pause_cause(
