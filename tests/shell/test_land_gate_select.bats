@@ -181,6 +181,12 @@ plan_of() { # <stage> <changed path>...: "<verdict> <why>" for the stage
     python3 "$SELECT" --root "$REPO_ROOT" plan --changed "$(IFS=,; echo "$*")" |
         awk -F'\t' -v s="$stage" '$1 == s { print $2 " " $3 }'
 }
+plan_in() { # <root> <changed path>...: "<verdict> <why>" for the ui step in that tree
+    local root=$1
+    shift
+    python3 "$SELECT" --root "$root" plan --changed "$(IFS=,; echo "$*")" |
+        awk -F'\t' '$1 == "ui" { print $2 " " $3 }'
+}
 
 @test "plan: a test-only change runs the changed tests and quality, not no-mocks" {
     [[ "$(plan_of ci-shards tests/unit/test_version.cpp)" == select* ]] || fail "verdict differs"
@@ -300,11 +306,44 @@ ui_files_of() { # <changed path>...: the files the ui row selects, one line
     [[ "$(plan_of ui ui_xml/home_panel.xml ui_xml/print_select_panel.xml ui_xml/history_list_panel.xml \
         ui_xml/motion_panel.xml ui_xml/runout_guidance_modal.xml ui_xml/ams_panel.xml)" == select* ]] ||
         fail "twelve of the ui files is a selection"
-    [[ "$(plan_of ui ui_xml/home_panel.xml ui_xml/print_select_panel.xml ui_xml/history_list_panel.xml \
-        ui_xml/motion_panel.xml ui_xml/runout_guidance_modal.xml ui_xml/ams_panel.xml \
-        tests/ui/test_freeze.py tests/ui/test_wait_idle.py tests/ui/test_screens.py \
-        tests/ui/test_diagnostics.py tests/ui/test_language_switch_sweep.py tests/ui/test_german_button_fit.py \
-        src/system/screenshot.cpp)" == "full "*" files reached" ]]
+    # The suite as the selector lists it, and the valve's own fraction: the
+    # files that reach exactly the fraction's whole number, smoke files
+    # included, then one more. Read from the selector each time, so a file
+    # added to tests/ui cannot drop a fixed list under the line.
+    local reached
+    reached=$(python3 - "$REPO_ROOT" <<'SELECTOR'
+import pathlib, sys
+sys.path.insert(0, sys.argv[1] + "/scripts")
+import gate_select
+files = gate_select.ui_files(pathlib.Path(sys.argv[1]))
+smoke = [f for f in files if f in gate_select.UI_SMOKE]
+rest = [f for f in files if f not in gate_select.UI_SMOKE]
+target = int(gate_select.UI_SELECTED_FRACTION * len(files))
+at = max(target - len(smoke), 0)
+print(",".join(rest[:at]))
+print(",".join(rest[:at + 1]))
+SELECTOR
+    ) || fail "listing the ui files"
+    local fewer more
+    fewer=${reached%%$'\n'*}
+    more=${reached#*$'\n'}
+    [ -n "$fewer" ] && [ -n "$more" ] && [ "$more" != "$reached" ] || fail "two lists from the selector"
+    [[ "$(plan_of ui "$fewer")" == select* ]] ||
+        fail "the fraction's whole number is a selection: $(plan_of ui "$fewer")"
+    [[ "$(plan_of ui "$more")" == "full "*" files reached" ]] ||
+        fail "one file more runs every file: $(plan_of ui "$more")"
+    # Where the fraction is a whole number of files, that number is still a
+    # selection: a tree of eight ui files, none of them smoke.
+    local root i
+    root="$BATS_TEST_TMPDIR/valve"
+    mkdir -p "$root/tests/ui"
+    for i in 1 2 3 4 5 6 7 8; do : >"$root/tests/ui/test_f$i.py"; done
+    [[ "$(plan_in "$root" tests/ui/test_f1.py tests/ui/test_f2.py tests/ui/test_f3.py tests/ui/test_f4.py \
+        tests/ui/test_f5.py tests/ui/test_f6.py)" == select* ]] ||
+        fail "six of eight files is a selection"
+    [[ "$(plan_in "$root" tests/ui/test_f1.py tests/ui/test_f2.py tests/ui/test_f3.py tests/ui/test_f4.py \
+        tests/ui/test_f5.py tests/ui/test_f6.py tests/ui/test_f7.py)" == "full "*" files reached" ]] ||
+        fail "seven of eight files runs every file"
 }
 
 @test "a ui selection reaches make as UI_TESTS, and test-ui-ci keeps CI's other arguments" {
