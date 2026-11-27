@@ -203,6 +203,15 @@ void bypass_spool_set_active(BypassSpoolWidgets& w, bool active) {
     w.active_applied = true;
     w.cached_active = active;
     ams_draw::set_active_ring(w.box, active);
+    // A bypass that is not the path in use ghosts, card and captions alike, the
+    // way a lane spool that is assigned but not loaded does.
+    const lv_opa_t opa = active ? LV_OPA_COVER : ams_draw::kGhostOpa;
+    lv_obj_set_style_opa(w.box, opa, LV_PART_MAIN);
+    for (lv_obj_t* label : {w.bypass_label, w.material_label}) {
+        if (label) {
+            lv_obj_set_style_text_opa(label, opa, LV_PART_MAIN);
+        }
+    }
 }
 
 void bypass_spool_set_material(BypassSpoolWidgets& w, const char* material) {
