@@ -25,7 +25,7 @@ HelixScreen uses GitHub Actions for continuous integration across multiple platf
 | `server-tests.yml` | `server/**` changes | Cloudflare Worker suites and the analytics dashboard build |
 | `lint-xml.yml` | changes under `ui_xml/`, `src/ui/` | XML lint |
 | `esp32-build.yml` | PRs, `main`, `release/**` (not `release/1.0`); `workflow_call` from `release.yml` | K-Touch firmware build and image-size check |
-| `release.yml` | `v*` tags; `workflow_dispatch` (always a dry run) | Release builds, R2 publish |
+| `release.yml` | `v*` tags; `workflow_dispatch` (always a dry run) | Release builds, R2 publish, the home-server image |
 | `nightly.yml` | nightly schedule, manual | Full test suite |
 | `ccache-warm.yml`, `cache-prune.yml` | schedule, manual | Keep release ccaches warm; delete superseded ones |
 | `cleanup-r2.yml`, `recover-r2.yml` | manual | Prune old R2 releases; republish a tag's R2 upload |
