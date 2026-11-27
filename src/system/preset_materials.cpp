@@ -83,6 +83,20 @@ std::array<std::string, kPresetCount> all() {
     return MaterialSettingsManager::instance().get_preset_materials();
 }
 
+namespace {
+
+/// The materials a preset button stands for, its own first: ABS and ASA share
+/// a nozzle range and compat group, so the generic ABS button stands for both.
+/// name() stays "ABS": it keys temps and compat.
+std::vector<std::string> button_materials(const std::string& material) {
+    if (helix::text_io::to_lower(material) == "abs") {
+        return {material, "ASA"};
+    }
+    return {material};
+}
+
+} // namespace
+
 std::string display_label(int slot) {
     if (!slot_valid(slot)) {
         return {};
@@ -94,12 +108,8 @@ std::string display_label(int slot) {
         // MaterialSettingsManager::set_preset_filament()/reassign.
         return branded->brand + " " + material;
     }
-    // ABS and ASA share a nozzle range and compat group, so the generic ABS
-    // button stands for both. name() stays "ABS": it keys temps and compat.
-    if (helix::text_io::to_lower(material) == "abs") {
-        return "ABS/ASA";
-    }
-    return material;
+    const std::vector<std::string> stands_for = button_materials(material);
+    return stands_for.size() > 1 ? stands_for[0] + "/" + stands_for[1] : material;
 }
 
 std::optional<SlotTemps> slot_temps(int slot) {
@@ -163,13 +173,28 @@ std::string nozzle_temp_label(int slot) {
     return temps ? units::format_display_temp(temps->nozzle) : "---";
 }
 
+std::string macro_material(int slot) {
+    if (!slot_valid(slot)) {
+        return {};
+    }
+    const std::vector<std::string> stands_for = button_materials(name(slot));
+    const auto& settings = MaterialSettingsManager::instance();
+    for (const std::string& material : stands_for) {
+        const auto* override = settings.find_override_for_material(material);
+        if (override && override->names_a_macro()) {
+            return material;
+        }
+    }
+    return stands_for.front();
+}
+
 bool has_macro(int slot) {
     if (!slot_valid(slot)) {
         return false;
     }
     // The same lookup a tap on the preset makes for its macro.
     const auto* override =
-        MaterialSettingsManager::instance().find_override_for_material(name(slot));
+        MaterialSettingsManager::instance().find_override_for_material(macro_material(slot));
     return override && override->names_a_macro();
 }
 
