@@ -20,6 +20,10 @@ namespace helix {
 class PrinterState;
 }
 
+namespace helix::ui {
+class ColorPickerModal;
+}
+
 namespace helix::led {
 
 /**
@@ -38,6 +42,9 @@ class LedControlOverlay : public OverlayBase {
     friend class LedControlOverlayTestAccess;
 
   public:
+    LedControlOverlay();
+    ~LedControlOverlay() override;
+
     void init_subjects() override;
     const char* xml_component() const override {
         return "led_control_overlay";
@@ -200,6 +207,10 @@ class LedControlOverlay : public OverlayBase {
     std::optional<int> pending_effect_chip_;
     std::vector<bool> pending_effects_snapshot_;
     unsigned pending_effect_gen_ = 0;
+
+    /// The Custom color picker. Its callbacks capture this overlay, so it lives
+    /// and dies with it; created on first use.
+    std::unique_ptr<helix::ui::ColorPickerModal> color_picker_;
 };
 
 } // namespace helix::led
