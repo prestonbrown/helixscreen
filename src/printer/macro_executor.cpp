@@ -279,6 +279,11 @@ MaterialPreheatPlan plan_material_preheat(const filament::MaterialOverride* over
         return {MaterialPreheatMode::TEMPERATURES, ""};
     }
     const std::string& macro = *override->preheat_macro;
+    // Until the printer reports its objects, an empty macro list is no
+    // observation: the preset cannot be judged yet.
+    if (!hw.objects_reported()) {
+        return {MaterialPreheatMode::MACRO_UNCONFIRMED, macro};
+    }
     if (!hw.has_macro(macro)) {
         return {MaterialPreheatMode::MACRO_MISSING, macro};
     }
@@ -342,6 +347,12 @@ void execute_material_preheat(IMoonrakerAPI* api, const MaterialPreheatPlan& pla
             {NoticeSeverity::WARNING,
              fmt::format(lv_tr("Macro {} is not on this printer, so the preset did not run"),
                          plan.macro)});
+        return;
+    case MaterialPreheatMode::MACRO_UNCONFIRMED:
+        spdlog::info("{} Preheat macro '{}' not judged yet: the printer has not reported its "
+                     "objects; nothing was sent",
+                     caller_tag, plan.macro);
+        publish_notice({NoticeSeverity::WARNING, lv_tr("Printer is not ready")});
         return;
     case MaterialPreheatMode::MACRO_HELD_BY_JOB:
         spdlog::info("{} Preheat macro '{}' not sent: a job holds the machine", caller_tag,

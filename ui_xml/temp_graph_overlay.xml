@@ -235,9 +235,10 @@
                the dead band between the picker and the pinned bottom rows.
                Names carry _tiny so on_temp_graph_preset_clicked's substring
                lookup (preset_off/preset_1/...) still resolves.
-               A material preset runs its material's macro, so each grid
-               button carries the macro mark while its material names one
-               (the button's own icon, shown by preset_material_<slot>_has_macro).
+               A material preset runs its material's macro, so a preset button
+               carries the macro mark while its material names one: here in
+               the grid, and in the portrait strip's own grid below (the
+               button's own icon, shown by preset_material_<slot>_has_macro).
                The landscape twin at the two smallest sizes carries none: at
                480x320 its buttons are 72px wide, and the mark beside ABS/ASA
                would leave 2px at each edge. The portrait strip spans the

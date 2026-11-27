@@ -958,10 +958,13 @@ buttons, the Home preheat tile and the nozzle presets of the temperature graph s
 buttons, shown from the small breakpoint up, carry the mark through the shared button's own
 icon, `icon="script_text"`, hidden while `preset_material_<slot>_has_macro` is 0. Its
 fixed-row twin at the two smallest sizes carries none: its buttons are 72px wide at 480x320,
-and the mark beside ABS/ASA would sit 2px from each edge.A preset aimed at a tool that is not mounted sends its
-temperatures itself, because a heating macro heats the mounted tool. `MACRO_MISSING` sends
-nothing and publishes a notice naming the macro, so a caller makes its plan before it moves
-its own selection: a refused tap leaves the Filament screen on the material it had.
+and the mark beside ABS/ASA would sit 2px from each edge.
+
+A preset aimed at a tool that is not mounted sends its
+temperatures itself, because a heating macro heats the mounted tool. A refused plan sends nothing: `MACRO_MISSING` publishes a notice naming the macro, and
+`MACRO_UNCONFIRMED`, planned until `PrinterDiscovery::objects_reported()`, says the printer is
+not ready, because an empty macro list is no observation. A caller makes its plan before it
+moves its own selection: a refused tap leaves the Filament screen on the material it had.
 
 **Migration from `settings.json`.** `MaterialSettingsManager::init()` moves any
 `material_overrides` left in `settings.json` into the overlay's `types`

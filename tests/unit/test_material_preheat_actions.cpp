@@ -296,18 +296,49 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                       "run") == 1);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "The Filament panel keeps its material when a preset refuses",
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "A material preset waits until the printer has reported its macros",
                  "[material_preheat][preheat][filament][2183]") {
-    // The fixed ABS button and the active spool's preset both refuse.
-    const auto action = GENERATE(PreheatAction::FILAMENT_PRESET, PreheatAction::SPOOL_PRESET);
+    const auto action = GENERATE(PreheatAction::FILAMENT_PRESET, PreheatAction::SPOOL_PRESET,
+                                 PreheatAction::HOME_WIDGET, PreheatAction::TEMP_GRAPH);
     CAPTURE(static_cast<int>(action));
     MaterialSettingsScope settings;
     Harness h;
+    helix_test::ScopedSharedResource<helix::TemperatureController> controller(
+        std::make_shared<helix::TemperatureController>(h.state, &h.api));
+    helix::MaterialSettingsManager::instance().set_override("ABS", abs_override("HEAT_ABS", true));
+    feed_hot_nozzle(h);
+    helix::test::ScopedNoticeCapture notices;
+
+    // No objects list yet: whether this printer has the macro is not known.
+    press(action, h);
+
+    CHECK(h.client.gcode_script_history() == Scripts{});
+    CHECK(notices.count("Printer is not ready") == 1);
+
+    // The printer reports its objects, the macro among them: the same tap runs it.
     discover_macros(h);
+    press(action, h);
+
+    CHECK(h.client.gcode_script_history() == Scripts{"HEAT_ABS"});
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "The Filament panel keeps its material when a preset refuses",
+                 "[material_preheat][preheat][filament][2183]") {
+    // The fixed ABS button and the active spool's preset both refuse, for a
+    // macro the printer lacks and while the printer has not reported its macros.
+    const auto action = GENERATE(PreheatAction::FILAMENT_PRESET, PreheatAction::SPOOL_PRESET);
+    const bool reported = GENERATE(true, false);
+    CAPTURE(static_cast<int>(action), reported);
+    MaterialSettingsScope settings;
+    Harness h;
+    if (reported) {
+        discover_macros(h);
+    }
     helix_test::ScopedSharedResource<helix::TemperatureController> controller(
         std::make_shared<helix::TemperatureController>(h.state, &h.api));
     helix::MaterialSettingsManager::instance().set_override(
-        "ABS", abs_override("OTHER_PRINTER_HEAT_ABS", true));
+        "ABS", abs_override(reported ? "OTHER_PRINTER_HEAT_ABS" : "HEAT_ABS", true));
     h.panel->set_material(1);
     REQUIRE(h.panel->get_material() == 1);
     h.client.clear_gcode_script_history();
@@ -560,8 +591,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 TEST_CASE_METHOD(LVGLUITestFixture, "Material preheat without a printer API sends no temperatures",
                  "[material_preheat][preheat]") {
     using Mode = helix::MaterialPreheatMode;
-    const auto mode = GENERATE(Mode::TEMPERATURES, Mode::TEMPERATURES_THEN_MACRO, Mode::MACRO_ONLY,
-                               Mode::MACRO_MISSING, Mode::MACRO_HELD_BY_JOB);
+    const auto mode =
+        GENERATE(Mode::TEMPERATURES, Mode::TEMPERATURES_THEN_MACRO, Mode::MACRO_ONLY,
+                 Mode::MACRO_MISSING, Mode::MACRO_UNCONFIRMED, Mode::MACRO_HELD_BY_JOB);
     CAPTURE(static_cast<int>(mode));
     helix::PrinterDiscovery hardware;
     int temperature_sends = 0;
@@ -742,6 +774,25 @@ TEST_CASE("plan_material_preheat flags a macro this printer does not define",
 
     CHECK(plan.mode == helix::MaterialPreheatMode::MACRO_MISSING);
     CHECK(plan.macro == "HEAT_ABS");
+}
+
+TEST_CASE("plan_material_preheat judges no macro until the printer reports its objects",
+          "[material_preheat][preheat]") {
+    filament::MaterialOverride override = abs_override("HEAT_ABS", true);
+    helix::PrinterDiscovery silent;
+    const auto plan = helix::plan_material_preheat(&override, silent, PrintState::Idle);
+    CHECK(plan.mode == helix::MaterialPreheatMode::MACRO_UNCONFIRMED);
+    CHECK(plan.refused());
+
+    // Reported, and the macro is not there: refused, naming it.
+    const auto missing = helix::plan_material_preheat(
+        &override, printer_with_macro("OTHER_PRINTER_HEAT_ABS"), PrintState::Idle);
+    CHECK(missing.mode == helix::MaterialPreheatMode::MACRO_MISSING);
+    CHECK(missing.refused());
+    CHECK_FALSE(
+        helix::plan_material_preheat(&override, printer_with_macro("HEAT_ABS"), PrintState::Idle)
+            .refused());
+    CHECK_FALSE(helix::plan_material_preheat(nullptr, silent, PrintState::Idle).refused());
 }
 
 TEST_CASE("plan_material_preheat holds the macro while a job holds the machine",

@@ -1279,9 +1279,10 @@ void FilamentPanel::handle_preset_button(int material_id) {
                                 helix::presets::macro_material(material_id)),
                             hw, printer_state_.print_state().get_print_lifecycle())
                       : MaterialPreheatPlan{MaterialPreheatMode::TEMPERATURES, ""};
-    // A preset whose macro this printer lacks refuses the tap before the
+    // A preset the rule refuses, because its macro is not on this printer or
+    // the printer has not reported its macros yet, refuses the tap before the
     // selection moves, so the panel keeps showing the material it had.
-    if (plan.mode == MaterialPreheatMode::MACRO_MISSING) {
+    if (plan.refused()) {
         execute_material_preheat(api_, plan, [] {}, "[FilamentPanel]", hw);
         return;
     }
@@ -2385,9 +2386,10 @@ void FilamentPanel::handle_spool_preset_button() {
         plan_material_preheat(helix::MaterialSettingsManager::instance().find_override_for_material(
                                   cached_active_material_->material_name),
                               hw, printer_state_.print_state().get_print_lifecycle());
-    // A preset whose macro this printer lacks refuses the tap before the
+    // A preset the rule refuses, because its macro is not on this printer or
+    // the printer has not reported its macros yet, refuses the tap before the
     // selection moves, so the panel keeps showing the material it had.
-    if (plan.mode == MaterialPreheatMode::MACRO_MISSING) {
+    if (plan.refused()) {
         execute_material_preheat(api_, plan, [] {}, "[FilamentPanel]", hw);
         return;
     }
