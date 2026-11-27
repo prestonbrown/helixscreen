@@ -3,6 +3,7 @@
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/measured_grids.h"
+#include "../test_helpers/sample_checks.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/scoped_int_subject.h"
 #include "../test_helpers/xml_stand_in_subject.h"
@@ -2158,6 +2159,7 @@ std::string describe(const TrackSet& tracks) {
 
 TEST_CASE("default_layout: every measured grid is covered or declared empty",
           "[default_layout][shipped][coverage]") {
+    helix::test::SampleChecks samples;
     // The resolver's own output, with nothing left to auto-placement. Every
     // track belongs to at most one tile, at a span its widget can take, and
     // print_status is always placed because it is the only progress readout on
@@ -2178,6 +2180,7 @@ TEST_CASE("default_layout: every measured grid is covered or declared empty",
     CapabilitySnapshot open_no_tool_changer = open;
     open_no_tool_changer.subjects["ams_is_tool_changer"] = 0;
 
+    size_t probe = 0;
     for (const auto& g : helix::test::kMeasuredGrids) {
         LayoutTypeGuard layout_type(g.panel_w, g.panel_h);
         const std::vector<std::string> chain = helix::LayoutManager::instance().variant_chain();
@@ -2186,6 +2189,7 @@ TEST_CASE("default_layout: every measured grid is covered or declared empty",
 
         for (const CapabilitySnapshot* caps :
              {&open, &open_no_ams, &open_no_tool_changer, &closed}) {
+            probe++;
             const char* gates = caps == &open                   ? "open"
                                 : caps == &open_no_ams          ? "open, no AMS"
                                 : caps == &open_no_tool_changer ? "open, not a tool changer"
@@ -2196,7 +2200,7 @@ TEST_CASE("default_layout: every measured grid is covered or declared empty",
                         << " tracks), gates " << gates);
             const ResolvedDefault r = helix::layout::resolve_default_layout(
                 layout, nullptr, kBpNames[bp], g.cols, g.rows, chain, "", *caps);
-            REQUIRE(r.ok);
+            SAMPLE_REQUIRE(samples, r.ok, probe);
 
             std::vector<std::vector<std::string>> owner(
                 static_cast<size_t>(g.rows), std::vector<std::string>(static_cast<size_t>(g.cols)));
@@ -2204,16 +2208,16 @@ TEST_CASE("default_layout: every measured grid is covered or declared empty",
                 const auto* def = helix::find_widget_def(p.id);
                 INFO("widget " << p.id << " at (" << p.col << "," << p.row << ") " << p.colspan
                                << "x" << p.rowspan);
-                REQUIRE(def != nullptr);
-                CHECK(p.colspan >= def->effective_min_colspan());
-                CHECK(p.colspan <= def->effective_max_colspan());
-                CHECK(p.rowspan >= def->effective_min_rowspan());
-                CHECK(p.rowspan <= def->effective_max_rowspan());
-                CHECK((p.colspan % 2 == 0 || def->supports_half_col));
-                CHECK((p.rowspan % 2 == 0 || def->supports_half_row));
+                SAMPLE_REQUIRE(samples, def != nullptr, probe);
+                SAMPLE_CHECK(samples, p.colspan >= def->effective_min_colspan(), probe);
+                SAMPLE_CHECK(samples, p.colspan <= def->effective_max_colspan(), probe);
+                SAMPLE_CHECK(samples, p.rowspan >= def->effective_min_rowspan(), probe);
+                SAMPLE_CHECK(samples, p.rowspan <= def->effective_max_rowspan(), probe);
+                SAMPLE_CHECK(samples, (p.colspan % 2 == 0 || def->supports_half_col), probe);
+                SAMPLE_CHECK(samples, (p.rowspan % 2 == 0 || def->supports_half_row), probe);
                 const bool on_grid = p.col >= 0 && p.row >= 0 && p.col + p.colspan <= g.cols &&
                                      p.row + p.rowspan <= g.rows;
-                CHECK(on_grid);
+                SAMPLE_CHECK(samples, on_grid, probe);
                 if (!on_grid) {
                     continue;
                 }
@@ -2221,7 +2225,7 @@ TEST_CASE("default_layout: every measured grid is covered or declared empty",
                     for (int col = p.col; col < p.col + p.colspan; ++col) {
                         auto& cell = owner[static_cast<size_t>(row)][static_cast<size_t>(col)];
                         INFO("track (" << col << "," << row << ") already holds " << cell);
-                        CHECK(cell.empty());
+                        SAMPLE_CHECK(samples, cell.empty(), probe);
                         cell = p.id;
                     }
                 }
@@ -2244,18 +2248,21 @@ TEST_CASE("default_layout: every measured grid is covered or declared empty",
                 }
                 INFO(
                     "empty tracks neither a declared gap nor a slot cell:" << describe(undeclared));
-                CHECK(undeclared.empty());
+                SAMPLE_CHECK(samples, undeclared.empty(), probe);
             } else {
                 INFO("empty tracks:" << describe(holes));
                 INFO("declared gaps:" << describe(gaps));
-                CHECK(holes == gaps);
+                SAMPLE_CHECK(samples, holes == gaps, probe);
             }
 
-            CHECK(placed_widget(r, "print_status") != nullptr);
+            SAMPLE_CHECK(samples, placed_widget(r, "print_status") != nullptr, probe);
             for (const auto& def : helix::get_all_widget_defs()) {
                 if (def.default_enabled) {
                     INFO("default-enabled widget " << def.id << " neither placed nor disabled");
-                    CHECK((placed_widget(r, def.id) != nullptr || resolved_disabled(r, def.id)));
+                    SAMPLE_CHECK(
+                        samples,
+                        (placed_widget(r, def.id) != nullptr || resolved_disabled(r, def.id)),
+                        probe);
                 }
             }
         }
