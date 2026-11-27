@@ -69,17 +69,46 @@ struct Rgb {
     uint8_t r, g, b;
 };
 
-Rgb backdrop_pixel(lv_obj_t* backdrop, uint32_t x, uint32_t y) {
+/// The image a backdrop widget shows, checked once: the buffer
+/// create_darkened_backdrop built, in the format pixel_in() unpacks.
+const lv_draw_buf_t* backdrop_buffer(lv_obj_t* backdrop) {
     REQUIRE(backdrop != nullptr);
     const auto* buf = static_cast<const lv_draw_buf_t*>(lv_image_get_src(backdrop));
     REQUIRE(buf != nullptr);
     REQUIRE(buf->header.cf == LV_COLOR_FORMAT_ARGB8888);
-    REQUIRE(x < buf->header.w);
-    REQUIRE(y < buf->header.h);
+    return buf;
+}
 
-    const auto* row = static_cast<const uint8_t*>(buf->data) + y * buf->header.stride;
+Rgb pixel_in(const lv_draw_buf_t& buf, uint32_t x, uint32_t y) {
+    const auto* row = static_cast<const uint8_t*>(buf.data) + y * buf.header.stride;
     const uint8_t* px = row + x * 4; // BGRA byte order in LVGL's ARGB8888
     return Rgb{px[2], px[1], px[0]};
+}
+
+Rgb backdrop_pixel(lv_obj_t* backdrop, uint32_t x, uint32_t y) {
+    const auto* buf = backdrop_buffer(backdrop);
+    REQUIRE(x < buf->header.w);
+    REQUIRE(y < buf->header.h);
+    return pixel_in(*buf, x, y);
+}
+
+/// The RGB bytes of every pixel of @p area in a backdrop's image, row by row.
+/// The area's bounds are checked once for all its pixels, so a whole navbar
+/// costs a handful of assertions rather than five per pixel.
+std::string backdrop_area(lv_obj_t* backdrop, const lv_area_t& area) {
+    const auto* buf = backdrop_buffer(backdrop);
+    REQUIRE((area.x1 >= 0 && area.y1 >= 0));
+    REQUIRE(static_cast<uint32_t>(area.x2) < buf->header.w);
+    REQUIRE(static_cast<uint32_t>(area.y2) < buf->header.h);
+    std::string pixels;
+    for (int32_t y = area.y1; y <= area.y2; ++y) {
+        for (int32_t x = area.x1; x <= area.x2; ++x) {
+            const Rgb px = pixel_in(*buf, static_cast<uint32_t>(x), static_cast<uint32_t>(y));
+            pixels.append(
+                {static_cast<char>(px.r), static_cast<char>(px.g), static_cast<char>(px.b)});
+        }
+    }
+    return pixels;
 }
 
 /// Tracks full-frame buffers alive through LVGL's default draw-buf handlers, and
@@ -352,18 +381,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a navbar slot appearing under an open overl
     lv_obj_get_coords(navbar, &a);
     // The navbar's whole column in the backdrop image, as one string of pixels.
     auto navbar_column = [&]() {
-        lv_obj_t* backdrop = NavigationManagerTestAccess::overlay_backdrop(nav);
-        REQUIRE(backdrop != nullptr);
-        std::string pixels;
-        for (int32_t y = a.y1; y <= a.y2; ++y) {
-            for (int32_t x = a.x1; x <= a.x2; ++x) {
-                const Rgb px =
-                    backdrop_pixel(backdrop, static_cast<uint32_t>(x), static_cast<uint32_t>(y));
-                pixels.append(
-                    {static_cast<char>(px.r), static_cast<char>(px.g), static_cast<char>(px.b)});
-            }
-        }
-        return pixels;
+        return backdrop_area(NavigationManagerTestAccess::overlay_backdrop(nav), a);
     };
 
     NavigationManagerTestAccess::adopt_overlay_backdrop(nav, test_screen());
