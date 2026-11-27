@@ -167,8 +167,9 @@ if [[ $UNDEFINED_COUNT -gt 0 ]]; then
     echo ""
     echo "$UNDEFINED" | while IFS= read -r icon; do
         if [[ -n "$icon" ]]; then
-            # Find which XML file uses this icon
-            FILES=$(grep -rl "icon=\"$icon\"" "$XML_DIR" 2>/dev/null | sed 's|.*/||' | paste -sd, - | sed 's/,/, /g')
+            # The XML files that use this icon, by name: a directory hands its
+            # entries back in a different order on every filesystem.
+            FILES=$(grep -rl "icon=\"$icon\"" "$XML_DIR" 2>/dev/null | sed 's|.*/||' | sort | paste -sd, - | sed 's/,/, /g')
             echo "   $icon (used in: $FILES)"
         fi
     done
