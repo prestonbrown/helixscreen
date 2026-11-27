@@ -46,6 +46,7 @@
 #include "json_utils.h"
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
+#include "led/ui_led_control_overlay.h"
 #include "light_button_config.h"
 #include "memory_monitor.h"
 #include "mock_performance_source.h"
@@ -679,6 +680,9 @@ void PrinterSession::teardown_printer_scope(TeardownScope scope, DisplayManager*
     AmsState::instance().before_disconnect();
     if (auto* heater = helix::ui::get_filament_op_heater()) {
         heater->before_disconnect();
+    }
+    if (auto* led_overlay = helix::lazy_global_if_exists<helix::led::LedControlOverlay>()) {
+        led_overlay->before_disconnect();
     }
 
     // Disconnect the WebSocket client FIRST to stop background threads (mock simulation,

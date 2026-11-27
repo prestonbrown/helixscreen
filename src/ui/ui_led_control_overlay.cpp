@@ -189,8 +189,19 @@ void LedControlOverlay::on_deactivating(DeactivateReason) {
     spdlog::debug("[{}] Deactivated", get_name());
 }
 
+void LedControlOverlay::before_disconnect() {
+    // The picker undoes a preview on Cancel, a backdrop tap and ESC. A session
+    // that ends under it destroys it instead, and a destructor runs no hook, so
+    // the overlay ends the preview itself while the light can still be told.
+    if (color_picker_ && color_picker_->is_visible()) {
+        color_picker_->hide();
+    }
+}
+
 void LedControlOverlay::cleanup() {
     spdlog::debug("[{}] Cleanup", get_name());
+    // A close can release the tree and keep the overlay object.
+    before_disconnect();
     state_observer_.reset();
     deinit_subjects_base(subjects_);
     on_ui_destroyed();
@@ -632,7 +643,12 @@ void LedControlOverlay::apply_look(uint32_t rgb, double w) {
 
 // Out of line: ColorPickerModal is incomplete in the header.
 LedControlOverlay::LedControlOverlay() = default;
-LedControlOverlay::~LedControlOverlay() = default;
+LedControlOverlay::~LedControlOverlay() {
+    // The session frees its overlays through destroy_all(), which destroys them
+    // without a cleanup(): the destructor is where a teardown finds an overlay,
+    // so an open preview ends here.
+    before_disconnect();
+}
 
 void LedControlOverlay::handle_custom_color() {
     if (focused_info() == nullptr || !overlay_root_) {

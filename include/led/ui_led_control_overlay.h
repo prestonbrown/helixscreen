@@ -72,6 +72,11 @@ class LedControlOverlay : public OverlayBase {
     void on_deactivating(DeactivateReason reason) override;
     void cleanup() override;
 
+    /// The session's last word to the printer while it can still be told: a
+    /// Custom color preview still open goes back to the light's own color, and
+    /// the effect the preview stopped runs again.
+    void before_disconnect();
+
     /// Freed on close; the next open rebuilds it. Focus and the current look live
     /// in members, the page in subjects, so nothing is lost with the widgets.
     bool destroy_on_close() const override {
