@@ -234,7 +234,12 @@
                it for the fixed-row twin below, whose taller buttons consume
                the dead band between the picker and the pinned bottom rows.
                Names carry _tiny so on_temp_graph_preset_clicked's substring
-               lookup (preset_off/preset_1/...) still resolves. -->
+               lookup (preset_off/preset_1/...) still resolves.
+               A material preset runs its material's macro, so each grid
+               button carries the macro mark while its material names one
+               (the button's own icon, shown by preset_material_<slot>_has_macro).
+               The twin carries none: at 480x320 its buttons are 72px wide, and
+               the mark beside ABS/ASA would leave 2px at each edge. -->
           <lv_obj name="nozzle_preset_grid"
                   width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row_wrap"
                   style_flex_main_place="space_between" style_pad_gap="#space_xs">
@@ -244,15 +249,21 @@
                        style_border_color="#border" style_border_opa="255">
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>
-            <ui_button name="preset_1" width="48%" bind_text="preset_material_0_name">
+            <ui_button name="preset_1"
+                       width="48%" bind_text="preset_material_0_name" icon="script_text" icon_size="xs"
+                       icon_hidden_subject="preset_material_0_has_macro" icon_hidden_if_eq="0">
               <bind_style name="styles.heat_blocked" subject="ams_nozzle_heat_blocked" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>
-            <ui_button name="preset_2" width="48%" bind_text="preset_material_1_name">
+            <ui_button name="preset_2"
+                       width="48%" bind_text="preset_material_1_name" icon="script_text" icon_size="xs"
+                       icon_hidden_subject="preset_material_1_has_macro" icon_hidden_if_eq="0">
               <bind_style name="styles.heat_blocked" subject="ams_nozzle_heat_blocked" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>
-            <ui_button name="preset_3" width="48%" bind_text="preset_material_2_name">
+            <ui_button name="preset_3"
+                       width="48%" bind_text="preset_material_2_name" icon="script_text" icon_size="xs"
+                       icon_hidden_subject="preset_material_2_has_macro" icon_hidden_if_eq="0">
               <bind_style name="styles.heat_blocked" subject="ams_nozzle_heat_blocked" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>

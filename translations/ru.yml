@@ -3047,6 +3047,7 @@ translations:
   Macro to resume a paused print: Макрос для возобновления приостановленной печати
   Macro to unload filament from extruder: Макрос для выгрузки филамента из экструдера
   Macro {1} has a syntax error: Синтаксическая ошибка в макросе {1}
+  Macro {} is not on this printer, so the preset did not run: Макрос {} отсутствует на этом принтере, поэтому пресет не был запущен
   Macros: Макросы
   Macros installed - restart pending: 'Макросы установлены - ожидается перезапуск'
   Macros installed. Restart Klipper after the print to activate them.: 'Макросы установлены. Перезапустите Klipper после печати, чтобы активировать их.'

@@ -951,6 +951,18 @@ macro heats is `MaterialOverride::macro_heats`, asked by
 `src/printer/macro_executor.cpp#plan_material_preheat`, by the edit view's `material_macro_heats`
 subject, and by the row.
 
+**The rule every material preset runs.** `src/printer/macro_executor.cpp#plan_material_preheat`
+and `src/printer/macro_executor.cpp#execute_material_preheat` serve the Filament screen's preset
+buttons, the Home preheat tile and the nozzle presets of the temperature graph screen
+(`src/ui/controls/ui_overlay_temp_graph.cpp#on_temp_graph_preset_clicked`). The graph's grid
+buttons, shown from the small breakpoint up, carry the mark through the shared button's own
+icon, `icon="script_text"`, hidden while `preset_material_<slot>_has_macro` is 0. Its
+fixed-row twin at the two smallest sizes carries none: its buttons are 72px wide at 480x320,
+and the mark beside ABS/ASA would sit 2px from each edge.A preset aimed at a tool that is not mounted sends its
+temperatures itself, because a heating macro heats the mounted tool. `MACRO_MISSING` sends
+nothing and publishes a notice naming the macro, so a caller makes its plan before it moves
+its own selection: a refused tap leaves the Filament screen on the material it had.
+
 **Migration from `settings.json`.** `MaterialSettingsManager::init()` moves any
 `material_overrides` left in `settings.json` into the overlay's `types`
 (`bed_temp` becomes `bed`, `chamber_temp` becomes `chamber`; a field the overlay

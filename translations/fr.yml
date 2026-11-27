@@ -2995,6 +2995,7 @@ translations:
   Macro to resume a paused print: Macro pour reprendre une impression en pause
   Macro to unload filament from extruder: Macro pour décharger le filament de l'extrudeur
   Macro {1} has a syntax error: La macro {1} contient une erreur de syntaxe
+  Macro {} is not on this printer, so the preset did not run: 'La macro {} est absente de cette imprimante, le préréglage n''a donc pas été lancé'
   Macros: Macros
   Macros installed - restart pending: 'Macros installées - redémarrage en attente'
   Macros installed. Restart Klipper after the print to activate them.: 'Macros installées. Redémarrez Klipper après l''impression pour les activer.'

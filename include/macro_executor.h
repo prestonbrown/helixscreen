@@ -49,7 +49,7 @@ enum class MaterialPreheatMode {
     TEMPERATURES,            ///< No macro assigned: send the preset temperatures.
     TEMPERATURES_THEN_MACRO, ///< Send the temperatures, then run the additive macro.
     MACRO_ONLY,              ///< The macro sets every temperature itself.
-    MACRO_MISSING,           ///< Assigned, but this printer lacks it: send the temperatures.
+    MACRO_MISSING,           ///< Assigned, but this printer lacks it: send nothing, and say so.
     MACRO_HELD_BY_JOB,       ///< Assigned, but a job holds the machine: send the temperatures.
 };
 
@@ -68,7 +68,9 @@ struct MaterialPreheatPlan {
                                                         PrintState lifecycle);
 
 /// Carry out @p plan. The temperature sender runs synchronously, before an
-/// additive macro, or alone for TEMPERATURES, MACRO_MISSING and MACRO_HELD_BY_JOB.
+/// additive macro, or alone for TEMPERATURES and MACRO_HELD_BY_JOB. MACRO_MISSING
+/// sends nothing and shows a notice naming the macro: the preset was set to run
+/// that macro, and heating without it would do part of what it was told not to.
 /// A macro that is sent gets the pre-start limit: a soak or a wipe runs for many
 /// minutes, and a timeout with the printer still busy reports nothing. A macro
 /// still waiting for its answer is not sent again, so a second tap on the preset

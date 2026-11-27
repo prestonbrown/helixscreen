@@ -18,6 +18,7 @@
 #include "core/temperature_units.h"
 #include "heater_type.h"
 #include "lvgl.h"
+#include "macro_executor.h"
 #include "observe_language.h"
 #include "panel_widget_manager.h"
 #include "preset_materials.h"
@@ -793,46 +794,67 @@ void TempGraphOverlay::on_temp_graph_preset_clicked(lv_event_t* e) {
     // nozzle mirror tracks the machine's active tool, so the optimistic local
     // set_heater is only correct when the target is mounted.
     auto& target = helix::ui::TargetTool::instance();
-    const bool nozzle_pick_non_active = type == helix::HeaterType::Nozzle && !target.mounted();
+    const bool aimed_elsewhere = type == helix::HeaterType::Nozzle && !target.mounted();
 
-    if (!nozzle_pick_non_active) {
-        // Update local state
-        self->temp_control_panel_->set_heater(
-            type, self->temp_control_panel_->heater(type).current,
-            helix::temperature_rules::degrees_to_deci(data.preset_value));
-    }
-
-    // Send via the controller — it resolves the klipper name internally (chamber
-    // never sends a stale HEATER=chamber) and shows the standard error toast.
-    if (helix::TemperatureController* c = self->temp_control_panel_->controller()) {
-        if (nozzle_pick_non_active) {
-            c->set_target(target.extruder_name(), static_cast<double>(data.preset_value),
-                          {.toast = true});
-        } else {
-            c->set_target(type, static_cast<double>(data.preset_value), {.toast = true});
+    const auto send_targets = [&]() {
+        if (!aimed_elsewhere) {
+            // Update local state
+            self->temp_control_panel_->set_heater(
+                type, self->temp_control_panel_->heater(type).current,
+                helix::temperature_rules::degrees_to_deci(data.preset_value));
         }
-        // A nozzle material preset heats the bed, and the chamber on a printer
-        // with a chamber heater, unless "Material presets heat the bed and
-        // chamber" is off. Off (index 0) touches the nozzle alone.
-        if (type == helix::HeaterType::Nozzle && preset_idx > 0) {
-            if (const auto temps = helix::presets::slot_temps(preset_idx - 1)) {
-                const int chamber =
-                    self->printer_state_
-                        ? helix::presets::chamber_request(temps->chamber,
-                                                          self->printer_state_->temperature_state())
-                        : 0;
-                const auto targets = helix::presets::heater_targets(temps->bed, chamber);
-                if (targets.bed) {
-                    c->set_target(helix::HeaterType::Bed, static_cast<double>(*targets.bed),
-                                  {.toast = true});
-                }
-                if (targets.chamber) {
-                    c->set_target(helix::HeaterType::Chamber, static_cast<double>(*targets.chamber),
-                                  {.toast = true});
+
+        // Send via the controller — it resolves the klipper name internally (chamber
+        // never sends a stale HEATER=chamber) and shows the standard error toast.
+        if (helix::TemperatureController* c = self->temp_control_panel_->controller()) {
+            if (aimed_elsewhere) {
+                c->set_target(target.extruder_name(), static_cast<double>(data.preset_value),
+                              {.toast = true});
+            } else {
+                c->set_target(type, static_cast<double>(data.preset_value), {.toast = true});
+            }
+            // A nozzle material preset heats the bed, and the chamber on a printer
+            // with a chamber heater, unless "Material presets heat the bed and
+            // chamber" is off. Off (index 0) touches the nozzle alone.
+            if (type == helix::HeaterType::Nozzle && preset_idx > 0) {
+                if (const auto temps = helix::presets::slot_temps(preset_idx - 1)) {
+                    const int chamber =
+                        self->printer_state_
+                            ? helix::presets::chamber_request(
+                                  temps->chamber, self->printer_state_->temperature_state())
+                            : 0;
+                    const auto targets = helix::presets::heater_targets(temps->bed, chamber);
+                    if (targets.bed) {
+                        c->set_target(helix::HeaterType::Bed, static_cast<double>(*targets.bed),
+                                      {.toast = true});
+                    }
+                    if (targets.chamber) {
+                        c->set_target(helix::HeaterType::Chamber,
+                                      static_cast<double>(*targets.chamber), {.toast = true});
+                    }
                 }
             }
         }
+    };
+
+    // A material preset runs its macro by the rule every material preset uses,
+    // the Filament panel's and the Home preheat tile's: the rule sends these
+    // targets, before an additive macro or alone, and sends nothing with a
+    // notice when the macro is not on this printer. A heating macro heats the
+    // mounted tool, so a preset aimed at another sends its targets itself.
+    if (type == helix::HeaterType::Nozzle && preset_idx > 0 && !aimed_elsewhere &&
+        self->printer_state_) {
+        const auto& hw = self->printer_state_->get_discovery();
+        execute_material_preheat(
+            get_moonraker_api(),
+            plan_material_preheat(
+                helix::MaterialSettingsManager::instance().find_override_for_material(
+                    helix::presets::macro_material(preset_idx - 1)),
+                hw, self->printer_state_->print_state().get_print_lifecycle()),
+            send_targets, "[TempGraphOverlay]", hw);
+        return;
     }
+    send_targets();
 }
 
 void TempGraphOverlay::on_temp_graph_custom_clicked(lv_event_t* e) {

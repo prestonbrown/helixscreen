@@ -16,6 +16,8 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/discovery_of_objects.h"
+#include "../test_helpers/scoped_moonraker_api.h"
+#include "../test_helpers/temp_graph_overlay_test_access.h"
 #include "core/update_queue.h"
 #include "material_settings_manager.h"
 #include "moonraker_api.h"
@@ -182,50 +184,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "TempGraphOverlay: cleanup after init_subjects
 // per-fixture printer state and drive the same private entry points the XML
 // event path uses.
 
-class TempGraphOverlayTestAccess {
-  public:
-    static void set_deps(TempGraphOverlay& o, helix::PrinterState* state,
-                         TemperatureService* service) {
-        o.printer_state_ = state;
-        o.temp_control_panel_ = service;
-    }
-    static void set_mode(TempGraphOverlay& o, TempGraphOverlay::Mode mode) {
-        o.mode_ = mode;
-    }
-    /// The custom-entry keypad's opening click (the XML callback ignores its
-    /// event, so a null one exercises the production path).
-    static void custom_clicked(TempGraphOverlay& o) {
-        TempGraphOverlay::on_temp_graph_custom_clicked(nullptr);
-    }
-    /// The keypad's confirm, delivered the way ui_component_keypad does.
-    static void keypad_confirm(TempGraphOverlay& o, float value) {
-        TempGraphOverlay::keypad_value_cb(value, &o.keypad_ctx_);
-    }
-    /// A tap on the nozzle strip's preset button @p name ("preset_1" is the
-    /// first material slot), sending @p deg as that button's target.
-    static void preset_clicked(TempGraphOverlay& o, const char* name, int deg, lv_obj_t* parent) {
-        const int idx = name[std::string(name).size() - 1] - '0';
-        o.preset_data_[static_cast<size_t>(idx)] = {&o, deg};
-        lv_obj_t* btn = lv_obj_create(parent);
-        lv_obj_set_name(btn, name);
-        lv_obj_add_event_cb(btn, TempGraphOverlay::on_temp_graph_preset_clicked, LV_EVENT_CLICKED,
-                            nullptr);
-        lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
-        lv_obj_delete(btn);
-    }
-    static void discover(TempGraphOverlay& o) {
-        o.discover_series();
-    }
-    /// {has_target} of the series named @p klipper_name, or nullopt if absent.
-    static std::optional<bool> series_has_target(TempGraphOverlay& o,
-                                                 const std::string& klipper_name) {
-        for (const auto& s : o.series_)
-            if (s.klipper_name == klipper_name)
-                return s.has_target;
-        return std::nullopt;
-    }
-};
-
 /// Per-fixture printer state wired to a mock client, mirroring
 /// ControllerFixture in test_temperature_controller.cpp: the gcode history is
 /// what proves WHICH extruder received a target.
@@ -240,6 +198,9 @@ class TempGraphOverlayPickFixture : public LVGLTestFixture {
     std::shared_ptr<helix::TemperatureController> controller_{
         std::make_shared<helix::TemperatureController>(state, &api)};
     TemperatureService service{state, &api};
+    // A material preset's macro goes through the rule every preset uses, which
+    // sends through the process-wide API.
+    ScopedMoonrakerApi scoped_api_{&api};
 
     TempGraphOverlayPickFixture() {
         service.set_controller(controller_.get());

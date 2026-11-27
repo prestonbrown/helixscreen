@@ -2858,6 +2858,7 @@
   <translation tag="Macro to resume a paused print" de="Makro zum Fortsetzen eines pausierten Drucks"/>
   <translation tag="Macro to unload filament from extruder" de="Makro zum Entladen von Filament aus dem Extruder"/>
   <translation tag="Macro {1} has a syntax error" de="Makro {1} hat einen Syntaxfehler"/>
+  <translation tag="Macro {} is not on this printer, so the preset did not run" de="Makro {} ist auf diesem Drucker nicht vorhanden, das Preset wurde deshalb nicht gestartet"/>
   <translation tag="Macros" de="Makros"/>
   <translation tag="Macros installed - restart pending" de="Makros installiert - Neustart ausstehend"/>
   <translation tag="Macros installed. Restart Klipper after the print to activate them." de="Makros installiert. Starten Sie Klipper nach dem Druck neu, um sie zu aktivieren."/>

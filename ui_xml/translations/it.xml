@@ -2858,6 +2858,7 @@
   <translation tag="Macro to resume a paused print" it="Macro per riprendere una stampa in pausa"/>
   <translation tag="Macro to unload filament from extruder" it="Macro per scaricare filamento dall&apos;estrusore"/>
   <translation tag="Macro {1} has a syntax error" it="La macro {1} ha un errore di sintassi"/>
+  <translation tag="Macro {} is not on this printer, so the preset did not run" it="La macro {} non è presente su questa stampante, quindi il preset non è stato eseguito"/>
   <translation tag="Macros" it="Macro"/>
   <translation tag="Macros installed - restart pending" it="Macro installate - riavvio in attesa"/>
   <translation tag="Macros installed. Restart Klipper after the print to activate them." it="Macro installate. Riavvia Klipper dopo la stampa per attivarle."/>

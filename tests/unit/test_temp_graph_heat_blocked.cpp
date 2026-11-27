@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// The temperature overlay's nozzle presets and Custom button dim while the
-// filament system refuses nozzle heat, in both orientations.
+// The temperature overlay's nozzle presets and Custom button, in the markup
+// the app builds: they dim while the filament system refuses nozzle heat, in
+// both orientations, and a material preset carries its material's macro mark.
 
+#include "ui_button.h"
 #include "ui_nav_manager.h"
 #include "ui_overlay_temp_graph.h"
 
@@ -11,6 +13,7 @@
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "preset_materials.h"
 
 #include <algorithm>
 #include <array>
@@ -92,4 +95,43 @@ TEST_CASE_METHOD(TempGraphHeatFixture, "Temp overlay nozzle presets dim while he
     NavigationManager::instance().go_back();
     settle();
     lv_subject_set_int(portrait, 0);
+}
+
+TEST_CASE_METHOD(TempGraphHeatFixture,
+                 "Temp overlay material presets carry the macro mark on the grid and none on the "
+                 "small twin",
+                 "[temp_graph_overlay][preset_mark][2183]") {
+    auto& overlay = get_global_temp_graph_overlay();
+    overlay.open(TempGraphOverlay::Mode::Nozzle, lv_screen_active());
+    settle();
+    lv_obj_t* root = overlay.get_root();
+    REQUIRE(root != nullptr);
+    lv_subject_t* abs_has_macro = helix::presets::has_macro_subject(2);
+    REQUIRE(abs_has_macro != nullptr);
+    const int saved = lv_subject_get_int(abs_has_macro);
+    lv_obj_t* abs_button = lv_obj_find_by_name(root, "preset_3");
+    lv_obj_t* pla_button = lv_obj_find_by_name(root, "preset_1");
+    lv_obj_t* abs_twin = lv_obj_find_by_name(root, "preset_3_tiny");
+    REQUIRE(abs_button != nullptr);
+    REQUIRE(pla_button != nullptr);
+    REQUIRE(abs_twin != nullptr);
+    lv_obj_t* abs_mark = ui_button_get_icon(abs_button);
+    REQUIRE(abs_mark != nullptr);
+
+    // ABS names a macro and PLA names none: one grid button shows the mark.
+    lv_subject_set_int(abs_has_macro, 1);
+    lv_subject_set_int(helix::presets::has_macro_subject(0), 0);
+    settle();
+    CHECK_FALSE(lv_obj_is_hidden(abs_mark));
+    CHECK(lv_obj_is_hidden(ui_button_get_icon(pla_button)));
+    // The twin's buttons are too narrow for the mark beside a name.
+    CHECK(ui_button_get_icon(abs_twin) == nullptr);
+
+    lv_subject_set_int(abs_has_macro, 0);
+    settle();
+    CHECK(lv_obj_is_hidden(abs_mark));
+
+    NavigationManager::instance().go_back();
+    settle();
+    lv_subject_set_int(abs_has_macro, saved);
 }

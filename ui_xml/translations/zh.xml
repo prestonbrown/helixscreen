@@ -2858,6 +2858,7 @@
   <translation tag="Macro to resume a paused print" zh="恢复暂停打印的宏"/>
   <translation tag="Macro to unload filament from extruder" zh="从挤出机卸载耗材的宏"/>
   <translation tag="Macro {1} has a syntax error" zh="宏 {1} 有语法错误"/>
+  <translation tag="Macro {} is not on this printer, so the preset did not run" zh="此打印机上没有宏 {}，预设未运行"/>
   <translation tag="Macros" zh="宏"/>
   <translation tag="Macros installed - restart pending" zh="宏已安装 - 重启待执行"/>
   <translation tag="Macros installed. Restart Klipper after the print to activate them." zh="宏已安装。打印结束后重启 Klipper 即可启用。"/>

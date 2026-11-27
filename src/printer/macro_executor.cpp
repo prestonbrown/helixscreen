@@ -18,6 +18,7 @@
 #include "printer_state.h"
 #include "toolhead_homing.h"
 
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
@@ -335,10 +336,12 @@ void execute_material_preheat(IMoonrakerAPI* api, const MaterialPreheatPlan& pla
         set_temperatures();
         return;
     case MaterialPreheatMode::MACRO_MISSING:
-        spdlog::warn("{} Preheat macro '{}' not found on this printer; setting temperatures "
-                     "directly",
-                     caller_tag, plan.macro);
-        set_temperatures();
+        spdlog::warn("{} Preheat macro '{}' is not on this printer; nothing was sent", caller_tag,
+                     plan.macro);
+        publish_notice(
+            {NoticeSeverity::WARNING,
+             fmt::format(lv_tr("Macro {} is not on this printer, so the preset did not run"),
+                         plan.macro)});
         return;
     case MaterialPreheatMode::MACRO_HELD_BY_JOB:
         spdlog::info("{} Preheat macro '{}' not sent: a job holds the machine", caller_tag,

@@ -2983,6 +2983,7 @@ translations:
   Macro to resume a paused print: 恢复暂停打印的宏
   Macro to unload filament from extruder: 从挤出机卸载耗材的宏
   Macro {1} has a syntax error: 宏 {1} 有语法错误
+  Macro {} is not on this printer, so the preset did not run: 此打印机上没有宏 {}，预设未运行
   Macros: 宏
   Macros installed - restart pending: '宏已安装 - 重启待执行'
   Macros installed. Restart Klipper after the print to activate them.: '宏已安装。打印结束后重启 Klipper 即可启用。'

@@ -1267,6 +1267,25 @@ void FilamentPanel::update_all_temps() {
 // INSTANCE HANDLERS
 
 void FilamentPanel::handle_preset_button(int material_id) {
+    const auto& hw = printer_state_.get_discovery();
+    // An explicit preheat applies the selected material, not a filament-swap
+    // temperature floor. A configured heating macro owns all heater commands,
+    // but it heats the mounted tool: aimed at another, the panel sends the
+    // targets itself and plans no macro.
+    const bool macro_planned = target_is_mounted();
+    const auto plan =
+        macro_planned ? plan_material_preheat(
+                            helix::MaterialSettingsManager::instance().find_override_for_material(
+                                helix::presets::macro_material(material_id)),
+                            hw, printer_state_.print_state().get_print_lifecycle())
+                      : MaterialPreheatPlan{MaterialPreheatMode::TEMPERATURES, ""};
+    // A preset whose macro this printer lacks refuses the tap before the
+    // selection moves, so the panel keeps showing the material it had.
+    if (plan.mode == MaterialPreheatMode::MACRO_MISSING) {
+        execute_material_preheat(api_, plan, [] {}, "[FilamentPanel]", hw);
+        return;
+    }
+
     // Delegate state update and display refresh to the public API
     set_material(material_id);
 
@@ -1285,21 +1304,14 @@ void FilamentPanel::handle_preset_button(int material_id) {
         }
     }
 
-    // An explicit preheat applies the selected material, not a filament-swap
-    // temperature floor. A configured heating macro owns all heater commands,
-    // but it heats the mounted tool: aimed at another, the panel sends the
-    // targets itself.
-    if (selected_material_ == material_id && !target_is_mounted()) {
-        send_preset_targets();
-    } else if (selected_material_ == material_id) {
-        const auto& hw = printer_state_.get_discovery();
+    if (selected_material_ != material_id) {
+        return;
+    }
+    if (macro_planned) {
         execute_material_preheat(
-            api_,
-            plan_material_preheat(
-                helix::MaterialSettingsManager::instance().find_override_for_material(
-                    helix::presets::macro_material(material_id)),
-                hw, printer_state_.print_state().get_print_lifecycle()),
-            [this]() { send_preset_targets(); }, "[FilamentPanel]", hw);
+            api_, plan, [this]() { send_preset_targets(); }, "[FilamentPanel]", hw);
+    } else {
+        send_preset_targets();
     }
 }
 
@@ -2368,6 +2380,18 @@ void FilamentPanel::handle_spool_preset_button() {
     if (!cached_active_material_.has_value())
         return;
 
+    const auto& hw = printer_state_.get_discovery();
+    const auto plan =
+        plan_material_preheat(helix::MaterialSettingsManager::instance().find_override_for_material(
+                                  cached_active_material_->material_name),
+                              hw, printer_state_.print_state().get_print_lifecycle());
+    // A preset whose macro this printer lacks refuses the tap before the
+    // selection moves, so the panel keeps showing the material it had.
+    if (plan.mode == MaterialPreheatMode::MACRO_MISSING) {
+        execute_material_preheat(api_, plan, [] {}, "[FilamentPanel]", hw);
+        return;
+    }
+
     const auto& mat = cached_active_material_->material_info;
     nozzle_target_ = mat.nozzle_recommended();
     bed_target_ = mat.bed_temp;
@@ -2386,12 +2410,8 @@ void FilamentPanel::handle_spool_preset_button() {
     update_material_temp_display();
     update_status();
 
-    const auto& hw = printer_state_.get_discovery();
     execute_material_preheat(
-        api_,
-        plan_material_preheat(helix::MaterialSettingsManager::instance().find_override_for_material(
-                                  cached_active_material_->material_name),
-                              hw, printer_state_.print_state().get_print_lifecycle()),
+        api_, plan,
         [this]() {
             send_nozzle_target();
             const auto bed = helix::presets::heater_targets(bed_target_).bed;
