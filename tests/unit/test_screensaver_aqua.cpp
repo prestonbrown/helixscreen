@@ -3,6 +3,7 @@
 #if HELIX_ENABLE_SCREENSAVER
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/sample_checks.h"
 #include "../test_helpers/screensaver_sim_kit.h"
 #include "../test_helpers/screensaver_test_access.h"
 #include "screensaver_aqua.h"
@@ -143,13 +144,16 @@ TEST_CASE("the grid samples the analytic surface", "[screensaver][aqua]") {
     const float t = 7.3f;
     water.evaluate(t, rng);
     std::minstd_rand pick(9);
+    helix::test::SampleChecks samples;
     for (int i = 0; i < 50; i++) {
         const float z =
             kAquaZNear + 0.05f + (kAquaDepth - 0.1f) * helix::ui::screensaver::unit_random(pick);
         const float u = (helix::ui::screensaver::unit_random(pick) * 2.0f - 1.0f) * u_max * 0.95f;
         const float x = u * z;
         CAPTURE(x, z);
-        CHECK(water.height_at(x, z) == Catch::Approx(water.exact_height(x, z, t)).margin(0.01));
+        SAMPLE_CHECK(
+            samples,
+            water.height_at(x, z) == Catch::Approx(water.exact_height(x, z, t)).margin(0.01), i);
     }
 
     // Before the first impulse only the modes and waves stand, and amplitude 0 flattens both.
@@ -158,9 +162,10 @@ TEST_CASE("the grid samples the analytic surface", "[screensaver][aqua]") {
     flat.init(rng, 160, 64, u_max);
     flat.set_amplitude(0.0f);
     flat.evaluate(before_impulse, rng);
-    for (const float h : flat.heights()) {
-        REQUIRE(h == Catch::Approx(0.0f).margin(1e-5));
+    for (size_t i = 0; i < flat.heights().size(); ++i) {
+        SAMPLE_REQUIRE(samples, flat.heights()[i] == Catch::Approx(0.0f).margin(1e-5), i);
     }
+    samples.done(50 + flat.heights().size());
     CHECK(flat.exact_height(1.0f, 5.0f, before_impulse) == Catch::Approx(0.0f).margin(1e-5));
     CHECK(flat.exact_height(-2.0f, 6.5f, before_impulse) == Catch::Approx(0.0f).margin(1e-5));
 }
@@ -298,14 +303,16 @@ TEST_CASE("the cap limits emission and never culls", "[screensaver][aqua][drople
     std::vector<AquaLanding> landed;
     landed.reserve(kAquaMaxDroplets);
     size_t total_landed = 0;
+    helix::test::SampleChecks samples;
     for (int i = 0; i < 16000; i++) {
         real.evaluate(static_cast<float>(i) * 0.0125f, wave_rng);
         landed.clear();
         live.step(0.0125f, real, wave_rng, &landed);
         total_landed += landed.size();
-        REQUIRE(live.droplets().size() <= kAquaMaxDroplets);
-        REQUIRE(live.emitted() == live.droplets().size() + total_landed);
+        SAMPLE_REQUIRE(samples, live.droplets().size() <= kAquaMaxDroplets, i);
+        SAMPLE_REQUIRE(samples, live.emitted() == live.droplets().size() + total_landed, i);
     }
+    samples.done(2 * 16000);
 }
 
 TEST_CASE("droplets stay inside the tank depth", "[screensaver][aqua][droplets]") {
@@ -678,20 +685,22 @@ TEST_CASE("the near-edge rim is always lit", "[screensaver][aqua]") {
     const int floor_red =
         static_cast<int>(std::pow(0.7f * kAquaRimFloor, 1.05f) * 0.94f * 255.0f) - 2;
     size_t lit_checked = 0;
+    helix::test::SampleChecks samples;
     for (int i = 0; i < 400; i++) {
         sim.step(50, frame.target, rng, r, dirty);
         for (int32_t x = 0; x < 400; x += 7) {
-            CHECK(sim.rim_brightness(x) >= kAquaRimFloor);
+            SAMPLE_CHECK(samples, sim.rim_brightness(x) >= kAquaRimFloor, i * 400 + x);
             const float e = sim.rim_row(x);
             const auto y = static_cast<int32_t>(std::floor(e));
             if (y < 0 || y >= 240 ||
                 (x >= clock.x1 && x <= clock.x2 && y >= clock.y1 && y <= clock.y2)) {
                 continue;
             }
-            CHECK(writer.get(x, y).r >= floor_red);
+            SAMPLE_CHECK(samples, writer.get(x, y).r >= floor_red, i * 400 + x);
             lit_checked++;
         }
     }
+    samples.done(58 * 400 + lit_checked);
     CHECK(lit_checked > 1000);
 }
 
