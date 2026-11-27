@@ -34,6 +34,9 @@ class TempGraphHeatFixture : public LVGLUITestFixture {
             p = lv_obj_create(lv_screen_active());
         NavigationManager::instance().set_panels(panels_.data());
         helix::AmsState::instance().init_subjects(true);
+        // The preset subjects the buttons' names and marks follow, as the app
+        // brings them up.
+        helix::presets::init_subjects();
     }
     ~TempGraphHeatFixture() override {
         lv_subject_set_int(helix::AmsState::instance().get_nozzle_heat_blocked_subject(), 0);
@@ -168,8 +171,6 @@ TEST_CASE_METHOD(TempGraphHeatFixture,
     REQUIRE(display != nullptr);
     ScopedResolution resolution(display, size.w, size.h);
     theme_manager_refresh_layout_constants(display);
-    // The preset subjects this case drives, as the app brings them up.
-    helix::presets::init_subjects();
 
     auto& overlay = get_global_temp_graph_overlay();
     overlay.open(TempGraphOverlay::Mode::Nozzle, lv_screen_active());
