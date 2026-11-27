@@ -208,12 +208,15 @@ void TempGraphOverlay::fit_preset_name(lv_obj_t* button, int slot) {
             ? 0
             : helix::ui::label_width(mark) + lv_obj_get_style_pad_column(button, LV_PART_MAIN);
     const int32_t room = lv_obj_get_width(button) - 2 * kPresetEdgeRoom;
-    // The button's long_mode gives its label the row's whole width; here the
-    // name is as wide as it needs to be and no wider.
+    // DECLARATIVE_OK: measured layout; how wide the name may grow, and whether
+    // it shortens with dots, follow the measurement. The label is never bounded
+    // before this runs: a label that has shortened measures as its dots.
+    const bool fits = helix::ui::fits_beside(room, reserved, name_width);
+    lv_label_set_long_mode(name, fits ? LV_LABEL_LONG_MODE_WRAP : LV_LABEL_LONG_MODE_DOTS);
+    lv_label_set_max_lines(name, fits ? 0 : 1);
     lv_obj_set_flex_grow(name, 0);
-    lv_obj_set_width(name, helix::ui::fits_beside(room, reserved, name_width)
-                               ? static_cast<int32_t>(LV_SIZE_CONTENT)
-                               : LV_MAX(room - reserved, 1));
+    lv_obj_set_width(name,
+                     fits ? static_cast<int32_t>(LV_SIZE_CONTENT) : LV_MAX(room - reserved, 1));
 }
 
 void TempGraphOverlay::fit_preset_names() {
