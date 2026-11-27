@@ -5,6 +5,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_select_panel_test_access.h"
+#include "../test_helpers/sample_checks.h"
 #include "../test_helpers/screensaver_sim_kit.h"
 #include "app_globals.h"
 #include "print_history_data.h"
@@ -233,6 +234,7 @@ MazeMap room(int size) {
 
 TEST_CASE("a generated maze is perfect, closed outside, with no islands and 16 pictures on walls",
           "[screensaver][maze]") {
+    helix::test::SampleChecks samples;
     const int cells = MazeSim::CELLS * MazeSim::CELLS;
     for (uint32_t seed = 1; seed <= 50; seed++) {
         INFO("seed " << seed);
@@ -249,21 +251,22 @@ TEST_CASE("a generated maze is perfect, closed outside, with no islands and 16 p
         std::vector<int> seen(MazeMap::kPictureWalls, 0);
         for (int y = 0; y < map.size(); y++) {
             for (int x = 0; x < map.size(); x++) {
+                INFO("cell " << x << "," << y);
                 if (map.wall(x, y)) {
-                    REQUIRE(map.boundary_wall(x, y));
+                    SAMPLE_REQUIRE(samples, map.boundary_wall(x, y), seed);
                 }
                 if (map.tile(x, y) == MazeTile::PICTURE) {
-                    CHECK(map.wall(x, y));
+                    SAMPLE_CHECK(samples, map.wall(x, y), seed);
                     const int i = map.picture_index(x, y);
-                    REQUIRE(i < MazeMap::kPictureWalls);
+                    SAMPLE_REQUIRE(samples, i < MazeMap::kPictureWalls, seed);
                     seen[static_cast<size_t>(i)]++;
                 } else {
-                    CHECK(map.picture_index(x, y) == 0);
+                    SAMPLE_CHECK(samples, map.picture_index(x, y) == 0, seed);
                 }
             }
         }
         for (int i = 0; i < MazeMap::kPictureWalls; i++) {
-            CHECK(seen[static_cast<size_t>(i)] == 1);
+            SAMPLE_CHECK(samples, seen[static_cast<size_t>(i)] == 1, seed);
         }
         CHECK(map.tile(-1, 3) == MazeTile::BRICK);
         CHECK(map.tile(map.size(), 3) == MazeTile::BRICK);
@@ -309,6 +312,7 @@ TEST_CASE("set_tiles carries picture indices", "[screensaver][maze]") {
 
 TEST_CASE("an opened maze keeps every cell, has loops and rooms, walled dead ends and placed items",
           "[screensaver][maze]") {
+    helix::test::SampleChecks samples;
     const int cells = MazeSim::CELLS * MazeSim::CELLS;
     int extra_total = 0;
     for (uint32_t seed = 1; seed <= 200; seed++) {
@@ -316,10 +320,10 @@ TEST_CASE("an opened maze keeps every cell, has loops and rooms, walled dead end
         OpenedMaze m(seed);
         const MazeMap& map = m.sim.map();
         const int n = map.cells();
-        CHECK(reachable_cells(map) == cells);
+        SAMPLE_CHECK(samples, reachable_cells(map) == cells, seed);
         check_closed_outside(map);
         const int extra = open_edges(map) - (cells - 1);
-        CHECK(extra >= MazeMap::kExtraOpenings);
+        SAMPLE_CHECK(samples, extra >= MazeMap::kExtraOpenings, seed);
         extra_total += extra;
 
         // 2 or 3 rooms: a 2x2 room opens the one pillar inside it, a 2x3 room
@@ -330,8 +334,8 @@ TEST_CASE("an opened maze keeps every cell, has loops and rooms, walled dead end
                 pillars += map.wall(x, y) ? 0 : 1;
             }
         }
-        CHECK(pillars >= 2);
-        CHECK(pillars <= 6);
+        SAMPLE_CHECK(samples, pillars >= 2, seed);
+        SAMPLE_CHECK(samples, pillars <= 6, seed);
         int open_blocks = 0;
         for (int cy = 0; cy + 1 < n; cy++) {
             for (int cx = 0; cx + 1 < n; cx++) {
@@ -342,19 +346,19 @@ TEST_CASE("an opened maze keeps every cell, has loops and rooms, walled dead end
                                    : 0;
             }
         }
-        CHECK(open_blocks >= 2);
+        SAMPLE_CHECK(samples, open_blocks >= 2, seed);
 
         // Start and exit stay dead ends walled by the boundary.
-        REQUIRE(m.exit >= 0);
-        REQUIRE(m.start != m.exit);
+        SAMPLE_REQUIRE(samples, m.exit >= 0, seed);
+        SAMPLE_REQUIRE(samples, m.start != m.exit, seed);
         for (int c : {m.start, m.exit}) {
-            CHECK(passages(map, c % n, c / n) == 1);
+            SAMPLE_CHECK(samples, passages(map, c % n, c / n) == 1, seed);
             for (int dy = -1; dy <= 1; dy++) {
                 for (int dx = -1; dx <= 1; dx++) {
                     const int x = 2 * (c % n) + 1 + dx;
                     const int y = 2 * (c / n) + 1 + dy;
                     if (map.wall(x, y)) {
-                        CHECK(map.boundary_wall(x, y));
+                        SAMPLE_CHECK(samples, map.boundary_wall(x, y), seed);
                     }
                 }
             }
@@ -365,20 +369,23 @@ TEST_CASE("an opened maze keeps every cell, has loops and rooms, walled dead end
         int counts[5] = {};
         for (const MazeItem& item : m.sim.items()) {
             counts[static_cast<int>(item.kind)]++;
-            CHECK_FALSE(map.wall(static_cast<int>(item.x), static_cast<int>(item.y)));
+            SAMPLE_CHECK_FALSE(samples,
+                               map.wall(static_cast<int>(item.x), static_cast<int>(item.y)), seed);
             if (item.kind != MazeItemKind::LOGO && item.kind != MazeItemKind::ROCK) {
                 continue;
             }
             const int c = static_cast<int>(item.y) / 2 * n + static_cast<int>(item.x) / 2;
-            CHECK(c != m.start);
-            CHECK(c != m.exit);
-            CHECK(used[static_cast<size_t>(c)]++ == 0);
+            SAMPLE_CHECK(samples, c != m.start, seed);
+            SAMPLE_CHECK(samples, c != m.exit, seed);
+            SAMPLE_CHECK(samples, used[static_cast<size_t>(c)]++ == 0, seed);
         }
-        CHECK(counts[static_cast<int>(MazeItemKind::START)] == 1);
-        CHECK(counts[static_cast<int>(MazeItemKind::EXIT)] == 1);
-        CHECK(counts[static_cast<int>(MazeItemKind::LOGO)] == MazeSim::kLogoCount);
-        CHECK(counts[static_cast<int>(MazeItemKind::ROCK)] == MazeSim::kRockCount);
-        CHECK(counts[static_cast<int>(MazeItemKind::TOOLHEAD)] == 1);
+        SAMPLE_CHECK(samples, counts[static_cast<int>(MazeItemKind::START)] == 1, seed);
+        SAMPLE_CHECK(samples, counts[static_cast<int>(MazeItemKind::EXIT)] == 1, seed);
+        SAMPLE_CHECK(samples, counts[static_cast<int>(MazeItemKind::LOGO)] == MazeSim::kLogoCount,
+                     seed);
+        SAMPLE_CHECK(samples, counts[static_cast<int>(MazeItemKind::ROCK)] == MazeSim::kRockCount,
+                     seed);
+        SAMPLE_CHECK(samples, counts[static_cast<int>(MazeItemKind::TOOLHEAD)] == 1, seed);
     }
     CHECK(extra_total >= 10 * 200);
 }
@@ -582,6 +589,7 @@ TEST_CASE("a walker stops at each doorway and each cell middle so the caller see
 
 TEST_CASE("the walk keeps its distance from the wall ahead outside dead ends",
           "[screensaver][maze]") {
+    helix::test::SampleChecks samples;
     // At walking pace through a cell, straight or round the inner corner, the nearest wall
     // straight ahead is never closer than about three quarters of a tile.
     for (uint32_t seed = 1; seed <= 20; seed++) {
@@ -607,7 +615,7 @@ TEST_CASE("the walk keeps its distance from the wall ahead outside dead ends",
             }
             r.render(map, {}, walker.pose(), 0.0f, 0, frame.target);
             INFO("seed " << seed << " cell " << walker.cell_x() << "," << walker.cell_y());
-            REQUIRE(r.wall_distance(r.internal_w() / 2) >= 0.75f);
+            SAMPLE_REQUIRE(samples, r.wall_distance(r.internal_w() / 2) >= 0.75f, checked);
             checked++;
         }
         CHECK(checked > 100);
@@ -1164,6 +1172,7 @@ TEST_CASE("an RGB565 maze holds its frame and art at two bytes a pixel", "[scree
 
 TEST_CASE("RGB565 and XRGB8888 renders of one scene agree within two 565 steps",
           "[screensaver][maze]") {
+    helix::test::SampleChecks samples;
     std::minstd_rand rng(5);
     MazeMap map;
     map.generate(MazeSim::CELLS, rng);
@@ -1184,12 +1193,13 @@ TEST_CASE("RGB565 and XRGB8888 renders of one scene agree within two 565 steps",
             const Rgb a = p32.get(x, y);
             const Rgb b = p16.get(x, y);
             // Two 565 steps: the fog shades again in 565's own precision.
-            REQUIRE(std::abs(a.r - b.r) <= 16);
-            REQUIRE(std::abs(a.g - b.g) <= 8);
-            REQUIRE(std::abs(a.b - b.b) <= 16);
+            SAMPLE_REQUIRE(samples, std::abs(a.r - b.r) <= 16, y * 96 + x);
+            SAMPLE_REQUIRE(samples, std::abs(a.g - b.g) <= 8, y * 96 + x);
+            SAMPLE_REQUIRE(samples, std::abs(a.b - b.b) <= 16, y * 96 + x);
             lit += (a.r | a.g | a.b) != 0 ? 1 : 0;
         }
     }
+    samples.done(3 * 96 * 64);
     CHECK(lit > 96 * 64 / 2);
 }
 
