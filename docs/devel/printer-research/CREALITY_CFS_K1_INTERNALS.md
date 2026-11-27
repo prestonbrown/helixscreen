@@ -355,7 +355,9 @@ no modal.
 
 Both are now matched, with `no tray...` getting its own message: the fix there is to load one
 of the *known matching* slots, which is different advice from "go find matching filament".
-Tests: `[ams][cfs][968]` in `tests/unit/test_ams_backend_cfs.cpp`.
+Tests: `[ams][cfs][968]` in `tests/unit/test_ams_backend_cfs_4.cpp`. `tests/unit/test_ams_backend_cfs.cpp` is
+split in its own order into six files, itself and `tests/unit/test_ams_backend_cfs_2.cpp` to
+`tests/unit/test_ams_backend_cfs_6.cpp`; their fixtures are in `tests/test_helpers/cfs_test_fixtures.h`.
 
 ### Part-cooling left on through every K1 operation — *Fixed*
 
