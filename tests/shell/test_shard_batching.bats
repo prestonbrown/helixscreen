@@ -7,6 +7,9 @@
 # box together runs at most three shards per pool token. Without a pool it
 # runs each shard on its own. A shard that exits on a signal after its
 # assertions passed warns, unless SHARD_CRASH_FAILS=1 (land-gate) fails it.
+# A shard's budget is its timeout stretched by the load other work puts on the
+# host (scripts/shard_budget.sh, at most twice), which the sweep's first line
+# and each shard header say; the triage's budgets stretch with it.
 #
 # The test binary and the pool are fakes: the binary prints which token it ran
 # under and fails, hangs or crashes on request, and the pool logs every token
@@ -108,6 +111,76 @@ token_of() { # <shard> <output>
     contains "Shard 2 failed (exit 124)" "$output"
     contains "died inside: case of shard 2" "$output"
     lacks "died inside: case of shard 1" "$output"
+}
+
+@test "a shard's budget is the timeout itself on an idle host" {
+    HELIX_SHARD_HOST_LOAD=0 HELIX_SHARD_HOST_CORES=72 run scripts/shard_budget.sh 300
+    [ "$status" -eq 0 ]
+    [ "$output" = "300 100 0 72 0" ]
+}
+
+@test "a shard's budget stretches with the load other work puts on the host" {
+    HELIX_SHARD_HOST_LOAD=11700 HELIX_SHARD_HOST_CORES=72 run scripts/shard_budget.sh 300
+    [ "$output" = "492 164 11700 72 0" ]
+    HELIX_SHARD_HOST_LOAD=600 HELIX_SHARD_HOST_CORES=4 run scripts/shard_budget.sh 300
+    [ "$output" = "525 175 600 4 0" ]
+}
+
+@test "the stretch stops at twice, and a capped budget says so" {
+    HELIX_SHARD_HOST_LOAD=700 HELIX_SHARD_HOST_CORES=4 run scripts/shard_budget.sh 300
+    [ "$output" = "600 200 700 4 0" ]
+    HELIX_SHARD_HOST_LOAD=7100 HELIX_SHARD_HOST_CORES=4 run scripts/shard_budget.sh 300
+    [ "$output" = "600 200 7100 4 1" ]
+    HELIX_SHARD_HOST_LOAD=40000 HELIX_SHARD_HOST_CORES=72 run scripts/shard_budget.sh 300
+    [ "$output" = "600 200 40000 72 1" ]
+    SHARD_BUDGET_CAP_X100=150 HELIX_SHARD_HOST_LOAD=11700 HELIX_SHARD_HOST_CORES=72 \
+        run scripts/shard_budget.sh 300
+    [ "$output" = "450 150 11700 72 1" ]
+}
+
+@test "without a named load the host's own one-minute average and core count are read" {
+    unset HELIX_SHARD_HOST_LOAD HELIX_SHARD_HOST_CORES
+    run scripts/shard_budget.sh 300
+    [ "$status" -eq 0 ]
+    [ "$(cut -d' ' -f4 <<< "$output")" = "$(nproc)" ]
+    [[ "$output" =~ ^[0-9]+\ (1[0-9][0-9]|200)\ [0-9]+\ [1-9][0-9]*\ [01]$ ]]
+}
+
+@test "the sweep's first line and each shard header say when the host's load stretches the budget" {
+    HELIX_SHARD_HOST_LOAD=0 HELIX_SHARD_HOST_CORES=72 run sweep 3
+    [ "$status" -eq 0 ]
+    contains "(timeout=300s)..." "$output"
+    lacks "stretches" "$output"
+    contains "=== shard 0/3 " "$output"
+    contains "budget=300s" "$output"
+
+    HELIX_SHARD_HOST_LOAD=11700 HELIX_SHARD_HOST_CORES=72 run sweep 3
+    [ "$status" -eq 0 ]
+    contains "(timeout=300s: host load 117.00 on 72 cores stretches it to 492s)..." "$output"
+    contains "budget=492s" "$output"
+    lacks "capped" "$output"
+
+    HELIX_SHARD_HOST_LOAD=40000 HELIX_SHARD_HOST_CORES=72 run sweep 3
+    [ "$status" -eq 0 ]
+    contains "stretches it to 600s, capped at twice" "$output"
+}
+
+@test "a shard that only a loaded host starves gets the stretched budget" {
+    HANG_SHARD=2 run sweep 3 SHARD_TIMEOUT=4
+    [ "$status" -ne 0 ]
+    contains "Shard 2 failed (exit 124)" "$output"
+
+    HELIX_SHARD_HOST_LOAD=11700 HELIX_SHARD_HOST_CORES=72 HANG_SHARD=2 run sweep 3 SHARD_TIMEOUT=4
+    [ "$status" -eq 0 ]
+    contains "stretches it to 7s" "$output"
+}
+
+@test "the triage's budgets stretch with the shard's" {
+    HELIX_SHARD_HOST_LOAD=11700 HELIX_SHARD_HOST_CORES=72 HANG_SHARD=2 run sweep 3 SHARD_TIMEOUT=1
+    [ "$status" -ne 0 ]
+    contains "Shard 2 failed (exit 124)" "$output"
+    contains "triage: up to 2s per re-run, 1800s for every failed shard together" "$output"
+    contains "re-run timeout 2s, this shard's triage budget 4s" "$output"
 }
 
 @test "a with-token that cannot start still runs its shards" {

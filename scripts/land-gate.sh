@@ -18,9 +18,10 @@
 #                     local sweep's 96 shards are a grouping CI never runs,
 #                     so the gate does not run them either.
 #                     Each shard gets CI_SHARD_TIMEOUT seconds (default 600,
-#                     build.yml's 10-minute test step): an eighth of the suite
-#                     runs past the sweep's 300s SHARD_TIMEOUT on a slower host
-#                     without hanging. SHARD_CRASH_FAILS=1 fails a shard that
+#                     build.yml's 10-minute test step), stretched by the host's
+#                     load to at most twice (scripts/shard_budget.sh): an eighth
+#                     of the suite runs past the sweep's 300s SHARD_TIMEOUT on a
+#                     slower host without hanging. SHARD_CRASH_FAILS=1 fails a shard that
 #                     crashes after its assertions passed, as CI's step does.
 #   slow              make test-slow, right after ci-shards and where it ran: the
 #                     [slow] tier, which CI runs only nightly. Nothing ties a [slow]

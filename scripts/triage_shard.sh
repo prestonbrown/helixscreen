@@ -62,6 +62,7 @@ if [ -n "${TRIAGE_DEADLINE:-}" ]; then
     [ "$left" -gt 0 ] || left=0
     [ "$left" -ge "$budget" ] || budget=$left
 fi
+echo "   re-run timeout ${run_timeout}s, this shard's triage budget ${budget}s"
 taskset_cmd=${TRIAGE_TASKSET:-taskset}
 log="$dir/$shard.log"
 started=$SECONDS

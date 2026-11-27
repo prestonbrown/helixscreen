@@ -21,6 +21,9 @@ TIMEOUT_CMD := $(shell command -v timeout 2>/dev/null || command -v gtimeout 2>/
 
 # Per-shard timeout in seconds — safety net for infinite hangs only.
 # Must be generous: some shards with threading tests take 60-90s under load.
+# A sweep stretches it by the load other work puts on the host when the sweep
+# starts, at most to twice (scripts/shard_budget.sh): a shard a busy host
+# starves is slow, not hung, and the budget is for hangs.
 SHARD_TIMEOUT := 300
 
 # Timeout for a single-process run of the binary on a tag or filter (`make t`),
@@ -99,19 +102,29 @@ SHARD_CONCURRENCY ?= $(eval SHARD_CONCURRENCY := $(shell echo $$(($(JOBS_CLAIMED
 # Args: $(1) = test filter (e.g., "~[.] ~[slow]"), $(2) = shard count (default NPROCS),
 #       $(3) = Catch2 order flags (default: declaration order)
 # Collects PIDs and waits for all, failing if any shard fails
-# Each shard is wrapped in a timeout to prevent infinite hangs
+# Each shard is wrapped in a timeout to prevent infinite hangs, stretched by
+# the host's load (scripts/shard_budget.sh); the first line says both numbers
 # Each shard log starts with a host/nproc/git/ts header so flakes (e.g. #1121)
 # are attributable to a shard/host instead of re-litigated each run.
 # Each shard also records the case it is in to <shard>.progress, which
 # triage_shard.sh reads to say where a killed shard was.
 # Output is prefixed with [shard N] for clarity
 define run_tests_parallel
-	echo "$(CYAN)Running $(or $(2),$(NPROCS)) test shards, at most $(SHARD_CONCURRENCY) at once (timeout=$(SHARD_TIMEOUT)s)...$(RESET)"; \
+	budget_line=$$(scripts/shard_budget.sh $(SHARD_TIMEOUT)) || budget_line="$(SHARD_TIMEOUT) 100 0 1 0"; \
+	read -r budget factor budget_load budget_cores capped <<< "$$budget_line"; \
+	export SHARD_BUDGET=$$budget; \
+	stretch=""; \
+	if [ "$$factor" -gt 100 ]; then \
+		load_text=$$(awk -v l="$$budget_load" 'BEGIN { printf "%.2f", l / 100 }'); \
+		stretch=": host load $$load_text on $$budget_cores cores stretches it to $${budget}s"; \
+		if [ "$$capped" = 1 ]; then stretch="$$stretch, capped at twice"; fi; \
+	fi; \
+	echo "$(CYAN)Running $(or $(2),$(NPROCS)) test shards, at most $(SHARD_CONCURRENCY) at once (timeout=$(SHARD_TIMEOUT)s$$stretch)...$(RESET)"; \
 	mkdir -p "$(SHARD_ARTIFACT_ROOT)"; \
 	shard_dir=$$(mktemp -d "$(SHARD_ARTIFACT_ROOT)/helix-shards-XXXXXX"); \
 	export shard_dir; \
 	run_shard() { \
-		(echo "=== shard $$1/$(or $(2),$(NPROCS)) host=$$(hostname) nproc=$$(nproc 2>/dev/null || echo '?') git=$$(git rev-parse --short HEAD 2>/dev/null || echo unknown) ts=$$(date -Iseconds) order=$(or $(3),decl seed=0)"; HELIX_TEST_PROGRESS_FILE="$$shard_dir/$$1.progress" $(call timeout_run,$(SHARD_TIMEOUT)) $(TEST_BIN) $(1) $(3) --shard-count $(or $(2),$(NPROCS)) --shard-index $$1 2>&1; echo $$? > "$$shard_dir/$$1.exit") | \
+		(echo "=== shard $$1/$(or $(2),$(NPROCS)) host=$$(hostname) nproc=$$(nproc 2>/dev/null || echo '?') git=$$(git rev-parse --short HEAD 2>/dev/null || echo unknown) ts=$$(date -Iseconds) budget=$${SHARD_BUDGET:-$(SHARD_TIMEOUT)}s order=$(or $(3),decl seed=0)"; HELIX_TEST_PROGRESS_FILE="$$shard_dir/$$1.progress" $(call timeout_run,$${SHARD_BUDGET:-$(SHARD_TIMEOUT)}) $(TEST_BIN) $(1) $(3) --shard-count $(or $(2),$(NPROCS)) --shard-index $$1 2>&1; echo $$? > "$$shard_dir/$$1.exit") | \
 			tee "$$shard_dir/$$1.log" | sed "s/^/[shard $$1] /"; \
 	}; \
 	run_batch() { for s in "$$@"; do run_shard "$$s" & done; wait; }; \
@@ -142,7 +155,7 @@ define run_tests_parallel
 	suspect=""; \
 	for i in $$(seq 0 $$(($(or $(2),$(NPROCS))-1))); do \
 		if [ ! -f "$$shard_dir/$$i.exit" ]; then \
-			echo "$(RED)$(BOLD)✗ Shard $$i timed out after $(SHARD_TIMEOUT)s!$(RESET)"; \
+			echo "$(RED)$(BOLD)✗ Shard $$i timed out after $${SHARD_BUDGET:-$(SHARD_TIMEOUT)}s!$(RESET)"; \
 			failed=1; suspect="$$suspect $$i"; \
 		else \
 			ec=$$(cat "$$shard_dir/$$i.exit" 2>/dev/null | tr -d '[:space:]'); \
@@ -236,11 +249,13 @@ define diagnose_shards
 	echo ""; \
 	echo "$(CYAN)$(BOLD)── shard diagnostics ──$(RESET)"; \
 	echo "$(CYAN)logs preserved: $(1)$(RESET)"; \
-	triage_deadline=$$(( $$(date +%s) + $(TRIAGE_TOTAL_BUDGET) )); \
+	triage_budget=$$(( $(TRIAGE_TOTAL_BUDGET) * $${SHARD_BUDGET:-$(SHARD_TIMEOUT)} / $(SHARD_TIMEOUT) )); \
+	echo "$(CYAN)triage: up to $${SHARD_BUDGET:-$(SHARD_TIMEOUT)}s per re-run, $${triage_budget}s for every failed shard together$(RESET)"; \
+	triage_deadline=$$(( $$(date +%s) + triage_budget )); \
 	for s in $(2); do \
 		echo ""; \
 		echo "$(BOLD)shard $$s$(RESET)"; \
-		TRIAGE_RETRIES=$(SHARD_RETRIES) TRIAGE_TIMEOUT=$(SHARD_TIMEOUT) TRIAGE_DEADLINE=$$triage_deadline \
+		TRIAGE_RETRIES=$(SHARD_RETRIES) TRIAGE_TIMEOUT=$${SHARD_BUDGET:-$(SHARD_TIMEOUT)} TRIAGE_DEADLINE=$$triage_deadline \
 			scripts/triage_shard.sh "$(TEST_BIN)" "$(1)" "$$s" "$(4)" $(3) $(5); \
 	done; \
 	echo ""
