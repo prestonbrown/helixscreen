@@ -14,7 +14,9 @@ to conflict on. A count may fall; a branch may not raise it.
                    every class that has a parameter of the dependency's type
                    anywhere in the tree (its class body, or the parameter list
                    of a `Class::method` definition), and every class deriving
-                   from one at any depth. A file may not gain one.
+                   from one at any depth. Two classes with one name are told
+                   apart by namespace: only the one that receives it is a
+                   receiver. A file may not gain one.
   active instance  Static-storage pointers that hand an XML callback "the
                    current instance" (`static Foo* active_instance_;`,
                    `static Foo* s_active_`, an anonymous-namespace
@@ -111,6 +113,17 @@ CLASS_HEAD_RE = re.compile(
 ENUM_HEAD_RE = re.compile(r"\benum\b")
 NAMESPACE_HEAD_RE = re.compile(r"(?:\bnamespace\b[\w:\s]*|\bextern\s+\"C\"\s*)$")
 METHOD_HEAD_RE = re.compile(r"(\w+)\s*(?:<[^<>()]*>)?\s*::\s*(~?\w+|operator\s*[^\s(]+)\s*\(")
+# An out-of-line definition's owner with the qualifier written before it:
+# `helix::ui::Foo::bar(` gives ("helix::ui::", "Foo", "bar"). A return type's own
+# qualifier never fits, since the owner must be followed by `::` at once.
+QUAL_METHOD_HEAD_RE = re.compile(
+    r"((?:\w+\s*::\s*)*)(\w+)\s*(?:<[^<>()]*>)?\s*::\s*(~?\w+|operator\s*[^\s(]+)\s*\(")
+NAMESPACE_NAME_RE = re.compile(r"\bnamespace\b\s*([A-Za-z_]\w*(?:::\w+)*)?\s*$")
+ANONYMOUS_NAMESPACE = "(anonymous)"
+# A base as a class head writes it, access and `virtual` dropped: `::Panel`,
+# `other::Panel`, `Panel`, `Base<T>`.
+BASE_RE = re.compile(r"(?:\b(?:public|protected|private|virtual)\s+)*"
+                     r"((?:::)?\s*(?:\w+\s*::\s*)*\w+)\s*(?:<[^<>]*>)?")
 
 
 def git(root: Path, *args: str) -> str:
@@ -144,58 +157,100 @@ STATIC_HEAD_RE = re.compile(r"^\s*(?:(?:public|private|protected)\s*:\s*)?(?:\[\
 
 
 class Span:
-    """A class body, or a member function: its owning class, its name when it is an
-    out-of-line definition, and whether it is a static member (no instance to use)."""
-    __slots__ = ("start", "end", "owner", "method", "static")
+    """A class body, a member function defined inside one, or an out-of-line
+    `Owner::method` definition with its parameter list: its owning class, the
+    namespace that class was declared in, its name when it is an out-of-line
+    definition, and whether it is a static member (no instance to use)."""
+    __slots__ = ("start", "end", "owner", "method", "static", "ns")
 
-    def __init__(self, start, end, owner, method=None, static=False):
+    def __init__(self, start, end, owner, method=None, static=False, ns=""):
         self.start, self.end, self.owner = start, end, owner
-        self.method, self.static = method, static
+        self.method, self.static, self.ns = method, static, ns
+
+    def key(self, shared):
+        """The class as the ratchet names it: by its bare name, or by its
+        namespace and name when another class body shares that name."""
+        return f"{self.ns}::{self.owner}" if self.ns and self.owner in shared else self.owner
+
+    def bare(self):
+        return self.owner.rsplit("::", 1)[-1]
+
+
+def namespace_of(qualifier: str, enclosing: str) -> str:
+    """The namespace an out-of-line definition names its owner in: the
+    qualifier's, absolute when it starts with `::`, else below `enclosing`."""
+    parts = [p for p in re.split(r"\s*::\s*", qualifier.strip()) if p]
+    if qualifier.lstrip().startswith("::"):
+        return "::".join(parts)
+    return "::".join(p for p in (enclosing, "::".join(parts)) if p)
+
+
+def namespace_chain(ns: str):
+    """`ns`, then each namespace above it, innermost first; "" is the global one."""
+    chain = [ns]
+    while "::" in ns:
+        ns = ns.rsplit("::", 1)[0]
+        chain.append(ns)
+    if ns:
+        chain.append("")
+    return chain
 
 
 def scopes(code: str) -> list[Span]:
     """Every class body, every member function defined inside one, and every
-    `Owner::method` definition with its parameter list. Namespaces are transparent."""
+    `Owner::method` definition with its parameter list. Namespaces are
+    transparent to nesting and name the classes declared inside them."""
     spans = []
-    stack = []  # (kind, owner, start, method, static); kind: ns | class | fn | block
+    # (kind, owner, start, method, static, name, ns); kind: ns | class | fn | member | block.
+    # A namespace frame carries its `name`; a class, member or definition frame
+    # carries in `ns` the namespace its class was declared in.
+    stack = []
+
+    def path():
+        return "::".join(f[5] for f in stack if f[0] == "ns" and f[5])
+
     head = 0
-    owner_fn = method_fn = None  # the out-of-line definition later top-level blocks continue
+    owner_fn = method_fn = ns_fn = None  # the out-of-line definition later top-level blocks continue
     for m in re.finditer(r"[{};]", code):
         ch, i = m.group(), m.start()
         in_class = bool(stack) and stack[-1][0] == "class"
         top = not stack or stack[-1][0] == "ns"
         if ch == ";":
             if top:
-                owner_fn = method_fn = None
+                owner_fn = method_fn = ns_fn = None
             head = i + 1
             continue
         if ch == "{":
             header = code[head:i]
             stripped = header.strip()
             if top and NAMESPACE_HEAD_RE.search(stripped):
-                stack.append(("ns", None, i, None, False))
+                name = ""
+                if "namespace" in stripped:
+                    named = NAMESPACE_NAME_RE.search(stripped)
+                    name = named.group(1) if named and named.group(1) else ANONYMOUS_NAMESPACE
+                stack.append(("ns", None, i, None, False, name, None))
             elif (top or in_class) and (cm := CLASS_HEAD_RE.search(stripped)) \
                     and not ENUM_HEAD_RE.search(stripped):
-                stack.append(("class", cm.group(1), i, None, False))
+                stack.append(("class", cm.group(1), i, None, False, None, path()))
             elif top:
                 start = i
                 if "(" in header:
-                    heads = METHOD_HEAD_RE.findall(header.split("(")[0] + "(")
-                    owner_fn, method_fn = heads[-1] if heads else (None, None)
+                    heads = QUAL_METHOD_HEAD_RE.findall(header.split("(")[0] + "(")
+                    owner_fn, method_fn = heads[-1][1:] if heads else (None, None)
+                    ns_fn = namespace_of(heads[-1][0], path()) if heads else None
                     start = head
-                stack.append(("fn", owner_fn, start, method_fn, False))
+                stack.append(("fn", owner_fn, start, method_fn, False, None, ns_fn))
             elif in_class:
                 is_static = "(" in header and bool(STATIC_HEAD_RE.match(header))
-                stack.append(("member", stack[-1][1], head, None, is_static))
+                stack.append(("member", stack[-1][1], head, None, is_static, None, stack[-1][6]))
             else:
-                stack.append(("block", None, i, None, False))
+                stack.append(("block", None, i, None, False, None, None))
             head = i + 1
             continue
         if stack:
-            kind, owner, start, method, static = stack.pop()
+            kind, owner, start, method, static, _name, ns = stack.pop()
             if kind in ("class", "fn", "member") and owner:
-                spans.append(Span(start, i, owner, method, static))
-        head = i + 1
+                spans.append(Span(start, i, owner, method, static, ns or ""))
     return spans
 
 
@@ -207,22 +262,22 @@ def span_at(spans: list[Span], pos: int) -> Span | None:
     return best
 
 
-def static_methods(spans: list[Span], code: str) -> dict[str, set[str]]:
+def static_methods(spans: list[Span], code: str, shared=frozenset()) -> dict[str, set[str]]:
     found: dict[str, set[str]] = {}
     for sp in spans:
         if sp.method is None and not sp.static and code[sp.start] == "{":
             names = STATIC_DECL_RE.findall(code[sp.start:sp.end + 1])
-            found.setdefault(sp.owner, set()).update(names)
+            found.setdefault(sp.key(shared), set()).update(names)
     return found
 
 
-def has_instance(sp: Span | None, statics: dict[str, set[str]]) -> bool:
+def has_instance(sp: Span | None, statics: dict[str, set[str]], shared=frozenset()) -> bool:
     if sp is None or sp.static:
         return False
-    return not (sp.method and sp.method in statics.get(sp.owner, ()))
+    return not (sp.method and sp.method in statics.get(sp.key(shared), ()))
 
 
-def receivers(blobs: dict[str, str], param: re.Pattern):
+def receivers(blobs: dict[str, str], param: re.Pattern, shared=frozenset()):
     """Classes with a non-static member taking `param`, and every class's static methods."""
     parsed = []
     statics: dict[str, set[str]] = {}
@@ -230,39 +285,38 @@ def receivers(blobs: dict[str, str], param: re.Pattern):
         code = blank_cxx(text)
         spans = scopes(code)
         parsed.append((code, spans))
-        for owner, names in static_methods(spans, code).items():
+        for owner, names in static_methods(spans, code, shared).items():
             statics.setdefault(owner, set()).update(names)
     found = set()
     for code, spans in parsed:
         for m in param.finditer(code):
             sp = span_at(spans, m.start())
-            if not has_instance(sp, statics):
+            if not has_instance(sp, statics, shared):
                 continue
             if sp.method is None and code[sp.start] == "{":
                 # A declaration in the class body: static if its own statement says so.
                 decl = max(code.rfind(c, sp.start, m.start()) for c in ";{}") + 1
                 if STATIC_HEAD_RE.match(code[decl:m.start()]):
                     continue
-            found.add(sp.owner)
+            found.add(sp.key(shared))
     return found, statics
 
 
 def accessor_calls(text: str, accessor: str, classes: set[str],
-                   statics: dict[str, set[str]]) -> int:
+                   statics: dict[str, set[str]], shared=frozenset()) -> int:
     code = blank_cxx(text)
     calls = [m.start() for m in re.finditer(rf"\b{accessor}\s*\(", code)]
     if not calls:
         return 0
     spans = scopes(code)
-    local = static_methods(spans, code)
+    local = static_methods(spans, code, shared)
     merged = {k: statics.get(k, set()) | local.get(k, set()) for k in set(statics) | set(local)}
     n = 0
     for pos in calls:
         sp = span_at(spans, pos)
-        if sp is not None and sp.owner in classes and has_instance(sp, merged):
+        if sp is not None and sp.key(shared) in classes and has_instance(sp, merged, shared):
             n += 1
     return n
-
 
 def active_instances(text: str) -> list[str]:
     kept = (line for line in text.split("\n") if ACTIVE_OPT_OUT not in line)
@@ -408,43 +462,149 @@ def tree_with(root: Path, rev: str, needle: str, sources=APP_SOURCES) -> dict[st
     return read_blobs(root, rev, paths)
 
 
-def receivers_at(root: Path, rev: str, type_re: str, subclasses: bool = True):
-    """(receiving classes, static methods per class) at `rev`. `subclasses=False`
-    skips the inheritance walk for a caller that only needs the statics."""
-    classes, statics = receivers(tree_with(root, rev, type_re.replace("I?", "")),
-                                 _param_re(type_re))
-    return (with_subclasses(root, rev, classes) if subclasses else classes), statics
+def class_namespaces(root: Path, rev: str, names) -> dict[str, set[str]]:
+    """Bare class name -> the namespaces its class bodies sit in at `rev`, for
+    the names asked for."""
+    if not names:
+        return {}
+    # POSIX extended, which is all git grep -E takes on every platform: no
+    # (?:...) group, no \b, so the name's end is spelled out.
+    head = (r"(class|struct)[[:space:]]+(" + "|".join(sorted(names))
+            + r")([^[:alnum:]_]|$)")
+    try:
+        hits = git(root, "grep", "-l", "-E", head, rev, "--", *APP_SOURCES).split()
+    except subprocess.CalledProcessError:
+        return {}
+    found: dict[str, set[str]] = {}
+    for text in read_blobs(root, rev, [h.split(":", 1)[1] for h in hits]).values():
+        code = blank_cxx(text)
+        for sp in scopes(code):
+            if sp.method is None and code[sp.start] == "{" and sp.owner in names:
+                found.setdefault(sp.owner, set()).add(sp.ns)
+    return found
 
 
-def with_subclasses(root: Path, rev: str, classes: set[str]) -> set[str]:
-    """`classes` plus every class at `rev` deriving from one, at any depth: a class
-    that inherits the dependency's member receives it as surely as its base does."""
-    found, frontier = set(classes), set(classes)
+def shared_names(root: Path, rev: str, names) -> set[str]:
+    """The names in `names` that class bodies in more than one namespace carry at `rev`."""
+    return {name for name, spaces in class_namespaces(root, rev, names).items()
+            if len(spaces) > 1}
+
+
+def base_namespace(written: str, chain, sites: dict[str, set[str]]):
+    """The namespace of a base as a class head writes it, or None when the
+    known class sites cannot say: `::a::B` is absolute, `a::B` is taken as
+    written (below the class's own namespace when that is where B lives), and
+    a bare `B` is the one nearest the class in its namespace chain."""
+    w = re.sub(r"\s+", "", written)
+    bare = w.rsplit("::", 1)[-1]
+    spaces = sites.get(bare, set())
+    if w.startswith("::"):
+        return w[2:-len(bare)].rstrip(":")
+    if "::" in w:
+        ns = w[:-len(bare)].rstrip(":")
+        for above in chain:
+            there = f"{above}::{ns}" if above else ns
+            if there in spaces:
+                return there
+        return None
+    for above in chain:
+        if above in spaces:
+            return above
+    return None
+
+
+def derived_classes(root: Path, rev: str, bases: set[str], sites=None, shared=frozenset()):
+    """Classes at `rev` deriving from a class named in `bases`: by bare name,
+    or by namespace and name for a name in `shared`, told apart by `sites`
+    (what class_namespaces returns for those names). A base whose namespace
+    the sites cannot place counts as the receiver of its name, as it always
+    did."""
+    frontier = {b.rsplit("::", 1)[-1] for b in bases}
+    found: set[str] = set(bases)
     while frontier:
         args = [a for name in sorted(frontier) for a in ("-e", name)]
         try:
             hits = git(root, "grep", "-l", "-w", "-F", *args, rev, "--", *APP_SOURCES).split()
         except subprocess.CalledProcessError:
             break
-        table = _class_table(read_blobs(root, rev, [h.split(":", 1)[1] for h in hits]))
-        frontier = {name for name, (_, bases) in table.items()
-                    if name not in found and found.intersection(bases)}
-        found |= frontier
+        frontier = set()
+        for text in read_blobs(root, rev, [h.split(":", 1)[1] for h in hits]).values():
+            code = blank_cxx(text)
+            for sp in scopes(code):
+                if sp.method is not None or code[sp.start] != "{":
+                    continue
+                decl = max(code.rfind(c, 0, sp.start) for c in ";{}") + 1
+                head_text = code[decl:sp.start].strip()
+                head = CLASS_HEAD_RE.search(head_text)
+                if not head or head.group(1) != sp.owner:
+                    continue
+                bases = re.search(r":([^;{}]*)$", head_text[head.end(1):])
+                for written in BASE_RE.findall(bases.group(1) if bases else ""):
+                    bare = re.sub(r"\s+", "", written).rsplit("::", 1)[-1]
+                    ns = base_namespace(written, namespace_chain(sp.ns), sites or {})
+                    if bare in shared:
+                        inherits = ns is None or f"{ns}::{bare}" in found
+                    else:
+                        inherits = bare in found
+                    if inherits:
+                        key = sp.key(shared)
+                        if key not in found:
+                            found.add(key)
+                            frontier.add(sp.owner.rsplit("::", 1)[-1])
     return found
 
 
+def receivers_at(root: Path, rev: str, type_re: str, subclasses: bool = True, shared=None):
+    """(receiving classes, static methods per class) at `rev`. A class is named
+    by its bare name, or by namespace and name when another class body at `rev`
+    shares that name: `shared` is that set of names, and None finds it.
+    `subclasses=False` skips the inheritance walk for a caller that only needs
+    the statics."""
+    blobs = tree_with(root, rev, type_re.replace("I?", ""))
+    if shared is None:
+        classes, statics = receivers(blobs, _param_re(type_re))
+        if subclasses:
+            classes = with_subclasses(root, rev, classes)
+        shared = shared_names(root, rev, classes)
+        if not shared:
+            return classes, statics
+    classes, statics = receivers(blobs, _param_re(type_re), shared)
+    return (with_subclasses(root, rev, classes, shared) if subclasses else classes), statics
+
+
+def with_subclasses(root: Path, rev: str, classes: set[str], shared=frozenset()) -> set[str]:
+    """`classes` plus every class at `rev` deriving from one, at any depth: a class
+    that inherits the dependency's member receives it as surely as its base does.
+    A name two classes carry is followed by namespace."""
+    found = derived_classes(root, rev, {c for c in classes if c.rsplit("::", 1)[-1] not in shared})
+    if any(c.rsplit("::", 1)[-1] in shared for c in classes):
+        sites: dict[str, set[str]] = {}
+        for n in sorted(shared):
+            spaces = class_namespaces(root, rev, [n]).get(n, set())
+            sites[n] = spaces
+        found |= derived_classes(root, rev, classes, sites, shared)
+    return found | classes
+
+
 def global_access_counts(root: Path, rev: str, type_re: str, accessor: str,
-                         classes: set[str] | None = None, only=None) -> Counter:
+                         classes: set[str] | None = None, only=None,
+                         shared: set[str] | None = None) -> Counter:
     """Accessor calls per file inside `classes` (default: the classes receiving the
     dependency at `rev`), with static members judged by `rev`'s own declarations."""
-    rev_classes, statics = receivers_at(root, rev, type_re, subclasses=classes is None)
-    classes = rev_classes if classes is None else classes
+    if classes is None:
+        classes, statics = receivers_at(root, rev, type_re)
+        shared = shared_names(root, rev, {k.rsplit("::", 1)[-1] for k in classes})
+    else:
+        # Both sides count the classes the caller named; the shared ones keep
+        # their namespace-qualified keys, so the statics are keyed the same way.
+        _, statics = receivers_at(root, rev, type_re, subclasses=False, shared=shared)
+        shared = shared or frozenset()
     blobs = tree_with(root, rev, accessor)
     counts = Counter()
     for path, text in blobs.items():
         if only is not None and path not in only:
             continue
-        n = accessor_calls(text, accessor, classes, statics)
+        n = accessor_calls(text, accessor, classes, statics, shared)
         if n:
             counts[path] = n
     return counts
@@ -556,8 +716,16 @@ def main(argv=None) -> int:
         # point: a class that starts receiving it on this branch is mid-migration,
         # and is held to the ratchet from the next branch on.
         fork_classes, _ = receivers_at(root, fork, type_re)
-        before = global_access_counts(root, fork, type_re, accessor, fork_classes, touched_old)
-        after = global_access_counts(root, "HEAD", type_re, accessor, fork_classes, touched_new)
+        # A class that gains a namesake on this branch is told from it on both sides.
+        head_classes, _ = receivers_at(root, "HEAD", type_re)
+        shared = (shared_names(root, fork, fork_classes)
+                  | shared_names(root, "HEAD", head_classes))
+        if shared:
+            fork_classes, _ = receivers_at(root, fork, type_re, shared=shared)
+        before = global_access_counts(root, fork, type_re, accessor, fork_classes, touched_old,
+                                      shared)
+        after = global_access_counts(root, "HEAD", type_re, accessor, fork_classes, touched_new,
+                                     shared)
         for path, n in sorted(after.items()):
             was = before.get(renamed.get(path, path), 0)
             if n > was:

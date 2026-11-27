@@ -70,15 +70,21 @@ ratchets() {
     run python3 "$GATE" --root "$REPO" --base "$BASE"
 }
 
-# Inserts $2 as the first line of the body of the function whose header starts with $1.
-inject() {
-    python3 - "$REPO/src/ui/panel.cpp" "$1" "$2" <<'EOF'
+# inject_in <file> <header> <line>: $3 as the first line of the body of the
+# function in <file> whose header starts with $2.
+inject_in() {
+    python3 - "$1" "$2" "$3" <<'EOF'
 import sys
 path, head, line = sys.argv[1:]
 s = open(path).read()
 i = s.index("{", s.index(head))
 open(path, "w").write(s[:i + 1] + "\n    " + line + s[i + 1:])
 EOF
+}
+
+# Inserts $2 as the first line of the body of the function whose header starts with $1.
+inject() {
+    inject_in "$REPO/src/ui/panel.cpp" "$1" "$2"
 }
 
 # --- the fork point ---------------------------------------------------------
@@ -206,6 +212,139 @@ EOF
     ratchets
     [ "$status" -eq 1 ]
     contains "src/ui/panel.cpp: get_printer_state() inside a class that receives PrinterState grew 0 -> 1" "$output"
+}
+
+# --- one bare name, two classes -------------------------------------------------
+
+# A second class named Panel, in namespace other and in its own files. It does
+# not receive the dependency. `qualified` defines its method with the full
+# name at global scope instead of inside a namespace block.
+namesake() {
+    cat > "$REPO/include/other_panel.h" <<'EOF'
+namespace other {
+class Panel {
+  public:
+    void refresh();
+};
+}  // namespace other
+EOF
+    if [ "${1:-}" = qualified ]; then
+        cat > "$REPO/src/ui/other_panel.cpp" <<'EOF'
+void other::Panel::refresh() {
+}
+EOF
+    else
+        cat > "$REPO/src/ui/other_panel.cpp" <<'EOF'
+namespace other {
+void Panel::refresh() {
+}
+}  // namespace other
+EOF
+    fi
+    rebase_here "a namesake"
+}
+
+@test "a class that shares its name with a receiver in another namespace is not judged by it" {
+    namesake
+    inject_in "$REPO/src/ui/other_panel.cpp" "void Panel::refresh()" "get_printer_state().touch();"
+    commit_all "the namesake reaches for the global"
+    ratchets
+    [ "$status" -eq 0 ]
+}
+
+@test "the receiver among two classes with one name is still judged" {
+    namesake
+    inject "void Panel::refresh()" "get_printer_state().touch();"
+    commit_all "the receiver reaches for the global"
+    ratchets
+    [ "$status" -eq 1 ]
+    contains "src/ui/panel.cpp: get_printer_state() inside a class that receives PrinterState grew 0 -> 1" "$output"
+}
+
+@test "an out-of-line definition qualified with its namespace is told from its namesake" {
+    namesake qualified
+    inject_in "$REPO/src/ui/other_panel.cpp" "void other::Panel::refresh()" "get_printer_state().touch();"
+    commit_all "the namesake reaches for the global"
+    ratchets
+    [ "$status" -eq 0 ]
+}
+
+@test "a class whose name is its own is judged in whatever namespace it sits in" {
+    cat > "$REPO/include/lone.h" <<'EOF'
+namespace deep {
+class Lone {
+  public:
+    void refresh();
+    void bind(const PrinterState& ps);
+};
+}  // namespace deep
+EOF
+    cat > "$REPO/src/ui/lone.cpp" <<'EOF'
+namespace deep {
+void Lone::refresh() {
+}
+void Lone::bind(const PrinterState& ps) {
+}
+}  // namespace deep
+EOF
+    rebase_here "a class of one name takes it"
+    inject_in "$REPO/src/ui/lone.cpp" "void Lone::refresh()" "get_printer_state().touch();"
+    commit_all "it reaches for the global"
+    ratchets
+    [ "$status" -eq 1 ]
+    contains "src/ui/lone.cpp: get_printer_state() inside a class that receives PrinterState grew 0 -> 1" "$output"
+}
+
+@test "among classes with one name, a class is judged by the one it derives from" {
+    namesake
+    cat > "$REPO/include/kin.h" <<'EOF'
+namespace kin {
+class Heir : public ::Panel {
+  public:
+    void refresh();
+};
+class Stranger : public other::Panel {
+  public:
+    void refresh();
+};
+}  // namespace kin
+EOF
+    cat > "$REPO/src/ui/kin.cpp" <<'EOF'
+namespace kin {
+void Heir::refresh() {
+}
+void Stranger::refresh() {
+}
+}  // namespace kin
+EOF
+    rebase_here "two derivatives"
+    inject_in "$REPO/src/ui/kin.cpp" "void Stranger::refresh()" "get_printer_state().touch();"
+    commit_all "the stranger reaches for the global"
+    ratchets
+    [ "$status" -eq 0 ]
+
+    inject_in "$REPO/src/ui/kin.cpp" "void Heir::refresh()" "get_printer_state().touch();"
+    commit_all "the heir reaches for the global"
+    ratchets
+    [ "$status" -eq 1 ]
+    contains "src/ui/kin.cpp: get_printer_state() inside a class that receives PrinterState grew 0 -> 1" "$output"
+}
+
+@test "--report counts a call in the receiver and not in its namesake" {
+    namesake
+    inject_in "$REPO/src/ui/other_panel.cpp" "void Panel::refresh()" "get_printer_state().touch();"
+    rebase_here "the namesake reaches for the global"
+    run python3 "$GATE" --root "$REPO" --report
+    [ "$status" -eq 0 ]
+    contains "PrinterState: 0 get_printer_state() calls in 0 files inside classes that receive it" "$output"
+
+    inject "void Panel::refresh()" "get_printer_state().touch();"
+    commit_all "the receiver reaches for the global"
+    run python3 "$GATE" --root "$REPO" --report
+    [ "$status" -eq 0 ]
+    contains "PrinterState: 1 get_printer_state() calls in 1 files inside classes that receive it" "$output"
+    contains "src/ui/panel.cpp" "$output"
+    lacks "src/ui/other_panel.cpp" "$output"
 }
 
 @test "global access in a static member (inline or out-of-line), a free function, a lambda outside the class, a class without the parameter, or a comment is not counted" {
