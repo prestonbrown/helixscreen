@@ -77,6 +77,7 @@ tests/shell/test_gpu_libs_hidden_smoke.bats	.github/workflows/release.yml script
 tests/shell/test_grid_metrics_gate.bats	scripts/check_grid_metrics_single_source.py src/ui/grid_edit_mode.cpp
 tests/shell/test_hand_rolled_swatch_gate.bats	docs/devel/COLOR_SWATCHES.md scripts/check_hand_rolled_swatch.py scripts/hand_rolled_swatch_baseline.txt scripts/staged_content.py src/ui/ui_swatch.cpp ui_xml/components/color_swatch.xml
 tests/shell/test_hardcoded_pixels_gate.bats	scripts/check_hardcoded_pixels.py scripts/staged_content.py src/ui/ui_fatal_error.cpp ui_xml/globals.xml
+tests/shell/test_homeserver_image.bats	scripts/ci/homeserver_image.sh
 tests/shell/test_helix_claim_date.bats	scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh
 tests/shell/test_helix_claim_jobs.bats	Makefile mk/rules.mk mk/tests.mk scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh scripts/qc/_lib.sh
 tests/shell/test_helix_claim_liveness.bats	scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh
