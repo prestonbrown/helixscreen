@@ -29,6 +29,7 @@
  * costs nothing.
  */
 
+#include "../test_helpers/sample_checks.h"
 #include "gcode_ghost_sampling.h"
 
 #include <algorithm>
@@ -103,14 +104,16 @@ TEST_CASE("plan_ghost_sampling: the budget holds for every size in a dense sweep
     // The bound is a ceil-of-a-ceil, which is exactly where an off-by-one
     // would hide. Sweep every size across the first few multiples of the
     // budget rather than trusting the round numbers above.
+    helix::test::SampleChecks samples;
     for (int total = 1; total <= kRows * 8; ++total) {
         auto plan = plan_ghost_sampling(total, /*streaming=*/true, kRows);
         CAPTURE(total);
-        REQUIRE(plan.step >= 1);
-        REQUIRE(plan.count > 0);
-        REQUIRE(plan.count <= total);
-        REQUIRE(plan.count < ghost_sample_budget(kRows) * 2);
+        SAMPLE_REQUIRE(samples, plan.step >= 1, total);
+        SAMPLE_REQUIRE(samples, plan.count > 0, total);
+        SAMPLE_REQUIRE(samples, plan.count <= total, total);
+        SAMPLE_REQUIRE(samples, plan.count < ghost_sample_budget(kRows) * 2, total);
     }
+    samples.done(4 * kRows * 8);
 }
 
 TEST_CASE("plan_ghost_sampling: sampling spans the full height of the model",
