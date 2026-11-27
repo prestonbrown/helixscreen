@@ -185,6 +185,8 @@ plugin_config_edit_backups(const nlohmann::json& result);
 class KlipperConfigEditor {
   public:
     using FeatureStateSource = helix::SharedCallback<PluginFeatureState()>;
+    /// True while a print job holds the machine (preparing, printing or paused).
+    using JobHoldSource = helix::SharedCallback<bool()>;
 
     KlipperConfigEditor();
 
@@ -273,6 +275,12 @@ class KlipperConfigEditor {
     /// reads PrinterState, which only the main thread may do: from any other
     /// thread it answers Absent.
     void set_feature_state_source(FeatureStateSource source);
+
+    /// Where the editor asks whether a print job holds the machine. Every write
+    /// and every FIRMWARE_RESTART asks first, because a restart kills the job.
+    /// The default reads the print lifecycle on the main thread and, from any
+    /// other thread, answers true: refusing is recoverable, a killed print is not.
+    void set_job_hold_source(JobHoldSource source);
 
     /// How often the FIRMWARE_RESTART health monitor polls Klippy's state and
     /// the cancel flag. A monitor already running keeps the interval it started with.
@@ -365,6 +373,10 @@ class KlipperConfigEditor {
                            SuccessCallback on_complete, ErrorCallback on_error);
 
     FeatureStateSource feature_state_source_;
+    JobHoldSource job_hold_source_;
+
+    /// True, after reporting it through @p on_error, while a job holds the machine.
+    bool refuse_while_job(const std::string& section, const ErrorCallback& on_error) const;
 
     std::chrono::milliseconds restart_poll_interval_{500};
     std::string restart_announcement_;

@@ -11,7 +11,10 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/moonraker_client_test_access.h"
 #include "../test_helpers/pid_calibration_panel_test_access.h"
+#include "../test_helpers/print_state_test_drivers.h"
+#include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_env.h"
+#include "app_globals.h"
 #include "core/http_executor.h"
 #include "core/update_queue.h"
 #include "helix_plugin_features.h"
@@ -473,6 +476,180 @@ TEST_CASE_METHOD(LVGLTestFixture, "safe_multi_edit keeps the file API when the p
     auto written = api.get_uploaded_config("printer.cfg");
     REQUIRE(written.has_value());
     CHECK(written->find("shaper_freq_x: 41.6") != std::string::npos);
+}
+
+// ============================================================================
+// A job that holds the machine refuses every write and restart
+// ============================================================================
+
+namespace {
+
+constexpr const char* kJobRefusal = "Can't change the printer config while a print is running.";
+
+bool restart_sent(const ConfigPluginMockClient& client) {
+    return !client.params_of("printer.firmware_restart").empty();
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "safe_multi_edit and safe_edit_value refuse while a job holds the machine",
+                 "[plugin_config_edit][config][editor][job_guard]") {
+    const PluginFeatureState route =
+        GENERATE(PluginFeatureState::Absent, PluginFeatureState::Ready);
+    const bool multi = GENERATE(true, false);
+    CAPTURE(route, multi);
+    PrinterState state;
+    ConfigPluginMockClient client;
+    MoonrakerAPIMock api(client, state);
+    api.set_config_files({{"printer.cfg", kShaperRoot}});
+    MoonrakerClientTestAccess::force_connection_state(client, ConnectionState::CONNECTED);
+    client.config_reply = read_result("input_shaper", {{"shaper_freq_x", option("40")}});
+
+    KlipperConfigEditor editor;
+    editor.set_feature_state_source([route]() { return route; });
+    editor.set_job_hold_source([]() { return true; });
+    EditorRun run;
+    std::vector<ConfigEdit> edits = {{ConfigEdit::Type::ADD_KEY, "shaper_freq_x", "41.6"}};
+    if (multi) {
+        run_multi_edit(*this, editor, api, "input_shaper", edits, run);
+    } else {
+        editor.safe_edit_value(
+            api, "input_shaper", "shaper_freq_x", "41.6", [&run]() { run.succeeded = true; },
+            [&run](const std::string& err) { run.error = err; });
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+    }
+
+    CHECK_FALSE(run.succeeded);
+    CHECK(run.error == kJobRefusal);
+    CHECK(client.params_of("server.helix.config_edit").empty());
+    CHECK(api.get_uploaded_config("printer.cfg") == kShaperRoot);
+    CHECK_FALSE(restart_sent(client));
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "the default job source reads the print lifecycle: printing, paused and "
+                 "preparing refuse, standby edits",
+                 "[plugin_config_edit][config][editor][job_guard]") {
+    auto& ps = get_printer_state();
+    PrinterStateTestAccess::reset(ps);
+    ps.init_subjects(false);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+
+    enum class Held { Standby, Printing, Paused, Preparing };
+    const Held held = GENERATE(Held::Standby, Held::Printing, Held::Paused, Held::Preparing);
+    CAPTURE(static_cast<int>(held));
+    switch (held) {
+    case Held::Standby:
+        break;
+    case Held::Printing:
+        helix::test::set_wire_state(ps, PrintJobState::PRINTING);
+        break;
+    case Held::Paused:
+        helix::test::set_wire_state(ps, PrintJobState::PAUSED);
+        break;
+    case Held::Preparing:
+        ps.print_state().begin_preparing(PrintJobRef{"chosen.gcode", "", ""});
+        break;
+    }
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+
+    PrinterState state;
+    ConfigPluginMockClient client;
+    MoonrakerAPIMock api(client, state);
+    api.set_config_files({{"printer.cfg", kShaperRoot}});
+    MoonrakerClientTestAccess::force_connection_state(client, ConnectionState::CONNECTED);
+
+    KlipperConfigEditor editor;
+    editor.set_feature_state_source([]() { return PluginFeatureState::Absent; });
+    EditorRun run;
+    run_multi_edit(*this, editor, api, "input_shaper",
+                   {{ConfigEdit::Type::ADD_KEY, "shaper_freq_x", "41.6"}}, run);
+
+    if (held == Held::Standby) {
+        CHECK(run.succeeded);
+        CHECK(run.error.empty());
+        CHECK(restart_sent(client));
+    } else {
+        CHECK_FALSE(run.succeeded);
+        CHECK(run.error == kJobRefusal);
+        CHECK(api.get_uploaded_config("printer.cfg") == kShaperRoot);
+        CHECK_FALSE(restart_sent(client));
+    }
+    PrinterStateTestAccess::reset(ps);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a print that starts after the config is written blocks the restart and puts "
+                 "the file back",
+                 "[plugin_config_edit][config][editor][job_guard]") {
+    PrinterState state;
+    ConfigPluginMockClient client;
+    MoonrakerAPIMock api(client, state);
+    api.set_config_files({{"printer.cfg", kShaperRoot}});
+    MoonrakerClientTestAccess::force_connection_state(client, ConnectionState::CONNECTED);
+
+    KlipperConfigEditor editor;
+    editor.set_feature_state_source([]() { return PluginFeatureState::Absent; });
+    // Idle until the edit lands, then a print takes the machine.
+    editor.set_job_hold_source([&api]() {
+        auto written = api.get_uploaded_config("printer.cfg");
+        return written.has_value() && *written != kShaperRoot;
+    });
+    EditorRun run;
+    run_multi_edit(*this, editor, api, "input_shaper",
+                   {{ConfigEdit::Type::ADD_KEY, "shaper_freq_x", "41.6"}}, run);
+
+    CHECK_FALSE(run.succeeded);
+    CHECK(run.error.find(kJobRefusal) != std::string::npos);
+    CHECK_FALSE(restart_sent(client));
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a print that starts after the file backup blocks the upload",
+                 "[plugin_config_edit][config][editor][job_guard]") {
+    PrinterState state;
+    ConfigPluginMockClient client;
+    MoonrakerAPIMock api(client, state);
+    api.set_config_files({{"printer.cfg", kShaperRoot}});
+    MoonrakerClientTestAccess::force_connection_state(client, ConnectionState::CONNECTED);
+
+    KlipperConfigEditor editor;
+    editor.set_feature_state_source([]() { return PluginFeatureState::Absent; });
+    editor.set_job_hold_source(
+        [&client]() { return !client.params_of("server.files.copy").empty(); });
+    EditorRun run;
+    run_multi_edit(*this, editor, api, "input_shaper",
+                   {{ConfigEdit::Type::ADD_KEY, "shaper_freq_x", "41.6"}}, run);
+
+    CHECK_FALSE(run.succeeded);
+    CHECK(run.error == kJobRefusal);
+    CHECK(api.get_uploaded_config("printer.cfg") == kShaperRoot);
+    CHECK_FALSE(restart_sent(client));
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a print that starts after the plugin's config read blocks the plugin write",
+                 "[plugin_config_edit][config][editor][job_guard]") {
+    PrinterState state;
+    ConfigPluginMockClient client;
+    MoonrakerAPIMock api(client, state);
+    api.set_config_files({{"printer.cfg", kShaperRoot}});
+    MoonrakerClientTestAccess::force_connection_state(client, ConnectionState::CONNECTED);
+    client.config_reply = read_result("input_shaper", {{"shaper_freq_x", option("40")}});
+
+    KlipperConfigEditor editor;
+    editor.set_feature_state_source([]() { return PluginFeatureState::Ready; });
+    // Idle at the entry check, held once the plugin's read has been answered.
+    editor.set_job_hold_source(
+        [&client]() { return !client.params_of("server.helix.config").empty(); });
+    EditorRun run;
+    run_multi_edit(*this, editor, api, "input_shaper",
+                   {{ConfigEdit::Type::ADD_KEY, "shaper_freq_x", "41.6"}}, run);
+
+    CHECK_FALSE(run.succeeded);
+    CHECK(run.error == kJobRefusal);
+    CHECK(client.params_of("server.helix.config_edit").empty());
+    CHECK_FALSE(restart_sent(client));
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,

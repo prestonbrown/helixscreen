@@ -892,6 +892,7 @@ translations:
   Cam: Kam.
   Camera: Kamera
   Camera checks the bed is empty before each print: Kamera sprawdza przed każdym drukiem, czy stół jest pusty
+  Can't change the printer config while a print is running.: Nie można zmienić konfiguracji drukarki w trakcie drukowania.
   Can't connect — try forgetting and re-pairing the printer: Nie można się połączyć — spróbuj zapomnieć drukarkę i sparować ją ponownie
   Can't move filament while the print is paused: Nie można ruszać filamentem, gdy druk jest wstrzymany
   Can't read filament RFID tag: Nie można odczytać tagu RFID filamentu

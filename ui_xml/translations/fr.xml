@@ -807,6 +807,7 @@
   <translation tag="Cam" fr="Cam"/>
   <translation tag="Camera" fr="Caméra"/>
   <translation tag="Camera checks the bed is empty before each print" fr="La caméra vérifie que le plateau est vide avant chaque impression"/>
+  <translation tag="Can&apos;t change the printer config while a print is running." fr="Impossible de modifier la configuration de l&apos;imprimante pendant une impression."/>
   <translation tag="Can&apos;t connect — try forgetting and re-pairing the printer" fr="Connexion impossible — essayez d&apos;oublier et de réappairer l&apos;imprimante"/>
   <translation tag="Can&apos;t move filament while the print is paused" fr="Impossible de déplacer le filament pendant une impression en pause"/>
   <translation tag="Can&apos;t reach this printer. Save anyway?" fr="Imprimante injoignable. Enregistrer quand même ?"/>

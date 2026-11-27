@@ -11,9 +11,11 @@
 #include "i_moonraker_api.h"
 #include "json_utils.h"
 #include "klipper_config_includes.h"
+#include "lvgl.h"
 #include "moonraker_error.h"
 #include "notice.h"
 #include "platform_info.h"
+#include "print_lifecycle_state.h"
 #include "printer_state.h"
 
 #include <spdlog/spdlog.h>
@@ -603,6 +605,9 @@ void KlipperConfigEditor::backup_file(IMoonrakerAPI& api, const std::string& fil
 void KlipperConfigEditor::edit_value(IMoonrakerAPI& api, const std::string& section,
                                      const std::string& key, const std::string& new_value,
                                      SuccessCallback on_success, ErrorCallback on_error) {
+    if (refuse_while_job(section, on_error)) {
+        return;
+    }
     // Look up section in cached section map
     std::string file_path;
     {
@@ -1062,6 +1067,12 @@ plugin_config_edit_backups(const nlohmann::json& result) {
     return backups;
 }
 
+namespace {
+std::string job_refusal_message() {
+    return lv_tr("Can't change the printer config while a print is running.");
+}
+} // namespace
+
 KlipperConfigEditor::KlipperConfigEditor()
     : feature_state_source_([]() {
           if (!helix::ui::UpdateQueue::is_main_thread()) {
@@ -1071,7 +1082,31 @@ KlipperConfigEditor::KlipperConfigEditor()
           }
           return get_printer_state().plugin_status_state().plugin_feature(
               kConfigEditFeature, kConfigEditFeatureMinVersion);
+      }),
+      job_hold_source_([]() {
+          if (!helix::ui::UpdateQueue::is_main_thread()) {
+              spdlog::warn("[ConfigEditor] Print lifecycle read off the main thread; refusing");
+              return true;
+          }
+          return job_holds_machine(get_printer_state().print_state().get_print_lifecycle());
       }) {}
+
+void KlipperConfigEditor::set_job_hold_source(JobHoldSource source) {
+    job_hold_source_ = std::move(source);
+}
+
+bool KlipperConfigEditor::refuse_while_job(const std::string& section,
+                                           const ErrorCallback& on_error) const {
+    if (!job_hold_source_ || !job_hold_source_()) {
+        return false;
+    }
+    const std::string message = job_refusal_message();
+    spdlog::warn("[ConfigEditor] Not editing [{}]: a print job holds the machine", section);
+    if (on_error) {
+        on_error(message);
+    }
+    return true;
+}
 
 void KlipperConfigEditor::set_feature_state_source(FeatureStateSource source) {
     feature_state_source_ = std::move(source);
@@ -1300,7 +1335,7 @@ void KlipperConfigEditor::safe_multi_edit(IMoonrakerAPI& api, const std::string&
                                           std::vector<ExpectedSetting> expected) {
     spdlog::info("[ConfigEditor] Starting safe multi-edit on [{}] ({} edits)", section,
                  edits.size());
-    if (refuse_while_supervised(section, on_error)) {
+    if (refuse_while_supervised(section, on_error) || refuse_while_job(section, on_error)) {
         return;
     }
     if (route() == ConfigEditRoute::Plugin) {
@@ -1317,7 +1352,7 @@ void KlipperConfigEditor::plugin_multi_edit(IMoonrakerAPI& api, const std::strin
                                             SuccessCallback on_success, ErrorCallback on_error,
                                             int restart_timeout_ms,
                                             std::vector<ExpectedSetting> expected) {
-    if (refuse_while_supervised(section, on_error)) {
+    if (refuse_while_supervised(section, on_error) || refuse_while_job(section, on_error)) {
         return;
     }
     spdlog::info("[ConfigEditor] Editing [{}] through the HelixPrint plugin", section);
@@ -1338,6 +1373,10 @@ void KlipperConfigEditor::plugin_multi_edit(IMoonrakerAPI& api, const std::strin
                 spdlog::error("[ConfigEditor] {}", plan.error);
                 if (on_error)
                     on_error(plan.error);
+                return;
+            }
+            // A print can start while the plugin's config read was in flight.
+            if (refuse_while_job(section, on_error)) {
                 return;
             }
             api.get_client().send_jsonrpc(
@@ -1426,8 +1465,12 @@ void KlipperConfigEditor::file_api_multi_edit(IMoonrakerAPI& api, const std::str
             // Step 5: Backup the file, then upload, then restart
             backup_file(
                 api, file_path,
-                [this, &api, file_path, modified, on_success, on_error, restart_timeout_ms,
+                [this, &api, section, file_path, modified, on_success, on_error, restart_timeout_ms,
                  expected]() {
+                    // A print can start while the backup was in flight.
+                    if (refuse_while_job(section, on_error)) {
+                        return;
+                    }
                     // Step 6: Upload modified content
                     api.transfers().upload_file(
                         "config", file_path, *modified,
@@ -1502,6 +1545,26 @@ void KlipperConfigEditor::restart_and_monitor(IMoonrakerAPI& api, RestartRecover
                                               SuccessCallback on_success, ErrorCallback on_error,
                                               int restart_timeout_ms,
                                               std::vector<ExpectedSetting> expected) {
+    // The edit is already written: a job that started since puts it back and
+    // the printer keeps running on the config it has loaded.
+    if (refuse_while_job({}, nullptr)) {
+        spdlog::warn("[ConfigEditor] A print started before the restart; restoring backups");
+        const std::string refusal = job_refusal_message();
+        auto report = [on_error, refusal](const std::string& detail) {
+            if (on_error)
+                on_error(detail.empty() ? refusal : refusal + " " + detail);
+        };
+        if (recovery.restore) {
+            recovery.restore(
+                api, [report]() { report({}); },
+                [report](const std::string& err) {
+                    report("Restoring the backup failed: " + err);
+                });
+        } else {
+            report({});
+        }
+        return;
+    }
     announce_expected_restart(api, restart_announcement_);
     api.restart_firmware(
         [this, &api, recovery, on_success, on_error, restart_timeout_ms, expected,
@@ -1591,7 +1654,7 @@ void KlipperConfigEditor::safe_edit_value(IMoonrakerAPI& api, const std::string&
                                           SuccessCallback on_success, ErrorCallback on_error,
                                           int restart_timeout_ms) {
     spdlog::info("[ConfigEditor] Starting safe edit: [{}] {} = {}", section, key, new_value);
-    if (refuse_while_supervised(section, on_error)) {
+    if (refuse_while_supervised(section, on_error) || refuse_while_job(section, on_error)) {
         return;
     }
     if (route() == ConfigEditRoute::Plugin) {

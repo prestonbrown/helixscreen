@@ -834,6 +834,7 @@ translations:
   Cam: Cam
   Camera: Telecamera
   Camera checks the bed is empty before each print: 'La telecamera controlla che il piano sia vuoto prima di ogni stampa'
+  Can't change the printer config while a print is running.: Impossibile modificare la configurazione della stampante durante una stampa.
   Can't connect — try forgetting and re-pairing the printer: Impossibile connettersi — prova a dimenticare e associare di nuovo la stampante
   Can't move filament while the print is paused: Impossibile muovere il filamento con la stampa in pausa
   Can't read filament RFID tag: Impossibile leggere il tag RFID del filamento

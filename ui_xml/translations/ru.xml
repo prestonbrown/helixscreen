@@ -843,6 +843,7 @@
   <translation tag="Cam" ru="Кам"/>
   <translation tag="Camera" ru="Камера"/>
   <translation tag="Camera checks the bed is empty before each print" ru="Камера проверяет, что стол пуст, перед каждой печатью"/>
+  <translation tag="Can&apos;t change the printer config while a print is running." ru="Нельзя изменить конфигурацию принтера во время печати."/>
   <translation tag="Can&apos;t connect — try forgetting and re-pairing the printer" ru="Не удаётся подключиться — забудьте принтер и выполните сопряжение заново"/>
   <translation tag="Can&apos;t move filament while the print is paused" ru="Невозможно перемещать филамент, пока печать на паузе"/>
   <translation tag="Can&apos;t reach this printer. Save anyway?" ru="Принтер недоступен. Всё равно сохранить?"/>

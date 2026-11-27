@@ -843,6 +843,7 @@
   <translation tag="Cam" pl="Kam."/>
   <translation tag="Camera" pl="Kamera"/>
   <translation tag="Camera checks the bed is empty before each print" pl="Kamera sprawdza przed każdym drukiem, czy stół jest pusty"/>
+  <translation tag="Can&apos;t change the printer config while a print is running." pl="Nie można zmienić konfiguracji drukarki w trakcie drukowania."/>
   <translation tag="Can&apos;t connect — try forgetting and re-pairing the printer" pl="Nie można się połączyć — spróbuj zapomnieć drukarkę i sparować ją ponownie"/>
   <translation tag="Can&apos;t move filament while the print is paused" pl="Nie można ruszać filamentem, gdy druk jest wstrzymany"/>
   <translation tag="Can&apos;t reach this printer. Save anyway?" pl="Nie można połączyć się z tą drukarką. Zapisać mimo to?"/>

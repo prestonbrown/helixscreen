@@ -837,6 +837,7 @@ translations:
   Cam: Cam
   Camera: Camera
   Camera checks the bed is empty before each print: Camera checks the bed is empty before each print
+  Can't change the printer config while a print is running.: Can't change the printer config while a print is running.
   Can't connect — try forgetting and re-pairing the printer: Can't connect — try forgetting and re-pairing the printer
   Can't move filament while the print is paused: Can't move filament while the print is paused
   Can't read filament RFID tag: Can't read filament RFID tag

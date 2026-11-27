@@ -834,6 +834,7 @@ translations:
   Cam: 摄像
   Camera: 摄像头
   Camera checks the bed is empty before each print: '每次打印前用摄像头检查热床是否为空'
+  Can't change the printer config while a print is running.: 打印期间无法更改打印机配置。
   Can't connect — try forgetting and re-pairing the printer: 无法连接 — 请尝试忘记并重新配对打印机
   Can't move filament while the print is paused: 打印暂停期间无法移动耗材
   Can't read filament RFID tag: 无法读取耗材 RFID 标签
