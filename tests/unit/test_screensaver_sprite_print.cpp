@@ -3,6 +3,7 @@
 #include "ui_screensaver.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/sample_checks.h"
 #include "../test_helpers/screensaver_bounce_test_access.h"
 #include "../test_helpers/screensaver_test_access.h"
 #include "platform_capabilities.h"
@@ -191,6 +192,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
                  "[screensaver][bounce]") {
     const bool logo = GENERATE(false, true);
     CAPTURE(logo);
+    helix::test::SampleChecks samples;
     auto ss = make_bounce(logo);
     ScreensaverStopOnExit<BouncingPrinterScreensaver> stop_on_exit{*ss};
 
@@ -213,7 +215,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
                 first = ss->confetti();
                 bursts++;
             }
-            REQUIRE(extra_children(*ss) <= 1);
+            SAMPLE_REQUIRE(samples, extra_children(*ss) <= 1, i);
         }
         // Its own timer never runs here, so the first burst is still alive.
         CHECK(bursts == 1);
@@ -226,12 +228,13 @@ TEST_CASE_METHOD(LVGLTestFixture,
         for (int round = 0; round < 3; round++) {
             CAPTURE(round);
             lv_obj_delete(ss->confetti());
-            REQUIRE(ss->confetti() == nullptr);
+            SAMPLE_REQUIRE(samples, ss->confetti() == nullptr, round);
             for (int i = 0; i < 15000 / 33 && ss->confetti() == nullptr; i++) {
                 advance_saver(*ss, 33);
             }
             CHECK(ss->confetti() != nullptr);
         }
+        samples.done(30000 / 33 + 3);
     }
 
     SECTION("the cheapest rung flashes green on every bounce instead") {
@@ -253,8 +256,9 @@ TEST_CASE_METHOD(LVGLTestFixture,
                 lv_color_eq(lv_obj_get_style_bg_color(overlay, LV_PART_MAIN), flash);
             flashes += (flashing && !was_flashing) ? 1 : 0;
             was_flashing = flashing;
-            REQUIRE(ss->confetti() == nullptr);
+            SAMPLE_REQUIRE(samples, ss->confetti() == nullptr, i);
         }
+        samples.done(30000 / 33);
         CHECK(flashes >= 3);
     }
 
