@@ -72,9 +72,9 @@ while `release/1.0` keeps stable:
 
 | Branch | Versions | Channel |
 |--------|----------|---------|
-| `release/1.0` | `1.0.0`, `1.0.1`, `1.0.2` ... | stable |
+| `release/1.0` | `1.0.0`, `1.0.1`, `1.0.2` ... | stable + beta |
 | `main` | `1.1.0-beta.1`, `1.1.0-beta.2` ... | beta + dev |
-| `release/1.1` (future) | `1.1.0`, then `1.1.1` ... | stable |
+| `release/1.1` (future) | `1.1.0`, then `1.1.1` ... | stable + beta |
 
 The trunk names the release it is heading for, so a beta install says which minor
 it belongs to and `1.1.0` stays free for the stable cut. A beta at `1.1.0-beta.7`
@@ -356,7 +356,12 @@ git push origin release/1.1 v1.1.0
 ```
 
 Dropping the suffix is itself the promotion: `1.1.0` outranks every
-`1.1.0-beta.N`, so the beta fleet is offered it as an ordinary forward step.
+`1.1.0-beta.N`, so the beta fleet is offered it as an ordinary forward step. Every
+stable release of the line reaches the beta fleet the same way, and Beta never trails
+Stable: a stable release also publishes to the beta manifest whenever that moves beta
+forward, and the app on Beta reads the stable manifest too and offers the newer
+(`docs/devel/UPDATE_SYSTEM.md` § "Beta reads Stable too"). A stable `1.1.2` cut after
+`1.2.0-beta.1` leaves the beta manifest on the beta.
 `main` then moves to `1.2.0-beta.1` and keeps publishing to beta.
 
 ---

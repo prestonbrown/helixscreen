@@ -46,6 +46,13 @@ class UpdateCheckerTestAccess {
         c.clear_cache();
     }
 
+    /// Forget the last check, so check_for_updates() is not rate-limited by an
+    /// earlier test's check.
+    static void reset_rate_limit(UpdateChecker& c) {
+        std::lock_guard<std::mutex> lock(c.mutex_);
+        c.last_check_time_ = {};
+    }
+
     /// sync_moonraker_channel() against @p install_root: the test link has no
     /// resolvable install directory, so the public entry point always skips.
     static void sync_moonraker_channel_for(UpdateChecker& c, const std::string& install_root) {

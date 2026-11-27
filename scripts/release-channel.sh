@@ -20,8 +20,13 @@
 # Each maintenance line carries its own RELEASE_CHANNEL, so cutting a release
 # is just tagging the right branch:
 #
-#   release/1.0  RELEASE_CHANNEL=stable  -> stable
-#   main         RELEASE_CHANNEL=beta    -> beta + dev
+#   release/1.0  RELEASE_CHANNEL=stable  -> stable beta
+#   release/1.1  RELEASE_CHANNEL=stable  -> stable beta
+#   main         RELEASE_CHANNEL=dev     -> dev         (X.Y.0-alpha.N)
+#
+# The first channel listed is the declared one; the rest follow it.
+# scripts/channel-upload-guard.sh fails a release that would move the declared
+# channel backward and leaves a following channel off when it is already ahead.
 #
 # Shared by CI (.github/workflows/release.yml) and local dev releases.
 
@@ -53,14 +58,18 @@ With no --field, prints KEY=value lines suitable for \$GITHUB_OUTPUT:
   channels=beta dev
   prerelease=true
 
-Channel mapping:
-  stable -> stable          (full GitHub release, triggers docs deploy)
+Channel mapping (the declared channel first, then the channels following it):
+  stable -> stable beta     (full GitHub release, triggers docs deploy; Beta
+                             never trails Stable)
   beta   -> beta dev        (GitHub prerelease; dev tracks the devel line)
   dev    -> dev             (GitHub prerelease; bleeding edge only)
 
-Note that stable does NOT publish to dev. The dev channel follows the devel
-line alone so its manifest version only ever moves forward; a 1.0.x hotfix
-publishing to dev would otherwise roll dev users back from 1.1.x.
+A following channel takes the release only while that moves it forward
+(scripts/channel-upload-guard.sh): a stable 1.1.2 reaches a beta manifest at
+1.1.1 and skips one already at 1.2.0-beta.1.
+
+Stable does NOT publish to dev. The dev channel follows the devel line, whose
+alphas of the next minor outrank every stable release of the current one.
 EOF
 }
 
@@ -111,7 +120,7 @@ fi
 
 case "$CHANNEL" in
     stable)
-        CHANNELS="stable"
+        CHANNELS="stable beta"
         PRERELEASE="false"
         ;;
     beta)

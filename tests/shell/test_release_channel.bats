@@ -38,22 +38,24 @@ write_channel() {
 # Channel mapping
 # ---------------------------------------------------------------------------
 
-@test "stable maps to the stable channel only, not a prerelease" {
+@test "stable publishes to stable, then beta, and is not a prerelease" {
+    # Beta must never trail Stable (prestonbrown/helixscreen#2205): a stable
+    # release also reaches the beta manifest, as a channel following stable.
     write_channel "stable"
     run "$SCRIPT" --file "$CHANNEL_FILE"
     [ "$status" -eq 0 ]
     contains "channel=stable" "$output"
-    contains "channels=stable" "$output"
+    contains "channels=stable beta" "$output"
     [[ "$output" == *"prerelease=false"* ]]
 }
 
 @test "stable does NOT publish to dev" {
-    # The dev manifest must only ever move forward. If a 1.0.x stable hotfix
-    # also published to dev it would roll dev users back from 1.1.x.
+    # The dev channel follows the devel line, whose alphas of the next minor
+    # outrank every stable release of the current one.
     write_channel "stable"
     run "$SCRIPT" --file "$CHANNEL_FILE" --field channels
     [ "$status" -eq 0 ]
-    [ "$output" = "stable" ]
+    [ "$output" = "stable beta" ]
 }
 
 @test "beta maps to beta plus dev and marks a prerelease" {
@@ -165,7 +167,7 @@ write_channel() {
     write_channel "stable"
     run "$SCRIPT" --file "$CHANNEL_FILE" --tag "v1.0.1" --field channels
     [ "$status" -eq 0 ]
-    [ "$output" = "stable" ]
+    [ "$output" = "stable beta" ]
 }
 
 @test "prerelease-suffixed tag is allowed on the beta channel" {

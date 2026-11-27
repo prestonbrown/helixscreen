@@ -28,7 +28,7 @@ Every release that carries the Linux desktop package is also published as a cont
 | Tag | You get |
 |---|---|
 | `latest` or `stable` | The newest Stable release. |
-| `beta` | The newest Beta release. |
+| `beta` | The newest release on the Beta channel: the newest beta, or the newest Stable release when that is newer. |
 | `dev` | The newest development build. |
 | A version, such as `1.1.2` | That one release and no other. Use it to stay on a version you have checked. |
 

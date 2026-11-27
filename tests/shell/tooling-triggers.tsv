@@ -193,7 +193,7 @@ tests/shell/test_upload_gating.bats	.github/workflows/release.yml Makefile mk/cr
 tests/shell/test_vacuous_test_gate.bats	scripts/check_vacuous_tests.py scripts/vacuous_test_baseline.txt
 tests/shell/test_variant_content_drift_gate.bats	scripts/check_variant_content_drift.py scripts/check_variant_parity.py ui_xml/print_tune_panel.xml ui_xml/translations/en.xml
 tests/shell/test_variant_parity_gate.bats	scripts/check_variant_parity.py ui_xml/micro/controls_panel.xml
-tests/shell/test_version_compare.bats	.github/workflows/ scripts/version-compare.sh tests/fixtures/version_precedence.txt tests/unit/test_version.cpp
+tests/shell/test_version_compare.bats	.github/workflows/ scripts/channel-upload-guard.sh scripts/version-compare.sh tests/fixtures/version_precedence.txt tests/unit/test_version.cpp
 tests/shell/test_wifi_pii_gate.bats	scripts/check_wifi_pii_logging.py scripts/staged_content.py src/network/
 tests/shell/test_workflow_concurrency_gate.bats	.github/workflows/ tests/shell/helpers.bash
 tests/shell/test_workflow_submodules_gate.bats	.github/actions/ .github/workflows/ scripts/check_workflow_submodules.py
