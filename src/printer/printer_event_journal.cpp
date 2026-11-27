@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "printer_event_journal.h"
 
+#include "firmware_error_envelope.h"
 #include "json_utils.h"
 #include "text_io.h"
 #include "translation_loader.h"
@@ -539,10 +540,13 @@ JournalRow describe_journal_entry(const JournalEntry& e) {
     using namespace journal_kind;
     JournalRow row;
     const std::string& k = e.kind;
+    // A firmware that wraps what it reports in a JSON envelope: the row reads
+    // the message, where the entry keeps what the printer said.
+    const std::string text = helix::decode_firmware_error_text(e.text);
     if (k == kShutdown) {
-        row = {JournalSeverity::Error, TR_NOOP("Klipper shut down"), e.text};
+        row = {JournalSeverity::Error, TR_NOOP("Klipper shut down"), text};
     } else if (k == kMcuDisconnect) {
-        row = {JournalSeverity::Error, TR_NOOP("MCU disconnected"), e.text};
+        row = {JournalSeverity::Error, TR_NOOP("MCU disconnected"), text};
     } else if (k == kDisconnect) {
         row = {JournalSeverity::Warning, TR_NOOP("Klipper disconnected"), {}};
     } else if (k == kReady) {
@@ -550,7 +554,7 @@ JournalRow describe_journal_entry(const JournalEntry& e) {
     } else if (k == kFirmwareRestart) {
         row = {JournalSeverity::Info, TR_NOOP("Firmware restart"), {}};
     } else if (k == kGcodeError) {
-        row = {JournalSeverity::Error, TR_NOOP("Printer error"), e.text};
+        row = {JournalSeverity::Error, TR_NOOP("Printer error"), text};
     } else if (k == kRunout) {
         row = {JournalSeverity::Warning, TR_NOOP("Filament runout"), e.detail};
     } else if (k == kPause) {
@@ -578,7 +582,7 @@ JournalRow describe_journal_entry(const JournalEntry& e) {
             }
         }
     } else {
-        row = {JournalSeverity::Info, TR_NOOP("Printer event"), e.text};
+        row = {JournalSeverity::Info, TR_NOOP("Printer event"), text};
     }
     row.repeat_count = std::max(1, e.count);
     return row;
