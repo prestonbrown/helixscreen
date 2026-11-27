@@ -9,6 +9,7 @@
 #include "../test_helpers/filament_panel_macro_harness.h"
 #include "../test_helpers/filament_panel_test_access.h"
 #include "../test_helpers/fresh_printer_state.h"
+#include "../test_helpers/gcode_recording_api.h"
 #include "../test_helpers/material_settings_scope.h"
 #include "../test_helpers/notice_capture.h"
 #include "../test_helpers/preheat_widget_test_access.h"
@@ -552,6 +553,63 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // The send took the forced timeout.
     CHECK_FALSE(h.client.take_forced_gcode_error("HEAT_ABS").has_value());
     CHECK(notices.count_errors_ending_with(" failed") == (printer_busy ? 0u : 1u));
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "A material's macro still waiting for its answer is not sent again",
+                 "[material_preheat][preheat][filament][2183]") {
+    filament::MaterialOverride abs = abs_override("HEAT_ABS", true);
+    filament::MaterialOverride asa = abs_override("HEAT_ASA", true);
+    helix::PrinterDiscovery hardware;
+    hardware.parse_objects(
+        nlohmann::json{"extruder", "gcode_macro HEAT_ABS", "gcode_macro HEAT_ASA"});
+    const auto abs_plan = helix::plan_material_preheat(&abs, hardware, PrintState::Idle);
+    const auto asa_plan = helix::plan_material_preheat(&asa, hardware, PrintState::Idle);
+    int temperatures = 0;
+    const auto set_temperatures = [&temperatures]() { ++temperatures; };
+    const char* tag = "[Test]";
+    // The answer waits as a running macro's does.
+    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
+    helix::test::GcodeRecordingApi api{client, get_printer_state()};
+    api.hold_acks = true;
+
+    helix::execute_material_preheat(&api, abs_plan, set_temperatures, tag, hardware);
+    helix::execute_material_preheat(&api, abs_plan, set_temperatures, tag, hardware);
+    CHECK(api.sent == Scripts{"HEAT_ABS"});
+    // Another material's macro is not held by the one in flight.
+    helix::execute_material_preheat(&api, asa_plan, set_temperatures, tag, hardware);
+    CHECK(api.sent == Scripts{"HEAT_ABS", "HEAT_ASA"});
+
+    // Both answers arrive: each macro may be sent again.
+    api.hold_acks = false;
+    api.ack_held();
+    helix::ui::UpdateQueue::instance().drain();
+    helix::execute_material_preheat(&api, abs_plan, set_temperatures, tag, hardware);
+    helix::execute_material_preheat(&api, asa_plan, set_temperatures, tag, hardware);
+    CHECK(api.sent == Scripts{"HEAT_ABS", "HEAT_ASA", "HEAT_ABS", "HEAT_ASA"});
+    CHECK(temperatures == 0);
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "A material's macro a refused send leaves may be sent again",
+                 "[material_preheat][preheat][filament][2183]") {
+    filament::MaterialOverride abs = abs_override("HEAT_ABS", true);
+    helix::PrinterDiscovery hardware;
+    hardware.parse_objects(nlohmann::json{"extruder", "gcode_macro HEAT_ABS"});
+    const auto plan = helix::plan_material_preheat(&abs, hardware, PrintState::Idle);
+    const auto set_temperatures = []() {};
+    const char* tag = "[Test]";
+    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
+    helix::test::GcodeRecordingApi api{client, get_printer_state()};
+    api.fail.insert("HEAT_ABS");
+    helix::test::ScopedNoticeCapture notices;
+
+    helix::execute_material_preheat(&api, plan, set_temperatures, tag, hardware);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(notices.count_errors_ending_with(" failed") == 1);
+
+    api.fail.clear();
+    helix::execute_material_preheat(&api, plan, set_temperatures, tag, hardware);
+    CHECK(api.sent == Scripts{"HEAT_ABS", "HEAT_ABS"});
 }
 
 namespace {
