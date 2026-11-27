@@ -98,3 +98,25 @@ TEST_CASE_METHOD(XMLTestFixture, "bypass spool is drawn the size of the lane spo
 
     helix::ui::bypass_spool_destroy(w);
 }
+
+TEST_CASE_METHOD(XMLTestFixture, "bypass node ghosts while it is not the path in use",
+                 "[ams][bypass][spool_widget]") {
+    // An unused feed path reads as available, not in use: the card and both
+    // captions dim the way an assigned-but-unloaded lane spool does.
+    BypassSpoolWidgets w = bypass_spool_create(lv_screen_active(), nullptr, nullptr);
+    REQUIRE(w.valid());
+    REQUIRE(w.bypass_label != nullptr);
+    REQUIRE(w.material_label != nullptr);
+
+    bypass_spool_set_active(w, false);
+    CHECK(lv_obj_get_style_opa(w.box, LV_PART_MAIN) == ams_draw::kGhostOpa);
+    CHECK(lv_obj_get_style_text_opa(w.bypass_label, LV_PART_MAIN) == ams_draw::kGhostOpa);
+    CHECK(lv_obj_get_style_text_opa(w.material_label, LV_PART_MAIN) == ams_draw::kGhostOpa);
+
+    bypass_spool_set_active(w, true);
+    CHECK(lv_obj_get_style_opa(w.box, LV_PART_MAIN) == LV_OPA_COVER);
+    CHECK(lv_obj_get_style_text_opa(w.bypass_label, LV_PART_MAIN) == LV_OPA_COVER);
+    CHECK(lv_obj_get_style_text_opa(w.material_label, LV_PART_MAIN) == LV_OPA_COVER);
+
+    helix::ui::bypass_spool_destroy(w);
+}
