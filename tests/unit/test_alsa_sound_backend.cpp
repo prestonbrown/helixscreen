@@ -8,6 +8,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <thread>
 #include <vector>
@@ -262,7 +263,20 @@ TEST_CASE("ALSASoundBackend::clear_render_source waits out a render call in flig
     std::atomic<bool> in_call{false};
     std::atomic<int> calls{0};
     std::atomic<std::chrono::nanoseconds> last_call{std::chrono::nanoseconds::zero()};
-    backend.set_render_source([&](float*, size_t, int) {
+    // What the source captured is gone when the clear returns. The capture
+    // says so only at the end of a slow death, so a clear that returned while
+    // the render thread's copy of the source still held it is caught.
+    std::atomic<bool> captured_gone{false};
+    struct Captured {
+        explicit Captured(std::atomic<bool>& flag) : gone(flag) {}
+        ~Captured() {
+            std::this_thread::sleep_for(std::chrono::milliseconds(30));
+            gone = true;
+        }
+        std::atomic<bool>& gone;
+    };
+    auto captured = std::make_shared<Captured>(captured_gone);
+    backend.set_render_source([&, captured](float*, size_t, int) {
         const auto started = std::chrono::steady_clock::now();
         in_call = true;
         ++calls;
@@ -270,6 +284,7 @@ TEST_CASE("ALSASoundBackend::clear_render_source waits out a render call in flig
         in_call = false;
         last_call = std::chrono::steady_clock::now() - started;
     });
+    captured.reset();
 
     // A finished call behind it and one in flight: the clear has one whole
     // call in front of it and a measured length to compare with.
@@ -288,6 +303,7 @@ TEST_CASE("ALSASoundBackend::clear_render_source waits out a render call in flig
     backend.clear_render_source();
     const auto clear_wait = std::chrono::steady_clock::now() - clear_started;
     CHECK(clear_wait <= 2 * last_call.load() + std::chrono::milliseconds(100));
+    CHECK(captured_gone.load());
 
     CHECK_FALSE(in_call.load());
     const int calls_at_clear = calls.load();

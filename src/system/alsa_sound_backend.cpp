@@ -427,6 +427,9 @@ void ALSASoundBackend::render_loop() {
             }
             if (source) {
                 source(mix_buf_.data(), frames, static_cast<int>(sample_rate_));
+                // The copy goes before the count comes down: what the source
+                // captured is gone once clear_render_source() returns.
+                source = nullptr;
                 {
                     std::lock_guard<std::mutex> lock(render_source_mutex_);
                     --source_calls_in_flight_;

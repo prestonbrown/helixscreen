@@ -144,7 +144,8 @@ class SoundBackend {
     }
 
     /// Set an external audio render source. When set, the backend's render loop
-    /// calls this instead of per-voice waveform generation.
+    /// calls this instead of per-voice waveform generation. It does not wait: call
+    /// clear_render_source() before freeing anything the old source captures.
     /// Callback signature: void(float* output_buffer, size_t frame_count, int sample_rate)
     virtual void set_render_source(std::function<void(float*, size_t, int)> /* fn */) {}
 
