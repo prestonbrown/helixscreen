@@ -76,7 +76,8 @@ TEST_CASE_METHOD(TelemetryTestFixture,
     bool kernel_names_wait_channels = false;
     std::thread reporter([&] {
         for (int i = 0; i < 500 && !main_waiting; ++i) {
-            main_waiting = helix::read_main_thread_state() == std::optional<std::string>("S");
+            const auto main = helix::read_proc_stat();
+            main_waiting = main && main->state == "S";
             if (!main_waiting) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(2));
             }

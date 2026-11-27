@@ -361,14 +361,6 @@ std::optional<ProcStat> read_proc_stat(const char* stat_path) {
     return std::nullopt;
 }
 
-std::optional<uint64_t> read_self_major_faults(const char* stat_path) {
-    const auto st = read_proc_stat(stat_path);
-    if (st) {
-        return st->major_faults;
-    }
-    return std::nullopt;
-}
-
 namespace {
 
 /// A kernel symbol name as kallsyms spells it: a letter or '_' first, then
@@ -397,14 +389,6 @@ std::optional<std::string> parse_proc_wchan(const std::string& text) {
         return std::nullopt;
     }
     return std::string(token.substr(0, kMaxLen));
-}
-
-std::optional<std::string> read_main_thread_state(const char* stat_path) {
-    const auto st = read_proc_stat(stat_path);
-    if (st) {
-        return st->state;
-    }
-    return std::nullopt;
 }
 
 std::optional<std::string> read_main_thread_wchan(const char* wchan_path) {
