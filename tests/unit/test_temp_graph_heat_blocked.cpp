@@ -101,31 +101,43 @@ TEST_CASE_METHOD(TempGraphHeatFixture,
                  "Temp overlay material presets carry the macro mark on the grid and none on the "
                  "small twin",
                  "[temp_graph_overlay][preset_mark][2183]") {
+    // The landscape strip and the portrait strip each have their own grid.
+    const int portrait = GENERATE(0, 1);
+    CAPTURE(portrait);
+    lv_subject_t* portrait_subject = lv_xml_get_subject(nullptr, "ui_is_portrait");
+    REQUIRE(portrait_subject != nullptr);
+    lv_subject_set_int(portrait_subject, portrait);
+
     auto& overlay = get_global_temp_graph_overlay();
     overlay.open(TempGraphOverlay::Mode::Nozzle, lv_screen_active());
     settle();
     lv_obj_t* root = overlay.get_root();
     REQUIRE(root != nullptr);
     lv_subject_t* abs_has_macro = helix::presets::has_macro_subject(2);
+    lv_subject_t* pla_has_macro = helix::presets::has_macro_subject(0);
     REQUIRE(abs_has_macro != nullptr);
-    const int saved = lv_subject_get_int(abs_has_macro);
+    REQUIRE(pla_has_macro != nullptr);
+    const int saved_abs = lv_subject_get_int(abs_has_macro);
+    const int saved_pla = lv_subject_get_int(pla_has_macro);
     lv_obj_t* abs_button = lv_obj_find_by_name(root, "preset_3");
     lv_obj_t* pla_button = lv_obj_find_by_name(root, "preset_1");
-    lv_obj_t* abs_twin = lv_obj_find_by_name(root, "preset_3_tiny");
     REQUIRE(abs_button != nullptr);
     REQUIRE(pla_button != nullptr);
-    REQUIRE(abs_twin != nullptr);
     lv_obj_t* abs_mark = ui_button_get_icon(abs_button);
     REQUIRE(abs_mark != nullptr);
 
-    // ABS names a macro and PLA names none: one grid button shows the mark.
+    // ABS names a macro and PLA names none: one button shows the mark.
     lv_subject_set_int(abs_has_macro, 1);
-    lv_subject_set_int(helix::presets::has_macro_subject(0), 0);
+    lv_subject_set_int(pla_has_macro, 0);
     settle();
     CHECK_FALSE(lv_obj_is_hidden(abs_mark));
     CHECK(lv_obj_is_hidden(ui_button_get_icon(pla_button)));
-    // The twin's buttons are too narrow for the mark beside a name.
-    CHECK(ui_button_get_icon(abs_twin) == nullptr);
+    // The landscape strip's fixed-row twin is too narrow for the mark beside a name.
+    if (!portrait) {
+        lv_obj_t* abs_twin = lv_obj_find_by_name(root, "preset_3_tiny");
+        REQUIRE(abs_twin != nullptr);
+        CHECK(ui_button_get_icon(abs_twin) == nullptr);
+    }
 
     lv_subject_set_int(abs_has_macro, 0);
     settle();
@@ -133,5 +145,7 @@ TEST_CASE_METHOD(TempGraphHeatFixture,
 
     NavigationManager::instance().go_back();
     settle();
-    lv_subject_set_int(abs_has_macro, saved);
+    lv_subject_set_int(abs_has_macro, saved_abs);
+    lv_subject_set_int(pla_has_macro, saved_pla);
+    lv_subject_set_int(portrait_subject, 0);
 }
