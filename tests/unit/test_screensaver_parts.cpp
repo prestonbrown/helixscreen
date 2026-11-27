@@ -5,6 +5,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/refresh_period_hold_test_access.h"
+#include "../test_helpers/sample_checks.h"
 #include "../test_helpers/screensaver_sim_kit.h"
 #include "../test_helpers/screensaver_test_access.h"
 #include "lv_draw_buf_guard.h"
@@ -826,22 +827,27 @@ TEST_CASE("reduce_dirty reaches aqua's and high fly's reduction on any dirty lis
 }
 
 TEST_CASE("scaled_extent rounds an extent up to whole blocks", "[screensaver][screensaver_parts]") {
+    helix::test::SampleChecks samples;
     for (int32_t px = 0; px <= 1024; px++) {
         for (int32_t s = 1; s <= 8; s++) {
-            REQUIRE(helix::ui::scaled_extent(px, s) == (px + s - 1) / s);
-            REQUIRE(helix::ui::scaled_extent(px, s) * s >= px);
+            SAMPLE_REQUIRE(samples, helix::ui::scaled_extent(px, s) == (px + s - 1) / s,
+                           px * 8 + s);
+            SAMPLE_REQUIRE(samples, helix::ui::scaled_extent(px, s) * s >= px, px * 8 + s);
         }
     }
+    samples.done(16400);
 }
 
 TEST_CASE("round_px rounds halves away from zero", "[screensaver][screensaver_parts]") {
     CHECK(helix::ui::round_px(2.5f) == 3);
     CHECK(helix::ui::round_px(-2.5f) == -3);
     CHECK(helix::ui::round_px(2.49f) == 2);
+    helix::test::SampleChecks samples;
     for (int i = -20000; i <= 20000; i++) {
         const float v = static_cast<float>(i) * 0.013f;
-        REQUIRE(helix::ui::round_px(v) == static_cast<int32_t>(std::lround(v)));
+        SAMPLE_REQUIRE(samples, helix::ui::round_px(v) == static_cast<int32_t>(std::lround(v)), i);
     }
+    samples.done(40001);
 }
 
 TEST_CASE("frame_row and with_pixel_type address a frame's rows in its own pixel type",
@@ -881,25 +887,31 @@ TEST_CASE("SaverVec3 computes what the pipes and fireflies vector code computes"
     using helix::ui::SaverVec3;
     std::minstd_rand rng(17);
     auto any = [&rng] { return helix::ui::screensaver::random_between(rng, -50.0f, 50.0f); };
+    helix::test::SampleChecks samples;
     for (int i = 0; i < 20000; i++) {
         const HandVec ha{any(), any(), any()};
         const HandVec hb{any(), any(), any()};
         const SaverVec3 a{ha.x, ha.y, ha.z};
         const SaverVec3 b{hb.x, hb.y, hb.z};
         const float s = any();
-        REQUIRE(same(a + b, {ha.x + hb.x, ha.y + hb.y, ha.z + hb.z}));
-        REQUIRE(same(a - b, {ha.x - hb.x, ha.y - hb.y, ha.z - hb.z}));
-        REQUIRE(same(a * s, {ha.x * s, ha.y * s, ha.z * s}));
-        REQUIRE(add_scaled_matches(a, b, s, pipes_add_scaled(ha, hb, s)));
-        REQUIRE(same(helix::ui::cross(a, b), pipes_cross(ha, hb)));
-        REQUIRE(
-            screensaver_same_bits(helix::ui::dot(a, b), ha.x * hb.x + ha.y * hb.y + ha.z * hb.z));
-        REQUIRE(screensaver_same_bits(helix::ui::length(a), pipes_length(ha)));
-        REQUIRE(screensaver_same_bits(helix::ui::length_sq(a), fireflies_length_sq(ha)));
-        REQUIRE(same(helix::ui::normalized_or(a, {}), pipes_normalized(ha)));
+        SAMPLE_REQUIRE(samples, same(a + b, {ha.x + hb.x, ha.y + hb.y, ha.z + hb.z}), i);
+        SAMPLE_REQUIRE(samples, same(a - b, {ha.x - hb.x, ha.y - hb.y, ha.z - hb.z}), i);
+        SAMPLE_REQUIRE(samples, same(a * s, {ha.x * s, ha.y * s, ha.z * s}), i);
+        SAMPLE_REQUIRE(samples, add_scaled_matches(a, b, s, pipes_add_scaled(ha, hb, s)), i);
+        SAMPLE_REQUIRE(samples, same(helix::ui::cross(a, b), pipes_cross(ha, hb)), i);
+        SAMPLE_REQUIRE(
+            samples,
+            screensaver_same_bits(helix::ui::dot(a, b), ha.x * hb.x + ha.y * hb.y + ha.z * hb.z),
+            i);
+        SAMPLE_REQUIRE(samples, screensaver_same_bits(helix::ui::length(a), pipes_length(ha)), i);
+        SAMPLE_REQUIRE(samples,
+                       screensaver_same_bits(helix::ui::length_sq(a), fireflies_length_sq(ha)), i);
+        SAMPLE_REQUIRE(samples, same(helix::ui::normalized_or(a, {}), pipes_normalized(ha)), i);
         const float cap = std::fabs(s);
-        REQUIRE(same(helix::ui::clamp_length(a, cap), fireflies_clamp_length(ha, cap)));
+        SAMPLE_REQUIRE(samples,
+                       same(helix::ui::clamp_length(a, cap), fireflies_clamp_length(ha, cap)), i);
     }
+    samples.done(200000);
     CHECK(same(helix::ui::normalized_or({}, {0, 0, 1}), {0, 0, 1}));
     CHECK(same(helix::ui::clamp_length({}, 3.0f), {}));
 }
@@ -1298,6 +1310,7 @@ TEST_CASE("clock drift moves as clock_drift_at says and reports when it moved",
     int32_t drift_x = 0;
     int32_t drift_y = 0;
     int moves = 0;
+    helix::test::SampleChecks samples;
     for (int frame = 0; frame < 4000; frame++) {
         const uint32_t dt = helix::test::kUnevenFrameMs[frame % 5] * 300;
         elapsed += dt;
@@ -1307,12 +1320,13 @@ TEST_CASE("clock drift moves as clock_drift_at says and reports when it moved",
         const bool moved = dx != drift_x || dy != drift_y;
         drift_x = dx;
         drift_y = dy;
-        REQUIRE(drift.step(dt) == moved);
-        REQUIRE(drift.dx == drift_x);
-        REQUIRE(drift.dy == drift_y);
-        REQUIRE(drift.elapsed_ms == elapsed);
+        SAMPLE_REQUIRE(samples, drift.step(dt) == moved, frame);
+        SAMPLE_REQUIRE(samples, drift.dx == drift_x, frame);
+        SAMPLE_REQUIRE(samples, drift.dy == drift_y, frame);
+        SAMPLE_REQUIRE(samples, drift.elapsed_ms == elapsed, frame);
         moves += moved;
     }
+    samples.done(16000);
     CHECK(moves > 10);
     drift.reset();
     CHECK(drift.elapsed_ms == 0);
