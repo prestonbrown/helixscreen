@@ -13,6 +13,7 @@
  */
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/notice_capture.h"
 #include "../ui_test_utils.h"
 #include "action_prompt_manager.h"
 #include "ams_backend_afc.h"
@@ -760,29 +761,6 @@ TEST_CASE_METHOD(LVGLTestFixture,
 // a virtual job with no file) as an error message. It stops nothing, so it
 // reaches notification history and never a toast or an error event.
 
-namespace {
-std::vector<helix::Notice> g_afc_notices;
-void capture_afc_notice(const helix::Notice& notice) {
-    g_afc_notices.push_back(notice);
-}
-struct CapturedAfcNotices {
-    helix::NoticeSubscriber previous;
-    CapturedAfcNotices() : previous(helix::set_notice_subscriber(capture_afc_notice)) {
-        g_afc_notices.clear();
-    }
-    ~CapturedAfcNotices() {
-        helix::set_notice_subscriber(previous);
-    }
-    size_t count(helix::NoticeDelivery delivery, const std::string& text) const {
-        size_t n = 0;
-        for (const auto& notice : g_afc_notices) {
-            n += (notice.delivery == delivery && notice.message == text) ? 1 : 0;
-        }
-        return n;
-    }
-};
-} // namespace
-
 TEST_CASE_METHOD(LVGLTestFixture,
                  "AFC Error Handling: a failed Moonraker lookup is history only, a real error "
                  "still toasts",
@@ -793,7 +771,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     std::vector<std::string> events;
     afc.set_event_callback(
         [&events](const std::string& event, const std::string&) { events.push_back(event); });
-    CapturedAfcNotices notices;
+    helix::test::ScopedNoticeCapture notices;
 
     SECTION("The metadata lookup failure is recorded, not shown") {
         const std::string lookup =
@@ -825,7 +803,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     DedupSeedDir seed("");
     ActionPromptManager::set_instance(nullptr);
     AfcErrorHandlingHelper afc;
-    CapturedAfcNotices notices;
+    helix::test::ScopedNoticeCapture notices;
 
     afc.feed_afc_message_during_operation("Lane 1 load failed", "error");
     REQUIRE(afc.get_system_info().action == AmsAction::LOADING);

@@ -33,6 +33,20 @@ class ScopedNoticeCapture {
         return n;
     }
 
+    /// How many carry exactly @p delivery and @p message.
+    std::size_t count(helix::NoticeDelivery delivery, const std::string& message) const {
+        std::size_t n = 0;
+        for (const auto& notice : published()) {
+            n += notice.delivery == delivery && notice.message == message ? 1 : 0;
+        }
+        return n;
+    }
+
+    /// Every notice captured since this object was made, oldest first.
+    [[nodiscard]] const std::vector<helix::Notice>& all() const {
+        return published();
+    }
+
     /// How many ERROR notices end in @p suffix, as a "<name> failed" toast does.
     std::size_t count_errors_ending_with(const std::string& suffix) const {
         std::size_t n = 0;
