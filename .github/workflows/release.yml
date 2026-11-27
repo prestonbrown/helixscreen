@@ -27,7 +27,8 @@ env:
   # publish: a v* tag push, and nothing else. Every dispatch is dryrun.
   #
   # dryrun never touches anything users or other runs can see. Steps that only
-  # publish (GitHub release, Play Store, Discord, docs dispatch, R2 pruning) are
+  # publish (GitHub release, Play Store, Discord, docs dispatch, R2 pruning, the
+  # home-server image's push) are
   # gated on publish; the R2 uploads run in both modes but write under
   # needs.plan.outputs.r2_prefix, which is dry-run/<run_id>/ in a dry run and
   # empty in a release. dry-run-verify checks the result and deletes the prefix.
@@ -1389,6 +1390,129 @@ jobs:
           exit 1
         fi
         echo "assets[0] = $first_asset (ok)"
+
+  # ============================================================================
+  # Home-server image: the released desktop package as a container image
+  # ============================================================================
+  # docker/Dockerfile.homeserver downloads the release and checks its sha256.
+  # A release reads the channel manifest on the public URL. A dry run is not
+  # served, so the run's own desktop package is put on a web server on the
+  # runner for the length of the build. Both start the container once before
+  # any push. The push is the only release step: a dry run never reaches a
+  # registry. scripts/ci/homeserver_image.sh holds the logic, and
+  # tests/shell/test_homeserver_image.bats its tests.
+  homeserver-image:
+    name: Home-server image (Docker)
+    runs-on: ubuntu-22.04
+    # A release pushes after the GitHub release is public, as the website
+    # deploy does. A dry run skips publish-release, and runs here once the
+    # release and the R2 upload have succeeded.
+    needs: [publish-release, release, upload-r2, plan]
+    if: ${{ !cancelled() && needs.release.result == 'success' && needs.upload-r2.result == 'success' && (needs.publish-release.result == 'success' || needs.plan.outputs.mode == 'dryrun') }}
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/prestonbrown/helixscreen-homeserver
+      RELEASE_TAG: ${{ needs.plan.outputs.tag }}
+      RELEASE_VERSION: ${{ needs.plan.outputs.version }}
+      CHANNEL: ${{ needs.release.outputs.channel }}
+      CHANNELS: ${{ needs.release.outputs.channels }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+      with:
+        submodules: false
+
+    - name: List the tags this run would push
+      run: |
+        set -euo pipefail
+        {
+          echo "### $IMAGE"
+          echo
+          scripts/ci/homeserver_image.sh tags "$RELEASE_VERSION" "$CHANNEL" "$CHANNELS" |
+            sed 's/^/- `/; s/$/`/'
+        } | tee -a "$GITHUB_STEP_SUMMARY"
+
+    - name: Download the run's desktop package (dry run)
+      if: env.RELEASE_MODE == 'dryrun'
+      uses: actions/download-artifact@v8
+      with:
+        name: dry-run-release-assets
+        path: assets
+
+    # has-desktop answers 1, or a dry run has no package, when the release
+    # carries no x86-desktop package: then there is no image and no failure.
+    # Any other outcome fails here.
+    - name: Decide whether this run has a desktop package
+      id: package
+      env:
+        # The public URL in a release only: a dry run is not served.
+        R2_PUBLIC_URL: ${{ needs.plan.outputs.mode == 'publish' && vars.R2_PUBLIC_URL || '' }}
+      run: |
+        set -euo pipefail
+        rc=0
+        if [ "$RELEASE_MODE" = publish ]; then
+          scripts/ci/homeserver_image.sh has-desktop "$R2_PUBLIC_URL/$CHANNEL/manifest.json" || rc=$?
+        elif [ -f assets/helixscreen-x86-desktop.zip ]; then
+          echo "dry run: assets/helixscreen-x86-desktop.zip"
+        else
+          echo "dry run: no assets/helixscreen-x86-desktop.zip"
+          rc=1
+        fi
+        if [ "$rc" -eq 1 ]; then
+          echo "::notice::$RELEASE_TAG carries no x86-desktop package, so it gets no home-server image"
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+        elif [ "$rc" -ne 0 ]; then
+          exit "$rc"
+        fi
+
+    - name: Build the image from the run's package (dry run)
+      if: env.RELEASE_MODE == 'dryrun' && steps.package.outputs.skip != 'true'
+      run: |
+        set -euo pipefail
+        scripts/ci/homeserver_image.sh build-dryrun "$IMAGE:ci" "$RELEASE_TAG" \
+          assets/helixscreen-x86-desktop.zip "$RELEASE_VERSION" "$GITHUB_SHA" \
+          "https://github.com/${{ github.repository }}"
+
+    - name: Build the image from the channel manifest (release)
+      if: env.RELEASE_MODE == 'publish' && steps.package.outputs.skip != 'true'
+      env:
+        R2_PUBLIC_URL: ${{ needs.plan.outputs.mode == 'publish' && vars.R2_PUBLIC_URL || '' }}
+      run: |
+        set -euo pipefail
+        scripts/ci/homeserver_image.sh build-release "$IMAGE:ci" "$CHANNEL" \
+          "$R2_PUBLIC_URL" "$RELEASE_VERSION" "$GITHUB_SHA" \
+          "https://github.com/${{ github.repository }}"
+
+    - name: Start the container once, with no network
+      if: steps.package.outputs.skip != 'true'
+      run: |
+        set -euo pipefail
+        scripts/ci/homeserver_image.sh smoke "$IMAGE:ci" | tee -a "$GITHUB_STEP_SUMMARY"
+
+    - name: Log in to GHCR
+      if: env.RELEASE_MODE == 'publish' && steps.package.outputs.skip != 'true'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        set -euo pipefail
+        docker login ghcr.io --username "${{ github.actor }}" --password-stdin <<< "$GH_TOKEN"
+
+    - name: Push the image
+      if: env.RELEASE_MODE == 'publish' && steps.package.outputs.skip != 'true'
+      run: |
+        set -euo pipefail
+        {
+          echo "### Pushed"
+          echo
+          for tag in $(scripts/ci/homeserver_image.sh tags "$RELEASE_VERSION" "$CHANNEL" "$CHANNELS"); do
+          docker tag "$IMAGE:ci" "$IMAGE:$tag"
+          digest=$(docker push "$IMAGE:$tag" | sed -n 's/^.*digest: \(sha256:[0-9a-f]*\).*/\1/p')
+          echo "- \`$IMAGE:$tag\` $digest"
+        done
+        } | tee -a "$GITHUB_STEP_SUMMARY"
 
   # ============================================================================
   # Upload release artifacts to R2 for auto-update

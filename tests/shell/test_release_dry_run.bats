@@ -61,7 +61,8 @@ PUBLISH_ACTIONS = ("softprops/action-gh-release", "r0adkll/upload-google-play",
                    "peter-evans/repository-dispatch")
 MUTATING = [r"\bs3api\b", r"\bwrangler\b", r"\brclone\b", r"\bgh\s+release\b",
             r"\bgh\s+api\b.*\s(-X|--method)\b",
-            r"\bcurl\b.*\s(-X|--request)\s*['\"]?(POST|PUT|DELETE|PATCH)\b"]
+            r"\bcurl\b.*\s(-X|--request)\s*['\"]?(POST|PUT|DELETE|PATCH)\b",
+            r"\bdocker\s+(push|login)\b"]
 SIGNING = {("build-android", "Materialize upload keystore"),
            ("build-android", "Build Android APKs (release)"),
            ("build-android", "Build Android AAB (release)"),
@@ -136,12 +137,15 @@ PY
              print "          -X DELETE https://example.invalid/x"
              print "    - name: Planted rclone"
              print "      run: rclone copy a b"
+             print "    - name: Planted docker push"
+             print "      run: docker push example.invalid/x:1"
          }' "$YML" > "$broken"
     run lint_publish_guards "$broken"
     [ "$status" -ne 0 ]
     [[ "$output" == *"validate-shell / Planted secret: uses a secret without a publish gate"* ]] || fail "$output"
     [[ "$output" == *"validate-shell / Planted curl: mutating call"* ]] || fail "$output"
     [[ "$output" == *"validate-shell / Planted rclone: mutating call"* ]] || fail "$output"
+    [[ "$output" == *"validate-shell / Planted docker push: mutating call"* ]] || fail "$output"
 }
 
 # ------------------------------------------------------------- verifier
@@ -356,7 +360,7 @@ import yaml
 jobs = yaml.safe_load(open(".github/workflows/release.yml"))["jobs"]
 bad = []
 BARE = "${{ vars.R2_PUBLIC_URL }}"
-for jname in ("upload-r2", "dry-run-verify"):
+for jname in ("upload-r2", "dry-run-verify", "homeserver-image"):
     for step in jobs[jname]["steps"]:
         name = step.get("name", "?")
         if name == "Guard against channel downgrade":
