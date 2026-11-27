@@ -289,12 +289,45 @@ MaterialPreheatPlan plan_material_preheat(const filament::MaterialOverride* over
             macro};
 }
 
+namespace {
+
+/// The preheat macros sent and not yet answered, each under the number of
+/// the send that put it there. UI thread only.
+std::unordered_map<std::string, uint64_t>& preheat_macros_in_flight() {
+    static std::unordered_map<std::string, uint64_t> in_flight;
+    return in_flight;
+}
+
+} // namespace
+
+void MaterialPreheatTestAccess::forget_macros_in_flight() {
+    preheat_macros_in_flight().clear();
+}
+
 void execute_material_preheat(IMoonrakerAPI* api, const MaterialPreheatPlan& plan,
                               const std::function<void()>& set_temperatures, const char* caller_tag,
                               const PrinterDiscovery& hw) {
     if (!api) {
         spdlog::warn("{} No API available — cannot preheat material", caller_tag);
         return;
+    }
+
+    const bool sends_macro = plan.mode == MaterialPreheatMode::MACRO_ONLY ||
+                             plan.mode == MaterialPreheatMode::TEMPERATURES_THEN_MACRO;
+    // A tap while the macro is still running would send it a second time. The
+    // hold lasts until the send is over: at the pre-start limit, twenty
+    // minutes, it lifts even if the macro is still running, and a tap after
+    // that sends the macro again.
+    uint64_t send = 0;
+    if (sends_macro && preheat_macros_in_flight().count(plan.macro) != 0) {
+        spdlog::info("{} Preheat macro '{}' is still running; not sent again", caller_tag,
+                     plan.macro);
+        return;
+    }
+    if (sends_macro) {
+        static uint64_t sends = 0;
+        send = ++sends;
+        preheat_macros_in_flight().emplace(plan.macro, send);
     }
 
     switch (plan.mode) {
@@ -323,6 +356,13 @@ void execute_material_preheat(IMoonrakerAPI* api, const MaterialPreheatPlan& pla
     MachineGcode cmd = macro_gcode_command(plan.macro, MacroParamResult{}, hw);
     cmd.timeout_ms = IMoonrakerAPI::kPreStartMacroTimeoutMs;
     cmd.long_running = true;
+    // The send is over, however it ended: the macro may be sent again.
+    cmd.on_finished = [macro = plan.macro, send]() {
+        auto& in_flight = preheat_macros_in_flight();
+        if (const auto it = in_flight.find(macro); it != in_flight.end() && it->second == send) {
+            in_flight.erase(it);
+        }
+    };
     execute_machine_gcode(api, cmd, caller_tag);
     spdlog::info("{} Preheat via macro '{}' (handles_heating={})", caller_tag, plan.macro,
                  plan.mode == MaterialPreheatMode::MACRO_ONLY);

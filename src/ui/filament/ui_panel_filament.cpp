@@ -1297,7 +1297,7 @@ void FilamentPanel::handle_preset_button(int material_id) {
             api_,
             plan_material_preheat(
                 helix::MaterialSettingsManager::instance().find_override_for_material(
-                    helix::presets::name(material_id)),
+                    helix::presets::macro_material(material_id)),
                 hw, printer_state_.print_state().get_print_lifecycle()),
             [this]() { send_preset_targets(); }, "[FilamentPanel]", hw);
     }
@@ -1370,7 +1370,7 @@ bool FilamentPanel::handle_preset_longpress(int slot) {
     // With no macro stored the field opens with its switch on, so the row
     // reads Macro then too.
     const auto* macro = helix::MaterialSettingsManager::instance().find_override_for_material(
-        helix::presets::name(slot));
+        helix::presets::macro_material(slot));
     catalog_picker_.set_macro_callback(
         [slot](lv_obj_t* screen) { get_global_filament_panel().open_preset_macro(screen, slot); },
         macro && macro->names_a_macro() ? *macro->preheat_macro : std::string{},
@@ -1386,7 +1386,8 @@ bool FilamentPanel::handle_preset_longpress(int slot) {
 }
 
 void FilamentPanel::open_preset_macro(lv_obj_t* screen, int slot) {
-    helix::settings::get_material_temps_overlay().show_material(screen, helix::presets::name(slot));
+    helix::settings::get_material_temps_overlay().show_material(
+        screen, helix::presets::macro_material(slot));
 }
 
 void FilamentPanel::apply_preset_pick(int slot, const helix::printer::EffectiveFilament& ef) {

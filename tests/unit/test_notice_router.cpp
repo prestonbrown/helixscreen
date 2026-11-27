@@ -13,6 +13,7 @@
 #include "ui_toast_manager.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/notice_capture.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/toast_log.h"
 #include "../ui_test_utils.h"
@@ -45,23 +46,6 @@ namespace {
 void drain() {
     helix::ui::UpdateQueue::instance().drain_until_empty();
 }
-
-std::vector<Notice> g_captured;
-
-void capture_notice(const Notice& notice) {
-    g_captured.push_back(notice);
-}
-
-/// Swaps the UI's subscriber out for one that keeps the notices as data.
-struct CapturedNotices {
-    helix::NoticeSubscriber previous;
-    CapturedNotices() : previous(helix::set_notice_subscriber(capture_notice)) {
-        g_captured.clear();
-    }
-    ~CapturedNotices() {
-        helix::set_notice_subscriber(previous);
-    }
-};
 
 std::vector<UiRequest> g_requests;
 std::thread::id g_request_thread;
@@ -166,7 +150,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A notice's action becomes the toast's butto
 
 TEST_CASE_METHOD(LVGLTestFixture, "Hardware validation publishes its notice with a View action",
                  "[toast][hardware][validator]") {
-    CapturedNotices notices;
+    helix::test::ScopedNoticeCapture notices;
     HardwareValidator validator;
     HardwareValidationResult result;
 
@@ -174,26 +158,28 @@ TEST_CASE_METHOD(LVGLTestFixture, "Hardware validation publishes its notice with
         result.critical_missing.push_back(
             HardwareIssue::critical("heater_bed", HardwareType::HEATER, "Bed heater not found"));
         validator.notify_user(result);
-        REQUIRE(g_captured.size() == 1);
-        CHECK(g_captured[0].severity == NoticeSeverity::ERROR);
-        CHECK(g_captured[0].message == "Critical hardware missing: heater_bed");
+        REQUIRE(notices.all().size() == 1);
+        CHECK(notices.all()[0].severity == NoticeSeverity::ERROR);
+        CHECK(notices.all()[0].message == "Critical hardware missing: heater_bed");
     }
     SECTION("new hardware is information") {
         result.newly_discovered.push_back(
             HardwareIssue::info("neopixel chamber", HardwareType::LED, "New LED found"));
         validator.notify_user(result);
-        REQUIRE(g_captured.size() == 1);
-        CHECK(g_captured[0].severity == NoticeSeverity::INFO);
-        CHECK(g_captured[0].message == "LED strip available for lighting control");
+        REQUIRE(notices.all().size() == 1);
+        CHECK(notices.all()[0].severity == NoticeSeverity::INFO);
+        CHECK(notices.all()[0].message == "LED strip available for lighting control");
     }
 
-    CHECK(g_captured[0].duration_ms == 8000);
-    CHECK(g_captured[0].action_text == "View");
-    REQUIRE(g_captured[0].action != nullptr);
-    CHECK(g_captured[0].action_user_data == nullptr);
+    // A section that failed above leaves nothing captured: say so, not crash.
+    REQUIRE(notices.all().size() == 1);
+    CHECK(notices.all()[0].duration_ms == 8000);
+    CHECK(notices.all()[0].action_text == "View");
+    REQUIRE(notices.all()[0].action != nullptr);
+    CHECK(notices.all()[0].action_user_data == nullptr);
 
     CapturedRequests requests(UiRequestKind::OpenHardwareHealth);
-    g_captured[0].action(g_captured[0].action_user_data);
+    notices.all()[0].action(notices.all()[0].action_user_data);
     CHECK(g_requests.size() == 1);
 }
 
@@ -393,59 +379,59 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Each notice delivery reaches the notificati
 
 TEST_CASE("The report macros publish notices rather than calling the UI",
           "[notification][notice]") {
-    CapturedNotices notices;
+    helix::test::ScopedNoticeCapture notices;
     NOTIFY_WARNING("disk at {}%", 91);
     NOTIFY_ERROR_T("Save Failed", "could not write {}", "a.cfg");
     NOTIFY_ERROR_MODAL("Connection Failed", "no route");
     ErrorContext("Probe").warning("drifted");
 
-    REQUIRE(g_captured.size() == 4);
-    CHECK(g_captured[0].delivery == helix::NoticeDelivery::Notification);
-    CHECK(g_captured[0].severity == NoticeSeverity::WARNING);
-    CHECK(g_captured[0].message == "disk at 91%");
-    CHECK(g_captured[0].title.empty());
-    CHECK(g_captured[1].delivery == helix::NoticeDelivery::Notification);
-    CHECK(g_captured[1].severity == NoticeSeverity::ERROR);
-    CHECK(g_captured[1].title == "Save Failed");
-    CHECK(g_captured[1].message == "could not write a.cfg");
-    CHECK(g_captured[2].delivery == helix::NoticeDelivery::Alert);
-    CHECK(g_captured[2].title == "Connection Failed");
-    CHECK(g_captured[3].message == "Probe: drifted");
+    REQUIRE(notices.all().size() == 4);
+    CHECK(notices.all()[0].delivery == helix::NoticeDelivery::Notification);
+    CHECK(notices.all()[0].severity == NoticeSeverity::WARNING);
+    CHECK(notices.all()[0].message == "disk at 91%");
+    CHECK(notices.all()[0].title.empty());
+    CHECK(notices.all()[1].delivery == helix::NoticeDelivery::Notification);
+    CHECK(notices.all()[1].severity == NoticeSeverity::ERROR);
+    CHECK(notices.all()[1].title == "Save Failed");
+    CHECK(notices.all()[1].message == "could not write a.cfg");
+    CHECK(notices.all()[2].delivery == helix::NoticeDelivery::Alert);
+    CHECK(notices.all()[2].title == "Connection Failed");
+    CHECK(notices.all()[3].message == "Probe: drifted");
 }
 
 TEST_CASE("A filament backend's error publishes its suggestion as the notice's detail",
           "[notification][notice][ams]") {
-    CapturedNotices notices;
+    helix::test::ScopedNoticeCapture notices;
     const helix::AmsError err(helix::AmsResult::BUSY, "op in flight", "Unit is busy",
                               "Wait for the current operation to finish");
     helix::ui::notify_ams_error(err);
     helix::ui::notify_ams_warning(err);
     helix::ui::notify_ams_error(helix::AmsError{});
 
-    REQUIRE(g_captured.size() == 2);
-    for (const Notice& n : g_captured) {
+    REQUIRE(notices.all().size() == 2);
+    for (const Notice& n : notices.all()) {
         CHECK(n.delivery == helix::NoticeDelivery::Notification);
         CHECK(n.message == helix::ui::ams_error_body(err, nullptr));
         CHECK(n.detail == "Wait for the current operation to finish");
         CHECK_FALSE(n.sticky);
     }
-    CHECK(g_captured[0].severity == NoticeSeverity::ERROR);
-    CHECK(g_captured[1].severity == NoticeSeverity::WARNING);
+    CHECK(notices.all()[0].severity == NoticeSeverity::ERROR);
+    CHECK(notices.all()[1].severity == NoticeSeverity::WARNING);
 }
 
 TEST_CASE("U1 SSH down publishes a sticky warning that says what to do",
           "[notification][notice][u1]") {
-    CapturedNotices notices;
+    helix::test::ScopedNoticeCapture notices;
     ::setenv(helix::u1::kRootSshDownEnv, "1", 1);
     helix::u1::surface_root_ssh_down_from_hook();
     ::unsetenv(helix::u1::kRootSshDownEnv);
     helix::u1::surface_root_ssh_down_from_hook();
 
-    REQUIRE(g_captured.size() == 1);
-    CHECK(g_captured[0].delivery == helix::NoticeDelivery::Notification);
-    CHECK(g_captured[0].severity == NoticeSeverity::WARNING);
-    CHECK(g_captured[0].sticky);
-    CHECK_FALSE(g_captured[0].detail.empty());
+    REQUIRE(notices.all().size() == 1);
+    CHECK(notices.all()[0].delivery == helix::NoticeDelivery::Notification);
+    CHECK(notices.all()[0].severity == NoticeSeverity::WARNING);
+    CHECK(notices.all()[0].sticky);
+    CHECK_FALSE(notices.all()[0].detail.empty());
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,

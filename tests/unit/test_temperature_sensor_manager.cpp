@@ -18,6 +18,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/discovery_of_objects.h"
 #include "../test_helpers/log_capture.h"
+#include "../test_helpers/notice_capture.h"
 #include "../test_helpers/sensor_manager_test_access.h"
 #include "../ui_test_utils.h"
 #include "core/update_queue.h"
@@ -789,18 +790,10 @@ TEST_CASE_METHOD(TemperatureSensorTestFixture,
     CHECK(roles["temperature_sensor chamber_probe"] == TemperatureSensorRole::CHAMBER);
 }
 
-namespace {
-std::vector<helix::Notice> g_driver_notices;
-void capture_notice(const helix::Notice& n) {
-    g_driver_notices.push_back(n);
-}
-} // namespace
-
 TEST_CASE_METHOD(TemperatureSensorTestFixture,
                  "TemperatureSensorManager - a driver overtemperature raises one notice per rise",
                  "[temperature][driver_overtemp]") {
-    g_driver_notices.clear();
-    const helix::NoticeSubscriber previous = helix::set_notice_subscriber(capture_notice);
+    helix::test::ScopedNoticeCapture notices;
 
     mgr().discover(helix::test::discovery_of({"tmc2209 stepper_z", "tmc2240 stepper_x"}));
     auto frame = [this](const char* driver, json drv_status) {
@@ -808,53 +801,51 @@ TEST_CASE_METHOD(TemperatureSensorTestFixture,
     };
 
     frame("tmc2209 stepper_z", {{"cs_actual", 16}});
-    CHECK(g_driver_notices.empty());
+    CHECK(notices.all().empty());
 
     frame("tmc2209 stepper_z", {{"cs_actual", 16}, {"otpw", 1}});
-    REQUIRE(g_driver_notices.size() == 1);
-    CHECK(g_driver_notices[0].severity == helix::NoticeSeverity::WARNING);
-    CHECK(g_driver_notices[0].message.find("stepper_z") != std::string::npos);
+    REQUIRE(notices.all().size() == 1);
+    CHECK(notices.all()[0].severity == helix::NoticeSeverity::WARNING);
+    CHECK(notices.all()[0].message.find("stepper_z") != std::string::npos);
 
     // Staying hot, or a frame without drv_status, raises nothing more.
     frame("tmc2209 stepper_z", {{"cs_actual", 20}, {"otpw", 1}});
     mgr().update_from_status({{"tmc2240 stepper_x", {{"temperature", 61.0}}}});
-    CHECK(g_driver_notices.size() == 1);
+    CHECK(notices.all().size() == 1);
 
     // Clearing re-arms it.
     frame("tmc2209 stepper_z", {{"cs_actual", 16}});
     frame("tmc2209 stepper_z", {{"t120", 1}});
-    REQUIRE(g_driver_notices.size() == 2);
+    REQUIRE(notices.all().size() == 2);
 
     // A shutdown on top of the warning is worse, so it raises again, as an error.
     frame("tmc2209 stepper_z", {{"otpw", 1}, {"ot", 1}});
-    REQUIRE(g_driver_notices.size() == 3);
-    CHECK(g_driver_notices[2].severity == helix::NoticeSeverity::ERROR);
+    REQUIRE(notices.all().size() == 3);
+    CHECK(notices.all()[2].severity == helix::NoticeSeverity::ERROR);
     frame("tmc2209 stepper_z", {{"otpw", 1}});
-    CHECK(g_driver_notices.size() == 3);
+    CHECK(notices.all().size() == 3);
 
     // A null drv_status (motors off) clears; the TMC2240 reports flags too.
     frame("tmc2209 stepper_z", nullptr);
     frame("tmc2209 stepper_z", {{"otpw", 1}});
     frame("tmc2240 stepper_x", {{"otpw", 1}});
-    REQUIRE(g_driver_notices.size() == 5);
-    CHECK(g_driver_notices[4].message.find("stepper_x") != std::string::npos);
+    REQUIRE(notices.all().size() == 5);
+    CHECK(notices.all()[4].message.find("stepper_x") != std::string::npos);
 
     // An object that is not a driver is never read for flags.
     mgr().update_from_status({{"temperature_sensor x", {{"drv_status", {{"ot", 1}}}}}});
-    CHECK(g_driver_notices.size() == 5);
+    CHECK(notices.all().size() == 5);
 
     // Another printer with drivers of the same names: its hot driver notifies.
     mgr().discover(helix::test::discovery_of({"tmc2209 stepper_z", "tmc2240 stepper_x"}));
     frame("tmc2209 stepper_z", {{"otpw", 1}});
-    CHECK(g_driver_notices.size() == 6);
+    CHECK(notices.all().size() == 6);
 
     // Subjects rebuilt for a new session start with no driver remembered as hot.
     mgr().deinit_subjects();
     mgr().init_subjects();
     frame("tmc2209 stepper_z", {{"otpw", 1}});
-    CHECK(g_driver_notices.size() == 7);
-
-    helix::set_notice_subscriber(previous);
+    CHECK(notices.all().size() == 7);
 }
 
 TEST_CASE_METHOD(TemperatureSensorTestFixture,

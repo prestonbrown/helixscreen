@@ -505,6 +505,7 @@ TEST_CASE("HardwareValidator - Snapshot roundtrip", "[hardware][validator]") {
 // ============================================================================
 
 #include "../test_helpers/config_test_access.h"
+#include "../test_helpers/notice_capture.h"
 #include "config.h"
 
 // Test fixture for Config-dependent HardwareValidator tests
@@ -1770,30 +1771,6 @@ TEST_CASE_METHOD(HardwareValidatorConfigFixture,
 // The "new hardware" toast reports hardware the last session had not seen
 // ============================================================================
 
-#include "notice.h"
-
-namespace {
-std::vector<helix::Notice>* g_hw_notices = nullptr;
-void capture_hw_notice(const helix::Notice& notice) {
-    if (g_hw_notices) {
-        g_hw_notices->push_back(notice);
-    }
-}
-
-/// Every notice published while this is in scope.
-struct CapturedHwNotices {
-    std::vector<helix::Notice> shown;
-    helix::NoticeSubscriber previous;
-    CapturedHwNotices() : previous(helix::set_notice_subscriber(capture_hw_notice)) {
-        g_hw_notices = &shown;
-    }
-    ~CapturedHwNotices() {
-        g_hw_notices = nullptr;
-        helix::set_notice_subscriber(previous);
-    }
-};
-} // namespace
-
 TEST_CASE_METHOD(
     HardwareValidatorConfigFixture,
     "HardwareValidator - a reconnect with unchanged hardware shows no new-hardware toast",
@@ -1806,31 +1783,41 @@ TEST_CASE_METHOD(
 
     // One connect: validate, toast if worth one, then save the session snapshot.
     const auto connect = [&] {
-        CapturedHwNotices notices;
         HardwareValidator validator;
         auto result = validator.validate(&config, client.hardware());
         validator.notify_user(result);
         validator.save_session_snapshot(&config, client.hardware());
-        return std::make_pair(result, notices.shown);
+        return result;
     };
 
-    auto [first, first_toasts] = connect();
-    REQUIRE_FALSE(first.newly_discovered.empty());
-    CHECK(first_toasts.size() == 1);
+    HardwareValidationResult first;
+    {
+        // A capture starts empty, so each connect's toasts are counted alone.
+        helix::test::ScopedNoticeCapture notices;
+        first = connect();
+        REQUIRE_FALSE(first.newly_discovered.empty());
+        CHECK(notices.all().size() == 1);
+    }
 
     // The same hardware again: still listed for Hardware Health, but no toast.
-    auto [second, second_toasts] = connect();
-    REQUIRE(second.newly_discovered.size() == first.newly_discovered.size());
-    for (const auto& issue : second.newly_discovered) {
-        INFO(issue.hardware_name);
-        CHECK(issue.seen_last_session);
+    {
+        helix::test::ScopedNoticeCapture notices;
+        const auto second = connect();
+        REQUIRE(second.newly_discovered.size() == first.newly_discovered.size());
+        for (const auto& issue : second.newly_discovered) {
+            INFO(issue.hardware_name);
+            CHECK(issue.seen_last_session);
+        }
+        CHECK(notices.all().empty());
     }
-    CHECK(second_toasts.empty());
 
     // A fan that was not there last session is news again, and the only news.
     client.set_fans({"fan", "controller_fan electronics", "fan_generic bed_fans"});
-    auto [third, third_toasts] = connect();
-    CHECK(third.newly_discovered.size() == first.newly_discovered.size() + 1);
-    REQUIRE(third_toasts.size() == 1);
-    CHECK(third_toasts[0].message == "1 new hardware available");
+    {
+        helix::test::ScopedNoticeCapture notices;
+        const auto third = connect();
+        CHECK(third.newly_discovered.size() == first.newly_discovered.size() + 1);
+        REQUIRE(notices.all().size() == 1);
+        CHECK(notices.all()[0].message == "1 new hardware available");
+    }
 }

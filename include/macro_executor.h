@@ -70,12 +70,20 @@ struct MaterialPreheatPlan {
 /// Carry out @p plan. The temperature sender runs synchronously, before an
 /// additive macro, or alone for TEMPERATURES, MACRO_MISSING and MACRO_HELD_BY_JOB.
 /// A macro that is sent gets the pre-start limit: a soak or a wipe runs for many
-/// minutes, and a timeout with the printer still busy reports nothing.
+/// minutes, and a timeout with the printer still busy reports nothing. A macro
+/// still waiting for its answer is not sent again, so a second tap on the preset
+/// while it runs changes nothing.
 /// Call on the UI thread; the sender is never retained. Filament-change heating
 /// and individual heater controls do not use this policy.
 void execute_material_preheat(IMoonrakerAPI* api, const MaterialPreheatPlan& plan,
                               const std::function<void()>& set_temperatures, const char* caller_tag,
                               const PrinterDiscovery& hw);
+
+/// Reaches the preheat macros a send has not answered yet, for tests.
+struct MaterialPreheatTestAccess {
+    /// Forgets every preheat macro in flight, as a new case needs.
+    static void forget_macros_in_flight();
+};
 
 /// Commands that restart the Klipper host or halt the printer. Seeds both the
 /// name check below and the macro-body analysis.

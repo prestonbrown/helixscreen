@@ -444,6 +444,36 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     }
 }
 
+TEST_CASE_METHOD(
+    LVGLUITestFixture,
+    "The generic ABS preset carries the mark and names ASA's macro while ABS names none",
+    "[filament_preset_mark][2183]") {
+    MaterialSettingsScope settings;
+    MarkHarness m(*this);
+    MaterialSettingsManager::instance().set_override("ASA", abs_override("HEAT_ASA"));
+    helix::presets::refresh_subjects();
+    m.settle();
+
+    lv_obj_t* abs = m.shown("preset_abs");
+    REQUIRE(std::string(lv_label_get_text(m.under(abs, "preset_material_name"))) == "ABS/ASA");
+    CHECK(MarkHarness::mark_place(abs, "preset") == "name");
+    for (const char* name : kUnmarked) {
+        CHECK(MarkHarness::mark_place(m.shown(name), "preset") == "none");
+    }
+
+    // A hold shows the macro ASA's row names, and opens that row.
+    lv_obj_t* dialog = m.hold(abs);
+    REQUIRE(dialog != nullptr);
+    CHECK_FALSE(lv_obj_is_hidden(m.under(dialog, "preheat_macro_value")));
+    CHECK(std::string(lv_label_get_text(m.under(dialog, "preheat_macro_value"))) == "HEAT_ASA");
+
+    lv_obj_send_event(lv_obj_find_by_name(dialog, "preheat_macro_row"), LV_EVENT_CLICKED, nullptr);
+    m.settle();
+    CHECK(ModalStack::instance().top_dialog() == nullptr);
+    CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "material_edit_name"))) ==
+          "ASA");
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "A macro set or cleared under a laid-out preset is measured at once",
                  "[filament_preset_mark][2183]") {
