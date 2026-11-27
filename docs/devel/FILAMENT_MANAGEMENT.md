@@ -1128,6 +1128,8 @@ The bar view (tiles narrower than `w_normal()`, and the spool view's fallback) d
 `helix::ui::plan_ams_mini_bars()` is the rule: each unit's lanes stay together and in order,
 the units break into as many lines (`ams_mini_unit_row`) as gives the largest bars, and every
 bar is one size, its width capped at an eighth of the tile and its height at four times that.
+A bar is at least half again as tall as it is wide. One line of bars keeps a margin (80% of the tile's height);
+stacked lines use all of it.
 
 - **Two or more units**: each unit sits in an untitled `ams_mini_unit_group` box, and the unit
   holding the active lane is checked, drawn in the shared `chip_active` highlight.

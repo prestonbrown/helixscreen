@@ -237,6 +237,7 @@ struct AmsMiniBarMetrics {
     int max_bar_h = 0;  ///< tallest bar body
     int overflow_w = 0; ///< room the "+N" label takes when units drop
     int side_bars = 0;  ///< bars in a column beside every line (the bypass), each one gap off
+    int one_line_h = 0; ///< the height a one-line layout may use; 0 = all of it
 };
 
 /// A bar layout: every shown lane bar_w x bar_h (body), the units in @p lines
