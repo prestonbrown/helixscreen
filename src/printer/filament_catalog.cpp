@@ -54,10 +54,10 @@ int get_int(const nlohmann::json& j, const char* key, int def) {
 
 /// Resolve one product JSON into an EffectiveFilament, inheriting from its type.
 ///
-/// The string fields go through safe_string for the same reason get_int above
-/// uses find + is_number: config/user_filaments.json is hand-editable, and
-/// nlohmann's .value() throws type_error.302 on a key that is PRESENT with a
-/// null value (a missing key is fine). This function is the single resolution
+/// Every field goes through a reader that does not throw (safe_string, get_int,
+/// read_field, find_object): config/user_filaments.json is hand-editable, and
+/// nlohmann's .value() throws type_error.302 on a key that is PRESENT with a null
+/// value (a missing key is fine). This function is the single resolution
 /// point for every catalog load path, so a throw here on one `"brand": null`
 /// would unwind out of FilamentCatalog::load_full() and take the whole catalog
 /// with it — a per-field default keeps the cost to that field.
