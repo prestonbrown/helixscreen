@@ -493,7 +493,8 @@ The `ifs-module` mock can stage every row: `HELIX_MOCK_IFS_UNACCOUNTED`, `HELIX_
 and `HELIX_MOCK_IFS_AT_HUB` (`docs/devel/MOCK_ENVIRONMENT_VARIABLES.md`). Unit coverage: the
 decision table, the module cases and the no-bare-`IFS_UNLOAD` sweep in
 `tests/unit/test_ams_ad5x_ifs_module.cpp`, the native ZMOD cases (file read, eject) in
-`tests/unit/test_ams_backend_ad5x_ifs.cpp`, the picker, dialog and sidebar dispatch in
+`tests/unit/test_ams_backend_ad5x_ifs.cpp` and its numbered parts (one file split in its own
+order), the picker, dialog and sidebar dispatch in
 `tests/unit/test_unload_lane_choice.cpp`, the Filament panel route in
 `tests/unit/test_filament_panel_op_slot.cpp`, and the mock knobs in
 `tests/unit/test_mock_ifs_module_env.cpp`.
@@ -693,7 +694,7 @@ To actually crack it, capture — **while stuck**:
 | `include/ams_backend_ad5x_ifs.h` | Backend class declaration |
 | `src/printer/ams_backend_ad5x_ifs.cpp` | Full implementation |
 | `include/firmware_lane_writer.h` / `src/printer/firmware_lane_writer.cpp` | Which firmware writes `lane_data` itself, and its edit command's identity parameters |
-| `tests/unit/test_ams_backend_ad5x_ifs.cpp` | Unit tests |
+| `tests/unit/test_ams_backend_ad5x_ifs.cpp` and its numbered parts, `tests/unit/test_ams_backend_ad5x_ifs_2.cpp` to `tests/unit/test_ams_backend_ad5x_ifs_8.cpp` (their fixtures in `tests/test_helpers/ad5x_ifs_test_fixtures.h`) | Unit tests |
 | `docs/devel/printer-research/FLASHFORGE_AD5X_IFS_ANALYSIS.md` | Protocol research |
 
 ### Automatic Setup
