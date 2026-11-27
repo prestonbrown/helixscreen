@@ -198,8 +198,7 @@ TEST_CASE("get_helix_cache_dir creates only the winning tier", "[cache]") {
 
 TEST_CASE("a candidate under an unwritable parent is skipped, not created", "[cache]") {
     if (geteuid() == 0) {
-        SUCCEED("running as root — mode bits do not deny access");
-        return;
+        SKIP("running as root: mode bits do not deny access");
     }
 
     helix::ScopedEnv guard("HELIX_CACHE_DIR");

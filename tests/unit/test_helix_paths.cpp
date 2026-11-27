@@ -202,7 +202,7 @@ TEST_CASE("probe_writable fails on nonexistent dir", "[helix_paths]") {
 // create+write+remove probe actually fails when the dir denies writes.
 TEST_CASE("probe_writable rejects read-only existing dir", "[helix_paths]") {
     if (::geteuid() == 0) {
-        return; // root bypasses permission bits — the probe would spuriously succeed
+        SKIP("running as root: permission bits do not deny the probe");
     }
     fs::path dir = make_tmp_dir("probe_ro");
     fs::path locked = dir / "locked";
@@ -257,7 +257,7 @@ TEST_CASE("first_writable_dir skips a nonexistent candidate", "[helix_paths]") {
 
 TEST_CASE("first_writable_dir skips a read-only candidate", "[helix_paths]") {
     if (::geteuid() == 0) {
-        return; // root bypasses permission bits — the read-only probe would succeed
+        SKIP("running as root: the read-only candidate is writable");
     }
     fs::path dir = make_tmp_dir("fwd_ro");
     fs::path locked = dir / "locked";
