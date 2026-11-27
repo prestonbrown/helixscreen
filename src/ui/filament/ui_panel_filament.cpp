@@ -144,15 +144,17 @@ static lv_obj_t* preset_button_of(lv_obj_t* widget) {
     return nullptr;
 }
 
-/// A preset button, or its name, its mark or a temperature line in it, resized.
+/// Measure one preset button, @p button.
 /// The macro mark goes before the name while the name fits beside it, and
 /// before the temperature line in a button too narrow for both; the answer is
 /// published for the markup. The nozzle-and-bed line shows only when it fits
 /// what the mark leaves of the button.
-static void preset_fit_temps(lv_event_t* e) {
-    auto* target = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-    lv_obj_t* button = preset_button_of(target);
+static void preset_fit(lv_obj_t* button) {
     if (!button) {
+        return;
+    }
+    const char* button_name = lv_obj_get_name(button);
+    if (!button_name) {
         return;
     }
     lv_obj_t* name_row = lv_obj_find_by_name(button, "preset_name_row");
@@ -168,7 +170,6 @@ static void preset_fit_temps(lv_event_t* e) {
     }
     lv_subject_t* has_macro = nullptr;
     lv_subject_t* beside_subject = nullptr;
-    const char* button_name = lv_obj_get_name(button);
     for (int slot = 0; slot < kPresetCount; ++slot) {
         if (std::strcmp(button_name, kPresetButtonNames[slot]) == 0) {
             has_macro = helix::presets::has_macro_subject(slot);
@@ -192,6 +193,12 @@ static void preset_fit_temps(lv_event_t* e) {
             : 0;
     helix::ui::show_label_that_fits(lv_obj_find_by_name(button, "preset_temps"),
                                     lv_obj_find_by_name(button, "preset_nozzle_temp"), reserved);
+}
+
+/// A preset button, or its name, its mark or a temperature line in it, resized.
+static void preset_fit_temps(lv_event_t* e) {
+    auto* target = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    preset_fit(preset_button_of(target));
 }
 
 /// A hold on preset @p slot opens its material picker. The hold is still the active
@@ -571,6 +578,14 @@ void FilamentPanel::deinit_subjects() {
     external_spool_observer_.reset();
     orientation_observer_.reset();
     speed_dropdown_rewire_observer_.reset();
+    for (auto& preset : preset_fit_observers_) {
+        for (ObserverGuard& guard : preset) {
+            guard.reset();
+        }
+    }
+    for (ObserverGuard& guard : spool_fit_observers_) {
+        guard.reset();
+    }
     ams_loaded_observer_.reset();
     ams_current_slot_observer_.reset();
     // Watches PrinterState's print_state_enum, a subject tests deinit between
@@ -771,6 +786,7 @@ void FilamentPanel::bind_widgets() {
     handle_extrude_length_select(extrude_length_index_);
     sync_extrude_speed_dropdown();
     observe_speed_dropdown_moves();
+    observe_preset_data();
 
     setup_temp_graph();
     setup_portrait_graph_fit();
@@ -885,6 +901,47 @@ void FilamentPanel::observe_speed_dropdown_moves() {
         multi_head_subject, this,
         [](FilamentPanel* self, int /*multi_head*/) { self->bind_extrude_speed_dropdown(); },
         helix::ui::TargetTool::instance().get_subjects_lifetime(), helix::ui::Dispatch::Immediate);
+}
+
+void FilamentPanel::observe_preset_data() {
+    // The subjects exist once the panel's own do. The registration fires at
+    // once, which measures each preset before its first layout: harmless,
+    // because the layout's own SIZE_CHANGED measures it again.
+    if (!subjects_initialized_) {
+        return;
+    }
+    const SubjectLifetime presets_live = helix::presets::get_subjects_lifetime();
+    const SubjectLifetime own_live = subjects_.get_subjects_lifetime();
+    constexpr auto now = helix::ui::Dispatch::Immediate;
+    for (int slot = 0; slot < kPresetCount; ++slot) {
+        const auto changed = [slot](FilamentPanel* self, auto) {
+            preset_fit(self->preset_buttons_[slot]);
+        };
+        ObserverGuard* guards = preset_fit_observers_[slot];
+        if (lv_subject_t* subject = helix::presets::has_macro_subject(slot)) {
+            guards[0] = observe<int>(subject, this, changed, presets_live, now);
+        }
+        if (lv_subject_t* subject = helix::presets::name_subject(slot)) {
+            guards[1] = observe<const char*>(subject, this, changed, presets_live, now);
+        }
+        if (lv_subject_t* subject = helix::presets::temps_subject(slot)) {
+            guards[2] = observe<const char*>(subject, this, changed, presets_live, now);
+        }
+        if (lv_subject_t* subject = helix::presets::nozzle_temp_subject(slot)) {
+            guards[3] = observe<const char*>(subject, this, changed, presets_live, now);
+        }
+    }
+    const auto spool_changed = [](FilamentPanel* self, auto) {
+        preset_fit(self->spool_preset_button_);
+    };
+    spool_fit_observers_[0] =
+        observe<int>(&spool_preset_has_macro_subject_, this, spool_changed, own_live, now);
+    spool_fit_observers_[1] =
+        observe<const char*>(&spool_preset_name_subject_, this, spool_changed, own_live, now);
+    spool_fit_observers_[2] =
+        observe<const char*>(&spool_preset_temps_subject_, this, spool_changed, own_live, now);
+    spool_fit_observers_[3] = observe<const char*>(&spool_preset_nozzle_temp_subject_, this,
+                                                   spool_changed, own_live, now);
 }
 
 void FilamentPanel::bind_extrude_speed_dropdown() {

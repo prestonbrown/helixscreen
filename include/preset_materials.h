@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/observer_guard.h"
 #include "lvgl/lvgl.h"
 #include "material_settings_manager.h"
 
@@ -106,6 +107,16 @@ std::string nozzle_temp_label(int slot);
 /// the second. Nullptr before init_subjects(), or for a slot out of range.
 lv_subject_t* has_macro_subject(int slot);
 lv_subject_t* mark_beside_name_subject(int slot);
+
+/// The subjects a preset button binds its lines to: "preset_material_<slot>_name",
+/// "_temps" and "_nozzle_temp". Nullptr before init_subjects(), or for a slot out of
+/// range.
+lv_subject_t* name_subject(int slot);
+lv_subject_t* temps_subject(int slot);
+lv_subject_t* nozzle_temp_subject(int slot);
+
+/// The lifetime of every subject above, for an observer bound to one.
+[[nodiscard]] SubjectLifetime get_subjects_lifetime();
 
 /**
  * @brief Create the globally-scoped preset subjects. Idempotent.

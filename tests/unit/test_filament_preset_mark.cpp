@@ -443,3 +443,78 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         CHECK(lv_obj_is_hidden(nozzle));
     }
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "A macro set or cleared under a laid-out preset is measured at once",
+                 "[filament_preset_mark][2183]") {
+    const bool set = GENERATE(true, false);
+    CAPTURE(set);
+    MaterialSettingsScope settings;
+    // Declared before the panel, so the panel is laid out at this size.
+    helix::test::ScopedGeometry screen(480, 400);
+    MarkHarness m(*this);
+    // ABS/ASA is too long for the mark beside it here, while its temperatures
+    // are short enough for the nozzle-and-bed line to fit the button alone.
+    const auto override_for = [](bool with_macro) {
+        filament::MaterialOverride result =
+            abs_override(with_macro ? std::optional<std::string>{"HEAT_ABS"} : std::nullopt);
+        result.nozzle_min = 200;
+        result.nozzle_max = 220;
+        result.bed_temp = 50;
+        return result;
+    };
+    MaterialSettingsManager::instance().set_override("ABS", override_for(!set));
+    helix::presets::refresh_subjects();
+    m.settle();
+
+    lv_obj_t* abs = m.shown("preset_abs");
+    lv_obj_t* full = m.under(abs, "preset_temps");
+    lv_obj_t* nozzle = m.under(abs, "preset_nozzle_temp");
+    // Marked and narrow, the mark sits before the nozzle line alone; unmarked,
+    // the button shows the nozzle-and-bed line.
+    const auto expect_marked = [&](bool marked) {
+        CHECK(MarkHarness::mark_place(abs, "preset") == (marked ? "temps" : "none"));
+        CHECK(lv_obj_is_hidden(full) == marked);
+        CHECK(lv_obj_is_hidden(nozzle) != marked);
+    };
+    // The first state is reached: an unmarked button, or a marked narrow one.
+    REQUIRE(MarkHarness::mark_place(abs, "preset") == (set ? "none" : "temps"));
+    expect_marked(!set);
+
+    // Only the macro changes: the name and the temperatures stay, so no widget
+    // resizes and nothing asks for the fit.
+    MaterialSettingsManager::instance().set_override("ABS", override_for(set));
+    helix::presets::refresh_subjects();
+    m.settle();
+
+    expect_marked(set);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "A shorter temperature line set under a laid-out preset shows at once",
+                 "[filament_preset_mark][2183]") {
+    MaterialSettingsScope settings;
+    // Declared before the panel, so the panel is laid out at this size.
+    helix::test::ScopedGeometry screen(480, 400);
+    MarkHarness m(*this);
+    lv_obj_t* abs = m.shown("preset_abs");
+    lv_obj_t* full = m.under(abs, "preset_temps");
+    lv_obj_t* nozzle = m.under(abs, "preset_nozzle_temp");
+    // ABS/ASA's own temperatures are too long for the button, so the nozzle
+    // line alone shows.
+    REQUIRE(lv_obj_is_hidden(full));
+    REQUIRE_FALSE(lv_obj_is_hidden(nozzle));
+
+    // The new temperatures fit, and the nozzle line keeps its width, so no
+    // widget that shows resizes and the hidden line cannot.
+    filament::MaterialOverride shorter = abs_override(std::nullopt);
+    shorter.nozzle_min = 200;
+    shorter.nozzle_max = 220;
+    shorter.bed_temp = 50;
+    MaterialSettingsManager::instance().set_override("ABS", shorter);
+    helix::presets::refresh_subjects();
+    m.settle();
+
+    CHECK_FALSE(lv_obj_is_hidden(full));
+    CHECK(lv_obj_is_hidden(nozzle));
+}

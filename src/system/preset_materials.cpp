@@ -179,6 +179,25 @@ lv_subject_t* has_macro_subject(int slot) {
                : nullptr;
 }
 
+lv_subject_t* name_subject(int slot) {
+    return slot_valid(slot) && state().ready ? &state().name_subjects[static_cast<size_t>(slot)]
+                                             : nullptr;
+}
+
+lv_subject_t* temps_subject(int slot) {
+    return slot_valid(slot) && state().ready ? &state().temp_subjects[static_cast<size_t>(slot)]
+                                             : nullptr;
+}
+
+lv_subject_t* nozzle_temp_subject(int slot) {
+    return slot_valid(slot) && state().ready ? &state().nozzle_subjects[static_cast<size_t>(slot)]
+                                             : nullptr;
+}
+
+SubjectLifetime get_subjects_lifetime() {
+    return state().subjects.get_subjects_lifetime();
+}
+
 lv_subject_t* mark_beside_name_subject(int slot) {
     return slot_valid(slot) && state().ready
                ? &state().mark_beside_subjects[static_cast<size_t>(slot)]

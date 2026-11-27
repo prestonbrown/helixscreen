@@ -645,6 +645,13 @@ class FilamentPanel : public PanelBase {
     ObserverGuard speed_dropdown_rewire_observer_;
     void bind_extrude_speed_dropdown();
     void observe_speed_dropdown_moves();
+    /// A preset's macro mark takes room without resizing any widget, and a
+    /// temperature line already hidden resizes for nothing: so each of a
+    /// preset's data subjects re-measures its own button. Per preset: has-macro,
+    /// name, temperatures, nozzle.
+    ObserverGuard preset_fit_observers_[4][4]{};
+    ObserverGuard spool_fit_observers_[4]{};
+    void observe_preset_data();
     // 1 with no AMS and one head: the card shows the external spool row in
     // place of the AMS row, centered, without its header.
     helix::Subject external_spool_mode_subject_{};
