@@ -200,7 +200,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     press(action, h);
 
     CHECK(h.client.gcode_script_history() == kAbsTargets);
-    CHECK(notices.count("Macro skipped while printing") == 1);
+    CHECK(notices.count("Macro skipped while a job holds the printer") == 1);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Material presets heat the bed only while the setting is on",

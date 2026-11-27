@@ -311,7 +311,8 @@ void execute_material_preheat(IMoonrakerAPI* api, const MaterialPreheatPlan& pla
         spdlog::info("{} Preheat macro '{}' not sent: a job holds the machine", caller_tag,
                      plan.macro);
         set_temperatures();
-        publish_notice({NoticeSeverity::INFO, lv_tr("Macro skipped while printing"), 3000});
+        publish_notice(
+            {NoticeSeverity::INFO, lv_tr("Macro skipped while a job holds the printer"), 3000});
         return;
     case MaterialPreheatMode::TEMPERATURES_THEN_MACRO:
         set_temperatures();

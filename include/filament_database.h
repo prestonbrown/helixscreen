@@ -56,10 +56,11 @@ struct MaterialOverride {
         return preheat_macro && !preheat_macro->empty();
     }
 
-    /// Whether the named macro handles the material's heating by itself: the
-    /// stored choice, yes when nothing is stored.
+    /// Whether a tap heats through the macro alone: the stored choice of the
+    /// macro it names, and yes when it names none, as the edit view then opens
+    /// its switch. The hold's row, the edit view and the plan read this.
     [[nodiscard]] bool macro_heats() const {
-        return macro_handles_heating.value_or(true);
+        return !names_a_macro() || macro_handles_heating.value_or(true);
     }
 };
 

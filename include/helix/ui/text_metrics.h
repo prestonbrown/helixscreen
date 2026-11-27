@@ -31,7 +31,9 @@ int32_t text_width_n(const char* txt, uint32_t len, const lv_font_t* font,
                      int32_t letter_space = 0);
 
 /// text_width() of what @p label shows, in its own font and letter space: the
-/// same whether the label is shown or hidden.
+/// same whether the label is shown or hidden. A label that cuts a long text
+/// short with dots has had its text rewritten in place, so it measures as wide
+/// as what its box shows, which is the room the label takes.
 int32_t label_width(lv_obj_t* label);
 
 /**

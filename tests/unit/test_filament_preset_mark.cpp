@@ -518,3 +518,27 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK_FALSE(lv_obj_is_hidden(full));
     CHECK(lv_obj_is_hidden(nozzle));
 }
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "A material whose macro was cleared reads Macro in the hold's row and opens "
+                 "with its switch on",
+                 "[filament_preset_mark][2183]") {
+    MaterialSettingsScope settings;
+    MarkHarness m(*this);
+    // A left-over choice that the macro heats, with no macro named.
+    filament::MaterialOverride cleared = abs_override(std::nullopt);
+    cleared.macro_handles_heating = false;
+    MaterialSettingsManager::instance().set_override("ABS", cleared);
+    helix::presets::refresh_subjects();
+    m.settle();
+
+    lv_obj_t* dialog = m.hold(m.shown("preset_abs"));
+    REQUIRE(dialog != nullptr);
+    CHECK_FALSE(lv_obj_is_hidden(m.under(dialog, "preheat_macro_label_heats")));
+    CHECK(lv_obj_is_hidden(m.under(dialog, "preheat_macro_label")));
+
+    lv_obj_send_event(lv_obj_find_by_name(dialog, "preheat_macro_row"), LV_EVENT_CLICKED, nullptr);
+    m.settle();
+    lv_subject_t* heats = lv_xml_get_subject(nullptr, "material_macro_heats");
+    REQUIRE(heats != nullptr);
+    CHECK(lv_subject_get_int(heats) == 1);
+}

@@ -267,11 +267,10 @@ void MaterialTempsOverlay::show_edit_view(const std::string& material_name) {
     // Populate macro dropdown and select current override
     populate_macro_dropdown();
     std::string current_macro;
-    bool switch_on = true; // Default: macro handles heating
     if (ovr && ovr->names_a_macro()) {
         current_macro = *ovr->preheat_macro;
-        switch_on = ovr->macro_heats();
     }
+    const bool switch_on = !ovr || ovr->macro_heats();
     // Select the current macro in the dropdown
     if (macro_dropdown_) {
         uint32_t sel = 0; // Default to "None"

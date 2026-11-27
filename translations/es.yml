@@ -2966,7 +2966,7 @@ translations:
   Macro for physical bed leveling (QGL/Z-Tilt): Macro para nivelación física de cama (QGL/Z-Tilt)
   Macro handles heating: El macro controla el calentamiento
   Macro may still be running — response timed out: El macro puede seguir en curso — tiempo de espera agotado
-  Macro skipped while printing: ''
+  Macro skipped while a job holds the printer: ''
   "Macro stopped: printer has no '{}' command": "Macro detenido: la impresora no tiene el comando '{}'"
   Macro to cancel an active print: Macro para cancelar una impresión activa
   Macro to clean/wipe the nozzle: Macro para limpiar la boquilla
