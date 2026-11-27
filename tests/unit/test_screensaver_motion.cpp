@@ -5,6 +5,7 @@
 
 #if HELIX_ENABLE_SCREENSAVER
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/sample_checks.h"
 #include "../test_helpers/screensaver_test_access.h"
 #endif
 
@@ -188,29 +189,33 @@ TEST_CASE("StepAccumulator reset drops the partial step", "[screensaver_motion]"
 // ============================================================================
 
 TEST_CASE("unit_random stays within [0, 1] and spans it", "[screensaver_motion]") {
+    helix::test::SampleChecks samples;
     std::minstd_rand rng(42);
     float lo = 1.0f;
     float hi = 0.0f;
     for (int i = 0; i < 10000; i++) {
         const float v = unit_random(rng);
-        REQUIRE(v >= 0.0f);
-        REQUIRE(v <= 1.0f);
+        SAMPLE_REQUIRE(samples, v >= 0.0f, i);
+        SAMPLE_REQUIRE(samples, v <= 1.0f, i);
         lo = std::min(lo, v);
         hi = std::max(hi, v);
     }
+    samples.done(2 * 10000);
     CHECK(lo < 0.01f);
     CHECK(hi > 0.99f);
 }
 
 TEST_CASE("random_below stays within [0, n) and reaches every value", "[screensaver_motion]") {
+    helix::test::SampleChecks samples;
     std::minstd_rand rng(7);
     std::vector<int> seen(6, 0);
     for (int i = 0; i < 6000; i++) {
         const int v = random_below(rng, 6);
-        REQUIRE(v >= 0);
-        REQUIRE(v < 6);
+        SAMPLE_REQUIRE(samples, v >= 0, i);
+        SAMPLE_REQUIRE(samples, v < 6, i);
         seen[static_cast<size_t>(v)]++;
     }
+    samples.done(2 * 6000);
     for (int count : seen) {
         CHECK(count > 0);
     }
@@ -248,17 +253,19 @@ void pipes_dissolve_shuffle(std::minstd_rand& rng, std::vector<uint32_t>& order)
 } // namespace
 
 TEST_CASE("random_int draws the same integers as lo + random_below(span)", "[screensaver_motion]") {
+    helix::test::SampleChecks samples;
     for (const auto& [lo, hi] :
          {std::pair{0, 0}, std::pair{-5, 5}, std::pair{8000, 15000}, std::pair{3, 4}}) {
+        INFO("lo " << lo << ", hi " << hi);
         std::minstd_rand a(99);
         std::minstd_rand b(99);
         bool saw_lo = false;
         bool saw_hi = false;
         for (int i = 0; i < 5000; i++) {
             const int got = random_int(a, lo, hi);
-            REQUIRE(got == fireflies_random_ms(b, lo, hi));
-            REQUIRE(got >= lo);
-            REQUIRE(got <= hi);
+            SAMPLE_REQUIRE(samples, got == fireflies_random_ms(b, lo, hi), i);
+            SAMPLE_REQUIRE(samples, got >= lo, i);
+            SAMPLE_REQUIRE(samples, got <= hi, i);
             saw_lo = saw_lo || got == lo;
             saw_hi = saw_hi || got == hi;
         }
@@ -267,6 +274,7 @@ TEST_CASE("random_int draws the same integers as lo + random_below(span)", "[scr
             CHECK(saw_hi);
         }
     }
+    samples.done(3 * 5000 * 4);
 }
 
 TEST_CASE("random_between is fireflies' uniform and random_normal(mean, sd) its spelled-out "
@@ -316,15 +324,18 @@ TEST_CASE("shuffle_in_place gives the pipes dissolve's permutation for every see
 }
 
 TEST_CASE("wrap_index folds any integer into [0, n)", "[screensaver_motion]") {
+    helix::test::SampleChecks samples;
     for (const int32_t n : {1, 7, 60, 86400}) {
+        INFO("n " << n);
         for (int64_t x = -3 * static_cast<int64_t>(n) - 5; x <= 3 * static_cast<int64_t>(n) + 5;
              x += (n > 100 ? 37 : 1)) {
             const auto expect = static_cast<int32_t>(((x % n) + n) % n);
-            REQUIRE(wrap_index(x, n) == expect);
-            REQUIRE(wrap_index(x, n) >= 0);
-            REQUIRE(wrap_index(x, n) < n);
+            SAMPLE_REQUIRE(samples, wrap_index(x, n) == expect, x);
+            SAMPLE_REQUIRE(samples, wrap_index(x, n) >= 0, x);
+            SAMPLE_REQUIRE(samples, wrap_index(x, n) < n, x);
         }
     }
+    samples.done((17 + 53 + 371 + 14012) * 3);
     CHECK(wrap_index(-1, 86400) == 86399);
     CHECK(wrap_index(86400, 86400) == 0);
 }
