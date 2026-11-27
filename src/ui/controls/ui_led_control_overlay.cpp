@@ -173,6 +173,9 @@ void LedControlOverlay::on_activate() {
 }
 
 void LedControlOverlay::on_deactivating(DeactivateReason) {
+    // A close deactivates the overlay before anything destroys it, and what
+    // follows saves the look it shows: an open preview ends first.
+    before_disconnect();
     state_observer_.reset();
 
     auto& ctrl = LedController::instance();
@@ -188,9 +191,10 @@ void LedControlOverlay::on_deactivating(DeactivateReason) {
 }
 
 void LedControlOverlay::before_disconnect() {
-    // The picker undoes a preview on Cancel, a backdrop tap and ESC. A session
-    // that ends under it destroys it instead, and a destructor runs no hook, so
-    // the overlay ends the preview itself while the light can still be told.
+    // The picker undoes a preview on Cancel, a backdrop tap and ESC. No other
+    // way out asks it, so the overlay ends an open preview itself: on every
+    // close, before it saves the look it shows, and on a session's last word
+    // while the light can still be told.
     if (color_picker_ && color_picker_->is_visible()) {
         color_picker_->hide();
     }
