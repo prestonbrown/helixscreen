@@ -117,12 +117,16 @@ TEST_CASE("Beta's GitHub fallback offers a beta-line release, never a devel-line
     UpdateChecker::ReleaseInfo info;
     std::string error;
 
-    // Newest first, as GitHub lists them: the alpha is skipped for the beta.
+    // The alpha is skipped, and the highest beta-line version wins over list order.
     REQUIRE(helix::parse_github_beta_release("[" + release("v1.2.0-alpha.1", true) + "," +
                                                  release("v1.1.0-beta.3", true) + "," +
                                                  release("v1.1.1", false) + "]",
                                              info, error, {}));
-    CHECK(info.version == "1.1.0-beta.3");
+    CHECK(info.version == "1.1.1");
+    REQUIRE(helix::parse_github_beta_release("[" + release("v1.1.1", false) + "," +
+                                                 release("v1.2.0-beta.1", true) + "]",
+                                             info, error, {}));
+    CHECK(info.version == "1.2.0-beta.1");
 
     // No beta-line prerelease: the newest release, not the alpha.
     REQUIRE(helix::parse_github_beta_release("[" + release("v1.2.0-alpha.1", true) + "," +

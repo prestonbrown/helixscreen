@@ -714,22 +714,25 @@ bool parse_github_beta_release(const std::string& json_str, UpdateChecker::Relea
         error = "Empty or invalid releases array";
         return false;
     }
-    // GitHub lists newest first, and marks the devel line's alphas as prereleases too.
-    // A Beta device takes the newest beta or rc, else the newest release.
-    for (const bool want_prerelease : {true, false}) {
-        for (const auto& rel : releases) {
-            if (!rel.is_object() || json_util::safe_bool(rel, "draft") ||
-                json_util::safe_bool(rel, "prerelease") != want_prerelease)
-                continue;
-            UpdateChecker::ReleaseInfo candidate;
-            std::string candidate_error;
-            if (::parse_github_release(rel, candidate, candidate_error, asset_keys) &&
-                is_beta_line_version(candidate.version)) {
-                info = std::move(candidate);
-                return true;
-            }
+    // GitHub marks the devel line's alphas as prereleases too, and its list order is not
+    // precedence, so the newest beta-line version wins wherever it sits.
+    std::optional<version::Version> best;
+    for (const auto& rel : releases) {
+        if (!rel.is_object() || json_util::safe_bool(rel, "draft"))
+            continue;
+        UpdateChecker::ReleaseInfo candidate;
+        std::string candidate_error;
+        if (!::parse_github_release(rel, candidate, candidate_error, asset_keys) ||
+            !is_beta_line_version(candidate.version))
+            continue;
+        const auto v = version::parse_version(candidate.version);
+        if (!best || *v > *best) {
+            best = v;
+            info = std::move(candidate);
         }
     }
+    if (best)
+        return true;
     error = "No valid releases found";
     return false;
 }

@@ -1138,9 +1138,10 @@ bool parse_github_release(const std::string& json_str, UpdateChecker::ReleaseInf
 /// (`1.1.0-rc.2`) or a release. An alpha belongs to the devel line and the dev channel.
 bool is_beta_line_version(const std::string& version);
 
-/// The Beta channel's answer from GitHub's release list @p json_str (newest first): the
-/// newest non-draft prerelease that is_beta_line_version(), else the newest non-draft
-/// release. A devel-line alpha, which GitHub also marks a prerelease, is never it.
+/// The Beta channel's answer from GitHub's release list @p json_str: the non-draft
+/// release with the highest version that is_beta_line_version() (a beta, rc or release),
+/// wherever it sits in the list. A devel-line alpha, which GitHub also marks a
+/// prerelease, is never it.
 bool parse_github_beta_release(const std::string& json_str, UpdateChecker::ReleaseInfo& info,
                                std::string& error, const std::vector<std::string>& asset_keys);
 
