@@ -666,7 +666,8 @@ class TestEndpoints:
         await _init(component)
         status = await component._handle_status(MockWebRequest({}))
         assert status["features"]["config_edit"] == {
-            "version": 1, "available": True, "enabled": True, "reason": None}
+            "version": helix_config.CONFIG_EDIT_FEATURE_VERSION, "available": True,
+            "enabled": True, "reason": None}
 
     @pytest.mark.asyncio
     async def test_config_read(self, component, mock_server):
