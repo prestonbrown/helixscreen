@@ -29,7 +29,7 @@ Every release that carries the Linux desktop package is also published as a cont
 |---|---|
 | `dev` | The newest development build. |
 | `beta` | The newest Beta release. |
-| `latest` | The newest Stable release. |
+| `latest` or `stable` | The newest Stable release. |
 | A version, such as `1.2.0-alpha.5` | That one release and no other. Use it to stay on a version you have checked. |
 
 Tags appear as releases are published as images: `dev` first, then `beta` and `latest` with the first Beta and Stable releases that get one. If pulling a tag says it does not exist, no such release has been published as an image yet: use `dev`.
