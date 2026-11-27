@@ -3,6 +3,7 @@
 
 #if HELIX_ENABLE_SCREENSAVER
 
+#include "../test_helpers/sample_checks.h"
 #include "../test_helpers/screensaver_sim_kit.h"
 #include "../test_helpers/screensaver_test_access.h"
 #include "screensaver_canvas.h"
@@ -180,18 +181,22 @@ TEST_CASE("every hyperspace pixel is opaque and every frame dirties the whole ca
     CAPTURE(level);
     Flight flight(5, level);
     size_t frames = 0;
+    helix::test::SampleChecks samples;
     size_t opaque_failures = 0;
     for (uint32_t t = 0; t < 40000; t += kFrameMs) {
         flight.step();
         frames++;
-        REQUIRE(flight.dirty.size() == 1);
-        CHECK(flight.dirty[0] ==
-              DirtyRect::whole(static_cast<int32_t>(W), static_cast<int32_t>(H)));
+        SAMPLE_REQUIRE(samples, flight.dirty.size() == 1, frames);
+        SAMPLE_CHECK(samples,
+                     flight.dirty[0] ==
+                         DirtyRect::whole(static_cast<int32_t>(W), static_cast<int32_t>(H)),
+                     frames);
         if (frames % 30 != 0) {
             continue;
         }
         opaque_failures += non_opaque_pixels(flight.frame.target);
     }
+    samples.done(2 * frames);
     CHECK(opaque_failures == 0);
 }
 
