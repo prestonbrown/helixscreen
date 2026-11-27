@@ -31,6 +31,22 @@
 #include <string_view>
 #include <utility>
 
+namespace helix {
+
+/**
+ * @brief True when @p obj's "filament_weights" say what each extruder used.
+ *
+ * Cura's do not. Moonraker reads its ";Filament weight = [...]" line into them: the
+ * spool weight configured for every extruder in the printer profile, used or not. It
+ * sums the same weights into "filament_weight_total", so that states no used weight
+ * either (moonraker/components/file_manager/metadata.py, Cura.parse_filament_weights).
+ */
+inline bool weights_are_filament_used(const nlohmann::json& obj) {
+    return json_util::safe_string(obj, "slicer") != "Cura";
+}
+
+} // namespace helix
+
 namespace moonraker_internal {
 
 /**
@@ -295,7 +311,8 @@ inline std::string json_string_list_or(const nlohmann::json& obj, const char* ke
  * @brief Parse per-tool filament weight metadata into a vector of doubles.
  *
  * Slicers vary in how they expose per-tool filament usage. We accept:
- *   - "filament_weights" as a JSON array of numbers (grams)         — preferred
+ *   - "filament_weights" as a JSON array of numbers (grams)         — preferred,
+ *     where the slicer's weights say what was used (helix::weights_are_filament_used)
  *   - "filament_used"    as a JSON array of numbers (mm or grams)   — fallback
  *   - "filament_used"    as a comma/semicolon-delimited string       — fallback
  *
@@ -334,8 +351,10 @@ inline std::vector<double> parse_filament_weights(const nlohmann::json& obj) {
         return weights;
     };
 
-    if (const auto* arr = helix::json_util::find_array(obj, "filament_weights")) {
-        return parse_array(*arr);
+    if (helix::weights_are_filament_used(obj)) {
+        if (const auto* arr = helix::json_util::find_array(obj, "filament_weights")) {
+            return parse_array(*arr);
+        }
     }
     if (const auto* arr = helix::json_util::find_array(obj, "filament_used")) {
         return parse_array(*arr);
