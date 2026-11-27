@@ -552,13 +552,15 @@ beside `TYPE=`, `COLOR=` and `TEMP=`, and `printer.ifs_materials` states them pe
   (`AmsBackendAd5xIfs::kOverrideNamespace`, extras only): colour name, catalog pick,
   product name, fingerprint, weights, and vendor and name as a fallback. Every edit goes
   out as one
-  `IFS_SET_MATERIAL SLOT= TYPE= COLOR= SPOOL_ID= VENDOR="…" NAME="…" FILAMENT_ID="…" BED_TEMP= TEMP=`,
-  every field set or cleared. `FILAMENT_ID` is a product's Orca id
+  `IFS_SET_MATERIAL SLOT= TYPE= COLOR= SPOOL_ID= VENDOR="…" NAME="…" FILAMENT_ID="…" [BED_TEMP=] [TEMP=]`,
+  every identity field set or cleared. `FILAMENT_ID` is a product's Orca id
   (`orca_filament_id_for()`: the linked spool's, or the catalog pick's); a Generic preset
   goes out empty, so the firmware names its own profile for the type. `BED_TEMP` and
-  `TEMP` (nozzle) are temperatures someone set, else empty; a nozzle temperature outside
-  the 150-350 the command takes goes out empty, since one out of range gets the whole
-  command refused. Text loses `"`, `\`, `#`, `;`, `*`, which Klipper would cut or unquote,
+  `TEMP` (nozzle) go out only when this edit changed the user's temperature against the
+  slot's record before it: the new value, or empty when the edit cleared it. Left out,
+  Kiln keeps the field, so a temperature set on its own screen survives an edit that
+  does not touch temperatures. A nozzle temperature outside the 150-350 the command
+  takes is left out, since one out of range gets the whole command refused. Text loses `"`, `\`, `#`, `;`, `*`, which Klipper would cut or unquote,
   `'` and `%`, which Kiln refuses in a value, and control and non-ASCII bytes
   (`lane_writer::sendable_text()`). Nothing of ours reaches `lane_data`, and the
   firmware-to-record mirror stands down on a private store. Each slot's spool id, vendor

@@ -1121,7 +1121,8 @@ Two more variables stage the rest of the unknown-lane states (#1324):
 
 `HELIX_MOCK_IFS_PLUGIN_API=<version>` (for example `1.12`) adds the `ad5x_plugins` object with
 that `api_version`, as Kiln OS reports it. From 1.12, `IFS_SET_MATERIAL` keeps the command's
-`SPOOL_ID=`, `VENDOR=`, `NAME=`, `FILAMENT_ID=` and `BED_TEMP=`: `ifs_materials` states them
+`SPOOL_ID=`, `VENDOR=`, `NAME=`, `FILAMENT_ID=` and `BED_TEMP=` (empty clears, left out
+keeps): `ifs_materials` states them
 per slot (null when unset) and the slot's `lane_data` record carries them the way Kiln's
 `kiln_lanes` writes it, so the backend's firmware-writes-`lane_data` path runs.
 

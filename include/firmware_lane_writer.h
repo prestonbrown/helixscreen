@@ -45,24 +45,27 @@ bool firmware_may_write_lane_records(const PrinterDiscovery& hw);
 std::optional<bool> firmware_writes_lane_records(const nlohmann::json& status);
 
 /// What a slot edit states beyond type and color. An unset text field and a
-/// non-positive number are sent empty, which clears the firmware's value.
+/// non-positive number are sent empty, which clears the firmware's value; a
+/// temperature left nullopt is not sent, so the firmware keeps its own.
 struct SlotIdentity {
     int spool_id = 0;
     std::string vendor;
     std::string name;
     /// OrcaSlicer's filament preset id (orca_filament_id_for()).
     std::string filament_id;
-    int bed_temp = 0;
+    /// Read from status as a value, 0 when unset.
+    std::optional<int> bed_temp;
     /// The nozzle temperature the user set. Sent only: the firmware's status
     /// states its own resolved temperature, never this one.
-    int nozzle_temp = 0;
+    std::optional<int> nozzle_temp;
 };
 
 /// The edit command's parameters for @p identity, each preceded by a space,
-/// for a firmware where firmware_writes_lane_records() is true. Every field
-/// goes out, set or cleared, because the caller holds the slot's whole state.
-/// Text goes out as sendable_text(), logged when that dropped anything; a
-/// nozzle temperature outside what the command takes goes out empty, logged.
+/// for a firmware where firmware_writes_lane_records() is true. Every
+/// identity field goes out, set or cleared, because the caller holds the
+/// slot's whole state; a temperature only when stated. Text goes out as
+/// sendable_text(), logged when that dropped anything; a nozzle temperature
+/// outside what the command takes is left out, logged.
 std::string slot_identity_params(const SlotIdentity& identity);
 
 /// @p text as the edit command can carry it inside quotes: without the

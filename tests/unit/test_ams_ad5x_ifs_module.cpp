@@ -1349,12 +1349,11 @@ TEST_CASE("AD5X IFS on a firmware that writes lane_data sends the whole slot ide
     helix::ui::UpdateQueue::instance().drain();
     REQUIRE(rig.backend.firmware_writes_lane_records() == true);
 
-    SECTION("a Generic preset and unset temperatures are left to the firmware") {
+    SECTION("a Generic preset goes out empty, temperatures the edit left alone not at all") {
         REQUIRE(helix::test::apply_edit(rig.backend, 1, linked_spool_edit()).success());
         CHECK(rig.backend.captured_gcodes ==
               std::vector<std::string>{"IFS_SET_MATERIAL SLOT=2 TYPE=PLA COLOR=7EC8E3 SPOOL_ID=42 "
-                                       "VENDOR=\"Polymaker\" NAME=\"Matte PLA\" FILAMENT_ID= "
-                                       "BED_TEMP= TEMP="});
+                                       "VENDOR=\"Polymaker\" NAME=\"Matte PLA\" FILAMENT_ID="});
     }
     SECTION("a product's Orca id and set temperatures go out") {
         helix::SlotInfo info = linked_spool_edit();
@@ -1367,6 +1366,21 @@ TEST_CASE("AD5X IFS on a firmware that writes lane_data sends the whole slot ide
               std::vector<std::string>{"IFS_SET_MATERIAL SLOT=2 TYPE=PLA COLOR=7EC8E3 SPOOL_ID=42 "
                                        "VENDOR=\"Polymaker\" NAME=\"Matte PLA\" "
                                        "FILAMENT_ID=\"GFL99\" BED_TEMP=65 TEMP=215"});
+
+        // The next edit keeps them: the printer keeps its own.
+        info.color_rgb = 0x112233;
+        REQUIRE(helix::test::apply_edit(rig.backend, 1, info).success());
+        REQUIRE(rig.backend.captured_gcodes.size() == 2);
+        CHECK(rig.backend.captured_gcodes[1].find("TEMP=") == std::string::npos);
+
+        // An edit that clears them sends them empty.
+        info.bed_temp = 0;
+        info.nozzle_temp_min = 0;
+        info.nozzle_temp_max = 0;
+        REQUIRE(helix::test::apply_edit(rig.backend, 1, info).success());
+        REQUIRE(rig.backend.captured_gcodes.size() == 3);
+        const std::string& cleared = rig.backend.captured_gcodes[2];
+        CHECK(cleared.substr(cleared.size() - 16) == " BED_TEMP= TEMP=");
     }
 
     // Our own notes go to the private namespace; lane_data is the firmware's.

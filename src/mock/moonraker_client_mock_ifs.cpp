@@ -147,34 +147,45 @@ void MoonrakerClientMock::write_ifs_module_lane_record(int slot, const std::stri
     if (!ifs_module_keeps_identity()) {
         return;
     }
-    // The identity the edit command took: an empty value clears a field.
-    const int spool_id = int_or_zero(extended_param(gcode, "SPOOL_ID"));
-    const int bed_temp = int_or_zero(extended_param(gcode, "BED_TEMP"));
-    const auto text = [&gcode](const char* key) {
-        const auto v = extended_param(gcode, key);
-        return v && !v->empty() ? json(*v) : json(nullptr);
-    };
-    const json identity{{"spool_id", spool_id > 0 ? json(spool_id) : json(nullptr)},
-                        {"vendor", text("VENDOR")},
-                        {"name", text("NAME")},
-                        {"filament_id", text("FILAMENT_ID")},
-                        {"bed_temp", bed_temp > 0 ? json(bed_temp) : json(nullptr)}};
+    // The identity the edit command took: an empty value clears a field, and
+    // a parameter left out keeps it.
     std::pair<std::string, std::string> tm;
+    json identity;
     {
         std::lock_guard<std::mutex> lock(ifs_module_materials_mutex_);
         tm = ifs_module_materials_[slot];
+        identity = ifs_module_identity_[slot];
+        const auto number = [&gcode, &identity](const char* param, const char* key) {
+            if (const auto v = extended_param(gcode, param)) {
+                const int n = int_or_zero(v);
+                identity[key] = n > 0 ? json(n) : json(nullptr);
+            }
+        };
+        const auto text = [&gcode, &identity](const char* param, const char* key) {
+            if (const auto v = extended_param(gcode, param)) {
+                identity[key] = v->empty() ? json(nullptr) : json(*v);
+            }
+        };
+        number("SPOOL_ID", "spool_id");
+        text("VENDOR", "vendor");
+        text("NAME", "name");
+        text("FILAMENT_ID", "filament_id");
+        number("BED_TEMP", "bed_temp");
         ifs_module_identity_[slot] = identity;
     }
+    const auto field = [&identity](const char* key) {
+        return identity.contains(key) ? identity[key] : json(nullptr);
+    };
     // kiln_lanes' record for the slot, which spells vendor as vendor_name.
     mock_db_set("lane_data", "lane" + std::to_string(slot),
                 json{{"lane", std::to_string(slot - 1)},
                      {"material", tm.first},
                      {"color", tm.second.empty() ? std::string() : "#" + tm.second},
-                     {"spool_id", identity["spool_id"]},
-                     {"vendor_name", identity["vendor"]},
-                     {"name", identity["name"]},
-                     {"filament_id", identity["filament_id"]},
-                     {"bed_temp", identity["bed_temp"]}});
+                     {"spool_id", field("spool_id")},
+                     {"vendor_name", field("vendor")},
+                     {"name", field("name")},
+                     {"filament_id", field("filament_id")},
+                     {"bed_temp", field("bed_temp")}});
 }
 
 bool MoonrakerClientMock::apply_ifs_module_gcode(const std::string& cmd, const std::string& gcode) {

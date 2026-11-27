@@ -185,16 +185,17 @@ std::string slot_identity_params(const SlotIdentity& identity) {
     add(p.vendor_param, text_value(p, p.vendor_param, identity.vendor));
     add(p.name_param, text_value(p, p.name_param, identity.name));
     add(p.filament_id_param, text_value(p, p.filament_id_param, identity.filament_id));
-    add(p.bed_temp_param, identity.bed_temp > 0 ? std::to_string(identity.bed_temp) : "");
-    std::string nozzle;
-    if (identity.nozzle_temp >= p.nozzle_temp_min && identity.nozzle_temp <= p.nozzle_temp_max) {
-        nozzle = std::to_string(identity.nozzle_temp);
-    } else if (identity.nozzle_temp > 0) {
-        spdlog::warn("[LaneWriter] {} {}= sent empty: {} is outside the {}-{} it takes", p.name,
-                     p.nozzle_temp_param, identity.nozzle_temp, p.nozzle_temp_min,
-                     p.nozzle_temp_max);
+    if (identity.bed_temp) {
+        add(p.bed_temp_param, *identity.bed_temp > 0 ? std::to_string(*identity.bed_temp) : "");
     }
-    add(p.nozzle_temp_param, nozzle);
+    if (const auto nozzle = identity.nozzle_temp; nozzle && *nozzle <= 0) {
+        add(p.nozzle_temp_param, "");
+    } else if (nozzle && *nozzle >= p.nozzle_temp_min && *nozzle <= p.nozzle_temp_max) {
+        add(p.nozzle_temp_param, std::to_string(*nozzle));
+    } else if (nozzle) {
+        spdlog::warn("[LaneWriter] {} {}= left out: {} is outside the {}-{} it takes", p.name,
+                     p.nozzle_temp_param, *nozzle, p.nozzle_temp_min, p.nozzle_temp_max);
+    }
     return out;
 }
 

@@ -102,6 +102,12 @@ TEST_CASE_METHOD(HelixTestFixture,
         CHECK(slots["2"]["filament_id"].is_null());
         CHECK(slots["2"]["bed_temp"] == 60);
         CHECK(slots["1"]["vendor"].is_null());
+
+        // A parameter left out keeps the field.
+        client.gcode_script("IFS_SET_MATERIAL SLOT=2 TYPE=PLA COLOR=7EC8E3 SPOOL_ID=43");
+        const nlohmann::json kept = TA::ifs_module_materials(client)["slots"]["2"];
+        CHECK(kept["spool_id"] == 43);
+        CHECK(kept["bed_temp"] == 60);
     }
     SECTION("an older plugin API states type, color and temperature only") {
         ScopedEnv api("HELIX_MOCK_IFS_PLUGIN_API", "1.11");

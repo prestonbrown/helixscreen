@@ -1867,8 +1867,9 @@ void AmsBackendAd5xIfs::carry_over_lane_extras_locked() {
     }
 }
 
-std::string AmsBackendAd5xIfs::firmware_identity_params_locked(int slot_index,
-                                                               const std::string& material) const {
+std::string AmsBackendAd5xIfs::firmware_identity_params_locked(
+    int slot_index, const std::string& material,
+    const helix::ams::FilamentSlotOverride& prior) const {
     if (firmware_writes_lane_records_ != true) {
         return {};
     }
@@ -1886,12 +1887,17 @@ std::string AmsBackendAd5xIfs::firmware_identity_params_locked(int slot_index,
     identity.vendor = o.brand;
     identity.name = o.spool_name;
     // A Generic preset is only a material claim: sent empty, the firmware
-    // names its own profile for the type. Likewise a bed or nozzle
-    // temperature nobody set is left to it.
+    // names its own profile for the type.
     const helix::ams::OrcaFilamentId orca = helix::ams::orca_filament_id_for(o);
     identity.filament_id = orca.generic ? std::string() : orca.id;
-    identity.bed_temp = o.bed_temp;
-    identity.nozzle_temp = o.nozzle_temp;
+    // A temperature goes out only when this edit set or cleared it: one set on
+    // the printer's own screen is the firmware's to keep.
+    if (o.bed_temp != prior.bed_temp) {
+        identity.bed_temp = o.bed_temp;
+    }
+    if (o.nozzle_temp != prior.nozzle_temp) {
+        identity.nozzle_temp = o.nozzle_temp;
+    }
     return helix::lane_writer::slot_identity_params(identity);
 }
 
@@ -3363,8 +3369,13 @@ AmsError AmsBackendAd5xIfs::apply_user_edit(int slot_index, const SlotInfo& info
         // lane_data record. Colour and type go to the firmware below; the
         // record takes them from the firmware's echo, so it never names a
         // colour the firmware refused.
+        // The record before this edit: what the edit changed is sent.
+        const auto prior = overrides_.find(slot_index);
+        const helix::ams::FilamentSlotOverride prior_record =
+            prior != overrides_.end() ? prior->second : helix::ams::FilamentSlotOverride{};
         persist_record_beside_firmware_locked(slot_index, info);
-        identity_params = firmware_identity_params_locked(slot_index, normalized_material);
+        identity_params =
+            firmware_identity_params_locked(slot_index, normalized_material, prior_record);
 
         settle_port_locked(slot_index);
     }

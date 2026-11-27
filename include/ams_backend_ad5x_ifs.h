@@ -1022,10 +1022,13 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     // Returns whether a slot's reading changed on a firmware that writes
     // lane_data, so the frame repaints every slot. Caller holds mutex_.
     bool apply_firmware_identities_locked(const nlohmann::json& status);
-    // The firmware edit command's identity parameters for @p info, on a
-    // firmware that writes lane_data; empty elsewhere. Caller holds mutex_.
-    [[nodiscard]] std::string firmware_identity_params_locked(int slot_index,
-                                                              const std::string& material) const;
+    // The firmware edit command's identity parameters for the slot's staged
+    // record, on a firmware that writes lane_data; empty elsewhere. A
+    // temperature goes out only when it differs from @p prior, the slot's
+    // record before the edit. Caller holds mutex_.
+    [[nodiscard]] std::string
+    firmware_identity_params_locked(int slot_index, const std::string& material,
+                                    const helix::ams::FilamentSlotOverride& prior) const;
     void parse_adventurer_json(const std::string& content);
     void read_adventurer_json();
     void register_zcolor_listener();
