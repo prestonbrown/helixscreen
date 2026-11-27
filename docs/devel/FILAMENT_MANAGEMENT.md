@@ -954,11 +954,17 @@ subject, and by the row.
 **The rule every material preset runs.** `src/printer/macro_executor.cpp#plan_material_preheat`
 and `src/printer/macro_executor.cpp#execute_material_preheat` serve the Filament screen's preset
 buttons, the Home preheat tile and the nozzle presets of the temperature graph screen
-(`src/ui/controls/ui_overlay_temp_graph.cpp#on_temp_graph_preset_clicked`). The graph's grid
-buttons, shown from the small breakpoint up, carry the mark through the shared button's own
-icon, `icon="script_text"`, hidden while `preset_material_<slot>_has_macro` is 0. Its
-fixed-row twin at the two smallest sizes carries none: its buttons are 72px wide at 480x320,
-and the mark beside ABS/ASA would sit 2px from each edge.
+(`src/ui/controls/ui_overlay_temp_graph.cpp#on_temp_graph_preset_clicked`). Every graph preset
+button, in the grid, in the portrait strip and in the small twin, carries the mark through the
+shared button's own icon, `icon="script_text"`, hidden while
+`preset_material_<slot>_has_macro` is 0. Its name takes its own width while both fit the
+button, and the rest of the button otherwise, shortening with dots
+(`src/ui/controls/ui_overlay_temp_graph.cpp#fit_preset_name`). The room is the button's width
+less 2px at each edge, because the centered row sets a group wider than the content box into
+the padding: ABS/ASA beside its mark fills the 72px twin's button at 480x320 to that. The rule
+that decides, `fits_beside()` in `include/helix/ui/text_metrics.h`, is the one
+`show_label_that_fits()` and the Filament screen's `preset_fit` use. It runs when the overlay
+opens, when a preset's name changes, on a language switch and whenever a button resizes.
 
 A preset aimed at a tool that is not mounted sends its
 temperatures itself, because a heating macro heats the mounted tool. A refused plan sends nothing: `MACRO_MISSING` publishes a notice naming the macro, and

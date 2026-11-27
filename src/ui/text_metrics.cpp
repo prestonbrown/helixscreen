@@ -63,8 +63,7 @@ void show_label_that_fits(lv_obj_t* full, lv_obj_t* fallback, int32_t reserved) 
         return;
     }
     const int32_t room = lv_obj_get_content_width(parent);
-    const int32_t needed = reserved + label_width(full);
-    const bool fits = room > 0 && needed <= room;
+    const bool fits = fits_beside(room, reserved, label_width(full));
     // DECLARATIVE_OK: measured layout; which line shows depends on drawn text width.
     lv_obj_set_hidden(full, !fits);
     lv_obj_set_hidden(fallback, fits);

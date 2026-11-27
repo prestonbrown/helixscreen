@@ -164,9 +164,10 @@ static void preset_fit(lv_obj_t* button) {
     bool beside = true;
     if (name_row && name && mark) {
         const int32_t room = lv_obj_get_content_width(name_row);
-        beside = room > 0 && helix::ui::label_width(name) + helix::ui::label_width(mark) +
-                                     lv_obj_get_style_pad_column(name_row, LV_PART_MAIN) <=
-                                 room;
+        beside = helix::ui::fits_beside(room,
+                                        helix::ui::label_width(mark) +
+                                            lv_obj_get_style_pad_column(name_row, LV_PART_MAIN),
+                                        helix::ui::label_width(name));
     }
     lv_subject_t* has_macro = nullptr;
     lv_subject_t* beside_subject = nullptr;

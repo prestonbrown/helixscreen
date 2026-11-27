@@ -3,6 +3,7 @@
 
 #include "ui_overlay_temp_graph.h"
 
+#include "ui_button.h"
 #include "ui_callback_helpers.h"
 #include "ui_component_keypad.h"
 #include "ui_error_reporting.h"
@@ -14,9 +15,11 @@
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "core/temperature_units.h"
 #include "heater_type.h"
+#include "helix/ui/text_metrics.h"
 #include "lvgl.h"
 #include "macro_executor.h"
 #include "observe_language.h"
@@ -39,6 +42,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cstring>
 #include <string_view>
 #include <utility>
 
@@ -159,9 +163,81 @@ void TempGraphOverlay::init_subjects() {
     }
 }
 
+namespace {
+
+/// What a preset button's name and macro mark leave at each edge of the button
+/// when they fill it. The row is centered, so a group wider than the button's
+/// content box sits in its padding; ABS/ASA beside its mark fills the smallest
+/// twin's 72px button to this.
+constexpr int32_t kPresetEdgeRoom = 2;
+
+} // namespace
+
+int TempGraphOverlay::material_preset_slot(const char* widget_name) {
+    if (!widget_name) {
+        return -1;
+    }
+    for (int slot = 0; slot < kTempGraphVisiblePresets; ++slot) {
+        if (std::strstr(widget_name, ("preset_" + std::to_string(slot + 1)).c_str()) != nullptr) {
+            return slot;
+        }
+    }
+    return -1;
+}
+
+void TempGraphOverlay::fit_preset_name(lv_obj_t* button, int slot) {
+    lv_obj_t* name = ui_button_get_label(button);
+    lv_obj_t* mark = ui_button_get_icon(button);
+    if (!name || !mark) {
+        return;
+    }
+    // DECLARATIVE_OK: measured layout; how wide the name may grow is decided
+    // from drawn widths. The name is measured from its subject: a label that
+    // shortens with dots has its text rewritten.
+    const char* text = helix::presets::name(slot).c_str();
+    const int32_t name_width =
+        helix::ui::text_width(text, lv_obj_get_style_text_font(name, LV_PART_MAIN),
+                              lv_obj_get_style_text_letter_space(name, LV_PART_MAIN));
+    const int32_t reserved =
+        lv_obj_is_hidden(mark)
+            ? 0
+            : helix::ui::label_width(mark) + lv_obj_get_style_pad_column(button, LV_PART_MAIN);
+    const int32_t room = lv_obj_get_width(button) - 2 * kPresetEdgeRoom;
+    // The button's long_mode gives its label the row's whole width; here the
+    // name is as wide as it needs to be and no wider.
+    lv_obj_set_flex_grow(name, 0);
+    lv_obj_set_width(name, helix::ui::fits_beside(room, reserved, name_width)
+                               ? static_cast<int32_t>(LV_SIZE_CONTENT)
+                               : LV_MAX(room - reserved, 1));
+}
+
+void TempGraphOverlay::fit_preset_names() {
+    if (!overlay_root_) {
+        return;
+    }
+    lv_obj_update_layout(overlay_root_);
+    static constexpr const char* kSuffixes[] = {"", "_tiny"};
+    for (int slot = 0; slot < kTempGraphVisiblePresets; ++slot) {
+        for (const char* suffix : kSuffixes) {
+            const std::string widget_name = "preset_" + std::to_string(slot + 1) + suffix;
+            if (lv_obj_t* button = lv_obj_find_by_name(overlay_root_, widget_name.c_str())) {
+                fit_preset_name(button, slot);
+            }
+        }
+    }
+}
+
 void TempGraphOverlay::register_callbacks() {
     register_xml_callbacks({
         {"on_temp_graph_preset_clicked", on_temp_graph_preset_clicked},
+        {"temp_graph_preset_fit",
+         [](lv_event_t* e) {
+             auto* button = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+             const int slot = material_preset_slot(lv_obj_get_name(button));
+             if (slot >= 0) {
+                 fit_preset_name(button, slot);
+             }
+         }},
         {"on_temp_graph_custom_clicked", on_temp_graph_custom_clicked},
         {"temp_graph_chip_cb",
          [](lv_event_t* e) {
@@ -273,9 +349,22 @@ void TempGraphOverlay::on_activate() {
     }
     create_chips();
     configure_control_strip();
-    // The heater chips and legend name their heaters in the UI language.
-    language_observer_ = helix::ui::observe_language_change(
-        this, [](TempGraphOverlay* self) { self->retranslate_series(); });
+    // A preset's name and macro mark were fitted when the overlay was last up:
+    // either may have changed since, and the buttons may have a new size.
+    fit_preset_names();
+    const auto preset_lifetime = helix::presets::get_subjects_lifetime();
+    for (int slot = 0; slot < kTempGraphVisiblePresets; ++slot) {
+        name_observers_[slot] = helix::ui::observe<const char*>(
+            helix::presets::name_subject(slot), this,
+            [slot](TempGraphOverlay* self, const char*) { self->fit_preset_names(); },
+            preset_lifetime);
+    }
+    // The heater chips and legend name their heaters in the UI language, and
+    // a new language's fonts give a preset's name another width.
+    language_observer_ = helix::ui::observe_language_change(this, [](TempGraphOverlay* self) {
+        self->retranslate_series();
+        self->fit_preset_names();
+    });
 
     spdlog::debug("[TempGraphOverlay] Activated with {} series, mode={}", series_.size(),
                   static_cast<int>(mode_));
@@ -297,6 +386,9 @@ void TempGraphOverlay::on_deactivating(DeactivateReason) {
     }
 
     language_observer_.reset();
+    for (auto& observer : name_observers_) {
+        observer.reset();
+    }
     // Destroy controller (tears down observers, destroys graph)
     controller_.reset();
 
@@ -311,6 +403,9 @@ void TempGraphOverlay::on_deactivating(DeactivateReason) {
 
 void TempGraphOverlay::cleanup() {
     language_observer_.reset();
+    for (auto& observer : name_observers_) {
+        observer.reset();
+    }
     controller_.reset();
     series_.clear();
     OverlayBase::cleanup();
@@ -767,17 +862,12 @@ void TempGraphOverlay::on_temp_graph_preset_clicked(lv_event_t* e) {
     if (!self->temp_control_panel_)
         return;
 
-    // Map button name suffix to preset index
-    int preset_idx = -1;
+    // Map button name suffix to preset index: 0 is "Off"; preset_N is slot N-1.
     std::string name_str(name);
-    if (name_str.find("preset_off") != std::string::npos)
+    int preset_idx = material_preset_slot(name) + 1;
+    if (name_str.find("preset_off") != std::string::npos) {
         preset_idx = 0;
-    else if (name_str.find("preset_1") != std::string::npos)
-        preset_idx = 1;
-    else if (name_str.find("preset_2") != std::string::npos)
-        preset_idx = 2;
-    else if (name_str.find("preset_3") != std::string::npos)
-        preset_idx = 3;
+    }
 
     if (preset_idx < 0 || preset_idx >= kMaxPresets)
         return;

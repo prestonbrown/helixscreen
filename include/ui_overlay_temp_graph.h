@@ -15,6 +15,7 @@
 #include "temp_graph_controller.h"
 #include "temp_graph_series_policy.h"
 
+#include <array>
 #include <memory>
 #include <optional>
 #include <string>
@@ -98,6 +99,13 @@ class TempGraphOverlay : public OverlayBase {
   private:
     static void on_temp_graph_preset_clicked(lv_event_t* e);
     static void on_temp_graph_custom_clicked(lv_event_t* e);
+    /// The material slot of a nozzle-strip widget named preset_1 to preset_3,
+    /// with or without the small twin's _tiny, or -1.
+    static int material_preset_slot(const char* widget_name);
+    /// The name of preset button @p button (slot @p slot) beside its macro
+    /// mark: its own width while both fit the button, the rest of the button
+    /// otherwise, shortening with dots.
+    static void fit_preset_name(lv_obj_t* button, int slot);
 
     friend class TempGraphOverlayTestAccess;
 
@@ -144,6 +152,8 @@ class TempGraphOverlay : public OverlayBase {
 
     // Control strip
     void configure_control_strip();
+    /// Fit the name of every preset button, from the layout as it stands.
+    void fit_preset_names();
 
     // Keypad callback
     static void keypad_value_cb(float value, void* user_data);
@@ -224,6 +234,9 @@ class TempGraphOverlay : public OverlayBase {
 
     /// Bound while active: re-words the heater chips on a language switch.
     ObserverGuard language_observer_;
+    /// Bound while active: a material preset's name, so its buttons are fitted
+    /// again when it changes.
+    std::array<ObserverGuard, kTempGraphVisiblePresets> name_observers_{};
 
     // Subject management
     SubjectManager subjects_;
