@@ -273,6 +273,23 @@ TEST_CASE_METHOD(TempGraphHeatFixture,
     CHECK(mark_box.x1 >= box.x1);
     CHECK(mark_box.x2 <= name_box.x1);
 
+    // A button that changes its size under a fitted name, as one does when the
+    // screen changes size: the name takes the new room.
+    const int32_t button_width = lv_area_get_width(&box);
+    const int32_t button_width_style = lv_obj_get_style_width(reopened, LV_PART_MAIN);
+    REQUIRE(button_width > 0);
+    lv_obj_set_style_width(reopened, button_width / 2, LV_PART_MAIN);
+    lv_obj_update_layout(lv_screen_active());
+    lv_obj_get_coords(reopened, &box);
+    lv_obj_get_coords(name, &name_box);
+    lv_obj_get_coords(mark, &mark_box);
+    REQUIRE(lv_area_get_width(&box) < button_width);
+    CHECK(lv_obj_get_width(name) < width_beside_mark);
+    CHECK(mark_box.x1 >= box.x1);
+    CHECK(name_box.x2 <= box.x2);
+    lv_obj_set_style_width(reopened, button_width_style, LV_PART_MAIN);
+    lv_obj_update_layout(lv_screen_active());
+
     NavigationManager::instance().go_back();
     settle();
     lv_subject_set_string(abs_name, saved_name.c_str());
