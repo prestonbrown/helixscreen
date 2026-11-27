@@ -939,9 +939,11 @@ data.
 preset's is bound to `filament_spool_preset_has_macro`. The glyph sits before the name while the
 name fits beside it, and before the temperature line in a narrower button (480x320 and 480x272):
 `src/ui/filament/ui_panel_filament.cpp#preset_fit_temps` measures both with
-`helix::ui::label_width` and publishes `preset_material_<slot>_mark_beside_name` (the spool preset
-has its own), the markup shows one glyph or the other from it, and the same fit leaves the
-temperature line only the room the glyph takes. Both rows are `clickable="false"`, so neither takes
+`helix::ui::label_width`, asks `fits_beside()` in `include/helix/ui/text_metrics.h` (the rule
+`show_label_that_fits()` uses too) and publishes `preset_material_<slot>_mark_beside_name` (the
+spool preset has its own), the markup shows one glyph or the other from it, and the same fit
+leaves the temperature line only the room the glyph takes. Both rows are `clickable="false"`, so
+neither takes
 a press from the button. A hold on a preset still opens `filament_catalog_picker`; for
 that caller the dialog shows a row bound to `catalog_picker_macro_shown`, `catalog_picker_macro_set`,
 `catalog_picker_macro_heats` and `catalog_picker_macro_name`, and its click opens the material's edit
@@ -950,6 +952,26 @@ body has left, so the product list gives the row its height and ends above the b
 macro heats is `MaterialOverride::macro_heats`, asked by
 `src/printer/macro_executor.cpp#plan_material_preheat`, by the edit view's `material_macro_heats`
 subject, and by the row.
+
+**The rule every material preset runs.** `src/printer/macro_executor.cpp#plan_material_preheat`
+and `src/printer/macro_executor.cpp#execute_material_preheat` serve the Filament screen's preset
+buttons, the Home preheat tile and the nozzle presets of the temperature graph screen
+(`src/ui/controls/ui_overlay_temp_graph.cpp#on_temp_graph_preset_clicked`). Every graph preset
+button, in the grid, in the portrait strip and in the small twin, carries the mark through the
+shared button's own icon, `icon="script_text"`, hidden while
+`preset_material_<slot>_has_macro` is 0. Its name is capped at what the button holds beside
+the mark, so a name that fits shows whole and a longer one ends in dots inside the button
+(`src/ui/controls/ui_overlay_temp_graph.cpp#fit_preset_name`). The room is the button's width
+less 2px at each edge, because the centered row sets a group wider than the content box into
+the padding: ABS/ASA beside its mark fills the 72px twin's button at 480x320 to that. The cap
+is set when the overlay opens, when a preset's name changes or its mark appears or leaves, on
+a language switch and whenever a button resizes.
+
+A preset aimed at a tool that is not mounted sends its
+temperatures itself, because a heating macro heats the mounted tool. A refused plan sends nothing: `MACRO_MISSING` publishes a notice naming the macro, and
+`MACRO_UNCONFIRMED`, planned until `PrinterDiscovery::objects_reported()`, says the printer is
+not ready, because an empty macro list is no observation. A caller makes its plan before it
+moves its own selection: a refused tap leaves the Filament screen on the material it had.
 
 **Migration from `settings.json`.** `MaterialSettingsManager::init()` moves any
 `material_overrides` left in `settings.json` into the overlay's `types`

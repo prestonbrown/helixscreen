@@ -3,6 +3,7 @@
 
 #include "ui_overlay_temp_graph.h"
 
+#include "ui_button.h"
 #include "ui_callback_helpers.h"
 #include "ui_component_keypad.h"
 #include "ui_error_reporting.h"
@@ -14,10 +15,13 @@
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "core/temperature_units.h"
 #include "heater_type.h"
+#include "helix/ui/text_metrics.h"
 #include "lvgl.h"
+#include "macro_executor.h"
 #include "observe_language.h"
 #include "panel_widget_manager.h"
 #include "preset_materials.h"
@@ -38,6 +42,8 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <array>
+#include <cstring>
 #include <string_view>
 #include <utility>
 
@@ -158,9 +164,73 @@ void TempGraphOverlay::init_subjects() {
     }
 }
 
+namespace {
+
+/// What a preset button's name and macro mark leave at each edge of the button
+/// when they fill it. The row is centered, so a group wider than the button's
+/// content box sits in its padding; ABS/ASA beside its mark fills the smallest
+/// twin's 72px button to this.
+constexpr int32_t kPresetEdgeRoom = 2;
+
+} // namespace
+
+int TempGraphOverlay::material_preset_slot(const char* widget_name) {
+    if (!widget_name) {
+        return -1;
+    }
+    for (size_t slot = 0; slot < kPresetButtons.size(); ++slot) {
+        if (std::strstr(widget_name, kPresetButtons[slot][0]) != nullptr) {
+            return static_cast<int>(slot);
+        }
+    }
+    return -1;
+}
+
+void TempGraphOverlay::fit_preset_name(lv_obj_t* button) {
+    lv_obj_t* name = ui_button_get_label(button);
+    lv_obj_t* mark = ui_button_get_icon(button);
+    if (!name || !mark) {
+        return;
+    }
+    const int32_t reserved =
+        lv_obj_is_hidden(mark)
+            ? 0
+            : helix::ui::label_width(mark) + lv_obj_get_style_pad_column(button, LV_PART_MAIN);
+    const int32_t room = lv_obj_get_width(button) - 2 * kPresetEdgeRoom;
+    // DECLARATIVE_OK: measured layout; how wide the name may grow follows the
+    // button's and the mark's drawn widths. Under that width a name shows
+    // whole, and a longer one ends in dots.
+    lv_label_set_long_mode(name, LV_LABEL_LONG_MODE_DOTS);
+    lv_label_set_max_lines(name, 1);
+    // A maximum narrows a label where a width cannot: a label is never less
+    // than the width of what it shows.
+    lv_obj_set_style_max_width(name, LV_MAX(room - reserved, 1), LV_PART_MAIN);
+}
+
+void TempGraphOverlay::fit_preset_names() {
+    if (!overlay_root_) {
+        return;
+    }
+    // The buttons' sizes as they stand; then, once every name is fitted, the
+    // layout that gives a shortened name its dots.
+    lv_obj_update_layout(overlay_root_);
+    for (const auto& names : kPresetButtons) {
+        for (const char* widget_name : names) {
+            if (lv_obj_t* button = lv_obj_find_by_name(overlay_root_, widget_name)) {
+                fit_preset_name(button);
+            }
+        }
+    }
+    lv_obj_update_layout(overlay_root_);
+}
+
 void TempGraphOverlay::register_callbacks() {
     register_xml_callbacks({
         {"on_temp_graph_preset_clicked", on_temp_graph_preset_clicked},
+        {"temp_graph_preset_fit",
+         [](lv_event_t* e) {
+             fit_preset_name(static_cast<lv_obj_t*>(lv_event_get_current_target(e)));
+         }},
         {"on_temp_graph_custom_clicked", on_temp_graph_custom_clicked},
         {"temp_graph_chip_cb",
          [](lv_event_t* e) {
@@ -272,9 +342,26 @@ void TempGraphOverlay::on_activate() {
     }
     create_chips();
     configure_control_strip();
-    // The heater chips and legend name their heaters in the UI language.
-    language_observer_ = helix::ui::observe_language_change(
-        this, [](TempGraphOverlay* self) { self->retranslate_series(); });
+    // A preset's name and macro mark were fitted when the overlay was last up:
+    // either may have changed since, and the buttons may have a new size.
+    fit_preset_names();
+    const auto preset_lifetime = helix::presets::get_subjects_lifetime();
+    for (int slot = 0; slot < kTempGraphVisiblePresets; ++slot) {
+        // A name that changes, and a mark that appears under a name already
+        // fitted or leaves it, each move the width the name may take.
+        preset_observers_[slot] = helix::ui::observe<const char*>(
+            helix::presets::name_subject(slot), this,
+            [](TempGraphOverlay* self, const char*) { self->fit_preset_names(); }, preset_lifetime);
+        preset_observers_[kTempGraphVisiblePresets + slot] = helix::ui::observe<int>(
+            helix::presets::has_macro_subject(slot), this,
+            [](TempGraphOverlay* self, int) { self->fit_preset_names(); }, preset_lifetime);
+    }
+    // The heater chips and legend name their heaters in the UI language, and
+    // a new language's fonts give a preset's name another width.
+    language_observer_ = helix::ui::observe_language_change(this, [](TempGraphOverlay* self) {
+        self->retranslate_series();
+        self->fit_preset_names();
+    });
 
     spdlog::debug("[TempGraphOverlay] Activated with {} series, mode={}", series_.size(),
                   static_cast<int>(mode_));
@@ -296,6 +383,9 @@ void TempGraphOverlay::on_deactivating(DeactivateReason) {
     }
 
     language_observer_.reset();
+    for (auto& observer : preset_observers_) {
+        observer.reset();
+    }
     // Destroy controller (tears down observers, destroys graph)
     controller_.reset();
 
@@ -310,6 +400,9 @@ void TempGraphOverlay::on_deactivating(DeactivateReason) {
 
 void TempGraphOverlay::cleanup() {
     language_observer_.reset();
+    for (auto& observer : preset_observers_) {
+        observer.reset();
+    }
     controller_.reset();
     series_.clear();
     OverlayBase::cleanup();
@@ -766,17 +859,12 @@ void TempGraphOverlay::on_temp_graph_preset_clicked(lv_event_t* e) {
     if (!self->temp_control_panel_)
         return;
 
-    // Map button name suffix to preset index
-    int preset_idx = -1;
+    // Map button name suffix to preset index: 0 is "Off"; preset_N is slot N-1.
     std::string name_str(name);
-    if (name_str.find("preset_off") != std::string::npos)
+    int preset_idx = material_preset_slot(name) + 1;
+    if (name_str.find("preset_off") != std::string::npos) {
         preset_idx = 0;
-    else if (name_str.find("preset_1") != std::string::npos)
-        preset_idx = 1;
-    else if (name_str.find("preset_2") != std::string::npos)
-        preset_idx = 2;
-    else if (name_str.find("preset_3") != std::string::npos)
-        preset_idx = 3;
+    }
 
     if (preset_idx < 0 || preset_idx >= kMaxPresets)
         return;
@@ -793,46 +881,67 @@ void TempGraphOverlay::on_temp_graph_preset_clicked(lv_event_t* e) {
     // nozzle mirror tracks the machine's active tool, so the optimistic local
     // set_heater is only correct when the target is mounted.
     auto& target = helix::ui::TargetTool::instance();
-    const bool nozzle_pick_non_active = type == helix::HeaterType::Nozzle && !target.mounted();
+    const bool aimed_elsewhere = type == helix::HeaterType::Nozzle && !target.mounted();
 
-    if (!nozzle_pick_non_active) {
-        // Update local state
-        self->temp_control_panel_->set_heater(
-            type, self->temp_control_panel_->heater(type).current,
-            helix::temperature_rules::degrees_to_deci(data.preset_value));
-    }
-
-    // Send via the controller — it resolves the klipper name internally (chamber
-    // never sends a stale HEATER=chamber) and shows the standard error toast.
-    if (helix::TemperatureController* c = self->temp_control_panel_->controller()) {
-        if (nozzle_pick_non_active) {
-            c->set_target(target.extruder_name(), static_cast<double>(data.preset_value),
-                          {.toast = true});
-        } else {
-            c->set_target(type, static_cast<double>(data.preset_value), {.toast = true});
+    const auto send_targets = [&]() {
+        if (!aimed_elsewhere) {
+            // Update local state
+            self->temp_control_panel_->set_heater(
+                type, self->temp_control_panel_->heater(type).current,
+                helix::temperature_rules::degrees_to_deci(data.preset_value));
         }
-        // A nozzle material preset heats the bed, and the chamber on a printer
-        // with a chamber heater, unless "Material presets heat the bed and
-        // chamber" is off. Off (index 0) touches the nozzle alone.
-        if (type == helix::HeaterType::Nozzle && preset_idx > 0) {
-            if (const auto temps = helix::presets::slot_temps(preset_idx - 1)) {
-                const int chamber =
-                    self->printer_state_
-                        ? helix::presets::chamber_request(temps->chamber,
-                                                          self->printer_state_->temperature_state())
-                        : 0;
-                const auto targets = helix::presets::heater_targets(temps->bed, chamber);
-                if (targets.bed) {
-                    c->set_target(helix::HeaterType::Bed, static_cast<double>(*targets.bed),
-                                  {.toast = true});
-                }
-                if (targets.chamber) {
-                    c->set_target(helix::HeaterType::Chamber, static_cast<double>(*targets.chamber),
-                                  {.toast = true});
+
+        // Send via the controller — it resolves the klipper name internally (chamber
+        // never sends a stale HEATER=chamber) and shows the standard error toast.
+        if (helix::TemperatureController* c = self->temp_control_panel_->controller()) {
+            if (aimed_elsewhere) {
+                c->set_target(target.extruder_name(), static_cast<double>(data.preset_value),
+                              {.toast = true});
+            } else {
+                c->set_target(type, static_cast<double>(data.preset_value), {.toast = true});
+            }
+            // A nozzle material preset heats the bed, and the chamber on a printer
+            // with a chamber heater, unless "Material presets heat the bed and
+            // chamber" is off. Off (index 0) touches the nozzle alone.
+            if (type == helix::HeaterType::Nozzle && preset_idx > 0) {
+                if (const auto temps = helix::presets::slot_temps(preset_idx - 1)) {
+                    const int chamber =
+                        self->printer_state_
+                            ? helix::presets::chamber_request(
+                                  temps->chamber, self->printer_state_->temperature_state())
+                            : 0;
+                    const auto targets = helix::presets::heater_targets(temps->bed, chamber);
+                    if (targets.bed) {
+                        c->set_target(helix::HeaterType::Bed, static_cast<double>(*targets.bed),
+                                      {.toast = true});
+                    }
+                    if (targets.chamber) {
+                        c->set_target(helix::HeaterType::Chamber,
+                                      static_cast<double>(*targets.chamber), {.toast = true});
+                    }
                 }
             }
         }
+    };
+
+    // A material preset runs its macro by the rule every material preset uses,
+    // the Filament panel's and the Home preheat tile's: the rule sends these
+    // targets, before an additive macro or alone, and sends nothing with a
+    // notice when the macro is not on this printer. A heating macro heats the
+    // mounted tool, so a preset aimed at another sends its targets itself.
+    if (type == helix::HeaterType::Nozzle && preset_idx > 0 && !aimed_elsewhere &&
+        self->printer_state_) {
+        const auto& hw = self->printer_state_->get_discovery();
+        execute_material_preheat(
+            get_moonraker_api(),
+            plan_material_preheat(
+                helix::MaterialSettingsManager::instance().find_override_for_material(
+                    helix::presets::macro_material(preset_idx - 1)),
+                hw, self->printer_state_->print_state().get_print_lifecycle()),
+            send_targets, "[TempGraphOverlay]", hw);
+        return;
     }
+    send_targets();
 }
 
 void TempGraphOverlay::on_temp_graph_custom_clicked(lv_event_t* e) {

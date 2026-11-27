@@ -2983,6 +2983,7 @@ translations:
   Macro to resume a paused print: 一時停止した印刷を再開するマクロ
   Macro to unload filament from extruder: エクストルーダーからフィラメントを排出するマクロ
   Macro {1} has a syntax error: マクロ {1} に構文エラーがあります
+  Macro {} is not on this printer, so the preset did not run: マクロ {} はこのプリンターにないため、プリセットは実行されませんでした
   Macros: マクロ
   Macros installed - restart pending: 'マクロをインストールしました - 再起動は保留中'
   Macros installed. Restart Klipper after the print to activate them.: 'マクロをインストールしました。印刷後に Klipper を再起動すると有効になります。'

@@ -234,7 +234,14 @@
                it for the fixed-row twin below, whose taller buttons consume
                the dead band between the picker and the pinned bottom rows.
                Names carry _tiny so on_temp_graph_preset_clicked's substring
-               lookup (preset_off/preset_1/...) still resolves. -->
+               lookup (preset_off/preset_1/...) still resolves.
+               A material preset runs its material's macro, so a preset button
+               carries the macro mark beside its name while its material names
+               one: here, in the portrait strip's own grid, and in the twin
+               below (the button's own icon, shown by preset_material_<slot>_has_macro).
+               temp_graph_preset_fit decides how wide the name may grow: its
+               own width while both fit the button, and the rest of the button
+               otherwise, shortening with dots. -->
           <lv_obj name="nozzle_preset_grid"
                   width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row_wrap"
                   style_flex_main_place="space_between" style_pad_gap="#space_xs">
@@ -244,15 +251,24 @@
                        style_border_color="#border" style_border_opa="255">
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>
-            <ui_button name="preset_1" width="48%" bind_text="preset_material_0_name">
+            <ui_button name="preset_1"
+                       width="48%" bind_text="preset_material_0_name" icon="script_text" icon_size="xs"
+                       icon_hidden_subject="preset_material_0_has_macro" icon_hidden_if_eq="0">
+              <event_cb trigger="size_changed" callback="temp_graph_preset_fit"/>
               <bind_style name="styles.heat_blocked" subject="ams_nozzle_heat_blocked" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>
-            <ui_button name="preset_2" width="48%" bind_text="preset_material_1_name">
+            <ui_button name="preset_2"
+                       width="48%" bind_text="preset_material_1_name" icon="script_text" icon_size="xs"
+                       icon_hidden_subject="preset_material_1_has_macro" icon_hidden_if_eq="0">
+              <event_cb trigger="size_changed" callback="temp_graph_preset_fit"/>
               <bind_style name="styles.heat_blocked" subject="ams_nozzle_heat_blocked" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>
-            <ui_button name="preset_3" width="48%" bind_text="preset_material_2_name">
+            <ui_button name="preset_3"
+                       width="48%" bind_text="preset_material_2_name" icon="script_text" icon_size="xs"
+                       icon_hidden_subject="preset_material_2_has_macro" icon_hidden_if_eq="0">
+              <event_cb trigger="size_changed" callback="temp_graph_preset_fit"/>
               <bind_style name="styles.heat_blocked" subject="ams_nozzle_heat_blocked" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>
@@ -273,7 +289,10 @@
                          style_border_color="#border" style_border_opa="255">
                 <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
               </ui_button>
-              <ui_button name="preset_1_tiny" width="48%" height="100%" bind_text="preset_material_0_name">
+              <ui_button name="preset_1_tiny"
+                         width="48%" height="100%" bind_text="preset_material_0_name" icon="script_text" icon_size="xs"
+                         icon_hidden_subject="preset_material_0_has_macro" icon_hidden_if_eq="0">
+                <event_cb trigger="size_changed" callback="temp_graph_preset_fit"/>
                 <bind_style name="styles.heat_blocked" subject="ams_nozzle_heat_blocked" ref_value="1"/>
                 <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
               </ui_button>
@@ -281,11 +300,17 @@
             <lv_obj name="nozzle_preset_row_2_tiny"
                     width="100%" height="#tg_preset_h" style_pad_all="0" scrollable="false" flex_flow="row"
                     style_flex_main_place="space_between" style_pad_gap="#space_xs">
-              <ui_button name="preset_2_tiny" width="48%" height="100%" bind_text="preset_material_1_name">
+              <ui_button name="preset_2_tiny"
+                         width="48%" height="100%" bind_text="preset_material_1_name" icon="script_text" icon_size="xs"
+                         icon_hidden_subject="preset_material_1_has_macro" icon_hidden_if_eq="0">
+                <event_cb trigger="size_changed" callback="temp_graph_preset_fit"/>
                 <bind_style name="styles.heat_blocked" subject="ams_nozzle_heat_blocked" ref_value="1"/>
                 <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
               </ui_button>
-              <ui_button name="preset_3_tiny" width="48%" height="100%" bind_text="preset_material_2_name">
+              <ui_button name="preset_3_tiny"
+                         width="48%" height="100%" bind_text="preset_material_2_name" icon="script_text" icon_size="xs"
+                         icon_hidden_subject="preset_material_2_has_macro" icon_hidden_if_eq="0">
+                <event_cb trigger="size_changed" callback="temp_graph_preset_fit"/>
                 <bind_style name="styles.heat_blocked" subject="ams_nozzle_heat_blocked" ref_value="1"/>
                 <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
               </ui_button>
@@ -342,15 +367,24 @@
                          style_border_width="#border_width" style_border_color="#border" style_border_opa="255">
                 <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
               </ui_button>
-              <ui_button name="preset_1" width="48%" height="#tg_portrait_btn_h" bind_text="preset_material_0_name">
+              <ui_button name="preset_1"
+                         width="48%" height="#tg_portrait_btn_h" bind_text="preset_material_0_name" icon="script_text"
+                         icon_size="xs" icon_hidden_subject="preset_material_0_has_macro" icon_hidden_if_eq="0">
+                <event_cb trigger="size_changed" callback="temp_graph_preset_fit"/>
                 <bind_style name="styles.heat_blocked" subject="ams_nozzle_heat_blocked" ref_value="1"/>
                 <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
               </ui_button>
-              <ui_button name="preset_2" width="48%" height="#tg_portrait_btn_h" bind_text="preset_material_1_name">
+              <ui_button name="preset_2"
+                         width="48%" height="#tg_portrait_btn_h" bind_text="preset_material_1_name" icon="script_text"
+                         icon_size="xs" icon_hidden_subject="preset_material_1_has_macro" icon_hidden_if_eq="0">
+                <event_cb trigger="size_changed" callback="temp_graph_preset_fit"/>
                 <bind_style name="styles.heat_blocked" subject="ams_nozzle_heat_blocked" ref_value="1"/>
                 <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
               </ui_button>
-              <ui_button name="preset_3" width="48%" height="#tg_portrait_btn_h" bind_text="preset_material_2_name">
+              <ui_button name="preset_3"
+                         width="48%" height="#tg_portrait_btn_h" bind_text="preset_material_2_name" icon="script_text"
+                         icon_size="xs" icon_hidden_subject="preset_material_2_has_macro" icon_hidden_if_eq="0">
+                <event_cb trigger="size_changed" callback="temp_graph_preset_fit"/>
                 <bind_style name="styles.heat_blocked" subject="ams_nozzle_heat_blocked" ref_value="1"/>
                 <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
               </ui_button>

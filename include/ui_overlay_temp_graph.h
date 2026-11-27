@@ -15,6 +15,7 @@
 #include "temp_graph_controller.h"
 #include "temp_graph_series_policy.h"
 
+#include <array>
 #include <memory>
 #include <optional>
 #include <string>
@@ -98,6 +99,12 @@ class TempGraphOverlay : public OverlayBase {
   private:
     static void on_temp_graph_preset_clicked(lv_event_t* e);
     static void on_temp_graph_custom_clicked(lv_event_t* e);
+    /// The material slot of a preset button, named preset_1 to preset_3 in any
+    /// strip (bed_preset_2, chamber_preset_3_tiny), or -1.
+    static int material_preset_slot(const char* widget_name);
+    /// Caps the name of preset button @p button at what the button holds
+    /// beside its macro mark, so a longer name ends in dots inside the button.
+    static void fit_preset_name(lv_obj_t* button);
 
     friend class TempGraphOverlayTestAccess;
 
@@ -144,6 +151,8 @@ class TempGraphOverlay : public OverlayBase {
 
     // Control strip
     void configure_control_strip();
+    /// Fit the name of every preset button, from the layout as it stands.
+    void fit_preset_names();
 
     // Keypad callback
     static void keypad_value_cb(float value, void* user_data);
@@ -175,6 +184,18 @@ class TempGraphOverlay : public OverlayBase {
     static constexpr int kTempGraphVisiblePresets = 3;
     static_assert(kTempGraphVisiblePresets <= helix::presets::kPresetCount,
                   "cannot surface more preset slots than exist");
+
+    /// The nozzle preset buttons of the grid, which the portrait strip repeats
+    /// under the same names, and of the small twin, by slot: the grid's, then
+    /// the twin's. Every strip's preset button has the grid name in its own.
+    static constexpr std::array<std::array<const char*, 2>, kTempGraphVisiblePresets>
+        kPresetButtons{{
+            {{"preset_1", "preset_1_tiny"}},
+            {{"preset_2", "preset_2_tiny"}},
+            {{"preset_3", "preset_3_tiny"}},
+        }};
+    static_assert(kPresetButtons.back()[0] != nullptr,
+                  "a visible preset slot needs its button names");
 
     /// "Off" + the visible material presets.
     static constexpr int kMaxPresets = 1 + kTempGraphVisiblePresets;
@@ -224,6 +245,10 @@ class TempGraphOverlay : public OverlayBase {
 
     /// Bound while active: re-words the heater chips on a language switch.
     ObserverGuard language_observer_;
+    /// Bound while active: a material preset's name and whether it has a macro
+    /// (the mark beside the name), so its buttons are fitted again when either
+    /// changes. Slots first, then the marks.
+    std::array<ObserverGuard, 2 * kTempGraphVisiblePresets> preset_observers_{};
 
     // Subject management
     SubjectManager subjects_;

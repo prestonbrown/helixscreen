@@ -2858,6 +2858,7 @@
   <translation tag="Macro to resume a paused print" ja="一時停止した印刷を再開するマクロ"/>
   <translation tag="Macro to unload filament from extruder" ja="エクストルーダーからフィラメントを排出するマクロ"/>
   <translation tag="Macro {1} has a syntax error" ja="マクロ {1} に構文エラーがあります"/>
+  <translation tag="Macro {} is not on this printer, so the preset did not run" ja="マクロ {} はこのプリンターにないため、プリセットは実行されませんでした"/>
   <translation tag="Macros" ja="マクロ"/>
   <translation tag="Macros installed - restart pending" ja="マクロをインストールしました - 再起動は保留中"/>
   <translation tag="Macros installed. Restart Klipper after the print to activate them." ja="マクロをインストールしました。印刷後に Klipper を再起動すると有効になります。"/>

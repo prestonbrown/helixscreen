@@ -2958,6 +2958,7 @@ translations:
   Macro to resume a paused print: Macro to resume a paused print
   Macro to unload filament from extruder: Macro to unload filament from extruder
   Macro {1} has a syntax error: Macro {1} has a syntax error
+  Macro {} is not on this printer, so the preset did not run: Macro {} is not on this printer, so the preset did not run
   Macros: Macros
   Macros installed - restart pending: Macros installed - restart pending
   Macros installed. Restart Klipper after the print to activate them.: Macros installed. Restart Klipper after the print to activate them.

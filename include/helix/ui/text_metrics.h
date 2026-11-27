@@ -37,6 +37,18 @@ int32_t text_width_n(const char* txt, uint32_t len, const lv_font_t* font,
 int32_t label_width(lv_obj_t* label);
 
 /**
+ * @brief True when a label @p wide pixels wide fits a line @p room pixels wide
+ *        beside @p reserved pixels of anything else on it.
+ *
+ * One rule for every surface that places something beside a label. A line
+ * with no room fits nothing, so a parent not laid out yet never reads as
+ * roomy.
+ */
+constexpr bool fits_beside(int32_t room, int32_t reserved, int32_t wide) {
+    return room > 0 && reserved + wide <= room;
+}
+
+/**
  * @brief Widen a closed dropdown so its button text and arrow both fit.
  *
  * lv_dropdown reports no content width, so width="content" falls back to the

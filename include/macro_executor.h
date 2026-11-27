@@ -49,26 +49,43 @@ enum class MaterialPreheatMode {
     TEMPERATURES,            ///< No macro assigned: send the preset temperatures.
     TEMPERATURES_THEN_MACRO, ///< Send the temperatures, then run the additive macro.
     MACRO_ONLY,              ///< The macro sets every temperature itself.
-    MACRO_MISSING,           ///< Assigned, but this printer lacks it: send the temperatures.
+    MACRO_MISSING,           ///< Assigned, but this printer lacks it: send nothing, and say so.
+    MACRO_UNCONFIRMED,       ///< Assigned, but the printer has not reported its macros yet:
+                             ///< send nothing, and say the printer is not ready.
     MACRO_HELD_BY_JOB,       ///< Assigned, but a job holds the machine: send the temperatures.
 };
 
 struct MaterialPreheatPlan {
     MaterialPreheatMode mode;
     std::string macro; ///< Empty for TEMPERATURES.
+
+    /// True when nothing is sent and a notice says why (MACRO_MISSING,
+    /// MACRO_UNCONFIRMED). A caller that shows a selection makes nothing look
+    /// selected for a plan like this.
+    [[nodiscard]] bool refused() const {
+        return mode == MaterialPreheatMode::MACRO_MISSING ||
+               mode == MaterialPreheatMode::MACRO_UNCONFIRMED;
+    }
 };
 
 /// Decide a material preheat from its override, this printer's macros and the
 /// print lifecycle. Material overrides are shared across printers, so an
 /// assigned macro may exist on another printer only; that plans MACRO_MISSING,
-/// never a macro send. While job_holds_machine(lifecycle), a macro the printer
-/// does define plans MACRO_HELD_BY_JOB: the job did not ask for its G-code.
+/// never a macro send. Until the printer reports its objects (PrinterDiscovery
+/// ::objects_reported()), its macro list is no observation: the plan is
+/// MACRO_UNCONFIRMED, whichever macros it will turn out to have. While
+/// job_holds_machine(lifecycle), a macro the printer does define plans
+/// MACRO_HELD_BY_JOB: the job did not ask for its G-code.
 [[nodiscard]] MaterialPreheatPlan plan_material_preheat(const filament::MaterialOverride* override,
                                                         const PrinterDiscovery& hw,
                                                         PrintState lifecycle);
 
 /// Carry out @p plan. The temperature sender runs synchronously, before an
-/// additive macro, or alone for TEMPERATURES, MACRO_MISSING and MACRO_HELD_BY_JOB.
+/// additive macro, or alone for TEMPERATURES and MACRO_HELD_BY_JOB. A refused
+/// plan (MaterialPreheatPlan::refused()) sends nothing and shows its notice:
+/// MACRO_MISSING names the macro, since the preset was set to run it and
+/// heating without it would do part of what it was told not to, and
+/// MACRO_UNCONFIRMED says the printer is not ready.
 /// A macro that is sent gets the pre-start limit: a soak or a wipe runs for many
 /// minutes, and a timeout with the printer still busy reports nothing. A macro
 /// still waiting for its answer is not sent again, so a second tap on the preset

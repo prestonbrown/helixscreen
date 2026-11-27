@@ -2906,6 +2906,7 @@
   <translation tag="Macro to resume a paused print" ru="Макрос для возобновления приостановленной печати"/>
   <translation tag="Macro to unload filament from extruder" ru="Макрос для выгрузки филамента из экструдера"/>
   <translation tag="Macro {1} has a syntax error" ru="Синтаксическая ошибка в макросе {1}"/>
+  <translation tag="Macro {} is not on this printer, so the preset did not run" ru="Макрос {} отсутствует на этом принтере, поэтому пресет не был запущен"/>
   <translation tag="Macros" ru="Макросы"/>
   <translation tag="Macros installed - restart pending" ru="Макросы установлены - ожидается перезапуск"/>
   <translation tag="Macros installed. Restart Klipper after the print to activate them." ru="Макросы установлены. Перезапустите Klipper после печати, чтобы активировать их."/>
