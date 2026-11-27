@@ -337,12 +337,19 @@ std::vector<FitFinding> check_fit(const FitMachine& machine, const FitFile& file
         }
     }
 
+    // A tool number names a filament slot as often as a nozzle: a one-filament
+    // file sliced on filament 4 says T3 in its accounting, or selects T3 once,
+    // and Klipper runs an unknown T3 as a no-op. So a one-tool printer prints
+    // any one-tool file, and only a file needing more tools than the printer
+    // has blocks; a number past the last otherwise asks.
     if (machine.tool_count && !file.tools.empty()) {
         const int highest = *file.tools.rbegin();
-        if (highest >= *machine.tool_count) {
+        const int needed = static_cast<int>(file.tools.size());
+        const bool one_on_one = *machine.tool_count == 1 && needed == 1;
+        if (highest >= *machine.tool_count && !one_on_one) {
+            const bool blocks = machine.tool_count_confirmed && needed > *machine.tool_count;
             FitFinding f =
-                finding(FitKind::TooManyTools,
-                        machine.tool_count_confirmed ? FitSeverity::Block : FitSeverity::Warn);
+                finding(FitKind::TooManyTools, blocks ? FitSeverity::Block : FitSeverity::Warn);
             f.tool = highest;
             f.limit = *machine.tool_count;
             out.push_back(std::move(f));

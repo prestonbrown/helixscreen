@@ -43,7 +43,8 @@ struct FitMachine {
     std::optional<double> max_bed_temp;
     std::optional<int> tool_count;
     /// The extruders alone give tool_count. A count T macros raised is
-    /// inferred, and a file past it only warns.
+    /// inferred, and a file past it only warns; past a confirmed count, only
+    /// a file needing more tools than it blocks.
     bool tool_count_confirmed = false;
     std::vector<double> nozzle_diameters; ///< by extruder number
     /// The extruder number each tool prints on, by tool number, where tool

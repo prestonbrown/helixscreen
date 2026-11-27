@@ -525,8 +525,9 @@ sidecar-vs-file index equality and the loader against the mock
 ## File-Fits-Printer Check (`fit_check_blocks_autostart` v1)
 
 Compares a file with the printer's own limits and gives findings `{kind, severity, detail}`:
-`out_of_bounds` and `temp_over_max` (block: stop a start), `too_many_tools` (block, or warn
-when only `T` macros raised the tool count), `nozzle_mismatch` (warn: the screen asks before a
+`out_of_bounds` and `temp_over_max` (block: stop a start), `too_many_tools` (block when the
+file uses more tools than the printer's extruders; warn when it only numbers a tool past the last,
+or only `T` macros raised the count; nothing for a one-tool file on a one-tool printer), `nozzle_mismatch` (warn: the screen asks before a
 start), `nozzle_flow_mismatch` (warn, either way round: file tool i is compared with extruder i,
 and a printer's own filament mapping can put it on another head) and `printer_model_mismatch` (note: shown in the file details only). Nozzles come
 from `configfile.settings`, replaced per extruder by the `nozzle_diameter` and
