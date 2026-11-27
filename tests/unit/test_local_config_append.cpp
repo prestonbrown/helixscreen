@@ -191,8 +191,7 @@ TEST_CASE("an empty include target is refused", "[local_append]") {
 
 TEST_CASE("an unwritable directory fails without damaging the original", "[local_append]") {
     if (::geteuid() == 0) {
-        SUCCEED("running as root — directory permissions do not apply");
-        return;
+        SKIP("running as root: directory permissions are not enforced");
     }
     TempDir tmp;
     const std::string path = tmp.file("moonraker.conf");
