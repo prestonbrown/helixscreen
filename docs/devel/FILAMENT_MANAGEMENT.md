@@ -4277,7 +4277,11 @@ Write tests for:
 - Tool/slot mapping
 - Path segment computation
 
-See `tests/unit/test_ams_backend_happy_hare.cpp`, `test_ams_tool_mapping.cpp`, `test_ams_endless_spool.cpp`, and `test_ams_device_actions.cpp` for patterns.
+See `tests/unit/test_ams_backend_happy_hare.cpp` and its numbered parts, from
+`tests/unit/test_ams_backend_happy_hare_2.cpp` to `tests/unit/test_ams_backend_happy_hare_5.cpp`
+(one file split in its own order; their fixtures in
+`tests/test_helpers/happy_hare_test_fixtures.h`), `test_ams_tool_mapping.cpp`,
+`test_ams_endless_spool.cpp`, and `test_ams_device_actions.cpp` for patterns.
 
 ---
 
