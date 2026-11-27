@@ -3,6 +3,7 @@
 
 #if HELIX_ENABLE_SCREENSAVER
 
+#include "../test_helpers/sample_checks.h"
 #include "../test_helpers/screensaver_sim_kit.h"
 #include "screensaver_pipes_sim.h"
 #include "screensaver_pixel_writer.h"
@@ -231,11 +232,13 @@ TEST_CASE("joints mix a third balls, the rest elbows, and a teapot 1 in 1000",
 TEST_CASE("a pipe's straight weight is 1-4, or 25-100 one time in 20", "[screensaver][pipes_sim]") {
     std::minstd_rand rng(9);
     std::array<int, 101> counts{};
+    helix::test::SampleChecks samples;
     for (int i = 0; i < 100000; i++) {
         const int w = pipes_choose_weight_straight(rng);
-        REQUIRE(((w >= 1 && w <= 4) || (w >= 25 && w <= 100)));
+        SAMPLE_REQUIRE(samples, ((w >= 1 && w <= 4) || (w >= 25 && w <= 100)), i);
         counts[static_cast<size_t>(w)]++;
     }
+    samples.done(100000);
     int heavy = 0;
     for (int w = 25; w <= 100; w++) {
         heavy += counts[static_cast<size_t>(w)];
@@ -391,6 +394,7 @@ TEST_CASE("a screen that fills the grid never grows a teapot", "[screensaver][pi
     PipesScreen screen;
     std::vector<PipePiece> out;
     size_t pieces = 0;
+    helix::test::SampleChecks samples;
     for (uint32_t seed = 1; seed <= 2000; seed++) {
         std::minstd_rand rng(seed);
         out.clear();
@@ -400,9 +404,10 @@ TEST_CASE("a screen that fills the grid never grows a teapot", "[screensaver][pi
         }
         pieces += out.size();
         for (const PipePiece& p : out) {
-            REQUIRE(p.kind != PipePieceKind::TEAPOT);
+            SAMPLE_REQUIRE(samples, p.kind != PipePieceKind::TEAPOT, seed);
         }
     }
+    samples.done(pieces);
     CHECK(pieces > 20000);
     REQUIRE(screen.fills_grid());
     screen.release();
@@ -1009,14 +1014,16 @@ TEST_CASE("at scale 2 every 2x2 block is one colour", "[screensaver][pipes_sim]"
     TestFrame f(160, 96, PixelFormat::XRGB8888);
     r.draw(f.target, ball_at({0, 0, 40}, 8));
     REQUIRE(lit_pixels(f.target) > 0);
+    helix::test::SampleChecks samples;
     for (int32_t y = 0; y < 96; y += 2) {
         for (int32_t x = 0; x < 160; x += 2) {
             const Rgb c = f.at(x, y);
-            CHECK(f.at(x + 1, y) == c);
-            CHECK(f.at(x, y + 1) == c);
-            CHECK(f.at(x + 1, y + 1) == c);
+            SAMPLE_CHECK(samples, f.at(x + 1, y) == c, (y / 2) * 80 + x / 2);
+            SAMPLE_CHECK(samples, f.at(x, y + 1) == c, (y / 2) * 80 + x / 2);
+            SAMPLE_CHECK(samples, f.at(x + 1, y + 1) == c, (y / 2) * 80 + x / 2);
         }
     }
+    samples.done(11520);
 }
 
 TEST_CASE("a released renderer holds no buffers", "[screensaver][pipes_sim]") {
@@ -1337,23 +1344,25 @@ TEST_CASE("both depths run the same scene", "[screensaver][pipes_sim]") {
     std::minstd_rand rng_b(6);
     a.init(f32.target, rng_a, 0, kNoPrint);
     b.init(f16.target, rng_b, 0, kNoPrint);
+    helix::test::SampleChecks samples;
     std::vector<DirtyRect> dirty;
     for (int i = 0; i < 400; i++) {
         a.step(100, f32.target, rng_a, kNoPrint, dirty);
         b.step(100, f16.target, rng_b, kNoPrint, dirty);
         dirty.clear();
-        REQUIRE(a.screen().pipes() == b.screen().pipes());
-        REQUIRE(a.yrot_deg() == b.yrot_deg());
+        SAMPLE_REQUIRE(samples, a.screen().pipes() == b.screen().pipes(), i);
+        SAMPLE_REQUIRE(samples, a.yrot_deg() == b.yrot_deg(), i);
     }
     for (int32_t y = 0; y < 96; y++) {
         for (int32_t x = 0; x < 160; x++) {
             const Rgb p = f32.at(x, y);
             const Rgb q = f16.at(x, y);
-            REQUIRE(std::abs(p.r - q.r) <= 8);
-            REQUIRE(std::abs(p.g - q.g) <= 4);
-            REQUIRE(std::abs(p.b - q.b) <= 8);
+            SAMPLE_REQUIRE(samples, std::abs(p.r - q.r) <= 8, y * 160 + x);
+            SAMPLE_REQUIRE(samples, std::abs(p.g - q.g) <= 4, y * 160 + x);
+            SAMPLE_REQUIRE(samples, std::abs(p.b - q.b) <= 8, y * 160 + x);
         }
     }
+    samples.done(46880);
 }
 
 namespace {
