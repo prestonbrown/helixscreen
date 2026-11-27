@@ -261,20 +261,34 @@ TEST_CASE("ALSASoundBackend::clear_render_source waits out a render call in flig
 
     std::atomic<bool> in_call{false};
     std::atomic<int> calls{0};
+    std::atomic<std::chrono::nanoseconds> last_call{std::chrono::nanoseconds::zero()};
     backend.set_render_source([&](float*, size_t, int) {
+        const auto started = std::chrono::steady_clock::now();
         in_call = true;
         ++calls;
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
         in_call = false;
+        last_call = std::chrono::steady_clock::now() - started;
     });
 
+    // A finished call behind it and one in flight: the clear has one whole
+    // call in front of it and a measured length to compare with.
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
-    while (!in_call.load() && std::chrono::steady_clock::now() < deadline) {
+    while ((!in_call.load() || calls.load() < 2) && std::chrono::steady_clock::now() < deadline) {
         std::this_thread::yield();
     }
     REQUIRE(in_call.load());
+    REQUIRE(last_call.load() > std::chrono::nanoseconds::zero());
 
+    // Waiting out the call in flight is bounded by that one call. A clear that
+    // had to take the source's mutex from the render loop, which takes it
+    // again the moment it lets go, waited for a whole pass each time it lost
+    // (prestonbrown/helixscreen#2161).
+    const auto clear_started = std::chrono::steady_clock::now();
     backend.clear_render_source();
+    const auto clear_wait = std::chrono::steady_clock::now() - clear_started;
+    CHECK(clear_wait <= 2 * last_call.load() + std::chrono::milliseconds(100));
+
     CHECK_FALSE(in_call.load());
     const int calls_at_clear = calls.load();
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
