@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from helix_print import (
     DB_RECORD_MAX_AGE,
     HELIX_NAMESPACE,
+    PLUGIN_VERSION,
     HelixPrint,
     PrintInfo,
     load_component,
@@ -456,7 +457,7 @@ class TestStatusAPI:
         assert result["temp_dir"] == ".helix_temp"
         assert result["symlink_dir"] == ".helix_print"
         assert result["cleanup_delay"] == 3600
-        assert result["version"] == "1.4.2"
+        assert result["version"] == PLUGIN_VERSION
         assert result["active_prints"] == 0
 
 
