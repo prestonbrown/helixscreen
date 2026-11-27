@@ -43,9 +43,11 @@ when that is set.
   --channels  every channel the release would publish to
   --base-url  the manifest root, ending in / (\$R2_PUBLIC_URL/\$R2_PREFIX)
 
-Exits 1 when the declared channel would move backward, or a served version
-cannot be ordered, unless ALLOW_DOWNGRADE=true. A following channel that is
-already ahead is dropped from the list, whatever ALLOW_DOWNGRADE says.
+Only a 404 means a channel has no manifest yet. Exits 1 when the declared
+channel would move backward or serves a version that cannot be ordered, unless
+ALLOW_DOWNGRADE=true, and always when its manifest cannot be read. A following
+channel that is already ahead, unreadable or unorderable is dropped from the
+list, whatever ALLOW_DOWNGRADE says.
 EOF
 }
 
@@ -92,15 +94,44 @@ case " $CHANNELS " in
         ;;
 esac
 
+# A manifest that cannot be read says nothing about what the channel serves, so
+# only a clean 404 means "nothing published yet". Any other failure (a timeout,
+# a 5xx, a body that is not a manifest) fails the run on the declared channel
+# and drops a following channel: a channel we only follow is not ours to risk.
+# The same holds for a served version the comparator cannot order.
 FAILED=0
+FATAL=0
 KEEP=()
+BODY="$(mktemp)"
+trap 'rm -f "$BODY"' EXIT
+
+# Report a channel whose served version is unknown: fatal on the declared
+# channel, a dropped channel otherwise.
+unknown() {
+    if [ "$CHANNEL" = "$DECLARED" ]; then
+        echo "::error::${CHANNEL}: $1; cannot tell whether publishing ${VERSION} moves it backward."
+        FATAL=1
+    else
+        echo "::warning::${CHANNEL}: $1; ${VERSION} is not published there"
+    fi
+}
+
 for CHANNEL in $CHANNELS; do
     MANIFEST_URL="${BASE_URL}${CHANNEL}/manifest.json"
-    SERVED=$(curl -fsS --max-time 30 "$MANIFEST_URL" 2>/dev/null | jq -r '.version // empty' || true)
+    CODE=$(curl -sS --max-time 30 -o "$BODY" -w '%{http_code}' "$MANIFEST_URL" 2>/dev/null) || true
 
-    if [ -z "$SERVED" ]; then
+    if [ "$CODE" = "404" ]; then
         echo "${CHANNEL}: no manifest served yet -- nothing to downgrade"
         KEEP+=("$CHANNEL")
+        continue
+    fi
+    if [ "$CODE" != "200" ]; then
+        unknown "reading ${MANIFEST_URL} answered HTTP ${CODE:-000}"
+        continue
+    fi
+    SERVED=$(jq -r '.version // empty' "$BODY" 2>/dev/null || true)
+    if [ -z "$SERVED" ]; then
+        unknown "${MANIFEST_URL} names no version"
         continue
     fi
 
@@ -110,13 +141,16 @@ for CHANNEL in $CHANNELS; do
         continue
     fi
 
-    # A pair the comparator cannot rank is a failure, not a pass: it exits
-    # non-zero rather than printing an order, so an unparseable manifest
-    # version can never read as "forward".
+    # The comparator exits non-zero rather than printing an order for a pair it
+    # cannot rank, so an unparseable manifest version never reads as "forward".
     if ! ORDER=$("$SCRIPT_DIR/version-compare.sh" "$VERSION" "$SERVED"); then
-        echo "::error::${CHANNEL}: cannot order ${VERSION} against the served ${SERVED}."
-        FAILED=1
-        KEEP+=("$CHANNEL")
+        if [ "$CHANNEL" = "$DECLARED" ]; then
+            echo "::error::${CHANNEL}: cannot order ${VERSION} against the served ${SERVED}."
+            FAILED=1
+            KEEP+=("$CHANNEL")
+        else
+            echo "::warning::${CHANNEL}: cannot order ${VERSION} against the served ${SERVED}; ${VERSION} is not published there"
+        fi
         continue
     fi
 
@@ -141,11 +175,16 @@ for CHANNEL in $CHANNELS; do
             ;;
         *)
             echo "::error::${CHANNEL}: version-compare.sh printed '${ORDER}', which is not -1, 0 or 1."
-            FAILED=1
-            KEEP+=("$CHANNEL")
+            exit 1
             ;;
     esac
 done
+
+# Not knowing what the declared channel serves is not a downgrade the override
+# can accept: the run stops, and a rerun reads the manifest again.
+if [ "$FATAL" -eq 1 ]; then
+    exit 1
+fi
 
 if [ "$FAILED" -eq 1 ]; then
     if [ "${ALLOW_DOWNGRADE:-}" = "true" ]; then
