@@ -34,6 +34,7 @@
 #include <mutex>
 #include <set>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -105,6 +106,9 @@ class ConfigPluginMockClient : public MoonrakerClientMock {
     bool fail_read = false;
     /// Called when the edit is written: a plugin config_edit or a backup copy.
     std::function<void()> on_write;
+    /// Answer every request, and run its callbacks, on a worker thread the way
+    /// libhv does, so a main-thread-only read in a write callback is caught.
+    bool callbacks_on_thread = false;
     /// configfile.settings a printer.objects.query for configfile answers
     /// with; null leaves the query to the stock mock.
     json settings_reply;
@@ -128,6 +132,16 @@ class ConfigPluginMockClient : public MoonrakerClientMock {
                  helix::SharedCallback<void(const MoonrakerError&)> error_cb,
                  uint32_t timeout_ms = 0, bool silent = false,
                  std::optional<rpc_error_policy::CallerIntent> intent = std::nullopt) override {
+        static thread_local bool on_worker = false;
+        if (callbacks_on_thread && !on_worker) {
+            RequestId id = 0;
+            std::thread worker([&]() {
+                on_worker = true;
+                id = send_jsonrpc(method, params, success_cb, error_cb, timeout_ms, silent, intent);
+            });
+            worker.join();
+            return id;
+        }
         {
             std::lock_guard<std::mutex> lock(mutex_);
             calls_.emplace_back(method, params);
@@ -678,6 +692,8 @@ TEST_CASE_METHOD(LVGLTestFixture,
     api.set_config_files({{"printer.cfg", kShaperRoot}});
     MoonrakerClientTestAccess::force_connection_state(client, ConnectionState::CONNECTED);
     client.config_reply = read_result("input_shaper", {{"shaper_freq_x", option("40")}});
+
+    client.callbacks_on_thread = true;
 
     KlipperConfigEditor editor;
     editor.set_feature_state_source([route]() { return route; });

@@ -188,6 +188,12 @@ PluginBackend make_app_backend() {
         auto* api = get_moonraker_api();
         if (!api)
             return cb(failure(kNotConnected));
+        // The same restart refusal as a restart RPC: helix.gcode("FIRMWARE_RESTART")
+        // must not end a job either.
+        if (helix::api::reject_restart_script(
+                script, get_printer_state(), false,
+                [cb](const MoonrakerError& e) { cb(failure(e.message)); }, "[Plugin]"))
+            return;
         api->execute_gcode(
             script, [cb]() { cb(success()); },
             [cb](const MoonrakerError& e) { cb(failure(e.message)); });

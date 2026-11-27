@@ -383,8 +383,11 @@ class KlipperConfigEditor {
 
     FeatureStateSource feature_state_source_;
     RestartRefusalSource restart_refusal_source_;
-    /// Defers the pre-restart check to the main thread; expires with the editor.
+    /// Expires with the editor. lifetime_token_ is taken once, on the constructing
+    /// (main) thread, so worker-thread callbacks defer through it and never touch
+    /// lifetime_ itself.
     AsyncLifetimeGuard lifetime_;
+    LifetimeToken lifetime_token_;
 
     /// True, after reporting it through @p on_error, while a restart is refused.
     bool refuse_while_restart_blocked(const std::string& section,

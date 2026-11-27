@@ -1083,7 +1083,8 @@ KlipperConfigEditor::KlipperConfigEditor()
               return helix::restart_while_printing_message();
           }
           return helix::api::restart_refusal_reason(&get_printer_state());
-      }) {}
+      }),
+      lifetime_token_(lifetime_.token()) {}
 
 void KlipperConfigEditor::set_restart_refusal_source(RestartRefusalSource source) {
     restart_refusal_source_ = std::move(source);
@@ -1536,33 +1537,36 @@ void KlipperConfigEditor::restart_and_monitor(IMoonrakerAPI& api, RestartRecover
     // The write callbacks run on a worker thread; PrinterState and lv_tr belong to
     // the main thread. The last check before the restart is made there, so a print
     // that started since the entry check puts the edit back instead of being killed.
-    lifetime_.defer("KlipperConfigEditor::restart", [this, &api, recovery = std::move(recovery),
-                                                     on_success = std::move(on_success),
-                                                     on_error = std::move(on_error),
-                                                     restart_timeout_ms,
-                                                     expected = std::move(expected)]() mutable {
-        const char* reason = restart_refusal_source_ ? restart_refusal_source_() : nullptr;
-        if (reason == nullptr) {
-            send_restart_and_monitor(api, std::move(recovery), std::move(on_success),
-                                     std::move(on_error), restart_timeout_ms, std::move(expected));
-            return;
-        }
-        spdlog::warn("[ConfigEditor] Restart refused ({}); restoring backups", reason);
-        const std::string refusal = lv_tr(reason);
-        auto report = [on_error, refusal](const std::string& detail) {
-            if (on_error)
-                on_error(detail.empty() ? refusal : refusal + " " + detail);
-        };
-        if (recovery.restore) {
-            recovery.restore(
-                api, [report]() { report({}); },
-                [report](const std::string& restore_err) {
-                    report("The edit could not be undone: " + restore_err);
-                });
-        } else {
-            report({});
-        }
-    });
+    // The editor's owner is long-lived. One that dies before this queued lambda runs
+    // leaves the written file with neither a restart nor a restore.
+    lifetime_token_.defer(
+        "KlipperConfigEditor::restart",
+        [this, &api, recovery = std::move(recovery), on_success = std::move(on_success),
+         on_error = std::move(on_error), restart_timeout_ms,
+         expected = std::move(expected)]() mutable {
+            const char* reason = restart_refusal_source_ ? restart_refusal_source_() : nullptr;
+            if (reason == nullptr) {
+                send_restart_and_monitor(api, std::move(recovery), std::move(on_success),
+                                         std::move(on_error), restart_timeout_ms,
+                                         std::move(expected));
+                return;
+            }
+            spdlog::warn("[ConfigEditor] Restart refused ({}); restoring backups", reason);
+            const std::string refusal = lv_tr(reason);
+            auto report = [on_error, refusal](const std::string& detail) {
+                if (on_error)
+                    on_error(detail.empty() ? refusal : refusal + " " + detail);
+            };
+            if (recovery.restore) {
+                recovery.restore(
+                    api, [report]() { report({}); },
+                    [report](const std::string& restore_err) {
+                        report("The edit could not be undone: " + restore_err);
+                    });
+            } else {
+                report({});
+            }
+        });
 }
 
 void KlipperConfigEditor::send_restart_and_monitor(IMoonrakerAPI& api, RestartRecovery recovery,
