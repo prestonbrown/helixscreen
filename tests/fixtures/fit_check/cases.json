@@ -1657,6 +1657,177 @@
       ]
     },
     {
+      "name": "a one-tool printer prints a one-tool file whatever its tool number",
+      "machine": {
+        "kinematics": "corexy",
+        "axis_min": [
+          null,
+          null,
+          null
+        ],
+        "axis_max": [
+          null,
+          null,
+          null
+        ],
+        "print_radius": null,
+        "max_extruder_temp": null,
+        "max_bed_temp": null,
+        "tool_count": 1,
+        "tool_count_confirmed": true,
+        "nozzle_diameters": [],
+        "model": ""
+      },
+      "file": {
+        "print": null,
+        "travel": null,
+        "max_hotend_temp": null,
+        "max_bed_temp": null,
+        "tools": [
+          3
+        ],
+        "nozzle_diameters": [],
+        "printer_model": null
+      },
+      "findings": []
+    },
+    {
+      "name": "a one-tool printer blocks a file that uses two tools",
+      "machine": {
+        "kinematics": "corexy",
+        "axis_min": [
+          null,
+          null,
+          null
+        ],
+        "axis_max": [
+          null,
+          null,
+          null
+        ],
+        "print_radius": null,
+        "max_extruder_temp": null,
+        "max_bed_temp": null,
+        "tool_count": 1,
+        "tool_count_confirmed": true,
+        "nozzle_diameters": [],
+        "model": ""
+      },
+      "file": {
+        "print": null,
+        "travel": null,
+        "max_hotend_temp": null,
+        "max_bed_temp": null,
+        "tools": [
+          0,
+          3
+        ],
+        "nozzle_diameters": [],
+        "printer_model": null
+      },
+      "findings": [
+        {
+          "kind": "too_many_tools",
+          "severity": "block",
+          "detail": {
+            "tool": 3,
+            "limit": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "a tool number past the last, on a printer with tools enough, only warns",
+      "machine": {
+        "kinematics": "corexy",
+        "axis_min": [
+          null,
+          null,
+          null
+        ],
+        "axis_max": [
+          null,
+          null,
+          null
+        ],
+        "print_radius": null,
+        "max_extruder_temp": null,
+        "max_bed_temp": null,
+        "tool_count": 2,
+        "tool_count_confirmed": true,
+        "nozzle_diameters": [],
+        "model": ""
+      },
+      "file": {
+        "print": null,
+        "travel": null,
+        "max_hotend_temp": null,
+        "max_bed_temp": null,
+        "tools": [
+          1,
+          3
+        ],
+        "nozzle_diameters": [],
+        "printer_model": null
+      },
+      "findings": [
+        {
+          "kind": "too_many_tools",
+          "severity": "warn",
+          "detail": {
+            "tool": 3,
+            "limit": 2
+          }
+        }
+      ]
+    },
+    {
+      "name": "a file needing more tools than a count T macros raised only warns",
+      "machine": {
+        "kinematics": "corexy",
+        "axis_min": [
+          null,
+          null,
+          null
+        ],
+        "axis_max": [
+          null,
+          null,
+          null
+        ],
+        "print_radius": null,
+        "max_extruder_temp": null,
+        "max_bed_temp": null,
+        "tool_count": 2,
+        "tool_count_confirmed": false,
+        "nozzle_diameters": [],
+        "model": ""
+      },
+      "file": {
+        "print": null,
+        "travel": null,
+        "max_hotend_temp": null,
+        "max_bed_temp": null,
+        "tools": [
+          0,
+          1,
+          2
+        ],
+        "nozzle_diameters": [],
+        "printer_model": null
+      },
+      "findings": [
+        {
+          "kind": "too_many_tools",
+          "severity": "warn",
+          "detail": {
+            "tool": 2,
+            "limit": 2
+          }
+        }
+      ]
+    },
+    {
       "name": "travel without both ends is not a box: the printing moves are checked",
       "machine": {
         "kinematics": "corexy",
