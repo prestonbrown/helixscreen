@@ -10,6 +10,7 @@
  */
 
 #include "ui_color_picker_view.h"
+#include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_swatch.h"
 #include "ui_update_queue.h"
@@ -127,8 +128,9 @@ class LedControlOverlayTestAccess {
     static void session_before_disconnect() {
         get_led_control_overlay().before_disconnect();
     }
-    /// What the session does to its overlays on the way out.
-    static void deactivate_session() {
+    /// What every close does before anything destroys the overlay, a
+    /// session's end included.
+    static void deactivate_overlay() {
         get_led_control_overlay().on_deactivating(DeactivateReason::Shutdown);
     }
 
@@ -1408,15 +1410,49 @@ TEST_CASE_METHOD(LedApplyColorFixture,
     LedControlOverlayTestAccess::session_before_disconnect();
     drain();
 
+    // Nothing of the overlay has run yet: the session's word alone undid it.
     check_preview_undone(*this, original);
     CHECK(helix::ui::ColorPickerView::active() == nullptr);
 
-    // The overlay then saves the look it shows on its way out: its own, not
-    // the preview's.
-    LedControlOverlayTestAccess::deactivate_session();
+    helix::ui::destroy_static_panels();
+    drain();
+}
+
+TEST_CASE_METHOD(LedApplyColorFixture,
+                 "overlay: a close under the Custom color picker saves the light's own "
+                 "look",
+                 "[led][overlay][color_picker][2209]") {
+    helix::PrinterState ps;
+    const uint32_t original = start_session_preview(*this);
+
+    // A close deactivates the overlay before anything destroys it, and that
+    // is where it saves the look it shows.
+    LedControlOverlayTestAccess::deactivate_overlay();
+    drain();
+
+    check_preview_undone(*this, original);
+    CHECK(helix::ui::ColorPickerView::active() == nullptr);
     CHECK(within_rounding(LedController::instance().last_color(), original));
     CHECK(LedController::instance().last_brightness() == 100);
 
     helix::ui::destroy_static_panels();
     drain();
+}
+
+TEST_CASE_METHOD(LedApplyColorFixture,
+                 "overlay: a printer switch's own order sends nothing under an open "
+                 "preview",
+                 "[led][overlay][color_picker][2209]") {
+    helix::PrinterState ps;
+    start_session_preview(*this);
+
+    // A switch's teardown once the client is gone: every dialog swept without
+    // a hook, then every panel destroyed. Nothing there can reach the printer.
+    ModalStack::instance().clear();
+    helix::ui::destroy_static_panels();
+    drain();
+    process_lvgl(1000);
+
+    CHECK(mock_client.gcode_script_history().empty());
+    CHECK(helix::lazy_global_if_exists<helix::led::LedControlOverlay>() == nullptr);
 }
