@@ -1364,15 +1364,32 @@ void AmsBackendAd5xIfs::update_slot_from_state(int slot_index) {
         }
         // A firmware that writes lane_data states the spool link, and the
         // vendor and name it was sent; a vendor or name it could not take stays
-        // in our own record, so only a stated one is a reading.
+        // in our own record, so only a stated one is a reading. One that is our
+        // record's text with the characters the command cannot carry dropped
+        // is that text: the record shows it whole.
         if (const auto stated = firmware_identities_.find(slot_index);
             firmware_writes_lane_records_ == true && stated != firmware_identities_.end()) {
+            const auto own_it = overrides_.find(slot_index);
+            const helix::ams::FilamentSlotOverride* own =
+                own_it != overrides_.end() ? &own_it->second : nullptr;
+            const auto is_ours_sent = [own](const std::string& stated_text,
+                                            std::string helix::ams::FilamentSlotOverride::*field) {
+                return own != nullptr && own->*field != stated_text &&
+                       helix::lane_writer::sendable_text(own->*field) == stated_text;
+            };
             cache.spoolman_id = stated->second.spool_id;
-            if (!stated->second.vendor.empty()) {
+            if (!stated->second.vendor.empty() &&
+                !is_ours_sent(stated->second.vendor, &helix::ams::FilamentSlotOverride::brand)) {
                 cache.brand = stated->second.vendor;
             }
-            if (!stated->second.name.empty()) {
+            if (!stated->second.name.empty() &&
+                !is_ours_sent(stated->second.name, &helix::ams::FilamentSlotOverride::spool_name)) {
                 cache.spool_name = stated->second.name;
+            }
+            // The firmware keeps the user's bed temperature; the lane model has
+            // no field for it, so it is the slot's own.
+            if (stated->second.bed_temp) {
+                entry->info.bed_temp = *stated->second.bed_temp;
             }
         }
         helix::ams::ingest(lane_id(slot_index), cache);
@@ -1822,14 +1839,19 @@ void AmsBackendAd5xIfs::adopt_own_lane_extras(const json& namespace_doc) {
 bool AmsBackendAd5xIfs::apply_firmware_identities_locked(const json& status) {
     // Kept before the firmware's answer too: the status sends a slot again
     // only when it changes.
+    // Every port the hardware can have is kept, not only today's count: the
+    // frame that raises the count is read after this, and update_slot_from_state()
+    // reads only the ports that exist.
     bool changed = false;
     for (auto& [slot, identity] : helix::lane_writer::slot_identities(status)) {
-        if (!valid_slot(slot)) {
+        if (slot >= ad5x::kMaxPorts) {
             continue;
         }
         const auto it = firmware_identities_.find(slot);
         if (it != firmware_identities_.end() && it->second.spool_id == identity.spool_id &&
-            it->second.vendor == identity.vendor && it->second.name == identity.name) {
+            it->second.vendor == identity.vendor && it->second.name == identity.name &&
+            it->second.filament_id == identity.filament_id &&
+            it->second.bed_temp == identity.bed_temp) {
             continue;
         }
         firmware_identities_[slot] = std::move(identity);
@@ -1891,8 +1913,15 @@ std::string AmsBackendAd5xIfs::firmware_identity_params_locked(
     const helix::ams::OrcaFilamentId orca = helix::ams::orca_filament_id_for(o);
     identity.filament_id = orca.generic ? std::string() : orca.id;
     // A temperature goes out only when this edit set or cleared it: one set on
-    // the printer's own screen is the firmware's to keep.
-    if (o.bed_temp != prior.bed_temp) {
+    // the printer's own screen is the firmware's to keep. The firmware states
+    // the bed temperature it holds, which is what the edit changes; it states
+    // no user nozzle temperature, so that one is compared with our record.
+    int bed_before = prior.bed_temp;
+    if (const auto stated = firmware_identities_.find(slot_index);
+        stated != firmware_identities_.end() && stated->second.bed_temp) {
+        bed_before = *stated->second.bed_temp;
+    }
+    if (o.bed_temp != bed_before) {
         identity.bed_temp = o.bed_temp;
     }
     if (o.nozzle_temp != prior.nozzle_temp) {
@@ -5214,6 +5243,7 @@ bool AmsBackendAd5xIfs::apply_port_count_locked(int count) {
     // they held so a later grow starts them unobserved.
     for (int i = ports; i < previous; ++i) {
         const auto idx = static_cast<size_t>(i);
+        firmware_identities_.erase(i);
         port_presence_[idx] = false;
         presence_observed_[idx] = false;
         colors_[idx].clear();

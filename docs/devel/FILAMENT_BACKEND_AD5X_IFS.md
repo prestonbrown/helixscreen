@@ -556,17 +556,22 @@ beside `TYPE=`, `COLOR=` and `TEMP=`, and `printer.ifs_materials` states them pe
   every identity field set or cleared. `FILAMENT_ID` is a product's Orca id
   (`orca_filament_id_for()`: the linked spool's, or the catalog pick's); a Generic preset
   goes out empty, so the firmware names its own profile for the type. `BED_TEMP` and
-  `TEMP` (nozzle) go out only when this edit changed the user's temperature against the
-  slot's record before it: the new value, or empty when the edit cleared it. Left out,
-  Kiln keeps the field, so a temperature set on its own screen survives an edit that
-  does not touch temperatures. A nozzle temperature outside the 150-350 the command
+  `TEMP` (nozzle) go out only when this edit changed the temperature: the new value, or
+  empty when the edit cleared it. Left out, Kiln keeps the field, so a temperature set
+  on its own screen survives an edit that does not touch temperatures. The bed
+  temperature is compared with the one Kiln states (`slots.<n>.bed_temp`), which is
+  also the slot's shown bed temperature; Kiln states no user nozzle temperature (its
+  `temp` is resolved), so the nozzle one is compared with the slot's record before the
+  edit. A nozzle temperature outside the 150-350 the command
   takes is left out, since one out of range gets the whole command refused. Text loses `"`, `\`, `#`, `;`, `*`, which Klipper would cut or unquote,
   `'` and `%`, which Kiln refuses in a value, and control and non-ASCII bytes
   (`lane_writer::sendable_text()`). Nothing of ours reaches `lane_data`, and the
   firmware-to-record mirror stands down on a private store. Each slot's spool id, vendor
   and name come from the `ifs_materials` status (`lane_writer::slot_identities()`,
-  `apply_firmware_identities_locked`) and join that slot's `Firmware` reading, beside its
-  color and type. They arrive in the same frame as an edit's type and color, so the
+  `apply_firmware_identities_locked`, every port up to 16, dropped when the count
+  shrinks) and join that slot's `Firmware` reading, beside its color and type. A vendor
+  or name that is our record's text with the unsendable characters dropped is not a
+  reading: the record shows its full text ("Bob's", not "Bobs"). They arrive in the same frame as an edit's type and color, so the
   edit's `Pending` covers the wait for its echo. Frames before the firmware's answer are
   kept too, because the status sends a slot again only when it changes.
 - **Carry-over.** `lane_data` is read once, for this (`refresh_backend_keys`). The first

@@ -1573,6 +1573,98 @@ TEST_CASE("AD5X IFS reads the spool link from the firmware's status",
     CHECK(slot.brand == "Elegoo");
 }
 
+namespace {
+
+/// An `ifs_materials` frame of a firmware that keeps each slot's identity:
+/// every port in 1..@p ports PLA and unset, with @p stated laid over slot @p port.
+json materials_with_identity(int ports, int port, const json& stated) {
+    json slots = json::object();
+    for (int n = 1; n <= ports; ++n) {
+        slots[std::to_string(n)] =
+            json{{"type", "PLA"},          {"color", "#A03CF7"}, {"temp", 220.0},
+                 {"spool_id", nullptr},    {"vendor", nullptr},  {"name", nullptr},
+                 {"filament_id", nullptr}, {"bed_temp", nullptr}};
+    }
+    slots[std::to_string(port)].update(stated);
+    return json{{"ifs_materials", {{"available", true}, {"slots", slots}}}};
+}
+
+} // namespace
+
+TEST_CASE("AD5X IFS takes the identity of a port past four from the frame that adds it",
+          "[ams][ad5x_ifs][ifs_module][lane_writer]") {
+    LaneWriterRig rig(/*with_plugins=*/true);
+    rig.backend.fire_status(plugins_frame("1.12"));
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+
+    json slots = json::array();
+    for (int i = 1; i <= 8; ++i) {
+        slots.push_back({{"ID", std::to_string(i)},
+                         {"Material", "PLA"},
+                         {"HEX", "A03CF7"},
+                         {"hasFilament", true}});
+    }
+    json frame = materials_with_identity(8, 6, {{"spool_id", 9}, {"vendor", "Elegoo"}});
+    frame["zmod_color"] = {{"ifs", true}, {"channel", 0}, {"color_limit", 8}, {"slots", slots}};
+    rig.backend.fire_status(frame);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+
+    REQUIRE(rig.backend.get_system_info().total_slots == 8);
+    CHECK(rig.backend.get_slot_info(5).spoolman_id == 9);
+    CHECK(rig.backend.get_slot_info(5).brand == "Elegoo");
+}
+
+TEST_CASE("AD5X IFS compares a bed temperature edit with the one the firmware holds",
+          "[ams][ad5x_ifs][ifs_module][lane_writer]") {
+    LaneWriterRig rig(/*with_plugins=*/true);
+    rig.backend.fire_status(plugins_frame("1.12"));
+    rig.backend.fire_status(module_ifs_frame(0, {1, 2, 3, 4}));
+    helix::SlotInfo info = linked_spool_edit();
+    info.bed_temp = 65;
+    REQUIRE(helix::test::apply_edit(rig.backend, 1, info).success());
+    REQUIRE(rig.backend.captured_gcodes.back().find(" BED_TEMP=65") != std::string::npos);
+    // The edit's echo.
+    rig.backend.fire_status(materials_with_identity(
+        4, 2,
+        {{"spool_id", 42}, {"vendor", "Polymaker"}, {"name", "Matte PLA"}, {"bed_temp", 65}}));
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(rig.backend.get_slot_info(1).bed_temp == 65);
+
+    // Changed to 70 on the printer's own screen: the slot shows it.
+    rig.backend.fire_status(materials_with_identity(
+        4, 2,
+        {{"spool_id", 42}, {"vendor", "Polymaker"}, {"name", "Matte PLA"}, {"bed_temp", 70}}));
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(rig.backend.get_slot_info(1).bed_temp == 70);
+
+    // Saving 65 again changes the printer's 70, so it goes out.
+    REQUIRE(helix::test::apply_edit(rig.backend, 1, info).success());
+    CHECK(rig.backend.captured_gcodes.back().find(" BED_TEMP=65") != std::string::npos);
+}
+
+TEST_CASE("AD5X IFS shows its own full text for a vendor the command had to strip",
+          "[ams][ad5x_ifs][ifs_module][lane_writer]") {
+    LaneWriterRig rig(/*with_plugins=*/true);
+    rig.backend.fire_status(plugins_frame("1.12"));
+    rig.backend.fire_status(module_ifs_frame(0, {1, 2, 3, 4}));
+    helix::SlotInfo info = linked_spool_edit();
+    info.brand = "Bob's";
+    info.spool_name = "PLA-CF 15%";
+    REQUIRE(helix::test::apply_edit(rig.backend, 1, info).success());
+
+    rig.backend.fire_status(materials_with_identity(
+        4, 2, {{"spool_id", 42}, {"vendor", "Bobs"}, {"name", "PLA-CF 15"}}));
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(rig.backend.get_slot_info(1).brand == "Bob's");
+    CHECK(rig.backend.get_slot_info(1).spool_name == "PLA-CF 15%");
+
+    // A vendor the printer states differently is its reading.
+    rig.backend.fire_status(materials_with_identity(
+        4, 2, {{"spool_id", 42}, {"vendor", "Elegoo"}, {"name", "PLA-CF 15"}}));
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(rig.backend.get_slot_info(1).brand == "Elegoo");
+}
+
 TEST_CASE("AD5X IFS takes an identity the status stated before the firmware's answer",
           "[ams][ad5x_ifs][ifs_module][lane_writer]") {
     LaneWriterRig rig(/*with_plugins=*/true);
