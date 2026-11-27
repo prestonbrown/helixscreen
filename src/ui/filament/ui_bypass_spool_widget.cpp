@@ -323,6 +323,14 @@ void bypass_spool_set_active(BypassSpoolWidgets& w, bool active) {
     w.active_applied = true;
     w.cached_active = active;
     ams_draw::set_active_ring(w.box, active);
+    // A bypass that is not the path in use ghosts, card and captions alike, the
+    // way a lane spool that is assigned but not loaded does.
+    for (lv_obj_t* o : {w.box, w.bypass_label, w.material_label}) {
+        if (o) {
+            // DECLARATIVE_OK: the ghost look is the components' user_1 style
+            lv_obj_set_state(o, LV_STATE_USER_1, !active);
+        }
+    }
 }
 
 void bypass_spool_set_material(BypassSpoolWidgets& w, const char* material) {

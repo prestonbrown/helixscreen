@@ -156,8 +156,8 @@ struct UnitGroupObj {
 
 /**
  * @brief What the strip draws for the bypass: whether it is on the strip at all
- * (bypass_node_visible_for, the AMS panel's rule), the external spool on it,
- * and whether it is the node feeding the toolhead.
+ * (bypass_on_compact_strip), the external spool on it, and whether it is the
+ * node feeding the toolhead.
  */
 namespace {
 struct BypassView {
@@ -2357,13 +2357,14 @@ static void sync_from_ams_state(AmsMiniStatusData* data) {
         c.remaining_g = slot.remaining_weight_g;
     }
 
-    // The AMS panel's rule for whether the bypass is on the path at all.
+    // On the AMS panel's path (its rule), and in use or holding a spool.
     data->bypass = {};
-    data->bypass.shown = helix::ui::bypass_node_visible_for(backend, info);
-    if (data->bypass.shown) {
+    if (helix::ui::bypass_node_visible_for(backend, info)) {
         data->bypass.spool = helix::AmsState::instance().get_external_spool_info();
         data->bypass.active =
             lv_subject_get_int(helix::AmsState::instance().get_bypass_active_subject()) != 0;
+        data->bypass.shown = helix::ui::bypass_on_compact_strip(true, data->bypass.active,
+                                                                data->bypass.spool.has_value());
     }
 
     bool unchanged = data->synced && prev_slot_count == slot_count &&

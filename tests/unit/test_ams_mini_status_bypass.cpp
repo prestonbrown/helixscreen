@@ -12,13 +12,18 @@
  */
 
 #include "ui_ams_mini_status.h"
+#include "ui_bypass_spool_widget.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/mock_bypass.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_mini_test_helpers.h"
 #include "ams_state.h"
+#include "app_globals.h"
 #include "core/update_queue.h"
+#include "moonraker_api_mock.h"
+#include "moonraker_client_mock.h"
 #include "settings_manager.h"
 #include "system_settings_manager.h"
 #include "test_helpers/scoped_language.h"
@@ -59,6 +64,12 @@ AmsBackendMock* install_mock(std::unique_ptr<AmsBackendMock> mock) {
 
 void teardown_ams() {
     auto& ams = AmsState::instance();
+    if (ams.get_external_spool_info().has_value()) {
+        ams.clear_external_spool_info();
+        for (int i = 0; i < 3; ++i)
+            helix::ui::UpdateQueue::instance().drain();
+    }
+    ams.set_moonraker_api(nullptr);
     ams.clear_backends();
     ams.deinit_subjects();
 }
@@ -84,6 +95,30 @@ lv_obj_t* make_strip(lv_obj_t* screen, int width, int height = 100) {
     settle();
     lv_obj_update_layout(screen);
     return w;
+}
+
+/// A PLA spool put on the bypass through a mock Moonraker, as assigning one
+/// from the AMS panel does. teardown_ams() clears it and detaches the mock.
+struct BypassSpool {
+    MoonrakerClientMock client;
+    MoonrakerAPIMock api;
+    BypassSpool() : api(client, get_printer_state()) {
+        AmsState::instance().set_moonraker_api(&api);
+        helix::SlotInfo spool;
+        spool.color_rgb = 0x2080FF;
+        spool.material = "PLA";
+        AmsState::instance().set_external_spool_info(spool);
+        settle();
+        REQUIRE(AmsState::instance().get_external_spool_info().has_value());
+    }
+};
+
+/// Engage the bypass: empty the toolhead, then switch over.
+void engage_bypass(AmsBackendMock* raw) {
+    REQUIRE(helix::test::unload_for_bypass(*raw));
+    REQUIRE(raw->enable_bypass().success());
+    AmsState::instance().sync_from_backend();
+    settle();
 }
 
 bool shown(lv_obj_t* obj) {
@@ -130,11 +165,38 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     teardown_ams();
 }
 
+TEST_CASE_METHOD(
+    LVGLUITestFixture,
+    "ams_mini bypass: an unused bypass with no spool stays off the strip in both views",
+    "[ams][mini_status][mini-bypass]") {
+    AlwaysShowSetting setting(true);
+    install_mock(std::make_unique<AmsBackendMock>(4));
+    REQUIRE(helix::ui::bypass_node_visible_for(AmsState::instance().get_backend()));
+    REQUIRE_FALSE(AmsState::instance().get_external_spool_info().has_value());
+
+    lv_obj_t* bars = make_strip(test_screen(), 130);
+    REQUIRE(shown(lane_bar(bars, 0)));
+    CHECK_FALSE(shown(bypass_column(bars)));
+    lv_obj_t* spools = make_strip(test_screen(), 400);
+    CHECK_FALSE(shown(UITest::find_by_name(spools, "bypass_cell")));
+
+    // A spool on it gives the strip something to say.
+    BypassSpool bypass_spool;
+    lv_obj_update_layout(test_screen());
+    CHECK(shown(bypass_column(bars)));
+    CHECK(shown(UITest::find_by_name(spools, "bypass_cell")));
+
+    lv_obj_delete(lv_obj_get_parent(bars));
+    lv_obj_delete(lv_obj_get_parent(spools));
+    teardown_ams();
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "ams_mini bypass: a physical bypass stands past a divider, lane-sized, unclipped",
                  "[ams][mini_status][mini-bypass]") {
     AlwaysShowSetting setting(false);
     install_mock(std::make_unique<AmsBackendMock>(8));
+    BypassSpool bypass_spool;
 
     lv_obj_t* w = make_strip(test_screen(), 130);
     lv_obj_t* col = bypass_column(w);
@@ -162,12 +224,13 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "ams_mini bypass: a virtual bypass follows the always-show setting",
+                 "ams_mini bypass: a virtual bypass with a spool follows the always-show setting",
                  "[ams][mini_status][mini-bypass]") {
     AlwaysShowSetting setting(false);
     auto mock = std::make_unique<AmsBackendMock>(4);
     mock->set_afc_mode(true);
     install_mock(std::move(mock));
+    BypassSpool bypass_spool;
 
     lv_obj_t* w = make_strip(test_screen(), 130);
     REQUIRE_FALSE(shown(bypass_column(w)));
@@ -195,15 +258,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_t* w = make_strip(test_screen(), 130);
     REQUIRE_FALSE(shown(bypass_column(w)));
 
-    raw->set_operation_delay(10);
-    if (raw->is_filament_loaded()) {
-        REQUIRE(raw->unload_filament(raw->get_current_slot()).success());
-        REQUIRE(wait_until([&] { return !raw->is_filament_loaded(); }, 5000));
-        settle();
-    }
-    REQUIRE(raw->enable_bypass().success());
-    AmsState::instance().sync_from_backend();
-    settle();
+    engage_bypass(raw);
 
     // Engaged, a virtual bypass is on the strip whatever the setting says.
     lv_obj_t* col = bypass_column(w);
@@ -223,6 +278,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     auto mock = std::make_unique<AmsBackendMock>(4);
     mock->set_multi_unit_mode(true);
     install_mock(std::move(mock));
+    BypassSpool bypass_spool;
     REQUIRE(AmsState::instance().system_info()->units.size() >= 2);
 
     lv_obj_t* w = make_strip(test_screen(), 80, 180);
@@ -254,10 +310,11 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "ams_mini bypass: the spool view ends with a bypass cell, External with no spool",
+                 "ams_mini bypass: the spool view ends with a bypass cell naming its spool",
                  "[ams][mini_status][mini-bypass]") {
     AlwaysShowSetting setting(false);
     install_mock(std::make_unique<AmsBackendMock>(4));
+    BypassSpool bypass_spool;
 
     lv_obj_t* w = make_strip(test_screen(), 400);
     lv_obj_t* cell = UITest::find_by_name(w, "bypass_cell");
@@ -271,20 +328,21 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     lv_obj_t* material = lv_obj_find_by_name(cell, "bypass_material");
     REQUIRE(material != nullptr);
-    REQUIRE_FALSE(AmsState::instance().get_external_spool_info().has_value());
-    CHECK(std::string(lv_label_get_text(material)) == lv_tr("External"));
+    CHECK(std::string(lv_label_get_text(material)) == "PLA");
 
     lv_obj_delete(lv_obj_get_parent(w));
     teardown_ams();
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "ams_mini bypass: the External caption follows a language switch",
+                 "ams_mini bypass: an engaged bypass with no spool reads External, in any language",
                  "[ams][mini_status][mini-bypass][i18n]") {
     AlwaysShowSetting setting(false);
-    install_mock(std::make_unique<AmsBackendMock>(4));
+    auto* raw = install_mock(std::make_unique<AmsBackendMock>(4));
+    REQUIRE_FALSE(AmsState::instance().get_external_spool_info().has_value());
 
     lv_obj_t* w = make_strip(test_screen(), 400);
+    engage_bypass(raw);
     lv_obj_t* material = UITest::find_by_name(w, "bypass_material");
     REQUIRE(material != nullptr);
     REQUIRE(std::string(lv_label_get_text(material)) == "External");
@@ -309,9 +367,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                  "ams_mini bypass: the bypass appearing shrinks the lanes' spools into their cells",
                  "[ams][mini_status][mini-bypass]") {
     AlwaysShowSetting setting(false);
-    auto mock = std::make_unique<AmsBackendMock>(4);
-    mock->set_afc_mode(true);
-    install_mock(std::move(mock));
+    install_mock(std::make_unique<AmsBackendMock>(4));
 
     lv_obj_t* w = make_strip(test_screen(), 230, 100);
     lv_obj_t* cell = UITest::find_by_name(w, "spool_cell_0");
@@ -320,8 +376,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(graphic != nullptr);
     const int32_t before = lv_obj_get_width(graphic);
 
-    helix::SettingsManager::instance().set_ams_always_show_bypass_spool(true);
-    settle();
+    REQUIRE_FALSE(shown(UITest::find_by_name(w, "bypass_cell")));
+    BypassSpool bypass_spool;
     lv_obj_update_layout(test_screen());
     REQUIRE(shown(UITest::find_by_name(w, "bypass_cell")));
 
@@ -345,6 +401,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     auto mock = std::make_unique<AmsBackendMock>(4);
     mock->set_multi_unit_mode(true);
     install_mock(std::move(mock));
+    BypassSpool bypass_spool;
 
     // Six lanes in a short two-column home cell: more than fit, so the lanes
     // scroll, and the row is short enough that a spool reaches its bottom edge.
