@@ -3,6 +3,7 @@
 
 #include "moonraker_gcode_guards.h"
 
+#include "core/text_io.h"
 #include "gcode_homing.h"
 #include "json_utils.h"
 #include "moonraker_validation.h"
@@ -15,7 +16,6 @@
 #include "translation_loader.h"
 
 #include <cctype>
-#include <sstream>
 
 namespace helix {
 
@@ -145,29 +145,22 @@ bool reject_restart(const helix::PrinterState* state, const char* method,
 }
 
 bool gcode_restarts_klipper(const std::string& gcode) {
-    std::istringstream lines(gcode);
-    std::string line;
-    while (std::getline(lines, line)) {
-        std::istringstream words(line);
-        std::string command;
-        if (!(words >> command)) {
+    for (std::string_view line : helix::text_io::lines(gcode)) {
+        const std::vector<std::string_view> words = helix::text_io::split_ws(line);
+        if (words.empty()) {
             continue;
         }
-        for (char& c : command) {
-            c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-        }
-        if (command == "RESTART" || command == "FIRMWARE_RESTART") {
+        const std::string_view command = words.front();
+        if (helix::text_io::equals_ignore_case(command, "RESTART") ||
+            helix::text_io::equals_ignore_case(command, "FIRMWARE_RESTART")) {
             return true;
         }
-        if (command == "SAVE_CONFIG") {
+        if (helix::text_io::equals_ignore_case(command, "SAVE_CONFIG")) {
             // Kalico's SAVE_CONFIG RESTART=0 writes the config and leaves Klipper running.
             bool no_restart = false;
-            std::string arg;
-            while (words >> arg) {
-                for (char& c : arg) {
-                    c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-                }
-                no_restart = no_restart || arg == "RESTART=0";
+            for (size_t i = 1; i < words.size(); ++i) {
+                no_restart =
+                    no_restart || helix::text_io::equals_ignore_case(words[i], "RESTART=0");
             }
             if (!no_restart) {
                 return true;
