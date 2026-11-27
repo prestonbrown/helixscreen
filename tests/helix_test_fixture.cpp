@@ -36,6 +36,7 @@
 #include "led/led_controller.h"
 #include "logging_init.h"
 #include "lvgl_log_handler.h"
+#include "macro_executor.h"
 #include "macro_param_cache.h"
 #include "panel_widget_manager.h"
 #include "pending_startup_warnings.h"
@@ -408,6 +409,10 @@ void HelixTestFixture::reset_all(bool case_start) {
 
     // Drain any callbacks queued by a prior test before we touch state they read.
     helix::ui::UpdateQueue::instance().drain();
+
+    // A preheat macro a case sent and never saw answered is still in flight;
+    // a later case that sends it must not be refused for that.
+    helix::MaterialPreheatTestAccess::forget_macros_in_flight();
 
     // The app initializes these subjects at startup and keeps them live for the whole
     // session (SubjectInitializer, in this order), so code under test binds them

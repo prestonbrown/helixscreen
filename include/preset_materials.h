@@ -97,9 +97,16 @@ std::string temp_label(int slot);
 /// The nozzle half of temp_label(): "220°C", or "---" if the material is unknown.
 std::string nozzle_temp_label(int slot);
 
-/// Whether a tap on slot @p slot's preset would run a macro: its material
-/// names one, whether or not this printer defines it. The preset's mark.
+/// Whether a tap on slot @p slot's preset would run a macro: a material its
+/// button stands for names one, whether or not this printer defines it. The
+/// preset's mark.
 [[nodiscard]] bool has_macro(int slot);
+
+/// The material whose row a preset's macro is read from, and whose setting a
+/// hold on the preset opens: the slot's own material, unless it names no macro
+/// and another material its button stands for names one. The generic ABS
+/// button stands for ASA too. Empty for a slot out of range.
+[[nodiscard]] std::string macro_material(int slot);
 
 /// The subjects a preset button binds its macro mark to: "preset_material_<slot>_has_macro",
 /// 1 while the material names a macro, and "preset_material_<slot>_mark_beside_name", 1 while
