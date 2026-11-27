@@ -19,6 +19,7 @@
 #include "helix-xml/src/xml/lv_xml.h"
 #include "led/led_controller.h"
 #include "prerendered_images.h"
+#include "print_control_buttons.h"
 #include "print_start_phase.h"
 #include "print_status_chips.h"
 #include "print_status_layout_fitter.h"
@@ -127,6 +128,9 @@ class TileFixture : public PrintStatusPanelFixture {
   public:
     TileFixture(int32_t screen_w, int32_t screen_h, bool lane_tray = false)
         : PrintStatusPanelFixture([screen_w, screen_h, lane_tray]() -> std::shared_ptr<void> {
+              // The strip's buttons read the print control subjects, which the
+              // app brings up before Print Status exists.
+              helix::ui::PrintControlButtons::instance().init_subjects();
               // The chips read the light and tool-badge subjects their owners publish.
               helix::led::LedController::instance().init(nullptr, nullptr);
               ToolState::instance().init_subjects(false);
@@ -181,6 +185,9 @@ class Ultrawide1480 : public PrintStatusPanelFixture {
   public:
     explicit Ultrawide1480(bool lane_tray = false)
         : PrintStatusPanelFixture([lane_tray]() -> std::shared_ptr<void> {
+              // The action buttons read the print control subjects, which the
+              // app brings up before Print Status exists.
+              helix::ui::PrintControlButtons::instance().init_subjects();
               helix::led::LedController::instance().init(nullptr, nullptr);
               ToolState::instance().init_subjects(false);
               auto filament = lane_tray ? enable_lane_tray_widget() : nullptr;

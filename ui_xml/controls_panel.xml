@@ -6,8 +6,8 @@
   <styles>
     <!-- Motion goes inline where the position row is too short to stack -->
     <style name="motion_stacked" flex_flow="column" layout="flex" pad_row="#space_xs"/>
-    <style name="motion_inline" flex_flow="row" layout="flex" pad_column="#space_xs"/>
-    <style name="motion_label_inline" text_font="#font_body"/>
+    <style name="motion_inline" flex_flow="row" layout="flex" pad_column="#space_xxs"/>
+    <style name="motion_label_inline" text_font="#font_small"/>
     <!-- Homing button styles -->
     <style name="home_btn_homed" bg_color="#success"/>
     <style name="home_btn_unhomed" bg_color="#text" bg_opa="50"/>
