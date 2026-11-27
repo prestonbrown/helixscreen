@@ -168,6 +168,8 @@ TEST_CASE_METHOD(TempGraphHeatFixture,
     REQUIRE(display != nullptr);
     ScopedResolution resolution(display, size.w, size.h);
     theme_manager_refresh_layout_constants(display);
+    // The preset subjects this case drives, as the app brings them up.
+    helix::presets::init_subjects();
 
     auto& overlay = get_global_temp_graph_overlay();
     overlay.open(TempGraphOverlay::Mode::Nozzle, lv_screen_active());

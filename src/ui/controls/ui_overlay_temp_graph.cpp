@@ -215,14 +215,19 @@ void TempGraphOverlay::fit_preset_name(lv_obj_t* button, int slot) {
     lv_label_set_long_mode(name, fits ? LV_LABEL_LONG_MODE_WRAP : LV_LABEL_LONG_MODE_DOTS);
     lv_label_set_max_lines(name, fits ? 0 : 1);
     lv_obj_set_flex_grow(name, 0);
-    lv_obj_set_width(name,
-                     fits ? static_cast<int32_t>(LV_SIZE_CONTENT) : LV_MAX(room - reserved, 1));
+    lv_obj_set_width(name, LV_SIZE_CONTENT);
+    // A maximum narrows a label where a width cannot: a label is never less
+    // than the width of what it shows.
+    lv_obj_set_style_max_width(name, fits ? LV_COORD_MAX : LV_MAX(room - reserved, 1),
+                               LV_PART_MAIN);
 }
 
 void TempGraphOverlay::fit_preset_names() {
     if (!overlay_root_) {
         return;
     }
+    // The buttons' sizes as they stand; then, once every name is fitted, the
+    // layout that gives a shortened name its dots.
     lv_obj_update_layout(overlay_root_);
     static constexpr const char* kSuffixes[] = {"", "_tiny"};
     for (int slot = 0; slot < kTempGraphVisiblePresets; ++slot) {
@@ -233,6 +238,7 @@ void TempGraphOverlay::fit_preset_names() {
             }
         }
     }
+    lv_obj_update_layout(overlay_root_);
 }
 
 void TempGraphOverlay::register_callbacks() {
