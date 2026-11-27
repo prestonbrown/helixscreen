@@ -19,7 +19,7 @@
 #   SUITE_REPORT_STALL_SECS     stop the run after this long with no report
 #                               growth (default 300)
 #   SUITE_REPORT_MAX_SECS       stop the run after this much wall clock
-#                               regardless of progress (default 2400)
+#                               regardless of progress (default 4800)
 #   SUITE_REPORT_PROGRESS_SECS  interval between progress lines (default 30)
 #   HELIX_REPORT_DIRECT         1 writes the report to its path as the suite
 #                               runs, with no stage in memory (default 0)
@@ -49,7 +49,7 @@
 set -uo pipefail
 
 STALL_SECS="${SUITE_REPORT_STALL_SECS:-300}"
-MAX_SECS="${SUITE_REPORT_MAX_SECS:-2400}"
+MAX_SECS="${SUITE_REPORT_MAX_SECS:-4800}"
 PROGRESS_SECS="${SUITE_REPORT_PROGRESS_SECS:-30}"
 
 # Nothing is observed between polls, so the poll can never be coarser than the
