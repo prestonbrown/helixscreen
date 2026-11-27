@@ -55,7 +55,7 @@ static constexpr int32_t kMinBarWidthPx = 3;
 /** The narrowest and shortest bar body the bar view lays a lane out at before
  *  it drops whole units to "+N": below these a bar's fill stops reading. */
 static constexpr int kMinReadableBarWidthPx = 4;
-static constexpr int kMinReadableBarHeightPx = 7;
+static constexpr int kMinReadableBarHeightPx = 8;
 
 /** Units the strip lays out; later units are not drawn in either view. */
 static constexpr int kMaxUnitRows = 8;
@@ -568,14 +568,15 @@ static void rebuild_bars(AmsMiniStatusData* data) {
     int32_t effective_height = data->height > 0 ? data->height : container_height;
     if (effective_height < 20)
         effective_height = 32; // Minimum fallback height
-    // Bars take 80% of the height, so they never fill the whole widget.
-    effective_height = effective_height * 80 / 100;
 
     // Bars taller than 4x the widest bar look awkward.
     const int32_t max_bw = effective_max_bar_width(data);
     const int32_t line_room = ams_draw::kStatusLineHeightPx + ams_draw::kStatusLineGapPx;
     const int side_bars = data->bypass.shown ? 1 : 0;
-    const helix::ui::AmsMiniBarMetrics m = bar_metrics(max_bw, max_bw * 4 - line_room, side_bars);
+    helix::ui::AmsMiniBarMetrics m = bar_metrics(max_bw, max_bw * 4 - line_room, side_bars);
+    // One line of bars takes 80% of the height, so it never fills the whole
+    // widget; stacked lines take all of it.
+    m.one_line_h = effective_height * 80 / 100;
 
     // 90% of the width, leaving a margin for centering; the bypass column's
     // divider and its gaps come off first.
@@ -1167,7 +1168,9 @@ AmsMiniBarPlan fit_bar_lines(const std::vector<int>& lanes, const std::vector<in
             lines.back().push_back(units[i]);
         }
         const int count = static_cast<int>(lines.size());
-        int bar_h = (h - (count - 1) * m.line_gap) / count - bar_box_extent(boxes, m) - m.status_h;
+        const int line_h = count == 1 && m.one_line_h > 0 ? std::min(h, m.one_line_h) : h;
+        int bar_h =
+            (line_h - (count - 1) * m.line_gap) / count - bar_box_extent(boxes, m) - m.status_h;
         bar_h = std::min(bar_h, m.max_bar_h);
         int bar_w = m.max_bar_w;
         for (const auto& line : lines) {
@@ -1180,6 +1183,9 @@ AmsMiniBarPlan fit_bar_lines(const std::vector<int>& lanes, const std::vector<in
             }
             bar_w = std::min(bar_w, (w - overhead) / std::max(1, line_lanes));
         }
+        // A bar stands at least half again as tall as it is wide: more lines of
+        // squat bars lose to fewer lines of upright ones.
+        bar_w = std::min(bar_w, bar_h * 2 / 3);
         if (bar_w < m.min_bar_w || bar_h < m.min_bar_h)
             continue;
         const long score = static_cast<long>(bar_w) * bar_h;

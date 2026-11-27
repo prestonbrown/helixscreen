@@ -220,6 +220,23 @@ TEST_CASE("ams_mini bars: an absent unit is neither placed nor counted",
     CHECK(p.hidden_lanes == 0);
 }
 
+TEST_CASE("ams_mini bars: stacked lines use the full height, one line keeps its margin",
+          "[ams_mini][ams_mini_bars]") {
+    auto m = metrics(13);
+    m.one_line_h = 32; // 80% of the 800x480 2x1 tile's 40px
+    // Two lines of 16 lanes fit readable bars only in the whole 40px.
+    const AmsMiniBarPlan p = plan_ams_mini_bars(kTorture, 2, 97, 40, m);
+    CHECK(p.hidden_lanes == 0);
+    CHECK(p.lines.size() == 2);
+    CHECK(p.bar_h >= m.min_bar_h);
+    CHECK(extent(p, kTorture, m).h <= 40);
+
+    // A single line stays inside the margin.
+    const AmsMiniBarPlan one = plan_ams_mini_bars({4}, 0, 97, 40, m);
+    REQUIRE(one.lines.size() == 1);
+    CHECK(one.bar_h + m.status_h <= 32);
+}
+
 TEST_CASE("ams_mini bars: no active unit boxes every unit or none", "[ams_mini][ams_mini_bars]") {
     const auto m = metrics(13);
     const AmsMiniBarPlan p = plan_ams_mini_bars(kTorture, -1, 97, 32, m);
@@ -261,6 +278,8 @@ TEST_CASE("ams_mini bars: no plan leaves its box", "[ams_mini][ams_mini_bars]") 
         if (active >= 0)
             CHECK(std::find(units.begin(), units.end(), active) != units.end());
         CHECK(p.bar_w <= m.max_bar_w);
+        if (p.hidden_lanes == 0)
+            CHECK(p.bar_w * 3 <= p.bar_h * 2);
         CHECK(p.bar_h <= m.max_bar_h);
 
         const Extent e = extent(p, lanes, m);
