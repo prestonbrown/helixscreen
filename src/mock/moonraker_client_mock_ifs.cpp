@@ -64,15 +64,25 @@ nlohmann::json MoonrakerClientMock::ifs_module_materials_json() const {
         temps[name] = t;
     }
 
+    const bool keeps_identity = ifs_module_keeps_identity();
     json slots = json::object();
     {
         std::lock_guard<std::mutex> lock(ifs_module_materials_mutex_);
         for (const auto& [slot, tm] : ifs_module_materials_) {
             auto temp_it = handling_temps.find(tm.first);
-            slots[std::to_string(slot)] = json{
+            json entry{
                 {"type", tm.first.empty() ? json(nullptr) : json(tm.first)},
                 {"color", tm.second.empty() ? json(nullptr) : json("#" + tm.second)},
                 {"temp", temp_it != handling_temps.end() ? json(temp_it->second) : json(nullptr)}};
+            if (keeps_identity) {
+                const auto id = ifs_module_identity_.find(slot);
+                for (const char* key : {"spool_id", "vendor", "name", "filament_id", "bed_temp"}) {
+                    entry[key] = id != ifs_module_identity_.end() && id->second.contains(key)
+                                     ? id->second[key]
+                                     : json(nullptr);
+                }
+            }
+            slots[std::to_string(slot)] = std::move(entry);
         }
     }
 
@@ -98,6 +108,11 @@ nlohmann::json MoonrakerClientMock::ifs_module_vars_json() const {
 std::string MoonrakerClientMock::ifs_module_plugin_api() const {
     const char* api = std::getenv("HELIX_MOCK_IFS_PLUGIN_API");
     return api != nullptr ? std::string(api) : std::string();
+}
+
+bool MoonrakerClientMock::ifs_module_keeps_identity() const {
+    const std::string api = ifs_module_plugin_api();
+    return !api.empty() && helix::version::check_version_constraint(">=1.12", api);
 }
 
 namespace {
@@ -129,33 +144,37 @@ int int_or_zero(const std::optional<std::string>& v) {
 } // namespace
 
 void MoonrakerClientMock::write_ifs_module_lane_record(int slot, const std::string& gcode) {
-    // Kiln's kiln_lanes keeps the identity fields from plugin API 1.12 on.
-    const std::string api = ifs_module_plugin_api();
-    if (api.empty() || !helix::version::check_version_constraint(">=1.12", api)) {
+    if (!ifs_module_keeps_identity()) {
         return;
     }
-    std::pair<std::string, std::string> tm;
-    {
-        std::lock_guard<std::mutex> lock(ifs_module_materials_mutex_);
-        tm = ifs_module_materials_[slot];
-    }
-    // What the firmware's lane_data writer keeps per slot: the identity the
-    // edit command took, beside type and color.
+    // The identity the edit command took: an empty value clears a field.
     const int spool_id = int_or_zero(extended_param(gcode, "SPOOL_ID"));
     const int bed_temp = int_or_zero(extended_param(gcode, "BED_TEMP"));
     const auto text = [&gcode](const char* key) {
         const auto v = extended_param(gcode, key);
         return v && !v->empty() ? json(*v) : json(nullptr);
     };
+    const json identity{{"spool_id", spool_id > 0 ? json(spool_id) : json(nullptr)},
+                        {"vendor", text("VENDOR")},
+                        {"name", text("NAME")},
+                        {"filament_id", text("FILAMENT_ID")},
+                        {"bed_temp", bed_temp > 0 ? json(bed_temp) : json(nullptr)}};
+    std::pair<std::string, std::string> tm;
+    {
+        std::lock_guard<std::mutex> lock(ifs_module_materials_mutex_);
+        tm = ifs_module_materials_[slot];
+        ifs_module_identity_[slot] = identity;
+    }
+    // kiln_lanes' record for the slot, which spells vendor as vendor_name.
     mock_db_set("lane_data", "lane" + std::to_string(slot),
                 json{{"lane", std::to_string(slot - 1)},
                      {"material", tm.first},
                      {"color", tm.second.empty() ? std::string() : "#" + tm.second},
-                     {"spool_id", spool_id > 0 ? json(spool_id) : json(nullptr)},
-                     {"vendor_name", text("VENDOR")},
-                     {"name", text("NAME")},
-                     {"filament_id", text("FILAMENT_ID")},
-                     {"bed_temp", bed_temp}});
+                     {"spool_id", identity["spool_id"]},
+                     {"vendor_name", identity["vendor"]},
+                     {"name", identity["name"]},
+                     {"filament_id", identity["filament_id"]},
+                     {"bed_temp", identity["bed_temp"]}});
 }
 
 bool MoonrakerClientMock::apply_ifs_module_gcode(const std::string& cmd, const std::string& gcode) {

@@ -17,6 +17,7 @@
 
 #include "json_fwd.h"
 
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -52,18 +53,29 @@ struct SlotIdentity {
     /// OrcaSlicer's filament preset id (orca_filament_id_for()).
     std::string filament_id;
     int bed_temp = 0;
+    /// The nozzle temperature the user set. Sent only: the firmware's status
+    /// states its own resolved temperature, never this one.
+    int nozzle_temp = 0;
 };
 
 /// The edit command's parameters for @p identity, each preceded by a space,
 /// for a firmware where firmware_writes_lane_records() is true. Every field
 /// goes out, set or cleared, because the caller holds the slot's whole state.
-/// Text goes out as sendable_text(), logged when that dropped anything.
+/// Text goes out as sendable_text(), logged when that dropped anything; a
+/// nozzle temperature outside what the command takes goes out empty, logged.
 std::string slot_identity_params(const SlotIdentity& identity);
 
 /// @p text as the edit command can carry it inside quotes: without the
 /// characters Klipper's parser cuts the line at or that end the quoting
-/// (`"`, `\`, `#`, `;`, `*`), control or non-ASCII bytes, and trimmed. What the
-/// firmware then stores, so a caller compares the firmware's record with it.
+/// (`"`, `\`, `#`, `;`, `*`), the ones the firmware refuses in a value, control
+/// or non-ASCII bytes, and trimmed. What the firmware then stores.
 std::string sendable_text(const std::string& text);
+
+/// Per slot index (0-based), the identity the firmware states in @p status, a
+/// status frame of a firmware where firmware_writes_lane_records() is true.
+/// The spool link, vendor, name, Orca id and bed temperature are read; an
+/// unset one reads empty or 0. A slot the frame does not carry, or carries
+/// without these fields, is absent: no news for it.
+std::map<int, SlotIdentity> slot_identities(const nlohmann::json& status);
 
 } // namespace helix::lane_writer

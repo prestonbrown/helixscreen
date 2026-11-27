@@ -13,6 +13,7 @@
 #include "error_event.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
+#include "firmware_lane_writer.h"
 #include "slot_registry.h"
 #include "vendor_state_push.h"
 
@@ -988,7 +989,8 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     void configure_lane_record_store_locked(helix::ams::FilamentSlotOverrideStore& store) override;
     // What the private store keeps of the fields the firmware may hold.
     [[nodiscard]] static helix::ams::ExtrasFields private_extras_fields();
-    // On a firmware that writes lane_data, read its records beside ours.
+    // On a firmware that writes lane_data, read lane_data once for the notes
+    // HelixScreen kept there (carry_over_lane_extras_locked()).
     void refresh_backend_keys(helix::ams::FilamentSlotOverrideStore& store) override;
     // Take @p status's answer to who writes lane_data (helix::lane_writer):
     // the first answer opens the lane record store, and a changed one opens it
@@ -1013,9 +1015,13 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     // Open the store on lane_data, or on kOverrideNamespace when the firmware
     // writes lane_data. Main thread, without mutex_.
     void open_ifs_lane_records(bool firmware_writes);
-    // File a read of the firmware's lane_data records: their spool link,
-    // vendor and name join each slot's firmware reading. Main thread.
-    void adopt_firmware_lane_records(const nlohmann::json& namespace_doc);
+    // File the read of lane_data: the extras of the records HelixScreen wrote
+    // there, for the carry-over. Main thread.
+    void adopt_own_lane_extras(const nlohmann::json& namespace_doc);
+    // File @p status's per-slot identity (helix::lane_writer::slot_identities).
+    // Returns whether a slot's reading changed on a firmware that writes
+    // lane_data, so the frame repaints every slot. Caller holds mutex_.
+    bool apply_firmware_identities_locked(const nlohmann::json& status);
     // The firmware edit command's identity parameters for @p info, on a
     // firmware that writes lane_data; empty elsewhere. Caller holds mutex_.
     [[nodiscard]] std::string firmware_identity_params_locked(int slot_index,
@@ -1773,21 +1779,11 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     std::vector<std::string> lane_writer_objects_;
     /// The firmware's answer the store was opened for. Main thread.
     std::optional<bool> firmware_writes_lane_records_;
-    /// Per slot, the firmware's own lane_data record, read on a firmware that
-    /// writes lane_data; its spool link, vendor and name are firmware
-    /// readings. Guarded by mutex_.
-    std::unordered_map<int, helix::ams::FilamentSlotOverride> firmware_lane_records_;
-    /// An edit's spool link, vendor and name, standing as the slot's firmware
-    /// reading until the firmware's record states them or the deadline passes:
-    /// the firmware writes its record after the edit command's echo.
-    struct AwaitedIdentity {
-        int spool_id = 0;
-        std::string brand;
-        std::string spool_name;
-        std::chrono::steady_clock::time_point deadline;
-    };
-    /// Guarded by mutex_.
-    std::unordered_map<int, AwaitedIdentity> awaited_identity_;
+    /// Per slot, the identity the firmware states in its status; on a firmware
+    /// that writes lane_data its spool link, vendor and name are firmware
+    /// readings. The status carries them in the same frame as an edit's type
+    /// and color. Guarded by mutex_.
+    std::map<int, helix::lane_writer::SlotIdentity> firmware_identities_;
     /// Bumped at every start and stop of the ask for who writes lane_data, so
     /// a reply or retry of an earlier session does nothing. Main thread.
     uint64_t lane_writer_session_ = 0;

@@ -534,7 +534,8 @@ alone (`include/firmware_lane_writer.h`, `src/printer/firmware_lane_writer.cpp`)
 the backend only asks it. Today's one row is Kiln OS: its `kiln_lanes` Moonraker component
 writes the records, and from plugin API 1.12 (`printer.ad5x_plugins.api_version`)
 `IFS_SET_MATERIAL` takes `SPOOL_ID=`, `VENDOR=`, `NAME=`, `FILAMENT_ID=` and `BED_TEMP=`
-beside `TYPE=` and `COLOR=` (djvalic/kiln-os#101).
+beside `TYPE=`, `COLOR=` and `TEMP=`, and `printer.ifs_materials` states them per slot
+(djvalic/kiln-os#101).
 
 - **Waiting for the answer.** When the objects list names such a firmware
   (`firmware_may_write_lane_records()`), the start opens no lane record store. It asks
@@ -551,21 +552,23 @@ beside `TYPE=` and `COLOR=` (djvalic/kiln-os#101).
   (`AmsBackendAd5xIfs::kOverrideNamespace`, extras only): colour name, catalog pick,
   product name, fingerprint, weights, and vendor and name as a fallback. Every edit goes
   out as one
-  `IFS_SET_MATERIAL SLOT= TYPE= COLOR= SPOOL_ID= VENDOR="…" NAME="…" FILAMENT_ID="…" BED_TEMP=`,
+  `IFS_SET_MATERIAL SLOT= TYPE= COLOR= SPOOL_ID= VENDOR="…" NAME="…" FILAMENT_ID="…" BED_TEMP= TEMP=`,
   every field set or cleared. `FILAMENT_ID` is a product's Orca id
   (`orca_filament_id_for()`: the linked spool's, or the catalog pick's); a Generic preset
-  goes out empty, so the firmware names its own profile for the type. `BED_TEMP` is a bed
-  temperature someone set, else empty. Text loses `"`, `\`, `#`, `;`, `*`, control and
-  non-ASCII bytes (`lane_writer::sendable_text()`), which Klipper would cut or unquote.
-  Nothing of ours reaches `lane_data`, and the firmware-to-record mirror stands down on a
-  private store. Each refresh and poll also reads `lane_data` (`refresh_backend_keys`): a
-  record's spool id, vendor and name join that slot's `Firmware` reading, beside the
-  colour and type `ifs_materials` states. The firmware writes its record after the
-  command's echo, so once the command is sent, an edit's spool id, vendor and name stand
-  as that reading (`awaited_identity_`) until the record states them or the
-  pending-write timeout passes; a refused command sets nothing.
-- **Carry-over.** The first time the private store reads empty, the extras of the
-  `lane_data` records HelixScreen wrote (signed `writer: helixscreen`, or carrying
+  goes out empty, so the firmware names its own profile for the type. `BED_TEMP` and
+  `TEMP` (nozzle) are temperatures someone set, else empty; a nozzle temperature outside
+  the 150-350 the command takes goes out empty, since one out of range gets the whole
+  command refused. Text loses `"`, `\`, `#`, `;`, `*`, which Klipper would cut or unquote,
+  `'` and `%`, which Kiln refuses in a value, and control and non-ASCII bytes
+  (`lane_writer::sendable_text()`). Nothing of ours reaches `lane_data`, and the
+  firmware-to-record mirror stands down on a private store. Each slot's spool id, vendor
+  and name come from the `ifs_materials` status (`lane_writer::slot_identities()`,
+  `apply_firmware_identities_locked`) and join that slot's `Firmware` reading, beside its
+  color and type. They arrive in the same frame as an edit's type and color, so the
+  edit's `Pending` covers the wait for its echo. Frames before the firmware's answer are
+  kept too, because the status sends a slot again only when it changes.
+- **Carry-over.** `lane_data` is read once, for this (`refresh_backend_keys`). The first
+  time the private store reads empty, the extras of the `lane_data` records HelixScreen wrote (signed `writer: helixscreen`, or carrying
   `helix_*` keys under another writer's signature) are written into it once
   (`carry_over_lane_extras_locked`). A slot that already holds a private record, an
   edit made since, keeps it; `lane_data` is left as it is.

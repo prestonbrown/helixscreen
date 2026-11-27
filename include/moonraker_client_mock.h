@@ -3089,8 +3089,12 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// HELIX_MOCK_IFS_PLUGIN_API: the plugin API version the firmware reports
     /// in `ad5x_plugins`, or empty for a module without that object.
     [[nodiscard]] std::string ifs_module_plugin_api() const;
-    /// The firmware's own lane_data record for @p slot after an
-    /// IFS_SET_MATERIAL, on a plugin API whose firmware writes lane_data.
+    /// Whether the firmware keeps each slot's identity (spool link, vendor,
+    /// name, Orca id, bed temperature): plugin API 1.12 on.
+    [[nodiscard]] bool ifs_module_keeps_identity() const;
+    /// The identity an IFS_SET_MATERIAL states for @p slot, kept for the
+    /// slot's status and written into the firmware's own lane_data record,
+    /// where ifs_module_keeps_identity().
     void write_ifs_module_lane_record(int slot, const std::string& gcode);
 
     // Native Z-Mod's IFS on an AD5X. HELIX_MOCK_AMS=ifs (also `ad5x`, `ad5x_ifs`,
@@ -3408,6 +3412,9 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         {2, {"PETG", "00FF00"}},
         {3, {"ABS", "FF8800"}},
         {4, {"TPU", "FFFFFF"}}};
+    /// Slot -> the identity fields its status states, as Kiln names them; a
+    /// slot never edited states them null. Guarded by ifs_module_materials_mutex_.
+    std::map<int, nlohmann::json> ifs_module_identity_;
 
     // Additional objects for testing (e.g., "mmu", "AFC", "toolchanger")
     std::vector<std::string> additional_objects_;
