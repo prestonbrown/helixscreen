@@ -5,6 +5,7 @@
 #include "ui_screensaver.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/sample_checks.h"
 #include "../test_helpers/screensaver_manager_test_access.h"
 #include "../test_helpers/screensaver_sim_kit.h"
 #include "../test_helpers/screensaver_test_access.h"
@@ -594,6 +595,7 @@ TEST_CASE("the flip clock reads every print lifecycle state, and an idle printer
 
 TEST_CASE("every face fits every screen shape at the widest drift, small row included",
           "[screensaver][screensaver_flip_clock]") {
+    helix::test::SampleChecks samples;
     struct Screen {
         int32_t w;
         int32_t h;
@@ -628,39 +630,52 @@ TEST_CASE("every face fits every screen shape at the widest drift, small row inc
         for (int sy : {-1, 0, 1}) {
             const FlipLayout layout = helix::ui::layout_flip_cards(
                 screen.w, screen.h, shape, faces.sub, sx * max_dx, sy * max_dy);
-            REQUIRE(layout.card_count == count);
-            REQUIRE(layout.sub_count == sub_count);
-            CHECK(layout.shape == shape);
-            CHECK(inside(layout.bounds(), whole));
+            SAMPLE_REQUIRE(samples, layout.card_count == count, (sx + 1) * 100 + (sy + 1));
+            SAMPLE_REQUIRE(samples, layout.sub_count == sub_count, (sx + 1) * 100 + (sy + 1));
+            SAMPLE_CHECK(samples, layout.shape == shape, (sx + 1) * 100 + (sy + 1));
+            SAMPLE_CHECK(samples, inside(layout.bounds(), whole), (sx + 1) * 100 + (sy + 1));
             for (size_t j = count; j < count + sub_count; j++) {
-                CHECK(inside(layout.cards[j], whole));
+                SAMPLE_CHECK(samples, inside(layout.cards[j], whole), (sx + 1) * 100 + (sy + 1));
                 // Small cards sit below the main row and are smaller than its cards.
-                CHECK(layout.cards[j].y1 > layout.cards[count - 1].y2);
-                CHECK(layout.cards[j].y2 - layout.cards[j].y1 <
-                      layout.cards[0].y2 - layout.cards[0].y1);
+                SAMPLE_CHECK(samples, layout.cards[j].y1 > layout.cards[count - 1].y2,
+                             (sx + 1) * 100 + (sy + 1));
+                SAMPLE_CHECK(samples,
+                             layout.cards[j].y2 - layout.cards[j].y1 <
+                                 layout.cards[0].y2 - layout.cards[0].y1,
+                             (sx + 1) * 100 + (sy + 1));
                 for (size_t k = j + 1; k < count + sub_count; k++) {
-                    CHECK_FALSE(layout.cards[j].intersects(layout.cards[k]));
+                    SAMPLE_CHECK_FALSE(samples, layout.cards[j].intersects(layout.cards[k]),
+                                       (sx + 1) * 100 + (sy + 1));
                 }
             }
-            CHECK(inside(layout.meridiem, layout.cards[0]));
+            SAMPLE_CHECK(samples, inside(layout.meridiem, layout.cards[0]),
+                         (sx + 1) * 100 + (sy + 1));
             for (size_t i = 0; i < count; i++) {
-                CHECK(inside(layout.cards[i], whole));
-                CHECK(layout.cards[i].x2 - layout.cards[i].x1 ==
-                      layout.cards[0].x2 - layout.cards[0].x1);
-                CHECK(layout.cards[i].y2 - layout.cards[i].y1 ==
-                      layout.cards[0].y2 - layout.cards[0].y1);
+                SAMPLE_CHECK(samples, inside(layout.cards[i], whole), (sx + 1) * 100 + (sy + 1));
+                SAMPLE_CHECK(samples,
+                             layout.cards[i].x2 - layout.cards[i].x1 ==
+                                 layout.cards[0].x2 - layout.cards[0].x1,
+                             (sx + 1) * 100 + (sy + 1));
+                SAMPLE_CHECK(samples,
+                             layout.cards[i].y2 - layout.cards[i].y1 ==
+                                 layout.cards[0].y2 - layout.cards[0].y1,
+                             (sx + 1) * 100 + (sy + 1));
                 for (size_t j = i + 1; j < count; j++) {
-                    CHECK_FALSE(layout.cards[i].intersects(layout.cards[j]));
+                    SAMPLE_CHECK_FALSE(samples, layout.cards[i].intersects(layout.cards[j]),
+                                       (sx + 1) * 100 + (sy + 1));
                 }
                 for (size_t c = 0; c < layout.colon_count; c++) {
-                    CHECK_FALSE(layout.cards[i].intersects(layout.colons[c]));
+                    SAMPLE_CHECK_FALSE(samples, layout.cards[i].intersects(layout.colons[c]),
+                                       (sx + 1) * 100 + (sy + 1));
                 }
             }
             for (size_t c = 0; c < layout.colon_count; c++) {
-                CHECK(inside(layout.colons[c], layout.bounds()));
+                SAMPLE_CHECK(samples, inside(layout.colons[c], layout.bounds()),
+                             (sx + 1) * 100 + (sy + 1));
             }
-            CHECK(layout.split_top > 0);
-            CHECK(layout.split_bottom > layout.split_top);
+            SAMPLE_CHECK(samples, layout.split_top > 0, (sx + 1) * 100 + (sy + 1));
+            SAMPLE_CHECK(samples, layout.split_bottom > layout.split_top,
+                         (sx + 1) * 100 + (sy + 1));
         }
     }
 
@@ -683,8 +698,8 @@ TEST_CASE("every face fits every screen shape at the widest drift, small row inc
     size_t i = 0;
     for (size_t g = 0; g < shape.group_count; g++) {
         for (size_t c = 1; c < shape.groups[g]; c++) {
-            CHECK(layout.cards[i + c].y1 == layout.cards[i].y1);
-            CHECK(layout.cards[i + c].x1 > layout.cards[i + c - 1].x2);
+            SAMPLE_CHECK(samples, layout.cards[i + c].y1 == layout.cards[i].y1, i + c);
+            SAMPLE_CHECK(samples, layout.cards[i + c].x1 > layout.cards[i + c - 1].x2, i + c);
         }
         i += shape.groups[g];
     }
