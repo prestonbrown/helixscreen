@@ -243,9 +243,6 @@ void MoonrakerAPI::execute_gcode(const std::string& gcode, SuccessCallback on_su
                                                       "[Moonraker API]")) {
         return;
     }
-    if (helix::api::reject_restart_script(gcode, state_, silent, on_error, "[Moonraker API]")) {
-        return;
-    }
     if (helix::api::reject_motion_while_spools_on_bed(gcode, state_, silent, on_error,
                                                       "[Moonraker API]")) {
         return;
@@ -507,9 +504,10 @@ void MoonrakerAPI::emergency_stop(SuccessCallback on_success, ErrorCallback on_e
 }
 
 void MoonrakerAPI::restart_firmware(SuccessCallback on_success, ErrorCallback on_error) {
-    // Restarting releases the steppers (a gantry can sink onto spools on the bed,
-    // prestonbrown/helixscreen#1730) and kills a running job.
-    if (helix::api::reject_restart(&state_, "printer.firmware_restart", on_error)) {
+    // Restarting releases the steppers; with spools on the bed a gantry can sink
+    // onto them (prestonbrown/helixscreen#1730).
+    if (helix::api::reject_restart_while_spools_on_bed(&state_, "printer.firmware_restart",
+                                                       on_error)) {
         return;
     }
     spdlog::info("[Moonraker API] Restarting firmware");
@@ -524,9 +522,9 @@ void MoonrakerAPI::restart_firmware(SuccessCallback on_success, ErrorCallback on
 }
 
 void MoonrakerAPI::restart_klipper(SuccessCallback on_success, ErrorCallback on_error) {
-    // Restarting releases the steppers (a gantry can sink onto spools on the bed,
-    // prestonbrown/helixscreen#1730) and kills a running job.
-    if (helix::api::reject_restart(&state_, "printer.restart", on_error)) {
+    // Restarting releases the steppers; with spools on the bed a gantry can sink
+    // onto them (prestonbrown/helixscreen#1730).
+    if (helix::api::reject_restart_while_spools_on_bed(&state_, "printer.restart", on_error)) {
         return;
     }
     spdlog::info("[Moonraker API] Restarting Klipper");
@@ -543,7 +541,8 @@ void MoonrakerAPI::restart_klipper(SuccessCallback on_success, ErrorCallback on_
 void MoonrakerAPI::restart_service(const std::string& service_name, SuccessCallback on_success,
                                    ErrorCallback on_error) {
     if (service_name.find("klipper") != std::string::npos &&
-        helix::api::reject_restart(&state_, "machine.services.restart", on_error)) {
+        helix::api::reject_restart_while_spools_on_bed(&state_, "machine.services.restart",
+                                                       on_error)) {
         return;
     }
     spdlog::info("[Moonraker API] Restarting service '{}' via machine.services.restart",

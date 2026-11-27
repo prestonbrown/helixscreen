@@ -53,23 +53,32 @@ bool reject_motion_while_spools_on_bed(
     const std::string& gcode, helix::PrinterState& state, bool silent,
     const helix::SharedCallback<void(const MoonrakerError&)>& on_error, const char* log_tag);
 
-/// Why a Klipper restart must not go out now, or nullptr when it may. Two reasons,
-/// in this order: spools lie on the bed (spool_latch_restart_message), or a job
-/// holds the machine (restart_while_printing_message) while Klippy is READY. A
-/// halted or errored Klippy never counts as a job: print_stats can still read
-/// printing there, and a restart is how the user recovers. Main thread only.
-/// @p state may be null, which refuses nothing. The returned text is an untranslated
-/// TR_NOOP tag.
+/// Reject a Klipper or firmware restart while spools lie on the bed, with the
+/// restart wording (spool_latch_restart_message). @p state may be null. This is the
+/// send layer's whole restart refusal: a recovery restart (after M112, an MCU
+/// error, a lost connection) must go out even while the job still reads printing.
+bool reject_restart_while_spools_on_bed(
+    const helix::PrinterState* state, const char* method,
+    const helix::SharedCallback<void(const MoonrakerError&)>& on_error);
+
+/// Why a restart that nobody is recovering with must not go out now, or nullptr when
+/// it may: spools lie on the bed (spool_latch_restart_message), or a job holds the
+/// machine (restart_while_printing_message) while Klippy is READY. For the config
+/// editor, which restarts to apply an edit, and for plugin RPCs. Never for the send
+/// layer. The returned text is an untranslated TR_NOOP tag. @p state may be null.
 const char* restart_refusal_reason(const helix::PrinterState* state);
 
-/// Reject a Klipper or firmware restart for restart_refusal_reason(). True means
-/// refused and @p on_error already called. @p state may be null.
+/// Reject a Klipper restart method from a plugin for restart_refusal_reason(). True
+/// means refused and @p on_error already called.
 bool reject_restart(const helix::PrinterState* state, const char* method,
                     const helix::SharedCallback<void(const MoonrakerError&)>& on_error);
 
-/// Reject a script that restarts Klipper as one of its own commands (RESTART,
-/// FIRMWARE_RESTART, SAVE_CONFIG, any case) for restart_refusal_reason(). Same
-/// contract as the homing guard.
+/// True when @p gcode has a line that restarts Klipper as its own command: RESTART,
+/// FIRMWARE_RESTART, or SAVE_CONFIG (any case), except `SAVE_CONFIG RESTART=0`.
+bool gcode_restarts_klipper(const std::string& gcode);
+
+/// Reject a plugin's script that restarts Klipper (gcode_restarts_klipper) for
+/// restart_refusal_reason(). Same contract as the homing guard.
 bool reject_restart_script(const std::string& gcode, const helix::PrinterState& state, bool silent,
                            const helix::SharedCallback<void(const MoonrakerError&)>& on_error,
                            const char* log_tag);

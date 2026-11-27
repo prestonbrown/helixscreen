@@ -14,6 +14,9 @@
 #include "spool_latch_gate.h"
 #include "translation_loader.h"
 
+#include <cctype>
+#include <sstream>
+
 namespace helix {
 
 const char* spool_latch_message() {
@@ -99,6 +102,19 @@ bool reject_job_while_spools_on_bed(
     return true;
 }
 
+bool reject_restart_while_spools_on_bed(
+    const helix::PrinterState* state, const char* method,
+    const helix::SharedCallback<void(const MoonrakerError&)>& on_error) {
+    if (!state || !state->print_state().spool_latch_active()) {
+        return false;
+    }
+    spdlog::warn("[Moonraker API] Refusing {} while spools are on the bed", method);
+    if (on_error) {
+        on_error(MoonrakerError::refusal(method, helix::spool_latch_restart_message()));
+    }
+    return true;
+}
+
 const char* restart_refusal_reason(const helix::PrinterState* state) {
     if (!state) {
         return nullptr;
@@ -128,17 +144,43 @@ bool reject_restart(const helix::PrinterState* state, const char* method,
     return true;
 }
 
+bool gcode_restarts_klipper(const std::string& gcode) {
+    std::istringstream lines(gcode);
+    std::string line;
+    while (std::getline(lines, line)) {
+        std::istringstream words(line);
+        std::string command;
+        if (!(words >> command)) {
+            continue;
+        }
+        for (char& c : command) {
+            c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+        }
+        if (command == "RESTART" || command == "FIRMWARE_RESTART") {
+            return true;
+        }
+        if (command == "SAVE_CONFIG") {
+            // Kalico's SAVE_CONFIG RESTART=0 writes the config and leaves Klipper running.
+            bool no_restart = false;
+            std::string arg;
+            while (words >> arg) {
+                for (char& c : arg) {
+                    c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+                }
+                no_restart = no_restart || arg == "RESTART=0";
+            }
+            if (!no_restart) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 bool reject_restart_script(const std::string& gcode, const helix::PrinterState& state, bool silent,
                            const helix::SharedCallback<void(const MoonrakerError&)>& on_error,
                            const char* log_tag) {
-    bool restarts = false;
-    for (const std::string& token : helix::gcode_line_tokens(gcode)) {
-        if (token == "RESTART" || token == "FIRMWARE_RESTART" || token == "SAVE_CONFIG") {
-            restarts = true;
-            break;
-        }
-    }
-    if (!restarts) {
+    if (!gcode_restarts_klipper(gcode)) {
         return false;
     }
     const char* reason = restart_refusal_reason(&state);

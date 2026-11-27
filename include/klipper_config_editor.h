@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "async_lifetime_guard.h"
 #include "helix_shared_callback.h"
 #include "klippy_state.h"
 
@@ -277,12 +278,12 @@ class KlipperConfigEditor {
     /// thread it answers Absent.
     void set_feature_state_source(FeatureStateSource source);
 
-    /// Where the editor asks whether a restart is allowed. Every edit asks before
-    /// it writes, so a refused restart never leaves an edited file waiting for
-    /// the next one; the send layer stays the backstop for a print that starts
-    /// mid-flow. The default asks the app's PrinterState on the main thread and,
-    /// from any other thread, refuses: a refused edit is recoverable, a killed
-    /// print is not.
+    /// Where the editor asks whether its restart may go out. It asks at the entry of
+    /// every edit, before anything is read or written, and again on the main thread
+    /// right before the restart: a print that started in between puts the edit back
+    /// and reports the refusal. The send layer refuses only the spool latch, so a
+    /// recovery restart is never blocked. The default asks the app's PrinterState and
+    /// must run on the main thread; elsewhere it refuses.
     void set_restart_refusal_source(RestartRefusalSource source);
 
     /// How often the FIRMWARE_RESTART health monitor polls Klippy's state and
@@ -359,6 +360,11 @@ class KlipperConfigEditor {
                              SuccessCallback on_success, ErrorCallback on_error,
                              int restart_timeout_ms, std::vector<ExpectedSetting> expected);
 
+    /// restart_and_monitor() after its main-thread check: announce, restart, watch.
+    void send_restart_and_monitor(IMoonrakerAPI& api, RestartRecovery recovery,
+                                  SuccessCallback on_success, ErrorCallback on_error,
+                                  int restart_timeout_ms, std::vector<ExpectedSetting> expected);
+
     ConfigEditRoute route() const;
 
     /// Undo an edit whose restart failed: restore through @p recovery, restart
@@ -377,6 +383,8 @@ class KlipperConfigEditor {
 
     FeatureStateSource feature_state_source_;
     RestartRefusalSource restart_refusal_source_;
+    /// Defers the pre-restart check to the main thread; expires with the editor.
+    AsyncLifetimeGuard lifetime_;
 
     /// True, after reporting it through @p on_error, while a restart is refused.
     bool refuse_while_restart_blocked(const std::string& section,

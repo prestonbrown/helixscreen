@@ -16,7 +16,6 @@
 #include "notice.h"
 #include "platform_info.h"
 #include "printer_state.h"
-#include "spool_latch_gate.h"
 #include "src/api/moonraker_gcode_guards.h"
 
 #include <spdlog/spdlog.h>
@@ -1266,17 +1265,6 @@ std::optional<nlohmann::json> query_config_settings(IMoonrakerAPI& api) {
 
 namespace {
 
-/// True for the refusal helix::api::reject_restart() issues, as opposed to a
-/// restart that failed on the wire.
-bool is_restart_refusal(const MoonrakerError& err) {
-    if (err.message_tag == nullptr) {
-        return false;
-    }
-    const std::string tag = err.message_tag;
-    return tag == helix::restart_while_printing_message() ||
-           tag == helix::spool_latch_restart_message();
-}
-
 /// Every FIRMWARE_RESTART this editor sends is one the app asked for, so the
 /// recovery dialog and the disconnect modal must read it as a restart, not a
 /// fault. Owned here rather than by each caller, so no Save path can forget it.
@@ -1383,10 +1371,6 @@ void KlipperConfigEditor::plugin_multi_edit(IMoonrakerAPI& api, const std::strin
                     on_error(plan.error);
                 return;
             }
-            // A print can start while the plugin's config read was in flight.
-            if (refuse_while_restart_blocked(section, on_error)) {
-                return;
-            }
             api.get_client().send_jsonrpc(
                 "server.helix.config_edit",
                 nlohmann::json{{"edits", plan.edits}, {"dry_run", false}},
@@ -1475,10 +1459,6 @@ void KlipperConfigEditor::file_api_multi_edit(IMoonrakerAPI& api, const std::str
                 api, file_path,
                 [this, &api, section, file_path, modified, on_success, on_error, restart_timeout_ms,
                  expected]() {
-                    // A print can start while the backup was in flight.
-                    if (refuse_while_restart_blocked(section, on_error)) {
-                        return;
-                    }
                     // Step 6: Upload modified content
                     api.transfers().upload_file(
                         "config", file_path, *modified,
@@ -1553,6 +1533,42 @@ void KlipperConfigEditor::restart_and_monitor(IMoonrakerAPI& api, RestartRecover
                                               SuccessCallback on_success, ErrorCallback on_error,
                                               int restart_timeout_ms,
                                               std::vector<ExpectedSetting> expected) {
+    // The write callbacks run on a worker thread; PrinterState and lv_tr belong to
+    // the main thread. The last check before the restart is made there, so a print
+    // that started since the entry check puts the edit back instead of being killed.
+    lifetime_.defer("KlipperConfigEditor::restart", [this, &api, recovery = std::move(recovery),
+                                                     on_success = std::move(on_success),
+                                                     on_error = std::move(on_error),
+                                                     restart_timeout_ms,
+                                                     expected = std::move(expected)]() mutable {
+        const char* reason = restart_refusal_source_ ? restart_refusal_source_() : nullptr;
+        if (reason == nullptr) {
+            send_restart_and_monitor(api, std::move(recovery), std::move(on_success),
+                                     std::move(on_error), restart_timeout_ms, std::move(expected));
+            return;
+        }
+        spdlog::warn("[ConfigEditor] Restart refused ({}); restoring backups", reason);
+        const std::string refusal = lv_tr(reason);
+        auto report = [on_error, refusal](const std::string& detail) {
+            if (on_error)
+                on_error(detail.empty() ? refusal : refusal + " " + detail);
+        };
+        if (recovery.restore) {
+            recovery.restore(
+                api, [report]() { report({}); },
+                [report](const std::string& restore_err) {
+                    report("The edit could not be undone: " + restore_err);
+                });
+        } else {
+            report({});
+        }
+    });
+}
+
+void KlipperConfigEditor::send_restart_and_monitor(IMoonrakerAPI& api, RestartRecovery recovery,
+                                                   SuccessCallback on_success,
+                                                   ErrorCallback on_error, int restart_timeout_ms,
+                                                   std::vector<ExpectedSetting> expected) {
     announce_expected_restart(api, restart_announcement_);
     api.restart_firmware(
         [this, &api, recovery, on_success, on_error, restart_timeout_ms, expected,
@@ -1630,28 +1646,7 @@ void KlipperConfigEditor::restart_and_monitor(IMoonrakerAPI& api, RestartRecover
                     });
                 }));
         },
-        [&api, recovery, on_error](const MoonrakerError& err) {
-            // The send layer refused this restart (a print started after the editor's
-            // last check): nothing restarts, so the edit goes back instead of waiting
-            // in the file for the next restart.
-            if (is_restart_refusal(err)) {
-                spdlog::warn("[ConfigEditor] Restart refused ({}); restoring backups", err.message);
-                const std::string refusal = lv_tr(err.message_tag);
-                auto report = [on_error, refusal](const std::string& detail) {
-                    if (on_error)
-                        on_error(detail.empty() ? refusal : refusal + " " + detail);
-                };
-                if (recovery.restore) {
-                    recovery.restore(
-                        api, [report]() { report({}); },
-                        [report](const std::string& restore_err) {
-                            report("The edit could not be undone: " + restore_err);
-                        });
-                } else {
-                    report({});
-                }
-                return;
-            }
+        [on_error](const MoonrakerError& err) {
             spdlog::error("[ConfigEditor] FIRMWARE_RESTART failed: {}", err.message);
             if (on_error)
                 on_error("Failed to send FIRMWARE_RESTART: " + err.message);
