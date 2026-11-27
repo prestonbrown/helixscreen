@@ -72,7 +72,6 @@ void FanWidget::set_config(const nlohmann::json& config) {
 
     if (config.contains("fan") && config["fan"].is_string()) {
         selected_fan_ = config["fan"].get<std::string>();
-        resolve_display_name();
         spdlog::debug("[FanWidget] Config: fan={}", selected_fan_);
     }
 }
@@ -199,7 +198,6 @@ void FanWidget::select_fan(const std::string& object_name) {
     }
 
     selected_fan_ = object_name;
-    resolve_display_name();
     bind_speed_observer();
     update_display();
     save_config();
@@ -218,6 +216,10 @@ void FanWidget::on_speed_changed(int speed_pct) {
 }
 
 void FanWidget::update_display() {
+    // The fan list can have arrived, or been rebuilt by a reconnection or a
+    // rename, since the fan was selected: the name shown is the list's answer
+    // now, and the Klipper object's only while the list has no fan by that name.
+    resolve_display_name();
     if (speed_label_) {
         if (selected_fan_.empty()) {
             lv_label_set_text(speed_label_, "--");
