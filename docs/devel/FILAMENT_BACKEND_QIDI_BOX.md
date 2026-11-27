@@ -242,7 +242,7 @@ Retry is a `RecoveryAction` with `gcode = "TRY_MOVE_AGAIN"`, `requires_paused = 
 | `src/printer/printer_discovery_parse.cpp` | `box_stepper slot<N>` detection + slot count |
 | `include/qidi_fault_codes.h`, `src/printer/qidi_fault_codes.cpp` | `QD<k>_<module>_<index>` decoding, the wording table, `retry_step` decoding, slot labels |
 | `include/ams_types.h` | `AmsType::QIDI_BOX` enum + string converters |
-| `tests/unit/test_ams_backend_qidi.cpp` | save_variables parsing, the per-slot loaded reconcile (#1199), tool map, dryer, eject, remap, filas list, fingerprint swap detection, metadata clear |
+| `tests/unit/test_ams_backend_qidi.cpp`, `tests/unit/test_ams_backend_qidi_2.cpp`, `tests/unit/test_ams_backend_qidi_3.cpp` (one file split in its own order; their fixtures in `tests/test_helpers/ams_backend_qidi_fixtures.h`) | save_variables parsing, the per-slot loaded reconcile (#1199), tool map, dryer, eject, remap, filas list, fingerprint swap detection, metadata clear |
 
 ### Follow-up Work (in order)
 
