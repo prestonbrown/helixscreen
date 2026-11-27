@@ -181,7 +181,7 @@ When you open a file, HelixScreen compares it with your printer's own limits and
 |---------|---------------|----------------|
 | Moves past the printer's travel (or a delta's radius) | The file was sliced for a bigger bed, or places a purge line where this printer can't reach | Blocked |
 | Heats the nozzle or bed above the printer's limit | The slicer profile asks for more than the printer's heater allows | Blocked |
-| Uses a tool the printer doesn't have | For example T2 on a two-extruder printer with no filament system | Blocked; a warning with **Start Anyway** when only tool macros, not extruders, give the printer's tool count |
+| Uses a tool the printer doesn't have | For example T0, T1 and T2 on a two-extruder printer with no filament system | Blocked when the file uses more tools than the printer has extruders. A warning with **Start Anyway** when the file only numbers a tool past the last (T3 alone on a two-extruder printer) or tool macros, not extruders, give the printer's tool count. A single-extruder printer prints any file that uses one tool, whatever its number, since slicers number a one-filament file by its filament slot |
 | Sliced for a different nozzle size | The slicer assumed a 0.6 mm nozzle and the printer is set up for 0.4 mm | Warning, with **Start Anyway** |
 | Sliced for a High Flow nozzle on a toolhead with a standard one | The U1's own firmware refuses a High Flow job on a standard nozzle, unless your filament mapping puts that tool on a High Flow head | Warning, with **Start Anyway** |
 | Sliced for a standard nozzle on a toolhead with a High Flow one | The print works, but was not made for this nozzle | Warning, with **Start Anyway** |

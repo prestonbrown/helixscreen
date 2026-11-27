@@ -23,6 +23,8 @@
 #include "app_globals.h"
 #include "file_analysis.h"
 #include "fit_check.h"
+#include "gcode_footer_summary.h"
+#include "gcode_parser.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix_plugin_features.h"
 #include "print_start_checks.h"
@@ -546,6 +548,72 @@ TEST_CASE("warnings alone ask before starting", "[plugin_fitcheck]") {
     CHECK(r.verdict == CheckResult::Verdict::Warn);
     CHECK_FALSE(r.proceed_label.empty());
     CHECK(r.body.find("0.6") != std::string::npos);
+}
+
+namespace {
+
+/// The tools the detail view reads off @p gcode: the footer's per-filament
+/// grams when they name a used filament, else the standalone T<n> lines.
+std::set<int> screen_tools_of(const std::string& gcode) {
+    const gcode::GcodeFooterSummary footer = gcode::parse_gcode_footer_summary(gcode);
+    return footer.usable() ? footer.tools_used : gcode::scan_tools_used_from_content(gcode);
+}
+
+CheckResult one_extruder_gate_for(const std::string& gcode) {
+    return gate_fit_check(ctx_for(fit_file_from_sources(std::nullopt, nullptr, std::nullopt,
+                                                        std::nullopt, screen_tools_of(gcode))));
+}
+
+} // namespace
+
+TEST_CASE("a one-extruder printer starts a one-filament file sliced on filament 4",
+          "[plugin_fitcheck][2207]") {
+    REQUIRE(fit_machine_from_settings(kSettings).tool_count == std::optional<int>(1));
+    REQUIRE(fit_machine_from_settings(kSettings).tool_count_confirmed);
+
+    SECTION("the slicer's per-filament accounting names only the fourth filament") {
+        const std::string gcode = "; filament_colour = #FFFFFF;#000000;#FF0000;#00FF00\n"
+                                  "PRINT_START EXTRUDER_TEMP=240 BED_TEMP=80\n"
+                                  "; T3\n"
+                                  "G1 X10 Y10 E1\n"
+                                  "; filament used [g] = 0.00, 0.00, 0.00, 309.12\n";
+        REQUIRE(screen_tools_of(gcode) == std::set<int>{3});
+        CHECK(one_extruder_gate_for(gcode).verdict == CheckResult::Verdict::Pass);
+    }
+    SECTION("the file selects T3 once, which Klipper answers on one extruder") {
+        const std::string gcode = "PRINT_START EXTRUDER_TEMP=240 BED_TEMP=80\n"
+                                  "T3\n"
+                                  "G1 X10 Y10 E1\n";
+        REQUIRE(screen_tools_of(gcode) == std::set<int>{3});
+        CHECK(one_extruder_gate_for(gcode).verdict == CheckResult::Verdict::Pass);
+    }
+}
+
+TEST_CASE("a one-extruder printer still stops a file that prints with two tools",
+          "[plugin_fitcheck][2207]") {
+    const std::string changes = "T0\nG1 X10 E1\nT3\nG1 X20 E1\n";
+    for (const std::string& gcode :
+         {changes, changes + "; filament used [g] = 12.00, 0.00, 0.00, 4.50\n"}) {
+        INFO(gcode);
+        REQUIRE(screen_tools_of(gcode) == std::set<int>{0, 3});
+        const CheckResult r = one_extruder_gate_for(gcode);
+        CHECK(r.verdict == CheckResult::Verdict::Block);
+        CHECK(r.body.find("T3") != std::string::npos);
+    }
+}
+
+TEST_CASE("a tool number past the last, on a printer with tools enough, starts anyway on a tap",
+          "[plugin_fitcheck][2207]") {
+    json settings = kSettings;
+    settings["extruder1"] = {{"max_temp", 300.0}, {"nozzle_diameter", 0.4}};
+    FitFile file;
+    file.tools = {1, 3};
+    PrintStartContext ctx;
+    ctx.fit_file = file;
+    ctx.fit_machine = fit_machine_from_settings(settings);
+    const CheckResult r = gate_fit_check(ctx);
+    CHECK(r.verdict == CheckResult::Verdict::Warn);
+    CHECK_FALSE(r.proceed_label.empty());
 }
 
 TEST_CASE("another printer model is shown, never asked about at Print", "[plugin_fitcheck]") {
