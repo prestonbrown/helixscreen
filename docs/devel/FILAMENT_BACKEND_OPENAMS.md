@@ -262,7 +262,9 @@ no climate readout and no dryer.
 
 ## Tests
 
-`tests/unit/test_ams_backend_openams.cpp` (`[openams]`) covers the discovery claim (a
+`tests/unit/test_ams_backend_openams.cpp` and `tests/unit/test_ams_backend_openams_2.cpp`
+(`[openams]`, one file split in its own order; both take their fixtures from
+`tests/test_helpers/ams_backend_openams_fixtures.h`) cover the discovery claim (a
 supported API claims the printer; a pre-API manager, unknown version or failed query does
 not; AFC keeps it in either object order), the snapshot model, partial updates, and the
 public `load_filament()` / `change_tool()` / `unload_filament()` entry points. It checks
