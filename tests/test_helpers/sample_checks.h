@@ -33,11 +33,46 @@ class SampleChecks {
     std::size_t count_ = 0;
 };
 
+namespace detail {
+
+/// What Catch2 concluded when it formed the decomposed expression. The
+/// expression's parts were evaluated once to form it; nothing runs again.
+template <typename LhsT> bool verdict_of(const Catch::ExprLhs<LhsT>& expr) {
+    return expr.makeUnaryExpr().getResult();
+}
+
+inline bool verdict_of(const Catch::ITransientExpression& expr) {
+    return expr.getResult();
+}
+
+/// One sample check on an expression that is evaluated and decomposed already.
+/// A passing one is counted, and that is all it costs. A failing one is
+/// reported as its Catch2 namesake reports (the values of both sides, then the
+/// sample), and ends the case or lets it continue as the namesake does.
+template <typename Expr, typename Sample>
+void sample_check(SampleChecks& samples, Catch::StringRef macro_name,
+                  const Catch::SourceLineInfo& line, Catch::ResultDisposition::Flags disposition,
+                  Catch::StringRef expression, const Expr& expr, const Sample& sample) {
+    ++samples;
+    if (verdict_of(expr) != Catch::isFalseTest(disposition)) {
+        return;
+    }
+    INFO("sample " << sample);
+    Catch::AssertionHandler handler(macro_name, line, expression, disposition);
+    INTERNAL_CATCH_TRY {
+        handler.handleExpr(expr);
+    }
+    INTERNAL_CATCH_CATCH(handler)
+    INTERNAL_CATCH_REACT(handler)
+}
+
+} // namespace detail
 } // namespace helix::test
 
-/// REQUIRE, CHECK and CHECK_FALSE for one sample of a loop. A sample check
-/// fails the case exactly as its Catch2 namesake does, with the sample named,
-/// and it writes nothing to the report while the sample passes.
+/// REQUIRE, CHECK and CHECK_FALSE for one sample of a loop. Each evaluates its
+/// expression exactly once, as its namesake does, so the expression may advance
+/// state or draw from a generator. A passing sample writes nothing to the
+/// report.
 ///
 ///   SampleChecks samples;
 ///   for (int i = 0; i < 20000; i++) {
@@ -45,32 +80,21 @@ class SampleChecks {
 ///   }
 ///   samples.done(20000);
 ///
-/// @p expr is evaluated twice when it fails, once for the verdict and once for
-/// the expansion the namesake prints, so a failing sample may move a random
-/// generator twice.
+/// A failing one reports the values the one evaluation produced, with the
+/// sample named.
 #define HELIX_SAMPLE_TEST(name, disposition, samples, expr, sample)                                \
     do {                                                                                           \
-        if (!(expr)) {                                                                             \
-            INFO("sample " << (sample));                                                           \
-            INTERNAL_CATCH_TEST(name, disposition, expr);                                          \
-        }                                                                                          \
-        ++(samples);                                                                               \
+        helix::test::detail::sample_check(samples, name##_catch_sr, CATCH_INTERNAL_LINEINFO,       \
+                                          disposition, #expr, Catch::Decomposer() <= expr,         \
+                                          sample);                                                 \
     } while (false)
 
 #define SAMPLE_REQUIRE(samples, expr, sample)                                                      \
     HELIX_SAMPLE_TEST("REQUIRE", Catch::ResultDisposition::Normal, samples, expr, sample)
 #define SAMPLE_CHECK(samples, expr, sample)                                                        \
     HELIX_SAMPLE_TEST("CHECK", Catch::ResultDisposition::ContinueOnFailure, samples, expr, sample)
-
-/// CHECK_FALSE for one sample of a loop, on the terms above.
 #define SAMPLE_CHECK_FALSE(samples, expr, sample)                                                  \
-    do {                                                                                           \
-        if (expr) {                                                                                \
-            INFO("sample " << (sample));                                                           \
-            INTERNAL_CATCH_TEST("CHECK_FALSE",                                                     \
-                                Catch::ResultDisposition::ContinueOnFailure |                      \
-                                    Catch::ResultDisposition::FalseTest,                           \
-                                expr);                                                             \
-        }                                                                                          \
-        ++(samples);                                                                               \
-    } while (false)
+    HELIX_SAMPLE_TEST("CHECK_FALSE",                                                               \
+                      Catch::ResultDisposition::ContinueOnFailure |                                \
+                          Catch::ResultDisposition::FalseTest,                                     \
+                      samples, expr, sample)
