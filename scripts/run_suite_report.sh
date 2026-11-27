@@ -33,6 +33,10 @@
 # `make full-test-run`'s finding to report, and the gates still have something to say
 # about the report a failing run produced.
 #
+# The suite runs in a process group of its own, and the run ends with that
+# group: a stalled run takes everything the suite started with it, and a
+# signal that ends this script ends the suite.
+#
 # The report is staged in memory. Catch2 flushes its --out stream after every
 # insertion, so the file takes one write() per token, about one per two bytes.
 # On a filesystem where a small write is dear (ZFS on the test host) those
@@ -44,7 +48,9 @@
 # with the stage on a descriptor, 9, which replaces whatever the caller had
 # open there. Without python3 or a memfd, without /proc to reach the stage
 # through, or when HELIX_REPORT_DIRECT=1, the suite writes the report path
-# directly. A TERM or INT ends the suite before the exit trap publishes.
+# directly. A TERM or INT reaches the exit trap, which ends the suite before it
+# publishes. A SIGKILL to this script cannot: it leaves the suite running, so
+# the starting line names the suite's pid.
 # scripts/check_test_order_dependence.py reads the same variable for the
 # reports of the runs it starts.
 
@@ -120,6 +126,15 @@ if [ -n "$STAGE_FD" ]; then
 fi
 
 published=""
+run_pid=""
+stop_suite() {
+    # The suite, and in its own process group whatever it started: a case that
+    # hung may have left a helper behind, and nothing of the run outlives it.
+    [ -n "$run_pid" ] || return 0
+    kill -9 "$run_pid" 2>/dev/null
+    kill -9 -- "-$run_pid" 2>/dev/null
+    wait "$run_pid" 2>/dev/null
+}
 publish() {
     # A staged run's bytes reach the report path here, once. A direct run has
     # written them there already.
@@ -133,33 +148,33 @@ publish() {
     say "cannot write $REPORT: the staged report did not reach its path"
     exit 2
 }
-trap publish EXIT
-
-run_pid=""
-on_signal() {
-    # The writer goes first, so what the exit trap publishes is still.
-    if [ -n "$run_pid" ]; then
-        kill -9 "$run_pid" 2>/dev/null
-        wait "$run_pid" 2>/dev/null
-    fi
-    exit 143
-}
-trap on_signal TERM INT
-
-if [ -n "$STAGE_FD" ]; then
-    say "starting $TEST_BIN '$FILTER' (stall ${STALL_SECS}s, cap ${MAX_SECS}s, report in memory)"
-else
-    say "starting $TEST_BIN '$FILTER' (stall ${STALL_SECS}s, cap ${MAX_SECS}s, report at $REPORT)"
-fi
+# However this script ends (a verdict, a signal, its last line), the group ends
+# before the report is published: a stalled run takes everything the suite
+# started with it, and nothing writes to the stage while it is copied. A
+# signal cannot reach the suite itself, which runs in another process group.
+trap 'stop_suite; publish' EXIT
 
 # --out is not optional: tests that shell out print ANSI status to stdout, and
 # with the report on stdout too the XML comes back complete but unparseable.
+# Job control on for this one start puts the suite in a process group of its
+# own, so the run can be ended with everything it started. A shell without job
+# control reads a background job's input from /dev/null; with it on, that is
+# the suite's by hand.
+set -m
 if [ -n "$STAGE_FD" ]; then
-    "$TEST_BIN" "$FILTER" --reporter xml --success --out "/proc/self/fd/$STAGE_FD" >"$RUN_LOG" 2>&1 &
+    "$TEST_BIN" "$FILTER" --reporter xml --success --out "/proc/self/fd/$STAGE_FD" \
+        >"$RUN_LOG" 2>&1 </dev/null &
 else
-    "$TEST_BIN" "$FILTER" --reporter xml --success --out "$REPORT" >"$RUN_LOG" 2>&1 &
+    "$TEST_BIN" "$FILTER" --reporter xml --success --out "$REPORT" >"$RUN_LOG" 2>&1 </dev/null &
 fi
+set +m
 run_pid=$!
+
+if [ -n "$STAGE_FD" ]; then
+    say "starting $TEST_BIN '$FILTER' (stall ${STALL_SECS}s, cap ${MAX_SECS}s, suite pid $run_pid, report in memory)"
+else
+    say "starting $TEST_BIN '$FILTER' (stall ${STALL_SECS}s, cap ${MAX_SECS}s, suite pid $run_pid, report at $REPORT)"
+fi
 
 start=$(date +%s)
 scanned=0          # bytes of the report already searched for case names
@@ -211,9 +226,6 @@ done
 if [ -n "$verdict" ]; then
     refresh_current_case
     elapsed=$(( $(date +%s) - start ))
-    kill -9 "$run_pid" 2>/dev/null
-    wait "$run_pid" 2>/dev/null
-    publish
     if [ "$verdict" = "stall" ]; then
         say "STALLED: the report stopped growing ${STALL_SECS}s ago (elapsed ${elapsed}s)"
     else
@@ -228,15 +240,16 @@ fi
 
 wait "$run_pid"
 suite_rc=$?
-publish
 elapsed=$(( $(date +%s) - start ))
-last_size=$(file_size "$REPORT")
+last_size=$(file_size "$LIVE")
 
-if [ ! -s "$REPORT" ]; then
+if [ "$last_size" -eq 0 ]; then
     say "no report produced (suite exit $suite_rc); see $RUN_LOG"
     exit 2
 fi
 
-cases=$(grep -ao '<TestCase name=' "$REPORT" | wc -l | tr -d ' ')
+# Read from where the suite wrote: the exit trap ends the group, then puts the
+# report at its path.
+cases=$(grep -ao '<TestCase name=' "$LIVE" | wc -l | tr -d ' ')
 say "done in ${elapsed}s: $((last_size / 1048576)) MB, ${cases:-0} cases, suite exit $suite_rc"
 exit 0
