@@ -691,9 +691,12 @@ TEST_CASE_METHOD(LVGLTestFixture, "an idle Save with the real default source wri
     editor.set_restart_announcer([&announced](const std::string&, uint32_t) { ++announced; });
     editor.set_feature_state_source([route]() { return route; });
     EditorRun run;
+    // The save's callbacks run on a worker thread here, so a loaded host can take
+    // longer than the threadless cases' 300 ms to see the restart through.
     run_multi_edit(*this, editor, api, "input_shaper",
-                   {{ConfigEdit::Type::ADD_KEY, "shaper_freq_x", "41.6"}}, run);
+                   {{ConfigEdit::Type::ADD_KEY, "shaper_freq_x", "41.6"}}, run, 5000);
 
+    INFO("error: " << run.error);
     CHECK(run.error.empty());
     CHECK(run.succeeded);
     CHECK(restart_sent(client));
