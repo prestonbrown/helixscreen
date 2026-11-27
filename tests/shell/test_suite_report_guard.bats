@@ -252,3 +252,83 @@ EOF
     contains "slow case" "$(cat "$REPORT")"
     contains "report in memory" "$(cat "$WORK/watch.log")"
 }
+
+# ------------------------------------------------------------ the run's process group
+
+# Gone: the kill has landed and a parentless child has been reaped. A killed
+# child is a zombie until then, and `kill -0` still finds a zombie.
+child_is_gone() { # <pid>
+    for _ in $(seq 1 50); do
+        kill -0 "$1" 2>/dev/null || return 0
+        sleep 0.1
+    done
+    return 1
+}
+
+# A fake suite that starts a child of its own, records its pid in $FAKE_CHILD,
+# and never returns.
+fake_suite_with_child() {
+    export FAKE_CHILD="$WORK/child.pid"
+    fake_suite <<'EOF'
+printf '<Catch2TestRun name="t">\n<TestCase name="the case that never returns" filename="t.cpp">\n' > "$OUT"
+sleep 300 &
+echo $! > "$FAKE_CHILD"
+wait
+EOF
+}
+
+# A fake suite that leaves a child behind, records its pid in $FAKE_CHILD, and
+# ends.
+fake_suite_that_leaves_a_child() {
+    export FAKE_CHILD="$WORK/child.pid"
+    fake_suite <<'EOF'
+printf '<Catch2TestRun name="t">\n<TestCase name="one" filename="t.cpp"/>\n' > "$OUT"
+sleep 300 &
+echo $! > "$FAKE_CHILD"
+EOF
+}
+
+@test "a run that ends takes what the suite left behind" {
+    fake_suite_that_leaves_a_child
+    guard
+    [ "$status" -eq 0 ]
+    contains "1 cases" "$output"
+    grep -q 'TestCase name="one"' "$REPORT"
+    child=$(cat "$FAKE_CHILD")
+    if ! child_is_gone "$child"; then
+        kill "$child" 2>/dev/null
+        fail "the suite's child $child outlived the run"
+    fi
+}
+
+@test "a stalled run ends what the suite started" {
+    fake_suite_with_child
+    stall_after_secs 2
+    guard
+    [ "$status" -eq 1 ]
+    contains "STALLED" "$output"
+    child=$(cat "$FAKE_CHILD")
+    if ! child_is_gone "$child"; then
+        kill "$child" 2>/dev/null
+        fail "the suite's child $child outlived the stalled run"
+    fi
+}
+
+@test "a signal to the watch ends what the suite started too" {
+    fake_suite_with_child
+    # By hand, without `run`: the signal is this test's to send.
+    bash "$SCRIPT" "$BIN" "~[.]" "$REPORT" >"$WORK/watch.log" 2>&1 &
+    watch=$!
+    for _ in $(seq 1 100); do
+        [ -s "$FAKE_CHILD" ] && break
+        sleep 0.1
+    done
+    child=$(cat "$FAKE_CHILD")
+    kill -TERM "$watch"
+    # A watch ended by a signal reports that signal as its status.
+    if wait "$watch" 2>/dev/null; then :; fi
+    if ! child_is_gone "$child"; then
+        kill "$child" 2>/dev/null
+        fail "the suite's child $child outlived the signalled watch"
+    fi
+}
