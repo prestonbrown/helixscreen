@@ -13,6 +13,7 @@
  * Run with: ./build/bin/helix-tests "[tile][layout]"
  */
 
+#include "../test_helpers/sample_checks.h"
 #include "src/ui/panel_widgets/tile_layout.h"
 
 #include "../catch_amalgamated.hpp"
@@ -91,6 +92,7 @@ TEST_CASE("a size that fits keeps fitting as it grows", "[tile][layout][1559]") 
     // nearest one; a non-monotonic answer makes that walk stop at the wrong
     // size or not terminate.
     int fitting = 0;
+    helix::test::SampleChecks samples;
     for (int w = 8; w <= 400; w += 4) {
         for (int h = 8; h <= 400; h += 4) {
             if (!verdict_at(w, h).fits) {
@@ -98,11 +100,12 @@ TEST_CASE("a size that fits keeps fitting as it grows", "[tile][layout][1559]") 
             }
             ++fitting;
             INFO("fits at " << w << "x" << h << " so it must still fit larger");
-            CHECK(verdict_at(w + 4, h).fits);
-            CHECK(verdict_at(w, h + 4).fits);
-            CHECK(verdict_at(w + 4, h + 4).fits);
+            SAMPLE_CHECK(samples, verdict_at(w + 4, h).fits, w * 1000 + h);
+            SAMPLE_CHECK(samples, verdict_at(w, h + 4).fits, w * 1000 + h);
+            SAMPLE_CHECK(samples, verdict_at(w + 4, h + 4).fits, w * 1000 + h);
         }
     }
+    samples.done(3 * fitting);
     // A sweep where nothing ever fits would pass every CHECK above vacuously.
     CHECK(fitting > 100);
 }
