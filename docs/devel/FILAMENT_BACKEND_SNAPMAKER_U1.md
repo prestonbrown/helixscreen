@@ -811,7 +811,7 @@ Mock: `MoonrakerClientMock::set_nozzle_properties` keeps the firmware's checks a
 | `include/snapmaker_nozzle_properties.h` + `src/printer/snapmaker_nozzle_properties.cpp` | The Nozzle rows' options, the `nozzle_properties` params a pick sends, and the reading of its reply |
 | `include/filament_temperature_source.h` + `src/printer/filament_temperature_source.cpp` | Per-filament load/unload temperature capture (see above) |
 | [Firmware API: `print_task_config`](#firmware-api-print_task_config) | The firmware-native remap/feed-gate API this backend's pre-print path emits, in this file |
-| `tests/unit/test_ams_backend_snapmaker.cpp` | Parsers, status handling, latch, overrides |
+| `tests/unit/test_ams_backend_snapmaker.cpp` and its numbered parts, from `tests/unit/test_ams_backend_snapmaker_2.cpp` to `tests/unit/test_ams_backend_snapmaker_4.cpp` (one file split in its own order; their fixtures in `tests/test_helpers/snapmaker_test_fixtures.h`) | Parsers, status handling, latch, overrides |
 | `tests/unit/test_snapmaker_preprint_gcode.cpp` | The pure `build_preprint_gcode` builder |
 | `tests/unit/test_snapmaker_resume.cpp` | Pause classification / resume prep |
 
