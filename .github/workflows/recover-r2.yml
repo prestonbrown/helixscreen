@@ -98,6 +98,21 @@ jobs:
       run: |
         [ -n "${{ vars.R2_PUBLIC_URL }}" ] || { echo "::error::R2_PUBLIC_URL not configured"; exit 1; }
 
+    # The release workflow's guard: the declared channel (listed first) never moves
+    # backward without ALLOW_CHANNEL_DOWNGRADE, and a channel following it is left off
+    # when it already serves something newer. Later steps publish to what it keeps.
+    - name: Guard against channel downgrade
+      id: guard
+      env:
+        RELEASE_VERSION: ${{ steps.meta.outputs.version }}
+        R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+        UPLOAD_CHANNELS: ${{ steps.meta.outputs.channels }}
+        ALLOW_DOWNGRADE: ${{ vars.ALLOW_CHANNEL_DOWNGRADE }}
+      run: |
+        scripts/channel-upload-guard.sh --version "$RELEASE_VERSION" \
+          --declared "${UPLOAD_CHANNELS%% *}" --channels "$UPLOAD_CHANNELS" \
+          --base-url "${R2_PUBLIC_URL}/"
+
     - name: Download release assets from the GitHub release
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -148,7 +163,7 @@ jobs:
         RELEASE_VERSION: ${{ steps.meta.outputs.version }}
         RELEASE_TAG: ${{ steps.meta.outputs.tag }}
         RELEASE_NOTES: ${{ steps.notes.outputs.notes }}
-        UPLOAD_CHANNELS: ${{ steps.meta.outputs.channels }}
+        UPLOAD_CHANNELS: ${{ steps.guard.outputs.channels }}
       run: |
         chmod +x scripts/generate-manifest.sh
         manifests=()
@@ -174,7 +189,7 @@ jobs:
         R2_BUCKET: ${{ vars.R2_BUCKET_NAME || 'helixscreen-releases' }}
         R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
         RELEASE_VERSION: ${{ steps.meta.outputs.version }}
-        UPLOAD_CHANNELS: ${{ steps.meta.outputs.channels }}
+        UPLOAD_CHANNELS: ${{ steps.guard.outputs.channels }}
       run: |
         # Retry wrapper for transient R2 errors (mirrors release.yml's s3cp).
         s3cp() {

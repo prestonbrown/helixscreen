@@ -748,6 +748,31 @@ CheckOutcome decide_check_outcome(const std::string& installed,
     return out;
 }
 
+ChannelRead pick_channel_release(const std::string& installed,
+                                 const std::vector<ChannelRead>& reads) {
+    const ChannelRead* best = nullptr;
+    std::optional<version::Version> best_version;
+    const ChannelRead* first_failure = nullptr;
+    for (const auto& read : reads) {
+        if (!read.ok) {
+            if (!first_failure)
+                first_failure = &read;
+            continue;
+        }
+        const auto v = version::parse_version(read.info.version);
+        if (!best || (v && (!best_version || *v > *best_version))) {
+            best = &read;
+            best_version = v;
+        }
+    }
+    if (!first_failure)
+        return best ? *best : ChannelRead{};
+    if (best &&
+        compare_channel_version(installed, best->info.version) == ChannelVersionRelation::Newer)
+        return *best;
+    return *first_failure;
+}
+
 bool parse_release_manifest(const std::string& json_str, UpdateChecker::ReleaseInfo& info,
                             std::string& error, const std::vector<std::string>& asset_keys) {
     try {
@@ -3185,6 +3210,9 @@ void UpdateChecker::do_check() {
             ok = fetch_stable_release(info, error);
             break;
         }
+        if (ok && channel != UpdateChannel::Dev && !cancelled_) {
+            add_changelog_notes(info);
+        }
 
         if (cancelled_) {
             spdlog::debug("[UpdateChecker] Check cancelled after network request");
@@ -4031,6 +4059,7 @@ bool UpdateChecker::fetch_r2_manifest(const std::string& channel, ReleaseInfo& i
         error = "R2 " + error;
         return false;
     }
+    info.from_manifest = true;
     spdlog::debug("[UpdateChecker] R2 manifest parsed: {} ({})", info.version, channel);
     return true;
 }
@@ -4038,11 +4067,6 @@ bool UpdateChecker::fetch_r2_manifest(const std::string& channel, ReleaseInfo& i
 bool UpdateChecker::fetch_stable_release(ReleaseInfo& info, std::string& error) {
     // Try R2 CDN first (manifest has version/assets, but notes may be sparse)
     if (fetch_r2_manifest("stable", info, error)) {
-        // Enrich with full changelog from CHANGELOG.md on GitHub
-        auto changelog = fetch_changelog_for_version(info.version);
-        if (!changelog.empty()) {
-            info.release_notes = std::move(changelog);
-        }
         return true;
     }
     std::string r2_error = error;
@@ -4069,13 +4093,47 @@ bool UpdateChecker::fetch_stable_release(ReleaseInfo& info, std::string& error) 
 }
 
 bool UpdateChecker::fetch_beta_release(ReleaseInfo& info, std::string& error) {
+    // A graduated stable release outranks every beta of its line, and the beta manifest
+    // names it only once the release workflow has published it there, so Beta reads both
+    // and offers the newer: Beta never trails Stable.
+    std::vector<helix::ChannelRead> reads(2);
+    reads[0].ok = fetch_beta_line_release(reads[0].info, reads[0].error);
+    if (cancelled_)
+        return false;
+    reads[1].ok = fetch_stable_release(reads[1].info, reads[1].error);
+    if (cancelled_)
+        return false;
+    if (!reads[0].ok)
+        spdlog::warn("[UpdateChecker] Beta: beta release unavailable ({})", reads[0].error);
+    if (!reads[1].ok)
+        spdlog::warn("[UpdateChecker] Beta: stable release unavailable ({})", reads[1].error);
+
+    auto picked = helix::pick_channel_release(HELIX_VERSION, reads);
+    if (!picked.ok) {
+        error = picked.error;
+        return false;
+    }
+    spdlog::info("[UpdateChecker] Beta: beta serves {}, stable serves {}; offering {}",
+                 reads[0].ok ? reads[0].info.version : "nothing",
+                 reads[1].ok ? reads[1].info.version : "nothing", picked.info.version);
+    info = std::move(picked.info);
+    return true;
+}
+
+void UpdateChecker::add_changelog_notes(ReleaseInfo& info) {
+    // A channel manifest carries sparse notes; CHANGELOG.md on GitHub has the full entry.
+    // A release read from GitHub already carries its body.
+    if (!info.from_manifest)
+        return;
+    auto changelog = fetch_changelog_for_version(info.version);
+    if (!changelog.empty()) {
+        info.release_notes = std::move(changelog);
+    }
+}
+
+bool UpdateChecker::fetch_beta_line_release(ReleaseInfo& info, std::string& error) {
     // Try R2 CDN first (manifest has version/assets, but notes may be sparse)
     if (fetch_r2_manifest("beta", info, error)) {
-        // Enrich with full changelog from CHANGELOG.md on GitHub
-        auto changelog = fetch_changelog_for_version(info.version);
-        if (!changelog.empty()) {
-            info.release_notes = std::move(changelog);
-        }
         return true;
     }
     std::string r2_error = error;
