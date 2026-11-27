@@ -116,7 +116,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `design_ratchets.py` | The architecture ratchets (namespace, layering, vendor, declarative UI, swatches, LVGL 9.6, markers, comment SHAs): a warning naming each new site, never a failure |
 | `bats_select.py` | Which `tests/shell/*.bats` files a run needs; `--gate` narrows the product files to what a change reaches |
 | `gate_select.py` | What `land-gate` runs for a change: each step's plan, and the C++ cases the build's `.d` files reach |
-| `run_suite_report.sh` | The shared `--success` Catch2 report the vacuous-test and order-dependence gates read |
+| `run_suite_report.sh` | The shared `--success` Catch2 report the vacuous-test and order-dependence gates read, staged in memory while the suite runs |
 | `check_doc_refs.py` | Doc-reference gate: dead paths, links, `make` targets, docs/devel index, shipped counts |
 | `check_doc_images.py` | Fail if a user-facing page shows an image with no `docs/images/doc-screenshots.yml` entry, an entry's file is missing, or no doc shows an entry. Gated as `qc_doc_images` |
 | `gen_gallery.py` | Regenerates `docs/devel/GALLERY.md` from the doc-image manifest; `--check` exits 1 when stale |

@@ -139,3 +139,64 @@ EOF
     [ "$status" -eq 2 ]
     contains "not an executable" "$output"
 }
+
+# ------------------------------------------------------------ the stage in memory
+
+# What the host offers the script: python3 and a memfd.
+can_stage() { python3 -c 'import os; os.memfd_create("suite-report")' 2>/dev/null; }
+
+# A fake suite that notes, into $FAKE_SEES.saw, whether the report already
+# stands at its path while the suite is running.
+fake_suite_that_looks() {
+    export FAKE_SEES="$REPORT"
+    fake_suite <<'EOF'
+printf '<Catch2TestRun name="t">\n<TestCase name="one" filename="t.cpp"/>\n' > "$OUT"
+if [ -e "$FAKE_SEES" ]; then echo present > "$FAKE_SEES.saw"; else echo absent > "$FAKE_SEES.saw"; fi
+printf '<TestCase name="two" filename="t.cpp"/>\n</Catch2TestRun>\n' >> "$OUT"
+EOF
+}
+
+@test "the report stands at its path only once the run is over" {
+    can_stage || skip "no memfd on this host"
+    fake_suite_that_looks
+    guard
+    [ "$status" -eq 0 ]
+    contains "report in memory" "$output"
+    # While the suite wrote, nothing at the path could be mistaken for its report.
+    contains "absent" "$(cat "$REPORT.saw")"
+    contains "2 cases" "$output"
+    grep -q 'TestCase name="one"' "$REPORT"
+    grep -q 'TestCase name="two"' "$REPORT"
+}
+
+@test "a stalled run's partial report reaches its path too" {
+    can_stage || skip "no memfd on this host"
+    stall_after_secs 2
+    fake_suite <<'EOF'
+printf '<Catch2TestRun name="t">\n<TestCase name="the case that never returns" filename="t.cpp">\n<Expression success="true"/>\n' > "$OUT"
+sleep 300
+EOF
+    guard
+    [ "$status" -eq 1 ]
+    contains "STALLED" "$output"
+    grep -q 'TestCase name="the case that never returns"' "$REPORT"
+    grep -q '<Expression success="true"/>' "$REPORT"
+}
+
+@test "HELIX_REPORT_DIRECT=1 writes the report to its path as the suite runs" {
+    export HELIX_REPORT_DIRECT=1
+    fake_suite_that_looks
+    guard
+    [ "$status" -eq 0 ]
+    contains "present" "$(cat "$REPORT.saw")"
+    contains "2 cases" "$output"
+}
+
+@test "with no python3 to open a stage the suite writes the report path itself" {
+    mock_command_script python3 'exit 127'
+    fake_suite_that_looks
+    guard
+    [ "$status" -eq 0 ]
+    contains "present" "$(cat "$REPORT.saw")"
+    contains "2 cases" "$output"
+}

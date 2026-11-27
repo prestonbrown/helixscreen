@@ -21,6 +21,8 @@
 #   SUITE_REPORT_MAX_SECS       stop the run after this much wall clock
 #                               regardless of progress (default 2400)
 #   SUITE_REPORT_PROGRESS_SECS  interval between progress lines (default 30)
+#   HELIX_REPORT_DIRECT         1 writes the report to its path as the suite
+#                               runs, with no stage in memory (default 0)
 #
 # Exit status:
 #   0  the suite ran to the end and left a non-empty report
@@ -30,6 +32,19 @@
 # A non-zero exit from the suite itself is NOT an error here. A red suite is
 # `make full-test-run`'s finding to report, and the gates still have something to say
 # about the report a failing run produced.
+#
+# The report is staged in memory. Catch2 flushes its --out stream after every
+# insertion, so the file takes one write() per token, about one per two bytes.
+# On a filesystem where a small write is dear (ZFS on the test host) those
+# writes alone make the run several times slower than its tests. So the suite
+# writes to a memory-backed file, the watch follows that, and its bytes reach
+# the report path once the run has ended, however it ended; a SIGKILL to this
+# script loses them. A memfd is a memory-backed file that no mount sizes, and
+# only python3 can open one: the script starts itself again through python3
+# with the stage on a descriptor. Without python3 or a memfd, or when
+# HELIX_REPORT_DIRECT=1, the suite writes the report path directly;
+# scripts/check_test_order_dependence.py reads the same variable for the
+# reports of the runs it starts.
 
 set -uo pipefail
 
@@ -59,22 +74,72 @@ fi
 ts() { date '+%Y-%m-%dT%H:%M:%S'; }
 say() { echo "$(ts) [suite-report] $*"; }
 
-# BSD stat and GNU stat spell the size flag differently.
+# BSD stat and GNU stat spell the size flag differently. -L, because the stage
+# is reached through /dev/fd, a symlink.
 if stat -f %z . >/dev/null 2>&1; then
-    file_size() { stat -f %z "$1" 2>/dev/null || echo 0; }
+    file_size() { stat -Lf %z "$1" 2>/dev/null || echo 0; }
 else
-    file_size() { stat -c %s "$1" 2>/dev/null || echo 0; }
+    file_size() { stat -Lc %s "$1" 2>/dev/null || echo 0; }
 fi
 
 mkdir -p "$(dirname "$REPORT")"
 rm -f "$REPORT"
 RUN_LOG="$REPORT.stdout"
 
-say "starting $TEST_BIN '$FILTER' (stall ${STALL_SECS}s, cap ${MAX_SECS}s)"
+# --- the stage ---------------------------------------------------------------
+# python3 runs this script again with the stage open on STAGE_FD. The suite
+# writes its report to that descriptor's path; fd 7 is this script's own read
+# end on the same file. LIVE is what the watch follows.
+STAGE_FD="${_SUITE_REPORT_STAGE_FD:-}"
+
+if [ -z "$STAGE_FD" ] && [ "${HELIX_REPORT_DIRECT:-0}" != 1 ] &&
+   python3 -c 'import os; os.memfd_create("suite-report")' 2>/dev/null; then
+    export _SUITE_REPORT_STAGE_FD=9
+    # The stage is inheritable, so the suite started below reports through it.
+    exec python3 -c 'import os, sys
+try:
+    fd = int(os.environ["_SUITE_REPORT_STAGE_FD"])
+    os.dup2(os.memfd_create("suite-report"), fd)
+    os.set_inheritable(fd, True)
+    os.execvp("bash", ["bash"] + sys.argv[1:])
+except OSError as e:
+    print(f"run_suite_report: no stage in memory: {e}", file=sys.stderr)
+    sys.exit(2)' "$0" "$@"
+fi
+
+LIVE="$REPORT"
+if [ -n "$STAGE_FD" ]; then
+    if ! exec 7</proc/self/fd/"$STAGE_FD"; then
+        echo "run_suite_report: the stage on fd $STAGE_FD is not open" >&2
+        exit 2
+    fi
+    LIVE="/dev/fd/7"
+fi
+
+published=""
+publish() {
+    # A staged run's bytes reach the report path here, once. A direct run has
+    # written them there already.
+    if [ -n "$STAGE_FD" ] && [ -z "$published" ]; then
+        cat <&7 > "$REPORT"
+        published=1
+    fi
+}
+trap publish EXIT
+
+if [ -n "$STAGE_FD" ]; then
+    say "starting $TEST_BIN '$FILTER' (stall ${STALL_SECS}s, cap ${MAX_SECS}s, report in memory)"
+else
+    say "starting $TEST_BIN '$FILTER' (stall ${STALL_SECS}s, cap ${MAX_SECS}s, report at $REPORT)"
+fi
 
 # --out is not optional: tests that shell out print ANSI status to stdout, and
 # with the report on stdout too the XML comes back complete but unparseable.
-"$TEST_BIN" "$FILTER" --reporter xml --success --out "$REPORT" >"$RUN_LOG" 2>&1 &
+if [ -n "$STAGE_FD" ]; then
+    "$TEST_BIN" "$FILTER" --reporter xml --success --out "/proc/self/fd/$STAGE_FD" >"$RUN_LOG" 2>&1 &
+else
+    "$TEST_BIN" "$FILTER" --reporter xml --success --out "$REPORT" >"$RUN_LOG" 2>&1 &
+fi
 run_pid=$!
 
 start=$(date +%s)
@@ -89,7 +154,7 @@ verdict=""
 # last look, so a single case larger than any fixed window is still attributed.
 refresh_current_case() {
     local found
-    found=$(tail -c "+$((scanned + 1))" "$REPORT" 2>/dev/null |
+    found=$(tail -c "+$((scanned + 1))" "$LIVE" 2>/dev/null |
         grep -ao '<TestCase name="[^"]*"' | tail -1)
     if [ -n "$found" ]; then
         found="${found#*name=\"}"
@@ -101,7 +166,7 @@ refresh_current_case() {
 while kill -0 "$run_pid" 2>/dev/null; do
     sleep "$POLL_SECS"
     now=$(date +%s)
-    size=$(file_size "$REPORT")
+    size=$(file_size "$LIVE")
 
     if [ "$size" -gt "$last_size" ]; then
         last_size="$size"
@@ -129,6 +194,7 @@ if [ -n "$verdict" ]; then
     elapsed=$(( $(date +%s) - start ))
     kill -9 "$run_pid" 2>/dev/null
     wait "$run_pid" 2>/dev/null
+    publish
     if [ "$verdict" = "stall" ]; then
         say "STALLED: the report stopped growing ${STALL_SECS}s ago (elapsed ${elapsed}s)"
     else
@@ -143,6 +209,7 @@ fi
 
 wait "$run_pid"
 suite_rc=$?
+publish
 elapsed=$(( $(date +%s) - start ))
 last_size=$(file_size "$REPORT")
 
