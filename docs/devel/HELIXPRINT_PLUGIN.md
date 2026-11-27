@@ -338,7 +338,10 @@ push) get no switch anywhere. Homes, each a `PluginFeatureHome`:
 | `storage_auto_cleanup` | Settings > System > Storage | `Storage` | no |
 
 The event journal has a view but no switch: Printer Events, opened from the notification
-history header.
+history header. An entry keeps the text the printer gave, a firmware's JSON envelope
+included, for the debug bundle and the logs; the row reads that envelope as its message
+(`src/printer/printer_event_journal.cpp#describe_journal_entry`, through
+`decode_firmware_error_text()`).
 
 ### The overview
 
