@@ -834,6 +834,7 @@ translations:
   Cam: Kam.
   Camera: Kamera
   Camera checks the bed is empty before each print: 'Die Kamera prüft vor jedem Druck, ob das Heizbett leer ist'
+  Can't restart Klipper while a print is running.: Klipper kann nicht neu gestartet werden, solange ein Druck läuft.
   Can't connect — try forgetting and re-pairing the printer: Verbindung nicht möglich — versuchen Sie, den Drucker zu vergessen und erneut zu koppeln
   Can't move filament while the print is paused: Filament kann bei pausiertem Druck nicht bewegt werden
   Can't read filament RFID tag: RFID-Tag des Filaments nicht lesbar

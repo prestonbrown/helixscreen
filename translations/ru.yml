@@ -890,6 +890,7 @@ translations:
   Cam: Кам
   Camera: Камера
   Camera checks the bed is empty before each print: 'Камера проверяет, что стол пуст, перед каждой печатью'
+  Can't restart Klipper while a print is running.: Нельзя перезапустить Klipper во время печати.
   Can't connect — try forgetting and re-pairing the printer: Не удаётся подключиться — забудьте принтер и выполните сопряжение заново
   Can't move filament while the print is paused: Невозможно перемещать филамент, пока печать на паузе
   Can't read filament RFID tag: Не удаётся прочитать RFID-метку филамента

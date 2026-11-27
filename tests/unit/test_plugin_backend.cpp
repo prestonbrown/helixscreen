@@ -4,8 +4,10 @@
 #if HELIX_HAS_PLUGINS
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/print_state_test_drivers.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
+#include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "plugin_backend.h"
 #include "printer_state.h"
@@ -311,6 +313,44 @@ TEST_CASE_METHOD(PluginCallFixture, "plugin call keeps the print_modified path g
     call("server.helix.print_modified",
          {{"original_filename", "a.gcode"}, {"temp_file_path", ".helix_temp/b.gcode"}});
     CHECK(mock.last_send_method() == "server.helix.print_modified");
+}
+
+TEST_CASE_METHOD(PluginCallFixture, "plugin helix.gcode restarts Klipper only when no job holds it",
+                 "[plugin][backend][plugin_rpc][restart_guard]") {
+    auto& ps = get_printer_state();
+    ps.set_klippy_state_sync(helix::KlippyState::READY);
+    MoonrakerAPI api(mock, ps);
+    mock.connect("ws://mock/websocket", []() {}, []() {});
+    helix::IMoonrakerAPI* previous_api = get_moonraker_api();
+    set_moonraker_api(&api);
+
+    const auto gcode = [this](const std::string& script) {
+        RpcResult out;
+        make_app_backend().gcode(script, [&](RpcResult r) { out = std::move(r); });
+        return out;
+    };
+    SECTION("a job holds the machine") {
+        helix::test::set_wire_state(ps, helix::PrintJobState::PRINTING);
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        for (const char* script : {"FIRMWARE_RESTART", "restart", "SAVE_CONFIG"}) {
+            INFO(script);
+            const RpcResult r = gcode(script);
+            CHECK_FALSE(r.ok);
+            CHECK(r.error == "Can't restart Klipper while a print is running.");
+        }
+        CHECK(mock.gcode_script_history().empty());
+        // Kalico's SAVE_CONFIG RESTART=0 leaves Klipper running.
+        gcode("SAVE_CONFIG RESTART=0");
+        CHECK_FALSE(mock.gcode_script_history().empty());
+    }
+    SECTION("idle") {
+        gcode("FIRMWARE_RESTART");
+        CHECK_FALSE(mock.gcode_script_history().empty());
+    }
+    set_moonraker_api(previous_api);
+    mock.disconnect();
+    helix::test::set_wire_state(ps, helix::PrintJobState::STANDBY);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 #endif // HELIX_HAS_PLUGINS

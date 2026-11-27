@@ -805,6 +805,7 @@
   <translation tag="Can&apos;t move filament while the print is paused" de="Filament kann bei pausiertem Druck nicht bewegt werden"/>
   <translation tag="Can&apos;t reach this printer. Save anyway?" de="Drucker nicht erreichbar. Trotzdem speichern?"/>
   <translation tag="Can&apos;t read filament RFID tag" de="RFID-Tag des Filaments nicht lesbar"/>
+  <translation tag="Can&apos;t restart Klipper while a print is running." de="Klipper kann nicht neu gestartet werden, solange ein Druck läuft."/>
   <translation tag="Can&apos;t save: the value is set in another file" de="Speichern nicht möglich: Der Wert ist in einer anderen Datei gesetzt"/>
   <translation tag="Can&apos;t talk to stepper driver {1}" de="Keine Verbindung zum Schrittmotortreiber {1}"/>
   <translation tag="Cancel" de="Abbrechen"/>

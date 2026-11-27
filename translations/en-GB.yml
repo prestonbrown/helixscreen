@@ -840,6 +840,7 @@ translations:
   Cam: ''
   Camera: ''
   Camera checks the bed is empty before each print: ''
+  Can't restart Klipper while a print is running.: ''
   Can't connect — try forgetting and re-pairing the printer: ''
   Can't move filament while the print is paused: ''
   Can't read filament RFID tag: ''
