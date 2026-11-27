@@ -225,6 +225,10 @@ A branch should not grow the suite:
 - **`TestAccess` references.** Seed and observe through the public API instead.
 - **`friend` declarations** in `src/` or `include/`.
 - **File size.** A C++ file over 1500 lines is split rather than grown.
+- **Assertions inside loops.** Catch2 writes a `--success` report one `write()` per token, so a
+  `REQUIRE` per pixel, frame or sample costs more than the test it is in.
+  `SAMPLE_REQUIRE(samples, expr, i)` with `samples.done(N)` (`tests/test_helpers/sample_checks.h`)
+  checks each sample and reports once; a pixel region is compared as one value.
 
 Nothing at commit, push or landing measures these, and no commit message line grants them
 (#2004): `scripts/ratchet_report.py` counts each weekly, so the totals are watched rather
