@@ -1740,6 +1740,52 @@
       ]
     },
     {
+      "name": "a file needing more tools than a count T macros raised only warns",
+      "machine": {
+        "kinematics": "corexy",
+        "axis_min": [
+          null,
+          null,
+          null
+        ],
+        "axis_max": [
+          null,
+          null,
+          null
+        ],
+        "print_radius": null,
+        "max_extruder_temp": null,
+        "max_bed_temp": null,
+        "tool_count": 2,
+        "tool_count_confirmed": false,
+        "nozzle_diameters": [],
+        "model": ""
+      },
+      "file": {
+        "print": null,
+        "travel": null,
+        "max_hotend_temp": null,
+        "max_bed_temp": null,
+        "tools": [
+          0,
+          1,
+          2
+        ],
+        "nozzle_diameters": [],
+        "printer_model": null
+      },
+      "findings": [
+        {
+          "kind": "too_many_tools",
+          "severity": "warn",
+          "detail": {
+            "tool": 2,
+            "limit": 2
+          }
+        }
+      ]
+    },
+    {
       "name": "travel without both ends is not a box: the printing moves are checked",
       "machine": {
         "kinematics": "corexy",
