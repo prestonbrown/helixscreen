@@ -231,7 +231,7 @@ TEST_CASE("gcode edit list: the plugin rewrites only when its feature is ready",
     auto state = [](bool plugin, const PluginFeatureMap& features) {
         return plugin_feature_state(plugin, features, kServerEditsFeature, kServerEditsMinVersion);
     };
-    const PluginFeatureMap ready = {{kServerEditsFeature, entry(1, true, true)}};
+    const PluginFeatureMap ready = {{kServerEditsFeature, entry(2, true, true)}};
 
     struct Case {
         const char* what;
@@ -240,9 +240,12 @@ TEST_CASE("gcode edit list: the plugin rewrites only when its feature is ready",
     const Case cases[] = {
         {"no plugin", state(false, ready)},
         {"a plugin without the features map", state(true, {})},
-        {"switched off", state(true, {{kServerEditsFeature, entry(1, true, false)}})},
-        {"unavailable", state(true, {{kServerEditsFeature, entry(1, false, false)}})},
-        {"contract below the minimum", state(true, {{kServerEditsFeature, entry(0, true, true)}})},
+        {"switched off", state(true, {{kServerEditsFeature, entry(2, true, false)}})},
+        {"unavailable", state(true, {{kServerEditsFeature, entry(2, false, false)}})},
+        // Contract 1 reads `edits` with Moonraker's get_list, which refuses the
+        // edit objects this app sends (#2144).
+        {"contract 1 reads edits as strings",
+         state(true, {{kServerEditsFeature, entry(1, true, true)}})},
         {"ready", state(true, ready)},
     };
     for (const auto& c : cases) {

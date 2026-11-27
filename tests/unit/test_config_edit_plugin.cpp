@@ -219,14 +219,16 @@ TEST_CASE("config_edit_route over every plugin_feature state", "[plugin_config_e
         ConfigEditRoute expected;
     };
     const Row rows[] = {
-        {"no plugin", false, config_edit_map(1, true, true), ConfigEditRoute::FileApi},
+        {"no plugin", false, config_edit_map(2, true, true), ConfigEditRoute::FileApi},
         {"old plugin without a features map", true, {}, ConfigEditRoute::FileApi},
-        {"switched off", true, config_edit_map(1, true, false), ConfigEditRoute::FileApi},
-        {"unavailable", true, config_edit_map(1, false, false), ConfigEditRoute::FileApi},
-        {"contract below the minimum", true, config_edit_map(0, true, true),
+        {"switched off", true, config_edit_map(2, true, false), ConfigEditRoute::FileApi},
+        {"unavailable", true, config_edit_map(2, false, false), ConfigEditRoute::FileApi},
+        // Contract 1 is a plugin that reads `edits` with Moonraker's get_list,
+        // which refuses the edit objects this app sends (#2144).
+        {"contract 1 reads edits as strings", true, config_edit_map(1, true, true),
          ConfigEditRoute::FileApi},
-        {"ready", true, config_edit_map(1, true, true), ConfigEditRoute::Plugin},
-        {"ready at a newer contract", true, config_edit_map(2, true, true),
+        {"ready", true, config_edit_map(2, true, true), ConfigEditRoute::Plugin},
+        {"ready at a newer contract", true, config_edit_map(3, true, true),
          ConfigEditRoute::Plugin},
     };
     for (const auto& row : rows) {

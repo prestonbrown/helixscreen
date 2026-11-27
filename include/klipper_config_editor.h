@@ -145,7 +145,9 @@ RestartVerdict judge_restart_poll(RestartWatch& watch, std::optional<KlippyState
 /// (server.helix.config / server.helix.config_edit), and the contract this
 /// editor speaks.
 inline constexpr const char* kConfigEditFeature = "config_edit";
-inline constexpr int kConfigEditFeatureMinVersion = 1;
+// Contract 2 reads `edits` as the objects this editor sends; a contract-1
+// plugin reads them with Moonraker's get_list and refuses every call (#2144).
+inline constexpr int kConfigEditFeatureMinVersion = 2;
 
 /// Who writes a config edit: the plugin, atomically and in the file and line
 /// that define each option, or the screen over Moonraker's file API.
