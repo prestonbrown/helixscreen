@@ -376,8 +376,9 @@ to the current values, then the update queue is drained, so that frame shows cur
   updates behind it are most of the remaining CPU: dropping every frame read 1.18 and 1.06
   on the build before the input wait. What the 1 s cap delays is what the loop still polls
   for itself, a remote screen viewer's arrival; Moonraker request timeouts are checked every
-  2 s by `Application::check_timeouts` whatever the cap. Boards whose input
-  is not fbdev evdev (DRM with libinput, SDL) still poll input every 33 ms asleep. The
+  2 s by `Application::check_timeouts` whatever the cap. Boards that read
+  input through libinput or SDL, not evdev, still poll it every 33 ms asleep: the fbdev and
+  DRM backends' evdev devices are wake sources. The
   Creator 5 Pro read 3.0% before this work and has not been measured since.
 - **About 10% of one core while printing on the C5, 40-51% for the first 10-30 s** as the
   print status panel loads the toolpath preview. Twice the idle cost.

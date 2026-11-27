@@ -999,10 +999,24 @@ TEST_CASE_METHOD(IndxFixture, "INDX recovery: a half-seated tool holds the ERROR
     b.set_discovery(discover(indx_objects(4, kPhase3Macros)));
     b.feed(active(0));
     CHECK(b.get_current_action() == AmsAction::IDLE);
+    REQUIRE(b.change_tool(2).success());
+    REQUIRE(b.get_current_action() == AmsAction::SELECTING);
+
+    // The fault lands while the change is in flight.
     b.feed(json{{"save_variables", {{"variables", {{"seat_suspect", 2}}}}}});
     CHECK(b.get_current_action() == AmsAction::ERROR);
     CHECK_THAT(b.get_system_info().operation_detail,
                Catch::Matchers::ContainsSubstring("half seated"));
+
+    // The change ends and the fault stays the machine's answer: the frame says
+    // the tool is mounted, the macro's reply is refused, Klipper restarts.
+    b.feed(json{{"save_variables", {{"variables", {{"active_tool", 2}, {"seat_suspect", 2}}}}}});
+    CHECK(b.get_current_action() == AmsAction::ERROR);
+    b.reject_last_send(MoonrakerErrorType::JSON_RPC_ERROR, "swap failed");
+    CHECK(b.get_current_action() == AmsAction::ERROR);
+    b.on_klipper_restarted();
+    CHECK(b.get_current_action() == AmsAction::ERROR);
+
     b.feed(json{{"save_variables", {{"variables", {{"seat_suspect", -1}}}}}});
     CHECK(b.get_current_action() == AmsAction::IDLE);
 }
