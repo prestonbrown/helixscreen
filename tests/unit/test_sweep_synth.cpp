@@ -1,5 +1,6 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "../test_helpers/sample_checks.h"
 #include "sweep_synth.h"
 
 #include <cmath>
@@ -62,11 +63,14 @@ TEST_CASE("SweepSynth's stream time continues across calls", "[sweep_preview][sy
 TEST_CASE("SweepSynth carries only gravity before the ramp", "[sweep_preview][synth]") {
     SweepSynth synth(quiet_spec(), flat_gain(100.0f, 50.0f, 10.0f));
     const auto before = synth.next(4579); // 1.4998 s
-    for (const auto& s : before) {
-        REQUIRE(s.x == 9810.0f);
-        REQUIRE(s.y == 0.0f);
-        REQUIRE(s.z == 0.0f);
+    helix::test::SampleChecks samples;
+    for (size_t i = 0; i < before.size(); ++i) {
+        const auto& s = before[i];
+        SAMPLE_REQUIRE(samples, s.x == 9810.0f, i);
+        SAMPLE_REQUIRE(samples, s.y == 0.0f, i);
+        SAMPLE_REQUIRE(samples, s.z == 0.0f, i);
     }
+    samples.done(3 * 4579);
 }
 
 TEST_CASE("SweepSynth's drive phase is continuous across calls", "[sweep_preview][synth]") {
@@ -80,14 +84,15 @@ TEST_CASE("SweepSynth's drive phase is continuous across calls", "[sweep_preview
     const auto b = split.next(2053);
     a.insert(a.end(), b.begin(), b.end());
     const auto c = whole.next(3053);
+    helix::test::SampleChecks samples;
     REQUIRE(a.size() == c.size());
     for (size_t i = 0; i < a.size(); ++i) {
-        INFO("sample " << i);
-        REQUIRE(a[i].time == c[i].time);
-        REQUIRE(a[i].x == c[i].x);
-        REQUIRE(a[i].y == c[i].y);
-        REQUIRE(a[i].z == c[i].z);
+        SAMPLE_REQUIRE(samples, a[i].time == c[i].time, i);
+        SAMPLE_REQUIRE(samples, a[i].x == c[i].x, i);
+        SAMPLE_REQUIRE(samples, a[i].y == c[i].y, i);
+        SAMPLE_REQUIRE(samples, a[i].z == c[i].z, i);
     }
+    samples.done(4 * 3053);
 }
 
 TEST_CASE("SweepSynth drives each axis at its gain", "[sweep_preview][synth]") {
@@ -113,16 +118,19 @@ TEST_CASE("SweepSynth's hiss is bounded and seeded", "[sweep_preview][synth]") {
     SweepSynth synth(spec, flat_gain(0.0f, 0.0f, 0.0f));
     const auto samples = synth.next(20000);
     bool any_nonzero = false;
-    for (const auto& s : samples) {
+    helix::test::SampleChecks checks;
+    for (size_t i = 0; i < samples.size(); ++i) {
+        const auto& s = samples[i];
         // x is rounded at 9810's float spacing, so its top end can land on 30.
-        REQUIRE(s.x - 9810.0f >= -30.0f);
-        REQUIRE(s.x - 9810.0f <= 30.0f);
-        REQUIRE(s.y >= -30.0f);
-        REQUIRE(s.y < 30.0f);
-        REQUIRE(s.z >= -30.0f);
-        REQUIRE(s.z < 30.0f);
+        SAMPLE_REQUIRE(checks, s.x - 9810.0f >= -30.0f, i);
+        SAMPLE_REQUIRE(checks, s.x - 9810.0f <= 30.0f, i);
+        SAMPLE_REQUIRE(checks, s.y >= -30.0f, i);
+        SAMPLE_REQUIRE(checks, s.y < 30.0f, i);
+        SAMPLE_REQUIRE(checks, s.z >= -30.0f, i);
+        SAMPLE_REQUIRE(checks, s.z < 30.0f, i);
         any_nonzero = any_nonzero || s.y != 0.0f;
     }
+    checks.done(6 * 20000);
     CHECK(any_nonzero);
 
     SweepSynth same(spec, flat_gain(0.0f, 0.0f, 0.0f));
