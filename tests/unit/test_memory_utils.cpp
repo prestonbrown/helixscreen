@@ -626,42 +626,20 @@ TEST_CASE("top_processes_by_rss lists the largest resident processes, largest fi
     CHECK(top_processes_by_rss(3, "/nonexistent-proc-root", 4).empty());
 }
 
-TEST_CASE("read_self_major_faults reads the stat file's majflt", "[memory][proc_stat]") {
-    FakeProc proc;
-    proc.add("self", "helix-screen", 100, 4242);
-    CHECK(read_self_major_faults((proc.root / "self" / "stat").c_str()) ==
-          std::optional<uint64_t>(4242));
-    CHECK_FALSE(read_self_major_faults("/nonexistent-proc-root/self/stat").has_value());
 #ifdef __linux__
-    CHECK(read_self_major_faults().has_value());
-#endif
-}
-
-#ifdef __linux__
-TEST_CASE("read_main_thread_state and read_main_thread_wchan read their proc files",
-          "[memory][proc_stat]") {
+TEST_CASE("read_main_thread_wchan reads the main thread's wait channel", "[memory][proc_stat]") {
     FakeProc proc;
     proc.add("self", "helix-screen", 100);
-    const auto stat = (proc.root / "self" / "stat").string();
     const auto wchan = (proc.root / "self" / "wchan").string();
     std::ofstream(wchan) << "futex_do_wait";
-    const auto state = read_main_thread_state(stat.c_str());
-    REQUIRE(state.has_value());
-    CHECK(*state == "S");
     const auto channel = read_main_thread_wchan(wchan.c_str());
     REQUIRE(channel.has_value());
     CHECK(*channel == "futex_do_wait");
-    CHECK(read_main_thread_state().has_value());
 
     // A running thread waits nowhere: the kernel's "0" is none, not a channel named "0".
     std::ofstream(wchan, std::ios::trunc) << "0";
     CHECK_FALSE(read_main_thread_wchan(wchan.c_str()).has_value());
 
-    // A stat line too short to hold rss is not a whole record: nothing is read from it.
-    std::ofstream(stat, std::ios::trunc) << "100 (helix-screen) S 1 100";
-    CHECK_FALSE(read_main_thread_state(stat.c_str()).has_value());
-
-    CHECK_FALSE(read_main_thread_state("/nonexistent-proc-root/self/stat").has_value());
     CHECK_FALSE(read_main_thread_wchan("/nonexistent-proc-root/self/wchan").has_value());
 }
 #endif
@@ -682,5 +660,7 @@ TEST_CASE("read_proc_stat reads one stat file into its record", "[memory][proc_s
     std::ofstream(stat, std::ios::trunc) << "100 (helix-screen) S 1 100";
     CHECK_FALSE(read_proc_stat(stat.c_str()).has_value());
     CHECK_FALSE(read_proc_stat("/nonexistent-proc-root/self/stat").has_value());
+    // This process's own file is there to be read.
+    CHECK(read_proc_stat().has_value());
 }
 #endif
