@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../../include/gcode_raster.h"
+#include "../test_helpers/sample_checks.h"
 
 #include <algorithm>
 #include <cmath>
@@ -554,15 +555,17 @@ TEST_CASE("degenerate rim parameters are a no-op, not a crash", "[gcode_raster]"
 TEST_CASE("accumulated coverage never lands on the reserved tag value", "[gcode_raster]") {
     Surface s(4, 4);
     // Drive the accumulator across its whole range looking for the tag.
+    helix::test::SampleChecks samples;
     for (int first = 1; first < 255; ++first) {
         for (int second = 1; second < 255; ++second) {
             Surface t(4, 4);
             blend_coverage(t.target(), 1, 1, 0x336699, static_cast<uint8_t>(first));
             blend_coverage(t.target(), 1, 1, 0x336699, static_cast<uint8_t>(second));
-            REQUIRE(t.channel(1, 1, 3) != kSelectedAlpha);
-            REQUIRE(t.channel(1, 1, 3) != kExcludedAlpha);
+            SAMPLE_REQUIRE(samples, t.channel(1, 1, 3) != kSelectedAlpha, first * 255 + second);
+            SAMPLE_REQUIRE(samples, t.channel(1, 1, 3) != kExcludedAlpha, first * 255 + second);
         }
     }
+    samples.done(254 * 254 * 2);
 }
 
 // The two-call case above cannot see the FIRST write. blend_coverage takes an
