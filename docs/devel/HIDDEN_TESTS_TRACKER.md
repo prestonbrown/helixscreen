@@ -54,6 +54,7 @@ The binary is the authority, so this document states no counts. These commands p
 | `[.integration]` | `test_moonraker_client_security.cpp` | Timeout-callback deadlock check |
 | `[.benchmark]` | `test_wizard_connection.cpp` | Performance measurement |
 | `[.subject_child]` | `test_subject_owner.cpp` | Bodies its `[subject][raii]` cases run in a fresh process with LVGL torn down; each skips unless that process set `HELIX_SUBJECT_CHILD_CASE` |
+| `[.sample_check_probe]` | `test_sample_checks.cpp` | Bodies its `[test_helpers]` cases read in a fresh process, because a failing assertion fails whatever case holds it; each skips unless that process set `HELIX_SAMPLE_CHECK_PROBE` |
 
 ---
 

@@ -11,6 +11,7 @@
  */
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/fresh_process.h"
 #include "../test_helpers/strict_anomalies.h"
 #include "core/observer_guard.h"
 #include "core/subject.h"
@@ -60,68 +61,6 @@ uint32_t live_subject_nodes() {
 /// it, so the serial hidden-set run (make test-hidden) never takes LVGL down under its
 /// neighbours.
 constexpr const char* kChildEnv = "HELIX_SUBJECT_CHILD_CASE";
-
-struct ChildRun {
-    int rc = -1;        ///< 0 when every assertion passed, 128 + signal, -1 on a hang
-    std::string output; ///< the child's stdout and stderr
-};
-
-/// Runs the hidden case `name` in a fresh helix-tests process. A fresh process is the only
-/// place LVGL can be down: this one never calls lv_deinit(), and a forked child cannot
-/// either, because lv_deinit() joins draw threads the child lacks.
-ChildRun run_case_in_fresh_process(const char* name) {
-    ChildRun run;
-    // Built before fork: the child only redirects and execs.
-    std::vector<std::string> env_strings;
-    for (char** e = environ; *e != nullptr; ++e) {
-        env_strings.emplace_back(*e);
-    }
-    env_strings.emplace_back(std::string(kChildEnv) + "=1");
-    std::vector<char*> envp;
-    for (auto& e : env_strings) {
-        envp.push_back(e.data());
-    }
-    envp.push_back(nullptr);
-    char exe[] = "/proc/self/exe";
-    char argv0[] = "helix-tests";
-    std::string filter(name);
-    char* argv[] = {argv0, filter.data(), nullptr};
-    char out_path[] = "/tmp/helix-subject-child-XXXXXX";
-    const int out_fd = mkstemp(out_path);
-    if (out_fd < 0) {
-        run.output = "mkstemp failed";
-        return run;
-    }
-
-    const pid_t pid = fork();
-    if (pid == 0) {
-        dup2(out_fd, STDOUT_FILENO);
-        dup2(out_fd, STDERR_FILENO);
-        execve(exe, argv, envp.data());
-        _exit(127);
-    }
-    if (pid > 0) {
-        int status = 0;
-        bool done = false;
-        for (int waited_ms = 0; waited_ms < 30000 && !done; waited_ms += 10) {
-            if (waitpid(pid, &status, WNOHANG) == pid) {
-                done = true;
-                run.rc = WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
-            } else {
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            }
-        }
-        if (!done) {
-            kill(pid, SIGKILL);
-            waitpid(pid, &status, 0);
-        }
-    }
-    std::ifstream in(out_path);
-    run.output.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
-    close(out_fd);
-    unlink(out_path);
-    return run;
-}
 
 } // namespace
 
@@ -421,26 +360,30 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
 // The three cases below run their bodies in a fresh process: see run_case_in_fresh_process.
 TEST_CASE("Subject constructed before lv_init yields null until init_*", "[subject][raii]") {
-    const ChildRun child = run_case_in_fresh_process("subject child: constructed before lv_init");
+    const helix::test::ChildRun child = helix::test::run_case_in_fresh_process(
+        "subject child: constructed before lv_init", kChildEnv);
     INFO(child.output);
     CHECK(child.rc == 0);
 }
 
 TEST_CASE("Subject init before lv_init allocates nothing", "[subject][raii]") {
-    const ChildRun child = run_case_in_fresh_process("subject child: init before lv_init");
+    const helix::test::ChildRun child =
+        helix::test::run_case_in_fresh_process("subject child: init before lv_init", kChildEnv);
     INFO(child.output);
     CHECK(child.rc == 0);
 }
 
 TEST_CASE("Subject destructor after lv_deinit leaves the freed node alone", "[subject][raii]") {
-    const ChildRun child = run_case_in_fresh_process("subject child: destructor after lv_deinit");
+    const helix::test::ChildRun child = helix::test::run_case_in_fresh_process(
+        "subject child: destructor after lv_deinit", kChildEnv);
     INFO(child.output);
     CHECK(child.rc == 0);
 }
 
 TEST_CASE("LVGL teardown leaves XML-owned and helix::Subject nodes alone once freed",
           "[subject][raii]") {
-    const ChildRun child = run_case_in_fresh_process("subject child: teardown with XML subjects");
+    const helix::test::ChildRun child = helix::test::run_case_in_fresh_process(
+        "subject child: teardown with XML subjects", kChildEnv);
     INFO(child.output);
     CHECK(child.rc == 0);
 }

@@ -33,6 +33,11 @@ class SampleChecks {
     std::size_t count_ = 0;
 };
 
+// What follows leans on Catch2's assertion internals, the same ones its own
+// INTERNAL_CATCH_TEST does: Decomposer forms the evaluated expression once,
+// ITransientExpression keeps its verdict, and AssertionHandler reports it through
+// handleExpr and complete(). Catch2 is vendored, and
+// tests/unit/test_sample_checks.cpp goes red first if an upgrade moves them.
 namespace detail {
 
 /// What Catch2 concluded when it formed the decomposed expression. The
