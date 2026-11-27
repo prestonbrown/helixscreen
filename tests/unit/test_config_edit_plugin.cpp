@@ -594,7 +594,9 @@ TEST_CASE_METHOD(LVGLTestFixture,
     helix::ui::UpdateQueue::instance().drain_until_empty();
     ConfigPluginMockClient client;
     MoonrakerAPIMock api(client, state);
-    api.set_config_files({{"printer.cfg", kShaperRoot}});
+    const std::string backup = config_backup_path("printer.cfg");
+    // The editor's own backup of printer.cfg is in the config root, as restore_backups() finds it.
+    api.set_config_files({{"printer.cfg", kShaperRoot}, {backup, kShaperRoot}});
     MoonrakerClientTestAccess::force_connection_state(client, ConnectionState::CONNECTED);
 
     KlipperConfigEditor editor;
@@ -608,6 +610,13 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK_FALSE(run.succeeded);
     CHECK(run.error.find(kJobRefusal) != std::string::npos);
     CHECK_FALSE(restart_sent(client));
+    // The edited file is put back: the editor's backup is copied over printer.cfg.
+    bool restored = false;
+    for (const json& copy : client.params_of("server.files.copy")) {
+        restored = restored || (copy.value("source", "") == "config/" + backup &&
+                                copy.value("dest", "") == "config/printer.cfg");
+    }
+    CHECK(restored);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "a print that starts after the file backup blocks the upload",
