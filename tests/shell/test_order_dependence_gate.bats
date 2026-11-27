@@ -301,3 +301,93 @@ EOF
     grep -q '\\#1127 seeding state' /tmp/last-spec.txt
     grep -q 'permissions \\"r\\" is not writable' /tmp/last-spec.txt
 }
+
+# --------------------------------------------------------- the report and the budget
+
+# What the host offers the gate for a run's report: a memfd.
+can_stage() { python3 -c 'import os; os.memfd_create("r")' 2>/dev/null; }
+
+# Stub binary: sleeps $1 seconds first when given one, reports both cases
+# green, and records into $RECORD the path it was told to write its report to.
+green_stub() {
+    {
+        echo '#!/usr/bin/env bash'
+        [ -z "${1:-}" ] || echo "sleep $1"
+        cat <<'STUB'
+out=""
+while [ $# -gt 0 ]; do
+  case "$1" in --out) out="$2"; shift 2;; -f) spec="$2"; shift 2;; *) shift;; esac
+done
+echo "$out" > "$RECORD"
+cat > "$out" <<XML
+<?xml version="1.0" encoding="UTF-8"?>
+<Catch2TestRun name="t">
+  <TestCase name="case A" filename="tests/unit/test_x.cpp" line="1">
+    <OverallResult success="true" skips="0"/>
+  </TestCase>
+  <TestCase name="case B" filename="tests/unit/test_x.cpp" line="9">
+    <OverallResult success="true" skips="0"/>
+  </TestCase>
+</Catch2TestRun>
+XML
+STUB
+    } > "$WORK/build/bin/helix-tests"
+    chmod +x "$WORK/build/bin/helix-tests"
+}
+
+@test "an isolated run writes its report to memory where the host has a memfd" {
+    can_stage || skip "no memfd on this host"
+    full_report true true
+    export RECORD="$WORK/out-path.txt"
+    green_stub
+    run gate --list
+    [ "$status" -eq 0 ]
+    contains "findings: 0" "$output"
+    [[ "$(cat "$RECORD")" == /proc/self/fd/* ]]
+}
+
+@test "HELIX_REPORT_DIRECT=1 has an isolated run write its report to a file" {
+    full_report true true
+    export RECORD="$WORK/out-path.txt"
+    export HELIX_REPORT_DIRECT=1
+    green_stub
+    run gate --list
+    [ "$status" -eq 0 ]
+    contains "findings: 0" "$output"
+    [[ "$(cat "$RECORD")" == */r.xml ]]
+}
+
+# A full report in which case A made $1 assertions in the suite.
+full_report_asserting() {
+    local line='    <Expression success="true" type="REQUIRE" filename="tests/unit/test_x.cpp" line="2"><Original>1 == 1</Original><Expanded>1 == 1</Expanded></Expression>'
+    {
+        printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' '<Catch2TestRun name="t">' \
+            '  <TestCase name="case A" filename="tests/unit/test_x.cpp" line="1">'
+        printf "${line}\n%.0s" $(seq "$1")
+        printf '%s\n' '    <OverallResult success="true" skips="0"/>' '  </TestCase>' \
+            '  <TestCase name="case B" filename="tests/unit/test_x.cpp" line="9">' \
+            '    <OverallResult success="true" skips="0"/>' '  </TestCase>' '</Catch2TestRun>'
+    } > "$WORK/full.xml"
+}
+
+@test "a file's time budget grows with the assertions it makes" {
+    # A file that asserts per pixel spends its run writing its report. Twenty
+    # thousand assertions add ten seconds to a one-second --timeout, so a two
+    # second run is judged instead of abandoned.
+    full_report_asserting 20000
+    export RECORD="$WORK/out-path.txt"
+    green_stub 2
+    run gate --timeout 1 --list
+    [ "$status" -eq 0 ]
+    contains "findings: 0" "$output"
+    lacks "not-run" "$output"
+}
+
+@test "a file that made no assertions gets only the base timeout" {
+    full_report true true
+    export RECORD="$WORK/out-path.txt"
+    green_stub 2
+    run gate --timeout 1 --list
+    contains "not-run" "$output"
+    [[ "$output" == *"hung past its 1s timeout"* ]]
+}

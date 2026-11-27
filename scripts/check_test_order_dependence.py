@@ -32,12 +32,23 @@
 # cause, opposite sign, and worth knowing separately because the fix differs
 # (the polluter needs cleanup; the dependent needs its own setup).
 #
+# THE REPORT'S WRITES
+#
+# Catch2 flushes its --out stream after every insertion, so an XML report costs
+# one write() per token. On a filesystem where a small write is dear (ZFS on the
+# test host) a file's report costs more than its tests: the heaviest file in the
+# tree writes a million assertions. So an isolated run writes its report to a
+# memory-backed file where the host has one, and its time budget grows with the
+# assertions the file is known to make. scripts/run_suite_report.sh stages the
+# whole suite's report for the first of those two reasons.
+#
 # Usage:
 #   ./build/bin/helix-tests "~[.]~[slow]" --reporter xml --success --out full.xml
 #   python3 scripts/check_test_order_dependence.py full.xml
 #   python3 scripts/check_test_order_dependence.py full.xml --only test_grid_edit_mode
 
 import argparse
+import os
 import re
 import shutil
 import subprocess
@@ -49,6 +60,13 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 ILLEGAL_XML = re.compile(rb'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]')
+
+# An isolated run also gets this many seconds per assertion its file's cases
+# made in the full suite, on top of --timeout. A file that asserts per pixel
+# spends most of its run writing its report, and a fixed budget abandons it as
+# hung. A quarter millisecond is what the slowest test host needs per assertion
+# with the report in memory; the budget is twice that.
+SECS_PER_ASSERTION = 0.0005
 
 
 class _Clean:
@@ -64,13 +82,16 @@ class _Clean:
         self._f.close()
 
 
-def parse_report(path, strict=True):
+def parse_report(path, strict=True, assertions=None):
     """{case name: (source file, passed)} from a Catch2 XML report.
 
     strict=False returns whatever parsed before the error instead of exiting.
     An isolated run is one file out of ~950: a report that goes bad part way
     through must cost that file's verdict, not the entire scan. (It did once --
     a single malformed report killed a run that had already done 900 files.)
+
+    @p assertions, a dict, collects per source file how many assertions its
+    cases made.
     """
     out, src = {}, _Clean(path)
     try:
@@ -82,6 +103,10 @@ def parse_report(path, strict=True):
             if name and res is not None:
                 out[name] = (elem.get('filename', '?'),
                              res.get('success') == 'true')
+                if assertions is not None:
+                    f = out[name][0]
+                    assertions[f] = (assertions.get(f, 0)
+                                     + sum(1 for _ in elem.iter('Expression')))
             elem.clear()
     except ET.ParseError as e:
         if strict:
@@ -143,6 +168,23 @@ def _retain_evidence(dest, tmp):
             shutil.copy2(src, dest / name)
 
 
+def open_stage():
+    """A memory-backed file for an isolated run's report: (path, descriptor).
+
+    The run writes its report to the path; the descriptor keeps the file alive
+    after the run has ended, for the caller to read. None asks for a report
+    written to a file instead: HELIX_REPORT_DIRECT=1 is set, or the host has no
+    memfd (it is Linux only).
+    """
+    if os.environ.get('HELIX_REPORT_DIRECT') == '1':
+        return None
+    try:
+        fd = os.memfd_create('order-dependence-report')
+    except (AttributeError, OSError):
+        return None
+    return f'/proc/self/fd/{fd}', fd
+
+
 def run_isolated(binary, names, workdir, timeout, evidence=None, suite_failed=()):
     """Run exactly these cases in one fresh process; {name: passed}.
 
@@ -151,7 +193,8 @@ def run_isolated(binary, names, workdir, timeout, evidence=None, suite_failed=()
     read as a filter, which runs the entire suite in the name of one file. One
     stuck worker starves the pool and nothing else ever reports. A file that
     times out is un-judgeable, which is a finding to surface, not a reason to
-    hang.
+    hang. @p timeout is the caller's budget for this file: --timeout and what
+    its assertions add.
 
     Evidence retention: a run that is not green for every requested case copies
     its XML report, captured stdout/stderr, and the escaped spec into
@@ -173,27 +216,36 @@ def run_isolated(binary, names, workdir, timeout, evidence=None, suite_failed=()
         spec.write_text('\n'.join(escape_spec(n) for n in names) + '\n')
         report = Path(tmp) / 'r.xml'
         output = Path(tmp) / 'output.txt'
+        stage = open_stage()
+        # pass_fds hands the run the stage under the number its path names.
+        out = stage[0] if stage else report
         timed_out = False
         with output.open('wb') as sink:
             try:
                 subprocess.run(
                     [str(binary), '-f', str(spec), '--reporter', 'xml',
-                     '--success', '--out', str(report)],
+                     '--success', '--out', str(out)],
                     cwd=workdir, stdout=sink, stderr=subprocess.STDOUT,
-                    timeout=timeout)
+                    timeout=timeout, pass_fds=() if stage is None else (stage[1],))
             except subprocess.TimeoutExpired:
                 timed_out = True
+        produced = stage is not None or report.is_file()
         results = {}
-        if not timed_out and report.is_file():
+        if not timed_out and produced:
             results = {n: ok for n, (_, ok)
-                       in parse_report(report, strict=False).items()}
-        green = (not timed_out and report.is_file()
+                       in parse_report(out, strict=False).items()}
+        green = (not timed_out and produced
                  and all(results.get(n) for n in names))
         # A suite failure that passed alone is a pollution finding in the
         # making: retain even a green run when one of those is in play.
         pollution_candidate = any(results.get(n) for n in suite_failed)
         if (not green or pollution_candidate) and evidence is not None:
+            if stage is not None and os.fstat(stage[1]).st_size:
+                with open(stage[0], 'rb') as src, report.open('wb') as dst:
+                    shutil.copyfileobj(src, dst)
             _retain_evidence(evidence, tmp)
+        if stage is not None:
+            os.close(stage[1])
         return results
 
 
@@ -208,7 +260,9 @@ def main():
     ap.add_argument('--binary', default='build/bin/helix-tests')
     ap.add_argument('--jobs', type=int, default=8)
     ap.add_argument('--timeout', type=int, default=300,
-                    help='seconds before an isolated run is abandoned as hung')
+                    help='base seconds before an isolated run is abandoned as '
+                         'hung; a file also gets SECS_PER_ASSERTION per '
+                         'assertion its cases made in the suite')
     ap.add_argument('--only', default=None,
                     help='restrict to source files whose name contains this')
     # One process per test file over ~950 files is too long for a single CI
@@ -226,7 +280,8 @@ def main():
     if not binary.is_file():
         sys.exit(f'{binary} missing - run `make test` first')
 
-    full = parse_report(Path(args.report))
+    assertions = {}
+    full = parse_report(Path(args.report), assertions=assertions)
     by_file = defaultdict(list)
     for name, (f, _) in full.items():
         if args.only and args.only not in f:
@@ -245,6 +300,9 @@ def main():
             print(f'shard {args.shard_index}/{args.shard_count}: no files')
             return 0
 
+    budget = {f: args.timeout + int(assertions.get(f, 0) * SECS_PER_ASSERTION)
+              for f in by_file}
+
     shard = (f' [shard {args.shard_index}/{args.shard_count}]'
              if args.shard_count > 1 else '')
     print(f'{len(full)} case(s) in the report; running {len(by_file)} file(s) '
@@ -255,7 +313,7 @@ def main():
         f, names = item
         ev = evidence_dir_for(args.report, f)
         failed_in_suite = {n for n in names if not full[n][1]}
-        alone = run_isolated(binary, names, root, args.timeout, ev, failed_in_suite)
+        alone = run_isolated(binary, names, root, budget[f], ev, failed_in_suite)
         return f, names, alone, ev
 
     skipped = []
@@ -293,7 +351,7 @@ def main():
 
     for f in skipped:
         print(f'{f}: [not-run] isolated run produced no results (hung past '
-              f'--timeout {args.timeout}s, crashed, or wrote an unreadable '
+              f'its {budget[f]}s timeout, crashed, or wrote an unreadable '
               f'report) - the gate could not judge this file', file=sys.stderr)
         print(f'evidence retained at {evidence_dir_for(args.report, f)}',
               file=sys.stderr)

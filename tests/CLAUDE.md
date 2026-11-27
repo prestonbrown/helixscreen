@@ -300,6 +300,13 @@ the full-suite result: `dependent` (passes in the suite, fails alone) and `pollu
 reverse). Here it matters doubly, because any change to the case count reshuffles the
 shards and moves a test's accidental prerequisite into another one.
 
+Each isolated run writes its report to memory (a memfd where the host has one), as the
+suite's own report is written: Catch2 flushes a `--success` report one `write()` per token,
+and on a filesystem where a small write is dear the report costs more than the tests. For
+the same reason a file's time budget is `--timeout` plus a fixed allowance per assertion its
+cases made in the suite, so a file that asserts per pixel is judged rather than abandoned
+as hung. `HELIX_REPORT_DIRECT=1` has every run write its report to a file instead.
+
 `make test-vacuous` cannot see the semantic tautology (Catch2 expands `after <= before` to
 `1024 <= 1024`, which differs from the source), and `-Werror=type-limits` catches only the
 compiler-visible form (`>= 0` on a `size_t`). Assert the setup reached the branch first
