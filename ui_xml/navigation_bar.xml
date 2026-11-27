@@ -175,7 +175,7 @@
         </icon>
       </lv_obj>
       <!-- Disabled icon - visible only when disabled (disconnected OR klippy not ready) -->
-      <icon name="nav_icon_controls_disabled" src="fine_tune" size="#icon_size" variant="disabled">
+      <icon name="nav_icon_controls_disabled" src="fine_tune" size="#icon_size_nav_inactive" variant="disabled">
         <bind_flag_if_eq subject="nav_buttons_enabled" flag="hidden" ref_value="1"/>
       </icon>
     </ui_button>
@@ -208,7 +208,7 @@
         </icon>
       </lv_obj>
       <!-- Disabled icon - visible only when disabled (disconnected OR klippy not ready) -->
-      <icon name="nav_icon_filament_disabled" src="filament" size="#icon_size" variant="disabled">
+      <icon name="nav_icon_filament_disabled" src="filament" size="#icon_size_nav_inactive" variant="disabled">
         <bind_flag_if_eq subject="nav_buttons_enabled" flag="hidden" ref_value="1"/>
       </icon>
     </ui_button>
