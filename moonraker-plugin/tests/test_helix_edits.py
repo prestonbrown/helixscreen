@@ -300,7 +300,8 @@ class TestPrintEdited:
         await helix_print_component.component_init()
         status = await mock_server.endpoints["/server/helix/status"](MockWebRequest({}))
         assert status["features"]["server_edits"] == {
-            "version": 1, "available": True, "enabled": True, "reason": None,
+            "version": helix_edits.SERVER_EDITS_FEATURE_VERSION, "available": True,
+            "enabled": True, "reason": None,
         }
 
     @pytest.mark.asyncio
