@@ -418,6 +418,30 @@ TEST_CASE_METHOD(MetadataAPITestFixture,
     CHECK(m.layer_count == 0);
 }
 
+TEST_CASE_METHOD(MetadataAPITestFixture,
+                 "A Cura file's spool weights are not read as filament used",
+                 "[metadata][api][weights][2208]") {
+    MetadataParseProbe probe(mock_client);
+    json response;
+    response["result"] = {{"filename", "bracket.gcode"},
+                          {"slicer", "Cura"},
+                          {"filament_total", 4200.0},
+                          {"filament_weight_total", 4000.0},
+                          {"filament_weights", json::array({1000.0, 1000.0, 1000.0, 1000.0})}};
+    FileMetadata m = probe.parse_file_metadata(response);
+    CHECK(m.slicer == "Cura");
+    CHECK(m.filament_weights.empty());
+    // Unstated, so the weight comes from the length at the material's density.
+    CHECK(m.filament_weight_total == 0.0);
+    CHECK(m.filament_total == Catch::Approx(4200.0));
+
+    // A file that states what each extruder used keeps it.
+    response["result"]["slicer"] = "OrcaSlicer";
+    m = probe.parse_file_metadata(response);
+    REQUIRE(m.filament_weights.size() == 4);
+    CHECK(m.filament_weight_total == Catch::Approx(4000.0));
+}
+
 TEST_CASE_METHOD(MetadataAPITestFixture, "File list sizes and times sent as JSON strings parse",
                  "[metadata][api][json_coercion]") {
     MetadataParseProbe probe(mock_client);

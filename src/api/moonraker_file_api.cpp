@@ -563,7 +563,12 @@ FileMetadata MoonrakerFileAPI::parse_file_metadata(const json& response) {
 
     // Filament info
     metadata.filament_total = helix::json_util::safe_double(result, "filament_total");
-    metadata.filament_weight_total = helix::json_util::safe_double(result, "filament_weight_total");
+    // A Cura file's weight total sums its spool weights, so it stays unset and the
+    // weight comes from the length at the material's density.
+    if (helix::weights_are_filament_used(result)) {
+        metadata.filament_weight_total =
+            helix::json_util::safe_double(result, "filament_weight_total");
+    }
 
     // Per-tool filament weights / usage. Multi-format parser handles slicer
     // variance. Empty result means "unknown" — caller must NOT treat as all-zero.
