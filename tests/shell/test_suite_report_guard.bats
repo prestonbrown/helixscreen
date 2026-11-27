@@ -200,3 +200,55 @@ EOF
     contains "present" "$(cat "$REPORT.saw")"
     contains "2 cases" "$output"
 }
+
+@test "a stage that cannot be reached sends the suite to the report path" {
+    # The descriptor number the second start trusts, with nothing open on it:
+    # what a process without /proc to reach it through has.
+    export _SUITE_REPORT_STAGE_FD=9
+    fake_suite_that_looks
+    guard
+    [ "$status" -eq 0 ]
+    contains "present" "$(cat "$REPORT.saw")"
+    contains "2 cases" "$output"
+}
+
+@test "a staged report that cannot reach its path fails as unusable" {
+    can_stage || skip "no memfd on this host"
+    # A directory stands where the report should be written.
+    mkdir "$REPORT"
+    fake_suite <<'EOF'
+printf '<Catch2TestRun name="t">\n<TestCase name="one" filename="t.cpp"/>\n</Catch2TestRun>\n' > "$OUT"
+EOF
+    guard
+    [ "$status" -eq 2 ]
+    contains "cannot write" "$output"
+}
+
+@test "a TERM to the watch ends the suite before it publishes what the suite had written" {
+    can_stage || skip "no memfd on this host"
+    export FAKE_PID="$WORK/suite.pid"
+    fake_suite <<'EOF'
+printf '<Catch2TestRun name="t">\n<TestCase name="slow case" filename="t.cpp">\n' > "$OUT"
+echo $$ > "$FAKE_PID"
+sleep 300
+EOF
+    # By hand, without `run`: the signal is this test's to send.
+    bash "$SCRIPT" "$BIN" "~[.]" "$REPORT" >"$WORK/watch.log" 2>&1 &
+    watch=$!
+    for _ in $(seq 1 100); do
+        [ -s "$FAKE_PID" ] && break
+        sleep 0.1
+    done
+    suite=$(cat "$FAKE_PID")
+    kill -TERM "$watch"
+    # A watch ended by a signal reports that signal as its status.
+    if wait "$watch" 2>/dev/null; then watch_status=0; else watch_status=$?; fi
+    [ "$watch_status" -eq 143 ]
+    if kill -0 "$suite" 2>/dev/null; then
+        kill -9 "$suite" 2>/dev/null
+        fail "the suite $suite outlived the watch it was started by"
+    fi
+    # What the suite had written is there, whole: nothing wrote to it after.
+    contains "slow case" "$(cat "$REPORT")"
+    contains "report in memory" "$(cat "$WORK/watch.log")"
+}

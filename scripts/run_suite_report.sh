@@ -41,8 +41,10 @@
 # the report path once the run has ended, however it ended; a SIGKILL to this
 # script loses them. A memfd is a memory-backed file that no mount sizes, and
 # only python3 can open one: the script starts itself again through python3
-# with the stage on a descriptor. Without python3 or a memfd, or when
-# HELIX_REPORT_DIRECT=1, the suite writes the report path directly;
+# with the stage on a descriptor, 9, which replaces whatever the caller had
+# open there. Without python3 or a memfd, without /proc to reach the stage
+# through, or when HELIX_REPORT_DIRECT=1, the suite writes the report path
+# directly. A TERM or INT ends the suite before the exit trap publishes.
 # scripts/check_test_order_dependence.py reads the same variable for the
 # reports of the runs it starts.
 
@@ -92,7 +94,7 @@ RUN_LOG="$REPORT.stdout"
 # end on the same file. LIVE is what the watch follows.
 STAGE_FD="${_SUITE_REPORT_STAGE_FD:-}"
 
-if [ -z "$STAGE_FD" ] && [ "${HELIX_REPORT_DIRECT:-0}" != 1 ] &&
+if [ -z "$STAGE_FD" ] && [ "${HELIX_REPORT_DIRECT:-0}" != 1 ] && [ -e /proc/self/fd ] &&
    python3 -c 'import os; os.memfd_create("suite-report")' 2>/dev/null; then
     export _SUITE_REPORT_STAGE_FD=9
     # The stage is inheritable, so the suite started below reports through it.
@@ -109,23 +111,40 @@ fi
 
 LIVE="$REPORT"
 if [ -n "$STAGE_FD" ]; then
-    if ! exec 7</proc/self/fd/"$STAGE_FD"; then
-        echo "run_suite_report: the stage on fd $STAGE_FD is not open" >&2
-        exit 2
+    if exec 7</proc/self/fd/"$STAGE_FD"; then
+        LIVE="/dev/fd/7"
+    else
+        # Open, but nothing here can reach it: the suite writes the report path.
+        STAGE_FD=""
     fi
-    LIVE="/dev/fd/7"
 fi
 
 published=""
 publish() {
     # A staged run's bytes reach the report path here, once. A direct run has
     # written them there already.
-    if [ -n "$STAGE_FD" ] && [ -z "$published" ]; then
-        cat <&7 > "$REPORT"
-        published=1
+    [ -n "$STAGE_FD" ] && [ -z "$published" ] || return 0
+    published=1
+    if cat <&7 > "$REPORT"; then
+        return 0
     fi
+    # A copy that failed leaves nothing for a gate to read as a whole report.
+    rm -f "$REPORT" 2>/dev/null
+    say "cannot write $REPORT: the staged report did not reach its path"
+    exit 2
 }
 trap publish EXIT
+
+run_pid=""
+on_signal() {
+    # The writer goes first, so what the exit trap publishes is still.
+    if [ -n "$run_pid" ]; then
+        kill -9 "$run_pid" 2>/dev/null
+        wait "$run_pid" 2>/dev/null
+    fi
+    exit 143
+}
+trap on_signal TERM INT
 
 if [ -n "$STAGE_FD" ]; then
     say "starting $TEST_BIN '$FILTER' (stall ${STALL_SECS}s, cap ${MAX_SECS}s, report in memory)"
