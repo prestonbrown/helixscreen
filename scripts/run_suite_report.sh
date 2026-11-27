@@ -154,12 +154,6 @@ publish() {
 # signal cannot reach the suite itself, which runs in another process group.
 trap 'stop_suite; publish' EXIT
 
-if [ -n "$STAGE_FD" ]; then
-    say "starting $TEST_BIN '$FILTER' (stall ${STALL_SECS}s, cap ${MAX_SECS}s, suite pid $run_pid, report in memory)"
-else
-    say "starting $TEST_BIN '$FILTER' (stall ${STALL_SECS}s, cap ${MAX_SECS}s, suite pid $run_pid, report at $REPORT)"
-fi
-
 # --out is not optional: tests that shell out print ANSI status to stdout, and
 # with the report on stdout too the XML comes back complete but unparseable.
 # Job control on for this one start puts the suite in a process group of its
@@ -175,6 +169,12 @@ else
 fi
 set +m
 run_pid=$!
+
+if [ -n "$STAGE_FD" ]; then
+    say "starting $TEST_BIN '$FILTER' (stall ${STALL_SECS}s, cap ${MAX_SECS}s, suite pid $run_pid, report in memory)"
+else
+    say "starting $TEST_BIN '$FILTER' (stall ${STALL_SECS}s, cap ${MAX_SECS}s, suite pid $run_pid, report at $REPORT)"
+fi
 
 start=$(date +%s)
 scanned=0          # bytes of the report already searched for case names

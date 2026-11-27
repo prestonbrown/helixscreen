@@ -240,6 +240,8 @@ EOF
         sleep 0.1
     done
     suite=$(cat "$FAKE_PID")
+    # The starting line names the suite, so a watch killed outright can be cleaned up by hand.
+    contains "suite pid $suite," "$(cat "$WORK/watch.log")"
     kill -TERM "$watch"
     # A watch ended by a signal reports that signal as its status.
     if wait "$watch" 2>/dev/null; then watch_status=0; else watch_status=$?; fi
