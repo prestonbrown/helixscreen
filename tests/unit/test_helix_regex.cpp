@@ -215,29 +215,54 @@ const std::vector<std::string> kCorpus = {
     "\r\n",
 };
 
-void require_same(const Pattern& p, const std::string& input) {
+/// How helix::Regex and std::regex disagree on `input`, the pattern and the
+/// input first; empty when they agree on everything this file compares.
+std::string disagreement(const Pattern& p, const std::string& input) {
+    const std::string where =
+        "pattern: " + p.text + (p.icase ? " (icase)" : "") + "\ninput: " + input + "\n";
     std::regex sr(p.text, p.icase ? std::regex::icase : std::regex::ECMAScript);
     Regex hr(p.text, p.icase ? Regex::ICase : Regex::None);
-    INFO("pattern: " << p.text << (p.icase ? " (icase)" : "") << "\ninput: " << input);
-    REQUIRE(hr.ok());
-    REQUIRE(hr.mark_count() == sr.mark_count());
+    if (!hr.ok()) {
+        return where + "helix::Regex rejects the pattern";
+    }
+    if (hr.mark_count() != sr.mark_count()) {
+        return where + "mark count: " + std::to_string(hr.mark_count()) + " against " +
+               std::to_string(sr.mark_count());
+    }
 
     std::smatch sm;
     RegexMatch hm;
     const bool s_found = std::regex_search(input, sm, sr);
-    REQUIRE(helix::regex_search(input, hm, hr) == s_found);
+    const bool h_found = helix::regex_search(input, hm, hr);
+    if (h_found != s_found) {
+        return where + "regex_search: helix " + (h_found ? "found" : "found nothing") + ", std " +
+               (s_found ? "found" : "found nothing");
+    }
     if (s_found) {
-        REQUIRE(hm.size() == sm.size());
+        if (hm.size() != sm.size()) {
+            return where + "group count: " + std::to_string(hm.size()) + " against " +
+                   std::to_string(sm.size());
+        }
         for (size_t g = 0; g < sm.size(); ++g) {
-            INFO("group " << g);
-            REQUIRE(hm[g].matched == sm[g].matched);
-            if (sm[g].matched) {
-                REQUIRE(hm.position(g) == static_cast<size_t>(sm.position(g)));
-                REQUIRE(hm.str(g) == sm.str(g));
+            const std::string group = "group " + std::to_string(g) + ": ";
+            if (hm[g].matched != sm[g].matched) {
+                return where + group + "matched on one side only";
+            }
+            if (!sm[g].matched) {
+                continue;
+            }
+            if (hm.position(g) != static_cast<size_t>(sm.position(g))) {
+                return where + group + "position " + std::to_string(hm.position(g)) + " against " +
+                       std::to_string(sm.position(g));
+            }
+            if (hm.str(g) != sm.str(g)) {
+                return where + group + "\"" + hm.str(g) + "\" against \"" + sm.str(g) + "\"";
             }
         }
     }
-    REQUIRE(helix::regex_match(input, hr) == std::regex_match(input, sr));
+    if (helix::regex_match(input, hr) != std::regex_match(input, sr)) {
+        return where + "regex_match differs";
+    }
 
     std::vector<std::pair<size_t, std::string>> s_all, h_all;
     for (auto it = std::sregex_iterator(input.begin(), input.end(), sr);
@@ -245,7 +270,11 @@ void require_same(const Pattern& p, const std::string& input) {
         s_all.emplace_back(static_cast<size_t>(it->position()), it->str());
     for (RegexIterator it(input, hr), end; it != end; ++it)
         h_all.emplace_back(it->position(), it->str());
-    REQUIRE(h_all == s_all);
+    if (h_all != s_all) {
+        return where + "the iterators give " + std::to_string(h_all.size()) + " matches against " +
+               std::to_string(s_all.size());
+    }
+    return {};
 }
 
 std::vector<Pattern> profile_patterns() {
@@ -378,9 +407,16 @@ TEST_CASE("helix::regex_replace reports a search that gave up", "[regex]") {
 }
 
 TEST_CASE("helix::Regex matches std::regex on every pattern in the tree", "[regex]") {
+    size_t probes = 0;
     for (const auto& p : kSourcePatterns)
-        for (const auto& input : kCorpus)
-            require_same(p, input);
+        for (const auto& input : kCorpus) {
+            const std::string why = disagreement(p, input);
+            if (!why.empty()) {
+                FAIL(why);
+            }
+            probes++;
+        }
+    CHECK(probes == kSourcePatterns.size() * kCorpus.size());
 }
 
 TEST_CASE("helix::Regex matches std::regex on the print-start profile patterns", "[regex]") {
@@ -419,7 +455,14 @@ TEST_CASE("helix::Regex matches std::regex on the print-start profile patterns",
                               "Rehoming Z",
                               "Smart Park location"})
         lines.emplace_back(extra);
+    size_t probes = 0;
     for (const auto& p : patterns)
-        for (const auto& input : lines)
-            require_same(p, input);
+        for (const auto& input : lines) {
+            const std::string why = disagreement(p, input);
+            if (!why.empty()) {
+                FAIL(why);
+            }
+            probes++;
+        }
+    CHECK(probes == patterns.size() * lines.size());
 }
