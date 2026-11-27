@@ -278,8 +278,7 @@ TEST_CASE("ams_mini bars: no plan leaves its box", "[ams_mini][ams_mini_bars]") 
         if (active >= 0)
             CHECK(std::find(units.begin(), units.end(), active) != units.end());
         CHECK(p.bar_w <= m.max_bar_w);
-        if (p.hidden_lanes == 0)
-            CHECK(p.bar_w * 3 <= p.bar_h * 2);
+        CHECK(p.bar_w * 3 <= p.bar_h * 2);
         CHECK(p.bar_h <= m.max_bar_h);
 
         const Extent e = extent(p, lanes, m);

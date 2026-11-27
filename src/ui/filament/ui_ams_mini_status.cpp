@@ -566,7 +566,8 @@ static void rebuild_bars(AmsMiniStatusData* data) {
         container_width = data->width_px;
 
     int32_t effective_height = data->height > 0 ? data->height : container_height;
-    if (effective_height < 20)
+    const bool height_unresolved = effective_height < 20;
+    if (height_unresolved)
         effective_height = 32; // Minimum fallback height
 
     // Bars taller than 4x the widest bar look awkward.
@@ -577,6 +578,9 @@ static void rebuild_bars(AmsMiniStatusData* data) {
     // One line of bars takes 80% of the height, so it never fills the whole
     // widget; stacked lines take all of it.
     m.one_line_h = effective_height * 80 / 100;
+    // A guessed height is no room to stack lines in: they keep one line's margin.
+    if (height_unresolved)
+        effective_height = m.one_line_h;
 
     // 90% of the width, leaving a margin for centering; the bypass column's
     // divider and its gaps come off first.
