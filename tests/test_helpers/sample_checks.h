@@ -29,19 +29,15 @@ class SampleChecks {
         CHECK(count_ == checks);
     }
 
-    std::size_t count() const {
-        return count_;
-    }
-
   private:
     std::size_t count_ = 0;
 };
 
 } // namespace helix::test
 
-/// REQUIRE, REQUIRE_FALSE, CHECK and CHECK_FALSE for one sample of a loop. A
-/// sample check fails the case exactly as its Catch2 namesake does, with the
-/// sample named, and it writes nothing to the report while the sample passes.
+/// REQUIRE, CHECK and CHECK_FALSE for one sample of a loop. A sample check
+/// fails the case exactly as its Catch2 namesake does, with the sample named,
+/// and it writes nothing to the report while the sample passes.
 ///
 ///   SampleChecks samples;
 ///   for (int i = 0; i < 20000; i++) {
@@ -66,36 +62,15 @@ class SampleChecks {
 #define SAMPLE_CHECK(samples, expr, sample)                                                        \
     HELIX_SAMPLE_TEST("CHECK", Catch::ResultDisposition::ContinueOnFailure, samples, expr, sample)
 
-#define HELIX_SAMPLE_TEST_FALSE(name, disposition, samples, expr, sample)                          \
+/// CHECK_FALSE for one sample of a loop, on the terms above.
+#define SAMPLE_CHECK_FALSE(samples, expr, sample)                                                  \
     do {                                                                                           \
         if (expr) {                                                                                \
             INFO("sample " << (sample));                                                           \
-            INTERNAL_CATCH_TEST(name, disposition, expr);                                          \
+            INTERNAL_CATCH_TEST("CHECK_FALSE",                                                     \
+                                Catch::ResultDisposition::ContinueOnFailure |                      \
+                                    Catch::ResultDisposition::FalseTest,                           \
+                                expr);                                                             \
         }                                                                                          \
         ++(samples);                                                                               \
     } while (false)
-
-#define SAMPLE_REQUIRE_FALSE(samples, expr, sample)                                                \
-    HELIX_SAMPLE_TEST_FALSE(                                                                       \
-        "REQUIRE_FALSE", Catch::ResultDisposition::Normal | Catch::ResultDisposition::FalseTest,   \
-        samples, expr, sample)
-#define SAMPLE_CHECK_FALSE(samples, expr, sample)                                                  \
-    HELIX_SAMPLE_TEST_FALSE("CHECK_FALSE",                                                         \
-                            Catch::ResultDisposition::ContinueOnFailure |                          \
-                                Catch::ResultDisposition::FalseTest,                               \
-                            samples, expr, sample)
-
-#ifdef CATCH_CONFIG_DISABLE
-#undef HELIX_SAMPLE_TEST
-#undef SAMPLE_REQUIRE
-#undef SAMPLE_CHECK
-#undef HELIX_SAMPLE_TEST_FALSE
-#undef SAMPLE_REQUIRE_FALSE
-#undef SAMPLE_CHECK_FALSE
-#define HELIX_SAMPLE_TEST(name, disposition, samples, expr, sample) (void)(0)
-#define SAMPLE_REQUIRE(samples, expr, sample) (void)(0)
-#define SAMPLE_CHECK(samples, expr, sample) (void)(0)
-#define HELIX_SAMPLE_TEST_FALSE(name, disposition, samples, expr, sample) (void)(0)
-#define SAMPLE_REQUIRE_FALSE(samples, expr, sample) (void)(0)
-#define SAMPLE_CHECK_FALSE(samples, expr, sample) (void)(0)
-#endif
