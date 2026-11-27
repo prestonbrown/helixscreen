@@ -327,9 +327,11 @@ void PreheatWidget::handle_apply() {
     const auto& hw = printer_state_.get_discovery();
     execute_material_preheat(
         api,
-        plan_material_preheat(
-            MaterialSettingsManager::instance().find_override_for_material(material_name), hw,
-            printer_state_.print_state().get_print_lifecycle()),
+        // The row a preset's macro is read from, which is not always the
+        // preset's own material: the generic ABS button stands for ASA too.
+        plan_material_preheat(MaterialSettingsManager::instance().find_override_for_material(
+                                  presets::macro_material(selected_material_)),
+                              hw, printer_state_.print_state().get_print_lifecycle()),
         [this, &material_name]() {
             // Use the same targets as the label, including material overrides.
             const PreheatTargets t = targets_for_slot(selected_material_);

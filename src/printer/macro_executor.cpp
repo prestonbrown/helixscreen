@@ -314,7 +314,10 @@ void execute_material_preheat(IMoonrakerAPI* api, const MaterialPreheatPlan& pla
 
     const bool sends_macro = plan.mode == MaterialPreheatMode::MACRO_ONLY ||
                              plan.mode == MaterialPreheatMode::TEMPERATURES_THEN_MACRO;
-    // A tap while the macro is still running would send it a second time.
+    // A tap while the macro is still running would send it a second time. The
+    // hold lasts until the send is over: at the pre-start limit, twenty
+    // minutes, it lifts even if the macro is still running, and a tap after
+    // that sends the macro again.
     uint64_t send = 0;
     if (sends_macro && preheat_macros_in_flight().count(plan.macro) != 0) {
         spdlog::info("{} Preheat macro '{}' is still running; not sent again", caller_tag,

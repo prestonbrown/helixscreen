@@ -118,6 +118,9 @@ const Scripts kAbsTargets{"SET_HEATER_TEMPERATURE HEATER=extruder TARGET=250",
 
 TEST_CASE_METHOD(LVGLUITestFixture, "The generic ABS preset runs ASA's macro while ABS names none",
                  "[material_preheat][preheat][filament][2183]") {
+    // The Filament screen's button and the Home widget both read the preset.
+    const auto action = GENERATE(PreheatAction::FILAMENT_PRESET, PreheatAction::HOME_WIDGET);
+    CAPTURE(static_cast<int>(action));
     MaterialSettingsScope settings;
     Harness h;
     discover_macros(h);
@@ -126,14 +129,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The generic ABS preset runs ASA's macro whi
     helix::MaterialSettingsManager::instance().set_override("ASA", abs_override("HEAT_ASA", true));
     feed_hot_nozzle(h);
 
-    press(PreheatAction::FILAMENT_PRESET, h);
+    press(action, h);
 
     CHECK(h.client.gcode_script_history() == Scripts{"HEAT_ASA"});
 
     // The preset's own row is read first once it names a macro too.
     helix::MaterialSettingsManager::instance().set_override("ABS", abs_override("HEAT_ABS", true));
     h.client.clear_gcode_script_history();
-    press(PreheatAction::FILAMENT_PRESET, h);
+    press(action, h);
     CHECK(h.client.gcode_script_history() == Scripts{"HEAT_ABS"});
 }
 
