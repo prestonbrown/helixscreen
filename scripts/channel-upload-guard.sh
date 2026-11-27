@@ -118,6 +118,9 @@ unknown() {
 
 for CHANNEL in $CHANNELS; do
     MANIFEST_URL="${BASE_URL}${CHANNEL}/manifest.json"
+    # curl leaves the file alone on an empty body, so it is emptied first: a 200
+    # with no body must never read as the previous channel's manifest.
+    : > "$BODY"
     CODE=$(curl -sS --max-time 30 -o "$BODY" -w '%{http_code}' "$MANIFEST_URL" 2>/dev/null) || true
 
     if [ "$CODE" = "404" ]; then

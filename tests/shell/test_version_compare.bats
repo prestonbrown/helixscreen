@@ -354,7 +354,8 @@ GUARD="scripts/channel-upload-guard.sh"
 
 # Put a curl on PATH that answers each CHANNEL=V argument: a version is served
 # as {"version": V} with 200, @500 answers HTTP 500, @timeout times out, @garbage
-# serves a body that is not JSON, and a channel given nothing answers 404. It
+# serves a body that is not JSON, @empty answers 200 and writes nothing, and a
+# channel given nothing answers 404. It
 # honours the guard's -o FILE and -w '%{http_code}'.
 stub_manifests() {
     mkdir -p "$BATS_TEST_TMPDIR/bin" "$BATS_TEST_TMPDIR/served"
@@ -381,6 +382,7 @@ case "\$(cat "\$f")" in
     @500) printf '500' ;;
     @timeout) printf '000'; exit 28 ;;
     @garbage) printf '<html>' > "\$out"; printf '200' ;;
+    @empty) printf '200' ;;
     *) printf '{"version":"%s"}\n' "\$(cat "\$f")" > "\$out"; printf '200' ;;
 esac
 EOF
@@ -534,6 +536,14 @@ require_jq() {
         [ "$(cat "$BATS_TEST_TMPDIR/out")" = "channels=stable" ] || fail "$how kept beta"
         rm -f "$BATS_TEST_TMPDIR/out"
     done
+}
+
+@test "a following channel answering 200 with no body is dropped, not read as the last manifest" {
+    require_jq
+    run_guard_served "1.1.2" stable "stable beta" stable=1.1.1 beta=@empty
+    [ "$status" -eq 0 ]
+    contains "beta/manifest.json names no version" "$output"
+    [ "$(cat "$BATS_TEST_TMPDIR/out")" = "channels=stable" ]
 }
 
 @test "an unorderable following version is dropped, even with the override" {
