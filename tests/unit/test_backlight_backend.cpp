@@ -11,6 +11,10 @@
 #include <fstream>
 #include <unistd.h>
 
+#if defined(__linux__)
+#include <sys/prctl.h>
+#endif
+
 #include "../catch_amalgamated.hpp"
 
 // RAII guard to temporarily enable test mode on global RuntimeConfig
@@ -212,8 +216,13 @@ TEST_CASE("Sysfs backend discovers fake backlight device", "[api][backlight][sys
 }
 
 // Root ignores file modes, so a root test host probes as an unprivileged user.
+// Every change of the effective uid makes the kernel mark the process
+// non-dumpable, which hides its /proc entries from other processes: the rest of
+// the suite could not be examined, and a job stop that finds the suite by its
+// environment would miss it. The flag goes back to what it was.
 struct ScopedUnprivilegedEuid {
     const uid_t saved = geteuid();
+    const int was_dumpable = saved == 0 ? prctl(PR_GET_DUMPABLE) : -1;
     ScopedUnprivilegedEuid() {
         if (saved == 0) {
             REQUIRE(seteuid(65534) == 0);
@@ -223,8 +232,26 @@ struct ScopedUnprivilegedEuid {
         if (saved == 0 && seteuid(0) != 0) {
             std::abort();
         }
+        if (saved == 0 && was_dumpable >= 0 && prctl(PR_SET_DUMPABLE, was_dumpable) != 0) {
+            std::abort();
+        }
     }
 };
+
+TEST_CASE("a root host's unprivileged probe leaves the suite process as it was",
+          "[api][backlight][sysfs]") {
+    const int before = prctl(PR_GET_DUMPABLE);
+    REQUIRE(before >= 0);
+    {
+        ScopedUnprivilegedEuid unprivileged;
+        // On a host that runs as root the probe runs without root's privileges.
+        if (unprivileged.saved == 0) {
+            CHECK(geteuid() == 65534);
+        }
+    }
+    CHECK(geteuid() == getuid());
+    CHECK(prctl(PR_GET_DUMPABLE) == before);
+}
 
 TEST_CASE("Sysfs backend is unavailable when brightness cannot be written",
           "[api][backlight][sysfs]") {
