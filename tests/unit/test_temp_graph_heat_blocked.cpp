@@ -230,6 +230,49 @@ TEST_CASE_METHOD(TempGraphHeatFixture,
     CHECK(mark_box.x1 >= box.x1);
     CHECK(mark_box.x2 <= name_box.x1);
 
+    // Known before the overlay opens, as a saved layout's material is: the
+    // overlay is fitted as it comes up.
+    NavigationManager::instance().go_back();
+    settle();
+    overlay.open(TempGraphOverlay::Mode::Nozzle, lv_screen_active());
+    settle();
+    lv_obj_t* reopened = lv_obj_find_by_name(overlay.get_root(), "preset_3_tiny");
+    REQUIRE(reopened != nullptr);
+    name = ui_button_get_label(reopened);
+    mark = ui_button_get_icon(reopened);
+    REQUIRE(name != nullptr);
+    REQUIRE(mark != nullptr);
+    lv_obj_get_coords(reopened, &box);
+    lv_obj_get_coords(name, &name_box);
+    lv_obj_get_coords(mark, &mark_box);
+    CHECK(lv_obj_get_width(name) < width_of(long_name.c_str(), name));
+    CHECK(std::string(lv_label_get_text(name)).rfind("Poly", 0) == 0);
+    CHECK(name_box.x2 <= box.x2);
+    CHECK(mark_box.x1 >= box.x1);
+
+    // A mark that leaves a fitted name, then comes back under it: the name
+    // takes the room each time, and ends inside the button beside the mark.
+    const int32_t width_beside_mark = lv_obj_get_width(name);
+    lv_subject_set_int(abs_has_macro, 0);
+    settle();
+    REQUIRE(lv_obj_is_hidden(mark));
+    lv_obj_get_coords(reopened, &box);
+    lv_obj_get_coords(name, &name_box);
+    CHECK(lv_obj_get_width(name) > width_beside_mark);
+    CHECK(lv_obj_get_width(name) < width_of(long_name.c_str(), name));
+    CHECK(name_box.x1 >= box.x1);
+    CHECK(name_box.x2 <= box.x2);
+    lv_subject_set_int(abs_has_macro, 1);
+    settle();
+    REQUIRE_FALSE(lv_obj_is_hidden(mark));
+    lv_obj_get_coords(reopened, &box);
+    lv_obj_get_coords(name, &name_box);
+    lv_obj_get_coords(mark, &mark_box);
+    CHECK(lv_obj_get_width(name) == width_beside_mark);
+    CHECK(name_box.x2 <= box.x2);
+    CHECK(mark_box.x1 >= box.x1);
+    CHECK(mark_box.x2 <= name_box.x1);
+
     NavigationManager::instance().go_back();
     settle();
     lv_subject_set_string(abs_name, saved_name.c_str());

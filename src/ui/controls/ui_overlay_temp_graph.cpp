@@ -42,6 +42,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <string_view>
 #include <utility>
@@ -177,49 +178,33 @@ int TempGraphOverlay::material_preset_slot(const char* widget_name) {
     if (!widget_name) {
         return -1;
     }
-    for (int slot = 0; slot < kTempGraphVisiblePresets; ++slot) {
-        if (std::strstr(widget_name, ("preset_" + std::to_string(slot + 1)).c_str()) != nullptr) {
-            return slot;
+    for (size_t slot = 0; slot < kPresetButtons.size(); ++slot) {
+        if (std::strstr(widget_name, kPresetButtons[slot][0]) != nullptr) {
+            return static_cast<int>(slot);
         }
     }
     return -1;
 }
 
-void TempGraphOverlay::fit_preset_name(lv_obj_t* button, int slot) {
+void TempGraphOverlay::fit_preset_name(lv_obj_t* button) {
     lv_obj_t* name = ui_button_get_label(button);
     lv_obj_t* mark = ui_button_get_icon(button);
     if (!name || !mark) {
         return;
     }
-    lv_subject_t* name_subject = helix::presets::name_subject(slot);
-    if (!name_subject) {
-        return;
-    }
-    // DECLARATIVE_OK: measured layout; how wide the name may grow is decided
-    // from drawn widths. The name is measured as the label shows it, from its
-    // subject: the material's own name can be shorter, and a label that
-    // shortens with dots has its text rewritten.
-    const char* text = lv_subject_get_string(name_subject);
-    const int32_t name_width =
-        helix::ui::text_width(text, lv_obj_get_style_text_font(name, LV_PART_MAIN),
-                              lv_obj_get_style_text_letter_space(name, LV_PART_MAIN));
     const int32_t reserved =
         lv_obj_is_hidden(mark)
             ? 0
             : helix::ui::label_width(mark) + lv_obj_get_style_pad_column(button, LV_PART_MAIN);
     const int32_t room = lv_obj_get_width(button) - 2 * kPresetEdgeRoom;
-    // DECLARATIVE_OK: measured layout; how wide the name may grow, and whether
-    // it shortens with dots, follow the measurement. The label is never bounded
-    // before this runs: a label that has shortened measures as its dots.
-    const bool fits = helix::ui::fits_beside(room, reserved, name_width);
-    lv_label_set_long_mode(name, fits ? LV_LABEL_LONG_MODE_WRAP : LV_LABEL_LONG_MODE_DOTS);
-    lv_label_set_max_lines(name, fits ? 0 : 1);
-    lv_obj_set_flex_grow(name, 0);
-    lv_obj_set_width(name, LV_SIZE_CONTENT);
+    // DECLARATIVE_OK: measured layout; how wide the name may grow follows the
+    // button's and the mark's drawn widths. Under that width a name shows
+    // whole, and a longer one ends in dots.
+    lv_label_set_long_mode(name, LV_LABEL_LONG_MODE_DOTS);
+    lv_label_set_max_lines(name, 1);
     // A maximum narrows a label where a width cannot: a label is never less
     // than the width of what it shows.
-    lv_obj_set_style_max_width(name, fits ? LV_COORD_MAX : LV_MAX(room - reserved, 1),
-                               LV_PART_MAIN);
+    lv_obj_set_style_max_width(name, LV_MAX(room - reserved, 1), LV_PART_MAIN);
 }
 
 void TempGraphOverlay::fit_preset_names() {
@@ -229,12 +214,10 @@ void TempGraphOverlay::fit_preset_names() {
     // The buttons' sizes as they stand; then, once every name is fitted, the
     // layout that gives a shortened name its dots.
     lv_obj_update_layout(overlay_root_);
-    static constexpr const char* kSuffixes[] = {"", "_tiny"};
-    for (int slot = 0; slot < kTempGraphVisiblePresets; ++slot) {
-        for (const char* suffix : kSuffixes) {
-            const std::string widget_name = "preset_" + std::to_string(slot + 1) + suffix;
-            if (lv_obj_t* button = lv_obj_find_by_name(overlay_root_, widget_name.c_str())) {
-                fit_preset_name(button, slot);
+    for (const auto& names : kPresetButtons) {
+        for (const char* widget_name : names) {
+            if (lv_obj_t* button = lv_obj_find_by_name(overlay_root_, widget_name)) {
+                fit_preset_name(button);
             }
         }
     }
@@ -246,11 +229,7 @@ void TempGraphOverlay::register_callbacks() {
         {"on_temp_graph_preset_clicked", on_temp_graph_preset_clicked},
         {"temp_graph_preset_fit",
          [](lv_event_t* e) {
-             auto* button = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-             const int slot = material_preset_slot(lv_obj_get_name(button));
-             if (slot >= 0) {
-                 fit_preset_name(button, slot);
-             }
+             fit_preset_name(static_cast<lv_obj_t*>(lv_event_get_current_target(e)));
          }},
         {"on_temp_graph_custom_clicked", on_temp_graph_custom_clicked},
         {"temp_graph_chip_cb",
@@ -368,10 +347,14 @@ void TempGraphOverlay::on_activate() {
     fit_preset_names();
     const auto preset_lifetime = helix::presets::get_subjects_lifetime();
     for (int slot = 0; slot < kTempGraphVisiblePresets; ++slot) {
-        name_observers_[slot] = helix::ui::observe<const char*>(
+        // A name that changes, and a mark that appears under a name already
+        // fitted or leaves it, each move the width the name may take.
+        preset_observers_[slot] = helix::ui::observe<const char*>(
             helix::presets::name_subject(slot), this,
-            [slot](TempGraphOverlay* self, const char*) { self->fit_preset_names(); },
-            preset_lifetime);
+            [](TempGraphOverlay* self, const char*) { self->fit_preset_names(); }, preset_lifetime);
+        preset_observers_[kTempGraphVisiblePresets + slot] = helix::ui::observe<int>(
+            helix::presets::has_macro_subject(slot), this,
+            [](TempGraphOverlay* self, int) { self->fit_preset_names(); }, preset_lifetime);
     }
     // The heater chips and legend name their heaters in the UI language, and
     // a new language's fonts give a preset's name another width.
@@ -400,7 +383,7 @@ void TempGraphOverlay::on_deactivating(DeactivateReason) {
     }
 
     language_observer_.reset();
-    for (auto& observer : name_observers_) {
+    for (auto& observer : preset_observers_) {
         observer.reset();
     }
     // Destroy controller (tears down observers, destroys graph)
@@ -417,7 +400,7 @@ void TempGraphOverlay::on_deactivating(DeactivateReason) {
 
 void TempGraphOverlay::cleanup() {
     language_observer_.reset();
-    for (auto& observer : name_observers_) {
+    for (auto& observer : preset_observers_) {
         observer.reset();
     }
     controller_.reset();
