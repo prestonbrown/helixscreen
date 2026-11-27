@@ -2359,13 +2359,14 @@ static void sync_from_ams_state(AmsMiniStatusData* data) {
 
     // On the AMS panel's path (its rule), and in use or holding a spool.
     data->bypass = {};
-    if (helix::ui::bypass_node_visible_for(backend, info)) {
-        data->bypass.spool = helix::AmsState::instance().get_external_spool_info();
-        data->bypass.active =
-            lv_subject_get_int(helix::AmsState::instance().get_bypass_active_subject()) != 0;
-        data->bypass.shown = helix::ui::bypass_on_compact_strip(true, data->bypass.active,
-                                                                data->bypass.spool.has_value());
-    }
+    data->bypass.spool = helix::AmsState::instance().get_external_spool_info();
+    data->bypass.active =
+        lv_subject_get_int(helix::AmsState::instance().get_bypass_active_subject()) != 0;
+    data->bypass.shown =
+        helix::ui::bypass_on_compact_strip(helix::ui::bypass_node_visible_for(backend, info),
+                                           data->bypass.active, data->bypass.spool.has_value());
+    if (!data->bypass.shown)
+        data->bypass = {};
 
     bool unchanged = data->synced && prev_slot_count == slot_count &&
                      prev_unit_count == data->unit_count && prev_cells == data->spool_cells &&

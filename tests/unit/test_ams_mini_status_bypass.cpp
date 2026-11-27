@@ -186,6 +186,14 @@ TEST_CASE_METHOD(
     CHECK(shown(bypass_column(bars)));
     CHECK(shown(UITest::find_by_name(spools, "bypass_cell")));
 
+    // Taking the spool off leaves it unused again.
+    AmsState::instance().clear_external_spool_info();
+    settle();
+    lv_obj_update_layout(test_screen());
+    REQUIRE_FALSE(AmsState::instance().get_external_spool_info().has_value());
+    CHECK_FALSE(shown(bypass_column(bars)));
+    CHECK_FALSE(shown(UITest::find_by_name(spools, "bypass_cell")));
+
     lv_obj_delete(lv_obj_get_parent(bars));
     lv_obj_delete(lv_obj_get_parent(spools));
     teardown_ams();
