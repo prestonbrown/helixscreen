@@ -379,7 +379,10 @@ before the backend mounts another.
 follows its own target (`SET_HEATER_TEMPERATURE HEATER=extruder<n>`), so the Heat readouts
 move and a Resume onto a heated secondary tool goes through; the persona's configfile carries
 upstream's example `RESUME`, which runs `MHC_RESUME`. Tests:
-`tests/unit/test_toolchanger_mount_feed.cpp`. **Unverified on hardware.**
+`tests/unit/test_toolchanger_mount_feed.cpp` and
+`tests/unit/test_toolchanger_mount_feed_2.cpp`, one file split in its own order,
+with their fixtures in `tests/test_helpers/toolchanger_mount_feed_fixtures.h`.
+**Unverified on hardware.**
 
 ## Overriding the feeder macros
 
