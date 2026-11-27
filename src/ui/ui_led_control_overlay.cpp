@@ -630,6 +630,10 @@ void LedControlOverlay::apply_look(uint32_t rgb, double w) {
     publish_color_state();
 }
 
+// Out of line: ColorPickerModal is incomplete in the header.
+LedControlOverlay::LedControlOverlay() = default;
+LedControlOverlay::~LedControlOverlay() = default;
+
 void LedControlOverlay::handle_custom_color() {
     if (focused_info() == nullptr || !overlay_root_) {
         return;
@@ -637,7 +641,10 @@ void LedControlOverlay::handle_custom_color() {
     // The light previews every pick while the picker is open, which stops a
     // running led_effect; Cancel puts the color and brightness back, then
     // starts those effects again.
-    static helix::ui::ColorPickerModal color_picker;
+    if (!color_picker_) {
+        color_picker_ = std::make_unique<helix::ui::ColorPickerModal>();
+    }
+    helix::ui::ColorPickerModal& color_picker = *color_picker_;
     std::vector<std::string> running_effects;
     for (const auto& eff : LedController::instance().effects().effects_for_strip(focused_strip_)) {
         if (eff.enabled) {
