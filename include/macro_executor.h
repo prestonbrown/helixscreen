@@ -7,6 +7,7 @@
 #include "json_fwd.h"
 #include "macro_param_cache.h"
 #include "macro_params.h"
+#include "print_lifecycle_state.h"
 
 #include <cstdint>
 #include <functional>
@@ -49,6 +50,7 @@ enum class MaterialPreheatMode {
     TEMPERATURES_THEN_MACRO, ///< Send the temperatures, then run the additive macro.
     MACRO_ONLY,              ///< The macro sets every temperature itself.
     MACRO_MISSING,           ///< Assigned, but this printer lacks it: send the temperatures.
+    MACRO_HELD_BY_JOB,       ///< Assigned, but a job holds the machine: send the temperatures.
 };
 
 struct MaterialPreheatPlan {
@@ -56,14 +58,19 @@ struct MaterialPreheatPlan {
     std::string macro; ///< Empty for TEMPERATURES.
 };
 
-/// Decide a material preheat from its override and this printer's macros.
-/// Material overrides are shared across printers, so an assigned macro may
-/// exist on another printer only; that plans MACRO_MISSING, never a macro send.
+/// Decide a material preheat from its override, this printer's macros and the
+/// print lifecycle. Material overrides are shared across printers, so an
+/// assigned macro may exist on another printer only; that plans MACRO_MISSING,
+/// never a macro send. While job_holds_machine(lifecycle), a macro the printer
+/// does define plans MACRO_HELD_BY_JOB: the job did not ask for its G-code.
 [[nodiscard]] MaterialPreheatPlan plan_material_preheat(const filament::MaterialOverride* override,
-                                                        const PrinterDiscovery& hw);
+                                                        const PrinterDiscovery& hw,
+                                                        PrintState lifecycle);
 
 /// Carry out @p plan. The temperature sender runs synchronously, before an
-/// additive macro, or alone for TEMPERATURES and MACRO_MISSING.
+/// additive macro, or alone for TEMPERATURES, MACRO_MISSING and MACRO_HELD_BY_JOB.
+/// A macro that is sent gets the pre-start limit: a soak or a wipe runs for many
+/// minutes, and a timeout with the printer still busy reports nothing.
 /// Call on the UI thread; the sender is never retained. Filament-change heating
 /// and individual heater controls do not use this policy.
 void execute_material_preheat(IMoonrakerAPI* api, const MaterialPreheatPlan& plan,
@@ -244,6 +251,10 @@ struct MachineGcode {
     MacroHostEffect host_effect = MacroHostEffect::None;
     /// 0 means IMoonrakerAPI::kMacroTimeoutMs.
     uint32_t timeout_ms = 0;
+    /// A macro that runs for many minutes, as a heat soak does: a timeout while
+    /// the printer still reports busy is the macro still running, and is not
+    /// reported as a failure.
+    bool long_running = false;
     /// Runs once on the main thread when the send is over, whatever the outcome:
     /// answered, failed, absorbed, refused before sending, or homing failed.
     std::function<void()> on_finished;

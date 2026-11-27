@@ -135,10 +135,11 @@ The preset buttons are not fixed. On the **Filament** screen you can point any o
 ![Choosing a filament type for a preset button](../../images/user/filament-preset-picker.png)
 
 1. **Long-press** a preset button on the Filament screen until the material picker appears.
-2. Scroll the list and tap the filament type you want. The button's label and its temperatures update immediately, and the choice is remembered across restarts.
-3. To undo all changes, long-press any preset button and tap **Reset to defaults** at the top of the list. That restores PLA, PETG, ABS and TPU.
+2. Choose a vendor and a filament type, tap a product in the list, then tap **Select**. The button's label and its temperatures update immediately, and the choice is remembered across restarts.
+3. To undo all changes, long-press any preset button and tap **Reset to defaults** at the bottom of the picker. That restores PLA, PETG, ABS and TPU.
+4. The picker's top row names the macro this button's material runs, or **None**. Tap it to open that material in [Material Temperatures](settings/printing.md#material-temperatures).
 
-A short tap still just applies the button's temperatures. Only a long-press opens the picker.
+A short tap applies the button's temperatures, and runs its material's macro when it has one. Only a long-press opens the picker.
 
 ### Spool Preset
 

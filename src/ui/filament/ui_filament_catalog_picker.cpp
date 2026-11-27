@@ -17,10 +17,23 @@ helix::WidgetSubjects s_subjects{"FilamentCatalogPickerSubjects",
                                  StaticSubjectRegistry::Lifetime::Process};
 // 1 = "Reset to defaults" is offered: a preset-editing caller set a reset callback.
 HELIX_PSRAM_BSS helix::Subject s_reset_shown_subject;
+// 1 = the preset material's macro row is offered: that caller set a macro callback.
+HELIX_PSRAM_BSS helix::Subject s_macro_shown_subject;
+// 1 = that material names a macro, whose name the row shows; it reads "None" otherwise.
+HELIX_PSRAM_BSS helix::Subject s_macro_set_subject;
+// 1 = that macro handles the heating: the row reads "Macro", and "Preheat Macro" otherwise.
+HELIX_PSRAM_BSS helix::Subject s_macro_heats_subject;
+HELIX_PSRAM_BSS helix::Subject s_macro_name_subject;
+HELIX_PSRAM_BSS char s_macro_name_buf[96];
 
 void init_picker_subjects() {
     s_subjects.ensure_init([] {
         UI_MANAGED_SUBJECT_INT(s_reset_shown_subject, 0, "catalog_picker_reset_shown", s_subjects);
+        UI_MANAGED_SUBJECT_INT(s_macro_shown_subject, 0, "catalog_picker_macro_shown", s_subjects);
+        UI_MANAGED_SUBJECT_INT(s_macro_set_subject, 0, "catalog_picker_macro_set", s_subjects);
+        UI_MANAGED_SUBJECT_INT(s_macro_heats_subject, 1, "catalog_picker_macro_heats", s_subjects);
+        UI_MANAGED_SUBJECT_STRING(s_macro_name_subject, s_macro_name_buf, "",
+                                  "catalog_picker_macro_name", s_subjects);
     });
 }
 } // namespace
@@ -47,11 +60,29 @@ void FilamentCatalogPickerModal::register_callbacks() {
             self->reset_callback_();
         self->hide();
     });
+    lv_xml_register_event_cb(nullptr, "catalog_picker_macro_cb", [](lv_event_t* e) {
+        auto* self = Modal::from_event<FilamentCatalogPickerModal>(e);
+        if (!self)
+            return;
+        // Copied: hiding the dialog can be the last thing this modal hears.
+        const MacroOpenCallback open = self->macro_callback_;
+        lv_obj_t* screen = lv_obj_get_screen(self->dialog());
+        self->hide();
+        if (open)
+            open(screen);
+    });
     callbacks_registered_ = true;
 }
 
 void FilamentCatalogPickerModal::set_reset_callback(std::function<void()> cb) {
     reset_callback_ = std::move(cb);
+}
+
+void FilamentCatalogPickerModal::set_macro_callback(MacroOpenCallback cb, std::string macro_name,
+                                                    bool macro_heats) {
+    macro_callback_ = std::move(cb);
+    macro_name_ = std::move(macro_name);
+    macro_heats_ = macro_heats;
 }
 
 void FilamentCatalogPickerModal::show(lv_obj_t* parent, std::optional<std::string> seed_type,
@@ -72,6 +103,10 @@ void FilamentCatalogPickerModal::show(lv_obj_t* parent, std::optional<std::strin
     on_select_ = std::move(on_select);
     init_picker_subjects();
     lv_subject_set_int(&s_reset_shown_subject, reset_callback_ ? 1 : 0);
+    lv_subject_set_int(&s_macro_shown_subject, macro_callback_ ? 1 : 0);
+    lv_subject_set_int(&s_macro_set_subject, macro_name_.empty() ? 0 : 1);
+    lv_subject_set_int(&s_macro_heats_subject, macro_heats_ ? 1 : 0);
+    lv_subject_set_string(&s_macro_name_subject, macro_name_.c_str());
     Modal::show(parent); // triggers on_show()
 }
 

@@ -13,18 +13,23 @@
 #include "ui_modal.h"
 #include "ui_settings_material_temps.h"
 
+#include "../fake_moonraker_client.h"
 #include "../test_fixtures.h"
 #include "../test_helpers/scoped_geometry.h"
+#include "../test_helpers/scoped_moonraker_api.h"
 #include "../ui_test_utils.h"
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "material_settings_manager.h"
+#include "printer_discovery.h"
 
 #include <lvgl.h>
+#include <optional>
 #include <string>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using helix::MaterialSettingsManager;
 
@@ -299,4 +304,76 @@ TEST_CASE_METHOD(MaterialEditFixture, "Material edit Back asks before dropping u
         process_lvgl(100);
         CHECK(ModalStack::instance().top_dialog() != nullptr);
     }
+}
+
+TEST_CASE_METHOD(
+    MaterialEditFixture,
+    "The macro field reads Macro while the macro handles heating and follows the switch",
+    "[material_temps][2183]") {
+    open_abs();
+    // A macro chosen for the material shows the switch beside the field.
+    set_int("material_has_macro", 1);
+    lv_obj_update_layout(lv_screen_active());
+    lv_obj_t* heats = find_widget("macro_label_heats");
+    lv_obj_t* preheat = find_widget("macro_label");
+    lv_obj_t* toggle = find_widget("macro_heating_switch");
+    lv_subject_t* heats_subject = lv_xml_get_subject(nullptr, "material_macro_heats");
+    REQUIRE(heats_subject != nullptr);
+
+    // A material's macro starts as its whole heat-up.
+    CHECK(shown(heats));
+    CHECK_FALSE(shown(preheat));
+    CHECK(lv_obj_has_state(toggle, LV_STATE_CHECKED));
+
+    // A tap on the switch turns that off, and the field's label says so.
+    REQUIRE(UITest::click(toggle));
+    process_lvgl(50);
+    CHECK(lv_subject_get_int(heats_subject) == 0);
+    CHECK_FALSE(lv_obj_has_state(toggle, LV_STATE_CHECKED));
+    CHECK(shown(preheat));
+    CHECK_FALSE(shown(heats));
+    CHECK_FALSE(disabled(find_widget("btn_save_material")));
+
+    // A value stored for the material moves the switch and the label the same way.
+    set_int("material_macro_heats", 1);
+    process_lvgl(50);
+    CHECK(lv_obj_has_state(toggle, LV_STATE_CHECKED));
+    CHECK(shown(heats));
+    CHECK_FALSE(shown(preheat));
+}
+
+TEST_CASE_METHOD(MaterialEditFixture, "Saving keeps how the macro heats with the material",
+                 "[material_temps][2183]") {
+    const bool handles_heating = GENERATE(true, false);
+    CAPTURE(handles_heating);
+    // The printer defines one macro, so the field can name it.
+    helix::test::FakeMoonrakerClient client;
+    MoonrakerAPI api{client, state()};
+    ScopedMoonrakerApi installed(&api);
+    api.hardware().parse_objects(nlohmann::json{"extruder", "gcode_macro HEAT_ABS"});
+    auto& overlay = open_abs();
+
+    lv_obj_t* dropdown = find_widget("macro_dropdown");
+    REQUIRE(std::string(lv_dropdown_get_options(dropdown)).find("HEAT_ABS") != std::string::npos);
+    lv_dropdown_set_selected(dropdown, 1);
+    lv_obj_send_event(dropdown, LV_EVENT_VALUE_CHANGED, nullptr);
+    process_lvgl(50);
+    set_int("material_macro_heats", handles_heating ? 1 : 0);
+
+    REQUIRE(UITest::click(find_widget("btn_save_material")));
+    process_lvgl(50);
+    const auto* saved = MaterialSettingsManager::instance().get_override("ABS");
+    REQUIRE(saved != nullptr);
+    REQUIRE(saved->preheat_macro == std::optional<std::string>("HEAT_ABS"));
+    CHECK(saved->macro_handles_heating.value_or(true) == handles_heating);
+
+    // Opening the material again shows what was stored, after another material
+    // has had the field open in between.
+    overlay.handle_material_row_clicked("PLA");
+    process_lvgl(50);
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "material_macro_heats")) == 1);
+    overlay.handle_material_row_clicked("ABS");
+    process_lvgl(50);
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "material_macro_heats")) ==
+          (handles_heating ? 1 : 0));
 }

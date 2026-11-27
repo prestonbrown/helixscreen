@@ -17,16 +17,40 @@
     <event_cb trigger="clicked" callback="$callback"/>
     <event_cb trigger="long_pressed" callback="$hold_callback"/>
     <event_cb trigger="size_changed" callback="filament_preset_fit_temps"/>
-    <text_body bind_text="preset_material_${slot}_name" long_mode="dots" style_max_width="100%"/>
+    <!-- The mark: this preset's material names a macro. It sits before the name
+         while the name fits beside it, and before the temperature line in a
+         button too narrow for both (preset_material_${slot}_mark_beside_name, measured by
+         filament_preset_fit_temps). Both rows take no press: a tap or a hold on
+         the name reaches the button. -->
+    <lv_obj name="preset_name_row"
+            width="100%" height="content" flex_flow="row" style_pad_all="0" scrollable="false" clickable="false"
+            style_flex_main_place="center" style_flex_cross_place="center" style_pad_column="#space_xxs">
+      <icon name="preset_macro_mark" src="script_text" size="xs" clickable="false" hidden="true">
+        <bind_flag_if cond="preset_material_${slot}_has_macro eq 0 or preset_material_${slot}_mark_beside_name eq 0"
+                      flag="hidden"/>
+      </icon>
+      <text_body name="preset_material_name"
+                 bind_text="preset_material_${slot}_name" long_mode="dots" style_max_width="100%">
+        <event_cb trigger="size_changed" callback="filament_preset_fit_temps"/>
+      </text_body>
+    </lv_obj>
     <!-- Nozzle and bed when both fit the button's width, the nozzle alone when
          they do not (filament_preset_fit_temps), never an ellipsis. -->
-    <text_small name="preset_temps"
-                bind_text="preset_material_${slot}_temps" style_text_align="center" style_text_color="#text_muted"
-                long_mode="clip" style_max_width="100%">
-      <event_cb trigger="size_changed" callback="filament_preset_fit_temps"/>
-    </text_small>
-    <text_small name="preset_nozzle_temp"
-                bind_text="preset_material_${slot}_nozzle_temp" style_text_align="center" style_text_color="#text_muted"
-                long_mode="clip" style_max_width="100%" hidden="true"/>
+    <lv_obj name="preset_temps_row"
+            width="100%" height="content" flex_flow="row" style_pad_all="0" scrollable="false" clickable="false"
+            style_flex_main_place="center" style_flex_cross_place="center" style_pad_column="#space_xxs">
+      <icon name="preset_macro_mark_temps" src="script_text" size="xs" clickable="false" hidden="true">
+        <bind_flag_if cond="preset_material_${slot}_has_macro eq 0 or preset_material_${slot}_mark_beside_name eq 1"
+                      flag="hidden"/>
+      </icon>
+      <text_small name="preset_temps"
+                  bind_text="preset_material_${slot}_temps" style_text_align="center" style_text_color="#text_muted"
+                  long_mode="clip" style_max_width="100%">
+        <event_cb trigger="size_changed" callback="filament_preset_fit_temps"/>
+      </text_small>
+      <text_small name="preset_nozzle_temp"
+                  bind_text="preset_material_${slot}_nozzle_temp" style_text_align="center"
+                  style_text_color="#text_muted" long_mode="clip" style_max_width="100%" hidden="true"/>
+    </lv_obj>
   </view>
 </component>

@@ -149,7 +149,14 @@
           <lv_obj flex_flow="column" style_pad_all="0" scrollable="false">
             <style name="macro_col"/>
             <bind_style_if_eq name="macro_col_stacked" subject="ui_is_portrait" ref_value="1"/>
-            <text_body style_pad_bottom="#space_xs" text="Preheat Macro"/>
+            <!-- The field's name follows the switch beside it: "Macro" while the
+                 macro handles the heating, "Preheat Macro" while it adds to it. -->
+            <text_body name="macro_label" style_pad_bottom="#space_xs" text="Preheat Macro">
+              <bind_flag_if_eq subject="material_macro_heats" flag="hidden" ref_value="1"/>
+            </text_body>
+            <text_body name="macro_label_heats" style_pad_bottom="#space_xs" text="Macro" hidden="true">
+              <bind_flag_if_eq subject="material_macro_heats" flag="hidden" ref_value="0"/>
+            </text_body>
             <lv_dropdown name="macro_dropdown" width="100%" options="None">
               <event_cb trigger="value_changed" callback="on_macro_dropdown_changed"/>
             </lv_dropdown>
@@ -167,7 +174,8 @@
             <bind_flag_if_eq subject="material_has_macro" flag="hidden" ref_value="0"/>
             <lv_obj width="100%" flex_flow="row" style_pad_all="0" scrollable="false" style_flex_cross_place="center">
               <lv_switch name="macro_heating_switch" style_pad_right="#space_md">
-                <event_cb trigger="value_changed" callback="on_material_field_changed"/>
+                <bind_state_if_eq subject="material_macro_heats" state="checked" ref_value="1"/>
+                <event_cb trigger="value_changed" callback="on_macro_heating_changed"/>
               </lv_switch>
               <text_body text="Macro handles heating" flex_grow="1"/>
             </lv_obj>

@@ -933,6 +933,24 @@ are its definition) and the screen hides Reset for it. Quick-button choices
 (`preset_materials`) stay in `settings.json`: they are a UI choice, not material
 data.
 
+**The preset's macro mark and the picker's row.** A preset whose material names a macro
+(`MaterialOverride::names_a_macro`) shows the `script_text` glyph, bound to
+`preset_material_<slot>_has_macro` from `src/system/preset_materials.cpp#refresh_subjects`; the spool
+preset's is bound to `filament_spool_preset_has_macro`. The glyph sits before the name while the
+name fits beside it, and before the temperature line in a narrower button (480x320 and 480x272):
+`src/ui/filament/ui_panel_filament.cpp#preset_fit_temps` measures both with
+`helix::ui::label_width` and publishes `preset_material_<slot>_mark_beside_name` (the spool preset
+has its own), the markup shows one glyph or the other from it, and the same fit leaves the
+temperature line only the room the glyph takes. Both rows are `clickable="false"`, so neither takes
+a press from the button. A hold on a preset still opens `filament_catalog_picker`; for
+that caller the dialog shows a row bound to `catalog_picker_macro_shown`, `catalog_picker_macro_set`,
+`catalog_picker_macro_heats` and `catalog_picker_macro_name`, and its click opens the material's edit
+view through `MaterialTempsOverlay::show_material`. The selector sits in a host that fills what the
+body has left, so the product list gives the row its height and ends above the buttons. Whether a
+macro heats is `MaterialOverride::macro_heats`, asked by
+`src/printer/macro_executor.cpp#plan_material_preheat`, by the edit view's `material_macro_heats`
+subject, and by the row.
+
 **Migration from `settings.json`.** `MaterialSettingsManager::init()` moves any
 `material_overrides` left in `settings.json` into the overlay's `types`
 (`bed_temp` becomes `bed`, `chamber_temp` becomes `chamber`; a field the overlay

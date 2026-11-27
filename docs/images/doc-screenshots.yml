@@ -327,9 +327,11 @@ images:
     source: captured by hand before the manifest existed
     recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
   - path: docs/images/user/filament-preset-picker.png
-    kind: manual
-    source: captured by hand before the manifest existed
-    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+    kind: app
+    steps:
+      - navigate filament
+      - long_press 719 77
+      - wait_idle
   - path: docs/images/user/home-carousel-modes.png
     kind: manual
     source: captured by hand before the manifest existed
@@ -857,7 +859,7 @@ images:
       - wait_idle
       - click PLA
       - wait_idle
-    crop: material_edit_view
+    crop: material_temps_overlay
     margin: 12
     markers:
       - {n: 1, widget: edit_nozzle_min, at: top_right}

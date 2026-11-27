@@ -39,6 +39,8 @@ struct SubjectState {
     std::array<std::array<char, kTempBufSize>, kPresetCount> temp_bufs{};
     std::array<helix::Subject, kPresetCount> nozzle_subjects{};
     std::array<std::array<char, kTempBufSize>, kPresetCount> nozzle_bufs{};
+    std::array<helix::Subject, kPresetCount> has_macro_subjects{};
+    std::array<helix::Subject, kPresetCount> mark_beside_subjects{};
     helix::Subject count_subject{};
     SubjectManager subjects;
     /// Re-renders the labels when "Material presets heat the bed and chamber" flips.
@@ -161,6 +163,47 @@ std::string nozzle_temp_label(int slot) {
     return temps ? units::format_display_temp(temps->nozzle) : "---";
 }
 
+bool has_macro(int slot) {
+    if (!slot_valid(slot)) {
+        return false;
+    }
+    // The same lookup a tap on the preset makes for its macro.
+    const auto* override =
+        MaterialSettingsManager::instance().find_override_for_material(name(slot));
+    return override && override->names_a_macro();
+}
+
+lv_subject_t* has_macro_subject(int slot) {
+    return slot_valid(slot) && state().ready
+               ? &state().has_macro_subjects[static_cast<size_t>(slot)]
+               : nullptr;
+}
+
+lv_subject_t* name_subject(int slot) {
+    return slot_valid(slot) && state().ready ? &state().name_subjects[static_cast<size_t>(slot)]
+                                             : nullptr;
+}
+
+lv_subject_t* temps_subject(int slot) {
+    return slot_valid(slot) && state().ready ? &state().temp_subjects[static_cast<size_t>(slot)]
+                                             : nullptr;
+}
+
+lv_subject_t* nozzle_temp_subject(int slot) {
+    return slot_valid(slot) && state().ready ? &state().nozzle_subjects[static_cast<size_t>(slot)]
+                                             : nullptr;
+}
+
+SubjectLifetime get_subjects_lifetime() {
+    return state().subjects.get_subjects_lifetime();
+}
+
+lv_subject_t* mark_beside_name_subject(int slot) {
+    return slot_valid(slot) && state().ready
+               ? &state().mark_beside_subjects[static_cast<size_t>(slot)]
+               : nullptr;
+}
+
 namespace {
 
 // The setting decides whether temp_label() shows the bed. Immediate: the
@@ -203,6 +246,12 @@ void init_subjects() {
     static constexpr const char* kNozzleSubjects[kPresetCount] = {
         "preset_material_0_nozzle_temp", "preset_material_1_nozzle_temp",
         "preset_material_2_nozzle_temp", "preset_material_3_nozzle_temp"};
+    static constexpr const char* kHasMacroSubjects[kPresetCount] = {
+        "preset_material_0_has_macro", "preset_material_1_has_macro", "preset_material_2_has_macro",
+        "preset_material_3_has_macro"};
+    static constexpr const char* kMarkBesideSubjects[kPresetCount] = {
+        "preset_material_0_mark_beside_name", "preset_material_1_mark_beside_name",
+        "preset_material_2_mark_beside_name", "preset_material_3_mark_beside_name"};
 
     for (int i = 0; i < kPresetCount; ++i) {
         s.name_bufs[i][0] = '\0';
@@ -224,6 +273,17 @@ void init_subjects() {
         s.subjects.publish(kNozzleSubjects[i], &s.nozzle_subjects[i]);
         HELIX_SUBJECT_DEBUG_REGISTER(&s.nozzle_subjects[i], kNozzleSubjects[i],
                                      LV_SUBJECT_TYPE_STRING);
+
+        s.has_macro_subjects[i].init_int(0);
+        s.subjects.publish(kHasMacroSubjects[i], &s.has_macro_subjects[i]);
+        HELIX_SUBJECT_DEBUG_REGISTER(&s.has_macro_subjects[i], kHasMacroSubjects[i],
+                                     LV_SUBJECT_TYPE_INT);
+
+        // Wide enough for the mark beside the name until the panel measures.
+        s.mark_beside_subjects[i].init_int(1);
+        s.subjects.publish(kMarkBesideSubjects[i], &s.mark_beside_subjects[i]);
+        HELIX_SUBJECT_DEBUG_REGISTER(&s.mark_beside_subjects[i], kMarkBesideSubjects[i],
+                                     LV_SUBJECT_TYPE_INT);
     }
 
     s.count_subject.init_int(kPresetCount);
@@ -256,6 +316,7 @@ void refresh_subjects() {
         std::snprintf(s.nozzle_bufs[i].data(), s.nozzle_bufs[i].size(), "%s",
                       nozzle_temp_label(i).c_str());
         lv_subject_set_string(&s.nozzle_subjects[i], s.nozzle_bufs[i].data());
+        lv_subject_set_int(&s.has_macro_subjects[i], has_macro(i) ? 1 : 0);
     }
 }
 

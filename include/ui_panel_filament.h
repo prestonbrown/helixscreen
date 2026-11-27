@@ -379,6 +379,10 @@ class FilamentPanel : public PanelBase {
      */
     bool handle_preset_longpress(int slot);
 
+    /// Opens the preset slot's material in Material Temperatures, on @p screen,
+    /// from the macro row the hold's picker offers.
+    void open_preset_macro(lv_obj_t* screen, int slot);
+
     /// Opens the keypad that sets length button @p index's length.
     /// @return true when the keypad opened, so the hold ends its press
     bool handle_extrude_length_longpress(int index);
@@ -602,6 +606,10 @@ class FilamentPanel : public PanelBase {
     char spool_preset_temps_buf_[32] = {};
     helix::Subject spool_preset_nozzle_temp_subject_{};
     char spool_preset_nozzle_temp_buf_[16] = {};
+    // 1 while the spool's material names a macro: the mark on its preset.
+    helix::Subject spool_preset_has_macro_subject_{};
+    // 1 while the spool preset's name fits beside its macro mark, as the button is laid out.
+    helix::Subject spool_preset_mark_beside_name_subject_{};
     // Warning dialogs for filament sensor integration
     helix::ui::WidgetRef load_warning_dialog_;
     helix::ui::WidgetRef unload_warning_dialog_;
@@ -637,6 +645,13 @@ class FilamentPanel : public PanelBase {
     ObserverGuard speed_dropdown_rewire_observer_;
     void bind_extrude_speed_dropdown();
     void observe_speed_dropdown_moves();
+    /// A preset's macro mark takes room without resizing any widget, and a
+    /// temperature line already hidden resizes for nothing: so each of a
+    /// preset's data subjects re-measures its own button. Per preset: has-macro,
+    /// name, temperatures, nozzle.
+    ObserverGuard preset_fit_observers_[4][4]{};
+    ObserverGuard spool_fit_observers_[4]{};
+    void observe_preset_data();
     // 1 with no AMS and one head: the card shows the external spool row in
     // place of the AMS row, centered, without its header.
     helix::Subject external_spool_mode_subject_{};
@@ -761,6 +776,8 @@ class FilamentPanel : public PanelBase {
     void update_spool_preset();
     /// The novel spool's "210 / 60°C", and "210°C" for a button too narrow for both.
     void publish_spool_preset_temps();
+    /// Whether the novel spool's material names a macro, for the mark on its preset.
+    void publish_spool_preset_has_macro();
     /// Send nozzle_target_ through TemperatureController; a refusal or failure
     /// puts the printer's real target back on screen.
     void send_nozzle_target();

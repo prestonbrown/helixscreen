@@ -15,6 +15,7 @@
 #include "ui_overlay_temp_graph.h"
 #include "ui_panel_ams.h"
 #include "ui_panel_ams_overview.h"
+#include "ui_settings_material_temps.h"
 #include "ui_spool_canvas.h"
 #include "ui_temperature_utils.h"
 #include "ui_unload_lane_choice.h"
@@ -68,6 +69,8 @@
 
 #include <algorithm>
 #include <cstring>
+#include <initializer_list>
+#include <iterator>
 #include <memory>
 
 using namespace helix;
@@ -110,14 +113,92 @@ using helix::ui::filament_load_fallback_gcode;
 using helix::ui::filament_purge_fallback_gcode;
 using helix::ui::filament_unload_fallback_gcode;
 
-// A preset button or its temperature line resized: show the nozzle-and-bed line
-// only when it fits the button.
+/// The four fixed preset buttons, by slot.
+static constexpr const char* kPresetButtonNames[] = {"preset_pla", "preset_petg", "preset_abs",
+                                                     "preset_tpu"};
+static_assert(std::size(kPresetButtonNames) == kPresetCount);
+
+/// The first widget under @p parent that carries one of @p names, or nullptr.
+static lv_obj_t* first_named(lv_obj_t* parent, std::initializer_list<const char*> names) {
+    for (const char* name : names) {
+        if (lv_obj_t* found = lv_obj_find_by_name(parent, name)) {
+            return found;
+        }
+    }
+    return nullptr;
+}
+
+/// The preset button @p widget sits in: the one with the name's row for a direct child.
+static lv_obj_t* preset_button_of(lv_obj_t* widget) {
+    for (lv_obj_t* candidate = widget; candidate != nullptr;
+         candidate = lv_obj_get_parent(candidate)) {
+        const uint32_t count = lv_obj_get_child_count(candidate);
+        for (uint32_t i = 0; i < count; ++i) {
+            const char* child_name =
+                lv_obj_get_name(lv_obj_get_child(candidate, static_cast<int32_t>(i)));
+            if (child_name && std::strcmp(child_name, "preset_name_row") == 0) {
+                return candidate;
+            }
+        }
+    }
+    return nullptr;
+}
+
+/// Measure one preset button, @p button.
+/// The macro mark goes before the name while the name fits beside it, and
+/// before the temperature line in a button too narrow for both; the answer is
+/// published for the markup. The nozzle-and-bed line shows only when it fits
+/// what the mark leaves of the button.
+static void preset_fit(lv_obj_t* button) {
+    if (!button) {
+        return;
+    }
+    const char* button_name = lv_obj_get_name(button);
+    if (!button_name) {
+        return;
+    }
+    lv_obj_t* name_row = lv_obj_find_by_name(button, "preset_name_row");
+    lv_obj_t* name = first_named(button, {"preset_material_name", "spool_preset_label"});
+    lv_obj_t* mark = first_named(button, {"preset_macro_mark", "spool_preset_macro_mark"});
+    // DECLARATIVE_OK: measured layout; where the mark sits depends on drawn widths.
+    bool beside = true;
+    if (name_row && name && mark) {
+        const int32_t room = lv_obj_get_content_width(name_row);
+        beside = room > 0 && helix::ui::label_width(name) + helix::ui::label_width(mark) +
+                                     lv_obj_get_style_pad_column(name_row, LV_PART_MAIN) <=
+                                 room;
+    }
+    lv_subject_t* has_macro = nullptr;
+    lv_subject_t* beside_subject = nullptr;
+    for (int slot = 0; slot < kPresetCount; ++slot) {
+        if (std::strcmp(button_name, kPresetButtonNames[slot]) == 0) {
+            has_macro = helix::presets::has_macro_subject(slot);
+            beside_subject = helix::presets::mark_beside_name_subject(slot);
+        }
+    }
+    if (std::strcmp(button_name, "preset_spool") == 0) {
+        has_macro = lv_xml_get_subject(nullptr, "filament_spool_preset_has_macro");
+        beside_subject = lv_xml_get_subject(nullptr, "filament_spool_preset_mark_beside_name");
+    }
+    if (!beside_subject) {
+        return;
+    }
+    lv_subject_set_int(beside_subject, beside ? 1 : 0);
+
+    const bool mark_before_temps = !beside && has_macro && lv_subject_get_int(has_macro) == 1;
+    lv_obj_t* temps_row = lv_obj_find_by_name(button, "preset_temps_row");
+    const int32_t reserved =
+        mark_before_temps && temps_row
+            ? helix::ui::label_width(mark) + lv_obj_get_style_pad_column(temps_row, LV_PART_MAIN)
+            : 0;
+    helix::ui::show_label_that_fits(lv_obj_find_by_name(button, "preset_temps"),
+                                    lv_obj_find_by_name(button, "preset_nozzle_temp"), reserved);
+}
+
+/// A preset button, or its name, its mark or a temperature line in it, resized.
 static void preset_fit_temps(lv_event_t* e) {
     auto* target = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-    lv_obj_t* button =
-        lv_obj_find_by_name(target, "preset_temps") ? target : lv_obj_get_parent(target);
-    helix::ui::show_label_that_fits(lv_obj_find_by_name(button, "preset_temps"),
-                                    lv_obj_find_by_name(button, "preset_nozzle_temp"));
+    preset_fit(preset_button_of(target));
 }
 
 /// A hold on preset @p slot opens its material picker. The hold is still the active
@@ -466,6 +547,10 @@ void FilamentPanel::init_subjects() {
                                   "filament_spool_preset_temps", subjects_);
         UI_MANAGED_SUBJECT_STRING(spool_preset_nozzle_temp_subject_, spool_preset_nozzle_temp_buf_,
                                   "", "filament_spool_preset_nozzle_temp", subjects_);
+        UI_MANAGED_SUBJECT_INT(spool_preset_has_macro_subject_, 0,
+                               "filament_spool_preset_has_macro", subjects_);
+        UI_MANAGED_SUBJECT_INT(spool_preset_mark_beside_name_subject_, 1,
+                               "filament_spool_preset_mark_beside_name", subjects_);
 
         // Card title subject (dynamic: "Multi-Filament" or "External Spool")
         std::strncpy(card_title_buf_, lv_tr("Multi-Filament"), sizeof(card_title_buf_) - 1);
@@ -493,6 +578,14 @@ void FilamentPanel::deinit_subjects() {
     external_spool_observer_.reset();
     orientation_observer_.reset();
     speed_dropdown_rewire_observer_.reset();
+    for (auto& preset : preset_fit_observers_) {
+        for (ObserverGuard& guard : preset) {
+            guard.reset();
+        }
+    }
+    for (ObserverGuard& guard : spool_fit_observers_) {
+        guard.reset();
+    }
     ams_loaded_observer_.reset();
     ams_current_slot_observer_.reset();
     // Watches PrinterState's print_state_enum, a subject tests deinit between
@@ -634,9 +727,8 @@ void FilamentPanel::bind_widgets() {
     if (!panel_)
         return;
 
-    const char* preset_names[] = {"preset_pla", "preset_petg", "preset_abs", "preset_tpu"};
-    for (int i = 0; i < 4; i++) {
-        preset_buttons_[i] = lv_obj_find_by_name(panel_, preset_names[i]);
+    for (int i = 0; i < kPresetCount; i++) {
+        preset_buttons_[i] = lv_obj_find_by_name(panel_, kPresetButtonNames[i]);
     }
 
     // Action buttons (btn_load, btn_unload, btn_purge) - disabled state managed by XML bindings
@@ -694,6 +786,7 @@ void FilamentPanel::bind_widgets() {
     handle_extrude_length_select(extrude_length_index_);
     sync_extrude_speed_dropdown();
     observe_speed_dropdown_moves();
+    observe_preset_data();
 
     setup_temp_graph();
     setup_portrait_graph_fit();
@@ -808,6 +901,47 @@ void FilamentPanel::observe_speed_dropdown_moves() {
         multi_head_subject, this,
         [](FilamentPanel* self, int /*multi_head*/) { self->bind_extrude_speed_dropdown(); },
         helix::ui::TargetTool::instance().get_subjects_lifetime(), helix::ui::Dispatch::Immediate);
+}
+
+void FilamentPanel::observe_preset_data() {
+    // The subjects exist once the panel's own do. The registration fires at
+    // once, which measures each preset before its first layout: harmless,
+    // because the layout's own SIZE_CHANGED measures it again.
+    if (!subjects_initialized_) {
+        return;
+    }
+    const SubjectLifetime presets_live = helix::presets::get_subjects_lifetime();
+    const SubjectLifetime own_live = subjects_.get_subjects_lifetime();
+    constexpr auto now = helix::ui::Dispatch::Immediate;
+    for (int slot = 0; slot < kPresetCount; ++slot) {
+        const auto changed = [slot](FilamentPanel* self, auto) {
+            preset_fit(self->preset_buttons_[slot]);
+        };
+        ObserverGuard* guards = preset_fit_observers_[slot];
+        if (lv_subject_t* subject = helix::presets::has_macro_subject(slot)) {
+            guards[0] = observe<int>(subject, this, changed, presets_live, now);
+        }
+        if (lv_subject_t* subject = helix::presets::name_subject(slot)) {
+            guards[1] = observe<const char*>(subject, this, changed, presets_live, now);
+        }
+        if (lv_subject_t* subject = helix::presets::temps_subject(slot)) {
+            guards[2] = observe<const char*>(subject, this, changed, presets_live, now);
+        }
+        if (lv_subject_t* subject = helix::presets::nozzle_temp_subject(slot)) {
+            guards[3] = observe<const char*>(subject, this, changed, presets_live, now);
+        }
+    }
+    const auto spool_changed = [](FilamentPanel* self, auto) {
+        preset_fit(self->spool_preset_button_);
+    };
+    spool_fit_observers_[0] =
+        observe<int>(&spool_preset_has_macro_subject_, this, spool_changed, own_live, now);
+    spool_fit_observers_[1] =
+        observe<const char*>(&spool_preset_name_subject_, this, spool_changed, own_live, now);
+    spool_fit_observers_[2] =
+        observe<const char*>(&spool_preset_temps_subject_, this, spool_changed, own_live, now);
+    spool_fit_observers_[3] = observe<const char*>(&spool_preset_nozzle_temp_subject_, this,
+                                                   spool_changed, own_live, now);
 }
 
 void FilamentPanel::bind_extrude_speed_dropdown() {
@@ -1025,6 +1159,12 @@ void FilamentPanel::drop_pending_pickup(const char* why) {
 void FilamentPanel::on_activate() {
     PanelBase::on_activate();
     side_band_.on_host_activate();
+    if (subjects_initialized_) {
+        // A material's macro may have been set or cleared on another screen:
+        // the mark follows it back here.
+        helix::presets::refresh_subjects();
+        publish_spool_preset_has_macro();
+    }
 }
 
 void FilamentPanel::on_deactivating(DeactivateReason reason) {
@@ -1158,7 +1298,7 @@ void FilamentPanel::handle_preset_button(int material_id) {
             plan_material_preheat(
                 helix::MaterialSettingsManager::instance().find_override_for_material(
                     helix::presets::name(material_id)),
-                hw),
+                hw, printer_state_.print_state().get_print_lifecycle()),
             [this]() { send_preset_targets(); }, "[FilamentPanel]", hw);
     }
 }
@@ -1226,6 +1366,15 @@ bool FilamentPanel::handle_preset_longpress(int slot) {
     // instance keeps the row hidden.
     catalog_picker_.set_reset_callback(
         []() { get_global_filament_panel().reset_presets_to_defaults(); });
+    // The row shows what a tap on the preset runs, the way the planner reads it.
+    // With no macro stored the field opens with its switch on, so the row
+    // reads Macro then too.
+    const auto* macro = helix::MaterialSettingsManager::instance().find_override_for_material(
+        helix::presets::name(slot));
+    catalog_picker_.set_macro_callback(
+        [slot](lv_obj_t* screen) { get_global_filament_panel().open_preset_macro(screen, slot); },
+        macro && macro->names_a_macro() ? *macro->preheat_macro : std::string{},
+        !macro || macro->macro_heats());
     // Fires synchronously on the main thread from the modal's Select button click —
     // so call straight through get_global_filament_panel() (singleton, lives for
     // process lifetime) with no defer/lifetime-token needed.
@@ -1234,6 +1383,10 @@ bool FilamentPanel::handle_preset_longpress(int slot) {
                              get_global_filament_panel().apply_preset_pick(slot, ef);
                          });
     return true;
+}
+
+void FilamentPanel::open_preset_macro(lv_obj_t* screen, int slot) {
+    helix::settings::get_material_temps_overlay().show_material(screen, helix::presets::name(slot));
 }
 
 void FilamentPanel::apply_preset_pick(int slot, const helix::printer::EffectiveFilament& ef) {
@@ -2237,7 +2390,7 @@ void FilamentPanel::handle_spool_preset_button() {
         api_,
         plan_material_preheat(helix::MaterialSettingsManager::instance().find_override_for_material(
                                   cached_active_material_->material_name),
-                              hw),
+                              hw, printer_state_.print_state().get_print_lifecycle()),
         [this]() {
             send_nozzle_target();
             const auto bed = helix::presets::heater_targets(bed_target_).bed;
@@ -2267,6 +2420,17 @@ void FilamentPanel::publish_spool_preset_temps() {
                           helix::units::format_display_temp(info.nozzle_recommended()).c_str());
 }
 
+void FilamentPanel::publish_spool_preset_has_macro() {
+    // The same lookup a tap on the spool preset makes for its macro.
+    const auto* override =
+        cached_active_material_
+            ? helix::MaterialSettingsManager::instance().find_override_for_material(
+                  cached_active_material_->material_name)
+            : nullptr;
+    lv_subject_set_int(&spool_preset_has_macro_subject_,
+                       override && override->names_a_macro() ? 1 : 0);
+}
+
 void FilamentPanel::update_spool_preset() {
     cached_active_material_ = helix::get_active_material();
 
@@ -2292,6 +2456,7 @@ void FilamentPanel::update_spool_preset() {
     // Novel material — show spool preset button.
     lv_subject_set_string(&spool_preset_name_subject_, active.material_name.c_str());
     publish_spool_preset_temps();
+    publish_spool_preset_has_macro();
     lv_subject_set_int(&spool_preset_shown_subject_, 1);
 
     // Deselect spool button initially (user must tap)

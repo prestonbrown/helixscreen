@@ -47,6 +47,17 @@ struct FilamentPickerTestAccess {
             m.reset_callback_();
         m.hide();
     }
+
+    // The row that opens the preset material's macro setting. It is hidden
+    // unless a preset-editing caller set a macro callback before show().
+    static lv_obj_t* macro_row(const FilamentCatalogPickerModal& m) {
+        return lv_obj_find_by_name(m.dialog(), "preheat_macro_row");
+    }
+
+    // Presses the row the way a tap does.
+    static void press_macro(FilamentCatalogPickerModal& m) {
+        lv_obj_send_event(macro_row(m), LV_EVENT_CLICKED, nullptr);
+    }
 };
 
 } // namespace helix::ui

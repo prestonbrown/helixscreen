@@ -49,7 +49,12 @@ void fit_dropdown_to_text(lv_obj_t* dropdown) {
     lv_obj_set_width(dropdown, LV_MAX(width, min_w));
 }
 
-void show_label_that_fits(lv_obj_t* full, lv_obj_t* fallback) {
+int32_t label_width(lv_obj_t* label) {
+    return text_width(lv_label_get_text(label), lv_obj_get_style_text_font(label, LV_PART_MAIN),
+                      lv_obj_get_style_text_letter_space(label, LV_PART_MAIN));
+}
+
+void show_label_that_fits(lv_obj_t* full, lv_obj_t* fallback, int32_t reserved) {
     if (!full || !fallback) {
         return;
     }
@@ -58,9 +63,7 @@ void show_label_that_fits(lv_obj_t* full, lv_obj_t* fallback) {
         return;
     }
     const int32_t room = lv_obj_get_content_width(parent);
-    const int32_t needed =
-        text_width(lv_label_get_text(full), lv_obj_get_style_text_font(full, LV_PART_MAIN),
-                   lv_obj_get_style_text_letter_space(full, LV_PART_MAIN));
+    const int32_t needed = reserved + label_width(full);
     const bool fits = room > 0 && needed <= room;
     // DECLARATIVE_OK: measured layout; which line shows depends on drawn text width.
     lv_obj_set_hidden(full, !fits);

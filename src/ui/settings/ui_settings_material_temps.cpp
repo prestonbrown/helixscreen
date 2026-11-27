@@ -28,6 +28,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <utility>
 #include <vector>
 
 namespace helix::settings {
@@ -61,6 +62,9 @@ void MaterialTempsOverlay::init_subjects() {
 
     UI_MANAGED_SUBJECT_INT(has_macro_subject_, 0, "material_has_macro", subjects_);
 
+    // A material's macro starts as its whole heat-up.
+    UI_MANAGED_SUBJECT_INT(macro_heats_subject_, 1, "material_macro_heats", subjects_);
+
     UI_MANAGED_SUBJECT_INT(shipped_subject_, 1, "material_edit_is_shipped", subjects_);
 
     // 1 once a field differs from what the edit view opened with: enables Save
@@ -75,6 +79,8 @@ void MaterialTempsOverlay::register_callbacks() {
          [](lv_event_t*) { get_material_temps_overlay().handle_reset_defaults(); }},
         {"on_macro_dropdown_changed",
          [](lv_event_t*) { get_material_temps_overlay().handle_macro_dropdown_changed(); }},
+        {"on_macro_heating_changed",
+         [](lv_event_t* e) { get_material_temps_overlay().handle_macro_heating_changed(e); }},
         {"on_material_field_changed",
          [](lv_event_t*) { get_material_temps_overlay().mark_dirty(); }},
         // The header's back button, so a tap in the edit view returns to the list.
@@ -97,8 +103,6 @@ lv_obj_t* MaterialTempsOverlay::create(lv_obj_t* parent) {
     list_view_ = helix::ui::find_required(overlay_root_, "material_list_view", get_name());
     edit_view_ = helix::ui::find_required(overlay_root_, "material_edit_view", get_name());
     macro_dropdown_ = helix::ui::find_required(edit_view_, "macro_dropdown", get_name());
-    macro_heating_switch_ =
-        helix::ui::find_required(edit_view_, "macro_heating_switch", get_name());
 
     spdlog::info("[{}] Overlay created", get_name());
     return overlay_root_;
@@ -106,6 +110,17 @@ lv_obj_t* MaterialTempsOverlay::create(lv_obj_t* parent) {
 
 void MaterialTempsOverlay::before_show() {
     show_list_view();
+    if (!opening_material_.empty()) {
+        handle_material_row_clicked(std::exchange(opening_material_, {}));
+    }
+}
+
+void MaterialTempsOverlay::show_material(lv_obj_t* parent_screen,
+                                         const std::string& material_name) {
+    opening_material_ = material_name;
+    if (!show(parent_screen)) {
+        opening_material_.clear();
+    }
 }
 
 // LIFECYCLE
@@ -252,11 +267,10 @@ void MaterialTempsOverlay::show_edit_view(const std::string& material_name) {
     // Populate macro dropdown and select current override
     populate_macro_dropdown();
     std::string current_macro;
-    bool switch_on = true; // Default: macro handles heating
-    if (ovr && ovr->preheat_macro && !ovr->preheat_macro->empty()) {
+    if (ovr && ovr->names_a_macro()) {
         current_macro = *ovr->preheat_macro;
-        switch_on = ovr->macro_handles_heating.value_or(true);
     }
+    const bool switch_on = !ovr || ovr->macro_heats();
     // Select the current macro in the dropdown
     if (macro_dropdown_) {
         uint32_t sel = 0; // Default to "None"
@@ -270,13 +284,7 @@ void MaterialTempsOverlay::show_edit_view(const std::string& material_name) {
     }
     lv_subject_set_int(&has_macro_subject_, current_macro.empty() ? 0 : 1);
 
-    if (macro_heating_switch_) {
-        if (switch_on) {
-            lv_obj_add_state(macro_heating_switch_, LV_STATE_CHECKED);
-        } else {
-            lv_obj_remove_state(macro_heating_switch_, LV_STATE_CHECKED);
-        }
-    }
+    lv_subject_set_int(&macro_heats_subject_, switch_on ? 1 : 0);
 
     // Filling the inputs fired their change events; what the view opened with
     // is the clean state.
@@ -408,8 +416,7 @@ void MaterialTempsOverlay::handle_save() {
         uint32_t sel = lv_dropdown_get_selected(macro_dropdown_);
         if (sel < macro_names_.size() && !macro_names_[sel].empty()) {
             ovr.preheat_macro = macro_names_[sel];
-            bool switch_checked =
-                macro_heating_switch_ && lv_obj_has_state(macro_heating_switch_, LV_STATE_CHECKED);
+            const bool switch_checked = lv_subject_get_int(&macro_heats_subject_) != 0;
             if (!switch_checked) {
                 ovr.macro_handles_heating = false;
             }
@@ -482,7 +489,6 @@ void MaterialTempsOverlay::on_ui_destroyed() {
     list_view_ = nullptr;
     edit_view_ = nullptr;
     macro_dropdown_ = nullptr;
-    macro_heating_switch_ = nullptr;
 }
 
 // MACRO DROPDOWN
@@ -525,6 +531,12 @@ void MaterialTempsOverlay::handle_macro_dropdown_changed() {
 
     spdlog::debug("[{}] Macro dropdown changed: index={} name='{}'", get_name(), sel,
                   (sel < macro_names_.size()) ? macro_names_[sel] : "(invalid)");
+}
+
+void MaterialTempsOverlay::handle_macro_heating_changed(lv_event_t* e) {
+    const auto* toggle = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    lv_subject_set_int(&macro_heats_subject_, lv_obj_has_state(toggle, LV_STATE_CHECKED) ? 1 : 0);
+    mark_dirty();
 }
 
 // STATIC CALLBACKS

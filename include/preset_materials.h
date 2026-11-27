@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "core/observer_guard.h"
+#include "lvgl/lvgl.h"
 #include "material_settings_manager.h"
 
 #include <array>
@@ -95,12 +97,33 @@ std::string temp_label(int slot);
 /// The nozzle half of temp_label(): "220°C", or "---" if the material is unknown.
 std::string nozzle_temp_label(int slot);
 
+/// Whether a tap on slot @p slot's preset would run a macro: its material
+/// names one, whether or not this printer defines it. The preset's mark.
+[[nodiscard]] bool has_macro(int slot);
+
+/// The subjects a preset button binds its macro mark to: "preset_material_<slot>_has_macro",
+/// 1 while the material names a macro, and "preset_material_<slot>_mark_beside_name", 1 while
+/// the name fits beside the mark in the button as laid out. The Filament panel measures
+/// the second. Nullptr before init_subjects(), or for a slot out of range.
+lv_subject_t* has_macro_subject(int slot);
+lv_subject_t* mark_beside_name_subject(int slot);
+
+/// The subjects a preset button binds its lines to: "preset_material_<slot>_name",
+/// "_temps" and "_nozzle_temp". Nullptr before init_subjects(), or for a slot out of
+/// range.
+lv_subject_t* name_subject(int slot);
+lv_subject_t* temps_subject(int slot);
+lv_subject_t* nozzle_temp_subject(int slot);
+
+/// The lifetime of every subject above, for an observer bound to one.
+[[nodiscard]] SubjectLifetime get_subjects_lifetime();
+
 /**
  * @brief Create the globally-scoped preset subjects. Idempotent.
  *
- * Registers "preset_material_0_name" … "preset_material_3_name" and
- * "preset_material_0_temps" … "preset_material_3_temps" in the global XML scope,
- * plus "preset_material_count". Self-registers its own deinit with
+ * Registers "preset_material_0_name" … "preset_material_3_name", the matching
+ * "_temps", "_nozzle_temp" and "_has_macro" subjects, and "preset_material_count", in the
+ * global XML scope. Self-registers its own deinit with
  * StaticSubjectRegistry so cleanup runs before lv_deinit().
  *
  * Must be called after LVGL init and after MaterialSettingsManager::init().
@@ -111,8 +134,9 @@ void init_subjects();
  * @brief Re-read MaterialSettingsManager and push into the subjects.
  *
  * Call after any set_preset_material() / set_preset_filament() /
- * reset_preset_materials(). No-op if init_subjects() has not run (unit tests
- * that only use the plain accessors).
+ * reset_preset_materials(), and whenever a screen that shows the presets comes
+ * back: a material's macro may have been set or cleared meanwhile. No-op if
+ * init_subjects() has not run (unit tests that only use the plain accessors).
  */
 void refresh_subjects();
 

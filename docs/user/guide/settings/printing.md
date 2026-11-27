@@ -155,8 +155,8 @@ Sets the preheat temperatures for each filament material (PLA, PETG, ABS, TPU an
 - **Nozzle Min (°C)** and **Nozzle Max (°C)**: the nozzle's working range for this material. A preset heats the nozzle to the middle of the range.
 - **Bed (°C)**: the bed target.
 - **Chamber (°C)**: the chamber target. Only shown on a printer with a chamber heater.
-- **Preheat Macro**: a Klipper macro to run when you preheat this material, or **None**.
-- **Macro handles heating** (shown once a Preheat Macro is chosen): when on, only your macro runs and it sets the temperatures. When off, HelixScreen sets the temperatures first and then runs your macro.
+- **Macro** or **Preheat Macro**: the Klipper macro to run when you preheat this material, or **None**. The field is named **Macro** while **Macro handles heating** is on, and **Preheat Macro** while it is off.
+- **Macro handles heating** (shown once a macro is chosen): when on, only your macro runs and it sets the temperatures. When off, HelixScreen sets the temperatures first and then runs your macro.
 
 Each field has a limit: nozzle 100 to 500 °C, bed 0 to 200 °C, chamber 0 to 120 °C, and Nozzle Min can't be above Nozzle Max. **Reset to Default** puts a built-in material back to its shipped values, and **Save** keeps your edit.
 
@@ -405,9 +405,11 @@ If your printer has no matching macro, some slots fall back to HelixScreen's hel
 
 Each material in [Material Temperatures](#material-temperatures) can run its own Klipper macro when you preheat it. Use this when preheating needs more than temperatures, such as turning on bed fans for ABS or starting a chamber heater.
 
-The macro runs from the **Preheat widget** on the Home or Controls screen and from the **material preset buttons on the Filament screen**, including the active-spool preset. On the Filament screen, tap a preset to preheat it, or long-press it to choose which material the button uses. The separate nozzle, bed and chamber temperature controls never run a material's macro.
+The macro runs from the **Preheat widget** on the Home or Controls screen and from the **material preset buttons on the Filament screen**, including the active-spool preset. A preset whose material has a macro shows a small script icon, so you can see what a tap will run: before the material's name, or on a small screen, where the name fills the button, before its temperature. On the Filament screen, tap a preset to preheat it, or long-press it to choose which material the button uses; the top row of that picker names the material's macro, or **None**, and tapping the row opens the material on this screen. The separate nozzle, bed and chamber temperature controls never run a material's macro.
 
 **Macro Handles Heating** doesn't turn the macro on or off: the macro runs either way. When it's on, the macro must set every temperature itself. When there's no macro, or the macro doesn't exist on this printer, the button just sets the preset temperatures. A manual preheat doesn't keep a hotter nozzle target from before; loading and unloading keep their own heating.
+
+While a print is running or paused, a preset sets its temperatures and skips the macro, and a notice says so: a macro that soaks or wipes was written for an idle printer. A macro may run for up to 20 minutes. If it is still running then, HelixScreen reports nothing and lets it finish.
 
 ---
 

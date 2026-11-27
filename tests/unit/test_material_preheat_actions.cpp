@@ -8,6 +8,9 @@
 #include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/filament_panel_macro_harness.h"
 #include "../test_helpers/filament_panel_test_access.h"
+#include "../test_helpers/fresh_printer_state.h"
+#include "../test_helpers/material_settings_scope.h"
+#include "../test_helpers/notice_capture.h"
 #include "../test_helpers/preheat_widget_test_access.h"
 #include "../test_helpers/scoped_shared_resource.h"
 #include "../test_helpers/toolchanger_test_helper.h"
@@ -22,6 +25,7 @@
 #include "material_settings_manager.h"
 #include "preheat_widget.h"
 #include "preset_materials.h"
+#include "print_lifecycle_state.h"
 #include "printer_discovery.h"
 #include "safety_settings_manager.h"
 #include "settings_manager.h"
@@ -43,27 +47,7 @@ using PanelAccess = helix::ui::FilamentPanelTestAccess;
 using WidgetAccess = helix::PreheatWidgetTestAccess;
 using Scripts = std::vector<std::string>;
 using Harness = helix::test::FilamentPanelMacroHarness;
-
-// Material settings are process-wide; Config writes are sandboxed by the base
-// fixture. Establish and clean the baseline even when a REQUIRE unwinds a case.
-struct MaterialSettingsScope {
-    MaterialSettingsScope() {
-        helix::MaterialSettingsManager::instance().init();
-        reset();
-    }
-    ~MaterialSettingsScope() {
-        reset();
-    }
-    static void reset() {
-        auto& manager = helix::MaterialSettingsManager::instance();
-        const auto overrides = manager.get_all_overrides();
-        for (const auto& [name, unused] : overrides) {
-            (void)unused;
-            manager.clear_override(name);
-        }
-        manager.reset_preset_materials();
-    }
-};
+using helix::test::MaterialSettingsScope;
 
 enum class PreheatAction { FILAMENT_PRESET, SPOOL_PRESET, HOME_WIDGET };
 
@@ -190,6 +174,33 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     press(action, h);
 
     CHECK(h.client.gcode_script_history() == kAbsTargets);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Material preheat buttons skip the macro while a job holds the machine",
+                 "[material_preheat][preheat][filament][2183]") {
+    const auto action = GENERATE(PreheatAction::FILAMENT_PRESET, PreheatAction::SPOOL_PRESET,
+                                 PreheatAction::HOME_WIDGET);
+    const auto handles_heating = GENERATE(std::optional<bool>{true}, std::optional<bool>{false});
+    const auto* job_state = GENERATE("printing", "paused");
+    CAPTURE(static_cast<int>(action), handles_heating, job_state);
+    MaterialSettingsScope settings;
+    Harness h;
+    discover_macros(h);
+    helix_test::ScopedSharedResource<helix::TemperatureController> controller(
+        std::make_shared<helix::TemperatureController>(h.state, &h.api));
+    helix::MaterialSettingsManager::instance().set_override(
+        "ABS", abs_override("HEAT_ABS", handles_heating));
+    feed_hot_nozzle(h);
+    h.state.update_from_status(nlohmann::json{{"print_stats", {{"state", job_state}}}});
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(job_holds_machine(h.state.print_state().get_print_lifecycle()));
+    helix::test::ScopedNoticeCapture notices;
+
+    press(action, h);
+
+    CHECK(h.client.gcode_script_history() == kAbsTargets);
+    CHECK(notices.count("Macro skipped while a job holds the printer") == 1);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Material presets heat the bed only while the setting is on",
@@ -481,7 +492,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Material preheat without a printer API send
                  "[material_preheat][preheat]") {
     using Mode = helix::MaterialPreheatMode;
     const auto mode = GENERATE(Mode::TEMPERATURES, Mode::TEMPERATURES_THEN_MACRO, Mode::MACRO_ONLY,
-                               Mode::MACRO_MISSING);
+                               Mode::MACRO_MISSING, Mode::MACRO_HELD_BY_JOB);
     CAPTURE(static_cast<int>(mode));
     helix::PrinterDiscovery hardware;
     int temperature_sends = 0;
@@ -491,6 +502,56 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Material preheat without a printer API send
         hardware);
 
     CHECK(temperature_sends == 0);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "A material's macro is given the pre-start limit of twenty minutes",
+                 "[material_preheat][preheat][filament][2183]") {
+    MaterialSettingsScope settings;
+    Harness h;
+    discover_macros(h);
+    helix_test::ScopedSharedResource<helix::TemperatureController> controller(
+        std::make_shared<helix::TemperatureController>(h.state, &h.api));
+    helix::MaterialSettingsManager::instance().set_override("ABS", abs_override("HEAT_ABS", true));
+    feed_hot_nozzle(h);
+
+    press(PreheatAction::FILAMENT_PRESET, h);
+
+    REQUIRE(h.client.gcode_script_history() == Scripts{"HEAT_ABS"});
+    CHECK(h.client.last_send_timeout_ms() == helix::IMoonrakerAPI::kPreStartMacroTimeoutMs);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "A material's macro that times out on a busy printer reports no failure",
+                 "[material_preheat][preheat][filament][2183]") {
+    const bool printer_busy = GENERATE(true, false);
+    CAPTURE(printer_busy);
+    MaterialSettingsScope settings;
+    Harness h;
+    // The printer's busy flag is read from the process-wide state, as the
+    // main-thread half of a failed send does.
+    FreshPrinterState fresh;
+    discover_macros(h);
+    helix_test::ScopedSharedResource<helix::TemperatureController> controller(
+        std::make_shared<helix::TemperatureController>(h.state, &h.api));
+    helix::MaterialSettingsManager::instance().set_override("ABS", abs_override("HEAT_ABS", true));
+    feed_hot_nozzle(h);
+    if (printer_busy) {
+        fresh.state.update_from_status(nlohmann::json{{"idle_timeout", {{"state", "Printing"}}}});
+        helix::ui::UpdateQueue::instance().drain();
+    }
+    REQUIRE(
+        lv_subject_get_int(fresh.state.calibration_state().get_idle_timeout_printing_subject()) ==
+        (printer_busy ? 1 : 0));
+    h.client.force_next_gcode_error(MoonrakerErrorType::TIMEOUT, "timed out", "HEAT_ABS");
+    helix::test::ScopedNoticeCapture notices;
+
+    press(PreheatAction::FILAMENT_PRESET, h);
+    helix::ui::UpdateQueue::instance().drain();
+
+    // The send took the forced timeout.
+    CHECK_FALSE(h.client.take_forced_gcode_error("HEAT_ABS").has_value());
+    CHECK(notices.count_errors_ending_with(" failed") == (printer_busy ? 0u : 1u));
 }
 
 namespace {
@@ -514,7 +575,7 @@ TEST_CASE("plan_material_preheat sends temperatures when no macro is assigned",
 
     for (const auto* candidate : {static_cast<const filament::MaterialOverride*>(nullptr),
                                   static_cast<const filament::MaterialOverride*>(&override)}) {
-        const auto plan = helix::plan_material_preheat(candidate, hardware);
+        const auto plan = helix::plan_material_preheat(candidate, hardware, PrintState::Idle);
         CHECK(plan.mode == helix::MaterialPreheatMode::TEMPERATURES);
         CHECK(plan.macro.empty());
     }
@@ -527,16 +588,16 @@ TEST_CASE("plan_material_preheat lets a discovered macro heat unless it is addit
     override.preheat_macro = "heat_abs"; // discovery matches macros case-insensitively
 
     override.macro_handles_heating = std::nullopt;
-    auto plan = helix::plan_material_preheat(&override, hardware);
+    auto plan = helix::plan_material_preheat(&override, hardware, PrintState::Idle);
     CHECK(plan.mode == helix::MaterialPreheatMode::MACRO_ONLY);
     CHECK(plan.macro == "heat_abs");
 
     override.macro_handles_heating = true;
-    CHECK(helix::plan_material_preheat(&override, hardware).mode ==
+    CHECK(helix::plan_material_preheat(&override, hardware, PrintState::Idle).mode ==
           helix::MaterialPreheatMode::MACRO_ONLY);
 
     override.macro_handles_heating = false;
-    plan = helix::plan_material_preheat(&override, hardware);
+    plan = helix::plan_material_preheat(&override, hardware, PrintState::Idle);
     CHECK(plan.mode == helix::MaterialPreheatMode::TEMPERATURES_THEN_MACRO);
     CHECK(plan.macro == "heat_abs");
 }
@@ -551,10 +612,38 @@ TEST_CASE("plan_material_preheat flags a macro this printer does not define",
     CAPTURE(handles_heating);
     override.macro_handles_heating = handles_heating;
 
-    const auto plan = helix::plan_material_preheat(&override, hardware);
+    const auto plan = helix::plan_material_preheat(&override, hardware, PrintState::Idle);
 
     CHECK(plan.mode == helix::MaterialPreheatMode::MACRO_MISSING);
     CHECK(plan.macro == "HEAT_ABS");
+}
+
+TEST_CASE("plan_material_preheat holds the macro while a job holds the machine",
+          "[material_preheat][preheat][2183]") {
+    using Mode = helix::MaterialPreheatMode;
+    const auto hardware = printer_with_macro("HEAT_ABS");
+    filament::MaterialOverride override;
+    override.preheat_macro = "HEAT_ABS";
+    const auto handles_heating =
+        GENERATE(std::optional<bool>{}, std::optional<bool>{true}, std::optional<bool>{false});
+    CAPTURE(handles_heating);
+    override.macro_handles_heating = handles_heating;
+
+    for (const auto held : {PrintState::Preparing, PrintState::Printing, PrintState::Paused}) {
+        const auto plan = helix::plan_material_preheat(&override, hardware, held);
+        CHECK(plan.mode == Mode::MACRO_HELD_BY_JOB);
+        CHECK(plan.macro == "HEAT_ABS");
+    }
+    const auto idle = helix::plan_material_preheat(&override, hardware, PrintState::Idle);
+    CHECK(idle.mode ==
+          (handles_heating.value_or(true) ? Mode::MACRO_ONLY : Mode::TEMPERATURES_THEN_MACRO));
+
+    // Nothing to hold back: no macro, or one this printer does not define.
+    CHECK(helix::plan_material_preheat(nullptr, hardware, PrintState::Printing).mode ==
+          Mode::TEMPERATURES);
+    const auto other_printer = printer_with_macro("HEAT_PLA");
+    CHECK(helix::plan_material_preheat(&override, other_printer, PrintState::Printing).mode ==
+          Mode::MACRO_MISSING);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,

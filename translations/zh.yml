@@ -2972,6 +2972,7 @@ translations:
   Macro for physical bed leveling (QGL/Z-Tilt): 物理热床调平宏（QGL/Z-Tilt）
   Macro handles heating: 宏控制加热
   Macro may still be running — response timed out: 宏可能仍在运行 — 响应超时
+  Macro skipped while a job holds the printer: 打印任务占用打印机，已跳过宏
   "Macro stopped: printer has no '{}' command": 宏已停止：打印机没有 '{}' 命令
   Macro to cancel an active print: 取消当前打印的宏
   Macro to clean/wipe the nozzle: 清洁/擦拭喷嘴的宏
