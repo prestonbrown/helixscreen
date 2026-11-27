@@ -29,6 +29,7 @@
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
+#include "subject_initializer.h"
 
 #include <algorithm>
 #include <array>
@@ -111,6 +112,20 @@ class LedControlOverlayTestAccess {
     }
     void drop_root() {
         overlay_.overlay_root_ = nullptr;
+    }
+    /// Opens the session's own overlay, the lazy global a teardown destroys,
+    /// on @p device with the Custom color picker showing.
+    static void open_session_picker(const std::string& device, lv_obj_t* root) {
+        auto& overlay = get_led_control_overlay();
+        overlay.init_subjects();
+        overlay.request_focus(device);
+        overlay.on_activate();
+        overlay.overlay_root_ = root;
+        overlay.handle_custom_color();
+    }
+    /// What the session does to its overlays on the way out.
+    static void deactivate_session() {
+        get_led_control_overlay().on_deactivating(DeactivateReason::Shutdown);
     }
 
   private:
@@ -1318,4 +1333,89 @@ TEST_CASE_METHOD(LedApplyColorFixture, "overlay: the Custom color picker goes wi
     drain();
     // No picker outlives the overlay its callbacks act on.
     CHECK(helix::ui::ColorPickerView::active() == nullptr);
+}
+
+namespace {
+
+/// The session's own overlay with a Custom color preview under way: the strip
+/// shows the pick, and the effect the preview stopped is off. Returns the
+/// original color at full brightness.
+uint32_t start_session_preview(LedApplyColorFixture& fx) {
+    fx.add_native("neopixel strip_a", true, false);
+    fx.add_effect("led_effect fire", "neopixel strip_a", true);
+    LedControlOverlayTestAccess::open_session_picker(
+        "neopixel strip_a", lv_obj_create(lv_obj_create(fx.test_screen())));
+    auto* picker = helix::ui::ColorPickerView::active();
+    REQUIRE(picker != nullptr);
+    const uint32_t original = picker->color();
+    picker->pick_cell(3);
+    drain();
+    REQUIRE(fx.wire_mentions("EFFECT=fire STOP=1"));
+    uint32_t base = 0;
+    int pct = 0;
+    double white = 0.0;
+    fx.sent("neopixel strip_a").decompose(base, pct, white);
+    REQUIRE_FALSE(within_rounding(base, original));
+    fx.mock_client.clear_gcode_script_history();
+    return original;
+}
+
+/// The light is its old self again: the strip holds the original color, and
+/// the effect the preview stopped runs.
+void check_preview_undone(const LedApplyColorFixture& fx, uint32_t original) {
+    CHECK(fx.wire_mentions("SET_LED_EFFECT EFFECT=fire"));
+    uint32_t base = 0;
+    int pct = 0;
+    double white = 0.0;
+    fx.sent("neopixel strip_a").decompose(base, pct, white);
+    CHECK(within_rounding(base, original));
+}
+
+} // namespace
+
+// The session destroys its overlays with a shutdown and a printer switch
+// (prestonbrown/helixscreen#2209). Neither is Cancel, a backdrop tap or ESC,
+// so the picker's own paths never run.
+TEST_CASE_METHOD(LedApplyColorFixture,
+                 "overlay: a teardown with the Custom color picker open puts the original back",
+                 "[led][overlay][color_picker][2209]") {
+    helix::PrinterState ps;
+    const uint32_t original = start_session_preview(*this);
+    REQUIRE(helix::lazy_global_if_exists<helix::led::LedControlOverlay>() != nullptr);
+
+    // How a printer switch ends its panels: every one destroyed, the overlay
+    // roots freed.
+    helix::ui::destroy_static_panels();
+    drain();
+    process_lvgl(1000);
+
+    check_preview_undone(*this, original);
+    CHECK(helix::ui::ColorPickerView::active() == nullptr);
+    CHECK(helix::lazy_global_if_exists<helix::led::LedControlOverlay>() == nullptr);
+}
+
+TEST_CASE_METHOD(LedApplyColorFixture,
+                 "overlay: the session undoes an open Custom color preview before the printer "
+                 "disconnects",
+                 "[led][overlay][color_picker][2209]") {
+    helix::PrinterState ps;
+    const uint32_t original = start_session_preview(*this);
+    {
+        // What the session asks of what it owns while the client can still send.
+        SubjectInitializer subjects;
+        subjects.before_disconnect();
+    }
+    drain();
+
+    check_preview_undone(*this, original);
+    CHECK(helix::ui::ColorPickerView::active() == nullptr);
+
+    // The overlay then saves the look it shows on its way out: its own, not
+    // the preview's.
+    LedControlOverlayTestAccess::deactivate_session();
+    CHECK(within_rounding(LedController::instance().last_color(), original));
+    CHECK(LedController::instance().last_brightness() == 100);
+
+    helix::ui::destroy_static_panels();
+    drain();
 }
