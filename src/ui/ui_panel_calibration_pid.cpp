@@ -1620,7 +1620,9 @@ void PIDCalibrationPanel::start_migration(CalibMethod target) {
     std::vector<helix::system::ExpectedSetting> expected = {
         {section, "control", to_mpc ? "mpc" : "pid"}};
 
-    EmergencyStopOverlay::instance().suppress_recovery_dialog(helix::recovery_suppression::EXTRA);
+    // The migration spans the edit, the restart and the first calibration steps: the
+    // editor arms the longer suppression when its restart goes out.
+    config_editor_.set_restart_announcement({}, helix::recovery_suppression::EXTRA);
 
     auto token = run_lifetime_.token();
     config_editor_.safe_multi_edit(

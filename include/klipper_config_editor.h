@@ -190,6 +190,9 @@ class KlipperConfigEditor {
     /// Why a Klipper restart must not go out now (an untranslated TR_NOOP tag), or
     /// nullptr when it may. See helix::api::restart_refusal_reason().
     using RestartRefusalSource = std::function<const char*()>;
+    /// Tells the app a Klipper restart is about to go out (untranslated toast text,
+    /// extra recovery-dialog suppression in ms or 0). Runs on the main thread.
+    using RestartAnnouncer = std::function<void(const std::string& message, uint32_t extra_ms)>;
 
     KlipperConfigEditor();
 
@@ -287,6 +290,21 @@ class KlipperConfigEditor {
     /// must run on the main thread; elsewhere it refuses.
     void set_restart_refusal_source(RestartRefusalSource source);
 
+    /// What the editor announces right before its FIRMWARE_RESTART, and only when
+    /// the restart is allowed: the toast's untranslated text (empty: the generic
+    /// one) and a recovery-dialog suppression longer than the default, in ms (0:
+    /// the default). A refused save announces nothing.
+    void set_restart_announcement(std::string message, uint32_t extra_suppression_ms = 0) {
+        restart_announcement_ = std::move(message);
+        restart_extra_suppression_ms_ = extra_suppression_ms;
+    }
+
+    /// Where the announcement goes. The default arms the app's expected-restart
+    /// state (helix::ui::begin_expected_klippy_restart).
+    void set_restart_announcer(RestartAnnouncer announcer) {
+        restart_announcer_ = std::move(announcer);
+    }
+
     /// How often the FIRMWARE_RESTART health monitor polls Klippy's state and
     /// the cancel flag. A monitor already running keeps the interval it started with.
     void set_restart_poll_interval(std::chrono::milliseconds interval) {
@@ -378,6 +396,9 @@ class KlipperConfigEditor {
 
     FeatureStateSource feature_state_source_;
     RestartRefusalSource restart_refusal_source_;
+    RestartAnnouncer restart_announcer_;
+    std::string restart_announcement_;
+    uint32_t restart_extra_suppression_ms_ = 0;
     /// Expires with the editor. lifetime_token_ is taken once, on the constructing
     /// (main) thread, so worker-thread callbacks defer through it and never touch
     /// lifetime_ itself.

@@ -587,6 +587,8 @@ TEST_CASE_METHOD(LVGLTestFixture,
     MoonrakerClientTestAccess::force_connection_state(client, ConnectionState::CONNECTED);
 
     KlipperConfigEditor editor;
+    int announced = 0;
+    editor.set_restart_announcer([&announced](const std::string&, uint32_t) { ++announced; });
     editor.set_feature_state_source([]() { return PluginFeatureState::Absent; });
     EditorRun run;
     run_multi_edit(*this, editor, api, "input_shaper",
@@ -596,12 +598,14 @@ TEST_CASE_METHOD(LVGLTestFixture,
         CHECK(run.succeeded);
         CHECK(run.error.empty());
         CHECK(restart_sent(client));
+        CHECK(announced == 1);
     } else {
         CHECK_FALSE(run.succeeded);
         CHECK(run.error == kJobRefusal);
         CHECK(client.params_of("server.files.copy").empty());
         CHECK(api.get_uploaded_config("printer.cfg") == kShaperRoot);
         CHECK_FALSE(restart_sent(client));
+        CHECK(announced == 0);
     }
     PrinterStateTestAccess::reset(ps);
 }
@@ -638,6 +642,8 @@ TEST_CASE_METHOD(LVGLTestFixture,
     };
 
     KlipperConfigEditor editor;
+    int announced = 0;
+    editor.set_restart_announcer([&announced](const std::string&, uint32_t) { ++announced; });
     editor.set_feature_state_source([route]() { return route; });
     EditorRun run;
     run_multi_edit(*this, editor, api, "input_shaper",
@@ -647,6 +653,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK_FALSE(run.succeeded);
     CHECK(run.error.find(kJobRefusal) != std::string::npos);
     CHECK_FALSE(restart_sent(client));
+    CHECK(announced == 0);
     if (route == PluginFeatureState::Absent) {
         // The backup is copied back over the file the edit had replaced.
         bool restored = false;
@@ -680,6 +687,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "an idle Save with the real default source wri
     client.callbacks_on_thread = true;
 
     KlipperConfigEditor editor;
+    int announced = 0;
+    editor.set_restart_announcer([&announced](const std::string&, uint32_t) { ++announced; });
     editor.set_feature_state_source([route]() { return route; });
     EditorRun run;
     run_multi_edit(*this, editor, api, "input_shaper",
@@ -688,6 +697,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "an idle Save with the real default source wri
     CHECK(run.error.empty());
     CHECK(run.succeeded);
     CHECK(restart_sent(client));
+    CHECK(announced == 1);
     PrinterStateTestAccess::reset(ps);
 }
 

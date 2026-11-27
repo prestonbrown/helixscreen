@@ -71,6 +71,25 @@ TEST_CASE("spool_latch_allows passes only commands that cannot move the toolhead
 
 namespace {
 
+/// Records every JSON-RPC the send layer lets out, then forwards it.
+class RecordingClient : public MoonrakerClientMock {
+  public:
+    using MoonrakerClientMock::MoonrakerClientMock;
+    using MoonrakerClientMock::send_jsonrpc;
+    std::vector<std::pair<std::string, nlohmann::json>> sent;
+
+    helix::RequestId send_jsonrpc(
+        const std::string& method, const nlohmann::json& params,
+        helix::SharedCallback<void(const nlohmann::json&)> success_cb,
+        helix::SharedCallback<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms = 0,
+        bool silent = false,
+        std::optional<helix::rpc_error_policy::CallerIntent> intent = std::nullopt) override {
+        sent.emplace_back(method, params);
+        return MoonrakerClientMock::send_jsonrpc(method, params, std::move(success_cb),
+                                                 std::move(error_cb), timeout_ms, silent, intent);
+    }
+};
+
 class SpoolLatchFixture : public LVGLTestFixture {
   public:
     SpoolLatchFixture() : mock_client(MoonrakerClientMock::PrinterType::VORON_24) {
@@ -93,7 +112,7 @@ class SpoolLatchFixture : public LVGLTestFixture {
         };
     }
 
-    MoonrakerClientMock mock_client;
+    RecordingClient mock_client;
     PrinterState state;
     std::unique_ptr<MoonrakerAPI> api;
     bool error_called = false;
@@ -316,18 +335,27 @@ TEST_CASE_METHOD(SpoolLatchFixture,
     // An e-stop escalation restarts while print_stats still reads printing and
     // Klippy still reads READY.
     hold_machine(state, GENERATE(JobHeld::Printing, JobHeld::Paused, JobHeld::Preparing));
-    // Each call is judged on its own: the mock answers some with an error of its own.
-    const auto refused_for_job = [this](const std::function<void()>& call) {
-        captured_error = MoonrakerError{};
+    // The proof is that each restart REACHED the client, not what an error said.
+    const auto reaches = [this](const std::function<void()>& call, const std::string& method,
+                                const nlohmann::json& params) {
+        mock_client.sent.clear();
         call();
-        return captured_error.message == kRestartPrinting;
+        return std::any_of(mock_client.sent.begin(), mock_client.sent.end(), [&](const auto& sent) {
+            return sent.first == method && sent.second == params;
+        });
     };
-    CHECK_FALSE(refused_for_job([&] { api->restart_firmware([] {}, on_error()); }));
-    CHECK_FALSE(refused_for_job([&] { api->restart_klipper([] {}, on_error()); }));
-    CHECK_FALSE(refused_for_job([&] { api->restart_service("klipper", [] {}, on_error()); }));
-    CHECK_FALSE(
-        refused_for_job([&] { api->execute_gcode("FIRMWARE_RESTART", nullptr, on_error()); }));
-    CHECK_FALSE(refused_for_job([&] { api->execute_gcode("SAVE_CONFIG", nullptr, on_error()); }));
+    CHECK(reaches([&] { api->restart_firmware([] {}, on_error()); }, "printer.firmware_restart",
+                  nlohmann::json::object()));
+    CHECK(reaches([&] { api->restart_klipper([] {}, on_error()); }, "printer.restart",
+                  nlohmann::json::object()));
+    CHECK(reaches([&] { api->restart_service("klipper", [] {}, on_error()); },
+                  "machine.services.restart", nlohmann::json{{"service", "klipper"}}));
+    for (const char* script : {"FIRMWARE_RESTART", "SAVE_CONFIG"}) {
+        CAPTURE(script);
+        const size_t before = mock_client.gcode_script_history().size();
+        api->execute_gcode(script, nullptr, on_error());
+        CHECK(mock_client.gcode_script_history().size() == before + 1);
+    }
 }
 
 #if HELIX_HAS_PLUGINS

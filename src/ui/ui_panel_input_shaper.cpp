@@ -1100,9 +1100,8 @@ void InputShaperPanel::save_configuration() {
         return;
     }
 
-    // safe_multi_edit() ends in FIRMWARE_RESTART, so the restart that follows is
-    // expected rather than an emergency.
-    helix::ui::begin_expected_klippy_restart("Saving config... Klipper will restart.");
+    // The editor announces its own FIRMWARE_RESTART once it is allowed.
+    config_editor_.set_restart_announcement(TR_NOOP("Saving config... Klipper will restart."));
 
     auto token = lifetime_.token();
 

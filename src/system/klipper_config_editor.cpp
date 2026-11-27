@@ -3,6 +3,7 @@
 
 #include "klipper_config_editor.h"
 
+#include "ui_emergency_stop.h"
 #include "ui_update_queue.h"
 
 #include "app_globals.h"
@@ -1088,6 +1089,13 @@ KlipperConfigEditor::KlipperConfigEditor()
           }
           return helix::api::restart_refusal_reason(&get_printer_state());
       }),
+      restart_announcer_([](const std::string& message, uint32_t extra_ms) {
+          helix::ui::begin_expected_klippy_restart(message.empty() ? "Firmware restarting..."
+                                                                   : message);
+          if (extra_ms > helix::recovery_suppression::LONG) {
+              EmergencyStopOverlay::instance().suppress_recovery_dialog(extra_ms);
+          }
+      }),
       lifetime_token_(lifetime_.token()) {}
 
 void KlipperConfigEditor::set_restart_refusal_source(RestartRefusalSource source) {
@@ -1569,6 +1577,9 @@ void KlipperConfigEditor::send_restart_and_monitor(IMoonrakerAPI& api, RestartRe
                                                    SuccessCallback on_success,
                                                    ErrorCallback on_error, int restart_timeout_ms,
                                                    std::vector<ExpectedSetting> expected) {
+    if (restart_announcer_) {
+        restart_announcer_(restart_announcement_, restart_extra_suppression_ms_);
+    }
     api.restart_firmware(
         [this, &api, recovery, on_success, on_error, restart_timeout_ms, expected,
          poll_interval = restart_poll_interval_]() {
