@@ -4,6 +4,7 @@
 #if HELIX_ENABLE_SCREENSAVER
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/sample_checks.h"
 #include "../test_helpers/screensaver_cost_model.h"
 #include "../test_helpers/screensaver_sim_kit.h"
 #include "../test_helpers/screensaver_test_access.h"
@@ -115,31 +116,32 @@ bool same_positions(const FirefliesSim& a, const FirefliesSim& b) {
 
 TEST_CASE("a fireflies population has 2 to 5 baits and 100 to 175 flies, each chasing a live bait",
           "[screensaver][fireflies_sim]") {
+    helix::test::SampleChecks samples;
     std::set<size_t> bait_counts;
     std::set<size_t> fly_counts;
     const float half_w = 40.0f * static_cast<float>(W) / static_cast<float>(H);
     for (uint32_t seed = 1; seed <= 200; seed++) {
         Swarm s(seed);
         const FirefliesSim& sim = s.sim;
-        REQUIRE(sim.baits_alive() >= 2);
-        REQUIRE(sim.baits_alive() <= 5);
-        REQUIRE(sim.flies().size() >= 100);
-        REQUIRE(sim.flies().size() <= 175);
+        SAMPLE_REQUIRE(samples, sim.baits_alive() >= 2, seed);
+        SAMPLE_REQUIRE(samples, sim.baits_alive() <= 5, seed);
+        SAMPLE_REQUIRE(samples, sim.flies().size() >= 100, seed);
+        SAMPLE_REQUIRE(samples, sim.flies().size() <= 175, seed);
         bait_counts.insert(sim.baits_alive());
         fly_counts.insert(sim.flies().size());
         for (const FirefliesSim::Fly& f : sim.flies()) {
-            REQUIRE(f.bait < sim.baits().size());
-            REQUIRE(sim.baits()[f.bait].alive);
-            REQUIRE(f.pace >= 0.75f);
-            REQUIRE(f.pace <= 1.0f);
+            SAMPLE_REQUIRE(samples, f.bait < sim.baits().size(), seed);
+            SAMPLE_REQUIRE(samples, sim.baits()[f.bait].alive, seed);
+            SAMPLE_REQUIRE(samples, f.pace >= 0.75f, seed);
+            SAMPLE_REQUIRE(samples, f.pace <= 1.0f, seed);
         }
         for (const FirefliesSim::Bait& b : sim.baits()) {
             if (!b.alive) {
                 continue;
             }
-            REQUIRE(std::fabs(b.pos.x) <= half_w);
-            REQUIRE(std::fabs(b.pos.y) <= 40.0f);
-            REQUIRE(std::fabs(b.pos.z) <= 25.0f);
+            SAMPLE_REQUIRE(samples, std::fabs(b.pos.x) <= half_w, seed);
+            SAMPLE_REQUIRE(samples, std::fabs(b.pos.y) <= 40.0f, seed);
+            SAMPLE_REQUIRE(samples, std::fabs(b.pos.z) <= 25.0f, seed);
         }
     }
     CHECK(bait_counts.count(2) == 1);
@@ -442,12 +444,14 @@ bool every_fly_chases_a_live_bait(const FirefliesSim& sim) {
 TEST_CASE("ten minutes of fireflies runs every mode and never orphans a fly",
           "[screensaver][fireflies_sim]") {
     Swarm s(31, kMotionLevel, PixelFormat::XRGB8888, 20, 12);
+    helix::test::SampleChecks samples;
     for (uint32_t t = 0; t < 600000; t += 100) {
         s.step(100);
-        REQUIRE(s.sim.baits_alive() >= 2);
-        REQUIRE(s.sim.baits_alive() <= 5);
-        REQUIRE(every_fly_chases_a_live_bait(s.sim));
+        SAMPLE_REQUIRE(samples, s.sim.baits_alive() >= 2, t);
+        SAMPLE_REQUIRE(samples, s.sim.baits_alive() <= 5, t);
+        SAMPLE_REQUIRE(samples, every_fly_chases_a_live_bait(s.sim), t);
     }
+    samples.done(3 * (600000 / 100));
     for (const FirefliesMode m :
          {FirefliesMode::STOP, FirefliesMode::LOOP, FirefliesMode::GLOW, FirefliesMode::HYPERSPEED,
           FirefliesMode::SPLIT, FirefliesMode::MERGE, FirefliesMode::WIND_GUST}) {
