@@ -270,7 +270,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Material presets heat the bed only while th
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "A material preset whose macro this printer lacks does not run, and says which",
+                 "A material preset whose macro this printer lacks does not run and says which",
                  "[material_preheat][preheat][filament][2183]") {
     const auto action = GENERATE(PreheatAction::FILAMENT_PRESET, PreheatAction::SPOOL_PRESET,
                                  PreheatAction::HOME_WIDGET, PreheatAction::TEMP_GRAPH);
