@@ -219,6 +219,11 @@ TEST_CASE_METHOD(TempGraphHeatFixture,
     lv_obj_get_coords(mark, &mark_box);
     CHECK_FALSE(lv_obj_is_hidden(mark));
     CHECK(lv_obj_get_width(name) < width_of(long_name.c_str(), name));
+    // Shortened with dots, not cut off.
+    const std::string shown = lv_label_get_text(name);
+    CHECK(shown.rfind("Poly", 0) == 0);
+    REQUIRE(shown.size() > 3);
+    CHECK(shown.compare(shown.size() - 3, 3, "...") == 0);
     CHECK(name_box.x2 <= box.x2);
     CHECK(mark_box.x1 >= box.x1);
     CHECK(mark_box.x2 <= name_box.x1);
