@@ -174,8 +174,8 @@ status, filed as `Firmware`.
 AD5X IFS takes the same model on a firmware that writes `lane_data` itself (Kiln OS
 from plugin API 1.12; `include/firmware_lane_writer.h`): its private store keeps
 brand and name too, as a fallback for text the edit command cannot carry, and the
-firmware's own `lane_data` records, read each poll, give the spool id, brand and
-name as `Firmware` (`FILAMENT_BACKEND_AD5X_IFS.md`).
+firmware's `ifs_materials` status gives the spool id, brand and name as `Firmware`
+(`FILAMENT_BACKEND_AD5X_IFS.md`).
 
 ---
 

@@ -45,6 +45,9 @@ class MoonrakerClientMockTestAccess {
     static nlohmann::json ifs_module_status(const MoonrakerClientMock& c) {
         return c.ifs_module_status_json();
     }
+    static nlohmann::json ifs_module_materials(const MoonrakerClientMock& c) {
+        return c.ifs_module_materials_json();
+    }
     static nlohmann::json ifs_module_vars(const MoonrakerClientMock& c) {
         return c.ifs_module_vars_json();
     }

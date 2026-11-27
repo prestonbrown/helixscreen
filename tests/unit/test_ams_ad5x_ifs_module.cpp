@@ -1349,22 +1349,38 @@ TEST_CASE("AD5X IFS on a firmware that writes lane_data sends the whole slot ide
     helix::ui::UpdateQueue::instance().drain();
     REQUIRE(rig.backend.firmware_writes_lane_records() == true);
 
-    SECTION("a Generic preset and an unset bed temperature are left to the firmware") {
+    SECTION("a Generic preset goes out empty, temperatures the edit left alone not at all") {
         REQUIRE(helix::test::apply_edit(rig.backend, 1, linked_spool_edit()).success());
         CHECK(rig.backend.captured_gcodes ==
               std::vector<std::string>{"IFS_SET_MATERIAL SLOT=2 TYPE=PLA COLOR=7EC8E3 SPOOL_ID=42 "
-                                       "VENDOR=\"Polymaker\" NAME=\"Matte PLA\" FILAMENT_ID= "
-                                       "BED_TEMP="});
+                                       "VENDOR=\"Polymaker\" NAME=\"Matte PLA\" FILAMENT_ID="});
     }
-    SECTION("a product's Orca id and a set bed temperature go out") {
+    SECTION("a product's Orca id and set temperatures go out") {
         helix::SlotInfo info = linked_spool_edit();
         info.spoolman_orca_filament_id = "GFL99";
         info.bed_temp = 65;
+        info.nozzle_temp_min = 210;
+        info.nozzle_temp_max = 220;
         REQUIRE(helix::test::apply_edit(rig.backend, 1, info).success());
         CHECK(rig.backend.captured_gcodes ==
               std::vector<std::string>{"IFS_SET_MATERIAL SLOT=2 TYPE=PLA COLOR=7EC8E3 SPOOL_ID=42 "
                                        "VENDOR=\"Polymaker\" NAME=\"Matte PLA\" "
-                                       "FILAMENT_ID=\"GFL99\" BED_TEMP=65"});
+                                       "FILAMENT_ID=\"GFL99\" BED_TEMP=65 TEMP=215"});
+
+        // The next edit keeps them: the printer keeps its own.
+        info.color_rgb = 0x112233;
+        REQUIRE(helix::test::apply_edit(rig.backend, 1, info).success());
+        REQUIRE(rig.backend.captured_gcodes.size() == 2);
+        CHECK(rig.backend.captured_gcodes[1].find("TEMP=") == std::string::npos);
+
+        // An edit that clears them sends them empty.
+        info.bed_temp = 0;
+        info.nozzle_temp_min = 0;
+        info.nozzle_temp_max = 0;
+        REQUIRE(helix::test::apply_edit(rig.backend, 1, info).success());
+        REQUIRE(rig.backend.captured_gcodes.size() == 3);
+        const std::string& cleared = rig.backend.captured_gcodes[2];
+        CHECK(cleared.substr(cleared.size() - 16) == " BED_TEMP= TEMP=");
     }
 
     // Our own notes go to the private namespace; lane_data is the firmware's.
@@ -1509,87 +1525,197 @@ TEST_CASE("AD5X IFS keeps the firmware the lane_data writer for the session",
     CHECK_FALSE(rig.wrote_to("lane_data"));
 }
 
-TEST_CASE("AD5X IFS reads the spool link from the firmware's own lane_data records",
+namespace {
+
+/// An `ifs_materials` frame of a firmware that keeps each slot's identity:
+/// slot 1 linked to spool @p spool_id, the others unset.
+json identity_materials_frame(int spool_id, const char* vendor, const char* name) {
+    const json unset{{"spool_id", nullptr},
+                     {"vendor", nullptr},
+                     {"name", nullptr},
+                     {"filament_id", nullptr},
+                     {"bed_temp", nullptr}};
+    json slots = json::object();
+    for (const char* n : {"1", "2", "3", "4"}) {
+        slots[n] = json{{"type", "PLA"}, {"color", "#A03CF7"}, {"temp", 220.0}};
+        slots[n].update(unset);
+    }
+    slots["1"].update(json{{"spool_id", spool_id},
+                           {"vendor", vendor},
+                           {"name", name},
+                           {"filament_id", "OFDSrzZ8"},
+                           {"bed_temp", 60.0}});
+    return json{{"ifs_materials", {{"available", true}, {"channel_count", 4}, {"slots", slots}}}};
+}
+
+} // namespace
+
+TEST_CASE("AD5X IFS reads the spool link from the firmware's status",
           "[ams][ad5x_ifs][ifs_module][lane_writer]") {
     LaneWriterRig rig(/*with_plugins=*/true);
-    rig.backend.wire().respond_to_namespace("lane_data", {{"lane1",
-                                                           {{"lane", "0"},
-                                                            {"material", "PLA"},
-                                                            {"color", "#A03CF7"},
-                                                            {"spool_id", 7},
-                                                            {"vendor_name", "Polymaker"},
-                                                            {"name", "Galaxy"},
-                                                            {"filament_id", "GFL99"}}}});
     rig.backend.fire_status(plugins_frame("1.12"));
     rig.backend.fire_status(module_ifs_frame(0, {1, 2, 3, 4}));
-    rig.backend.fire_status(module_materials_frame());
+    rig.backend.fire_status(identity_materials_frame(7, "Polymaker", "Galaxy"));
     helix::ui::UpdateQueue::instance().drain_until_empty();
 
     // The private store is empty, so all three are the firmware's.
-    const helix::SlotInfo slot = rig.backend.get_slot_info(0);
+    helix::SlotInfo slot = rig.backend.get_slot_info(0);
     CHECK(slot.spoolman_id == 7);
     CHECK(slot.brand == "Polymaker");
     CHECK(slot.spool_name == "Galaxy");
     CHECK(slot.material == "PLA");
+
+    // A later frame naming another spool is the reading at once.
+    rig.backend.fire_status(identity_materials_frame(9, "Elegoo", "Rapid"));
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    slot = rig.backend.get_slot_info(0);
+    CHECK(slot.spoolman_id == 9);
+    CHECK(slot.brand == "Elegoo");
 }
 
-TEST_CASE("AD5X IFS keeps an edit's spool link until the firmware's record catches up",
+namespace {
+
+/// An `ifs_materials` frame of a firmware that keeps each slot's identity:
+/// every port in 1..@p ports PLA and unset, with @p stated laid over slot @p port.
+json materials_with_identity(int ports, int port, const json& stated) {
+    json slots = json::object();
+    for (int n = 1; n <= ports; ++n) {
+        slots[std::to_string(n)] =
+            json{{"type", "PLA"},          {"color", "#A03CF7"}, {"temp", 220.0},
+                 {"spool_id", nullptr},    {"vendor", nullptr},  {"name", nullptr},
+                 {"filament_id", nullptr}, {"bed_temp", nullptr}};
+    }
+    slots[std::to_string(port)].update(stated);
+    return json{{"ifs_materials", {{"available", true}, {"slots", slots}}}};
+}
+
+} // namespace
+
+TEST_CASE("AD5X IFS takes the identity of a port past four from the frame that adds it",
           "[ams][ad5x_ifs][ifs_module][lane_writer]") {
     LaneWriterRig rig(/*with_plugins=*/true);
-    // Our private write lands, so the reads after it are filed.
-    rig.backend.wire().respond_to("server.database.post_item", json::object());
-    // The firmware's record still names the spool the edit replaces.
-    rig.backend.wire().respond_to_namespace(
-        "lane_data",
-        {{"lane2",
-          {{"lane", "1"}, {"material", "PETG"}, {"spool_id", 7}, {"vendor_name", "Old"}}}});
+    rig.backend.fire_status(plugins_frame("1.12"));
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+
+    json slots = json::array();
+    for (int i = 1; i <= 8; ++i) {
+        slots.push_back({{"ID", std::to_string(i)},
+                         {"Material", "PLA"},
+                         {"HEX", "A03CF7"},
+                         {"hasFilament", true}});
+    }
+    json frame = materials_with_identity(8, 6, {{"spool_id", 9}, {"vendor", "Elegoo"}});
+    frame["zmod_color"] = {{"ifs", true}, {"channel", 0}, {"color_limit", 8}, {"slots", slots}};
+    rig.backend.fire_status(frame);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+
+    REQUIRE(rig.backend.get_system_info().total_slots == 8);
+    CHECK(rig.backend.get_slot_info(5).spoolman_id == 9);
+    CHECK(rig.backend.get_slot_info(5).brand == "Elegoo");
+}
+
+TEST_CASE("AD5X IFS compares a bed temperature edit with the one the firmware holds",
+          "[ams][ad5x_ifs][ifs_module][lane_writer]") {
+    LaneWriterRig rig(/*with_plugins=*/true);
     rig.backend.fire_status(plugins_frame("1.12"));
     rig.backend.fire_status(module_ifs_frame(0, {1, 2, 3, 4}));
+    helix::SlotInfo info = linked_spool_edit();
+    info.bed_temp = 65;
+    REQUIRE(helix::test::apply_edit(rig.backend, 1, info).success());
+    REQUIRE(rig.backend.captured_gcodes.back().find(" BED_TEMP=65") != std::string::npos);
+    // The edit's echo.
+    rig.backend.fire_status(materials_with_identity(
+        4, 2,
+        {{"spool_id", 42}, {"vendor", "Polymaker"}, {"name", "Matte PLA"}, {"bed_temp", 65}}));
     helix::ui::UpdateQueue::instance().drain_until_empty();
-    REQUIRE(rig.backend.get_slot_info(1).spoolman_id == 7);
+    CHECK(rig.backend.get_slot_info(1).bed_temp == 65);
 
-    REQUIRE(helix::test::apply_edit(rig.backend, 1, linked_spool_edit()).success());
-    // The command's echo, and the read of our own private record, which
-    // repaints every slot, while the firmware's record still lags behind.
-    rig.backend.fire_status(
-        json{{"ifs_materials", {{"slots", {{"2", {{"type", "PLA"}, {"color", "#7EC8E3"}}}}}}}});
-    rig.backend.wire().respond_to_namespace(
-        AmsBackendAd5xIfs::kOverrideNamespace,
-        {{"lane2", {{"lane", "1"}, {"helix_color_name", "Ice Blue"}}}});
+    // Changed to 70 on the printer's own screen: the slot shows it.
+    rig.backend.fire_status(materials_with_identity(
+        4, 2,
+        {{"spool_id", 42}, {"vendor", "Polymaker"}, {"name", "Matte PLA"}, {"bed_temp", 70}}));
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(rig.backend.get_slot_info(1).bed_temp == 70);
+
+    // Saving 65 again changes the printer's 70, so it goes out.
+    REQUIRE(helix::test::apply_edit(rig.backend, 1, info).success());
+    CHECK(rig.backend.captured_gcodes.back().find(" BED_TEMP=65") != std::string::npos);
+}
+
+TEST_CASE("AD5X IFS shows its own full text for a vendor the command had to strip",
+          "[ams][ad5x_ifs][ifs_module][lane_writer]") {
+    LaneWriterRig rig(/*with_plugins=*/true);
+    rig.backend.fire_status(plugins_frame("1.12"));
+    rig.backend.fire_status(module_ifs_frame(0, {1, 2, 3, 4}));
+    helix::SlotInfo info = linked_spool_edit();
+    info.brand = "Bob's";
+    info.spool_name = "PLA-CF 15%";
+    REQUIRE(helix::test::apply_edit(rig.backend, 1, info).success());
+
+    rig.backend.fire_status(materials_with_identity(
+        4, 2, {{"spool_id", 42}, {"vendor", "Bobs"}, {"name", "PLA-CF 15"}}));
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(rig.backend.get_slot_info(1).brand == "Bob's");
+    CHECK(rig.backend.get_slot_info(1).spool_name == "PLA-CF 15%");
+
+    // A vendor the printer states differently is its reading.
+    rig.backend.fire_status(materials_with_identity(
+        4, 2, {{"spool_id", 42}, {"vendor", "Elegoo"}, {"name", "PLA-CF 15"}}));
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(rig.backend.get_slot_info(1).brand == "Elegoo");
+}
+
+TEST_CASE("AD5X IFS takes an identity the status stated before the firmware's answer",
+          "[ams][ad5x_ifs][ifs_module][lane_writer]") {
+    LaneWriterRig rig(/*with_plugins=*/true);
+    // The subscription's first frame lands before the plugin version is known,
+    // and the status sends the slot again only when it changes.
+    rig.backend.fire_status(module_ifs_frame(0, {1, 2, 3, 4}));
+    rig.backend.fire_status(identity_materials_frame(7, "Polymaker", "Galaxy"));
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(rig.backend.get_slot_info(0).spoolman_id != 7);
+
+    rig.backend.fire_status(plugins_frame("1.12"));
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(rig.backend.get_slot_info(0).spoolman_id == 7);
+    CHECK(rig.backend.get_slot_info(0).brand == "Polymaker");
+}
+
+TEST_CASE("AD5X IFS reads lane_data once, for its own notes, on a firmware that writes it",
+          "[ams][ad5x_ifs][ifs_module][lane_writer]") {
+    LaneWriterRig rig(/*with_plugins=*/true);
+    rig.backend.wire().respond_to_namespace("lane_data", json::object());
+    rig.backend.wire().respond_to_namespace(AmsBackendAd5xIfs::kOverrideNamespace, json::object());
+    rig.backend.fire_status(plugins_frame("1.12"));
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    rig.backend.request_resync();
     rig.backend.request_resync();
     helix::ui::UpdateQueue::instance().drain_until_empty();
-    CHECK(rig.backend.get_slot_info(1).spoolman_id == 42);
-    CHECK(rig.backend.get_slot_info(1).brand == "Polymaker");
 
-    // Once the record names the edit's spool, it is the reading again.
-    rig.backend.wire().respond_to_namespace("lane_data", {{"lane2",
-                                                           {{"lane", "1"},
-                                                            {"material", "PLA"},
-                                                            {"spool_id", 42},
-                                                            {"vendor_name", "Polymaker"},
-                                                            {"name", "Matte PLA"}}}});
-    rig.backend.request_resync();
-    helix::ui::UpdateQueue::instance().drain_until_empty();
-    CHECK(rig.backend.get_slot_info(1).spoolman_id == 42);
+    int lane_data_reads = 0;
+    for (const auto& call : rig.backend.wire().fake_client().rpc_calls) {
+        if (call.method == "server.database.get_item" &&
+            helix::json_util::safe_string(call.params, "namespace") == "lane_data") {
+            ++lane_data_reads;
+        }
+    }
+    CHECK(lane_data_reads == 1);
 }
 
 TEST_CASE("AD5X IFS shows no spool link from an edit the printer refused",
           "[ams][ad5x_ifs][ifs_module][lane_writer]") {
     LaneWriterRig rig(/*with_plugins=*/true);
-    rig.backend.wire().respond_to_namespace(
-        "lane_data",
-        {{"lane2",
-          {{"lane", "1"}, {"material", "PETG"}, {"spool_id", 7}, {"vendor_name", "Old"}}}});
     rig.backend.fire_status(plugins_frame("1.12"));
     rig.backend.fire_status(module_ifs_frame(0, {1, 2, 3, 4}));
+    rig.backend.fire_status(identity_materials_frame(7, "Old", "Spool"));
     helix::ui::UpdateQueue::instance().drain_until_empty();
 
     rig.backend.fail_gcode = true;
-    REQUIRE_FALSE(helix::test::apply_edit(rig.backend, 1, linked_spool_edit()).success());
+    REQUIRE_FALSE(helix::test::apply_edit(rig.backend, 0, linked_spool_edit()).success());
     // The next frame repaints the slot from what the firmware states.
     rig.backend.fire_status(module_materials_frame());
     helix::ui::UpdateQueue::instance().drain_until_empty();
-    CHECK(rig.backend.get_slot_info(1).spoolman_id == 7);
+    CHECK(rig.backend.get_slot_info(0).spoolman_id == 7);
 }
 
 TEST_CASE("AD5X IFS carries its own lane_data notes into an empty private store",

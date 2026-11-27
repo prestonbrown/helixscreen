@@ -79,3 +79,40 @@ TEST_CASE_METHOD(HelixTestFixture, "ifs-module mock stages lanes, the at-hub rec
         CHECK(at_hub(client) == 0);
     }
 }
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "ifs-module mock states each slot's identity from plugin API 1.12",
+                 "[mock][ifs_module][lane_writer]") {
+    ScopedEnv ams("HELIX_MOCK_AMS", "ifs-module");
+    const char* edit = "IFS_SET_MATERIAL SLOT=2 TYPE=PLA COLOR=7EC8E3 SPOOL_ID=42 "
+                       "VENDOR=\"Polymaker\" NAME=\"Matte PLA\" FILAMENT_ID= BED_TEMP=60 TEMP=";
+
+    SECTION("1.12 states the edit's identity, null for what it cleared or never had") {
+        ScopedEnv api("HELIX_MOCK_IFS_PLUGIN_API", "1.12");
+        MoonrakerClientMock client;
+        const nlohmann::json before = TA::ifs_module_materials(client)["slots"]["2"];
+        CHECK(before.contains("spool_id"));
+        CHECK(before["spool_id"].is_null());
+
+        client.gcode_script(edit);
+        const nlohmann::json slots = TA::ifs_module_materials(client)["slots"];
+        CHECK(slots["2"]["spool_id"] == 42);
+        CHECK(slots["2"]["vendor"] == "Polymaker");
+        CHECK(slots["2"]["name"] == "Matte PLA");
+        CHECK(slots["2"]["filament_id"].is_null());
+        CHECK(slots["2"]["bed_temp"] == 60);
+        CHECK(slots["1"]["vendor"].is_null());
+
+        // A parameter left out keeps the field.
+        client.gcode_script("IFS_SET_MATERIAL SLOT=2 TYPE=PLA COLOR=7EC8E3 SPOOL_ID=43");
+        const nlohmann::json kept = TA::ifs_module_materials(client)["slots"]["2"];
+        CHECK(kept["spool_id"] == 43);
+        CHECK(kept["bed_temp"] == 60);
+    }
+    SECTION("an older plugin API states type, color and temperature only") {
+        ScopedEnv api("HELIX_MOCK_IFS_PLUGIN_API", "1.11");
+        MoonrakerClientMock client;
+        client.gcode_script(edit);
+        CHECK_FALSE(TA::ifs_module_materials(client)["slots"]["2"].contains("spool_id"));
+    }
+}

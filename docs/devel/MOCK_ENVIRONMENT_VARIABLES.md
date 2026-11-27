@@ -1120,9 +1120,11 @@ Two more variables stage the rest of the unknown-lane states (#1324):
   none. `IFS_LOAD`/`T<n>` set it, `IFS_UNLOAD` and ejecting that lane clear it.
 
 `HELIX_MOCK_IFS_PLUGIN_API=<version>` (for example `1.12`) adds the `ad5x_plugins` object with
-that `api_version`, as Kiln OS reports it. From 1.12, `IFS_SET_MATERIAL` also writes the slot's
-`lane_data` record the way Kiln's `kiln_lanes` does, from the command's `SPOOL_ID=`, `VENDOR=`,
-`NAME=`, `FILAMENT_ID=` and `BED_TEMP=`, so the backend's firmware-writes-`lane_data` path runs.
+that `api_version`, as Kiln OS reports it. From 1.12, `IFS_SET_MATERIAL` keeps the command's
+`SPOOL_ID=`, `VENDOR=`, `NAME=`, `FILAMENT_ID=` and `BED_TEMP=` (empty clears, left out
+keeps): `ifs_materials` states them
+per slot (null when unset) and the slot's `lane_data` record carries them the way Kiln's
+`kiln_lanes` writes it, so the backend's firmware-writes-`lane_data` path runs.
 
 `_IFS_CLEAR_EXTRUDER` empties the toolhead switch and changes no record. A script carrying
 several commands, one per line, runs each.

@@ -604,8 +604,7 @@ void AmsBackendAd5xIfs::on_stopping() {
     ++lane_writer_session_;
     lane_writer_waits_for_klippy_ = false;
     firmware_writes_lane_records_.reset();
-    firmware_lane_records_.clear();
-    awaited_identity_.clear();
+    firmware_identities_.clear();
     own_lane_extras_.reset();
     private_store_empty_.reset();
     lane_extras_carried_ = false;
@@ -648,6 +647,10 @@ void AmsBackendAd5xIfs::handle_status(const json& status) {
 
     bool state_changed = false;
     bool sensor_changed = false;
+
+    if (apply_firmware_identities_locked(status)) {
+        state_changed = true;
+    }
 
     if (frame.save_variables) {
         apply_save_variables_locked(*frame.save_variables);
@@ -1359,39 +1362,34 @@ void AmsBackendAd5xIfs::update_slot_from_state(int slot_index) {
         if (!materials_[idx].empty()) {
             cache.material = materials_[idx];
         }
-        // A firmware that writes lane_data holds the spool link, and the vendor
-        // and name it was sent; a vendor or name it could not take stays in our
-        // own record, so only a stated one is a reading.
-        const auto rec = firmware_lane_records_.find(slot_index);
-        const helix::ams::FilamentSlotOverride* stated =
-            rec != firmware_lane_records_.end() ? &rec->second : nullptr;
-        int spool_id = stated ? std::max(stated->spoolman_id, 0) : 0;
-        std::string brand = stated ? stated->brand : std::string();
-        std::string spool_name = stated ? stated->spool_name : std::string();
-        // An edit of ours the firmware's record has not caught up with yet
-        // stands in for it: the record lands after the command's echo.
-        bool awaiting = false;
-        if (const auto awaited = awaited_identity_.find(slot_index);
-            awaited != awaited_identity_.end()) {
-            const AwaitedIdentity& a = awaited->second;
-            const bool caught_up = stated != nullptr && spool_id == a.spool_id &&
-                                   brand == a.brand && spool_name == a.spool_name;
-            if (caught_up || std::chrono::steady_clock::now() >= a.deadline) {
-                awaited_identity_.erase(awaited);
-            } else {
-                awaiting = true;
-                spool_id = a.spool_id;
-                brand = a.brand;
-                spool_name = a.spool_name;
+        // A firmware that writes lane_data states the spool link, and the
+        // vendor and name it was sent; a vendor or name it could not take stays
+        // in our own record, so only a stated one is a reading. One that is our
+        // record's text with the characters the command cannot carry dropped
+        // is that text: the record shows it whole.
+        if (const auto stated = firmware_identities_.find(slot_index);
+            firmware_writes_lane_records_ == true && stated != firmware_identities_.end()) {
+            const auto own_it = overrides_.find(slot_index);
+            const helix::ams::FilamentSlotOverride* own =
+                own_it != overrides_.end() ? &own_it->second : nullptr;
+            const auto is_ours_sent = [own](const std::string& stated_text,
+                                            std::string helix::ams::FilamentSlotOverride::*field) {
+                return own != nullptr && own->*field != stated_text &&
+                       helix::lane_writer::sendable_text(own->*field) == stated_text;
+            };
+            cache.spoolman_id = stated->second.spool_id;
+            if (!stated->second.vendor.empty() &&
+                !is_ours_sent(stated->second.vendor, &helix::ams::FilamentSlotOverride::brand)) {
+                cache.brand = stated->second.vendor;
             }
-        }
-        if (stated != nullptr || awaiting) {
-            cache.spoolman_id = spool_id;
-            if (!brand.empty()) {
-                cache.brand = brand;
+            if (!stated->second.name.empty() &&
+                !is_ours_sent(stated->second.name, &helix::ams::FilamentSlotOverride::spool_name)) {
+                cache.spool_name = stated->second.name;
             }
-            if (!spool_name.empty()) {
-                cache.spool_name = spool_name;
+            // The firmware keeps the user's bed temperature; the lane model has
+            // no field for it, so it is the slot's own.
+            if (stated->second.bed_temp) {
+                entry->info.bed_temp = *stated->second.bed_temp;
             }
         }
         helix::ams::ingest(lane_id(slot_index), cache);
@@ -1738,11 +1736,13 @@ void AmsBackendAd5xIfs::open_ifs_lane_records(bool firmware_writes) {
     firmware_writes_lane_records_ = firmware_writes;
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        firmware_lane_records_.clear();
-        awaited_identity_.clear();
         own_lane_extras_.reset();
         private_store_empty_.reset();
         lane_extras_carried_ = false;
+        // The identity frames that came before the answer are the firmware's.
+        for (int slot = 0; slot < port_count(); ++slot) {
+            update_slot_from_state(slot);
+        }
     }
     spdlog::info("{} lane records: {}", backend_log_tag(),
                  firmware_writes ? "the firmware writes lane_data; ours are kept privately"
@@ -1773,18 +1773,26 @@ void AmsBackendAd5xIfs::refresh_backend_keys(helix::ams::FilamentSlotOverrideSto
     if (!api_ || !store.holds_extras_only()) {
         return;
     }
+    {
+        // The firmware's identity arrives by status; lane_data is read only
+        // until the carry-over has it.
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (own_lane_extras_) {
+            return;
+        }
+    }
     auto token = lifetime_.token();
     api_->database_get_namespace(
         helix::ams::kLaneDataNamespace,
         [this, token](const json& doc) {
-            token.defer("Ad5xIfsBackend::adopt_firmware_lane_records",
-                        [this, doc]() { adopt_firmware_lane_records(doc); });
+            token.defer("Ad5xIfsBackend::adopt_own_lane_extras",
+                        [this, doc]() { adopt_own_lane_extras(doc); });
         },
         [this, token](const MoonrakerError& err) {
             // Nothing written yet is an empty namespace, not an unreachable one.
             if (err.is_not_found()) {
-                token.defer("Ad5xIfsBackend::no_firmware_lane_records",
-                            [this]() { adopt_firmware_lane_records(json::object()); });
+                token.defer("Ad5xIfsBackend::no_own_lane_extras",
+                            [this]() { adopt_own_lane_extras(json::object()); });
             }
         });
 }
@@ -1804,11 +1812,10 @@ bool AmsBackendAd5xIfs::written_by_helixscreen(const json& wire) {
     return false;
 }
 
-void AmsBackendAd5xIfs::adopt_firmware_lane_records(const json& namespace_doc) {
+void AmsBackendAd5xIfs::adopt_own_lane_extras(const json& namespace_doc) {
     if (firmware_writes_lane_records_ != true) {
         return;
     }
-    std::unordered_map<int, helix::ams::FilamentSlotOverride> records;
     std::unordered_map<int, helix::ams::FilamentSlotOverride> own_extras;
     for (auto& [slot, entry] : helix::ams::parse_namespace_document(
              namespace_doc, helix::ams::LaneKeyStyle::Lane, backend_log_tag())) {
@@ -1821,33 +1828,36 @@ void AmsBackendAd5xIfs::adopt_firmware_lane_records(const json& namespace_doc) {
             own_extras.emplace(slot,
                                helix::ams::extras_only(entry.record, private_extras_fields()));
         }
-        records.emplace(slot, std::move(entry.record));
     }
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        if (!own_lane_extras_) {
-            own_lane_extras_ = std::move(own_extras);
-            carry_over_lane_extras_locked();
-        }
-        const auto same = [](const helix::ams::FilamentSlotOverride& a,
-                             const helix::ams::FilamentSlotOverride& b) {
-            return a.spoolman_id == b.spoolman_id && a.brand == b.brand &&
-                   a.spool_name == b.spool_name;
-        };
-        bool changed = records.size() != firmware_lane_records_.size();
-        for (const auto& [slot, rec] : records) {
-            const auto it = firmware_lane_records_.find(slot);
-            changed = changed || it == firmware_lane_records_.end() || !same(it->second, rec);
-        }
-        if (!changed) {
-            return;
-        }
-        firmware_lane_records_ = std::move(records);
-        for (int slot = 0; slot < port_count(); ++slot) {
-            update_slot_from_state(slot);
-        }
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!own_lane_extras_) {
+        own_lane_extras_ = std::move(own_extras);
+        carry_over_lane_extras_locked();
     }
-    emit_event(EVENT_STATE_CHANGED);
+}
+
+bool AmsBackendAd5xIfs::apply_firmware_identities_locked(const json& status) {
+    // Kept before the firmware's answer too: the status sends a slot again
+    // only when it changes.
+    // Every port the hardware can have is kept, not only today's count: the
+    // frame that raises the count is read after this, and update_slot_from_state()
+    // reads only the ports that exist.
+    bool changed = false;
+    for (auto& [slot, identity] : helix::lane_writer::slot_identities(status)) {
+        if (slot >= ad5x::kMaxPorts) {
+            continue;
+        }
+        const auto it = firmware_identities_.find(slot);
+        if (it != firmware_identities_.end() && it->second.spool_id == identity.spool_id &&
+            it->second.vendor == identity.vendor && it->second.name == identity.name &&
+            it->second.filament_id == identity.filament_id &&
+            it->second.bed_temp == identity.bed_temp) {
+            continue;
+        }
+        firmware_identities_[slot] = std::move(identity);
+        changed = changed || firmware_writes_lane_records_ == true;
+    }
+    return changed;
 }
 
 void AmsBackendAd5xIfs::carry_over_lane_extras_locked() {
@@ -1879,8 +1889,9 @@ void AmsBackendAd5xIfs::carry_over_lane_extras_locked() {
     }
 }
 
-std::string AmsBackendAd5xIfs::firmware_identity_params_locked(int slot_index,
-                                                               const std::string& material) const {
+std::string AmsBackendAd5xIfs::firmware_identity_params_locked(
+    int slot_index, const std::string& material,
+    const helix::ams::FilamentSlotOverride& prior) const {
     if (firmware_writes_lane_records_ != true) {
         return {};
     }
@@ -1898,11 +1909,24 @@ std::string AmsBackendAd5xIfs::firmware_identity_params_locked(int slot_index,
     identity.vendor = o.brand;
     identity.name = o.spool_name;
     // A Generic preset is only a material claim: sent empty, the firmware
-    // names its own profile for the type. Likewise a bed temperature nobody
-    // set is left to it.
+    // names its own profile for the type.
     const helix::ams::OrcaFilamentId orca = helix::ams::orca_filament_id_for(o);
     identity.filament_id = orca.generic ? std::string() : orca.id;
-    identity.bed_temp = o.bed_temp;
+    // A temperature goes out only when this edit set or cleared it: one set on
+    // the printer's own screen is the firmware's to keep. The firmware states
+    // the bed temperature it holds, which is what the edit changes; it states
+    // no user nozzle temperature, so that one is compared with our record.
+    int bed_before = prior.bed_temp;
+    if (const auto stated = firmware_identities_.find(slot_index);
+        stated != firmware_identities_.end() && stated->second.bed_temp) {
+        bed_before = *stated->second.bed_temp;
+    }
+    if (o.bed_temp != bed_before) {
+        identity.bed_temp = o.bed_temp;
+    }
+    if (o.nozzle_temp != prior.nozzle_temp) {
+        identity.nozzle_temp = o.nozzle_temp;
+    }
     return helix::lane_writer::slot_identity_params(identity);
 }
 
@@ -3374,8 +3398,13 @@ AmsError AmsBackendAd5xIfs::apply_user_edit(int slot_index, const SlotInfo& info
         // lane_data record. Colour and type go to the firmware below; the
         // record takes them from the firmware's echo, so it never names a
         // colour the firmware refused.
+        // The record before this edit: what the edit changed is sent.
+        const auto prior = overrides_.find(slot_index);
+        const helix::ams::FilamentSlotOverride prior_record =
+            prior != overrides_.end() ? prior->second : helix::ams::FilamentSlotOverride{};
         persist_record_beside_firmware_locked(slot_index, info);
-        identity_params = firmware_identity_params_locked(slot_index, normalized_material);
+        identity_params =
+            firmware_identity_params_locked(slot_index, normalized_material, prior_record);
 
         settle_port_locked(slot_index);
     }
@@ -3405,15 +3434,6 @@ AmsError AmsBackendAd5xIfs::apply_user_edit(int slot_index, const SlotInfo& info
             " TYPE=" + normalized_material + " COLOR=" + color_hex + identity_params);
         if (!err.success()) {
             return err;
-        }
-        // The command is out: its spool link, vendor and name are the slot's
-        // firmware reading until the firmware's record states them.
-        if (!identity_params.empty()) {
-            std::lock_guard<std::mutex> lock(mutex_);
-            awaited_identity_[slot_index] = AwaitedIdentity{
-                std::max(info.spoolman_id, 0), helix::lane_writer::sendable_text(info.brand),
-                helix::lane_writer::sendable_text(info.spool_name),
-                std::chrono::steady_clock::now() + helix::ams::kPendingWriteTimeout};
         }
     } else {
         // Write directly to Adventurer5M.json — zmod's authoritative store.
@@ -5223,6 +5243,7 @@ bool AmsBackendAd5xIfs::apply_port_count_locked(int count) {
     // they held so a later grow starts them unobserved.
     for (int i = ports; i < previous; ++i) {
         const auto idx = static_cast<size_t>(i);
+        firmware_identities_.erase(i);
         port_presence_[idx] = false;
         presence_observed_[idx] = false;
         colors_[idx].clear();
