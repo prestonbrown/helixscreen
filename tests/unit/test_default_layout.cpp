@@ -2267,6 +2267,8 @@ TEST_CASE("default_layout: every measured grid is covered or declared empty",
             }
         }
     }
+    // Every measured grid under each of the four capability sets was probed.
+    CHECK(probe == helix::test::kMeasuredGrids.size() * 4);
 }
 
 TEST_CASE("default_layout: every declared gap is whole cells on its grid",

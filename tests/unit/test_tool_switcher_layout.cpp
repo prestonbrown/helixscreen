@@ -270,10 +270,12 @@ TEST_CASE("Tool switcher layout: Single fills the whole box", "[tool_switcher][1
 TEST_CASE("Tool switcher layout: no mode yields a cell under the touch floor",
           "[tool_switcher][1784]") {
     helix::test::SampleChecks samples;
+    int layouts = 0;
     for (const bool park : {true, false}) {
         for (int heads = 1; heads <= 16; heads++) {
             for (int w = 40; w <= 260; w += 6) {
                 for (int h = 40; h <= 260; h += 6) {
+                    layouts++;
                     const ToolSwitcherLayout l = decide_tool_switcher_layout(
                         heads, w, h, kMin, kGap, 18, 16, helix::ToolSwitcherActions{park, false});
                     INFO(heads << " heads on " << w << "x" << h << (park ? "" : ", no Park") << ": "
@@ -290,6 +292,8 @@ TEST_CASE("Tool switcher layout: no mode yields a cell under the touch floor",
             }
         }
     }
+    // Two parks, sixteen head counts and 37 by 37 sizes.
+    CHECK(layouts == 2 * 16 * 37 * 37);
 }
 
 TEST_CASE("Tool switcher layout: a detail block fits under a tall rail", "[tool_switcher][1784]") {
