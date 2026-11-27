@@ -139,3 +139,116 @@ EOF
     [ "$status" -eq 2 ]
     contains "not an executable" "$output"
 }
+
+# ------------------------------------------------------------ the stage in memory
+
+# What the host offers the script: python3 and a memfd.
+can_stage() { python3 -c 'import os; os.memfd_create("suite-report")' 2>/dev/null; }
+
+# A fake suite that notes, into $FAKE_SEES.saw, whether the report already
+# stands at its path while the suite is running.
+fake_suite_that_looks() {
+    export FAKE_SEES="$REPORT"
+    fake_suite <<'EOF'
+printf '<Catch2TestRun name="t">\n<TestCase name="one" filename="t.cpp"/>\n' > "$OUT"
+if [ -e "$FAKE_SEES" ]; then echo present > "$FAKE_SEES.saw"; else echo absent > "$FAKE_SEES.saw"; fi
+printf '<TestCase name="two" filename="t.cpp"/>\n</Catch2TestRun>\n' >> "$OUT"
+EOF
+}
+
+@test "the report stands at its path only once the run is over" {
+    can_stage || skip "no memfd on this host"
+    fake_suite_that_looks
+    guard
+    [ "$status" -eq 0 ]
+    contains "report in memory" "$output"
+    # While the suite wrote, nothing at the path could be mistaken for its report.
+    contains "absent" "$(cat "$REPORT.saw")"
+    contains "2 cases" "$output"
+    grep -q 'TestCase name="one"' "$REPORT"
+    grep -q 'TestCase name="two"' "$REPORT"
+}
+
+@test "a stalled run's partial report reaches its path too" {
+    can_stage || skip "no memfd on this host"
+    stall_after_secs 2
+    fake_suite <<'EOF'
+printf '<Catch2TestRun name="t">\n<TestCase name="the case that never returns" filename="t.cpp">\n<Expression success="true"/>\n' > "$OUT"
+sleep 300
+EOF
+    guard
+    [ "$status" -eq 1 ]
+    contains "STALLED" "$output"
+    grep -q 'TestCase name="the case that never returns"' "$REPORT"
+    grep -q '<Expression success="true"/>' "$REPORT"
+}
+
+@test "HELIX_REPORT_DIRECT=1 writes the report to its path as the suite runs" {
+    export HELIX_REPORT_DIRECT=1
+    fake_suite_that_looks
+    guard
+    [ "$status" -eq 0 ]
+    contains "present" "$(cat "$REPORT.saw")"
+    contains "2 cases" "$output"
+}
+
+@test "with no python3 to open a stage the suite writes the report path itself" {
+    mock_command_script python3 'exit 127'
+    fake_suite_that_looks
+    guard
+    [ "$status" -eq 0 ]
+    contains "present" "$(cat "$REPORT.saw")"
+    contains "2 cases" "$output"
+}
+
+@test "a stage that cannot be reached sends the suite to the report path" {
+    # The descriptor number the second start trusts, with nothing open on it:
+    # what a process without /proc to reach it through has.
+    export _SUITE_REPORT_STAGE_FD=9
+    fake_suite_that_looks
+    guard
+    [ "$status" -eq 0 ]
+    contains "present" "$(cat "$REPORT.saw")"
+    contains "2 cases" "$output"
+}
+
+@test "a staged report that cannot reach its path fails as unusable" {
+    can_stage || skip "no memfd on this host"
+    # A directory stands where the report should be written.
+    mkdir "$REPORT"
+    fake_suite <<'EOF'
+printf '<Catch2TestRun name="t">\n<TestCase name="one" filename="t.cpp"/>\n</Catch2TestRun>\n' > "$OUT"
+EOF
+    guard
+    [ "$status" -eq 2 ]
+    contains "cannot write" "$output"
+}
+
+@test "a TERM to the watch ends the suite before it publishes what the suite had written" {
+    can_stage || skip "no memfd on this host"
+    export FAKE_PID="$WORK/suite.pid"
+    fake_suite <<'EOF'
+printf '<Catch2TestRun name="t">\n<TestCase name="slow case" filename="t.cpp">\n' > "$OUT"
+echo $$ > "$FAKE_PID"
+sleep 300
+EOF
+    # By hand, without `run`: the signal is this test's to send.
+    bash "$SCRIPT" "$BIN" "~[.]" "$REPORT" >"$WORK/watch.log" 2>&1 &
+    watch=$!
+    for _ in $(seq 1 100); do
+        [ -s "$FAKE_PID" ] && break
+        sleep 0.1
+    done
+    suite=$(cat "$FAKE_PID")
+    kill -TERM "$watch"
+    # A watch ended by a signal reports that signal as its status.
+    if wait "$watch" 2>/dev/null; then watch_status=0; else watch_status=$?; fi
+    [ "$watch_status" -eq 143 ]
+    if kill -0 "$suite" 2>/dev/null; then
+        kill -9 "$suite" 2>/dev/null
+        fail "the suite $suite outlived the watch it was started by"
+    fi
+    # What the suite had written is there, whole: nothing wrote to it after.
+    contains "slow case" "$(cat "$REPORT")"
+    contains "report in memory" "$(cat "$WORK/watch.log")"
+}
