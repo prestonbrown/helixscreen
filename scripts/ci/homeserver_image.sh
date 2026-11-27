@@ -5,11 +5,14 @@
 # (docker/Dockerfile.homeserver) in a run of .github/workflows/release.yml.
 #
 # The image is the released x86_64 desktop package, which the Dockerfile
-# downloads and checks against a sha256. A release reads the channel manifest
-# on the public URL. A dry run is not served, so the run's own package is put
-# on a web server on this host for the length of the build. The build shares
-# the host's network to reach that server, which `docker build` offers on its
-# default driver and buildx does not.
+# downloads and checks against a sha256. A release takes both from its channel
+# manifest and refuses a manifest that serves another version: the re-run of an
+# old release, or two releases at once, must never tag an image with contents
+# it does not hold, because a registry has no downgrade guard. A dry run is not
+# served, so the run's own package is put on a web server on this host for the
+# length of the build. The build shares the host's network to reach that
+# server: `docker build` runs on the runner's default builder, whose docker
+# driver takes --network=host without an entitlement.
 #
 # The container is started once before anything is pushed, with no network and
 # a printer address nothing answers, so it can never reach a real printer
@@ -20,12 +23,20 @@
 #     tags VERSION CHANNEL CHANNELS   the tags to push, one per line: VERSION,
 #                                      each channel of CHANNELS, and latest
 #                                      only when CHANNEL is stable
-#     has-desktop MANIFEST_URL        0 when the manifest lists an x86-desktop
-#                                      package, 1 when it lists none, 2 when it
+#     has-desktop MANIFEST_URL VERSION
+#                                      0 and the package's sha256 on stdout
+#                                      when the manifest serves VERSION and
+#                                      lists an x86-desktop package, 1 when it
+#                                      lists none, 2 when it cannot be read,
+#                                      serves another version or names no
+#                                      sha256
+#     channel-current MANIFEST_URL VERSION
+#                                      0 when the manifest serves VERSION, 2
+#                                      when it serves another version or
 #                                      cannot be read
 #     stage ZIP TAG DIR               put ZIP at DIR/releases/TAG/, where the
 #                                      Dockerfile looks, and print its sha256
-#     build-release IMAGE CHANNEL BASE_URL VERSION REVISION SOURCE_URL
+#     build IMAGE TAG SHA256 BASE_URL VERSION REVISION SOURCE_URL
 #     build-dryrun IMAGE TAG ZIP VERSION REVISION SOURCE_URL
 #     listen FILE PORT                0 when FILE, a /proc/net/tcp, has a socket
 #                                      listening on every address at PORT
@@ -87,6 +98,38 @@ stage() {
     sha256sum "$zip" | awk '{print $1}'
 }
 
+# The manifest at @p url on stdout, or nothing and a message on stderr.
+read_manifest() {
+    curl -fsSL --retry 3 "$1" || { echo "cannot read $1" >&2; return 1; }
+}
+
+# Fail unless @p manifest, read from @p url, serves @p version.
+serves_version() {
+    local manifest=$1 version=$2 url=$3 served
+    served=$(jq -r '.version // empty' <<< "$manifest")
+    if [ "$served" != "$version" ]; then
+        echo "$url serves version '${served:-none}', not $version" >&2
+        return 1
+    fi
+}
+
+# What docker build takes before its own arguments: the dry run's host network.
+BUILD_OPTS=()
+
+# docker build of TAG's package, downloaded from BASE_URL and checked against
+# SHA256, as IMAGE, labelled with VERSION and REVISION.
+docker_build() {
+    local image=$1 tag=$2 sha=$3 base=$4 version=$5 revision=$6 source=$7
+    # shellcheck disable=SC2086 # an empty BUILD_OPTS must expand to nothing
+    docker build ${BUILD_OPTS[@]+"${BUILD_OPTS[@]}"} \
+        --build-arg "RELEASE=$tag" --build-arg "RELEASE_SHA256=$sha" \
+        --build-arg "R2_BASE_URL=$base" \
+        --label "org.opencontainers.image.source=$source" \
+        --label "org.opencontainers.image.version=$version" \
+        --label "org.opencontainers.image.revision=$revision" \
+        -t "$image" -f "$dockerfile" "$context"
+}
+
 cmd=${1:-}
 [ -n "$cmd" ] || { usage >&2; exit 2; }
 shift
@@ -104,14 +147,25 @@ tags)
     ;;
 
 has-desktop)
-    [ $# -eq 1 ] || die "has-desktop takes MANIFEST_URL"
-    manifest=$(curl -fsSL --retry 3 "$1") || { echo "cannot read $1" >&2; exit 2; }
-    if jq -e '.assets["x86-desktop"]' <<< "$manifest" >/dev/null 2>&1; then
-        echo "$1 lists an x86-desktop package"
-    else
-        echo "$1 lists no x86-desktop package"
+    [ $# -eq 2 ] || die "has-desktop takes MANIFEST_URL and VERSION"
+    manifest=$(read_manifest "$1") || exit 2
+    serves_version "$manifest" "$2" "$1" || exit 2
+    if ! jq -e '.assets["x86-desktop"]' <<< "$manifest" >/dev/null 2>&1; then
+        echo "$1 lists no x86-desktop package" >&2
         exit 1
     fi
+    sha=$(jq -er '.assets["x86-desktop"].zip_sha256' <<< "$manifest") || {
+        echo "$1 lists an x86-desktop package with no sha256" >&2
+        exit 2
+    }
+    echo "$sha"
+    ;;
+
+channel-current)
+    [ $# -eq 2 ] || die "channel-current takes MANIFEST_URL and VERSION"
+    manifest=$(read_manifest "$1") || exit 2
+    serves_version "$manifest" "$2" "$1" || exit 2
+    echo "$1 still serves $2"
     ;;
 
 stage)
@@ -119,13 +173,10 @@ stage)
     stage "$1" "$2" "$3"
     ;;
 
-build-release)
-    [ $# -eq 6 ] || die "build-release takes IMAGE, CHANNEL, BASE_URL, VERSION, REVISION and SOURCE_URL"
-    docker build --build-arg "CHANNEL=$2" --build-arg "R2_BASE_URL=$3" \
-        --label "org.opencontainers.image.source=$6" \
-        --label "org.opencontainers.image.version=$4" \
-        --label "org.opencontainers.image.revision=$5" \
-        -t "$1" -f "$dockerfile" "$context"
+build)
+    [ $# -eq 7 ] || die "build takes IMAGE, TAG, SHA256, BASE_URL, VERSION, REVISION and SOURCE_URL"
+    BUILD_OPTS=()
+    docker_build "$@"
     ;;
 
 build-dryrun)
@@ -154,12 +205,8 @@ build-dryrun)
         fi
         sleep 0.5
     done
-    docker build --network=host --build-arg "RELEASE=$2" --build-arg "RELEASE_SHA256=$sha" \
-        --build-arg "R2_BASE_URL=http://127.0.0.1:$at" \
-        --label "org.opencontainers.image.source=$6" \
-        --label "org.opencontainers.image.version=$4" \
-        --label "org.opencontainers.image.revision=$5" \
-        -t "$1" -f "$dockerfile" "$context"
+    BUILD_OPTS=(--network=host)
+    docker_build "$1" "$2" "$sha" "http://127.0.0.1:$at" "$4" "$5" "$6"
     ;;
 
 listen)

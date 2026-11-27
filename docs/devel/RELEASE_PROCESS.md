@@ -189,6 +189,8 @@ Setup (both environments, the exact `gh secret set` commands, the dev key's two-
 | ESP32 K-Touch | `helixscreen-esp32-ktouch-<version>.zip` | Firmware image and `README.txt` |
 | Android | APK and AAB; Play Store upload via `publish-android` | |
 
+The home-server image is pushed after the GitHub release is public, and only while each channel's manifest still serves the release, because a registry has no downgrade guard. Its package is created private by the first push: once, by hand, set `ghcr.io/prestonbrown/helixscreen-homeserver` to public in its package settings, and check on its page that it is linked to this repository (every image carries the source label that asks for the link). Until then a `docker pull` answers `denied`.
+
 Each platform ships as `helixscreen-{platform}.zip` (unversioned filename) and nothing else. `helixscreen-ad5m.zip` must stay the alphabetically first asset of the release, which the release job checks: an old Moonraker's `zip_deploy` installs `assets[0]` (helixscreen#993, #2147).
 
 ---
