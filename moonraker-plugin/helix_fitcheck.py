@@ -10,8 +10,10 @@ the nozzles its extruders report at runtime, and gives findings
 
     out_of_bounds           block  a move outside an axis' travel, or a delta's radius
     temp_over_max           block  a heater target above its max_temp
-    too_many_tools          block  a tool number past the printer's last extruder
-                            warn   ... past a count raised by T macros
+    too_many_tools          block  more tools than the printer's extruders
+                            warn   a tool number past the last that the count allows,
+                                   or past a count raised by T macros; never for a
+                                   one-tool file on a one-tool printer
     nozzle_mismatch         warn   the slicer's nozzle differs from the extruder's
     nozzle_flow_mismatch    warn   the slicer's nozzle flow type differs from the extruder's
     printer_model_mismatch  note   the slicer's printer is not this printer
@@ -343,11 +345,18 @@ def check_fit(machine: Dict[str, Any], facts: Dict[str, Any]) -> List[Dict[str, 
 
     tool_count = machine.get("tool_count")
     tools = [t for t in facts.get("tools") or [] if isinstance(t, int) and not isinstance(t, bool)]
+    # A tool number names a filament slot as often as a nozzle: a one-filament
+    # file sliced on filament 4 says T3 in its accounting, or selects T3 once,
+    # and Klipper runs an unknown T3 as a no-op. So a one-tool printer prints
+    # any one-tool file, and only a file needing more tools than the printer
+    # has blocks; a number past the last otherwise asks.
     if isinstance(tool_count, int) and not isinstance(tool_count, bool) and tools:
         highest = max(tools)
-        if highest >= tool_count:
-            severity = SEVERITY_BLOCK if machine.get("tool_count_confirmed") is True \
-                else SEVERITY_WARN
+        needed = len(set(tools))
+        one_on_one = tool_count == 1 and needed == 1
+        if highest >= tool_count and not one_on_one:
+            blocks = machine.get("tool_count_confirmed") is True and needed > tool_count
+            severity = SEVERITY_BLOCK if blocks else SEVERITY_WARN
             findings.append(_finding(KIND_TOO_MANY_TOOLS, severity,
                                      tool=highest, limit=tool_count))
 
