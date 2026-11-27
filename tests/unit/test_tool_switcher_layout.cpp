@@ -15,6 +15,7 @@
  * Run with: ./build/bin/helix-tests "[tool_switcher]"
  */
 
+#include "../test_helpers/sample_checks.h"
 #include "src/ui/panel_widgets/tool_switcher_layout.h"
 
 #include <vector>
@@ -268,6 +269,7 @@ TEST_CASE("Tool switcher layout: Single fills the whole box", "[tool_switcher][1
 
 TEST_CASE("Tool switcher layout: no mode yields a cell under the touch floor",
           "[tool_switcher][1784]") {
+    helix::test::SampleChecks samples;
     for (const bool park : {true, false}) {
         for (int heads = 1; heads <= 16; heads++) {
             for (int w = 40; w <= 260; w += 6) {
@@ -277,13 +279,13 @@ TEST_CASE("Tool switcher layout: no mode yields a cell under the touch floor",
                     INFO(heads << " heads on " << w << "x" << h << (park ? "" : ", no Park") << ": "
                                << mode_name(l.mode) << " " << l.cell_w << "x" << l.cell_h);
                     if (l.mode == ToolSwitcherMode::Single && (w < kMin || h < kMin)) {
-                        REQUIRE(l.cell_w == w);
-                        REQUIRE(l.cell_h == h);
+                        SAMPLE_REQUIRE(samples, l.cell_w == w, heads * 100000 + w * 400 + h);
+                        SAMPLE_REQUIRE(samples, l.cell_h == h, heads * 100000 + w * 400 + h);
                         continue;
                     }
-                    REQUIRE(l.cell_w >= kMin);
-                    REQUIRE(l.cell_h >= kMin);
-                    REQUIRE(l.rail_h <= h);
+                    SAMPLE_REQUIRE(samples, l.cell_w >= kMin, heads * 100000 + w * 400 + h);
+                    SAMPLE_REQUIRE(samples, l.cell_h >= kMin, heads * 100000 + w * 400 + h);
+                    SAMPLE_REQUIRE(samples, l.rail_h <= h, heads * 100000 + w * 400 + h);
                 }
             }
         }
