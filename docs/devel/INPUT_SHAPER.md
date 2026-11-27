@@ -437,6 +437,8 @@ Saving never sends `SET_INPUT_SHAPER` or `SAVE_CONFIG`: `handle_save_clicked()` 
 
 The plugin refuses options that live only in the `SAVE_CONFIG` block, so `plan_plugin_config_edits()` routes such a list to the file API. There an `ADD_KEY` of such an option is written into `printer.cfg`, never an include: Klipper reads a regular definition instead of the block's, and its next `SAVE_CONFIG` of that option comments out a duplicate in `printer.cfg` but refuses one in an included file ("conflicts with included value"). A failed `server.helix.config` read also falls back, since nothing is written yet. Both writers end in the same `restart_and_monitor()`: `FIRMWARE_RESTART`, wait for Klipper, and on timeout restore the backups and restart again.
 
+**A running job refuses the save.** Every edit asks `restart_refusal_reason()` (`src/api/moonraker_gcode_guards.cpp`) at its entry, before anything is read or written, and the editor asks again on the main thread right before the `FIRMWARE_RESTART`; a job that started in between puts the backups back and reports the refusal, with no restart sent. The send layer refuses a restart only for the spool latch, so a recovery restart goes out while a job still reads printing. The restart check is deferred from the write callback to the main thread through a token the editor takes at construction. An owner destroyed before that queued check runs leaves the written file with neither a restart nor a restore; the editor's owners are long-lived panels, so this is accepted.
+
 Tests: `[plugin_config_edit]` (`tests/unit/test_config_edit_plugin.cpp`), which also pins `resolve_includes()` against the plugin's reader on the shared fixture tree `tests/fixtures/klipper_config_tree/`.
 
 ---

@@ -608,6 +608,7 @@
   <translation tag="Can&apos;t connect — try forgetting and re-pairing the printer" en="Can&apos;t connect — try forgetting and re-pairing the printer"/>
   <translation tag="Can&apos;t move filament while the print is paused" en="Can&apos;t move filament while the print is paused"/>
   <translation tag="Can&apos;t reach this printer. Save anyway?" en="Can&apos;t reach this printer. Save anyway?"/>
+  <translation tag="Can&apos;t restart Klipper while a print is running." en="Can&apos;t restart Klipper while a print is running."/>
   <translation tag="Can&apos;t read filament RFID tag" en="Can&apos;t read filament RFID tag"/>
   <translation tag="Cancel" en="Cancel"/>
   <translation tag="Cancel Escalation" en="Cancel Escalation"/>

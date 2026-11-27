@@ -15,6 +15,7 @@
 #include "../../include/ui_probe_overlay.h"
 #include "../../src/api/moonraker_gcode_guards.h"
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
@@ -25,6 +26,7 @@
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 
@@ -283,4 +285,113 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     helix::ui::set_test_toast_hook(nullptr);
     set_moonraker_api(previous);
+}
+
+namespace {
+
+enum class JobHeld { Printing, Paused, Preparing };
+
+void hold_machine(PrinterState& state, JobHeld held) {
+    switch (held) {
+    case JobHeld::Printing:
+        helix::test::set_wire_state(state, PrintJobState::PRINTING);
+        break;
+    case JobHeld::Paused:
+        helix::test::set_wire_state(state, PrintJobState::PAUSED);
+        break;
+    case JobHeld::Preparing:
+        state.print_state().begin_preparing(PrintJobRef{"chosen.gcode", "", ""});
+        break;
+    }
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+}
+
+const char* const kRestartPrinting = "Can't restart Klipper while a print is running.";
+
+} // namespace
+
+TEST_CASE_METHOD(SpoolLatchFixture,
+                 "the send layer never refuses a restart for a job: recovery must go out",
+                 "[restart_guard][mock]") {
+    // An e-stop escalation restarts while print_stats still reads printing and
+    // Klippy still reads READY.
+    hold_machine(state, GENERATE(JobHeld::Printing, JobHeld::Paused, JobHeld::Preparing));
+    // Each call is judged on its own: the mock answers some with an error of its own.
+    const auto refused_for_job = [this](const std::function<void()>& call) {
+        captured_error = MoonrakerError{};
+        call();
+        return captured_error.message == kRestartPrinting;
+    };
+    CHECK_FALSE(refused_for_job([&] { api->restart_firmware([] {}, on_error()); }));
+    CHECK_FALSE(refused_for_job([&] { api->restart_klipper([] {}, on_error()); }));
+    CHECK_FALSE(refused_for_job([&] { api->restart_service("klipper", [] {}, on_error()); }));
+    CHECK_FALSE(
+        refused_for_job([&] { api->execute_gcode("FIRMWARE_RESTART", nullptr, on_error()); }));
+    CHECK_FALSE(refused_for_job([&] { api->execute_gcode("SAVE_CONFIG", nullptr, on_error()); }));
+}
+
+#if HELIX_HAS_PLUGINS
+TEST_CASE_METHOD(SpoolLatchFixture, "a plugin's restart is refused while a job holds the machine",
+                 "[restart_guard][plugin]") {
+    hold_machine(state, GENERATE(JobHeld::Printing, JobHeld::Paused, JobHeld::Preparing));
+    using json = nlohmann::json;
+    const bool refused = GENERATE(true, false);
+    CAPTURE(refused);
+    if (refused) {
+        const auto call = GENERATE(
+            std::make_pair(std::string("printer.firmware_restart"), json::object()),
+            std::make_pair(std::string("printer.restart"), json::object()),
+            std::make_pair(std::string("machine.services.restart"), json{{"service", "klipper"}}),
+            std::make_pair(std::string("printer.gcode.script"), json{{"script", "SAVE_CONFIG"}}),
+            std::make_pair(std::string("printer.gcode.script"),
+                           json{{"script", "M117 x\nrestart"}}));
+        CAPTURE(call.first, call.second.dump());
+        CHECK(helix::api::reject_plugin_rpc(state, call.first, call.second, on_error()));
+        CHECK(captured_error.message == kRestartPrinting);
+    } else {
+        const auto call = GENERATE(
+            std::make_pair(std::string("machine.services.restart"), json{{"service", "moonraker"}}),
+            std::make_pair(std::string("printer.gcode.script"),
+                           json{{"script", "SAVE_CONFIG RESTART=0"}}),
+            std::make_pair(std::string("printer.gcode.script"),
+                           json{{"script", "save_config restart=0"}}),
+            std::make_pair(std::string("printer.gcode.script"),
+                           json{{"script", "M117 SAVE_CONFIG_DONE"}}));
+        CAPTURE(call.first, call.second.dump());
+        CHECK_FALSE(helix::api::reject_plugin_rpc(state, call.first, call.second, on_error()));
+        CHECK_FALSE(error_called);
+    }
+}
+
+TEST_CASE_METHOD(SpoolLatchFixture, "a plugin's restart goes out when idle or halted",
+                 "[restart_guard][plugin]") {
+    using json = nlohmann::json;
+    SECTION("idle") {
+        CHECK_FALSE(helix::api::reject_plugin_rpc(state, "printer.firmware_restart", json::object(),
+                                                  on_error()));
+    }
+    SECTION("halted with a job on the books") {
+        hold_machine(state, JobHeld::Printing);
+        state.set_klippy_state_sync(GENERATE(KlippyState::SHUTDOWN, KlippyState::ERROR));
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        CHECK_FALSE(helix::api::reject_plugin_rpc(state, "printer.firmware_restart", json::object(),
+                                                  on_error()));
+    }
+    CHECK_FALSE(error_called);
+}
+#endif
+
+TEST_CASE("gcode_restarts_klipper reads a line's own command", "[restart_guard][gcode]") {
+    using helix::api::gcode_restarts_klipper;
+    CHECK(gcode_restarts_klipper("RESTART"));
+    CHECK(gcode_restarts_klipper("firmware_restart"));
+    CHECK(gcode_restarts_klipper("  SAVE_CONFIG"));
+    CHECK(gcode_restarts_klipper("M117 a\nSAVE_CONFIG\nM117 b"));
+    CHECK(gcode_restarts_klipper("SAVE_CONFIG RESTART=1"));
+    CHECK_FALSE(gcode_restarts_klipper("SAVE_CONFIG RESTART=0"));
+    CHECK_FALSE(gcode_restarts_klipper("save_config restart=0"));
+    CHECK_FALSE(gcode_restarts_klipper("M117 SAVE_CONFIG"));
+    CHECK_FALSE(gcode_restarts_klipper("; RESTART"));
+    CHECK_FALSE(gcode_restarts_klipper("RESTART_MACRO"));
+    CHECK_FALSE(gcode_restarts_klipper(""));
 }

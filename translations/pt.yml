@@ -663,6 +663,7 @@ translations:
   Can't move filament while the print is paused: Não é possível mover o filamento com a impressão pausada
   Can't read filament RFID tag: Não é possível ler a etiqueta RFID do filamento
   Can't reach this printer. Save anyway?: Não foi possível alcançar esta impressora. Salvar mesmo assim?
+  Can't restart Klipper while a print is running.: Não é possível reiniciar o Klipper durante uma impressão.
   Cancel: Cancelar
   Cancel Escalation: Cancelar Escalação
   Cancel Print: Cancelar Impressão

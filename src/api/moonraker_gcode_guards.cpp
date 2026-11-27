@@ -8,10 +8,14 @@
 #include "moonraker_validation.h"
 #include "platform_info.h"
 #include "plugin_permissions.h"
+#include "print_lifecycle_state.h"
 #include "printer_state.h"
 #include "spdlog/spdlog.h"
 #include "spool_latch_gate.h"
 #include "translation_loader.h"
+
+#include <cctype>
+#include <sstream>
 
 namespace helix {
 
@@ -22,6 +26,10 @@ const char* spool_latch_message() {
 const char* spool_latch_restart_message() {
     return TR_NOOP("Spools are on the bed: tap the drying banner to confirm they are off, then "
                    "restart.");
+}
+
+const char* restart_while_printing_message() {
+    return TR_NOOP("Can't restart Klipper while a print is running.");
 }
 
 } // namespace helix
@@ -107,6 +115,87 @@ bool reject_restart_while_spools_on_bed(
     return true;
 }
 
+const char* restart_refusal_reason(const helix::PrinterState* state) {
+    if (!state) {
+        return nullptr;
+    }
+    if (state->print_state().spool_latch_active()) {
+        return helix::spool_latch_restart_message();
+    }
+    const int klippy = lv_subject_get_int(
+        const_cast<helix::PrinterState*>(state)->network_state().get_klippy_state_subject());
+    if (klippy == static_cast<int>(helix::KlippyState::READY) &&
+        job_holds_machine(state->print_state().get_print_lifecycle())) {
+        return helix::restart_while_printing_message();
+    }
+    return nullptr;
+}
+
+bool reject_restart(const helix::PrinterState* state, const char* method,
+                    const helix::SharedCallback<void(const MoonrakerError&)>& on_error) {
+    const char* reason = restart_refusal_reason(state);
+    if (!reason) {
+        return false;
+    }
+    spdlog::warn("[Moonraker API] Refusing {}: {}", method, reason);
+    if (on_error) {
+        on_error(MoonrakerError::refusal(method, reason));
+    }
+    return true;
+}
+
+bool gcode_restarts_klipper(const std::string& gcode) {
+    std::istringstream lines(gcode);
+    std::string line;
+    while (std::getline(lines, line)) {
+        std::istringstream words(line);
+        std::string command;
+        if (!(words >> command)) {
+            continue;
+        }
+        for (char& c : command) {
+            c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+        }
+        if (command == "RESTART" || command == "FIRMWARE_RESTART") {
+            return true;
+        }
+        if (command == "SAVE_CONFIG") {
+            // Kalico's SAVE_CONFIG RESTART=0 writes the config and leaves Klipper running.
+            bool no_restart = false;
+            std::string arg;
+            while (words >> arg) {
+                for (char& c : arg) {
+                    c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+                }
+                no_restart = no_restart || arg == "RESTART=0";
+            }
+            if (!no_restart) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool reject_restart_script(const std::string& gcode, const helix::PrinterState& state, bool silent,
+                           const helix::SharedCallback<void(const MoonrakerError&)>& on_error,
+                           const char* log_tag) {
+    if (!gcode_restarts_klipper(gcode)) {
+        return false;
+    }
+    const char* reason = restart_refusal_reason(&state);
+    if (!reason) {
+        return false;
+    }
+    if (!silent) {
+        spdlog::warn("{} Refusing restarting G-code: {}", log_tag, reason);
+    }
+    if (on_error) {
+        on_error(MoonrakerError::refusal("printer.gcode.script", reason));
+    }
+    return true;
+}
+
 #if HELIX_HAS_PLUGINS
 bool reject_plugin_rpc(helix::PrinterState& state, const std::string& method,
                        const nlohmann::json& params,
@@ -172,11 +261,12 @@ bool reject_plugin_rpc(helix::PrinterState& state, const std::string& method,
     if (method == "printer.restart" || method == "printer.firmware_restart" ||
         (method == "machine.services.restart" &&
          str("service").find("klipper") != std::string::npos)) {
-        return reject_restart_while_spools_on_bed(&state, method.c_str(), on_error);
+        return reject_restart(&state, method.c_str(), on_error);
     }
     if (method == "printer.gcode.script") {
         const std::string script = str("script");
         return reject_homing_during_active_print(script, state, false, on_error, kTag) ||
+               reject_restart_script(script, state, false, on_error, kTag) ||
                reject_motion_while_spools_on_bed(script, state, false, on_error, kTag);
     }
     return false;

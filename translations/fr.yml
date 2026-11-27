@@ -681,6 +681,7 @@ translations:
   Can't move filament while the print is paused: Impossible de déplacer le filament pendant une impression en pause
   Can't read filament RFID tag: Impossible de lire l'étiquette RFID du filament
   Can't reach this printer. Save anyway?: "Imprimante injoignable. Enregistrer quand même ?"
+  Can't restart Klipper while a print is running.: Impossible de redémarrer Klipper pendant une impression.
   Cancel: Annuler
   Cancel Escalation: Annuler l'escalade
   Cancel Print: Annuler l'impression

@@ -627,6 +627,7 @@ translations:
   Can't move filament while the print is paused: 印刷の一時停止中はフィラメントを動かせません
   Can't read filament RFID tag: フィラメントの RFID タグを読み取れません
   Can't reach this printer. Save anyway?: このプリンターに接続できません。保存しますか？
+  Can't restart Klipper while a print is running.: 印刷中はKlipperを再起動できません。
   Cancel: キャンセル
   Cancel Escalation: エスカレーションをキャンセル
   Cancel Print: 印刷をキャンセル
