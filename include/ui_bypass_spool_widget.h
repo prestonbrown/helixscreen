@@ -55,6 +55,17 @@ namespace helix::ui {
     return always_show;
 }
 
+/**
+ * @brief Whether the compact AMS strip draws the bypass: the path shows it
+ * (@p node_visible, bypass_node_visible()) and there is something to say about
+ * it, it being the path in use or a spool being on it. An unused, empty bypass
+ * stays on the AMS panel's path only.
+ */
+[[nodiscard]] constexpr bool bypass_on_compact_strip(bool node_visible, bool active,
+                                                     bool has_spool) {
+    return node_visible && (active || has_spool);
+}
+
 /// The colour the bypass spool is drawn in while no spool is assigned to it.
 inline constexpr uint32_t kBypassNoSpoolRgb = 0x505050;
 

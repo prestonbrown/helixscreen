@@ -4,11 +4,14 @@
 <component>
   <!-- A caption beside the bypass spool card: "Bypass" under it, or the loaded
        material over it. A sibling of the card, floating on the path container,
-       so bypass_spool_create() can center each on the card at its own width. -->
+       so bypass_spool_create() can center each on the card at its own width.
+       It ghosts with the card (LV_STATE_USER_1). -->
   <api>
     <prop name="label_name" type="string" default=""/>
     <prop name="text" type="string" default=""/>
     <prop name="hidden" type="boolean" default="false"/>
   </api>
-  <view name="$label_name" extends="text_body" text="$text" floating="true" hidden="$hidden"/>
+  <view name="$label_name" extends="text_body" text="$text" floating="true" hidden="$hidden">
+    <style name="styles.ghosted" selector="user_1"/>
+  </view>
 </component>
