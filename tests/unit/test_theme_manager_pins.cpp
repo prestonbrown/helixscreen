@@ -15,6 +15,7 @@
 #include "../../src/ui/theme/theme_manager_internal.h"
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/sample_checks.h"
 #include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
@@ -148,6 +149,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "theme constants match the golden snapshot",
     std::istringstream a(actual), e(expected.str());
     std::string al, el, section;
     int line = 0;
+    helix::test::SampleChecks samples;
     while (true) {
         const bool ha = static_cast<bool>(std::getline(a, al));
         const bool he = static_cast<bool>(std::getline(e, el));
@@ -157,8 +159,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "theme constants match the golden snapshot",
         if (ha && al.rfind("## ", 0) == 0)
             section = al;
         INFO("section " << section << ", line " << line);
-        REQUIRE(al == el);
+        SAMPLE_REQUIRE(samples, al == el, line);
     }
+    samples.done(static_cast<size_t>(line));
 }
 
 // theme_manager_init scans every top-level ui_xml file, component-local <consts> included,
