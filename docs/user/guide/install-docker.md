@@ -4,7 +4,7 @@ HelixScreen only needs network access to your printer's Moonraker, so it can run
 
 This suits trying a new HelixScreen release without installing it on the printer. A crash or a network problem in the container never touches the printer, because the printer only sees an ordinary Moonraker client.
 
-> **This is new in HelixScreen 1.1.** The container runs the x86_64 desktop package, so it needs a Docker host with an Intel or AMD processor, and a release that is 1.1 or newer. The 1.0 releases have no desktop package.
+> **The container is new in HelixScreen 1.1, the published image in 1.1.2.** The container runs the x86_64 desktop package, so it needs a Docker host with an Intel or AMD processor, and a release that is 1.1 or newer. The 1.0 releases have no desktop package.
 
 ## What you get
 
@@ -27,12 +27,12 @@ Every release that carries the Linux desktop package is also published as a cont
 
 | Tag | You get |
 |---|---|
-| `dev` | The newest development build. |
+| `latest` or `stable` | The newest Stable release. |
 | `beta` | The newest Beta release. |
-| `latest` | The newest Stable release. |
-| A version, such as `1.2.0-alpha.5` | That one release and no other. Use it to stay on a version you have checked. |
+| `dev` | The newest development build. |
+| A version, such as `1.1.2` | That one release and no other. Use it to stay on a version you have checked. |
 
-Tags appear as releases are published as images: `dev` first, then `beta` and `latest` with the first Beta and Stable releases that get one. If pulling a tag says it does not exist, no such release has been published as an image yet: use `dev`.
+Tags appear as releases are published as images: `latest`, `stable` and a version tag with the first Stable release that gets one (1.1.2), then `beta` and `dev` with the first Beta and development releases that get one. If pulling a tag says it does not exist, no such release has been published as an image yet: use `latest`.
 
 Name your printer with `PRINTER_URL`, keep the settings in a volume, and publish port `7130`:
 
@@ -41,7 +41,7 @@ docker run -d --name helixscreen --restart unless-stopped \
   -e PRINTER_URL=192.168.1.50:7125 \
   -p 7130:7130 \
   -v helixscreen-config:/config \
-  ghcr.io/prestonbrown/helixscreen-homeserver:dev
+  ghcr.io/prestonbrown/helixscreen-homeserver:latest
 ```
 
 Or use the Compose file in the repository, `docker/docker-compose.homeserver.yml`. Edit `PRINTER_URL` in it, then:
@@ -90,11 +90,11 @@ Anyone on your network can watch the screen, and anyone with the code can use it
 
 **Settings > Updates** opens the release page and does not update the container in place. Update the container the way you update any other: get the newer image, then recreate the container. The volume keeps your settings.
 
-A container on `dev`, `beta` or `latest` moves to that channel's newest release when you pull the image again:
+A container on `latest`, `stable`, `beta` or `dev` moves to the newest release of that kind when you pull the image again:
 
 ```bash
 docker rm -f helixscreen
-docker pull ghcr.io/prestonbrown/helixscreen-homeserver:dev
+docker pull ghcr.io/prestonbrown/helixscreen-homeserver:latest
 # then the same docker run command as before
 ```
 
@@ -116,7 +116,7 @@ The image follows one update channel, chosen when you build it:
 
 | You build with | You get |
 |---|---|
-| nothing extra | The newest release on the Stable channel. It must be 1.1 or newer; while Stable is still on 1.0, the build stops because that release has no desktop package. |
+| nothing extra | The newest Stable release. The build stops on a 1.0 release, because it has no desktop package. |
 | `--build-arg CHANNEL=beta` | The newest Beta release. |
 | `--build-arg RELEASE=v1.1.0 --build-arg RELEASE_SHA256=<sha256>` | That one release. Give the zip's SHA-256 so the download can be checked: the `zip_sha256` value from a channel manifest that served that release (`https://releases.helixscreen.org/beta/manifest.json`, for example). |
 
@@ -151,7 +151,7 @@ To start over with fresh settings, remove the volume (`docker volume rm helixscr
 
 **Settings did not survive an update.** The container needs a volume or folder mounted at `/config`. Without one, Docker discards the settings with the old container.
 
-**`docker pull` says the tag does not exist.** No release of that kind has been published as an image yet. Use the `dev` tag until then.
+**`docker pull` says the tag does not exist.** No release of that kind has been published as an image yet. `latest` and `stable` appear with 1.1.2. Until the tag you want exists, use another one or [build the image yourself](#build-the-image-yourself).
 
 **`docker pull` says `denied` or `unauthorized`.** The image is not public yet. Nothing on your side fixes that: tell us on [Discord](https://discord.gg/RZCT2StKhr).
 

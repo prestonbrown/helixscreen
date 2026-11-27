@@ -5,9 +5,9 @@
 # The screen opens in a browser at http://<this server>:7130/
 services:
   helixscreen:
-    # The tag names a channel (dev, beta, latest) or one release. To run an
-    # image you built yourself, name that one here instead.
-    image: ghcr.io/prestonbrown/helixscreen-homeserver:dev
+    # The tag names a channel (stable, beta, dev), latest, or one release. To
+    # run an image you built yourself, name that one here instead.
+    image: ghcr.io/prestonbrown/helixscreen-homeserver:latest
     container_name: helixscreen
     restart: unless-stopped
     environment:
