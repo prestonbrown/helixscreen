@@ -24,7 +24,9 @@ namespace helix::gcode {
 
 /// The plugin feature that serves print_edited, and the contract this app writes.
 inline constexpr const char* kServerEditsFeature = "server_edits";
-inline constexpr int kServerEditsMinVersion = 1;
+// Contract 2 reads `edits` as the objects this app sends; a contract-1 plugin
+// reads them with Moonraker's get_list and refuses every call (#2144).
+inline constexpr int kServerEditsMinVersion = 2;
 
 /// One rewrite of a file: positional edits, or a tool remap (logical tool ->
 /// physical head) over every line. A list carries one or the other.

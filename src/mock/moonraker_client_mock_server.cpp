@@ -658,10 +658,14 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
                 {"enabled", fit_opt_in.is_boolean() && fit_opt_in.get<bool>()},
                 {"reason", nullptr}};
             // The rest of what the plugin ships, each on and running.
-            for (const char* name : {"file_analysis", "server_edits", "config_edit", "storage",
-                                     "signal_macro_migration"}) {
+            for (const char* name : {"file_analysis", "storage", "signal_macro_migration"}) {
                 response["result"]["features"][name] = {
                     {"version", 1}, {"available", true}, {"enabled", true}, {"reason", nullptr}};
+            }
+            // The edit features read edit objects from contract 2.
+            for (const char* name : {"server_edits", "config_edit"}) {
+                response["result"]["features"][name] = {
+                    {"version", 2}, {"available", true}, {"enabled", true}, {"reason", nullptr}};
             }
         }
         if (success_cb) {

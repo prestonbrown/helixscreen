@@ -45,7 +45,9 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import helix_gcode_reader as reader
 
 CONFIG_EDIT_FEATURE = "config_edit"
-CONFIG_EDIT_FEATURE_VERSION = 1
+# 2: `edits` is read as sent (a list of objects); 1 read it with get_list,
+# which refuses anything but strings.
+CONFIG_EDIT_FEATURE_VERSION = 2
 
 # The file Klipper starts from, relative to Moonraker's config root.
 ROOT_FILE = "printer.cfg"

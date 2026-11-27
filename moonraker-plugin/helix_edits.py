@@ -56,7 +56,9 @@ from typing import Any, BinaryIO, Dict, List, NamedTuple, Optional, Tuple
 import helix_gcode_reader as reader
 
 SERVER_EDITS_FEATURE = "server_edits"
-SERVER_EDITS_FEATURE_VERSION = 1
+# 2: `edits` is read as sent (a list of objects); 1 read it with get_list,
+# which refuses anything but strings.
+SERVER_EDITS_FEATURE_VERSION = 2
 
 ACTIONS = (
     "comment_out", "delete", "inject_before", "inject_after", "replace", "tool_remap",
