@@ -63,6 +63,7 @@
 #include "filament_database.h"
 #include "filament_op_heater.h"
 #include "filament_variants.h"
+#include "led/ui_led_control_overlay.h"
 #include "lock_manager.h"
 #include "lvgl/lvgl.h"
 #include "material_settings_manager.h"
@@ -135,6 +136,9 @@ void SubjectInitializer::before_disconnect() {
     }
     if (auto* zoffset_panel = helix::lazy_global_if_exists<ZOffsetCalibrationPanel>()) {
         zoffset_panel->before_disconnect();
+    }
+    if (auto* led_overlay = helix::lazy_global_if_exists<helix::led::LedControlOverlay>()) {
+        led_overlay->before_disconnect();
     }
     PostOpCooldownManager::instance().flush_before_disconnect();
 }
