@@ -148,7 +148,7 @@ Response:
     "symlink_dir": ".helix_print",
     "cleanup_delay": 86400,
     "active_prints": 0,
-    "version": "1.5.1",
+    "version": "1.5.2",
     "convert_3mf": true,
     "start_3mf_on_upload": true,
     "api": 2,

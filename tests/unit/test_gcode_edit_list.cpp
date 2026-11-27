@@ -248,11 +248,12 @@ TEST_CASE("gcode edit list: the plugin rewrites only when its feature is ready",
         {"contract 1 reads edits as strings",
          state(true, {{kServerEditsFeature, entry(1, true, true)}})},
         {"ready", state(true, ready)},
+        {"ready at a newer contract", state(true, {{kServerEditsFeature, entry(3, true, true)}})},
     };
     for (const auto& c : cases) {
         CAPTURE(c.what);
         const bool is_ready = c.feature == PluginFeatureState::Ready;
-        CHECK(is_ready == (std::string(c.what) == "ready"));
+        CHECK(is_ready == (std::string(c.what).rfind("ready", 0) == 0));
         CHECK(choose_edit_transport(c.feature, false, true) ==
               (is_ready ? EditTransport::Plugin : EditTransport::DownloadRewrite));
         CHECK(choose_edit_transport(c.feature, true, true) == EditTransport::DownloadRewrite);
