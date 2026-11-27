@@ -110,27 +110,83 @@ dev" ]
 
 # -------------------------------------------------------- has-desktop
 
-@test "has-desktop: a manifest that lists the desktop package" {
-    echo '{"assets":{"x86-desktop":{"zip_url":"https://r.example.invalid/a.zip"}}}' \
-        > "$BATS_TEST_TMPDIR/manifest.json"
+MANIFEST_ON='{"version":"1.2.0-beta.2","assets":{"x86-desktop":{"zip_url":"https://r.example.invalid/releases/v1.2.0-beta.2/helixscreen-x86-desktop.zip","zip_sha256":"86384a3bb2af7162bb250823454a34ae378a82592e4abd98b9e9d641a32a0681"}}}'
+MANIFEST_OFF='{"version":"1.0.10","assets":{"pi":{"zip_url":"https://r.example.invalid/releases/v1.0.10/helixscreen-pi.zip"}}}'
+
+@test "has-desktop: a manifest of this release that lists the desktop package, and the package's sha256" {
+    echo "$MANIFEST_ON" > "$BATS_TEST_TMPDIR/manifest.json"
     mock_command_script curl 'cat "$MANIFEST"'
     export MANIFEST="$BATS_TEST_TMPDIR/manifest.json"
-    run "$SCRIPT" has-desktop https://r.example.invalid/beta/manifest.json
+    run "$SCRIPT" has-desktop https://r.example.invalid/beta/manifest.json 1.2.0-beta.2
     [ "$status" -eq 0 ]
+    [ "$output" = "86384a3bb2af7162bb250823454a34ae378a82592e4abd98b9e9d641a32a0681" ]
 }
 
 @test "has-desktop: a manifest without the desktop package, as a 1.0 release, is a skip and not an error" {
-    echo '{"assets":{"pi":{"zip_url":"https://r.example.invalid/pi.zip"}}}' > "$BATS_TEST_TMPDIR/manifest.json"
+    echo "$MANIFEST_OFF" > "$BATS_TEST_TMPDIR/manifest.json"
     mock_command_script curl 'cat "$MANIFEST"'
     export MANIFEST="$BATS_TEST_TMPDIR/manifest.json"
-    run "$SCRIPT" has-desktop https://r.example.invalid/stable/manifest.json
+    run "$SCRIPT" has-desktop https://r.example.invalid/stable/manifest.json 1.0.10
     [ "$status" -eq 1 ]
     contains "lists no x86-desktop package" "$output"
 }
 
 @test "has-desktop: a manifest that cannot be read is an error, never a skip" {
     mock_command_script curl 'exit 7'
-    run "$SCRIPT" has-desktop https://r.example.invalid/beta/manifest.json
+    run "$SCRIPT" has-desktop https://r.example.invalid/beta/manifest.json 1.2.0-beta.2
+    [ "$status" -eq 2 ]
+    contains "cannot read" "$output"
+}
+
+@test "has-desktop: a manifest that already serves a later release is an error, never an image" {
+    echo "$MANIFEST_ON" > "$BATS_TEST_TMPDIR/manifest.json"
+    mock_command_script curl 'cat "$MANIFEST"'
+    export MANIFEST="$BATS_TEST_TMPDIR/manifest.json"
+    run "$SCRIPT" has-desktop https://r.example.invalid/beta/manifest.json 1.2.0-beta.1
+    [ "$status" -eq 2 ]
+    contains "serves version '1.2.0-beta.2', not 1.2.0-beta.1" "$output"
+}
+
+@test "has-desktop: a desktop package with no sha256 is an error, never an unchecked build" {
+    echo '{"version":"1.2.0-beta.2","assets":{"x86-desktop":{"zip_url":"https://r.example.invalid/x.zip"}}}' \
+        > "$BATS_TEST_TMPDIR/manifest.json"
+    mock_command_script curl 'cat "$MANIFEST"'
+    export MANIFEST="$BATS_TEST_TMPDIR/manifest.json"
+    run "$SCRIPT" has-desktop https://r.example.invalid/beta/manifest.json 1.2.0-beta.2
+    [ "$status" -eq 2 ]
+    contains "with no sha256" "$output"
+}
+
+@test "has-desktop: a manifest with no version at all is an error" {
+    echo '{"assets":{"x86-desktop":{"zip_sha256":"x"}}}' > "$BATS_TEST_TMPDIR/manifest.json"
+    mock_command_script curl 'cat "$MANIFEST"'
+    export MANIFEST="$BATS_TEST_TMPDIR/manifest.json"
+    run "$SCRIPT" has-desktop https://r.example.invalid/beta/manifest.json 1.2.0-beta.2
+    [ "$status" -eq 2 ]
+}
+
+# ------------------------------------------------------ channel-current
+
+@test "channel-current: the channel still serves this release" {
+    echo "$MANIFEST_ON" > "$BATS_TEST_TMPDIR/manifest.json"
+    mock_command_script curl 'cat "$MANIFEST"'
+    export MANIFEST="$BATS_TEST_TMPDIR/manifest.json"
+    run "$SCRIPT" channel-current https://r.example.invalid/beta/manifest.json 1.2.0-beta.2
+    [ "$status" -eq 0 ]
+}
+
+@test "channel-current: a channel that moved on to a later release refuses" {
+    echo "$MANIFEST_ON" > "$BATS_TEST_TMPDIR/manifest.json"
+    mock_command_script curl 'cat "$MANIFEST"'
+    export MANIFEST="$BATS_TEST_TMPDIR/manifest.json"
+    run "$SCRIPT" channel-current https://r.example.invalid/beta/manifest.json 1.2.0-beta.1
+    [ "$status" -eq 2 ]
+    contains "serves version '1.2.0-beta.2', not 1.2.0-beta.1" "$output"
+}
+
+@test "channel-current: a channel whose manifest cannot be read refuses" {
+    mock_command_script curl 'exit 7'
+    run "$SCRIPT" channel-current https://r.example.invalid/beta/manifest.json 1.2.0-beta.2
     [ "$status" -eq 2 ]
     contains "cannot read" "$output"
 }
@@ -251,17 +307,22 @@ write_tcp() { printf '%s\n' "$1" > "$BATS_TEST_TMPDIR/tcp"; }
 
 # -------------------------------------------------------------- build
 
-@test "build-release: the Dockerfile reads the channel from the release's public URL" {
+@test "build: the Dockerfile downloads this release's package and checks it against the given sha256" {
     cat > "$BATS_TEST_TMPDIR/docker" << 'EOF'
 #!/bin/sh
 printf '%s\n' "$*" >> "$DOCKER_CALLS"
 EOF
     chmod +x "$BATS_TEST_TMPDIR/docker"
     export PATH="$BATS_TEST_TMPDIR:$PATH"
-    run "$SCRIPT" build-release img:ci beta https://r.example.invalid 1.2.0-beta.2 abc123 \
-        https://github.com/prestonbrown/helixscreen
+    run "$SCRIPT" build img:ci v1.2.0-beta.2 86384a3bb2af7162bb250823454a34ae378a82592e4abd98b9e9d641a32a0681 \
+        https://r.example.invalid 1.2.0-beta.2 abc123 https://github.com/prestonbrown/helixscreen
     [ "$status" -eq 0 ]
-    [ "$(cat "$CALLS")" = "build --build-arg CHANNEL=beta --build-arg R2_BASE_URL=https://r.example.invalid --label org.opencontainers.image.source=https://github.com/prestonbrown/helixscreen --label org.opencontainers.image.version=1.2.0-beta.2 --label org.opencontainers.image.revision=abc123 -t img:ci -f $PWD/docker/Dockerfile.homeserver $PWD/docker" ]
+    [ "$(cat "$CALLS")" = "build --build-arg RELEASE=v1.2.0-beta.2 --build-arg RELEASE_SHA256=86384a3bb2af7162bb250823454a34ae378a82592e4abd98b9e9d641a32a0681 --build-arg R2_BASE_URL=https://r.example.invalid --label org.opencontainers.image.source=https://github.com/prestonbrown/helixscreen --label org.opencontainers.image.version=1.2.0-beta.2 --label org.opencontainers.image.revision=abc123 -t img:ci -f $PWD/docker/Dockerfile.homeserver $PWD/docker" ]
+}
+
+@test "build: a build that names no tag, sha256 or base URL is a usage error" {
+    run "$SCRIPT" build img:ci
+    [ "$status" -eq 2 ]
 }
 
 @test "build-dryrun: the run's own package is served to the Dockerfile from this host, then the server stops" {

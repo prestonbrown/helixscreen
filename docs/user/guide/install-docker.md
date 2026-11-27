@@ -32,7 +32,7 @@ Every release that carries the Linux desktop package is also published as a cont
 | `latest` | The newest Stable release. |
 | A version, such as `1.2.0-alpha.5` | That one release and no other. Use it to stay on a version you have checked. |
 
-A tag appears with the first release of its kind that is published as an image. If pulling `beta` or `latest` says the tag does not exist, none has been yet: use `dev` until then.
+Tags appear as releases are published as images: `dev` first, then `beta` and `latest` with the first Beta and Stable releases that get one. If pulling a tag says it does not exist, no such release has been published as an image yet: use `dev`.
 
 Name your printer with `PRINTER_URL`, keep the settings in a volume, and publish port `7130`:
 
@@ -152,6 +152,8 @@ To start over with fresh settings, remove the volume (`docker volume rm helixscr
 **Settings did not survive an update.** The container needs a volume or folder mounted at `/config`. Without one, Docker discards the settings with the old container.
 
 **`docker pull` says the tag does not exist.** No release of that kind has been published as an image yet. Use the `dev` tag until then.
+
+**`docker pull` says `denied` or `unauthorized`.** The image is not public yet. Nothing on your side fixes that: tell us on [Discord](https://discord.gg/RZCT2StKhr).
 
 For anything else, see [Troubleshooting](../TROUBLESHOOTING.md) or ask on [Discord](https://discord.gg/RZCT2StKhr).
 
