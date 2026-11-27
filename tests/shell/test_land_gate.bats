@@ -902,7 +902,10 @@ teardown() {
     echo 10 >"$BATS_TEST_TMPDIR/misses"
     mock_command_script fake-ccache 'printf "cache_miss\t%s\ndirect_cache_hit\t5\ncleanups_performed\t7\n" "$(cat "'"$BATS_TEST_TMPDIR"'/misses")"'
     export LAND_GATE_CCACHE=fake-ccache
-    HOOK_app='echo "cc -O3" >"$LAND_GATE_OBJ_DIR/.build-flags"; : >"$LAND_GATE_OBJ_DIR/ui/new.o"; echo 13 >"'"$BATS_TEST_TMPDIR"'/misses"' run "$GATE"
+    # The gate counts the objects newer than a marker it touches just before the
+    # build. File times move a kernel tick at a time (4 ms at 250 Hz), so the
+    # new object waits a few: made in the marker's own tick, it is not newer.
+    HOOK_app='echo "cc -O3" >"$LAND_GATE_OBJ_DIR/.build-flags"; sleep 0.02; : >"$LAND_GATE_OBJ_DIR/ui/new.o"; echo 13 >"'"$BATS_TEST_TMPDIR"'/misses"' run "$GATE"
     [ "$status" -eq 0 ]
     local why="$LAND_GATE_LOGDIR/app-build.why.log"
     [ -f "$why" ]
