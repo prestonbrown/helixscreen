@@ -185,7 +185,7 @@ TEST_CASE_METHOD(TempGraphHeatFixture,
     REQUIRE(abs_has_macro != nullptr);
     REQUIRE(abs_name != nullptr);
     const int saved_macro = lv_subject_get_int(abs_has_macro);
-    const std::string saved_name = helix::presets::name(2);
+    const std::string saved_name = lv_subject_get_string(abs_name);
     lv_subject_set_int(abs_has_macro, 1);
     settle();
     REQUIRE_FALSE(lv_obj_is_hidden(mark));

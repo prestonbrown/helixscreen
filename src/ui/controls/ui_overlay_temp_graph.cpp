@@ -191,10 +191,15 @@ void TempGraphOverlay::fit_preset_name(lv_obj_t* button, int slot) {
     if (!name || !mark) {
         return;
     }
+    lv_subject_t* name_subject = helix::presets::name_subject(slot);
+    if (!name_subject) {
+        return;
+    }
     // DECLARATIVE_OK: measured layout; how wide the name may grow is decided
-    // from drawn widths. The name is measured from its subject: a label that
+    // from drawn widths. The name is measured as the label shows it, from its
+    // subject: the material's own name can be shorter, and a label that
     // shortens with dots has its text rewritten.
-    const char* text = helix::presets::name(slot).c_str();
+    const char* text = lv_subject_get_string(name_subject);
     const int32_t name_width =
         helix::ui::text_width(text, lv_obj_get_style_text_font(name, LV_PART_MAIN),
                               lv_obj_get_style_text_letter_space(name, LV_PART_MAIN));
