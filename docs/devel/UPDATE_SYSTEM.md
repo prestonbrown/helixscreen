@@ -182,7 +182,7 @@ Three channels are available. The channel is stored in config at `/update/channe
 | Channel | Enum | Config Value | Source | Description |
 |---------|------|-------------|--------|-------------|
 | **Stable** | `UpdateChannel::Stable` | `0` | R2 stable/manifest.json, fallback: GitHub `/releases/latest` | Production releases only. Default for all users. |
-| **Beta** | `UpdateChannel::Beta` | `1` | R2 beta/manifest.json and R2 stable/manifest.json, each with its GitHub fallback (`/releases` array, first prerelease; `/releases/latest`) | Pre-release tags (`v1.0.0-beta.1`, `v1.0.0-rc.1`) and every stable release: the newer of the two sources is offered, so Beta never trails Stable (see [Beta reads Stable too](#beta-reads-stable-too)). |
+| **Beta** | `UpdateChannel::Beta` | `1` | R2 beta/manifest.json and R2 stable/manifest.json, each with its GitHub fallback (`/releases` array: the newest beta or rc, else the newest release, never an alpha; `/releases/latest`) | Pre-release tags (`v1.0.0-beta.1`, `v1.0.0-rc.1`) and every stable release: the newer of the two sources is offered, so Beta never trails Stable (see [Beta reads Stable too](#beta-reads-stable-too)). |
 | **Dev** | `UpdateChannel::Dev` | `2` | R2 dev/manifest.json, or explicit `dev_url` (update_urls.json) | Cutting-edge builds. Supports custom manifest URLs for local development servers. |
 
 ### Beta reads Stable too
@@ -193,8 +193,11 @@ and either alone is enough:
 
 - **The client.** `UpdateChecker::fetch_beta_release()` reads the beta source
   (`fetch_beta_line_release()`) and the stable source (`fetch_stable_release()`), and
-  `helix::pick_channel_release()` offers the newer by `helix::version::Version`; a tie
-  goes to the beta manifest. When one source fails, the other's release is offered only
+  `helix::pick_channel_release()` offers the newer by `helix::version::Version`. On a
+  tie, a release read from a channel manifest beats a GitHub announcement, else the beta
+  source wins. The beta source's GitHub fallback (`helix::parse_github_beta_release()`)
+  skips the devel line's alphas, which GitHub also marks as prereleases, so a fallback
+  answer never outranks stable with a dev build. When one source fails, the other's release is offered only
   if it moves the install forward. A partial answer that reads as up to date or as a
   downgrade may be wrong about what the failed source serves, so the check reports the
   failed source's error instead. Both failing reports the beta source's error. The
@@ -324,7 +327,10 @@ alphas of the next minor outrank every stable release of the current one.
 `scripts/channel-upload-guard.sh` reads each channel's served version and judges it on its
 own: a backward move on the declared channel fails the run (override with the
 `ALLOW_CHANNEL_DOWNGRADE` repository variable), and a following channel already ahead is
-left off the upload, whatever the override says. The release workflow and
+left off the upload, whatever the override says. Only a 404 means a channel has no
+manifest yet. A manifest that cannot be read (a timeout, a 5xx, a body naming no version)
+or a served version that cannot be ordered fails the run on the declared channel, with
+no override for the unreadable case, and leaves a following channel off. The release workflow and
 `recover-r2.yml` both publish only to the channels the guard keeps.
 
 ---

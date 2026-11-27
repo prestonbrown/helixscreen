@@ -698,6 +698,41 @@ bool parse_github_release(const std::string& json_str, UpdateChecker::ReleaseInf
     }
 }
 
+bool is_beta_line_version(const std::string& version) {
+    const auto v = version::parse_version(version);
+    if (!v)
+        return false;
+    const std::string first = v->prerelease.substr(0, v->prerelease.find('.'));
+    return first.empty() || first == "beta" || first == "rc";
+}
+
+bool parse_github_beta_release(const std::string& json_str, UpdateChecker::ReleaseInfo& info,
+                               std::string& error, const std::vector<std::string>& asset_keys) {
+    const auto releases = json::parse(json_str, nullptr, false);
+    if (releases.is_discarded() || !releases.is_array() || releases.empty()) {
+        error = "Empty or invalid releases array";
+        return false;
+    }
+    // GitHub lists newest first, and marks the devel line's alphas as prereleases too.
+    // A Beta device takes the newest beta or rc, else the newest release.
+    for (const bool want_prerelease : {true, false}) {
+        for (const auto& rel : releases) {
+            if (!rel.is_object() || json_util::safe_bool(rel, "draft") ||
+                json_util::safe_bool(rel, "prerelease") != want_prerelease)
+                continue;
+            UpdateChecker::ReleaseInfo candidate;
+            std::string candidate_error;
+            if (::parse_github_release(rel, candidate, candidate_error, asset_keys) &&
+                is_beta_line_version(candidate.version)) {
+                info = std::move(candidate);
+                return true;
+            }
+        }
+    }
+    error = "No valid releases found";
+    return false;
+}
+
 bool release_has_build_for(const UpdateChecker::ReleaseInfo& info,
                            const std::vector<std::string>& asset_keys) {
     return asset_keys.empty() || !info.download_url.empty();
@@ -760,7 +795,10 @@ ChannelRead pick_channel_release(const std::string& installed,
             continue;
         }
         const auto v = version::parse_version(read.info.version);
-        if (!best || (v && (!best_version || *v > *best_version))) {
+        // On a tie, a release read from a channel manifest beats one GitHub announces.
+        const bool tie_won_by_manifest = best && v && best_version && *v == *best_version &&
+                                         read.info.from_manifest && !best->info.from_manifest;
+        if (!best || (v && (!best_version || *v > *best_version)) || tie_won_by_manifest) {
             best = &read;
             best_version = v;
         }
@@ -4156,48 +4194,10 @@ bool UpdateChecker::fetch_beta_line_release(ReleaseInfo& info, std::string& erro
         return false;
     }
 
-    // Parse JSON array of releases
-    try {
-        auto releases = json::parse(body);
-
-        if (!releases.is_array() || releases.empty()) {
-            error = "Empty or invalid releases array";
-            return false;
-        }
-
-        const auto asset_keys = this_build_release_asset_keys();
-
-        // First pass: find latest prerelease (GitHub returns newest-first)
-        for (const auto& rel : releases) {
-            if (rel.value("draft", false))
-                continue;
-            if (!rel.value("prerelease", false))
-                continue;
-
-            if (::parse_github_release(rel, info, error, asset_keys)) {
-                spdlog::debug("[UpdateChecker] Beta: selected prerelease {}", info.tag_name);
-                return true;
-            }
-        }
-
-        // Fallback: no prerelease found, use latest stable
-        for (const auto& rel : releases) {
-            if (rel.value("draft", false))
-                continue;
-            if (::parse_github_release(rel, info, error, asset_keys)) {
-                spdlog::debug("[UpdateChecker] Beta: no prerelease found, falling back to {}",
-                              info.tag_name);
-                return true;
-            }
-        }
-
-        error = "No valid releases found";
+    if (!helix::parse_github_beta_release(body, info, error, this_build_release_asset_keys()))
         return false;
-
-    } catch (const json::exception& e) {
-        error = std::string("JSON parse error: ") + e.what();
-        return false;
-    }
+    spdlog::debug("[UpdateChecker] Beta: GitHub offers {}", info.tag_name);
+    return true;
 }
 
 bool UpdateChecker::fetch_dev_release(ReleaseInfo& info, std::string& error) {

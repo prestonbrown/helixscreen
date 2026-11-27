@@ -22,6 +22,7 @@
 #
 #   release/1.0  RELEASE_CHANNEL=stable  -> stable beta
 #   release/1.1  RELEASE_CHANNEL=stable  -> stable beta
+#   main         RELEASE_CHANNEL=dev     -> dev         (X.Y.0-alpha.N)
 #
 # The first channel listed is the declared one; the rest follow it.
 # scripts/channel-upload-guard.sh fails a release that would move the declared

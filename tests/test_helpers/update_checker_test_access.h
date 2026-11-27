@@ -42,13 +42,15 @@ class UpdateCheckerTestAccess {
 
     /// Undo seed_available_update(). The checker is a process singleton, so a
     /// seeded release outlives the test that made it unless this runs.
+    static void clear(UpdateChecker& c) {
+        c.clear_cache();
+    }
+
+    /// Forget the last check, so check_for_updates() is not rate-limited by an
+    /// earlier test's check.
     static void reset_rate_limit(UpdateChecker& c) {
         std::lock_guard<std::mutex> lock(c.mutex_);
         c.last_check_time_ = {};
-    }
-
-    static void clear(UpdateChecker& c) {
-        c.clear_cache();
     }
 
     /// sync_moonraker_channel() against @p install_root: the test link has no

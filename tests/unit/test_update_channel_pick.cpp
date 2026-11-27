@@ -137,3 +137,55 @@ TEST_CASE("a Beta check offers the stable release when it is newer than the beta
     CHECK_FALSE(cached->is_downgrade);
     checker.shutdown();
 }
+
+TEST_CASE("On a version tie Beta offers the manifest's release, not GitHub's announcement",
+          "[update_checker][channel][2205]") {
+    auto github = served("1.1.1"); // the beta line's GitHub fallback: announce only
+    auto manifest = served("1.1.1");
+    manifest.info.from_manifest = true;
+
+    CHECK(pick_channel_release("1.1.0", {github, manifest}).info.from_manifest);
+    CHECK(pick_channel_release("1.1.0", {manifest, github}).info.from_manifest);
+}
+
+TEST_CASE("Beta's GitHub fallback offers a beta-line release, never a devel-line alpha",
+          "[update_checker][channel][2205]") {
+    CHECK(helix::is_beta_line_version("1.2.0-beta.1"));
+    CHECK(helix::is_beta_line_version("1.1.0-rc.2"));
+    CHECK(helix::is_beta_line_version("1.1.1"));
+    CHECK_FALSE(helix::is_beta_line_version("1.2.0-alpha.1"));
+    CHECK_FALSE(helix::is_beta_line_version("not-a-version"));
+
+    auto release = [](const char* tag, bool prerelease) {
+        return std::string(R"({"tag_name": ")") + tag + R"(", "draft": false, "prerelease": )" +
+               (prerelease ? "true" : "false") + R"(, "body": "", "assets": []})";
+    };
+    UpdateChecker::ReleaseInfo info;
+    std::string error;
+
+    // Newest first, as GitHub lists them: the alpha is skipped for the beta.
+    REQUIRE(helix::parse_github_beta_release("[" + release("v1.2.0-alpha.1", true) + "," +
+                                                 release("v1.1.0-beta.3", true) + "," +
+                                                 release("v1.1.1", false) + "]",
+                                             info, error, {}));
+    CHECK(info.version == "1.1.0-beta.3");
+
+    // No beta-line prerelease: the newest release, not the alpha.
+    REQUIRE(helix::parse_github_beta_release("[" + release("v1.2.0-alpha.1", true) + "," +
+                                                 release("v1.1.1", false) + "]",
+                                             info, error, {}));
+    CHECK(info.version == "1.1.1");
+
+    // The stuck fleet with R2 beta unreachable: the fallback's 1.1.1 ties stable's manifest
+    // 1.1.1, and the manifest's is offered.
+    ChannelRead fallback;
+    fallback.ok = true;
+    fallback.info = info;
+    auto stable = served("1.1.1");
+    stable.info.from_manifest = true;
+    const auto picked = pick_channel_release("1.1.0", {fallback, stable});
+    REQUIRE(picked.ok);
+    CHECK(picked.info.from_manifest);
+
+    CHECK_FALSE(helix::parse_github_beta_release("{}", info, error, {}));
+}

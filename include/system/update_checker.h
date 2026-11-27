@@ -1035,6 +1035,16 @@ bool parse_github_release(const std::string& json_str, UpdateChecker::ReleaseInf
 bool parse_github_release(const std::string& json_str, UpdateChecker::ReleaseInfo& info,
                           std::string& error, const std::vector<std::string>& asset_keys);
 
+/// True for a version the beta line ships: a beta (`1.2.0-beta.1`), a release candidate
+/// (`1.1.0-rc.2`) or a release. An alpha belongs to the devel line and the dev channel.
+bool is_beta_line_version(const std::string& version);
+
+/// The Beta channel's answer from GitHub's release list @p json_str (newest first): the
+/// newest non-draft prerelease that is_beta_line_version(), else the newest non-draft
+/// release. A devel-line alpha, which GitHub also marks a prerelease, is never it.
+bool parse_github_beta_release(const std::string& json_str, UpdateChecker::ReleaseInfo& info,
+                               std::string& error, const std::vector<std::string>& asset_keys);
+
 /**
  * @brief Parse a release manifest (R2 and dev channel schema) into ReleaseInfo
  *
@@ -1091,7 +1101,8 @@ struct ChannelRead {
 
 /// The release a channel that reads several sources offers a build at @p installed.
 /// @p reads lists the channel's own source first. When every read answered, the newest
-/// by helix::version::Version wins (a tie goes to the earlier read). When some failed,
+/// by helix::version::Version wins; on a tie a read from a channel manifest beats one that
+/// is not, else the earlier read wins. When some failed,
 /// the newest answer is offered only if it moves the install forward: a partial answer
 /// that reads as up to date or as a downgrade may be wrong about what the failed source
 /// serves, so the first failure is returned instead. Nothing answered: the first failure.

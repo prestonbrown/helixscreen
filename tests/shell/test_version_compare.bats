@@ -352,20 +352,37 @@ PY2
 
 GUARD="scripts/channel-upload-guard.sh"
 
-# Put a curl on PATH that serves {"version": V} for each CHANNEL=V argument, and
-# fails like a 404 for a channel given no version.
+# Put a curl on PATH that answers each CHANNEL=V argument: a version is served
+# as {"version": V} with 200, @500 answers HTTP 500, @timeout times out, @garbage
+# serves a body that is not JSON, and a channel given nothing answers 404. It
+# honours the guard's -o FILE and -w '%{http_code}'.
 stub_manifests() {
     mkdir -p "$BATS_TEST_TMPDIR/bin" "$BATS_TEST_TMPDIR/served"
+    rm -f "$BATS_TEST_TMPDIR/served/"*
     local pair
     for pair in "$@"; do
-        printf '{"version":"%s"}\n' "${pair#*=}" > "$BATS_TEST_TMPDIR/served/${pair%%=*}"
+        printf '%s\n' "${pair#*=}" > "$BATS_TEST_TMPDIR/served/${pair%%=*}"
     done
     cat > "$BATS_TEST_TMPDIR/bin/curl" <<EOF
 #!/bin/sh
-for url; do :; done
+out=/dev/null
+while [ \$# -gt 0 ]; do
+    case "\$1" in
+        -o) out="\$2"; shift 2 ;;
+        -w|--max-time) shift 2 ;;
+        -*) shift ;;
+        *) url="\$1"; shift ;;
+    esac
+done
 channel=\$(basename "\$(dirname "\$url")")
-[ -f "$BATS_TEST_TMPDIR/served/\$channel" ] || exit 22
-cat "$BATS_TEST_TMPDIR/served/\$channel"
+f="$BATS_TEST_TMPDIR/served/\$channel"
+if [ ! -f "\$f" ]; then printf '404'; exit 0; fi
+case "\$(cat "\$f")" in
+    @500) printf '500' ;;
+    @timeout) printf '000'; exit 28 ;;
+    @garbage) printf '<html>' > "\$out"; printf '200' ;;
+    *) printf '{"version":"%s"}\n' "\$(cat "\$f")" > "\$out"; printf '200' ;;
+esac
 EOF
     chmod +x "$BATS_TEST_TMPDIR/bin/curl"
     export PATH="$BATS_TEST_TMPDIR/bin:$PATH"
@@ -492,6 +509,39 @@ require_jq() {
     [ "$status" -eq 1 ]
     contains "stable currently serves 1.1.3" "$output"
     [ ! -s "$BATS_TEST_TMPDIR/out" ]
+}
+
+@test "an unreadable declared manifest fails the run, override or not" {
+    require_jq
+    local how
+    for how in @500 @timeout @garbage; do
+        ALLOW=true run_guard_served "1.1.2" stable "stable beta" stable=$how beta=1.1.1
+        [ "$status" -eq 1 ] || fail "$how: exit $status"
+        contains "cannot tell whether publishing 1.1.2 moves it backward" "$output"
+        [ ! -s "$BATS_TEST_TMPDIR/out" ] || fail "$how wrote $(cat "$BATS_TEST_TMPDIR/out")"
+    done
+}
+
+@test "an unreadable following manifest is dropped, and stable still publishes" {
+    # A transient R2 failure during a 1.2 beta cycle must not let a 1.1.x stable
+    # release overwrite beta/manifest.json backward.
+    require_jq
+    local how
+    for how in @500 @timeout @garbage; do
+        ALLOW=true run_guard_served "1.1.2" stable "stable beta" stable=1.1.1 beta=$how
+        [ "$status" -eq 0 ] || fail "$how: exit $status"
+        contains "::warning::beta" "$output"
+        [ "$(cat "$BATS_TEST_TMPDIR/out")" = "channels=stable" ] || fail "$how kept beta"
+        rm -f "$BATS_TEST_TMPDIR/out"
+    done
+}
+
+@test "an unorderable following version is dropped, even with the override" {
+    require_jq
+    ALLOW=true run_guard_served "1.1.2" stable "stable beta" stable=1.1.1 beta=1.2.0.beta.1
+    [ "$status" -eq 0 ]
+    contains "cannot order 1.1.2 against the served 1.2.0.beta.1" "$output"
+    [ "$(cat "$BATS_TEST_TMPDIR/out")" = "channels=stable" ]
 }
 
 @test "the guard refuses a declared channel missing from the list" {
