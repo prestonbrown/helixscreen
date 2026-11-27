@@ -232,7 +232,11 @@ struct ScopedUnprivilegedEuid {
         if (saved == 0 && seteuid(0) != 0) {
             std::abort();
         }
-        if (saved == 0 && was_dumpable >= 0 && prctl(PR_SET_DUMPABLE, was_dumpable) != 0) {
+        // prctl() sets only SUID_DUMP_DISABLE and SUID_DUMP_USER. A process
+        // that started at SUID_DUMP_ROOT keeps what the kernel gave it, which
+        // hides its /proc entries just the same.
+        if (saved == 0 && (was_dumpable == 0 || was_dumpable == 1) &&
+            prctl(PR_SET_DUMPABLE, was_dumpable) != 0) {
             std::abort();
         }
     }
@@ -250,7 +254,10 @@ TEST_CASE("a root host's unprivileged probe leaves the suite process as it was",
         }
     }
     CHECK(geteuid() == getuid());
-    CHECK(prctl(PR_GET_DUMPABLE) == before);
+    // SUID_DUMP_ROOT cannot be set through prctl(), so it is not promised back.
+    if (before == 0 || before == 1) {
+        CHECK(prctl(PR_GET_DUMPABLE) == before);
+    }
 }
 
 TEST_CASE("Sysfs backend is unavailable when brightness cannot be written",
