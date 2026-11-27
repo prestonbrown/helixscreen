@@ -307,79 +307,118 @@ second='$bad' answered '$out'"
 @test "the release workflow's channel guard calls the comparator" {
     # A guard that reached for `sort -V` would report a prerelease as a downgrade
     # of its own release and block the publish, or the reverse.
-    local guard code
-    guard=$(guard_script)
-    [ -n "$guard" ] || fail "could not extract the guard step from .github/workflows/release.yml"
-    contains "version-compare.sh" "$guard"
-
-    # Comment lines are dropped before the check: the step's own comment names
-    # `sort -V` to say why it is not used.
-    code=$(printf '%s\n' "$guard" | grep -v '^[[:space:]]*#' || true)
-    [ -n "$code" ] || fail "guard step extracted no executable lines"
+    local code
+    code=$(grep -v '^[[:space:]]*#' "$GUARD")
+    contains "version-compare.sh" "$code"
+    # The script's own comment names `sort -V` to say why it is not used.
     lacks "sort -V" "$code"
 }
 
-# ------------------------------------------------- the guard step's behaviour
-#
-# The guard lives in the workflow, so it is extracted and run here rather than
-# restated: a copy of its logic in a test would agree with the step by
-# convention until it silently did not. curl is stubbed to serve a chosen
-# manifest version; everything else is the step's own shell.
-
-guard_script() {
-    awk '
-        /^    - name: Guard against channel downgrade$/ { step = 1 }
-        step && /^      run: \|$/ { body = 1; next }
-        body && /^    - name: / { exit }
-        body { sub(/^        /, ""); print }
-    ' .github/workflows/release.yml
+@test "release.yml and recover-r2.yml publish only to the channels the guard keeps" {
+    run python3 - <<'PY2'
+import yaml
+bad = []
+for wf, job, before in ((".github/workflows/release.yml", "upload-r2",
+                         "steps.channels.outputs.channels"),
+                        (".github/workflows/recover-r2.yml", "recover",
+                         "steps.meta.outputs.channels")):
+    steps = yaml.safe_load(open(wf))["jobs"][job]["steps"]
+    names = [s.get("name") for s in steps]
+    if "Guard against channel downgrade" not in names:
+        bad.append(f"{wf}: no guard step")
+        continue
+    gi = names.index("Guard against channel downgrade")
+    guard = steps[gi]
+    if guard.get("id") != "guard" or "scripts/channel-upload-guard.sh" not in guard.get("run", "") \
+            or "--declared" not in guard.get("run", ""):
+        bad.append(f"{wf}: the guard step does not run channel-upload-guard.sh with --declared")
+    for step in steps[gi + 1:]:
+        val = str((step.get("env") or {}).get("UPLOAD_CHANNELS", ""))
+        if val and "steps.guard.outputs.channels" not in val:
+            bad.append(f"{wf}/{step.get('name')}: publishes to {val}, not the guard's channels")
+        if before in str(step.get("env") or {}):
+            bad.append(f"{wf}/{step.get('name')}: reads the unguarded channel list")
+print("\n".join(bad))
+raise SystemExit(1 if bad else 0)
+PY2
+    [ "$status" -eq 0 ] || echo "$output"
+    [ "$status" -eq 0 ]
 }
 
-# Put a curl on PATH that serves {"version": "$1"}, or fails like a 404 when $1
-# is empty.
-stub_manifest() {
-    mkdir -p "$BATS_TEST_TMPDIR/bin"
-    if [ -n "$1" ]; then
-        printf '{"version":"%s"}\n' "$1" > "$BATS_TEST_TMPDIR/manifest.json"
-        cat > "$BATS_TEST_TMPDIR/bin/curl" <<EOF
+# ------------------------------------------------- the guard's behaviour
+#
+# scripts/channel-upload-guard.sh, with curl stubbed to serve a chosen manifest
+# version per channel.
+
+GUARD="scripts/channel-upload-guard.sh"
+
+# Put a curl on PATH that answers each CHANNEL=V argument: a version is served
+# as {"version": V} with 200, @500 answers HTTP 500, @timeout times out, @garbage
+# serves a body that is not JSON, @empty answers 200 and writes nothing, and a
+# channel given nothing answers 404. It
+# honours the guard's -o FILE and -w '%{http_code}'.
+stub_manifests() {
+    mkdir -p "$BATS_TEST_TMPDIR/bin" "$BATS_TEST_TMPDIR/served"
+    rm -f "$BATS_TEST_TMPDIR/served/"*
+    local pair
+    for pair in "$@"; do
+        printf '%s\n' "${pair#*=}" > "$BATS_TEST_TMPDIR/served/${pair%%=*}"
+    done
+    cat > "$BATS_TEST_TMPDIR/bin/curl" <<EOF
 #!/bin/sh
-cat "$BATS_TEST_TMPDIR/manifest.json"
+out=/dev/null
+while [ \$# -gt 0 ]; do
+    case "\$1" in
+        -o) out="\$2"; shift 2 ;;
+        -w|--max-time) shift 2 ;;
+        -*) shift ;;
+        *) url="\$1"; shift ;;
+    esac
+done
+channel=\$(basename "\$(dirname "\$url")")
+f="$BATS_TEST_TMPDIR/served/\$channel"
+if [ ! -f "\$f" ]; then printf '404'; exit 0; fi
+case "\$(cat "\$f")" in
+    @500) printf '500' ;;
+    @timeout) printf '000'; exit 28 ;;
+    @garbage) printf '<html>' > "\$out"; printf '200' ;;
+    @empty) printf '200' ;;
+    *) printf '{"version":"%s"}\n' "\$(cat "\$f")" > "\$out"; printf '200' ;;
+esac
 EOF
-    else
-        cat > "$BATS_TEST_TMPDIR/bin/curl" <<'EOF'
-#!/bin/sh
-exit 22
-EOF
-    fi
     chmod +x "$BATS_TEST_TMPDIR/bin/curl"
     export PATH="$BATS_TEST_TMPDIR/bin:$PATH"
 }
 
 # $1 = version the channel serves ("" for no manifest), $2 = version being
-# published, $3 = ALLOW_CHANNEL_DOWNGRADE, $4 = channels (default "beta").
+# published, $3 = ALLOW_CHANNEL_DOWNGRADE, $4 = channels (default "beta"), the
+# first of them declared.
 run_guard() {
-    local script="$BATS_TEST_TMPDIR/guard.sh"
-    guard_script > "$script"
-    [ -s "$script" ] || fail "could not extract the guard step from .github/workflows/release.yml"
-    stub_manifest "$1"
-    run env RELEASE_VERSION="$2" UPLOAD_CHANNELS="${4:-beta}" \
-        R2_PUBLIC_URL="https://example.invalid" ALLOW_DOWNGRADE="$3" \
-        bash -e "$script"
+    local channels="${4:-beta}" ch
+    local pairs=()
+    if [ -n "$1" ]; then
+        for ch in $channels; do pairs+=("$ch=$1"); done
+    fi
+    stub_manifests "${pairs[@]}"
+    run env ALLOW_DOWNGRADE="$3" "$GUARD" --version "$2" --declared "${channels%% *}" \
+        --channels "$channels" --base-url "https://example.invalid/"
+}
+
+# $1 = version published, $2 = declared channel, $3 = channels, then CHANNEL=V
+# pairs for what each serves.
+run_guard_served() {
+    local version="$1" declared="$2" channels="$3"
+    shift 3
+    stub_manifests "$@"
+    run env ALLOW_DOWNGRADE="${ALLOW:-}" GITHUB_OUTPUT="$BATS_TEST_TMPDIR/out" "$GUARD" \
+        --version "$version" --declared "$declared" --channels "$channels" \
+        --base-url "https://example.invalid/"
 }
 
 require_jq() {
     if ! command -v jq &>/dev/null; then
         skip "jq not installed"
     fi
-}
-
-@test "the guard step body is extractable" {
-    # Guards every guard-behaviour test below: an empty extraction would make a
-    # `bash -e` run of nothing exit 0 and read as "allowed".
-    run guard_script
-    [ "$status" -eq 0 ]
-    contains "UPLOAD_CHANNELS" "$output"
-    contains "version-compare.sh" "$output"
 }
 
 @test "the guard blocks a hotfix that would strand a channel on a newer beta" {
@@ -440,6 +479,92 @@ require_jq() {
     run_guard "1.1.0.beta.1" "1.1.0-beta.2" ""
     [ "$status" -eq 1 ]
     contains "cannot order" "$output"
+}
+
+@test "a stable release reaches a beta manifest it moves forward" {
+    # prestonbrown/helixscreen#2205: the beta fleet on 1.1.0 is offered 1.1.1.
+    require_jq
+    run_guard_served "1.1.1" stable "stable beta" stable=1.1.0 beta=1.1.0
+    [ "$status" -eq 0 ]
+    contains "channels=stable beta" "$output"
+    [ "$(cat "$BATS_TEST_TMPDIR/out")" = "channels=stable beta" ]
+}
+
+@test "a stable release skips a beta manifest already ahead, and still publishes stable" {
+    require_jq
+    run_guard_served "1.1.2" stable "stable beta" stable=1.1.1 beta=1.2.0-beta.1
+    [ "$status" -eq 0 ]
+    contains "beta already serves the newer 1.2.0-beta.1" "$output"
+    [ "$(cat "$BATS_TEST_TMPDIR/out")" = "channels=stable" ]
+}
+
+@test "ALLOW_CHANNEL_DOWNGRADE never moves a following channel backward" {
+    require_jq
+    ALLOW=true run_guard_served "1.1.2" stable "stable beta" stable=1.1.3 beta=1.2.0-beta.1
+    [ "$status" -eq 0 ]
+    [ "$(cat "$BATS_TEST_TMPDIR/out")" = "channels=stable" ]
+}
+
+@test "the declared channel moving backward fails though its followers move forward" {
+    require_jq
+    run_guard_served "1.1.2" stable "stable beta" stable=1.1.3 beta=1.1.0
+    [ "$status" -eq 1 ]
+    contains "stable currently serves 1.1.3" "$output"
+    [ ! -s "$BATS_TEST_TMPDIR/out" ]
+}
+
+@test "an unreadable declared manifest fails the run, override or not" {
+    require_jq
+    local how
+    for how in @500 @timeout @garbage; do
+        ALLOW=true run_guard_served "1.1.2" stable "stable beta" stable=$how beta=1.1.1
+        [ "$status" -eq 1 ] || fail "$how: exit $status"
+        contains "cannot tell whether publishing 1.1.2 moves it backward" "$output"
+        [ ! -s "$BATS_TEST_TMPDIR/out" ] || fail "$how wrote $(cat "$BATS_TEST_TMPDIR/out")"
+    done
+}
+
+@test "an unreadable following manifest is dropped, and stable still publishes" {
+    # A transient R2 failure during a 1.2 beta cycle must not let a 1.1.x stable
+    # release overwrite beta/manifest.json backward.
+    require_jq
+    local how
+    for how in @500 @timeout @garbage; do
+        ALLOW=true run_guard_served "1.1.2" stable "stable beta" stable=1.1.1 beta=$how
+        [ "$status" -eq 0 ] || fail "$how: exit $status"
+        contains "::warning::beta" "$output"
+        [ "$(cat "$BATS_TEST_TMPDIR/out")" = "channels=stable" ] || fail "$how kept beta"
+        rm -f "$BATS_TEST_TMPDIR/out"
+    done
+}
+
+@test "a following channel answering 200 with no body is dropped, not read as the last manifest" {
+    require_jq
+    run_guard_served "1.1.2" stable "stable beta" stable=1.1.1 beta=@empty
+    [ "$status" -eq 0 ]
+    contains "beta/manifest.json names no version" "$output"
+    [ "$(cat "$BATS_TEST_TMPDIR/out")" = "channels=stable" ]
+}
+
+@test "an unorderable following version is dropped, even with the override" {
+    require_jq
+    ALLOW=true run_guard_served "1.1.2" stable "stable beta" stable=1.1.1 beta=1.2.0.beta.1
+    [ "$status" -eq 0 ]
+    contains "cannot order 1.1.2 against the served 1.2.0.beta.1" "$output"
+    [ "$(cat "$BATS_TEST_TMPDIR/out")" = "channels=stable" ]
+}
+
+@test "the guard refuses a declared channel missing from the list" {
+    run "$GUARD" --version 1.1.2 --declared stable --channels "beta" --base-url "https://x/"
+    [ "$status" -eq 2 ]
+    contains "not among" "$output"
+}
+
+@test "channel-upload-guard.sh passes shellcheck" {
+    if ! command -v shellcheck &>/dev/null; then
+        skip "shellcheck not installed"
+    fi
+    shellcheck "$GUARD"
 }
 
 # ---------------------------------------------------------------------------

@@ -699,6 +699,44 @@ bool parse_github_release(const std::string& json_str, UpdateChecker::ReleaseInf
     }
 }
 
+bool is_beta_line_version(const std::string& version) {
+    const auto v = version::parse_version(version);
+    if (!v)
+        return false;
+    const std::string first = v->prerelease.substr(0, v->prerelease.find('.'));
+    return first.empty() || first == "beta" || first == "rc";
+}
+
+bool parse_github_beta_release(const std::string& json_str, UpdateChecker::ReleaseInfo& info,
+                               std::string& error, const std::vector<std::string>& asset_keys) {
+    const auto releases = json::parse(json_str, nullptr, false);
+    if (releases.is_discarded() || !releases.is_array() || releases.empty()) {
+        error = "Empty or invalid releases array";
+        return false;
+    }
+    // GitHub marks the devel line's alphas as prereleases too, and its list order is not
+    // precedence, so the newest beta-line version wins wherever it sits.
+    std::optional<version::Version> best;
+    for (const auto& rel : releases) {
+        if (!rel.is_object() || json_util::safe_bool(rel, "draft"))
+            continue;
+        UpdateChecker::ReleaseInfo candidate;
+        std::string candidate_error;
+        if (!::parse_github_release(rel, candidate, candidate_error, asset_keys) ||
+            !is_beta_line_version(candidate.version))
+            continue;
+        const auto v = version::parse_version(candidate.version);
+        if (!best || *v > *best) {
+            best = v;
+            info = std::move(candidate);
+        }
+    }
+    if (best)
+        return true;
+    error = "No valid releases found";
+    return false;
+}
+
 bool release_has_build_for(const UpdateChecker::ReleaseInfo& info,
                            const std::vector<std::string>& asset_keys) {
     return asset_keys.empty() || !info.download_url.empty();
@@ -747,6 +785,35 @@ CheckOutcome decide_check_outcome(const std::string& installed,
         break;
     }
     return out;
+}
+
+ChannelRead pick_channel_release(const std::string& installed,
+                                 const std::vector<ChannelRead>& reads) {
+    const ChannelRead* best = nullptr;
+    std::optional<version::Version> best_version;
+    const ChannelRead* first_failure = nullptr;
+    for (const auto& read : reads) {
+        if (!read.ok) {
+            if (!first_failure)
+                first_failure = &read;
+            continue;
+        }
+        const auto v = version::parse_version(read.info.version);
+        // On a tie, a release read from a signed manifest beats one GitHub only announces.
+        const bool tie_won_by_manifest = best && v && best_version && *v == *best_version &&
+                                         read.info.signature_verified &&
+                                         !best->info.signature_verified;
+        if (!best || (v && (!best_version || *v > *best_version)) || tie_won_by_manifest) {
+            best = &read;
+            best_version = v;
+        }
+    }
+    if (!first_failure)
+        return best ? *best : ChannelRead{};
+    if (best &&
+        compare_channel_version(installed, best->info.version) == ChannelVersionRelation::Newer)
+        return *best;
+    return *first_failure;
 }
 
 bool parse_release_manifest(const std::string& json_str, UpdateChecker::ReleaseInfo& info,
@@ -3294,6 +3361,9 @@ void UpdateChecker::do_check() {
             ok = fetch_stable_release(info, error);
             break;
         }
+        if (ok && channel != UpdateChannel::Dev && !cancelled_) {
+            add_changelog_notes(info);
+        }
 
         if (cancelled_) {
             spdlog::debug("[UpdateChecker] Check cancelled after network request");
@@ -4333,11 +4403,6 @@ bool UpdateChecker::fetch_stable_release(ReleaseInfo& info, std::string& error) 
         return false;
     }
     if (r2 == ManifestFetch::Ok) {
-        // Enrich with full changelog from CHANGELOG.md on GitHub
-        auto changelog = fetch_changelog_for_version(info.version);
-        if (!changelog.empty()) {
-            info.release_notes = std::move(changelog);
-        }
         return true;
     }
     std::string r2_error = error;
@@ -4364,17 +4429,51 @@ bool UpdateChecker::fetch_stable_release(ReleaseInfo& info, std::string& error) 
 }
 
 bool UpdateChecker::fetch_beta_release(ReleaseInfo& info, std::string& error) {
+    // A graduated stable release outranks every beta of its line, and the beta manifest
+    // names it only once the release workflow has published it there, so Beta reads both
+    // and offers the newer: Beta never trails Stable.
+    std::vector<helix::ChannelRead> reads(2);
+    reads[0].ok = fetch_beta_line_release(reads[0].info, reads[0].error);
+    if (cancelled_)
+        return false;
+    reads[1].ok = fetch_stable_release(reads[1].info, reads[1].error);
+    if (cancelled_)
+        return false;
+    if (!reads[0].ok)
+        spdlog::warn("[UpdateChecker] Beta: beta release unavailable ({})", reads[0].error);
+    if (!reads[1].ok)
+        spdlog::warn("[UpdateChecker] Beta: stable release unavailable ({})", reads[1].error);
+
+    auto picked = helix::pick_channel_release(HELIX_VERSION, reads);
+    if (!picked.ok) {
+        error = picked.error;
+        return false;
+    }
+    spdlog::info("[UpdateChecker] Beta: beta serves {}, stable serves {}; offering {}",
+                 reads[0].ok ? reads[0].info.version : "nothing",
+                 reads[1].ok ? reads[1].info.version : "nothing", picked.info.version);
+    info = std::move(picked.info);
+    return true;
+}
+
+void UpdateChecker::add_changelog_notes(ReleaseInfo& info) {
+    // A channel manifest carries sparse notes; CHANGELOG.md on GitHub has the full entry.
+    // A release read from GitHub already carries its body.
+    if (!info.signature_verified)
+        return;
+    auto changelog = fetch_changelog_for_version(info.version);
+    if (!changelog.empty()) {
+        info.release_notes = std::move(changelog);
+    }
+}
+
+bool UpdateChecker::fetch_beta_line_release(ReleaseInfo& info, std::string& error) {
     // Try R2 CDN first (manifest has version/assets, but notes may be sparse)
     const auto r2 = fetch_r2_manifest("beta", info, error);
     if (r2 == ManifestFetch::Refused) {
         return false;
     }
     if (r2 == ManifestFetch::Ok) {
-        // Enrich with full changelog from CHANGELOG.md on GitHub
-        auto changelog = fetch_changelog_for_version(info.version);
-        if (!changelog.empty()) {
-            info.release_notes = std::move(changelog);
-        }
         return true;
     }
     std::string r2_error = error;
@@ -4397,47 +4496,10 @@ bool UpdateChecker::fetch_beta_release(ReleaseInfo& info, std::string& error) {
         return false;
     }
 
-    try {
-        auto releases = json::parse(body);
-
-        if (!releases.is_array() || releases.empty()) {
-            error = "Empty or invalid releases array";
-            return false;
-        }
-
-        const auto asset_keys = this_build_release_asset_keys();
-
-        // First pass: find latest prerelease (GitHub returns newest-first)
-        for (const auto& rel : releases) {
-            if (rel.value("draft", false))
-                continue;
-            if (!rel.value("prerelease", false))
-                continue;
-
-            if (::parse_github_release(rel, info, error, asset_keys)) {
-                spdlog::debug("[UpdateChecker] Beta: selected prerelease {}", info.tag_name);
-                return true;
-            }
-        }
-
-        // Fallback: no prerelease found, use latest stable
-        for (const auto& rel : releases) {
-            if (rel.value("draft", false))
-                continue;
-            if (::parse_github_release(rel, info, error, asset_keys)) {
-                spdlog::debug("[UpdateChecker] Beta: no prerelease found, falling back to {}",
-                              info.tag_name);
-                return true;
-            }
-        }
-
-        error = "No valid releases found";
+    if (!helix::parse_github_beta_release(body, info, error, this_build_release_asset_keys()))
         return false;
-
-    } catch (const json::exception& e) {
-        error = std::string("JSON parse error: ") + e.what();
-        return false;
-    }
+    spdlog::debug("[UpdateChecker] Beta: GitHub offers {}", info.tag_name);
+    return true;
 }
 
 bool UpdateChecker::fetch_dev_release(ReleaseInfo& info, std::string& error) {

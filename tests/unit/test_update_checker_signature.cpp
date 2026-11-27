@@ -32,8 +32,8 @@ std::string fixture(const std::string& name) {
     return ss.str();
 }
 
-std::string test_key() {
-    const std::string pub = fixture("test.pub");
+std::string test_key(const std::string& pub_file = "test.pub") {
+    const std::string pub = fixture(pub_file);
     const auto first = pub.find('\n');
     return pub.substr(first + 1, pub.find('\n', first + 1) - first - 1);
 }
@@ -229,5 +229,47 @@ TEST_CASE("update check holds each published channel to its own signed channel",
         CHECK(checker.get_error_message().find("another channel") != std::string::npos);
         CHECK_FALSE(checker.get_cached_update());
     }
+    checker.shutdown();
+}
+
+TEST_CASE("a Beta check offers the stable release when it is newer than the beta manifest",
+          "[update_checker][signature][slow][2205]") {
+    // Beta serves 1.0.0, older than this build; stable serves 99.0.0. Read alone, the beta
+    // manifest offers a downgrade; read with stable, the check offers 99.0.0 as an update.
+    helix::test::LoopbackHttpServer server;
+    for (const std::string channel : {"stable", "beta"}) {
+        server.service().GET(("/" + channel + "/manifest.json").c_str(),
+                             [channel](HttpRequest*, HttpResponse* resp) {
+                                 return resp->String(fixture(channel + "_manifest.json"));
+                             });
+        server.service().GET(("/" + channel + "/manifest.json.minisig").c_str(),
+                             [channel](HttpRequest*, HttpResponse* resp) {
+                                 return resp->String(fixture(channel + "_manifest.minisig"));
+                             });
+    }
+    REQUIRE(server.start());
+
+    helix::test::ScopedUpdateUrls urls("helix_beta_reads_stable",
+                                       R"({"r2_url": ")" + server.url("/") +
+                                           R"(", "release_pubkey": ")" + test_key("channels.pub") +
+                                           R"("})");
+    auto* config = helix::Config::get_instance();
+    config->set<int>("/update/channel", 1);
+    auto& checker = UpdateChecker::instance();
+    checker.init();
+    checker.clear_cache();
+    UpdateCheckerTestAccess::reset_rate_limit(checker);
+    checker.check_for_updates(nullptr);
+    for (int i = 0; i < 8000 && checker.get_status() == UpdateChecker::Status::Checking; ++i) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+
+    INFO(checker.get_error_message());
+    REQUIRE(checker.get_status() == UpdateChecker::Status::UpdateAvailable);
+    const auto cached = checker.get_cached_update();
+    REQUIRE(cached);
+    CHECK(cached->version == "99.0.0");
+    CHECK_FALSE(cached->is_downgrade);
+    CHECK(helix::release_is_verified(*cached));
     checker.shutdown();
 }

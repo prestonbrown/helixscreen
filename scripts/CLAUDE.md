@@ -35,6 +35,7 @@ are in `docs/devel/SCRIPTS_REFERENCE.md`, and the script's own header carries th
 | `esp32_package_release.sh` | Bundles a built K-Touch firmware into the release zip |
 | `distribution_partners.py` | Partner installers and the release assets each fetches; a release step fails on a missing one |
 | `version-compare.sh` | Semver precedence for shell consumers (`A B` prints -1/0/1) |
+| `channel-upload-guard.sh` | Which channel manifests a release may overwrite: never one backward; a following channel already ahead is skipped |
 | `r2-prune-plan.sh` | Which R2 release versions a prune may delete; never one a channel manifest names |
 | `android-version-code.sh` | The single definition of the Android versionCode |
 | `generate-whatsnew.sh` | Writes the Play Store "What's new" file from `android/whatsnew/<version>.txt` |

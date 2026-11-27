@@ -834,8 +834,14 @@ class UpdateChecker {
 
     // Channel-specific fetch methods
     bool fetch_stable_release(ReleaseInfo& info, std::string& error);
+    /// The newer of fetch_beta_line_release() and fetch_stable_release()
+    /// (helix::pick_channel_release()), so Beta never trails Stable.
     bool fetch_beta_release(ReleaseInfo& info, std::string& error);
+    /// The beta manifest, or GitHub's newest prerelease when it cannot be reached.
+    bool fetch_beta_line_release(ReleaseInfo& info, std::string& error);
     bool fetch_dev_release(ReleaseInfo& info, std::string& error);
+    /// Replace a manifest-read release's sparse notes with its CHANGELOG.md entry.
+    void add_changelog_notes(ReleaseInfo& info);
 
     /// How fetching a channel manifest ended. Unreachable lets stable and beta fall back to
     /// GitHub, whose answer can announce a release but never install one (it carries no
@@ -1128,6 +1134,17 @@ bool parse_github_release(const std::string& json_str, UpdateChecker::ReleaseInf
 bool parse_github_release(const std::string& json_str, UpdateChecker::ReleaseInfo& info,
                           std::string& error, const std::vector<std::string>& asset_keys);
 
+/// True for a version the beta line ships: a beta (`1.2.0-beta.1`), a release candidate
+/// (`1.1.0-rc.2`) or a release. An alpha belongs to the devel line and the dev channel.
+bool is_beta_line_version(const std::string& version);
+
+/// The Beta channel's answer from GitHub's release list @p json_str: the non-draft
+/// release with the highest version that is_beta_line_version() (a beta, rc or release),
+/// wherever it sits in the list. A devel-line alpha, which GitHub also marks a
+/// prerelease, is never it.
+bool parse_github_beta_release(const std::string& json_str, UpdateChecker::ReleaseInfo& info,
+                               std::string& error, const std::vector<std::string>& asset_keys);
+
 /**
  * @brief Parse a release manifest (R2 and dev channel schema) into ReleaseInfo
  *
@@ -1195,6 +1212,24 @@ CheckOutcome decide_check_outcome(const std::string& installed,
 CheckOutcome decide_check_outcome(const std::string& installed,
                                   const UpdateChecker::ReleaseInfo& info,
                                   const std::vector<std::string>& asset_keys);
+
+/// What reading one channel's release source answered: a release, or the error that
+/// stopped it.
+struct ChannelRead {
+    bool ok = false;
+    UpdateChecker::ReleaseInfo info; ///< Set when ok
+    std::string error;               ///< Set when !ok
+};
+
+/// The release a channel that reads several sources offers a build at @p installed.
+/// @p reads lists the channel's own source first. When every read answered, the newest
+/// by helix::version::Version wins; on a tie a read from a signed manifest beats one that
+/// is not, else the earlier read wins. When some failed,
+/// the newest answer is offered only if it moves the install forward: a partial answer
+/// that reads as up to date or as a downgrade may be wrong about what the failed source
+/// serves, so the first failure is returned instead. Nothing answered: the first failure.
+ChannelRead pick_channel_release(const std::string& installed,
+                                 const std::vector<ChannelRead>& reads);
 
 /**
  * @brief Strip a leading 'v' or 'V' from a GitHub release tag

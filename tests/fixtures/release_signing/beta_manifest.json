@@ -1,0 +1,13 @@
+{
+  "version": "1.0.0",
+  "tag": "v1.0.0",
+  "notes": "Signed beta test manifest",
+  "published_at": "2026-11-27T12:00:00Z",
+  "assets": {
+    "pi": {
+      "zip_url": "https://releases.helixscreen.org/beta/helixscreen-pi.zip",
+      "zip_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+      "zip_size": 8123456
+    }
+  }
+}
