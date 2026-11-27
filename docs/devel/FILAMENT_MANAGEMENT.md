@@ -1132,7 +1132,7 @@ bar is one size, its width capped at an eighth of the tile and its height at fou
 - **Two or more units**: each unit sits in an untitled `ams_mini_unit_group` box, and the unit
   holding the active lane is checked, drawn in the shared `chip_active` highlight.
 - **Too tight for every box**: only the active unit keeps its box, hugging its bars.
-- **Too tight for readable bars** (narrower than 4 px or shorter than 8 px): whole units drop
+- **Too tight for readable bars** (narrower than 4 px or shorter than 7 px): whole units drop
   from the end, never the active one, and "+N" counts their lanes. A lone unit too wide even
   alone (a 12-gate ERCF on a micro tile) shows the lanes that fit and counts the rest: its first
   lanes, or a window ending on the active lane when that lane lies past them, with one "+N" on

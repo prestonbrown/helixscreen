@@ -55,7 +55,7 @@ static constexpr int32_t kMinBarWidthPx = 3;
 /** The narrowest and shortest bar body the bar view lays a lane out at before
  *  it drops whole units to "+N": below these a bar's fill stops reading. */
 static constexpr int kMinReadableBarWidthPx = 4;
-static constexpr int kMinReadableBarHeightPx = 8;
+static constexpr int kMinReadableBarHeightPx = 7;
 
 /** Units the strip lays out; later units are not drawn in either view. */
 static constexpr int kMaxUnitRows = 8;
