@@ -834,7 +834,7 @@ translations:
   Cam: Cam
   Camera: Câmera
   Camera checks the bed is empty before each print: 'A câmera verifica se a mesa está vazia antes de cada impressão'
-  Can't change the printer config while a print is running.: Não é possível alterar a configuração da impressora durante uma impressão.
+  Can't restart Klipper while a print is running.: Não é possível reiniciar o Klipper durante uma impressão.
   Can't connect — try forgetting and re-pairing the printer: Não foi possível conectar — tente esquecer e parear a impressora novamente
   Can't move filament while the print is paused: Não é possível mover o filamento com a impressão pausada
   Can't read filament RFID tag: Não é possível ler a etiqueta RFID do filamento

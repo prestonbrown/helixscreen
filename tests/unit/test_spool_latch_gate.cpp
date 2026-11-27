@@ -16,6 +16,7 @@
 #include "../../src/api/moonraker_gcode_guards.h"
 #include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/print_state_test_drivers.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
@@ -258,4 +259,83 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     helix::ui::set_test_toast_hook(nullptr);
     set_moonraker_api(previous);
+}
+
+namespace {
+
+enum class JobHeld { Printing, Paused, Preparing };
+
+void hold_machine(PrinterState& state, JobHeld held) {
+    switch (held) {
+    case JobHeld::Printing:
+        helix::test::set_wire_state(state, PrintJobState::PRINTING);
+        break;
+    case JobHeld::Paused:
+        helix::test::set_wire_state(state, PrintJobState::PAUSED);
+        break;
+    case JobHeld::Preparing:
+        state.print_state().begin_preparing(PrintJobRef{"chosen.gcode", "", ""});
+        break;
+    }
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+}
+
+const char* const kRestartPrinting = "Can't restart Klipper while a print is running.";
+
+} // namespace
+
+TEST_CASE_METHOD(SpoolLatchFixture,
+                 "every restart refuses while a job holds the machine and Klippy is ready",
+                 "[restart_guard][mock]") {
+    hold_machine(state, GENERATE(JobHeld::Printing, JobHeld::Paused, JobHeld::Preparing));
+    SECTION("firmware restart") {
+        api->restart_firmware([] {}, on_error());
+    }
+    SECTION("Klipper restart") {
+        api->restart_klipper([] {}, on_error());
+    }
+    SECTION("the Klipper service") {
+        api->restart_service("klipper", [] {}, on_error());
+    }
+    SECTION("a script that restarts") {
+        const std::string script =
+            GENERATE("SAVE_CONFIG", "restart", "  Firmware_Restart\n", "M117 saving\nSAVE_CONFIG");
+        CAPTURE(script);
+        api->execute_gcode(script, nullptr, on_error());
+    }
+    CHECK(error_called);
+    CHECK(captured_error.message == kRestartPrinting);
+    CHECK(mock_client.gcode_script_history().empty());
+}
+
+TEST_CASE_METHOD(SpoolLatchFixture, "a restart goes out when idle", "[restart_guard][mock]") {
+    SECTION("firmware restart") {
+        api->restart_firmware([] {}, on_error());
+    }
+    SECTION("a SAVE_CONFIG script") {
+        api->execute_gcode("SAVE_CONFIG", nullptr, on_error());
+    }
+    // The mock may answer a restart with its own disconnect; only this guard's
+    // refusal is under test.
+    CHECK(captured_error.message != kRestartPrinting);
+}
+
+TEST_CASE_METHOD(SpoolLatchFixture,
+                 "a restart is how a halted printer recovers, whatever the job says",
+                 "[restart_guard][mock]") {
+    hold_machine(state, JobHeld::Printing);
+    state.set_klippy_state_sync(GENERATE(KlippyState::SHUTDOWN, KlippyState::ERROR));
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    api->restart_firmware([] {}, on_error());
+    api->restart_klipper([] {}, on_error());
+    api->restart_service("klipper", [] {}, on_error());
+    CHECK_FALSE(error_called);
+}
+
+TEST_CASE_METHOD(SpoolLatchFixture, "only a restart of Klipper is refused for a print",
+                 "[restart_guard][mock]") {
+    hold_machine(state, JobHeld::Printing);
+    api->restart_service("moonraker", [] {}, on_error());
+    api->execute_gcode("M117 SAVE_CONFIG_DONE", nullptr, on_error());
+    CHECK_FALSE(error_called);
 }

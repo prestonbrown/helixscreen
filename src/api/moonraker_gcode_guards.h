@@ -28,7 +28,10 @@
 
 namespace helix {
 class PrinterState;
-}
+
+/// Refusal text for a restart while a job holds the machine (untranslated TR_NOOP tag).
+const char* restart_while_printing_message();
+} // namespace helix
 
 namespace helix::api {
 
@@ -50,11 +53,26 @@ bool reject_motion_while_spools_on_bed(
     const std::string& gcode, helix::PrinterState& state, bool silent,
     const helix::SharedCallback<void(const MoonrakerError&)>& on_error, const char* log_tag);
 
-/// Reject a Klipper or firmware restart while spools lie on the bed, with the
-/// restart wording (spool_latch_restart_message). @p state may be null.
-bool reject_restart_while_spools_on_bed(
-    const helix::PrinterState* state, const char* method,
-    const helix::SharedCallback<void(const MoonrakerError&)>& on_error);
+/// Why a Klipper restart must not go out now, or nullptr when it may. Two reasons,
+/// in this order: spools lie on the bed (spool_latch_restart_message), or a job
+/// holds the machine (restart_while_printing_message) while Klippy is READY. A
+/// halted or errored Klippy never counts as a job: print_stats can still read
+/// printing there, and a restart is how the user recovers. Main thread only.
+/// @p state may be null, which refuses nothing. The returned text is an untranslated
+/// TR_NOOP tag.
+const char* restart_refusal_reason(const helix::PrinterState* state);
+
+/// Reject a Klipper or firmware restart for restart_refusal_reason(). True means
+/// refused and @p on_error already called. @p state may be null.
+bool reject_restart(const helix::PrinterState* state, const char* method,
+                    const helix::SharedCallback<void(const MoonrakerError&)>& on_error);
+
+/// Reject a script that restarts Klipper as one of its own commands (RESTART,
+/// FIRMWARE_RESTART, SAVE_CONFIG, any case) for restart_refusal_reason(). Same
+/// contract as the homing guard.
+bool reject_restart_script(const std::string& gcode, const helix::PrinterState& state, bool silent,
+                           const helix::SharedCallback<void(const MoonrakerError&)>& on_error,
+                           const char* log_tag);
 
 /// Reject a print start, resume or queue start while spools lie on the bed.
 /// @p state may be null (a sub-API built without one), which refuses nothing.

@@ -801,11 +801,11 @@
   <translation tag="Cam" zh="摄像"/>
   <translation tag="Camera" zh="摄像头"/>
   <translation tag="Camera checks the bed is empty before each print" zh="每次打印前用摄像头检查热床是否为空"/>
-  <translation tag="Can&apos;t change the printer config while a print is running." zh="打印期间无法更改打印机配置。"/>
   <translation tag="Can&apos;t connect — try forgetting and re-pairing the printer" zh="无法连接 — 请尝试忘记并重新配对打印机"/>
   <translation tag="Can&apos;t move filament while the print is paused" zh="打印暂停期间无法移动耗材"/>
   <translation tag="Can&apos;t reach this printer. Save anyway?" zh="无法连接到此打印机。仍要保存吗？"/>
   <translation tag="Can&apos;t read filament RFID tag" zh="无法读取耗材 RFID 标签"/>
+  <translation tag="Can&apos;t restart Klipper while a print is running." zh="打印期间无法重启 Klipper。"/>
   <translation tag="Can&apos;t save: the value is set in another file" zh="无法保存：该值在另一个文件中设置"/>
   <translation tag="Can&apos;t talk to stepper driver {1}" zh="无法与步进驱动 {1} 通信"/>
   <translation tag="Cancel" zh="取消"/>

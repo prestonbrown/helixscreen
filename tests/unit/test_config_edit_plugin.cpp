@@ -484,7 +484,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "safe_multi_edit keeps the file API when the p
 
 namespace {
 
-constexpr const char* kJobRefusal = "Can't change the printer config while a print is running.";
+constexpr const char* kJobRefusal = "Can't restart Klipper while a print is running.";
 
 bool restart_sent(const ConfigPluginMockClient& client) {
     return !client.params_of("printer.firmware_restart").empty();
@@ -508,7 +508,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     KlipperConfigEditor editor;
     editor.set_feature_state_source([route]() { return route; });
-    editor.set_job_hold_source([]() { return true; });
+    editor.set_restart_refusal_source([]() -> const char* { return kJobRefusal; });
     EditorRun run;
     std::vector<ConfigEdit> edits = {{ConfigEdit::Type::ADD_KEY, "shaper_freq_x", "41.6"}};
     if (multi) {
@@ -522,6 +522,9 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     CHECK_FALSE(run.succeeded);
     CHECK(run.error == kJobRefusal);
+    // Refused before anything is read or backed up, not just before the write.
+    CHECK(client.params_of("server.helix.config").empty());
+    CHECK(client.params_of("server.files.copy").empty());
     CHECK(client.params_of("server.helix.config_edit").empty());
     CHECK(api.get_uploaded_config("printer.cfg") == kShaperRoot);
     CHECK_FALSE(restart_sent(client));
@@ -534,6 +537,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     auto& ps = get_printer_state();
     PrinterStateTestAccess::reset(ps);
     ps.init_subjects(false);
+    ps.set_klippy_state_sync(KlippyState::READY);
     helix::ui::UpdateQueue::instance().drain_until_empty();
 
     enum class Held { Standby, Printing, Paused, Preparing };
@@ -573,6 +577,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     } else {
         CHECK_FALSE(run.succeeded);
         CHECK(run.error == kJobRefusal);
+        CHECK(client.params_of("server.files.copy").empty());
         CHECK(api.get_uploaded_config("printer.cfg") == kShaperRoot);
         CHECK_FALSE(restart_sent(client));
     }
@@ -580,10 +585,13 @@ TEST_CASE_METHOD(LVGLTestFixture,
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,
-                 "a print that starts after the config is written blocks the restart and puts "
-                 "the file back",
+                 "a print the editor did not see still cannot be restarted: the send layer refuses",
                  "[plugin_config_edit][config][editor][job_guard]") {
     PrinterState state;
+    state.init_subjects(false);
+    state.set_klippy_state_sync(KlippyState::READY);
+    helix::test::set_wire_state(state, PrintJobState::PRINTING);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     ConfigPluginMockClient client;
     MoonrakerAPIMock api(client, state);
     api.set_config_files({{"printer.cfg", kShaperRoot}});
@@ -591,11 +599,8 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     KlipperConfigEditor editor;
     editor.set_feature_state_source([]() { return PluginFeatureState::Absent; });
-    // Idle until the edit lands, then a print takes the machine.
-    editor.set_job_hold_source([&api]() {
-        auto written = api.get_uploaded_config("printer.cfg");
-        return written.has_value() && *written != kShaperRoot;
-    });
+    // Idle as far as the editor knows: the print started after its check.
+    editor.set_restart_refusal_source([]() -> const char* { return nullptr; });
     EditorRun run;
     run_multi_edit(*this, editor, api, "input_shaper",
                    {{ConfigEdit::Type::ADD_KEY, "shaper_freq_x", "41.6"}}, run);
@@ -615,8 +620,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "a print that starts after the file backup blo
 
     KlipperConfigEditor editor;
     editor.set_feature_state_source([]() { return PluginFeatureState::Absent; });
-    editor.set_job_hold_source(
-        [&client]() { return !client.params_of("server.files.copy").empty(); });
+    editor.set_restart_refusal_source([&client]() -> const char* {
+        return client.params_of("server.files.copy").empty() ? nullptr : kJobRefusal;
+    });
     EditorRun run;
     run_multi_edit(*this, editor, api, "input_shaper",
                    {{ConfigEdit::Type::ADD_KEY, "shaper_freq_x", "41.6"}}, run);
@@ -640,8 +646,9 @@ TEST_CASE_METHOD(LVGLTestFixture,
     KlipperConfigEditor editor;
     editor.set_feature_state_source([]() { return PluginFeatureState::Ready; });
     // Idle at the entry check, held once the plugin's read has been answered.
-    editor.set_job_hold_source(
-        [&client]() { return !client.params_of("server.helix.config").empty(); });
+    editor.set_restart_refusal_source([&client]() -> const char* {
+        return client.params_of("server.helix.config").empty() ? nullptr : kJobRefusal;
+    });
     EditorRun run;
     run_multi_edit(*this, editor, api, "input_shaper",
                    {{ConfigEdit::Type::ADD_KEY, "shaper_freq_x", "41.6"}}, run);

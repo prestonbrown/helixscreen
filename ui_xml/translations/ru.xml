@@ -843,11 +843,11 @@
   <translation tag="Cam" ru="Кам"/>
   <translation tag="Camera" ru="Камера"/>
   <translation tag="Camera checks the bed is empty before each print" ru="Камера проверяет, что стол пуст, перед каждой печатью"/>
-  <translation tag="Can&apos;t change the printer config while a print is running." ru="Нельзя изменить конфигурацию принтера во время печати."/>
   <translation tag="Can&apos;t connect — try forgetting and re-pairing the printer" ru="Не удаётся подключиться — забудьте принтер и выполните сопряжение заново"/>
   <translation tag="Can&apos;t move filament while the print is paused" ru="Невозможно перемещать филамент, пока печать на паузе"/>
   <translation tag="Can&apos;t reach this printer. Save anyway?" ru="Принтер недоступен. Всё равно сохранить?"/>
   <translation tag="Can&apos;t read filament RFID tag" ru="Не удаётся прочитать RFID-метку филамента"/>
+  <translation tag="Can&apos;t restart Klipper while a print is running." ru="Нельзя перезапустить Klipper во время печати."/>
   <translation tag="Can&apos;t save: the value is set in another file" ru="Не удаётся сохранить: значение задано в другом файле"/>
   <translation tag="Can&apos;t talk to stepper driver {1}" ru="Нет связи с драйвером шагового мотора {1}"/>
   <translation tag="Cancel" ru="Отмена"/>
