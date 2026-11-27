@@ -116,3 +116,15 @@ TEST_CASE("parse_filament_weights: null filament_weights is treated as missing",
 
     CHECK(w.empty());
 }
+
+TEST_CASE("parse_filament_weights: Cura's weights are spool weights, not filament used",
+          "[moonraker][metadata][weights][2208]") {
+    // Moonraker reads Cura's ";Filament weight = [...]" line into filament_weights: the
+    // spool weight configured for every extruder in the printer profile, used or not.
+    json obj = {{"slicer", "Cura"}, {"filament_weights", json::array({1000.0, 0.0, 1000.0})}};
+    CHECK(parse_filament_weights(obj).empty());
+
+    // Every other slicer's filament_weights are the grams each extruder used.
+    obj["slicer"] = "OrcaSlicer";
+    CHECK(parse_filament_weights(obj) == std::vector<double>{1000.0, 0.0, 1000.0});
+}
