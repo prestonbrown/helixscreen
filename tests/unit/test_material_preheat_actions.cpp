@@ -298,6 +298,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
 TEST_CASE_METHOD(LVGLUITestFixture, "The Filament panel keeps its material when a preset refuses",
                  "[material_preheat][preheat][filament][2183]") {
+    // The fixed ABS button and the active spool's preset both refuse.
+    const auto action = GENERATE(PreheatAction::FILAMENT_PRESET, PreheatAction::SPOOL_PRESET);
+    CAPTURE(static_cast<int>(action));
     MaterialSettingsScope settings;
     Harness h;
     discover_macros(h);
@@ -309,7 +312,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The Filament panel keeps its material when 
     REQUIRE(h.panel->get_material() == 1);
     h.client.clear_gcode_script_history();
 
-    press(PreheatAction::FILAMENT_PRESET, h);
+    press(action, h);
 
     // The PETG button stays the selected one: nothing was sent for ABS.
     CHECK(h.panel->get_material() == 1);
