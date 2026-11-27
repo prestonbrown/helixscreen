@@ -215,6 +215,10 @@ const std::vector<std::string> kCorpus = {
     "\r\n",
 };
 
+std::string iterator_disagreement(const std::string& where,
+                                  const std::vector<std::pair<size_t, std::string>>& helix_matches,
+                                  const std::vector<std::pair<size_t, std::string>>& std_matches);
+
 /// How helix::Regex and std::regex disagree on `input`, the pattern and the
 /// input first; empty when they agree on everything this file compares.
 std::string disagreement(const Pattern& p, const std::string& input) {
@@ -270,9 +274,29 @@ std::string disagreement(const Pattern& p, const std::string& input) {
         s_all.emplace_back(static_cast<size_t>(it->position()), it->str());
     for (RegexIterator it(input, hr), end; it != end; ++it)
         h_all.emplace_back(it->position(), it->str());
-    if (h_all != s_all) {
-        return where + "the iterators give " + std::to_string(h_all.size()) + " matches against " +
-               std::to_string(s_all.size());
+    return iterator_disagreement(where, h_all, s_all);
+}
+
+/// Where the two match lists part: the first match they read differently, or
+/// the first one list has and the other does not. Empty when they agree.
+std::string iterator_disagreement(const std::string& where,
+                                  const std::vector<std::pair<size_t, std::string>>& helix_matches,
+                                  const std::vector<std::pair<size_t, std::string>>& std_matches) {
+    const auto describe = [](const std::pair<size_t, std::string>& match) {
+        return "at " + std::to_string(match.first) + " \"" + match.second + "\"";
+    };
+    const size_t shared = std::min(helix_matches.size(), std_matches.size());
+    for (size_t m = 0; m < shared; ++m) {
+        if (helix_matches[m] != std_matches[m]) {
+            return where + "match " + std::to_string(m) + ": helix " + describe(helix_matches[m]) +
+                   ", std " + describe(std_matches[m]);
+        }
+    }
+    if (helix_matches.size() != std_matches.size()) {
+        const bool more = helix_matches.size() > std_matches.size();
+        return where + (more ? "helix finds " : "std finds ") + "match " + std::to_string(shared) +
+               " " + describe(more ? helix_matches[shared] : std_matches[shared]) +
+               ", which the other does not";
     }
     return {};
 }
