@@ -453,6 +453,23 @@ TEST_CASE_METHOD(
     TempGraphOverlayTestAccess::set_deps(overlay, nullptr, nullptr);
 }
 
+TEST_CASE_METHOD(TempGraphOverlayPickFixture,
+                 "TempGraphOverlay: a button that is no preset sends nothing when it is clicked",
+                 "[temp_graph_overlay][preset_mark][2183]") {
+    TempGraphOverlay& overlay = get_global_temp_graph_overlay();
+    seed_two_tools();
+    TempGraphOverlayTestAccess::set_deps(overlay, &state, &service);
+    TempGraphOverlayTestAccess::set_mode(overlay, TempGraphOverlay::Mode::Nozzle);
+    client.clear_gcode_script_history();
+
+    TempGraphOverlayTestAccess::click_named("no_preset_here", lv_screen_active());
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(client.gcode_script_history().empty());
+
+    TempGraphOverlayTestAccess::set_deps(overlay, nullptr, nullptr);
+}
+
 TEST_CASE_METHOD(
     TempGraphOverlayPickFixture,
     "TempGraphOverlay: a nozzle material preset heats the chamber only while the setting is on",

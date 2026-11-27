@@ -36,6 +36,10 @@ class TempGraphOverlayTestAccess {
     static void preset_clicked(TempGraphOverlay& o, const char* name, int deg, lv_obj_t* parent) {
         const int idx = name[std::string(name).size() - 1] - '0';
         o.preset_data_[static_cast<size_t>(idx)] = {&o, deg};
+        click_named(name, parent);
+    }
+    /// A tap on a button named @p name, whatever that name is.
+    static void click_named(const char* name, lv_obj_t* parent) {
         lv_obj_t* btn = lv_obj_create(parent);
         lv_obj_set_name(btn, name);
         lv_obj_add_event_cb(btn, TempGraphOverlay::on_temp_graph_preset_clicked, LV_EVENT_CLICKED,

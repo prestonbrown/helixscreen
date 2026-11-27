@@ -859,11 +859,16 @@ void TempGraphOverlay::on_temp_graph_preset_clicked(lv_event_t* e) {
     if (!self->temp_control_panel_)
         return;
 
-    // Map button name suffix to preset index: 0 is "Off"; preset_N is slot N-1.
-    std::string name_str(name);
-    int preset_idx = material_preset_slot(name) + 1;
-    if (name_str.find("preset_off") != std::string::npos) {
+    // Map button name to preset index: "Off" is 0 and preset_N is slot N-1. A
+    // button named neither is no preset, and its click sends nothing.
+    int preset_idx = -1;
+    if (std::strstr(name, "preset_off") != nullptr) {
         preset_idx = 0;
+    } else {
+        const int slot = material_preset_slot(name);
+        if (slot >= 0) {
+            preset_idx = slot + 1;
+        }
     }
 
     if (preset_idx < 0 || preset_idx >= kMaxPresets)

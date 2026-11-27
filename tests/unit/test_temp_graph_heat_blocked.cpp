@@ -138,12 +138,29 @@ TEST_CASE_METHOD(TempGraphHeatFixture,
     settle();
     CHECK_FALSE(lv_obj_is_hidden(abs_mark));
     CHECK(lv_obj_is_hidden(ui_button_get_icon(pla_button)));
-    // The landscape strip's fixed-row twin carries the mark beside the name too.
+    // The landscape strip's fixed-row twins carry their slots' marks beside
+    // the name too: each shows its own slot's and hides every other's.
     if (!portrait) {
-        lv_obj_t* abs_twin = lv_obj_find_by_name(root, "preset_3_tiny");
-        REQUIRE(abs_twin != nullptr);
-        REQUIRE(ui_button_get_icon(abs_twin) != nullptr);
-        CHECK_FALSE(lv_obj_is_hidden(ui_button_get_icon(abs_twin)));
+        const char* twins[] = {"preset_1_tiny", "preset_2_tiny", "preset_3_tiny"};
+        for (int slot = 0; slot < 3; ++slot) {
+            CAPTURE(slot);
+            lv_obj_t* twin = lv_obj_find_by_name(root, twins[slot]);
+            REQUIRE(twin != nullptr);
+            lv_obj_t* icon = ui_button_get_icon(twin);
+            REQUIRE(icon != nullptr);
+            for (int other = 0; other < 3; ++other) {
+                lv_subject_set_int(helix::presets::has_macro_subject(other), other == slot ? 1 : 0);
+            }
+            settle();
+            CHECK_FALSE(lv_obj_is_hidden(icon));
+            for (int other = 0; other < 3; ++other) {
+                if (other == slot)
+                    continue;
+                lv_obj_t* other_twin = lv_obj_find_by_name(root, twins[other]);
+                REQUIRE(other_twin != nullptr);
+                CHECK(lv_obj_is_hidden(ui_button_get_icon(other_twin)));
+            }
+        }
     }
 
     lv_subject_set_int(abs_has_macro, 0);
@@ -155,6 +172,40 @@ TEST_CASE_METHOD(TempGraphHeatFixture,
     lv_subject_set_int(abs_has_macro, saved_abs);
     lv_subject_set_int(pla_has_macro, saved_pla);
     lv_subject_set_int(portrait_subject, 0);
+}
+
+TEST_CASE_METHOD(TempGraphHeatFixture,
+                 "Temp overlay preset watchers do not outlive the open overlay",
+                 "[temp_graph_overlay][preset_mark][2183]") {
+    auto& overlay = get_global_temp_graph_overlay();
+    // Every watcher of the presets' names and marks: the markup's bindings and
+    // the overlay's own, which refit a button when either changes.
+    const auto watchers = [](int slot) {
+        lv_subject_t* named = helix::presets::name_subject(slot);
+        lv_subject_t* marked = helix::presets::has_macro_subject(slot);
+        REQUIRE(named != nullptr);
+        REQUIRE(marked != nullptr);
+        return lv_ll_get_len(&named->subs_ll) + lv_ll_get_len(&marked->subs_ll);
+    };
+    const auto all_watchers = [&] {
+        int sum = 0;
+        for (int slot = 0; slot < helix::presets::kPresetCount; ++slot)
+            sum += watchers(slot);
+        return sum;
+    };
+
+    const int before = all_watchers();
+    overlay.open(TempGraphOverlay::Mode::Nozzle, lv_screen_active());
+    settle();
+    // Two of its own per slot: the name and the mark.
+    REQUIRE(all_watchers() > before + 2 * helix::presets::kPresetCount - 1);
+
+    // Closed: the overlay's own are gone, whatever the markup still binds.
+    NavigationManager::instance().go_back();
+    settle();
+    const int closed = all_watchers();
+    INFO("watchers before " << before << ", closed " << closed);
+    CHECK(closed <= before);
 }
 
 TEST_CASE_METHOD(TempGraphHeatFixture,
