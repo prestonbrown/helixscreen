@@ -191,11 +191,18 @@ shard 95
 - **A re-run on an idle machine is the one condition a timing flake never fails
   under**, which is why the pinned stages exist. Without `taskset` (macOS) they
   are skipped and the output says so.
-- **Bounded.** `SHARD_RETRIES` (default 3) runs per stage, `SHARD_TIMEOUT` per
+- **Bounded.** `SHARD_RETRIES` (default 3) runs per stage, the shard budget per
   run (`TRIAGE_TIMEOUT`), twice that per shard (`TRIAGE_BUDGET`), and
-  `TRIAGE_TOTAL_BUDGET` (default 900s) for every failed shard of the sweep
-  together; a stage that would start past a budget is named as skipped. A run
-  that hits the timeout is reported as timed out, never as a reproduction.
+  `TRIAGE_TOTAL_BUDGET` (default 900s, stretched with the shard budget) for
+  every failed shard of the sweep together; a stage that would start past a
+  budget is named as skipped. A run that hits the timeout is reported as
+  timed out, never as a reproduction.
+- **Stretched by the host's load.** A shard's budget is `SHARD_TIMEOUT` times
+  the load other work puts on the host when the sweep starts (the one-minute
+  average plus one, over the cores), at most twice. A shard that a busy host
+  starves is slow, not hung, and the budget is for hangs. The sweep's first
+  line and each shard header say the budget, and say when the cap applied.
+  `scripts/shard_budget.sh`; tests in `tests/shell/test_shard_batching.bats`.
 - **The pinned core** is the allowed CPU that sat idle longest over a short
   sample (`TRIAGE_CPU` overrides), and a pinned verdict names it with the load
   average it ran under.

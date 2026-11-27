@@ -130,6 +130,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `check_asan_leaks.py` | Ratchet on LeakSanitizer at-exit leaks vs a baseline |
 | `tsan_resplit_shard.sh` | `make test-tsan` retry that re-splits a shard killed by TSan's reporter abort |
 | `triage_shard.sh` | Unit sweep post-mortem for a failed shard: alone, pinned, repeated |
+| `shard_budget.sh` | A sweep shard's time budget: the timeout stretched by the load other work puts on the host, at most to twice. Tests: `tests/shell/test_shard_batching.bats` |
 | `check_required_names.py` | Fail if a `find_required()` name is missing from the XML its unit creates |
 | `check_orphan_callbacks.py` | Ratchet on XML callbacks nobody registers or registered twice (fail) and registrations nobody uses (warn) |
 | `check_esp32_xml_bindings.py` | XML subjects and callbacks the desktop registers but the ESP32 firmware does not |
