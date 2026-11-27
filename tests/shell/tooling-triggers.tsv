@@ -83,6 +83,7 @@ tests/shell/test_generate_manifest.bats	scripts/generate-manifest.sh
 tests/shell/test_generate_whatsnew.bats	CHANGELOG.md VERSION.txt android/whatsnew/ scripts/android-version-code.sh scripts/changelog-section.sh scripts/generate-whatsnew.sh
 tests/shell/test_gpu_lib_callers_gate.bats	scripts/check_gpu_lib_callers.py
 tests/shell/test_gpu_libs_hidden_smoke.bats	.github/workflows/release.yml scripts/ci/gpu_libs_hidden_smoke.sh
+tests/shell/test_homeserver_image.bats	scripts/ci/homeserver_image.sh
 tests/shell/test_grid_metrics_gate.bats	scripts/check_source_rules.py scripts/source_strip.py src/ui/home/grid_edit_mode.cpp
 tests/shell/test_growth_ratchets_gate.bats	.github/workflows/quality.yml lib/lvgl scripts/check_growth_ratchets.py scripts/diff_base.py scripts/qc/_lib.sh scripts/qc/growth_ratchets.sh scripts/ratchet.py scripts/source_strip.py ui_xml/globals.xml
 tests/shell/test_layering_gate.bats	scripts/check_layering.py scripts/diff_base.py scripts/qc/_lib.sh scripts/design_ratchets.py

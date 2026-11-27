@@ -21,27 +21,18 @@ What it does not do: there is no physical touchscreen, no screen dimming or slee
 - Network access from the host to your printer's Moonraker (port `7125` by default). Mainsail or Fluidd is not required.
 - Your printer's IP address or name, for example `192.168.1.50`.
 
-## Build the image
-
-A published image is the next step for HelixScreen; until it is available, you build it yourself. It takes under a minute, because the build only downloads the released package and checks it against the release's published checksum.
-
-```bash
-git clone https://github.com/prestonbrown/helixscreen.git
-cd helixscreen
-docker build -t helixscreen/homeserver -f docker/Dockerfile.homeserver docker
-```
-
-The image follows one update channel, chosen when you build it:
-
-| You build with | You get |
-|---|---|
-| nothing extra | The newest release on the Stable channel. It must be 1.1 or newer; while Stable is still on 1.0, the build stops because that release has no desktop package. |
-| `--build-arg CHANNEL=beta` | The newest Beta release. |
-| `--build-arg RELEASE=v1.1.0 --build-arg RELEASE_SHA256=<sha256>` | That one release. Give the zip's SHA-256 so the download can be checked: the `zip_sha256` value from a channel manifest that served that release (`https://releases.helixscreen.org/beta/manifest.json`, for example). |
-
-Tag a build `helixscreen/homeserver:beta` (or any name you like) to keep a Stable and a Beta image side by side.
-
 ## Start it
+
+Every release that carries the Linux desktop package is also published as a container image, so there is nothing to build. The image is `ghcr.io/prestonbrown/helixscreen-homeserver`, and its tag says which release you get:
+
+| Tag | You get |
+|---|---|
+| `dev` | The newest development build. |
+| `beta` | The newest Beta release. |
+| `latest` | The newest Stable release. |
+| A version, such as `1.2.0-alpha.5` | That one release and no other. Use it to stay on a version you have checked. |
+
+Tags appear as releases are published as images: `dev` first, then `beta` and `latest` with the first Beta and Stable releases that get one. If pulling a tag says it does not exist, no such release has been published as an image yet: use `dev`.
 
 Name your printer with `PRINTER_URL`, keep the settings in a volume, and publish port `7130`:
 
@@ -50,7 +41,7 @@ docker run -d --name helixscreen --restart unless-stopped \
   -e PRINTER_URL=192.168.1.50:7125 \
   -p 7130:7130 \
   -v helixscreen-config:/config \
-  helixscreen/homeserver
+  ghcr.io/prestonbrown/helixscreen-homeserver:dev
 ```
 
 Or use the Compose file in the repository, `docker/docker-compose.homeserver.yml`. Edit `PRINTER_URL` in it, then:
@@ -97,18 +88,41 @@ Anyone on your network can watch the screen, and anyone with the code can use it
 
 ## Updating
 
-**Settings > Updates** opens the release page and does not update the container in place. Update the container the way you update any other: build a newer image, then recreate the container. The volume keeps your settings.
+**Settings > Updates** opens the release page and does not update the container in place. Update the container the way you update any other: get the newer image, then recreate the container. The volume keeps your settings.
+
+A container on `dev`, `beta` or `latest` moves to that channel's newest release when you pull the image again:
 
 ```bash
-cd helixscreen && git pull
-docker build -t helixscreen/homeserver -f docker/Dockerfile.homeserver docker
 docker rm -f helixscreen
+docker pull ghcr.io/prestonbrown/helixscreen-homeserver:dev
 # then the same docker run command as before
 ```
 
-With Compose, `docker compose -f docker/docker-compose.homeserver.yml up -d --build` does all of it.
+With Compose, `docker compose -f docker/docker-compose.homeserver.yml up -d --pull always` does all of it.
 
-To follow another channel, build the image again with a different `CHANNEL`.
+A container on a version tag stays on that version. To move it to another release or another channel, change the tag in the `docker run` command or the Compose file, then recreate the container.
+
+## Build the image yourself
+
+You need this only to change what the image contains, or to run a release the published image does not cover. It takes under a minute, because the build only downloads the released package and checks it against the release's published checksum.
+
+```bash
+git clone https://github.com/prestonbrown/helixscreen.git
+cd helixscreen
+docker build -t helixscreen/homeserver -f docker/Dockerfile.homeserver docker
+```
+
+The image follows one update channel, chosen when you build it:
+
+| You build with | You get |
+|---|---|
+| nothing extra | The newest release on the Stable channel. It must be 1.1 or newer; while Stable is still on 1.0, the build stops because that release has no desktop package. |
+| `--build-arg CHANNEL=beta` | The newest Beta release. |
+| `--build-arg RELEASE=v1.1.0 --build-arg RELEASE_SHA256=<sha256>` | That one release. Give the zip's SHA-256 so the download can be checked: the `zip_sha256` value from a channel manifest that served that release (`https://releases.helixscreen.org/beta/manifest.json`, for example). |
+
+Tag a build `helixscreen/homeserver:beta` (or any name you like) to keep a Stable and a Beta image side by side.
+
+Start it the same way as above, with the name of your image in place of the published one. To update it, `git pull`, build it again, remove the container and start it with the same command.
 
 ## Where things are kept
 
@@ -136,6 +150,10 @@ To start over with fresh settings, remove the volume (`docker volume rm helixscr
 **The screen does not show up as a webcam in Mainsail or Fluidd.** This is on purpose. The webcam entry would carry the container's internal address, which a browser cannot open. Use the page at port `7130` directly.
 
 **Settings did not survive an update.** The container needs a volume or folder mounted at `/config`. Without one, Docker discards the settings with the old container.
+
+**`docker pull` says the tag does not exist.** No release of that kind has been published as an image yet. Use the `dev` tag until then.
+
+**`docker pull` says `denied` or `unauthorized`.** The image is not public yet. Nothing on your side fixes that: tell us on [Discord](https://discord.gg/RZCT2StKhr).
 
 For anything else, see [Troubleshooting](../TROUBLESHOOTING.md) or ask on [Discord](https://discord.gg/RZCT2StKhr).
 

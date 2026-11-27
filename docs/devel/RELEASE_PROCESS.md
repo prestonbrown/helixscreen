@@ -121,7 +121,7 @@ Only a `v*` tag push publishes. `workflow_dispatch` is always a dry run of the w
 gh workflow run release.yml --ref <branch> -f platforms=x86   # platforms empty = full matrix
 ```
 
-A dry run creates no GitHub release and sends nothing to Play, Discord or the website. Its R2 uploads go to the scratch bucket under `dry-run/<run_id>/` with version `0.0.0-dryrun.<run_id>`, and the would-be release assets go to the `dry-run-release-assets` workflow artifact. The scratch bucket has no public domain, so a dry run reads every key back with the scratch credentials, and its manifests carry a placeholder base URL (`https://scratch.invalid/<prefix>`) that `dry-run-verify` checks against; a publish run checks what the public URL serves. The `dry-run-verify` job then runs `scripts/verify-dry-run-release.sh` against both and deletes the prefix. `tests/shell/test_release_dry_run.bats` fails any publishing step that is not gated on `RELEASE_MODE == 'publish'` and does not write through `R2_PREFIX`.
+A dry run creates no GitHub release and sends nothing to Play, Discord or the website, and pushes no home-server image: the `homeserver-image` job builds that image and starts the container once in both modes, and pushes in a release only. Its R2 uploads go to the scratch bucket under `dry-run/<run_id>/` with version `0.0.0-dryrun.<run_id>`, and the would-be release assets go to the `dry-run-release-assets` workflow artifact. The scratch bucket has no public domain, so a dry run reads every key back with the scratch credentials, and its manifests carry a placeholder base URL (`https://scratch.invalid/<prefix>`) that `dry-run-verify` checks against; a publish run checks what the public URL serves. The `dry-run-verify` job then runs `scripts/verify-dry-run-release.sh` against both and deletes the prefix. `tests/shell/test_release_dry_run.bats` fails any publishing step that is not gated on `RELEASE_MODE == 'publish'` and does not write through `R2_PREFIX`.
 
 ### Signed channel manifests
 
@@ -184,9 +184,12 @@ Setup (both environments, the exact `gh secret set` commands, the dev key's two-
 | K2 | `helixscreen-k2.zip` | ARM binary (static, musl), assets, configs |
 | x86 | `helixscreen-x86.zip` | x86 binary, assets, configs |
 | x86 desktop | `helixscreen-x86-desktop.zip` | x86_64 Linux desktop build |
+| Home server | `ghcr.io/prestonbrown/helixscreen-homeserver` | The x86 desktop package as a container image, pushed by `homeserver-image` as `<version>`, one tag per channel and, for a stable release, `latest` |
 | Snapmaker U1 | `helixscreen-snapmaker-u1.zip` | ARM binary, assets, configs |
 | ESP32 K-Touch | `helixscreen-esp32-ktouch-<version>.zip` | Firmware image and `README.txt` |
 | Android | APK and AAB; Play Store upload via `publish-android` | |
+
+The home-server image is pushed after the GitHub release is public, and only while each channel's manifest still serves the release, because a registry has no downgrade guard. Its package is created private by the first push: once, by hand, set `ghcr.io/prestonbrown/helixscreen-homeserver` to public in its package settings, and check on its page that it is linked to this repository (every image carries the source label that asks for the link). Until then a `docker pull` answers `denied`.
 
 Each platform ships as `helixscreen-{platform}.zip` (unversioned filename) and nothing else. `helixscreen-ad5m.zip` must stay the alphabetically first asset of the release, which the release job checks: an old Moonraker's `zip_deploy` installs `assets[0]` (helixscreen#993, #2147).
 

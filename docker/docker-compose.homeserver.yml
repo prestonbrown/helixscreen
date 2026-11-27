@@ -5,14 +5,9 @@
 # The screen opens in a browser at http://<this server>:7130/
 services:
   helixscreen:
-    # Build it here (docker build -f docker/Dockerfile.homeserver docker), or use
-    # the image name you pushed it under.
-    image: helixscreen/homeserver:latest
-    build:
-      context: .
-      dockerfile: Dockerfile.homeserver
-      args:
-        CHANNEL: stable
+    # The tag names a channel (dev, beta, latest) or one release. To run an
+    # image you built yourself, name that one here instead.
+    image: ghcr.io/prestonbrown/helixscreen-homeserver:dev
     container_name: helixscreen
     restart: unless-stopped
     environment:
