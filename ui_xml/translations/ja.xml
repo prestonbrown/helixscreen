@@ -608,8 +608,8 @@
   <translation tag="Can&apos;t connect — try forgetting and re-pairing the printer" ja="接続できません — プリンターの登録を解除して再ペアリングしてください"/>
   <translation tag="Can&apos;t move filament while the print is paused" ja="印刷の一時停止中はフィラメントを動かせません"/>
   <translation tag="Can&apos;t reach this printer. Save anyway?" ja="このプリンターに接続できません。保存しますか？"/>
-  <translation tag="Can&apos;t restart Klipper while a print is running." ja="印刷中はKlipperを再起動できません。"/>
   <translation tag="Can&apos;t read filament RFID tag" ja="フィラメントの RFID タグを読み取れません"/>
+  <translation tag="Can&apos;t restart Klipper while a print is running." ja="印刷中はKlipperを再起動できません。"/>
   <translation tag="Cancel" ja="キャンセル"/>
   <translation tag="Cancel Escalation" ja="エスカレーションをキャンセル"/>
   <translation tag="Cancel Print" ja="印刷をキャンセル"/>
