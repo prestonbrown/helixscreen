@@ -156,9 +156,14 @@ class ALSASoundBackend : public SoundBackend {
     // Scratch buffer for mixing (sized in initialize())
     std::vector<float> mix_buf_;
 
-    // External render source (tracker PCM playback)
+    // External render source (tracker PCM playback). The render thread calls
+    // its own copy of it under no mutex: a clear or a replace takes the mutex
+    // between two calls instead of racing the render thread for it.
     std::function<void(float*, size_t, int)> render_source_;
     std::mutex render_source_mutex_;
+    std::condition_variable source_idle_cv_;
+    // Calls running on a copy of the source; counted under the mutex.
+    int source_calls_in_flight_ = 0;
 
     // Filter for external render source (tracker) — shared, not per-voice
     std::atomic<helix::audio::FilterType> filter_type_{helix::audio::FilterType::NONE};
