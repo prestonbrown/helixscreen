@@ -641,6 +641,17 @@
     <px name="jog_mode_w_xlarge" value="123"/>
     <px name="jog_mode_w_xxlarge" value="145"/>
 
+    <!-- layer_hint_room: the print status layer count keeps this much at its
+         end on micro and tiny for the pause glyph after it: an xs icon
+         (icon_font_xs) and the space_xs gap before it. -->
+    <px name="layer_hint_room_micro" value="18"/>
+    <px name="layer_hint_room_tiny" value="18"/>
+    <px name="layer_hint_room_small" value="20"/>
+    <px name="layer_hint_room_medium" value="21"/>
+    <px name="layer_hint_room_large" value="22"/>
+    <px name="layer_hint_room_xlarge" value="32"/>
+    <px name="layer_hint_room_xxlarge" value="42"/>
+
     <!-- touch_target_min: the least height a tappable control may have, whatever
          the breakpoint; a compact layout trades width or rows, never this.
          One exception: an action prompt's swatch grid keeps every color visible,

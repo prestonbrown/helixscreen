@@ -17,7 +17,25 @@
   the panel's strip and the job tile's checklist, not here.
 -->
 <component>
+  <consts>
+    <!-- Pulls a touch_target_min hit box in to an icon_button_size circle
+         (half the difference, negative), and pulls the corner row out by
+         the same margin so the circle, not its hit box, sits by the corner. -->
+    <px name="corner_button_pull" value="-8"/>
+  </consts>
   <styles>
+    <!-- Offset and spacing as a style, so corner_row_tucked can replace them. -->
+    <style name="corner_row" translate_x="#space_md" translate_y="#space_md" pad_all="0" pad_gap="#space_md"/>
+    <!-- Micro and tiny: the corner controls tuck into the corner and draw
+         smaller, so they cover less of a small preview; each still takes taps
+         across a touch_target_min box. The row's offset pulls the boxes'
+         transparent margin past the card edge, where #space_xs remains. -->
+    <style name="corner_row_tucked"
+           translate_x="#corner_button_pull" translate_y="#corner_button_pull" pad_left="#space_xs" pad_top="#space_xs"
+           pad_gap="0"/>
+    <style name="corner_button_tucked"
+           width="#touch_target_min" height="#touch_target_min" transform_width="#corner_button_pull"
+           transform_height="#corner_button_pull"/>
     <!-- Ultrawide has no metadata strip under the art, so a badge centers in
          the whole card. A user_3 style outranks the local pad_bottom. -->
     <style name="badge_without_strip" pad_bottom="#space_lg"/>
@@ -69,24 +87,31 @@
          small card reaches up to this row, so the row steps aside until that
          overlay is dismissed. -->
     <lv_obj name="preview_corner_buttons"
-            width="content" height="content" ignore_layout="true" align="top_left" style_translate_x="#space_md"
-            style_translate_y="#space_md" flex_flow="row" style_pad_all="0" style_pad_gap="#space_md" style_bg_opa="0"
+            width="content" height="content" ignore_layout="true" align="top_left" flex_flow="row" style_bg_opa="0"
             style_border_width="0" clickable="false" scrollable="false">
+      <style name="corner_row"/>
       <bind_flag_if cond="preparing_visible eq 1 or show_complete_overlay eq 1 or show_cancelled_overlay eq 1 or show_error_overlay eq 1"
                     flag="hidden"/>
+      <bind_style_if name="corner_row_tucked" cond="ui_breakpoint le 1"/>
       <!-- Skip-objects button, visible only for a multi-object print -->
       <exclude_objects_button name="btn_objects"
-                              callback="on_print_status_objects" hidden_when="exclude_objects_available eq 0"/>
+                              callback="on_print_status_objects" hidden_when="exclude_objects_available eq 0">
+        <bind_style_if name="corner_button_tucked" cond="ui_breakpoint le 1"/>
+      </exclude_objects_button>
 
       <!-- Camera toggle: swaps the preview for the live camera and back -->
       <preview_icon_button name="btn_camera_toggle"
                            icon="#icon_webcam" callback="on_print_status_camera_toggle"
-                           hidden_when="print_status_camera_available eq 0"/>
+                           hidden_when="print_status_camera_available eq 0">
+        <bind_style_if name="corner_button_tucked" cond="ui_breakpoint le 1"/>
+      </preview_icon_button>
 
       <!-- View mode toggle: switches between progress (ghost layers) and complete view -->
       <preview_icon_button name="btn_view_toggle"
                            icon_subject="view_toggle_icon" icon_name="btn_view_toggle_icon" callback="on_view_toggle"
-                           hidden_when="gcode_viewer_mode eq 0 or print_status_camera_showing ne 0"/>
+                           hidden_when="gcode_viewer_mode eq 0 or print_status_camera_showing ne 0">
+        <bind_style_if name="corner_button_tucked" cond="ui_breakpoint le 1"/>
+      </preview_icon_button>
     </lv_obj>
 
     <!-- PRINT COMPLETE OVERLAY: Shown when print finishes successfully -->

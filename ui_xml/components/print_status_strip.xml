@@ -41,9 +41,31 @@
               style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false">
         <bind_flag_if_eq subject="preparing_visible" flag="hidden" ref_value="1"/>
         <text_body name="print_percent" bind_text="print_progress_text" style_text_font="#font_body_bold"/>
+        <!-- The line's spare width, after the percent, so the times sit at
+             its right edge. -->
+        <lv_obj name="print_line_spacer"
+                width="0" height="0" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                scrollable="false" clickable="false"/>
         <icon name="remaining_icon" src="clock" size="xs" variant="secondary" clickable="false"/>
         <text_small name="print_remaining" bind_text="print_remaining" style_text_color="#text_muted"/>
-        <text_small name="print_eta" bind_text="print_eta" style_text_color="#text_muted" flex_grow="1" long_mode="dots"/>
+        <!-- The finish time takes the width the other times leave, up to its
+             own width: an invisible copy at full width sets that cap (a flex
+             item's content width is its children's), and the shown time ends
+             in dots within it. Its grow outweighs the spacer's, so the spare
+             width reaches the spacer only once the finish time is whole.
+             A resized child does not lay out the line again when its box is
+             sized by the line, so a second invisible copy outside the flow
+             does: a new finish time reflows the line through it. -->
+        <text_small name="print_eta_reflow" bind_text="print_eta" style_opa="0" ignore_layout="true" clickable="false"/>
+        <lv_obj name="print_eta_box"
+                width="0" height="content" flex_grow="255" style_max_width="content" style_pad_all="0" style_bg_opa="0"
+                style_border_width="0" scrollable="false" clickable="false">
+          <text_small name="print_eta_measure" bind_text="print_eta" style_opa="0" clickable="false"/>
+          <!-- Floating, so its own width never counts toward the cap. -->
+          <text_small name="print_eta"
+                      width="100%" align="left_mid" floating="true" bind_text="print_eta" style_text_color="#text_muted"
+                      long_mode="dots" clickable="false"/>
+        </lv_obj>
         <!-- Micro and tiny keep percent, time left and finish: elapsed does
              not fit beside them. -->
         <icon name="elapsed_icon" src="hourglass" size="xs" variant="secondary" clickable="false">

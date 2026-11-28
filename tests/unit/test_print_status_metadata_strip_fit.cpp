@@ -21,8 +21,9 @@
  * 800x480.
  *
  * The strip's time line (print_status_strip.xml) has the same class of
- * hazard: its eta grows and dots, so a long elapsed/remaining pair shrinks it
- * instead of pushing the elapsed time past the progress block.
+ * hazard: the times sit at the line's right edge, and the finish time takes
+ * only what the other times leave and dots, so a long elapsed/remaining pair
+ * shrinks it instead of pushing the elapsed time past the progress block.
  */
 
 #include "ui_panel_print_status.h"
@@ -38,8 +39,10 @@ using helix::ui::UpdateQueue;
 #include "helix-xml/src/xml/lv_xml.h"
 #include "printer_state.h"
 
+#include <cstdlib>
 #include <lvgl.h>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -64,6 +67,11 @@ struct MetadataStripFixture : public LVGLUITestFixture {
     }
 
     ~MetadataStripFixture() override {
+        if (eta_saved_) {
+            if (lv_subject_t* subject = lv_xml_get_subject(nullptr, "print_eta")) {
+                lv_subject_set_string(subject, saved_eta_.c_str());
+            }
+        }
         if (root_ && helix::test::widget_in_tree(root_)) {
             lv_obj_delete(root_);
         }
@@ -99,6 +107,35 @@ struct MetadataStripFixture : public LVGLUITestFixture {
         return a.x1;
     }
 
+    static lv_area_t area_of(const lv_obj_t* w) {
+        lv_area_t a;
+        lv_obj_get_coords(w, &a);
+        return a;
+    }
+
+    /// The box a widget's background draws in: its coords grown by its
+    /// transform width and height.
+    static lv_area_t drawn_area(lv_obj_t* w) {
+        lv_area_t a = area_of(w);
+        lv_area_increase(&a, lv_obj_get_style_transform_width(w, LV_PART_MAIN),
+                         lv_obj_get_style_transform_height(w, LV_PART_MAIN));
+        return a;
+    }
+
+    /// The finish time is shown by a label and measured by an invisible copy,
+    /// both bound to print_eta, so a case sets the subject, not one label.
+    /// The fixture puts the original back.
+    void set_eta(const char* text) {
+        lv_subject_t* subject = lv_xml_get_subject(nullptr, "print_eta");
+        REQUIRE(subject != nullptr);
+        if (!eta_saved_) {
+            const char* now = lv_subject_get_string(subject);
+            saved_eta_ = now ? now : "";
+            eta_saved_ = true;
+        }
+        lv_subject_set_string(subject, text);
+    }
+
     void heal_global_print_status_panel_subjects() {
         auto& global = get_global_print_status_panel();
         if (!global.are_subjects_initialized()) {
@@ -108,6 +145,8 @@ struct MetadataStripFixture : public LVGLUITestFixture {
 
     std::unique_ptr<PrintStatusPanel> panel_;
     lv_obj_t* root_ = nullptr;
+    std::string saved_eta_;
+    bool eta_saved_ = false;
 };
 
 } // namespace
@@ -171,7 +210,7 @@ TEST_CASE_METHOD(MetadataStripFixture,
 
     lv_label_set_text(elapsed, "2d 16h 03m");
     lv_label_set_text(remaining, "2d 08h 26m");
-    lv_label_set_text(eta, "(~10:06 PM +1d)");
+    set_eta("(~10:06 PM +1d)");
 
     lv_obj_update_layout(root_);
 
@@ -182,6 +221,7 @@ TEST_CASE_METHOD(MetadataStripFixture,
     // time ends inside the line.
     REQUIRE(right_edge_screen(eta) <= left_edge_screen(elapsed));
     REQUIRE(right_edge_screen(elapsed) <= right_edge_screen(line));
+    CHECK(lv_obj_get_width(eta) < lv_obj_get_width(label("print_eta_measure")));
 }
 
 TEST_CASE_METHOD(MetadataStripFixture,
@@ -196,28 +236,117 @@ TEST_CASE_METHOD(MetadataStripFixture,
     lv_obj_t* layer = label("layer_progress_label");
     lv_obj_t* elapsed_icon = label("elapsed_icon");
     lv_obj_t* elapsed = label("print_elapsed");
+    lv_obj_t* percent = label("print_percent");
+    lv_obj_t* eta = label("print_eta");
+    lv_obj_t* line = label("ps_strip_print_line");
     lv_label_set_text(label("filament_used_label"), "92.6m");
+    // The corner toggle and the pause glyph are shown directly: their
+    // placement is under test, not the bindings that show them.
+    lv_obj_t* toggle = label("btn_view_toggle");
+    lv_obj_t* hint = label("layer_pause_hint");
+    lv_obj_t* count = label("layer_count");
+    lv_obj_set_hidden(label("preview_corner_buttons"), false);
+    lv_obj_set_hidden(toggle, false);
+    lv_obj_set_hidden(hint, false);
+    lv_label_set_text(layer, "9 / 240");
+    const char* touch_min_text = lv_xml_get_const(nullptr, "touch_target_min");
+    REQUIRE(touch_min_text != nullptr);
+    const int32_t touch_min = std::atoi(touch_min_text);
 
     lv_obj_update_layout(root_);
     CHECK_FALSE(lv_obj_is_hidden(filament));
+    const lv_area_t toggle_medium = drawn_area(toggle);
+    const lv_area_t art = area_of(label("preview_art"));
+    // Small and up: the glyph ends the row.
+    CHECK(right_edge_screen(hint) == right_edge_screen(count));
     CHECK_FALSE(lv_obj_is_hidden(elapsed_icon));
     CHECK_FALSE(lv_obj_is_hidden(elapsed));
-    const int32_t layer_width_medium = lv_obj_get_width(layer);
+    CHECK(right_edge_screen(elapsed) == right_edge_screen(line));
+    // The times hug the right edge: a shorter finish time moves the time-left
+    // clock rightward instead of leaving a gap before elapsed.
+    {
+        lv_obj_t* clock = label("remaining_icon");
+        set_eta("(~10:06 PM)");
+        lv_obj_update_layout(root_);
+        const int32_t clock_long = left_edge_screen(clock);
+        set_eta("(~1 PM)");
+        lv_obj_update_layout(root_);
+        CAPTURE(clock_long, left_edge_screen(clock));
+        CHECK(left_edge_screen(clock) > clock_long);
+        CHECK(right_edge_screen(elapsed) == right_edge_screen(line));
+        // A finish time that fits shows whole, after it shrinks and after it
+        // grows again: no dots while the line has room.
+        lv_obj_t* measure = label("print_eta_measure");
+        CHECK(lv_obj_get_width(eta) == lv_obj_get_width(measure));
+        set_eta("(~10:06 PM)");
+        lv_obj_update_layout(root_);
+        CAPTURE(lv_obj_get_width(eta), lv_obj_get_width(measure));
+        CHECK(lv_obj_get_width(eta) == lv_obj_get_width(measure));
+        CHECK(left_edge_screen(clock) == clock_long);
+    }
+    const int32_t count_width_medium = lv_obj_get_width(count);
 
     for (const UiBreakpoint cramped : {UiBreakpoint::Micro, UiBreakpoint::Tiny}) {
         lv_subject_set_int(breakpoint, to_int(cramped));
         lv_obj_update_layout(root_);
-        CAPTURE(to_int(cramped), layer_width_medium, lv_obj_get_width(layer));
+        CAPTURE(to_int(cramped), count_width_medium, lv_obj_get_width(count),
+                lv_obj_get_width(percent));
         CHECK(lv_obj_is_hidden(filament));
         CHECK(lv_obj_is_hidden(elapsed_icon));
         CHECK(lv_obj_is_hidden(elapsed));
-        CHECK(lv_obj_get_width(layer) > layer_width_medium);
+        CHECK(lv_obj_get_width(count) > count_width_medium);
+        // With elapsed hidden the finish time ends the line.
+        CHECK(right_edge_screen(eta) == right_edge_screen(line));
+
+        // The corner toggle draws smaller and nearer the corner, and still
+        // takes taps across a touch_target_min box.
+        const lv_area_t drawn = drawn_area(toggle);
+        lv_area_t hit;
+        lv_obj_get_click_area(toggle, &hit);
+        CAPTURE(lv_area_get_width(&toggle_medium), lv_area_get_width(&drawn), drawn.x1, drawn.y1,
+                toggle_medium.x1, toggle_medium.y1, lv_area_get_width(&hit),
+                lv_area_get_height(&hit));
+        CHECK(lv_area_get_width(&drawn) < lv_area_get_width(&toggle_medium));
+        CHECK(lv_area_get_height(&drawn) < lv_area_get_height(&toggle_medium));
+        CHECK(drawn.x1 - art.x1 < toggle_medium.x1 - art.x1);
+        CHECK(drawn.y1 - art.y1 < toggle_medium.y1 - art.y1);
+        CHECK(lv_area_get_width(&hit) >= touch_min);
+        CHECK(lv_area_get_height(&hit) >= touch_min);
+
+        // The pause glyph follows the count's text instead of ending the row.
+        const int32_t gap = lv_obj_get_style_pad_column(count, LV_PART_MAIN);
+        lv_point_t text;
+        lv_text_get_size(&text, "9 / 240", lv_obj_get_style_text_font(layer, LV_PART_MAIN),
+                         lv_obj_get_style_text_letter_space(layer, LV_PART_MAIN), 0, LV_COORD_MAX,
+                         LV_TEXT_FLAG_NONE);
+        CAPTURE(right_edge_screen(layer), left_edge_screen(hint), gap, text.x);
+        CHECK(lv_obj_get_width(layer) == text.x);
+        CHECK(left_edge_screen(hint) == right_edge_screen(layer) + 1 + gap);
+        CHECK(right_edge_screen(hint) < right_edge_screen(count));
     }
+
+    // A count too long for its box ends in dots, and the glyph after it
+    // stays inside the box.
+    lv_subject_set_int(breakpoint, to_int(UiBreakpoint::Micro));
+    const char* overflowing = "474 / 13340 · 554.4mm plus a pathological tail";
+    lv_label_set_text(layer, overflowing);
+    lv_obj_update_layout(root_);
+    lv_point_t full;
+    lv_text_get_size(&full, overflowing, lv_obj_get_style_text_font(layer, LV_PART_MAIN),
+                     lv_obj_get_style_text_letter_space(layer, LV_PART_MAIN), 0, LV_COORD_MAX,
+                     LV_TEXT_FLAG_NONE);
+    CAPTURE(lv_obj_get_width(layer), full.x, right_edge_screen(hint), right_edge_screen(count));
+    CHECK(lv_obj_get_width(layer) < full.x);
+    CHECK(left_edge_screen(hint) > right_edge_screen(layer));
+    CHECK(right_edge_screen(hint) <= right_edge_screen(count));
 
     lv_subject_set_int(breakpoint, to_int(UiBreakpoint::Small));
     lv_obj_update_layout(root_);
     CHECK_FALSE(lv_obj_is_hidden(filament));
     CHECK_FALSE(lv_obj_is_hidden(elapsed));
+    const lv_area_t toggle_small = drawn_area(toggle);
+    CHECK(lv_area_get_width(&toggle_small) == lv_area_get_width(&toggle_medium));
+    CHECK(toggle_small.x1 == toggle_medium.x1);
 
     lv_subject_set_int(breakpoint, original);
 }
