@@ -742,7 +742,7 @@ history had open, or null.
 | `klippy_disconnect` / `klippy_ready` | Klippy leaves or reaches ready | |
 | `firmware_restart` | a client sends `FIRMWARE_RESTART` | |
 | `pause` | a print pauses | `detail`: `runout`, `error`, `command` or `unknown` |
-| `runout` | a filament sensor loses filament during a job | `detail`: the sensor's name |
+| `runout` | a runout sensor loses filament during a job: one defined in the printer's config with `pause_on_runout` on (Klipper's default). A filament system's own switches (Happy Hare's gates and tension switch, AFC lanes) are not journaled | `detail`: the sensor's name |
 | `gcode_error` | Klipper prints a `!!` line | the line and its class |
 | `job_end` | history finishes a job | `detail`: history's status |
 

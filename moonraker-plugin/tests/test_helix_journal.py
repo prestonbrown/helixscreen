@@ -27,6 +27,7 @@ from helix_journal import (
     entry_key,
     is_mcu_disconnect,
     pause_cause,
+    runout_sensors,
     runout_trips,
 )
 from helix_print import HELIX_SCREEN_NAMESPACE, PLUGIN_FEATURES_KEY, load_component
@@ -135,6 +136,23 @@ class TestClassifier:
         runout_trips(sensors, {name: {"filament_detected": True, "enabled": False}})
         assert runout_trips(sensors, {name: {"filament_detected": False}}) == []
         assert runout_trips(sensors, {"toolhead": {"filament_detected": False}}) == []
+
+    def test_runout_sensors_are_the_config_defined_ones_that_pause(self):
+        objects = [
+            "toolhead",
+            "filament_switch_sensor Runout",            # in printer.cfg, default pause
+            "filament_motion_sensor encoder",           # in printer.cfg, pause on
+            "filament_switch_sensor door",              # in printer.cfg, pause off
+            "filament_switch_sensor filament_tension",  # Happy Hare's, runtime-made
+        ]
+        settings = {
+            "filament_switch_sensor runout": {"switch_pin": "PA1"},
+            "filament_motion_sensor encoder": {"pause_on_runout": True},
+            "filament_switch_sensor door": {"pause_on_runout": False},
+        }
+        assert runout_sensors(objects, settings) == [
+            "filament_switch_sensor Runout", "filament_motion_sensor encoder"]
+        assert runout_sensors(objects, None) == []
 
 
 # ============================================================================
@@ -258,7 +276,10 @@ class TestRecording:
     @pytest.mark.asyncio
     async def test_runout_trip_during_a_job(self, journal):
         apis = journal.helix.klippy_apis
-        apis.get_object_list.return_value = ["toolhead", "filament_motion_sensor encoder"]
+        apis.get_object_list.return_value = [
+            "toolhead", "filament_motion_sensor encoder", "filament_switch_sensor filament_tension"]
+        apis.query_objects.return_value = {"configfile": {"settings": {
+            "filament_motion_sensor encoder": {"pause_on_runout": True}}}}
         apis.subscribe_objects.return_value = {
             "filament_motion_sensor encoder": {"filament_detected": True, "enabled": True}}
         await journal.on_klippy_ready()

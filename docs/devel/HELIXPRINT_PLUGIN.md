@@ -911,7 +911,7 @@ it the screen keeps its own and backfills gaps on reconnect. Observer: `always_o
 
 | File | Role |
 |------|------|
-| `moonraker-plugin/helix_journal.py` | Pure rules (`classify_error`, `is_mcu_disconnect`, `pause_cause`, `runout_trips`, `JournalStore`) and `HelixJournal` |
+| `moonraker-plugin/helix_journal.py` | Pure rules (`classify_error`, `is_mcu_disconnect`, `pause_cause`, `runout_sensors`, `runout_trips`, `JournalStore`) and `HelixJournal` |
 | `tests/fixtures/journal/error_line_classes.json` | Pins the Python and C++ `!!` classifiers to one table |
 | `include/printer_event_journal.h`, `src/printer/printer_event_journal.cpp` | `JournalEntry`, `classify_journal_error`, `decide_journal_source`, wire and backfill parsers, `describe_journal_entry` (firmware-compiled) |
 | `include/event_journal_recorder.h`, `src/application/event_journal_recorder.cpp` | `EventJournalRecorder` (the fallback recorder and reconnect backfill) and `LocalEventJournal` |
