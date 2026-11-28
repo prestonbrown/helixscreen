@@ -48,7 +48,7 @@
 #include "../test_helpers/print_history_seed.h"
 #include "../test_helpers/scoped_animations_enabled.h"
 #include "../test_helpers/scoped_widget_labels.h"
-#include "../test_helpers/tips_manager_test_access.h"
+#include "../test_helpers/unique_temp_dir.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "bed_mesh_state.h"
@@ -62,12 +62,15 @@
 #include "src/ui/panel_widgets/content_chrome.h"
 #include "src/ui/panel_widgets/print_status_widget.h"
 #include "theme_manager.h"
+#include "tips_manager.h"
 #include "tool_state.h"
 #include "xml_registration.h"
 
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cstdio>
+#include <fstream>
 #include <functional>
 #include <optional>
 #include <set>
@@ -76,6 +79,7 @@
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 
@@ -93,6 +97,51 @@ bool has_kind(const OverflowReport& r, OverflowKind k) {
 // ---------------------------------------------------------------------------
 // Sweep
 // ---------------------------------------------------------------------------
+
+/// Reduce the tips database to its one longest title, and return that title.
+///
+/// The longest title rather than a fixed seed's pick: a tile that holds the
+/// worst case holds every other tip too, which is the property the sweep is
+/// for. The reduction is a one-tip database file the manager loads with
+/// init(), the way it loads any other, so nothing in it is out of its reach.
+std::string pin_tips_to_the_longest_title() {
+    TipsManager& tips = *TipsManager::get_instance();
+    PrintingTip longest;
+    for (const std::string& category : tips.get_all_categories()) {
+        for (const PrintingTip& tip : tips.get_tips_by_category(category)) {
+            if (tip.title.size() > longest.title.size()) {
+                longest = tip;
+            }
+        }
+    }
+    if (longest.title.empty()) {
+        return {};
+    }
+
+    nlohmann::json tip;
+    tip["id"] = longest.id;
+    tip["title"] = longest.title;
+    tip["content"] = longest.content;
+    tip["tags"] = longest.tags;
+    tip["difficulty"] = longest.difficulty;
+    tip["priority"] = longest.priority;
+    tip["related_settings"] = longest.related_settings;
+    nlohmann::json database;
+    database["version"] = tips.get_version();
+    database["categories"][longest.category]["tips"] = nlohmann::json::array({tip});
+
+    const std::string path = helix::test::unique_temp_file("helix_tips_longest", "json");
+    {
+        std::ofstream file(path);
+        file << database.dump();
+    }
+    const bool loaded = tips.init(path);
+    std::remove(path.c_str());
+    REQUIRE(loaded);
+    REQUIRE(tips.get_total_tips() == 1);
+    REQUIRE(tips.get_all_titles() == std::vector<std::string>{longest.title});
+    return longest.title;
+}
 
 /// One shipping geometry: the panel resolution and the home grid container's
 /// MEASURED content box at that resolution, which is what get_dimensions()
@@ -655,8 +704,7 @@ TEST_CASE_METHOD(ContentFitsFixture,
     // measures a different string every run and reports whichever geometries
     // that one happened to overflow. Pinned to the longest title in the
     // database: a tile that holds the worst case holds the rest.
-    const std::string pinned_tip =
-        TipsManagerTestAccess::pin_longest_title(*TipsManager::get_instance());
+    const std::string pinned_tip = pin_tips_to_the_longest_title();
     REQUIRE_FALSE(pinned_tip.empty());
     INFO("tips pinned to the longest title: \"" << pinned_tip << "\"");
 
