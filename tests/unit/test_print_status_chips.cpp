@@ -125,13 +125,25 @@ TEST_CASE("light off is expendable, on glows", "[print_status_chips]") {
 
 TEST_CASE("heater duty shows only beside the picture and only while it fits the column",
           "[print_status_chips]") {
-    CHECK(heater_power_fits(CalloutMode::BothSides, 90, 90));
-    CHECK(heater_power_fits(CalloutMode::OneSide, 80, 90));
-    CHECK_FALSE(heater_power_fits(CalloutMode::BothSides, 91, 90));
-    CHECK_FALSE(heater_power_fits(CalloutMode::Pinned, 40, 90));
-    CHECK_FALSE(heater_power_fits(CalloutMode::Docked, 40, 90));
-    CHECK_FALSE(heater_power_fits(CalloutMode::ImageOnly, 40, 90));
-    CHECK_FALSE(heater_power_fits(CalloutMode::BothSides, 0, 90));
+    constexpr auto kMedium = UiBreakpoint::Medium;
+    CHECK(heater_power_fits(CalloutMode::BothSides, kMedium, 90, 90));
+    CHECK(heater_power_fits(CalloutMode::OneSide, kMedium, 80, 90));
+    CHECK_FALSE(heater_power_fits(CalloutMode::BothSides, kMedium, 91, 90));
+    CHECK_FALSE(heater_power_fits(CalloutMode::Pinned, kMedium, 40, 90));
+    CHECK_FALSE(heater_power_fits(CalloutMode::Docked, kMedium, 40, 90));
+    CHECK_FALSE(heater_power_fits(CalloutMode::ImageOnly, kMedium, 40, 90));
+    CHECK_FALSE(heater_power_fits(CalloutMode::BothSides, kMedium, 0, 90));
+}
+
+TEST_CASE("heater duty stays off micro and tiny chips however much room they have",
+          "[print_status_chips][micro_declutter]") {
+    for (const auto mode : {CalloutMode::BothSides, CalloutMode::OneSide}) {
+        CAPTURE(static_cast<int>(mode));
+        CHECK_FALSE(heater_power_fits(mode, UiBreakpoint::Micro, 40, 90));
+        CHECK_FALSE(heater_power_fits(mode, UiBreakpoint::Tiny, 40, 90));
+        CHECK(heater_power_fits(mode, UiBreakpoint::Small, 40, 90));
+        CHECK(heater_power_fits(mode, UiBreakpoint::Medium, 40, 90));
+    }
 }
 
 TEST_CASE("a heater is budgeted at its widest shape, whatever it shows", "[print_status_chips]") {

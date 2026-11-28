@@ -38,6 +38,7 @@ using helix::ui::UpdateQueue;
 #include "helix-xml/src/xml/lv_xml.h"
 #include "printer_state.h"
 
+#include <cstdlib>
 #include <lvgl.h>
 #include <memory>
 #include <utility>
@@ -97,6 +98,21 @@ struct MetadataStripFixture : public LVGLUITestFixture {
         lv_area_t a;
         lv_obj_get_coords(w, &a);
         return a.x1;
+    }
+
+    static lv_area_t area_of(const lv_obj_t* w) {
+        lv_area_t a;
+        lv_obj_get_coords(w, &a);
+        return a;
+    }
+
+    /// The box a widget's background draws in: its coords grown by its
+    /// transform width and height.
+    static lv_area_t drawn_area(lv_obj_t* w) {
+        lv_area_t a = area_of(w);
+        lv_area_increase(&a, lv_obj_get_style_transform_width(w, LV_PART_MAIN),
+                         lv_obj_get_style_transform_height(w, LV_PART_MAIN));
+        return a;
     }
 
     void heal_global_print_status_panel_subjects() {
@@ -200,34 +216,94 @@ TEST_CASE_METHOD(MetadataStripFixture,
     lv_obj_t* eta = label("print_eta");
     lv_obj_t* line = label("ps_strip_print_line");
     lv_label_set_text(label("filament_used_label"), "92.6m");
+    // The corner toggle and the pause glyph are shown directly: their
+    // placement is under test, not the bindings that show them.
+    lv_obj_t* toggle = label("btn_view_toggle");
+    lv_obj_t* hint = label("layer_pause_hint");
+    lv_obj_t* count = label("layer_count");
+    lv_obj_remove_flag(label("preview_corner_buttons"), LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(toggle, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(hint, LV_OBJ_FLAG_HIDDEN);
+    lv_label_set_text(layer, "9 / 240");
+    const char* touch_min_text = lv_xml_get_const(nullptr, "touch_target_min");
+    REQUIRE(touch_min_text != nullptr);
+    const int32_t touch_min = std::atoi(touch_min_text);
 
     lv_obj_update_layout(root_);
     CHECK_FALSE(lv_obj_has_flag(filament, LV_OBJ_FLAG_HIDDEN));
+    const lv_area_t toggle_medium = drawn_area(toggle);
+    const lv_area_t art = area_of(label("preview_art"));
+    // Small and up: the glyph ends the row.
+    CHECK(right_edge_screen(hint) == right_edge_screen(count));
     CHECK_FALSE(lv_obj_has_flag(elapsed_icon, LV_OBJ_FLAG_HIDDEN));
     CHECK_FALSE(lv_obj_has_flag(elapsed, LV_OBJ_FLAG_HIDDEN));
     CHECK(right_edge_screen(elapsed) == right_edge_screen(line));
-    const int32_t layer_width_medium = lv_obj_get_width(layer);
+    const int32_t count_width_medium = lv_obj_get_width(count);
     const int32_t percent_width_medium = lv_obj_get_width(percent);
 
     for (const UiBreakpoint cramped : {UiBreakpoint::Micro, UiBreakpoint::Tiny}) {
         lv_subject_set_int(breakpoint, to_int(cramped));
         lv_obj_update_layout(root_);
-        CAPTURE(to_int(cramped), layer_width_medium, lv_obj_get_width(layer), percent_width_medium,
+        CAPTURE(to_int(cramped), count_width_medium, lv_obj_get_width(count), percent_width_medium,
                 lv_obj_get_width(percent));
         CHECK(lv_obj_has_flag(filament, LV_OBJ_FLAG_HIDDEN));
         CHECK(lv_obj_has_flag(elapsed_icon, LV_OBJ_FLAG_HIDDEN));
         CHECK(lv_obj_has_flag(elapsed, LV_OBJ_FLAG_HIDDEN));
-        CHECK(lv_obj_get_width(layer) > layer_width_medium);
+        CHECK(lv_obj_get_width(count) > count_width_medium);
         // The spare width sits after the percent, so the times end at the
         // line's right edge.
         CHECK(lv_obj_get_width(percent) > percent_width_medium);
         CHECK(right_edge_screen(eta) == right_edge_screen(line));
+
+        // The corner toggle draws smaller and nearer the corner, and still
+        // takes taps across a touch_target_min box.
+        const lv_area_t drawn = drawn_area(toggle);
+        lv_area_t hit;
+        lv_obj_get_click_area(toggle, &hit);
+        CAPTURE(lv_area_get_width(&toggle_medium), lv_area_get_width(&drawn), drawn.x1, drawn.y1,
+                toggle_medium.x1, toggle_medium.y1, lv_area_get_width(&hit),
+                lv_area_get_height(&hit));
+        CHECK(lv_area_get_width(&drawn) < lv_area_get_width(&toggle_medium));
+        CHECK(lv_area_get_height(&drawn) < lv_area_get_height(&toggle_medium));
+        CHECK(drawn.x1 - art.x1 < toggle_medium.x1 - art.x1);
+        CHECK(drawn.y1 - art.y1 < toggle_medium.y1 - art.y1);
+        CHECK(lv_area_get_width(&hit) >= touch_min);
+        CHECK(lv_area_get_height(&hit) >= touch_min);
+
+        // The pause glyph follows the count's text instead of ending the row.
+        const int32_t gap = lv_obj_get_style_pad_column(count, LV_PART_MAIN);
+        lv_point_t text;
+        lv_text_get_size(&text, "9 / 240", lv_obj_get_style_text_font(layer, LV_PART_MAIN),
+                         lv_obj_get_style_text_letter_space(layer, LV_PART_MAIN), 0, LV_COORD_MAX,
+                         LV_TEXT_FLAG_NONE);
+        CAPTURE(right_edge_screen(layer), left_edge_screen(hint), gap, text.x);
+        CHECK(lv_obj_get_width(layer) == text.x);
+        CHECK(left_edge_screen(hint) == right_edge_screen(layer) + 1 + gap);
+        CHECK(right_edge_screen(hint) < right_edge_screen(count));
     }
+
+    // A count too long for its box ends in dots, and the glyph after it
+    // stays inside the box.
+    lv_subject_set_int(breakpoint, to_int(UiBreakpoint::Micro));
+    const char* overflowing = "474 / 13340 · 554.4mm plus a pathological tail";
+    lv_label_set_text(layer, overflowing);
+    lv_obj_update_layout(root_);
+    lv_point_t full;
+    lv_text_get_size(&full, overflowing, lv_obj_get_style_text_font(layer, LV_PART_MAIN),
+                     lv_obj_get_style_text_letter_space(layer, LV_PART_MAIN), 0, LV_COORD_MAX,
+                     LV_TEXT_FLAG_NONE);
+    CAPTURE(lv_obj_get_width(layer), full.x, right_edge_screen(hint), right_edge_screen(count));
+    CHECK(lv_obj_get_width(layer) < full.x);
+    CHECK(left_edge_screen(hint) > right_edge_screen(layer));
+    CHECK(right_edge_screen(hint) <= right_edge_screen(count));
 
     lv_subject_set_int(breakpoint, to_int(UiBreakpoint::Small));
     lv_obj_update_layout(root_);
     CHECK_FALSE(lv_obj_has_flag(filament, LV_OBJ_FLAG_HIDDEN));
     CHECK_FALSE(lv_obj_has_flag(elapsed, LV_OBJ_FLAG_HIDDEN));
+    const lv_area_t toggle_small = drawn_area(toggle);
+    CHECK(lv_area_get_width(&toggle_small) == lv_area_get_width(&toggle_medium));
+    CHECK(toggle_small.x1 == toggle_medium.x1);
 
     lv_subject_set_int(breakpoint, original);
 }

@@ -21,9 +21,14 @@
     <prop name="icon_subject" type="string"/>
     <prop name="icon_name" type="string"/>
   </api>
+  <styles>
+    <!-- A style, not attributes, so a host's own style can resize it. -->
+    <style name="shell" width="#icon_button_size_lg" height="#icon_button_size_lg"/>
+  </styles>
   <view extends="lv_obj"
-        width="#icon_button_size_lg" height="#icon_button_size_lg" style_bg_color="#card_bg" style_bg_opa="180"
-        style_radius="#icon_button_radius_lg" clickable="true" style_pad_all="0" scrollable="false">
+        style_bg_color="#card_bg" style_bg_opa="180" style_radius="#icon_button_radius_lg" clickable="true"
+        style_pad_all="0" scrollable="false">
+    <style name="shell"/>
     <style name="styles.press_wash" selector="pressed"/>
     <bind_flag_if cond="$hidden_when" flag="hidden"/>
     <lv_label name="$icon_name"

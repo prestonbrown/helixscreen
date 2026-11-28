@@ -15,6 +15,7 @@
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_manager.h"
 #include "observer_factory.h"
+#include "panel_widget_size.h"
 #include "panel_widgets/callout_chip.h"
 #include "print_start_collector.h"
 #include "print_start_phase_label.h"
@@ -637,7 +638,8 @@ void PrintStatusTiles::update_now() {
     for (auto c : {PrintStatusChip::Nozzle, PrintStatusChip::Bed, PrintStatusChip::Chamber}) {
         const size_t i = index_of(c);
         if (with_power[i].text != contents[i].text &&
-            heater_power_fits(last_mode_, m.chip_w(icons[i], with_power[i].text), column_w)) {
+            heater_power_fits(last_mode_, widget_size::current_breakpoint(),
+                              m.chip_w(icons[i], with_power[i].text), column_w)) {
             contents[i] = with_power[i];
         }
     }
