@@ -6,12 +6,12 @@
 #ifdef HELIX_DISPLAY_SDL
 
 #include "note_event.h"
+#include "render_source_slot.h"
 #include "sound_backend.h"
 #include "sound_synthesis.h"
 
 #include <SDL.h>
 #include <functional>
-#include <mutex>
 #include <string>
 #include <vector>
 
@@ -81,9 +81,9 @@ class SDLSoundBackend : public SoundBackend {
     // Scratch buffer for mixing (sized in initialize())
     std::vector<float> mix_buf_;
 
-    // External render source (tracker PCM playback)
-    std::function<void(float*, size_t, int)> render_source_;
-    std::mutex render_source_mutex_;
+    // External render source (tracker PCM playback). Clearing it waits out a
+    // call in flight.
+    helix::audio::RenderSourceSlot render_source_;
 
     SDL_AudioDeviceID device_id_ = 0;
     int sample_rate_ = 44100;

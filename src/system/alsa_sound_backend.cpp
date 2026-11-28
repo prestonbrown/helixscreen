@@ -272,17 +272,11 @@ void ALSASoundBackend::publish_note(int slot, const NoteEvent& event) {
 }
 
 void ALSASoundBackend::set_render_source(std::function<void(float*, size_t, int)> fn) {
-    std::lock_guard<std::mutex> lock(render_source_mutex_);
-    render_source_ = std::move(fn);
+    render_source_.set(std::move(fn));
 }
 
 void ALSASoundBackend::clear_render_source() {
-    std::unique_lock<std::mutex> lock(render_source_mutex_);
-    render_source_ = nullptr;
-    // No call can start after the line above. The one in flight runs on its
-    // own copy of the source, and the owner destroys what that copy points at
-    // once this returns, so the return waits for it.
-    source_idle_cv_.wait(lock, [this] { return source_calls_in_flight_ == 0; });
+    render_source_.clear();
 }
 
 void ALSASoundBackend::set_filter(const std::string& type, float cutoff) {
@@ -408,43 +402,18 @@ void ALSASoundBackend::render_loop() {
         std::memset(mix_buf_.data(), 0, frames * sizeof(float));
         bool has_audio = false;
 
-        // Check for external render source (tracker PCM playback)
-        {
-            // The call runs on a copy, under no mutex. Held across the call,
-            // the mutex leaves a waiting clear_render_source() only the few
-            // microseconds between two passes to be scheduled in, and a
-            // device that never blocks the write (the null PCM) can keep it
-            // losing that race pass after pass. The count is taken under the
-            // same lock as the copy, so a clear that finds no call in flight
-            // is followed by none.
-            std::function<void(float*, size_t, int)> source;
-            {
-                std::lock_guard<std::mutex> lock(render_source_mutex_);
-                source = render_source_;
-                if (source) {
-                    ++source_calls_in_flight_;
-                }
+        // External render source (tracker PCM playback). The slot runs it on
+        // a copy under no mutex, so a waiting clear is not starved.
+        if (render_source_.call(mix_buf_.data(), frames, static_cast<int>(sample_rate_))) {
+            // Apply shared filter for tracker output
+            auto ft = filter_type_.load(std::memory_order_acquire);
+            if (ft != helix::audio::FilterType::NONE) {
+                float cutoff = filter_cutoff_.load(std::memory_order_relaxed);
+                helix::audio::update_filter_if_needed(filter_, ft, cutoff,
+                                                      static_cast<float>(sample_rate_));
+                helix::audio::apply_filter(filter_, mix_buf_.data(), static_cast<int>(frames));
             }
-            if (source) {
-                source(mix_buf_.data(), frames, static_cast<int>(sample_rate_));
-                // The copy goes before the count comes down: what the source
-                // captured is gone once clear_render_source() returns.
-                source = nullptr;
-                {
-                    std::lock_guard<std::mutex> lock(render_source_mutex_);
-                    --source_calls_in_flight_;
-                }
-                source_idle_cv_.notify_all();
-                // Apply shared filter for tracker output
-                auto ft = filter_type_.load(std::memory_order_acquire);
-                if (ft != helix::audio::FilterType::NONE) {
-                    float cutoff = filter_cutoff_.load(std::memory_order_relaxed);
-                    helix::audio::update_filter_if_needed(filter_, ft, cutoff,
-                                                          static_cast<float>(sample_rate_));
-                    helix::audio::apply_filter(filter_, mix_buf_.data(), static_cast<int>(frames));
-                }
-                has_audio = true;
-            }
+            has_audio = true;
         }
 
         // Mix synth voices using VoiceSlot per-sample rendering

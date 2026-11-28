@@ -3,6 +3,7 @@
 
 #ifdef HELIX_HAS_ALSA
 
+#include "../test_helpers/render_source_probe.h"
 #include "alsa_sound_backend.h"
 
 #include <atomic>
@@ -256,44 +257,15 @@ TEST_CASE("ALSASoundBackend::resume() handoff survives repeated suspend/resume c
 // The source captures a tracker its owner destroys as soon as
 // clear_render_source() returns (prestonbrown/helixscreen#2010).
 TEST_CASE("ALSASoundBackend::clear_render_source waits out a render call in flight",
-          "[sound][alsa]") {
+          "[sound][alsa][2161]") {
+    helix::test::RenderSourceProbe probe;
     ALSASoundBackend backend;
     REQUIRE(backend.initialize("null"));
-
-    std::atomic<bool> in_call{false};
-    std::atomic<int> calls{0};
-    std::atomic<std::chrono::nanoseconds> last_call{std::chrono::nanoseconds::zero()};
-    // What the source captured is gone when the clear returns. The capture
-    // says so only at the end of a slow death, so a clear that returned while
-    // the render thread's copy of the source still held it is caught.
-    std::atomic<bool> captured_gone{false};
-    struct Captured {
-        explicit Captured(std::atomic<bool>& flag) : gone(flag) {}
-        ~Captured() {
-            std::this_thread::sleep_for(std::chrono::milliseconds(30));
-            gone = true;
-        }
-        std::atomic<bool>& gone;
-    };
-    auto captured = std::make_shared<Captured>(captured_gone);
-    backend.set_render_source([&, captured](float*, size_t, int) {
-        const auto started = std::chrono::steady_clock::now();
-        in_call = true;
-        ++calls;
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
-        in_call = false;
-        last_call = std::chrono::steady_clock::now() - started;
-    });
-    captured.reset();
+    backend.set_render_source(probe.source());
 
     // A finished call behind it and one in flight: the clear has one whole
     // call in front of it and a measured length to compare with.
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
-    while ((!in_call.load() || calls.load() < 2) && std::chrono::steady_clock::now() < deadline) {
-        std::this_thread::yield();
-    }
-    REQUIRE(in_call.load());
-    REQUIRE(last_call.load() > std::chrono::nanoseconds::zero());
+    REQUIRE(probe.wait_for_call_in_flight());
 
     // Waiting out the call in flight is bounded by that one call. A clear that
     // had to take the source's mutex from the render loop, which takes it
@@ -302,13 +274,11 @@ TEST_CASE("ALSASoundBackend::clear_render_source waits out a render call in flig
     const auto clear_started = std::chrono::steady_clock::now();
     backend.clear_render_source();
     const auto clear_wait = std::chrono::steady_clock::now() - clear_started;
-    CHECK(clear_wait <= 2 * last_call.load() + std::chrono::milliseconds(100));
-    CHECK(captured_gone.load());
+    CHECK(helix::test::within_one_call(clear_wait, probe.last_call()));
+    CHECK(probe.captured_gone());
 
-    CHECK_FALSE(in_call.load());
-    const int calls_at_clear = calls.load();
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    CHECK(calls.load() == calls_at_clear);
+    CHECK_FALSE(probe.in_call());
+    CHECK(probe.no_call_after(probe.calls()));
 
     backend.shutdown();
 }

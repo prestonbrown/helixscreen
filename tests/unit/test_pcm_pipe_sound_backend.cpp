@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../test_helpers/render_source_probe.h"
 #include "note_event.h"
 #include "pcm_pipe_sound_backend.h"
 
@@ -327,29 +328,35 @@ TEST_CASE("a long clean burst clears the failure count", "[sound][pcmpipe]") {
     backend.shutdown();
 }
 
-TEST_CASE("clear_render_source waits out a render call in flight", "[sound][pcmpipe]") {
+// The source captures a tracker its owner destroys as soon as
+// clear_render_source() returns (prestonbrown/helixscreen#2010).
+TEST_CASE("clear_render_source waits out a render call in flight", "[sound][pcmpipe][2161]") {
     TempDir dir;
     std::string player = fake_player(dir);
 
+    helix::test::RenderSourceProbe probe;
     PcmPipeSoundBackend backend;
     REQUIRE(backend.initialize(player));
-
-    std::atomic<bool> in_call{false};
-    std::atomic<int> calls{0};
-    backend.set_render_source([&](float*, size_t, int) {
-        in_call = true;
-        ++calls;
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
-        in_call = false;
-    });
+    backend.set_render_source(probe.source());
     backend.resume();
-    REQUIRE(wait_until([&] { return in_call.load(); }, 3000));
 
+    // A finished call behind it and one in flight: the clear has one whole
+    // call in front of it and a measured length to compare with.
+    REQUIRE(probe.wait_for_call_in_flight());
+
+    // Waiting out the call in flight is bounded by that one call. The player
+    // drains the pipe as fast as the loop fills it, so the loop starts its
+    // next call the moment this one ends, and a clear that had to take a
+    // mutex the loop holds across each call could keep losing it
+    // (prestonbrown/helixscreen#2161).
+    const auto clear_started = std::chrono::steady_clock::now();
     backend.clear_render_source();
-    CHECK_FALSE(in_call.load());
-    const int calls_at_clear = calls.load();
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    CHECK(calls.load() == calls_at_clear);
+    const auto clear_wait = std::chrono::steady_clock::now() - clear_started;
+    CHECK(helix::test::within_one_call(clear_wait, probe.last_call()));
+    CHECK(probe.captured_gone());
+
+    CHECK_FALSE(probe.in_call());
+    CHECK(probe.no_call_after(probe.calls()));
 
     backend.shutdown();
 }

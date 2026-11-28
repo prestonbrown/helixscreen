@@ -473,20 +473,14 @@ void PWMSoundBackend::set_render_source(std::function<void(float*, size_t, int)>
         spdlog::warn("[PWMSoundBackend] set_render_source before initialize() - ignoring");
         return;
     }
-    {
-        std::lock_guard<std::mutex> lock(render_source_mutex_);
-        render_source_ = std::move(fn);
-    }
+    render_source_.set(std::move(fn));
     start_render_thread();
 }
 
 void PWMSoundBackend::clear_render_source() {
     spdlog::info("[PWMSoundBackend] clear_render_source() called");
     stop_render_thread();
-    {
-        std::lock_guard<std::mutex> lock(render_source_mutex_);
-        render_source_ = nullptr;
-    }
+    render_source_.clear();
     spdlog::info("[PWMSoundBackend] clear_render_source() done");
 }
 
@@ -655,14 +649,7 @@ void PWMSoundBackend::render_loop() {
     int64_t sample_index = 0;
 
     while (render_running_.load()) {
-        // Get render source under lock
-        std::function<void(float*, size_t, int)> source;
-        {
-            std::lock_guard<std::mutex> lock(render_source_mutex_);
-            source = render_source_;
-        }
-
-        if (!source) {
+        if (render_source_.empty()) {
             struct timespec sl = {0, 1000000}; // 1ms
             nanosleep(&sl, nullptr);
             base_ns = now_fn_();
@@ -676,7 +663,10 @@ void PWMSoundBackend::render_loop() {
             // probe buffer and resume the moment real audio shows up.
             const size_t probe_frames = static_cast<size_t>(park_probe_frames());
             std::memset(park_probe_buf_.data(), 0, probe_frames * sizeof(float));
-            source(park_probe_buf_.data(), probe_frames, kPcmSampleRate);
+            // False when the source was cleared since the top of this pass.
+            if (!render_source_.call(park_probe_buf_.data(), probe_frames, kPcmSampleRate)) {
+                continue;
+            }
             bool any_nonzero = false;
             for (size_t i = 0; i < probe_frames && !any_nonzero; i++) {
                 any_nonzero = park_probe_buf_[i] != 0.0f;
@@ -698,7 +688,9 @@ void PWMSoundBackend::render_loop() {
         // Render a buffer of PCM samples
         size_t frames = render_buf_.size();
         std::memset(render_buf_.data(), 0, frames * sizeof(float));
-        source(render_buf_.data(), frames, kPcmSampleRate);
+        if (!render_source_.call(render_buf_.data(), frames, kPcmSampleRate)) {
+            continue;
+        }
 
         // Find peak in this buffer for AGC (and the park detector)
         float peak = 0.0f;

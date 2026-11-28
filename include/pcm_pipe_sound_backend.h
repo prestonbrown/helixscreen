@@ -2,6 +2,7 @@
 #pragma once
 
 #include "note_event.h"
+#include "render_source_slot.h"
 #include "sound_backend.h"
 #include "sound_synthesis.h"
 
@@ -167,12 +168,13 @@ class PcmPipeSoundBackend : public SoundBackend {
     static constexpr int kMaxVoices = 4;
     VoiceSlot voice_slots_[kMaxVoices];
 
-    // Held across each render call, so clearing the source waits out a call in flight.
-    std::function<void(float*, size_t, int)> render_source_;
-    std::mutex render_source_mutex_;
+    // External render source (tracker PCM playback). Clearing it waits out a
+    // call in flight.
+    helix::audio::RenderSourceSlot render_source_;
 
     // Shared filter for the external render source (tracker), guarded by
-    // render_source_mutex_; voices filter per slot.
+    // filter_mutex_; voices filter per slot.
+    std::mutex filter_mutex_;
     std::atomic<helix::audio::FilterType> filter_type_{helix::audio::FilterType::NONE};
     std::atomic<float> filter_cutoff_{20000.0f};
     helix::audio::BiquadFilter filter_;
