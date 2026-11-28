@@ -175,7 +175,8 @@ def runout_trips(
 
 def runout_sensors(objects: List[str], settings: Any) -> List[str]:
     """The sensor objects whose trips are runouts: those the printer's config
-    file defines with pause_on_runout on (Klipper's default). A filament
+    file defines to act on one, with pause_on_runout on (Klipper's default) or
+    a runout_gcode of its own (M600, a custom PAUSE). A filament
     system's own switches (Happy Hare's gates, its sync-feedback tension
     switch, AFC lanes) are created at runtime, never appear in the config
     file, and flip as part of normal feeding; that system reports its own
@@ -187,7 +188,11 @@ def runout_sensors(objects: List[str], settings: Any) -> List[str]:
         if not isinstance(name, str) or not name.startswith(RUNOUT_SENSOR_PREFIXES):
             continue
         section = settings.get(name.lower())
-        if isinstance(section, dict) and section.get("pause_on_runout", True) is not False:
+        if not isinstance(section, dict):
+            continue
+        pauses = section.get("pause_on_runout", True) is not False
+        runs_gcode = bool(str(section.get("runout_gcode") or "").strip())
+        if pauses or runs_gcode:
             picked.append(name)
     return picked
 
@@ -468,7 +473,9 @@ class HelixJournal:
         try:
             objects = await apis.get_object_list()
             status = await apis.query_objects({"configfile": ["settings"]})
-        except Exception:
+        except Exception as e:
+            logging.warning("HelixPrint: journal watches no runout sensors, "
+                            "Klipper's object list or config could not be read: %s", e)
             return
         settings = ((status or {}).get("configfile") or {}).get("settings")
         names = runout_sensors(list(objects or []), settings)

@@ -143,15 +143,18 @@ class TestClassifier:
             "filament_switch_sensor Runout",            # in printer.cfg, default pause
             "filament_motion_sensor encoder",           # in printer.cfg, pause on
             "filament_switch_sensor door",              # in printer.cfg, pause off
+            "filament_switch_sensor spool",             # in printer.cfg, M600 instead
             "filament_switch_sensor filament_tension",  # Happy Hare's, runtime-made
         ]
         settings = {
             "filament_switch_sensor runout": {"switch_pin": "PA1"},
             "filament_motion_sensor encoder": {"pause_on_runout": True},
-            "filament_switch_sensor door": {"pause_on_runout": False},
+            "filament_switch_sensor door": {"pause_on_runout": False, "runout_gcode": "  "},
+            "filament_switch_sensor spool": {"pause_on_runout": False, "runout_gcode": "M600"},
         }
         assert runout_sensors(objects, settings) == [
-            "filament_switch_sensor Runout", "filament_motion_sensor encoder"]
+            "filament_switch_sensor Runout", "filament_motion_sensor encoder",
+            "filament_switch_sensor spool"]
         assert runout_sensors(objects, None) == []
 
 
