@@ -34,10 +34,6 @@
  *   a monitor that can silently never fire again is the defect this design
  *   excludes
  */
-namespace helix::test {
-class UsbBackendLinuxTestAccess;
-} // namespace helix::test
-
 class UsbBackendLinux : public UsbBackend {
   public:
     UsbBackendLinux();
@@ -52,6 +48,10 @@ class UsbBackendLinux : public UsbBackend {
     bool is_running() const override;
 
     void set_event_callback(EventCallback callback) override;
+
+    /// Install the automounter that start() runs. start() only builds the
+    /// production automounter when none is installed, so this comes first.
+    void set_automount(std::unique_ptr<helix::usb::UsbAutomount> automount);
 
     UsbError get_connected_drives(std::vector<UsbDrive>& drives) override;
     UsbError scan_for_gcode(const std::string& mount_path, std::vector<UsbGcodeFile>& files,
@@ -154,8 +154,6 @@ class UsbBackendLinux : public UsbBackend {
      * @brief Read contents of /proc/mounts for polling comparison
      */
     std::string read_mounts_content();
-
-    friend class helix::test::UsbBackendLinuxTestAccess;
 };
 
 #endif // __linux__

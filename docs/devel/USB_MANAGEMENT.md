@@ -350,7 +350,7 @@ make t F='[usb_automount]'
 make t F='[usb_backend]'
 ```
 
-`UsbAutomount` decisions are tested against `helix::test::FakeMountOps` (`tests/test_helpers/fake_mount_ops.h`), which records every mount and unmount call and lets a test choose which `(fs, options)` pairs the "kernel" accepts. `tests/test_helpers/usb_backend_linux_test_access.h` reaches into `UsbBackendLinux` privates.
+`UsbAutomount` decisions are tested against `helix::test::FakeMountOps` (`tests/test_helpers/fake_mount_ops.h`), which records every mount and unmount call and lets a test choose which `(fs, options)` pairs the "kernel" accepts. A test installs its automounter through `UsbBackendLinux::set_automount()` before `start()`.
 
 The test binary sets `HELIX_USB_AUTOMOUNT=0` from a startup constructor before any test runs (`tests/test_main.cpp#"helix_disarm_test_usb_automount"`). CI containers run as root, and a root test run must never issue real `mount(2)` calls against the host's drives. A test that wants a live automounter injects one with fake ops instead of going through `create()`.
 

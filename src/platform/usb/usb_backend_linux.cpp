@@ -61,8 +61,7 @@ UsbError UsbBackendLinux::start() {
 
     // Fallback mounter, created while the thread is not yet running so only
     // this path and stop() ever touch automount_. Nullptr when disarmed.
-    // An injected instance (tests observing the wiring) wins over the factory;
-    // production always arrives here with none present.
+    // An installed automounter wins over the factory.
     if (!automount_) {
         automount_ = helix::usb::UsbAutomount::create();
     }
@@ -128,6 +127,10 @@ bool UsbBackendLinux::is_running() const {
 void UsbBackendLinux::set_event_callback(EventCallback callback) {
     std::lock_guard<std::mutex> lock(mutex_);
     event_callback_ = std::move(callback);
+}
+
+void UsbBackendLinux::set_automount(std::unique_ptr<helix::usb::UsbAutomount> automount) {
+    automount_ = std::move(automount);
 }
 
 UsbError UsbBackendLinux::get_connected_drives(std::vector<UsbDrive>& drives) {

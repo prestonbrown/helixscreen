@@ -3,7 +3,6 @@
 
 #include "../test_helpers/fake_mount_ops.h"
 #include "../test_helpers/log_capture.h"
-#include "../test_helpers/usb_backend_linux_test_access.h"
 #include "usb_backend_linux.h"
 
 #include <algorithm>
@@ -118,10 +117,8 @@ TEST_CASE("UsbBackendLinux stop unmounts what the fallback mounter mounted",
     fake->present = {"/dev/hxwire1"};
 
     UsbBackendLinux backend;
-    helix::test::UsbBackendLinuxTestAccess::set_automount(
-        backend,
-        std::make_unique<helix::usb::UsbAutomount>(
-            std::make_unique<helix::test::SharedMountOps>(fake), std::chrono::milliseconds(0)));
+    backend.set_automount(std::make_unique<helix::usb::UsbAutomount>(
+        std::make_unique<helix::test::SharedMountOps>(fake), std::chrono::milliseconds(0)));
 
     REQUIRE(backend.start().success());
 
