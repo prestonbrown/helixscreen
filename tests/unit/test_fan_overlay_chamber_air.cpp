@@ -28,7 +28,9 @@
 #include "ui/fan_spin_animation.h"
 
 #include <array>
+#include <memory>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -244,19 +246,22 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         process_lvgl(1200);
         CHECK(sent == std::vector<int>{40});
     };
-    FanDial held(test_screen(), "Exhaust fan", "chamber_air_exhaust", 0);
-    held.set_hold_until_release(true);
+    // A dial stays where it was built: its label animation and its debounce
+    // timer each name the instance they were started for. The overlay holds
+    // every dial by unique_ptr, inside an AnimatedFanDial its vector moves.
+    static_assert(!std::is_move_constructible<FanDial>::value,
+                  "a FanDial cannot be moved: its animation and timer name it");
+    static_assert(!std::is_move_assignable<FanDial>::value,
+                  "a FanDial cannot be moved: its animation and timer name it");
+    auto held = std::make_unique<FanDial>(test_screen(), "Exhaust fan", "chamber_air_exhaust", 0);
+    held->set_hold_until_release(true);
     SECTION("as built") {
-        run(held);
+        run(*held);
     }
-    SECTION("move-constructed") {
-        FanDial moved(std::move(held));
-        run(moved);
-    }
-    SECTION("move-assigned") {
-        FanDial target(test_screen(), "Other", "other", 0);
-        target = std::move(held);
-        run(target);
+    SECTION("after its holder is moved, as the overlay moves an AnimatedFanDial") {
+        std::vector<std::unique_ptr<FanDial>> dials;
+        dials.push_back(std::move(held));
+        run(*dials.front());
     }
 }
 
