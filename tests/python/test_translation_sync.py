@@ -1609,3 +1609,63 @@ class TestTrPluralExtraction:
         assert "{} critical issues" in found
         assert "nullptr" not in found
         assert "1 test-only" not in found
+
+
+class TestSyncWithoutObsoleteCount:
+    """run_sync(check_obsolete=False) leaves the count out and never starts the scan.
+
+    The coverage gate reads one thing out of a dry run, whether a key is
+    missing. The obsolete count is a by-product whose reference scan reads
+    every string literal under seven trees; the gate opts out, and a sync run
+    by hand and the obsolete command keep the count.
+    """
+
+    def _repo(self, tmp_path):
+        """A miniature checkout with one live XML key, one live C++ key, one dead."""
+        yaml_dir = tmp_path / "translations"
+        yaml_dir.mkdir()
+        (yaml_dir / "en.yml").write_text(dedent("""\
+            locale: en
+            translations:
+              "Used Key": "Used Key"
+              "From Cpp": "From Cpp"
+              "Obsolete Key": "Obsolete Key"
+        """))
+
+        xml_dir = tmp_path / "ui_xml"
+        xml_dir.mkdir()
+        (xml_dir / "panel.xml").write_text(
+            '<?xml version="1.0"?>\n<component><text_body text="Used Key"/></component>\n'
+        )
+
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+        (src_dir / "panel.cpp").write_text('lv_tr("From Cpp");\n')
+
+        for sub in ("include", "assets"):
+            (tmp_path / sub).mkdir()
+        return xml_dir, yaml_dir, src_dir
+
+    def test_the_count_is_left_out_and_the_scan_never_runs(self, tmp_path, monkeypatch):
+        from translations import cli as cli_mod
+
+        xml_dir, yaml_dir, src_dir = self._repo(tmp_path)
+
+        def scan(*_args, **_kwargs):
+            raise AssertionError("the obsolete scan ran")
+
+        monkeypatch.setattr(cli_mod, "find_obsolete_keys", scan)
+        result = cli_mod.run_sync(
+            xml_dir, yaml_dir, dry_run=True, cpp_dirs=[src_dir], check_obsolete=False
+        )
+
+        assert result.obsolete_keys_found == 0
+        assert result.new_keys_found == 0
+
+    def test_left_to_itself_the_sync_still_counts(self, tmp_path):
+        from translations import cli as cli_mod
+
+        xml_dir, yaml_dir, src_dir = self._repo(tmp_path)
+        result = cli_mod.run_sync(xml_dir, yaml_dir, dry_run=True, cpp_dirs=[src_dir])
+
+        assert result.obsolete_keys_found == 1

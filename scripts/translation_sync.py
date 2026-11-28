@@ -78,6 +78,7 @@ def cmd_sync(args):
         dry_run=args.dry_run,
         with_sources=args.with_sources,
         cpp_dirs=cpp_dirs,
+        check_obsolete=not args.skip_obsolete,
     )
 
     if result.new_keys_found == 0:
@@ -229,6 +230,11 @@ def main():
         "--with-sources",
         action="store_true",
         help="Add source file comments",
+    )
+    sync_parser.add_argument(
+        "--skip-obsolete",
+        action="store_true",
+        help="Do not count the keys nothing references any more (the obsolete command reports them)",
     )
 
     # extract command
