@@ -240,6 +240,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "clear_backends returns every backend subject 
     CHECK(lv_subject_get_pointer(ams.get_ams_system_logo_subject()) == nullptr);
     CHECK(lv_subject_get_int(ams.get_ams_system_has_logo_subject()) == 0);
     CHECK(std::string(lv_subject_get_string(ams.get_current_material_text_subject())) == "---");
+    CHECK(lv_subject_get_int(ams.get_current_has_material_subject()) == 0);
     for (int i = 0; i < 4; ++i) {
         CAPTURE(i);
         CHECK(lv_subject_get_int(ams.get_slot_color_subject(i)) ==

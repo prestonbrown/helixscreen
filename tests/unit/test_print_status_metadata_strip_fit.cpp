@@ -33,12 +33,15 @@ using helix::ui::UpdateQueue;
 #include "ui_breakpoint.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "ams_state.h"
+#include "filament_sensor_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "printer_state.h"
 
 #include <lvgl.h>
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -217,4 +220,84 @@ TEST_CASE_METHOD(MetadataStripFixture,
     CHECK_FALSE(lv_obj_has_flag(elapsed, LV_OBJ_FLAG_HIDDEN));
 
     lv_subject_set_int(breakpoint, original);
+}
+
+namespace {
+
+/// Sets the named int subjects for one case and restores them on scope exit.
+class SubjectValues {
+  public:
+    void set(const char* name, int32_t value) {
+        lv_subject_t* subject = lv_xml_get_subject(nullptr, name);
+        CAPTURE(name);
+        REQUIRE(subject != nullptr);
+        saved_.emplace_back(subject, lv_subject_get_int(subject));
+        lv_subject_set_int(subject, value);
+    }
+    ~SubjectValues() {
+        for (auto it = saved_.rbegin(); it != saved_.rend(); ++it) {
+            lv_subject_set_int(it->first, it->second);
+        }
+    }
+
+  private:
+    std::vector<std::pair<lv_subject_t*, int32_t>> saved_;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(MetadataStripFixture,
+                 "Strip: the filament line hides a lone loaded glyph and an unnamed lane",
+                 "[print_status][metadata_strip][micro_declutter]") {
+    // The filament line binds AmsState and FilamentSensorManager subjects at
+    // create time, so they are brought up first and the panel rebuilt on them.
+    helix::AmsState::instance().init_subjects(true);
+    helix::FilamentSensorManager::instance().init_subjects();
+    lv_obj_delete(root_);
+    UpdateQueue::instance().drain();
+    panel_ = std::make_unique<PrintStatusPanel>(state(), nullptr);
+    panel_->init_subjects();
+    root_ = panel_->create(test_screen());
+
+    lv_obj_t* line = label("filament_ams_status_row");
+    lv_obj_t* glyph_row = label("filament_status_row");
+    lv_obj_t* lane_row = label("ams_status_row");
+    SubjectValues subjects;
+    subjects.set("toolchange_visible", 0);
+
+    SECTION("no AMS: a sensor reading loaded hides the line") {
+        subjects.set("ams_slot_count", 0);
+        subjects.set("filament_sensor_count", 1);
+        subjects.set("filament_runout_scoped", 1);
+        CHECK(lv_obj_has_flag(line, LV_OBJ_FLAG_HIDDEN));
+    }
+    SECTION("no AMS: runout and disabled stay on screen") {
+        subjects.set("ams_slot_count", 0);
+        subjects.set("filament_sensor_count", 1);
+        for (const int32_t actionable : {0, 2}) {
+            CAPTURE(actionable);
+            subjects.set("filament_runout_scoped", actionable);
+            CHECK_FALSE(lv_obj_has_flag(line, LV_OBJ_FLAG_HIDDEN));
+            CHECK_FALSE(lv_obj_has_flag(glyph_row, LV_OBJ_FLAG_HIDDEN));
+        }
+    }
+    SECTION("AMS: an active lane with no filament name hides the line") {
+        subjects.set("ams_slot_count", 4);
+        subjects.set("ams_current_tool", 0);
+        subjects.set("filament_sensor_count", 1);
+        subjects.set("filament_runout_scoped", 1);
+        subjects.set("ams_current_has_material", 0);
+        CHECK(lv_obj_has_flag(line, LV_OBJ_FLAG_HIDDEN));
+
+        subjects.set("ams_current_has_material", 1);
+        CHECK_FALSE(lv_obj_has_flag(line, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_has_flag(lane_row, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_has_flag(glyph_row, LV_OBJ_FLAG_HIDDEN));
+    }
+    SECTION("a tool change count keeps the line") {
+        subjects.set("ams_slot_count", 0);
+        subjects.set("filament_sensor_count", 0);
+        subjects.set("toolchange_visible", 1);
+        CHECK_FALSE(lv_obj_has_flag(line, LV_OBJ_FLAG_HIDDEN));
+    }
 }

@@ -2009,14 +2009,22 @@ bool AmsState::was_slot_recently_unloaded(int slot_index) const {
     return runout_grace_.was_slot_recently_unloaded(slot_index);
 }
 
+void AmsState::set_current_material_text(const char* text) {
+    if (strcmp(lv_subject_get_string(&current_material_text_), text) != 0) {
+        lv_subject_copy_string(&current_material_text_, text);
+    }
+    const int has_material = (text[0] != '\0' && strcmp(text, "---") != 0) ? 1 : 0;
+    if (lv_subject_get_int(&current_has_material_) != has_material) {
+        lv_subject_set_int(&current_has_material_, has_material);
+    }
+}
+
 void AmsState::set_current_loaded_defaults(bool write_header) {
     // The card is back to empty, so the next real load is a change worth logging.
     last_synced_loaded_slot_ = -1;
     last_synced_filament_loaded_ = false;
 
-    if (strcmp(lv_subject_get_string(&current_material_text_), "---") != 0) {
-        lv_subject_copy_string(&current_material_text_, "---");
-    }
+    set_current_material_text("---");
     const char* default_slot = lv_tr("Currently Loaded");
     if (write_header && strcmp(lv_subject_get_string(&current_slot_text_), default_slot) != 0) {
         lv_subject_copy_string(&current_slot_text_, default_slot);
@@ -2200,9 +2208,7 @@ void AmsState::sync_current_loaded_from_backend(const AmsSystemInfo& primary_inf
             std::string label = helix::resolve_filament_label(
                 ext, ext_identity ? &*ext_identity : nullptr,
                 helix::ams::slot_color_name(ext.color_rgb), lv_tr("External"));
-            if (strcmp(lv_subject_get_string(&current_material_text_), label.c_str()) != 0) {
-                lv_subject_copy_string(&current_material_text_, label.c_str());
-            }
+            set_current_material_text(label.c_str());
             // The bypass feeding is its spool's load: assert it as the active
             // spool the way a lane load does. A link saved while the bypass
             // was not feeding set nothing, and no backend switches a spool it
@@ -2234,9 +2240,7 @@ void AmsState::sync_current_loaded_from_backend(const AmsSystemInfo& primary_inf
             }
         } else {
             const char* ext_text = lv_tr("External");
-            if (strcmp(lv_subject_get_string(&current_material_text_), ext_text) != 0) {
-                lv_subject_copy_string(&current_material_text_, ext_text);
-            }
+            set_current_material_text(ext_text);
             if (strcmp(lv_subject_get_string(&current_weight_text_), "") != 0) {
                 lv_subject_copy_string(&current_weight_text_, "");
             }
@@ -2280,9 +2284,7 @@ void AmsState::sync_current_loaded_from_backend(const AmsSystemInfo& primary_inf
             std::string label =
                 helix::resolve_filament_label(slot_info, identity ? &*identity : nullptr,
                                               helix::ams::slot_color_name(slot_info.color_rgb));
-            if (strcmp(lv_subject_get_string(&current_material_text_), label.c_str()) != 0) {
-                lv_subject_copy_string(&current_material_text_, label.c_str());
-            }
+            set_current_material_text(label.c_str());
         }
 
         // The header is written once per sync: an operation's working head

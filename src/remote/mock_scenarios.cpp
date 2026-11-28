@@ -429,6 +429,7 @@ static std::vector<MockScenario> build_scenarios() {
                              set_string("ams_system_name", "Happy Hare");
                              set_string("ams_action_detail", "Idle");
                              set_string("ams_current_material_text", "PLA");
+                             set_int("ams_current_has_material", 1);
                              set_string("ams_current_slot_text", "Gate 0");
                              set_int("ams_supports_bypass", 1);
                              set_int("ams_bypass_active", 0);
@@ -443,6 +444,7 @@ static std::vector<MockScenario> build_scenarios() {
                              set_string("ams_system_name", "AFC");
                              set_string("ams_action_detail", "Idle");
                              set_string("ams_current_material_text", "PETG");
+                             set_int("ams_current_has_material", 1);
                              set_string("ams_current_slot_text", "Lane 2");
                              set_int("ams_supports_bypass", 0);
                          }});
@@ -455,6 +457,7 @@ static std::vector<MockScenario> build_scenarios() {
                              set_string("ams_system_name", "AFC");
                              set_string("ams_action_detail", "Loading Lane 3...");
                              set_string("ams_current_material_text", "ABS");
+                             set_int("ams_current_has_material", 1);
                              set_string("ams_current_slot_text", "Lane 3");
                          }});
 

@@ -1559,6 +1559,12 @@ class AmsState {
      * @brief Get current has weight subject
      * @return Subject holding 1 if weight data available, 0 otherwise (for visibility binding)
      */
+    /// 1 while ams_current_material_text names a filament, 0 while it is
+    /// empty or the unloaded placeholder.
+    lv_subject_t* get_current_has_material_subject() {
+        return &current_has_material_;
+    }
+
     lv_subject_t* get_current_has_weight_subject() {
         return &current_has_weight_;
     }
@@ -2292,6 +2298,9 @@ class AmsState {
     /// written one (or nothing to write) lets the parked block go. Main thread.
     void legacy_bypass_settled(uint64_t generation, bool written);
 
+    /// Writes ams_current_material_text and keeps ams_current_has_material in step.
+    void set_current_material_text(const char* text);
+
     /** @brief Set "Currently Loaded" subjects to default/empty state with guards */
     void set_current_loaded_defaults(bool write_header = true);
 
@@ -2823,6 +2832,7 @@ class AmsState {
     lv_subject_t current_weight_text_{};
     char current_weight_text_buf_[32];
     lv_subject_t current_has_weight_{};
+    lv_subject_t current_has_material_{};
     lv_subject_t current_color_{};
     lv_subject_t current_colors_{};
     char current_colors_buf_[128];
