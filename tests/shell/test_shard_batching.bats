@@ -20,6 +20,9 @@ load helpers
 
 setup() {
     unset JOBPOOL
+    # Every sweep here runs as an idle host unless a case names a load: the real
+    # one-minute average would stretch the short budgets these cases time out on.
+    export HELIX_SHARD_HOST_LOAD=0 HELIX_SHARD_HOST_CORES=72
     export HELIX_JOBPOOL="$BATS_TEST_TMPDIR/fake-jobpool"
     export POOL_LOG="$BATS_TEST_TMPDIR/pool.log"
     FAKE_BIN="$BATS_TEST_TMPDIR/fake-tests"
