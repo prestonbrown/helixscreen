@@ -155,6 +155,16 @@ describe("formatIssueBody — fields that were historically dropped", () => {
     expect(md).toContain("**Exception** | std::bad_alloc: out of memory");
   });
 
+  it("names the thread an uncaught exception escaped on", () => {
+    const md = formatIssueBody(
+      { ...MIN_REPORT, exception: "Operation not permitted", thread: "jq-worker" },
+      "fp",
+      null
+    );
+    expect(md).toContain("**Thread** | `jq-worker`");
+    expect(formatIssueBody(MIN_REPORT, "fp", null)).not.toContain("**Thread**");
+  });
+
   it("renders debug bundle link with retrieval command", () => {
     const md = formatIssueBody(
       { ...MIN_REPORT, debug_bundle_share_code: "ZYZCAT4L" },
