@@ -225,7 +225,7 @@ helix::RungNeeds measure_needs(const helix::ContentChrome& chrome, helix::JobQue
 std::string next_display_name(const JobQueueState* jqs, size_t index) {
     if (!jqs || index >= jqs->get_jobs().size())
         return {};
-    return helix::gcode::get_display_filename(jqs->get_jobs()[index].filename);
+    return helix::gcode::get_job_display_name(jqs->get_jobs()[index].filename);
 }
 
 } // namespace

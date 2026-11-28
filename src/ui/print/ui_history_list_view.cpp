@@ -161,9 +161,10 @@ void HistoryListView::configure_row(lv_obj_t* row, size_t data_index, const Prin
 
     lv_obj_t* filename_label = helix::ui::find_required(row, "row_filename", "HistoryListView");
     if (filename_label) {
-        helix::gcode::note_displayed_filename(job.filename);
+        const std::string shown = helix::gcode::strip_slicer_suffix(job.filename);
+        helix::gcode::note_displayed_filename(shown);
         // DECLARATIVE_OK: a recycled pool row rebound to the job it now shows
-        lv_label_set_text(filename_label, job.filename.c_str());
+        lv_label_set_text(filename_label, shown.c_str());
     }
 
     lv_obj_t* date_label = helix::ui::find_required(row, "row_date", "HistoryListView");

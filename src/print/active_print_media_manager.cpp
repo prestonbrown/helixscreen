@@ -33,7 +33,7 @@
 #include <memory>
 #include <stdexcept>
 
-using helix::gcode::get_display_filename;
+using helix::gcode::get_job_display_name;
 using helix::gcode::resolve_gcode_filename;
 
 namespace helix {
@@ -489,7 +489,7 @@ void ActivePrintMediaManager::process_filename(const char* raw_filename) {
                             []() { helix::print_cost::ActivePrintCost::instance().clear(); });
 
     // Update display filename subject
-    std::string display_name = get_display_filename(effective_filename);
+    std::string display_name = get_job_display_name(effective_filename);
     spdlog::debug("[ActivePrintMediaManager] Display filename: {}", display_name);
 
     // Thread-safe update to display filename subject (RAII via unique_ptr)

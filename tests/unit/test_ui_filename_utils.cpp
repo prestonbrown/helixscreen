@@ -569,3 +569,64 @@ TEST_CASE("formatting a filename for display reports only CJK names to the hook"
     helix::gcode::get_display_filename("猫.gcode");
     CHECK(g_hook_calls == 0);
 }
+
+// strip_slicer_suffix() - the slicer's "_{filament}_{layer}_{time}" tail on a
+// job's shown name
+
+TEST_CASE("strip_slicer_suffix() drops the filament, layer height and print time",
+          "[filename_utils][slicer_suffix]") {
+    using helix::gcode::strip_slicer_suffix;
+    CHECK(strip_slicer_suffix("ECC_0.4_180_long_m2_nut_adapter_x6_Elegoo ASA _0.2_1h54m") ==
+          "ECC_0.4_180_long_m2_nut_adapter_x6");
+    CHECK(strip_slicer_suffix("Benchy_PLA_1h2m") == "Benchy");
+    CHECK(strip_slicer_suffix("bracket_PETG_45m") == "bracket");
+    CHECK(strip_slicer_suffix("gear_PLA-CF_0.28mm_2d3h12m") == "gear");
+    CHECK(strip_slicer_suffix("clip_Generic petg_0.16_1h2m3s") == "clip");
+    CHECK(strip_slicer_suffix("hook_12m") == "hook");
+}
+
+TEST_CASE("strip_slicer_suffix() leaves a name without a trailing print time",
+          "[filename_utils][slicer_suffix]") {
+    using helix::gcode::strip_slicer_suffix;
+    CHECK(strip_slicer_suffix("3DBenchy") == "3DBenchy");
+    CHECK(strip_slicer_suffix("PLA_test") == "PLA_test");
+    CHECK(strip_slicer_suffix("part_v2_0.2") == "part_v2_0.2");
+    CHECK(strip_slicer_suffix("part_PLA_0.2") == "part_PLA_0.2");
+    CHECK(strip_slicer_suffix("part_1h2m_PLA") == "part_1h2m_PLA");
+    CHECK(strip_slicer_suffix("part_h2m") == "part_h2m");
+    CHECK(strip_slicer_suffix("part_12") == "part_12");
+    CHECK(strip_slicer_suffix("part_2m1h") == "part_2m1h");
+    CHECK(strip_slicer_suffix("") == "");
+}
+
+TEST_CASE("strip_slicer_suffix() stops at the first token that is not slicer metadata",
+          "[filename_utils][slicer_suffix]") {
+    using helix::gcode::strip_slicer_suffix;
+    CHECK(strip_slicer_suffix("PLA_holder_PLA_1h") == "PLA_holder");
+    CHECK(strip_slicer_suffix("planter_x2_0.2_3h") == "planter_x2");
+    CHECK(strip_slicer_suffix("my_explanation_0.2_3h") == "my_explanation");
+    CHECK(strip_slicer_suffix("displayed_name_3h") == "displayed_name");
+}
+
+TEST_CASE("strip_slicer_suffix() never leaves an empty name", "[filename_utils][slicer_suffix]") {
+    using helix::gcode::strip_slicer_suffix;
+    CHECK(strip_slicer_suffix("1h2m") == "1h2m");
+    CHECK(strip_slicer_suffix("_1h2m") == "_1h2m");
+    CHECK(strip_slicer_suffix("PLA_1h2m") == "PLA");
+}
+
+TEST_CASE("strip_slicer_suffix() keeps the extension and the folder",
+          "[filename_utils][slicer_suffix]") {
+    using helix::gcode::strip_slicer_suffix;
+    CHECK(strip_slicer_suffix("Benchy_PLA_1h2m.gcode") == "Benchy.gcode");
+    CHECK(strip_slicer_suffix("dir/Benchy_PLA_0.2_1h2m.gcode.3mf") == "dir/Benchy.gcode.3mf");
+    CHECK(strip_slicer_suffix("PLA/_1h2m.gcode") == "PLA/_1h2m.gcode");
+    CHECK(strip_slicer_suffix("dir_PLA/x_1h.gcode") == "dir_PLA/x.gcode");
+}
+
+TEST_CASE("get_job_display_name() is the display filename without the slicer tail",
+          "[filename_utils][slicer_suffix]") {
+    using helix::gcode::get_job_display_name;
+    CHECK(get_job_display_name("sub/Benchy_PLA_0.2_1h2m.gcode") == "Benchy");
+    CHECK(get_job_display_name("sub/3DBenchy.gcode") == "3DBenchy");
+}

@@ -180,7 +180,8 @@ void JobQueueModal::populate_job_list() {
 
     for (const auto& job : jobs) {
         // Extract just the filename
-        std::string display_name = helix::gcode::get_filename_basename(job.filename);
+        std::string display_name =
+            helix::gcode::strip_slicer_suffix(helix::gcode::get_filename_basename(job.filename));
         helix::gcode::note_displayed_filename(display_name);
 
         std::string queued;

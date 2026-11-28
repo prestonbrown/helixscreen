@@ -134,6 +134,129 @@ std::string get_display_filename(const std::string& path) {
     return strip_gcode_extension(get_filename_basename(path));
 }
 
+namespace {
+
+// "1h54m", "45m", "2d3h12m", "1h2m3s": digit runs each closed by a unit, the
+// units in d-h-m-s order and each at most once.
+bool is_print_time_token(std::string_view token) {
+    static constexpr std::string_view kUnits = "dhms";
+    size_t next_unit = 0;
+    size_t i = 0;
+    bool any = false;
+    while (i < token.size()) {
+        const size_t digits_start = i;
+        while (i < token.size() && std::isdigit(static_cast<unsigned char>(token[i]))) {
+            ++i;
+        }
+        if (i == digits_start || i == token.size()) {
+            return false;
+        }
+        const size_t unit = kUnits.find(
+            static_cast<char>(std::tolower(static_cast<unsigned char>(token[i]))), next_unit);
+        if (unit == std::string_view::npos) {
+            return false;
+        }
+        next_unit = unit + 1;
+        ++i;
+        any = true;
+    }
+    return any;
+}
+
+// "0.2", "0.28", "0.2mm".
+bool is_layer_height_token(std::string_view token) {
+    if (token.size() > 2 && helix::text_io::ends_with_ignore_case(token, "mm")) {
+        token.remove_suffix(2);
+    }
+    const size_t dot = token.find('.');
+    if (dot == std::string_view::npos || dot == 0 || dot + 1 == token.size()) {
+        return false;
+    }
+    for (size_t i = 0; i < token.size(); ++i) {
+        if (i != dot && !std::isdigit(static_cast<unsigned char>(token[i]))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Base material families only: a slicer's filament preset name ("Elegoo ASA",
+// "Generic PLA+", "PETG-CF") always carries one as a whole word. The material
+// database is not consulted: core has no dependency on it, and its user rows
+// are names a part could legitimately carry.
+bool names_a_material(std::string_view token) {
+    static constexpr std::string_view kMaterials[] = {
+        "pla",  "petg", "pctg", "pet",  "abs", "asa", "tpu", "tpe", "pa",   "pa6",
+        "pa12", "pc",   "pp",   "hips", "pva", "pvb", "pps", "pei", "peek", "nylon"};
+    size_t i = 0;
+    while (i < token.size()) {
+        while (i < token.size() && !std::isalnum(static_cast<unsigned char>(token[i]))) {
+            ++i;
+        }
+        const size_t start = i;
+        while (i < token.size() && std::isalnum(static_cast<unsigned char>(token[i]))) {
+            ++i;
+        }
+        if (i == start) {
+            break;
+        }
+        const std::string word = helix::text_io::to_lower(token.substr(start, i - start));
+        for (const auto material : kMaterials) {
+            if (word == material) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool has_path_separator(std::string_view token) {
+    return token.find_first_of("/\\") != std::string_view::npos;
+}
+
+} // namespace
+
+std::string strip_slicer_suffix(const std::string& name) {
+    const std::string stem = strip_gcode_extension(name);
+    const std::string extension = name.substr(stem.size());
+
+    // The token after the last '_' must be the print time.
+    size_t cut = stem.rfind('_');
+    if (cut == std::string::npos ||
+        !is_print_time_token(helix::text_io::trim(std::string_view(stem).substr(cut + 1)))) {
+        return name;
+    }
+
+    // Walk back over layer-height and material tokens. The first token is never
+    // one of them: it is the part's own name.
+    while (cut != 0) {
+        const size_t prev = stem.rfind('_', cut - 1);
+        if (prev == std::string::npos) {
+            break;
+        }
+        const std::string_view token =
+            helix::text_io::trim(std::string_view(stem).substr(prev + 1, cut - prev - 1));
+        if (has_path_separator(token) ||
+            !(is_layer_height_token(token) || names_a_material(token))) {
+            break;
+        }
+        cut = prev;
+    }
+
+    size_t end = cut;
+    while (end > 0 && (stem[end - 1] == '_' || stem[end - 1] == ' ')) {
+        --end;
+    }
+    if (end == 0 || has_path_separator(std::string_view(stem).substr(end - 1, 1))) {
+        return name;
+    }
+    return stem.substr(0, end) + extension;
+}
+
+std::string get_job_display_name(const std::string& path) {
+    return strip_slicer_suffix(get_display_filename(path));
+}
+
 // Pattern: .helix_temp/modified_123456789_OriginalName.gcode (Moonraker plugin)
 // Also handles: */gcode_mod/mod_XXXXXX_filename.gcode (local temp files)
 // Legacy: /tmp/helixscreen_mod_XXXXXX_filename.gcode
