@@ -163,6 +163,9 @@ describe("formatIssueBody — fields that were historically dropped", () => {
     );
     expect(md).toContain("**Thread** | `jq-worker`");
     expect(formatIssueBody(MIN_REPORT, "fp", null)).not.toContain("**Thread**");
+    // A malformed client value is skipped rather than failing the whole issue.
+    const odd = { ...MIN_REPORT, thread: 42 as unknown as string };
+    expect(formatIssueBody(odd, "fp", null)).not.toContain("**Thread**");
   });
 
   it("renders debug bundle link with retrieval command", () => {

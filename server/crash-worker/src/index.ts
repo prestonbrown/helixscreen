@@ -605,7 +605,7 @@ export function formatIssueBody(r: CrashReport, fingerprint: string, resolved: R
     md += `| **Exception** | ${mdEscape(r.exception)} |\n`;
   }
 
-  if (r.thread) {
+  if (typeof r.thread === "string" && r.thread) {
     md += `| **Thread** | \`${mdEscape(r.thread)}\` |\n`;
   }
 
