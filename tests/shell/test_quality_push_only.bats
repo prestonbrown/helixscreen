@@ -49,11 +49,10 @@ with_driver() {
   contains "qc_growth_ratchets" "$output"
 }
 
-# Formatting and the staged compile judge each staged file on its own, so a
-# commit that fails them would not build still meets them at commit. The XML
-# linter, its tool build and the design-token checks need the whole tree, and
-# are the full sweep's.
-@test "the gate that keeps a commit buildable still runs at commit; the whole-tree ones wait" {
+# Formatting judges each staged file on its own, so a commit meets it at commit.
+# The XML linter, its tool build and the design-token checks need the whole tree,
+# and are the full sweep's.
+@test "formatting still runs at commit; the whole-tree ones wait" {
   run with_driver true 'QC_STAGED_ALL="ui_xml/a.xml"; for g in qc_phase2 qc_xml_tools qc_xml_linter qc_design_pixels; do qc_wanted "$g" && echo "RAN $g"; done; echo "deferred:[$QC_DEFERRED]"; echo "left:$QC_LEFT_WHOLE"
 '
   [ "$status" -eq 0 ]
@@ -167,7 +166,7 @@ staged_units() {
   bash -c '. "$2/scripts/qc/_lib.sh"; qc_staged_compile_units "$1"; echo "UNITS<$CHECK_UNITS>"; echo "UNREACHED<$UNREACHED_HDR>"' _ "$1" "$QC_TREE"
 }
 
-@test "a commit compiles each staged source and an includer of each staged header" {
+@test "the compile check takes each staged source and an includer of each staged header" {
   compile_repo
   cd "$BATS_TEST_TMPDIR/repo"
   # src/a.cpp does not include b.h, so its includer is a second unit in any traversal order.
@@ -183,7 +182,7 @@ staged_units() {
   contains "UNREACHED< include/helix_no_such_header_xyz.h>" "$output"
 }
 
-@test "a commit with no source staged compiles nothing" {
+@test "a staged list with no source yields no unit" {
   run staged_units $'docs/a.md\nui_xml/x.xml'
   [ "$status" -eq 0 ]
   contains "UNITS<>" "$output"
@@ -246,6 +245,14 @@ case "$1" in
 esac
 SH
   chmod +x "$repo/scripts/helix-claim"
+  # qc_phase2 resolves the pinned clang-format before anything else: a stub that
+  # reports the pin satisfies it, and with no .clang-format here it formats nothing.
+  # `make` is a stub too: HELIX_QC_FULL_BUILD=1 builds through it.
+  printf 'clang-format==18.1.8\n' > "$repo/requirements.txt"
+  mkdir -p "$repo/bin"
+  printf '#!/bin/sh\necho "clang-format version 18.1.8"\n' > "$repo/bin/clang-format"
+  printf '#!/bin/sh\necho "$*" > built.txt\n' > "$repo/bin/make"
+  chmod +x "$repo/bin/clang-format" "$repo/bin/make"
 }
 
 @test "phase2 hands each staged source to the syntax check and reports its summary" {
@@ -283,7 +290,52 @@ SH
   [ ! -e "$BATS_TEST_TMPDIR/repo/called.txt" ] || fail "syntax check ran"
 }
 
-@test "phase2 compiles nothing for a commit with no source" {
+# Runs qc_phase2 whole, as the driver calls it, in a repo with a compile database
+# and a staged source: everything before the compile block runs too.
+phase2_gate() {
+  local repo="$BATS_TEST_TMPDIR/repo"
+  bash -c '
+    cd "$1" || exit 99
+    PATH="$1/bin:$PATH" CLANG_FORMAT="$1/bin/clang-format"
+    STAGED_ONLY=true AUTO_FIX=false EXIT_CODE=0 REPO_ROOT="$PWD" QC_JOBS=2
+    QC_TMP="$PWD/qc_tmp"; mkdir -p "$QC_TMP"
+    QC_COUNTS="$QC_TMP/counts"; : > "$QC_COUNTS"
+    QC_STAGED_DIR=""
+    FILES="$(git diff --cached --name-only --diff-filter=ACM | grep -E "\\.(cpp|c|h|mm)$")"
+    . "$2/scripts/qc/_lib.sh" && . "$2/scripts/qc/phase2.sh" && qc_phase2
+  ' _ "$repo" "$QC_TREE"
+}
+
+@test "a commit compiles nothing; HELIX_QC_ALL_AT_COMMIT=1 compiles the staged sources" {
+  compile_repo
+  git -C "$BATS_TEST_TMPDIR/repo" add src/a.cpp
+  local repo="$BATS_TEST_TMPDIR/repo"
+
+  run phase2_gate
+  [ "$status" -eq 0 ] || fail "$output"
+  lacks "Verifying staged sources compile" "$output"
+  [ ! -e "$repo/called.txt" ] || fail "a commit compiled: $(cat "$repo/called.txt")"
+
+  HELIX_QC_ALL_AT_COMMIT=1 run phase2_gate
+  [ "$status" -eq 0 ] || fail "$output"
+  contains "summary: stub checked 1" "$output"
+  [ "$(cat "$repo/called.txt")" = "src/a.cpp" ] || fail "$(cat "$repo/called.txt")"
+}
+
+@test "HELIX_QC_FULL_BUILD=1 builds the app in the hook instead of a syntax check" {
+  compile_repo
+  git -C "$BATS_TEST_TMPDIR/repo" add src/a.cpp
+  local repo="$BATS_TEST_TMPDIR/repo" jobs
+  jobs=$(cd "$repo" && bash -c '. "$1/scripts/qc/_lib.sh"; qc_build_jobs' _ "$QC_TREE")
+
+  HELIX_QC_FULL_BUILD=1 run phase2_gate
+  [ "$status" -eq 0 ] || fail "$output"
+  contains "✅ Build successful" "$output"
+  [ "$(cat "$repo/built.txt")" = "SKIP_COMPILE_COMMANDS=1 -j$jobs" ] || fail "$(cat "$repo/built.txt")"
+  [ ! -e "$repo/called.txt" ] || fail "it syntax-checked instead of building"
+}
+
+@test "phase2 compiles nothing when no source is staged" {
   compile_repo
   git -C "$BATS_TEST_TMPDIR/repo" add docs/x.md
   run compile_block
@@ -304,65 +356,35 @@ wide_repo() {
 
 called_count() { grep -c . "$BATS_TEST_TMPDIR/repo/called.txt"; }
 
-compile_cap() { bash -c '. "$1/scripts/qc/_lib.sh"; echo "$QC_COMPILE_CAP"' _ "$QC_TREE"; }
+compile_serial_max() { bash -c '. "$1/scripts/qc/_lib.sh"; echo "$QC_COMPILE_SERIAL_MAX"' _ "$QC_TREE"; }
+compile_jobs() { bash -c '. "$1/scripts/qc/_lib.sh"; echo "$QC_COMPILE_JOBS"' _ "$QC_TREE"; }
 
-@test "a few staged sources compile as a plain serial run with no pool hold" {
-  compile_repo
+@test "up to the serial width compile one at a time, with no pool hold" {
+  local width; width=$(compile_serial_max)
+  wide_repo $((width / 3))
   git -C "$BATS_TEST_TMPDIR/repo" add src/a.cpp
+  local staged; staged=$(git -C "$BATS_TEST_TMPDIR/repo" diff --cached --name-only | grep -c .)
+  [ "$staged" -eq "$width" ] || fail "fixture staged $staged, the serial width is $width"
   run compile_block
   contains "EXIT_CODE=0" "$output"
+  [ "$(called_count)" -eq "$staged" ] || fail "compiled $(called_count) of $staged"
   [ ! -e "$BATS_TEST_TMPDIR/repo/hold.log" ] || fail "took a hold: $(cat "$BATS_TEST_TMPDIR/repo/hold.log")"
   [ ! -e "$BATS_TEST_TMPDIR/repo/jobs.txt" ] || fail "passed --jobs"
 }
 
-@test "exactly the cap of staged sources all compile, in parallel, with no warning" {
-  local cap; cap=$(compile_cap)
-  wide_repo $((cap / 3))
+@test "above the serial width every unit compiles, in parallel at the fixed width" {
+  local width; width=$(compile_serial_max)
+  wide_repo $((width / 3))
   git -C "$BATS_TEST_TMPDIR/repo" add src/a.cpp src/c.cpp
   local staged; staged=$(git -C "$BATS_TEST_TMPDIR/repo" diff --cached --name-only | grep -c .)
-  [ "$staged" -le "$cap" ] || fail "fixture staged $staged over the cap $cap"
+  [ "$staged" -gt "$width" ] || fail "fixture staged $staged, no more than the serial width $width"
   run compile_block
   contains "EXIT_CODE=0" "$output"
-  lacks "Wide commit" "$output"
   [ "$(called_count)" -eq "$staged" ] || fail "compiled $(called_count) of $staged"
-  [ ! -e "$BATS_TEST_TMPDIR/repo/hold.log" ] || fail "took a hold: $(cat "$BATS_TEST_TMPDIR/repo/hold.log")"
-  [ "$(cat "$BATS_TEST_TMPDIR/repo/jobs.txt")" = 4 ] || fail "jobs is not the fixed commit width"
+  [ "$(cat "$BATS_TEST_TMPDIR/repo/jobs.txt")" = "$(compile_jobs)" ] || fail "not the fixed width: $(cat "$BATS_TEST_TMPDIR/repo/jobs.txt")"
 }
 
-@test "over the cap a commit compiles a deterministic spread, keeps includers, and says what it skipped" {
-  local cap; cap=$(compile_cap)
-  wide_repo 60
-  local repo="$BATS_TEST_TMPDIR/repo"
-  # src/c.cpp includes b.h and sits where an even stride need not land on it.
-  git -C "$repo" add include/b.h
-  run compile_block
-  contains "EXIT_CODE=0" "$output"
-  [ "$(called_count)" -eq "$cap" ] || fail "compiled $(called_count), cap $cap"
-  grep -qx 'src/c.cpp' "$repo/called.txt" || fail "the header's includer was sampled out"
-  grep -q '^src/w/' "$repo/called.txt" || fail "no unit from src/w"
-  grep -q '^src/x/' "$repo/called.txt" || fail "no unit from src/x"
-  grep -q '^tests/y/' "$repo/called.txt" || fail "no unit from tests/y"
-  contains "Wide commit: compiled $cap of 181 units" "$output"
-  contains "$((181 - cap)) were NOT compiled here" "$output"
-  grep -q "NOT compiled here" "$repo/qc_tmp/compile_sample.note" || fail "no note for the driver's verdict"
-
-  local first; first=$(cat "$repo/called.txt")
-  run compile_block
-  [ "$(cat "$repo/called.txt")" = "$first" ] || fail "the sample moved between runs"
-}
-
-@test "header includers past the cap all compile" {
-  run bash -c '
-    . "$1/scripts/qc/_lib.sh"
-    CHECK_UNITS=$(printf "src/%s.cpp\n" a b c d e f)
-    QC_INCLUDER_UNITS=$(printf "src/%s.cpp\n" a c e)
-    qc_sample_compile_units 2
-    echo "$CHECK_UNITS" | tr "\n" " "; echo "skipped=$COMPILE_SKIPPED"
-  ' _ "$QC_TREE"
-  [ "$output" = "src/a.cpp src/c.cpp src/e.cpp skipped=3" ] || fail "$output"
-}
-
-@test "a broken source in the sample fails the commit and its error survives the ok lines" {
+@test "a broken source in a parallel run fails the commit and its error survives the ok lines" {
   wide_repo 60
   local repo="$BATS_TEST_TMPDIR/repo" broken
   run compile_block
@@ -371,7 +393,6 @@ compile_cap() { bash -c '. "$1/scripts/qc/_lib.sh"; echo "$QC_COMPILE_CAP"' _ "$
   contains "❌ A staged source does not compile" "$output"
   contains "$broken: FAILED" "$output"
   contains "EXIT_CODE=1" "$output"
-  contains "Wide commit" "$output"
   lacks "u1.cpp: ok" "$output"
 }
 
@@ -385,8 +406,7 @@ compile_cap() { bash -c '. "$1/scripts/qc/_lib.sh"; echo "$QC_COMPILE_CAP"' _ "$
 
 @test "a failed compile keeps its whole log, in a place no other session writes" {
   wide_repo 60
-  local repo="$BATS_TEST_TMPDIR/repo" broken cap
-  cap=$(compile_cap)
+  local repo="$BATS_TEST_TMPDIR/repo" broken
   run compile_block
   broken=$(tail -1 "$repo/called.txt")
   STUB_FAIL_ON="$broken" run compile_block
@@ -396,27 +416,10 @@ compile_cap() { bash -c '. "$1/scripts/qc/_lib.sh"; echo "$QC_COMPILE_CAP"' _ "$
     : > "$2/qc_tmp/qc_phase2.out"
     qc_keep_gate_log qc_phase2 1 1000 "$2/qc_tmp" "$3"
   ' _ "$QC_TREE" "$repo" "$kept"
-  [ "$(grep -c ': ok (' "$kept"/*-phase2/phase2.syntax.log)" -eq $((cap - 1)) ] || fail "$(ls -R "$kept")"
+  # 180 units ran: the broken one and the 179 that passed.
+  [ "$(grep -c ': ok (' "$kept"/*-phase2/phase2.syntax.log)" -eq 179 ] || fail "$(ls -R "$kept")"
   run grep -n '/tmp/qc_syntax' "$QC_TREE/scripts/qc/phase2.sh"
   [ "$status" -eq 1 ] || fail "$output"
-}
-
-@test "HELIX_QC_ALL_AT_COMMIT compiles every unit of a wide commit" {
-  wide_repo 60
-  HELIX_QC_ALL_AT_COMMIT=1 run compile_block
-  contains "EXIT_CODE=0" "$output"
-  lacks "Wide commit" "$output"
-  [ "$(called_count)" -eq 180 ] || fail "compiled $(called_count)"
-}
-
-@test "a wide commit with no compile database claims no sample" {
-  wide_repo 60
-  local repo="$BATS_TEST_TMPDIR/repo"
-  rm "$repo/compile_commands.json"
-  run compile_block
-  contains "No compile_commands.json" "$output"
-  lacks "Wide commit" "$output"
-  [ ! -e "$repo/qc_tmp/compile_sample.note" ] || fail "the note claims units compiled"
 }
 
 # Each fake compile waits for the other to start, so a run that compiles one at a

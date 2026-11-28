@@ -1069,7 +1069,11 @@ after staging, or partly staged, is judged as it will be committed. A repair (cl
 XML formatter) formats that staged copy and makes it the index's version; the working file gets
 the result only where it holds nothing unstaged.
 
-`HELIX_QC_ALL_AT_COMMIT=1` runs every gate at commit, whole-tree and push-only ones included.
+A commit compiles nothing: whoever commits a source has just built or syntax-checked it,
+and `make land-gate` builds everything once per batch. `HELIX_QC_ALL_AT_COMMIT=1` runs the
+whole-tree and push-only gates at commit too, each still behind its path trigger, and
+syntax-checks the staged sources and one includer per staged header; `HELIX_QC_FULL_BUILD=1`
+builds the app instead.
 `scripts/qc_timing.py --staged-only` shows where a commit's time went.
 
 ### Pre-push Integration
@@ -1165,7 +1169,7 @@ The `scripts/quality-checks.sh` script runs multiple checks:
 - **Copyright headers** (GPL v3 SPDX identifiers)
 - **Merge conflict markers**
 - **Trailing whitespace**
-- **Build verification** (pre-commit only)
+- **Build verification** (pre-commit only, under `HELIX_QC_ALL_AT_COMMIT=1` or `HELIX_QC_FULL_BUILD=1`)
 
 Used by all three:
 - **Pre-commit hook** (the per-file gates, on the staged content)
@@ -1383,7 +1387,8 @@ pool is live, `jobs` says so on stderr (stdout stays the bare number), and the
 resource advisor names a runner sized from it.
 
 The same number sizes the unit sweep (3 shards per slot, `SHARD_CONCURRENCY`
-overrides) and the commit hook's build (`qc_build_jobs` in `scripts/qc/_lib.sh`,
+overrides) and the commit hook's build under `HELIX_QC_FULL_BUILD=1` (`qc_build_jobs` in
+`scripts/qc/_lib.sh`,
 `HELIX_QC_JOBS` overrides). The build uses `--output-sync=target`, so parallel
 output does not interleave.
 

@@ -50,8 +50,8 @@ usage() {
     echo "  # Merging or rebasing inside a worktree (git cannot scan symlinked submodules):"
     echo "  $0 --unlink                    # from inside the worktree"
     echo "  git merge origin/main           # resolve any conflicts now"
-    echo "  $0 --relink                    # REQUIRED before committing, and to build"
-    echo "  git commit                      # hook compiles, so relink must come first"
+    echo "  $0 --relink                    # REQUIRED before you build"
+    echo "  git commit                      # the hook compiles nothing: build before you push"
     echo ""
     echo "  Commits do NOT need --unlink; only whole-tree ops (status/merge/rebase/stash) do."
     echo "  Never run --unlink/--relink while a build is in flight."
@@ -89,9 +89,10 @@ usage() {
 # untouched by both — they are what git expects and never blocked a scan.
 #
 # Do NOT unlink to commit. `git add <paths>` and `git commit` both work fine with
-# the symlinks in place, and the pre-commit hook compiles the tree — so committing
-# while unlinked fails with "Build failed - fix compilation errors". That includes
-# concluding a merge: resolve conflicts unlinked, then --relink, THEN commit.
+# the symlinks in place, and a commit compiles nothing, so nothing needs lib/ until
+# you build (HELIX_QC_FULL_BUILD=1 builds in the hook, and fails unlinked with
+# "Build failed"). That includes concluding a merge: resolve conflicts unlinked,
+# then --relink, THEN commit, and build the result before it leaves the tree.
 #
 # Nothing here may run while a build is in flight: pulling lib/ out from under a
 # compile fails it with missing headers, and re-linking mid-compile is no better.

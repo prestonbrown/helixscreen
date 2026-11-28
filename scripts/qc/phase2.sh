@@ -353,26 +353,22 @@ fi
 echo ""
 
 # Build Verification
-if [ "$STAGED_ONLY" = true ]; then
+#
+# A commit compiles nothing. Whoever commits a source has just built or
+# syntax-checked it, what follows reads the working tree rather than the staged
+# content, and land-gate builds everything once per batch. HELIX_QC_ALL_AT_COMMIT=1
+# runs it: each staged source, and for each staged header one source that includes
+# it (the case that breaks OTHER units). HELIX_QC_FULL_BUILD=1 builds the app here
+# instead, and runs on its own.
+if [ "$STAGED_ONLY" = true ] &&
+   { [ "${HELIX_QC_ALL_AT_COMMIT:-0}" = 1 ] || [ -n "${HELIX_QC_FULL_BUILD:-}" ]; }; then
   SECTION_START=$(date +%s)
   echo -n "🔨 Verifying staged sources compile..."
 
-  # A commit checks that what it stages compiles, in seconds: each staged
-  # source, and for each staged header one source that includes it (the case
-  # that breaks OTHER units). Above QC_COMPILE_CAP units it compiles a sample and
-  # says so. Linking the app is minutes, so it is pre-push's job: its clang gate
-  # syntax-checks every changed unit and the header's dependents on a push to main,
-  # and land-gate builds and tests the result.
-  # HELIX_QC_ALL_AT_COMMIT=1 compiles every unit; HELIX_QC_FULL_BUILD=1 builds the
-  # app here instead.
   qc_staged_compile_units "$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null)"
-  # Only a run that will compile units has any to skip.
-  [ -n "${HELIX_QC_FULL_BUILD:-}" ] || [ ! -f compile_commands.json ] ||
-    [ "${HELIX_QC_ALL_AT_COMMIT:-0}" = 1 ] || qc_sample_compile_units "$QC_COMPILE_CAP"
   # Named for this gate, so qc_keep_gate_log keeps the whole of it on a failure, and
   # in QC_TMP, because a fixed path is overwritten by any other session's commit.
   QC_SYNTAX_LOG="$QC_TMP/phase2.syntax.log"
-  qc_compile_sample_note
 
   if [ -n "${HELIX_QC_FULL_BUILD:-}" ]; then
     # Bounded -j (qc_build_jobs): this build runs from a commit hook.
@@ -406,7 +402,6 @@ if [ "$STAGED_ONLY" = true ]; then
     section_time $SECTION_START
     echo ""
     echo "✅ $(grep '^summary:' "$QC_SYNTAX_LOG" || echo 'staged sources compile') - pre-push checks the rest"
-    [ -z "$QC_SAMPLE_NOTE" ] || echo "$QC_SAMPLE_NOTE"
     [ -z "$UNREACHED_HDR" ] || echo "ℹ️  No source includes${UNREACHED_HDR} directly; pre-push checks its dependents"
   else
     QC_SYNTAX_RC=$?
@@ -420,16 +415,14 @@ if [ "$STAGED_ONLY" = true ]; then
     fi
     # Passing units are dropped first: they would push the error out of the window.
     grep -v ': ok (' "$QC_SYNTAX_LOG" | sed -n '1,40p'
-    [ -z "$QC_SAMPLE_NOTE" ] || echo "$QC_SAMPLE_NOTE"
     EXIT_CODE=1
   fi
 
   # Say what was actually verified. The check above compiles the WORKING TREE,
   # which in --staged-only mode is not necessarily what is being committed: a
   # rename touching five files and staged for four builds clean here and breaks
-  # in CI, because the fifth file is on disk but not in the commit. pre-push
-  # gates the real thing (it sweeps an isolated checkout of the pushed commit),
-  # so this is a warning rather than a failure - but an unqualified
+  # in CI, because the fifth file is on disk but not in the commit. CI builds the
+  # commit itself, so this is a warning rather than a failure - but an unqualified
   # "Build successful" over unverified content is how the wrong thing gets
   # trusted.
   if [ "$STAGED_ONLY" = true ]; then
@@ -439,8 +432,8 @@ if [ "$STAGED_ONLY" = true ]; then
       echo "⚠️  The compile check read the WORKING TREE, not the staged commit"
       echo "   These source files are modified but NOT staged:"
       echo "$UNSTAGED_SRC" | sed 's/^/     /'
-      echo "   If the commit depends on them it will fail in CI. pre-push checks"
-      echo "   the pushed commit in isolation and will catch it before it leaves."
+      echo "   If the commit depends on them it will fail in CI, which builds the"
+      echo "   commit itself."
     fi
   fi
   echo ""

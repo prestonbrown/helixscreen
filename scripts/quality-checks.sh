@@ -246,7 +246,7 @@ QC_ALL="qc_phase1 qc_xml_tools qc_xml_attr qc_dup_names qc_xml_linter qc_theme_a
 #
 # Only a lint belongs here: a failure it finds is a policy breach, not a commit
 # that fails to build or load. The slow gates a commit keeps are that kind:
-# qc_phase2 (formatting, the staged compile).
+# qc_phase2 (formatting).
 QC_PUSH_ONLY="qc_decl_ui qc_translation_coverage qc_esp32_xml_bindings qc_esp32_app_srcs qc_translation_fmt qc_test_tautology qc_test_widget_registry qc_hold_ends_press qc_growth_ratchets qc_code_lint qc_layering"
 
 # What a gate needs to decide, one tier per gate (qc_check_tiers refuses a gate
@@ -428,10 +428,6 @@ fi
 if [ -f "$QC_TMP/design_ratchets.note" ]; then
   echo ""
   cat "$QC_TMP/design_ratchets.note"
-fi
-if [ -f "$QC_TMP/compile_sample.note" ]; then
-  echo ""
-  cat "$QC_TMP/compile_sample.note"
 fi
 
 # Every gate that ran, slowest first. The transcript cannot time them: gates run
