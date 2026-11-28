@@ -1258,3 +1258,36 @@ TEST_CASE("CFS overview cards stay in address order around an absent box",
     CHECK(addresses == std::vector<int>{1, 2, 3, 4});
     CHECK(info.units[static_cast<size_t>(order[1])].absent);
 }
+
+TEST_CASE("CFS echo lines parse by scanf's rules, all or nothing (#1282)", "[ams][cfs][calib]") {
+    double x = -1.0, y = -2.0;
+    SECTION("negative values, loose spacing, trailing text") {
+        REQUIRE(
+            AmsBackendCfs::parse_chute_save_line("cmd_save_extrude_pos x=-1.5   y= 2e1 ok", x, y));
+        CHECK(x == Catch::Approx(-1.5));
+        CHECK(y == Catch::Approx(20.0));
+    }
+    SECTION("a line missing y leaves both outputs alone") {
+        CHECK_FALSE(AmsBackendCfs::parse_chute_save_line("cmd_save_extrude_pos x=184.5 y=", x, y));
+        CHECK_FALSE(AmsBackendCfs::parse_chute_save_line("cmd_save_extrude_pos x=184.5", x, y));
+        CHECK_FALSE(AmsBackendCfs::parse_chute_save_line(
+            "SAVE_BOX_CFG ok: extrude_pos_x=184.5;extrude_pos_y=3", x, y));
+        CHECK_FALSE(AmsBackendCfs::parse_chute_save_line("cmd_save_extrude_pos x=abc y=1", x, y));
+        CHECK(x == -1.0);
+        CHECK(y == -2.0);
+    }
+    SECTION("the cut line takes any single character as the axis") {
+        char axis = '\0';
+        double v = 0.0;
+        REQUIRE(AmsBackendCfs::parse_cut_found_line("Found cut position   x:-12.5", axis, v));
+        CHECK(axis == 'x');
+        CHECK(v == Catch::Approx(-12.5));
+        axis = '\0';
+        v = 7.0;
+        CHECK_FALSE(AmsBackendCfs::parse_cut_found_line("Found cut position y 304.0", axis, v));
+        CHECK_FALSE(AmsBackendCfs::parse_cut_found_line("Found cut position y: ", axis, v));
+        CHECK_FALSE(AmsBackendCfs::parse_cut_found_line("Found cut position ", axis, v));
+        CHECK(axis == '\0');
+        CHECK(v == 7.0);
+    }
+}

@@ -3,6 +3,7 @@
 
 #include "snapmaker_screws_tilt.h"
 
+#include "core/text_io.h"
 #include "i_moonraker_client.h"
 #include "json_utils.h"
 #include "moonraker_advanced_api.h"
@@ -69,7 +70,16 @@ AutoScrewsTiltResults parse_auto_screws_tilt(const nlohmann::json& status,
         if (config_section.is_object()) {
             if (const auto coords = helix::json_util::read_field<std::string>(
                     config_section, ("screw" + std::to_string(i)).c_str())) {
-                std::sscanf(coords->c_str(), "%f,%f", &screw.x_pos, &screw.y_pos);
+                // "x,y": a readable x is kept even when y is missing or malformed.
+                std::string_view rest = *coords;
+                if (const auto x = helix::text_io::scan_number<float>(rest)) {
+                    screw.x_pos = *x;
+                    if (helix::text_io::consume_literal(rest, ",")) {
+                        if (const auto y = helix::text_io::scan_number<float>(rest)) {
+                            screw.y_pos = *y;
+                        }
+                    }
+                }
             }
             if (const auto name = helix::json_util::read_field<std::string>(
                     config_section, "screw" + std::to_string(i) + "_name")) {

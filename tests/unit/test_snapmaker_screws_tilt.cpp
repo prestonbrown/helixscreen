@@ -451,3 +451,30 @@ TEST_CASE("auto_screws results_from_query maps a probe-result query response",
                 ScrewLevelVerdict::PARSE_ERROR);
     }
 }
+
+TEST_CASE("screw coordinates read like scanf's \"%f,%f\", keeping a readable x",
+          "[calibration][screws_tilt][auto_screws]") {
+    const auto coords = [](const char* text) {
+        json section = kU1ConfigSection;
+        section["screw1"] = text;
+        const auto res = parse_auto_screws_tilt(kTiltedStatus, section, kScrewPitchM3Mm);
+        REQUIRE(res.ok());
+        return std::make_pair(res.screws[0].x_pos, res.screws[0].y_pos);
+    };
+    const auto unset = coords("garbage");
+
+    CHECK(coords("-15.5, 20").first == Catch::Approx(-15.5f));
+    CHECK(coords("-15.5, 20").second == Catch::Approx(20.0f));
+    CHECK(coords("  7,8 extra").second == Catch::Approx(8.0f));
+
+    // y malformed or missing: x still lands, y keeps its default.
+    CHECK(coords("40,").first == Catch::Approx(40.0f));
+    CHECK(coords("40,").second == unset.second);
+    CHECK(coords("40;50").first == Catch::Approx(40.0f));
+    CHECK(coords("40;50").second == unset.second);
+    CHECK(coords("40").first == Catch::Approx(40.0f));
+    // x malformed: neither lands.
+    CHECK(coords("x,50").first == unset.first);
+    CHECK(coords("x,50").second == unset.second);
+    CHECK(coords("").second == unset.second);
+}
