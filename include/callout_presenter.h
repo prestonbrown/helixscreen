@@ -50,6 +50,12 @@ class CalloutPresenter {
         /// measured like the widths; 0 is Config's chip_h / compact_chip_h.
         int h = 0;
         int h_compact = 0;
+        /// w_budget and w_full as the row below shows the chip; 0 keeps the unlabeled widths.
+        int w_row_budget = 0;
+        int w_row = 0;
+        /// The two without a heater's status glyph; 0 keeps them.
+        int w_row_plain_budget = 0;
+        int w_row_plain = 0;
     };
 
     struct Parts {
@@ -58,6 +64,11 @@ class CalloutPresenter {
         std::vector<Chip> chips;
         std::optional<Chip>
             toolhead; ///< the merged nozzle + part-fan chip, when the screen has one
+        /// A strip under the area that holds the chips in one row (CalloutMode::RowBelow),
+        /// full width of its parent; nullptr offers none. Its visibility follows the mode.
+        lv_obj_t* row = nullptr;
+        /// Where the chips live in every other mode; required with `row`.
+        lv_obj_t* layer = nullptr;
     };
 
     struct Config {
@@ -67,6 +78,7 @@ class CalloutPresenter {
         int gap = 0;                 ///< CalloutLayoutInput::gap
         int min_line = 0;            ///< CalloutLayoutInput::min_line
         int leader_min_distance = 0; ///< CalloutLayoutInput::leader_min_distance
+        int row_gap = 0;             ///< CalloutRowBelow::gap: between the area and `row`
     };
 
     /// Decide, then position. `regions` is nullptr for an untagged image. Returns the
@@ -85,7 +97,10 @@ class CalloutPresenter {
     }
 
   private:
-    void place_chip(const CalloutChipOut& c, const Chip& part, bool compact);
+    /// `plain`: a heater in a plain row, whose status glyph takes no room.
+    void place_chip(const CalloutChipOut& c, const Chip& part, bool compact, bool plain);
+    /// Moves every chip into the row in RowBelow mode, and back into the layer otherwise.
+    void home_chips(const Parts& parts, CalloutMode mode);
     void place_line(const CalloutChipOut& c, const Chip& part);
     void place_glow(const Chip& part, const ImageRegions& r, const CalloutRect& image);
 

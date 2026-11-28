@@ -8,6 +8,7 @@
 #include "ui_temperature_utils.h"
 
 #include "app_globals.h"
+#include "core/breakpoint.h"
 #include "core/observer_factory.h"
 #include "core/subject.h"
 #include "core/temp_unit_subject.h"
@@ -97,7 +98,19 @@ void set_string(lv_subject_t* s, char* buf, size_t size, const std::string& v) {
 
 bool lined_or_pinned(CalloutMode m) {
     return m == CalloutMode::BothSides || m == CalloutMode::OneSide || m == CalloutMode::Pinned ||
-           m == CalloutMode::Staggered;
+           m == CalloutMode::Staggered || m == CalloutMode::RowBelow;
+}
+
+/// Portrait at micro or tiny with the tiles side by side: the tiles are too
+/// narrow for chips beside the picture, so the chips may take a row under both.
+bool row_below_offered() {
+    const auto value = [](const char* name) {
+        lv_subject_t* s = lv_xml_get_subject(nullptr, name);
+        return s ? lv_subject_get_int(s) : -1;
+    };
+    const int bp = value("ui_breakpoint");
+    return value("ui_is_portrait") == 1 && bp >= 0 && bp <= static_cast<int>(UiBreakpoint::Tiny) &&
+           value("ps_arrangement") == 0;
 }
 
 /// A fan chip names the role its slot fills, whichever fan fills it.
@@ -454,7 +467,7 @@ std::string PrintStatusTiles::tool_badge() const {
     return t ? t : "";
 }
 
-ChipContent PrintStatusTiles::heater(PrintStatusChip chip, bool show_power) {
+ChipContent PrintStatusTiles::heater(PrintStatusChip chip, bool show_power, bool target_shows) {
     auto& temps = printer_state_.temperature_state();
     bool present = true;
     int current = 0, target = 0;
@@ -488,9 +501,9 @@ ChipContent PrintStatusTiles::heater(PrintStatusChip chip, bool show_power) {
         current, target, subject_int_or_zero(printer_state_.get_heater_power_subject(type)), mode);
     const bool printing = host_.printing && host_.printing();
     // A chamber's temperature matters to the print whether or not its heater runs.
-    ChipContent c =
-        heater_chip(present, current, target, status, printing, show_power, badge,
-                    heat_start(chip, current, target), chip == PrintStatusChip::Chamber);
+    ChipContent c = heater_chip(present, current, target, status, printing, show_power, badge,
+                                heat_start(chip, current, target), chip == PrintStatusChip::Chamber,
+                                target_shows);
     // The plate and the chamber glow by how hot they are, at target or cooling as
     // much as climbing.
     if (chip == PrintStatusChip::Bed && present)
@@ -670,8 +683,9 @@ void PrintStatusTiles::update_now() {
     std::array<lv_obj_t*, kPrintStatusChipCount> chip_objs{};
     lv_obj_t* probe = nullptr;
     for (size_t i = 0; i < kPrintStatusChipCount; ++i) {
+        // From the root: in the row-below mode the chips live outside the area.
         chip_objs[i] =
-            area ? lv_obj_find_by_name(area, ("ps_chip_" + std::string(kChips[i].key)).c_str())
+            area ? lv_obj_find_by_name(root, ("ps_chip_" + std::string(kChips[i].key)).c_str())
                  : nullptr;
         if (!probe && chip_objs[i]) {
             probe = chip_objs[i];
@@ -831,6 +845,17 @@ void PrintStatusTiles::update_now() {
                                     ? compact_callout_chip_w(probe, compact_budget_text[i],
                                                              compact_beside(compact_budget_text[i]))
                                     : 0;
+        if (is_heater(chip)) {
+            const ChipContent row = heater(chip, false, false);
+            laid_out_.row[i] = row;
+            const std::string row_budget =
+                heater_budget_text(chip == PrintStatusChip::Nozzle ? badge : "", false);
+            const int plain_icons = icons[i] - heater_status_px(m);
+            part.w_row = part.active ? m.chip_w(icons[i], row.text) : 0;
+            part.w_row_plain = part.active ? m.chip_w(plain_icons, row.text) : 0;
+            part.w_row_budget = part.in_budget ? m.chip_w(icons[i], row_budget) : 0;
+            part.w_row_plain_budget = part.in_budget ? m.chip_w(plain_icons, row_budget) : 0;
+        }
         if (const int lines = text_line_count(budget_text[i]); lines > 1) {
             part.h = m.chip_h_for(budget_text[i]);
             part.h_compact = compact_callout_chip_h(
@@ -839,7 +864,7 @@ void PrintStatusTiles::update_now() {
         parts.chips.push_back(part);
     }
     const std::string th_text = toolhead_text(contents[index_of(PrintStatusChip::Nozzle)].text);
-    if (lv_obj_t* th_obj = lv_obj_find_by_name(area, "ps_chip_toolhead")) {
+    if (lv_obj_t* th_obj = lv_obj_find_by_name(root, "ps_chip_toolhead")) {
         CalloutPresenter::Chip th;
         th.kind = CalloutKind::Toolhead;
         th.chip = th_obj;
@@ -855,6 +880,15 @@ void PrintStatusTiles::update_now() {
     cfg.gap = theme_manager_get_spacing("space_xs");
     cfg.min_line = theme_manager_get_spacing("space_md");
     cfg.leader_min_distance = theme_manager_get_spacing("space_lg");
+    // Portrait at the two smallest breakpoints offers the chips a row under
+    // both tiles, which keeps the printer picture clean of them.
+    if (row_below_offered()) {
+        parts.row = lv_obj_find_by_name(root, "ps_chip_row");
+        parts.layer = lv_obj_find_by_name(area, "ps_callout_layer");
+        if (parts.row && lv_obj_get_parent(parts.row)) {
+            cfg.row_gap = lv_obj_get_style_pad_row(lv_obj_get_parent(parts.row), LV_PART_MAIN);
+        }
+    }
 
     laid_out_.valid = true;
     laid_out_.probe = probe;
@@ -887,7 +921,13 @@ void PrintStatusTiles::place_and_publish(const std::string& th_text) {
                 line = c.has_line;
             }
         }
-        const ChipContent& shown = out.unlabeled && is_fan(chip) ? lo.bare[i] : lo.contents[i];
+        ChipContent shown = out.mode == CalloutMode::RowBelow && is_heater(chip) ? lo.row[i]
+                            : out.unlabeled && is_fan(chip)                      ? lo.bare[i]
+                                                                                 : lo.contents[i];
+        // A plain row leaves the status glyph off; state 0 hides it.
+        if (out.mode == CalloutMode::RowBelow && out.row_plain && is_heater(chip)) {
+            shown.status_state = 0;
+        }
         // A warm chamber's glow covers the same windows as the light's, and heat wins.
         const bool yields = chip == PrintStatusChip::Light &&
                             light_glow_yields(lo.contents[index_of(PrintStatusChip::Chamber)]);
@@ -943,6 +983,10 @@ void PrintStatusTiles::update_heater_chips() {
                         : 0;
         laid_out_.contents[i] = shown;
         laid_out_.bare[i] = plain;
+        laid_out_.row[i] = heater(c, false, false);
+        part.w_row = part.active ? m.chip_w(icons, laid_out_.row[i].text) : 0;
+        part.w_row_plain =
+            part.active ? m.chip_w(icons - heater_status_px(m), laid_out_.row[i].text) : 0;
     }
     const std::string th_text =
         toolhead_text(laid_out_.contents[index_of(PrintStatusChip::Nozzle)].text);

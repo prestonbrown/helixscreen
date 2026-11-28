@@ -81,7 +81,18 @@ CalloutLayout CalloutPresenter::apply(const Parts& parts, const ImageRegions* re
     if (!parts.area || !probe_part)
         return out;
 
+    const bool offers_row = parts.row && parts.layer && lv_obj_get_parent(parts.row);
+    if (offers_row) {
+        // The row's visibility follows the mode subject at once, the area's
+        // size only at the next layout: settle it before reading either.
+        lv_obj_update_layout(parts.area);
+    }
     CalloutLayoutInput in;
+    if (offers_row) {
+        in.row.w = lv_obj_get_content_width(lv_obj_get_parent(parts.row));
+        in.row.gap = config.row_gap;
+        in.row.shown = !lv_obj_is_hidden(parts.row);
+    }
     in.area_w = lv_obj_get_content_width(parts.area);
     in.area_h = lv_obj_get_content_height(parts.area);
     in.single_cell = config.single_cell;
@@ -107,10 +118,12 @@ CalloutLayout CalloutPresenter::apply(const Parts& parts, const ImageRegions* re
     for (const Chip& c : parts.chips) {
         if (c.in_budget)
             in.budget.push_back({c.kind, c.w_budget, anchor(c.kind), c.budget_expendable,
-                                 c.w_budget_unlabeled, c.h, c.w_compact_budget, c.h_compact});
+                                 c.w_budget_unlabeled, c.h, c.w_compact_budget, c.h_compact,
+                                 c.w_row_budget, c.w_row_plain_budget});
         if (c.active)
             in.active.push_back({c.kind, c.w_full, anchor(c.kind), c.budget_expendable,
-                                 c.w_full_unlabeled, c.h, c.w_compact, c.h_compact});
+                                 c.w_full_unlabeled, c.h, c.w_compact, c.h_compact, c.w_row,
+                                 c.w_row_plain});
     }
     out = compute_callout_layout(in);
     if (spdlog::should_log(spdlog::level::trace)) {
@@ -118,12 +131,14 @@ CalloutLayout CalloutPresenter::apply(const Parts& parts, const ImageRegions* re
         std::string widths;
         for (const auto& c : in.budget) {
             widest = std::max(widest, c.w);
-            widths += fmt::format(" {}:{}/{}", static_cast<int>(c.kind), c.w, c.w_unlabeled);
+            widths +=
+                fmt::format(" {}:{}/{}/{}", static_cast<int>(c.kind), c.w, c.w_unlabeled, c.w_row);
         }
-        spdlog::trace("[CalloutPresenter] area {}x{}, image {}x{} at {},{}, widest budget chip {}, "
-                      "mode {}, budget kind:w/unlabeled{}",
-                      in.area_w, in.area_h, out.image.w, out.image.h, out.image.x, out.image.y,
-                      widest, static_cast<int>(out.mode), widths);
+        spdlog::trace(
+            "[CalloutPresenter] area {}x{}, row {} gap {} shown {}, image {}x{} at {},{}, "
+            "widest budget chip {}, mode {}, budget kind:w/unlabeled/row{}",
+            in.area_w, in.area_h, in.row.w, in.row.gap, in.row.shown, out.image.w, out.image.h,
+            out.image.x, out.image.y, widest, static_cast<int>(out.mode), widths);
     }
     if (out.mode == CalloutMode::Pinned) {
         // The budget decided the mode; the chips placed on the picture are
@@ -172,11 +187,13 @@ CalloutLayout CalloutPresenter::apply(const Parts& parts, const ImageRegions* re
         for (const Chip& c : parts.chips)
             place_glow(c, *regions, out.image);
     }
+    if (offers_row)
+        home_chips(parts, out.mode);
     const bool compact = callout_mode_is_compact(out.mode);
     for (const CalloutChipOut& c : out.chips) {
         if (const Chip* part = part_for(parts, c.kind)) {
             place_line(c, *part);
-            place_chip(c, *part, compact);
+            place_chip(c, *part, compact, out.mode == CalloutMode::RowBelow && out.row_plain);
         }
     }
     return out;
@@ -293,7 +310,22 @@ void CalloutPresenter::place_line(const CalloutChipOut& c, const Chip& part) {
     }
 }
 
-void CalloutPresenter::place_chip(const CalloutChipOut& c, const Chip& part, bool compact) {
+void CalloutPresenter::home_chips(const Parts& parts, CalloutMode mode) {
+    lv_obj_t* home = mode == CalloutMode::RowBelow ? parts.row : parts.layer;
+    const auto move = [home](lv_obj_t* chip) {
+        if (chip && lv_obj_get_parent(chip) != home) {
+            // DECLARATIVE_OK: the row-below mode carries the chips out of the picture's card
+            lv_obj_set_parent(chip, home);
+        }
+    };
+    for (const Chip& c : parts.chips)
+        move(c.chip);
+    if (parts.toolhead)
+        move(parts.toolhead->chip);
+}
+
+void CalloutPresenter::place_chip(const CalloutChipOut& c, const Chip& part, bool compact,
+                                  bool plain) {
     lv_obj_t* obj = part.chip;
     if (!obj)
         return;
@@ -314,7 +346,10 @@ void CalloutPresenter::place_chip(const CalloutChipOut& c, const Chip& part, boo
     const int chrome_w = lv_obj_get_style_pad_left(obj, LV_PART_MAIN) +
                          lv_obj_get_style_pad_right(obj, LV_PART_MAIN) +
                          2 * lv_obj_get_style_border_width(obj, LV_PART_MAIN);
-    const int around_text = chrome_w + part.icons + lv_obj_get_style_pad_column(obj, LV_PART_MAIN);
+    // A plain row's heater measured its width without the status glyph.
+    const int glyph = plain ? std::max(0, part.w_row - part.w_row_plain) : 0;
+    const int around_text =
+        chrome_w + part.icons - glyph + lv_obj_get_style_pad_column(obj, LV_PART_MAIN);
     const int label_max =
         std::max(0, c.rect.w - (compact ? chrome_w + part.icons_compact : around_text));
     if (label && lv_obj_get_style_max_width(label, LV_PART_MAIN) != label_max) {

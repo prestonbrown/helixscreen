@@ -609,9 +609,20 @@ TEST_CASE_METHOD(Portrait272,
     state().update_from_status({{"print_stats", {{"state", "printing"}}}});
     fans_part_spinning_aux_stopped(*this);
 
-    // Staggered chips stand over the picture's edges, so the stopped aux fan
-    // and speed/flow at 100% give way; the spinning part fan stays.
-    REQUIRE(subject_int("ps_callout_mode") == static_cast<int>(CalloutMode::Staggered));
+    // The chips take a row under both tiles, which holds only so many: the
+    // stopped aux fan and speed/flow at 100% give way; the spinning part fan stays.
+    REQUIRE(subject_int("ps_callout_mode") == static_cast<int>(CalloutMode::RowBelow));
+    lv_obj_t* row = lv_obj_find_by_name(root_, "ps_chip_row");
+    lv_obj_t* fan = lv_obj_find_by_name(root_, "ps_chip_part_fan");
+    REQUIRE(row != nullptr);
+    REQUIRE(fan != nullptr);
+    lv_obj_update_layout(root_);
+    CHECK_FALSE(lv_obj_is_hidden(row));
+    CHECK(lv_obj_get_parent(fan) == row);
+    lv_area_t row_a, tile_a;
+    lv_obj_get_coords(row, &row_a);
+    lv_obj_get_coords(tile_, &tile_a);
+    CHECK(row_a.y1 > tile_a.y2);
     CHECK(subject_int("ps_chip_part_fan_shown") == 1);
     CHECK(subject_int("ps_chip_speed_flow_shown") == 0);
     CHECK(subject_int("ps_chip_aux_fan_shown") == 0);
