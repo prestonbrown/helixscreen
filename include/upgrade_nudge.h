@@ -80,12 +80,6 @@ class UpgradeNudge {
     UpgradeNudge& operator=(const UpgradeNudge&) = delete;
 
   private:
-    // Test-only seam (tests/test_helpers/upgrade_nudge_test_access.h). The two
-    // public queries each layer an intensity/dismissal check on top of the
-    // common gate, so reaching the gate itself is the only way to test the
-    // print-state policy without those confounds.
-    friend class UpgradeNudgeTestAccess;
-
     UpgradeNudge();
     ~UpgradeNudge() = default;
 

@@ -42,6 +42,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "config.h"
 #include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
@@ -50,7 +51,6 @@
 #include "system/update_checker.h"
 #include "test_helpers/printer_state_test_access.h"
 #include "test_helpers/update_checker_test_access.h"
-#include "test_helpers/upgrade_nudge_test_access.h"
 #include "upgrade_nudge.h"
 
 #include <chrono>
@@ -189,17 +189,24 @@ class UpgradeNudgeFixture : public LVGLTestFixture {
         PrinterStateTestAccess::reset(printer_state);
         printer_state.init_subjects(false);
         UpdateCheckerTestAccess::seed_available_update(UpdateChecker::instance());
+        // Normal is the intensity at which the badge query is the visibility
+        // gate alone: no dismissal check on top of it.
+        Config::get_instance()->set<std::string>("/upgrade_nudge/intensity", "normal");
+        UpgradeNudge::instance().reload();
     }
 
     ~UpgradeNudgeFixture() override {
         UpdateChecker::instance().clear_cache();
+        Config::get_instance()->set<std::string>("/upgrade_nudge/intensity", "off");
+        UpgradeNudge::instance().reload();
         helix::ui::UpdateQueue::instance().drain();
         PrinterStateTestAccess::reset(printer_state);
         printer_state.init_subjects(false);
     }
 
+    /// The query the Settings icon's red dot goes by.
     bool visible() const {
-        return UpgradeNudgeTestAccess::is_update_visible_now(UpgradeNudge::instance());
+        return UpgradeNudge::instance().should_show_settings_badge();
     }
 };
 
@@ -388,6 +395,9 @@ TEST_CASE_METHOD(UpgradeNudgeFixture, "upgrade nudge is visible when the printer
 TEST_CASE_METHOD(UpgradeNudgeFixture, "upgrade nudge is hidden while a job owns the machine",
                  "[updates][upgrade-nudge][job-holds-machine]") {
     REQUIRE(UpdateChecker::instance().has_update_available());
+    // The query answers through the intensity, so that is asserted first:
+    // with it left at Off, every hidden below would pass for nothing.
+    REQUIRE(UpgradeNudge::instance().get_intensity() == UpgradeNudge::Intensity::Normal);
 
     SECTION("printing") {
         // The one arm the old `== PRINTING` guard already covered.
@@ -420,6 +430,7 @@ TEST_CASE_METHOD(UpgradeNudgeFixture, "upgrade nudge returns after the print fin
                  "[updates][upgrade-nudge][job-holds-machine]") {
     // job_holds_machine() is false for the terminal states, so the nudge must
     // come back rather than staying suppressed for the rest of the session.
+    REQUIRE(UpgradeNudge::instance().get_intensity() == UpgradeNudge::Intensity::Normal);
     drive_lifecycle(printer_state, "printing");
     REQUIRE_FALSE(visible());
 
