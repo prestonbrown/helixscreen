@@ -30,6 +30,8 @@
 
 using helix::ui::UpdateQueue;
 
+#include "ui_breakpoint.h"
+
 #include "../lvgl_ui_test_fixture.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "printer_state.h"
@@ -177,4 +179,42 @@ TEST_CASE_METHOD(MetadataStripFixture,
     // time ends inside the line.
     REQUIRE(right_edge_screen(eta) <= left_edge_screen(elapsed));
     REQUIRE(right_edge_screen(elapsed) <= right_edge_screen(line));
+}
+
+TEST_CASE_METHOD(MetadataStripFixture,
+                 "Strip: micro and tiny give the layer count the filament's room and drop elapsed",
+                 "[print_status][metadata_strip][micro_declutter]") {
+    lv_subject_t* breakpoint = lv_xml_get_subject(nullptr, "ui_breakpoint");
+    REQUIRE(breakpoint != nullptr);
+    const int32_t original = lv_subject_get_int(breakpoint);
+    REQUIRE(original == to_int(UiBreakpoint::Medium));
+
+    lv_obj_t* filament = label("filament_cluster");
+    lv_obj_t* layer = label("layer_progress_label");
+    lv_obj_t* elapsed_icon = label("elapsed_icon");
+    lv_obj_t* elapsed = label("print_elapsed");
+    lv_label_set_text(label("filament_used_label"), "92.6m");
+
+    lv_obj_update_layout(root_);
+    CHECK_FALSE(lv_obj_has_flag(filament, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_has_flag(elapsed_icon, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_has_flag(elapsed, LV_OBJ_FLAG_HIDDEN));
+    const int32_t layer_width_medium = lv_obj_get_width(layer);
+
+    for (const UiBreakpoint cramped : {UiBreakpoint::Micro, UiBreakpoint::Tiny}) {
+        lv_subject_set_int(breakpoint, to_int(cramped));
+        lv_obj_update_layout(root_);
+        CAPTURE(to_int(cramped), layer_width_medium, lv_obj_get_width(layer));
+        CHECK(lv_obj_has_flag(filament, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_has_flag(elapsed_icon, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_has_flag(elapsed, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_get_width(layer) > layer_width_medium);
+    }
+
+    lv_subject_set_int(breakpoint, to_int(UiBreakpoint::Small));
+    lv_obj_update_layout(root_);
+    CHECK_FALSE(lv_obj_has_flag(filament, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_has_flag(elapsed, LV_OBJ_FLAG_HIDDEN));
+
+    lv_subject_set_int(breakpoint, original);
 }

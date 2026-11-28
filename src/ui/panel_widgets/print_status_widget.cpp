@@ -2466,7 +2466,7 @@ namespace helix {
 
 LastPrintText describe_last_print(const PrintHistoryJob& job, double now_s) {
     LastPrintText text;
-    text.filename = helix::gcode::get_display_filename(job.filename);
+    text.filename = helix::gcode::get_job_display_name(job.filename);
 
     const double when_s = job_timestamp(job);
     const long delta_s = static_cast<long>(now_s - when_s);

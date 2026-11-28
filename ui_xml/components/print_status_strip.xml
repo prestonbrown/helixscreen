@@ -44,8 +44,14 @@
         <icon name="remaining_icon" src="clock" size="xs" variant="secondary" clickable="false"/>
         <text_small name="print_remaining" bind_text="print_remaining" style_text_color="#text_muted"/>
         <text_small name="print_eta" bind_text="print_eta" style_text_color="#text_muted" flex_grow="1" long_mode="dots"/>
-        <icon name="elapsed_icon" src="hourglass" size="xs" variant="secondary" clickable="false"/>
-        <text_small name="print_elapsed" bind_text="print_elapsed" style_text_color="#text_muted"/>
+        <!-- Micro and tiny keep percent, time left and finish: elapsed does
+             not fit beside them. -->
+        <icon name="elapsed_icon" src="hourglass" size="xs" variant="secondary" clickable="false">
+          <bind_flag_if cond="ui_breakpoint le 1" flag="hidden"/>
+        </icon>
+        <text_small name="print_elapsed" bind_text="print_elapsed" style_text_color="#text_muted">
+          <bind_flag_if cond="ui_breakpoint le 1" flag="hidden"/>
+        </text_small>
       </lv_obj>
       <!-- Pre-print: what the start sequence has left. -->
       <lv_obj name="ps_strip_prepare_line"

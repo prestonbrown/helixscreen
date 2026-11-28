@@ -678,7 +678,7 @@ void PlrWizardOverlay::publish_plan() {
     const std::string& path =
         reply.filename.empty() && status_.snapshot ? status_.snapshot->filename : reply.filename;
     const std::string file =
-        helix::gcode::get_display_filename(helix::gcode::resolve_gcode_filename(path));
+        helix::gcode::get_job_display_name(helix::gcode::resolve_gcode_filename(path));
     lv_subject_copy_string(&s_plr_file, file.c_str());
     const std::string position =
         reply.layer ? tr_format(lv_tr("Layer {}, Z {:.2f} mm"), *reply.layer, reply.z_gcode)

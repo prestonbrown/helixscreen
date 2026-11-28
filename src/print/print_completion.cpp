@@ -31,7 +31,7 @@
 
 #include <lvgl.h>
 
-using helix::gcode::get_display_filename;
+using helix::gcode::get_job_display_name;
 using helix::gcode::resolve_gcode_filename;
 
 namespace helix {
@@ -398,7 +398,7 @@ static void on_print_state_changed_for_notification(lv_observer_t* observer,
         std::string resolved_filename =
             (raw_filename && raw_filename[0]) ? resolve_gcode_filename(raw_filename) : "";
         std::string display_name =
-            !resolved_filename.empty() ? get_display_filename(resolved_filename) : "Unknown";
+            !resolved_filename.empty() ? get_job_display_name(resolved_filename) : "Unknown";
 
         // Cleanup temp files - delete .helix_temp/modified_* files after print ends
         // Do this before anything else so it happens regardless of notification settings

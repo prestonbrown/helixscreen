@@ -141,7 +141,7 @@ std::string plr_prompt_body(const std::string& file_path, const char* with_file_
     if (file_path.empty() || !with_file_fmt) {
         return generic;
     }
-    std::string name = helix::gcode::get_display_filename(file_path);
+    std::string name = helix::gcode::get_job_display_name(file_path);
     if (name.empty()) {
         return generic;
     }

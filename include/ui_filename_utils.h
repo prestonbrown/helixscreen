@@ -99,6 +99,26 @@ std::string strip_gcode_extension(const std::string& filename);
 std::string get_display_filename(const std::string& path);
 
 /**
+ * @brief Drop the slicer metadata a slicer appends to its output name
+ *
+ * OrcaSlicer and its vendor forks name output "{name}_{filament}_{layer}_{time}",
+ * e.g. "bracket_Elegoo ASA _0.2_1h54m". The suffix is recognised by its last
+ * token, a print time ("1h54m", "45m", "2d3h12m", "1h2m3s"); only then are the
+ * tokens directly before it stripped while each is a layer height ("0.2",
+ * "0.28mm") or names a material type ("PLA", "Elegoo ASA ", "PETG-CF"). Tokens
+ * are separated by '_'. A name without a trailing time, or one that would be
+ * left empty, comes back unchanged; a printable extension is kept.
+ *
+ * For a job's name as shown, never for a lookup or a list of files: two files
+ * can share a stripped name.
+ */
+std::string strip_slicer_suffix(const std::string& name);
+
+/// The name a print job is shown by: get_display_filename() of @p path with
+/// strip_slicer_suffix() applied. Display only, like strip_slicer_suffix().
+std::string get_job_display_name(const std::string& path);
+
+/**
  * @brief Resolve a G-code filename to its original/canonical form
  *
  * When HelixScreen modifies a G-code file before printing (e.g., to add

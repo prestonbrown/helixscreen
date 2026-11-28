@@ -203,7 +203,7 @@ void HistoryListView::configure_row(lv_obj_t* row, size_t data_index, const Prin
     // Filename label
     lv_obj_t* filename_label = helix::ui::find_required(row, "row_filename", "HistoryListView");
     if (filename_label) {
-        lv_label_set_text(filename_label, job.filename.c_str());
+        lv_label_set_text(filename_label, helix::gcode::strip_slicer_suffix(job.filename).c_str());
     }
 
     // Date label
