@@ -16,6 +16,8 @@ FIXTURES="$REPO/tests/shell/fixtures/staged-content"
 CPP=src/ui/a.cpp
 XML=ui_xml/a.xml
 SH=config/platform/x.sh
+XML_TOKENS=ui_xml/globals.xml
+TABLE=src/generated/theme_token_table.cpp
 
 setup() {
     unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_INDEX_VERSION GIT_OBJECT_DIRECTORY
@@ -27,6 +29,7 @@ setup() {
     git config user.name "Test"
     fixture a-ok.cpp > "$CPP"
     fixture a-ok.xml > "$XML"
+    fixture a-ok.xml > "$XML_TOKENS"
     # The icon rule refuses a tree without one <icon> tag: its pattern
     # scanning nothing is not a clean tree.
     fixture a-icons.xml > ui_xml/icons.xml
@@ -38,6 +41,9 @@ setup() {
     ln -s "$REPO/scripts" scripts
     cp "$REPO/.clang-format" "$REPO/requirements.txt" .
     if [ -e "$REPO/.venv" ]; then ln -s "$REPO/.venv" .venv; fi
+    # The token table as the base XML renders it: a commit that stages no token
+    # owes no regeneration.
+    python3 scripts/gen_theme_tokens.py >/dev/null
     git add -A && git commit -qm base
 }
 
@@ -207,6 +213,39 @@ assert_judged_on_staged_file() {
 @test "a shellcheck finding is judged on the staged script, not the working copy" {
     command -v shellcheck >/dev/null 2>&1 || skip "shellcheck is not installed"
     assert_judged_on_staged_file "$SH" a-bad.sh a-ok.sh "shellcheck found issues in 1 file(s)"
+}
+
+@test "a staged token edit regenerates the token table into the index" {
+    stage "$XML_TOKENS" a-token.xml
+    fixture a-token.xml > "$XML_TOKENS"
+
+    hook
+
+    [ "$status" -eq 0 ] || fail "$output"
+    contains "Regenerated and staged $TABLE" "$output"
+    [ "$(staged "$TABLE")" != "$(git show "HEAD:$TABLE")" ] || fail "the index kept the old table"
+    contains "space_probe" "$(staged "$TABLE")"
+    contains "space_probe" "$(cat "$TABLE")"
+
+    # The commit holds the table its own XML renders, so the check alone passes.
+    check
+    [ "$status" -eq 0 ] || fail "$output"
+    contains "Theme artefacts match 1 tokens" "$output"
+}
+
+@test "the token table is regenerated in the index alone when the working copy holds unstaged edits" {
+    stage "$XML_TOKENS" a-token.xml
+    fixture a-token.xml > "$XML_TOKENS"
+    printf '// unstaged\n' >> "$TABLE"
+
+    hook
+
+    [ "$status" -eq 0 ] || fail "$output"
+    contains "Regenerated and staged $TABLE" "$output"
+    contains "space_probe" "$(staged "$TABLE")"
+    # The line the author did not stage is neither in the commit nor lost.
+    contains "// unstaged" "$(cat "$TABLE")"
+    lacks "// unstaged" "$(staged "$TABLE")"
 }
 
 # clang-format and the XML formatter come from the venv; without it the driver

@@ -209,7 +209,7 @@ tests/shell/test_test_host_run_mirror.bats	lib/lvgl scripts/lib/build_hosts.sh s
 tests/shell/test_test_host_setup.bats	scripts/lib/build_hosts.sh scripts/lib/ccache_shared.sh scripts/test-host-setup.sh
 tests/shell/test_test_tautology_gate.bats	include/version.h mk/tests.mk scripts/check_test_mirrors.py scripts/check_test_tautology.py scripts/source_strip.py src/ui/notify/ui_toast_manager.cpp tests/ui_test_utils.cpp
 tests/shell/test_test_widget_registry_gate.bats	scripts/check_test_widget_registry.py scripts/qc/_lib.sh scripts/qc/test_widget_registry.sh
-tests/shell/test_theme_artifacts_gate.bats	scripts/check_theme_artifacts.py scripts/gen_theme_tokens.py scripts/staged_content.py src/generated/theme_token_table.cpp src/ui/theme/theme_manager.cpp tests/fixtures/theme_const_golden.txt ui_xml/globals.xml
+tests/shell/test_theme_artifacts_gate.bats	scripts/check_theme_artifacts.py scripts/gen_theme_tokens.py scripts/qc/theme_artifacts.sh scripts/staged_content.py src/generated/theme_token_table.cpp src/ui/theme/theme_manager.cpp tests/fixtures/theme_const_golden.txt ui_xml/globals.xml
 tests/shell/test_thirdparty_abi_stamp.bats	Makefile mk/bluetooth.mk mk/display-lib.mk mk/patches.mk mk/pi-dual-link.mk mk/rules.mk mk/splash.mk mk/tests.mk mk/tools.mk mk/watchdog.mk
 tests/shell/test_thumbnail_cache_guard_gate.bats	scripts/check_thumbnail_cache_guard.py scripts/qc/decl_ui.sh scripts/source_strip.py scripts/staged_content.py tests/unit/test_thumbnail_cache.cpp
 tests/shell/test_timer_destructor_cancel_gate.bats	scripts/check_timer_destructor_cancel.py scripts/qc/decl_ui.sh scripts/source_strip.py
@@ -238,7 +238,7 @@ tests/shell/test_xargs_portable_gates.bats	scripts/qc/ scripts/quality-checks.sh
 tests/shell/test_xml_create_registered_gate.bats	scripts/check_source_rules.py scripts/qc/xml_create_registered.sh scripts/quality-checks.sh
 tests/shell/test_xml_create_then_hide_gate.bats	scripts/check_source_rules.py scripts/source_strip.py scripts/qc/decl_ui.sh
 tests/shell/test_xml_rules_gate.bats	scripts/check_xml_rules.py scripts/path_scope.py scripts/qc/_lib.sh scripts/qc/xml_rules.sh scripts/quality-checks.sh scripts/source_strip.py scripts/staged_content.py
-tests/shell/test_xml_schema_staleness_gate.bats	Makefile assets/config/themes/defaults/ include/printer_state.h lib/helix-xml mk/tools.mk scripts/qc/_lib.sh scripts/qc/xml_linter.sh src/ui/components/ui_switch.cpp tools/xml-linter/schema/extract_schema.py tools/xml-linter/schema/schema.json ui_xml/globals.xml
+tests/shell/test_xml_schema_staleness_gate.bats	Makefile assets/config/themes/defaults/ include/printer_state.h lib/helix-xml mk/tools.mk scripts/qc/_lib.sh scripts/qc/xml_linter.sh scripts/qc/xml_schema.sh src/ui/components/ui_switch.cpp tools/xml-linter/schema/extract_schema.py tools/xml-linter/schema/schema.json ui_xml/globals.xml
 tests/shell/test_xml_validator_tools_gate.bats	scripts/qc/xml_tools.sh scripts/quality-checks.sh tests/unit/test_ui_theme_constants.cpp
 tests/shell/test_zoneinfo_bundle_gate.bats	assets/zoneinfo/ scripts/regen_zoneinfo.sh src/system/display_settings_manager.cpp
 tests/shell/test_doc_images_gate.bats	scripts/check_doc_images.py scripts/qc/doc_images.sh scripts/quality-checks.sh

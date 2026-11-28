@@ -73,7 +73,7 @@ with_driver() {
   run with_driver true 'n=0; for g in $QC_WHOLE_TREE; do qc_wanted "$g" && echo "RAN $g" || n=$((n + 1)); done; echo "not run: $n of $(echo $QC_WHOLE_TREE | wc -w)"; echo "left:$QC_LEFT_WHOLE"; echo "deferred:$QC_DEFERRED"'
   [ "$status" -eq 0 ] || fail "$output"
   lacks "RAN " "$output"
-  contains "not run: 42 of 42" "$output"
+  contains "not run: 41 of 41" "$output"
   contains " qc_orphan_callbacks" "$output"
   contains " qc_feature_gates" "$output"
   contains " qc_test_lint" "$output"
@@ -96,6 +96,16 @@ with_driver() {
   for g in qc_phase1 qc_phase2 qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_head_labels qc_constant_naming qc_comment_archaeology qc_lvgl_subject_api qc_spdlog_only; do
     contains "RAN $g" "$output"
   done
+}
+
+@test "the artifact gates are per-file: a commit refreshes the schema snapshot and the token table" {
+  # A stale artifact judged only at the land gate costs a red gate and one more
+  # commit at the end of the batch.
+  run with_driver true 'QC_STAGED_ALL="ui_xml/globals.xml"; for g in qc_xml_schema qc_theme_artifacts; do qc_wanted "$g" && echo "RAN $g"; done; echo "left:[$QC_LEFT_WHOLE]"'
+  [ "$status" -eq 0 ] || fail "$output"
+  contains "RAN qc_xml_schema" "$output"
+  contains "RAN qc_theme_artifacts" "$output"
+  contains "left:[]" "$output"
 }
 
 @test "the design ratchets are a per-file gate: a commit meets their warning while writing its body" {

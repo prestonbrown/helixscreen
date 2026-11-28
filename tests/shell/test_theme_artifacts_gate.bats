@@ -200,6 +200,51 @@ BASE_TOKENS='<px name="space_md" value="6"/>
     [ "$status" -eq 0 ]
 }
 
+# ---------------------------------------------------------------------------
+# --write-table: the render the commit hook asks for and stages
+# ---------------------------------------------------------------------------
+
+@test "--write-table writes the table the staged tokens render, and passes" {
+    # A value the golden records as <unset>, so the golden stays valid and the
+    # table is the only artifact that moved.
+    stage_globals "<component><consts>
+  <px name=\"space_md\" value=\"6\"/>
+  <px name=\"gap_small\" value=\"4\"/>
+  <px name=\"gap_large\" value=\"10\"/>
+  <color name=\"accent\" value=\"#112233\"/></consts></component>"
+    local rendered="$BATS_TEST_TMPDIR/rendered.cpp"
+
+    run python3 "$GATE" --staged-only --write-table "$rendered"
+    [ "$status" -eq 0 ] || fail "$output"
+    contains "regenerated from the staged tokens (4 tokens)" "$output"
+    # The same XML through the generator's own command: two paths, one table.
+    python3 "$GEN" >/dev/null
+    cmp "$rendered" src/generated/theme_token_table.cpp
+
+    # With that table in the index the plain check passes.
+    git add src/generated/theme_token_table.cpp
+    run_staged
+    [ "$status" -eq 0 ] || fail "$output"
+    contains "Theme artefacts match 4 tokens" "$output"
+}
+
+@test "--write-table over a current table writes nothing" {
+    run python3 "$GATE" --staged-only --write-table "$BATS_TEST_TMPDIR/rendered.cpp"
+    [ "$status" -eq 0 ] || fail "$output"
+    [ ! -e "$BATS_TEST_TMPDIR/rendered.cpp" ] || fail "wrote a table that needed no render"
+    contains "Theme artefacts match" "$output"
+}
+
+@test "--write-table changes nothing for the golden: it still fails, and the table is written" {
+    stage_globals "<component><consts>$BASE_TOKENS
+  <px name=\"space_xl\" value=\"16\"/></consts></component>"
+
+    run python3 "$GATE" --staged-only --write-table "$BATS_TEST_TMPDIR/rendered.cpp"
+    [ "$status" -eq 1 ]
+    contains "theme_const_golden.txt is stale for: space_xl" "$output"
+    [ -e "$BATS_TEST_TMPDIR/rendered.cpp" ] || fail "the table was not rendered"
+}
+
 @test "the gate triggers on top-level XML and the artefacts, not on components or src" {
     cd "$REPO_ROOT" || return 1
     re="$(qc_trigger theme_artifacts)"

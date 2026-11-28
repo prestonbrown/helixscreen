@@ -1050,15 +1050,15 @@ gate without one:
 
 | Tier | List | Runs |
 |------|------|------|
-| Per-file | `QC_PER_FILE` (17 gates) | at a commit (`--staged-only`), each on the staged content as the commit will hold it and behind its `QC_TRIGGER_qc_<gate>`; and in every full sweep |
-| Whole-tree | `QC_WHOLE_TREE` (42 gates) | in every full sweep only: a push to `main`, `release/*` or a tag, `make land-gate`, CI |
+| Per-file | `QC_PER_FILE` (19 gates) | at a commit (`--staged-only`), each on the staged content as the commit will hold it and behind its `QC_TRIGGER_qc_<gate>`; and in every full sweep |
+| Whole-tree | `QC_WHOLE_TREE` (41 gates) | in every full sweep only: a push to `main`, `release/*` or a tag, `make land-gate`, CI |
 
 A gate belongs in the per-file tier when it judges each staged file on its own: formatting,
 copyright headers, whitespace, XML well-formedness, the pattern rules that read one file, the
 XML rules. One that needs other files to decide, a tree walk, a generated list, a ratchet's
 baseline or a built tool, is whole-tree. The whole-tree gates that used to run at a commit
 when their inputs were staged (`qc_toolhead_census`, `qc_double_binds`,
-`qc_theme_artifacts`, `qc_xml_linter` with `qc_xml_tools`, the
+`qc_xml_linter` with `qc_xml_tools`, the
 translation gates, `qc_cjk_fonts` among them) now first run at a push to `main`. The design
 ratchets stay at a commit: their warning has to meet the author while the commit body is
 being written.
@@ -1075,6 +1075,20 @@ whole-tree and push-only gates at commit too, each still behind its path trigger
 syntax-checks the staged sources and one includer per staged header; `HELIX_QC_FULL_BUILD=1`
 builds the app instead.
 `scripts/qc_timing.py --staged-only` shows where a commit's time went.
+
+Three committed files are generated from files a commit can edit. A stale one found first
+at the land gate costs a red gate and one more commit at the end of the batch, so the
+commit that touches the inputs refreshes or judges each:
+
+| Artifact | At a commit | Cost |
+|---|---|---|
+| `tools/xml-linter/schema/schema.json` | `qc_xml_schema` runs `make regen-xml-schema` and stages the snapshot when the staged diff adds or removes one of its inputs: a const definition in the XML, a C++ registration, or a path the extractor reads. The lint that reads the snapshot, `qc_xml_linter`, is the full sweep's | about 2 s, of which make's startup is 1.6 s, in parallel with the other gates, and only on a commit that touches an input |
+| `src/generated/theme_token_table.cpp` | `qc_theme_artifacts` renders the table from the staged tokens and the hook stages it | 0.1 s |
+| `tests/fixtures/theme_const_golden.txt` | judged, never written: only the test binary can produce it, so a change that provably invalidates it fails the commit with the command | the same 0.1 s |
+
+A commit does not refresh the CJK font bake (`qc_cjk_fonts`: the rebake takes minutes) or
+the translation packs (`qc_translation_packs_fresh`: a 3 s check). Both run in every full
+sweep.
 
 ### Pre-push Integration
 

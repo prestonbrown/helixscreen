@@ -178,7 +178,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `check_no_mocks.py` | The land-gate `no-mocks` row: mock code a packaged binary would carry |
 | `esp32_syntax_check.py` | `-fsyntax-only` of every firmware unit a commit range reaches, in the IDF image; by hand only, CI's `esp32-build` is the gate |
 | `check_toolhead_census.py` | Commit-time version of the machine-moving control census tests |
-| `check_theme_artifacts.py` | Fail if the generated theme token table or its golden is stale |
+| `check_theme_artifacts.py` | Fail if the generated theme token table or its golden is stale; `--write-table PATH` writes the table the index's tokens render, for the commit hook to stage |
 | `scan_double_binds.py` | Inventory of `ui_xml/` widgets with two or more bindings on one state or flag; `--emit-cpp` writes `tests/unit/double_bind_widgets.inc`, `--check` fails when it lags |
 | `check_old_toolchain.py` | Syntax-check `src/` against the older cross toolchains' compiler (g++-10) |
 | `perf-farm-check.sh` | Pre-release CPU budget check across the physical test farm |

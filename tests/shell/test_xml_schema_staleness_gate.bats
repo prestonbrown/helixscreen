@@ -1,9 +1,10 @@
 #!/usr/bin/env bats
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Meta-tests for the helix-xml-linter gate, scripts/qc/xml_linter.sh — the
-# gate that keeps tools/xml-linter/schema/schema.json in step with the inputs
-# `make regen-xml-schema` extracts from.
+# Meta-tests for the two gates that keep tools/xml-linter/schema/schema.json
+# in step with the inputs `make regen-xml-schema` extracts from:
+# scripts/qc/xml_schema.sh, the refresh a commit runs, and scripts/qc/xml_linter.sh,
+# the lint that reads the snapshot in a full sweep.
 #
 # CI's XML Lint job runs `make lint-xml` against the COMMITTED snapshot, so the
 # two ways to lose are (a) committing XML whose #const refs the snapshot does
@@ -26,6 +27,7 @@
 # startup on every commit is exactly what the content-based trigger avoids.
 
 QC="scripts/qc/xml_linter.sh"
+QS="scripts/qc/xml_schema.sh"
 
 load helpers
 
@@ -79,11 +81,15 @@ PY
 #!/bin/bash
 # shellcheck disable=SC1090
 . "$REPO_ROOT/scripts/qc/_lib.sh"
+QC_TMP="$(mktemp -d)"
+# shellcheck disable=SC1090
+. "$REPO_ROOT/$QS"
 # shellcheck disable=SC1090
 . "$REPO_ROOT/$QC"
 rc=0
-qc_xml_linter || rc=$?
+"$GATE" || rc=$?
 echo "BLOCK_EXIT_CODE=$rc"
+rm -rf "$QC_TMP"
 EOF
 
     git -C "$FIX" init -q
@@ -100,12 +106,20 @@ seed_committed_schema() {
     git -C "$FIX" commit -qm seed
 }
 
-# Run the gate in the fixture. $1 = AUTO_FIX, $2 = STAGED_ONLY
+# Run the lint in the fixture. $1 = AUTO_FIX, $2 = STAGED_ONLY
 # (both default true, the pre-commit invocation).
 run_block() {
-    local auto_fix="${1:-true}" staged_only="${2:-true}"
-    run bash -c "cd '$FIX' && REPO_ROOT='$REPO_ROOT' QC='$QC' AUTO_FIX='$auto_fix' \
-        STAGED_ONLY='$staged_only' bash run_block.sh"
+    GATE=qc_xml_linter run_gate "${1:-true}" "${2:-true}"
+}
+
+# Run the refresh a commit runs, the same way: no lint in front of it.
+run_refresh() {
+    GATE=qc_xml_schema run_gate "${1:-true}" "${2:-true}"
+}
+
+run_gate() {
+    run bash -c "cd '$FIX' && REPO_ROOT='$REPO_ROOT' QC='$QC' QS='$QS' GATE='$GATE' \
+        AUTO_FIX='$1' STAGED_ONLY='$2' bash run_block.sh"
 }
 
 block_exit_code() {
@@ -143,6 +157,62 @@ stage_xml_edit() {
 </component>
 EOF
     git -C "$FIX" add ui_xml/t.xml
+}
+
+# Stage an XML edit that adds a const definition nothing references yet. The
+# snapshot lists every name, so it is stale from here on, and no lint can tell:
+# nothing asks for the name.
+stage_const_add() {
+    cat > "$FIX/ui_xml/t.xml" <<'EOF'
+<component>
+  <consts>
+    <px name="fresh" value="3"/>
+  </consts>
+  <view extends="lv_obj" style_pad_all="#probe_token"/>
+</component>
+EOF
+    git -C "$FIX" add ui_xml/t.xml
+}
+
+# Stage one schema input from outside the XML, on a fixture whose snapshot is
+# current: widget | widget_removed | const | tools_mk | theme_default |
+# engine_pointer. Each is a way the snapshot can move with no XML edit.
+stage_schema_input() {
+    case "$1" in
+        widget) write_cpp src/ui/widget.cpp "$WIDGET_REG" ;;
+        widget_removed)
+            write_cpp src/ui/widget.cpp "$WIDGET_REG"
+            git -C "$FIX" commit -qm "add widget"
+            write_cpp src/ui/widget.cpp ;;
+        const)
+            write_cpp src/system/theme_bits.cpp \
+                'void f(void) { lv_xml_register_const(scope, "probe_token", "4"); }' ;;
+        tools_mk)
+            mkdir -p "$FIX/mk"
+            printf '# extractor args\n' > "$FIX/mk/tools.mk"
+            git -C "$FIX" add mk/tools.mk ;;
+        theme_default)
+            printf '{"dark": {"card_bg": "#101010"}}\n' \
+                > "$FIX/assets/config/themes/defaults/probe.json"
+            git -C "$FIX" add assets/config/themes/defaults/probe.json ;;
+        engine_pointer)
+            # The engine is a gitlink: its files never appear in the
+            # superproject index, only the pointer does.
+            mkdir -p "$FIX/lib/helix-xml"
+            git -C "$FIX/lib/helix-xml" init -q
+            git -C "$FIX/lib/helix-xml" config user.email t@example.invalid
+            git -C "$FIX/lib/helix-xml" config user.name "Test"
+            printf 'a\n' > "$FIX/lib/helix-xml/f.c"
+            git -C "$FIX/lib/helix-xml" add f.c
+            git -C "$FIX/lib/helix-xml" commit -qm one
+            git -C "$FIX" add lib/helix-xml 2>/dev/null
+            git -C "$FIX" commit -qm "add engine pointer"
+            printf 'b\n' >> "$FIX/lib/helix-xml/f.c"
+            git -C "$FIX/lib/helix-xml" commit -qam two
+            git -C "$FIX" add lib/helix-xml 2>/dev/null
+            # Guard: without a real gitlink in the index this proves nothing.
+            git -C "$FIX" diff --cached --name-only | grep -qx 'lib/helix-xml' ;;
+    esac
 }
 
 # ---------------------------------------------------------------------------
@@ -280,9 +350,7 @@ EOF
     # The deletion direction is the one a passing lint cannot rule out: the
     # snapshot still lists a widget nothing registers any more.
     seed_committed_schema with_probe.json with_probe.json
-    write_cpp src/ui/widget.cpp "$WIDGET_REG"
-    git -C "$FIX" commit -qm "add widget"
-    write_cpp src/ui/widget.cpp
+    stage_schema_input widget_removed
 
     run_block true true
 
@@ -292,8 +360,7 @@ EOF
 @test "a staged lv_xml_register_const() anywhere under src/ reaches the check" {
     # --cpp-const-dirs is src, not src/ui.
     seed_committed_schema with_probe.json with_probe.json
-    write_cpp src/system/theme_bits.cpp \
-        'void f(void) { lv_xml_register_const(scope, "probe_token", "4"); }'
+    stage_schema_input const
 
     run_block true true
 
@@ -304,9 +371,7 @@ EOF
     # mk/tools.mk owns the extractor's argument list, so editing it can change
     # the schema without any other file moving.
     seed_committed_schema with_probe.json with_probe.json
-    mkdir -p "$FIX/mk"
-    printf '# extractor args\n' > "$FIX/mk/tools.mk"
-    git -C "$FIX" add mk/tools.mk
+    stage_schema_input tools_mk
 
     run_block true true
 
@@ -315,9 +380,7 @@ EOF
 
 @test "a staged theme default reaches the check" {
     seed_committed_schema with_probe.json with_probe.json
-    printf '{"dark": {"card_bg": "#101010"}}\n' \
-        > "$FIX/assets/config/themes/defaults/probe.json"
-    git -C "$FIX" add assets/config/themes/defaults/probe.json
+    stage_schema_input theme_default
 
     run_block true true
 
@@ -325,27 +388,152 @@ EOF
 }
 
 @test "a staged lib/helix-xml pointer bump reaches the check" {
-    # The engine is a gitlink: its files never appear in the superproject index,
-    # only the pointer does, so the trigger has to match the gitlink path.
     seed_committed_schema with_probe.json with_probe.json
-    mkdir -p "$FIX/lib/helix-xml"
-    git -C "$FIX/lib/helix-xml" init -q
-    git -C "$FIX/lib/helix-xml" config user.email t@example.invalid
-    git -C "$FIX/lib/helix-xml" config user.name "Test"
-    printf 'a\n' > "$FIX/lib/helix-xml/f.c"
-    git -C "$FIX/lib/helix-xml" add f.c
-    git -C "$FIX/lib/helix-xml" commit -qm one
-    git -C "$FIX" add lib/helix-xml 2>/dev/null
-    git -C "$FIX" commit -qm "add engine pointer"
-    printf 'b\n' >> "$FIX/lib/helix-xml/f.c"
-    git -C "$FIX/lib/helix-xml" commit -qam two
-    git -C "$FIX" add lib/helix-xml 2>/dev/null
+    stage_schema_input engine_pointer
 
-    # Guard: without a real gitlink in the index this test proves nothing.
-    git -C "$FIX" diff --cached --name-only | grep -qx 'lib/helix-xml'
     run_block true true
 
     output_has "Running helix-xml-linter"
+}
+
+# ---------------------------------------------------------------------------
+# The commit's refresh (qc_xml_schema): what runs where no lint does
+# ---------------------------------------------------------------------------
+
+@test "an added const definition refreshes the snapshot and stages it, referenced or not" {
+    # Nothing references "fresh", so a lint against the stale snapshot passes
+    # and cannot ask for a regeneration. The staged diff can.
+    seed_committed_schema base.json with_probe.json
+    stage_const_add
+
+    run_refresh true true
+
+    [ "$(block_exit_code)" = "0" ] || fail "$output"
+    output_has "Regenerated and staged"
+    schema_is_staged
+    refute output_has "helix-xml-linter"
+}
+
+@test "a removed const definition refreshes the snapshot too" {
+    cat > "$FIX/ui_xml/t.xml" <<'EOF'
+<component>
+  <consts>
+    <px name="doomed" value="1"/>
+  </consts>
+  <view extends="lv_obj" style_pad_all="#probe_token"/>
+</component>
+EOF
+    seed_committed_schema with_probe.json with_probe.json
+    cat > "$FIX/ui_xml/t.xml" <<'EOF'
+<component>
+  <view extends="lv_obj" style_pad_all="#probe_token"/>
+</component>
+EOF
+    git -C "$FIX" add ui_xml/t.xml
+    # The regeneration from here on yields the snapshot without it.
+    printf '%s\n' base.json > "$FIX/.regen_source"
+
+    run_refresh true true
+
+    [ "$(block_exit_code)" = "0" ] || fail "$output"
+    output_has "Regenerated and staged"
+    schema_is_staged
+}
+
+@test "the refresh stages nothing behind a snapshot that carries unstaged edits" {
+    seed_committed_schema base.json with_probe.json
+    stage_const_add
+    printf '\n' >> "$FIX/tools/xml-linter/schema/schema.json"
+
+    run_refresh true true
+
+    [ "$(block_exit_code)" = "1" ] || fail "$output"
+    output_has "was stale"
+    refute schema_is_staged
+}
+
+@test "a current snapshot with unstaged edits is advised, not called stale, and not staged" {
+    seed_committed_schema base.json with_probe.json
+    cp "$FIX/with_probe.json" "$FIX/tools/xml-linter/schema/schema.json"
+    stage_schema_input widget
+
+    run_refresh true true
+
+    [ "$(block_exit_code)" = "0" ] || fail "$output"
+    refute output_has "was stale"
+    output_has "already up to date but unstaged"
+    refute schema_is_staged
+}
+
+@test "every schema input from outside the XML reaches the commit's refresh" {
+    local input
+    for input in widget widget_removed const tools_mk theme_default engine_pointer; do
+        build_fixture
+        seed_committed_schema with_probe.json with_probe.json
+        stage_schema_input "$input"
+        run_refresh true true
+        [ "$(block_exit_code)" = "0" ] || fail "$input: exit $(block_exit_code): $output"
+        output_has "Refreshing the XML linter's schema snapshot" || fail "$input never reached the refresh"
+        output_has "Schema snapshot is current" || fail "$input: $output"
+        refute schema_is_staged
+    done
+}
+
+@test "the extractor's own code reaches the commit's refresh" {
+    seed_committed_schema with_probe.json with_probe.json
+    printf '# a new shape\n' > "$FIX/tools/xml-linter/schema/notes.txt"
+    git -C "$FIX" add tools/xml-linter/schema/notes.txt
+
+    run_refresh true true
+
+    [ "$(block_exit_code)" = "0" ] || fail "$output"
+    output_has "Schema snapshot is current"
+}
+
+@test "an ordinary src/ commit does not reach the refresh" {
+    # Two greps over the staged diff, and nothing else: nearly every commit
+    # touches src/, and each of those would otherwise pay the regeneration.
+    seed_committed_schema with_probe.json with_probe.json
+    write_cpp src/ui/panel.cpp \
+        'void PanelFoo::update(int v) { label_set(v); if (v > 2) { redraw(); } }'
+
+    run_refresh true true
+
+    [ "$output" = "BLOCK_EXIT_CODE=0" ] || fail "the gate spoke with nothing to do: $output"
+}
+
+@test "a src/ file merely using a registered widget does not reach the refresh" {
+    seed_committed_schema with_probe.json with_probe.json
+    write_cpp src/ui/panel.cpp \
+        'void build(void) { lv_obj_t* w = lv_xml_create(parent, "my_widget", NULL); use(w); }'
+
+    run_refresh true true
+
+    [ "$output" = "BLOCK_EXIT_CODE=0" ] || fail "the gate spoke with nothing to do: $output"
+}
+
+@test "a failed regeneration is a warning at a commit, never a verdict" {
+    seed_committed_schema base.json with_probe.json
+    printf 'regen-xml-schema:\n\t@echo extractor exploded; exit 3\n' > "$FIX/Makefile"
+    git -C "$FIX" add Makefile
+    stage_const_add
+
+    run_refresh true true
+
+    [ "$(block_exit_code)" = "0" ] || fail "$output"
+    output_has "Schema regeneration failed"
+    output_has "extractor exploded"
+    refute schema_is_staged
+}
+
+@test "a full sweep leaves the snapshot to the lint and says nothing here" {
+    seed_committed_schema base.json with_probe.json
+    stage_const_add
+
+    run_refresh true false
+
+    [ "$output" = "BLOCK_EXIT_CODE=0" ] || fail "the gate spoke in a full sweep: $output"
+    refute schema_is_staged
 }
 
 # ---------------------------------------------------------------------------
@@ -395,9 +583,9 @@ EOF
 # pattern matches everything and would turn the negatives into false passes.
 trigger_re() {
     local call="$1" re
-    re=$(grep -F "lv_xml_register_$call" "$QC" | grep -F 'grep -qE' \
+    re=$(grep -F "lv_xml_register_$call" "$QS" | grep -F 'grep -qE' \
         | sed "s/.*grep -qE '//; s/'.*//" | head -1)
-    [ -n "$re" ] || { echo "no $call trigger regex in $QC" >&2; return 1; }
+    [ -n "$re" ] || { echo "no $call trigger regex in $QS" >&2; return 1; }
     printf '%s\n' "$re"
 }
 
@@ -455,9 +643,9 @@ trigger_re() {
             || fail "extractor input '$input' changed in mk/tools.mk — update the trigger"
     done
 
-    grep -q 'lib/helix-xml\$' "$QC" || fail "$QC lost the helix-xml gitlink trigger"
-    grep -q 'mk/tools\\\.mk\$' "$QC" || fail "$QC lost the mk/tools.mk trigger"
-    grep -q 'assets/config/themes/defaults/' "$QC" || fail "$QC lost the theme-defaults trigger"
+    grep -q 'lib/helix-xml\$' "$QS" || fail "$QS lost the helix-xml gitlink trigger"
+    grep -q 'mk/tools\\\.mk\$' "$QS" || fail "$QS lost the mk/tools.mk trigger"
+    grep -q 'assets/config/themes/defaults/' "$QS" || fail "$QS lost the theme-defaults trigger"
     grep -q "ui_xml/.*\\\\.xml\\$" "$QC" || fail "$QC lost the ui_xml path trigger"
 }
 
@@ -465,15 +653,18 @@ trigger_re() {
     # --staged-only skips a gate whose QC_TRIGGER matches no staged path before
     # the block runs, so an input the block handles but the trigger omits is
     # never checked at commit time.
-    re="$(qc_trigger xml_linter)"
-    [ -n "$re" ]
-    for p in ui_xml/globals.xml tools/xml-linter/src/x.py src/ui/ui_widget.cpp \
-             src/printer/registers_const.cpp assets/config/themes/defaults/nord.json \
-             lib/helix-xml mk/tools.mk; do
-        echo "$p" | grep -qE "$re" || fail "$p does not reach qc_xml_linter"
-    done
-    for p in docs/devel/README.md include/printer_state.h scripts/foo.py; do
-        if echo "$p" | grep -qE "$re"; then fail "$p should not reach qc_xml_linter"; fi
+    local gate re p
+    for gate in xml_schema xml_linter; do
+        re="$(qc_trigger "$gate")"
+        [ -n "$re" ] || fail "qc_$gate has no path trigger"
+        for p in ui_xml/globals.xml tools/xml-linter/src/x.py tools/xml-linter/schema/notes.txt \
+                 src/ui/ui_widget.cpp src/printer/registers_const.cpp \
+                 assets/config/themes/defaults/nord.json lib/helix-xml mk/tools.mk; do
+            echo "$p" | grep -qE "$re" || fail "$p does not reach qc_$gate"
+        done
+        for p in docs/devel/README.md include/printer_state.h scripts/foo.py; do
+            if echo "$p" | grep -qE "$re"; then fail "$p should not reach qc_$gate"; fi
+        done
     done
 }
 
