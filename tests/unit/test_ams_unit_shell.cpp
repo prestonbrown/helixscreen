@@ -102,6 +102,16 @@ TEST_CASE("unit shell: a Quattro Box or an EMU is found through both of its firm
     CHECK(id(AmsType::HAPPY_HARE, "QuattroBox") == "quattro_box");
     CHECK(id(AmsType::HAPPY_HARE, "Quattro Box 2") == "quattro_box");
     CHECK(id(AmsType::HAPPY_HARE, "ERCF") == "none");
+    // A selector rail needs a linear selector; the same vendors on a hub path keep the logo.
+    for (const char* vendor : {"ERCF", "Tradrack"}) {
+        CAPTURE(vendor);
+        AmsSystemInfo hub = one_unit(AmsType::HAPPY_HARE, "MMU");
+        hub.units[0].model = vendor;
+        hub.units[0].topology = PathTopology::HUB;
+        CHECK(unit_shell_for(hub, 0) == nullptr);
+        hub.units[0].topology = PathTopology::LINEAR;
+        CHECK(unit_shell_for(hub, 0) != nullptr);
+    }
     CHECK(id(AmsType::AFC, "EMU Turtle_1") == "emu");
     CHECK(id(AmsType::HAPPY_HARE, "EMU") == "emu");
     // A Quattro Box's lanes merge in a hub mounted outside it.

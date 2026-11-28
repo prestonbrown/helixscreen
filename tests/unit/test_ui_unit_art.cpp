@@ -125,16 +125,22 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art: the carriage goes to the active gat
     auto translate_x = [&] {
         return lv_obj_get_style_translate_x(unit_art_carriage_obj(art), LV_PART_MAIN);
     };
+    auto translate_y = [&] {
+        return lv_obj_get_style_translate_y(unit_art_carriage_obj(art), LV_PART_MAIN);
+    };
+    REQUIRE(gate3.y != gate5.y);
 
     settings.set_animations_enabled(false);
     unit_art_set_unit(art, info, 0);
     process_lvgl(20);
     CHECK(unit_art_is_flattened(art));
     CHECK(translate_x() == gate3.x);
+    CHECK(translate_y() == gate3.y);
 
     info.current_slot = 5;
     unit_art_set_unit(art, info, 0);
     CHECK(translate_x() == gate5.x); // animations off: there at once
+    CHECK(translate_y() == gate5.y);
 
     // Nothing loaded: the selector stays where it was.
     info.current_slot = -1;
@@ -145,8 +151,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art: the carriage goes to the active gat
     info.current_slot = 3;
     unit_art_set_unit(art, info, 0);
     CHECK(translate_x() == gate5.x); // the slide starts where the carriage is
+    CHECK(translate_y() == gate5.y);
     process_lvgl(1200);
     CHECK(translate_x() == gate3.x);
+    CHECK(translate_y() == gate3.y);
     settings.set_animations_enabled(restore);
 }
 
@@ -674,6 +682,53 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art: composes back to front, lanes left 
         REQUIRE(shade + 1 != emu_order.end());
         CHECK(*(shade + 1) == n + "_dim");
     }
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "unit art: its layers never take a tap", "[ams][unit-art]") {
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, 230, 195);
+    unit_art_set_unit(art, turtle_system(), 0);
+    lv_obj_t* back = lv_obj_find_by_name(art, "back");
+    REQUIRE(back != nullptr);
+    lv_obj_t* layers = lv_obj_get_parent(back);
+    REQUIRE(layers != art);
+    CHECK_FALSE(lv_obj_is_clickable(layers));
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "unit art marks: a ghost's dashed rims draw round its own lane",
+                 "[ams][unit-art][marks]") {
+    const tray::UnitArtGeom* geom = tray::unit_art_geometry("box_turtle", 4);
+    REQUIRE(geom != nullptr);
+    const int32_t w = 230, h = (int32_t)std::lround(w / geom->aspect);
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, w, h);
+    unit_art_set_unit(art, turtle_system(), 0);
+    lv_obj_update_layout(art);
+    const auto shot = [&] {
+        lv_draw_buf_t* snap = lv_snapshot_take(art, LV_COLOR_FORMAT_ARGB8888);
+        REQUIRE(snap != nullptr);
+        std::vector<uint32_t> px((size_t)w * h);
+        for (int32_t y = 0; y < h; ++y)
+            for (int32_t x = 0; x < w; ++x) {
+                const auto* p = static_cast<const uint8_t*>(lv_draw_buf_goto_xy(snap, x, y));
+                px[(size_t)y * w + x] = (uint32_t)p[2] << 16 | (uint32_t)p[1] << 8 | p[0];
+            }
+        lv_draw_buf_destroy(snap);
+        return px;
+    };
+    const std::vector<uint32_t> before = shot();
+    std::vector<UnitArtLaneMark> marks(4);
+    marks[3].ghost = true;
+    unit_art_set_lane_marks(art, marks);
+    const std::vector<uint32_t> after = shot();
+    int32_t min_x = w;
+    for (int32_t y = 0; y < h; ++y)
+        for (int32_t x = 0; x < w; ++x)
+            if (before[(size_t)y * w + x] != after[(size_t)y * w + x])
+                min_x = std::min(min_x, x);
+    // Everything the ghost changes is in the fourth lane's own span, rims included.
+    REQUIRE(min_x < w);
+    CHECK(min_x >= (int32_t)std::floor(geom->lane[2].box_x0 * w));
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,
