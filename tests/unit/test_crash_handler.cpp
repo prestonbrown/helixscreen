@@ -1055,6 +1055,9 @@ TEST_CASE_METHOD(CrashTestFixture,
     CHECK(parsed["exception"] == "Operation not permitted");
     CHECK(parsed["thread"] == "jq-worker");
     CHECK(parsed.contains("load_base"));
+#ifdef __linux__
+    CHECK(parsed.contains("memory_map"));
+#endif
 #if defined(__linux__) && defined(__GLIBC__)
     REQUIRE(parsed.contains("backtrace"));
     CHECK_FALSE(parsed["backtrace"].empty());
