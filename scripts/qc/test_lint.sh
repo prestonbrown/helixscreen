@@ -28,4 +28,4 @@ qc_test_lint() {
   return $EXIT_CODE
 }
 
-QC_TRIGGER_qc_test_lint='^tests/|^scripts/code_lint\.sh$'
+QC_TRIGGER_qc_test_lint='^tests/|^scripts/(code_lint\.sh|check_source_rules\.py|source_strip\.py)$'

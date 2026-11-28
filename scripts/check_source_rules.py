@@ -16,6 +16,17 @@ script; each keeps its own section below with its scope, marker and message.
                                 (// RAW_PRINT_STATE_OK: <reason>)
     xml-create-then-hide        an lv_xml_create() result hidden right after the build
                                 (// XML_HIDDEN_OK: <reason>; scans src/ and plugins/)
+    section-returns             a return inside a Catch2 SECTION that has a later
+                                sibling (// SECTION_RETURN_OK: <reason>; scans tests/)
+    init-list-ternary           an initializer_list picked by a ternary, then stored
+                                (// INIT_LIST_TERNARY_OK: <reason>; scans src/,
+                                include/ and firmware/)
+    getenv-setenv               a pointer from getenv() read after a setenv()
+                                (no marker; scans tests/, src/, include/, tools/,
+                                firmware/, android/, server/, moonraker-plugin/ and
+                                ui_xml/, and a FILE may be a directory)
+    xml-create-registered       an lv_xml_create() name that nothing can register
+                                (no marker; scans src/)
 
   pinned rules (check named files under --root, no marker):
     touch-rotation-source       display backends gate the stored touch range on
@@ -33,11 +44,17 @@ Usage:
 FILE arguments replace a file-set rule's default scope and are refused for a
 pinned rule. --max-allowed=N lets a file-set rule pass with up to N sites
 (default 0). Exit 0 when every selected rule passes, 1 when one fails.
+
+A failing rule prints its message and its sites as `file:line: text` lines.
+section-returns, init-list-ternary and getenv-setenv print the sites alone:
+scripts/code_lint.sh prints their message around them (lint_section_returns,
+lint_init_list_ternary, lint_getenv_setenv).
 """
 
 from __future__ import annotations
 
 import argparse
+import bisect
 import re
 import subprocess
 import sys
@@ -55,11 +72,11 @@ Files = Optional[list[Path]]
 # ====================================================================
 # Shared helpers
 # ====================================================================
-def cxx_sources(root: Path) -> list[Path]:
-    """Every .cpp and .h under src/ and include/."""
-    return [
-        p for d in ("src", "include") for ext in ("*.cpp", "*.h") for p in (root / d).rglob(ext)
-    ]
+def cxx_sources(
+    root: Path, dirs: tuple[str, ...] = ("src", "include"), exts: tuple[str, ...] = ("*.cpp", "*.h")
+) -> list[Path]:
+    """Every file named like one of `exts` under `dirs`, on disk whether tracked or not."""
+    return [p for d in dirs for ext in exts for p in (root / d).rglob(ext)]
 
 
 def rel_path(root: Path, path: Path) -> str:
@@ -70,21 +87,52 @@ def rel_path(root: Path, path: Path) -> str:
         return str(path)
 
 
-def read_lines(path: Path) -> Optional[list[str]]:
+def read_text(path: Path, errors: str = "strict") -> Optional[str]:
+    """The file's text, or None when it cannot be read or, decoded strictly, decoded.
+
+    `errors="replace"` keeps a file that holds bytes UTF-8 cannot decode, each read
+    as U+FFFD, instead of skipping the file.
+    """
     try:
-        return path.read_text(encoding="utf-8").splitlines()
+        return path.read_text(encoding="utf-8", errors=errors)
     except (OSError, UnicodeDecodeError):
         return None
 
 
-def code_lines(lines: list[str]) -> list[str]:
-    """`lines` with every comment blanked and literals kept, line for line."""
-    return blank_cxx("\n".join(lines), strings="keep").split("\n")
+def read_lines(path: Path) -> Optional[list[str]]:
+    text = read_text(path)
+    return None if text is None else text.splitlines()
+
+
+def code_lines(lines: list[str], strings: str = "keep") -> list[str]:
+    """`lines` with every comment blanked and literals handled per `strings`, line for line.
+
+    `strings` is blank_cxx's: "keep" leaves literals as written, "body" blanks what lies
+    inside them and keeps the quotes, "blank" removes them quotes and all.
+    """
+    return blank_cxx("\n".join(lines), strings=strings).split("\n")
 
 
 def marked(lines: list[str], line_no: int, marker: str, above: int) -> bool:
     """True when `marker` sits on line `line_no` (1-based) or up to `above` lines above it."""
     return marker in "\n".join(lines[max(0, line_no - 1 - above) : line_no])
+
+
+# The identifier that ends where a search of the text ends.
+IDENT_BEFORE = re.compile(r"([A-Za-z_]\w*)\s*$")
+
+
+def report_sites(hits: list[str], max_allowed: int) -> int:
+    """Print every `file:line: text` site when there are more than `max_allowed`; say whether it failed.
+
+    For a rule whose message belongs to its caller: scripts/code_lint.sh names the
+    rule under the sites this prints. Quiet when the rule passes.
+    """
+    if len(hits) <= max_allowed:
+        return 0
+    for hit in hits:
+        print(hit)
+    return 1
 
 
 # ====================================================================
@@ -356,26 +404,25 @@ XML_CREATE_ASSIGN = re.compile(
 )
 
 
-def tracked_cxx(root: Path, dirs: tuple[str, ...]) -> list[Path]:
-    """Every tracked or untracked-but-not-ignored .cpp/.h under `dirs`."""
+def tracked_cxx(
+    root: Path, dirs: tuple[str, ...], suffixes: tuple[str, ...] = (".cpp", ".h")
+) -> list[Path]:
+    """Every tracked or untracked-but-not-ignored file ending in `suffixes` under `dirs`."""
     out = subprocess.check_output(
         ["git", "-C", str(root), "ls-files", "--cached", "--others", "--exclude-standard", *dirs],
         text=True,
     )
-    return [root / f for f in out.split() if f.endswith((".cpp", ".h"))]
+    return [root / f for f in out.split() if f.endswith(suffixes)]
 
 
 def xml_create_then_hide(root: Path, files: Files, max_allowed: int) -> int:
     files = files if files is not None else tracked_cxx(root, ("src", "plugins"))
     bad = []
     for f in files:
-        try:
-            text = f.read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            continue
+        text = read_text(f, errors="replace")
         # The assignment pattern backtracks at every identifier; a file that
         # never spells the call cannot match it.
-        if "lv_xml_create" not in text:
+        if text is None or "lv_xml_create" not in text:
             continue
         rel = rel_path(root, f)
         lines = text.split("\n")
@@ -403,6 +450,571 @@ def xml_create_then_hide(root: Path, files: Files, max_allowed: int) -> int:
     print("   Use helix::ui::create_xml_hidden() (include/ui_panel_common.h).")
     print(f"   Meant to be built visible? // {XML_HIDDEN_OK}: <reason>")
     return 1
+
+
+# ====================================================================
+# section-returns
+# ====================================================================
+# Catch2 finds sections lazily: each run of a test case enters one section it
+# has not finished, and the SECTION macros the run passes on its way are what
+# tell Catch the others exist. A `return` inside a section ends the run before
+# the later sibling SECTIONs are reached, so Catch never learns of them and the
+# case passes having run none of them. A return in a nested section hides the
+# later siblings of every section around it the same way.
+#
+# A return in the last section of its scope, outside every section, or inside a
+# lambda or local function body is fine. Siblings are sections with the same
+# enclosing section (or, at the top, the same test case body), whatever plain
+# blocks sit between. GIVEN/WHEN/THEN/AND_* and DYNAMIC_SECTION are sections too.
+# Opt-out on the return's line or the line above: // SECTION_RETURN_OK: <reason>.
+#
+# Scope is tests/. scripts/code_lint.sh's lint_section_returns prints the message
+# around the sites this rule reports.
+SECTION_BLOCK = re.compile(
+    r"\b(?:DYNAMIC_SECTION|SECTION|GIVEN|WHEN|THEN|AND_GIVEN|AND_WHEN|AND_THEN)\s*\("
+)
+RETURN_WORD = re.compile(r"\breturn\b")
+# Keywords after whose `(` a `{` opens a control statement's block, not a body.
+CONTROL_KEYWORDS = {"if", "while", "for", "switch", "catch"}
+# What may sit between a lambda's or function's parameter list and its body.
+LAMBDA_SPECIFIERS = re.compile(
+    r"(?:\b(?:mutable|noexcept|const|override|final|constexpr)\b\s*|->\s*[\w:<>,\s*&]+?)*$"
+)
+SECTION_RETURN_OK = "SECTION_RETURN_OK"
+
+
+def section_bracket_pairs(text: str, open_ch: str, close_ch: str) -> dict[int, int]:
+    """Map each bracket, open and close, to its partner."""
+    pairs, stack = {}, []
+    for m in re.finditer(re.escape(open_ch) + "|" + re.escape(close_ch), text):
+        i = m.start()
+        if text[i] == open_ch:
+            stack.append(i)
+        elif stack:
+            j = stack.pop()
+            pairs[i], pairs[j] = j, i
+    return pairs
+
+
+def section_is_function_body(text: str, brace: int, parens: dict[int, int]) -> bool:
+    """A `{` opening a lambda or local function body: `return` leaves only it."""
+    window = max(0, brace - 160)
+    head = LAMBDA_SPECIFIERS.search(text[window:brace])
+    k = (window + head.start() if head else brace) - 1
+    while k >= 0 and text[k].isspace():
+        k -= 1
+    if k < 0:
+        return False
+    if text[k] == "]":
+        return True  # [captures] { ... }
+    if text[k] != ")" or k not in parens:
+        return False
+    p = parens[k]
+    q = p - 1
+    while q >= 0 and text[q].isspace():
+        q -= 1
+    if q >= 0 and text[q] == "]":
+        return True  # [captures](args) { ... }
+    m = IDENT_BEFORE.search(text[max(0, p - 80) : p])
+    return m is not None and m.group(1) not in CONTROL_KEYWORDS
+
+
+def section_return_sites(rel: str, raw: str) -> list[str]:
+    """One `path:line: text` entry per unmarked return that hides a later sibling section."""
+    text = blank_cxx(raw)
+    braces = section_bracket_pairs(text, "{", "}")
+    parens = section_bracket_pairs(text, "(", ")")
+
+    # Each section as (body open, body close).
+    sections = []
+    for m in SECTION_BLOCK.finditer(text):
+        close_paren = parens.get(m.end() - 1)
+        if close_paren is None:
+            continue
+        k = close_paren + 1
+        while k < len(text) and text[k].isspace():
+            k += 1
+        if k < len(text) and text[k] == "{" and k in braces:
+            sections.append((k, braces[k]))  # else a call, not a section block
+    if not sections:
+        return []
+
+    def enclosing_sections(pos: int) -> list[tuple[int, int]]:
+        return [s for s in sections if s[0] < pos < s[1]]
+
+    def outermost_block(pos: int) -> int:
+        """Start of the outermost brace block around pos: the test case body."""
+        start = pos
+        for o, c in braces.items():
+            if text[o] == "{" and o < pos < c and o < start:
+                start = o
+        return start
+
+    parent = {}
+    for s in sections:
+        around = enclosing_sections(s[0])
+        parent[s] = max(around)[0] if around else outermost_block(s[0])
+    later_sibling = {
+        s: any(o[0] > s[1] and parent[o] == parent[s] for o in sections) for s in sections
+    }
+
+    # Lambda and local function bodies: a return there leaves that function,
+    # not the test case.
+    functions = [
+        (b, c)
+        for b, c in braces.items()
+        if b < c
+        and text[b] == "{"
+        and enclosing_sections(b)
+        and (b, c) not in sections
+        and section_is_function_body(text, b, parens)
+    ]
+
+    raw_lines = raw.split("\n")
+    out = []
+    for m in RETURN_WORD.finditer(text):
+        pos = m.start()
+        around = enclosing_sections(pos)
+        if not any(later_sibling[s] for s in around):
+            continue
+        inner = max(around)
+        if any(inner[0] < b < pos < c for b, c in functions):
+            continue
+        line = text.count("\n", 0, pos) + 1
+        if marked(raw_lines, line, SECTION_RETURN_OK, above=1):
+            continue
+        out.append(f"{rel}:{line}: {raw_lines[line - 1].strip()}")
+    return out
+
+
+def section_returns(root: Path, files: Files, max_allowed: int) -> int:
+    hits = []
+    for f in files if files is not None else tracked_cxx(root, ("tests",)):
+        raw = read_text(f, errors="replace")
+        if raw is None or "return" not in raw or not SECTION_BLOCK.search(raw):
+            continue
+        hits += section_return_sites(rel_path(root, f), raw)
+    return report_sites(hits, max_allowed)
+
+
+# ====================================================================
+# init-list-ternary
+# ====================================================================
+# An initializer_list is a view of a temporary array that dies with the full
+# expression that makes it. One picked by a ternary and then stored (a variable,
+# a return value) is a view of freed stack, and whether that crashes depends on
+# what reuses the slot, so no unit test catches it. Passed straight to a call it
+# lives for that call and is fine. Opt-out: // INIT_LIST_TERNARY_OK: <reason>.
+#
+# Scope is src/, include/ and firmware/. scripts/code_lint.sh's
+# lint_init_list_ternary prints the message around the sites this rule reports.
+# The scan reads the code with literal bodies blanked and the quotes kept.
+INIT_LIST_OPERAND = re.compile(r"(\?|(?<!:):(?!:))\s*std\s*::\s*initializer_list\s*<")
+INIT_LIST_TERNARY_OK = "INIT_LIST_TERNARY_OK"
+INIT_LIST_DIRS = ("src", "include", "firmware")
+INIT_LIST_SUFFIXES = (".cpp", ".h", ".hpp")
+CTOR_MEMBER_INIT = re.compile(r"\)\s*(?:noexcept\s*)?:(?!:)")
+# Keywords that name no declarator: the identifier before a bracket is a name
+# only when it is none of these.
+NOT_A_DECLARATOR = {"if", "while", "for", "switch", "return", "else", "do", "try", "sizeof"}
+STORE = re.compile(r"(?<![=!<>])=(?!=)|\breturn\b")
+
+
+def init_list_named_opener(text: str, idx: int) -> Optional[re.Match]:
+    """The identifier right before the bracket at idx, or None."""
+    m = IDENT_BEFORE.search(text, 0, idx)
+    if not m or m.group(1) in NOT_A_DECLARATOR:
+        return None
+    return m
+
+
+def init_list_copied_into_owner(decl: str) -> bool:
+    """A declaration whose own type is not an initializer_list (std::vector<T> v)
+    copies the elements while the temporary array still lives."""
+    decl = decl.strip()
+    if "initializer_list" in decl or re.search(r"\bauto\b", decl):
+        return False
+    return re.search(r"[\w>]\s*[&*]?\s+[A-Za-z_]\w*\s*$", decl) is not None
+
+
+def init_list_member_initializer(text: str, start: int, idx: int) -> bool:
+    """`name(` inside a constructor's member-initializer list."""
+    m = init_list_named_opener(text, idx)
+    if m is None:
+        return False
+    before = text[start : m.start()].rstrip()
+    return (
+        before.endswith((":", ","))
+        and not before.endswith("::")
+        and CTOR_MEMBER_INIT.search(before) is not None
+    )
+
+
+def init_list_ternary_sites(rel: str, raw: str) -> list[str]:
+    """One `path:line: text` entry per ternary initializer_list that is stored past its expression."""
+    text = blank_cxx(raw, strings="body")
+    raw_lines = raw.split("\n")
+    out = []
+    seen = set()
+    for m in INIT_LIST_OPERAND.finditer(text):
+        # The statement holding the ternary starts after the last ; or unmatched
+        # {, stepping over the braces of the lists themselves.
+        start, depth = m.start(), 0
+        while start > 0:
+            ch = text[start - 1]
+            if ch == "}":
+                depth += 1
+            elif ch == "{":
+                if depth == 0:
+                    break
+                depth -= 1
+            elif ch == ";" and depth == 0:
+                break
+            start -= 1
+        if start in seen:
+            continue
+        seen.add(start)
+        stmt = text[start:m.start()]
+        opens = []
+        for i, ch in enumerate(stmt):
+            if ch == "(":
+                opens.append(start + i)
+            elif ch == ")" and opens:
+                opens.pop()
+        if opens:
+            # Inside parentheses: a call argument lives for that call, but a
+            # constructor's member initializer `: keys_(c ? ...)` stores it.
+            if not init_list_member_initializer(text, start, opens[-1]):
+                continue
+        elif (
+            start > 0
+            and text[start - 1] == "{"
+            and init_list_named_opener(text, start - 1) is not None
+        ):
+            # `name{...}`: a declaration whose own type owns the elements copies them.
+            if init_list_copied_into_owner(text[text.rfind(";", 0, start) + 1 : start - 1]):
+                continue
+        else:
+            store = STORE.search(stmt)
+            if not store:
+                continue
+            if store.group(0) == "=" and init_list_copied_into_owner(stmt[:store.start()]):
+                continue
+        line = text.count("\n", 0, m.start()) + 1
+        first = text.count("\n", 0, start) + 1
+        # The opt-out counts anywhere from the statement's first line through
+        # the second line below the match.
+        if marked(raw_lines, line + 2, INIT_LIST_TERNARY_OK, above=line + 2 - first):
+            continue
+        out.append(f"{rel}:{line}: {raw_lines[line - 1].strip()}")
+    return out
+
+
+def init_list_ternary(root: Path, files: Files, max_allowed: int) -> int:
+    hits = []
+    scope = files if files is not None else tracked_cxx(root, INIT_LIST_DIRS, INIT_LIST_SUFFIXES)
+    for f in scope:
+        raw = read_text(f, errors="replace")
+        # The blanking keeps every code character in place, so INIT_LIST_OPERAND
+        # cannot match in a file that never spells initializer_list; skip it
+        # before the blanking.
+        if raw is None or "initializer_list" not in raw:
+            continue
+        hits += init_list_ternary_sites(rel_path(root, f), raw)
+    return report_sites(hits, max_allowed)
+
+
+# ====================================================================
+# getenv-setenv
+# ====================================================================
+# setenv() may reallocate the environ block and the strings it points at, so a
+# `const char*` captured from getenv() and dereferenced after any later
+# setenv()/unsetenv() reads whatever bytes live at that address now: a
+# corrupted variable inherited by every std::system() child the test spawns
+# (prestonbrown/helixscreen#1537). Copy the value into a std::string at capture
+# (helix::ScopedEnv in tests/test_helpers/scoped_env.h does this, and its
+# (name, value) constructor owns the set too) and restore from the copy.
+#
+# This is a spelling-level scanner, not a C++ parser, and it is NOT exhaustive.
+# It sees char and auto* declarations (west-const, east-const, pointer-const,
+# wrapped after the name) and bare `auto` initialized by the getenv() call
+# itself, retires each capture at its closing brace (a capture declared in a
+# control-statement header whose body opens on the same line retires with that
+# statement), and blanks comments, literal contents and qualified names
+# (`x.name`, `ptr->name`, `ns::name`, `name::member`) before matching. A read
+# is stale only when a setenv()/unsetenv() call has COMPLETED - its closing
+# paren sits between the capture and the read - so an argument of a call still
+# open on the read's line stays quiet, wrapped or not, while a read after a
+# call that closed earlier on the same line flags. Known-uncovered spellings:
+# assignment-form capture (`const char* p; p = getenv(..)`), direct-init
+# (`const char* p(getenv(..))`), the second declarator of a comma declaration
+# (`const char* a = getenv(..), *b = getenv(..)`), a declaration wrapped
+# BEFORE the name (`const char*\np = getenv(..)`), and bare `auto` with the
+# getenv() on a continuation line. The 400-line backstop window exists only so
+# a pathological single function cannot pin a name forever. Residual
+# false-positive shapes: a same-named local in a NESTED scope of the same
+# function, and a control-statement header that WRAPS across lines (its
+# capture retires only at the function's closing brace).
+#
+# Scope is every first-party C and C++ root, with no opt-out marker.
+# scripts/code_lint.sh's lint_getenv_setenv passes the roots; this rule walks a
+# directory it is given.
+GETENV_ROOTS = (
+    "tests",
+    "src",
+    "include",
+    "tools",
+    "firmware",
+    "android",
+    "server",
+    "moonraker-plugin",
+    "ui_xml",
+)
+GETENV_SUFFIXES = (".cpp", ".h", ".cc", ".hpp", ".c")
+
+# West-const, east-const and pointer-const spellings of a char pointer's
+# declaration; (?!=) keeps == comparisons out.
+GETENV_DECL = re.compile(
+    r"(?:const\s+)?char\s*(?:const\s*)?\*\s*(?:const\s*)?" r"([A-Za-z_]\w*)\s*=(?!=)"
+)
+# `auto*` deduces the same raw pointer `char*` spells.
+GETENV_DECL_AUTO_PTR = re.compile(
+    r"(?:const\s+)?auto\s*\*\s*(?:const\s*)?" r"([A-Za-z_]\w*)\s*=(?!=)"
+)
+# Bare `auto` is tracked only when the initializer IS the getenv() call: a
+# value captured straight into owned storage must not flag the copy's users.
+GETENV_DECL_AUTO_DIRECT = re.compile(
+    r"\bauto\s+([A-Za-z_]\w*)\s*=\s*" r"(?:std\s*::\s*)?getenv\s*\("
+)
+GETENV_CALL = re.compile(r"\bgetenv\s*\(")
+SETENV_CALL = re.compile(r"\b(?:setenv|unsetenv)\s*\(")
+GETENV_WINDOW = 400  # lines a capture stays live before the backstop retires it
+GETENV_WRAP_MAX = 5  # continuation lines scanned for getenv() in a wrapped initializer
+
+
+def getenv_call_completions(text: str) -> list[int]:
+    """Offsets of every setenv()/unsetenv() call's closing paren, wrapped
+    calls included: a read is stale only once the call has completed."""
+    done = []
+    for m in SETENV_CALL.finditer(text):
+        j = m.end()
+        paren = 1
+        while j < len(text) and paren:
+            if text[j] == "(":
+                paren += 1
+            elif text[j] == ")":
+                paren -= 1
+            j += 1
+        if paren == 0:
+            done.append(j - 1)
+    return sorted(done)
+
+
+def getenv_line_depths(line: str, start: int) -> tuple[list[int], list[int], int]:
+    """Depth at each column, the minimum depth over each suffix, and the
+    depth at line end, for scope retirement."""
+    at = []
+    run = start
+    for c in line:
+        at.append(run)
+        if c == "{":
+            run += 1
+        elif c == "}":
+            run -= 1
+    at.append(run)
+    suffix_min = list(at)
+    for c in range(len(at) - 2, -1, -1):
+        suffix_min[c] = min(suffix_min[c], suffix_min[c + 1])
+    return at, suffix_min, run
+
+
+def getenv_register_capture(m, line, i, lines, active, pos, depth_at, retire_col) -> None:
+    initializer = line[m.end() :]
+    # '{' ends an initializer the same way ';' does: a parameter default like
+    # `const char* value = nullptr) : m_(m) {` must not swallow the
+    # constructor body's getenv() as its own
+    terminated = (";" in initializer) or ("{" in initializer)
+    if not terminated:
+        for cont in lines[i + 1 : i + 1 + GETENV_WRAP_MAX]:
+            stop = re.search(r"[;{]", cont)
+            if stop:
+                initializer += " " + cont[: stop.start() + 1]
+                break
+            initializer += " " + cont
+    if GETENV_CALL.search(initializer):
+        # a redeclaration of the same name starts a new capture
+        active[m.group(1)] = [i, retire_col, pos, depth_at]
+
+
+def getenv_setenv_sites(rel: str, lines: list[str]) -> list[str]:
+    """One `path:line: text` entry per getenv() capture that is first read after a setenv()."""
+    text = "\n".join(lines)
+    completions = getenv_call_completions(text)
+    starts = []
+    o = 0
+    for ln in lines:
+        starts.append(o)
+        o += len(ln) + 1
+    out = []
+    depth = 0  # brace depth; a capture dies when its scope closes
+    active = {}  # name -> [capture line, retire col, offset, depth]
+    for i, line in enumerate(lines):
+        at, smin, depth = getenv_line_depths(line, depth)
+        for rx in (GETENV_DECL, GETENV_DECL_AUTO_PTR):
+            for m in rx.finditer(line):
+                prefix = line[: m.start(1)]
+                # A capture declared in a for/if/while header whose body
+                # opens on the same line is scoped to that statement: one
+                # level deeper, and it retires from the body's opening
+                # brace rather than from the name.
+                in_header = (
+                    prefix.count("(") - prefix.count(")") > 0
+                    and re.search(r"\b(?:for|if|while)\b[^;{}]*$", prefix)
+                    and "{" in line[m.end(1) :]
+                )
+                retire_col = (
+                    line.rfind("{", m.end(1)) + 1 if in_header else m.end(1)
+                )
+                getenv_register_capture(
+                    m,
+                    line,
+                    i,
+                    lines,
+                    active,
+                    starts[i] + m.start(1),
+                    at[m.start(1)] + (1 if in_header else 0),
+                    retire_col,
+                )
+        for m in GETENV_DECL_AUTO_DIRECT.finditer(line):
+            active[m.group(1)] = [i, m.end(1), starts[i] + m.start(1), at[m.start(1)]]
+        # A read is stale only when a setenv()/unsetenv() completed at an
+        # offset between the capture and the read: an argument of a call
+        # still open at the read's position is evaluated before that call
+        # runs, while a read after a closing paren earlier on the same
+        # line is post-setenv and flags.
+        for name, state in list(active.items()):
+            if i < state[0] or i > state[0] + GETENV_WINDOW:
+                continue
+            # cfg.name, ptr->name, ns::name and name::member are different
+            # entities, not uses of the captured local; blanked same-length
+            # so offsets stay valid
+            quiet = re.sub(
+                r"(?:\.|->|::)\s*" + re.escape(name) + r"\b" + r"|\b" + re.escape(name) + r"\s*::",
+                lambda mm: " " * len(mm.group(0)),
+                line,
+            )
+            for um in re.finditer(r"\b" + re.escape(name) + r"\b", quiet):
+                k = bisect.bisect_right(completions, state[2])
+                if k < len(completions) and completions[k] < starts[i] + um.start():
+                    out.append(
+                        f"{rel}:{state[0] + 1}: '{name}' from getenv() is read at "
+                        f"line {i + 1}, after a setenv() between the two; copy the "
+                        f"value into a std::string at capture (helix::ScopedEnv)"
+                    )
+                    del active[name]
+                    break
+        # The running depth dipping below the depth at capture closes the
+        # capture's scope, so one inline method's local never reaches the
+        # next method's same-named local.
+        for name, state in list(active.items()):
+            if i == state[0]:
+                if smin[state[1]] < state[3]:
+                    del active[name]
+            elif smin[0] < state[3]:
+                del active[name]
+    return out
+
+
+def getenv_setenv(root: Path, files: Files, max_allowed: int) -> int:
+    paths, missing = [], []
+    for given in files if files is not None else [root / d for d in GETENV_ROOTS]:
+        if not given.exists():
+            # A root that is not there would otherwise scan nothing and pass.
+            missing.append(f"scan root does not exist: {rel_path(root, given)}")
+        else:
+            paths += sorted(given.rglob("*")) if given.is_dir() else [given]
+
+    hits = []
+    for path in paths:
+        if path.suffix not in GETENV_SUFFIXES:
+            continue
+        raw = read_text(path, errors="replace")
+        # A read flags only after a setenv()/unsetenv() call, and a file that
+        # never spells setenv has none: skip it before the character-level
+        # blanking that dominates the scan's cost.
+        if raw is None or "setenv" not in raw:
+            continue
+        lines = code_lines(raw.splitlines(), strings="body")
+        hits += getenv_setenv_sites(rel_path(root, path), lines)
+
+    # A missing root fails whatever --max-allowed says.
+    for message in missing:
+        print(message)
+    return report_sites(hits, max_allowed) | (1 if missing else 0)
+
+
+# ====================================================================
+# xml-create-registered
+# ====================================================================
+# lv_xml_create(parent, "name", attrs) on an unknown name logs an error and
+# returns NULL, so the row or card it was meant to build is silently missing.
+#
+# Registrable means one of:
+#   - ui_xml/<name>.xml or ui_xml/components/<name>.xml exists (registered on
+#     first use);
+#   - a "<name>.xml" string literal in src/ (a path passed to
+#     lv_xml_register_component_from_file());
+#   - lv_xml_register_widget("<name>", ...) in src/;
+#   - an lv_* name (LVGL's built-in widgets).
+#
+# Scope is src/, on disk whether tracked or not, with no opt-out marker. FILE
+# arguments are the files searched for the calls; the names that can be
+# registered still come from every source under src/, because a component is
+# registered where it is filed, not only where it is created.
+# qc_xml_create_registered (scripts/qc/xml_create_registered.sh) runs it.
+XML_CREATE_CALL = re.compile(r'lv_xml_create\s*\([^;]*?,\s*"([A-Za-z_][A-Za-z0-9_]*)"', re.S)
+XML_FILE_LITERAL = re.compile(r'"(?:[^"]*/)?([A-Za-z_][A-Za-z0-9_]*)\.xml"')
+XML_WIDGET_REGISTRATION = re.compile(r'lv_xml_register_widget\(\s*"([A-Za-z_][A-Za-z0-9_]*)"')
+
+
+def xml_create_registered(root: Path, files: Files, max_allowed: int) -> int:
+    sources = cxx_sources(root, ("src",), ("*.cpp", "*.h", "*.c"))
+    texts: dict[Path, Optional[str]] = {p: read_text(p, errors="replace") for p in sources}
+    for f in files or []:
+        texts.setdefault(f, read_text(f, errors="replace"))
+
+    registered = set()
+    for d in ("ui_xml", "ui_xml/components"):
+        registered.update(p.stem for p in (root / d).glob("*.xml"))
+    for path in sources:
+        text = texts[path]
+        if text is not None:
+            registered.update(XML_FILE_LITERAL.findall(text))
+            registered.update(XML_WIDGET_REGISTRATION.findall(text))
+
+    created = []
+    for path in sources if files is None else files:
+        text = texts[path]
+        if text is None:
+            continue
+        for m in XML_CREATE_CALL.finditer(text):
+            line = text.count("\n", 0, m.start(1)) + 1
+            created.append((rel_path(root, path), line, m.group(1)))
+
+    unregistered = [
+        c for c in sorted(created) if c[2] not in registered and not c[2].startswith("lv_")
+    ]
+    if len(unregistered) > max_allowed:
+        print(f"❌ {len(unregistered)} lv_xml_create() call(s) name a component with no XML file:")
+        for path, line, name in unregistered:
+            print(f'   {path}:{line}: "{name}" (no ui_xml/{name}.xml or ui_xml/components/{name}.xml)')
+        return 1
+
+    if unregistered:
+        print(f"✅ XML create names: {len(unregistered)} <= {max_allowed}")
+    else:
+        print("✅ XML create names: every lv_xml_create() component in src/ can register")
+    return 0
 
 
 # ====================================================================
@@ -621,6 +1233,10 @@ RULES = {
     "json-dump-utf8": Rule(json_dump_utf8),
     "raw-print-state": Rule(raw_print_state),
     "xml-create-then-hide": Rule(xml_create_then_hide),
+    "section-returns": Rule(section_returns),
+    "init-list-ternary": Rule(init_list_ternary),
+    "getenv-setenv": Rule(getenv_setenv),
+    "xml-create-registered": Rule(xml_create_registered),
     "touch-rotation-source": Rule(touch_rotation_source, pinned=True),
     "grid-metrics-single-source": Rule(grid_metrics_single_source, pinned=True),
     "filament-ops-neutral": Rule(filament_ops_neutral, pinned=True),

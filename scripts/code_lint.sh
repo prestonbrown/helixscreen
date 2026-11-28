@@ -1136,10 +1136,13 @@ lint_control_socket_dir() {
     none_found "$(control_socket_dir_offenders src/remote/remote_client.cpp src/remote/remote_control_server.cpp)"
 }
 
+# A pointer captured from getenv() and read after a setenv() may name freed
+# memory; helix::ScopedEnv copies the value instead. The rule (getenv-setenv)
+# and its limits are in scripts/check_source_rules.py.
 # Every first-party C and C++ root; lib/ is vendored submodules and scripts/ is
 # not C++.
 lint_getenv_setenv() {
-    python3 "$CODE_LINT_DIR/check_getenv_setenv.py" \
+    python3 "$CODE_LINT_DIR/check_source_rules.py" --rule getenv-setenv \
         tests/ src/ include/ tools/ firmware/ android/ server/ moonraker-plugin/ ui_xml/
 }
 
@@ -1269,12 +1272,16 @@ lint_guided_device_flows() {
     return $rc
 }
 
+# An initializer_list picked by a ternary is a view of an array that dies with
+# the expression; stored past it, the view dangles. The rule
+# (init-list-ternary) is in scripts/check_source_rules.py; opt-out
+# // INIT_LIST_TERNARY_OK: <reason>.
 lint_init_list_ternary() {
-    local offenders
+    local offenders rc=0
     # shellcheck disable=SC2046
-    offenders=$(python3 "$CODE_LINT_DIR/check_init_list_ternary.py" \
-        $(tracked src include firmware | grep -E '\.(cpp|h|hpp)$'))
-    [ -z "$offenders" ] && return 0
+    offenders=$(python3 "$CODE_LINT_DIR/check_source_rules.py" --rule init-list-ternary \
+        $(tracked src include firmware | grep -E '\.(cpp|h|hpp)$')) || rc=$?
+    [ "$rc" -eq 0 ] && return 0
     echo "initializer_list stored from a ternary (it dangles):"
     printf '%s\n' "$offenders"
     return 1
@@ -1734,13 +1741,14 @@ lint_fork_assertions() {
 
 # A return inside a Catch2 SECTION ends the run before Catch reaches the later
 # sibling SECTIONs, so they are never discovered and never run.
-# scripts/check_section_returns.py; opt-out // SECTION_RETURN_OK: <reason>.
+# scripts/check_source_rules.py --rule section-returns; opt-out
+# // SECTION_RETURN_OK: <reason>.
 lint_section_returns() {
-    local offenders
+    local offenders rc=0
     # shellcheck disable=SC2046  # paths have no spaces
-    offenders=$(python3 "$CODE_LINT_DIR/check_section_returns.py" \
-        $(tracked tests | grep -E '\.(cpp|h)$'))
-    [ -z "$offenders" ] && return 0
+    offenders=$(python3 "$CODE_LINT_DIR/check_source_rules.py" --rule section-returns \
+        $(tracked tests | grep -E '\.(cpp|h)$')) || rc=$?
+    [ "$rc" -eq 0 ] && return 0
     echo "return inside a SECTION hides its later sibling SECTIONs (they never run):"
     printf '%s\n' "$offenders"
     echo "Move the rest of the case into a sibling SECTION instead of returning."

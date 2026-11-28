@@ -5,8 +5,9 @@
 # A return inside a section ends the run first, so every later sibling SECTION
 # is never discovered and never runs, and the case still passes.
 #
-# Fixture tests of scripts/check_section_returns.py; the verdict over tests/ is
-# qc_test_lint's (lint_section_returns in scripts/code_lint.sh).
+# Fixture tests of the section-returns rule of scripts/check_source_rules.py;
+# the verdict over tests/ is qc_test_lint's (lint_section_returns in
+# scripts/code_lint.sh).
 
 setup() {
     cd "$BATS_TEST_DIRNAME/../.." || return 1
@@ -14,7 +15,7 @@ setup() {
 }
 
 section_return_offenders() {
-    python3 scripts/check_section_returns.py "$@"
+    python3 scripts/check_source_rules.py --rule section-returns "$@"
 }
 
 @test "the gate flags a return that hides a later sibling section" {
@@ -50,7 +51,7 @@ TEST_CASE("dynamic") {
 }
 SHAPES
     run section_return_offenders "$f"
-    [ "$status" -eq 0 ]
+    [ "$status" -eq 1 ]
     [ "${#lines[@]}" -eq 4 ] || fail "expected 4 findings, got: $output"
     contains "hides.cpp:4:" "$output"
     contains "hides.cpp:12:" "$output"

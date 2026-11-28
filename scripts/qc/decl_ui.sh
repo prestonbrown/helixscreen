@@ -200,7 +200,8 @@ echo -n "🧭 Checking source rules (print-state casts and reads, JSON dumps, XM
 
 # Shapes the compiler accepts and no unit test reaches; each rule's reason,
 # scope and opt-out marker sit beside it in scripts/check_source_rules.py.
-# filament-ops-neutral, the one rule that runs at commit, is qc_filament_ops_neutral's.
+# filament-ops-neutral is qc_filament_ops_neutral's; scripts/code_lint.sh and
+# qc_xml_create_registered.sh run the rest.
 if python3 scripts/check_source_rules.py --rule print-state-cast --rule json-dump-utf8 \
     --rule raw-print-state --rule touch-rotation-source --rule grid-metrics-single-source \
     --rule xml-create-then-hide >/tmp/source_rules.out 2>&1; then

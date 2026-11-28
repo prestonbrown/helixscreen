@@ -14,7 +14,7 @@ qc_xml_create_registered() {
 SECTION_START=$(date +%s)
 echo -n "🧩 Checking lv_xml_create component registration..."
 
-if python3 scripts/check_xml_create_registered.py >/tmp/xml_create_registered.out 2>&1; then
+if python3 scripts/check_source_rules.py --rule xml-create-registered >/tmp/xml_create_registered.out 2>&1; then
   section_time $SECTION_START
   echo ""
   cat /tmp/xml_create_registered.out
@@ -22,7 +22,7 @@ else
   section_time $SECTION_START
   echo ""
   cat /tmp/xml_create_registered.out
-  echo "   Run: python3 scripts/check_xml_create_registered.py"
+  echo "   Run: python3 scripts/check_source_rules.py --rule xml-create-registered"
   EXIT_CODE=1
 fi
 
@@ -31,4 +31,4 @@ echo ""
   return $EXIT_CODE
 }
 
-QC_TRIGGER_qc_xml_create_registered='^src/|^scripts/check_xml_create_registered\.py$'
+QC_TRIGGER_qc_xml_create_registered='^src/|^scripts/check_source_rules\.py$'

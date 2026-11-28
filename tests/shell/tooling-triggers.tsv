@@ -42,7 +42,7 @@ tests/shell/test_clang_diagnostics_gate.bats	Makefile VERSION.txt firmware/helix
 tests/shell/test_clang_format_pin.bats	requirements.txt scripts/qc/*.sh scripts/qc/_lib.sh scripts/qc/phase2.sh scripts/quality-checks.sh
 tests/shell/test_cloud_env_setup.bats	scripts/cloud/env-setup.sh
 tests/shell/test_cloud_session_start.bats	Makefile scripts/cloud/session-start.sh
-tests/shell/test_code_lint.bats	.github/workflows/nightly.yml include/ams_backend_afc.h include/lane_source_store.h include/subject_managed_panel.h mk/tests.mk scripts/check_getenv_setenv.py scripts/check_init_list_ternary.py scripts/check_tool_labels.sh scripts/check_vacuous_tests.py scripts/check_vendor_branches.py scripts/code_lint.sh scripts/qc/code_lint.sh scripts/qc/test_lint.sh scripts/qc/translation_coverage.sh scripts/qc/ui_lint.sh scripts/quality-checks.sh scripts/ratchet.py scripts/source_strip.py src/application/printer_switch_flow.cpp src/core/observer_guard.cpp src/printer/ams_backend_mock.cpp src/printer/spoolman_manager.cpp .github/workflows/quality.yml scripts/gate_select.py
+tests/shell/test_code_lint.bats	.github/workflows/nightly.yml include/ams_backend_afc.h include/lane_source_store.h include/subject_managed_panel.h mk/tests.mk scripts/check_source_rules.py scripts/check_tool_labels.sh scripts/check_vacuous_tests.py scripts/check_vendor_branches.py scripts/code_lint.sh scripts/qc/code_lint.sh scripts/qc/test_lint.sh scripts/qc/translation_coverage.sh scripts/qc/ui_lint.sh scripts/quality-checks.sh scripts/ratchet.py scripts/source_strip.py src/application/printer_switch_flow.cpp src/core/observer_guard.cpp src/printer/ams_backend_mock.cpp src/printer/spoolman_manager.cpp .github/workflows/quality.yml scripts/gate_select.py
 tests/shell/test_comment_archaeology_gate.bats	scripts/check_comment_archaeology.py scripts/check_constant_naming.py scripts/mutate_diff.py scripts/qc/comment_archaeology.sh scripts/quality-checks.sh scripts/ratchet.py
 tests/shell/test_competing_ui_state_gate.bats	scripts/lib/installer/common.sh scripts/lib/installer/competing_uis.sh scripts/lib/installer/uninstall.sh
 tests/shell/test_completion_gate.bats	scripts/full-test-run.sh scripts/lib/build_hosts.sh scripts/lib/sweep_location.sh
@@ -182,7 +182,7 @@ tests/shell/test_runtime_file_lists.bats	android/app/build.gradle config/ mk/cro
 tests/shell/test_sandbox_gate.bats	Makefile lib/lvgl scripts/code_lint.sh
 tests/shell/test_screensaver_perf_names.bats	include/screensaver_registry.h scripts/screensaver-perf/
 tests/shell/test_screenshot_printer_ids.bats	include/mock_persona.h scripts/screenshot.sh
-tests/shell/test_section_return_gate.bats	scripts/check_section_returns.py scripts/code_lint.sh scripts/source_strip.py
+tests/shell/test_section_return_gate.bats	scripts/check_source_rules.py scripts/code_lint.sh scripts/source_strip.py
 tests/shell/test_shard_batching.bats	mk/tests.mk
 tests/shell/test_shellcheck_gate.bats	scripts/qc/shellcheck.sh config/creality-backend.init config/helixscreen.init docs/devel/BUILD_SYSTEM.md scripts/helix-launcher.sh scripts/install-dev.sh scripts/lib/installer/main.sh scripts/qc/_lib.sh src/ui/controls/ui_panel_macros.cpp ui_xml/globals.xml
 tests/shell/test_shipped_spacing_tokens_gate.bats	mk/cross.mk scripts/check_shipped_spacing_tokens.py scripts/source_strip.py
@@ -232,7 +232,7 @@ tests/shell/test_workflow_submodules_gate.bats	.github/actions/ .github/workflow
 tests/shell/test_worktree_setup.bats	Makefile lib/helix-xml lib/libhv lib/lua lib/lvgl lib/spdlog mk/patches.mk patches/ scripts/ccache-shared-config.sh scripts/check_patch_markers.py scripts/gen_patch_markers.py scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh scripts/lib/worktree_lib.sh scripts/setup-worktree.sh scripts/sync-worktree-mtimes.py server/telemetry-worker/package.json
 tests/shell/test_x11_macro_collisions_gate.bats	scripts/check_x11_macro_collisions.py scripts/qc/decl_ui.sh scripts/source_strip.py
 tests/shell/test_xargs_portable_gates.bats	scripts/qc/ scripts/quality-checks.sh
-tests/shell/test_xml_create_registered_gate.bats	scripts/check_xml_create_registered.py
+tests/shell/test_xml_create_registered_gate.bats	scripts/check_source_rules.py
 tests/shell/test_xml_create_then_hide_gate.bats	scripts/check_source_rules.py scripts/source_strip.py scripts/qc/decl_ui.sh
 tests/shell/test_xml_schema_staleness_gate.bats	Makefile assets/config/themes/defaults/ include/printer_state.h lib/helix-xml mk/tools.mk scripts/qc/_lib.sh scripts/qc/xml_linter.sh src/ui/components/ui_switch.cpp tools/xml-linter/schema/extract_schema.py tools/xml-linter/schema/schema.json ui_xml/globals.xml
 tests/shell/test_xml_validator_tools_gate.bats	scripts/qc/xml_tools.sh scripts/quality-checks.sh tests/unit/test_ui_theme_constants.cpp

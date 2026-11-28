@@ -1237,7 +1237,7 @@ EOF
 }
 
 getenv_pointer_live_across_setenv_files() {
-    python3 scripts/check_getenv_setenv.py "$@"
+    python3 scripts/check_source_rules.py --rule getenv-setenv "$@"
 }
 
 @test "the getenv/setenv gate fails on a missing scan root" {
@@ -1884,7 +1884,7 @@ SHAPES
 }
 
 init_list_ternary_offenders() {
-    python3 scripts/check_init_list_ternary.py "$@"
+    python3 scripts/check_source_rules.py --rule init-list-ternary "$@"
 }
 
 @test "the initializer_list ternary gate flags stored, braced and member picks and stays quiet on a call argument" {
@@ -1929,7 +1929,7 @@ void hatch(bool c) {
 std::initializer_list<int> plain = {1, 2};
 SHAPES
     run init_list_ternary_offenders "$f"
-    [ "$status" -eq 0 ]
+    [ "$status" -eq 1 ]
     [ "${#lines[@]}" -eq 5 ]
     contains "init_list_shapes.cpp:2:" "$output"
     contains "init_list_shapes.cpp:6:" "$output"
@@ -1951,7 +1951,7 @@ SHAPES
     local f="${BATS_TEST_TMPDIR}/afc_status_parse.cpp"
     cp "$BATS_TEST_DIRNAME/fixtures/afc_status_parse_pre_40318bf81d.cpp.txt" "$f"
     run init_list_ternary_offenders "$f"
-    [ "$status" -eq 0 ]
+    [ "$status" -eq 1 ]
     contains "afc_status_parse.cpp:" "$output"
     contains "std::initializer_list<const char*>{\"name\", \"filament_name\"}" "$output"
 }
