@@ -880,12 +880,13 @@ TEST_CASE("pinned drops expendable docked chips when the docked row overflows",
     CHECK(find(l, CalloutKind::AuxFan) == nullptr);
     CHECK(find(l, CalloutKind::SpeedFlow) != nullptr);
 
-    // With room for the row, nothing expected is dropped.
+    // With room for the row, the expected aux fan still stays off the picture.
     in.area_w = 240;
     const auto roomy = compute_callout_layout(in);
     REQUIRE(roomy.mode == CalloutMode::Pinned);
-    CHECK(roomy.dropped.empty());
-    CHECK(find(roomy, CalloutKind::AuxFan) != nullptr);
+    CHECK(roomy.dropped == std::vector<CalloutKind>{CalloutKind::AuxFan});
+    CHECK(find(roomy, CalloutKind::AuxFan) == nullptr);
+    CHECK(find(roomy, CalloutKind::SpeedFlow) != nullptr);
 }
 
 // ---------------------------------------------------------------------------
@@ -1117,7 +1118,7 @@ TEST_CASE("hotend fan drops first when chips do not fit", "[printer_image][callo
     CHECK(find(l, CalloutKind::Light));
     CHECK(find(l, CalloutKind::AuxFan));
 
-    // Pinned columns give up the hotend fan before the light and the aux fan.
+    // A pinned picture gives up every expected chip; the part fan's reading stays.
     auto tall = base();
     tall.area_w = 150;
     tall.area_h = 190;
@@ -1130,8 +1131,11 @@ TEST_CASE("hotend fan drops first when chips do not fit", "[printer_image][callo
                    {CalloutKind::Fan, 40, NormPoint{0.5f, 0.40f}}};
     const auto p = compute_callout_layout(tall);
     REQUIRE(p.mode == CalloutMode::Pinned);
-    REQUIRE(p.dropped.size() == 1);
-    CHECK(p.dropped[0] == CalloutKind::HotendFan);
+    CHECK(p.dropped.size() == 3);
+    CHECK(find(p, CalloutKind::Light) == nullptr);
+    CHECK(find(p, CalloutKind::AuxFan) == nullptr);
+    CHECK(find(p, CalloutKind::HotendFan) == nullptr);
+    CHECK(find(p, CalloutKind::Fan) != nullptr);
 }
 
 TEST_CASE("a lined tile keeps its labels and drops an idle chip instead",
@@ -1157,8 +1161,12 @@ TEST_CASE("a lined tile keeps its labels and drops an idle chip instead",
     CHECK(fan->rect.w == 110);
 
     // A tile too small for lines, where chips at its two edges would meet over
-    // the picture, pins, and pinned chips carry no labels.
+    // the picture, pins, and pinned chips carry no labels. The aux fan reads
+    // a live value here, so nothing expected is shed to make the edges fit.
     in.area_w = 150;
+    for (auto* v : {&in.budget, &in.active})
+        for (auto& c : *v)
+            c.expendable = false;
     const auto pinned = compute_callout_layout(in);
     CHECK(pinned.mode == CalloutMode::Pinned);
     CHECK(pinned.unlabeled);
