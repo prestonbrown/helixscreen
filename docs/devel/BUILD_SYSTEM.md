@@ -1086,6 +1086,8 @@ commit that touches the inputs refreshes or judges each:
 | `src/generated/theme_token_table.cpp` | `qc_theme_artifacts` renders the table from the staged tokens and the hook stages it | 0.1 s |
 | `tests/fixtures/theme_const_golden.txt` | judged, never written: only the test binary can produce it, so a change that provably invalidates it fails the commit with the command | the same 0.1 s |
 
+Both gates stage through `qc_index_write` (`scripts/qc/_lib.sh`), which tries an index write again while git holds its `index.lock`, so a commit that wakes both, a token edit does, stages both.
+
 A commit does not refresh the CJK font bake (`qc_cjk_fonts`: the rebake takes minutes) or
 the translation packs (`qc_translation_packs_fresh`: a 3 s check). Both run in every full
 sweep.

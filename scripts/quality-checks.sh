@@ -99,7 +99,8 @@ TRANS_FMT_PY="${VENV_PYTHON:-python3}"
 # a file another gate reads. qc_xml_schema regenerates the linter's snapshot
 # and stages it (no gate at a commit reads schema.json), qc_theme_artifacts
 # renders the token table into the index (no gate reads the table), and each
-# takes the index for the one path it stages, under git's own lock.
+# stages through qc_index_write (_lib.sh), which waits out git's index lock,
+# so the two of them in one commit cannot fail each other.
 #
 # Output is buffered per section and replayed in declaration order, so the
 # transcript matches the serial one apart from timings.

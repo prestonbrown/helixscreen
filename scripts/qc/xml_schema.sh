@@ -115,7 +115,7 @@ qc_xml_schema_refresh() {
   # that made it stale is right, unless it carried unstaged edits: those belong
   # to unrelated work in progress and are not ours to stage.
   if [ "$AUTO_FIX" = true ] && [ "$STAGED_ONLY" = true ] && [ "$dirty_before" = false ] &&
-     git add "$XML_SCHEMA_PATH" 2>>"$QC_TMP/xml_schema.regen.out"; then
+     qc_index_write git add "$XML_SCHEMA_PATH" 2>>"$QC_TMP/xml_schema.regen.out"; then
     SCHEMA_STAGED=true
     echo "   ✓ Regenerated and staged $XML_SCHEMA_PATH"
     return 0

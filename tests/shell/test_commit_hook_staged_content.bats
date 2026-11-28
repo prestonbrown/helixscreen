@@ -18,6 +18,7 @@ XML=ui_xml/a.xml
 SH=config/platform/x.sh
 XML_TOKENS=ui_xml/globals.xml
 TABLE=src/generated/theme_token_table.cpp
+SCHEMA=tools/xml-linter/schema/schema.json
 
 setup() {
     unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_INDEX_VERSION GIT_OBJECT_DIRECTORY
@@ -44,6 +45,14 @@ setup() {
     # The token table as the base XML renders it: a commit that stages no token
     # owes no regeneration.
     python3 scripts/gen_theme_tokens.py >/dev/null
+    # The linter's snapshot, and a regeneration that counts the XML's tokens:
+    # a staged token makes the snapshot stale, as in the real tree.
+    mkdir -p tools/xml-linter/schema
+    printf '{"tokens": "0"}\n' > "$SCHEMA"
+    cat > Makefile <<'MAKEFILE'
+regen-xml-schema:
+	@printf '{"tokens": "%s"}\n' "$$(grep -c '<px name=' ui_xml/globals.xml)" > tools/xml-linter/schema/schema.json
+MAKEFILE
     git add -A && git commit -qm base
 }
 
@@ -245,6 +254,57 @@ assert_judged_on_staged_file() {
     check
     [ "$status" -eq 0 ] || fail "$output"
     contains "Theme artefacts match 1 tokens" "$output"
+}
+
+# Puts a git on the PATH that holds the index lock for a second around every
+# write, so two writes in one commit overlap for certain.
+slow_git() {
+    mkdir -p "$R/bin"
+    sed "s|REAL_GIT|$(command -v git)|g" "$FIXTURES/slow-git.sh" > "$R/bin/git"
+    chmod +x "$R/bin/git"
+    export PATH="$R/bin:$PATH"
+}
+
+@test "one commit that wakes both artifact gates stages both" {
+    # A token edit wakes qc_theme_artifacts by its path and qc_xml_schema by the
+    # added definition. Both write the index, in the fan-out at the same time.
+    slow_git
+    stage "$XML_TOKENS" a-token.xml
+    fixture a-token.xml > "$XML_TOKENS"
+
+    hook
+
+    [ "$status" -eq 0 ] || fail "$output"
+    contains "Regenerated and staged $SCHEMA" "$output"
+    contains "Regenerated and staged $TABLE" "$output"
+    [ "$(staged "$SCHEMA")" = "$(printf '{"tokens": "1"}\n')" ] || fail "the index holds: $(staged "$SCHEMA")"
+    contains "space_probe" "$(staged "$TABLE")"
+}
+
+# Holds git's index lock across a write made through qc_index_write, in the
+# background: the write must wait, then land once the lock is moved away.
+# The lock is renamed, never removed: the scratch repo is bats' to delete.
+lock_waiter() (
+    cd "$R" || exit 1
+    . scripts/qc/_lib.sh
+    lock="$(git rev-parse --git-dir)/index.lock"
+    : > "$lock"
+    qc_index_write git update-index --cacheinfo "100644,$(git hash-object -w --stdin < "$FIXTURES/a-more.cpp.txt"),$CPP" &
+    writer=$!
+    sleep 0.5
+    if [ "$(staged "$CPP")" != "$(fixture a-ok.cpp)" ]; then kill "$writer" 2>/dev/null; exit 3; fi
+    if ! kill -0 "$writer" 2>/dev/null; then exit 4; fi
+    mv "$lock" "$lock.released"
+    wait "$writer" || exit 5
+    [ "$(staged "$CPP")" = "$(fixture a-more.cpp)" ] || exit 6
+    [ ! -e "$lock" ] || exit 7
+    echo LANDED
+)
+
+@test "an index write that meets a held index.lock waits for it and lands" {
+    run lock_waiter
+    [ "$status" -eq 0 ] || fail "exit $status: the write did not wait for the lock, or did not land after it: $output"
+    contains "LANDED" "$output"
 }
 
 @test "the token table is regenerated in the index alone when the working copy holds unstaged edits" {

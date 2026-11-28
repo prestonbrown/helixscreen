@@ -107,15 +107,37 @@ qc_export_index_tree() {
   git ls-files -z -- "$@" | xargs -0 -r git checkout-index --prefix="$dir/" -- >/dev/null 2>&1 || true
 }
 
+# The one way a gate writes the index. Git refuses its own index.lock instead of
+# waiting for it, and gates fan out in parallel: more than one of them repairs
+# what is staged, and a reader such as `git diff` takes the same lock for a
+# moment to refresh stat data. A write that meets the lock is tried again until
+# it goes through, for up to about thirty seconds; then git's own message is
+# the verdict.
+qc_index_write() {
+  local attempt=0 rc err
+  err="$(mktemp "${TMPDIR:-/tmp}/helix_index_write.XXXXXX")" || return 1
+  while :; do
+    attempt=$((attempt + 1))
+    "$@" 2>"$err"
+    rc=$?
+    if [ "$rc" -eq 0 ] || ! grep -q 'index\.lock' "$err" || [ "$attempt" -ge 300 ]; then break; fi
+    sleep 0.1
+  done
+  cat "$err" >&2
+  rm -f "$err"
+  return $rc
+}
+
 # Under --staged-only, makes the content of $2 the staged content of repository
 # path $1 and leaves the working tree alone. A repair of what is staged goes
 # through here: `git add` would take the whole working file, hunks its author
 # held back included. $1 has to be staged already.
 qc_stage_content() {
-  local mode
+  local mode blob
   mode="$(git ls-files -s -- "$1" | awk 'NR == 1 { print $1 }')"
   [ -n "$mode" ] || return 1
-  git update-index --cacheinfo "$mode,$(git hash-object -w --path="$1" -- "$2"),$1"
+  blob="$(git hash-object -w --path="$1" -- "$2")" || return 1
+  qc_index_write git update-index --cacheinfo "$mode,$blob,$1"
 }
 
 # xmllint --noout --recover on the content a gate reads for $1, its findings
