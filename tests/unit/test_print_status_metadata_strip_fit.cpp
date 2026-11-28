@@ -196,22 +196,32 @@ TEST_CASE_METHOD(MetadataStripFixture,
     lv_obj_t* layer = label("layer_progress_label");
     lv_obj_t* elapsed_icon = label("elapsed_icon");
     lv_obj_t* elapsed = label("print_elapsed");
+    lv_obj_t* percent = label("print_percent");
+    lv_obj_t* eta = label("print_eta");
+    lv_obj_t* line = label("ps_strip_print_line");
     lv_label_set_text(label("filament_used_label"), "92.6m");
 
     lv_obj_update_layout(root_);
     CHECK_FALSE(lv_obj_is_hidden(filament));
     CHECK_FALSE(lv_obj_is_hidden(elapsed_icon));
     CHECK_FALSE(lv_obj_is_hidden(elapsed));
+    CHECK(right_edge_screen(elapsed) == right_edge_screen(line));
     const int32_t layer_width_medium = lv_obj_get_width(layer);
+    const int32_t percent_width_medium = lv_obj_get_width(percent);
 
     for (const UiBreakpoint cramped : {UiBreakpoint::Micro, UiBreakpoint::Tiny}) {
         lv_subject_set_int(breakpoint, to_int(cramped));
         lv_obj_update_layout(root_);
-        CAPTURE(to_int(cramped), layer_width_medium, lv_obj_get_width(layer));
+        CAPTURE(to_int(cramped), layer_width_medium, lv_obj_get_width(layer), percent_width_medium,
+                lv_obj_get_width(percent));
         CHECK(lv_obj_is_hidden(filament));
         CHECK(lv_obj_is_hidden(elapsed_icon));
         CHECK(lv_obj_is_hidden(elapsed));
         CHECK(lv_obj_get_width(layer) > layer_width_medium);
+        // The spare width sits after the percent, so the times end at the
+        // line's right edge.
+        CHECK(lv_obj_get_width(percent) > percent_width_medium);
+        CHECK(right_edge_screen(eta) == right_edge_screen(line));
     }
 
     lv_subject_set_int(breakpoint, to_int(UiBreakpoint::Small));
