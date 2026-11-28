@@ -237,7 +237,6 @@ void HeatingIconAnimator::apply_color() {
         return;
     }
 
-    // Set the tint on the attached widget directly (for single icons)
     tint(icon_, color_moved);
 
     // Also recolor direct children. Dead code for every current call site — they

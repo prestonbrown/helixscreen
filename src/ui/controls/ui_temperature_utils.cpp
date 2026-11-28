@@ -76,7 +76,6 @@ const char* get_extrusion_safety_status(int current_temp, int min_extrusion_temp
         return lv_tr("Ready");
     }
 
-    // Calculate how far below minimum we are
     static char status_buf[64];
     const std::string deficit = units::format_display_temp_delta(min_extrusion_temp - current_temp);
     snprintf(status_buf, sizeof(status_buf), lv_tr("Heating (%s below minimum)"), deficit.c_str());
@@ -247,7 +246,6 @@ HeaterDisplayResult heater_display(int current_deci, int target_deci) {
     }
     result.temp = buf;
 
-    // Calculate percentage (clamped to 0-100)
     if (target_deci <= 0) {
         result.pct = 0;
     } else {

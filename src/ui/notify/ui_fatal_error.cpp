@@ -67,11 +67,9 @@ void ui_show_fatal_error(const char* title, const char* message, const char* con
                          uint32_t display_ms) {
     lv_obj_t* screen = lv_screen_active();
 
-    // Red background to indicate error
     lv_obj_set_style_bg_color(screen, lv_color_hex(kBootstrapDangerDark), 0);
     lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
 
-    // Container for content
     lv_obj_t* container = lv_obj_create(screen);
     lv_obj_set_size(container, LV_PCT(90), LV_PCT(90));
     lv_obj_center(container);
@@ -84,7 +82,6 @@ void ui_show_fatal_error(const char* title, const char* message, const char* con
     lv_obj_set_flex_align(container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
                           LV_FLEX_ALIGN_CENTER);
 
-    // Warning icon (using MDI icon font)
     lv_obj_t* icon = lv_label_create(container);
     lv_label_set_text(icon, ICON_TRIANGLE_EXCLAMATION);
     lv_obj_set_style_text_font(icon, &mdi_icons_32, 0);
@@ -104,7 +101,6 @@ void ui_show_fatal_error(const char* title, const char* message, const char* con
     lv_obj_set_width(msg_label, LV_PCT(100));
     lv_label_set_long_mode(msg_label, LV_LABEL_LONG_MODE_WRAP);
 
-    // Suggestions header and list
     if (suggestions && suggestions[0]) {
         lv_obj_t* suggest_header = lv_label_create(container);
         lv_label_set_text(suggest_header, lv_tr("Troubleshooting:"));
@@ -112,7 +108,6 @@ void ui_show_fatal_error(const char* title, const char* message, const char* con
         lv_obj_set_style_text_color(suggest_header, lv_color_hex(kBootstrapWarning), 0);
         lv_obj_set_style_pad_top(suggest_header, 20, 0);
 
-        // List suggestions
         for (int i = 0; suggestions[i] != nullptr; i++) {
             lv_obj_t* suggest = lv_label_create(container);
             lv_label_set_text_fmt(suggest, "• %s", suggestions[i]);
@@ -124,7 +119,6 @@ void ui_show_fatal_error(const char* title, const char* message, const char* con
         }
     }
 
-    // Run LVGL to display the error
     uint32_t start = fatal_get_ticks();
     while (display_ms == 0 || (fatal_get_ticks() - start) < display_ms) {
         lv_timer_handler();

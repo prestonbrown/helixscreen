@@ -65,7 +65,6 @@ void WizardLedSelectStep::init_subjects() {
     // Each visit re-initializes; drop the previous visit's subjects and names first.
     subjects_.deinit_all();
 
-    // Initialize subject with default index 0
     // Actual selection will be restored from config during create() after hardware is discovered
     helix::ui::wizard::init_int_subject(subjects_, led_strip_selected_, 0, "led_strip_selected");
 
@@ -101,7 +100,6 @@ lv_obj_t* WizardLedSelectStep::create(lv_obj_t* parent) {
     }
 
     try {
-        // Create screen from XML
         spdlog::debug("[{}] About to call lv_xml_create", get_name());
         screen_root_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "wizard_led_select", nullptr));
         if (!screen_root_) {
@@ -110,7 +108,6 @@ lv_obj_t* WizardLedSelectStep::create(lv_obj_t* parent) {
         }
         spdlog::debug("[{}] XML created, populating dropdown", get_name());
 
-        // Populate LED dropdown (discover + filter + populate + restore)
         wizard_populate_hardware_dropdown(
             screen_root_, "led_main_dropdown", &led_strip_selected_, led_strip_items_,
             [](IMoonrakerAPI* a) -> const auto& { return a->hardware().leds(); },
@@ -162,7 +159,6 @@ void WizardLedSelectStep::cleanup() {
         NOTIFY_ERROR(lv_tr("Failed to save LED configuration"));
     }
 
-    // Reset UI references
     // Note: Do NOT call lv_obj_delete() here - the wizard framework handles
     // object deletion when clearing wizard_content container
     screen_root_ = nullptr;
@@ -175,7 +171,6 @@ void WizardLedSelectStep::cleanup() {
 // ============================================================================
 
 bool WizardLedSelectStep::is_validated() const {
-    // Always return true for baseline implementation
     return true;
 }
 

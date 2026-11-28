@@ -74,7 +74,6 @@ void NotificationHistoryPanel::deinit_subjects() {
 }
 
 void NotificationHistoryPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
-    // Call base class to store panel_ and parent_screen_
     PanelBase::setup(panel, parent_screen);
 
     if (!panel_) {
@@ -82,7 +81,6 @@ void NotificationHistoryPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
         return;
     }
 
-    // Use standard overlay panel setup (wires back button automatically)
     ui_overlay_panel_setup_standard(panel_, parent_screen_, "overlay_header", "overlay_content");
 
     // Refresh the list when a notification arrives while the panel is open.
@@ -103,7 +101,6 @@ void NotificationHistoryPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
         }
     }
 
-    // Populate list
     refresh();
 
     spdlog::info("[{}] Setup complete", get_name());
@@ -119,7 +116,7 @@ void NotificationHistoryPanel::refresh() {
         return;
     }
 
-    // Get all entries (filter buttons removed from UI for cleaner look)
+    // The panel has no filter buttons, so it lists every entry.
     auto entries = history_.get_all();
 
     // Update has_entries subject - XML bindings handle visibility reactively
@@ -150,10 +147,8 @@ void NotificationHistoryPanel::refresh() {
     }
     lv_subject_set_int(&row_count_subject_, static_cast<int>(n));
 
-    // Mark all as read
     history_.mark_all_read();
 
-    // Update status bar - badge count is 0 and bell goes gray (no unread)
     helix::ui::notification_update_count(0);
     helix::ui::notification_update(NotificationStatus::NONE);
 

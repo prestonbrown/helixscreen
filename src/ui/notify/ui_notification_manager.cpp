@@ -70,7 +70,6 @@ void NotificationManager::notification_history_clicked([[maybe_unused]] lv_event
         helix::ui::safe_delete_deferred(mgr.notification_panel_obj_);
     }
 
-    // Now create XML component
     lv_obj_t* panel_obj = helix::ui::create_xml_hidden(parent, "notification_history_panel");
     if (!panel_obj) {
         spdlog::error("[NotificationManager] Failed to create notification_history_panel from XML");
@@ -80,7 +79,6 @@ void NotificationManager::notification_history_clicked([[maybe_unused]] lv_event
     // Store reference for duplicate prevention
     mgr.notification_panel_obj_ = panel_obj;
 
-    // Setup panel (wires buttons, refreshes list)
     panel.setup(panel_obj, parent);
 
     // Register with nullptr lifecycle — notification history extends PanelBase, not OverlayBase
@@ -131,7 +129,6 @@ void NotificationManager::init_subjects() {
 
     spdlog::trace("[NotificationManager] Initializing notification subjects...");
 
-    // Initialize all subjects with default values using managed macros
     // Notification badge starts hidden (count = 0)
     UI_MANAGED_SUBJECT_INT(notification_count_subject_, 0, "notification_count", subjects_);
     UI_MANAGED_SUBJECT_POINTER(notification_count_text_subject_, notification_count_text_buf_,
@@ -158,7 +155,6 @@ void NotificationManager::init() {
 
     spdlog::debug("[NotificationManager] init() called");
 
-    // Ensure subjects are initialized
     if (!subjects_initialized_) {
         init_subjects();
     }
@@ -202,7 +198,6 @@ void NotificationManager::update_notification_count(size_t count) {
         return;
     }
 
-    // Trigger pulse animation if count increased (new notification arrived)
     bool should_pulse = (count > previous_notification_count_) && (count > 0);
     previous_notification_count_ = count;
 
@@ -211,7 +206,6 @@ void NotificationManager::update_notification_count(size_t count) {
     snprintf(notification_count_text_buf_, sizeof(notification_count_text_buf_), "%zu", count);
     lv_subject_set_pointer(&notification_count_text_subject_, notification_count_text_buf_);
 
-    // Pulse the badge to draw attention
     if (should_pulse) {
         animate_notification_badge();
     }
@@ -220,13 +214,11 @@ void NotificationManager::update_notification_count(size_t count) {
 }
 
 void NotificationManager::animate_notification_badge() {
-    // Skip animation if disabled
     if (!DisplaySettingsManager::instance().get_animations_enabled()) {
         spdlog::debug("[NotificationManager] Animations disabled - skipping badge pulse");
         return;
     }
 
-    // Find the notification badge on the active screen
     lv_obj_t* screen = lv_screen_active();
     if (!screen)
         return;
@@ -242,7 +234,6 @@ void NotificationManager::animate_notification_badge() {
     constexpr int32_t kScaleNormal = 256; // 100%
     constexpr int32_t kScalePulse = 333;  // ~130%
 
-    // Scale up animation with overshoot easing (automatically bounces back)
     lv_anim_t scale_anim;
     lv_anim_init(&scale_anim);
     lv_anim_set_var(&scale_anim, badge);

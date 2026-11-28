@@ -58,15 +58,12 @@ void PrinterStatusIcon::init() {
 
     spdlog::debug("[PrinterStatusIcon] init() called");
 
-    // Ensure subjects are initialized
     if (!subjects_initialized_) {
         init_subjects();
     }
 
-    // Observe printer states from PrinterState
     PrinterState& printer_state = get_printer_state();
 
-    // Printer connection observer
     lv_subject_t* conn_subject =
         printer_state.network_state().get_printer_connection_state_subject();
     spdlog::trace("[PrinterStatusIcon] Registering observer on printer_connection_state_subject at "
@@ -82,7 +79,6 @@ void PrinterStatusIcon::init() {
         },
         printer_state.get_subjects_lifetime());
 
-    // Klippy state observer
     lv_subject_t* klippy_subject = printer_state.network_state().get_klippy_state_subject();
     spdlog::trace("[PrinterStatusIcon] Registering observer on klippy_state_subject at {}",
                   (void*)klippy_subject);

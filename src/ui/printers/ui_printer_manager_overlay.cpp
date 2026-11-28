@@ -84,7 +84,6 @@ lv_obj_t* PrinterManagerOverlay::create(lv_obj_t* parent) {
         return nullptr;
     }
 
-    // Find the printer image widget for programmatic image source setting
     printer_image_obj_ = helix::ui::find_required(overlay_root_, "pm_printer_image", get_name());
 
     // Find name editing widgets (visibility driven by pm_name_editing subject via XML bindings)
@@ -176,7 +175,6 @@ void PrinterManagerOverlay::start_name_edit() {
     // Toggle editing state — XML bind_flag_if_eq handles visibility
     lv_subject_set_int(&name_editing_, 1);
 
-    // Focus the input and show keyboard
     KeyboardManager::instance().show(name_input_);
 
     spdlog::debug("[{}] Started name edit, current: '{}'", get_name(), name_buf_);
@@ -199,10 +197,8 @@ void PrinterManagerOverlay::finish_name_edit() {
     config->set<std::string>(config->df() + helix::wizard::PRINTER_NAME, name_str);
     config->save();
     spdlog::info("[{}] Printer name changed to: '{}'", get_name(), name_str);
-    // Sync name to Mainsail/Fluidd DB
     helix::PrinterNameSync::write_back(get_moonraker_api(), name_str);
 
-    // Update subjects to reflect new name (local overlay + global PrinterState + image widget)
     std::strncpy(name_buf_, name_str.c_str(), sizeof(name_buf_) - 1);
     name_buf_[sizeof(name_buf_) - 1] = '\0';
     lv_subject_set_string(&printer_manager_name_, name_buf_);
@@ -278,13 +274,11 @@ void PrinterManagerOverlay::refresh_printer_info() {
     name_buf_[sizeof(name_buf_) - 1] = '\0';
     lv_subject_set_string(&printer_manager_name_, name_buf_);
 
-    // Printer model/type from config
     std::string model = config->get<std::string>(config->df() + helix::wizard::PRINTER_TYPE, "");
     std::strncpy(model_buf_, model.c_str(), sizeof(model_buf_) - 1);
     model_buf_[sizeof(model_buf_) - 1] = '\0';
     lv_subject_set_string(&printer_manager_model_, model_buf_);
 
-    // HelixScreen version
     const char* version = helix_version();
     std::strncpy(version_buf_, version, sizeof(version_buf_) - 1);
     version_buf_[sizeof(version_buf_) - 1] = '\0';

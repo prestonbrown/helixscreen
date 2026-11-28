@@ -54,7 +54,6 @@ void store_active_printer_address(const std::string& host, int port) {
 
 } // namespace
 
-// Static member initialization
 bool ChangeHostModal::callbacks_registered_ = false;
 
 // ============================================================================
@@ -106,12 +105,10 @@ bool ChangeHostModal::show_modal(lv_obj_t* parent, AddCallback on_add) {
     static const char* add_attrs[] = {"title", "Add Printer", "title_tag", "Add Printer", nullptr};
     bool result = show(parent, adding ? add_attrs : nullptr);
     if (result && dialog()) {
-        // Reset state
         lv_subject_set_int(&testing_subject_, 0);
         lv_subject_set_int(&validated_subject_, 0);
         update_save_lock();
 
-        // Register keyboards for text inputs
         lv_obj_t* host_input = helix::ui::find_required(dialog(), "host_input", get_name());
         if (host_input) {
             helix::ui::modal_register_keyboard(dialog(), host_input);
@@ -186,7 +183,6 @@ void ChangeHostModal::init_subjects() {
     status_kind_subject_.init_int(static_cast<int>(StatusKind::None));
     status_text_subject_.init_string(status_text_buf_, nullptr, sizeof(status_text_buf_), "");
 
-    // Register subjects for XML binding
     subjects_.publish("change_host_ip", &host_ip_subject_);
     subjects_.publish("change_host_port", &host_port_subject_);
     subjects_.publish("change_host_api_key", &api_key_subject_);
@@ -425,7 +421,6 @@ void ChangeHostModal::on_input_changed_cb(lv_observer_t* observer, lv_subject_t*
     }
     // A status line describes the address it was shown for, so an edit clears it.
     self->set_status(StatusKind::None, "");
-    // Reset validation when user edits the host, port or key after a successful test
     lv_subject_t* validated = lv_xml_get_subject(nullptr, "change_host_validated");
     if (validated && lv_subject_get_int(validated) != 0) {
         lv_subject_set_int(validated, 0);
@@ -605,9 +600,9 @@ void present_connection_failed(const std::string& title, const std::string& mess
     // offer that action; address surgery stays one tap away but secondary.
     //
     // The declarative helpers close their own dialog once the callback
-    // returns, so this only has to do the work. The Modal::get_top() guess
-    // it replaces named whatever happened to be on top rather than this
-    // prompt, which is only ever correct by luck of ordering.
+    // returns, so this only has to do the work. Closing the prompt through
+    // Modal::get_top() instead would name whatever dialog is on top, which
+    // is this prompt only by luck of ordering.
     auto reconnect = [] {
         if (auto* client = get_moonraker_client()) {
             client->force_reconnect();

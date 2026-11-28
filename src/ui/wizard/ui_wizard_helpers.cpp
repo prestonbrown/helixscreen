@@ -27,9 +27,7 @@ std::string build_dropdown_options(const std::vector<std::string>& items,
         options_str = "None";
     }
 
-    // Add filtered items
     for (const auto& item : items) {
-        // Apply filter if provided
         if (filter && !filter(item)) {
             continue;
         }
@@ -61,7 +59,6 @@ int restore_dropdown_selection(lv_obj_t* dropdown, lv_subject_t* subject,
                                const char* log_prefix) {
     int selected_index = 0;
 
-    // Count real items (excluding "None")
     size_t real_item_count =
         std::count_if(items.begin(), items.end(), [](const auto& s) { return s != "None"; });
 
@@ -78,13 +75,11 @@ int restore_dropdown_selection(lv_obj_t* dropdown, lv_subject_t* subject,
         return false;
     };
 
-    // Find "None" index for optional hardware fallback
     int none_index = find_item_index(items, "None", -1);
 
     // Priority 1: If only ONE real hardware option, auto-select it
     // (handles non-standard names like "bed_heater" instead of "heater_bed")
     if (real_item_count == 1) {
-        // Find the single non-None item
         for (size_t i = 0; i < items.size(); ++i) {
             if (items[i] != "None") {
                 selected_index = static_cast<int>(i);
@@ -117,7 +112,6 @@ int restore_dropdown_selection(lv_obj_t* dropdown, lv_subject_t* subject,
         }
     }
 
-    // Update dropdown and subject
     if (dropdown) {
         lv_dropdown_set_selected(dropdown, static_cast<uint32_t>(selected_index));
     }
@@ -140,7 +134,6 @@ bool save_dropdown_selection(lv_subject_t* subject, const std::vector<std::strin
 
     Config* config = Config::get_instance();
 
-    // Get selection index from subject
     int index = lv_subject_get_int(subject);
     if (index < 0 || static_cast<size_t>(index) >= items.size()) {
         spdlog::warn("{} Cannot save selection: index {} out of range (0-{})", log_prefix, index,

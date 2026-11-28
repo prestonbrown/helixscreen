@@ -47,7 +47,6 @@ void CrashReportModal::set_report(const CrashReporter::CrashReport& report) {
 bool CrashReportModal::show_modal(lv_obj_t* parent) {
     register_callbacks();
     init_subjects();
-    // Populate details subject with crash summary
     std::string details = "Signal: " + std::to_string(report_.signal) + " (" + report_.signal_name +
                           ")\nVersion: " + report_.app_version +
                           "\nUptime: " + std::to_string(report_.uptime_sec) + "s";

@@ -65,7 +65,6 @@ void WizardAmsIdentifyStep::init_subjects() {
         subjects_initialized_ = false;
     }
 
-    // Initialize string subjects with buffers and register with XML system and SubjectManager
     UI_MANAGED_SUBJECT_STRING(wizard_ams_type_, ams_type_buffer_, "Unknown", "wizard_ams_type",
                               subjects_);
     UI_MANAGED_SUBJECT_STRING(wizard_ams_details_, ams_details_buffer_, "", "wizard_ams_details",
@@ -100,14 +99,12 @@ lv_obj_t* WizardAmsIdentifyStep::create(lv_obj_t* parent) {
         screen_root_ = nullptr; // Reset pointer, wizard framework handles deletion
     }
 
-    // Create screen from XML
     screen_root_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "wizard_ams_identify", nullptr));
     if (!screen_root_) {
         spdlog::error("[{}] Failed to create screen from XML", get_name());
         return nullptr;
     }
 
-    // Update display with current AMS info
     update_display();
 
     spdlog::debug("[{}] Screen created successfully", get_name());
@@ -126,12 +123,10 @@ void WizardAmsIdentifyStep::update_display() {
     auto& ams = helix::AmsState::instance();
     helix::AmsBackend* backend = ams.get_backend();
 
-    // Update type via subject (reactive binding)
     std::string type_name = get_ams_type_name();
     lv_subject_set_string(&wizard_ams_type_, type_name.c_str());
     spdlog::debug("[{}] Set type subject: {}", get_name(), type_name);
 
-    // Update details via subject (reactive binding)
     std::string details = get_ams_details();
     lv_subject_set_string(&wizard_ams_details_, details.c_str());
     spdlog::debug("[{}] Set details subject: {}", get_name(), details);
@@ -176,7 +171,6 @@ std::string WizardAmsIdentifyStep::get_ams_details() const {
     helix::AmsSystemInfo info = backend->get_system_info();
     std::string details;
 
-    // Start with slot count if available
     if (const int bays = info.present_slot_count(); bays > 0) {
         details = fmt::format(
             fmt::runtime(helix::ui::tr_plural(nullptr, "{} slots", static_cast<uint64_t>(bays))),
@@ -207,7 +201,6 @@ void WizardAmsIdentifyStep::cleanup() {
 
     // No config to save - this is a display-only step
 
-    // Reset UI references
     // Note: Do NOT call lv_obj_delete() here - the wizard framework handles
     // object deletion when clearing wizard_content container
     screen_root_ = nullptr;
@@ -232,7 +225,6 @@ bool WizardAmsIdentifyStep::should_skip() const {
     auto& ams = helix::AmsState::instance();
     helix::AmsBackend* backend = ams.get_backend();
 
-    // Skip if no backend available
     if (!backend) {
         spdlog::debug("[{}] No AMS backend, skipping step", get_name());
         return true;

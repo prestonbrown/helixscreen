@@ -163,7 +163,6 @@ void badge_text_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
     const char* text = badge_subject_text(subject);
     if (text) {
         lv_label_set_text(label, text);
-        // Re-center after text change
         lv_obj_center(label);
     }
 }
@@ -186,7 +185,7 @@ void* notification_badge_create(lv_xml_parser_state_t* state, const char** attrs
     // props no binding ever carries stay local.
     int32_t badge_sz = theme_manager_get_spacing("badge_size");
     if (badge_sz <= 0)
-        badge_sz = 18; // fallback
+        badge_sz = 18;
     if (lv_style_t* box = shared_badge_box_style(badge_sz)) {
         lv_obj_add_style(badge, box, LV_PART_MAIN);
     }
@@ -201,7 +200,6 @@ void* notification_badge_create(lv_xml_parser_state_t* state, const char** attrs
     // severity. Only the opacity (which the bound styles don't set) is local.
     lv_obj_set_style_bg_opa(badge, LV_OPA_COVER, LV_PART_MAIN);
 
-    // Parse text attribute
     const char* text = lv_xml_get_value_of(attrs, "text");
     if (!text) {
         text = "0";
@@ -211,7 +209,6 @@ void* notification_badge_create(lv_xml_parser_state_t* state, const char** attrs
     lv_label_set_text(label, text);
     lv_obj_center(label);
 
-    // Allocate user data to track label reference (for safe style change handling)
     BadgeData* data = new BadgeData{.magic = BadgeData::kMagic, .label = label};
     lv_obj_set_user_data(badge, data);
 
@@ -219,12 +216,10 @@ void* notification_badge_create(lv_xml_parser_state_t* state, const char** attrs
     // through the style-change callback)
     fit_badge_label_font(badge);
 
-    // Handle bind_text - connect subject to internal label
     const char* bind_text = lv_xml_get_value_of(attrs, "bind_text");
     if (bind_text && strlen(bind_text) > 0) {
         lv_subject_t* subject = lv_xml_get_subject(&state->scope, bind_text);
         if (subject) {
-            // Set initial value
             const char* initial = badge_subject_text(subject);
             if (initial) {
                 lv_label_set_text(label, initial);
@@ -237,13 +232,10 @@ void* notification_badge_create(lv_xml_parser_state_t* state, const char** attrs
         }
     }
 
-    // Apply initial text contrast
     update_badge_text_contrast(badge);
 
-    // Register for style changes to update contrast when bg changes
     lv_obj_add_event_cb(badge, badge_style_changed_cb, LV_EVENT_STYLE_CHANGED, nullptr);
 
-    // Register delete callback to free BadgeData
     lv_obj_add_event_cb(badge, badge_delete_cb, LV_EVENT_DELETE, nullptr);
 
     spdlog::trace("[notification_badge] Created badge text='{}'", text);

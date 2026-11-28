@@ -353,11 +353,10 @@ void TempGraphController::reattach_observers() {
     // LVGL callback only *queues* the handler (core/observer_factory.h:344), so the
     // attach-time fires have not run yet when setup_observers() returns.
     // Restoring the flag inline here would restore it before a single one of
-    // them executed — the no-op this replaces. Instead, clear it from a
-    // callback queued right after them. UpdateQueue's pending_ is a FIFO, and
-    // process_pending() drains it in order, so the clear is guaranteed to run
-    // after every attach-time fire has been dropped and before any sample that
-    // arrives on a later tick.
+    // them executed, a no-op. Instead, clear it from a callback queued right
+    // after them. UpdateQueue's pending_ is a FIFO, and process_pending() drains
+    // it in order, so the clear is guaranteed to run after every attach-time fire
+    // has been dropped and before any sample that arrives on a later tick.
     suppress_attach_fire_ = true;
     forget_latest_readings();
     setup_observers();
@@ -394,7 +393,6 @@ void TempGraphController::create_graph() {
     if (!graph_)
         return;
 
-    // Size chart to fill container
     lv_obj_t* chart = ui_temp_graph_get_chart(graph_);
     if (chart) {
         lv_obj_set_size(chart, LV_PCT(100), LV_PCT(100));
@@ -433,7 +431,6 @@ void TempGraphController::setup_series() {
         state.series_id = series_id;
         state.show_target = spec.show_target;
 
-        // Determine if this uses a dynamic subject
         if (spec.klipper_name.find("extruder") == 0 &&
             ps.temperature_state().extruder_count() > 1) {
             state.is_dynamic = true;
@@ -780,7 +777,6 @@ void TempGraphController::backfill_history() {
         if (samples.empty())
             continue;
 
-        // Decimate to <= point_count by time-bucketing (keeps the newest sample).
         std::vector<int64_t> sample_ts;
         sample_ts.reserve(samples.size());
         for (const auto& sample : samples)
@@ -789,7 +785,6 @@ void TempGraphController::backfill_history() {
         if (kept.empty())
             continue;
 
-        // Build parallel temp / target arrays for one-call replay.
         std::vector<float> temps;
         std::vector<float> targets;
         temps.reserve(kept.size());
@@ -836,7 +831,6 @@ void TempGraphController::apply_auto_range() {
     if (!is_valid())
         return;
 
-    // Find max relevant temperature (from data and targets)
     float max_temp = graph_->max_visible_temp;
     for (const auto& s : series_) {
         if (s.show_target && s.series_id != SeriesId::None) {

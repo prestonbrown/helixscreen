@@ -12,8 +12,8 @@ namespace wizard {
 /// Ordered list of all wizard steps, indexed by StepId (0..STEP_COUNT-1).
 /// Returned BY VALUE and rebuilt every call — the step singletons can be
 /// destroyed and recreated by StaticPanelRegistry across wizard sessions, so the
-/// pointers must NOT be cached (a stale cache dangled and crashed on a 3rd
-/// printer add). The get_wizard_*_step() accessors recreate on demand.
+/// pointers must NOT be cached. One kept past a teardown dangles and crashes
+/// on use. The get_wizard_*_step() accessors recreate on demand.
 std::vector<Step*> steps();
 
 /// Step for the given id, or nullptr if the id is out of range.

@@ -127,7 +127,6 @@ void AdvancedPanel::init_subjects() {
 }
 
 void AdvancedPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
-    // Call base class to store panel_ and parent_screen_
     PanelBase::setup(panel, parent_screen);
 
     if (!panel_) {
@@ -135,7 +134,7 @@ void AdvancedPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
         return;
     }
 
-    // Event handlers are now declaratively bound via XML event_cb elements
+    // Event handlers are bound declaratively via XML event_cb elements
     // No imperative lv_obj_add_event_cb() calls needed
 
     // The print-active watcher outlives panel navigation (this C++ object is
@@ -166,7 +165,7 @@ void AdvancedPanel::deinit_subjects() {
 
 void AdvancedPanel::on_activate() {
     spdlog::debug("[{}] Activated", get_name());
-    // Note: Plugin detection now happens automatically in discovery flow (application.cpp)
+    // Note: Plugin detection happens automatically in the discovery flow (application.cpp)
     refresh_notification_history_row();
 }
 
@@ -580,7 +579,6 @@ void AdvancedPanel::handle_helix_plugin_install_clicked() {
         plugin_installer_.set_websocket_url(api_->get_websocket_url());
     }
 
-    // Show the install modal
     plugin_install_modal_.set_installer(&plugin_installer_);
     plugin_install_modal_.set_moonraker_restarter(
         [this]() { return restart_moonraker_for_plugin(); });

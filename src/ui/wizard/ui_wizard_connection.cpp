@@ -65,7 +65,6 @@ WizardConnectionStep* get_wizard_connection_step() {
 // ============================================================================
 
 WizardConnectionStep::WizardConnectionStep() {
-    // Zero-initialize buffers
     std::memset(connection_ip_buffer_, 0, sizeof(connection_ip_buffer_));
     std::memset(connection_port_buffer_, 0, sizeof(connection_port_buffer_));
     std::memset(connection_status_text_buffer_, 0, sizeof(connection_status_text_buffer_));
@@ -79,7 +78,7 @@ WizardConnectionStep::WizardConnectionStep() {
 }
 
 WizardConnectionStep::~WizardConnectionStep() {
-    // Expire all outstanding lifetime tokens — replaces m_alive (#193)
+    // Expire all outstanding lifetime tokens (#193)
     lifetime_.invalidate();
 
     // NOTE: Do NOT call LVGL functions here - LVGL may be destroyed first
@@ -137,7 +136,6 @@ void WizardConnectionStep::init_subjects() {
             spdlog::debug("[{}] No existing config, using defaults: {}", get_name(), e.what());
         }
 
-        // Initialize with values from config or defaults
         strncpy(connection_ip_buffer_, default_ip.c_str(), sizeof(connection_ip_buffer_) - 1);
         connection_ip_buffer_[sizeof(connection_ip_buffer_) - 1] = '\0';
 
@@ -187,15 +185,12 @@ void WizardConnectionStep::init_subjects() {
     UI_SUBJECT_INIT_AND_REGISTER_INT(connection_login_required_, key_seed.empty() ? 0 : 1,
                                      "connection_login_required");
 
-    // mDNS discovery subjects
     UI_SUBJECT_INIT_AND_REGISTER_STRING(mdns_status_, mdns_status_buffer_, lv_tr("Scanning..."),
                                         "mdns_status");
     UI_SUBJECT_INIT_AND_REGISTER_INT(discovery_active_, 0, "connection_discovery_active");
 
-    // Set connection_test_passed to 0 (disabled) for this step
     lv_subject_set_int(&connection_test_passed, 0);
 
-    // Reset validation state
     connection_validated_ = false;
     subjects_initialized_ = true;
 
@@ -240,7 +235,6 @@ void WizardConnectionStep::on_api_key_input_changed_cb(lv_event_t* /*e*/) {
 void WizardConnectionStep::handle_test_connection_clicked() {
     LVGL_SAFE_EVENT_CB_BEGIN("[Wizard Connection] handle_test_connection_clicked");
 
-    // Get values from subjects
     const char* ip = lv_subject_get_string(&connection_ip_);
     std::string port_clean = sanitize_port(lv_subject_get_string(&connection_port_));
 
@@ -256,11 +250,9 @@ void WizardConnectionStep::handle_test_connection_clicked() {
 
     spdlog::debug("[{}] Test connection clicked: {}:{}", get_name(), ip, port_clean);
 
-    // Clear previous validation state
     connection_validated_ = false;
     lv_subject_set_int(&connection_test_passed, 0);
 
-    // Validate inputs
     if (!ip || strlen(ip) == 0) {
         set_status(StatusKind::None, "Please enter an IP address or hostname");
         spdlog::warn("[{}] Empty IP address", get_name());
@@ -286,7 +278,6 @@ void WizardConnectionStep::handle_test_connection_clicked() {
         return;
     }
 
-    // Get MoonrakerClient instance
     IMoonrakerClient* client = get_moonraker_client();
     if (!client) {
         set_status(StatusKind::Error, "Error: Moonraker client not initialized");
@@ -311,7 +302,6 @@ void WizardConnectionStep::handle_test_connection_clicked() {
         saved_api_key_ = api_key;
     }
 
-    // Set UI to testing state
     lv_subject_set_int(&connection_testing_, 1);
     set_status(StatusKind::Testing, "Testing connection...");
 
@@ -392,7 +382,6 @@ void WizardConnectionStep::on_connection_success(const helix::LifetimeToken& tok
     // The inner discover_printer cbs DO fire on bg, so we keep those defers.
     spdlog::info("[Wizard Connection] Connection successful!");
 
-    // Get saved values under lock
     std::string ip, port;
     {
         std::lock_guard<std::mutex> lock(saved_values_mutex_);
@@ -570,7 +559,6 @@ void WizardConnectionStep::auto_probe_timer_cb(lv_timer_t* timer) {
 }
 
 void WizardConnectionStep::attempt_auto_probe() {
-    // Get the IP/port from subjects - may be from config or default
     const char* ip = lv_subject_get_string(&connection_ip_);
     std::string port_clean = sanitize_port(lv_subject_get_string(&connection_port_));
 
@@ -616,7 +604,6 @@ void WizardConnectionStep::attempt_auto_probe() {
         saved_api_key_ = probe_key;
     }
 
-    // Show subtle probing indicator
     set_status(StatusKind::Testing, "Testing connection...");
 
     // Set testing state (reuses existing subject for button disable)
@@ -651,13 +638,11 @@ void WizardConnectionStep::on_auto_probe_success(const helix::LifetimeToken& tok
     // Already on main thread — caller dispatches via tok.defer (see auto_probe).
     // The inner discover_printer cbs DO fire on bg, so we keep those defers.
 
-    // Verify we're still in auto-probe mode (atomic read)
     if (auto_probe_state_.load() != AutoProbeState::IN_PROGRESS) {
         spdlog::debug("[Wizard Connection] Ignoring auto-probe success (state changed)");
         return;
     }
 
-    // Get saved values under lock
     std::string ip, port;
     {
         std::lock_guard<std::mutex> lock(saved_values_mutex_);
@@ -671,7 +656,6 @@ void WizardConnectionStep::on_auto_probe_success(const helix::LifetimeToken& tok
 
     save_connection(ip, port);
 
-    // Update subjects with the successful connection target
     lv_subject_set_string(&connection_ip_, ip.c_str());
     set_port_field(port);
 
@@ -679,7 +663,6 @@ void WizardConnectionStep::on_auto_probe_success(const helix::LifetimeToken& tok
     lv_subject_set_int(&connection_discovering_, 1);
     set_status(StatusKind::None, lv_tr("Connected, discovering..."));
 
-    // Clear testing state
     lv_subject_set_int(&connection_testing_, 0);
 
     // Set HTTP base URL so discovery can make HTTP calls
@@ -737,7 +720,6 @@ void WizardConnectionStep::on_auto_probe_success(const helix::LifetimeToken& tok
 void WizardConnectionStep::on_auto_probe_failure(const helix::LifetimeToken& /*tok*/) {
     // Already on main thread — caller dispatches via tok.defer (see auto_probe).
 
-    // Verify we're still in auto-probe mode (atomic read)
     if (auto_probe_state_.load() != AutoProbeState::IN_PROGRESS) {
         spdlog::debug("[Wizard Connection] Ignoring auto-probe failure (state changed)");
         return;
@@ -758,7 +740,6 @@ void WizardConnectionStep::on_auto_probe_failure(const helix::LifetimeToken& /*t
 void WizardConnectionStep::handle_ip_input_changed() {
     LVGL_SAFE_EVENT_CB_BEGIN("[Wizard Connection] handle_ip_input_changed");
 
-    // If auto-probe is in progress, cancel it
     if (auto_probe_state_.load() == AutoProbeState::IN_PROGRESS) {
         spdlog::debug("[{}] User input during auto-probe, cancelling", get_name());
         auto_probe_state_.store(AutoProbeState::FAILED); // Mark as failed to ignore callbacks
@@ -781,7 +762,6 @@ void WizardConnectionStep::handle_ip_input_changed() {
     // Reset to help text (user needs to test again after changing input)
     set_status(StatusKind::None, lv_tr("Connection must be tested successfully to continue"));
 
-    // Clear validation state
     connection_validated_ = false;
     lv_subject_set_int(&connection_test_passed, 0);
 
@@ -797,7 +777,6 @@ void WizardConnectionStep::handle_port_input_changed() {
     }
     port_origin_ = PortOrigin::Typed;
 
-    // If auto-probe is in progress, cancel it
     if (auto_probe_state_.load() == AutoProbeState::IN_PROGRESS) {
         spdlog::debug("[{}] User input during auto-probe, cancelling", get_name());
         auto_probe_state_.store(AutoProbeState::FAILED); // Mark as failed to ignore callbacks
@@ -820,7 +799,6 @@ void WizardConnectionStep::handle_port_input_changed() {
     // Reset to help text (user needs to test again after changing input)
     set_status(StatusKind::None, lv_tr("Connection must be tested successfully to continue"));
 
-    // Clear validation state
     connection_validated_ = false;
     lv_subject_set_int(&connection_test_passed, 0);
 
@@ -861,7 +839,6 @@ lv_obj_t* WizardConnectionStep::create(lv_obj_t* parent) {
         return nullptr;
     }
 
-    // Create from XML
     screen_root_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "wizard_connection", nullptr));
 
     if (!screen_root_) {
@@ -911,7 +888,6 @@ lv_obj_t* WizardConnectionStep::create(lv_obj_t* parent) {
         lv_dropdown_set_options(printer_dropdown, lv_tr("Searching..."));
     }
 
-    // Schedule auto-probe if appropriate (empty config, first visit)
     if (should_auto_probe()) {
         spdlog::debug("[{}] Scheduling auto-probe for localhost", get_name());
         auto_probe_timer_ = lv_timer_create(auto_probe_timer_cb, 100, this);
@@ -964,7 +940,6 @@ void WizardConnectionStep::cleanup() {
     // The next visit starts from a port the app filled in.
     port_origin_ = PortOrigin::FilledIn;
 
-    // Stop printer discovery
     discovery_lifetime_.invalidate();
     if (mdns_discovery_) {
         spdlog::debug("[{}] Stopping mDNS discovery", get_name());
@@ -980,7 +955,6 @@ void WizardConnectionStep::cleanup() {
     klippy_message_observer_.reset();
     showing_klipper_unavailable_ = false;
 
-    // If a connection test or auto-probe is in progress, cancel it
     if (lv_subject_get_int(&connection_testing_) == 1 ||
         auto_probe_state_.load() == AutoProbeState::IN_PROGRESS) {
         IMoonrakerClient* client = get_moonraker_client();
@@ -1026,7 +1000,6 @@ void WizardConnectionStep::on_printers_discovered(const std::vector<DiscoveredPr
 
     const bool searching = mdns_discovery_ && mdns_discovery_->is_discovering();
 
-    // Update status text
     if (printers.empty()) {
         lv_subject_set_string(&mdns_status_,
                               searching ? lv_tr("Scanning...") : lv_tr("No printers found"));
@@ -1038,7 +1011,6 @@ void WizardConnectionStep::on_printers_discovered(const std::vector<DiscoveredPr
         lv_subject_set_string(&mdns_status_, buf);
     }
 
-    // Update dropdown options (newline-separated for LVGL dropdown)
     const std::string options = discovered_printer_options(printers, searching);
 
     // Set dropdown options directly (bind_options doesn't work for dropdowns)
@@ -1073,7 +1045,6 @@ void WizardConnectionStep::on_printer_selected_cb(lv_event_t* e) {
             lv_subject_set_int(&self->connection_login_required_, 0);
         }
 
-        // Update IP input
         lv_subject_set_string(&self->connection_ip_, printer.ip_address.c_str());
 
         // Also update the text area directly so user sees the change

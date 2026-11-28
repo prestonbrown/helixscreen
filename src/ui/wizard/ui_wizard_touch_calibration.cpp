@@ -86,7 +86,6 @@ WizardTouchCalibrationStep::WizardTouchCalibrationStep() {
     // crosshair at the wrong ratio. The controller re-samples on each begin().
     helix::TouchCalibrationPanel* panel = controller_.panel();
 
-    // Set completion callback
     panel->set_completion_callback(
         [this](const helix::TouchCalibration* cal) { on_calibration_complete(cal); });
 
@@ -103,16 +102,15 @@ WizardTouchCalibrationStep::WizardTouchCalibrationStep() {
         }
     });
 
-    // Set up sample progress callback for UI updates
     panel->set_sample_progress_callback([this]() { update_instruction_text(); });
 
     // Auto-accept the instant the panel enters VERIFY. Wired to the panel's
     // verify-entry hook (NOT the press handler) so it fires on whichever commit
     // path actually reaches VERIFY — release event, 600ms stall timer, or legacy
-    // sample-on-press. The #943 debounce moved the POINT_3->VERIFY transition off
-    // the press edge to on_release()/stall; the old press-handler-only check then
-    // never ran on clean capacitive panels (Goodix/Q2), hanging the wizard forever
-    // on "Computing calibration..." (#1029).
+    // sample-on-press. The #943 debounce moves the POINT_3 to VERIFY transition to
+    // on_release() or the stall timer, not the press edge, so a check wired only to
+    // the press handler never runs on clean capacitive panels (Goodix/Q2) and the
+    // wizard hangs on "Computing calibration..." (#1029).
     panel->set_verify_entry_callback([this]() { on_verify_entered(); });
 
     // Note: No countdown/timeout/fast-revert callbacks needed for wizard mode.
@@ -138,7 +136,6 @@ WizardTouchCalibrationStep::~WizardTouchCalibrationStep() {
 // ============================================================================
 
 void WizardTouchCalibrationStep::init_subjects() {
-    // Guard against double initialization
     if (subjects_initialized_) {
         spdlog::debug("[{}] Subjects already initialized, skipping", get_name());
         return;
@@ -188,7 +185,6 @@ lv_obj_t* WizardTouchCalibrationStep::create(lv_obj_t* parent) {
         screen_root_ = nullptr;
     }
 
-    // Create screen from XML
     screen_root_ =
         static_cast<lv_obj_t*>(lv_xml_create(parent, "wizard_touch_calibration", nullptr));
     if (!screen_root_) {
@@ -251,7 +247,6 @@ lv_obj_t* WizardTouchCalibrationStep::create(lv_obj_t* parent) {
     lv_subject_set_int(&connection_test_passed, 1);
     lv_subject_set_int(&wizard_show_skip, 1);
 
-    // Update UI for calibration state
     update_instruction_text();
     update_crosshair_position();
     update_button_visibility();
@@ -330,7 +325,6 @@ bool WizardTouchCalibrationStep::should_skip() const {
         return false;
     }
 
-    // Skip if not on framebuffer display
 #ifndef HELIX_DISPLAY_FBDEV
     spdlog::debug("[{}] Skipping touch calibration: not a framebuffer build", get_name());
     return true;
@@ -350,7 +344,6 @@ bool WizardTouchCalibrationStep::should_skip() const {
         return true;
     }
 
-    // Skip if already calibrated
     Config* config = Config::get_instance();
     if (config->get<bool>("/input/calibration/valid", false)) {
         spdlog::debug("[{}] Skipping touch calibration: already calibrated", get_name());
@@ -487,7 +480,6 @@ void WizardTouchCalibrationStep::on_calibration_complete(const helix::TouchCalib
     }
 
     if (cal && cal->valid) {
-        // Additional validation: check coefficients are finite and within bounds
         if (!helix::is_calibration_valid(*cal)) {
             spdlog::error("[{}] Calibration coefficients failed validation (NaN/Inf/out of bounds)",
                           get_name());
@@ -525,7 +517,6 @@ void WizardTouchCalibrationStep::on_calibration_complete(const helix::TouchCalib
 
         lv_subject_set_int(&calibration_valid_, 1);
 
-        // Update header subtitle to show success
         lv_subject_set_string(&wizard_subtitle,
                               lv_tr("Calibration complete! Press 'Next' to continue."));
 
@@ -580,7 +571,6 @@ void WizardTouchCalibrationStep::update_instruction_text() {
              lv_tr("Touch the target (point %1$d of 3) \xe2\x80\x94 touch %2$d of %3$d"),
              p.point_num, p.current_sample + 1, p.total_samples);
 
-    // Prepend error message if calibration just failed
     if (calibration_failed_ && p.state == helix::TouchCalibrationPanel::State::POINT_1) {
         char combined[256];
         snprintf(combined, sizeof(combined), "%s %s",

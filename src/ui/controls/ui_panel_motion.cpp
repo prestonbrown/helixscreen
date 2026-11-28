@@ -361,7 +361,6 @@ void MotionPanel::init_subjects() {
 
     spdlog::debug("[{}] Initializing subjects", get_name());
 
-    // Initialize position subjects with default placeholder values
     // Axis labels are in XML, subjects contain values only
     UI_MANAGED_SUBJECT_STRING(pos_x_subject_, pos_x_buf_, "—", "motion_pos_x", subjects_);
     UI_MANAGED_SUBJECT_STRING(pos_y_subject_, pos_y_buf_, "—", "motion_pos_y", subjects_);
@@ -500,7 +499,6 @@ void MotionPanel::deinit_subjects() {
 
     spdlog::debug("[{}] Deinitializing subjects", get_name());
 
-    // SubjectManager handles deinitialization of all registered subjects
     subjects_.deinit_all();
 
     subjects_initialized_ = false;
@@ -666,7 +664,6 @@ void MotionPanel::rewire_jog_pad_after_orientation_flip() {
 // Lifecycle Hooks
 
 void MotionPanel::on_activate() {
-    // Call base class first
     OverlayBase::on_activate();
 
     spdlog::debug("[{}] on_activate()", get_name());
@@ -842,9 +839,7 @@ void MotionPanel::fit_jog_pad() {
 }
 
 void MotionPanel::setup_jog_pad() {
-    // Find overlay_content to access motion panel widgets
     lv_obj_t* overlay_content = find_required(overlay_root_, "overlay_content", get_name());
-    // Find jog pad container from XML and replace it with the widget
     lv_obj_t* jog_pad_container = find_required(overlay_content, "jog_pad_container", get_name());
     if (!jog_pad_container) {
         return;
@@ -867,7 +862,6 @@ void MotionPanel::setup_jog_pad() {
 
         fit_jog_pad();
 
-        // Set callbacks - pass 'this' as user_data
         ui_jog_pad_set_jog_callback(jog_pad_, jog_pad_jog_cb, this);
         ui_jog_pad_set_home_callback(jog_pad_, jog_pad_home_cb, this);
 
@@ -1231,7 +1225,6 @@ void MotionPanel::set_position(float x, float y, float z) {
     if (!subjects_initialized_)
         return;
 
-    // Update subjects (will automatically update bound UI elements)
     refresh_position_display();
 }
 
@@ -1242,7 +1235,6 @@ bool MotionPanel::jog(JogDirection direction, float distance_mm, bool is_repeat)
     spdlog::debug("[{}] Jog command: {} {:.1f}mm", get_name(),
                   dir_names[static_cast<int>(direction)], distance_mm);
 
-    // Calculate dx/dy from direction
     float dx = 0.0f, dy = 0.0f;
 
     switch (direction) {
@@ -1902,13 +1894,11 @@ void MotionPanel::set_jog_mode(JogMode mode) {
 
     current_mode_ = mode;
 
-    // Update jog pad
     if (jog_pad_) {
         ui_jog_pad_set_mode(jog_pad_, current_mode_);
         lv_obj_invalidate(jog_pad_); // Redraw ring labels
     }
 
-    // Update toggle button styles
     if (subjects_initialized_) {
         lv_subject_set_int(&jog_mode_fine_active_, (mode == JogMode::Fine) ? 1 : 0);
         lv_subject_set_int(&jog_mode_coarse_active_, (mode == JogMode::Coarse) ? 1 : 0);

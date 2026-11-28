@@ -57,11 +57,9 @@ void PrinterImageOverlay::init_subjects() {
     // USB section visibility subject (0=hidden, 1=visible)
     UI_MANAGED_SUBJECT_INT(usb_visible_subject_, 0, "printer_image_usb_visible", subjects_);
 
-    // USB status text subject
     UI_MANAGED_SUBJECT_STRING(usb_status_subject_, usb_status_buf_, "", "printer_image_usb_status",
                               subjects_);
 
-    // Preview panel subjects
     UI_MANAGED_SUBJECT_POINTER(preview_src_subject_, preview_src_buf_, "printer_image_preview_src",
                                subjects_);
     UI_MANAGED_SUBJECT_STRING(preview_name_subject_, preview_name_buf_, "",
@@ -118,11 +116,9 @@ void PrinterImageOverlay::on_activate() {
     populate_custom_images();
     scan_usb_drives();
 
-    // Highlight the currently active image
     std::string active_id = helix::PrinterImageManager::instance().get_active_image_id();
     update_selection_indicator(active_id);
 
-    // Show preview for current selection
     if (!active_id.empty()) {
         std::string display_name = active_id;
         auto colon_pos = active_id.find(':');
@@ -132,7 +128,6 @@ void PrinterImageOverlay::on_activate() {
         std::string preview_path = get_preview_path_for_id(active_id);
         update_preview(active_id, display_name, preview_path);
     } else {
-        // Show the auto-detected image as preview
         update_preview("", lv_tr("Auto-Detect"),
                        helix::PrinterImageManager::instance().get_detected_image_path(
                            printer_images::current_screen_width()));
@@ -171,11 +166,9 @@ lv_obj_t* PrinterImageOverlay::create_list_row(lv_obj_t* parent, const std::stri
 void PrinterImageOverlay::update_preview(const std::string& /*image_id*/,
                                          const std::string& display_name,
                                          const std::string& preview_path) {
-    // Update preview name via subject binding
     lv_subject_set_string(&preview_name_subject_, display_name.c_str());
 
     if (!preview_path.empty()) {
-        // Copy path to buffer and update pointer subject
         strncpy(preview_src_buf_, preview_path.c_str(), sizeof(preview_src_buf_) - 1);
         preview_src_buf_[sizeof(preview_src_buf_) - 1] = '\0';
         lv_subject_set_pointer(&preview_src_subject_, preview_src_buf_);
@@ -303,7 +296,6 @@ void PrinterImageOverlay::populate_custom_images() {
     spdlog::debug("[{}] Populating {} custom images ({} invalid)", get_name(), valid_images.size(),
                   invalid_images.size());
 
-    // Merge valid and invalid into one list sorted by display_name
     struct CustomEntry {
         const helix::PrinterImageManager::ImageInfo* info;
         bool valid;
@@ -411,7 +403,6 @@ void PrinterImageOverlay::handle_usb_import(const std::string& source_path) {
     std::string filename = std::string(hfs::filename(source_path));
     spdlog::info("[{}] Importing USB image: {}", get_name(), filename);
 
-    // Update status via subject binding
     std::string msg = fmt::format(fmt::runtime(lv_tr("Importing {}...")), filename);
     lv_subject_set_string(&usb_status_subject_, msg.c_str());
 
@@ -447,7 +438,6 @@ void PrinterImageOverlay::handle_auto_detect() {
     helix::PrinterImageManager::instance().set_active_image("");
     update_selection_indicator("");
 
-    // Show the auto-detected image as preview
     update_preview("", "Auto-Detect",
                    helix::PrinterImageManager::instance().get_detected_image_path(
                        printer_images::current_screen_width()));
@@ -463,14 +453,12 @@ void PrinterImageOverlay::handle_image_selected(const std::string& image_id) {
     helix::PrinterImageManager::instance().set_active_image(image_id);
     update_selection_indicator(image_id);
 
-    // Extract display name from ID for notification and preview
     std::string display_name = image_id;
     auto colon_pos = image_id.find(':');
     if (colon_pos != std::string::npos) {
         display_name = image_id.substr(colon_pos + 1);
     }
 
-    // Update preview panel
     std::string preview_path = get_preview_path_for_id(image_id);
     update_preview(image_id, display_name, preview_path);
 }

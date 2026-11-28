@@ -102,7 +102,6 @@ std::vector<ConsoleTextSegment> parse_console_html_spans(const std::string& mess
             break;
         }
 
-        // Add any text before the span as a plain segment
         if (span_start > pos) {
             segments.push_back({message.substr(pos, span_start - pos), {}});
         }
@@ -111,7 +110,6 @@ std::vector<ConsoleTextSegment> parse_console_html_spans(const std::string& mess
         size_t class_end = message.find('>', class_start);
 
         if (class_end == std::string::npos) {
-            // Malformed - add rest as plain text
             segments.push_back({message.substr(span_start), {}});
             break;
         }
@@ -119,12 +117,10 @@ std::vector<ConsoleTextSegment> parse_console_html_spans(const std::string& mess
         std::string color_class =
             extract_color_class(message.substr(class_start, class_end - class_start));
 
-        // Find the closing </span>
         size_t content_start = class_end + 1;
         size_t span_close = message.find(kSpanClose, content_start);
 
         if (span_close == std::string::npos) {
-            // No closing tag - add rest as colored text
             segments.push_back({message.substr(content_start), color_class});
             break;
         }

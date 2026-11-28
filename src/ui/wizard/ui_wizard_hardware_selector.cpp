@@ -31,15 +31,12 @@ bool wizard_populate_hardware_dropdown(
         return false;
     }
 
-    // Get Moonraker API for hardware discovery
     helix::IMoonrakerAPI* api = get_moonraker_api();
 
-    // Clear and build items list
     items_out.clear();
     if (api) {
         const auto& hardware_list = moonraker_getter(api);
         for (const auto& item : hardware_list) {
-            // Apply prefix filter if specified
             if (prefix_filter && item.find(prefix_filter) == std::string::npos) {
                 continue;
             }
@@ -47,7 +44,6 @@ bool wizard_populate_hardware_dropdown(
         }
     }
 
-    // Build dropdown options string with friendly display names if device type is specified
     std::string options_str = helix::ui::wizard::build_dropdown_options(
         items_out,
         nullptr, // No additional filter (already filtered above)
@@ -58,7 +54,6 @@ bool wizard_populate_hardware_dropdown(
         items_out.insert(items_out.begin(), "None");
     }
 
-    // Find and configure dropdown
     lv_obj_t* dropdown = lv_obj_find_by_name(root, dropdown_name);
     if (!dropdown) {
         spdlog::warn("{} Dropdown '{}' not found in screen", log_prefix, dropdown_name);
@@ -70,7 +65,6 @@ bool wizard_populate_hardware_dropdown(
     // Theme handles dropdown chevron symbol and MDI font automatically
     // via LV_SYMBOL_DOWN override in lv_conf.h and helix_theme.c
 
-    // Create PrinterHardware for guessing fallback
     const PrinterHardware* hw = nullptr;
     std::unique_ptr<PrinterHardware> hw_instance;
     if (api && guess_fallback) {
@@ -80,7 +74,6 @@ bool wizard_populate_hardware_dropdown(
         hw = hw_instance.get();
     }
 
-    // Restore saved selection with guessing fallback
     helix::ui::wizard::restore_dropdown_selection(dropdown, subject, items_out, config_key, hw,
                                                   guess_fallback, log_prefix);
 

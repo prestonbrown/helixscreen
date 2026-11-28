@@ -134,14 +134,12 @@ void WizardFilamentSensorSelectStep::populate_dropdowns() {
     if (!screen_root_)
         return;
 
-    // Build sensor items list: "None" + sensor names
     sensor_items_.clear();
     sensor_items_.push_back("None");
     for (const auto& sensor : standalone_sensors_) {
         sensor_items_.push_back(sensor.klipper_name);
     }
 
-    // Build options string for dropdown (newline-separated)
     std::string options;
     for (size_t i = 0; i < sensor_items_.size(); i++) {
         if (i > 0)
@@ -154,7 +152,6 @@ void WizardFilamentSensorSelectStep::populate_dropdowns() {
         }
     }
 
-    // Find and populate the runout dropdown
     lv_obj_t* runout_dropdown =
         helix::ui::find_required(screen_root_, "runout_sensor_dropdown", get_name());
 
@@ -181,17 +178,14 @@ std::string WizardFilamentSensorSelectStep::get_klipper_name_for_index(int dropd
 lv_obj_t* WizardFilamentSensorSelectStep::create(lv_obj_t* parent) {
     spdlog::debug("[{}] Creating filament sensor select screen", get_name());
 
-    // Safety check
     if (screen_root_) {
         spdlog::warn("[{}] Screen pointer not null - cleanup may not have been called properly",
                      get_name());
         screen_root_ = nullptr;
     }
 
-    // Filter sensors to get standalone (non-AMS) sensors
     filter_standalone_sensors();
 
-    // Create screen from XML
     screen_root_ =
         static_cast<lv_obj_t*>(lv_xml_create(parent, "wizard_filament_sensor_select", nullptr));
     if (!screen_root_) {
@@ -218,7 +212,6 @@ lv_obj_t* WizardFilamentSensorSelectStep::create(lv_obj_t* parent) {
         }
     }
 
-    // If no sensor is configured with RUNOUT role, try to guess the best one
     if (!has_configured_runout && !standalone_sensors_.empty()) {
         std::vector<std::string> sensor_names;
         sensor_names.reserve(standalone_sensors_.size());
@@ -232,7 +225,6 @@ lv_obj_t* WizardFilamentSensorSelectStep::create(lv_obj_t* parent) {
                       guess.empty() ? "(empty)" : guess);
 
         if (!guess.empty()) {
-            // Find the index of the guessed sensor
             for (size_t i = 0; i < standalone_sensors_.size(); i++) {
                 if (standalone_sensors_[i].sensor_name == guess) {
                     int dropdown_index = static_cast<int>(i + 1); // +1 because index 0 is "None"
@@ -247,7 +239,6 @@ lv_obj_t* WizardFilamentSensorSelectStep::create(lv_obj_t* parent) {
         spdlog::debug("[{}] No standalone sensors available for guessing", get_name());
     }
 
-    // Populate dropdowns
     populate_dropdowns();
 
     spdlog::debug("[{}] Screen created successfully", get_name());
@@ -306,7 +297,6 @@ void WizardFilamentSensorSelectStep::refresh() {
     spdlog::info("[{}] Sensor count changed ({} -> {}), refreshing dropdown", get_name(), old_count,
                  standalone_sensors_.size());
 
-    // If sensors were just discovered and none selected, run auto-selection
     if (old_count == 0 && !standalone_sensors_.empty()) {
         if (lv_subject_get_int(&runout_sensor_selected_) == 0) {
             std::vector<std::string> sensor_names;
@@ -330,7 +320,6 @@ void WizardFilamentSensorSelectStep::refresh() {
         }
     }
 
-    // Re-populate dropdown with new sensor list
     populate_dropdowns();
 }
 
@@ -359,7 +348,6 @@ void WizardFilamentSensorSelectStep::auto_configure_single_sensor() {
     auto& sensor_mgr = helix::FilamentSensorManager::instance();
     auto all_sensors = sensor_mgr.get_sensors();
 
-    // Find the single non-AMS sensor
     for (const auto& sensor : all_sensors) {
         if (is_standalone(sensor.sensor_name)) {
             spdlog::info("[{}] Auto-configuring single sensor '{}' as RUNOUT", get_name(),
@@ -395,7 +383,6 @@ void WizardFilamentSensorSelectStep::cleanup() {
             }
         }
 
-        // Apply new role assignment based on dropdown selection
         std::string runout_name =
             get_klipper_name_for_index(lv_subject_get_int(&runout_sensor_selected_));
 
@@ -405,13 +392,11 @@ void WizardFilamentSensorSelectStep::cleanup() {
             spdlog::info("[{}] Assigned RUNOUT role to: {}", get_name(), runout_name);
         }
 
-        // Persist to disk
         sensor_mgr.save_settings();
     } else {
         spdlog::warn("[{}] Subjects not initialized, skipping role assignment", get_name());
     }
 
-    // Reset UI references
     screen_root_ = nullptr;
 
     spdlog::debug("[{}] Cleanup complete", get_name());
@@ -422,6 +407,5 @@ void WizardFilamentSensorSelectStep::cleanup() {
 // ============================================================================
 
 bool WizardFilamentSensorSelectStep::is_validated() const {
-    // Always return true for baseline implementation
     return true;
 }

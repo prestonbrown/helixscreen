@@ -549,7 +549,7 @@ void MacrosPanel::fetch_params_and_run(const std::string& macro_name) {
 
     // Saved defaults: ask off runs (or confirms a run) with the saved values;
     // ask on prefills the param modal with them. Either way a missing record
-    // behaves exactly as before.
+    // behaves as though none were saved.
     const helix::MacroParamDefaultRecord defaults =
         helix::MacroParamDefaults::instance().get(macro_name);
     req.prompt_for_params = defaults.ask_for_params;

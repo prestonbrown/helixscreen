@@ -313,13 +313,11 @@ static void update_max_visible_temp(ui_temp_graph_t* graph) {
 
     float max_temp = graph->min_temp; // Start at minimum
 
-    // Scan all series to find the maximum visible temperature
     for (int i = 0; i < UI_TEMP_GRAPH_MAX_SERIES; i++) {
         ui_temp_series_meta_t* meta = &graph->series_meta[i];
         if (!meta->chart_series || !meta->visible)
             continue;
 
-        // Get series data array from LVGL chart
         uint32_t point_count = 0;
         int32_t* y_points = lv_chart_get_series_y_array(graph->chart, meta->chart_series);
         if (!y_points)
@@ -327,7 +325,6 @@ static void update_max_visible_temp(ui_temp_graph_t* graph) {
 
         point_count = lv_chart_get_point_count(graph->chart);
 
-        // Find max in this series (skip uninitialized LV_CHART_POINT_NONE values)
         for (uint32_t j = 0; j < point_count; j++) {
             // Skip uninitialized points (LVGL sets these to LV_CHART_POINT_NONE = INT32_MAX)
             if (y_points[j] == LV_CHART_POINT_NONE)
@@ -356,11 +353,11 @@ struct overrange_save_t {
     int32_t value;     // Original value
 };
 // Keyed by graph so concurrently-drawn charts (overlay + mini graph + widget) do
-// not clobber each other's saved points. A single file-static vector was a
-// correctness bug: chart B's DRAW_MAIN_BEGIN would clear chart A's saved
-// pointers before chart A's DRAW_MAIN_END could restore them, leaving chart A's
-// over-range points stuck at LV_CHART_POINT_NONE (line gaps / frozen segments)
-// until the next data write.
+// not clobber each other's saved points. With one shared list, chart B's
+// DRAW_MAIN_BEGIN clears chart A's saved pointers before chart A's
+// DRAW_MAIN_END can restore them, leaving chart A's over-range points stuck
+// at LV_CHART_POINT_NONE (line gaps / frozen segments) until the next data
+// write.
 static helix::FlatMap<ui_temp_graph_t*, std::vector<overrange_save_t>> s_overrange_saved;
 
 // DRAW_MAIN_BEGIN: mask over-range points before LVGL draws chart lines
@@ -895,7 +892,6 @@ static void draw_legend_cb(lv_event_t* e) {
 
     int visible_count = count_visible_series(graph);
 
-    // Layout constants
     const lv_font_t* font = theme_manager_get_font("font_xs");
     int32_t font_h = theme_manager_get_font_height(font);
     int32_t chip_h = row.y2 - row.y1 + 1;
@@ -931,11 +927,9 @@ static void draw_legend_cb(lv_event_t* e) {
         if (!meta->chart_series || !meta->visible)
             continue;
 
-        // Copy name to persistent buffer
         strncpy(legend_bufs[buf_idx], meta->name, 31);
         legend_bufs[buf_idx][31] = '\0';
 
-        // Measure text width
         lv_point_t txt_size;
         lv_text_get_size(&txt_size, legend_bufs[buf_idx], font, 0, 0, LV_COORD_MAX,
                          LV_TEXT_FLAG_NONE);
@@ -989,7 +983,6 @@ static void draw_legend_cb(lv_event_t* e) {
             return;
         }
 
-        // Draw chip background (semi-transparent dark)
         lv_draw_rect_dsc_t rect_dsc;
         lv_draw_rect_dsc_init(&rect_dsc);
         rect_dsc.bg_color = graph->cached_graph_bg;
@@ -1003,7 +996,6 @@ static void draw_legend_cb(lv_event_t* e) {
         chip_area.y2 = y + chip_h;
         lv_draw_rect(layer, &rect_dsc, &chip_area);
 
-        // The series colour as a swatch circle
         lv_area_t swatch_area;
         swatch_area.x1 = x + chip_pad_h;
         swatch_area.y1 = y + (chip_h - swatch_size) / 2;
@@ -1013,7 +1005,6 @@ static void draw_legend_cb(lv_event_t* e) {
         swatch_paint.colors = {meta->color};
         helix::ui::draw_swatch(layer, swatch_area, swatch_paint);
 
-        // Draw series name label
         lv_draw_label_dsc_t label_dsc;
         lv_draw_label_dsc_init(&label_dsc);
         label_dsc.color = lv_obj_get_style_text_color(chart, LV_PART_MAIN);
@@ -1029,7 +1020,6 @@ static void draw_legend_cb(lv_event_t* e) {
         label_area.y2 = label_area.y1 + font_h;
         lv_draw_label(layer, &label_dsc, &label_area);
 
-        // Advance to next chip position (horizontal flow)
         x += chip_w + chip_gap;
         buf_idx++;
         chips_drawn++;
@@ -1117,7 +1107,6 @@ static void draw_target_lines_cb(lv_event_t* e) {
     if (!layer)
         return;
 
-    // Content area (inside padding)
     const temp_graph_plot_area_t plot = temp_graph_plot_area(chart);
     const int32_t cx1 = plot.x1;
     const int32_t cx2 = plot.x2;
@@ -1194,7 +1183,6 @@ static void draw_target_lines_cb(lv_event_t* e) {
             return cy1 + content_y;
         };
 
-        // Walk segments and draw dashed line between consecutive points within a segment.
         lv_draw_line_dsc_t seg_dsc;
         lv_draw_line_dsc_init(&seg_dsc);
         seg_dsc.base.layer = layer;
@@ -1312,7 +1300,6 @@ static void draw_x_axis_labels_cb(lv_event_t* e) {
         theme_manager_get_font_height(graph->axis_font); // Configurable axis font
     // Add small gap between chart content and X-axis labels
     int32_t space_xs = theme_manager_get_spacing("space_xs"); // 4/5/6px gap
-    // Position below chart content with responsive gap
     int32_t label_y = coords.y2 - pad_bottom + space_xs;
 
     // The time axis picks its cadence from elapsed time alone, so on a narrow
@@ -1355,18 +1342,15 @@ static void draw_x_axis_labels_cb(lv_event_t* e) {
     // nice boundary at or after the left edge.
     for (int64_t label_time_ms = first_label_ms; label_time_ms <= latest_ms;
          label_time_ms += label_interval_ms) {
-        // Calculate X position for this time
         // Position is proportional: (time - leftmost) / total_display_time * width
         int64_t time_offset = label_time_ms - leftmost_ms;
         int32_t label_x = content_x1 + static_cast<int32_t>((time_offset * content_width) /
                                                             total_display_time_ms);
 
-        // Skip if outside chart bounds
         if (label_x < content_x1 || label_x > content_x2) {
             continue;
         }
 
-        // Format time via central formatter (handles 12H/24H, leading zero strip)
         time_t time_sec = static_cast<time_t>(label_time_ms / 1000);
         struct tm tm_buf {};
         localtime_r(&time_sec, &tm_buf);
@@ -1378,7 +1362,6 @@ static void draw_x_axis_labels_cb(lv_event_t* e) {
         strncpy(time_str, formatted.c_str(), 11);
         time_str[11] = '\0';
 
-        // Skip duplicate labels (same HH:MM)
         if (strcmp(time_str, prev_label) == 0) {
             continue;
         }
@@ -1429,7 +1412,6 @@ static void draw_x_axis_labels_cb(lv_event_t* e) {
         strncpy(now_str, now_formatted.c_str(), 11);
         now_str[11] = '\0';
 
-        // Only draw if different from last label
         if (strcmp(now_str, prev_label) != 0) {
             // Box ends on the right edge of the content area: no ext_draw_size
             // covers an overhang, so a box running past it would clip the tail of
@@ -1563,7 +1545,6 @@ static void draw_y_axis_labels_cb(lv_event_t* e) {
         return; // Y-axis labels disabled or invalid config
     }
 
-    // Get chart bounds and content area
     lv_area_t coords;
     lv_obj_get_coords(chart, &coords);
     int32_t pad_top = lv_obj_get_style_pad_top(chart, LV_PART_MAIN);
@@ -1583,16 +1564,13 @@ static void draw_y_axis_labels_cb(lv_event_t* e) {
     label_dsc.align = LV_TEXT_ALIGN_RIGHT; // Right-align Y-axis labels
     label_dsc.opa = lv_obj_get_style_text_opa(chart, LV_PART_MAIN);
 
-    // Y-axis label dimensions (for positioning)
     int32_t label_height = theme_manager_get_font_height(graph->axis_font);
     int32_t label_width = graph->y_axis_width; // Use configured width
 
-    // Temperature range
     float temp_range = graph->max_temp - graph->min_temp;
     if (temp_range <= 0)
         return;
 
-    // Draw labels at each temperature increment
     // Use static buffer array - LVGL may defer draw and need persistent strings
     static char temp_str_buf[8][8]; // 8 labels max (0, 80, 160, 240, 320 = 5 for nozzle)
     static int temp_str_idx = 0;
@@ -1618,11 +1596,9 @@ static void draw_y_axis_labels_cb(lv_event_t* e) {
         if (label_y + label_height > coords.y2)
             continue; // Skip if below chart
 
-        // Format temperature string into persistent buffer
         char* temp_str = temp_str_buf[temp_str_idx++ % 8];
         snprintf(temp_str, 8, "%d°", tick.label);
 
-        // Draw label in left padding area (to the left of chart content)
         lv_area_t label_area;
         label_area.x1 = coords.x1;
         label_area.y1 = label_y;
@@ -1649,10 +1625,8 @@ static void theme_change_cb(lv_observer_t* observer, lv_subject_t* subject) {
     // Series gradient colors derive from the theme — recompute the cached fill.
     mark_gradient_cache_dirty(graph);
 
-    // Re-apply themed background color
     lv_obj_set_style_bg_color(graph->chart, graph->cached_graph_bg, LV_PART_MAIN);
 
-    // Re-apply themed text color for axis labels
     lv_obj_set_style_text_color(graph->chart, theme_manager_get_color("text"), LV_PART_MAIN);
 
     // Force full redraw so draw callbacks (grid, axis labels, gradients) pick up new colors
@@ -1667,7 +1641,6 @@ ui_temp_graph_t* ui_temp_graph_create(lv_obj_t* parent) {
         return nullptr;
     }
 
-    // Allocate graph structure using RAII
     auto graph_ptr = std::make_unique<ui_temp_graph_t>();
     if (!graph_ptr) {
         spdlog::error("[TempGraph] Failed to allocate graph structure");
@@ -1679,7 +1652,6 @@ ui_temp_graph_t* ui_temp_graph_create(lv_obj_t* parent) {
     // would be redundant and would overwrite those constructed members.
     ui_temp_graph_t* graph = graph_ptr.get();
 
-    // Initialize defaults
     graph->point_count = UI_TEMP_GRAPH_DEFAULT_POINTS;
     graph->min_temp = UI_TEMP_GRAPH_DEFAULT_MIN_TEMP;
     graph->max_temp = UI_TEMP_GRAPH_DEFAULT_MAX_TEMP;
@@ -1709,7 +1681,6 @@ ui_temp_graph_t* ui_temp_graph_create(lv_obj_t* parent) {
         return nullptr; // graph_ptr auto-freed
     }
 
-    // Configure chart
     lv_chart_set_type(graph->chart, LV_CHART_TYPE_LINE);
     lv_chart_set_update_mode(graph->chart, LV_CHART_UPDATE_MODE_SHIFT);
     lv_chart_set_point_count(graph->chart, static_cast<uint32_t>(graph->point_count));
@@ -1723,7 +1694,6 @@ ui_temp_graph_t* ui_temp_graph_create(lv_obj_t* parent) {
     graph->cached_grid_color = theme_manager_get_color("elevated_bg");
     graph->cached_graph_bg = theme_manager_get_color("screen_bg");
 
-    // Style chart background (theme handles colors)
     lv_obj_set_style_bg_opa(graph->chart, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_bg_color(graph->chart, graph->cached_graph_bg, LV_PART_MAIN);
     lv_obj_set_style_border_width(graph->chart, 0, LV_PART_MAIN);
@@ -1743,11 +1713,9 @@ ui_temp_graph_t* ui_temp_graph_create(lv_obj_t* parent) {
     int32_t space_sm = theme_manager_get_spacing("space_sm"); // 6/8/10px
     lv_obj_set_style_pad_bottom(graph->chart, space_sm + label_height + space_md, LV_PART_MAIN);
 
-    // Style division lines (theme handles colors)
     lv_obj_set_style_line_width(graph->chart, 1, LV_PART_MAIN);
     lv_obj_set_style_line_opa(graph->chart, LV_OPA_30, LV_PART_MAIN); // Subtle - 30% opacity
 
-    // Style data series lines
     lv_obj_set_style_line_width(graph->chart, 2, LV_PART_ITEMS);          // Series line thickness
     lv_obj_set_style_line_opa(graph->chart, LV_OPA_COVER, LV_PART_ITEMS); // Full opacity for series
 
@@ -1776,29 +1744,21 @@ ui_temp_graph_t* ui_temp_graph_create(lv_obj_t* parent) {
     lv_display_add_event_cb(lv_obj_get_display(graph->chart), gradient_render_start_cb,
                             LV_EVENT_RENDER_START, graph);
 
-    // Store graph pointer in chart user data for retrieval
     lv_obj_set_user_data(graph->chart, graph);
 
-    // Register delete callback to null out graph->chart on widget destruction
     lv_obj_add_event_cb(graph->chart, chart_delete_cb, LV_EVENT_DELETE, graph);
 
     // Register resize callback to recalculate value-based cursor positions
     lv_obj_add_event_cb(graph->chart, chart_resize_cb, LV_EVENT_SIZE_CHANGED, nullptr);
 
-    // Register custom grid drawing callback (draws lines constrained to content area)
     lv_obj_add_event_cb(graph->chart, draw_grid_lines_cb, LV_EVENT_DRAW_MAIN, graph);
 
-    // Register X-axis label draw callback (renders time labels directly on canvas)
     lv_obj_add_event_cb(graph->chart, draw_x_axis_labels_cb, LV_EVENT_DRAW_POST, graph);
 
-    // Register Y-axis label draw callback (renders temperature labels directly on canvas)
     lv_obj_add_event_cb(graph->chart, draw_y_axis_labels_cb, LV_EVENT_DRAW_POST, graph);
 
-    // Register custom target line draw callback (replaces LVGL's cursor rendering,
-    // constrained to content area so lines don't bleed into Y-axis labels)
     lv_obj_add_event_cb(graph->chart, draw_target_lines_cb, LV_EVENT_DRAW_POST, graph);
 
-    // Register legend draw callback (renders color-coded series chips in upper-left)
     lv_obj_add_event_cb(graph->chart, draw_legend_cb, LV_EVENT_DRAW_POST, graph);
 
     // Register tap-to-caption draw callback. Registered unconditionally (like the
@@ -1809,7 +1769,6 @@ ui_temp_graph_t* ui_temp_graph_create(lv_obj_t* parent) {
     lv_obj_add_event_cb(graph->chart, helix::temp_graph_internal::temp_graph_tooltip_draw_cb,
                         LV_EVENT_DRAW_POST, graph);
 
-    // Subscribe to theme changes for live color updates
     lv_subject_t* theme_subject = theme_manager_get_changed_subject();
     if (theme_subject) {
         // Tie observer to chart widget — auto-removed when chart is deleted
@@ -1820,7 +1779,6 @@ ui_temp_graph_t* ui_temp_graph_create(lv_obj_t* parent) {
     spdlog::debug("[TempGraph] Created: {} points, {:.0f}-{:.0f}°C range", graph->point_count,
                   graph->min_temp, graph->max_temp);
 
-    // Transfer ownership to caller
     return graph_ptr.release();
 }
 
@@ -1849,7 +1807,6 @@ void ui_temp_graph_destroy(ui_temp_graph_t* graph) {
         lv_obj_t* chart = graph_ptr->chart;
         crash_handler::breadcrumb::note("tg", "destroy_async", reinterpret_cast<long>(chart));
 
-        // Remove all series (chart-side cleanup).
         for (int i = 0; i < UI_TEMP_GRAPH_MAX_SERIES; i++) {
             if (graph_ptr->series_meta[i].chart_series) {
                 lv_chart_remove_series(chart, graph_ptr->series_meta[i].chart_series);
@@ -1942,7 +1899,6 @@ SeriesId ui_temp_graph_add_series(ui_temp_graph_t* graph, const char* name, lv_c
         return SeriesId::None;
     }
 
-    // Find next available slot
     int slot = -1;
     for (int i = 0; i < UI_TEMP_GRAPH_MAX_SERIES; i++) {
         if (graph->series_meta[i].chart_series == nullptr) {
@@ -2050,7 +2006,6 @@ void ui_temp_graph_show_series(ui_temp_graph_t* graph, SeriesId series_id, bool 
 
     meta->visible = visible;
 
-    // Use LVGL's public API to hide/show series
     lv_chart_hide_series(graph->chart, meta->chart_series, !visible);
 
     // Visibility change adds/removes a series' gradient band.
@@ -2100,7 +2055,6 @@ void ui_temp_graph_update_series(ui_temp_graph_t* graph, SeriesId series_id, flo
     // Mirror the push into the parallel target buffer.
     push_target_sample(meta);
 
-    // Update max visible temperature for gradient rendering
     update_max_visible_temp(graph);
 
     // New point shifted the curve — gradient must recompute.
@@ -2158,7 +2112,6 @@ void ui_temp_graph_update_series_with_time(ui_temp_graph_t* graph, SeriesId seri
     // Mirror the push into the parallel target buffer.
     push_target_sample(meta);
 
-    // Update max visible temperature for gradient rendering
     update_max_visible_temp(graph);
 
     // New point shifted the curve — gradient must recompute.
@@ -2179,7 +2132,6 @@ void ui_temp_graph_set_series_data(ui_temp_graph_t* graph, SeriesId series_id, c
         return;
     }
 
-    // Clear existing data before setting new values
     lv_chart_set_all_values(graph->chart, meta->chart_series, LV_CHART_POINT_NONE);
 
     // Convert float array to int32_t array for LVGL API (using RAII)
@@ -2194,7 +2146,6 @@ void ui_temp_graph_set_series_data(ui_temp_graph_t* graph, SeriesId series_id, c
         values[i] = static_cast<int32_t>(temps[i] * kTempScale);
     }
 
-    // Set data using public API
     lv_chart_set_series_values(graph->chart, meta->chart_series, values.get(),
                                static_cast<size_t>(points_to_copy));
 
@@ -2206,7 +2157,6 @@ void ui_temp_graph_set_series_data(ui_temp_graph_t* graph, SeriesId series_id, c
 
     lv_chart_refresh(graph->chart);
 
-    // Update max visible temperature for gradient rendering
     update_max_visible_temp(graph);
 
     // Bulk data replacement reshapes the curve — gradient must recompute.
@@ -2300,7 +2250,6 @@ void ui_temp_graph_clear(ui_temp_graph_t* graph) {
 
     lv_chart_refresh(graph->chart);
 
-    // Update max visible temperature for gradient rendering
     update_max_visible_temp(graph);
 
     spdlog::trace("[TempGraph] All data cleared");
@@ -2323,7 +2272,6 @@ void ui_temp_graph_clear_series(ui_temp_graph_t* graph, SeriesId series_id) {
 
     lv_chart_refresh(graph->chart);
 
-    // Update max visible temperature for gradient rendering
     update_max_visible_temp(graph);
 
     spdlog::trace("[TempGraph] Series {} '{}' cleared", series_id, meta->name);
@@ -2480,7 +2428,6 @@ void ui_temp_graph_set_y_axis(ui_temp_graph_t* graph, float increment, bool show
     // The increment decides which labels exist, so the measured width follows it.
     refresh_y_axis_width(graph);
 
-    // Force redraw to apply changes
     lv_obj_invalidate(graph->chart);
 
     spdlog::trace("[TempGraph] Y-axis config: increment={:.0f}°, show={}", increment, show);
@@ -2492,7 +2439,6 @@ void ui_temp_graph_set_axis_size(ui_temp_graph_t* graph, const char* size) {
         return;
     }
 
-    // Map size name to font token using shared helper
     const char* font_token = theme_manager_size_to_font_token(size, "sm");
 
     // Floor for the Y-axis label width. The real width is measured against the
@@ -2514,13 +2460,11 @@ void ui_temp_graph_set_axis_size(ui_temp_graph_t* graph, const char* size) {
     graph->y_axis_width = measure_y_axis_width(graph);
     int32_t y_axis_width = graph->y_axis_width;
 
-    // Recalculate padding to match new font size
     int32_t space_xs = theme_manager_get_spacing("space_xs");
     int32_t space_sm = theme_manager_get_spacing("space_sm");
     int32_t space_md = theme_manager_get_spacing("space_md");
     int32_t label_height = theme_manager_get_font_height(graph->axis_font);
 
-    // Update padding (tighter for smaller sizes)
     // Top padding must accommodate the full top Y-axis label above the top grid line
     bool is_xs = size && strcmp(size, "xs") == 0;
     int32_t min_top_for_label = label_height;
@@ -2558,11 +2502,9 @@ void ui_temp_graph_set_features(ui_temp_graph_t* graph, uint32_t features) {
         mark_gradient_cache_dirty(graph);
     }
 
-    // Toggle Y-axis via existing API
     bool want_y = (features & TEMP_GRAPH_FEATURE_Y_AXIS) != 0;
     graph->show_y_axis = want_y;
 
-    // Toggle X-axis
     bool want_x = (features & TEMP_GRAPH_FEATURE_X_AXIS) != 0;
     graph->show_x_axis = want_x;
 
@@ -2598,7 +2540,6 @@ void ui_temp_graph_set_features(ui_temp_graph_t* graph, uint32_t features) {
             continue;
 
         if (want_gradients) {
-            // Restore default gradient opacities
             meta->gradient_top_opa = UI_TEMP_GRAPH_GRADIENT_TOP_OPA;
             meta->gradient_bottom_opa = UI_TEMP_GRAPH_GRADIENT_BOTTOM_OPA;
         } else {
