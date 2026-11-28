@@ -1043,22 +1043,40 @@ To bypass (not recommended):
 git commit --no-verify
 ```
 
-### Staged-input checks that would otherwise wait for a full run
+### What a commit runs, and what waits for a full sweep
 
-Each is path-gated, so a commit staging none of its inputs pays nothing:
+Every gate has a tier in `scripts/quality-checks.sh`, and the sweep refuses to start on a
+gate without one:
 
-| Gate | Staged trigger | Cost | Catches |
-|------|----------------|------|---------|
-| `qc_toolhead_census` | `ui_xml/**/*.xml`, the census test | ~0.2s | all five XML cases of `tests/unit/test_job_holds_machine.cpp`: an unclassified control-bearing file, a stale row, a drifted or misspelled guard count, a guard in a no-machine file, a `<bind_state_*>` disabling on `print_active`, and XML naming `job_holds_machine` (`scripts/check_toolhead_census.py`) |
-| `qc_double_binds` | `ui_xml/**/*.xml`, the table, the scanner | ~0.2s | `tests/unit/double_bind_widgets.inc` not matching what `scripts/scan_double_binds.py` generates from the staged `ui_xml/` (regenerated in memory; prints a diff and `python3 scripts/scan_double_binds.py --emit-cpp`). `[bind_compose]` drives only the rows the table lists, so a stale one drops coverage silently |
-| `qc_theme_artifacts` | top-level `ui_xml/*.xml`, the two artefacts | ~0.1s | `src/generated/theme_token_table.cpp` not matching the staged tokens (`make regen-tokens`), and a `tests/fixtures/theme_const_golden.txt` the token change provably invalidates (`scripts/check_theme_artifacts.py`; the fix needs the test binary, so it prints the regen command; when regenerating leaves the golden unchanged, `HELIX_GOLDEN_CURRENT=1 git commit ...` says it is current) |
-| `qc_xml_linter` | also `src/**/*.cpp`, theme defaults, `lib/helix-xml`, `mk/tools.mk` | ~0.7s when it lints; silent when nothing it reads is staged | `tools/xml-linter/schema/schema.json` stale against any extractor input |
+| Tier | List | Runs |
+|------|------|------|
+| Per-file | `QC_PER_FILE` (16 gates) | at a commit (`--staged-only`), each on the staged content as the commit will hold it and behind its `QC_TRIGGER_qc_<gate>`; and in every full sweep |
+| Whole-tree | `QC_WHOLE_TREE` (43 gates) | in every full sweep only: a push to `main`, `release/*` or a tag, `make land-gate`, CI |
+
+A gate belongs in the per-file tier when it judges each staged file on its own: formatting,
+copyright headers, whitespace, XML well-formedness, the pattern rules that read one file, the
+XML rules. One that needs other files to decide, a tree walk, a generated list, a ratchet's
+baseline or a built tool, is whole-tree. The whole-tree gates that used to run at a commit
+when their inputs were staged (`qc_toolhead_census`, `qc_double_binds`,
+`qc_theme_artifacts`, `qc_xml_linter` with `qc_xml_tools`, the design ratchets, the
+translation gates, `qc_cjk_fonts` among them) now first run at a push to `main`.
+
+At a commit the driver writes the staged files' content from the index to a scratch directory
+and the per-file gates read them there (`qc_read_path`, `scripts/qc/_lib.sh`), so a file edited
+after staging, or partly staged, is judged as it will be committed. A repair (clang-format, the
+XML formatter) formats that staged copy and makes it the index's version; the working file gets
+the result only where it holds nothing unstaged.
+
+`HELIX_QC_ALL_AT_COMMIT=1` runs every gate at commit, whole-tree and push-only ones included.
+`scripts/qc_timing.py --staged-only` shows where a commit's time went.
 
 ### Pre-push Integration
 
 `.githooks/pre-push` runs the **full, ungated** sweep - every gate, not just the
-ones whose inputs you staged - because a commit can pass `--staged-only` while
-breaking a repo-wide invariant that mode never ran.
+per-file ones a commit ran - because a commit can pass `--staged-only` while
+breaking a repo-wide invariant that mode never ran. A push that only updates work
+branches runs no sweep: patch drift alone, the whole-tree gates left to
+`make land-gate` and CI (`HELIX_PREPUSH_FULL=1` sweeps a work branch).
 
 It sweeps **the commit being pushed, not the working tree.** `quality-checks.sh`
 reads file content off disk (CI mode walks `src/` and `include/` with `find`), so
@@ -1100,8 +1118,9 @@ or at the gate and need no grant line; the last two warn through `qc_ratchet_ver
 
 **Design:** namespace, layering, vendor branches, hand-rolled swatches, imperative UI,
 orphan subjects, overlay boilerplate, raw widget pointers, LVGL 9.6 names, work markers and
-comment SHAs. `qc_design_ratchets` runs `scripts/design_ratchets.py` at commit (the staged
-lines) and at every full sweep (the fork point onward). For each rule a change grows it
+comment SHAs. `qc_design_ratchets` runs `scripts/design_ratchets.py` at every full sweep (the
+fork point onward): it needs a branch and its base, so a commit does not run it. For each
+rule a change grows it
 prints a block naming the rule, why it exists, its doc and each new `file:line`, and the
 driver repeats the blocks beside the final verdict. A site counts only when it sits on a
 line the change adds, so old debt in a touched file stays quiet. The warning asks for the
@@ -1126,15 +1145,15 @@ YAML instead:
 - `qc_translation_packs_fresh` (`scripts/check_translation_packs_fresh.py`, about 2 s)
   regenerates the packs from the index's YAML and generator into a scratch directory, never
   the working tree, and fails a pack that differs, is missing or no locale generates. It
-  runs at commit when a translation path is staged, at push, in `make land-gate` and in CI,
+  runs at a push to `main`, `release/*` or a tag, in `make land-gate` and in CI,
   and `.githooks/pre-merge-commit` runs it on a clean merge, which then stops before its
   commit with the fix: `make translations && git add ui_xml/translations && git commit`. A
-  rebase or cherry-pick that kept one side's packs fails it at the next commit or push the
+  rebase or cherry-pick that kept one side's packs fails it at the next push the
   same way.
 - `qc_cjk_fonts` fails a CJK bake that lacks a glyph the strings use: `make
   regen-text-fonts`, then commit `assets/fonts/cjk/`. A merge commit passes it with a
-  warning, since the bake takes minutes; every other commit, the push and `make land-gate`
-  fail it.
+  warning, since the bake takes minutes; the push to main, `make land-gate` and CI fail
+  it.
 
 ### Quality Checks
 
@@ -1148,9 +1167,9 @@ The `scripts/quality-checks.sh` script runs multiple checks:
 - **Build verification** (pre-commit only)
 
 Used by all three:
-- **Pre-commit hook** (staged files only, working tree)
-- **Pre-push hook** (all gates, against the commit being pushed)
-- **CI/CD** (all files)
+- **Pre-commit hook** (the per-file gates, on the staged content)
+- **Pre-push hook** (every gate, against the commit being pushed; work branches: patch drift only)
+- **CI/CD** (every gate, all files)
 
 ## Automatic Patch Application
 

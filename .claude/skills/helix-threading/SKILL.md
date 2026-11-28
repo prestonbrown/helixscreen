@@ -34,8 +34,10 @@ Three more that the rule file covers in one line or not at all:
 
 Every `init_subjects()` self-registers its `deinit_subjects()` with `StaticSubjectRegistry` (§7).
 
-Commit-time gates (`scripts/quality-checks.sh`): `scripts/check_l081_anti_pattern.py` (#2),
-`scripts/check_timer_destructor_cancel.py` (#5), `scripts/check_subscription_null_safety.py`.
+Gates (`scripts/quality-checks.sh`): `scripts/check_l081_anti_pattern.py` (#2) and
+`scripts/check_subscription_null_safety.py` run at a commit, on the staged files;
+`scripts/check_timer_destructor_cancel.py` (#5) is `qc_decl_ui`, a full-sweep gate (a push
+to main, `land-gate`, CI).
 
 ## Section map: `docs/devel/THREADING.md`
 

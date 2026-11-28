@@ -49,5 +49,5 @@ Follow those.
 
 Genuinely unavoidable vendor branch in generic code? Annotate it: `// VENDOR_OK: <reason>`.
 `scripts/check_vendor_branches.py --list` shows every site; the vendor-branches design ratchet
-(`scripts/design_ratchets.py`) names each new one at commit and at the gate. A warning is not
+(`scripts/design_ratchets.py`) names each new one at every full sweep, the land gate's included. A warning is not
 permission: ask the owning module instead.

@@ -34,9 +34,12 @@ abandoned spinners, and why a silent build is not a dead one: `docs/devel/SHARED
   `SHARD_CONCURRENCY` parse it.
 - **On a Mac build with `gmake`**: bare `make` is Apple's 3.81, which parses the Makefile but
   silently no-ops every `$(file ...)` and links a stale manifest.
-- **The commit hook runs only the fast gates** (seconds). The slow ones run at a push to main,
-  `release/*` or a tag, and in `land-gate`. `HELIX_QC_ALL_AT_COMMIT=1` runs every gate at commit;
-  `scripts/qc_timing.py` shows where a run's time went.
+- **The commit hook runs only the per-file gates**, each on the staged content as the commit
+  will hold it (`QC_PER_FILE` in `scripts/quality-checks.sh`). The whole-tree gates
+  (`QC_WHOLE_TREE`) run at a push to main, `release/*` or a tag, in `land-gate` and in CI; a
+  push of work branches only runs patch drift, so a branch's whole-tree findings surface at
+  the land gate. `HELIX_QC_ALL_AT_COMMIT=1` runs every gate at commit; `scripts/qc_timing.py`
+  shows where a run's time went.
 - `make dev-timing` prints measured medians for every build, suite and test run. Quote those,
   never a guess.
 

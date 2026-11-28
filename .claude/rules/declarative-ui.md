@@ -15,7 +15,7 @@ review. Both are debt, tracked in prestonbrown/helixscreen#1140 and being ported
 **Existing imperative code is not precedent.** Do not imitate a nearby site because it is
 there, and do not opportunistically refactor one as a side effect of an unrelated change.
 The imperative-ui and orphan-subjects design ratchets (`scripts/design_ratchets.py`) name every
-new site at commit and at the gate. A warning is not permission: find the binding that
+new site at every full sweep, the land gate's included. A warning is not permission: find the binding that
 replaces the site.
 
 | # | Rule | ❌ NEVER | ✅ ALWAYS |

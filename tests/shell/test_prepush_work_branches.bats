@@ -18,7 +18,7 @@ setup() {
     git -C "$ROOT" config user.email t@t
     git -C "$ROOT" config user.name t
     mkdir -p "$ROOT/scripts" "$ROOT/lib"
-    printf '#!/bin/sh\necho "ran: quality-checks skip_push_only=${HELIX_QC_SKIP_PUSH_ONLY:-unset} logs=$HELIX_QC_LOG_DIR"\n' \
+    printf '#!/bin/sh\necho "ran: quality-checks skip_push_only=${HELIX_QC_SKIP_PUSH_ONLY:-unset} logs=$HELIX_QC_LOG_DIR args=[$*]"\n' \
         >"$ROOT/scripts/quality-checks.sh"
     chmod +x "$ROOT/scripts/quality-checks.sh"
     local gate
@@ -51,6 +51,8 @@ push() { # <remote ref>[=<sha>]...: one stdin line per ref, each pushing TIP (or
     push refs/heads/main
     [ "$status" -eq 0 ]
     contains "ran: quality-checks skip_push_only=0" "$output"
+    # No --staged-only: every gate, the whole-tree ones a commit never ran.
+    contains "skip_push_only=0 logs=$(cd "$ROOT" && pwd -P)/build/qc-logs args=[]" "$output"
     contains "ran: check_clang_diagnostics" "$output"
 }
 
@@ -58,9 +60,11 @@ push() { # <remote ref>[=<sha>]...: one stdin line per ref, each pushing TIP (or
     push refs/heads/release/1.1
     [ "$status" -eq 0 ]
     contains "skip_push_only=0" "$output"
+    contains "args=[]" "$output"
     push refs/tags/v1.2.0
     [ "$status" -eq 0 ]
     contains "skip_push_only=0" "$output"
+    contains "args=[]" "$output"
 }
 
 @test "a work-branch push runs no quality sweep, and still asks patch drift" {
@@ -105,6 +109,7 @@ push() { # <remote ref>[=<sha>]...: one stdin line per ref, each pushing TIP (or
     HELIX_PREPUSH_FULL=1 push refs/heads/fix/thing
     [ "$status" -eq 0 ]
     contains "skip_push_only=0" "$output"
+    contains "args=[]" "$output"
 }
 
 @test "an exported HELIX_QC_SKIP_PUSH_ONLY=1 does not reach a push to main" {

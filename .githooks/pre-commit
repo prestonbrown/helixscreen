@@ -5,10 +5,10 @@
 # This hook runs quality checks before each commit using scripts/quality-checks.sh
 # Files with formatting issues are auto-fixed and staged.
 #
-# --staged-only skips any gate that inspects nothing you staged, so a docs-only
-# commit costs about a second instead of ~17s. The gates it skipped are not
-# dropped: .githooks/pre-push runs the whole sweep, ungated, before anything
-# leaves the machine.
+# --staged-only runs the per-file gates (QC_PER_FILE in scripts/quality-checks.sh),
+# each on the staged content as the commit will hold it, and skips one that
+# inspects nothing you staged. The whole-tree gates (QC_WHOLE_TREE) are the full
+# sweep's: a push to main, release/* or a tag, land-gate and CI.
 #
 # Setup (one-time):
 #   git config core.hooksPath .githooks

@@ -96,7 +96,7 @@ head -5 src/main.cpp | grep SPDX
 
 ## Pre-commit Hook
 
-`core.hooksPath` is `.githooks` (tracked; `make setup` and `make install-deps` set it), so the pre-commit hook runs the staged-only quality checks, header check included, with no install step. The check reads the first three lines of every `.cpp`, `.c`, `.h` and `.mm` file under `src/` and `include/` for the `SPDX-License-Identifier: GPL-3.0-or-later` line (`scripts/qc/copyright.sh`).
+`core.hooksPath` is `.githooks` (tracked; `make setup` and `make install-deps` set it), so the pre-commit hook runs the staged-only quality checks, header check included, with no install step. At a commit the check reads each staged file's content as the commit will hold it, not the working copy. The check reads the first three lines of every `.cpp`, `.c`, `.h` and `.mm` file under `src/` and `include/` for the `SPDX-License-Identifier: GPL-3.0-or-later` line (`scripts/qc/copyright.sh`).
 
 ## Full Copyright Notice
 

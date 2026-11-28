@@ -4,11 +4,11 @@
 # Pre-push: the full, ungated quality sweep - run against THE COMMITS BEING
 # PUSHED, not against whatever happens to be sitting in the working tree.
 #
-# pre-commit runs --staged-only, which skips any gate that inspects nothing you
-# staged (see qc_trigger_re in scripts/quality-checks.sh). That keeps a one-file
-# commit near a second, but it means a commit can pass locally while a repo-wide
-# invariant it never ran is broken. This hook is where that gets caught, before
-# anything leaves the machine.
+# pre-commit runs --staged-only: the per-file gates (QC_PER_FILE in
+# scripts/quality-checks.sh), each on what is staged. The whole-tree gates
+# (QC_WHOLE_TREE) never run at a commit, so a commit can pass locally while a
+# repo-wide invariant is broken. A push to main, release/* or a tag is where that
+# gets caught, before anything leaves the machine.
 #
 # Why it does not just sweep the working tree: quality-checks.sh reads file
 # CONTENT off disk (CI mode walks src/ and include/ with find). A dirty tree

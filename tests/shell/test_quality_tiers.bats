@@ -141,3 +141,32 @@ with_driver() {
   contains "Quality checks passed" "$output"
   lacks "A gate's tier is wrong" "$output"
 }
+
+# ------------------------------------------------- where a whole-tree gate runs
+
+# A whole-tree gate leaves the commit hook, so each one needs a full sweep
+# before main. A full sweep starts every gate whatever its tier (the case
+# above), so what is left to pin is that the callers run one: the driver
+# without --staged-only. What pre-push itself does is
+# tests/shell/test_prepush_work_branches.bats.
+
+@test "CI's Code Quality job runs the driver in full, on main and release/*" {
+  run grep -nE '^[[:space:]]*\./scripts/quality-checks\.sh[[:space:]]*$' .github/workflows/quality.yml
+  [ "$status" -eq 0 ] || fail "quality.yml no longer runs ./scripts/quality-checks.sh on a line of its own: $output"
+  run grep -nE 'quality-checks\.sh[[:space:]]+.*--staged-only' .github/workflows/quality.yml
+  [ "$status" -eq 1 ] || fail "quality.yml narrows its sweep to the staged files: $output"
+  run bash -c "sed -n '/^on:/,/^env:/p' .github/workflows/quality.yml"
+  [ "$status" -eq 0 ] || fail "$output"
+  contains "- main" "$output"
+  contains 'release/**' "$output"
+  contains "pull_request:" "$output"
+}
+
+@test "land-gate's quality step is make quality, which runs the driver in full" {
+  run grep -nE '^[[:space:]]*step quality .* quality ;;' scripts/land-gate.sh
+  [ "$status" -eq 0 ] || fail "land-gate no longer has a quality step that makes its quality target: $output"
+  run grep -nE '^[[:space:]]*\$\(Q\)\./scripts/quality-checks\.sh[[:space:]]*$' Makefile
+  [ "$status" -eq 0 ] || fail "make quality no longer runs ./scripts/quality-checks.sh in full: $output"
+  run grep -nE '^quality:' Makefile
+  [ "$status" -eq 0 ] || fail "$output"
+}

@@ -412,7 +412,8 @@ helpers in `helix::ui::`, sensor managers in `helix::sensors`):
 - No `using` declarations in headers — always fully-qualified names in `.h`
   files; `using namespace helix;` is acceptable in `.cpp` files only
 - Counted by `scripts/check_namespace_compliance.py`, whose new sites the namespace
-  design ratchet (`scripts/design_ratchets.py`) names at commit and at the gate. It
+  design ratchet (`scripts/design_ratchets.py`) names at every full sweep, the land gate's
+  included. It
   counts declarations outside `helix::`, not files, and
   never counts `extern "C"`, file-local statics in `.cpp`, or forward declarations
   of third-party types. A genuinely-global site takes `// NAMESPACE_OK: <reason>`.
