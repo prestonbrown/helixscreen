@@ -3,7 +3,8 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Print status filament line, shared by the strip and the ultrawide info
      column: the runout glyph without an AMS, the active lane with one, and
-     tool changes done of expected. -->
+     tool changes done of expected, which micro and tiny leave off so the
+     lane's filament name keeps the line. -->
 <component>
   <view name="filament_ams_status_row"
         extends="lv_obj" width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0"
@@ -11,7 +12,7 @@
     <!-- The whole line goes when it would hold only a sensor glyph reading
          loaded: no lane with a named filament, no runout or disabled
          sensor, no tool changes. -->
-    <bind_flag_if cond="(ams_slot_count eq 0 or ams_current_tool lt 0 or ams_current_has_material eq 0) and (filament_sensor_count eq 0 or filament_runout_scoped eq 1 or filament_runout_scoped lt 0) and toolchange_visible eq 0"
+    <bind_flag_if cond="(ams_slot_count eq 0 or ams_current_tool lt 0 or ams_current_has_material eq 0) and (filament_sensor_count eq 0 or filament_runout_scoped eq 1 or filament_runout_scoped lt 0) and (toolchange_visible eq 0 or ui_breakpoint le 1)"
                   flag="hidden"/>
     <!-- Stands down whenever ams_status_row shows, which carries the same
          glyph beside its lane; otherwise it shows here only while the sensor
@@ -33,7 +34,7 @@
     <lv_obj name="toolchange_status"
             width="content" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
             style_flex_cross_place="center" style_pad_gap="#space_xs">
-      <bind_flag_if_eq subject="toolchange_visible" flag="hidden" ref_value="0"/>
+      <bind_flag_if cond="toolchange_visible eq 0 or ui_breakpoint le 1" flag="hidden"/>
       <icon src="swap_vertical" size="xs" variant="muted"/>
       <text_small name="toolchange_label" bind_text="toolchange_text" style_text_color="#text_muted"/>
     </lv_obj>

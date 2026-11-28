@@ -418,4 +418,42 @@ TEST_CASE_METHOD(MetadataStripFixture,
         subjects.set("toolchange_visible", 1);
         CHECK_FALSE(lv_obj_is_hidden(line));
     }
+    SECTION("micro and tiny leave the tool change count off, so the lane's name keeps the line") {
+        subjects.set("ams_slot_count", 4);
+        subjects.set("ams_current_tool", 0);
+        subjects.set("ams_current_has_material", 1);
+        subjects.set("toolchange_visible", 1);
+        lv_obj_t* changes = label("toolchange_status");
+        lv_subject_t* breakpoint = lv_xml_get_subject(nullptr, "ui_breakpoint");
+        REQUIRE(breakpoint != nullptr);
+        const int32_t original = lv_subject_get_int(breakpoint);
+
+        CHECK_FALSE(lv_obj_is_hidden(changes));
+        for (const UiBreakpoint cramped : {UiBreakpoint::Micro, UiBreakpoint::Tiny}) {
+            lv_subject_set_int(breakpoint, to_int(cramped));
+            CAPTURE(to_int(cramped));
+            CHECK(lv_obj_is_hidden(changes));
+            CHECK_FALSE(lv_obj_is_hidden(lane_row));
+        }
+        lv_subject_set_int(breakpoint, to_int(UiBreakpoint::Small));
+        CHECK_FALSE(lv_obj_is_hidden(changes));
+        lv_subject_set_int(breakpoint, original);
+    }
+    SECTION("micro and tiny hide the whole line when only the tool change count would fill it") {
+        subjects.set("ams_slot_count", 0);
+        subjects.set("filament_sensor_count", 1);
+        subjects.set("filament_runout_scoped", 1);
+        subjects.set("toolchange_visible", 1);
+        lv_subject_t* breakpoint = lv_xml_get_subject(nullptr, "ui_breakpoint");
+        REQUIRE(breakpoint != nullptr);
+        const int32_t original = lv_subject_get_int(breakpoint);
+
+        CHECK_FALSE(lv_obj_is_hidden(line));
+        for (const UiBreakpoint cramped : {UiBreakpoint::Micro, UiBreakpoint::Tiny}) {
+            lv_subject_set_int(breakpoint, to_int(cramped));
+            CAPTURE(to_int(cramped));
+            CHECK(lv_obj_is_hidden(line));
+        }
+        lv_subject_set_int(breakpoint, original);
+    }
 }
