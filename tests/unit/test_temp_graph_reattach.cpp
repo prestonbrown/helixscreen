@@ -24,7 +24,6 @@
 #include "../../include/temp_graph_controller.h"
 #include "../../include/ui_temp_graph.h"
 #include "../lvgl_test_fixture.h"
-#include "../test_helpers/temp_graph_controller_test_access.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
 #include "lvgl/lvgl.h"
@@ -204,11 +203,11 @@ TEST_CASE_METHOD(TempGraphReattachFixture,
     TempGraphControllerConfig cfg;
     cfg.series = {{"heater_bed", lv_color_hex(0x88C0D0), false, "Bed"},
                   {"chamber", lv_color_hex(0xA3BE8C), false, "Chamber"}};
-    auto controller = std::make_unique<TempGraphController>(test_screen(), cfg);
-    REQUIRE(controller->is_valid());
     constexpr int64_t slot = UI_TEMP_GRAPH_SAMPLE_INTERVAL_SEC * 1000;
     int64_t now = 1'000'000 * slot + 100;
-    TempGraphControllerTestAccess::set_clock(*controller, [&now] { return now; });
+    cfg.now_ms = [&now] { return now; };
+    auto controller = std::make_unique<TempGraphController>(test_screen(), cfg);
+    REQUIRE(controller->is_valid());
     settle();
     const int baseline = controller->graph()->visible_point_count;
 

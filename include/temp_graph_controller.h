@@ -96,6 +96,9 @@ struct TempGraphControllerConfig {
     bool grid_on_y_ticks = false;        ///< horizontal grid under the Y labels, not 5 divisions
     bool time_grid = true;               ///< vertical grid under the time ticks
     std::vector<TempGraphSeriesSpec> series; ///< Series to display
+    /// The clock live samples are stamped with, in milliseconds since the
+    /// epoch. Empty means the wall clock.
+    std::function<int64_t()> now_ms;
 };
 
 // ============================================================================
@@ -253,8 +256,6 @@ class TempGraphController {
     void set_series_name(const std::string& klipper_name, const std::string& display_name);
 
   private:
-    friend class TempGraphControllerTestAccess;
-
     /// Per-series runtime state (extends the spec with observer handles)
     struct SeriesState {
         std::string klipper_name;
@@ -271,11 +272,7 @@ class TempGraphController {
         SubjectLifetime lifetime;
     };
 
-    std::function<int64_t()> now_ms_fn_ = [] {
-        return std::chrono::duration_cast<std::chrono::milliseconds>(
-                   std::chrono::system_clock::now().time_since_epoch())
-            .count();
-    };
+    std::function<int64_t()> now_ms_fn_; ///< The config's clock, else the wall clock
 
     void create_graph();
     void setup_series();
